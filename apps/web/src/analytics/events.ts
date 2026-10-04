@@ -84,6 +84,24 @@ export type DiagramAnnotationTool =
   | 'hidden_line'
   | 'label';
 
+/** A fold arrow, which Edit Path shapes: its kind, in the event's own spelling. */
+export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow';
+
+/**
+ * The Edit Path gesture that first made an arc arrow a path: a node dragged,
+ * a handle dragged, the curve bent, a node added (a click on the curve or
+ * Add Node), a node made smooth or a corner, a node taken out, or a node
+ * nudged with the arrow keys.
+ */
+export type DiagramArrowShapeGesture =
+  | 'drag_node'
+  | 'drag_handle'
+  | 'bend'
+  | 'add_node'
+  | 'node_type'
+  | 'delete_node'
+  | 'nudge';
+
 /**
  * A pose verb: on an uploaded picture (rotate, flip, reset), or on a linked one
  * (show it as its crease pattern, folded or simulated, turn it over, step to
@@ -1208,6 +1226,8 @@ export const ANALYTICS_EVENTS = {
   diagramPicturePosed: 'diagram picture posed',
   /** An annotation drawn on a step's picture, by the tool that drew it. */
   diagramAnnotationAdded: 'diagram annotation added',
+  /** A fold arrow shaped by hand for the first time (Edit Path): an arc made a path, not each edit after. */
+  diagramArrowShaped: 'diagram arrow shaped',
   /** A step's picture taken away (Remove picture). */
   diagramPictureRemoved: 'diagram picture removed',
   /**

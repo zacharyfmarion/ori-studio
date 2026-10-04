@@ -10,8 +10,10 @@ import { useViewportSurface } from '../../hooks/useViewportSurface';
 import type { PlotRect } from '../../lib/geometry';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
 import {
   isKnownAnnotation,
+  stepById,
   type DiagramAnnotation,
   type DiagramAnnotationKind,
   type DiagramAsset,
@@ -23,10 +25,16 @@ import { paintSource, stepPictureSource, type PictureBox } from '../pictures/pai
 import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { stepPictureUrl } from '../pictures/useStepPictureUrl';
 import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useDiagramShortcuts';
-import { hitAnnotation, type AnnotationGrip, type HitSizes } from './annotationHit';
+import { EDIT_PATH, drawingKind } from './annotateTools';
+import { annotationActionEdit, editAnnotation } from './annotationActions';
+import { hitAnnotation, hitPathGrip, type AnnotationGrip, type HitSizes, type PathGripPart } from './annotationHit';
+import { isCornerNode, pathRepresentation, sameRepresentation, splitPathSegment, type PathRepresentation } from './annotationPath';
+import { applyAnnotationEdit } from './applyAnnotationEdit';
+import { dragPath, pathDragEdit, pathGripAnchor, type PathModifiers } from './editPathGesture';
 import {
   LABEL_SIZE,
   MIN_ANNOTATION_LENGTH,
+  canBeShaped,
   createAnnotation,
   frameOf,
   isDegenerate,
@@ -53,6 +61,12 @@ const WORLD_MARGIN = 0.25;
 const DRAG_SLOP_PX = { fine: 4, touch: 10 } as const;
 /** How near a press must be to take hold of something, in screen px: a mouse's, a finger's. */
 const REACH_PX = { fine: 8, coarse: 18 } as const;
+/**
+ * How soon and how near a second press must come to make a double-click (or
+ * a double tap): the canvas counts them itself, as a pointer event's own
+ * `detail` is not a click count in every browser.
+ */
+const DOUBLE_PRESS = { ms: 500, px: { fine: 6, touch: 16 } } as const;
 
 const DRAFT_ID = 'annotation-draft';
 
@@ -76,10 +90,36 @@ interface Press {
   moved: boolean;
 }
 
-/** A press in progress: a new annotation being drawn, or one being moved. */
+/**
+ * A press in progress: a new annotation being drawn, one being moved, or —
+ * in Edit Path — a fold arrow's node, handle or curve taken hold of. A path
+ * gesture keeps where the part was (`anchor`) and what the arrow was made of
+ * (`representation`), and is let go if an edit under it changes that.
+ */
 type Gesture =
   | (Press & { mode: 'draw'; kind: DiagramAnnotationKind; start: PicturePoint })
-  | (Press & { mode: 'move'; grip: AnnotationGrip; original: KnownDiagramAnnotation; start: PicturePoint });
+  | (Press & { mode: 'move'; grip: AnnotationGrip; original: KnownDiagramAnnotation; start: PicturePoint })
+  | (Press & {
+      mode: 'path';
+      grip: PathGripPart;
+      original: KnownDiagramAnnotation;
+      start: PicturePoint;
+      anchor: PicturePoint;
+      representation: PathRepresentation;
+    });
+
+/**
+ * The last press, for counting a double-click: when and where, how many
+ * presses it ended, and the node its click added to the curve, if it did —
+ * which the second press of the same double-click must not turn into a
+ * corner.
+ */
+interface LastPress {
+  time: number;
+  client: [number, number];
+  count: number;
+  added: { annotationId: string; node: number } | null;
+}
 
 /** Where the picture and its frame sit in the canvas's world, in world px. */
 export interface AnnotateLayout {
@@ -124,6 +164,13 @@ function layoutFor(painted: { widthPx: number; heightPx: number; frame: PictureB
  * take back. One finger or pen draws; a second one makes it a pinch, which
  * the camera takes, and the stroke in hand is dropped.
  *
+ * In Edit Path (decision 3) a press on the selected fold arrow takes hold of
+ * a node, a handle or its curve ({@link hitPathGrip}) and drags it
+ * (`editPathGesture.ts`); a click on the curve adds a node there, and a
+ * double-click on a node makes it a corner or smooth. Anywhere else it
+ * selects, and moves nothing. A double-click on a fold arrow with Select
+ * picks Edit Path up.
+ *
  * Presses are the whole stage's — the view the camera pans, past the picture
  * and its margin, as far as an annotation may reach — but never a control's
  * floating over it, as the zoom pill does. `handlers` go on the view.
@@ -142,6 +189,7 @@ export function useAnnotateCanvas({
   const coarse = useIsCoarsePointerSurface();
   const tool = useWorkspaceStore((state) => state.diagramAnnotateTool);
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
+  const selectedNode = useWorkspaceStore(selectedDiagramPathNode);
   // The picture, from what it is made of: a text or an annotation edit keeps
   // these, so it is neither repainted nor taken for another picture.
   const { picture, source: pictureSource, unknown } = step;
@@ -170,6 +218,7 @@ export function useAnnotateCanvas({
   /** The pointers down on the overlay; more than one is a pinch, the camera's. */
   const pointers = useRef(new Set<number>());
   const pinching = useRef(false);
+  const lastPress = useRef<LastPress | null>(null);
   const [draft, setDraft] = useState<KnownDiagramAnnotation | null>(null);
 
   const cancel = useCallback(() => {
@@ -264,6 +313,48 @@ export function useAnnotateCanvas({
     [step.annotations]
   );
 
+  /**
+   * An Edit Path press: on the selected fold arrow's node, handle or curve, the
+   * gesture it starts — a node is selected as it is pressed, and a
+   * double-click on one turns it smooth or corner, but not the node the
+   * double-click's own first click added to the curve (where its second
+   * press lands). Off them it selects what is there — the node first goes,
+   * then the arrow — and starts nothing.
+   */
+  const pressPath = useCallback(
+    (at: PicturePoint, press: Press, count: LastPress): Gesture | null => {
+      const store = useWorkspaceStore.getState();
+      const selected = selectedId === null ? undefined : known(selectedId);
+      const grip =
+        selected && canBeShaped(selected.kind) ? hitPathGrip(selected, at, hitSizes().tolerance, selectedNode) : null;
+      if (!selected || !grip) {
+        const hit = hitAnnotation(step.annotations, at, hitSizes(), selectedId);
+        if (hit !== null && hit.annotationId === selectedId) return null;
+        if (hit === null && selectedNode !== null) store.selectDiagramPathNode(null);
+        else store.selectDiagramAnnotation(hit?.annotationId ?? null);
+        return null;
+      }
+      if (grip.part === 'node') {
+        const added = count.added;
+        const justAdded = added !== null && added.annotationId === selected.id && added.node === grip.node;
+        if (count.count >= 2 && !justAdded && !readOnly) {
+          const id = isCornerNode(selected, grip.node) ? 'smooth-node' : 'corner-node';
+          const edit = annotationActionEdit(id, selected.id, { node: grip.node });
+          applyAnnotationEdit(store, step.id, edit, { loadId: press.loadId });
+          store.selectDiagramPathNode(grip.node);
+          return null;
+        }
+        store.selectDiagramPathNode(grip.node);
+      }
+      if (readOnly) return null;
+      const anchor = pathGripAnchor(selected, grip);
+      const representation = pathRepresentation(selected);
+      if (!anchor || !representation) return null;
+      return { mode: 'path', grip, original: selected, start: at, anchor, representation, ...press };
+    },
+    [selectedId, known, hitSizes, selectedNode, step.annotations, step.id, readOnly]
+  );
+
   /** A press anywhere on the canvas takes the keyboard there, as Edit's does: Space pans, letters pick tools. */
   const onPointerDownCapture = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
@@ -285,6 +376,8 @@ export function useAnnotateCanvas({
       if (pinching.current || event.button !== 0 || spacePressed || !layout) return;
       const at = toPicture(event.clientX, event.clientY);
       if (!at) return;
+      const count = nextPress(lastPress.current, event);
+      lastPress.current = count;
       const store = useWorkspaceStore.getState();
       const press = {
         pointerId: event.pointerId,
@@ -294,15 +387,25 @@ export function useAnnotateCanvas({
         loadId: store.diagramLoadId,
         moved: false,
       };
-      if (tool !== null) {
+      const kind = drawingKind(tool);
+      if (kind !== null) {
         if (readOnly) return;
-        gesture.current = { mode: 'draw', kind: tool, start: at, ...press };
+        gesture.current = { mode: 'draw', kind, start: at, ...press };
+      } else if (tool === EDIT_PATH) {
+        const started = pressPath(at, press, count);
+        if (!started) return;
+        gesture.current = started;
       } else {
         // Selecting is not an edit: a diagram that cannot change still selects.
         const grip = hitAnnotation(step.annotations, at, hitSizes(), selectedId);
         const original = grip ? known(grip.annotationId) : undefined;
         store.selectDiagramAnnotation(grip?.annotationId ?? null);
         if (readOnly || !grip || !original) return;
+        if (count.count >= 2 && canBeShaped(original.kind)) {
+          // A double-click on a fold arrow: Edit Path, to shape it.
+          store.setDiagramAnnotateTool(EDIT_PATH);
+          return;
+        }
         gesture.current = { mode: 'move', grip, original, start: at, ...press };
       }
       // Held by the stage, not the view: a browser shows the cursor of the
@@ -311,7 +414,7 @@ export function useAnnotateCanvas({
       (transformRef.current?.instance.wrapperComponent ?? event.currentTarget).setPointerCapture(event.pointerId);
       event.preventDefault();
     },
-    [onStage, cancel, spacePressed, readOnly, layout, toPicture, tool, step.annotations, hitSizes, selectedId, known, transformRef]
+    [onStage, cancel, spacePressed, readOnly, layout, toPicture, tool, step.annotations, hitSizes, selectedId, known, pressPath, transformRef]
   );
 
   /** The annotation a move makes of `annotation`, the press at `at`. */
@@ -326,10 +429,12 @@ export function useAnnotateCanvas({
       case 'node':
       case 'handle':
       case 'segment':
+        // Edit Path's own gesture holds these (`mode: 'path'`), never a move.
+        return annotation;
       case 'corner':
       case 'direction':
-        // No press takes hold of these yet (`hitAnnotation`): Edit Path and
-        // the right-angle mark will, and say here what moving one does.
+        // No press takes hold of these yet (`hitAnnotation`): the right-angle
+        // mark will, and say here what moving one does.
         return annotation;
     }
   };
@@ -344,13 +449,22 @@ export function useAnnotateCanvas({
       const at = toPicture(event.clientX, event.clientY);
       if (!at) return;
       current.moved = true;
+      if (current.mode === 'path') {
+        // An undo or another edit made the arrow something else under the drag: let it go.
+        if (!sameRepresentation(current.representation, pathRepresentationOf(liveAnnotation(step.id, current)))) {
+          cancel();
+          return;
+        }
+        setDraft(pathDragged(current, current.original, at, { shift: event.shiftKey, alt: event.altKey }));
+        return;
+      }
       setDraft(
         current.mode === 'draw'
           ? createAnnotation(current.kind, isPointKind(current.kind) ? at : current.start, at, layout.pictureFrame, () => DRAFT_ID)
           : moved(current, current.original, at)
       );
     },
-    [layout, toPicture]
+    [layout, toPicture, cancel, step.id]
   );
 
   /** A pointer gone: the pinch ends with the last of them, never turning back into a stroke. */
@@ -358,6 +472,52 @@ export function useAnnotateCanvas({
     pointers.current.delete(pointerId);
     if (pointers.current.size === 0) pinching.current = false;
   }, []);
+
+  /**
+   * A path gesture landing, as one undo step on the arrow as the store has it
+   * now — unless that is no longer the arrow the press took hold of. A drag
+   * commits where it was previewed; a click on the curve adds a node there,
+   * the curve unchanged, and selects it.
+   */
+  const landPath = useCallback(
+    (current: Extract<Gesture, { mode: 'path' }>, event: ReactPointerEvent<HTMLElement>) => {
+      const now = liveAnnotation(step.id, current);
+      if (!sameRepresentation(current.representation, pathRepresentationOf(now))) return;
+      const store = useWorkspaceStore.getState();
+      const { grip, original, loadId } = current;
+      if (!current.moved) {
+        if (grip.part !== 'segment') return;
+        const added = applyAnnotationEdit(
+          store,
+          step.id,
+          {
+            label: 'Add node',
+            edit: editAnnotation(original.id, (annotation) => splitPathSegment(annotation, grip.segment, grip.t)),
+            selectPathNode: grip.segment + 1,
+            shapes: { annotationId: original.id, gesture: 'add_node' },
+          },
+          { loadId }
+        );
+        if (added && lastPress.current) lastPress.current.added = { annotationId: original.id, node: grip.segment + 1 };
+        return;
+      }
+      const at = toPicture(event.clientX, event.clientY);
+      if (!at) return;
+      const modifiers = { shift: event.shiftKey, alt: event.altKey };
+      const { label, gesture: shaped } = pathDragEdit(grip);
+      applyAnnotationEdit(
+        store,
+        step.id,
+        {
+          label,
+          edit: editAnnotation(original.id, (annotation) => pathDragged(current, annotation, at, modifiers)),
+          shapes: { annotationId: original.id, gesture: shaped },
+        },
+        { loadId }
+      );
+    },
+    [step.id, toPicture]
+  );
 
   const onPointerUp = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
@@ -390,6 +550,10 @@ export function useAnnotateCanvas({
         }
         return;
       }
+      if (current.mode === 'path') {
+        landPath(current, event);
+        return;
+      }
       if (!current.moved) return;
       const at = toPicture(event.clientX, event.clientY);
       if (!at) return;
@@ -407,7 +571,7 @@ export function useAnnotateCanvas({
         { loadId }
       );
     },
-    [layout, toPicture, step.id, release]
+    [layout, toPicture, step.id, release, landPath]
   );
 
   const onPointerGone = useCallback(
@@ -426,6 +590,10 @@ export function useAnnotateCanvas({
     shown,
     tool,
     selectedId: draft?.id === DRAFT_ID ? null : selectedId,
+    /** Edit Path is in hand: the selected fold arrow shows its nodes. */
+    editingPath: tool === EDIT_PATH,
+    selectedNode,
+    coarse,
     onPointerDownCapture,
     handlers: {
       onPointerDown,
@@ -450,3 +618,48 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'hidden-line': 'hidden_line',
   label: 'label',
 };
+
+/**
+ * The press `event` makes after `previous`: how many presses it ends, close
+ * enough in time and place to count as one double-click, and the node the
+ * first one's click added, if it did.
+ */
+function nextPress(
+  previous: LastPress | null,
+  event: Pick<PointerEvent, 'timeStamp' | 'clientX' | 'clientY' | 'pointerType'>
+): LastPress {
+  const near = DOUBLE_PRESS.px[event.pointerType === 'touch' ? 'touch' : 'fine'];
+  const again =
+    previous !== null &&
+    event.timeStamp - previous.time <= DOUBLE_PRESS.ms &&
+    Math.hypot(event.clientX - previous.client[0], event.clientY - previous.client[1]) <= near;
+  return {
+    time: event.timeStamp,
+    client: [event.clientX, event.clientY],
+    count: again ? previous.count + 1 : 1,
+    added: again ? previous.added : null,
+  };
+}
+
+/** The arrow a path gesture holds, as the store has it now: what a drag is checked against, and lands on. */
+function liveAnnotation(stepId: string, current: Extract<Gesture, { mode: 'path' }>): KnownDiagramAnnotation | null {
+  const { diagram } = useWorkspaceStore.getState();
+  const annotation = diagram
+    ? stepById(diagram, stepId)?.annotations.find((each) => each.id === current.original.id)
+    : undefined;
+  return annotation && isKnownAnnotation(annotation) ? annotation : null;
+}
+
+function pathRepresentationOf(annotation: KnownDiagramAnnotation | null): PathRepresentation | null {
+  return annotation ? pathRepresentation(annotation) : null;
+}
+
+/** The arrow a path gesture makes of `annotation`, the pointer at `at` with `modifiers` held. */
+function pathDragged(
+  current: Extract<Gesture, { mode: 'path' }>,
+  annotation: KnownDiagramAnnotation,
+  at: PicturePoint,
+  modifiers: PathModifiers
+): KnownDiagramAnnotation {
+  return dragPath(annotation, current.grip, current.anchor, [at[0] - current.start[0], at[1] - current.start[1]], modifiers);
+}

@@ -1,4 +1,12 @@
-import { stepById, stepsOf, type DiagramDocument } from '../../diagram/document/diagramDocument';
+import { EDIT_PATH } from '../../diagram/annotate/annotateTools';
+import { pathNodesOf } from '../../diagram/annotate/annotationPath';
+import {
+  isKnownAnnotation,
+  stepById,
+  stepsOf,
+  type DiagramDocument,
+  type KnownDiagramAnnotation,
+} from '../../diagram/document/diagramDocument';
 import { stepCanBeAnnotated } from '../../diagram/pictures/pictureFrame';
 import { emptySnapshotHistory, type SnapshotHistory } from './snapshotHistory';
 import type { WorkspaceState } from './types';
@@ -27,6 +35,7 @@ export const DIAGRAM_SCOPED_KEYS = [
   'diagramDetail',
   'diagramAnnotateTool',
   'diagramSelectedAnnotationId',
+  'diagramSelectedPathNode',
   'diagramPictureNotices',
   'diagramCaptures',
   'diagramPatternPicker',
@@ -56,6 +65,43 @@ export function isDiagramAnnotating(
   if (diagramDetail !== 'annotate' || !diagram || diagramSelectedStepId === null) return false;
   const step = stepById(diagram, diagramSelectedStepId);
   return step !== null && stepCanBeAnnotated(step, diagram.assets);
+}
+
+/** The selected annotation, when it is one this build reads, on the selected step. */
+export function selectedDiagramAnnotation(
+  state: Pick<WorkspaceState, 'diagram' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId'>
+): KnownDiagramAnnotation | null {
+  const { diagram, diagramSelectedStepId: stepId, diagramSelectedAnnotationId: id } = state;
+  if (!diagram || stepId === null || id === null) return null;
+  const annotation = stepById(diagram, stepId)?.annotations.find((candidate) => candidate.id === id);
+  return annotation && isKnownAnnotation(annotation) ? annotation : null;
+}
+
+/**
+ * The node Edit Path has selected, by its number along the selected arrow's
+ * path — or null: not annotating, another tool in hand, no fold arrow
+ * selected, or the selection taken against another arrow or another count of
+ * nodes than it shows now (an undo, Reset, a node added or deleted under it).
+ * The one check, so no edit has to clear the selection itself.
+ */
+export function selectedDiagramPathNode(
+  state: Pick<
+    WorkspaceState,
+    | 'diagram'
+    | 'diagramDetail'
+    | 'diagramSelectedStepId'
+    | 'diagramSelectedAnnotationId'
+    | 'diagramAnnotateTool'
+    | 'diagramSelectedPathNode'
+  >
+): number | null {
+  const selection = state.diagramSelectedPathNode;
+  if (selection === null || state.diagramAnnotateTool !== EDIT_PATH || !isDiagramAnnotating(state)) return null;
+  const annotation = selectedDiagramAnnotation(state);
+  if (!annotation || annotation.id !== selection.annotationId) return null;
+  const nodes = pathNodesOf(annotation);
+  if (!nodes || nodes.length !== selection.nodes || selection.node < 0 || selection.node >= nodes.length) return null;
+  return selection.node;
 }
 
 /**
@@ -92,6 +138,7 @@ export function discardDiagramState(): DiagramScopedState {
     diagramDetail: null,
     diagramAnnotateTool: null,
     diagramSelectedAnnotationId: null,
+    diagramSelectedPathNode: null,
     diagramPictureNotices: {},
     diagramCaptures: {},
     diagramPatternPicker: null,

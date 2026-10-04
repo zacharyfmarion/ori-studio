@@ -54,7 +54,6 @@ import type {
   SentReferencesEntry,
   DiagramDocument,
   DiagramHanStyle,
-  DiagramAnnotationKind,
   DiagramPageSetup,
   KnownDiagramAnnotation,
   DiagramStyle,
@@ -62,6 +61,7 @@ import type {
   UploadPose,
 } from '../../diagram/document/diagramDocument';
 import type { ReadDiagram } from '../../diagram/document/diagramFile';
+import type { AnnotateTool } from '../../diagram/annotate/annotateTools';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import type {
   DiagramCaptureOutcome,
@@ -1844,6 +1844,16 @@ export type DiagramViewMode = 'steps' | 'pages';
 /** What the step detail is doing with the selected step: posing its picture, or annotating it. */
 export type DiagramDetailMode = 'pose' | 'annotate';
 
+/**
+ * A node Edit Path selected (`diagramSelectedPathNode`): its arrow, its
+ * number along the path, and how many nodes the arrow showed then.
+ */
+export interface DiagramPathNodeSelection {
+  annotationId: string;
+  node: number;
+  nodes: number;
+}
+
 export interface DiagramSliceState {
   /**
    * The project's diagram (implementation-plans/diagram-workspace.md, D1).
@@ -1871,15 +1881,24 @@ export interface DiagramSliceState {
    */
   diagramDetail: DiagramDetailMode | null;
   /**
-   * What Annotate draws with the next drag or click: a kind, or null for
-   * Select. Kept across steps, and across a visit to another workspace (D14).
+   * What Annotate draws with the next drag or click: a kind, Edit Path
+   * (which shapes the selected fold arrow), or null for Select. Kept across
+   * steps, and across a visit to another workspace (D14).
    */
-  diagramAnnotateTool: DiagramAnnotationKind | null;
+  diagramAnnotateTool: AnnotateTool;
   /**
    * The annotation selected on the selected step, if any: what Delete, Flip
    * arc and the Step pane's fields act on. Cleared with the step's selection.
    */
   diagramSelectedAnnotationId: string | null;
+  /**
+   * The node of the selected arrow Edit Path has selected: what Delete, the
+   * arrow keys and the Step pane's node verbs act on. Stored with the arrow
+   * and its node count when it was selected, and read through
+   * `selectedDiagramPathNode`, which takes it for none once either has
+   * changed (an undo, Reset, another arrow) instead of each edit clearing it.
+   */
+  diagramSelectedPathNode: DiagramPathNodeSelection | null;
   /**
    * What sanitizing changed in the look of each upload this session, by asset:
    * the Step pane says so under the picture. Not saved, and gone with the
@@ -2027,8 +2046,14 @@ export interface DiagramSliceActions {
   closeDiagramStep: () => void;
   /** Keep a step's annotations where they are on the picture it has now (`keepStepAnnotations`). */
   keepDiagramAnnotations: (stepId: string) => boolean;
-  /** Choose what Annotate draws next: a kind, or null for Select. */
-  setDiagramAnnotateTool: (tool: DiagramAnnotationKind | null) => void;
+  /** Choose what Annotate draws next: a kind, Edit Path, or null for Select. */
+  setDiagramAnnotateTool: (tool: AnnotateTool) => void;
+  /**
+   * Select a node of the selected arrow by its number along the path, or
+   * none: view state, not history. Ignored unless a fold arrow is selected
+   * and has that node.
+   */
+  selectDiagramPathNode: (node: number | null) => void;
   /** Select one of the selected step's annotations, or none. */
   selectDiagramAnnotation: (annotationId: string | null) => void;
   /**
@@ -2038,13 +2063,14 @@ export interface DiagramSliceActions {
    * absent: the selection stays, while its annotation does). `session` names
    * one sitting at a label's field: its commits are one undo step, as an
    * instruction's are. `loadId` drops an edit that outlived its diagram.
-   * Whether anything changed.
+   * `selectPathNode` selects a node of the selected arrow afterwards (null:
+   * none; absent: as it was). Whether anything changed.
    */
   editDiagramAnnotations: (
     stepId: string,
     label: string,
     edit: (annotations: readonly KnownDiagramAnnotation[]) => readonly KnownDiagramAnnotation[],
-    options?: { select?: string | null; session?: number; loadId?: number }
+    options?: { select?: string | null; selectPathNode?: number | null; session?: number; loadId?: number }
   ) => boolean;
   /** Turn or flip an upload's picture; refused for a step `poseBlocker` names. */
   setDiagramStepPose: (stepId: string, pose: UploadPose) => boolean;

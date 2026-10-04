@@ -103,6 +103,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.moveStepEarlier', 'Move Step Earlier');
     case 'diagram.moveStepLater':
       return t('tools:diagram.moveStepLater', 'Move Step Later');
+    case 'diagram.toolEditPath':
+      return t('tools:diagram.toolEditPath', 'Edit Path');
     case 'diagram.toolValleyArrow':
       return t('tools:diagram.toolValleyArrow', 'Valley Fold Arrow');
     case 'diagram.toolMountainArrow':
@@ -125,6 +127,22 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.toolLabel', 'Label');
     case 'diagram.flipArc':
       return t('tools:diagram.flipArc', 'Flip Arc');
+    case 'diagram.nudgeNodeLeft':
+      return t('tools:diagram.nudgeNodeLeft', 'Nudge Node Left');
+    case 'diagram.nudgeNodeRight':
+      return t('tools:diagram.nudgeNodeRight', 'Nudge Node Right');
+    case 'diagram.nudgeNodeUp':
+      return t('tools:diagram.nudgeNodeUp', 'Nudge Node Up');
+    case 'diagram.nudgeNodeDown':
+      return t('tools:diagram.nudgeNodeDown', 'Nudge Node Down');
+    case 'diagram.nudgeNodeLeftLarge':
+      return t('tools:diagram.nudgeNodeLeftLarge', 'Nudge Node Left (Large)');
+    case 'diagram.nudgeNodeRightLarge':
+      return t('tools:diagram.nudgeNodeRightLarge', 'Nudge Node Right (Large)');
+    case 'diagram.nudgeNodeUpLarge':
+      return t('tools:diagram.nudgeNodeUpLarge', 'Nudge Node Up (Large)');
+    case 'diagram.nudgeNodeDownLarge':
+      return t('tools:diagram.nudgeNodeDownLarge', 'Nudge Node Down (Large)');
     default:
       return definition.label;
   }
@@ -142,6 +160,8 @@ export function shortcutScopeLabel(t: TFunction, scope: ShortcutScope): string {
       return t('tools:references.scopeLabel', 'references');
     case 'diagram':
       return t('tools:diagram.scopeLabel', 'diagram');
+    case 'diagram-path':
+      return t('tools:diagram.pathScopeLabel', 'edit path');
     default:
       return scope;
   }

@@ -87,3 +87,42 @@
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
+
+/* Edit Path: the curve being shaped, a hairline, so the nodes on it read. */
+.pathLine {
+  fill: none;
+  stroke: var(--annotate-selection);
+  stroke-width: 1.25px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/* A node: hollow, filled when it is the selected one. */
+.node {
+  fill: #ffffff;
+  stroke: var(--annotate-selection);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.node[data-selected] {
+  fill: var(--annotate-selection);
+}
+
+/* A handle: the arm from its node, and the dot at its end. */
+.handleArm {
+  stroke: var(--annotate-selection);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.pathHandle {
+  fill: var(--annotate-selection);
+  stroke: #ffffff;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}

@@ -1,8 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlipVertical2, Trash2, type LucideIcon } from 'lucide-react';
-import type { AnnotationActionId } from '../../diagram/annotate/annotationActions';
-import { annotateToolHelp, annotateToolLabel, annotationKindLabel } from '../../diagram/annotate/annotateTools';
+import { FlipVertical2, RotateCcw, Trash2, type LucideIcon } from 'lucide-react';
+import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
+import {
+  EDIT_PATH,
+  annotateToolHelp,
+  annotateToolLabel,
+  annotationKindLabel,
+  editPathHelp,
+} from '../../diagram/annotate/annotateTools';
 import { LABEL_MAX_LENGTH } from '../../diagram/annotate/annotationModel';
 import { onLabelFocusRequest, takeLabelFocus } from '../../diagram/annotate/labelFocus';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
@@ -13,11 +19,13 @@ import { Button } from '../ui/Button';
 import { FieldRow, SegmentedRow, TextAreaRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
 import { DiagramAnnotateToolGlyph } from './DiagramAnnotateToolGlyph';
+import { DiagramPathNodeControls } from './DiagramPathNodeControls';
 import styles from './DiagramStepAnnotations.module.css';
 
-/** Each of the catalog's verbs' icon (`annotationActions.ts`). */
-const ACTION_ICONS: Readonly<Record<AnnotationActionId, LucideIcon>> = {
+/** The icon of each of the catalog's verbs the annotation row shows (`annotationActions.ts`). */
+const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = {
   'flip-arc': FlipVertical2,
+  'reset-path': RotateCcw,
   delete: Trash2,
 };
 
@@ -25,10 +33,11 @@ const ACTION_ICONS: Readonly<Record<AnnotationActionId, LucideIcon>> = {
  * The Step pane's annotations (D13).
  *
  * Out of Annotate, how many the step has and the way in. In Annotate, the
- * tool in hand and what it does, a notice when they were drawn on another
- * picture, the list — a press selects one, as a press on the canvas does —
- * and the selected one's own controls: a label's text, an arrow's Flip arc,
- * a rotation's turn, a turn-over's axis, and Delete.
+ * tool in hand and what it does — for Edit Path, what it can shape — a
+ * notice when they were drawn on another picture, the list — a press selects
+ * one, as a press on the canvas does — and the selected one's own controls:
+ * a label's text, an arrow's Flip arc and Reset, a rotation's turn, a
+ * turn-over's axis, Delete, and in Edit Path a fold arrow's node verbs.
  */
 export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
   const { t } = useTranslation();
@@ -58,7 +67,9 @@ export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
     <div className={styles.annotations}>
       <div className={styles.tool}>
         <span className={styles.toolName}>{annotateToolLabel(t, annotations.tool)}</span>
-        <p className={styles.help}>{annotateToolHelp(t, annotations.tool)}</p>
+        <p className={styles.help}>
+          {annotations.tool === EDIT_PATH ? editPathHelp(t, selected) : annotateToolHelp(t, annotations.tool)}
+        </p>
       </div>
       {annotations.outOfStep && (
         <div className={styles.notice}>
@@ -137,13 +148,22 @@ function SelectedAnnotation({
     });
   }, [id]);
 
-  const keyed = (label: string, shortcut: Parameters<typeof shortcutLabelForAction>[0]) => {
-    const key = shortcutLabelForAction(shortcut, resolution);
+  const keyed = ({ label, shortcutId }: Pick<AnnotationAction, 'label' | 'shortcutId'>) => {
+    const key = shortcutId ? shortcutLabelForAction(shortcutId, resolution) : undefined;
     return key ? `${label} (${key})` : label;
   };
+  const nodeActions = annotations.actions.filter((action) => action.group === 'node');
 
   return (
     <div className={styles.selected}>
+      {nodeActions.length > 0 && (
+        <DiagramPathNodeControls
+          actions={nodeActions}
+          node={annotations.node}
+          count={annotations.nodeCount}
+          keyed={keyed}
+        />
+      )}
       {annotation.kind === 'label' && (
         <TextAreaRow
           // One field per label: a draft never carries over to the next one.
@@ -201,22 +221,24 @@ function SelectedAnnotation({
       )}
       <FieldRow label={annotationKindLabel(t, annotation.kind)} kind="text">
         <span className={styles.verbs}>
-          {annotations.actions.map((action) => {
-            const Icon = ACTION_ICONS[action.id];
-            return (
-              <Button
-                key={action.id}
-                size="sm"
-                variant="ghost"
-                disabled={action.disabled}
-                title={keyed(action.label, action.shortcutId)}
-                onClick={action.run}
-              >
-                <Icon size={14} aria-hidden="true" />
-                {action.label}
-              </Button>
-            );
-          })}
+          {annotations.actions
+            .filter((action) => action.group === 'annotation')
+            .map((action) => {
+              const Icon = ACTION_ICONS[action.id];
+              return (
+                <Button
+                  key={action.id}
+                  size="sm"
+                  variant="ghost"
+                  disabled={action.disabled}
+                  title={keyed(action)}
+                  onClick={action.run}
+                >
+                  {Icon && <Icon size={14} aria-hidden="true" />}
+                  {action.label}
+                </Button>
+              );
+            })}
         </span>
       </FieldRow>
     </div>

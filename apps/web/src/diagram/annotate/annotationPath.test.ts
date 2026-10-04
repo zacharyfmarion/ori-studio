@@ -4,16 +4,21 @@ import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagra
 import {
   arcToPath,
   bendPathSegment,
+  constrainHandleAngle,
+  constrainToEighths,
   deletePathNode,
   isCornerNode,
   movePathHandle,
   movePathNode,
   nearestPathPoint,
   pathNodesOf,
+  pathRepresentation,
   resetPath,
+  sameRepresentation,
   setPathNodeType,
   splitPathSegment,
   togglePathNodeType,
+  visiblePathHandles,
 } from './annotationPath';
 import { ANNOTATION_REACH, ARROW_BEND, MAX_PATH_NODES, arrowApex, defaultBend, pathCubics, type PicturePoint } from './annotationModel';
 
@@ -358,5 +363,61 @@ describe('a press on the curve', () => {
     expect(found.t).toBeCloseTo(0.4, 2);
     expect(found.distance).toBeLessThan(0.0011);
     expect(nearestPathPoint(arc(undefined, 'hidden-line'), [0, 0])).toBeNull();
+  });
+});
+
+describe('what Edit Path shows', () => {
+  it('works out an arrow’s nodes once per annotation object', () => {
+    const arrow = arc(0.4);
+    expect(pathNodesOf(arrow)).toBe(pathNodesOf(arrow));
+    expect(pathNodesOf({ ...arrow })).not.toBe(pathNodesOf(arrow));
+  });
+
+  it('shows the selected node’s handles and its neighbours’ facing ones, none with no node selected', () => {
+    const four: DiagramPathNode[] = [
+      { at: [0.1, 0.5], out: [0.15, 0.4] },
+      { at: [0.3, 0.5], in: [0.25, 0.6], out: [0.35, 0.4] },
+      { at: [0.5, 0.5], in: [0.45, 0.6], out: [0.55, 0.4] },
+      { at: [0.7, 0.5], in: [0.65, 0.6] },
+    ];
+    expect(visiblePathHandles(four, null)).toEqual([]);
+    expect(visiblePathHandles(four, 1).map(({ node, side }) => `${node}${side}`)).toEqual(['0out', '1in', '1out', '2in']);
+    expect(visiblePathHandles(four, 0).map(({ node, side }) => `${node}${side}`)).toEqual(['0out', '1in']);
+    expect(visiblePathHandles(four, 3).map(({ node, side }) => `${node}${side}`)).toEqual(['2out', '3in']);
+    // A handle on its node has no direction to take hold of.
+    const retracted = four.map((node, index) => (index === 1 ? { at: node.at, in: node.at, out: node.out } : node));
+    expect(visiblePathHandles(retracted, 1).map(({ node, side }) => `${node}${side}`)).toEqual(['0out', '1out', '2in']);
+    expect(visiblePathHandles(four, 9)).toEqual([]);
+  });
+
+  it('says what an arrow is made of: arc or path, and how many nodes it shows', () => {
+    expect(pathRepresentation(arc(ARROW_BEND))).toEqual({ shaped: false, nodes: 2 });
+    expect(pathRepresentation(arc(0.5))).toEqual({ shaped: false, nodes: 3 });
+    expect(pathRepresentation(S_ARROW)).toEqual({ shaped: true, nodes: 3 });
+    expect(pathRepresentation(arc(undefined, 'push-arrow'))).toBeNull();
+    // The two-node arc and the path its first edit makes are not the same thing to hold.
+    const shaped = movePathNode(arc(ARROW_BEND), 0, [0.2, 0.45]);
+    expect(sameRepresentation(pathRepresentation(arc(ARROW_BEND)), pathRepresentation(shaped))).toBe(false);
+    expect(sameRepresentation(pathRepresentation(shaped), pathRepresentation(movePathNode(shaped, 1, [0.5, 0.4])))).toBe(true);
+    expect(sameRepresentation(null, null)).toBe(false);
+  });
+});
+
+describe('Shift', () => {
+  it('keeps a node’s drag to the nearest of eight directions, as far along it as the drag goes', () => {
+    expect(constrainToEighths([0.1, 0.01])).toEqual([expect.closeTo(0.1, 12), expect.closeTo(0, 12)]);
+    const diagonal = constrainToEighths([0.05, 0.035]);
+    expect(diagonal[0]).toBeCloseTo(0.0425, 12);
+    expect(diagonal[1]).toBeCloseTo(0.0425, 12);
+    expect(constrainToEighths([-0.002, -0.2])).toEqual([expect.closeTo(0, 12), expect.closeTo(-0.2, 12)]);
+    expect(constrainToEighths([0, 0])).toEqual([0, 0]);
+  });
+
+  it('turns a handle to the nearest 15° about its node, keeping its length', () => {
+    const [x, y] = constrainHandleAngle([0.5, 0.5], [0.6, 0.53]);
+    const angle = (Math.atan2(y - 0.5, x - 0.5) * 180) / Math.PI;
+    expect(angle).toBeCloseTo(15, 9);
+    expect(Math.hypot(x - 0.5, y - 0.5)).toBeCloseTo(Math.hypot(0.1, 0.03), 12);
+    expect(constrainHandleAngle([0.5, 0.5], [0.5, 0.5])).toEqual([0.5, 0.5]);
   });
 });

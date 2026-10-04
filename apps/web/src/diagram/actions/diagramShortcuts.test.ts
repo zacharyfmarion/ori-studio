@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { NUDGE_STEP } from '../annotate/annotationActions';
 import {
   DIAGRAM_OWN_ARROWS_ATTRIBUTE,
   focusOwnsArrowKeys,
@@ -192,6 +193,76 @@ describe('Annotate’s Escape rungs', () => {
 
     runDiagramCancel({ ...state, annotate: { tool: null, selectedAnnotationId: null, canFlipArc: false } }, actions);
     expect(actions.close).toHaveBeenCalledOnce();
+  });
+
+  it('in Edit Path, drops a drag, then the node, then puts Edit Path down with the arrow still selected', () => {
+    const actions = {
+      select: vi.fn(),
+      close: vi.fn(),
+      cancelGesture: vi.fn(() => true),
+      selectAnnotation: vi.fn(),
+      selectPathNode: vi.fn(),
+      setTool: vi.fn(),
+    };
+    const editPath = { tool: 'edit-path' as const, selectedAnnotationId: 'x', canFlipArc: true, selectedPathNode: 2 };
+    const state = { selectedStepId: 'a', detailOpen: true, annotate: editPath };
+    runDiagramCancel(state, actions);
+    expect(actions.selectPathNode).not.toHaveBeenCalled();
+
+    actions.cancelGesture.mockReturnValue(false);
+    expect(runDiagramCancel(state, actions)).toBe(true);
+    expect(actions.selectPathNode).toHaveBeenCalledWith(null);
+    expect(actions.setTool).not.toHaveBeenCalled();
+
+    expect(runDiagramCancel({ ...state, annotate: { ...editPath, selectedPathNode: null } }, actions)).toBe(true);
+    expect(actions.setTool).toHaveBeenCalledWith(null);
+    expect(actions.selectAnnotation).not.toHaveBeenCalled();
+
+    // Back to Select: the rest of the ladder, as ever.
+    runDiagramCancel({ ...state, annotate: { ...editPath, tool: null, selectedPathNode: null } }, actions);
+    expect(actions.selectAnnotation).toHaveBeenCalledWith(null);
+    expect(actions.close).not.toHaveBeenCalled();
+  });
+});
+
+describe('Edit Path’s keys', () => {
+  const editPath = (selectedPathNode: number | null, tool: string | null = 'edit-path') => ({
+    annotate: { tool: tool as never, selectedAnnotationId: 'x', canFlipArc: true, selectedPathNode },
+  });
+  const press = (id: Parameters<typeof runDiagramShortcut>[0], state: Partial<DiagramKeyState>) => {
+    const actions = {
+      select: vi.fn(),
+      move: vi.fn(),
+      open: vi.fn(),
+      close: vi.fn(),
+      setTool: vi.fn(),
+      nudgePathNode: vi.fn(),
+    };
+    const claimed = runDiagramShortcut(id, { stepIds: steps, selectedStepId: 'a', readOnly: false, ...state }, actions);
+    return { claimed, ...actions };
+  };
+
+  it('picks Edit Path with A, and puts it down with A', () => {
+    expect(press('diagram.toolEditPath', editPath(null, null)).setTool).toHaveBeenCalledWith('edit-path');
+    expect(press('diagram.toolEditPath', editPath(null)).setTool).toHaveBeenCalledWith(null);
+  });
+
+  it('nudges the selected node with the arrows, ten times as far with Shift', () => {
+    expect(press('diagram.nudgeNodeLeft', editPath(1)).nudgePathNode).toHaveBeenCalledWith([-NUDGE_STEP.small, 0]);
+    expect(press('diagram.nudgeNodeDown', editPath(1)).nudgePathNode).toHaveBeenCalledWith([0, NUDGE_STEP.small]);
+    expect(press('diagram.nudgeNodeUpLarge', editPath(0)).nudgePathNode).toHaveBeenCalledWith([0, -NUDGE_STEP.large]);
+    expect(press('diagram.nudgeNodeRightLarge', editPath(0))).toMatchObject({ claimed: true });
+  });
+
+  it('declines the arrows with no node selected, another tool, outside Annotate or read-only, so they walk the steps', () => {
+    for (const state of [editPath(null), editPath(1, null), { annotate: null }, { ...editPath(1), readOnly: true }]) {
+      const { claimed, nudgePathNode, select } = press('diagram.nudgeNodeRight', state);
+      expect(claimed).toBe(false);
+      expect(nudgePathNode).not.toHaveBeenCalled();
+      expect(select).not.toHaveBeenCalled();
+    }
+    // The step keys themselves are untouched by Edit Path.
+    expect(press('diagram.nextStep', editPath(1)).select).toHaveBeenCalledWith('b');
   });
 });
 
