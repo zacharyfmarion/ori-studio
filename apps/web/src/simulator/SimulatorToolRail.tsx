@@ -1,17 +1,11 @@
 import { useRef, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pin, Rotate3d } from 'lucide-react';
 import { IconButton } from '../components/ui/IconButton';
 import { shortcutLabelForAction } from '../keyboard/shortcuts';
 import { useShortcutStore } from '../store/shortcutStore';
+import { SIMULATOR_TOOL_ICONS } from './simulatorToolIcons';
 import type { SimulatorToolButton } from './tools/actions';
-import type { SimulatorToolIcon } from './tools/types';
 import styles from './SimulatorToolRail.module.css';
-
-const ICONS: Record<SimulatorToolIcon, typeof Pin> = {
-  orbit: Rotate3d,
-  pin: Pin,
-};
 
 /**
  * The Simulate canvas's tools, one icon wide, down its left edge — Edit's tool
@@ -67,7 +61,7 @@ export function SimulatorToolRail({
       onKeyDown={onKeyDown}
     >
       {buttons.map((button, index) => {
-        const Icon = ICONS[button.icon];
+        const Icon = SIMULATOR_TOOL_ICONS[button.icon];
         const key = shortcutLabelForAction(button.shortcut, { overrides, defaultsSource });
         const name = key ? `${button.label} (${key})` : button.label;
         return (

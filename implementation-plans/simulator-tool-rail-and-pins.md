@@ -790,7 +790,7 @@ Each step is its own commit; the moves change nothing on screen.
       `null`, rejection with rollback, and ordering.
 - [x] **UI:** stage layout, rail, viewport tool input and marquee, tool window
       content, context-menu row, shortcuts
-- [ ] **Phone:** `SimulatorToolsTrigger` left of the Settings pill, the sheet
+- [x] **Phone:** `SimulatorToolsTrigger` left of the Settings pill, the sheet
       listing Orbit and Pin, the rail gone. Test: phone layout renders the pill
       and no rail; tablet the reverse.
 - [ ] **Analytics:** events, typed wrappers with tests, `docs/analytics.md` rows

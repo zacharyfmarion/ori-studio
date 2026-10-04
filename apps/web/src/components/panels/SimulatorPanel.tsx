@@ -57,6 +57,7 @@ import { useSimulatorTools } from "../../simulator/useSimulatorTools";
 import { useSimulatorToolActions } from "../../simulator/useSimulatorToolActions";
 import { SimulatorToolRail } from "../../simulator/SimulatorToolRail";
 import { SimulatorToolWindow } from "../../simulator/SimulatorToolWindow";
+import { SimulatorToolsTrigger } from "../../simulator/SimulatorToolsTrigger";
 import { useIsPhoneLayout } from "../../platform/phoneLayout";
 import styles from "./SimulatorPanel.module.css";
 // Registers `__simCapabilityProbe()` in dev builds; no-op in production.
@@ -593,6 +594,10 @@ export function SimulatorPanel() {
                 be about, carries no pill (`WorkspaceViewDrawer`). Empty under a
                 fine pointer, where the settings are the docked pane.
               */}
+              {/* The rail's tools on a phone, left of the Settings pill. */}
+              {phoneLayout && (
+                <SimulatorToolsTrigger buttons={toolActions.picker} disabled={!tools.enabled} />
+              )}
               <div className="panel-toolbar__pills" ref={setViewDrawerSlot} />
             </div>
           </div>

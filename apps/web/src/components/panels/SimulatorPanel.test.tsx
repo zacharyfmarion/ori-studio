@@ -571,6 +571,53 @@ describe('SimulatorPanel tools', () => {
     // Pins outlive the tool that made them.
     expect(rendered.querySelector('[data-tool-badge]')).not.toBeNull();
   });
+
+  function toolsPill(rendered: HTMLElement) {
+    return [...rendered.querySelectorAll<HTMLButtonElement>('.panel-toolbar button')].find(
+      (button) => button.getAttribute('aria-haspopup') === 'dialog' && button.textContent?.includes('Tools')
+    );
+  }
+
+  it('keeps the rail and has no Tools pill off the phone layout', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+
+    expect(rendered.querySelector('[role="toolbar"][aria-label="Simulator tools"]')).not.toBeNull();
+    expect(toolsPill(rendered)).toBeUndefined();
+  });
+
+  it('on a phone, trades the rail for a Tools pill whose sheet picks a tool and closes', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: query === PHONE_MEDIA_QUERY,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    );
+    try {
+      const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+      await flushSimulator();
+
+      expect(rendered.querySelector('[role="toolbar"][aria-label="Simulator tools"]')).toBeNull();
+      const pill = toolsPill(rendered);
+      expect(pill).toBeDefined();
+
+      act(() => pill?.click());
+      const sheet = document.querySelector('[role="dialog"][aria-label="Tools"]');
+      expect(sheet).not.toBeNull();
+      const rows = [...(sheet?.querySelectorAll('[data-tool-label]') ?? [])].map((row) => row.textContent);
+      expect(rows).toEqual(['Orbit', 'Pin']);
+
+      act(() =>
+        sheet?.querySelector<HTMLButtonElement>('[data-tool="pin"] [data-tool-item]')?.click()
+      );
+      expect(document.querySelector('[role="dialog"][aria-label="Tools"]')).toBeNull();
+      expect(useWorkspaceStore.getState().simulatorActiveToolId).toBe('pin');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 /**
