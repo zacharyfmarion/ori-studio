@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAGE_SETUP, type DiagramPageSetup } from '../document/diagramDocument';
 import {
   FIT_SAME,
+  FIT_ZOOM,
   layoutDiagramPages,
   MARKS_FLOOR,
   scaleRuns,
@@ -131,9 +132,26 @@ describe('scaleRuns', () => {
       const forward = scales(each(values));
       const backward = scales(each([...values].reverse())).reverse();
       expect(backward).toEqual(forward);
-      // And never past what a picture fits.
+      // And never past what a picture fits, nor changing from one step to the next by less than a zoom.
       forward.forEach((scale, index) => expect(scale).toBeLessThanOrEqual(values[index]!));
+      forward.slice(1).forEach((scale, index) => {
+        const before = forward[index]!;
+        if (scale !== before) expect(Math.max(scale, before) / Math.min(scale, before)).toBeGreaterThanOrEqual(FIT_ZOOM);
+      });
     }
+  });
+
+  it('never changes scale by less than a zoom reads as, from one step to the next (review)', () => {
+    // The crane: the square base, the bird base, and the kite, a fifth smaller, for its last seven steps.
+    const crane = each([0.096, 0.096, 0.085, 0.168, 0.168, 0.168, 0.168, 0.144, 0.172, 0.172, 0.172, 0.172, 0.172, 0.172, 0.236]);
+    expect(scales(crane)).toEqual([...Array(3).fill(0.085), ...Array(12).fill(0.144)]);
+    // A model half the size for long enough still zooms in.
+    expect(scales(each([1, 1, 1, 1.5, 1.5, 1.5, 1.5]))).toEqual([1, 1, 1, 1.5, 1.5, 1.5, 1.5]);
+    // Shrinking a fifth at a time: one zoom, between the two that are furthest apart.
+    expect(scales(each([...Array(5).fill(0.5), ...Array(5).fill(0.6), ...Array(5).fill(0.75)]))).toEqual([
+      ...Array(10).fill(0.5),
+      ...Array(5).fill(0.75),
+    ]);
   });
 
   it('draws runs whose scales are near one another at one, wherever they are', () => {

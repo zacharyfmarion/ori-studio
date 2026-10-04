@@ -753,13 +753,18 @@ shows the composed page.**
     Uploads, and simulations whose camera has no orthographic scale, are fitted
     to their box.
   - Under `'fit'` the paper keeps one scale from step to step while it can
-    (`scaleRuns`): a run of steps shares the largest scale at which each fits
-    its room; a step that fits more than 1.3× the run's scale (its model much
-    smaller) starts a run, zoomed in; one that fits less lowers the run, by
-    at most 20% of its first scale in all; one that needs more is drawn at its
-    own scale alone when the step after it fits the run again (a flap's
-    outline reaching far), and otherwise starts a run (the model unfolded for
-    good). Pictures with no paper do the same by their frames, among
+    (`scaleRuns`). The steps are cut into runs, each drawn at the largest
+    scale every picture in it fits its room, by the cut that costs least:
+    each picture drawn smaller than it fits costs the log of how much, each
+    change of scale `FIT_RUN_BREAK` (1). So a model smaller for one step is
+    drawn at its neighbours' scale, one smaller for several zooms in, and a
+    step needing more room (a flap's outline reaching far) lowers its run or
+    stands alone, whichever costs less — the same answer read from either
+    end, where a greedy pass from the first step was not (review). Runs
+    within `FIT_SAME` (1.06) are then one scale anywhere in the diagram, and
+    two runs side by side less than `FIT_ZOOM` (1.3) apart are drawn as one at
+    the smaller: a change that small reads as the paper changing size, not
+    as a zoom. Pictures with no paper do the same by their frames, among
     themselves. Zach, 2026-10-04: "keep the paper the same size where
     possible, it's okay if the aspect ratio changes … that step would just be
     taller."
@@ -769,15 +774,23 @@ shows the composed page.**
     and its text follows below it (`LayoutCell.drawMm`). Both scales use the
     rooms.
   - **Marks.** A picture is measured with what its marks reach past it —
-    annotations, a References step's letters — which keep their pt size, so
-    how far they reach depends on the scale: `layoutDiagram` lays the pages
-    out again, each step measured where a secant puts its scale's fixed
-    point, until each is drawn at the scale it was measured at. Marks cost a
+    annotations, a References step's letters. A mark is in part where it lies
+    on the picture, which grows with it, and in part its pen, head, letter or
+    glyph, which keep their pt size. So `layoutPicture` measures twice: at a
+    frame so large the pt part is nothing (`width`, `height`, in the
+    picture's units) and at the size it prints, the difference being the
+    pt part in mm (`marks`); the picture with its marks is `width × scale +
+    marks.width` across. A head capped by its arrow's chord is not quite
+    either, so `layoutDiagram` lays the pages out again, each step measured
+    where a secant puts its scale's fixed point, until each is drawn at the
+    scale it was measured at; step files do the same. The pt part costs a
     picture at most half its room (`MARKS_FLOOR`): in a room cut to a few mm
-    for text the paper keeps half its scale and the letters reach out, rather
-    than the paper shrink to a dot. An arc arrow is measured where it is drawn
-    (`foldArrowDrawn`, `oneWayArrowDrawn`), its curve's bow between the points
-    included.
+    for text the paper keeps the other half and the letters reach out — but
+    the paper itself stays in its room (`settle`), never on a neighbour's.
+    Every mark is measured where it is drawn — arc arrows (`foldArrowDrawn`,
+    `oneWayArrowDrawn`) with their curve's bow between the points, a push by
+    its outline and the mitres at its corners, the rotate and turn-over
+    glyphs by their shapes, heads grown with a heavy pen (review).
 
   Phase 3 confirms which captures keep paper units.
 - **Text.**
@@ -3255,6 +3268,17 @@ folds: https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf.
   reworded in nine languages.
 - [x] Before/after on the crane, both scales, both pages:
   `artifacts/diagram-fit-each/compare-*.png`.
+- [x] Review of the runs (11 findings), fixed: the runs cut by least cost
+  rather than greedily, so one model is not drawn at alternating sizes by its
+  instructions' lengths, nor flickers, nor zooms for one step; a zoom at
+  least `FIT_ZOOM`; turn glyphs and the flow band centred on the room, not
+  the box; the paper kept in its room when its letters cannot fit; marks
+  measured as a geometric part and a pt part, the floor on the pt part only,
+  in step files too; push, rotate and turn-over measured as drawn at any pen.
+  Tests for the frame-scale passes (fail without them) and the step files'
+  re-measure (fails without it, at a 12 mm box).
+- [x] Before/after: `artifacts/diagram-fit-each/compare3-fit-*.png` (before
+  Fit each, 7bbcdb3c8, now): steps 4–15 one scale, 8–14 taller.
 
 ### Phase 14: Annotate, after Phase 13 is planned and under way
 

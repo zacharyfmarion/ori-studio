@@ -90,6 +90,12 @@ export const FIT_RUN_BREAK = 1;
 /** Under `fit`, scales this near each other are one: the larger drawn at the smaller, wherever in the diagram. */
 export const FIT_SAME = 1.06;
 /**
+ * Under `fit`, the least change of scale from one step to the next: a
+ * smaller one does not read as a zoom, only as the paper changing size, so
+ * two runs nearer than this are drawn as one at the smaller of their scales.
+ */
+export const FIT_ZOOM = 1.3;
+/**
  * The most of its room what a picture's marks keep at their pt size may
  * take — letters, glyphs, heads — in a room cut down to a few mm for its
  * text: past it, they reach out of the room rather than the paper shrink to
@@ -275,8 +281,11 @@ export interface ScaleFit {
  * step that needs more room (a flap's outline far above it) lowers its run
  * or stands alone, whichever costs less — the same answer read from either
  * end. Runs within {@link FIT_SAME} of each other are then drawn at the
- * smaller of their scales. A picture is drawn at its run's scale, or its own
- * when that is smaller (`reduced`: a long instruction took its room). Pure.
+ * smaller of their scales, and so are two runs side by side less than
+ * {@link FIT_ZOOM} apart, the nearest pair first: a step of scale that small
+ * changes the paper's size without reading as a zoom. A picture is drawn at
+ * its run's scale, or its own when that is smaller (`reduced`: a long
+ * instruction took its room). Pure.
  */
 export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: boolean }[] {
   const count = fits.length;
@@ -311,6 +320,22 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
   const scales = [...new Set(runs.map(({ scale }) => scale))].sort((a, b) => a - b);
   for (const run of runs) {
     run.scale = scales.find((scale) => scale <= run.scale && run.scale <= scale * FIT_SAME) ?? run.scale;
+  }
+  // Too near to read as a zoom is one run, the nearest two first.
+  for (;;) {
+    let nearest = -1;
+    let ratio = FIT_ZOOM;
+    for (let k = 0; k + 1 < runs.length; k += 1) {
+      const [a, b] = [runs[k]!.scale, runs[k + 1]!.scale];
+      const apart = Math.max(a, b) / Math.min(a, b);
+      if (apart < ratio) {
+        ratio = apart;
+        nearest = k;
+      }
+    }
+    if (nearest < 0) break;
+    const [a, b] = [runs[nearest]!, runs[nearest + 1]!];
+    runs.splice(nearest, 2, { from: a.from, to: b.to, scale: Math.min(a.scale, b.scale) });
   }
   const scaleOf = new Float64Array(count);
   for (const { from, to, scale } of runs) scaleOf.fill(scale, from, to);
