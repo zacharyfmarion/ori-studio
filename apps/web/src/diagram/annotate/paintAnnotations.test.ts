@@ -6,7 +6,10 @@ import {
   arrowheadExtent,
   foldArrowDrawn,
   oneWayArrowDrawn,
+  pathArrowDrawn,
+  type DiagramArc,
 } from '../../cp-workspace/references/stepDiagramGeometry';
+import { cubicPoint } from '../../lib/cubicBezier';
 import { arcToPath } from './annotationPath';
 import { paintAsset } from '../pictures/paintDiagramStep';
 import { annotationDrawing, annotationScene, annotationTextRuns, labelRuns } from './annotationPrimitives';
@@ -260,6 +263,60 @@ describe('paintAnnotations', () => {
       // Its strokes' half width kept, and no more than a mitre's room round its head.
       expect(painted.bounds.y).toBeLessThanOrEqual(top - pen / 2);
       expect(painted.bounds.y).toBeGreaterThanOrEqual(top - Math.max(2 * project.ink, 1.5 * pen) - 1e-6);
+    }
+  });
+
+  it('keeps every drawn stroke inside its reach: a nearly flat arc between its points, a shaped shaft at a thin pen', () => {
+    const thin = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: 0.1 } } };
+    const cases: Array<{ arrow: KnownDiagramAnnotation; framePx: number; style: typeof DEFAULT_DIAGRAM_STYLE }> = [
+      { arrow: a('v', 'valley-arrow', { from: [0.1, -0.1], to: [0.9, -0.1], bend: 0.03 }), framePx: 1000, style: DEFAULT_DIAGRAM_STYLE },
+      { arrow: a('m', 'mountain-arrow', { from: [-0.5, -0.1], to: [1.5, -0.1], bend: 0.01 }), framePx: 1000, style: DEFAULT_DIAGRAM_STYLE },
+      { arrow: a('f', 'fold-unfold-arrow', { from: [0.1, -0.1], to: [0.9, -0.1], bend: 0.03 }), framePx: 600, style: thin },
+      { arrow: arcToPath(a('s', 'valley-arrow', { from: [-0.05, -0.05], to: [0.35, -0.102], bend: 0.3 })), framePx: 453, style: DEFAULT_DIAGRAM_STYLE },
+      { arrow: arcToPath(a('t', 'valley-arrow', { from: [-0.05, -0.05], to: [-0.03, -0.06], bend: 0.5 })), framePx: 600, style: thin },
+    ];
+    for (const { arrow, framePx, style } of cases) {
+      const drawing = annotationDrawing([arrow], { width: 1, height: 1 }, framePx, style);
+      const { project, marks } = drawing.context;
+      const primitive = drawing.primitives[0]!;
+      // The ink as drawn: arcs and cubics sampled finely, not at the points the reach is measured along.
+      const ink: { x: number; y: number }[] = [];
+      const arc = (each: DiagramArc | null) => {
+        if (!each) return;
+        const sweep = each.ccw ? each.to - each.from : each.from - each.to;
+        const extent = ((sweep % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+        for (let i = 0; i <= 4000; i += 1) {
+          const angle = each.from + (each.ccw ? 1 : -1) * extent * (i / 4000);
+          ink.push(project([each.center[0] + each.radius * Math.cos(angle), each.center[1] + each.radius * Math.sin(angle)]));
+        }
+      };
+      if (primitive.kind === 'fold-arrow') {
+        const drawn = foldArrowDrawn(primitive.out, project, marks)!;
+        arc(drawn.out);
+        arc(drawn.back);
+      } else if (primitive.kind === 'one-way-arrow') {
+        arc(oneWayArrowDrawn(primitive.out, project, marks).shaft);
+      } else if (primitive.kind === 'path-arrow') {
+        const drawn = pathArrowDrawn(primitive.path, primitive.fold, project, marks)!;
+        for (const cubic of drawn.shaft ?? []) {
+          for (let i = 0; i <= 2000; i += 1) {
+            const [x, y] = cubicPoint(cubic, i / 2000);
+            ink.push({ x, y });
+          }
+        }
+      } else {
+        throw new Error(`an arrow, not ${primitive.kind}`);
+      }
+      expect(ink.length).toBeGreaterThan(0);
+      const painted = paintAnnotations([arrow], { x: 0, y: 0, width: framePx, height: framePx }, framePx, style)!;
+      const half = (project.pens.arrow.width * project.ink) / 2;
+      const { x, y, width, height } = painted.bounds;
+      for (const point of ink) {
+        expect(point.x - half).toBeGreaterThanOrEqual(x - 1e-6);
+        expect(point.y - half).toBeGreaterThanOrEqual(y - 1e-6);
+        expect(point.x + half).toBeLessThanOrEqual(x + width + 1e-6);
+        expect(point.y + half).toBeLessThanOrEqual(y + height + 1e-6);
+      }
     }
   });
 

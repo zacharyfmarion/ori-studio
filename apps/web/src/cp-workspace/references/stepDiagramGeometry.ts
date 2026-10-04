@@ -511,6 +511,17 @@ export function arcPolyline(arc: DiagramArc): [number, number][] {
 }
 
 /**
+ * How far the arc bows out past {@link arcPolyline}'s points, in its own
+ * units: the sagitta of one step, `r · (1 − cos(step / 2))`. Room a measure
+ * taken along the points must add, since the arc is drawn as an arc.
+ */
+export function arcPolylineDeviation(arc: DiagramArc): number {
+  const extent = arcExtent(arc);
+  const steps = Math.max(1, Math.ceil(extent / ARC_FLATTEN_STEP));
+  return Math.abs(arc.radius) * (1 - Math.cos(extent / steps / 2));
+}
+
+/**
  * The arc through three points, or null when they are collinear.
  *
  * The circle is where two perpendicular bisectors meet; the middle sample says

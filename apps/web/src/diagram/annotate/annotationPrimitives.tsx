@@ -44,6 +44,7 @@ import {
 import type { StepDiagramPrimitive } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
 import {
   arcPolyline,
+  arcPolylineDeviation,
   arcThroughPoints,
   arrowheadExtent,
   createOverlayProjector,
@@ -320,6 +321,9 @@ export function annotationDrawing(
   return { width: frame.width * framePx, height: frame.height * framePx, lines, primitives, primitiveIds, context, labels };
 }
 
+/** How far a shaped arrow's shaft may stand off the points it is measured along, in ink: far under its pen. */
+const REACH_FLATTEN_INK = 0.05;
+
 /**
  * What a drawing reaches, in its own px: its frame, and past it whatever its
  * marks reach — an arrow may start off the picture. Generous rather than
@@ -345,16 +349,20 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
   }
   // An arrow, exactly where it is drawn: its strokes, and its head as drawn
   // — a mountain's barb included, which a heavier pen makes bigger — with
-  // room for the pen's width and the mitre at a sharp corner.
+  // room for the pen's width and the mitre at a sharp corner. A stroke is
+  // drawn as a curve and measured along points on it: an arc's room grows by
+  // how far it bows out between them; a shaped arrow's points are close
+  // enough that it never matters.
   const pen = project.pens.arrow.width * ink;
   const arrowStrokes = (points: Iterable<readonly [number, number]>) => {
     for (const [x, y] of points) take(x, y, pen);
   };
   const arcStroke = (arc: DiagramArc | null) => {
     if (!arc) return;
+    const bow = arcPolylineDeviation(arc) * project.scale;
     for (const point of arcPolyline(arc)) {
       const { x, y } = project(point);
-      take(x, y, pen);
+      take(x, y, pen + bow);
     }
   };
   const arrowhead = (head: Arrowhead) => {
@@ -379,7 +387,8 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
       case 'path-arrow': {
         const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, drawing.context.marks);
         if (!arrow) break;
-        arrowStrokes([...(arrow.shaft ? flattenPath(arrow.shaft, ink) : []), ...(arrow.back ?? [])]);
+        const shaft = arrow.shaft ? flattenPath(arrow.shaft, REACH_FLATTEN_INK * ink) : [];
+        arrowStrokes([...shaft, ...(arrow.back ?? [])]);
         arrowhead(arrow.head);
         break;
       }
