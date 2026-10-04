@@ -4,7 +4,9 @@
 of `implementation-plans/diagram-workspace.md`. The research behind it (four
 readers, a synthesis and a critic) and its scratch checks are not in the repo;
 the findings that matter are here. A playground to try the options on real
-folds: https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf (private).
+folds — Zach's crane diagram step by step, twelve cpoogle crease patterns
+folded to their bases with Flat-Folder, simple bases and DEFOX's sample:
+https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf (private).
 
 ## Goal
 
@@ -58,8 +60,13 @@ Three consequences shape the design:
    fold that wraps it. In the rolled letter fold (playground's default),
    keeping the bottom or DEFOX's face 0 still pokes the tucked panel through
    the fold; keeping the top still, or opening only the last fold made, does
-   not. On DEFOX's own 190-face sample steps, opening every fold flags 15–19
-   pokes by a quick check (which can over-report).
+   not. On real crease patterns the same holds at scale (a quick check, which
+   can over-report; τ = 0.05, the top layer still): opening every fold pokes
+   in 7–34 places on 11 of 12 cpoogle models (Kei Morisue's Rain Frog 23,
+   Smile 24, Inside-Out 34; Jason Ku's Angel 29, Lizard 14; Jordan Langerak's
+   921-face crane 22) and on 7 of Zach's 12 crane steps (up to 24); opening
+   only the folds each crane step adds pokes nowhere, and refuses on two
+   steps (9 and 11) whose new folds cannot open on their own.
 
 The alternative the paper sets aside (Fig. 4, p. 10): Akitaya's **depth
 shift**, `D(v) = D̄(v) + p·z_v/z_max` — every point steps by its depth, so
