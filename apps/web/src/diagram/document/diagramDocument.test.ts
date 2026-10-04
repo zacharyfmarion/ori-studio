@@ -54,10 +54,16 @@ import {
   stepsOf,
   turnById,
   clampSpreadAmount,
+  clampSpreadAxis,
+  clampSpreadSkew,
+  DEFAULT_AFFINE_SPREAD,
   DEFAULT_LAYER_SPREAD,
+  DEFAULT_SPREAD_STARTS,
   nearestEarlierSpread,
   sameSpread,
   SPREAD_AMOUNT_RANGE,
+  spreadStartsFor,
+  type DiagramLayerSpread,
   type SentReferencesEntry,
   type SentReferencesStep,
   type DiagramDocument,
@@ -633,56 +639,122 @@ describe('the ways a linked pattern is shown (D19)', () => {
   });
 
   it('remembers a fold’s spread while the pattern is shown, and brings it back with the fold (Phase 13)', () => {
-    const spread = { ...flat, spread: { amount: 0.08, toward: 'left' as const } };
+    const spread = { ...flat, spread: { kind: 'depth' as const, amount: 0.08, toward: 'left' as const } };
     const shown = withRememberedPoses(cpSource(spread), cpSource(pattern));
     expect(shown.remembered).toEqual({ folded: spread });
-    expect(renderToShowAs(shown, 'folded')).toEqual(spread);
-    // A fold shown for the first time has none: only Spread Layers turns it on.
+    expect(renderToShowAs(shown, 'folded', DEFAULT_LAYER_SPREAD)).toEqual(spread);
+    // A fold remembered with none keeps none: it already has a pose (13g).
+    const unspread = withRememberedPoses(cpSource(flat), cpSource(pattern));
+    expect(renderToShowAs(unspread, 'folded', DEFAULT_LAYER_SPREAD)).not.toHaveProperty('spread');
+  });
+
+  it('starts a fold shown for the first time with the spread it is given, and none without one (13g)', () => {
+    expect(renderToShowAs({ render: pattern }, 'folded', DEFAULT_LAYER_SPREAD)).toEqual({
+      mode: 'folded-flat',
+      side: 'front',
+      rotationDeg: 45,
+      foldCase: 1,
+      spread: { kind: 'depth', amount: 0.025, toward: 'down' },
+    });
     expect(renderToShowAs({ render: pattern }, 'folded')).not.toHaveProperty('spread');
+    // The pattern and the simulation take none.
+    expect(renderToShowAs({ render: flat }, 'crease-pattern', DEFAULT_LAYER_SPREAD)).not.toHaveProperty('spread');
   });
 });
 
 describe('a flat fold’s spread (Phase 13)', () => {
-  const flat = (spread?: { amount: number; toward: 'up-left' | 'down' }) => ({
+  const flat = (spread?: DiagramLayerSpread) => ({
     mode: 'folded-flat' as const,
     side: 'front' as const,
     rotationDeg: 0,
     foldCase: 1,
     ...(spread ? { spread } : {}),
   });
+  const depth = (amount: number, toward: 'up-left' | 'down'): DiagramLayerSpread => ({ kind: 'depth', amount, toward });
+  const affine = (amount: number): DiagramLayerSpread => ({ kind: 'affine', amount, keep: 'bottom', skew: 0.5, axisDeg: 30 });
+
+  function spreadDiagram() {
+    const steps = [
+      { ...createStep(() => 'step-a'), source: cpSource(flat(depth(0.1, 'down'))), picture: scenePicture() },
+      { ...createStep(() => 'step-b'), source: cpSource(flat(affine(0.06))), picture: scenePicture() },
+      { ...createStep(() => 'step-c'), source: cpSource(flat(depth(0.03, 'up-left'))), picture: scenePicture() },
+      { ...createStep(() => 'step-d'), source: cpSource(flat()), picture: scenePicture() },
+      createTurn({ kind: 'turn-over', axis: 'vertical' }, () => 'turn-1'),
+      { ...createStep(() => 'step-e'), source: cpSource({ mode: 'crease-pattern', rotationDeg: 0 }), picture: scenePicture() },
+      // A newer build's step: what it holds is not this build's to read.
+      { ...createStep(() => 'step-f'), source: cpSource(flat(depth(0.2, 'down'))), unknown: { id: 'step-f' } },
+      { ...createStep(() => 'step-g'), source: cpSource(flat()), picture: scenePicture() },
+    ];
+    return insertSteps(createDiagram({ newId: () => 'diagram-1' }), steps, 0);
+  }
 
   it('starts from the nearest step before with one, past turns, other renders and newer steps', () => {
-    const steps = [
-      { ...createStep(() => 'step-a'), source: cpSource(flat({ amount: 0.1, toward: 'down' })), picture: scenePicture() },
-      { ...createStep(() => 'step-b'), source: cpSource(flat({ amount: 0.03, toward: 'up-left' })), picture: scenePicture() },
-      { ...createStep(() => 'step-c'), source: cpSource(flat()), picture: scenePicture() },
-      createTurn({ kind: 'turn-over', axis: 'vertical' }, () => 'turn-1'),
-      { ...createStep(() => 'step-d'), source: cpSource({ mode: 'crease-pattern', rotationDeg: 0 }), picture: scenePicture() },
-      // A newer build's step: what it holds is not this build's to read.
-      { ...createStep(() => 'step-e'), source: cpSource(flat({ amount: 0.2, toward: 'down' })), unknown: { id: 'step-e' } },
-      { ...createStep(() => 'step-f'), source: cpSource(flat()), picture: scenePicture() },
-    ];
-    const document = insertSteps(createDiagram({ newId: () => 'diagram-1' }), steps, 0);
-    expect(nearestEarlierSpread(document, 'step-f')).toEqual({ amount: 0.03, toward: 'up-left' });
-    expect(nearestEarlierSpread(document, 'step-b')).toEqual({ amount: 0.1, toward: 'down' });
+    const document = spreadDiagram();
+    expect(nearestEarlierSpread(document, 'step-g')).toEqual(depth(0.03, 'up-left'));
+    expect(nearestEarlierSpread(document, 'step-c')).toEqual(affine(0.06));
+    expect(nearestEarlierSpread(document, 'step-b')).toEqual(depth(0.1, 'down'));
     expect(nearestEarlierSpread(document, 'step-a')).toBeNull();
     expect(nearestEarlierSpread(document, 'step-gone')).toBeNull();
   });
 
-  it('keeps an amount within 0.5% and 20%, to a hundredth of a percent', () => {
-    expect(clampSpreadAmount(0.0525)).toBe(0.0525);
-    expect(clampSpreadAmount(0.05 + 1e-12)).toBe(0.05);
-    expect(clampSpreadAmount(0.123456)).toBe(0.1235);
-    expect(clampSpreadAmount(0.5)).toBe(SPREAD_AMOUNT_RANGE.max);
-    expect(clampSpreadAmount(0)).toBe(SPREAD_AMOUNT_RANGE.min);
-    expect(clampSpreadAmount(Number.NaN)).toBe(DEFAULT_LAYER_SPREAD.amount);
+  it('starts each kind from the nearest step before of that kind, else its default (13g)', () => {
+    const document = spreadDiagram();
+    expect(nearestEarlierSpread(document, 'step-g', 'affine')).toEqual(affine(0.06));
+    expect(nearestEarlierSpread(document, 'step-c', 'depth')).toEqual(depth(0.1, 'down'));
+    expect(spreadStartsFor(document, 'step-g')).toEqual({
+      any: depth(0.03, 'up-left'),
+      depth: depth(0.03, 'up-left'),
+      affine: affine(0.06),
+    });
+    expect(spreadStartsFor(document, 'step-b')).toEqual({
+      any: depth(0.1, 'down'),
+      depth: depth(0.1, 'down'),
+      affine: DEFAULT_AFFINE_SPREAD,
+    });
+    expect(spreadStartsFor(document, 'step-a')).toEqual(DEFAULT_SPREAD_STARTS);
+  });
+
+  it('defaults to depth, 2.5%, deeper layers down; and affine to the playground’s bird base (13g)', () => {
+    expect(DEFAULT_LAYER_SPREAD).toEqual({ kind: 'depth', amount: 0.025, toward: 'down' });
+    expect(DEFAULT_AFFINE_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
+    expect(DEFAULT_SPREAD_STARTS).toEqual({ any: DEFAULT_LAYER_SPREAD, depth: DEFAULT_LAYER_SPREAD, affine: DEFAULT_AFFINE_SPREAD });
+  });
+
+  it('keeps a depth amount within 0.5% and 20%, to a hundredth of a percent', () => {
+    expect(clampSpreadAmount('depth', 0.0525)).toBe(0.0525);
+    expect(clampSpreadAmount('depth', 0.05 + 1e-12)).toBe(0.05);
+    expect(clampSpreadAmount('depth', 0.123456)).toBe(0.1235);
+    expect(clampSpreadAmount('depth', 0.5)).toBe(SPREAD_AMOUNT_RANGE.depth.max);
+    expect(clampSpreadAmount('depth', 0)).toBe(SPREAD_AMOUNT_RANGE.depth.min);
+    expect(clampSpreadAmount('depth', Number.NaN)).toBe(DEFAULT_LAYER_SPREAD.amount);
+  });
+
+  it('keeps an affine amount within 0.5% and 25%, a skew within 0 and 1, an axis in whole degrees of a half turn', () => {
+    expect(clampSpreadAmount('affine', 0.22)).toBe(0.22);
+    expect(clampSpreadAmount('affine', 0.5)).toBe(SPREAD_AMOUNT_RANGE.affine.max);
+    expect(SPREAD_AMOUNT_RANGE.affine.max).toBe(0.25);
+    expect(clampSpreadAmount('affine', Number.NaN)).toBe(DEFAULT_AFFINE_SPREAD.amount);
+    expect(clampSpreadSkew(0.456)).toBe(0.46);
+    expect(clampSpreadSkew(1.2)).toBe(1);
+    expect(clampSpreadSkew(-0.2)).toBe(0);
+    expect(clampSpreadSkew(Number.NaN)).toBe(DEFAULT_AFFINE_SPREAD.skew);
+    expect(clampSpreadAxis(80.6)).toBe(81);
+    expect(clampSpreadAxis(179.6)).toBe(0);
+    expect(clampSpreadAxis(-10)).toBe(170);
+    expect(clampSpreadAxis(270)).toBe(90);
+    expect(clampSpreadAxis(Number.NaN)).toBe(DEFAULT_AFFINE_SPREAD.axisDeg);
   });
 
   it('tells one spread from another, and none from none', () => {
     expect(sameSpread(undefined, undefined)).toBe(true);
-    expect(sameSpread({ amount: 0.05, toward: 'up' }, { amount: 0.05, toward: 'up' })).toBe(true);
-    expect(sameSpread({ amount: 0.05, toward: 'up' }, { amount: 0.05, toward: 'left' })).toBe(false);
-    expect(sameSpread({ amount: 0.05, toward: 'up' }, undefined)).toBe(false);
+    expect(sameSpread(depth(0.05, 'down'), depth(0.05, 'down'))).toBe(true);
+    expect(sameSpread(depth(0.05, 'down'), depth(0.05, 'up-left'))).toBe(false);
+    expect(sameSpread(depth(0.05, 'down'), undefined)).toBe(false);
+    expect(sameSpread(affine(0.05), affine(0.05))).toBe(true);
+    expect(sameSpread(affine(0.05), depth(0.05, 'down'))).toBe(false);
+    for (const change of [{ keep: 'top' }, { skew: 0.6 }, { axisDeg: 31 }, { amount: 0.06 }]) {
+      expect(sameSpread(affine(0.05), { ...affine(0.05), ...change } as DiagramLayerSpread), JSON.stringify(change)).toBe(false);
+    }
   });
 });
 
