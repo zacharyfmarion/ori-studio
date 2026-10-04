@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  chordSide,
   cubicPoint,
   cubicTangent,
   flattenCubic,
@@ -151,5 +152,37 @@ describe('a path', () => {
       [4, 0],
     ];
     expect(Math.abs(pathChordArea(flattenPath([symmetric], 1e-3)))).toBeLessThan(1e-9);
+  });
+
+  it('says a straight path lies on neither side, wherever it is and at whatever scale', () => {
+    for (let k = 0; k < 40; k += 1) {
+      for (const scale of [1, 189, 283.46]) {
+        const a: Vec2 = [(0.1 + 0.013 * k) * scale, (0.2 + 0.0071 * k) * scale];
+        const d: Vec2 = [(0.37 + 0.013 * k) * scale, (0.31 + 0.0071 * k) * scale];
+        const points = flattenPath([[a, a, d, d]], 1e-4 * scale, scale / 100);
+        expect(points.length).toBeGreaterThan(3);
+        expect(chordSide(points, Math.hypot(d[0] - a[0], d[1] - a[1]))).toBe(0);
+      }
+    }
+    // A path that bulges says so, as the area's sign does.
+    const over = flattenPath([QUARTER], 1e-3);
+    expect(chordSide(over, Math.SQRT2)).toBe(1);
+    expect(chordSide(over.map(([x, y]): Vec2 => [x, -y]), Math.SQRT2)).toBe(-1);
+  });
+
+  it('takes the direction of travel past a segment of no length, a node stacked on its neighbour', () => {
+    const at: Vec2 = [0.2, 0.5];
+    const stacked: Cubic[] = [
+      [at, at, at, at],
+      [at, at, [0.2, 0.502], [0.2, 0.502]],
+    ];
+    const measure = measurePath(stacked);
+    const [x, y] = pathTangentAt(measure, 0)!;
+    expect(x).toBeCloseTo(0, 9);
+    expect(y).toBeCloseTo(1, 9);
+    // At the end of a path whose last segment has no length, where it came from.
+    const [bx, by] = pathTangentAt(measurePath([...stacked].reverse().map((c) => [...c].reverse() as unknown as Cubic)), Infinity)!;
+    expect(bx).toBeCloseTo(0, 9);
+    expect(by).toBeCloseTo(-1, 9);
   });
 });

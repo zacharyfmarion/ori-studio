@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramAnnotation, type KnownDiagramAnnotation } from '../document/diagramDocument';
+import { arcToPath } from './annotationPath';
 import { paintAsset } from '../pictures/paintDiagramStep';
 import { annotationDrawing, annotationScene, annotationTextRuns, labelRuns } from './annotationPrimitives';
 import { annotatedPicture, CARD_FRAME_PX, paintAnnotations } from './paintAnnotations';
@@ -183,6 +185,44 @@ describe('paintAnnotations', () => {
     const painted = paintAnnotations([a('p', 'push-arrow', { from: [-0.5, 0.3] })], box, 100, DEFAULT_DIAGRAM_STYLE)!;
     expect(painted.bounds.x).toBeLessThan(box.x - 40);
     expect(painted.bounds.y).toBeLessThanOrEqual(box.y);
+  });
+
+  it('reaches round a shaped arrow’s head as drawn with a heavy pen, a mountain’s barb and all', () => {
+    const pt = 3;
+    const style = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: pt } } };
+    const box = { x: 0, y: 0, width: 189, height: 189 };
+    const cases: Array<[[number, number], [number, number]]> = [
+      [
+        [0.5, 0.01],
+        [0.955, 0.01],
+      ],
+      [
+        [0.955, 0.01],
+        [0.5, 0.01],
+      ],
+      [
+        [-0.3, 0.5],
+        [-0.285, 0.5],
+      ],
+    ];
+    for (const [from, to] of cases) {
+      const shaped = arcToPath(a('m', 'mountain-arrow', { from, to, bend: 0.02 }));
+      const painted = paintAnnotations([shaped], box, 189, style)!;
+      const half = (pt * PT_TO_CSS_PX) / 2;
+      // Every corner of the head's outline, a pen's half width round it, is inside what is kept.
+      const heads = [...painted.markup.matchAll(/d="([^"]*Z)"/g)].map((match) => match[1]!);
+      expect(heads.length).toBeGreaterThan(0);
+      for (const d of heads) {
+        const numbers = d.match(/-?\d+(\.\d+)?/g)!.map(Number);
+        for (let i = 0; i + 1 < numbers.length; i += 2) {
+          const [x, y] = [numbers[i]!, numbers[i + 1]!];
+          expect(x - half).toBeGreaterThanOrEqual(painted.bounds.x);
+          expect(y - half).toBeGreaterThanOrEqual(painted.bounds.y);
+          expect(x + half).toBeLessThanOrEqual(painted.bounds.x + painted.bounds.width);
+          expect(y + half).toBeLessThanOrEqual(painted.bounds.y + painted.bounds.height);
+        }
+      }
+    }
   });
 
   it('reaches as far as a fold-and-unfold arrow’s return, which bulges past its outgoing arc', () => {

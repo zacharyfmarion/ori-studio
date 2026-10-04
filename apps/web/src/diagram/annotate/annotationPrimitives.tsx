@@ -46,6 +46,7 @@ import type { StepDiagramPrimitive } from '../../cp-workspace/references/referen
 import {
   arcPolyline,
   arcThroughPoints,
+  arrowheadExtent,
   createOverlayProjector,
   foldReturnOffset,
   pathArrowDrawn,
@@ -360,15 +361,15 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
         break;
       }
       case 'path-arrow': {
-        // Exactly where it is drawn: its strokes and its head, the head's own reach round them.
+        // Exactly where it is drawn: its strokes, and its head as drawn — a
+        // mountain's barb included, which a heavier pen makes bigger — with
+        // room for the pen's width and the mitre at a sharp corner.
         const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, drawing.context.marks);
         if (!arrow) break;
-        const points = [
-          ...(arrow.shaft ? flattenPath(arrow.shaft, ink) : []),
-          ...(arrow.back ?? []),
-          [arrow.head.tip.x, arrow.head.tip.y] as const,
-        ];
-        for (const [x, y] of points) take(x, y, DIAGRAM_ARROWHEAD_INK.length * ink);
+        const pen = project.pens.arrow.width * ink;
+        const strokes = [...(arrow.shaft ? flattenPath(arrow.shaft, ink) : []), ...(arrow.back ?? [])];
+        for (const [x, y] of strokes) take(x, y, Math.max(DIAGRAM_ARROWHEAD_INK.length * ink, pen));
+        for (const { x, y } of arrowheadExtent(arrow.head)) take(x, y, Math.max(2 * ink, 1.5 * pen));
         break;
       }
       case 'push-arrow':

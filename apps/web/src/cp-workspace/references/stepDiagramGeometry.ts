@@ -9,9 +9,9 @@
  */
 
 import {
+  chordSide,
   flattenPath,
   measurePath,
-  pathChordArea,
   pathPointAt,
   pathTangentAt,
   trimPath,
@@ -893,6 +893,21 @@ export function halfArrowheadPath(head: Arrowhead, centre: SvgPoint): string {
 const HALF_ARROWHEAD_SPREAD = 1.8;
 
 /**
+ * The corners a head's outline reaches, a filled head's or a mountain fold's
+ * half head (whose one barb stands out further, on either side): what a crop
+ * keeps, before the stroke's own width round them.
+ */
+export function arrowheadExtent(head: Arrowhead): SvgPoint[] {
+  const [a, b] = head.barbs;
+  const base = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const spread = (p: SvgPoint) => ({
+    x: base.x + (p.x - base.x) * HALF_ARROWHEAD_SPREAD,
+    y: base.y + (p.y - base.y) * HALF_ARROWHEAD_SPREAD,
+  });
+  return [head.tip, head.notch, spread(a), spread(b)];
+}
+
+/**
  * A shaped arrow's path in the primitives' space: cubic Bézier segments, tail
  * first, each starting where the one before it ends.
  */
@@ -1059,10 +1074,7 @@ function insideOf(
   const turn = before[0] * at[1] - before[1] * at[0];
   let sign: number;
   if (Math.abs(turn) > Math.sin(Math.PI / 90)) sign = Math.sign(turn);
-  else {
-    const area = pathChordArea(flattenPath(measure.path, measure.length * 1e-3));
-    sign = area < 0 ? -1 : 1;
-  }
+  else sign = chordSide(flattenPath(measure.path, measure.length * 1e-3), measure.length) < 0 ? -1 : 1;
   const far = 1000 * head;
   return { x: arrowhead.notch.x - at[1] * sign * far, y: arrowhead.notch.y + at[0] * sign * far };
 }
@@ -1073,7 +1085,7 @@ function insideOf(
  * curve of the path, whose distance from it tapers from `offset` at the tail
  * to nothing at the tip and bows out between ({@link RETURN_BOW}).
  *
- * The side is the one the path lies on of its chord (`pathChordArea`), kept
+ * The side is the one the path lies on of its chord (`chordSide`), kept
  * the whole way: on an S the return crosses to neither side of the shaft.
  * Where the path bends tighter than the loop is wide, on the loop's side, an
  * offset curve folds back on itself in a swallowtail; the fold is cut out
@@ -1089,7 +1101,8 @@ export function pathReturn(path: readonly PathCubic[], offset: number, tolerance
   const distinct = points.filter((p, index) => index === 0 || dist(points[index - 1]!, p) > 1e-12);
   if (distinct.length < 2) return null;
   const length = distinct.reduce((sum, p, index) => (index === 0 ? 0 : sum + dist(distinct[index - 1]!, p)), 0);
-  const side = pathChordArea(distinct) < 0 ? 1 : -1;
+  // A path on neither side of its chord takes one fixed side, the same on every surface.
+  const side = chordSide(distinct, length) < 0 ? 1 : -1;
   const bow = Math.min(RETURN_BOW * length, offset);
   let travelled = 0;
   const widths = distinct.map((p, index) => {

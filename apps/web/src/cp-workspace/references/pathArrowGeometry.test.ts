@@ -162,6 +162,26 @@ describe('a one-way path arrow', () => {
   });
 });
 
+describe('a straight path arrow', () => {
+  it('puts a fold-and-unfold return on one side wherever it is drawn, not the side rounding picks', () => {
+    const sides = new Set<number>();
+    for (let k = 0; k < 40; k += 1) {
+      for (const scale of [189, 283.46]) {
+        const project = createOverlayProjector({ origin: [0, 0], ex: [scale, 0], ey: [0, -scale] }, 1.25);
+        const a: [number, number] = [0.1 + 0.013 * k, 0.2 + 0.0071 * k];
+        const d: [number, number] = [0.37 + 0.013 * k, 0.31 + 0.0071 * k];
+        const path = projectPath([[a, a, d, d]], project);
+        const arrow = pathArrowGeometry(path, 'fold-unfold', (length) => pathArrowSizes(length, project), [], 0.05 * project.ink)!;
+        const [start, end] = [path[0]![0], path[0]![3]];
+        const middle = arrow.back![Math.floor(arrow.back!.length / 2)]!;
+        const cross = (end[0] - start[0]) * (middle[1] - start[1]) - (end[1] - start[1]) * (middle[0] - start[0]);
+        sides.add(Math.sign(cross));
+      }
+    }
+    expect(sides.size).toBe(1);
+  });
+});
+
 describe('a fold-and-unfold path arrow', () => {
   const path = projectPath(S_PATH, PROJECT);
   const length = measurePath(path).length;

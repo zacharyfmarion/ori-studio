@@ -156,10 +156,25 @@ export function pathPointAt(measure: PathMeasure, distance: number): Vec2 {
   return cubicPoint(measure.path[segment]!, t);
 }
 
-/** The direction of travel `distance` along the path, or null where it has none. */
+/**
+ * The direction of travel `distance` along the path, or null where it has
+ * none. A segment of no length — a node stacked on its neighbour — has none
+ * of its own, so it takes the path's where the path goes on from it, or, at
+ * the path's end, where it came from.
+ */
 export function pathTangentAt(measure: PathMeasure, distance: number): Vec2 | null {
   const { segment, t } = pathLocationAt(measure, distance);
-  return cubicTangent(measure.path[segment]!, t);
+  const own = cubicTangent(measure.path[segment]!, t);
+  if (own) return own;
+  for (let next = segment + 1; next < measure.path.length; next += 1) {
+    const ahead = cubicTangent(measure.path[next]!, 0);
+    if (ahead) return ahead;
+  }
+  for (let back = segment - 1; back >= 0; back -= 1) {
+    const behind = cubicTangent(measure.path[back]!, 1);
+    if (behind) return behind;
+  }
+  return null;
 }
 
 /** The stretch of a path between two distances along it, as a path of its own: empty when there is none. */
@@ -270,4 +285,25 @@ export function pathChordArea(points: readonly Vec2[]): number {
     twice += a[0] * b[1] - b[0] * a[1];
   }
   return twice;
+}
+
+/**
+ * Which side of its chord a path of `length` lies on, as the sign of
+ * {@link pathChordArea}: measured from its first point, so the answer does not
+ * drift with where the path is drawn or at what scale, and 0 for a path that
+ * lies on neither — an area under a billionth of its length squared is the
+ * rounding of a straight path, and two surfaces drawing one arrow must not
+ * read opposite sides from it.
+ */
+export function chordSide(points: readonly Vec2[], length: number): -1 | 0 | 1 {
+  const first = points[0];
+  if (!first || points.length < 3) return 0;
+  let twice = 0;
+  for (let i = 1; i + 1 < points.length; i += 1) {
+    const a = points[i]!;
+    const b = points[i + 1]!;
+    twice += (a[0] - first[0]) * (b[1] - first[1]) - (b[0] - first[0]) * (a[1] - first[1]);
+  }
+  if (!(Math.abs(twice) > 1e-9 * length * length)) return 0;
+  return twice < 0 ? -1 : 1;
 }
