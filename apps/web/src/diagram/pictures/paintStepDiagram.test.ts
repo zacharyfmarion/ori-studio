@@ -6,7 +6,7 @@ import type {
 import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
 import { referencesStrip } from '../document/referencesSteps.fixtures';
 import { STEP_CARD_PADDING_MM, stepScenePage } from './paintDiagramStep';
-import { paintStepDiagram, stepDiagramScene } from './paintStepDiagram';
+import { paintStepDiagram, stepDiagramScene, stepDiagramSheetBox, stepDiagramToPicture } from './paintStepDiagram';
 
 const SHEET: StepDiagramPrimitive = { kind: 'sheet', width: 1, height: 1 };
 
@@ -94,6 +94,33 @@ describe('paintStepDiagram', () => {
     if (frontFold?.kind !== 'line' || backFold?.kind !== 'line') throw new Error('no fold');
     expect(backFold.a[0] - middle).toBeCloseTo(middle - frontFold.a[0], 6);
     expect(back.items.find((item) => item.kind === 'face')).toMatchObject({ side: 'back' });
+  });
+
+  it('puts a model point in picture units where the picture draws it, front and back', () => {
+    // A sheet twice as wide as it is tall: its frame is 1 by 0.5.
+    const wide: StepDiagramModel = {
+      sheet: { width: 1, height: 0.5 },
+      primitives: [
+        { kind: 'sheet', width: 1, height: 0.5 },
+        { kind: 'line', from: [0.2, 0.1], to: [0.7, 0.4], style: 'valley' },
+      ],
+    };
+    const front = stepDiagramToPicture(wide, false);
+    const back = stepDiagramToPicture(wide, true);
+    // y up in the model, y down in the picture; the back reflects x.
+    expect(front([0, 0])).toEqual([0, 0.5]);
+    expect(front([1, 0.5])).toEqual([1, 0]);
+    expect(back([0, 0])).toEqual([1, 0.5]);
+    for (const mirrored of [false, true]) {
+      const scene = stepDiagramScene(wide, mirrored, DEFAULT_DIAGRAM_STYLE, 50);
+      const box = stepDiagramSheetBox(wide, mirrored, 50);
+      const drawn = scene.items.find((item) => item.kind === 'line' && item.role !== 'edge');
+      if (drawn?.kind !== 'line') throw new Error('no fold');
+      const toPicture = mirrored ? back : front;
+      const [u, v] = toPicture([0.2, 0.1]);
+      expect(u).toBeCloseTo((drawn.a[0] - box.x) / box.width, 9);
+      expect(v).toBeCloseTo((drawn.a[1] - box.y) / box.width, 9);
+    }
   });
 
   it('paints every card of a real plan', () => {

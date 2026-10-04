@@ -72,6 +72,25 @@ export function stepDiagramSheetBox(
 }
 
 /**
+ * A point of the step's model in picture units (D8): the sheet's box the
+ * frame, its longer side one, y down, and x reflected on the back — where the
+ * point is drawn in the step's picture, through the one map that draws it.
+ */
+export function stepDiagramToPicture(
+  model: StepDiagramModel,
+  mirrored: boolean
+): (point: readonly [number, number]) => [number, number] {
+  // Any size will do: picture units are a share of the sheet's box.
+  const { origin, ex, ey } = sheetToScene(model, mirrored, 1);
+  const box = stepDiagramSheetBox(model, mirrored, 1);
+  const longer = Math.max(box.width, box.height, Number.EPSILON);
+  return ([u, v]) => [
+    (origin[0] + u * ex[0] + v * ey[0] - box.x) / longer,
+    (origin[1] + u * ex[1] + v * ey[1] - box.y) / longer,
+  ];
+}
+
+/**
  * The step as a scene whose sheet's longer side is `sheetMm` on paper: the
  * scale it will be painted at, so the painter's own scale is one.
  */
