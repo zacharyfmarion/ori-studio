@@ -30,6 +30,7 @@ import { folded3dSceneStyleKey } from '../../cp-workspace/folded/folded3dScene';
 import { folded3dFigureScene } from '../../cp-workspace/folded/folded3dStoredScene';
 import { foldedFigureExportDocument } from '../../cp-workspace/folded/foldedFigureExport';
 import { foldedFlatPaperScene } from '../../cp-workspace/folded/foldedFlatScene';
+import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import { resolveFoldRoute } from '../../cp-workspace/folded/foldRoute';
 import {
   openFold,
@@ -172,13 +173,17 @@ export function captureCreasePattern(
  * kernel's paper scene in whole faces, or — for a fold the kernel could not
  * order (`NoSolutions`, `Contradiction`), which it leaves at its transparent
  * development — that development as our own SVG, sanitized like an upload.
+ * With a `spread` the paper scene's layers step apart on the turned picture,
+ * every face kept, since a layer the drawer covers may now show an edge; the
+ * development has no layers to spread and is drawn as it is.
  */
 export async function readFlatPicture(
   runtime: CpFoldRuntime,
   handle: number,
   state: Pick<FoldedFigureState, 'displayStyle'>,
   rotationDeg: number,
-  env?: SanitizeEnv
+  env?: SanitizeEnv,
+  spread?: LayerSpreadOptions
 ): Promise<CapturedPicture> {
   const { snapshot, scene } = await readFoldedPicture(runtime, handle, state.displayStyle);
   if (scene && scene.faces.length > 0) {
@@ -187,7 +192,12 @@ export async function readFlatPicture(
       const turned = turn(point);
       return [turned.x * CAPTURE_PX_PER_UNIT, turned.y * CAPTURE_PX_PER_UNIT];
     };
-    const flat = foldedFlatPaperScene(scene, { markHidden: true, toScenePx, scale: CAPTURE_PX_PER_UNIT });
+    const flat = foldedFlatPaperScene(scene, {
+      markHidden: !spread,
+      toScenePx,
+      scale: CAPTURE_PX_PER_UNIT,
+      ...(spread ? { spread } : {}),
+    });
     return storeScene(flat, CAPTURE_PX_PER_UNIT, null);
   }
   const page = foldedFigureExportDocument(snapshot, { showBackgroundColor: false, rotationDeg });

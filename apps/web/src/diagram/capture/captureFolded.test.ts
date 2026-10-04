@@ -25,7 +25,13 @@ import {
   TWO_SQUARES,
   twoSquaresSegmentation,
 } from './capture.fixtures';
-import { captureStep, SCENE_BUDGET_BYTES, storeScene, type CaptureStepRequest } from './captureFolded';
+import {
+  captureStep,
+  readFlatPicture,
+  SCENE_BUDGET_BYTES,
+  storeScene,
+  type CaptureStepRequest,
+} from './captureFolded';
 import { CAPTURE_PX_PER_UNIT } from './captureGeometry';
 import { stepsIn } from '../document/diagramSteps.fixtures';
 
@@ -214,6 +220,44 @@ describe('captureStep, flat', () => {
       rotationDeg: 0,
       foldCase: 1,
     });
+  });
+});
+
+describe('readFlatPicture with a spread', () => {
+  /** The stored scene's faces, by kernel face. */
+  async function facesOf(rotationDeg: number, spread?: { amount: number; toward: 'up-left' | 'down' }) {
+    const captured = await readFlatPicture(fakeCaptureRuntime(), 7, { displayStyle: 'Paper5' }, rotationDeg, undefined, spread);
+    if (captured.kind !== 'picture' || captured.picture.kind !== 'scene') throw new Error('expected a scene');
+    const scene = JSON.parse(captured.picture.sceneJson) as { items: Array<{ kind: string; face: number; rings: number[][][] }> };
+    return new Map(scene.items.filter((item) => item.kind === 'face').map((item) => [item.face, item.rings[0]!]));
+  }
+
+  it('keeps the buried face, stepped by its depth on the screen however the picture is turned', async () => {
+    // The half fold: face 0 over face 1. They share the fold's ends (corners
+    // 2 and 3, sheet vertices 2 and 3), which step half as far as face 1's
+    // own corners; face 0's own corners stay. The model is 100 units across,
+    // so 5% steps the deepest layer 5 units, on the screen whatever the turn.
+    expect([...(await facesOf(0)).keys()]).toEqual([0]);
+    const reach = 5 * CAPTURE_PX_PER_UNIT;
+    const depth = new Map([
+      [0, [0, 0, 0.5, 0.5]],
+      [1, [1, 1, 0.5, 0.5]],
+    ]);
+    const unit = { 'up-left': [-Math.SQRT1_2, -Math.SQRT1_2], down: [0, 1] } as const;
+    for (const rotationDeg of [0, 90]) {
+      const plain = (await facesOf(rotationDeg)).get(0)!;
+      for (const toward of ['up-left', 'down'] as const) {
+        const spread = await facesOf(rotationDeg, { amount: 0.05, toward });
+        expect([...spread.keys()].sort()).toEqual([0, 1]);
+        for (const [face, fractions] of depth) {
+          fractions.forEach((fraction, corner) => {
+            const at = spread.get(face)![corner]!;
+            expect(at[0]).toBeCloseTo(plain[corner]![0] + fraction * reach * unit[toward][0], 1);
+            expect(at[1]).toBeCloseTo(plain[corner]![1] + fraction * reach * unit[toward][1], 1);
+          });
+        }
+      }
+    }
   });
 });
 

@@ -194,7 +194,10 @@ defaults he has not seen yet and are cheap to change.
   unchanged byte for byte. As built: every emitted point goes through one
   `at(face, point)`, which without a spread is `toScenePx` itself; a digest
   test pins the unspread scenes of the real folds and the weave to what the
-  producer drew before.
+  producer drew before. `readFlatPicture` takes an optional spread (last
+  argument) and passes `markHidden: !spread`; nothing threads it yet (13d).
+  Before/after pictures of Zach's crane and four cpoogle bases:
+  `artifacts/diagram-spread/pair-*.png` (`spread-pictures.mjs`).
 
 ### 13d. Document and capture
 - [ ] `spread` on the render; reader, writer, validators, round trips; the
@@ -219,13 +222,34 @@ defaults he has not seen yet and are cheap to change.
 2. Woven regions: patches move with their face, but the levels there follow
    a broken cycle.
 3. Size: every face is stored with a spread on, so more large steps exceed the
-   2 MB stored-scene budget and fall back to a bitmap.
+   2 MB stored-scene budget and fall back to a bitmap. Measured (13c): 6.8 KB
+   to 150 KB for Langerak's 921-face crane, 1 KB to 7 KB for Zach's step 14 —
+   far inside the budget.
 4. A layer wrapped by a fold steps by its own level while the fold's vertices
-   step by the mean of the two faces it joins; where the wrapped layer is
-   deeper than that mean it pokes past the fold. Rare in the playground's
-   models; looked for on the real steps.
+   step by the mean of the two faces it joins; where the wrapped layer's
+   level differs from that mean it pokes past the fold — deeper, through a
+   fold on the side the layers step toward; shallower, through one on the
+   far side. Measured on the real steps (13c, 5% up-left, a fold's midpoint
+   more than 0.2% of the model inside a layer it wraps, each step at its own
+   turn): on Zach's crane 1 of 2 wrapped folds (step 5), 1 of 10 (10), 3 of
+   14 (11), 9 of 22 (12), 11 of 20 (13), 20 of 36 (14), none on steps 4 and
+   6–9; on whole cpoogle bases from the front 19 of 126 (Rain Frog), 20 of 92
+   (Lizard), 121 of 778 (Langerak's crane), none on Hagiwara's frog. The
+   count changes with the turn, since the direction stays on the screen. On
+   step 14 most lie inside the outline, under the layers above them; where
+   one reaches the outline it shows as a sliver past a folded edge, a few px
+   at card size (step 11's right edge). Not rare: decision 5 (no poke check in v1) now stands on the
+   slivers being small, not on there being few — for Zach.
 5. Deep stacks: a 40-layer model steps each layer 1/40 of the amount, so its
-   middle layers barely part; a per-layer step would explode instead.
+   middle layers barely part; a per-layer step would explode instead. The
+   level is the longest chain over a face through every stack, so `z_max`
+   runs past the deepest single stack: 20 levels for 16 layers (crane step
+   11), 86 for 37 (Rain Frog), 148 for 86 (Lizard), 450 for 123 (Langerak's
+   crane) — each level's step is that much smaller.
+6. The nearest layer is still only where no deeper face shares its vertex: a
+   top face's corner on a fold to a deep face steps by their mean, so the
+   top face's own outline kinks there, and a layer between can show on the
+   far side of it (Zach's crane step 11, the right edge).
 
 ## Why not the affine distortion
 
