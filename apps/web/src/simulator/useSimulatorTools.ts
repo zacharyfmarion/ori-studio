@@ -1,18 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import type {
-  SimulatorPinsClearSource,
-  SimulatorToolOptionSource,
-  SimulatorToolSelectSource,
-} from '../analytics/events';
+import {
+  trackSimulatorPinnedFoldMoved,
+  trackSimulatorPinsCleared,
+  trackSimulatorPinsEdited,
+  trackSimulatorSolverRecovered,
+  trackSimulatorToolOptionChanged,
+  trackSimulatorToolSelected,
+  type SimulatorPinsClearSource,
+  type SimulatorToolOptionSource,
+  type SimulatorToolSelectSource,
+} from '../analytics';
 import { reportError } from '../monitoring';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { simulatorPinsFor } from '../store/workspaceStore/slices/simulatorSlice';
 import type { SimulatorToolVerbs } from './tools/actions';
 import { RESTING_SIMULATOR_TOOL, simulatorTool } from './tools/catalog';
 import { pickQueryFor, pinIntentFor } from './tools/intents';
-import { applyPinPick, EMPTY_PIN_SET, pinSetsEqual, type PinSet } from './tools/pinSet';
+import {
+  applyPinPick,
+  EMPTY_PIN_SET,
+  pinPickOutcome,
+  pinSetsEqual,
+  type PinSet,
+} from './tools/pinSet';
 import type {
   CssSize,
   SimulatorGesture,
@@ -97,6 +109,14 @@ export function classifySimulatorCallFailure(error: unknown): SimulatorCallFailu
 export const PIN_STRAIN_NOTICE_THRESHOLD = 0.15;
 /** The notice goes once strain is back under this, so it cannot flicker at the line. */
 const PIN_STRAIN_NOTICE_CLEAR = 0.12;
+
+/** How far the fold target has to move from where it was when the pins changed. */
+const PINNED_FOLD_MOVE_PERCENT = 1;
+
+/** Each option as the analytics event names it: the tool it belongs to, and itself. */
+const OPTION_EVENT: Record<SimulatorToolOptionId, { tool: SimulatorToolId; option: 'through-layers' }> = {
+  pinThroughLayers: { tool: 'pin', option: 'through-layers' },
+};
 
 /**
  * The model on screen and the source it was loaded for.
@@ -274,6 +294,13 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
           if (!pinSetsEqual(before, after)) {
             useWorkspaceStore.getState().setSimulatorPins(binding.revision, binding.sourceKey, after);
           }
+          trackSimulatorPinsEdited({
+            gesture: intent.gesture,
+            mode: intent.mode,
+            depth: intent.reach,
+            outcome: pinPickOutcome(before, after, picked),
+            pinnedCount: after.length,
+          });
           return;
         }
       }
@@ -308,23 +335,29 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
     [runIntent]
   );
 
-  const selectTool = useCallback((id: SimulatorToolId, _source: SimulatorToolSelectSource) => {
+  const selectTool = useCallback((id: SimulatorToolId, source: SimulatorToolSelectSource) => {
     const store = useWorkspaceStore.getState();
     if (store.simulatorActiveToolId === id) return;
     // A box half drawn under one tool means nothing to the next.
     live.current.options.cancelGesture();
     store.setSimulatorActiveTool(id);
+    trackSimulatorToolSelected({ tool: id, source });
   }, []);
 
-  const clearPins = useCallback((_source: SimulatorPinsClearSource) => {
+  const clearPins = useCallback((source: SimulatorPinsClearSource) => {
     const binding = live.current.bound;
-    if (!binding || pinsOf(binding).length === 0) return;
+    const before = binding ? pinsOf(binding) : EMPTY_PIN_SET;
+    if (!binding || before.length === 0) return;
     useWorkspaceStore.getState().setSimulatorPins(binding.revision, binding.sourceKey, EMPTY_PIN_SET);
+    trackSimulatorPinsCleared({ source, pinnedCount: before.length });
   }, []);
 
   const setOption = useCallback(
-    (id: SimulatorToolOptionId, value: boolean, _source: SimulatorToolOptionSource) => {
-      useWorkspaceStore.getState().setSimulatorToolOption(id, value);
+    (id: SimulatorToolOptionId, value: boolean, source: SimulatorToolOptionSource) => {
+      const store = useWorkspaceStore.getState();
+      if (store.simulatorToolOptions[id] === value) return;
+      store.setSimulatorToolOption(id, value);
+      trackSimulatorToolOptionChanged({ ...OPTION_EVENT[id], value, source });
     },
     []
   );
@@ -336,10 +369,56 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
     return true;
   }, [selectTool]);
 
+  // What the frames have said, for the events that read them: where the fold
+  // target was when the pins last changed, and which recoveries this model has
+  // already reported.
+  const framesRef = useRef<{
+    pins: PinSet | null;
+    lastFold: number | null;
+    baseline: number | null;
+    moved: boolean;
+    model: SimulatorModelView | null;
+    recovered: Set<string>;
+  }>({ pins: null, lastFold: null, baseline: null, moved: false, model: null, recovered: new Set() });
+
   // Called once per solver frame, so it compares before it sets: a frame that
   // changes nothing must not cost the panel a render.
   const observeFrame = useCallback((frame: SimulatorFrameView) => {
-    const { pinned: current, notices: shown } = live.current;
+    const { pinned: current, notices: shown, bound: binding } = live.current;
+    const seen = framesRef.current;
+
+    // Once per load per action, pinned or not: the guard used to act silently.
+    const model = binding?.model ?? null;
+    if (seen.model !== model) {
+      seen.model = model;
+      seen.recovered = new Set();
+    }
+    const recovered = frame.recovered ?? null;
+    if (recovered && !seen.recovered.has(recovered)) {
+      seen.recovered.add(recovered);
+      trackSimulatorSolverRecovered({ action: recovered, pinned: current.length > 0 });
+    }
+
+    // The first move of the fold target after a pin edit, once per pin set.
+    if (seen.pins !== current) {
+      seen.pins = current;
+      seen.baseline = seen.lastFold;
+      seen.moved = false;
+    }
+    seen.lastFold = frame.foldPercent;
+    if (
+      current.length > 0 &&
+      !seen.moved &&
+      seen.baseline !== null &&
+      Math.abs(frame.foldPercent - seen.baseline) >= PINNED_FOLD_MOVE_PERCENT
+    ) {
+      seen.moved = true;
+      trackSimulatorPinnedFoldMoved({
+        direction: frame.foldPercent > seen.baseline ? 'fold' : 'unfold',
+        pinnedCount: current.length,
+      });
+    }
+
     if (current.length === 0) return;
     const next = nextPinNotices(shown, frame);
     if (next === shown) return;

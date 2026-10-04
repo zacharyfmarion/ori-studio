@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { trackSimulatorToolPickerOpened } from '../analytics';
 import { ToolPickerList } from '../components/ui/tools/ToolPickerGroup';
 import { ToolPickerRow } from '../components/ui/tools/ToolPickerRow';
 import { ToolPickerSheet } from '../components/ui/tools/ToolPickerSheet';
@@ -33,6 +34,7 @@ export function SimulatorToolsTrigger({
   const { t } = useTranslation();
   const { open, pickerId, openPicker, close, triggerRef } = useToolPickerSheet({
     available: true,
+    onOpened: trackSimulatorToolPickerOpened,
   });
   const active = buttons.find((button) => button.active);
   const ActiveIcon = active ? SIMULATOR_TOOL_ICONS[active.icon] : null;

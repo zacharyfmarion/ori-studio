@@ -998,6 +998,51 @@ export const ANALYTICS_EVENTS = {
    * it.
    */
   simulatorPatternOpened: 'simulator pattern opened',
+  /**
+   * The Simulate canvas's tool changed. `tool` is the catalogue's id and
+   * `source` where it was picked; a press on the tool already in hand changes
+   * nothing and sends nothing. Escape is a source of its own, because it is how
+   * people leave Pin, and how often they do says whether they want to.
+   */
+  simulatorToolSelected: 'simulator tool selected',
+  /**
+   * The phone layout's Simulate tool sheet was opened: whether people find the
+   * Tools pill that stands in for the rail. Kept apart from Edit's
+   * `cp tool picker opened`, which dashboards compare across releases.
+   */
+  simulatorToolPickerOpened: 'simulator tool picker opened',
+  /**
+   * A Pin gesture finished: once per box or click, never per pointer move.
+   * `gesture`, `mode` and `depth` are enums; `outcome` says whether it found
+   * nothing, changed the set, or found only what was pinned; the set's size
+   * after travels as a bucket. `depth` is how the "through all layers" option
+   * gets used. Face ids, coordinates and exact counts are never sent.
+   */
+  simulatorPinsEdited: 'simulator pins edited',
+  /**
+   * An explicit Clear emptied a non-empty pin set, with the size before as a
+   * bucket. A gesture that empties the set is `simulator pins edited` instead,
+   * so nothing is counted twice.
+   */
+  simulatorPinsCleared: 'simulator pins cleared',
+  /**
+   * A simulator tool's option changed. Generic over tool and option, so a later
+   * tool's options need no event of their own; values are `on` and `off`.
+   */
+  simulatorToolOptionChanged: 'simulator tool option changed',
+  /**
+   * The fold target first moved after a pin edit — once per pin set. This is
+   * the feature's value question: do people fold and unfold around their pins,
+   * or pin and stop?
+   */
+  simulatorPinnedFoldMoved: 'simulator pinned fold moved',
+  /**
+   * The solver's blow-up guard acted: `reset` put a non-finite model back to
+   * flat, `arrest` drained runaway velocity. At most once per load per action,
+   * with whether anything was pinned — pins over-constrain the paper, and this
+   * says whether that matters in practice. These were repaired silently before.
+   */
+  simulatorSolverRecovered: 'simulator solver recovered',
   foldedFigureRehydrated: 'folded figure rehydrated',
   creasePatternShared: 'crease pattern shared',
   /**
@@ -1218,6 +1263,15 @@ export type SimulatorPinsClearSource = 'tool-window' | 'context-menu' | 'shortcu
 
 /** Where a simulator tool option was changed. */
 export type SimulatorToolOptionSource = 'tool-window' | 'context-menu' | 'shortcut';
+
+/**
+ * Threshold ladder for how many faces are pinned.
+ *
+ * Starts at 0, unlike {@link COUNT_BUCKETS}: a gesture that empties the set is
+ * the answer to a question here (did a plain click on nothing clear it), and a
+ * ladder that starts at 1 files an empty set with a single face.
+ */
+export const SIMULATOR_PIN_COUNT_BUCKETS = [0, 1, 5, 20, 100, 500] as const;
 
 /**
  * Threshold ladder for how many stretches in one packing found no pattern.

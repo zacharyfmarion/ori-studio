@@ -793,7 +793,8 @@ Each step is its own commit; the moves change nothing on screen.
 - [x] **Phone:** `SimulatorToolsTrigger` left of the Settings pill, the sheet
       listing Orbit and Pin, the rail gone. Test: phone layout renders the pill
       and no rail; tablet the reverse.
-- [ ] **Analytics:** events, typed wrappers with tests, `docs/analytics.md` rows
+- [x] **Analytics:** events, typed wrappers with tests, `docs/analytics.md` rows
+      (property values are kebab-case, as the rest of `events.ts` spells them)
 - [ ] **Errors:** toasts, `reportError` surfaces, notices (strain threshold
       calibrated on the corpus)
 - [ ] **i18n:** eight locales, stamped, `i18n:check`

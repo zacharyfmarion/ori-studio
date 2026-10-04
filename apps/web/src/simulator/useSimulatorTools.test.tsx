@@ -17,6 +17,17 @@ import {
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const tracked: { event: string; properties?: Record<string, unknown> }[] = [];
+vi.mock('../analytics/runtime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../analytics/runtime')>();
+  return {
+    ...actual,
+    track: (event: string, properties?: Record<string, unknown>) => {
+      tracked.push(properties ? { event, properties } : { event });
+    },
+  };
+});
+
 const toastError = vi.fn();
 vi.mock('sonner', () => ({ toast: { error: (...args: unknown[]) => toastError(...args) } }));
 const reported: { error: unknown; context: unknown }[] = [];
@@ -125,6 +136,7 @@ afterEach(() => {
   latest = null;
   toastError.mockReset();
   reported.length = 0;
+  tracked.length = 0;
 });
 
 describe('useSimulatorTools', () => {
@@ -427,5 +439,94 @@ describe('classifySimulatorCallFailure', () => {
     expect(classifySimulatorCallFailure(new Error('x'))).toBe('unexpected');
     expect(classifySimulatorCallFailure({ code: 'webgl_context_lost' })).toBe('unexpected');
     expect(classifySimulatorCallFailure(null)).toBe('unexpected');
+  });
+});
+
+describe('useSimulatorTools analytics', () => {
+  function frame(extra: Partial<{ foldPercent: number; recovered: 'reset' | 'arrest' | null; maxStrain: number }>) {
+    return { foldPercent: 0, recovered: null, maxStrain: 0, ...extra } as never;
+  }
+
+  it('reports a tool change once, and not a press on the tool in hand', () => {
+    render(options());
+
+    act(() => tools().verbs.selectTool('pin', 'rail'));
+    act(() => tools().verbs.selectTool('orbit', 'picker'));
+    act(() => tools().verbs.selectTool('orbit', 'rail'));
+
+    expect(tracked).toEqual([
+      { event: 'simulator tool selected', properties: { tool: 'orbit', source: 'picker' } },
+    ]);
+  });
+
+  it('reports each pin gesture with what it found', async () => {
+    const pickFaces = vi
+      .fn<SimulatorToolsRuntime['pickFaces']>()
+      .mockResolvedValueOnce([4, 2])
+      .mockResolvedValueOnce([]);
+    render(options({ runtime: fakeRuntime({ pickFaces }) }));
+
+    act(() => tools().runGesture(BOX, SURFACE));
+    await settle();
+    act(() => tools().runGesture(CLICK, SURFACE));
+    await settle();
+
+    expect(tracked).toEqual([
+      {
+        event: 'simulator pins edited',
+        properties: { gesture: 'box', mode: 'replace', depth: 'all-layers', outcome: 'changed', pinned_count_bucket: '<=5' },
+      },
+      {
+        event: 'simulator pins edited',
+        properties: { gesture: 'click', mode: 'replace', depth: 'front', outcome: 'empty', pinned_count_bucket: '<=0' },
+      },
+    ]);
+  });
+
+  it('reports a Clear that emptied something, and an option that changed', async () => {
+    useWorkspaceStore.getState().setSimulatorPins(1, 'whole:1:all', [3, 5]);
+    render(options());
+    await settle();
+
+    act(() => tools().verbs.clearPins('context-menu'));
+    act(() => tools().verbs.clearPins('context-menu'));
+    act(() => tools().verbs.setOption('pinThroughLayers', true, 'tool-window'));
+    act(() => tools().verbs.setOption('pinThroughLayers', false, 'tool-window'));
+
+    expect(tracked).toEqual([
+      { event: 'simulator pins cleared', properties: { source: 'context-menu', pinned_count_bucket: '<=5' } },
+      {
+        event: 'simulator tool option changed',
+        properties: { tool: 'pin', option: 'through-layers', value: 'off', source: 'tool-window' },
+      },
+    ]);
+  });
+
+  it('reports the fold first moving after a pin edit, once per pin set', async () => {
+    render(options());
+    act(() => tools().observeFrame(frame({ foldPercent: 20 })));
+    act(() => useWorkspaceStore.getState().setSimulatorPins(1, 'whole:1:all', [2]));
+    await settle();
+
+    act(() => tools().observeFrame(frame({ foldPercent: 20.5 })));
+    act(() => tools().observeFrame(frame({ foldPercent: 12 })));
+    act(() => tools().observeFrame(frame({ foldPercent: 40 })));
+
+    expect(tracked).toEqual([
+      { event: 'simulator pinned fold moved', properties: { direction: 'unfold', pinned_count_bucket: '<=1' } },
+    ]);
+  });
+
+  it('reports a solver recovery once per model and action', async () => {
+    render(options());
+
+    act(() => tools().observeFrame(frame({ recovered: 'arrest' })));
+    act(() => tools().observeFrame(frame({ recovered: 'arrest' })));
+    act(() => tools().observeFrame(frame({ recovered: 'reset' })));
+
+    expect(tracked).toEqual([
+      { event: 'simulator solver recovered', properties: { action: 'arrest', pinned: 'no' } },
+      { event: 'simulator solver recovered', properties: { action: 'reset', pinned: 'no' } },
+    ]);
   });
 });
