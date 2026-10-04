@@ -9,6 +9,8 @@ import {
 } from './events';
 import type {
   DiagramAnnotationTool,
+  DiagramArrowShapeGesture,
+  DiagramShapedArrowKind,
   DiagramCaptureKind,
   DiagramCaptureOutcome,
   DiagramCaptureVia,
@@ -84,6 +86,15 @@ export function trackDiagramStepOpened(via: DiagramStepOpenedVia, mode: DiagramS
  */
 export function trackDiagramAnnotationAdded(tool: DiagramAnnotationTool): void {
   track(ANALYTICS_EVENTS.diagramAnnotationAdded, { tool });
+}
+
+/**
+ * A fold arrow shaped by hand for the first time — its arc made a path — by
+ * the Edit Path gesture that did it. Once per arrow, not per edit: whether
+ * arrows are shaped at all, and which way in people find. Never where.
+ */
+export function trackDiagramArrowShaped(kind: DiagramShapedArrowKind, gesture: DiagramArrowShapeGesture): void {
+  track(ANALYTICS_EVENTS.diagramArrowShaped, { kind, gesture });
 }
 
 /** A pose verb on an uploaded picture, and what the picture is. */

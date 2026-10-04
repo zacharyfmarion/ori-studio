@@ -1,7 +1,8 @@
 /**
  * What a press on the Annotate canvas lands on: an end of the selected
  * annotation, or an annotation's body — the topmost, as drawn — in picture
- * units.
+ * units; and in Edit Path, a node, a handle or the curve of the selected
+ * fold arrow.
  *
  * Pure: no DOM, no store.
  */
@@ -34,14 +35,16 @@ import {
   pathLength,
   type PicturePoint,
 } from './annotationModel';
+import { nearestPathPoint, pathNodesOf, visiblePathHandles } from './annotationPath';
 import { perAnnotation } from './perAnnotation';
 
 /**
- * Which part of an annotation a press took hold of: its body, or one end —
- * and, as Edit Path and the right-angle mark come to offer them, a node of an
- * arrow's path, one of a node's two handles, the segment between two nodes
- * (and where along it, `t` in [0, 1]), a mark's corner or the direction it
- * opens in. Nothing offers the last five yet.
+ * Which part of an annotation a press took hold of: its body, or one end; in
+ * Edit Path a node of an arrow's path, one of a node's two handles, or the
+ * segment between two nodes (and where along it, `t` in [0, 1],
+ * {@link hitPathGrip}); and, as the right-angle mark comes to offer them, a
+ * mark's corner or the direction it opens in. Nothing offers the last two
+ * yet.
  */
 export type AnnotationGripPart =
   | { part: 'body' }
@@ -55,6 +58,9 @@ export type AnnotationGripPart =
 
 /** What a press took hold of: the annotation, and which part of it. */
 export type AnnotationGrip = { annotationId: string } & AnnotationGripPart;
+
+/** The parts of a fold arrow Edit Path takes hold of. */
+export type PathGripPart = Extract<AnnotationGripPart, { part: 'node' | 'handle' | 'segment' }>;
 
 /** How near a press must be, in picture units: the ink's reach and a finger's. */
 export interface HitSizes {
@@ -310,4 +316,34 @@ export function hitAnnotation(
     if (bodyDistance(annotation, point, sizes) <= sizes.tolerance) return { annotationId: annotation.id, part: 'body' };
   }
   return null;
+}
+
+/**
+ * What a press takes hold of on a fold arrow in Edit Path: a handle it shows
+ * with `selectedNode` or a node — whichever is nearest, a handle on a tie,
+ * so one drawn over its node can still be pulled out — then the curve, at
+ * the segment and `t` nearest the press. All within `reach`, a grip's
+ * screen size in picture units. An arc is held by the nodes it would have
+ * (`pathNodesOf`). Null off them, and for a kind that is not shaped.
+ */
+export function hitPathGrip(
+  annotation: KnownDiagramAnnotation,
+  point: PicturePoint,
+  reach: number,
+  selectedNode: number | null
+): PathGripPart | null {
+  const nodes = pathNodesOf(annotation);
+  if (!nodes) return null;
+  let best: { grip: PathGripPart; distance: number } | null = null;
+  const consider = (grip: PathGripPart, at: PicturePoint) => {
+    const distance = Math.hypot(point[0] - at[0], point[1] - at[1]);
+    if (distance <= reach && (best === null || distance < best.distance)) best = { grip, distance };
+  };
+  for (const handle of visiblePathHandles(nodes, selectedNode)) {
+    consider({ part: 'handle', node: handle.node, side: handle.side }, handle.at);
+  }
+  nodes.forEach((node, index) => consider({ part: 'node', node: index }, node.at));
+  if (best !== null) return (best as { grip: PathGripPart }).grip;
+  const near = nearestPathPoint(annotation, point);
+  return near && near.distance <= reach ? { part: 'segment', segment: near.segment, t: near.t } : null;
 }

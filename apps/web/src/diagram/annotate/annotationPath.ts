@@ -29,6 +29,7 @@ import {
   type PictureFrame,
   type PicturePoint,
 } from './annotationModel';
+import { perAnnotation } from './perAnnotation';
 
 const plus = (a: PicturePoint, b: PicturePoint): PicturePoint => [a[0] + b[0], a[1] + b[1]];
 const minus = (a: PicturePoint, b: PicturePoint): PicturePoint => [a[0] - b[0], a[1] - b[1]];
@@ -40,11 +41,85 @@ const ON_NODE = 1e-9;
 
 /**
  * The nodes Edit Path shows for an arrow: its path, or its arc's as the
- * first edit would make it one. Null for a kind that is not shaped.
+ * first edit would make it one. Null for a kind that is not shaped. Worked
+ * out once per annotation object: the canvas, its hit test and the store's
+ * check of the selected node all ask for the same arrow's.
  */
-export function pathNodesOf(annotation: KnownDiagramAnnotation): readonly DiagramPathNode[] | null {
+export const pathNodesOf = perAnnotation((annotation): readonly DiagramPathNode[] | null => {
   if (!canBeShaped(annotation.kind)) return null;
   return arcToPath(annotation).path ?? null;
+});
+
+/**
+ * What an arrow is made of, as Edit Path holds it: whether it is a path yet
+ * and how many nodes it shows. A drag, or a selected node, is taken against
+ * one; an edit that lands under it and changes either (an undo, Reset, a
+ * node added or taken out) leaves it meaning another node, so it is let go.
+ */
+export interface PathRepresentation {
+  shaped: boolean;
+  nodes: number;
+}
+
+export function pathRepresentation(annotation: KnownDiagramAnnotation): PathRepresentation | null {
+  const nodes = pathNodesOf(annotation);
+  return nodes && { shaped: annotation.path !== undefined, nodes: nodes.length };
+}
+
+export function sameRepresentation(a: PathRepresentation | null, b: PathRepresentation | null): boolean {
+  return a !== null && b !== null && a.shaped === b.shaped && a.nodes === b.nodes;
+}
+
+/** One handle Edit Path shows: whose node, which side, and where it is. */
+export interface PathHandle {
+  node: number;
+  side: 'in' | 'out';
+  at: PicturePoint;
+}
+
+/**
+ * The handles Edit Path shows with `node` selected (Affinity): the node's
+ * own two, and the one of each neighbour that faces it — the four that shape
+ * the curve on either side of it. None with no node selected. A handle that
+ * lies on its node has no direction to take hold of, and is not shown.
+ */
+export function visiblePathHandles(path: readonly DiagramPathNode[], node: number | null): PathHandle[] {
+  if (node === null || !path[node]) return [];
+  const shown: PathHandle[] = [];
+  const add = (index: number, side: 'in' | 'out') => {
+    const owner = path[index];
+    const at = owner?.[side];
+    if (owner && at && size(minus(at, owner.at)) > ON_NODE) shown.push({ node: index, side, at });
+  };
+  add(node - 1, 'out');
+  add(node, 'in');
+  add(node, 'out');
+  add(node + 1, 'in');
+  return shown;
+}
+
+/**
+ * A drag kept to the nearest of the eight directions 45° apart (Shift on a
+ * node): its length along that direction, so the press stays under the
+ * pointer as nearly as the line allows.
+ */
+export function constrainToEighths(delta: PicturePoint): PicturePoint {
+  const length = size(delta);
+  if (!(length > ON_NODE)) return [0, 0];
+  const step = Math.PI / 4;
+  const angle = Math.round(Math.atan2(delta[1], delta[0]) / step) * step;
+  const unit: PicturePoint = [Math.cos(angle), Math.sin(angle)];
+  return times(unit, Math.max(0, delta[0] * unit[0] + delta[1] * unit[1]));
+}
+
+/** A handle turned to the nearest 15° about its node (Shift on a handle), its length kept. */
+export function constrainHandleAngle(node: PicturePoint, handle: PicturePoint): PicturePoint {
+  const arm = minus(handle, node);
+  const length = size(arm);
+  if (!(length > ON_NODE)) return handle;
+  const step = Math.PI / 12;
+  const angle = Math.round(Math.atan2(arm[1], arm[0]) / step) * step;
+  return [node[0] + Math.cos(angle) * length, node[1] + Math.sin(angle) * length];
 }
 
 /**
