@@ -17,7 +17,7 @@
  *
  * Pure: no DOM, no store.
  */
-import type { IndexedSegment } from '../../cp-workspace/picking/lineHitIndex';
+import { distanceToSegment, type IndexedSegment } from '../../cp-workspace/picking/lineHitIndex';
 import type { DiagramAsset, DiagramStep } from '../document/diagramDocument';
 import type { PicturePoint } from './annotationModel';
 import {
@@ -26,6 +26,7 @@ import {
   pictureGeometry,
   PICTURE_POINT_EPSILON,
   type PictureGeometry,
+  type PictureLayers,
 } from './pictureGeometry';
 import { annotationsOf, drawnLines, type SnapOptions } from './pictureSnap';
 
@@ -56,6 +57,11 @@ const SAME_RAY_DEG = 0.5;
  * there rather than leaving it the short way.
  */
 const RAY_MIN_LENGTH = 4 * PICTURE_POINT_EPSILON;
+/**
+ * How far out along a ray a flat fold's layers are asked whether they cover
+ * it: past the vertex's own tolerance, short of the next line.
+ */
+const RAY_COVER_SAMPLE = 0.002;
 
 /** The share of the radius round a vertex where the pointer says nothing about which way. */
 const DEAD_ZONE_SHARE = 0.25;
@@ -148,13 +154,25 @@ function nearestVertex(
  * through it, two.
  */
 function raysAt(geometry: PictureGeometry, drawn: readonly IndexedSegment[], at: PicturePoint): number[] {
-  const lines = drawn.filter((segment) => distanceTo(at, segment) <= PICTURE_POINT_EPSILON);
-  if (geometry.trueAngles) lines.push(...geometry.segmentIndex.segmentsNear(at[0], at[1], PICTURE_POINT_EPSILON));
+  // Drawn lines lie over the whole picture; a flat fold's own, in their layer.
+  const lines: { segment: IndexedSegment; order: number }[] = drawn
+    .filter((segment) => distanceTo(at, segment) <= PICTURE_POINT_EPSILON)
+    .map((segment) => ({ segment, order: Infinity }));
+  if (geometry.trueAngles) {
+    for (const segment of geometry.segmentIndex.segmentsNear(at[0], at[1], PICTURE_POINT_EPSILON)) {
+      lines.push({ segment, order: geometry.layers?.orders[segment.id] ?? Infinity });
+    }
+  }
   const angles: number[] = [];
-  for (const { a, b } of lines) {
-    // An end this near is the line's end at the vertex, not a way out of it.
-    if (Math.hypot(a.x - at[0], a.y - at[1]) > RAY_MIN_LENGTH) angles.push(angleOf(a.x - at[0], a.y - at[1]));
-    if (Math.hypot(b.x - at[0], b.y - at[1]) > RAY_MIN_LENGTH) angles.push(angleOf(b.x - at[0], b.y - at[1]));
+  for (const { segment, order } of lines) {
+    for (const end of [segment.a, segment.b]) {
+      const length = Math.hypot(end.x - at[0], end.y - at[1]);
+      // An end this near is the line's end at the vertex, not a way out of it.
+      if (length <= RAY_MIN_LENGTH) continue;
+      // A way out a later layer lies over is not seen, and makes no angle.
+      if (geometry.layers && covered(geometry.layers, at, end, length, order)) continue;
+      angles.push(angleOf(end.x - at[0], end.y - at[1]));
+    }
   }
   angles.sort((left, right) => left - right);
   const rays: number[] = [];
@@ -165,6 +183,38 @@ function raysAt(geometry: PictureGeometry, drawn: readonly IndexedSegment[], at:
   // Round the turn: the last ray and the first may be one.
   if (rays.length > 1 && rays[0]! + TURN - rays[rays.length - 1]! <= SAME_RAY_DEG * DEGREE) rays.pop();
   return rays;
+}
+
+/**
+ * Whether a face painted after `order` lies over the ray from `at` toward
+ * `end` (`length` away) just past the vertex: inside it, not on its edge.
+ */
+function covered(
+  layers: PictureLayers,
+  at: PicturePoint,
+  end: { x: number; y: number },
+  length: number,
+  order: number
+): boolean {
+  const out = Math.min(length / 2, RAY_COVER_SAMPLE);
+  const x = at[0] + ((end.x - at[0]) / length) * out;
+  const y = at[1] + ((end.y - at[1]) / length) * out;
+  return layers.covers.some(
+    ({ ring, order: over, box: [minX, minY, maxX, maxY] }) =>
+      over > order && x > minX && x < maxX && y > minY && y < maxY && strictlyInside(ring, x, y)
+  );
+}
+
+/** Inside a ring and farther than a point's tolerance from its edges. */
+function strictlyInside(ring: readonly PicturePoint[], x: number, y: number): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[j]!;
+    if (distanceToSegment(x, y, { x: xj, y: yj }, { x: xi, y: yi }) <= PICTURE_POINT_EPSILON) return false;
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
 
 /** The corner from the ray at `from` round to the one at `to`, when that is a right angle. */

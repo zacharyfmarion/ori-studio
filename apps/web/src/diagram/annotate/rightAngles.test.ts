@@ -191,6 +191,24 @@ describe('rightAngleCorner by kind of picture', () => {
     expect(rightAnglesAt(step, NO_ASSETS, [0, 1])).toHaveLength(1);
   });
 
+  it('reads a flat fold’s rays as they show: a layer’s edge under a later one is no way out', () => {
+    // Two triangles either side of the diagonal, then a flap over the top-left quarter, painted last.
+    const step = sceneStep(
+      [
+        face([[[0, 0], [100, 0], [100, 100]]], { outline: 'edge' }),
+        face([[[0, 0], [100, 100], [0, 100]]], { outline: 'edge' }),
+        face([[[0, 0], [50, 0], [50, 50], [0, 50]]], { outline: 'edge' }),
+      ],
+      FLAT
+    );
+    // The flap's corner shows square, the diagonal under it no way out.
+    const corner = rightAngleCorner(step, NO_ASSETS, [0.47, 0.46], 0.1);
+    expect(corner?.at).toEqual([0.5, 0.5]);
+    expect(rightAnglesAt(step, NO_ASSETS, [0.5, 0.5])).toHaveLength(1);
+    // Where the flap's edge meets the paper's top edge, which runs along its own: a T, two square.
+    expect(rightAnglesAt(step, NO_ASSETS, [0.5, 0])).toHaveLength(2);
+  });
+
   it('offers none of a 3D picture’s own: a right angle is not drawn square through a camera', () => {
     const step = sceneStep([line('edge', [0, 0], [100, 0]), line('edge', [0, 0], [0, 100])], IN_3D);
     expect(rightAnglesAt(step, NO_ASSETS, [0, 0])).toEqual([]);

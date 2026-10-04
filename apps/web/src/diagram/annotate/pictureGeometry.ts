@@ -69,6 +69,26 @@ export interface PictureGeometry {
   pointIndex: LineHitIndex;
   /** `segments`, each `id` its index. */
   segmentIndex: LineHitIndex;
+  /**
+   * A flat fold's layers, back to front: each segment's place in the paint
+   * order, by its `id`, and the faces over it — so a line a later layer
+   * covers is known for one. Null for any other picture.
+   */
+  layers: PictureLayers | null;
+}
+
+/** A flat fold's paint order, as {@link PictureGeometry.layers} keeps it. */
+export interface PictureLayers {
+  /** Per segment `id`, the paint order of the item it came from. */
+  orders: readonly number[];
+  /** The faces as painted, each with its paint order and its box. */
+  covers: readonly PictureCover[];
+}
+
+export interface PictureCover {
+  ring: readonly PicturePoint[];
+  order: number;
+  box: readonly [number, number, number, number];
 }
 
 /**
@@ -93,6 +113,7 @@ const NO_GEOMETRY: PictureGeometry = {
   segments: [],
   pointIndex: new LineHitIndex([]),
   segmentIndex: new LineHitIndex([]),
+  layers: null,
 };
 
 const scenes = new WeakMap<DiagramScenePicture, { geometry: PictureGeometry; aux: boolean }>();
@@ -170,12 +191,19 @@ function sceneGeometry(scene: PaperScene, kind: 'crease-pattern' | 'flat-fold' |
   const toPicture = ([x, y]: ScenePoint): PicturePoint => [(x - minX) / longer, (y - minY) / longer];
   const builder = new GeometryBuilder();
   const lines = new Set<string>();
-  for (const item of scene.items) {
+  // A flat fold's items go out back to front: a later face covers what it lies over.
+  const layered = kind === 'flat-fold';
+  for (const [order, item] of scene.items.entries()) {
     if (item.hidden) continue;
+    builder.order = order;
     if (item.kind === 'face') {
       // A camera's faces are cut by the painter's tree: their corners are not the paper's.
       if (kind === 'projected') continue;
-      for (const ring of item.rings) builder.ring(ring.map(toPicture), kind === 'crease-pattern');
+      for (const ring of item.rings) {
+        const corners = ring.map(toPicture);
+        builder.ring(corners, kind === 'crease-pattern');
+        if (layered) builder.cover(corners);
+      }
     } else if (item.kind === 'line') {
       // An aux line the style leaves out is no line of the picture.
       if (item.role === 'aux' && !aux) continue;
@@ -190,6 +218,7 @@ function sceneGeometry(scene: PaperScene, kind: 'crease-pattern' | 'flat-fold' |
     }
   }
   return builder.build(kind, {
+    layered,
     trueAngles: kind !== 'projected',
     // The plan's v1: a crease pattern's crossings. A flat fold's whole faces
     // cross where one is buried under another, which the scene cannot tell.
@@ -225,6 +254,18 @@ class GeometryBuilder {
   private readonly points: { at: PicturePoint; kind: PicturePointKind; ends: number }[] = [];
   private readonly cells = new Map<string, number[]>();
   private readonly segments: IndexedSegment[] = [];
+  private readonly orders: number[] = [];
+  private readonly covers: PictureCover[] = [];
+  /** The paint order of what is added next. */
+  order = 0;
+
+  /** A face over everything painted before it, at {@link order}. */
+  cover(ring: readonly PicturePoint[]): void {
+    if (ring.length < 3) return;
+    const xs = ring.map(([x]) => x);
+    const ys = ring.map(([, y]) => y);
+    this.covers.push({ ring, order: this.order, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] });
+  }
 
   /** A closed ring: its sides, and its points — a rim's corners the paper's when `rim`. */
   ring(ring: readonly PicturePoint[], rim: boolean): void {
@@ -262,7 +303,7 @@ class GeometryBuilder {
 
   build(
     kind: PictureGeometryKind,
-    { trueAngles, crossings }: { trueAngles: boolean; crossings: boolean }
+    { trueAngles, crossings, layered = false }: { trueAngles: boolean; crossings: boolean; layered?: boolean }
   ): PictureGeometry {
     const segmentIndex = new LineHitIndex(this.segments);
     const points = this.points.map(({ at, kind: pointKind, ends }): PictureVertex => {
@@ -278,11 +319,13 @@ class GeometryBuilder {
     const pointIndex = new LineHitIndex(
       points.map(({ at: [x, y] }, id) => ({ id, a: { x, y }, b: { x, y } }))
     );
-    return { kind, trueAngles, crossings, points, segments: this.segments, pointIndex, segmentIndex };
+    const layers = layered ? { orders: this.orders, covers: this.covers } : null;
+    return { kind, trueAngles, crossings, points, segments: this.segments, pointIndex, segmentIndex, layers };
   }
 
   private segment([ax, ay]: PicturePoint, [bx, by]: PicturePoint): void {
     this.segments.push({ id: this.segments.length, a: { x: ax, y: ay }, b: { x: bx, y: by } });
+    this.orders.push(this.order);
   }
 
   private find(at: PicturePoint): { at: PicturePoint; kind: PicturePointKind; ends: number } | null {
