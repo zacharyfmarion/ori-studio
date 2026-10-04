@@ -12,8 +12,9 @@ import { useSelectionUiStore } from '../store/selectionUiStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { selectWorkspaceCapabilities } from '../store/workspaceStore/capabilities';
-import { isDiagramAnnotating } from '../store/workspaceStore/diagramState';
-import { annotationActionEdit } from '../diagram/annotate/annotationActions';
+import { isDiagramAnnotating, selectedDiagramPathNode } from '../store/workspaceStore/diagramState';
+import { deleteKeyEdit } from '../diagram/annotate/annotationActions';
+import { applyAnnotationEdit } from '../diagram/annotate/applyAnnotationEdit';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import { requestPositiveNumber, type NumberDialogOptions } from '../store/commandDialogStore';
 import { showActiveWorkspace } from '../routing/workspaceUrlSync';
@@ -224,6 +225,8 @@ export interface WorkspaceCommands {
   diagramSelectedStepId: string | null;
   diagramDetail: DiagramDetailMode | null;
   diagramSelectedAnnotationId: string | null;
+  diagramAnnotateTool: WorkspaceState['diagramAnnotateTool'];
+  diagramSelectedPathNode: WorkspaceState['diagramSelectedPathNode'];
   confirmDeleteDiagramSteps(stepIds: readonly string[]): Promise<boolean>;
   editDiagramAnnotations: WorkspaceState['editDiagramAnnotations'];
 }
@@ -578,13 +581,14 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           const stepId = deps.workspace.diagramSelectedStepId;
           if (stepId === null) return false;
           // Annotate deletes the selected annotation, and only that: the step
-          // it is drawn on is not what the key was pressed at.
+          // it is drawn on is not what the key was pressed at. In Edit Path,
+          // the node selected on it, while there is one.
           if (isDiagramAnnotating(deps.workspace)) {
             const annotationId = deps.workspace.diagramSelectedAnnotationId;
             if (annotationId === null) return false;
-            // The Step pane's Delete, by the same edit (`annotationActions.ts`).
-            const { label, edit, select } = annotationActionEdit('delete', annotationId);
-            return deps.workspace.editDiagramAnnotations(stepId, label, edit, { select });
+            // The Step pane's Delete or Delete Node, by the same edit (`annotationActions.ts`).
+            const edit = deleteKeyEdit(annotationId, selectedDiagramPathNode(deps.workspace));
+            return applyAnnotationEdit(deps.workspace, stepId, edit);
           }
           return deps.workspace.confirmDeleteDiagramSteps([stepId]);
         }

@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { MousePointer2, RotateCw, Type } from 'lucide-react';
+import { MousePointer2, RotateCw, SplinePointer, Type } from 'lucide-react';
 import { TURN_OVER_BOX, TURN_OVER_HEAD_PATH, TURN_OVER_PATH } from '../../cp-workspace/references/stepDiagramGeometry';
 import type { AnnotateTool } from '../../diagram/annotate/annotateTools';
 
@@ -29,14 +29,16 @@ function Glyph({ children }: { children: React.ReactNode }) {
 
 /**
  * Each Annotate tool's icon: the mark it draws, small. The fold arrows are
- * the arrows themselves; the lines are their dash; Select, Rotate and Label
- * are the app's own icons for those verbs. Every tool has one: the return
+ * the arrows themselves; the lines are their dash; Select, Edit Path, Rotate
+ * and Label are the app's own icons for those verbs. Every tool has one: the return
  * type makes a kind left out a compile error, not a blank button.
  */
 export function DiagramAnnotateToolGlyph({ tool }: { tool: AnnotateTool }): ReactElement {
   switch (tool) {
     case null:
       return <MousePointer2 size={17} aria-hidden="true" />;
+    case 'edit-path':
+      return <SplinePointer size={17} aria-hidden="true" />;
     case 'valley-arrow':
       return (
         <Glyph>

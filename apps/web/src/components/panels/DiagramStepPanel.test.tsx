@@ -387,4 +387,61 @@ describe('DiagramStepPanel in Annotate', () => {
     act(() => buttonNamed('Keep Them Here').click());
     expect(host?.textContent).not.toContain('The picture changed');
   });
+
+  describe('with Edit Path in hand', () => {
+    const byLabel = (label: string) => host?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`) ?? null;
+    const arrow = () => annotations()[0] as { id: string; bend?: number; path?: { at: number[]; type?: string }[] };
+
+    it('says what it shapes, and that it shapes nothing else', () => {
+      const stepId = annotatedStep();
+      act(() => state().openDiagramStep(stepId, 'annotate'));
+      act(() => state().setDiagramAnnotateTool('edit-path'));
+      expect(host?.textContent).toContain('Edit Path');
+      expect(host?.textContent).toContain('Select a fold arrow to shape it.');
+      // A row pressed keeps Edit Path in hand, to shape what it selected.
+      act(() => row('B').click());
+      expect(state().diagramAnnotateTool).toBe('edit-path');
+      expect(host?.textContent).toContain('Only fold arrows can be shaped');
+      expect(host?.textContent).not.toContain('Node');
+      act(() => row('Valley Fold Arrow').click());
+      expect(host?.textContent).toContain('Drag a fold arrow’s nodes');
+    });
+
+    it('steps through the nodes, and adds, turns and deletes them, each one undo step', () => {
+      const stepId = annotatedStep();
+      act(() => state().openDiagramStep(stepId, 'annotate'));
+      act(() => {
+        state().selectDiagramAnnotation('a-1');
+        state().setDiagramAnnotateTool('edit-path');
+      });
+      // The arc's two nodes, none selected: only the steppers act.
+      expect(host?.textContent).toContain('2 nodes');
+      expect(buttonNamed('Add Node').disabled).toBe(true);
+      expect(buttonNamed('Reset Shape').disabled).toBe(true);
+      act(() => byLabel('Next Node')!.click());
+      expect(host?.textContent).toContain('Node 1 of 2');
+      expect(arrow().bend).toBe(0.1);
+      const past = state().diagramHistory.past.length;
+      act(() => buttonNamed('Add Node').click());
+      expect(arrow().path).toHaveLength(3);
+      expect(host?.textContent).toContain('Node 2 of 3');
+      act(() => buttonNamed('Corner').click());
+      expect(arrow().path![1]!.type).toBe('corner');
+      expect(buttonNamed('Corner').getAttribute('aria-checked') ?? buttonNamed('Corner').getAttribute('aria-pressed')).toBe('true');
+      act(() => byLabel('Next Node')!.click());
+      expect(host?.textContent).toContain('Node 3 of 3');
+      // An end has no type to have.
+      expect(buttonNamed('Smooth').disabled).toBe(true);
+      act(() => buttonNamed('Delete Node').click());
+      expect(arrow().path).toHaveLength(2);
+      expect(host?.textContent).toContain('Node 2 of 2');
+      expect(state().diagramHistory.past).toHaveLength(past + 3);
+      act(() => buttonNamed('Reset Shape').click());
+      expect(arrow().path).toBeUndefined();
+      expect(host?.textContent).toContain('2 nodes');
+      // Back on the arc: the node selected is none, and Delete takes the arrow, not a node.
+      act(() => buttonNamed('Delete').click());
+      expect(annotations().map((annotation) => annotation.id)).toEqual(['a-2', 'a-3']);
+    });
+  });
 });

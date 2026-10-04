@@ -2,10 +2,11 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { arrowPolyline } from '../../diagram/annotate/annotationHit';
+import { pathNodesOf, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import { GLYPH_REACH, useAnnotateCanvas, type AnnotateLayout } from '../../diagram/annotate/useAnnotateCanvas';
-import { labelHalfWidth, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
+import { canBeShaped, labelHalfWidth, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
 import {
   isKnownAnnotation,
   type DiagramAsset,
@@ -20,14 +21,18 @@ import styles from './DiagramAnnotateCanvas.module.css';
 
 /** An end's dot, in screen px. */
 const HANDLE_PX = 5;
+/** Edit Path's grips, in screen px: a node's half-size and a handle's dot — larger for a finger. */
+const NODE_PX = { fine: 4.5, coarse: 7 } as const;
+const PATH_HANDLE_PX = { fine: 3.5, coarse: 5.5 } as const;
 
 /**
  * The Annotate canvas (D8): the step's picture alone, with its annotations
  * drawn over it live as they print — under one camera, on a stage as white as
  * the page in every theme, so a mark that reaches past the picture reads as it
  * will print. A hairline marks the picture's frame. The selected annotation
- * shows where it is and, for a line or an arrow, a dot at each end. The
- * behaviour is `useAnnotateCanvas`'s; its presses are the whole stage's.
+ * shows where it is and, for a line or an arrow, a dot at each end — or, in
+ * Edit Path, a fold arrow's nodes and the handles beside the selected one.
+ * The behaviour is `useAnnotateCanvas`'s; its presses are the whole stage's.
  */
 export function DiagramAnnotateCanvas({
   step,
@@ -41,12 +46,8 @@ export function DiagramAnnotateCanvas({
   readOnly: boolean;
 }) {
   const { t } = useTranslation();
-  const { camera, overlay, url, layout, shown, tool, selectedId, onPointerDownCapture, handlers } = useAnnotateCanvas({
-    step,
-    assets,
-    style,
-    readOnly,
-  });
+  const canvas = useAnnotateCanvas({ step, assets, style, readOnly });
+  const { camera, overlay, url, layout, shown, tool, selectedId, onPointerDownCapture, handlers } = canvas;
   const { containerRef, transformRef, zoomPercent, spacePressed, zoomIn, zoomOut, fitToView, setZoomLevel, onInit, onTransformed } =
     camera;
   const drawing = useMemo(
@@ -117,7 +118,19 @@ export function DiagramAnnotateCanvas({
                     <DiagramAnnotationLayer drawing={drawing} style={style} />
                   </g>
                 )}
-                {selected && <Selection annotation={selected} layout={layout} zoom={zoom} movable={!readOnly} />}
+                {selected &&
+                  (canvas.editingPath && canBeShaped(selected.kind) ? (
+                    <PathSelection
+                      annotation={selected}
+                      layout={layout}
+                      zoom={zoom}
+                      selectedNode={canvas.selectedNode}
+                      coarse={canvas.coarse}
+                    />
+                  ) : (
+                    // Edit Path moves nothing it cannot shape: no ends to offer.
+                    <Selection annotation={selected} layout={layout} zoom={zoom} movable={!readOnly && !canvas.editingPath} />
+                  ))}
               </svg>
             </div>
           )}
@@ -192,6 +205,68 @@ function Selection({
       {movable && (['from', 'to'] as const).map((end) => {
         const [x, y] = at(annotation[end]);
         return <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />;
+      })}
+    </g>
+  );
+}
+
+/**
+ * A fold arrow in Edit Path (decision 3), over everything: a hairline along
+ * its curve, every node — smooth a circle, corner a square, the selected one
+ * filled — and the handles that shape the curve either side of the selected
+ * node (Affinity): its own two and its neighbours' facing ones. An arc shows
+ * the nodes its first edit would give it. Sized for the screen at any zoom.
+ */
+function PathSelection({
+  annotation,
+  layout,
+  zoom,
+  selectedNode,
+  coarse,
+}: {
+  annotation: KnownDiagramAnnotation;
+  layout: AnnotateLayout;
+  zoom: number;
+  selectedNode: number | null;
+  coarse: boolean;
+}) {
+  const nodes = pathNodesOf(annotation);
+  if (!nodes) return null;
+  const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit] as const;
+  const node = (coarse ? NODE_PX.coarse : NODE_PX.fine) / zoom;
+  const handle = (coarse ? PATH_HANDLE_PX.coarse : PATH_HANDLE_PX.fine) / zoom;
+  const points = arrowPolyline(annotation).map(at);
+  return (
+    <g data-selection="" data-path-selection="">
+      <polyline className={styles.pathLine} points={points.map((point) => point.join(',')).join(' ')} />
+      {visiblePathHandles(nodes, selectedNode).map(({ node: owner, side, at: point }) => {
+        const [x1, y1] = at(nodes[owner]!.at);
+        const [x2, y2] = at(point);
+        return (
+          <g key={`${owner}-${side}`}>
+            <line className={styles.handleArm} x1={x1} y1={y1} x2={x2} y2={y2} />
+            <circle className={styles.pathHandle} cx={x2} cy={y2} r={handle} data-path-handle={`${owner}-${side}`} />
+          </g>
+        );
+      })}
+      {nodes.map((each, index) => {
+        const [x, y] = at(each.at);
+        const selected = index === selectedNode || undefined;
+        return each.type === 'corner' ? (
+          <rect
+            key={index}
+            className={styles.node}
+            x={x - node}
+            y={y - node}
+            width={2 * node}
+            height={2 * node}
+            data-path-node={index}
+            data-corner=""
+            data-selected={selected}
+          />
+        ) : (
+          <circle key={index} className={styles.node} cx={x} cy={y} r={node} data-path-node={index} data-selected={selected} />
+        );
       })}
     </g>
   );
