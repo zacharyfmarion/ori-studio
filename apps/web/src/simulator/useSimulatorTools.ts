@@ -102,13 +102,18 @@ export function classifySimulatorCallFailure(error: unknown): SimulatorCallFailu
 }
 
 /**
- * Above this peak strain with pins set, the window says the pins are pulling
- * against each other. Between the spike's ordinary pinned runs (0.064) and its
- * over-constrained one (0.226); see the plan's error table.
+ * Above this strain in a settled frame with pins set, the window says the pins
+ * are pulling against each other.
+ *
+ * Settled frames only, because a fold's transients are no evidence: the bird
+ * base peaks at 0.11 folding with nothing pinned and at 0.14 with one face
+ * pinned, and settles at 0 both times. Pins that hold faces on both sides of a
+ * crease the fold needs settle it at 0.087 to 0.107; the plan's spike settled
+ * the kabuto at 0.064 under an ordinary pin and 0.226 over-constrained.
  */
-export const PIN_STRAIN_NOTICE_THRESHOLD = 0.15;
-/** The notice goes once strain is back under this, so it cannot flicker at the line. */
-const PIN_STRAIN_NOTICE_CLEAR = 0.12;
+export const PIN_STRAIN_NOTICE_THRESHOLD = 0.08;
+/** A settled frame under this takes the notice down, so it cannot flicker at the line. */
+const PIN_STRAIN_NOTICE_CLEAR = 0.06;
 
 /** How far the fold target has to move from where it was when the pins changed. */
 const PINNED_FOLD_MOVE_PERCENT = 1;
@@ -148,14 +153,15 @@ function pinsOf(binding: BoundModel): PinSet {
  * The notices after one solver frame, or the same array when nothing changed
  * so the caller can skip a render it does not need. Only `reset` is news: an
  * `arrest` keeps the fold where it is, and the strain that caused it raises
- * the strain notice on its own.
+ * the strain notice on its own once the model settles.
  */
 export function nextPinNotices(
   current: readonly SimulatorToolNotice[],
-  frame: Pick<SimulatorFrameView, 'recovered' | 'maxStrain'>
+  frame: Pick<SimulatorFrameView, 'recovered' | 'maxStrain' | 'converged'>
 ): readonly SimulatorToolNotice[] {
   let next = current;
   if (frame.recovered === 'reset' && !next.includes('recovered')) next = [...next, 'recovered'];
+  if (!frame.converged) return next;
   if (frame.maxStrain > PIN_STRAIN_NOTICE_THRESHOLD) {
     if (!next.includes('strained')) next = [...next, 'strained'];
   } else if (frame.maxStrain < PIN_STRAIN_NOTICE_CLEAR && next.includes('strained')) {
@@ -217,6 +223,8 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
 
   // The worker's copy. `faces` is the set it last acknowledged for `model`.
   const heldRef = useRef<{ model: SimulatorModelView; faces: PinSet } | null>(null);
+  // The model the worker last dropped unknown ids for, so it is reported once.
+  const droppedForRef = useRef<SimulatorModelView | null>(null);
   const { setPinnedFaces, gpuActive } = runtime;
 
   useEffect(() => {
@@ -237,6 +245,17 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
         // is sent its own source's pins when it binds.
         if (outcome === null) return;
         heldRef.current = { model, faces };
+        // Ids this model does not have. The rest of the set applied, so the user
+        // has nothing to act on; but a pin that names a face its model lacks
+        // means ids crossed models somewhere, which is a bug worth seeing once.
+        if (outcome.dropped > 0 && droppedForRef.current !== model) {
+          droppedForRef.current = model;
+          reportError(new Error('simulator pins named faces the model does not have'), {
+            surface: 'simulator:pins',
+            handled: true,
+            tags: { backend: backendTag(gpuActive), reason: 'unknown_face' },
+          });
+        }
       },
       (error: unknown) => {
         if (classifySimulatorCallFailure(error) === 'unexpected') {

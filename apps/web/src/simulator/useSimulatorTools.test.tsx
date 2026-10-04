@@ -271,6 +271,31 @@ describe('useSimulatorTools', () => {
     expect(setPinnedFaces).toHaveBeenCalledTimes(2);
   });
 
+  it('reports ids the model does not have once per model, and keeps the rest', async () => {
+    const setPinnedFaces = vi.fn(async () => ({ applied: 1, dropped: 1 }));
+    const runtime = fakeRuntime({ setPinnedFaces, pickFaces: vi.fn(async () => [1]) });
+    render(options({ runtime }));
+
+    act(() => tools().runGesture(BOX, SURFACE));
+    await settle();
+    act(() => tools().runGesture({ ...BOX, shift: true }, SURFACE));
+    vi.mocked(runtime.pickFaces).mockResolvedValueOnce([2]);
+    act(() => tools().runGesture({ ...BOX, shift: true }, SURFACE));
+    await settle();
+
+    expect(reported).toEqual([
+      {
+        error: expect.any(Error),
+        context: {
+          surface: 'simulator:pins',
+          handled: true,
+          tags: { backend: 'gpu', reason: 'unknown_face' },
+        },
+      },
+    ]);
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
   it('leaves a lost worker to the app’s own report', async () => {
     const pickFaces = vi.fn(async () => {
       throw { code: 'worker_simulator', message: 'gone' };
@@ -409,27 +434,36 @@ describe('useSimulatorTools', () => {
 });
 
 describe('nextPinNotices', () => {
-  const quiet = { recovered: null, maxStrain: 0.01 };
+  const settled = (maxStrain: number) => ({ recovered: null, maxStrain, converged: true });
+  const quiet = settled(0.01);
 
   it('keeps the same array when a frame changes nothing', () => {
     const current = ['strained'] as const;
-    expect(nextPinNotices(current, { recovered: null, maxStrain: 0.5 })).toBe(current);
+    expect(nextPinNotices(current, settled(0.5))).toBe(current);
     expect(nextPinNotices([], quiet)).toEqual([]);
   });
 
-  it('reports a reset, and not an arrest', () => {
-    expect(nextPinNotices([], { recovered: 'reset', maxStrain: 0 })).toEqual(['recovered']);
-    expect(nextPinNotices([], { recovered: 'arrest', maxStrain: 0 })).toEqual([]);
+  it('reports a reset, and not an arrest, settled or not', () => {
+    expect(nextPinNotices([], { recovered: 'reset', maxStrain: 0, converged: false })).toEqual([
+      'recovered',
+    ]);
+    expect(nextPinNotices([], { recovered: 'arrest', maxStrain: 0, converged: true })).toEqual([]);
   });
 
-  it('raises the strain notice above the threshold and drops it only well below', () => {
-    const raised = nextPinNotices([], { recovered: null, maxStrain: PIN_STRAIN_NOTICE_THRESHOLD + 0.01 });
+  it('raises the strain notice from a settled frame above the threshold and drops it only well below', () => {
+    const raised = nextPinNotices([], settled(PIN_STRAIN_NOTICE_THRESHOLD + 0.01));
     expect(raised).toEqual(['strained']);
     // Just under the line it stays, so it cannot flicker there.
-    expect(nextPinNotices(raised, { recovered: null, maxStrain: PIN_STRAIN_NOTICE_THRESHOLD - 0.01 })).toBe(
-      raised
-    );
+    expect(nextPinNotices(raised, settled(PIN_STRAIN_NOTICE_THRESHOLD - 0.01))).toBe(raised);
     expect(nextPinNotices(raised, quiet)).toEqual([]);
+  });
+
+  it('reads nothing into strain while the model is still moving', () => {
+    // A fold's transients run past the threshold with nothing pinned at all.
+    const moving = { recovered: null, maxStrain: 0.14, converged: false };
+    expect(nextPinNotices([], moving)).toEqual([]);
+    const raised = ['strained'] as const;
+    expect(nextPinNotices(raised, { ...moving, maxStrain: 0 })).toBe(raised);
   });
 });
 

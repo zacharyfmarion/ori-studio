@@ -649,7 +649,7 @@ through one pure `classifySimulatorCallFailure(error)`:
 | `setPinnedFaces` rejects unexpectedly | bug | toast `toasts:simulatorPins.updateFailed`; the pin set rolls back to the last set the worker acknowledged, so the tint never lies | `reportError(e, { surface: 'simulator:pins', tags: { backend } })` |
 | The worker drops unknown face ids | bug, contained | nothing (the rest of the set applies) | `reportError` once per session, `handled: true`, tag `reason: unknown_face` |
 | The blow-up guard resets the solver while pinned | recovery | notice: "The simulation became unstable and restarted from flat. Pins now hold the flat sheet." | `simulator solver recovered` |
-| Pins stretch the paper | an answer | notice: "Pinned faces are pulling against each other." Shown above a strain threshold calibrated on the corpus; the spike's over-constrained case peaked at 0.226, its normal runs at 0.064 | no |
+| Pins stretch the paper | an answer | notice: "Pinned faces are pulling against each other." Shown when a **settled** frame's strain passes 0.08 (cleared under 0.06). Calibrated in the browser on the bird base: a fold's transients peak at 0.11 unpinned and 0.14 with one face pinned, then settle at 0, so unsettled frames are ignored; pins spanning a crease the fold needs settle at 0.087–0.107. The spike's kabuto settled at 0.064 under an ordinary pin and 0.226 over-constrained | no |
 | A pinned model that never settles | fixed at the source | — (the stagnation rule) | — |
 | Pin tool before the simulation is ready | gated | the rail and the viewport's tool input are disabled until `ready` | no |
 
@@ -795,8 +795,8 @@ Each step is its own commit; the moves change nothing on screen.
       and no rail; tablet the reverse.
 - [x] **Analytics:** events, typed wrappers with tests, `docs/analytics.md` rows
       (property values are kebab-case, as the rest of `events.ts` spells them)
-- [ ] **Errors:** toasts, `reportError` surfaces, notices (strain threshold
-      calibrated on the corpus)
+- [x] **Errors:** toasts, `reportError` surfaces, notices (strain threshold
+      calibrated on settled frames; see the error table)
 - [ ] **i18n:** eight locales, stamped, `i18n:check`
 - [ ] **Browser verification** on a real crease pattern, on the GPU path and the
       canvas-2D fallback, in light and dark themes, with a coarse pointer and at
