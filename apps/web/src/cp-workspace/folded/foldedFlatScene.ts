@@ -54,6 +54,13 @@
  * figure is drawn in flat colour with no light (D7). A face on top of no
  * subface is marked hidden, and its lines with it; a patch, a top piece, never
  * is.
+ *
+ * # Spread
+ *
+ * With a spread every point a face carries — its outline, its outline's
+ * lines, its aux lines, its patches and the lines they carry — steps by that
+ * face's field (`foldedLayerSpread.ts`) after it is placed, and the items go
+ * out in the same order. Without one, nothing is added to any point.
  */
 
 import type { PaperScene } from '@treemaker/origami-simulator';
@@ -66,6 +73,7 @@ import type {
   OristudioCpFoldedPaperSubface,
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
+import { layerSpread, type LayerSpreadOptions } from './foldedLayerSpread';
 import type {
   PaperFaceItem,
   PaperItem,
@@ -87,6 +95,11 @@ export interface FoldedFlatPaperSceneOptions {
   toScenePx: (point: Point) => ScenePoint;
   /** The linear scale of {@link toScenePx}: scene px per kernel unit. */
   scale: number;
+  /**
+   * Step the layers apart by depth. A covered layer may then show an edge, so
+   * a caller that spreads keeps every face: `markHidden: false`.
+   */
+  spread?: LayerSpreadOptions;
 }
 
 /**
@@ -101,18 +114,15 @@ export function foldedFlatPaperScene(
   kernel: OristudioCpFoldedPaperScene,
   options: FoldedFlatPaperSceneOptions
 ): PaperScene {
-  const components = faceComponents(kernel.faces.length, kernel.subfaces);
+  const epsilon = foldedSceneEpsilon(kernel);
+  const { edges, ink, order } = paintPlan(kernel, epsilon);
   const context: EmitContext = {
     kernel,
-    options,
+    markHidden: options.markHidden,
     top: topFaces(kernel.subfaces),
-    epsilon: foldedSceneEpsilon(kernel),
+    epsilon,
+    at: placement(kernel, order, options, epsilon),
   };
-  const edges = new SubfaceEdges(kernel, context.epsilon);
-  const ink = wovenInk(kernel, edges, components);
-  const order = componentOrder(components, kernel.subfaces).flatMap((component) =>
-    component.length === 1 ? component : wovenDrawOrder(component, wovenArcs(kernel, ink, component))
-  );
   const position = new Int32Array(kernel.faces.length);
   order.forEach((face, at) => {
     position[face] = at;
@@ -131,6 +141,48 @@ export function foldedFlatPaperScene(
     bounds: boundsOf(items),
     sheet: kernel.sheet * options.scale,
     items,
+  };
+}
+
+/** The faces back to front, as {@link foldedFlatPaperScene} draws them whole. */
+export function foldedPaintOrder(kernel: OristudioCpFoldedPaperScene): number[] {
+  return paintPlan(kernel, foldedSceneEpsilon(kernel)).order;
+}
+
+/**
+ * The order of whole faces, and what the woven components' patches are
+ * worked out from: the subfaces' edges and the ink each woven subface must
+ * not show.
+ */
+function paintPlan(
+  kernel: OristudioCpFoldedPaperScene,
+  epsilon: number
+): { edges: SubfaceEdges; ink: Map<number, number[]>; order: number[] } {
+  const components = faceComponents(kernel.faces.length, kernel.subfaces);
+  const edges = new SubfaceEdges(kernel, epsilon);
+  const ink = wovenInk(kernel, edges, components);
+  const order = componentOrder(components, kernel.subfaces).flatMap((component) =>
+    component.length === 1 ? component : wovenDrawOrder(component, wovenArcs(kernel, ink, component))
+  );
+  return { edges, ink, order };
+}
+
+/**
+ * Where a point a face carries goes in the scene: placed, and stepped by the
+ * face's field when the layers are spread.
+ */
+function placement(
+  kernel: OristudioCpFoldedPaperScene,
+  order: readonly number[],
+  { toScenePx, scale, spread }: FoldedFlatPaperSceneOptions,
+  epsilon: number
+): EmitContext['at'] {
+  if (!spread) return (_face, point) => toScenePx(point);
+  const { offset } = layerSpread(kernel, order, spread, { scale, epsilon });
+  return (face, point) => {
+    const [x, y] = toScenePx(point);
+    const [dx, dy] = offset(face, point);
+    return [x + dx, y + dy];
   };
 }
 
@@ -665,9 +717,11 @@ function patchesAfter(
 
 interface EmitContext {
   kernel: OristudioCpFoldedPaperScene;
-  options: FoldedFlatPaperSceneOptions;
+  markHidden: boolean;
   top: ReadonlySet<number>;
   epsilon: number;
+  /** A point on a face, in the scene. */
+  at: (face: number, point: Point) => ScenePoint;
 }
 
 /**
@@ -676,11 +730,12 @@ interface EmitContext {
  * reach a drawing editor as one object; a mixed one is a line per edge.
  */
 function emitWholeFace(items: PaperItem[], context: EmitContext, face: number): void {
-  const { kernel, options } = context;
+  const { kernel } = context;
   const source = kernel.faces[face]!;
-  const hidden = options.markHidden && !context.top.has(face);
+  const hidden = context.markHidden && !context.top.has(face);
   const outline = outlineRole(source);
-  items.push(faceItem(face, source, [source.outline.map(options.toScenePx)], hidden, outline));
+  const ring = source.outline.map((point) => context.at(face, point));
+  items.push(faceItem(face, source, [ring], hidden, outline));
   if (!outline) {
     source.edges.forEach(({ from, to }, edge) => {
       items.push(outlineLine(context, face, edge, from, to, hidden));
@@ -717,11 +772,12 @@ function emitPatches(
   batch: readonly number[],
   { at, position, group }: { at: number; position: Int32Array; group: string }
 ): void {
-  const { kernel, options } = context;
+  const { kernel } = context;
   for (const subface of batch) {
     const { polygon, faces_top_to_bottom: stack } = kernel.subfaces[subface]!;
     const top = stack[0]!;
-    items.push({ ...faceItem(top, kernel.faces[top]!, [polygon.map(options.toScenePx)], false), group });
+    const ring = polygon.map((point) => context.at(top, point));
+    items.push({ ...faceItem(top, kernel.faces[top]!, [ring], false), group });
   }
   for (const subface of batch) {
     const { polygon, faces_top_to_bottom: stack } = kernel.subfaces[subface]!;
@@ -803,16 +859,16 @@ function auxPortionsIn(
  * keeps what the pull leaves of it, and gives up what the pull takes.
  */
 function auxLine(context: EmitContext, { aux, span }: AuxPortion, hidden: boolean): PaperLineItem {
-  const { toScenePx } = context.options;
+  const place = (point: Point) => context.at(aux.face, point);
   const [atFrom, atTo] = auxLineOnBoundary(context.kernel, aux, context.epsilon);
   const whole = span[0] === 0 && span[1] === 1;
   return {
     kind: 'line',
     role: 'aux',
-    a: toScenePx(lerp(aux.from, aux.to, span[0])),
-    b: toScenePx(lerp(aux.from, aux.to, span[1])),
+    a: place(lerp(aux.from, aux.to, span[0])),
+    b: place(lerp(aux.from, aux.to, span[1])),
     onBoundary: [atFrom && span[0] === 0, atTo && span[1] === 1],
-    ...(whole ? {} : { whole: { a: toScenePx(aux.from), b: toScenePx(aux.to), onBoundary: [atFrom, atTo] } }),
+    ...(whole ? {} : { whole: { a: place(aux.from), b: place(aux.to), onBoundary: [atFrom, atTo] } }),
     face: aux.face,
     hidden,
   };
@@ -824,14 +880,14 @@ function emitAuxLines(
   face: number,
   hidden: boolean
 ): void {
-  const { kernel, options } = context;
+  const { kernel } = context;
   for (const aux of kernel.aux_lines) {
     if (aux.face !== face) continue;
     items.push({
       kind: 'line',
       role: 'aux',
-      a: options.toScenePx(aux.from),
-      b: options.toScenePx(aux.to),
+      a: context.at(face, aux.from),
+      b: context.at(face, aux.to),
       onBoundary: auxLineOnBoundary(kernel, aux, context.epsilon),
       face,
       hidden,
@@ -878,8 +934,8 @@ function outlineLine(
   return {
     kind: 'line',
     role,
-    a: context.options.toScenePx(from),
-    b: context.options.toScenePx(to),
+    a: context.at(face, from),
+    b: context.at(face, to),
     onBoundary: [retreats(previous, from, own.from), retreats(following, to, own.to)],
     face,
     hidden,

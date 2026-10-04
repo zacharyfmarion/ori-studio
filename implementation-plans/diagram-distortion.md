@@ -180,11 +180,21 @@ defaults he has not seen yet and are cheap to change.
   shows a place holding two vertices (so it is not a position key).
 
 ### 13c. The spread
-- [ ] `foldedLayerSpread.ts`: levels (acyclic, woven, a face in no stack),
+- [x] `foldedLayerSpread.ts`: levels (acyclic, woven, a face in no stack),
   vertex means, mean value coordinates; unit tests with hand-checked figures
-  (a book fold, a rolled letter fold, a woven three-flap fixture).
-- [ ] `foldedFlatPaperScene` displacement; the empty and unspread cases
-  unchanged byte for byte.
+  (a book fold, a rolled letter fold, a woven three-flap fixture). As built:
+  `layerSpread(kernel, order, {amount, toward}, {scale, epsilon})` returns
+  `{levels, zMax, offset(face, kernelPoint)}`, the offset a scene-px vector
+  added after `toScenePx`; `order` is `foldedFlatPaperScene`'s own
+  (`foldedPaintOrder` exports it, computed once per scene). The three-flap
+  weave is tested at the level of stacks and `wovenDrawOrder` (three
+  axis-aligned flaps cannot weave without a triple overlap); the scene-level
+  woven tests use the four-strip weave and `glitch.cp`.
+- [x] `foldedFlatPaperScene` displacement; the empty and unspread cases
+  unchanged byte for byte. As built: every emitted point goes through one
+  `at(face, point)`, which without a spread is `toScenePx` itself; a digest
+  test pins the unspread scenes of the real folds and the weave to what the
+  producer drew before.
 
 ### 13d. Document and capture
 - [ ] `spread` on the render; reader, writer, validators, round trips; the
