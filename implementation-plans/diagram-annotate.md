@@ -619,6 +619,28 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
     (`canvas-beside-pdf-light.png`). iPad WebKit and a real finger are not
     done here (14d's touch path is the press-time preview, tested in jsdom).
 
+- [x] Review (14d and the 14d/14e/14f geometry), every finding put to a
+  skeptic, fixed by hand with a test that fails before:
+  - **Geometry (7):** a line drawn along a split crease found phantom
+    crossings in its middle (stored scenes round to 0.01 px; collinear is
+    now a distance, not an angle); a crease cut in pieces was indexed once
+    per piece (its free end a vertex); aux lines the style hides gave snap
+    targets and rays (`pictureGeometry` takes the style, as the painters
+    decide); a 3D picture's own lines crossing drawn ones hid a drawn right
+    angle; a flat fold's buried edges split visible right angles and lent
+    legs to invented ones (the paint order is kept: a ray a later face
+    covers is no way out); a white arrow's tail handle a hair backwards
+    drew a cap and a wedge, and a hook at a short leg's corner dropped the
+    leg (`withoutHooks`; no loop cut drops the tail) —
+    `review-fixes/white-arrow-hooks.png`.
+  - **14d (5):** an arrow landing on a circle took every press on its ring
+    (its head is pressed where it is drawn; a circle is taken before other
+    marks); an arrow ending in a ring off its middle stopped a full rim back
+    (`backToRing`: on the ring, the near side; at the middle a rim, as
+    References' — `review-fixes/landing-annotate.png`); a clicked or tapped
+    circle was snapped again from where the pointer lifted (it lands where
+    the press showed); the hover target went stale under a camera move.
+
 ### 14e. Right-angle marks
 - [ ] Shared primitive and golden; kind; ray-based corner detection; drag
   fallback; Turn 90°.
