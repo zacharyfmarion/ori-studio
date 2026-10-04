@@ -178,11 +178,12 @@ export interface PoseController {
   /** Fold a step shown in 3D for its live view. */
   prepareSpatial: () => Promise<void>;
   /**
-   * Show the step's flat fold with this spread before it is committed — a
-   * drag of its amount: drawn from the fold the session holds, with no call
-   * to the kernel, or once one is held (the first preview folds it).
+   * Show the step's flat fold spread by this amount, in its own direction,
+   * before it is committed — a drag of its amount: drawn from the fold the
+   * session holds, with no call to the kernel, or once one is held (the first
+   * preview folds it).
    */
-  previewSpread: (spread: LayerSpreadOptions) => void;
+  previewSpread: (amount: number) => void;
   /**
    * Commit the amount previewed — the end of a drag, or a key — as one undo
    * step. The newest wins: one waits while another is captured, and a newer
@@ -213,9 +214,15 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
    * layer order and the pattern; this, that the step still links to them.
    */
   let heldFor: { key: string; document: OristudioCpDocumentSnapshot } | null = null;
-  /** The newest spread previewed, and how many have been: a commit ends the preview only if none came after. */
-  let previewing: LayerSpreadOptions | null = null;
+  /**
+   * The newest amount previewed, and how many have been: a commit ends the
+   * preview only if none came after. Only the amount: the direction is the
+   * step's own, whatever a verb made it since the drag began.
+   */
+  let previewing: number | null = null;
   let previews = 0;
+  /** Gone with its detail: nothing folds or commits for it again. */
+  let disposed = false;
   /** A fold held for a preview, while it folds. */
   let holding: Promise<unknown> | null = null;
   /** This controller's own capture in flight: a spread commit waits for it rather than being refused as busy. */
@@ -237,15 +244,20 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     epoch: foldedFigureHandleEpoch,
   });
 
-  /** Run kernel work as this step's capture: marked capturing, its fold stoppable. */
+  /**
+   * Run kernel work as this step's capture: marked capturing, its fold
+   * stoppable. Only a capture that began is this controller's own — one
+   * refused as busy leaves `own` to the capture that is running.
+   */
   const capturing = <T>(
     work: (begun: StepCaptureStart, linked: DiagramCpSource) => Promise<T>
   ): Promise<T | DiagramCaptureOutcome | null> => {
+    if (disposed) return Promise.resolve(null);
+    const linked = currentLinkedSource(stepId);
+    if (!linked) return Promise.resolve(null);
+    const begun = beginStepCapture(store, stepId);
+    if ('status' in begun) return Promise.resolve(begun);
     const task = (async (): Promise<T | DiagramCaptureOutcome | null> => {
-      const linked = currentLinkedSource(stepId);
-      if (!linked) return null;
-      const begun = beginStepCapture(store, stepId);
-      if ('status' in begun) return begun;
       start = begun;
       try {
         return await work(begun, linked);
@@ -256,6 +268,9 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       } finally {
         start = null;
         endStepCapture(store, stepId);
+        // Closed while this ran: a fold it began after the session was let
+        // go is held as current, so let go of it too.
+        if (disposed) session.dispose();
       }
     })();
     own = task;
@@ -277,6 +292,9 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   };
 
   const run = async (request: LinkedPoseRequest, options?: { tracked?: boolean }): Promise<void> => {
+    // Any other verb makes a picture the preview was not drawn over — a drag
+    // that ended where it began commits nothing and would leave one up.
+    if (request.verb !== 'spread-amount') endPreview();
     const outcome = await capturing(async (begun, linked): Promise<DiagramCaptureOutcome> => {
       // Shown another way since the simulator came to rest: an undo, or a verb.
       if (request.verb === 'simulate' && linked.render.mode !== 'simulated') return { status: 'discarded' };
@@ -352,12 +370,22 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     return drawn.kind === 'picture' && drawn.picture.kind === 'scene' ? drawn.picture : null;
   };
 
-  /** Tell the view the newest preview; fold for it, once, when nothing is held to draw it from. */
+  /**
+   * Tell the view the newest preview — the amount dragged to, in the step's
+   * own direction — and fold for it, once, when nothing is held to draw it
+   * from. A step whose spread went off meanwhile has nothing to preview.
+   */
   const showPreview = (hold: boolean) => {
     const linked = currentLinkedSource(stepId);
-    if (!previewing || !linked) return;
-    const picture = drawPreview(previewing);
-    listener.preview({ spread: previewing, picture: picture ?? null }, linkedFoldKey(stepId, linked));
+    if (previewing === null || !linked) return;
+    const stored = linked.render.mode === 'folded-flat' ? linked.render.spread : undefined;
+    if (!stored) {
+      endPreview();
+      return;
+    }
+    const spread: LayerSpreadOptions = { ...stored, amount: previewing };
+    const picture = drawPreview(spread);
+    listener.preview({ spread, picture: picture ?? null }, linkedFoldKey(stepId, linked));
     if (picture === undefined && hold) holdForPreview();
   };
 
@@ -422,23 +450,27 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       return simulating;
     },
 
-    previewSpread(spread) {
-      previewing = spread;
+    previewSpread(amount) {
+      if (disposed) return;
+      previewing = amount;
       previews += 1;
       showPreview(true);
     },
 
     commitSpread() {
-      if (previewing === null) return Promise.resolve();
-      nextAmount = previewing.amount;
+      if (previewing === null || disposed) return Promise.resolve();
+      nextAmount = previewing;
       const asked = previews;
       spreading ??= (async () => {
         await null;
         try {
-          while (nextAmount !== null) {
+          for (;;) {
             // Its own capture first — a fold a preview asked for, a verb — rather than refused as busy.
             while (own) await own;
+            // Read after the wait: an undo, a new document, a lost engine or
+            // the detail closing takes back the amount that was waiting.
             const amount = nextAmount;
+            if (amount === null || disposed) break;
             nextAmount = null;
             await run({ verb: 'spread-amount', amount });
           }
@@ -505,10 +537,12 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     },
 
     dispose() {
+      disposed = true;
       cancelOrbit();
       nextAmount = null;
       heldFor = null;
-      previewing = null;
+      // Told, not just dropped: the view's preview outlives this controller.
+      endPreview();
       // Its own fold, if one is still searching: the detail it was for is gone.
       if (start) useWorkspaceStore.getState().stopDiagramCapture(stepId);
       session.dispose();

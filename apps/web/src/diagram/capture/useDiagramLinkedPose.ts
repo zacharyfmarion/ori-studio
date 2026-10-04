@@ -118,6 +118,8 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
       unregister();
       unlisten();
       controller.dispose();
+      // Its preview goes with it, even one it could not take back itself.
+      setPreviewed(null);
     };
   }, [controller]);
 
@@ -161,7 +163,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
     if (!controls) return null;
     return {
       ...controls,
-      previewAmount: (amount) => controller.previewSpread({ ...controls.spread, amount: clampSpreadAmount(amount) }),
+      previewAmount: (amount) => controller.previewSpread(clampSpreadAmount(amount)),
       commitAmount: () => void controller.commitSpread(),
       startAmount: () => !controls.disabled,
     };

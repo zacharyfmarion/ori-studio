@@ -430,7 +430,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const source = render(stepId)!;
     if (source.kind !== 'cp') throw new Error('linked');
 
-    for (const amount of [0.1, 0.12, 0.15]) controller.previewSpread({ amount, toward: 'up-left' });
+    for (const amount of [0.1, 0.12, 0.15]) controller.previewSpread(amount);
     expect(heard.preview).toHaveBeenCalledTimes(3);
     expect(heard.preview).toHaveBeenLastCalledWith(
       { spread: { amount: 0.15, toward: 'up-left' }, picture: expect.objectContaining({ kind: 'scene' }) },
@@ -457,7 +457,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     spreadInTheFile(stepId, { amount: 0.05, toward: 'down' });
     const heard = listener();
     const controller = createPoseController(stepId, heard);
-    controller.previewSpread({ amount: 0.08, toward: 'down' });
+    controller.previewSpread(0.08);
     // Nothing held: the spread now, the picture once the fold is.
     expect(heard.preview).toHaveBeenNthCalledWith(1, { spread: { amount: 0.08, toward: 'down' }, picture: null }, expect.any(String));
     const committing = controller.commitSpread();
@@ -479,7 +479,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     await controller.run({ verb: 'spread-layers' });
     const past = state().diagramHistory.past.length;
     const commits = [0.1, 0.12, 0.14].map((amount) => {
-      controller.previewSpread({ amount, toward: 'up-left' });
+      controller.previewSpread(amount);
       return controller.commitSpread();
     });
     await Promise.all(commits);
@@ -495,13 +495,110 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     await controller.run({ verb: 'show-folded' });
     await controller.run({ verb: 'turn-over' });
     await controller.run({ verb: 'spread-layers' });
-    controller.previewSpread({ amount: 0.1, toward: 'up-left' });
+    controller.previewSpread(0.1);
     controller.historyMoved();
     expect(heard.preview).toHaveBeenLastCalledWith(null, null);
     await controller.run({ verb: 'reset' });
     expect(render(stepId)).toMatchObject({
       render: { side: 'front', rotationDeg: 0, foldCase: 1, spread: { amount: 0.05, toward: 'up-left' } },
     });
+    controller.dispose();
+  });
+
+  /** The next fold waits until the returned function is called. */
+  function holdTheFold(): () => void {
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const folded = vi.mocked(bindings.runtime!.fold).getMockImplementation()!;
+    vi.mocked(bindings.runtime!.fold).mockImplementationOnce(async (...args) => {
+      await gate;
+      return folded(...args);
+    });
+    return open;
+  }
+
+  it('commits nothing for an amount an undo took back while it waited for a fold', async () => {
+    const stepId = await linkedStep();
+    spreadInTheFile(stepId, { amount: 0.1, toward: 'down' });
+    const controller = createPoseController(stepId, listener());
+    const open = holdTheFold();
+    const past = state().diagramHistory.past.length;
+    controller.previewSpread(0.15);
+    const committing = controller.commitSpread();
+    // The commit is waiting for the fold the preview asked for.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.historyMoved();
+    open();
+    await committing;
+    expect(spreadOf(stepId)).toEqual({ amount: 0.1, toward: 'down' });
+    expect(state().diagramHistory.past.length).toBe(past);
+    controller.dispose();
+  });
+
+  it('neither folds nor commits again once its detail closed, and keeps no fold', async () => {
+    const stepId = await linkedStep();
+    spreadInTheFile(stepId, { amount: 0.1, toward: 'down' });
+    const controller = createPoseController(stepId, listener());
+    const open = holdTheFold();
+    const past = state().diagramHistory.past.length;
+    controller.previewSpread(0.15);
+    const committing = controller.commitSpread();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.dispose();
+    open();
+    await committing;
+    expect(spreadOf(stepId)).toEqual({ amount: 0.1, toward: 'down' });
+    expect(state().diagramHistory.past.length).toBe(past);
+    expect(bindings.runtime!.fold).toHaveBeenCalledOnce();
+    expect(foldedFigureHandleRefCount(7)).toBe(0);
+  });
+
+  it('waits for the verb it is folding, not a preview refused as busy, and then commits', async () => {
+    const stepId = await linkedStep();
+    spreadInTheFile(stepId, { amount: 0.1, toward: 'down' });
+    const controller = createPoseController(stepId, listener());
+    const open = holdTheFold();
+    const turning = controller.run({ verb: 'rotate-right' });
+    // Nothing is held, so the preview asks to fold — and is refused: the turn is folding.
+    controller.previewSpread(0.15);
+    const committing = controller.commitSpread();
+    open();
+    await Promise.all([turning, committing]);
+    expect(render(stepId)).toMatchObject({ render: { rotationDeg: 15, spread: { amount: 0.15, toward: 'down' } } });
+    expect(toasts.message).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it('takes its preview back when its detail closes', async () => {
+    const stepId = await linkedStep();
+    const heard = listener();
+    const controller = createPoseController(stepId, heard);
+    await controller.run({ verb: 'show-folded' });
+    await controller.run({ verb: 'spread-layers' });
+    controller.previewSpread(0.1);
+    expect(heard.preview).toHaveBeenLastCalledWith(expect.objectContaining({ spread: { amount: 0.1, toward: 'up-left' } }), expect.any(String));
+    controller.dispose();
+    expect(heard.preview).toHaveBeenLastCalledWith(null, null);
+  });
+
+  it('ends a preview when another verb lands, and previews in the direction the step has now', async () => {
+    const stepId = await linkedStep();
+    const heard = listener();
+    const controller = createPoseController(stepId, heard);
+    await controller.run({ verb: 'show-folded' });
+    await controller.run({ verb: 'spread-layers' });
+    // A drag back to where it began commits nothing; the preview stays up.
+    controller.previewSpread(0.05);
+    await controller.run({ verb: 'spread-direction', toward: 'down' });
+    expect(heard.preview).toHaveBeenLastCalledWith(null, null);
+    controller.previewSpread(0.12);
+    expect(heard.preview).toHaveBeenLastCalledWith(expect.objectContaining({ spread: { amount: 0.12, toward: 'down' } }), expect.any(String));
+    // Its spread turned off: nothing left to preview.
+    await controller.run({ verb: 'spread-layers' });
+    controller.previewSpread(0.14);
+    expect(heard.preview).toHaveBeenLastCalledWith(null, null);
     controller.dispose();
   });
 });
