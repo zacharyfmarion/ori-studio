@@ -35,10 +35,11 @@ import { normalizePaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import {
   ANNOTATION_REACH,
-  arrowBend,
+  arrowShape,
   DEFAULT_ROTATION,
   LABEL_MAX_LENGTH,
   MAX_BEND,
+  MAX_PATH_NODES,
   MAX_STEP_ANNOTATIONS,
   isPointKind,
 } from '../annotate/annotationModel';
@@ -64,6 +65,7 @@ import {
   isKnownAnnotation,
   type DiagramAnnotation,
   type DiagramAnnotationKind,
+  type DiagramPathNode,
   type DiagramRotation,
   type KnownDiagramAnnotation,
   type DiagramAsset,
@@ -260,16 +262,27 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
 
 function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown> {
   if (!isKnownAnnotation(annotation)) return annotation.unknown;
-  const { id, kind, from, to, bend, text, rotate, axis } = annotation;
+  const { id, kind, from, to, bend, path, text, rotate, axis } = annotation;
   return {
     id,
     kind,
     from,
     to,
     ...(bend !== undefined ? { bend } : {}),
+    ...(path !== undefined ? { path: path.map(writePathNode) } : {}),
     ...(text !== undefined ? { text } : {}),
     ...(rotate !== undefined ? { rotate } : {}),
     ...(axis !== undefined ? { axis } : {}),
+  };
+}
+
+/** A shaped arrow's node, every field named, as an annotation's are. */
+function writePathNode(node: DiagramPathNode): Record<string, unknown> {
+  return {
+    at: node.at,
+    ...(node.in !== undefined ? { in: node.in } : {}),
+    ...(node.out !== undefined ? { out: node.out } : {}),
+    ...(node.type !== undefined ? { type: node.type } : {}),
   };
 }
 
@@ -687,9 +700,9 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
   const base = ['id', 'kind', 'from', 'to'];
   const fields = (...more: string[]) => new Set([...base, ...more]);
   return {
-    'valley-arrow': fields('bend'),
-    'mountain-arrow': fields('bend'),
-    'fold-unfold-arrow': fields('bend'),
+    'valley-arrow': fields('bend', 'path'),
+    'mountain-arrow': fields('bend', 'path'),
+    'fold-unfold-arrow': fields('bend', 'path'),
     'push-arrow': fields(),
     'turn-over': fields('axis'),
     rotate: fields('rotate'),
@@ -748,7 +761,22 @@ function readAnnotation(
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow': {
-      if (entry.bend === undefined) return { ...annotation, bend: arrowBend(annotation) };
+      // A shaped arrow first, before an absent bend is filled in: a path is not the default arc.
+      if (entry.path !== undefined) {
+        // An arc and a path both: no build of this one writes that.
+        if (entry.bend !== undefined) return NEWER;
+        const path = readPath(entry.path);
+        if (path === null || path === NEWER) return path;
+        const first = path[0]!.at;
+        const last = path[path.length - 1]!.at;
+        // The arrow's ends are its path's: one that says otherwise does not read.
+        if (first[0] !== from[0] || first[1] !== from[1] || last[0] !== to[0] || last[1] !== to[1]) return null;
+        return { ...annotation, path };
+      }
+      if (entry.bend === undefined) {
+        const shape = arrowShape(annotation);
+        return shape.kind === 'arc' ? { ...annotation, bend: shape.bend } : annotation;
+      }
       if (typeof entry.bend !== 'number' || !Number.isFinite(entry.bend) || entry.bend === 0) return null;
       return Math.abs(entry.bend) > MAX_BEND ? NEWER : { ...annotation, bend: entry.bend };
     }
@@ -773,6 +801,55 @@ function readAnnotation(
     case 'hidden-line':
       return annotation;
   }
+}
+
+/** The fields a shaped arrow's node is written with; any other makes the arrow a newer build's. */
+const PATH_NODE_FIELDS: ReadonlySet<string> = new Set(['at', 'in', 'out', 'type']);
+
+/**
+ * A shaped arrow's path, by the file's rules. Damage: not a list, fewer than
+ * two nodes, a node that is not a record, or a point — a node's or a
+ * handle's — that is not two numbers. A newer build's: more nodes than this
+ * build shapes, a field on a node it has no name for, a `type` other than
+ * `corner`, a handle before the tail or after the tip, or a point past
+ * reach. News is told before damage, as for a whole annotation. Whether a
+ * smooth node's handles are in line is never asked: that is editing's rule.
+ */
+function readPath(value: unknown): DiagramPathNode[] | typeof NEWER | null {
+  if (!Array.isArray(value) || value.length < 2) return null;
+  if (value.length > MAX_PATH_NODES) return NEWER;
+  if (!value.every(isRecord)) return null;
+  const last = value.length - 1;
+  const newer = value.some(
+    (node, index) =>
+      Object.keys(node).some((key) => !PATH_NODE_FIELDS.has(key)) ||
+      (index === 0 && node.in !== undefined) ||
+      (index === last && node.out !== undefined) ||
+      (typeof node.type === 'string' && node.type !== 'corner')
+  );
+  if (newer) return NEWER;
+  const nodes: DiagramPathNode[] = [];
+  let past = false;
+  for (const entry of value) {
+    if (entry.type !== undefined && entry.type !== 'corner') return null;
+    const at = readAnnotationPoint(entry.at);
+    const handles = (['in', 'out'] as const).map((side) =>
+      entry[side] === undefined ? undefined : readAnnotationPoint(entry[side])
+    );
+    if (at === null || handles.includes(null)) return null;
+    if (at === NEWER || handles.includes(NEWER)) {
+      past = true;
+      continue;
+    }
+    const [inHandle, outHandle] = handles as ([number, number] | undefined)[];
+    nodes.push({
+      at,
+      ...(inHandle ? { in: inHandle } : {}),
+      ...(outHandle ? { out: outHandle } : {}),
+      ...(entry.type === 'corner' ? { type: 'corner' as const } : {}),
+    });
+  }
+  return past ? NEWER : nodes;
 }
 
 /** How far and which way a rotation turns: a quarter clockwise when unsaid. Shared by the glyph and the turn (D22). */

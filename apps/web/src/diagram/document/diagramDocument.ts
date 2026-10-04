@@ -376,6 +376,25 @@ export interface DiagramRotation {
 }
 
 /**
+ * A node of a shaped arrow's path, in picture units like everything else an
+ * annotation holds — handles too, as points rather than offsets, so any move
+ * of the picture carries them by mapping each point and a mirror needs
+ * nothing turned over.
+ *
+ * The segment from one node to the next is the cubic Bézier through the
+ * first's `at` and `out` and the second's `in` and `at`; a handle left out
+ * lies on its node. The tail has no `in` and the tip no `out`. A node is
+ * smooth — its two handles kept in line as they are edited — unless it is a
+ * `corner`; that is a rule of editing, never of reading.
+ */
+export interface DiagramPathNode {
+  at: [number, number];
+  in?: [number, number];
+  out?: [number, number];
+  type?: 'corner';
+}
+
+/**
  * A mark drawn on a step's picture (D8), in **picture units**: the origin at
  * the top-left of the picture's frame, y down, one unit the frame's longer
  * side. The frame is the posed picture's bounds — a References step's, its
@@ -394,8 +413,15 @@ export interface KnownDiagramAnnotation {
   /**
    * A fold arrow's arc: its sagitta as a share of its chord, positive bulging
    * to the left of its travel as the page shows it. Flip arc negates it.
+   * Absent on an arrow shaped by hand, which has a `path` instead.
    */
   bend?: number;
+  /**
+   * A fold arrow shaped by hand (Edit Path): its nodes, tail first, at least
+   * two, the first at `from` and the last at `to`. Written only once an arrow
+   * is reshaped; an arrow that never was keeps its exact arc (`bend`).
+   */
+  path?: DiagramPathNode[];
   /** A label's text. */
   text?: string;
   rotate?: DiagramRotation;

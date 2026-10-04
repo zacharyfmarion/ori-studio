@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { KnownDiagramAnnotation } from '../document/diagramDocument';
+import { cubicPoint } from '../../lib/cubicBezier';
+import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagramDocument';
+import { arcToPath } from './annotationPath';
 import {
+  ANNOTATION_REACH,
   ARROW_BEND,
+  MAX_PATH_NODES,
   arrowApex,
+  arrowShape,
   carryAnnotation,
+  cleanAnnotation,
   createAnnotation,
   defaultBend,
   flipAnnotationArc,
@@ -13,6 +19,8 @@ import {
   mirrorMove,
   moveAnnotation,
   moveAnnotationEnd,
+  pathCubics,
+  type PictureMove,
 } from './annotationModel';
 
 const SQUARE = { width: 1, height: 1 };
@@ -134,5 +142,125 @@ describe('a label’s width', () => {
   it('counts a wide character as an em and a Latin one as a little over half', () => {
     expect(labelHalfWidth('漢字漢字')).toBeGreaterThan(labelHalfWidth('ABCD') * 1.5);
     expect(labelHalfWidth('')).toBeGreaterThan(0);
+  });
+});
+
+describe('a shaped arrow', () => {
+  const path: DiagramPathNode[] = [
+    { at: [0.1, 0.5], out: [0.2, 0.3] },
+    { at: [0.4, 0.5], in: [0.3, 0.6], out: [0.5, 0.4], type: 'corner' },
+    { at: [0.7, 0.5], in: [0.6, 0.7] },
+  ];
+  const shaped: KnownDiagramAnnotation = { id: 's', kind: 'valley-arrow', from: [0.1, 0.5], to: [0.7, 0.5], path };
+  const every = (arrow: KnownDiagramAnnotation) =>
+    arrow.path!.flatMap((node) => [node.at, ...(node.in ? [node.in] : []), ...(node.out ? [node.out] : [])]);
+
+  it('is a path to everything that asks its shape, never the default arc', () => {
+    expect(arrowShape(shaped)).toEqual({ kind: 'path', path });
+    expect(arrowShape({ bend: 0.2 })).toEqual({ kind: 'arc', bend: 0.2 });
+    expect(arrowShape({})).toEqual({ kind: 'arc', bend: ARROW_BEND });
+  });
+
+  it('is carried point by point, handles too, a mirror needing nothing turned over', () => {
+    const mirror = mirrorMove({ width: 1, height: 1 });
+    const carried = carryAnnotation(shaped, mirror);
+    expect(carried.bend).toBeUndefined();
+    expect(carried.from).toEqual([0.9, 0.5]);
+    expect(carried.path![1]).toEqual({ at: [0.6, 0.5], in: [0.7, 0.6], out: [0.5, 0.4], type: 'corner' });
+    // The curve itself carried: every point of it lands where the move takes it.
+    const quarter: PictureMove = { point: ([x, y]) => [1 - y, x], mirrors: false, turnDeg: 90 };
+    const turned = pathCubics(carryAnnotation(shaped, quarter).path!);
+    pathCubics(path).forEach((cubic, index) => {
+      for (const t of [0.2, 0.5, 0.9]) {
+        const [x, y] = cubicPoint(cubic, t);
+        const [u, v] = cubicPoint(turned[index]!, t);
+        expect(u).toBeCloseTo(1 - y, 12);
+        expect(v).toBeCloseTo(x, 12);
+      }
+    });
+    // An arc made a path and mirrored is the mirrored arc made a path.
+    const arc: KnownDiagramAnnotation = { id: 'a', kind: 'valley-arrow', from: [0.2, 0.3], to: [0.6, 0.4], bend: 0.3 };
+    const viaPath = carryAnnotation(arcToPath(arc), mirror).path!;
+    const viaArc = arcToPath(carryAnnotation(arc, mirror)).path!;
+    viaPath.forEach((node, index) => {
+      expect(node.at[0]).toBeCloseTo(viaArc[index]!.at[0], 12);
+      expect(node.at[1]).toBeCloseTo(viaArc[index]!.at[1], 12);
+    });
+  });
+
+  it('moves whole only as far as keeps every node and handle within reach', () => {
+    const moved = moveAnnotation(shaped, [9, 0]);
+    // The furthest point right is the handle at 0.6 + 0.1: it stops at reach.
+    expect(Math.max(...every(moved).map(([x]) => x))).toBeCloseTo(ANNOTATION_REACH, 12);
+    expect(moved.to[0] - moved.from[0]).toBeCloseTo(0.6, 12);
+    expect(moved.path![1]!.out![0] - moved.path![1]!.at[0]).toBeCloseTo(0.1, 12);
+    expect(moveAnnotation(shaped, [0, 0])).toBe(shaped);
+  });
+
+  it('moves an end as its node, the handle coming with it', () => {
+    const moved = moveAnnotationEnd(shaped, 'from', [0, 0.4]);
+    expect(moved.from).toEqual([0, 0.4]);
+    expect(moved.path![0]!.at).toEqual([0, 0.4]);
+    expect(moved.path![0]!.out![0]).toBeCloseTo(0.1, 12);
+    expect(moved.path![0]!.out![1]).toBeCloseTo(0.2, 12);
+    expect(moveAnnotationEnd(shaped, 'to', [0.8, 0.6]).path![2]!.at).toEqual([0.8, 0.6]);
+  });
+
+  it('flips across its chord, and an arc made a path flips as the arc does', () => {
+    const flipped = flipAnnotationArc(shaped);
+    expect(flipped.from).toEqual(shaped.from);
+    expect(flipped.path![0]!.out![0]).toBeCloseTo(0.2, 12);
+    expect(flipped.path![0]!.out![1]).toBeCloseTo(0.7, 12);
+    expect(flipped.path![1]!.type).toBe('corner');
+    const arc: KnownDiagramAnnotation = { id: 'a', kind: 'mountain-arrow', from: [0.2, 0.3], to: [0.6, 0.4], bend: 0.2 };
+    const viaPath = flipAnnotationArc(arcToPath(arc)).path!;
+    const viaArc = arcToPath(flipAnnotationArc(arc)).path!;
+    viaPath.forEach((node, index) => {
+      expect(node.out?.[0] ?? 0).toBeCloseTo(viaArc[index]!.out?.[0] ?? 0, 12);
+      expect(node.in?.[1] ?? 0).toBeCloseTo(viaArc[index]!.in?.[1] ?? 0, 12);
+    });
+    // One whose ends meet has no chord to flip across.
+    const loop = { ...shaped, to: shaped.from, path: [path[0]!, { at: [0.1, 0.5] as [number, number], in: [0.3, 0.8] as [number, number] }] };
+    expect(flipAnnotationArc(loop)).toBe(loop);
+  });
+
+  it('has a length along its path: a loop that ends by its tail is an arrow, a stub is not', () => {
+    const loop: KnownDiagramAnnotation = {
+      ...shaped,
+      to: [0.105, 0.5],
+      path: [
+        { at: [0.1, 0.5], out: [0.4, 0.1] },
+        { at: [0.105, 0.5], in: [0.4, 0.9] },
+      ],
+    };
+    expect(isDegenerate(loop, 0.015)).toBe(false);
+    const stub = { ...loop, path: [{ at: [0.1, 0.5] as [number, number] }, { at: [0.105, 0.5] as [number, number] }] };
+    expect(isDegenerate(stub, 0.015)).toBe(true);
+  });
+
+  it('is written as the reader reads it: points and handles within reach, no stray handle, no more nodes than it holds', () => {
+    expect(cleanAnnotation(shaped)).toBe(shaped);
+    const stray: KnownDiagramAnnotation = {
+      ...shaped,
+      bend: 0.2,
+      from: [0, 0],
+      path: [{ ...path[0]!, in: [0, 0] }, { ...path[1]!, out: [9, 0.4] }, { ...path[2]!, out: [1, 1] }],
+    };
+    const clean = cleanAnnotation(stray);
+    expect(clean.bend).toBeUndefined();
+    expect(clean.from).toEqual([0.1, 0.5]);
+    expect(clean.path![0]!.in).toBeUndefined();
+    expect(clean.path![2]!.out).toBeUndefined();
+    // Drawn in along itself to reach's edge: its direction from the node kept.
+    expect(clean.path![1]!.out).toEqual([ANNOTATION_REACH, 0.5 - (0.1 * (ANNOTATION_REACH - 0.4)) / (9 - 0.4)]);
+    const many = Array.from({ length: 30 }, (_, index): DiagramPathNode => ({ at: [index / 30, 0.5] }));
+    const long = cleanAnnotation({ ...shaped, path: many, to: [29 / 30, 0.5] });
+    expect(long.path).toHaveLength(MAX_PATH_NODES);
+    expect(long.to).toEqual([29 / 30, 0.5]);
+    // A path on a kind that is not shaped, or of one node, is dropped: an arc, or straight, again.
+    expect(cleanAnnotation({ ...shaped, kind: 'push-arrow' }).path).toBeUndefined();
+    const lone = cleanAnnotation({ ...shaped, path: [path[0]!] });
+    expect(lone.bend).toBe(ARROW_BEND);
+    expect(lone.path).toBeUndefined();
   });
 });
