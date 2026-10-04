@@ -592,7 +592,12 @@ describe('the ways a linked pattern is shown (D19)', () => {
       rotationDeg: 45,
       foldCase: 1,
     });
-    expect(renderToShowAs({ render: flat }, 'crease-pattern')).toEqual({ mode: 'crease-pattern', rotationDeg: 30 });
+    // A back at 30 is the front at 330, turned over: the pattern lies as that front does.
+    expect(renderToShowAs({ render: flat }, 'crease-pattern')).toEqual({ mode: 'crease-pattern', rotationDeg: 330 });
+    expect(renderToShowAs({ render: { ...flat, side: 'front' } }, 'crease-pattern')).toEqual({
+      mode: 'crease-pattern',
+      rotationDeg: 30,
+    });
     const threeD = { mode: 'folded-3d' as const, camera: { yaw: 1, pitch: 0, zoom: 1 }, side: 'front' as const };
     expect(renderToShowAs({ render: threeD }, 'crease-pattern')).toEqual({ mode: 'crease-pattern', rotationDeg: 0 });
     expect(showAsOf(threeD)).toBe('folded');

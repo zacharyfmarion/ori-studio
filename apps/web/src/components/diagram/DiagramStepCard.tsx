@@ -404,11 +404,13 @@ export const DiagramTurnCard = forwardRef<
     style: DiagramStyle;
     selected: boolean;
     tabStop: boolean;
+    /** A picture dragged over the grid would land here: a new step after the turn. */
+    dropTarget: boolean;
     readOnly: boolean;
     onSelect: (id: string) => void;
     onDelete: (id: string) => void;
   }
->(function DiagramTurnCard({ turn, between, style, selected, tabStop, readOnly, onSelect, onDelete }, ref) {
+>(function DiagramTurnCard({ turn, between, style, selected, tabStop, dropTarget, readOnly, onSelect, onDelete }, ref) {
   const { t } = useTranslation();
   const locked = isLockedTurn(turn);
   const { title, how } = turnCardWords(turn, t);
@@ -426,6 +428,7 @@ export const DiagramTurnCard = forwardRef<
       tabIndex={tabStop ? 0 : -1}
       className={styles.card}
       data-selected={selected || undefined}
+      data-drop-target={dropTarget || undefined}
       data-step-id={turn.id}
       data-turn-kind={locked ? 'locked' : turn.kind}
       onClick={() => onSelect(turn.id)}
@@ -478,8 +481,11 @@ function DeleteVerb({ label, onDelete }: { label: string; onDelete: () => void }
       aria-hidden="true"
       onMouseDown={(event) => event.preventDefault()}
       onClick={(event) => {
-        // It must not select the card it is about to take away, nor open it on a double-click.
+        // It must not select the card it is about to take away, nor open it on a
+        // double-click — and the second click of one lands on whatever card took
+        // this one's place, which it must not delete too.
         event.stopPropagation();
+        if (event.detail > 1) return;
         onDelete();
       }}
       onDoubleClick={(event) => event.stopPropagation()}

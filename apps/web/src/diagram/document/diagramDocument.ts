@@ -170,9 +170,11 @@ export interface DiagramCpSource {
 /**
  * The pose to show a linked pattern in, as `way` (D19): the one it is shown in
  * now when that is the way, else the one that way last had, else that way's
- * start — a crease pattern or a flat fold turned as the step is turned now,
- * from the front at the first layer order. A flat fold asked of creases that
- * fold in 3D becomes the 3D one where it is captured (`renderForRoute`).
+ * start — a crease pattern or a flat fold lying as the step lies now, from the
+ * front at the first layer order. A flat fold's back at a turn is its front at
+ * the opposite turn, mirrored (Turn Over, 12d), so its front's turn is the one
+ * carried. A flat fold asked of creases that fold in 3D becomes the 3D one
+ * where it is captured (`renderForRoute`).
  */
 export function renderToShowAs(
   source: Pick<DiagramCpSource, 'render' | 'remembered'>,
@@ -187,7 +189,14 @@ export function renderToShowAs(
   if (way === 'simulated') {
     return { mode: 'simulated', foldPercent: 0, view: kept?.mode === 'simulated' ? kept.view : DEFAULT_SIMULATED_VIEW };
   }
-  const turn = render.mode === 'crease-pattern' || render.mode === 'folded-flat' ? render.rotationDeg : 0;
+  const turn =
+    render.mode === 'crease-pattern'
+      ? render.rotationDeg
+      : render.mode === 'folded-flat'
+        ? render.side === 'back'
+          ? (360 - render.rotationDeg) % 360
+          : render.rotationDeg
+        : 0;
   return way === 'crease-pattern'
     ? { mode: 'crease-pattern', rotationDeg: turn }
     : { mode: 'folded-flat', side: 'front', rotationDeg: turn, foldCase: 1 };

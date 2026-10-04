@@ -163,6 +163,7 @@ export function DiagramStepsGrid({
               style={style}
               selected={slot.entry.id === selectedStepId}
               tabStop={slot.entry.id === tabStop}
+              dropTarget={slot.entry.id === dropTarget}
               readOnly={readOnly}
               onSelect={onSelect}
               onDelete={onDelete}
@@ -199,7 +200,15 @@ export function DiagramStepsGrid({
       {onAppend && (
         // The place after the last card: the tile that adds a step there.
         <div className={styles.slot} data-trailing="">
-          <div aria-hidden className={styles.addTile} data-add-step-tile="" onClick={onAppend}>
+          <div
+            aria-hidden
+            className={styles.addTile}
+            data-add-step-tile=""
+            // A double-click's second click, after a Delete moved this tile under the pointer, adds nothing.
+            onClick={(event) => {
+              if (event.detail <= 1) onAppend();
+            }}
+          >
             <Plus size={18} aria-hidden />
             {t('panels:diagram.grid.addStep', 'Add step')}
           </div>

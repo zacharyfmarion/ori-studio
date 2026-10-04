@@ -3186,7 +3186,16 @@ Two requests after Phase 11, with D24 above.
   header one height; the empty card's Turn over makes the turn in its place
   ("Make turn"); the Step pane lists Make Turn Over / Make Rotate; a turn
   card's Delete removes it.
-- [ ] **Review**, and its fixes committed; the PR updated.
+- [x] **Review**, and its fixes committed; the PR updated.
+  - Three reviewers (turn cards and Delete, an empty step made a turn, Turn
+    Over's rotation), every finding put to a skeptic: 3 confirmed, 1 refuted
+    (Make Turn while a link captures drops the capture, as a deleted step's
+    does — the capture runner's documented contract). Fixed, each with a test
+    that fails without it: a double-click on a card's Delete took the card
+    that slid into its place too (or the Add step tile appended one), so the
+    second click of one is ignored; a turn card shows where a dragged picture
+    would land; Show as Crease Pattern from a flat fold's back starts from the
+    turn its front lies at (back 285 → pattern 75), as Turn Over now reads it.
 
 ### Phase 13: affine distortion in Pose (planning)
 

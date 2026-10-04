@@ -187,6 +187,27 @@ describe('DiagramStepsGrid', () => {
     expect(deletes()).toHaveLength(0);
   });
 
+  it('deletes one card for a double-click on its Delete, not the card that takes its place too', () => {
+    const onDelete = vi.fn();
+    const onAppend = vi.fn();
+    const over: DiagramEntry = { id: 'turn-1', kind: 'turn-over', axis: 'vertical' };
+    render(null, vi.fn(), { steps: [over, createStep(() => 'step-empty')], onDelete, onAppend });
+    const click = (target: Element, detail: number) =>
+      act(() => void target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail })));
+    click(host!.querySelector('[data-step-id="turn-1"] button[data-danger]')!, 1);
+    // The second click of the double-click, wherever it lands.
+    click(host!.querySelector('[data-step-id="step-empty"] button[data-danger]')!, 2);
+    click(host!.querySelector('[data-add-step-tile]')!, 2);
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith('turn-1');
+    expect(onAppend).not.toHaveBeenCalled();
+  });
+
+  it('marks a turn card where a dragged picture would land: a new step after it', () => {
+    const over: DiagramEntry = { id: 'turn-1', kind: 'turn-over', axis: 'vertical' };
+    render(null, vi.fn(), { steps: [steps[0]!, over], dropTarget: 'turn-1' });
+    expect(options().map((option) => option.hasAttribute('data-drop-target'))).toEqual([false, true]);
+  });
+
   it('offers an empty card a turn instead of a picture (D24)', () => {
     const onMakeTurn = vi.fn();
     render(null, vi.fn(), { steps: [createStep(() => 'step-empty')], onMakeTurn });
