@@ -390,6 +390,36 @@ describe('affine opening', () => {
     expectMove(diagonal.offset(UNDER, point(0, 0)), [0, 0]);
   });
 
+  it('turns the opening with the kernel’s frame, whichever leaf is held still (review)', () => {
+    // A turn of 30°: neither the identity nor a reflection, for which the
+    // sheet's axis carried into the scene (M·A·M⁻¹) and carried the other way
+    // (M⁻¹·A·M) agree.
+    const angle = (30 * Math.PI) / 180;
+    const turn = (p: Point) => point(p.x * Math.cos(angle) - p.y * Math.sin(angle), p.x * Math.sin(angle) + p.y * Math.cos(angle));
+    const plain = book();
+    const turned = {
+      ...plain,
+      faces: plain.faces.map((each) => ({
+        ...each,
+        outline: each.outline.map(turn),
+        edges: each.edges.map((edge) => ({ ...edge, from: turn(edge.from), to: turn(edge.to) })),
+      })),
+      subfaces: plain.subfaces.map((each) => ({ ...each, polygon: each.polygon.map(turn) })),
+    };
+    for (const keep of ['bottom', 'top'] as const) {
+      const options = { ...OPEN, keep, skew: 1, axisDeg: 45 };
+      const upright = affineSpread(plain, options, EPSILON);
+      const shown = affineSpread(turned, options, EPSILON);
+      expect(shown.anchor).toBe(upright.anchor);
+      plain.faces.forEach(({ outline }, index) => {
+        for (const corner of outline) {
+          const moved = turn(upright.offset(index, corner));
+          expectMove(shown.offset(index, turn(corner)), [moved.x, moved.y]);
+        }
+      });
+    }
+  });
+
   it('opens a rolled letter fold from its bottom panel or its top one', () => {
     // Bottom: the left panel still. The middle one's free edge (2, 6) lies at
     // x = 2 on the sheet, folded onto 0; the tucked panel's far edge (3, 7) at

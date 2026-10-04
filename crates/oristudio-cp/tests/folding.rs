@@ -2119,6 +2119,17 @@ fn paper_scene_sheet_points_map_each_face_to_the_scene_by_a_similarity() {
                         .map(|&vertex| scene.sheet_points[vertex])
                         .collect::<Vec<_>>();
                     sheet_area += ring_area(&sheet).abs();
+                    // In the crease pattern's own frame: a sheet mirrored or turned
+                    // fits every face as well, but turns an affine spread's axis.
+                    for corner in &sheet {
+                        assert!(
+                            segments.iter().any(|segment| {
+                                segment.a.distance(*corner) <= tolerance
+                                    || segment.b.distance(*corner) <= tolerance
+                            }),
+                            "{label}: face {index} lies off the crease pattern at {corner:?}"
+                        );
+                    }
                     let map = fit_affine(&sheet, &face.outline)
                         .unwrap_or_else(|| panic!("{label}: face {index} has no area"));
                     for (corner, at) in sheet.iter().zip(&face.outline) {
