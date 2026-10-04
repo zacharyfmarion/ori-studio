@@ -171,6 +171,28 @@ previews out of the drawn state.
   white arrow: neck ~3.6 mm, head ~7.9 × 4.0 mm.
 - Edit Path shapes it as in 1; Flip needs a predicate beyond `isArrowKind`.
 
+### 6. Repeat behind (Zach, 2026-10-04)
+
+A callout, as diagrams mark "repeat behind" or "repeat on the other flap":
+a line from a point on the picture to a box with words in it. Kind
+`callout`: `from` the point the line touches (it snaps, as 14d's ends do),
+`to` where the box sits; `text`, edited as a label's is, "Repeat behind" when
+placed. The line is the annotation pen's, thin and plain, stopping at the
+box's edge; the box a rectangle hugging its text (a pad round it), filled
+page white and outlined in the arrow pen, so it reads over the picture. One
+undo step per gesture; the box and the point each drag on their own, the
+body (the line) moves both. A shared primitive with a golden, as every mark
+(D8). Text in the diagram's fonts, Han in its style, as labels are.
+
+### 7. The tool hint window (Zach, 2026-10-04)
+
+Every Annotate tool says what it does in the shared tool hint window main
+gained (`components/ui/tools/ToolHintWindow`, the bottom-left window Edit and
+the Simulator use) rather than in the Step pane: its name, a line on how to
+use it, and its modifiers (Shift, Alt, ⌘ to place freely). The Step pane
+keeps the selected annotation's verbs. On a phone the window gives way as it
+does in Edit.
+
 ## Affected Areas
 
 `diagram/annotate/*`; `diagram/document/diagramDocument.ts`, `diagramFile.ts`;
@@ -593,6 +615,20 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
       other.
 - [ ] Browser: the template's white arrow beside ours at the same printed
   size; deep zoom; iPad; a PDF.
+
+### 14g. Repeat behind
+- [ ] Kind `callout`: model, file and round trips, hit test (line, box, text),
+  the shared primitive and golden, text editing as a label's, snapping of its
+  point; a rail tool and its key; i18n; analytics through the
+  annotation-added event.
+- [ ] Browser: placed on a crane step, its text edited, dragged by box and by
+  point, on a page and in a PDF.
+
+### 14h. The tool hint window
+- [ ] Main merged in; every Annotate tool's hint in `ToolHintWindow` (Select,
+  Edit Path, each drawing tool, circles, right angles, white arrows,
+  callouts), the Step pane's help line retired; phone behaviour as Edit's.
+- [ ] Browser: each tool's window, light and dark, desktop and phone.
 
 ## Risks
 
