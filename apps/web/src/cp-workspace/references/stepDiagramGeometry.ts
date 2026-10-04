@@ -1192,9 +1192,11 @@ function offsetRuns(
  * Runs with the loops they make where they cross themselves within `span` of
  * travel taken out: the crossing kept, and what went round between dropped.
  * Only near crossings: an arrow drawn over itself on purpose crosses its own
- * offset far along it, and keeps the crossing.
+ * offset far along it, and keeps the crossing. A cut never drops `keep` — the
+ * points from one index to another — so a loop round a short leg cannot be
+ * taken for one round its tail.
  */
-function cutLoops(points: readonly Vec2[], span: number): Vec2[] {
+function cutLoops(points: readonly Vec2[], span: number, keep?: { from: number; to: number }): Vec2[] {
   if (points.length < 4) return [...points];
   const out: Vec2[] = [points[0]!];
   let i = 0;
@@ -1206,6 +1208,8 @@ function cutLoops(points: readonly Vec2[], span: number): Vec2[] {
     for (let j = i + 2; j < points.length - 1; j += 1) {
       travelled += dist(points[j - 1]!, points[j]!);
       if (travelled > span) break;
+      // The cut drops points i + 1 to j.
+      if (keep && i + 1 <= keep.to && j >= keep.from) break;
       const at = crossing(a, b, points[j]!, points[j + 1]!);
       if (at) cut = { j, at };
     }
@@ -1407,6 +1411,10 @@ const WHITE_ARROW_CORNER_TURN = Math.PI / 180;
  * width (a swallowtail) or the shaft bends across its head: the outline does
  * not cross itself.
  *
+ * A hook a handle drawn a hair the wrong way makes at a node — behind the
+ * tail, at a corner — is no part of the shaft ({@link withoutHooks}), and no
+ * cut of a fold drops the tail.
+ *
  * Not supported (v1): a path that crosses itself, or comes back within the
  * arrow's width (or its head's) of itself. Past {@link WHITE_ARROW_FOLD_SPAN}
  * necks along, its outline is drawn as offset, overlapping itself, as no
@@ -1437,8 +1445,9 @@ export function whiteArrowOutline(
   // of the control polygon, as the fold-and-unfold return's are.
   const hull = shaft.reduce((sum, [a, b, c, d]) => sum + dist(a, b) + dist(b, c) + dist(c, d), 0);
   const fine = Math.max(tolerance, length * 1e-6);
-  const { points, corners } = runsWithCorners(shaft, fine, Math.max(hull / 24, fine));
-  if (points.length < 2) return null;
+  const runs = runsWithCorners(shaft, fine, Math.max(hull / 24, fine));
+  if (runs.points.length < 2) return null;
+  const { points, corners, hookedStart } = withoutHooks(runs, neck);
 
   const run = points.reduce((sum, p, index) => (index === 0 ? 0 : sum + dist(points[index - 1]!, p)), 0);
   let travelled = 0;
@@ -1456,7 +1465,12 @@ export function whiteArrowOutline(
   // last runs': the tail is cut, and the neck meets the head's back, exactly.
   const start = points[0]!;
   const first = dist(start, points[1]!);
-  const lead = pathTangentAt(measure, 0) ?? [(points[1]![0] - start[0]) / first, (points[1]![1] - start[1]) / first];
+  const run0: Vec2 = [(points[1]![0] - start[0]) / first, (points[1]![1] - start[1]) / first];
+  // The path's own tangent, unless a hook behind the tail turns it: past one
+  // dropped, the way the shaft sets off; against one too small to flatten,
+  // the first run.
+  const tangent = pathTangentAt(measure, 0);
+  const lead = hookedStart ?? (tangent && tangent[0] * run0[0] + tangent[1] * run0[1] > 0 ? tangent : run0);
   const across = (p: Vec2, t: Vec2, w: number): Vec2 => [p[0] - t[1] * w, p[1] + t[0] * w];
   left[0] = across(start, lead, halves[0]!);
   right[0] = across(start, lead, -halves[0]!);
@@ -1465,6 +1479,7 @@ export function whiteArrowOutline(
 
   const tip: Vec2 = [joint[0] + axis[0] * headLength, joint[1] + axis[1] * headLength];
   const tailPoints: Vec2[] = tail === 'cleft' ? [pathPointAt(measure, WHITE_ARROW_CLEFT * neck)] : [];
+  const [leftTail, rightTail] = [left[0]!, right[0]!];
   const ring = [
     tip,
     across(joint, axis, headWidth / 2),
@@ -1474,9 +1489,69 @@ export function whiteArrowOutline(
     across(joint, axis, -headWidth / 2),
     tip,
   ].filter((p, index, all) => index === 0 || dist(all[index - 1]!, p) > 1e-12);
-  const cut = cutLoops(ring, WHITE_ARROW_FOLD_SPAN * neck);
+  // The tail is the shaft's start, never a fold: no cut drops it.
+  const tailFrom = ring.indexOf(leftTail);
+  const tailTo = ring.indexOf(rightTail);
+  const keep = tailFrom >= 0 && tailTo >= tailFrom ? { from: tailFrom, to: tailTo } : undefined;
+  const cut = cutLoops(ring, WHITE_ARROW_FOLD_SPAN * neck, keep);
   cut.pop();
   return withoutStraightCorners(cut);
+}
+
+/** How near its node a hook lies, as a share of the neck: an eighth, a pixel or two at a page's size. */
+const HOOK_REACH = 8;
+/** How far a hook turns, from its first run to the way the path then goes: more than 60°. */
+const HOOK_TURN = Math.cos(Math.PI / 3);
+
+/**
+ * A path's runs without the hooks a handle drawn a hair the wrong way makes
+ * at a node — behind the tail, or across a short leg at a corner: the run
+ * leaving the node (or reaching it) sets off one way and, within an eighth
+ * of a neck, turns more than 60° to go another. Offset, so sharp a turn so
+ * near the node is a hairpin: a cap behind the tail, a fold across the leg.
+ * Inside the path it also kinks at the node, against the run that brought
+ * the path there. The points that near the node on that side are dropped,
+ * and the node meets the shaft straight. A tight bend runs on from the run
+ * before it, and a corner turns at the node itself, between runs that run
+ * straight: both are kept.
+ */
+function withoutHooks(
+  { points, corners, nodes }: { points: Vec2[]; corners: boolean[]; nodes: number[] },
+  neck: number
+): { points: Vec2[]; corners: boolean[]; hookedStart: Vec2 | null } {
+  const reach = neck / HOOK_REACH;
+  const unit = (a: Vec2, b: Vec2): Vec2 | null => {
+    const d = dist(a, b);
+    return d > 0 ? [(b[0] - a[0]) / d, (b[1] - a[1]) / d] : null;
+  };
+  const drop = new Set<number>();
+  /** Where the tail hooks, the way the shaft sets off past the hook. */
+  let hookedStart: Vec2 | null = null;
+  for (const node of nodes) {
+    for (const step of [1, -1] as const) {
+      const at = points[node]!;
+      // The points within reach of the node on this side, an end of the run never among them.
+      const near: number[] = [];
+      let k = node + step;
+      for (; k > 0 && k < points.length - 1 && dist(at, points[k]!) < reach; k += step) near.push(k);
+      if (near.length === 0 || k < 0 || k >= points.length) continue;
+      // The way the path goes once out of reach: from there, a reach on.
+      let far = k;
+      while (far + step >= 0 && far + step < points.length && dist(points[k]!, points[far]!) < reach) far += step;
+      const first = unit(at, points[node + step]!);
+      const way = unit(points[k]!, points[far]!);
+      if (!first || !way || first[0] * way[0] + first[1] * way[1] >= HOOK_TURN) continue;
+      // Inside the path a hook kinks at the node; a tight bend runs on from the run before it.
+      const before = points[node - step];
+      const into = before ? unit(before, at) : null;
+      if (into && into[0] * first[0] + into[1] * first[1] >= HOOK_TURN) continue;
+      if (node === 0 && step === 1) hookedStart = way;
+      for (const index of near) drop.add(index);
+    }
+  }
+  if (drop.size === 0) return { points, corners, hookedStart };
+  const kept = points.map((_, index) => index).filter((index) => !drop.has(index));
+  return { points: kept.map((index) => points[index]!), corners: kept.map((index) => corners[index]!), hookedStart };
 }
 
 /**
@@ -1489,9 +1564,11 @@ function runsWithCorners(
   path: readonly PathCubic[],
   tolerance: number,
   longest: number
-): { points: Vec2[]; corners: boolean[] } {
+): { points: Vec2[]; corners: boolean[]; nodes: number[] } {
   const points: Vec2[] = [];
   const corners: boolean[] = [];
+  /** Each node's index among the points: where each cubic starts, and the path's end. */
+  const nodes: number[] = [];
   const add = (p: Vec2, corner: boolean) => {
     const last = points[points.length - 1];
     if (last && dist(last, p) <= 1e-12) {
@@ -1509,9 +1586,13 @@ function runsWithCorners(
     return !!into && !!out && into[0] * out[0] + into[1] * out[1] < Math.cos(WHITE_ARROW_CORNER_TURN);
   };
   path.forEach((cubic, index) => {
-    flattenCubic(cubic, tolerance, longest).forEach((p, k) => add(p, k === 0 && index > 0 && turnsAt(index)));
+    flattenCubic(cubic, tolerance, longest).forEach((p, k) => {
+      add(p, k === 0 && index > 0 && turnsAt(index));
+      if (k === 0 && nodes[nodes.length - 1] !== points.length - 1) nodes.push(points.length - 1);
+    });
   });
-  return { points, corners };
+  if (points.length > 0 && nodes[nodes.length - 1] !== points.length - 1) nodes.push(points.length - 1);
+  return { points, corners, nodes };
 }
 
 /** A closed polygon without the corners it runs straight through, which a straight shaft's runs leave behind. */

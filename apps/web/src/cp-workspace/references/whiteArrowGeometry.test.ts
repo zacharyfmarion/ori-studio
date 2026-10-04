@@ -355,6 +355,56 @@ describe('a short or broken white arrow', () => {
     }
   });
 
+  /**
+   * Every centreline point up to the head inside the outline, from `from` on
+   * and past a cleft's notch: no part of the shaft lost.
+   */
+  const coversShaft = (path: readonly Cubic[], outline: readonly Vec2[], tail: WhiteArrowTail, from = 0.5, size = REGULAR) => {
+    const measure = measurePath(path);
+    const neckAt = measure.length - size.headLength;
+    const notch = tail === 'cleft' ? (DIAGRAM_PUSH_INK.cleft / (2 * DIAGRAM_PUSH_INK.shaftHalf)) * size.neck : 0;
+    for (let s = Math.max(from, notch + 0.5); s < neckAt; s += 0.5) {
+      expect(outlineDistance(outline, pathPointAt(measure, s)), `at ${s.toFixed(1)}`).toBe(0);
+    }
+  };
+
+  it('takes a tail handle drawn a hair behind the tail as drawn forward: a square or cleft tail, not a cap', () => {
+    for (const [tail, handle] of [
+      ['square', [-3, 1]],
+      ['square', [-0.3, 0.2]],
+      ['cleft', [-5, 5]],
+      ['cleft', [-2, 3]],
+      ['pointed', [-3, 1]],
+    ] as [WhiteArrowTail, Vec2][]) {
+      const path: Cubic[] = [[[0, 0], handle, [60, 0], [100, 0]]];
+      const outline = outlineOf(path, tail);
+      // The hook itself, a quarter neck from the tail, is drawn as the run it hooks off.
+      coversShaft(path, outline, tail, REGULAR.neck / 4);
+      // No cap behind the tail: a cap reaches half the neck back; a tail squared across the
+      // shaft as it sets off, rising a little past the hook, a corner a little way.
+      expect(Math.min(...outline.map(([x]) => x)), `${tail} ${handle}`).toBeGreaterThan(-HALF / 2);
+      expect(selfCrossings(outline)).toBe(0);
+    }
+  });
+
+  it('keeps a short leg whole when a tiny hook at its corner curls across it', () => {
+    for (const tail of ['square', 'cleft', 'pointed'] as const) {
+      for (const leg of [27, 40.5, 47]) {
+        const path: Cubic[] = [line([0, 0], [0, -leg]), [[0, -leg], [1.2, -leg + 6], [-40, -leg - 50], [-80, -leg - 50]]];
+        coversShaft(path, outlineOf(path, tail), tail);
+      }
+    }
+    // A curl too big to be a hook, on a narrow arrow: its loop is cut, never round the tail.
+    const narrow = sized('narrow');
+    const leg = 3 * narrow.neck;
+    const curl: Cubic[] = [line([0, 0], [0, -leg]), [[0, -leg], [2.4, -leg + 12], [-40, -leg - 50], [-80, -leg - 50]]];
+    const outline = outlineOf(curl, 'square', narrow);
+    const measure = measurePath(curl);
+    for (let s = narrow.neck; s < leg - narrow.neck; s += 0.5) {
+      expect(outlineDistance(outline, pathPointAt(measure, s)), `at ${s.toFixed(1)}`).toBe(0);
+    }
+  });
+
   it('draws a path that crosses itself as offset, overlapping itself (not supported in v1)', () => {
     const crossing: Cubic[] = [[[0, 120], [220, 0], [-60, 0], [160, 120]]];
     const outline = outlineOf(crossing);
