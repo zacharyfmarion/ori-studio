@@ -271,72 +271,144 @@ export interface ScaleFit {
  * Under `fit`, the scale each picture is drawn at, in order, so that the
  * paper keeps one size from step to step where it can — a diagram's steps
  * draw the model alike — and changes it only where the model has grown
- * smaller or larger for long enough to be worth it.
+ * smaller or larger for long enough to be worth it, and by enough to read as
+ * a zoom.
  *
- * The pictures are cut into runs, each drawn at the smallest scale its
- * pictures fit, so as to cost least: every picture drawn smaller than it
- * could be costs the log of how much smaller, and every change of scale
- * between runs {@link FIT_RUN_BREAK}. So a model smaller for one step is
- * drawn at its neighbours' scale, one smaller for several zooms in, and a
- * step that needs more room (a flap's outline far above it) lowers its run
- * or stands alone, whichever costs less — the same answer read from either
- * end. Runs within {@link FIT_SAME} of each other are then drawn at the
- * smaller of their scales, and so are two runs side by side less than
- * {@link FIT_ZOOM} apart, the nearest pair first: a step of scale that small
- * changes the paper's size without reading as a zoom. A picture is drawn at
- * its run's scale, or its own when that is smaller (`reduced`: a long
- * instruction took its room). Pure.
+ * The pictures are cut into runs, each drawn at one scale no picture in it is
+ * too big for, so as to cost least: every picture drawn smaller than it could
+ * be costs the log of how much smaller, and every change of scale between
+ * runs {@link FIT_RUN_BREAK}. Two runs side by side are at least
+ * {@link FIT_ZOOM} apart: a smaller change does not read as a zoom, only as
+ * the paper changing size. So a model smaller for one step is drawn at its
+ * neighbours' scale, one smaller for several zooms in, and a step that needs
+ * more room (a flap's outline far above it) lowers its run or stands alone —
+ * drawn a zoom under its neighbours if it needs a little more room than that
+ * — whichever costs least. A run is drawn at its smallest picture's scale, or
+ * a zoom under one: the least-cost cut and scales among those are found
+ * exactly (dynamic programming over where the last run starts and its
+ * scale), the same answer read from either end.
+ *
+ * Runs whose scales are within {@link FIT_SAME} are then drawn at one,
+ * wherever in the diagram, where that keeps each a zoom from its neighbours.
+ * A picture is drawn at its run's scale, or its own when that is smaller
+ * (`reduced`: a long instruction took its room). Pure.
  */
 export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: boolean }[] {
   const count = fits.length;
   if (count === 0) return [];
   // A fit of nothing — a room of no size — is a picture drawn at nothing, alone.
-  const logs = fits.map(({ shared }) => Math.log(Number.isFinite(shared) && shared > 0 ? shared : Number.MIN_VALUE));
-  // best[j]: the least the first j pictures cost; start[j]: where the last of their runs starts.
-  const best = new Float64Array(count + 1);
-  const start = new Int32Array(count + 1);
+  const shares = fits.map(({ shared }) => (Number.isFinite(shared) && shared > 0 ? shared : Number.MIN_VALUE));
+  const logs = shares.map(Math.log);
+  const zoom = Math.log(FIT_ZOOM);
+  // The scales a run may be drawn at, as logs, each with the scale it is: a
+  // picture's own, or a zoom under one.
+  const scaleAt = new Map<number, number>();
+  shares.forEach((share, index) => scaleAt.set(logs[index]!, share));
+  shares.forEach((share, index) => {
+    if (!scaleAt.has(logs[index]! - zoom)) scaleAt.set(logs[index]! - zoom, share / FIT_ZOOM);
+  });
+  const levels = [...scaleAt.keys()].sort((a, b) => a - b);
+  const width = levels.length;
+  // For each level, the highest a zoom or more below it and the lowest a zoom or more above it.
+  const apart = zoom * (1 - 1e-9);
+  const below = new Int32Array(width);
+  const above = new Int32Array(width);
+  for (let v = 0, u = -1; v < width; v += 1) {
+    while (u + 1 < width && levels[u + 1]! <= levels[v]! - apart) u += 1;
+    below[v] = u;
+  }
+  for (let v = width - 1, u = width; v >= 0; v -= 1) {
+    while (u - 1 >= 0 && levels[u - 1]! >= levels[v]! + apart) u -= 1;
+    above[v] = u;
+  }
+
+  // best[j][v]: the least the first j pictures cost with their last run at
+  // level v; from[j][v], where that run starts, and before[j][v], the level
+  // of the run before it (-1 for none).
+  const best = new Float64Array((count + 1) * width).fill(Infinity);
+  const from = new Int32Array((count + 1) * width);
+  const before = new Int32Array((count + 1) * width);
+  // next[i][v]: the least the first i pictures cost with their last run a
+  // zoom or more from level v, and that run's level.
+  const next = new Float64Array((count + 1) * width).fill(Infinity);
+  const nextAt = new Int32Array((count + 1) * width).fill(-1);
+  const lowest = new Float64Array(width);
+  const lowestAt = new Int32Array(width);
+  const highest = new Float64Array(width);
+  const highestAt = new Int32Array(width);
+  const ended = (i: number) => {
+    const row = i * width;
+    for (let u = 0; u < width; u += 1) {
+      const cost = best[row + u]!;
+      const better = u === 0 || cost < lowest[u - 1]!;
+      lowest[u] = better ? cost : lowest[u - 1]!;
+      lowestAt[u] = better ? u : lowestAt[u - 1]!;
+    }
+    for (let u = width - 1; u >= 0; u -= 1) {
+      const cost = best[row + u]!;
+      const better = u === width - 1 || cost < highest[u + 1]!;
+      highest[u] = better ? cost : highest[u + 1]!;
+      highestAt[u] = better ? u : highestAt[u + 1]!;
+    }
+    for (let v = 0; v < width; v += 1) {
+      const down = below[v]! >= 0 ? lowest[below[v]!]! : Infinity;
+      const up = above[v]! < width ? highest[above[v]!]! : Infinity;
+      next[row + v] = Math.min(down, up);
+      nextAt[row + v] = down <= up ? (below[v]! >= 0 ? lowestAt[below[v]!]! : -1) : highestAt[above[v]!]!;
+    }
+  };
   for (let j = 1; j <= count; j += 1) {
-    best[j] = Infinity;
-    let sum = 0;
     let low = Infinity;
-    for (let i = j; i >= 1; i -= 1) {
-      sum += logs[i - 1]!;
-      low = Math.min(low, logs[i - 1]!);
-      const cost = best[i - 1]! + (i > 1 ? FIT_RUN_BREAK : 0) + (sum - (j - i + 1) * low);
-      if (cost < best[j]!) {
-        best[j] = cost;
-        start[j] = i;
+    let sum = 0;
+    for (let i = j - 1; i >= 0; i -= 1) {
+      low = Math.min(low, logs[i]!);
+      sum += logs[i]!;
+      const pictures = j - i;
+      for (let v = 0; v < width && levels[v]! <= low; v += 1) {
+        const earlier = i === 0 ? 0 : next[i * width + v]! + FIT_RUN_BREAK;
+        if (earlier === Infinity) continue;
+        const cost = earlier + sum - pictures * levels[v]!;
+        const at = j * width + v;
+        if (cost < best[at]!) {
+          best[at] = cost;
+          from[at] = i;
+          before[at] = i === 0 ? -1 : nextAt[i * width + v]!;
+        }
       }
     }
+    if (j < count) ended(j);
   }
+  // The cheapest end, the larger scale on a tie.
+  let level = width - 1;
+  for (let v = width - 1; v >= 0; v -= 1) if (best[count * width + v]! < best[count * width + level]!) level = v;
   const runs: { from: number; to: number; scale: number }[] = [];
-  for (let j = count; j > 0; j = start[j]! - 1) {
-    const from = start[j]! - 1;
-    let scale = Infinity;
-    for (let k = from; k < j; k += 1) scale = Math.min(scale, fits[k]!.shared);
-    runs.unshift({ from, to: j, scale });
+  for (let j = count; j > 0; ) {
+    const at = j * width + level;
+    runs.unshift({ from: from[at]!, to: j, scale: scaleAt.get(levels[level]!)! });
+    j = from[at]!;
+    level = before[at]!;
   }
-  // Near enough is one: each run takes the smallest scale within FIT_SAME below its own.
-  const scales = [...new Set(runs.map(({ scale }) => scale))].sort((a, b) => a - b);
-  for (const run of runs) {
-    run.scale = scales.find((scale) => scale <= run.scale && run.scale <= scale * FIT_SAME) ?? run.scale;
+
+  // Near enough is one, wherever in the diagram: each scale joins the
+  // smallest within FIT_SAME below it that leads its own, so a chain of near
+  // scales does not drift down. A run takes it only where it still reads as a
+  // zoom from each neighbour, as drawn and as snapped — every run decided at
+  // once, so the answer does not depend on which end is read first.
+  const leaders = new Map<number, number>();
+  let leader = -Infinity;
+  for (const scale of [...new Set(runs.map(({ scale }) => scale))].sort((a, b) => a - b)) {
+    if (!(scale <= leader * FIT_SAME)) leader = scale;
+    leaders.set(scale, leader);
   }
-  // Too near to read as a zoom is one run, the nearest two first.
-  for (;;) {
-    let nearest = -1;
-    let ratio = FIT_ZOOM;
-    for (let k = 0; k + 1 < runs.length; k += 1) {
-      const [a, b] = [runs[k]!.scale, runs[k + 1]!.scale];
-      const apart = Math.max(a, b) / Math.min(a, b);
-      if (apart < ratio) {
-        ratio = apart;
-        nearest = k;
-      }
-    }
-    if (nearest < 0) break;
-    const [a, b] = [runs[nearest]!, runs[nearest + 1]!];
-    runs.splice(nearest, 2, { from: a.from, to: b.to, scale: Math.min(a.scale, b.scale) });
-  }
+  const reads = (a: number, b: number) => a === b || Math.max(a, b) / Math.min(a, b) >= FIT_ZOOM * (1 - 1e-9);
+  const snapped = runs.map(({ scale }) => leaders.get(scale)!);
+  const taken = runs.map((_, k) =>
+    [k - 1, k + 1].every((n) => n < 0 || n >= runs.length || (reads(snapped[k]!, runs[n]!.scale) && reads(snapped[k]!, snapped[n]!)))
+  );
+  runs.forEach((run, k) => {
+    if (taken[k]) run.scale = snapped[k]!;
+  });
+
   const scaleOf = new Float64Array(count);
   for (const { from, to, scale } of runs) scaleOf.fill(scale, from, to);
   return fits.map(({ own }, index) => {

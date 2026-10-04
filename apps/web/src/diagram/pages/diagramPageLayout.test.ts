@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAGE_SETUP, type DiagramPageSetup } from '../document/diagramDocument';
 import {
+  FIT_RUN_BREAK,
   FIT_SAME,
   FIT_ZOOM,
   layoutDiagramPages,
@@ -136,8 +137,63 @@ describe('scaleRuns', () => {
       forward.forEach((scale, index) => expect(scale).toBeLessThanOrEqual(values[index]!));
       forward.slice(1).forEach((scale, index) => {
         const before = forward[index]!;
-        if (scale !== before) expect(Math.max(scale, before) / Math.min(scale, before)).toBeGreaterThanOrEqual(FIT_ZOOM);
+        if (scale !== before) expect(Math.max(scale, before) / Math.min(scale, before)).toBeGreaterThanOrEqual(FIT_ZOOM * (1 - 1e-9));
       });
+    }
+  });
+
+  it('gives the same answer from either end where costs tie: a model back at a size it had, or shrinking by equal steps (review)', () => {
+    const runs = (...parts: [number, number][]) => parts.flatMap(([steps, fit]) => Array<number>(steps).fill(fit));
+    const cases = [
+      runs([10, 1], [10, 0.8], [10, 0.64], [10, 0.512]),
+      runs([10, 1], [10, 1.25], [10, 1.5625]),
+      runs([10, 1], [10, 0.8], [10, 1.03], [10, 0.7]),
+      runs([6, 0.172], [6, 0.144], [6, 0.175], [6, 0.125]),
+      Array.from({ length: 40 }, (_, k) => 1.03 ** k),
+    ];
+    for (const values of cases) {
+      expect(scales(each([...values].reverse())).reverse()).toEqual(scales(each(values)));
+    }
+  });
+
+  it('finds the cut and the scales that cost least, as every one tried in turn does (review)', () => {
+    // Fits more than FIT_SAME apart, a zoom under each included, so nothing is snapped after.
+    const FITS = [0.5, 1, 1.2, 1.45];
+    const zoom = Math.log(FIT_ZOOM);
+    const costOf = (values: number[], drawn: number[]) =>
+      values.reduce((sum, value, index) => sum + Math.log(value / drawn[index]!), 0) +
+      drawn.slice(1).filter((scale, index) => scale !== drawn[index]).length * FIT_RUN_BREAK;
+    /** The least cost of every cut into runs, each run at any level its pictures fit, each a zoom from the next. */
+    const cheapest = (values: number[]) => {
+      const levels = [...new Set(FITS.flatMap((fit) => [Math.log(fit), Math.log(fit) - zoom]))];
+      let least = Infinity;
+      const walk = (start: number, previous: number | null, cost: number) => {
+        if (start === values.length) {
+          least = Math.min(least, cost);
+          return;
+        }
+        for (let end = start + 1; end <= values.length; end += 1) {
+          const run = values.slice(start, end);
+          const low = Math.log(Math.min(...run));
+          for (const level of levels) {
+            if (level > low + 1e-12) continue;
+            if (previous !== null && Math.abs(level - previous) < zoom * (1 - 1e-9)) continue;
+            const spent = run.reduce((sum, value) => sum + Math.log(value) - level, 0) + (previous === null ? 0 : FIT_RUN_BREAK);
+            walk(end, level, cost + spent);
+          }
+        }
+      };
+      walk(0, null, 0);
+      return least;
+    };
+    let seed = 5;
+    const random = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let trial = 0; trial < 150; trial += 1) {
+      const values = Array.from({ length: 2 + Math.floor(random() * 5) }, () => FITS[Math.floor(random() * FITS.length)]!);
+      expect(costOf(values, scales(each(values))), values.join(' ')).toBeCloseTo(cheapest(values), 9);
     }
   });
 
@@ -154,9 +210,41 @@ describe('scaleRuns', () => {
     ]);
   });
 
+  it('zooms where the model ends much smaller, though it got there by steps each too small to read (review)', () => {
+    const fill = (steps: number, fit: number) => Array<number>(steps).fill(fit);
+    // A fifth, then a fifth more: the last twenty drawn half as large again, not all at the first.
+    expect(scales(each([...fill(20, 1), ...fill(5, 1.25), ...fill(20, 1.5)]))).toEqual([...fill(25, 1), ...fill(20, 1.5)]);
+    const stepped = scales(each([...fill(5, 0.5), ...fill(5, 0.625), ...fill(5, 0.75)]));
+    expect(new Set(stepped).size).toBe(2);
+    expect(stepped[14]! / stepped[0]!).toBeGreaterThanOrEqual(FIT_ZOOM);
+    // A model growing 3.5% a step for thirty steps zooms as it goes: no picture drawn at half its size.
+    const growing = Array.from({ length: 30 }, (_, k) => 1 / 1.035 ** k);
+    const drawn = scales(each(growing));
+    expect(new Set(drawn).size).toBeGreaterThan(2);
+    growing.forEach((fit, index) => expect(fit / drawn[index]!).toBeLessThan(1.5));
+  });
+
+  it('draws a step needing a little more room a zoom under its neighbours, rather than draw every one at its scale (review)', () => {
+    const fill = (steps: number, fit: number) => Array<number>(steps).fill(fit);
+    expect(scales(each([...fill(20, 1), 0.78, ...fill(20, 1)]))).toEqual([...fill(20, 1), 1 / FIT_ZOOM, ...fill(20, 1)]);
+    // Needing much more: alone at its own.
+    expect(scales(each([...fill(20, 1), 0.5, ...fill(20, 1)]))).toEqual([...fill(20, 1), 0.5, ...fill(20, 1)]);
+  });
+
   it('draws runs whose scales are near one another at one, wherever they are', () => {
     expect(scales(each([1, 1, 1, 0.3, 0.3, 0.3, 1.04, 1.04, 1.04]))).toEqual([1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 1]);
     expect(FIT_SAME).toBeGreaterThan(1.04);
+  });
+
+  it('draws a chain of near scales at the first of each, not one drifting into the next (review)', () => {
+    const runs = (...parts: number[]) => parts.flatMap((fit) => Array<number>(3).fill(fit));
+    expect(scales(each(runs(1.1, 0.5, 1.05, 0.5, 1)))).toEqual(runs(1.1, 0.5, 1, 0.5, 1));
+  });
+
+  it('keeps a zoom a run far off would take back, snapped to a scale too near its neighbour’s (review)', () => {
+    const runs = (...parts: number[]) => parts.flatMap((fit) => Array<number>(10).fill(fit));
+    // 1.37 is within FIT_SAME of 1.295, but 1.295 is no zoom from the 1 beside it.
+    expect(scales(each(runs(1.295, 0.5, 1, 1.37)))).toEqual(runs(1.295, 0.5, 1, 1.37));
   });
 
   it('draws one whose own room is smaller than its share at its own, alone', () => {
