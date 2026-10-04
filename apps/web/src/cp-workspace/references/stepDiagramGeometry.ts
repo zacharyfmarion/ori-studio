@@ -8,6 +8,17 @@
  * two.
  */
 
+import {
+  chordSide,
+  flattenPath,
+  measurePath,
+  pathPointAt,
+  pathTangentAt,
+  trimPath,
+  type Cubic as PathCubic,
+  type PathMeasure,
+  type Vec2,
+} from '../../lib/cubicBezier';
 import { erodeSegment } from '../../lib/paper/paperSvg';
 import {
   DIAGRAM_ARROWHEAD_INK,
@@ -880,6 +891,370 @@ export function halfArrowheadPath(head: Arrowhead, centre: SvgPoint): string {
 
 /** How much wider a mountain fold's one barb stands than a filled head's. */
 const HALF_ARROWHEAD_SPREAD = 1.8;
+
+/**
+ * The corners a head's outline reaches, a filled head's or a mountain fold's
+ * half head (whose one barb stands out further, on either side): what a crop
+ * keeps, before the stroke's own width round them.
+ */
+export function arrowheadExtent(head: Arrowhead): SvgPoint[] {
+  const [a, b] = head.barbs;
+  const base = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const spread = (p: SvgPoint) => ({
+    x: base.x + (p.x - base.x) * HALF_ARROWHEAD_SPREAD,
+    y: base.y + (p.y - base.y) * HALF_ARROWHEAD_SPREAD,
+  });
+  return [head.tip, head.notch, spread(a), spread(b)];
+}
+
+/**
+ * A shaped arrow's path in the primitives' space: cubic Bézier segments, tail
+ * first, each starting where the one before it ends.
+ */
+export type DiagramCubic = readonly [SheetPoint, SheetPoint, SheetPoint, SheetPoint];
+
+/** Which fold a path arrow says: a valley's or a mountain's head, or out and back with the return's. */
+export type PathArrowFold = 'valley' | 'mountain' | 'fold-unfold';
+
+/**
+ * A path through a projector. A Bézier's image under an affine map is the
+ * Bézier of its control points' images, so the curve drawn is exactly the
+ * one carried.
+ */
+export function projectPath(path: readonly DiagramCubic[], project: DiagramProjector): PathCubic[] {
+  const at = (point: SheetPoint): Vec2 => {
+    const { x, y } = project(point);
+    return [x, y];
+  };
+  return path.map(([a, b, c, d]) => [at(a), at(b), at(c), at(d)]);
+}
+
+/** Path data for a path of cubics: to its start, then a `C` for each segment. */
+export function cubicPathData(path: readonly PathCubic[]): string {
+  if (path.length === 0) return '';
+  const text = (p: Vec2) => `${fmt(p[0])} ${fmt(p[1])}`;
+  return `M ${text(path[0]![0])} ${path.map(([, b, c, d]) => `C ${text(b)} ${text(c)} ${text(d)}`).join(' ')}`;
+}
+
+/** Path data for a run of straight lines. */
+export function polylinePathData(points: readonly Vec2[]): string {
+  return points.map((p, index) => `${index === 0 ? 'M' : 'L'} ${fmt(p[0])} ${fmt(p[1])}`).join(' ');
+}
+
+/** A path arrow's head, its return's opening and the rim it stops at, in the drawing's units. */
+export interface PathArrowSizes {
+  head: number;
+  offset: number;
+  rim: number;
+}
+
+/**
+ * A path arrow's sizes, by the arc arrow's rules (`arrowheadSize`,
+ * `foldReturnOffset`) with one change: they are capped by a share of the
+ * path's length, not of its tail-to-tip chord. A path that loops round may
+ * end beside its own tail, and a share of that chord is a head of nothing.
+ */
+export function pathArrowSizes(length: number, project: DiagramProjector): PathArrowSizes {
+  const capped = (ink: number, ofLength: number) => Math.min(ink * project.ink, ofLength * length);
+  return {
+    head: Math.max(
+      capped(project.marks.arrowheadLength, DIAGRAM_ARROWHEAD_INK.ofChord),
+      ARROWHEAD_MIN_STROKES * project.pens.arrow.width * project.ink
+    ),
+    offset: capped(DIAGRAM_FOLD_RETURN_INK.offset, DIAGRAM_FOLD_RETURN_INK.ofChord),
+    rim: project.marks.ringRadius * project.ink,
+  };
+}
+
+/** A path arrow as it is drawn: its strokes, its head, and which side of the head is the inside of the curve. */
+export interface PathArrowGeometry {
+  /** The outgoing stroke, or null for an arrow too short to have one: its head alone is drawn. */
+  shaft: PathCubic[] | null;
+  /** A fold-and-unfold arrow's return, from the tip back to beside the tail, stopped at its head's notch. */
+  back: Vec2[] | null;
+  head: Arrowhead;
+  /**
+   * A point far inside the curve where the head is: the centre a mountain
+   * fold's one barb stands away from ({@link halfArrowheadPath}), as an arc's
+   * centre is.
+   */
+  inside: SvgPoint;
+}
+
+/**
+ * How far a fold-and-unfold path arrow's return bows out past its straight
+ * taper, as a share of the path's length, and no more than the opening.
+ *
+ * References' return is a 90° arc over a 60° one, which stands off the
+ * outgoing stroke by about 0.07 of the arrow's length in its middle as well
+ * as the half opening the taper gives there; this keeps that look on a path
+ * shaped from an arc. The cap keeps a long winding path's loop the width of
+ * a short one's.
+ */
+const RETURN_BOW = 0.07;
+
+/** The most a path's runs turn at one point before the return is joined round them rather than across. */
+const RETURN_JOIN_TURN = 0.25;
+/** The step a round join is drawn in. */
+const RETURN_JOIN_STEP = Math.PI / 12;
+
+const toSvg = (p: Vec2): SvgPoint => ({ x: p[0], y: p[1] });
+
+/**
+ * A shaped arrow, from its path in the drawing's units: where its strokes
+ * run and where its head sits, by the arc arrows' rules.
+ *
+ * - The tip stops at the rim of a ring it lands on (`foldArrowLanding`),
+ *   measured along the path.
+ * - A one-way arrow's shaft stops at its head's notch, and the head sits
+ *   there along the shaft's direction where it stops (`oneWayArrow`).
+ * - A fold-and-unfold arrow's shaft starts a rim in from its tail, always
+ *   (`foldArrowTrim`), and its return is derived from the landed path
+ *   ({@link pathReturn}) and carries the head.
+ *
+ * `sizes` are asked for by the path's whole length; `marks` are the ring
+ * centres, and `tolerance` how far the return's runs may stand off the
+ * curves they follow, all in the path's units. Null for a path of no length.
+ */
+export function pathArrowGeometry(
+  path: readonly PathCubic[],
+  fold: PathArrowFold,
+  sizesFor: (length: number) => PathArrowSizes,
+  marks: readonly SvgPoint[],
+  tolerance: number
+): PathArrowGeometry | null {
+  const measure = measurePath(path);
+  const { length } = measure;
+  if (!(length > 1e-9)) return null;
+  const sizes = sizesFor(length);
+  const tip = pathPointAt(measure, length);
+  const lands = marks.some((mark) => Math.hypot(mark.x - tip[0], mark.y - tip[1]) <= sizes.rim);
+  // A path with no room for a rim at each end would turn inside out rather than shorten.
+  const end = lands && length > 2 * sizes.rim ? length - sizes.rim : length;
+  const reach = arrowheadReach(sizes.head);
+  const headAt = (at: Vec2, direction: Vec2 | null) =>
+    arrowheadAt(toSvg(at), toSvg(direction ?? [1, 0]), sizes.head);
+
+  if (fold !== 'fold-unfold') {
+    if (end <= reach) {
+      const head = headAt(pathPointAt(measure, 0), pathTangentAt(measure, 0));
+      return { shaft: null, back: null, head, inside: insideOf(measure, 0, sizes.head, head) };
+    }
+    const stop = end - reach;
+    const head = headAt(pathPointAt(measure, stop), pathTangentAt(measure, stop));
+    return { shaft: trimPath(measure, 0, stop), back: null, head, inside: insideOf(measure, stop, sizes.head, head) };
+  }
+
+  const landed = trimPath(measure, 0, end);
+  const back = pathReturn(landed, sizes.offset, tolerance);
+  const shaft = sizes.rim < end ? trimPath(measure, sizes.rim, end) : null;
+  if (!back) {
+    const head = headAt(pathPointAt(measure, end), pathTangentAt(measure, end));
+    return { shaft, back: null, head, inside: head.notch };
+  }
+  const stopped = polylineStoppedShort(back, reach);
+  const head = headAt(stopped.end, stopped.direction);
+  return { shaft, back: stopped.points, head, inside: head.notch };
+}
+
+/**
+ * A point far inside the curve where a head sits at `distance` along it: the
+ * side the shaft turns toward over the head's last two lengths, or, where it
+ * runs straight there, the side away from the one the whole path bulges to.
+ * Near an inflection the two can disagree, and the turn near the head wins.
+ */
+function insideOf(
+  measure: PathMeasure,
+  distance: number,
+  head: number,
+  arrowhead: Arrowhead
+): SvgPoint {
+  const at = pathTangentAt(measure, distance) ?? [1, 0];
+  const before = pathTangentAt(measure, Math.max(0, distance - 2 * head)) ?? at;
+  const turn = before[0] * at[1] - before[1] * at[0];
+  let sign: number;
+  if (Math.abs(turn) > Math.sin(Math.PI / 90)) sign = Math.sign(turn);
+  else sign = chordSide(flattenPath(measure.path, measure.length * 1e-3), measure.length) < 0 ? -1 : 1;
+  const far = 1000 * head;
+  return { x: arrowhead.notch.x - at[1] * sign * far, y: arrowhead.notch.y + at[0] * sign * far };
+}
+
+/**
+ * A fold-and-unfold path arrow's return: the same journey back, from the tip
+ * to `offset` beside the tail, on the side the path bulges to — an offset
+ * curve of the path, whose distance from it tapers from `offset` at the tail
+ * to nothing at the tip and bows out between ({@link RETURN_BOW}).
+ *
+ * The side is the one the path lies on of its chord (`chordSide`), kept
+ * the whole way: on an S the return crosses to neither side of the shaft.
+ * Where the path bends tighter than the loop is wide, on the loop's side, an
+ * offset curve folds back on itself in a swallowtail; the fold is cut out
+ * where the curve crosses itself, so the return turns a sharp inner corner
+ * there instead. Round a corner node's outside it is joined round. As runs,
+ * from the tip; null for a path of no length.
+ */
+export function pathReturn(path: readonly PathCubic[], offset: number, tolerance: number): Vec2[] | null {
+  // Runs short enough that the taper and the bow are drawn as curves, not
+  // chords: a 24th of the control polygon, which is at least as long as the path.
+  const hull = path.reduce((sum, [a, b, c, d]) => sum + dist(a, b) + dist(b, c) + dist(c, d), 0);
+  const points = flattenPath(path, tolerance, Math.max(hull / 24, tolerance));
+  const distinct = points.filter((p, index) => index === 0 || dist(points[index - 1]!, p) > 1e-12);
+  if (distinct.length < 2) return null;
+  const length = distinct.reduce((sum, p, index) => (index === 0 ? 0 : sum + dist(distinct[index - 1]!, p)), 0);
+  // A path on neither side of its chord takes one fixed side, the same on every surface.
+  const side = chordSide(distinct, length) < 0 ? 1 : -1;
+  const bow = Math.min(RETURN_BOW * length, offset);
+  let travelled = 0;
+  const widths = distinct.map((p, index) => {
+    if (index > 0) travelled += dist(distinct[index - 1]!, p);
+    const u = Math.min(1, travelled / length);
+    return offset * (1 - u) + bow * Math.sin(Math.PI * u);
+  });
+  const widest = Math.max(...widths);
+  return cutLoops(offsetRuns(distinct, widths, side), 8 * widest).reverse();
+}
+
+const dist = (a: Vec2, b: Vec2) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+
+/**
+ * Runs offset to one side of their direction of travel by `widths`: through
+ * a gentle bend along the two runs' mean normal, round the outside of a
+ * sharp one in steps, and straight across its inside, where the two offset
+ * runs cross and {@link cutLoops} takes the overlap away.
+ */
+function offsetRuns(points: readonly Vec2[], widths: readonly number[], side: number): Vec2[] {
+  const out: Vec2[] = [];
+  const direction = (a: Vec2, b: Vec2): Vec2 => {
+    const d = dist(a, b);
+    return [(b[0] - a[0]) / d, (b[1] - a[1]) / d];
+  };
+  const normal = (t: Vec2): Vec2 => [-t[1] * side, t[0] * side];
+  const at = (p: Vec2, n: Vec2, w: number): Vec2 => [p[0] + n[0] * w, p[1] + n[1] * w];
+  for (let i = 0; i < points.length; i += 1) {
+    const p = points[i]!;
+    const w = widths[i]!;
+    const before = i > 0 ? direction(points[i - 1]!, p) : null;
+    const after = i < points.length - 1 ? direction(p, points[i + 1]!) : null;
+    if (!before || !after) {
+      out.push(at(p, normal((before ?? after)!), w));
+      continue;
+    }
+    const turn = Math.atan2(before[0] * after[1] - before[1] * after[0], before[0] * after[0] + before[1] * after[1]);
+    const nIn = normal(before);
+    const nOut = normal(after);
+    if (Math.abs(turn) < RETURN_JOIN_TURN) {
+      const mean: Vec2 = [nIn[0] + nOut[0], nIn[1] + nOut[1]];
+      const size = Math.hypot(mean[0], mean[1]);
+      out.push(at(p, [mean[0] / size, mean[1] / size], w / Math.cos(turn / 2)));
+    } else if (turn * side < 0) {
+      // The outside of the bend: round it, as the stroke's own join is.
+      const steps = Math.ceil(Math.abs(turn) / RETURN_JOIN_STEP);
+      for (let step = 0; step <= steps; step += 1) {
+        const angle = (turn * step) / steps;
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+        out.push(at(p, [nIn[0] * c - nIn[1] * s, nIn[0] * s + nIn[1] * c], w));
+      }
+    } else {
+      out.push(at(p, nIn, w), at(p, nOut, w));
+    }
+  }
+  return out;
+}
+
+/**
+ * Runs with the loops they make where they cross themselves within `span` of
+ * travel taken out: the crossing kept, and what went round between dropped.
+ * Only near crossings: an arrow drawn over itself on purpose crosses its own
+ * offset far along it, and keeps the crossing.
+ */
+function cutLoops(points: readonly Vec2[], span: number): Vec2[] {
+  if (points.length < 4) return [...points];
+  const out: Vec2[] = [points[0]!];
+  let i = 0;
+  while (i < points.length - 1) {
+    const a = out[out.length - 1]!;
+    const b = points[i + 1]!;
+    let cut: { j: number; at: Vec2 } | null = null;
+    let travelled = 0;
+    for (let j = i + 2; j < points.length - 1; j += 1) {
+      travelled += dist(points[j - 1]!, points[j]!);
+      if (travelled > span) break;
+      const at = crossing(a, b, points[j]!, points[j + 1]!);
+      if (at) cut = { j, at };
+    }
+    if (cut) {
+      out.push(cut.at);
+      i = cut.j;
+    } else {
+      out.push(b);
+      i += 1;
+    }
+  }
+  return out;
+}
+
+/** Where two runs cross, strictly inside both; null when they do not. */
+function crossing(a: Vec2, b: Vec2, c: Vec2, d: Vec2): Vec2 | null {
+  const r: Vec2 = [b[0] - a[0], b[1] - a[1]];
+  const s: Vec2 = [d[0] - c[0], d[1] - c[1]];
+  const denominator = r[0] * s[1] - r[1] * s[0];
+  if (Math.abs(denominator) < 1e-18) return null;
+  const qp: Vec2 = [c[0] - a[0], c[1] - a[1]];
+  const t = (qp[0] * s[1] - qp[1] * s[0]) / denominator;
+  const u = (qp[0] * r[1] - qp[1] * r[0]) / denominator;
+  const inside = (v: number) => v > 1e-9 && v < 1 - 1e-9;
+  return inside(t) && inside(u) ? [a[0] + r[0] * t, a[1] + r[1] * t] : null;
+}
+
+/**
+ * Runs stopped `by` short of their end, and the direction the last of them
+ * runs in where they stop; a run too short to stop short of keeps its first
+ * point alone.
+ */
+function polylineStoppedShort(points: readonly Vec2[], by: number): { points: Vec2[] | null; end: Vec2; direction: Vec2 } {
+  let left = by;
+  for (let i = points.length - 1; i > 0; i -= 1) {
+    const a = points[i - 1]!;
+    const b = points[i]!;
+    const run = dist(a, b);
+    if (run <= 1e-12) continue;
+    const direction: Vec2 = [(b[0] - a[0]) / run, (b[1] - a[1]) / run];
+    if (run > left) {
+      const end: Vec2 = [b[0] - direction[0] * left, b[1] - direction[1] * left];
+      return { points: [...points.slice(0, i), end], end, direction };
+    }
+    left -= run;
+  }
+  const first = points[0]!;
+  const next = points.find((p) => dist(first, p) > 1e-12) ?? first;
+  const run = dist(first, next) || 1;
+  return { points: null, end: first, direction: [(next[0] - first[0]) / run, (next[1] - first[1]) / run] };
+}
+
+/**
+ * A path arrow primitive as a picture draws it: projected, sized by the
+ * drawing's pen and its own length, landing on the picture's rings. The one
+ * place the primitive's shape is decided, so its drawing and the box a file
+ * is cropped to agree.
+ */
+export function pathArrowDrawn(
+  path: readonly DiagramCubic[],
+  fold: PathArrowFold,
+  project: DiagramProjector,
+  marks: readonly SvgPoint[]
+): PathArrowGeometry | null {
+  return pathArrowGeometry(
+    projectPath(path, project),
+    fold,
+    (length) => pathArrowSizes(length, project),
+    marks,
+    PATH_FLATTEN_INK * project.ink
+  );
+}
+
+/** How far a drawn return's runs may stand off the curve they follow, in ink: far under its pen. */
+const PATH_FLATTEN_INK = 0.05;
 
 /** A push arrow's shape, in the drawing's units (`DIAGRAM_PUSH_INK` × the ink). */
 export interface PushArrowSize {

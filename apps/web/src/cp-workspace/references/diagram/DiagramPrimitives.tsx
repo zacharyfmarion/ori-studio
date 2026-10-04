@@ -15,6 +15,7 @@ import {
   arcPathData,
   arrowheadPath,
   arrowheadSize,
+  cubicPathData,
   erodeCreaseOnSheet,
   foldAndUnfoldFromArc,
   foldArrowLanding,
@@ -24,7 +25,9 @@ import {
   offPaperPathData,
   oneWayArrow,
   paperRingPoints,
+  pathArrowDrawn,
   polygonPathData,
+  polylinePathData,
   pushArrowOutline,
   rotateGlyph,
   sheetCorners,
@@ -268,6 +271,7 @@ export function canLeavePaper(primitive: StepDiagramPrimitive): boolean {
   switch (primitive.kind) {
     case 'fold-arrow':
     case 'one-way-arrow':
+    case 'path-arrow':
     case 'push-arrow':
     case 'rotate':
     case 'turn-over':
@@ -625,6 +629,38 @@ function diagramPrimitiveShape(
                 strokeDasharray={undefined}
                 strokeLinejoin="miter"
                 {...arrowInk}
+              />
+            )}
+          </g>
+        );
+      });
+    }
+    case 'path-arrow': {
+      // The arc arrows' rules, along a path: see `pathArrowGeometry`.
+      const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, context.marks);
+      if (!arrow) return null;
+      const stroke = strokeAttributes('arrow', project.ink, project.dashScale, project.pens);
+      return onAndOffPaper(context, index, (inks) => {
+        const arrowInk = inked(inks, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
+          strokeInk(ink.lines.arrow, stroke.strokeOpacity)
+        );
+        return (
+          <g key={index} {...inked(inks, 'step-diagram__arrow', () => ({}))}>
+            {arrow.shaft && <path d={cubicPathData(arrow.shaft)} {...stroke} {...arrowInk} />}
+            {arrow.back && <path d={polylinePathData(arrow.back)} {...stroke} {...arrowInk} />}
+            {primitive.fold === 'mountain' ? (
+              // A mountain fold's head is an outline, in the shaft's pen but solid.
+              <path
+                d={halfArrowheadPath(arrow.head, arrow.inside)}
+                {...stroke}
+                strokeDasharray={undefined}
+                strokeLinejoin="miter"
+                {...arrowInk}
+              />
+            ) : (
+              <path
+                d={arrowheadPath(arrow.head)}
+                {...inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))}
               />
             )}
           </g>

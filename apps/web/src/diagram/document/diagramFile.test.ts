@@ -301,6 +301,77 @@ describe('annotations in the file', () => {
     expect(stepsIn(throughJson(writeDiagram(read)))[0].annotations).toHaveLength(600);
   });
 
+  describe('a shaped arrow', () => {
+    const path = [
+      { at: [0.1, 0.5], out: [0.2, 0.3] },
+      { at: [0.4, 0.5], in: [0.3, 0.6], out: [0.5, 0.4], type: 'corner' },
+      { at: [0.7, 0.5], in: [0.6, 0.7] },
+    ];
+    const shaped = (more: Record<string, unknown> = {}, nodes: unknown = path) => ({
+      id: 'p-1',
+      kind: 'fold-unfold-arrow',
+      from: [0.1, 0.5],
+      to: [0.7, 0.5],
+      path: nodes,
+      ...more,
+    });
+
+    it('round-trips its path, node for node, and gets no bend', () => {
+      const read = withAnnotations([shaped(), { ...shaped(), id: 'p-2', kind: 'valley-arrow' }]);
+      expect(read).toEqual([shaped(), { ...shaped(), id: 'p-2', kind: 'valley-arrow' }]);
+      expect(read[0]).not.toHaveProperty('bend');
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual([
+        shaped(),
+        { ...shaped(), id: 'p-2', kind: 'valley-arrow' },
+      ]);
+    });
+
+    it('carries, verbatim, a path a newer build might write', () => {
+      const [first, middle, last] = path;
+      const newer = [
+        shaped({ id: 'n-both', bend: 0.2 }),
+        shaped({ id: 'n-field' }, [first, { ...middle, weight: 2 }, last]),
+        shaped({ id: 'n-type' }, [first, { ...middle, type: 'symmetric' }, last]),
+        shaped({ id: 'n-many', to: [0.1, 0.5] }, Array.from({ length: 25 }, () => ({ at: [0.1, 0.5] }))),
+        shaped({ id: 'n-far' }, [first, { ...middle, at: [9, 0.5] }, last]),
+        shaped({ id: 'n-handle' }, [first, { ...middle, out: [0.5, -4.5] }, last]),
+        shaped({ id: 'n-tail-in' }, [{ ...first, in: [0, 0] }, middle, last]),
+        shaped({ id: 'n-tip-out' }, [first, middle, { ...last, out: [1, 1] }]),
+        // The kinds that stay straight have no path to read.
+        shaped({ id: 'n-push', kind: 'push-arrow' }),
+      ];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    });
+
+    it('drops a path that does not read', () => {
+      const [first, middle, last] = path;
+      const read = withAnnotations([
+        shaped({ id: 'd-one' }, [first]),
+        shaped({ id: 'd-list' }, { at: [0, 0] }),
+        shaped({ id: 'd-node' }, [first, 'middle', last]),
+        shaped({ id: 'd-at' }, [first, { ...middle, at: [0.4] }, last]),
+        shaped({ id: 'd-handle' }, [first, { ...middle, in: 'left' }, last]),
+        shaped({ id: 'd-type' }, [first, { ...middle, type: 7 }, last]),
+        shaped({ id: 'd-ends', to: [0.6, 0.5] }),
+        shaped({ id: 'kept' }),
+      ]);
+      expect(read.map((annotation) => annotation.id)).toEqual(['kept']);
+    });
+
+    it('is kept, verbatim and undrawn, by a build that reads no path: as any field it has no name for', () => {
+      // What a build before shaped arrows does with one: its reader names no
+      // `path`, so the arrow is a newer build's (`colour` here stands for it).
+      const older = shaped({ colour: 'red' });
+      expect(withAnnotations([older])).toEqual([{ id: 'p-1', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      const again = throughJson(writeDiagram(readDiagram(written)!.document));
+      expect(again.steps[0].annotations).toEqual([older]);
+    });
+  });
+
   it('carries a rotation of a shape it does not know, even one it would call incomplete', () => {
     const newer = { id: 'n-8', kind: 'rotate', from: [0, 0], to: [0, 0], rotate: { degrees: 30, direction: 'cw' } };
     expect(withAnnotations([newer])).toEqual([{ id: 'n-8', unknown: newer }]);

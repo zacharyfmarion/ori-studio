@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramAnnotation, type KnownDiagramAnnotation } from '../document/diagramDocument';
+import { arcToPath } from './annotationPath';
 import { paintAsset } from '../pictures/paintDiagramStep';
 import { annotationDrawing, annotationScene, annotationTextRuns, labelRuns } from './annotationPrimitives';
 import { annotatedPicture, CARD_FRAME_PX, paintAnnotations } from './paintAnnotations';
@@ -56,6 +58,67 @@ describe('annotationDrawing', () => {
     expect(next.primitives[0]).toMatchObject({ kind: 'fold-arrow' });
     expect(next.primitives[0]).not.toEqual(small.primitives[0]);
     expect(annotationDrawing([arrow], FRAME, 100, DEFAULT_DIAGRAM_STYLE).primitives[0]).toBe(small.primitives[0]);
+  });
+});
+
+describe('a shaped arrow', () => {
+  const path = [
+    { at: [0.2, 0.4] as [number, number], out: [0.3, 0.1] as [number, number] },
+    { at: [0.5, 0.4] as [number, number], in: [0.4, 0.7] as [number, number], out: [0.6, 0.1] as [number, number] },
+    { at: [0.8, 0.4] as [number, number], in: [0.7, 0.7] as [number, number] },
+  ];
+
+  it('draws its path, each segment a cubic, in References’ shapes, its head in the arrow’s ink', () => {
+    for (const [kind, fold] of [
+      ['valley-arrow', 'valley'],
+      ['mountain-arrow', 'mountain'],
+      ['fold-unfold-arrow', 'fold-unfold'],
+    ] as const) {
+      const arrow = a('s', kind, { from: [0.2, 0.4], to: [0.8, 0.4], path });
+      const drawing = annotationDrawing([arrow], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
+      expect(drawing.primitives).toEqual([
+        {
+          kind: 'path-arrow',
+          fold,
+          // y up, as References' unit frame is.
+          path: [
+            [[0.2, -0.4], [0.3, -0.1], [0.4, -0.7], [0.5, -0.4]],
+            [[0.5, -0.4], [0.6, -0.1], [0.7, -0.7], [0.8, -0.4]],
+          ],
+        },
+      ]);
+      const painted = paintAnnotations([arrow], { x: 0, y: 0, width: 400, height: 300 }, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE)!;
+      // The shaft: a move and a cubic per segment the shaft keeps.
+      expect(painted.markup).toMatch(/<path d="M [-\d.]+ [-\d.]+ C [-\d. ]+ C [-\d. ]+"/);
+      // A valley's head filled, a mountain's outlined, a fold-and-unfold's return drawn as runs.
+      if (fold === 'fold-unfold') expect(painted.markup).toMatch(/<path d="M [-\d.]+ [-\d.]+( L [-\d.]+ [-\d.]+){8,}"/);
+      expect(painted.markup).toMatch(fold === 'mountain' ? /stroke-linejoin="miter"/ : /fill="#231f20"/);
+    }
+  });
+
+  it('reaches round a loop that bulges far past its ends, and its return past that', () => {
+    const loop = a('loop', 'fold-unfold-arrow', {
+      from: [0.5, 0.5],
+      to: [0.52, 0.5],
+      path: [
+        { at: [0.5, 0.5], out: [0.5, -0.4] },
+        { at: [0.52, 0.5], in: [0.52, -0.4] },
+      ],
+    });
+    const box = { x: 0, y: 0, width: 400, height: 300 };
+    const painted = paintAnnotations([loop], box, 400, DEFAULT_DIAGRAM_STYLE)!;
+    // The loop's top is about 0.175 of the frame above it: 70 px.
+    expect(painted.bounds.y).toBeLessThan(-70);
+    expect(painted.bounds.y).toBeGreaterThan(-120);
+  });
+
+  it('draws nothing for a path of no length', () => {
+    const point = a('p', 'valley-arrow', {
+      from: [0.5, 0.5],
+      to: [0.5, 0.5],
+      path: [{ at: [0.5, 0.5] }, { at: [0.5, 0.5] }],
+    });
+    expect(annotationDrawing([point], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE).primitives).toEqual([]);
   });
 });
 
@@ -122,6 +185,44 @@ describe('paintAnnotations', () => {
     const painted = paintAnnotations([a('p', 'push-arrow', { from: [-0.5, 0.3] })], box, 100, DEFAULT_DIAGRAM_STYLE)!;
     expect(painted.bounds.x).toBeLessThan(box.x - 40);
     expect(painted.bounds.y).toBeLessThanOrEqual(box.y);
+  });
+
+  it('reaches round a shaped arrow’s head as drawn with a heavy pen, a mountain’s barb and all', () => {
+    const pt = 3;
+    const style = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: pt } } };
+    const box = { x: 0, y: 0, width: 189, height: 189 };
+    const cases: Array<[[number, number], [number, number]]> = [
+      [
+        [0.5, 0.01],
+        [0.955, 0.01],
+      ],
+      [
+        [0.955, 0.01],
+        [0.5, 0.01],
+      ],
+      [
+        [-0.3, 0.5],
+        [-0.285, 0.5],
+      ],
+    ];
+    for (const [from, to] of cases) {
+      const shaped = arcToPath(a('m', 'mountain-arrow', { from, to, bend: 0.02 }));
+      const painted = paintAnnotations([shaped], box, 189, style)!;
+      const half = (pt * PT_TO_CSS_PX) / 2;
+      // Every corner of the head's outline, a pen's half width round it, is inside what is kept.
+      const heads = [...painted.markup.matchAll(/d="([^"]*Z)"/g)].map((match) => match[1]!);
+      expect(heads.length).toBeGreaterThan(0);
+      for (const d of heads) {
+        const numbers = d.match(/-?\d+(\.\d+)?/g)!.map(Number);
+        for (let i = 0; i + 1 < numbers.length; i += 2) {
+          const [x, y] = [numbers[i]!, numbers[i + 1]!];
+          expect(x - half).toBeGreaterThanOrEqual(painted.bounds.x);
+          expect(y - half).toBeGreaterThanOrEqual(painted.bounds.y);
+          expect(x + half).toBeLessThanOrEqual(painted.bounds.x + painted.bounds.width);
+          expect(y + half).toBeLessThanOrEqual(painted.bounds.y + painted.bounds.height);
+        }
+      }
+    }
   });
 
   it('reaches as far as a fold-and-unfold arrow’s return, which bulges past its outgoing arc', () => {

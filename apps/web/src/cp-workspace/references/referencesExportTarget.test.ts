@@ -15,6 +15,7 @@ import {
 import { paperExportDraft } from '../../paperExport/usePaperExportDialog';
 import golden from './__fixtures__/referencesStepExportGolden.json';
 import glyphsGolden from './__fixtures__/referencesGlyphsGolden.json';
+import pathArrowsGolden from './__fixtures__/referencesPathArrowsGolden.json';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import {
   canvasDiagramInk,
@@ -122,6 +123,99 @@ const GLYPHS: StepDiagramModel = {
   ],
 };
 
+/**
+ * The shaped fold arrows (Phase 14c), on a unit sheet with a valley across
+ * it: an S-shaped valley through three nodes, a mountain that loops round to
+ * end beside its tail, and a fold-and-unfold arrow round a tight turn, whose
+ * return is cut where it would fold back on itself.
+ */
+const PATH_ARROWS: StepDiagramModel = {
+  sheet: { width: 1, height: 1 },
+  primitives: [
+    { kind: 'sheet', width: 1, height: 1 },
+    { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'valley' },
+    {
+      kind: 'path-arrow',
+      fold: 'valley',
+      path: [
+        [
+          [0.08, 0.8],
+          [0.15, 0.95],
+          [0.3, 0.92],
+          [0.38, 0.8],
+        ],
+        [
+          [0.38, 0.8],
+          [0.46, 0.68],
+          [0.6, 0.62],
+          [0.7, 0.75],
+        ],
+      ],
+    },
+    {
+      kind: 'path-arrow',
+      fold: 'mountain',
+      path: [
+        [
+          [0.6, 0.15],
+          [0.95, 0.05],
+          [0.98, 0.4],
+          [0.75, 0.38],
+        ],
+        [
+          [0.75, 0.38],
+          [0.62, 0.37],
+          [0.58, 0.28],
+          [0.64, 0.2],
+        ],
+      ],
+    },
+    {
+      kind: 'path-arrow',
+      fold: 'fold-unfold',
+      path: [
+        [
+          [0.08, 0.15],
+          [0.3, 0.15],
+          [0.42, 0.18],
+          [0.44, 0.27],
+        ],
+        [
+          [0.44, 0.27],
+          [0.46, 0.36],
+          [0.3, 0.38],
+          [0.12, 0.33],
+        ],
+      ],
+    },
+    {
+      // Two lobes either side of a dip tighter than the loop is wide, on the return's side.
+      kind: 'path-arrow',
+      fold: 'fold-unfold',
+      path: [
+        [
+          [0.52, 0.68],
+          [0.55, 0.53],
+          [0.66, 0.53],
+          [0.69, 0.64],
+        ],
+        [
+          [0.69, 0.64],
+          [0.7, 0.69],
+          [0.73, 0.69],
+          [0.74, 0.64],
+        ],
+        [
+          [0.74, 0.64],
+          [0.77, 0.53],
+          [0.9, 0.53],
+          [0.93, 0.68],
+        ],
+      ],
+    },
+  ],
+};
+
 /** The page the dialog saves for these remembered options, exactly as the dialog reaches it. */
 async function dialogPage(
   capture: StepCapture,
@@ -170,6 +264,18 @@ describe('referencesExportTarget', () => {
         [GLYPHS]
       );
       expect(page).toEqual(mirrored ? glyphsGolden.back : glyphsGolden.front);
+    }
+  });
+
+  it('draws the shaped fold arrows: a valley’s and a mountain’s head, and a fold-and-unfold’s return, along cubic paths', async () => {
+    // Front and back: a path mirrors with the paper, every control point with it.
+    for (const mirrored of [false, true]) {
+      const page = await dialogPage(
+        { mirrored, lineWidth: 1, showAux: null },
+        { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm: 80 } },
+        [PATH_ARROWS]
+      );
+      expect(page).toEqual(mirrored ? pathArrowsGolden.back : pathArrowsGolden.front);
     }
   });
 

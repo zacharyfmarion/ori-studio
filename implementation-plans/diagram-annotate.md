@@ -305,9 +305,105 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
         primitive at the References and reach sites.
 
 ### 14c. Bézier arrows
-- [ ] Geometry and model: shared `path-arrow` primitive and golden; `path` in
+- [x] Geometry and model: shared `path-arrow` primitive and golden; `path` in
   model, file and clean; `arcToPath`; carry, move, degenerate; an unshaped
   arrow paints byte-identical markup to today's.
+  - As built (14c-1; the editor is 14c-2):
+    - **Curves.** `lib/cubicBezier.ts`: point, velocity, tangent (a handle on
+      its node takes the next control point's direction), de Casteljau split,
+      an arc-length table (64 runs a segment), trim by length, flatten to a
+      tolerance and a longest run, nearest point, and the signed area against
+      the chord that says which side a path bulges to. Tuple points, any
+      units, either handedness. The turn-over glyph's private cubic helpers
+      are left alone, so its golden does not move.
+    - **Model.** `DiagramPathNode {at, in?, out?, type?: 'corner'}`, absolute
+      picture units; a missing handle lies on its node; no tail `in` or tip
+      `out`. `arrowBend` is gone: `arrowShape` (`arc` with its bend, or
+      `path`) is the one place an absent bend becomes 60°, and every caller
+      switches on it. `canBeShaped` (a switch) says the three fold arrows.
+      `withPath` sets `path`, `from`/`to` (the ends) and drops `bend`
+      together. `cleanAnnotation` → `cleanPath`: nodes clamped, a handle past
+      reach drawn in along itself (`handleWithinReach`, so a smooth node
+      stays smooth), stray tail/tip handles dropped, past 24 nodes the middle
+      ones dropped (no edit makes more), fewer than two → an arc again.
+      `moveAnnotation` bounds the shift by every node and handle;
+      `moveAnnotationEnd` moves the end node with its handle
+      (`movePathNodeTo`); `isDegenerate` measures along the path, so a loop
+      ending by its tail is an arrow; `carryAnnotation` maps every point (a
+      mirror needs nothing); Flip arc mirrors every point across the chord —
+      exactly an arc's flip for a path made from one — and leaves a path whose
+      ends meet.
+    - **Editing (`annotationPath.ts`, for 14c-2).** Every edit takes the
+      arrow, arc or path, and shapes an arc first. `arcToPath`: θ =
+      4·atan(2|bend|), ⌈θ/90°⌉ cubics, handles (4/3)·tan(θ/4n)·r — 0.36 µm off
+      the arc on a default 15 mm arrow, 2.0 µm on a half circle. `resetPath`
+      (frame): 60° on the side the path lies on of its chord, toward the
+      frame's middle when it lies on neither; a path whose ends meet stays.
+      `movePathNode`, `movePathHandle` (a smooth node's other handle turns in
+      line, keeping its length; a corner's stays), `bendPathSegment` (the
+      point at `t` follows the pointer exactly by the least change of the two
+      inner handles, `o_i = δ·b_i/(b1²+b2²)`; smooth neighbours turn with
+      them), `splitPathSegment` (de Casteljau; the curve unchanged; stops at
+      24), `deletePathNode` (neighbours keep their handles; an end's
+      neighbour loses its outer one; **null** for a two-node arrow: delete
+      the arrow), `setPathNodeType`/`togglePathNodeType` (interior nodes only;
+      smoothing turns both handles onto the mean direction, a handle on its
+      node drawn out a third of the way to its neighbour), `pathNodesOf`,
+      `nearestPathPoint` (segment and `t` for a press on the curve).
+    - **File.** Arrows read `path` before the bend default. Newer: `path` and
+      `bend` both, more than 24 nodes, a field a node has no name for, a
+      `type` string other than `corner`, a tail `in` or tip `out`, a point
+      past reach, and (unchanged) `path` on a push or a line. Damage: not a
+      list, fewer than two nodes, a node not a record, a node's or handle's
+      point not two numbers, a non-string `type`, and `from`/`to` that are not
+      the path's ends. Smoothness is never checked. HEAD's reader (an older
+      build) carries a path arrow verbatim and writes it back unchanged
+      (checked against HEAD's `diagramFile.ts`).
+    - **Primitive.** `{kind: 'path-arrow', path: DiagramCubic[], fold:
+      'valley' | 'mountain' | 'fold-unfold'}`, drawn by `pathArrowGeometry`
+      (via `pathArrowDrawn`) by the arc arrows' rules along the path: landing
+      a rim short of a ring, measured along it; a one-way shaft stopped at its
+      head's notch, the head at the shaft's tangent where it stops; a
+      fold-and-unfold shaft starting a rim in from the tail, always. Head and
+      return opening are capped by a share of the **path's length**, not the
+      chord (`pathArrowSizes`). A mountain's barb stands outside the turn
+      over the head's last two lengths, or, where the shaft runs straight
+      there, away from the side the whole path bulges to (risk 2: near an
+      inflection the turn near the head wins). The shaft is cubic `C` data;
+      the return is runs (`L`). An arc made a path draws its head within
+      0.01 px of the arc arrow's.
+    - **The return (Q4).** An offset of the landed path on the side it bulges
+      to (chord area), kept the whole way, so on an S it crosses neither way;
+      its distance tapers from the opening at the tail to nothing at the tip
+      and bows out between by 0.07 of the length, capped at the opening
+      (References' 90°-over-60° stands off about that in its middle). Round a
+      bend on its outside it is joined round; where the path bends tighter
+      than the loop is wide on its inside the offset would fold into a
+      swallowtail, and the fold is cut where the runs cross (within eight
+      widths of travel), leaving a sharp inner corner. An arrow drawn over
+      itself on purpose keeps its far crossings.
+    - **Exhaustive sites.** `diagramPrimitiveShape`, `diagramInModel` (every
+      control point mapped), `symbolAnchor`, `annotationReach` (exactly the
+      drawn strokes and head, padded a head) and `canLeavePaper`.
+      References' stored-model reader does not read `path-arrow`: no
+      References step makes one, and a stored one reads as a newer build's.
+    - **Hit and selection.** `arrowPolyline` is the flattened path (cached per
+      annotation); `bodyDistance` measures the path, a fold-and-unfold's
+      return and its head by the drawing's own geometry in picture units,
+      cached per annotation and ink. The canvas selects, washes, moves and
+      drags the ends of a path arrow as it does an arc's.
+    - **Proof.** `arcArrowParity.test.ts` holds every arrow kind at seven
+      bends and lengths (and every other kind) to the card, page and canvas
+      markup and the press polyline recorded at 565360b45, byte for byte. The
+      `path-arrow` golden (`referencesPathArrowsGolden.json`, front and back:
+      an S valley, a looping mountain, a C and a dipped fold-and-unfold) was
+      checked by eye before it was frozen; the existing goldens are
+      unchanged. Mutants (no loop cut, sizing by chord, the hit test or the
+      compile taking a path for the default arc, the reader filling a bend
+      beside a path) each fail a test. Browser
+      (`artifacts/diagram-annotate/14c/shaped.mjs`): the three beside their
+      arcs on the canvas, card and page, light and dark, moved by body and
+      end with the mouse, and the page's PDF rasterised.
 - [ ] Edit Path on desktop: tool, gestures, modifiers, node stepper, Delete
   routing, Escape, Step pane verbs, nudging (Q6).
 - [ ] Touch and Pencil.

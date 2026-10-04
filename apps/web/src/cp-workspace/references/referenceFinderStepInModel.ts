@@ -108,6 +108,14 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
         if (out) primitives.push({ kind: 'one-way-arrow', out, fold: primitive.fold });
         break;
       }
+      case 'path-arrow':
+        // A Bézier's image under the map is the Bézier of its control points' images.
+        primitives.push({
+          kind: 'path-arrow',
+          path: primitive.path.map(([a, b, c, d]) => [map(a), map(b), map(c), map(d)] as const),
+          fold: primitive.fold,
+        });
+        break;
       case 'push-arrow':
         primitives.push({ kind: 'push-arrow', from: map(primitive.from), to: map(primitive.to) });
         break;

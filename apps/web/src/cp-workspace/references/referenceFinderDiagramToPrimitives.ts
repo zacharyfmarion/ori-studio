@@ -14,7 +14,7 @@
  */
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { Diagram, RawSolution } from './referenceFinder/solution';
-import type { DiagramArc, DiagramSheet } from './stepDiagramGeometry';
+import type { DiagramArc, DiagramCubic, DiagramSheet, PathArrowFold } from './stepDiagramGeometry';
 
 export type DiagramLineStyleName =
   /** A crease an earlier step made: the paper as it stands. */
@@ -97,6 +97,14 @@ export type StepDiagramPrimitive =
    * hollow. Its size is the drawing's, as the fold arrow's is.
    */
   | { kind: 'one-way-arrow'; out: DiagramArc; fold: 'valley' | 'mountain' }
+  /**
+   * A fold arrow shaped by hand rather than an arc: its path, tail first, and
+   * which fold it says — a valley's or a mountain's head, as a one-way arrow
+   * has, or out and back with the fold-and-unfold arrow's return, which is
+   * derived from the path where it is drawn (`pathArrowGeometry`). Its head
+   * and return are the drawing's size, as the arc arrows' are.
+   */
+  | { kind: 'path-arrow'; path: readonly DiagramCubic[]; fold: PathArrowFold }
   /**
    * Push here — a squash, a sink, a reverse fold's push: a straight hollow
    * arrow with a cleft tail, from `from` to its tip at `to`. Its width is the

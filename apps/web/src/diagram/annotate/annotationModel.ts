@@ -9,12 +9,14 @@
  *
  * Pure: no DOM, no store, no React.
  */
+import { flattenPath, type Cubic } from '../../lib/cubicBezier';
 import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
 import {
   randomDiagramId,
   type DiagramAnnotationKind,
   type DiagramIdFactory,
+  type DiagramPathNode,
   type DiagramRotation,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
@@ -86,8 +88,14 @@ export const DEFAULT_ROTATION: DiagramRotation = { amount: 'quarter', direction:
 /** How far past the frame an annotation may reach, in frame lengths: an arrow may start off the picture. */
 export const ANNOTATION_REACH = 4;
 
+/** The shortest arrow or line, as a share of the frame: anything shorter was a slip. */
+export const MIN_ANNOTATION_LENGTH = 0.015;
+
 /** The most annotations a step holds: a guard against a file that was never a diagram's. */
 export const MAX_STEP_ANNOTATIONS = 500;
+
+/** The most nodes a shaped arrow has: room for any arrow a diagram draws, and a bound on a file's. */
+export const MAX_PATH_NODES = 24;
 
 const clampReach = (value: number) => Math.min(ANNOTATION_REACH, Math.max(-ANNOTATION_REACH, value));
 
@@ -99,10 +107,26 @@ export function withinReach([x, y]: PicturePoint): PicturePoint {
 /**
  * An annotation as this build writes it: its points within reach, a sign or
  * a label at one point, a label's text clean for XML and no longer than a
- * label may be, an arrow's bulge within a half circle. The same object when
- * it already is.
+ * label may be, an arrow's bulge within a half circle, a shaped arrow's path
+ * as the reader takes it ({@link cleanPath}). The same object when it
+ * already is.
  */
 export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  if (annotation.path !== undefined) {
+    const path = canBeShaped(annotation.kind) ? cleanPath(annotation.path) : null;
+    if (path) {
+      const ends = endsOf(path);
+      const clean =
+        path === annotation.path &&
+        annotation.bend === undefined &&
+        samePoint(annotation.from, ends.from) &&
+        samePoint(annotation.to, ends.to);
+      return clean ? annotation : withPath(annotation, path);
+    }
+    // A path this build would not write: the arrow is an arc again.
+    const { path: _dropped, ...arc } = annotation;
+    return cleanAnnotation(isArrowKind(arc.kind) ? { ...arc, bend: arc.bend ?? ARROW_BEND } : arc);
+  }
   const from = withinReach(annotation.from);
   const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
   const text = annotation.text === undefined ? undefined : cleanLabelText(annotation.text);
@@ -117,6 +141,105 @@ export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagra
     ...(text !== undefined ? { text } : {}),
     ...(bend !== undefined ? { bend } : {}),
   };
+}
+
+/**
+ * A path as the file reader takes it for this build's: its nodes and handles
+ * within reach — a node brought in carries its handles with it, and a handle
+ * is drawn in along itself, so a smooth node stays smooth — no handle before
+ * the tail or after the tip, a corner only where two segments meet, and no
+ * more than {@link MAX_PATH_NODES} nodes, the extras taken out of its middle
+ * (no edit makes more). The same array when it already is; null for fewer
+ * than two.
+ */
+export function cleanPath(path: readonly DiagramPathNode[]): DiagramPathNode[] | null {
+  if (path.length < 2) return null;
+  const kept = path.length > MAX_PATH_NODES ? [...path.slice(0, MAX_PATH_NODES - 1), path[path.length - 1]!] : path;
+  let changed = kept !== path;
+  const last = kept.length - 1;
+  const nodes = kept.map((node, index) => {
+    const at = withinReach(node.at);
+    const moved = !samePoint(at, node.at);
+    const handle = (side: 'in' | 'out') => {
+      const point = node[side];
+      const allowed = side === 'in' ? index > 0 : index < last;
+      if (!point || !allowed) return undefined;
+      // Moved with its node, as a drag of the node moves it.
+      const carried: PicturePoint = moved
+        ? [point[0] + (at[0] - node.at[0]), point[1] + (at[1] - node.at[1])]
+        : point;
+      return handleWithinReach(at, carried);
+    };
+    const clean: DiagramPathNode = { at };
+    const inHandle = handle('in');
+    const outHandle = handle('out');
+    if (inHandle) clean.in = inHandle;
+    if (outHandle) clean.out = outHandle;
+    if (node.type === 'corner' && index > 0 && index < last) clean.type = 'corner';
+    const same =
+      samePoint(at, node.at) &&
+      sameHandle(clean.in, node.in) &&
+      sameHandle(clean.out, node.out) &&
+      clean.type === node.type;
+    if (same) return node;
+    changed = true;
+    return clean;
+  });
+  return changed ? nodes : (path as DiagramPathNode[]);
+}
+
+function sameHandle(a: PicturePoint | undefined, b: PicturePoint | undefined): boolean {
+  return a === b || (a !== undefined && b !== undefined && samePoint(a, b));
+}
+
+/**
+ * A handle kept within reach without turning it: drawn in along itself
+ * toward its node, which is within reach, to where it meets reach's edge.
+ */
+export function handleWithinReach(at: PicturePoint, handle: PicturePoint): PicturePoint {
+  if (Math.abs(handle[0]) <= ANNOTATION_REACH && Math.abs(handle[1]) <= ANNOTATION_REACH) return handle;
+  let share = 1;
+  for (const axis of [0, 1] as const) {
+    const run = handle[axis] - at[axis];
+    if (handle[axis] > ANNOTATION_REACH) share = Math.min(share, (ANNOTATION_REACH - at[axis]) / run);
+    if (handle[axis] < -ANNOTATION_REACH) share = Math.min(share, (-ANNOTATION_REACH - at[axis]) / run);
+  }
+  share = Math.max(0, share);
+  return withinReach([at[0] + (handle[0] - at[0]) * share, at[1] + (handle[1] - at[1]) * share]);
+}
+
+/** A shaped arrow's ends: its first node and its last. */
+function endsOf(path: readonly DiagramPathNode[]): { from: PicturePoint; to: PicturePoint } {
+  const first = path[0]!.at;
+  const last = path[path.length - 1]!.at;
+  return { from: [first[0], first[1]], to: [last[0], last[1]] };
+}
+
+/** An arrow along `path`, its ends the path's, with no bend: a path is not an arc. */
+export function withPath(annotation: KnownDiagramAnnotation, path: DiagramPathNode[]): KnownDiagramAnnotation {
+  const { bend: _arc, ...rest } = annotation;
+  return { ...rest, ...endsOf(path), path };
+}
+
+/**
+ * Whether an arrow of `kind` may be shaped by hand (decision 1): the fold
+ * arrows; a push and a line stay straight. A switch, so a new kind has to say.
+ */
+export function canBeShaped(kind: DiagramAnnotationKind): boolean {
+  switch (kind) {
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+      return true;
+    case 'push-arrow':
+    case 'turn-over':
+    case 'rotate':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+    case 'label':
+      return false;
+  }
 }
 
 function cleanBend(bend: number | undefined): number | undefined {
@@ -194,39 +317,120 @@ export function createAnnotation(
   return isArrowKind(kind) ? { ...annotation, bend: defaultBend(from, to, frame) } : annotation;
 }
 
+/**
+ * `delta`, cut short so that every one of `points` moved by it stays within
+ * reach: what keeps a shape whole when it is moved against reach's edge.
+ */
+function deltaWithinReach(points: readonly PicturePoint[], delta: PicturePoint): PicturePoint {
+  const limit = (axis: 0 | 1) => {
+    let low = Infinity;
+    let high = -Infinity;
+    for (const point of points) {
+      low = Math.min(low, point[axis]);
+      high = Math.max(high, point[axis]);
+    }
+    return Math.min(ANNOTATION_REACH - high, Math.max(-ANNOTATION_REACH - low, delta[axis]));
+  };
+  return [limit(0), limit(1)];
+}
+
+/** Every point a path is made of: its nodes and their handles. */
+function pathPoints(path: readonly DiagramPathNode[]): PicturePoint[] {
+  return path.flatMap((node) => [node.at, ...(node.in ? [node.in] : []), ...(node.out ? [node.out] : [])]);
+}
+
+/** Every point of a node moved by `delta`. */
+function shiftNode(node: DiagramPathNode, [dx, dy]: PicturePoint): DiagramPathNode {
+  const shift = (point: PicturePoint): PicturePoint => [point[0] + dx, point[1] + dy];
+  return {
+    ...node,
+    at: shift(node.at),
+    ...(node.in ? { in: shift(node.in) } : {}),
+    ...(node.out ? { out: shift(node.out) } : {}),
+  };
+}
+
 /** The whole annotation moved by `delta`, no further than keeps it within reach: its shape kept. */
 export function moveAnnotation(annotation: KnownDiagramAnnotation, delta: PicturePoint): KnownDiagramAnnotation {
-  const { from, to } = annotation;
-  const limit = (axis: 0 | 1) =>
-    Math.min(
-      ANNOTATION_REACH - Math.max(from[axis], to[axis]),
-      Math.max(-ANNOTATION_REACH - Math.min(from[axis], to[axis]), delta[axis])
-    );
-  const dx = limit(0);
-  const dy = limit(1);
+  const { from, to, path } = annotation;
+  const [dx, dy] = deltaWithinReach(path ? pathPoints(path) : [from, to], delta);
   if (dx === 0 && dy === 0) return annotation;
+  if (path) return withPath(annotation, path.map((node) => shiftNode(node, [dx, dy])));
   const shift = (point: PicturePoint): PicturePoint => [point[0] + dx, point[1] + dy];
   return { ...annotation, from: shift(from), to: shift(to) };
 }
 
-/** One end put at `point`. A point kind has one place, so both move. */
+/**
+ * A shaped arrow's node put at `point`, its handles with it — as far toward
+ * `point` as keeps the three within reach.
+ */
+export function movePathNodeTo(
+  path: readonly DiagramPathNode[],
+  index: number,
+  point: PicturePoint
+): DiagramPathNode[] {
+  const node = path[index];
+  if (!node) return [...path];
+  const target = withinReach(point);
+  const delta = deltaWithinReach(pathPoints([node]), [target[0] - node.at[0], target[1] - node.at[1]]);
+  return path.map((each, at) => (at === index ? shiftNode(each, delta) : each));
+}
+
+/**
+ * One end put at `point`. A point kind has one place, so both move; a shaped
+ * arrow's end is a node, and its handle comes with it.
+ */
 export function moveAnnotationEnd(
   annotation: KnownDiagramAnnotation,
   end: 'from' | 'to',
   point: PicturePoint
 ): KnownDiagramAnnotation {
+  const { path } = annotation;
+  if (path) return withPath(annotation, movePathNodeTo(path, end === 'from' ? 0 : path.length - 1, point));
   const at = withinReach(point);
   if (isPointKind(annotation.kind)) return { ...annotation, from: at, to: [at[0], at[1]] };
   return end === 'from' ? { ...annotation, from: at } : { ...annotation, to: at };
 }
 
 /**
- * The bulge a fold arrow is drawn with: its own, or References' 60° arc for
- * one written without one. The one place an absent bend is filled in, so an
- * arrow whose shape is not an arc has one place to say so.
+ * A fold arrow's shape: an arc, with the bulge it is drawn with — its own,
+ * or References' 60° for one written without one — or the path it was
+ * shaped along. The one place an absent bend is filled in, and a switch for
+ * every caller, so none can take a shaped arrow for the default arc.
  */
-export function arrowBend(annotation: Pick<KnownDiagramAnnotation, 'bend'>): number {
-  return annotation.bend ?? ARROW_BEND;
+export type ArrowShape = { kind: 'arc'; bend: number } | { kind: 'path'; path: readonly DiagramPathNode[] };
+
+export function arrowShape(annotation: Pick<KnownDiagramAnnotation, 'bend' | 'path'>): ArrowShape {
+  return annotation.path ? { kind: 'path', path: annotation.path } : { kind: 'arc', bend: annotation.bend ?? ARROW_BEND };
+}
+
+/**
+ * A path as cubic Béziers, in picture units: one from each node to the next,
+ * through the first's `out` and the second's `in`, a missing handle on its
+ * node.
+ */
+export function pathCubics(path: readonly DiagramPathNode[]): Cubic[] {
+  const cubics: Cubic[] = [];
+  for (let index = 1; index < path.length; index += 1) {
+    const a = path[index - 1]!;
+    const b = path[index]!;
+    cubics.push([a.at, a.out ?? a.at, b.in ?? b.at, b.at]);
+  }
+  return cubics;
+}
+
+/** How far a run of points travels. */
+function polylineLength(points: readonly (readonly [number, number])[]): number {
+  let length = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    length += Math.hypot(points[index]![0] - points[index - 1]![0], points[index]![1] - points[index - 1]![1]);
+  }
+  return length;
+}
+
+/** How long a path is, to within a thousandth of a frame: what says it has a length at all. */
+export function pathLength(path: readonly DiagramPathNode[]): number {
+  return polylineLength(flattenPath(pathCubics(path), 1e-4));
 }
 
 /**
@@ -251,15 +455,43 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
   }
 }
 
-/** A fold arrow bulging the other way; anything else as it was. */
+/**
+ * A fold arrow bulging the other way; anything else as it was. A shaped
+ * arrow is mirrored across its chord, every node and handle, which is what
+ * flipping an arc is; one whose ends meet has no chord, and stays.
+ */
 export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   if (!flipsArc(annotation.kind)) return annotation;
-  return { ...annotation, bend: -arrowBend(annotation) };
+  const shape = arrowShape(annotation);
+  if (shape.kind === 'arc') return { ...annotation, bend: -shape.bend };
+  const { from, to } = annotation;
+  const chord = Math.hypot(to[0] - from[0], to[1] - from[1]);
+  if (!(chord > 1e-9)) return annotation;
+  const ux = (to[0] - from[0]) / chord;
+  const uy = (to[1] - from[1]) / chord;
+  const mirror = ([x, y]: PicturePoint): PicturePoint => {
+    const along = (x - from[0]) * ux + (y - from[1]) * uy;
+    const foot: PicturePoint = [from[0] + along * ux, from[1] + along * uy];
+    return [2 * foot[0] - x, 2 * foot[1] - y];
+  };
+  const path = shape.path.map((node) => ({
+    ...node,
+    at: mirror(node.at),
+    ...(node.in ? { in: mirror(node.in) } : {}),
+    ...(node.out ? { out: mirror(node.out) } : {}),
+  }));
+  // Mirrored inside the frame it was in can still leave reach: kept within it.
+  return withPath(annotation, cleanPath(path) ?? path);
 }
 
-/** Whether an annotation drawn this short would draw nothing: an arrow or line needs a length. */
+/**
+ * Whether an annotation drawn this short would draw nothing: an arrow or
+ * line needs a length. A shaped arrow's is along its path, so one that
+ * loops back to end beside its tail is still an arrow.
+ */
 export function isDegenerate(annotation: KnownDiagramAnnotation, minLength: number): boolean {
   if (isPointKind(annotation.kind)) return false;
+  if (annotation.path) return pathLength(annotation.path) < minLength;
   return Math.hypot(annotation.to[0] - annotation.from[0], annotation.to[1] - annotation.from[1]) < minLength;
 }
 
@@ -302,11 +534,23 @@ export interface PictureMove {
 }
 
 /**
- * An annotation carried through a picture's move. Every point moves; a
- * mirror turns an arrow's bulge and a rotation's sense over; a quarter turn
- * (or three) turns a turn-over's axis. A label's text stays upright.
+ * An annotation carried through a picture's move. Every point moves — a
+ * shaped arrow's every node and handle, which carries its curve exactly; a
+ * mirror turns an arc's bulge and a rotation's sense over, and needs nothing
+ * done to a path, whose handles are points too; a quarter turn (or three)
+ * turns a turn-over's axis. A label's text stays upright.
  */
 export function carryAnnotation(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  if (annotation.path) {
+    const path = annotation.path.map((node) => ({
+      ...node,
+      at: move.point(node.at),
+      ...(node.in ? { in: move.point(node.in) } : {}),
+      ...(node.out ? { out: move.point(node.out) } : {}),
+    }));
+    // Kept within reach, as every carried point is, a handle drawn in along itself.
+    return withPath(annotation, cleanPath(path) ?? path);
+  }
   // Kept within reach: a carried point that would leave it was three frames off the picture already.
   const carried: KnownDiagramAnnotation = {
     ...annotation,
