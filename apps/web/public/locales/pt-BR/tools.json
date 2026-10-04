@@ -296,16 +296,21 @@
     "zoomOut": "Reduzir referências"
   },
   "simulator": {
+    "clearPins": "Remover fixações",
     "foldBackward": "Retroceder dobra",
     "foldEnd": "Ir para dobrado",
     "foldForward": "Avançar dobra",
     "foldStart": "Ir para plano",
+    "pinThroughLayers": "Fixar através de todas as camadas",
     "playPause": "Reproduzir / pausar dobra",
     "replay": "Reiniciar simulação",
     "resetView": "Redefinir vista do simulador",
     "toggleCreases": "Linhas de vinco",
     "toggleFaces": "Faces",
-    "toggleLighting": "Iluminação"
+    "toggleLighting": "Iluminação",
+    "toolExit": "Sair da ferramenta",
+    "toolOrbit": "Ferramenta Órbita",
+    "toolPin": "Ferramenta Fixar"
   },
   "viewport": {
     "contextMenu": "Abrir menu de contexto",

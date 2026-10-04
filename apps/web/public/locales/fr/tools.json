@@ -296,16 +296,21 @@
     "zoomOut": "Zoom arrière sur les références"
   },
   "simulator": {
+    "clearPins": "Retirer les épingles",
     "foldBackward": "Reculer le pliage",
     "foldEnd": "Aller au plié",
     "foldForward": "Avancer le pliage",
     "foldStart": "Aller à plat",
+    "pinThroughLayers": "Épingler à travers toutes les couches",
     "playPause": "Lecture / pause du pliage",
     "replay": "Redémarrer la simulation",
     "resetView": "Réinitialiser la vue du simulateur",
     "toggleCreases": "Lignes de pli",
     "toggleFaces": "Faces",
-    "toggleLighting": "Éclairage"
+    "toggleLighting": "Éclairage",
+    "toolExit": "Quitter l’outil",
+    "toolOrbit": "Outil Orbite",
+    "toolPin": "Outil Épingler"
   },
   "viewport": {
     "contextMenu": "Ouvrir le menu contextuel",

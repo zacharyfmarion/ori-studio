@@ -797,7 +797,7 @@ Each step is its own commit; the moves change nothing on screen.
       (property values are kebab-case, as the rest of `events.ts` spells them)
 - [x] **Errors:** toasts, `reportError` surfaces, notices (strain threshold
       calibrated on settled frames; see the error table)
-- [ ] **i18n:** eight locales, stamped, `i18n:check`
+- [x] **i18n:** eight locales, stamped, `i18n:check`
 - [ ] **Browser verification** on a real crease pattern, on the GPU path and the
       canvas-2D fallback, in light and dark themes, with a coarse pointer and at
       phone width:

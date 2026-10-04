@@ -1057,7 +1057,9 @@
     "backendGpuTitle": "GPUで計算中（WebGL2）",
     "backToPatterns": "パターン",
     "canvasAriaLabel": "折り紙の折りベースシミュレーター。ドラッグで回転、スクロールでズーム、ダブルクリックで表示をリセットします。",
+    "canvasAriaLabelPin": "折り紙の折りベースシミュレーター。ボックスをドラッグするか面をクリックして固定、スクロールでズームします。",
     "canvasTitle": "ドラッグで回転、スクロールでズーム、ダブルクリックで表示をリセット",
+    "canvasTitlePin": "ボックスをドラッグするか面をクリックして固定、スクロールでズーム",
     "contextMenu": {
       "pause": "一時停止",
       "play": "再生",
@@ -1079,6 +1081,41 @@
     "stepReadout": "ステップ {{n}}",
     "strain": "ひずみ {{value}}",
     "title": "シミュレーター",
+    "tools": {
+      "instructions": "手順",
+      "notice": {
+        "recovered": "シミュレーションが不安定になったため、平らな状態から再スタートしました。固定は平らな紙を保持しています。",
+        "strained": "固定した面同士が引っ張り合っています。"
+      },
+      "orbit": {
+        "description": "ドラッグしてモデルを回転します。",
+        "label": "オービット"
+      },
+      "picker": {
+        "close": "ツール一覧を閉じる",
+        "title": "ツール",
+        "trigger": "ツール"
+      },
+      "pin": {
+        "box": "ボックスをドラッグして中の面を固定するか、面を1つクリックします。",
+        "description": "残りの紙を折る間、面をその場に固定します。",
+        "label": "固定",
+        "orbitApple": "Cmd を押しながらドラッグするとモデルを回転します。",
+        "orbitMiddle": "中ボタンでドラッグするとモデルを回転します。",
+        "shift": "Shift を押しながらドラッグで固定に追加します。Shift を押しながらクリックで面を1つ固定・解除します。",
+        "throughLayers": "すべての層を通して選択",
+        "touchBox": "ボックスをドラッグして中の面を固定します。",
+        "touchOrbit": "モデルを回転するにはオービットに切り替えます。",
+        "touchTap": "面をタップして固定・解除します。"
+      },
+      "pins": {
+        "clear": "固定をすべて解除",
+        "count_other": "{{count}} 面を固定中",
+        "title": "固定"
+      },
+      "railLabel": "シミュレーターのツール",
+      "windowLabel": "シミュレーターのツールオプション"
+    },
     "unavailable": "シミュレーターを利用できません",
     "viewCube": {
       "back": "後",

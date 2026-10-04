@@ -64,6 +64,10 @@
   "simulatorExport": {
     "empty": "This simulation has nothing to export yet"
   },
+  "simulatorPins": {
+    "pickFailed": "Couldn't tell which faces are there. Try again.",
+    "updateFailed": "Couldn't pin those faces. Try again."
+  },
   "update": {
     "available": "Version {{version}} is available",
     "checkFailed": "Couldn't check for updates",

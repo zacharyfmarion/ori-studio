@@ -259,10 +259,9 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
       },
       (error: unknown) => {
         if (classifySimulatorCallFailure(error) === 'unexpected') {
-          const { t: translate } = live.current;
-          toast.error(
-            translate('toasts:simulatorPins.updateFailed', "Couldn't pin those faces. Try again.")
-          );
+          // The translator as of now: this settles long after the render.
+          const { t } = live.current;
+          toast.error(t('toasts:simulatorPins.updateFailed', "Couldn't pin those faces. Try again."));
           reportError(error, { surface: 'simulator:pins', tags: { backend: backendTag(gpuActive) } });
         }
         // Back to what the paper actually has, unless a newer set has already
@@ -283,7 +282,7 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
       // The gesture was made on the picture of `binding`'s model. If another
       // has replaced it since, the region no longer means what was aimed at.
       if (live.current.bound !== binding) return;
-      const { options: current, t: translate } = live.current;
+      const { options: current, t } = live.current;
       if (!current.ready) return;
       switch (intent.kind) {
         case 'pick-faces': {
@@ -295,10 +294,7 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
           } catch (error) {
             if (classifySimulatorCallFailure(error) === 'unexpected') {
               toast.error(
-                translate(
-                  'toasts:simulatorPins.pickFailed',
-                  "Couldn't tell which faces are there. Try again."
-                )
+                t('toasts:simulatorPins.pickFailed', "Couldn't tell which faces are there. Try again.")
               );
               reportError(error, { surface: 'simulator:pick', tags: { backend: backendTag(onGpu) } });
             }
