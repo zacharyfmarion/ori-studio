@@ -16,6 +16,7 @@ import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagra
 import {
   ARROW_BEND,
   MAX_PATH_NODES,
+  MIN_ANNOTATION_LENGTH,
   arrowApex,
   arrowShape,
   canBeShaped,
@@ -101,14 +102,15 @@ function arcNodes(from: PicturePoint, to: PicturePoint, bend: number): DiagramPa
  * A shaped arrow made an arc again (Reset): References' 60° arc between its
  * ends, bulging the side the path lies on of its chord — toward the frame's
  * middle, as a new arrow does, for a path that lies on neither. One whose
- * ends meet has no arc to go back to, and stays.
+ * ends lie closer than the shortest arrow (a loop) has no arc to go back to
+ * that could be drawn or pressed, and stays.
  */
 export function resetPath(annotation: KnownDiagramAnnotation, frame: PictureFrame): KnownDiagramAnnotation {
   const { path, ...arc } = annotation;
   if (!path) return annotation;
   const { from, to } = annotation;
   const chord = Math.hypot(to[0] - from[0], to[1] - from[1]);
-  if (!(chord > ON_NODE)) return annotation;
+  if (!(chord >= MIN_ANNOTATION_LENGTH)) return annotation;
   const area = pathChordArea(flattenPath(pathCubics(path), chord * 1e-4));
   // A path on the left of its travel as the page shows it bulges as a positive bend does (`arrowApex`).
   const bend = Math.abs(area) > 1e-6 * chord * chord ? Math.sign(area) * ARROW_BEND : defaultBend(from, to, frame);

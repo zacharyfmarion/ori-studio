@@ -88,6 +88,9 @@ export const DEFAULT_ROTATION: DiagramRotation = { amount: 'quarter', direction:
 /** How far past the frame an annotation may reach, in frame lengths: an arrow may start off the picture. */
 export const ANNOTATION_REACH = 4;
 
+/** The shortest arrow or line, as a share of the frame: anything shorter was a slip. */
+export const MIN_ANNOTATION_LENGTH = 0.015;
+
 /** The most annotations a step holds: a guard against a file that was never a diagram's. */
 export const MAX_STEP_ANNOTATIONS = 500;
 
@@ -142,10 +145,12 @@ export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagra
 
 /**
  * A path as the file reader takes it for this build's: its nodes and handles
- * within reach — a handle drawn in along itself, so a smooth node stays
- * smooth — no handle before the tail or after the tip, and no more than
- * {@link MAX_PATH_NODES} nodes, the extras taken out of its middle (no edit
- * makes more). The same array when it already is; null for fewer than two.
+ * within reach — a node brought in carries its handles with it, and a handle
+ * is drawn in along itself, so a smooth node stays smooth — no handle before
+ * the tail or after the tip, a corner only where two segments meet, and no
+ * more than {@link MAX_PATH_NODES} nodes, the extras taken out of its middle
+ * (no edit makes more). The same array when it already is; null for fewer
+ * than two.
  */
 export function cleanPath(path: readonly DiagramPathNode[]): DiagramPathNode[] | null {
   if (path.length < 2) return null;
@@ -154,17 +159,23 @@ export function cleanPath(path: readonly DiagramPathNode[]): DiagramPathNode[] |
   const last = kept.length - 1;
   const nodes = kept.map((node, index) => {
     const at = withinReach(node.at);
+    const moved = !samePoint(at, node.at);
     const handle = (side: 'in' | 'out') => {
       const point = node[side];
       const allowed = side === 'in' ? index > 0 : index < last;
-      return point && allowed ? handleWithinReach(at, point) : undefined;
+      if (!point || !allowed) return undefined;
+      // Moved with its node, as a drag of the node moves it.
+      const carried: PicturePoint = moved
+        ? [point[0] + (at[0] - node.at[0]), point[1] + (at[1] - node.at[1])]
+        : point;
+      return handleWithinReach(at, carried);
     };
     const clean: DiagramPathNode = { at };
     const inHandle = handle('in');
     const outHandle = handle('out');
     if (inHandle) clean.in = inHandle;
     if (outHandle) clean.out = outHandle;
-    if (node.type === 'corner') clean.type = 'corner';
+    if (node.type === 'corner' && index > 0 && index < last) clean.type = 'corner';
     const same =
       samePoint(at, node.at) &&
       sameHandle(clean.in, node.in) &&

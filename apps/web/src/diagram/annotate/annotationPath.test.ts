@@ -156,6 +156,18 @@ describe('Reset', () => {
     };
     expect(resetPath(loop, SQUARE)).toBe(loop);
   });
+
+  it('leaves a loop whose ends lie closer than the shortest arrow, which an arc there could not be', () => {
+    const loop: KnownDiagramAnnotation = {
+      ...S_ARROW,
+      to: [0.11, 0.5],
+      path: [
+        { at: [0.1, 0.5], out: [0.5, 0.1] },
+        { at: [0.11, 0.5], in: [0.5, 0.9] },
+      ],
+    };
+    expect(resetPath(loop, SQUARE)).toBe(loop);
+  });
 });
 
 describe('moving a node or a handle', () => {
@@ -288,6 +300,13 @@ describe('deleting a node', () => {
     const tip = deletePathNode(S_ARROW, 2)!;
     expect(tip.to).toEqual([0.4, 0.5]);
     expect(tip.path![1]).toEqual({ at: [0.4, 0.5], in: [0.3, 0.6] });
+  });
+
+  it('leaves the new end no corner: an end has one handle', () => {
+    const cornered = setPathNodeType(splitPathSegment(S_ARROW, 0, 0.5), 1, 'corner');
+    expect(isCornerNode(cornered, 1)).toBe(true);
+    const tail = deletePathNode(cornered, 0)!;
+    expect(tail.path![0]!.type).toBeUndefined();
   });
 
   it('says the arrow goes when a two-node path loses one', () => {

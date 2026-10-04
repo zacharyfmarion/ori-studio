@@ -224,6 +224,27 @@ describe('a shaped arrow', () => {
     expect(flipAnnotationArc(loop)).toBe(loop);
   });
 
+  it('keeps a smooth node smooth when a flip takes it past reach: its handles come in with it', () => {
+    const edge: KnownDiagramAnnotation = {
+      id: 'e',
+      kind: 'valley-arrow',
+      from: [3.5, 0],
+      to: [3.5, 1],
+      path: [
+        { at: [3.5, 0], out: [3.2, 0.1] },
+        { at: [2.9, 0.5], in: [2.9, 0.3], out: [2.9, 0.7] },
+        { at: [3.5, 1], in: [3.2, 0.9] },
+      ],
+    };
+    // Mirrored across its chord the middle node lands at 4.1, past reach, and is brought in to 4.
+    const middle = flipAnnotationArc(edge).path![1]!;
+    expect(middle.at).toEqual([4, 0.5]);
+    expect(middle.in![0]).toBeCloseTo(4, 12);
+    expect(middle.in![1]).toBeCloseTo(0.3, 12);
+    expect(middle.out![0]).toBeCloseTo(4, 12);
+    expect(middle.out![1]).toBeCloseTo(0.7, 12);
+  });
+
   it('has a length along its path: a loop that ends by its tail is an arrow, a stub is not', () => {
     const loop: KnownDiagramAnnotation = {
       ...shaped,

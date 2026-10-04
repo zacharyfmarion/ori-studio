@@ -26,6 +26,7 @@ import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useD
 import { hitAnnotation, type AnnotationGrip, type HitSizes } from './annotationHit';
 import {
   LABEL_SIZE,
+  MIN_ANNOTATION_LENGTH,
   createAnnotation,
   frameOf,
   isDegenerate,
@@ -52,8 +53,6 @@ const WORLD_MARGIN = 0.25;
 const DRAG_SLOP_PX = { fine: 4, touch: 10 } as const;
 /** How near a press must be to take hold of something, in screen px: a mouse's, a finger's. */
 const REACH_PX = { fine: 8, coarse: 18 } as const;
-/** The shortest arrow or line, as a share of the frame: anything shorter was a slip. */
-const MIN_LENGTH = 0.015;
 
 const DRAFT_ID = 'annotation-draft';
 
@@ -376,7 +375,7 @@ export function useAnnotateCanvas({
         // A line or an arrow is drawn by a drag; a sign or a label is put down by a click.
         if (!point && !current.moved) return;
         const annotation = createAnnotation(current.kind, point ? at : current.start, at, layout.pictureFrame);
-        if (isDegenerate(annotation, MIN_LENGTH)) return;
+        if (isDegenerate(annotation, MIN_ANNOTATION_LENGTH)) return;
         const added = store.editDiagramAnnotations(step.id, 'Add annotation', (list) => [...list, annotation], {
           select: annotation.id,
           loadId,
@@ -403,7 +402,7 @@ export function useAnnotateCanvas({
           list.map((annotation) => {
             if (annotation.id !== current.original.id) return annotation;
             const next = moved(current, annotation, at);
-            return current.grip.part !== 'body' && isDegenerate(next, MIN_LENGTH) ? annotation : next;
+            return current.grip.part !== 'body' && isDegenerate(next, MIN_ANNOTATION_LENGTH) ? annotation : next;
           }),
         { loadId }
       );
