@@ -6,9 +6,7 @@ import type {
   SvgPoint,
 } from '../stepDiagramGeometry';
 import {
-  ARROWHEAD_MIN_STROKES,
   ROTATE_FRACTION,
-  TURN_OVER_BOX,
   TURN_OVER_HEAD_PATH,
   TURN_OVER_PATH,
   arcPathData,
@@ -23,9 +21,10 @@ import {
   pathArrowDrawn,
   polygonPathData,
   polylinePathData,
-  pushArrowOutline,
-  rotateGlyph,
+  pushArrowDrawn,
+  rotateGlyphDrawn,
   sheetCorners,
+  turnOverDrawn,
 } from '../stepDiagramGeometry';
 import type {
   DiagramLineStyleName,
@@ -35,10 +34,8 @@ import type { DiagramInlineInk, DiagramInlineStroke } from './diagramColors';
 import {
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
-  DIAGRAM_PUSH_INK,
   DIAGRAM_ROTATE_INK,
   DIAGRAM_SHEET_INK,
-  DIAGRAM_TURN_OVER_INK,
   type DiagramPens,
 } from './diagramInk';
 import {
@@ -71,8 +68,6 @@ import {
 /** The font a letter is set in when the picture leaves the app: the app's own stack, named. */
 export const INLINE_LABEL_FONT = 'Inter, ui-sans-serif, system-ui, sans-serif';
 
-/** The rotate glyph's heads, as a share of a fold arrow's. */
-const ROTATE_HEAD_OF_ARROWHEAD = 0.75;
 /** Where the fraction's baseline sits below the glyph's centre, in ems: a figure's middle on the centre. */
 const ROTATE_FRACTION_BASELINE = 0.36;
 
@@ -644,16 +639,10 @@ function diagramPrimitiveShape(
       });
     }
     case 'push-arrow': {
-      const ink = project.ink;
-      const outline = pushArrowOutline(project(primitive.from), project(primitive.to), {
-        head: DIAGRAM_PUSH_INK.head * ink,
-        headHalf: DIAGRAM_PUSH_INK.headHalf * ink,
-        shaftHalf: DIAGRAM_PUSH_INK.shaftHalf * ink,
-        cleft: DIAGRAM_PUSH_INK.cleft * ink,
-      });
+      const outline = pushArrowDrawn(primitive.from, primitive.to, project);
       if (!outline) return null;
       const d = polygonPathData(outline);
-      const stroke = strokeAttributes('arrow', ink, 1, project.pens);
+      const stroke = strokeAttributes('arrow', project.ink, 1, project.pens);
       // Hollow: the paper's face inside, so a line under it does not run
       // through the shape, and the outline in the arrow's pen, solid.
       return onAndOffPaper(context, index, (inks) => (
@@ -678,14 +667,8 @@ function diagramPrimitiveShape(
       ));
     }
     case 'rotate': {
-      const centre = project(primitive.at);
-      const radius = DIAGRAM_ROTATE_INK.radius * project.ink;
-      // A fold arrow's head, a little shorter: two of them sit on a small circle.
-      const head = Math.max(
-        ROTATE_HEAD_OF_ARROWHEAD * project.marks.arrowheadLength * project.ink,
-        ARROWHEAD_MIN_STROKES * project.pens.arrow.width * project.ink
-      );
-      const glyph = rotateGlyph(centre, radius, head, primitive.direction);
+      const glyph = rotateGlyphDrawn(primitive.at, primitive.direction, project);
+      const { centre } = glyph;
       const stroke = strokeAttributes('arrow', project.ink, 1, project.pens);
       const size = DIAGRAM_ROTATE_INK.fraction * project.ink;
       return onAndOffPaper(context, index, (inks) => {
@@ -738,22 +721,17 @@ function diagramPrimitiveShape(
       );
     }
     case 'turn-over': {
-      const at = project(primitive.at);
-      const scale = (DIAGRAM_TURN_OVER_INK * project.ink) / TURN_OVER_BOX.width;
       // Drawn in screen space, not mirrored with the paper: it is a
       // symbol for what the folder does, not part of the pattern.
-      const x = at.x - (TURN_OVER_BOX.width / 2) * scale;
-      const y = at.y - (TURN_OVER_BOX.height / 2) * scale;
-      const stroke = strokeAttributes('arrow', project.ink / scale, 1, project.pens);
-      // A horizontal axis turns the model top to bottom: the glyph a quarter turn round.
-      const turn = primitive.axis === 'horizontal' ? `rotate(90 ${round(at.x)} ${round(at.y)}) ` : '';
+      const glyph = turnOverDrawn(primitive.at, primitive.axis, project);
+      const stroke = strokeAttributes('arrow', project.ink / glyph.scale, 1, project.pens);
       // The clip is outside the glyph's own transform, in the drawing's units
       // like the paper's outline, so the glyph's group sits inside each copy.
       return onAndOffPaper(context, index, (inks) => (
         <g
           key={index}
           {...inked(inks, 'step-diagram__turn-over', () => ({}))}
-          transform={`${turn}translate(${round(x)} ${round(y)}) scale(${round(scale)})`}
+          transform={glyph.transform}
         >
           <path
             d={TURN_OVER_PATH}

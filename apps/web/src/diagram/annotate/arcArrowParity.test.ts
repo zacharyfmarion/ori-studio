@@ -14,7 +14,8 @@ import { CARD_FRAME_PX, paintAnnotations } from './paintAnnotations';
  * 565360b45), for every arrow kind at every bend and length that draws
  * differently, beside every other kind; they must not move by a byte.
  * Only the box each is cropped to has moved since: an arc arrow is now
- * measured where it is drawn rather than padded a head's length all round.
+ * measured where it is drawn rather than padded a head's length all round,
+ * and a push and a rotate glyph by the shapes they draw.
  */
 describe('an arrow never shaped', () => {
   it.each(ARC_ARROW_CASES.map((annotation) => [annotation.id, annotation] as const))(

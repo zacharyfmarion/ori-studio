@@ -33,10 +33,6 @@ import {
 } from '../../cp-workspace/references/diagram/DiagramPrimitives';
 import { diagramInlineInk, type DiagramInlineInk } from '../../cp-workspace/references/diagram/diagramColors';
 import {
-  DIAGRAM_ARROWHEAD_INK,
-  DIAGRAM_PUSH_INK,
-  DIAGRAM_ROTATE_INK,
-  DIAGRAM_TURN_OVER_INK,
   canvasDiagramInk,
   canvasDiagramPens,
   penInk,
@@ -49,8 +45,12 @@ import {
   arrowheadExtent,
   createOverlayProjector,
   foldArrowDrawn,
+  mitredCornerReach,
   oneWayArrowDrawn,
   pathArrowDrawn,
+  pushArrowDrawn,
+  rotateGlyphDrawn,
+  turnOverDrawn,
   type Arrowhead,
   type DiagramArc,
   type PathArrowFold,
@@ -392,20 +392,24 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
         arrowhead(arrow.head);
         break;
       }
-      case 'push-arrow':
-        for (const point of [primitive.from, primitive.to]) {
-          const { x, y } = project(point);
-          take(x, y, DIAGRAM_PUSH_INK.head * ink);
-        }
+      case 'push-arrow': {
+        // Its outline's corners, its mitres out past them.
+        const outline = pushArrowDrawn(primitive.from, primitive.to, project);
+        if (!outline) break;
+        const mitres = mitredCornerReach(outline, pen);
+        outline.forEach(({ x, y }, index) => take(x, y, mitres[index]!));
         break;
+      }
       case 'turn-over': {
-        const { x, y } = project(primitive.at);
-        take(x, y, DIAGRAM_TURN_OVER_INK * ink * 0.6);
+        for (const { x, y } of turnOverDrawn(primitive.at, primitive.axis, project).corners) take(x, y, pen);
         break;
       }
       case 'rotate': {
-        const { x, y } = project(primitive.at);
-        take(x, y, (DIAGRAM_ROTATE_INK.radius + DIAGRAM_ARROWHEAD_INK.length) * ink);
+        // Its circle's box — a little more than its arcs reach at the gaps at
+        // its sides — and its heads, filled, which a heavy pen makes longer.
+        const glyph = rotateGlyphDrawn(primitive.at, primitive.direction, project);
+        take(glyph.centre.x, glyph.centre.y, glyph.radius + pen / 2);
+        for (const head of glyph.heads) for (const { x, y } of [head.tip, head.notch, ...head.barbs]) take(x, y, 0);
         break;
       }
       default: {

@@ -26,6 +26,9 @@ import {
   DIAGRAM_INK_PER_SHEET,
   DIAGRAM_LINE_INK,
   DIAGRAM_MARKS,
+  DIAGRAM_PUSH_INK,
+  DIAGRAM_ROTATE_INK,
+  DIAGRAM_TURN_OVER_INK,
   type DiagramMarks,
   type DiagramPens,
 } from './diagram/diagramInk';
@@ -1360,6 +1363,74 @@ export function pushArrowOutline(tail: SvgPoint, tip: SvgPoint, size: PushArrowS
   ];
 }
 
+/**
+ * A push arrow as a picture draws it, from `from` to `to` in sheet units: its
+ * outline in the projector's units, sized by its ink. The one place its drawn
+ * shape is decided, as {@link foldArrowDrawn} is a fold arrow's. Null when its
+ * ends coincide.
+ */
+export function pushArrowDrawn(
+  from: readonly [number, number],
+  to: readonly [number, number],
+  project: DiagramProjector
+): SvgPoint[] | null {
+  const ink = project.ink;
+  return pushArrowOutline(project(from), project(to), {
+    head: DIAGRAM_PUSH_INK.head * ink,
+    headHalf: DIAGRAM_PUSH_INK.headHalf * ink,
+    shaftHalf: DIAGRAM_PUSH_INK.shaftHalf * ink,
+    cleft: DIAGRAM_PUSH_INK.cleft * ink,
+  });
+}
+
+/** SVG's default `stroke-miterlimit`: a mitre longer than this many pens is bevelled. */
+const SVG_MITER_LIMIT = 4;
+
+/**
+ * How far a closed outline stroked `pen` wide with mitred corners reaches past
+ * each of its corners: half the pen along the mitre, which grows as the
+ * corner sharpens, until SVG bevels it at its default limit and it reaches
+ * half the pen. A push arrow's cleft tail is sharp enough to reach well past
+ * one pen.
+ */
+export function mitredCornerReach(outline: readonly SvgPoint[], pen: number): number[] {
+  return outline.map((corner, index) => {
+    const before = outline[(index + outline.length - 1) % outline.length]!;
+    const after = outline[(index + 1) % outline.length]!;
+    const a = { x: before.x - corner.x, y: before.y - corner.y };
+    const b = { x: after.x - corner.x, y: after.y - corner.y };
+    const lengths = Math.hypot(a.x, a.y) * Math.hypot(b.x, b.y);
+    if (!(lengths > 0)) return pen / 2;
+    const angle = Math.acos(Math.max(-1, Math.min(1, (a.x * b.x + a.y * b.y) / lengths)));
+    const mitre = 1 / Math.sin(angle / 2);
+    return (pen / 2) * (mitre <= SVG_MITER_LIMIT ? mitre : 1);
+  });
+}
+
+/** The rotate glyph's heads, as a share of a fold arrow's. */
+const ROTATE_HEAD_OF_ARROWHEAD = 0.75;
+
+/**
+ * The rotate glyph as a picture draws it about `at`, in sheet units: its
+ * circle sized by the ink, and its heads a fold arrow's, a little shorter,
+ * kept as wide as the pen needs. The one place its drawn shape is decided, so
+ * its drawing and the room a page leaves it agree.
+ */
+export function rotateGlyphDrawn(
+  at: readonly [number, number],
+  direction: 'cw' | 'ccw',
+  project: DiagramProjector
+): { centre: SvgPoint; radius: number; strokes: [string, string]; heads: [Arrowhead, Arrowhead] } {
+  const centre = project(at);
+  const radius = DIAGRAM_ROTATE_INK.radius * project.ink;
+  // A fold arrow's head, a little shorter: two of them sit on a small circle.
+  const head = Math.max(
+    ROTATE_HEAD_OF_ARROWHEAD * project.marks.arrowheadLength * project.ink,
+    ARROWHEAD_MIN_STROKES * project.pens.arrow.width * project.ink
+  );
+  return { centre, radius, ...rotateGlyph(centre, radius, head, direction) };
+}
+
 /** Path data for a closed polygon. */
 export function polygonPathData(points: readonly SvgPoint[]): string {
   return `M ${points.map(pointText).join(' L ')} Z`;
@@ -1533,6 +1604,53 @@ export const TURN_OVER_PATH =
   `C ${TURN_OVER_SHAFT.slice(1).map(pointText).join(' ')} ${TURN_OVER_LOOP}`;
 /** The symbol's own coordinate box. */
 export const TURN_OVER_BOX = { width: 29, height: 14 } as const;
+
+/**
+ * What the turn-over symbol covers in its own box: its stroke's control
+ * points, which its curves lie within, and its head's corners.
+ */
+const TURN_OVER_EXTENT = (() => {
+  const numbers = TURN_OVER_PATH.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
+  const points: SvgPoint[] = [TURN_OVER_HEAD.tip, TURN_OVER_HEAD.notch, ...TURN_OVER_HEAD.barbs];
+  for (let i = 0; i + 1 < numbers.length; i += 2) points.push({ x: numbers[i]!, y: numbers[i + 1]! });
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+})();
+
+/**
+ * The turn-over glyph as a picture draws it, centred on `at` in sheet units:
+ * its transform from its own box, its scale, and the corners of what it
+ * covers in the projector's units, turned a quarter for a horizontal axis
+ * (none is vertical). Its stroke is the arrow's pen past those.
+ */
+export function turnOverDrawn(
+  at: readonly [number, number],
+  axis: 'vertical' | 'horizontal' | undefined,
+  project: DiagramProjector
+): { centre: SvgPoint; scale: number; transform: string; corners: SvgPoint[] } {
+  const centre = project(at);
+  const scale = (DIAGRAM_TURN_OVER_INK * project.ink) / TURN_OVER_BOX.width;
+  const x = centre.x - (TURN_OVER_BOX.width / 2) * scale;
+  const y = centre.y - (TURN_OVER_BOX.height / 2) * scale;
+  // A horizontal axis turns the model top to bottom: the glyph a quarter turn round.
+  const turned = axis === 'horizontal';
+  // Four decimals, as the drawing writes its numbers.
+  const round = (value: number) => Number(value.toFixed(4));
+  const turn = turned ? `rotate(90 ${round(centre.x)} ${round(centre.y)}) ` : '';
+  const place = (px: number, py: number): SvgPoint => {
+    const point = { x: x + px * scale, y: y + py * scale };
+    // rotate(90) about the centre: (dx, dy) to (-dy, dx).
+    return turned ? { x: centre.x - (point.y - centre.y), y: centre.y + (point.x - centre.x) } : point;
+  };
+  const { minX, minY, maxX, maxY } = TURN_OVER_EXTENT;
+  return {
+    centre,
+    scale,
+    transform: `${turn}translate(${round(x)} ${round(y)}) scale(${round(scale)})`,
+    corners: [place(minX, minY), place(maxX, minY), place(maxX, maxY), place(minX, maxY)],
+  };
+}
 
 /** A point as SVG path data writes one. */
 function pointText(p: SvgPoint): string {

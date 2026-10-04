@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
+import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE, PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
+import { DIAGRAM_ROTATE_INK, DIAGRAM_TURN_OVER_INK } from '../../cp-workspace/references/diagram/diagramInk';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramAnnotation, type KnownDiagramAnnotation } from '../document/diagramDocument';
 import {
   arcPolyline,
@@ -7,6 +8,11 @@ import {
   foldArrowDrawn,
   oneWayArrowDrawn,
   pathArrowDrawn,
+  pushArrowDrawn,
+  rotateGlyphDrawn,
+  TURN_OVER_BOX,
+  TURN_OVER_HEAD,
+  TURN_OVER_PATH,
   type DiagramArc,
 } from '../../cp-workspace/references/stepDiagramGeometry';
 import { cubicPoint } from '../../lib/cubicBezier';
@@ -316,6 +322,113 @@ describe('paintAnnotations', () => {
         expect(point.y - half).toBeGreaterThanOrEqual(y - 1e-6);
         expect(point.x + half).toBeLessThanOrEqual(x + width + 1e-6);
         expect(point.y + half).toBeLessThanOrEqual(y + height + 1e-6);
+      }
+    }
+  });
+
+  it('keeps a push, a rotate and a turn-over inside their reach at any pen, the heaviest too (review)', () => {
+    const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    const glyphs = [
+      a('push', 'push-arrow', { from: [-0.1, 0.4], to: [0.3, 0.1] }),
+      a('push-short', 'push-arrow', { from: [0.02, 0.98], to: [0.05, 1] }),
+      a('rotate', 'rotate', { from: [0, 0], to: [0, 0], rotate: { amount: 'half', direction: 'ccw' } }),
+      a('turn', 'turn-over', { from: [1, 0.5], to: [1, 0.5] }),
+      a('turn-h', 'turn-over', { from: [0.5, 1], to: [0.5, 1], axis: 'horizontal' }),
+    ];
+    for (const style of [DEFAULT_DIAGRAM_STYLE, heavy]) {
+      for (const framePx of [300, 1000]) {
+        for (const glyph of glyphs) {
+          const drawing = annotationDrawing([glyph], { width: 1, height: 1 }, framePx, style);
+          const { project } = drawing.context;
+          const primitive = drawing.primitives[0]!;
+          const half = (project.pens.arrow.width * project.ink) / 2;
+          // The ink as drawn, its stroke's half-width already out round it.
+          const ink: { x: number; y: number }[] = [];
+          const round = (x: number, y: number) => {
+            for (let i = 0; i < 32; i += 1) {
+              const angle = (i / 32) * 2 * Math.PI;
+              ink.push({ x: x + half * Math.cos(angle), y: y + half * Math.sin(angle) });
+            }
+          };
+          if (primitive.kind === 'push-arrow') {
+            // A mitred outline: each corner's two edges, offset half a pen to either side, meet at
+            // its mitre's tip, or are bevelled where that is past SVG's default limit of 4.
+            const outline = pushArrowDrawn(primitive.from, primitive.to, project)!;
+            outline.forEach((corner, index) => {
+              const before = outline[(index + outline.length - 1) % outline.length]!;
+              const after = outline[(index + 1) % outline.length]!;
+              const normal = (p: { x: number; y: number }, q: { x: number; y: number }) => {
+                const length = Math.hypot(q.x - p.x, q.y - p.y);
+                return { x: -(q.y - p.y) / length, y: (q.x - p.x) / length };
+              };
+              const [n1, n2] = [normal(before, corner), normal(corner, after)];
+              for (const side of [1, -1]) {
+                const a1 = { x: corner.x + side * half * n1.x, y: corner.y + side * half * n1.y };
+                const a2 = { x: corner.x + side * half * n2.x, y: corner.y + side * half * n2.y };
+                ink.push(a1, a2);
+                // Where the line through a1 along the first edge meets the line through a2 along the second.
+                const d1 = { x: corner.x - before.x, y: corner.y - before.y };
+                const d2 = { x: after.x - corner.x, y: after.y - corner.y };
+                const cross = d1.x * d2.y - d1.y * d2.x;
+                if (Math.abs(cross) < 1e-12) continue;
+                const t = ((a2.x - a1.x) * d2.y - (a2.y - a1.y) * d2.x) / cross;
+                const tip = { x: a1.x + d1.x * t, y: a1.y + d1.y * t };
+                if (Math.hypot(tip.x - corner.x, tip.y - corner.y) <= 4 * half) ink.push(tip);
+              }
+            });
+          } else if (primitive.kind === 'rotate') {
+            // Its two arcs, sampled, and its filled heads.
+            const glyph = rotateGlyphDrawn(primitive.at, primitive.direction, project);
+            const radius = DIAGRAM_ROTATE_INK.radius * project.ink;
+            expect(glyph.radius).toBe(radius);
+            for (const stroke of glyph.strokes) {
+              const numbers = stroke.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
+              const [sx, sy, ex, ey] = [numbers[0]!, numbers[1]!, numbers[numbers.length - 2]!, numbers[numbers.length - 1]!];
+              const from = Math.atan2(sy - glyph.centre.y, sx - glyph.centre.x);
+              let to = Math.atan2(ey - glyph.centre.y, ex - glyph.centre.x);
+              const cw = primitive.direction === 'cw';
+              if (cw && to < from) to += 2 * Math.PI;
+              if (!cw && to > from) to -= 2 * Math.PI;
+              for (let i = 0; i <= 400; i += 1) {
+                const angle = from + (to - from) * (i / 400);
+                round(glyph.centre.x + radius * Math.cos(angle), glyph.centre.y + radius * Math.sin(angle));
+              }
+            }
+            for (const head of glyph.heads) ink.push(head.tip, head.notch, ...head.barbs);
+          } else if (primitive.kind === 'turn-over') {
+            // Its stroke's cubics, sampled, and its filled head, placed as the drawing places them.
+            const centre = project(primitive.at);
+            const scale = (DIAGRAM_TURN_OVER_INK * project.ink) / TURN_OVER_BOX.width;
+            const place = (p: { x: number; y: number }) => {
+              const at = {
+                x: centre.x + (p.x - TURN_OVER_BOX.width / 2) * scale,
+                y: centre.y + (p.y - TURN_OVER_BOX.height / 2) * scale,
+              };
+              return primitive.axis === 'horizontal' ? { x: centre.x - (at.y - centre.y), y: centre.y + (at.x - centre.x) } : at;
+            };
+            const numbers = TURN_OVER_PATH.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
+            const points = Array.from({ length: numbers.length / 2 }, (_, i) => ({ x: numbers[2 * i]!, y: numbers[2 * i + 1]! }));
+            for (let start = 0; start + 3 < points.length; start += 3) {
+              const cubic = [points[start]!, points[start + 1]!, points[start + 2]!, points[start + 3]!].map(
+                (p) => [p.x, p.y] as [number, number]
+              ) as [[number, number], [number, number], [number, number], [number, number]];
+              for (let i = 0; i <= 400; i += 1) {
+                const [x, y] = cubicPoint(cubic, i / 400);
+                const at = place({ x, y });
+                round(at.x, at.y);
+              }
+            }
+            for (const corner of [TURN_OVER_HEAD.tip, TURN_OVER_HEAD.notch, ...TURN_OVER_HEAD.barbs]) ink.push(place(corner));
+          } else {
+            throw new Error(`a glyph, not ${primitive.kind}`);
+          }
+          const painted = paintAnnotations([glyph], { x: 0, y: 0, width: framePx, height: framePx }, framePx, style)!;
+          const { x, y, width, height } = painted.bounds;
+          const name = `${glyph.id} at ${framePx} px, pen ${project.pens.arrow.width}`;
+          const overrun = Math.max(...ink.map((point) => Math.max(x - point.x, y - point.y, point.x - x - width, point.y - y - height)));
+          expect(ink.length, name).toBeGreaterThan(4);
+          expect(overrun, name).toBeLessThanOrEqual(1e-6);
+        }
       }
     }
   });
