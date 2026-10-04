@@ -1062,7 +1062,7 @@
       "simulatedNeedsGpu": "Le plier ici nécessite WebGL2. Son image reste telle quelle.",
       "simulatedNoPattern": "Ouvrez son patron de plis dans Édition pour le plier ici.",
       "simulatedUnavailable": "Ce motif ne peut pas être simulé.",
-      "spreadAffineAmountValue": "{{percent}} du chemin de retour vers la feuille",
+      "spreadAffineAmountValue": "{{percent}} du chemin de retour vers la feuille le long de l’axe",
       "spreadAmount": "Ampleur",
       "spreadAmountName": "Écart des couches",
       "spreadAmountValue": "{{percent}} du modèle",

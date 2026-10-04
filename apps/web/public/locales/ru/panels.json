@@ -1098,7 +1098,7 @@
       "simulatedNeedsGpu": "Чтобы сложить её здесь, нужен WebGL2. Изображение остаётся прежним.",
       "simulatedNoPattern": "Откройте его паттерн складок в «Редактировании», чтобы сложить его здесь.",
       "simulatedUnavailable": "Эту схему нельзя смоделировать.",
-      "spreadAffineAmountValue": "{{percent}} пути обратно к листу",
+      "spreadAffineAmountValue": "{{percent}} пути обратно к листу вдоль оси",
       "spreadAmount": "Величина",
       "spreadAmountName": "Величина раздвижения слоёв",
       "spreadAmountValue": "{{percent}} модели",

@@ -93,7 +93,7 @@ export function DiagramSpreadRows({
             valueText={(value) =>
               shown.kind === 'depth'
                 ? t('panels:diagram.pose.spreadAmountValue', '{{percent}} of the model', { percent: percent(value) })
-                : t('panels:diagram.pose.spreadAffineAmountValue', '{{percent}} of the way back to the sheet', {
+                : t('panels:diagram.pose.spreadAffineAmountValue', '{{percent}} of the way back to the sheet along the axis', {
                     percent: percent(value),
                   })
             }

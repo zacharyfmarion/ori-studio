@@ -1062,7 +1062,7 @@
       "simulatedNeedsGpu": "Plegarlo aquí requiere WebGL2. Su imagen se queda como está.",
       "simulatedNoPattern": "Abre su patrón de pliegues en Editar para plegarlo aquí.",
       "simulatedUnavailable": "Este patrón no se puede simular.",
-      "spreadAffineAmountValue": "{{percent}} del camino de vuelta a la hoja",
+      "spreadAffineAmountValue": "{{percent}} del camino de vuelta a la hoja a lo largo del eje",
       "spreadAmount": "Cantidad",
       "spreadAmountName": "Separación de las capas",
       "spreadAmountValue": "{{percent}} del modelo",

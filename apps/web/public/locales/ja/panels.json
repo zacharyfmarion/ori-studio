@@ -990,7 +990,7 @@
       "simulatedNeedsGpu": "ここで折るには WebGL2 が必要です。図はそのままです。",
       "simulatedNoPattern": "ここで折るには、編集でその展開図を開いてください。",
       "simulatedUnavailable": "このパターンはシミュレーションできません。",
-      "spreadAffineAmountValue": "シートへ戻る道のりの{{percent}}",
+      "spreadAffineAmountValue": "軸に沿ってシートへ戻る道のりの{{percent}}",
       "spreadAmount": "ずらし量",
       "spreadAmountName": "層のずらし量",
       "spreadAmountValue": "モデルの{{percent}}",

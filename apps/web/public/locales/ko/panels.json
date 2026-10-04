@@ -990,7 +990,7 @@
       "simulatedNeedsGpu": "여기서 접으려면 WebGL2가 필요합니다. 그림은 그대로 유지됩니다.",
       "simulatedNoPattern": "여기서 접으려면 편집에서 전개도를 여세요.",
       "simulatedUnavailable": "이 패턴은 시뮬레이션할 수 없습니다.",
-      "spreadAffineAmountValue": "종이로 돌아가는 거리의 {{percent}}",
+      "spreadAffineAmountValue": "축을 따라 종이로 돌아가는 거리의 {{percent}}",
       "spreadAmount": "정도",
       "spreadAmountName": "층 벌림 정도",
       "spreadAmountValue": "모델의 {{percent}}",

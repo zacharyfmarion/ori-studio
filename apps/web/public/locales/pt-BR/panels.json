@@ -1062,7 +1062,7 @@
       "simulatedNeedsGpu": "Dobrar aqui requer WebGL2. A imagem fica como está.",
       "simulatedNoPattern": "Abra o padrão de vincos em Editar para dobrá-lo aqui.",
       "simulatedUnavailable": "Este padrão não pode ser simulado.",
-      "spreadAffineAmountValue": "{{percent}} do caminho de volta à folha",
+      "spreadAffineAmountValue": "{{percent}} do caminho de volta à folha ao longo do eixo",
       "spreadAmount": "Quantidade",
       "spreadAmountName": "Separação das camadas",
       "spreadAmountValue": "{{percent}} do modelo",

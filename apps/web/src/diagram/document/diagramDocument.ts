@@ -141,7 +141,7 @@ export type DiagramAffineSpread = AffineSpreadOptions;
 /**
  * How far a spread may go, by kind: a depth spread steps the deepest layer
  * 0.5% to 20% of the model; an affine one moves a point 0.5% to 25% of the
- * way back to the sheet.
+ * way back to the sheet along its axis (in every direction only at no skew).
  */
 export const SPREAD_AMOUNT_RANGE: Readonly<Record<SpreadKind, { readonly min: number; readonly max: number }>> = {
   depth: { min: 0.005, max: 0.2 },

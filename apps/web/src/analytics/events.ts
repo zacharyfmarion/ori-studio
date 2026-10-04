@@ -174,7 +174,7 @@ export type DiagramSpreadDirection =
 
 /**
  * How far a spread goes, in percent — of the model for a depth spread, of the
- * way back to the sheet for an affine one — bucketed: `<=2.5` (the depth
+ * way back to the sheet along its axis for an affine one — bucketed: `<=2.5` (the depth
  * default), `<=7.5` (the affine default, 3%), `<=12.5`, `>12.5`. Never the value.
  */
 export const DIAGRAM_SPREAD_PERCENT_BUCKETS = [2.5, 7.5, 12.5] as const;

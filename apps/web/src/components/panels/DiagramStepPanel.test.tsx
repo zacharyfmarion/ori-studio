@@ -383,7 +383,7 @@ describe('DiagramStepPanel', () => {
       expect(pressed('Keep still')).toBe('Top');
       const amount = slider('Spread amount')!;
       expect(amount.max).toBe('25');
-      expect(amount.getAttribute('aria-valuetext')).toBe('3% of the way back to the sheet');
+      expect(amount.getAttribute('aria-valuetext')).toBe('3% of the way back to the sheet along the axis');
       const skew = slider('Spread skew')!;
       expect(skew.value).toBe('100');
       const axis = slider('Spread axis')!;
