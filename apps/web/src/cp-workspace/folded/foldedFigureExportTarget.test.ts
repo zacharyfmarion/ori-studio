@@ -139,12 +139,12 @@ function kernelScene(): OristudioCpFoldedPaperScene {
   const edges = (kinds: Array<'border' | 'fold'>) =>
     square.map((from, index) => ({ from, to: square[(index + 1) % 4]!, kind: kinds[index]! }));
   return {
-    schema_version: 1,
+    schema_version: 2,
     flipped: false,
     sheet: 400,
     faces: [
-      { outline: square, front_up: false, edges: edges(['border', 'fold', 'border', 'border']) },
-      { outline: square, front_up: true, edges: edges(['border', 'fold', 'border', 'border']) },
+      { outline: square, points: [0, 1, 2, 3], front_up: false, edges: edges(['border', 'fold', 'border', 'border']) },
+      { outline: square, points: [4, 1, 2, 5], front_up: true, edges: edges(['border', 'fold', 'border', 'border']) },
     ],
     subfaces: [{ polygon: square, faces_top_to_bottom: [0, 1] }],
     aux_lines: [],

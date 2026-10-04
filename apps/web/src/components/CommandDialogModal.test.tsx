@@ -97,12 +97,13 @@ function foldedScene(): OristudioCpFoldedPaperScene {
     { x: 1, y: 1 },
   ];
   return {
-    schema_version: 1,
+    schema_version: 2,
     flipped: false,
     sheet: 1,
     faces: [
       {
         outline,
+        points: [0, 1, 2],
         front_up: true,
         edges: outline.map((from, index) => ({
           from,

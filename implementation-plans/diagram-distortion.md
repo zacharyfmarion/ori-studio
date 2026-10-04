@@ -172,8 +172,12 @@ defaults he has not seen yet and are cheap to change.
   models (pairs in `artifacts/diagram-distortion/`).
 
 ### 13b. Kernel
-- [ ] `FoldedPaperFace.points`, schema 2; Rust tests; `cargo fmt`, `clippy`;
-  wasm rebuilt; TS types.
+- [x] `FoldedPaperFace.points`, schema 2; Rust tests; `cargo fmt`, `clippy`;
+  wasm rebuilt; TS types. As built: `points` is the wireframe face ring
+  itself (`folded.faces[i]`, the fold graph's vertex ids), `#[serde(default)]`
+  so a schema 1 scene reads as empty; the test holds every face to its
+  wireframe ring, every fold to exactly one other face naming its ends, and
+  shows a place holding two vertices (so it is not a position key).
 
 ### 13c. The spread
 - [ ] `foldedLayerSpread.ts`: levels (acyclic, woven, a face in no stack),

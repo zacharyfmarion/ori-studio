@@ -1152,12 +1152,12 @@ describe('folded figure placement', () => {
         kind: kinds[index]!,
       }));
     return {
-      schema_version: 1,
+      schema_version: 2,
       flipped: false,
       sheet: 4,
       faces: [
-        { outline: rectangle, front_up: false, edges: edges(['border', 'border', 'fold', 'border']) },
-        { outline: rectangle, front_up: true, edges: edges(['border', 'border', 'fold', 'border']) },
+        { outline: rectangle, points: [0, 1, 2, 3], front_up: false, edges: edges(['border', 'border', 'fold', 'border']) },
+        { outline: rectangle, points: [4, 5, 2, 3], front_up: true, edges: edges(['border', 'border', 'fold', 'border']) },
       ],
       subfaces: [{ polygon: rectangle, faces_top_to_bottom: [0, 1] }],
       aux_lines: [],

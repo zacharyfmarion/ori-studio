@@ -2001,6 +2001,82 @@ fn paper_scene_faces_carry_their_folded_outline_and_edge_roles() {
     }
 }
 
+/// Schema 2: a face names the wireframe point behind each outline point — the
+/// ring the wireframe walks, point for point. So the two faces of a fold name
+/// its ends alike and place them alike, while corners of a stack folded onto
+/// one place keep different names: a painter can part those and still keep a
+/// fold joined.
+#[test]
+fn paper_scene_faces_name_the_wireframe_point_behind_each_outline_point() {
+    for (name, segments) in paper_scene_fixtures() {
+        let wireframe = estimate_wireframe_from_segments(&segments, 1)
+            .expect("wireframe")
+            .expect("faces");
+        for state in [FoldedFigureState::Front0, FoldedFigureState::Back1] {
+            let (scene, _) = paper_scene_and_snapshot(&segments, state);
+            assert_eq!(scene.schema_version, 2, "{name} {state:?}");
+            let mut placed: Vec<Option<Point>> = vec![None; wireframe.points.len()];
+            for (index, (face, ring)) in scene.faces.iter().zip(&wireframe.faces).enumerate() {
+                assert_eq!(face.points, *ring, "{name} {state:?}: face {index}");
+                for (point, &vertex) in face.outline.iter().zip(&face.points) {
+                    let at = placed[vertex].get_or_insert(*point);
+                    assert_eq!(
+                        at, point,
+                        "{name} {state:?}: vertex {vertex} is in two places"
+                    );
+                }
+            }
+
+            // Each fold is the edge of exactly one other face, which names its
+            // ends as this one does.
+            let mut folds = 0;
+            for (index, face) in scene.faces.iter().enumerate() {
+                let count = face.points.len();
+                for (edge_index, edge) in face.edges.iter().enumerate() {
+                    if edge.kind != FoldedPaperEdgeKind::Fold {
+                        continue;
+                    }
+                    folds += 1;
+                    let ends = [
+                        face.points[edge_index],
+                        face.points[(edge_index + 1) % count],
+                    ];
+                    let across = scene
+                        .faces
+                        .iter()
+                        .enumerate()
+                        .filter(|(other, _)| *other != index)
+                        .filter(|(_, other)| {
+                            let n = other.points.len();
+                            (0..n).any(|k| {
+                                let pair = [other.points[k], other.points[(k + 1) % n]];
+                                pair == ends || pair == [ends[1], ends[0]]
+                            })
+                        })
+                        .count();
+                    assert_eq!(
+                        across, 1,
+                        "{name} {state:?}: face {index} edge {edge_index} is a fold of {across} other faces"
+                    );
+                }
+            }
+            assert!(folds > 0, "{name} {state:?}: not vacuous, the figure folds");
+
+            // Not keyed by position: some place holds two different vertices.
+            let tolerance = 1e-9 * scene.sheet;
+            let placed = placed.iter().flatten().collect::<Vec<_>>();
+            let stacked = placed
+                .iter()
+                .enumerate()
+                .any(|(i, a)| placed[i + 1..].iter().any(|b| a.distance(**b) <= tolerance));
+            assert!(
+                stacked,
+                "{name} {state:?}: a fold lays two corners on one place"
+            );
+        }
+    }
+}
+
 /// The scene's coordinates are the render snapshot's for the model's state:
 /// the rear pass mirrors and moves the figure, and the scene follows the same
 /// camera, so a subface ring matches the drawer's on the back exactly as on

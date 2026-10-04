@@ -17,9 +17,11 @@ function rectangle(x0: number, y0: number, x1: number, y1: number): Point[] {
   return [point(x0, y0), point(x1, y0), point(x1, y1), point(x0, y1)];
 }
 
-function face(outline: Point[]): OristudioCpFoldedPaperFace {
+/** A face whose corners are sheet vertices `first`, `first + 1`, …. */
+function face(outline: Point[], first: number): OristudioCpFoldedPaperFace {
   return {
     outline,
+    points: outline.map((_, i) => first + i),
     front_up: true,
     edges: outline.map((from, i) => ({
       from,
@@ -38,10 +40,10 @@ const A = 0;
 const B = 1;
 function twoFlaps(aux: OristudioCpFoldedPaperScene['aux_lines']): OristudioCpFoldedPaperScene {
   return {
-    schema_version: 1,
+    schema_version: 2,
     flipped: false,
     sheet: 100,
-    faces: [face(rectangle(0, 0, 60, 40)), face(rectangle(40, 0, 100, 40))],
+    faces: [face(rectangle(0, 0, 60, 40), 0), face(rectangle(40, 0, 100, 40), 4)],
     subfaces: [
       { polygon: rectangle(0, 0, 40, 40), faces_top_to_bottom: [A] },
       { polygon: rectangle(40, 0, 60, 40), faces_top_to_bottom: [B, A] },

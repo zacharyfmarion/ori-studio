@@ -118,18 +118,23 @@ function cyclic(): KernelFixture[] {
 
 const point = (x: number, y: number): Point => ({ x, y });
 
-/** An axis-aligned rectangle as a kernel face: four border edges, or one fold. */
+/**
+ * An axis-aligned rectangle as a kernel face: four border edges, or one fold;
+ * its corners are sheet vertices `first` to `first + 3`.
+ */
 function rectangle(
   x0: number,
   y0: number,
   x1: number,
   y1: number,
+  first: number,
   frontUp = true,
   foldEdge: number | null = null
 ): OristudioCpFoldedPaperFace {
   const outline = [point(x0, y0), point(x1, y0), point(x1, y1), point(x0, y1)];
   return {
     outline,
+    points: outline.map((_, i) => first + i),
     front_up: frontUp,
     edges: outline.map((from, i) => ({
       from,
@@ -169,12 +174,12 @@ const WOVEN = [H1, V1, H2, V2];
  */
 function wovenScene(): OristudioCpFoldedPaperScene {
   const faces: OristudioCpFoldedPaperFace[] = [];
-  faces[H1] = rectangle(0, 1, 5, 2, true, 0);
-  faces[V1] = rectangle(1, 0, 2, 5, false, 1);
-  faces[H2] = rectangle(0, 3, 5, 4);
-  faces[V2] = rectangle(3, 0, 4, 5);
-  faces[E] = rectangle(6, 0, 7, 1);
-  faces[F] = rectangle(6, 0, 7, 2, false);
+  faces[H1] = rectangle(0, 1, 5, 2, 0, true, 0);
+  faces[V1] = rectangle(1, 0, 2, 5, 4, false, 1);
+  faces[H2] = rectangle(0, 3, 5, 4, 8);
+  faces[V2] = rectangle(3, 0, 4, 5, 12);
+  faces[E] = rectangle(6, 0, 7, 1, 16);
+  faces[F] = rectangle(6, 0, 7, 2, 20, false);
   const subfaces: OristudioCpFoldedPaperSubface[] = [
     // H1 across, left to right.
     subface(0, 1, 1, 2, [H1]),
@@ -199,7 +204,7 @@ function wovenScene(): OristudioCpFoldedPaperScene {
     subface(6, 0, 7, 1, [F, E]),
     subface(6, 1, 7, 2, [F]),
   ];
-  return { schema_version: 1, flipped: false, sheet: 7, faces, subfaces, aux_lines: [] };
+  return { schema_version: 2, flipped: false, sheet: 7, faces, subfaces, aux_lines: [] };
 }
 
 /* --------------------------------------------------------------------------
@@ -705,7 +710,7 @@ describe('an acyclic stacking', () => {
   });
 
   it('draws nothing for a kernel scene with no faces', () => {
-    const scene = sceneOf({ schema_version: 1, flipped: false, sheet: 0, faces: [], subfaces: [], aux_lines: [] });
+    const scene = sceneOf({ schema_version: 2, flipped: false, sheet: 0, faces: [], subfaces: [], aux_lines: [] });
     expect(scene.items).toEqual([]);
     expect(scene.bounds).toEqual({ minX: 0, minY: 0, maxX: 0, maxY: 0 });
     expect(scene.sheet).toBe(0);

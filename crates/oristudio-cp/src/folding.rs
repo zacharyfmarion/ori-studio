@@ -665,6 +665,8 @@ impl RgbaColor {
 /// the picture the canvas draws. The drawer itself (oracle-checked) is not
 /// touched, and `faces_top_to_bottom[0]` of every subface is the face the
 /// drawer paints there — the test in `tests/folding.rs` holds it to that.
+///
+/// Schema 2 added [`FoldedPaperFace::points`]; nothing else changed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FoldedPaperScene {
     pub schema_version: u32,
@@ -697,6 +699,15 @@ pub struct FoldedPaperScene {
 pub struct FoldedPaperFace {
     /// The face's folded ring, in the scene's coordinates.
     pub outline: Vec<Point>,
+    /// Per outline point, the wireframe point it is (`FoldedWireframe::points`,
+    /// a vertex of the sheet): two faces that meet at a crease name its ends
+    /// alike, and corners of a stack that fold onto one place stay apart, as
+    /// their positions cannot keep them. A painter that steps layers apart by
+    /// depth keeps the faces at a crease joined through it. Empty when the
+    /// ring names a point the wireframe lacks — exactly when `edges` is — and
+    /// in a schema 1 scene, which had no such field.
+    #[serde(default)]
+    pub points: Vec<usize>,
     /// The face shows its front side in this pass — the parity the drawer
     /// colours by, flipped with the pass.
     pub front_up: bool,
@@ -2895,7 +2906,7 @@ fn paper_scene_impl(
     };
 
     Ok(Some(FoldedPaperScene {
-        schema_version: 1,
+        schema_version: 2,
         flipped: pass.flipped,
         sheet: paper_scene_sheet_extent(&graph.points, model),
         faces: paper_scene_faces(folded, pass),
@@ -2944,7 +2955,8 @@ fn paper_scene_faces(
                 .filter_map(|point_index| folded.points.get(*point_index).copied())
                 .map(|point| pass.camera.object_to_tv(point))
                 .collect::<Vec<_>>();
-            let edges = if outline.len() == face.len() {
+            let complete = outline.len() == face.len();
+            let edges = if complete {
                 (0..face.len())
                     .map(|index| {
                         let next = (index + 1) % face.len();
@@ -2965,6 +2977,7 @@ fn paper_scene_faces(
                 Vec::new()
             };
             FoldedPaperFace {
+                points: if complete { face.clone() } else { Vec::new() },
                 outline,
                 front_up: paper_face_front_up(face_index, folded, pass.flipped),
                 edges,
