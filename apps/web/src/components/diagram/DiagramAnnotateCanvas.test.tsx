@@ -993,6 +993,19 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
     expect(marksDrawn.count).toBeGreaterThan(drawnBefore);
   });
 
+  it('shows what a still pointer would land on once the camera moves under it', () => {
+    drawn([line], 'circle');
+    // 12 px off the end at the zoom the picture opens at: the end shows.
+    pointer('pointermove', at(0.612, 0.5));
+    expect(targets()).toEqual(['annotation']);
+    // The camera zooms in twice over under the pointer, which does not move: 24 px off, past the radius.
+    (SVGElement.prototype as unknown as { getScreenCTM: () => typeof identity }).getScreenCTM = () => ({ ...identity, a: 2, d: 2 });
+    act(() => {
+      stage().dispatchEvent(new WheelEvent('wheel', { deltaY: -120, clientX: 612, clientY: 500, bubbles: true, cancelable: true }));
+    });
+    expect(targets()).toEqual([]);
+  });
+
   it('shows a finger where its press landed before it moves, and puts the circle there', () => {
     drawn([line], 'circle');
     pointer('pointerdown', at(0.61, 0.505), 1, 'touch');

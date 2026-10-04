@@ -1,3 +1,4 @@
+import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { trackDiagramAnnotationAdded } from '../../analytics';
 import {
@@ -625,6 +626,18 @@ export function useAnnotateCanvas({
   }, [pointerMoved]);
   useEffect(() => subscribeHeldModifiers(() => refreshForKeys.current()), []);
 
+  // The camera moved under a still pointer — a pan, a pinch, a wheel's zoom:
+  // what a press there would land on moved with the picture, and how far a
+  // press reaches in it changed with the zoom.
+  const { onTransformed: cameraMoved } = camera;
+  const onTransformed = useCallback(
+    (ref: ReactZoomPanPinchRef, state: { scale: number }) => {
+      cameraMoved(ref, state);
+      if (!gesture.current) refreshForKeys.current();
+    },
+    [cameraMoved]
+  );
+
   /** A pointer gone: the pinch ends with the last of them, never turning back into a stroke. */
   const release = useCallback((pointerId: number) => {
     pointers.current.delete(pointerId);
@@ -754,7 +767,7 @@ export function useAnnotateCanvas({
   );
 
   return {
-    camera,
+    camera: { ...camera, onTransformed },
     overlay,
     url,
     layout,
