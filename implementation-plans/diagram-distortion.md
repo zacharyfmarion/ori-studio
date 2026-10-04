@@ -130,8 +130,10 @@ buttons around a centre, the selected one pressed) in the Step pane; the
 phone's Step pane drawer has them too. Turning it on starts from the nearest
 earlier step's spread when there is one, else the defaults — consistency
 across a diagram without a diagram-wide setting. Disabled, with the reason,
-when the picture is not a flat fold or the fold has no paper scene (the
-bitmap fallback). One undo entry per change; a slider drag is one change.
+when the picture is not a flat fold or the fold has no paper scene — the
+see-through development the kernel draws for a fold with no layer order
+(corrected: not the bitmap a scene past the budget is kept as, which has a
+scene and spreads). One undo entry per change; a slider drag is one change.
 i18n in every locale.
 
 ## Affected Areas
@@ -232,10 +234,37 @@ defaults he has not seen yet and are cheap to change.
   flat without one.
 
 ### 13e. Pose UI
-- [ ] Verbs, toolbar, Step pane (amount, direction), phone drawer, undo,
-  analytics, i18n.
-- [ ] Browser: real crane steps before/after; Turn Over, Rotate and layer
-  orders with a spread on; undo; save, reload; a PDF export.
+- [x] Verbs, toolbar, Step pane (amount, direction), phone drawer, undo,
+  analytics, i18n. As built: Spread Layers is a pose verb, a toggle
+  (`aria-pressed`, tinted as the Show As pill is) in the toolbar of a flat
+  fold and of a 3D one, where it is held with "Only a flat folded picture has
+  layers to spread" (not offered for a crease pattern or a simulation, whose
+  toolbars have nothing folded); held too, with its reason, for a fold shown
+  see-through for want of a layer order. The Step pane's Pose group
+  (`DiagramSpreadRows`, CSS module beside it) has the switch and, while on,
+  the amount (`SliderRow`, 0.5%–20% in half percents, the readout and
+  `aria-valuetext` as a locale percentage — `SliderRow` gained optional
+  `ariaLabel` and `valueText`, `GestureSlider` `aria-valuetext`) and eight
+  direction buttons round a decorative centre, each named ("Deeper layers
+  up and left"), the chosen one pressed. The phone's drawer is the same pane.
+  A drag previews in the detail (`DiagramLinkedPose.preview`, annotations
+  carried) and commits once on the slider's native `change`, so a key press
+  is one entry too. The catalog's `buildDiagramSpreadControls` gives the
+  direction descriptors; `useDiagramLinkedPose` binds the drag. No shortcut:
+  no Pose verb has one. Analytics: `spread_on` / `spread_off` /
+  `spread_amount` / `spread_direction` with `spread_direction` and
+  `spread_amount_bucket` (`<=2.5`/`<=7.5`/`<=12.5`/`>12.5` percent).
+- [x] Browser: real crane steps before/after; Turn Over, Rotate and layer
+  orders with a spread on; undo; save, reload; a PDF export. As built
+  (`artifacts/diagram-spread/pose-ui.mjs`, `pose-phone.mjs`, light and dark,
+  1440 × 900 and 390 × 844): step 11 of Zach's crane — on (5% up-left), a
+  drag to 13% previewed with no undo entry and committed as one, down-right,
+  Turn Over, Rotate Right, Next Layer Order, Show As Crease Pattern (the fold
+  with its spread remembered) and back, Reset Pose (spread kept), undo twice
+  and redo, save and reopen (spread in the file and back), step 12 turned on
+  from step 11's spread and ArrowRight on its slider (+0.5%, one entry), the
+  card, the Pages view and the exported PDF all showing the spread picture.
+  On a phone the Pose toolbar wraps to a third row for Reset Pose.
 
 ### 13f. Review
 - [ ] Review and fixes; the PR and Phase 13 updated.

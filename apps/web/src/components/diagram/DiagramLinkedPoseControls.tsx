@@ -6,6 +6,7 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
+  Layers,
   RotateCcw,
   RotateCw,
   RotateCcwSquare,
@@ -33,6 +34,7 @@ const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> 
   'view-top': ArrowDownToDot,
   'view-front': Eye,
   'view-iso': Box,
+  'spread-layers': Layers,
   reset: Undo2,
 };
 
@@ -97,6 +99,9 @@ export function DiagramLinkedPoseControls({
             aria-label={action.label}
             // Refused, but still holding the focus: its run does nothing now.
             aria-disabled={action.disabled || action.waiting || undefined}
+            // A toggle (Spread Layers) shows and says whether it is on.
+            aria-pressed={action.pressed}
+            className={action.pressed === undefined ? undefined : styles.toggle}
             onClick={() => keep(action.run)}
           >
             <Icon size={15} />

@@ -150,8 +150,10 @@ export function DiagramStepDetail({
 
   const phone = useIsPhoneLayout();
   const locked = isLockedStep(step);
-  const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
-  const { annotations } = step;
+  // In Pose, a spread being dragged shows in the step's place before it is committed (Phase 13).
+  const posed = (mode === 'pose' && linkedPose?.preview) || step;
+  const source = useMemo(() => stepPictureSource(posed, assets), [posed, assets]);
+  const { annotations } = posed;
   const url = useMemo(
     () => (source ? annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY) : null),
     [source, annotations, style]

@@ -2,9 +2,12 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cpDocument } from '../../diagram/capture/capture.fixtures';
-import { createDiagram } from '../../diagram/document/diagramDocument';
+import { createDiagram, type DiagramCpRender } from '../../diagram/document/diagramDocument';
 import { cpStep, referencesStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
-import { buildDiagramLinkedPoseActions } from '../../diagram/actions/diagramLinkedPoseActions';
+import {
+  buildDiagramLinkedPoseActions,
+  buildDiagramSpreadControls,
+} from '../../diagram/actions/diagramLinkedPoseActions';
 import { publishOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -272,6 +275,8 @@ describe('DiagramStepPanel', () => {
           showAs: async () => true,
           simulate: async () => {},
           wantsRest: () => false,
+          spread: null,
+          preview: null,
         });
       });
       expect(pressed('Side')).toBe('Back');
@@ -288,6 +293,66 @@ describe('DiagramStepPanel', () => {
       setField(rotation, '100');
       act(() => rotation.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
       expect(rotateTo).toHaveBeenCalledWith(100);
+      act(() => publishOpenLinkedPose(null, null));
+    });
+
+    it('spreads a flat fold’s layers from the pane: on, how far as a percentage, and which way (Phase 13)', () => {
+      const pose = vi.fn();
+      const direction = vi.fn();
+      const previewAmount = vi.fn();
+      const commitAmount = vi.fn();
+      const t = ((_key: string, fallback: string) => fallback) as never;
+      const publish = (render: DiagramCpRender) => {
+        const poseState = { render, readOnly: false, busy: false, solutions: { discovered: 1, hasNext: false } };
+        const controls = buildDiagramSpreadControls(poseState, null, { t, direction });
+        publishOpenLinkedPose('step-f', {
+          actions: buildDiagramLinkedPoseActions(poseState, { t, pose }),
+          layerOrder: null,
+          spatial: null,
+          onCamera: () => {},
+          rotateTo: () => {},
+          showAs: async () => true,
+          simulate: async () => {},
+          wantsRest: () => false,
+          spread: controls && { ...controls, previewAmount, commitAmount, startAmount: () => true },
+          preview: null,
+        });
+      };
+      const flat = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [cpStep('step-f', flat)] } });
+        state().openDiagramStep('step-f');
+        publish(flat);
+      });
+      const toggle = () => host!.querySelector<HTMLButtonElement>('button[role="switch"][aria-label="Spread layers"]')!;
+      const amount = () => host!.querySelector<HTMLInputElement>('input[type="range"][aria-label="Spread amount"]');
+      expect(toggle().getAttribute('aria-checked')).toBe('false');
+      // Off: nothing to set.
+      expect(amount()).toBeNull();
+      act(() => toggle().click());
+      expect(pose).toHaveBeenCalledWith('spread-layers');
+
+      act(() => publish({ ...flat, spread: { amount: 0.08, toward: 'up-left' } }));
+      expect(toggle().getAttribute('aria-checked')).toBe('true');
+      expect(amount()!.value).toBe('8');
+      expect(amount()!.getAttribute('aria-valuetext')).toBe('8% of the model');
+      expect(host!.textContent).toContain('8%');
+      const compass = host!.querySelector('[role="group"][aria-label="Spread direction"]')!;
+      const directions = [...compass.querySelectorAll<HTMLButtonElement>('button')];
+      expect(directions).toHaveLength(8);
+      expect(directions.filter((button) => button.getAttribute('aria-pressed') === 'true').map((button) => button.getAttribute('aria-label'))).toEqual([
+        'Deeper layers up and left',
+      ]);
+      act(() => directions.find((button) => button.getAttribute('aria-label') === 'Deeper layers down')!.click());
+      expect(direction).toHaveBeenCalledWith('down');
+
+      // A drag previews every move, and commits once, as the native change says it ended.
+      setField(amount()!, '10');
+      setField(amount()!, '12.5');
+      expect(previewAmount.mock.calls).toEqual([[0.1], [0.125]]);
+      expect(commitAmount).not.toHaveBeenCalled();
+      act(() => amount()!.dispatchEvent(new Event('change', { bubbles: true })));
+      expect(commitAmount).toHaveBeenCalledOnce();
       act(() => publishOpenLinkedPose(null, null));
     });
 

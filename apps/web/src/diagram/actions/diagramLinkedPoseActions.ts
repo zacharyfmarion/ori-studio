@@ -1,9 +1,11 @@
 import type { TFunction } from 'i18next';
+import { SPREAD_DIRECTIONS, type SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
 import { defaultCaptureCamera } from '../capture/captureFolded';
 import {
   DEFAULT_SIMULATED_VIEW,
   showAsOf,
   type DiagramCpRender,
+  type DiagramLayerSpread,
   type DiagramShowAs,
 } from '../document/diagramDocument';
 
@@ -14,9 +16,12 @@ import {
  * `diagramPoseActions.ts` is for an upload.
  *
  * - **Crease pattern:** turn it.
- * - **Folded, flat:** turn it over, turn it, and step to another layer order.
+ * - **Folded, flat:** turn it over, turn it, step to another layer order,
+ *   and spread its layers apart by depth (Phase 13) — on or off here; its
+ *   amount and direction are the Step pane's ({@link buildDiagramSpreadControls}).
  * - **Folded, in 3D:** look from the other side, or from straight above, the
- *   front or the corner; the view itself is dragged in the picture.
+ *   front or the corner; the view itself is dragged in the picture. Spread
+ *   Layers is there too, held, saying it needs a flat fold.
  */
 export type DiagramLinkedPoseActionId =
   | 'show-crease-pattern'
@@ -44,7 +49,10 @@ export interface DiagramLinkedPoseAction {
    */
   waiting: boolean;
   hint?: string;
-  /** For the two ways to show the pattern: which one is showing. */
+  /**
+   * For a way to show the pattern, whether it is the one showing — pressed
+   * again it does nothing; for Spread Layers, a toggle, whether it is on.
+   */
   pressed?: boolean;
   run: () => void;
 }
@@ -59,6 +67,26 @@ export interface DiagramLinkedPoseState {
    * more, and whether it has none at all; null when not known yet.
    */
   solutions: { discovered: number; hasNext: boolean; none?: boolean } | null;
+  /**
+   * The step's flat fold is its see-through development, which the kernel
+   * draws when it finds no layer order: no layers to spread.
+   */
+  seeThrough?: boolean;
+}
+
+/**
+ * Why a step's layers cannot be spread, or nothing when they can: only a flat
+ * fold drawn from its layers has them — not one folded in 3D, nor one shown
+ * see-through for want of a layer order.
+ */
+function spreadBlocker(state: DiagramLinkedPoseState, t: TFunction): string | undefined {
+  if (state.render.mode !== 'folded-flat') {
+    return t('panels:diagram.pose.spreadNeedsFlat', 'Only a flat folded picture has layers to spread');
+  }
+  if (state.seeThrough || state.solutions?.none) {
+    return t('panels:diagram.pose.spreadNeedsOrder', 'This fold has no layer order, so it has no layers to spread');
+  }
+  return undefined;
 }
 
 /**
@@ -118,7 +146,7 @@ export function buildDiagramLinkedPoseActions(
   const action = (
     id: DiagramLinkedPoseActionId,
     label: string,
-    options: { disabled?: boolean; hint?: string; pressed?: boolean } = {}
+    options: { disabled?: boolean; hint?: string; pressed?: boolean; toggle?: boolean } = {}
   ): DiagramLinkedPoseAction => {
     const disabled = readOnly !== undefined || (options.disabled ?? false);
     return {
@@ -131,9 +159,9 @@ export function buildDiagramLinkedPoseActions(
       run: () => {
         // The way already shown is no verb: pressed again it would capture a
         // Simulated step back at 0%, which only Pose's live solver can hold.
-        // A verb that cannot act refuses here too: a surface may keep it
-        // focusable rather than disable it.
-        if (!waiting && !options.pressed && !disabled) deps.pose(id);
+        // A toggle pressed again turns off. A verb that cannot act refuses
+        // here too: a surface may keep it focusable rather than disable it.
+        if (!waiting && (options.toggle || !options.pressed) && !disabled) deps.pose(id);
       },
     };
   };
@@ -157,6 +185,13 @@ export function buildDiagramLinkedPoseActions(
   const reset = action('reset', t('panels:diagram.pose.reset', 'Reset Pose'), {
     disabled: isDefaultRender(render),
     hint: t('panels:diagram.pose.resetHint', 'Already in its starting pose'),
+  });
+  const spreadHeld = spreadBlocker(state, t);
+  const spreadLayers = action('spread-layers', t('panels:diagram.pose.spreadLayers', 'Spread Layers'), {
+    disabled: spreadHeld !== undefined,
+    hint: spreadHeld,
+    pressed: render.mode === 'folded-flat' && render.spread !== undefined,
+    toggle: true,
   });
 
   switch (render.mode) {
@@ -183,6 +218,7 @@ export function buildDiagramLinkedPoseActions(
             ? t('panels:diagram.pose.noSolution', 'This fold has no layer order')
             : t('panels:diagram.pose.onlySolution', 'This fold has one layer order'),
         }),
+        spreadLayers,
         reset,
       ];
     case 'folded-3d':
@@ -192,10 +228,95 @@ export function buildDiagramLinkedPoseActions(
         action('view-top', t('panels:diagram.pose.viewTop', 'View From Above')),
         action('view-front', t('panels:diagram.pose.viewFront', 'View From the Front')),
         action('view-iso', t('panels:diagram.pose.viewIso', 'View From the Corner')),
+        spreadLayers,
         reset,
       ];
     case 'simulated':
       return [...modes, reset];
+  }
+}
+
+/** One of the eight ways a spread's deeper layers can step, as the Step pane offers it. */
+export interface DiagramSpreadDirectionAction {
+  toward: SpreadDirection;
+  label: string;
+  /** The direction the layers step now. */
+  pressed: boolean;
+  /** Held as the other verbs are: a read-only diagram, a picture with no layers, a capture running. */
+  disabled: boolean;
+  waiting: boolean;
+  hint?: string;
+  run: () => void;
+}
+
+/** A flat fold's spread, for the Step pane while it is on (Phase 13). */
+export interface DiagramSpreadControls {
+  /** The spread the picture shows — a drag's, while it is previewed. */
+  spread: DiagramLayerSpread;
+  /** Whether the amount and the direction can be changed, and if not, why. */
+  disabled: boolean;
+  hint?: string;
+  directions: DiagramSpreadDirectionAction[];
+}
+
+/**
+ * The spread's amount and direction (Phase 13), while a flat fold's layers
+ * are spread; null otherwise. Spread Layers itself is one of the pose verbs.
+ * `shown` is the spread the picture shows now: a drag's, while it previews.
+ */
+export function buildDiagramSpreadControls(
+  state: DiagramLinkedPoseState,
+  shown: DiagramLayerSpread | null,
+  deps: { t: TFunction; direction: (toward: SpreadDirection) => void }
+): DiagramSpreadControls | null {
+  const { t } = deps;
+  const spread = state.render.mode === 'folded-flat' ? (shown ?? state.render.spread ?? null) : null;
+  if (!spread) return null;
+  const hint = state.readOnly
+    ? t('panels:diagram.actions.readOnlyHint', 'This diagram was made with a newer Ori Studio and opens read-only')
+    : spreadBlocker(state, t);
+  const disabled = hint !== undefined;
+  const waiting = !disabled && state.busy;
+  return {
+    spread,
+    disabled,
+    hint,
+    directions: SPREAD_DIRECTIONS.map((toward) => {
+      const pressed = toward === spread.toward;
+      return {
+        toward,
+        label: spreadDirectionLabel(toward, t),
+        pressed,
+        disabled,
+        waiting,
+        hint: hint ?? (waiting ? t('panels:diagram.actions.capturingHint', 'Its picture is being captured') : undefined),
+        run: () => {
+          if (!disabled && !waiting && !pressed) deps.direction(toward);
+        },
+      };
+    }),
+  };
+}
+
+/** A direction's name, as its button says it. */
+export function spreadDirectionLabel(toward: SpreadDirection, t: TFunction): string {
+  switch (toward) {
+    case 'up-left':
+      return t('panels:diagram.pose.spreadUpLeft', 'Deeper layers up and left');
+    case 'up':
+      return t('panels:diagram.pose.spreadUp', 'Deeper layers up');
+    case 'up-right':
+      return t('panels:diagram.pose.spreadUpRight', 'Deeper layers up and right');
+    case 'right':
+      return t('panels:diagram.pose.spreadRight', 'Deeper layers right');
+    case 'down-right':
+      return t('panels:diagram.pose.spreadDownRight', 'Deeper layers down and right');
+    case 'down':
+      return t('panels:diagram.pose.spreadDown', 'Deeper layers down');
+    case 'down-left':
+      return t('panels:diagram.pose.spreadDownLeft', 'Deeper layers down and left');
+    case 'left':
+      return t('panels:diagram.pose.spreadLeft', 'Deeper layers left');
   }
 }
 

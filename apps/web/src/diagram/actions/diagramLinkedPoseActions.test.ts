@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 import {
   buildDiagramLinkedPoseActions,
+  buildDiagramSpreadControls,
   isDefaultRender,
   type DiagramLinkedPoseState,
   layerOrderLabel,
@@ -49,11 +50,12 @@ describe('the linked pose verbs', () => {
       'rotate-right',
       'previous-solution',
       'next-solution',
+      'spread-layers',
       'reset',
     ]);
     expect(
       ids({ render: { mode: 'folded-3d', camera: DEFAULT_FOLDED_3D_CAMERA, side: 'front' } })
-    ).toEqual([...modes, 'turn-over', 'view-top', 'view-front', 'view-iso', 'reset']);
+    ).toEqual([...modes, 'turn-over', 'view-top', 'view-front', 'view-iso', 'spread-layers', 'reset']);
     // A simulation is posed in its own viewport (Pose's transport); here, only how it is shown.
     expect(ids({ render: { mode: 'simulated', foldPercent: 0, view: { yaw: 0, pitch: 0, zoom: 1 } } })).toEqual([
       ...modes,
@@ -155,5 +157,77 @@ describe('the linked pose verbs', () => {
       disabled: true,
       hint: 'Already in its starting pose',
     });
+  });
+});
+
+describe('spreading a flat fold’s layers (Phase 13)', () => {
+  const FLAT = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };
+  const SPREAD = { amount: 0.05, toward: 'up-left' as const };
+  const toggle = (state: Partial<DiagramLinkedPoseState>, pose = vi.fn()) =>
+    build({ render: FLAT, ...state }, pose).find((action) => action.id === 'spread-layers')!;
+
+  it('is a toggle: pressed while on, and pressed again it turns off', () => {
+    const pose = vi.fn();
+    const off = toggle({}, pose);
+    expect(off).toMatchObject({ label: 'Spread Layers', pressed: false, disabled: false });
+    off.run();
+    const on = toggle({ render: { ...FLAT, spread: SPREAD } }, pose);
+    expect(on.pressed).toBe(true);
+    on.run();
+    expect(pose.mock.calls).toEqual([['spread-layers'], ['spread-layers']]);
+  });
+
+  it('is held, saying why, for a fold in 3D or one with no layer order, and waits for a capture', () => {
+    const pose = vi.fn();
+    const spatial = toggle({ render: { mode: 'folded-3d', camera: DEFAULT_FOLDED_3D_CAMERA, side: 'front' } }, pose);
+    expect(spatial).toMatchObject({ disabled: true, hint: 'Only a flat folded picture has layers to spread' });
+    const reason = 'This fold has no layer order, so it has no layers to spread';
+    expect(toggle({ seeThrough: true }, pose)).toMatchObject({ disabled: true, hint: reason });
+    expect(toggle({ solutions: { discovered: 1, hasNext: false, none: true } }, pose)).toMatchObject({ disabled: true, hint: reason });
+    const waiting = toggle({ busy: true, render: { ...FLAT, spread: SPREAD } }, pose);
+    expect(waiting).toMatchObject({ disabled: false, waiting: true, pressed: true });
+    for (const held of [spatial, waiting]) held.run();
+    expect(pose).not.toHaveBeenCalled();
+  });
+
+  it('offers its amount and direction only while on, the drag’s spread over the step’s', () => {
+    const direction = vi.fn();
+    const controls = (state: Partial<DiagramLinkedPoseState>, shown: typeof SPREAD | null = null) =>
+      buildDiagramSpreadControls(
+        { render: FLAT, readOnly: false, busy: false, solutions: null, ...state },
+        shown,
+        { t, direction }
+      );
+    expect(controls({})).toBeNull();
+    expect(controls({ render: { mode: 'crease-pattern', rotationDeg: 0 } }, SPREAD)).toBeNull();
+    const on = controls({ render: { ...FLAT, spread: SPREAD } })!;
+    expect(on).toMatchObject({ spread: SPREAD, disabled: false });
+    expect(on.directions.map((option) => option.toward)).toEqual([
+      'up-left', 'up', 'up-right', 'right', 'down-right', 'down', 'down-left', 'left',
+    ]);
+    expect(on.directions.filter((option) => option.pressed).map((option) => option.label)).toEqual([
+      'Deeper layers up and left',
+    ]);
+    // The way it steps already is no change; another is.
+    on.directions[0]!.run();
+    on.directions[5]!.run();
+    expect(direction.mock.calls).toEqual([['down']]);
+    // A drag's amount shows over the step's while it is previewed.
+    expect(controls({ render: { ...FLAT, spread: SPREAD } }, { amount: 0.12, toward: 'up-left' })!.spread.amount).toBe(0.12);
+  });
+
+  it('holds the direction while a capture runs, on a read-only diagram, and on a picture with no layers', () => {
+    const direction = vi.fn();
+    const render = { ...FLAT, spread: SPREAD };
+    const build = (state: Partial<DiagramLinkedPoseState>) =>
+      buildDiagramSpreadControls({ render, readOnly: false, busy: false, solutions: null, ...state }, null, { t, direction })!;
+    expect(build({ busy: true }).directions[3]).toMatchObject({ waiting: true, disabled: false, hint: 'Its picture is being captured' });
+    expect(build({ readOnly: true })).toMatchObject({
+      disabled: true,
+      hint: 'This diagram was made with a newer Ori Studio and opens read-only',
+    });
+    expect(build({ seeThrough: true }).directions[3]).toMatchObject({ disabled: true, waiting: false });
+    for (const state of [{ busy: true }, { readOnly: true }, { seeThrough: true }]) build(state).directions[3]!.run();
+    expect(direction).not.toHaveBeenCalled();
   });
 });

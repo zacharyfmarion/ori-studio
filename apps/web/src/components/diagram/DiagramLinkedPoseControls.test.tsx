@@ -120,4 +120,34 @@ describe('DiagramLinkedPoseControls', () => {
     act(() => previous().click());
     expect(poses).toHaveBeenCalledTimes(1);
   });
+
+  it('says whether Spread Layers is on, and runs it again to turn it off (Phase 13)', () => {
+    host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+    const pose = vi.fn();
+    const show = (spread: boolean) => {
+      const render: DiagramCpRender = {
+        mode: 'folded-flat',
+        side: 'front',
+        rotationDeg: 0,
+        foldCase: 1,
+        ...(spread ? { spread: { amount: 0.05, toward: 'up-left' as const } } : {}),
+      };
+      const actions = buildDiagramLinkedPoseActions({ render, readOnly: false, busy: false, solutions: null }, { t, pose });
+      root!.render(
+        <TooltipProvider>
+          <DiagramLinkedPoseControls actions={actions} keep={(run) => run()} />
+        </TooltipProvider>
+      );
+    };
+    act(() => show(false));
+    const button = () => host!.querySelector<HTMLButtonElement>('button[aria-label="Spread Layers"]')!;
+    expect(button().getAttribute('aria-pressed')).toBe('false');
+    act(() => button().click());
+    act(() => show(true));
+    expect(button().getAttribute('aria-pressed')).toBe('true');
+    act(() => button().click());
+    expect(pose.mock.calls).toEqual([['spread-layers'], ['spread-layers']]);
+  });
 });

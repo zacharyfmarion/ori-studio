@@ -15,6 +15,8 @@ const pose = (): DiagramLinkedPose => ({
   showAs: async () => true,
   simulate: async () => {},
   wantsRest: () => false,
+  spread: null,
+  preview: null,
 });
 
 afterEach(() => publishOpenLinkedPose(null, null));

@@ -6,21 +6,41 @@ import { onEngineLost } from '../../engines/engineHost';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
   buildDiagramLinkedPoseActions,
+  buildDiagramSpreadControls,
   layerOrderLabel,
   SHOW_AS_ACTION,
   type DiagramLinkedPoseAction,
   type DiagramLinkedPoseState,
+  type DiagramSpreadControls,
 } from '../actions/diagramLinkedPoseActions';
-import { showAsOf, type DiagramShowAs, type DiagramStep, stepById } from '../document/diagramDocument';
+import { withCarriedAnnotations } from '../annotate/annotationCarry';
+import {
+  clampSpreadAmount,
+  showAsOf,
+  stepById,
+  type DiagramShowAs,
+  type DiagramStep,
+} from '../document/diagramDocument';
 import { publishOpenLinkedPose } from './openLinkedPose';
 import {
   createPoseController,
   linkedFoldKey,
   type DiagramPoseSpatialView,
   type SimulatedRest,
+  type SpreadPreview,
 } from './poseController';
 
 export type { DiagramPoseSpatialView };
+
+/** A flat fold's spread while it is on (Phase 13): what the Step pane shows of it, and its amount's drag. */
+export interface DiagramLinkedSpread extends DiagramSpreadControls {
+  /** Show the picture at this amount before it is committed: each move of a drag, or a key. */
+  previewAmount: (amount: number) => void;
+  /** Commit the amount previewed, as one undo step: the end of a drag, or a key. */
+  commitAmount: () => void;
+  /** Whether a drag may start: not on a diagram that cannot change, nor a picture with no layers. */
+  startAmount: () => boolean;
+}
 
 export interface DiagramLinkedPose {
   actions: DiagramLinkedPoseAction[];
@@ -42,11 +62,20 @@ export interface DiagramLinkedPose {
   simulate: (rest: SimulatedRest) => Promise<void>;
   /** Whether a rest at this pose would be captured: asked before its scene is drawn. */
   wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
+  /** A flat fold's spread, for the Step pane, while its layers are spread; null otherwise (Phase 13). */
+  spread: DiagramLinkedSpread | null;
+  /**
+   * The step as a spread being dragged shows it — its picture drawn from the
+   * held fold, its annotations carried — for the detail to show in its place;
+   * null when nothing is previewed.
+   */
+  preview: DiagramStep | null;
 }
 
 /**
  * Pose for a step linked to the crease pattern, while its detail is open
- * (`poseController.ts`): its verbs, and its live 3D fold. One controller per
+ * (`poseController.ts`): its verbs, its live 3D fold, and a flat fold's spread
+ * with the preview a drag of its amount shows (Phase 13). One controller per
  * open step, let go when the step changes or the detail closes; it hears an
  * undo or redo, the crease pattern being replaced and the engine being lost.
  * Null for a step that is not linked. What it returns is also published for
@@ -63,6 +92,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   // Relink or an undo the step links to others, and these are not theirs.
   const [spatial, setSpatial] = useState<{ key: string; view: DiagramPoseSpatialView } | null>(null);
   const [found, setFound] = useState<{ key: string; value: DiagramLinkedPoseState['solutions'] } | null>(null);
+  const [previewed, setPreviewed] = useState<{ key: string; value: SpreadPreview } | null>(null);
   const foldKey = useMemo(() => (source && stepId ? linkedFoldKey(stepId, source) : null), [source, stepId]);
 
   const controller = useMemo(
@@ -72,7 +102,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
         : createPoseController(stepId, {
             spatial: (view, key) => setSpatial(view && key ? { key, view } : null),
             solutions: (value, key) => setFound({ key, value }),
-            preview: () => {},
+            preview: (value, key) => setPreviewed(value && key ? { key, value } : null),
           }),
     [stepId]
   );
@@ -106,16 +136,44 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
 
   const render = source?.render ?? null;
   const solutions = found !== null && found.key === foldKey ? found.value : null;
+  // A flat fold drawn as its see-through development has no layers to spread.
+  const seeThrough = render?.mode === 'folded-flat' && step?.picture?.kind === 'fixed';
+  const poseState = useMemo(
+    (): DiagramLinkedPoseState | null => (render ? { render, readOnly, busy, solutions, seeThrough } : null),
+    [render, readOnly, busy, solutions, seeThrough]
+  );
   const actions = useMemo(
     () =>
-      render && controller
-        ? buildDiagramLinkedPoseActions(
-            { render, readOnly, busy, solutions },
-            { t, pose: (verb) => void controller.run({ verb }) }
-          )
+      poseState && controller
+        ? buildDiagramLinkedPoseActions(poseState, { t, pose: (verb) => void controller.run({ verb }) })
         : [],
-    [render, readOnly, busy, solutions, t, controller]
+    [poseState, t, controller]
   );
+
+  // A drag of the spread's amount, previewed: shown only while the step links to the creases it was drawn from.
+  const shownPreview = previewed !== null && previewed.key === foldKey ? previewed.value : null;
+  const spread = useMemo((): DiagramLinkedSpread | null => {
+    if (!poseState || !controller) return null;
+    const controls = buildDiagramSpreadControls(poseState, shownPreview?.spread ?? null, {
+      t,
+      direction: (toward) => void controller.run({ verb: 'spread-direction', toward }),
+    });
+    if (!controls) return null;
+    return {
+      ...controls,
+      previewAmount: (amount) => controller.previewSpread({ ...controls.spread, amount: clampSpreadAmount(amount) }),
+      commitAmount: () => void controller.commitSpread(),
+      startAmount: () => !controls.disabled,
+    };
+  }, [poseState, shownPreview, t, controller]);
+  const assets = useWorkspaceStore((state) => state.diagram?.assets);
+  const preview = useMemo((): DiagramStep | null => {
+    if (!step || source?.render.mode !== 'folded-flat' || !shownPreview?.picture) return null;
+    const render = { ...source.render, spread: shownPreview.spread };
+    const shown: DiagramStep = { ...step, source: { ...source, render }, picture: shownPreview.picture };
+    // A mark on the top layer stays on it, as it will when the spread is committed.
+    return withCarriedAnnotations(step, shown, assets ?? {});
+  }, [step, source, shownPreview, assets]);
   const layerOrder = render ? layerOrderLabel(render, solutions, t) : null;
 
   const rotateTo = useCallback(
@@ -149,8 +207,11 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   );
 
   const pose = useMemo(
-    () => (source ? { actions, layerOrder, spatial: view, onCamera, rotateTo, showAs, simulate, wantsRest } : null),
-    [source, actions, layerOrder, view, onCamera, rotateTo, showAs, simulate, wantsRest]
+    () =>
+      source
+        ? { actions, layerOrder, spatial: view, onCamera, rotateTo, showAs, simulate, wantsRest, spread, preview }
+        : null,
+    [source, actions, layerOrder, view, onCamera, rotateTo, showAs, simulate, wantsRest, spread, preview]
   );
   // The Step pane offers these verbs too, through this one controller.
   useEffect(() => publishOpenLinkedPose(stepId, pose), [stepId, pose]);

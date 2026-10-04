@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { useReferencesStepWays } from '../../diagram/references/useReferencesStepWays';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { DiagramSpreadRows } from './DiagramSpreadRows';
 import { DiagramWayRow } from './DiagramWayChooser';
 import { IconButton } from '../ui/IconButton';
 import { FieldRow, NumberRow, SegmentedRow } from '../ui/fieldRows';
@@ -30,7 +31,8 @@ interface SideChoice {
  *   or Back.
  * - **A linked pattern:** for a crease pattern or a flat fold, its turn as a
  *   field (D5's angle field); a fold's side, Front or Back; a flat fold's
- *   layer order. Its verbs are the open step's own pose controller's
+ *   layer order and its spread layers (Phase 13): on or off, and while on,
+ *   how far and which way. Its verbs are the open step's own pose controller's
  *   (`useOpenLinkedPose`): one capture session per step, whichever surface
  *   asks. How it is shown is Show as, at the top of the pane (D19).
  *
@@ -137,6 +139,10 @@ export function DiagramStepPose({
             {layerVerb(linked.find((action) => action.id === 'next-solution'), ChevronRight)}
           </span>
         </FieldRow>
+      )}
+      {render.mode === 'folded-flat' && (
+        // Its layers stepped apart by depth (Phase 13): on or off, how far and which way.
+        <DiagramSpreadRows toggle={linked.find((action) => action.id === 'spread-layers')} spread={linkedPose.spread} />
       )}
     </>
   );

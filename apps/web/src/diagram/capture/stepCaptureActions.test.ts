@@ -120,6 +120,8 @@ describe('showLinkedStepAs', () => {
     showAs: vi.fn(async () => landed),
     simulate: async () => {},
     wantsRest: () => false,
+    spread: null,
+    preview: null,
   });
 
   it('goes through the open step’s Pose, and counts it only when the step now shows that way', async () => {

@@ -1,4 +1,13 @@
-/* What the linked Pose controls (DiagramLinkedPoseControls.tsx) draw of their own: the layer order pager's readout. */
+/* What the linked Pose controls (DiagramLinkedPoseControls.tsx) draw of their own: a toggle's on, and the layer order pager's readout. */
+
+/* A toggle that is on (Spread Layers), tinted as the Show As control's chosen
+   pill is; on hover too, past the ghost button's own hover. */
+.toggle[aria-pressed='true'],
+.toggle[aria-pressed='true']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-primary) 17%, var(--bg-elevated));
+  color: var(--text-primary);
+}
+
 .layerOrder {
   padding: 0 var(--space-1);
   color: var(--text-secondary);
