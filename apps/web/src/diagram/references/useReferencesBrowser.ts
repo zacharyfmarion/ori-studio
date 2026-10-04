@@ -168,7 +168,15 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
     selection: browserSelection.empty(),
   });
   const selection = picked.list === listKey ? picked.selection : browserSelection.initial(shownCard);
-  const select = (next: BrowserSelection) => setPicked({ list: listKey, selection: next });
+  // A change to the selection as it stands by then: a Shift+arrow extends it
+  // and focuses the card it lands on, whose onFocus asks again in the same
+  // event — and must see the extension, not this render's selection.
+  const select = (change: (current: BrowserSelection) => BrowserSelection) =>
+    setPicked((prev) => {
+      const current = prev.list === listKey ? prev.selection : browserSelection.initial(shownCard);
+      const next = change(current);
+      return next === current && prev.list === listKey ? prev : { list: listKey, selection: next };
+    });
   const [withTurnOver, setWithTurnOver] = useState(true);
 
   const outline = useMemo(
@@ -233,26 +241,25 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
     anchorTakesFirst,
     choosePattern: (id) => store().setDiagramReferencesBrowser({ pattern: id }),
     setMode: (mode) => store().setDiagramReferencesBrowser({ mode }),
-    press: (index, { range }) => select(browserSelection.press(selection, shownList, index, { range, finished })),
+    press: (index, { range }) => select((current) => browserSelection.press(current, shownList, index, { range, finished })),
     move: (to) => {
       const next = browserSelection.step(shownList, selection.focus, to);
-      if (next !== null) select(browserSelection.moveTo(selection, next));
+      if (next !== null) select((current) => browserSelection.moveTo(current, next));
       return next;
     },
-    focusOn: (index) => {
-      if (selection.focus !== index) select(browserSelection.moveTo(selection, index));
-    },
+    focusOn: (index) =>
+      select((current) => (current.focus === index ? current : browserSelection.moveTo(current, index))),
     extend: (to) => {
       const next = browserSelection.step(shownList, selection.focus, to);
-      if (next !== null) select(browserSelection.press(selection, shownList, next, { range: true, finished }));
+      if (next !== null) select((current) => browserSelection.press(current, shownList, next, { range: true, finished }));
       return next;
     },
     toggle: () => {
       const at = selection.focus ?? browserSelection.step(shownList, null, 'next');
-      if (at !== null) select(browserSelection.press(selection, shownList, at, { range: false, finished }));
+      if (at !== null) select((current) => browserSelection.press(current, shownList, at, { range: false, finished }));
     },
-    selectAll: () => select(browserSelection.all(shownList, finished)),
-    clear: () => select(browserSelection.empty()),
+    selectAll: () => select(() => browserSelection.all(shownList, finished)),
+    clear: () => select(() => browserSelection.empty()),
     add: () => pull(pullable),
     close: () => store().closeDiagramReferencesBrowser(),
     openReferences: () => store().openReferencesWorkspace(),

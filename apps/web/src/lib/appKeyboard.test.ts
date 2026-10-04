@@ -202,6 +202,28 @@ describe('app keyboard shortcuts', () => {
     expect(actions.selectNone).not.toHaveBeenCalled();
   });
 
+  it('acts on nothing behind a dialog that owns every key, though the key was aimed outside it', () => {
+    // The References browser over a Diagram step: focus slipped out to the
+    // page behind must not let Delete remove the step the browser fills.
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('data-shortcut-barrier', '');
+    document.body.append(dialog);
+    cleanups.push(() => dialog.remove());
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    cleanups.push(() => outside.remove());
+    const actions = createActions(selectEverything(createSampleProject()));
+    for (const key of ['Delete', 'Backspace', 'Escape']) {
+      const event = new KeyboardEvent('keydown', { key, cancelable: true, bubbles: true });
+      Object.defineProperty(event, 'target', { value: outside });
+      expect(handleAppKeyDown(event, actions), key).toBe(false);
+    }
+    expect(actions.handleMenuAction).not.toHaveBeenCalled();
+    expect(actions.selectNone).not.toHaveBeenCalled();
+  });
+
   it('routes Delete through the menu layer so CP mode can delete selected lines', () => {
     const actions = createActions({ kind: 'tree' });
     const event = new KeyboardEvent('keydown', { key: 'Delete', cancelable: true });

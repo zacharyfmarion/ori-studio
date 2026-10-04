@@ -127,6 +127,16 @@ export function isShortcutBarrierTarget(target: EventTarget | null): boolean {
   return target.closest('[data-shortcut-barrier]') !== null;
 }
 
+/**
+ * Is a modal dialog that owns every key open? Then no key acts on the
+ * workspace behind it, wherever it was aimed: a dialog keeps focus inside it,
+ * but a key that slipped out with focus must still find nothing to act on.
+ */
+export function isShortcutBarrierOpen(): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.querySelector('[role="dialog"][aria-modal="true"][data-shortcut-barrier]') !== null;
+}
+
 export function handleShortcutKeyDown(
   event: KeyboardEvent,
   options: ShortcutDispatchOptions

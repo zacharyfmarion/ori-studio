@@ -60,6 +60,9 @@ describe('the browser’s selection', () => {
     // Pressed alone, it takes the keyboard and changes nothing.
     const alone = browserSelection.press(browserSelection.empty(), strip(), 5, { range: false, finished: false });
     expect(alone).toMatchObject({ indices: new Set(), focus: 5 });
+    // A range to it still takes the cards up to it, and reaches on from where it began.
+    const early = browserSelection.press(press(browserSelection.empty(), 1), strip(), 5, { range: true, finished: false });
+    expect(early).toMatchObject({ indices: new Set([1, 2, 3]), pivot: 1, focus: 5 });
   });
 
   it('starts a Shift+press with nothing pressed yet as a press', () => {
@@ -79,6 +82,9 @@ describe('the browser’s selection', () => {
     expect(browserSelection.step(cards, 5, 'next')).toBe(5);
     expect(browserSelection.step(cards, 5, 'previous')).toBe(3);
     expect(browserSelection.step(cards, 0, 'previous')).toBe(0);
+    // From a card that does not read (a press focuses it): on to the nearest that does.
+    expect(browserSelection.step(cards, 4, 'next')).toBe(5);
+    expect(browserSelection.step(cards, 4, 'previous')).toBe(3);
     // From nothing: forward from the start, back from the end.
     expect(browserSelection.step(cards, null, 'next')).toBe(0);
     expect(browserSelection.step(cards, null, 'previous')).toBe(5);

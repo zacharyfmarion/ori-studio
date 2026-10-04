@@ -46,8 +46,10 @@ export const browserSelection = {
   /**
    * A press on a card: it is added, or taken away when it was chosen. With
    * `range`, every card from the last one pressed to this one, both included,
-   * is added — or taken away, when the last press took its card away. A card
-   * that cannot be chosen takes the keyboard but changes nothing.
+   * is added — or taken away, when the last press took its card away — those
+   * that cannot be chosen left out. A card that cannot be chosen takes the
+   * keyboard; pressed alone it changes nothing, and a range to it keeps the
+   * card the range reached from.
    */
   press(
     selection: BrowserSelection,
@@ -55,9 +57,11 @@ export const browserSelection = {
     index: number,
     { range, finished }: { range: boolean; finished: boolean }
   ): BrowserSelection {
-    if (!selectable(cards[index], finished)) return { ...selection, focus: index };
+    const choosable = selectable(cards[index], finished);
+    const ranging = range && selection.pivot !== null;
+    if (!choosable && !ranging) return { ...selection, focus: index };
     const indices = new Set(selection.indices);
-    if (range && selection.pivot !== null) {
+    if (ranging && selection.pivot !== null) {
       const adding = selection.indices.has(selection.pivot);
       const from = Math.min(selection.pivot, index);
       const to = Math.max(selection.pivot, index);
@@ -71,7 +75,7 @@ export const browserSelection = {
     } else {
       indices.add(index);
     }
-    return { indices, pivot: index, focus: index };
+    return { indices, pivot: choosable ? index : selection.pivot, focus: index };
   },
 
   /** The keyboard moved: it is on `index` now, and nothing chosen changes. */
@@ -82,14 +86,19 @@ export const browserSelection = {
   /**
    * The card a keyboard move lands on, from `from` (where the keyboard is):
    * the one before or after it, or the first or last — skipping a card that
-   * does not read. From nothing, back starts at the end and forward at the
-   * start. Null with no card to land on.
+   * does not read, from one too (a press focuses it). From nothing, back
+   * starts at the end and forward at the start. Null with no card to land on.
    */
   step(cards: readonly BrowserCard[], from: number | null, to: BrowserStep): number | null {
     const open = cards.filter((card) => card.step).map((card) => card.index);
     if (open.length === 0) return null;
     const at = from === null ? -1 : open.indexOf(from);
     const last = open.length - 1;
+    if (from !== null && at < 0) {
+      // On a card that does not read: the nearest one that does, that way.
+      if (to === 'next') return open.find((index) => index > from) ?? open[last]!;
+      if (to === 'previous') return [...open].reverse().find((index) => index < from) ?? open[0]!;
+    }
     switch (to) {
       case 'first':
         return open[0]!;

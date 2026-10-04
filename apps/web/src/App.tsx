@@ -166,6 +166,13 @@ export default function App() {
 
   return (
     <TooltipProvider>
+      {/* First: modals share a z-index, so the later in the document is on top.
+          The References browser opens only from the Diagram under every other
+          modal, but the native menu can open one over it — Export, Settings,
+          About — and that one has to come later to be on top. */}
+      <OverlayErrorBoundary id="diagram-references">
+        <DiagramReferencesModal />
+      </OverlayErrorBoundary>
       <OverlayErrorBoundary id="help">
         <HelpModal />
       </OverlayErrorBoundary>
@@ -187,9 +194,6 @@ export default function App() {
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="diagram-export">
         <DiagramExportModal />
-      </OverlayErrorBoundary>
-      <OverlayErrorBoundary id="diagram-references">
-        <DiagramReferencesModal />
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="settings">
         <SettingsModal />

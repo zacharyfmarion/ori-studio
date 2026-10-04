@@ -3,6 +3,7 @@ import type { Selection } from './sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
 import {
   isOpenLayerTarget,
+  isShortcutBarrierOpen,
   isShortcutBarrierTarget,
   isShortcutEditingTarget,
 } from '../keyboard/shortcutDispatcher';
@@ -67,6 +68,7 @@ export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActio
     event.defaultPrevented ||
     isOpenLayerTarget(event.target) ||
     isShortcutBarrierTarget(event.target) ||
+    isShortcutBarrierOpen() ||
     actions.isReadingSitePage?.() ||
     actions.isCommandDialogOpen?.()
   ) {
