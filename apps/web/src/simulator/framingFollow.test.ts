@@ -3,6 +3,7 @@ import {
   FRAMING_DEAD_BAND,
   FRAMING_EASE_MS,
   FRAMING_MEASURE_MS,
+  anchorFraming,
   createFramingFollow,
   followFraming,
   framingOf,
@@ -120,12 +121,58 @@ describe('framingOf with pinned nodes', () => {
   it('centres on the model when nothing is pinned', () => {
     expect(framingOf(positions)).toEqual({ center: [4, 0, 0], radius: 4 });
     expect(framingOf(positions, null)).toEqual({ center: [4, 0, 0], radius: 4 });
-    expect(framingOf(positions, [])).toEqual({ center: [4, 0, 0], radius: 4 });
+    expect(framingOf(positions, { nodes: [], offset: [9, 9, 9] })).toEqual({
+      center: [4, 0, 0],
+      radius: 4,
+    });
   });
 
-  it('centres on the pinned nodes, and reaches the whole model from there', () => {
-    // Centred on the pin, the radius has to span the far end to keep it in frame.
-    expect(framingOf(positions, [0])).toEqual({ center: [0, 0, 0], radius: 8 });
-    expect(framingOf(positions, Uint32Array.from([0, 1]))).toEqual({ center: [2, 0, 0], radius: 6 });
+  it('holds the centre to the pinned nodes, and reaches the whole model from there', () => {
+    // Held one unit right of the pin, the radius has to span the far end.
+    expect(framingOf(positions, { nodes: [0], offset: [1, 0, 0] })).toEqual({
+      center: [1, 0, 0],
+      radius: 7,
+    });
+  });
+});
+
+describe('anchorFraming', () => {
+  const flat = new Float32Array([0, 0, 0, 4, 0, 0, 8, 0, 0]);
+
+  it('moves nothing on screen when the pins are set', () => {
+    const follow = createFramingFollow();
+    followFraming(follow, 0, () => framingOf(flat), true);
+    anchorFraming(follow, [0], flat);
+
+    // Framed exactly where it was, about the model's centre.
+    expect(framingOf(flat, follow.anchor).center).toEqual([4, 0, 0]);
+  });
+
+  it('keeps the pinned region still while the rest of the model moves', () => {
+    const follow = createFramingFollow();
+    followFraming(follow, 0, () => framingOf(flat), true);
+    anchorFraming(follow, [0], flat);
+    // The far end folds back over the pinned one; the pin does not move.
+    const folded = new Float32Array([0, 0, 0, 4, 0, 0, 1, 3, 0]);
+
+    expect(framingOf(folded, follow.anchor).center).toEqual([4, 0, 0]);
+    // Unanchored, the camera would have slid to the new centroid.
+    expect(framingOf(folded).center[0]).toBeCloseTo(5 / 3);
+  });
+
+  it('frames as the shape would before anything was drawn', () => {
+    const follow = createFramingFollow();
+    anchorFraming(follow, [2], flat);
+    expect(framingOf(flat, follow.anchor).center).toEqual([4, 0, 0]);
+  });
+
+  it('lets go when the pins are cleared', () => {
+    const follow = createFramingFollow();
+    anchorFraming(follow, [0], flat);
+    anchorFraming(follow, [], flat);
+    expect(follow.anchor).toBeNull();
+    anchorFraming(follow, [0], flat);
+    anchorFraming(follow, null, flat);
+    expect(follow.anchor).toBeNull();
   });
 });

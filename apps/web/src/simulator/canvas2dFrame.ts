@@ -22,6 +22,7 @@ import type {
 import { erodeSegment } from "../lib/paper/paperSvg";
 import {
   createFramingFollow,
+  anchorFraming,
   followFraming,
   framingOf,
   type FramingFollow,
@@ -120,6 +121,8 @@ interface SimulatorSurface {
    * positions are copied because the frame's buffer goes back to the worker.
    */
   drawn?: { positions: Float32Array; camera: CameraUniforms };
+  /** The pinned set the framing's anchor was taken for; see `anchorFraming`. */
+  anchorFor?: ReadonlySet<number>;
 }
 
 const surfaceCache = new WeakMap<HTMLCanvasElement, SimulatorSurface>();
@@ -190,13 +193,16 @@ export function drawFrame(
   const positions = frame.positions;
   if (!positions) return true;
 
-  // The shape as it is, eased, as the GPU path's camera follows it — about
+  // The shape as it is, eased, as the GPU path's camera follows it — held to
   // the pinned faces, when there are any, so they stay put on screen.
-  const anchor = pinnedNodes(model, highlights.pinned);
+  if (surface.anchorFor !== highlights.pinned) {
+    surface.anchorFor = highlights.pinned;
+    anchorFraming(surface.framing, pinnedNodes(model, highlights.pinned), positions);
+  }
   const { framing, arrived } = followFraming(
     surface.framing,
     performance.now(),
-    () => framingOf(positions, anchor),
+    () => framingOf(positions, surface.framing.anchor),
     frame.converged,
   );
   surface.drawn = {

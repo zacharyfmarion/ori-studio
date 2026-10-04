@@ -12,6 +12,7 @@ import {
 } from './foldedMeshSource';
 import {
   createFramingFollow,
+  anchorFraming,
   followFraming,
   framingOf,
   type FramingFollow,
@@ -297,11 +298,6 @@ interface SessionView {
    * what a pick has to project through to answer for the picture on screen.
    */
   drawn?: CameraUniforms;
-  /**
-   * The pinned nodes, which the framing centres on instead of the model so a
-   * pinned region stays put on screen; null when nothing is pinned.
-   */
-  anchorNodes?: Uint32Array | null;
 }
 
 const DEFAULT_RENDER_SETTINGS: RenderSettings = {
@@ -1265,7 +1261,15 @@ const api = {
 
     active.backend.setFixedNodes(nodes.length > 0 ? mask : null);
     active.gpuRender?.setHighlightTriangles(triangles);
-    active.view.anchorNodes = nodes.length > 0 ? Uint32Array.from(nodes) : null;
+    // Hold the camera to the pins from where it is framing now, so the pinned
+    // region stays put on screen; see `anchorFraming`.
+    const positions = new Float32Array(vertexCount * 3);
+    active.backend.readPositions(positions);
+    anchorFraming(
+      (active.view.framing ??= createFramingFollow()),
+      nodes.length > 0 ? Uint32Array.from(nodes) : null,
+      positions
+    );
     // Released faces have somewhere to go, and a settled clock would not let them.
     active.clock.invalidate();
 
@@ -2096,7 +2100,7 @@ function followFit(solver: WebglSolver, state: SessionView, settled: boolean): b
     () => {
       const positions = new Float32Array(solver.vertexCount * 3);
       solver.readPositions(positions);
-      return framingOf(positions, state.anchorNodes);
+      return framingOf(positions, state.framing?.anchor);
     },
     settled
   );
