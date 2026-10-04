@@ -798,14 +798,17 @@ Each step is its own commit; the moves change nothing on screen.
 - [x] **Errors:** toasts, `reportError` surfaces, notices (strain threshold
       calibrated on settled frames; see the error table)
 - [x] **i18n:** eight locales, stamped, `i18n:check`
-- [ ] **Browser verification** on a real crease pattern, on the GPU path and the
+- [x] **Browser verification** on a real crease pattern, on the GPU path and the
       canvas-2D fallback, in light and dark themes, with a coarse pointer and at
-      phone width:
+      phone width (headless Chromium against the dev server, on Oriedita's
+      `birdbase.cp`; the agent pane was hidden, which freezes rAF):
   - pin by box (both toggle states) and by click; scrub, play, Restart, unpin;
   - the pinned region does not move on screen;
   - the worker goes idle after settling with pins;
   - Edit's tool window, Tools pill and sheet are unchanged.
   - On a phone: the pill opens the sheet, a pick switches tools and closes it,
     Escape and a backdrop tap close it without touching the model.
-- [ ] `npm run lint:web`, `typecheck:web`, `test:web`; package tests and benches;
-      draft PR
+- [x] `npm run lint:web`, `typecheck:web`, `test:web` (9,057 tests); package
+      tests (361); a production bundle builds. The GPU benches ran in the engine
+      phase, and the package has not changed since.
+- [ ] Draft PR — waiting on a go-ahead after hands-on testing.
