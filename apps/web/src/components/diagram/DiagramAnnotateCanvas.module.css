@@ -126,3 +126,39 @@
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
+
+/*
+ * A snap target (decision 9): where a press would land, or the ends in hand
+ * have. A white halo under the mark, so it reads on any picture.
+ */
+.snapHalo {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 4px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.snapHalo * {
+  vector-effect: non-scaling-stroke;
+}
+
+.snapMark {
+  fill: none;
+  stroke: var(--annotate-selection);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.snapMark * {
+  vector-effect: non-scaling-stroke;
+}
+
+/* A vertex's dot, and the dot in an annotation's ring, are solid. */
+.snapMark[data-filled],
+.snapMark [data-dot] {
+  fill: var(--annotate-selection);
+}

@@ -5,6 +5,7 @@ import { drawingKind } from '../../diagram/annotate/annotateTools';
 import { arrowPolyline } from '../../diagram/annotate/annotationHit';
 import { pathNodesOf, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
+import type { SnapTarget } from '../../diagram/annotate/pictureSnap';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import { CIRCLE_RADIUS, GLYPH_REACH, useAnnotateCanvas, type AnnotateLayout } from '../../diagram/annotate/useAnnotateCanvas';
 import { canBeShaped, labelHalfWidth, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
@@ -22,6 +23,8 @@ import styles from './DiagramAnnotateCanvas.module.css';
 
 /** An end's dot, in screen px. */
 const HANDLE_PX = 5;
+/** A snap target's mark, in screen px: half its size. */
+const SNAP_PX = 5;
 /** Edit Path's grips, in screen px: a node's half-size and a handle's dot — larger for a finger. */
 const NODE_PX = { fine: 4.5, coarse: 7 } as const;
 const PATH_HANDLE_PX = { fine: 3.5, coarse: 5.5 } as const;
@@ -133,6 +136,7 @@ export function DiagramAnnotateCanvas({
                     // Edit Path moves nothing it cannot shape: no ends to offer.
                     <Selection annotation={selected} layout={layout} zoom={zoom} movable={!readOnly && !canvas.editingPath} />
                   ))}
+                <SnapTargets targets={canvas.snapTargets} layout={layout} zoom={zoom} />
               </svg>
             </div>
           )}
@@ -275,4 +279,58 @@ function PathSelection({
       })}
     </g>
   );
+}
+
+/**
+ * Where a press would land, or where the ends in hand have (decision 9), over
+ * everything, in the selection's colour on a white halo: a mark for what the
+ * target is — a dot where lines meet, a ring where one ends, a square at a
+ * corner of the paper, a diamond on a References mark, a cross where two lines
+ * cross, a ring round a dot on another annotation. Sized for the screen.
+ */
+function SnapTargets({ targets, layout, zoom }: { targets: readonly SnapTarget[]; layout: AnnotateLayout; zoom: number }) {
+  if (targets.length === 0) return null;
+  const size = SNAP_PX / zoom;
+  return (
+    <g data-snap-targets="">
+      {targets.map((target, index) => {
+        const x = layout.frame.x + target.at[0] * layout.unit;
+        const y = layout.frame.y + target.at[1] * layout.unit;
+        const mark = snapMark(target.kind, x, y, size);
+        return (
+          <g key={index} data-snap-target={target.kind}>
+            <g className={styles.snapHalo}>{mark}</g>
+            <g className={styles.snapMark} data-filled={target.kind === 'vertex' || undefined}>
+              {mark}
+            </g>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** A target's mark at (`x`, `y`), `size` its half-width: a switch, so a new kind of target has to say. */
+function snapMark(kind: SnapTarget['kind'], x: number, y: number, size: number) {
+  switch (kind) {
+    case 'vertex':
+      return <circle cx={x} cy={y} r={size * 0.7} />;
+    case 'end':
+      return <circle cx={x} cy={y} r={size * 0.8} />;
+    case 'corner':
+      return <rect x={x - size * 0.8} y={y - size * 0.8} width={size * 1.6} height={size * 1.6} />;
+    case 'point':
+      return <path d={`M ${x} ${y - size} L ${x + size} ${y} L ${x} ${y + size} L ${x - size} ${y} Z`} />;
+    case 'crossing':
+      return (
+        <path d={`M ${x - size} ${y - size} L ${x + size} ${y + size} M ${x + size} ${y - size} L ${x - size} ${y + size}`} />
+      );
+    case 'annotation':
+      return (
+        <>
+          <circle cx={x} cy={y} r={size} />
+          <circle cx={x} cy={y} r={size * 0.3} data-dot="" />
+        </>
+      );
+  }
 }

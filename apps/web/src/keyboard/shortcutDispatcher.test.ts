@@ -25,6 +25,29 @@ describe('shortcut dispatcher', () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it('runs nothing for ⌘ or Ctrl pressed alone, held or repeating: Annotate’s free placement holds it mid-drag', () => {
+    const diagram = vi.fn().mockReturnValue(true);
+    const viewport = vi.fn().mockReturnValue(true);
+    const menu = vi.fn();
+    for (const init of [
+      { key: 'Meta', metaKey: true },
+      { key: 'Control', ctrlKey: true },
+      { key: 'Meta', metaKey: true, repeat: true },
+    ]) {
+      const event = new KeyboardEvent('keydown', { ...init, bubbles: true, cancelable: true });
+      expect(
+        handleShortcutKeyDown(event, {
+          scopeStack: ['diagram-path', 'diagram', 'viewport', 'global'],
+          executors: { diagram, viewport, menu },
+        })
+      ).toBe(false);
+      expect(event.defaultPrevented).toBe(false);
+    }
+    expect(diagram).not.toHaveBeenCalled();
+    expect(viewport).not.toHaveBeenCalled();
+    expect(menu).not.toHaveBeenCalled();
+  });
+
   // The reason `viewport.delete` can share Delete with `edit.delete`: the
   // viewport is asked first and answers whether it owns this particular press.
   describe('viewport decline', () => {
