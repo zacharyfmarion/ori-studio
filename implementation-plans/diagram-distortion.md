@@ -104,9 +104,10 @@ All in TypeScript, after the kernel's fold and before `storeScene`:
 Refresh, Turn Over, Rotate, layer-order paging, Show As and remembered poses
 (`withRememberedPoses`, `renderToShowAs`), and Reset Pose (which keeps it: the
 spread has its own off switch). The file reader validates it; an unknown field
-on a render — this one included, on a build without it — must read as a newer
-build's render rather than be dropped, remembered renders included: that rule
-is added here, before the format leaves this branch.
+on a render — this one included, on a build without it — must make the step a
+newer build's, carried whole and locked, rather than be dropped, remembered
+renders included: that rule is added here, before the format leaves this
+branch.
 
 ### Annotations
 
@@ -200,10 +201,35 @@ defaults he has not seen yet and are cheap to change.
   `artifacts/diagram-spread/pair-*.png` (`spread-pictures.mjs`).
 
 ### 13d. Document and capture
-- [ ] `spread` on the render; reader, writer, validators, round trips; the
-  "unknown render field is newer" rule, remembered renders included.
-- [ ] Threading through capture, Refresh, Turn Over, Rotate, paging, Show As,
-  remembered poses, Reset; the session's held scene; annotation carry.
+- [x] `spread` on the render; reader, writer, validators, round trips; the
+  "unknown render field is newer" rule, remembered renders included. As
+  built: the reader knows each render mode's fields (`CP_RENDER_FIELDS`); a
+  key it does not know on the render or on any remembered render, a
+  remembered render of a mode it does not know, a way under `remembered` it
+  does not know, or a spread with an unknown field, an unknown direction or
+  an amount past 20% makes the *step* a newer build's, carried whole and
+  locked — the file's existing rule for unknown content at any depth (plan
+  text corrected: not "a newer build's render", which has no carrier of its
+  own). A spread of the wrong type, with no step (`amount <= 0`) or no
+  direction is damage, judged as any other render field's: the link and its
+  picture are dropped and the words kept. `clampSpreadAmount` holds what a
+  verb writes to 0.5%–20%, to a hundredth of a percent.
+- [x] Threading through capture, Refresh, Turn Over, Rotate, paging, Show As,
+  remembered poses, Reset; the session's held scene; annotation carry. As
+  built: the session keeps what it read of its flat fold (`FlatHold.read`,
+  the kernel's paper scene and snapshot) until the fold changes, so a turn
+  or a spread draws again with no kernel call (`flatPicture`, split out of
+  `readFlatPicture`); `heldFlatPicture` draws it synchronously for a
+  preview. The controller's `previewSpread` draws from the held fold (or
+  folds once, as a capture, when nothing is held) and `commitSpread` commits
+  the newest amount, waiting for the controller's own capture rather than
+  being refused as busy; the preview ends when the newest lands. Spread
+  Layers starts from `nearestEarlierSpread` (the current render of the
+  nearest earlier linked step, turns and newer steps skipped). Carry:
+  `pictureMove` takes a changed spread at the same side and order as a move
+  by the turn alone. Not kept: a flat fold whose creases now fold in 3D (a
+  partial fold added) is captured in 3D, which has no spread, and comes back
+  flat without one.
 
 ### 13e. Pose UI
 - [ ] Verbs, toolbar, Step pane (amount, direction), phone drawer, undo,

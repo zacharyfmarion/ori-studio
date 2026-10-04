@@ -87,8 +87,9 @@ export type DiagramAnnotationTool =
 /**
  * A pose verb: on an uploaded picture (rotate, flip, reset), or on a linked one
  * (show it as its crease pattern, folded or simulated, turn it over, step to
- * another layer order, look from a named side, orbit the 3D view, or bring
- * Pose's simulator to rest at a fold % and camera).
+ * another layer order, look from a named side, orbit the 3D view, bring
+ * Pose's simulator to rest at a fold % and camera, or spread a flat fold's
+ * layers: on, off, another amount or another direction).
  */
 export type DiagramPoseAction =
   | 'rotate_left'
@@ -107,7 +108,28 @@ export type DiagramPoseAction =
   | 'orbit'
   | 'rotate_to'
   | 'show_simulated'
-  | 'simulate';
+  | 'simulate'
+  | 'spread_on'
+  | 'spread_off'
+  | 'spread_amount'
+  | 'spread_direction';
+
+/** Where a flat fold's deeper layers step to, on the screen (Phase 13), in the event's own spelling. */
+export type DiagramSpreadDirection =
+  | 'up_left'
+  | 'up'
+  | 'up_right'
+  | 'right'
+  | 'down_right'
+  | 'down'
+  | 'down_left'
+  | 'left';
+
+/**
+ * How far a spread steps the deepest layer, in percent of the model, bucketed
+ * about the default 5%: `<=2.5`, `<=7.5`, `<=12.5`, `>12.5`. Never the value.
+ */
+export const DIAGRAM_SPREAD_PERCENT_BUCKETS = [2.5, 7.5, 12.5] as const;
 
 /**
  * What a step's picture is: an upload, by what it is stored as, or a capture

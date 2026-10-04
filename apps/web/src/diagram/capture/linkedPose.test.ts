@@ -360,6 +360,119 @@ describe('posing a flat fold', () => {
   });
 });
 
+describe('a flat fold’s spread (Phase 13)', () => {
+  const SPREAD = { amount: 0.08, toward: 'down-right' as const };
+  const SPREAD_FLAT: DiagramCpRender = { ...FLAT, spread: SPREAD };
+
+  /** The faces a posed picture draws. */
+  function facesOf(result: Awaited<ReturnType<typeof pose>>): number[] {
+    if (result.status !== 'posed' || result.picture.kind !== 'picture' || result.picture.picture.kind !== 'scene') {
+      throw new Error('expected a scene');
+    }
+    const scene = JSON.parse(result.picture.picture.sceneJson) as { items: Array<{ kind: string; face: number }> };
+    return scene.items.filter((item) => item.kind === 'face').map((item) => item.face);
+  }
+
+  it('keeps it through every other verb: Turn Over, Rotate, the layer orders, Show Folded and Reset Pose', async () => {
+    const runtime = fakeCaptureRuntime({
+      foldAnother: vi.fn(async () => ({ discoveredCases: 2, displayStyle: 'Paper5' as const, currentCase: 2, hasNext: false })),
+    });
+    const { session } = sessionWith(runtime);
+    const document = cpDocument();
+    const requests: Array<[DiagramCpRender, LinkedPoseRequest, Partial<DiagramCpRender>]> = [
+      [SPREAD_FLAT, { verb: 'turn-over' }, { side: 'back', rotationDeg: 330 }],
+      [SPREAD_FLAT, { verb: 'rotate-left' }, { rotationDeg: 15 }],
+      [SPREAD_FLAT, { verb: 'rotate-right' }, { rotationDeg: 45 }],
+      [SPREAD_FLAT, { verb: 'rotate-to', degrees: 200 }, { rotationDeg: 200 }],
+      [SPREAD_FLAT, { verb: 'next-solution' }, { foldCase: 2 }],
+      [{ ...SPREAD_FLAT, foldCase: 2 }, { verb: 'previous-solution' }, { foldCase: 1 }],
+      [SPREAD_FLAT, { verb: 'show-folded' }, { rotationDeg: 30 }],
+      // The spread has its own off switch.
+      [{ ...SPREAD_FLAT, side: 'back' }, { verb: 'reset' }, { side: 'front', rotationDeg: 0, foldCase: 1 }],
+    ];
+    for (const [render, request, expected] of requests) {
+      const result = await pose(session, render, request, document);
+      expect(result, request.verb).toMatchObject({ render: { mode: 'folded-flat', ...expected, spread: SPREAD } });
+      // Every face kept: a layer the drawer covered may show an edge now.
+      expect(facesOf(result).sort(), request.verb).toEqual([0, 1]);
+    }
+  });
+
+  it('turns it on from the step before, or the default, and off again, drawing the buried face only while on', async () => {
+    const { session } = sessionWith();
+    const document = cpDocument();
+    const on = (spreadStart?: { amount: number; toward: 'up' }) =>
+      poseLinkedStep(
+        session,
+        { document, creases: creasesOf(document), render: FLAT, style: DEFAULT_DIAGRAM_STYLE, spreadStart },
+        { verb: 'spread-layers' }
+      );
+    expect(await on()).toMatchObject({ render: { spread: { amount: 0.05, toward: 'up-left' } } });
+    expect(await on({ amount: 0.12, toward: 'up' })).toMatchObject({ render: { spread: { amount: 0.12, toward: 'up' } } });
+    const off = await pose(session, SPREAD_FLAT, { verb: 'spread-layers' }, document);
+    expect(off.status === 'posed' && off.render).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 30, foldCase: 1 });
+    expect(facesOf(off)).toEqual([0]);
+  });
+
+  it('sets the amount within its range and the direction, and neither turns on a spread that is off', async () => {
+    const { session } = sessionWith();
+    const document = cpDocument();
+    const cases: Array<[LinkedPoseRequest, DiagramCpRender, unknown]> = [
+      [{ verb: 'spread-amount', amount: 0.123456 }, SPREAD_FLAT, { amount: 0.1235, toward: 'down-right' }],
+      [{ verb: 'spread-amount', amount: 0.9 }, SPREAD_FLAT, { amount: 0.2, toward: 'down-right' }],
+      [{ verb: 'spread-amount', amount: 0 }, SPREAD_FLAT, { amount: 0.005, toward: 'down-right' }],
+      [{ verb: 'spread-direction', toward: 'left' }, SPREAD_FLAT, { amount: 0.08, toward: 'left' }],
+      [{ verb: 'spread-amount', amount: 0.1 }, FLAT, undefined],
+      [{ verb: 'spread-direction', toward: 'left' }, FLAT, undefined],
+    ];
+    for (const [request, render, spread] of cases) {
+      const result = await pose(session, render, request, document);
+      expect(result.status === 'posed' && result.render.mode === 'folded-flat' && result.render.spread).toEqual(
+        spread ?? undefined
+      );
+    }
+  });
+
+  it('spreads and turns the held fold again with no call to the kernel; another side reads it again', async () => {
+    const { session, runtime } = sessionWith();
+    const document = cpDocument();
+    await pose(session, SPREAD_FLAT, { verb: 'show-folded' }, document);
+    const reads = () => [vi.mocked(runtime.paperScene).mock.calls.length, vi.mocked(runtime.renderSnapshot).mock.calls.length];
+    const read = reads();
+    await pose(session, SPREAD_FLAT, { verb: 'spread-amount', amount: 0.15 }, document);
+    await pose(session, SPREAD_FLAT, { verb: 'spread-direction', toward: 'up' }, document);
+    await pose(session, SPREAD_FLAT, { verb: 'spread-layers' }, document);
+    await pose(session, FLAT, { verb: 'spread-layers' }, document);
+    await pose(session, SPREAD_FLAT, { verb: 'rotate-right' }, document);
+    expect(reads()).toEqual(read);
+    await pose(session, SPREAD_FLAT, { verb: 'turn-over' }, document);
+    expect(reads()).toEqual([read[0]! + 1, read[1]! + 1]);
+    expect(runtime.fold).toHaveBeenCalledOnce();
+  });
+
+  it('draws the held fold now for a preview, and nothing for another side, layer order or pattern', async () => {
+    const { session } = sessionWith();
+    const document = cpDocument();
+    const held = { document, side: 'front' as const, foldCase: 1 };
+    expect(session.heldFlatPicture(held, 0, SPREAD)).toBeNull();
+    await pose(session, SPREAD_FLAT, { verb: 'show-folded' }, document);
+    expect(session.heldFlatPicture(held, 30, SPREAD)).toMatchObject({ kind: 'picture', picture: { kind: 'scene' } });
+    expect(session.heldFlatPicture({ ...held, side: 'back' }, 30, SPREAD)).toBeNull();
+    expect(session.heldFlatPicture({ ...held, foldCase: 2 }, 30, SPREAD)).toBeNull();
+    expect(session.heldFlatPicture({ ...held, document: cpDocument() }, 30, SPREAD)).toBeNull();
+    session.dispose();
+    expect(session.heldFlatPicture(held, 30, SPREAD)).toBeNull();
+  });
+
+  it('remembers it while the pattern is shown, and folds back to it (D19)', async () => {
+    const { session } = sessionWith();
+    const document = cpDocument();
+    const folded = await pose(session, CP, { verb: 'show-folded' }, document, { folded: SPREAD_FLAT });
+    expect(folded).toMatchObject({ render: SPREAD_FLAT });
+    expect(facesOf(folded).sort()).toEqual([0, 1]);
+  });
+});
+
 describe('posing a 3D fold', () => {
   const THREE_D: DiagramCpRender = { mode: 'folded-3d', camera: DEFAULT_FOLDED_3D_CAMERA, side: 'front' };
   const partial = () => cpDocument(undefined, (cp, id) => (id === 8 ? { ...cp, fold_magnitude: 90 } : cp));

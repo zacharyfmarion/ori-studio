@@ -418,6 +418,15 @@ describe('uploaded pictures in the file', () => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a file read back, damaged on purpose
 type WrittenSource = Record<string, any>;
 
+/** A flat fold with its layers spread (Phase 13). */
+const SPREAD_FLAT = {
+  mode: 'folded-flat' as const,
+  side: 'front' as const,
+  rotationDeg: 0,
+  foldCase: 1,
+  spread: { amount: 0.075, toward: 'down-right' as const },
+};
+
 /** A linked step of each render mode, with each kind of captured picture. */
 function linkedDiagram() {
   const ids = sequentialIds();
@@ -451,6 +460,16 @@ function linkedDiagram() {
       foldPercent: 40.5,
       view: { yaw: 0.8, pitch: -0.9, zoom: 1.4, orient: [1, 0, 0, 0, 0, -1, 0, 1, 0] },
     }),
+    // Its layers spread (Phase 13).
+    cpStep('step-spread', { ...SPREAD_FLAT, rotationDeg: 15 }),
+    // Shown as its pattern, remembering a spread fold to come back to (D19).
+    {
+      ...cpStep('step-remembers-spread', { mode: 'crease-pattern', rotationDeg: 0 }),
+      source: {
+        ...cpStep('step-remembers-spread', { mode: 'crease-pattern', rotationDeg: 0 }).source!,
+        remembered: { folded: SPREAD_FLAT },
+      } as DiagramCpSource,
+    },
   ];
   const diagram = createDiagram({ title: 'Crane', newId: ids });
   return insertSteps(diagram, steps, 0);
@@ -567,8 +586,77 @@ describe('linked steps in the file', () => {
   });
 
   it.each([
+    ['no spread', (source: WrittenSource) => delete source.render.spread, null],
+    ['a spread at the most it reads', (source: WrittenSource) => (source.render.spread.amount = 0.2), 0.2],
+    ['a spread finer than a slider sets', (source: WrittenSource) => (source.render.spread.amount = 0.001), 0.001],
+  ])('reads a flat fold with %s', (_label, patch, amount) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    patch(written.steps[7].source);
+    const source = stepsIn(readDiagram(written)!.document)[7].source as DiagramCpSource;
+    expect(source.render).toEqual({
+      mode: 'folded-flat',
+      side: 'front',
+      rotationDeg: 15,
+      foldCase: 1,
+      ...(amount === null ? {} : { spread: { amount, toward: 'down-right' } }),
+    });
+  });
+
+  it.each([
+    ['no step at all', (spread: WrittenSource) => (spread.amount = 0)],
+    ['a step back', (spread: WrittenSource) => (spread.amount = -0.05)],
+    ['an amount that is not a number', (spread: WrittenSource) => (spread.amount = '5%')],
+    ['no direction', (spread: WrittenSource) => delete spread.toward],
+    ['a direction that is not a name', (spread: WrittenSource) => (spread.toward = 315)],
+  ])('drops a link whose spread has %s, and the picture with it; the words stay', (_label, damage) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[7].text = 'Fold it.';
+    damage(written.steps[7].source.render.spread);
+    const step = stepsIn(readDiagram(written)!.document)[7];
+    expect(step).toMatchObject({ source: null, picture: null, text: 'Fold it.' });
+    expect(step.unknown).toBeUndefined();
+  });
+
+  it.each([
+    ['a spread that is not one', (source: WrittenSource) => (source.render.spread = true)],
+    ['a spread of null', (source: WrittenSource) => (source.render.spread = null)],
+  ])('drops a link with %s', (_label, damage) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    damage(written.steps[7].source);
+    expect(stepsIn(readDiagram(written)!.document)[7].source).toBeNull();
+  });
+
+  it.each([
     ['a scope it does not know', (source: WrittenSource) => (source.scope = { kind: 'lasso', path: [1] })],
     ['a render mode it does not know', (source: WrittenSource) => (source.render = { mode: 'animated', percent: 40 })],
+    // An older build would write these back without what it cannot name (Phase 13).
+    ['a field on its render it does not know', (source: WrittenSource) => (source.render.mirrored = true)],
+    ['a spread on a render that has none here', (source: WrittenSource) => {
+      source.render = { mode: 'crease-pattern', rotationDeg: 0, spread: { amount: 0.05, toward: 'up' } };
+    }],
+    ['a spread with a field it does not know', (source: WrittenSource) => {
+      source.render.spread = { amount: 0.05, toward: 'up', easing: 'linear' };
+    }],
+    ['a spread toward a direction it does not know', (source: WrittenSource) => {
+      source.render.spread = { amount: 0.05, toward: 'away' };
+    }],
+    ['a spread past the amount it reads', (source: WrittenSource) => {
+      source.render.spread = { amount: 0.35, toward: 'up' };
+    }],
+    ['a remembered render with a field it does not know', (source: WrittenSource) => {
+      source.remembered['crease-pattern'].mirrored = true;
+    }],
+    ['a remembered render of a mode it does not know', (source: WrittenSource) => {
+      source.remembered['crease-pattern'] = { mode: 'traced', rotationDeg: 30 };
+    }],
+    ['a remembered spread past the amount it reads', (source: WrittenSource) => {
+      source.remembered.folded = { ...source.render, side: 'front', spread: { amount: 0.5, toward: 'up' } };
+      source.render = { mode: 'crease-pattern', rotationDeg: 0 };
+      delete source.remembered['crease-pattern'];
+    }],
+    ['a way of showing it does not know', (source: WrittenSource) => {
+      source.remembered.animated = { mode: 'animated', percent: 40 };
+    }],
   ])('carries, locked and verbatim, a linked step with %s', (_label, newer) => {
     const written = throughJson(writeDiagram(linkedDiagram()));
     newer(written.steps[1].source);

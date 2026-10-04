@@ -72,6 +72,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
         : createPoseController(stepId, {
             spatial: (view, key) => setSpatial(view && key ? { key, view } : null),
             solutions: (value, key) => setFound({ key, value }),
+            preview: () => {},
           }),
     [stepId]
   );

@@ -30,6 +30,7 @@ export type DiagramLinkedPoseActionId =
   | 'view-top'
   | 'view-front'
   | 'view-iso'
+  | 'spread-layers'
   | 'reset';
 
 export interface DiagramLinkedPoseAction {

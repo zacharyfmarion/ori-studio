@@ -15,6 +15,7 @@
  */
 
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
+import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
 import type { RegionReference } from '../../cp-workspace/regions/regionReference';
 import type { SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
@@ -105,6 +106,11 @@ export type DiagramCpRender =
       rotationDeg: number;
       /** Which layer-ordering solution, 1-based. */
       foldCase: number;
+      /**
+       * The layers stepped apart by depth (Phase 13): a choice about the
+       * picture, kept by every other pose verb. Absent is none.
+       */
+      spread?: DiagramLayerSpread;
     }
   | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back' }
   | {
@@ -114,6 +120,49 @@ export type DiagramCpRender =
       foldPercent: number;
       view: DiagramSimulatedView;
     };
+
+/**
+ * A flat fold's layers stepped apart (`foldedLayerSpread.ts`): the deepest
+ * layer's step as a fraction of the model's size, within
+ * {@link SPREAD_AMOUNT_RANGE}, toward one of eight directions on the screen.
+ */
+export type DiagramLayerSpread = LayerSpreadOptions;
+
+/** How far a spread may step the deepest layer: 0.5% to 20% of the model. */
+export const SPREAD_AMOUNT_RANGE = { min: 0.005, max: 0.2 } as const;
+
+/**
+ * An amount a spread may take: within {@link SPREAD_AMOUNT_RANGE}, to a
+ * hundredth of a percent, so a slider's float noise is not written.
+ */
+export function clampSpreadAmount(amount: number): number {
+  const { min, max } = SPREAD_AMOUNT_RANGE;
+  const within = Number.isFinite(amount) ? Math.min(max, Math.max(min, amount)) : DEFAULT_LAYER_SPREAD.amount;
+  return Number(within.toFixed(4));
+}
+
+/** The spread a step starts with when no earlier step has one: 5%, deeper layers up and to the left. */
+export const DEFAULT_LAYER_SPREAD: DiagramLayerSpread = { amount: 0.05, toward: 'up-left' };
+
+/**
+ * The spread of the nearest step before `stepId` whose flat fold has one, for
+ * a step turning its spread on: a diagram's steps spread alike without a
+ * diagram-wide setting. Null when none before it does.
+ */
+export function nearestEarlierSpread(document: DiagramDocument, stepId: string): DiagramLayerSpread | null {
+  for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
+    const entry = document.steps[index]!;
+    if (isTurn(entry) || isLockedStep(entry) || entry.source?.kind !== 'cp') continue;
+    const { render } = entry.source;
+    if (render.mode === 'folded-flat' && render.spread) return render.spread;
+  }
+  return null;
+}
+
+/** Whether two spreads, or their absence, are one. */
+export function sameSpread(a: DiagramLayerSpread | undefined, b: DiagramLayerSpread | undefined): boolean {
+  return a === b || (a !== undefined && b !== undefined && a.amount === b.amount && a.toward === b.toward);
+}
 
 /**
  * A simulated step's camera: the simulator viewport's orbit, its roll kept in

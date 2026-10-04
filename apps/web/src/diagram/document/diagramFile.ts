@@ -27,6 +27,7 @@
  */
 
 import { readFoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
+import { SPREAD_DIRECTIONS, type SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
 import { readRegionReference } from '../../cp-workspace/regions/regionReference';
 import { readSheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import { isBuiltInPaperPresetId } from '../../lib/paper/paperPresets';
@@ -55,6 +56,7 @@ import {
   DIAGRAM_FORMAT_VERSION,
   DIAGRAM_SHOW_AS,
   PAPER_SIZES,
+  SPREAD_AMOUNT_RANGE,
   isTurn,
   showAsOf,
   isKnownAsset,
@@ -77,6 +79,7 @@ import {
   type DiagramPicture,
   type DiagramHanStyle,
   type DiagramIdFactory,
+  type DiagramLayerSpread,
   type DiagramRasterAsset,
   type DiagramShowAs,
   type DiagramStep,
@@ -298,9 +301,18 @@ function writeAsset(asset: DiagramAsset): Record<string, unknown> {
 const SOURCE_KINDS = new Set(['upload', 'cp', 'references-step']);
 /** The picture kinds this build reads. */
 const PICTURE_KINDS = new Set(['asset', 'scene', 'fixed', 'step-diagram']);
-/** Within a crease-pattern source: the scopes and render modes this build reads. */
+/** Within a crease-pattern source: the scopes this build reads. */
 const CP_SCOPE_KINDS = new Set(['segment']);
-const CP_RENDER_MODES = new Set(['crease-pattern', 'folded-flat', 'folded-3d', 'simulated']);
+/**
+ * The render modes this build reads, and the fields each is written with: a
+ * mode or a field it has no name for is a newer build's render.
+ */
+const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<string>>> = {
+  'crease-pattern': new Set(['mode', 'rotationDeg']),
+  'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread']),
+  'folded-3d': new Set(['mode', 'camera', 'side']),
+  simulated: new Set(['mode', 'foldPercent', 'view']),
+};
 
 /** The most a stored scene may be, as JSON: D2's per-step budget, with room. */
 const SCENE_JSON_MAX_BYTES = 4 * 1024 * 1024;
@@ -326,8 +338,9 @@ function readEntry(
 
 /**
  * One step. A source or picture of a kind this build does not know — at any
- * depth: a crease-pattern source's scope or render mode too — makes the step a
- * newer build's, carried whole and locked; and so does one of a known kind
+ * depth: a crease-pattern source's scope, or a render's mode or field, the
+ * remembered ones' too — makes the step a newer build's, carried whole and
+ * locked; and so does one of a known kind
  * that names an asset of a kind this build does not know, which only that
  * newer build can draw. One of a known kind that does not read — or that names
  * an asset the file does not hold, or one dropped on the way in — is left out,
@@ -396,14 +409,35 @@ function isNewerStepDiagram(value: unknown): boolean {
   );
 }
 
-/** A crease-pattern source with a scope or render mode this build does not read. */
+/**
+ * A crease-pattern source with a scope this build does not read, or a render
+ * — the one shown, or one remembered for another way of showing (D19) — that
+ * a newer build wrote. Read here, such a render would be written back without
+ * what this build cannot name, so the step is carried whole instead.
+ */
 function isNewerCpSource(value: unknown): boolean {
   if (!isRecord(value) || value.kind !== 'cp') return false;
-  return isNewerKind(value.scope, CP_SCOPE_KINDS) || isNewerMode(value.render);
+  return isNewerKind(value.scope, CP_SCOPE_KINDS) || isNewerRender(value.render) || isNewerRemembered(value.remembered);
 }
 
-function isNewerMode(value: unknown): boolean {
-  return isRecord(value) && typeof value.mode === 'string' && !CP_RENDER_MODES.has(value.mode);
+/**
+ * A render of a mode, with a field, or with a spread this build does not read.
+ * A render that does not read at all is damage, judged where it is read.
+ */
+function isNewerRender(value: unknown): boolean {
+  if (!isRecord(value) || typeof value.mode !== 'string') return false;
+  if (!Object.hasOwn(CP_RENDER_FIELDS, value.mode)) return true;
+  const fields = CP_RENDER_FIELDS[value.mode as DiagramCpRender['mode']];
+  if (Object.keys(value).some((key) => !fields.has(key))) return true;
+  return value.mode === 'folded-flat' && readSpread(value.spread) === NEWER;
+}
+
+/** Remembered poses under a way of showing this build does not know, or one of them a newer build's render. */
+function isNewerRemembered(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return Object.entries(value).some(
+    ([way, render]) => !(DIAGRAM_SHOW_AS as readonly string[]).includes(way) || isNewerRender(render)
+  );
 }
 
 /** A source or picture naming an asset the table carries but this build cannot read. */
@@ -561,8 +595,17 @@ function readCpRender(value: unknown): DiagramCpRender | null {
       return rotationDeg === null ? null : { mode: 'crease-pattern', rotationDeg: normalizeDegrees(rotationDeg) };
     case 'folded-flat': {
       const foldCase = wholeNumber(value.foldCase);
+      const spread = readSpread(value.spread);
       if (!side || rotationDeg === null || foldCase === null || foldCase < 1) return null;
-      return { mode: 'folded-flat', side, rotationDeg: normalizeDegrees(rotationDeg), foldCase };
+      // A newer build's spread made the step a newer build's before this was reached.
+      if (spread === null || spread === NEWER) return null;
+      return {
+        mode: 'folded-flat',
+        side,
+        rotationDeg: normalizeDegrees(rotationDeg),
+        foldCase,
+        ...(spread ? { spread } : {}),
+      };
     }
     case 'folded-3d': {
       const camera = readFoldedFigureCamera(value.camera);
@@ -577,6 +620,24 @@ function readCpRender(value: unknown): DiagramCpRender | null {
     default:
       return null;
   }
+}
+
+/**
+ * A flat fold's spread (Phase 13): undefined when it has none. A field, a
+ * direction or an amount past what this build reads is a newer build's; one
+ * of the wrong type, or no step at all, is damage.
+ */
+function readSpread(value: unknown): DiagramLayerSpread | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) return null;
+  // A field it has no name for is news before a missing one is damage, as for an annotation.
+  if (Object.keys(value).some((key) => key !== 'amount' && key !== 'toward')) return NEWER;
+  const amount = finiteNumber(value.amount);
+  if (amount === null || amount <= 0 || typeof value.toward !== 'string') return null;
+  if (!(SPREAD_DIRECTIONS as readonly string[]).includes(value.toward) || amount > SPREAD_AMOUNT_RANGE.max) {
+    return NEWER;
+  }
+  return { amount, toward: value.toward as SpreadDirection };
 }
 
 /** An angle in [0, 360), so one rotation is written one way. */

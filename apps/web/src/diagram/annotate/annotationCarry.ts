@@ -13,6 +13,7 @@ import { turnClockwise } from '../../lib/geometry';
 import type { SceneBounds } from '../../lib/paper/paperScene';
 import {
   isKnownAnnotation,
+  sameSpread,
   type DiagramAsset,
   type DiagramCpSource,
   type DiagramStep,
@@ -146,16 +147,22 @@ function pictureMove(
     sameRegion(from, to)
   ) {
     const [was, is] = [from.render, to.render];
-    // Turned, and nothing else: the same mode, and a flat model's same side and
-    // layer order. A camera moved (3D, a simulation) is a new picture.
+    // Turned, its layers spread otherwise, or both, and nothing else: the same
+    // mode, and a flat model's same side and layer order. A camera moved (3D,
+    // a simulation) is a new picture.
     if (was.mode !== is.mode) return null;
     if (was.mode !== 'crease-pattern' && was.mode !== 'folded-flat') return null;
     if (is.mode !== 'crease-pattern' && is.mode !== 'folded-flat') return null;
     if (was.mode === 'folded-flat' && is.mode === 'folded-flat' && (was.side !== is.side || was.foldCase !== is.foldCase)) {
       return null;
     }
+    // A spread steps every layer but the nearest, which stays where it was in
+    // the scene (`foldedLayerSpread.ts`): a mark on the picture's top surface
+    // moves only by the turn — none when only the spread changed. One on a
+    // deeper layer is off by that layer's step.
+    const spread = was.mode === 'folded-flat' && is.mode === 'folded-flat' && !sameSpread(was.spread, is.spread);
     const delta = is.rotationDeg - was.rotationDeg;
-    if (delta === 0) return null;
+    if (delta === 0 && !spread) return null;
     const [sceneBefore, sceneAfter] = [storedScene(before.picture), storedScene(after.picture)];
     if (!sceneBefore || !sceneAfter) return null;
     // The axis a turn-over turns about follows the poses' own quarter turns, so

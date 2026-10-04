@@ -151,6 +151,78 @@ describe('a linked picture turned about its middle', () => {
     expect(moved.annotatedPictureKey).toBe('scene-turned');
   });
 
+  describe('its layers spread (Phase 13)', () => {
+    const FLAT = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };
+    const SPREAD = { amount: 0.05, toward: 'up-left' as const };
+
+    /** The scene with a deeper layer stepped up and to the left: the nearest layer stays where it is. */
+    function spreadScene(scene: PaperScene): PaperScene {
+      const top = scene.items.find((item) => item.kind === 'face')!;
+      if (top.kind !== 'face') throw new Error('a face');
+      const deeper = { ...top, rings: top.rings.map((ring) => ring.map(([x, y]): ScenePoint => [x - 30, y - 30])) };
+      const items = [deeper, ...scene.items];
+      const { bounds } = scene;
+      return { ...scene, items, bounds: { ...bounds, minX: bounds.minX - 30, minY: bounds.minY - 30 } };
+    }
+
+    /** Where a picture point of `before` lands in `after`, carried as a scene point turned by `degrees`. */
+    function expectedFrom(before: PaperScene, after: PaperScene, point: [number, number], degrees: number) {
+      const span = (bounds: PaperScene['bounds']) => Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+      const { bounds: was } = before;
+      const { bounds: is } = after;
+      const at = turnClockwise(degrees)({ x: was.minX + point[0] * span(was), y: was.minY + point[1] * span(was) });
+      return [(at.x - is.minX) / span(is), (at.y - is.minY) / span(is)];
+    }
+
+    it('keeps them on the nearest layer, which stays put in the scene, when only the spread changes', () => {
+      const before = scenePicture();
+      const sceneBefore = storedScene(before)!;
+      const spread = spreadScene(sceneBefore);
+      const after = { ...before, sceneJson: storedSceneJson(spread)!, key: 'scene-spread' };
+      const document = annotated(cpStep('step-1', FLAT));
+      const moved = setLinkedPicture(document, 'step-1', {
+        source: cpSource({ ...FLAT, spread: SPREAD }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+      const arrow = moved.annotations[0] as KnownDiagramAnnotation;
+      close(arrow.from, expectedFrom(sceneBefore, storedScene(after)!, [0.1, 0.2], 0));
+      expect(arrow.from[0]).not.toBeCloseTo(0.1, 3);
+      expect(moved.annotatedPictureKey).toBe('scene-spread');
+      // Off again: back where they were drawn.
+      const back = setLinkedPicture({ ...document, steps: [moved] }, 'step-1', {
+        source: cpSource(FLAT),
+        picture: before,
+      }).steps[0] as DiagramStep;
+      close((back.annotations[0] as KnownDiagramAnnotation).from, [0.1, 0.2]);
+    });
+
+    it('turns them with a turn that came with a spread', () => {
+      const before = scenePicture();
+      const sceneBefore = storedScene(before)!;
+      const after = { ...before, sceneJson: storedSceneJson(turned(spreadScene(sceneBefore), 90))!, key: 'scene-both' };
+      const document = annotated(cpStep('step-1', FLAT));
+      const moved = setLinkedPicture(document, 'step-1', {
+        source: cpSource({ ...FLAT, rotationDeg: 90, spread: SPREAD }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+      close((moved.annotations[0] as KnownDiagramAnnotation).from, expectedFrom(sceneBefore, storedScene(after)!, [0.1, 0.2], 90));
+    });
+
+    it('leaves them where they were when the spread came with another side or layer order', () => {
+      const before = scenePicture();
+      const after = { ...before, sceneJson: storedSceneJson(spreadScene(storedScene(before)!))!, key: 'scene-other' };
+      for (const render of [
+        { ...FLAT, side: 'back' as const, spread: SPREAD },
+        { ...FLAT, foldCase: 2, spread: SPREAD },
+      ]) {
+        const document = annotated(cpStep('step-1', FLAT));
+        const moved = setLinkedPicture(document, 'step-1', { source: cpSource(render), picture: after }).steps[0] as DiagramStep;
+        expect(moved.annotations).toEqual([ARROW]);
+        expect(annotationsOutOfStep(moved)).toBe(true);
+      }
+    });
+  });
+
   it('leaves them where they were on a picture kept as a bitmap, which knows no turn (a deviation from D8)', () => {
     const raster = (key: string) => ({ kind: 'asset' as const, assetId: ASSET.id, paperScale: 100, key });
     const document = annotated({ ...cpStep('step-1'), picture: raster('raster-0') });

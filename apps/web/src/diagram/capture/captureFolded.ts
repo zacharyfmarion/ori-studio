@@ -37,6 +37,7 @@ import {
   readFoldedPicture,
   type CpFoldRuntime,
   type FoldedFigureState,
+  type FoldedPicture,
 } from '../../lib/creaseExportFold';
 import type { Point } from '../../lib/geometry';
 import { DEFAULT_FOLDED_MODEL, foldedFigureModelFromOrieditaMetadata } from '../../lib/orieditaNativeMetadata';
@@ -185,7 +186,20 @@ export async function readFlatPicture(
   env?: SanitizeEnv,
   spread?: LayerSpreadOptions
 ): Promise<CapturedPicture> {
-  const { snapshot, scene } = await readFoldedPicture(runtime, handle, state.displayStyle);
+  return flatPicture(await readFoldedPicture(runtime, handle, state.displayStyle), rotationDeg, env, spread);
+}
+
+/**
+ * {@link readFlatPicture} of a figure already read: the turn and the spread
+ * are the picture's, applied here with no call to the kernel, so a Pose
+ * session that keeps what it read turns and spreads it again for nothing.
+ */
+export function flatPicture(
+  { snapshot, scene }: FoldedPicture,
+  rotationDeg: number,
+  env?: SanitizeEnv,
+  spread?: LayerSpreadOptions
+): CapturedPicture {
   if (scene && scene.faces.length > 0) {
     const turn = turnClockwise(rotationDeg);
     const toScenePx = (point: Point): ScenePoint => {
@@ -384,7 +398,7 @@ export async function captureStep(
       state = await runtime.foldToCase(folded.handle, render.foldCase);
       foldCase = Math.max(1, Math.min(render.foldCase, state.discoveredCases));
     }
-    const captured = await readFlatPicture(runtime, folded.handle, state, render.rotationDeg, env);
+    const captured = await readFlatPicture(runtime, folded.handle, state, render.rotationDeg, env, render.spread);
     const noLayerOrder = state.outcome === 'NoSolutions' || state.outcome === 'Contradiction';
     return { status: 'captured', source: source({ ...render, foldCase }), captured, noLayerOrder };
   } finally {

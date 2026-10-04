@@ -207,6 +207,15 @@ describe('captureStep, flat', () => {
     expect(runtime.free).toHaveBeenCalledWith(7);
   });
 
+  it('keeps a render’s spread through a Refresh, and draws every face spread (Phase 13)', async () => {
+    const render: DiagramCpRender = { ...FLAT, rotationDeg: 90, spread: { amount: 0.05, toward: 'up-left' } };
+    const result = await captureStep(fakeCaptureRuntime(), request(render));
+    if (result.status !== 'captured' || result.captured.kind !== 'picture') throw new Error('expected a picture');
+    expect(result.source.render).toEqual(render);
+    const scene = JSON.parse((result.captured.picture as { sceneJson: string }).sceneJson);
+    expect(scene.items.filter((item: { kind: string }) => item.kind === 'face')).toHaveLength(2);
+  });
+
   it('captures a 3D request flat when every crease is a full fold', async () => {
     const runtime = fakeCaptureRuntime();
     const result = await captureStep(
@@ -318,6 +327,7 @@ describe('a capture in the file', () => {
   it.each([
     ['a crease pattern', { mode: 'crease-pattern', rotationDeg: 15 } as DiagramCpRender, cpDocument()],
     ['a flat fold', FLAT, cpDocument()],
+    ['a flat fold with its layers spread', { ...FLAT, spread: { amount: 0.075, toward: 'down' } } as DiagramCpRender, cpDocument()],
     // Asked for flat from the back: routed to 3D, its render built by the capture.
     ['a 3D fold', { ...FLAT, side: 'back' } as DiagramCpRender, partial()],
   ])('writes %s exactly as a load reads it back', async (_label, render, document) => {
@@ -351,6 +361,30 @@ describe('storeScene', () => {
       line('mountain', [i, 0], [i, 100.5])
     );
     expect(storeScene(sceneOf(lines, 400), 3, null)).toMatchObject({ kind: 'over-budget', paperScale: 3 });
+  });
+
+  it('sends a spread picture past the budget back to be kept as a bitmap: every face is kept with a spread', async () => {
+    // A sheet cut into many small faces, none of them buried: too much to keep as vector.
+    const side = 130;
+    const faces = Array.from({ length: side * side }, (_, index) => {
+      const [x, y] = [index % side, Math.floor(index / side)];
+      const outline = [
+        { x, y },
+        { x: x + 1, y },
+        { x: x + 1, y: y + 1 },
+        { x, y: y + 1 },
+      ];
+      const edges = outline.map((from, corner) => ({ from, to: outline[(corner + 1) % 4]!, kind: 'border' as const }));
+      return { outline, points: [0, 1, 2, 3].map((corner) => index * 4 + corner), front_up: true, edges };
+    });
+    const runtime = fakeCaptureRuntime({
+      paperScene: vi.fn(async () => ({ schema_version: 2, flipped: false, sheet: side, faces, subfaces: [], aux_lines: [] })),
+    });
+    const spread = await readFlatPicture(runtime, 7, { displayStyle: 'Paper5' }, 0, undefined, {
+      amount: 0.05,
+      toward: 'up-left',
+    });
+    expect(spread).toMatchObject({ kind: 'over-budget', paperScale: CAPTURE_PX_PER_UNIT });
   });
 
   it('refuses a scene with nothing in it', () => {

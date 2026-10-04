@@ -5,6 +5,7 @@ import {
   DIAGRAM_PAGE_COUNT_BUCKETS,
   DIAGRAM_UPLOAD_COUNT_BUCKETS,
   DIAGRAM_UPLOAD_KB_BUCKETS,
+  DIAGRAM_SPREAD_PERCENT_BUCKETS,
   bucketCount,
 } from './events';
 import type {
@@ -25,6 +26,7 @@ import type {
   DiagramSourceWorkspace,
   DiagramShowAsName,
   DiagramShowAsVia,
+  DiagramSpreadDirection,
   DiagramStepAddedSource,
   DiagramStepAddedVia,
   DiagramTurnAddedKind,
@@ -86,9 +88,26 @@ export function trackDiagramAnnotationAdded(tool: DiagramAnnotationTool): void {
   track(ANALYTICS_EVENTS.diagramAnnotationAdded, { tool });
 }
 
-/** A pose verb on an uploaded picture, and what the picture is. */
-export function trackDiagramPicturePosed(action: DiagramPoseAction, kind: DiagramPictureKind): void {
-  track(ANALYTICS_EVENTS.diagramPicturePosed, { action, kind });
+/**
+ * A pose verb on a step's picture, and what the picture is. A spread verb
+ * that leaves the layers spread also says how (Phase 13): the direction, and
+ * the amount bucketed — never the amount itself.
+ */
+export function trackDiagramPicturePosed(
+  action: DiagramPoseAction,
+  kind: DiagramPictureKind,
+  spread?: { direction: DiagramSpreadDirection; amount: number }
+): void {
+  track(ANALYTICS_EVENTS.diagramPicturePosed, {
+    action,
+    kind,
+    ...(spread
+      ? {
+          spread_direction: spread.direction,
+          spread_amount_bucket: bucketCount(Math.round(spread.amount * 10_000) / 100, DIAGRAM_SPREAD_PERCENT_BUCKETS),
+        }
+      : {}),
+  });
 }
 
 /** A step's picture removed, and what it was. */

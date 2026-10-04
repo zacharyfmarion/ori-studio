@@ -37,6 +37,11 @@ vi.mock('../../engines/engineHost', async (importOriginal) => ({
 }));
 const toasts = vi.hoisted(() => ({ error: vi.fn(), message: vi.fn() }));
 vi.mock('sonner', () => ({ toast: toasts }));
+const analytics = vi.hoisted(() => ({ trackDiagramPicturePosed: vi.fn() }));
+vi.mock('../../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../analytics')>()),
+  ...analytics,
+}));
 
 const segmentation = twoSquaresSegmentation();
 const [left] = resolveCpSegments(segmentation);
@@ -56,7 +61,7 @@ async function linkedStep(): Promise<string> {
   return stepId;
 }
 
-const listener = () => ({ spatial: vi.fn(), solutions: vi.fn() });
+const listener = () => ({ spatial: vi.fn(), solutions: vi.fn(), preview: vi.fn() });
 const render = (stepId: string) => stepsIn(state().diagram!).find((step) => step.id === stepId)!.source;
 
 beforeEach(async () => {
@@ -351,6 +356,152 @@ describe('the Pose controller', () => {
     expect(toasts.error).toHaveBeenCalledWith('The picture couldn’t be captured', expect.anything());
     expect(render(stepId)).toMatchObject({ render: { mode: 'crease-pattern' } });
     controller.engineLost();
+    controller.dispose();
+  });
+});
+
+describe('spreading a flat fold’s layers (Phase 13)', () => {
+  const spreadOf = (stepId: string) => {
+    const source = render(stepId);
+    return source?.kind === 'cp' && source.render.mode === 'folded-flat' ? (source.render.spread ?? null) : undefined;
+  };
+
+  /** A linked step shown flat with a spread, as a file would hold it, and no fold held yet. */
+  function spreadInTheFile(stepId: string, spread: { amount: number; toward: 'up-left' | 'down' }) {
+    useWorkspaceStore.setState({
+      diagram: {
+        ...state().diagram!,
+        steps: stepsIn(state().diagram!).map((step) =>
+          step.id === stepId && step.source?.kind === 'cp'
+            ? {
+                ...step,
+                source: {
+                  ...step.source,
+                  render: { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1, spread },
+                },
+              }
+            : step
+        ),
+      },
+    });
+  }
+
+  it('turns it on from the nearest step before with one, and off, an undo step each, counted with how', async () => {
+    const first = await linkedStep();
+    const second = await linkedStep();
+    expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first, second]);
+    const one = createPoseController(first, listener());
+    await one.run({ verb: 'show-folded' });
+    await one.run({ verb: 'spread-layers' });
+    // No step before it has one: the default.
+    expect(spreadOf(first)).toEqual({ amount: 0.05, toward: 'up-left' });
+    await one.run({ verb: 'spread-direction', toward: 'down' });
+    expect(spreadOf(first)).toEqual({ amount: 0.05, toward: 'down' });
+    one.dispose();
+
+    const two = createPoseController(second, listener());
+    await two.run({ verb: 'show-folded' });
+    const past = state().diagramHistory.past.length;
+    await two.run({ verb: 'spread-layers' });
+    expect(spreadOf(second)).toEqual({ amount: 0.05, toward: 'down' });
+    await two.run({ verb: 'spread-layers' });
+    expect(spreadOf(second)).toBeNull();
+    expect(state().diagramHistory.past.length).toBe(past + 2);
+    two.dispose();
+
+    expect(analytics.trackDiagramPicturePosed.mock.calls.slice(-5)).toEqual([
+      ['spread_on', 'flat', { direction: 'up_left', amount: 0.05 }],
+      ['spread_direction', 'flat', { direction: 'down', amount: 0.05 }],
+      ['show_folded', 'flat', undefined],
+      ['spread_on', 'flat', { direction: 'down', amount: 0.05 }],
+      ['spread_off', 'flat', undefined],
+    ]);
+  });
+
+  it('previews a drag from the held fold with no call to the kernel, then commits it as one undo step', async () => {
+    const stepId = await linkedStep();
+    const heard = listener();
+    const controller = createPoseController(stepId, heard);
+    await controller.run({ verb: 'show-folded' });
+    await controller.run({ verb: 'spread-layers' });
+    const reads = vi.mocked(bindings.runtime!.paperScene).mock.calls.length;
+    const past = state().diagramHistory.past.length;
+    const posed = analytics.trackDiagramPicturePosed.mock.calls.length;
+    const source = render(stepId)!;
+    if (source.kind !== 'cp') throw new Error('linked');
+
+    for (const amount of [0.1, 0.12, 0.15]) controller.previewSpread({ amount, toward: 'up-left' });
+    expect(heard.preview).toHaveBeenCalledTimes(3);
+    expect(heard.preview).toHaveBeenLastCalledWith(
+      { spread: { amount: 0.15, toward: 'up-left' }, picture: expect.objectContaining({ kind: 'scene' }) },
+      linkedFoldKey(stepId, source)
+    );
+    // Previewed, not committed, and drawn from what the session read.
+    expect(state().diagramHistory.past.length).toBe(past);
+    expect(bindings.runtime!.paperScene).toHaveBeenCalledTimes(reads);
+
+    await controller.commitSpread();
+    expect(spreadOf(stepId)).toEqual({ amount: 0.15, toward: 'up-left' });
+    expect(state().diagramHistory.past.length).toBe(past + 1);
+    expect(bindings.runtime!.paperScene).toHaveBeenCalledTimes(reads);
+    expect(heard.preview).toHaveBeenLastCalledWith(null, null);
+    // One drag, one event.
+    expect(analytics.trackDiagramPicturePosed.mock.calls.slice(posed)).toEqual([
+      ['spread_amount', 'flat', { direction: 'up_left', amount: 0.15 }],
+    ]);
+    controller.dispose();
+  });
+
+  it('folds for a preview when it holds nothing yet, and commits after that fold rather than refused as busy', async () => {
+    const stepId = await linkedStep();
+    spreadInTheFile(stepId, { amount: 0.05, toward: 'down' });
+    const heard = listener();
+    const controller = createPoseController(stepId, heard);
+    controller.previewSpread({ amount: 0.08, toward: 'down' });
+    // Nothing held: the spread now, the picture once the fold is.
+    expect(heard.preview).toHaveBeenNthCalledWith(1, { spread: { amount: 0.08, toward: 'down' }, picture: null }, expect.any(String));
+    const committing = controller.commitSpread();
+    await committing;
+    expect(heard.preview).toHaveBeenCalledWith(
+      { spread: { amount: 0.08, toward: 'down' }, picture: expect.objectContaining({ kind: 'scene' }) },
+      expect.any(String)
+    );
+    expect(spreadOf(stepId)).toEqual({ amount: 0.08, toward: 'down' });
+    expect(bindings.runtime!.fold).toHaveBeenCalledOnce();
+    expect(heard.preview).toHaveBeenLastCalledWith(null, null);
+    controller.dispose();
+  });
+
+  it('commits the newest amount when commits race, as one undo step', async () => {
+    const stepId = await linkedStep();
+    const controller = createPoseController(stepId, listener());
+    await controller.run({ verb: 'show-folded' });
+    await controller.run({ verb: 'spread-layers' });
+    const past = state().diagramHistory.past.length;
+    const commits = [0.1, 0.12, 0.14].map((amount) => {
+      controller.previewSpread({ amount, toward: 'up-left' });
+      return controller.commitSpread();
+    });
+    await Promise.all(commits);
+    expect(spreadOf(stepId)).toEqual({ amount: 0.14, toward: 'up-left' });
+    expect(state().diagramHistory.past.length).toBe(past + 1);
+    controller.dispose();
+  });
+
+  it('ends a preview when an undo comes, and keeps its spread through Reset Pose', async () => {
+    const stepId = await linkedStep();
+    const heard = listener();
+    const controller = createPoseController(stepId, heard);
+    await controller.run({ verb: 'show-folded' });
+    await controller.run({ verb: 'turn-over' });
+    await controller.run({ verb: 'spread-layers' });
+    controller.previewSpread({ amount: 0.1, toward: 'up-left' });
+    controller.historyMoved();
+    expect(heard.preview).toHaveBeenLastCalledWith(null, null);
+    await controller.run({ verb: 'reset' });
+    expect(render(stepId)).toMatchObject({
+      render: { side: 'front', rotationDeg: 0, foldCase: 1, spread: { amount: 0.05, toward: 'up-left' } },
+    });
     controller.dispose();
   });
 });

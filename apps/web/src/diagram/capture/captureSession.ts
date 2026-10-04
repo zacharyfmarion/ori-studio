@@ -1,7 +1,9 @@
 /**
  * A fold held open while a linked step is posed (D4): the figure is folded once,
  * then turned over, stepped to another solution and read again on the same
- * kernel handle, where a Refresh folds from scratch every time.
+ * kernel handle, where a Refresh folds from scratch every time. What it read
+ * is kept until the fold changes, so turning the picture or spreading its
+ * layers (Phase 13) draws it again with no call to the kernel at all.
  *
  * The session owns its handle through the shared registry (`retain` /
  * `release`), so a document replaced or an engine reset under it frees or
@@ -16,14 +18,15 @@ import type {
   OristudioCpFold3dRefusal,
   OristudioCpFolded3dAuxLines,
 } from '../../engine/oristudioCpTypes';
-import { openFold, type FoldedFigureState } from '../../lib/creaseExportFold';
+import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
+import { openFold, readFoldedPicture, type FoldedFigureState, type FoldedPicture } from '../../lib/creaseExportFold';
 import type { DiagramStyle } from '../document/diagramDocument';
 import type { SanitizeEnv } from '../upload/svgSanitize';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import {
   capture3dPicture,
   captureModel,
-  readFlatPicture,
+  flatPicture,
   type CapturedPicture,
   type CpCaptureRuntime,
 } from './captureFolded';
@@ -61,6 +64,12 @@ interface FlatHold extends FoldKey {
    * replays it forward), which forgets every one past it: these do not.
    */
   reached: { cases: number; complete: boolean };
+  /**
+   * What the kernel drew of it as it stands — its paper scene, unturned — so
+   * a turn or a spread of the same side and layer order is drawn again with
+   * no call to the kernel. Null until read, and again after any change.
+   */
+  read: FoldedPicture | null;
 }
 
 interface SpatialHold extends FoldKey {
@@ -100,8 +109,23 @@ export interface CaptureSession {
   turnOver: () => Promise<FlatFoldState>;
   /** The held flat fold's next solution, on the same handle. */
   nextSolution: () => Promise<FlatFoldState>;
-  /** The held flat fold's picture, turned clockwise by `rotationDeg`. */
-  flatPicture: (rotationDeg: number) => Promise<CapturedPicture>;
+  /**
+   * The held flat fold's picture, turned clockwise by `rotationDeg`, its
+   * layers spread when asked: read from the kernel once per side and layer
+   * order, then drawn from what was read.
+   */
+  flatPicture: (rotationDeg: number, spread?: LayerSpreadOptions) => Promise<CapturedPicture>;
+  /**
+   * The same picture now, with no call to the kernel, when the session holds
+   * this flat fold of `document` on `side` at `foldCase` and has read it;
+   * null otherwise. For a preview, never a commit: the caller says which
+   * creases the fold is of.
+   */
+  heldFlatPicture: (
+    held: { document: OristudioCpDocumentSnapshot; side: 'front' | 'back'; foldCase: number },
+    rotationDeg: number,
+    spread?: LayerSpreadOptions
+  ) => CapturedPicture | null;
   /**
    * The 3D fold of these lines from this document — for the live view, and a
    * picture at any camera — or the kernel's refusal.
@@ -192,6 +216,7 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
    */
   const settle = (hold: FlatHold, state: Omit<FoldedFigureState, 'handle'>) => {
     hold.state = state;
+    hold.read = null;
     const cases = state.discoveredCases;
     const more = state.hasNext ?? false;
     if (cases > hold.reached.cases) hold.reached = { cases, complete: !more };
@@ -223,6 +248,7 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
           side,
           state: folded,
           reached: { cases: 0, complete: false },
+          read: null,
         };
         settle(held, folded);
       }
@@ -252,9 +278,16 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
       return flatState(hold);
     },
 
-    flatPicture: (rotationDeg) => {
+    async flatPicture(rotationDeg, spread) {
       const hold = flatHold();
-      return readFlatPicture(deps.runtime(), hold.handle, hold.state, rotationDeg, deps.env);
+      hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
+      return flatPicture(hold.read, rotationDeg, deps.env, spread);
+    },
+
+    heldFlatPicture({ document, side, foldCase }, rotationDeg, spread) {
+      if (held?.kind !== 'flat' || held.epoch !== deps.epoch() || held.document !== document) return null;
+      if (!held.read || held.side !== side || flatState(held).foldCase !== foldCase) return null;
+      return flatPicture(held.read, rotationDeg, deps.env, spread);
     },
 
     async spatial(document, lineIds) {

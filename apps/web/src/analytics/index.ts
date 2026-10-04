@@ -49,6 +49,7 @@ export type {
   DiagramTurnAddedVia,
   DiagramStepOpenedMode,
   DiagramShowAsName,
+  DiagramSpreadDirection,
   DiagramShowAsVia,
   ExportFormat,
   FoldabilityCheckSource,
