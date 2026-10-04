@@ -1,6 +1,9 @@
 use crate::error::BpResult;
-use crate::layout::trace::{RepoTrace, create_hinge_segments};
-use crate::layout::{LayoutRepository, NodeSet, Quadrant, ValidJunction, get_factors};
+use crate::layout::trace::{RepoTrace, StartEnd, create_hinge_segments};
+use crate::layout::{
+    LayoutRepository, NodeSet, Quadrant, ValidJunction, get_factors, group_junctions,
+    uncovered_junction_indices,
+};
 use crate::math::geometry::{
     EPSILON, Line, PathPoint, Point, deduplicate, fix_zero, map_directions,
 };
@@ -96,7 +99,7 @@ impl From<GraphicalContour> for Contour {
     }
 }
 
-pub type StartEndMap = [Option<[Point; 2]>; QUADRANT_NUMBER];
+pub type StartEndMap = [Option<StartEnd>; QUADRANT_NUMBER];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LeafSet {
@@ -133,6 +136,45 @@ pub fn build_rough_contours(tree: &BpTree) -> BpResult<BTreeMap<NodeId, Vec<Roug
     let mut result = BTreeMap::new();
     let root = tree.root_id();
     build_rough_contours_inner(root, tree, &mut result)?;
+    Ok(result)
+}
+
+/// Upstream `traceContour.ts` keeps this as `coveredJunctionMap`: for each
+/// flap, the valid junctions covered only by junctions of other flaps. A raw
+/// contour subtracts them from the flap's region (see
+/// [`create_raw_contour_for_leaf`]). `valid_junctions` is every valid junction
+/// of the design.
+pub fn covered_junction_map(
+    tree: &BpTree,
+    valid_junctions: &[ValidJunction],
+) -> BpResult<BTreeMap<u32, Vec<ValidJunction>>> {
+    let mut result = BTreeMap::<u32, Vec<ValidJunction>>::new();
+    for team in group_junctions(valid_junctions)? {
+        let mut team_junctions = team
+            .junctions
+            .iter()
+            .filter_map(|index| valid_junctions.get(*index).cloned())
+            .collect::<Vec<_>>();
+        let _ = uncovered_junction_indices(tree, &mut team_junctions)?;
+        for junction in &team_junctions {
+            let covering = junction.get_covering(&team_junctions);
+            if covering.is_empty() {
+                continue;
+            }
+            if covering
+                .iter()
+                .all(|index| !team_junctions[*index].involves(junction.a))
+            {
+                result.entry(junction.a).or_default().push(junction.clone());
+            }
+            if covering
+                .iter()
+                .all(|index| !team_junctions[*index].involves(junction.b))
+            {
+                result.entry(junction.b).or_default().push(junction.clone());
+            }
+        }
+    }
     Ok(result)
 }
 
@@ -217,16 +259,32 @@ pub fn create_trace_contour(
     };
 
     if leaves.len() > 1 {
-        let mut corner_map = BTreeMap::<String, CriticalCorner>::new();
+        // Upstream keys these by signature in a `Map`: a repeated signature
+        // keeps its first position and takes the later corner.
+        let mut corner_map = Vec::<CriticalCorner>::new();
         for corner in critical_corners {
-            if leaves.contains(&corner.flap) {
-                corner_map.insert(corner.signature.clone(), corner.clone());
+            if !leaves.contains(&corner.flap) {
+                continue;
+            }
+            match corner_map
+                .iter_mut()
+                .find(|existing| existing.signature == corner.signature)
+            {
+                Some(existing) => *existing = corner.clone(),
+                None => corner_map.push(corner.clone()),
             }
         }
-        let mut corners = corner_map.keys().cloned().collect::<BTreeSet<_>>();
+        let mut corners = corner_map
+            .iter()
+            .map(|corner| corner.signature.clone())
+            .collect::<BTreeSet<_>>();
         if !check_critical_corners(&result.outer, &mut corners) {
+            // Only the corners the outer contour misses decide the raw
+            // grouping: upstream's check deletes the ones it finds from the
+            // very map the node sets are then read from.
             let node_sets = corner_map
-                .into_values()
+                .into_iter()
+                .filter(|corner| corners.contains(&corner.signature))
                 .map(|corner| corner.node_set)
                 .collect::<Vec<_>>();
             result.outer = create_raw_contour(
@@ -407,11 +465,14 @@ pub fn combine_graphical_contours(
     Ok(contours)
 }
 
+/// `junctions` is every valid junction of the design, which the node-specific
+/// starting point consults (see [`Quadrant::start_point_for`]).
 pub fn process_pattern_contours(
     trace_contours: &[TraceContour],
     covered_quadrants: &[Quadrant],
     trace: &RepoTrace,
     repo: &LayoutRepository,
+    junctions: &[ValidJunction],
     tree: &BpTree,
 ) -> BpResult<Vec<PatternContour>> {
     let multi_contour = trace_contours.len() > 1;
@@ -442,16 +503,19 @@ pub fn process_pattern_contours(
                 .filter(|quadrant| !multi_contour || leaves.contains(&quadrant.flap))
                 .cloned()
                 .collect::<Vec<_>>();
-            let map = create_start_end_map(&quadrants, trace, repo, tree)?;
+            let map =
+                create_start_end_map(&quadrants, trace, repo, junctions, &trace_leaves, tree)?;
             for hinge_segment in create_hinge_segments(&outer.points, repo.direction()) {
-                let Some([start, end]) = &map[hinge_segment.q as usize] else {
+                let Some(start_end) = &map[hinge_segment.q as usize] else {
                     continue;
                 };
-                if let Some(points) =
-                    trace
-                        .trace()
-                        .generate(&hinge_segment.points, start, end, trace_contour.raw)?
-                {
+                if let Some(points) = trace.trace().generate(
+                    &hinge_segment.points,
+                    &start_end.start,
+                    &start_end.end,
+                    trace_contour.raw,
+                    Some(&start_end.node_start),
+                )? {
                     result.push(PatternContour {
                         points,
                         ids: repo.node_set.nodes.clone(),
@@ -466,10 +530,13 @@ pub fn process_pattern_contours(
     Ok(result)
 }
 
+/// `junctions` is every valid junction of the design (`create_valid_junctions`),
+/// covered ones included — not just the repositories'.
 pub fn build_pattern_contours(
     tree: &BpTree,
     trace_contours: &BTreeMap<NodeId, Vec<TraceContour>>,
     repos: &[&LayoutRepository],
+    junctions: &[ValidJunction],
 ) -> BpResult<BTreeMap<NodeId, Vec<PatternContour>>> {
     let mut result = BTreeMap::<NodeId, Vec<PatternContour>>::new();
     for repo in repos {
@@ -495,6 +562,7 @@ pub fn build_pattern_contours(
                 &covered_quadrants,
                 &trace,
                 repo,
+                junctions,
                 tree,
             )?;
             if !contours.is_empty() {
@@ -505,10 +573,14 @@ pub fn build_pattern_contours(
     Ok(result)
 }
 
+/// `leaves` are the leaves of the trace contour being traced, which decide
+/// the node-specific starting point of each direction.
 pub fn create_start_end_map(
     quadrants: &[Quadrant],
     trace: &RepoTrace,
     repo: &LayoutRepository,
+    junctions: &[ValidJunction],
+    leaves: &BTreeSet<NodeId>,
     tree: &BpTree,
 ) -> BpResult<StartEndMap> {
     let mut result: StartEndMap = std::array::from_fn(|_| None);
@@ -529,7 +601,7 @@ pub fn create_start_end_map(
                 })
             })
             .collect::<BpResult<Vec<_>>>()?;
-        *slot = Some(trace.resolve_start_end(&filtered, &all, tree)?);
+        *slot = Some(trace.resolve_start_end(&filtered, &all, junctions, leaves, tree)?);
     }
     Ok(result)
 }
@@ -635,7 +707,14 @@ pub fn create_raw_contour(
     }
 
     if !remaining_leaves.is_empty() {
-        let paths = recursive_expand(node, children, &remaining_leaves, node.length, tree)?;
+        let paths = recursive_expand(
+            node,
+            children,
+            &remaining_leaves,
+            node.length,
+            tree,
+            covered_junctions,
+        )?;
         let outers = AaUnion::new(true).get(&path_components(&paths));
         result.extend(pack_paths(outers, remaining_leaves.into_iter().collect()));
     }
@@ -649,6 +728,7 @@ pub fn recursive_expand(
     remaining_leaves: &BTreeSet<NodeId>,
     length: f64,
     tree: &BpTree,
+    covered_junctions: &BTreeMap<NodeId, Vec<ValidJunction>>,
 ) -> BpResult<Vec<PathEx>> {
     let mut result = Vec::new();
     for child in children {
@@ -663,7 +743,11 @@ pub fn recursive_expand(
             let leaf = tree.node(id).ok_or_else(|| {
                 BpError::InvalidInput(format!("missing recursive raw contour leaf {id}"))
             })?;
-            result.push(create_raw_contour_for_leaf(node, leaf, &[])?);
+            result.push(create_raw_contour_for_leaf(
+                node,
+                leaf,
+                covered_junctions.get(&id).map_or(&[], Vec::as_slice),
+            )?);
         } else if leaves.len() == child.leaves.len() {
             result.extend(child.outer.iter().map(|outer| expand_path(outer, length)));
         } else if !leaves.is_empty() {
@@ -676,6 +760,7 @@ pub fn recursive_expand(
                 remaining_leaves,
                 length + child_node.length,
                 tree,
+                covered_junctions,
             )?);
         }
     }
