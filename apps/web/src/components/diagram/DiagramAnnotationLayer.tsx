@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { annotationMarks, type AnnotationDrawing, type AnnotationLine } from '../../diagram/annotate/annotationPrimitives';
 import type { DiagramStyle } from '../../diagram/document/diagramDocument';
 import { diagramSurfaceStyle } from '../../diagram/pictures/diagramPaperStyle';
@@ -35,8 +35,18 @@ function AnnotationLineShape({ line, style }: { line: AnnotationLine; style: Pap
  * (`paintAnnotations`): the lines in the style's pens, then the marks and
  * labels. In the drawing's px; the canvas places it on the picture's frame.
  * Each annotation is a group named by its id.
+ *
+ * Drawn again only for a new drawing: the canvas's zoom, its selection and
+ * whatever it shows over the marks for a moment re-render the canvas, not
+ * the marks.
  */
-export function DiagramAnnotationLayer({ drawing, style }: { drawing: AnnotationDrawing; style: DiagramStyle }) {
+export const DiagramAnnotationLayer = memo(function DiagramAnnotationLayer({
+  drawing,
+  style,
+}: {
+  drawing: AnnotationDrawing;
+  style: DiagramStyle;
+}) {
   const surface = diagramSurfaceStyle(style);
   const named = (shape: ReactNode, id: string) => (
     <g key={id} data-annotation-id={id}>
@@ -51,4 +61,4 @@ export function DiagramAnnotationLayer({ drawing, style }: { drawing: Annotation
       {annotationMarks(drawing, named)}
     </g>
   );
-}
+});

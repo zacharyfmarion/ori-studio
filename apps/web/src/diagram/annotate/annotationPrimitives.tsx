@@ -17,7 +17,9 @@
  * The drawing is in CSS px, the frame's top-left at the origin, its longer
  * side `framePx` across — the size it prints at — so its marks have the
  * weight References' have at that size; a surface places it with a uniform
- * scale and a shift.
+ * scale and a shift. Each annotation is compiled once, in picture units
+ * (`compiledAnnotation`), and every drawing of it — the canvas at each step
+ * of a drag, a card, a page — scales that.
  *
  * Pure: no DOM, no store.
  */
@@ -57,7 +59,6 @@ import { REFERENCE_COLORS } from '../../themes/applyTheme';
 import {
   isKnownAnnotation,
   type DiagramAnnotation,
-  type DiagramAnnotationKind,
   type DiagramHanStyle,
   type DiagramStyle,
   type KnownDiagramAnnotation,
@@ -67,14 +68,8 @@ import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
 import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { UPLOAD_HAN_KEY, uploadTextFamily, type UploadTextRun } from '../upload/uploadText';
 import type { DiagramFontKey } from '../fonts/diagramFontFaces';
-import { arrowApex, ARROW_BEND, LABEL_SIZE, labelHalfWidth, type PictureFrame, type PicturePoint } from './annotationModel';
-
-/** The line kinds, and the pen role each is drawn in. */
-export const ANNOTATION_LINE_ROLES: Partial<Record<DiagramAnnotationKind, PaperLineRole>> = {
-  'valley-line': 'diagram-valley',
-  'mountain-line': 'diagram-mountain',
-  'hidden-line': 'diagram-hidden',
-};
+import { arrowApex, arrowBend, LABEL_SIZE, labelHalfWidth, type PictureFrame, type PicturePoint } from './annotationModel';
+import { perAnnotation } from './perAnnotation';
 
 /** Where a label's baseline sits below its point, in ems: a capital's middle on the point. */
 const LABEL_BASELINE = 0.36;
@@ -97,6 +92,23 @@ export interface AnnotationLine {
   b: [number, number];
 }
 
+/** The marks an annotation can be: the References primitives it compiles to. */
+export type AnnotationPrimitive = Extract<
+  StepDiagramPrimitive,
+  { kind: 'fold-arrow' | 'one-way-arrow' | 'push-arrow' | 'turn-over' | 'rotate' }
+>;
+
+/**
+ * One annotation compiled for drawing, in picture units — a mark in the
+ * primitives' y-up space — so it is the same whatever size it is drawn at:
+ * a line in its pen's role, a label's runs at its point, or a mark References
+ * draws.
+ */
+export type CompiledAnnotation =
+  | { kind: 'line'; role: PaperLineRole; from: PicturePoint; to: PicturePoint }
+  | { kind: 'label'; at: PicturePoint; runs: { key: DiagramFontKey; text: string }[] }
+  | { kind: 'mark'; primitive: AnnotationPrimitive };
+
 /** The annotations ready to draw, on screen or into a file. */
 export interface AnnotationDrawing {
   /** The frame, in CSS px: where the drawing's picture is. */
@@ -104,7 +116,7 @@ export interface AnnotationDrawing {
   height: number;
   lines: AnnotationLine[];
   /** The marks, in draw order, and the annotation each is. */
-  primitives: StepDiagramPrimitive[];
+  primitives: AnnotationPrimitive[];
   primitiveIds: string[];
   context: DiagramRenderContext;
   labels: AnnotationLabel[];
@@ -140,33 +152,56 @@ function annotationInk(seen: PaperStyle): DiagramInlineInk {
 /** Picture units to the primitives' y-up space, as References' unit frame is. */
 const up = ([u, v]: PicturePoint): [number, number] => [u, -v];
 
-function primitiveOf(annotation: KnownDiagramAnnotation): StepDiagramPrimitive | null {
-  const { kind, from, to } = annotation;
-  switch (kind) {
+/**
+ * What an annotation is drawn as, or null when it draws nothing: an arrow too
+ * short to have an arc, a label with no text. Every kind says which (a
+ * switch, so a new kind is a compile error here until it does).
+ */
+function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotation | null {
+  const { from, to } = annotation;
+  switch (annotation.kind) {
+    case 'valley-line':
+      return { kind: 'line', role: 'diagram-valley', from, to };
+    case 'mountain-line':
+      return { kind: 'line', role: 'diagram-mountain', from, to };
+    case 'hidden-line':
+      return { kind: 'line', role: 'diagram-hidden', from, to };
+    case 'label': {
+      const text = annotation.text ?? '';
+      return text.trim() === '' ? null : { kind: 'label', at: from, runs: labelRuns(text) };
+    }
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow': {
-      const out = arcThroughPoints(up(from), up(arrowApex(from, to, annotation.bend ?? ARROW_BEND)), up(to));
+      const out = arcThroughPoints(up(from), up(arrowApex(from, to, arrowBend(annotation))), up(to));
       if (!out) return null;
-      return kind === 'fold-unfold-arrow'
-        ? { kind: 'fold-arrow', out }
-        : { kind: 'one-way-arrow', out, fold: kind === 'valley-arrow' ? 'valley' : 'mountain' };
+      return {
+        kind: 'mark',
+        primitive:
+          annotation.kind === 'fold-unfold-arrow'
+            ? { kind: 'fold-arrow', out }
+            : { kind: 'one-way-arrow', out, fold: annotation.kind === 'valley-arrow' ? 'valley' : 'mountain' },
+      };
     }
     case 'push-arrow':
-      return { kind: 'push-arrow', from: up(from), to: up(to) };
+      return { kind: 'mark', primitive: { kind: 'push-arrow', from: up(from), to: up(to) } };
     case 'turn-over':
-      return { kind: 'turn-over', at: up(from), axis: annotation.axis ?? 'vertical' };
+      return { kind: 'mark', primitive: { kind: 'turn-over', at: up(from), axis: annotation.axis ?? 'vertical' } };
     case 'rotate':
       return {
-        kind: 'rotate',
-        at: up(from),
-        amount: annotation.rotate?.amount ?? 'quarter',
-        direction: annotation.rotate?.direction ?? 'cw',
+        kind: 'mark',
+        primitive: {
+          kind: 'rotate',
+          at: up(from),
+          amount: annotation.rotate?.amount ?? 'quarter',
+          direction: annotation.rotate?.direction ?? 'cw',
+        },
       };
-    default:
-      return null;
   }
 }
+
+/** An annotation compiled for drawing ({@link CompiledAnnotation}), once per annotation object. */
+export const compiledAnnotation = perAnnotation(compileAnnotation);
 
 /**
  * A label's text in runs, each in the font its script is set in, as the
@@ -222,29 +257,28 @@ export function annotationDrawing(
     arrow: penInk(seen.arrows, arrowCss / ink),
   });
   const lines: AnnotationLine[] = [];
-  const primitives: StepDiagramPrimitive[] = [];
+  const primitives: AnnotationPrimitive[] = [];
   const primitiveIds: string[] = [];
   const labels: AnnotationLabel[] = [];
   const at = ([u, v]: PicturePoint): [number, number] => [u * framePx, v * framePx];
   for (const annotation of annotations) {
     if (!isKnownAnnotation(annotation)) continue;
-    const role = ANNOTATION_LINE_ROLES[annotation.kind];
-    if (role) {
-      lines.push({ id: annotation.id, role, a: at(annotation.from), b: at(annotation.to) });
-      continue;
-    }
-    if (annotation.kind === 'label') {
-      const text = annotation.text ?? '';
-      if (text.trim() === '') continue;
-      const [x, y] = at(annotation.from);
-      const runs = labelRuns(text).map((run) => ({ family: uploadTextFamily(run.key), text: run.text }));
-      labels.push({ id: annotation.id, x, y, size: LABEL_SIZE * framePx, fill: seen.arrows.color, runs });
-      continue;
-    }
-    const primitive = primitiveOf(annotation);
-    if (primitive) {
-      primitives.push(primitive);
-      primitiveIds.push(annotation.id);
+    const compiled = compiledAnnotation(annotation);
+    if (!compiled) continue;
+    switch (compiled.kind) {
+      case 'line':
+        lines.push({ id: annotation.id, role: compiled.role, a: at(compiled.from), b: at(compiled.to) });
+        break;
+      case 'label': {
+        const [x, y] = at(compiled.at);
+        const runs = compiled.runs.map((run) => ({ family: uploadTextFamily(run.key), text: run.text }));
+        labels.push({ id: annotation.id, x, y, size: LABEL_SIZE * framePx, fill: seen.arrows.color, runs });
+        break;
+      }
+      case 'mark':
+        primitives.push(compiled.primitive);
+        primitiveIds.push(annotation.id);
+        break;
     }
   }
   const sheet = { width: frame.width, height: frame.height, centre: [frame.width / 2, -frame.height / 2] as const };
@@ -315,8 +349,12 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
         take(x, y, (DIAGRAM_ROTATE_INK.radius + DIAGRAM_ARROWHEAD_INK.length) * ink);
         break;
       }
-      default:
+      default: {
+        // Every mark an annotation can be has its reach above: a new one is a
+        // compile error here until it does, rather than cut off in a file.
+        const _unreached: never = primitive;
         break;
+      }
     }
   }
   for (const label of drawing.labels) {

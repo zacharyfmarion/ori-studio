@@ -10,7 +10,7 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { openDiagramStep } from './useDiagramActions';
 import type { WorkspaceState } from '../store/workspaceStore/types';
 import { isDiagramAnnotating } from '../store/workspaceStore/diagramState';
-import { flipAnnotationArc, isArrowKind } from './annotate/annotationModel';
+import { annotationActionEdit, offersAnnotationAction } from './annotate/annotationActions';
 import {
   indexForStepNumber,
   isKnownAnnotation,
@@ -44,14 +44,14 @@ function keyState(state: WorkspaceState): DiagramKeyState {
         ? {
             tool: state.diagramAnnotateTool,
             selectedAnnotationId: state.diagramSelectedAnnotationId,
-            selectedIsArrow: isArrowAnnotation(selectedAnnotation(state)),
+            canFlipArc: offersFlipArc(selectedAnnotation(state)),
           }
         : null,
   };
 }
 
-function isArrowAnnotation(annotation: KnownDiagramAnnotation | null): boolean {
-  return annotation !== null && isArrowKind(annotation.kind);
+function offersFlipArc(annotation: KnownDiagramAnnotation | null): boolean {
+  return annotation !== null && offersAnnotationAction('flip-arc', annotation);
 }
 
 /** The selected annotation, when it is one this build reads. */
@@ -89,9 +89,9 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
       const stepId = state.diagramSelectedStepId;
       const id = state.diagramSelectedAnnotationId;
       if (stepId === null || id === null) return;
-      state.editDiagramAnnotations(stepId, 'Flip arc', (annotations) =>
-        annotations.map((annotation) => (annotation.id === id ? flipAnnotationArc(annotation) : annotation))
-      );
+      // The Step pane's Flip Arc, by the same edit (`annotationActions.ts`).
+      const { label, edit, select } = annotationActionEdit('flip-arc', id);
+      state.editDiagramAnnotations(stepId, label, edit, { select });
     },
     cancelGesture: () => gestureCancel?.() ?? false,
   };

@@ -811,5 +811,8 @@ function diagramPrimitiveShape(
       );
     }
   }
+  // Every kind is drawn above: a new one is a compile error here until it is,
+  // rather than a shape that silently draws nothing.
+  const _undrawn: never = primitive;
   return null;
 }

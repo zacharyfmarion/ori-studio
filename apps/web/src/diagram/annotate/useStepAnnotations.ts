@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating } from '../../store/workspaceStore/diagramState';
 import {
@@ -9,16 +10,18 @@ import {
   type DiagramStep,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
-import { flipAnnotationArc } from './annotationModel';
+import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
 
 const NO_ANNOTATIONS: readonly KnownDiagramAnnotation[] = [];
 
 /**
  * The Step pane's annotations (D13): what the selected step carries, which
  * one is selected, the tool in hand, and the verbs on the selected one — its
- * text, its arc, its turn, its axis — each one undo step through the store.
+ * text, its turn, its axis, and the catalog's (`annotationActions.ts`: Flip
+ * arc, Delete) — each one undo step through the store.
  */
 export function useStepAnnotations(step: DiagramStep | null) {
+  const { t } = useTranslation();
   const annotating = useWorkspaceStore(isDiagramAnnotating);
   const tool = useWorkspaceStore((state) => state.diagramAnnotateTool);
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
@@ -43,7 +46,12 @@ export function useStepAnnotations(step: DiagramStep | null) {
         { loadId, session }
       );
     };
+    /** A verb of the catalog's, made on this step as one undo step. */
+    const apply = ({ label, edit, select }: AnnotationEdit) => {
+      if (stepId !== null) store().editDiagramAnnotations(stepId, label, edit, { select, loadId });
+    };
     return {
+      apply,
       /** A row of the list, pressed: its annotation selected, with Select in hand to move it. */
       select: (id: string | null) => {
         store().selectDiagramAnnotation(id);
@@ -57,19 +65,19 @@ export function useStepAnnotations(step: DiagramStep | null) {
       },
       setText: (id: string, text: string, session: number) =>
         change(id, 'Edit label', (annotation) => ({ ...annotation, text }), session),
-      flip: (id: string) => change(id, 'Flip arc', flipAnnotationArc),
       setRotation: (id: string, rotate: DiagramRotation) => change(id, 'Change rotation', (annotation) => ({ ...annotation, rotate })),
       setAxis: (id: string, axis: 'vertical' | 'horizontal') =>
         change(id, 'Change turn-over', (annotation) => ({ ...annotation, axis })),
-      remove: (id: string) => {
-        if (stepId === null) return;
-        store().editDiagramAnnotations(stepId, 'Delete annotation', (list) => list.filter((annotation) => annotation.id !== id), {
-          select: null,
-          loadId,
-        });
-      },
     };
   }, [stepId, loadId]);
+
+  const selected = known.find((annotation) => annotation.id === selectedId) ?? null;
+  const { apply } = verbs;
+  /** The selected annotation's verbs from the catalog, in the pane's order. */
+  const actions = useMemo(
+    () => (selected ? buildAnnotationActions(selected, { editable }, { t, apply }) : []),
+    [selected, editable, t, apply]
+  );
 
   return {
     annotating,
@@ -79,8 +87,9 @@ export function useStepAnnotations(step: DiagramStep | null) {
     unknownCount: step ? step.annotations.length - known.length : 0,
     /** They were drawn on another picture (D8): Annotate says so until they are touched. */
     outOfStep: step !== null && step.picture !== null && annotationsOutOfStep(step),
-    selected: known.find((annotation) => annotation.id === selectedId) ?? null,
+    selected,
     editable,
+    actions,
     ...verbs,
   };
 }

@@ -35,7 +35,7 @@ import { normalizePaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import {
   ANNOTATION_REACH,
-  ARROW_BEND,
+  arrowBend,
   DEFAULT_ROTATION,
   LABEL_MAX_LENGTH,
   MAX_BEND,
@@ -748,7 +748,7 @@ function readAnnotation(
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow': {
-      if (entry.bend === undefined) return { ...annotation, bend: ARROW_BEND };
+      if (entry.bend === undefined) return { ...annotation, bend: arrowBend(annotation) };
       if (typeof entry.bend !== 'number' || !Number.isFinite(entry.bend) || entry.bend === 0) return null;
       return Math.abs(entry.bend) > MAX_BEND ? NEWER : { ...annotation, bend: entry.bend };
     }
@@ -765,7 +765,12 @@ function readAnnotation(
       const axis = readAxis(entry.axis);
       return axis === null || axis === NEWER ? axis : { ...annotation, axis };
     }
-    default:
+    // Nothing beyond the fields every kind has. Each kind is named, so a new
+    // one is a compile error here until it says what it reads.
+    case 'push-arrow':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
       return annotation;
   }
 }

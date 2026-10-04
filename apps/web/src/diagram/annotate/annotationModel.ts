@@ -27,35 +27,44 @@ export interface PictureFrame {
   height: number;
 }
 
-/** The fold arrows, which bulge, and whose bulge Flip arc turns over. */
-export const ARROW_KINDS: ReadonlySet<DiagramAnnotationKind> = new Set([
-  'valley-arrow',
-  'mountain-arrow',
-  'fold-unfold-arrow',
-]);
+/**
+ * How each kind is drawn and put down, which every kind has to say — a
+ * record, so a new kind is a compile error here until it does:
+ * - `arc`: a fold arrow, dragged from tail to tip, bulging on an arc;
+ * - `straight`: a push, dragged, straight from `from` to `to`;
+ * - `line`: a crease line, dragged, drawn in the diagram's pens;
+ * - `point`: a sign or a label, put down with a click at one point (`to` is
+ *   `from`).
+ */
+type AnnotationShape = 'arc' | 'straight' | 'line' | 'point';
+
+const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
+  'valley-arrow': 'arc',
+  'mountain-arrow': 'arc',
+  'fold-unfold-arrow': 'arc',
+  'push-arrow': 'straight',
+  'turn-over': 'point',
+  rotate: 'point',
+  'valley-line': 'line',
+  'mountain-line': 'line',
+  'hidden-line': 'line',
+  label: 'point',
+};
+
+/** Every kind, in the order the rail offers them. */
+export const ANNOTATION_KINDS = Object.keys(ANNOTATION_SHAPES) as readonly DiagramAnnotationKind[];
+
+const kindsShaped = (shape: AnnotationShape): ReadonlySet<DiagramAnnotationKind> =>
+  new Set(ANNOTATION_KINDS.filter((kind) => ANNOTATION_SHAPES[kind] === shape));
+
+/** The fold arrows, which bulge on an arc. */
+export const ARROW_KINDS = kindsShaped('arc');
 
 /** The kinds placed with a click, at one point: `to` is `from`. */
-export const POINT_KINDS: ReadonlySet<DiagramAnnotationKind> = new Set(['turn-over', 'rotate', 'label']);
+export const POINT_KINDS = kindsShaped('point');
 
 /** The crease lines, drawn in the diagram's pens. */
-export const LINE_KINDS: ReadonlySet<DiagramAnnotationKind> = new Set([
-  'valley-line',
-  'mountain-line',
-  'hidden-line',
-]);
-
-export const ANNOTATION_KINDS: readonly DiagramAnnotationKind[] = [
-  'valley-arrow',
-  'mountain-arrow',
-  'fold-unfold-arrow',
-  'push-arrow',
-  'turn-over',
-  'rotate',
-  'valley-line',
-  'mountain-line',
-  'hidden-line',
-  'label',
-];
+export const LINE_KINDS = kindsShaped('line');
 
 /**
  * A 60° arc, as References draws a fold arrow (`foldArrowArc`): its sagitta
@@ -211,10 +220,41 @@ export function moveAnnotationEnd(
   return end === 'from' ? { ...annotation, from: at } : { ...annotation, to: at };
 }
 
+/**
+ * The bulge a fold arrow is drawn with: its own, or References' 60° arc for
+ * one written without one. The one place an absent bend is filled in, so an
+ * arrow whose shape is not an arc has one place to say so.
+ */
+export function arrowBend(annotation: Pick<KnownDiagramAnnotation, 'bend'>): number {
+  return annotation.bend ?? ARROW_BEND;
+}
+
+/**
+ * Whether Flip arc turns `kind` over: a fold arrow's bulge. Asked by every
+ * surface that offers it (`annotationActions.ts`), and a switch, so a new
+ * kind has to answer.
+ */
+export function flipsArc(kind: DiagramAnnotationKind): boolean {
+  switch (kind) {
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+      return true;
+    case 'push-arrow':
+    case 'turn-over':
+    case 'rotate':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+    case 'label':
+      return false;
+  }
+}
+
 /** A fold arrow bulging the other way; anything else as it was. */
 export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
-  if (!isArrowKind(annotation.kind)) return annotation;
-  return { ...annotation, bend: -(annotation.bend ?? ARROW_BEND) };
+  if (!flipsArc(annotation.kind)) return annotation;
+  return { ...annotation, bend: -arrowBend(annotation) };
 }
 
 /** Whether an annotation drawn this short would draw nothing: an arrow or line needs a length. */

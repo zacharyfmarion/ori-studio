@@ -265,10 +265,44 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
     scriptable headless; WebKit was driven by mouse.
 
 ### 14b. Prep
-- [ ] The grip union (`body | from | to | node | handle | segment | corner |
+- [x] The grip union (`body | from | to | node | handle | segment | corner |
   direction`), the verbs catalog (`annotationActions.ts`), compiled-geometry
   caching, the five `?? ARROW_BEND` sites and the silent fall-throughs made
   explicit.
+  - As built, nothing visible changed:
+    - **Grips.** `AnnotationGripPart` is the eight parts, with a node index, a
+      handle's node and side, and a segment's index and `t`; nothing produces
+      the last five yet, and the canvas's move names each.
+    - **Catalog.** `annotationActions.ts` has Flip arc and Delete: whether an
+      annotation offers each (`flipsArc`, a switch over kinds), the edit
+      (`annotationActionEdit`), and the pane's descriptors. The Step pane, F
+      and `edit.delete` all make the catalog's edit, which retires Flip's
+      second copy and Delete's. The key state's `selectedIsArrow` is now
+      `canFlipArc`.
+    - **Caching.** `perAnnotation` keeps a value per annotation object in a
+      WeakMap. `compiledAnnotation` compiles each annotation once in picture
+      units, and every drawing (canvas, card, page) scales it;
+      `arrowPolyline` is cached the same way. `DiagramAnnotationLayer` is
+      memoised, so zoom and selection no longer redraw the marks. Measured on
+      200 annotations: a drawing with one changed went from 0.42 to 0.16 ms.
+      Rendering the marks' shapes costs about 5 ms and is still redone on
+      every drag move. Memoising it per annotation needs a render context
+      that stays stable across drawings; that is left until 14c or 14f needs
+      it.
+    - **Bend.** `arrowBend` is the one place an absent bend becomes
+      References' 60°. The model, the hit test, the compile and the reader go
+      through it.
+    - **Exhaustive sites.**
+      - Over kinds: the compile, `bodyDistance`, the canvas's `Selection`,
+        the reader's switch, `flipsArc`, and the tool glyph (by its return
+        type).
+      - Over the primitives an annotation compiles to: `annotationReach`.
+      - Over References' primitives: `diagramPrimitiveShape` and
+        `diagramInModel`.
+      - Records over kinds: the kind sets and `ANNOTATION_KINDS`
+        (`ANNOTATION_SHAPES`), and the rail's groups (`TOOL_GROUP`).
+      - Checked: adding a kind fails to compile at 13 sites, and adding a
+        primitive at the References and reach sites.
 
 ### 14c. Bézier arrows
 - [ ] Geometry and model: shared `path-arrow` primitive and golden; `path` in

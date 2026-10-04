@@ -220,7 +220,13 @@ export function useAnnotateCanvas({
     return () => view.removeEventListener('touchstart', keepOneFinger, { capture: true });
   }, [containerRef, onStage]);
 
-  /** The annotations as the canvas shows them: the one in hand where it is now. */
+  /**
+   * The annotations as the canvas draws them: the step's, and the one in hand
+   * where it is now. Only a drag joins them — anything shown over the marks
+   * for a moment stays out — so a pointer's every move recompiles at most the
+   * one annotation that moved (`compiledAnnotation`), and nothing else redraws
+   * the marks.
+   */
   const shown = useMemo<readonly DiagramAnnotation[]>(() => {
     if (!draft) return step.annotations;
     if (draft.id === DRAFT_ID) return [...step.annotations, draft];
@@ -305,10 +311,24 @@ export function useAnnotateCanvas({
   );
 
   /** The annotation a move makes of `annotation`, the press at `at`. */
-  const moved = (current: Extract<Gesture, { mode: 'move' }>, annotation: KnownDiagramAnnotation, at: PicturePoint) =>
-    current.grip.part === 'body'
-      ? moveAnnotation(annotation, [at[0] - current.start[0], at[1] - current.start[1]])
-      : moveAnnotationEnd(annotation, current.grip.part, at);
+  const moved = (current: Extract<Gesture, { mode: 'move' }>, annotation: KnownDiagramAnnotation, at: PicturePoint) => {
+    const { grip } = current;
+    switch (grip.part) {
+      case 'body':
+        return moveAnnotation(annotation, [at[0] - current.start[0], at[1] - current.start[1]]);
+      case 'from':
+      case 'to':
+        return moveAnnotationEnd(annotation, grip.part, at);
+      case 'node':
+      case 'handle':
+      case 'segment':
+      case 'corner':
+      case 'direction':
+        // No press takes hold of these yet (`hitAnnotation`): Edit Path and
+        // the right-angle mark will, and say here what moving one does.
+        return annotation;
+    }
+  };
 
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {

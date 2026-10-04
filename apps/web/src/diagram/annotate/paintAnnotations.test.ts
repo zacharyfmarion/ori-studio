@@ -40,6 +40,23 @@ describe('annotationDrawing', () => {
     const drawing = annotationDrawing([unknown, a('l', 'label', { text: '  ' })], FRAME, 100, DEFAULT_DIAGRAM_STYLE);
     expect(annotationScene(drawing)).toBeNull();
   });
+
+  it('compiles each annotation once, whatever size it is drawn at, and an edited one again', () => {
+    const arrow = a('arrow', 'fold-unfold-arrow', { bend: 0.1 });
+    const line = a('line', 'valley-line');
+    const small = annotationDrawing([arrow, line], FRAME, 100, DEFAULT_DIAGRAM_STYLE);
+    const large = annotationDrawing([arrow, line], FRAME, 400, DEFAULT_DIAGRAM_STYLE);
+    // One compile, in picture units, that each drawing scales.
+    expect(large.primitives[0]).toBe(small.primitives[0]);
+    expect(large.lines[0]!.a).toEqual([small.lines[0]!.a[0] * 4, small.lines[0]!.a[1] * 4]);
+    // An edit is a new object, compiled afresh; what was not edited is read back.
+    const moved = { ...arrow, to: [0.7, 0.4] as [number, number] };
+    const next = annotationDrawing([moved, line], FRAME, 100, DEFAULT_DIAGRAM_STYLE);
+    expect(next.primitives[0]).not.toBe(small.primitives[0]);
+    expect(next.primitives[0]).toMatchObject({ kind: 'fold-arrow' });
+    expect(next.primitives[0]).not.toEqual(small.primitives[0]);
+    expect(annotationDrawing([arrow], FRAME, 100, DEFAULT_DIAGRAM_STYLE).primitives[0]).toBe(small.primitives[0]);
+  });
 });
 
 describe('a label’s runs', () => {
