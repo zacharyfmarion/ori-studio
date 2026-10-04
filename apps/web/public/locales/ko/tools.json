@@ -206,6 +206,7 @@
   "creaseAngle": {
     "close": "접는 선 각도 닫기",
     "degrees": "접는 선 각도(도)",
+    "degreesLabel": "도",
     "fieldTitle": "새로 그리는 산접기와 골접기에 적용되는 접기 각도",
     "menuRow": "접는 선 각도: {{angle}}",
     "title": "접는 선 각도"

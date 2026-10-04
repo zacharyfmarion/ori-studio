@@ -214,6 +214,7 @@
   "creaseAngle": {
     "close": "Faltwinkel schließen",
     "degrees": "Faltwinkel in Grad",
+    "degreesLabel": "Grad",
     "fieldTitle": "Faltwinkel für neue Berg- und Talfalten",
     "menuRow": "Faltwinkel: {{angle}}",
     "title": "Faltwinkel"

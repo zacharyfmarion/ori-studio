@@ -1,0 +1,73 @@
+/*
+ * A pill-shaped quick pick (Chip.tsx). Everything but the padding and the type
+ * scale is shared, which is what the sizes leave alone.
+ */
+.chip {
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  /* Transparent, which is what these chips have always rendered as: the rule
+     this replaces asked for `--surface-raised`, a token theme.css never defines,
+     so the browser dropped the declaration. Stated rather than inherited by
+     accident. */
+  background: transparent;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+/* A header row, beside pills of its own height and weight: Settings → Paper's
+   Update and Revert, beside the preset pill naming the style. */
+.chip[data-size='sm'] {
+  height: 24px;
+  padding: 0 9px;
+  border-color: var(--border-default);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* A row of quick picks in a panel — the tool window's groups, the crease-angle
+   popover — at the app's field size, so a chip is as tall as the field it sits
+   beside. */
+.chip[data-size='md'] {
+  height: 28px;
+  padding: 0 7px;
+  font-size: 0.72rem;
+}
+
+/* The states come after the sizes and tie with them on specificity, so a
+   size's border gives way to them. */
+.chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+/* Chips are ordinary tab stops — the crease-angle popover is keyboard-first and
+   Tab lands here — so the ring has to be visible. */
+.chip:focus-visible {
+  border-color: var(--accent-primary);
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+  color: var(--text-primary);
+}
+
+/* `--bg-secondary`, not the `--surface-base` the old rule named: that token does
+   not exist either, so the pressed chip was drawing grey text on a blue fill. */
+.chip[aria-pressed='true'] {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--bg-secondary);
+}
+
+/* A finger needs the room a cursor does not: on a coarse pointer a chip is a
+   full touch target, the height every field and button around it already
+   grows to. The type grows with it, so the label does not sit lost in a big
+   pill. */
+@media (pointer: coarse) {
+  .chip[data-size] {
+    height: auto;
+    min-height: var(--touch-target);
+    padding: 0 14px;
+    font-size: 0.875rem;
+  }
+}

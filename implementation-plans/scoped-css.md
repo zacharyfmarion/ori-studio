@@ -158,6 +158,16 @@ Moved by `implementation-plans/styling-refinements.md`: `viewport-toolbar`
 `cp-context-panel`, `viewport-status-readout`, `bp-name-editor`, `update-card`,
 and the whole of `MenuBar.css`.
 
+Moved by `implementation-plans/crease-angle-popover-tool-window-chrome.md`:
+`ui-chip`, into `Chip.module.css`, with Settings → Paper's
+`settings-paper__slot-action` override as `Chip`'s `size="sm"`.
+
+Moved by `implementation-plans/simulator-tool-rail-and-pins.md`:
+`cp-tool-picker`, into the tool kit's modules (`components/ui/tools/`:
+`ToolPickerSheet`, `ToolPickerGroup`, `ToolPickerRow`, `ToolsTriggerButton`)
+and Edit's adapters (`CpToolPickerSheet`, `CpToolFavoriteToggle`); and
+`cp-tools-trigger`, out of the shared `canvas-pill` selector list.
+
 Still shared:
 
 - **Panel frame**: `panel-shell`, `panel-toolbar`, `panel-body`,
@@ -172,9 +182,11 @@ Still shared:
   options moved. It moves with a `SelectTrigger` prop for that look, in the
   dialogs' own PR.
 - **The CP tool card's content**: `cp-context-panel` groups and fields
-  (`CpContextToolPanel` and the controls it renders)
+  (`CpContextToolPanel` and the controls it renders, and the crease-angle
+  popover, which wears the field row so it reads as the fold-angle group it
+  mirrors)
 - **CP workspace**: `cp-panel` (looked up by the tool card and the HUD lane),
-  `cp-tool-picker`, `cp-tool-option`, `cp-inline-simulation` and
+  `cp-tool-option`, `cp-inline-simulation` and
   `cp-folded-figure-window` (with `canvasWindowPlacement`), `cp-webgl-layer`,
   `cp-operation-frame`
 - **References**: `step-diagram`, `references-card`, `sheet-card`,
@@ -182,7 +194,7 @@ Still shared:
 - **Design scene** (TreeScene, sceneDom, DesignPanel, BpPackingPanel):
   `tree-node`, `tree-edge`, `node-label`, `edge-label`, `symmetry-*`,
   `design-canvas`, `design-panel`, `paper-hit-area`, `paper-shadow`
-- **Primitives**: `ui-button` (Button, IconButton, ErrorFallback), `ui-chip`,
+- **Primitives**: `ui-button` (Button, IconButton, ErrorFallback),
   `ui-control`, `ui-split-button` (the landing's static paint names it)
 - **App.css**: `error-fallback`, `workspace-rail`, `canvas-pill`,
   `file-drop-region` (the landing uses it)

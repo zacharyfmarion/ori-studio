@@ -218,4 +218,46 @@ describe('CreaseAnglePopover', () => {
     expect(chip('90°').getAttribute('aria-pressed')).toBe('true');
     expect(chip('180°').getAttribute('aria-pressed')).toBe('false');
   });
+
+  // The fold-angle group a selection shows in the tool window labels the same
+  // field the same way; the two are one control applied to two things.
+  it('labels its field the way the fold-angle group does', () => {
+    renderPopover();
+    expect(input().closest('label')?.textContent).toContain('Degrees');
+  });
+
+  it('closes from its title bar without changing the pen', () => {
+    const { onChange, onClose } = renderPopover();
+    act(() => {
+      document.querySelector<HTMLButtonElement>('button[aria-label="Close crease angle"]')?.click();
+    });
+    expect(onClose).toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Rendered in place, the centred frame sat inside the crease-pattern
+   * viewport's stacking context, so however high its `z-index` its backdrop
+   * stayed under the body-portaled tool window: on a phone the window floated
+   * undimmed over the modal.
+   */
+  it('puts the centred frame on the body, above the tool window', () => {
+    renderPopover({ anchored: false });
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(container?.contains(dialog)).toBe(false);
+    expect(dialog?.closest('[role="presentation"]')?.parentElement).toBe(document.body);
+  });
+
+  it('closes on a tap on the backdrop, and not on one inside the frame', () => {
+    const { onClose } = renderPopover({ anchored: false });
+    act(() => {
+      input().click();
+    });
+    expect(onClose).not.toHaveBeenCalled();
+
+    act(() => {
+      document.querySelector<HTMLElement>('[role="presentation"]')?.click();
+    });
+    expect(onClose).toHaveBeenCalled();
+  });
 });

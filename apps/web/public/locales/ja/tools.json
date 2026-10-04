@@ -206,6 +206,7 @@
   "creaseAngle": {
     "close": "折り線の角度を閉じる",
     "degrees": "折り線の角度（度）",
+    "degreesLabel": "度",
     "fieldTitle": "新しい山折り・谷折りに与える折り角度",
     "menuRow": "折り線の角度: {{angle}}",
     "title": "折り線の角度"

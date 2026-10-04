@@ -204,6 +204,12 @@ depends on who uses it.
   belong inside an unrelated fix. The known shared blocks are listed in
   `implementation-plans/scoped-css.md`. Until one moves, a fix may edit its
   existing rules in place; it never adds any.
+- **When a change needs a shared block moved, ask the user.** If what you were
+  asked to do needs a rule added to a shared block, or the block moved, stop
+  and ask whether to move it in this PR or a separate one. Never look for a
+  route around the rule to avoid that question: a token that happens to vary,
+  an existing rule stretched to carry the change, or a class set from a parent.
+  A workaround like that is worse than either answer.
 - **Every move:**
   - Grep `src/` (tests included) and `scripts/` for each class before it goes;
     TypeScript and ESLint see none of these uses. A lookup by class becomes a
