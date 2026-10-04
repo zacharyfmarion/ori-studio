@@ -1,12 +1,19 @@
 /**
- * Layers stepped apart by depth: the flat folded picture with each layer
- * beneath the nearest moved a little further in one direction on the screen,
- * so the edges a stack hides peek out (Phase 13 of the diagram workspace,
- * `implementation-plans/diagram-distortion.md`). It is Akitaya's depth shift,
- * `D(v) = V(v) + p · z(v) / z_max · d`, which the *Affine Distortions* paper
- * (Morisue) sets aside. It is a choice about the picture: the fold and its
- * layer order are what the kernel said, and the painter's order that
- * `foldedFlatPaperScene` draws in is not touched.
+ * A flat folded picture's layers spread apart, one of two ways (Phase 13 of
+ * the diagram workspace, `implementation-plans/diagram-distortion.md`):
+ *
+ * - **By depth** (`layerSpread`): each layer beneath the nearest moved a
+ *   little further in one direction on the screen, so the edges a stack
+ *   hides peek out. It is Akitaya's depth shift,
+ *   `D(v) = V(v) + p · z(v) / z_max · d`, which the *Affine Distortions*
+ *   paper (Morisue) sets aside.
+ * - **Affine** (`affineSpread`): that paper's own distortion, as DEFOX draws
+ *   it — every point moved part of the way back toward where it lies on the
+ *   sheet, or skewed about an axis, so flaps that are not joined part.
+ *
+ * Either is a choice about the picture: the fold and its layer order are what
+ * the kernel said, and the painter's order that `foldedFlatPaperScene` draws
+ * in is not touched. The rest of this note is the depth spread's.
  *
  * # Depth is the layer count from the viewer
  *
@@ -68,12 +75,43 @@ export const SPREAD_DIRECTIONS: readonly SpreadDirection[] = [
   'left',
 ];
 
-/** A step's spread: how far the deepest layer moves, and which way. */
-export interface LayerSpreadOptions {
+/** The two ways a picture's layers are spread: by depth, or DEFOX's affine opening. */
+export type SpreadKind = 'depth' | 'affine';
+
+export const SPREAD_KINDS: readonly SpreadKind[] = ['depth', 'affine'];
+
+/** A depth spread: how far the deepest layer moves, and which way. */
+export interface DepthSpreadOptions {
+  kind: 'depth';
   /** The deepest layer's step as a fraction of the model's size. */
   amount: number;
   toward: SpreadDirection;
 }
+
+/** Which layer an affine spread holds still: the one on top, or the one at the bottom, as the front sees them. */
+export type SpreadKeep = 'top' | 'bottom';
+
+export const SPREAD_KEEPS: readonly SpreadKeep[] = ['top', 'bottom'];
+
+/**
+ * DEFOX's affine distortion (`affineSpread`): every point moves `amount` (τ)
+ * of the way back toward where it lies on the sheet laid under the face held
+ * still — at `skew` 0 — or, at `skew` 1, toward it along the axis at
+ * `axisDeg` and away from it across that axis.
+ */
+export interface AffineSpreadOptions {
+  kind: 'affine';
+  /** τ: how far a point moves toward its place on the sheet, as a fraction of the way. */
+  amount: number;
+  keep: SpreadKeep;
+  /** q, 0 to 1: how much of the opening is the skew about the axis. */
+  skew: number;
+  /** θ, in degrees from the sheet's +x toward its +y (the crease pattern's own frame, y down). */
+  axisDeg: number;
+}
+
+/** A step's spread, of either kind. */
+export type LayerSpreadOptions = DepthSpreadOptions | AffineSpreadOptions;
 
 /** The spread of one picture. */
 export interface LayerSpread {
@@ -128,7 +166,7 @@ export interface LayerSpreadFrame {
 export function layerSpread(
   kernel: OristudioCpFoldedPaperScene,
   order: readonly number[],
-  { amount, toward }: LayerSpreadOptions,
+  { amount, toward }: Pick<DepthSpreadOptions, 'amount' | 'toward'>,
   { scale, epsilon }: LayerSpreadFrame
 ): LayerSpread {
   const { levels, zMax } = layerLevels(kernel.faces.length, kernel.subfaces, order);
@@ -156,6 +194,193 @@ export function layerSpread(
     return step(level);
   };
   return { levels, zMax, offset };
+}
+
+/** DEFOX's affine distortion of one picture. */
+export interface AffineSpread {
+  /** The face held still; null when none can be — no face is named on the sheet — and then nothing moves. */
+  readonly anchor: number | null;
+  /**
+   * The move of a point on a face, in the kernel's coordinates as the face's
+   * outline is: added to the point before the picture places it, so the
+   * picture's turn and side turn it with the model.
+   */
+  offset(face: number, point: Point): Point;
+}
+
+const NO_MOVE: Point = { x: 0, y: 0 };
+const HELD: AffineSpread = { anchor: null, offset: () => NO_MOVE };
+
+/**
+ * DEFOX's distortion (`distortionfolder/distortion.js`, Morisue's *Affine
+ * Distortions*): `VD = (I + A)⁻¹ (Vf + A·C)` with `p = τ / (1 − τ)` and
+ * `A = p((1 − q) I + q R(2θ))`, `R(φ) = [[cos φ, sin φ], [sin φ, −cos φ]]`
+ * the reflection about the line at θ. `Vf` is where a point is folded, `C`
+ * where it lies on the sheet laid under the face held still, both in that
+ * face's frame — so `A`, given in the sheet's frame, is carried into the
+ * scene's by the face's own map from the sheet: `A_s = M A M⁻¹`, `M` that
+ * map's linear part, which turns and mirrors the axis with the paper.
+ *
+ * The face held still is the one on top, or at the bottom, over the most of
+ * the picture, as the front sees it: a back pass reads its stacks bottom-up,
+ * so turning the model over keeps the same paper still and the picture is the
+ * front's mirrored. It does not move (its `Vf` is its `C`). A sheet vertex
+ * moves by the formula; a point inside a face by mean value coordinates over
+ * its corners' moves, which is the formula itself there, the map being affine
+ * on a face. A face the kernel could not name on the sheet does not move.
+ */
+export function affineSpread(
+  kernel: OristudioCpFoldedPaperScene,
+  { amount, keep, skew, axisDeg }: Omit<AffineSpreadOptions, 'kind'>,
+  { epsilon }: Pick<LayerSpreadFrame, 'epsilon'>
+): AffineSpread {
+  const onSheet = sheetNamedFaces(kernel);
+  const anchor = anchorFace(kernel, keep, onSheet);
+  if (anchor === null) return HELD;
+  const still = kernel.faces[anchor]!;
+  const toScene = fitAffine(
+    still.points.map((vertex) => kernel.sheet_points[vertex]!),
+    still.outline
+  );
+  const unmap = toScene && invert(toScene.linear);
+  if (!toScene || !unmap) return HELD;
+
+  const p = amount / (1 - amount);
+  const phi = (2 * axisDeg * Math.PI) / 180;
+  const [r1, r2] = [p * (1 - skew), p * skew];
+  const onTheSheet: Mat2 = [r1 + r2 * Math.cos(phi), r2 * Math.sin(phi), r2 * Math.sin(phi), r1 - r2 * Math.cos(phi)];
+  const inTheScene = multiply(multiply(toScene.linear, onTheSheet), unmap);
+  // I + A has eigenvalues 1 + p and 1 + p(1 − 2q), never 0 for τ < ½.
+  const settle = invert([1 + inTheScene[0], inTheScene[1], inTheScene[2], 1 + inTheScene[3]]);
+  if (!settle) return HELD;
+
+  const moves = new Map<number, Point>();
+  kernel.faces.forEach(({ points, outline }, face) => {
+    if (!onSheet[face]) return;
+    points.forEach((vertex, corner) => {
+      if (moves.has(vertex)) return;
+      const folded = outline[corner]!;
+      const pull = transform(inTheScene, place(toScene, kernel.sheet_points[vertex]!));
+      const settled = transform(settle, { x: folded.x + pull.x, y: folded.y + pull.y });
+      moves.set(vertex, { x: settled.x - folded.x, y: settled.y - folded.y });
+    });
+  });
+
+  const offset = (face: number, point: Point): Point => {
+    const source = kernel.faces[face];
+    if (!source || !onSheet[face]) return NO_MOVE;
+    const weights = meanValueWeights(source.outline, point, epsilon);
+    let [x, y] = [0, 0];
+    source.points.forEach((vertex, corner) => {
+      // A ring with no inside to speak of: its corners' mean.
+      const weight = weights ? weights[corner]! : 1 / source.points.length;
+      const move = moves.get(vertex)!;
+      x += weight * move.x;
+      y += weight * move.y;
+    });
+    return { x, y };
+  };
+  return { anchor, offset };
+}
+
+/** Per face, whether its outline is named point for point and every point it names has a place on the sheet. */
+function sheetNamedFaces(kernel: OristudioCpFoldedPaperScene): boolean[] {
+  const sheet = kernel.sheet_points.length;
+  return namedFaces(kernel).map((named, face) => named && kernel.faces[face]!.points.every((vertex) => vertex < sheet));
+}
+
+/**
+ * The face an affine spread holds still: of the faces on top of their stacks
+ * — or at the bottom — the one over the most area, as the front sees them; a
+ * tie goes to the lower face index. Null when no named face is either.
+ */
+function anchorFace(kernel: OristudioCpFoldedPaperScene, keep: SpreadKeep, onSheet: readonly boolean[]): number | null {
+  // A back pass reads its stacks bottom-up: its top is the front's bottom.
+  const top = (keep === 'top') !== kernel.flipped;
+  const area = new Float64Array(kernel.faces.length);
+  for (const { polygon, faces_top_to_bottom: stack } of kernel.subfaces) {
+    const face = top ? stack[0] : stack[stack.length - 1];
+    if (face === undefined || face >= area.length || !onSheet[face]) continue;
+    area[face] += Math.abs(ringArea(polygon));
+  }
+  let best: number | null = null;
+  area.forEach((covered, face) => {
+    // Symmetric faces cover the same area to the last few bits: the lower index, every time.
+    if (covered > 0 && (best === null || covered > area[best]! * (1 + 1e-9))) best = face;
+  });
+  return best;
+}
+
+/** A 2 × 2 matrix, row by row. */
+type Mat2 = [number, number, number, number];
+
+interface Affine {
+  linear: Mat2;
+  offset: Point;
+}
+
+function multiply([a, b, c, d]: Mat2, [e, f, g, h]: Mat2): Mat2 {
+  return [a * e + b * g, a * f + b * h, c * e + d * g, c * f + d * h];
+}
+
+function invert([a, b, c, d]: Mat2): Mat2 | null {
+  const det = a * d - b * c;
+  const size = Math.max(Math.abs(a), Math.abs(b), Math.abs(c), Math.abs(d));
+  if (!Number.isFinite(det) || Math.abs(det) <= 1e-12 * size * size) return null;
+  return [d / det, -b / det, -c / det, a / det];
+}
+
+function transform([a, b, c, d]: Mat2, { x, y }: Point): Point {
+  return { x: a * x + b * y, y: c * x + d * y };
+}
+
+function place({ linear, offset }: Affine, point: Point): Point {
+  const { x, y } = transform(linear, point);
+  return { x: x + offset.x, y: y + offset.y };
+}
+
+/**
+ * The affine map taking `from` onto `to`, fitted by least squares over every
+ * pair; null for fewer than three points or ones with no area.
+ */
+function fitAffine(from: readonly Point[], to: readonly Point[]): Affine | null {
+  const n = from.length;
+  if (n < 3 || to.length !== n) return null;
+  const mean = (points: readonly Point[]): Point => ({
+    x: points.reduce((sum, { x }) => sum + x, 0) / n,
+    y: points.reduce((sum, { y }) => sum + y, 0) / n,
+  });
+  const [f, t] = [mean(from), mean(to)];
+  // M = Σ (tᵢ − t̄)(fᵢ − f̄)ᵀ · (Σ (fᵢ − f̄)(fᵢ − f̄)ᵀ)⁻¹
+  const spread: Mat2 = [0, 0, 0, 0];
+  const cross: Mat2 = [0, 0, 0, 0];
+  for (let i = 0; i < n; i += 1) {
+    const [fx, fy] = [from[i]!.x - f.x, from[i]!.y - f.y];
+    const [tx, ty] = [to[i]!.x - t.x, to[i]!.y - t.y];
+    spread[0] += fx * fx;
+    spread[1] += fx * fy;
+    spread[3] += fy * fy;
+    cross[0] += tx * fx;
+    cross[1] += tx * fy;
+    cross[2] += ty * fx;
+    cross[3] += ty * fy;
+  }
+  spread[2] = spread[1];
+  const unspread = invert(spread);
+  if (!unspread) return null;
+  const linear = multiply(cross, unspread);
+  const moved = transform(linear, f);
+  return { linear, offset: { x: t.x - moved.x, y: t.y - moved.y } };
+}
+
+/** Shoelace: a closed ring's signed area. */
+function ringArea(ring: readonly Point[]): number {
+  let twice = 0;
+  ring.forEach(({ x, y }, i) => {
+    const next = ring[(i + 1) % ring.length]!;
+    twice += x * next.y - next.x * y;
+  });
+  return twice / 2;
 }
 
 /**

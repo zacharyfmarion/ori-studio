@@ -55,6 +55,7 @@ import type {
 } from '../../lib/paper/paperScene';
 import { erodeLine, faceOutlineLines } from '../../lib/paper/paperSvg';
 import { faceComponents, foldedFlatPaperScene, wovenDrawOrder } from './foldedFlatScene';
+import type { LayerSpreadOptions } from './foldedLayerSpread';
 
 const FIXTURES = resolve(process.cwd(), '../../tests/fixtures');
 const ORIEDITA_TEST_RESOURCES = resolve(
@@ -1003,7 +1004,7 @@ describe('with no spread', () => {
 });
 
 describe('with a spread', () => {
-  const SPREAD = { amount: 0.05, toward: 'up-left' } as const;
+  const SPREAD = { kind: 'depth', amount: 0.05, toward: 'up-left' } as const;
   const UP_LEFT: ScenePoint = [-Math.SQRT1_2, -Math.SQRT1_2];
 
   function spreadScene(
@@ -1208,6 +1209,103 @@ describe('with a spread', () => {
     expect(spread.bounds.minX).toBeLessThan(plain.bounds.minX);
     expect(spread.bounds.minY).toBeLessThan(plain.bounds.minY);
     expect(spread.sheet).toBe(plain.sheet);
+  });
+});
+
+describe('with an affine spread', () => {
+  // DEFOX's bird-base opening, as the playground Zach chose it from showed it.
+  const OPEN = { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 } as const;
+
+  const affineScene = (
+    kernel: OristudioCpFoldedPaperScene,
+    toScenePx: (p: Point) => ScenePoint = identity,
+    spread: LayerSpreadOptions = OPEN
+  ): PaperScene => foldedFlatPaperScene(kernel, { markHidden: false, toScenePx, scale: 1, spread });
+
+  const shapeless = (items: readonly PaperItem[]) =>
+    items.map((item) => (item.kind === 'face' ? { ...item, rings: [] } : item.kind === 'line' ? { ...item, a: null, b: null, whole: null } : item));
+
+  /** Per sheet vertex, where the whole faces of `scene` put it: one place, or the test fails. */
+  function vertexPlaces(kernel: OristudioCpFoldedPaperScene, scene: PaperScene, name: string): Map<number, ScenePoint> {
+    const at = new Map<number, ScenePoint>();
+    for (const item of faceItems(scene).filter((face) => face.group === undefined)) {
+      const { points } = kernel.faces[item.face]!;
+      item.rings[0]!.forEach((p, k) => {
+        const known = at.get(points[k]!);
+        if (!known) at.set(points[k]!, p);
+        else {
+          expect(p[0], `${name}: vertex ${points[k]}`).toBeCloseTo(known[0], 9);
+          expect(p[1], `${name}: vertex ${points[k]}`).toBeCloseTo(known[1], 9);
+        }
+      });
+    }
+    return at;
+  }
+
+  it('draws the same items, keeps every crease joined, and holds one face still', () => {
+    for (const { name, scene: kernel } of [...real(), ...cyclic()]) {
+      expect(kernel.sheet_points.length, name).toBeGreaterThan(0);
+      const plain = sceneOf(kernel, false);
+      const open = affineScene(kernel);
+      expect(shapeless(open.items), name).toEqual(shapeless(plain.items));
+      const before = vertexPlaces(kernel, plain, name);
+      const after = vertexPlaces(kernel, open, name);
+      const moved = (vertex: number) =>
+        Math.hypot(after.get(vertex)![0] - before.get(vertex)![0], after.get(vertex)![1] - before.get(vertex)![1]);
+      const still = kernel.faces.filter(({ points }) => points.length > 0 && points.every((vertex) => moved(vertex) < 1e-9));
+      expect(still.length, name).toBeGreaterThan(0);
+      expect(Math.max(...[...after.keys()].map(moved)), name).toBeGreaterThan(1e-3 * kernel.sheet);
+      expect(open.items.every((item) => !item.hidden), name).toBe(true);
+    }
+  });
+
+  it('turns with the picture: the opening is on the model, not the screen', () => {
+    const { scene: kernel } = real()[2]!; // the kabuto, front
+    const turned = (degrees: number) => {
+      const radians = (degrees * Math.PI) / 180;
+      return (p: Point): ScenePoint => [
+        p.x * Math.cos(radians) - p.y * Math.sin(radians),
+        p.x * Math.sin(radians) + p.y * Math.cos(radians),
+      ];
+    };
+    const upright = affineScene(kernel).items.flatMap((item) => (item.kind === 'face' ? item.rings.flat() : []));
+    for (const degrees of [90, 37]) {
+      const turn = turned(degrees);
+      const shown = affineScene(kernel, turn).items.flatMap((item) => (item.kind === 'face' ? item.rings.flat() : []));
+      expect(shown.length).toBe(upright.length);
+      shown.forEach((p, i) => {
+        const expected = turn(point(upright[i]![0], upright[i]![1]));
+        expect(p[0]).toBeCloseTo(expected[0], 9);
+        expect(p[1]).toBeCloseTo(expected[1], 9);
+      });
+    }
+  });
+
+  it('opens the back as the front’s mirror: the same paper held still, seen from behind', () => {
+    for (const model of ['solution sample', 'kabuto']) {
+      const front = real().find(({ name }) => name === `${model} front`)!.scene;
+      const back = real().find(({ name }) => name === `${model} back`)!.scene;
+      for (const keep of ['bottom', 'top'] as const) {
+        const spread = { ...OPEN, keep, skew: 0.6, axisDeg: 30 };
+        const label = `${model} ${keep}`;
+        // The rear camera, as the unspread pictures place every vertex: x mirrored, then moved.
+        const [plainFront, plainBack] = [front, back].map((kernel) => vertexPlaces(kernel, sceneOf(kernel, false), label));
+        const vertices = [...plainFront!.keys()];
+        const shift = vertices.map((v) => plainBack!.get(v)![0] + plainFront!.get(v)![0]);
+        const rise = vertices.map((v) => plainBack!.get(v)![1] - plainFront!.get(v)![1]);
+        expect(Math.max(...shift) - Math.min(...shift), label).toBeLessThan(1e-9 * front.sheet);
+        expect(Math.max(...rise) - Math.min(...rise), label).toBeLessThan(1e-9 * front.sheet);
+        const [openFront, openBack] = [front, back].map((kernel) => vertexPlaces(kernel, affineScene(kernel, identity, spread), label));
+        let moved = false;
+        for (const vertex of vertices) {
+          const [x, y] = openFront!.get(vertex)!;
+          moved ||= Math.hypot(x - plainFront!.get(vertex)![0], y - plainFront!.get(vertex)![1]) > 1e-3 * front.sheet;
+          expect(openBack!.get(vertex)![0], `${label}: vertex ${vertex}`).toBeCloseTo(shift[0]! - x, 6);
+          expect(openBack!.get(vertex)![1], `${label}: vertex ${vertex}`).toBeCloseTo(rise[0]! + y, 6);
+        }
+        expect(moved, label).toBe(true);
+      }
+    }
   });
 });
 

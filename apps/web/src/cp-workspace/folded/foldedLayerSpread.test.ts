@@ -17,13 +17,15 @@ import type { Point } from '../../lib/geometry';
 import type { ScenePoint } from '../../lib/paper/paperScene';
 import { foldedPaintOrder, foldedSceneEpsilon, wovenDrawOrder } from './foldedFlatScene';
 import {
+  affineSpread,
   foldedModelSize,
   layerLevels,
   layerSpread,
   meanValueWeights,
   SPREAD_DIRECTIONS,
   spreadUnit,
-  type LayerSpreadOptions,
+  type AffineSpreadOptions,
+  type DepthSpreadOptions,
 } from './foldedLayerSpread';
 
 const point = (x: number, y: number): Point => ({ x, y });
@@ -89,7 +91,7 @@ function letterFold(): OristudioCpFoldedPaperScene {
   );
 }
 
-const SPREAD: LayerSpreadOptions = { amount: 0.05, toward: 'up-left' };
+const SPREAD: DepthSpreadOptions = { kind: 'depth', amount: 0.05, toward: 'up-left' };
 const FRAME = { scale: 100, epsilon: 1e-9 };
 
 function spreadOf(kernel: OristudioCpFoldedPaperScene, options = SPREAD) {
@@ -319,5 +321,163 @@ describe('direction and amount', () => {
       epsilon: foldedSceneEpsilon(kernel),
     });
     expectStep(offset(UNDER, point(1 + 1e-6, 0.4)), upLeft(2.5));
+  });
+});
+
+/**
+ * DEFOX's affine opening, on the same folds with the sheet under them: the
+ * book's sheet is 2 × 1 (vertices 0 1 2 along the bottom, 3 4 5 along the
+ * top), the letter's 3 × 1 (0–3 and 4–7). τ is 10%, so p = τ / (1 − τ) is
+ * 1/9: a point moves τ of the way toward its place on the sheet along the
+ * axis, and p / (1 − p) = 1/8 of it away across the axis at full skew.
+ */
+describe('affine opening', () => {
+  const BOOK_SHEET = [point(0, 0), point(1, 0), point(2, 0), point(0, 1), point(1, 1), point(2, 1)];
+  const LETTER_SHEET = [0, 1, 2, 3].map((x) => point(x, 0)).concat([0, 1, 2, 3].map((x) => point(x, 1)));
+  const OPEN: Omit<AffineSpreadOptions, 'kind'> = { amount: 0.1, keep: 'bottom', skew: 0, axisDeg: 0 };
+  const EPSILON = { epsilon: 1e-9 };
+
+  const book = () => ({ ...bookFold(), sheet_points: BOOK_SHEET });
+  const letter = () => ({ ...letterFold(), sheet_points: LETTER_SHEET });
+
+  function expectMove(actual: Point, expected: [number, number]): void {
+    expect(actual.x).toBeCloseTo(expected[0], 12);
+    expect(actual.y).toBeCloseTo(expected[1], 12);
+  }
+
+  it('holds the bottom leaf still and lerps the top one τ of the way back to the sheet, at no skew', () => {
+    const spread = affineSpread(book(), OPEN, EPSILON);
+    expect(spread.anchor).toBe(UNDER);
+    for (const corner of book().faces[UNDER]!.outline) expectMove(spread.offset(UNDER, corner), [0, 0]);
+    // The top leaf's free corners, 2 and 5, folded onto (0, 0) and (0, 1):
+    // their places on the sheet are (2, 0) and (2, 1), so 0.2 to the right.
+    expectMove(spread.offset(OVER, point(0, 0)), [0.2, 0]);
+    expectMove(spread.offset(OVER, point(0, 1)), [0.2, 0]);
+    // The fold is where it lies on the sheet already.
+    expectMove(spread.offset(OVER, point(1, 0)), [0, 0]);
+    // Inside, the same lerp: (0.5, 0.5) lies at (1.5, 0.5) on the sheet.
+    expectMove(spread.offset(OVER, point(0.5, 0.5)), [0.1, 0]);
+  });
+
+  it('holds the top leaf still instead, and opens the one under it', () => {
+    const spread = affineSpread(book(), { ...OPEN, keep: 'top' }, EPSILON);
+    expect(spread.anchor).toBe(OVER);
+    for (const corner of book().faces[OVER]!.outline) expectMove(spread.offset(OVER, corner), [0, 0]);
+    // Laid under the top leaf (x → 2 − x), the bottom leaf's free corner 0 lies at (2, 0).
+    expectMove(spread.offset(UNDER, point(0, 0)), [0.2, 0]);
+    expectMove(spread.offset(UNDER, point(1, 1)), [0, 0]);
+    // The axis is the sheet's: held through the folded-over leaf, 45° on the
+    // sheet is 135° in the picture, so the way back, (2, 0), is (1, −1) along
+    // it and (1, 1) across it.
+    const skewed = affineSpread(book(), { ...OPEN, keep: 'top', skew: 1, axisDeg: 45 }, EPSILON);
+    expectMove(skewed.offset(UNDER, point(0, 0)), [0.1 - 0.125, -0.1 - 0.125]);
+  });
+
+  it('moves toward the sheet along the axis and away across it, at full skew', () => {
+    // Corner 2 is 2 units from its place on the sheet, along x.
+    const along = affineSpread(book(), { ...OPEN, skew: 1, axisDeg: 0 }, EPSILON);
+    expectMove(along.offset(OVER, point(0, 0)), [0.2, 0]);
+    const across = affineSpread(book(), { ...OPEN, skew: 1, axisDeg: 90 }, EPSILON);
+    expectMove(across.offset(OVER, point(0, 0)), [-0.25, 0]);
+    // At 45° (+x toward +y, the sheet's y down) the way to the sheet, (2, 0), is
+    // (1, 1) along the axis and (1, −1) across it: τ of the one, −1/8 of the other.
+    const diagonal = affineSpread(book(), { ...OPEN, skew: 1, axisDeg: 45 }, EPSILON);
+    expectMove(diagonal.offset(OVER, point(0, 0)), [0.1 - 0.125, 0.1 + 0.125]);
+    // A = p((1 − q)I + qR): halfway, along x across a vertical axis, p(½ − ½) = 0.
+    const half = affineSpread(book(), { ...OPEN, skew: 0.5, axisDeg: 90 }, EPSILON);
+    expectMove(half.offset(OVER, point(0, 0)), [0, 0]);
+    // The anchor stays still at any skew and axis.
+    expectMove(diagonal.offset(UNDER, point(0, 0)), [0, 0]);
+  });
+
+  it('opens a rolled letter fold from its bottom panel or its top one', () => {
+    // Bottom: the left panel still. The middle one's free edge (2, 6) lies at
+    // x = 2 on the sheet, folded onto 0; the tucked panel's far edge (3, 7) at
+    // x = 3, folded onto 1. Both go 0.2 right — the tucked panel past the
+    // fold 1–5 that wraps it, as DEFOX's opening does.
+    const bottom = affineSpread(letter(), OPEN, EPSILON);
+    expect(bottom.anchor).toBe(LEFT);
+    expectMove(bottom.offset(LEFT, point(0, 0)), [0, 0]);
+    expectMove(bottom.offset(MIDDLE, point(1, 0)), [0, 0]);
+    expectMove(bottom.offset(MIDDLE, point(0, 0)), [0.2, 0]);
+    expectMove(bottom.offset(TUCKED, point(1, 1)), [0.2, 0]);
+    // Top: the middle panel still, laid on the sheet by x → 2 − x. The left
+    // panel's free edge lies at x = 2 there, so 0.2 right; the tucked one's
+    // far edge at x = −1, so 0.2 left — inside the fold, not past it.
+    const top = affineSpread(letter(), { ...OPEN, keep: 'top' }, EPSILON);
+    expect(top.anchor).toBe(MIDDLE);
+    expectMove(top.offset(MIDDLE, point(0, 1)), [0, 0]);
+    expectMove(top.offset(LEFT, point(0, 0)), [0.2, 0]);
+    expectMove(top.offset(LEFT, point(1, 0)), [0, 0]);
+    expectMove(top.offset(TUCKED, point(1, 0)), [-0.2, 0]);
+    expectMove(top.offset(TUCKED, point(0, 0)), [0, 0]);
+  });
+
+  it('opens a turned-over pass as the front’s mirror, holding the same paper still', () => {
+    const front = book();
+    // The rear pass: mirrored (x → −x), every stack read bottom-up, each side flipped.
+    const back = {
+      ...front,
+      flipped: true,
+      faces: front.faces.map((f) => ({ ...f, outline: f.outline.map((p) => point(-p.x, p.y)), front_up: !f.front_up })),
+      subfaces: front.subfaces.map((s) => ({
+        polygon: s.polygon.map((p) => point(-p.x, p.y)),
+        faces_top_to_bottom: [...s.faces_top_to_bottom].reverse(),
+      })),
+    };
+    for (const keep of ['bottom', 'top'] as const) {
+      const options = { ...OPEN, keep, skew: 0.7, axisDeg: 30 };
+      const seen = affineSpread(front, options, EPSILON);
+      const turned = affineSpread(back, options, EPSILON);
+      expect(turned.anchor, keep).toBe(seen.anchor);
+      let moved = false;
+      front.faces.forEach(({ outline }, face) =>
+        outline.forEach((p) => {
+          const move = seen.offset(face, p);
+          moved ||= Math.hypot(move.x, move.y) > 0.01;
+          expectMove(turned.offset(face, point(-p.x, p.y)), [-move.x, move.y]);
+        })
+      );
+      expect(moved, keep).toBe(true);
+    }
+  });
+
+  it('holds still the top or bottom face over the most area, the lower index on a tie', () => {
+    // A strip over two faces side by side, the right one twice as wide.
+    const [LEFT_SQUARE, RIGHT_WIDE, STRIP] = [0, 1, 2];
+    const sheet = [point(0, 0), point(1, 0), point(1, 1), point(0, 1), point(3, 0), point(3, 1), point(0, 2), point(3, 2)];
+    const kernel = {
+      ...scene(
+        [
+          face(UNIT, [0, 1, 2, 3]),
+          face([[1, 0], [3, 0], [3, 1], [1, 1]], [1, 4, 5, 2]),
+          face([[0, 1], [3, 1], [3, 0], [0, 0]], [3, 5, 7, 6], false),
+        ],
+        [
+          { polygon: UNIT.map(([x, y]) => point(x, y)), faces_top_to_bottom: [STRIP, LEFT_SQUARE] },
+          { polygon: [point(1, 0), point(3, 0), point(3, 1), point(1, 1)], faces_top_to_bottom: [STRIP, RIGHT_WIDE] },
+        ]
+      ),
+      sheet_points: sheet,
+    };
+    expect(affineSpread(kernel, OPEN, EPSILON).anchor).toBe(RIGHT_WIDE);
+    expect(affineSpread(kernel, { ...OPEN, keep: 'top' }, EPSILON).anchor).toBe(STRIP);
+    // Made as wide as each other, the left square wins.
+    kernel.subfaces[1]!.polygon = [point(1, 0), point(2, 0), point(2, 1), point(1, 1)];
+    expect(affineSpread(kernel, OPEN, EPSILON).anchor).toBe(LEFT_SQUARE);
+  });
+
+  it('leaves a face the kernel could not name where it is, and holds none still without the sheet', () => {
+    const unnamed = book();
+    unnamed.faces[OVER]!.points = [];
+    const spread = affineSpread(unnamed, OPEN, EPSILON);
+    expect(spread.anchor).toBe(UNDER);
+    expectMove(spread.offset(OVER, point(0, 0)), [0, 0]);
+    // Only an unnamed face on top: there is nothing to hold, so nothing moves.
+    expect(affineSpread(unnamed, { ...OPEN, keep: 'top' }, EPSILON).anchor).toBeNull();
+    // A scene of the schema before the sheet was sent: the same.
+    const older = affineSpread(bookFold(), OPEN, EPSILON);
+    expect(older.anchor).toBeNull();
+    expectMove(older.offset(OVER, point(0, 0)), [0, 0]);
   });
 });
