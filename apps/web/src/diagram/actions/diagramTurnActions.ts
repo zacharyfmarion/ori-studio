@@ -100,6 +100,45 @@ export function turnLabel(turn: DiagramTurnKind & { unknown?: unknown }, between
   return where ? t('panels:diagram.turns.chipLabel', '{{name}}, {{where}}', { name, where }) : name;
 }
 
+/** Where a turn prints, as a line of its own: "Between steps 3 and 4", or before the first or after the last. */
+export function turnPlace(between: TurnBetween, t: TFunction): string | null {
+  if (between.before !== null && between.after !== null) {
+    return t('panels:diagram.turns.betweenSteps', 'Between steps {{before}} and {{after}}', { ...between });
+  }
+  if (between.after !== null) return t('panels:diagram.turns.beforeStep', 'Before step {{after}}', { ...between });
+  if (between.before !== null) return t('panels:diagram.turns.afterStep', 'After step {{before}}', { ...between });
+  return null;
+}
+
+/**
+ * A turn's card's words (D24): its title, where a step has its number, and
+ * how it turns — "Turn over" and "Side to side", "Rotate" and "1/4 turn
+ * clockwise". A newer build's says only that it is one.
+ */
+export function turnCardWords(turn: DiagramTurnKind & { unknown?: unknown }, t: TFunction): { title: string; how: string } {
+  if (turn.unknown !== undefined) {
+    return { title: t('panels:diagram.turns.cardTurn', 'Turn'), how: turnName(turn, t) };
+  }
+  if (turn.kind === 'turn-over') {
+    return {
+      title: t('panels:diagram.turns.cardTurnOver', 'Turn over'),
+      how:
+        turn.axis === 'horizontal'
+          ? t('panels:diagram.turns.howTopToBottom', 'Top to bottom')
+          : t('panels:diagram.turns.howSideToSide', 'Side to side'),
+    };
+  }
+  const { amount, direction } = turn.rotate;
+  const fraction = { eighth: '1/8', quarter: '1/4', half: '1/2' }[amount];
+  return {
+    title: t('panels:diagram.turns.cardRotate', 'Rotate'),
+    how:
+      direction === 'cw'
+        ? t('panels:diagram.turns.howClockwise', '{{fraction}} turn clockwise', { fraction })
+        : t('panels:diagram.turns.howCounterclockwise', '{{fraction}} turn counterclockwise', { fraction }),
+  };
+}
+
 export function buildDiagramTurnActions(
   state: DiagramTurnActionState,
   deps: DiagramTurnActionDeps

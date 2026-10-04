@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { ArrowDown, ArrowUp, Trash2, type LucideIcon } from 'lucide-react';
-import { turnLabels, turnName } from '../../diagram/actions/diagramTurnActions';
+import { turnLabels, turnName, turnPlace } from '../../diagram/actions/diagramTurnActions';
 import type { DiagramStepAction } from '../../diagram/actions/diagramActions';
 import { DEFAULT_ROTATION } from '../../diagram/annotate/annotationModel';
 import { isLockedTurn, type DiagramTurn, type DiagramTurnKind } from '../../diagram/document/diagramDocument';
@@ -36,14 +36,7 @@ export function DiagramTurnPane({
   onSet: (kind: DiagramTurnKind) => void;
 }) {
   const { t } = useTranslation();
-  const where =
-    between.before !== null && between.after !== null
-      ? t('panels:diagram.turns.betweenSteps', 'Between steps {{before}} and {{after}}', between)
-      : between.after !== null
-        ? t('panels:diagram.turns.beforeStep', 'Before step {{after}}', between)
-        : between.before !== null
-          ? t('panels:diagram.turns.afterStep', 'After step {{before}}', between)
-          : null;
+  const where = turnPlace(between, t);
   const verbs: ActionListItem[] = actions.flatMap((action) =>
     action.kind === 'command' && VERB_ICONS[action.id]
       ? [

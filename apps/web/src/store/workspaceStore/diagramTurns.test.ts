@@ -113,6 +113,30 @@ describe('turns between steps in the store', () => {
     expect(state().diagram!.steps[0]).toMatchObject({ id: 'turn-9', unknown: newer });
   });
 
+  it('makes an empty step a turn in its place, selected, as one undo step (D24)', async () => {
+    const first = state().addDiagramStep()!;
+    const second = state().addDiagramStep()!;
+    const turn = await state().confirmMakeDiagramStepTurn(first, OVER);
+    expect(turn).not.toBeNull();
+    expect(order()).toEqual([turn, second]);
+    expect(state().diagramSelectedStepId).toBe(turn);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Make turn');
+    expect(confirm.requestConfirmation).not.toHaveBeenCalled();
+    state().undoDiagram();
+    expect(order()).toEqual([first, second]);
+  });
+
+  it('asks first when the step has words, and makes nothing when declined', async () => {
+    const step = state().addDiagramStep()!;
+    state().setDiagramStepText(step, 'Fold it.');
+    confirm.requestConfirmation.mockResolvedValueOnce(false);
+    await expect(state().confirmMakeDiagramStepTurn(step, OVER)).resolves.toBeNull();
+    expect(confirm.requestConfirmation).toHaveBeenCalledOnce();
+    expect(order()).toEqual([step]);
+    await expect(state().confirmMakeDiagramStepTurn(step, OVER)).resolves.not.toBeNull();
+    expect(isTurn(state().diagram!.steps[0]!)).toBe(true);
+  });
+
   it('lets Delete take a selected turn', () => {
     state().addDiagramStep();
     state().insertDiagramTurn(OVER);

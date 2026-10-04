@@ -1947,6 +1947,16 @@ export interface DiagramSliceActions {
   insertDiagramTurn: (kind: DiagramTurnKind, at?: { stepId: string; where: 'before' | 'after' }) => string | null;
   /** Change what a turn is: its axis, or how far and which way it rotates. Whether it changed. */
   setDiagramTurn: (turnId: string, kind: DiagramTurnKind) => boolean;
+  /**
+   * Make an empty step a turn in its place (D24), as one undo step, and select
+   * the turn. Its id, or null for a step that is not empty or a read-only diagram.
+   */
+  makeDiagramStepTurn: (stepId: string, kind: DiagramTurnKind) => string | null;
+  /**
+   * The same, asking first when the step has words or marks, which a turn has
+   * none of. The turn's id, or null when declined or not made.
+   */
+  confirmMakeDiagramStepTurn: (stepId: string, kind: DiagramTurnKind) => Promise<string | null>;
   /** Delete steps; the selection moves to the step that took the first one's place. */
   deleteDiagramSteps: (stepIds: readonly string[]) => boolean;
   /**

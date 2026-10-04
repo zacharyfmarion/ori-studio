@@ -1,12 +1,28 @@
-import { forwardRef, useCallback, useId, useRef, type ForwardedRef } from 'react';
+import { forwardRef, useCallback, useId, useMemo, useRef, type ForwardedRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Compass, ImagePlus, Link2, Lock, PenLine, PenTool, Rotate3d, Upload } from 'lucide-react';
+import {
+  Compass,
+  ImagePlus,
+  Link2,
+  Lock,
+  PenLine,
+  PenTool,
+  Rotate3d,
+  RotateCcwSquare,
+  RotateCw,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import type { TFunction } from 'i18next';
+import { turnCardWords, turnLabel, turnPlace, type TurnBetween } from '../../diagram/actions/diagramTurnActions';
+import { turnGlyphSvg } from '../../diagram/annotate/turnGlyph';
 import {
   isLockedStep,
+  isLockedTurn,
   type DiagramAsset,
   type DiagramStep,
   type DiagramStyle,
+  type DiagramTurn,
 } from '../../diagram/document/diagramDocument';
 import { linkedSourceOf, needsPose, type DiagramLinkStatus } from '../../diagram/capture/linkStatus';
 import { stepPictureSource, type StepPictureSource } from '../../diagram/pictures/paintDiagramStep';
@@ -38,6 +54,10 @@ import { capturedStyleChange } from '../../diagram/pictures/lighting';
  * A linked step — to a pattern, or to a sheet's card pulled from References —
  * shows its pattern's thumbnail beside its kind, and says over its picture
  * when the pattern has changed or gone.
+ *
+ * Every card a diagram can change has a Delete over its well's corner, beside
+ * Adjust pose and Annotate (D24), and an empty one offers to be a turn instead
+ * of a step: Turn over and Rotate, beside the ways to give it a picture.
  */
 export const DiagramStepCard = forwardRef<
   HTMLDivElement,
@@ -76,6 +96,10 @@ export const DiagramStepCard = forwardRef<
     onOpenIn: (stepId: string, mode: 'pose' | 'annotate') => void;
     /** Go to Edit: an empty step's way to a pattern when none is open. */
     onGoToEdit: () => void;
+    /** Make this empty step a turn in its place (D24). */
+    onMakeTurn: (stepId: string, kind: 'turn-over' | 'rotate') => void;
+    /** Delete this step, asking first when it holds work. */
+    onDelete: (stepId: string) => void;
   }
 >(function DiagramStepCard(
   {
@@ -99,6 +123,8 @@ export const DiagramStepCard = forwardRef<
     onFromReferences,
     onOpenIn,
     onGoToEdit,
+    onMakeTurn,
+    onDelete,
   },
   forwarded
 ) {
@@ -251,27 +277,65 @@ export const DiagramStepCard = forwardRef<
                 )}
               </span>
             )}
+            {!readOnly && (
+              // Or no picture at all: the model turned over or round between two steps (D24).
+              <span className={styles.turnWays}>
+                <span className={styles.or}>{t('panels:diagram.card.orTurn', 'or a turn')}</span>
+                <span className={styles.shortcuts}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    onMouseDown={keepFocus}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onMakeTurn(step.id, 'turn-over');
+                    }}
+                  >
+                    <RotateCcwSquare size={13} aria-hidden="true" />
+                    {t('panels:diagram.card.turnOver', 'Turn over')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    onMouseDown={keepFocus}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onMakeTurn(step.id, 'rotate');
+                    }}
+                  >
+                    <RotateCw size={13} aria-hidden="true" />
+                    {t('panels:diagram.card.rotate', 'Rotate')}
+                  </Button>
+                </span>
+              </span>
+            )}
           </span>
         )}
-        {!readOnly && !locked && (picture !== null || linked !== null) && (
+        {!readOnly && (
           <span className={styles.verbs}>
-            <button
-              type="button"
-              className={styles.verb}
-              title={t('panels:diagram.actions.adjustPose', 'Adjust Pose')}
-              tabIndex={-1}
-              aria-hidden="true"
-              onMouseDown={keepFocus}
-              onClick={(event) => {
-                // It selects the step itself, and a double-click must not open it twice.
-                event.stopPropagation();
-                onOpenIn(step.id, 'pose');
-              }}
-              onDoubleClick={(event) => event.stopPropagation()}
-            >
-              <Rotate3d size={14} />
-            </button>
-            {picture !== null && (
+            {!locked && (picture !== null || linked !== null) && (
+              <button
+                type="button"
+                className={styles.verb}
+                title={t('panels:diagram.actions.adjustPose', 'Adjust Pose')}
+                tabIndex={-1}
+                aria-hidden="true"
+                onMouseDown={keepFocus}
+                onClick={(event) => {
+                  // It selects the step itself, and a double-click must not open it twice.
+                  event.stopPropagation();
+                  onOpenIn(step.id, 'pose');
+                }}
+                onDoubleClick={(event) => event.stopPropagation()}
+              >
+                <Rotate3d size={14} />
+              </button>
+            )}
+            {!locked && picture !== null && (
               <button
                 type="button"
                 className={styles.verb}
@@ -288,6 +352,10 @@ export const DiagramStepCard = forwardRef<
                 <PenLine size={14} />
               </button>
             )}
+            <DeleteVerb
+              label={t('panels:diagram.actions.delete', 'Delete Step')}
+              onDelete={() => onDelete(step.id)}
+            />
           </span>
         )}
         {chip && (
@@ -317,6 +385,109 @@ export const DiagramStepCard = forwardRef<
     </div>
   );
 });
+
+/**
+ * A turn between two steps, in the Steps grid (D24): a card the size of a
+ * step's, in its place in the order — its name where a step has its number,
+ * a "No number" badge, the glyph a page prints for it, and how it turns and
+ * where it prints. The cards around it keep their numbers. An option of the
+ * grid's listbox as a step's card is, named by what it is and where; it opens
+ * no detail. Its Delete is a pointer's shortcut, as a step's is.
+ */
+export const DiagramTurnCard = forwardRef<
+  HTMLDivElement,
+  {
+    turn: DiagramTurn;
+    /** The numbers of the steps either side; null at an end. */
+    between: TurnBetween;
+    /** The pens the glyph is drawn in, as a page draws it. */
+    style: DiagramStyle;
+    selected: boolean;
+    tabStop: boolean;
+    readOnly: boolean;
+    onSelect: (id: string) => void;
+    onDelete: (id: string) => void;
+  }
+>(function DiagramTurnCard({ turn, between, style, selected, tabStop, readOnly, onSelect, onDelete }, ref) {
+  const { t } = useTranslation();
+  const locked = isLockedTurn(turn);
+  const { title, how } = turnCardWords(turn, t);
+  const where = turnPlace(between, t);
+  const glyph = useMemo(() => {
+    const svg = locked ? null : turnGlyphSvg(turn, style);
+    return svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : null;
+  }, [turn, style, locked]);
+  return (
+    <div
+      ref={ref}
+      role="option"
+      aria-selected={selected}
+      aria-label={turnLabel(turn, between, t)}
+      tabIndex={tabStop ? 0 : -1}
+      className={styles.card}
+      data-selected={selected || undefined}
+      data-step-id={turn.id}
+      data-turn-kind={locked ? 'locked' : turn.kind}
+      onClick={() => onSelect(turn.id)}
+    >
+      <div className={styles.header}>
+        <span className={styles.number}>{title}</span>
+        <span className={styles.kind}>
+          {/* Wrapped as a step's badge is, so the two headers are one height. */}
+          <span>
+            <Badge tone="neutral">{t('panels:diagram.card.badgeNoNumber', 'No number')}</Badge>
+          </span>
+        </span>
+      </div>
+      <div className={styles.well} data-picture={!locked || undefined}>
+        {glyph ? (
+          <img className={styles.turnGlyph} src={glyph} alt="" draggable={false} />
+        ) : (
+          <span className={styles.placeholder}>
+            <Lock size={18} aria-hidden="true" />
+            {t('panels:diagram.card.lockedTurn', 'Made with a newer Ori Studio')}
+          </span>
+        )}
+        {!readOnly && (
+          <span className={styles.verbs}>
+            <DeleteVerb label={t('panels:diagram.turns.delete', 'Delete Turn')} onDelete={() => onDelete(turn.id)} />
+          </span>
+        )}
+      </div>
+      <p className={styles.instruction}>
+        {how}
+        {where && <span className={styles.where}>{where}</span>}
+      </p>
+    </div>
+  );
+});
+
+/**
+ * A card's Delete, over its well's corner: a pointer's shortcut, as Adjust
+ * pose and Annotate are — the card's menu, the Step pane and the Delete key
+ * are the keyboard's.
+ */
+function DeleteVerb({ label, onDelete }: { label: string; onDelete: () => void }) {
+  return (
+    <button
+      type="button"
+      className={styles.verb}
+      data-danger=""
+      title={label}
+      tabIndex={-1}
+      aria-hidden="true"
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={(event) => {
+        // It must not select the card it is about to take away, nor open it on a double-click.
+        event.stopPropagation();
+        onDelete();
+      }}
+      onDoubleClick={(event) => event.stopPropagation()}
+    >
+      <Trash2 size={14} />
+    </button>
+  );
+}
 
 /**
  * What the step is, for its badge: where a linked step comes from and how it

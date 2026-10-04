@@ -29,7 +29,9 @@ import {
   type DiagramDocument,
   stepById,
   createTurn,
+  canBecomeTurn,
   setTurn,
+  stepToTurn,
   isStep,
   stepNumber,
   turnById,
@@ -240,6 +242,43 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
 
     setDiagramTurn: (turnId, kind) =>
       commit('Change turn', (document) => setTurn(document, turnId, kind)) !== null,
+
+    makeDiagramStepTurn: (stepId, kind) => {
+      let turnId: string | null = null;
+      const next = commit('Make turn', (document) => {
+        const made = stepToTurn(document, stepId, kind);
+        turnId = made?.turnId ?? null;
+        return made?.document ?? document;
+      });
+      if (!next || turnId === null) return null;
+      set(selection(turnId));
+      return turnId;
+    },
+
+    confirmMakeDiagramStepTurn: async (stepId, kind) => {
+      const { diagram, diagramReadOnly, diagramLoadId } = get();
+      const step = diagram && !diagramReadOnly ? stepById(diagram, stepId) : null;
+      if (!diagram || !step || !canBecomeTurn(step)) return null;
+      if (stepHasContent(step)) {
+        const t = i18n.t;
+        const number = stepNumber(diagram, stepId);
+        const confirmed = await requestConfirmation({
+          title:
+            kind.kind === 'turn-over'
+              ? t('dialogs:diagram.makeTurnOverTitle', 'Make step {{number}} a turn-over?', { number })
+              : t('dialogs:diagram.makeRotateTitle', 'Make step {{number}} a rotation?', { number }),
+          message: t(
+            'dialogs:diagram.makeTurnMessage',
+            'A turn has no instruction or marks, so the step’s go with it. You can undo this.'
+          ),
+          confirmLabel: t('dialogs:diagram.makeTurnConfirm', 'Make Turn'),
+          cancelLabel: t('dialogs:common.cancel', 'Cancel'),
+        });
+        // The question can stay up while a file is opened over it.
+        if (!confirmed || get().diagramLoadId !== diagramLoadId) return null;
+      }
+      return get().makeDiagramStepTurn(stepId, kind);
+    },
 
     deleteDiagramSteps: (stepIds) => {
       const before = get().diagram;

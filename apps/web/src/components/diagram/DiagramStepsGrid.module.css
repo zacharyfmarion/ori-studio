@@ -7,10 +7,10 @@
   /* The space between cards: where a step can be added between two. */
   --gap: var(--space-4);
   /*
-   * The side room a column-1 card's gap needs, which is the grid's padding: a
-   * turn's 26px chip and its 2px focus ring, centred in the gap before it.
+   * The side room a column-1 card's gap needs, which is the grid's padding:
+   * the 20px "+" centred in the gap before it, and a pixel to spare.
    */
-  --chip-room: calc(var(--gap) / 2 + 15px);
+  --gap-room: calc(var(--gap) / 2 + 11px);
 
   /* Its width says how many columns there are: one, and the insert gaps go between rows. */
   container: steps / inline-size;
@@ -20,7 +20,7 @@
   gap: var(--gap);
   box-sizing: border-box;
   min-height: 100%;
-  padding: var(--space-5) max(var(--space-5), var(--chip-room));
+  padding: var(--space-5) max(var(--space-5), var(--gap-room));
 }
 
 .grid:focus {
@@ -51,7 +51,7 @@
   color: var(--text-secondary);
 }
 
-/* A card's cell, which the gap before it — its insert target and its turns — is placed against. */
+/* A card's cell, which the gap before it — its insert target — is placed against. */
 .slot {
   position: relative;
   display: grid;
@@ -115,31 +115,6 @@
   transform: translate(-50%, -50%);
 }
 
-/* Beside the turns in the same gap, the "+" stands above them rather than on them. */
-.insert[data-beside-turns] .insertButton {
-  top: 20%;
-}
-
-/*
- * The turns between the card before and this one (D22): chips centred in the
- * gap, one above another; after the last card, in the gap before the tile.
- * Above the insert target, which they leave the rest of the gap to.
- */
-.turns {
-  position: absolute;
-  top: 0;
-  right: 100%;
-  bottom: 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  width: var(--gap);
-  pointer-events: none;
-}
-
 /* With no hover to find it by, the "+" stays in sight, quietly. */
 @media (hover: none) {
   .insertButton {
@@ -151,7 +126,7 @@
 /*
  * One column (a phone, or a narrow pane): the card before is above, not
  * beside, and the gap before a card is the row gap over it — across, not down,
- * with the line along it and its turns side by side. Beside the card it would
+ * with the line along it. Beside the card it would
  * sit in the grid's padding, its "+" off the edge of a phone. Two columns need two 220px cards and a gap of
  * content width, so the threshold follows the gap the media query below sets.
  */
@@ -174,21 +149,6 @@
       width: auto;
       height: 2px;
       transform: translateY(-50%);
-    }
-
-    .insert[data-beside-turns] .insertButton {
-      top: 50%;
-      left: 20%;
-    }
-
-    .turns {
-      top: auto;
-      right: 0;
-      bottom: 100%;
-      left: 0;
-      flex-direction: row;
-      width: auto;
-      height: var(--gap);
     }
   }
 }
@@ -213,21 +173,6 @@
       height: 2px;
       transform: translateY(-50%);
     }
-
-    .insert[data-beside-turns] .insertButton {
-      top: 50%;
-      left: 20%;
-    }
-
-    .turns {
-      top: auto;
-      right: 0;
-      bottom: 100%;
-      left: 0;
-      flex-direction: row;
-      width: auto;
-      height: var(--gap);
-    }
   }
 }
 
@@ -242,18 +187,18 @@
   .grid {
     --gap: var(--space-3);
 
-    /* Room over the first card for the gap before it: its "+" and any turns. */
+    /* Room over the first card for the gap before it, and its "+". */
     padding: var(--space-5) var(--space-3) var(--space-3);
   }
 }
 
 /*
  * Wide enough for two columns (a phone on its side): the gap before a column-1
- * card is beside it again, in the side padding, which makes room for its chip.
+ * card is beside it again, in the side padding, which makes room for its "+".
  * One column keeps the narrow sides, its gaps above the cards.
  */
 @media (min-width: 476px) and (max-width: 720px) {
   .grid {
-    padding-inline: var(--chip-room);
+    padding-inline: var(--gap-room);
   }
 }

@@ -27,6 +27,8 @@ export type DiagramStepActionId =
   | 'upload-picture'
   | 'link-pattern'
   | 'from-references'
+  | 'make-turn-over'
+  | 'make-rotate'
   | 'refresh-picture'
   | 'open-in-edit'
   | 'open-in-references'
@@ -129,6 +131,8 @@ export interface DiagramStepActionDeps {
   insert: (where: 'before' | 'after') => void;
   /** Add a turn after the step (D22). */
   insertTurn: (kind: 'turn-over' | 'rotate') => void;
+  /** Make the empty step a turn in its place (D24). */
+  makeTurn: (kind: 'turn-over' | 'rotate') => void;
   duplicate: () => void;
   move: (direction: 'earlier' | 'later') => void;
   /** Start a new page at the step, or stop doing so. */
@@ -360,6 +364,18 @@ export function buildDiagramStepActions(
                   )
                 : capturingHint
           ),
+        ]),
+    // An empty step can be a turn instead (D24): the verbs are noise on any other.
+    ...(state.hasSource || state.locked
+      ? []
+      : [
+          command(
+            'make-turn-over',
+            t('panels:diagram.actions.makeTurnOver', 'Make Turn Over'),
+            () => deps.makeTurn('turn-over'),
+            false
+          ),
+          command('make-rotate', t('panels:diagram.actions.makeRotate', 'Make Rotate'), () => deps.makeTurn('rotate'), false),
         ]),
     // Only a linked pattern can be refreshed: on any other step the verb is noise.
     ...(state.linkKind !== 'cp' || state.link === null

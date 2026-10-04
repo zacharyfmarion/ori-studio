@@ -1220,10 +1220,11 @@ and don't count towards the numbers"; on pages, "in the gutter".)*
   3 and 4. Numbers are still never stored: a step's number counts the steps
   before it, turns left out, as References numbers its folds
   (`foldCardNumbers`).
-- **Where it shows.** In the steps grid, a round chip with the turn's glyph in
-  the gap between the two cards it sits between. In the detail, ‹ › and the
-  arrows walk the steps only. In the Step pane, a turn shows what it is, where
-  it is ("Between steps 4 and 5") and its own controls.
+- **Where it shows.** In the steps grid, a card of its own in the order — the
+  glyph it prints, its name, and no number (amended by D24: it was a round chip
+  in the gap between two cards). In the detail, ‹ › and the arrows walk the
+  steps only. In the Step pane, a turn shows what it is, where it is ("Between
+  steps 4 and 5") and its own controls.
 - **On a page** (Zach: "in the gutter"): the glyph prints between the two
   pictures. A diagram with any turn reserves a gutter between all its pictures,
   so one paper scale stays one scale; across a row or page break the glyph sits
@@ -1233,6 +1234,31 @@ and don't count towards the numbers"; on pages, "in the gutter".)*
   Over / Rotate After, and References: a References turn-over card is pulled
   as a turn-over, never as a numbered step, and never fills or replaces one.
   On-picture turn-over and rotate symbols (Annotate) are unchanged.
+
+**D24. A turn is a card in the Steps grid; a page prints only its glyph.**
+*(Zach, 2026-10-04, on D22 as built: "The turnover rotate sign should be an
+explicit step in the steps UI, but in the PDF as it's rendered, it's not
+rendered as a step. It's rendered as an icon between the steps … a user
+should be able to specify that a step is a turnover or rotate step from the
+step empty state." With it: "I should be able to delete a step from the step
+card.")*
+
+- **In the grid**, a turn is a card the size of a step's, in its place in the
+  order: its name where a step has its number ("Turn over", "Rotate"), a "No
+  number" badge, the glyph it prints large in the well, and under it how it
+  turns and where it prints ("Side to side · printed between steps 2 and 3").
+  The cards around it keep their numbers. It is selected, walked to, moved,
+  inserted before and deleted as any card; it opens no detail.
+- **From an empty step.** An empty card offers Turn over and Rotate beside
+  Upload, Link and References, and its menu and Step pane offer Make Turn
+  Over / Make Rotate: the step becomes a turn in its place, one undo step. A
+  step with words asks first, since a turn has none.
+- **On a page**, unchanged: the glyph in the gutter between two pictures, no
+  number, no card.
+- **Delete from the card.** Every card — step or turn — has a Delete over its
+  well's corner beside Adjust Pose and Annotate, shown as those are (pointed
+  at, focused, selected; always under a finger). It deletes as the menu's
+  Delete does, asking first for a step with work in it.
 
 **D23. Pose chooses among a step's ways to fold.**
 *(Zach, 2026-10-03: "In the pose view for a linked step, you should be able to
@@ -3118,6 +3144,71 @@ Four requests after Phase 10, with D22 and D23 above.
     `modal-review.mjs` (before: Shift+→ chose 1, Shift+Tab reached "Link
     Pattern…", Export sat under the browser; after: 1–3, inside, on top),
     `ways.mjs`, `layer-orders.mjs` (focus on ‹ at the first).
+
+### Phase 12: Zach's second pass (2026-10-04)
+
+Two requests after Phase 11, with D24 above.
+
+- [x] **12a. Delete from the card.** The card's corner verbs hold Delete on
+  every card a diagram can change, for an empty step and a turn too.
+  - As built: `DeleteVerb` in `DiagramStepCard.tsx` (Trash2, `data-danger`,
+    red on hover), a pointer's shortcut like Adjust Pose and Annotate —
+    `aria-hidden`, out of the tab order — calling `confirmDeleteDiagramSteps`
+    as the menu's Delete does. A newer build's step shows Delete alone; a
+    read-only diagram shows none.
+- [x] **12b. Turns as cards (D24).** A turn card in place of the gap's chip;
+  the grid's slots are entries, each with the insert gap before it.
+  - As built: `DiagramTurnCard` beside `DiagramStepCard` (one module, one
+    card look): its name for a number ("Turn over", "Rotate"), a "No number"
+    badge, the glyph as a page prints it (`annotate/turnGlyph.ts`, now the one
+    source for the page composer and the card), how it turns ("Side to side",
+    "1/4 turn clockwise") and where it prints ("Between steps 2 and 3"). Named
+    for assistive tech by `turnLabel`. `DiagramTurnChip` and the grid's chip
+    CSS are gone; the side padding is sized for the "+" again.
+- [x] **12c. An empty step becomes a turn.** The empty card's Turn over and
+  Rotate; Make Turn Over / Make Rotate in the menu and the Step pane; the
+  store's verb, asking when the step has words; `diagram turn added` gains
+  `via: empty_step`.
+  - As built: `stepToTurn` / `canBecomeTurn` (an empty step only: no picture,
+    no link, this build's); the turn takes a new id and the selection; a new
+    page the step started moves to the step after it, where the turn now
+    leads. Store `makeDiagramStepTurn` (one undo step, "Make turn") and
+    `confirmMakeDiagramStepTurn` (asks when the step has words or marks).
+- [x] **12d. Turning over keeps how a flat fold lies** (Zach, 2026-10-04: "in
+  the pose view, we should keep the rotation when flipping between front and
+  back side"). The back was painted from the unrotated back and then turned
+  the same way, so the model jumped; now Turn Over negates the turn, so what
+  shows is the mirror of what showed and Rotate Right still turns clockwise
+  on either side (75° front ⇄ 285° back). Browser:
+  `artifacts/diagram-phase12/flip-before-after.png`.
+- Browser (`artifacts/diagram-phase12/cards.mjs`; crane-50; desktop light
+  and dark, phone): turn cards in the order, Step 3 after the turn-over, every
+  header one height; the empty card's Turn over makes the turn in its place
+  ("Make turn"); the Step pane lists Make Turn Over / Make Rotate; a turn
+  card's Delete removes it.
+- [ ] **Review**, and its fixes committed; the PR updated.
+
+### Phase 13: affine distortion in Pose (planning)
+
+Zach, 2026-10-04: implement the distortion of DEFOX / step-folder
+(https://kei-morisue.github.io/step-folder/; MIT; paper and code in its
+repository) as a tool inside Pose — "display layers on parts of the design to
+give the folder more information about how they are distributed (otherwise a
+bunch of faces are coplanar)". The UX to be talked through before anything is
+built. Plan: `implementation-plans/diagram-distortion.md` (to come).
+
+### Phase 14: Annotate, after Phase 13 is planned and under way
+
+Zach, 2026-10-04:
+1. Fine-grained control of every Bézier point of an arrow — move, add and
+   remove them, as in Affinity — since arrows are often shaped carefully.
+2. Annotate's whole background white: an arrow drawn past the picture's
+   bounds is hard to see in the dark theme.
+3. Circles around points, as References draws them: snapping to a vertex
+   within an epsilon, otherwise where the press lands.
+4. Right-angle marks.
+5. White (hollow) arrows, as a push arrow is drawn in books, with their Bézier
+   under the same control.
 
 ### Later (written up, not built)
 

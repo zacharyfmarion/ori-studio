@@ -26,6 +26,7 @@ import {
   appendDiagramStep,
   insertDiagramStepBeside,
   insertDiagramTurn,
+  makeDiagramStepTurn,
   openDiagramStep,
   useAddDiagramStep,
   useDiagramPoseActions,
@@ -71,6 +72,9 @@ const refreshAll = () => void refreshAllDiagramSteps();
 const appendStep = () => void appendDiagramStep();
 const insertBefore = (stepId: string) => void insertDiagramStepBeside(stepId, 'before');
 const addTurn = (kind: 'turn-over' | 'rotate') => void insertDiagramTurn(kind, 'add_menu');
+const makeTurn = (stepId: string, kind: 'turn-over' | 'rotate') => void makeDiagramStepTurn(stepId, kind);
+/** A card's own Delete (D24): as the menu's, asking first for a step with work in it. */
+const deleteFromCard = (id: string) => void useWorkspaceStore.getState().confirmDeleteDiagramSteps([id]);
 const linkNewStep = () => {
   const stepId = addDiagramStep();
   if (stepId) openDiagramPatternPicker(stepId);
@@ -277,6 +281,8 @@ export function DiagramPanel() {
             onGoToEdit={goToEdit}
             onAppend={readOnly ? undefined : appendStep}
             onInsertBefore={readOnly ? undefined : insertBefore}
+            onMakeTurn={makeTurn}
+            onDelete={deleteFromCard}
           />
         )}
       </div>

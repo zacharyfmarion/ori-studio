@@ -12,8 +12,7 @@ import {
 import { GRID_DROP_TARGET } from '../../diagram/upload/useStepPictureDrop';
 import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
 import type { DiagramCardLinks } from '../../diagram/capture/useCardLinks';
-import { DiagramStepCard } from './DiagramStepCard';
-import { DiagramTurnChip } from './DiagramTurnChip';
+import { DiagramStepCard, DiagramTurnCard } from './DiagramStepCard';
 import styles from './DiagramStepsGrid.module.css';
 
 /**
@@ -39,10 +38,9 @@ import styles from './DiagramStepsGrid.module.css';
  * After being the way there from the keyboard. A press on either lands focus
  * on the listbox, so the new step's card takes it.
  *
- * A turn between two steps (D22) is no card: a round chip in the gap before
- * the step it comes before, or after the last card. It is an option of the
- * list all the same — selected, walked to with the arrows, moved and deleted
- * as a card is — and its number is none: the cards either side read 3 and 4.
+ * A turn between two steps (D22) is a card of its own in its place (D24),
+ * selected, walked to with the arrows, moved, inserted before and deleted as a
+ * step's is — but numbered none: the cards either side read 3 and 4.
  */
 export function DiagramStepsGrid({
   entries,
@@ -63,6 +61,8 @@ export function DiagramStepsGrid({
   onGoToEdit,
   onAppend,
   onInsertBefore,
+  onMakeTurn,
+  onDelete,
 }: {
   /** The diagram's order: its steps and the turns between them. */
   entries: readonly DiagramEntry[];
@@ -96,6 +96,10 @@ export function DiagramStepsGrid({
   onAppend?: () => void;
   /** Add an empty step before one, from the gap before its card; absent on a diagram that cannot change. */
   onInsertBefore?: (stepId: string) => void;
+  /** Make an empty step a turn in its place (D24), from its card. */
+  onMakeTurn: (stepId: string, kind: 'turn-over' | 'rotate') => void;
+  /** Delete a step or a turn, from its card's Delete. */
+  onDelete: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -114,27 +118,11 @@ export function DiagramStepsGrid({
   }, [selectedStepId]);
 
   const tabStop = selectedStepId ?? entries[0]?.id ?? null;
-  const { slots, trailing } = useMemo(() => slotsOf(entries), [entries]);
-  /** A gap's turns, as chips; `between` the numbers of the steps either side. */
-  const chips = (turns: readonly DiagramTurn[], place: string, between: { before: number | null; after: number | null }) =>
-    turns.length > 0 && (
-      <div className={styles.turns} data-turns={place}>
-        {turns.map((turn) => (
-          <DiagramTurnChip
-            key={turn.id}
-            ref={(element) => {
-              if (element) cards.current.set(turn.id, element);
-              else cards.current.delete(turn.id);
-            }}
-            turn={turn}
-            between={between}
-            selected={turn.id === selectedStepId}
-            tabStop={turn.id === tabStop}
-            onSelect={onSelect}
-          />
-        ))}
-      </div>
-    );
+  const slots = useMemo(() => slotsOf(entries), [entries]);
+  const keep = (id: string) => (element: HTMLDivElement | null) => {
+    if (element) cards.current.set(id, element);
+    else cards.current.delete(id);
+  };
 
   return (
     <div
@@ -151,82 +139,94 @@ export function DiagramStepsGrid({
         if (event.target === event.currentTarget) onSelect(null);
       }}
     >
-      {slots.map(({ step, number, turnsBefore }) => (
+      {slots.map((slot) => (
         // A slot, so the gap before the card is placed against it.
-        <div key={step.id} className={styles.slot}>
+        <div key={slot.entry.id} className={styles.slot}>
           {onInsertBefore && (
             <div
               aria-hidden
               className={styles.insert}
-              data-insert-before={step.id}
-              data-beside-turns={turnsBefore.length > 0 || undefined}
+              data-insert-before={slot.entry.id}
               title={t('panels:diagram.grid.insertHere', 'Add a step here')}
-              onClick={() => onInsertBefore(step.id)}
+              onClick={() => onInsertBefore(slot.entry.id)}
             >
               <span className={styles.insertButton}>
                 <Plus size={13} aria-hidden />
               </span>
             </div>
           )}
-          {chips(turnsBefore, step.id, { before: number > 1 ? number - 1 : null, after: number })}
-          <DiagramStepCard
-            ref={(element) => {
-              if (element) cards.current.set(step.id, element);
-              else cards.current.delete(step.id);
-            }}
-            step={step}
-            assets={assets}
-            style={style}
-            number={number}
-            selected={step.id === selectedStepId}
-            tabStop={step.id === tabStop}
-            dropTarget={step.id === dropTarget}
-            readOnly={readOnly}
-            onSelect={onSelect}
-            onOpen={onOpen}
-            onUpload={onUpload}
-            link={links.statuses.get(step.id) ?? null}
-            textCut={textCut.has(step.id)}
-            capture={links.captures[step.id] ?? null}
-            patternOpen={patternOpen}
-            onLink={onLink}
-            onStop={links.stop}
-            onFromReferences={onFromReferences}
-            onOpenIn={onOpenIn}
-            onGoToEdit={onGoToEdit}
-          />
+          {slot.kind === 'turn' ? (
+            <DiagramTurnCard
+              ref={keep(slot.entry.id)}
+              turn={slot.entry}
+              between={slot.between}
+              style={style}
+              selected={slot.entry.id === selectedStepId}
+              tabStop={slot.entry.id === tabStop}
+              readOnly={readOnly}
+              onSelect={onSelect}
+              onDelete={onDelete}
+            />
+          ) : (
+            <DiagramStepCard
+              ref={keep(slot.entry.id)}
+              step={slot.entry}
+              assets={assets}
+              style={style}
+              number={slot.number}
+              selected={slot.entry.id === selectedStepId}
+              tabStop={slot.entry.id === tabStop}
+              dropTarget={slot.entry.id === dropTarget}
+              readOnly={readOnly}
+              onSelect={onSelect}
+              onOpen={onOpen}
+              onUpload={onUpload}
+              link={links.statuses.get(slot.entry.id) ?? null}
+              textCut={textCut.has(slot.entry.id)}
+              capture={links.captures[slot.entry.id] ?? null}
+              patternOpen={patternOpen}
+              onLink={onLink}
+              onStop={links.stop}
+              onFromReferences={onFromReferences}
+              onOpenIn={onOpenIn}
+              onGoToEdit={onGoToEdit}
+              onMakeTurn={onMakeTurn}
+              onDelete={onDelete}
+            />
+          )}
         </div>
       ))}
-      {(onAppend || trailing.length > 0) && (
-        // The place after the last card: the turns after it, and the tile that adds a step there.
+      {onAppend && (
+        // The place after the last card: the tile that adds a step there.
         <div className={styles.slot} data-trailing="">
-          {chips(trailing, 'end', { before: slots.length > 0 ? slots.length : null, after: null })}
-          {onAppend && (
-            <div aria-hidden className={styles.addTile} data-add-step-tile="" onClick={onAppend}>
-              <Plus size={18} aria-hidden />
-              {t('panels:diagram.grid.addStep', 'Add step')}
-            </div>
-          )}
+          <div aria-hidden className={styles.addTile} data-add-step-tile="" onClick={onAppend}>
+            <Plus size={18} aria-hidden />
+            {t('panels:diagram.grid.addStep', 'Add step')}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-/** Each step with its number and the turns before it, and the turns after the last (D22). */
-function slotsOf(entries: readonly DiagramEntry[]): {
-  slots: { step: DiagramStep; number: number; turnsBefore: DiagramTurn[] }[];
-  trailing: DiagramTurn[];
-} {
-  const slots: { step: DiagramStep; number: number; turnsBefore: DiagramTurn[] }[] = [];
-  let turns: DiagramTurn[] = [];
-  for (const entry of entries) {
+type Slot =
+  | { kind: 'step'; entry: DiagramStep; number: number }
+  /** A turn, and the numbers of the steps either side of it; null at an end. */
+  | { kind: 'turn'; entry: DiagramTurn; between: { before: number | null; after: number | null } };
+
+/** Each entry in order: a step with its number, a turn with the numbers either side of it (D22). */
+function slotsOf(entries: readonly DiagramEntry[]): Slot[] {
+  const total = entries.filter((entry) => !isTurn(entry)).length;
+  let number = 0;
+  return entries.map((entry): Slot => {
     if (isTurn(entry)) {
-      turns.push(entry);
-      continue;
+      return {
+        kind: 'turn',
+        entry,
+        between: { before: number > 0 ? number : null, after: number < total ? number + 1 : null },
+      };
     }
-    slots.push({ step: entry, number: slots.length + 1, turnsBefore: turns });
-    turns = [];
-  }
-  return { slots, trailing: turns };
+    number += 1;
+    return { kind: 'step', entry, number };
+  });
 }

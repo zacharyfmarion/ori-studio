@@ -45,6 +45,8 @@ import {
   indexForStepNumber,
   isTurn,
   setTurn,
+  stepToTurn,
+  canBecomeTurn,
   stepById,
   stepNumber,
   stepNumbers,
@@ -618,6 +620,41 @@ describe('the ways a linked pattern is shown (D19)', () => {
     const shown = setLinkedPicture(document, 'step-1', { source: cpSource(pattern), picture: scenePicture('b') });
     expect(stepsIn(shown)[0]!.source).toMatchObject({ render: pattern, remembered: { folded: flat } });
     expect(setLinkedPicture(shown, 'step-1', { source: cpSource(pattern), picture: scenePicture('b') })).toBe(shown);
+  });
+});
+
+describe('an empty step made a turn (D24)', () => {
+  const OVER = { kind: 'turn-over', axis: 'vertical' } as const;
+
+  it('puts a turn in its place, numbered none, so the steps after it read one less', () => {
+    const { diagram, ids } = diagramWith(3);
+    const [s1, s2, s3] = stepIds(diagram);
+    const made = stepToTurn(diagram, s2!, OVER, ids)!;
+    expect(made.document.steps.map((entry) => entry.id)).toEqual([s1, made.turnId, s3]);
+    expect(turnById(made.document, made.turnId)).toMatchObject(OVER);
+    expect(stepNumber(made.document, s3!)).toBe(2);
+  });
+
+  it('carries a new page it started on to the step after it, where the turn now leads', () => {
+    const { diagram, ids } = diagramWith(3);
+    const [, s2, s3] = stepIds(diagram);
+    const breaking = setStepBreakBefore(diagram, s2!, true);
+    const made = stepToTurn(breaking, s2!, OVER, ids)!;
+    expect(stepById(made.document, s3!)?.breakBefore).toBe(true);
+  });
+
+  it('makes a turn only of an empty step: not one with a picture or a link, a newer build’s, or a turn', () => {
+    const { diagram, ids } = diagramWith(1);
+    const turned = insertSteps(
+      insertSteps(diagram, [{ ...referencesStep('step-r') }, { ...createStep(() => 'step-n'), unknown: { id: 'step-n' } }], 1),
+      [createTurn(OVER, () => 'turn-t')],
+      3
+    );
+    for (const id of ['step-r', 'step-n', 'turn-t', 'step-gone']) expect(stepToTurn(turned, id, OVER, ids)).toBeNull();
+    expect(canBecomeTurn(stepsIn(diagram)[0]!)).toBe(true);
+    // Words do not stop it: the store asks first.
+    const worded = setStepText(diagram, stepIds(diagram)[0]!, 'Fold it.');
+    expect(stepToTurn(worded, stepIds(diagram)[0]!, OVER, ids)).not.toBeNull();
   });
 });
 

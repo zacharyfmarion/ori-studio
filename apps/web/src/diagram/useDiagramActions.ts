@@ -117,6 +117,18 @@ export function insertDiagramTurn(
   return turnId;
 }
 
+/**
+ * Make an empty step a turn in its place (D24) — asking first when it has
+ * words — counting it. The turn's id, or null when declined or not made.
+ */
+export async function makeDiagramStepTurn(stepId: string, kind: 'turn-over' | 'rotate'): Promise<string | null> {
+  const turn: DiagramTurnKind =
+    kind === 'turn-over' ? { kind, axis: 'vertical' } : { kind, rotate: DEFAULT_ROTATION };
+  const turnId = await useWorkspaceStore.getState().confirmMakeDiagramStepTurn(stepId, turn);
+  if (turnId) trackDiagramTurnAdded(kind, 'empty_step');
+  return turnId;
+}
+
 /** {@link addDiagramStep}, as a stable callback. */
 export function useAddDiagramStep(): () => string | null {
   return useCallback(() => addDiagramStep(), []);
@@ -221,6 +233,9 @@ function bindStepActions(
       },
       insertTurn: (kind) => {
         insertDiagramTurn(kind, 'card_menu', stepId);
+      },
+      makeTurn: (kind) => {
+        void makeDiagramStepTurn(stepId, kind);
       },
       duplicate: () => {
         store().duplicateDiagramStep(stepId);

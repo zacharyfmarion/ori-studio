@@ -1,6 +1,8 @@
 /*
  * A step in the Steps grid (DiagramStepCard.tsx): its number and kind, a
- * square well holding its picture, and its instruction under it.
+ * square well holding its picture, and its instruction under it. A turn's
+ * card (DiagramTurnCard, the same file) is the same card: its name for a
+ * number, its glyph for a picture, how it turns for an instruction.
  */
 .card {
   display: grid;
@@ -132,6 +134,32 @@
   gap: var(--space-1);
 }
 
+/* Or to make it a turn instead (D24): quieter, under a word that says so. */
+.turnWays {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  margin-top: var(--space-1);
+}
+
+.or {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+/* A turn's glyph, as a page prints it, on the paper's white. */
+.turnGlyph {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+}
+
+/* Where a turn prints, under how it turns. */
+.where {
+  display: block;
+  color: var(--text-muted);
+}
+
 /* The kind, and a linked step's pattern beside it. */
 .kind {
   display: inline-flex;
@@ -191,9 +219,9 @@
 }
 
 /*
- * Adjust pose and Annotate, over the picture's top corner: shown while the
- * card is pointed at, focused or selected, and always under a finger, which
- * has no hover. Dark in either theme, as they sit on the white paper.
+ * Adjust pose, Annotate and Delete, over the well's top corner: shown while
+ * the card is pointed at, focused or selected, and always under a finger,
+ * which has no hover. Dark in either theme, as they sit on the white paper.
  */
 .verbs {
   position: absolute;
@@ -232,6 +260,11 @@
 
 .verb:hover {
   background: rgb(16 20 23 / 0.92);
+}
+
+.verb[data-danger]:hover {
+  background: var(--status-danger);
+  color: #ffffff;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -16,6 +16,7 @@ function deps(): DiagramStepActionDeps {
     t,
     insert: vi.fn(),
     insertTurn: vi.fn(),
+    makeTurn: vi.fn(),
     duplicate: vi.fn(),
     move: vi.fn(),
     toggleBreak: vi.fn(),
@@ -76,6 +77,8 @@ describe('the diagram step verbs', () => {
       'upload-picture',
       'link-pattern',
       'from-references',
+      'make-turn-over',
+      'make-rotate',
       'adjust-pose',
       'annotate',
       'export-picture',
@@ -87,6 +90,17 @@ describe('the diagram step verbs', () => {
     const linked = build({ link: 'stale' }).map((action) => action.id);
     expect(linked).toContain('refresh-picture');
     expect(linked).toContain('open-in-edit');
+  });
+
+  it('offers an empty step to be a turn instead, and no other (D24)', () => {
+    const bound = deps();
+    diagramStepCommand(build({}, bound), 'make-turn-over')?.run();
+    diagramStepCommand(build({}, bound), 'make-rotate')?.run();
+    expect(bound.makeTurn).toHaveBeenNthCalledWith(1, 'turn-over');
+    expect(bound.makeTurn).toHaveBeenNthCalledWith(2, 'rotate');
+    for (const step of [{ hasSource: true }, { hasSource: true, hasPicture: true }, { locked: true }]) {
+      expect(diagramStepCommand(build(step), 'make-turn-over')).toBeNull();
+    }
   });
 
   it('runs each through its bound callback', () => {

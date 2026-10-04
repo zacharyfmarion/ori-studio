@@ -10,6 +10,8 @@ import {
   RefreshCw,
   Replace,
   Rotate3d,
+  RotateCcwSquare,
+  RotateCw,
   Upload,
   type LucideIcon,
 } from 'lucide-react';
@@ -56,14 +58,19 @@ const WAYS_IN: readonly { id: DiagramStepActionId; icon: LucideIcon }[] = [
   { id: 'link-pattern', icon: Link2 },
   { id: 'from-references', icon: Compass },
 ];
+/** Or to make it a turn instead (D24): the turn-over in Edit's Flip glyph, as Pose shows it. */
+const TURN_INSTEAD: readonly { id: DiagramStepActionId; icon: LucideIcon }[] = [
+  { id: 'make-turn-over', icon: RotateCcwSquare },
+  { id: 'make-rotate', icon: RotateCw },
+];
 
 /**
  * The Step pane's Picture section: what the picture is — an upload, or a
  * pattern of the crease pattern and how it shows it — how a linked picture
  * stands against its pattern, what sanitizing changed in an upload, and the
  * picture verbs from the step's action catalog, one to a row: those about its
- * pattern, then those about the picture itself; an empty step's are only the
- * ways to give it one. A verb that cannot do anything for this step is left
+ * pattern, then those about the picture itself; an empty step's are the ways
+ * to give it one, and to make it a turn instead (D24). A verb that cannot do anything for this step is left
  * out rather than shown dead — Refresh while the pattern row says it is up to
  * date, Adjust Pose in Pose. The pattern picker, when the step's pattern is
  * being chosen, sits under them.
@@ -180,7 +187,7 @@ export function DiagramStepPicture({
       )}
       <ActionList
         aria-label={t('panels:diagram.picture.verbs', 'Picture actions')}
-        groups={empty ? [items(WAYS_IN)] : [items(PATTERN_VERBS), items(FILE_VERBS)]}
+        groups={empty ? [items(WAYS_IN), items(TURN_INSTEAD)] : [items(PATTERN_VERBS), items(FILE_VERBS)]}
       />
       {picker}
     </div>

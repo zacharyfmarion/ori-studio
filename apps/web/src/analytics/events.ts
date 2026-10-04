@@ -43,7 +43,7 @@ export type DiagramTurnAddedKind = 'turn_over' | 'rotate';
  * Where a turn between steps was made: Add step ▾ in the header, a step's
  * menu (Insert … After), or pulled from References with its turn-over card.
  */
-export type DiagramTurnAddedVia = 'add_menu' | 'card_menu' | 'references';
+export type DiagramTurnAddedVia = 'add_menu' | 'card_menu' | 'references' | 'empty_step';
 
 /** An uploaded picture's file type, by its reported type and extension: never its name. */
 export type DiagramPictureFormat = 'svg' | 'png' | 'jpeg' | 'webp' | 'other';

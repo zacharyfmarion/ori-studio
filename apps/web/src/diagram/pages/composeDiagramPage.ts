@@ -18,7 +18,7 @@
  *
  * Pure: no DOM, no store.
  */
-import { PT_PER_CSS_PX, PT_PER_MM } from '../../lib/paper/paperSvg';
+import { PT_PER_MM } from '../../lib/paper/paperSvg';
 import { escapeXml, xmlText } from '../../lib/xmlEscape';
 import type { DiagramAsset, DiagramHanStyle, DiagramStep, DiagramStyle } from '../document/diagramDocument';
 import { DIAGRAM_FONT_FAMILY, parseFontFaceId } from '../fonts/diagramFontFaces';
@@ -34,7 +34,7 @@ import {
   type SetLine,
   type TextSetter,
 } from './diagramPageLayout';
-import { paintAnnotations } from '../annotate/paintAnnotations';
+import { paintTurnGlyph, TURN_FRAME_MM } from '../annotate/turnGlyph';
 import { setUploadText } from '../upload/uploadText';
 import { cellPicture } from './pagePictures';
 
@@ -44,8 +44,6 @@ const TEXT_INK = '#26292c';
 const BAND_INK = '#ecece8';
 const TAB_RADIUS_MM = 1.4;
 const RULE_WIDTH_MM = 0.35;
-/** The frame a turn's glyph is drawn on: it prints at its own size, centred on the frame. */
-const TURN_FRAME_MM = 20;
 
 /**
  * What browsers would otherwise add to the page's text: to the composer's,
@@ -132,16 +130,7 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
   for (const { id, turn, at } of page.turns) {
     const sizePt = TURN_FRAME_MM * PT_PER_MM;
     const box = { x: at.x * PT_PER_MM - sizePt / 2, y: at.y * PT_PER_MM - sizePt / 2, width: sizePt, height: sizePt };
-    const glyph = paintAnnotations(
-      [
-        turn.kind === 'turn-over'
-          ? { id, kind: 'turn-over', from: [0.5, 0.5], to: [0.5, 0.5], axis: turn.axis }
-          : { id, kind: 'rotate', from: [0.5, 0.5], to: [0.5, 0.5], rotate: turn.rotate },
-      ],
-      box,
-      sizePt / PT_PER_CSS_PX,
-      input.style
-    );
+    const glyph = paintTurnGlyph(turn, box, input.style, id);
     // A rotation's fraction is set as a label's is: in the diagram's fonts, which embed its digits.
     if (glyph) body.push(setUploadText(glyph.markup, input.hanStyle, setter.runs, use));
   }

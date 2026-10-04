@@ -1256,6 +1256,40 @@ export function setPageSetup(
 }
 
 /**
+ * Whether a step can become a turn in its place (D24): one with no picture and
+ * no link — the empty card that offers it — made by this build.
+ */
+export function canBecomeTurn(entry: DiagramEntry): entry is DiagramStep {
+  return isStep(entry) && !isLockedStep(entry) && entry.source === null && entry.picture === null;
+}
+
+/**
+ * An empty step made a turn in its place (D24). A turn has no words and no
+ * marks, so the step's go with it; a new page it started starts at the step
+ * after it instead, where the turn now leads. Null for a step that is not
+ * empty (`canBecomeTurn`), a turn, or an id the diagram does not have.
+ */
+export function stepToTurn(
+  document: DiagramDocument,
+  stepId: string,
+  kind: DiagramTurnKind,
+  newId: DiagramIdFactory = randomDiagramId
+): { document: DiagramDocument; turnId: string } | null {
+  const index = stepIndex(document, stepId);
+  const entry = document.steps[index];
+  if (!entry || !canBecomeTurn(entry)) return null;
+  const turn = createTurn(kind, newId);
+  const steps = document.steps.slice();
+  steps[index] = turn;
+  if (entry.breakBefore) {
+    const next = steps.findIndex((candidate, at) => at > index && isStep(candidate));
+    const following = steps[next];
+    if (following && isStep(following) && !isLockedStep(following)) steps[next] = { ...following, breakBefore: true };
+  }
+  return { document: { ...document, steps }, turnId: turn.id };
+}
+
+/**
  * Set what a turn is (D22): which axis it turns over, or how far and which way
  * it rotates. What it is already is no change; a newer build's turn is never
  * changed.

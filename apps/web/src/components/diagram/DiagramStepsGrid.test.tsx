@@ -47,6 +47,9 @@ function render(
     onInsertBefore?: (stepId: string) => void;
     onOpenIn?: (stepId: string, mode: 'pose' | 'annotate') => void;
     onGoToEdit?: () => void;
+    onMakeTurn?: (stepId: string, kind: 'turn-over' | 'rotate') => void;
+    onDelete?: (id: string) => void;
+    readOnly?: boolean;
   } = {}
 ) {
   if (!host) {
@@ -62,7 +65,7 @@ function render(
         style={DEFAULT_DIAGRAM_STYLE}
         selectedStepId={selectedStepId}
         dropTarget={options.dropTarget ?? null}
-        readOnly={false}
+        readOnly={options.readOnly ?? false}
         onSelect={onSelect}
         onOpen={options.onOpen ?? vi.fn()}
         onUpload={options.onUpload ?? vi.fn()}
@@ -82,6 +85,8 @@ function render(
         onInsertBefore={options.onInsertBefore}
         onOpenIn={options.onOpenIn ?? vi.fn()}
         onGoToEdit={options.onGoToEdit ?? vi.fn()}
+        onMakeTurn={options.onMakeTurn ?? vi.fn()}
+        onDelete={options.onDelete ?? vi.fn()}
       />
     )
   );
@@ -126,29 +131,73 @@ describe('DiagramStepsGrid', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it('shows a turn between two steps as a chip in the gap before the next card, unnumbered (D22)', () => {
+  it('shows a turn as a card of its own in its place, unnumbered, the cards around it numbered on (D24)', () => {
     const over: DiagramEntry = { id: 'turn-1', kind: 'turn-over', axis: 'vertical' };
     const round: DiagramEntry = { id: 'turn-2', kind: 'rotate', rotate: { amount: 'quarter', direction: 'ccw' } };
-    const onSelect = render('turn-1', vi.fn(), { steps: [over, steps[0]!, steps[1]!, round], onAppend: vi.fn() });
-    // In order, in one listbox: the chips are options too.
+    const onInsertBefore = vi.fn();
+    const onSelect = render('turn-1', vi.fn(), { steps: [over, steps[0]!, steps[1]!, round], onAppend: vi.fn(), onInsertBefore });
+    // In order, in one listbox: a turn's card is an option as a step's is, named by what it is and where.
     expect(options().map((option) => option.getAttribute('aria-label') ?? option.dataset.stepId)).toEqual([
       'Turn over, side to side, before step 1',
       'step-a',
       'step-b',
       'Rotate 1/4 turn counterclockwise, after step 2',
     ]);
-    // The cards read 1 and 2: the turn before them is no step.
+    // The step cards read 1 and 2: a turn is no step.
     expect(host!.textContent).toContain('Step 1');
     expect(host!.textContent).toContain('Step 2');
     expect(host!.textContent).not.toContain('Step 3');
-    // In the gap before the card it comes before; after the last, beside the tile.
-    expect(host!.querySelector('[data-turns="step-a"] [data-step-id="turn-1"]')).not.toBeNull();
-    expect(host!.querySelector('[data-turns="end"] [data-step-id="turn-2"]')).not.toBeNull();
+    // A turn's card: its name for a number, no number, its glyph, how it turns and where it prints.
+    const [first, , , last] = options();
+    expect(first!.textContent).toContain('Turn over');
+    expect(first!.textContent).toContain('No number');
+    expect(first!.textContent).toContain('Side to side');
+    expect(first!.textContent).toContain('Before step 1');
+    expect(first!.querySelector('img')?.getAttribute('src')).toMatch(/^data:image\/svg\+xml/);
+    expect(last!.textContent).toContain('1/4 turn counterclockwise');
+    expect(last!.textContent).toContain('After step 2');
     // Selected, it is the tab stop, as a card would be; a press selects one.
-    expect(options()[0]!.getAttribute('aria-selected')).toBe('true');
-    expect(options()[0]!.tabIndex).toBe(0);
-    act(() => options()[3]!.click());
+    expect(first!.getAttribute('aria-selected')).toBe('true');
+    expect(first!.tabIndex).toBe(0);
+    act(() => last!.click());
     expect(onSelect).toHaveBeenCalledWith('turn-2');
+    // Every card has the gap before it, a turn's too.
+    act(() => host!.querySelector<HTMLElement>('[data-insert-before="turn-2"]')!.click());
+    expect(onInsertBefore).toHaveBeenCalledWith('turn-2');
+  });
+
+  it('puts Delete over every card’s corner for a pointer, a step’s or a turn’s, and none on a diagram that cannot change', () => {
+    const onDelete = vi.fn();
+    const over: DiagramEntry = { id: 'turn-1', kind: 'turn-over', axis: 'vertical' };
+    const onSelect = render(null, vi.fn(), { steps: [cpStep('step-p'), createStep(() => 'step-empty'), over], onDelete });
+    const deletes = () => [...host!.querySelectorAll<HTMLButtonElement>('button[data-danger]')];
+    expect(deletes().map((button) => [button.closest('[data-step-id]')?.getAttribute('data-step-id'), button.title])).toEqual([
+      ['step-p', 'Delete Step'],
+      ['step-empty', 'Delete Step'],
+      ['turn-1', 'Delete Turn'],
+    ]);
+    // A pointer's shortcut: the menu, the Step pane and the Delete key are the keyboard's.
+    expect(deletes()[0]!.getAttribute('aria-hidden')).toBe('true');
+    expect(deletes()[0]!.tabIndex).toBe(-1);
+    act(() => deletes()[2]!.click());
+    expect(onDelete).toHaveBeenCalledWith('turn-1');
+    // It does not select the card it takes away.
+    expect(onSelect).not.toHaveBeenCalled();
+    render(null, vi.fn(), { steps: [cpStep('step-p'), over], readOnly: true });
+    expect(deletes()).toHaveLength(0);
+  });
+
+  it('offers an empty card a turn instead of a picture (D24)', () => {
+    const onMakeTurn = vi.fn();
+    render(null, vi.fn(), { steps: [createStep(() => 'step-empty')], onMakeTurn });
+    const button = (label: string) =>
+      [...host!.querySelectorAll<HTMLButtonElement>('[data-step-id="step-empty"] button')].find((candidate) => candidate.textContent === label)!;
+    act(() => button('Turn over').click());
+    act(() => button('Rotate').click());
+    expect(onMakeTurn.mock.calls).toEqual([
+      ['step-empty', 'turn-over'],
+      ['step-empty', 'rotate'],
+    ]);
   });
 
   it('offers no gap on a diagram that cannot change', () => {
@@ -193,8 +242,8 @@ describe('DiagramStepsGrid', () => {
     render(null);
     expect(listbox().getAttribute('aria-label')).toBe('Steps');
     expect(options().map((option) => option.textContent)).toEqual([
-      'Step 1EmptyNo picture yetUpload…Go to EditNo instruction',
-      'Step 2EmptyNo picture yetUpload…Go to EditFold the corner\nto the centre.',
+      'Step 1EmptyNo picture yetUpload…Go to Editor a turnTurn overRotateNo instruction',
+      'Step 2EmptyNo picture yetUpload…Go to Editor a turnTurn overRotateFold the corner\nto the centre.',
       'Step 3NewerMade with a newer Ori StudioNo instruction',
     ]);
   });
@@ -373,8 +422,8 @@ describe('DiagramStepsGrid', () => {
     const upload = options()[1].querySelector('button');
     act(() => upload?.click());
     expect(onUpload).toHaveBeenCalledWith('step-b');
-    // The newer build's card offers nothing to change it.
-    expect(options()[2].querySelector('button')).toBeNull();
+    // The newer build's card offers nothing to change it: only its Delete.
+    expect([...options()[2].querySelectorAll('button')].map((button) => button.title)).toEqual(['Delete Step']);
   });
 
   it('shows where a dragged picture would land', () => {
