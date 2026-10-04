@@ -30,9 +30,9 @@ import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from
 import type { DiagramFonts, LoadedDiagramFont } from '../fonts/diagramFonts';
 import { readFontMetrics } from '../fonts/fontMetrics';
 import { createFontSubsetter, type FontSubsetter } from '../fonts/fontSubset';
-import { FIT_GIVE, MARKS_FLOOR, PAGE_NUMBER_SIZE_MM } from './diagramPageLayout';
+import { layoutDiagramPages, MARKS_FLOOR, PAGE_NUMBER_SIZE_MM } from './diagramPageLayout';
 import { estimateTextSetter } from './estimateTextSetter';
-import { layoutDiagram, preparedPages } from './diagramPages';
+import { diagramLayoutSteps, layoutDiagram, preparedPages } from './diagramPages';
 import { composeDiagramPage } from './composeDiagramPage';
 import { cellPicture, layoutPicture } from './pagePictures';
 
@@ -216,7 +216,7 @@ describe('composeDiagramPage', () => {
       expect(widths[2]! / widths[0]!, setupName(setup)).toBeCloseTo(1, 3);
       // The far push is never drawn larger; on a square cell it fits only well under the others' scale.
       expect(widths[3]!, setupName(setup)).toBeLessThanOrEqual(widths[0]! * 1.001);
-      if (Object.keys(setup).length === 0) expect(widths[3]!).toBeLessThan(widths[0]! * (1 - FIT_GIVE));
+      if (Object.keys(setup).length === 0) expect(widths[3]!).toBeLessThan(widths[0]! * 0.8);
     }
   });
 
@@ -237,8 +237,16 @@ describe('composeDiagramPage', () => {
       annotations: [{ id: 'a', kind: 'fold-unfold-arrow', from: [0.1, 0.02], to: [0.9, 0.02], bend: 0.134 }],
     };
     const long: DiagramStep = { ...referencesStep('step-4'), picture: four, text: Array(12).fill('Fold the corner to the line.').join(' ') };
-    const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [cpStep('step-1'), lettered, arrowed, long], 0);
+    // Captures with no paper scale, drawn by their frames: a push in from the left, an arrow over the top (review).
+    const unscaled = (id: string, annotations: DiagramStep['annotations']): DiagramStep => {
+      const step = cpStep(id);
+      return { ...step, picture: { ...(step.picture as Extract<DiagramStep['picture'], { kind: 'scene' }>), paperScale: null }, annotations };
+    };
+    const pushed = unscaled('step-5', [{ id: 'p', kind: 'push-arrow', from: [-0.5, 0.5], to: [0.2, 0.5] }]);
+    const over = unscaled('step-6', [{ id: 'f', kind: 'fold-unfold-arrow', from: [0.1, 0.02], to: [0.9, 0.02], bend: 0.134 }]);
+    const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [cpStep('step-1'), lettered, arrowed, long, pushed, over], 0);
     let floored = 0;
+    let framed = 0;
     for (const scale of ['fit', 'paper'] as const) {
       for (const setup of SETUPS) {
         const document: DiagramDocument = { ...made, page: { ...made.page, ...setup, scale } };
@@ -248,11 +256,15 @@ describe('composeDiagramPage', () => {
           const picture = cellPicture(step, document.assets, document.style, cell, 'c-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
           const room = { x: cell.drawMm.x * PT_PER_MM, y: cell.drawMm.y * PT_PER_MM, w: cell.drawMm.w * PT_PER_MM, h: cell.drawMm.h * PT_PER_MM };
           const name = `${scale} ${setupName(setup)} ${cell.stepId}`;
-          const at = cell.mmPerUnit;
+          // What the layout found the picture needs, measured at the scale it is drawn at: per pattern
+          // unit, or per its frame's longer side when it has no paper.
+          const at = cell.mmPerUnit ?? cell.frameMm;
           if (at === null) continue;
-          // What the layout found the picture needs, measured at the scale it is drawn at.
-          const needs = layoutPicture(step, document.assets, document.style, { mmPerUnit: at })!;
-          const fits = needs.width * at <= cell.drawMm.w * (1 + 1e-3) && needs.height * at <= cell.drawMm.h * (1 + 1e-3);
+          const needs = layoutPicture(step, document.assets, document.style, cell.mmPerUnit === null ? { frameMm: at } : { mmPerUnit: at })!;
+          if (cell.mmPerUnit === null) framed += 1;
+          const fits =
+            needs.width * at + needs.marks.width <= cell.drawMm.w * (1 + 1e-3) &&
+            needs.height * at + needs.marks.height <= cell.drawMm.h * (1 + 1e-3);
           if (fits) {
             // Within a hair: the marks were measured at the scale the picture is drawn at.
             const hair = 0.002 * Math.max(room.w, room.h);
@@ -261,11 +273,13 @@ describe('composeDiagramPage', () => {
             expect(picture.boundsPt.x + picture.boundsPt.width, name).toBeLessThanOrEqual(room.x + room.w + hair);
             expect(picture.boundsPt.y + picture.boundsPt.height, name).toBeLessThanOrEqual(room.y + room.h + hair);
           } else {
-            // A room its marks cannot fit: the paper alone fits, at its floor, and the marks reach out.
-            expect(needs.frame.width * at, name).toBeLessThanOrEqual(cell.drawMm.w * (1 + 1e-3));
-            expect(needs.frame.height * at, name).toBeLessThanOrEqual(cell.drawMm.h * (1 + 1e-3));
-            const alone = Math.min(cell.drawMm.w / needs.frame.width, cell.drawMm.h / needs.frame.height);
-            expect(at / alone, name).toBeCloseTo(MARKS_FLOOR, 2);
+            // A room its letters cannot fit: where its marks lie fits the share of it the floor leaves, and
+            // the letters reach out.
+            const share = 1 - MARKS_FLOOR;
+            const across = needs.width * at <= cell.drawMm.w * share * (1 + 1e-3);
+            const down = needs.height * at <= cell.drawMm.h * share * (1 + 1e-3);
+            expect(across && down, name).toBe(true);
+            expect(Math.max(needs.width * at / (cell.drawMm.w * share), needs.height * at / (cell.drawMm.h * share)), name).toBeCloseTo(1, 2);
             floored += 1;
           }
         }
@@ -273,6 +287,43 @@ describe('composeDiagramPage', () => {
     }
     // The small setups' long instruction leaves its References step a room its letters cannot fit.
     expect(floored).toBeGreaterThan(0);
+    // Fit each drew the captures with no paper at frames of its own.
+    expect(framed).toBeGreaterThanOrEqual(2 * SETUPS.length);
+  });
+
+  it('keeps a picture’s paper in its room when its letters cannot fit there, and its pages settled (review)', () => {
+    // Glyphs beside the paper, which keep their pt size, in a room a few mm tall.
+    const glyphs: DiagramStep = {
+      ...cpStep('step-1'),
+      annotations: [
+        { id: 'r', kind: 'rotate', from: [1.3, 0.5], to: [1.3, 0.5], rotate: { amount: 'half', direction: 'cw' } },
+        { id: 't', kind: 'turn-over', from: [-0.3, 0.5], to: [-0.3, 0.5], axis: 'vertical' },
+      ],
+    };
+    const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [glyphs, cpStep('step-2'), cpStep('step-3')], 0);
+    for (const setup of [...SETUPS, { size: 'a5' as const, orientation: 'landscape' as const, columns: 3, rows: 5 }]) {
+      const document: DiagramDocument = { ...made, page: { ...made.page, ...setup } };
+      const layout = layoutDiagram(document, estimateTextSetter);
+      const cell = layout.pages[0]!.cells[0]!;
+      const picture = cellPicture(stepsIn(document)[0]!, document.assets, document.style, cell, 'c-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
+      // The paper: the first face its painter draws, in the room the layout drew, never a neighbour's.
+      const face = /<g stroke-linejoin="round">\s*<path d="([^"]*)"/.exec(picture.markup)![1]!;
+      const shift = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(picture.markup.slice(0, picture.markup.indexOf('<g stroke-linejoin')));
+      const [dx, dy] = shift ? [Number(shift[1]), Number(shift[2])] : [0, 0];
+      const xs = [...face.matchAll(/[ML](-?[\d.]+),/g)].map((each) => Number(each[1]) + dx);
+      const ys = [...face.matchAll(/,(-?[\d.]+)/g)].map((each) => Number(each[1]) + dy);
+      const name = setupName(setup);
+      expect(Math.min(...xs), name).toBeGreaterThanOrEqual(cell.drawMm.x * PT_PER_MM - 0.5);
+      expect(Math.max(...xs), name).toBeLessThanOrEqual((cell.drawMm.x + cell.drawMm.w) * PT_PER_MM + 0.5);
+      expect(Math.min(...ys), name).toBeGreaterThanOrEqual(cell.drawMm.y * PT_PER_MM - 0.5);
+      expect(Math.max(...ys), name).toBeLessThanOrEqual((cell.drawMm.y + cell.drawMm.h) * PT_PER_MM + 0.5);
+      // Settled: measured at the scales it is drawn at, another pass draws them the same.
+      const measures = new Map(layout.pages.flatMap((page) => page.cells).map((each) => [each.stepId, { mmPerUnit: each.mmPerUnit! }]));
+      const again = layoutDiagramPages(diagramLayoutSteps(document, (id) => measures.get(id) ?? null), document.page, document.title, estimateTextSetter);
+      again.pages.flatMap((page) => page.cells).forEach((each, index) => {
+        expect(each.mmPerUnit! / layout.pages.flatMap((page) => page.cells)[index]!.mmPerUnit!, name).toBeCloseTo(1, 3);
+      });
+    }
   });
 
   it('draws a taller model at the run’s scale, taller than its box, its instruction below it', () => {

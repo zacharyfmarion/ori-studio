@@ -30,6 +30,7 @@ import {
   STEP_NUMBER_SIZE_MM,
   STEP_TEXT_LEADING_MM,
   STEP_TEXT_SIZE_MM,
+  pictureFit,
   type LayoutStep,
   type SetLine,
 } from '../pages/diagramPageLayout';
@@ -77,13 +78,16 @@ export interface PreparedStepFiles {
   compose: (index: number) => PaperSvgResult;
 }
 
-/** D10's shared scale for a box: the largest mm per unit at which every paper picture fits it. */
+/**
+ * D10's shared scale for a box: the largest mm per unit at which every paper
+ * picture fits it, its marks as the pages count them (`pictureFit`).
+ */
 function sharedScale(steps: readonly LayoutStep[], boxMm: number): number | null {
   let scale: number | null = null;
   for (const { picture } of steps) {
-    const extent = picture?.kind === 'paper' ? Math.max(picture.width, picture.height) : 0;
-    if (!(extent > 0) || !Number.isFinite(extent)) continue;
-    const fits = boxMm / extent;
+    if (picture?.kind !== 'paper') continue;
+    const fits = pictureFit(picture, boxMm, boxMm);
+    if (fits === null || !(fits > 0)) continue;
     scale = scale === null ? fits : Math.min(scale, fits);
   }
   return scale;

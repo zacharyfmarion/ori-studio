@@ -81,21 +81,20 @@ const FLOW_STEP = 0.06;
 /** The room beside a picture box in its cell, together: the gutter between two pictures. */
 const PICTURE_SIDE_ROOM_MM = 6;
 /**
- * Under `fit`, how much larger than its run's scale a step must fit before
- * the steps from it zoom in: its model has grown that much smaller.
+ * Under `fit`, what a change of scale between two steps costs, against how
+ * much smaller than it could be each picture is drawn — the log of the
+ * ratio, summed over the pictures (`scaleRuns`). One: as much as five
+ * pictures drawn a fifth smaller, or one at under two fifths of its size.
  */
-export const FIT_ZOOM_IN = 1.3;
+export const FIT_RUN_BREAK = 1;
+/** Under `fit`, scales this near each other are one: the larger drawn at the smaller, wherever in the diagram. */
+export const FIT_SAME = 1.06;
 /**
- * Under `fit`, how much of its first scale a run gives up, in all, to keep
- * one more step at its scale. A step that needs more is drawn smaller on its
- * own, when the step after it fits the run again, or starts a run.
- */
-export const FIT_GIVE = 0.2;
-/**
- * The most of its room a picture's marks may cost it: past that — letters in
- * a room cut down to a few mm for its text — the paper keeps this share of
- * the scale it would fit alone, and the marks reach out of the room, rather
- * than the paper shrink to a dot inside them.
+ * The most of its room what a picture's marks keep at their pt size may
+ * take — letters, glyphs, heads — in a room cut down to a few mm for its
+ * text: past it, they reach out of the room rather than the paper shrink to
+ * a dot inside them. Where marks lie, which grows with the picture, is
+ * always given room.
  */
 export const MARKS_FLOOR = 0.5;
 /**
@@ -165,16 +164,19 @@ export interface LayoutStep {
   breakBefore: boolean;
   /**
    * The picture with what its marks reach past it — annotations, a
-   * References step's letters — for the scale policy: its width and height
-   * in document units when it knows its paper (`paper`), or per its frame's
-   * longer side when it is only fitted (`fit`); and its frame alone, in the
-   * same units. Null for a step with no picture.
+   * References step's letters — for the scale policy, in two parts: where
+   * its marks lie, which grows with the picture — its width and height in
+   * document units when it knows its paper (`paper`), or per its frame's
+   * longer side when it is only fitted (`fit`) — and what they reach past
+   * that at their pt size, in mm (`marks`). Its frame alone in the first
+   * units. Null for a step with no picture.
    */
   picture: {
     kind: 'paper' | 'fit';
     width: number;
     height: number;
     frame: { width: number; height: number };
+    marks: { width: number; height: number };
   } | null;
   /** The turns between the step before and this one (D22), in order. */
   turnsBefore: readonly LayoutTurn[];
@@ -262,42 +264,78 @@ export interface ScaleFit {
 /**
  * Under `fit`, the scale each picture is drawn at, in order, so that the
  * paper keeps one size from step to step where it can — a diagram's steps
- * draw the model alike, and zoom in only where it has grown much smaller.
+ * draw the model alike — and changes it only where the model has grown
+ * smaller or larger for long enough to be worth it.
  *
- * A run starts at its first picture's scale. A picture that fits more than
- * {@link FIT_ZOOM_IN} times the run's scale starts a run of its own (zoomed
- * in). One that fits less lowers the run to its scale, down to
- * {@link FIT_GIVE} under the run's first; one that needs more is drawn at its
- * own scale, alone, when the picture after it fits the run again (a flap's
- * outline reaching far), and otherwise starts a run (the model unfolded for
- * good). Every picture is drawn at its run's scale, or its own when that is
- * smaller (`reduced`). Pure.
+ * The pictures are cut into runs, each drawn at the smallest scale its
+ * pictures fit, so as to cost least: every picture drawn smaller than it
+ * could be costs the log of how much smaller, and every change of scale
+ * between runs {@link FIT_RUN_BREAK}. So a model smaller for one step is
+ * drawn at its neighbours' scale, one smaller for several zooms in, and a
+ * step that needs more room (a flap's outline far above it) lowers its run
+ * or stands alone, whichever costs less — the same answer read from either
+ * end. Runs within {@link FIT_SAME} of each other are then drawn at the
+ * smaller of their scales. A picture is drawn at its run's scale, or its own
+ * when that is smaller (`reduced`: a long instruction took its room). Pure.
  */
 export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: boolean }[] {
-  interface Run {
-    first: number;
-    scale: number;
-  }
-  const runOf: Run[] = [];
-  const alone = new Set<number>();
-  let run: Run | null = null;
-  fits.forEach(({ shared }, index) => {
-    if (run === null || shared > run.scale * FIT_ZOOM_IN) {
-      run = { first: shared, scale: shared };
-    } else if (shared >= run.first * (1 - FIT_GIVE)) {
-      run.scale = Math.min(run.scale, shared);
-    } else {
-      const next = fits[index + 1]?.shared;
-      if (next !== undefined && next >= run.first * (1 - FIT_GIVE)) alone.add(index);
-      else run = { first: shared, scale: shared };
+  const count = fits.length;
+  if (count === 0) return [];
+  // A fit of nothing — a room of no size — is a picture drawn at nothing, alone.
+  const logs = fits.map(({ shared }) => Math.log(Number.isFinite(shared) && shared > 0 ? shared : Number.MIN_VALUE));
+  // best[j]: the least the first j pictures cost; start[j]: where the last of their runs starts.
+  const best = new Float64Array(count + 1);
+  const start = new Int32Array(count + 1);
+  for (let j = 1; j <= count; j += 1) {
+    best[j] = Infinity;
+    let sum = 0;
+    let low = Infinity;
+    for (let i = j; i >= 1; i -= 1) {
+      sum += logs[i - 1]!;
+      low = Math.min(low, logs[i - 1]!);
+      const cost = best[i - 1]! + (i > 1 ? FIT_RUN_BREAK : 0) + (sum - (j - i + 1) * low);
+      if (cost < best[j]!) {
+        best[j] = cost;
+        start[j] = i;
+      }
     }
-    runOf.push(run);
-  });
+  }
+  const runs: { from: number; to: number; scale: number }[] = [];
+  for (let j = count; j > 0; j = start[j]! - 1) {
+    const from = start[j]! - 1;
+    let scale = Infinity;
+    for (let k = from; k < j; k += 1) scale = Math.min(scale, fits[k]!.shared);
+    runs.unshift({ from, to: j, scale });
+  }
+  // Near enough is one: each run takes the smallest scale within FIT_SAME below its own.
+  const scales = [...new Set(runs.map(({ scale }) => scale))].sort((a, b) => a - b);
+  for (const run of runs) {
+    run.scale = scales.find((scale) => scale <= run.scale && run.scale <= scale * FIT_SAME) ?? run.scale;
+  }
+  const scaleOf = new Float64Array(count);
+  for (const { from, to, scale } of runs) scaleOf.fill(scale, from, to);
   return fits.map(({ own }, index) => {
-    const scale = alone.has(index) ? Math.min(own, fits[index]!.shared) : runOf[index]!.scale;
-    const drawn = Math.min(scale, own);
-    return { scale: drawn, reduced: drawn < runOf[index]!.scale * (1 - 1e-9) };
+    const run = scaleOf[index]!;
+    const drawn = Math.min(run, own);
+    return { scale: drawn, reduced: drawn < run * (1 - 1e-9) };
   });
+}
+
+/**
+ * The largest scale at which a picture fits a room `across` × `down` mm, in
+ * mm per its unit: what its marks keep at their pt size off the room, up to
+ * {@link MARKS_FLOOR} of it, and where they lie grown with the picture.
+ * Null for no picture, or one with no size.
+ */
+export function pictureFit(picture: LayoutStep['picture'], across: number, down: number): number | null {
+  const width = picture ? extent(picture.width) : null;
+  const height = picture ? extent(picture.height) : null;
+  if (!picture || width === null || height === null) return null;
+  const { marks } = picture;
+  return Math.min(
+    Math.max(across - marks.width, across * (1 - MARKS_FLOOR)) / width,
+    Math.max(down - marks.height, down * (1 - MARKS_FLOOR)) / height
+  );
 }
 
 /** A picture's width or height as a number the scale can divide by: positive, or null. */
@@ -406,18 +444,11 @@ export function layoutDiagramPages(
         (y + PICTURE_TOP_MM) -
         (text.lines.length > 0 ? TEXT_GAP_MM + (text.lines.length - 1) * STEP_TEXT_LEADING_MM : 0)
     );
-  const fitOf = (placed: Placed): ScaleFit | null => {
-    const { picture } = placed.step;
-    const width = picture ? extent(picture.width) : null;
-    const height = picture ? extent(picture.height) : null;
-    if (!picture || width === null || height === null) return null;
-    const frameW = extent(picture.frame.width) ?? width;
-    const frameH = extent(picture.frame.height) ?? height;
-    /** The largest scale at which it fits `across` × `down`, its marks costing it no more than their floor. */
-    const fits = (across: number, down: number) =>
-      Math.max(Math.min(across / width, down / height), MARKS_FLOOR * Math.min(across / frameW, down / frameH));
-    const down = roomH(placed);
-    return { own: fits(roomW, down), shared: fits(roomW, Math.max(down, fullBox)) };
+  const fitOf = ({ step, ...placed }: Placed): ScaleFit | null => {
+    const down = roomH({ step, ...placed });
+    const own = pictureFit(step.picture, roomW, down);
+    const shared = pictureFit(step.picture, roomW, Math.max(down, fullBox));
+    return own === null || shared === null ? null : { own, shared };
   };
   const scales = new Map<Placed, { mmPerUnit: number | null; frameMm: number | null; reduced: boolean }>();
   const all = placedPages.flat();
@@ -460,7 +491,7 @@ export function layoutDiagramPages(
       const scale = scales.get(entry);
       const at = scale?.mmPerUnit ?? scale?.frameMm ?? null;
       // A picture taller at its scale than its box runs on down its room.
-      const drawnH = at !== null && step.picture ? step.picture.height * at : 0;
+      const drawnH = at !== null && step.picture ? step.picture.height * at + step.picture.marks.height : 0;
       const drawH = Math.min(Math.max(box, drawnH), roomH(entry));
       return {
         stepId: step.id,
@@ -539,9 +570,10 @@ function placeTurns(
   const placed: LayoutPage['turns'] = [];
   const rowOf = (k: number) => Math.floor(k / columns);
   const backwards = (k: number) => flow && rowOf(k) % 2 === 1;
+  // The middle of the picture as drawn, which a tall one has lower than its box's.
   const centre = (cell: LayoutCell) => ({
     x: cell.pictureMm.x + cell.pictureMm.size / 2,
-    y: cell.pictureMm.y + cell.pictureMm.size / 2,
+    y: cell.drawMm.y + cell.drawMm.h / 2,
   });
   /** The edge of a picture facing the gutter before (`lead`) or after it, half a gutter out. */
   const edge = (k: number, lead: boolean) => {
@@ -592,7 +624,7 @@ function flowBand(
 ): { x: number; y: number }[] {
   const centres = cells.map((cell) => ({
     x: cell.pictureMm.x + cell.pictureMm.size / 2,
-    y: cell.pictureMm.y + cell.pictureMm.size / 2,
+    y: cell.drawMm.y + cell.drawMm.h / 2,
     row: Math.round((cell.cellMm.y - cells[0]!.cellMm.y) / cell.cellMm.h),
   }));
   const points: { x: number; y: number }[] = [];

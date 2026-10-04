@@ -31,9 +31,10 @@ const TEXT: PictureText = { hanStyle: 'sc', runs: estimateTextSetter.runs };
 describe('layoutPicture', () => {
   it('measures a capture by its paper scale, and what has none by its frame’s longer side', () => {
     // The fixture's sheet is 100 scene px at 100 px per unit: one unit.
-    expect(layoutPicture(cpStep('step-cp'), {}, style)).toEqual({ kind: 'paper', width: 1, height: 1, frame: { width: 1, height: 1 } });
+    const none = { width: 0, height: 0 };
+    expect(layoutPicture(cpStep('step-cp'), {}, style)).toEqual({ kind: 'paper', width: 1, height: 1, frame: { width: 1, height: 1 }, marks: none });
     // 300 × 200 px at 100 px per unit.
-    expect(layoutPicture(bitmapStep(100), assets, style)).toEqual({ kind: 'paper', width: 3, height: 2, frame: { width: 3, height: 2 } });
+    expect(layoutPicture(bitmapStep(100), assets, style)).toEqual({ kind: 'paper', width: 3, height: 2, frame: { width: 3, height: 2 }, marks: none });
     const upload = layoutPicture(bitmapStep(null), assets, style)!;
     expect(upload.kind).toBe('fit');
     expect(upload.width).toBeCloseTo(1, 9);
@@ -45,6 +46,7 @@ describe('layoutPicture', () => {
       width: 1,
       height: 0.5,
       frame: { width: 1, height: 0.5 },
+      marks: none,
     });
     expect(layoutPicture(createStep(() => 'step-empty'), {}, style)).toBeNull();
   });
@@ -54,23 +56,29 @@ describe('layoutPicture', () => {
     const atCard = layoutPicture(step, {}, style);
     const small = layoutPicture(step, {}, style, { mmPerUnit: 10 });
     if (atCard?.kind !== 'paper' || small?.kind !== 'paper') throw new Error('paper');
-    // A unit sheet, and a letter past its edge.
+    // A unit sheet in the margin its scene keeps around it, which grows with it.
     expect(atCard.frame.width).toBeCloseTo(1, 9);
-    expect(atCard.width).toBeGreaterThan(1);
-    expect(small.width).toBeGreaterThan(atCard.width);
+    expect(atCard.width).toBeCloseTo(1.25, 6);
+    expect(small.width).toBeCloseTo(atCard.width, 6);
+    // Its letters keep their pt size: within that margin on a card, a mm or two past it on a 10 mm sheet.
+    expect(atCard.marks.width).toBe(0);
+    expect(small.marks.width).toBeGreaterThan(1);
+    expect(small.marks.width).toBeLessThan(4);
   });
 
   it('measures what an annotation reaches past any picture, one with no paper too', () => {
     const reaching = { ...bitmapStep(null), annotations: [{ id: 'a', kind: 'push-arrow' as const, from: [-0.4, 0.5] as [number, number], to: [0.1, 0.5] as [number, number] }] };
     const atCard = layoutPicture(reaching, assets, style);
     expect(atCard?.kind).toBe('fit');
-    // Out to the left of its frame, a push's head across: wider, the height the frame's.
-    expect(atCard!.width).toBeGreaterThan(1.3);
+    // Its tail out to the left of its frame, where it lies: wider by that, whatever the frame's size.
+    expect(atCard!.width).toBeCloseTo(1.4, 2);
     expect(atCard!.height).toBeCloseTo(2 / 3, 2);
-    // Its head keeps its pt size: on a smaller frame it reaches further.
-    expect(layoutPicture(reaching, assets, style, { frameMm: 20 })!.width).toBeGreaterThan(atCard!.width);
+    expect(layoutPicture(reaching, assets, style, { frameMm: 20 })!.width).toBeCloseTo(atCard!.width, 6);
+    // Its outline's pen and its head's width, at their pt size: a few mm.
+    expect(atCard!.marks.width).toBeGreaterThan(0);
+    expect(atCard!.marks.width).toBeLessThan(6);
     const fixed = { ...createStep(() => 'step-fixed'), picture: fixedPicture(), annotations: reaching.annotations };
-    expect(layoutPicture(fixed, {}, style)!.width).toBeGreaterThan(1.3);
+    expect(layoutPicture(fixed, {}, style)!.width).toBeCloseTo(1.4, 2);
   });
 });
 
@@ -211,13 +219,18 @@ describe('cellPicture', () => {
       expect(picture.boundsPt.x + picture.boundsPt.width).toBeLessThanOrEqual(box.x + box.size + 0.01);
     });
 
-    it('keeps the frame the layout found, its marks centred with it, rather than shrink it', () => {
+    it('keeps the frame the layout found, and the paper in its room when its marks are more than it holds', () => {
       const plain = cellPicture(bitmapStep(null), assets, style, { ...cell, frameMm: 40 }, 'c0-', TEXT)!;
       const picture = cellPicture(annotated(bitmapStep(null)), assets, style, { ...cell, frameMm: 40 }, 'c0-', TEXT)!;
-      const width = (markup: string) => Number(/<svg x="[\d.-]+" y="[\d.-]+" width="([\d.]+)"/.exec(markup)![1]);
-      expect(width(picture.markup)).toBeCloseTo(width(plain.markup), 2);
-      // Centred together on the box's centre.
-      expect(picture.boundsPt.x + picture.boundsPt.width / 2).toBeCloseTo(30 * PT_PER_MM, 1);
+      const svg = (markup: string) => /<svg x="([\d.-]+)" y="[\d.-]+" width="([\d.]+)"/.exec(markup)!.slice(1).map(Number);
+      const [, width] = svg(plain.markup);
+      expect(svg(picture.markup)[1]).toBeCloseTo(width!, 2);
+      // The marks reach out of the 40 mm box; the paper, moved with them, stays in it.
+      expect(picture.boundsPt.width).toBeGreaterThan(40 * PT_PER_MM);
+      const shift = /translate\(([-\d.]+) /.exec(picture.markup);
+      const left = svg(picture.markup)[0]! + (shift ? Number(shift[1]) : 0);
+      expect(left).toBeGreaterThanOrEqual(10 * PT_PER_MM - 0.01);
+      expect(left + width!).toBeLessThanOrEqual(50 * PT_PER_MM + 0.01);
     });
 
     it('draws an arrow as References draws its own on the same page: one pen, one head', () => {

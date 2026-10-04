@@ -3,8 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAGE_SETUP, type DiagramPageSetup } from '../document/diagramDocument';
 import {
-  FIT_GIVE,
-  FIT_ZOOM_IN,
+  FIT_SAME,
   layoutDiagramPages,
   MARKS_FLOOR,
   scaleRuns,
@@ -25,12 +24,14 @@ const SHORT = 'Fold in half.';
 const LONG =
   'Fold the bottom edge up to the top edge, crease firmly, unfold, then fold both sides in to meet the centre line and turn the model over carefully.';
 
+const NO_MARKS = { width: 0, height: 0 };
+
 function step(index: number, patch: Partial<LayoutStep> = {}): LayoutStep {
   return {
     id: `step-${index}`,
     text: SHORT,
     breakBefore: false,
-    picture: { kind: 'paper', width: 400, height: 400, frame: { width: 400, height: 400 } },
+    picture: { kind: 'paper', width: 400, height: 400, frame: { width: 400, height: 400 }, marks: NO_MARKS },
     turnsBefore: [],
     turnsAfter: [],
     ...patch,
@@ -49,15 +50,23 @@ const paper = (width: number, height: number = width): LayoutStep['picture'] => 
   width,
   height,
   frame: { width, height },
+  marks: NO_MARKS,
 });
-/** A picture `frame` in its units, reaching `width` × `height` with its marks. */
-const marked = (width: number, height: number, frame: { width: number; height: number }): LayoutStep['picture'] => ({
+/** A picture `width` × `height` in its units, its marks reaching `marks` mm past that at their pt size. */
+const marked = (width: number, height: number, marks: { width: number; height: number }): LayoutStep['picture'] => ({
   kind: 'paper',
   width,
   height,
-  frame,
+  frame: { width, height },
+  marks,
 });
-const upload = (width: number, height: number): LayoutStep['picture'] => ({ kind: 'fit', width, height, frame: { width, height } });
+const upload = (width: number, height: number): LayoutStep['picture'] => ({
+  kind: 'fit',
+  width,
+  height,
+  frame: { width, height },
+  marks: NO_MARKS,
+});
 
 /** Where a cell draws its picture, at its scale, centred in its room. */
 function drawnOf(cell: LayoutCell, picture: LayoutStep['picture']) {
@@ -82,41 +91,66 @@ describe('printPaper', () => {
 describe('scaleRuns', () => {
   const fit = (shared: number, own = shared) => ({ own, shared });
   const scales = (fits: { own: number; shared: number }[]) => scaleRuns(fits).map(({ scale }) => scale);
+  const each = (values: number[]) => values.map((value) => fit(value));
 
   it('keeps one scale while each fits it, the smallest of them', () => {
-    expect(scales([fit(1), fit(1.1), fit(0.95)])).toEqual([0.95, 0.95, 0.95]);
+    expect(scales(each([1, 1.1, 0.95]))).toEqual([0.95, 0.95, 0.95]);
     expect(scaleRuns([])).toEqual([]);
   });
 
-  it('zooms in where a picture fits much more than the run', () => {
-    expect(scales([fit(1), fit(1), fit(1.31), fit(1.3)])).toEqual([1, 1, 1.3, 1.3]);
-    // Within the zoom, it stays with the run.
-    expect(scales([fit(1), fit(1.29)])).toEqual([1, 1]);
+  it('draws a model smaller for one step at its neighbours’ scale, and zooms in where it stays smaller', () => {
+    expect(scales(each([1, 1, 2, 1, 1]))).toEqual([1, 1, 1, 1, 1]);
+    expect(scales(each([1, 1, 1, 2, 2, 2]))).toEqual([1, 1, 1, 2, 2, 2]);
   });
 
-  it('gives no more than its share in all, however the run drifts', () => {
-    // Each a little under the last: the run follows only to its first's give.
-    const drifting = scales([fit(1), fit(0.9), fit(0.82), fit(0.75), fit(0.75)]);
-    expect(drifting.slice(0, 3)).toEqual([0.82, 0.82, 0.82]);
-    expect(drifting[3]).toBe(0.75);
-    expect(drifting[4]).toBe(0.75);
+  it('lowers a run for a step needing a little more room, and lets one needing much more stand alone', () => {
+    expect(scales(each([1, 1, 0.85, 1, 1]))).toEqual([0.85, 0.85, 0.85, 0.85, 0.85]);
+    expect(scales(each([1, 1, 1, 1, 0.3, 1, 1, 1, 1]))).toEqual([1, 1, 1, 1, 0.3, 1, 1, 1, 1]);
+    // Unfolded for good: a run of its own.
+    expect(scales(each([1, 1, 1, 0.4, 0.4, 0.4]))).toEqual([1, 1, 1, 0.4, 0.4, 0.4]);
   });
 
-  it('draws one that needs much more alone when the next fits again, else starts a run', () => {
-    const once = scaleRuns([fit(1), fit(0.5), fit(1)]);
-    expect(once.map(({ scale }) => scale)).toEqual([1, 0.5, 1]);
-    expect(once.map(({ reduced }) => reduced)).toEqual([false, true, false]);
-    const forGood = scaleRuns([fit(1), fit(0.5), fit(0.5)]);
-    expect(forGood.map(({ scale }) => scale)).toEqual([1, 0.5, 0.5]);
-    expect(forGood.map(({ reduced }) => reduced)).toEqual([false, false, false]);
-    // The last, with nothing after it, starts a run.
-    expect(scaleRuns([fit(1), fit(0.5)]).map(({ reduced }) => reduced)).toEqual([false, false]);
+  it('draws one model alike however its steps’ instructions vary its room (review)', () => {
+    // The square base, then five bird bases whose three-line instructions leave them less room.
+    expect(new Set(scales(each([0.1979, 0.1741, 0.1538, 0.1741, 0.1538, 0.1741])))).toEqual(new Set([0.1538]));
+  });
+
+  it('never flickers between two scales every step all fit (review)', () => {
+    expect(new Set(scales(each([1, 0.85, 1.2, 0.96, 1])))).toEqual(new Set([0.85]));
+    expect(new Set(scales(each([1, 0.85, 1.2, 0.85, 1])))).toEqual(new Set([0.85]));
+  });
+
+  it('gives the same answer read from either end', () => {
+    let seed = 11;
+    const random = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let trial = 0; trial < 200; trial += 1) {
+      const values = Array.from({ length: 2 + Math.floor(random() * 12) }, () => 0.2 + random() * 2);
+      const forward = scales(each(values));
+      const backward = scales(each([...values].reverse())).reverse();
+      expect(backward).toEqual(forward);
+      // And never past what a picture fits.
+      forward.forEach((scale, index) => expect(scale).toBeLessThanOrEqual(values[index]!));
+    }
+  });
+
+  it('draws runs whose scales are near one another at one, wherever they are', () => {
+    expect(scales(each([1, 1, 1, 0.3, 0.3, 0.3, 1.04, 1.04, 1.04]))).toEqual([1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 1]);
+    expect(FIT_SAME).toBeGreaterThan(1.04);
   });
 
   it('draws one whose own room is smaller than its share at its own, alone', () => {
     const runs = scaleRuns([fit(1), fit(1, 0.6), fit(1)]);
     expect(runs.map(({ scale }) => scale)).toEqual([1, 0.6, 1]);
     expect(runs.map(({ reduced }) => reduced)).toEqual([false, true, false]);
+  });
+
+  it('draws a picture that fits nothing at nothing, and the rest as though it were not there', () => {
+    expect(scales([fit(1), fit(0), fit(1)])).toEqual([1, 0, 1]);
+    const broken = scales([fit(1), fit(Number.NaN), fit(1)]);
+    expect([broken[0], broken[2]]).toEqual([1, 1]);
   });
 });
 
@@ -233,15 +267,19 @@ describe('layoutDiagramPages', () => {
     // The square base alone would be drawn larger: the run gave a little for the bird base.
     const alone = layout([list[0]!]).pages[0]!.cells[0]!;
     expect(alone.mmPerUnit!).toBeGreaterThan(base!.mmPerUnit!);
-    expect(base!.mmPerUnit! / alone.mmPerUnit!).toBeGreaterThanOrEqual(1 - FIT_GIVE - 1e-9);
   });
 
-  it('zooms in where the model has grown much smaller, and draws pictures with no paper by their frames', () => {
-    const list = [step(0, { picture: paper(400) }), step(1, { picture: paper(400) }), step(2, { picture: paper(150) })];
-    const [a, b, small] = layout(list).pages[0]!.cells;
+  it('zooms in where the model stays much smaller, and draws pictures with no paper by their frames', () => {
+    const small = (index: number) => step(index, { picture: paper(150) });
+    const list = [step(0, { picture: paper(400) }), step(1, { picture: paper(400) }), small(2), small(3), small(4)];
+    const [a, b, c, d] = layout(list).pages[0]!.cells;
     expect(b!.mmPerUnit).toBe(a!.mmPerUnit);
-    expect(small!.mmPerUnit! / a!.mmPerUnit!).toBeGreaterThan(FIT_ZOOM_IN);
-    expect(small!.scaleReduced).toBe(false);
+    expect(c!.mmPerUnit! / a!.mmPerUnit!).toBeGreaterThan(2);
+    expect(d!.mmPerUnit).toBe(c!.mmPerUnit);
+    expect(c!.scaleReduced).toBe(false);
+    // Smaller for one step only: drawn at its neighbours' scale.
+    const blip = layout([step(0, { picture: paper(400) }), small(1), step(2, { picture: paper(400) })]).pages[0]!.cells;
+    expect(new Set(blip.map((cell) => cell.mmPerUnit)).size).toBe(1);
     // Uploads keep one frame among themselves, apart from the paper.
     const mixed = layout([step(0, { picture: upload(1, 0.5) }), step(1, { picture: paper(400) }), step(2, { picture: upload(1, 1) })]);
     const [wide, cp, square] = mixed.pages[0]!.cells;
@@ -250,12 +288,11 @@ describe('layoutDiagramPages', () => {
     expect(cp!.frameMm).toBeNull();
   });
 
-  it('draws a step that needs much more room smaller alone when the next fits the run again, and starts a run when none does', () => {
+  it('draws a step that needs much more room smaller alone between steps that do not, and starts a run when it lasts', () => {
     const run = [step(0, { picture: paper(400) }), step(1, { picture: paper(400) })];
-    const once = layout([...run, step(2, { picture: paper(400, 900) }), step(3, { picture: paper(400) })]);
+    const once = layout([...run, step(2, { picture: paper(400, 900) }), step(3, { picture: paper(400) }), step(4, { picture: paper(400) })]);
     const [a, , far, after] = once.pages[0]!.cells;
-    expect(far!.mmPerUnit!).toBeLessThan(a!.mmPerUnit! * (1 - FIT_GIVE));
-    expect(far!.scaleReduced).toBe(true);
+    expect(far!.mmPerUnit!).toBeLessThan(a!.mmPerUnit! * 0.6);
     expect(after!.mmPerUnit).toBe(a!.mmPerUnit);
     // Unfolded for good: the steps from it are a run of their own.
     const unfolded = layout([...run, step(2, { picture: paper(400, 900) }), step(3, { picture: paper(400, 900) })]);
@@ -264,17 +301,20 @@ describe('layoutDiagramPages', () => {
     expect(second!.mmPerUnit).toBe(first!.mmPerUnit);
   });
 
-  it('lets marks cost a picture no more than their floor of its room: past it they reach out of the room', () => {
-    // Letters that need ten times the sheet: the sheet keeps half the scale it would fit alone.
-    const list = [step(0, { picture: marked(4000, 4000, { width: 400, height: 400 }) })];
+  it('gives marks that keep their pt size up to their floor of the room, and where marks lie always', () => {
     for (const scale of ['fit', 'paper'] as const) {
-      const cell = layout(list, { scale }).pages[0]!.cells[0]!;
-      const alone = Math.min(cell.drawMm.w, cell.drawMm.h) / 400;
-      expect(cell.mmPerUnit!).toBeCloseTo(MARKS_FLOOR * alone, 9);
+      // A square picture's room is its cell's width less the gutter: under the height its short text leaves.
+      const room = (cell: LayoutCell) => cell.drawMm.w;
+      // Letters 10 mm across past a 400-unit sheet: they take 10 mm, the sheet the rest.
+      const near = layout([step(0, { picture: marked(400, 400, { width: 10, height: 10 }) })], { scale }).pages[0]!.cells[0]!;
+      expect(near.mmPerUnit! * 400).toBeCloseTo(room(near) - 10, 6);
+      // Letters wider than the room: the sheet keeps its floor's share of it, the letters reach out.
+      const over = layout([step(0, { picture: marked(400, 400, { width: 200, height: 200 }) })], { scale }).pages[0]!.cells[0]!;
+      expect(over.mmPerUnit! * 400).toBeCloseTo(room(over) * (1 - MARKS_FLOOR), 6);
+      // A mark lying far from the picture grows with it: the picture shrinks as far as it must, no floor.
+      const far = layout([step(0, { picture: marked(1600, 400, { width: 0, height: 0 }) })], { scale }).pages[0]!.cells[0]!;
+      expect(far.mmPerUnit! * 1600).toBeCloseTo(far.drawMm.w, 6);
     }
-    // Marks within the floor cost what they need, no more.
-    const near = layout([step(0, { picture: marked(500, 500, { width: 400, height: 400 }) })]).pages[0]!.cells[0]!;
-    expect(near.mmPerUnit! * 500).toBeCloseTo(Math.min(near.drawMm.w, near.drawMm.h), 9);
   });
 
   it('draws a picture whose box gave room to long text smaller alone, and never anything that is not a number', () => {
@@ -282,7 +322,7 @@ describe('layoutDiagramPages', () => {
       step(0, { picture: paper(400) }),
       step(1, { picture: paper(400), text: `${LONG} ${LONG} ${LONG} ${LONG}` }),
       step(2, { picture: paper(400) }),
-      step(3, { picture: { kind: 'paper', width: 0, height: Number.NaN, frame: { width: 0, height: 0 } } }),
+      step(3, { picture: { kind: 'paper', width: 0, height: Number.NaN, frame: { width: 0, height: 0 }, marks: NO_MARKS } }),
     ];
     const [a, long, c, broken] = layout(list).pages[0]!.cells;
     expect(c!.mmPerUnit).toBe(a!.mmPerUnit);

@@ -1,9 +1,10 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PT_PER_MM } from '../../lib/paper/paperSvg';
-import { createDiagram, createStep, createTurn, insertSteps, type DiagramDocument } from '../document/diagramDocument';
+import { createDiagram, createStep, createTurn, insertSteps, type DiagramDocument, type DiagramStep } from '../document/diagramDocument';
 import { cpStep, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
 import { FIXTURE_FONTS, fixtureSubsetter } from '../fonts/diagramFonts.fixtures';
 import type { FontSubsetter } from '../fonts/fontSubset';
+import { PAD_MM, pictureBoxOf } from './stepFileGeometry';
 import { prepareStepFiles, stepFileMinHeightMm, STEP_FILE_TEXT_LINES, type StepFileOptions } from './stepFiles';
 
 let subsetter: FontSubsetter;
@@ -104,6 +105,37 @@ describe('prepareStepFiles', () => {
     const viewBox = parse(cropped.compose(1).svg).documentElement.getAttribute('viewBox')!.split(' ').map(Number);
     const lastY = Math.max(...[...long.querySelectorAll('tspan')].map((span) => Number(span.getAttribute('y'))));
     expect(lastY).toBeLessThan(viewBox[1]! + viewBox[3]!);
+  });
+
+  it('draws annotated steps as large as their marks let them, every one inside its box, at any size (review)', () => {
+    // Arrows standing over the top edge. A head is the pen's size on a large sheet and a share of its
+    // arrow's chord on a small one, so how far it reaches past the sheet is known only at the scale it
+    // is drawn at: measured at a card's, a 12 mm box draws them 0.4 and 1 mm past it.
+    const over: DiagramStep = {
+      ...cpStep('step-over'),
+      annotations: [{ id: 'v', kind: 'valley-arrow', from: [0.1, 0.02], to: [0.9, 0.02], bend: 0.3 }],
+    };
+    const short: DiagramStep = {
+      ...cpStep('step-short'),
+      annotations: [{ id: 's', kind: 'valley-arrow', from: [0.45, -0.05], to: [0.55, -0.05], bend: 0.6 }],
+    };
+    const document = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [over, short], 0);
+    for (const widthMm of [20, 200]) {
+      // Cropped to what it draws, with nothing but the picture: a file is its drawing and the pad round it.
+      const options: StepFileOptions = { ...SAME, sameSize: false, number: false, text: false, widthMm, heightMm: widthMm };
+      const box = pictureBoxOf(options).size;
+      const files = prepareStepFiles(document, FIXTURE_FONTS, subsetter, options);
+      const drawn = files.files.map((_, index) => {
+        const [, , width, height] = parse(files.compose(index).svg).documentElement.getAttribute('viewBox')!.split(' ').map(Number);
+        return { w: width! / PT_PER_MM - 2 * PAD_MM, h: height! / PT_PER_MM - 2 * PAD_MM };
+      });
+      for (const { w, h } of drawn) {
+        expect(w, `${widthMm} mm`).toBeLessThanOrEqual(box + 0.02);
+        expect(h, `${widthMm} mm`).toBeLessThanOrEqual(box + 0.02);
+      }
+      // And no smaller than that: the one that needs most room fills its box.
+      expect(Math.max(...drawn.map(({ w, h }) => Math.max(w, h))), `${widthMm} mm`).toBeCloseTo(box, 1);
+    }
   });
 
   it('puts the page’s white behind the drawing unless the file is to be transparent', () => {

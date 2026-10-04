@@ -45,7 +45,19 @@ import { setUploadText } from '../upload/uploadText';
 import type { LayoutCell, LayoutStep, TextSetter } from './diagramPageLayout';
 
 /** A picture whose size cannot be read: fitted, square. */
-const UNSIZED: NonNullable<LayoutStep['picture']> = { kind: 'fit', width: 1, height: 1, frame: { width: 1, height: 1 } };
+const UNSIZED: NonNullable<LayoutStep['picture']> = {
+  kind: 'fit',
+  width: 1,
+  height: 1,
+  frame: { width: 1, height: 1 },
+  marks: { width: 0, height: 0 },
+};
+
+/**
+ * A frame so large, in mm, that what a mark keeps at its pt size is nothing
+ * beside it: a picture measured at it reaches only as far as its marks lie.
+ */
+const GROWN_MM = 1e6;
 
 /** The size a References step's picture is measured at for its shape: any size does. */
 const MEASURE_SHEET_MM = 50;
@@ -163,9 +175,16 @@ function stepDiagramBoxes(picture: DiagramStepDiagramPicture, style: DiagramStyl
  * What the layout needs of a step's picture: its width and height with what
  * its marks — a References step's letters, any step's annotations — reach
  * past its frame, in pattern units when it knows its paper, else per its
- * frame's longer side. Their marks keep their pt size, so how far they reach
- * depends on the size the frame prints at: `measure` is the one a first
- * layout found; without one they are measured at a card's size.
+ * frame's longer side; and the frame alone.
+ *
+ * A mark is in part where it is on the picture, which grows with it, and in
+ * part its pen and its head, its letter, its glyph, which keep their pt size.
+ * So the picture is measured twice: at a size so large that the pt-sized
+ * part is nothing (`width`, `height`, which grow with the scale), and at the
+ * size it prints at (`measure`, a first layout's, else a card's), the
+ * difference being what reaches past that in mm (`marks`). The picture with
+ * its marks is then `width × scale + marks.width` across, at any scale near
+ * the one measured.
  */
 export function layoutPicture(
   step: DiagramStep,
@@ -184,27 +203,49 @@ export function layoutPicture(
         : MEASURE_SHEET_MM;
   const annotated = hasDrawnAnnotations(step.annotations);
   /**
-   * `reached` in px, a frame `framePx` across its longer side, as the layout
-   * needs it: in pattern units when the frame is `units` of them, else per
-   * the frame's longer side.
+   * The picture measured by `at(frameMm)`, which gives the frame and what it
+   * reaches with its marks, in px, its frame `frameMm` across its longer
+   * side: at the size it prints and at the size that makes its marks' pt
+   * nothing.
    */
-  const measured = (units: number | null, framePx: number, reached: Rect, frame: Rect): LayoutStep['picture'] => {
+  const measured = (units: number | null, at: (frameMm: number) => { frame: Rect; reached: Rect } | null) => {
+    const printed = at(frameMm(units));
+    const vast = at(GROWN_MM);
+    if (!printed || !vast) return UNSIZED;
     const paper = units !== null && units > 0 && Number.isFinite(units);
-    const perPx = (paper ? units : 1) / framePx;
+    const unitsAcross = paper ? units : 1;
+    // In the picture's units per px of the printed measure.
+    const perPrinted = unitsAcross / longerOf(printed.frame);
+    // What grows with the picture along one side, in px of the printed measure:
+    // as a share of the frame's side, so a picture reaching no further than its
+    // frame has nothing past it, exactly.
+    const grown = (side: 'width' | 'height') =>
+      vast.frame[side] > 0
+        ? printed.frame[side] * (vast.reached[side] / vast.frame[side])
+        : (vast.reached[side] / longerOf(vast.frame)) * longerOf(printed.frame);
+    const width = grown('width');
+    const height = grown('height');
+    const mmPerPx = 1 / mmToCssPx(1);
     return {
-      kind: paper ? 'paper' : 'fit',
-      width: reached.width * perPx,
-      height: reached.height * perPx,
-      frame: { width: frame.width * perPx, height: frame.height * perPx },
+      kind: paper ? ('paper' as const) : ('fit' as const),
+      width: width * perPrinted,
+      height: height * perPrinted,
+      frame: { width: printed.frame.width * perPrinted, height: printed.frame.height * perPrinted },
+      marks: {
+        width: Math.max(0, printed.reached.width - width) * mmPerPx,
+        height: Math.max(0, printed.reached.height - height) * mmPerPx,
+      },
     };
   };
   /** A frame `width` × `height`, `units` pattern units across its longer side when known, with its annotations. */
   const framed = (units: number | null, width: number, height: number): LayoutStep['picture'] => {
     const longer = Math.max(width, height);
     if (!(longer > 0) || !Number.isFinite(longer)) return UNSIZED;
-    const framePx = mmToCssPx(frameMm(units));
-    const frame = { x: 0, y: 0, width: (width / longer) * framePx, height: (height / longer) * framePx };
-    return measured(units, framePx, annotated ? reachedWith(step, frame, frame, style) : frame, frame);
+    return measured(units, (mm) => {
+      const framePx = mmToCssPx(mm);
+      const frame = { x: 0, y: 0, width: (width / longer) * framePx, height: (height / longer) * framePx };
+      return { frame, reached: annotated ? reachedWith(step, frame, frame, style) : frame };
+    });
   };
   switch (source.kind) {
     case 'scene': {
@@ -223,11 +264,11 @@ export function layoutPicture(
     }
     case 'step-diagram': {
       // Its letters and its annotations together, measured against its sheet.
-      const units = sentSheetUnits(step);
-      const { drawing, sheet } = stepDiagramBoxes(source.picture, style, frameMm(units));
-      const framePx = longerOf(sheet);
-      if (!(framePx > 0)) return UNSIZED;
-      return measured(units, framePx, annotated ? reachedWith(step, sheet, drawing, style) : drawing, sheet);
+      return measured(sentSheetUnits(step), (mm) => {
+        const { drawing, sheet } = stepDiagramBoxes(source.picture, style, mm);
+        if (!(longerOf(sheet) > 0)) return null;
+        return { frame: sheet, reached: annotated ? reachedWith(step, sheet, drawing, style) : drawing };
+      });
     }
     case 'fixed':
       return framed(null, source.picture.widthPx, source.picture.heightPx);
@@ -300,13 +341,8 @@ export function cellPicture(
     const { framePt: _frame, fitted: _fitted, ...plain } = drawn;
     return { ...plain, markup: prefixIds(plain.markup, idPrefix) };
   }
-  const within =
-    reached.x >= box.x - 1e-6 &&
-    reached.y >= box.y - 1e-6 &&
-    reached.x + reached.width <= box.x + box.width + 1e-6 &&
-    reached.y + reached.height <= box.y + box.height + 1e-6;
-  const dx = within ? 0 : box.x + box.width / 2 - (reached.x + reached.width / 2);
-  const dy = within ? 0 : box.y + box.height / 2 - (reached.y + reached.height / 2);
+  const dx = settle(reached.x, reached.width, box.x, box.width, drawn.framePt.x, drawn.framePt.width);
+  const dy = settle(reached.y, reached.height, box.y, box.height, drawn.framePt.y, drawn.framePt.height);
   // A label is set as an upload's text is, its Han in the diagram's style.
   const usage = new Map(drawn.text.map(({ face, characters }) => [face, characters]));
   const markup = setUploadText(placed.marks!.markup, text.hanStyle, text.runs, (face, characters) =>
@@ -321,6 +357,21 @@ export function cellPicture(
 }
 
 type Rect = { x: number; y: number; width: number; height: number };
+
+/**
+ * How far, along one side, a picture and its marks (`at`, `size`) move to sit
+ * in their room (`roomAt`, `roomSize`): not at all where they are in it;
+ * centred in it where they fit it; and where they are more than it holds —
+ * marks the layout let reach out — as near centred as keeps the paper itself
+ * (`frameAt`, `frameSize`) in the room, so it never lands on a neighbour's.
+ */
+function settle(at: number, size: number, roomAt: number, roomSize: number, frameAt: number, frameSize: number): number {
+  if (at >= roomAt - 1e-6 && at + size <= roomAt + roomSize + 1e-6) return 0;
+  const centred = roomAt + roomSize / 2 - (at + size / 2);
+  if (size <= roomSize) return centred;
+  if (frameSize > roomSize) return roomAt + roomSize / 2 - (frameAt + frameSize / 2);
+  return Math.min(Math.max(centred, roomAt - frameAt), roomAt + roomSize - (frameAt + frameSize));
+}
 
 function union(a: Rect, b: Rect): Rect {
   const x = Math.min(a.x, b.x);
