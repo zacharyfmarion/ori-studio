@@ -664,13 +664,74 @@ export function foldArrowLanding(
   project: DiagramProjector
 ): DiagramArc {
   const end = project(arcEndPoint(out));
-  const lands = marks.some((mark) => Math.hypot(mark.x - end.x, mark.y - end.y) <= rim);
-  if (!lands) return out;
-  const by = rim / project.scale;
+  const mark = nearestWithin(marks, end, rim);
+  if (!mark) return out;
+  const extent = out.radius * arcExtent(out);
+  const at = (back: number): Vec2 => {
+    const { x, y } = project(pointOnArc(out, out.to - alongArc(out, back)));
+    return [x, y];
+  };
+  // An end at the mark — References' own, always — gives up a rim; one
+  // elsewhere in the ring, as far as it takes to stand on it.
+  const by = backToRing(at, [mark.x, mark.y], rim, rim / project.scale, extent);
   // The start gives up a rim too (`foldArrowTrim`); an arc with no room for
   // both would turn inside out rather than shorten.
-  if (out.radius * arcExtent(out) <= 2 * by) return out;
+  if (by === null || extent <= by + rim / project.scale) return out;
   return { ...out, to: out.to - alongArc(out, by) };
+}
+
+/** The mark nearest `at` within `reach` of it, or null. */
+function nearestWithin(marks: readonly SvgPoint[], at: SvgPoint, reach: number): SvgPoint | null {
+  let best: SvgPoint | null = null;
+  let bestDistance = reach;
+  for (const mark of marks) {
+    const d = Math.hypot(mark.x - at.x, mark.y - at.y);
+    if (d <= bestDistance) {
+      best = mark;
+      bestDistance = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * How far back from a stroke's end, along it, it stands on the ring of
+ * radius `rim` round `mark`, the end being inside the ring: where it first
+ * leaves it going back — the near side, for an end past the middle. An end
+ * at the middle gives up `nominal` exactly, as a mark's own arrow always
+ * has. `at(back)` is the point `back` from the end, in the units `mark` and
+ * `rim` are in; `longest` how far back the stroke runs. Null when it never
+ * leaves the ring.
+ */
+export function backToRing(
+  at: (back: number) => Vec2,
+  mark: Vec2,
+  rim: number,
+  nominal: number,
+  longest: number
+): number | null {
+  const off = (back: number) => {
+    const [x, y] = at(back);
+    return Math.hypot(x - mark[0], y - mark[1]);
+  };
+  if (off(0) <= rim * 1e-6) return nominal <= longest ? nominal : null;
+  // Steps short enough that none steps across the ring.
+  const step = nominal / 8;
+  let inside = 0;
+  for (let back = step; back <= longest; back += step) {
+    if (off(back) < rim) {
+      inside = back;
+      continue;
+    }
+    let [lo, hi] = [inside, back];
+    for (let k = 0; k < 40; k += 1) {
+      const middle = (lo + hi) / 2;
+      if (off(middle) >= rim) hi = middle;
+      else lo = middle;
+    }
+    return hi;
+  }
+  return null;
 }
 
 /**
@@ -1031,9 +1092,11 @@ export function pathArrowGeometry(
   if (!(length > 1e-9)) return null;
   const sizes = sizesFor(length);
   const tip = pathPointAt(measure, length);
-  const lands = marks.some((mark) => Math.hypot(mark.x - tip[0], mark.y - tip[1]) <= sizes.rim);
+  const mark = nearestWithin(marks, toSvg(tip), sizes.rim);
+  // Stopped on the ring of a mark it lands in, as an arc arrow is (`foldArrowLanding`).
+  const by = mark ? backToRing((back) => pathPointAt(measure, length - back), [mark.x, mark.y], sizes.rim, sizes.rim, length) : null;
   // A path with no room for a rim at each end would turn inside out rather than shorten.
-  const end = lands && length > 2 * sizes.rim ? length - sizes.rim : length;
+  const end = by !== null && length > by + sizes.rim ? length - by : length;
   const reach = arrowheadReach(sizes.head);
   const headAt = (at: Vec2, direction: Vec2 | null) =>
     arrowheadAt(toSvg(at), toSvg(direction ?? [1, 0]), sizes.head);
