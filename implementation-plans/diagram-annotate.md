@@ -551,6 +551,46 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
 ### 14f. White arrows
 - [ ] Flatten-and-offset geometry, joins, loop removal, head, tails, mitre
   limit; shared primitive and golden; kind and presets; Edit Path reuse.
+  - 14f geometry (as built; no kind, primitive, file or canvas yet):
+    - **Outline.** `whiteArrowOutline(path, {neck, headLength, headWidth},
+      'pointed' | 'square' | 'cleft', tolerance)` in `stepDiagramGeometry.ts`
+      (D8's home for glyph geometry, beside `pushArrowOutline` and
+      `pathReturn`, whose offsetter it shares): one closed polygon from the
+      tip, or null for no length or no size. The head is straight-backed
+      across the path's tangent `headLength` short of its end, the tip that far
+      on along it (the fold arrows' rule). The shaft is flattened and offset by
+      `offsetRuns`, which now takes a join rule: round outside a smooth bend
+      (the curve's own offset, and still the return's), mitred to
+      `WHITE_ARROW_MITER_LIMIT` (1.5, the template's) outside a corner node and
+      bevelled past it. The whole ring then goes through `cutLoops` (eight
+      necks of travel), which takes out a tight bend's swallowtail, a sharp
+      inner corner's overlap and a shaft bent across its own head. A path
+      shorter than its head and 1.5 necks draws the same shape smaller, as a
+      short push does. `outlineDistance` is the press test: even–odd inside,
+      else the distance to the nearest edge.
+    - **Taper.** The template's pointed arrows taper the whole shaft; its even
+      ones do not. A pointed tail is `1 − (1 − u)^1.2` of the neck at a share
+      `u` of the way (`path4649` fits within 2%); square and cleft are the neck
+      the whole way; a cleft is the push's depth for its width.
+    - **Widths** (`DIAGRAM_WHITE_ARROW_INK`, ink at 0.331 mm): regular is
+      `path4649` (neck 3.58 mm, head 3.95 × 7.94 mm), narrow is the push
+      arrow's shaft and head (2.12 mm; the template's even arrows are 2.0–2.1),
+      wide is regular × 1.4 (5.0 mm, a choice: the template has nothing wider).
+    - **Not supported (v1).** A path that crosses itself, or legs nearer than
+      the arrow's width (including its head): drawn as offset, overlapping; a
+      loop under eight necks of travel is cut instead. The template's
+      over-and-around arrow (`path4657`) twists its band; an offset cannot.
+    - **Proof.** `whiteArrowGeometry.test.ts` (19): exact straight outlines
+      for each tail, the head at the neck's tangent, sides half a neck off a
+      gentle arc and an S with the area of the band, a hairpin bent at a fifth
+      of the neck with no point nearer the centreline than half the neck and
+      its inner corner where the legs' offsets meet, mitre/bevel either side of
+      the limit, a smooth bend rounded, shrink, stacked nodes and handles on
+      nodes, 150 random paths with no non-finite point, and the press test.
+      Eight mutants each fail a test. Pictures in
+      `artifacts/diagram-annotate/14f/` (`sheet-cases`, `sheet-stress`,
+      `sheet-template`): `path4649` and ours coincide when laid over each
+      other.
 - [ ] Browser: the template's white arrow beside ours at the same printed
   size; deep zoom; iPad; a PDF.
 
