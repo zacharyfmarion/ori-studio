@@ -1,253 +1,225 @@
-# Diagram Pose: Spread Layers (affine distortion)
+# Diagram Pose: Spread Layers (depth steps)
 
-**Status: for discussion with Zach (2026-10-04). Nothing is built.** Phase 13
-of `implementation-plans/diagram-workspace.md`. The research behind it (four
-readers, a synthesis and a critic) and its scratch checks are not in the repo;
-the findings that matter are here. A playground to try the options on real
-folds — Zach's crane diagram step by step, twelve cpoogle crease patterns
-folded to their bases with Flat-Folder, simple bases and DEFOX's sample:
-https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf (private).
+**Status: decided (2026-10-04), being built.** Phase 13 of
+`implementation-plans/diagram-workspace.md`. Zach tried the options in the
+playground (https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf, private: his
+crane diagram step by step, twelve cpoogle crease patterns folded to their
+bases, simple bases, DEFOX's sample) and chose **Depth steps**: "depth steps
+clearly looks the best. I want to use that to implement this." The affine
+distortion of DEFOX / step-folder is not built; why is kept at the end.
 
 ## Goal
 
-A tool in Pose that draws a flat-folded step with its layers slightly offset —
+A tool in Pose that draws a flat-folded step with its layers stepped apart —
 Zach: "display layers on parts of the design to give the folder more
 information about how they are distributed (otherwise a bunch of faces are
-coplanar and it's harder to tell what is going on)". The source is the
-distortion of DEFOX / step-folder by Kei Morisue
-(https://kei-morisue.github.io/step-folder/; a branch of Jason Ku's
-Line-Folder, built on Flat-Folder), and its paper, *Affine Distortions*
-(14 pp., in that repository).
+coplanar and it's harder to tell what is going on)".
 
 Constraints:
-- It is a choice about the picture, as Turn Over is: the fold and its layer
-  order never change ("pose applied to the picture, never to the fold",
+- A choice about the picture, as Turn Over is: the fold and its layer order
+  never change ("pose applied to the picture, never to the fold",
   `captureFolded.ts`).
-- It works on parts of the design, not only the whole model.
-- The math is DEFOX's, under a parity test; how it is set is ours, because
-  DEFOX's controls are its least clear part.
-- It never draws a physically impossible picture without saying so.
+- Flat folded pictures only (`folded-flat`); the crease pattern, 3D and the
+  simulator have nothing to spread.
+- Prints as it shows: the spread picture is the stored scene, so cards, pages
+  and the PDF need nothing new.
 
 ## Approach
 
-### What distortion is
+### What it draws
 
-Move every point of the folded picture a fraction τ of the way back toward
-where it lies on the unfolded sheet; one face — the **anchor** — stays put.
-Layers that lie on top of each other came from different places on the sheet,
-so they drift apart and hidden edges peek out. A flap folded once is drawn as
-if left slightly unpressed: foreshortened toward its crease, the layer under
-it showing.
+Akitaya's depth shift — the alternative *Affine Distortions* (Morisue, in the
+step-folder repository) sets aside in its Fig. 4, p. 10:
+`D(v) = V(v) + p · z(v) / z_max · d`. Every point of the folded picture steps
+by its depth `z` in one direction `d`; the layer nearest the viewer stays put
+and each layer beneath it steps a little further, so hidden edges peek out.
+It is not affine — a crease between layers at different depths kinks — which
+is what makes it show depth where an affine map shows distance on the sheet.
 
-Precisely (DEFOX `src/distortionfolder/distortion.js:39-55`):
-`VD = (I + A)⁻¹ (Vf + A·C)` with `A = r1·I + r2·[[cos φ, sin φ], [sin φ, −cos φ]]`,
-`r1 = p(1−q)`, `r2 = p·q`, `p = exp(−1/Level)`, `q = Skew`, `φ = (2·Angle−1)π`;
-`Vf` the folded position, `C` the sheet position — or, with a **catalyst**,
-the position in a second fold of the step's creases with some left open. The
-same thing as a blend: `VD = Vf + T·(C − Vf)`, `T = (I + A)⁻¹A`; isotropic
-(`q = 0`), `T = τ·I` with `τ = p/(1+p)`. The `(I + A)⁻¹` is what holds the
-anchor still. The paper's Theorem 26 (p. 13) keeps the picture regular,
-continuous and affine for `r⁺ + r⁻ < 1`; it says nothing of layer order
-(pp. 2, 8), and gives no rule for choosing the parameters. DEFOX's Level ≤ 1
-reaches τ ≈ 0.27.
+- **Depth is the layer count from the viewer.** A face's level is the longest
+  chain of faces stacked over it as seen (`faces_top_to_bottom`, consecutive
+  pairs, over every subface): a face nothing lies on is 0, and every layer is
+  one level below the one on it. `z_max` is the deepest level in the picture.
+  The playground's first version used each face's rank in the global painter's
+  order instead; on real models that shifts parts of the model by an amount
+  the topological sort chose — the 921-face crane's two symmetric halves sit at
+  different offsets, the Rain Frog's legs spread unevenly — where the layer
+  count keeps symmetric parts symmetric and steps every layer by the same
+  amount (`artifacts/diagram-distortion/levels-pair-*.png`, paint order left,
+  layer count right; the playground's "Depth steps by" switch shows both). In a
+  woven (cyclic) region the chain follows the painter's order
+  (`wovenDrawOrder`): a stacking edge against it is the one the order broke and
+  is left out.
+- **A sheet vertex steps by the mean level of the faces around it.** Faces
+  that meet at a crease share its vertices, so they stay joined and the crease
+  kinks between their depths. This needs the faces' vertex identities, which
+  the kernel scene does not carry today (below); keying vertices by folded
+  position would merge the coincident corners of a stack, the very points
+  that should part.
+- **Points inside a face** — aux lines, woven patches, outline points the
+  wireframe could not name — move by the face's own field: mean value
+  coordinates over its ring's vertex steps, which on the ring is linear along
+  each edge, so a line ending on a crease stays on it.
+- **Direction is on the screen**: deeper layers step toward one of eight
+  directions after the pose's turn and side, default **up-left** (what Zach's
+  chosen picture showed: the Frog from the back, its far layers up and to the
+  left). It is a diagram convention — the reader learns "the peeking edges are
+  the layers beneath" — so Turn Over and Rotate keep it on screen rather than
+  turning it with the model. An edge parallel to the direction does not part
+  (the Lizard's long diagonal under up-left), which is why the direction is a
+  choice.
+- **Amount**: how far the deepest layer steps, as a fraction of the model's
+  size — the longest side of the folded faces' bounds before the pose's turn,
+  so rotating does not change it. Default 5% (Zach's picture: 5.2%), from 0.5%
+  to 20%.
 
-Three consequences shape the design:
-1. **Gaps follow distance on the sheet, not depth in the stack.**
-2. **One transform for the whole model** — unless the target changes: the
-   catalyst (open only some folds) is how DEFOX gets local spreads, and it
-   stays inside the paper's valid class.
-3. **It never looks at the layer order**, so a layer can poke out through a
-   fold that wraps it. In the rolled letter fold (playground's default),
-   keeping the bottom or DEFOX's face 0 still pokes the tucked panel through
-   the fold; keeping the top still, or opening only the last fold made, does
-   not. On real crease patterns the same holds at scale (a quick check, which
-   can over-report; τ = 0.05, the top layer still): opening every fold pokes
-   in 7–34 places on 11 of 12 cpoogle models (Kei Morisue's Rain Frog 23,
-   Smile 24, Inside-Out 34; Jason Ku's Angel 29, Lizard 14; Jordan Langerak's
-   921-face crane 22) and on 7 of Zach's 12 crane steps (up to 24); opening
-   only the folds each crane step adds pokes nowhere, and refuses on two
-   steps (9 and 11) whose new folds cannot open on their own.
+### Where it runs
 
-The alternative the paper sets aside (Fig. 4, p. 10): Akitaya's **depth
-shift**, `D(v) = D̄(v) + p·z_v/z_max` — every point steps by its depth, so
-the picture shows layer *count* directly, but it is not affine: creases kink.
-The playground has it as "Depth steps".
+All in TypeScript, after the kernel's fold and before `storeScene`:
 
-### Two decisions, not one
+- **Kernel** (`crates/oristudio-cp/src/folding.rs`, schema 2, additive):
+  `FoldedPaperFace.points` — per outline point, its index in the folded
+  wireframe's points (the crease pattern's vertex), the same ring
+  `paper_scene_faces` already walks; empty when the ring named a point the
+  wireframe lacks, as `edges` is. Wasm bridge types, `oristudioCpTypes.ts`,
+  Rust tests (rings and indices agree; shared vertices are shared indices).
+- **`cp-workspace/folded/foldedLayerSpread.ts`** (new, pure, unit-tested):
+  levels from the stacks and the painter's order; per-vertex mean level; the
+  per-face displacement (vertex steps, mean value coordinates inside).
+- **`foldedFlatPaperScene`** takes an optional displacement and applies it to
+  every face-attached point it emits (outlines, outline edges, aux lines,
+  patches) before `toScenePx`. With a spread no face is hidden
+  (`markHidden: false`): a layer the drawer covered may now show an edge.
+- **`readFlatPicture`** passes the render's spread through. The Pose session
+  keeps the last kernel scene for its fold, side, order and turn, so changing
+  the amount or direction is TS work on a held scene, not a refold: it
+  previews live under a slider drag and commits once on release.
 
-The research's option list mixed two separate choices:
-- **What opens**: every fold (DEFOX with no catalyst); only picked folds
-  (DEFOX's catalyst, picked on the picture or the sheet instead of drawn as a
-  second crease pattern); only the folds this step adds (picked for you); or
-  depth steps instead.
-- **How it is set**: a slider (plus which layer stays still, plus an optional
-  slant); a drag on the picture; or automatic candidates paged like layer
-  orders.
+### What a step stores
 
-What DEFOX makes unclear, specifically: the controls name the matrix
-(Level, Skew, Angle), not the picture; Angle does nothing at the default Skew
-0; Level is exponential (the first ~15% does nothing visible); which edge
-shows depends on an arbitrary face 0; the catalyst is a second crease pattern
-edited on the sheet with no preview, refused unless it passes Kawasaki, and
-its save silently resets unsaved slider moves; nothing warns of a poke.
+`DiagramCpRender` `folded-flat` gains an optional
+`spread: { amount: number; toward: SpreadDirection }` (`toward` one of
+`up-left | up | up-right | right | down-right | down | down-left | left`;
+`amount` in (0, 0.2]). No `spread` is no spread. Threaded through capture,
+Refresh, Turn Over, Rotate, layer-order paging, Show As and remembered poses
+(`withRememberedPoses`, `renderToShowAs`), and Reset Pose (which keeps it: the
+spread has its own off switch). The file reader validates it; an unknown field
+on a render — this one included, on a build without it — must read as a newer
+build's render rather than be dropped, remembered renders included: that rule
+is added here, before the format leaves this branch.
 
-### Picking folds on a real model
+### Annotations
 
-A single crease inside a real model usually cannot open on its own: picking
-two folds at random on a sample step made six points land in two places. So
-picking has to work by what a folder means — a flap's hinge, every fold along
-a line, a region — with "can't open alone" offering the folds that meet it.
-The research's "every crease folded onto the tapped line" is one rule; a flap
-picked by its face is another (question 3).
+A spread change (on, off, amount, direction) carries the step's annotations
+by the frame change: the nearest layer does not move in scene space, so a mark
+on the picture's top surface stays where it was drawn
+(`annotationCarry.ts`: `pictureMove` today returns null unless the turn
+changed; it gains the spread case, a `sceneTurnMove` with the turn the poses
+differ by, zero when only the spread changed). A mark on a deeper layer is off
+by that layer's step — said in the as-built notes, not fixed in v1.
 
-### Architecture
+### Pose UI
 
-- **Live** (while dragging): TS, O(V) per frame from cached per-fold data
-  (each face's folded and sheet rings, the targets, the undistorted order),
-  painting whole faces in the posed order as DEFOX does live. A spike decides
-  whether this tier is needed at all: if a commit is fast enough on real
-  steps (< ~100 ms), drop it.
-- **Commit**: a kernel entry that takes the deformed folded points and
-  rebuilds the paper scene — subfaces from the deformed wireframe, stacked
-  from the held `HierarchyTable` (a new stacking function; ties for newly
-  overlapping pairs broken by the undistorted painter's order) — then the
-  existing `foldedFlatPaperScene` and `storeScene`. The camera is placed from
-  the *undistorted* points, or the anchor moves. The kernel never knows what
-  a distortion is; the math lives once, in TS, under the oracle.
-- **Targets for opened folds**: a kernel entry that refolds the step's
-  creases with the opened ones flat, from the same starting face, and refuses
-  (listing them) when a point would land in two places — the paper's flatness
-  condition (2.38–2.39), which also covers patterns with holes, unlike
-  DEFOX's Kawasaki-only check.
-- **One poke check**, in one place (the research's two-tier version was two
-  predicates for one question).
-- **What a step stores**: an optional `spread` on the `folded-flat` render —
-  amount (τ), what opens (every fold / opened creases in sheet space, never
-  kernel indices), the layer that stays still (top / bottom by area / a sheet
-  point), optional slant. Threaded through capture, Refresh, turn-over,
-  layer-order paging, show-as and remembered poses, Reset (question 8),
-  annotation carry. An older build reading a newer render must see it as
-  newer, remembered renders included — a rule to add on this branch before
-  merge (it would otherwise silently drop `spread`).
-- **Page layout**: a spread grows the picture's bounds, so its cell's scale
-  depends on the spread; and revealed slivers enlarge the stored scene (more
-  steps over the 2 MB budget fall back to a bitmap).
-- **Porting**: vendor a curated subset of step-folder into
-  `third_party/step-folder/` with its `LICENSE` (MIT, "Copyright (c) 2022
-  Jason S. Ku (origamimagiro)", inherited from Line-Folder; Kei Morisue's code
-  carries no separate notice), aliasing its `flatfolder/` imports to
-  `third_party/flat-folder/src` (which differs in three files: an import in
-  `conversion.js`, `note.js`, and `gui.js:85-87`); link the paper rather than
-  vendor it. `upstream-sync.json` entry; the AGENTS.md porting table; a
-  `PORTING.md` section. The oracle checks parity per function (our layer
-  order is Oriedita's, not Flat-Folder's): the blend against `DIST.FOLD_2_VD`;
-  opened-fold targets against DEFOX's catalyst positions modulo its frame
-  (its catalyst lines are centred, the step's are not).
-- **Analytics**: the spread is a pose verb, tracked once by the existing
-  chokepoint (`poseController.ts` `TRACKED`) with enum properties — not a
-  second hand-placed event.
+A pose verb like the others (`diagramLinkedPoseActions.ts` catalog,
+`poseController.ts`, `TRACKED` for analytics with enum properties — the
+direction and a bucketed amount, never a raw value): **Spread layers**
+(on/off) in the Pose toolbar and in the Step pane's Pose group, and, while on,
+the amount (a slider with a percentage readout) and the direction (eight
+buttons around a centre, the selected one pressed) in the Step pane; the
+phone's Step pane drawer has them too. Turning it on starts from the nearest
+earlier step's spread when there is one, else the defaults — consistency
+across a diagram without a diagram-wide setting. Disabled, with the reason,
+when the picture is not a flat fold or the fold has no paper scene (the
+bitmap fallback). One undo entry per change; a slider drag is one change.
+i18n in every locale.
 
 ## Affected Areas
 
-- Kernel: `crates/oristudio-cp/src/folding.rs` (scene fields, the deformed
-  scene, opened-fold targets, stacking), `crates/oristudio-cp-wasm`, the
-  worker API and bindings.
-- Web: `apps/web/src/diagram/spread/` (new: math, check, hook);
-  `diagram/capture/` (linkedPose, captureFolded, captureSession,
-  poseController); `diagram/document/` (types, file reader, validators);
+- Kernel: `crates/oristudio-cp/src/folding.rs` (`FoldedPaperFace.points`,
+  schema 2), `crates/oristudio-cp/tests/folding.rs`, the wasm bridge.
+- Web: `cp-workspace/folded/foldedLayerSpread.ts` (new),
+  `cp-workspace/folded/foldedFlatScene.ts`, `engine/oristudioCpTypes.ts`;
+  `diagram/capture/` (`captureFolded`, `captureSession`, `linkedPose`,
+  `poseController`); `diagram/document/` (`diagramDocument`, `diagramFile`);
+  `diagram/annotate/annotationCarry.ts`;
   `diagram/actions/diagramLinkedPoseActions.ts`; the Pose components and the
-  Step pane; keyboard registry; analytics; i18n.
-- Upstream: `third_party/step-folder/`, `upstream-sync.json`, an oracle,
-  `PORTING.md`, AGENTS.md.
+  Step pane; analytics (`analytics/events.ts`, `docs/analytics.md`); i18n.
 
-## Decisions for Zach
+## Decisions
 
-1. **Spread by distance on the sheet, or by depth?** Every fold / Picked
-   folds are DEFOX's (affine, exact, gaps by sheet distance); Depth steps
-   shows layer count but kinks creases. *Recommend distance, with picked
-   folds* — unless the playground's depth steps read better to you.
-2. **What opens by default?** Every fold (DEFOX parity, pokes on real models)
-   vs only the folds this step adds (needs the previous step to be an earlier
-   state of the same sheet, aligned) vs nothing until picked. *Recommend: the
-   step's new folds when they can be found, else nothing picked yet.*
-3. **How a fold is picked**: a crease line (with every crease folded onto it
-   under the tap), or a flap (tap a layer: its hinge opens), on the picture or
-   the sheet. *Recommend tapping on the picture, by line, with "Also open the
-   folds that meet it" when it can't open alone* — the playground shows how
-   often that is.
-4. **Which layer stays still by default?** Top by area (the only valid anchor
-   in the letter fold), bottom, or DEFOX's face 0. *Recommend top, pickable.*
-5. **A poke-through**: refuse it, or allow it with a mark and the fix that
-   clears it (another layer still, or fewer folds open — less spread never
-   clears one)? *Recommend allow with a mark and the fix.*
-6. **Turn Over with a spread**: keep the same anchor (physically consistent;
-   what showed on the front hides on the back), or re-resolve "top" to the new
-   top? *Recommend re-resolve.*
-7. **Slant** (DEFOX's Skew and Angle): drop it, an Advanced pair, or a handle
-   on the picture? *Recommend drop it from the first cut.*
-8. **Reset Pose**: does it remove the spread? *Recommend no — the spread has
-   its own Remove — but Reset's "front, upright, first order" moves an Auto
-   anchor, so it must re-resolve.*
-9. **How the amount reads**: DEFOX's Level, a percentage of the model, or mm
-   at print size (circular with the page layout). *Recommend a percentage of
-   the model, τ stored.*
-10. **Annotations with a spread**: today's "picture changed" notice, or
-    anchored in sheet space so they follow (Phase 14's vertex-snapped circles
-    will sit on distorted vertices). *Recommend sheet-space anchors for
-    snapped marks.*
-11. **A spread across steps**: per step only, or a diagram-wide default amount
-    (DEFOX's "infer prev/next" copies its parameters)? *Recommend a default
-    amount.*
+Settled with the choice of depth steps; the ones marked *for Zach* are
+defaults he has not seen yet and are cheap to change.
+
+1. Depth steps, not DEFOX's affine distortion (Zach, 2026-10-04).
+2. Depth by layer count from the viewer, not the painter's rank — *for Zach*:
+   the playground's "Depth steps by" switch shows both on his models.
+3. The direction is a screen convention kept through Turn Over and Rotate;
+   eight directions; default up-left — *for Zach*.
+4. The amount is the deepest layer's step as a fraction of the model, default
+   5%, 0.5–20%.
+5. No poke check in v1: the shift keeps every stack's order. A layer can
+   still cross a fold that wraps it where its level is deeper than the fold's
+   mean (Risks).
+6. Reset Pose keeps the spread.
+7. Turning it on copies the nearest earlier step's spread.
+8. Annotations carry with the nearest layer.
 
 ## Checklist
 
 ### 13a. Decide
-- [ ] Zach tries the playground and answers the decisions above.
+- [x] Zach chose depth steps in the playground (2026-10-04).
+- [x] Depth by layer count measured against the painter's rank on four real
+  models (pairs in `artifacts/diagram-distortion/`).
 
-### 13b. Spike (nothing merges)
-- [ ] A TS blend equal to vendored `DIST.FOLD_2_VD` to 1e-12 on fixtures and
-  random parameters.
-- [ ] Kernel spike: scene sheet rings and vertex ids; the deformed-scene
-  entry; before/after renders of real Ori Studio steps, each with its own
-  confidence note; timings (scene size, worker transfer, subface rebuild, TS
-  frame) — decide whether the live tier is needed.
-- [ ] Opened-fold targets with the consistency refusal; the poke check against
-  the letter fold and real steps, its false alarms counted.
-- [ ] A face that distortion reveals is drawn after a commit.
-- [ ] Zach approves the pictures; the figures recorded here.
+### 13b. Kernel
+- [ ] `FoldedPaperFace.points`, schema 2; Rust tests; `cargo fmt`, `clippy`;
+  wasm rebuilt; TS types.
 
-### 13c. Upstream
-- [ ] Vendor the subset, `upstream-sync.json`, AGENTS.md row, `PORTING.md`,
-  the oracle.
+### 13c. The spread
+- [ ] `foldedLayerSpread.ts`: levels (acyclic, woven, a face in no stack),
+  vertex means, mean value coordinates; unit tests with hand-checked figures
+  (a book fold, a rolled letter fold, a woven three-flap fixture).
+- [ ] `foldedFlatPaperScene` displacement; the empty and unspread cases
+  unchanged byte for byte.
 
-### 13d. Kernel
-- [ ] Scene fields, the deformed scene, opened-fold targets, stacking; wasm
-  bridge, worker API, bindings; `cargo fmt`, `clippy`, tests.
+### 13d. Document and capture
+- [ ] `spread` on the render; reader, writer, validators, round trips; the
+  "unknown render field is newer" rule, remembered renders included.
+- [ ] Threading through capture, Refresh, Turn Over, Rotate, paging, Show As,
+  remembered poses, Reset; the session's held scene; annotation carry.
 
-### 13e. Document and capture
-- [ ] The "unknown key is newer" rule for renders and remembered renders;
-  `spread` with validators and round trips; threading; session caching and
-  newest-waits commits; undo joining.
+### 13e. Pose UI
+- [ ] Verbs, toolbar, Step pane (amount, direction), phone drawer, undo,
+  analytics, i18n.
+- [ ] Browser: real crane steps before/after; Turn Over, Rotate and layer
+  orders with a spread on; undo; save, reload; a PDF export.
 
-### 13f. Pose UI
-- [ ] The tool per the decisions: catalog, hook, live view, Step pane group,
-  picking, poke marks, "can't open alone", phone (the Step pane drawer),
-  shortcuts, i18n, analytics.
-- [ ] Validation and browser checks: real steps before/after; turn over,
-  rotate, layer orders with a spread on; undo; save, reload, export.
-
-### 13g. Review
+### 13f. Review
 - [ ] Review and fixes; the PR and Phase 13 updated.
 
 ## Risks
 
-1. Validity on real models: the quick check flags many pokes with every fold
-   open; newly overlapping faces get a tie-break that may look wrong.
-2. Picking: single creases rarely open alone in a real model; "the step's new
-   folds" needs aligned, congruent consecutive steps.
-3. Kernel geometry: distorted stacks no longer deduplicate coincident edges;
-   the intersection pass is O(n²) and tolerances (`epsilon.rs`) are coarser
-   than the slivers a small spread makes.
-4. The live preview and the committed picture can differ (ties, woven
-   patches), so the picture may jump on release.
-5. Licence and attribution as above; the paper's licence is unstated.
+1. Faces that newly overlap after the shift keep the painter's order, which
+   was arbitrary between faces that did not overlap: a sliver can be drawn in
+   the wrong order. Small at small amounts; watched on the real steps.
+2. Woven regions: patches move with their face, but the levels there follow
+   a broken cycle.
+3. Size: every face is stored with a spread on, so more large steps exceed the
+   2 MB stored-scene budget and fall back to a bitmap.
+4. A layer wrapped by a fold steps by its own level while the fold's vertices
+   step by the mean of the two faces it joins; where the wrapped layer is
+   deeper than that mean it pokes past the fold. Rare in the playground's
+   models; looked for on the real steps.
+5. Deep stacks: a 40-layer model steps each layer 1/40 of the amount, so its
+   middle layers barely part; a per-layer step would explode instead.
+
+## Why not the affine distortion
+
+DEFOX moves every point a fraction τ back toward where it lies on the sheet
+(`VD = (I + A)⁻¹(Vf + A·C)`, `src/distortionfolder/distortion.js:39-55`): exact
+and affine, but gaps follow distance on the sheet, not depth, and it never
+looks at the layer order, so on real models opening every fold pokes layers
+through the folds that wrap them (7–34 places on 11 of 12 cpoogle models and
+on 7 of Zach's 12 crane steps); opening only a step's new folds avoids that
+but often cannot open alone. Zach compared it with depth steps on the same
+models and chose depth steps.
