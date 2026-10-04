@@ -230,9 +230,12 @@ function SelectedAnnotation({
                   key={action.id}
                   size="sm"
                   variant="ghost"
-                  disabled={action.disabled}
+                  // Refusing keeps the focus: Reset Shape refuses once it has run.
+                  aria-disabled={action.disabled || undefined}
                   title={keyed(action)}
-                  onClick={action.run}
+                  onClick={() => {
+                    if (!action.disabled) action.run();
+                  }}
                 >
                   {Icon && <Icon size={14} aria-hidden="true" />}
                   {action.label}

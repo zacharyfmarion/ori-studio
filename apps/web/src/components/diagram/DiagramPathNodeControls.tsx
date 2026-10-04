@@ -52,8 +52,11 @@ export function DiagramPathNodeControls({
               size="sm"
               aria-label={previous.label}
               title={keyed(previous)}
-              disabled={previous.disabled}
-              onClick={previous.run}
+              // Refused at the end, but keeping the focus that stepped it there.
+              aria-disabled={previous.disabled || undefined}
+              onClick={() => {
+                if (!previous.disabled) previous.run();
+              }}
             >
               <ChevronLeft size={14} aria-hidden="true" />
             </IconButton>
@@ -66,8 +69,11 @@ export function DiagramPathNodeControls({
               size="sm"
               aria-label={next.label}
               title={keyed(next)}
-              disabled={next.disabled}
-              onClick={next.run}
+              // Refused at the end, but keeping the focus that stepped it there.
+              aria-disabled={next.disabled || undefined}
+              onClick={() => {
+                if (!next.disabled) next.run();
+              }}
             >
               <ChevronRight size={14} aria-hidden="true" />
             </IconButton>
@@ -83,7 +89,11 @@ export function DiagramPathNodeControls({
             id: action.id,
             label: action.label,
           }))}
-          onChange={(id) => typeOptions.find((action) => action.id === id)?.run()}
+          onChange={(id) => {
+            // The type the node has already is no change to make.
+            const action = typeOptions.find((each) => each.id === id);
+            if (action && !action.active) action.run();
+          }}
         />
       )}
       <div className={styles.verbs}>

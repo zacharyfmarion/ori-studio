@@ -417,7 +417,8 @@ describe('DiagramStepPanel in Annotate', () => {
       // The arc's two nodes, none selected: only the steppers act.
       expect(host?.textContent).toContain('2 nodes');
       expect(buttonNamed('Add Node').disabled).toBe(true);
-      expect(buttonNamed('Reset Shape').disabled).toBe(true);
+      // Refusing, keeping the focus a press puts on it (`aria-disabled`).
+      expect(buttonNamed('Reset Shape').getAttribute('aria-disabled')).toBe('true');
       act(() => byLabel('Next Node')!.click());
       expect(host?.textContent).toContain('Node 1 of 2');
       expect(arrow().bend).toBe(0.1);
