@@ -164,6 +164,16 @@ describe('pictureSnapTarget by kind of picture', () => {
     expect(pictureSnapTarget(flat, NO_ASSETS, [0.01, 0.51], 0.05)).toEqual({ at: [0, 0.5], kind: 'vertex' });
   });
 
+  it('counts a crease cut in pieces once: its free end an end, its line one segment', () => {
+    // Two pieces of one aux crease, each carrying the whole of it, which meets nothing at either end.
+    const whole = { a: [10, 50] as ScenePoint, b: [90, 50] as ScenePoint, onBoundary: [false, false] as [boolean, boolean] };
+    const pieces = [line('aux', [20, 50], [40, 50], { whole }), line('aux', [60, 50], [80, 50], { whole })];
+    const flat = sceneStep([face([SQUARE], { outline: 'edge' }), ...pieces], FLAT);
+    expect(pictureSnapTarget(flat, NO_ASSETS, [0.11, 0.51], 0.05)).toEqual({ at: [0.1, 0.5], kind: 'end' });
+    const along = pictureGeometry(flat, NO_ASSETS).segments.filter(({ a, b }) => a.y === 0.5 && b.y === 0.5);
+    expect(along).toHaveLength(1);
+  });
+
   it('snaps a 3D picture to its lines’ ends, the projected vertices, and not to its faces’ corners', () => {
     // A face whose ring a painter's cut left with a corner at (50, 50).
     const step = sceneStep(

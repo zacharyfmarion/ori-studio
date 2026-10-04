@@ -159,6 +159,7 @@ function sceneGeometry(scene: PaperScene, kind: 'crease-pattern' | 'flat-fold' |
   // Scene px to picture units: the frame is the scene's bounds (`stepPictureFrame`).
   const toPicture = ([x, y]: ScenePoint): PicturePoint => [(x - minX) / longer, (y - minY) / longer];
   const builder = new GeometryBuilder();
+  const lines = new Set<string>();
   for (const item of scene.items) {
     if (item.hidden) continue;
     if (item.kind === 'face') {
@@ -166,9 +167,14 @@ function sceneGeometry(scene: PaperScene, kind: 'crease-pattern' | 'flat-fold' |
       if (kind === 'projected') continue;
       for (const ring of item.rings) builder.ring(ring.map(toPicture), kind === 'crease-pattern');
     } else if (item.kind === 'line') {
-      // A piece cut where another layer covers it ends at the cut; its crease ends at its vertices.
+      // A piece cut where another layer covers it ends at the cut; its crease
+      // ends at its vertices, and is one line however many pieces carry it.
       const { a, b } = item.whole ?? item;
-      builder.line(toPicture(a), toPicture(b));
+      const [from, to] = [toPicture(a), toPicture(b)];
+      const key = [pointKey(from), pointKey(to)].sort().join('|');
+      if (lines.has(key)) continue;
+      lines.add(key);
+      builder.line(from, to);
     }
   }
   return builder.build(kind, {
@@ -276,6 +282,11 @@ class GeometryBuilder {
     }
     return null;
   }
+}
+
+/** A point to a point's tolerance, as a key: pieces of one crease carry its whole ends exactly alike. */
+function pointKey([x, y]: PicturePoint): string {
+  return `${Math.round(x / PICTURE_POINT_EPSILON)},${Math.round(y / PICTURE_POINT_EPSILON)}`;
 }
 
 function cellKey([x, y]: PicturePoint, dx: number, dy: number): string {
