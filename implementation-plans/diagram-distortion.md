@@ -154,8 +154,10 @@ Settled with the choice of depth steps; the ones marked *for Zach* are
 defaults he has not seen yet and are cheap to change.
 
 1. Depth steps, not DEFOX's affine distortion (Zach, 2026-10-04).
-2. Depth by layer count from the viewer, not the painter's rank — *for Zach*:
-   the playground's "Depth steps by" switch shows both on his models.
+2. Depth by the whole face's layer count from the viewer, not the painter's
+   rank, nor a count per corner — Zach, 2026-10-04: "keep whole face, other
+   one clearly breaks on cases like gen hagiwaras frog" (counted at each
+   corner, the visible layer stays put but faces skew).
 3. The direction is a screen convention kept through Turn Over and Rotate;
    eight directions; default up-left — *for Zach*.
 4. The amount is the deepest layer's step as a fraction of the model, default
@@ -267,7 +269,19 @@ defaults he has not seen yet and are cheap to change.
   On a phone the Pose toolbar wraps to a third row for Reset Pose.
 
 ### 13f. Review
-- [ ] Review and fixes; the PR and Phase 13 updated.
+- [x] Review and fixes. 13b/13c: one finding (an aux line's pieces over a
+  woven patch left the line under the spread's non-linear field) — fixed.
+  13d/13e: nine confirmed, all fixed with tests that fail before: the
+  commit loop read its amount before waiting (an undo or close committed the
+  5% default and a closed controller folded again); a busy refusal took the
+  running capture's place; a close left its preview in the view; a preview
+  kept its own direction and outlived a drag that ended where it began;
+  previews filled the 48 MB picture cache; Spread Layers could not turn off
+  on a fold with no layer order; and a mark near a crease was carried as if
+  the nearest layer stood still — marks now move with the face under them
+  (mean value coordinates over its outline). Also: Spread Layers left the
+  phone's Pose toolbar for the Step drawer (it wrapped a third row).
+- [ ] Merged into the diagram branch; the PR updated.
 
 ## Risks
 
