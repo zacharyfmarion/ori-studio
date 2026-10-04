@@ -193,6 +193,7 @@
     "textHelp": "如需在自己的排版软件中排文字，请关闭此项。",
     "title": "导出图解",
     "transparent": "透明背景",
+    "turnsLeftOut_other": "步骤之间的 {{count}} 个翻面或旋转会印在页面上，但单步文件中不包含。",
     "width": "宽度",
     "writingPdf": "正在生成 PDF…"
   },

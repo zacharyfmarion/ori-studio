@@ -37,6 +37,8 @@
     "dropReadOnly": "This diagram was made with a newer Ori Studio and opens read-only, so pictures can’t be added to it.",
     "references": {
       "addedSteps": "Added as steps {{first}}–{{last}}",
+      "addedTurnOvers_one": "Added a turn-over",
+      "addedTurnOvers_other": "Added {{count}} turn-overs",
       "filledStep": "Filled step {{number}}",
       "replacedStep": "Replaced step {{number}}’s card",
       "tooLarge": "This step is too detailed to keep in the diagram."

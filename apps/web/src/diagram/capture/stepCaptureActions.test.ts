@@ -3,7 +3,7 @@ import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramCaptureOutcome } from '../../store/workspaceStore/diagramCapture';
 import { twoSquaresSegmentation } from './capture.fixtures';
-import { cpStep } from '../document/diagramSteps.fixtures';
+import { cpStep, stepsIn } from '../document/diagramSteps.fixtures';
 import { insertSteps, createDiagram } from '../document/diagramDocument';
 import { takeCpRegionFocus } from '../../cp-workspace/regions/regionFocusRequest';
 import { useLayoutStore } from '../../store/layoutStore';
@@ -137,7 +137,7 @@ describe('showLinkedStepAs', () => {
 });
 
 describe('duplicateLinkedStepAs', () => {
-  const ids = () => state().diagram!.steps.map((step) => step.id);
+  const ids = () => stepsIn(state().diagram!).map((step) => step.id);
 
   it('keeps the copy shown the other way, as one undo step, and counts it', async () => {
     answer({ ...CAPTURED, render: { mode: 'crease-pattern', rotationDeg: 0 } });
@@ -201,7 +201,7 @@ describe('openDiagramStepInEdit', () => {
     takeCpRegionFocus();
     openDiagramStepInEdit('step-flat');
     expect(useLayoutStore.getState().activeWorkspace).toBe('edit');
-    const step = state().diagram!.steps[1]!;
+    const step = stepsIn(state().diagram!)[1]!;
     expect(takeCpRegionFocus()).toEqual(
       step.source?.kind === 'cp' && step.source.scope.kind === 'segment' ? step.source.scope.region.bounds : null
     );

@@ -2,8 +2,10 @@ import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
 import {
   createStep,
+  isTurn,
   type DiagramCpRender,
   type DiagramCpSource,
+  type DiagramEntry,
   type DiagramFixedPicture,
   type DiagramReferencesSource,
   type DiagramScenePicture,
@@ -17,6 +19,18 @@ import { storedSceneJson } from './diagramFile';
  * and the pictures a capture makes, without a kernel. A `.fixtures.ts` module
  * so the file, painter and card tests read the same steps.
  */
+
+/**
+ * A test diagram's entries as steps: the diagrams these tests build hold no
+ * turn between steps (D22), and one that does is a test written against the
+ * wrong document.
+ */
+export function stepsIn(document: { steps: readonly DiagramEntry[] }): DiagramStep[] {
+  return document.steps.map((entry) => {
+    if (isTurn(entry)) throw new Error(`a turn where a step was expected: ${entry.id}`);
+    return entry;
+  });
+}
 
 /** A unit square's rim, in pattern units. */
 const SQUARE_RIM = [

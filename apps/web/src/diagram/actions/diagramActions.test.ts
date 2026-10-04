@@ -15,6 +15,7 @@ function deps(): DiagramStepActionDeps {
   return {
     t,
     insert: vi.fn(),
+    insertTurn: vi.fn(),
     duplicate: vi.fn(),
     move: vi.fn(),
     toggleBreak: vi.fn(),
@@ -64,6 +65,8 @@ describe('the diagram step verbs', () => {
     expect(build({}).map((action) => action.id)).toEqual([
       'insert-before',
       'insert-after',
+      'insert-turn-over',
+      'insert-rotate',
       'duplicate',
       'after-add',
       'move-earlier',

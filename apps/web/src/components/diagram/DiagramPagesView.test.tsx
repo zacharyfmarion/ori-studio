@@ -5,7 +5,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDiagram, createStep, insertSteps, type DiagramDocument } from '../../diagram/document/diagramDocument';
-import { cpStep } from '../../diagram/document/diagramSteps.fixtures';
+import { cpStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from '../../diagram/fonts/diagramFontFaces';
 import type { DiagramFonts } from '../../diagram/fonts/diagramFonts';
 import { readFontMetrics } from '../../diagram/fonts/fontMetrics';
@@ -74,7 +74,7 @@ function render(pages: PreparedDiagramPages, handlers: Partial<Record<'onSelect'
         <DiagramPagesView
           pages={pages}
           failed={false}
-          steps={document.steps}
+          steps={stepsIn(document)}
           selectedStepId="step-a"
           fitKey="test"
           {...props}

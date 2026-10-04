@@ -8,7 +8,8 @@
  * every edit returns the same object when it changes nothing, which is how the
  * store tells a no-op from an edit worth an undo entry.
  *
- * A step's number is its position. Numbers are never stored.
+ * A step's number is its place among the steps; a turn between two steps —
+ * the model turned over or round — has none (D22). Numbers are never stored.
  *
  * React-free, store-free and DOM-free.
  */
@@ -473,6 +474,37 @@ export interface DiagramStep {
   unknown?: Record<string, unknown>;
 }
 
+/**
+ * Turning the whole model between two steps (D22): over, about an axis, or
+ * round by a part of a turn. What a turn is, without its id.
+ */
+export type DiagramTurnKind =
+  | { kind: 'turn-over'; axis: 'vertical' | 'horizontal' }
+  | { kind: 'rotate'; rotate: DiagramRotation };
+
+/**
+ * A turn in the diagram's order (D22): an entry beside the steps, selected,
+ * moved, deleted and undone as a step is, with no picture, no instruction and
+ * no number — the steps either side of it read 3 and 4.
+ */
+export type DiagramTurn = DiagramTurnKind & {
+  /** `turn-<uuid>`. */
+  id: string;
+};
+
+/** One entry in a diagram's order: a step, or a turn between steps. */
+export type DiagramEntry = DiagramStep | DiagramTurn;
+
+/** Whether an entry is a turn rather than a step. */
+export function isTurn(entry: DiagramEntry): entry is DiagramTurn {
+  return 'kind' in entry;
+}
+
+/** Whether an entry is a step rather than a turn. */
+export function isStep(entry: DiagramEntry): entry is DiagramStep {
+  return !isTurn(entry);
+}
+
 export interface DiagramDocument {
   formatVersion: typeof DIAGRAM_FORMAT_VERSION;
   /** `diagram-<uuid>`. */
@@ -482,13 +514,13 @@ export interface DiagramDocument {
   hanStyle: DiagramHanStyle;
   style: DiagramStyle;
   page: DiagramPageSetup;
-  /** In order: a step's number is its index plus one. */
-  steps: DiagramStep[];
+  /** The steps and the turns between them, in order (D22): a step's number counts the steps before it. */
+  steps: DiagramEntry[];
   /** Uploaded art, shared by id between steps, duplicates and undo snapshots. */
   assets: Record<string, DiagramAsset>;
 }
 
-export type DiagramIdFactory = (prefix: 'diagram' | 'step' | 'annotation' | 'asset') => string;
+export type DiagramIdFactory = (prefix: 'diagram' | 'step' | 'turn' | 'annotation' | 'asset') => string;
 
 export const randomDiagramId: DiagramIdFactory = (prefix) => `${prefix}-${crypto.randomUUID()}`;
 
@@ -556,6 +588,11 @@ export function createStep(newId: DiagramIdFactory = randomDiagramId): DiagramSt
   };
 }
 
+/** A turn (D22): a turn-over about the vertical axis, unless asked otherwise. */
+export function createTurn(kind: DiagramTurnKind, newId: DiagramIdFactory = randomDiagramId): DiagramTurn {
+  return { ...kind, id: newId('turn') };
+}
+
 /** A step written by a newer build: it can be moved or deleted, never edited. */
 export function isLockedStep(step: DiagramStep): boolean {
   return step.unknown !== undefined;
@@ -581,8 +618,65 @@ export function stepHasContent(step: DiagramStep): boolean {
   );
 }
 
+/** Where an entry — a step or a turn — is in the diagram's order; -1 when it is not there. */
 export function stepIndex(document: DiagramDocument, stepId: string): number {
   return document.steps.findIndex((step) => step.id === stepId);
+}
+
+/** The step with this id, or null — for a turn too, which is no step. */
+export function stepById(document: DiagramDocument, stepId: string): DiagramStep | null {
+  const entry = document.steps[stepIndex(document, stepId)];
+  return entry && isStep(entry) ? entry : null;
+}
+
+/** The turn with this id, or null. */
+export function turnById(document: DiagramDocument, turnId: string): DiagramTurn | null {
+  const entry = document.steps[stepIndex(document, turnId)];
+  return entry && isTurn(entry) ? entry : null;
+}
+
+/** The steps alone, in order: what is numbered, captured, laid out and exported. */
+export function stepsOf(document: DiagramDocument): DiagramStep[] {
+  return numbering(document.steps).steps;
+}
+
+/**
+ * Each step's number, by its id: its place among the steps, turns left out
+ * (D22), as References numbers its folds and not its turn-overs.
+ */
+export function stepNumbers(document: DiagramDocument): ReadonlyMap<string, number> {
+  return numbering(document.steps).numbers;
+}
+
+/** A step's number, or null for a turn or an id not in the diagram. */
+export function stepNumber(document: DiagramDocument, stepId: string): number | null {
+  return stepNumbers(document).get(stepId) ?? null;
+}
+
+/**
+ * The numbers of the steps either side of an entry: for a turn, the steps it
+ * turns the model between. Null at either end.
+ */
+export function stepsAround(document: DiagramDocument, entryId: string): { before: number | null; after: number | null } {
+  const index = stepIndex(document, entryId);
+  if (index < 0) return { before: null, after: null };
+  const numbers = stepNumbers(document);
+  const before = document.steps.slice(0, index).reverse().find(isStep);
+  const after = document.steps.slice(index + 1).find(isStep);
+  return { before: before ? numbers.get(before.id)! : null, after: after ? numbers.get(after.id)! : null };
+}
+
+/** The steps and their numbers, once per order: every step card, page cell and export reads them. */
+const numberings = new WeakMap<readonly DiagramEntry[], { steps: DiagramStep[]; numbers: Map<string, number> }>();
+
+function numbering(entries: readonly DiagramEntry[]): { steps: DiagramStep[]; numbers: Map<string, number> } {
+  let found = numberings.get(entries);
+  if (!found) {
+    const steps = entries.filter(isStep);
+    found = { steps, numbers: new Map(steps.map((step, index) => [step.id, index + 1])) };
+    numberings.set(entries, found);
+  }
+  return found;
 }
 
 /**
@@ -597,7 +691,7 @@ export function insertionIndex(document: DiagramDocument, selectedStepId: string
 
 export function insertSteps(
   document: DiagramDocument,
-  steps: readonly DiagramStep[],
+  steps: readonly DiagramEntry[],
   index: number
 ): DiagramDocument {
   if (steps.length === 0) return document;
@@ -614,7 +708,7 @@ export function removeSteps(document: DiagramDocument, stepIds: readonly string[
   return steps.length === document.steps.length ? document : { ...document, steps };
 }
 
-/** Move a step so it ends up at `toIndex` (clamped). */
+/** Move an entry — a step or a turn — so it ends up at `toIndex` among the entries (clamped). */
 export function moveStep(document: DiagramDocument, stepId: string, toIndex: number): DiagramDocument {
   const from = stepIndex(document, stepId);
   if (from < 0) return document;
@@ -624,6 +718,20 @@ export function moveStep(document: DiagramDocument, stepId: string, toIndex: num
   const [step] = steps.splice(from, 1);
   steps.splice(to, 0, step);
   return { ...document, steps };
+}
+
+/**
+ * Where `moveStep` puts a step for it to be number `number` (clamped): just
+ * before the step that will come after it, so a turn before that step stays
+ * before it; as the last number, just after the last step.
+ */
+export function indexForStepNumber(document: DiagramDocument, stepId: string, number: number): number {
+  const rest = document.steps.filter((entry) => entry.id !== stepId);
+  const others = rest.filter(isStep);
+  const n = clampInteger(Math.round(number), 1, others.length + 1);
+  if (n <= others.length) return rest.indexOf(others[n - 1]!);
+  const last = others.at(-1);
+  return last ? rest.indexOf(last) + 1 : 0;
 }
 
 /**
@@ -640,7 +748,8 @@ export function duplicateStep(
   const index = stepIndex(document, stepId);
   if (index < 0) return null;
   const original = document.steps[index];
-  if (isLockedStep(original)) return null;
+  // A turn is not duplicated: two turns in a row are one turn, or none.
+  if (isTurn(original) || isLockedStep(original)) return null;
   const copy: DiagramStep = {
     ...original,
     id: newId('step'),
@@ -706,8 +815,8 @@ export function setStepPicture(
   stepId: string,
   asset: KnownDiagramAsset
 ): DiagramDocument {
-  const index = stepIndex(document, stepId);
-  if (index < 0 || isLockedStep(document.steps[index])) return document;
+  const step = stepById(document, stepId);
+  if (!step || isLockedStep(step)) return document;
   return updateStep(withAssets(document, [asset]), stepId, (step) => ({
     ...step,
     ...uploadStepParts(asset),
@@ -735,9 +844,8 @@ export function setLinkedPicture(
   stepId: string,
   link: CapturedLink
 ): DiagramDocument {
-  const index = stepIndex(document, stepId);
-  if (index < 0 || isLockedStep(document.steps[index])) return document;
-  const step = document.steps[index];
+  const step = stepById(document, stepId);
+  if (!step || isLockedStep(step)) return document;
   if (
     (step.picture?.key ?? null) === (link.picture?.key ?? null) &&
     JSON.stringify(step.source) === JSON.stringify(withRememberedPoses(step.source, link.source))
@@ -780,51 +888,70 @@ export type DiagramPullAnchor =
   | { kind: 'fill'; stepId: string }
   | { kind: 'replace'; stepId: string };
 
+/** What References sends: a card, made a step; or a turn-over card, made a turn (D22). */
+export type SentReferencesEntry = SentReferencesStep | DiagramTurnKind;
+
 /**
- * Cards pulled from References as steps, placed by `anchor`, in order. An
- * anchor whose step is gone, or can no longer be filled or replaced (it got a
- * picture, it is a newer build's), places the cards after it, or at the end.
- * The steps the cards became, in order: a filled or replaced step first.
+ * Cards pulled from References, placed by `anchor`, in order: each a step, a
+ * turn-over card a turn (D22). An anchor whose step is gone, or can no longer
+ * be filled or replaced (it got a picture, it is a newer build's), places the
+ * cards after it, or at the end. A step filled or replaced takes the first
+ * card that makes a step; turns sent before it go before it, never into it.
+ * The steps the cards became, in order — a filled or replaced step first —
+ * and the turns.
  */
 export function pullReferencesSteps(
   document: DiagramDocument,
-  sent: readonly SentReferencesStep[],
+  sent: readonly SentReferencesEntry[],
   anchor: DiagramPullAnchor,
   { newId = randomDiagramId }: { newId?: DiagramIdFactory } = {}
-): { document: DiagramDocument; stepIds: string[] } {
-  if (sent.length === 0) return { document, stepIds: [] };
-  const make = (card: SentReferencesStep): DiagramStep => ({
-    ...createStep(newId),
-    source: card.source,
-    picture: card.picture,
-    text: xmlText(card.text),
-  });
-  const insertAt = (index: number, cards: readonly SentReferencesStep[], into = document) => {
-    const steps = cards.map(make);
-    return { document: insertSteps(into, steps, index), stepIds: steps.map((step) => step.id) };
+): { document: DiagramDocument; stepIds: string[]; turnIds: string[] } {
+  if (sent.length === 0) return { document, stepIds: [], turnIds: [] };
+  const make = (card: SentReferencesEntry): DiagramEntry =>
+    'kind' in card
+      ? createTurn(card, newId)
+      : { ...createStep(newId), source: card.source, picture: card.picture, text: xmlText(card.text) };
+  const insertAt = (index: number, cards: readonly SentReferencesEntry[], into = document) => {
+    const entries = cards.map(make);
+    return {
+      document: insertSteps(into, entries, index),
+      stepIds: entries.filter(isStep).map((step) => step.id),
+      turnIds: entries.filter(isTurn).map((turn) => turn.id),
+    };
   };
   if (anchor.kind === 'end') return insertAt(document.steps.length, sent);
   const at = stepIndex(document, anchor.stepId);
-  const target = at >= 0 ? document.steps[at] : undefined;
-  if (!target || anchor.kind === 'after' || !anchorTakesCard(document, anchor)) {
-    return insertAt(target ? at + 1 : document.steps.length, sent);
+  const target = stepById(document, anchor.stepId);
+  const firstStep = sent.findIndex((card) => !('kind' in card));
+  if (at < 0 || !target || anchor.kind === 'after' || !anchorTakesCard(document, anchor) || firstStep < 0) {
+    // Into a step that cannot take a card, or with no card that makes one: after it — a turn sent for
+    // an empty step goes before it, which stays for the card that fills it.
+    const before = target && firstStep < 0 && anchor.kind !== 'after' && anchorTakesCard(document, anchor);
+    return insertAt(at < 0 ? document.steps.length : before ? at : at + 1, sent);
   }
-  const [first, ...rest] = sent;
+  const first = sent[firstStep] as SentReferencesStep;
+  const leading = sent.slice(0, firstStep);
+  const rest = sent.slice(firstStep + 1);
   const words = (step: DiagramStep): string => {
-    if (anchor.kind === 'fill') return step.text.trim() === '' ? xmlText(first!.text) : step.text;
+    if (anchor.kind === 'fill') return step.text.trim() === '' ? xmlText(first.text) : step.text;
     // Replaced: still the old card's words, they become the new card's; edited, they are the reader's.
     const own = step.source?.kind === 'references-step' ? step.source.sentence : undefined;
-    return own !== undefined && step.text === own ? xmlText(first!.text) : step.text;
+    return own !== undefined && step.text === own ? xmlText(first.text) : step.text;
   };
   const taken = updateStep(document, target.id, (step) => ({
     ...step,
-    source: first!.source,
-    picture: first!.picture,
+    source: first.source,
+    picture: first.picture,
     text: words(step),
     revision: step.revision + 1,
   }));
-  const added = insertAt(at + 1, rest, taken);
-  return { document: added.document, stepIds: [target.id, ...added.stepIds] };
+  const before = insertAt(at, leading, taken);
+  const after = insertAt(at + leading.length + 1, rest, before.document);
+  return {
+    document: after.document,
+    stepIds: [target.id, ...after.stepIds],
+    turnIds: [...before.turnIds, ...after.turnIds],
+  };
 }
 
 /**
@@ -835,7 +962,7 @@ export function pullReferencesSteps(
  */
 export function anchorTakesCard(document: DiagramDocument | null, anchor: DiagramPullAnchor): boolean {
   if (!document || (anchor.kind !== 'fill' && anchor.kind !== 'replace')) return false;
-  const step = document.steps[stepIndex(document, anchor.stepId)];
+  const step = stepById(document, anchor.stepId);
   if (!step || isLockedStep(step)) return false;
   return anchor.kind === 'fill' ? !stepHasPicture(step) : step.source?.kind === 'references-step';
 }
@@ -1025,7 +1152,7 @@ export function stepAsset(document: DiagramDocument, step: DiagramStep): KnownDi
 export function withReferencedAssets(document: DiagramDocument): DiagramDocument {
   const kept = new Set<string>();
   const carried: string[] = [];
-  for (const step of document.steps) {
+  for (const step of stepsOf(document)) {
     if (step.unknown) {
       carried.push(JSON.stringify(step.unknown));
       continue;
@@ -1093,6 +1220,19 @@ export function setPageSetup(
  * Edit one step. A locked step is never handed to `edit`: a newer build's step
  * is only ever carried, so the raw form written back is exactly the one read.
  */
+/** Set what a turn is (D22): which axis it turns over, or how far and which way it rotates. */
+export function setTurn(document: DiagramDocument, turnId: string, kind: DiagramTurnKind): DiagramDocument {
+  const index = stepIndex(document, turnId);
+  const turn = document.steps[index];
+  if (!turn || !isTurn(turn)) return document;
+  const next = createTurn(kind, () => turn.id);
+  if (JSON.stringify(next) === JSON.stringify(turn)) return document;
+  const steps = document.steps.slice();
+  steps[index] = next;
+  return { ...document, steps };
+}
+
+/** Edit one step; a turn, an unknown id or a newer build's step is left as it is. */
 function updateStep(
   document: DiagramDocument,
   stepId: string,
@@ -1101,7 +1241,7 @@ function updateStep(
   const index = stepIndex(document, stepId);
   if (index < 0) return document;
   const step = document.steps[index];
-  if (isLockedStep(step)) return document;
+  if (isTurn(step) || isLockedStep(step)) return document;
   const next = edit(step);
   if (next === step) return document;
   const steps = document.steps.slice();

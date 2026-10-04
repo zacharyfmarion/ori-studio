@@ -16,7 +16,7 @@ import {
   type QuarterTurns,
 } from '../document/diagramDocument';
 import { storedSceneJson } from '../document/diagramFile';
-import { cpSource, cpStep, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
+import { cpSource, cpStep, referencesStep, scenePicture, stepsIn } from '../document/diagramSteps.fixtures';
 import { storedScene } from '../pictures/pictureFrame';
 import { poseMove } from './annotationCarry';
 
@@ -70,12 +70,12 @@ describe('an upload re-posed', () => {
 
   it('carries the annotations, and keeps them in step with the picture', () => {
     const document = annotated(uploadStep());
-    const turned = setUploadPose(document, 'step-1', { rotationQuarterTurns: 1, mirrored: false }).steps[0]!;
+    const turned = stepsIn(setUploadPose(document, 'step-1', { rotationQuarterTurns: 1, mirrored: false }))[0]!;
     const arrow = turned.annotations[0] as KnownDiagramAnnotation;
     close(arrow.from, [0.75 - 0.2, 0.1]);
     expect(arrow.bend).toBe(0.1);
     expect(annotationsOutOfStep(turned)).toBe(false);
-    const flipped = setUploadPose(document, 'step-1', { rotationQuarterTurns: 0, mirrored: true }).steps[0]!;
+    const flipped = stepsIn(setUploadPose(document, 'step-1', { rotationQuarterTurns: 0, mirrored: true }))[0]!;
     expect((flipped.annotations[0] as KnownDiagramAnnotation).bend).toBe(-0.1);
   });
 });
@@ -83,7 +83,7 @@ describe('an upload re-posed', () => {
 describe('a References step turned over', () => {
   it('flips its annotations about the sheet, and keeps them in step with the other side', () => {
     const document = annotated(referencesStep('step-1'));
-    const back = setReferencesSide(document, 'step-1', true).steps[0]!;
+    const back = stepsIn(setReferencesSide(document, 'step-1', true))[0]!;
     const arrow = back.annotations[0] as KnownDiagramAnnotation;
     close(arrow.from, [0.9, 0.2]);
     expect(arrow.bend).toBe(-0.1);
@@ -94,13 +94,13 @@ describe('a References step turned over', () => {
   it('leaves them out of step if they already were', () => {
     const step = { ...referencesStep('step-1'), annotations: [ARROW], annotatedPictureKey: 'another-picture' };
     const document = { ...insertSteps(createDiagram(), [step], 0) };
-    const back = setReferencesSide(document, 'step-1', true).steps[0]!;
+    const back = stepsIn(setReferencesSide(document, 'step-1', true))[0]!;
     // Drawn on another picture, never placed on this one: not moved, and still out of step.
     expect(back.annotations).toEqual([ARROW]);
     expect(back.annotatedPictureKey).toBe('another-picture');
     expect(annotationsOutOfStep(back)).toBe(true);
     // Turned back, the picture is the one they are out of step with still.
-    const again = setReferencesSide({ ...document, steps: [back] }, 'step-1', false).steps[0]!;
+    const again = stepsIn(setReferencesSide({ ...document, steps: [back] }, 'step-1', false))[0]!;
     expect(again.annotations).toEqual([ARROW]);
     expect(annotationsOutOfStep(again)).toBe(true);
   });
@@ -138,7 +138,7 @@ describe('a linked picture turned about its middle', () => {
     const moved = setLinkedPicture(document, 'step-1', {
       source: cpSource({ mode: 'crease-pattern', rotationDeg: 90 }),
       picture: after,
-    }).steps[0]!;
+    }).steps[0] as DiagramStep;
     // Where the arrow's tail was on the paper, turned, in the new frame.
     const { bounds: was } = sceneBefore;
     const { bounds: is } = storedScene(after)!;
@@ -157,7 +157,7 @@ describe('a linked picture turned about its middle', () => {
     const turnedRaster = setLinkedPicture(document, 'step-1', {
       source: cpSource({ mode: 'crease-pattern', rotationDeg: 15 }),
       picture: raster('raster-15'),
-    }).steps[0]!;
+    }).steps[0] as DiagramStep;
     expect(turnedRaster.annotations).toEqual([ARROW]);
     expect(annotationsOutOfStep(turnedRaster)).toBe(true);
   });
@@ -167,11 +167,11 @@ describe('a linked picture turned about its middle', () => {
     const refolded = setLinkedPicture(document, 'step-1', {
       source: { ...cpSource({ mode: 'crease-pattern', rotationDeg: 90 }), fingerprint: 'fp-2' },
       picture: { ...scenePicture(), key: 'scene-refolded' },
-    }).steps[0]!;
+    }).steps[0] as DiagramStep;
     expect(refolded.annotations).toEqual([ARROW]);
     expect(annotationsOutOfStep(refolded)).toBe(true);
 
-    const replaced = setStepPicture(document, 'step-1', ASSET).steps[0]!;
+    const replaced = stepsIn(setStepPicture(document, 'step-1', ASSET))[0]!;
     expect(replaced.annotations).toEqual([ARROW]);
     expect(annotationsOutOfStep(replaced)).toBe(true);
 

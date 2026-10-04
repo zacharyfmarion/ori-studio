@@ -97,7 +97,8 @@ const text = () => host?.textContent ?? '';
 const button = (label: string) =>
   [...(host?.querySelectorAll('button') ?? [])].find((candidate) => candidate.textContent === label);
 const options = () => [...(host?.querySelectorAll<HTMLElement>('[role="option"]') ?? [])];
-const pulled = (count: number) => Array.from({ length: count }, () => ({}) as ReferencesBrowser['pullable'][number]);
+const pulled = (count: number, kind: 'fold' | 'turn-over' = 'fold') =>
+  Array.from({ length: count }, () => ({ card: { kind } }) as ReferencesBrowser['pullable'][number]);
 
 const surface = () => host!.querySelector<HTMLElement>('[role="document"]')!;
 const key = (target: Element, init: KeyboardEventInit) =>

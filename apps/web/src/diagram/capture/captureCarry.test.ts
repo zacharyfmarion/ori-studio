@@ -20,6 +20,7 @@ import { storedScene } from '../pictures/pictureFrame';
 import { cpDocument, fakeCaptureRuntime, movedLines, TWO_SQUARES, twoSquaresSegmentation } from './capture.fixtures';
 import { knownCreasesOf } from './captureCreases';
 import { captureStep } from './captureFolded';
+import { stepsIn } from '../document/diagramSteps.fixtures';
 
 /**
  * Annotations carried through a linked step's turns, on pictures the capture
@@ -80,7 +81,7 @@ async function turnTo(document: DiagramDocument, render: DiagramCpRender): Promi
 }
 
 function expectOnMark(document: DiagramDocument) {
-  const step = document.steps[0]!;
+  const step = stepsIn(document)[0]!;
   const scene = storedScene(step.picture as DiagramScenePicture)!;
   const [x, y] = inPicture(scene, mark(scene));
   const arrow = step.annotations[0] as KnownDiagramAnnotation;
@@ -90,7 +91,7 @@ function expectOnMark(document: DiagramDocument) {
   expect(annotationsOutOfStep(step)).toBe(false);
 }
 
-const axis = (document: DiagramDocument) => (document.steps[0]!.annotations[1] as KnownDiagramAnnotation).axis;
+const axis = (document: DiagramDocument) => (stepsIn(document)[0]!.annotations[1] as KnownDiagramAnnotation).axis;
 
 describe('annotations on a linked crease pattern, turned', () => {
   it('stay on their crease at every 15° press, and come back with Reset', async () => {
@@ -126,8 +127,8 @@ describe('annotations on a linked flat model, turned', () => {
   it('stay where they were, out of step, on the other side or another layer order', async () => {
     const document = await annotatedAt(FLAT);
     for (const render of [{ ...FLAT, side: 'back' as const, rotationDeg: 30 }, { ...FLAT, foldCase: 2, rotationDeg: 30 }]) {
-      const step = (await turnTo(document, render)).steps[0]!;
-      expect(step.annotations).toBe(document.steps[0]!.annotations);
+      const step = stepsIn((await turnTo(document, render)))[0]!;
+      expect(step.annotations).toBe(stepsIn(document)[0]!.annotations);
       expect(annotationsOutOfStep(step)).toBe(true);
     }
   });
@@ -138,7 +139,7 @@ describe('annotations on a linked flat model, turned', () => {
 describe('annotations on a linked crease pattern, after its pattern moved', () => {
   it('stay on their crease when the moved sheet is turned, as the link follows it', async () => {
     const document = await annotatedAt({ mode: 'crease-pattern', rotationDeg: 0 });
-    const source = document.steps[0]!.source as DiagramCpSource;
+    const source = stepsIn(document)[0]!.source as DiagramCpSource;
     const [dx, dy] = [312.7, -88.1];
     const result = await captureStep(fakeCaptureRuntime(), {
       document: cpDocument(movedLines(TWO_SQUARES, dx, dy)),

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { SentReferencesStep } from '../../diagram/document/diagramDocument';
-import { referencesSource, stepDiagramPicture } from '../../diagram/document/diagramSteps.fixtures';
+import { referencesSource, stepDiagramPicture, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { useWorkspaceStore } from '../workspaceStore';
 
 /** The References browser in the Diagram's centre (D20), through the store. */
@@ -37,16 +37,16 @@ describe('the References browser', () => {
     const last = state().addDiagramStep()!;
     state().openDiagramReferencesBrowser({ kind: 'after', stepId: first });
     const past = state().diagramHistory.past.length;
-    const stepIds = state().pullReferencesDiagramSteps([card(1), card(2)], { kind: 'after', stepId: first }, {
+    const { stepIds } = state().pullReferencesDiagramSteps([card(1), card(2)], { kind: 'after', stepId: first }, {
       loadId: state().diagramLoadId,
       label: 'Add steps from References',
     })!;
-    expect(state().diagram!.steps.map((step) => step.id)).toEqual([first, ...stepIds, last]);
+    expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first, ...stepIds, last]);
     expect(state().diagramHistory.past.length).toBe(past + 1);
     expect(state().diagramSelectedStepId).toBe(stepIds[1]);
     expect(state().diagramReferencesBrowser).toBeNull();
     state().undoDiagram();
-    expect(state().diagram!.steps.map((step) => step.id)).toEqual([first, last]);
+    expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first, last]);
   });
 
   it('drops a pull pressed in a browser that has closed since: nothing added, the open one left open', () => {
@@ -61,7 +61,7 @@ describe('the References browser', () => {
     expect(state().diagramReferencesBrowser).not.toBeNull();
     // Pressed in the one open now, it lands.
     const now = state().diagramReferencesBrowser!.opening;
-    expect(state().pullReferencesDiagramSteps([card(1)], { kind: 'after', stepId }, { loadId: state().diagramLoadId, label, opening: now })).toHaveLength(1);
+    expect(state().pullReferencesDiagramSteps([card(1)], { kind: 'after', stepId }, { loadId: state().diagramLoadId, label, opening: now })?.stepIds).toHaveLength(1);
   });
 
   it('drops a pull begun against a diagram that has since been replaced, and refuses on a read-only one', () => {

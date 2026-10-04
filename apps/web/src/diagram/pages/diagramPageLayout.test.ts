@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAGE_SETUP, type DiagramPageSetup } from '../document/diagramDocument';
-import { layoutDiagramPages, STEP_TEXT_LEADING_MM, type LayoutStep } from './diagramPageLayout';
+import { layoutDiagramPages, STEP_TEXT_LEADING_MM, TURN_GUTTER_MM, type LayoutStep, type LayoutTurn } from './diagramPageLayout';
 import { readFontMetrics, type FontMetrics } from '../fonts/fontMetrics';
 import { estimateTextSetter } from './estimateTextSetter';
 import { fontTextSetter } from './fontTextSetter';
@@ -13,7 +13,15 @@ const LONG =
   'Fold the bottom edge up to the top edge, crease firmly, unfold, then fold both sides in to meet the centre line and turn the model over carefully.';
 
 function step(index: number, patch: Partial<LayoutStep> = {}): LayoutStep {
-  return { id: `step-${index}`, text: SHORT, breakBefore: false, picture: { kind: 'paper', extentUnits: 400 }, ...patch };
+  return {
+    id: `step-${index}`,
+    text: SHORT,
+    breakBefore: false,
+    picture: { kind: 'paper', extentUnits: 400 },
+    turnsBefore: [],
+    turnsAfter: [],
+    ...patch,
+  };
 }
 
 const steps = (count: number, patch: (index: number) => Partial<LayoutStep> = () => ({})) =>
@@ -202,5 +210,73 @@ describe('layoutDiagramPages', () => {
     const result = layout([]);
     expect(result.pages).toHaveLength(1);
     expect(result.pages[0]!.cells).toEqual([]);
+  });
+});
+
+describe('turns between steps on the page (D22)', () => {
+  const over = (id: string): LayoutTurn => ({ id, turn: { kind: 'turn-over', axis: 'vertical' } });
+  const centreOf = (cell: { pictureMm: { x: number; y: number; size: number } }) => ({
+    x: cell.pictureMm.x + cell.pictureMm.size / 2,
+    y: cell.pictureMm.y + cell.pictureMm.size / 2,
+  });
+
+  it('keeps a gutter between all the pictures of a diagram with a turn: one scale, a little smaller', () => {
+    // Landscape A4 at 5 × 2: cells narrow enough that their width, not their height, sets the box.
+    const setup = { orientation: 'landscape', columns: 5, rows: 2 } as const;
+    const plain = layout(steps(4), setup);
+    const turning = layout(steps(4, (index) => (index === 2 ? { turnsBefore: [over('turn-a')] } : {})), setup);
+    const box = (result: typeof plain) => result.pages[0]!.cells[0]!.pictureMm.size;
+    expect(box(turning)).toBeCloseTo(box(plain) - (TURN_GUTTER_MM - 6), 6);
+    // Every picture, not only the two beside the turn.
+    expect(new Set(turning.pages[0]!.cells.map((cell) => cell.pictureMm.size)).size).toBe(1);
+  });
+
+  it('prints a turn midway between two pictures on a row, at their height', () => {
+    const result = layout(steps(3, (index) => (index === 1 ? { turnsBefore: [over('turn-a')] } : {})));
+    const [a, b] = result.pages[0]!.cells;
+    const [turn] = result.pages[0]!.turns;
+    expect(turn).toMatchObject({ id: 'turn-a', turn: { kind: 'turn-over' } });
+    const right = a!.pictureMm.x + a!.pictureMm.size;
+    expect(turn!.at.x).toBeCloseTo((right + b!.pictureMm.x) / 2, 6);
+    expect(turn!.at.y).toBeCloseTo(centreOf(a!).y, 6);
+  });
+
+  it('prints one across a row or a page at the next picture’s leading edge, and one after the last at its trailing edge', () => {
+    const list = steps(4, (index) =>
+      index === 3 ? { turnsBefore: [over('turn-row')], turnsAfter: [over('turn-end')] } : {}
+    );
+    const result = layout(list, { columns: 3, rows: 3 });
+    const cells = result.pages[0]!.cells;
+    const byId = new Map(result.pages[0]!.turns.map((turn) => [turn.id, turn]));
+    const fourth = cells[3]!;
+    // Step 4 starts the second row: the turn before it sits at its left, half a gutter out.
+    const gutter = fourth.cellMm.w - fourth.pictureMm.size;
+    expect(byId.get('turn-row')!.at.x).toBeCloseTo(fourth.pictureMm.x - gutter / 2, 6);
+    expect(byId.get('turn-row')!.at.y).toBeCloseTo(centreOf(fourth).y, 6);
+    expect(byId.get('turn-end')!.at.x).toBeCloseTo(fourth.pictureMm.x + fourth.pictureMm.size + gutter / 2, 6);
+  });
+
+  it('reads a flow row that runs right to left from its right', () => {
+    const list = steps(4, (index) => (index === 3 ? { turnsBefore: [over('turn-a')] } : {}));
+    const result = layout(list, { layout: 'flow', columns: 2, rows: 3 });
+    // Steps 3 and 4 share the second row, read right to left: the turn is between them.
+    const [, , third, fourth] = result.pages[0]!.cells;
+    expect(third!.pictureMm.x).toBeGreaterThan(fourth!.pictureMm.x);
+    const [turn] = result.pages[0]!.turns;
+    expect(turn!.at.x).toBeCloseTo((fourth!.pictureMm.x + fourth!.pictureMm.size + third!.pictureMm.x) / 2, 6);
+  });
+
+  it('stands several turns in one place one above another, and keeps them on the paper', () => {
+    const list = steps(1, () => ({ turnsBefore: [over('turn-a'), over('turn-b')] }));
+    const result = layout(list, { marginMm: 0 });
+    const [a, b] = result.pages[0]!.turns;
+    expect(a!.at.x).toBe(b!.at.x);
+    expect(b!.at.y - a!.at.y).toBeCloseTo(8, 6);
+    expect(a!.at.x).toBeGreaterThanOrEqual(TURN_GUTTER_MM / 2);
+  });
+
+  it('prints none on a diagram without turns, and keeps its pictures their size', () => {
+    const result = layout(steps(3));
+    expect(result.pages[0]!.turns).toEqual([]);
   });
 });

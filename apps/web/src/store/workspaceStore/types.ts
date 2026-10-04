@@ -49,7 +49,8 @@ import type { SnapshotHistory } from './snapshotHistory';
 import type {
   DiagramCpSource,
   DiagramPullAnchor,
-  SentReferencesStep,
+  DiagramTurnKind,
+  SentReferencesEntry,
   DiagramDocument,
   DiagramHanStyle,
   DiagramAnnotationKind,
@@ -1937,6 +1938,14 @@ export interface DiagramSliceActions {
   addDiagramStep: () => string | null;
   /** Add an empty step before or after a given one, and select it. */
   insertDiagramStep: (stepId: string, where: 'before' | 'after') => string | null;
+  /**
+   * Add a turn (D22) — before or after a given entry, or where an add lands
+   * (after the selection, or at the end) — and select it. Its id, or null on a
+   * read-only diagram.
+   */
+  insertDiagramTurn: (kind: DiagramTurnKind, at?: { stepId: string; where: 'before' | 'after' }) => string | null;
+  /** Change what a turn is: its axis, or how far and which way it rotates. Whether it changed. */
+  setDiagramTurn: (turnId: string, kind: DiagramTurnKind) => boolean;
   /** Delete steps; the selection moves to the step that took the first one's place. */
   deleteDiagramSteps: (stepIds: readonly string[]) => boolean;
   /**
@@ -2076,10 +2085,10 @@ export interface DiagramSliceActions {
    * cards became, or null.
    */
   pullReferencesDiagramSteps: (
-    sent: readonly SentReferencesStep[],
+    sent: readonly SentReferencesEntry[],
     anchor: DiagramPullAnchor,
     options: { loadId: number; label: string; opening?: number }
-  ) => string[] | null;
+  ) => { stepIds: string[]; turnIds: string[] } | null;
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;
 }

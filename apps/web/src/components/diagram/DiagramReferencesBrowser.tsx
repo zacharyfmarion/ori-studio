@@ -403,9 +403,17 @@ function browserTitle(browser: ReferencesBrowser, t: TFunction): string {
     : t('panels:diagram.references.titleReplace', 'Replace step {{number}}’s card', { number });
 }
 
-/** The verb, as what it will do: how many steps, and where. */
+/** The verb, as what it will do: how many steps, and where. A turn-over card is no step (D22). */
 function addLabel(browser: ReferencesBrowser, t: TFunction): string {
-  const count = Math.max(1, browser.pullable.length);
+  const steps = browser.pullable.filter((pulled) => pulled.card.kind !== 'turn-over').length;
+  if (steps === 0 && browser.pullable.length > 0) {
+    return t('panels:diagram.references.addTurnOvers', {
+      count: browser.pullable.length,
+      defaultValue_one: 'Add turn-over',
+      defaultValue_other: 'Add {{count}} turn-overs',
+    });
+  }
+  const count = Math.max(1, steps);
   const { anchor } = browser.state;
   const number = browser.anchorNumber;
   if (number === null || anchor.kind === 'end') {

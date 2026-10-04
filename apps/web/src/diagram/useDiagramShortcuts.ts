@@ -11,7 +11,7 @@ import { openDiagramStep } from './useDiagramActions';
 import type { WorkspaceState } from '../store/workspaceStore/types';
 import { isDiagramAnnotating } from '../store/workspaceStore/diagramState';
 import { flipAnnotationArc, isArrowKind } from './annotate/annotationModel';
-import { isKnownAnnotation, stepIndex, type KnownDiagramAnnotation } from './document/diagramDocument';
+import { isKnownAnnotation, stepById, stepsOf, type KnownDiagramAnnotation } from './document/diagramDocument';
 import {
   focusLeavesEnterToSteps,
   focusOwnsArrowKeys,
@@ -24,7 +24,10 @@ import {
 
 function keyState(state: WorkspaceState): DiagramKeyState {
   return {
-    stepIds: state.diagram?.steps.map((step) => step.id) ?? [],
+    // The grid walks its steps and the turns between them (D22); the detail, which shows steps, the steps.
+    stepIds: !state.diagram
+      ? []
+      : (state.diagramDetail !== null ? stepsOf(state.diagram) : state.diagram.steps).map((entry) => entry.id),
     selectedStepId: state.diagramSelectedStepId,
     focusedStepId: focusedStepId(),
     readOnly: state.diagramReadOnly,
@@ -49,7 +52,7 @@ function isArrowAnnotation(annotation: KnownDiagramAnnotation | null): boolean {
 function selectedAnnotation(state: WorkspaceState): KnownDiagramAnnotation | null {
   const { diagram, diagramSelectedStepId: stepId, diagramSelectedAnnotationId: id } = state;
   if (!diagram || stepId === null || id === null) return null;
-  const annotation = diagram.steps[stepIndex(diagram, stepId)]?.annotations.find((candidate) => candidate.id === id);
+  const annotation = stepById(diagram, stepId)?.annotations.find((candidate) => candidate.id === id);
   return annotation && isKnownAnnotation(annotation) ? annotation : null;
 }
 

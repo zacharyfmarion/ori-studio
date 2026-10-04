@@ -38,6 +38,9 @@
     "dropReadOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura, então não é possível adicionar imagens.",
     "references": {
       "addedSteps": "Adicionados como passos {{first}}–{{last}}",
+      "addedTurnOvers_one": "Virada adicionada",
+      "addedTurnOvers_many": "{{count}} viradas adicionadas",
+      "addedTurnOvers_other": "{{count}} viradas adicionadas",
       "filledStep": "Passo {{number}} preenchido",
       "replacedStep": "Cartão do passo {{number}} substituído",
       "tooLarge": "Este passo é detalhado demais para ser mantido no diagrama."

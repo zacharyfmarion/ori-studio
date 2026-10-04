@@ -7,13 +7,19 @@
  * the subsetter are kept by their modules, so a new call costs the layout and
  * the pages it composes, not a download.
  */
-import { stepAsset, type DiagramDocument } from '../document/diagramDocument';
+import { isTurn, stepAsset, stepsOf, type DiagramDocument } from '../document/diagramDocument';
 import type { DiagramFontFace } from '../fonts/diagramFontFaces';
 import { loadDiagramFonts, type DiagramFontSource, type DiagramFontText, type DiagramFonts } from '../fonts/diagramFonts';
 import { embeddedFontFaces } from '../fonts/fontEmbedding';
 import type { FontSubsetter } from '../fonts/fontSubset';
 import { composeDiagramPage, type ComposedPage } from './composeDiagramPage';
-import { layoutDiagramPages, type DiagramPagesLayout, type LayoutStep, type TextSetter } from './diagramPageLayout';
+import {
+  layoutDiagramPages,
+  type DiagramPagesLayout,
+  type LayoutStep,
+  type LayoutTurn,
+  type TextSetter,
+} from './diagramPageLayout';
 import { fontTextSetter } from './fontTextSetter';
 import { uploadTextRuns, type UploadTextRun } from '../upload/uploadText';
 import { layoutPicture } from './pagePictures';
@@ -37,14 +43,33 @@ export interface PreparedDiagramPages {
   compose: (index: number) => ComposedPage;
 }
 
-/** What the layout needs of each step, its References steps measured at `mmPerUnit` when known. */
+/**
+ * What the layout needs of each step, its References steps measured at
+ * `mmPerUnit` when known; each with the turns between it and the step before
+ * (D22), the last with any after it.
+ */
 export function diagramLayoutSteps(document: DiagramDocument, mmPerUnit: number | null = null): LayoutStep[] {
-  return document.steps.map((step) => ({
-    id: step.id,
-    text: step.text,
-    breakBefore: step.breakBefore,
-    picture: layoutPicture(step, document.assets, document.style, mmPerUnit),
-  }));
+  const steps: LayoutStep[] = [];
+  let turns: LayoutTurn[] = [];
+  for (const entry of document.steps) {
+    if (isTurn(entry)) {
+      const { id, ...turn } = entry;
+      turns.push({ id, turn });
+      continue;
+    }
+    steps.push({
+      id: entry.id,
+      text: entry.text,
+      breakBefore: entry.breakBefore,
+      picture: layoutPicture(entry, document.assets, document.style, mmPerUnit),
+      turnsBefore: turns,
+      turnsAfter: [],
+    });
+    turns = [];
+  }
+  const last = steps.at(-1);
+  if (last && turns.length > 0) steps[steps.length - 1] = { ...last, turnsAfter: turns };
+  return steps;
 }
 
 /**
@@ -55,7 +80,7 @@ export function diagramLayoutSteps(document: DiagramDocument, mmPerUnit: number 
  */
 export function layoutDiagram(document: DiagramDocument, setter: TextSetter): DiagramPagesLayout {
   const first = layoutDiagramPages(diagramLayoutSteps(document), document.page, document.title, setter);
-  const reaching = document.steps.some(
+  const reaching = stepsOf(document).some(
     (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
   );
   if (first.mmPerUnit === null || !reaching) return first;
@@ -70,7 +95,7 @@ export function layoutDiagram(document: DiagramDocument, setter: TextSetter): Di
 export function diagramFontTexts(document: DiagramDocument): DiagramFontText[] {
   return [
     { text: document.title, weight: 700 },
-    ...document.steps.map((step) => ({ text: step.text, weight: 400 as const })),
+    ...stepsOf(document).map((step) => ({ text: step.text, weight: 400 as const })),
     ...[...diagramUploadTexts(document), ...diagramLabelTexts(document)].map(({ face, text }) =>
       face.key === 'latin' ? { text, weight: face.weight } : { text, weight: face.weight, cjk: face.key }
     ),
@@ -79,14 +104,14 @@ export function diagramFontTexts(document: DiagramDocument): DiagramFontText[] {
 
 /** The runs of text the diagram's steps' labels set. */
 export function diagramLabelTexts(document: DiagramDocument): UploadTextRun[] {
-  return document.steps.flatMap((step) => annotationTextRuns(step.annotations, document.hanStyle));
+  return stepsOf(document).flatMap((step) => annotationTextRuns(step.annotations, document.hanStyle));
 }
 
 /** The runs of text in the uploads the diagram's steps show, each upload once. */
 export function diagramUploadTexts(document: DiagramDocument): UploadTextRun[] {
   const seen = new Set<string>();
   const runs: UploadTextRun[] = [];
-  for (const step of document.steps) {
+  for (const step of stepsOf(document)) {
     const asset = stepAsset(document, step);
     if (asset?.kind !== 'svg' || seen.has(asset.id)) continue;
     seen.add(asset.id);
@@ -118,7 +143,7 @@ export function preparedPages(
   for (const { face, text } of [...diagramUploadTexts(document), ...diagramLabelTexts(document)]) {
     setter.runs(text, face);
   }
-  const steps = new Map(document.steps.map((step) => [step.id, step]));
+  const steps = new Map(stepsOf(document).map((step) => [step.id, step]));
   return {
     layout,
     setter,

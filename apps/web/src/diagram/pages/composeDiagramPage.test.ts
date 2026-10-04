@@ -7,17 +7,20 @@ import {
   createDiagram,
   createStep,
   insertSteps,
+  createTurn,
+  stepsOf,
   type DiagramDocument,
   type DiagramStep,
   type KnownDiagramAsset,
 } from '../document/diagramDocument';
-import { cpStep, fixedPicture, referencesStep } from '../document/diagramSteps.fixtures';
+import { cpStep, fixedPicture, referencesStep, stepsIn } from '../document/diagramSteps.fixtures';
 import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from '../fonts/diagramFontFaces';
 import type { DiagramFonts, LoadedDiagramFont } from '../fonts/diagramFonts';
 import { readFontMetrics } from '../fonts/fontMetrics';
 import { createFontSubsetter, type FontSubsetter } from '../fonts/fontSubset';
 import { PAGE_NUMBER_SIZE_MM } from './diagramPageLayout';
 import { preparedPages } from './diagramPages';
+import { composeDiagramPage } from './composeDiagramPage';
 import { layoutPicture } from './pagePictures';
 
 const FONT_DIR = resolve(process.cwd(), 'src/diagram/fonts');
@@ -147,13 +150,63 @@ describe('composeDiagramPage', () => {
 
   it('draws the linked pattern and the sent step at one scale: one pattern unit, one size', () => {
     const document = diagram();
-    for (const step of document.steps.slice(0, 2)) {
+    for (const step of stepsIn(document).slice(0, 2)) {
       expect(layoutPicture(step, document.assets, document.style)).toMatchObject({ kind: 'paper' });
     }
-    expect(layoutPicture(document.steps[2]!, document.assets, document.style)).toEqual({ kind: 'fit' });
+    expect(layoutPicture(stepsIn(document)[2]!, document.assets, document.style)).toEqual({ kind: 'fit' });
     const pages = preparedPages(document, FONTS, subsetter);
     const [cp, sent] = pages.layout.pages[0]!.cells;
     expect(cp!.mmPerUnit).toBe(pages.layout.mmPerUnit);
     expect(sent!.mmPerUnit).toBe(pages.layout.mmPerUnit);
+  });
+
+  it('draws a turn between two steps in the gutter, centred on its place, and numbers the steps on (D22)', () => {
+    const document = diagram();
+    const turned = insertSteps(document, [createTurn({ kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } })], 2);
+    const plain = preparedPages(document, FONTS, subsetter).compose(0).svg;
+    const pages = preparedPages(turned, FONTS, subsetter);
+    const [turn] = pages.layout.pages[0]!.turns;
+    expect(turn).toBeDefined();
+    const svg = pages.compose(0).svg;
+    const page = parse(svg);
+    expect(page.querySelector('parsererror')).toBeNull();
+    expect(svg.length).toBeGreaterThan(plain.length);
+    // The glyph's "1/4" is set in the diagram's own font, and the page embeds its digits.
+    const fraction = [...page.querySelectorAll('text')].find((text) => text.textContent === '1/4');
+    expect(fraction?.getAttribute('font-family')).toContain(DIAGRAM_FONT_FAMILY.latin);
+    let embedded: ReadonlyMap<string, string> = new Map();
+    composeDiagramPage({
+      layout: pages.layout,
+      page: pages.layout.pages[0]!,
+      steps: new Map(stepsOf(turned).map((step) => [step.id, step])),
+      assets: turned.assets,
+      style: turned.style,
+      hanStyle: turned.hanStyle,
+      setter: pages.setter,
+      embedFonts: (usage) => {
+        embedded = usage;
+        return '';
+      },
+    });
+    const digits = [...embedded.values()].join('');
+    for (const character of '1/4') expect(digits).toContain(character);
+    // Nothing on the page but the glyph sets a "/".
+    const plainUsage = new Map<string, string>();
+    composeDiagramPage({
+      layout: preparedPages(document, FONTS, subsetter).layout,
+      page: preparedPages(document, FONTS, subsetter).layout.pages[0]!,
+      steps: new Map(stepsOf(document).map((step) => [step.id, step])),
+      assets: document.assets,
+      style: document.style,
+      hanStyle: document.hanStyle,
+      setter: pages.setter,
+      embedFonts: (usage) => {
+        for (const [face, characters] of usage) plainUsage.set(face, characters);
+        return '';
+      },
+    });
+    expect([...plainUsage.values()].join('')).not.toContain('/');
+    // The third step is still number 3: the turn takes no number.
+    expect(pages.layout.pages[0]!.cells.map((cell) => cell.number)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 });

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PT_PER_MM } from '../../lib/paper/paperSvg';
-import { createDiagram, createStep, insertSteps, type DiagramDocument } from '../document/diagramDocument';
+import { createDiagram, createStep, createTurn, insertSteps, type DiagramDocument } from '../document/diagramDocument';
 import { cpStep, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
 import { FIXTURE_FONTS, fixtureSubsetter } from '../fonts/diagramFonts.fixtures';
 import type { FontSubsetter } from '../fonts/fontSubset';
@@ -110,6 +110,24 @@ describe('prepareStepFiles', () => {
     const files = prepareStepFiles(diagram(), FIXTURE_FONTS, subsetter, { ...SAME, transparent: false });
     expect(parse(files.compose(0).svg).querySelector('svg > rect')?.getAttribute('fill')).toBe('#ffffff');
     expect(parse(prepareStepFiles(diagram(), FIXTURE_FONTS, subsetter, SAME).compose(0).svg).querySelector('svg > rect')).toBeNull();
+  });
+
+  it('makes no file of a turn between steps, numbering and padding by the steps alone (D22)', () => {
+    const document = diagram();
+    const nine = { ...document, steps: document.steps.slice(0, 9) };
+    // A turn before step 2 and one after the last: ten entries, nine steps — one digit still.
+    const turning = insertSteps(
+      insertSteps(nine, [createTurn({ kind: 'turn-over', axis: 'vertical' })], 1),
+      [createTurn({ kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } })],
+      10
+    );
+    const files = prepareStepFiles(turning, FIXTURE_FONTS, subsetter, SAME);
+    expect(files.files.map((file) => [file.number, file.fileStem])).toEqual([
+      [1, 'Crane-step-1'],
+      [3, 'Crane-step-3'],
+      [4, 'Crane-step-4'],
+    ]);
+    expect(files.skipped).toEqual([2, 5, 6, 7, 8, 9]);
   });
 
   it('pads the number to the step count, and keeps a skipped step’s number for the next', () => {

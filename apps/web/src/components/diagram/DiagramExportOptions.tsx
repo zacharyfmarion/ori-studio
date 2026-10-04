@@ -181,7 +181,11 @@ export function DiagramExportOptions({
         </section>
       )}
 
-      {(binding.empty.length > 0 || binding.cut.length > 0 || binding.missing.length > 0 || binding.unavailable) && (
+      {(binding.empty.length > 0 ||
+        binding.cut.length > 0 ||
+        binding.missing.length > 0 ||
+        binding.unavailable ||
+        (!pdf && binding.turns > 0)) && (
         <Notice tone={(pdf && binding.missing.length > 0) || binding.unavailable ? 'warning' : 'info'}>
           <ul className={styles.notes}>
             {binding.unavailable && (
@@ -215,6 +219,15 @@ export function DiagramExportOptions({
             {binding.empty.length > 0 && <li>{emptySentence(t, pdf, steps(binding.empty), binding.empty.length)}</li>}
             {binding.cut.length > 0 && (
               <li>{cutSentence(t, steps(binding.cut), binding.cut.length)}</li>
+            )}
+            {!pdf && binding.turns > 0 && (
+              <li>
+                {t('dialogs:diagramExport.turnsLeftOut', {
+                  count: binding.turns,
+                  defaultValue_one: 'The turn between steps prints on the pages; the step files leave it out.',
+                  defaultValue_other: 'The {{count}} turns between steps print on the pages; the step files leave them out.',
+                })}
+              </li>
             )}
           </ul>
         </Notice>

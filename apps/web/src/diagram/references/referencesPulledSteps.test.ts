@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { cpDocument, TWO_SQUARES, twoSquaresSegmentation, type FixtureLine } from '../capture/capture.fixtures';
 import { linkStatus } from '../capture/linkStatus';
 import { SENT_MODEL } from '../document/diagramSteps.fixtures';
+import { stepsOf } from '../document/diagramDocument';
 import { STEP_DIAGRAM_MAX_PRIMITIVES } from '../document/stepDiagramModelFile';
 import { pullFromReferences, referencesCardPicture, type PulledCard, type ReferencesPull } from './referencesPulledSteps';
 
@@ -17,6 +18,7 @@ vi.mock('../../cp-workspace/cpSegmentationArtifacts', async (importOriginal) => 
 const analytics = vi.hoisted(() => ({
   trackDiagramStepAdded: vi.fn(),
   trackDiagramStepsPulledFromReferences: vi.fn(),
+  trackDiagramTurnAdded: vi.fn(),
 }));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
@@ -29,7 +31,8 @@ const segmentation = twoSquaresSegmentation();
 const [left] = resolveCpSegments(segmentation);
 const initialState = useWorkspaceStore.getInitialState();
 const state = () => useWorkspaceStore.getState();
-const steps = () => state().diagram?.steps ?? [];
+// The steps alone: a turn-over card is pulled as a turn between them (D22).
+const steps = () => (state().diagram ? stepsOf(state().diagram!) : []);
 
 /** The left square as the planner outlines it: its corners, from another one. */
 const LEFT_OUTLINE: [number, number][] = [
@@ -148,25 +151,52 @@ describe('pulling cards from References', () => {
     expect(toasts.error).toHaveBeenCalledWith('The crease pattern isn’t ready yet. Try again in a moment.');
   });
 
-  it('adds a range as consecutive steps, one undo step, after the step it was opened for', async () => {
+  it('adds a range as consecutive steps, its turn-over a turn between them, one undo step, after the step it was opened for', async () => {
     const first = state().addDiagramStep()!;
     state().addDiagramStep();
     const before = state().diagramHistory.past.length;
     state().openDiagramReferencesBrowser({ kind: 'after', stepId: first });
     const outcome = await pull({ cards: [card(1), card(null, true), card(2, true)], anchor: { kind: 'after', stepId: first } });
     if (outcome.status !== 'pulled') throw new Error('pulled');
-    expect(steps().map((step) => step.id)).toEqual([first, ...outcome.stepIds, expect.any(String)]);
-    expect(steps()[2]).toMatchObject({
-      text: 'Turn the paper over.',
-      source: { card: null, side: 'back' },
-      picture: { mirrored: true },
-    });
+    // The turn-over card is a turn between the two (D22): no step, no number.
+    const entries = state().diagram!.steps;
+    expect(entries.map((entry) => entry.id)).toEqual([
+      first,
+      outcome.stepIds[0],
+      outcome.turnIds[0],
+      outcome.stepIds[1],
+      expect.any(String),
+    ]);
+    expect(entries[2]).toEqual({ id: outcome.turnIds[0], kind: 'turn-over', axis: 'vertical' });
+    expect(steps()[2]).toMatchObject({ text: 'Fold 2.', picture: { mirrored: true } });
     expect(state().diagramHistory.past).toHaveLength(before + 1);
     expect(state().diagramHistory.past.at(-1)?.label).toBe('Add steps from References');
-    // The last is selected, and the browser has closed on the steps.
-    expect(state().diagramSelectedStepId).toBe(outcome.stepIds[2]);
+    // The last step is selected, and the browser has closed on the steps.
+    expect(state().diagramSelectedStepId).toBe(outcome.stepIds[1]);
     expect(state().diagramReferencesBrowser).toBeNull();
-    expect(toasts.success).toHaveBeenCalledWith('Added as steps 2–4');
+    // Numbered without the turn: steps 2 and 3.
+    expect(toasts.success).toHaveBeenCalledWith('Added as steps 2–3');
+    expect(analytics.trackDiagramTurnAdded).toHaveBeenCalledWith('turn-over', 'references');
+  });
+
+  it('adds a turn-over pulled on its own as a turn, before the empty step it was opened for', async () => {
+    state().addDiagramStep();
+    const empty = state().addDiagramStep()!;
+    const outcome = await pull({ cards: [card(null)], anchor: { kind: 'fill', stepId: empty } });
+    if (outcome.status !== 'pulled') throw new Error('pulled');
+    expect(outcome.stepIds).toEqual([]);
+    const entries = state().diagram!.steps;
+    expect(entries.map((entry) => entry.id)).toEqual([expect.any(String), outcome.turnIds[0], empty]);
+    expect(toasts.success).toHaveBeenCalledWith('Added a turn-over');
+  });
+
+  it('never fills or replaces with a turn-over: the one before the card goes before the step it fills', async () => {
+    const empty = state().addDiagramStep()!;
+    const outcome = await pull({ cards: [card(null), card(1)], anchor: { kind: 'fill', stepId: empty } });
+    if (outcome.status !== 'pulled') throw new Error('pulled');
+    expect(outcome.into).toBe('fill');
+    expect(state().diagram!.steps.map((entry) => entry.id)).toEqual([outcome.turnIds[0], empty]);
+    expect(steps()[0]).toMatchObject({ id: empty, text: 'Fold 1.' });
   });
 
   it('fills the empty step it was opened for, counting only the new steps as added', async () => {

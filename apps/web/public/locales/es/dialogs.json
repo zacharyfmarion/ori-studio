@@ -203,6 +203,9 @@
     "textHelp": "Déjalo desactivado para componer el texto en tu propia app de maquetación.",
     "title": "Exportar el diagrama",
     "transparent": "Fondo transparente",
+    "turnsLeftOut_one": "La vuelta entre pasos se imprime en las páginas; los archivos de pasos la omiten.",
+    "turnsLeftOut_many": "Las {{count}} vueltas entre pasos se imprimen en las páginas; los archivos de pasos las omiten.",
+    "turnsLeftOut_other": "Las {{count}} vueltas entre pasos se imprimen en las páginas; los archivos de pasos las omiten.",
     "width": "Ancho",
     "writingPdf": "Creando el PDF…"
   },

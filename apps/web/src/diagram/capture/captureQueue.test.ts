@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { cpDocument, fakeCaptureRuntime, TWO_SQUARES, twoSquaresSegmentation, type FixtureLine } from './capture.fixtures';
 import type { CpCaptureRuntime } from './captureFolded';
 import { refreshAllDiagramSteps, stopRefreshAll } from './captureQueue';
+import { stepsIn } from '../document/diagramSteps.fixtures';
 
 const bindings = vi.hoisted(() => ({ runtime: null as CpCaptureRuntime | null }));
 vi.mock('../../store/workspaceStore/cpFoldRuntimeBindings', async (importOriginal) => ({
@@ -75,7 +76,7 @@ describe('Refresh all out-of-date steps', () => {
     state().addDiagramStep();
     const before = state().diagramHistory.past.length;
     useDocument(edited());
-    const fingerprints = () => state().diagram!.steps.map((step) => (step.source?.kind === 'cp' ? step.source.fingerprint : null));
+    const fingerprints = () => stepsIn(state().diagram!).map((step) => (step.source?.kind === 'cp' ? step.source.fingerprint : null));
     const stale = fingerprints();
     expect(await refreshAllDiagramSteps()).toBe(2);
     const fresh = fingerprints();

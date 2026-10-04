@@ -1,4 +1,4 @@
-import { stepIndex, type DiagramDocument } from '../../diagram/document/diagramDocument';
+import { stepById, stepsOf, type DiagramDocument } from '../../diagram/document/diagramDocument';
 import { stepCanBeAnnotated } from '../../diagram/pictures/pictureFrame';
 import { emptySnapshotHistory, type SnapshotHistory } from './snapshotHistory';
 import type { WorkspaceState } from './types';
@@ -54,8 +54,8 @@ export function isDiagramAnnotating(
 ): boolean {
   const { diagram, diagramDetail, diagramSelectedStepId } = state;
   if (diagramDetail !== 'annotate' || !diagram || diagramSelectedStepId === null) return false;
-  const step = diagram.steps[stepIndex(diagram, diagramSelectedStepId)];
-  return step !== undefined && stepCanBeAnnotated(step, diagram.assets);
+  const step = stepById(diagram, diagramSelectedStepId);
+  return step !== null && stepCanBeAnnotated(step, diagram.assets);
 }
 
 /**
@@ -136,7 +136,7 @@ function bytesOf(value: object): number {
 function heavyParts(document: DiagramDocument | null): object[] {
   if (!document) return [];
   const parts: object[] = [];
-  for (const step of document.steps) {
+  for (const step of stepsOf(document)) {
     if (step.unknown) parts.push(step.unknown);
     const picture = step.picture as unknown;
     if (picture && typeof picture === 'object') parts.push(picture);

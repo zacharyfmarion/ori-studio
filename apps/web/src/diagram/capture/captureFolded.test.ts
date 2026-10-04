@@ -27,6 +27,7 @@ import {
 } from './capture.fixtures';
 import { captureStep, SCENE_BUDGET_BYTES, storeScene, type CaptureStepRequest } from './captureFolded';
 import { CAPTURE_PX_PER_UNIT } from './captureGeometry';
+import { stepsIn } from '../document/diagramSteps.fixtures';
 
 const folded3dStoredScene = vi.hoisted(() => ({ folded3dFigureScene: vi.fn() }));
 vi.mock('../../cp-workspace/folded/folded3dStoredScene', async (importOriginal) => ({
@@ -190,7 +191,7 @@ describe('captureStep, flat', () => {
       { ...createStep(() => 'step-1'), source: result.source, picture },
     ], 0);
     const read = readDiagram(JSON.parse(JSON.stringify(writeDiagram(document))))!;
-    expect(read.document.steps[0]!.picture).toEqual(picture);
+    expect(stepsIn(read.document)[0]!.picture).toEqual(picture);
     expect(runtime.free).toHaveBeenCalledWith(3);
   });
 

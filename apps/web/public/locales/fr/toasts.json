@@ -38,6 +38,9 @@
     "dropReadOnly": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule\u00a0: on ne peut pas y ajouter d’images.",
     "references": {
       "addedSteps": "Ajoutées comme étapes {{first}}–{{last}}",
+      "addedTurnOvers_one": "Retournement ajouté",
+      "addedTurnOvers_many": "{{count}} retournements ajoutés",
+      "addedTurnOvers_other": "{{count}} retournements ajoutés",
       "filledStep": "Étape {{number}} remplie",
       "replacedStep": "Carte de l’étape {{number}} remplacée",
       "tooLarge": "Cette étape est trop détaillée pour être conservée dans le diagramme."

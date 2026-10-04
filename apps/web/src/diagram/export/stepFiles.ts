@@ -48,6 +48,7 @@ import {
   textSlotMm,
   type StepFileOptions,
 } from './stepFileGeometry';
+import { stepsOf } from '../document/diagramDocument';
 
 export { STEP_FILE_MM_RANGE, STEP_FILE_TEXT_LINES, stepFileMinHeightMm, type StepFileOptions } from './stepFileGeometry';
 
@@ -94,22 +95,24 @@ export function prepareStepFiles(
 ): PreparedStepFiles {
   const setter = fontTextSetter((key, weight) => fonts.font(key, weight)?.metrics ?? null, document.hanStyle);
   const box = pictureBoxOf(options);
+  // A file per step: a turn between two (D22) has no picture of its own.
+  const steps = stepsOf(document);
   // Twice when a References step is measured: its letters keep their pt size,
   // so how far they reach past its sheet is known only at the scale found first.
   let layoutSteps = diagramLayoutSteps(document);
   let scale = sharedScale(layoutSteps, box.size);
-  if (scale !== null && document.steps.some((step) => step.picture?.kind === 'step-diagram')) {
+  if (scale !== null && steps.some((step) => step.picture?.kind === 'step-diagram')) {
     layoutSteps = diagramLayoutSteps(document, scale);
     scale = sharedScale(layoutSteps, box.size);
   }
 
-  const digits = String(document.steps.length).length;
+  const digits = String(steps.length).length;
   const title = document.title.trim() || 'Diagram';
   const files: (StepFile & { index: number; lines: SetLine[] })[] = [];
   const skipped: number[] = [];
   const cut: number[] = [];
   const textWidthMm = options.widthMm - 2 * PAD_MM;
-  document.steps.forEach((step, index) => {
+  steps.forEach((step, index) => {
     const number = index + 1;
     if (!stepPictureSource(step, document.assets)) {
       skipped.push(number);
@@ -146,7 +149,7 @@ export function prepareStepFiles(
     compose(fileIndex) {
       const file = files[fileIndex];
       if (!file) throw new RangeError(`No step file ${fileIndex}`);
-      const step = document.steps[file.index]!;
+      const step = steps[file.index]!;
       const usage = new Map<string, Set<string>>();
       const count = (face: string, text: string) => {
         const characters = usage.get(face) ?? new Set<string>();

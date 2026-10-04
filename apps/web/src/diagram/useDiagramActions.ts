@@ -7,12 +7,16 @@ import {
   trackDiagramPictureRemoved,
   trackDiagramStepAdded,
   trackDiagramStepOpened,
+  trackDiagramTurnAdded,
   type DiagramPictureKind,
+  type DiagramTurnAddedVia,
   type DiagramPoseAction as TrackedPoseAction,
   type DiagramStepOpenedVia,
 } from '../analytics';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import type { DiagramDetailMode } from '../store/workspaceStore/types';
+import { DEFAULT_ROTATION } from './annotate/annotationModel';
+import { buildDiagramTurnActions } from './actions/diagramTurnActions';
 import {
   buildDiagramStepActions,
   type DiagramStepAction,
@@ -35,6 +39,12 @@ import {
   type DiagramShowAs,
   type DiagramStep,
   type UploadPose,
+  stepById,
+  stepNumber,
+  stepsAround,
+  turnById,
+  type DiagramTurn,
+  type DiagramTurnKind,
 } from './document/diagramDocument';
 import {
   captureKind,
@@ -88,6 +98,25 @@ export function insertDiagramStepBeside(stepId: string, where: 'before' | 'after
   return newId;
 }
 
+/**
+ * Add a turn (D22) — after a given entry, or where an add lands (after the
+ * selection, or at the end) — and select it, counting where it was made.
+ * Null on a read-only diagram.
+ */
+export function insertDiagramTurn(
+  kind: 'turn-over' | 'rotate',
+  via: DiagramTurnAddedVia,
+  after?: string
+): string | null {
+  const turn: DiagramTurnKind =
+    kind === 'turn-over' ? { kind, axis: 'vertical' } : { kind, rotate: DEFAULT_ROTATION };
+  const turnId = useWorkspaceStore
+    .getState()
+    .insertDiagramTurn(turn, after === undefined ? undefined : { stepId: after, where: 'after' });
+  if (turnId) trackDiagramTurnAdded(kind, via);
+  return turnId;
+}
+
 /** {@link addDiagramStep}, as a stable callback. */
 export function useAddDiagramStep(): () => string | null {
   return useCallback(() => addDiagramStep(), []);
@@ -123,14 +152,17 @@ const TRACKED_POSE_ACTIONS: Record<DiagramPoseActionId, TrackedPoseAction> = {
  */
 export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAction[] {
   const { diagram, diagramReadOnly, diagramCaptures, oristudioCpDocument } = useWorkspaceStore.getState();
-  const index = diagram ? stepIndex(diagram, stepId) : -1;
-  if (!diagram || index < 0) return [];
-  const step = diagram.steps[index];
+  if (!diagram) return [];
+  const turn = turnById(diagram, stepId);
+  if (turn) return bindTurnActions(turn, stepIndex(diagram, stepId), diagram.steps.length, diagramReadOnly, t);
+  const step = stepById(diagram, stepId);
+  if (!step) return [];
   return bindStepActions(
     stepId,
     {
-      index,
+      index: stepIndex(diagram, stepId),
       count: diagram.steps.length,
+      number: stepNumber(diagram, stepId) ?? 0,
       locked: isLockedStep(step),
       readOnly: diagramReadOnly,
       hasPicture: hasDrawablePicture(step, diagram.assets),
@@ -187,6 +219,9 @@ function bindStepActions(
       insert: (where) => {
         insertDiagramStepBeside(stepId, where);
       },
+      insertTurn: (kind) => {
+        insertDiagramTurn(kind, 'card_menu', stepId);
+      },
       duplicate: () => {
         store().duplicateDiagramStep(stepId);
       },
@@ -198,7 +233,7 @@ function bindStepActions(
       },
       toggleBreak: () => {
         const current = store().diagram;
-        const step = current?.steps[stepIndex(current, stepId)];
+        const step = current ? stepById(current, stepId) : null;
         if (step) store().setDiagramStepBreakBefore(stepId, !step.breakBefore);
       },
       // Straight from the click: a browser opens a picker only inside one.
@@ -208,7 +243,7 @@ function bindStepActions(
       linkPattern: () => openDiagramPatternPicker(stepId),
       refreshPicture: () => {
         const current = store().diagram;
-        const step = current?.steps[stepIndex(current, stepId)];
+        const step = current ? stepById(current, stepId) : null;
         // Folded part way in the simulator: only Pose captures it again (D19) —
         // a rest now when Pose is open on it, else Pose opened, which rests as
         // the model comes up.
@@ -243,7 +278,7 @@ function bindStepActions(
       },
       removePicture: () => {
         const diagram = store().diagram;
-        const step = diagram?.steps.find((candidate) => candidate.id === stepId);
+        const step = diagram ? stepById(diagram, stepId) : null;
         const kind = diagram && step ? pictureKind(diagram, step) : null;
         if (store().removeDiagramStepPicture(stepId) && kind) trackDiagramPictureRemoved(kind);
       },
@@ -264,16 +299,17 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
     state.diagram && stepId !== null ? stepIndex(state.diagram, stepId) : -1
   );
   const count = useWorkspaceStore((state) => state.diagram?.steps.length ?? 0);
-  const locked = useWorkspaceStore((state) => {
-    const step = index >= 0 ? state.diagram?.steps[index] : undefined;
-    return step ? isLockedStep(step) : false;
-  });
+  const number = useWorkspaceStore((state) =>
+    state.diagram && stepId !== null ? (stepNumber(state.diagram, stepId) ?? 0) : 0
+  );
+  const step = useWorkspaceStore((state) =>
+    state.diagram && stepId !== null ? (stepById(state.diagram, stepId) ?? undefined) : undefined
+  );
+  const locked = step ? isLockedStep(step) : false;
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
-  const step = useWorkspaceStore((state) => (index >= 0 ? state.diagram?.steps[index] : undefined));
-  const hasPicture = useWorkspaceStore((state) => {
-    const current = index >= 0 ? state.diagram?.steps[index] : undefined;
-    return current && state.diagram ? hasDrawablePicture(current, state.diagram.assets) : false;
-  });
+  const hasPicture = useWorkspaceStore((state) =>
+    step && state.diagram ? hasDrawablePicture(step, state.diagram.assets) : false
+  );
   const hasSource = step ? stepHasPicture(step) : false;
   const statuses = useDiagramLinkStatuses(step ? [step] : NO_STEPS);
   const link = (step && statuses.get(step.id)) ?? null;
@@ -289,13 +325,14 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
 
   return useMemo(
     () =>
-      stepId === null || index < 0
+      stepId === null || !step
         ? []
         : bindStepActions(
             stepId,
             {
               index,
               count,
+              number,
               locked,
               readOnly,
               hasPicture,
@@ -317,6 +354,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
       stepId,
       index,
       count,
+      number,
       locked,
       readOnly,
       hasPicture,
@@ -334,6 +372,63 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
 
 const NO_STEPS: readonly DiagramStep[] = [];
 
+/** A turn's verbs (D22), bound to the store; every callback reads the store as it runs. */
+function bindTurnActions(
+  turn: DiagramTurn,
+  index: number,
+  count: number,
+  readOnly: boolean,
+  t: TFunction
+): DiagramStepAction[] {
+  const store = useWorkspaceStore.getState;
+  return buildDiagramTurnActions(
+    { turn, index, count, readOnly },
+    {
+      t,
+      set: (kind) => {
+        store().setDiagramTurn(turn.id, kind);
+      },
+      move: (direction) => {
+        const current = store().diagram;
+        const from = current ? stepIndex(current, turn.id) : -1;
+        if (from >= 0) store().moveDiagramStep(turn.id, direction === 'earlier' ? from - 1 : from + 1);
+      },
+      remove: () => {
+        void store().confirmDeleteDiagramSteps([turn.id]);
+      },
+    }
+  );
+}
+
+/**
+ * A turn as the Step pane shows it (D22): what it is, the numbers of the steps
+ * either side, its verbs, and the way to change what it is. Null for no turn.
+ */
+export function useDiagramTurn(turnId: string | null): {
+  turn: DiagramTurn;
+  between: { before: number | null; after: number | null };
+  actions: DiagramStepAction[];
+  set: (kind: DiagramTurnKind) => void;
+  readOnly: boolean;
+} | null {
+  const { t } = useTranslation();
+  const diagram = useWorkspaceStore((state) => state.diagram);
+  const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
+  return useMemo(() => {
+    const turn = diagram && turnId !== null ? turnById(diagram, turnId) : null;
+    if (!diagram || !turn) return null;
+    return {
+      turn,
+      between: stepsAround(diagram, turn.id),
+      actions: bindTurnActions(turn, stepIndex(diagram, turn.id), diagram.steps.length, readOnly, t),
+      set: (kind: DiagramTurnKind) => {
+        useWorkspaceStore.getState().setDiagramTurn(turn.id, kind);
+      },
+      readOnly,
+    };
+  }, [diagram, turnId, readOnly, t]);
+}
+
 /**
  * The pose verbs for a step's uploaded picture, bound to the store, for the
  * step detail's toolbar and the Step pane.
@@ -342,7 +437,7 @@ export function useDiagramPoseActions(stepId: string | null): DiagramPoseAction[
   const { t } = useTranslation();
   const step = useWorkspaceStore((state) =>
     state.diagram && stepId !== null
-      ? (state.diagram.steps.find((candidate) => candidate.id === stepId) ?? null)
+      ? (stepById(state.diagram, stepId) ?? null)
       : null
   );
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);

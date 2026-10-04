@@ -19,12 +19,18 @@
  * Uploads and 3D pictures are fitted to their boxes, as every picture is under
  * `fit`.
  *
+ * A turn between two steps (D22) has no cell: its glyph prints in the gutter
+ * between the two pictures — midway on a row; at the next picture's leading
+ * edge across a row or a page; at the last picture's trailing edge after it.
+ * A diagram with any turn keeps a gutter wide enough between all its
+ * pictures, so its one paper scale stays one scale.
+ *
  * Measurement is injected ({@link TextSetter}): the composer sets text from
  * the font's own advances, tests with an estimate.
  *
  * Pure.
  */
-import type { DiagramPageSetup } from '../document/diagramDocument';
+import type { DiagramPageSetup, DiagramTurnKind } from '../document/diagramDocument';
 import type { DiagramFontFace } from '../fonts/diagramFontFaces';
 import { printPaper, type PrintPaper } from './printPaper';
 
@@ -62,6 +68,16 @@ const PAGE_NUMBER_RAISE_MM = 1.5;
 const OFF_PAGE_MM = 10;
 /** Flow: every other cell of a row steps down by this share of the cell, and the text gives up as much. */
 const FLOW_STEP = 0.06;
+/** The room beside a picture box in its cell, together: the gutter between two pictures. */
+const PICTURE_SIDE_ROOM_MM = 6;
+/**
+ * The gutter a diagram with turns keeps between its pictures (D22): the
+ * turn-over glyph, the wider of the two at its printed size, and room either
+ * side of it.
+ */
+export const TURN_GUTTER_MM = 14;
+/** Several turns in one gutter stand one above another, this far apart. */
+const TURN_STACK_MM = 8;
 
 /** One run of a set line: a font and its text, placed from the line's start. */
 export interface SetRun {
@@ -110,6 +126,16 @@ export interface LayoutStep {
    * for a step with no picture.
    */
   picture: { kind: 'paper'; extentUnits: number } | { kind: 'fit' } | null;
+  /** The turns between the step before and this one (D22), in order. */
+  turnsBefore: readonly LayoutTurn[];
+  /** The turns after the last step; empty on every other. */
+  turnsAfter: readonly LayoutTurn[];
+}
+
+/** A turn between two steps, as the layout places it. */
+export interface LayoutTurn {
+  id: string;
+  turn: DiagramTurnKind;
 }
 
 export interface LayoutCell {
@@ -135,6 +161,8 @@ export interface LayoutPage {
   cells: LayoutCell[];
   /** The flow band's points, in order, or null. */
   band: { x: number; y: number }[] | null;
+  /** The turns on the page: each glyph's centre (D22). */
+  turns: (LayoutTurn & { at: { x: number; y: number } })[];
   pageNumberAt: { x: number; y: number; anchor: 'start' | 'end' } | null;
 }
 
@@ -184,7 +212,8 @@ export function layoutDiagramPages(
   const footH = setup.pageNumbers.enabled ? FOOTER_MM : 0;
   const cellW = (W - 2 * m) / setup.columns;
   const cellH = (H - 2 * m - headH - footH) / setup.rows;
-  const fullBox = Math.max(12, Math.min(cellW - 6, cellH * 0.64));
+  const turning = steps.some((step) => step.turnsBefore.length > 0 || step.turnsAfter.length > 0);
+  const fullBox = Math.max(12, Math.min(cellW - (turning ? TURN_GUTTER_MM : PICTURE_SIDE_ROOM_MM), cellH * 0.64));
   const textWidth = cellW * 0.8;
   const perPage = setup.columns * setup.rows;
 
@@ -284,11 +313,13 @@ export function layoutDiagramPages(
     });
     const band =
       flow && setup.showPath && cells.length > 0 ? flowBand(cells, pageIndex, placedPages.length, W, cellW) : null;
+    const turns = placeTurns(placed.map(({ step }) => step), cells, setup.columns, flow, W);
     const right = number % 2 === 1;
     return {
       number,
       cells,
       band,
+      turns,
       pageNumberAt: setup.pageNumbers.enabled
         ? { x: right ? W - m : m, y: H - m - PAGE_NUMBER_RAISE_MM, anchor: right ? 'end' : 'start' }
         : null,
@@ -318,6 +349,57 @@ export function layoutDiagramPages(
     title: titleLayout,
     bandWidthMm: Math.min(cellW, cellH) * 0.42,
   };
+}
+
+/**
+ * Where the turns on a page print (D22): between two pictures on one row,
+ * midway between them at their centres' height; before a picture that starts
+ * a row or the page, at its leading edge — the right one on a flow row that
+ * runs right to left; after the last picture, at its trailing edge. Several
+ * in one place stand one above another. Kept on the paper.
+ */
+function placeTurns(
+  steps: readonly LayoutStep[],
+  cells: readonly LayoutCell[],
+  columns: number,
+  flow: boolean,
+  pageWidth: number
+): LayoutPage['turns'] {
+  const placed: LayoutPage['turns'] = [];
+  const rowOf = (k: number) => Math.floor(k / columns);
+  const backwards = (k: number) => flow && rowOf(k) % 2 === 1;
+  const centre = (cell: LayoutCell) => ({
+    x: cell.pictureMm.x + cell.pictureMm.size / 2,
+    y: cell.pictureMm.y + cell.pictureMm.size / 2,
+  });
+  /** The edge of a picture facing the gutter before (`lead`) or after it, half a gutter out. */
+  const edge = (k: number, lead: boolean) => {
+    const cell = cells[k]!;
+    const gutter = cell.cellMm.w - cell.pictureMm.size;
+    const left = lead !== backwards(k);
+    const x = left ? cell.pictureMm.x - gutter / 2 : cell.pictureMm.x + cell.pictureMm.size + gutter / 2;
+    return { x, y: centre(cell).y };
+  };
+  const stack = (turns: readonly LayoutTurn[], at: { x: number; y: number }) => {
+    const x = Math.min(pageWidth - TURN_GUTTER_MM / 2, Math.max(TURN_GUTTER_MM / 2, at.x));
+    turns.forEach((turn, n) => {
+      placed.push({ ...turn, at: { x, y: at.y + (n - (turns.length - 1) / 2) * TURN_STACK_MM } });
+    });
+  };
+  steps.forEach((step, k) => {
+    if (step.turnsBefore.length > 0) {
+      if (k > 0 && rowOf(k - 1) === rowOf(k)) {
+        const a = centre(cells[k - 1]!);
+        const b = centre(cells[k]!);
+        const facing = (edge(k - 1, false).x + edge(k, true).x) / 2;
+        stack(step.turnsBefore, { x: facing, y: (a.y + b.y) / 2 });
+      } else {
+        stack(step.turnsBefore, edge(k, true));
+      }
+    }
+    if (step.turnsAfter.length > 0) stack(step.turnsAfter, edge(k, false));
+  });
+  return placed;
 }
 
 /**

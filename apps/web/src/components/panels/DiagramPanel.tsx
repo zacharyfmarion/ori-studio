@@ -5,7 +5,9 @@ import { handleMenuAction } from '../../commands/menuActions';
 import {
   DEFAULT_DIAGRAM_STYLE,
   DEFAULT_PAGE_SETUP,
+  stepsOf,
   type DiagramAsset,
+  type DiagramEntry,
   type DiagramStep,
 } from '../../diagram/document/diagramDocument';
 import { splitIntoPages } from '../../diagram/pages/diagramPageLayout';
@@ -23,6 +25,7 @@ import {
   addDiagramStep,
   appendDiagramStep,
   insertDiagramStepBeside,
+  insertDiagramTurn,
   openDiagramStep,
   useAddDiagramStep,
   useDiagramPoseActions,
@@ -42,6 +45,7 @@ import { Notice } from '../ui/Notice';
 import styles from './DiagramPanel.module.css';
 
 const NO_STEPS: readonly DiagramStep[] = [];
+const NO_ENTRIES: readonly DiagramEntry[] = [];
 const NONE_CUT: ReadonlySet<string> = new Set();
 
 /** The steps whose instruction the pages cut with "…". */
@@ -64,7 +68,8 @@ const uploadPictureFor = (stepId: string) => void pickStepPictures({ replaceStep
 /** Link pattern… from the header or the empty diagram: a new step, and its pattern picker. */
 const refreshAll = () => void refreshAllDiagramSteps();
 const appendStep = () => void appendDiagramStep();
-const insertAfter = (stepId: string) => void insertDiagramStepBeside(stepId, 'after');
+const insertBefore = (stepId: string) => void insertDiagramStepBeside(stepId, 'before');
+const addTurn = (kind: 'turn-over' | 'rotate') => void insertDiagramTurn(kind, 'add_menu');
 const linkNewStep = () => {
   const stepId = addDiagramStep();
   if (stepId) openDiagramPatternPicker(stepId);
@@ -100,7 +105,10 @@ export function DiagramPanel() {
   const { t } = useTranslation();
   const setViewDrawerSlot = useLayoutStore((state) => state.setViewDrawerSlot);
   const title = useWorkspaceStore((state) => state.diagram?.title ?? '');
-  const steps = useWorkspaceStore((state) => state.diagram?.steps ?? NO_STEPS);
+  // The order — steps and the turns between them (D22) — and the steps alone,
+  // which are numbered, opened, laid out and exported.
+  const entries = useWorkspaceStore((state) => state.diagram?.steps ?? NO_ENTRIES);
+  const steps = useWorkspaceStore((state) => (state.diagram ? stepsOf(state.diagram) : NO_STEPS));
   const assets = useWorkspaceStore((state) => state.diagram?.assets ?? NO_ASSETS);
   const style = useWorkspaceStore((state) => state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE);
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
@@ -203,6 +211,7 @@ export function DiagramPanel() {
         patternOpen={patternOpen}
         onLink={linkNewStep}
         onFromReferences={openReferencesBrowser}
+        onAddTurn={addTurn}
         staleCount={links.refreshable}
         poseAgainCount={links.poseAgain}
         refreshing={refreshing}
@@ -221,7 +230,7 @@ export function DiagramPanel() {
           </Notice>
         </div>
       )}
-      <div className="panel-body" onContextMenu={steps.length > 0 ? menu.onContextMenu : undefined}>
+      <div className="panel-body" onContextMenu={entries.length > 0 ? menu.onContextMenu : undefined}>
         {steps.length > 0 && view === 'pages' ? (
           <DiagramPagesView
             pages={pages.pages}
@@ -233,7 +242,7 @@ export function DiagramPanel() {
             onOpen={openOnDoubleClick}
             onPageClick={revealPagePane}
           />
-        ) : steps.length === 0 ? (
+        ) : entries.length === 0 ? (
           <DiagramEmptyState
             readOnly={readOnly}
             dropTarget={dropTarget !== null}
@@ -246,7 +255,7 @@ export function DiagramPanel() {
           />
         ) : (
           <DiagramStepsGrid
-            steps={steps}
+            entries={entries}
             assets={assets}
             style={style}
             selectedStepId={selectedStepId}
@@ -263,7 +272,7 @@ export function DiagramPanel() {
             onOpenIn={openFromCard}
             onGoToEdit={goToEdit}
             onAppend={readOnly ? undefined : appendStep}
-            onInsertAfter={readOnly ? undefined : insertAfter}
+            onInsertBefore={readOnly ? undefined : insertBefore}
           />
         )}
       </div>

@@ -49,6 +49,7 @@ import {
 } from './diagramExportSettings';
 import { diagramPdfInput, type PdfWriter } from './diagramPdf';
 import { prepareStepFiles, stepFileMinHeightMm, type PreparedStepFiles } from './stepFiles';
+import { stepsOf } from '../document/diagramDocument';
 
 export type DiagramExportStatus = 'loading' | 'ready' | 'failed';
 
@@ -70,6 +71,8 @@ export interface DiagramExportBinding {
   empty: number[];
   /** The steps whose instruction is cut. */
   cut: number[];
+  /** How many turns between steps the diagram has (D22): the pages print them, step files leave them out. */
+  turns: number;
   /** Characters no font has: the PDF refuses them; a file draws them as boxes. */
   missing: string[];
   /**
@@ -217,7 +220,7 @@ export function useDiagramExport(
 
   const empty = useMemo(
     () =>
-      document.steps.flatMap((step, at) => (stepPictureSource(step, document.assets) ? [] : [at + 1])),
+      stepsOf(document).flatMap((step, at) => (stepPictureSource(step, document.assets) ? [] : [at + 1])),
     [document]
   );
   const cut = useMemo(
@@ -320,7 +323,7 @@ export function useDiagramExport(
               sameSize: draft.sameSize,
               transparent: draft.transparent,
             },
-        { files: count, steps: document.steps.length, empty: empty.length }
+        { files: count, steps: stepsOf(document).length, empty: empty.length }
       );
       toast.success(t('toasts:diagramExport.saved', 'Exported {{name}}', { name }));
       close();
@@ -357,6 +360,7 @@ export function useDiagramExport(
         : null,
     empty,
     cut,
+    turns: document.steps.length - stepsOf(document).length,
     missing,
     unavailable: (ready?.fonts.unavailable.length ?? 0) > 0,
     retry,

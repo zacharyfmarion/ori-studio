@@ -4,7 +4,7 @@ import type { SheetAnalysis } from '../../cp-workspace/references/sheetFrames';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { createDiagram, createStep, insertSteps } from '../document/diagramDocument';
-import { referencesStep } from '../document/diagramSteps.fixtures';
+import { referencesStep, stepsIn } from '../document/diagramSteps.fixtures';
 import { openDiagramStepInReferences } from './referencesStepActions';
 
 const analytics = vi.hoisted(() => ({ trackDiagramSourceOpened: vi.fn() }));
@@ -31,7 +31,7 @@ beforeEach(() => {
 describe('Open in References', () => {
   it('asks References for the step’s sheet, in the mode it came from, and counts it', () => {
     openDiagramStepInReferences('step-find');
-    const step = state().diagram!.steps[0]!;
+    const step = stepsIn(state().diagram!)[0]!;
     if (step.source?.kind !== 'references-step') throw new Error('sent');
     expect(state().referencesSheetRequest).toEqual({ boundary: step.source.region.boundary, mode: 'find' });
     expect(useLayoutStore.getState().activatePanel).toHaveBeenCalledWith('references');
@@ -54,7 +54,7 @@ describe('Open in References', () => {
         { id: 7, outline: [[1, 1], [0, 1], [0, 0], [1, 0]] },
       ],
     } as unknown as SheetAnalysis;
-    const step = state().diagram!.steps[0]!;
+    const step = stepsIn(state().diagram!)[0]!;
     if (step.source?.kind !== 'references-step') throw new Error('sent');
     expect(requestedSheet(frames, step.source.region.boundary)?.id).toBe(7);
     expect(requestedSheet(frames, [[{ x: 5, y: 5 }, { x: 6, y: 5 }, { x: 6, y: 6 }]])).toBeUndefined();

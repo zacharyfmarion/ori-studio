@@ -8,6 +8,7 @@ import {
   type DiagramHanStyle,
   type DiagramPageSetup,
   type DiagramStep,
+  stepsOf,
 } from '../document/diagramDocument';
 import { splitIntoPages } from './diagramPageLayout';
 import type { DiagramStyleChoice } from './diagramStyleChoices';
@@ -28,7 +29,7 @@ export function useDiagramPageSetup() {
       state.diagram?.hanStyle ?? defaultHanStyle(typeof document === 'undefined' ? null : document.documentElement.lang)
   );
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
-  const steps = useWorkspaceStore((state) => state.diagram?.steps ?? NO_STEPS);
+  const steps = useWorkspaceStore((state) => (state.diagram ? stepsOf(state.diagram) : NO_STEPS));
   const perPage = page.columns * page.rows;
   const pageCount = useMemo(() => splitIntoPages(steps, perPage).length, [steps, perPage]);
 

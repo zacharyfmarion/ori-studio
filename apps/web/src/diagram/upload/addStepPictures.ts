@@ -13,6 +13,7 @@ import {
   randomDiagramId,
   type DiagramIdFactory,
   type KnownDiagramAsset,
+  stepById,
 } from '../document/diagramDocument';
 import {
   importStepPicture,
@@ -135,8 +136,8 @@ export async function pickStepPictures(
   const { diagram, diagramSelectedStepId } = useWorkspaceStore.getState();
   const anchorStepId =
     options.anchorStepId !== undefined ? options.anchorStepId : diagramSelectedStepId;
-  const target = diagram?.steps.find((step) => step.id === options.replaceStepId);
-  const replacing = diagram !== null && target !== undefined && stepPictureSource(target, diagram.assets) !== null;
+  const target = diagram && options.replaceStepId !== undefined ? stepById(diagram, options.replaceStepId) : null;
+  const replacing = diagram !== null && target !== null && stepPictureSource(target, diagram.assets) !== null;
   const files = await getFileService().openBinaryFiles({
     title:
       options.replaceStepId === undefined

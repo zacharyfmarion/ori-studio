@@ -21,10 +21,10 @@ import {
   isLockedStep,
   renderToShowAs,
   showAsOf,
-  stepIndex,
   type DiagramCpRender,
   type DiagramShowAs,
   type DiagramStep,
+  stepById,
 } from '../document/diagramDocument';
 import { knownCreasesOf } from './captureCreases';
 import { stepSheetNow } from './stepSheetNow';
@@ -63,7 +63,7 @@ export function pickerShowAs(step: DiagramStep | null): DiagramShowAs {
  */
 export async function linkDiagramStep(stepId: string, segment: CpSegment, way?: DiagramShowAs): Promise<boolean> {
   const store = useWorkspaceStore.getState();
-  const step = store.diagram?.steps[stepIndex(store.diagram, stepId)];
+  const step = store.diagram ? stepById(store.diagram, stepId) : null;
   if (!step) return false;
   const linked = step.source?.kind === 'cp' ? step.source : null;
   const showAs = way ?? (linked ? showAsOf(linked.render) : 'crease-pattern');
@@ -100,7 +100,7 @@ export async function showLinkedStepAs(
   via: Exclude<DiagramShowAsVia, 'duplicate'>
 ): Promise<boolean> {
   const store = useWorkspaceStore.getState();
-  const step = store.diagram?.steps[stepIndex(store.diagram, stepId)];
+  const step = store.diagram ? stepById(store.diagram, stepId) : null;
   if (step?.source?.kind !== 'cp' || isLockedStep(step) || store.diagramReadOnly) return false;
   if (showAsOf(step.source.render) === way && step.picture !== null) return true;
   const open = openLinkedPoseOf(stepId);
@@ -133,7 +133,7 @@ export async function showLinkedStepAs(
  */
 export async function duplicateLinkedStepAs(stepId: string, way: DiagramShowAs): Promise<string | null> {
   const store = useWorkspaceStore.getState();
-  const step = store.diagram?.steps[stepIndex(store.diagram, stepId)];
+  const step = store.diagram ? stepById(store.diagram, stepId) : null;
   if (step?.source?.kind !== 'cp' || isLockedStep(step) || store.diagramReadOnly) return null;
   const source = step.source;
   const copyId = store.duplicateDiagramStep(stepId);
@@ -179,7 +179,7 @@ function trackedShowAs(way: DiagramShowAs): DiagramShowAsName {
 /** Capture a linked step's picture again, from its pattern as it is now. Whether it was. */
 export async function refreshDiagramStep(stepId: string): Promise<boolean> {
   const store = useWorkspaceStore.getState();
-  const step = store.diagram?.steps[stepIndex(store.diagram, stepId)];
+  const step = store.diagram ? stepById(store.diagram, stepId) : null;
   if (step?.source?.kind !== 'cp') return false;
   const { scope, render } = step.source;
   const outcome = await store.captureDiagramStep(stepId, {
@@ -200,7 +200,7 @@ export async function refreshDiagramStep(stepId: string): Promise<boolean> {
  */
 export function openDiagramStepInEdit(stepId: string): void {
   const { diagram } = useWorkspaceStore.getState();
-  const step = diagram?.steps[stepIndex(diagram, stepId)];
+  const step = diagram ? stepById(diagram, stepId) : null;
   if (step?.source?.kind !== 'cp') return;
   requestCpRegionFocus(stepSheetNow(step.source)?.bounds ?? step.source.scope.region.bounds);
   useLayoutStore.getState().activateWorkspace('edit');

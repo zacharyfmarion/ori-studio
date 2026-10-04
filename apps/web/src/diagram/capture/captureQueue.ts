@@ -5,7 +5,7 @@ import i18n from '../../i18n';
 import { requestConfirmation } from '../../store/commandDialogStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { stepIndex, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
+import { stepById, stepsOf, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
 import { knownCreasesOf } from './captureCreases';
 import { abandonOnEngineLoss } from './engineLoss';
 import { linkStatus, refreshKind } from './linkStatus';
@@ -42,7 +42,7 @@ export async function refreshAllDiagramSteps(): Promise<number> {
     () => null
   );
   const current = useWorkspaceStore.getState().diagram;
-  const stale = current ? outOfDate(current.steps, current.style, segmentation) : [];
+  const stale = current ? outOfDate(stepsOf(current), current.style, segmentation) : [];
   if (stale.length === 0) return 0;
   if (useWorkspaceStore.getState().diagramHistory.future.length > 0) {
     const t = i18n.t;
@@ -74,7 +74,7 @@ export async function refreshAllDiagramSteps(): Promise<number> {
       await whileEditIsActive(() => cancelled);
       const store = useWorkspaceStore.getState();
       if (cancelled || store.diagramLoadId !== loadId) break;
-      const step = store.diagram?.steps[stepIndex(store.diagram, stepId)];
+      const step = store.diagram ? stepById(store.diagram, stepId) : null;
       if (step?.source?.kind !== 'cp') continue;
       const { scope, render } = step.source;
       refreshing = stepId;

@@ -27,6 +27,8 @@ import type {
   DiagramShowAsVia,
   DiagramStepAddedSource,
   DiagramStepAddedVia,
+  DiagramTurnAddedKind,
+  DiagramTurnAddedVia,
   DiagramStepOpenedMode,
   DiagramStepOpenedVia,
   DiagramStyleChoiceName,
@@ -43,6 +45,12 @@ import { track } from './runtime';
  */
 export function trackDiagramStepAdded(source: DiagramStepAddedSource, via: DiagramStepAddedVia): void {
   track(ANALYTICS_EVENTS.diagramStepAdded, { source, via });
+}
+
+/** A turn was added between steps (D22): a turn-over or a rotation, and where it was made. */
+export function trackDiagramTurnAdded(kind: 'turn-over' | 'rotate', via: DiagramTurnAddedVia): void {
+  const name: DiagramTurnAddedKind = kind === 'turn-over' ? 'turn_over' : 'rotate';
+  track(ANALYTICS_EVENTS.diagramTurnAdded, { kind: name, via });
 }
 
 /**

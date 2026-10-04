@@ -21,6 +21,7 @@ import type { DiagramFonts } from '../fonts/diagramFonts';
 import type { FontSubsetter } from '../fonts/fontSubset';
 import { composeDiagramPage } from '../pages/composeDiagramPage';
 import { preparedPages } from '../pages/diagramPages';
+import { stepsOf } from '../document/diagramDocument';
 
 /** The print shop's margins: the art past the trim, and the slug the crop marks stand in. */
 export const PRINT_SHOP_BLEED_MM = 3;
@@ -64,7 +65,7 @@ export function diagramPdfInput(
 ): DiagramPdfInput {
   const prepared = preparedPages(document, fonts, subsetter);
   const { layout } = prepared;
-  const steps = new Map(document.steps.map((step) => [step.id, step]));
+  const steps = new Map(stepsOf(document).map((step) => [step.id, step]));
   const bleedMm = mode === 'print-shop' ? PRINT_SHOP_BLEED_MM : 0;
   const usage = new Map<string, Set<string>>();
   const pages = layout.pages.map(

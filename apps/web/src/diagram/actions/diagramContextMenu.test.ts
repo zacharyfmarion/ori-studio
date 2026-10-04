@@ -8,6 +8,7 @@ const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction
 const BASE: DiagramStepActionState = {
   index: 1,
   count: 3,
+  number: 2,
   locked: false,
   readOnly: false,
   hasPicture: false,
@@ -26,6 +27,7 @@ function actions(state: Partial<DiagramStepActionState> = {}) {
   return buildDiagramStepActions({ ...BASE, ...state }, {
     t,
     insert: vi.fn(),
+    insertTurn: vi.fn(),
     duplicate: vi.fn(),
     move: vi.fn(),
     toggleBreak: vi.fn(),
@@ -52,6 +54,8 @@ describe('the step card menu', () => {
     expect(items.map((item) => (item.kind === 'action' ? item.id : item.kind))).toEqual([
       'insert-before',
       'insert-after',
+      'insert-turn-over',
+      'insert-rotate',
       'duplicate',
       'separator',
       'move-earlier',
@@ -96,7 +100,9 @@ describe('the step card menu', () => {
       diagramStepMenuItems(actions(state)).find((item) => item.kind === 'checkbox');
     expect(row({})).toMatchObject({ id: 'start-page', label: 'Start a New Page Here', checked: false, disabled: false });
     expect(row({ breakBefore: true })).toMatchObject({ checked: true });
-    expect(row({ index: 0 })).toMatchObject({ disabled: true, hint: 'The first step always starts a page' });
+    expect(row({ index: 0, number: 1 })).toMatchObject({ disabled: true, hint: 'The first step always starts a page' });
+    // Step 1 behind a turn (D22): still the first step.
+    expect(row({ index: 1, number: 1 })).toMatchObject({ disabled: true });
   });
 
   it('shows the key that runs a verb, as the user has bound it', () => {

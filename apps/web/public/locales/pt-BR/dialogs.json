@@ -203,6 +203,9 @@
     "textHelp": "Deixe desligado para compor o texto no seu próprio app de diagramação.",
     "title": "Exportar o diagrama",
     "transparent": "Fundo transparente",
+    "turnsLeftOut_one": "A virada entre passos é impressa nas páginas; os arquivos de passo a deixam de fora.",
+    "turnsLeftOut_many": "As {{count}} viradas entre passos são impressas nas páginas; os arquivos de passo as deixam de fora.",
+    "turnsLeftOut_other": "As {{count}} viradas entre passos são impressas nas páginas; os arquivos de passo as deixam de fora.",
     "width": "Largura",
     "writingPdf": "Criando o PDF…"
   },

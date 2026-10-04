@@ -250,6 +250,7 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
 import type { EngineClient } from './engineRuntime';
 import { hasDeletableDiagramSelection, selectWorkspaceCapabilities } from './capabilities';
 import { useWorkspaceStore } from './store';
+import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 
 type SnapshotOptions = Partial<
   Pick<
@@ -9570,7 +9571,7 @@ describe('the project diagram', () => {
     expect(state().diagram).toBeNull();
     const { first } = authorTwoSteps();
 
-    expect(state().diagram?.steps.map((step) => step.text)).toEqual(['Fold in half.', 'Unfold.']);
+    expect(stepsIn(state().diagram!).map((step) => step.text)).toEqual(['Fold in half.', 'Unfold.']);
     expect(state().dirty).toBe(true);
     expect(state().diagramHistory.past).toHaveLength(4);
 
@@ -9579,7 +9580,7 @@ describe('the project diagram', () => {
     expect(state().diagramSelectedStepId).toBeNull();
 
     expect(state().redoDiagram()).toBe(true);
-    expect(state().diagram?.steps.map((step) => step.id)).toEqual([first]);
+    expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first]);
   });
 
   it('records nothing for an edit that changes nothing, and makes no diagram for one', () => {
@@ -9623,7 +9624,7 @@ describe('the project diagram', () => {
     state().selectDiagramStep(second);
     state().undoDiagram(); // its text
     state().undoDiagram(); // its creation
-    expect(state().diagram?.steps.map((step) => step.id)).toEqual([first]);
+    expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first]);
     expect(state().diagramSelectedStepId).toBeNull();
   });
 
@@ -9635,7 +9636,7 @@ describe('the project diagram', () => {
     state().installDiagram({ document, readOnly: false, raw: {} });
 
     expect(state().setDiagramStepText(first, 'Late', { loadId })).toBe(false);
-    expect(state().diagram?.steps[0].text).toBe('Fold in half.');
+    expect(stepsIn(state().diagram!)[0].text).toBe('Fold in half.');
     expect(
       state().setDiagramStepText(first, 'On time', { loadId: state().diagramLoadId })
     ).toBe(true);
@@ -9649,9 +9650,9 @@ describe('the project diagram', () => {
     expect(state().activeEditingContext).toBe('diagram');
 
     await state().undo();
-    expect(state().diagram?.steps[1].text).toBe('');
+    expect(stepsIn(state().diagram!)[1].text).toBe('');
     await state().redo();
-    expect(state().diagram?.steps[1].text).toBe('Unfold.');
+    expect(stepsIn(state().diagram!)[1].text).toBe('Unfold.');
     expect(state().oristudioCpHistoryPast).toBe(cpPast);
     expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).not.toHaveBeenCalled();
   });
@@ -9705,7 +9706,7 @@ describe('the project diagram', () => {
     expect(state().diagramHistory.past).toHaveLength(past + 1);
 
     state().undoDiagram();
-    expect(state().diagram?.steps[0].text).toBe('Fold in half.');
+    expect(stepsIn(state().diagram!)[0].text).toBe('Fold in half.');
 
     // After an undo the same session starts a new entry rather than extending
     // the one that was undone.
@@ -9874,7 +9875,7 @@ describe('the project diagram', () => {
     it('counts as unsaved work when the project is about to be replaced', async () => {
       authorTwoSteps();
       useWorkspaceStore.setState({ dirty: false });
-      const { first } = { first: state().diagram!.steps[0].id };
+      const { first } = { first: stepsIn(state().diagram!)[0].id };
       registerPendingEditFlush(() => state().setDiagramStepText(first, 'Still typing'));
       const unregisterDialogHost = registerCommandDialogHost();
       try {
@@ -9883,7 +9884,7 @@ describe('the project diagram', () => {
         expect(dialog).toMatchObject({ type: 'confirm', title: 'Discard unsaved changes?' });
         resolveCommandDialog(dialog!.id, false);
         await replacing;
-        expect(state().diagram?.steps[0].text).toBe('Still typing');
+        expect(stepsIn(state().diagram!)[0].text).toBe('Still typing');
       } finally {
         unregisterDialogHost();
       }
@@ -10059,7 +10060,7 @@ describe('the project diagram', () => {
 
     const assetOf = (stepId: string) => {
       const diagram = state().diagram!;
-      return stepAsset(diagram, diagram.steps[stepIndex(diagram, stepId)])?.id ?? null;
+      return stepAsset(diagram, stepsIn(diagram)[stepIndex(diagram, stepId)])?.id ?? null;
     };
 
     it('fills a selected step that has no picture with one picture, as one undo step', () => {
@@ -10071,7 +10072,7 @@ describe('the project diagram', () => {
 
       expect(state().diagram?.steps).toHaveLength(2);
       expect(assetOf(first)).toBe('asset-a');
-      expect(state().diagram?.steps[0].text).toBe('Fold in half.');
+      expect(stepsIn(state().diagram!)[0].text).toBe('Fold in half.');
       expect(state().diagramSelectedStepId).toBe(first);
       expect(state().diagramHistory.past).toHaveLength(past + 1);
     });
@@ -10084,12 +10085,12 @@ describe('the project diagram', () => {
       const added = state().addDiagramPictures([svgAsset('asset-a'), svgAsset('asset-b')])!;
 
       expect(added.filled).toBe(false);
-      expect(state().diagram?.steps.map((step) => step.id)).toEqual([first, ...added.stepIds, second]);
+      expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first, ...added.stepIds, second]);
       expect(added.stepIds.map(assetOf)).toEqual(['asset-a', 'asset-b']);
       expect(state().diagramSelectedStepId).toBe(added.stepIds[1]);
       expect(state().diagramHistory.past).toHaveLength(past + 1);
       expect(state().undoDiagram()).toBe(true);
-      expect(state().diagram?.steps.map((step) => step.id)).toEqual([first, second]);
+      expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first, second]);
     });
 
     it('adds one picture as a new step when the selected step already has one, or nothing is selected', () => {
@@ -10098,11 +10099,11 @@ describe('the project diagram', () => {
       state().addDiagramPictures([svgAsset('asset-a')]);
       const added = state().addDiagramPictures([svgAsset('asset-b')])!;
       expect(added.filled).toBe(false);
-      expect(state().diagram?.steps[1].id).toBe(added.stepIds[0]);
+      expect(stepsIn(state().diagram!)[1].id).toBe(added.stepIds[0]);
 
       state().selectDiagramStep(null);
       const atEnd = state().addDiagramPictures([svgAsset('asset-c')])!;
-      expect(state().diagram?.steps.at(-1)?.id).toBe(atEnd.stepIds[0]);
+      expect(stepsIn(state().diagram!).at(-1)?.id).toBe(atEnd.stepIds[0]);
     });
 
     it('drops pictures imported for a diagram that has since been replaced', () => {
@@ -10124,7 +10125,7 @@ describe('the project diagram', () => {
       expect(assetOf(first)).toBe('asset-b');
       expect(state().removeDiagramStepPicture(first)).toBe(true);
       expect(assetOf(first)).toBeNull();
-      expect(state().diagram?.steps[0].text).toBe('Fold in half.');
+      expect(stepsIn(state().diagram!)[0].text).toBe('Fold in half.');
       expect(state().removeDiagramStepPicture(first)).toBe(false);
 
       state().undoDiagram();
@@ -10149,7 +10150,7 @@ describe('the project diagram', () => {
       expect(state().diagramHistory.past.length).toBeLessThan(80);
       // Undo still brings back the one before.
       state().undoDiagram();
-      expect(stepAsset(state().diagram!, state().diagram!.steps[0])?.id).toBe('asset-79');
+      expect(stepAsset(state().diagram!, stepsIn(state().diagram!)[0])?.id).toBe('asset-79');
     });
 
     it('keeps what sanitizing changed in an upload for this session only', () => {
@@ -10189,11 +10190,11 @@ describe('the project diagram', () => {
       await state().openProject(
         createFileService({ text: options.contents, name: 'crane.osf', path: '/tmp/crane.osf' })
       );
-      expect(state().diagram?.steps.map((step) => stepAsset(state().diagram!, step)?.id)).toEqual([
+      expect(stepsIn(state().diagram!).map((step) => stepAsset(state().diagram!, step)?.id)).toEqual([
         'asset-b',
         'asset-c',
       ]);
-      expect(state().diagram?.steps.map((step) => step.text)).toEqual(['Fold in half.', 'Unfold.']);
+      expect(stepsIn(state().diagram!).map((step) => step.text)).toEqual(['Fold in half.', 'Unfold.']);
     });
 
     it('opens a step in detail, and closes it with whatever clears the selection', () => {
@@ -10250,11 +10251,11 @@ describe('the project diagram', () => {
       const past = state().diagramHistory.past.length;
 
       expect(state().setDiagramStepPose(first, { rotationQuarterTurns: 3, mirrored: false })).toBe(true);
-      expect(state().diagram?.steps[0].source).toMatchObject({ rotationQuarterTurns: 3 });
+      expect(stepsIn(state().diagram!)[0].source).toMatchObject({ rotationQuarterTurns: 3 });
       expect(state().diagramHistory.past).toHaveLength(past + 1);
       state().undoDiagram();
-      expect(state().diagram?.steps[0].source).toMatchObject({ rotationQuarterTurns: 0 });
-      const plain = state().diagram!.steps[1].id;
+      expect(stepsIn(state().diagram!)[0].source).toMatchObject({ rotationQuarterTurns: 0 });
+      const plain = stepsIn(state().diagram!)[1].id;
       expect(state().setDiagramStepPose(plain, { rotationQuarterTurns: 1, mirrored: false })).toBe(false);
     });
 
@@ -10297,7 +10298,7 @@ describe('the project diagram', () => {
       state().openDiagramStep(stepId, 'annotate');
       return stepId;
     }
-    const step = (stepId: string) => state().diagram!.steps[stepIndex(state().diagram!, stepId)]!;
+    const step = (stepId: string) => stepsIn(state().diagram!)[stepIndex(state().diagram!, stepId)]!;
     const add = (stepId: string, annotation: KnownDiagramAnnotation) =>
       state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [...list, annotation], { select: annotation.id });
 

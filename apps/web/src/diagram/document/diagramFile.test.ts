@@ -8,8 +8,12 @@ import {
   insertSteps,
   setPageSetup,
   setStepText,
+  createTurn,
+  isLockedStep,
+  isTurn,
   type DiagramIdFactory,
   type DiagramCpSource,
+  type DiagramStep,
 } from './diagramDocument';
 import { readDiagram, writeDiagram } from './diagramFile';
 import { SVG_STORED_MAX_BYTES, sanitizeSvg } from '../upload/svgSanitize';
@@ -21,6 +25,7 @@ import {
   referencesStep,
   scenePicture,
   stepDiagramPicture,
+  stepsIn,
 } from './diagramSteps.fixtures';
 import { markup, sceneOf, sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 
@@ -36,8 +41,8 @@ function sampleDiagram() {
   const ids = sequentialIds();
   let diagram = createDiagram({ title: 'Crane · 千纸鹤', hanStyle: 'sc', newId: ids });
   diagram = insertSteps(diagram, [createStep(ids), createStep(ids)], 0);
-  diagram = setStepText(diagram, diagram.steps[0].id, 'Fold the corner up.');
-  diagram = setStepText(diagram, diagram.steps[1].id, '将底角向上折至顶角。');
+  diagram = setStepText(diagram, stepsIn(diagram)[0].id, 'Fold the corner up.');
+  diagram = setStepText(diagram, stepsIn(diagram)[1].id, '将底角向上折至顶角。');
   return setPageSetup(diagram, { layout: 'flow', columns: 4, pageNumbers: { enabled: true, first: 3 } });
 }
 
@@ -68,7 +73,7 @@ describe('writeDiagram / readDiagram', () => {
     written.steps.splice(1, 0, 'not a step', { text: 'no id' }, { ...written.steps[0] });
     const read = readDiagram(written)!;
     // The id-less step and the string are malformed; the repeated id is a copy.
-    expect(read.document.steps.map((step) => step.text)).toEqual([
+    expect(stepsIn(read.document).map((step) => step.text)).toEqual([
       'Fold the corner up.',
       '将底角向上折至顶角。',
     ]);
@@ -96,7 +101,7 @@ describe('writeDiagram / readDiagram', () => {
     written.steps[0].text = 'Fold\u000C up';
     const read = readDiagram(written)!;
     expect(read.document.title).toBe('Crane');
-    expect(read.document.steps[0].text).toBe('Fold up');
+    expect(stepsIn(read.document)[0].text).toBe('Fold up');
   });
 });
 
@@ -111,9 +116,9 @@ describe('a newer build’s work', () => {
     };
     written.steps[0] = newer;
     const read = readDiagram(written)!;
-    expect(read.document.steps[0].unknown).toEqual(newer);
+    expect(stepsIn(read.document)[0].unknown).toEqual(newer);
     // Written back exactly as read.
-    expect(throughJson(writeDiagram(read.document)).steps[0]).toEqual(newer);
+    expect(stepsIn(throughJson(writeDiagram(read.document)))[0]).toEqual(newer);
   });
 
   it('carries annotations and assets it cannot read, verbatim', () => {
@@ -123,10 +128,10 @@ describe('a newer build’s work', () => {
     written.steps[1].annotations = [annotation, { kind: 'no id' }];
     written.assets = { 'asset-1': asset, broken: 'not an asset' };
     const read = readDiagram(written)!;
-    expect(read.document.steps[1].unknown).toBeUndefined();
-    expect(read.document.steps[1].annotations).toEqual([{ id: 'ann-1', unknown: annotation }]);
+    expect(stepsIn(read.document)[1].unknown).toBeUndefined();
+    expect(stepsIn(read.document)[1].annotations).toEqual([{ id: 'ann-1', unknown: annotation }]);
     const again = throughJson(writeDiagram(read.document));
-    expect(again.steps[1].annotations).toEqual([annotation]);
+    expect(stepsIn(again)[1].annotations).toEqual([annotation]);
     expect(again.assets).toEqual({ 'asset-1': asset });
   });
 
@@ -148,13 +153,13 @@ describe('a newer build’s work', () => {
     const written = throughJson(writeDiagram(sampleDiagram()));
     written.steps[0].annotations = [{ id: 'ann-1', kind: 'spiral-arrow' }];
     const read = readDiagram(written)!;
-    const copied = duplicateStep(read.document, read.document.steps[0].id, sequentialIds())!;
-    const ids = throughJson(writeDiagram(copied.document)).steps.map(
+    const copied = duplicateStep(read.document, stepsIn(read.document)[0].id, sequentialIds())!;
+    const ids = stepsIn(throughJson(writeDiagram(copied.document))).map(
       (step: { annotations: { id: string }[] }) => step.annotations.map((annotation) => annotation.id)
     );
     expect(ids[0]).toEqual(['ann-1']);
     // The copy's own id, in memory and in the file alike.
-    expect(ids[1]).toEqual([copied.document.steps[1].annotations[0].id]);
+    expect(ids[1]).toEqual([stepsIn(copied.document)[1].annotations[0].id]);
     expect(ids[1]).not.toEqual(['ann-1']);
   });
 
@@ -230,15 +235,15 @@ describe('annotations in the file', () => {
   function withAnnotations(annotations: unknown[]) {
     const written = throughJson(writeDiagram(sampleDiagram()));
     written.steps[0].annotations = annotations;
-    return readDiagram(written)!.document.steps[0]!.annotations;
+    return stepsIn(readDiagram(written)!.document)[0]!.annotations;
   }
 
   it('round-trips every kind it draws, field for field', () => {
     const read = withAnnotations(every);
     expect(read).toEqual(every);
     const document = { ...sampleDiagram() };
-    document.steps = [{ ...document.steps[0]!, annotations: read }, document.steps[1]!];
-    expect(throughJson(writeDiagram(document)).steps[0].annotations).toEqual(every);
+    document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+    expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual(every);
   });
 
   it('carries what a newer build might write: a kind, a field, a value or a range it does not know', () => {
@@ -292,8 +297,8 @@ describe('annotations in the file', () => {
     const written = throughJson(writeDiagram(sampleDiagram()));
     written.steps[0].annotations = many;
     const read = readDiagram(written)!.document;
-    expect(read.steps[0]!.unknown).toBeDefined();
-    expect(throughJson(writeDiagram(read)).steps[0].annotations).toHaveLength(600);
+    expect(stepsIn(read)[0]!.unknown).toBeDefined();
+    expect(stepsIn(throughJson(writeDiagram(read)))[0].annotations).toHaveLength(600);
   });
 
   it('carries a rotation of a shape it does not know, even one it would call incomplete', () => {
@@ -333,7 +338,7 @@ describe('uploaded pictures in the file', () => {
     written.assets['asset-a'].svg = '<html><body>not a picture</body></html>';
     const read = readDiagram(written)!.document;
     expect(read.assets['asset-a']).toBeUndefined();
-    const step = read.steps.find((entry) => entry.id === stepIds[0])!;
+    const step = stepsIn(read).find((entry) => entry.id === stepIds[0])!;
     expect(step).toMatchObject({ source: null, picture: null, text: 'Valley fold.' });
     expect(step.unknown).toBeUndefined();
   });
@@ -350,7 +355,7 @@ describe('uploaded pictures in the file', () => {
     Object.assign(written.assets['asset-b'], patch);
     const read = readDiagram(written)!.document;
     expect(read.assets['asset-b']).toBeUndefined();
-    expect(read.steps[1].picture).toBeNull();
+    expect(stepsIn(read)[1].picture).toBeNull();
   });
 
   it('carries an asset of a kind it does not know, and writes it back as it came', () => {
@@ -360,10 +365,10 @@ describe('uploaded pictures in the file', () => {
     written.steps.push({ id: 'step-later', source: { kind: 'video', assetId: 'asset-v' }, text: '' });
     const read = readDiagram(written)!;
     expect(read.document.assets['asset-v']).toEqual({ id: 'asset-v', unknown: written.assets['asset-v'] });
-    expect(read.document.steps.at(-1)?.unknown).toEqual(written.steps.at(-1));
+    expect(stepsIn(read.document).at(-1)?.unknown).toEqual(written.steps.at(-1));
     const again = throughJson(writeDiagram(read.document));
     expect(again.assets['asset-v']).toEqual(written.assets['asset-v']);
-    expect(again.steps.at(-1)).toEqual(written.steps.at(-1));
+    expect(stepsIn(again).at(-1)).toEqual(written.steps.at(-1));
   });
 
   it('carries, locked, an upload step whose asset is of a kind it does not know', () => {
@@ -375,10 +380,10 @@ describe('uploaded pictures in the file', () => {
     written.steps[0].picture.key = 'asset:asset-pdf';
     const read = readDiagram(written)!;
     expect(read.readOnly).toBe(false);
-    expect(read.document.steps[0].unknown).toEqual(written.steps[0]);
+    expect(stepsIn(read.document)[0].unknown).toEqual(written.steps[0]);
     // Written back as it came, with the asset it names.
     const again = throughJson(writeDiagram(read.document));
-    expect(again.steps[0]).toEqual(written.steps[0]);
+    expect(stepsIn(again)[0]).toEqual(written.steps[0]);
     expect(again.assets['asset-pdf']).toEqual(written.assets['asset-pdf']);
   });
 
@@ -388,7 +393,7 @@ describe('uploaded pictures in the file', () => {
     written.steps[0].source.assetId = 'asset-b';
     written.steps[1].source = null;
     const read = readDiagram(written)!.document;
-    expect(read.steps.map((step) => step.picture)).toEqual([null, null]);
+    expect(stepsIn(read).map((step) => step.picture)).toEqual([null, null]);
   });
 
   it('reads a pose it does not understand as upright', () => {
@@ -396,7 +401,7 @@ describe('uploaded pictures in the file', () => {
     const written = throughJson(writeDiagram(document));
     written.steps[0].source.rotationQuarterTurns = 5;
     written.steps[0].source.mirrored = 'yes';
-    expect(readDiagram(written)!.document.steps[0].source).toMatchObject({
+    expect(stepsIn(readDiagram(written)!.document)[0].source).toMatchObject({
       rotationQuarterTurns: 0,
       mirrored: false,
     });
@@ -404,7 +409,7 @@ describe('uploaded pictures in the file', () => {
 
   it('leaves out an asset nothing refers to', () => {
     const { document, stepIds } = uploadDiagram();
-    const trimmed = { ...document, steps: document.steps.filter((step) => step.id !== stepIds[1]) };
+    const trimmed = { ...document, steps: stepsIn(document).filter((step) => step.id !== stepIds[1]) };
     expect(Object.keys(throughJson(writeDiagram(trimmed)).assets)).toEqual(['asset-a']);
   });
 });
@@ -466,7 +471,7 @@ describe('linked steps in the file', () => {
       'crease-pattern': { mode: 'crease-pattern', rotationDeg: 'thirty' },
       folded: { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 },
     };
-    const source = readDiagram(written)!.document.steps[1].source as DiagramCpSource;
+    const source = stepsIn(readDiagram(written)!.document)[1].source as DiagramCpSource;
     expect(source.render).toMatchObject({ mode: 'folded-flat', foldCase: 2 });
     expect(source.remembered).toBeUndefined();
   });
@@ -480,7 +485,7 @@ describe('linked steps in the file', () => {
     const written = throughJson(writeDiagram(linkedDiagram()));
     const withMarkup = sceneOf([...sheetWithCrease().items, markup('<script>alert(1)</script>')]);
     written.steps[0].picture.sceneJson = JSON.stringify(withMarkup);
-    const picture = readDiagram(written)!.document.steps[0].picture;
+    const picture = stepsIn(readDiagram(written)!.document)[0].picture;
     expect(picture?.kind).toBe('scene');
     const scene = JSON.parse((picture as { sceneJson: string }).sceneJson);
     expect(scene.items.map((item: { kind: string }) => item.kind)).toEqual(['face', 'line']);
@@ -492,7 +497,7 @@ describe('linked steps in the file', () => {
       '</svg>',
       '<script>alert(1)</script><a href="javascript:alert(2)"><rect width="5" height="5"/></a></svg>'
     );
-    const picture = readDiagram(written)!.document.steps[3].picture as { kind: string; svg: string };
+    const picture = stepsIn(readDiagram(written)!.document)[3].picture as { kind: string; svg: string };
     expect(picture.kind).toBe('fixed');
     expect(picture.svg).not.toContain('script');
     expect(picture.svg).not.toContain('javascript');
@@ -511,7 +516,7 @@ describe('linked steps in the file', () => {
     expect(svg.length + 5_000 * key.length).toBeGreaterThan(SVG_STORED_MAX_BYTES);
     const written = throughJson(writeDiagram(linkedDiagram()));
     Object.assign(written.steps[3].picture, { svg, key });
-    expect(readDiagram(written)!.document.steps[3].picture).toBeNull();
+    expect(stepsIn(readDiagram(written)!.document)[3].picture).toBeNull();
   });
 
   it.each([
@@ -524,7 +529,7 @@ describe('linked steps in the file', () => {
     const written = throughJson(writeDiagram(linkedDiagram()));
     written.steps[index].text = 'Fold it.';
     Object.assign(written.steps[index].picture, patch);
-    const step = readDiagram(written)!.document.steps[index];
+    const step = stepsIn(readDiagram(written)!.document)[index];
     expect(step.picture).toBeNull();
     expect(step.source?.kind).toBe('cp');
     expect(step.text).toBe('Fold it.');
@@ -541,7 +546,7 @@ describe('linked steps in the file', () => {
     const written = throughJson(writeDiagram(linkedDiagram()));
     written.steps[1].text = 'Fold it.';
     damage(written.steps[1].source);
-    const step = readDiagram(written)!.document.steps[1];
+    const step = stepsIn(readDiagram(written)!.document)[1];
     expect(step).toMatchObject({ source: null, picture: null, text: 'Fold it.' });
     expect(step.unknown).toBeUndefined();
   });
@@ -549,14 +554,14 @@ describe('linked steps in the file', () => {
   it('drops a 3D camera that is not one, and the link with it', () => {
     const written = throughJson(writeDiagram(linkedDiagram()));
     written.steps[2].source.render.camera.zoom = -1;
-    expect(readDiagram(written)!.document.steps[2].source).toBeNull();
+    expect(stepsIn(readDiagram(written)!.document)[2].source).toBeNull();
   });
 
   it('writes a rotation one way: within a turn, never negative', () => {
     const written = throughJson(writeDiagram(linkedDiagram()));
     written.steps[0].source.render.rotationDeg = -45;
     written.steps[1].source.render.rotationDeg = 810;
-    const steps = readDiagram(written)!.document.steps;
+    const steps = stepsIn(readDiagram(written)!.document);
     expect(steps[0].source).toMatchObject({ render: { rotationDeg: 315 } });
     expect(steps[1].source).toMatchObject({ render: { rotationDeg: 90 } });
   });
@@ -569,8 +574,8 @@ describe('linked steps in the file', () => {
     newer(written.steps[1].source);
     const read = readDiagram(written)!;
     expect(read.readOnly).toBe(false);
-    expect(read.document.steps[1].unknown).toEqual(written.steps[1]);
-    expect(throughJson(writeDiagram(read.document)).steps[1]).toEqual(written.steps[1]);
+    expect(stepsIn(read.document)[1].unknown).toEqual(written.steps[1]);
+    expect(stepsIn(throughJson(writeDiagram(read.document)))[1]).toEqual(written.steps[1]);
   });
 
   it('keeps a capture held as a bitmap, and drops a scene with no link to say what it is', () => {
@@ -581,16 +586,16 @@ describe('linked steps in the file', () => {
     written.steps[1].source = null;
     const read = readDiagram(written)!.document;
     // With the style it was drawn in, so a change of style says it is out of date.
-    expect(read.steps[0].picture).toEqual({
+    expect(stepsIn(read)[0].picture).toEqual({
       kind: 'asset',
       assetId: 'asset-r',
       paperScale: 3,
       styleKey: 'pens-1',
       key: 'raster-1',
     });
-    expect(throughJson(writeDiagram(read)).steps[0].picture).toEqual(written.steps[0].picture);
+    expect(stepsIn(throughJson(writeDiagram(read)))[0].picture).toEqual(written.steps[0].picture);
     expect(read.assets['asset-r']).toEqual(raster);
-    expect(read.steps[1].picture).toBeNull();
+    expect(stepsIn(read)[1].picture).toBeNull();
   });
 });
 
@@ -618,7 +623,7 @@ describe('steps sent from References in the file', () => {
     written.steps[3].source.plan = 7;
     written.steps[3].source.way = '';
     written.steps[3].source.sentence = 3;
-    const step = readDiagram(written)!.document.steps[3];
+    const step = stepsIn(readDiagram(written)!.document)[3];
     expect(step.source).toMatchObject({ kind: 'references-step', card: 2 });
     expect(step.source).not.toHaveProperty('plan');
     expect(step.source).not.toHaveProperty('way');
@@ -628,21 +633,21 @@ describe('steps sent from References in the file', () => {
   it('reads a card’s recorded sentence as a step’s text is read: XML-clean', () => {
     const written = throughJson(writeDiagram(sentDiagram()));
     written.steps[3].source.sentence = 'Fold\u0000 P';
-    expect(readDiagram(written)!.document.steps[3]!.source).toMatchObject({ sentence: 'Fold P' });
+    expect(stepsIn(readDiagram(written)!.document)[3]!.source).toMatchObject({ sentence: 'Fold P' });
   });
 
   it('keeps a card drawn with a primitive this build does not draw, locked and verbatim', () => {
     const written = throughJson(writeDiagram(sentDiagram()));
     written.steps[0].picture.model.primitives.push({ kind: 'hinge', at: [0.5, 0.5] });
     const read = readDiagram(written)!;
-    expect(read.document.steps[0].unknown).toEqual(written.steps[0]);
-    expect(throughJson(writeDiagram(read.document)).steps[0]).toEqual(written.steps[0]);
+    expect(stepsIn(read.document)[0].unknown).toEqual(written.steps[0]);
+    expect(stepsIn(throughJson(writeDiagram(read.document)))[0]).toEqual(written.steps[0]);
   });
 
   it('drops a card whose drawing does not read, and keeps the link and the words', () => {
     const written = throughJson(writeDiagram(sentDiagram()));
     written.steps[0].picture.model.primitives[1].to = [1, 'a'];
-    const step = readDiagram(written)!.document.steps[0];
+    const step = stepsIn(readDiagram(written)!.document)[0];
     expect(step).toMatchObject({ source: { kind: 'references-step' }, picture: null });
     expect(step.text).toBe('Fold the bottom edge to the top.');
   });
@@ -658,7 +663,7 @@ describe('steps sent from References in the file', () => {
   ])('drops a source with %s, and the picture with it; the words stay', (_label, damage) => {
     const written = throughJson(writeDiagram(sentDiagram()));
     damage(written.steps[0].source);
-    const step = readDiagram(written)!.document.steps[0];
+    const step = stepsIn(readDiagram(written)!.document)[0];
     expect(step).toMatchObject({ source: null, picture: null, text: 'Fold the bottom edge to the top.' });
   });
 
@@ -667,8 +672,70 @@ describe('steps sent from References in the file', () => {
     written.steps[0].picture = scenePicture();
     written.steps[1].source = throughJson(cpStep('x').source);
     written.steps[1].picture = stepDiagramPicture();
-    const steps = readDiagram(written)!.document.steps;
+    const steps = stepsIn(readDiagram(written)!.document);
     expect(steps[0].picture).toBeNull();
     expect(steps[1]).toMatchObject({ source: { kind: 'cp' }, picture: null });
+  });
+});
+
+describe('turns between steps (D22)', () => {
+  function turning() {
+    const ids = sequentialIds();
+    let diagram = createDiagram({ title: 'Crane', newId: ids });
+    diagram = insertSteps(
+      diagram,
+      [
+        createStep(ids),
+        createTurn({ kind: 'turn-over', axis: 'horizontal' }, ids),
+        createStep(ids),
+        createTurn({ kind: 'rotate', rotate: { amount: 'eighth', direction: 'ccw' } }, ids),
+      ],
+      0
+    );
+    return diagram;
+  }
+
+  it('writes a turn as what it is and reads it back in its place', () => {
+    const diagram = turning();
+    const written = throughJson(writeDiagram(diagram));
+    expect(written.steps[1]).toEqual({ id: 'turn-3', kind: 'turn-over', axis: 'horizontal' });
+    expect(written.steps[3]).toEqual({ id: 'turn-5', kind: 'rotate', rotate: { amount: 'eighth', direction: 'ccw' } });
+    expect(readDiagram(written)!.document).toEqual(diagram);
+  });
+
+  it('turns over side to side, or a quarter clockwise, when a turn does not say', () => {
+    const written = throughJson(writeDiagram(turning()));
+    delete written.steps[1].axis;
+    delete written.steps[3].rotate;
+    const read = readDiagram(written)!.document.steps;
+    expect(read[1]).toEqual({ id: 'turn-3', kind: 'turn-over', axis: 'vertical' });
+    expect(read[3]).toEqual({ id: 'turn-5', kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } });
+  });
+
+  it('carries a newer build’s turn whole and locked: a kind, a field or a value this build does not know', () => {
+    for (const newer of [
+      { id: 'turn-3', kind: 'spin', axis: 'vertical' },
+      { id: 'turn-3', kind: 'turn-over', axis: 'vertical', speed: 2 },
+      { id: 'turn-3', kind: 'turn-over', axis: 'diagonal' },
+      { id: 'turn-3', kind: 'rotate', rotate: { amount: 'third', direction: 'cw' } },
+    ]) {
+      const written = throughJson(writeDiagram(turning()));
+      written.steps[1] = newer;
+      const read = readDiagram(written)!.document;
+      const carried = read.steps[1]!;
+      expect(isTurn(carried)).toBe(false);
+      expect(carried).toMatchObject({ id: 'turn-3', unknown: newer });
+      expect(isLockedStep(carried as DiagramStep)).toBe(true);
+      // Written back exactly as it came.
+      expect(throughJson(writeDiagram(read)).steps[1]).toEqual(newer);
+    }
+  });
+
+  it('leaves out a turn that does not read, and keeps the rest', () => {
+    const written = throughJson(writeDiagram(turning()));
+    written.steps[1] = { id: 'turn-3', kind: 'turn-over', axis: 7 };
+    written.steps[3] = { kind: 'rotate' };
+    const read = readDiagram(written)!.document;
+    expect(read.steps.map((entry) => entry.id)).toEqual(['step-2', 'step-4']);
   });
 });

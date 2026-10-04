@@ -73,6 +73,23 @@
   box-shadow: inset 0 0 0 2px var(--accent-primary);
 }
 
+/* A turn's glyph between two pictures (D22), selected as a cell is. */
+.turn {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.turn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.turn[aria-selected='true'] {
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  box-shadow: inset 0 0 0 2px var(--accent-primary);
+}
+
 /* An empty step's picture box: where its picture will go. */
 .placeholder {
   position: absolute;

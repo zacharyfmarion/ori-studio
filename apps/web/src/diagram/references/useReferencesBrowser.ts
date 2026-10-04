@@ -22,7 +22,14 @@ import {
   retainPrecreaseClient,
 } from '../../store/workspaceStore/precreaseRuntime';
 import type { DiagramReferencesBrowserState } from '../../store/workspaceStore/types';
-import { anchorTakesCard, stepIndex, type DiagramDocument } from '../document/diagramDocument';
+import {
+  anchorTakesCard,
+  stepNumber,
+  stepNumbers,
+  stepsAround,
+  stepsOf,
+  type DiagramDocument,
+} from '../document/diagramDocument';
 import {
   browserFindCards,
   browserPlanCards,
@@ -252,13 +259,13 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
   // Nothing is added without the sheet it goes on: a Find answer before the
   // patterns are found, or when they could not be.
   const finished = cards.status === 'ready' && cards.finished;
-  const { pullable, turnOverBefore } = useMemo(
-    () =>
-      outline
-        ? pullableCards(shownList, selection.indices, { finished, withTurnOver })
-        : { pullable: [], turnOverBefore: null },
-    [outline, shownList, selection.indices, finished, withTurnOver]
-  );
+  // A replaced card is one step's picture: no turn-over comes with it.
+  const offersTurnOver = state.anchor.kind !== 'replace';
+  const { pullable, turnOverBefore } = useMemo(() => {
+    if (!outline) return { pullable: [], turnOverBefore: null };
+    const pulled = pullableCards(shownList, selection.indices, { finished, withTurnOver: withTurnOver && offersTurnOver });
+    return offersTurnOver ? pulled : { ...pulled, turnOverBefore: null };
+  }, [outline, shownList, selection.indices, finished, withTurnOver, offersTurnOver]);
   // A pull finds its sheet in the segmentation first: held meanwhile, so a
   // second press cannot add the cards twice.
   const [pulling, setPulling] = useState(false);
@@ -281,7 +288,11 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
 
   const store = useWorkspaceStore.getState;
   const anchorStep = 'stepId' in state.anchor ? state.anchor.stepId : null;
-  const anchorNumber = diagram && anchorStep !== null ? stepIndex(diagram, anchorStep) + 1 || null : null;
+  // After a turn, the step before it: the cards go after both.
+  const anchorNumber =
+    diagram && anchorStep !== null
+      ? (stepNumber(diagram, anchorStep) ?? stepsAround(diagram, anchorStep).before)
+      : null;
   const anchorTakesFirst = anchorTakesCard(diagram, state.anchor);
 
   return {
@@ -353,13 +364,14 @@ function diagramUse(
   const inDiagram = new Map<number, number>();
   const patternUse = new Map<string, number>();
   if (!diagram) return { inDiagram, patternUse };
-  diagram.steps.forEach((step, index) => {
+  const numbers = stepNumbers(diagram);
+  stepsOf(diagram).forEach((step) => {
     const source = step.source;
     if (source?.kind !== 'references-step' || source.plan === undefined) return;
     patternUse.set(source.plan, (patternUse.get(source.plan) ?? 0) + 1);
     if (!pattern || source.plan !== pattern.id || !source.line) return;
     const card = cards.find((candidate) => sameLine(candidate.step?.card.line ?? null, source.line));
-    if (card && !inDiagram.has(card.index)) inDiagram.set(card.index, index + 1);
+    if (card && !inDiagram.has(card.index)) inDiagram.set(card.index, numbers.get(step.id)!);
   });
   return { inDiagram, patternUse };
 }

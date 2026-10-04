@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { CommandDialogModal } from '../CommandDialogModal';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramPanel } from './DiagramPanel';
+import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 
 /**
  * The Diagram workspace through the store: what it shows for no diagram, what
@@ -74,7 +75,7 @@ const menuItems = () =>
 
 function addSteps(count: number) {
   for (let index = 0; index < count; index++) act(() => buttonNamed('Add step')?.click());
-  return state().diagram!.steps.map((step) => step.id);
+  return stepsIn(state().diagram!).map((step) => step.id);
 }
 
 function type(input: HTMLInputElement, value: string) {
@@ -119,7 +120,7 @@ describe('DiagramPanel', () => {
     act(() => buttonNamed('Add step')?.click());
     act(() => buttonNamed('Add step')?.click());
     act(() => options()[0].click());
-    expect(state().diagramSelectedStepId).toBe(state().diagram?.steps[0].id);
+    expect(state().diagramSelectedStepId).toBe(stepsIn(state().diagram!)[0].id);
     act(() => (host?.querySelector('[role="listbox"]') as HTMLElement).click());
     expect(state().diagramSelectedStepId).toBeNull();
     expect(state().diagram?.steps).toHaveLength(2);
@@ -189,7 +190,7 @@ describe('DiagramPanel', () => {
       expect(press({ key: 'ArrowRight' })).toBe(true);
       expect(state().diagramSelectedStepId).toBe(second);
       expect(press({ key: 'ArrowRight', altKey: true })).toBe(true);
-      expect(state().diagram?.steps.map((step) => step.id)).toEqual([first, third, second]);
+      expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first, third, second]);
 
       expect(press({ key: 'Escape' })).toBe(true);
       expect(state().diagramSelectedStepId).toBeNull();
@@ -268,10 +269,12 @@ describe('DiagramPanel', () => {
       expect(state().diagramSelectedStepId).toBe(first);
       // Each row is its label, then the key that runs it where there is one.
       const rows = menuItems();
-      expect(rows).toHaveLength(13);
+      expect(rows).toHaveLength(15);
       [
         'Insert Step Before',
         'Insert Step After',
+        'Insert Turn Over After',
+        'Insert Rotate After',
         'Duplicate Step',
         'Move Earlier',
         'Move Later',
@@ -288,7 +291,7 @@ describe('DiagramPanel', () => {
         (item) => item.textContent?.startsWith('Move Later')
       );
       act(() => moveLater?.click());
-      expect(state().diagram?.steps.map((step) => step.id)).toEqual([second, first]);
+      expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([second, first]);
     });
 
     it('gives focus back to the selected card when the menu closes', async () => {
@@ -376,8 +379,8 @@ describe('DiagramPanel', () => {
       const drop = drag('drop', options()[1], [svgFile('a.svg')]);
       expect(drop.defaultPrevented).toBe(true);
       expect(options()[1].hasAttribute('data-drop-target')).toBe(false);
-      await vi.waitFor(() => expect(state().diagram?.steps[1].picture).not.toBeNull());
-      expect(state().diagram?.steps.map((step) => step.id)[1]).toBe(second);
+      await vi.waitFor(() => expect(stepsIn(state().diagram!)[1].picture).not.toBeNull());
+      expect(stepsIn(state().diagram!).map((step) => step.id)[1]).toBe(second);
       expect(state().diagram?.steps).toHaveLength(2);
       expect(state().diagramSelectedStepId).toBe(second);
       await vi.waitFor(() => expect(options()[1].querySelector('img')).not.toBeNull());
@@ -387,7 +390,7 @@ describe('DiagramPanel', () => {
       const [first, second] = addSteps(2);
       drag('drop', options()[0], [svgFile('step-2.svg'), svgFile('step-1.svg')]);
       await vi.waitFor(() => expect(state().diagram?.steps).toHaveLength(4));
-      const order = state().diagram!.steps.map((step) => step.id);
+      const order = stepsIn(state().diagram!).map((step) => step.id);
       expect(order[0]).toBe(first);
       expect(order[3]).toBe(second);
     });
@@ -425,7 +428,7 @@ describe('DiagramPanel', () => {
       addSteps(1);
       drag('drop', titleField(), [svgFile('a.svg')]);
       await vi.waitFor(() => expect(state().diagram?.steps).toHaveLength(1));
-      await vi.waitFor(() => expect(state().diagram?.steps[0].picture).not.toBeNull());
+      await vi.waitFor(() => expect(stepsIn(state().diagram!)[0].picture).not.toBeNull());
     });
 
     it('fills the open step when a picture is dropped on the step detail', async () => {
@@ -436,7 +439,7 @@ describe('DiagramPanel', () => {
       const detail = host!.querySelector('[role="region"]')!;
       expect(drag('dragover', detail, [svgFile('a.svg')]).defaultPrevented).toBe(true);
       drag('drop', detail, [svgFile('a.svg')]);
-      await vi.waitFor(() => expect(state().diagram?.steps[0].picture).not.toBeNull());
+      await vi.waitFor(() => expect(stepsIn(state().diagram!)[0].picture).not.toBeNull());
       expect(state().diagram?.steps).toHaveLength(2);
       await vi.waitFor(() => expect(host!.querySelector('[role="region"] img')).not.toBeNull());
     });
@@ -449,7 +452,7 @@ describe('DiagramPanel', () => {
       );
       const drop = drag('drop', options()[0], [svgFile('a.svg')]);
       expect(drop.defaultPrevented).toBe(true);
-      expect(state().diagram?.steps[0].picture).toBeNull();
+      expect(stepsIn(state().diagram!)[0].picture).toBeNull();
     });
 
     it('leaves a drop with no picture in it to the workspace', () => {
@@ -543,12 +546,12 @@ describe('DiagramPanel', () => {
       expect(host?.querySelector('img')).not.toBeNull();
       expect(namedButton('Reset Pose')?.disabled).toBe(true);
       act(() => namedButton('Rotate Right')?.click());
-      expect(state().diagram?.steps[1].source).toMatchObject({ rotationQuarterTurns: 1, mirrored: false });
+      expect(stepsIn(state().diagram!)[1].source).toMatchObject({ rotationQuarterTurns: 1, mirrored: false });
       act(() => namedButton('Flip Horizontally')?.click());
-      expect(state().diagram?.steps[1].source).toMatchObject({ rotationQuarterTurns: 3, mirrored: true });
+      expect(stepsIn(state().diagram!)[1].source).toMatchObject({ rotationQuarterTurns: 3, mirrored: true });
       act(() => namedButton('Reset Pose')?.focus());
       act(() => namedButton('Reset Pose')?.click());
-      expect(state().diagram?.steps[1].source).toMatchObject({ rotationQuarterTurns: 0, mirrored: false });
+      expect(stepsIn(state().diagram!)[1].source).toMatchObject({ rotationQuarterTurns: 0, mirrored: false });
       // Reset turned itself off; focus stays among the pose verbs.
       expect(document.activeElement?.closest('[role="toolbar"]')).not.toBeNull();
     });

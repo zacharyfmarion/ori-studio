@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { createDiagram, createStep, insertSteps } from '../document/diagramDocument';
-import { referencesStep } from '../document/diagramSteps.fixtures';
+import { referencesStep, stepsIn } from '../document/diagramSteps.fixtures';
 import { fillStepFromReferences, openReferencesBrowser, replaceStepFromReferences } from './referencesBrowserActions';
 
 const analytics = vi.hoisted(() => ({ trackDiagramReferencesBrowserOpened: vi.fn() }));
@@ -57,7 +57,7 @@ describe('the ways into the References browser', () => {
       shown: { plan: 'plan-a', card: 3, line: { n: [0, 1], d: 0.25 } },
     });
     // No pattern open to find its sheet in: it opens on the sheet where it was.
-    const step = state().diagram!.steps[0]!;
+    const step = stepsIn(state().diagram!)[0]!;
     if (step.source?.kind !== 'references-step') throw new Error('a References step');
     expect(state().diagramReferencesBrowser?.sheet).toEqual(step.source.region.boundary);
     expect(analytics.trackDiagramReferencesBrowserOpened).toHaveBeenCalledWith('replace');

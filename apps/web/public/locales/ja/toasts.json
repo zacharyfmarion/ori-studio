@@ -36,6 +36,7 @@
     "dropReadOnly": "この折り図は新しい Ori Studio で作成されたため読み取り専用で開いています。図を追加することはできません。",
     "references": {
       "addedSteps": "ステップ {{first}}–{{last}} として追加しました",
+      "addedTurnOvers_other": "裏返しを{{count}}件追加しました",
       "filledStep": "ステップ {{number}} を埋めました",
       "replacedStep": "ステップ {{number}} のカードを置き換えました",
       "tooLarge": "このステップは細かすぎて折り図に保持できません。"

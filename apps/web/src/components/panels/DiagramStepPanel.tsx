@@ -1,7 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { useDiagramStepLink } from '../../diagram/capture/useStepLink';
-import { useDiagramPoseActions, useDiagramStepActions } from '../../diagram/useDiagramActions';
-import { isLockedStep, stepAsset, stepIndex } from '../../diagram/document/diagramDocument';
+import { useDiagramPoseActions, useDiagramStepActions, useDiagramTurn } from '../../diagram/useDiagramActions';
+import {
+  indexForStepNumber,
+  isLockedStep,
+  stepAsset,
+  stepById,
+  stepNumber,
+  stepsOf,
+} from '../../diagram/document/diagramDocument';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating } from '../../store/workspaceStore/diagramState';
@@ -11,6 +18,7 @@ import { DiagramStepHeader } from '../diagram/DiagramStepHeader';
 import { DiagramStepPicture } from '../diagram/DiagramStepPicture';
 import { DiagramStepPose } from '../diagram/DiagramStepPose';
 import { DiagramStepShowAs } from '../diagram/DiagramStepShowAs';
+import { DiagramTurnPane } from '../diagram/DiagramTurnPane';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { TextAreaRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
@@ -41,13 +49,16 @@ export function DiagramStepPanel() {
   const stepId = useWorkspaceStore((state) => state.diagramSelectedStepId);
   const step = useWorkspaceStore((state) =>
     state.diagram && stepId !== null
-      ? (state.diagram.steps.find((candidate) => candidate.id === stepId) ?? null)
+      ? (stepById(state.diagram, stepId) ?? null)
       : null
   );
-  const index = useWorkspaceStore((state) =>
-    state.diagram && stepId !== null ? stepIndex(state.diagram, stepId) : -1
+  // Its number and how many steps there are: turns between them have none (D22).
+  const number = useWorkspaceStore((state) =>
+    state.diagram && stepId !== null ? (stepNumber(state.diagram, stepId) ?? 0) : 0
   );
-  const count = useWorkspaceStore((state) => state.diagram?.steps.length ?? 0);
+  const count = useWorkspaceStore((state) => (state.diagram ? stepsOf(state.diagram).length : 0));
+  const entryCount = useWorkspaceStore((state) => state.diagram?.steps.length ?? 0);
+  const turn = useDiagramTurn(stepId);
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const loadId = useWorkspaceStore((state) => state.diagramLoadId);
   const setStepText = useWorkspaceStore((state) => state.setDiagramStepText);
@@ -65,12 +76,28 @@ export function DiagramStepPanel() {
   const poseActions = useDiagramPoseActions(detailOpen ? stepId : null);
   const { link, patternOpen, capture, picker } = useDiagramStepLink(step);
 
-  if (!step || index < 0) {
+  if (turn) {
+    return (
+      <section className="panel-shell">
+        <div className="panel-body">
+          <DiagramTurnPane
+            turn={turn.turn}
+            between={turn.between}
+            actions={turn.actions}
+            readOnly={turn.readOnly}
+            onSet={turn.set}
+          />
+        </div>
+      </section>
+    );
+  }
+
+  if (!step || number === 0) {
     return (
       <section className="panel-shell">
         <div className={`panel-body ${styles.empty}`}>
           <p className={styles.emptyNote}>
-            {count === 0
+            {entryCount === 0
               ? t('panels:diagram.stepPane.noSteps', 'Add a step to write its instruction here.')
               : t('panels:diagram.stepPane.noSelection', 'Select a step to edit it.')}
           </p>
@@ -83,13 +110,18 @@ export function DiagramStepPanel() {
   return (
     <section className="panel-shell">
       <DiagramStepHeader
-        number={index + 1}
+        number={number}
         count={count}
         readOnly={readOnly}
         actions={actions}
-        onMoveTo={(position) => moveStep(step.id, position - 1)}
+        onMoveTo={(position) => {
+          const diagram = useWorkspaceStore.getState().diagram;
+          if (diagram) moveStep(step.id, indexForStepNumber(diagram, step.id, position));
+        }}
         onStep={(direction) => {
-          const next = useWorkspaceStore.getState().diagram?.steps[index + direction];
+          // The step before or after, turns passed over.
+          const diagram = useWorkspaceStore.getState().diagram;
+          const next = diagram ? stepsOf(diagram)[number - 1 + direction] : undefined;
           if (next) selectStep(next.id);
         }}
       />

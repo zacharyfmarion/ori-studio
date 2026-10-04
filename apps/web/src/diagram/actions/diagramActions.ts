@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import type { ShortcutActionId } from '../../keyboard/shortcuts';
 import type { DiagramLinkStatus } from '../capture/linkStatus';
 import { DIAGRAM_SHOW_AS, type DiagramShowAs } from '../document/diagramDocument';
+import type { DiagramTurnActionId } from './diagramTurnActions';
 
 /**
  * The verbs a diagram step offers, in the order every surface presents them:
@@ -17,6 +18,8 @@ import { DIAGRAM_SHOW_AS, type DiagramShowAs } from '../document/diagramDocument
 export type DiagramStepActionId =
   | 'insert-before'
   | 'insert-after'
+  | 'insert-turn-over'
+  | 'insert-rotate'
   | 'duplicate'
   | 'move-earlier'
   | 'move-later'
@@ -36,7 +39,8 @@ export type DiagramStepActionId =
 
 export interface DiagramStepCommand {
   kind: 'command';
-  id: DiagramStepActionId;
+  /** A step's verb — or a turn's (`diagramTurnActions.ts`), which shares the shape. */
+  id: DiagramStepActionId | DiagramTurnActionId;
   label: string;
   disabled: boolean;
   /** Why it is disabled, for a tooltip or a menu row's hint. */
@@ -76,10 +80,12 @@ export type DiagramStepAction = DiagramStepCommand | DiagramStepSeparator | Diag
 
 /** What the verbs are gated on. */
 export interface DiagramStepActionState {
-  /** The step's 0-based position. */
+  /** The step's 0-based place among the steps and the turns between them (D22). */
   index: number;
-  /** How many steps the diagram has. */
+  /** How many steps and turns the diagram has. */
   count: number;
+  /** The step's number: its place among the steps alone. */
+  number: number;
   /**
    * Made by a newer build and carried verbatim. It can move and go, but not be
    * copied: its stored form names its own id.
@@ -119,6 +125,8 @@ export interface DiagramStepActionState {
 export interface DiagramStepActionDeps {
   t: TFunction;
   insert: (where: 'before' | 'after') => void;
+  /** Add a turn after the step (D22). */
+  insertTurn: (kind: 'turn-over' | 'rotate') => void;
   duplicate: () => void;
   move: (direction: 'earlier' | 'later') => void;
   /** Start a new page at the step, or stop doing so. */
@@ -251,6 +259,18 @@ export function buildDiagramStepActions(
       false
     ),
     command(
+      'insert-turn-over',
+      t('panels:diagram.actions.insertTurnOver', 'Insert Turn Over After'),
+      () => deps.insertTurn('turn-over'),
+      false
+    ),
+    command(
+      'insert-rotate',
+      t('panels:diagram.actions.insertRotate', 'Insert Rotate After'),
+      () => deps.insertTurn('rotate'),
+      false
+    ),
+    command(
       'duplicate',
       t('panels:diagram.actions.duplicate', 'Duplicate Step'),
       deps.duplicate,
@@ -290,7 +310,7 @@ export function buildDiagramStepActions(
         'start-page',
         t('panels:diagram.actions.startPage', 'Start a New Page Here'),
         deps.toggleBreak,
-        state.locked || state.index <= 0,
+        state.locked || state.number <= 1,
         state.locked ? lockedEditHint : t('panels:diagram.actions.firstPageHint', 'The first step always starts a page')
       ),
       checked: state.breakBefore,

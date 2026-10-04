@@ -22,7 +22,7 @@ import {
 import { isSuppressionRegionAnnotation } from '../../cp-workspace/annotations/annotation';
 import { hasAttachedSolveInput } from '../../cp-workspace/annotations/suppressionRegion';
 import type { EditingContext } from '../../workspaces/editingContext';
-import { stepIndex } from '../../diagram/document/diagramDocument';
+import { stepById, turnById } from '../../diagram/document/diagramDocument';
 import type { WorkspaceState } from './types';
 
 /**
@@ -86,7 +86,9 @@ export function hasDeletableDiagramSelection(state: WorkspaceState): boolean {
   const { diagram, diagramSelectedStepId } = state;
   if (state.activeEditingContext !== 'diagram' || state.diagramReadOnly || diagram === null) return false;
   if (diagramSelectedStepId === null) return false;
-  const step = diagram.steps[stepIndex(diagram, diagramSelectedStepId)];
+  // A turn goes with Delete as a step does (D22).
+  if (turnById(diagram, diagramSelectedStepId)) return true;
+  const step = stepById(diagram, diagramSelectedStepId);
   if (!step) return false;
   if (!isDiagramAnnotating(state)) return true;
   const annotationId = state.diagramSelectedAnnotationId;

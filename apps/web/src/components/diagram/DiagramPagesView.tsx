@@ -13,6 +13,7 @@ import { composedPageUrl } from '../../diagram/pages/useDiagramPages';
 import { PAGES_PAD, PAGES_PX_PER_MM, usePagesView } from '../../diagram/pages/usePagesView';
 import { ViewportToolbar } from '../panels/ViewportToolbar';
 import styles from './DiagramPagesView.module.css';
+import { turnName } from '../../diagram/actions/diagramTurnActions';
 
 /** How far a cut instruction's outline stands off its text, in mm. */
 const CUT_OUTLINE_MM = 1;
@@ -30,6 +31,9 @@ const CUT_OUTLINE_MM = 1;
  * press that ends a pan is none of these. The camera and the rest of the
  * behaviour are `usePagesView`'s.
  */
+/** The target over a turn's glyph on a page, mm: about the glyph's size. */
+const TURN_TARGET_MM = 12;
+
 export function DiagramPagesView({
   pages,
   failed,
@@ -219,6 +223,27 @@ export function DiagramPagesView({
                         </div>
                       );
                     })}
+                    {page.turns.map((turn) => (
+                      // A turn between steps (D22): its glyph's place, selected as a cell is; it opens nothing.
+                      <div
+                        key={turn.id}
+                        ref={cellRef(turn.id)}
+                        role="option"
+                        tabIndex={turn.id === tabStop ? 0 : -1}
+                        aria-label={turnName(turn.turn, t)}
+                        aria-selected={turn.id === selectedStepId}
+                        data-step-id={turn.id}
+                        className={styles.turn}
+                        style={{
+                          left: mm(turn.at.x - TURN_TARGET_MM / 2),
+                          top: mm(turn.at.y - TURN_TARGET_MM / 2),
+                          width: mm(TURN_TARGET_MM),
+                          height: mm(TURN_TARGET_MM),
+                        }}
+                        onClick={(event) => onCellClick(event, turn.id)}
+                        onDoubleClick={(event) => event.stopPropagation()}
+                      />
+                    ))}
                   </div>
                   <div
                     className={styles.caption}

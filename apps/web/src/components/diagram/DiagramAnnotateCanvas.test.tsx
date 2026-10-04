@@ -5,6 +5,7 @@ import type { KnownDiagramAnnotation } from '../../diagram/document/diagramDocum
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
+import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 
 const tracked = vi.hoisted(() => ({ trackDiagramAnnotationAdded: vi.fn() }));
 vi.mock('../../analytics', async (importOriginal) => ({
@@ -89,7 +90,7 @@ function mount({ readOnly = false } = {}) {
 
 function rerender(readOnly = false) {
   const { diagram } = state();
-  const step = diagram!.steps.find((candidate) => candidate.id === state().diagramSelectedStepId)!;
+  const step = stepsIn(diagram!).find((candidate) => candidate.id === state().diagramSelectedStepId)!;
   act(() =>
     root.render(
       <TooltipProvider>
@@ -124,7 +125,7 @@ function drag(from: [number, number], to: [number, number], pointerId = 1, point
   pointer('pointerup', to, pointerId, pointerType);
 }
 
-const annotations = () => state().diagram!.steps[0]!.annotations as KnownDiagramAnnotation[];
+const annotations = () => stepsIn(state().diagram!)[0]!.annotations as KnownDiagramAnnotation[];
 const tool = (kind: Parameters<ReturnType<typeof state>['setDiagramAnnotateTool']>[0]) =>
   act(() => state().setDiagramAnnotateTool(kind));
 

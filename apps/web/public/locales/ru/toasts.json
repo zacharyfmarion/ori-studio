@@ -39,6 +39,10 @@
     "dropReadOnly": "Эта схема создана в более новой версии Ori Studio и открыта только для чтения, поэтому добавить в неё изображения нельзя.",
     "references": {
       "addedSteps": "Добавлено как шаги {{first}}–{{last}}",
+      "addedTurnOvers_one": "Добавлен {{count}} переворот",
+      "addedTurnOvers_few": "Добавлено {{count}} переворота",
+      "addedTurnOvers_many": "Добавлено {{count}} переворотов",
+      "addedTurnOvers_other": "Добавлено {{count}} переворота",
       "filledStep": "Шаг {{number}} заполнен",
       "replacedStep": "Карточка шага {{number}} заменена",
       "tooLarge": "Этот шаг слишком детализирован, чтобы сохранить его в схеме."

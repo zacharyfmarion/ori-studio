@@ -55,6 +55,8 @@ import {
   DIAGRAM_FORMAT_VERSION,
   DIAGRAM_SHOW_AS,
   PAPER_SIZES,
+  createStep,
+  isTurn,
   showAsOf,
   isKnownAsset,
   normalizePageSetup,
@@ -70,6 +72,7 @@ import {
   type DiagramCpScope,
   type DiagramCpSource,
   type DiagramDocument,
+  type DiagramEntry,
   type DiagramReferencesSource,
   type DiagramFixedPicture,
   type DiagramPicture,
@@ -81,6 +84,7 @@ import {
   type DiagramStepSource,
   type DiagramStyle,
   type DiagramSvgAsset,
+  type DiagramTurn,
   type QuarterTurns,
   type ReferencesPlanSettings,
 } from './diagramDocument';
@@ -117,10 +121,10 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
   let sanitizeEnv = options.sanitizeEnv;
   const env = () => (sanitizeEnv ??= browserSanitizeEnv());
   const assets = readAssets(value.assets, env);
-  const steps: DiagramStep[] = [];
+  const steps: DiagramEntry[] = [];
   const seen = new Set<string>();
   for (const entry of Array.isArray(value.steps) ? value.steps : []) {
-    const step = readStep(entry, assets, env);
+    const step = readEntry(entry, assets, env);
     // Two steps with one id would make every edit by id ambiguous; the first
     // one wins and the copy is malformed.
     if (step && !seen.has(step.id)) {
@@ -235,7 +239,12 @@ export function writeDiagram(
   };
 }
 
-function writeStep(step: DiagramStep): Record<string, unknown> {
+function writeStep(step: DiagramEntry): Record<string, unknown> {
+  if (isTurn(step)) {
+    return step.kind === 'rotate'
+      ? { id: step.id, kind: step.kind, rotate: step.rotate }
+      : { id: step.id, kind: step.kind, axis: step.axis };
+  }
   if (step.unknown) return step.unknown;
   return {
     id: step.id,
@@ -295,6 +304,24 @@ const CP_RENDER_MODES = new Set(['crease-pattern', 'folded-flat', 'folded-3d', '
 
 /** The most a stored scene may be, as JSON: D2's per-step budget, with room. */
 const SCENE_JSON_MAX_BYTES = 4 * 1024 * 1024;
+
+/**
+ * One entry in the order: a turn when it says what kind (D22) — a step never
+ * does — and a step otherwise. A turn of a kind, or with a field, this build
+ * does not know is a newer build's entry, carried whole as a locked step: it
+ * can be moved or deleted, never edited.
+ */
+function readEntry(
+  value: unknown,
+  assets: Record<string, DiagramAsset>,
+  env: () => SanitizeEnv
+): DiagramEntry | null {
+  if (!isRecord(value) || !Object.hasOwn(value, 'kind')) return readStep(value, assets, env);
+  const id = value.id;
+  if (typeof id !== 'string' || id.length === 0) return null;
+  const turn = readTurn(id, value);
+  return turn === NEWER ? { ...createStep(() => id), unknown: value } : turn;
+}
 
 /**
  * One step. A source or picture of a kind this build does not know — at any
@@ -730,31 +757,59 @@ function readAnnotation(
       return text.length > LABEL_MAX_LENGTH ? NEWER : { ...annotation, text };
     }
     case 'rotate': {
-      if (entry.rotate === undefined) return { ...annotation, rotate: DEFAULT_ROTATION };
-      const rotate = entry.rotate;
-      if (!isRecord(rotate)) return null;
-      // A field it has no name for is news before a missing one is damage, as at the top.
-      if (Object.keys(rotate).some((key) => key !== 'amount' && key !== 'direction')) return NEWER;
-      if (typeof rotate.amount !== 'string' || typeof rotate.direction !== 'string') return null;
-      if (!['eighth', 'quarter', 'half'].includes(rotate.amount) || !['cw', 'ccw'].includes(rotate.direction)) {
-        return NEWER;
-      }
-      return {
-        ...annotation,
-        rotate: {
-          amount: rotate.amount as DiagramRotation['amount'],
-          direction: rotate.direction as DiagramRotation['direction'],
-        },
-      };
+      const rotate = readRotation(entry.rotate);
+      return rotate === null || rotate === NEWER ? rotate : { ...annotation, rotate };
     }
     case 'turn-over': {
-      if (entry.axis === undefined) return { ...annotation, axis: 'vertical' };
-      if (typeof entry.axis !== 'string') return null;
-      return entry.axis === 'vertical' || entry.axis === 'horizontal' ? { ...annotation, axis: entry.axis } : NEWER;
+      const axis = readAxis(entry.axis);
+      return axis === null || axis === NEWER ? axis : { ...annotation, axis };
     }
     default:
       return annotation;
   }
+}
+
+/** How far and which way a rotation turns: a quarter clockwise when unsaid. Shared by the glyph and the turn (D22). */
+function readRotation(value: unknown): DiagramRotation | typeof NEWER | null {
+  if (value === undefined) return DEFAULT_ROTATION;
+  if (!isRecord(value)) return null;
+  // A field it has no name for is news before a missing one is damage, as for a whole annotation.
+  if (Object.keys(value).some((key) => key !== 'amount' && key !== 'direction')) return NEWER;
+  if (typeof value.amount !== 'string' || typeof value.direction !== 'string') return null;
+  if (!['eighth', 'quarter', 'half'].includes(value.amount) || !['cw', 'ccw'].includes(value.direction)) {
+    return NEWER;
+  }
+  return { amount: value.amount as DiagramRotation['amount'], direction: value.direction as DiagramRotation['direction'] };
+}
+
+/** The axis a turn-over turns about: the vertical one, side to side, when unsaid. */
+function readAxis(value: unknown): 'vertical' | 'horizontal' | typeof NEWER | null {
+  if (value === undefined) return 'vertical';
+  if (typeof value !== 'string') return null;
+  return value === 'vertical' || value === 'horizontal' ? value : NEWER;
+}
+
+/** A turn's fields, by its kind (D22): any other is a newer build's. */
+const TURN_FIELDS: Readonly<Record<DiagramTurn['kind'], ReadonlySet<string>>> = {
+  'turn-over': new Set(['id', 'kind', 'axis']),
+  rotate: new Set(['id', 'kind', 'rotate']),
+};
+
+/**
+ * One turn between steps (D22). A kind, a field or a value this build does
+ * not know is a newer build's; a known one that does not read is left out.
+ */
+function readTurn(id: string, entry: Record<string, unknown>): DiagramTurn | typeof NEWER | null {
+  if (typeof entry.kind !== 'string') return null;
+  if (!Object.hasOwn(TURN_FIELDS, entry.kind)) return NEWER;
+  const kind = entry.kind as DiagramTurn['kind'];
+  if (Object.keys(entry).some((key) => !TURN_FIELDS[kind].has(key))) return NEWER;
+  if (kind === 'rotate') {
+    const rotate = readRotation(entry.rotate);
+    return rotate === null || rotate === NEWER ? rotate : { id, kind, rotate };
+  }
+  const axis = readAxis(entry.axis);
+  return axis === null || axis === NEWER ? axis : { id, kind, axis };
 }
 
 /** A point in picture units; a newer build's when it reaches past where this build lets one go. */

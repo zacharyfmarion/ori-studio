@@ -5,6 +5,7 @@ import { stepAsset } from '../document/diagramDocument';
 import * as fileServiceModule from '../../platform/fileService';
 import { addStepPictures, pickStepPictures } from './addStepPictures';
 import { browserSanitizeEnv } from './svgSanitize';
+import { stepsIn } from '../document/diagramSteps.fixtures';
 
 const analytics = vi.hoisted(() => ({
   trackDiagramPictureUploaded: vi.fn(),
@@ -48,7 +49,7 @@ const dependencies = () => ({
 });
 
 const stepSides = () =>
-  state().diagram!.steps.map((step) => stepAsset(state().diagram!, step)?.widthPx ?? null);
+  stepsIn(state().diagram!).map((step) => stepAsset(state().diagram!, step)?.widthPx ?? null);
 
 describe('addStepPictures', () => {
   it('adds a batch in natural name order, as one undo step, and counts each step', async () => {

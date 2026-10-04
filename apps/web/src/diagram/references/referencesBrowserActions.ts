@@ -9,7 +9,7 @@ import { trackDiagramReferencesBrowserOpened } from '../../analytics';
 import { stepSheetNow } from '../capture/stepSheetNow';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramReferencesBrowserState } from '../../store/workspaceStore/types';
-import { anchorTakesCard, stepIndex, type DiagramPullAnchor } from '../document/diagramDocument';
+import { anchorTakesCard, stepIndex, type DiagramPullAnchor, stepById } from '../document/diagramDocument';
 
 /**
  * From References… for the diagram, by the insertion rule (D2): an empty
@@ -39,7 +39,7 @@ export function fillStepFromReferences(stepId: string): void {
  */
 export function replaceStepFromReferences(stepId: string): void {
   const store = useWorkspaceStore.getState();
-  const step = store.diagram?.steps[stepIndex(store.diagram, stepId)];
+  const step = store.diagram ? stepById(store.diagram, stepId) : null;
   if (!step || step.unknown || step.source?.kind !== 'references-step') return;
   const { plan, card, line, mode } = step.source;
   open(

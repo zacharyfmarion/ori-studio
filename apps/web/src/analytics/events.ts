@@ -36,6 +36,15 @@ export type DiagramStepAddedVia =
   | 'drop'
   | 'batch';
 
+/** What a turn between steps is (D22). */
+export type DiagramTurnAddedKind = 'turn_over' | 'rotate';
+
+/**
+ * Where a turn between steps was made: Add step ▾ in the header, a step's
+ * menu (Insert … After), or pulled from References with its turn-over card.
+ */
+export type DiagramTurnAddedVia = 'add_menu' | 'card_menu' | 'references';
+
 /** An uploaded picture's file type, by its reported type and extension: never its name. */
 export type DiagramPictureFormat = 'svg' | 'png' | 'jpeg' | 'webp' | 'other';
 
@@ -1181,6 +1190,11 @@ export const ANALYTICS_EVENTS = {
    * `via` the control that added it: which ways into the Diagram are used.
    */
   diagramStepAdded: 'diagram step added',
+  /**
+   * A turn added between steps (D22) — a turn-over or a rotation, unnumbered —
+   * `via` where: whether turns are made by hand or come from References.
+   */
+  diagramTurnAdded: 'diagram turn added',
   /**
    * One file of an upload into the Diagram, and what became of it: whether
    * people's own drawings survive the sanitizer, and how big they are.

@@ -28,7 +28,7 @@ import {
   type DiagramCaptureOutcome,
   type StepCaptureStart,
 } from '../../store/workspaceStore/diagramCapture';
-import { stepIndex, type DiagramCpSource } from '../document/diagramDocument';
+import { type DiagramCpSource, stepById } from '../document/diagramDocument';
 import { storedCpSource } from '../document/diagramFile';
 import { isRelativeFingerprint } from '../../cp-workspace/regions/regionIdentity';
 import {
@@ -341,7 +341,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 /** The step's source, if it is still in the diagram and linked. */
 function currentLinkedSource(stepId: string): DiagramCpSource | null {
   const { diagram } = useWorkspaceStore.getState();
-  const step = diagram?.steps[stepIndex(diagram, stepId)];
+  const step = diagram ? stepById(diagram, stepId) : null;
   return step && !step.unknown && step.source?.kind === 'cp' ? step.source : null;
 }
 
@@ -363,7 +363,7 @@ const SAME_FOLD_PERCENT = 0.05;
  */
 function needsRecapture(stepId: string, linked: DiagramCpSource): boolean {
   const { diagram, oristudioCpDocument } = useWorkspaceStore.getState();
-  const step = diagram?.steps[stepIndex(diagram, stepId)];
+  const step = diagram ? stepById(diagram, stepId) : null;
   if (!diagram || !step) return false;
   const document = oristudioCpDocument?.document ?? null;
   const segmentation = document ? peekCpSegmentationArtifacts(document) : null;

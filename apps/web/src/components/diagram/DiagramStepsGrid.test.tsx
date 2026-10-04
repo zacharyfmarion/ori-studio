@@ -5,6 +5,7 @@ import {
   createStep,
   DEFAULT_DIAGRAM_STYLE,
   type DiagramAsset,
+  type DiagramEntry,
   type DiagramStep,
 } from '../../diagram/document/diagramDocument';
 import { cpStep, fixedPicture, scenePicture } from '../../diagram/document/diagramSteps.fixtures';
@@ -33,7 +34,7 @@ function render(
   selectedStepId: string | null,
   onSelect = vi.fn(),
   options: {
-    steps?: DiagramStep[];
+    steps?: DiagramEntry[];
     assets?: Record<string, DiagramAsset>;
     dropTarget?: string | null;
     onOpen?: (stepId: string) => void;
@@ -43,7 +44,7 @@ function render(
     onLink?: (stepId: string) => void;
     textCut?: ReadonlySet<string>;
     onAppend?: () => void;
-    onInsertAfter?: (stepId: string) => void;
+    onInsertBefore?: (stepId: string) => void;
     onOpenIn?: (stepId: string, mode: 'pose' | 'annotate') => void;
     onGoToEdit?: () => void;
   } = {}
@@ -56,7 +57,7 @@ function render(
   act(() =>
     root?.render(
       <DiagramStepsGrid
-        steps={options.steps ?? steps}
+        entries={options.steps ?? steps}
         assets={options.assets ?? {}}
         style={DEFAULT_DIAGRAM_STYLE}
         selectedStepId={selectedStepId}
@@ -78,7 +79,7 @@ function render(
         onLink={options.onLink ?? vi.fn()}
         onFromReferences={vi.fn()}
         onAppend={options.onAppend}
-        onInsertAfter={options.onInsertAfter}
+        onInsertBefore={options.onInsertBefore}
         onOpenIn={options.onOpenIn ?? vi.fn()}
         onGoToEdit={options.onGoToEdit ?? vi.fn()}
       />
@@ -96,7 +97,8 @@ describe('DiagramStepsGrid', () => {
     const onSelect = render('step-a', vi.fn(), { onAppend });
     const tile = host!.querySelector('[data-add-step-tile]') as HTMLElement;
     expect(tile.textContent).toBe('Add step');
-    expect(listbox().lastElementChild).toBe(tile);
+    // Last, in the place after the last card: where the turns after it would stand too.
+    expect(listbox().lastElementChild?.contains(tile)).toBe(true);
     expect(tile.getAttribute('aria-hidden')).toBe('true');
     expect(tile.tabIndex).toBe(-1);
     expect(options()).toHaveLength(steps.length);
@@ -106,27 +108,52 @@ describe('DiagramStepsGrid', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it('adds a step in the gap between two cards, for a pointer, and none after the last', () => {
-    const onInsertAfter = vi.fn();
-    const onSelect = render('step-a', vi.fn(), { onInsertAfter });
-    const gaps = [...host!.querySelectorAll<HTMLElement>('[data-insert-after]')];
-    // Between a and b, and b and c: the Add step tile is the one after c.
-    expect(gaps.map((gap) => gap.dataset.insertAfter)).toEqual(['step-a', 'step-b']);
+  it('adds a step in the gap before each card, the first one’s too, for a pointer; the tile adds one after the last', () => {
+    const onInsertBefore = vi.fn();
+    const onSelect = render('step-a', vi.fn(), { onInsertBefore });
+    const gaps = [...host!.querySelectorAll<HTMLElement>('[data-insert-before]')];
+    // Before a, b and c: the Add step tile is the place after c.
+    expect(gaps.map((gap) => gap.dataset.insertBefore)).toEqual(['step-a', 'step-b', 'step-c']);
     for (const gap of gaps) {
       expect(gap.getAttribute('aria-hidden')).toBe('true');
       expect(gap.tabIndex).toBe(-1);
       expect(gap.title).toBe('Add a step here');
     }
     expect(options()).toHaveLength(steps.length);
-    act(() => gaps[1]!.click());
-    expect(onInsertAfter).toHaveBeenCalledWith('step-b');
+    act(() => gaps[0]!.click());
+    expect(onInsertBefore).toHaveBeenCalledWith('step-a');
     // A press on a gap is not a press on empty space.
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('shows a turn between two steps as a chip in the gap before the next card, unnumbered (D22)', () => {
+    const over: DiagramEntry = { id: 'turn-1', kind: 'turn-over', axis: 'vertical' };
+    const round: DiagramEntry = { id: 'turn-2', kind: 'rotate', rotate: { amount: 'quarter', direction: 'ccw' } };
+    const onSelect = render('turn-1', vi.fn(), { steps: [over, steps[0]!, steps[1]!, round], onAppend: vi.fn() });
+    // In order, in one listbox: the chips are options too.
+    expect(options().map((option) => option.getAttribute('aria-label') ?? option.dataset.stepId)).toEqual([
+      'Turn over, side to side, before step 1',
+      'step-a',
+      'step-b',
+      'Rotate 1/4 turn counterclockwise, after step 2',
+    ]);
+    // The cards read 1 and 2: the turn before them is no step.
+    expect(host!.textContent).toContain('Step 1');
+    expect(host!.textContent).toContain('Step 2');
+    expect(host!.textContent).not.toContain('Step 3');
+    // In the gap before the card it comes before; after the last, beside the tile.
+    expect(host!.querySelector('[data-turns="step-a"] [data-step-id="turn-1"]')).not.toBeNull();
+    expect(host!.querySelector('[data-turns="end"] [data-step-id="turn-2"]')).not.toBeNull();
+    // Selected, it is the tab stop, as a card would be; a press selects one.
+    expect(options()[0]!.getAttribute('aria-selected')).toBe('true');
+    expect(options()[0]!.tabIndex).toBe(0);
+    act(() => options()[3]!.click());
+    expect(onSelect).toHaveBeenCalledWith('turn-2');
+  });
+
   it('offers no gap on a diagram that cannot change', () => {
     render('step-a');
-    expect(host!.querySelector('[data-insert-after]')).toBeNull();
+    expect(host!.querySelector('[data-insert-before]')).toBeNull();
   });
 
   it('puts Adjust pose and Annotate over a picture, for a pointer, and opens the step in each', () => {

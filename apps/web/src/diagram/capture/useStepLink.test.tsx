@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { createDiagram, insertSteps } from '../document/diagramDocument';
-import { cpStep } from '../document/diagramSteps.fixtures';
+import { cpStep, stepsIn } from '../document/diagramSteps.fixtures';
 import { useDiagramStepLink, type DiagramStepLink } from './useStepLink';
 
 /** The pattern picker's Show as, through the store: what it offers each time it opens. */
@@ -15,7 +15,7 @@ let root: Root | null = null;
 let host: HTMLDivElement | null = null;
 
 function Probe() {
-  const step = useWorkspaceStore((store) => store.diagram?.steps.find((candidate) => candidate.id === 'step-c') ?? null);
+  const step = useWorkspaceStore((store) => stepsIn(store.diagram!).find((candidate) => candidate.id === 'step-c') ?? null);
   const link = useDiagramStepLink(step);
   useLayoutEffect(() => {
     seen.link = link;

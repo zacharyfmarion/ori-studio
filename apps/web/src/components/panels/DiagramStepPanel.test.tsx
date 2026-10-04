@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cpDocument } from '../../diagram/capture/capture.fixtures';
 import { createDiagram } from '../../diagram/document/diagramDocument';
-import { cpStep, referencesStep } from '../../diagram/document/diagramSteps.fixtures';
+import { cpStep, referencesStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { buildDiagramLinkedPoseActions } from '../../diagram/actions/diagramLinkedPoseActions';
 import { publishOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 const state = () => useWorkspaceStore.getState();
-const ids = () => state().diagram?.steps.map((step) => step.id) ?? [];
+const ids = () => stepsIn(state().diagram!).map((step) => step.id) ?? [];
 const button = (label: string) =>
   host?.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement | null;
 const position = () => host?.querySelector('input[aria-label="Step position"]') as HTMLInputElement;
@@ -84,8 +84,47 @@ describe('DiagramStepPanel', () => {
     act(() => vi.advanceTimersByTime(600));
     setField(instruction(), 'Fold in half.');
     act(() => instruction().blur());
-    expect(state().diagram?.steps.find((step) => step.id === third)?.text).toBe('Fold in half.');
+    expect(stepsIn(state().diagram!).find((step) => step.id === third)?.text).toBe('Fold in half.');
     expect(state().diagramHistory.past).toHaveLength(past + 1);
+  });
+
+  it('shows a turn between steps as what it is and where, and changes and deletes it (D22)', () => {
+    const [first] = threeSteps();
+    let turn = '';
+    act(() => {
+      turn = state().insertDiagramTurn({ kind: 'turn-over', axis: 'vertical' }, { stepId: first!, where: 'after' })!;
+    });
+    expect(host!.textContent).toContain('Turn over, side to side');
+    expect(host!.textContent).toContain('Between steps 1 and 2');
+    // No instruction, no position: a turn has neither.
+    expect(instruction()).toBeNull();
+    const option = (label: string) =>
+      [...host!.querySelectorAll<HTMLElement>('button[aria-pressed]')].find((element) => element.textContent === label)!;
+    act(() => option('Rotate').click());
+    expect(state().diagram!.steps[1]).toEqual({ id: turn, kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } });
+    expect(host!.textContent).toContain('Rotate 1/4 turn clockwise');
+    const remove = [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === 'Delete Turn')!;
+    act(() => remove.click());
+    expect(state().diagram!.steps.some((entry) => entry.id === turn)).toBe(false);
+  });
+
+  it('numbers and walks the steps alone, past a turn between them', () => {
+    const [first, second, third] = threeSteps();
+    act(() => {
+      state().insertDiagramTurn({ kind: 'turn-over', axis: 'vertical' }, { stepId: first!, where: 'after' });
+      state().selectDiagramStep(third!);
+    });
+    expect(position().value).toBe('3');
+    act(() => button('Previous Step')?.click());
+    expect(state().diagramSelectedStepId).toBe(second);
+    act(() => button('Previous Step')?.click());
+    expect(state().diagramSelectedStepId).toBe(first);
+    // Typed to 2: before the step that becomes 3. The turn stays before the step it was before.
+    act(() => position().focus());
+    setField(position(), '2');
+    act(() => position().blur());
+    expect(state().diagram!.steps.map((entry) => ('kind' in entry ? 'turn' : entry.id))).toEqual(['turn', second, first, third]);
+    expect(position().value).toBe('2');
   });
 
   it('moves the step to a typed position, and puts back one that is not a position', () => {
@@ -199,11 +238,11 @@ describe('DiagramStepPanel', () => {
       expect(pressed('Side')).toBe('Front');
       expect(textButton('Turn Over')).toBeUndefined();
       act(() => textButton('Back')?.click());
-      expect(state().diagram!.steps[0]!.picture).toMatchObject({ kind: 'step-diagram', mirrored: true });
+      expect(stepsIn(state().diagram!)[0]!.picture).toMatchObject({ kind: 'step-diagram', mirrored: true });
       expect(pressed('Side')).toBe('Back');
       // The side it shows already: nothing to turn.
       act(() => textButton('Back')?.click());
-      expect(state().diagram!.steps[0]!.picture).toMatchObject({ mirrored: true });
+      expect(stepsIn(state().diagram!)[0]!.picture).toMatchObject({ mirrored: true });
     });
 
     it('poses a linked flat fold from the pane with the open step’s own verbs, and its turn as a field', () => {
@@ -258,7 +297,7 @@ describe('DiagramStepPanel', () => {
       act(() => textButton('Remove Picture')?.click());
       expect(host?.textContent).toContain('No picture yet');
       expect(host?.textContent).not.toContain('simplified');
-      expect(state().diagram?.steps[0].text).toBe('');
+      expect(stepsIn(state().diagram!)[0].text).toBe('');
     });
   });
 });
@@ -280,7 +319,7 @@ describe('DiagramStepPanel in Annotate', () => {
     });
     return stepId;
   }
-  const annotations = () => state().diagram!.steps[0]!.annotations as { id: string; bend?: number; text?: string; rotate?: unknown }[];
+  const annotations = () => stepsIn(state().diagram!)[0]!.annotations as { id: string; bend?: number; text?: string; rotate?: unknown }[];
   const row = (name: string) =>
     [...(host?.querySelectorAll<HTMLButtonElement>('ul button') ?? [])].find((candidate) => candidate.textContent === name)!;
   const buttonNamed = (name: string) =>

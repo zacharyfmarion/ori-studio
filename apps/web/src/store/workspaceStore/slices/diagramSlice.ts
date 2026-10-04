@@ -27,6 +27,13 @@ import {
   stepIndex,
   withReferencedAssets,
   type DiagramDocument,
+  stepById,
+  createTurn,
+  setTurn,
+  isStep,
+  stepNumber,
+  turnById,
+  type DiagramEntry,
 } from '../../../diagram/document/diagramDocument';
 import i18n from '../../../i18n';
 import { requestConfirmation } from '../../commandDialogStore';
@@ -53,7 +60,7 @@ function authorLocale(): string | null {
 /** Whether the step has the annotation. */
 function hasAnnotation(document: DiagramDocument | null, stepId: string | null, annotationId: string): boolean {
   if (!document || stepId === null) return false;
-  const step = document.steps[stepIndex(document, stepId)];
+  const step = stepById(document, stepId);
   return step?.annotations.some((annotation) => annotation.id === annotationId) ?? false;
 }
 
@@ -136,10 +143,17 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     // An annotation is selected on its step: another step, or none, selects none.
     ...(stepId !== get().diagramSelectedStepId ? { diagramSelectedAnnotationId: null } : {}),
     // A detail is open on the selected step, and a picker chooses for one:
-    // nothing selected closes the detail, and another step the picker.
-    ...(stepId === null ? { diagramDetail: null } : {}),
+    // nothing selected — or a turn, which has no detail (D22) — closes the
+    // detail, and another step the picker.
+    ...(stepId === null || isTurnId(stepId) ? { diagramDetail: null } : {}),
     ...(get().diagramPatternPicker !== stepId ? { diagramPatternPicker: null } : {}),
   });
+
+  /** Whether an id names a turn in the diagram as it is now. */
+  const isTurnId = (id: string): boolean => {
+    const diagram = get().diagram;
+    return diagram !== null && turnById(diagram, id) !== null;
+  };
 
   /** Keep the selection only while the step it names still exists. */
   const reconciledSelection = (document: DiagramDocument | null): string | null => {
@@ -174,12 +188,22 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     return true;
   };
 
-  const addAt = (index: (document: DiagramDocument) => number): string | null => {
-    const step = createStep();
-    const next = commit('Add step', (document) => insertSteps(document, [step], index(document)));
+  const addAt = (
+    index: (document: DiagramDocument) => number,
+    entry: DiagramEntry = createStep(),
+    label = 'Add step'
+  ): string | null => {
+    const next = commit(label, (document) => insertSteps(document, [entry], index(document)));
     if (!next) return null;
-    set(selection(step.id));
-    return step.id;
+    set(selection(entry.id));
+    return entry.id;
+  };
+  /** Where an add beside an entry lands, or where an add lands at all (after the selection, or at the end). */
+  const besideOrSelection = (at?: { stepId: string; where: 'before' | 'after' }) => (document: DiagramDocument) => {
+    if (!at) return insertionIndex(document, get().diagramSelectedStepId);
+    const index = stepIndex(document, at.stepId);
+    if (index < 0) return document.steps.length;
+    return at.where === 'before' ? index : index + 1;
   };
 
   return {
@@ -199,12 +223,12 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     addDiagramStep: () =>
       addAt((document) => insertionIndex(document, get().diagramSelectedStepId)),
 
-    insertDiagramStep: (stepId, where) =>
-      addAt((document) => {
-        const index = stepIndex(document, stepId);
-        if (index < 0) return document.steps.length;
-        return where === 'before' ? index : index + 1;
-      }),
+    insertDiagramStep: (stepId, where) => addAt(besideOrSelection({ stepId, where })),
+
+    insertDiagramTurn: (kind, at) => addAt(besideOrSelection(at), createTurn(kind), 'Add turn'),
+
+    setDiagramTurn: (turnId, kind) =>
+      commit('Change turn', (document) => setTurn(document, turnId, kind)) !== null,
 
     deleteDiagramSteps: (stepIds) => {
       const before = get().diagram;
@@ -228,15 +252,17 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       const { diagram, diagramReadOnly, diagramLoadId } = get();
       if (!diagram || diagramReadOnly) return false;
       const removing = new Set(stepIds);
-      const steps = diagram.steps.filter((step) => removing.has(step.id));
-      if (steps.length === 0) return false;
+      const entries = diagram.steps.filter((entry) => removing.has(entry.id));
+      if (entries.length === 0) return false;
+      // A turn holds no work, and goes without asking (D22): the question counts steps.
+      const steps = entries.filter(isStep);
       if (steps.some(stepHasContent)) {
         const t = i18n.t;
         const one = steps.length === 1;
         const confirmed = await requestConfirmation({
           title: one
             ? t('dialogs:diagram.deleteStepTitle', 'Delete step {{number}}?', {
-                number: stepIndex(diagram, steps[0].id) + 1,
+                number: stepNumber(diagram, steps[0]!.id),
               })
             : t('dialogs:diagram.deleteStepsTitle', 'Delete {{total}} steps?', {
                 total: steps.length,
@@ -257,7 +283,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
         // The question can stay up while a file is opened over it.
         if (!confirmed || get().diagramLoadId !== diagramLoadId) return false;
       }
-      return get().deleteDiagramSteps(steps.map((step) => step.id));
+      return get().deleteDiagramSteps(entries.map((entry) => entry.id));
     },
 
     moveDiagramStep: (stepId, toIndex) =>
@@ -317,7 +343,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       if (loadId !== undefined && loadId !== get().diagramLoadId) return null;
       const selected = anchorStepId !== undefined ? anchorStepId : get().diagramSelectedStepId;
       const current = get().diagram;
-      const target = current && selected !== null ? current.steps[stepIndex(current, selected)] : undefined;
+      const target = current && selected !== null ? stepById(current, selected) : undefined;
       // One picture onto a selected step that has none fills it (D2).
       if (assets.length === 1 && target && !isLockedStep(target) && !stepHasPicture(target)) {
         const filled = commit('Add picture', (document) => setStepPicture(document, target.id, assets[0]));
@@ -377,7 +403,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
 
     openDiagramPatternPicker: (stepId) => {
       const { diagram, diagramReadOnly } = get();
-      const step = diagram?.steps[stepIndex(diagram, stepId)];
+      const step = diagram ? stepById(diagram, stepId) : null;
       if (!step || diagramReadOnly || isLockedStep(step)) return false;
       set({ ...selection(stepId), diagramPatternPicker: stepId });
       return true;
@@ -424,20 +450,22 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       if (loadId !== get().diagramLoadId || sent.length === 0) return null;
       // Pressed in a browser that has closed since: it adds nothing, and closes nothing.
       if (opening !== undefined && get().diagramReferencesBrowser?.opening !== opening) return null;
-      let stepIds: string[] = [];
+      let pulled: { stepIds: string[]; turnIds: string[] } = { stepIds: [], turnIds: [] };
       const next = commit(label, (document) => {
-        const result = pullReferencesSteps(document, sent, anchor);
-        stepIds = result.stepIds;
-        return result.document;
+        const { document: pulledInto, ...ids } = pullReferencesSteps(document, sent, anchor);
+        pulled = ids;
+        return pulledInto;
       });
-      if (!next || stepIds.length === 0) return null;
-      set({ ...selection(stepIds[stepIds.length - 1]!), diagramReferencesBrowser: null });
-      return stepIds;
+      const last = pulled.stepIds.at(-1) ?? pulled.turnIds.at(-1);
+      if (!next || last === undefined) return null;
+      set({ ...selection(last), diagramReferencesBrowser: null });
+      return pulled;
     },
 
     openDiagramStep: (stepId, mode = 'pose') => {
       const diagram = get().diagram;
-      if (!diagram || stepIndex(diagram, stepId) < 0) return false;
+      // A turn has no picture to pose or annotate (D22).
+      if (!diagram || !stepById(diagram, stepId)) return false;
       // A step opened from the list starts with Select in hand; switching
       // between Pose and Annotate keeps the tool, as walking the steps does.
       const opening = get().diagramDetail === null;

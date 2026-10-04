@@ -2,7 +2,7 @@ import i18n from '../../i18n';
 import { exportFilename } from '../../platform/exportFilename';
 import { getFileService, type FileService } from '../../platform/fileService';
 import type { DiagramDocument } from '../document/diagramDocument';
-import { stepIndex } from '../document/diagramDocument';
+import { stepById, stepNumber } from '../document/diagramDocument';
 import { DEFAULT_PAPER_PAGE } from '../../lib/paper/paperPage';
 import { paintSource, stepPictureSource } from './paintDiagramStep';
 
@@ -23,12 +23,12 @@ export async function exportStepPicture(
   stepId: string,
   fileService: FileService = getFileService()
 ): Promise<'svg' | 'png' | 'jpeg' | null> {
-  const index = stepIndex(document, stepId);
-  const source = index >= 0 ? stepPictureSource(document.steps[index], document.assets) : null;
+  const step = stepById(document, stepId);
+  const source = step ? stepPictureSource(step, document.assets) : null;
   if (!source) return null;
   const t = i18n.t;
   const title = t('dialogs:diagram.exportPictureTitle', 'Export picture');
-  const stem = `${document.title.trim() || 'Diagram'} step ${index + 1}`;
+  const stem = `${document.title.trim() || 'Diagram'} step ${stepNumber(document, stepId)}`;
   if (
     source.kind === 'asset' &&
     source.asset.kind === 'raster' &&

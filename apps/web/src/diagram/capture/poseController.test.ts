@@ -13,6 +13,7 @@ import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 import { cpDocument, fakeCaptureRuntime, movedLines, TWO_SQUARES, twoSquaresSegmentation } from './capture.fixtures';
 import type { CpCaptureRuntime } from './captureFolded';
 import { createPoseController, linkedFoldKey } from './poseController';
+import { stepsIn } from '../document/diagramSteps.fixtures';
 
 const bindings = vi.hoisted(() => ({ runtime: null as CpCaptureRuntime | null }));
 vi.mock('../../store/workspaceStore/cpFoldRuntimeBindings', async (importOriginal) => ({
@@ -56,7 +57,7 @@ async function linkedStep(): Promise<string> {
 }
 
 const listener = () => ({ spatial: vi.fn(), hasNextSolution: vi.fn() });
-const render = (stepId: string) => state().diagram!.steps.find((step) => step.id === stepId)!.source;
+const render = (stepId: string) => stepsIn(state().diagram!).find((step) => step.id === stepId)!.source;
 
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -192,7 +193,7 @@ describe('the Pose controller', () => {
     useWorkspaceStore.setState({
       diagram: {
         ...state().diagram!,
-        steps: state().diagram!.steps.map((step) =>
+        steps: stepsIn(state().diagram!).map((step) =>
           step.id === stepId && step.source?.kind === 'cp'
             ? { ...step, source: { ...step.source, render: { mode: 'simulated', foldPercent: 0, view } } }
             : step
@@ -214,7 +215,7 @@ describe('the Pose controller', () => {
     useWorkspaceStore.setState({
       diagram: {
         ...state().diagram!,
-        steps: state().diagram!.steps.map((step) =>
+        steps: stepsIn(state().diagram!).map((step) =>
           step.id === stepId && step.source?.kind === 'cp' ? { ...step, source: { ...step.source, fingerprint: 'before' } } : step
         ),
       },
@@ -231,7 +232,7 @@ describe('the Pose controller', () => {
     useWorkspaceStore.setState({
       diagram: {
         ...state().diagram!,
-        steps: state().diagram!.steps.map((step) =>
+        steps: stepsIn(state().diagram!).map((step) =>
           step.id === stepId && step.source?.kind === 'cp'
             ? { ...step, source: { ...step.source, render: { mode: 'simulated', foldPercent: 0, view } } }
             : step
@@ -262,7 +263,7 @@ describe('the Pose controller', () => {
       useWorkspaceStore.setState({
         diagram: {
           ...state().diagram!,
-          steps: state().diagram!.steps.map((step) =>
+          steps: stepsIn(state().diagram!).map((step) =>
             step.id === stepId && step.source?.kind === 'cp'
               ? { ...step, source: { ...step.source, render: { mode: 'simulated', foldPercent, view } } }
               : step

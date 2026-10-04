@@ -29,6 +29,7 @@ export function DiagramHeader({
   patternOpen,
   onLink,
   onFromReferences,
+  onAddTurn,
   staleCount,
   poseAgainCount,
   refreshing,
@@ -54,6 +55,8 @@ export function DiagramHeader({
   onLink: () => void;
   /** Open the References browser, adding after the selected step or at the end. */
   onFromReferences: () => void;
+  /** Add a turn between steps (D22), after the selected step or at the end. */
+  onAddTurn: (kind: "turn-over" | "rotate") => void;
   /** How many linked steps are out of date, and Refresh all would capture again. */
   staleCount: number;
   /** How many more are out of date but folded part way in the simulator: Pose captures those (D19). */
@@ -155,7 +158,27 @@ export function DiagramHeader({
                       "Open a crease pattern in Edit to plan its folds",
                     ),
                 opensDialog: true,
-              onSelect: onFromReferences,
+                onSelect: onFromReferences,
+              },
+              {
+                id: "turn-over",
+                label: t("panels:diagram.header.addTurnOver", "Turn Over"),
+                title: t(
+                  "panels:diagram.header.addTurnHint",
+                  "Between steps, unnumbered: the model turned over or round",
+                ),
+                disabled: readOnly,
+                onSelect: () => onAddTurn("turn-over"),
+              },
+              {
+                id: "rotate",
+                label: t("panels:diagram.header.addRotate", "Rotate"),
+                title: t(
+                  "panels:diagram.header.addTurnHint",
+                  "Between steps, unnumbered: the model turned over or round",
+                ),
+                disabled: readOnly,
+                onSelect: () => onAddTurn("rotate"),
               },
               refreshing
                 ? {

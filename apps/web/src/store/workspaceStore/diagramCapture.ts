@@ -21,7 +21,6 @@ import {
   DEFAULT_DIAGRAM_STYLE,
   isLockedStep,
   setLinkedPicture,
-  stepIndex,
   type DiagramCpRender,
   type DiagramCpScope,
   type DiagramCpSource,
@@ -29,6 +28,7 @@ import {
   type DiagramPicture,
   type DiagramStyle,
   type KnownDiagramAsset,
+  stepById,
 } from '../../diagram/document/diagramDocument';
 import { diagramScenePaintStyle, diagramStyleKey } from '../../diagram/pictures/diagramPaperStyle';
 import { sceneMeasure } from '../../diagram/pictures/paintDiagramStep';
@@ -148,7 +148,7 @@ export function beginStepCapture(
   if (Object.hasOwn(state.diagramCaptures, stepId)) return { status: 'busy' };
   const cp = state.oristudioCpDocument;
   if (!cp) return { status: 'no-pattern' };
-  const step = state.diagram?.steps[stepIndex(state.diagram, stepId)];
+  const step = state.diagram ? stepById(state.diagram, stepId) : null;
   if (!step || isLockedStep(step)) return { status: 'discarded' };
   setRun(store, stepId, { runId: null });
   return {
@@ -206,7 +206,7 @@ export async function commitStepCapture(
   const kept = await keptPicture(captured.picture, captured.source.render, start.style);
   const now = store.get();
   const { stepId, loadId, revision } = start.guard;
-  const current = now.diagram?.steps[stepIndex(now.diagram, stepId)];
+  const current = now.diagram ? stepById(now.diagram, stepId) : null;
   if (now.diagramLoadId !== loadId || !current || current.revision !== revision) return null;
   const join = joinEntry !== undefined && now.diagramHistory.past.at(-1) === joinEntry;
   const next = commit(

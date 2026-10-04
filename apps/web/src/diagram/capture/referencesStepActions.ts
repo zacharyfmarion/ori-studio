@@ -8,13 +8,13 @@
  */
 import { trackDiagramSourceOpened } from '../../analytics';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { stepIndex } from '../document/diagramDocument';
+import { stepById } from '../document/diagramDocument';
 import { stepSheetNow } from './stepSheetNow';
 
 /** Show the sheet a References step was sent from, in References. */
 export function openDiagramStepInReferences(stepId: string): void {
   const store = useWorkspaceStore.getState();
-  const step = store.diagram?.steps[stepIndex(store.diagram, stepId)];
+  const step = store.diagram ? stepById(store.diagram, stepId) : null;
   if (!step || step.unknown || step.source?.kind !== 'references-step') return;
   const { region, mode } = step.source;
   store.openReferencesWorkspace({ boundary: stepSheetNow(step.source)?.boundary ?? region.boundary, mode });

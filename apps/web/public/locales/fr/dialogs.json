@@ -203,6 +203,9 @@
     "textHelp": "Laissez-le désactivé pour composer le texte dans votre propre logiciel de mise en page.",
     "title": "Exporter le diagramme",
     "transparent": "Fond transparent",
+    "turnsLeftOut_one": "Le mouvement entre deux étapes s’imprime sur les pages\u00a0; les fichiers d’étape l’omettent.",
+    "turnsLeftOut_many": "Les {{count}} mouvements entre étapes s’impriment sur les pages\u00a0; les fichiers d’étape les omettent.",
+    "turnsLeftOut_other": "Les {{count}} mouvements entre étapes s’impriment sur les pages\u00a0; les fichiers d’étape les omettent.",
     "width": "Largeur",
     "writingPdf": "Création du PDF…"
   },

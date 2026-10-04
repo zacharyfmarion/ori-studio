@@ -198,6 +198,8 @@
     "textHelp": "Leave it off to set the text in your own layout app.",
     "title": "Export diagram",
     "transparent": "Transparent background",
+    "turnsLeftOut_one": "The turn between steps prints on the pages; the step files leave it out.",
+    "turnsLeftOut_other": "The {{count}} turns between steps print on the pages; the step files leave them out.",
     "width": "Width",
     "writingPdf": "Writing PDF…"
   },

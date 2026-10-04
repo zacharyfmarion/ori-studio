@@ -9,7 +9,7 @@ import {
   SHOW_AS_ACTION,
   type DiagramLinkedPoseAction,
 } from '../actions/diagramLinkedPoseActions';
-import { showAsOf, stepIndex, type DiagramShowAs, type DiagramStep } from '../document/diagramDocument';
+import { showAsOf, type DiagramShowAs, type DiagramStep, stepById } from '../document/diagramDocument';
 import { publishOpenLinkedPose } from './openLinkedPose';
 import {
   createPoseController,
@@ -124,7 +124,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
       if (!controller || readOnly || stepId === null) return false;
       await controller.run({ verb: SHOW_AS_ACTION[way] }, { tracked: false });
       const { diagram } = useWorkspaceStore.getState();
-      const now = diagram?.steps[stepIndex(diagram, stepId)];
+      const now = diagram ? stepById(diagram, stepId) : null;
       return now?.source?.kind === 'cp' && showAsOf(now.source.render) === way;
     },
     [controller, readOnly, stepId]

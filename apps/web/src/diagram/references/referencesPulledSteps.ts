@@ -2,10 +2,16 @@
  * Cards pulled from the References browser into the diagram (D20): each a
  * snapshot of its card's picture, its sentence as the instruction, and where
  * it came from (D6) — the sheet, found again in the segmentation every
- * Diagram link is made in (D3), and the plan and way it was drawn from.
+ * Diagram link is made in (D3), and the plan and way it was drawn from. A
+ * turn-over card is pulled as a turn between steps, unnumbered (D22).
  */
 import { toast } from 'sonner';
-import { trackDiagramStepAdded, trackDiagramStepsPulledFromReferences, type DiagramPulledInto } from '../../analytics';
+import {
+  trackDiagramStepAdded,
+  trackDiagramStepsPulledFromReferences,
+  trackDiagramTurnAdded,
+  type DiagramPulledInto,
+} from '../../analytics';
 import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
 import type { ReferencesDiagramCard } from '../../cp-workspace/references/referencesDiagramCards';
 import { regionReferenceFor, resolveRegion, type RegionReference } from '../../cp-workspace/regions/regionReference';
@@ -17,11 +23,12 @@ import {
   anchorTakesCard,
   stepDiagramKey,
   stepIndex,
+  stepNumber,
   type DiagramDocument,
   type DiagramPullAnchor,
   type DiagramStepDiagramPicture,
   type ReferencesPlanSettings,
-  type SentReferencesStep,
+  type SentReferencesEntry,
 } from '../document/diagramDocument';
 import { storedReferencesSource } from '../document/diagramFile';
 import { storedStepDiagramModel } from '../document/stepDiagramModelFile';
@@ -66,7 +73,7 @@ export interface ReferencesPull {
 /** What became of a pull. */
 export type ReferencesPullOutcome =
   /** Added; `into` says where the cards went, which the anchor may not have been able to take. */
-  | { status: 'pulled'; stepIds: string[]; into: DiagramPulledInto }
+  | { status: 'pulled'; stepIds: string[]; turnIds: string[]; into: DiagramPulledInto }
   | { status: 'no-pattern' }
   | { status: 'read-only' }
   /** A card too large for the file to read back: nothing was added. */
@@ -104,8 +111,13 @@ async function pullCards(pull: ReferencesPull): Promise<ReferencesPullOutcome> {
   const creases = choice?.status === 'found' ? choice.creases : null;
   const thumbnail = creases ? creasesThumbnail(creases, segmentation) : outlineThumbnail(pull.outline);
 
-  const sent: SentReferencesStep[] = [];
+  const sent: SentReferencesEntry[] = [];
   for (const { card, picture, way } of pull.cards) {
+    // References turns the paper over left to right: about the vertical axis.
+    if (card.kind === 'turn-over') {
+      sent.push({ kind: 'turn-over', axis: 'vertical' });
+      continue;
+    }
     const source = storedReferencesSource({
       kind: 'references-step',
       region,
@@ -134,11 +146,12 @@ async function pullCards(pull: ReferencesPull): Promise<ReferencesPullOutcome> {
         : sent.length === 1
           ? 'Add step from References'
           : 'Add steps from References';
-  const stepIds = useWorkspaceStore
+  const pulled = useWorkspaceStore
     .getState()
     .pullReferencesDiagramSteps(sent, pull.anchor, { loadId, label, opening: pull.opening });
-  if (!stepIds) return useWorkspaceStore.getState().diagramReadOnly ? { status: 'read-only' } : { status: 'discarded' };
-  return { status: 'pulled', stepIds, into: landedInto(pull.anchor, stepIds, useWorkspaceStore.getState().diagram) };
+  if (!pulled) return useWorkspaceStore.getState().diagramReadOnly ? { status: 'read-only' } : { status: 'discarded' };
+  const into = landedInto(pull.anchor, pulled.stepIds, useWorkspaceStore.getState().diagram);
+  return { status: 'pulled', ...pulled, into };
 }
 
 /**
@@ -156,16 +169,28 @@ function say(outcome: ReferencesPullOutcome, pull: ReferencesPull): void {
   const t = i18n.t;
   switch (outcome.status) {
     case 'pulled': {
-      trackDiagramStepsPulledFromReferences(pull.mode, outcome.into, outcome.stepIds.length);
+      trackDiagramStepsPulledFromReferences(pull.mode, outcome.into, outcome.stepIds.length + outcome.turnIds.length);
       // A step filled or replaced was there already: only the new ones are added.
       const kept = outcome.into === 'fill' || outcome.into === 'replace' ? 1 : 0;
       for (let index = kept; index < outcome.stepIds.length; index += 1) {
         trackDiagramStepAdded('references', 'references');
       }
+      outcome.turnIds.forEach(() => trackDiagramTurnAdded('turn-over', 'references'));
       const diagram = useWorkspaceStore.getState().diagram;
-      const numbers = diagram ? outcome.stepIds.map((stepId) => stepIndex(diagram, stepId) + 1) : [];
+      const numbers = diagram ? outcome.stepIds.map((stepId) => stepNumber(diagram, stepId) ?? 0) : [];
       const first = numbers[0] ?? 0;
       const last = numbers[numbers.length - 1] ?? first;
+      if (numbers.length === 0) {
+        // Only a turn-over: no step to name, and nothing numbered.
+        toast.success(
+          t('toasts:diagram.references.addedTurnOvers', {
+            count: outcome.turnIds.length,
+            defaultValue_one: 'Added a turn-over',
+            defaultValue_other: 'Added {{count}} turn-overs',
+          })
+        );
+        return;
+      }
       toast.success(
         numbers.length > 1
           ? t('toasts:diagram.references.addedSteps', 'Added as steps {{first}}–{{last}}', { first, last })

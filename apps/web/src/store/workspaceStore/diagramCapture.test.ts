@@ -12,7 +12,7 @@ import { linkStatus } from '../../diagram/capture/linkStatus';
 import type { DiagramCpScope } from '../../diagram/document/diagramDocument';
 import { useWorkspaceStore } from '../workspaceStore';
 import { DEFAULT_DIAGRAM_STYLE, setLinkedPicture, createDiagram, insertSteps } from '../../diagram/document/diagramDocument';
-import { cpStep } from '../../diagram/document/diagramSteps.fixtures';
+import { cpStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 import { keptPicture, type DiagramCaptureRequest } from './diagramCapture';
 
@@ -96,7 +96,7 @@ describe('captureDiagramStep', () => {
     const before = state().diagramHistory.past.length;
     const outcome = await state().captureDiagramStep(stepId, linkRequest);
     expect(outcome).toMatchObject({ status: 'captured', changed: true });
-    const step = state().diagram!.steps[0]!;
+    const step = stepsIn(state().diagram!)[0]!;
     expect(step.source?.kind).toBe('cp');
     expect(step.picture?.kind).toBe('scene');
     expect(state().diagramHistory.past).toHaveLength(before + 1);
@@ -150,7 +150,7 @@ describe('captureDiagramStep', () => {
     });
     fold.finish();
     expect(await capturing).toEqual({ status: 'discarded' });
-    expect(state().diagram!.steps[0]!.source?.kind).toBe('upload');
+    expect(stepsIn(state().diagram!)[0]!.source?.kind).toBe('upload');
   });
 
   it('keeps an instruction typed while it folded, and commits around it', async () => {
@@ -161,7 +161,7 @@ describe('captureDiagramStep', () => {
     state().setDiagramStepText(stepId, 'Valley fold in half.');
     fold.finish();
     expect(await capturing).toMatchObject({ status: 'captured' });
-    expect(state().diagram!.steps[0]).toMatchObject({ text: 'Valley fold in half.', source: { kind: 'cp' } });
+    expect(stepsIn(state().diagram!)[0]).toMatchObject({ text: 'Valley fold in half.', source: { kind: 'cp' } });
   });
 
   it('drops what it captured when the diagram was replaced while it folded', async () => {
@@ -183,7 +183,7 @@ describe('captureDiagramStep', () => {
       }),
     });
     expect(await state().captureDiagramStep(stepId, flatRequest)).toEqual({ status: 'stopped' });
-    expect(state().diagram!.steps[0]!.source).toBeNull();
+    expect(stepsIn(state().diagram!)[0]!.source).toBeNull();
     expect(state().oristudioCpFoldRuns).toEqual({});
   });
 
@@ -196,7 +196,7 @@ describe('captureDiagramStep', () => {
 
   it('changes nothing in a read-only diagram', async () => {
     state().addDiagramStep();
-    const stepId = state().diagram!.steps[0]!.id;
+    const stepId = stepsIn(state().diagram!)[0]!.id;
     useWorkspaceStore.setState({ diagramReadOnly: true });
     expect(await state().captureDiagramStep(stepId, linkRequest)).toEqual({ status: 'read-only' });
   });

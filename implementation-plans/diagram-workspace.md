@@ -3005,12 +3005,43 @@ Four requests after Phase 10, with D22 and D23 above.
     menu, → to the next, Escape back to the caret or the step's card; on a phone
     the list, a pattern's cards with ← Patterns and ✕, and nothing touched by
     the keys on the list.
-- [ ] **11b. A step can be added before step 1.** Every card owns the gap
+- [x] **11b. A step can be added before step 1.** Every card owns the gap
   before it (the first card's in the grid's padding), the trailing tile the
   place after the last.
-- [ ] **11c. Turns (D22).** The model and file, the number helper and its
+  - As built: `onInsertBefore`; the gap is the card's left (one column: the
+    row gap over it), the "+" standing above any turns there; a phone's grid
+    has 20 px over the first card for its gap.
+- [x] **11c. Turns (D22).** The model and file, the number helper and its
   consumers, the grid's chips and the Step pane, the verbs, References' pull,
   the pages' gutter and glyph, step files, analytics, i18n.
+  - As built: `DiagramEntry = DiagramStep | DiagramTurn` in the one ordered
+    list (`steps`, the file key unchanged), so the compiler named every reader
+    of a step; `stepsOf`, `stepNumbers`/`stepNumber` (cached per order),
+    `stepById`/`turnById`, `stepsAround`, `indexForStepNumber`. A turn is
+    written `{id, kind, axis}` / `{id, kind, rotate}`; a newer kind, field or
+    value is carried locked, verbatim; a damaged one is left out. Store:
+    `insertDiagramTurn`, `setDiagramTurn`; a turn deletes without asking,
+    opens no detail (selecting one closes it), is never filled by a picture or
+    a card. Verbs: `diagramTurnActions.ts` (Turn Over | Rotate, its axis or its
+    amount and direction, moves, Delete) for the chip's menu and
+    `DiagramTurnPane`; steps gain Insert Turn Over / Rotate After, the header's
+    Add step ▾ Turn Over / Rotate. Pages: `TURN_GUTTER_MM` (14) between all
+    pictures once a diagram has a turn; `placeTurns` puts each glyph midway on
+    a row, at the next picture's leading edge across a row or page, after the
+    last at its trailing edge, stacked 8 mm apart; the composer paints it with
+    the annotation painter and sets a rotation's fraction in the diagram's
+    fonts (`setUploadText`, so the PDF embeds its digits — a test fails
+    without it); the Pages view selects one. Step files leave turns out, say
+    so, and number and pad by the steps. References' turn-over card is pulled
+    as a turn — never into the step it fills, a leading one before it; Replace
+    offers none. `diagram turn added` {kind, via}. The tests' all-step
+    diagrams read through `stepsIn` (which throws on a turn).
+  - Browser (`artifacts/diagram-phase11/turns.mjs`, `turns-top.mjs`; crane-50,
+    light and dark, desktop and phone): the cards read Step 3, the chip, Step
+    4; a chip selects and the Step pane shows "Turn over, side to side ·
+    Between steps 3 and 4"; on page 1 the glyph before step 1 and the one
+    between 3 and 4 sit at the leading edge of their pictures, the one between
+    7 and 8 midway, with its "1/4"; nothing scrolls sideways on a phone.
 - [ ] **11d. Pose options (D23).** Ways for a References step (the pull records
   the order its picture was drawn in); ‹ Layer order n of m › for a linked
   folded step.

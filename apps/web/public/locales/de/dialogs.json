@@ -198,6 +198,8 @@
     "textHelp": "Ausgeschaltet lassen, um den Text im eigenen Layoutprogramm zu setzen.",
     "title": "Diagramm exportieren",
     "transparent": "Transparenter Hintergrund",
+    "turnsLeftOut_one": "Die Wendung zwischen den Schritten wird auf die Seiten gedruckt; die Schrittdateien lassen sie weg.",
+    "turnsLeftOut_other": "Die {{count}} Wendungen zwischen den Schritten werden auf die Seiten gedruckt; die Schrittdateien lassen sie weg.",
     "width": "Breite",
     "writingPdf": "PDF wird erstellt …"
   },
