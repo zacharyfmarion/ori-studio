@@ -101,6 +101,9 @@ function rerender(readOnly = false) {
 }
 
 const overlay = () => host.querySelector('svg[data-annotate-overlay]') as SVGSVGElement;
+/** The camera's surface, the stage: the library's wrapper, which the view holds with the zoom pill over it. */
+const stage = () => overlay().closest('.react-transform-wrapper') as HTMLDivElement;
+const view = () => host.querySelector('[data-tool]') as HTMLDivElement;
 
 /** Picture units to the client: the frame's group is translated, one unit 1000 world px. */
 function at(u: number, v: number): [number, number] {
@@ -108,21 +111,52 @@ function at(u: number, v: number): [number, number] {
   return [x! + u * 1000, y! + v * 1000];
 }
 
-function pointer(type: string, [clientX, clientY]: [number, number], pointerId = 1, pointerType = 'mouse') {
+function pointer(
+  type: string,
+  [clientX, clientY]: [number, number],
+  pointerId = 1,
+  pointerType = 'mouse',
+  target: Element = overlay()
+) {
   const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY, button: 0 });
   Object.defineProperty(event, 'pointerId', { value: pointerId });
   Object.defineProperty(event, 'pointerType', { value: pointerType });
   act(() => {
-    overlay().dispatchEvent(event);
+    target.dispatchEvent(event);
   });
 }
 
-function drag(from: [number, number], to: [number, number], pointerId = 1, pointerType = 'mouse') {
-  pointer('pointerdown', from, pointerId, pointerType);
+function drag(
+  from: [number, number],
+  to: [number, number],
+  pointerId = 1,
+  pointerType = 'mouse',
+  target: Element = overlay()
+) {
+  pointer('pointerdown', from, pointerId, pointerType, target);
   for (let i = 1; i <= 4; i += 1) {
-    pointer('pointermove', [from[0] + ((to[0] - from[0]) * i) / 4, from[1] + ((to[1] - from[1]) * i) / 4], pointerId, pointerType);
+    pointer(
+      'pointermove',
+      [from[0] + ((to[0] - from[0]) * i) / 4, from[1] + ((to[1] - from[1]) * i) / 4],
+      pointerId,
+      pointerType,
+      target
+    );
   }
-  pointer('pointerup', to, pointerId, pointerType);
+  pointer('pointerup', to, pointerId, pointerType, target);
+}
+
+/** A `touchstart` with `fingers` touches down, as a browser sends one. */
+function touchStart(target: Element, fingers: number) {
+  const event = new Event('touchstart', { bubbles: true, cancelable: true });
+  const touches = Array.from({ length: fingers }, (_, index) => {
+    const at = { clientX: 100 + 50 * index, clientY: 100, pageX: 100 + 50 * index, pageY: 100 };
+    return { ...at, identifier: index, target };
+  });
+  Object.defineProperty(event, 'touches', { value: touches });
+  act(() => {
+    target.dispatchEvent(event);
+  });
 }
 
 const annotations = () => stepsIn(state().diagram!)[0]!.annotations as KnownDiagramAnnotation[];
@@ -285,5 +319,64 @@ describe('DiagramAnnotateCanvas', () => {
     expect(pendingLabelFocus()).toBe('label');
     act(() => state().selectDiagramAnnotation('line'));
     expect(pendingLabelFocus()).toBeNull();
+  });
+
+  it('draws from a press anywhere on the stage, past the picture’s margin, no further out than reach', () => {
+    mount();
+    tool('valley-arrow');
+    // Past the quarter frame the camera frames round the picture: the stage, not the overlay.
+    drag(at(-0.8, 0.5), at(0.3, 0.5), 1, 'mouse', stage());
+    expect(annotations()).toHaveLength(1);
+    expect(annotations()[0]!.from[0]).toBeCloseTo(-0.8, 3);
+    // Six frames out is past where an annotation may reach: it starts at the edge of reach.
+    drag(at(-6, 0.2), at(0.3, 0.2), 1, 'mouse', stage());
+    expect(annotations()).toHaveLength(2);
+    expect(annotations()[1]!.from).toEqual([-4, expect.closeTo(0.2, 3)]);
+  });
+
+  it('leaves a press on the zoom pill to the pill, with a tool in hand', () => {
+    mount();
+    tool('valley-arrow');
+    const pill = host.querySelector('[data-viewport-toolbar]')!;
+    drag(at(0.2, 0.5), at(0.6, 0.5), 1, 'mouse', pill);
+    expect(annotations()).toHaveLength(0);
+    // The press after it, on the stage, draws as ever.
+    drag(at(0.2, 0.5), at(0.6, 0.5), 1, 'mouse', stage());
+    expect(annotations()).toHaveLength(1);
+  });
+
+  it('keeps one finger from the camera anywhere on the stage, and lets a second through to pinch', () => {
+    mount();
+    const seen: number[] = [];
+    // Where the camera listens for its pans and pinches.
+    stage().addEventListener('touchstart', (event) => seen.push((event as TouchEvent).touches.length));
+    touchStart(stage(), 1);
+    touchStart(overlay(), 1);
+    touchStart(stage(), 2);
+    expect(seen).toEqual([2]);
+  });
+
+  it('pinches on the stage past the margin without drawing, and pans with Space held', () => {
+    mount();
+    tool('valley-line');
+    pointer('pointerdown', at(-0.8, 0.5), 1, 'touch', stage());
+    pointer('pointermove', at(-0.6, 0.5), 1, 'touch', stage());
+    pointer('pointerdown', at(1.6, 0.5), 2, 'touch', stage());
+    pointer('pointermove', at(1.4, 0.6), 2, 'touch', stage());
+    pointer('pointerup', at(1.4, 0.6), 2, 'touch', stage());
+    pointer('pointerup', at(-0.6, 0.5), 1, 'touch', stage());
+    expect(annotations()).toHaveLength(0);
+    // Space held: the press is the camera's (it pans on a left drag), not a stroke.
+    act(() => {
+      view().dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    });
+    expect(view().hasAttribute('data-space-pan')).toBe(true);
+    drag(at(-0.8, 0.5), at(0.3, 0.5), 1, 'mouse', stage());
+    expect(annotations()).toHaveLength(0);
+    act(() => {
+      view().dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }));
+    });
+    drag(at(-0.8, 0.5), at(0.3, 0.5), 1, 'mouse', stage());
+    expect(annotations()).toHaveLength(1);
   });
 });

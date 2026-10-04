@@ -242,10 +242,27 @@ reshaped, not per gesture), i18n, shortcut labels, before/after browser
 screenshots (light and dark, desktop and iPad WebKit), and a review.
 
 ### 14a. White stage
-- [ ] White `.view`; fixed selection colour; presses across the stage;
+- [x] White `.view`; fixed selection colour; presses across the stage;
   `touch-action`; capture-phase touch guard.
-- [ ] Tests: a press beyond the old margin draws (clamped); the zoom pill
+  - As built: `.view` is `#ffffff` with `touch-action: none`; the frame's
+    hairline is its own element on `layout.frame` (the painted box no longer
+    carries one); the wash and grips are `--annotate-selection` (#4078f2, the
+    default light accent, 4:1 on white; the dark presets' accents are 1.5–3.7:1)
+    with white grips. The handlers moved to `.view` and a press counts when it
+    lands on the camera's wrapper (`instance.wrapperComponent`, the camera's
+    own test), so the pill and anything floating over the stage keep theirs;
+    `toPicture` clamps to reach; the one-finger guard is a capture listener on
+    `.view`. The cursor rules moved to the wrapper (`wrapperClass`).
+- [x] Tests: a press beyond the old margin draws (clamped); the zoom pill
   doesn't; pinch and Space-pan unchanged. iPad finger and Pencil before 14c.
+  - As built: four canvas tests, all failing on the base; mutants (no stage
+    gate, a bubble-phase guard) each fail one. Browser
+    (`artifacts/diagram-annotate/{stage,touch}.mjs`): desktop Chromium and
+    iPad-sized WebKit, light and dark, before and after; real finger, pen and
+    pinch through CDP in Chromium at iPad size (a finger or pen past the old
+    margin now draws instead of panning or doing nothing; a pinch there now
+    zooms; Space and the middle button pan as before). Real WebKit touch is not
+    scriptable headless; WebKit was driven by mouse.
 
 ### 14b. Prep
 - [ ] The grip union (`body | from | to | node | handle | segment | corner |

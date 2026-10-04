@@ -1,20 +1,40 @@
 /*
- * The Annotate canvas (DiagramAnnotateCanvas.tsx): the step's picture on its
- * paper under one camera, the annotations and the selection over it.
+ * The Annotate canvas (DiagramAnnotateCanvas.tsx): the step's picture under
+ * one camera, the annotations and the selection over it, on a white stage.
  */
 .view {
+  /*
+   * The selection's ink: it lies on the page's white whatever the theme, so it
+   * is no theme's accent — a dark theme's is 1.5 to 3.7:1 on white. The
+   * default light theme's accent, at 4:1.
+   */
+  --annotate-selection: #4078f2;
+
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-secondary);
+  /* The page every mark prints on, so one that reaches past the picture reads as it will print. */
+  background: #ffffff;
+  /* Every press on the stage is the canvas's: a finger draws, two pinch (the camera's). */
+  touch-action: none;
 }
 
 .view:focus {
   outline: none;
 }
 
-.view[data-space-pan] {
+/* The camera's surface (its wrapper): what a press lands on, and what it points with. */
+.stage {
+  cursor: default;
+}
+
+/* A tool in hand draws. */
+.view:not([data-tool='select']) .stage {
+  cursor: crosshair;
+}
+
+.view[data-space-pan] .stage {
   cursor: grab;
 }
 
@@ -26,7 +46,6 @@
 .paper {
   position: absolute;
   background: #ffffff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
 }
 
 .picture {
@@ -38,26 +57,22 @@
   pointer-events: none;
 }
 
+/* The picture's frame: a hairline, where white paper meets the white stage. */
+.frame {
+  position: absolute;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
 .overlay {
   position: absolute;
   inset: 0;
   overflow: visible;
-  touch-action: none;
-  cursor: default;
-}
-
-/* A tool in hand draws. */
-.overlay:not([data-tool='select']) {
-  cursor: crosshair;
-}
-
-.view[data-space-pan] .overlay {
-  cursor: grab;
 }
 
 .selection {
   fill: none;
-  stroke: color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  stroke: color-mix(in srgb, var(--annotate-selection) 45%, transparent);
   stroke-width: 7px;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -66,8 +81,8 @@
 }
 
 .handle {
-  fill: var(--bg-primary);
-  stroke: var(--accent-primary);
+  fill: #ffffff;
+  stroke: var(--annotate-selection);
   stroke-width: 1.5px;
   vector-effect: non-scaling-stroke;
   pointer-events: none;

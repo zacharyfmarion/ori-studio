@@ -22,11 +22,12 @@ import styles from './DiagramAnnotateCanvas.module.css';
 const HANDLE_PX = 5;
 
 /**
- * The Annotate canvas (D8): the step's picture alone, on its paper, with its
- * annotations drawn over it live as they print — under one camera, with room
- * round the picture for an arrow that starts off it. The selected annotation
+ * The Annotate canvas (D8): the step's picture alone, with its annotations
+ * drawn over it live as they print — under one camera, on a stage as white as
+ * the page in every theme, so a mark that reaches past the picture reads as it
+ * will print. A hairline marks the picture's frame. The selected annotation
  * shows where it is and, for a line or an arrow, a dot at each end. The
- * behaviour is `useAnnotateCanvas`'s.
+ * behaviour is `useAnnotateCanvas`'s; its presses are the whole stage's.
  */
 export function DiagramAnnotateCanvas({
   step,
@@ -62,8 +63,10 @@ export function DiagramAnnotateCanvas({
       ref={containerRef}
       className={styles.view}
       data-space-pan={spacePressed || undefined}
+      data-tool={tool ?? 'select'}
       tabIndex={-1}
       onPointerDownCapture={onPointerDownCapture}
+      {...handlers}
     >
       <TransformWrapper
         ref={transformRef}
@@ -86,6 +89,7 @@ export function DiagramAnnotateCanvas({
         onTransformed={onTransformed}
       >
         <TransformComponent
+          wrapperClass={styles.stage}
           wrapperStyle={{ width: '100%', height: '100%' }}
           contentStyle={layout ? { width: layout.world.width, height: layout.world.height } : undefined}
         >
@@ -94,17 +98,17 @@ export function DiagramAnnotateCanvas({
               <div className={styles.paper} style={box(layout.picture)}>
                 {url && <img className={styles.picture} src={url} alt="" draggable={false} />}
               </div>
+              {/* The frame, not the painted box: what the picture's units measure, and what a mark is placed against. */}
+              <div className={styles.frame} style={box(layout.frame)} data-annotate-frame="" />
               <svg
                 ref={overlay}
                 className={styles.overlay}
                 data-annotate-overlay=""
-                data-tool={tool ?? 'select'}
                 width={layout.world.width}
                 height={layout.world.height}
                 viewBox={`0 0 ${layout.world.width} ${layout.world.height}`}
                 role="img"
                 aria-label={t('panels:diagram.annotate.canvasLabel', 'Annotations on the step’s picture')}
-                {...handlers}
               >
                 {drawing && (
                   <g
