@@ -694,7 +694,12 @@ export function useAnnotateCanvas({
         const point = isPointKind(current.kind);
         // A line or an arrow is drawn by a drag; a sign or a label is put down by a click.
         if (!point && !current.moved) return;
-        const { at, target } = placeInHand(current, toPicture(event.clientX, event.clientY) ?? current.start, free);
+        // A click puts a point where its press showed it: a hand or a finger
+        // drifting within its slop before it lifts has not moved it.
+        const { at, target } =
+          point && !current.moved
+            ? { at: current.start, target: current.startTarget }
+            : placeInHand(current, toPicture(event.clientX, event.clientY) ?? current.start, free);
         const annotation = createAnnotation(current.kind, point ? at : current.start, at, layout.pictureFrame);
         if (isDegenerate(annotation, MIN_ANNOTATION_LENGTH)) return;
         const added = store.editDiagramAnnotations(step.id, 'Add annotation', (list) => [...list, annotation], {

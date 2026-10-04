@@ -1002,4 +1002,26 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
     expect(last()).toMatchObject({ kind: 'circle', from: [0.6, 0.5] });
     expect(targets()).toEqual([]);
   });
+
+  it('puts a clicked circle where its press showed, though the pointer drifts within its slop before it lifts', () => {
+    drawn([line], 'circle');
+    // A finger 12 px off the end, which the press shows; it lifts 8 px further off, 20 px from it.
+    pointer('pointerdown', at(0.612, 0.5), 1, 'touch');
+    expect(targets()).toEqual(['annotation']);
+    pointer('pointerup', at(0.62, 0.5), 1, 'touch');
+    rerender();
+    expect(last()).toMatchObject({ kind: 'circle', from: [0.6, 0.5] });
+    // A press with nothing near, lifting nearer one: where it was pressed, as it showed.
+    pointer('pointerdown', at(0.6195, 0.5), 2, 'touch');
+    expect(targets()).toEqual([]);
+    pointer('pointerup', at(0.611, 0.5), 2, 'touch');
+    rerender();
+    expect(last().from[0]).toBeCloseTo(0.6195, 6);
+    // At the line's other end, a mouse's 3 px drift within its 4 px slop, past the radius.
+    pointer('pointerdown', at(0.187, 0.5), 3, 'mouse');
+    expect(targets()).toEqual(['annotation']);
+    pointer('pointerup', at(0.184, 0.5), 3, 'mouse');
+    rerender();
+    expect(last().from).toEqual([0.2, 0.5]);
+  });
 });
