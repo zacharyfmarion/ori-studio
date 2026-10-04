@@ -12,12 +12,22 @@
  *   picture box, down to half the box, and only then is cut with "…" — but
  *   always keeps one line, in a cell too short for even that at half.
  *
+ * A picture is drawn in its cell's room: the cell's width less the gutter,
+ * and the height its text leaves — taller than the square box where the text
+ * is short, so a tall model keeps its scale and its cell runs taller rather
+ * than the model shrinking. The text then starts below it.
+ *
  * Under the `paper` scale every picture that knows its paper's size is drawn
  * at one millimetre per document unit for the whole diagram: the largest at
- * which each fits its full box. A picture in a cell whose box gave room to
- * text, and no longer fits there at that scale, is drawn smaller, alone.
- * Uploads and 3D pictures are fitted to their boxes, as every picture is under
- * `fit`.
+ * which each fits its room. A picture in a cell whose box gave room to text,
+ * and no longer fits there at that scale, is drawn smaller, alone. Uploads and
+ * 3D pictures are fitted to their boxes.
+ *
+ * Under `fit` the paper keeps one scale from step to step while it can
+ * ({@link scaleRuns}): a run of steps shares the largest scale at which each
+ * fits its room, and a new run zooms in where the model has grown much
+ * smaller, or out where it has grown for good. Pictures with no paper keep
+ * one size of frame the same way.
  *
  * A turn between two steps (D22) has no cell: its glyph prints in the gutter
  * between the two pictures — midway on a row; at the next picture's leading
@@ -71,13 +81,23 @@ const FLOW_STEP = 0.06;
 /** The room beside a picture box in its cell, together: the gutter between two pictures. */
 const PICTURE_SIDE_ROOM_MM = 6;
 /**
- * Under `fit`, how far past its picture a step's marks may reach — per the
- * picture's longer side — and still be given room by every step: an arrow
- * bulging over an edge. A step that reaches further, a References step's
- * letters or a flap's outline where it will go, draws its picture smaller on
- * its own instead, and has no say in the others' size.
+ * Under `fit`, how much larger than its run's scale a step must fit before
+ * the steps from it zoom in: its model has grown that much smaller.
  */
-export const FIT_SHARED_REACH = 1.1;
+export const FIT_ZOOM_IN = 1.3;
+/**
+ * Under `fit`, how much of its first scale a run gives up, in all, to keep
+ * one more step at its scale. A step that needs more is drawn smaller on its
+ * own, when the step after it fits the run again, or starts a run.
+ */
+export const FIT_GIVE = 0.2;
+/**
+ * The most of its room a picture's marks may cost it: past that — letters in
+ * a room cut down to a few mm for its text — the paper keeps this share of
+ * the scale it would fit alone, and the marks reach out of the room, rather
+ * than the paper shrink to a dot inside them.
+ */
+export const MARKS_FLOOR = 0.5;
 /**
  * The gutter a diagram with turns keeps between its pictures (D22): the
  * turn-over glyph, the wider of the two at its printed size, and room either
@@ -144,13 +164,18 @@ export interface LayoutStep {
   text: string;
   breakBefore: boolean;
   /**
-   * The picture's size for the scale policy: its longer side in document
-   * units when it knows its paper (`paper`), or only fitted (`fit`); null
-   * for a step with no picture. `reach` is how far it reaches with its marks
-   * — annotations, a References step's letters — per its frame's longer
-   * side: 1 when they keep to it. A `paper` extent already counts it.
+   * The picture with what its marks reach past it — annotations, a
+   * References step's letters — for the scale policy: its width and height
+   * in document units when it knows its paper (`paper`), or per its frame's
+   * longer side when it is only fitted (`fit`); and its frame alone, in the
+   * same units. Null for a step with no picture.
    */
-  picture: { kind: 'paper'; extentUnits: number; reach: number } | { kind: 'fit'; reach: number } | null;
+  picture: {
+    kind: 'paper' | 'fit';
+    width: number;
+    height: number;
+    frame: { width: number; height: number };
+  } | null;
   /** The turns between the step before and this one (D22), in order. */
   turnsBefore: readonly LayoutTurn[];
   /** The turns after the last step; empty on every other. */
@@ -168,18 +193,23 @@ export interface LayoutCell {
   /** 1-based, as printed. */
   number: number;
   cellMm: { x: number; y: number; w: number; h: number };
-  /** The picture's square box. */
+  /** The picture's square box: where a fitted picture goes, and an empty step's placeholder. */
   pictureMm: { x: number; y: number; size: number };
+  /**
+   * Where the picture is drawn, centred: as wide as the cell's room, and as
+   * tall as the square box or the picture at its scale, whichever is taller —
+   * from the box's top. The text starts below it.
+   */
+  drawMm: { x: number; y: number; w: number; h: number };
   /** Millimetres per document unit for a paper picture; null when it is fitted (or there is none). */
   mmPerUnit: number | null;
   /**
-   * Under `fit`, the longer side the picture's frame is drawn at, in mm: one
-   * size for every step (the layout's {@link DiagramPagesLayout.frameMm}),
-   * smaller only where the box gave room to text or the marks reach too far.
-   * Null under `paper`, and for a step with no picture.
+   * Under `fit`, the longer side a picture with no paper is drawn at, in mm,
+   * as its run keeps it ({@link scaleRuns}). Null under `paper`, for a paper
+   * picture, and for a step with no picture.
    */
   frameMm: number | null;
-  /** The picture drawn smaller than the shared scale: its box gave room to text. */
+  /** The picture drawn smaller than its scale's run: its box gave room to text, or it reached too far. */
   scaleReduced: boolean;
   numberAt: { x: number; y: number };
   text: { x: number; firstBaseline: number; widthMm: number; lines: SetLine[] };
@@ -206,15 +236,8 @@ export interface DiagramPagesLayout {
   paper: PrintPaper;
   pages: LayoutPage[];
   cellMm: { w: number; h: number };
-  /** The shared mm per document unit under `paper`; null under `fit` or with no paper picture. */
+  /** The shared mm per document unit under `paper`; null under `fit` (each run has its own) or with no paper picture. */
   mmPerUnit: number | null;
-  /**
-   * Under `fit`, the one size every picture's frame is drawn at, in mm —
-   * so that two steps of one shape draw alike, as a diagram's do — with room
-   * in every box for the furthest marks reach, of those within
-   * {@link FIT_SHARED_REACH}. Null under `paper`, or with no picture.
-   */
-  frameMm: number | null;
   /** The title tab, when shown. */
   title: {
     tab: { x: number; y: number; w: number; h: number };
@@ -226,9 +249,60 @@ export interface DiagramPagesLayout {
   bandWidthMm: number;
 }
 
-/** How far a picture reaches with its marks, per its frame: never under 1, nor anything but a number. */
-function reachOf(picture: NonNullable<LayoutStep['picture']>): number {
-  return Number.isFinite(picture.reach) && picture.reach > 1 ? picture.reach : 1;
+/**
+ * The largest scale at which a picture fits its cell's room: with its text
+ * in full (`own`), and for the runs, with a long text's cut to its box left
+ * aside (`shared`) — such a picture is drawn smaller alone, as under `paper`.
+ */
+export interface ScaleFit {
+  own: number;
+  shared: number;
+}
+
+/**
+ * Under `fit`, the scale each picture is drawn at, in order, so that the
+ * paper keeps one size from step to step where it can — a diagram's steps
+ * draw the model alike, and zoom in only where it has grown much smaller.
+ *
+ * A run starts at its first picture's scale. A picture that fits more than
+ * {@link FIT_ZOOM_IN} times the run's scale starts a run of its own (zoomed
+ * in). One that fits less lowers the run to its scale, down to
+ * {@link FIT_GIVE} under the run's first; one that needs more is drawn at its
+ * own scale, alone, when the picture after it fits the run again (a flap's
+ * outline reaching far), and otherwise starts a run (the model unfolded for
+ * good). Every picture is drawn at its run's scale, or its own when that is
+ * smaller (`reduced`). Pure.
+ */
+export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: boolean }[] {
+  interface Run {
+    first: number;
+    scale: number;
+  }
+  const runOf: Run[] = [];
+  const alone = new Set<number>();
+  let run: Run | null = null;
+  fits.forEach(({ shared }, index) => {
+    if (run === null || shared > run.scale * FIT_ZOOM_IN) {
+      run = { first: shared, scale: shared };
+    } else if (shared >= run.first * (1 - FIT_GIVE)) {
+      run.scale = Math.min(run.scale, shared);
+    } else {
+      const next = fits[index + 1]?.shared;
+      if (next !== undefined && next >= run.first * (1 - FIT_GIVE)) alone.add(index);
+      else run = { first: shared, scale: shared };
+    }
+    runOf.push(run);
+  });
+  return fits.map(({ own }, index) => {
+    const scale = alone.has(index) ? Math.min(own, fits[index]!.shared) : runOf[index]!.scale;
+    const drawn = Math.min(scale, own);
+    return { scale: drawn, reduced: drawn < runOf[index]!.scale * (1 - 1e-9) };
+  });
+}
+
+/** A picture's width or height as a number the scale can divide by: positive, or null. */
+function extent(value: number): number | null {
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 /**
@@ -264,10 +338,9 @@ export function layoutDiagramPages(
   // A turn at a row's end prints in the half gutter outside the outer picture,
   // which a narrow margin cannot give: the boxes give up what it lacks.
   const outerShortfall = turning ? Math.max(0, TURN_GUTTER_MM / 2 - m) : 0;
-  const fullBox = Math.max(
-    12,
-    Math.min(cellW - (turning ? TURN_GUTTER_MM : PICTURE_SIDE_ROOM_MM) - 2 * outerShortfall, cellH * 0.64)
-  );
+  // A picture's room across the cell: the cell less the gutter between pictures.
+  const roomW = Math.max(12, cellW - (turning ? TURN_GUTTER_MM : PICTURE_SIDE_ROOM_MM) - 2 * outerShortfall);
+  const fullBox = Math.max(12, Math.min(roomW, cellH * 0.64));
   const textWidth = cellW * 0.8;
   const perPage = setup.columns * setup.rows;
 
@@ -324,65 +397,84 @@ export function layoutDiagramPages(
     })
   );
 
-  // One scale for every paper picture: the largest at which each fits its full box.
+  // Each picture's room: across, the cell less its gutter; down, what its
+  // text leaves, at least its box. It fits where both its sides do.
+  const roomH = ({ y, box, text }: Placed) =>
+    Math.max(
+      box,
+      slotBottom(y) -
+        (y + PICTURE_TOP_MM) -
+        (text.lines.length > 0 ? TEXT_GAP_MM + (text.lines.length - 1) * STEP_TEXT_LEADING_MM : 0)
+    );
+  const fitOf = (placed: Placed): ScaleFit | null => {
+    const { picture } = placed.step;
+    const width = picture ? extent(picture.width) : null;
+    const height = picture ? extent(picture.height) : null;
+    if (!picture || width === null || height === null) return null;
+    const frameW = extent(picture.frame.width) ?? width;
+    const frameH = extent(picture.frame.height) ?? height;
+    /** The largest scale at which it fits `across` × `down`, its marks costing it no more than their floor. */
+    const fits = (across: number, down: number) =>
+      Math.max(Math.min(across / width, down / height), MARKS_FLOOR * Math.min(across / frameW, down / frameH));
+    const down = roomH(placed);
+    return { own: fits(roomW, down), shared: fits(roomW, Math.max(down, fullBox)) };
+  };
+  const scales = new Map<Placed, { mmPerUnit: number | null; frameMm: number | null; reduced: boolean }>();
+  const all = placedPages.flat();
   let mmPerUnit: number | null = null;
   if (setup.scale === 'paper') {
-    for (const page of placedPages) {
-      for (const { step } of page) {
-        if (step.picture?.kind !== 'paper' || !(step.picture.extentUnits > 0)) continue;
-        const fits = fullBox / step.picture.extentUnits;
-        mmPerUnit = mmPerUnit === null ? fits : Math.min(mmPerUnit, fits);
-      }
+    // One scale for every paper picture: the largest at which each fits its room.
+    const paper = all.flatMap((placed) => {
+      const fit = placed.step.picture?.kind === 'paper' ? fitOf(placed) : null;
+      return fit ? [{ placed, fit }] : [];
+    });
+    for (const { fit } of paper) mmPerUnit = mmPerUnit === null ? fit.shared : Math.min(mmPerUnit, fit.shared);
+    for (const { placed, fit } of paper) {
+      const scale = Math.min(mmPerUnit!, fit.own);
+      scales.set(placed, { mmPerUnit: scale, frameMm: null, reduced: scale < mmPerUnit! * (1 - 1e-9) });
     }
-  }
-  // Under `fit`, one size for every picture's frame: the largest at which
-  // each, with its marks, fits its full box, of those whose marks reach only
-  // a little past it; one that reaches further is drawn smaller alone.
-  let frameMm: number | null = null;
-  if (setup.scale === 'fit') {
-    let shared = 1;
-    let pictured = false;
-    for (const page of placedPages) {
-      for (const { step } of page) {
-        if (!step.picture) continue;
-        pictured = true;
-        const reach = reachOf(step.picture);
-        if (reach <= FIT_SHARED_REACH) shared = Math.max(shared, reach);
-      }
+  } else {
+    // The paper in runs, by the mm per document unit; pictures with no paper
+    // the same way by their frames, a run of their own.
+    for (const kind of ['paper', 'fit'] as const) {
+      const pictures = all.flatMap((placed) => {
+        const fit = placed.step.picture?.kind === kind ? fitOf(placed) : null;
+        return fit ? [{ placed, fit }] : [];
+      });
+      scaleRuns(pictures.map(({ fit }) => fit)).forEach(({ scale, reduced }, at) => {
+        scales.set(pictures[at]!.placed, {
+          mmPerUnit: kind === 'paper' ? scale : null,
+          frameMm: kind === 'fit' ? scale : null,
+          reduced,
+        });
+      });
     }
-    if (pictured) frameMm = fullBox / shared;
   }
 
   const pages: LayoutPage[] = placedPages.map((placed, pageIndex) => {
     const number = setup.pageNumbers.first + pageIndex;
-    const cells: LayoutCell[] = placed.map(({ step, index, x, y, box, text, overflow }) => {
+    const cells: LayoutCell[] = placed.map((entry) => {
+      const { step, index, x, y, box, text, overflow } = entry;
       const pictureX = x + (cellW - box) / 2;
       const pictureY = y + PICTURE_TOP_MM;
-      let cellScale: number | null = null;
-      let cellFrame: number | null = null;
-      let scaleReduced = false;
-      if (mmPerUnit !== null && step.picture?.kind === 'paper' && step.picture.extentUnits > 0) {
-        const fits = box / step.picture.extentUnits;
-        cellScale = Math.min(mmPerUnit, fits);
-        scaleReduced = fits < mmPerUnit - 1e-12;
-      }
-      if (frameMm !== null && step.picture) {
-        const fits = box / reachOf(step.picture);
-        cellFrame = Math.min(frameMm, fits);
-        scaleReduced = fits < frameMm - 1e-12;
-      }
+      const scale = scales.get(entry);
+      const at = scale?.mmPerUnit ?? scale?.frameMm ?? null;
+      // A picture taller at its scale than its box runs on down its room.
+      const drawnH = at !== null && step.picture ? step.picture.height * at : 0;
+      const drawH = Math.min(Math.max(box, drawnH), roomH(entry));
       return {
         stepId: step.id,
         number: index + 1,
         cellMm: { x, y, w: cellW, h: cellH },
         pictureMm: { x: pictureX, y: pictureY, size: box },
-        mmPerUnit: cellScale,
-        frameMm: cellFrame,
-        scaleReduced,
+        drawMm: { x: x + (cellW - roomW) / 2, y: pictureY, w: roomW, h: drawH },
+        mmPerUnit: scale?.mmPerUnit ?? null,
+        frameMm: scale?.frameMm ?? null,
+        scaleReduced: scale?.reduced ?? false,
         numberAt: { x: x + STEP_NUMBER_INSET_MM, y: y + STEP_NUMBER_BASELINE_MM },
         text: {
           x: x + cellW * 0.1,
-          firstBaseline: pictureY + box + TEXT_GAP_MM,
+          firstBaseline: pictureY + drawH + TEXT_GAP_MM,
           widthMm: textWidth,
           lines: text.lines,
         },
@@ -424,7 +516,6 @@ export function layoutDiagramPages(
     pages,
     cellMm: { w: cellW, h: cellH },
     mmPerUnit,
-    frameMm,
     title: titleLayout,
     bandWidthMm: Math.min(cellW, cellH) * 0.42,
   };

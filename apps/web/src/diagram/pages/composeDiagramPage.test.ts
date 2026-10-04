@@ -11,18 +11,30 @@ import {
   createTurn,
   stepsOf,
   type DiagramDocument,
+  type DiagramPageSetup,
   type DiagramStep,
   type KnownDiagramAsset,
 } from '../document/diagramDocument';
-import { cpStep, fixedPicture, referencesStep, stepsIn } from '../document/diagramSteps.fixtures';
+import {
+  cpStep,
+  fixedPicture,
+  referencesStep,
+  scenePicture,
+  SENT_MODEL,
+  stepDiagramPicture,
+  stepsIn,
+} from '../document/diagramSteps.fixtures';
+import { storedSceneJson } from '../document/diagramFile';
+import { face, sceneOf } from '../../lib/paper/paperScene.fixtures';
 import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from '../fonts/diagramFontFaces';
 import type { DiagramFonts, LoadedDiagramFont } from '../fonts/diagramFonts';
 import { readFontMetrics } from '../fonts/fontMetrics';
 import { createFontSubsetter, type FontSubsetter } from '../fonts/fontSubset';
-import { PAGE_NUMBER_SIZE_MM } from './diagramPageLayout';
-import { preparedPages } from './diagramPages';
+import { FIT_GIVE, MARKS_FLOOR, PAGE_NUMBER_SIZE_MM } from './diagramPageLayout';
+import { estimateTextSetter } from './estimateTextSetter';
+import { layoutDiagram, preparedPages } from './diagramPages';
 import { composeDiagramPage } from './composeDiagramPage';
-import { layoutPicture } from './pagePictures';
+import { cellPicture, layoutPicture } from './pagePictures';
 
 const FONT_DIR = resolve(process.cwd(), 'src/diagram/fonts');
 const FILES: Partial<Record<string, string>> = {
@@ -77,6 +89,11 @@ function diagram(): DiagramDocument {
 }
 
 const parse = (svg: string) => new DOMParser().parseFromString(svg, 'image/svg+xml');
+
+/** A scene of the fixture's paper folded tall: 60 × 140 px at the fixture's 100 px per unit. */
+function tallSceneJson(): string {
+  return storedSceneJson(sceneOf([face([[[30, 0], [60, 70], [30, 140], [0, 70]]])]))!;
+}
 
 describe('composeDiagramPage', () => {
   it('writes a well-formed page in pt, the size of the paper', () => {
@@ -162,8 +179,24 @@ describe('composeDiagramPage', () => {
     expect(sent!.mmPerUnit).toBe(pages.layout.mmPerUnit);
   });
 
-  it('fits each step by default, two of one shape drawn at one size whatever their marks reach a little past', () => {
-    // An arrow bulging over the top edge, and a push from well off the picture.
+  /** Each scene's paper on a composed page, the first face its painter draws: its width in pt. */
+  const paperWidths = (svg: string) =>
+    [...svg.matchAll(/<g stroke-linejoin="round">\s*<path d="([^"]*)"/g)].map((match) => {
+      const xs = [...match[1]!.matchAll(/[ML](-?[\d.]+),/g)].map((each) => Number(each[1]));
+      return Math.max(...xs) - Math.min(...xs);
+    });
+  const SETUPS: Partial<DiagramPageSetup>[] = [
+    {},
+    { orientation: 'landscape', columns: 3, rows: 5 },
+    { size: 'a5', columns: 4, rows: 1 },
+    { size: 'a5', orientation: 'landscape', columns: 3, rows: 6 },
+    { size: 'letter', columns: 2, rows: 6 },
+    { columns: 5, rows: 6 },
+  ];
+  const setupName = (setup: Partial<DiagramPageSetup>) => JSON.stringify(setup);
+
+  it('fits each step by default, the paper one scale whatever their marks reach a little past, on any page', () => {
+    // An arrow bulging over the top edge, and a push from far off the picture.
     const over: DiagramStep = {
       ...cpStep('step-2'),
       annotations: [{ id: 'a', kind: 'valley-arrow', from: [0.2, 0.004], to: [0.8, 0.004], bend: 0.05 }],
@@ -172,25 +205,85 @@ describe('composeDiagramPage', () => {
       ...cpStep('step-4'),
       annotations: [{ id: 'b', kind: 'push-arrow', from: [-0.5, 0.5], to: [0.2, 0.5] }],
     };
-    const steps = [cpStep('step-1'), over, cpStep('step-3'), far];
-    const document = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), steps, 0);
-    expect(document.page.scale).toBe('fit');
-    const pages = preparedPages(document, FONTS, subsetter);
-    const svg = pages.compose(0).svg;
-    // Each scene's paper, the first face its painter draws.
-    const widths = [...svg.matchAll(/<g stroke-linejoin="round">\s*<path d="([^"]*)"/g)].map((match) => {
-      const xs = [...match[1]!.matchAll(/[ML](-?[\d.]+),/g)].map((each) => Number(each[1]));
-      return Math.max(...xs) - Math.min(...xs);
+    const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [cpStep('step-1'), over, cpStep('step-3'), far], 0);
+    expect(made.page.scale).toBe('fit');
+    for (const setup of SETUPS) {
+      const document: DiagramDocument = { ...made, page: { ...made.page, ...setup } };
+      const pages = preparedPages(document, FONTS, subsetter);
+      const widths = paperWidths(pages.compose(0).svg);
+      expect(widths, setupName(setup)).toHaveLength(4);
+      expect(widths[1]! / widths[0]!, setupName(setup)).toBeCloseTo(1, 3);
+      expect(widths[2]! / widths[0]!, setupName(setup)).toBeCloseTo(1, 3);
+      // The far push is never drawn larger; on a square cell it fits only well under the others' scale.
+      expect(widths[3]!, setupName(setup)).toBeLessThanOrEqual(widths[0]! * 1.001);
+      if (Object.keys(setup).length === 0) expect(widths[3]!).toBeLessThan(widths[0]! * (1 - FIT_GIVE));
+    }
+  });
+
+  it('keeps every picture and its marks inside the room the layout drew for it, at any scale and page', () => {
+    // Letters on all four sides of a References sheet, which reach further the smaller it is drawn.
+    const four = stepDiagramPicture(false, {
+      ...SENT_MODEL,
+      primitives: [
+        ...SENT_MODEL.primitives,
+        { kind: 'label', at: [1, 0.5], text: 'B', style: 'normal' },
+        { kind: 'label', at: [0.5, 0], text: 'C', style: 'normal' },
+        { kind: 'label', at: [0.5, 1], text: 'D', style: 'normal' },
+      ],
     });
-    expect(widths).toHaveLength(4);
-    expect(widths[1]).toBeCloseTo(widths[0]!, 1);
-    expect(widths[2]).toBeCloseTo(widths[0]!, 1);
-    // The shared size left the arrow over the edge its room: the plain ones are not their box's full width.
-    const box = pages.layout.pages[0]!.cells[0]!.pictureMm.size * PT_PER_MM;
-    expect(widths[0]!).toBeLessThan(box * 0.99);
-    // The far push is drawn smaller on its own, and has no say in the rest.
-    expect(widths[3]!).toBeLessThan(widths[0]! * 0.8);
-    expect(pages.layout.pages[0]!.cells[3]!.scaleReduced).toBe(true);
+    const lettered: DiagramStep = { ...referencesStep('step-2'), picture: four, text: 'Fold the corner to the line.' };
+    const arrowed: DiagramStep = {
+      ...cpStep('step-3'),
+      annotations: [{ id: 'a', kind: 'fold-unfold-arrow', from: [0.1, 0.02], to: [0.9, 0.02], bend: 0.134 }],
+    };
+    const long: DiagramStep = { ...referencesStep('step-4'), picture: four, text: Array(12).fill('Fold the corner to the line.').join(' ') };
+    const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [cpStep('step-1'), lettered, arrowed, long], 0);
+    let floored = 0;
+    for (const scale of ['fit', 'paper'] as const) {
+      for (const setup of SETUPS) {
+        const document: DiagramDocument = { ...made, page: { ...made.page, ...setup, scale } };
+        const layout = layoutDiagram(document, estimateTextSetter);
+        for (const cell of layout.pages.flatMap((page) => page.cells)) {
+          const step = stepsIn(document).find((each) => each.id === cell.stepId)!;
+          const picture = cellPicture(step, document.assets, document.style, cell, 'c-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
+          const room = { x: cell.drawMm.x * PT_PER_MM, y: cell.drawMm.y * PT_PER_MM, w: cell.drawMm.w * PT_PER_MM, h: cell.drawMm.h * PT_PER_MM };
+          const name = `${scale} ${setupName(setup)} ${cell.stepId}`;
+          const at = cell.mmPerUnit;
+          if (at === null) continue;
+          // What the layout found the picture needs, measured at the scale it is drawn at.
+          const needs = layoutPicture(step, document.assets, document.style, { mmPerUnit: at })!;
+          const fits = needs.width * at <= cell.drawMm.w * (1 + 1e-3) && needs.height * at <= cell.drawMm.h * (1 + 1e-3);
+          if (fits) {
+            // Within a hair: the marks were measured at the scale the picture is drawn at.
+            const hair = 0.002 * Math.max(room.w, room.h);
+            expect(picture.boundsPt.x, name).toBeGreaterThanOrEqual(room.x - hair);
+            expect(picture.boundsPt.y, name).toBeGreaterThanOrEqual(room.y - hair);
+            expect(picture.boundsPt.x + picture.boundsPt.width, name).toBeLessThanOrEqual(room.x + room.w + hair);
+            expect(picture.boundsPt.y + picture.boundsPt.height, name).toBeLessThanOrEqual(room.y + room.h + hair);
+          } else {
+            // A room its marks cannot fit: the paper alone fits, at its floor, and the marks reach out.
+            expect(needs.frame.width * at, name).toBeLessThanOrEqual(cell.drawMm.w * (1 + 1e-3));
+            expect(needs.frame.height * at, name).toBeLessThanOrEqual(cell.drawMm.h * (1 + 1e-3));
+            const alone = Math.min(cell.drawMm.w / needs.frame.width, cell.drawMm.h / needs.frame.height);
+            expect(at / alone, name).toBeCloseTo(MARKS_FLOOR, 2);
+            floored += 1;
+          }
+        }
+      }
+    }
+    // The small setups' long instruction leaves its References step a room its letters cannot fit.
+    expect(floored).toBeGreaterThan(0);
+  });
+
+  it('draws a taller model at the run’s scale, taller than its box, its instruction below it', () => {
+    // The bird base after the square base, as on Zach's crane: the same paper, folded taller.
+    const tall: DiagramStep = { ...cpStep('step-2'), picture: { ...scenePicture('tall'), sceneJson: tallSceneJson() }, text: 'Petal fold.' };
+    const document = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [cpStep('step-1'), tall], 0);
+    const { layout } = preparedPages(document, FONTS, subsetter);
+    const [square, bird] = layout.pages[0]!.cells;
+    expect(bird!.mmPerUnit).toBe(square!.mmPerUnit);
+    expect(bird!.drawMm.h).toBeGreaterThan(bird!.pictureMm.size);
+    expect(bird!.text.firstBaseline).toBeGreaterThan(bird!.drawMm.y + bird!.drawMm.h);
   });
 
   it('draws a turn between two steps in the gutter, centred on its place, and numbers the steps on (D22)', () => {

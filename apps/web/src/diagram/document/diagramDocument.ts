@@ -41,8 +41,8 @@ export type DiagramPageLayout = 'grid' | 'flow';
 /**
  * `paper`: every picture that knows its paper's size is drawn at one shared
  * scale, so the model visibly shrinks as it is folded. `fit` (the default):
- * every picture's frame is drawn at one size, as large as the boxes allow, so
- * the model fills each cell alike as it is folded.
+ * the paper keeps one scale from step to step while it fits, zooming in where
+ * the model has grown much smaller (`scaleRuns`).
  */
 export type DiagramPictureScale = 'paper' | 'fit';
 

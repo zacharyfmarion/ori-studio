@@ -29,14 +29,23 @@ const assets = { [BITMAP.id]: BITMAP };
 const TEXT: PictureText = { hanStyle: 'sc', runs: estimateTextSetter.runs };
 
 describe('layoutPicture', () => {
-  it('measures a capture by its paper scale, and fits what has none', () => {
+  it('measures a capture by its paper scale, and what has none by its frame’s longer side', () => {
     // The fixture's sheet is 100 scene px at 100 px per unit: one unit.
-    expect(layoutPicture(cpStep('step-cp'), {}, style)).toEqual({ kind: 'paper', extentUnits: 1, reach: 1 });
-    expect(layoutPicture(bitmapStep(100), assets, style)).toEqual({ kind: 'paper', extentUnits: 3, reach: 1 });
-    expect(layoutPicture(bitmapStep(null), assets, style)).toEqual({ kind: 'fit', reach: 1 });
+    expect(layoutPicture(cpStep('step-cp'), {}, style)).toEqual({ kind: 'paper', width: 1, height: 1, frame: { width: 1, height: 1 } });
+    // 300 × 200 px at 100 px per unit.
+    expect(layoutPicture(bitmapStep(100), assets, style)).toEqual({ kind: 'paper', width: 3, height: 2, frame: { width: 3, height: 2 } });
+    const upload = layoutPicture(bitmapStep(null), assets, style)!;
+    expect(upload.kind).toBe('fit');
+    expect(upload.width).toBeCloseTo(1, 9);
+    expect(upload.height).toBeCloseTo(2 / 3, 9);
     const threeD = cpStep('step-3d', undefined, { ...scenePicture(), paperScale: null });
-    expect(layoutPicture(threeD, {}, style)).toEqual({ kind: 'fit', reach: 1 });
-    expect(layoutPicture({ ...createStep(() => 'step-fixed'), picture: fixedPicture() }, {}, style)).toEqual({ kind: 'fit', reach: 1 });
+    expect(layoutPicture(threeD, {}, style)).toMatchObject({ kind: 'fit', width: 1, height: 1 });
+    expect(layoutPicture({ ...createStep(() => 'step-fixed'), picture: fixedPicture() }, {}, style)).toEqual({
+      kind: 'fit',
+      width: 1,
+      height: 0.5,
+      frame: { width: 1, height: 0.5 },
+    });
     expect(layoutPicture(createStep(() => 'step-empty'), {}, style)).toBeNull();
   });
 
@@ -46,23 +55,22 @@ describe('layoutPicture', () => {
     const small = layoutPicture(step, {}, style, { mmPerUnit: 10 });
     if (atCard?.kind !== 'paper' || small?.kind !== 'paper') throw new Error('paper');
     // A unit sheet, and a letter past its edge.
-    expect(atCard.extentUnits).toBeGreaterThan(1);
-    expect(small.extentUnits).toBeGreaterThan(atCard.extentUnits);
-    expect(small.reach).toBe(small.extentUnits);
-    // Under `fit`, at the frame's size: a small frame, the letters reaching further.
-    const frame = layoutPicture(step, {}, style, { frameMm: 10 });
-    expect(frame?.reach).toBeCloseTo(small.reach, 9);
+    expect(atCard.frame.width).toBeCloseTo(1, 9);
+    expect(atCard.width).toBeGreaterThan(1);
+    expect(small.width).toBeGreaterThan(atCard.width);
   });
 
   it('measures what an annotation reaches past any picture, one with no paper too', () => {
     const reaching = { ...bitmapStep(null), annotations: [{ id: 'a', kind: 'push-arrow' as const, from: [-0.4, 0.5] as [number, number], to: [0.1, 0.5] as [number, number] }] };
     const atCard = layoutPicture(reaching, assets, style);
     expect(atCard?.kind).toBe('fit');
-    expect(atCard!.reach).toBeGreaterThan(1.3);
+    // Out to the left of its frame, a push's head across: wider, the height the frame's.
+    expect(atCard!.width).toBeGreaterThan(1.3);
+    expect(atCard!.height).toBeCloseTo(2 / 3, 2);
     // Its head keeps its pt size: on a smaller frame it reaches further.
-    expect(layoutPicture(reaching, assets, style, { frameMm: 20 })!.reach).toBeGreaterThan(atCard!.reach);
+    expect(layoutPicture(reaching, assets, style, { frameMm: 20 })!.width).toBeGreaterThan(atCard!.width);
     const fixed = { ...createStep(() => 'step-fixed'), picture: fixedPicture(), annotations: reaching.annotations };
-    expect(layoutPicture(fixed, {}, style)!.reach).toBeGreaterThan(1.3);
+    expect(layoutPicture(fixed, {}, style)!.width).toBeGreaterThan(1.3);
   });
 });
 
@@ -90,6 +98,29 @@ describe('cellPicture', () => {
     // A scene's frame is its bounds: the fixture's unit sheet, 30 mm across.
     const scene = cellPicture(cpStep('step-cp'), {}, style, { ...cell, frameMm: 30 }, 'c0-', TEXT)!;
     expect(scene.boundsPt.width).toBeCloseTo(30 * PT_PER_MM, 2);
+  });
+
+  it('draws a picture centred in the room the layout drew for it, which may be taller than its box', () => {
+    const room = { ...cell, mmPerUnit: 5, drawMm: { x: 5, y: 20, w: 50, h: 70 } };
+    const picture = cellPicture(bitmapStep(100), assets, style, room, 'c0-', TEXT)!;
+    const [, x, y, width, height] = /<svg x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/.exec(picture.markup)!.map(Number);
+    // 3 × 2 units at 5 mm, centred in 50 × 70 mm.
+    expect(width).toBeCloseTo(15 * PT_PER_MM, 2);
+    expect(height).toBeCloseTo(10 * PT_PER_MM, 2);
+    expect(x! + width! / 2).toBeCloseTo(30 * PT_PER_MM, 2);
+    expect(y! + height! / 2).toBeCloseTo(55 * PT_PER_MM, 2);
+    // A fitted picture fills the room's narrower side.
+    const fitted = cellPicture(bitmapStep(null), assets, style, { ...cell, drawMm: { x: 5, y: 20, w: 30, h: 70 } }, 'c0-', TEXT)!;
+    expect(fitted.boundsPt.width).toBeCloseTo(30 * PT_PER_MM, 2);
+  });
+
+  it('draws nothing past its room, and no number that is not one, in a room of no size', () => {
+    for (const step of [bitmapStep(null), cpStep('step-cp'), { ...createStep(() => 'step-fixed'), picture: fixedPicture() }]) {
+      const empty = { pictureMm: { x: 10, y: 20, size: 0 }, mmPerUnit: null, frameMm: 0, drawMm: { x: 10, y: 20, w: 40, h: 0 } };
+      const picture = cellPicture(step, assets, style, empty, 'c0-', TEXT);
+      expect(picture?.markup ?? '').not.toContain('NaN');
+      for (const value of Object.values(picture?.boundsPt ?? {})) expect(Number.isFinite(value)).toBe(true);
+    }
   });
 
   it('draws a capture at the cell’s scale, whatever its box', () => {
@@ -157,7 +188,7 @@ describe('cellPicture', () => {
       const step = annotated(bitmapStep(100));
       const reach = layoutPicture(step, assets, style, { mmPerUnit: 5 });
       const bare = layoutPicture(bitmapStep(100), assets, style, { mmPerUnit: 5 });
-      expect(reach?.kind === 'paper' && bare?.kind === 'paper' && reach.extentUnits > bare.extentUnits * 1.3).toBe(true);
+      expect(reach?.kind === 'paper' && bare?.kind === 'paper' && reach.width > bare.width * 1.3).toBe(true);
       const plain = cellPicture(bitmapStep(100), assets, style, { ...cell, mmPerUnit: 5 }, 'c0-', TEXT)!;
       const picture = cellPicture(step, assets, style, { ...cell, mmPerUnit: 5 }, 'c0-', TEXT)!;
       const width = (markup: string) => Number(/ width="([\d.]+)"/.exec(markup)![1]);
@@ -167,7 +198,8 @@ describe('cellPicture', () => {
     it('draws a picture at the cell’s frame whatever its annotations reach, when the layout left them room', () => {
       const frameMm = 20;
       // The room the layout leaves: the picture and its marks, measured at that frame, fit the box.
-      expect(layoutPicture(annotated(bitmapStep(null)), assets, style, { frameMm })!.reach * frameMm).toBeLessThan(40);
+      const measured = layoutPicture(annotated(bitmapStep(null)), assets, style, { frameMm })!;
+      expect(Math.max(measured.width, measured.height) * frameMm).toBeLessThan(40);
       const plain = cellPicture(bitmapStep(null), assets, style, { ...cell, frameMm }, 'c0-', TEXT)!;
       const picture = cellPicture(annotated(bitmapStep(null)), assets, style, { ...cell, frameMm }, 'c0-', TEXT)!;
       const width = (markup: string) => Number(/<svg x="[\d.-]+" y="[\d.-]+" width="([\d.]+)"/.exec(markup)![1]);
@@ -179,12 +211,13 @@ describe('cellPicture', () => {
       expect(picture.boundsPt.x + picture.boundsPt.width).toBeLessThanOrEqual(box.x + box.size + 0.01);
     });
 
-    it('shrinks a picture at the cell’s frame only as far as its box needs, where its marks outgrow it', () => {
+    it('keeps the frame the layout found, its marks centred with it, rather than shrink it', () => {
+      const plain = cellPicture(bitmapStep(null), assets, style, { ...cell, frameMm: 40 }, 'c0-', TEXT)!;
       const picture = cellPicture(annotated(bitmapStep(null)), assets, style, { ...cell, frameMm: 40 }, 'c0-', TEXT)!;
-      const box = { x: 10 * PT_PER_MM, size: 40 * PT_PER_MM };
-      expect(picture.boundsPt.x).toBeGreaterThanOrEqual(box.x - 0.01);
-      expect(picture.boundsPt.x + picture.boundsPt.width).toBeLessThanOrEqual(box.x + box.size + 0.01);
-      expect(picture.boundsPt.width).toBeGreaterThan(box.size * 0.99);
+      const width = (markup: string) => Number(/<svg x="[\d.-]+" y="[\d.-]+" width="([\d.]+)"/.exec(markup)![1]);
+      expect(width(picture.markup)).toBeCloseTo(width(plain.markup), 2);
+      // Centred together on the box's centre.
+      expect(picture.boundsPt.x + picture.boundsPt.width / 2).toBeCloseTo(30 * PT_PER_MM, 1);
     });
 
     it('draws an arrow as References draws its own on the same page: one pen, one head', () => {

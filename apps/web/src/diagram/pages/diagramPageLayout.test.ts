@@ -3,12 +3,16 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAGE_SETUP, type DiagramPageSetup } from '../document/diagramDocument';
 import {
-  FIT_SHARED_REACH,
+  FIT_GIVE,
+  FIT_ZOOM_IN,
   layoutDiagramPages,
+  MARKS_FLOOR,
+  scaleRuns,
   STEP_TEXT_LEADING_MM,
   TURN_GUTTER_MM,
   TURN_STACK_CLEAR_MM,
   turnGlyphMm,
+  type LayoutCell,
   type LayoutStep,
   type LayoutTurn,
 } from './diagramPageLayout';
@@ -26,7 +30,7 @@ function step(index: number, patch: Partial<LayoutStep> = {}): LayoutStep {
     id: `step-${index}`,
     text: SHORT,
     breakBefore: false,
-    picture: { kind: 'paper', extentUnits: 400, reach: 1 },
+    picture: { kind: 'paper', width: 400, height: 400, frame: { width: 400, height: 400 } },
     turnsBefore: [],
     turnsAfter: [],
     ...patch,
@@ -40,6 +44,30 @@ function layout(list: LayoutStep[], setup: Partial<DiagramPageSetup> = {}, title
   return layoutDiagramPages(list, { ...DEFAULT_PAGE_SETUP, ...setup }, title, estimateTextSetter);
 }
 
+const paper = (width: number, height: number = width): LayoutStep['picture'] => ({
+  kind: 'paper',
+  width,
+  height,
+  frame: { width, height },
+});
+/** A picture `frame` in its units, reaching `width` × `height` with its marks. */
+const marked = (width: number, height: number, frame: { width: number; height: number }): LayoutStep['picture'] => ({
+  kind: 'paper',
+  width,
+  height,
+  frame,
+});
+const upload = (width: number, height: number): LayoutStep['picture'] => ({ kind: 'fit', width, height, frame: { width, height } });
+
+/** Where a cell draws its picture, at its scale, centred in its room. */
+function drawnOf(cell: LayoutCell, picture: LayoutStep['picture']) {
+  const scale = cell.mmPerUnit ?? cell.frameMm;
+  if (!picture || scale === null) return null;
+  const w = picture.width * scale;
+  const h = picture.height * scale;
+  return { x: cell.drawMm.x + (cell.drawMm.w - w) / 2, y: cell.drawMm.y + (cell.drawMm.h - h) / 2, w, h };
+}
+
 describe('printPaper', () => {
   it('turns the sheet for landscape, B5 being the JIS size', () => {
     expect(printPaper({ size: 'a4', orientation: 'landscape', marginMm: 12 })).toEqual({
@@ -51,6 +79,47 @@ describe('printPaper', () => {
   });
 });
 
+describe('scaleRuns', () => {
+  const fit = (shared: number, own = shared) => ({ own, shared });
+  const scales = (fits: { own: number; shared: number }[]) => scaleRuns(fits).map(({ scale }) => scale);
+
+  it('keeps one scale while each fits it, the smallest of them', () => {
+    expect(scales([fit(1), fit(1.1), fit(0.95)])).toEqual([0.95, 0.95, 0.95]);
+    expect(scaleRuns([])).toEqual([]);
+  });
+
+  it('zooms in where a picture fits much more than the run', () => {
+    expect(scales([fit(1), fit(1), fit(1.31), fit(1.3)])).toEqual([1, 1, 1.3, 1.3]);
+    // Within the zoom, it stays with the run.
+    expect(scales([fit(1), fit(1.29)])).toEqual([1, 1]);
+  });
+
+  it('gives no more than its share in all, however the run drifts', () => {
+    // Each a little under the last: the run follows only to its first's give.
+    const drifting = scales([fit(1), fit(0.9), fit(0.82), fit(0.75), fit(0.75)]);
+    expect(drifting.slice(0, 3)).toEqual([0.82, 0.82, 0.82]);
+    expect(drifting[3]).toBe(0.75);
+    expect(drifting[4]).toBe(0.75);
+  });
+
+  it('draws one that needs much more alone when the next fits again, else starts a run', () => {
+    const once = scaleRuns([fit(1), fit(0.5), fit(1)]);
+    expect(once.map(({ scale }) => scale)).toEqual([1, 0.5, 1]);
+    expect(once.map(({ reduced }) => reduced)).toEqual([false, true, false]);
+    const forGood = scaleRuns([fit(1), fit(0.5), fit(0.5)]);
+    expect(forGood.map(({ scale }) => scale)).toEqual([1, 0.5, 0.5]);
+    expect(forGood.map(({ reduced }) => reduced)).toEqual([false, false, false]);
+    // The last, with nothing after it, starts a run.
+    expect(scaleRuns([fit(1), fit(0.5)]).map(({ reduced }) => reduced)).toEqual([false, false]);
+  });
+
+  it('draws one whose own room is smaller than its share at its own, alone', () => {
+    const runs = scaleRuns([fit(1), fit(1, 0.6), fit(1)]);
+    expect(runs.map(({ scale }) => scale)).toEqual([1, 0.6, 1]);
+    expect(runs.map(({ reduced }) => reduced)).toEqual([false, true, false]);
+  });
+});
+
 describe('layoutDiagramPages', () => {
   it('puts every step in exactly one cell, in order, across pages, and no text below its cell', () => {
     const sizes: DiagramPageSetup['size'][] = ['a4', 'a5', 'b5-jis', 'letter'];
@@ -58,18 +127,36 @@ describe('layoutDiagramPages', () => {
       for (const orientation of ['portrait', 'landscape'] as const) {
         for (const layoutKind of ['grid', 'flow'] as const) {
           for (const [columns, rows] of [[2, 1], [3, 3], [5, 6]] as const) {
-            const list = steps(23, (index) => ({ text: index % 3 ? SHORT : LONG }));
+            // Square, tall and wide models, with no text, a line or a long instruction.
+            const shapes = [paper(400), paper(200, 600), paper(600, 150)];
+            const list = steps(23, (index) => ({
+              text: index % 4 === 3 ? '' : index % 3 ? SHORT : LONG,
+              picture: shapes[index % shapes.length]!,
+            }));
             const result = layout(list, { size, orientation, layout: layoutKind, columns, rows });
             const placed = result.pages.flatMap((page) => page.cells.map((cell) => cell.stepId));
             expect(placed).toEqual(list.map((s) => s.id));
+            for (const cell of result.pages.flatMap((page) => page.cells)) {
+              // Every picture fits the room it is drawn in, at its scale.
+              const drawn = drawnOf(cell, list.find((each) => each.id === cell.stepId)!.picture)!;
+              expect(drawn.w).toBeLessThanOrEqual(cell.drawMm.w + 1e-9);
+              expect(drawn.h).toBeLessThanOrEqual(cell.drawMm.h + 1e-9);
+            }
             for (const page of result.pages) {
               for (const cell of page.cells) {
                 const lastBaseline = cell.text.firstBaseline + (cell.text.lines.length - 1) * STEP_TEXT_LEADING_MM;
                 if (cell.text.lines.length > 0) expect(lastBaseline).toBeLessThanOrEqual(cell.cellMm.y + cell.cellMm.h + 1e-9);
-                // The picture box is inside the cell, under the number.
+                // The picture box and the room it is drawn in are inside the cell, under the number, over the text.
                 expect(cell.pictureMm.x).toBeGreaterThanOrEqual(cell.cellMm.x - 1e-9);
                 expect(cell.pictureMm.x + cell.pictureMm.size).toBeLessThanOrEqual(cell.cellMm.x + cell.cellMm.w + 1e-9);
                 expect(cell.pictureMm.y).toBeGreaterThan(cell.numberAt.y);
+                expect(cell.drawMm.x).toBeGreaterThanOrEqual(cell.cellMm.x - 1e-9);
+                expect(cell.drawMm.x + cell.drawMm.w).toBeLessThanOrEqual(cell.cellMm.x + cell.cellMm.w + 1e-9);
+                expect(cell.drawMm.h).toBeGreaterThanOrEqual(cell.pictureMm.size - 1e-9);
+                // Never past the cell further than the box itself (12 mm at least) already is.
+                const floor = Math.max(cell.cellMm.y + cell.cellMm.h, cell.pictureMm.y + cell.pictureMm.size);
+                expect(cell.drawMm.y + cell.drawMm.h).toBeLessThanOrEqual(floor + 1e-9);
+                if (cell.text.lines.length > 0) expect(cell.text.firstBaseline).toBeGreaterThan(cell.drawMm.y + cell.drawMm.h);
                 // Every line fits its slot.
                 for (const line of cell.text.lines) expect(line.widthMm).toBeLessThanOrEqual(cell.text.widthMm + 1e-9);
               }
@@ -108,62 +195,101 @@ describe('layoutDiagramPages', () => {
     expect(layout(steps(2, (index) => ({ breakBefore: index === 0 }))).pages).toHaveLength(1);
   });
 
-  it('draws every paper picture at one scale: the largest at which the biggest fits', () => {
-    const list = [
-      step(0, { picture: { kind: 'paper', extentUnits: 400, reach: 1 } }),
-      step(1, { picture: { kind: 'paper', extentUnits: 200, reach: 1 } }),
-    ];
+  it('draws every paper picture at one scale under One scale: the largest at which each fits its room', () => {
+    const list = [step(0, { picture: paper(400) }), step(1, { picture: paper(200) }), step(2, { picture: paper(150, 450) })];
     const result = layout(list, { scale: 'paper' });
-    const [first, second] = result.pages[0]!.cells;
-    expect(result.mmPerUnit).toBeCloseTo(first!.pictureMm.size / 400, 9);
+    const [first, second, tall] = result.pages[0]!.cells;
     // The smaller model is drawn smaller: one scale, not two fits.
-    expect(second!.mmPerUnit).toBe(result.mmPerUnit);
-    expect(result.frameMm).toBeNull();
-    expect(second!.frameMm).toBeNull();
-    expect(layout(list, { scale: 'fit' }).mmPerUnit).toBeNull();
-    // Uploads are fitted whatever the scale.
-    const upload = layout([step(0, { picture: { kind: 'fit', reach: 1 } })], { scale: 'paper' }).pages[0]!.cells[0]!;
-    expect(upload.mmPerUnit).toBeNull();
-    expect(upload.frameMm).toBeNull();
+    for (const cell of [first, second, tall]) expect(cell!.mmPerUnit).toBe(result.mmPerUnit);
+    // The largest: the square fills its room across, or the tall one its room down.
+    const limits = [first!.drawMm.w / 400, tall!.drawMm.h / 450, first!.drawMm.h / 400];
+    expect(Math.min(...limits.map((limit) => Math.abs(limit - result.mmPerUnit!)))).toBeLessThan(1e-9);
+    // The tall one runs past its square box, its text below it.
+    expect(tall!.drawMm.h).toBeGreaterThan(tall!.pictureMm.size);
+    expect(tall!.text.firstBaseline).toBeGreaterThan(tall!.drawMm.y + tall!.drawMm.h);
+    // Uploads are fitted to their box under One scale.
+    const fitted = layout([step(0, { picture: upload(1, 1) })], { scale: 'paper' }).pages[0]!.cells[0]!;
+    expect(fitted.mmPerUnit).toBeNull();
+    expect(fitted.frameMm).toBeNull();
   });
 
-  it('fits each picture by default, and draws every one’s frame at one size, room left for the furthest marks', () => {
-    const fit = (reach: number, kind: 'paper' | 'fit' = 'paper'): LayoutStep['picture'] =>
-      kind === 'paper' ? { kind, extentUnits: 400 * reach, reach } : { kind, reach };
-    const list = [step(0, { picture: fit(1) }), step(1, { picture: fit(1.08) }), step(2, { picture: fit(1, 'fit') })];
-    const result = layout(list);
+  it('fits each by default, keeping the paper one scale while it can, a taller model running taller', () => {
     expect(DEFAULT_PAGE_SETUP.scale).toBe('fit');
-    const cells = result.pages[0]!.cells;
-    const box = cells[0]!.pictureMm.size;
-    // One size for all three — an upload's too — the largest that leaves the reaching one room.
-    expect(result.frameMm).toBeCloseTo(box / 1.08, 9);
-    for (const cell of cells) {
-      expect(cell.frameMm).toBe(result.frameMm);
-      expect(cell.mmPerUnit).toBeNull();
-      expect(cell.scaleReduced).toBe(false);
-    }
-    // Without the reaching step, each fills its box.
-    expect(layout([list[0]!, list[2]!]).frameMm).toBeCloseTo(box, 9);
-  });
-
-  it('draws a picture whose marks reach too far, or whose box gave room to text, smaller alone', () => {
+    // Zach's crane in paper units: the square base, its kite, the bird base taller than both, no words under it.
     const list = [
-      step(0, { picture: { kind: 'fit', reach: 1.05 } }),
-      step(1, { picture: { kind: 'fit', reach: 2 } }),
-      step(2, { picture: { kind: 'fit', reach: 1 }, text: `${LONG} ${LONG} ${LONG} ${LONG}` }),
+      step(0, { picture: paper(283, 285) }),
+      step(1, { picture: paper(283, 285) }),
+      step(2, { picture: paper(166, 403), text: '' }),
     ];
     const result = layout(list);
-    const [first, far, long] = result.pages[0]!.cells;
-    // The far one has no say in the others' size: only a reach within the share is given room by all.
-    expect(2).toBeGreaterThan(FIT_SHARED_REACH);
-    expect(result.frameMm).toBeCloseTo(first!.pictureMm.size / 1.05, 9);
-    expect(first!.frameMm).toBe(result.frameMm);
-    expect(first!.scaleReduced).toBe(false);
-    expect(far!.frameMm).toBeCloseTo(far!.pictureMm.size / 2, 9);
+    expect(result.mmPerUnit).toBeNull();
+    const [base, kite, bird] = result.pages[0]!.cells;
+    expect(kite!.mmPerUnit).toBe(base!.mmPerUnit);
+    expect(bird!.mmPerUnit).toBe(base!.mmPerUnit);
+    for (const cell of [base, kite, bird]) expect(cell!.scaleReduced).toBe(false);
+    // The bird base is drawn taller than its box at the run's scale, not shrunk into it.
+    expect(bird!.drawMm.h).toBeCloseTo(403 * bird!.mmPerUnit!, 9);
+    expect(bird!.drawMm.h).toBeGreaterThan(bird!.pictureMm.size);
+    // The square base alone would be drawn larger: the run gave a little for the bird base.
+    const alone = layout([list[0]!]).pages[0]!.cells[0]!;
+    expect(alone.mmPerUnit!).toBeGreaterThan(base!.mmPerUnit!);
+    expect(base!.mmPerUnit! / alone.mmPerUnit!).toBeGreaterThanOrEqual(1 - FIT_GIVE - 1e-9);
+  });
+
+  it('zooms in where the model has grown much smaller, and draws pictures with no paper by their frames', () => {
+    const list = [step(0, { picture: paper(400) }), step(1, { picture: paper(400) }), step(2, { picture: paper(150) })];
+    const [a, b, small] = layout(list).pages[0]!.cells;
+    expect(b!.mmPerUnit).toBe(a!.mmPerUnit);
+    expect(small!.mmPerUnit! / a!.mmPerUnit!).toBeGreaterThan(FIT_ZOOM_IN);
+    expect(small!.scaleReduced).toBe(false);
+    // Uploads keep one frame among themselves, apart from the paper.
+    const mixed = layout([step(0, { picture: upload(1, 0.5) }), step(1, { picture: paper(400) }), step(2, { picture: upload(1, 1) })]);
+    const [wide, cp, square] = mixed.pages[0]!.cells;
+    expect(wide!.frameMm).toBe(square!.frameMm);
+    expect(wide!.mmPerUnit).toBeNull();
+    expect(cp!.frameMm).toBeNull();
+  });
+
+  it('draws a step that needs much more room smaller alone when the next fits the run again, and starts a run when none does', () => {
+    const run = [step(0, { picture: paper(400) }), step(1, { picture: paper(400) })];
+    const once = layout([...run, step(2, { picture: paper(400, 900) }), step(3, { picture: paper(400) })]);
+    const [a, , far, after] = once.pages[0]!.cells;
+    expect(far!.mmPerUnit!).toBeLessThan(a!.mmPerUnit! * (1 - FIT_GIVE));
     expect(far!.scaleReduced).toBe(true);
-    expect(long!.frameMm).toBeCloseTo(long!.pictureMm.size, 9);
-    expect(long!.frameMm!).toBeLessThan(result.frameMm!);
+    expect(after!.mmPerUnit).toBe(a!.mmPerUnit);
+    // Unfolded for good: the steps from it are a run of their own.
+    const unfolded = layout([...run, step(2, { picture: paper(400, 900) }), step(3, { picture: paper(400, 900) })]);
+    const [, , first, second] = unfolded.pages[0]!.cells;
+    expect(first!.scaleReduced).toBe(false);
+    expect(second!.mmPerUnit).toBe(first!.mmPerUnit);
+  });
+
+  it('lets marks cost a picture no more than their floor of its room: past it they reach out of the room', () => {
+    // Letters that need ten times the sheet: the sheet keeps half the scale it would fit alone.
+    const list = [step(0, { picture: marked(4000, 4000, { width: 400, height: 400 }) })];
+    for (const scale of ['fit', 'paper'] as const) {
+      const cell = layout(list, { scale }).pages[0]!.cells[0]!;
+      const alone = Math.min(cell.drawMm.w, cell.drawMm.h) / 400;
+      expect(cell.mmPerUnit!).toBeCloseTo(MARKS_FLOOR * alone, 9);
+    }
+    // Marks within the floor cost what they need, no more.
+    const near = layout([step(0, { picture: marked(500, 500, { width: 400, height: 400 }) })]).pages[0]!.cells[0]!;
+    expect(near.mmPerUnit! * 500).toBeCloseTo(Math.min(near.drawMm.w, near.drawMm.h), 9);
+  });
+
+  it('draws a picture whose box gave room to long text smaller alone, and never anything that is not a number', () => {
+    const list = [
+      step(0, { picture: paper(400) }),
+      step(1, { picture: paper(400), text: `${LONG} ${LONG} ${LONG} ${LONG}` }),
+      step(2, { picture: paper(400) }),
+      step(3, { picture: { kind: 'paper', width: 0, height: Number.NaN, frame: { width: 0, height: 0 } } }),
+    ];
+    const [a, long, c, broken] = layout(list).pages[0]!.cells;
+    expect(c!.mmPerUnit).toBe(a!.mmPerUnit);
     expect(long!.scaleReduced).toBe(true);
+    expect(long!.mmPerUnit!).toBeLessThan(a!.mmPerUnit!);
+    expect(broken!.mmPerUnit).toBeNull();
+    expect(broken!.drawMm.h).toBe(broken!.pictureMm.size);
   });
 
   it('gives a long instruction room from its picture, to half of it, then cuts it with "…"', () => {
@@ -346,17 +472,20 @@ describe('turns between steps on the page (D22)', () => {
 
   it('keeps every glyph off the pictures and on the paper, whatever the margin, grid or flow', () => {
     const rotate: LayoutTurn = { id: 'turn-r', turn: { kind: 'rotate', rotate: { amount: 'half', direction: 'ccw' } } };
-    const list = steps(9, (index) =>
-      index === 0
+    const shapes = [paper(400), paper(150, 600), paper(700, 200)];
+    const list = steps(9, (index) => ({
+      picture: shapes[index % shapes.length]!,
+      ...(index === 0
         ? { turnsBefore: [over('turn-first')] }
         : index === 3
           ? { turnsBefore: [over('turn-row'), rotate] }
           : index === 8
             ? { turnsAfter: [over('turn-end')] }
-            : {}
-    );
-    const clash = (box: { x: number; y: number; w: number; h: number }, picture: { x: number; y: number; size: number }) =>
-      box.x < picture.x + picture.size && picture.x < box.x + box.w && box.y < picture.y + picture.size && picture.y < box.y + box.h;
+            : {}),
+    }));
+    const clash = (box: { x: number; y: number; w: number; h: number }, picture: { x: number; y: number; w: number; h: number }) =>
+      box.x < picture.x + picture.w && picture.x < box.x + box.w && box.y < picture.y + picture.h && picture.y < box.y + box.h;
+    const square = ({ x, y, size }: { x: number; y: number; size: number }) => ({ x, y, w: size, h: size });
     for (const pageLayout of ['grid', 'flow'] as const) {
       for (const marginMm of [0, 3, 5, 8, 12, 20, 30]) {
         const result = layout(list, { layout: pageLayout, marginMm });
@@ -366,7 +495,10 @@ describe('turns between steps on the page (D22)', () => {
           expect(box.x, `${pageLayout} ${marginMm} ${turn.id}`).toBeGreaterThanOrEqual(0);
           expect(box.x + box.w, `${pageLayout} ${marginMm} ${turn.id}`).toBeLessThanOrEqual(widthMm);
           for (const cell of result.pages[0]!.cells) {
-            expect(clash(box, cell.pictureMm), `${pageLayout} ${marginMm} ${turn.id} over step ${cell.number}`).toBe(false);
+            expect(clash(box, square(cell.pictureMm)), `${pageLayout} ${marginMm} ${turn.id} over step ${cell.number}`).toBe(false);
+            // Nor the picture as it is drawn, wider or taller than its box.
+            const picture = list.find((each) => each.id === cell.stepId)!.picture;
+            expect(clash(box, drawnOf(cell, picture)!), `${pageLayout} ${marginMm} ${turn.id} over drawn ${cell.number}`).toBe(false);
           }
         }
       }

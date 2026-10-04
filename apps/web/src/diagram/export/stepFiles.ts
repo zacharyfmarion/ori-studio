@@ -23,6 +23,7 @@ import type { DiagramDocument } from '../document/diagramDocument';
 import type { DiagramFonts } from '../fonts/diagramFonts';
 import { embeddedFontFaces } from '../fonts/fontEmbedding';
 import type { FontSubsetter } from '../fonts/fontSubset';
+import { hasDrawnAnnotations } from '../annotate/paintAnnotations';
 import { stepPictureSource } from '../pictures/paintDiagramStep';
 import { stepNumberElement, stepTextElement, svgDocument } from '../pages/composeDiagramPage';
 import {
@@ -80,8 +81,9 @@ export interface PreparedStepFiles {
 function sharedScale(steps: readonly LayoutStep[], boxMm: number): number | null {
   let scale: number | null = null;
   for (const { picture } of steps) {
-    if (picture?.kind !== 'paper' || !(picture.extentUnits > 0)) continue;
-    const fits = boxMm / picture.extentUnits;
+    const extent = picture?.kind === 'paper' ? Math.max(picture.width, picture.height) : 0;
+    if (!(extent > 0) || !Number.isFinite(extent)) continue;
+    const fits = boxMm / extent;
     scale = scale === null ? fits : Math.min(scale, fits);
   }
   return scale;
@@ -97,13 +99,21 @@ export function prepareStepFiles(
   const box = pictureBoxOf(options);
   // A file per step: a turn between two (D22) has no picture of its own.
   const steps = stepsOf(document);
-  // Twice when a References step is measured: its letters keep their pt size,
-  // so how far they reach past its sheet is known only at the scale found first.
+  // Again while a References step or an annotated one is measured at another
+  // scale than it is drawn at: its letters and marks keep their pt size, so
+  // how far they reach past its picture is known only at its scale.
   let layoutSteps = diagramLayoutSteps(document);
   let scale = sharedScale(layoutSteps, box.size);
-  if (scale !== null && steps.some((step) => step.picture?.kind === 'step-diagram')) {
-    layoutSteps = diagramLayoutSteps(document, { mmPerUnit: scale });
-    scale = sharedScale(layoutSteps, box.size);
+  const reaching = steps.some(
+    (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
+  );
+  for (let pass = 0; reaching && scale !== null && pass < 4; pass += 1) {
+    const measure = { mmPerUnit: scale };
+    layoutSteps = diagramLayoutSteps(document, () => measure);
+    const next = sharedScale(layoutSteps, box.size);
+    const settled = next !== null && Math.abs(next - scale) <= 1e-4 * scale;
+    scale = next;
+    if (settled) break;
   }
 
   const digits = String(steps.length).length;

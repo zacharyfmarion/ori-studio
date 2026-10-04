@@ -45,10 +45,13 @@ export interface PreparedDiagramPages {
 
 /**
  * What the layout needs of each step, its marks measured at the size a first
- * layout found when known; each with the turns between it and the step
- * before (D22), the last with any after it.
+ * layout found for it when known (`measureOf`); each with the turns between
+ * it and the step before (D22), the last with any after it.
  */
-export function diagramLayoutSteps(document: DiagramDocument, measure: PictureMeasure = null): LayoutStep[] {
+export function diagramLayoutSteps(
+  document: DiagramDocument,
+  measureOf: (stepId: string) => PictureMeasure = () => null
+): LayoutStep[] {
   const steps: LayoutStep[] = [];
   let turns: LayoutTurn[] = [];
   for (const entry of document.steps) {
@@ -63,7 +66,7 @@ export function diagramLayoutSteps(document: DiagramDocument, measure: PictureMe
       id: entry.id,
       text: entry.text,
       breakBefore: entry.breakBefore,
-      picture: layoutPicture(entry, document.assets, document.style, measure),
+      picture: layoutPicture(entry, document.assets, document.style, measureOf(entry.id)),
       turnsBefore: turns,
       turnsAfter: [],
     });
@@ -74,25 +77,76 @@ export function diagramLayoutSteps(document: DiagramDocument, measure: PictureMe
   return steps;
 }
 
+/** How many times the pages may be laid out again to measure marks at the scale they are drawn at. */
+const MEASURE_PASSES = 6;
+/** A scale this close to the one its marks were measured at is the one they were measured at. */
+const MEASURE_SETTLED = 1e-4;
+
 /**
- * The pages, laid out twice when a References step or an annotated one is
- * drawn at a shared size — the paper scale, or under `fit` the one frame: its
+ * The pages, laid out again while a References step or an annotated one is
+ * drawn at a scale other than the one its marks were measured at: its
  * letters, arrowheads and marks keep their pt size, so how far they reach
- * past its picture is only known at the size the first layout finds.
+ * past its picture is only known at its scale — which depends on how far
+ * they reach. Each pass measures a step at where the last two put its
+ * scale's fixed point (a secant), so marks large for their room settle in a
+ * few passes rather than creeping; a picture drawn smaller alone that has
+ * not settled is fitted to its room as it is drawn (`cellPicture`).
  */
 export function layoutDiagram(document: DiagramDocument, setter: TextSetter): DiagramPagesLayout {
-  const first = layoutDiagramPages(diagramLayoutSteps(document), document.page, document.title, setter);
+  const layout = (measureOf?: (stepId: string) => PictureMeasure) =>
+    layoutDiagramPages(diagramLayoutSteps(document, measureOf), document.page, document.title, setter);
+  let pages = layout();
   const reaching = stepsOf(document).some(
     (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
   );
-  const measure: PictureMeasure =
-    first.mmPerUnit !== null
-      ? { mmPerUnit: first.mmPerUnit }
-      : first.frameMm !== null
-        ? { frameMm: first.frameMm }
-        : null;
-  if (measure === null || !reaching) return first;
-  return layoutDiagramPages(diagramLayoutSteps(document, measure), document.page, document.title, setter);
+  if (!reaching) return pages;
+  /** Per step, the scale its marks were last measured at, and the scale the layout then drew it at. */
+  const tried = new Map<string, { at: number; got: number }>();
+  let measures = scalesOf(pages);
+  for (let pass = 0; pass < MEASURE_PASSES && measures.size > 0; pass += 1) {
+    const at = measures;
+    pages = layout((stepId) => at.get(stepId)?.measure ?? null);
+    const got = scalesOf(pages);
+    let settled = true;
+    measures = new Map();
+    for (const [stepId, { scale, measure }] of got) {
+      const was = at.get(stepId);
+      if (!was || Math.abs(scale - was.scale) > MEASURE_SETTLED * scale) settled = false;
+      const next = was ? fixedPoint(tried.get(stepId), { at: was.scale, got: scale }) : scale;
+      if (was) tried.set(stepId, { at: was.scale, got: scale });
+      measures.set(stepId, { scale: next, measure: withScale(measure, next) });
+    }
+    if (settled) break;
+  }
+  return pages;
+}
+
+/** The scale each step's picture is drawn at, by its step, and the measure that is. */
+function scalesOf(pages: DiagramPagesLayout): Map<string, { scale: number; measure: PictureMeasure }> {
+  const scales = new Map<string, { scale: number; measure: PictureMeasure }>();
+  for (const cell of pages.pages.flatMap((page) => page.cells)) {
+    if (cell.mmPerUnit !== null) scales.set(cell.stepId, { scale: cell.mmPerUnit, measure: { mmPerUnit: cell.mmPerUnit } });
+    else if (cell.frameMm !== null) scales.set(cell.stepId, { scale: cell.frameMm, measure: { frameMm: cell.frameMm } });
+  }
+  return scales;
+}
+
+function withScale(measure: PictureMeasure, scale: number): PictureMeasure {
+  if (measure === null) return null;
+  return 'mmPerUnit' in measure ? { mmPerUnit: scale } : { frameMm: scale };
+}
+
+/**
+ * Where a step's scale settles — the scale its marks, measured at it, give
+ * back — from its last two tries: the secant's root, held between half and
+ * one and a half times the latest result. The latest result alone with one try.
+ */
+function fixedPoint(before: { at: number; got: number } | undefined, last: { at: number; got: number }): number {
+  if (!before) return last.got;
+  const [f0, f1] = [before.got - before.at, last.got - last.at];
+  const root = last.at - (f1 * (last.at - before.at)) / (f1 - f0);
+  if (!Number.isFinite(root) || root <= 0) return last.got;
+  return Math.min(1.5 * last.got, Math.max(0.5 * last.got, root));
 }
 
 /**
