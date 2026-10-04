@@ -55,6 +55,7 @@ export function ToolPickerRow({
     <li
       className={styles.row}
       data-tool-row=""
+      data-leading={leading ? '' : undefined}
       data-active={isActive || undefined}
       data-dragging={reorder?.dragging || undefined}
       {...data}

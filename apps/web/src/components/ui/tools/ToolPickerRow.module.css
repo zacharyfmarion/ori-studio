@@ -51,6 +51,13 @@
     user-select: none;
   }
 
+  /* Nothing before the glyph: it lines up with the sheet's other left edge, the
+     one its title, headings and notes share, rather than sitting on the row's
+     edge. A leading control (Edit's star) is that inset already. */
+  .row:not([data-leading]) .item {
+    padding-left: var(--space-3);
+  }
+
   .item[aria-disabled='true'] {
     color: var(--text-tertiary);
     opacity: 0.55;
