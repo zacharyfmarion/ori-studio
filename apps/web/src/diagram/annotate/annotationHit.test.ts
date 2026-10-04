@@ -67,6 +67,31 @@ describe('hitAnnotation', () => {
     expect(hitAnnotation([circle], [0.5 + radius, 0.5], tight, 'circle')).toEqual({ annotationId: 'circle', part: 'body' });
   });
 
+  it('leaves a circle its ring where a fold arrow drawn after it lands on it, stopped on the ring as drawn', () => {
+    const a: KnownDiagramAnnotation = { id: 'a', kind: 'circle', from: [0.2, 0.5], to: [0.2, 0.5] };
+    const b: KnownDiagramAnnotation = { id: 'b', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5] };
+    const radius = circleRadius(SIZES.ink);
+    for (const arrow of [
+      { id: 'arrow', kind: 'valley-arrow', from: [0.2, 0.5], to: [0.5, 0.5] },
+      { id: 'arrow', kind: 'mountain-arrow', from: [0.2, 0.5], to: [0.5, 0.5] },
+      flipAnnotationArc({ id: 'arrow', kind: 'valley-arrow', from: [0.2, 0.5], to: [0.5, 0.5] }),
+    ] as KnownDiagramAnnotation[]) {
+      for (const tolerance of [0.008, 0.002]) {
+        for (let k = 0; k < 8; k += 1) {
+          const angle = (k * Math.PI) / 4;
+          const press: [number, number] = [0.5 + radius * Math.cos(angle), 0.5 + radius * Math.sin(angle)];
+          for (const selected of [null, 'b']) {
+            const hit = hitAnnotation([a, b, arrow], press, { ...SIZES, tolerance }, selected);
+            expect(hit?.annotationId, `${arrow.kind} ${tolerance} at ${k * 45}° ${selected}`).toBe('b');
+          }
+        }
+      }
+      // The arrow keeps the rest of its length.
+      const line = arrowPolyline(arrow);
+      expect(hitAnnotation([a, b, arrow], line[Math.floor(line.length / 2)]!, SIZES, null)?.annotationId).toBe('arrow');
+    }
+  });
+
   it('takes a hollow push anywhere on or in its outline, not only on its spine', () => {
     const push: KnownDiagramAnnotation = { id: 'push', kind: 'push-arrow', from: [0.2, 0.5], to: [0.6, 0.5] };
     const tight = { ...SIZES, tolerance: 0.005 };

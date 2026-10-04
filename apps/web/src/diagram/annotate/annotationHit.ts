@@ -20,6 +20,10 @@ import {
 } from '../../cp-workspace/references/diagram/diagramInk';
 import {
   arcPolyline,
+  arrowheadAt,
+  arrowheadExtent,
+  arrowheadReach,
+  backToRing,
   arcThroughPoints,
   pathArrowGeometry,
   pushArrowOutline,
@@ -148,16 +152,23 @@ function headLength(chord: number, ink: number): number {
 /**
  * How far a press is from a fold arrow as it is drawn: its arc, a
  * fold-and-unfold arrow's return stroke beside it, and the head at the end of
- * whichever carries it.
+ * whichever carries it — a one-way arrow's stopped on the ring of a circle
+ * it lands in (`marks`, the circles' centres), as it is drawn there.
  */
-function arrowDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, ink: number): number {
+function arrowDistance(
+  annotation: KnownDiagramAnnotation,
+  point: PicturePoint,
+  ink: number,
+  marks: readonly PicturePoint[]
+): number {
   const shape = arrowShape(annotation);
-  if (shape.kind === 'path') return pathArrowDistance(annotation, shape.path, point, ink);
+  if (shape.kind === 'path') return pathArrowDistance(annotation, shape.path, point, ink, marks);
   const { from, to } = annotation;
   const chord = Math.hypot(to[0] - from[0], to[1] - from[1]);
   const outgoing = arrowPolyline(annotation);
   let distance = distanceToPolyline(point, outgoing);
-  let tip = to;
+  let carrier: readonly PicturePoint[] = outgoing;
+  let tip = annotation.kind === 'fold-unfold-arrow' ? to : landedTip(outgoing, marks, circleRadius(ink));
   if (annotation.kind === 'fold-unfold-arrow') {
     const out = arcThroughPoints(up(from), up(arrowApex(from, to, shape.bend)), up(to));
     const offset = Math.min(DIAGRAM_FOLD_RETURN_INK.offset * ink, DIAGRAM_FOLD_RETURN_INK.ofChord * chord);
@@ -165,12 +176,52 @@ function arrowDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, 
     if (back) {
       const returning = arcPolyline(back).map(down);
       distance = Math.min(distance, distanceToPolyline(point, returning));
+      carrier = returning;
       tip = returning[returning.length - 1]!;
     }
   }
-  // The head's barbs stand off its spine by under half its length.
-  const head = headLength(chord, ink);
-  return Math.min(distance, Math.hypot(point[0] - tip[0], point[1] - tip[1]) - head * 0.5);
+  return Math.min(distance, headDistance(point, tip, headingInto(carrier, tip), headLength(chord, ink)));
+}
+
+/**
+ * How far a press is from a head `length` long whose tip is at `tip`,
+ * pointing along `direction`: 0 inside its outline — a mountain's wider
+ * barb on either side (`arrowheadExtent`) — the distance to it outside. The
+ * head lies behind its tip, along the stroke: an arrow landing on a ring
+ * keeps off it.
+ */
+function headDistance(point: PicturePoint, tip: PicturePoint, direction: PicturePoint, length: number): number {
+  const reach = arrowheadReach(length);
+  const head = arrowheadAt(
+    { x: tip[0] - direction[0] * reach, y: tip[1] - direction[1] * reach },
+    { x: direction[0], y: direction[1] },
+    length
+  );
+  const [tipAt, notch, barbA, barbB] = arrowheadExtent(head).map(({ x, y }): PicturePoint => [x, y]);
+  const outline = [tipAt!, barbA!, notch!, barbB!];
+  if (insidePolygon(point, outline)) return 0;
+  return distanceToPolyline(point, [...outline, outline[0]!]);
+}
+
+/**
+ * The way a stroke runs where `tip` lies on it — its end, or where it was
+ * stopped short of its end on a ring: the run nearest the tip, the last of
+ * any that tie.
+ */
+function headingInto(stroke: readonly PicturePoint[], tip: PicturePoint): PicturePoint {
+  let best: PicturePoint = [1, 0];
+  let nearest = Infinity;
+  for (let i = 1; i < stroke.length; i += 1) {
+    const [a, b] = [stroke[i - 1]!, stroke[i]!];
+    const run = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (!(run > 0)) continue;
+    const d = distanceToSegment(tip, a, b);
+    if (d <= nearest + 1e-12) {
+      nearest = d;
+      best = [(b[0] - a[0]) / run, (b[1] - a[1]) / run];
+    }
+  }
+  return best;
 }
 
 /**
@@ -179,28 +230,65 @@ function arrowDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, 
  * measured in: worked out once per annotation and ink.
  */
 const pathArrowReach = perAnnotation(
-  () => new Map<number, { back: PicturePoint[]; tip: PicturePoint; head: number } | null>()
+  () => new Map<string, { back: PicturePoint[]; tip: PicturePoint; direction: PicturePoint; head: number } | null>()
 );
 
-function pathArrowAt(annotation: KnownDiagramAnnotation, path: readonly DiagramPathNode[], ink: number) {
+function unitFrom(a: { x: number; y: number }, b: { x: number; y: number }): PicturePoint {
+  const d = Math.hypot(b.x - a.x, b.y - a.y);
+  return d > 0 ? [(b.x - a.x) / d, (b.y - a.y) / d] : [1, 0];
+}
+
+function pathArrowAt(
+  annotation: KnownDiagramAnnotation,
+  path: readonly DiagramPathNode[],
+  ink: number,
+  marks: readonly PicturePoint[]
+) {
   const byInk = pathArrowReach(annotation);
-  const known = byInk.get(ink);
+  const key = `${ink}|${marks.map(([x, y]) => `${x},${y}`).join(';')}`;
+  const known = byInk.get(key);
   if (known !== undefined) return known;
   const fold = annotation.kind === 'fold-unfold-arrow' ? 'fold-unfold' : 'valley';
   const geometry = pathArrowGeometry(
     pathCubics(path),
     fold,
-    (length) => ({ head: headLength(length, ink), offset: returnOffset(length, ink), rim: 0 }),
-    [],
+    (length) => ({ head: headLength(length, ink), offset: returnOffset(length, ink), rim: circleRadius(ink) }),
+    marks.map(([x, y]) => ({ x, y })),
     PATH_TOLERANCE
   );
   const found = geometry && {
     back: (geometry.back ?? []).map(([x, y]): PicturePoint => [x, y]),
     tip: [geometry.head.tip.x, geometry.head.tip.y] as PicturePoint,
+    // The way it points: notch to tip.
+    direction: unitFrom(geometry.head.notch, geometry.head.tip),
     head: headLength(pathLength(path), ink),
   };
-  byInk.set(ink, found);
+  byInk.set(key, found);
   return found;
+}
+
+/**
+ * Where a one-way arc arrow's tip is drawn: its end, or where it stands on
+ * the ring of a circle its end lies in (`foldArrowLanding`), along its
+ * outgoing polyline.
+ */
+function landedTip(outgoing: readonly PicturePoint[], marks: readonly PicturePoint[], rim: number): PicturePoint {
+  const end = outgoing[outgoing.length - 1]!;
+  const mark = marks.find((each) => Math.hypot(each[0] - end[0], each[1] - end[1]) <= rim);
+  if (!mark || outgoing.length < 2) return end;
+  const back = (by: number): PicturePoint => {
+    let left = by;
+    for (let i = outgoing.length - 1; i > 0; i -= 1) {
+      const [a, b] = [outgoing[i]!, outgoing[i - 1]!];
+      const run = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (left <= run && run > 0) return [a[0] + ((b[0] - a[0]) * left) / run, a[1] + ((b[1] - a[1]) * left) / run];
+      left -= run;
+    }
+    return outgoing[0]!;
+  };
+  const length = outgoing.reduce((sum, at, i) => (i === 0 ? 0 : sum + Math.hypot(at[0] - outgoing[i - 1]![0], at[1] - outgoing[i - 1]![1])), 0);
+  const by = backToRing(back, mark, rim, rim, length);
+  return by === null ? end : back(by);
 }
 
 /**
@@ -212,14 +300,14 @@ function pathArrowDistance(
   annotation: KnownDiagramAnnotation,
   path: readonly DiagramPathNode[],
   point: PicturePoint,
-  ink: number
+  ink: number,
+  marks: readonly PicturePoint[]
 ): number {
   const distance = distanceToPolyline(point, arrowPolyline(annotation));
-  const drawn = pathArrowAt(annotation, path, ink);
+  const drawn = pathArrowAt(annotation, path, ink, marks);
   if (!drawn) return distance;
   const back = drawn.back.length > 1 ? distanceToPolyline(point, drawn.back) : Infinity;
-  const head = Math.hypot(point[0] - drawn.tip[0], point[1] - drawn.tip[1]) - drawn.head * 0.5;
-  return Math.min(distance, back, head);
+  return Math.min(distance, back, headDistance(point, drawn.tip, drawn.direction, drawn.head));
 }
 
 /** How far a fold-and-unfold arrow's return opens: the drawing's, capped by a share of the arrow (`foldReturnOffset`). */
@@ -270,7 +358,12 @@ export function circleRadius(ink: number): number {
  * that lands on it ends at its centre, and a press there is the arrow's. Every kind is measured as it is drawn (a switch,
  * so a new kind is a compile error here until it is).
  */
-function bodyDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, sizes: HitSizes): number {
+function bodyDistance(
+  annotation: KnownDiagramAnnotation,
+  point: PicturePoint,
+  sizes: HitSizes,
+  marks: readonly PicturePoint[]
+): number {
   switch (annotation.kind) {
     case 'label': {
       const halfWidth = labelHalfWidth(annotation.text ?? '');
@@ -285,7 +378,7 @@ function bodyDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, s
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow':
-      return arrowDistance(annotation, point, sizes.ink);
+      return arrowDistance(annotation, point, sizes.ink, marks);
     case 'push-arrow':
       return pushDistance(annotation, point, sizes.ink);
     case 'valley-line':
@@ -317,15 +410,20 @@ export function hitAnnotation(
       .sort((a, b) => a.distance - b.distance);
     if (ends[0]) return { annotationId: selected.id, part: ends[0].part };
   }
-  // Topmost first, as they are drawn: labels over marks over lines.
+  // An arrow that lands in a circle is drawn stopped on its ring: its head is pressed there.
+  const marks = known.filter((annotation) => annotation.kind === 'circle').map(({ from }) => from);
+  // Topmost first, as they are drawn: labels over marks over lines — and a
+  // circle over the other marks, its ring the one place to take it, where an
+  // arrow that lands on it has the rest of its length.
   const drawn = [
     ...known.filter((annotation) => LINE_KINDS.has(annotation.kind)),
-    ...known.filter((annotation) => !LINE_KINDS.has(annotation.kind) && annotation.kind !== 'label'),
+    ...known.filter((annotation) => !LINE_KINDS.has(annotation.kind) && annotation.kind !== 'label' && annotation.kind !== 'circle'),
+    ...known.filter((annotation) => annotation.kind === 'circle'),
     ...known.filter((annotation) => annotation.kind === 'label'),
   ];
   for (let index = drawn.length - 1; index >= 0; index -= 1) {
     const annotation = drawn[index]!;
-    if (bodyDistance(annotation, point, sizes) <= sizes.tolerance) return { annotationId: annotation.id, part: 'body' };
+    if (bodyDistance(annotation, point, sizes, marks) <= sizes.tolerance) return { annotationId: annotation.id, part: 'body' };
   }
   return null;
 }
