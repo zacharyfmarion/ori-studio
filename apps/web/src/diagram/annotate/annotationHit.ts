@@ -5,7 +5,12 @@
  *
  * Pure: no DOM, no store.
  */
-import { isKnownAnnotation, type DiagramAnnotation, type KnownDiagramAnnotation } from '../document/diagramDocument';
+import {
+  isKnownAnnotation,
+  type DiagramAnnotation,
+  type DiagramPathNode,
+  type KnownDiagramAnnotation,
+} from '../document/diagramDocument';
 import {
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_FOLD_RETURN_INK,
@@ -14,10 +19,21 @@ import {
 import {
   arcPolyline,
   arcThroughPoints,
+  pathArrowGeometry,
   pushArrowOutline,
   returnStroke,
 } from '../../cp-workspace/references/stepDiagramGeometry';
-import { LINE_KINDS, arrowApex, arrowBend, isPointKind, labelHalfWidth, type PicturePoint } from './annotationModel';
+import { flattenPath } from '../../lib/cubicBezier';
+import {
+  LINE_KINDS,
+  arrowApex,
+  arrowShape,
+  isPointKind,
+  labelHalfWidth,
+  pathCubics,
+  pathLength,
+  type PicturePoint,
+} from './annotationModel';
 import { perAnnotation } from './perAnnotation';
 
 /**
@@ -55,16 +71,23 @@ export interface HitSizes {
 /** How many straight pieces an arrow's arc is measured and washed along. */
 const ARROW_SAMPLES = 24;
 
-/**
- * The points along an arrow's arc, from its tail to its tip: worked out once
- * per annotation object, as a drag's every step asks for the one in hand and
- * a press for them all.
- */
-export const arrowPolyline = perAnnotation((annotation) => sampleArrow(annotation, ARROW_SAMPLES));
+/** How far a shaped arrow's runs may stand off its curve, in picture units: a hair at any zoom a press is made at. */
+const PATH_TOLERANCE = 2e-4;
 
-function sampleArrow(annotation: KnownDiagramAnnotation, samples: number): PicturePoint[] {
+/**
+ * The points along an arrow, from its tail to its tip — its arc, or the
+ * curve it was shaped along: worked out once per annotation object, as a
+ * drag's every step asks for the one in hand and a press for them all.
+ */
+export const arrowPolyline = perAnnotation((annotation): PicturePoint[] => {
+  const shape = arrowShape(annotation);
+  if (shape.kind === 'arc') return sampleArrow(annotation, shape.bend, ARROW_SAMPLES);
+  return flattenPath(pathCubics(shape.path), PATH_TOLERANCE).map(([x, y]): PicturePoint => [x, y]);
+});
+
+function sampleArrow(annotation: KnownDiagramAnnotation, bend: number, samples: number): PicturePoint[] {
   const { from, to } = annotation;
-  const apex = arrowApex(from, to, arrowBend(annotation));
+  const apex = arrowApex(from, to, bend);
   // The circle through the three points, swept from `from` through `apex` to `to`.
   const [ax, ay] = from;
   const [bx, by] = apex;
@@ -121,13 +144,15 @@ function headLength(chord: number, ink: number): number {
  * whichever carries it.
  */
 function arrowDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, ink: number): number {
+  const shape = arrowShape(annotation);
+  if (shape.kind === 'path') return pathArrowDistance(annotation, shape.path, point, ink);
   const { from, to } = annotation;
   const chord = Math.hypot(to[0] - from[0], to[1] - from[1]);
   const outgoing = arrowPolyline(annotation);
   let distance = distanceToPolyline(point, outgoing);
   let tip = to;
   if (annotation.kind === 'fold-unfold-arrow') {
-    const out = arcThroughPoints(up(from), up(arrowApex(from, to, arrowBend(annotation))), up(to));
+    const out = arcThroughPoints(up(from), up(arrowApex(from, to, shape.bend)), up(to));
     const offset = Math.min(DIAGRAM_FOLD_RETURN_INK.offset * ink, DIAGRAM_FOLD_RETURN_INK.ofChord * chord);
     const back = out ? returnStroke(out, offset) : null;
     if (back) {
@@ -139,6 +164,60 @@ function arrowDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, 
   // The head's barbs stand off its spine by under half its length.
   const head = headLength(chord, ink);
   return Math.min(distance, Math.hypot(point[0] - tip[0], point[1] - tip[1]) - head * 0.5);
+}
+
+/**
+ * A shaped arrow's return and head as a press finds them, by the drawing's
+ * own geometry (`pathArrowGeometry`) in picture units, at the ink a press is
+ * measured in: worked out once per annotation and ink.
+ */
+const pathArrowReach = perAnnotation(
+  () => new Map<number, { back: PicturePoint[]; tip: PicturePoint; head: number } | null>()
+);
+
+function pathArrowAt(annotation: KnownDiagramAnnotation, path: readonly DiagramPathNode[], ink: number) {
+  const byInk = pathArrowReach(annotation);
+  const known = byInk.get(ink);
+  if (known !== undefined) return known;
+  const fold = annotation.kind === 'fold-unfold-arrow' ? 'fold-unfold' : 'valley';
+  const geometry = pathArrowGeometry(
+    pathCubics(path),
+    fold,
+    (length) => ({ head: headLength(length, ink), offset: returnOffset(length, ink), rim: 0 }),
+    [],
+    PATH_TOLERANCE
+  );
+  const found = geometry && {
+    back: (geometry.back ?? []).map(([x, y]): PicturePoint => [x, y]),
+    tip: [geometry.head.tip.x, geometry.head.tip.y] as PicturePoint,
+    head: headLength(pathLength(path), ink),
+  };
+  byInk.set(ink, found);
+  return found;
+}
+
+/**
+ * How far a press is from a shaped arrow as it is drawn: its path, a
+ * fold-and-unfold arrow's return beside it, and its head — sized by the
+ * path's length, as the drawing sizes it.
+ */
+function pathArrowDistance(
+  annotation: KnownDiagramAnnotation,
+  path: readonly DiagramPathNode[],
+  point: PicturePoint,
+  ink: number
+): number {
+  const distance = distanceToPolyline(point, arrowPolyline(annotation));
+  const drawn = pathArrowAt(annotation, path, ink);
+  if (!drawn) return distance;
+  const back = drawn.back.length > 1 ? distanceToPolyline(point, drawn.back) : Infinity;
+  const head = Math.hypot(point[0] - drawn.tip[0], point[1] - drawn.tip[1]) - drawn.head * 0.5;
+  return Math.min(distance, back, head);
+}
+
+/** How far a fold-and-unfold arrow's return opens: the drawing's, capped by a share of the arrow (`foldReturnOffset`). */
+function returnOffset(span: number, ink: number): number {
+  return Math.min(DIAGRAM_FOLD_RETURN_INK.offset * ink, DIAGRAM_FOLD_RETURN_INK.ofChord * span);
 }
 
 /** How far a press is from a push arrow's hollow outline: 0 inside it. */

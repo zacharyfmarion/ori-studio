@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { DiagramAnnotation, KnownDiagramAnnotation } from '../document/diagramDocument';
-import { arrowApex, flipAnnotationArc } from './annotationModel';
+import { pathArrowGeometry } from '../../cp-workspace/references/stepDiagramGeometry';
+import { cubicPoint } from '../../lib/cubicBezier';
+import { ARROW_BEND, arrowApex, flipAnnotationArc, pathCubics } from './annotationModel';
 import { arrowPolyline, hitAnnotation } from './annotationHit';
 
 /** About the canvas's: an ink is about 0.0066 of the frame. */
@@ -61,6 +63,68 @@ describe('hitAnnotation', () => {
     const latin: KnownDiagramAnnotation = { ...wide, id: 'latin', text: 'fold here' };
     expect(hitAnnotation([wide], [0.69, 0.5], SIZES, null)?.annotationId).toBe('wide');
     expect(hitAnnotation([latin], [0.69, 0.5], SIZES, null)).toBeNull();
+  });
+
+  describe('a shaped arrow', () => {
+    // An S: up over its first node's handle, down under its second's.
+    const shaped: KnownDiagramAnnotation = {
+      id: 'shaped',
+      kind: 'valley-arrow',
+      from: [0.1, 0.5],
+      to: [0.7, 0.5],
+      path: [
+        { at: [0.1, 0.5], out: [0.2, 0.3] },
+        { at: [0.4, 0.5], in: [0.3, 0.7], out: [0.5, 0.3] },
+        { at: [0.7, 0.5], in: [0.6, 0.7] },
+      ],
+    };
+    const tight = { ...SIZES, tolerance: 0.004 };
+
+    it('is taken along its curve, not along the arc its ends would make', () => {
+      // The first segment's top, well off the chord and off any arc between the ends.
+      const top = cubicPoint(pathCubics(shaped.path!)[0]!, 0.5);
+      expect(hitAnnotation([shaped], [top[0], top[1] + 0.002], tight, null)?.annotationId).toBe('shaped');
+      expect(hitAnnotation([shaped], [top[0], top[1] - 0.02], tight, null)).toBeNull();
+      // Where the default arc between its ends would be, nothing is drawn.
+      const arcTop = arrowApex(shaped.from, shaped.to, ARROW_BEND);
+      expect(hitAnnotation([shaped], arcTop, tight, null)).toBeNull();
+      expect(arrowPolyline(shaped)[0]).toEqual([0.1, 0.5]);
+      expect(arrowPolyline(shaped).at(-1)).toEqual([0.7, 0.5]);
+    });
+
+    it('is taken by a fold-and-unfold arrow’s return, where the drawing puts it beside the path', () => {
+      // A C: its return stands off on the outside, as drawn.
+      const curve: KnownDiagramAnnotation = {
+        id: 'fold',
+        kind: 'fold-unfold-arrow',
+        from: [0.2, 0.6],
+        to: [0.6, 0.6],
+        path: [
+          { at: [0.2, 0.6], out: [0.25, 0.4] },
+          { at: [0.6, 0.6], in: [0.55, 0.4] },
+        ],
+      };
+      const drawn = pathArrowGeometry(
+        pathCubics(curve.path!),
+        'fold-unfold',
+        (length) => ({
+          head: Math.min(8.5 * SIZES.ink, 0.26 * length),
+          offset: Math.min(10.56 * SIZES.ink, 0.26 * length),
+          rim: 0,
+        }),
+        [],
+        2e-4
+      )!;
+      const middle = drawn.back![Math.floor(drawn.back!.length / 2)]!;
+      // Above the curve's own top, which is a press away from it.
+      const top = cubicPoint(pathCubics(curve.path!)[0]!, 0.5);
+      expect(middle[1]).toBeLessThan(top[1] - 2 * tight.tolerance);
+      expect(hitAnnotation([curve], [middle[0], middle[1]], tight, null)?.annotationId).toBe('fold');
+      // The same press is nothing to a one-way arrow along the same path.
+      expect(hitAnnotation([{ ...curve, kind: 'valley-arrow' }], [middle[0], middle[1]], tight, null)).toBeNull();
+      // And the head, which ends the return beside the tail.
+      expect(hitAnnotation([curve], [drawn.head.tip.x, drawn.head.tip.y], tight, null)?.annotationId).toBe('fold');
+    });
   });
 
   it('ignores one this build cannot read', () => {

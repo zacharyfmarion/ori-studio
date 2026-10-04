@@ -394,15 +394,6 @@ export function arrowShape(annotation: Pick<KnownDiagramAnnotation, 'bend' | 'pa
 }
 
 /**
- * An arc arrow's bulge, for the drawing and the hit test until they ask
- * {@link arrowShape} what a path is; a shaped arrow is drawn as the default
- * arc until then.
- */
-export function arrowBend(annotation: Pick<KnownDiagramAnnotation, 'bend'>): number {
-  return annotation.bend ?? ARROW_BEND;
-}
-
-/**
  * A path as cubic Béziers, in picture units: one from each node to the next,
  * through the first's `out` and the second's `in`, a missing handle on its
  * node.

@@ -48,8 +48,11 @@ import {
   arcThroughPoints,
   createOverlayProjector,
   foldReturnOffset,
+  pathArrowDrawn,
   returnStroke,
+  type PathArrowFold,
 } from '../../cp-workspace/references/stepDiagramGeometry';
+import { flattenPath } from '../../lib/cubicBezier';
 import { referencesPaperTokens } from '../../cp-workspace/references/usePaperStyleTokens';
 import type { PaperItem, PaperLineItem, PaperLineRole, PaperScene } from '../../lib/paper/paperScene';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
@@ -68,7 +71,16 @@ import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
 import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { UPLOAD_HAN_KEY, uploadTextFamily, type UploadTextRun } from '../upload/uploadText';
 import type { DiagramFontKey } from '../fonts/diagramFontFaces';
-import { arrowApex, arrowBend, LABEL_SIZE, labelHalfWidth, type PictureFrame, type PicturePoint } from './annotationModel';
+import {
+  arrowApex,
+  arrowShape,
+  LABEL_SIZE,
+  labelHalfWidth,
+  pathCubics,
+  pathLength,
+  type PictureFrame,
+  type PicturePoint,
+} from './annotationModel';
 import { perAnnotation } from './perAnnotation';
 
 /** Where a label's baseline sits below its point, in ems: a capital's middle on the point. */
@@ -95,7 +107,7 @@ export interface AnnotationLine {
 /** The marks an annotation can be: the References primitives it compiles to. */
 export type AnnotationPrimitive = Extract<
   StepDiagramPrimitive,
-  { kind: 'fold-arrow' | 'one-way-arrow' | 'push-arrow' | 'turn-over' | 'rotate' }
+  { kind: 'fold-arrow' | 'one-way-arrow' | 'path-arrow' | 'push-arrow' | 'turn-over' | 'rotate' }
 >;
 
 /**
@@ -149,8 +161,15 @@ function annotationInk(seen: PaperStyle): DiagramInlineInk {
   };
 }
 
+/** The head a shaped fold arrow carries, by its kind. */
+const PATH_FOLD = {
+  'valley-arrow': 'valley',
+  'mountain-arrow': 'mountain',
+  'fold-unfold-arrow': 'fold-unfold',
+} as const satisfies Record<string, PathArrowFold>;
+
 /** Picture units to the primitives' y-up space, as References' unit frame is. */
-const up = ([u, v]: PicturePoint): [number, number] => [u, -v];
+const up = ([u, v]: readonly [number, number]): [number, number] => [u, -v];
 
 /**
  * What an annotation is drawn as, or null when it draws nothing: an arrow too
@@ -173,7 +192,14 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow': {
-      const out = arcThroughPoints(up(from), up(arrowApex(from, to, arrowBend(annotation))), up(to));
+      const shape = arrowShape(annotation);
+      if (shape.kind === 'path') {
+        // A path of no length draws nothing, as an arc between two ends that meet does not.
+        if (!(pathLength(shape.path) > 0)) return null;
+        const path = pathCubics(shape.path).map(([a, b, c, d]) => [up(a), up(b), up(c), up(d)] as const);
+        return { kind: 'mark', primitive: { kind: 'path-arrow', path, fold: PATH_FOLD[annotation.kind] } };
+      }
+      const out = arcThroughPoints(up(from), up(arrowApex(from, to, shape.bend)), up(to));
       if (!out) return null;
       return {
         kind: 'mark',
@@ -331,6 +357,18 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
             take(x, y, arrowPad);
           }
         }
+        break;
+      }
+      case 'path-arrow': {
+        // Exactly where it is drawn: its strokes and its head, the head's own reach round them.
+        const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, drawing.context.marks);
+        if (!arrow) break;
+        const points = [
+          ...(arrow.shaft ? flattenPath(arrow.shaft, ink) : []),
+          ...(arrow.back ?? []),
+          [arrow.head.tip.x, arrow.head.tip.y] as const,
+        ];
+        for (const [x, y] of points) take(x, y, DIAGRAM_ARROWHEAD_INK.length * ink);
         break;
       }
       case 'push-arrow':

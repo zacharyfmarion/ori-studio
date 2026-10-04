@@ -59,6 +59,67 @@ describe('annotationDrawing', () => {
   });
 });
 
+describe('a shaped arrow', () => {
+  const path = [
+    { at: [0.2, 0.4] as [number, number], out: [0.3, 0.1] as [number, number] },
+    { at: [0.5, 0.4] as [number, number], in: [0.4, 0.7] as [number, number], out: [0.6, 0.1] as [number, number] },
+    { at: [0.8, 0.4] as [number, number], in: [0.7, 0.7] as [number, number] },
+  ];
+
+  it('draws its path, each segment a cubic, in References’ shapes, its head in the arrow’s ink', () => {
+    for (const [kind, fold] of [
+      ['valley-arrow', 'valley'],
+      ['mountain-arrow', 'mountain'],
+      ['fold-unfold-arrow', 'fold-unfold'],
+    ] as const) {
+      const arrow = a('s', kind, { from: [0.2, 0.4], to: [0.8, 0.4], path });
+      const drawing = annotationDrawing([arrow], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
+      expect(drawing.primitives).toEqual([
+        {
+          kind: 'path-arrow',
+          fold,
+          // y up, as References' unit frame is.
+          path: [
+            [[0.2, -0.4], [0.3, -0.1], [0.4, -0.7], [0.5, -0.4]],
+            [[0.5, -0.4], [0.6, -0.1], [0.7, -0.7], [0.8, -0.4]],
+          ],
+        },
+      ]);
+      const painted = paintAnnotations([arrow], { x: 0, y: 0, width: 400, height: 300 }, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE)!;
+      // The shaft: a move and a cubic per segment the shaft keeps.
+      expect(painted.markup).toMatch(/<path d="M [-\d.]+ [-\d.]+ C [-\d. ]+ C [-\d. ]+"/);
+      // A valley's head filled, a mountain's outlined, a fold-and-unfold's return drawn as runs.
+      if (fold === 'fold-unfold') expect(painted.markup).toMatch(/<path d="M [-\d.]+ [-\d.]+( L [-\d.]+ [-\d.]+){8,}"/);
+      expect(painted.markup).toMatch(fold === 'mountain' ? /stroke-linejoin="miter"/ : /fill="#231f20"/);
+    }
+  });
+
+  it('reaches round a loop that bulges far past its ends, and its return past that', () => {
+    const loop = a('loop', 'fold-unfold-arrow', {
+      from: [0.5, 0.5],
+      to: [0.52, 0.5],
+      path: [
+        { at: [0.5, 0.5], out: [0.5, -0.4] },
+        { at: [0.52, 0.5], in: [0.52, -0.4] },
+      ],
+    });
+    const box = { x: 0, y: 0, width: 400, height: 300 };
+    const painted = paintAnnotations([loop], box, 400, DEFAULT_DIAGRAM_STYLE)!;
+    // The loop's top is about 0.175 of the frame above it: 70 px.
+    expect(painted.bounds.y).toBeLessThan(-70);
+    expect(painted.bounds.y).toBeGreaterThan(-120);
+  });
+
+  it('draws nothing for a path of no length', () => {
+    const point = a('p', 'valley-arrow', {
+      from: [0.5, 0.5],
+      to: [0.5, 0.5],
+      path: [{ at: [0.5, 0.5] }, { at: [0.5, 0.5] }],
+    });
+    expect(annotationDrawing([point], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE).primitives).toEqual([]);
+  });
+});
+
 describe('a label’s runs', () => {
   it('sets each script in its font, Han under the key the diagram’s style replaces', () => {
     expect(labelRuns('A 中文')).toEqual([
