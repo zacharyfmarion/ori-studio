@@ -3220,6 +3220,8 @@ Zach, 2026-10-04:
 5. White (hollow) arrows, as a push arrow is drawn in books, with their Bézier
    under the same control.
 
+Plan, for discussion: `implementation-plans/diagram-annotate.md`.
+
 ### Later (written up, not built)
 
 - 2-D drag reorder and multi-select.
