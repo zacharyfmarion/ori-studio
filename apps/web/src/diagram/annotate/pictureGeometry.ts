@@ -379,20 +379,21 @@ const CROSSING_LINES = 64;
  * Crossings within `reach` of a point: of the picture's own lines where it
  * has them ({@link PictureGeometry.crossings}), and of `drawn` — lines drawn
  * on it — with each other and with the picture's, which cross on the page
- * whatever the picture is.
+ * whatever the picture is. Without `pictureLines`, of the drawn lines alone.
  */
 export function crossingsNear(
   geometry: PictureGeometry,
   drawn: readonly IndexedSegment[],
   at: PicturePoint,
-  reach: number
+  reach: number,
+  { pictureLines = true }: { pictureLines?: boolean } = {}
 ): PicturePoint[] {
   const near: { segment: IndexedSegment; drawn: boolean; distance: number }[] = [];
   for (const segment of drawn) {
     const distance = distanceTo(at, segment);
     if (distance <= reach) near.push({ segment, drawn: true, distance });
   }
-  if (geometry.crossings || near.length > 0) {
+  if (pictureLines && (geometry.crossings || near.length > 0)) {
     for (const segment of geometry.segmentIndex.segmentsNear(at[0], at[1], reach)) {
       near.push({ segment, drawn: false, distance: distanceTo(at, segment) });
     }

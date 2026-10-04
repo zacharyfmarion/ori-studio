@@ -197,6 +197,22 @@ describe('rightAngleCorner by kind of picture', () => {
     expect(rightAngleCorner(step, NO_ASSETS, [0.05, 0.05], 0.1)).toBeNull();
   });
 
+  it('finds drawn lines’ right angle on a 3D picture though one of its own lines crosses them nearer the pointer', () => {
+    // A projected edge at x = 0.26, crossing the drawn valley just past the drawn corner.
+    const step = sceneStep([line('edge', [26, 0], [26, 100]), line('edge', [0, 0], [100, 0])], IN_3D);
+    const drawn = [
+      annotation({ kind: 'valley-line', from: [0.2, 0.8], to: [0.8, 0.8] }),
+      annotation({ id: 'annotation-up', kind: 'mountain-line', from: [0.2, 0.8], to: [0.2, 0.2] }),
+    ];
+    for (const pointer of [
+      [0.25, 0.77],
+      [0.24, 0.78],
+      [0.27, 0.77],
+    ] as PicturePoint[]) {
+      expect(rightAngleCorner(step, NO_ASSETS, pointer, 0.1, { annotations: drawn })?.at).toEqual([0.2, 0.8]);
+    }
+  });
+
   it('finds where lines drawn on any picture meet square, an upload’s or a 3D one’s', () => {
     const lines = [
       annotation({ kind: 'valley-line', from: [0.2, 0.8], to: [0.8, 0.8] }),

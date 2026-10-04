@@ -127,7 +127,9 @@ function nearestVertex(
     if (vertex) candidates.push(vertex.at);
   }
   for (const { a, b } of drawn) candidates.push([a.x, a.y], [b.x, b.y]);
-  candidates.push(...crossingsNear(geometry, drawn, point, radius));
+  // Where angles are not true the picture's own lines give no rays, so a
+  // drawn line crossing one is no corner — and would hide a drawn one nearby.
+  candidates.push(...crossingsNear(geometry, drawn, point, radius, { pictureLines: geometry.trueAngles }));
   let best: PicturePoint | null = null;
   let bestDistance = radius;
   for (const at of candidates) {
