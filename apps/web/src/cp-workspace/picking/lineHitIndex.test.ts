@@ -51,6 +51,47 @@ describe('LineHitIndex', () => {
     expect(performance.now() - start).toBeLessThan(50);
   });
 
+  describe('segmentsNear', () => {
+    const ids = (found: { id: number }[]) => found.map((s) => s.id).sort((a, b) => a - b);
+
+    it('returns every segment within reach, not only the nearest', () => {
+      // (50, 2) is 2 from the horizontal and 18 from the vertical's end.
+      expect(ids(index.segmentsNear(50, 2, 20))).toEqual([1, 2]);
+      expect(ids(index.segmentsNear(50, 2, 5))).toEqual([1]);
+    });
+
+    it('finds a long segment far from its midpoint, once', () => {
+      expect(ids(index.segmentsNear(99, 1, 2))).toEqual([1]);
+    });
+
+    it('returns nothing out of reach, and nothing from an empty index', () => {
+      expect(index.segmentsNear(150, 150, 3)).toEqual([]);
+      expect(new LineHitIndex([]).segmentsNear(0, 0, 5)).toEqual([]);
+    });
+
+    it('agrees with a flat scan wherever it is asked, at any reach', () => {
+      // A grid of short and long segments, crossing one another unsplit.
+      const many = Array.from({ length: 40 }, (_, i) => ({
+        id: i,
+        a: { x: (i * 37) % 100, y: (i * 61) % 100 },
+        b: { x: ((i * 37) % 100) + (i % 3 === 0 ? 80 : 6), y: ((i * 61) % 100) + (i % 2 === 0 ? 5 : -30) },
+      }));
+      const grid = new LineHitIndex(many);
+      const asked = [
+        { x: 10, y: 10 },
+        { x: 55, y: 47 },
+        { x: 90, y: 3 },
+        { x: -20, y: 140 },
+      ];
+      for (const { x, y } of asked) {
+        for (const reach of [0.5, 4, 25, 400]) {
+          const flat = many.filter((s) => distanceToSegment(x, y, s.a, s.b) <= reach);
+          expect(ids(grid.segmentsNear(x, y, reach))).toEqual(ids(flat));
+        }
+      }
+    });
+  });
+
   it('finds the nearest coincident-point when tolerance dwarfs spacing', () => {
     const points = [
       { id: 1, a: { x: 0, y: 0 }, b: { x: 0, y: 0 } },
