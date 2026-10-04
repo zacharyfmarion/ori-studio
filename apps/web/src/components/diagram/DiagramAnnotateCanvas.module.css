@@ -29,8 +29,8 @@
   cursor: default;
 }
 
-/* A tool in hand draws. */
-.view:not([data-tool='select']) .stage {
+/* A tool in hand that draws (`drawingKind`): Select and Edit Path draw nothing. */
+.view[data-draws] .stage {
   cursor: crosshair;
 }
 

@@ -106,19 +106,23 @@ type Gesture =
       start: PicturePoint;
       anchor: PicturePoint;
       representation: PathRepresentation;
+      /** Shift and Alt as the preview last drew them: the drop lands where it was shown. */
+      modifiers: PathModifiers;
     });
 
 /**
  * The last press, for counting a double-click: when and where, how many
- * presses it ended, and the node its click added to the curve, if it did —
- * which the second press of the same double-click must not turn into a
- * corner.
+ * presses it ended, the node its click added to the curve, if it did — which
+ * the second press of the same double-click must not turn into a corner —
+ * and the arrow its click selected, if it did, which the second press must
+ * not shape at all: a double-click on an arrow picks it, as Select's does.
  */
 interface LastPress {
   time: number;
   client: [number, number];
   count: number;
   added: { annotationId: string; node: number } | null;
+  selected: string | null;
 }
 
 /** Where the picture and its frame sit in the canvas's world, in world px. */
@@ -332,8 +336,11 @@ export function useAnnotateCanvas({
         if (hit !== null && hit.annotationId === selectedId) return null;
         if (hit === null && selectedNode !== null) store.selectDiagramPathNode(null);
         else store.selectDiagramAnnotation(hit?.annotationId ?? null);
+        if (hit !== null) count.selected = hit.annotationId;
         return null;
       }
+      // The second press of a double-click that picked this arrow: picked, and nothing more.
+      if (count.count >= 2 && count.selected === selected.id) return null;
       if (grip.part === 'node') {
         const added = count.added;
         const justAdded = added !== null && added.annotationId === selected.id && added.node === grip.node;
@@ -342,6 +349,8 @@ export function useAnnotateCanvas({
           const edit = annotationActionEdit(id, selected.id, { node: grip.node });
           applyAnnotationEdit(store, step.id, edit, { loadId: press.loadId });
           store.selectDiagramPathNode(grip.node);
+          // Spent: the press after it starts a count of its own, as a third click is no second double-click.
+          lastPress.current = null;
           return null;
         }
         store.selectDiagramPathNode(grip.node);
@@ -350,7 +359,8 @@ export function useAnnotateCanvas({
       const anchor = pathGripAnchor(selected, grip);
       const representation = pathRepresentation(selected);
       if (!anchor || !representation) return null;
-      return { mode: 'path', grip, original: selected, start: at, anchor, representation, ...press };
+      const modifiers = { shift: false, alt: false };
+      return { mode: 'path', grip, original: selected, start: at, anchor, representation, modifiers, ...press };
     },
     [selectedId, known, hitSizes, selectedNode, step.annotations, step.id, readOnly]
   );
@@ -402,8 +412,10 @@ export function useAnnotateCanvas({
         store.selectDiagramAnnotation(grip?.annotationId ?? null);
         if (readOnly || !grip || !original) return;
         if (count.count >= 2 && canBeShaped(original.kind)) {
-          // A double-click on a fold arrow: Edit Path, to shape it.
+          // A double-click on a fold arrow: Edit Path, to shape it. Spent: the
+          // click after it is Edit Path's first, which picks a node.
           store.setDiagramAnnotateTool(EDIT_PATH);
+          lastPress.current = null;
           return;
         }
         gesture.current = { mode: 'move', grip, original, start: at, ...press };
@@ -455,7 +467,8 @@ export function useAnnotateCanvas({
           cancel();
           return;
         }
-        setDraft(pathDragged(current, current.original, at, { shift: event.shiftKey, alt: event.altKey }));
+        current.modifiers = { shift: event.shiftKey, alt: event.altKey };
+        setDraft(pathDragged(current, current.original, at, current.modifiers));
         return;
       }
       setDraft(
@@ -503,7 +516,8 @@ export function useAnnotateCanvas({
       }
       const at = toPicture(event.clientX, event.clientY);
       if (!at) return;
-      const modifiers = { shift: event.shiftKey, alt: event.altKey };
+      // As the preview drew it: a key let go after the last move does not move the drop.
+      const { modifiers } = current;
       const { label, gesture: shaped } = pathDragEdit(grip);
       applyAnnotationEdit(
         store,
@@ -638,6 +652,7 @@ function nextPress(
     client: [event.clientX, event.clientY],
     count: again ? previous.count + 1 : 1,
     added: again ? previous.added : null,
+    selected: again ? previous.selected : null,
   };
 }
 

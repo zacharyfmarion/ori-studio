@@ -669,6 +669,86 @@ describe('DiagramAnnotateCanvas in Edit Path', () => {
     expect(state().diagramSelectedAnnotationId).toBe('l');
   });
 
+  it('counts a third quick click as a click, and two double-clicks in a row as two', () => {
+    shaping();
+    const before = past();
+    const node = nodeAt(1);
+    then(() => {
+      pointer('pointerdown', node);
+      pointer('pointerup', node);
+      rerender();
+      pointer('pointerdown', node, 1, 'mouse', overlay(), { gapMs: 120 });
+      pointer('pointerup', node);
+      rerender();
+      pointer('pointerdown', node, 1, 'mouse', overlay(), { gapMs: 120 });
+      pointer('pointerup', node);
+    });
+    // One double-click and a click: a corner, once.
+    expect(shown()[1]!.type).toBe('corner');
+    expect(past()).toBe(before + 1);
+    // Another double-click straight after, turning it back.
+    then(() => {
+      pointer('pointerdown', node, 1, 'mouse', overlay(), { gapMs: 300 });
+      pointer('pointerup', node);
+      rerender();
+      pointer('pointerdown', node, 1, 'mouse', overlay(), { gapMs: 120 });
+      pointer('pointerup', node);
+    });
+    expect(shown()[1]!.type).toBeUndefined();
+    expect(past()).toBe(before + 2);
+  });
+
+  it('picks a node with the click that follows a Select double-click, shaping nothing', () => {
+    shaping(HALF, null);
+    const before = past();
+    // On the arc's middle, where Edit Path's middle node will be.
+    doubleClick(nodeAt(1));
+    expect(state().diagramAnnotateTool).toBe('edit-path');
+    click(nodeAt(1), { gapMs: 250 });
+    expect(selectedNode()).toBe(1);
+    expect(annotations()[0]).toEqual(HALF);
+    expect(past()).toBe(before);
+  });
+
+  it('only picks an arrow it is double-clicked onto in Edit Path, as Select does', () => {
+    shaping();
+    act(() => state().selectDiagramAnnotation(null));
+    rerender();
+    const before = past();
+    doubleClick(curveAt(0, 0.5));
+    expect(state().diagramSelectedAnnotationId).toBe('v');
+    act(() => state().selectDiagramAnnotation(null));
+    rerender();
+    doubleClick(nodeAt(1));
+    expect(state().diagramSelectedAnnotationId).toBe('v');
+    expect(annotations()[0]).toEqual(HALF);
+    expect(past()).toBe(before);
+    expect(tracked.trackDiagramArrowShaped).not.toHaveBeenCalled();
+  });
+
+  it('lands a drag where its preview showed it, a modifier let go after the last move', () => {
+    shaping();
+    const [x, y] = nodeAt(2);
+    const to: [number, number] = [x + 50, y + 34];
+    then(() => {
+      pointer('pointerdown', [x, y], 1, 'mouse', overlay(), { shiftKey: true });
+      for (let i = 1; i <= 4; i += 1) {
+        pointer('pointermove', [x + (50 * i) / 4, y + (34 * i) / 4], 1, 'mouse', overlay(), { shiftKey: true });
+      }
+      // Shift let go, then the button: the 45° the preview showed lands.
+      pointer('pointerup', to, 1, 'mouse', overlay(), { shiftKey: false });
+    });
+    const tip = annotations()[0]!.to;
+    expect(tip[1] - 0.5).toBeCloseTo(tip[0] - 0.6, 9);
+  });
+
+  it('shows no drawing crosshair with Edit Path, which draws nothing', () => {
+    shaping();
+    expect(view().hasAttribute('data-draws')).toBe(false);
+    tool('valley-arrow');
+    expect(view().hasAttribute('data-draws')).toBe(true);
+  });
+
   it('on a diagram that cannot change, selects a node but shapes nothing', () => {
     shaping();
     rerender(true);

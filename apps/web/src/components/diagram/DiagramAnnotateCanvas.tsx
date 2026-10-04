@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
+import { drawingKind } from '../../diagram/annotate/annotateTools';
 import { arrowPolyline } from '../../diagram/annotate/annotationHit';
 import { pathNodesOf, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
@@ -65,6 +66,7 @@ export function DiagramAnnotateCanvas({
       className={styles.view}
       data-space-pan={spacePressed || undefined}
       data-tool={tool ?? 'select'}
+      data-draws={drawingKind(tool) !== null || undefined}
       tabIndex={-1}
       onPointerDownCapture={onPointerDownCapture}
       {...handlers}
