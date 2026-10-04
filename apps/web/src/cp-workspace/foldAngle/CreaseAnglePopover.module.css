@@ -1,59 +1,33 @@
 /*
- * The crease angle popover's form (CreaseAnglePopover.tsx), anchored in a
- * floating toolbar or, with no anchor, in a modal.
+ * Where the crease angle popover (CreaseAnglePopover.tsx) sits, and how its
+ * presets are laid out. How it looks is the shared FloatingPanel's, the same as
+ * the tool window's, and its field is the fold-angle group's field row.
  */
-/* Fills whichever frame it is in. The width belongs to the *frame*, not the
-   body: anchored, the pill sizes itself (below); as a modal, the document is
-   already `min(360px, 100vw - 24px)` and a body with a width of its own left the
-   form huddled in the corner of it. */
-.body {
-  display: grid;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-3);
+
+/* Anchored over the bar's field, at the layer of the other surfaces floating
+   over the canvas. */
+.anchored {
+  z-index: var(--z-canvas-overlay);
 }
 
-/* The floating frame is a `FloatingToolbar` pill, which is laid out for a row of
-   icon buttons; this body is a small form, so it takes the padding back
-   (`inset={0}`) and states the width the pill has no content-based reason to
-   pick. */
-.floating {
-  width: 232px;
+/* Centred in the modal's backdrop: the tool window's width where the screen
+   has it, never wider than the backdrop's gutters allow. */
+.centred {
+  max-width: 100%;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.input {
-  width: 100%;
-  height: 28px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.input:focus,
-.input:focus-visible {
-  border-color: var(--accent-primary);
-  outline: none;
-}
-
+/* The presets, in the fold-angle group's row: wrapping pills, 4px apart. */
 .chips {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+/* On touch every chip is a full target, and six of them wrap four and two.
+   Three a row is two even rows instead. */
+@media (pointer: coarse) {
+  .chips {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }

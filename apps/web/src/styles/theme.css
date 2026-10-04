@@ -305,54 +305,6 @@
   padding: 0;
 }
 
-/* A pill-shaped quick pick; see components/ui/Chip.tsx. Everything but the
-   padding and type scale is shared, which is what the size variants leave
-   alone. */
-.ui-chip {
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  /* Transparent, which is what these chips have always rendered as: the rule
-     this replaces asked for `--surface-raised`, a token theme.css never defines,
-     so the browser dropped the declaration. Stated rather than inherited by
-     accident. */
-  background: transparent;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.ui-chip:hover {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-}
-
-/* Chips are ordinary tab stops — the crease-angle popover is keyboard-first and
-   Tab lands here — so the ring has to be visible. */
-.ui-chip:focus-visible {
-  border-color: var(--accent-primary);
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-  color: var(--text-primary);
-}
-
-/* `--bg-secondary`, not the `--surface-base` the old rule named: that token does
-   not exist either, so the pressed chip was drawing grey text on a blue fill. */
-.ui-chip[aria-pressed='true'] {
-  border-color: var(--accent-primary);
-  background: var(--accent-primary);
-  color: var(--bg-secondary);
-}
-
-.ui-chip--sm {
-  padding: 2px 7px;
-  font-size: 0.66rem;
-}
-
-.ui-chip--md {
-  padding: 6px 12px;
-  font-size: 0.78rem;
-}
-
 /*
  * A primary button and its caret sharing one outline. The halves stay separate
  * buttons (see SplitButton), so the seam is made by flattening the edges that
@@ -2097,15 +2049,6 @@
 
 .settings-paper__chip[data-state='modified'] .settings-paper__chip-dot {
   background: var(--status-warning);
-}
-
-.settings-paper__slot-action {
-  height: 24px;
-  padding: 0 9px;
-  border-color: var(--border-default);
-  font-size: 0.72rem;
-  font-weight: 600;
-  white-space: nowrap;
 }
 
 /* Whether exports are still the display style, and the press that changes it. */
@@ -4603,21 +4546,26 @@ button.cp-folded-figure-toolbar__notice:hover {
   font-weight: 650;
 }
 
-/* A `NumberField`'s input (`data-number-field`) is excluded because it arrives
-   fully styled — 26px tall to match its own step buttons — and this rule's 22px
-   would leave the input a different height from the − / + boxes beside it. */
+/* The app's field size: 28px with 0.72rem text, the height of the text fields
+   in Settings and on the viewport bar, and of the chips beside these.
+
+   A `NumberField`'s input (`data-number-field`) is excluded because it arrives
+   fully styled — 26px tall to match its own step buttons — and this rule's
+   height would leave the input a different height from the − / + boxes beside
+   it. */
 .cp-context-panel__field input:not([data-number-field]),
 .cp-context-panel__field select,
 .cp-context-panel__field textarea {
-  height: 22px;
+  height: 28px;
   min-width: 0;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-primary);
   font: inherit;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
-  padding: 2px 5px;
+  padding: 2px 8px;
 }
 
 .cp-context-panel__field textarea {

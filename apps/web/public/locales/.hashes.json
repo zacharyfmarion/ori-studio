@@ -3346,7 +3346,8 @@
     "dialogs:paperExport.sheetSizeHint": "652795c24fdb",
     "dialogs:settings.paper.presets.export": "4a4c59c5208e",
     "dialogs:settings.paper.presets.exportConfirm": "3664895579f0",
-    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f"
+    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f",
+    "tools:creaseAngle.degreesLabel": "4b7e73642ab7"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6695,7 +6696,8 @@
     "dialogs:paperExport.sheetSizeHint": "652795c24fdb",
     "dialogs:settings.paper.presets.export": "4a4c59c5208e",
     "dialogs:settings.paper.presets.exportConfirm": "3664895579f0",
-    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f"
+    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f",
+    "tools:creaseAngle.degreesLabel": "4b7e73642ab7"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -10046,7 +10048,8 @@
     "dialogs:paperExport.sheetSizeHint": "652795c24fdb",
     "dialogs:settings.paper.presets.export": "4a4c59c5208e",
     "dialogs:settings.paper.presets.exportConfirm": "3664895579f0",
-    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f"
+    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f",
+    "tools:creaseAngle.degreesLabel": "4b7e73642ab7"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -13336,7 +13339,8 @@
     "dialogs:paperExport.sheetSizeHint": "652795c24fdb",
     "dialogs:settings.paper.presets.export": "4a4c59c5208e",
     "dialogs:settings.paper.presets.exportConfirm": "3664895579f0",
-    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f"
+    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f",
+    "tools:creaseAngle.degreesLabel": "4b7e73642ab7"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -16626,7 +16630,8 @@
     "dialogs:paperExport.sheetSizeHint": "652795c24fdb",
     "dialogs:settings.paper.presets.export": "4a4c59c5208e",
     "dialogs:settings.paper.presets.exportConfirm": "3664895579f0",
-    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f"
+    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f",
+    "tools:creaseAngle.degreesLabel": "4b7e73642ab7"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -19975,7 +19980,8 @@
     "dialogs:paperExport.sheetSizeHint": "652795c24fdb",
     "dialogs:settings.paper.presets.export": "4a4c59c5208e",
     "dialogs:settings.paper.presets.exportConfirm": "3664895579f0",
-    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f"
+    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f",
+    "tools:creaseAngle.degreesLabel": "4b7e73642ab7"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -23324,7 +23330,8 @@
     "dialogs:paperExport.sheetSizeHint": "652795c24fdb",
     "dialogs:settings.paper.presets.export": "4a4c59c5208e",
     "dialogs:settings.paper.presets.exportConfirm": "3664895579f0",
-    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f"
+    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f",
+    "tools:creaseAngle.degreesLabel": "4b7e73642ab7"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -26614,6 +26621,7 @@
     "dialogs:paperExport.sheetSizeHint": "652795c24fdb",
     "dialogs:settings.paper.presets.export": "4a4c59c5208e",
     "dialogs:settings.paper.presets.exportConfirm": "3664895579f0",
-    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f"
+    "dialogs:settings.paper.presets.exportUnsaved": "a53cc309f72f",
+    "tools:creaseAngle.degreesLabel": "4b7e73642ab7"
   }
 }

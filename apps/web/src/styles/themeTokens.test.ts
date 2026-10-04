@@ -65,10 +65,10 @@ const KNOWN_MISSING: Record<string, number> = {
   // into a module. It had never had the shadow it asked for; the move kept that
   // look and dropped the declaration rather than choosing a value for it.
   // `--surface-base` and `--surface-raised` were here until the three private
-  // chip styles became one `.ui-chip`. Both were named only by that rule, so
-  // consolidating it removed the last reads: a chip's resting background is now
-  // `transparent` (what it always rendered as) and its pressed text
-  // `--bg-secondary` (which fixes grey-on-blue).
+  // chip styles became one (now `Chip.module.css`). Both were named only by
+  // that rule, so consolidating it removed the last reads: a chip's resting
+  // background is now `transparent` (what it always rendered as) and its
+  // pressed text `--bg-secondary` (which fixes grey-on-blue).
 };
 
 describe('theme.css custom properties', () => {

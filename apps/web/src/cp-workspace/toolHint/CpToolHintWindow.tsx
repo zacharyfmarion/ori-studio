@@ -1,6 +1,6 @@
 /**
  * The floating window the active tool's hint and settings are shown in — the
- * chrome only. What goes inside it is `CpContextToolPanel`'s business.
+ * window only. What goes inside it is `CpContextToolPanel`'s business.
  *
  * # Why it is portaled and fixed
  *
@@ -18,21 +18,29 @@
  * from the grid and line-width controls stacked above it, and gone entirely
  * whenever the pane was closed.
  *
- * # Why the chrome is separate from the content
+ * # Why the window is separate from the content
  *
- * Positioning, collapse and the header are one concern — a window — and they are
- * the same for whatever the tool has to say. Keeping them here means
+ * Positioning and collapse are one concern — a window — and they are the same
+ * for whatever the tool has to say. Keeping them here means
  * `CpContextToolPanel` is the tool's content and nothing else, and it means the
- * placement rule, the collapse preference and the chrome that uses them sit
+ * placement rule, the collapse preference and the window that uses them sit
  * together in this directory rather than being spread across a panel file.
+ *
+ * How the window looks is `FloatingPanel`'s, shared with the other windows over
+ * the canvas — the crease-angle popover offers the same presets the fold-angle
+ * group does here, and has to read as the same kind of thing.
  */
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCpToolHintAnchor } from './useCpToolHintAnchor';
 import { useCpToolHintCollapsed } from './useCpToolHintCollapsed';
 import styles from './CpToolHintWindow.module.css';
 import { useAnimatedHeight } from '../../hooks/useAnimatedHeight';
+import {
+  FloatingPanel,
+  FloatingPanelBody,
+  FloatingPanelHeader,
+} from '../../components/ui/FloatingPanel';
 
 export function CpToolHintWindow({
   container,
@@ -73,9 +81,11 @@ export function CpToolHintWindow({
   const bodyMounted = !collapsed || closing;
 
   return createPortal(
-    <section
+    <FloatingPanel
       ref={attachFrame}
       className={styles.window}
+      // Pinned by its bottom edge, so it grows and shrinks at the top.
+      pin="bottom"
       data-collapsed={collapsed || undefined}
       style={{ left: placement.left, bottom: placement.bottom, width: placement.width }}
       aria-label={ariaLabel}
@@ -85,34 +95,24 @@ export function CpToolHintWindow({
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
-      <button
-        className={styles.header}
-        type="button"
-        aria-expanded={!collapsed}
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
-        <span className={styles.title}>{title}</span>
-        <span className={styles.meta}>{meta}</span>
-      </button>
-      {/* Always mounted, so the header reserves its gutter only while the
-          action actually renders something (`:has()` in the module). */}
-      <div className={styles.action} data-header-action="">
-        {headerAction}
-      </div>
+      <FloatingPanelHeader
+        title={title}
+        meta={meta}
+        action={headerAction}
+        collapsed={collapsed}
+        onCollapsedChange={setCollapsed}
+      />
       {bodyMounted && (
-        <div
+        <FloatingPanelBody
           ref={attachScroller}
-          className={styles.body}
+          contentRef={attachContent}
           inert={closing}
           aria-hidden={closing || undefined}
         >
-          <div ref={attachContent} className={styles.content}>
-            {children}
-          </div>
-        </div>
+          {children}
+        </FloatingPanelBody>
       )}
-    </section>,
+    </FloatingPanel>,
     document.body
   );
 }
