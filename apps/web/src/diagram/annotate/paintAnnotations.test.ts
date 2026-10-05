@@ -285,9 +285,11 @@ describe('a callout', () => {
     expect(Number(line[3])).toBeCloseTo(shape.line![1][0] * 400, 6);
     expect(Number(line[4])).toBeCloseTo(shape.line![1][1] * 400, 6);
     expect(Number(line[6])).toBeCloseTo(0.75 * Number(shaft), 3);
-    // The box, filled with the page's white, outlined in the arrow pen, in the arrow's ink.
-    expect(Number(rect[1])).toBeCloseTo(shape.box.x * 400, 6);
-    expect(Number(rect[4])).toBeCloseTo(shape.box.height * 400, 6);
+    // The box, filled with the page's white, outlined in the arrow pen, in the arrow's ink: the pen
+    // outside the box its words were measured for, so it never covers them.
+    const pen = Number(rect[7]);
+    expect(Number(rect[1])).toBeCloseTo(shape.box.x * 400 - pen / 2, 6);
+    expect(Number(rect[4])).toBeCloseTo(shape.box.height * 400 + pen, 6);
     expect(rect[5]).toBe('#ffffff');
     expect(Number(rect[7])).toBeCloseTo(Number(shaft), 3);
     expect([line[5], rect[6]]).toEqual([head, head]);

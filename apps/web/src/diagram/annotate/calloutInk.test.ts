@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import * as hb from 'harfbuzzjs';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DIAGRAM_STYLE, type KnownDiagramAnnotation } from '../document/diagramDocument';
+import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE } from '../../lib/paper/paperStyle';
+import { DEFAULT_DIAGRAM_STYLE, type DiagramStyle, type KnownDiagramAnnotation } from '../document/diagramDocument';
 import type { DiagramFontKey } from '../fonts/diagramFontFaces';
 import { annotationDrawing, LABEL_BASELINE, labelRuns } from './annotationPrimitives';
 
@@ -58,9 +59,9 @@ function shaped(key: DiagramFontKey, text: string) {
 }
 
 /** How far a callout's words' ink stands inside its box's outline at its nearest, in px: negative past it. */
-function clearance(text: string, framePx: number): number {
+function clearance(text: string, framePx: number, style: DiagramStyle = DEFAULT_DIAGRAM_STYLE): number {
   const callout: KnownDiagramAnnotation = { id: 'c', kind: 'callout', from: [0.1, 0.9], to: [0.5, 0.4], text };
-  const drawn = annotationDrawing([callout], { width: 1, height: 1 }, framePx, DEFAULT_DIAGRAM_STYLE).callouts[0]!;
+  const drawn = annotationDrawing([callout], { width: 1, height: 1 }, framePx, style).callouts[0]!;
   const { label, box, boxPen } = drawn;
   const runs = labelRuns(text).map((run) => ({ ...shaped(run.key, run.text) }));
   // Centred on its middle as SVG's `text-anchor="middle"` sets the whole line, its baseline below it.
@@ -120,5 +121,18 @@ describe('a callout’s words', () => {
     }
     // Hugged, not lost in it: "Repeat behind" stands within an em of its sides at the canvas's size.
     expect(clearance('Repeat behind', 1000)).toBeLessThan(0.05 * 1000 * 0.5);
+  });
+
+  it('stand clear of its outline at any arrow pen, the heaviest too, its pen drawn outside the box (review)', () => {
+    for (const width of [1.05, 3, 6, PEN_WIDTH_RANGE.max]) {
+      const style = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width } } };
+      // A small picture on a page, a 40 mm one, and the canvas's and a card's.
+      for (const framePx of [113, 151, 189, 1000]) {
+        const room = clearance('Repeat behind', framePx, style);
+        expect(room, `${width} pt at ${framePx} px`).toBeGreaterThan(0);
+        // As much room as at the lightest pen: the pen takes none of it.
+        expect(room, `${width} pt at ${framePx} px`).toBeCloseTo(clearance('Repeat behind', framePx), 6);
+      }
+    }
   });
 });

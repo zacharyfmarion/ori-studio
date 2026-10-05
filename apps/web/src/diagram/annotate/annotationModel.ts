@@ -624,7 +624,7 @@ export function calloutHalfBox(text: string): { halfWidth: number; halfHeight: n
 
 /** A callout as it is drawn, in picture units: its box, and the line from its point to it. */
 export interface CalloutShape {
-  /** The box's outline — its stroke's middle — round the middle of its words, `to`. */
+  /** The box round its words, its middle `to`: the inside of its outline, whose pen is drawn outside it. */
   box: { x: number; y: number; width: number; height: number };
   /**
    * The line from the point the callout marks to where it meets the box's

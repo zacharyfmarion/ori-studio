@@ -130,7 +130,11 @@ export interface AnnotationCallout {
   line: { a: [number, number]; b: [number, number] } | null;
   /** The line's pen: the annotation pen, a circle's ring's. */
   linePen: number;
-  /** The box's outline, its stroke's middle. */
+  /**
+   * The box's outline, its stroke's middle: half its pen outside the box its
+   * words were measured for ({@link calloutShape}), so the white inside is
+   * that box at any pen.
+   */
   box: { x: number; y: number; width: number; height: number };
   /** The box's pen: the arrow pen, mitred at its corners. */
   boxPen: number;
@@ -411,7 +415,13 @@ export function annotationDrawing(
           id: annotation.id,
           line: line ? { a: at(line[0]), b: at(line[1]) } : null,
           linePen,
-          box: { x: box.x * framePx, y: box.y * framePx, width: box.width * framePx, height: box.height * framePx },
+          // The pen outside the box the words were measured for: a heavy one never covers them.
+          box: {
+            x: box.x * framePx - boxPen / 2,
+            y: box.y * framePx - boxPen / 2,
+            width: box.width * framePx + boxPen,
+            height: box.height * framePx + boxPen,
+          },
           boxPen,
           ink: seen.arrows.color,
           ground: PAGE_GROUND,
