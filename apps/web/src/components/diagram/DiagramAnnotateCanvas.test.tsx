@@ -67,6 +67,8 @@ const identity = {
 
 beforeEach(() => {
   useWorkspaceStore.setState(initialState, true);
+  // The Line tool draws a valley line unless a test picks another type.
+  useSettingsStore.setState({ diagramAnnotateLineType: 'valley' });
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -261,7 +263,7 @@ describe('DiagramAnnotateCanvas', () => {
 
   it('puts a sign down with a click, and draws nothing for a click with a line tool', () => {
     mount();
-    tool('valley-line');
+    tool('line');
     pointer('pointerdown', at(0.5, 0.5));
     pointer('pointerup', at(0.5, 0.5));
     expect(annotations()).toHaveLength(0);
@@ -270,6 +272,24 @@ describe('DiagramAnnotateCanvas', () => {
     pointer('pointerup', at(0.5, 0.5));
     expect(annotations().map((annotation) => annotation.kind)).toEqual(['turn-over']);
     expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['turn_over', 'none']]);
+  });
+
+  it('draws a line in the type the rail’s Line Type says, each its own kind (15a)', () => {
+    mount();
+    tool('line');
+    drag(at(0.2, 0.3), at(0.6, 0.3));
+    act(() => useSettingsStore.getState().setDiagramAnnotateLineType('mountain'));
+    drag(at(0.2, 0.5), at(0.6, 0.5));
+    act(() => useSettingsStore.getState().setDiagramAnnotateLineType('hidden'));
+    drag(at(0.2, 0.7), at(0.6, 0.7));
+    expect(annotations().map((annotation) => annotation.kind)).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
+    // Counted by what was drawn, as before Line: the event reads on.
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls.map(([kind]) => kind)).toEqual([
+      'valley_line',
+      'mountain_line',
+      'hidden_line',
+    ]);
+    expect(state().diagramAnnotateTool).toBe('line');
   });
 
   it('puts a circle down with a click, keeps the tool for the next, and washes its ring when selected', () => {
@@ -293,9 +313,9 @@ describe('DiagramAnnotateCanvas', () => {
 
   it('puts Select back in hand once a label is placed, and keeps a drawing tool after a stroke', () => {
     mount();
-    tool('valley-line');
+    tool('line');
     drag(at(0.2, 0.5), at(0.6, 0.5));
-    expect(state().diagramAnnotateTool).toBe('valley-line');
+    expect(state().diagramAnnotateTool).toBe('line');
     tool('label');
     pointer('pointerdown', at(0.5, 0.2));
     pointer('pointerup', at(0.5, 0.2));
@@ -359,7 +379,7 @@ describe('DiagramAnnotateCanvas', () => {
 
   it('drops the stroke in hand for a second finger, a cancel or a lost capture', () => {
     mount();
-    tool('valley-line');
+    tool('line');
     pointer('pointerdown', at(0.2, 0.5), 1, 'touch');
     pointer('pointermove', at(0.4, 0.5), 1, 'touch');
     pointer('pointerdown', at(0.6, 0.5), 2, 'touch');
@@ -514,7 +534,7 @@ describe('DiagramAnnotateCanvas', () => {
 
   it('pinches on the stage past the margin without drawing, and pans with Space held', () => {
     mount();
-    tool('valley-line');
+    tool('line');
     pointer('pointerdown', at(-0.8, 0.5), 1, 'touch', stage());
     pointer('pointermove', at(-0.6, 0.5), 1, 'touch', stage());
     pointer('pointerdown', at(1.6, 0.5), 2, 'touch', stage());
@@ -560,7 +580,7 @@ describe('DiagramAnnotateCanvas', () => {
 
   it('holds a stroke’s pointer on the stage, whose cursor is the tool’s', () => {
     mount();
-    tool('valley-line');
+    tool('line');
     const holders: Element[] = [];
     Element.prototype.setPointerCapture = function capture(this: Element) {
       holders.push(this);
@@ -1067,7 +1087,7 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
         { id: 'a', kind: 'circle', from: [0.3, 0.4], to: [0.3, 0.4] },
         { id: 'b', kind: 'circle', from: [0.6, 0.4], to: [0.6, 0.4] },
       ],
-      'valley-line'
+      'line'
     );
     pointer('pointerdown', at(0.308, 0.394));
     // Shown at the press, before any move.
@@ -1145,7 +1165,7 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
   });
 
   it('puts a mark down where the pointer is with ⌘ (Ctrl) held, and anywhere with the switch off', () => {
-    drawn([line], 'valley-line');
+    drawn([line], 'line');
     drag(at(0.605, 0.505), at(0.3, 0.7), 1, 'mouse', overlay(), { free: true });
     rerender();
     expect(last().from).toEqual([expect.closeTo(0.605, 6), expect.closeTo(0.505, 6)]);
@@ -1265,7 +1285,7 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
     expect(targets()).toEqual([]);
     expect(marksDrawn.count).toBe(drawnBefore);
     // A drag does draw them again, each move: what the count above would have seen.
-    tool('valley-line');
+    tool('line');
     drag(at(0.3, 0.3), at(0.5, 0.3));
     expect(marksDrawn.count).toBeGreaterThan(drawnBefore);
   });

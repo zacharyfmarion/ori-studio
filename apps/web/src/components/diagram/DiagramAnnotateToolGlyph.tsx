@@ -1,7 +1,9 @@
 import type { ReactElement } from 'react';
 import { MousePointer2, RotateCw, SplinePointer, Type } from 'lucide-react';
 import { TURN_OVER_BOX, TURN_OVER_HEAD_PATH, TURN_OVER_PATH } from '../../cp-workspace/references/stepDiagramGeometry';
-import type { AnnotateTool } from '../../diagram/annotate/annotateTools';
+import { EDIT_PATH, LINE_TOOL, type AnnotateTool } from '../../diagram/annotate/annotateTools';
+import { lineKindOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
+import type { DiagramAnnotationKind } from '../../diagram/document/diagramDocument';
 
 const SIZE = 20;
 
@@ -28,19 +30,33 @@ function Glyph({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Each Annotate tool's icon: the mark it draws, small. The fold, push and
- * white arrows are the arrows themselves; the lines are their dash; the
- * circle its ring; the right angle its open square; the callout its line and
- * box; Select, Edit Path, Rotate and Label are the app's own icons for those
- * verbs. Every tool has one: the return type makes a kind left out a compile
- * error, not a blank button.
+ * Each Annotate tool's icon: Select's and Edit Path's are the app's own; the
+ * Line tool's is a line in the type it draws in now; every other tool's is
+ * the mark it draws ({@link DiagramAnnotationGlyph}).
  */
-export function DiagramAnnotateToolGlyph({ tool }: { tool: AnnotateTool }): ReactElement {
-  switch (tool) {
-    case null:
-      return <MousePointer2 size={17} aria-hidden="true" />;
-    case 'edit-path':
-      return <SplinePointer size={17} aria-hidden="true" />;
+export function DiagramAnnotateToolGlyph({
+  tool,
+  lineType,
+}: {
+  tool: AnnotateTool;
+  /** The type the Line tool draws in. */
+  lineType: DiagramLineType;
+}): ReactElement {
+  if (tool === null) return <MousePointer2 size={17} aria-hidden="true" />;
+  if (tool === EDIT_PATH) return <SplinePointer size={17} aria-hidden="true" />;
+  return <DiagramAnnotationGlyph kind={tool === LINE_TOOL ? lineKindOf(lineType) : tool} />;
+}
+
+/**
+ * Each kind's icon: the mark, small — the rail's tools and the Step pane's
+ * list both show it. The fold, push and white arrows are the arrows
+ * themselves; the lines are their dash; the circle its ring; the right angle
+ * its open square; the callout its line and box; Rotate and Label are the
+ * app's own icons for those verbs. Every kind has one: the return type makes
+ * a kind left out a compile error, not a blank button.
+ */
+export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }): ReactElement {
+  switch (kind) {
     case 'valley-arrow':
       return (
         <Glyph>

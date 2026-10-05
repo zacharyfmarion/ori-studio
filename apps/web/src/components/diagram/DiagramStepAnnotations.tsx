@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type LucideIcon } from 'lucide-react';
 import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
-import { annotationKindLabel } from '../../diagram/annotate/annotateTools';
+import { annotationKindLabel, lineTypeLabel } from '../../diagram/annotate/annotateTools';
+import { DIAGRAM_LINE_TYPES, lineTypeOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
 import { carriesText, LABEL_MAX_LENGTH } from '../../diagram/annotate/annotationModel';
 import { onLabelFocusRequest, takeLabelFocus } from '../../diagram/annotate/labelFocus';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
@@ -13,7 +14,9 @@ import { useShortcutResolution } from '../../store/shortcutStore';
 import { Button } from '../ui/Button';
 import { FieldRow, SegmentedRow, TextAreaRow, ToggleRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
-import { DiagramAnnotateToolGlyph } from './DiagramAnnotateToolGlyph';
+import { DiagramAnnotationGlyph } from './DiagramAnnotateToolGlyph';
+import { DiagramLineTypeMark } from './DiagramLineTypeMark';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import { DiagramPathNodeControls } from './DiagramPathNodeControls';
 import { DiagramWhiteArrowControls } from './DiagramWhiteArrowControls';
 import styles from './DiagramStepAnnotations.module.css';
@@ -36,7 +39,7 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * a press selects one, as a press on the canvas does — and the selected
  * one's own controls:
  * a label's or a callout's text, an arrow's Flip arc and Reset, a white
- * arrow's width and tail, a rotation's turn, a turn-over's axis, Delete, and
+ * arrow's width and tail, a line's type, a rotation's turn, a turn-over's axis, Delete, and
  * in Edit Path a fold or white arrow's node verbs.
  */
 export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
@@ -109,7 +112,7 @@ export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
                 aria-pressed={annotation.id === selected?.id}
                 onClick={() => annotations.select(annotation.id === selected?.id ? null : annotation.id)}
               >
-                <DiagramAnnotateToolGlyph tool={annotation.kind} />
+                <DiagramAnnotationGlyph kind={annotation.kind} />
                 <span className={styles.rowName}>
                   {carriesText(annotation.kind) && annotation.text
                     ? annotation.text
@@ -157,6 +160,8 @@ function SelectedAnnotation({
     return key ? `${label} (${key})` : label;
   };
   const nodeActions = annotations.actions.filter((action) => action.group === 'node');
+  const lineType = lineTypeOf(annotation.kind);
+  const typeName = t('panels:diagram.annotations.lineType', 'Type');
 
   return (
     <div className={styles.selected}>
@@ -210,6 +215,24 @@ function SelectedAnnotation({
             }
           />
         </>
+      )}
+      {lineType !== null && (
+        <FieldRow label={typeName} kind="segmented" disabled={!editable}>
+          <SegmentedControl<DiagramLineType>
+            size="sm"
+            iconsOnly
+            aria-label={typeName}
+            value={lineType}
+            disabled={!editable}
+            options={DIAGRAM_LINE_TYPES.map((type) => ({
+              value: type,
+              label: lineTypeLabel(t, type),
+              tooltip: lineTypeLabel(t, type),
+              icon: <DiagramLineTypeMark type={type} />,
+            }))}
+            onChange={(type) => annotations.setLineType(id, type)}
+          />
+        </FieldRow>
       )}
       {annotation.kind === 'white-arrow' && (
         <DiagramWhiteArrowControls

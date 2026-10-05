@@ -460,7 +460,7 @@ describe('DiagramStepPanel in Annotate', () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));
     // A row pressed with a drawing tool in hand puts Select back, to move what it selected.
-    act(() => state().setDiagramAnnotateTool('mountain-line'));
+    act(() => state().setDiagramAnnotateTool('line'));
     act(() => row('Valley Fold Arrow').click());
     expect(state().diagramSelectedAnnotationId).toBe('a-1');
     expect(state().diagramAnnotateTool).toBeNull();
@@ -473,6 +473,34 @@ describe('DiagramStepPanel in Annotate', () => {
     act(() => buttonNamed('Delete').click());
     expect(annotations().map((annotation) => annotation.id)).toEqual(['a-1', 'a-2']);
     expect(state().diagramSelectedAnnotationId).toBeNull();
+  });
+
+  it('makes a selected line another type with Type, the same line, as one undo step (15a)', () => {
+    const stepId = annotatedStep();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 'l-1', kind: 'valley-line', from: [0.1, 0.6], to: [0.7, 0.6] },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+    });
+    act(() => row('Valley Line').click());
+    const type = () => host!.querySelector('[role="group"][aria-label="Type"]')!;
+    const option = (name: string) => [...type().querySelectorAll<HTMLButtonElement>('button')].find((button) => button.getAttribute('aria-label') === name)!;
+    expect(option('Valley').getAttribute('aria-pressed')).toBe('true');
+    const past = state().diagramHistory.past.length;
+    act(() => option('Mountain').click());
+    expect(annotations().find((annotation) => annotation.id === 'l-1')).toEqual({
+      id: 'l-1',
+      kind: 'mountain-line',
+      from: [0.1, 0.6],
+      to: [0.7, 0.6],
+    });
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change line type');
+    // Not a line: no Type.
+    act(() => row('Valley Fold Arrow').click());
+    expect(host!.querySelector('[role="group"][aria-label="Type"]')).toBeNull();
   });
 
   it('turns a right angle a quarter clockwise with Turn 90°, as one undo step', () => {

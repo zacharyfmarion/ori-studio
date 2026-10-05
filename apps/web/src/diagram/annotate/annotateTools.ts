@@ -1,7 +1,8 @@
 import type { TFunction } from 'i18next';
 import type { DiagramAnnotateShortcutId } from '../../keyboard/shortcuts';
 import type { DiagramAnnotationKind } from '../document/diagramDocument';
-import { ANNOTATION_KINDS, canBeShaped, isPointKind } from './annotationModel';
+import { canBeShaped, isPointKind } from './annotationModel';
+import { lineKindOf, type DiagramLineKind, type DiagramLineType } from './lineTypes';
 
 /**
  * Annotate's tools (D8), for every surface that offers them: the rail beside
@@ -17,12 +18,36 @@ import { ANNOTATION_KINDS, canBeShaped, isPointKind } from './annotationModel';
  */
 export const EDIT_PATH = 'edit-path';
 
-/** A kind to draw, Edit Path, or Select. */
-export type AnnotateTool = DiagramAnnotationKind | typeof EDIT_PATH | null;
+/**
+ * The Line tool (15a): a line in the type the rail's Line Type says — a
+ * valley, a mountain or a hidden line, each a kind of its own.
+ */
+export const LINE_TOOL = 'line';
 
-/** The kind a tool draws; null for Select and Edit Path, which draw nothing. */
-export function drawingKind(tool: AnnotateTool): DiagramAnnotationKind | null {
-  return tool === null || tool === EDIT_PATH ? null : tool;
+/**
+ * A tool that draws: the kind it draws, for every kind but the three lines,
+ * which the Line tool draws in the type chosen. Its own id, so a tool need
+ * not be a kind.
+ */
+export type DrawingTool = Exclude<DiagramAnnotationKind, DiagramLineKind> | typeof LINE_TOOL;
+
+/** A tool that draws, Edit Path, or Select. */
+export type AnnotateTool = DrawingTool | typeof EDIT_PATH | null;
+
+/** Whether a tool draws something: not Select or Edit Path. */
+export function isDrawingTool(tool: AnnotateTool): tool is DrawingTool {
+  return tool !== null && tool !== EDIT_PATH;
+}
+
+/** The kind a tool draws, a line in `lineType`; null for Select and Edit Path, which draw nothing. */
+export function drawingKind(tool: AnnotateTool, lineType: DiagramLineType): DiagramAnnotationKind | null {
+  if (!isDrawingTool(tool)) return null;
+  return tool === LINE_TOOL ? lineKindOf(lineType) : tool;
+}
+
+/** Whether a tool draws in the line type: the Line tool. */
+export function isLineTool(tool: AnnotateTool): boolean {
+  return tool === LINE_TOOL;
 }
 
 export type AnnotateToolGroupId = 'select' | 'arrows' | 'lines' | 'marks' | 'text';
@@ -32,8 +57,8 @@ export interface AnnotateToolGroup {
   tools: readonly AnnotateTool[];
 }
 
-/** The group each kind's tool is in on the rail: a record, so no kind can be left off it. */
-const TOOL_GROUP: Readonly<Record<DiagramAnnotationKind, Exclude<AnnotateToolGroupId, 'select'>>> = {
+/** The group each tool is in on the rail: a record, so no tool can be left off it. */
+const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'select'>>> = {
   'valley-arrow': 'arrows',
   'mountain-arrow': 'arrows',
   'fold-unfold-arrow': 'arrows',
@@ -41,26 +66,30 @@ const TOOL_GROUP: Readonly<Record<DiagramAnnotationKind, Exclude<AnnotateToolGro
   'white-arrow': 'arrows',
   'turn-over': 'arrows',
   rotate: 'arrows',
-  'valley-line': 'lines',
-  'mountain-line': 'lines',
-  'hidden-line': 'lines',
+  [LINE_TOOL]: 'lines',
   label: 'text',
   circle: 'marks',
   'right-angle': 'marks',
   callout: 'text',
 };
 
-/** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Marks; Text — each kind's tool in its group, in kind order. */
+/** The drawing tools in the order the rail offers them, each in its group. */
+export const DRAWING_TOOLS = Object.keys(TOOL_GROUP) as readonly DrawingTool[];
+
+/** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Marks; Text — each tool in its group. */
 export const ANNOTATE_TOOL_GROUPS: readonly AnnotateToolGroup[] = [
   { id: 'select', tools: [null, EDIT_PATH] },
   ...(['arrows', 'lines', 'marks', 'text'] as const).map((id) => ({
     id,
-    tools: ANNOTATION_KINDS.filter((kind) => TOOL_GROUP[kind] === id),
+    tools: DRAWING_TOOLS.filter((tool) => TOOL_GROUP[tool] === id),
   })),
 ];
 
-/** Each kind's tool key. */
-export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DiagramAnnotationKind, DiagramAnnotateShortcutId>> = {
+/**
+ * Each tool's key. The Line tool has none of its own: the keys that pick a
+ * line type pick it (`LINE_TYPE_SHORTCUTS`).
+ */
+export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnotateShortcutId | null>> = {
   'valley-arrow': 'diagram.toolValleyArrow',
   'mountain-arrow': 'diagram.toolMountainArrow',
   'fold-unfold-arrow': 'diagram.toolFoldUnfoldArrow',
@@ -68,30 +97,54 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DiagramAnnotationKind, Dia
   'white-arrow': 'diagram.toolWhiteArrow',
   'turn-over': 'diagram.toolTurnOver',
   rotate: 'diagram.toolRotate',
-  'valley-line': 'diagram.toolValleyLine',
-  'mountain-line': 'diagram.toolMountainLine',
-  'hidden-line': 'diagram.toolHiddenLine',
+  [LINE_TOOL]: null,
   label: 'diagram.toolLabel',
   circle: 'diagram.toolCircle',
   'right-angle': 'diagram.toolRightAngle',
   callout: 'diagram.toolCallout',
 };
 
+/**
+ * The key that picks each line type — the keys today's three line tools had,
+ * so a rebinding carries over. Each picks the Line tool too, unless a tool
+ * that draws in the type is already in hand (`runDiagramAnnotateShortcut`).
+ */
+export const LINE_TYPE_SHORTCUTS: Readonly<Record<DiagramLineType, DiagramAnnotateShortcutId>> = {
+  valley: 'diagram.toolValleyLine',
+  mountain: 'diagram.toolMountainLine',
+  hidden: 'diagram.toolHiddenLine',
+};
+
 /** Edit Path's key. */
 export const EDIT_PATH_SHORTCUT: DiagramAnnotateShortcutId = 'diagram.toolEditPath';
 
-/** The key that picks a tool; Select has none (Escape puts a tool down). */
+/** The key that picks a tool; Select has none (Escape puts a tool down), nor has Line (its types do). */
 export function annotateToolShortcut(tool: AnnotateTool): DiagramAnnotateShortcutId | undefined {
   if (tool === null) return undefined;
-  return tool === EDIT_PATH ? EDIT_PATH_SHORTCUT : ANNOTATE_TOOL_SHORTCUTS[tool];
+  return tool === EDIT_PATH ? EDIT_PATH_SHORTCUT : (ANNOTATE_TOOL_SHORTCUTS[tool] ?? undefined);
 }
 
-/** The tool a tool key picks; undefined for a key that is not a tool's (Flip arc). */
+/** The tool a tool key picks; undefined for a key that is not a tool's (Flip arc, a line type's). */
 export function toolForShortcut(id: DiagramAnnotateShortcutId): Exclude<AnnotateTool, null> | undefined {
   if (id === EDIT_PATH_SHORTCUT) return EDIT_PATH;
-  return (Object.keys(ANNOTATE_TOOL_SHORTCUTS) as DiagramAnnotationKind[]).find(
-    (kind) => ANNOTATE_TOOL_SHORTCUTS[kind] === id
-  );
+  return DRAWING_TOOLS.find((tool) => ANNOTATE_TOOL_SHORTCUTS[tool] === id);
+}
+
+/** The line type a key picks; undefined for any other key. */
+export function lineTypeForShortcut(id: DiagramAnnotateShortcutId): DiagramLineType | undefined {
+  return (Object.keys(LINE_TYPE_SHORTCUTS) as DiagramLineType[]).find((type) => LINE_TYPE_SHORTCUTS[type] === id);
+}
+
+/** A line type's name, for the rail's control, its keys and the Step pane. */
+export function lineTypeLabel(t: TFunction, type: DiagramLineType): string {
+  switch (type) {
+    case 'valley':
+      return t('panels:diagram.annotate.lineTypeValley', 'Valley');
+    case 'mountain':
+      return t('panels:diagram.annotate.lineTypeMountain', 'Mountain');
+    case 'hidden':
+      return t('panels:diagram.annotate.lineTypeHidden', 'Hidden');
+  }
 }
 
 /** A kind's name: the tool that draws it, and the row an annotation of it is listed as. */
@@ -131,6 +184,7 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
 export function annotateToolLabel(t: TFunction, tool: AnnotateTool): string {
   if (tool === null) return t('panels:diagram.annotate.select', 'Select');
   if (tool === EDIT_PATH) return t('tools:diagram.toolEditPath', 'Edit Path');
+  if (tool === LINE_TOOL) return t('tools:diagram.toolLine', 'Line');
   return annotationKindLabel(t, tool);
 }
 
@@ -163,9 +217,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
         'panels:diagram.annotate.whiteArrowHelp',
         'Drag from where the paper starts to where it goes. Shape it with Edit Path.'
       );
-    case 'valley-line':
-    case 'mountain-line':
-    case 'hidden-line':
+    case LINE_TOOL:
       return t('panels:diagram.annotate.lineHelp', 'Drag along the crease.');
     case 'turn-over':
     case 'rotate':
@@ -219,8 +271,7 @@ export function editPathHelp(t: TFunction, selected: DiagramAnnotationKind | nul
 
 /** Whether the tool is placed with a click rather than drawn with a drag. */
 export function isClickTool(tool: AnnotateTool): boolean {
-  const kind = drawingKind(tool);
-  return kind !== null && isPointKind(kind);
+  return isDrawingTool(tool) && tool !== LINE_TOOL && isPointKind(tool);
 }
 
 /** What the tool window can promise on this device, and the names of its keys. */
@@ -307,9 +358,7 @@ function annotateToolModifiers(
           { modifier: alt }
         ),
       ];
-    case 'valley-line':
-    case 'mountain-line':
-    case 'hidden-line':
+    case LINE_TOOL:
       return [
         t('panels:diagram.annotate.endsFreeKey', 'Hold {{modifier}} to put an end down anywhere, without snapping.', {
           modifier: primary,

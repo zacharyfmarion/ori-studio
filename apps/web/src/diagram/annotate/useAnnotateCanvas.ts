@@ -13,6 +13,7 @@ import { readHeldModifiers, subscribeHeldModifiers } from '../../keyboard/heldMo
 import type { PlotRect } from '../../lib/geometry';
 import { isPrimaryModifier } from '../../lib/platform';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
 import {
@@ -266,6 +267,8 @@ export function useAnnotateCanvas({
   const calloutText = t('panels:diagram.annotations.repeatBehind', 'Repeat behind');
   const coarse = useIsCoarsePointerSurface();
   const tool = useWorkspaceStore((state) => state.diagramAnnotateTool);
+  // The line the Line tool draws (15a).
+  const lineType = useSettingsStore((state) => state.diagramAnnotateLineType);
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
   const selectedNode = useWorkspaceStore(selectedDiagramPathNode);
   // The picture, from what it is made of: a text or an annotation edit keeps
@@ -556,7 +559,7 @@ export function useAnnotateCanvas({
         loadId: store.diagramLoadId,
         moved: false,
       };
-      const kind = drawingKind(tool);
+      const kind = drawingKind(tool, lineType);
       if (kind !== null) {
         if (readOnly) return;
         const free = isPrimaryModifier(event);
@@ -601,6 +604,7 @@ export function useAnnotateCanvas({
       layout,
       toPicture,
       tool,
+      lineType,
       step.annotations,
       hitSizes,
       selectedId,
@@ -661,7 +665,7 @@ export function useAnnotateCanvas({
    */
   const hover = useCallback(
     (input: PointerInput) => {
-      const kind = drawingKind(tool);
+      const kind = drawingKind(tool, lineType);
       const looking =
         kind !== null && snapsWhenPlaced(kind) && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
       const at = looking && onStage(input.target) ? toPicture(input.clientX, input.clientY) : null;
@@ -675,7 +679,7 @@ export function useAnnotateCanvas({
       }
       showSnap([at ? placePoint(snapContext(), at, { free }).target : null]);
     },
-    [tool, readOnly, spacePressed, onStage, toPicture, snapContext, showSnap, showRightAngle, layout, clickPreview]
+    [tool, lineType, readOnly, spacePressed, onStage, toPicture, snapContext, showSnap, showRightAngle, layout, clickPreview]
   );
 
   const pointerMoved = useCallback(

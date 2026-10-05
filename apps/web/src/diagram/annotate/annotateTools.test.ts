@@ -2,23 +2,49 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import i18n from '../../i18n';
-import { ANNOTATE_TOOL_GROUPS, annotateToolHint, EDIT_PATH, type AnnotateToolHost } from './annotateTools';
+import {
+  ANNOTATE_TOOL_GROUPS,
+  annotateToolHint,
+  drawingKind,
+  EDIT_PATH,
+  LINE_TYPE_SHORTCUTS,
+  lineTypeForShortcut,
+  toolForShortcut,
+  type AnnotateToolHost,
+} from './annotateTools';
 import { ANNOTATION_KINDS } from './annotationModel';
+import { DIAGRAM_LINE_TYPES, isLineKind } from './lineTypes';
 
 describe('the rail', () => {
-  it('groups every kind’s tool once, after Select and Edit Path, in kind order', () => {
+  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a)', () => {
     expect(ANNOTATE_TOOL_GROUPS).toEqual([
       { id: 'select', tools: [null, 'edit-path'] },
       {
         id: 'arrows',
         tools: ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'white-arrow', 'turn-over', 'rotate'],
       },
-      { id: 'lines', tools: ['valley-line', 'mountain-line', 'hidden-line'] },
+      { id: 'lines', tools: ['line'] },
       { id: 'marks', tools: ['circle', 'right-angle'] },
       { id: 'text', tools: ['label', 'callout'] },
     ]);
-    const tools = ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((tool) => tool !== null && tool !== 'edit-path');
-    expect([...tools].sort()).toEqual([...ANNOTATION_KINDS].sort());
+    // Every kind is drawn by a tool: each its own, the lines by Line in each type.
+    const drawn = ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).flatMap((tool) =>
+      DIAGRAM_LINE_TYPES.map((type) => drawingKind(tool, type))
+    );
+    expect([...new Set(drawn.filter((kind) => kind !== null))].sort()).toEqual([...ANNOTATION_KINDS].sort());
+    expect(DIAGRAM_LINE_TYPES.map((type) => drawingKind('line', type))).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
+    expect(ANNOTATION_KINDS.filter(isLineKind)).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
+  });
+
+  it('keeps today’s three line keys, each picking a line type rather than a tool', () => {
+    expect(LINE_TYPE_SHORTCUTS).toEqual({
+      valley: 'diagram.toolValleyLine',
+      mountain: 'diagram.toolMountainLine',
+      hidden: 'diagram.toolHiddenLine',
+    });
+    expect(DIAGRAM_LINE_TYPES.map((type) => lineTypeForShortcut(LINE_TYPE_SHORTCUTS[type]))).toEqual(DIAGRAM_LINE_TYPES);
+    expect(DIAGRAM_LINE_TYPES.map((type) => toolForShortcut(LINE_TYPE_SHORTCUTS[type]))).toEqual([undefined, undefined, undefined]);
+    expect(lineTypeForShortcut('diagram.toolValleyArrow')).toBeUndefined();
   });
 });
 
@@ -70,9 +96,7 @@ describe('the tool window', () => {
       },
       'turn-over': { title: 'Turn Over', instructions: 'Click where the sign goes.', modifiers: [] },
       rotate: { title: 'Rotate', instructions: 'Click where the sign goes.', modifiers: [] },
-      'valley-line': { title: 'Valley Line', instructions: 'Drag along the crease.', modifiers: [ends] },
-      'mountain-line': { title: 'Mountain Line', instructions: 'Drag along the crease.', modifiers: [ends] },
-      'hidden-line': { title: 'Hidden Line', instructions: 'Drag along the crease.', modifiers: [ends] },
+      line: { title: 'Line', instructions: 'Drag along the crease.', modifiers: [ends] },
       circle: {
         title: 'Circle',
         instructions: 'Click a point to circle it.',

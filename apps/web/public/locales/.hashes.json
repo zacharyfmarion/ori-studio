@@ -4040,7 +4040,14 @@
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
     "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
-    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97",
+    "panels:diagram.annotate.lineType": "45f54a35e11c",
+    "panels:diagram.annotate.lineTypeHelp": "edcfddc9f404",
+    "panels:diagram.annotate.lineTypeHidden": "7e6fefff0f0a",
+    "panels:diagram.annotate.lineTypeMountain": "156193387bc7",
+    "panels:diagram.annotate.lineTypeValley": "63e8dda8d7cc",
+    "panels:diagram.annotations.lineType": "baaddf70fb5d",
+    "tools:diagram.toolLine": "d7852cd0d245"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8083,7 +8090,14 @@
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
     "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
-    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97",
+    "panels:diagram.annotate.lineType": "45f54a35e11c",
+    "panels:diagram.annotate.lineTypeHelp": "edcfddc9f404",
+    "panels:diagram.annotate.lineTypeHidden": "7e6fefff0f0a",
+    "panels:diagram.annotate.lineTypeMountain": "156193387bc7",
+    "panels:diagram.annotate.lineTypeValley": "63e8dda8d7cc",
+    "panels:diagram.annotations.lineType": "baaddf70fb5d",
+    "tools:diagram.toolLine": "d7852cd0d245"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12128,7 +12142,14 @@
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
     "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
-    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97",
+    "panels:diagram.annotate.lineType": "45f54a35e11c",
+    "panels:diagram.annotate.lineTypeHelp": "edcfddc9f404",
+    "panels:diagram.annotate.lineTypeHidden": "7e6fefff0f0a",
+    "panels:diagram.annotate.lineTypeMountain": "156193387bc7",
+    "panels:diagram.annotate.lineTypeValley": "63e8dda8d7cc",
+    "panels:diagram.annotations.lineType": "baaddf70fb5d",
+    "tools:diagram.toolLine": "d7852cd0d245"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -16085,7 +16106,14 @@
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
     "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
-    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97",
+    "panels:diagram.annotate.lineType": "45f54a35e11c",
+    "panels:diagram.annotate.lineTypeHelp": "edcfddc9f404",
+    "panels:diagram.annotate.lineTypeHidden": "7e6fefff0f0a",
+    "panels:diagram.annotate.lineTypeMountain": "156193387bc7",
+    "panels:diagram.annotate.lineTypeValley": "63e8dda8d7cc",
+    "panels:diagram.annotations.lineType": "baaddf70fb5d",
+    "tools:diagram.toolLine": "d7852cd0d245"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -20042,7 +20070,14 @@
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
     "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
-    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97",
+    "panels:diagram.annotate.lineType": "45f54a35e11c",
+    "panels:diagram.annotate.lineTypeHelp": "edcfddc9f404",
+    "panels:diagram.annotate.lineTypeHidden": "7e6fefff0f0a",
+    "panels:diagram.annotate.lineTypeMountain": "156193387bc7",
+    "panels:diagram.annotate.lineTypeValley": "63e8dda8d7cc",
+    "panels:diagram.annotations.lineType": "baaddf70fb5d",
+    "tools:diagram.toolLine": "d7852cd0d245"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -24085,7 +24120,14 @@
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
     "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
-    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97",
+    "panels:diagram.annotate.lineType": "45f54a35e11c",
+    "panels:diagram.annotate.lineTypeHelp": "edcfddc9f404",
+    "panels:diagram.annotate.lineTypeHidden": "7e6fefff0f0a",
+    "panels:diagram.annotate.lineTypeMountain": "156193387bc7",
+    "panels:diagram.annotate.lineTypeValley": "63e8dda8d7cc",
+    "panels:diagram.annotations.lineType": "baaddf70fb5d",
+    "tools:diagram.toolLine": "d7852cd0d245"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -28128,7 +28170,14 @@
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
     "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
-    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97",
+    "panels:diagram.annotate.lineType": "45f54a35e11c",
+    "panels:diagram.annotate.lineTypeHelp": "edcfddc9f404",
+    "panels:diagram.annotate.lineTypeHidden": "7e6fefff0f0a",
+    "panels:diagram.annotate.lineTypeMountain": "156193387bc7",
+    "panels:diagram.annotate.lineTypeValley": "63e8dda8d7cc",
+    "panels:diagram.annotations.lineType": "baaddf70fb5d",
+    "tools:diagram.toolLine": "d7852cd0d245"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -32085,6 +32134,13 @@
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
     "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
-    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97",
+    "panels:diagram.annotate.lineType": "45f54a35e11c",
+    "panels:diagram.annotate.lineTypeHelp": "edcfddc9f404",
+    "panels:diagram.annotate.lineTypeHidden": "7e6fefff0f0a",
+    "panels:diagram.annotate.lineTypeMountain": "156193387bc7",
+    "panels:diagram.annotate.lineTypeValley": "63e8dda8d7cc",
+    "panels:diagram.annotations.lineType": "baaddf70fb5d",
+    "tools:diagram.toolLine": "d7852cd0d245"
   }
 }

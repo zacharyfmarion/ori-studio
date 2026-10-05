@@ -6,6 +6,7 @@ import {
   setActiveShortcutViewportSurface,
 } from '../keyboard/shortcutRuntime';
 import type { DiagramShortcutId, ViewportShortcutId } from '../keyboard/shortcuts';
+import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { openDiagramStep } from './useDiagramActions';
 import type { WorkspaceState } from '../store/workspaceStore/types';
@@ -43,6 +44,7 @@ function keyState(state: WorkspaceState): DiagramKeyState {
       isDiagramAnnotating(state)
         ? {
             tool: state.diagramAnnotateTool,
+            lineType: useSettingsStore.getState().diagramAnnotateLineType,
             selectedAnnotationId: state.diagramSelectedAnnotationId,
             canFlipArc: offersFlipArc(selectedDiagramAnnotation(state)),
             selectedPathNode: selectedDiagramPathNode(state),
@@ -78,6 +80,7 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
     close: state.closeDiagramStep,
     closeBrowser: state.closeDiagramReferencesBrowser,
     setTool: state.setDiagramAnnotateTool,
+    setLineType: (type) => useSettingsStore.getState().setDiagramAnnotateLineType(type),
     selectAnnotation: state.selectDiagramAnnotation,
     selectPathNode: state.selectDiagramPathNode,
     flipArc: () => {

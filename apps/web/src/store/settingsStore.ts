@@ -9,6 +9,7 @@ import {
   normalizeDiagramExportSettings,
   type DiagramExportSettings,
 } from '../diagram/export/diagramExportSettings';
+import { DEFAULT_DIAGRAM_LINE_TYPE, isDiagramLineType, type DiagramLineType } from '../diagram/annotate/lineTypes';
 import {
   hasCoarsePointer,
   resolveCpSnapRadius,
@@ -92,6 +93,7 @@ const PAPER_EXPORT_KEY = storageKey(STORAGE_KEYS.paperExport);
 const CP_FOLDED_FIGURE_KEY = storageKey(STORAGE_KEYS.creasePatternFoldedFigure);
 const DIAGRAM_EXPORT_KEY = storageKey(STORAGE_KEYS.diagramExport);
 const DIAGRAM_ANNOTATE_SNAP_KEY = storageKey(STORAGE_KEYS.diagramAnnotateSnap);
+const DIAGRAM_ANNOTATE_LINE_TYPE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineType);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
@@ -103,6 +105,12 @@ const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
  */
 function readCpWheelGesture(): WheelGesturePreference {
   return readString(CP_WHEEL_GESTURE_KEY) === 'pan' ? 'pan' : 'zoom';
+}
+
+/** The line type Annotate last drew in; valley when none was chosen, or the key reads as nothing it knows. */
+function readDiagramAnnotateLineType(): DiagramLineType {
+  const stored = readString(DIAGRAM_ANNOTATE_LINE_TYPE_KEY);
+  return isDiagramLineType(stored) ? stored : DEFAULT_DIAGRAM_LINE_TYPE;
 }
 
 /**
@@ -309,6 +317,11 @@ interface SettingsState {
    * for a finger, turns it off.
    */
   diagramAnnotateSnap: boolean;
+  /**
+   * The line Annotate's Line tool and Angle Bisector draw (15a): the rail's
+   * Line Type, and the keys that pick it. Kept as you left it, as Edit's is.
+   */
+  diagramAnnotateLineType: DiagramLineType;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -321,6 +334,7 @@ interface SettingsState {
   setCpSnapRadius: (value: number) => void;
   setReferencesAutoPlayFolds: (value: boolean) => void;
   setDiagramAnnotateSnap: (value: boolean) => void;
+  setDiagramAnnotateLineType: (value: DiagramLineType) => void;
   /** `null` hands the choice back to the paper style. */
   setReferencesShowAuxCreases: (value: boolean | null) => void;
   /** Write one field of a slot's style. Editing export while it follows display detaches it. */
@@ -386,6 +400,7 @@ export const useSettingsStore = create<SettingsState>()(
       creasePatternFoldedFigureStyle: readCreasePatternFoldedFigureStyle(),
       diagramExport: normalizeDiagramExportSettings(readJson<unknown>(DIAGRAM_EXPORT_KEY, null)),
       diagramAnnotateSnap: readBoolean(DIAGRAM_ANNOTATE_SNAP_KEY, true),
+      diagramAnnotateLineType: readDiagramAnnotateLineType(),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -446,6 +461,13 @@ export const useSettingsStore = create<SettingsState>()(
         // Hand-placed like the ones above: no chokepoint sees a preference
         // change. Whether anyone turns snapping off, and back.
         track(ANALYTICS_EVENTS.diagramAnnotateSnapChanged, { enabled: value ? 'on' : 'off' });
+      },
+      setDiagramAnnotateLineType: (value) => {
+        if (get().diagramAnnotateLineType === value) return;
+        writeString(DIAGRAM_ANNOTATE_LINE_TYPE_KEY, value);
+        // No event: the type is part of choosing a tool, which is not counted;
+        // the lines drawn in each type are (`diagram annotation added`).
+        set({ diagramAnnotateLineType: value });
       },
       setReferencesShowAuxCreases: (value) => {
         if (get().referencesShowAuxCreases === value) return;

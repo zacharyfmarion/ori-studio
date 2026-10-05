@@ -379,16 +379,30 @@ The decisions as they were put:
 ## Checklist
 
 ### 15a. Line type and the Line tool
-- [ ] Tool ids: one record per tool (group, key, name, help, modifiers,
+- [x] Tool ids: one record per tool (group, key, name, help, modifiers,
   glyph, what it draws for a line type); the rail, keys, tool window,
   canvas and analytics read it. Kinds and the file unchanged.
-- [ ] The line type preference (Valley default, persisted); the rail's
-  control heading Lines; Line and Angle Bisector's slots (the bisector greyed
-  until 15b).
-- [ ] Keys: Shift+V, Shift+M, H set the type (and pick Line); labels.
-- [ ] Step pane: a selected line's Type, one undo step.
-- [ ] Tests (tools record, keys, the rail, a line drawn in each type, Type
+- [x] The line type preference (Valley default, persisted); the rail's
+  control heading Lines.
+- [x] Keys: Shift+V, Shift+M, H set the type (and pick Line); labels.
+- [x] Step pane: a selected line's Type, one undo step.
+- [x] Tests (tools record, keys, the rail, a line drawn in each type, Type
   retyping), i18n, before/after.
+  - As built: `AnnotateTool` is a `DrawingTool` (every kind but the three
+    lines, and `line`), Edit Path or Select; `drawingKind(tool, lineType)`.
+    The type is `diagram/annotate/lineTypes.ts` (a leaf the settings store
+    reads) and the preference `diagramAnnotateLineType`
+    (`diagram-annotate-line-type`), not counted (the lines drawn are, by
+    kind, as before). The rail's Line Type is its own group, a segmented
+    control of dashed strokes (`DiagramLineTypeMark`), before Lines, as
+    Edit's is a group; the Line tool's glyph is a line in the type now. A
+    line type's key on its own type with Line in hand puts it down, as a
+    tool's letter does. The list's rows draw their kind
+    (`DiagramAnnotationGlyph`). Browser (`artifacts/diagram-second-pass/p15a.mjs`,
+    `compare-15a-*.png`): the rail before and after; a mountain line drawn
+    by a real mouse with Mountain picked; the Type row on a selected line,
+    none before. The crane's lines (step 8 has valley and hidden ones) read
+    as they were: no kind changed.
 
 ### 15b. Angle Bisector
 - [ ] `angleBisector.ts`: three points, two lines, parallel lines, the

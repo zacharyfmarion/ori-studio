@@ -19,6 +19,7 @@ import { EDIT_PATH } from './annotateTools';
 import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
 import { pathNodesOf } from './annotationPath';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
+import { isLineKind, lineKindOf, type DiagramLineType } from './lineTypes';
 
 const NO_ANNOTATIONS: readonly KnownDiagramAnnotation[] = [];
 const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
@@ -26,7 +27,7 @@ const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 /**
  * The Step pane's annotations (D13): what the selected step carries, which
  * one is selected, and the verbs on the selected one — its
- * text, its turn, its axis, a white arrow's look, and the catalog's (`annotationActions.ts`: Flip
+ * text, its turn, its axis, a white arrow's look, a line's type, and the catalog's (`annotationActions.ts`: Flip
  * arc, Reset, Delete, and with Edit Path in hand the node verbs on the node
  * it has selected) — each one undo step through the store — and the Snap
  * switch, a preference rather than an edit.
@@ -89,6 +90,11 @@ export function useStepAnnotations(step: DiagramStep | null) {
       /** A white arrow's width or tail, or both, as one undo step. */
       setWhiteArrowLook: (id: string, look: { width?: DiagramWhiteArrowWidth; tail?: WhiteArrowTail }) =>
         change(id, 'Change white arrow', (annotation) => ({ ...annotation, ...look })),
+      /** A line made another type (15a): the same line, its ends and id kept, as one undo step. */
+      setLineType: (id: string, type: DiagramLineType) =>
+        change(id, 'Change line type', (annotation) =>
+          isLineKind(annotation.kind) ? { ...annotation, kind: lineKindOf(type) } : annotation
+        ),
       setSnap: (value: boolean) => useSettingsStore.getState().setDiagramAnnotateSnap(value),
     };
   }, [stepId, loadId]);

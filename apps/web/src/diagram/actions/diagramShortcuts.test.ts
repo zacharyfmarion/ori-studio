@@ -136,21 +136,46 @@ describe('the step keys while the References browser is open', () => {
 });
 
 describe('Annotate’s keys', () => {
-  const annotate = (tool: string | null = null, canFlipArc = false) => ({
-    annotate: { tool: tool as never, selectedAnnotationId: canFlipArc ? 'a' : null, canFlipArc },
+  const annotate = (tool: string | null = null, canFlipArc = false, lineType: 'valley' | 'mountain' | 'hidden' = 'valley') => ({
+    annotate: { tool: tool as never, lineType, selectedAnnotationId: canFlipArc ? 'a' : null, canFlipArc },
   });
   const press = (id: Parameters<typeof runDiagramShortcut>[0], state: Partial<DiagramKeyState>) => {
-    const actions = { select: vi.fn(), move: vi.fn(), open: vi.fn(), close: vi.fn(), setTool: vi.fn(), flipArc: vi.fn() };
+    const actions = {
+      select: vi.fn(),
+      move: vi.fn(),
+      open: vi.fn(),
+      close: vi.fn(),
+      setTool: vi.fn(),
+      setLineType: vi.fn(),
+      flipArc: vi.fn(),
+    };
     const claimed = runDiagramShortcut(id, { stepIds: steps, selectedStepId: 'a', readOnly: false, ...state }, actions);
     return { claimed, ...actions };
   };
 
   it('picks a tool by its letter, and puts it down with the same letter', () => {
     expect(press('diagram.toolValleyArrow', annotate()).setTool).toHaveBeenCalledWith('valley-arrow');
-    expect(press('diagram.toolValleyLine', annotate()).setTool).toHaveBeenCalledWith('valley-line');
     expect(press('diagram.toolValleyArrow', annotate('valley-arrow')).setTool).toHaveBeenCalledWith(null);
     expect(press('diagram.toolCircle', annotate())).toMatchObject({ claimed: true });
     expect(press('diagram.toolCircle', annotate()).setTool).toHaveBeenCalledWith('circle');
+  });
+
+  it('picks a line type with Shift+V, Shift+M or H, and the Line tool with it; its own type again puts it down (15a)', () => {
+    // From another tool: the type, and Line.
+    const fromArrow = press('diagram.toolMountainLine', annotate('valley-arrow'));
+    expect(fromArrow.claimed).toBe(true);
+    expect(fromArrow.setLineType).toHaveBeenCalledWith('mountain');
+    expect(fromArrow.setTool).toHaveBeenCalledWith('line');
+    // Line in hand: the type alone.
+    const switched = press('diagram.toolHiddenLine', annotate('line'));
+    expect(switched.setLineType).toHaveBeenCalledWith('hidden');
+    expect(switched.setTool).not.toHaveBeenCalled();
+    // Line in hand, its own type: back to Select, as a tool's letter does.
+    const again = press('diagram.toolValleyLine', annotate('line', false, 'valley'));
+    expect(again.setTool).toHaveBeenCalledWith(null);
+    expect(again.setLineType).not.toHaveBeenCalled();
+    // Outside Annotate it declines: the keys are a crease-pattern tool's too.
+    expect(press('diagram.toolValleyLine', {}).claimed).toBe(false);
   });
 
   it('binds the circle to O, a letter no other Diagram key or the view’s has', () => {

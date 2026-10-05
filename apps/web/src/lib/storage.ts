@@ -72,6 +72,12 @@ export const STORAGE_KEYS = {
    * pane's switch, for a finger, which has no ⌘ to hold. Absent means on.
    */
   diagramAnnotateSnap: 'diagram-annotate-snap',
+  /**
+   * The line Annotate's Line tool and Angle Bisector draw: valley, mountain
+   * or hidden (`diagram/annotate/lineTypes.ts`). Absent, or anything else,
+   * means valley.
+   */
+  diagramAnnotateLineType: 'diagram-annotate-line-type',
   /** Whether Annotate's tool window is collapsed to its header (`ToolHintWindow`). */
   diagramToolHintCollapsed: 'diagram-tool-hint-collapsed',
   /** Play a step's fold on arriving at its card in the References workspace. */

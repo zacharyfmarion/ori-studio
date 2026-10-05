@@ -1,5 +1,6 @@
 import type { DiagramAnnotateShortcutId, DiagramPathShortcutId, DiagramShortcutId } from '../../keyboard/shortcuts';
-import { EDIT_PATH, toolForShortcut, type AnnotateTool } from '../annotate/annotateTools';
+import { EDIT_PATH, LINE_TOOL, isLineTool, lineTypeForShortcut, toolForShortcut, type AnnotateTool } from '../annotate/annotateTools';
+import type { DiagramLineType } from '../annotate/lineTypes';
 import { NUDGE_STEP } from '../annotate/annotationActions';
 
 /** What the Diagram's keys act on: the steps in order, and which is selected. */
@@ -26,6 +27,8 @@ export interface DiagramKeyState {
    */
   annotate?: {
     tool: AnnotateTool;
+    /** The line type the Line tool draws in (15a). */
+    lineType?: DiagramLineType;
     selectedAnnotationId: string | null;
     canFlipArc: boolean;
     selectedPathNode?: number | null;
@@ -44,6 +47,8 @@ export interface DiagramKeyActions {
   closeBrowser?: () => void;
   /** Annotate's verbs. */
   setTool?: (tool: AnnotateTool) => void;
+  /** The line type the Line tool draws in: a preference, not an edit. */
+  setLineType?: (type: DiagramLineType) => void;
   selectAnnotation?: (annotationId: string | null) => void;
   /** Select a node of the selected arrow in Edit Path, or none. */
   selectPathNode?: (node: number | null) => void;
@@ -181,20 +186,33 @@ export function runDiagramPathShortcut(
  * Annotate's keys: a tool's letter picks it — pressed again, back to Select;
  * A is Edit Path's —
  * and F flips the selected annotation's arc, when it offers Flip arc
- * (`annotationActions.ts`). Outside Annotate, and on a diagram
+ * (`annotationActions.ts`). A line type's key (Shift+V, Shift+M, H) picks
+ * that type, and the Line tool with it unless the Line tool is in hand —
+ * pressed again on its own type, back to Select, as a tool's letter is. Outside Annotate, and on a diagram
  * that cannot change, they decline: the letters are a crease-pattern tool's
  * too, and nothing here should eat them.
  */
 export function runDiagramAnnotateShortcut(
   id: DiagramAnnotateShortcutId,
   state: Pick<DiagramKeyState, 'annotate' | 'readOnly'>,
-  actions: Pick<DiagramKeyActions, 'setTool' | 'flipArc'>
+  actions: Pick<DiagramKeyActions, 'setTool' | 'flipArc' | 'setLineType'>
 ): boolean {
   const annotate = state.annotate;
   if (!annotate || state.readOnly) return false;
   if (id === 'diagram.flipArc') {
     if (!annotate.canFlipArc || !actions.flipArc) return false;
     actions.flipArc();
+    return true;
+  }
+  const lineType = lineTypeForShortcut(id);
+  if (lineType !== undefined) {
+    if (!actions.setTool || !actions.setLineType) return false;
+    if (isLineTool(annotate.tool) && annotate.lineType === lineType) {
+      actions.setTool(null);
+      return true;
+    }
+    actions.setLineType(lineType);
+    if (!isLineTool(annotate.tool)) actions.setTool(LINE_TOOL);
     return true;
   }
   const tool = toolForShortcut(id);
