@@ -1043,6 +1043,26 @@ export const ANALYTICS_EVENTS = {
    * says whether that matters in practice. These were repaired silently before.
    */
   simulatorSolverRecovered: 'simulator solver recovered',
+  /**
+   * A pull ended: once per drag, never per move. `outcome` is whether the pose
+   * was kept or the drag abandoned (Escape, a second finger, a tool switch);
+   * `input` whether a finger made it; with the pin count and how many creases it
+   * turned as buckets. This is the Pull tool's value question: do people pull
+   * models open, and keep what they pull?
+   */
+  simulatorModelPulled: 'simulator model pulled',
+  /**
+   * A press with the Pull tool did not grip: off the paper, on a pinned face, or
+   * with nothing pinned to pull against. `no-pins` is how often people try Pull
+   * before Pin, which says whether refusing it was right.
+   */
+  simulatorPullRefused: 'simulator pull refused',
+  /**
+   * A pose ended, and what ended it: the fold control or a restart taking the
+   * paper back, or Spring back asked for from the window, the menu or a key.
+   * Whether people keep poses, or throw them away and how.
+   */
+  simulatorPoseReleased: 'simulator pose released',
   foldedFigureRehydrated: 'folded figure rehydrated',
   creasePatternShared: 'crease pattern shared',
   /**
@@ -1255,8 +1275,34 @@ export const CP_FAVORITE_COUNT_BUCKETS = [0, 2, 5, 10, 20] as const;
 /** Which surface a favorite was starred or moved from. */
 export type CpFavoriteSurface = 'picker-sheet';
 
-/** Where a simulator tool was picked: Escape is the way back to Orbit. */
-export type SimulatorToolSelectSource = 'rail' | 'picker' | 'shortcut' | 'context-menu' | 'escape';
+/**
+ * Where a simulator tool was picked: Escape is the way back to Orbit, and the
+ * tool window is the Pull tool's way to Pin when nothing is pinned.
+ */
+export type SimulatorToolSelectSource =
+  | 'rail'
+  | 'picker'
+  | 'shortcut'
+  | 'context-menu'
+  | 'escape'
+  | 'tool-window';
+
+/** What ended a pose a pull left: the fold control, a restart, or Spring back from somewhere. */
+export type SimulatorPoseReleaseSource =
+  | 'fold-control'
+  | 'restart'
+  | 'tool-window'
+  | 'context-menu'
+  | 'shortcut';
+
+/** Why a Pull press did not grip. */
+export type SimulatorPullRefusal = 'missed' | 'pinned-face' | 'no-pins';
+
+/**
+ * Threshold ladder for how many creases a pull turned. Starts at 0: a pull that
+ * moved nothing (a press let go where it was, a taut drag) is an answer too.
+ */
+export const SIMULATOR_MOVED_CREASE_BUCKETS = [0, 1, 5, 20, 100, 500] as const;
 
 /** Where the simulator's pins were cleared from. */
 export type SimulatorPinsClearSource = 'tool-window' | 'context-menu' | 'shortcut';
