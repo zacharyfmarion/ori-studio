@@ -398,28 +398,54 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
       nextAt[row + v] = down <= up ? (below[v]! >= 0 ? lowestAt[below[v]!]! : -1) : highestAt[above[v]!]!;
     }
   };
+  // Per level, the runs that may end at the next picture, by where they
+  // start: since the last picture too small for the level, each keyed by
+  // what it costs before its own pictures (`earlier − S(start) + start ×
+  // level`, S the logs before a picture), so that one running best per level
+  // stands for them all. A run is never drawn a whole zoom under its own
+  // smallest picture — it would only part the runs either side, a step drawn
+  // small to let them differ by less — so a start waits (`pending`) until its
+  // run holds a picture less than a zoom above the level (`eligible`).
+  const eligible = new Float64Array(width).fill(Infinity);
+  const eligibleAt = new Int32Array(width).fill(-1);
+  const pending = new Float64Array(width).fill(Infinity);
+  const pendingAt = new Int32Array(width).fill(-1);
+  let total = 0;
   for (let j = 1; j <= count; j += 1) {
-    let low = Infinity;
-    let sum = 0;
-    for (let i = j - 1; i >= 0; i -= 1) {
-      low = Math.min(low, logs[i]!);
-      sum += logs[i]!;
-      const pictures = j - i;
-      for (let v = 0; v < width && levels[v]! <= low; v += 1) {
-        // Never a whole zoom under its own smallest picture: it would only part
-        // the runs either side, a step drawn small to let them differ by less.
-        if (levels[v]! <= low - apart) continue;
-        const earlier = i === 0 ? 0 : next[i * width + v]! + FIT_RUN_BREAK;
-        if (earlier === Infinity) continue;
-        const cost = earlier + sum - pictures * levels[v]!;
-        const at = j * width + v;
-        if (cost < best[at]!) {
-          best[at] = cost;
-          from[at] = i;
-          before[at] = i === 0 ? -1 : nextAt[i * width + v]!;
+    const i = j - 1;
+    for (let v = 0; v < width; v += 1) {
+      const level = levels[v]!;
+      if (level > logs[i]!) {
+        // A picture too small for the level: no run at it goes past it.
+        eligible[v] = pending[v] = Infinity;
+        eligibleAt[v] = pendingAt[v] = -1;
+        continue;
+      }
+      const earlier = i === 0 ? 0 : next[i * width + v]! + FIT_RUN_BREAK;
+      if (earlier < Infinity) {
+        const key = earlier - total + i * level;
+        // The later start on a tie: the shorter last run.
+        if (key <= pending[v]!) {
+          pending[v] = key;
+          pendingAt[v] = i;
         }
       }
+      if (logs[i]! < level + apart) {
+        if (pending[v]! <= eligible[v]!) {
+          eligible[v] = pending[v]!;
+          eligibleAt[v] = pendingAt[v]!;
+        }
+        pending[v] = Infinity;
+        pendingAt[v] = -1;
+      }
+      const start = eligibleAt[v]!;
+      if (start < 0) continue;
+      const at = j * width + v;
+      best[at] = eligible[v]! + total + logs[i]! - j * level;
+      from[at] = start;
+      before[at] = start === 0 ? -1 : nextAt[start * width + v]!;
     }
+    total += logs[i]!;
     if (j < count) ended(j);
   }
   // The cheapest end, the larger scale on a tie.
