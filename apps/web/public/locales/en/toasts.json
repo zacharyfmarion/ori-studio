@@ -68,6 +68,9 @@
     "pickFailed": "Couldn't tell which faces are there. Try again.",
     "updateFailed": "Couldn't pin those faces. Try again."
   },
+  "simulatorPull": {
+    "failed": "Couldn't pull the paper. Try again."
+  },
   "update": {
     "available": "Version {{version}} is available",
     "checkFailed": "Couldn't check for updates",

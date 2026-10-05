@@ -1,19 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { pickQueryFor, pinIntentFor } from './intents';
+import { pickQueryFor, pinIntentFor, pullIntentFor } from './intents';
 import type { SimulatorGesture } from './types';
 
 const SURFACE = { width: 400, height: 300 };
 const THROUGH = { pinThroughLayers: true };
 const VISIBLE = { pinThroughLayers: false };
 
-const box = (extra: Partial<Extract<SimulatorGesture, { kind: 'box' }>> = {}): SimulatorGesture => ({
+type PinGesture = Exclude<SimulatorGesture, { kind: 'pull' }>;
+
+const box = (extra: Partial<Extract<SimulatorGesture, { kind: 'box' }>> = {}): PinGesture => ({
   kind: 'box',
   rect: { left: 10, top: 20, right: 110, bottom: 220 },
   shift: false,
   touch: false,
   ...extra,
 });
-const click = (extra: Partial<Extract<SimulatorGesture, { kind: 'click' }>> = {}): SimulatorGesture => ({
+const click = (extra: Partial<Extract<SimulatorGesture, { kind: 'click' }>> = {}): PinGesture => ({
   kind: 'click',
   point: { x: 30, y: 40 },
   shift: false,
@@ -59,5 +61,18 @@ describe('pickQueryFor', () => {
       depth: 'all-layers',
     });
     expect(pickQueryFor(pinIntentFor(box(), VISIBLE, SURFACE)).depth).toBe('visible');
+  });
+});
+
+describe('pullIntentFor', () => {
+  it('carries each step with the cursor measured against the canvas', () => {
+    for (const phase of ['begin', 'move', 'end', 'cancel'] as const) {
+      expect(pullIntentFor({ kind: 'pull', phase, point: { x: 30, y: 40 }, touch: true }, SURFACE)).toEqual({
+        kind: 'pull',
+        phase,
+        at: { x: 30, y: 40, cssWidth: 400, cssHeight: 300 },
+        touch: true,
+      });
+    }
   });
 });

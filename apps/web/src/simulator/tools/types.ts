@@ -8,10 +8,10 @@
  * tool.
  */
 import type { SimulatorShortcutId } from '../../keyboard/shortcuts';
-import type { SimulatorPickRegion } from '../pickQuery';
+import type { SimulatorPickRegion, SimulatorScreenPoint } from '../pickQuery';
 
 /** The simulator's tools. Orbit is the resting one: a drag turns the model. */
-export type SimulatorToolId = 'orbit' | 'pin';
+export type SimulatorToolId = 'orbit' | 'pin' | 'pull';
 
 /**
  * How a tool reads a press on the canvas.
@@ -20,10 +20,10 @@ export type SimulatorToolId = 'orbit' | 'pin';
  * routes in `pressRoute.ts`: a new mode is a typecheck error everywhere it has
  * to be handled.
  */
-export type SimulatorInputMode = 'orbit' | 'pick-faces';
+export type SimulatorInputMode = 'orbit' | 'pick-faces' | 'pull';
 
 /** Icon names, mapped to glyphs by each surface so this module stays JSX-free. */
-export type SimulatorToolIcon = 'orbit' | 'pin';
+export type SimulatorToolIcon = 'orbit' | 'pin' | 'pull';
 
 /** The cursor a tool shows over the canvas while nothing overrides it. */
 export type SimulatorToolCursor = 'grab' | 'crosshair';
@@ -56,6 +56,8 @@ export interface SimulatorToolsView {
   pinnedCount: number;
   options: SimulatorToolOptions;
   notices: readonly SimulatorToolNotice[];
+  /** The paper holds a pose a pull left it in, rather than following the fold. */
+  posed: boolean;
 }
 
 /**
@@ -63,13 +65,20 @@ export interface SimulatorToolsView {
  * them into strings and bound verbs, and one renderer draws every tool's.
  */
 export interface SimulatorToolWindowSections {
-  /** The Pin tool's own window, or the pins' while another tool is active. */
-  kind: 'pin' | 'pins';
+  /**
+   * A tool's own window — Pin's or Pull's — or, while another tool is active,
+   * the window for what the tools left on the paper: pins and a pose.
+   */
+  kind: 'pin' | 'pull' | 'pins';
   /** How to use the tool, for as long as it has nothing else to report. */
   instructions: boolean;
   options: readonly SimulatorToolOptionId[];
   /** The pinned count, with Clear. */
   pins: boolean;
+  /** Spring back, while the paper holds a pose. */
+  pose: boolean;
+  /** Pull with nothing pinned: pins come first, with a way to make some. */
+  needsPins: boolean;
 }
 
 export interface SimulatorToolDefinition {
@@ -115,16 +124,23 @@ export interface SimulatorPointerInput {
   touch: boolean;
 }
 
-/** A finished gesture, before any tool has said what it means. */
+/**
+ * A gesture, before any tool has said what it means: a box or a click when it
+ * finishes, or each step of a pull, which acts as it goes rather than at the end.
+ */
 export type SimulatorGesture =
   | { kind: 'box'; rect: CssRect; shift: boolean; touch: boolean }
-  | { kind: 'click'; point: CssPoint; shift: boolean; touch: boolean };
+  | { kind: 'click'; point: CssPoint; shift: boolean; touch: boolean }
+  | { kind: 'pull'; phase: SimulatorPullPhase; point: CssPoint; touch: boolean };
+
+/** A pull's steps: the press, each move, and letting go — kept, or abandoned. */
+export type SimulatorPullPhase = 'begin' | 'move' | 'end' | 'cancel';
 
 export interface SimulatorGestureOutput<S> {
   state: S;
   /** What to draw while the gesture is in flight. */
   preview: { marquee: CssRect } | null;
-  /** Set on the sample that finishes a gesture. */
+  /** Set on a sample the tool acts on: a box's or a click's last, a pull's every one. */
   gesture: SimulatorGesture | null;
 }
 
@@ -158,4 +174,12 @@ export interface SimulatorPickFacesIntent {
   surface: CssSize;
 }
 
-export type SimulatorIntent = SimulatorPickFacesIntent;
+/** A step of a pull: where the cursor is, measured against the canvas it is on. */
+export interface SimulatorPullIntent {
+  kind: 'pull';
+  phase: SimulatorPullPhase;
+  at: SimulatorScreenPoint;
+  touch: boolean;
+}
+
+export type SimulatorIntent = SimulatorPickFacesIntent | SimulatorPullIntent;

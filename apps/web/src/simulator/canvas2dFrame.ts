@@ -340,6 +340,20 @@ export function drawFrame(
 }
 
 /**
+ * The camera the frame last drawn on `canvas` used, in its drawing-buffer
+ * pixels — what a pull on the canvas-2D path is measured against, since the
+ * worker never sees this path's camera. Null before anything is drawn.
+ */
+export function drawnCameraOf(canvas: HTMLCanvasElement): CameraUniforms | null {
+  return surfaceCache.get(canvas)?.drawn?.camera ?? null;
+}
+
+/** Hold the canvas-2D camera where it is, or let it follow the shape again. */
+export function holdSurfaceFraming(canvas: HTMLCanvasElement, held: boolean): void {
+  surfaceFor(canvas).framing.held = held;
+}
+
+/**
  * The crease-pattern faces under a press or a box, in the frame last drawn on
  * `canvas` — or null if nothing has been drawn there. The canvas-2D path's
  * half of a pick; the worker answers for the frames it draws.

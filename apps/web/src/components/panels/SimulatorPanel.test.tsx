@@ -607,7 +607,7 @@ describe('SimulatorPanel tools', () => {
       const sheet = document.querySelector('[role="dialog"][aria-label="Tools"]');
       expect(sheet).not.toBeNull();
       const rows = [...(sheet?.querySelectorAll('[data-tool-label]') ?? [])].map((row) => row.textContent);
-      expect(rows).toEqual(['Orbit', 'Pin']);
+      expect(rows).toEqual(['Orbit', 'Pin', 'Pull']);
 
       act(() =>
         sheet?.querySelector<HTMLButtonElement>('[data-tool="pin"] [data-tool-item]')?.click()
