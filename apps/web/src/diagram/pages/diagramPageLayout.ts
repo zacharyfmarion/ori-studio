@@ -188,6 +188,18 @@ export interface LayoutStep {
     marks: { width: number; height: number };
     sides?: ReachSides;
   } | null;
+  /**
+   * The largest scale at which the picture fits a room `across` × `down` mm,
+   * where how far its marks reach depends on its scale: found by measuring
+   * it there (`layoutDiagram`). Absent, `pictureFit` of `picture`.
+   */
+  fitIn?: (across: number, down: number) => number | null;
+  /**
+   * The most the picture is drawn at, alone, whatever its run's scale: one
+   * whose marks reach out unevenly may hold its room at its fit and not at a
+   * smaller scale its run draws it at (`layoutDiagram`).
+   */
+  atMost?: number;
   /** The turns between the step before and this one (D22), in order. */
   turnsBefore: readonly LayoutTurn[];
   /** The turns after the last step; empty on every other. */
@@ -584,8 +596,10 @@ export function layoutDiagramPages(
     );
   const fitOf = ({ step, ...placed }: Placed): ScaleFit | null => {
     const down = roomH({ step, ...placed });
-    const own = pictureFit(step.picture, roomW, down);
-    const shared = pictureFit(step.picture, roomW, Math.max(down, fullBox));
+    const fit = (across: number, room: number) => (step.fitIn ? step.fitIn(across, room) : pictureFit(step.picture, across, room));
+    const own = fit(roomW, down);
+    const shared = fit(roomW, Math.max(down, fullBox));
+    if (own !== null && step.atMost !== undefined) return shared === null ? null : { own: Math.min(own, step.atMost), shared };
     return own === null || shared === null ? null : { own, shared };
   };
   const scales = new Map<Placed, { mmPerUnit: number | null; frameMm: number | null; reduced: boolean }>();

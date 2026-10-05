@@ -388,8 +388,6 @@ describe('composeDiagramPage', () => {
       { columns: 5, rows: 1 },
       { size: 'a5', orientation: 'landscape', columns: 2, rows: 2 },
     ];
-    let settled = 0;
-    let layouts = 0;
     for (const style of [made.style, heavy]) {
       for (const scale of ['fit', 'paper'] as const) {
         for (const setup of setups) {
@@ -403,13 +401,51 @@ describe('composeDiagramPage', () => {
             const fit = pictureFit(layoutPicture(step, document.assets, document.style, measure), cell.drawMm.w, cell.drawMm.h);
             expect(fit! / at, `${style === heavy ? 'heavy' : 'default'} ${scale} ${setupName(setup)} ${cell.stepId}`).toBeGreaterThan(1 - 1e-3);
           }
-          layouts += 1;
-          if (unsettled(document, layout) < 1e-3) settled += 1;
         }
       }
     }
-    // And nearly every one settled.
-    expect(settled / layouts).toBeGreaterThan(0.9);
+  });
+
+  it('draws a picture at the largest scale it holds its room at, though no scale is its own fit (third review)', () => {
+    // A turn-over larger than its paper, off its middle: its reach is flat until the paper outgrows it, then grows,
+    // so measured below that it fits the room and above it half of it. The passes cycled and kept 53% of the room.
+    const turned = (at: [number, number]): DiagramStep => ({
+      ...cpStep('step-1'),
+      text: Array(3).fill('Fold the corner to the line.').join(' '),
+      annotations: [{ id: 't', kind: 'turn-over', from: at, to: at, axis: 'horizontal' }],
+    });
+    const largest = (document: DiagramDocument) => {
+      const layout = layoutDiagram(document, estimateTextSetter);
+      for (const cell of layout.pages.flatMap((page) => page.cells)) {
+        const at = cell.mmPerUnit!;
+        const step = stepsIn(document).find((each) => each.id === cell.stepId)!;
+        const fit = (scale: number) =>
+          pictureFit(layoutPicture(step, document.assets, document.style, { mmPerUnit: scale }), cell.drawMm.w, cell.drawMm.h)!;
+        // It holds there; drawn at its own scale — its text took its room — not a hundredth larger.
+        expect(fit(at) / at, cell.stepId).toBeGreaterThan(1 - 1e-3);
+        if (cell.scaleReduced) expect(fit(at * 1.01) / (at * 1.01), cell.stepId).toBeLessThan(1);
+      }
+    };
+    for (const at of [[0.5, 0.95], [0.5, 0.05], [0.95, 0.95]] as [number, number][]) {
+      const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [turned(at)], 0);
+      largest({ ...made, page: { ...made.page, size: 'letter', orientation: 'landscape', columns: 3, rows: 6 } });
+    }
+    // Two such pictures whose measures cycled out of step, so no pass held both: the last was returned unchecked.
+    const both = insertSteps(
+      createDiagram({ title: 'Crane', hanStyle: 'sc' }),
+      [
+        { ...turned([0.5, 0.95]), text: 'Fold the corner to the line.' },
+        {
+          ...referencesStep('step-2'),
+          text: 'Fold the corner to the line.',
+          annotations: [{ id: 't', kind: 'turn-over', from: [0.5, 0.95], to: [0.5, 0.95], axis: 'horizontal' }],
+        },
+      ],
+      0
+    );
+    for (const scale of ['fit', 'paper'] as const) {
+      largest({ ...both, page: { ...both.page, size: 'a5', orientation: 'portrait', columns: 3, rows: 6, scale } });
+    }
   });
 
   it('keeps a sheet in its room when its letters cannot fit there, annotated or not, every picture held (review)', () => {

@@ -78,62 +78,107 @@ export function diagramLayoutSteps(
   return steps;
 }
 
-/** How many times the pages may be laid out again to measure marks at the scale they are drawn at. */
-const MEASURE_PASSES = 8;
-/** A scale this close to the one its marks were measured at is the one they were measured at. */
-const MEASURE_SETTLED = 1e-4;
+/** A scale this close to the one a picture was measured at is the one it was measured at. */
+export const MEASURE_SETTLED = 1e-4;
+/** How many times a picture is measured at most, for the largest scale at which it holds a room. */
+const MEASURE_STEPS = 32;
 
 /**
- * The pages, laid out again while a References step or an annotated one is
- * drawn at a scale other than the one its marks were measured at: its
- * letters, arrowheads and marks keep their pt size, so how far they reach
- * past its picture is only known at its scale — which depends on how far
- * they reach. Each pass measures every step at the scale the last drew it at,
- * reach and slope (`layoutPicture`), so the next fits it as Newton's method
- * would: a reach of straight pieces settles in a few passes. Should one not
- * settle — a mark that jumps as the picture grows — the last pages that held
- * every picture as measured at its own scale are kept, else the last.
+ * The largest scale at which a picture holds a room, measured at that scale:
+ * `fitAt(scale)` its fit there as `pictureFit` reads its measure (`null`, as
+ * a card's). Its letters, arrowheads and marks keep their pt size, so how far
+ * they reach past it is only known at its scale. Each measure gives a reach
+ * and how it grows there, so the fit it reads lands as Newton's method would:
+ * a reach of straight pieces settles in a step or two. One that is not — a
+ * glyph larger than its paper hides the paper's growth until the paper
+ * outgrows it, and no scale is its own fit — is found between the largest
+ * scale found to hold and the smallest found not to, halving the gap. Only a
+ * scale found to hold is returned: the fit measured at the smallest scale
+ * tried when none did.
+ */
+export function largestHeld(fitAt: (scale: number | null) => number | null, below = Infinity): number | null {
+  let fit = fitAt(null);
+  if (fit === null) return null;
+  let held = 0;
+  // Below a scale found not to hold, when one is known.
+  let fails = below;
+  let scale = Math.min(fit, below / 2);
+  for (let pass = 0; pass < MEASURE_STEPS && scale > 0 && Number.isFinite(scale); pass += 1) {
+    const next = fitAt(scale);
+    if (next === null) break;
+    fit = next;
+    if (next >= scale * (1 - MEASURE_SETTLED)) {
+      held = Math.max(held, scale);
+      if (next <= scale * (1 + MEASURE_SETTLED)) return scale;
+    } else {
+      fails = Math.min(fails, scale);
+    }
+    if (fails <= held * (1 + MEASURE_SETTLED)) return held;
+    scale = next > held && next < fails ? next : held > 0 ? Math.sqrt(held * fails) : Math.min(next, fails / 2);
+  }
+  return held > 0 ? held : Math.max(0, Math.min(fit, scale));
+}
+
+/**
+ * The pages, with every picture whose marks reach past it — a References
+ * step's letters, any step's annotations — fitted to its room at the largest
+ * scale it holds it at, measured there (`largestHeld`): its room is the
+ * page's and its text's, whatever its scale, so each is found on its own,
+ * before the runs choose among them. A run may draw a picture smaller than
+ * its fit, and one whose marks reach out unevenly — the reach of a mark's
+ * pt-size part shrinking as the picture grows — need not hold its room
+ * there: it is drawn alone at the largest scale below that at which it does
+ * (`atMost`), its run as it was. Laid out last with each picture measured at
+ * the scale it is drawn at, for how far it reaches there; its fits, and so
+ * the scales, are the ones found. Every picture holds its room.
  */
 export function layoutDiagram(document: DiagramDocument, setter: TextSetter): DiagramPagesLayout {
   const layout = (steps: LayoutStep[]) => layoutDiagramPages(steps, document.page, document.title, setter);
-  let pages = layout(diagramLayoutSteps(document));
   const reaching = stepsOf(document).some(
     (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
   );
-  if (!reaching) return pages;
-  let held: DiagramPagesLayout | null = null;
-  for (let pass = 0; pass < MEASURE_PASSES; pass += 1) {
-    const drawn = scalesOf(pages);
-    if (drawn.size === 0) return pages;
-    // Every picture measured at the scale these pages drew it at.
-    const steps = diagramLayoutSteps(document, (stepId) => drawn.get(stepId)?.measure ?? null);
-    if (holdsEvery(pages, steps)) held = pages;
-    const next = layout(steps);
-    const got = scalesOf(next);
-    const settled =
-      got.size === drawn.size &&
-      [...got].every(([stepId, { scale }]) => {
-        const was = drawn.get(stepId);
-        return was !== undefined && Math.abs(scale - was.scale) <= MEASURE_SETTLED * scale;
-      });
-    pages = next;
-    if (settled) return pages;
+  if (!reaching) return layout(diagramLayoutSteps(document));
+  const entries = new Map(stepsOf(document).map((step) => [step.id, step]));
+  const kinds = new Map(diagramLayoutSteps(document).map((step) => [step.id, step.picture?.kind]));
+  /** A step's picture's fit in a room `across` × `down`, measured at `scale` (a card's at null). */
+  const fitAt = (stepId: string, across: number, down: number) => (scale: number | null) => {
+    const entry = entries.get(stepId);
+    if (!entry) return null;
+    const measure = scale === null ? null : kinds.get(stepId) === 'paper' ? { mmPerUnit: scale } : { frameMm: scale };
+    return pictureFit(layoutPicture(entry, document.assets, document.style, measure), across, down);
+  };
+  const fitIn = new Map<string, NonNullable<LayoutStep['fitIn']>>();
+  for (const [stepId, kind] of kinds) {
+    if (!kind) continue;
+    const found = new Map<string, number | null>();
+    fitIn.set(stepId, (across, down) => {
+      const key = `${across}|${down}`;
+      if (!found.has(key)) found.set(key, largestHeld(fitAt(stepId, across, down)));
+      return found.get(key)!;
+    });
   }
-  return held ?? pages;
-}
-
-/** Whether each cell's room holds its picture with its marks, measured (`steps`) at the scale it is drawn at. */
-function holdsEvery(pages: DiagramPagesLayout, steps: readonly LayoutStep[]): boolean {
-  const byId = new Map(steps.map((step) => [step.id, step]));
-  return pages.pages.every((page) =>
-    page.cells.every((cell) => {
-      const scale = cell.mmPerUnit ?? cell.frameMm;
-      const picture = byId.get(cell.stepId)?.picture;
-      if (scale === null || !picture) return true;
-      const fit = pictureFit(picture, cell.drawMm.w, cell.drawMm.h);
-      return fit !== null && fit >= scale * (1 - MEASURE_SETTLED);
-    })
-  );
+  const atMost = new Map<string, number>();
+  const fitted = (steps: LayoutStep[]) =>
+    steps.map((step) => {
+      const most = atMost.get(step.id);
+      return { ...step, fitIn: fitIn.get(step.id), ...(most !== undefined ? { atMost: most } : {}) };
+    });
+  /** The pages with each picture measured at the scale `pages` drew it at, for how far it reaches there. */
+  const measuredAt = (pages: DiagramPagesLayout) => {
+    const drawn = scalesOf(pages);
+    return layout(fitted(diagramLayoutSteps(document, (stepId) => drawn.get(stepId)?.measure ?? null)));
+  };
+  const pages = measuredAt(layout(fitted(diagramLayoutSteps(document))));
+  for (const cell of pages.pages.flatMap((page) => page.cells)) {
+    const scale = cell.mmPerUnit ?? cell.frameMm;
+    if (scale === null || !(scale > 0)) continue;
+    const fit = fitAt(cell.stepId, cell.drawMm.w, cell.drawMm.h);
+    const there = fit(scale);
+    if (there !== null && there >= scale * (1 - MEASURE_SETTLED)) continue;
+    const held = largestHeld(fit, scale);
+    if (held !== null) atMost.set(cell.stepId, held);
+  }
+  return atMost.size > 0 ? measuredAt(layout(fitted(diagramLayoutSteps(document)))) : pages;
 }
 
 /** The scale each step's picture is drawn at, by its step, and the measure that is. */

@@ -3340,7 +3340,11 @@ and the cap jumps to nothing as a canvas passes the marks' size ([10]).
 Checklist:
 - [x] The measure by side.
 - [ ] Fit by overrun.
-- [ ] Pages: the fit found by search, pages never unchecked.
+- [x] Pages: the fit found by search, pages never unchecked. A picture whose
+  reach grows unevenly (a pen's heavy arrow over an edge) can hold at its fit
+  and not at a smaller scale its run draws it at: it is then drawn alone at
+  the largest below that it holds (`atMost`), the runs unchanged. The crane
+  lays out as before, both scales.
 - [ ] Step files: the same search, the canvas as placed, the cap continuous.
 - [ ] Before/after: the three documents in [6]–[8] rendered, and the crane.
 
