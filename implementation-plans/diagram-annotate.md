@@ -944,9 +944,12 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
     - **Snapping.** Its point snaps when put down and when dragged
       (`snapsEnd`), never its box; others snap to its point.
     - **Carry.** With the face under its point: the point moves as a point
-      does, the box keeps its offset, turned and mirrored as the picture was
+      does, the box goes the way the picture turned and mirrored its offset
       (`PictureMove.vector`, which a spread now gives from its turn), never
-      spread with the face under the box. Words stay upright.
+      spread with the face under the box. Words stay upright, so the box
+      does: it keeps its line's length rather than its offset (`keptBeside`),
+      or a quarter turn could put the point inside a box wider than tall and
+      lose the line (review). Exactly undone by the move back.
     - **File.** `text` read as a label's; a field it has no name for, words
       over 80 or a point past reach are a newer build's; no words, or words
       not a string, drop it. a34d74086's reader keeps one verbatim and writes

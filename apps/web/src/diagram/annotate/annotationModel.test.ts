@@ -48,6 +48,7 @@ import {
   placedByClick,
   textEms,
   type PictureMove,
+  type PicturePoint,
 } from './annotationModel';
 
 const SQUARE = { width: 1, height: 1 };
@@ -673,11 +674,44 @@ describe('a callout', () => {
     const carried = carryAnnotation(it, spread);
     expect(carried.from[0]).toBeCloseTo(0.2 + 0.3 * 0.04, 12);
     expect(carried.from[1]).toBeCloseTo(0.35, 12);
-    expect(carried.to[0]).toBeCloseTo(carried.from[0] + 0.2, 12);
-    expect(carried.to[1]).toBeCloseTo(carried.from[1] + 0.4, 12);
+    // Its box the way the picture turned the offset, its line as long as it was.
+    const [dx, dy] = [carried.to[0] - carried.from[0], carried.to[1] - carried.from[1]];
+    expect(dx * 0.4 - dy * 0.2).toBeCloseTo(0, 12);
+    expect(dx).toBeGreaterThan(0);
+    const lineLength = (annotation: KnownDiagramAnnotation) => {
+      const [a, b] = calloutShape(annotation).line!;
+      return Math.hypot(b[0] - a[0], b[1] - a[1]);
+    };
+    expect(lineLength(carried)).toBeCloseTo(lineLength(it), 12);
     expect(carried.text).toBe('Repeat behind');
     // Not a fold arrow: Flip arc leaves it.
     expect(flipAnnotationArc(it)).toBe(it);
+  });
+
+  it('keeps its line through a quarter turn, its box wider than tall still beside its point, and back (review)', () => {
+    // Dragged with its box just under its point: a line 0.0575 long.
+    const it = callout([0.5, 0.5], [0.5, 0.6]);
+    const length = (annotation: KnownDiagramAnnotation) => {
+      const line = calloutShape(annotation).line;
+      return line ? Math.hypot(line[1][0] - line[0][0], line[1][1] - line[0][1]) : 0;
+    };
+    expect(length(it)).toBeCloseTo(0.0575, 4);
+    for (const degrees of [75, 90, 270]) {
+      const turn = degrees * (Math.PI / 180);
+      const about = (([x, y]: PicturePoint): PicturePoint => [
+        0.5 + (x - 0.5) * Math.cos(turn) - (y - 0.5) * Math.sin(turn),
+        0.5 + (x - 0.5) * Math.sin(turn) + (y - 0.5) * Math.cos(turn),
+      ]);
+      const back = (([x, y]: PicturePoint): PicturePoint => [
+        0.5 + (x - 0.5) * Math.cos(-turn) - (y - 0.5) * Math.sin(-turn),
+        0.5 + (x - 0.5) * Math.sin(-turn) + (y - 0.5) * Math.cos(-turn),
+      ]);
+      const turned = carryAnnotation(it, { point: about, mirrors: false, turnDeg: degrees });
+      expect(length(turned), `${degrees}°`).toBeCloseTo(0.0575, 9);
+      const home = carryAnnotation(turned, { point: back, mirrors: false, turnDeg: -degrees });
+      expect(home.to[0], `${degrees}° and back`).toBeCloseTo(0.5, 9);
+      expect(home.to[1], `${degrees}° and back`).toBeCloseTo(0.6, 9);
+    }
   });
 
   it('is written with its words clean and its box within reach', () => {

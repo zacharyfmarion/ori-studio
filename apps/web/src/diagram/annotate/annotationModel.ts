@@ -970,7 +970,9 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
  * A callout carried with the face under its point: the point moves as a
  * point does, and the box keeps its place beside it — turned and mirrored as
  * the picture is, never spread with whatever face lies under the box, which
- * may be another, or none off the paper. Its words stay upright.
+ * may be another, or none off the paper. Its words stay upright, so its box
+ * does: it is put the way the picture turned its offset, its line as long as
+ * it was ({@link keptBeside}).
  */
 function carryCallout(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
   const { from, to } = annotation;
@@ -983,7 +985,32 @@ function carryCallout(annotation: KnownDiagramAnnotation, move: PictureMove): Kn
     const [x1, y1] = move.point([from[0] + offset[0], from[1] + offset[1]]);
     turned = [x1 - x0, y1 - y0];
   }
-  return { ...annotation, from: carried, to: withinReach([carried[0] + turned[0], carried[1] + turned[1]]) };
+  const beside = keptBeside(annotation.text ?? '', offset, turned);
+  return { ...annotation, from: carried, to: withinReach([carried[0] + beside[0], carried[1] + beside[1]]) };
+}
+
+/**
+ * Where a callout's box goes from its point once its offset `offset` is
+ * carried to `turned`: along `turned`, as far as keeps its line as long as it
+ * was — scaled with the picture — past the box's outline. The box is upright
+ * and some times wider than tall, so the turned offset itself could bring the
+ * point inside it, and lose the line, after a quarter turn. A point already
+ * inside stays as far in. Exactly undone by the move back; a mirror or a half
+ * turn, which face the box the same way, is the turned offset.
+ */
+function keptBeside(text: string, offset: PicturePoint, turned: PicturePoint): PicturePoint {
+  const length = Math.hypot(offset[0], offset[1]);
+  const turnedLength = Math.hypot(turned[0], turned[1]);
+  if (!(length > 0) || !(turnedLength > 0)) return turned;
+  const { halfWidth, halfHeight } = calloutHalfBox(text);
+  // From the box's middle to its outline, along a unit direction.
+  const outline = ([x, y]: PicturePoint) =>
+    Math.min(x === 0 ? Infinity : halfWidth / Math.abs(x), y === 0 ? Infinity : halfHeight / Math.abs(y));
+  const way: PicturePoint = [turned[0] / turnedLength, turned[1] / turnedLength];
+  const was = outline([offset[0] / length, offset[1] / length]);
+  const now = outline(way);
+  const along = now * Math.min(length / was, 1) + (turnedLength / length) * Math.max(length - was, 0);
+  return [way[0] * along, way[1] * along];
 }
 
 /** A picture flipped left to right inside its frame. */
