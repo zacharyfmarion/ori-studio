@@ -7,10 +7,13 @@ import { ToolHintInstructions } from '../ui/tools/ToolHintInstructions';
 import { ToolHintWindow } from '../ui/tools/ToolHintWindow';
 
 /**
- * Annotate's tool window (decision 7): Edit's and the Simulator's window, over
+ * Annotate's tool window (decision 7): Edit's and the Simulator's window, in
  * the canvas's bottom right, saying what the tool in hand does — its name,
  * how to use it, and the keys held while using it. Nothing with Select in
- * hand, where Annotate rests (`annotateToolHint`).
+ * hand, where Annotate rests (`annotateToolHint`). Kept on the canvas's side
+ * of the seam (`inside`), not over it as theirs is: the Step pane's
+ * Instruction lies there, and a drawing tool stays in hand while the step's
+ * words are typed.
  *
  * Mounted outside the canvas's view in the React tree. The window is portaled,
  * and portal events still bubble through React: inside the view, the view's
@@ -38,6 +41,7 @@ export const DiagramAnnotateToolWindow = memo(function DiagramAnnotateToolWindow
       title={hint.title}
       meta={instructions}
       ariaLabel={t('panels:diagram.annotate.toolWindowLabel', 'Annotate tool instructions')}
+      inside
     >
       <ToolHintInstructions heading={instructions} intro={hint.instructions} items={hint.modifiers} />
     </ToolHintWindow>

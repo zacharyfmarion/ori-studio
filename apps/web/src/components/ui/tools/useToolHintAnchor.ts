@@ -24,8 +24,9 @@ function samePlacement(a: ToolHintPlacement | null, b: ToolHintPlacement): boole
 /**
  * Fixed-position offsets for the window, or null while there is nothing to
  * anchor to — no viewport element, or one that is laid out but not displayed.
+ * `inside` keeps it on the viewport's side of the seam (`toolHintPlacement`).
  */
-export function useToolHintAnchor(container: HTMLElement | null): ToolHintPlacement | null {
+export function useToolHintAnchor(container: HTMLElement | null, inside = false): ToolHintPlacement | null {
   const [placement, setPlacement] = useState<ToolHintPlacement | null>(null);
 
   useLayoutEffect(() => {
@@ -58,7 +59,8 @@ export function useToolHintAnchor(container: HTMLElement | null): ToolHintPlacem
       const next = toolHintPlacement(
         rect,
         { width: window.innerWidth, height: window.innerHeight },
-        toolbar?.getBoundingClientRect() ?? null
+        toolbar?.getBoundingClientRect() ?? null,
+        { inside }
       );
       // The observer fires for changes that leave this rule's inputs alone
       // (height-only splits, sub-pixel reflows). Bailing on an equal result keeps
@@ -76,7 +78,7 @@ export function useToolHintAnchor(container: HTMLElement | null): ToolHintPlacem
       observer?.disconnect();
       window.removeEventListener('resize', measure);
     };
-  }, [container]);
+  }, [container, inside]);
 
   return placement;
 }

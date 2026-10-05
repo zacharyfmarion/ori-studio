@@ -104,16 +104,18 @@ const tool = (kind: Parameters<ReturnType<typeof state>['setDiagramAnnotateTool'
   act(() => state().setDiagramAnnotateTool(kind));
 
 describe('DiagramAnnotateToolWindow', () => {
-  it('names every tool and says how to use it, over the canvas rather than in it', () => {
+  it('names every tool and says how to use it, over the canvas rather than in it, on its side of the seam (review 4)', () => {
     mount();
     for (const each of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null)) {
       tool(each);
       expect(title()).toContain(annotateToolLabel(i18n.t.bind(i18n), each));
       expect(intro()).toBeTruthy();
     }
-    // Portaled past the view, so it can overhang the seam with the Step pane.
+    // Portaled past the view, but kept on the canvas's side of the seam: the Step pane's Instruction is past it.
     expect(windowEl()?.parentElement).toBe(document.body);
-    expect(windowEl()?.style.left).toBe(`${764 - 50}px`);
+    const left = Number.parseFloat(windowEl()!.style.left);
+    const width = Number.parseFloat(windowEl()!.style.width);
+    expect(left + width).toBe(764 - 12);
   });
 
   it('says what a drawing tool does and the key that puts it down anywhere', () => {
