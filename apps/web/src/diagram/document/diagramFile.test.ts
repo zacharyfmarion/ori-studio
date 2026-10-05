@@ -231,6 +231,7 @@ describe('annotations in the file', () => {
     { id: 'a-9', kind: 'hidden-line', from: [0, 1], to: [1, 0] },
     { id: 'a-10', kind: 'label', from: [0.3, 0.3], to: [0.3, 0.3], text: 'A 谷折り' },
     { id: 'a-11', kind: 'circle', from: [0.25, 0.75], to: [0.25, 0.75] },
+    { id: 'a-12', kind: 'callout', from: [0.4, 0.6], to: [1.3, -0.2], text: 'Repeat behind 裏も同様に' },
   ];
 
   function withAnnotations(annotations: unknown[]) {
@@ -259,6 +260,10 @@ describe('annotations in the file', () => {
       // A circle with a letter, or out past reach: a later build's (decision 8 leaves the letter out).
       { id: 'n-8', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5], text: 'A' },
       { id: 'n-9', kind: 'circle', from: [5, 0.5], to: [5, 0.5] },
+      // A callout with a field it has no name for, words longer than a label's, or its box past reach.
+      { id: 'n-10', kind: 'callout', from: [0.5, 0.5], to: [0.9, 0.1], text: 'Repeat behind', size: 2 },
+      { id: 'n-11', kind: 'callout', from: [0.5, 0.5], to: [0.9, 0.1], text: 'x'.repeat(200) },
+      { id: 'n-12', kind: 'callout', from: [0.5, 0.5], to: [9, 0.1], text: 'Repeat behind' },
     ];
     expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
   });
@@ -273,6 +278,10 @@ describe('annotations in the file', () => {
       { id: 'd-6', kind: 'hidden-line', from: [0, 0], to: [1, 1] },
       { id: 'd-6', kind: 'valley-line', from: [0, 0], to: [1, 1] },
       { id: 'd-7', kind: 'circle', to: [0.5, 0.5] },
+      // A callout with no words, or words that are not text, or no box.
+      { id: 'd-8', kind: 'callout', from: [0.5, 0.5], to: [0.9, 0.1] },
+      { id: 'd-9', kind: 'callout', from: [0.5, 0.5], to: [0.9, 0.1], text: ['Repeat'] },
+      { id: 'd-10', kind: 'callout', from: [0.5, 0.5], text: 'Repeat behind' },
     ]);
     expect(read).toEqual([{ id: 'd-6', kind: 'hidden-line', from: [0, 0], to: [1, 1] }]);
   });
@@ -284,6 +293,7 @@ describe('annotations in the file', () => {
       { id: 'f-3', kind: 'rotate', from: [0.5, 0.5], to: [0.5, 0.5] },
       { id: 'f-4', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'A\u0000B' },
       { id: 'f-5', kind: 'circle', from: [0.4, 0.6], to: [0.9, 0.9] },
+      { id: 'f-6', kind: 'callout', from: [0.4, 0.6], to: [0.9, 0.9], text: 'Repeat\u0000 behind' },
     ]);
     expect(read).toEqual([
       { id: 'f-1', kind: 'valley-arrow', from: [0, 0], to: [1, 0], bend: 1 - Math.cos(Math.PI / 6) },
@@ -291,6 +301,8 @@ describe('annotations in the file', () => {
       { id: 'f-3', kind: 'rotate', from: [0.5, 0.5], to: [0.5, 0.5], rotate: { amount: 'quarter', direction: 'cw' } },
       { id: 'f-4', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'AB' },
       { id: 'f-5', kind: 'circle', from: [0.4, 0.6], to: [0.4, 0.6] },
+      // Its box where it was put, not at its point: it is no sign.
+      { id: 'f-6', kind: 'callout', from: [0.4, 0.6], to: [0.9, 0.9], text: 'Repeat behind' },
     ]);
   });
 

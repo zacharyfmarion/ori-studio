@@ -32,9 +32,10 @@ import {
 import { flattenPath } from '../../lib/cubicBezier';
 import {
   LINE_KINDS,
+  annotationEnds,
   arrowApex,
   arrowShape,
-  isPointKind,
+  calloutShape,
   labelHalfWidth,
   pathCubics,
   pathLength,
@@ -44,17 +45,18 @@ import { nearestPathPoint, pathNodesOf, visiblePathHandles } from './annotationP
 import { perAnnotation } from './perAnnotation';
 
 /**
- * Which part of an annotation a press took hold of: its body, or one end; in
- * Edit Path a node of an arrow's path, one of a node's two handles, or the
- * segment between two nodes (and where along it, `t` in [0, 1],
- * {@link hitPathGrip}); and, as the right-angle mark comes to offer them, a
- * mark's corner or the direction it opens in. Nothing offers the last two
- * yet.
+ * Which part of an annotation a press took hold of: its body, or one end; a
+ * callout's box; in Edit Path a node of an arrow's path, one of a node's two
+ * handles, or the segment between two nodes (and where along it, `t` in
+ * [0, 1], {@link hitPathGrip}); and, as the right-angle mark comes to offer
+ * them, a mark's corner or the direction it opens in. Nothing offers the
+ * last two yet.
  */
 export type AnnotationGripPart =
   | { part: 'body' }
   | { part: 'from' }
   | { part: 'to' }
+  | { part: 'box' }
   | { part: 'node'; node: number }
   | { part: 'handle'; node: number; side: 'in' | 'out' }
   | { part: 'segment'; segment: number; t: number }
@@ -352,11 +354,28 @@ export function circleRadius(ink: number): number {
   return DIAGRAM_MARK_INK.radius * ink;
 }
 
+/** How far a press is from a box, in picture units: 0 inside it. */
+function boxDistance([x, y]: PicturePoint, box: { x: number; y: number; width: number; height: number }): number {
+  const dx = Math.max(box.x - x, 0, x - (box.x + box.width));
+  const dy = Math.max(box.y - y, 0, y - (box.y + box.height));
+  return Math.hypot(dx, dy);
+}
+
+/**
+ * How far a press is from a callout's box — 0 on it, its words included,
+ * which are inside it — and from its line, as they are drawn.
+ */
+function calloutDistances(annotation: KnownDiagramAnnotation, point: PicturePoint): { box: number; line: number } {
+  const { box, line } = calloutShape(annotation);
+  return { box: boxDistance(point, box), line: line ? distanceToSegment(point, line[0], line[1]) : Infinity };
+}
+
 /**
  * How far a press is from an annotation's body, as it is drawn; 0 inside a
- * glyph, a label or a push. A circle is its ring, not its inside: an arrow
- * that lands on it ends at its centre, and a press there is the arrow's. Every kind is measured as it is drawn (a switch,
- * so a new kind is a compile error here until it is).
+ * glyph, a label, a push or a callout's box. A circle is its ring, not its
+ * inside: an arrow that lands on it ends at its centre, and a press there is
+ * the arrow's. Every kind is measured as it is drawn (a switch, so a new
+ * kind is a compile error here until it is).
  */
 function bodyDistance(
   annotation: KnownDiagramAnnotation,
@@ -387,13 +406,18 @@ function bodyDistance(
       return distanceToSegment(point, annotation.from, annotation.to);
     case 'circle':
       return Math.abs(Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - circleRadius(sizes.ink));
+    case 'callout': {
+      const { box, line } = calloutDistances(annotation, point);
+      return Math.min(box, line);
+    }
   }
 }
 
 /**
  * What a press at `point` takes hold of: an end of the selected annotation
- * first — the dots it shows — then the topmost annotation whose body is
- * within reach. Null for empty paper.
+ * first — the dots it shows (`annotationEnds`) — then the topmost annotation
+ * whose body is within reach: a callout by its box, which moves alone, or
+ * its line, which moves the whole. Null for empty paper.
  */
 export function hitAnnotation(
   annotations: readonly DiagramAnnotation[],
@@ -403,8 +427,8 @@ export function hitAnnotation(
 ): AnnotationGrip | null {
   const known = annotations.filter(isKnownAnnotation);
   const selected = known.find((annotation) => annotation.id === selectedId);
-  if (selected && !isPointKind(selected.kind)) {
-    const ends = (['to', 'from'] as const)
+  if (selected) {
+    const ends = annotationEnds(selected.kind)
       .map((part) => ({ part, distance: Math.hypot(point[0] - selected[part][0], point[1] - selected[part][1]) }))
       .filter(({ distance }) => distance <= sizes.tolerance)
       .sort((a, b) => a.distance - b.distance);
@@ -412,18 +436,23 @@ export function hitAnnotation(
   }
   // An arrow that lands in a circle is drawn stopped on its ring: its head is pressed there.
   const marks = known.filter((annotation) => annotation.kind === 'circle').map(({ from }) => from);
-  // Topmost first, as they are drawn: labels over marks over lines — and a
-  // circle over the other marks, its ring the one place to take it, where an
-  // arrow that lands on it has the rest of its length.
+  // Topmost first, as they are drawn: labels over callouts over marks over
+  // lines — and a circle over the other marks, its ring the one place to
+  // take it, where an arrow that lands on it has the rest of its length.
+  const last = new Set(['circle', 'callout', 'label']);
   const drawn = [
     ...known.filter((annotation) => LINE_KINDS.has(annotation.kind)),
-    ...known.filter((annotation) => !LINE_KINDS.has(annotation.kind) && annotation.kind !== 'label' && annotation.kind !== 'circle'),
+    ...known.filter((annotation) => !LINE_KINDS.has(annotation.kind) && !last.has(annotation.kind)),
     ...known.filter((annotation) => annotation.kind === 'circle'),
+    ...known.filter((annotation) => annotation.kind === 'callout'),
     ...known.filter((annotation) => annotation.kind === 'label'),
   ];
   for (let index = drawn.length - 1; index >= 0; index -= 1) {
     const annotation = drawn[index]!;
-    if (bodyDistance(annotation, point, sizes, marks) <= sizes.tolerance) return { annotationId: annotation.id, part: 'body' };
+    if (bodyDistance(annotation, point, sizes, marks) > sizes.tolerance) continue;
+    // A callout's box is taken on its own; its line takes the whole.
+    const onBox = annotation.kind === 'callout' && calloutDistances(annotation, point).box <= sizes.tolerance;
+    return { annotationId: annotation.id, part: onBox ? 'box' : 'body' };
   }
   return null;
 }

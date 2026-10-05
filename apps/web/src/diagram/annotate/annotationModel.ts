@@ -37,9 +37,11 @@ export interface PictureFrame {
  * - `straight`: a push, dragged, straight from `from` to `to`;
  * - `line`: a crease line, dragged, drawn in the diagram's pens;
  * - `point`: a sign, a label or a circle, put down with a click at one point
- *   (`to` is `from`).
+ *   (`to` is `from`);
+ * - `callout`: a line from a point to a box of words, dragged from the point
+ *   to where the box sits, or put down beside the point with a click.
  */
-type AnnotationShape = 'arc' | 'straight' | 'line' | 'point';
+type AnnotationShape = 'arc' | 'straight' | 'line' | 'point' | 'callout';
 
 const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
   'valley-arrow': 'arc',
@@ -53,6 +55,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'hidden-line': 'line',
   label: 'point',
   circle: 'point',
+  callout: 'callout',
 };
 
 /** Every kind, in the order the rail offers them. */
@@ -82,8 +85,18 @@ export const MAX_BEND = 0.5;
 export const LABEL_SIZE = 0.05;
 /** What a new label says until it is typed over: the letter diagrams name a point with. */
 export const NEW_LABEL_TEXT = 'A';
-/** The longest label: a few words, not an instruction. */
+/** The longest label: a few words, not an instruction. A callout's words are held to it too. */
 export const LABEL_MAX_LENGTH = 80;
+/**
+ * What a new callout says when nothing else is given: the words it is for.
+ * The canvas gives it in the author's own language (`useAnnotateCanvas`).
+ */
+export const NEW_CALLOUT_TEXT = 'Repeat behind';
+/**
+ * How far a callout put down with a click sits from its point, in picture
+ * units along each side: its box's near corner that far out, diagonally.
+ */
+export const CALLOUT_GAP = 0.08;
 
 export const DEFAULT_ROTATION: DiagramRotation = { amount: 'quarter', direction: 'cw' };
 
@@ -108,10 +121,10 @@ export function withinReach([x, y]: PicturePoint): PicturePoint {
 
 /**
  * An annotation as this build writes it: its points within reach, a sign or
- * a label at one point, a label's text clean for XML and no longer than a
- * label may be, an arrow's bulge within a half circle, a shaped arrow's path
- * as the reader takes it ({@link cleanPath}). The same object when it
- * already is.
+ * a label at one point, a label's or a callout's text clean for XML and no
+ * longer than a label may be, an arrow's bulge within a half circle, a
+ * shaped arrow's path as the reader takes it ({@link cleanPath}). The same
+ * object when it already is.
  */
 export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   if (annotation.path !== undefined) {
@@ -241,7 +254,58 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'label':
     case 'circle':
+    case 'callout':
       return false;
+  }
+}
+
+/**
+ * Whether an annotation of `kind` carries words — a label's, or a callout's
+ * in its box — that the Step pane edits and a page sets in the diagram's
+ * fonts. A switch, so a new kind has to say.
+ */
+export function carriesText(kind: DiagramAnnotationKind): boolean {
+  switch (kind) {
+    case 'label':
+    case 'callout':
+      return true;
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+    case 'push-arrow':
+    case 'turn-over':
+    case 'rotate':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+    case 'circle':
+      return false;
+  }
+}
+
+/**
+ * The ends a selected annotation offers to take hold of, each shown as a
+ * dot: an arrow's or a line's two, a callout's point — its box is taken
+ * where it is drawn — and none for a mark at one point. A switch, so a new
+ * kind has to say.
+ */
+export function annotationEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to')[] {
+  switch (kind) {
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+    case 'push-arrow':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+      return ['to', 'from'];
+    case 'callout':
+      return ['from'];
+    case 'turn-over':
+    case 'rotate':
+    case 'label':
+    case 'circle':
+      return [];
   }
 }
 
@@ -273,12 +337,22 @@ const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han
  * it draws: the hit test, the selection and a file's crop all share this.
  */
 export function labelHalfWidth(text: string): number {
-  let ems = 0;
-  for (const grapheme of graphemesOf(text)) ems += graphemeEms(grapheme);
-  return LABEL_SIZE * (Math.max(ems, 0.6) / 2 + 0.2);
+  return LABEL_SIZE * (Math.max(textEms(text), 0.6) / 2 + 0.2);
 }
 
-/** A grapheme's advance in ems, its combining marks included, as `labelHalfWidth` counts it. */
+/**
+ * How wide a line of a label's or a callout's text is set, in ems: its
+ * Latin as the font it is set in sets it (`LABEL_ADVANCES`), a whole em for
+ * a wide grapheme or one that font has no width for. The one measure a
+ * label's reach and a callout's box are both taken from.
+ */
+export function textEms(text: string): number {
+  let ems = 0;
+  for (const grapheme of graphemesOf(text)) ems += graphemeEms(grapheme);
+  return ems;
+}
+
+/** A grapheme's advance in ems, its combining marks included, as `textEms` counts it. */
 function graphemeEms(grapheme: string): number {
   if (WIDE.test(grapheme)) return 1;
   let ems = 0;
@@ -297,6 +371,11 @@ export function isPointKind(kind: DiagramAnnotationKind): boolean {
   return POINT_KINDS.has(kind);
 }
 
+/** Whether a click puts an annotation of `kind` down: a point kind's at its point, a callout's beside it. A drag draws the rest. */
+export function placedByClick(kind: DiagramAnnotationKind): boolean {
+  return isPointKind(kind) || ANNOTATION_SHAPES[kind] === 'callout';
+}
+
 /**
  * The bulge a new fold arrow is given: toward the frame's middle, as
  * References chooses the centre farther from the sheet's middle so its
@@ -311,17 +390,29 @@ export function defaultBend(from: PicturePoint, to: PicturePoint, frame: Picture
   return toward < 0 ? -ARROW_BEND : ARROW_BEND;
 }
 
-/** A new annotation of `kind`, from a drag (`from` → `to`) or a click (`to` ignored for a point kind). */
+/**
+ * A new annotation of `kind`, from a drag (`from` → `to`) or a click (`to`
+ * ignored for a point kind). A callout says `calloutText` — the author's
+ * language's "Repeat behind" — and one clicked, or dragged shorter than a
+ * slip, has its box put beside its point ({@link calloutBeside}).
+ */
 export function createAnnotation(
   kind: DiagramAnnotationKind,
   start: PicturePoint,
   end: PicturePoint,
   frame: PictureFrame,
-  newId: DiagramIdFactory = randomDiagramId
+  newId: DiagramIdFactory = randomDiagramId,
+  calloutText: string = NEW_CALLOUT_TEXT
 ): KnownDiagramAnnotation {
   const id = newId('annotation');
   const from = withinReach(start);
   const to = withinReach(end);
+  if (kind === 'callout') {
+    const text = cleanLabelText(calloutText);
+    const short = Math.hypot(to[0] - from[0], to[1] - from[1]) < MIN_ANNOTATION_LENGTH;
+    const box = short ? calloutBeside(from, text, frame) : to;
+    return { id, kind, from: [from[0], from[1]], to: [box[0], box[1]], text };
+  }
   if (isPointKind(kind)) {
     const at: PicturePoint = [from[0], from[1]];
     const base: KnownDiagramAnnotation = { id, kind, from: at, to: [at[0], at[1]] };
@@ -333,6 +424,77 @@ export function createAnnotation(
   }
   const annotation: KnownDiagramAnnotation = { id, kind, from: [from[0], from[1]], to: [to[0], to[1]] };
   return isArrowKind(kind) ? { ...annotation, bend: defaultBend(from, to, frame) } : annotation;
+}
+
+/**
+ * Where a callout put down with a click has its box: out from its point away
+ * from the frame's middle, diagonally — up and to the right from the middle
+ * itself — its near corner {@link CALLOUT_GAP} out from the point along each
+ * side. Diagrams put such a box beside the model, not on it.
+ */
+export function calloutBeside(from: PicturePoint, text: string, frame: PictureFrame): PicturePoint {
+  const away = (value: number, middle: number, otherwise: 1 | -1) =>
+    Math.abs(value - middle) < 1e-9 ? otherwise : Math.sign(value - middle);
+  const sx = away(from[0], frame.width / 2, 1);
+  const sy = away(from[1], frame.height / 2, -1);
+  const { halfWidth, halfHeight } = calloutHalfBox(text);
+  return withinReach([from[0] + sx * (halfWidth + CALLOUT_GAP), from[1] + sy * (halfHeight + CALLOUT_GAP)]);
+}
+
+/**
+ * A callout's letters, as a share of the frame's longer side: a label's
+ * size, so the two read alike on a page.
+ */
+export const CALLOUT_TEXT_SIZE = LABEL_SIZE;
+/** The room either side of a callout's words, past their advance, in ems: more than any glyph's ink stands out (ť's 0.109 em). */
+export const CALLOUT_PAD_EMS = 0.5;
+/**
+ * Half a callout's box's height, in ems, about the middle its words are
+ * centred on: a line's ink — a capital's accent above, a descender below,
+ * Han's em box, none more than 0.6 em from the middle — and room round it.
+ */
+export const CALLOUT_HALF_HEIGHT_EMS = 0.85;
+
+/**
+ * Half a callout's box, in picture units, round the middle of its words: as
+ * wide as they are set ({@link textEms}) and a pad, never narrower than a
+ * label is, and as tall as a line of them and a pad. The one place a box's
+ * size is decided: the drawing, the reach, the hit test and the selection
+ * all take it from here.
+ */
+export function calloutHalfBox(text: string): { halfWidth: number; halfHeight: number } {
+  return {
+    halfWidth: CALLOUT_TEXT_SIZE * (Math.max(textEms(text), 0.6) / 2 + CALLOUT_PAD_EMS),
+    halfHeight: CALLOUT_TEXT_SIZE * CALLOUT_HALF_HEIGHT_EMS,
+  };
+}
+
+/** A callout as it is drawn, in picture units: its box, and the line from its point to it. */
+export interface CalloutShape {
+  /** The box's outline — its stroke's middle — round the middle of its words, `to`. */
+  box: { x: number; y: number; width: number; height: number };
+  /**
+   * The line from the point the callout marks to where it meets the box's
+   * outline, on its way to the box's middle; null when the point is inside
+   * the box, or on its outline.
+   */
+  line: readonly [PicturePoint, PicturePoint] | null;
+}
+
+/**
+ * A callout's shape ({@link CalloutShape}): its box from
+ * {@link calloutHalfBox}, its line stopped at the box's edge. Its words are
+ * centred on `to`, as a label's are on its point.
+ */
+export function calloutShape({ from, to, text }: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'text'>): CalloutShape {
+  const { halfWidth, halfHeight } = calloutHalfBox(text ?? '');
+  const box = { x: to[0] - halfWidth, y: to[1] - halfHeight, width: 2 * halfWidth, height: 2 * halfHeight };
+  const dx = from[0] - to[0];
+  const dy = from[1] - to[1];
+  if (Math.abs(dx) <= halfWidth && Math.abs(dy) <= halfHeight) return { box, line: null };
+  // From the box's middle toward the point, the share of the way at which it leaves the box.
+  const leaves = Math.min(dx === 0 ? Infinity : halfWidth / Math.abs(dx), dy === 0 ? Infinity : halfHeight / Math.abs(dy));
+  return { box, line: [from, [to[0] + dx * leaves, to[1] + dy * leaves]] };
 }
 
 /**
@@ -470,6 +632,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'label':
     case 'circle':
+    case 'callout':
       return false;
   }
 }
@@ -509,7 +672,8 @@ export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiag
  * loops back to end beside its tail is still an arrow.
  */
 export function isDegenerate(annotation: KnownDiagramAnnotation, minLength: number): boolean {
-  if (isPointKind(annotation.kind)) return false;
+  // A callout's box is drawn wherever it sits, its point under it or not.
+  if (isPointKind(annotation.kind) || ANNOTATION_SHAPES[annotation.kind] === 'callout') return false;
   if (annotation.path) return pathLength(annotation.path) < minLength;
   return Math.hypot(annotation.to[0] - annotation.from[0], annotation.to[1] - annotation.from[1]) < minLength;
 }
@@ -550,6 +714,14 @@ export interface PictureMove {
    * turned back in one says the same thing. Absent, the move's own, rounded.
    */
   quarterTurns?: number;
+  /**
+   * How a direction on the picture is carried by the move as a whole — its
+   * turn, its mirror, its change of frame — without the stretch a spread
+   * gives each face of its own: for a mark that keeps its shape round one
+   * point (a callout's box, beside its point). Absent, the move is the same
+   * everywhere and `point` says it.
+   */
+  vector?: (vector: PicturePoint) => PicturePoint;
 }
 
 /**
@@ -560,6 +732,7 @@ export interface PictureMove {
  * turns a turn-over's axis. A label's text stays upright.
  */
 export function carryAnnotation(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  if (annotation.kind === 'callout') return carryCallout(annotation, move);
   if (annotation.path) {
     const path = annotation.path.map((node) => ({
       ...node,
@@ -585,6 +758,26 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
     carried.axis = annotation.axis === 'vertical' ? 'horizontal' : 'vertical';
   }
   return carried;
+}
+
+/**
+ * A callout carried with the face under its point: the point moves as a
+ * point does, and the box keeps its place beside it — turned and mirrored as
+ * the picture is, never spread with whatever face lies under the box, which
+ * may be another, or none off the paper. Its words stay upright.
+ */
+function carryCallout(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  const { from, to } = annotation;
+  const offset: PicturePoint = [to[0] - from[0], to[1] - from[1]];
+  const carried = withinReach(move.point(from));
+  let turned: PicturePoint;
+  if (move.vector) turned = move.vector(offset);
+  else {
+    const [x0, y0] = move.point(from);
+    const [x1, y1] = move.point([from[0] + offset[0], from[1] + offset[1]]);
+    turned = [x1 - x0, y1 - y0];
+  }
+  return { ...annotation, from: carried, to: withinReach([carried[0] + turned[0], carried[1] + turned[1]]) };
 }
 
 /** A picture flipped left to right inside its frame. */

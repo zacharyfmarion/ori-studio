@@ -83,7 +83,8 @@ export type DiagramAnnotationTool =
   | 'mountain_line'
   | 'hidden_line'
   | 'label'
-  | 'circle';
+  | 'circle'
+  | 'callout';
 
 /**
  * How a new annotation was put down (decision 9): snapped to a point of the

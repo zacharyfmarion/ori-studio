@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { CP_MODEL_TO_CSS } from '../../cp-workspace/snapRadius';
 import { CP_COARSE_POINTER_SNAP_RADIUS, CP_DEFAULT_SNAP_RADIUS } from '../../lib/cpSnapRadiusSetting';
-import { placePoint, snapOutcome, snapRadiusCss, snapRadiusUnits, snapsWhenPlaced, type SnapContext } from './annotateSnap';
+import {
+  placePoint,
+  snapOutcome,
+  snapRadiusCss,
+  snapRadiusUnits,
+  snapsEnd,
+  snapsWhenPlaced,
+  type SnapContext,
+} from './annotateSnap';
 import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
 import { ANNOTATION_KINDS } from './annotationModel';
 import { annotation, uploadStep } from './pictureSnap.fixtures';
@@ -24,10 +32,11 @@ describe('the snap radius (decision 10)', () => {
 });
 
 describe('what snaps (decision 9)', () => {
-  it('is a circle and an arrow’s or a line’s ends, never a sign or a label', () => {
+  it('is a circle, an arrow’s or a line’s ends and a callout’s point, never a sign or a label', () => {
     const snapping = ANNOTATION_KINDS.filter(snapsWhenPlaced);
     expect([...snapping].sort()).toEqual(
       [
+        'callout',
         'circle',
         'fold-unfold-arrow',
         'hidden-line',
@@ -38,6 +47,15 @@ describe('what snaps (decision 9)', () => {
         'valley-line',
       ].sort()
     );
+  });
+
+  it('snaps a callout’s point, never its box, and either end of anything else that snaps', () => {
+    expect(snapsEnd('callout', 'from')).toBe(true);
+    expect(snapsEnd('callout', 'to')).toBe(false);
+    for (const kind of ANNOTATION_KINDS.filter((each) => each !== 'callout')) {
+      expect(snapsEnd(kind, 'from'), kind).toBe(snapsWhenPlaced(kind));
+      expect(snapsEnd(kind, 'to'), kind).toBe(snapsWhenPlaced(kind));
+    }
   });
 });
 

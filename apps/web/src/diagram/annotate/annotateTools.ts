@@ -44,6 +44,7 @@ const TOOL_GROUP: Readonly<Record<DiagramAnnotationKind, Exclude<AnnotateToolGro
   'hidden-line': 'lines',
   label: 'text',
   circle: 'marks',
+  callout: 'text',
 };
 
 /** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Marks; Text — each kind's tool in its group, in kind order. */
@@ -68,6 +69,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DiagramAnnotationKind, Dia
   'hidden-line': 'diagram.toolHiddenLine',
   label: 'diagram.toolLabel',
   circle: 'diagram.toolCircle',
+  callout: 'diagram.toolCallout',
 };
 
 /** Edit Path's key. */
@@ -112,6 +114,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolLabel', 'Label');
     case 'circle':
       return t('tools:diagram.toolCircle', 'Circle');
+    case 'callout':
+      return t('tools:diagram.toolCallout', 'Callout');
   }
 }
 
@@ -156,6 +160,11 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it here.');
     case 'circle':
       return t('panels:diagram.annotate.circleHelp', 'Click a point to circle it.');
+    case 'callout':
+      return t(
+        'panels:diagram.annotate.calloutHelp',
+        'Drag from a point to where the box goes, or click the point, then type its words here.'
+      );
   }
 }
 

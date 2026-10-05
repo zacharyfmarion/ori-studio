@@ -1,5 +1,6 @@
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { trackDiagramAnnotationAdded } from '../../analytics';
 import {
   DIAGRAM_ARROWHEAD_INK,
@@ -29,7 +30,7 @@ import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { stepPictureUrl } from '../pictures/useStepPictureUrl';
 import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useDiagramShortcuts';
 import { EDIT_PATH, drawingKind } from './annotateTools';
-import { placePoint, snapOutcome, snapsWhenPlaced, type PlacedPoint } from './annotateSnap';
+import { placePoint, snapOutcome, snapsEnd, snapsWhenPlaced, type PlacedPoint } from './annotateSnap';
 import { annotationActionEdit, editAnnotation } from './annotationActions';
 import {
   circleRadius,
@@ -46,12 +47,14 @@ import {
   LABEL_SIZE,
   MIN_ANNOTATION_LENGTH,
   canBeShaped,
+  carriesText,
   createAnnotation,
   frameOf,
   isDegenerate,
   isPointKind,
   moveAnnotation,
   moveAnnotationEnd,
+  placedByClick,
   type PictureFrame,
   type PicturePoint,
 } from './annotationModel';
@@ -224,6 +227,10 @@ export function useAnnotateCanvas({
   style: DiagramStyle;
   readOnly: boolean;
 }) {
+  const { t } = useTranslation();
+  // What a new callout says, in the author's own language: the words become
+  // theirs, printed as they read them, like anything typed (D8).
+  const calloutText = t('panels:diagram.annotations.repeatBehind', 'Repeat behind');
   const coarse = useIsCoarsePointerSurface();
   const tool = useWorkspaceStore((state) => state.diagramAnnotateTool);
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
@@ -359,8 +366,9 @@ export function useAnnotateCanvas({
   /**
    * Where the pointer at `at` puts what is in hand, snapped as the mark it is
    * (decision 9): a drawing's end — a circle's centre — or an arrow's or a
-   * line's end taken hold of with Select, never onto the annotation itself; a
-   * circle moved whole, its centre, the press keeping its offset from it.
+   * line's end, or a callout's point, taken hold of with Select, never onto
+   * the annotation itself; a circle moved whole, its centre, the press
+   * keeping its offset from it. A callout's box never snaps (`snapsEnd`).
    * With ⌘ (Ctrl) held (`free`), where the pointer is. Edit Path's nodes and
    * handles never snap.
    */
@@ -369,11 +377,16 @@ export function useAnnotateCanvas({
       const loose = { at, target: null };
       switch (current.mode) {
         case 'draw':
-          return snapsWhenPlaced(current.kind) ? placePoint(snapContext(), at, { free }) : loose;
+          // The end a drag puts down: a point kind's one place, anything else's `to`.
+          return snapsEnd(current.kind, isPointKind(current.kind) ? 'from' : 'to')
+            ? placePoint(snapContext(), at, { free })
+            : loose;
         case 'move': {
           const { grip, original } = current;
           if (!snapsWhenPlaced(original.kind)) return loose;
-          if (grip.part === 'from' || grip.part === 'to') return placePoint(snapContext(), at, { free, ignore: original.id });
+          if (grip.part === 'from' || grip.part === 'to') {
+            return snapsEnd(original.kind, grip.part) ? placePoint(snapContext(), at, { free, ignore: original.id }) : loose;
+          }
           if (grip.part !== 'body' || !isPointKind(original.kind)) return loose;
           const centre: PicturePoint = [original.from[0] + at[0] - current.start[0], original.from[1] + at[1] - current.start[1]];
           const landed = placePoint(snapContext(), centre, { free, ignore: original.id });
@@ -470,7 +483,7 @@ export function useAnnotateCanvas({
       if (kind !== null) {
         if (readOnly) return;
         const free = isPrimaryModifier(event);
-        const start = snapsWhenPlaced(kind) ? placePoint(snapContext(), at, { free }) : { at, target: null };
+        const start = snapsEnd(kind, 'from') ? placePoint(snapContext(), at, { free }) : { at, target: null };
         gesture.current = { mode: 'draw', kind, start: start.at, startTarget: start.target, free, ...press };
         // Where the press landed, at once: a finger sees it before its slop.
         showSnap([start.target]);
@@ -536,6 +549,12 @@ export function useAnnotateCanvas({
       case 'from':
       case 'to':
         return moveAnnotationEnd(annotation, grip.part, at);
+      case 'box':
+        // Taken anywhere on it, it goes by the pointer's travel, its point left where it is.
+        return moveAnnotationEnd(annotation, 'to', [
+          annotation.to[0] + at[0] - current.start[0],
+          annotation.to[1] + at[1] - current.start[1],
+        ]);
       case 'node':
       case 'handle':
       case 'segment':
@@ -594,14 +613,15 @@ export function useAnnotateCanvas({
       const placed = placeInHand(current, pointer, isPrimaryModifier(event));
       if (current.mode === 'draw') {
         const point = isPointKind(current.kind);
-        setDraft(createAnnotation(current.kind, point ? placed.at : current.start, placed.at, layout.pictureFrame, () => DRAFT_ID));
+        const start = point ? placed.at : current.start;
+        setDraft(createAnnotation(current.kind, start, placed.at, layout.pictureFrame, () => DRAFT_ID, calloutText));
         showSnap([point ? null : current.startTarget, placed.target]);
         return;
       }
       setDraft(moved(current, current.original, placed));
       showSnap([placed.target]);
     },
-    [layout, toPicture, cancel, step.id, hover, placeInHand, showSnap]
+    [layout, toPicture, cancel, step.id, hover, placeInHand, showSnap, calloutText]
   );
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => pointerMoved(event.nativeEvent), [pointerMoved]);
@@ -705,15 +725,23 @@ export function useAnnotateCanvas({
       const free = isPrimaryModifier(event);
       if (current.mode === 'draw') {
         const point = isPointKind(current.kind);
-        // A line or an arrow is drawn by a drag; a sign or a label is put down by a click.
-        if (!point && !current.moved) return;
+        // A line or an arrow is drawn by a drag; a sign or a label is put down
+        // by a click; a callout by either, a click putting its box beside its point.
+        if (!placedByClick(current.kind) && !current.moved) return;
         // A click puts a point where its press showed it: a hand or a finger
         // drifting within its slop before it lifts has not moved it.
         const { at, target } =
           point && !current.moved
             ? { at: current.start, target: current.startTarget }
             : placeInHand(current, toPicture(event.clientX, event.clientY) ?? current.start, free);
-        const annotation = createAnnotation(current.kind, point ? at : current.start, at, layout.pictureFrame);
+        const annotation = createAnnotation(
+          current.kind,
+          point ? at : current.start,
+          at,
+          layout.pictureFrame,
+          undefined,
+          calloutText
+        );
         if (isDegenerate(annotation, MIN_ANNOTATION_LENGTH)) return;
         const added = store.editDiagramAnnotations(step.id, 'Add annotation', (list) => [...list, annotation], {
           select: annotation.id,
@@ -725,9 +753,9 @@ export function useAnnotateCanvas({
           ANNOTATION_TOOL[annotation.kind],
           snapOutcome(annotation.kind, { enabled: snap.enabled, free: free || current.free, snapped })
         );
-        if (annotation.kind === 'label') {
-          // A label is written, not drawn again: Select comes back to hand,
-          // and its field takes the keys.
+        if (carriesText(annotation.kind)) {
+          // A label or a callout is written, not drawn again: Select comes
+          // back to hand, and its field takes the keys.
           store.setDiagramAnnotateTool(null);
           requestLabelFocus(annotation.id);
         }
@@ -755,7 +783,7 @@ export function useAnnotateCanvas({
         { loadId }
       );
     },
-    [layout, toPicture, step.id, release, landPath, showSnap, placeInHand, snap.enabled]
+    [layout, toPicture, step.id, release, landPath, showSnap, placeInHand, snap.enabled, calloutText]
   );
 
   const onPointerGone = useCallback(
@@ -805,6 +833,7 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'hidden-line': 'hidden_line',
   label: 'label',
   circle: 'circle',
+  callout: 'callout',
 };
 
 /**

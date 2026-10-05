@@ -809,6 +809,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'hidden-line': fields(),
     label: fields('text'),
     circle: fields(),
+    callout: fields('text'),
   };
 })();
 
@@ -879,7 +880,9 @@ function readAnnotation(
       if (typeof entry.bend !== 'number' || !Number.isFinite(entry.bend) || entry.bend === 0) return null;
       return Math.abs(entry.bend) > MAX_BEND ? NEWER : { ...annotation, bend: entry.bend };
     }
-    case 'label': {
+    // A callout's words are read as a label's: one line, as long as a label may be.
+    case 'label':
+    case 'callout': {
       if (typeof entry.text !== 'string') return null;
       const text = xmlText(entry.text);
       return text.length > LABEL_MAX_LENGTH ? NEWER : { ...annotation, text };

@@ -131,6 +131,20 @@ describe.skipIf(!available)('a diagram as one PDF', () => {
     expect(text).toMatch(/NotoSansSC-Bold/);
   });
 
+  it('prints a callout’s words in the diagram’s fonts, its Han in the diagram’s style', async () => {
+    const step = cpStep('step-callout');
+    const callout = { id: 'c-1', kind: 'callout' as const, from: [0.2, 0.8] as [number, number], to: [0.6, 0.3] as [number, number], text: 'Repeat 将底角' };
+    const document = insertSteps(createDiagram({ title: '', hanStyle: 'sc' }), [
+      { ...step, annotations: [callout], annotatedPictureKey: step.picture!.key },
+    ], 0);
+    const input = diagramPdfInput(document, FONTS, subsetter, 'home');
+    expect(input.missing).toEqual([]);
+    const pdf = await write(input.pages, input.fonts, input.options);
+    const text = new TextDecoder('latin1').decode(pdf);
+    expect(text).toContain('NotoSans-Regular');
+    expect(text).toMatch(/NotoSansSC-Regular/);
+  });
+
   it('refuses a diagram with a character no font has, rather than print a box', async () => {
     const document = diagram(1);
     const input = diagramPdfInput(

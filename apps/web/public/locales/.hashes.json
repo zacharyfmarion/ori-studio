@@ -3963,7 +3963,7 @@
     "panels:diagram.annotate.groupMarks": "65479e3e408a",
     "tools:diagram.toolCircle": "b93d3bcecff5",
     "panels:diagram.annotations.snap": "fd66a4a09213",
-    "panels:diagram.annotations.snapHelp": "17dc5036c6f3",
+    "panels:diagram.annotations.snapHelp": "117925b77b7d",
     "panels:simulator.canvasAriaLabelPin": "94c6a2790eb3",
     "panels:simulator.canvasTitlePin": "0733323acc94",
     "panels:simulator.tools.instructions": "934652dce41d",
@@ -4012,7 +4012,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.calloutHelp": "1d261e3c8775",
+    "panels:diagram.annotations.repeatBehind": "dc6a3e3733ae",
+    "tools:diagram.toolCallout": "14bfdc0e32aa"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7978,7 +7981,7 @@
     "panels:diagram.annotate.groupMarks": "65479e3e408a",
     "tools:diagram.toolCircle": "b93d3bcecff5",
     "panels:diagram.annotations.snap": "fd66a4a09213",
-    "panels:diagram.annotations.snapHelp": "17dc5036c6f3",
+    "panels:diagram.annotations.snapHelp": "117925b77b7d",
     "panels:simulator.canvasAriaLabelPin": "94c6a2790eb3",
     "panels:simulator.canvasTitlePin": "0733323acc94",
     "panels:simulator.tools.instructions": "934652dce41d",
@@ -8027,7 +8030,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.calloutHelp": "1d261e3c8775",
+    "panels:diagram.annotations.repeatBehind": "dc6a3e3733ae",
+    "tools:diagram.toolCallout": "14bfdc0e32aa"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11995,7 +12001,7 @@
     "panels:diagram.annotate.groupMarks": "65479e3e408a",
     "tools:diagram.toolCircle": "b93d3bcecff5",
     "panels:diagram.annotations.snap": "fd66a4a09213",
-    "panels:diagram.annotations.snapHelp": "17dc5036c6f3",
+    "panels:diagram.annotations.snapHelp": "117925b77b7d",
     "panels:simulator.canvasAriaLabelPin": "94c6a2790eb3",
     "panels:simulator.canvasTitlePin": "0733323acc94",
     "panels:simulator.tools.instructions": "934652dce41d",
@@ -12044,7 +12050,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.calloutHelp": "1d261e3c8775",
+    "panels:diagram.annotations.repeatBehind": "dc6a3e3733ae",
+    "tools:diagram.toolCallout": "14bfdc0e32aa"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15925,7 +15934,7 @@
     "panels:diagram.annotate.groupMarks": "65479e3e408a",
     "tools:diagram.toolCircle": "b93d3bcecff5",
     "panels:diagram.annotations.snap": "fd66a4a09213",
-    "panels:diagram.annotations.snapHelp": "17dc5036c6f3",
+    "panels:diagram.annotations.snapHelp": "117925b77b7d",
     "panels:simulator.canvasAriaLabelPin": "94c6a2790eb3",
     "panels:simulator.canvasTitlePin": "0733323acc94",
     "panels:simulator.tools.instructions": "934652dce41d",
@@ -15973,7 +15982,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.calloutHelp": "1d261e3c8775",
+    "panels:diagram.annotations.repeatBehind": "dc6a3e3733ae",
+    "tools:diagram.toolCallout": "14bfdc0e32aa"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -19854,7 +19866,7 @@
     "panels:diagram.annotate.groupMarks": "65479e3e408a",
     "tools:diagram.toolCircle": "b93d3bcecff5",
     "panels:diagram.annotations.snap": "fd66a4a09213",
-    "panels:diagram.annotations.snapHelp": "17dc5036c6f3",
+    "panels:diagram.annotations.snapHelp": "117925b77b7d",
     "panels:simulator.canvasAriaLabelPin": "94c6a2790eb3",
     "panels:simulator.canvasTitlePin": "0733323acc94",
     "panels:simulator.tools.instructions": "934652dce41d",
@@ -19902,7 +19914,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.calloutHelp": "1d261e3c8775",
+    "panels:diagram.annotations.repeatBehind": "dc6a3e3733ae",
+    "tools:diagram.toolCallout": "14bfdc0e32aa"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -23868,7 +23883,7 @@
     "panels:diagram.annotate.groupMarks": "65479e3e408a",
     "tools:diagram.toolCircle": "b93d3bcecff5",
     "panels:diagram.annotations.snap": "fd66a4a09213",
-    "panels:diagram.annotations.snapHelp": "17dc5036c6f3",
+    "panels:diagram.annotations.snapHelp": "117925b77b7d",
     "panels:simulator.canvasAriaLabelPin": "94c6a2790eb3",
     "panels:simulator.canvasTitlePin": "0733323acc94",
     "panels:simulator.tools.instructions": "934652dce41d",
@@ -23917,7 +23932,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.calloutHelp": "1d261e3c8775",
+    "panels:diagram.annotations.repeatBehind": "dc6a3e3733ae",
+    "tools:diagram.toolCallout": "14bfdc0e32aa"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -27883,7 +27901,7 @@
     "panels:diagram.annotate.groupMarks": "65479e3e408a",
     "tools:diagram.toolCircle": "b93d3bcecff5",
     "panels:diagram.annotations.snap": "fd66a4a09213",
-    "panels:diagram.annotations.snapHelp": "17dc5036c6f3",
+    "panels:diagram.annotations.snapHelp": "117925b77b7d",
     "panels:simulator.canvasAriaLabelPin": "94c6a2790eb3",
     "panels:simulator.canvasTitlePin": "0733323acc94",
     "panels:simulator.tools.instructions": "934652dce41d",
@@ -27932,7 +27950,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.calloutHelp": "1d261e3c8775",
+    "panels:diagram.annotations.repeatBehind": "dc6a3e3733ae",
+    "tools:diagram.toolCallout": "14bfdc0e32aa"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -31813,7 +31834,7 @@
     "panels:diagram.annotate.groupMarks": "65479e3e408a",
     "tools:diagram.toolCircle": "b93d3bcecff5",
     "panels:diagram.annotations.snap": "fd66a4a09213",
-    "panels:diagram.annotations.snapHelp": "17dc5036c6f3",
+    "panels:diagram.annotations.snapHelp": "117925b77b7d",
     "panels:simulator.canvasAriaLabelPin": "94c6a2790eb3",
     "panels:simulator.canvasTitlePin": "0733323acc94",
     "panels:simulator.tools.instructions": "934652dce41d",
@@ -31861,6 +31882,9 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.calloutHelp": "1d261e3c8775",
+    "panels:diagram.annotations.repeatBehind": "dc6a3e3733ae",
+    "tools:diagram.toolCallout": "14bfdc0e32aa"
   }
 }

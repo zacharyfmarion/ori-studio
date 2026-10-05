@@ -500,8 +500,9 @@ export type DiagramPicture =
 /**
  * What an annotation draws (D8): a fold arrow — kept (valley, mountain) or
  * made and unfolded — a push, the turn-over and rotate glyphs, a crease line
- * in the diagram's pens, a label, and a circle round a point, as References
- * rings one.
+ * in the diagram's pens, a label, a circle round a point, as References
+ * rings one, and a callout: a line from a point to a box of words, as
+ * diagrams say "repeat behind".
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
@@ -514,7 +515,8 @@ export type DiagramAnnotationKind =
   | 'mountain-line'
   | 'hidden-line'
   | 'label'
-  | 'circle';
+  | 'circle'
+  | 'callout';
 
 /** How far, and which way, a rotate glyph turns the model. */
 export interface DiagramRotation {
@@ -553,9 +555,9 @@ export interface KnownDiagramAnnotation {
   /** `annotation-<uuid>`. */
   id: string;
   kind: DiagramAnnotationKind;
-  /** Where it starts: an arrow's tail, a line's end, a glyph's or a label's centre. */
+  /** Where it starts: an arrow's tail, a line's end, a glyph's or a label's centre, the point a callout marks. */
   from: [number, number];
-  /** Where it ends: an arrow's tip; `from` again for a glyph or a label. */
+  /** Where it ends: an arrow's tip, the middle of a callout's box; `from` again for a glyph or a label. */
   to: [number, number];
   /**
    * A fold arrow's arc: its sagitta as a share of its chord, positive bulging
@@ -569,7 +571,7 @@ export interface KnownDiagramAnnotation {
    * is reshaped; an arrow that never was keeps its exact arc (`bend`).
    */
   path?: DiagramPathNode[];
-  /** A label's text. */
+  /** A label's or a callout's text. */
   text?: string;
   rotate?: DiagramRotation;
   /** The axis a turn-over turns the model about. */

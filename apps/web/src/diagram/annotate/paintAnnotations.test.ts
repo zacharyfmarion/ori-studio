@@ -16,7 +16,7 @@ import {
   type DiagramArc,
 } from '../../cp-workspace/references/stepDiagramGeometry';
 import { cubicPoint } from '../../lib/cubicBezier';
-import { ARROW_BEND } from './annotationModel';
+import { ARROW_BEND, CALLOUT_TEXT_SIZE, calloutShape } from './annotationModel';
 import { arcToPath } from './annotationPath';
 import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { paintAsset } from '../pictures/paintDiagramStep';
@@ -190,6 +190,73 @@ describe('a circle', () => {
     const painted = paintAnnotations([off], { x: 0, y: 0, width: 400, height: 300 }, 400, DEFAULT_DIAGRAM_STYLE)!;
     const ringWidth = Number(/<circle [^>]*stroke-width="([\d.]+)"/.exec(painted.markup)![1]);
     expect(painted.bounds.x).toBeCloseTo(-40 - 3.07 * ink - ringWidth / 2, 3);
+  });
+});
+
+describe('a callout', () => {
+  const callout = a('c', 'callout', { from: [0.2, 0.7], to: [0.6, 0.3], text: 'Repeat behind 裏も' });
+  const box = { x: 0, y: 0, width: 400, height: 300 };
+
+  it('is a line in the annotation pen to a white box outlined in the arrow pen, its words set as a label’s', () => {
+    const arrow = a('v', 'valley-arrow', { from: [0.1, 0.2], to: [0.4, 0.2], bend: ARROW_BEND });
+    const { markup } = paintAnnotations([callout, arrow], box, 400, DEFAULT_DIAGRAM_STYLE)!;
+    const [, shaft] = /<path d="M [^"]*A [^"]*" stroke-width="([\d.]+)"/.exec(markup)!;
+    const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
+    const line = /<line x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)" fill="none" stroke="([^"]+)" stroke-width="([\d.]+)" stroke-linecap="round"/.exec(markup)!;
+    const rect = /<rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="([^"]+)" stroke="([^"]+)" stroke-width="([\d.]+)" stroke-linejoin="miter"/.exec(markup)!;
+    expect(line).not.toBeNull();
+    expect(rect).not.toBeNull();
+    // The line from the point to the box's edge, in the annotation pen: a circle's ring's, three quarters of the arrow's.
+    const shape = calloutShape(callout);
+    expect([Number(line[1]), Number(line[2])]).toEqual([80, 280]);
+    expect(Number(line[3])).toBeCloseTo(shape.line![1][0] * 400, 6);
+    expect(Number(line[4])).toBeCloseTo(shape.line![1][1] * 400, 6);
+    expect(Number(line[6])).toBeCloseTo(0.75 * Number(shaft), 3);
+    // The box, filled with the page's white, outlined in the arrow pen, in the arrow's ink.
+    expect(Number(rect[1])).toBeCloseTo(shape.box.x * 400, 6);
+    expect(Number(rect[4])).toBeCloseTo(shape.box.height * 400, 6);
+    expect(rect[5]).toBe('#ffffff');
+    expect(Number(rect[7])).toBeCloseTo(Number(shaft), 3);
+    expect([line[5], rect[6]]).toEqual([head, head]);
+    // Its words, centred on the box's middle as a label's are on its point, each script in its font.
+    const text = /<text x="([-\d.]+)" y="([-\d.]+)" font-size="([\d.]+)" text-anchor="middle" fill="([^"]+)">(.*?)<\/text>/.exec(markup)!;
+    expect(Number(text[1])).toBeCloseTo(240, 3);
+    expect(Number(text[2])).toBeCloseTo(120 + 0.36 * CALLOUT_TEXT_SIZE * 400, 3);
+    expect(Number(text[3])).toBeCloseTo(CALLOUT_TEXT_SIZE * 400, 3);
+    expect(text[4]).toBe(head);
+    expect(text[5]).toBe(
+      `<tspan font-family="&#x27;Noto Sans&#x27;, sans-serif" font-weight="400">Repeat behind </tspan>` +
+        `<tspan font-family="&#x27;Noto Sans JP&#x27;, sans-serif" font-weight="400">裏も</tspan>`
+    );
+    // Line, box, then words — over the arrow, drawn first.
+    expect(markup.indexOf('<line')).toBeGreaterThan(markup.indexOf('A '));
+    expect(markup.indexOf('<rect')).toBeGreaterThan(markup.indexOf('<line'));
+    expect(markup.indexOf('<text')).toBeGreaterThan(markup.indexOf('<rect'));
+  });
+
+  it('is drawn over the marks and under the labels, whatever their order', () => {
+    const label = a('l', 'label', { from: [0.6, 0.3], to: [0.6, 0.3], text: 'A' });
+    const push = a('p', 'push-arrow', { from: [0.5, 0.3], to: [0.7, 0.3] });
+    const { markup } = paintAnnotations([label, callout, push], box, 400, DEFAULT_DIAGRAM_STYLE)!;
+    const push0 = markup.indexOf('stroke-linejoin="miter"');
+    expect(markup.indexOf('<rect')).toBeGreaterThan(push0);
+    expect(markup.lastIndexOf('<text')).toBeGreaterThan(markup.indexOf('<rect'));
+    expect(markup.slice(markup.lastIndexOf('<text'))).toContain('>A</tspan>');
+  });
+
+  it('has no line with its point inside its box, and draws nothing with no words', () => {
+    const covered = { ...callout, from: [0.61, 0.31] as [number, number] };
+    const { markup } = paintAnnotations([covered], box, 400, DEFAULT_DIAGRAM_STYLE)!;
+    expect(markup).not.toContain('<line');
+    expect(markup).toContain('<rect');
+    expect(paintAnnotations([{ ...callout, text: '  ' }], box, 400, DEFAULT_DIAGRAM_STYLE)).toBeNull();
+  });
+
+  it('sets its words as runs a page loads its fonts for, Han in the diagram’s style', () => {
+    expect(annotationTextRuns([a('c', 'callout', { text: 'Repeat 中文' }), a('v', 'valley-line')], 'tc')).toEqual([
+      { face: { key: 'latin', weight: 400 }, text: 'Repeat ' },
+      { face: { key: 'tc', weight: 400 }, text: '中文' },
+    ]);
   });
 });
 
@@ -516,6 +583,59 @@ describe('paintAnnotations', () => {
           const overrun = Math.max(...ink.map((point) => Math.max(x - point.x, y - point.y, point.x - x - width, point.y - y - height)));
           expect(ink.length, name).toBeGreaterThan(4);
           expect(overrun, name).toBeLessThanOrEqual(1e-6);
+        }
+      }
+    }
+  });
+
+  it('keeps a callout inside its reach at any pen, the heaviest too: its box, its outline’s pen and its line, exactly', () => {
+    const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    const callouts = [
+      // Its line coming in from below left, from straight below, from the left, from above the right; none at all.
+      a('below-left', 'callout', { from: [0.1, 0.9], to: [0.6, 0.3], text: 'Repeat behind' }),
+      a('below', 'callout', { from: [0.6, 1.4], to: [0.6, 0.3], text: 'Repeat on the other flap' }),
+      a('left', 'callout', { from: [-0.8, 0.3], to: [0.6, 0.3], text: '裏側も同様に' }),
+      a('above', 'callout', { from: [0.9, -0.5], to: [0.2, 0.9], text: 'W' }),
+      // Its box past the frame, each way: up and to the right, down and to the left.
+      a('box-off-up-right', 'callout', { from: [0.8, 0.2], to: [1.1, -0.1], text: 'Repeat behind' }),
+      a('box-off-down-left', 'callout', { from: [0.2, 0.8], to: [-0.1, 1.1], text: '裏側も同様に' }),
+      a('covered', 'callout', { from: [0.61, 0.31], to: [0.6, 0.3], text: 'Repeat behind' }),
+    ];
+    for (const style of [DEFAULT_DIAGRAM_STYLE, heavy]) {
+      for (const framePx of [150, 1000]) {
+        for (const callout of callouts) {
+          const painted = paintAnnotations([callout], { x: 0, y: 0, width: framePx, height: framePx }, framePx, style)!;
+          const attribute = (element: string, name: string) => Number(new RegExp(` ${name}="([-\\d.e]+)"`).exec(element)![1]);
+          // The ink as painted, read off the markup: the box's outline, its stroke's half-width round
+          // its rectangle — a mitred right angle's corner is that far out on both sides — and the line,
+          // its round ends half its stroke round each.
+          const ink: { x: number; y: number }[] = [];
+          const rect = /<rect [^>]*>/.exec(painted.markup)![0];
+          const half = attribute(rect, 'stroke-width') / 2;
+          const [x, y, width, height] = ['x', 'y', 'width', 'height'].map((name) => attribute(rect, name)) as [number, number, number, number];
+          ink.push({ x: x - half, y: y - half }, { x: x + width + half, y: y + height + half });
+          const line = /<line [^>]*>/.exec(painted.markup)?.[0];
+          if (line) {
+            const pen = attribute(line, 'stroke-width') / 2;
+            for (const [px, py] of [
+              [attribute(line, 'x1'), attribute(line, 'y1')],
+              [attribute(line, 'x2'), attribute(line, 'y2')],
+            ] as const) {
+              ink.push({ x: px - pen, y: py - pen }, { x: px + pen, y: py + pen });
+            }
+          }
+          const name = `${callout.id} at ${framePx} px, ${style === heavy ? 'a 12 pt pen' : 'the default pen'}`;
+          expect(line === undefined, name).toBe(callout.id === 'covered');
+          const { x: bx, y: by, width: bw, height: bh } = painted.bounds;
+          // Exactly: the reach is the ink's own box, or the frame's where that is farther.
+          const left = Math.min(0, ...ink.map((point) => point.x));
+          const top = Math.min(0, ...ink.map((point) => point.y));
+          const right = Math.max(framePx, ...ink.map((point) => point.x));
+          const bottom = Math.max(framePx, ...ink.map((point) => point.y));
+          expect(bx, name).toBeCloseTo(left, 6);
+          expect(by, name).toBeCloseTo(top, 6);
+          expect(bx + bw, name).toBeCloseTo(right, 6);
+          expect(by + bh, name).toBeCloseTo(bottom, 6);
         }
       }
     }

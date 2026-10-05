@@ -131,6 +131,7 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolHiddenLine': true,
   'diagram.toolLabel': true,
   'diagram.toolCircle': true,
+  'diagram.toolCallout': true,
   'diagram.flipArc': true,
 };
 

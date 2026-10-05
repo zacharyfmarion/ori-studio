@@ -194,6 +194,12 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
   const epsilon = 1e-9 * longerFrom;
   return {
     ...turn,
+    // A direction goes as the turn takes it, whatever the spread does to the face round it.
+    vector: ([dx, dy]) => {
+      const [x0, y0] = turn.point([0, 0]);
+      const [x1, y1] = turn.point([dx, dy]);
+      return [x1 - x0, y1 - y0];
+    },
     point: ([u, v]) => {
       const at = { x: from.minX + u * longerFrom, y: from.minY + v * longerFrom };
       // Back to front, so the last face found is the one the mark sits on.

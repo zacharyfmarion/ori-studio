@@ -759,6 +759,7 @@
     },
     "annotate": {
       "arrowHelp": "Arrastra desde donde empieza el papel hasta donde llega.",
+      "calloutHelp": "Arrastra desde un punto hasta donde va el recuadro, o haz clic en el punto, y escribe aquí su texto.",
       "canvasLabel": "Anotaciones en la imagen del paso",
       "circleHelp": "Haz clic en un punto para rodearlo con un círculo.",
       "controls": "Controles de la vista Anotar",
@@ -807,11 +808,12 @@
       "none": "Sin anotaciones",
       "pictureChanged": "La imagen cambió después de dibujar estas anotaciones.",
       "previousNode": "Nodo anterior",
+      "repeatBehind": "Repetir detrás",
       "resetShape": "Restablecer forma",
       "sideToSide": "De lado a lado",
       "smooth": "Suave",
       "snap": "Ajustar a la imagen",
-      "snapHelp": "Los círculos y los extremos de flechas y líneas se ajustan a los puntos cercanos de la imagen y a otras anotaciones. Mantén pulsado {{modifier}} para colocarlos en cualquier lugar.",
+      "snapHelp": "Los círculos, los puntos de las llamadas y los extremos de flechas y líneas se ajustan a los puntos cercanos de la imagen y a otras anotaciones. Mantén pulsado {{modifier}} para colocarlos en cualquier lugar.",
       "text": "Texto",
       "topToBottom": "De arriba abajo",
       "turn": "Giro"

@@ -17,6 +17,12 @@
  * - A label is a line of text at a fixed share of the frame, its runs in the
  *   diagram's fonts as an upload's text is (`uploadText.ts`), so a page sets
  *   and embeds it the same way.
+ * - A callout is a line from a point to a box of words: the line in the
+ *   annotation pen, the box filled with the page's white and outlined in the
+ *   arrow pen, its words set as a label's are. Its shape is decided in
+ *   picture units (`calloutShape`); the pens are the drawing's. It is drawn
+ *   here, not by References: its words are in the diagram's fonts, which
+ *   References knows nothing of.
  *
  * The drawing is in CSS px, the frame's top-left at the origin, its longer
  * side `framePx` across — the size it prints at — so its marks have the
@@ -36,7 +42,7 @@ import {
   type DiagramRenderContext,
 } from '../../cp-workspace/references/diagram/DiagramPrimitives';
 import { diagramInlineInk, type DiagramInlineInk } from '../../cp-workspace/references/diagram/diagramColors';
-import { markOuterRadius } from '../../cp-workspace/references/diagram/labelLayout';
+import { markOuterRadius, markRingWidth } from '../../cp-workspace/references/diagram/labelLayout';
 import {
   canvasDiagramInk,
   canvasDiagramPens,
@@ -83,17 +89,21 @@ import type { DiagramFontKey } from '../fonts/diagramFontFaces';
 import {
   arrowApex,
   arrowShape,
+  CALLOUT_TEXT_SIZE,
+  calloutShape,
+  carriesText,
   LABEL_SIZE,
   labelHalfWidth,
   pathCubics,
   pathLength,
+  type CalloutShape,
   type PictureFrame,
   type PicturePoint,
 } from './annotationModel';
 import { perAnnotation } from './perAnnotation';
 
-/** Where a label's baseline sits below its point, in ems: a capital's middle on the point. */
-const LABEL_BASELINE = 0.36;
+/** Where a label's baseline sits below its point, in ems: a capital's middle on the point. A callout's words sit so on its box's middle. */
+export const LABEL_BASELINE = 0.36;
 
 /** A label as drawn: its centre, its size and its runs, each in its script's font. */
 export interface AnnotationLabel {
@@ -103,6 +113,25 @@ export interface AnnotationLabel {
   size: number;
   fill: string;
   runs: { family: string; text: string }[];
+}
+
+/** A callout as drawn, in CSS px: its line, its box and its words, and the pens they are drawn in. */
+export interface AnnotationCallout {
+  id: string;
+  /** From the point it marks to the box's outline; null when the point is inside the box. */
+  line: { a: [number, number]; b: [number, number] } | null;
+  /** The line's pen: the annotation pen, a circle's ring's. */
+  linePen: number;
+  /** The box's outline, its stroke's middle. */
+  box: { x: number; y: number; width: number; height: number };
+  /** The box's pen: the arrow pen, mitred at its corners. */
+  boxPen: number;
+  /** The ink the line, the outline and the words are drawn in: the arrows'. */
+  ink: string;
+  /** What the box is filled with: the page's white, so it reads over the picture. */
+  ground: string;
+  /** Its words, centred in the box, as a label's are drawn. */
+  label: AnnotationLabel;
 }
 
 /** A line as drawn, in CSS px. */
@@ -130,6 +159,7 @@ export type AnnotationPrimitive = Extract<
 export type CompiledAnnotation =
   | { kind: 'line'; role: PaperLineRole; from: PicturePoint; to: PicturePoint }
   | { kind: 'label'; at: PicturePoint; runs: { key: DiagramFontKey; text: string }[] }
+  | { kind: 'callout'; shape: CalloutShape; at: PicturePoint; runs: { key: DiagramFontKey; text: string }[] }
   | { kind: 'mark'; primitive: AnnotationPrimitive };
 
 /** The annotations ready to draw, on screen or into a file. */
@@ -142,6 +172,8 @@ export interface AnnotationDrawing {
   primitives: AnnotationPrimitive[];
   primitiveIds: string[];
   context: DiagramRenderContext;
+  /** Over the marks: a callout's box hides what lies under it. */
+  callouts: AnnotationCallout[];
   labels: AnnotationLabel[];
 }
 
@@ -187,7 +219,7 @@ const up = ([u, v]: readonly [number, number]): [number, number] => [u, -v];
 
 /**
  * What an annotation is drawn as, or null when it draws nothing: an arrow too
- * short to have an arc, a label with no text. Every kind says which (a
+ * short to have an arc, a label or a callout with no text. Every kind says which (a
  * switch, so a new kind is a compile error here until it does).
  */
 function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotation | null {
@@ -240,6 +272,11 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
     case 'circle':
       // No letter (decision 8): a label names it, if anything does.
       return { kind: 'mark', primitive: { kind: 'point', at: up(from), style: 'highlight' } };
+    case 'callout': {
+      // As a label with no words draws nothing, so does a callout: an empty box says nothing.
+      const text = annotation.text ?? '';
+      return text.trim() === '' ? null : { kind: 'callout', shape: calloutShape(annotation), at: to, runs: labelRuns(text) };
+    }
   }
 }
 
@@ -264,14 +301,14 @@ export function labelRuns(text: string): { key: DiagramFontKey; text: string }[]
   return runs;
 }
 
-/** The runs of text a step's labels set, each in its face, Han in the diagram's style: for the page's fonts. */
+/** The runs of text a step's labels and callouts set, each in its face, Han in the diagram's style: for the page's fonts. */
 export function annotationTextRuns(
   annotations: readonly DiagramAnnotation[],
   hanStyle: DiagramHanStyle
 ): UploadTextRun[] {
   const runs: UploadTextRun[] = [];
   for (const annotation of annotations) {
-    if (!isKnownAnnotation(annotation) || annotation.kind !== 'label') continue;
+    if (!isKnownAnnotation(annotation) || !carriesText(annotation.kind)) continue;
     for (const run of labelRuns(annotation.text ?? '')) {
       runs.push({ face: { key: run.key === UPLOAD_HAN_KEY ? hanStyle : run.key, weight: 400 }, text: run.text });
     }
@@ -304,8 +341,12 @@ export function annotationDrawing(
   const lines: AnnotationLine[] = [];
   const primitives: AnnotationPrimitive[] = [];
   const primitiveIds: string[] = [];
+  const callouts: AnnotationCallout[] = [];
   const labels: AnnotationLabel[] = [];
   const at = ([u, v]: PicturePoint): [number, number] => [u * framePx, v * framePx];
+  // A callout's pens: the arrow pen round its box, the annotation pen — a circle's ring's — along its line.
+  const boxPen = project.pens.arrow.width * project.ink;
+  const linePen = markRingWidth(project);
   for (const annotation of annotations) {
     if (!isKnownAnnotation(annotation)) continue;
     const compiled = compiledAnnotation(annotation);
@@ -326,6 +367,22 @@ export function annotationDrawing(
         labels.push({ id: annotation.id, x, y, size: LABEL_SIZE * framePx, fill: seen.arrows.color, runs });
         break;
       }
+      case 'callout': {
+        const { line, box } = compiled.shape;
+        const [x, y] = at(compiled.at);
+        const runs = compiled.runs.map((run) => ({ family: uploadTextFamily(run.key), text: run.text }));
+        callouts.push({
+          id: annotation.id,
+          line: line ? { a: at(line[0]), b: at(line[1]) } : null,
+          linePen,
+          box: { x: box.x * framePx, y: box.y * framePx, width: box.width * framePx, height: box.height * framePx },
+          boxPen,
+          ink: seen.arrows.color,
+          ground: PAGE_GROUND,
+          label: { id: annotation.id, x, y, size: CALLOUT_TEXT_SIZE * framePx, fill: seen.arrows.color, runs },
+        });
+        break;
+      }
       case 'mark':
         primitives.push(compiled.primitive);
         primitiveIds.push(annotation.id);
@@ -340,7 +397,16 @@ export function annotationDrawing(
     inline: annotationInk(seen),
     back: false,
   });
-  return { width: frame.width * framePx, height: frame.height * framePx, lines, primitives, primitiveIds, context, labels };
+  return {
+    width: frame.width * framePx,
+    height: frame.height * framePx,
+    lines,
+    primitives,
+    primitiveIds,
+    context,
+    callouts,
+    labels,
+  };
 }
 
 /** How far a shaped arrow's shaft may stand off the points it is measured along, in ink: far under its pen. */
@@ -450,6 +516,17 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
       }
     }
   }
+  // A callout, exactly: its box and half its outline's pen round it — a
+  // rectangle's mitred corner reaches no further — and its line's round ends.
+  // Its words are inside its box (`CALLOUT_PAD_EMS`, `CALLOUT_HALF_HEIGHT_EMS`).
+  for (const { box, boxPen, line, linePen } of drawing.callouts) {
+    take(box.x, box.y, boxPen / 2);
+    take(box.x + box.width, box.y + box.height, boxPen / 2);
+    if (line) {
+      take(line.a[0], line.a[1], linePen / 2);
+      take(line.b[0], line.b[1], linePen / 2);
+    }
+  }
   for (const label of drawing.labels) {
     const half = (labelHalfWidth(label.runs.map((run) => run.text).join('')) / LABEL_SIZE) * label.size;
     minX = Math.min(minX, label.x - half);
@@ -483,9 +560,46 @@ function labelElement(label: AnnotationLabel): ReactNode {
 }
 
 /**
- * The marks and labels, as React: the shapes `diagramShapes` draws, then the
- * labels over them. `wrap` puts each in a group of the caller's, by its
- * annotation's id.
+ * One callout as SVG: its line, then its box over the line's end — filled
+ * with the page's white, so it reads over whatever it lies on — then its
+ * words, as a label's are set. The box's corners are mitred, whatever join
+ * the caller wraps it in.
+ */
+export function calloutElement(callout: AnnotationCallout): ReactNode {
+  const { line, box } = callout;
+  return (
+    <g key={callout.id}>
+      {line && (
+        <line
+          x1={line.a[0]}
+          y1={line.a[1]}
+          x2={line.b[0]}
+          y2={line.b[1]}
+          fill="none"
+          stroke={callout.ink}
+          strokeWidth={callout.linePen}
+          strokeLinecap="round"
+        />
+      )}
+      <rect
+        x={box.x}
+        y={box.y}
+        width={box.width}
+        height={box.height}
+        fill={callout.ground}
+        stroke={callout.ink}
+        strokeWidth={callout.boxPen}
+        strokeLinejoin="miter"
+      />
+      {labelElement(callout.label)}
+    </g>
+  );
+}
+
+/**
+ * The marks, callouts and labels, as React: the shapes `diagramShapes` draws,
+ * the callouts over them, then the labels over those. `wrap` puts each in a
+ * group of the caller's, by its annotation's id.
  */
 export function annotationMarks(
   drawing: AnnotationDrawing,
@@ -497,6 +611,7 @@ export function annotationMarks(
   return (
     <>
       {shapes}
+      {drawing.callouts.map((callout) => (wrap ? wrap(calloutElement(callout), callout.id) : calloutElement(callout)))}
       {drawing.labels.map((label) => (wrap ? wrap(labelElement(label), label.id) : labelElement(label)))}
     </>
   );

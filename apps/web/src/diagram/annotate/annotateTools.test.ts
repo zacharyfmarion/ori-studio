@@ -9,7 +9,7 @@ describe('the rail', () => {
       { id: 'arrows', tools: ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'turn-over', 'rotate'] },
       { id: 'lines', tools: ['valley-line', 'mountain-line', 'hidden-line'] },
       { id: 'marks', tools: ['circle'] },
-      { id: 'text', tools: ['label'] },
+      { id: 'text', tools: ['label', 'callout'] },
     ]);
     const tools = ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((tool) => tool !== null && tool !== 'edit-path');
     expect([...tools].sort()).toEqual([...ANNOTATION_KINDS].sort());

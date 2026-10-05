@@ -701,6 +701,7 @@
     },
     "annotate": {
       "arrowHelp": "从纸开始移动的位置拖到它落下的位置。",
+      "calloutHelp": "从一个点拖到要放置方框的位置，或单击该点，然后在这里输入文字。",
       "canvasLabel": "步骤图上的标注",
       "circleHelp": "单击一个点，用圆圈圈出它。",
       "controls": "标注视图控件",
@@ -745,11 +746,12 @@
       "none": "没有标注",
       "pictureChanged": "绘制这些标注之后，图已经改变。",
       "previousNode": "上一个节点",
+      "repeatBehind": "背面重复",
       "resetShape": "重置形状",
       "sideToSide": "左右",
       "smooth": "平滑",
       "snap": "吸附到图",
-      "snapHelp": "圆圈以及箭头和线的端点会吸附到附近的图上的点和其他标注。按住 {{modifier}} 可放在任意位置。",
+      "snapHelp": "圆圈、引线框的点以及箭头和线的端点会吸附到附近的图上的点和其他标注。按住 {{modifier}} 可放在任意位置。",
       "text": "文字",
       "topToBottom": "上下",
       "turn": "旋转量"

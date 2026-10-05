@@ -9,7 +9,7 @@ import {
   annotationKindLabel,
   editPathHelp,
 } from '../../diagram/annotate/annotateTools';
-import { LABEL_MAX_LENGTH } from '../../diagram/annotate/annotationModel';
+import { carriesText, LABEL_MAX_LENGTH } from '../../diagram/annotate/annotationModel';
 import { onLabelFocusRequest, takeLabelFocus } from '../../diagram/annotate/labelFocus';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
 import { primaryModifierLabel } from '../../lib/platform';
@@ -38,7 +38,7 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * Snap switch (for a finger, which has no ⌘ to hold), a notice when they
  * were drawn on another picture, the list — a press selects
  * one, as a press on the canvas does — and the selected one's own controls:
- * a label's text, an arrow's Flip arc and Reset, a rotation's turn, a
+ * a label's or a callout's text, an arrow's Flip arc and Reset, a rotation's turn, a
  * turn-over's axis, Delete, and in Edit Path a fold arrow's node verbs.
  */
 export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
@@ -77,7 +77,7 @@ export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
         label={t('panels:diagram.annotations.snap', 'Snap to Picture')}
         help={t(
           'panels:diagram.annotations.snapHelp',
-          'Circles, and the ends of arrows and lines, snap to the picture’s points and to other annotations nearby. Hold {{modifier}} to put one down anywhere.',
+          'Circles, callouts’ points, and the ends of arrows and lines, snap to the picture’s points and to other annotations nearby. Hold {{modifier}} to put one down anywhere.',
           { modifier: primaryModifierLabel() }
         )}
         checked={annotations.snap}
@@ -119,7 +119,7 @@ export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
               >
                 <DiagramAnnotateToolGlyph tool={annotation.kind} />
                 <span className={styles.rowName}>
-                  {annotation.kind === 'label' && annotation.text
+                  {carriesText(annotation.kind) && annotation.text
                     ? annotation.text
                     : annotationKindLabel(t, annotation.kind)}
                 </span>
@@ -148,7 +148,7 @@ function SelectedAnnotation({
   const field = useRef<HTMLTextAreaElement | null>(null);
   const { id } = annotation;
 
-  // A label just put down on the canvas asks for its text (D8).
+  // A label or a callout just put down on the canvas asks for its text (D8).
   useEffect(() => {
     const focus = () => {
       field.current?.focus();
@@ -176,9 +176,9 @@ function SelectedAnnotation({
           keyed={keyed}
         />
       )}
-      {annotation.kind === 'label' && (
+      {carriesText(annotation.kind) && (
         <TextAreaRow
-          // One field per label: a draft never carries over to the next one.
+          // One field per label or callout: a draft never carries over to the next one.
           key={id}
           label={t('panels:diagram.annotations.text', 'Text')}
           value={annotation.text ?? ''}

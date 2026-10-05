@@ -759,6 +759,7 @@
     },
     "annotate": {
       "arrowHelp": "Arraste de onde o papel começa até onde ele chega.",
+      "calloutHelp": "Arraste de um ponto até onde a caixa deve ficar, ou clique no ponto, e digite o texto aqui.",
       "canvasLabel": "Anotações na imagem do passo",
       "circleHelp": "Clique em um ponto para circulá-lo.",
       "controls": "Controles da visualização Anotar",
@@ -807,11 +808,12 @@
       "none": "Nenhuma anotação",
       "pictureChanged": "A imagem mudou desde que estas anotações foram desenhadas.",
       "previousNode": "Nó anterior",
+      "repeatBehind": "Repita atrás",
       "resetShape": "Redefinir forma",
       "sideToSide": "De lado a lado",
       "smooth": "Suave",
       "snap": "Ajustar à imagem",
-      "snapHelp": "Círculos e as pontas de setas e linhas se ajustam aos pontos próximos da imagem e a outras anotações. Segure {{modifier}} para colocá-los em qualquer lugar.",
+      "snapHelp": "Círculos, os pontos das chamadas e as pontas de setas e linhas se ajustam aos pontos próximos da imagem e a outras anotações. Segure {{modifier}} para colocá-los em qualquer lugar.",
       "text": "Texto",
       "topToBottom": "De cima para baixo",
       "turn": "Giro"

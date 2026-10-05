@@ -33,7 +33,7 @@ import { createFontSubsetter, type FontSubsetter } from '../fonts/fontSubset';
 import { layoutDiagramPages, MARKS_FLOOR, PAGE_NUMBER_SIZE_MM, pictureExtent, pictureFit } from './diagramPageLayout';
 import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE } from '../../lib/paper/paperStyle';
 import { estimateTextSetter } from './estimateTextSetter';
-import { diagramLayoutSteps, layoutDiagram, preparedPages } from './diagramPages';
+import { diagramFontTexts, diagramLayoutSteps, layoutDiagram, preparedPages } from './diagramPages';
 import { composeDiagramPage } from './composeDiagramPage';
 import { cellPicture, layoutPicture } from './pagePictures';
 
@@ -135,6 +135,37 @@ describe('composeDiagramPage', () => {
     }
     // References' letters are set in the page's font, not the screen's.
     expect(svg).not.toContain('Inter');
+  });
+
+  it('sets a callout’s words as a label’s, loading and embedding each face they need, Han in the diagram’s style', () => {
+    const callout = { id: 'c-1', kind: 'callout' as const, from: [0.2, 0.8] as [number, number], to: [0.6, 0.3] as [number, number], text: 'Repeat 将底角' };
+    const step = { ...cpStep('step-callout'), annotations: [callout], annotatedPictureKey: cpStep('step-callout').picture!.key };
+    const document = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [step], 0);
+    // The faces a page loads: its words' Han in the diagram's style.
+    expect(diagramFontTexts(document)).toContainEqual({ text: '将底角', weight: 400, cjk: 'sc' });
+    const pages = preparedPages(document, FONTS, subsetter);
+    expect(pages.missing).toEqual([]);
+    const svg = pages.compose(0).svg;
+    const faces = [...svg.matchAll(/@font-face\{font-family:'([^']*)';font-weight:(\d+);[^}]*base64,([^)]*)\)/g)];
+    const embedded = new Map(faces.map(([, family, weight, data]) => [`${family}|${weight}`, data!]));
+    const page = parse(svg);
+    const words = [...page.querySelectorAll('text')].find((text) => text.textContent === 'Repeat 将底角')!;
+    expect(words).toBeDefined();
+    // In its box: the rect drawn just before its words.
+    expect(words.previousElementSibling?.tagName).toBe('rect');
+    for (const span of words.querySelectorAll('tspan')) {
+      const family = /^'([^']*)'/.exec(span.getAttribute('font-family') ?? '')![1]!;
+      const data = embedded.get(`${family}|400`);
+      expect(data, family).toBeDefined();
+      const metrics = readFontMetrics(Uint8Array.from(atob(data!), (c) => c.charCodeAt(0)));
+      for (const character of span.textContent ?? '') {
+        if (character !== ' ') expect(metrics.has(character.codePointAt(0)!), character).toBe(true);
+      }
+    }
+    expect([...words.querySelectorAll('tspan')].map((span) => span.getAttribute('font-family'))).toEqual([
+      `'Noto Sans', sans-serif`,
+      `'Noto Sans SC', sans-serif`,
+    ]);
   });
 
   it('keeps an empty step’s number and text, and draws nothing in its picture box', () => {

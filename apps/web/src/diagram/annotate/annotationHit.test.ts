@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DiagramAnnotation, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { pathArrowGeometry } from '../../cp-workspace/references/stepDiagramGeometry';
 import { cubicPoint } from '../../lib/cubicBezier';
-import { ARROW_BEND, arrowApex, flipAnnotationArc, pathCubics } from './annotationModel';
+import { ARROW_BEND, arrowApex, calloutShape, flipAnnotationArc, pathCubics } from './annotationModel';
 import { arrowPolyline, circleRadius, hitAnnotation, hitPathGrip } from './annotationHit';
 
 /** About the canvas's: an ink is about 0.0066 of the frame. */
@@ -99,6 +99,53 @@ describe('hitAnnotation', () => {
     expect(hitAnnotation([push], [0.4, 0.521], tight, null)?.annotationId).toBe('push');
     expect(hitAnnotation([push], [0.53, 0.545], tight, null)?.annotationId).toBe('push');
     expect(hitAnnotation([push], [0.4, 0.56], tight, null)).toBeNull();
+  });
+
+  describe('a callout', () => {
+    // Its point lower left, its box up to the right: "Repeat behind" is about 0.39 wide and 0.085 tall.
+    const callout: KnownDiagramAnnotation = { id: 'callout', kind: 'callout', from: [0.2, 0.7], to: [0.6, 0.3], text: 'Repeat behind' };
+    const { box, line } = calloutShape(callout);
+    const tight = { ...SIZES, tolerance: 0.005 };
+
+    it('takes its box anywhere on it — its words included — on its own, and its line as the whole', () => {
+      expect(hitAnnotation([callout], [0.6, 0.3], tight, null)).toEqual({ annotationId: 'callout', part: 'box' });
+      // On a letter near the box's end, and on the pad past the words.
+      expect(hitAnnotation([callout], [box.x + 0.03, 0.3], tight, null)).toEqual({ annotationId: 'callout', part: 'box' });
+      expect(hitAnnotation([callout], [box.x + 0.004, box.y + 0.004], tight, null)?.part).toBe('box');
+      // Just outside its outline, within reach of it.
+      expect(hitAnnotation([callout], [box.x + box.width + 0.004, 0.3], tight, null)?.part).toBe('box');
+      // Halfway along its line: the whole.
+      const middle: [number, number] = [(line![0][0] + line![1][0]) / 2, (line![0][1] + line![1][1]) / 2];
+      expect(hitAnnotation([callout], middle, tight, null)).toEqual({ annotationId: 'callout', part: 'body' });
+      // Beside the line, and past the box: nothing.
+      expect(hitAnnotation([callout], [middle[0] + 0.02, middle[1] + 0.02], tight, null)).toBeNull();
+      expect(hitAnnotation([callout], [box.x + box.width + 0.02, 0.3], tight, null)).toBeNull();
+    });
+
+    it('offers its point, selected, before its line — never its box’s middle, which is the box', () => {
+      expect(hitAnnotation([callout], [0.201, 0.699], tight, 'callout')).toEqual({ annotationId: 'callout', part: 'from' });
+      expect(hitAnnotation([callout], [0.201, 0.699], tight, null)).toEqual({ annotationId: 'callout', part: 'body' });
+      expect(hitAnnotation([callout], [0.6, 0.3], tight, 'callout')).toEqual({ annotationId: 'callout', part: 'box' });
+    });
+
+    it('is over the marks and lines it lies on, and under a label', () => {
+      const under: KnownDiagramAnnotation = { id: 'under', kind: 'valley-line', from: [0.3, 0.3], to: [0.9, 0.3] };
+      const over: KnownDiagramAnnotation = { id: 'over', kind: 'label', from: [0.6, 0.3], to: [0.6, 0.3], text: 'A' };
+      const circle: KnownDiagramAnnotation = { id: 'circle', kind: 'circle', from: [0.6, 0.3 + circleRadius(SIZES.ink)], to: [0.6, 0.3 + circleRadius(SIZES.ink)] };
+      expect(hitAnnotation([callout, under], [0.7, 0.3], tight, null)?.annotationId).toBe('callout');
+      expect(hitAnnotation([callout, circle], [0.6, 0.3], tight, null)?.annotationId).toBe('callout');
+      // A push under its box, drawn after it: the box is over it, as it is drawn.
+      const push: KnownDiagramAnnotation = { id: 'push', kind: 'push-arrow', from: [0.3, 0.3], to: [0.7, 0.3] };
+      expect(hitAnnotation([push], [0.4, 0.3], tight, null)?.annotationId).toBe('push');
+      expect(hitAnnotation([callout, push], [0.4, 0.3], tight, null)?.annotationId).toBe('callout');
+      expect(hitAnnotation([over, callout], [0.6, 0.3], tight, null)?.annotationId).toBe('over');
+    });
+
+    it('has no line to take with its point inside its box', () => {
+      const covered: KnownDiagramAnnotation = { ...callout, from: [0.62, 0.31] };
+      expect(calloutShape(covered).line).toBeNull();
+      expect(hitAnnotation([covered], [0.62, 0.31], tight, null)?.part).toBe('box');
+    });
   });
 
   it('takes a wide label by its ends', () => {
