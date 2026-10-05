@@ -590,6 +590,10 @@ describe('DiagramStepPanel in Annotate', () => {
     act(() => state().openDiagramStep(stepId, 'annotate'));
     useSettingsStore.setState({ diagramAnnotateSnap: true });
     expect(snapSwitch()?.getAttribute('aria-checked')).toBe('true');
+    // The key that puts a mark down freely follows the marks that snap, never
+    // the arrows, which it does nothing to (review).
+    const help = host?.querySelector('[data-field-help][aria-label^="Circles"]')?.getAttribute('aria-label');
+    expect(help).toMatch(/nearby\. Hold (Cmd|Ctrl) to put one down anywhere\. Arrows go where they are drawn\.$/);
     const past = state().diagramHistory.past.length;
     act(() => snapSwitch()!.click());
     expect(useSettingsStore.getState().diagramAnnotateSnap).toBe(false);

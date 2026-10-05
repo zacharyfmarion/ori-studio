@@ -827,7 +827,7 @@
       "sideToSide": "De lado a lado",
       "smooth": "Suave",
       "snap": "Ajustar à imagem",
-      "snapHelp": "Círculos, os cantos dos ângulos retos, os pontos das chamadas e as pontas das linhas se ajustam aos pontos próximos da imagem e a outras anotações. As setas ficam onde você as desenha. Segure {{modifier}} para colocá-los em qualquer lugar.",
+      "snapHelp": "Círculos, os cantos dos ângulos retos, os pontos das chamadas e as pontas das linhas se ajustam aos pontos próximos da imagem e a outras anotações. Segure {{modifier}} para colocá-los em qualquer lugar. As setas ficam onde você as desenha.",
       "tail": "Cauda",
       "tailCleft": "Fendida",
       "tailPointed": "Pontuda",

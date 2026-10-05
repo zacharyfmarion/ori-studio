@@ -796,7 +796,7 @@
       "sideToSide": "Side to Side",
       "smooth": "Smooth",
       "snap": "Snap to Picture",
-      "snapHelp": "Circles, right angles’ corners, callouts’ points and the ends of lines snap to the picture’s points and to other annotations nearby. Arrows go where they are drawn. Hold {{modifier}} to put one down anywhere.",
+      "snapHelp": "Circles, right angles’ corners, callouts’ points and the ends of lines snap to the picture’s points and to other annotations nearby. Hold {{modifier}} to put one down anywhere. Arrows go where they are drawn.",
       "tail": "Tail",
       "tailCleft": "Cleft",
       "tailPointed": "Pointed",
