@@ -1082,6 +1082,21 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
     expect(last().to).toEqual([expect.closeTo(0.603, 6), expect.closeTo(0.502, 6)]);
   });
 
+  it('puts a callout clicked beside a point on it, its box beside it, not at the pointer', () => {
+    drawn([line], 'callout');
+    // Zoomed out to half: the snap radius is 0.029 of the frame, more than a slip's length.
+    (SVGElement.prototype as unknown as { getScreenCTM: () => typeof identity }).getScreenCTM = () => ({ ...identity, a: 0.5, d: 0.5 });
+    // 0.025 off the line's end: the press lands on the end.
+    click(at(0.625, 0.5));
+    expect(last()).toMatchObject({ kind: 'callout', from: [0.6, 0.5] });
+    // A click, however far its press snapped: the box beside the point, not on it where the
+    // pointer was — below and to the right, away from the frame's middle.
+    expect(calloutShape(last()).line).not.toBeNull();
+    expect(last().to[0]).toBeGreaterThan(0.6 + 0.1);
+    expect(last().to[1]).toBeGreaterThan(0.5 + 0.05);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['callout', 'snapped']]);
+  });
+
   it('moves a circle whole onto a point: its centre snaps, wherever on its ring it was taken', () => {
     drawn([line, { id: 'c', kind: 'circle', from: [0.3, 0.3], to: [0.3, 0.3] }]);
     drag(at(0.3 + CIRCLE_RADIUS, 0.3), at(0.595 + CIRCLE_RADIUS, 0.494));

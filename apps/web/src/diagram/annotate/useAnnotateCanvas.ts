@@ -729,9 +729,11 @@ export function useAnnotateCanvas({
         // by a click; a callout by either, a click putting its box beside its point.
         if (!placedByClick(current.kind) && !current.moved) return;
         // A click puts a point where its press showed it: a hand or a finger
-        // drifting within its slop before it lifts has not moved it.
+        // drifting within its slop before it lifts has not moved it. A
+        // callout clicked ends where it began, so its box goes beside its
+        // point, however far the press snapped from the pointer.
         const { at, target } =
-          point && !current.moved
+          !current.moved
             ? { at: current.start, target: current.startTarget }
             : placeInHand(current, toPicture(event.clientX, event.clientY) ?? current.start, free);
         const annotation = createAnnotation(
