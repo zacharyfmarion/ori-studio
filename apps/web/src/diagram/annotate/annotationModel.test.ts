@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { cubicPoint } from '../../lib/cubicBezier';
 import { readFontMetrics } from '../fonts/fontMetrics';
-import { LABEL_ADVANCES, LABEL_ADVANCES_FROM } from './labelAdvances';
+import { LABEL_ADVANCE_RUNS, labelAdvance } from './labelAdvances';
 import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { arcToPath, bendPathSegment, pathNodesOf } from './annotationPath';
 import {
@@ -173,7 +173,7 @@ describe('a label’s width', () => {
     // A combining mark adds nothing; a letter the table has no width for, an em.
     expect(labelHalfWidth('e\u0301')).toBeCloseTo(labelHalfWidth('e'), 12);
     // Cyrillic and Greek as the font sets them (review: each was an em, a Russian callout twice as wide as its words).
-    expect(labelHalfWidth('Ж')).toBeCloseTo(LABEL_SIZE * ((LABEL_ADVANCES[0x416 - LABEL_ADVANCES_FROM]! / 1000) / 2 + 0.2), 12);
+    expect(labelHalfWidth('Ж')).toBeCloseTo(LABEL_SIZE * ((labelAdvance(0x416)! / 1000) / 2 + 0.2), 12);
     expect(labelHalfWidth('Ж')).toBeLessThan(labelHalfWidth('Ա'));
     expect(labelHalfWidth('Ա')).toBeCloseTo(LABEL_SIZE * (1 / 2 + 0.2), 12);
     // A joiner and a variation selector draw nothing: a family of three is three emoji wide, not five.
@@ -196,14 +196,25 @@ describe('a label’s width', () => {
     for (const [text, half] of ink) expect(labelHalfWidth(text) / LABEL_SIZE, text).toBeGreaterThanOrEqual(half);
   });
 
-  it('sets its Latin as the bundled Noto Sans does, glyph for glyph', () => {
+  it('sets its Latin as the bundled Noto Sans does, glyph for glyph, every glyph it has', () => {
     const font = readFontMetrics(readFileSync(resolve(__dirname, '../fonts/NotoSans-Regular.ttf')));
     expect(font.unitsPerEm).toBe(1000);
-    LABEL_ADVANCES.forEach((advance, index) => {
-      const codePoint = LABEL_ADVANCES_FROM + index;
-      expect(advance, codePoint.toString(16)).toBe(font.has(codePoint) ? font.advance(codePoint) : -1);
-    });
-    expect(LABEL_ADVANCES_FROM + LABEL_ADVANCES.length - 1).toBe(0x52f);
+    for (const run of LABEL_ADVANCE_RUNS) {
+      run.advances.forEach((advance, index) => {
+        const codePoint = run.from + index;
+        expect(advance, codePoint.toString(16)).toBe(font.has(codePoint) ? font.advance(codePoint) : -1);
+      });
+    }
+    // All of its map: no block it sets is left out of the table (review: its punctuation and Vietnamese were).
+    for (const codePoint of font.codePoints()) {
+      if (codePoint >= 0x20) expect(labelAdvance(codePoint), codePoint.toString(16)).toBe(font.advance(codePoint));
+    }
+  });
+
+  it('counts a letter the font sets decomposed as its letter and marks', () => {
+    // Polytonic Greek: no glyph of its own, set as α and its breathing and accent.
+    expect(labelHalfWidth('ἀ')).toBeCloseTo(labelHalfWidth('α\u0313'), 12);
+    expect(labelHalfWidth('ἀ')).toBeLessThan(labelHalfWidth('Ա'));
   });
 });
 

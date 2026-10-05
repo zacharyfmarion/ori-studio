@@ -13,7 +13,7 @@ import { flattenPath, type Cubic } from '../../lib/cubicBezier';
 import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
 import { needsNoGlyph } from '../fonts/fontScripts';
-import { LABEL_ADVANCES, LABEL_ADVANCES_FROM } from './labelAdvances';
+import { labelAdvance } from './labelAdvances';
 import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import {
@@ -475,7 +475,7 @@ const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han
 /**
  * Half a label's width, in picture units, as it is drawn centred on its
  * point: its Latin as wide as the font it is set in sets it
- * (`LABEL_ADVANCES`), a whole em for a wide grapheme or one that font has no
+ * (`labelAdvance`), a whole em for a wide grapheme or one that font has no
  * width for; and a fifth of an em past that, more than any Latin glyph's ink
  * stands past its advance (ť's 0.109 em). The canvas cannot measure the text
  * it draws: the hit test, the selection and a file's crop all share this.
@@ -486,7 +486,7 @@ export function labelHalfWidth(text: string): number {
 
 /**
  * How wide a line of a label's or a callout's text is set, in ems: its
- * Latin as the font it is set in sets it (`LABEL_ADVANCES`), a whole em for
+ * Latin as the font it is set in sets it (`labelAdvance`), a whole em for
  * a wide grapheme or one that font has no width for. The one measure a
  * label's reach and a callout's box are both taken from.
  */
@@ -503,8 +503,27 @@ function graphemeEms(grapheme: string): number {
   for (const character of grapheme) {
     // A joiner or a variation selector draws nothing.
     if (needsNoGlyph(character)) continue;
-    const advance = LABEL_ADVANCES[character.codePointAt(0)! - LABEL_ADVANCES_FROM];
-    ems += advance !== undefined && advance >= 0 ? advance / 1000 : 1;
+    ems += characterEms(character) ?? 1;
+  }
+  return ems;
+}
+
+/**
+ * One character's advance in ems, as the font sets it: its own glyph's, or
+ * — for a letter it has no glyph for, as polytonic Greek's ἀ — its
+ * decomposition's, a letter and its marks, which is how the font sets it.
+ * Null when neither is in the font.
+ */
+function characterEms(character: string): number | null {
+  const advance = labelAdvance(character.codePointAt(0)!);
+  if (advance !== null) return advance / 1000;
+  const parts = character.normalize('NFD');
+  if (parts === character) return null;
+  let ems = 0;
+  for (const part of parts) {
+    const each = labelAdvance(part.codePointAt(0)!);
+    if (each === null) return null;
+    ems += each / 1000;
   }
   return ems;
 }

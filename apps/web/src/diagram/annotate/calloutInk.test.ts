@@ -126,7 +126,19 @@ describe('a callout’s words', () => {
   });
 
   it('are hugged by their box across, in every script a label sets in Noto Sans: Latin, Cyrillic, Greek (review)', () => {
-    for (const text of ['Repeat behind', 'Повторить сзади', 'Wiederhole hinten', 'ΑΒΓΔΕΖΗΘ', 'Ещё раз сзади']) {
+    for (const text of [
+      'Repeat behind',
+      'Повторить сзади',
+      'Wiederhole hinten',
+      'ΑΒΓΔΕΖΗΘ',
+      'Ещё раз сзади',
+      // Its punctuation, Vietnamese, and Greek it sets decomposed (review).
+      'l’autre côté',
+      '„Falten“ – «Plier» …',
+      'Gấp đôi lại',
+      '1–2',
+      'ἀρχὴ ᾶ ὦ',
+    ]) {
       const callout: KnownDiagramAnnotation = { id: 'c', kind: 'callout', from: [0.1, 0.9], to: [0.5, 0.4], text };
       const { label, box, boxPen } = annotationDrawing([callout], { width: 1, height: 1 }, 1000, DEFAULT_DIAGRAM_STYLE).callouts[0]!;
       const words = labelRuns(text).reduce((sum, run) => sum + shaped(run.key, run.text).advance, 0);

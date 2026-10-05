@@ -127,24 +127,24 @@
   },
   "off": {
     "card": {
-      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><line x1=\"170.07874015748033\" y1=\"132.28346456692913\" x2=\"229.60629921259846\" y2=\"162.0472440944882\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"161.396062992126\" y=\"161.5472440944882\" width=\"168.5464566929134\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"245.669\" y=\"173.48\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat steps 5–8 on the other side</tspan></text></g></g>\n</g>",
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><line x1=\"170.07874015748033\" y1=\"132.28346456692913\" x2=\"229.60629921259846\" y2=\"162.0472440944882\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"163.75826771653544\" y=\"161.5472440944882\" width=\"163.8220472440945\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"245.669\" y=\"173.48\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat steps 5–8 on the other side</tspan></text></g></g>\n</g>",
       "bounds": {
         "x": 0,
         "y": 0,
-        "width": 699.4366666666668,
+        "width": 694.4366666666667,
         "height": 379.11666666666673
       }
     },
     "page": {
-      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><line x1=\"255.11399999999998\" y1=\"198.42199999999997\" x2=\"344.4039\" y2=\"243.06695\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"242.340182\" y=\"242.56695\" width=\"252.31563599999998\" height=\"25.0941\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"368.498\" y=\"260.216\" font-size=\"14.173\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat steps 5–8 on the other side</tspan></text></g></g>\n</g>",
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><line x1=\"255.11399999999998\" y1=\"198.42199999999997\" x2=\"344.4039\" y2=\"243.06695\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"245.88343199999997\" y=\"242.56695\" width=\"245.22913599999998\" height=\"25.0941\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"368.498\" y=\"260.216\" font-size=\"14.173\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat steps 5–8 on the other side</tspan></text></g></g>\n</g>",
       "bounds": {
         "x": 12,
         "y": 30,
-        "width": 495.15581799999995,
+        "width": 491.61256799999995,
         "height": 268.16105
       }
     },
-    "canvas": "<g><line x1=\"170.07874015748033\" y1=\"132.28346456692913\" x2=\"229.60629921259846\" y2=\"162.0472440944882\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"161.396062992126\" y=\"161.5472440944882\" width=\"168.5464566929134\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"245.669\" y=\"173.48\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat steps 5–8 on the other side</tspan></text></g>"
+    "canvas": "<g><line x1=\"170.07874015748033\" y1=\"132.28346456692913\" x2=\"229.60629921259846\" y2=\"162.0472440944882\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"163.75826771653544\" y=\"161.5472440944882\" width=\"163.8220472440945\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"245.669\" y=\"173.48\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat steps 5–8 on the other side</tspan></text></g>"
   },
   "long": {
     "card": {
