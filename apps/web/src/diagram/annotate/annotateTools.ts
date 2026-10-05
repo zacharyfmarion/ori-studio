@@ -40,13 +40,21 @@ export const ANGLE_BISECTOR = 'angle-bisector';
 export const SOLID_ARROW = 'solid-arrow';
 
 /**
+ * The signs no tool draws (Zach, 2026-10-05): turning the model over or round
+ * is a step between steps (D22), not a sign on a picture. One already drawn
+ * is kept, drawn, moved and deleted as any annotation is.
+ */
+type TurnSignKind = 'turn-over' | 'rotate';
+
+/**
  * A tool that draws: the kind it draws, for every kind but the three lines,
- * which the Line tool draws in the type chosen; the Angle Bisector, which
- * draws a line and a mark; and the Solid Arrow, a white arrow in a look of
- * its own. Its own id, so a tool need not be a kind.
+ * which the Line tool draws in the type chosen, and the turn signs, which
+ * none does; the Angle Bisector, which draws a line and a mark; and the Solid
+ * Arrow, a white arrow in a look of its own. Its own id, so a tool need not
+ * be a kind.
  */
 export type DrawingTool =
-  | Exclude<DiagramAnnotationKind, DiagramLineKind>
+  | Exclude<DiagramAnnotationKind, DiagramLineKind | TurnSignKind>
   | typeof LINE_TOOL
   | typeof ANGLE_BISECTOR
   | typeof SOLID_ARROW;
@@ -105,8 +113,6 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   'push-arrow': 'arrows',
   'white-arrow': 'arrows',
   [SOLID_ARROW]: 'arrows',
-  'turn-over': 'arrows',
-  rotate: 'arrows',
   [LINE_TOOL]: 'lines',
   [ANGLE_BISECTOR]: 'lines',
   label: 'text',
@@ -141,8 +147,6 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   'push-arrow': 'diagram.toolPushArrow',
   'white-arrow': 'diagram.toolWhiteArrow',
   [SOLID_ARROW]: 'diagram.toolSolidArrow',
-  'turn-over': 'diagram.toolTurnOver',
-  rotate: 'diagram.toolRotate',
   [LINE_TOOL]: null,
   [ANGLE_BISECTOR]: 'diagram.toolAngleBisector',
   label: 'diagram.toolLabel',
@@ -294,9 +298,6 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       );
     case 'angle-mark':
       return t('panels:diagram.annotate.angleMarkHelp', 'Click a point on one arm, the vertex, then a point on the other arm.');
-    case 'turn-over':
-    case 'rotate':
-      return t('panels:diagram.annotate.glyphHelp', 'Click where the sign goes.');
     case 'label':
       return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it in the Layers pane.');
     case 'circle':
@@ -527,8 +528,6 @@ function annotateToolModifiers(
     case 'push-arrow':
     case 'white-arrow':
     case SOLID_ARROW:
-    case 'turn-over':
-    case 'rotate':
     case 'label':
       return [];
   }

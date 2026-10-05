@@ -1296,7 +1296,10 @@ and don't count towards the numbers"; on pages, "in the gutter".)*
 - **Made from** Add step ▾ › Turn Over / Rotate, the card menu's Insert Turn
   Over / Rotate After, and References: a References turn-over card is pulled
   as a turn-over, never as a numbered step, and never fills or replaces one.
-  On-picture turn-over and rotate symbols (Annotate) are unchanged.
+  On-picture turn-over and rotate symbols were Annotate tools until Zach took
+  them out (2026-10-05: "Can you please actually remove the turn over and
+  rotate tools inside of annotate"): a turn is a step between steps. A sign
+  already drawn on a picture is kept, drawn, moved and deleted as any mark.
 
 **D24. A turn is a card in the Steps grid; a page prints only its glyph.**
 *(Zach, 2026-10-04, on D22 as built: "The turnover rotate sign should be an

@@ -753,7 +753,6 @@
       "editPathNone": "Wähle einen Faltpfeil oder einen weißen Pfeil aus, um ihn zu formen.",
       "endsFreeKey": "Halte {{modifier}} gedrückt, um ein Ende frei zu setzen, ohne Einrasten.",
       "foldUnfoldHelp": "Ziehe von dort, wo das Papier startet, bis dorthin, wo es landet: Es wird gefaltet und wieder zurückgeklappt.",
-      "glyphHelp": "Klicke dort, wo das Zeichen hin soll.",
       "groupArrows": "Pfeile",
       "groupLines": "Linien",
       "groupMarks": "Markierungen",

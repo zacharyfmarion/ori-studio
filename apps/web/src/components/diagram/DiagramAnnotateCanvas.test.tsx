@@ -319,17 +319,17 @@ describe('DiagramAnnotateCanvas', () => {
     expect(state().diagramSelectedAnnotationId).toBe(pleat!.id);
   });
 
-  it('puts a sign down with a click, and draws nothing for a click with a line tool', () => {
+  it('puts a label down with a click, and draws nothing for a click with a line tool', () => {
     mount();
     tool('line');
     pointer('pointerdown', at(0.5, 0.5));
     pointer('pointerup', at(0.5, 0.5));
     expect(annotations()).toHaveLength(0);
-    tool('turn-over');
+    tool('label');
     pointer('pointerdown', at(0.5, 0.5));
     pointer('pointerup', at(0.5, 0.5));
-    expect(annotations().map((annotation) => annotation.kind)).toEqual(['turn-over']);
-    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['turn_over', 'none']]);
+    expect(annotations().map((annotation) => annotation.kind)).toEqual(['label']);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['label', 'none']]);
   });
 
   it('draws a line in the type the rail’s Line Type says, each its own kind (15a)', () => {

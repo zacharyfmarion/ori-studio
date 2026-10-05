@@ -259,12 +259,12 @@ describe('Annotate’s keys', () => {
   });
 
   it('declines outside Annotate, and on a diagram that cannot change, so a crease-pattern letter is left alone', () => {
-    const outside = press('diagram.toolRotate', { annotate: null });
+    const outside = press('diagram.toolCircle', { annotate: null });
     expect(outside.claimed).toBe(false);
     expect(outside.setTool).not.toHaveBeenCalled();
-    expect(press('diagram.toolRotate', { ...annotate(), readOnly: true }).claimed).toBe(false);
+    expect(press('diagram.toolCircle', { ...annotate(), readOnly: true }).claimed).toBe(false);
     // Even with no steps at all, the letters are Annotate's question, not the steps'.
-    expect(press('diagram.toolRotate', { ...annotate(), stepIds: [] }).setTool).toHaveBeenCalledWith('rotate');
+    expect(press('diagram.toolCircle', { ...annotate(), stepIds: [] }).setTool).toHaveBeenCalledWith('circle');
   });
 });
 

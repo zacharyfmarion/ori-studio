@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import i18n from '../../i18n';
+import { SHORTCUT_DEFINITIONS } from '../../keyboard/shortcuts';
 import {
   ANNOTATE_TOOL_GROUPS,
   annotateToolHint,
@@ -44,8 +45,6 @@ describe('the rail', () => {
           'push-arrow',
           'white-arrow',
           'solid-arrow',
-          'turn-over',
-          'rotate',
         ],
       },
       { id: 'lines', tools: ['line', 'angle-bisector'] },
@@ -53,11 +52,22 @@ describe('the rail', () => {
       { id: 'text', tools: ['label', 'callout'] },
     ]);
     // Every kind is drawn by a tool: each its own, the lines by Line in each
-    // type, the angle mark by its picks (alone, or with a bisector's line).
+    // type, the angle mark by its picks (alone, or with a bisector's line) —
+    // but the turn signs, which none draws: turning the model over or round is
+    // a step between steps (D22; Zach, 2026-10-05).
     const drawn = ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).flatMap((tool) =>
       isPickTool(tool) ? ['angle-mark' as const] : DIAGRAM_LINE_TYPES.map((type) => drawingKind(tool, type))
     );
-    expect([...new Set(drawn.filter((kind) => kind !== null))].sort()).toEqual([...ANNOTATION_KINDS].sort());
+    expect([...new Set(drawn.filter((kind) => kind !== null))].sort()).toEqual(
+      ANNOTATION_KINDS.filter((kind) => kind !== 'turn-over' && kind !== 'rotate').sort()
+    );
+    // Nor has either a key: plain T and R, theirs, pick nothing in the Diagram.
+    const plain = SHORTCUT_DEFINITIONS.filter((definition) => definition.scope === 'diagram')
+      .flatMap((definition) => definition.defaultChords)
+      .filter((chord) => !chord.primary && !chord.ctrl && !chord.meta && !chord.alt && !chord.shift)
+      .map((chord) => chord.key);
+    expect(plain).not.toContain('t');
+    expect(plain).not.toContain('r');
     expect(DIAGRAM_LINE_TYPES.map((type) => drawingKind('line', type))).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
     expect(ANNOTATION_KINDS.filter(isLineKind)).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
   });
@@ -129,8 +139,6 @@ describe('the tool window', () => {
         instructions: 'Drag from where the paper starts to where it goes. Shape it with Edit Path.',
         modifiers: [],
       },
-      'turn-over': { title: 'Turn Over', instructions: 'Click where the sign goes.', modifiers: [] },
-      rotate: { title: 'Rotate', instructions: 'Click where the sign goes.', modifiers: [] },
       line: { title: 'Line', instructions: 'Drag along the crease.', modifiers: [ends] },
       circle: {
         title: 'Circle',

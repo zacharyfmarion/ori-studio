@@ -782,7 +782,6 @@
       "editPathNone": "Selecciona una flecha de plegado o una flecha blanca para darle forma.",
       "endsFreeKey": "Mantén pulsado {{modifier}} para colocar un extremo en cualquier lugar, sin ajustar.",
       "foldUnfoldHelp": "Arrastra desde donde empieza el papel hasta donde llega: se dobla y luego vuelve.",
-      "glyphHelp": "Haz clic donde va el signo.",
       "groupArrows": "Flechas",
       "groupLines": "Líneas",
       "groupMarks": "Marcas",

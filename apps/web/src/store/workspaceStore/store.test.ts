@@ -10355,9 +10355,9 @@ describe('the project diagram', () => {
       add(stepId, ARROW);
       useWorkspaceStore.setState({ dirty: false });
       const past = state().diagramHistory.past.length;
-      state().setDiagramAnnotateTool('rotate');
+      state().setDiagramAnnotateTool('circle');
       state().selectDiagramAnnotation(null);
-      expect(state().diagramAnnotateTool).toBe('rotate');
+      expect(state().diagramAnnotateTool).toBe('circle');
       expect(state().dirty).toBe(false);
       expect(state().diagramHistory.past).toHaveLength(past);
     });

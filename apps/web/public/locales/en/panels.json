@@ -753,7 +753,6 @@
       "editPathNone": "Select a fold arrow or a white arrow to shape it.",
       "endsFreeKey": "Hold {{modifier}} to put an end down anywhere, without snapping.",
       "foldUnfoldHelp": "Drag from where the paper starts to where it lands: it folds over, then back.",
-      "glyphHelp": "Click where the sign goes.",
       "groupArrows": "Arrows",
       "groupLines": "Lines",
       "groupMarks": "Marks",

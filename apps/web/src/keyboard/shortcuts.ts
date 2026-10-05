@@ -109,8 +109,6 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolPushArrow'
   | 'diagram.toolWhiteArrow'
   | 'diagram.toolSolidArrow'
-  | 'diagram.toolTurnOver'
-  | 'diagram.toolRotate'
   | 'diagram.toolValleyLine'
   | 'diagram.toolMountainLine'
   | 'diagram.toolHiddenLine'
@@ -610,15 +608,13 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolWhiteArrow', 'White Arrow', { key: 'w' }),
   // S for the solid arrow (15d): plain S is free; Shift+S is the canvas's own.
   diagramShortcut('diagram.toolSolidArrow', 'Solid Arrow', { key: 's' }),
-  diagramShortcut('diagram.toolTurnOver', 'Turn Over', { key: 't' }),
-  diagramShortcut('diagram.toolRotate', 'Rotate', { key: 'r' }),
   diagramShortcut('diagram.toolValleyLine', 'Valley Line', { shift: true, key: 'v' }),
   diagramShortcut('diagram.toolMountainLine', 'Mountain Line', { shift: true, key: 'm' }),
   diagramShortcut('diagram.toolHiddenLine', 'Hidden Line', { key: 'h' }),
   diagramShortcut('diagram.toolLabel', 'Label', { key: 'l' }),
   // O for the ring it draws.
   diagramShortcut('diagram.toolCircle', 'Circle', { key: 'o' }),
-  // Q for the square it draws in a corner: R is Rotate's.
+  // Q for the square it draws in a corner.
   diagramShortcut('diagram.toolRightAngle', 'Right Angle', { key: 'q' }),
   // C for the callout: a line to a box of words.
   diagramShortcut('diagram.toolCallout', 'Callout', { key: 'c' }),

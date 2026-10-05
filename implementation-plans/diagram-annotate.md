@@ -263,7 +263,8 @@ drag; the white arrow a new kind with width presets in ink.
    *Changed by Zach, 2026-10-05:* arrows do not snap. "Usually they are not
    drawn directly on corners so they should just be free drawn." Every tool in
    the Arrows group — fold, push and white arrows, with turn-over and rotate,
-   which never snapped — is drawn where it is drawn, its ends dragged where
+   which never snapped (and whose tools left Annotate the same day: a turn is
+   a step between steps, D22) — is drawn where it is drawn, its ends dragged where
    they are let go, with no snap target shown and no ⌘ key in its window.
    Lines, circles, right angles and a callout's point still snap. Nor is an
    arrow's end a point another mark snaps to (the fifth review): drawn a few

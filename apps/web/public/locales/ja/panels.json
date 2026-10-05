@@ -724,7 +724,6 @@
       "editPathNone": "形を整える折り矢印か白抜き矢印を選択してください。",
       "endsFreeKey": "{{modifier}} を押したままにすると、端をスナップせずにどこにでも置けます。",
       "foldUnfoldHelp": "紙が動き始める位置から着く位置までドラッグします。折ってから元に戻します。",
-      "glyphHelp": "記号を置く位置をクリックします。",
       "groupArrows": "矢印",
       "groupLines": "線",
       "groupMarks": "マーク",

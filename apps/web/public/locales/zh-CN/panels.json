@@ -724,7 +724,6 @@
       "editPathNone": "选择一个折叠箭头或空心箭头来调整其形状。",
       "endsFreeKey": "按住 {{modifier}} 可将端点放在任意位置，不吸附。",
       "foldUnfoldHelp": "从纸开始移动的位置拖到它落下的位置：先折过去，再展开回来。",
-      "glyphHelp": "在要放置符号的位置单击。",
       "groupArrows": "箭头",
       "groupLines": "线",
       "groupMarks": "标记",
