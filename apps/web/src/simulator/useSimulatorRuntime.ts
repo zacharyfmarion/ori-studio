@@ -231,8 +231,11 @@ export interface SimulatorRuntime {
   ) => Promise<SimulatorPullStart | null>;
   /** Draw the pull toward where the cursor is now. Coalesced: the newest wins. */
   movePull: (at: SimulatorScreenPoint, drawn?: SimulatorDrawnView) => void;
-  /** Let go: keep the shape as a pose, or put the paper back. */
-  endPull: (outcome: PullOutcome) => Promise<SimulatorPullEndResult | null>;
+  /**
+   * Let go: keep the shape as a pose, or put the paper back. Null when
+   * `forModel` is no longer the model on screen: its pull went with its session.
+   */
+  endPull: (outcome: PullOutcome, forModel: SimulatorModelView) => Promise<SimulatorPullEndResult | null>;
   /** Let a pose spring back to the fold. */
   releasePose: () => Promise<boolean | null>;
   /**
@@ -893,15 +896,18 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     [sendPullMove]
   );
 
-  const endPull = useCallback(async (outcome: PullOutcome): Promise<SimulatorPullEndResult | null> => {
-    const lane = pullLaneRef.current;
-    lane.open = false;
-    lane.pending = null;
-    const client = clientRef.current;
-    if (!client || tokenRef.current === undefined) return null;
-    convergedRef.current = false;
-    return client.endPull(outcome, tokenRef.current);
-  }, []);
+  const endPull = useCallback(
+    async (outcome: PullOutcome, forModel: SimulatorModelView): Promise<SimulatorPullEndResult | null> => {
+      const lane = pullLaneRef.current;
+      lane.open = false;
+      lane.pending = null;
+      const client = clientRef.current;
+      if (!client || modelRef.current !== forModel || tokenRef.current === undefined) return null;
+      convergedRef.current = false;
+      return client.endPull(outcome, tokenRef.current);
+    },
+    []
+  );
 
   const releasePose = useCallback(async (): Promise<boolean | null> => {
     const client = clientRef.current;

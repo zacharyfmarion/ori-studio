@@ -1108,9 +1108,27 @@ describe('pulls', () => {
     client.beginPull.mockImplementation(async () => ({ outcome: 'pulling' }));
     await act(async () => {
       await live!.beginPull(at(1), live!.model!);
-      await live!.endPull('keep');
+      await live!.endPull('keep', live!.model!);
       live!.movePull(at(3));
     });
+    expect(client.movePull).not.toHaveBeenCalled();
+  });
+
+  it('lets go of nothing for a pull pressed on a model it no longer holds', async () => {
+    await mountLoaded(FOLD);
+    const stale = live!.model!;
+    await act(async () => {
+      await live!.beginPull(at(1), stale);
+    });
+    await mountLoaded({ ...FOLD } as FoldDocument);
+    let ended: unknown = 'unset';
+    await act(async () => {
+      ended = await live!.endPull('keep', stale);
+      live!.movePull(at(2));
+    });
+    // The pull went with the session it was made in; the new one has none.
+    expect(ended).toBeNull();
+    expect(client.endPull).not.toHaveBeenCalled();
     expect(client.movePull).not.toHaveBeenCalled();
   });
 
@@ -1120,7 +1138,7 @@ describe('pulls', () => {
     let released: unknown;
     await act(async () => {
       await live!.beginPull(at(1), live!.model!);
-      ended = await live!.endPull('keep');
+      ended = await live!.endPull('keep', live!.model!);
       released = await live!.releasePose();
     });
     expect(client.endPull).toHaveBeenCalledWith('keep', 1);
