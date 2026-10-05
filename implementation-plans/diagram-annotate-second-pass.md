@@ -6,7 +6,10 @@ screenshots from published diagrams. Phase 15 of
 `implementation-plans/diagram-workspace.md`, after Phase 14
 (`implementation-plans/diagram-annotate.md`), whose model, painter and canvas
 this builds on. Built by me, by hand, phase by phase — no workflows (Zach,
-2026-10-05). Paths are under `apps/web/src/` unless they say otherwise.
+2026-10-05). Paths are under `apps/web/src/` unless they say otherwise. The
+visual decisions, drawn on Zach's crane:
+https://claude.ai/artifact/UWMQk6D3E1XVTieSpXk6WQ (source:
+`artifacts/diagram-second-pass/build-page.mjs`, gitignored).
 
 ## Goal
 
