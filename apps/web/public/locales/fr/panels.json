@@ -827,7 +827,7 @@
       "sideToSide": "De gauche à droite",
       "smooth": "Lisse",
       "snap": "Aimanter à l’image",
-      "snapHelp": "Les cercles, les sommets des angles droits, les points des bulles et les extrémités des flèches et des lignes s’aimantent aux points proches de l’image et aux autres annotations. Maintenez {{modifier}} pour les placer n’importe où.",
+      "snapHelp": "Les cercles, les sommets des angles droits, les points des bulles et les extrémités des lignes s’aimantent aux points proches de l’image et aux autres annotations. Les flèches restent là où vous les tracez. Maintenez {{modifier}} pour les placer n’importe où.",
       "tail": "Queue",
       "tailCleft": "Fendue",
       "tailPointed": "Pointue",

@@ -69,7 +69,7 @@ export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
         label={t('panels:diagram.annotations.snap', 'Snap to Picture')}
         help={t(
           'panels:diagram.annotations.snapHelp',
-          'Circles, right angles’ corners, callouts’ points, and the ends of arrows and lines, snap to the picture’s points and to other annotations nearby. Hold {{modifier}} to put one down anywhere.',
+          'Circles, right angles’ corners, callouts’ points and the ends of lines snap to the picture’s points and to other annotations nearby. Arrows go where they are drawn. Hold {{modifier}} to put one down anywhere.',
           { modifier: primaryModifierLabel() }
         )}
         checked={annotations.snap}

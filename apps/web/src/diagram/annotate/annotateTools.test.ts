@@ -37,6 +37,7 @@ describe('the tool window', () => {
     expect(hints).toEqual({
       // None for Select, where Annotate rests, as Edit's Box Select has none (review).
       select: null,
+      // An arrow snaps nowhere (Zach, 2026-10-05): no key to put it down freely.
       'edit-path': {
         title: 'Edit Path',
         instructions: 'Select a fold arrow or a white arrow to shape it.',
@@ -49,23 +50,23 @@ describe('the tool window', () => {
       'valley-arrow': {
         title: 'Valley Fold Arrow',
         instructions: 'Drag from where the paper starts to where it lands.',
-        modifiers: [ends],
+        modifiers: [],
       },
       'mountain-arrow': {
         title: 'Mountain Fold Arrow',
         instructions: 'Drag from where the paper starts to where it lands.',
-        modifiers: [ends],
+        modifiers: [],
       },
       'fold-unfold-arrow': {
         title: 'Fold and Unfold Arrow',
         instructions: 'Drag from where the paper starts to where it lands: it folds over, then back.',
-        modifiers: [ends],
+        modifiers: [],
       },
-      'push-arrow': { title: 'Push Arrow', instructions: 'Drag toward the place to push.', modifiers: [ends] },
+      'push-arrow': { title: 'Push Arrow', instructions: 'Drag toward the place to push.', modifiers: [] },
       'white-arrow': {
         title: 'White Arrow',
         instructions: 'Drag from where the paper starts to where it goes. Shape it with Edit Path.',
-        modifiers: [ends],
+        modifiers: [],
       },
       'turn-over': { title: 'Turn Over', instructions: 'Click where the sign goes.', modifiers: [] },
       rotate: { title: 'Rotate', instructions: 'Click where the sign goes.', modifiers: [] },

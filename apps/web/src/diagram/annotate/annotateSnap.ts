@@ -39,18 +39,14 @@ export function snapRadiusUnits(setting: number, screenPerUnit: number): number 
 
 /**
  * Whether a mark of `kind` snaps where it is put (decision 9): a circle, a
- * right angle's corner, each end of an arrow or a line, and the point a
- * callout marks. A sign or a label is put beside what it names, never on it;
- * a fold arrow's inner nodes and handles are shaped by eye. A switch, so a
- * new kind has to say.
+ * right angle's corner, each end of a line, and the point a callout marks.
+ * An arrow is drawn where it is drawn (Zach, 2026-10-05): its ends are rarely
+ * on a corner — a fold arrow starts on the flap and lands on the paper past
+ * the crease — so a snap there would only pull it off. A sign or a label is
+ * put beside what it names, never on it. A switch, so a new kind has to say.
  */
 export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
-    case 'valley-arrow':
-    case 'mountain-arrow':
-    case 'fold-unfold-arrow':
-    case 'push-arrow':
-    case 'white-arrow':
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
@@ -58,6 +54,11 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'right-angle':
     case 'callout':
       return true;
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+    case 'push-arrow':
+    case 'white-arrow':
     case 'turn-over':
     case 'rotate':
     case 'label':

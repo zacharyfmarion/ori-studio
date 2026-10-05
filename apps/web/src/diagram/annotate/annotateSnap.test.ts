@@ -32,23 +32,13 @@ describe('the snap radius (decision 10)', () => {
 });
 
 describe('what snaps (decision 9)', () => {
-  it('is a circle, a right angle’s corner, an arrow’s or a line’s ends and a callout’s point, never a sign or a label', () => {
+  it('is a circle, a right angle’s corner, a line’s ends and a callout’s point, never an arrow, a sign or a label', () => {
     const snapping = ANNOTATION_KINDS.filter(snapsWhenPlaced);
-    expect([...snapping].sort()).toEqual(
-      [
-        'callout',
-        'circle',
-        'right-angle',
-        'fold-unfold-arrow',
-        'hidden-line',
-        'mountain-arrow',
-        'mountain-line',
-        'push-arrow',
-        'valley-arrow',
-        'valley-line',
-        'white-arrow',
-      ].sort()
-    );
+    expect([...snapping].sort()).toEqual(['callout', 'circle', 'right-angle', 'hidden-line', 'mountain-line', 'valley-line'].sort());
+    // An arrow is drawn where it is drawn (Zach, 2026-10-05).
+    for (const arrow of ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'white-arrow'] as const) {
+      expect(snapsWhenPlaced(arrow), arrow).toBe(false);
+    }
   });
 
   it('snaps a callout’s point, never its box, and either end of anything else that snaps', () => {
@@ -95,7 +85,8 @@ describe('snapOutcome', () => {
     expect(snapOutcome('valley-line', { enabled: true, free: true, snapped: true })).toBe('snapped');
     expect(snapOutcome('valley-line', { enabled: true, free: true, snapped: false })).toBe('free');
     expect(snapOutcome('valley-line', { enabled: false, free: true, snapped: false })).toBe('off');
-    expect(snapOutcome('push-arrow', { enabled: true, free: false, snapped: false })).toBe('nothing_near');
+    expect(snapOutcome('hidden-line', { enabled: true, free: false, snapped: false })).toBe('nothing_near');
     expect(snapOutcome('label', { enabled: true, free: false, snapped: false })).toBe('none');
+    expect(snapOutcome('push-arrow', { enabled: true, free: false, snapped: false })).toBe('none');
   });
 });

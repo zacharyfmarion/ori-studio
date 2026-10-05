@@ -286,9 +286,10 @@ function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout'): string {
 
 /**
  * The keys a tool honours, a line each: ⌘ (Ctrl) puts what snaps down
- * anywhere; Shift holds a right angle to 45° steps, and in Edit Path a node
- * to the eight directions and a handle to 15° steps; Alt breaks a smooth
- * node's handles apart. A switch, so a new tool has to say.
+ * anywhere (an arrow snaps nowhere, `snapsWhenPlaced`); Shift holds a right
+ * angle to 45° steps, and in Edit Path a node to the eight directions and a
+ * handle to 15° steps; Alt breaks a smooth node's handles apart. A switch, so
+ * a new tool has to say.
  */
 function annotateToolModifiers(
   t: TFunction,
@@ -306,11 +307,6 @@ function annotateToolModifiers(
           { modifier: alt }
         ),
       ];
-    case 'valley-arrow':
-    case 'mountain-arrow':
-    case 'fold-unfold-arrow':
-    case 'push-arrow':
-    case 'white-arrow':
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
@@ -338,6 +334,11 @@ function annotateToolModifiers(
           modifier: primary,
         }),
       ];
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+    case 'push-arrow':
+    case 'white-arrow':
     case 'turn-over':
     case 'rotate':
     case 'label':

@@ -124,6 +124,9 @@ describe('DiagramAnnotateToolWindow', () => {
     expect(title()).toContain('Valley Fold Arrow');
     expect(title()).toContain('Instructions');
     expect(intro()).toBe('Drag from where the paper starts to where it lands.');
+    // An arrow snaps nowhere, so no key puts it down freely (Zach, 2026-10-05).
+    expect(keys()).toEqual([]);
+    tool('valley-line');
     expect(keys()).toEqual(['Hold Cmd to put an end down anywhere, without snapping.']);
     tool('right-angle');
     expect(keys()).toEqual([

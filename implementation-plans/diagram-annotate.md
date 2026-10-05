@@ -259,6 +259,12 @@ drag; the white arrow a new kind with width presets in ink.
 9. **What snaps:** circles and right-angle corners, plus arrow and line ends —
    *recommended* (arrows then land on circles reliably) — or circles only, or
    Bézier nodes too.
+   *Changed by Zach, 2026-10-05:* arrows do not snap. "Usually they are not
+   drawn directly on corners so they should just be free drawn." Every tool in
+   the Arrows group — fold, push and white arrows, with turn-over and rotate,
+   which never snapped — is drawn where it is drawn, its ends dragged where
+   they are let go, with no snap target shown and no ⌘ key in its window.
+   Lines, circles, right angles and a callout's point still snap.
 10. **Snap radius:** fixed 14/22 px, or Edit's snap setting. *Recommend
     Edit's setting, so there is one.*
 11. **The right-angle mark's look:** an open square (what you described) —
@@ -554,7 +560,8 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
       Annotate's key set is a record now, so a tool key cannot be left out.
   - Snapping as built:
     - **What.** `annotateSnap.ts` (pure): `snapsWhenPlaced` (a switch) — the
-      circle and every arrow and line kind; `placePoint` over
+      circle and every line kind (every arrow kind too until Zach, 2026-10-05,
+      decision 9); `placePoint` over
       `pictureSnapTarget`; `snapOutcome` for the event. In the canvas
       (`placeInHand`): a drawing's start on the press, its end on each move
       and on release; an arrow's or a line's end dragged with Select, never

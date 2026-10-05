@@ -234,7 +234,7 @@ describe('DiagramAnnotateCanvas', () => {
     expect(annotations()[0]).toMatchObject({ kind: 'valley-arrow' });
     expect(annotations()[0]!.from[0]).toBeCloseTo(0.2, 3);
     expect(state().diagramHistory.past).toHaveLength(past + 1);
-    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['valley_arrow', 'nothing_near']]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['valley_arrow', 'none']]);
   });
 
   it('lays a white arrow straight with a drag, in the template’s look, and counts it by its tool', () => {
@@ -248,7 +248,7 @@ describe('DiagramAnnotateCanvas', () => {
     expect(white!.path!.every((node) => node.in === undefined && node.out === undefined)).toBe(true);
     expect(white!.from[0]).toBeCloseTo(0.2, 3);
     expect(white!.to[1]).toBeCloseTo(0.5, 3);
-    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['white_arrow', 'nothing_near']]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['white_arrow', 'none']]);
     // A click is no arrow.
     const [x, y] = at(0.7, 0.7);
     pointer('pointerdown', [x, y]);
@@ -1061,13 +1061,13 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
     ]);
   });
 
-  it('lands an arrow on two circles: its tail as it is pressed, its tip as it moves and where it is let go', () => {
+  it('lands a line on two circles: its first end as it is pressed, its second as it moves and where it is let go', () => {
     drawn(
       [
         { id: 'a', kind: 'circle', from: [0.3, 0.4], to: [0.3, 0.4] },
         { id: 'b', kind: 'circle', from: [0.6, 0.4], to: [0.6, 0.4] },
       ],
-      'valley-arrow'
+      'valley-line'
     );
     pointer('pointerdown', at(0.308, 0.394));
     // Shown at the press, before any move.
@@ -1081,9 +1081,49 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
     expect(draft).toHaveLength(1);
     pointer('pointerup', at(0.594, 0.406));
     rerender();
-    expect(last()).toMatchObject({ kind: 'valley-arrow', from: [0.3, 0.4], to: [0.6, 0.4] });
+    expect(last()).toMatchObject({ kind: 'valley-line', from: [0.3, 0.4], to: [0.6, 0.4] });
     expect(targets()).toEqual([]);
-    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['valley_arrow', 'snapped']]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['valley_line', 'snapped']]);
+  });
+
+  it('draws an arrow where it is drawn, its ends pulled onto no point near them, nothing shown to land on (Zach)', () => {
+    drawn(
+      [
+        { id: 'a', kind: 'circle', from: [0.3, 0.4], to: [0.3, 0.4] },
+        { id: 'b', kind: 'circle', from: [0.6, 0.4], to: [0.6, 0.4] },
+        line,
+      ],
+      'valley-arrow'
+    );
+    // Hovering near a point shows nothing to land on.
+    pointer('pointermove', at(0.308, 0.394));
+    expect(targets()).toEqual([]);
+    pointer('pointerdown', at(0.308, 0.394));
+    expect(targets()).toEqual([]);
+    pointer('pointermove', at(0.593, 0.405));
+    expect(targets()).toEqual([]);
+    pointer('pointerup', at(0.594, 0.406));
+    rerender();
+    expect(last().kind).toBe('valley-arrow');
+    expect(last().from).toEqual([expect.closeTo(0.308, 6), expect.closeTo(0.394, 6)]);
+    expect(last().to).toEqual([expect.closeTo(0.594, 6), expect.closeTo(0.406, 6)]);
+    // Its end dragged with Select near a line's end stays where it is let go too.
+    const arrow = last().id;
+    tool(null);
+    act(() => state().selectDiagramAnnotation(arrow));
+    rerender();
+    drag(at(0.594, 0.406), at(0.603, 0.497));
+    rerender();
+    expect(last().id).toBe(arrow);
+    expect(last().to).toEqual([expect.closeTo(0.603, 6), expect.closeTo(0.497, 6)]);
+    for (const kind of ['mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'white-arrow'] as const) {
+      tool(kind);
+      drag(at(0.308, 0.394), at(0.594, 0.406));
+      rerender();
+      expect(last().kind, kind).toBe(kind);
+      expect(last().from, kind).toEqual([expect.closeTo(0.308, 6), expect.closeTo(0.394, 6)]);
+    }
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls.map(([, snap]) => snap)).toEqual(['none', 'none', 'none', 'none', 'none']);
   });
 
   it('puts a mark down where the pointer is with ⌘ (Ctrl) held, and anywhere with the switch off', () => {
