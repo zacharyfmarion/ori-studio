@@ -15,6 +15,7 @@ import type {
   DiagramAnnotationTool,
   DiagramBehindEnds,
   DiagramBehindLayers,
+  DiagramFlipAxis,
   DiagramArrowShapeGesture,
   DiagramShapedArrowKind,
   DiagramCaptureKind,
@@ -107,6 +108,14 @@ export function trackDiagramAnnotationBehind(
   layers: DiagramBehindLayers
 ): void {
   track(ANALYTICS_EVENTS.diagramAnnotationBehind, { kind, ends, layers });
+}
+
+/**
+ * A mark flipped over in Annotate, from the Step pane: its kind and which
+ * way — whether flipping is used, and on what. Each flip; never where.
+ */
+export function trackDiagramAnnotationFlipped(kind: DiagramAnnotationTool, axis: DiagramFlipAxis): void {
+  track(ANALYTICS_EVENTS.diagramAnnotationFlipped, { kind, axis });
 }
 
 /**

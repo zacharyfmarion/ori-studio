@@ -1431,7 +1431,8 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
     from: withinReach(move.point(annotation.from)),
     to: withinReach(move.point(annotation.to)),
   };
-  if (move.mirrors && annotation.bend !== undefined) carried.bend = -annotation.bend;
+  // An arc bulges the other way: the one it is drawn with, References' 60° where none is written.
+  if (move.mirrors && isArrowKind(annotation.kind)) carried.bend = -(annotation.bend ?? ARROW_BEND);
   // A pleat arrow's Zs stay on their side of the paper: a mirror turns the side they step to over.
   if (move.mirrors && annotation.kind === 'pleat-arrow') return withPleatSide(carried, annotation.mirrored !== true);
   if (move.mirrors && annotation.rotate) {
@@ -1545,6 +1546,79 @@ function carryCloseUp(annotation: KnownDiagramAnnotation, move: PictureMove): Kn
     to: withinReach([carried[0] + dx, carried[1] + dy]),
     radius: closeUpRadiusWithin(Math.hypot(rx, ry)),
   };
+}
+
+/** Which way Flip turns a mark over: left to right, or top to bottom. */
+export type FlipAxis = 'horizontal' | 'vertical';
+
+/**
+ * Whether Flip can turn a mark of `kind` over (Zach, 2026-10-05): every mark
+ * with a side to it. A circle, a label and a turn-over are their point, drawn
+ * the same either way over. A switch, so a new kind has to say.
+ */
+export function flipsOver(kind: DiagramAnnotationKind): boolean {
+  switch (kind) {
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+    case 'pleat-arrow':
+    case 'push-arrow':
+    case 'white-arrow':
+    case 'rotate':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+    case 'right-angle':
+    case 'callout':
+    case 'angle-mark':
+    case 'close-up':
+      return true;
+    case 'turn-over':
+    case 'label':
+    case 'circle':
+      return false;
+  }
+}
+
+/**
+ * The point Flip turns a mark over about: an arrow's or a line's middle — the
+ * middle of its ends, or of its path's nodes — so it stays where it is; any
+ * other mark's anchor, `from`: a right angle's corner, an angle mark's vertex,
+ * a callout's point, a close-up's area, a sign's place.
+ */
+export function flipCentre(annotation: KnownDiagramAnnotation): PicturePoint {
+  const shape = ANNOTATION_SHAPES[annotation.kind];
+  if (shape !== 'arc' && shape !== 'straight' && shape !== 'path' && shape !== 'line') return annotation.from;
+  const points = annotation.path ? annotation.path.map((node) => node.at) : [annotation.from, annotation.to];
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+}
+
+/**
+ * A mark turned over in place: mirrored left to right (`horizontal`) or top
+ * to bottom (`vertical`) about {@link flipCentre}, as a mirrored picture
+ * carries it ({@link carryAnnotation}) — an arc bulging the other way, a
+ * rotation turning the other way, a pleat's Zs on the other side, a callout's
+ * box and a close-up over on the other side of what they mark, a label's
+ * words upright. The mark itself for one that does not flip ({@link flipsOver}).
+ */
+export function flipAnnotation(annotation: KnownDiagramAnnotation, axis: FlipAxis): KnownDiagramAnnotation {
+  if (!flipsOver(annotation.kind)) return annotation;
+  const [cx, cy] = flipCentre(annotation);
+  const point =
+    axis === 'horizontal'
+      ? ([x, y]: PicturePoint): PicturePoint => [2 * cx - x, y]
+      : ([x, y]: PicturePoint): PicturePoint => [x, 2 * cy - y];
+  return carryAnnotation(annotation, { point, mirrors: true, turnDeg: 0 });
+}
+
+/**
+ * Whether Flip changes what a mark draws: not a line flipped along itself,
+ * nor a mark whose sides are alike that way — it would turn over onto itself.
+ */
+export function flipChangesMark(annotation: KnownDiagramAnnotation, axis: FlipAxis): boolean {
+  return JSON.stringify(flipAnnotation(annotation, axis)) !== JSON.stringify(annotation);
 }
 
 /** A picture flipped left to right inside its frame. */

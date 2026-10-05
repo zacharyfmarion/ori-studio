@@ -120,6 +120,9 @@ export type DiagramBehindEnds = 'tail' | 'tip' | 'both' | 'whole';
 /** How many layers lie over an end put behind a flap: one, two, or three and more. */
 export type DiagramBehindLayers = '1' | '2' | '3+';
 
+/** Which way a mark was flipped in Annotate: left to right, or top to bottom. */
+export type DiagramFlipAxis = 'horizontal' | 'vertical';
+
 export type DiagramArrowShapeGesture =
   | 'drag_node'
   | 'drag_handle'
@@ -1349,6 +1352,8 @@ export const ANALYTICS_EVENTS = {
   diagramAnnotationAdded: 'diagram annotation added',
   /** A mark put behind a flap for the first time (15e): which ends, how deep. */
   diagramAnnotationBehind: 'diagram annotation behind',
+  /** A mark flipped horizontally or vertically from the Step pane: its kind, which way. */
+  diagramAnnotationFlipped: 'diagram annotation flipped',
   /** Annotate's Snap switch flipped in the Step pane. */
   diagramAnnotateSnapChanged: 'diagram annotate snap changed',
   /**

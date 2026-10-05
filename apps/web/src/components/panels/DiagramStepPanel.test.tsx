@@ -567,6 +567,33 @@ describe('DiagramStepPanel in Annotate', () => {
     expect('mirrored' in pleat()).toBe(false);
   });
 
+  it('flips the selected mark horizontally or vertically from its Flip row, each one undo step, and offers none on a label', () => {
+    const stepId = annotatedStep();
+    act(() => state().openDiagramStep(stepId, 'annotate'));
+    act(() => row('Valley Fold Arrow').click());
+    const arrow = () =>
+      annotations().find((annotation) => annotation.id === 'a-1') as unknown as { from: number[]; to: number[]; bend?: number };
+    // Two mirrors in the Flip row, each named in full.
+    const horizontal = button('Flip Horizontal')!;
+    const vertical = button('Flip Vertical')!;
+    expect(horizontal.querySelector('svg')).not.toBeNull();
+    expect(vertical.textContent).toBe('');
+    const past = state().diagramHistory.past.length;
+    act(() => vertical.click());
+    // About its middle: the same ends, bulging the other way.
+    expect(arrow()).toMatchObject({ from: [0.1, 0.2], to: [0.5, 0.2], bend: -0.1 });
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Flip vertical');
+    act(() => horizontal.click());
+    expect(arrow().from[0]).toBeCloseTo(0.5, 12);
+    expect(arrow().to[0]).toBeCloseTo(0.1, 12);
+    expect(arrow().bend).toBe(0.1);
+    expect(state().diagramHistory.past).toHaveLength(past + 2);
+    // A label is its point, the same either way over.
+    act(() => row('B').click());
+    expect(button('Flip Horizontal')).toBeNull();
+  });
+
   it('scales a close-up with Scale, by halves or to a hundredth, within its range, each one undo step (15f)', () => {
     const stepId = annotatedStep();
     act(() => {

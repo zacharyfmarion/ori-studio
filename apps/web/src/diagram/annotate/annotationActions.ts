@@ -5,12 +5,16 @@ import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/
 import {
   MAX_PATH_NODES,
   canBeShaped,
+  flipAnnotation,
   flipAnnotationArc,
   flipChangesArc,
+  flipChangesMark,
   flipsArc,
+  flipsOver,
   isCornerKind,
   isShapedArrow,
   turnRightAngle,
+  type FlipAxis,
   type PictureFrame,
   type PicturePoint,
 } from './annotationModel';
@@ -27,7 +31,9 @@ import {
 /**
  * The verbs an annotation offers, for every surface that offers them: the
  * Step pane's buttons under the selected annotation, and Annotate's keys — F,
- * Delete through `edit.delete`, and the arrows that nudge a node.
+ * Delete through `edit.delete`, and the arrows that nudge a node. Flip
+ * Horizontal and Flip Vertical turn any mark with a side to it over in place
+ * (Zach, 2026-10-05), from the pane alone, as Edit's flips have no keys.
  *
  * `foldedFigureActions.ts`'s shape: React-free and store-free, taking the
  * annotation and a bound edit and returning plain data. A verb's gate and its
@@ -46,13 +52,18 @@ export type AnnotationActionId =
   | 'corner-node'
   | 'add-node'
   | 'delete-node'
+  | 'flip-horizontal'
+  | 'flip-vertical'
   | 'flip-arc'
   | 'reset-path'
   | 'turn-right-angle'
   | 'delete';
 
-/** Where a surface puts a verb: with the selected node, or with the annotation as a whole. */
-export type AnnotationActionGroup = 'node' | 'annotation';
+/**
+ * Where a surface puts a verb: with the selected node, with the annotation as
+ * a whole, or with the two flips, which turn the whole over.
+ */
+export type AnnotationActionGroup = 'node' | 'annotation' | 'flip';
 
 /** The verbs in the order a surface shows them: the node's, then the annotation's own, then Delete. */
 const ANNOTATION_ACTION_ORDER: readonly AnnotationActionId[] = [
@@ -62,6 +73,8 @@ const ANNOTATION_ACTION_ORDER: readonly AnnotationActionId[] = [
   'corner-node',
   'add-node',
   'delete-node',
+  'flip-horizontal',
+  'flip-vertical',
   'flip-arc',
   'reset-path',
   'turn-right-angle',
@@ -108,6 +121,8 @@ export interface AnnotationEdit {
    * would: what the binding counts once, when an arc becomes a path.
    */
   shapes?: { annotationId: string; gesture: DiagramArrowShapeGesture };
+  /** The mark a flip turns over, and which way: what the binding counts. */
+  flips?: { annotationId: string; axis: FlipAxis };
 }
 
 export interface AnnotationAction {
@@ -160,7 +175,8 @@ const SQUARE: PictureFrame = { width: 1, height: 1 };
  * Whether `annotation` offers a verb at all: the node verbs a fold or white
  * arrow with Edit Path in hand; Flip arc an arc to flip; Reset an arrow
  * shaped (`isShapedArrow`), or any arrow in Edit Path (where it waits for the
- * first edit); Turn 90° a right angle; Delete, every one.
+ * first edit); Turn 90° a right angle; the two flips a mark with a side to it
+ * (`flipsOver`); Delete, every one.
  */
 export function offersAnnotationAction(
   id: AnnotationActionId,
@@ -176,6 +192,9 @@ export function offersAnnotationAction(
     case 'add-node':
     case 'delete-node':
       return editingPath;
+    case 'flip-horizontal':
+    case 'flip-vertical':
+      return flipsOver(annotation.kind);
     case 'flip-arc':
       return flipsArc(annotation.kind);
     case 'reset-path':
@@ -248,6 +267,15 @@ export function annotationActionEdit(
         ...(node !== null ? { selectPathNode: Math.max(0, node - 1) } : {}),
         ...shapes('delete_node'),
       };
+    case 'flip-horizontal':
+    case 'flip-vertical': {
+      const axis = flipAxis(id);
+      return {
+        label: axis === 'horizontal' ? 'Flip horizontal' : 'Flip vertical',
+        edit: editAnnotation(annotationId, (annotation) => flipAnnotation(annotation, axis)),
+        flips: { annotationId, axis },
+      };
+    }
     case 'flip-arc':
       return {
         label: 'Flip arc',
@@ -272,6 +300,17 @@ export function annotationActionEdit(
         select: null,
       };
   }
+}
+
+/** Where a surface shows a verb ({@link AnnotationActionGroup}). */
+function actionGroup(id: AnnotationActionId): AnnotationActionGroup {
+  if (NODE_ACTIONS.has(id)) return 'node';
+  return id === 'flip-horizontal' || id === 'flip-vertical' ? 'flip' : 'annotation';
+}
+
+/** The way a flip verb turns a mark over. */
+function flipAxis(id: 'flip-horizontal' | 'flip-vertical'): FlipAxis {
+  return id === 'flip-horizontal' ? 'horizontal' : 'vertical';
 }
 
 /**
@@ -322,6 +361,10 @@ function annotationActionLabel(t: TFunction, id: AnnotationActionId, kind: Diagr
       return t('panels:diagram.annotations.addNode', 'Add Node');
     case 'delete-node':
       return t('panels:diagram.annotations.deleteNode', 'Delete Node');
+    case 'flip-horizontal':
+      return t('panels:diagram.annotations.flipHorizontal', 'Flip Horizontal');
+    case 'flip-vertical':
+      return t('panels:diagram.annotations.flipVertical', 'Flip Vertical');
     case 'flip-arc':
       return kind === 'pleat-arrow' ? t('panels:diagram.annotations.flip', 'Flip') : t('tools:diagram.flipArc', 'Flip Arc');
     case 'reset-path':
@@ -353,7 +396,7 @@ export function buildAnnotationActions(
     const shortcutId = annotationActionShortcut(id, node);
     const base = {
       id,
-      group: NODE_ACTIONS.has(id) ? ('node' as const) : ('annotation' as const),
+      group: actionGroup(id),
       label: annotationActionLabel(deps.t, id, annotation.kind),
       ...(shortcutId ? { shortcutId } : {}),
     };
@@ -391,6 +434,14 @@ export function buildAnnotationActions(
           ...base,
           // A loop whose ends meet has no arc to go back to.
           disabled: !state.editable || !canResetPath(annotation),
+          run: () => deps.apply(annotationActionEdit(id, annotation.id, context)),
+        };
+      case 'flip-horizontal':
+      case 'flip-vertical':
+        return {
+          ...base,
+          // A line flipped along itself turns over onto itself: offered, and held.
+          disabled: !state.editable || !flipChangesMark(annotation, flipAxis(id)),
           run: () => deps.apply(annotationActionEdit(id, annotation.id, context)),
         };
       case 'flip-arc':

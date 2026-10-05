@@ -1,4 +1,4 @@
-import { trackDiagramArrowShaped } from '../../analytics';
+import { trackDiagramAnnotationFlipped, trackDiagramArrowShaped } from '../../analytics';
 import type { DiagramShapedArrowKind } from '../../analytics/events';
 import type { WorkspaceState } from '../../store/workspaceStore/types';
 import {
@@ -9,6 +9,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import type { AnnotationEdit } from './annotationActions';
+import { annotationEventKind } from './annotationEventKind';
 import { isShapedArrow } from './annotationModel';
 
 /**
@@ -17,15 +18,17 @@ import { isShapedArrow } from './annotationModel';
  * pane, the keys, Delete and the canvas's gestures. Here, not in each, it
  * counts an arrow shaped for the first time (`diagram arrow shaped`): once,
  * when the edit makes an arc a path, or a white arrow no longer straight
- * (`isShapedArrow`), never for the edits after. Whether anything changed.
+ * (`isShapedArrow`), never for the edits after; and each flip (`diagram
+ * annotation flipped`). Whether anything changed.
  */
 export function applyAnnotationEdit(
   workspace: Pick<WorkspaceState, 'diagram' | 'editDiagramAnnotations'>,
   stepId: string,
-  { label, edit, select, selectPathNode, shapes }: AnnotationEdit,
+  { label, edit, select, selectPathNode, shapes, flips }: AnnotationEdit,
   options: { loadId?: number } = {}
 ): boolean {
   const before = shapes ? annotationIn(workspace.diagram, stepId, shapes.annotationId) : null;
+  const flipped = flips ? annotationIn(workspace.diagram, stepId, flips.annotationId) : null;
   const changed = workspace.editDiagramAnnotations(stepId, label, edit, {
     ...(select !== undefined ? { select } : {}),
     ...(selectPathNode !== undefined ? { selectPathNode } : {}),
@@ -37,6 +40,7 @@ export function applyAnnotationEdit(
     const kind = shapedKind(before.kind);
     if (after && isShapedArrow(after) && kind) trackDiagramArrowShaped(kind, shapes.gesture);
   }
+  if (changed && flips && flipped) trackDiagramAnnotationFlipped(annotationEventKind(flipped), flips.axis);
   return changed;
 }
 

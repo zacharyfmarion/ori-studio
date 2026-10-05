@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type LucideIcon } from 'lucide-react';
+import { FlipHorizontal2, FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type LucideIcon } from 'lucide-react';
 import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
 import { annotationLabel, lineTypeLabel } from '../../diagram/annotate/annotateTools';
 import { DIAGRAM_LINE_TYPES, lineTypeOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
@@ -24,6 +24,7 @@ import type { DiagramStep, KnownDiagramAnnotation } from '../../diagram/document
 import { shortcutLabelForAction } from '../../keyboard/shortcuts';
 import { useShortcutResolution } from '../../store/shortcutStore';
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { FieldRow, NumberRow, SegmentedRow, TextAreaRow, ToggleRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
 import { DiagramAnnotationGlyph, SolidArrowGlyph } from './DiagramAnnotateToolGlyph';
@@ -36,6 +37,8 @@ import styles from './DiagramStepAnnotations.module.css';
 
 /** The icon of each of the catalog's verbs the annotation row shows (`annotationActions.ts`). */
 const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = {
+  'flip-horizontal': FlipHorizontal2,
+  'flip-vertical': FlipVertical2,
   'flip-arc': FlipVertical2,
   'reset-path': RotateCcw,
   'turn-right-angle': RotateCwSquare,
@@ -53,8 +56,8 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * one's own controls:
  * a label's or a callout's text, an arrow's Flip arc and Reset, a white
  * arrow's width and tail, a line's type, a rotation's turn, a turn-over's axis,
- * a close-up's scale, Delete, and in Edit Path a fold or white arrow's node
- * verbs.
+ * a close-up's scale, Flip Horizontal and Vertical, Delete, and in Edit Path a
+ * fold or white arrow's node verbs.
  */
 export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
   const { t } = useTranslation();
@@ -172,6 +175,7 @@ function SelectedAnnotation({
     return key ? `${label} (${key})` : label;
   };
   const nodeActions = annotations.actions.filter((action) => action.group === 'node');
+  const flipActions = annotations.actions.filter((action) => action.group === 'flip');
   const lineType = lineTypeOf(annotation.kind);
   const typeName = t('panels:diagram.annotations.lineType', 'Type');
 
@@ -304,6 +308,30 @@ function SelectedAnnotation({
           ]}
           onChange={(axis) => annotations.setAxis(id, axis as 'vertical' | 'horizontal')}
         />
+      )}
+      {flipActions.length > 0 && (
+        // Two mirrors, side by side however narrow the pane: each named in full by its tooltip.
+        <FieldRow label={t('panels:diagram.annotations.flipRow', 'Flip')} kind="text">
+          <span className={styles.verbs}>
+            {flipActions.map((action) => {
+              const Icon = ACTION_ICONS[action.id]!;
+              return (
+                <IconButton
+                  key={action.id}
+                  size="sm"
+                  title={keyed(action)}
+                  aria-label={action.label}
+                  aria-disabled={action.disabled || undefined}
+                  onClick={() => {
+                    if (!action.disabled) action.run();
+                  }}
+                >
+                  <Icon size={14} aria-hidden="true" />
+                </IconButton>
+              );
+            })}
+          </span>
+        </FieldRow>
       )}
       <FieldRow label={annotationLabel(t, annotation)} kind="text">
         <span className={styles.verbs}>

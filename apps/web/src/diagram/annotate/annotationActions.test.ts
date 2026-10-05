@@ -9,11 +9,15 @@ import {
   nudgePathNodeEdit,
   offersAnnotationAction,
   steppedNode,
+  type AnnotationAction,
   type AnnotationEdit,
 } from './annotationActions';
 import { flipChangesArc, ANNOTATION_KINDS, ARROW_BEND, MAX_PATH_NODES } from './annotationModel';
 
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
+
+/** The verbs a test is about: the flips, a row of their own, are tested on their own. */
+const verbsOf = (actions: AnnotationAction[]) => actions.filter((action) => action.group !== 'flip');
 
 const of = (id: string, kind: DiagramAnnotationKind, extra: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnotation => ({
   id,
@@ -33,7 +37,7 @@ describe('the annotation verbs', () => {
   it('name Flip on a pleat arrow, which has no arc, and step its Zs to the other side and back (15c)', () => {
     const edits: AnnotationEdit[] = [];
     const pleat = of('p', 'pleat-arrow');
-    const [flip] = buildAnnotationActions(pleat, { editable: true }, { t, apply: (edit) => edits.push(edit) });
+    const [flip] = verbsOf(buildAnnotationActions(pleat, { editable: true }, { t, apply: (edit) => edits.push(edit) }));
     expect(flip).toMatchObject({ id: 'flip-arc', label: 'Flip', shortcutId: 'diagram.flipArc', disabled: false });
     flip!.run();
     const once = edits[0]!.edit([pleat]);
@@ -44,21 +48,23 @@ describe('the annotation verbs', () => {
 
   it('come in the pane’s order with their keys, enabled only on a step that can change', () => {
     const apply = vi.fn();
-    const arrow = buildAnnotationActions(of('a', 'valley-arrow'), { editable: true }, { t, apply });
+    const arrow = verbsOf(buildAnnotationActions(of('a', 'valley-arrow'), { editable: true }, { t, apply }));
     expect(arrow.map(({ id, label, shortcutId, disabled }) => ({ id, label, shortcutId, disabled }))).toEqual([
       { id: 'flip-arc', label: 'Flip Arc', shortcutId: 'diagram.flipArc', disabled: false },
       { id: 'delete', label: 'Delete', shortcutId: 'edit.delete', disabled: false },
     ]);
-    const line = buildAnnotationActions(of('l', 'valley-line'), { editable: false }, { t, apply });
+    const line = verbsOf(buildAnnotationActions(of('l', 'valley-line'), { editable: false }, { t, apply }));
     expect(line.map(({ id, disabled }) => ({ id, disabled }))).toEqual([{ id: 'delete', disabled: true }]);
   });
 
   it('run as one edit of the step’s list, on the annotation as it is when the edit lands', () => {
     const edits: AnnotationEdit[] = [];
-    const [flip, remove] = buildAnnotationActions(of('a', 'mountain-arrow', { bend: 0.2 }), { editable: true }, {
-      t,
-      apply: (edit) => edits.push(edit),
-    });
+    const [flip, remove] = verbsOf(
+      buildAnnotationActions(of('a', 'mountain-arrow', { bend: 0.2 }), { editable: true }, {
+        t,
+        apply: (edit) => edits.push(edit),
+      })
+    );
     flip!.run();
     remove!.run();
     expect(edits.map(({ label, select }) => ({ label, select }))).toEqual([
@@ -104,7 +110,7 @@ describe('Edit Path’s node verbs', () => {
 
   it('are offered on a fold arrow with Edit Path in hand, and only there', () => {
     const ids = (annotation: KnownDiagramAnnotation, editingPath: boolean) =>
-      buildAnnotationActions(annotation, { editable: true, editingPath }, { t, apply: vi.fn() }).map(
+      verbsOf(buildAnnotationActions(annotation, { editable: true, editingPath }, { t, apply: vi.fn() })).map(
         ({ id, group }) => `${group}:${id}`
       );
     expect(ids(S, true)).toEqual([
@@ -127,7 +133,7 @@ describe('Edit Path’s node verbs', () => {
 
   it('are offered on a white arrow with Edit Path in hand, and Reset with Select only once it is bent', () => {
     const ids = (annotation: KnownDiagramAnnotation, editingPath: boolean) =>
-      buildAnnotationActions(annotation, { editable: true, editingPath, node: 0 }, { t, apply: vi.fn(), selectNode: vi.fn() }).map(
+      verbsOf(buildAnnotationActions(annotation, { editable: true, editingPath, node: 0 }, { t, apply: vi.fn(), selectNode: vi.fn() })).map(
         ({ id, disabled }) => `${id}${disabled ? ' (off)' : ''}`
       );
     const straight = of('w', 'white-arrow', { path: [{ at: [0.2, 0.3] }, { at: [0.6, 0.3] }], width: 'regular', tail: 'pointed' });
@@ -300,6 +306,42 @@ describe('Edit Path’s node verbs', () => {
   });
 });
 
+describe('Flip Horizontal and Flip Vertical (Zach, 2026-10-05)', () => {
+  it('are offered on every mark with a side to it, a row of their own ahead of the rest, with no keys', () => {
+    const flips = ANNOTATION_KINDS.filter((kind) => offersAnnotationAction('flip-horizontal', of('a', kind)));
+    expect(flips).toEqual(ANNOTATION_KINDS.filter((kind) => !['turn-over', 'label', 'circle'].includes(kind)));
+    const actions = buildAnnotationActions(of('a', 'valley-arrow'), { editable: true }, { t, apply: vi.fn() });
+    expect(actions.map(({ id, group, label, shortcutId, disabled }) => ({ id, group, label, shortcutId, disabled }))).toEqual([
+      { id: 'flip-horizontal', group: 'flip', label: 'Flip Horizontal', shortcutId: undefined, disabled: false },
+      { id: 'flip-vertical', group: 'flip', label: 'Flip Vertical', shortcutId: undefined, disabled: false },
+      { id: 'flip-arc', group: 'annotation', label: 'Flip Arc', shortcutId: 'diagram.flipArc', disabled: false },
+      { id: 'delete', group: 'annotation', label: 'Delete', shortcutId: 'edit.delete', disabled: false },
+    ]);
+  });
+
+  it('are held where the mark would turn over onto itself, and on a step that cannot change', () => {
+    const [horizontal, vertical] = buildAnnotationActions(of('l', 'valley-line'), { editable: true }, { t, apply: vi.fn() });
+    // A level line top to bottom is itself; left to right its ends change places.
+    expect(vertical).toMatchObject({ id: 'flip-vertical', disabled: true });
+    expect(horizontal).toMatchObject({ id: 'flip-horizontal', disabled: false });
+    const [held] = buildAnnotationActions(of('a', 'valley-arrow'), { editable: false }, { t, apply: vi.fn() });
+    expect(held).toMatchObject({ id: 'flip-horizontal', disabled: true });
+  });
+
+  it('turn the mark over as one edit, on the mark as it is when it lands, saying which way for the count', () => {
+    const edits: AnnotationEdit[] = [];
+    const [horizontal] = buildAnnotationActions(of('a', 'valley-arrow', { bend: 0.2 }), { editable: true }, {
+      t,
+      apply: (edit) => edits.push(edit),
+    });
+    horizontal!.run();
+    expect(edits[0]).toMatchObject({ label: 'Flip horizontal', flips: { annotationId: 'a', axis: 'horizontal' } });
+    const [flipped, other] = edits[0]!.edit([of('a', 'valley-arrow', { bend: 0.3 }), of('b', 'push-arrow')]);
+    expect(flipped).toMatchObject({ from: [expect.closeTo(0.6, 12), 0.3], to: [expect.closeTo(0.2, 12), 0.3], bend: -0.3 });
+    expect(other).toEqual(of('b', 'push-arrow'));
+  });
+});
+
 describe('Turn 90°', () => {
   const square = (opens: [number, number]): KnownDiagramAnnotation => ({
     id: 'r',
@@ -311,17 +353,17 @@ describe('Turn 90°', () => {
   it('is offered on a right angle alone, after the arrows’ verbs and before Delete', () => {
     const turns = ANNOTATION_KINDS.filter((kind) => offersAnnotationAction('turn-right-angle', of('a', kind)));
     expect(turns).toEqual(['right-angle']);
-    const actions = buildAnnotationActions(square([1, 0]), { editable: true }, { t, apply: vi.fn() });
+    const actions = verbsOf(buildAnnotationActions(square([1, 0]), { editable: true }, { t, apply: vi.fn() }));
     expect(actions.map(({ id, label, disabled }) => ({ id, label, disabled }))).toEqual([
       { id: 'turn-right-angle', label: 'Turn 90°', disabled: false },
       { id: 'delete', label: 'Delete', disabled: false },
     ]);
-    expect(buildAnnotationActions(square([1, 0]), { editable: false }, { t, apply: vi.fn() })[0]!.disabled).toBe(true);
+    expect(verbsOf(buildAnnotationActions(square([1, 0]), { editable: false }, { t, apply: vi.fn() }))[0]!.disabled).toBe(true);
   });
 
   it('turns it a quarter clockwise about its corner, as one edit, on the mark as it is when it lands', () => {
     const edits: AnnotationEdit[] = [];
-    buildAnnotationActions(square([1, 0]), { editable: true }, { t, apply: (edit) => edits.push(edit) })[0]!.run();
+    verbsOf(buildAnnotationActions(square([1, 0]), { editable: true }, { t, apply: (edit) => edits.push(edit) }))[0]!.run();
     expect(edits.map(({ label, select }) => ({ label, select }))).toEqual([{ label: 'Turn right angle', select: undefined }]);
     // Opening right now, whatever it opened when the verbs were built: it opens down (y down, clockwise on the page).
     const [turned, other] = edits[0]!.edit([square([0, -1]), of('b', 'valley-line')]);

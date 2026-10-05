@@ -163,6 +163,14 @@ describe('carrying one through its picture’s move', () => {
     expect(carryAnnotation(turnOver, { ...quarter, turnDeg: 180 }).axis).toBe('vertical');
     expect(carryAnnotation(turnOver, { ...quarter, turnDeg: 15 }).axis).toBe('vertical');
   });
+
+  it('turns over the arc an arrow is drawn with when none is written: References’ 60°', () => {
+    const arrow: KnownDiagramAnnotation = { id: 'a', kind: 'valley-arrow', from: [0.1, 0.2], to: [0.4, 0.2] };
+    expect(carryAnnotation(arrow, mirrorMove({ width: 1, height: 1 })).bend).toBe(-ARROW_BEND);
+    // A move that is no mirror leaves it unwritten, drawn as it was.
+    const shift = { point: ([x, y]: [number, number]): [number, number] => [x + 0.1, y], mirrors: false, turnDeg: 0 };
+    expect(carryAnnotation(arrow, shift).bend).toBeUndefined();
+  });
 });
 
 describe('keeping within reach', () => {

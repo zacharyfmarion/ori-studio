@@ -6,7 +6,7 @@ import { annotationActionEdit, nudgePathNodeEdit } from './annotationActions';
 import { ARROW_BEND } from './annotationModel';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
 
-const tracked = vi.hoisted(() => ({ trackDiagramArrowShaped: vi.fn() }));
+const tracked = vi.hoisted(() => ({ trackDiagramArrowShaped: vi.fn(), trackDiagramAnnotationFlipped: vi.fn() }));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
   ...tracked,
@@ -31,9 +31,24 @@ function stepWith(list: KnownDiagramAnnotation[]): string {
 beforeEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
   tracked.trackDiagramArrowShaped.mockClear();
+  tracked.trackDiagramAnnotationFlipped.mockClear();
 });
 
 describe('applyAnnotationEdit', () => {
+  it('counts each flip that turns a mark over, by its kind as the events spell it and the way it went', () => {
+    const stepId = stepWith([
+      { id: 's', kind: 'white-arrow', from: [0.2, 0.5], to: [0.6, 0.4], path: [{ at: [0.2, 0.5] }, { at: [0.6, 0.4] }], width: 'narrow', tail: 'square', fill: 'black' },
+      { id: 'l', kind: 'valley-line', from: [0.2, 0.7], to: [0.6, 0.7] },
+    ]);
+    const past = state().diagramHistory.past.length;
+    expect(applyAnnotationEdit(state(), stepId, annotationActionEdit('flip-vertical', 's'))).toBe(true);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Flip vertical');
+    // A level line turned over top to bottom is itself: nothing changed, nothing counted.
+    expect(applyAnnotationEdit(state(), stepId, annotationActionEdit('flip-vertical', 'l'))).toBe(false);
+    expect(tracked.trackDiagramAnnotationFlipped.mock.calls).toEqual([['solid_arrow', 'vertical']]);
+  });
+
   it('counts an arc shaped once, by the gesture that shaped it, and never the edits after', () => {
     const stepId = stepWith([{ id: 'm', kind: 'mountain-arrow', from: [0.2, 0.5], to: [0.6, 0.5], bend: ARROW_BEND }]);
     const past = state().diagramHistory.past.length;

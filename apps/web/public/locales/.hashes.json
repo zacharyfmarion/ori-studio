@@ -4087,7 +4087,10 @@
     "panels:diagram.annotate.closeUpHelp": "2af7ac938b46",
     "panels:diagram.annotate.closeUpShiftKey": "11d1a8d4ed2f",
     "panels:diagram.annotations.scale": "f102986b39ef",
-    "tools:diagram.toolCloseUp": "e6fc898c91f9"
+    "tools:diagram.toolCloseUp": "e6fc898c91f9",
+    "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
+    "panels:diagram.annotations.flipRow": "2449d137ea15",
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8177,7 +8180,10 @@
     "panels:diagram.annotate.closeUpHelp": "2af7ac938b46",
     "panels:diagram.annotate.closeUpShiftKey": "11d1a8d4ed2f",
     "panels:diagram.annotations.scale": "f102986b39ef",
-    "tools:diagram.toolCloseUp": "e6fc898c91f9"
+    "tools:diagram.toolCloseUp": "e6fc898c91f9",
+    "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
+    "panels:diagram.annotations.flipRow": "2449d137ea15",
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12269,7 +12275,10 @@
     "panels:diagram.annotate.closeUpHelp": "2af7ac938b46",
     "panels:diagram.annotate.closeUpShiftKey": "11d1a8d4ed2f",
     "panels:diagram.annotations.scale": "f102986b39ef",
-    "tools:diagram.toolCloseUp": "e6fc898c91f9"
+    "tools:diagram.toolCloseUp": "e6fc898c91f9",
+    "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
+    "panels:diagram.annotations.flipRow": "2449d137ea15",
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -16273,7 +16282,10 @@
     "panels:diagram.annotate.closeUpHelp": "2af7ac938b46",
     "panels:diagram.annotate.closeUpShiftKey": "11d1a8d4ed2f",
     "panels:diagram.annotations.scale": "f102986b39ef",
-    "tools:diagram.toolCloseUp": "e6fc898c91f9"
+    "tools:diagram.toolCloseUp": "e6fc898c91f9",
+    "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
+    "panels:diagram.annotations.flipRow": "2449d137ea15",
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -20277,7 +20289,10 @@
     "panels:diagram.annotate.closeUpHelp": "2af7ac938b46",
     "panels:diagram.annotate.closeUpShiftKey": "11d1a8d4ed2f",
     "panels:diagram.annotations.scale": "f102986b39ef",
-    "tools:diagram.toolCloseUp": "e6fc898c91f9"
+    "tools:diagram.toolCloseUp": "e6fc898c91f9",
+    "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
+    "panels:diagram.annotations.flipRow": "2449d137ea15",
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -24367,7 +24382,10 @@
     "panels:diagram.annotate.closeUpHelp": "2af7ac938b46",
     "panels:diagram.annotate.closeUpShiftKey": "11d1a8d4ed2f",
     "panels:diagram.annotations.scale": "f102986b39ef",
-    "tools:diagram.toolCloseUp": "e6fc898c91f9"
+    "tools:diagram.toolCloseUp": "e6fc898c91f9",
+    "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
+    "panels:diagram.annotations.flipRow": "2449d137ea15",
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -28457,7 +28475,10 @@
     "panels:diagram.annotate.closeUpHelp": "2af7ac938b46",
     "panels:diagram.annotate.closeUpShiftKey": "11d1a8d4ed2f",
     "panels:diagram.annotations.scale": "f102986b39ef",
-    "tools:diagram.toolCloseUp": "e6fc898c91f9"
+    "tools:diagram.toolCloseUp": "e6fc898c91f9",
+    "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
+    "panels:diagram.annotations.flipRow": "2449d137ea15",
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -32461,6 +32482,9 @@
     "panels:diagram.annotate.closeUpHelp": "2af7ac938b46",
     "panels:diagram.annotate.closeUpShiftKey": "11d1a8d4ed2f",
     "panels:diagram.annotations.scale": "f102986b39ef",
-    "tools:diagram.toolCloseUp": "e6fc898c91f9"
+    "tools:diagram.toolCloseUp": "e6fc898c91f9",
+    "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
+    "panels:diagram.annotations.flipRow": "2449d137ea15",
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
   }
 }
