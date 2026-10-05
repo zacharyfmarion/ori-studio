@@ -505,7 +505,7 @@ describe('a linked picture turned about its middle', () => {
         { source: cpSource(far), picture: picture(10) }
       );
       // With its face, under the one drawn over it now.
-      close((there.steps[0] as DiagramStep).annotations[0]!.from as [number, number], picturePoint(scene(10), [35, 35]));
+      close(((there.steps[0] as DiagramStep).annotations[0] as KnownDiagramAnnotation).from, picturePoint(scene(10), [35, 35]));
       // A new capture of the same pose, as the app makes one.
       const back = setLinkedPicture(there, 'step-1', { source: cpSource(near), picture: picture(0) }).steps[0] as DiagramStep;
       close((back.annotations[0] as KnownDiagramAnnotation).from, home);
