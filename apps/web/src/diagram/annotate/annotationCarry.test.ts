@@ -481,6 +481,75 @@ describe('a linked picture turned about its middle', () => {
       close(rightAngleDiagonal(over!), [Math.SQRT1_2, Math.SQRT1_2]);
     });
 
+    it('brings a mark back home when a nearer face has come over it on the way and gone (review)', () => {
+      // A deeper face the spread slides under the one drawn over it, and back.
+      const square = (lo: number, hi: number): ScenePoint[] => [
+        [lo, lo],
+        [hi, lo],
+        [hi, hi],
+        [lo, hi],
+      ];
+      const scene = (step: number) =>
+        sceneOf([face([square(30, 70).map(([x, y]): ScenePoint => [x - step, y - step])], { face: 0 }), face([square(0, 40)], { face: 1 })]);
+      const picture = (step: number) => ({ ...scenePicture(), sceneJson: storedSceneJson(scene(step))!, key: `scene-${step}` });
+      const picturePoint = ({ bounds }: PaperScene, [x, y]: ScenePoint): [number, number] => {
+        const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+        return [(x - bounds.minX) / span, (y - bounds.minY) / span];
+      };
+      const home = picturePoint(scene(0), [45, 45]);
+      const near = { ...FLAT, spread: SPREAD };
+      const far = { ...FLAT, spread: { ...SPREAD, amount: 0.1 } };
+      const there = setLinkedPicture(
+        annotated(cpStep('step-1', near, picture(0)), [{ id: 'circle', kind: 'circle', from: home, to: home }]),
+        'step-1',
+        { source: cpSource(far), picture: picture(10) }
+      );
+      // With its face, under the one drawn over it now.
+      close((there.steps[0] as DiagramStep).annotations[0]!.from as [number, number], picturePoint(scene(10), [35, 35]));
+      // A new capture of the same pose, as the app makes one.
+      const back = setLinkedPicture(there, 'step-1', { source: cpSource(near), picture: picture(0) }).steps[0] as DiagramStep;
+      close((back.annotations[0] as KnownDiagramAnnotation).from, home);
+    });
+
+    it('keeps a mark’s place on a face a picture leaves out, through a turn, for the next that draws it (review)', () => {
+      // A deeper face stepped up and to the left, a face over it; with the spread off the deeper one is left out.
+      const square = (lo: number, hi: number): ScenePoint[] => [
+        [lo, lo],
+        [hi, lo],
+        [hi, hi],
+        [lo, hi],
+      ];
+      const turn = (degrees: number) => (ring: ScenePoint[]) =>
+        ring.map(([x, y]): ScenePoint => [turnClockwise(degrees)({ x, y }).x, turnClockwise(degrees)({ x, y }).y]);
+      const stepped = (step: number) => (ring: ScenePoint[]) => ring.map(([x, y]): ScenePoint => [x - step, y - step]);
+      const [deeper, over] = [square(0, 40), square(20, 60)];
+      const scenes = {
+        spread: sceneOf([face([stepped(10)(deeper)], { face: 0 }), face([over], { face: 1 })]),
+        off: sceneOf([face([over], { face: 1 })]),
+        offTurned: sceneOf([face([turn(90)(over)], { face: 1 })]),
+        spreadTurned: sceneOf([face([stepped(20)(turn(90)(deeper))], { face: 0 }), face([turn(90)(over)], { face: 1 })]),
+      };
+      const picture = (name: keyof typeof scenes) => ({ ...scenePicture(), sceneJson: storedSceneJson(scenes[name])!, key: name });
+      const picturePoint = ({ bounds }: PaperScene, [x, y]: ScenePoint): [number, number] => {
+        const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+        return [(x - bounds.minX) / span, (y - bounds.minY) / span];
+      };
+      // A circle on the deeper face's corner that shows, past the face over it.
+      const at = picturePoint(scenes.spread, stepped(10)(deeper)[3]!);
+      let document = annotated(cpStep('step-1', { ...FLAT, spread: SPREAD }, picture('spread')), [
+        { id: 'circle', kind: 'circle', from: at, to: at },
+      ]);
+      document = setLinkedPicture(document, 'step-1', { source: cpSource(FLAT), picture: picture('off') });
+      document = setLinkedPicture(document, 'step-1', { source: cpSource({ ...FLAT, rotationDeg: 90 }), picture: picture('offTurned') });
+      document = setLinkedPicture(document, 'step-1', {
+        source: cpSource({ ...FLAT, rotationDeg: 90, spread: { ...SPREAD, amount: 0.1 } }),
+        picture: picture('spreadTurned'),
+      });
+      const carried = (document.steps[0] as DiagramStep).annotations[0] as KnownDiagramAnnotation;
+      // On that corner of the deeper face again, turned and stepped as the spread steps it now.
+      close(carried.from, picturePoint(scenes.spreadTurned, stepped(20)(turn(90)(deeper))[3]!));
+    });
+
     it('keeps a mark inside a face with that face, though a deeper face has an edge through it (review)', () => {
       // A flap over a sheet whose fold runs under the flap's diagonal: the spread steps the sheet, the flap stays.
       const square = (lo: number, hi: number): ScenePoint[] => [

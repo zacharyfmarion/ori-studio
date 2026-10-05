@@ -6,7 +6,8 @@
  * refold, a Refresh, a new camera, the other side of a fold, a new picture —
  * leaves them where they were, and Annotate says the picture changed.
  *
- * Pure: no DOM, no store.
+ * No DOM, no store; pure but for what a spread's carry remembers of the
+ * pictures it carried marks to ({@link placesOnFaces}).
  */
 import { meanValueWeights } from '../../cp-workspace/folded/foldedLayerSpread';
 import { storedSceneStep } from '../capture/captureGeometry';
@@ -18,6 +19,7 @@ import {
   sameSpread,
   type DiagramAsset,
   type DiagramCpSource,
+  type DiagramScenePicture,
   type DiagramStep,
   type KnownDiagramAnnotation,
   type QuarterTurns,
@@ -172,9 +174,65 @@ function pictureMove(
     // six 15° presses and a reset bring it back as they bring the picture back.
     const quarters = Math.round(is.rotationDeg / 90) - Math.round(was.rotationDeg / 90);
     const turn = sceneTurnMove(sceneBefore.bounds, sceneAfter.bounds, delta, quarters);
-    return turn && spread ? spreadMove(sceneBefore, sceneAfter, turn) : turn;
+    if (!turn || was.mode !== 'folded-flat') return turn;
+    const places = { from: placesOnFaces.get(before.picture), to: placesOn(after.picture) };
+    return spread ? spreadMove(sceneBefore, sceneAfter, turn, places) : turnRemembering(turn, places);
   }
   return null;
+}
+
+/** A point's place on the face a flat fold's carry took it with: the face, and its mean value coordinates over its whole outline. */
+interface PlaceOnFace {
+  face: number;
+  weights: readonly number[];
+}
+
+/** What a carry remembers of a picture it carried marks to, by each point as the step keeps it. */
+interface PlacesOnFaces {
+  points: Map<string, PlaceOnFace>;
+  /** A right angle's corner, apart from any point there: its face is the one it opens into. */
+  corners: Map<string, PlaceOnFace>;
+}
+
+/**
+ * Where on its face each point a flat fold's carry took to a picture lies.
+ * The two pictures alone cannot tell a mark on a face from one a nearer face
+ * has come over since — a spread, or a turn under a depth spread, slides one
+ * over the other — nor say where a mark is on a face a picture with no
+ * spread leaves out; this can, so a mark carried there and back comes home.
+ * Kept as long as the picture is, through undo and redo, for the session: a
+ * step read from a file starts from the faces its marks lie on.
+ */
+const placesOnFaces = new WeakMap<DiagramScenePicture, PlacesOnFaces>();
+
+function placesOn(picture: DiagramScenePicture): PlacesOnFaces {
+  let places = placesOnFaces.get(picture);
+  if (!places) placesOnFaces.set(picture, (places = { points: new Map(), corners: new Map() }));
+  return places;
+}
+
+const pointKey = ([u, v]: PicturePoint) => `${u},${v}`;
+
+/** The places on their faces a carry reads, the picture it carries from, and writes, the one it carries to. */
+interface CarriedPlaces {
+  from: PlacesOnFaces | undefined;
+  to: PlacesOnFaces;
+}
+
+/** A flat fold turned and nothing else, every face alike: each point keeps its place on its face. */
+function turnRemembering(turn: PictureMove, { from, to }: CarriedPlaces): PictureMove {
+  if (!from) return turn;
+  return {
+    ...turn,
+    point: (point) => {
+      const carried = turn.point(point);
+      for (const kind of ['points', 'corners'] as const) {
+        const place = from[kind].get(pointKey(point));
+        if (place) to[kind].set(pointKey(carried), place);
+      }
+      return carried;
+    },
+  };
 }
 
 /**
@@ -190,9 +248,10 @@ function pictureMove(
  * deeper ones at a crease, nor is a deeper layer, so the turn alone would
  * leave a mark there off its paper. A point on no face, or on one the other
  * picture does not draw (a layer a picture with no spread leaves out), moves
- * by `turn`.
+ * by `turn`. A point a carry took to `before` keeps its place on the face it
+ * took it with ({@link placesOnFaces}), wherever it lies now.
  */
-function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): PictureMove {
+function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove, places: CarriedPlaces): PictureMove {
   const [source, target] = [wholeFaces(before), wholeFaces(after)];
   // Whole faces and woven patches, each as it is drawn: a patch is pressed on
   // its own piece, and moves with its face.
@@ -214,19 +273,28 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
   };
   const cornerAt = (at: { x: number; y: number }) => (piece: readonly ScenePoint[]) =>
     piece.some(([x, y]) => Math.hypot(x - at.x, y - at.y) <= epsilon);
-  /** Where `at` goes with `face`: null where the other picture does not draw it. */
-  const withFace = (face: number, at: { x: number; y: number }): PicturePoint | null => {
-    const ring = source.get(face)!;
-    const goal = target.get(face);
-    const weights =
-      goal?.length === ring.length ? meanValueWeights(ring.map(([x, y]) => ({ x, y })), at, epsilon) : null;
-    if (!goal || !weights) return null;
-    let [x, y] = [0, 0];
-    weights.forEach((weight, corner) => {
-      x += weight * goal[corner]![0];
-      y += weight * goal[corner]![1];
-    });
-    return [(x - to.minX) / longerTo, (y - to.minY) / longerTo];
+  /** `at`'s place on `face`. */
+  const placeOn = (face: number, at: { x: number; y: number }): PlaceOnFace | null => {
+    const weights = meanValueWeights(source.get(face)!.map(([x, y]) => ({ x, y })), at, epsilon);
+    return weights ? { face, weights } : null;
+  };
+  /**
+   * `point` carried to where its place on its face went, or by the turn where
+   * the other picture does not draw that face; remembered either way.
+   */
+  const carry = (kind: keyof PlacesOnFaces, point: PicturePoint, place: PlaceOnFace | null): PicturePoint => {
+    const goal = place && target.get(place.face);
+    let carried = turn.point(point);
+    if (place && goal?.length === place.weights.length) {
+      let [x, y] = [0, 0];
+      place.weights.forEach((weight, corner) => {
+        x += weight * goal[corner]![0];
+        y += weight * goal[corner]![1];
+      });
+      carried = [(x - to.minX) / longerTo, (y - to.minY) / longerTo];
+    }
+    if (place) places.to[kind].set(pointKey(carried), place);
+    return carried;
   };
   return {
     ...turn,
@@ -237,6 +305,9 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
       return [x1 - x0, y1 - y0];
     },
     point: (point) => {
+      // Where a carry took it, the face it took it with.
+      const remembered = places.from?.points.get(pointKey(point));
+      if (remembered) return carry('points', point, remembered);
       const at = scenePoint(point);
       // A mark on a face's corner was put on it, as a snap puts it, and is
       // that face's though one drawn over it since — a turn under a depth
@@ -247,15 +318,18 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
       // shows on.
       const under =
         topmost(cornerAt(at)) ?? topmost((piece) => insideRing(piece, at) || onRing(piece, at, epsilon));
-      return (under !== null && withFace(under, at)) || turn.point(point);
+      return carry('points', point, under === null ? null : placeOn(under, at));
     },
     // The face it is a corner of and opens into, though one without a corner
     // there has come over the angle since.
     corner: (corner, inside) => {
+      const remembered = places.from?.corners.get(pointKey(corner));
+      if (remembered) return carry('corners', corner, remembered);
       const [at, nudged] = [scenePoint(corner), scenePoint(inside)];
       const isCorner = cornerAt(at);
       const owner = topmost((piece) => isCorner(piece) && insideRing(piece, nudged));
-      return owner === null ? null : withFace(owner, at);
+      const place = owner === null ? null : placeOn(owner, at);
+      return place && carry('corners', corner, place);
     },
   };
 }
