@@ -11,6 +11,7 @@ import { stepsIn } from '../document/diagramSteps.fixtures';
 import { cpDocument, fakeCaptureRuntime, twoSquaresSegmentation } from './capture.fixtures';
 import type { CpCaptureRuntime } from './captureFolded';
 import { useDiagramLinkedPose, type DiagramLinkedPose } from './useDiagramLinkedPose';
+import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
 
 /**
  * The Step pane's spread rows reach the controller only through this hook:
@@ -87,6 +88,19 @@ async function landed(stepId: string, expected: DiagramLayerSpread) {
   });
 }
 
+/** Stop the next creases lookup — a verb's capture — until it is opened. */
+function holdTheLookup(): () => void {
+  let open!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  vi.mocked(ensureCpSegmentationArtifacts).mockImplementationOnce(async () => {
+    await gate;
+    return segmentation;
+  });
+  return open;
+}
+
 beforeEach(async () => {
   setFoldedFigureHandleFree(() => {});
   await resetFoldedFigureHandles();
@@ -143,6 +157,41 @@ describe('the Step pane’s spread, through the hook', () => {
     expect(spreadOf(stepId)).toEqual(AFFINE);
     expect(seen.pose!.spread!.spread).toEqual({ ...AFFINE, skew: 0.3, axisDeg: 50 });
     await landed(stepId, { ...AFFINE, skew: 0.3 });
+  });
+
+  it('takes down a drag begun while a verb captured, once the verb lands and the spread is not the one dragged (third review)', async () => {
+    // Spread Layers turned off under an amount being dragged: the layers shown spread over a step with none.
+    const off = await flatStep(DEPTH);
+    act(() => seen.pose!.spread!.preview('amount', 0.03));
+    act(() => seen.pose!.spread!.commit());
+    await landed(off, { ...DEPTH, amount: 0.03 });
+    let open = holdTheLookup();
+    act(() => seen.pose!.actions.find((action) => action.id === 'spread-layers')!.run());
+    act(() => seen.pose!.spread!.preview('amount', 0.15));
+    expect(seen.pose!.preview).not.toBeNull();
+    open();
+    await act(async () => {
+      await vi.waitFor(() => expect(spreadOf(off)).toBeUndefined());
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(seen.pose!.preview).toBeNull();
+    act(() => root?.unmount());
+
+    // Switched to depth under a skew being dragged: an affine picture over a depth step.
+    const switched = await flatStep(AFFINE);
+    act(() => seen.pose!.spread!.preview('skew', 0.9));
+    act(() => seen.pose!.spread!.commit());
+    await landed(switched, { ...AFFINE, skew: 0.9 });
+    open = holdTheLookup();
+    act(() => seen.pose!.spread!.kinds.find((kind) => kind.value === 'depth')!.run());
+    act(() => seen.pose!.spread!.preview('skew', 0.4));
+    expect(seen.pose!.preview).not.toBeNull();
+    open();
+    await act(async () => {
+      await vi.waitFor(() => expect(spreadOf(switched)?.kind).toBe('depth'));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(seen.pose!.preview).toBeNull();
   });
 
   it('lets no drag start on a diagram that cannot change', async () => {

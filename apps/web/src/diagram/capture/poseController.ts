@@ -133,6 +133,11 @@ export type SpreadSlide =
   | { slider: 'amount'; kind: SpreadKind; value: number }
   | { slider: 'skew' | 'axis'; value: number };
 
+/** Whether a slider is one of `spread`'s: an amount of its kind, a skew or an axis of an affine one. */
+function slideFits(spread: LayerSpreadOptions, slide: SpreadSlide): boolean {
+  return slide.slider === 'amount' ? slide.kind === spread.kind : spread.kind === 'affine';
+}
+
 /** The verb that commits a slide. */
 function slideRequest(slide: SpreadSlide) {
   switch (slide.slider) {
@@ -394,6 +399,9 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
         tooDetailed: committed.tooDetailed,
       };
     });
+    // A drag begun while this verb captured was drawn over the spread before
+    // it: drawn again over the one it left, or taken down if that has none.
+    if (!SLIDE_VERBS.has(request.verb)) showPreview(false);
     if (!outcome || !('status' in outcome)) return;
     // Only what is news: a see-through fold says so as it is first folded.
     const repeated = outcome.status === 'captured' && outcome.noLayerOrder && request.verb !== 'show-folded';
@@ -431,14 +439,15 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   /**
    * Tell the view the newest preview — the slider dragged to, the rest of the
    * step's own spread as it is — and fold for it, once, when nothing is held
-   * to draw it from. A step whose spread went off meanwhile has nothing to
-   * preview.
+   * to draw it from. A step whose spread went off meanwhile, or became one the
+   * slider is not of — a skew on a depth spread, an amount of the other kind —
+   * has nothing to preview.
    */
   const showPreview = (hold: boolean) => {
     const linked = currentLinkedSource(stepId);
     if (previewing === null || !linked) return;
     const stored = linked.render.mode === 'folded-flat' ? linked.render.spread : undefined;
-    if (!stored) {
+    if (!stored || !slideFits(stored, previewing)) {
       endPreview();
       return;
     }
