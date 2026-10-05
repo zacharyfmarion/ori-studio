@@ -6,7 +6,10 @@ describe('the rail', () => {
   it('groups every kind’s tool once, after Select and Edit Path, in kind order', () => {
     expect(ANNOTATE_TOOL_GROUPS).toEqual([
       { id: 'select', tools: [null, 'edit-path'] },
-      { id: 'arrows', tools: ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'turn-over', 'rotate'] },
+      {
+        id: 'arrows',
+        tools: ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'white-arrow', 'turn-over', 'rotate'],
+      },
       { id: 'lines', tools: ['valley-line', 'mountain-line', 'hidden-line'] },
       { id: 'marks', tools: ['circle'] },
       { id: 'text', tools: ['label'] },

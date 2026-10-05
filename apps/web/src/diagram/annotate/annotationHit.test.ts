@@ -101,6 +101,38 @@ describe('hitAnnotation', () => {
     expect(hitAnnotation([push], [0.4, 0.56], tight, null)).toBeNull();
   });
 
+  it('takes a white arrow anywhere in its hollow outline, as wide as its width draws it', () => {
+    const white = (width: 'narrow' | 'regular' | 'wide', tail: 'pointed' | 'square' = 'square'): KnownDiagramAnnotation => ({
+      id: width,
+      kind: 'white-arrow',
+      from: [0.2, 0.5],
+      to: [0.8, 0.5],
+      path: [{ at: [0.2, 0.5] }, { at: [0.8, 0.5] }],
+      width,
+      tail,
+    });
+    const tight = { ...SIZES, tolerance: 0.005 };
+    // Half a neck off the spine: narrow 0.021, regular 0.036, wide 0.050 of the frame at this ink.
+    expect(hitAnnotation([white('narrow')], [0.4, 0.53], tight, null)).toBeNull();
+    expect(hitAnnotation([white('regular')], [0.4, 0.53], tight, null)?.annotationId).toBe('regular');
+    expect(hitAnnotation([white('regular')], [0.4, 0.545], tight, null)).toBeNull();
+    expect(hitAnnotation([white('wide')], [0.4, 0.545], tight, null)?.annotationId).toBe('wide');
+    // A pointed tail is narrow where it starts: a press beside it there misses.
+    expect(hitAnnotation([white('regular', 'square')], [0.21, 0.53], tight, null)?.annotationId).toBe('regular');
+    expect(hitAnnotation([white('regular', 'pointed')], [0.21, 0.53], tight, null)).toBeNull();
+    // Its head, out past the shaft by its barbs.
+    expect(hitAnnotation([white('regular')], [0.73, 0.565], tight, null)?.annotationId).toBe('regular');
+    // Bent, it is taken on the curve it was shaped along, not on its chord.
+    const bent: KnownDiagramAnnotation = {
+      ...white('regular'),
+      path: [{ at: [0.2, 0.5], out: [0.35, 0.2] }, { at: [0.8, 0.5], in: [0.65, 0.2] }],
+    };
+    expect(hitAnnotation([bent], [0.5, 0.5], tight, null)).toBeNull();
+    expect(hitAnnotation([bent], [0.5, 0.3], tight, null)?.annotationId).toBe('regular');
+    expect(hitPathGrip(bent, [0.8, 0.5], 0.01, null)).toEqual({ part: 'node', node: 1 });
+    expect(hitPathGrip(bent, [0.5, 0.276], 0.01, null)).toMatchObject({ part: 'segment', segment: 0 });
+  });
+
   it('takes a wide label by its ends', () => {
     const wide: KnownDiagramAnnotation = { id: 'wide', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: '谷折りして山折り' };
     const latin: KnownDiagramAnnotation = { ...wide, id: 'latin', text: 'fold here' };

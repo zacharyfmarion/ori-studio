@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
+import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating, selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
@@ -24,7 +26,7 @@ const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 /**
  * The Step pane's annotations (D13): what the selected step carries, which
  * one is selected, the tool in hand, and the verbs on the selected one — its
- * text, its turn, its axis, and the catalog's (`annotationActions.ts`: Flip
+ * text, its turn, its axis, a white arrow's look, and the catalog's (`annotationActions.ts`: Flip
  * arc, Reset, Delete, and with Edit Path in hand the node verbs on the node
  * it has selected) — each one undo step through the store — and the Snap
  * switch, a preference rather than an edit.
@@ -84,6 +86,9 @@ export function useStepAnnotations(step: DiagramStep | null) {
       setRotation: (id: string, rotate: DiagramRotation) => change(id, 'Change rotation', (annotation) => ({ ...annotation, rotate })),
       setAxis: (id: string, axis: 'vertical' | 'horizontal') =>
         change(id, 'Change turn-over', (annotation) => ({ ...annotation, axis })),
+      /** A white arrow's width or tail, or both, as one undo step. */
+      setWhiteArrowLook: (id: string, look: { width?: DiagramWhiteArrowWidth; tail?: WhiteArrowTail }) =>
+        change(id, 'Change white arrow', (annotation) => ({ ...annotation, ...look })),
       setSnap: (value: boolean) => useSettingsStore.getState().setDiagramAnnotateSnap(value),
     };
   }, [stepId, loadId]);

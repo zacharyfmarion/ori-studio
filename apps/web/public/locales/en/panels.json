@@ -733,9 +733,9 @@
       "canvasLabel": "Annotations on the step’s picture",
       "circleHelp": "Click a point to circle it.",
       "controls": "Annotate view controls",
-      "editPathCannot": "Only fold arrows can be shaped: valley, mountain, and fold and unfold arrows.",
-      "editPathHelp": "Drag a fold arrow’s nodes, their handles or its curve to shape it. Click the curve to add a node; double-click a node to make it a corner or smooth.",
-      "editPathNone": "Select a fold arrow to shape it.",
+      "editPathCannot": "Only fold arrows and white arrows can be shaped.",
+      "editPathHelp": "Drag an arrow’s nodes, their handles or its curve to shape it. Click the curve to add a node; double-click a node to make it a corner or smooth.",
+      "editPathNone": "Select a fold arrow or a white arrow to shape it.",
       "foldUnfoldHelp": "Drag from where the paper starts to where it lands: it folds over, then back.",
       "glyphHelp": "Click where the sign goes.",
       "groupArrows": "Arrows",
@@ -748,8 +748,9 @@
       "lineHelp": "Drag along the crease.",
       "pushHelp": "Drag toward the place to push.",
       "select": "Select",
-      "selectHelp": "Click an annotation to select it. Drag it, or the dot at either end, to move it. Double-click a fold arrow to shape it.",
-      "toolsLabel": "Annotate tools"
+      "selectHelp": "Click an annotation to select it. Drag it, or the dot at either end, to move it. Double-click a fold or white arrow to shape it.",
+      "toolsLabel": "Annotate tools",
+      "whiteArrowHelp": "Drag from where the paper starts to where it goes. Shape it with Edit Path."
     },
     "annotations": {
       "addNode": "Add Node",
@@ -781,9 +782,17 @@
       "smooth": "Smooth",
       "snap": "Snap to Picture",
       "snapHelp": "Circles, and the ends of arrows and lines, snap to the picture’s points and to other annotations nearby. Hold {{modifier}} to put one down anywhere.",
+      "tail": "Tail",
+      "tailCleft": "Cleft",
+      "tailPointed": "Pointed",
+      "tailSquare": "Square",
       "text": "Text",
       "topToBottom": "Top to Bottom",
-      "turn": "Turn"
+      "turn": "Turn",
+      "width": "Width",
+      "widthNarrow": "Narrow",
+      "widthRegular": "Regular",
+      "widthWide": "Wide"
     },
     "card": {
       "badgeCreasePattern": "Crease pattern",

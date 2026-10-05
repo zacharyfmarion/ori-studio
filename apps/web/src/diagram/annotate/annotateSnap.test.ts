@@ -36,6 +36,7 @@ describe('what snaps (decision 9)', () => {
         'push-arrow',
         'valley-arrow',
         'valley-line',
+        'white-arrow',
       ].sort()
     );
   });

@@ -230,6 +230,28 @@ describe('DiagramAnnotateCanvas', () => {
     expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['valley_arrow', 'nothing_near']]);
   });
 
+  it('lays a white arrow straight with a drag, in the template’s look, and counts it by its tool', () => {
+    mount();
+    tool('white-arrow');
+    drag(at(0.2, 0.3), at(0.6, 0.5));
+    expect(annotations()).toHaveLength(1);
+    const [white] = annotations();
+    expect(white).toMatchObject({ kind: 'white-arrow', width: 'regular', tail: 'pointed' });
+    expect(white!.path).toHaveLength(2);
+    expect(white!.path!.every((node) => node.in === undefined && node.out === undefined)).toBe(true);
+    expect(white!.from[0]).toBeCloseTo(0.2, 3);
+    expect(white!.to[1]).toBeCloseTo(0.5, 3);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['white_arrow', 'nothing_near']]);
+    // A click is no arrow.
+    const [x, y] = at(0.7, 0.7);
+    pointer('pointerdown', [x, y]);
+    pointer('pointerup', [x, y]);
+    expect(annotations()).toHaveLength(1);
+    // Drawn hollow, in the page's white.
+    rerender();
+    expect(overlay().innerHTML).toContain('stroke-miterlimit="1.5"');
+  });
+
   it('puts a sign down with a click, and draws nothing for a click with a line tool', () => {
     mount();
     tool('valley-line');
@@ -720,6 +742,35 @@ describe('DiagramAnnotateCanvas in Edit Path', () => {
     doubleClick(at(0.4, 0.8));
     expect(state().diagramAnnotateTool).toBeNull();
     expect(state().diagramSelectedAnnotationId).toBe('l');
+  });
+
+  it('shapes a white arrow as it does a fold arrow: its two nodes, then its curve bent, counted once as a white arrow', () => {
+    const WHITE: KnownDiagramAnnotation = {
+      id: 'w',
+      kind: 'white-arrow',
+      from: [0.2, 0.5],
+      to: [0.6, 0.5],
+      path: [{ at: [0.2, 0.5] }, { at: [0.6, 0.5] }],
+      width: 'narrow',
+      tail: 'square',
+    };
+    // Select picks Edit Path up for a double-click on it, as on a fold arrow.
+    shaping(WHITE, null);
+    doubleClick(at(0.4, 0.5));
+    expect(state().diagramAnnotateTool).toBe('edit-path');
+    expect(annotations()[0]).toEqual(WHITE);
+    rerender();
+    expect(host.querySelectorAll('[data-path-node]')).toHaveLength(2);
+    const before = past();
+    then(() => drag(curveAt(0, 0.5), at(0.4, 0.35)));
+    const [x, y] = cubicPoint(pathCubics(annotations()[0]!.path!)[0]!, 0.5);
+    expect(x).toBeCloseTo(0.4, 3);
+    expect(y).toBeCloseTo(0.35, 3);
+    expect(annotations()[0]).toMatchObject({ kind: 'white-arrow', width: 'narrow', tail: 'square', from: [0.2, 0.5], to: [0.6, 0.5] });
+    expect(past()).toBe(before + 1);
+    expect(tracked.trackDiagramArrowShaped.mock.calls).toEqual([['white_arrow', 'bend']]);
+    then(() => drag(nodeAt(1), at(0.65, 0.55)));
+    expect(tracked.trackDiagramArrowShaped).toHaveBeenCalledOnce();
   });
 
   it('counts a third quick click as a click, and two double-clicks in a row as two', () => {

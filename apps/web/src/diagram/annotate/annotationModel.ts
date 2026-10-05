@@ -13,6 +13,8 @@ import { flattenPath, type Cubic } from '../../lib/cubicBezier';
 import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
 import { LABEL_ADVANCES, LABEL_ADVANCES_FROM } from './labelAdvances';
+import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
+import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import {
   randomDiagramId,
   type DiagramAnnotationKind,
@@ -35,17 +37,20 @@ export interface PictureFrame {
  * record, so a new kind is a compile error here until it does:
  * - `arc`: a fold arrow, dragged from tail to tip, bulging on an arc;
  * - `straight`: a push, dragged, straight from `from` to `to`;
+ * - `path`: a white arrow, dragged straight from tail to tip, and always a
+ *   path, shaped from there;
  * - `line`: a crease line, dragged, drawn in the diagram's pens;
  * - `point`: a sign, a label or a circle, put down with a click at one point
  *   (`to` is `from`).
  */
-type AnnotationShape = 'arc' | 'straight' | 'line' | 'point';
+type AnnotationShape = 'arc' | 'straight' | 'path' | 'line' | 'point';
 
 const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
   'valley-arrow': 'arc',
   'mountain-arrow': 'arc',
   'fold-unfold-arrow': 'arc',
   'push-arrow': 'straight',
+  'white-arrow': 'path',
   'turn-over': 'point',
   rotate: 'point',
   'valley-line': 'line',
@@ -87,6 +92,15 @@ export const LABEL_MAX_LENGTH = 80;
 
 export const DEFAULT_ROTATION: DiagramRotation = { amount: 'quarter', direction: 'cw' };
 
+/**
+ * A new white arrow's look, and one's that a file leaves unsaid: the Origami
+ * House template's white arrow (`path4649`), regular and tapered to a point.
+ */
+export const DEFAULT_WHITE_ARROW: Readonly<{ width: DiagramWhiteArrowWidth; tail: WhiteArrowTail }> = {
+  width: 'regular',
+  tail: 'pointed',
+};
+
 /** How far past the frame an annotation may reach, in frame lengths: an arrow may start off the picture. */
 export const ANNOTATION_REACH = 4;
 
@@ -114,6 +128,10 @@ export function withinReach([x, y]: PicturePoint): PicturePoint {
  * already is.
  */
 export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  // A white arrow is always a path: one without is laid straight between its ends.
+  if (annotation.path === undefined && isAlwaysPath(annotation.kind)) {
+    return cleanAnnotation(withPath(annotation, straightPath(annotation.from, annotation.to)));
+  }
   if (annotation.path !== undefined) {
     const path = canBeShaped(annotation.kind) ? cleanPath(annotation.path) : null;
     if (path) {
@@ -210,6 +228,20 @@ export function handleWithinReach(at: PicturePoint, handle: PicturePoint): Pictu
   return withinReach([at[0] + (handle[0] - at[0]) * share, at[1] + (handle[1] - at[1]) * share]);
 }
 
+/** The path straight from `from` to `to`: two nodes, no handles. What a white arrow is laid as. */
+export function straightPath(from: PicturePoint, to: PicturePoint): DiagramPathNode[] {
+  return [{ at: [from[0], from[1]] }, { at: [to[0], to[1]] }];
+}
+
+/** Whether a path runs straight between its ends as it was laid: two nodes, each handle on its node or none. */
+export function isStraightPath(path: readonly DiagramPathNode[]): boolean {
+  const onNode = (node: DiagramPathNode, side: 'in' | 'out') => {
+    const handle = node[side];
+    return handle === undefined || samePoint(handle, node.at);
+  };
+  return path.length === 2 && path.every((node) => onNode(node, 'in') && onNode(node, 'out'));
+}
+
 /** A shaped arrow's ends: its first node and its last. */
 function endsOf(path: readonly DiagramPathNode[]): { from: PicturePoint; to: PicturePoint } {
   const first = path[0]!.at;
@@ -225,13 +257,15 @@ export function withPath(annotation: KnownDiagramAnnotation, path: DiagramPathNo
 
 /**
  * Whether an arrow of `kind` may be shaped by hand (decision 1): the fold
- * arrows; a push and a line stay straight. A switch, so a new kind has to say.
+ * arrows and the white arrow; a push and a line stay straight. A switch, so a
+ * new kind has to say.
  */
 export function canBeShaped(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow':
+    case 'white-arrow':
       return true;
     case 'push-arrow':
     case 'turn-over':
@@ -243,6 +277,25 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'circle':
       return false;
   }
+}
+
+/**
+ * Whether every annotation of `kind` is a path (Q13): a white arrow, laid
+ * straight and shaped from there, never an arc. A fold arrow is an arc until
+ * it is first shaped (decision 2).
+ */
+export function isAlwaysPath(kind: DiagramAnnotationKind): boolean {
+  return ANNOTATION_SHAPES[kind] === 'path';
+}
+
+/**
+ * Whether an arrow has been shaped by hand: a fold arrow made a path, a white
+ * arrow no longer the straight one it was laid as. Reset takes either back;
+ * the first edit that shapes one is what `diagram arrow shaped` counts.
+ */
+export function isShapedArrow(annotation: Pick<KnownDiagramAnnotation, 'kind' | 'path'>): boolean {
+  if (!canBeShaped(annotation.kind) || annotation.path === undefined) return false;
+  return !isAlwaysPath(annotation.kind) || !isStraightPath(annotation.path);
 }
 
 function cleanBend(bend: number | undefined): number | undefined {
@@ -332,6 +385,8 @@ export function createAnnotation(
     return base;
   }
   const annotation: KnownDiagramAnnotation = { id, kind, from: [from[0], from[1]], to: [to[0], to[1]] };
+  // A white arrow is laid straight, to be shaped with Edit Path, in the template's look.
+  if (isAlwaysPath(kind)) return { ...withPath(annotation, straightPath(from, to)), ...DEFAULT_WHITE_ARROW };
   return isArrowKind(kind) ? { ...annotation, bend: defaultBend(from, to, frame) } : annotation;
 }
 
@@ -452,15 +507,17 @@ export function pathLength(path: readonly DiagramPathNode[]): number {
 }
 
 /**
- * Whether Flip arc turns `kind` over: a fold arrow's bulge. Asked by every
- * surface that offers it (`annotationActions.ts`), and a switch, so a new
- * kind has to answer.
+ * Whether Flip arc turns `kind` over: a fold arrow's bulge, or a white
+ * arrow's, mirrored across its chord as a shaped fold arrow is. Asked by
+ * every surface that offers it (`annotationActions.ts`), and a switch, so a
+ * new kind has to answer.
  */
 export function flipsArc(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow':
+    case 'white-arrow':
       return true;
     case 'push-arrow':
     case 'turn-over':

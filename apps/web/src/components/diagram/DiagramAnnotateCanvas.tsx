@@ -184,7 +184,7 @@ function Selection({
     return <circle className={styles.selection} cx={x} cy={y} r={reach * layout.unit} data-selection="" />;
   };
   // Washed along as it is drawn: a sign or a label round its place, an arrow
-  // along its arc, a push or a line straight. A switch, so a new kind has to say.
+  // along its arc or path, a push or a line straight. A switch, so a new kind has to say.
   let path: readonly (readonly [number, number])[];
   switch (annotation.kind) {
     case 'label':
@@ -198,6 +198,7 @@ function Selection({
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow':
+    case 'white-arrow':
       path = arrowPolyline(annotation);
       break;
     case 'push-arrow':

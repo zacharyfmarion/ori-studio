@@ -762,9 +762,9 @@
       "canvasLabel": "Anotações na imagem do passo",
       "circleHelp": "Clique em um ponto para circulá-lo.",
       "controls": "Controles da visualização Anotar",
-      "editPathCannot": "Só é possível dar forma a setas de dobra: de vale, de monte e de dobrar e desdobrar.",
-      "editPathHelp": "Arraste os nós de uma seta de dobra, suas alças ou sua curva para dar forma a ela. Clique na curva para adicionar um nó; clique duas vezes em um nó para torná-lo canto ou suave.",
-      "editPathNone": "Selecione uma seta de dobra para dar forma a ela.",
+      "editPathCannot": "Só é possível dar forma a setas de dobra e a setas brancas.",
+      "editPathHelp": "Arraste os nós de uma seta, suas alças ou sua curva para dar forma a ela. Clique na curva para adicionar um nó; clique duas vezes em um nó para torná-lo canto ou suave.",
+      "editPathNone": "Selecione uma seta de dobra ou uma seta branca para dar forma a ela.",
       "foldUnfoldHelp": "Arraste de onde o papel começa até onde ele chega: ele dobra e depois volta.",
       "glyphHelp": "Clique onde o sinal deve ficar.",
       "groupArrows": "Setas",
@@ -777,8 +777,9 @@
       "lineHelp": "Arraste ao longo do vinco.",
       "pushHelp": "Arraste em direção ao lugar a empurrar.",
       "select": "Selecionar",
-      "selectHelp": "Clique em uma anotação para selecioná-la. Arraste-a, ou o ponto em qualquer uma das pontas, para movê-la. Clique duas vezes em uma seta de dobra para dar forma a ela.",
-      "toolsLabel": "Ferramentas de anotação"
+      "selectHelp": "Clique em uma anotação para selecioná-la. Arraste-a, ou o ponto em qualquer uma das pontas, para movê-la. Clique duas vezes em uma seta de dobra ou em uma seta branca para dar forma a ela.",
+      "toolsLabel": "Ferramentas de anotação",
+      "whiteArrowHelp": "Arraste de onde o papel começa até para onde ele vai. Dê forma a ela com Editar traçado."
     },
     "annotations": {
       "addNode": "Adicionar nó",
@@ -812,9 +813,17 @@
       "smooth": "Suave",
       "snap": "Ajustar à imagem",
       "snapHelp": "Círculos e as pontas de setas e linhas se ajustam aos pontos próximos da imagem e a outras anotações. Segure {{modifier}} para colocá-los em qualquer lugar.",
+      "tail": "Cauda",
+      "tailCleft": "Fendida",
+      "tailPointed": "Pontuda",
+      "tailSquare": "Reta",
       "text": "Texto",
       "topToBottom": "De cima para baixo",
-      "turn": "Giro"
+      "turn": "Giro",
+      "width": "Largura",
+      "widthNarrow": "Estreita",
+      "widthRegular": "Normal",
+      "widthWide": "Larga"
     },
     "card": {
       "badgeCreasePattern": "Padrão de vincos",

@@ -266,7 +266,8 @@
     "toolRotate": "Повернуть",
     "toolTurnOver": "Перевернуть",
     "toolValleyArrow": "Стрелка долинного сгиба",
-    "toolValleyLine": "Долинная линия"
+    "toolValleyLine": "Долинная линия",
+    "toolWhiteArrow": "Белая стрелка"
   },
   "divideMode": {
     "count": "Количество",

@@ -1,13 +1,15 @@
 /**
- * A fold arrow shaped by hand (Edit Path, decision 3): the edits its nodes,
- * handles and segments take, as data.
+ * A fold arrow or a white arrow shaped by hand (Edit Path, decision 3): the
+ * edits its nodes, handles and segments take, as data.
  *
- * An arrow never shaped is an exact arc (`bend`, decision 2). The first edit
- * makes it a path that draws the same curve ({@link arcToPath}), and Reset
- * makes it an arc again ({@link resetPath}). Every edit takes the arrow, arc
- * or path, and returns it edited, every point within reach; node and segment
- * numbers count along the path as {@link pathNodesOf} gives it, tail first. A
- * kind that is not shaped (a push, a line, a sign) comes back as it was.
+ * A fold arrow never shaped is an exact arc (`bend`, decision 2). The first
+ * edit makes it a path that draws the same curve ({@link arcToPath}), and
+ * Reset makes it an arc again ({@link resetPath}). A white arrow is always a
+ * path, laid straight, and Reset lays it straight again. Every edit takes the
+ * arrow, arc or path, and returns it edited, every point within reach; node
+ * and segment numbers count along the path as {@link pathNodesOf} gives it,
+ * tail first. A kind that is not shaped (a push, a line, a sign) comes back
+ * as it was.
  *
  * Pure: no DOM, no store, no React.
  */
@@ -23,8 +25,11 @@ import {
   cleanPath,
   defaultBend,
   handleWithinReach,
+  isAlwaysPath,
+  isStraightPath,
   movePathNodeTo,
   pathCubics,
+  straightPath,
   withPath,
   withinReach,
   type PictureFrame,
@@ -135,6 +140,8 @@ export function arcToPath(annotation: KnownDiagramAnnotation): KnownDiagramAnnot
   if (!canBeShaped(annotation.kind)) return annotation;
   const shape = arrowShape(annotation);
   if (shape.kind === 'path') return annotation;
+  // A white arrow has no arc: one without its path is the straight one it was laid as.
+  if (isAlwaysPath(annotation.kind)) return withPath(annotation, straightPath(annotation.from, annotation.to));
   const nodes = arcNodes(annotation.from, annotation.to, shape.bend);
   return withPath(annotation, cleanPath(nodes) ?? nodes);
 }
@@ -176,7 +183,8 @@ function arcNodes(from: PicturePoint, to: PicturePoint, bend: number): DiagramPa
 /**
  * A shaped arrow made an arc again (Reset): References' 60° arc between its
  * ends, bulging the side the path lies on of its chord — toward the frame's
- * middle, as a new arrow does, for a path that lies on neither. One whose
+ * middle, as a new arrow does, for a path that lies on neither. A white
+ * arrow, which has no arc, is laid straight between its ends again. One whose
  * ends lie closer than the shortest arrow (a loop) has no arc to go back to
  * that could be drawn or pressed, and stays.
  */
@@ -184,6 +192,7 @@ export function resetPath(annotation: KnownDiagramAnnotation, frame: PictureFram
   const { path, ...arc } = annotation;
   if (!path || !canResetPath(annotation)) return annotation;
   const { from, to } = annotation;
+  if (isAlwaysPath(annotation.kind)) return withPath(annotation, straightPath(from, to));
   const chord = Math.hypot(to[0] - from[0], to[1] - from[1]);
   const area = pathChordArea(flattenPath(pathCubics(path), chord * 1e-4));
   // A path on the left of its travel as the page shows it bulges as a positive bend does (`arrowApex`).
@@ -191,10 +200,14 @@ export function resetPath(annotation: KnownDiagramAnnotation, frame: PictureFram
   return { ...arc, bend };
 }
 
-/** Whether {@link resetPath} has an arc to go back to: a shaped arrow whose ends lie apart. */
+/**
+ * Whether {@link resetPath} has an arc to go back to: a shaped arrow whose
+ * ends lie apart — a white arrow's, one not straight already.
+ */
 export function canResetPath(annotation: KnownDiagramAnnotation): boolean {
-  const { from, to } = annotation;
-  return annotation.path !== undefined && Math.hypot(to[0] - from[0], to[1] - from[1]) >= MIN_ANNOTATION_LENGTH;
+  const { from, to, path } = annotation;
+  if (path === undefined || Math.hypot(to[0] - from[0], to[1] - from[1]) < MIN_ANNOTATION_LENGTH) return false;
+  return !isAlwaysPath(annotation.kind) || !isStraightPath(path);
 }
 
 /** The arrow shaped, its nodes edited by `edit`; the arrow as it was when `edit` gives null. */

@@ -35,6 +35,8 @@ import {
   type SpreadKeep,
   type SpreadKind,
 } from '../../cp-workspace/folded/foldedLayerSpread';
+import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
+import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import { readRegionReference } from '../../cp-workspace/regions/regionReference';
 import { readSheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import { isBuiltInPaperPresetId } from '../../lib/paper/paperPresets';
@@ -45,6 +47,7 @@ import {
   ANNOTATION_REACH,
   arrowShape,
   DEFAULT_ROTATION,
+  DEFAULT_WHITE_ARROW,
   LABEL_MAX_LENGTH,
   MAX_BEND,
   MAX_PATH_NODES,
@@ -274,7 +277,7 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
 
 function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown> {
   if (!isKnownAnnotation(annotation)) return annotation.unknown;
-  const { id, kind, from, to, bend, path, text, rotate, axis } = annotation;
+  const { id, kind, from, to, bend, path, width, tail, text, rotate, axis } = annotation;
   return {
     id,
     kind,
@@ -282,6 +285,8 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     to,
     ...(bend !== undefined ? { bend } : {}),
     ...(path !== undefined ? { path: path.map(writePathNode) } : {}),
+    ...(width !== undefined ? { width } : {}),
+    ...(tail !== undefined ? { tail } : {}),
     ...(text !== undefined ? { text } : {}),
     ...(rotate !== undefined ? { rotate } : {}),
     ...(axis !== undefined ? { axis } : {}),
@@ -802,6 +807,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'mountain-arrow': fields('bend', 'path'),
     'fold-unfold-arrow': fields('bend', 'path'),
     'push-arrow': fields(),
+    'white-arrow': fields('path', 'width', 'tail'),
     'turn-over': fields('axis'),
     rotate: fields('rotate'),
     'valley-line': fields(),
@@ -879,6 +885,20 @@ function readAnnotation(
       if (typeof entry.bend !== 'number' || !Number.isFinite(entry.bend) || entry.bend === 0) return null;
       return Math.abs(entry.bend) > MAX_BEND ? NEWER : { ...annotation, bend: entry.bend };
     }
+    case 'white-arrow': {
+      // Always a path, with its two presets: a value either preset does not
+      // know is news, told before any damage, as for a whole annotation.
+      const path = entry.path === undefined ? null : readPath(entry.path);
+      const width = readPreset(entry.width, WHITE_ARROW_WIDTHS, DEFAULT_WHITE_ARROW.width);
+      const tail = readPreset(entry.tail, WHITE_ARROW_TAILS, DEFAULT_WHITE_ARROW.tail);
+      if (path === NEWER || width === NEWER || tail === NEWER) return NEWER;
+      if (path === null || width === null || tail === null) return null;
+      // The arrow's ends are its path's: one that says otherwise does not read.
+      const first = path[0]!.at;
+      const last = path[path.length - 1]!.at;
+      if (first[0] !== from[0] || first[1] !== from[1] || last[0] !== to[0] || last[1] !== to[1]) return null;
+      return { ...annotation, path, width, tail };
+    }
     case 'label': {
       if (typeof entry.text !== 'string') return null;
       const text = xmlText(entry.text);
@@ -950,6 +970,17 @@ function readPath(value: unknown): DiagramPathNode[] | typeof NEWER | null {
     });
   }
   return past ? NEWER : nodes;
+}
+
+/** A white arrow's widths and tails, as this build draws them. */
+const WHITE_ARROW_WIDTHS: readonly DiagramWhiteArrowWidth[] = ['narrow', 'regular', 'wide'];
+const WHITE_ARROW_TAILS: readonly WhiteArrowTail[] = ['pointed', 'square', 'cleft'];
+
+/** One of a set of presets: `fallback` when unsaid, a newer build's when a string this build has no name for. */
+function readPreset<T extends string>(value: unknown, known: readonly T[], fallback: T): T | typeof NEWER | null {
+  if (value === undefined) return fallback;
+  if (typeof value !== 'string') return null;
+  return (known as readonly string[]).includes(value) ? (value as T) : NEWER;
 }
 
 /** How far and which way a rotation turns: a quarter clockwise when unsaid. Shared by the glyph and the turn (D22). */

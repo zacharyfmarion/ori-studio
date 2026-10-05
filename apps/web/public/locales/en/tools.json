@@ -250,7 +250,8 @@
     "toolRotate": "Rotate",
     "toolTurnOver": "Turn Over",
     "toolValleyArrow": "Valley Fold Arrow",
-    "toolValleyLine": "Valley Line"
+    "toolValleyLine": "Valley Line",
+    "toolWhiteArrow": "White Arrow"
   },
   "divideMode": {
     "count": "Count",

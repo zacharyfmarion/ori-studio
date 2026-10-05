@@ -10,6 +10,7 @@ import {
   pathArrowDrawn,
   pushArrowDrawn,
   rotateGlyphDrawn,
+  whiteArrowDrawn,
   TURN_OVER_BOX,
   TURN_OVER_HEAD,
   TURN_OVER_PATH,
@@ -111,6 +112,35 @@ describe('a shaped arrow', () => {
       if (fold === 'fold-unfold') expect(painted.markup).toMatch(/<path d="M [-\d.]+ [-\d.]+( L [-\d.]+ [-\d.]+){8,}"/);
       expect(painted.markup).toMatch(fold === 'mountain' ? /stroke-linejoin="miter"/ : /fill="#231f20"/);
     }
+  });
+
+  it('draws a white arrow along its path, in its width and tail, a straight one too', () => {
+    const bent = a('w', 'white-arrow', { from: [0.2, 0.4], to: [0.8, 0.4], path, width: 'wide', tail: 'cleft' });
+    const straight = a('s', 'white-arrow', { from: [0.2, 0.6], to: [0.8, 0.6], path: [{ at: [0.2, 0.6] }, { at: [0.8, 0.6] }] });
+    const drawing = annotationDrawing([bent, straight], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
+    expect(drawing.primitives).toEqual([
+      {
+        kind: 'white-arrow',
+        width: 'wide',
+        tail: 'cleft',
+        // y up, as References' unit frame is.
+        path: [
+          [[0.2, -0.4], [0.3, -0.1], [0.4, -0.7], [0.5, -0.4]],
+          [[0.5, -0.4], [0.6, -0.1], [0.7, -0.7], [0.8, -0.4]],
+        ],
+      },
+      {
+        // Written with no look: the template's, regular and pointed.
+        kind: 'white-arrow',
+        width: 'regular',
+        tail: 'pointed',
+        path: [[[0.2, -0.6], [0.2, -0.6], [0.8, -0.6], [0.8, -0.6]]],
+      },
+    ]);
+    expect(drawing.primitiveIds).toEqual(['w', 's']);
+    // A path of no length draws nothing.
+    const stub = a('p', 'white-arrow', { from: [0.5, 0.5], to: [0.5, 0.5], path: [{ at: [0.5, 0.5] }, { at: [0.5, 0.5] }] });
+    expect(annotationDrawing([stub], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE).primitives).toEqual([]);
   });
 
   it('reaches round a loop that bulges far past its ends, and its return past that', () => {
@@ -414,11 +444,22 @@ describe('paintAnnotations', () => {
     }
   });
 
-  it('keeps a push, a rotate and a turn-over inside their reach at any pen, the heaviest too (review)', () => {
+  it('keeps a push, a white arrow, a rotate and a turn-over inside their reach at any pen, the heaviest too (review)', () => {
     const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    const white = (id: string, width: 'narrow' | 'regular' | 'wide', tail: 'pointed' | 'square' | 'cleft', path: KnownDiagramAnnotation['path']) =>
+      a(id, 'white-arrow', { from: path![0]!.at, to: path![path!.length - 1]!.at, path, width, tail });
     const glyphs = [
       a('push', 'push-arrow', { from: [-0.1, 0.4], to: [0.3, 0.1] }),
       a('push-short', 'push-arrow', { from: [0.02, 0.98], to: [0.05, 1] }),
+      // Pointing out past each side of the frame, so its tip, barbs and tail are what the reach is.
+      white('white-narrow', 'narrow', 'pointed', [{ at: [0.6, 0.5] }, { at: [1.1, 0.5] }]),
+      white('white-wide', 'wide', 'cleft', [{ at: [0.4, 0.5], out: [0.3, 0.2] }, { at: [-0.1, 0.4], in: [0.1, -0.1] }]),
+      white('white-corner', 'regular', 'square', [
+        { at: [0.5, 0.9] },
+        { at: [0.5, 1.1], type: 'corner' },
+        { at: [0.2, 1.1] },
+      ]),
+      white('white-short', 'regular', 'pointed', [{ at: [0.5, -0.02] }, { at: [0.52, -0.04] }]),
       a('rotate', 'rotate', { from: [0, 0], to: [0, 0], rotate: { amount: 'half', direction: 'ccw' } }),
       a('turn', 'turn-over', { from: [1, 0.5], to: [1, 0.5] }),
       a('turn-h', 'turn-over', { from: [0.5, 1], to: [0.5, 1], axis: 'horizontal' }),
@@ -462,6 +503,33 @@ describe('paintAnnotations', () => {
                 const t = ((a2.x - a1.x) * d2.y - (a2.y - a1.y) * d2.x) / cross;
                 const tip = { x: a1.x + d1.x * t, y: a1.y + d1.y * t };
                 if (Math.hypot(tip.x - corner.x, tip.y - corner.y) <= 4 * half) ink.push(tip);
+              }
+            });
+          } else if (primitive.kind === 'white-arrow') {
+            // A mitred outline as SVG strokes it with `stroke-miterlimit="1.5"`: each corner's two
+            // edges, offset half a pen to either side, meet at its mitre's tip, or are bevelled
+            // where that is past 1.5 half-pens.
+            const outline = whiteArrowDrawn(primitive.path, primitive.width, primitive.tail, project)!;
+            expect(outline.length).toBeGreaterThan(5);
+            outline.forEach((corner, index) => {
+              const before = outline[(index + outline.length - 1) % outline.length]!;
+              const after = outline[(index + 1) % outline.length]!;
+              const normal = (p: { x: number; y: number }, q: { x: number; y: number }) => {
+                const length = Math.hypot(q.x - p.x, q.y - p.y);
+                return { x: -(q.y - p.y) / length, y: (q.x - p.x) / length };
+              };
+              const [n1, n2] = [normal(before, corner), normal(corner, after)];
+              for (const side of [1, -1]) {
+                const a1 = { x: corner.x + side * half * n1.x, y: corner.y + side * half * n1.y };
+                const a2 = { x: corner.x + side * half * n2.x, y: corner.y + side * half * n2.y };
+                ink.push(a1, a2);
+                const d1 = { x: corner.x - before.x, y: corner.y - before.y };
+                const d2 = { x: after.x - corner.x, y: after.y - corner.y };
+                const cross = d1.x * d2.y - d1.y * d2.x;
+                if (Math.abs(cross) < 1e-12) continue;
+                const t = ((a2.x - a1.x) * d2.y - (a2.y - a1.y) * d2.x) / cross;
+                const tip = { x: a1.x + d1.x * t, y: a1.y + d1.y * t };
+                if (Math.hypot(tip.x - corner.x, tip.y - corner.y) <= 1.5 * half) ink.push(tip);
               }
             });
           } else if (primitive.kind === 'rotate') {
@@ -519,6 +587,30 @@ describe('paintAnnotations', () => {
         }
       }
     }
+  });
+
+  it('measures a white arrow as its stroke draws it: a corner past its own mitre limit bevelled, not mitred to SVG’s 4', () => {
+    // A narrow head's tip is 64°: its mitre would reach 1.89 half-pens past it, within SVG's
+    // default limit, but the white arrow is stroked to 1.5, which bevels it to half a pen.
+    const arrow = a('w', 'white-arrow', {
+      from: [0.6, 0.5],
+      to: [1.1, 0.5],
+      path: [{ at: [0.6, 0.5] }, { at: [1.1, 0.5] }],
+      width: 'narrow',
+      tail: 'square',
+    });
+    const drawing = annotationDrawing([arrow], { width: 1, height: 1 }, 1000, DEFAULT_DIAGRAM_STYLE);
+    const { project } = drawing.context;
+    const half = (project.pens.arrow.width * project.ink) / 2;
+    const primitive = drawing.primitives[0]!;
+    if (primitive.kind !== 'white-arrow') throw new Error('a white arrow');
+    const tip = Math.max(...whiteArrowDrawn(primitive.path, primitive.width, primitive.tail, project)!.map(({ x }) => x));
+    expect(tip).toBeCloseTo(1100, 0);
+    const painted = paintAnnotations([arrow], { x: 0, y: 0, width: 1000, height: 1000 }, 1000, DEFAULT_DIAGRAM_STYLE)!;
+    expect(painted.bounds.x + painted.bounds.width).toBeCloseTo(tip + half, 6);
+    // Drawn so: hollow in the page's white, outlined in the arrow's pen to that limit.
+    expect(painted.markup).toMatch(/stroke="none" fill="#ffffff"/);
+    expect(painted.markup).toMatch(/stroke-linejoin="miter" stroke-miterlimit="1.5"/);
   });
 
   it('sets the rotate glyph’s fraction in the diagram’s font, as a run a page counts', () => {

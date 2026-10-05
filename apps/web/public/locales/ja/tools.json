@@ -242,7 +242,8 @@
     "toolRotate": "回転",
     "toolTurnOver": "裏返す",
     "toolValleyArrow": "谷折りの矢印",
-    "toolValleyLine": "谷折り線"
+    "toolValleyLine": "谷折り線",
+    "toolWhiteArrow": "白抜き矢印"
   },
   "divideMode": {
     "count": "個数",

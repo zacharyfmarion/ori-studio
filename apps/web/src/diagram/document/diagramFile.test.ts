@@ -224,6 +224,15 @@ describe('annotations in the file', () => {
     { id: 'a-2', kind: 'mountain-arrow', from: [0.1, 0.3], to: [0.5, 0.3], bend: -0.2 },
     { id: 'a-3', kind: 'fold-unfold-arrow', from: [0.1, 0.4], to: [0.5, 0.4], bend: 0.5 },
     { id: 'a-4', kind: 'push-arrow', from: [0.9, 0.9], to: [0.7, 0.7] },
+    {
+      id: 'a-4w',
+      kind: 'white-arrow',
+      from: [0.1, 0.6],
+      to: [0.5, 0.7],
+      path: [{ at: [0.1, 0.6], out: [0.2, 0.4] }, { at: [0.5, 0.7], in: [0.4, 0.5] }],
+      width: 'wide',
+      tail: 'cleft',
+    },
     { id: 'a-5', kind: 'turn-over', from: [0.5, 0.5], to: [0.5, 0.5], axis: 'horizontal' },
     { id: 'a-6', kind: 'rotate', from: [0.2, 0.8], to: [0.2, 0.8], rotate: { amount: 'eighth', direction: 'ccw' } },
     { id: 'a-7', kind: 'valley-line', from: [-0.2, 0.5], to: [1.2, 0.5] },
@@ -372,6 +381,67 @@ describe('annotations in the file', () => {
       // `path`, so the arrow is a newer build's (`colour` here stands for it).
       const older = shaped({ colour: 'red' });
       expect(withAnnotations([older])).toEqual([{ id: 'p-1', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      const again = throughJson(writeDiagram(readDiagram(written)!.document));
+      expect(again.steps[0].annotations).toEqual([older]);
+    });
+  });
+
+  describe('a white arrow', () => {
+    const white = (more: Record<string, unknown> = {}) => ({
+      id: 'w-1',
+      kind: 'white-arrow',
+      from: [0.1, 0.5],
+      to: [0.7, 0.5],
+      path: [
+        { at: [0.1, 0.5], out: [0.2, 0.3] },
+        { at: [0.4, 0.5], in: [0.3, 0.6], out: [0.5, 0.4], type: 'corner' },
+        { at: [0.7, 0.5], in: [0.6, 0.7] },
+      ],
+      width: 'narrow',
+      tail: 'square',
+      ...more,
+    });
+
+    it('round-trips its path and its look, and gets the template’s look where it says none', () => {
+      expect(withAnnotations([white()])).toEqual([white()]);
+      const { width: _width, tail: _tail, ...unsaid } = white();
+      expect(withAnnotations([unsaid])).toEqual([white({ width: 'regular', tail: 'pointed' })]);
+    });
+
+    it('carries, verbatim, what a newer build might write: a width or tail it has no name for, a bend, a point past reach', () => {
+      const newer = [
+        white({ id: 'n-width', width: 'huge' }),
+        white({ id: 'n-tail', tail: 'feathered' }),
+        white({ id: 'n-bend', bend: 0.2 }),
+        white({ id: 'n-colour', colour: 'red' }),
+        white({ id: 'n-far', to: [9, 0.5], path: [{ at: [0.1, 0.5] }, { at: [9, 0.5] }] }),
+        // News before damage: a newer tail on a path that does not read is still a newer build's.
+        white({ id: 'n-first', tail: 'feathered', path: 'no path' }),
+      ];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    });
+
+    it('drops one that does not read: no path, a path that does not, a look that is not a word, ends not the path’s', () => {
+      const { path: _path, ...pathless } = white();
+      const read = withAnnotations([
+        { ...pathless, id: 'd-none' },
+        white({ id: 'd-one', path: [{ at: [0.1, 0.5] }] }),
+        white({ id: 'd-width', width: 2 }),
+        white({ id: 'd-tail', tail: null }),
+        white({ id: 'd-ends', to: [0.6, 0.5] }),
+        white({ id: 'kept' }),
+      ]);
+      expect(read.map((annotation) => annotation.id)).toEqual(['kept']);
+    });
+
+    it('is kept, verbatim and undrawn, by a build before white arrows: as any kind it has no name for', () => {
+      // Checked against a34d74086's own reader, which names no `white-arrow`:
+      // it carries one as a newer build's and writes it back unchanged.
+      // `spiral` stands for it here, as this build's reader knows the kind.
+      const older = white({ kind: 'spiral' });
+      expect(withAnnotations([older])).toEqual([{ id: 'w-1', unknown: older }]);
       const written = throughJson(writeDiagram(sampleDiagram()));
       written.steps[0].annotations = [older];
       const again = throughJson(writeDiagram(readDiagram(written)!.document));

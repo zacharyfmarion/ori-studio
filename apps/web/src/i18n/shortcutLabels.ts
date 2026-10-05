@@ -123,6 +123,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.toolFoldUnfoldArrow', 'Fold and Unfold Arrow');
     case 'diagram.toolPushArrow':
       return t('tools:diagram.toolPushArrow', 'Push Arrow');
+    case 'diagram.toolWhiteArrow':
+      return t('tools:diagram.toolWhiteArrow', 'White Arrow');
     case 'diagram.toolTurnOver':
       return t('tools:diagram.toolTurnOver', 'Turn Over');
     case 'diagram.toolRotate':

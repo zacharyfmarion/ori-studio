@@ -258,7 +258,8 @@
     "toolRotate": "Girar",
     "toolTurnOver": "Dar la vuelta",
     "toolValleyArrow": "Flecha de valle",
-    "toolValleyLine": "Línea de valle"
+    "toolValleyLine": "Línea de valle",
+    "toolWhiteArrow": "Flecha blanca"
   },
   "divideMode": {
     "count": "Cantidad",

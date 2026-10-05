@@ -17,6 +17,7 @@ import {
   DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_MARK_INK,
   DIAGRAM_PUSH_INK,
+  DIAGRAM_WHITE_ARROW_INK,
 } from '../../cp-workspace/references/diagram/diagramInk';
 import {
   arcPolyline,
@@ -25,12 +26,15 @@ import {
   arrowheadReach,
   backToRing,
   arcThroughPoints,
+  outlineDistance,
   pathArrowGeometry,
   pushArrowOutline,
   returnStroke,
+  whiteArrowOutline,
 } from '../../cp-workspace/references/stepDiagramGeometry';
 import { flattenPath } from '../../lib/cubicBezier';
 import {
+  DEFAULT_WHITE_ARROW,
   LINE_KINDS,
   arrowApex,
   arrowShape,
@@ -333,6 +337,44 @@ function pushDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, i
   return distanceToPolyline(point, [...ring, ring[0]!]);
 }
 
+/**
+ * A white arrow's outline in picture units, at the ink a press is measured
+ * in, as the drawing shapes it (`whiteArrowOutline`): worked out once per
+ * annotation and ink. Null for a path of no length.
+ */
+const whiteArrowOutlines = perAnnotation(() => new Map<number, PicturePoint[] | null>());
+
+function whiteArrowOutlineAt(annotation: KnownDiagramAnnotation, ink: number): PicturePoint[] | null {
+  const byInk = whiteArrowOutlines(annotation);
+  const known = byInk.get(ink);
+  if (known !== undefined) return known;
+  const size = DIAGRAM_WHITE_ARROW_INK[annotation.width ?? DEFAULT_WHITE_ARROW.width];
+  const outline = whiteArrowOutline(
+    pathCubics(arrowPathNodes(annotation)),
+    { neck: size.neck * ink, headLength: size.headLength * ink, headWidth: size.headWidth * ink },
+    annotation.tail ?? DEFAULT_WHITE_ARROW.tail,
+    PATH_TOLERANCE
+  );
+  const found = outline && outline.map(([x, y]): PicturePoint => [x, y]);
+  byInk.set(ink, found);
+  return found;
+}
+
+/** A white arrow's path: its own, or the straight one it was laid as. */
+function arrowPathNodes(annotation: KnownDiagramAnnotation): readonly DiagramPathNode[] {
+  return annotation.path ?? [{ at: annotation.from }, { at: annotation.to }];
+}
+
+/**
+ * How far a press is from a white arrow as it is drawn: 0 inside its hollow
+ * outline, which a press takes as the push's is — its curve's hollow side
+ * too — and the distance to its edge outside (`outlineDistance`).
+ */
+function whiteArrowDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, ink: number): number {
+  const outline = whiteArrowOutlineAt(annotation, ink);
+  return outline ? outlineDistance(outline, point) : distanceToPolyline(point, arrowPolyline(annotation));
+}
+
 /** Whether a point is inside a simple polygon (even–odd). */
 function insidePolygon([x, y]: PicturePoint, ring: readonly PicturePoint[]): boolean {
   let inside = false;
@@ -354,7 +396,7 @@ export function circleRadius(ink: number): number {
 
 /**
  * How far a press is from an annotation's body, as it is drawn; 0 inside a
- * glyph, a label or a push. A circle is its ring, not its inside: an arrow
+ * glyph, a label, a push or a white arrow. A circle is its ring, not its inside: an arrow
  * that lands on it ends at its centre, and a press there is the arrow's. Every kind is measured as it is drawn (a switch,
  * so a new kind is a compile error here until it is).
  */
@@ -381,6 +423,8 @@ function bodyDistance(
       return arrowDistance(annotation, point, sizes.ink, marks);
     case 'push-arrow':
       return pushDistance(annotation, point, sizes.ink);
+    case 'white-arrow':
+      return whiteArrowDistance(annotation, point, sizes.ink);
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':

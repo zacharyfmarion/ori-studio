@@ -6,10 +6,10 @@
  * - A valley, mountain or hidden line is a paper line in the role
  *   `diagram-valley`, `diagram-mountain` or `diagram-hidden`, drawn in the
  *   style's pens as a step's own lines are.
- * - A fold arrow, a push, the turn-over and rotate glyphs are step-diagram
- *   primitives drawn by `diagramShapes`, in the style's arrow ink, with no
- *   paper to clip to: an annotation is the author's own mark, one ink
- *   wherever it lies.
+ * - A fold arrow, a push, a white arrow, the turn-over and rotate glyphs are
+ *   step-diagram primitives drawn by `diagramShapes`, in the style's arrow
+ *   ink, with no paper to clip to: an annotation is the author's own mark,
+ *   one ink wherever it lies.
  * - A circle is References' ring round a point (`point`, highlight), in the
  *   annotation pen — three quarters of the style's arrow pen, in its ink
  *   (decision 7) — so an arrow that lands on it stops at its rim, as
@@ -56,6 +56,8 @@ import {
   pushArrowDrawn,
   rotateGlyphDrawn,
   turnOverDrawn,
+  whiteArrowDrawn,
+  WHITE_ARROW_MITER_LIMIT,
   type Arrowhead,
   type DiagramArc,
   type PathArrowFold,
@@ -83,10 +85,12 @@ import type { DiagramFontKey } from '../fonts/diagramFontFaces';
 import {
   arrowApex,
   arrowShape,
+  DEFAULT_WHITE_ARROW,
   LABEL_SIZE,
   labelHalfWidth,
   pathCubics,
   pathLength,
+  straightPath,
   type PictureFrame,
   type PicturePoint,
 } from './annotationModel';
@@ -118,7 +122,9 @@ export interface AnnotationLine {
 /** The marks an annotation can be: the References primitives it compiles to. */
 export type AnnotationPrimitive = Extract<
   StepDiagramPrimitive,
-  { kind: 'fold-arrow' | 'one-way-arrow' | 'path-arrow' | 'push-arrow' | 'turn-over' | 'rotate' | 'point' }
+  {
+    kind: 'fold-arrow' | 'one-way-arrow' | 'path-arrow' | 'push-arrow' | 'white-arrow' | 'turn-over' | 'rotate' | 'point';
+  }
 >;
 
 /**
@@ -150,7 +156,7 @@ function seenStyle(style: DiagramStyle): PaperStyle {
   return applyPaperStylePolicy(diagramPaperStyle(style), PAPER_STYLE_POLICIES.references);
 }
 
-/** The page an annotation is printed on: a hollow push is this inside. */
+/** The page an annotation is printed on: a hollow push or white arrow is this inside. */
 const PAGE_GROUND = '#ffffff';
 
 /**
@@ -225,6 +231,20 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
     }
     case 'push-arrow':
       return { kind: 'mark', primitive: { kind: 'push-arrow', from: up(from), to: up(to) } };
+    case 'white-arrow': {
+      // Always a path; one read without is the straight one it was laid as.
+      const nodes = annotation.path ?? straightPath(from, to);
+      if (!(pathLength(nodes) > 0)) return null;
+      return {
+        kind: 'mark',
+        primitive: {
+          kind: 'white-arrow',
+          path: pathCubics(nodes).map(([a, b, c, d]) => [up(a), up(b), up(c), up(d)] as const),
+          width: annotation.width ?? DEFAULT_WHITE_ARROW.width,
+          tail: annotation.tail ?? DEFAULT_WHITE_ARROW.tail,
+        },
+      };
+    }
     case 'turn-over':
       return { kind: 'mark', primitive: { kind: 'turn-over', at: up(from), axis: annotation.axis ?? 'vertical' } };
     case 'rotate':
@@ -421,6 +441,15 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
         const outline = pushArrowDrawn(primitive.from, primitive.to, project);
         if (!outline) break;
         const mitres = mitredCornerReach(outline, pen);
+        outline.forEach(({ x, y }, index) => take(x, y, mitres[index]!));
+        break;
+      }
+      case 'white-arrow': {
+        // Its outline's corners, its mitres out past them as its stroke draws
+        // them: to its own limit, past which a corner is bevelled.
+        const outline = whiteArrowDrawn(primitive.path, primitive.width, primitive.tail, project);
+        if (!outline) break;
+        const mitres = mitredCornerReach(outline, pen, WHITE_ARROW_MITER_LIMIT);
         outline.forEach(({ x, y }, index) => take(x, y, mitres[index]!));
         break;
       }

@@ -165,6 +165,22 @@ describe('Annotate’s keys', () => {
     expect(others).toEqual([]);
   });
 
+  it('binds the white arrow to W, a letter no other Diagram key or the view’s has, and picks it', () => {
+    const white = SHORTCUT_DEFINITIONS.find((shortcut) => shortcut.id === 'diagram.toolWhiteArrow');
+    expect(white).toMatchObject({ scope: 'diagram', defaultChord: { key: 'w' } });
+    const others = SHORTCUT_DEFINITIONS.filter(
+      (shortcut) =>
+        shortcut.id !== 'diagram.toolWhiteArrow' &&
+        ['diagram', 'diagram-path', 'viewport', 'global'].includes(shortcut.scope) &&
+        shortcut.defaultChords.some((chord) => chord.key === 'w' && !chord.primary && !chord.shift && !chord.alt)
+    );
+    expect(others).toEqual([]);
+    expect(press('diagram.toolWhiteArrow', annotate()).setTool).toHaveBeenCalledWith('white-arrow');
+    expect(press('diagram.toolWhiteArrow', annotate('white-arrow')).setTool).toHaveBeenCalledWith(null);
+    // Outside Annotate it is no key of the Diagram's.
+    expect(press('diagram.toolWhiteArrow', {})).toMatchObject({ claimed: false });
+  });
+
   it('flips only a selected fold arrow', () => {
     expect(press('diagram.flipArc', annotate(null, true))).toMatchObject({ claimed: true });
     expect(press('diagram.flipArc', annotate(null, false))).toMatchObject({ claimed: false });

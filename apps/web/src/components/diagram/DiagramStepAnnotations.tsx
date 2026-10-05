@@ -21,6 +21,7 @@ import { FieldRow, SegmentedRow, TextAreaRow, ToggleRow } from '../ui/fieldRows'
 import { Notice } from '../ui/Notice';
 import { DiagramAnnotateToolGlyph } from './DiagramAnnotateToolGlyph';
 import { DiagramPathNodeControls } from './DiagramPathNodeControls';
+import { DiagramWhiteArrowControls } from './DiagramWhiteArrowControls';
 import styles from './DiagramStepAnnotations.module.css';
 
 /** The icon of each of the catalog's verbs the annotation row shows (`annotationActions.ts`). */
@@ -38,8 +39,9 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * Snap switch (for a finger, which has no ⌘ to hold), a notice when they
  * were drawn on another picture, the list — a press selects
  * one, as a press on the canvas does — and the selected one's own controls:
- * a label's text, an arrow's Flip arc and Reset, a rotation's turn, a
- * turn-over's axis, Delete, and in Edit Path a fold arrow's node verbs.
+ * a label's text, an arrow's Flip arc and Reset, a white arrow's width and
+ * tail, a rotation's turn, a turn-over's axis, Delete, and in Edit Path a
+ * fold or white arrow's node verbs.
  */
 export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
   const { t } = useTranslation();
@@ -218,6 +220,13 @@ function SelectedAnnotation({
             }
           />
         </>
+      )}
+      {annotation.kind === 'white-arrow' && (
+        <DiagramWhiteArrowControls
+          annotation={annotation}
+          editable={editable}
+          onChange={(look) => annotations.setWhiteArrowLook(id, look)}
+        />
       )}
       {annotation.kind === 'turn-over' && (
         <SegmentedRow

@@ -733,9 +733,9 @@
       "canvasLabel": "Annotationen auf dem Bild des Schritts",
       "circleHelp": "Klicke auf einen Punkt, um ihn einzukreisen.",
       "controls": "Steuerung der Ansicht Annotieren",
-      "editPathCannot": "Nur Faltpfeile lassen sich formen: Tal-, Berg- und Falten-und-Öffnen-Pfeile.",
-      "editPathHelp": "Ziehe die Knoten eines Faltpfeils, ihre Griffe oder seine Kurve, um ihn zu formen. Klicke auf die Kurve, um einen Knoten hinzuzufügen; doppelklicke auf einen Knoten, um ihn zur Ecke oder glatt zu machen.",
-      "editPathNone": "Wähle einen Faltpfeil aus, um ihn zu formen.",
+      "editPathCannot": "Nur Faltpfeile und weiße Pfeile lassen sich formen.",
+      "editPathHelp": "Ziehe die Knoten eines Pfeils, ihre Griffe oder seine Kurve, um ihn zu formen. Klicke auf die Kurve, um einen Knoten hinzuzufügen; doppelklicke auf einen Knoten, um ihn zur Ecke oder glatt zu machen.",
+      "editPathNone": "Wähle einen Faltpfeil oder einen weißen Pfeil aus, um ihn zu formen.",
       "foldUnfoldHelp": "Ziehe von dort, wo das Papier startet, bis dorthin, wo es landet: Es wird gefaltet und wieder zurückgeklappt.",
       "glyphHelp": "Klicke dort, wo das Zeichen hin soll.",
       "groupArrows": "Pfeile",
@@ -748,8 +748,9 @@
       "lineHelp": "Ziehe entlang der Falte.",
       "pushHelp": "Ziehe zu der Stelle, die eingedrückt werden soll.",
       "select": "Auswählen",
-      "selectHelp": "Klicke auf eine Annotation, um sie auszuwählen. Ziehe sie oder den Punkt an einem ihrer Enden, um sie zu verschieben. Doppelklicke auf einen Faltpfeil, um ihn zu formen.",
-      "toolsLabel": "Annotationswerkzeuge"
+      "selectHelp": "Klicke auf eine Annotation, um sie auszuwählen. Ziehe sie oder den Punkt an einem ihrer Enden, um sie zu verschieben. Doppelklicke auf einen Faltpfeil oder einen weißen Pfeil, um ihn zu formen.",
+      "toolsLabel": "Annotationswerkzeuge",
+      "whiteArrowHelp": "Ziehe von dort, wo das Papier startet, bis dorthin, wo es hingeht. Forme ihn mit „Pfad bearbeiten“."
     },
     "annotations": {
       "addNode": "Knoten hinzufügen",
@@ -781,9 +782,17 @@
       "smooth": "Glatt",
       "snap": "Am Bild einrasten",
       "snapHelp": "Kreise sowie die Enden von Pfeilen und Linien rasten an nahe Punkte des Bildes und an andere Annotationen ein. Halte {{modifier}} gedrückt, um sie frei zu setzen.",
+      "tail": "Ende",
+      "tailCleft": "Gekerbt",
+      "tailPointed": "Spitz",
+      "tailSquare": "Gerade",
       "text": "Text",
       "topToBottom": "Von oben nach unten",
-      "turn": "Drehung"
+      "turn": "Drehung",
+      "width": "Breite",
+      "widthNarrow": "Schmal",
+      "widthRegular": "Normal",
+      "widthWide": "Breit"
     },
     "card": {
       "badgeCreasePattern": "Faltmuster",

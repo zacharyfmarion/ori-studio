@@ -21,7 +21,9 @@ import type {
   LayerSpreadOptions,
   SpreadKind,
 } from '../../cp-workspace/folded/foldedLayerSpread';
+import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
 import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
+import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import type { RegionReference } from '../../cp-workspace/regions/regionReference';
 import type { SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import type { BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
@@ -499,15 +501,16 @@ export type DiagramPicture =
 
 /**
  * What an annotation draws (D8): a fold arrow — kept (valley, mountain) or
- * made and unfolded — a push, the turn-over and rotate glyphs, a crease line
- * in the diagram's pens, a label, and a circle round a point, as References
- * rings one.
+ * made and unfolded — a push, a white arrow, the turn-over and rotate glyphs,
+ * a crease line in the diagram's pens, a label, and a circle round a point,
+ * as References rings one.
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
   | 'mountain-arrow'
   | 'fold-unfold-arrow'
   | 'push-arrow'
+  | 'white-arrow'
   | 'turn-over'
   | 'rotate'
   | 'valley-line'
@@ -566,9 +569,14 @@ export interface KnownDiagramAnnotation {
   /**
    * A fold arrow shaped by hand (Edit Path): its nodes, tail first, at least
    * two, the first at `from` and the last at `to`. Written only once an arrow
-   * is reshaped; an arrow that never was keeps its exact arc (`bend`).
+   * is reshaped; an arrow that never was keeps its exact arc (`bend`). A
+   * white arrow always has one: it is laid straight, and shaped from there.
    */
   path?: DiagramPathNode[];
+  /** A white arrow's width: one of three print sizes, in ink, as every mark's is (decision 14). */
+  width?: DiagramWhiteArrowWidth;
+  /** A white arrow's tail: drawn to a point, cut square, or cleft in a V. */
+  tail?: WhiteArrowTail;
   /** A label's text. */
   text?: string;
   rotate?: DiagramRotation;

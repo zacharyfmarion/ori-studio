@@ -93,6 +93,20 @@ describe('pictureSnapTarget on annotations', () => {
     expect(pictureSnapTarget(step, NO_ASSETS, [0.8, 0.41], 0.05, { annotations: marks })).toBeNull();
   });
 
+  it('snaps to a white arrow’s tail and tip, never a point along its path', () => {
+    const white = annotation({
+      kind: 'white-arrow',
+      from: [0.3, 0.6],
+      to: [0.7, 0.6],
+      path: [{ at: [0.3, 0.6], out: [0.4, 0.3] }, { at: [0.7, 0.6], in: [0.6, 0.3] }],
+      width: 'regular',
+      tail: 'pointed',
+    });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.69, 0.61], 0.05, { annotations: [white] })).toEqual({ at: [0.7, 0.6], kind: 'annotation' });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.31, 0.59], 0.05, { annotations: [white] })).toEqual({ at: [0.3, 0.6], kind: 'annotation' });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.4, 0.3], 0.05, { annotations: [white] })).toBeNull();
+  });
+
   it('snaps to a circle’s centre, which an arrow lands on', () => {
     const circle = annotation({ kind: 'circle', from: [0.45, 0.35], to: [0.45, 0.35] });
     expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [circle] })).toEqual({
