@@ -381,39 +381,60 @@ describe('composeDiagramPage', () => {
     expect(settled / layouts).toBeGreaterThan(0.9);
   });
 
-  it('keeps a picture’s paper in its room when its letters cannot fit there, and its pages settled (review)', () => {
-    // Glyphs beside the paper, which keep their pt size, in a room a few mm tall.
-    const glyphs: DiagramStep = {
-      ...cpStep('step-1'),
-      annotations: [
-        { id: 'r', kind: 'rotate', from: [1.3, 0.5], to: [1.3, 0.5], rotate: { amount: 'half', direction: 'cw' } },
-        { id: 't', kind: 'turn-over', from: [-0.3, 0.5], to: [-0.3, 0.5], axis: 'vertical' },
+  it('keeps a sheet in its room when its letters cannot fit there, annotated or not, every picture held (review)', () => {
+    // Letters on one side of a References sheet keep their pt size: in a room a few mm tall the
+    // layout lets them reach out (MARKS_FLOOR), and the sheet must stay in the room.
+    const long = Array(12).fill('Fold the corner to the line.').join(' ');
+    const above = stepDiagramPicture(false, {
+      ...SENT_MODEL,
+      primitives: [
+        { kind: 'sheet', width: 1, height: 1 },
+        { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'valley' },
+        { kind: 'label', at: [0.5, 1], text: 'D', style: 'normal' },
       ],
-    };
-    const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [glyphs, cpStep('step-2'), cpStep('step-3')], 0);
-    for (const setup of [...SETUPS, { size: 'a5' as const, orientation: 'landscape' as const, columns: 3, rows: 5 }]) {
-      const document: DiagramDocument = { ...made, page: { ...made.page, ...setup } };
-      const layout = layoutDiagram(document, estimateTextSetter);
-      const cell = layout.pages[0]!.cells[0]!;
-      const picture = cellPicture(stepsIn(document)[0]!, document.assets, document.style, cell, 'c-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
-      // The paper: the first face its painter draws, in the room the layout drew, never a neighbour's.
-      const face = /<g stroke-linejoin="round">\s*<path d="([^"]*)"/.exec(picture.markup)![1]!;
-      const shift = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(picture.markup.slice(0, picture.markup.indexOf('<g stroke-linejoin')));
-      const [dx, dy] = shift ? [Number(shift[1]), Number(shift[2])] : [0, 0];
-      const xs = [...face.matchAll(/[ML](-?[\d.]+),/g)].map((each) => Number(each[1]) + dx);
-      const ys = [...face.matchAll(/,(-?[\d.]+)/g)].map((each) => Number(each[1]) + dy);
-      const name = setupName(setup);
-      expect(Math.min(...xs), name).toBeGreaterThanOrEqual(cell.drawMm.x * PT_PER_MM - 0.5);
-      expect(Math.max(...xs), name).toBeLessThanOrEqual((cell.drawMm.x + cell.drawMm.w) * PT_PER_MM + 0.5);
-      expect(Math.min(...ys), name).toBeGreaterThanOrEqual(cell.drawMm.y * PT_PER_MM - 0.5);
-      expect(Math.max(...ys), name).toBeLessThanOrEqual((cell.drawMm.y + cell.drawMm.h) * PT_PER_MM + 0.5);
-      // Settled: measured at the scales it is drawn at, another pass draws them the same.
-      const measures = new Map(layout.pages.flatMap((page) => page.cells).map((each) => [each.stepId, { mmPerUnit: each.mmPerUnit! }]));
-      const again = layoutDiagramPages(diagramLayoutSteps(document, (id) => measures.get(id) ?? null), document.page, document.title, estimateTextSetter);
-      again.pages.flatMap((page) => page.cells).forEach((each, index) => {
-        expect(each.mmPerUnit! / layout.pages.flatMap((page) => page.cells)[index]!.mmPerUnit!, name).toBeCloseTo(1, 3);
-      });
+    });
+    const cases: [string, DiagramStep][] = [
+      [
+        'a letter above, annotated',
+        { ...referencesStep('step-1'), picture: above, text: long, annotations: [{ id: 'v', kind: 'valley-line', from: [0, 0], to: [1, 1] }] },
+      ],
+      ['a letter above', { ...referencesStep('step-1'), picture: above, text: long }],
+      ['the card’s own, a letter to the left', { ...referencesStep('step-1'), text: long }],
+    ];
+    let floored = 0;
+    for (const [what, lettered] of cases) {
+      const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [lettered, cpStep('step-2'), cpStep('step-3')], 0);
+      for (const setup of [...SETUPS, { size: 'a5' as const, orientation: 'landscape' as const, columns: 3, rows: 5 }]) {
+        const document: DiagramDocument = { ...made, page: { ...made.page, ...setup } };
+        const layout = layoutDiagram(document, estimateTextSetter);
+        const cell = layout.pages[0]!.cells[0]!;
+        const step = stepsIn(document)[0]!;
+        const needs = layoutPicture(step, document.assets, document.style, { mmPerUnit: cell.mmPerUnit! })!;
+        if (pictureExtent(needs, cell.mmPerUnit!).height > cell.drawMm.h + 1e-3) floored += 1;
+        const picture = cellPicture(step, document.assets, document.style, cell, 'c-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
+        // The sheet: the first face its painter draws, in the room the layout drew, never a neighbour's.
+        const face = /<g stroke-linejoin="round">\s*<path d="([^"]*)"/.exec(picture.markup)![1]!;
+        const shift = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(picture.markup.slice(0, picture.markup.indexOf('<g stroke-linejoin')));
+        const [dx, dy] = shift ? [Number(shift[1]), Number(shift[2])] : [0, 0];
+        const xs = [...face.matchAll(/[ML](-?[\d.]+),/g)].map((each) => Number(each[1]) + dx);
+        const ys = [...face.matchAll(/,(-?[\d.]+)/g)].map((each) => Number(each[1]) + dy);
+        const name = `${what}, ${setupName(setup)}`;
+        expect(Math.min(...xs), name).toBeGreaterThanOrEqual(cell.drawMm.x * PT_PER_MM - 0.05);
+        expect(Math.max(...xs), name).toBeLessThanOrEqual((cell.drawMm.x + cell.drawMm.w) * PT_PER_MM + 0.05);
+        expect(Math.min(...ys), name).toBeGreaterThanOrEqual(cell.drawMm.y * PT_PER_MM - 0.05);
+        expect(Math.max(...ys), name).toBeLessThanOrEqual((cell.drawMm.y + cell.drawMm.h) * PT_PER_MM + 0.05);
+        // Held: every picture, measured at the scale it is drawn at, fits the room drawn for it. (A sheet whose
+        // letter takes over from its margin near its scale can leave the passes between two scales; the
+        // layout keeps the one that holds.)
+        for (const each of layout.pages.flatMap((page) => page.cells)) {
+          const shown = stepsIn(document).find((candidate) => candidate.id === each.stepId)!;
+          const measured = layoutPicture(shown, document.assets, document.style, { mmPerUnit: each.mmPerUnit! });
+          expect(pictureFit(measured, each.drawMm.w, each.drawMm.h)! / each.mmPerUnit!, `${name} ${each.stepId}`).toBeGreaterThan(1 - 1e-3);
+        }
+      }
     }
+    // The small setups' long instruction leaves the sheet a room its letters cannot fit, in every case.
+    expect(floored).toBeGreaterThanOrEqual(cases.length);
   });
 
   it('draws a taller model at the run’s scale, taller than its box, its instruction below it', () => {

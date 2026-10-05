@@ -347,20 +347,26 @@ export function cellPicture(
     }
   }
   const { drawn, reached } = placed;
-  if (!placed.marks) {
-    const { framePt: _frame, fitted: _fitted, ...plain } = drawn;
-    return { ...plain, markup: prefixIds(plain.markup, idPrefix) };
-  }
+  // A References step's letters are its drawing's own, so a sheet with no
+  // annotations settles too: its letters may reach out, never its sheet.
   const dx = settle(reached.x, reached.width, box.x, box.width, drawn.framePt.x, drawn.framePt.width);
   const dy = settle(reached.y, reached.height, box.y, box.height, drawn.framePt.y, drawn.framePt.height);
+  const shift = (markup: string) => (dx === 0 && dy === 0 ? markup : `<g transform="translate(${num(dx)} ${num(dy)})">${markup}</g>`);
+  if (!placed.marks) {
+    const { framePt: _frame, fitted: _fitted, ...plain } = drawn;
+    return {
+      ...plain,
+      markup: prefixIds(shift(plain.markup), idPrefix),
+      boundsPt: { ...plain.boundsPt, x: plain.boundsPt.x + dx, y: plain.boundsPt.y + dy },
+    };
+  }
   // A label is set as an upload's text is, its Han in the diagram's style.
   const usage = new Map(drawn.text.map(({ face, characters }) => [face, characters]));
   const markup = setUploadText(placed.marks!.markup, text.hanStyle, text.runs, (face, characters) =>
     usage.set(face, (usage.get(face) ?? '') + characters)
   );
-  const both = `${drawn.markup}\n${markup}`;
   return {
-    markup: prefixIds(dx === 0 && dy === 0 ? both : `<g transform="translate(${num(dx)} ${num(dy)})">${both}</g>`, idPrefix),
+    markup: prefixIds(shift(`${drawn.markup}\n${markup}`), idPrefix),
     boundsPt: { ...reached, x: reached.x + dx, y: reached.y + dy },
     text: [...usage].map(([face, characters]) => ({ face, characters })),
   };
