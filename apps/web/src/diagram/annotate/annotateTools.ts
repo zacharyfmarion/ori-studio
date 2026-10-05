@@ -298,7 +298,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
     case 'rotate':
       return t('panels:diagram.annotate.glyphHelp', 'Click where the sign goes.');
     case 'label':
-      return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it in the Step pane.');
+      return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it in the Layers pane.');
     case 'circle':
       return t('panels:diagram.annotate.circleHelp', 'Click a point to circle it.');
     case 'right-angle':
@@ -314,7 +314,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
     case 'callout':
       return t(
         'panels:diagram.annotate.calloutHelp',
-        'Drag from a point to where the box goes, or click the point, then type its words in the Step pane.'
+        'Drag from a point to where the box goes, or click the point, then type its words in the Layers pane.'
       );
   }
 }
@@ -448,12 +448,12 @@ function pickHelp(t: TFunction, { step, refusal }: PickProgress): string {
 }
 
 /**
- * A label's and a callout's help on a touch screen, which keeps the Step pane
- * as a tab of the sheet behind its Settings pill: the field its words are
+ * A label's and a callout's help on a touch screen, which keeps the Layers
+ * pane as a tab of the sheet behind its Settings pill: the field its words are
  * typed in named where that surface shows it, in its own words.
  */
 function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout'): string {
-  const where = { sheet: t('common:viewDrawer.openSettings', 'Settings'), tab: t('panels:sidePane.step', 'Step') };
+  const where = { sheet: t('common:viewDrawer.openSettings', 'Settings'), tab: t('panels:sidePane.layers', 'Layers') };
   return tool === 'label'
     ? t('panels:diagram.annotate.labelHelpTouch', 'Click where the label goes, then type it in {{sheet}}, under {{tab}}.', where)
     : t(

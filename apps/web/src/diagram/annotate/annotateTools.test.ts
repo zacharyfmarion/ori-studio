@@ -145,15 +145,15 @@ describe('the tool window', () => {
           'Hold Cmd to put its corner down anywhere, without snapping.',
         ],
       },
-      // Its words are typed in the Step pane, not in the window that says so.
+      // Its words are typed in the Layers pane, not in the window that says so.
       label: {
         title: 'Label',
-        instructions: 'Click where the label goes, then type it in the Step pane.',
+        instructions: 'Click where the label goes, then type it in the Layers pane.',
         modifiers: [],
       },
       callout: {
         title: 'Callout',
-        instructions: 'Drag from a point to where the box goes, or click the point, then type its words in the Step pane.',
+        instructions: 'Drag from a point to where the box goes, or click the point, then type its words in the Layers pane.',
         modifiers: ['Hold Cmd to put its point down anywhere, without snapping.'],
       },
       'angle-bisector': {
@@ -205,7 +205,7 @@ describe('the tool window', () => {
       const hint = annotateToolHint(t, tool, null, finger)!;
       expect(hint.modifiers).toEqual([]);
       // A label's and a callout's words are typed in the Settings sheet's Step tab there (review).
-      if (tool === 'label' || tool === 'callout') expect(hint.instructions).toMatch(/ in Settings, under Step\.$/);
+      if (tool === 'label' || tool === 'callout') expect(hint.instructions).toMatch(/ in Settings, under Layers\.$/);
       else expect(hint.instructions).toBe(annotateToolHint(t, tool, null, mac)!.instructions);
     }
   });
