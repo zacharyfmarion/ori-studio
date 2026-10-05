@@ -62,6 +62,45 @@ describe('diagramInModel', () => {
     });
   });
 
+  it('maps a white arrow’s every control point, keeping its width and tail', () => {
+    const model = diagramInModel(
+      {
+        ...diagram,
+        primitives: [
+          {
+            kind: 'white-arrow',
+            width: 'wide',
+            tail: 'cleft',
+            path: [
+              [
+                [0.1, 0.2],
+                [0.3, 0.5],
+                [0.6, 0.5],
+                [0.8, 0.3],
+              ],
+            ],
+          },
+        ],
+      },
+      FLIPPED
+    );
+    expect(model.primitives).toEqual([
+      {
+        kind: 'white-arrow',
+        width: 'wide',
+        tail: 'cleft',
+        path: [
+          [
+            [10, 80],
+            [30, 50],
+            [60, 50],
+            [80, 70],
+          ],
+        ],
+      },
+    ]);
+  });
+
   it('refits an arc through the images of its points, so a flip turns it the other way', () => {
     const model = diagramInModel(diagram, FLIPPED);
     const arrow = model.primitives.find((p) => p.kind === 'fold-arrow');

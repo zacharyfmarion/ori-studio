@@ -40,7 +40,8 @@ export function symbolAnchor(primitive: StepDiagramPrimitive): Point | null {
     case 'fold-arrow':
     case 'one-way-arrow':
       return point(arcSamplePoints(primitive.out)[0]);
-    case 'path-arrow': {
+    case 'path-arrow':
+    case 'white-arrow': {
       const first = primitive.path[0];
       return first ? point(first[0]) : null;
     }

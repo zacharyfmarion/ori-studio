@@ -31,8 +31,10 @@ import {
   DIAGRAM_PUSH_INK,
   DIAGRAM_ROTATE_INK,
   DIAGRAM_TURN_OVER_INK,
+  DIAGRAM_WHITE_ARROW_INK,
   type DiagramMarks,
   type DiagramPens,
+  type DiagramWhiteArrowWidth,
 } from './diagram/diagramInk';
 
 export interface DiagramSheet {
@@ -1481,11 +1483,17 @@ const SVG_MITER_LIMIT = 4;
 /**
  * How far a closed outline stroked `pen` wide with mitred corners reaches past
  * each of its corners: half the pen along the mitre, which grows as the
- * corner sharpens, until SVG bevels it at its default limit and it reaches
- * half the pen. A push arrow's cleft tail is sharp enough to reach well past
- * one pen.
+ * corner sharpens, until SVG bevels it at the stroke's `miterLimit` (its
+ * default, 4, unless the stroke sets one) and it reaches half the pen. A push
+ * arrow's cleft tail is sharp enough to reach well past one pen; a white
+ * arrow is stroked to its own limit ({@link WHITE_ARROW_MITER_LIMIT}), which
+ * bevels its sharp corners far sooner.
  */
-export function mitredCornerReach(outline: readonly SvgPoint[], pen: number): number[] {
+export function mitredCornerReach(
+  outline: readonly SvgPoint[],
+  pen: number,
+  miterLimit: number = SVG_MITER_LIMIT
+): number[] {
   return outline.map((corner, index) => {
     const before = outline[(index + outline.length - 1) % outline.length]!;
     const after = outline[(index + 1) % outline.length]!;
@@ -1495,7 +1503,7 @@ export function mitredCornerReach(outline: readonly SvgPoint[], pen: number): nu
     if (!(lengths > 0)) return pen / 2;
     const angle = Math.acos(Math.max(-1, Math.min(1, (a.x * b.x + a.y * b.y) / lengths)));
     const mitre = 1 / Math.sin(angle / 2);
-    return (pen / 2) * (mitre <= SVG_MITER_LIMIT ? mitre : 1);
+    return (pen / 2) * (mitre <= miterLimit ? mitre : 1);
   });
 }
 
@@ -1692,6 +1700,31 @@ export function whiteArrowOutline(
   const cut = cutLoops(ring, WHITE_ARROW_FOLD_SPAN * neck, keep);
   cut.pop();
   return withoutStraightCorners(cut);
+}
+
+/**
+ * A white arrow as a picture draws it, along `path` in sheet units: its
+ * outline in the projector's units, sized by its ink at one of its three
+ * widths (`DIAGRAM_WHITE_ARROW_INK`), its runs within a twentieth of an ink
+ * of the curve. The one place its drawn shape is decided, as
+ * {@link pushArrowDrawn} is a push's, so its drawing and the room a page
+ * leaves it agree. Null for a path of no length.
+ */
+export function whiteArrowDrawn(
+  path: readonly DiagramCubic[],
+  width: DiagramWhiteArrowWidth,
+  tail: WhiteArrowTail,
+  project: DiagramProjector
+): SvgPoint[] | null {
+  const ink = project.ink;
+  const size = DIAGRAM_WHITE_ARROW_INK[width];
+  const outline = whiteArrowOutline(
+    projectPath(path, project),
+    { neck: size.neck * ink, headLength: size.headLength * ink, headWidth: size.headWidth * ink },
+    tail,
+    PATH_FLATTEN_INK * ink
+  );
+  return outline && outline.map(([x, y]) => ({ x, y }));
 }
 
 /** How near its node a hook lies, as a share of the neck: an eighth, a pixel or two at a page's size. */
