@@ -448,6 +448,40 @@ describe('a linked picture turned about its middle', () => {
       close((carried.annotations[0] as KnownDiagramAnnotation).from, picturePoint(edged(10), [30, 30]));
     });
 
+    it('keeps a mark inside a face with that face, though a deeper face has an edge through it (review)', () => {
+      // A flap over a sheet whose fold runs under the flap's diagonal: the spread steps the sheet, the flap stays.
+      const square = (lo: number, hi: number): ScenePoint[] => [
+        [lo, lo],
+        [hi, lo],
+        [hi, hi],
+        [lo, hi],
+      ];
+      const scene = (step: number) =>
+        sceneOf([
+          face([[[0, 0], [100, 0], [100, 100]].map(([x, y]): ScenePoint => [x! - step, y! - step])], { face: 0 }),
+          face([square(20, 60)], { face: 1 }),
+        ]);
+      const before = { ...scenePicture(), sceneJson: storedSceneJson(scene(0))!, key: 'scene-0' };
+      const after = { ...before, sceneJson: storedSceneJson(scene(30))!, key: 'scene-30' };
+      const picturePoint = ({ bounds }: PaperScene, [x, y]: ScenePoint): [number, number] => {
+        const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+        return [(x - bounds.minX) / span, (y - bounds.minY) / span];
+      };
+      // A right angle in the flap's corner, opening along the fold under it, and a circle on the fold inside the flap.
+      const marks: KnownDiagramAnnotation[] = [
+        { id: 'angle', kind: 'right-angle', ...rightAngleAt(picturePoint(scene(0), [20, 20]), [1, 1]) },
+        { id: 'circle', kind: 'circle', from: picturePoint(scene(0), [40, 40]), to: picturePoint(scene(0), [40, 40]) },
+      ];
+      const moved = setLinkedPicture(annotated(cpStep('step-1', FLAT, before), marks), 'step-1', {
+        source: cpSource({ ...FLAT, spread: SPREAD }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+      const [angle, circle] = moved.annotations as KnownDiagramAnnotation[];
+      close(angle!.from, picturePoint(scene(30), [20, 20]));
+      close(rightAngleDiagonal(angle!), [Math.SQRT1_2, Math.SQRT1_2]);
+      close(circle!.from, picturePoint(scene(30), [40, 40]));
+    });
+
     it('moves a callout with the face under its point, its box keeping its place beside it', () => {
       const before = scenePicture();
       const sceneBefore = storedScene(before)!;

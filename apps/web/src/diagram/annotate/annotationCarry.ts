@@ -180,8 +180,9 @@ function pictureMove(
 /**
  * A flat fold's layers spread otherwise, and perhaps turned, or turned under a
  * depth spread, which stays on the screen as the picture turns: a point moves
- * with the face it was drawn on — the one whose corner it lies on, else whose
- * edge, else the nearest face under it, whole or a woven patch of it — to
+ * with the face it was drawn on — the one whose corner it lies on, else the
+ * nearest face under it or with an edge through it, whole or a woven patch of
+ * it — to
  * where that face went, by mean value coordinates over its whole outline,
  * which take its corners exactly where the spread took them and everything
  * between as the spread's own field does (`foldedLayerSpread.ts`). The
@@ -218,17 +219,17 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
       // Front to back, the first found. A mark on a face's corner was put on
       // it, as a snap puts it, and is that face's though one drawn over it
       // since — a turn under a depth spread slides the layers apart on the
-      // screen — covers it there, or has an edge through it; then one on a
-      // face's edge, which the even-odd test counts outside the face on its
-      // far edges besides. Any other is the face's it lies on.
+      // screen — covers it there, or has an edge through it. Any other is the
+      // face's it lies on, its edge counted as on it (the even-odd test counts
+      // a point on its far edges outside it): never a deeper face's, whose
+      // edge runs under the face it shows on.
       const topmost = (holds: (piece: readonly ScenePoint[]) => boolean) => {
         for (let i = drawn.length - 1; i >= 0; i -= 1) if (holds(drawn[i]!.rings[0]!)) return drawn[i]!;
         return null;
       };
       const under =
         topmost((piece) => piece.some(([x, y]) => Math.hypot(x - at.x, y - at.y) <= epsilon)) ??
-        topmost((piece) => onRing(piece, at, epsilon)) ??
-        topmost((piece) => insideRing(piece, at));
+        topmost((piece) => insideRing(piece, at) || onRing(piece, at, epsilon));
       const ring = under && source.get(under.face)!;
       const goal = under && target.get(under.face);
       const weights =
