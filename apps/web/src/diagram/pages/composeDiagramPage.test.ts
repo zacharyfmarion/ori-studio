@@ -30,7 +30,7 @@ import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from
 import type { DiagramFonts, LoadedDiagramFont } from '../fonts/diagramFonts';
 import { readFontMetrics } from '../fonts/fontMetrics';
 import { createFontSubsetter, type FontSubsetter } from '../fonts/fontSubset';
-import { layoutDiagramPages, MARKS_FLOOR, PAGE_NUMBER_SIZE_MM, pictureExtent, pictureFit } from './diagramPageLayout';
+import { layoutDiagramPages, MARKS_FLOOR, PAGE_NUMBER_SIZE_MM, pictureExtent, pictureFit, STEP_TEXT_SIZE_MM } from './diagramPageLayout';
 import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE } from '../../lib/paper/paperStyle';
 import { estimateTextSetter } from './estimateTextSetter';
 import { diagramFontTexts, diagramLayoutSteps, layoutDiagram, preparedPages } from './diagramPages';
@@ -344,8 +344,17 @@ describe('composeDiagramPage', () => {
     );
   };
 
-  it('draws a paper whose glyph is larger than it as large as its room, settled, not crept down to its floor (review)', () => {
-    // A turn-over turned upright, 11.6 mm tall, in a room 10.2 mm tall: past it at any scale.
+  /** How far a cell's picture, placed, reaches past its room above and below, in mm. */
+  const overruns = (document: DiagramDocument, cell: ReturnType<typeof layoutDiagram>['pages'][number]['cells'][number]) => {
+    const step = stepsIn(document).find((each) => each.id === cell.stepId)!;
+    const placed = cellPicture(step, document.assets, document.style, cell, 'c-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
+    const [top, bottom] = [placed.boundsPt.y / PT_PER_MM, (placed.boundsPt.y + placed.boundsPt.height) / PT_PER_MM];
+    return { above: cell.drawMm.y - top, below: bottom - (cell.drawMm.y + cell.drawMm.h), bottom };
+  };
+
+  it('draws a paper whose glyph is larger than it as large as lets the glyph be centred on its room, settled, not crept down to its floor (review)', () => {
+    // A turn-over turned upright, 11.6 mm tall, in a room 10.2 mm tall: past it at any scale. Its ink is not
+    // quite even about its point, so the paper gives up a little of its room to centre it (third review).
     const step: DiagramStep = {
       ...cpStep('step-1'),
       text: Array(3).fill('Fold the corner to the line.').join(' '),
@@ -360,8 +369,38 @@ describe('composeDiagramPage', () => {
     const cell = layout.pages[0]!.cells[0]!;
     const needs = layoutPicture(stepsIn(document)[0]!, document.assets, document.style, { mmPerUnit: cell.mmPerUnit! })!;
     expect(pictureExtent(needs, cell.mmPerUnit!).height).toBeGreaterThan(cell.drawMm.h);
-    expect(needs.frame.height * cell.mmPerUnit!).toBeCloseTo(cell.drawMm.h, 3);
+    const paper = needs.frame.height * cell.mmPerUnit!;
+    expect(paper).toBeLessThanOrEqual(cell.drawMm.h * (1 + 1e-6));
+    expect(paper).toBeGreaterThan(cell.drawMm.h * 0.85);
+    const { above, below } = overruns(document, cell);
+    expect(above).toBeCloseTo(below, 1);
     expect(unsettled(document, layout)).toBeLessThan(1e-3);
+  });
+
+  it('centres a glyph larger than its paper off the paper’s middle, rather than hang it all over the instruction (third review)', () => {
+    // The glyph at the paper's foot, a room 6.5 mm tall: the paper filled it, and all 5 mm of the glyph's
+    // overrun hung below it, over the instruction's first line.
+    const once = 'Fold the corner to the line.';
+    const made = insertSteps(
+      createDiagram({ title: 'Crane', hanStyle: 'sc' }),
+      [
+        {
+          ...cpStep('step-1'),
+          text: Array(3).fill(once).join(' '),
+          annotations: [{ id: 't', kind: 'turn-over', from: [0.5, 0.95], to: [0.5, 0.95], axis: 'horizontal' }],
+        },
+        cpStep('step-2'),
+        cpStep('step-3'),
+      ],
+      0
+    );
+    const document: DiagramDocument = { ...made, page: { ...made.page, size: 'a5', orientation: 'landscape', columns: 3, rows: 5 } };
+    const cell = layoutDiagram(document, estimateTextSetter).pages[0]!.cells[0]!;
+    const { above, below, bottom } = overruns(document, cell);
+    expect(above).toBeGreaterThan(1);
+    expect(above).toBeCloseTo(below, 1);
+    // Clear of the instruction's first line by its capitals' height, as the floor left it before.
+    expect(cell.text.firstBaseline - bottom).toBeGreaterThan(0.75 * STEP_TEXT_SIZE_MM);
   });
 
   it('lays out pages that hold every picture with its marks, measured at its scale, at any pen and page (review)', () => {

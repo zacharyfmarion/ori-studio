@@ -3339,7 +3339,12 @@ and the cap jumps to nothing as a canvas passes the marks' size ([10]).
 
 Checklist:
 - [x] The measure by side.
-- [ ] Fit by overrun.
+- [x] Fit by overrun. A glyph larger than its room is centred on it, the
+  paper as large as allows that: smaller than at the knee where the glyph
+  could hang lopsided into the text gap without reaching the text ([7]:
+  6.84 → 5.83). Open for Zach: let marks use the free bands above the room
+  (8 mm, the step number at its left) and below it (the text gap less the
+  letters), which keeps the paper larger and makes the fit depend on them.
 - [x] Pages: the fit found by search, pages never unchecked. A picture whose
   reach grows unevenly (a pen's heavy arrow over an edge) can hold at its fit
   and not at a smaller scale its run draws it at: it is then drawn alone at

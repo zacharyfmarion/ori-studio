@@ -8,6 +8,7 @@ import {
   FIT_ZOOM,
   layoutDiagramPages,
   MARKS_FLOOR,
+  overrunFit,
   scaleRuns,
   STEP_TEXT_LEADING_MM,
   TURN_GUTTER_MM,
@@ -300,6 +301,34 @@ describe('scaleRuns', () => {
     expect(scales([fit(1), fit(0), fit(1)])).toEqual([1, 0, 1]);
     const broken = scales([fit(1), fit(Number.NaN), fit(1)]);
     expect([broken[0], broken[2]]).toEqual([1, 1]);
+  });
+});
+
+describe('overrunFit', () => {
+  const line = (grows: number, beyond: number) => ({ grows, beyond });
+
+  it('fits marks even on both sides as it always did: as large as fits, else the floor (third review)', () => {
+    // A unit frame, past each side a tenth of it and a mm: 1.2 × scale + 2 in all.
+    expect(overrunFit(20, 1, line(0.1, 1), line(0.1, 1))).toBeCloseTo((20 - 2) / 1.2, 9);
+    // Marks of 15 mm in a room of 20: the floor, what grows with the paper half the room.
+    expect(overrunFit(20, 1, line(0.1, 7.5), line(0.1, 7.5))).toBeCloseTo((20 * (1 - MARKS_FLOOR)) / 1.2, 9);
+    // Nothing past it: the paper fills the room.
+    expect(overrunFit(20, 1, line(0, 0), line(0, 0))).toBeCloseTo(20, 9);
+  });
+
+  it('leaves a glyph larger than its paper the room where it is centred, and centres it where it is not (third review)', () => {
+    // A glyph 11.6 mm tall, as large past either side as the paper is small: the paper fills its room.
+    expect(overrunFit(10.2, 1, line(-0.5, 5.8), line(-0.5, 5.8))).toBeCloseTo(10.2, 9);
+    // At the paper's foot it reaches past the top by 0.95 of the paper less, the bottom by 0.05: the paper
+    // as large as lets it be centred, 1 + 0.9 of it in the room.
+    expect(overrunFit(10.2, 1, line(-0.95, 5.8), line(-0.05, 5.8))).toBeCloseTo(10.2 / 1.9, 9);
+    // Hanging wholly below the paper, it can be centred by no scale: the paper shrinks to its floor.
+    expect(overrunFit(10, 1, line(0, 0), line(0, 8))).toBeCloseTo(10 * (1 - MARKS_FLOOR), 9);
+  });
+
+  it('counts a lip either side the reach may hang into for nothing', () => {
+    // 2 mm past the bottom of a room of 10, with a lip of 1 mm: the paper 9 mm.
+    expect(overrunFit(10, 1, line(0, 0), line(0, 2), 1)).toBeCloseTo(9, 9);
   });
 });
 

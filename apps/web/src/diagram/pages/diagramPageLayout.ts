@@ -458,27 +458,100 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
 
 /**
  * The largest scale at which a picture fits a room `across` × `down` mm, in
- * mm per its unit: its reach as measured (`width × scale + marks`), what is
- * past the line it grows along taking at most {@link MARKS_FLOOR} of the
- * room — past it the marks reach out of the room rather than the paper shrink
- * to a dot — and the paper itself in the room always. A reach that does not
- * grow with the picture there (a glyph larger than the paper) asks nothing
- * of the scale: the paper fills its room. Null for no picture, or one with
- * no size.
+ * mm per its unit, each way ({@link overrunFit}): its reach in the room
+ * where it can be, and where it cannot — marks at their pt size larger than
+ * the room — reaching out of it as little as it can, evenly, the paper as
+ * large as that allows; never shrinking the paper for its marks past where
+ * what grows with it takes {@link MARKS_FLOOR} of the room, nor letting the
+ * paper itself out of it. Its reach as measured, near the scale it was
+ * measured at; where it lies, by side, when measured (`sides`), else even.
+ * Null for no picture, or one with no size.
  */
 export function pictureFit(picture: LayoutStep['picture'], across: number, down: number): number | null {
   if (!picture) return null;
-  const side = (room: number, grows: number, beyond: number, frame: number): number => {
-    if (![grows, beyond, frame].every(Number.isFinite)) return Number.NaN;
-    const paper = frame > 0 ? room / frame : Infinity;
-    if (!(grows > 0)) return paper;
-    return Math.min(paper, Math.max(room - beyond, room * (1 - MARKS_FLOOR)) / grows);
-  };
+  const sides = picture.sides ?? evenSides(picture);
   const fit = Math.min(
-    side(across, picture.width, picture.marks.width, picture.frame.width),
-    side(down, picture.height, picture.marks.height, picture.frame.height)
+    overrunFit(across, picture.frame.width, sides.left, sides.right),
+    overrunFit(down, picture.frame.height, sides.top, sides.bottom)
   );
   return Number.isFinite(fit) && fit >= 0 ? fit : null;
+}
+
+/** A picture's reach past each edge when only its whole is known: half on either side. */
+function evenSides(picture: NonNullable<LayoutStep['picture']>): ReachSides {
+  const half = (grows: number, frame: number, beyond: number): ReachLine => ({ grows: (grows - frame) / 2, beyond: beyond / 2 });
+  const across = half(picture.width, picture.frame.width, picture.marks.width);
+  const down = half(picture.height, picture.frame.height, picture.marks.height);
+  return { left: across, right: across, top: down, bottom: down };
+}
+
+/** A line in the scale: `slope × scale + at`. */
+interface ScaleLine {
+  slope: number;
+  at: number;
+}
+
+/**
+ * The largest scale, one way, at which a picture's reach hangs past its room
+ * `room` mm (and a `lip` either side it may reach into for nothing) the
+ * least it can, from its floor — what grows with the picture taking half the
+ * room, or the paper half of it where nothing grows — to the paper filling
+ * the room. So a reach that fits is as large as fits; marks larger than the
+ * room even at the floor leave the paper at the floor; and a glyph larger
+ * than the paper, which no scale makes smaller, leaves it as large as its
+ * room where the glyph is centred on it, and as large as still lets the
+ * reach be centred where it is not, rather than hang all over one side.
+ *
+ * The reach is placed as the page places it (`settle` in pagePictures.ts):
+ * the paper in its room, the reach centred as far as that lets. Its frame
+ * `frame` per scale, and past it `before` and `after`, each at least nothing;
+ * the most it then hangs out on either side, with `a` past the near edge
+ * and `b` past the far one, the paper `p` and the room `h`, is
+ * `max(0, (a + b)/2, b, a − (h − p))` — the largest of lines in the scale,
+ * so it is least, and stays least up to a point, as convex functions are.
+ */
+export function overrunFit(room: number, frame: number, before: ReachLine, after: ReachLine, lip = 0): number {
+  if (![room, frame, before.grows, before.beyond, after.grows, after.beyond, lip].every(Number.isFinite)) return Number.NaN;
+  const paper = frame > 0 ? room / frame : Infinity;
+  const grows = frame + before.grows + after.grows;
+  const floor = Math.min(paper, ((1 - MARKS_FLOOR) * room) / Math.max(grows, frame));
+  if (!(floor < Infinity)) return paper;
+  // Each side's reach, at least nothing: its line or none, whichever is more.
+  const nears: ScaleLine[] = [
+    { slope: 0, at: 0 },
+    { slope: before.grows, at: before.beyond },
+  ];
+  const fars: ScaleLine[] = [
+    { slope: 0, at: 0 },
+    { slope: after.grows, at: after.beyond },
+  ];
+  const lines: ScaleLine[] = [{ slope: 0, at: 0 }];
+  for (const near of nears) {
+    // Past the near edge with the far one met: the paper at the room's far side.
+    lines.push({ slope: frame + near.slope, at: near.at - room - lip });
+    for (const far of fars) {
+      // The reach centred: the room's overrun, split.
+      lines.push({ slope: (near.slope + far.slope + frame) / 2, at: (near.at + far.at - room - 2 * lip) / 2 });
+    }
+  }
+  // Past the far edge with the near one met.
+  for (const far of fars) lines.push({ slope: frame + far.slope, at: far.at - room - lip });
+  const overrun = (scale: number) => Math.max(...lines.map(({ slope, at }) => slope * scale + at));
+  // The least it hangs out: at an end, or where two lines cross.
+  let least = overrun(floor);
+  if (paper < Infinity) least = Math.min(least, overrun(paper));
+  lines.forEach((one, i) =>
+    lines.slice(i + 1).forEach((other) => {
+      if (one.slope === other.slope) return;
+      const crossing = (other.at - one.at) / (one.slope - other.slope);
+      if (crossing > floor && crossing < paper) least = Math.min(least, overrun(crossing));
+    })
+  );
+  // The largest scale at which no line is more than that.
+  const tolerance = 1e-12 * Math.max(room, 1);
+  let largest = paper;
+  for (const { slope, at } of lines) if (slope > 0) largest = Math.min(largest, (least + tolerance - at) / slope);
+  return Math.max(floor, largest);
 }
 
 /**
