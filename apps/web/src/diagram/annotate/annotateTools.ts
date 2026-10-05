@@ -113,6 +113,7 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   circle: 'marks',
   'right-angle': 'marks',
   'angle-mark': 'marks',
+  'close-up': 'marks',
   callout: 'text',
 };
 
@@ -148,6 +149,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   circle: 'diagram.toolCircle',
   'right-angle': 'diagram.toolRightAngle',
   'angle-mark': null,
+  'close-up': 'diagram.toolCloseUp',
   callout: 'diagram.toolCallout',
 };
 
@@ -229,6 +231,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolCallout', 'Callout');
     case 'angle-mark':
       return t('tools:diagram.toolAngleMark', 'Equal Angles');
+    case 'close-up':
+      return t('tools:diagram.toolCloseUp', 'Close-Up');
   }
 }
 
@@ -301,6 +305,11 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       return t(
         'panels:diagram.annotate.rightAngleHelp',
         'Click inside a right angle to mark it, or drag from a corner into the angle.'
+      );
+    case 'close-up':
+      return t(
+        'panels:diagram.annotate.closeUpHelp',
+        'Drag out from the middle of the area to show larger, or click it. With Select, drag either circle to move it, or its ring to resize it.'
       );
     case 'callout':
       return t(
@@ -503,6 +512,8 @@ function annotateToolModifiers(
           modifier: primary,
         }),
       ];
+    case 'close-up':
+      return [t('panels:diagram.annotate.closeUpShiftKey', 'Shift-drag the close-up’s ring to scale it by halves.')];
     case 'callout':
       return [
         t('panels:diagram.annotate.pointFreeKey', 'Hold {{modifier}} to put its point down anywhere, without snapping.', {

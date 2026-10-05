@@ -10,6 +10,13 @@ export interface PlotRect {
   height: number;
 }
 
+/** The smallest rect holding both. */
+export function unionPlotRect(a: PlotRect, b: PlotRect): PlotRect {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return { x, y, width: Math.max(a.x + a.width, b.x + b.width) - x, height: Math.max(a.y + a.height, b.y + b.height) - y };
+}
+
 export function paperToSvg(point: Point, rect: PlotRect): Point {
   return {
     x: rect.x + point.x * rect.width,

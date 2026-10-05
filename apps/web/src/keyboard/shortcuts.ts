@@ -119,6 +119,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolRightAngle'
   | 'diagram.toolCallout'
   | 'diagram.toolAngleBisector'
+  | 'diagram.toolCloseUp'
   | 'diagram.flipArc';
 
 /** Nudging the node Edit Path has selected: live only while it has one (`diagram-path`). */
@@ -623,6 +624,8 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolCallout', 'Callout', { key: 'c' }),
   // B for the bisector, as Edit's Angle Bisector is (15b).
   diagramShortcut('diagram.toolAngleBisector', 'Angle Bisector', { key: 'b' }),
+  // I for the inset a close-up draws (15f).
+  diagramShortcut('diagram.toolCloseUp', 'Close-Up', { key: 'i' }),
   diagramShortcut('diagram.flipArc', 'Flip Arc', { key: 'f' }),
   // Edit Path's nudges (decision 6), on the step keys' own arrows: in a scope
   // of their own ahead of `diagram`, whose executor claims them only while

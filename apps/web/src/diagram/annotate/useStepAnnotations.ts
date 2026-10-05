@@ -20,7 +20,7 @@ import { stepPictureFrame } from '../pictures/pictureFrame';
 import { EDIT_PATH } from './annotateTools';
 import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
 import { annotationEventKind } from './annotationEventKind';
-import { withBehind, withBehindLayers, withWhiteArrowLook, type WhiteArrowLook } from './annotationModel';
+import { withBehind, withBehindLayers, withCloseUpScale, withWhiteArrowLook, type WhiteArrowLook } from './annotationModel';
 import { pathNodesOf } from './annotationPath';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
 import { isLineKind, lineKindOf, type DiagramLineType } from './lineTypes';
@@ -119,6 +119,9 @@ export function useStepAnnotations(step: DiagramStep | null) {
       /** A pleat arrow's Zs (15c), as one undo step. */
       setKinks: (id: string, kinks: DiagramPleatKinks) =>
         change(id, 'Change pleat arrow', (annotation) => ({ ...annotation, kinks })),
+      /** How many times larger a close-up draws its area (15f), held to its range, as one undo step. */
+      setCloseUpScale: (id: string, scale: number) =>
+        change(id, 'Change close-up', (annotation) => withCloseUpScale(annotation, scale)),
       /** A line made another type (15a): the same line, its ends and id kept, as one undo step. */
       setLineType: (id: string, type: DiagramLineType) =>
         change(id, 'Change line type', (annotation) =>

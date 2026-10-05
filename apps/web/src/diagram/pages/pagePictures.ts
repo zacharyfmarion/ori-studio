@@ -43,11 +43,12 @@ import type {
 import { diagramScenePaintStyle, diagramStyleKey } from '../pictures/diagramPaperStyle';
 import { paintSource, poseTransform, stepPictureSource, type StepPictureSource } from '../pictures/paintDiagramStep';
 import { stepDiagramPaintStyle, stepDiagramScene, stepDiagramSheetBox } from '../pictures/paintStepDiagram';
-import { hasDrawnAnnotations, paintAnnotations } from '../annotate/paintAnnotations';
+import { hasDrawnAnnotations, paintAnnotations, type CloseUpPicture } from '../annotate/paintAnnotations';
 import { annotationDrawing, annotationReach } from '../annotate/annotationPrimitives';
 import { frameOf } from '../annotate/annotationModel';
 import { pictureGeometry, type PictureLayers } from '../annotate/pictureGeometry';
 import { storedScene } from '../pictures/pictureFrame';
+import { prefixIds } from '../pictures/prefixIds';
 import { fontFaceId } from '../fonts/diagramFontFaces';
 import { setUploadText } from '../upload/uploadText';
 import type { LayoutCell, LayoutStep, ReachLine, TextSetter } from './diagramPageLayout';
@@ -399,13 +400,27 @@ export function cellPicture(
       boundsPt: { ...plain.boundsPt, x: plain.boundsPt.x + dx, y: plain.boundsPt.y + dy },
     };
   }
-  // A label is set as an upload's text is, its Han in the diagram's style.
+  // The marks drawn where the picture settled, as the page prints them: a
+  // label set as an upload's text is, its Han in the diagram's style, and
+  // each close-up's inside painted (15f) — the picture drawn again into it,
+  // `scale` times larger, its own text counted with the rest.
   const usage = new Map(drawn.text.map(({ face, characters }) => [face, characters]));
-  const markup = setUploadText(placed.marks!.markup, text.hanStyle, text.runs, (face, characters) =>
-    usage.set(face, (usage.get(face) ?? '') + characters)
-  );
+  const count = (face: string, characters: string) => usage.set(face, (usage.get(face) ?? '') + characters);
+  const closeUpPicture: CloseUpPicture = (scale, frame, prefix) => {
+    const inside = draw(source, step, style, frame, null, scale * longerOf(drawn.framePt), text);
+    if (!inside) return null;
+    for (const { face, characters } of inside.text) count(face, characters);
+    // Drawn centred in the frame's box: moved so its frame is the close-up's,
+    // where a References step's letters reach past one side of its sheet.
+    const [x, y] = [frame.x - inside.framePt.x, frame.y - inside.framePt.y];
+    const inPlace = Math.abs(x) < 1e-9 && Math.abs(y) < 1e-9;
+    return prefixIds(inPlace ? inside.markup : `<g transform="translate(${num(x)} ${num(y)})">${inside.markup}</g>`, prefix);
+  };
+  const setText = (markup: string) => setUploadText(markup, text.hanStyle, text.runs, count);
+  const framePx = longerOf(drawn.framePt) / PT_PER_CSS_PX;
+  const marks = paintAnnotations(step.annotations, drawn.framePt, framePx, style, layers, { closeUpPicture, setText });
   return {
-    markup: prefixIds(shift(`${drawn.markup}\n${markup}`), idPrefix),
+    markup: prefixIds(shift(`${drawn.markup}\n${marks?.markup ?? ''}`), idPrefix),
     boundsPt: { ...reached, x: reached.x + dx, y: reached.y + dy },
     text: [...usage].map(([face, characters]) => ({ face, characters })),
   };
@@ -592,21 +607,6 @@ function labelsOf(picture: DiagramStepDiagramPicture): string {
 /** An SVG document's markup without its XML declaration, to nest it. */
 function withoutDeclaration(svg: string): string {
   return svg.replace(/^\s*<\?xml[^>]*\?>\s*/, '');
-}
-
-/**
- * Every id a fragment declares or refers to, renamed under `prefix`: in
- * `id="…"`, `href="#…"` (and `xlink:href`) and `url(#…)`, inside tags only, so
- * no text a picture draws is touched. Our painters and the sanitizer write
- * references in no other form.
- */
-export function prefixIds(markup: string, prefix: string): string {
-  return markup.replace(/<[^>]*>/g, (tag) =>
-    tag
-      .replace(/(\sid=")([^"]*)"/g, (_, head: string, id: string) => `${head}${prefix}${id}"`)
-      .replace(/(href=")#([^"]*)"/g, (_, head: string, id: string) => `${head}#${prefix}${id}"`)
-      .replace(/url\(\s*(['"]?)#([^)'"]*)\1\s*\)/g, (_, quote: string, id: string) => `url(${quote}#${prefix}${id}${quote})`)
-  );
 }
 
 function num(value: number): string {

@@ -52,6 +52,7 @@ import {
   arrowShape,
   calloutDrawnBox,
   calloutShape,
+  closeUpShape,
   isCornerKind,
   rightAngleDiagonal,
   labelHalfWidth,
@@ -68,7 +69,8 @@ import { perAnnotation } from './perAnnotation';
  * handles, or the segment between two nodes (and where along it, `t` in
  * [0, 1], {@link hitPathGrip}); and a right angle's corner or the direction
  * it opens in, which the selected right angle offers in place of ends
- * ({@link rightAngleGrips}).
+ * ({@link rightAngleGrips}); and one of a close-up's two circles, taken
+ * anywhere inside to move it, or by its ring to resize it (15f).
  */
 export type AnnotationGripPart =
   | { part: 'body' }
@@ -79,7 +81,9 @@ export type AnnotationGripPart =
   | { part: 'handle'; node: number; side: 'in' | 'out' }
   | { part: 'segment'; segment: number; t: number }
   | { part: 'corner' }
-  | { part: 'direction' };
+  | { part: 'direction' }
+  | { part: 'circle'; end: 'from' | 'to' }
+  | { part: 'ring'; end: 'from' | 'to' };
 
 /** What a press took hold of: the annotation, and which part of it. */
 export type AnnotationGrip = { annotationId: string } & AnnotationGripPart;
@@ -555,6 +559,45 @@ function angleMarkDistance(annotation: KnownDiagramAnnotation, point: PicturePoi
 }
 
 /**
+ * How far a press is from a close-up's two circles — 0 inside either: each
+ * is a place of its own, the area's or the close-up's — and from the line
+ * between them (15f).
+ */
+function closeUpDistances(
+  annotation: KnownDiagramAnnotation,
+  point: PicturePoint
+): { area: number; inset: number; line: number } {
+  const { area, inset, line } = closeUpShape(annotation);
+  const disc = ({ centre, radius }: { centre: PicturePoint; radius: number }) =>
+    Math.max(0, Math.hypot(point[0] - centre[0], point[1] - centre[1]) - radius);
+  return { area: disc(area), inset: disc(inset), line: line ? distanceToSegment(point, line[0], line[1]) : Infinity };
+}
+
+/**
+ * What of a selected close-up a press takes hold of before anything drawn
+ * over it (15f): a ring, within `tolerance` of its pen's middle, to resize
+ * what it is round, or the dot at a circle's centre, to move it — the dots
+ * the selection shows, so an area whose inside is all marks can still be
+ * moved. The nearest; the ring where a small circle's ring and dot are as
+ * near, and the close-up's where its grips and its area's are. Null off them.
+ */
+function closeUpGripAt(
+  annotation: KnownDiagramAnnotation,
+  point: PicturePoint,
+  tolerance: number
+): Extract<AnnotationGripPart, { part: 'ring' | 'circle' }> | null {
+  const { area, inset } = closeUpShape(annotation);
+  let best: { grip: Extract<AnnotationGripPart, { part: 'ring' | 'circle' }>; distance: number } | null = null;
+  for (const [end, { centre, radius }] of [['to', inset], ['from', area]] as const) {
+    const away = Math.hypot(point[0] - centre[0], point[1] - centre[1]);
+    for (const [part, distance] of [['ring', Math.abs(away - radius)], ['circle', away]] as const) {
+      if (distance <= tolerance && (best === null || distance < best.distance)) best = { grip: { part, end }, distance };
+    }
+  }
+  return best?.grip ?? null;
+}
+
+/**
  * How far a press is from an annotation's body, as it is drawn; 0 inside a
  * glyph, a label, a push, a white arrow or a callout's box. A circle is its
  * ring, not its inside: an arrow drawn into it ends inside it, and a press
@@ -602,6 +645,10 @@ function bodyDistance(
       const { box, line } = calloutDistances(annotation, point, sizes.calloutPen);
       return Math.min(box, line);
     }
+    case 'close-up': {
+      const { area, inset, line } = closeUpDistances(annotation, point);
+      return Math.min(area, inset, line);
+    }
   }
 }
 
@@ -622,7 +669,11 @@ export function hitAnnotation(
 ): AnnotationGrip | null {
   const known = annotations.filter(isKnownAnnotation);
   const selected = known.find((annotation) => annotation.id === selectedId);
-  if (selected && isCornerKind(selected.kind)) {
+  if (selected?.kind === 'close-up') {
+    // A ring resizes what it is round, a centre's dot moves its circle.
+    const grip = closeUpGripAt(selected, point, sizes.tolerance);
+    if (grip) return { annotationId: selected.id, ...grip };
+  } else if (selected && isCornerKind(selected.kind)) {
     // A right angle's corner, and the way it opens: no ends.
     const grips = rightAngleGrips(selected, sizes.ink);
     const near = (['direction', 'corner'] as const)
@@ -640,13 +691,17 @@ export function hitAnnotation(
   // An arrow that lands in a circle is drawn stopped on its ring: its head is pressed there.
   const marks = known.filter((annotation) => annotation.kind === 'circle').map(({ from }) => from);
   // Topmost first, as they are drawn: labels over callouts over marks over
-  // lines — and a circle over the other marks, its ring the one place to
-  // take it, where an arrow that lands on it has the rest of its length;
-  // but not where a hollow arrow drawn after it hides it.
+  // lines over close-ups, whose insides are painted under everything — and
+  // a circle over the other marks, its ring the one place to take it, where
+  // an arrow that lands on it has the rest of its length; but not where a
+  // hollow arrow drawn after it hides it.
   const last = new Set(['circle', 'callout', 'label']);
   const drawn = [
+    ...known.filter((annotation) => annotation.kind === 'close-up'),
     ...known.filter((annotation) => LINE_KINDS.has(annotation.kind)),
-    ...known.filter((annotation) => !LINE_KINDS.has(annotation.kind) && !last.has(annotation.kind)),
+    ...known.filter(
+      (annotation) => !LINE_KINDS.has(annotation.kind) && !last.has(annotation.kind) && annotation.kind !== 'close-up'
+    ),
     ...known.filter((annotation) => annotation.kind === 'circle'),
     ...known.filter((annotation) => annotation.kind === 'callout'),
     ...known.filter((annotation) => annotation.kind === 'label'),
@@ -664,6 +719,14 @@ export function hitAnnotation(
         .slice(known.indexOf(annotation) + 1)
         .some((other) => HOLLOW_KINDS.has(other.kind) && bodyDistance(other, point, sizes, marks) === 0);
       if (hidden) continue;
+    }
+    if (annotation.kind === 'close-up') {
+      // Either circle is taken on its own, the close-up over its area where
+      // they overlap; the line between them takes the whole.
+      const { area, inset } = closeUpDistances(annotation, point);
+      if (inset <= sizes.tolerance) return { annotationId: annotation.id, part: 'circle', end: 'to' };
+      if (area <= sizes.tolerance) return { annotationId: annotation.id, part: 'circle', end: 'from' };
+      return { annotationId: annotation.id, part: 'body' };
     }
     // A callout's box is taken on its own; its line takes the whole.
     const onBox = annotation.kind === 'callout' && calloutDistances(annotation, point, sizes.calloutPen).box <= sizes.tolerance;

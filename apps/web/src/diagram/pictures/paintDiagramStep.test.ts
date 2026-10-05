@@ -8,12 +8,13 @@ import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import {
   paintAsset,
   paintScene,
+  paintSource,
   paintStepPicture,
   poseTransform,
   sceneMeasure,
   stepPictureSource,
 } from './paintDiagramStep';
-import { annotatedStepUrl, stepPictureUrl } from './useStepPictureUrl';
+import { annotatedStepUrl, closeUpPictureUrl, stepPictureUrl } from './useStepPictureUrl';
 import {
   cachedPictureUrl,
   clearStepPictureCacheForTests,
@@ -196,6 +197,69 @@ describe('paintStepPicture', () => {
     const broken = cpStep('step-1');
     const picture = { ...(broken.picture as { sceneJson: string }), sceneJson: '{' };
     expect(paintStepPicture({ ...broken, picture } as DiagramStep, {}, DEFAULT_DIAGRAM_STYLE)).toBeNull();
+  });
+});
+
+describe('a picture painted larger, for a close-up’s inside (15f)', () => {
+  const style = DEFAULT_DIAGRAM_STYLE;
+  const pens = (svg: string) => [...new Set([...svg.matchAll(/stroke-width="([^"]+)"/g)].map(([, width]) => width))].sort();
+
+  it('paints a scene afresh at the scale, its frame that much larger and its pens at their print weight', () => {
+    const source = stepPictureSource(cpStep('step-1'), {})!;
+    const once = paintSource(source, style)!;
+    const twice = paintSource(source, style, undefined, 2)!;
+    expect(twice.frame.width).toBeCloseTo(2 * once.frame.width, 6);
+    expect(twice.frame.height).toBeCloseTo(2 * once.frame.height, 6);
+    // The margin is the pens' room, not the picture's: the same at any size.
+    expect(twice.frame.x).toBeCloseTo(once.frame.x, 6);
+    expect(pens(twice.svg)).toEqual(pens(once.svg));
+  });
+
+  it('builds a References step at the larger size, its letters at theirs', () => {
+    const source = stepPictureSource(referencesStep('step-1'), {})!;
+    const once = paintSource(source, style)!;
+    const twice = paintSource(source, style, undefined, 3)!;
+    expect(twice.frame.width).toBeCloseTo(3 * once.frame.width, 6);
+    const sizes = (svg: string) => [...svg.matchAll(/font-size="([^"]+)"/g)].map(([, size]) => size);
+    expect(sizes(twice.svg)).toEqual(sizes(once.svg));
+  });
+
+  it('draws an upload or a fixed picture larger whole, its own strokes with it', () => {
+    const fixed = paintSource({ kind: 'fixed', picture: fixedPicture() }, style, undefined, 2)!;
+    expect(fixed).toMatchObject({ widthPx: 40, heightPx: 20, frame: { x: 0, y: 0, width: 40, height: 20 } });
+    expect(fixed.svg).toContain('width="40" height="20" viewBox="0 0 20 10"');
+    expect(paintSource({ kind: 'fixed', picture: fixedPicture() }, style, undefined, 1)!.svg).toBe(fixedPicture().svg);
+    const upload = paintSource({ kind: 'asset', asset: svg, pose: { rotationQuarterTurns: 0, mirrored: false } }, style, undefined, 1.5)!;
+    expect(upload.widthPx).toBeCloseTo(1.5 * svg.widthPx, 9);
+  });
+
+  it('is painted inside a card’s close-up, and not in Pose, which ghosts the marks over the picture it poses', () => {
+    const source = stepPictureSource(cpStep('step-1'), {})!;
+    const zoom = { id: 'z', kind: 'close-up' as const, from: [0.5, 0.5] as [number, number], to: [1.3, 0.5] as [number, number], radius: 0.1, scale: 2 };
+    const decoded = (url: string | null) => new TextDecoder().decode(Uint8Array.from(atob(url!.split(',')[1]!), (c) => c.charCodeAt(0)));
+    const card = decoded(annotatedStepUrl(source, [zoom], style, 1, false));
+    expect(card).toContain('clip-path="url(#annotation-close-up-0)"');
+    const posed = decoded(annotatedStepUrl(source, [zoom], style, 0.35, false));
+    expect(posed).not.toContain('clipPath');
+    expect(posed.match(/<circle[^>]*fill="none"/g)).toHaveLength(2);
+  });
+
+  it('is cached for the canvas by picture, style and scale: an upload its own URL, drawn larger', () => {
+    clearStepPictureCacheForTests();
+    const source = stepPictureSource(cpStep('step-1'), {})!;
+    const first = closeUpPictureUrl(source, style, 2)!;
+    const bytes = stepPictureCacheBytesForTests();
+    expect(first.url.startsWith('data:image/svg+xml;base64,')).toBe(true);
+    expect(closeUpPictureUrl(source, style, 2)).toEqual(first);
+    expect(stepPictureCacheBytesForTests()).toBe(bytes);
+    expect(first.frame).toEqual(paintSource(source, style, undefined, 2)!.frame);
+    const asset = { kind: 'asset' as const, asset: svg, pose: { rotationQuarterTurns: 0 as const, mirrored: false } };
+    expect(closeUpPictureUrl(asset, style, 2)).toEqual({
+      url: stepPictureUrl(asset, style),
+      widthPx: 2 * svg.widthPx,
+      heightPx: 2 * svg.heightPx,
+      frame: { x: 0, y: 0, width: 2 * svg.widthPx, height: 2 * svg.heightPx },
+    });
   });
 });
 

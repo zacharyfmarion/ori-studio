@@ -20,6 +20,7 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'right-angle': 'right_angle',
   callout: 'callout',
   'angle-mark': 'angle_mark',
+  'close-up': 'close_up',
 };
 
 /**

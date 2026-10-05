@@ -513,8 +513,10 @@ export type DiagramPicture =
  * a crease line in the diagram's pens, a label, a circle round a point, as
  * References rings one, a right angle marked in a corner, and a callout: a
  * line from a point to a box of words, as diagrams say "repeat behind" — an
- * angle marked halved, as a bisector's equal angles are (15b), and a pleat
- * arrow, its shaft a lightning bolt, as diagrams mark a crimp or a pleat (15c).
+ * angle marked halved, as a bisector's equal angles are (15b), a pleat
+ * arrow, its shaft a lightning bolt, as diagrams mark a crimp or a pleat (15c),
+ * and a close-up: a ring round an area of the picture and a larger one
+ * beside it, the area drawn again inside it at a larger size (15f).
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
@@ -532,7 +534,8 @@ export type DiagramAnnotationKind =
   | 'circle'
   | 'right-angle'
   | 'callout'
-  | 'angle-mark';
+  | 'angle-mark'
+  | 'close-up';
 
 /** How many ticks an angle mark draws across each half: a second pair of equal angles in a step takes two. */
 export type DiagramAngleTicks = 1 | 2 | 3;
@@ -640,6 +643,16 @@ export interface KnownDiagramAnnotation {
    * is filled with the page's white, as every white arrow was before.
    */
   fill?: 'black';
+  /**
+   * A close-up's area (15f): the radius of the ring round it, in picture
+   * units. Its centre is `from`; the close-up's is `to`.
+   */
+  radius?: number;
+  /**
+   * How many times larger a close-up draws its area (15f): its ring is
+   * `radius` times this. Two when unsaid.
+   */
+  scale?: number;
   /** A label's or a callout's text. */
   text?: string;
   rotate?: DiagramRotation;

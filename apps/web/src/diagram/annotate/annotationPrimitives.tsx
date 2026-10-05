@@ -25,6 +25,12 @@
  *   picture units (`calloutShape`); the pens are the drawing's. It is drawn
  *   here, not by References: its words are in the diagram's fonts, which
  *   References knows nothing of.
+ * - A close-up (15f) is two rings and a line between them, in the annotation
+ *   pen and the arrows' ink, as a callout's line is: round the area shown
+ *   larger, and round the close-up beside it. What its inside shows — the
+ *   picture painted again, the other marks with it — is each surface's to
+ *   paint under the marks, as only a surface has the picture
+ *   (`paintAnnotations`, the canvas); here it is where that goes.
  *
  * The drawing is in CSS px, the frame's top-left at the origin, its longer
  * side `framePx` across — the size it prints at — so its marks have the
@@ -85,6 +91,8 @@ import {
   calloutDrawnBox,
   calloutShape,
   carriesText,
+  closeUpFrame,
+  closeUpShape,
   DEFAULT_PLEAT_KINKS,
   DEFAULT_WHITE_ARROW,
   isArrowKind,
@@ -94,6 +102,7 @@ import {
   pathLength,
   straightPath,
   type CalloutShape,
+  type CloseUpShape,
   type PictureFrame,
   type PicturePoint,
 } from './annotationModel';
@@ -138,6 +147,30 @@ export interface AnnotationCallout {
   label: AnnotationLabel;
 }
 
+/**
+ * A close-up as drawn, in CSS px (15f): its two rings and the line between
+ * them, and where its inside shows the picture.
+ */
+export interface AnnotationCloseUp {
+  id: string;
+  /** The ring round the area: its centre, and its radius to the middle of its pen. */
+  area: { x: number; y: number; r: number };
+  /** The close-up's ring, the same; its inside is drawn within this radius, the ring over its edge. */
+  inset: { x: number; y: number; r: number };
+  /** From rim to rim, between their centres; null where the rings meet. */
+  line: { a: [number, number]; b: [number, number] } | null;
+  /** The rings' and the line's pen: the annotation pen, a circle's ring's. */
+  pen: number;
+  /** Their ink: the arrows'. */
+  ink: string;
+  /** What the close-up's inside is filled with under its picture: the page's white. */
+  ground: string;
+  /** How many times larger it draws its area. */
+  scale: number;
+  /** The picture's frame as the close-up draws it (`closeUpFrame`), in the drawing's px. */
+  frame: { x: number; y: number; width: number; height: number };
+}
+
 /** A line as drawn, in CSS px. */
 export interface AnnotationLine {
   id: string;
@@ -163,6 +196,7 @@ export type CompiledAnnotation =
   | { kind: 'line'; role: PaperLineRole; from: PicturePoint; to: PicturePoint }
   | { kind: 'label'; at: PicturePoint; runs: { key: DiagramFontKey; text: string }[] }
   | { kind: 'callout'; shape: CalloutShape; at: PicturePoint; runs: { key: DiagramFontKey; text: string }[] }
+  | { kind: 'close-up'; shape: CloseUpShape }
   | { kind: 'mark'; primitive: AnnotationPrimitive };
 
 /** The annotations ready to draw, on screen or into a file. */
@@ -175,6 +209,8 @@ export interface AnnotationDrawing {
   primitives: AnnotationPrimitive[];
   primitiveIds: string[];
   context: DiagramRenderContext;
+  /** Over the marks: a close-up's rings and line. */
+  closeUps: AnnotationCloseUp[];
   /** Over the marks: a callout's box hides what lies under it. */
   callouts: AnnotationCallout[];
   labels: AnnotationLabel[];
@@ -327,6 +363,8 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
       const text = annotation.text ?? '';
       return text.trim() === '' ? null : { kind: 'callout', shape: calloutShape(annotation), at: to, runs: labelRuns(text) };
     }
+    case 'close-up':
+      return { kind: 'close-up', shape: closeUpShape(annotation) };
   }
 }
 
@@ -421,6 +459,7 @@ export function annotationDrawing(
   const lines: AnnotationLine[] = [];
   const primitives: AnnotationPrimitive[] = [];
   const primitiveIds: string[] = [];
+  const closeUps: AnnotationCloseUp[] = [];
   const callouts: AnnotationCallout[] = [];
   const labels: AnnotationLabel[] = [];
   const at = ([u, v]: PicturePoint): [number, number] => [u * framePx, v * framePx];
@@ -482,6 +521,22 @@ export function annotationDrawing(
         });
         break;
       }
+      case 'close-up': {
+        const { area, inset, line, scale } = compiled.shape;
+        const box = closeUpFrame(compiled.shape, frame);
+        closeUps.push({
+          id: annotation.id,
+          area: { x: area.centre[0] * framePx, y: area.centre[1] * framePx, r: area.radius * framePx },
+          inset: { x: inset.centre[0] * framePx, y: inset.centre[1] * framePx, r: inset.radius * framePx },
+          line: line ? { a: at(line[0]), b: at(line[1]) } : null,
+          pen: linePen,
+          ink: seen.arrows.color,
+          ground: PAGE_GROUND,
+          scale,
+          frame: { x: box.x * framePx, y: box.y * framePx, width: box.width * framePx, height: box.height * framePx },
+        });
+        break;
+      }
       case 'mark':
         primitives.push(hidden?.length ? withHidden(compiled.primitive, hidden) : compiled.primitive);
         primitiveIds.push(annotation.id);
@@ -503,9 +558,18 @@ export function annotationDrawing(
     primitives,
     primitiveIds,
     context,
+    closeUps,
     callouts,
     labels,
   };
+}
+
+/**
+ * The annotations a close-up draws again inside it (15f): every one but the
+ * close-ups, which never show in each other.
+ */
+export function closeUpMarks(annotations: readonly DiagramAnnotation[]): DiagramAnnotation[] {
+  return annotations.filter((annotation) => !isKnownAnnotation(annotation) || annotation.kind !== 'close-up');
 }
 
 /**
@@ -548,6 +612,12 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
       take(line.a[0], line.a[1], linePen / 2);
       take(line.b[0], line.b[1], linePen / 2);
     }
+  }
+  // A close-up, its two rings and half their pen round them: its line runs
+  // between their rims, and its inside is drawn within the outer one.
+  for (const { area, inset, pen } of drawing.closeUps) {
+    take(area.x, area.y, area.r + pen / 2);
+    take(inset.x, inset.y, inset.r + pen / 2);
   }
   for (const label of drawing.labels) {
     const half = (labelHalfWidth(label.runs.map((run) => run.text).join('')) / LABEL_SIZE) * label.size;
@@ -618,10 +688,33 @@ export function calloutElement(callout: AnnotationCallout): ReactNode {
   );
 }
 
+/** One close-up's rings and the line between them as SVG (15f): its inside is the surface's, under the marks. */
+export function closeUpElement(closeUp: AnnotationCloseUp): ReactNode {
+  const { area, inset, line } = closeUp;
+  const pen = { fill: 'none', stroke: closeUp.ink, strokeWidth: round(closeUp.pen) };
+  return (
+    <g key={closeUp.id}>
+      <circle cx={round(area.x)} cy={round(area.y)} r={round(area.r)} {...pen} />
+      {line && (
+        <line
+          x1={round(line.a[0])}
+          y1={round(line.a[1])}
+          x2={round(line.b[0])}
+          y2={round(line.b[1])}
+          {...pen}
+          strokeLinecap="round"
+        />
+      )}
+      <circle cx={round(inset.x)} cy={round(inset.y)} r={round(inset.r)} {...pen} />
+    </g>
+  );
+}
+
 /**
- * The marks, callouts and labels, as React: the shapes `diagramShapes` draws,
- * the callouts over them, then the labels over those. `wrap` puts each in a
- * group of the caller's, by its annotation's id.
+ * The marks, close-ups, callouts and labels, as React: the shapes
+ * `diagramShapes` draws, the close-ups' rings over them, the callouts over
+ * those, then the labels over everything. `wrap` puts each in a group of the
+ * caller's, by its annotation's id.
  */
 export function annotationMarks(
   drawing: AnnotationDrawing,
@@ -633,6 +726,7 @@ export function annotationMarks(
   return (
     <>
       {shapes}
+      {drawing.closeUps.map((closeUp) => (wrap ? wrap(closeUpElement(closeUp), closeUp.id) : closeUpElement(closeUp)))}
       {drawing.callouts.map((callout) => (wrap ? wrap(calloutElement(callout), callout.id) : calloutElement(callout)))}
       {drawing.labels.map((label) => (wrap ? wrap(labelElement(label), label.id) : labelElement(label)))}
     </>

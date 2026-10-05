@@ -567,6 +567,37 @@ describe('DiagramStepPanel in Annotate', () => {
     expect('mirrored' in pleat()).toBe(false);
   });
 
+  it('scales a close-up with Scale, by halves or to a hundredth, within its range, each one undo step (15f)', () => {
+    const stepId = annotatedStep();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 'z-1', kind: 'close-up', from: [0.5, 0.4], to: [1.2, 0.4], radius: 0.1, scale: 2 },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+    });
+    act(() => row('Close-Up').click());
+    const closeUp = () => annotations().find((annotation) => annotation.id === 'z-1') as Record<string, unknown>;
+    const scale = host!.querySelector<HTMLInputElement>('input[aria-label="Scale"]')!;
+    expect(scale.value).toBe('2');
+    const past = state().diagramHistory.past.length;
+    act(() => button('Increase Scale')!.click());
+    expect(closeUp().scale).toBe(2.5);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change close-up');
+    act(() => scale.focus());
+    setField(scale, '3.333');
+    act(() => scale.blur());
+    expect(closeUp().scale).toBe(3.33);
+    act(() => scale.focus());
+    setField(scale, '40');
+    act(() => scale.blur());
+    expect(closeUp().scale).toBe(6);
+    // Nothing to flip, shape or put behind: its own controls are its scale and Delete.
+    expect(buttonNamed('Flip')).toBeUndefined();
+    expect(host!.querySelector('[role="group"][aria-label="Tail"]')).toBeNull();
+  });
+
   it('puts an arrow’s tail and tip behind a flap and how deep, each one undo step, counted the first time (15e)', () => {
     tracked.trackDiagramAnnotationBehind.mockClear();
     const flat = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };

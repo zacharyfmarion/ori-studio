@@ -90,7 +90,8 @@ export type DiagramAnnotationTool =
   | 'right_angle'
   | 'callout'
   | 'angle_mark'
-  | 'angle_bisector';
+  | 'angle_bisector'
+  | 'close_up';
 
 /**
  * How a new annotation was put down (decision 9): snapped to a point of the

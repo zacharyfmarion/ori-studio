@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { calloutShape, NEW_CALLOUT_TEXT, pathCubics } from '../../diagram/annotate/annotationModel';
+import { calloutShape, closeUpShape, NEW_CALLOUT_TEXT, pathCubics } from '../../diagram/annotate/annotationModel';
 import { pendingLabelFocus } from '../../diagram/annotate/labelFocus';
 import i18n from '../../i18n';
 import { preloadLocale } from '../../test/preloadLocale';
@@ -1678,5 +1678,95 @@ describe('the Angle Bisector and the equal-angle mark (15b)', () => {
     const mark = annotations().find((annotation) => annotation.kind === 'angle-mark')!;
     expect(mark.from).toEqual([0.5, 0.9]);
     expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['angle_mark', 'snapped']]);
+  });
+});
+
+describe('a close-up (15f)', () => {
+  /** The step with these annotations, Select in hand, nothing selected. */
+  function drawn(list: KnownDiagramAnnotation[]) {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => list);
+      state().selectDiagramAnnotation(null);
+      state().setDiagramAnnotateTool(null);
+    });
+    rerender();
+  }
+  const zoom: KnownDiagramAnnotation = { id: 'zoom', kind: 'close-up', from: [0.6, 0.3], to: [0.6, -0.25], radius: 0.1, scale: 2 };
+  const closeUp = () => annotations().find((annotation) => annotation.kind === 'close-up')!;
+
+  it('is dragged out from its area’s middle, put beside the picture at twice, its inside under the marks, and counted', () => {
+    mount();
+    tool('close-up');
+    drag(at(0.6, 0.3), at(0.7, 0.3));
+    rerender();
+    const made = closeUp();
+    expect(made).toMatchObject({ scale: 2 });
+    expect(made.radius).toBeCloseTo(0.1, 3);
+    // A frame wider than tall: above it, nearer the area than below.
+    expect(made.to[0]).toBeCloseTo(0.6, 3);
+    expect(made.to[1]).toBeCloseTo(-0.25, 3);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['close_up', 'none']]);
+    // The picture drawn again inside it, clipped to its ring, under the marks, and named by nothing.
+    const inside = overlay().querySelector(`[data-close-up-inside="${made.id}"]`)!;
+    expect(inside.querySelector('image')?.getAttribute('href')).toMatch(/^data:image\/svg\+xml;base64,/);
+    // In the marks' own px, as they are drawn: the close-up's ring, twice the area's.
+    expect(Number(inside.querySelector('clipPath circle')?.getAttribute('r'))).toBeCloseTo(0.2 * CARD_FRAME_PX, 3);
+    expect(inside.querySelector('[data-annotation-id]')).toBeNull();
+    const rings = overlay().querySelector(`[data-annotation-id="${made.id}"]`)!;
+    expect(rings.querySelectorAll('circle')).toHaveLength(2);
+    expect(inside.compareDocumentPosition(rings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('is put down with a click a corner’s worth', () => {
+    mount();
+    tool('close-up');
+    pointer('pointerdown', at(0.3, 0.4));
+    pointer('pointerup', at(0.3, 0.4));
+    expect(closeUp().radius).toBe(0.08);
+  });
+
+  it('moves either circle alone by its inside, and both by its line', () => {
+    drawn([zoom]);
+    // Into the area: it goes by the pointer's travel, the close-up where it was.
+    drag(at(0.62, 0.31), at(0.52, 0.41));
+    expect(closeUp().from[0]).toBeCloseTo(0.5, 6);
+    expect(closeUp().from[1]).toBeCloseTo(0.4, 6);
+    expect(closeUp().to).toEqual([0.6, -0.25]);
+    rerender();
+    // The close-up, anywhere: the area where it was.
+    drag(at(0.65, -0.2), at(0.95, -0.2));
+    expect(closeUp().to[0]).toBeCloseTo(0.9, 6);
+    expect(closeUp().from[0]).toBeCloseTo(0.5, 6);
+    rerender();
+    // Its line moves both.
+    const before = closeUp();
+    const { line } = closeUpShape(before);
+    const middle: [number, number] = [(line![0][0] + line![1][0]) / 2, (line![0][1] + line![1][1]) / 2];
+    drag(at(...middle), at(middle[0], middle[1] + 0.1));
+    expect(closeUp().from[1]).toBeCloseTo(before.from[1] + 0.1, 6);
+    expect(closeUp().to[1]).toBeCloseTo(before.to[1] + 0.1, 6);
+  });
+
+  it('resizes the selected one by its rings: the area’s its radius, the close-up’s its scale, Shift to halves', () => {
+    drawn([zoom]);
+    act(() => state().selectDiagramAnnotation('zoom'));
+    rerender();
+    // A dot at each centre, one on each ring.
+    expect([...overlay().querySelectorAll('[data-selection] [data-handle]')].map((dot) => dot.getAttribute('data-handle'))).toEqual(
+      ['from', 'ring-from', 'to', 'ring-to']
+    );
+    // The close-up's ring, out from 0.2 to 0.3 of the frame: three times.
+    drag(at(0.4, -0.25), at(0.3, -0.25));
+    expect(closeUp()).toMatchObject({ radius: 0.1, scale: 3 });
+    rerender();
+    // In to 0.27 with Shift: two and a half.
+    drag(at(0.3, -0.25), at(0.33, -0.25), 1, 'mouse', overlay(), { shiftKey: true });
+    expect(closeUp().scale).toBe(2.5);
+    rerender();
+    // The area's ring, out to 0.15: the close-up grows with it, at its scale.
+    drag(at(0.6, 0.4), at(0.6, 0.45));
+    expect(closeUp().radius).toBeCloseTo(0.15, 6);
+    expect(closeUp().scale).toBe(2.5);
   });
 });

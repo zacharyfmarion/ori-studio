@@ -13,6 +13,7 @@ import { angleMarkArcPoints } from '../../cp-workspace/references/stepDiagramGeo
 import { pathNodesOf, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { pictureGeometry } from '../../diagram/annotate/pictureGeometry';
+import { useCloseUpInsides } from '../../diagram/annotate/useCloseUpInsides';
 import type { SnapTarget } from '../../diagram/annotate/pictureSnap';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import {
@@ -30,6 +31,7 @@ import {
   calloutDrawnBox,
   calloutShape,
   canBeShaped,
+  closeUpShape,
   labelHalfWidth,
   LABEL_SIZE,
 } from '../../diagram/annotate/annotationModel';
@@ -44,6 +46,7 @@ import { VIEWPORT_PINCH_ZOOM, VIEWPORT_WHEEL_ZOOM } from '../../hooks/useViewpor
 import { ViewportToolbar } from '../panels/ViewportToolbar';
 import { DiagramAnnotateToolWindow } from './DiagramAnnotateToolWindow';
 import { DiagramAnnotationLayer } from './DiagramAnnotationLayer';
+import { DiagramCloseUpInsides } from './DiagramCloseUpInsides';
 import styles from './DiagramAnnotateCanvas.module.css';
 
 /** An end's dot, in screen px. */
@@ -88,6 +91,17 @@ export function DiagramAnnotateCanvas({
     () => (layout ? annotationDrawing(shown, layout.pictureFrame, CARD_FRAME_PX, style, layers) : null),
     [layout, shown, style, layers]
   );
+  // Each close-up's inside, under the marks: the picture painted again, larger (15f).
+  const insides = useCloseUpInsides({
+    drawing,
+    shown,
+    committed: step.annotations,
+    source: canvas.source,
+    style,
+    layers,
+    pictureFrame: layout?.pictureFrame ?? null,
+    framePx: CARD_FRAME_PX,
+  });
   const selected = shown.find(
     (annotation): annotation is KnownDiagramAnnotation => annotation.id === selectedId && isKnownAnnotation(annotation)
   );
@@ -160,6 +174,7 @@ export function DiagramAnnotateCanvas({
                     <g
                       transform={`translate(${layout.frame.x} ${layout.frame.y}) scale(${layout.unit / CARD_FRAME_PX})`}
                     >
+                      <DiagramCloseUpInsides insides={insides} style={style} />
                       <DiagramAnnotationLayer drawing={drawing} style={style} />
                     </g>
                   )}
@@ -298,6 +313,8 @@ function Selection({
       box = calloutDrawnBox(shape.box, calloutPen);
       break;
     }
+    case 'close-up':
+      return <CloseUpSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
   }
   const points = path.map(at);
   const corner = box && at([box.x, box.y]);
@@ -320,6 +337,50 @@ function Selection({
         const [x, y] = at(annotation[end]);
         return <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />;
       })}
+    </g>
+  );
+}
+
+/**
+ * A selected close-up (15f): washed along both rings and the line between
+ * them, a dot at each centre — its circle moves by its inside — and one on
+ * each ring, on the side away from the other, which resizes it.
+ */
+function CloseUpSelection({
+  annotation,
+  layout,
+  zoom,
+  movable,
+}: {
+  annotation: KnownDiagramAnnotation;
+  layout: AnnotateLayout;
+  zoom: number;
+  movable: boolean;
+}) {
+  const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit] as const;
+  const { area, inset, line } = closeUpShape(annotation);
+  const handle = HANDLE_PX / zoom;
+  const circles = { from: area, to: inset } as const;
+  return (
+    <g data-selection="">
+      {(['from', 'to'] as const).map((end) => {
+        const [x, y] = at(circles[end].centre);
+        return <circle key={end} className={styles.selection} cx={x} cy={y} r={circles[end].radius * layout.unit} />;
+      })}
+      {line && <polyline className={styles.selection} points={polylinePoints(line.map(at))} />}
+      {movable &&
+        (['from', 'to'] as const).flatMap((end) => {
+          const { centre, radius } = circles[end];
+          const other = circles[end === 'from' ? 'to' : 'from'].centre;
+          const apart = Math.hypot(centre[0] - other[0], centre[1] - other[1]);
+          const away = apart > 0 ? [(centre[0] - other[0]) / apart, (centre[1] - other[1]) / apart] : [1, 0];
+          const [x, y] = at(centre);
+          const [rx, ry] = at([centre[0] + away[0]! * radius, centre[1] + away[1]! * radius]);
+          return [
+            <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />,
+            <circle key={`ring-${end}`} className={styles.handle} cx={rx} cy={ry} r={handle} data-handle={`ring-${end}`} />,
+          ];
+        })}
     </g>
   );
 }

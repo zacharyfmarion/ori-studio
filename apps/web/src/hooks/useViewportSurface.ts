@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { getViewportFitScale } from '../lib/designViewport';
-import type { PlotRect } from '../lib/geometry';
+import { unionPlotRect, type PlotRect } from '../lib/geometry';
 import { isPointerDown, trackPointerGestures } from '../lib/pointerGesture';
 import { viewportSizeFromElement } from '../lib/treeViewportPrimitives';
 import {
@@ -107,6 +107,12 @@ export interface ViewportSurface {
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: (animationTime?: number) => void;
+  /**
+   * Brings a rect of the world into view: nothing while it is wholly in view,
+   * else the camera frames it with what a fit frames — for a surface that has
+   * put something where it cannot be seen.
+   */
+  bringIntoView: (rect: PlotRect, animationTime?: number) => void;
   setActualSize: () => void;
   setZoomLevel: (scale: number) => void;
   /** The camera's answer to a viewport shortcut: true when it took it. */
@@ -182,6 +188,32 @@ export function useViewportSurface({
       frame(typeof animationTime === 'number' ? animationTime : FIT_ANIMATION_MS);
     },
     [frame]
+  );
+
+  const bringIntoView = useCallback(
+    (rect: PlotRect, animationTime: number = FIT_ANIMATION_MS) => {
+      const api = transformRef.current;
+      const viewport = viewportSizeFromElement(containerRef.current);
+      if (!api || !viewport) return;
+      const { positionX, positionY, scale } = api.instance.transformState;
+      const [left, top] = [-positionX / scale, -positionY / scale];
+      const seen =
+        rect.x >= left &&
+        rect.y >= top &&
+        rect.x + rect.width <= left + viewport.width / scale &&
+        rect.y + rect.height <= top + viewport.height / scale;
+      if (seen) return;
+      // Framed as a fit frames its rect, centred.
+      const target = unionPlotRect(fitRect ?? worldRect, rect);
+      const fit = getViewportFitScale(viewport, target, undefined, maxFitScale);
+      api.setTransform(
+        (viewport.width - target.width * fit) / 2 - target.x * fit,
+        (viewport.height - target.height * fit) / 2 - target.y * fit,
+        fit,
+        animationTime
+      );
+    },
+    [fitRect, worldRect, maxFitScale]
   );
 
   /**
@@ -411,6 +443,7 @@ export function useViewportSurface({
     zoomIn,
     zoomOut,
     fitToView,
+    bringIntoView,
     setActualSize,
     setZoomLevel,
     handleViewportShortcut,

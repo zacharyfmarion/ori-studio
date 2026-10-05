@@ -53,9 +53,12 @@ export interface PictureFrame {
  *   to where the box sits, or put down beside the point with a click;
  * - `angle`: an angle marked halved, put down by three presses — an arm, the
  *   vertex, the other arm — or with a bisector, `to` and `other` saying only
- *   which way its arms run (15b).
+ *   which way its arms run (15b);
+ * - `close-up`: a ring round an area of the picture and a larger one beside
+ *   it, dragged from the area's centre out to its ring, or put down with a
+ *   click (15f).
  */
-type AnnotationShape = 'arc' | 'straight' | 'path' | 'line' | 'point' | 'corner' | 'callout' | 'angle';
+type AnnotationShape = 'arc' | 'straight' | 'path' | 'line' | 'point' | 'corner' | 'callout' | 'angle' | 'close-up';
 
 const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
   'valley-arrow': 'arc',
@@ -74,6 +77,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'right-angle': 'corner',
   callout: 'callout',
   'angle-mark': 'angle',
+  'close-up': 'close-up',
 };
 
 /** Every kind, in the order the rail offers them. */
@@ -172,6 +176,7 @@ export function behindEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to'
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
+    case 'close-up':
       return [];
   }
 }
@@ -318,6 +323,7 @@ function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation 
   }
   if (isCornerKind(annotation.kind)) return cleanCorner(annotation);
   if (isAngleKind(annotation.kind)) return cleanAngle(annotation);
+  if (annotation.kind === 'close-up') return cleanCloseUp(annotation);
   const from = withinReach(annotation.from);
   const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
   const text = annotation.text === undefined ? undefined : cleanLabelText(annotation.text);
@@ -580,6 +586,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
+    case 'close-up':
       return false;
   }
 }
@@ -627,6 +634,7 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'circle':
     case 'right-angle':
     case 'angle-mark':
+    case 'close-up':
       return false;
   }
 }
@@ -658,6 +666,7 @@ export function annotationEnds(kind: DiagramAnnotationKind): readonly ('from' | 
     case 'circle':
     case 'right-angle':
     case 'angle-mark':
+    case 'close-up':
       return [];
   }
 }
@@ -781,10 +790,11 @@ export function isCornerKind(kind: DiagramAnnotationKind): boolean {
 /**
  * Whether a click puts an annotation of `kind` down: a point kind's at its
  * point, a right angle's in the corner it is in, a callout's beside its
- * point. A drag draws the rest.
+ * point, a close-up's area round it. A drag draws the rest.
  */
 export function placedByClick(kind: DiagramAnnotationKind): boolean {
-  return isPointKind(kind) || isCornerKind(kind) || ANNOTATION_SHAPES[kind] === 'callout';
+  const shape = ANNOTATION_SHAPES[kind];
+  return isPointKind(kind) || isCornerKind(kind) || shape === 'callout' || shape === 'close-up';
 }
 
 /**
@@ -806,7 +816,9 @@ export function defaultBend(from: PicturePoint, to: PicturePoint, frame: Picture
  * ignored for a point kind; for a right angle, the way it opens from its
  * corner `from`). A callout says `calloutText` — the author's language's
  * "Repeat behind" — and one clicked, or dragged shorter than a slip, has its
- * box put beside its point ({@link calloutBeside}).
+ * box put beside its point ({@link calloutBeside}). A close-up's drag is its
+ * area's radius, a click's a corner's worth, and its close-up goes beside the
+ * picture ({@link closeUpBeside}).
  */
 export function createAnnotation(
   kind: DiagramAnnotationKind,
@@ -824,6 +836,14 @@ export function createAnnotation(
   }
   const from = withinReach(start);
   const to = withinReach(end);
+  if (kind === 'close-up') {
+    // Dragged from its area's centre out to its ring; a click, or a drag
+    // shorter than a slip, puts down a corner's worth. Its close-up beside it.
+    const drag = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    const radius = drag < MIN_CLOSE_UP_RADIUS ? DEFAULT_CLOSE_UP_RADIUS : closeUpRadiusWithin(drag);
+    const scale = DEFAULT_CLOSE_UP_SCALE;
+    return { id, kind, from: [from[0], from[1]], to: closeUpBeside(from, radius, scale, frame), radius, scale };
+  }
   if (kind === 'callout') {
     const text = cleanLabelText(calloutText);
     const short = Math.hypot(to[0] - from[0], to[1] - from[1]) < MIN_ANNOTATION_LENGTH;
@@ -925,6 +945,161 @@ export function calloutShape({ from, to, text }: Pick<KnownDiagramAnnotation, 'f
  */
 export function calloutDrawnBox(box: CalloutShape['box'], pen: number): CalloutShape['box'] {
   return { x: box.x - pen / 2, y: box.y - pen / 2, width: box.width + pen, height: box.height + pen };
+}
+
+/**
+ * How many times larger a close-up draws its area (15f): the range the Step
+ * pane and a ring's drag hold it to — less is hardly closer, and more is a
+ * detail no diagram draws.
+ */
+export const CLOSE_UP_SCALE = { min: 1.25, max: 6 } as const;
+/** A new close-up's scale, and one's that a file leaves unsaid: twice (decision 12). */
+export const DEFAULT_CLOSE_UP_SCALE = 2;
+/** What the Step pane steps a scale by, and Shift holds a ring's drag to: halves. */
+export const CLOSE_UP_SCALE_STEP = 0.5;
+/** The area a click puts down: its radius, in picture units — a flap's corner, near enough. */
+export const DEFAULT_CLOSE_UP_RADIUS = 0.08;
+/** The smallest area's radius, in picture units: a drag shorter than a slip is a click. */
+export const MIN_CLOSE_UP_RADIUS = MIN_ANNOTATION_LENGTH;
+/** The largest: an area wider than the picture shows nothing more of it. */
+export const MAX_CLOSE_UP_RADIUS = 1;
+/** How far clear of the picture's frame a new close-up's ring stands, in picture units. */
+export const CLOSE_UP_GAP = 0.05;
+
+/** A close-up's area's radius: a file's always says it; a guard puts down a click's. */
+export function closeUpRadius({ radius }: Pick<KnownDiagramAnnotation, 'radius'>): number {
+  return radius ?? DEFAULT_CLOSE_UP_RADIUS;
+}
+
+/** A close-up's scale, twice when a file leaves it unsaid. */
+export function closeUpScale({ scale }: Pick<KnownDiagramAnnotation, 'scale'>): number {
+  return scale ?? DEFAULT_CLOSE_UP_SCALE;
+}
+
+/** A close-up as it is drawn (15f), in picture units. */
+export interface CloseUpShape {
+  /** The ring round the area shown larger. */
+  area: { centre: PicturePoint; radius: number };
+  /** The close-up's ring: the area's, `scale` times larger. */
+  inset: { centre: PicturePoint; radius: number };
+  scale: number;
+  /**
+   * The line between the rings, on the line through their centres, from one
+   * rim to the other, as Triceratops 73 draws it; null where the rings meet.
+   */
+  line: readonly [PicturePoint, PicturePoint] | null;
+}
+
+/**
+ * A close-up's shape ({@link CloseUpShape}). Inside its ring a point of the
+ * picture `p` is drawn at `inset.centre + scale × (p − area.centre)`.
+ */
+export function closeUpShape(annotation: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'radius' | 'scale'>): CloseUpShape {
+  const { from, to } = annotation;
+  const radius = closeUpRadius(annotation);
+  const scale = closeUpScale(annotation);
+  const insetRadius = radius * scale;
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const apart = Math.hypot(dx, dy);
+  const line: CloseUpShape['line'] =
+    apart > radius + insetRadius
+      ? [
+          [from[0] + (dx / apart) * radius, from[1] + (dy / apart) * radius],
+          [to[0] - (dx / apart) * insetRadius, to[1] - (dy / apart) * insetRadius],
+        ]
+      : null;
+  return { area: { centre: from, radius }, inset: { centre: to, radius: insetRadius }, scale, line };
+}
+
+/**
+ * The picture's frame as a close-up draws it (15f), in picture units: `frame`
+ * made `scale` times larger about the area's centre, and moved onto the
+ * close-up's.
+ */
+export function closeUpFrame(
+  { area, inset, scale }: CloseUpShape,
+  frame: PictureFrame
+): { x: number; y: number; width: number; height: number } {
+  return {
+    x: inset.centre[0] - scale * area.centre[0],
+    y: inset.centre[1] - scale * area.centre[1],
+    width: scale * frame.width,
+    height: scale * frame.height,
+  };
+}
+
+/**
+ * Where a new close-up goes (15f): off the picture, its ring
+ * {@link CLOSE_UP_GAP} clear of the frame, level with its area — beside a
+ * frame as tall as it is wide or taller, where a page has room across it,
+ * and above or below a wider one — on the side nearer its area, so the line
+ * between them is short.
+ */
+export function closeUpBeside(centre: PicturePoint, radius: number, scale: number, frame: PictureFrame): PicturePoint {
+  const reach = CLOSE_UP_GAP + radius * scale;
+  if (frame.width <= frame.height) {
+    return withinReach([centre[0] >= frame.width / 2 ? frame.width + reach : -reach, centre[1]]);
+  }
+  return withinReach([centre[0], centre[1] >= frame.height / 2 ? frame.height + reach : -reach]);
+}
+
+/** A close-up's area's radius held to its range; a click's for one that is no number. */
+export function closeUpRadiusWithin(radius: number): number {
+  if (!Number.isFinite(radius)) return DEFAULT_CLOSE_UP_RADIUS;
+  return Math.min(MAX_CLOSE_UP_RADIUS, Math.max(MIN_CLOSE_UP_RADIUS, radius));
+}
+
+/**
+ * A close-up's scale held to its range ({@link CLOSE_UP_SCALE}) to a
+ * hundredth — or with `halves`, as Shift holds a ring's drag, to a half.
+ */
+export function closeUpScaleWithin(scale: number, halves = false): number {
+  if (!Number.isFinite(scale)) return DEFAULT_CLOSE_UP_SCALE;
+  const min = halves ? Math.ceil(CLOSE_UP_SCALE.min * 2) / 2 : CLOSE_UP_SCALE.min;
+  const rounded = halves ? Math.round(scale * 2) / 2 : Math.round(scale * 100) / 100;
+  return Math.min(CLOSE_UP_SCALE.max, Math.max(min, rounded));
+}
+
+/**
+ * A close-up resized by one of its rings (15f): the area's to `radius` — the
+ * close-up grows with it, its scale kept — or the close-up's to `radius`,
+ * which sets its scale ({@link closeUpScaleWithin}).
+ */
+export function withCloseUpRing(
+  annotation: KnownDiagramAnnotation,
+  ring: 'from' | 'to',
+  radius: number,
+  halves = false
+): KnownDiagramAnnotation {
+  if (ring === 'from') return { ...annotation, radius: closeUpRadiusWithin(radius) };
+  return { ...annotation, scale: closeUpScaleWithin(radius / closeUpRadius(annotation), halves) };
+}
+
+/** A close-up at `scale`, held to its range: the Step pane's. */
+export function withCloseUpScale(annotation: KnownDiagramAnnotation, scale: number): KnownDiagramAnnotation {
+  return { ...annotation, scale: closeUpScaleWithin(scale) };
+}
+
+/**
+ * A close-up as this build writes it: its centres within reach, and its
+ * area's radius and its scale within their ranges, an unsaid scale left
+ * unsaid — never rounded, so a value the reader takes is written back as it
+ * was. The same object when it already is.
+ */
+function cleanCloseUp(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const from = withinReach(annotation.from);
+  const to = withinReach(annotation.to);
+  const radius = closeUpRadiusWithin(closeUpRadius(annotation));
+  const scale =
+    annotation.scale === undefined
+      ? undefined
+      : Number.isFinite(annotation.scale)
+        ? Math.min(CLOSE_UP_SCALE.max, Math.max(CLOSE_UP_SCALE.min, annotation.scale))
+        : DEFAULT_CLOSE_UP_SCALE;
+  const same =
+    samePoint(from, annotation.from) && samePoint(to, annotation.to) && radius === annotation.radius && scale === annotation.scale;
+  return same ? annotation : { ...annotation, from, to, radius, ...(scale !== undefined ? { scale } : {}) };
 }
 
 /**
@@ -1077,6 +1252,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
+    case 'close-up':
       return false;
   }
 }
@@ -1139,7 +1315,9 @@ export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiag
 export function isDegenerate(annotation: KnownDiagramAnnotation, minLength: number): boolean {
   // A right angle has a corner and a way to open, not a length; a callout's
   // box is drawn wherever it sits, its point under it or not.
-  if (isPointKind(annotation.kind) || isCornerKind(annotation.kind) || ANNOTATION_SHAPES[annotation.kind] === 'callout') {
+  // A close-up has an area, never less than a slip's (`closeUpRadiusWithin`), not a length.
+  const shape = ANNOTATION_SHAPES[annotation.kind];
+  if (isPointKind(annotation.kind) || isCornerKind(annotation.kind) || shape === 'callout' || shape === 'close-up') {
     return false;
   }
   // An angle mark has a vertex and two arms, not a length: none when its arms make no angle.
@@ -1212,6 +1390,7 @@ export interface PictureMove {
  */
 export function carryAnnotation(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
   if (annotation.kind === 'callout') return carryCallout(annotation, move);
+  if (annotation.kind === 'close-up') return carryCloseUp(annotation, move);
   if (annotation.path) {
     const path = annotation.path.map((node) => ({
       ...node,
@@ -1339,6 +1518,33 @@ function keptBeside(text: string, offset: PicturePoint, turned: PicturePoint): P
   const now = outline(way);
   const along = now * Math.min(length / was, 1) + (turnedLength / length) * Math.max(length - was, 0);
   return [way[0] * along, way[1] * along];
+}
+
+/**
+ * A close-up carried with the face under its area's centre, as a callout's
+ * point is (15f): the close-up keeps its place beside it, turned and
+ * mirrored as the picture is, never spread with whatever face lies under it
+ * — another, or none off the paper; and the area keeps its size on the
+ * picture, its radius scaled as the move scales the picture as a whole, its
+ * scale kept.
+ */
+function carryCloseUp(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  const { from, to } = annotation;
+  const carried = withinReach(move.point(from));
+  const turned = (vector: PicturePoint): PicturePoint => {
+    if (move.vector) return move.vector(vector);
+    const [x0, y0] = move.point(from);
+    const [x1, y1] = move.point([from[0] + vector[0], from[1] + vector[1]]);
+    return [x1 - x0, y1 - y0];
+  };
+  const [dx, dy] = turned([to[0] - from[0], to[1] - from[1]]);
+  const [rx, ry] = turned([closeUpRadius(annotation), 0]);
+  return {
+    ...annotation,
+    from: carried,
+    to: withinReach([carried[0] + dx, carried[1] + dy]),
+    radius: closeUpRadiusWithin(Math.hypot(rx, ry)),
+  };
 }
 
 /** A picture flipped left to right inside its frame. */

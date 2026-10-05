@@ -1,7 +1,8 @@
 # Diagram Annotate, second pass: flaps, line types, bisectors, pleat and solid arrows, close-ups
 
-**Status: decided (2026-10-05) — Zach took every recommendation, with the
-changes under Decisions; being built.** Zach's Diagramming note
+**Status: built (2026-10-05) — Zach took every recommendation, with the
+changes under Decisions; 15a–15f each built, reviewed and pushed, what was
+built recorded under each phase's checklist.** Zach's Diagramming note
 (`Oristudio/Diagramming.md` in his notes), five requests with five
 screenshots from published diagrams. Phase 15 of
 `implementation-plans/diagram-workspace.md`, after Phase 14
@@ -534,12 +535,63 @@ The decisions as they were put:
     layers thick.
 
 ### 15f. Close-ups
-- [ ] `close-up`: kind, file, carry (as a callout), hit and rim grips, reach.
-- [ ] Painting at a scale for each surface: canvas, card, page (ids, fonts),
+- [x] `close-up`: kind, file, carry (as a callout), hit and rim grips, reach.
+- [x] Painting at a scale for each surface: canvas, card, page (ids, fonts),
   step files and PDF; uploads.
-- [ ] Placing and resizing on the canvas; Step pane Scale; Pose shows rings
+- [x] Placing and resizing on the canvas; Step pane Scale; Pose shows rings
   only; analytics; i18n; before/after beside Triceratops 73, on screen and
   in the PDF.
+  - As built: `close-up` with `from` (the area's centre), `to` (the
+    close-up's), `radius` (the area's, 0.015–1 of the frame; a file must say
+    it) and `scale` (1.25–6, two unsaid); anything past those ranges is a
+    newer build's, kept verbatim, and nothing this build reads is rounded on
+    the way out. Drawn: two rings and the line between them, rim to rim
+    along their centres (none where the rings meet), in a circle's ring's
+    pen and the arrows' ink (`closeUpElement`), over the marks and under the
+    callouts and labels. The inside is the page's white, then the picture
+    painted again `scale` times larger — a scene and a References step
+    afresh at that size (`paintSource(…, scale)`), so their lines, letters
+    and heads keep their print weight; an upload or a fixed picture drawn
+    larger whole — then the step's other marks drawn at the larger frame in
+    the same pens (labels and callouts, sized as a share of the frame, grow
+    with it), clipped to the close-up's ring; it lies under every other mark,
+    so a mark drawn over a close-up stays over it. Each surface paints its
+    picture there (`CloseUpPicture`): a card nests it, ids prefixed; a page
+    cell draws it again through `draw`, ids under the cell's prefix and its
+    text — a References step's letters, an upload's words — counted for the
+    fonts, so the step files and the PDF have it too (checked through the
+    real writer and `pdftoppm` at 600 dpi: krilla clips it); the canvas an
+    `<image>` of the picture painted at the step's scale, cached by picture,
+    style and scale, so a move only shifts it, and a ring dragged stretches
+    it until the drag lands and it is painted again. Pose, ghosting the
+    marks over the picture being posed, draws a close-up's rings alone.
+    Placing: I, then a drag out from the area's middle — a click puts down
+    0.08 — and the close-up appears beside the picture at ×2, off it on the
+    nearer side, across a frame as tall as wide or taller, above or below a
+    wider one. Moving (Zach: "freely drag … anywhere"): either circle by its
+    inside, alone, the line following; the whole by its line. A close-up
+    lies under the marks, so its area's inside is often all marks: selected,
+    the dot at each centre and each ring take a press first — the ring
+    resizes (the area's its radius, the close-up growing at its scale; the
+    close-up's its scale, Shift to halves), the dot moves its circle.
+    Carried as a callout: its area with the face under it, the close-up kept
+    beside it turned and mirrored; unlike the plan's "radius stays", its
+    radius scales with the picture as a whole (`PictureMove.vector`), so a
+    spread that changes the frame keeps the area on the same paper. Step
+    pane: one Scale number stepping by halves (×1.5, ×2 … reached by
+    stepping, any value typed), not preset buttons and a field. The Annotate
+    canvas now fits the picture with every mark it draws past it, as a page
+    leaves them room, and brings a close-up just put down into view
+    (`bringIntoView`, a camera verb) — a close-up beside the picture
+    otherwise opened half out of sight. `diagram annotation added`
+    {tool: close_up, snap: none}. Golden: `closeUpGolden.json` (four cases on
+    a card, a page and the canvas; `15f/golden-close-ups.png`). Browser
+    (`p15f.mjs`, `compare-15f.png`, `15-ui/ui-*-zoom.png`): on the crane's
+    step 8, I and a drag of a real mouse, the close-up dragged up, its ring
+    Shift-dragged to ×3, its area moved by its dot along the fold, each one
+    undo step; the card, the page and the PDF; WebKit iPad-sized in light
+    and dark. Zach's crane still reads with its 23 marks known and writes
+    them back unchanged.
 
 ## Risks
 

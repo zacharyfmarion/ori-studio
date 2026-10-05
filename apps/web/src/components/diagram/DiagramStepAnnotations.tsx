@@ -7,6 +7,10 @@ import { DIAGRAM_LINE_TYPES, lineTypeOf, type DiagramLineType } from '../../diag
 import {
   ANGLE_MARK_TICKS,
   carriesText,
+  CLOSE_UP_SCALE,
+  CLOSE_UP_SCALE_STEP,
+  closeUpScale,
+  closeUpScaleWithin,
   DEFAULT_PLEAT_KINKS,
   isSolidArrow,
   LABEL_MAX_LENGTH,
@@ -48,8 +52,9 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * a press selects one, as a press on the canvas does — and the selected
  * one's own controls:
  * a label's or a callout's text, an arrow's Flip arc and Reset, a white
- * arrow's width and tail, a line's type, a rotation's turn, a turn-over's axis, Delete, and
- * in Edit Path a fold or white arrow's node verbs.
+ * arrow's width and tail, a line's type, a rotation's turn, a turn-over's axis,
+ * a close-up's scale, Delete, and in Edit Path a fold or white arrow's node
+ * verbs.
  */
 export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
   const { t } = useTranslation();
@@ -259,6 +264,19 @@ function SelectedAnnotation({
           disabled={!editable}
           normalize={pleatKinks}
           onCommit={(kinks) => annotations.setKinks(id, pleatKinks(kinks))}
+        />
+      )}
+      {annotation.kind === 'close-up' && (
+        <NumberRow
+          label={t('panels:diagram.annotations.scale', 'Scale')}
+          value={closeUpScale(annotation)}
+          min={CLOSE_UP_SCALE.min}
+          max={CLOSE_UP_SCALE.max}
+          step={CLOSE_UP_SCALE_STEP}
+          suffix="×"
+          disabled={!editable}
+          normalize={closeUpScaleWithin}
+          onCommit={(scale) => annotations.setCloseUpScale(id, scale)}
         />
       )}
       {annotation.kind === 'white-arrow' && (

@@ -639,6 +639,52 @@ describe('annotations in the file', () => {
       expect(withAnnotations(damaged)).toEqual([]);
     });
   });
+
+  describe('a close-up (15f)', () => {
+    const closeUp = (more: Record<string, unknown> = {}) => ({
+      id: 'z-1',
+      kind: 'close-up',
+      from: [0.5, 0.3],
+      to: [1.21, 0.3],
+      radius: 0.08,
+      scale: 2,
+      ...more,
+    });
+
+    it('round-trips its centres, its area and its scale — exactly, an unsaid scale unsaid', () => {
+      const { scale: _unsaid, ...twice } = closeUp({ id: 'z-2' });
+      const odd = closeUp({ id: 'z-3', radius: 0.0712345678, scale: 2.345 });
+      const read = withAnnotations([closeUp(), twice, odd]);
+      expect(read).toEqual([closeUp(), twice, odd]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual([closeUp(), twice, odd]);
+    });
+
+    it('carries what a newer build might write: an area or a scale past this build’s, a field it has no name for', () => {
+      const newer = [
+        closeUp({ id: 'n-1', radius: 1.5 }),
+        closeUp({ id: 'n-2', radius: 0.001 }),
+        closeUp({ id: 'n-3', scale: 8 }),
+        closeUp({ id: 'n-4', scale: 1.1 }),
+        closeUp({ id: 'n-5', shape: 'square' }),
+        closeUp({ id: 'n-6', to: [4.5, 0.3] }),
+      ];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    });
+
+    it('drops one with no area, or an area or a scale that is no size', () => {
+      const damaged = [
+        closeUp({ radius: undefined }),
+        closeUp({ id: 'd-2', radius: 0 }),
+        closeUp({ id: 'd-3', radius: '0.1' }),
+        closeUp({ id: 'd-4', scale: -2 }),
+        closeUp({ id: 'd-5', scale: 'twice' }),
+        closeUp({ id: 'd-6', to: undefined }),
+      ];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+  });
 });
 
 describe('uploaded pictures in the file', () => {

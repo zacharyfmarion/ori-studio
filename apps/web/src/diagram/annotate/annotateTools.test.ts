@@ -31,7 +31,7 @@ describe('the rail', () => {
     expect(annotationLabel(t, { kind: 'white-arrow' })).toBe('White Arrow');
   });
 
-  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a), the pleat and solid arrows among the arrows (15c, 15d)', () => {
+  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a), the pleat and solid arrows among the arrows (15c, 15d), the close-up among the marks (15f)', () => {
     expect(ANNOTATE_TOOL_GROUPS).toEqual([
       { id: 'select', tools: [null, 'edit-path'] },
       {
@@ -49,7 +49,7 @@ describe('the rail', () => {
         ],
       },
       { id: 'lines', tools: ['line', 'angle-bisector'] },
-      { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark'] },
+      { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark', 'close-up'] },
       { id: 'text', tools: ['label', 'callout'] },
     ]);
     // Every kind is drawn by a tool: each its own, the lines by Line in each
@@ -165,6 +165,13 @@ describe('the tool window', () => {
         title: 'Equal Angles',
         instructions: 'Click a point on one arm, the vertex, then a point on the other arm.',
         modifiers: [picks],
+      },
+      // Its rings are moved and sized with Select: the window says how, and Shift's halves (15f).
+      'close-up': {
+        title: 'Close-Up',
+        instructions:
+          'Drag out from the middle of the area to show larger, or click it. With Select, drag either circle to move it, or its ring to resize it.',
+        modifiers: ['Shift-drag the close-up’s ring to scale it by halves.'],
       },
     });
   });

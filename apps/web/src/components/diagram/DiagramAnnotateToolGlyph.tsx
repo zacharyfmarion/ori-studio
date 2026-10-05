@@ -203,5 +203,14 @@ export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }
           <path d="M10 6.5 H15 M10 8.75 H13.5" strokeWidth={1.1} />
         </Glyph>
       );
+    case 'close-up':
+      // A ring round an area, and a larger one beside it, joined rim to rim.
+      return (
+        <Glyph>
+          <circle cx={4.6} cy={15.4} r={2.4} />
+          <path d="M6.3 13.7 L9.1 10.9" />
+          <circle cx={13} cy={7} r={5.5} />
+        </Glyph>
+      );
   }
 }

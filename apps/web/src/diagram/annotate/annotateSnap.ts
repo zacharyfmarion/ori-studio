@@ -64,6 +64,7 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'turn-over':
     case 'rotate':
     case 'label':
+    case 'close-up':
       return false;
   }
 }

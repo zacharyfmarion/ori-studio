@@ -10,7 +10,7 @@ import {
 } from '../../cp-workspace/references/diagram/diagramInk';
 import { useViewportSurface } from '../../hooks/useViewportSurface';
 import { readHeldModifiers, subscribeHeldModifiers } from '../../keyboard/heldModifiers';
-import type { PlotRect } from '../../lib/geometry';
+import { unionPlotRect, type PlotRect } from '../../lib/geometry';
 import { isPrimaryModifier } from '../../lib/platform';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -51,6 +51,7 @@ import {
   RIGHT_ANGLE_DIAGONAL,
   canBeShaped,
   carriesText,
+  closeUpShape,
   createAnnotation,
   frameOf,
   isCornerKind,
@@ -61,6 +62,7 @@ import {
   placedByClick,
   rightAngleAt,
   rightAngleDiagonal,
+  withCloseUpRing,
   withWhiteArrowLook,
   type PictureFrame,
   type PicturePoint,
@@ -68,7 +70,7 @@ import {
 } from './annotationModel';
 import { cancelLabelFocus, pendingLabelFocus, requestLabelFocus } from './labelFocus';
 import { isViewportInteractiveTarget } from '../../components/panels/ViewportToolbar';
-import { calloutPen } from './annotationPrimitives';
+import { annotationDrawing, annotationReach, calloutPen } from './annotationPrimitives';
 import { CARD_FRAME_PX } from './paintAnnotations';
 import type { SnapTarget } from './pictureSnap';
 import { useAnnotateSnap } from './useAnnotateSnap';
@@ -214,6 +216,30 @@ export interface AnnotateLayout {
   unit: number;
 }
 
+/** The picture's box with what `annotations` draw past it, in world px: what a fit frames. */
+function withMarksReach(layout: AnnotateLayout, annotations: readonly DiagramAnnotation[], style: DiagramStyle): PlotRect {
+  const reach = annotationReach(annotationDrawing(annotations, layout.pictureFrame, CARD_FRAME_PX, style));
+  const k = layout.unit / CARD_FRAME_PX;
+  return unionPlotRect(layout.picture, {
+    x: layout.frame.x + reach.x * k,
+    y: layout.frame.y + reach.y * k,
+    width: reach.width * k,
+    height: reach.height * k,
+  });
+}
+
+/** A close-up's two rings, in world px: what has to be in view to see it whole (15f). */
+function closeUpRings(annotation: KnownDiagramAnnotation, layout: AnnotateLayout): PlotRect {
+  const { area, inset } = closeUpShape(annotation);
+  const ring = ({ centre, radius }: { centre: PicturePoint; radius: number }): PlotRect => ({
+    x: layout.frame.x + (centre[0] - radius) * layout.unit,
+    y: layout.frame.y + (centre[1] - radius) * layout.unit,
+    width: 2 * radius * layout.unit,
+    height: 2 * radius * layout.unit,
+  });
+  return unionPlotRect(ring(area), ring(inset));
+}
+
 function layoutFor(painted: { widthPx: number; heightPx: number; frame: PictureBox }): AnnotateLayout | null {
   const longer = Math.max(painted.frame.width, painted.frame.height);
   const pictureFrame = frameOf(painted.frame.width, painted.frame.height);
@@ -287,11 +313,17 @@ export function useAnnotateCanvas({
   const painted = useMemo(() => (source ? paintSource(source, style) : null), [source, style]);
   const url = useMemo(() => (source ? stepPictureUrl(source, style) : null), [source, style]);
   const layout = useMemo(() => (painted ? layoutFor(painted) : null), [painted]);
+  // What a fit frames: the picture and every mark the step draws past it, as
+  // a page leaves them room — a close-up beside the picture among them (15f).
+  const framed = useMemo(
+    () => (layout ? withMarksReach(layout, step.annotations, style) : undefined),
+    [layout, step.annotations, style]
+  );
 
   const camera = useViewportSurface({
     surface: null,
     worldRect: layout?.world ?? { x: 0, y: 0, width: 1, height: 1 },
-    fitRect: layout?.picture,
+    fitRect: framed,
     fitAnchor: 'fit-rect',
     fitKey: `${step.id}:${layout ? 'laid-out' : 'waiting'}`,
     maxFitScale: 4,
@@ -661,12 +693,14 @@ export function useAnnotateCanvas({
   /**
    * The annotation a move makes of `annotation`, the press placed at `at`
    * ({@link placeInHand}). A circle whose centre snapped is put on its target
-   * exactly, not moved by a difference that rounds.
+   * exactly, not moved by a difference that rounds. `halves`, Shift held,
+   * holds a close-up's scale to halves.
    */
   const moved = (
     current: Extract<Gesture, { mode: 'move' }>,
     annotation: KnownDiagramAnnotation,
-    { at, target, opens }: PlacedInHand
+    { at, target, opens }: PlacedInHand,
+    halves: boolean
   ) => {
     const { grip } = current;
     switch (grip.part) {
@@ -694,6 +728,20 @@ export function useAnnotateCanvas({
       case 'direction':
         // The way it opens, turned toward the point the pointer gave (`placeInHand`).
         return moveAnnotationEnd(annotation, 'to', at);
+      case 'circle': {
+        // A close-up's circle, taken anywhere inside: it goes by the pointer's
+        // travel, the other left where it is.
+        const [x, y] = annotation[grip.end];
+        return moveAnnotationEnd(annotation, grip.end, [x + at[0] - current.start[0], y + at[1] - current.start[1]]);
+      }
+      case 'ring': {
+        // A close-up's ring goes in or out as far as the pointer has from where
+        // it took hold: the area's sets its radius, the close-up's its scale.
+        const { area, inset } = closeUpShape(annotation);
+        const { centre, radius } = grip.end === 'from' ? area : inset;
+        const away = (point: PicturePoint) => Math.hypot(point[0] - centre[0], point[1] - centre[1]);
+        return withCloseUpRing(annotation, grip.end, radius + away(at) - away(current.start), halves);
+      }
     }
   };
 
@@ -767,7 +815,7 @@ export function useAnnotateCanvas({
         showSnap([point ? null : current.startTarget, placed.target]);
         return;
       }
-      setDraft(moved(current, current.original, placed));
+      setDraft(moved(current, current.original, placed, event.shiftKey));
       showSnap([placed.target]);
     },
     [layout, toPicture, cancel, step.id, hover, placeInHand, showSnap, showRightAngle, calloutText]
@@ -900,6 +948,8 @@ export function useAnnotateCanvas({
           loadId,
         });
         if (!added) return;
+        // Put beside the picture, a close-up may be out of view: it is brought into it (15f).
+        if (annotation.kind === 'close-up') camera.bringIntoView(closeUpRings(annotation, layout));
         const snapped = target !== null || (!point && current.startTarget !== null);
         trackDiagramAnnotationAdded(
           annotationEventKind(annotation),
@@ -929,13 +979,13 @@ export function useAnnotateCanvas({
         (list) =>
           list.map((annotation) => {
             if (annotation.id !== current.original.id) return annotation;
-            const next = moved(current, annotation, placed);
+            const next = moved(current, annotation, placed, event.shiftKey);
             return current.grip.part !== 'body' && isDegenerate(next, MIN_ANNOTATION_LENGTH) ? annotation : next;
           }),
         { loadId }
       );
     },
-    [layout, toPicture, step.id, release, landPath, showSnap, showRightAngle, placeInHand, snap.enabled, calloutText]
+    [layout, toPicture, step.id, release, landPath, showSnap, showRightAngle, placeInHand, snap.enabled, calloutText, camera]
   );
 
   const onPointerGone = useCallback(
@@ -950,6 +1000,8 @@ export function useAnnotateCanvas({
     camera: { ...camera, onTransformed },
     overlay,
     url,
+    /** What the picture is painted from: a close-up paints it again, larger (15f). */
+    source,
     layout,
     shown,
     tool,

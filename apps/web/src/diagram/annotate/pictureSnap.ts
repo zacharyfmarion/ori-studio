@@ -137,6 +137,9 @@ export function annotationSnapPoints(annotation: KnownDiagramAnnotation): readon
     case 'rotate':
     case 'label':
       return [];
+    // A close-up's rings are round an area and beside the picture, on no point.
+    case 'close-up':
+      return [];
     default: {
       // Every kind says what it offers: a new one is a compile error here.
       const _unsaid: never = annotation.kind;

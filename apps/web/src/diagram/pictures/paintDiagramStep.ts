@@ -165,27 +165,30 @@ export function stepPictureSource(
 }
 
 /**
- * The page a step's scene is painted on: the size every picture opens at, no
- * page colour, and nothing buried — a capture has already dropped it.
- * `paddingMm` is the caller's: a card frames the picture itself, a file wants
- * the room an editor's export leaves.
+ * The page a step's scene is painted on: the size every picture opens at —
+ * `scale` times it for a close-up's inside (15f) — no page colour, and
+ * nothing buried: a capture has already dropped it. `paddingMm` is the
+ * caller's: a card frames the picture itself, a file wants the room an
+ * editor's export leaves.
  */
-export function stepScenePage(paddingMm: number): PaperPage {
-  return { sheet: { mm: DEFAULT_PAPER_SIZE_MM }, paddingMm, background: null, keepHiddenFaces: false };
+export function stepScenePage(paddingMm: number, scale = 1): PaperPage {
+  return { sheet: { mm: DEFAULT_PAPER_SIZE_MM * scale }, paddingMm, background: null, keepHiddenFaces: false };
 }
 
 /** The margin a card or the step detail gives a scene: the pens' own room, near enough. */
 export const STEP_CARD_PADDING_MM = 1;
 
 /**
- * A captured scene in the diagram's pens. `null` for a scene that does not
- * read: the file's validator has already checked it, so this is a guard, not
- * a path.
+ * A captured scene in the diagram's pens, `scale` times the size every
+ * picture opens at, its pens at their print weight. `null` for a scene that
+ * does not read: the file's validator has already checked it, so this is a
+ * guard, not a path.
  */
 export function paintScene(
   { picture, pattern }: SceneSource,
   style: DiagramStyle,
-  paddingMm: number = STEP_CARD_PADDING_MM
+  paddingMm: number = STEP_CARD_PADDING_MM,
+  scale = 1
 ): PaintedPicture | null {
   const measure = sceneMeasure(pattern);
   let raw: unknown;
@@ -197,7 +200,7 @@ export function paintScene(
   const scene = readPaperScene(raw);
   if (!scene) return null;
   const surface = diagramScenePaintStyle(style, pattern);
-  const page = stepScenePage(paddingMm);
+  const page = stepScenePage(paddingMm, scale);
   const painted = paperSceneToSvg(scene, surface, page, measure);
   // The frame is the scene's bounds, which the painter puts at the margin.
   const ptPerPx = pagePtPerPx(scene, page, measure);
@@ -216,20 +219,27 @@ export function paintScene(
   };
 }
 
-/** A source's picture as a standalone SVG document. */
+/**
+ * A source's picture as a standalone SVG document, `scale` times the size
+ * every picture opens at — a close-up's inside (15f). A scene and a
+ * References step are painted afresh at that size, so their lines, letters
+ * and arrowheads keep their print weight; an upload and a fixed picture are
+ * drawn larger whole, their own strokes with them ({@link enlargedPicture}).
+ */
 export function paintSource(
   source: StepPictureSource,
   style: DiagramStyle,
-  paddingMm?: number
+  paddingMm?: number,
+  scale = 1
 ): PaintedPicture | null {
   switch (source.kind) {
     case 'asset':
-      return paintAsset(source.asset, source.pose);
+      return enlargedPicture(paintAsset(source.asset, source.pose), scale);
     case 'scene':
-      return paintScene(source, style, paddingMm);
+      return paintScene(source, style, paddingMm, scale);
     case 'fixed': {
       const { svg, widthPx, heightPx } = source.picture;
-      return { svg, widthPx, heightPx, frame: { x: 0, y: 0, width: widthPx, height: heightPx } };
+      return enlargedPicture({ svg, widthPx, heightPx, frame: { x: 0, y: 0, width: widthPx, height: heightPx } }, scale);
     }
     case 'step-diagram':
       // On the page every picture opens at, as a scene is: built at its size.
@@ -237,9 +247,28 @@ export function paintSource(
         source.picture.model,
         source.picture.mirrored,
         style,
-        stepScenePage(paddingMm ?? STEP_CARD_PADDING_MM)
+        stepScenePage(paddingMm ?? STEP_CARD_PADDING_MM, scale)
       );
   }
+}
+
+/**
+ * A painted picture drawn `scale` times as large, whole — its own strokes
+ * with it: how an upload, or a fold kept as a fixed picture, is drawn larger.
+ * The picture itself at a scale of one.
+ */
+export function enlargedPicture(painted: PaintedPicture, scale: number): PaintedPicture {
+  if (scale === 1) return painted;
+  const { svg, widthPx, heightPx, frame } = painted;
+  const inner = svg.replace(/^\s*<\?xml[^>]*\?>\s*/, '');
+  return {
+    svg:
+      `<svg xmlns="${SVG_NS}" width="${num(widthPx * scale)}" height="${num(heightPx * scale)}" ` +
+      `viewBox="0 0 ${num(widthPx)} ${num(heightPx)}">${inner}</svg>`,
+    widthPx: widthPx * scale,
+    heightPx: heightPx * scale,
+    frame: { x: frame.x * scale, y: frame.y * scale, width: frame.width * scale, height: frame.height * scale },
+  };
 }
 
 /** A step's picture alone — no number, instruction or annotations — or `null`. */

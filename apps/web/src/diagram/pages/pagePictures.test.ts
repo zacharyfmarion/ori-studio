@@ -20,7 +20,7 @@ import { pictureExtent } from './diagramPageLayout';
 import { layoutDiagram } from './diagramPages';
 import { estimateTextSetter } from './estimateTextSetter';
 import { fontTextSetter } from './fontTextSetter';
-import { cellPicture, layoutPicture, prefixIds, type PictureText } from './pagePictures';
+import { cellPicture, layoutPicture, type PictureText } from './pagePictures';
 
 const style = DEFAULT_DIAGRAM_STYLE;
 /** How far a crease pattern's ink reaches past its lines, in mm: the margin the painter's own page leaves it. */
@@ -355,6 +355,35 @@ describe('cellPicture', () => {
       expect(new Set(widths).size).toBe(1);
     });
 
+    describe('a close-up (15f)', () => {
+      const zoom = {
+        id: 'z',
+        kind: 'close-up' as const,
+        from: [0.5, 0.5] as [number, number],
+        to: [1.25, 0.5] as [number, number],
+        radius: 0.1,
+        scale: 2,
+      };
+
+      it('paints the picture again inside it, twice as large, clipped to its ring, its ids its own', () => {
+        const picture = cellPicture({ ...bitmapStep(null), annotations: [zoom] }, assets, style, cell, 'c0-', TEXT)!;
+        const widths = [...picture.markup.matchAll(/<svg x="[\d.-]+" y="[\d.-]+" width="([\d.]+)"/g)].map(([, width]) => Number(width));
+        expect(widths).toHaveLength(2);
+        expect(widths[1]).toBeCloseTo(2 * widths[0]!, 2);
+        expect(picture.markup).toContain('<clipPath id="c0-annotation-close-up-0">');
+        expect(picture.markup).toContain('clip-path="url(#c0-annotation-close-up-0)"');
+        // What the cell draws, and a file is cropped to, reaches as far as the close-up's ring beside the picture.
+        expect(picture.boundsPt.width).toBeGreaterThan(1.4 * widths[0]!);
+      });
+
+      it('counts the letters a References step sets inside it, in the page’s font', () => {
+        const step = { ...referencesStep('step-sent'), annotations: [zoom] };
+        const picture = cellPicture(step, {}, style, { ...cell, mmPerUnit: 20 }, 'c1-', TEXT)!;
+        expect(picture.markup.match(/font-family="'Noto Sans', sans-serif"/g)).toHaveLength(2);
+        expect(picture.text).toEqual([{ face: 'latin-700', characters: 'AA' }]);
+      });
+    });
+
     it('measures a References step’s from its sheet, not its letters', () => {
       const step = { ...referencesStep('step-sent'), annotations: [{ id: 'a', kind: 'valley-line' as const, from: [0, 0] as [number, number], to: [1, 1] as [number, number] }] };
       const picture = cellPicture(step, {}, style, { ...cell, mmPerUnit: 20 }, 'c1-', TEXT)!;
@@ -415,17 +444,5 @@ describe('cellPicture', () => {
       );
       expect([...setter.missing]).toEqual(['✂']);
     });
-  });
-});
-
-describe('prefixIds', () => {
-  it('renames ids and every reference to them, in tags only', () => {
-    const markup =
-      '<g id="a"><use href="#a"/><use xlink:href="#b"/><rect fill="url(#g)" style="fill:url(\'#g\')"/>' +
-      '<text>id="a" url(#g)</text></g>';
-    expect(prefixIds(markup, 'c2-')).toBe(
-      '<g id="c2-a"><use href="#c2-a"/><use xlink:href="#c2-b"/><rect fill="url(#c2-g)" style="fill:url(\'#c2-g\')"/>' +
-        '<text>id="a" url(#g)</text></g>'
-    );
   });
 });

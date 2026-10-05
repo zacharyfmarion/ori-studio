@@ -3433,7 +3433,8 @@ Plan, for discussion: `implementation-plans/diagram-annotate.md`.
    under the path tools.
 5. Close-ups: a circled area drawn larger beside the picture, at larger mm.
 
-Plan, for discussion: `implementation-plans/diagram-annotate-second-pass.md`.
+Plan: `implementation-plans/diagram-annotate-second-pass.md` — decided and
+built as 15a–15f, each phase's as-built under its checklist there.
 
 ### Later (written up, not built)
 

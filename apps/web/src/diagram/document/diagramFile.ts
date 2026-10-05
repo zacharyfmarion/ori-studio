@@ -48,13 +48,16 @@ import {
   angleMarkArms,
   arrowShape,
   behindEnds,
+  CLOSE_UP_SCALE,
   DEFAULT_ROTATION,
   DEFAULT_WHITE_ARROW,
   LABEL_MAX_LENGTH,
   MAX_BEHIND_LAYERS,
   MAX_BEND,
+  MAX_CLOSE_UP_RADIUS,
   MAX_PATH_NODES,
   MAX_STEP_ANNOTATIONS,
+  MIN_CLOSE_UP_RADIUS,
   isPointKind,
 } from '../annotate/annotationModel';
 import {
@@ -301,6 +304,8 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     kinks,
     mirrored,
     behind,
+    radius,
+    scale,
     unknown: _known,
     ...unwritten
   } = annotation;
@@ -323,6 +328,8 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(ticks !== undefined ? { ticks } : {}),
     ...(kinks !== undefined ? { kinks } : {}),
     ...(mirrored ? { mirrored } : {}),
+    ...(radius !== undefined ? { radius } : {}),
+    ...(scale !== undefined ? { scale } : {}),
     // From end to end, as a reader expects it.
     ...(behind !== undefined
       ? { behind: { ...(behind.from !== undefined ? { from: behind.from } : {}), ...(behind.to !== undefined ? { to: behind.to } : {}) } }
@@ -856,6 +863,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'right-angle': fields(),
     callout: fields('text'),
     'angle-mark': fields('other', 'ticks'),
+    'close-up': fields('radius', 'scale'),
   };
 })();
 
@@ -980,6 +988,15 @@ function readAnnotation(
       if (kinks === null || mirrored === null) return null;
       return { ...annotation, ...(kinks !== undefined ? { kinks } : {}), ...(mirrored ? { mirrored: true } : {}) };
     }
+    case 'close-up': {
+      // Its area's radius, which it must have, and its scale; a value past the
+      // ranges this build draws is news, told before damage.
+      const radius = readCloseUpRadius(entry.radius);
+      const scale = readCloseUpScale(entry.scale);
+      if (radius === NEWER || scale === NEWER) return NEWER;
+      if (radius === null || scale === null) return null;
+      return { ...annotation, radius, ...(scale !== undefined ? { scale } : {}) };
+    }
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
     case 'push-arrow':
@@ -1073,6 +1090,23 @@ function readBehind(value: unknown, ends: readonly ('from' | 'to')[]): DiagramBe
     behind[end] = layers;
   }
   return behind.from !== undefined || behind.to !== undefined ? behind : undefined;
+}
+
+/**
+ * A close-up's area's radius (15f), which it must have: one smaller or
+ * larger than this build draws, a newer build's; anything that is not a
+ * size — unsaid too — damage.
+ */
+function readCloseUpRadius(value: unknown): number | typeof NEWER | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  return value < MIN_CLOSE_UP_RADIUS || value > MAX_CLOSE_UP_RADIUS ? NEWER : value;
+}
+
+/** A close-up's scale (15f): unsaid, twice; one past the range this build draws, a newer build's; anything else, damage. */
+function readCloseUpScale(value: unknown): number | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  return value < CLOSE_UP_SCALE.min || value > CLOSE_UP_SCALE.max ? NEWER : value;
 }
 
 /** A pleat arrow's Zs: unsaid, one; a whole count past five, a newer build's; anything else, damage. */

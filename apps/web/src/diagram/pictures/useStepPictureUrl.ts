@@ -13,7 +13,9 @@ import {
   paintAsset,
   paintScene,
   paintSource,
+  poseTransform,
   stepPictureSource,
+  type PictureBox,
   type PicturePose,
   type StepPictureSource,
 } from './paintDiagramStep';
@@ -54,7 +56,11 @@ export function useStepPictureUrl(
  * annotations' list, which an edit replaces rather than changes. A picture
  * shown for a moment — a drag's preview — is painted and not `kept`: every
  * frame of a drag is a new picture, and the cache would give up the cards'
- * for them. `layers`, the picture's, dot a mark behind a flap (15e).
+ * for them. `layers`, the picture's, dot a mark behind a flap (15e). A
+ * close-up's inside is the picture painted again larger (15f) — but not
+ * ghosted, as Pose shows the marks over a picture being posed: there a
+ * close-up is its rings, as its inside would show the picture before the
+ * pose.
  */
 export function annotatedStepUrl(
   source: StepPictureSource,
@@ -68,7 +74,8 @@ export function annotatedStepUrl(
   const key = `annotated|${sourceKey(source)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${opacity}|${layers ? 'layers' : ''}`;
   return throughCache(key, kept, () => {
     const painted = paintSource(source, style);
-    return painted ? svgDataUrl(annotatedPicture(painted, annotations, style, opacity, layers)) : null;
+    const paintAt = opacity < 1 ? null : (scale: number) => paintSource(source, style, undefined, scale);
+    return painted ? svgDataUrl(annotatedPicture(painted, annotations, style, opacity, layers, paintAt)) : null;
   });
 }
 
@@ -121,6 +128,49 @@ export function stepPictureUrl(source: StepPictureSource, style: DiagramStyle, k
       return cachedPictureUrl(key, paint) ?? paint();
     }
   }
+}
+
+/** A picture painted for a close-up's inside on the canvas (15f): its URL, its size and where its frame is on it. */
+export interface CloseUpPictureUrl {
+  url: string;
+  widthPx: number;
+  heightPx: number;
+  frame: PictureBox;
+}
+
+/** What a scene or a References step painted at a scale measures, by picture object and style and scale. */
+const closeUpSizes = new WeakMap<object, Map<string, Omit<CloseUpPictureUrl, 'url'>>>();
+
+/**
+ * A step's picture `scale` times the size every picture opens at, for a
+ * close-up's inside on the canvas (15f), through the cache: a scene or a
+ * References step painted afresh, its pens at their print weight; an upload
+ * or a fixed picture its own URL, drawn larger whole. Null for a scene that
+ * does not read.
+ */
+export function closeUpPictureUrl(source: StepPictureSource, style: DiagramStyle, scale: number): CloseUpPictureUrl | null {
+  if (source.kind === 'asset' || source.kind === 'fixed') {
+    // Its own picture, its frame the whole of it, at `scale` times its size.
+    const url = stepPictureUrl(source, style);
+    const { widthPx, heightPx } =
+      source.kind === 'asset' ? poseTransform(source.asset.widthPx, source.asset.heightPx, source.pose) : source.picture;
+    const [width, height] = [widthPx * scale, heightPx * scale];
+    return url ? { url, widthPx: width, heightPx: height, frame: { x: 0, y: 0, width, height } } : null;
+  }
+  const at = `${diagramStyleKey(style)}|${scale}`;
+  let sizes = closeUpSizes.get(source.picture);
+  if (!sizes) {
+    sizes = new Map();
+    closeUpSizes.set(source.picture, sizes);
+  }
+  const url = cachedPictureUrl(`close-up|${sourceKey(source)}|${at}`, () => {
+    const painted = paintSource(source, style, undefined, scale);
+    if (!painted) return null;
+    sizes.set(at, { widthPx: painted.widthPx, heightPx: painted.heightPx, frame: painted.frame });
+    return svgDataUrl(painted.svg);
+  });
+  const size = sizes.get(at);
+  return url && size ? { url, ...size } : null;
 }
 
 /**
