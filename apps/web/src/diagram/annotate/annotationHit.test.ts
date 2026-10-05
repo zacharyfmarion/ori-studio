@@ -133,6 +133,26 @@ describe('hitAnnotation', () => {
     expect(hitPathGrip(bent, [0.5, 0.276], 0.01, null)).toMatchObject({ part: 'segment', segment: 0 });
   });
 
+  it('gives a press inside a hollow arrow drawn over a circle to the arrow, which hides it there (review)', () => {
+    const circle: KnownDiagramAnnotation = { id: 'circle', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5] };
+    const white: KnownDiagramAnnotation = {
+      id: 'white',
+      kind: 'white-arrow',
+      from: [0.3, 0.5],
+      to: [0.75, 0.5],
+      path: [{ at: [0.3, 0.5] }, { at: [0.75, 0.5] }],
+      width: 'regular',
+      tail: 'square',
+    };
+    // On the hidden circle's ring, inside the arrow's white.
+    const ring: [number, number] = [0.5, 0.5 - circleRadius(SIZES.ink)];
+    expect(hitAnnotation([circle, white], ring, SIZES, null)?.annotationId).toBe('white');
+    // Drawn over the arrow, the circle is seen, and taken by its ring.
+    expect(hitAnnotation([white, circle], ring, SIZES, null)?.annotationId).toBe('circle');
+    // With nothing over it, as before.
+    expect(hitAnnotation([circle], ring, SIZES, null)?.annotationId).toBe('circle');
+  });
+
   describe('a callout', () => {
     // Its point lower left, its box up to the right: "Repeat behind" is about 0.39 wide and 0.085 tall.
     const callout: KnownDiagramAnnotation = { id: 'callout', kind: 'callout', from: [0.2, 0.7], to: [0.6, 0.3], text: 'Repeat behind' };

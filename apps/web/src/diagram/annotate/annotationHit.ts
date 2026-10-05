@@ -9,6 +9,7 @@
 import {
   isKnownAnnotation,
   type DiagramAnnotation,
+  type DiagramAnnotationKind,
   type DiagramPathNode,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
@@ -513,6 +514,9 @@ function bodyDistance(
  * whose body is within reach: a callout by its box, which moves alone, or
  * its line, which moves the whole. Null for empty paper.
  */
+/** The marks filled with the page inside their outline: they hide what was drawn under them. */
+const HOLLOW_KINDS: ReadonlySet<DiagramAnnotationKind> = new Set(['push-arrow', 'white-arrow']);
+
 export function hitAnnotation(
   annotations: readonly DiagramAnnotation[],
   point: PicturePoint,
@@ -540,7 +544,8 @@ export function hitAnnotation(
   const marks = known.filter((annotation) => annotation.kind === 'circle').map(({ from }) => from);
   // Topmost first, as they are drawn: labels over callouts over marks over
   // lines — and a circle over the other marks, its ring the one place to
-  // take it, where an arrow that lands on it has the rest of its length.
+  // take it, where an arrow that lands on it has the rest of its length;
+  // but not where a hollow arrow drawn after it hides it.
   const last = new Set(['circle', 'callout', 'label']);
   const drawn = [
     ...known.filter((annotation) => LINE_KINDS.has(annotation.kind)),
@@ -552,6 +557,15 @@ export function hitAnnotation(
   for (let index = drawn.length - 1; index >= 0; index -= 1) {
     const annotation = drawn[index]!;
     if (bodyDistance(annotation, point, sizes, marks) > sizes.tolerance) continue;
+    if (annotation.kind === 'circle') {
+      // A hollow arrow drawn after a circle is filled with the page over it:
+      // where it covers the press, the circle is hidden and the arrow is taken.
+      const over = known
+        .slice(known.indexOf(annotation) + 1)
+        .reverse()
+        .find((other) => HOLLOW_KINDS.has(other.kind) && bodyDistance(other, point, sizes, marks) === 0);
+      if (over) return { annotationId: over.id, part: 'body' };
+    }
     // A callout's box is taken on its own; its line takes the whole.
     const onBox = annotation.kind === 'callout' && calloutDistances(annotation, point).box <= sizes.tolerance;
     return { annotationId: annotation.id, part: onBox ? 'box' : 'body' };
