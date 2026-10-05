@@ -157,3 +157,55 @@ export function labelAdvance(codePoint: number): number | null {
   }
   return null;
 }
+
+/**
+ * What a digit, a space or a sign is set at among CJK words, where it joins
+ * their run and their font sets it: the widest of the four CJK fonts a label
+ * is set in (Noto Sans SC, TC, JP and KR), in thousandths of an em; -1 where
+ * none has it. A digit is narrower than Noto Sans's; × ± · are a whole em.
+ * Kept equal to the fonts, when they are built, by its test.
+ */
+export const CJK_RUN_ADVANCE_RUNS: readonly LabelAdvanceRun[] = [
+  // U+0020–U+00FF: Basic Latin and Latin-1.
+  {
+    from: 0x20,
+    advances: [
+      224, 323, 474, 555, 555, 921, 680, 278, 338, 338, 467, 555, 278, 347, 278, 392,
+      555, 555, 555, 555, 555, 555, 555, 555, 555, 555, 278, 278, 555, 555, 555, 474,
+      946, 608, 657, 638, 688, 589, 552, 689, 728, 293, 535, 646, 543, 812, 723, 742,
+      633, 742, 635, 596, 599, 721, 575, 878, 573, 531, 603, 338, 392, 338, 555, 559,
+      606, 563, 618, 510, 620, 554, 325, 564, 607, 275, 275, 552, 284, 926, 610, 606,
+      620, 620, 388, 468, 377, 607, 521, 802, 498, 521, 475, 338, 270, 338, 555, -1,
+      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+      224, 323, 555, 555, 555, 555, 270, 1000, 606, 832, 386, 479, 555, 347, 473, 606,
+      370, 1000, 411, 411, 606, 628, 1000, 1000, 606, 411, 407, 479, 873, 903, 889, 474,
+      608, 608, 608, 608, 608, 608, 918, 638, 589, 589, 589, 589, 293, 293, 293, 293,
+      712, 723, 742, 742, 742, 742, 742, 1000, 742, 721, 721, 721, 721, 531, 652, 643,
+      563, 563, 563, 563, 563, 563, 877, 510, 554, 554, 554, 554, 275, 275, 275, 275,
+      608, 610, 606, 606, 606, 606, 606, 1000, 606, 607, 607, 607, 607, 521, 620, 521,
+    ],
+  },
+  // U+2000–U+206F: General Punctuation.
+  {
+    from: 0x2000,
+    advances: [
+      -1, -1, 500, 1000, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+      1000, 347, 536, 536, 894, 1000, 1000, -1, 1000, 1000, 278, -1, 1000, 1000, 474, -1,
+      1000, 1000, 1000, -1, -1, 1000, 1000, 1000, -1, -1, -1, -1, -1, -1, -1, -1,
+      1000, -1, 278, 474, -1, 1000, -1, -1, -1, 302, 302, 1000, 613, -1, -1, -1,
+      -1, -1, 1000, -1, -1, -1, -1, 910, 758, 758, -1, -1, -1, -1, -1, -1,
+      -1, 1000, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    ],
+  },
+];
+
+/** The widest a CJK font sets `codePoint` at among CJK words, in thousandths of an em; null where none has it. */
+export function cjkRunAdvance(codePoint: number): number | null {
+  for (const run of CJK_RUN_ADVANCE_RUNS) {
+    const advance = run.advances[codePoint - run.from];
+    if (advance !== undefined) return advance >= 0 ? advance : null;
+  }
+  return null;
+}

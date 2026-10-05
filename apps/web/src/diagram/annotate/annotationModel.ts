@@ -12,8 +12,8 @@
 import { flattenPath, type Cubic } from '../../lib/cubicBezier';
 import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
-import { needsNoGlyph } from '../fonts/fontScripts';
-import { labelAdvance } from './labelAdvances';
+import { needsNoGlyph, scriptFonts, textCjkKey } from '../fonts/fontScripts';
+import { cjkRunAdvance, labelAdvance } from './labelAdvances';
 import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import {
@@ -485,26 +485,33 @@ export function labelHalfWidth(text: string): number {
 }
 
 /**
- * How wide a line of a label's or a callout's text is set, in ems: its
- * Latin as the font it is set in sets it (`labelAdvance`), a whole em for
- * a wide grapheme or one that font has no width for. The one measure a
- * label's reach and a callout's box are both taken from.
+ * How wide a line of a label's or a callout's text is set, in ems, each
+ * grapheme in the font its run is set in (`labelRuns`): Latin as Noto Sans
+ * sets it (`labelAdvance`); a digit, a space or a sign among CJK words as
+ * the widest CJK font sets it (`cjkRunAdvance`); a whole em for a wide
+ * grapheme or one its font has no width for. The one measure a label's reach
+ * and a callout's box are both taken from.
  */
 export function textEms(text: string): number {
+  const graphemes = graphemesOf(text);
+  // Any CJK key: only whether a grapheme is set in Noto Sans is asked.
+  const fonts = scriptFonts(graphemes, textCjkKey(text, 'sc'));
   let ems = 0;
-  for (const grapheme of graphemesOf(text)) ems += graphemeEms(grapheme);
+  graphemes.forEach((grapheme, index) => {
+    ems += graphemeEms(grapheme, fonts[index] === 'latin' ? characterEms : cjkCharacterEms);
+  });
   return ems;
 }
 
-/** A grapheme's advance in ems, its combining marks included, as `textEms` counts it. */
-function graphemeEms(grapheme: string): number {
+/** A grapheme's advance in ems, its combining marks included, as `textEms` counts it: each character as `measure` reads it. */
+function graphemeEms(grapheme: string, measure: (character: string) => number | null): number {
   if (WIDE.test(grapheme)) return 1;
   let ems = 0;
   let unknown = false;
   for (const character of grapheme) {
     // A joiner or a variation selector draws nothing.
     if (needsNoGlyph(character)) continue;
-    const each = characterEms(character);
+    const each = measure(character);
     if (each === null) unknown = true;
     else ems += each;
   }
@@ -512,6 +519,12 @@ function graphemeEms(grapheme: string): number {
   // glyph, however many code points spell it: an emoji's skin tone, a flag's
   // two letters, a family's members.
   return unknown ? Math.max(ems, 1) : ems;
+}
+
+/** One character's advance in ems among CJK words, as the widest CJK font sets it; null where none has it. */
+function cjkCharacterEms(character: string): number | null {
+  const advance = cjkRunAdvance(character.codePointAt(0)!);
+  return advance === null ? null : advance / 1000;
 }
 
 /**

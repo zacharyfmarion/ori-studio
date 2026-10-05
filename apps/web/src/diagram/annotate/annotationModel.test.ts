@@ -1,9 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { cubicPoint } from '../../lib/cubicBezier';
 import { readFontMetrics } from '../fonts/fontMetrics';
-import { LABEL_ADVANCE_RUNS, labelAdvance } from './labelAdvances';
+import { CJK_RUN_ADVANCE_RUNS, LABEL_ADVANCE_RUNS, labelAdvance } from './labelAdvances';
+import { scriptFonts, textCjkKey } from '../fonts/fontScripts';
+import { graphemesOf } from '../../lib/paper/textWrap';
 import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { arcToPath, bendPathSegment, pathNodesOf } from './annotationPath';
 import {
@@ -212,6 +214,43 @@ describe('a label’s width', () => {
     // All of its map: no block it sets is left out of the table (review: its punctuation and Vietnamese were).
     for (const codePoint of font.codePoints()) {
       if (codePoint >= 0x20) expect(labelAdvance(codePoint), codePoint.toString(16)).toBe(font.advance(codePoint));
+    }
+  });
+
+  it('counts a digit, a space or a sign among CJK words as their font sets it, × ± · a whole em (third review)', () => {
+    // 中心线: three ems; then a space, ±, 1, · and 2 in the CJK run: 0.224 + 1 + 0.555 + 1 + 0.555.
+    expect(textEms('中心线 ±1·2')).toBeCloseTo(3 + 0.224 + 1 + 0.555 + 1 + 0.555, 9);
+    // Among Latin words, as Noto Sans sets them.
+    expect(textEms('1·2')).toBeCloseTo((labelAdvance(0x31)! + labelAdvance(0xb7)! + labelAdvance(0x32)!) / 1000, 9);
+  });
+
+  // The CJK fonts are a build output: checked against them where they are built.
+  const built = resolve(__dirname, '../../../public/fonts/diagram');
+  const cjkFonts = existsSync(built) ? readdirSync(built).filter((name) => /^NotoSans(SC|TC|JP|KR)-Regular\.full\./.test(name)) : [];
+  it.runIf(cjkFonts.length === 4)('holds the widest the four CJK fonts set each, and a label as wide as any of them sets it', () => {
+    const fonts = cjkFonts.map((name) => readFontMetrics(readFileSync(resolve(built, name))));
+    for (const run of CJK_RUN_ADVANCE_RUNS) {
+      run.advances.forEach((advance, index) => {
+        const codePoint = run.from + index;
+        const widest = Math.max(-1, ...fonts.filter((font) => font.has(codePoint)).map((font) => Math.round((font.advance(codePoint) * 1000) / font.unitsPerEm)));
+        expect(advance, codePoint.toString(16)).toBe(widest);
+      });
+    }
+    for (const text of ['中心线 ±1·2', '格子 8×8·16×16', '折り·開く·折り', 'Fold 折り 50%']) {
+      const graphemes = graphemesOf(text);
+      const keys = scriptFonts(graphemes, textCjkKey(text, 'sc'));
+      for (const font of fonts) {
+        const set = graphemes.reduce((sum, grapheme, index) => {
+          const ems = [...grapheme].reduce((each, character) => {
+            const codePoint = character.codePointAt(0)!;
+            return each + (keys[index] === 'latin' ? labelAdvance(codePoint)! / 1000 : font.advance(codePoint) / font.unitsPerEm);
+          }, 0);
+          return sum + ems;
+        }, 0);
+        // Never narrower than any sets it; wider only by the widest's signs (· is 1 em in SC, 0.561 in JP).
+        expect(textEms(text), text).toBeGreaterThanOrEqual(set - 1e-9);
+        expect(textEms(text) - set, text).toBeLessThan(1);
+      }
     }
   });
 
