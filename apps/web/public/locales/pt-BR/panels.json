@@ -776,6 +776,7 @@
       "largerScreen": "Anote em uma tela maior: um tablet ou um computador.",
       "lineHelp": "Arraste ao longo do vinco.",
       "pushHelp": "Arraste em direção ao lugar a empurrar.",
+      "rightAngleHelp": "Clique dentro de um ângulo reto para marcá-lo, ou arraste de um canto para dentro do ângulo.",
       "select": "Selecionar",
       "selectHelp": "Clique em uma anotação para selecioná-la. Arraste-a, ou o ponto em qualquer uma das pontas, para movê-la. Clique duas vezes em uma seta de dobra para dar forma a ela.",
       "toolsLabel": "Ferramentas de anotação"

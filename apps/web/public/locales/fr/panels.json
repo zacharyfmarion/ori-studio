@@ -776,6 +776,7 @@
       "largerScreen": "Annotez sur un écran plus grand : une tablette ou un ordinateur.",
       "lineHelp": "Faites glisser le long du pli.",
       "pushHelp": "Faites glisser vers l’endroit à pousser.",
+      "rightAngleHelp": "Cliquez dans un angle droit pour le marquer, ou faites glisser depuis un coin vers l’intérieur de l’angle.",
       "select": "Sélectionner",
       "selectHelp": "Cliquez sur une annotation pour la sélectionner. Faites-la glisser, ou le point à l’une de ses extrémités, pour la déplacer. Double-cliquez sur une flèche de pli pour la façonner.",
       "toolsLabel": "Outils d’annotation"

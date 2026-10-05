@@ -776,6 +776,7 @@
       "largerScreen": "Anota en una pantalla más grande: una tableta o un ordenador.",
       "lineHelp": "Arrastra a lo largo del pliegue.",
       "pushHelp": "Arrastra hacia el lugar que hay que empujar.",
+      "rightAngleHelp": "Haz clic dentro de un ángulo recto para marcarlo, o arrastra desde una esquina hacia dentro del ángulo.",
       "select": "Seleccionar",
       "selectHelp": "Haz clic en una anotación para seleccionarla. Arrástrala, o el punto de cualquiera de sus extremos, para moverla. Haz doble clic en una flecha de plegado para darle forma.",
       "toolsLabel": "Herramientas de anotación"

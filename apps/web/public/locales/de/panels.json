@@ -747,6 +747,7 @@
       "largerScreen": "Annotiere auf einem größeren Bildschirm: einem Tablet oder Computer.",
       "lineHelp": "Ziehe entlang der Falte.",
       "pushHelp": "Ziehe zu der Stelle, die eingedrückt werden soll.",
+      "rightAngleHelp": "Klicke in einen rechten Winkel, um ihn zu markieren, oder ziehe von einer Ecke aus in den Winkel hinein.",
       "select": "Auswählen",
       "selectHelp": "Klicke auf eine Annotation, um sie auszuwählen. Ziehe sie oder den Punkt an einem ihrer Enden, um sie zu verschieben. Doppelklicke auf einen Faltpfeil, um ihn zu formen.",
       "toolsLabel": "Annotationswerkzeuge"

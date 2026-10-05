@@ -110,5 +110,13 @@ export function DiagramAnnotateToolGlyph({ tool }: { tool: AnnotateTool }): Reac
           <circle cx={10} cy={10} r={1.3} fill="currentColor" stroke="none" />
         </Glyph>
       );
+    case 'right-angle':
+      // Two lines meeting square, and the open square it draws in their corner.
+      return (
+        <Glyph>
+          <path d="M3.5 2.5 L3.5 16.5 L17.5 16.5" strokeWidth={1} />
+          <path d="M3.5 9.5 L10.5 9.5 L10.5 16.5" strokeLinecap="butt" strokeLinejoin="miter" />
+        </Glyph>
+      );
   }
 }

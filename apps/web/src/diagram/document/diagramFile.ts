@@ -809,6 +809,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'hidden-line': fields(),
     label: fields('text'),
     circle: fields(),
+    'right-angle': fields(),
   };
 })();
 
@@ -892,6 +893,9 @@ function readAnnotation(
       const axis = readAxis(entry.axis);
       return axis === null || axis === NEWER ? axis : { ...annotation, axis };
     }
+    case 'right-angle':
+      // `to` says which way it opens, from its corner, at any distance: at the corner it opens no way.
+      return from[0] === to[0] && from[1] === to[1] ? null : annotation;
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
     case 'push-arrow':

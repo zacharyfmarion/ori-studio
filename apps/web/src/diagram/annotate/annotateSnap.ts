@@ -38,8 +38,8 @@ export function snapRadiusUnits(setting: number, screenPerUnit: number): number 
 }
 
 /**
- * Whether a mark of `kind` snaps where it is put (decision 9): a circle, and
- * each end of an arrow or a line. A sign or a label is put beside what it
+ * Whether a mark of `kind` snaps where it is put (decision 9): a circle, a
+ * right angle's corner, and each end of an arrow or a line. A sign or a label is put beside what it
  * names, never on it; a fold arrow's inner nodes and handles are shaped by
  * eye. A switch, so a new kind has to say.
  */
@@ -53,6 +53,7 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'mountain-line':
     case 'hidden-line':
     case 'circle':
+    case 'right-angle':
       return true;
     case 'turn-over':
     case 'rotate':

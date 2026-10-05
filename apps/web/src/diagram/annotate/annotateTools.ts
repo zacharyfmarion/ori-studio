@@ -44,6 +44,7 @@ const TOOL_GROUP: Readonly<Record<DiagramAnnotationKind, Exclude<AnnotateToolGro
   'hidden-line': 'lines',
   label: 'text',
   circle: 'marks',
+  'right-angle': 'marks',
 };
 
 /** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Marks; Text — each kind's tool in its group, in kind order. */
@@ -68,6 +69,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DiagramAnnotationKind, Dia
   'hidden-line': 'diagram.toolHiddenLine',
   label: 'diagram.toolLabel',
   circle: 'diagram.toolCircle',
+  'right-angle': 'diagram.toolRightAngle',
 };
 
 /** Edit Path's key. */
@@ -112,6 +114,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolLabel', 'Label');
     case 'circle':
       return t('tools:diagram.toolCircle', 'Circle');
+    case 'right-angle':
+      return t('tools:diagram.toolRightAngle', 'Right Angle');
   }
 }
 
@@ -156,6 +160,11 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it here.');
     case 'circle':
       return t('panels:diagram.annotate.circleHelp', 'Click a point to circle it.');
+    case 'right-angle':
+      return t(
+        'panels:diagram.annotate.rightAngleHelp',
+        'Click inside a right angle to mark it, or drag from a corner into the angle.'
+      );
   }
 }
 

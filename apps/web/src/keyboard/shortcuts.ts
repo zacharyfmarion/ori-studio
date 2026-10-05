@@ -113,6 +113,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolHiddenLine'
   | 'diagram.toolLabel'
   | 'diagram.toolCircle'
+  | 'diagram.toolRightAngle'
   | 'diagram.flipArc';
 
 /** Nudging the node Edit Path has selected: live only while it has one (`diagram-path`). */
@@ -605,6 +606,8 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolLabel', 'Label', { key: 'l' }),
   // O for the ring it draws.
   diagramShortcut('diagram.toolCircle', 'Circle', { key: 'o' }),
+  // Q for the square it draws in a corner: R is Rotate's.
+  diagramShortcut('diagram.toolRightAngle', 'Right Angle', { key: 'q' }),
   diagramShortcut('diagram.flipArc', 'Flip Arc', { key: 'f' }),
   // Edit Path's nudges (decision 6), on the step keys' own arrows: in a scope
   // of their own ahead of `diagram`, whose executor claims them only while

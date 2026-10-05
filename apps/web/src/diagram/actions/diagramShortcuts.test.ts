@@ -165,6 +165,20 @@ describe('Annotate’s keys', () => {
     expect(others).toEqual([]);
   });
 
+  it('binds the right angle to Q, a letter no other Diagram key or the view’s has, and picks it in Annotate', () => {
+    const square = SHORTCUT_DEFINITIONS.find((shortcut) => shortcut.id === 'diagram.toolRightAngle');
+    expect(square).toMatchObject({ scope: 'diagram', defaultChord: { key: 'q' } });
+    const others = SHORTCUT_DEFINITIONS.filter(
+      (shortcut) =>
+        shortcut.id !== 'diagram.toolRightAngle' &&
+        ['diagram', 'diagram-path', 'viewport', 'global'].includes(shortcut.scope) &&
+        shortcut.defaultChords.some((chord) => chord.key === 'q' && !chord.primary && !chord.shift && !chord.alt)
+    );
+    expect(others).toEqual([]);
+    expect(press('diagram.toolRightAngle', annotate()).setTool).toHaveBeenCalledWith('right-angle');
+    expect(press('diagram.toolRightAngle', annotate('right-angle')).setTool).toHaveBeenCalledWith(null);
+  });
+
   it('flips only a selected fold arrow', () => {
     expect(press('diagram.flipArc', annotate(null, true))).toMatchObject({ claimed: true });
     expect(press('diagram.flipArc', annotate(null, false))).toMatchObject({ claimed: false });

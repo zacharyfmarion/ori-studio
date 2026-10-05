@@ -24,11 +24,12 @@ describe('the snap radius (decision 10)', () => {
 });
 
 describe('what snaps (decision 9)', () => {
-  it('is a circle and an arrow’s or a line’s ends, never a sign or a label', () => {
+  it('is a circle, a right angle’s corner and an arrow’s or a line’s ends, never a sign or a label', () => {
     const snapping = ANNOTATION_KINDS.filter(snapsWhenPlaced);
     expect([...snapping].sort()).toEqual(
       [
         'circle',
+        'right-angle',
         'fold-unfold-arrow',
         'hidden-line',
         'mountain-arrow',

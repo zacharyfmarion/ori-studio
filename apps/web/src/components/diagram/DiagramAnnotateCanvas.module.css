@@ -162,3 +162,26 @@
 .snapMark [data-dot] {
   fill: var(--annotate-selection);
 }
+
+/*
+ * The right angle a click would put down (decision 12): a ghost of the mark,
+ * in the selection's colour on a white halo, mitred as the mark is.
+ */
+.ghostHalo,
+.ghost {
+  fill: none;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.ghostHalo {
+  stroke: #ffffff;
+  stroke-width: 4px;
+}
+
+.ghost {
+  stroke: var(--annotate-selection);
+  stroke-width: 1.5px;
+}

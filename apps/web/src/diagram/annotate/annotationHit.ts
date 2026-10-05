@@ -17,6 +17,7 @@ import {
   DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_MARK_INK,
   DIAGRAM_PUSH_INK,
+  DIAGRAM_RIGHT_ANGLE_INK,
 } from '../../cp-workspace/references/diagram/diagramInk';
 import {
   arcPolyline,
@@ -28,13 +29,16 @@ import {
   pathArrowGeometry,
   pushArrowOutline,
   returnStroke,
+  rightAngleSquare,
 } from '../../cp-workspace/references/stepDiagramGeometry';
 import { flattenPath } from '../../lib/cubicBezier';
 import {
   LINE_KINDS,
   arrowApex,
   arrowShape,
+  isCornerKind,
   isPointKind,
+  rightAngleDiagonal,
   labelHalfWidth,
   pathCubics,
   pathLength,
@@ -48,8 +52,8 @@ import { perAnnotation } from './perAnnotation';
  * Edit Path a node of an arrow's path, one of a node's two handles, or the
  * segment between two nodes (and where along it, `t` in [0, 1],
  * {@link hitPathGrip}); and, as the right-angle mark comes to offer them, a
- * mark's corner or the direction it opens in. Nothing offers the last two
- * yet.
+ * mark's corner or the direction it opens in, which the selected right
+ * angle offers in place of ends ({@link rightAngleGrips}).
  */
 export type AnnotationGripPart =
   | { part: 'body' }
@@ -353,6 +357,50 @@ export function circleRadius(ink: number): number {
 }
 
 /**
+ * A right-angle mark's open square in picture units, at the ink a press is
+ * measured in, as it is drawn (`rightAngleDrawn`): the end of one leg, the
+ * square's far corner, the end of the other.
+ */
+export function rightAngleLegs(
+  annotation: Pick<KnownDiagramAnnotation, 'from' | 'to'>,
+  ink: number
+): [PicturePoint, PicturePoint, PicturePoint] {
+  const [dx, dy] = rightAngleDiagonal(annotation);
+  const [a, b, c] = rightAngleSquare(
+    { x: annotation.from[0], y: annotation.from[1] },
+    { x: dx, y: dy },
+    DIAGRAM_RIGHT_ANGLE_INK.side * ink
+  );
+  return [
+    [a.x, a.y],
+    [b.x, b.y],
+    [c.x, c.y],
+  ];
+}
+
+/**
+ * Where the selected right angle is taken hold of: its corner, which moves it
+ * whole, and the square's far corner, which turns the way it opens.
+ */
+export function rightAngleGrips(
+  annotation: Pick<KnownDiagramAnnotation, 'from' | 'to'>,
+  ink: number
+): { corner: PicturePoint; direction: PicturePoint } {
+  return { corner: annotation.from, direction: rightAngleLegs(annotation, ink)[1] };
+}
+
+/**
+ * How far a press is from a right-angle mark: 0 in its square — the corner
+ * it sits in included, which is its whole place — else the distance to its
+ * legs.
+ */
+function rightAngleDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, ink: number): number {
+  const legs = rightAngleLegs(annotation, ink);
+  if (insidePolygon(point, [annotation.from, ...legs])) return 0;
+  return distanceToPolyline(point, legs);
+}
+
+/**
  * How far a press is from an annotation's body, as it is drawn; 0 inside a
  * glyph, a label or a push. A circle is its ring, not its inside: an arrow
  * that lands on it ends at its centre, and a press there is the arrow's. Every kind is measured as it is drawn (a switch,
@@ -387,6 +435,8 @@ function bodyDistance(
       return distanceToSegment(point, annotation.from, annotation.to);
     case 'circle':
       return Math.abs(Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - circleRadius(sizes.ink));
+    case 'right-angle':
+      return rightAngleDistance(annotation, point, sizes.ink);
   }
 }
 
@@ -403,7 +453,15 @@ export function hitAnnotation(
 ): AnnotationGrip | null {
   const known = annotations.filter(isKnownAnnotation);
   const selected = known.find((annotation) => annotation.id === selectedId);
-  if (selected && !isPointKind(selected.kind)) {
+  if (selected && isCornerKind(selected.kind)) {
+    // A right angle's corner, and the way it opens: no ends.
+    const grips = rightAngleGrips(selected, sizes.ink);
+    const near = (['direction', 'corner'] as const)
+      .map((part) => ({ part, distance: Math.hypot(point[0] - grips[part][0], point[1] - grips[part][1]) }))
+      .filter(({ distance }) => distance <= sizes.tolerance)
+      .sort((a, b) => a.distance - b.distance);
+    if (near[0]) return { annotationId: selected.id, part: near[0].part };
+  } else if (selected && !isPointKind(selected.kind)) {
     const ends = (['to', 'from'] as const)
       .map((part) => ({ part, distance: Math.hypot(point[0] - selected[part][0], point[1] - selected[part][1]) }))
       .filter(({ distance }) => distance <= sizes.tolerance)

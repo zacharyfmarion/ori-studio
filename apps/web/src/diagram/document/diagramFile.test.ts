@@ -383,6 +383,46 @@ describe('annotations in the file', () => {
     const newer = { id: 'n-8', kind: 'rotate', from: [0, 0], to: [0, 0], rotate: { degrees: 30, direction: 'cw' } };
     expect(withAnnotations([newer])).toEqual([{ id: 'n-8', unknown: newer }]);
   });
+
+  describe('a right angle', () => {
+    const mark = (more: Record<string, unknown> = {}) => ({
+      id: 'r-1',
+      kind: 'right-angle',
+      from: [0.5, 0.5],
+      to: [0.5 + 0.02 * Math.SQRT1_2, 0.5 - 0.02 * Math.SQRT1_2],
+      ...more,
+    });
+
+    it('round-trips its corner and the way it opens, at whatever distance `to` was written', () => {
+      // Only its direction is read: a `to` further along reads as written, and is written back so.
+      const far = mark({ id: 'r-2', to: [0.9, 0.1] });
+      const read = withAnnotations([mark(), far]);
+      expect(read).toEqual([mark(), far]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual([mark(), far]);
+    });
+
+    it('carries what a newer build might write: a field it has no name for, or a point past reach', () => {
+      const newer = [mark({ id: 'r-3', size: 'large' }), mark({ id: 'r-4', from: [4.5, 0.5], to: [4.6, 0.4] })];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    });
+
+    it('drops one that opens no way, or has no corner', () => {
+      expect(withAnnotations([mark({ to: [0.5, 0.5] }), mark({ id: 'r-5', from: undefined })])).toEqual([]);
+    });
+
+    it('is kept, verbatim and undrawn, by a build that knows no right angle: as any kind it has no name for', () => {
+      // What a build before right angles does with one: its reader names no
+      // such kind, so it is a newer build's (`spiral-arrow` here stands for it).
+      const older = mark({ kind: 'spiral-arrow' });
+      expect(withAnnotations([older])).toEqual([{ id: 'r-1', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      const again = throughJson(writeDiagram(readDiagram(written)!.document));
+      expect(again.steps[0].annotations).toEqual([older]);
+    });
+  });
 });
 
 describe('uploaded pictures in the file', () => {

@@ -25,6 +25,10 @@ import {
   moveAnnotation,
   moveAnnotationEnd,
   pathCubics,
+  RIGHT_ANGLE_DIAGONAL,
+  rightAngleAt,
+  rightAngleDiagonal,
+  turnRightAngle,
   type PictureMove,
 } from './annotationModel';
 
@@ -354,5 +358,100 @@ describe('a circle', () => {
       from: [ANNOTATION_REACH, 0.3],
       to: [ANNOTATION_REACH, 0.3],
     });
+  });
+});
+
+describe('a right angle', () => {
+  const R = Math.SQRT1_2;
+  const opens = (annotation: KnownDiagramAnnotation) => rightAngleDiagonal(annotation).map((v) => Math.round(v * 1e9) / 1e9 + 0);
+  const length = ({ from, to }: KnownDiagramAnnotation) => Math.hypot(to[0] - from[0], to[1] - from[1]);
+
+  it('is put down in a corner, `to` a short way along the way it opens: only its direction', () => {
+    const drawn = createAnnotation('right-angle', [0.2, 0.3], [0.5, 0.6], SQUARE, id);
+    expect(drawn).toMatchObject({ id: 'annotation-1', kind: 'right-angle', from: [0.2, 0.3] });
+    expect(length(drawn)).toBeCloseTo(RIGHT_ANGLE_DIAGONAL, 12);
+    expect(opens(drawn)).toEqual([Math.round(R * 1e9) / 1e9, Math.round(R * 1e9) / 1e9]);
+    // A click, which says no way: up and to the right, as an ∟'s square sits.
+    expect(opens(createAnnotation('right-angle', [0.2, 0.3], [0.2, 0.3], SQUARE, id))).toEqual(
+      [R, -R].map((v) => Math.round(v * 1e9) / 1e9 + 0)
+    );
+    // Its corner is where it was put, to the bit: a snapped corner stays on its point.
+    expect(createAnnotation('right-angle', [0.1 + 0.2, 0.7], [1, 1], SQUARE, id).from).toEqual([0.1 + 0.2, 0.7]);
+    expect(isDegenerate(drawn, 0.5)).toBe(false);
+  });
+
+  it('keeps `to` within reach by drawing the corner in, never by turning it', () => {
+    const edge = rightAngleAt([ANNOTATION_REACH, 0.5], [1, 1]);
+    expect(edge.to[0]).toBe(ANNOTATION_REACH);
+    expect(edge.from[0]).toBeCloseTo(ANNOTATION_REACH - RIGHT_ANGLE_DIAGONAL * R, 12);
+    // Drawn in across only: it stays level with where it was put.
+    expect(edge.from[1]).toBeCloseTo(0.5, 12);
+    expect(edge.to[1]).toBeCloseTo(0.5 + RIGHT_ANGLE_DIAGONAL * R, 12);
+    const past = createAnnotation('right-angle', [9, -9], [10, -10], SQUARE, id);
+    expect(Math.abs(past.to[0]) <= ANNOTATION_REACH && Math.abs(past.to[1]) <= ANNOTATION_REACH).toBe(true);
+    expect(opens(past)).toEqual(opens({ ...past, from: [0, 0], to: [1, -1] }));
+  });
+
+  it('is written with its `to` a set way along, the same object when it already is', () => {
+    const written = createAnnotation('right-angle', [0.2, 0.3], [0.5, 0.3], SQUARE, id);
+    expect(cleanAnnotation(written)).toBe(written);
+    // One a file or a newer build wrote further along: the same way, the length this build writes.
+    const far: KnownDiagramAnnotation = { id: 'r', kind: 'right-angle', from: [0.2, 0.3], to: [0.2, 0.9] };
+    const clean = cleanAnnotation(far);
+    expect(clean.from).toEqual([0.2, 0.3]);
+    expect(length(clean)).toBeCloseTo(RIGHT_ANGLE_DIAGONAL, 12);
+    expect(opens(clean)).toEqual([0, 1]);
+    // Past reach: the corner brought in, the way it opens kept.
+    const stray: KnownDiagramAnnotation = { id: 'r', kind: 'right-angle', from: [5, 0.3], to: [6, 0.3] };
+    expect(cleanAnnotation(stray).to).toEqual([ANNOTATION_REACH, 0.3]);
+    expect(opens(cleanAnnotation(stray))).toEqual([1, 0]);
+  });
+
+  it('moves whole by its body or its corner, and turns toward a point by its other end', () => {
+    const mark = createAnnotation('right-angle', [0.2, 0.3], [0.5, 0.6], SQUARE, id);
+    const moved = moveAnnotation(mark, [0.1, -0.1]);
+    expect(moved.from[0]).toBeCloseTo(0.3, 12);
+    expect(opens(moved)).toEqual(opens(mark));
+    const cornered = moveAnnotationEnd(mark, 'from', [0.6, 0.6]);
+    expect(cornered.from).toEqual([0.6, 0.6]);
+    expect(opens(cornered)).toEqual(opens(mark));
+    const turned = moveAnnotationEnd(mark, 'to', [0.2, 0.9]);
+    expect(turned.from).toEqual([0.2, 0.3]);
+    expect(opens(turned)).toEqual([0, 1]);
+  });
+
+  it('turns a quarter clockwise about its corner, four turns round to where it was', () => {
+    const mark = createAnnotation('right-angle', [0.2, 0.3], [0.5, 0.0], SQUARE, id);
+    expect(opens(mark)).toEqual([R, -R].map((v) => Math.round(v * 1e9) / 1e9 + 0));
+    // Clockwise on the page, y down: up-right, then down-right, down-left, up-left.
+    const once = turnRightAngle(mark);
+    expect(once.from).toEqual(mark.from);
+    expect(opens(once)).toEqual([R, R].map((v) => Math.round(v * 1e9) / 1e9));
+    expect(opens(turnRightAngle(once))).toEqual([-R, R].map((v) => Math.round(v * 1e9) / 1e9));
+    const round = turnRightAngle(turnRightAngle(turnRightAngle(once)));
+    expect(round.to[0]).toBeCloseTo(mark.to[0], 12);
+    expect(round.to[1]).toBeCloseTo(mark.to[1], 12);
+    // Nothing else turns.
+    const circle = createAnnotation('circle', [0.2, 0.3], [0.2, 0.3], SQUARE, id);
+    expect(turnRightAngle(circle)).toBe(circle);
+    expect(flipAnnotationArc(mark)).toBe(mark);
+  });
+
+  it('is carried with its picture: its corner where the point goes, opening the way its diagonal went', () => {
+    const mark = createAnnotation('right-angle', [0.2, 0.3], [0.5, 0.0], SQUARE, id);
+    // A mirror turns it over: up-right becomes up-left.
+    const mirrored = carryAnnotation(mark, mirrorMove(SQUARE));
+    expect(mirrored.from[0]).toBeCloseTo(0.8, 12);
+    expect(mirrored.from[1]).toBeCloseTo(0.3, 12);
+    expect(opens(mirrored)).toEqual([-R, -R].map((v) => Math.round(v * 1e9) / 1e9));
+    // A quarter turn clockwise about the middle turns the way it opens with it.
+    const quarter: PictureMove = { point: ([x, y]) => [1 - y, x], mirrors: false, turnDeg: 90 };
+    const turned = carryAnnotation(mark, quarter);
+    expect(turned.from[0]).toBeCloseTo(0.7, 12);
+    expect(turned.from[1]).toBeCloseTo(0.2, 12);
+    expect(opens(turned)).toEqual([R, R].map((v) => Math.round(v * 1e9) / 1e9));
+    // Scaled up, as a picture refitted larger is: `to` written its set way along again.
+    const larger: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
+    expect(length(carryAnnotation(mark, larger))).toBeCloseTo(RIGHT_ANGLE_DIAGONAL, 12);
   });
 });

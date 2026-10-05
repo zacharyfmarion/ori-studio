@@ -8,7 +8,7 @@ describe('the rail', () => {
       { id: 'select', tools: [null, 'edit-path'] },
       { id: 'arrows', tools: ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'turn-over', 'rotate'] },
       { id: 'lines', tools: ['valley-line', 'mountain-line', 'hidden-line'] },
-      { id: 'marks', tools: ['circle'] },
+      { id: 'marks', tools: ['circle', 'right-angle'] },
       { id: 'text', tools: ['label'] },
     ]);
     const tools = ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((tool) => tool !== null && tool !== 'edit-path');

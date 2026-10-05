@@ -103,6 +103,15 @@ describe('pictureSnapTarget on annotations', () => {
     expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [circle], ignore: circle.id })).toBeNull();
   });
 
+  it('snaps to the corner a right angle marks, not to the way it opens', () => {
+    const square = annotation({ kind: 'right-angle', from: [0.45, 0.35], to: [0.47, 0.35] });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [square] })).toEqual({
+      at: [0.45, 0.35],
+      kind: 'annotation',
+    });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.47, 0.35], 0.01, { annotations: [square] })).toBeNull();
+  });
+
   it('never snaps to the annotation being drawn or dragged', () => {
     const line = annotation({ kind: 'mountain-line', from: [0.3, 0.6], to: [0.7, 0.6] });
     expect(pictureSnapTarget(step, NO_ASSETS, [0.7, 0.61], 0.05, { annotations: [line], ignore: line.id })).toBeNull();
