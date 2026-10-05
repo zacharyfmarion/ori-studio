@@ -1564,6 +1564,26 @@ describe('pulling the paper', () => {
     session.setFoldPercent(50);
     expect(session.movePull(pointOn(far), drawn)).toBe(false);
     expect(session.endPull('keep')).toEqual({ movedCreases: 0 });
+    // A pull still in the hand was never a pose, so nothing says one ended.
+    expect(await frame(session.tick({}))).toMatchObject({ posed: false, poseEnded: null });
+    session.dispose();
+  });
+
+  it('is posed once a pull is let go and kept, not while it is in the hand', async () => {
+    const { session, drawn, pointOn, near, far } = await sheet();
+    await session.setPinnedFaces([near]);
+    session.beginPull(pointOn(far), drawn);
+    expect((await frame(session.tick({}))).posed).toBe(false);
+    session.endPull('cancel');
+    expect((await frame(session.tick({}))).posed).toBe(false);
+
+    session.beginPull(pointOn(far), drawn);
+    session.endPull('keep');
+    expect((await frame(session.tick({}))).posed).toBe(true);
+    // A second pull abandoned puts back what it moved, and the first pose stays.
+    session.beginPull(pointOn(far), drawn);
+    session.endPull('cancel');
+    expect((await frame(session.tick({}))).posed).toBe(true);
     session.dispose();
   });
 

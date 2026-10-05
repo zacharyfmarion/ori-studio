@@ -290,6 +290,12 @@ interface Session {
   faceGroups: Int32Array;
   /** The nodes the pins hold; null when nothing is pinned. What a pull pulls against. */
   pinnedNodes: Uint8Array | null;
+  /**
+   * A pull has been let go and kept: the paper holds a pose. Not the backend's
+   * `posed`, which is true from the press on, so a first pull still in the hand
+   * is not yet a pose anyone can spring back from.
+   */
+  poseKept: boolean;
   /** What ended a pose since the last frame; reported once, then cleared. */
   poseEnded: SimulatorPoseEnd | null;
   /**
@@ -1215,6 +1221,7 @@ const api = {
       lastUsed: ++useCounter,
       gpuRender: gpuSolver && renderCanvas ? gpuSolver : null,
       pinnedNodes: null,
+      poseKept: false,
       poseEnded: null,
 
     };
@@ -1404,7 +1411,9 @@ const api = {
   endPull(outcome: PullOutcome, token?: SimulatorSessionToken): SimulatorPullEndResult | null {
     const active = sessionFor(token);
     if (!active) return null;
+    const pulling = active.backend.pulling;
     const { movedCreases } = active.backend.endPull(outcome);
+    if (pulling && outcome === 'keep') active.poseKept = true;
     holdFraming(active, false);
     active.clock.invalidate();
     return { movedCreases };
@@ -1819,7 +1828,7 @@ async function readFrame(
     foldPercent: active.foldPercent,
     maxStrain: active.backend.readDiagnostics().maxNodalStrain ?? 0,
     recovered: tick.recovered,
-    posed: active.backend.posed,
+    posed: active.poseKept,
     poseEnded: takePoseEnded(active),
   };
 
@@ -2234,14 +2243,16 @@ function followFit(solver: WebglSolver, state: SessionView, settled: boolean): b
 }
 
 /**
- * End a pose and any pull in progress, and remember why for the next frame to
- * say. Nothing to do, and nothing said, when there was no pose.
+ * End a pose and any pull in progress. Why is remembered for the next frame to
+ * say only when there was a kept pose to end: a pull still in the hand that the
+ * fold takes back was never one.
  */
 function endPose(active: Session, why: SimulatorPoseEnd): void {
   if (!active.backend.posed && !active.backend.pulling) return;
   active.backend.releasePose();
   holdFraming(active, false);
-  active.poseEnded = why;
+  if (active.poseKept) active.poseEnded = why;
+  active.poseKept = false;
   active.clock.invalidate();
 }
 
