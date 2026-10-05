@@ -180,21 +180,23 @@ function pictureMove(
 /**
  * A flat fold's layers spread otherwise, and perhaps turned, or turned under a
  * depth spread, which stays on the screen as the picture turns: a point moves
- * with the face it was drawn on — the nearest whole face under it — to where
- * that face went, by mean value coordinates over its outline, which take its
- * corners exactly where the spread took them and everything between as the
- * spread's own field does (`foldedLayerSpread.ts`). The nearest layer is not
- * still where it meets deeper ones at a crease, nor is a deeper layer, so the
- * turn alone would leave a mark there off its paper. A point on no face, or on
- * one the other picture does not draw whole (a layer a picture with no spread
- * leaves out), moves by `turn`.
+ * with the face it was drawn on — the nearest face under it, whole or a woven
+ * patch of it — to where that face went, by mean value coordinates over its
+ * whole outline, which take its corners exactly where the spread took them
+ * and everything between as the spread's own field does
+ * (`foldedLayerSpread.ts`). The nearest layer is not still where it meets
+ * deeper ones at a crease, nor is a deeper layer, so the turn alone would
+ * leave a mark there off its paper. A point on no face, or on one the other
+ * picture does not draw (a layer a picture with no spread leaves out), moves
+ * by `turn`.
  */
 function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): PictureMove {
-  const drawn = before.items.filter(isWholeFace).filter((item) => !item.hidden);
-  const target = new Map<number, ScenePoint[]>();
-  for (const item of after.items) {
-    if (isWholeFace(item) && !target.has(item.face)) target.set(item.face, item.rings[0]!);
-  }
+  const [source, target] = [wholeFaces(before), wholeFaces(after)];
+  // Whole faces and woven patches, each as it is drawn: a patch is pressed on
+  // its own piece, and moves with its face.
+  const drawn = before.items.filter(
+    (item): item is PaperFaceItem => item.kind === 'face' && item.rings.length === 1 && !item.hidden && source.has(item.face)
+  );
   const [from, to] = [before.bounds, after.bounds];
   const longerFrom = Math.max(from.maxX - from.minX, from.maxY - from.minY);
   const longerTo = Math.max(to.maxX - to.minX, to.maxY - to.minY);
@@ -214,9 +216,10 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
       const at = { x: from.minX + u * longerFrom, y: from.minY + v * longerFrom };
       // Back to front, so the last face found is the one the mark sits on.
       for (let i = drawn.length - 1; i >= 0; i -= 1) {
-        const ring = drawn[i]!.rings[0]!;
+        const piece = drawn[i]!.rings[0]!;
         // On its outline counts: a mark snapped to a face's corner is that face's.
-        if (!insideRing(ring, at) && !onRing(ring, at, epsilon)) continue;
+        if (!insideRing(piece, at) && !onRing(piece, at, epsilon)) continue;
+        const ring = source.get(drawn[i]!.face)!;
         const goal = target.get(drawn[i]!.face);
         const weights = goal?.length === ring.length ? meanValueWeights(ring.map(([x, y]) => ({ x, y })), at, epsilon) : null;
         if (!goal || !weights) break;
@@ -232,9 +235,21 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
   };
 }
 
-/** A face drawn whole, as one ring — not a woven patch's piece of one. */
-function isWholeFace(item: PaperScene['items'][number]): item is PaperFaceItem {
-  return item.kind === 'face' && item.group === undefined && item.rings.length === 1;
+/**
+ * Each face's whole outline, by its number: the first item drawn for it,
+ * when that is one ring. A flat fold draws every face whole once before any
+ * woven patch of it — a piece of the face drawn again over what it lies on
+ * there — and a stored scene keeps that order but not the patch's group.
+ */
+function wholeFaces(scene: PaperScene): Map<number, ScenePoint[]> {
+  const rings = new Map<number, ScenePoint[]>();
+  const seen = new Set<number>();
+  for (const item of scene.items) {
+    if (item.kind !== 'face' || seen.has(item.face)) continue;
+    seen.add(item.face);
+    if (item.rings.length === 1) rings.set(item.face, item.rings[0]!);
+  }
+  return rings;
 }
 
 /**
