@@ -176,8 +176,12 @@ describe('a label’s width', () => {
     expect(labelHalfWidth('Ж')).toBeCloseTo(LABEL_SIZE * ((labelAdvance(0x416)! / 1000) / 2 + 0.2), 12);
     expect(labelHalfWidth('Ж')).toBeLessThan(labelHalfWidth('Ա'));
     expect(labelHalfWidth('Ա')).toBeCloseTo(LABEL_SIZE * (1 / 2 + 0.2), 12);
-    // A joiner and a variation selector draw nothing: a family of three is three emoji wide, not five.
-    expect(labelHalfWidth('🧑\u200d🤝\u200d🧑')).toBeCloseTo(LABEL_SIZE * (3 / 2 + 0.2), 12);
+    // An emoji the font has no glyph for is drawn by the browser's fallback as one glyph, an em, however many
+    // code points spell it: a family joined by joiners, a skin tone, a flag's two letters (review).
+    for (const one of ['🧑\u200d🤝\u200d🧑', '👍🏽', '🇯🇵', '❤️']) {
+      expect(labelHalfWidth(one), one).toBeCloseTo(LABEL_SIZE * (1 / 2 + 0.2), 12);
+    }
+    expect(labelHalfWidth('👍🏽👍🏽')).toBeCloseTo(LABEL_SIZE * (2 / 2 + 0.2), 12);
     expect(labelHalfWidth('')).toBeGreaterThan(0);
   });
 

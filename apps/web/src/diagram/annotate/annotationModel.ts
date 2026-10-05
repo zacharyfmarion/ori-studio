@@ -500,12 +500,18 @@ export function textEms(text: string): number {
 function graphemeEms(grapheme: string): number {
   if (WIDE.test(grapheme)) return 1;
   let ems = 0;
+  let unknown = false;
   for (const character of grapheme) {
     // A joiner or a variation selector draws nothing.
     if (needsNoGlyph(character)) continue;
-    ems += characterEms(character) ?? 1;
+    const each = characterEms(character);
+    if (each === null) unknown = true;
+    else ems += each;
   }
-  return ems;
+  // One the font has no glyph for is drawn by the browser's fallback as one
+  // glyph, however many code points spell it: an emoji's skin tone, a flag's
+  // two letters, a family's members.
+  return unknown ? Math.max(ems, 1) : ems;
 }
 
 /**
