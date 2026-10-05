@@ -709,17 +709,20 @@ function diagramPrimitiveShape(
       if (!outline) return null;
       const d = polygonPathData(outline);
       const stroke = strokeAttributes('arrow', project.ink, 1, project.pens);
-      // A push arrow's look along a path: hollow, the paper's face inside, the
-      // outline in the arrow's pen, solid — mitred to the white arrow's own
-      // limit, which its outline's corners were shaped to.
+      // A push arrow's look along a path: hollow, the paper's face inside —
+      // or solid (15d), the arrow's ink, as a filled head is — the outline in
+      // the arrow's pen, solid, mitred to the white arrow's own limit, which
+      // its outline's corners were shaped to.
       return onAndOffPaper(context, index, (inks) => (
         <g key={index} {...inked(inks, 'step-diagram__arrow', () => ({}))}>
           <path
             d={d}
             stroke="none"
-            {...inked(inks, back ? 'step-diagram__sheet step-diagram__sheet--back' : 'step-diagram__sheet', (sheet) => ({
-              fill: back ? sheet.sheet.back : sheet.sheet.front,
-            }))}
+            {...(primitive.fill === 'black'
+              ? inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))
+              : inked(inks, back ? 'step-diagram__sheet step-diagram__sheet--back' : 'step-diagram__sheet', (sheet) => ({
+                  fill: back ? sheet.sheet.back : sheet.sheet.front,
+                })))}
           />
           <path
             d={d}

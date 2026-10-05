@@ -30,7 +30,7 @@ import { paintSource, stepPictureSource, type PictureBox } from '../pictures/pai
 import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { stepPictureUrl } from '../pictures/useStepPictureUrl';
 import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useDiagramShortcuts';
-import { EDIT_PATH, drawingKind, isPickTool } from './annotateTools';
+import { EDIT_PATH, drawingKind, drawingLook, isPickTool } from './annotateTools';
 import { placePoint, snapOutcome, snapsEnd, snapsWhenPlaced, type PlacedPoint } from './annotateSnap';
 import { annotationActionEdit, editAnnotation } from './annotationActions';
 import {
@@ -60,8 +60,11 @@ import {
   placedByClick,
   rightAngleAt,
   rightAngleDiagonal,
+  isSolidArrow,
+  withWhiteArrowLook,
   type PictureFrame,
   type PicturePoint,
+  type WhiteArrowLook,
 } from './annotationModel';
 import { cancelLabelFocus, pendingLabelFocus, requestLabelFocus } from './labelFocus';
 import { isViewportInteractiveTarget } from '../../components/panels/ViewportToolbar';
@@ -150,6 +153,8 @@ type Gesture =
   | (Press & {
       mode: 'draw';
       kind: DiagramAnnotationKind;
+      /** The look the tool lays it in, over its kind's own: the Solid Arrow's (15d). */
+      look: WhiteArrowLook;
       start: PicturePoint;
       startTarget: SnapTarget | null;
       free: boolean;
@@ -593,7 +598,16 @@ export function useAnnotateCanvas({
         const start = isCornerKind(kind)
           ? placeRightAngle(snapContext(), at, { free })
           : { ...(snapsEnd(kind, 'from') ? placePoint(snapContext(), at, { free }) : { at, target: null }), opens: null };
-        gesture.current = { mode: 'draw', kind, start: start.at, startTarget: start.target, free, opens: start.opens, ...press };
+        gesture.current = {
+          mode: 'draw',
+          kind,
+          look: drawingLook(tool),
+          start: start.at,
+          startTarget: start.target,
+          free,
+          opens: start.opens,
+          ...press,
+        };
         // Where the press landed, at once: a finger sees it before its slop — and a right angle, the mark a click puts down.
         showSnap([start.target]);
         showRightAngle(isCornerKind(kind) && layout ? clickPreview(start, layout.pictureFrame, free) : null);
@@ -745,7 +759,12 @@ export function useAnnotateCanvas({
       if (current.mode === 'draw') {
         const point = isPointKind(current.kind);
         const start = point ? placed.at : current.start;
-        setDraft(createAnnotation(current.kind, start, placed.at, layout.pictureFrame, () => DRAFT_ID, calloutText));
+        setDraft(
+          withWhiteArrowLook(
+            createAnnotation(current.kind, start, placed.at, layout.pictureFrame, () => DRAFT_ID, calloutText),
+            current.look
+          )
+        );
         showSnap([point ? null : current.startTarget, placed.target]);
         return;
       }
@@ -872,13 +891,9 @@ export function useAnnotateCanvas({
           !current.moved && !isCornerKind(current.kind)
             ? { at: current.start, target: current.startTarget }
             : placeInHand(current, toPicture(event.clientX, event.clientY) ?? current.start, free, event.shiftKey);
-        const annotation = createAnnotation(
-          current.kind,
-          point ? at : current.start,
-          at,
-          layout.pictureFrame,
-          undefined,
-          calloutText
+        const annotation = withWhiteArrowLook(
+          createAnnotation(current.kind, point ? at : current.start, at, layout.pictureFrame, undefined, calloutText),
+          current.look
         );
         if (isDegenerate(annotation, MIN_ANNOTATION_LENGTH)) return;
         const added = store.editDiagramAnnotations(step.id, 'Add annotation', (list) => [...list, annotation], {
@@ -888,7 +903,7 @@ export function useAnnotateCanvas({
         if (!added) return;
         const snapped = target !== null || (!point && current.startTarget !== null);
         trackDiagramAnnotationAdded(
-          ANNOTATION_TOOL[annotation.kind],
+          isSolidArrow(annotation) ? 'solid_arrow' : ANNOTATION_TOOL[annotation.kind],
           snapOutcome(annotation.kind, { enabled: snap.enabled, free: free || current.free, snapped })
         );
         if (carriesText(annotation.kind)) {

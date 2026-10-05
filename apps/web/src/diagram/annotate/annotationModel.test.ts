@@ -51,6 +51,9 @@ import {
   PLEAT_KINKS,
   pleatKinks,
   RIGHT_ANGLE_DIAGONAL,
+  SOLID_ARROW_LOOK,
+  isSolidArrow,
+  withWhiteArrowLook,
   rightAngleAt,
   rightAngleDiagonal,
   turnRightAngle,
@@ -897,5 +900,37 @@ describe('a pleat arrow (15c)', () => {
   it('counts its Zs whole, one to five', () => {
     expect(PLEAT_KINKS).toEqual([1, 2, 3, 4, 5]);
     expect([0, 1, 2.4, 2.6, 5, 7, -3, Number.NaN].map(pleatKinks)).toEqual([1, 1, 2, 3, 5, 5, 1, 1]);
+  });
+});
+
+describe('a solid arrow (15d)', () => {
+  const white: KnownDiagramAnnotation = {
+    id: 'w-1',
+    kind: 'white-arrow',
+    from: [0.25, 0.5],
+    to: [0.75, 0.5],
+    path: [{ at: [0.25, 0.5] }, { at: [0.75, 0.5] }],
+    width: 'regular',
+    tail: 'pointed',
+  };
+
+  it('is a white arrow filled with ink, narrow and square-tailed as the tool lays it', () => {
+    expect(SOLID_ARROW_LOOK).toEqual({ width: 'narrow', tail: 'square', fill: 'black' });
+    expect(isSolidArrow(white)).toBe(false);
+    expect(isSolidArrow({ ...white, fill: 'black' })).toBe(true);
+    // Only a white arrow is one.
+    expect(isSolidArrow({ kind: 'push-arrow', fill: 'black' })).toBe(false);
+  });
+
+  it('takes a look whole or in part, writing its fill only when black', () => {
+    const solid = withWhiteArrowLook(white, SOLID_ARROW_LOOK);
+    expect(solid).toEqual({ ...white, width: 'narrow', tail: 'square', fill: 'black' });
+    // Its width alone: the fill as it was.
+    expect(withWhiteArrowLook(solid, { width: 'wide' })).toEqual({ ...solid, width: 'wide' });
+    const unfilled = withWhiteArrowLook(solid, { fill: 'white' });
+    expect(unfilled).toEqual({ ...white, width: 'narrow', tail: 'square' });
+    expect(Object.hasOwn(unfilled, 'fill')).toBe(false);
+    // Nothing to change: the same arrow.
+    expect(withWhiteArrowLook(white, {})).toEqual(white);
   });
 });

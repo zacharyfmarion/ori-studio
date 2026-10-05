@@ -613,6 +613,36 @@ describe('DiagramStepPanel in Annotate', () => {
     expect(buttonNamed('Reset Shape')).toBeUndefined();
   });
 
+  it('fills a white arrow with ink with Fill and empties it again, each one undo step, a filled one listed as a Solid Arrow (15d)', () => {
+    const stepId = annotatedStep();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 'w-1', kind: 'white-arrow', from: [0.1, 0.6], to: [0.5, 0.6], path: [{ at: [0.1, 0.6] }, { at: [0.5, 0.6] }] },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+    });
+    act(() => row('White Arrow').click());
+    const fill = (name: string) =>
+      [...host!.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Fill"] button')].find(
+        (option) => option.getAttribute('aria-label') === name
+      )!;
+    // White, for one that says none.
+    expect(fill('White').getAttribute('aria-pressed')).toBe('true');
+    const past = state().diagramHistory.past.length;
+    act(() => fill('Black').click());
+    const arrow = () => annotations().find((annotation) => annotation.id === 'w-1') as Record<string, unknown>;
+    expect(arrow().fill).toBe('black');
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change white arrow');
+    // Named by its look in the list, and over its verbs.
+    expect(row('Solid Arrow').getAttribute('aria-pressed')).toBe('true');
+    expect(row('White Arrow')).toBeUndefined();
+    act(() => fill('White').click());
+    expect('fill' in arrow()).toBe(false);
+    expect(row('White Arrow')).toBeDefined();
+  });
+
   it('edits a label’s text in one line, and focuses it for a label just put down', async () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));

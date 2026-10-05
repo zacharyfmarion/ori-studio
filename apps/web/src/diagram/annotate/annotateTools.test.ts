@@ -5,24 +5,48 @@ import i18n from '../../i18n';
 import {
   ANNOTATE_TOOL_GROUPS,
   annotateToolHint,
+  annotationLabel,
   drawingKind,
+  drawingLook,
   EDIT_PATH,
+  isClickTool,
   isPickTool,
   LINE_TYPE_SHORTCUTS,
   lineTypeForShortcut,
   toolForShortcut,
   type AnnotateToolHost,
 } from './annotateTools';
-import { ANNOTATION_KINDS } from './annotationModel';
+import { ANNOTATION_KINDS, SOLID_ARROW_LOOK } from './annotationModel';
 import { DIAGRAM_LINE_TYPES, isLineKind } from './lineTypes';
 
 describe('the rail', () => {
-  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a), the pleat arrow among the arrows (15c)', () => {
+  it('lays a white arrow in the solid arrow’s look with the Solid Arrow, named by its look in the list (15d)', () => {
+    const t = i18n.getFixedT('en');
+    expect(drawingKind('solid-arrow', 'valley')).toBe('white-arrow');
+    expect(drawingLook('solid-arrow')).toEqual(SOLID_ARROW_LOOK);
+    // Every other tool lays its kind as it is.
+    expect(drawingLook('white-arrow')).toEqual({});
+    expect(isClickTool('solid-arrow')).toBe(false);
+    expect(annotationLabel(t, { kind: 'white-arrow', fill: 'black' })).toBe('Solid Arrow');
+    expect(annotationLabel(t, { kind: 'white-arrow' })).toBe('White Arrow');
+  });
+
+  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a), the pleat and solid arrows among the arrows (15c, 15d)', () => {
     expect(ANNOTATE_TOOL_GROUPS).toEqual([
       { id: 'select', tools: [null, 'edit-path'] },
       {
         id: 'arrows',
-        tools: ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'push-arrow', 'white-arrow', 'turn-over', 'rotate'],
+        tools: [
+          'valley-arrow',
+          'mountain-arrow',
+          'fold-unfold-arrow',
+          'pleat-arrow',
+          'push-arrow',
+          'white-arrow',
+          'solid-arrow',
+          'turn-over',
+          'rotate',
+        ],
       },
       { id: 'lines', tools: ['line', 'angle-bisector'] },
       { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark'] },
@@ -96,6 +120,12 @@ describe('the tool window', () => {
       'push-arrow': { title: 'Push Arrow', instructions: 'Drag toward the place to push.', modifiers: [] },
       'white-arrow': {
         title: 'White Arrow',
+        instructions: 'Drag from where the paper starts to where it goes. Shape it with Edit Path.',
+        modifiers: [],
+      },
+      // A white arrow in a look of its own (15d): drawn and shaped as one.
+      'solid-arrow': {
+        title: 'Solid Arrow',
         instructions: 'Drag from where the paper starts to where it goes. Shape it with Edit Path.',
         modifiers: [],
       },

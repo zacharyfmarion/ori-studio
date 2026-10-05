@@ -2,12 +2,13 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type LucideIcon } from 'lucide-react';
 import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
-import { annotationKindLabel, lineTypeLabel } from '../../diagram/annotate/annotateTools';
+import { annotationLabel, lineTypeLabel } from '../../diagram/annotate/annotateTools';
 import { DIAGRAM_LINE_TYPES, lineTypeOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
 import {
   ANGLE_MARK_TICKS,
   carriesText,
   DEFAULT_PLEAT_KINKS,
+  isSolidArrow,
   LABEL_MAX_LENGTH,
   PLEAT_KINKS,
   pleatKinks,
@@ -21,7 +22,7 @@ import { useShortcutResolution } from '../../store/shortcutStore';
 import { Button } from '../ui/Button';
 import { FieldRow, NumberRow, SegmentedRow, TextAreaRow, ToggleRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
-import { DiagramAnnotationGlyph } from './DiagramAnnotateToolGlyph';
+import { DiagramAnnotationGlyph, SolidArrowGlyph } from './DiagramAnnotateToolGlyph';
 import { DiagramLineTypeMark } from './DiagramLineTypeMark';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { DiagramPathNodeControls } from './DiagramPathNodeControls';
@@ -119,11 +120,9 @@ export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
                 aria-pressed={annotation.id === selected?.id}
                 onClick={() => annotations.select(annotation.id === selected?.id ? null : annotation.id)}
               >
-                <DiagramAnnotationGlyph kind={annotation.kind} />
+                {isSolidArrow(annotation) ? <SolidArrowGlyph /> : <DiagramAnnotationGlyph kind={annotation.kind} />}
                 <span className={styles.rowName}>
-                  {carriesText(annotation.kind) && annotation.text
-                    ? annotation.text
-                    : annotationKindLabel(t, annotation.kind)}
+                  {carriesText(annotation.kind) && annotation.text ? annotation.text : annotationLabel(t, annotation)}
                 </span>
               </button>
             </li>
@@ -280,7 +279,7 @@ function SelectedAnnotation({
           onChange={(axis) => annotations.setAxis(id, axis as 'vertical' | 'horizontal')}
         />
       )}
-      <FieldRow label={annotationKindLabel(t, annotation.kind)} kind="text">
+      <FieldRow label={annotationLabel(t, annotation)} kind="text">
         <span className={styles.verbs}>
           {annotations.actions
             .filter((action) => action.group === 'annotation')

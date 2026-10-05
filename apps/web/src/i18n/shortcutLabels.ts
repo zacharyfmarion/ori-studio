@@ -125,6 +125,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.toolPleatArrow', 'Pleat Arrow');
     case 'diagram.toolPushArrow':
       return t('tools:diagram.toolPushArrow', 'Push Arrow');
+    case 'diagram.toolSolidArrow':
+      return t('tools:diagram.toolSolidArrow', 'Solid Arrow');
     case 'diagram.toolWhiteArrow':
       return t('tools:diagram.toolWhiteArrow', 'White Arrow');
     case 'diagram.toolTurnOver':

@@ -280,7 +280,7 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
 
 function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown> {
   if (!isKnownAnnotation(annotation)) return annotation.unknown;
-  const { id, kind, from, to, bend, path, width, tail, text, rotate, axis, other, ticks, kinks, mirrored, unknown: _known, ...unwritten } =
+  const { id, kind, from, to, bend, path, width, tail, fill, text, rotate, axis, other, ticks, kinks, mirrored, unknown: _known, ...unwritten } =
     annotation;
   // Every field is written: a new one is a compile error here until it is, not dropped from the file.
   const _none: Record<string, never> = unwritten;
@@ -293,6 +293,7 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(path !== undefined ? { path: path.map(writePathNode) } : {}),
     ...(width !== undefined ? { width } : {}),
     ...(tail !== undefined ? { tail } : {}),
+    ...(fill !== undefined ? { fill } : {}),
     ...(text !== undefined ? { text } : {}),
     ...(rotate !== undefined ? { rotate } : {}),
     ...(axis !== undefined ? { axis } : {}),
@@ -818,7 +819,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'fold-unfold-arrow': fields('bend', 'path'),
     'pleat-arrow': fields('kinks', 'mirrored'),
     'push-arrow': fields(),
-    'white-arrow': fields('path', 'width', 'tail'),
+    'white-arrow': fields('path', 'width', 'tail', 'fill'),
     'turn-over': fields('axis'),
     rotate: fields('rotate'),
     'valley-line': fields(),
@@ -905,13 +906,14 @@ function readAnnotation(
       const path = entry.path === undefined ? null : readPath(entry.path);
       const width = readPreset(entry.width, WHITE_ARROW_WIDTHS, DEFAULT_WHITE_ARROW.width);
       const tail = readPreset(entry.tail, WHITE_ARROW_TAILS, DEFAULT_WHITE_ARROW.tail);
-      if (path === NEWER || width === NEWER || tail === NEWER) return NEWER;
-      if (path === null || width === null || tail === null) return null;
+      const fill = readFill(entry.fill);
+      if (path === NEWER || width === NEWER || tail === NEWER || fill === NEWER) return NEWER;
+      if (path === null || width === null || tail === null || fill === null) return null;
       // The arrow's ends are its path's: one that says otherwise does not read.
       const first = path[0]!.at;
       const last = path[path.length - 1]!.at;
       if (first[0] !== from[0] || first[1] !== from[1] || last[0] !== to[0] || last[1] !== to[1]) return null;
-      return { ...annotation, path, width, tail };
+      return { ...annotation, path, width, tail, ...(fill !== undefined ? { fill } : {}) };
     }
     // A callout's words are read as a label's: one line, as long as a label may be.
     case 'label':
@@ -1014,6 +1016,13 @@ function readTicks(value: unknown): DiagramAngleTicks | undefined | typeof NEWER
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) return null;
   return value <= 3 ? (value as DiagramAngleTicks) : NEWER;
+}
+
+/** A white arrow's fill: unsaid, the page's white; `black`, a solid arrow (15d); another word, a newer build's; anything else, damage. */
+function readFill(value: unknown): 'black' | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return null;
+  return value === 'black' ? value : NEWER;
 }
 
 /** A pleat arrow's Zs: unsaid, one; a whole count past five, a newer build's; anything else, damage. */

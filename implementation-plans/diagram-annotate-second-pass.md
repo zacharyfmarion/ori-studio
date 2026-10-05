@@ -465,9 +465,27 @@ The decisions as they were put:
     over, F back.
 
 ### 15d. Solid arrows
-- [ ] White arrow `fill`; reader/writer; drawn filled; Step pane Fill; the
+- [x] White arrow `fill`; reader/writer; drawn filled; Step pane Fill; the
   Solid Arrow tool's preset; the list's name by look; analytics; i18n;
   before/after beside step 129.
+  - As built: `fill?: 'black'` on a white arrow — unsaid, white; another
+    word, a newer build's; on another kind, a field it has no name for. The
+    primitive carries `fill`, and the drawer fills a black one with the
+    arrowhead's ink, outline and pen unchanged; the golden pins its white
+    twin as the same outline (`solidArrowGolden.json`, five cases,
+    `15d/golden-solid-arrows.png`). The Solid Arrow is a tool, not a kind
+    (`SOLID_ARROW`, key S): it draws a white arrow in `SOLID_ARROW_LOOK`
+    (narrow, square, black), the canvas laying the look over the kind's own
+    in its draft and its result (`drawingLook`, `withWhiteArrowLook`). A
+    black one is named Solid Arrow in the list and over its verbs, with its
+    own glyph. Fill is a row of the Step pane (White, Black), one undo step,
+    `fill` written only when black. Counted `tool: solid_arrow` as it is
+    made; shaping one is `diagram arrow shaped` as a `white_arrow`. Plain S
+    is also Edit's valley line type, in a scope never live with the
+    Diagram's; `findShortcutShadowing` now names the Solid Arrow as S's
+    other holder, as it should. Browser (`p15d.mjs`, `compare-15d.png`): S
+    and a real drag on the crane's step 14 lay one; Edit Path (A) drags its
+    tip further in and bends it; Fill to White and back to Black.
 
 ### 15e. Behind flaps
 - [ ] `behindFlaps.ts`: faces at a point, over them, the stretches under

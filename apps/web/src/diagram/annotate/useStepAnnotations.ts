@@ -1,7 +1,5 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
-import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating, selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
@@ -19,6 +17,7 @@ import {
 import { stepPictureFrame } from '../pictures/pictureFrame';
 import { EDIT_PATH } from './annotateTools';
 import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
+import { withWhiteArrowLook, type WhiteArrowLook } from './annotationModel';
 import { pathNodesOf } from './annotationPath';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
 import { isLineKind, lineKindOf, type DiagramLineType } from './lineTypes';
@@ -89,9 +88,9 @@ export function useStepAnnotations(step: DiagramStep | null) {
       setRotation: (id: string, rotate: DiagramRotation) => change(id, 'Change rotation', (annotation) => ({ ...annotation, rotate })),
       setAxis: (id: string, axis: 'vertical' | 'horizontal') =>
         change(id, 'Change turn-over', (annotation) => ({ ...annotation, axis })),
-      /** A white arrow's width or tail, or both, as one undo step. */
-      setWhiteArrowLook: (id: string, look: { width?: DiagramWhiteArrowWidth; tail?: WhiteArrowTail }) =>
-        change(id, 'Change white arrow', (annotation) => ({ ...annotation, ...look })),
+      /** A white arrow's width, tail or fill, or any of them together, as one undo step. */
+      setWhiteArrowLook: (id: string, look: WhiteArrowLook) =>
+        change(id, 'Change white arrow', (annotation) => withWhiteArrowLook(annotation, look)),
       /** An angle mark's ticks across each half (15b), as one undo step. */
       setTicks: (id: string, ticks: DiagramAngleTicks) =>
         change(id, 'Change angle mark', (annotation) => ({ ...annotation, ticks })),

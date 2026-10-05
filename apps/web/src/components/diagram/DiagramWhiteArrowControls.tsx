@@ -1,25 +1,28 @@
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
+import type { DiagramWhiteArrowFill, DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
-import { DEFAULT_WHITE_ARROW } from '../../diagram/annotate/annotationModel';
+import { DEFAULT_WHITE_ARROW, type WhiteArrowLook } from '../../diagram/annotate/annotationModel';
 import type { KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { FieldRow } from '../ui/fieldRows';
 
-/** What a white arrow looks like: the two presets the Step pane sets, either alone. */
-export interface WhiteArrowLook {
-  width?: DiagramWhiteArrowWidth;
-  tail?: WhiteArrowTail;
-}
-
 const WIDTHS: readonly DiagramWhiteArrowWidth[] = ['narrow', 'regular', 'wide'];
 const TAILS: readonly WhiteArrowTail[] = ['pointed', 'square', 'cleft'];
+const FILLS: readonly DiagramWhiteArrowFill[] = ['white', 'black'];
 
-/** A small hollow arrow, left to right, in the control's ink: each preset as it draws. */
-function ArrowMark({ d }: { d: string }): ReactElement {
+/** A small arrow, left to right, in the control's ink — hollow, or `filled` — each preset as it draws. */
+function ArrowMark({ d, filled = false }: { d: string; filled?: boolean }): ReactElement {
   return (
-    <svg width={24} height={16} viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth={1.25} aria-hidden="true">
+    <svg
+      width={24}
+      height={16}
+      viewBox="0 0 24 16"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth={1.25}
+      aria-hidden="true"
+    >
       <path d={d} strokeLinejoin="miter" strokeMiterlimit={1.5} />
     </svg>
   );
@@ -43,8 +46,9 @@ const TAIL_MARKS: Readonly<Record<WhiteArrowTail, string>> = {
 
 /**
  * A selected white arrow's look in the Step pane (Q13, decision 14): its
- * width — three print sizes, in ink, as every mark's is — and its tail, each
- * one undo step. One unsaid is the template's (`DEFAULT_WHITE_ARROW`). Each
+ * width — three print sizes, in ink, as every mark's is — its tail, and its
+ * fill, the page's white or the arrow's ink (15d), each one undo step. One
+ * unsaid is the template's (`DEFAULT_WHITE_ARROW`), and white. Each
  * option is a small arrow drawn as it would be, named by its tooltip and to
  * a screen reader: three words to a row do not fit a pane as narrow as an
  * iPad's.
@@ -79,8 +83,11 @@ export function DiagramWhiteArrowControls({
         return t('panels:diagram.annotations.tailCleft', 'Cleft');
     }
   };
+  const fillLabel = (fill: DiagramWhiteArrowFill) =>
+    fill === 'black' ? t('panels:diagram.annotations.fillBlack', 'Black') : t('panels:diagram.annotations.fillWhite', 'White');
   const widthName = t('panels:diagram.annotations.width', 'Width');
   const tailName = t('panels:diagram.annotations.tail', 'Tail');
+  const fillName = t('panels:diagram.annotations.fill', 'Fill');
   return (
     <>
       <FieldRow label={widthName} kind="segmented" disabled={!editable}>
@@ -113,6 +120,22 @@ export function DiagramWhiteArrowControls({
             icon: <ArrowMark d={TAIL_MARKS[tail]} />,
           }))}
           onChange={(tail) => onChange({ tail })}
+        />
+      </FieldRow>
+      <FieldRow label={fillName} kind="segmented" disabled={!editable}>
+        <SegmentedControl<DiagramWhiteArrowFill>
+          size="sm"
+          iconsOnly
+          aria-label={fillName}
+          value={annotation.fill ?? 'white'}
+          disabled={!editable}
+          options={FILLS.map((fill) => ({
+            value: fill,
+            label: fillLabel(fill),
+            tooltip: fillLabel(fill),
+            icon: <ArrowMark d={TAIL_MARKS.square} filled={fill === 'black'} />,
+          }))}
+          onChange={(fill) => onChange({ fill })}
         />
       </FieldRow>
     </>

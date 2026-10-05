@@ -238,7 +238,8 @@ describe('Annotate’s keys', () => {
   it.each([
     ['the pleat arrow', 'diagram.toolPleatArrow', 'z', 'pleat-arrow'],
     ['the angle bisector', 'diagram.toolAngleBisector', 'b', 'angle-bisector'],
-  ] as const)('binds %s to its letter, which no other Diagram key or the view’s has, and picks it (15b, 15c)', (_name, id, key, tool) => {
+    ['the solid arrow', 'diagram.toolSolidArrow', 's', 'solid-arrow'],
+  ] as const)('binds %s to its letter, which no other Diagram key or the view’s has, and picks it (15b–15d)', (_name, id, key, tool) => {
     expect(SHORTCUT_DEFINITIONS.find((shortcut) => shortcut.id === id)).toMatchObject({ scope: 'diagram', defaultChord: { key } });
     const others = SHORTCUT_DEFINITIONS.filter(
       (shortcut) =>

@@ -618,6 +618,11 @@ export interface KnownDiagramAnnotation {
   width?: DiagramWhiteArrowWidth;
   /** A white arrow's tail: drawn to a point, cut square, or cleft in a V. */
   tail?: WhiteArrowTail;
+  /**
+   * A white arrow filled with the arrow's ink: a solid arrow (15d). Unsaid, it
+   * is filled with the page's white, as every white arrow was before.
+   */
+  fill?: 'black';
   /** A label's or a callout's text. */
   text?: string;
   rotate?: DiagramRotation;

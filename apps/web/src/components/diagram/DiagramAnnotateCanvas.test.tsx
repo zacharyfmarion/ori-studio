@@ -274,6 +274,24 @@ describe('DiagramAnnotateCanvas', () => {
     expect(overlay().innerHTML).toContain('stroke-miterlimit="1.5"');
   });
 
+  it('lays a solid arrow with the Solid Arrow: a white arrow narrow, square-tailed and filled, counted as a solid arrow (15d)', () => {
+    mount();
+    tool('solid-arrow');
+    drag(at(0.2, 0.3), at(0.6, 0.5));
+    expect(annotations()).toHaveLength(1);
+    const [solid] = annotations();
+    expect(solid).toMatchObject({ kind: 'white-arrow', width: 'narrow', tail: 'square', fill: 'black' });
+    expect(solid!.path).toHaveLength(2);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['solid_arrow', 'none']]);
+    // The tool stays in hand, as a drawing tool does.
+    expect(state().diagramAnnotateTool).toBe('solid-arrow');
+    // The White Arrow still lays a white one.
+    tool('white-arrow');
+    drag(at(0.2, 0.7), at(0.6, 0.7));
+    expect(annotations()[1]).not.toHaveProperty('fill');
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls.at(-1)).toEqual(['white_arrow', 'none']);
+  });
+
   it('draws a pleat arrow straight with a drag, one Z unsaid, a bolt with its head, and selects it by its bolt (15c)', () => {
     mount();
     tool('pleat-arrow');

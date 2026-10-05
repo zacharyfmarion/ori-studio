@@ -279,6 +279,7 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
           path: pathCubics(nodes).map(([a, b, c, d]) => [up(a), up(b), up(c), up(d)] as const),
           width: annotation.width ?? DEFAULT_WHITE_ARROW.width,
           tail: annotation.tail ?? DEFAULT_WHITE_ARROW.tail,
+          fill: annotation.fill ?? 'white',
         },
       };
     }

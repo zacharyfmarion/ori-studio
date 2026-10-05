@@ -257,6 +257,7 @@ const WHITE_ARROWS: StepDiagramModel = {
       kind: 'white-arrow',
       width: 'regular',
       tail: 'pointed',
+      fill: 'white',
       path: [
         [
           [0.06, 0.62],
@@ -270,6 +271,7 @@ const WHITE_ARROWS: StepDiagramModel = {
       kind: 'white-arrow',
       width: 'narrow',
       tail: 'square',
+      fill: 'white',
       path: [
         [
           [0.56, 0.6],
@@ -289,6 +291,7 @@ const WHITE_ARROWS: StepDiagramModel = {
       kind: 'white-arrow',
       width: 'wide',
       tail: 'cleft',
+      fill: 'white',
       path: [
         [
           [0.08, 0.14],
@@ -302,6 +305,7 @@ const WHITE_ARROWS: StepDiagramModel = {
       kind: 'white-arrow',
       width: 'regular',
       tail: 'square',
+      fill: 'white',
       path: [
         [
           [0.62, 0.08],

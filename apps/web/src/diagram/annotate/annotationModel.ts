@@ -14,7 +14,7 @@ import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
 import { needsNoGlyph, scriptFonts, textCjkKey } from '../fonts/fontScripts';
 import { cjkRunAdvance, labelAdvance } from './labelAdvances';
-import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
+import type { DiagramWhiteArrowFill, DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import {
   randomDiagramId,
@@ -149,6 +149,35 @@ export const DEFAULT_WHITE_ARROW: Readonly<{ width: DiagramWhiteArrowWidth; tail
   width: 'regular',
   tail: 'pointed',
 };
+
+/** What a white arrow looks like: its width, its tail and its fill, any of which the Step pane sets alone. */
+export interface WhiteArrowLook {
+  width?: DiagramWhiteArrowWidth;
+  tail?: WhiteArrowTail;
+  fill?: DiagramWhiteArrowFill;
+}
+
+/**
+ * The solid arrow's look (decision 11): a white arrow as narrow as a push
+ * arrow, its tail cut square — the flat bottom — and filled with the arrow's
+ * ink. The Solid Arrow tool lays one so; Edit Path shapes and lengthens it
+ * as any white arrow.
+ */
+export const SOLID_ARROW_LOOK: Readonly<Required<WhiteArrowLook>> = { width: 'narrow', tail: 'square', fill: 'black' };
+
+/** Whether an annotation is a solid arrow: a white arrow filled with ink, named and counted as one. */
+export function isSolidArrow(annotation: Pick<KnownDiagramAnnotation, 'kind' | 'fill'>): boolean {
+  return annotation.kind === 'white-arrow' && annotation.fill === 'black';
+}
+
+/** A white arrow in `look`, what it leaves unsaid as it was: its fill written only when black. */
+export function withWhiteArrowLook(annotation: KnownDiagramAnnotation, look: WhiteArrowLook): KnownDiagramAnnotation {
+  const { fill, ...rest } = look;
+  const changed = { ...annotation, ...rest };
+  if (fill === undefined) return changed;
+  const { fill: _was, ...unfilled } = changed;
+  return fill === 'black' ? { ...unfilled, fill } : unfilled;
+}
 
 /** How far past the frame an annotation may reach, in frame lengths: an arrow may start off the picture. */
 export const ANNOTATION_REACH = 4;

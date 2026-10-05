@@ -1,8 +1,8 @@
 import type { TFunction } from 'i18next';
 import type { DiagramAnnotateShortcutId } from '../../keyboard/shortcuts';
-import type { DiagramAnnotationKind } from '../document/diagramDocument';
-import { canBeShaped, isPointKind } from './annotationModel';
-import { lineKindOf, type DiagramLineKind, type DiagramLineType } from './lineTypes';
+import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
+import { canBeShaped, isPointKind, isSolidArrow, SOLID_ARROW_LOOK, type WhiteArrowLook } from './annotationModel';
+import { DEFAULT_DIAGRAM_LINE_TYPE, lineKindOf, type DiagramLineKind, type DiagramLineType } from './lineTypes';
 import type { PickProgress } from './pickProgress';
 
 /**
@@ -33,11 +33,23 @@ export const LINE_TOOL = 'line';
 export const ANGLE_BISECTOR = 'angle-bisector';
 
 /**
- * A tool that draws: the kind it draws, for every kind but the three lines,
- * which the Line tool draws in the type chosen, and the Angle Bisector,
- * which draws a line and a mark. Its own id, so a tool need not be a kind.
+ * The Solid Arrow (15d): a white arrow laid in the solid arrow's look —
+ * narrow, its tail square, filled with ink — and shaped and lengthened
+ * afterwards with Edit Path, as any white arrow is.
  */
-export type DrawingTool = Exclude<DiagramAnnotationKind, DiagramLineKind> | typeof LINE_TOOL | typeof ANGLE_BISECTOR;
+export const SOLID_ARROW = 'solid-arrow';
+
+/**
+ * A tool that draws: the kind it draws, for every kind but the three lines,
+ * which the Line tool draws in the type chosen; the Angle Bisector, which
+ * draws a line and a mark; and the Solid Arrow, a white arrow in a look of
+ * its own. Its own id, so a tool need not be a kind.
+ */
+export type DrawingTool =
+  | Exclude<DiagramAnnotationKind, DiagramLineKind>
+  | typeof LINE_TOOL
+  | typeof ANGLE_BISECTOR
+  | typeof SOLID_ARROW;
 
 /** A tool that draws, Edit Path, or Select. */
 export type AnnotateTool = DrawingTool | typeof EDIT_PATH | null;
@@ -54,7 +66,13 @@ export function isDrawingTool(tool: AnnotateTool): tool is DrawingTool {
  */
 export function drawingKind(tool: AnnotateTool, lineType: DiagramLineType): DiagramAnnotationKind | null {
   if (!isDrawingTool(tool) || isPickTool(tool)) return null;
+  if (tool === SOLID_ARROW) return 'white-arrow';
   return tool === LINE_TOOL ? lineKindOf(lineType) : tool;
+}
+
+/** The look a tool lays what it draws in, over its kind's own: the Solid Arrow's; nothing for any other tool. */
+export function drawingLook(tool: AnnotateTool): WhiteArrowLook {
+  return tool === SOLID_ARROW ? SOLID_ARROW_LOOK : {};
 }
 
 /** Whether a tool draws in the line type: the Line tool and the Angle Bisector. */
@@ -86,6 +104,7 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   'pleat-arrow': 'arrows',
   'push-arrow': 'arrows',
   'white-arrow': 'arrows',
+  [SOLID_ARROW]: 'arrows',
   'turn-over': 'arrows',
   rotate: 'arrows',
   [LINE_TOOL]: 'lines',
@@ -120,6 +139,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   'pleat-arrow': 'diagram.toolPleatArrow',
   'push-arrow': 'diagram.toolPushArrow',
   'white-arrow': 'diagram.toolWhiteArrow',
+  [SOLID_ARROW]: 'diagram.toolSolidArrow',
   'turn-over': 'diagram.toolTurnOver',
   rotate: 'diagram.toolRotate',
   [LINE_TOOL]: null,
@@ -212,11 +232,20 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
   }
 }
 
+/**
+ * An annotation's name, by its look where its look names it: a white arrow
+ * filled with ink is a Solid Arrow (15d), as the tool that lays one is.
+ */
+export function annotationLabel(t: TFunction, annotation: Pick<KnownDiagramAnnotation, 'kind' | 'fill'>): string {
+  return isSolidArrow(annotation) ? t('tools:diagram.toolSolidArrow', 'Solid Arrow') : annotationKindLabel(t, annotation.kind);
+}
+
 export function annotateToolLabel(t: TFunction, tool: AnnotateTool): string {
   if (tool === null) return t('panels:diagram.annotate.select', 'Select');
   if (tool === EDIT_PATH) return t('tools:diagram.toolEditPath', 'Edit Path');
   if (tool === LINE_TOOL) return t('tools:diagram.toolLine', 'Line');
   if (tool === ANGLE_BISECTOR) return t('tools:diagram.toolAngleBisector', 'Angle Bisector');
+  if (tool === SOLID_ARROW) return t('tools:diagram.toolSolidArrow', 'Solid Arrow');
   return annotationKindLabel(t, tool);
 }
 
@@ -247,6 +276,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
     case 'push-arrow':
       return t('panels:diagram.annotate.pushHelp', 'Drag toward the place to push.');
     case 'white-arrow':
+    case SOLID_ARROW:
       return t(
         'panels:diagram.annotate.whiteArrowHelp',
         'Drag from where the paper starts to where it goes. Shape it with Edit Path.'
@@ -312,7 +342,9 @@ export function editPathHelp(t: TFunction, selected: DiagramAnnotationKind | nul
 
 /** Whether the tool is placed with a click rather than drawn with a drag. */
 export function isClickTool(tool: AnnotateTool): boolean {
-  return isDrawingTool(tool) && tool !== LINE_TOOL && !isPickTool(tool) && isPointKind(tool);
+  // What it draws: no line, in any type, is put down with a click.
+  const kind = drawingKind(tool, DEFAULT_DIAGRAM_LINE_TYPE);
+  return kind !== null && isPointKind(kind);
 }
 
 /** What the tool window can promise on this device, and the names of its keys. */
@@ -483,6 +515,7 @@ function annotateToolModifiers(
     case 'pleat-arrow':
     case 'push-arrow':
     case 'white-arrow':
+    case SOLID_ARROW:
     case 'turn-over':
     case 'rotate':
     case 'label':

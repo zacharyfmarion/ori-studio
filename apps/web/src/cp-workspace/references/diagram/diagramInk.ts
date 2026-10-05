@@ -184,6 +184,13 @@ export const DIAGRAM_PUSH_INK = { head: 12, headHalf: 7.5, shaftHalf: 3.2, cleft
 export type DiagramWhiteArrowWidth = 'narrow' | 'regular' | 'wide';
 
 /**
+ * What a white arrow is filled with: the page's white, or the arrow's own ink
+ * — a solid arrow, as diagrams draw a push to flatten or a block to slide
+ * (15d). The same outline either way, in the same pen.
+ */
+export type DiagramWhiteArrowFill = 'white' | 'black';
+
+/**
  * A white arrow's three widths, in ink: its shaft's width at the head (the
  * neck), and its head's length and width. A fixed print size, as every mark's
  * is; at an annotation's ink (1.25 CSS px, 0.331 mm) they print as:

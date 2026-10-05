@@ -777,7 +777,8 @@ describe('findShortcutShadowing', () => {
     expect(findShortcutShadowing('file.save', { key: 'j' }, overrides)?.definition.id).toBe(
       'cp.action.line-type.valley'
     );
-    expect(findShortcutShadowing('file.save', { key: 's' }, overrides)).toBeNull();
+    // S, the valley type's default, is its no longer: only Annotate's Solid Arrow (15d) still holds it.
+    expect(findShortcutShadowing('file.save', { key: 's' }, overrides)?.definition.id).toBe('diagram.toolSolidArrow');
   });
 
   it('returns null when nothing else claims the chord', () => {

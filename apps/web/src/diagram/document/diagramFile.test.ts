@@ -448,6 +448,23 @@ describe('annotations in the file', () => {
       expect(read.map((annotation) => annotation.id)).toEqual(['kept']);
     });
 
+    it('round-trips a solid one’s fill, and reads none as white, written as none (15d)', () => {
+      const solid = white({ id: 's-1', fill: 'black' });
+      expect(withAnnotations([solid, white()])).toEqual([solid, white()]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: withAnnotations([solid, white()]) }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual([solid, white()]);
+    });
+
+    it('carries a fill it has no name for as a newer build’s, and drops one that is not a word (15d)', () => {
+      const newer = white({ id: 'n-fill', fill: 'grey' });
+      expect(withAnnotations([newer])).toEqual([{ id: 'n-fill', unknown: newer }]);
+      expect(withAnnotations([white({ id: 'd-fill', fill: true })])).toEqual([]);
+      // A fill is a white arrow's alone: on a push it is a field this build has no name for.
+      const push = { id: 'p-fill', kind: 'push-arrow', from: [0.1, 0.5], to: [0.7, 0.5], fill: 'black' };
+      expect(withAnnotations([push])).toEqual([{ id: 'p-fill', unknown: push }]);
+    });
+
     it('is kept, verbatim and undrawn, by a build before white arrows: as any kind it has no name for', () => {
       // Checked against a34d74086's own reader, which names no `white-arrow`:
       // it carries one as a newer build's and writes it back unchanged.

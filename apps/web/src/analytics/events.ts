@@ -79,6 +79,7 @@ export type DiagramAnnotationTool =
   | 'pleat_arrow'
   | 'push_arrow'
   | 'white_arrow'
+  | 'solid_arrow'
   | 'turn_over'
   | 'rotate'
   | 'valley_line'

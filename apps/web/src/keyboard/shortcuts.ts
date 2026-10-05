@@ -108,6 +108,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolPleatArrow'
   | 'diagram.toolPushArrow'
   | 'diagram.toolWhiteArrow'
+  | 'diagram.toolSolidArrow'
   | 'diagram.toolTurnOver'
   | 'diagram.toolRotate'
   | 'diagram.toolValleyLine'
@@ -606,6 +607,8 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolPushArrow', 'Push Arrow', { key: 'p' }),
   // W for white, a letter no other Diagram key or the view's has.
   diagramShortcut('diagram.toolWhiteArrow', 'White Arrow', { key: 'w' }),
+  // S for the solid arrow (15d): plain S is free; Shift+S is the canvas's own.
+  diagramShortcut('diagram.toolSolidArrow', 'Solid Arrow', { key: 's' }),
   diagramShortcut('diagram.toolTurnOver', 'Turn Over', { key: 't' }),
   diagramShortcut('diagram.toolRotate', 'Rotate', { key: 'r' }),
   diagramShortcut('diagram.toolValleyLine', 'Valley Line', { shift: true, key: 'v' }),

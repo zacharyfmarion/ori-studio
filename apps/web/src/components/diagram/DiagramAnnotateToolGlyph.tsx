@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { MousePointer2, RotateCw, SplinePointer, Type } from 'lucide-react';
 import { TURN_OVER_BOX, TURN_OVER_HEAD_PATH, TURN_OVER_PATH } from '../../cp-workspace/references/stepDiagramGeometry';
-import { ANGLE_BISECTOR, EDIT_PATH, LINE_TOOL, type AnnotateTool } from '../../diagram/annotate/annotateTools';
+import { ANGLE_BISECTOR, EDIT_PATH, LINE_TOOL, SOLID_ARROW, type AnnotateTool } from '../../diagram/annotate/annotateTools';
 import { lineKindOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
 import type { DiagramAnnotationKind } from '../../diagram/document/diagramDocument';
 
@@ -60,7 +60,20 @@ export function DiagramAnnotateToolGlyph({
       </Glyph>
     );
   }
+  if (tool === SOLID_ARROW) return <SolidArrowGlyph />;
   return <DiagramAnnotationGlyph kind={tool === LINE_TOOL ? lineKindOf(lineType) : tool} />;
+}
+
+/**
+ * A solid arrow's icon (15d): the push arrow's straight outline with its tail
+ * cut square, filled — the Solid Arrow tool's, and the list's for one.
+ */
+export function SolidArrowGlyph(): ReactElement {
+  return (
+    <Glyph>
+      <path d="M2.5 7.5 L10 7.5 L10 4 L17.5 10 L10 16 L10 12.5 L2.5 12.5 Z" fill="currentColor" strokeLinejoin="miter" />
+    </Glyph>
+  );
 }
 
 /**

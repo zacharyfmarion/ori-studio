@@ -71,6 +71,7 @@ describe('diagramInModel', () => {
             kind: 'white-arrow',
             width: 'wide',
             tail: 'cleft',
+            fill: 'white',
             path: [
               [
                 [0.1, 0.2],
@@ -89,6 +90,7 @@ describe('diagramInModel', () => {
         kind: 'white-arrow',
         width: 'wide',
         tail: 'cleft',
+        fill: 'white',
         path: [
           [
             [10, 80],

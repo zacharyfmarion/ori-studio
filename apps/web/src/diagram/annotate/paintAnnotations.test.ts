@@ -116,8 +116,8 @@ describe('a shaped arrow', () => {
     }
   });
 
-  it('draws a white arrow along its path, in its width and tail, a straight one too', () => {
-    const bent = a('w', 'white-arrow', { from: [0.2, 0.4], to: [0.8, 0.4], path, width: 'wide', tail: 'cleft' });
+  it('draws a white arrow along its path, in its width, tail and fill, a straight one too', () => {
+    const bent = a('w', 'white-arrow', { from: [0.2, 0.4], to: [0.8, 0.4], path, width: 'wide', tail: 'cleft', fill: 'black' });
     const straight = a('s', 'white-arrow', { from: [0.2, 0.6], to: [0.8, 0.6], path: [{ at: [0.2, 0.6] }, { at: [0.8, 0.6] }] });
     const drawing = annotationDrawing([bent, straight], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
     expect(drawing.primitives).toEqual([
@@ -125,6 +125,7 @@ describe('a shaped arrow', () => {
         kind: 'white-arrow',
         width: 'wide',
         tail: 'cleft',
+        fill: 'black',
         // y up, as References' unit frame is.
         path: [
           [[0.2, -0.4], [0.3, -0.1], [0.4, -0.7], [0.5, -0.4]],
@@ -132,10 +133,11 @@ describe('a shaped arrow', () => {
         ],
       },
       {
-        // Written with no look: the template's, regular and pointed.
+        // Written with no look: the template's, regular, pointed and white.
         kind: 'white-arrow',
         width: 'regular',
         tail: 'pointed',
+        fill: 'white',
         path: [[[0.2, -0.6], [0.2, -0.6], [0.8, -0.6], [0.8, -0.6]]],
       },
     ]);
