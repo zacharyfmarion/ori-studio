@@ -1,16 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { mmToCssPx, PT_PER_MM } from '../../lib/paper/paperSvg';
-import { createStep, DEFAULT_DIAGRAM_STYLE, type DiagramStep, type KnownDiagramAsset } from '../document/diagramDocument';
+import { DEFAULT_PAPER_PAGE } from '../../lib/paper/paperPage';
+import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE } from '../../lib/paper/paperStyle';
+import { mmToCssPx, pageMarginPt, PT_PER_MM } from '../../lib/paper/paperSvg';
+import {
+  createDiagram,
+  createStep,
+  DEFAULT_DIAGRAM_STYLE,
+  insertSteps,
+  type DiagramStep,
+  type DiagramStyle,
+  type KnownDiagramAsset,
+} from '../document/diagramDocument';
 import { cpStep, fixedPicture, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
 import type { FontMetrics } from '../fonts/fontMetrics';
 import { sanitizeSvg, SVG_NS } from '../upload/svgSanitize';
+import { diagramScenePaintStyle } from '../pictures/diagramPaperStyle';
 import { stepDiagramScene } from '../pictures/paintStepDiagram';
 import { pictureExtent } from './diagramPageLayout';
+import { layoutDiagram } from './diagramPages';
 import { estimateTextSetter } from './estimateTextSetter';
 import { fontTextSetter } from './fontTextSetter';
 import { cellPicture, layoutPicture, prefixIds, type PictureText } from './pagePictures';
 
 const style = DEFAULT_DIAGRAM_STYLE;
+/** How far a crease pattern's ink reaches past its lines, in mm: the margin the painter's own page leaves it. */
+const patternInkMm = (drawn: DiagramStyle) =>
+  pageMarginPt(diagramScenePaintStyle(drawn, true), { ...DEFAULT_PAPER_PAGE, paddingMm: 0 }) / PT_PER_MM;
 const BITMAP: KnownDiagramAsset = {
   id: 'asset-raster',
   kind: 'raster',
@@ -32,11 +47,19 @@ const TEXT: PictureText = { hanStyle: 'sc', runs: estimateTextSetter.runs };
 
 describe('layoutPicture', () => {
   it('measures a capture by its paper scale, and what has none by its frame’s longer side', () => {
-    // The fixture's sheet is 100 scene px at 100 px per unit: one unit.
+    // The fixture's sheet is 100 scene px at 100 px per unit: one unit; its ink half its widest pen past it.
     const none = { width: 0, height: 0 };
     const nowhere = { grows: 0, beyond: 0 };
     const sides = { left: nowhere, right: nowhere, top: nowhere, bottom: nowhere };
-    expect(layoutPicture(cpStep('step-cp'), {}, style)).toEqual({ kind: 'paper', width: 1, height: 1, frame: { width: 1, height: 1 }, marks: none, sides });
+    const ink = patternInkMm(style);
+    const pattern = layoutPicture(cpStep('step-cp'), {}, style)!;
+    expect(pattern).toMatchObject({ kind: 'paper', width: 1, height: 1, frame: { width: 1, height: 1 } });
+    expect(pattern.marks.width).toBeCloseTo(2 * ink, 9);
+    expect(pattern.marks.height).toBeCloseTo(2 * ink, 9);
+    for (const side of Object.values(pattern.sides!)) {
+      expect(side.grows).toBeCloseTo(0, 9);
+      expect(side.beyond).toBeCloseTo(ink, 9);
+    }
     // 300 × 200 px at 100 px per unit.
     expect(layoutPicture(bitmapStep(100), assets, style)).toEqual({ kind: 'paper', width: 3, height: 2, frame: { width: 3, height: 2 }, marks: none, sides });
     const upload = layoutPicture(bitmapStep(null), assets, style)!;
@@ -132,9 +155,62 @@ describe('cellPicture', () => {
       expect(x! + width! / 2).toBeCloseTo(30 * PT_PER_MM, 2);
       expect(y! + height! / 2).toBeCloseTo(40 * PT_PER_MM, 2);
     }
-    // A scene's frame is its bounds: the fixture's unit sheet, 30 mm across.
+    // A scene's frame is its bounds: the fixture's unit sheet, 30 mm across; its ink half its widest pen past it.
     const scene = cellPicture(cpStep('step-cp'), {}, style, { ...cell, frameMm: 30 }, 'c0-', TEXT)!;
-    expect(scene.boundsPt.width).toBeCloseTo(30 * PT_PER_MM, 2);
+    expect(scene.boundsPt.width).toBeCloseTo((30 + 2 * patternInkMm(style)) * PT_PER_MM, 2);
+  });
+
+  it('bounds a References step’s lines’ ink past its sheet, which a small sheet’s band does not hold at a heavy pen (review 4)', () => {
+    const heavy: DiagramStyle = { style: { ...DEFAULT_PAPER_STYLE, edges: { ...DEFAULT_PAPER_STYLE.edges, width: PEN_WIDTH_RANGE.max } } };
+    // An 8 mm sheet: the band a card keeps round it is 1 mm, half the edge pen 2.1. The markup is to a hundredth of a pt.
+    const picture = cellPicture(referencesStep('step-sent'), {}, heavy, { ...cell, frameMm: 8 }, 'c0-', TEXT)!;
+    const [, dx = '0', dy = '0'] = /^<g transform="translate\(([-\d.]+) ([-\d.]+)\)">/.exec(picture.markup) ?? [];
+    const ink = [...picture.markup.matchAll(/<line [^>]*x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)"[^>]*stroke-width="([\d.]+)"/g)];
+    expect(ink.length).toBeGreaterThan(3);
+    const { x, y, width, height } = picture.boundsPt;
+    for (const [, x1, y1, x2, y2, pen] of ink) {
+      const half = Number(pen) / 2;
+      for (const [lx, ly] of [
+        [Number(x1) + Number(dx), Number(y1) + Number(dy)],
+        [Number(x2) + Number(dx), Number(y2) + Number(dy)],
+      ]) {
+        expect(lx! - half).toBeGreaterThanOrEqual(x - 0.01);
+        expect(ly! - half).toBeGreaterThanOrEqual(y - 0.01);
+        expect(lx! + half).toBeLessThanOrEqual(x + width + 0.01);
+        expect(ly! + half).toBeLessThanOrEqual(y + height + 0.01);
+      }
+    }
+  });
+
+  it('keeps a scene’s ink in its room, half its widest pen past its lines, at the heaviest edge pen (review 4)', () => {
+    const heavy: DiagramStyle = { style: { ...DEFAULT_PAPER_STYLE, edges: { ...DEFAULT_PAPER_STYLE.edges, width: PEN_WIDTH_RANGE.max } } };
+    const document = { ...insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [cpStep('step-cp')], 0), style: heavy };
+    const laid = layoutDiagram(document, estimateTextSetter).pages[0]!.cells[0]!;
+    const picture = cellPicture(document.steps[0] as DiagramStep, {}, heavy, laid, 'c0-', TEXT)!;
+    // The sheet as drawn — its face's outline and its lines, where it was moved to settle in its room — and
+    // the box the picture says it draws: half the edge pen past them.
+    const [, dx = '0', dy = '0'] = /^<g transform="translate\(([-\d.]+) ([-\d.]+)\)">/.exec(picture.markup) ?? [];
+    const outline = [...picture.markup.matchAll(/<path d="([^"]*)"/g)].flatMap((match) =>
+      [...match[1]!.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((pair) => [Number(pair[1]), Number(pair[2])])
+    );
+    const lines = [...picture.markup.matchAll(/<line [^>]*x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)"/g)].flatMap((match) => [
+      [Number(match[1]), Number(match[2])],
+      [Number(match[3]), Number(match[4])],
+    ]);
+    const ends = [...outline, ...lines].map(([lx, ly]) => [lx! + Number(dx), ly! + Number(dy)]);
+    expect(outline.length).toBeGreaterThan(3);
+    const half = PEN_WIDTH_RANGE.max / 2;
+    const { x, y, width, height } = picture.boundsPt;
+    expect(x).toBeCloseTo(Math.min(...ends.map(([lx]) => lx!)) - half, 1);
+    expect(y).toBeCloseTo(Math.min(...ends.map(([, ly]) => ly!)) - half, 1);
+    expect(x + width).toBeCloseTo(Math.max(...ends.map(([lx]) => lx!)) + half, 1);
+    expect(y + height).toBeCloseTo(Math.max(...ends.map(([, ly]) => ly!)) + half, 1);
+    // All of it in the room the layout drew for it.
+    const room = laid.drawMm;
+    expect(x).toBeGreaterThanOrEqual(room.x * PT_PER_MM - 1e-6);
+    expect(y).toBeGreaterThanOrEqual(room.y * PT_PER_MM - 1e-6);
+    expect(x + width).toBeLessThanOrEqual((room.x + room.w) * PT_PER_MM + 1e-6);
+    expect(y + height).toBeLessThanOrEqual((room.y + room.h) * PT_PER_MM + 1e-6);
   });
 
   it('draws a picture centred in the room the layout drew for it, which may be taller than its box', () => {

@@ -25,7 +25,14 @@
 import type { PaperScene } from '@treemaker/origami-simulator';
 import { INLINE_LABEL_FONT } from '../../cp-workspace/references/diagram/DiagramPrimitives';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
-import { PT_PER_CSS_PX, PT_PER_MM, mmToCssPx, paperSceneSvgBody } from '../../lib/paper/paperSvg';
+import {
+  PT_PER_CSS_PX,
+  PT_PER_MM,
+  SEAM_STROKE_WIDTH_PT,
+  mmToCssPx,
+  paperSceneSvgBody,
+  widestPenPt,
+} from '../../lib/paper/paperSvg';
 import type {
   DiagramAsset,
   DiagramHanStyle,
@@ -267,14 +274,18 @@ export function layoutPicture(
       },
     };
   };
-  /** A frame `width` × `height`, `units` pattern units across its longer side when known, with its annotations. */
-  const framed = (units: number | null, width: number, height: number): LayoutStep['picture'] => {
+  /**
+   * A frame `width` × `height`, `units` pattern units across its longer side
+   * when known, its ink `inkPx` past it all round, with its annotations.
+   */
+  const framed = (units: number | null, width: number, height: number, inkPx = 0): LayoutStep['picture'] => {
     const longer = Math.max(width, height);
     if (!(longer > 0) || !Number.isFinite(longer)) return UNSIZED;
     return measured(units, (mm) => {
       const framePx = mmToCssPx(mm);
       const frame = { x: 0, y: 0, width: (width / longer) * framePx, height: (height / longer) * framePx };
-      return { frame, reached: annotated ? reachedWith(step, frame, frame, style) : frame };
+      const inked = grown(frame, inkPx);
+      return { frame, reached: annotated ? reachedWith(step, frame, inked, style) : inked };
     });
   };
   switch (source.kind) {
@@ -284,7 +295,7 @@ export function layoutPicture(
       const scale = source.picture.paperScale;
       const units = scale ? longerSide(scene.bounds) / scale : null;
       const { minX, minY, maxX, maxY } = scene.bounds;
-      return framed(units, maxX - minX, maxY - minY);
+      return framed(units, maxX - minX, maxY - minY, inkPt(diagramScenePaintStyle(style, source.pattern)) / PT_PER_CSS_PX);
     }
     case 'asset': {
       const scale = step.picture?.kind === 'asset' ? step.picture.paperScale : null;
@@ -293,11 +304,13 @@ export function layoutPicture(
       return framed(units, posed.widthPx, posed.heightPx);
     }
     case 'step-diagram': {
-      // Its letters and its annotations together, measured against its sheet.
+      // Its letters, its marks, its lines' ink past its sheet and its annotations together, measured against its sheet.
+      const ink = inkPt(stepDiagramPaintStyle(style)) / PT_PER_CSS_PX;
       return measured(sentSheetUnits(step), (mm) => {
         const { drawing, sheet } = stepDiagramBoxes(source.picture, style, mm);
         if (!(longerOf(sheet) > 0)) return null;
-        return { frame: sheet, reached: annotated ? reachedWith(step, sheet, drawing, style) : drawing };
+        const inked = union(drawing, grown(sheet, ink));
+        return { frame: sheet, reached: annotated ? reachedWith(step, sheet, inked, style) : inked };
       });
     }
     case 'fixed':
@@ -409,6 +422,21 @@ function settle(at: number, size: number, roomAt: number, roomSize: number, fram
   return Math.min(Math.max(centred, roomAt - frameAt), roomAt + roomSize - (frameAt + frameSize));
 }
 
+/**
+ * How far a picture's lines' ink reaches past their geometry when painted in
+ * `paint`, in pt: half its widest pen, or a seam's, as the painter's own page
+ * leaves it (`pageMarginPt`) — an outline is stroked on its line, and a
+ * crease's round cap at the paper's edge reaches past it.
+ */
+function inkPt(paint: PaperStyle): number {
+  return Math.max(widestPenPt(paint), SEAM_STROKE_WIDTH_PT) / 2;
+}
+
+/** `rect` grown by `by` on every side. */
+function grown(rect: Rect, by: number): Rect {
+  return { x: rect.x - by, y: rect.y - by, width: rect.width + 2 * by, height: rect.height + 2 * by };
+}
+
 function union(a: Rect, b: Rect): Rect {
   const x = Math.min(a.x, b.x);
   const y = Math.min(a.y, b.y);
@@ -453,8 +481,14 @@ function draw(
             ? fitScale(box, maxX - minX, maxY - minY, framePt)
             : PT_PER_CSS_PX;
       const placed = placedScene(scene, diagramScenePaintStyle(style, source.pattern), box, ptPerPx);
-      // A scene's frame is its bounds.
-      return { ...placed, framePt: placed.boundsPt, text: [], fitted: !(mmPerUnit !== null && scale) && framePt === null };
+      // A scene's frame is its bounds; its ink reaches past them.
+      return {
+        ...placed,
+        boundsPt: grown(placed.boundsPt, inkPt(diagramScenePaintStyle(style, source.pattern))),
+        framePt: placed.boundsPt,
+        text: [],
+        fitted: !(mmPerUnit !== null && scale) && framePt === null,
+      };
     }
     case 'step-diagram': {
       const units = sentSheetUnits(step);
@@ -471,18 +505,19 @@ function draw(
       // Built at its size on the page: one scene px is one CSS px of it.
       const placed = placedScene(scene, stepDiagramPaintStyle(style), box, PT_PER_CSS_PX);
       const letters = labelsOf(source.picture);
-      // Its frame is its sheet, wherever its letters reach.
+      // Its frame is its sheet, wherever its letters reach; its lines' ink reaches past it.
       const sheet = stepDiagramSheetBox(model, mirrored, sheetMm);
+      const sheetPt = {
+        x: placed.boundsPt.x + (sheet.x - scene.bounds.minX) * PT_PER_CSS_PX,
+        y: placed.boundsPt.y + (sheet.y - scene.bounds.minY) * PT_PER_CSS_PX,
+        width: sheet.width * PT_PER_CSS_PX,
+        height: sheet.height * PT_PER_CSS_PX,
+      };
       return {
         markup: placed.markup.replaceAll(`font-family="${INLINE_LABEL_FONT}"`, `font-family="'Noto Sans', sans-serif"`),
-        boundsPt: placed.boundsPt,
+        boundsPt: union(placed.boundsPt, grown(sheetPt, inkPt(stepDiagramPaintStyle(style)))),
         fitted: !(mmPerUnit !== null && units !== null) && framePt === null,
-        framePt: {
-          x: placed.boundsPt.x + (sheet.x - scene.bounds.minX) * PT_PER_CSS_PX,
-          y: placed.boundsPt.y + (sheet.y - scene.bounds.minY) * PT_PER_CSS_PX,
-          width: sheet.width * PT_PER_CSS_PX,
-          height: sheet.height * PT_PER_CSS_PX,
-        },
+        framePt: sheetPt,
         text: letters === '' ? [] : [{ face: fontFaceId({ key: 'latin', weight: 700 }), characters: letters }],
       };
     }
