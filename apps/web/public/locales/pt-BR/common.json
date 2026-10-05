@@ -318,7 +318,7 @@
     "sendToEditTooltip": "Enviar o padrão de vincos deste design para o canvas de Edição",
     "sendToEditWithCircles": "Enviar para Edição (incluir círculos)",
     "sendToEditWithCirclesTooltip": "Enviar o padrão de vincos deste design junto com seus círculos de empacotamento",
-    "settings": "Configurações"
+    "settings": "Configurações do app"
   },
   "update": {
     "available": "Atualização disponível",

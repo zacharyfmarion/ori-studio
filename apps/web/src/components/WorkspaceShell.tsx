@@ -271,7 +271,7 @@ function Toolbar() {
           have.
         */}
         <ToolbarDownloadButton />
-        <IconButton size="sm" title={t('common:toolbar.settings', 'Settings')} tooltipSide="bottom" onClick={() => openSettings()}>
+        <IconButton size="sm" title={t('common:toolbar.settings', 'App Settings')} tooltipSide="bottom" onClick={() => openSettings()}>
           <Settings size={15} />
         </IconButton>
       </div>

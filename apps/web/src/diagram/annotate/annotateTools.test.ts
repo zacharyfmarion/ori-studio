@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import i18n from '../../i18n';
 import { ANNOTATE_TOOL_GROUPS, annotateToolHint, EDIT_PATH, type AnnotateToolHost } from './annotateTools';
@@ -115,6 +117,15 @@ describe('the tool window', () => {
       // A label's and a callout's words are typed in the Settings sheet's Step tab there (review).
       if (tool === 'label' || tool === 'callout') expect(hint.instructions).toMatch(/ in Settings, under Step\.$/);
       else expect(hint.instructions).toBe(annotateToolHint(t, tool, null, mac)!.instructions);
+    }
+  });
+
+  it('names the Settings it sends a finger to as no other button is named, in every language (review 4)', () => {
+    // The sheet's pill and the app's own cog were both "Settings" in seven of nine, and the cog comes first.
+    const locales = resolve(__dirname, '../../../public/locales');
+    for (const locale of readdirSync(locales).filter((name) => !name.startsWith('.'))) {
+      const common = JSON.parse(readFileSync(resolve(locales, locale, 'common.json'), 'utf8'));
+      expect(common.toolbar.settings, locale).not.toBe(common.viewDrawer.openSettings);
     }
   });
 
