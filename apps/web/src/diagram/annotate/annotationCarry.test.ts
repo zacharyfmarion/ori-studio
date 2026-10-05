@@ -295,6 +295,45 @@ describe('a linked picture turned about its middle', () => {
       close(rightAngleDiagonal(carried), rightAngleDiagonal(mark));
     });
 
+    it('carries a mark with its face through a turn while a depth spread stays on, the spread staying on the screen (review)', () => {
+      // A flap over a sheet, the sheet stepped 30 up and to the left on the screen, before the turn and after it.
+      const square = (lo: number, hi: number): ScenePoint[] => [
+        [lo, lo],
+        [hi, lo],
+        [hi, hi],
+        [lo, hi],
+      ];
+      const turn = turnClockwise(90);
+      const turnedRing = (ring: ScenePoint[]) => ring.map(([x, y]): ScenePoint => [turn({ x, y }).x, turn({ x, y }).y]);
+      const spreadOn = (sheet: ScenePoint[], flap: ScenePoint[]) =>
+        sceneOf([face([sheet.map(([x, y]): ScenePoint => [x - 30, y - 30])], { face: 0 }), face([flap], { face: 1 })]);
+      const [sheet, flap] = [square(0, 100), square(20, 60)];
+      const sceneBefore = spreadOn(sheet, flap);
+      const sceneAfter = spreadOn(turnedRing(sheet), turnedRing(flap));
+      const before = { ...scenePicture(), sceneJson: storedSceneJson(sceneBefore)!, key: 'scene-0' };
+      const after = { ...before, sceneJson: storedSceneJson(sceneAfter)!, key: 'scene-90' };
+      const picturePoint = ({ bounds }: PaperScene, [x, y]: ScenePoint): [number, number] => {
+        const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+        return [(x - bounds.minX) / span, (y - bounds.minY) / span];
+      };
+      // A circle on the sheet's corner past the flap, and one on the flap's.
+      const marks: KnownDiagramAnnotation[] = [
+        { id: 'sheet', kind: 'circle', from: picturePoint(sceneBefore, [70, -30]), to: picturePoint(sceneBefore, [70, -30]) },
+        { id: 'flap', kind: 'circle', from: picturePoint(sceneBefore, [60, 60]), to: picturePoint(sceneBefore, [60, 60]) },
+      ];
+      const spread = { ...FLAT, spread: SPREAD };
+      const moved = setLinkedPicture(annotated(cpStep('step-1', spread, before), marks), 'step-1', {
+        source: cpSource({ ...spread, rotationDeg: 90 }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+      // Each on the same corner of its face in the turned picture: the sheet's turned, then stepped as before.
+      const [sheetCorner] = turnedRing([[100, 0]]);
+      const [flapCorner] = turnedRing([[60, 60]]);
+      close((moved.annotations[0] as KnownDiagramAnnotation).from, picturePoint(sceneAfter, [sheetCorner![0] - 30, sheetCorner![1] - 30]));
+      close((moved.annotations[1] as KnownDiagramAnnotation).from, picturePoint(sceneAfter, flapCorner!));
+      expect(moved.annotatedPictureKey).toBe('scene-90');
+    });
+
     it('moves a callout with the face under its point, its box keeping its place beside it', () => {
       const before = scenePicture();
       const sceneBefore = storedScene(before)!;

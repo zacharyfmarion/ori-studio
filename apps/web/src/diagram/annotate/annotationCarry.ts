@@ -157,8 +157,13 @@ function pictureMove(
     if (was.mode === 'folded-flat' && is.mode === 'folded-flat' && (was.side !== is.side || was.foldCase !== is.foldCase)) {
       return null;
     }
-    const spread = was.mode === 'folded-flat' && is.mode === 'folded-flat' && !sameSpread(was.spread, is.spread);
     const delta = is.rotationDeg - was.rotationDeg;
+    // A depth spread steps the layers on the screen after the turn, so a
+    // turn with it left on moves no face but the nearest as the turn does.
+    const spread =
+      was.mode === 'folded-flat' &&
+      is.mode === 'folded-flat' &&
+      (!sameSpread(was.spread, is.spread) || (was.spread?.kind === 'depth' && delta !== 0));
     if (delta === 0 && !spread) return null;
     const [sceneBefore, sceneAfter] = [storedScene(before.picture), storedScene(after.picture)];
     if (!sceneBefore || !sceneAfter) return null;
@@ -172,7 +177,8 @@ function pictureMove(
 }
 
 /**
- * A flat fold's layers spread otherwise, and perhaps turned: a point moves
+ * A flat fold's layers spread otherwise, and perhaps turned, or turned under a
+ * depth spread, which stays on the screen as the picture turns: a point moves
  * with the face it was drawn on — the nearest whole face under it — to where
  * that face went, by mean value coordinates over its outline, which take its
  * corners exactly where the spread took them and everything between as the
