@@ -1325,9 +1325,14 @@ function offsetRuns(
  * Only near crossings: an arrow drawn over itself on purpose crosses its own
  * offset far along it, and keeps the crossing. A cut never drops `keep` — the
  * points from one index to another — so a loop round a short leg cannot be
- * taken for one round its tail.
+ * taken for one round its tail; but for `keep.knot`, a knot the sides tie
+ * within its reach of a point, which is cut with what it ties in.
  */
-function cutLoops(points: readonly Vec2[], span: number, keep?: { from: number; to: number }): Vec2[] {
+function cutLoops(
+  points: readonly Vec2[],
+  span: number,
+  keep?: { from: number; to: number; knot?: { at: Vec2; reach: number } }
+): Vec2[] {
   if (points.length < 4) return [...points];
   const out: Vec2[] = [points[0]!];
   let i = 0;
@@ -1339,9 +1344,12 @@ function cutLoops(points: readonly Vec2[], span: number, keep?: { from: number; 
     for (let j = i + 2; j < points.length - 1; j += 1) {
       travelled += dist(points[j - 1]!, points[j]!);
       if (travelled > span) break;
-      // The cut drops points i + 1 to j.
-      if (keep && i + 1 <= keep.to && j >= keep.from) break;
       const at = crossing(a, b, points[j]!, points[j + 1]!);
+      // The cut drops points i + 1 to j: never `keep`, but for a knot by it.
+      if (keep && i + 1 <= keep.to && j >= keep.from) {
+        if (at && keep.knot && dist(at, keep.knot.at) <= keep.knot.reach) cut = { j, at };
+        continue;
+      }
       if (at) cut = { j, at };
     }
     if (cut) {
@@ -1695,10 +1703,14 @@ export function whiteArrowOutline(
     tip,
   ].filter((p, index, all) => index === 0 || dist(all[index - 1]!, p) > 1e-12);
   // The tail is the shaft's start, never a fold: no cut drops it. A pointed
-  // tail is one point, its sides meeting there, which the ring keeps once.
+  // tail is one point, its sides meeting there, which the ring keeps once;
+  // but a path that doubles back at once ties its sides in a knot within
+  // half a neck of that point, and the knot is cut, the point with it,
+  // leaving the round end the sides make there.
   const tailFrom = ring.indexOf(leftTail);
   const tailTo = ring.indexOf(dist(leftTail, rightTail) > 1e-12 ? rightTail : leftTail);
-  const keep = tailFrom >= 0 && tailTo >= tailFrom ? { from: tailFrom, to: tailTo } : undefined;
+  const knot = tail === 'pointed' ? { at: start, reach: neck / 2 } : undefined;
+  const keep = tailFrom >= 0 && tailTo >= tailFrom ? { from: tailFrom, to: tailTo, knot } : undefined;
   const cut = cutLoops(ring, WHITE_ARROW_FOLD_SPAN * neck, keep);
   cut.pop();
   return withoutStraightCorners(cut);

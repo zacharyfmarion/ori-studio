@@ -414,6 +414,17 @@ describe('a short or broken white arrow', () => {
     }
   });
 
+  it('cuts a knot its sides tie by a pointed tail, where the path doubles back within the arrow’s width (review)', () => {
+    // One cubic whose first handle points back, on a wide arrow.
+    const back: Cubic[] = [[[0, 0], [-40, 20], [70, -20], [30, 0]]];
+    expect(selfCrossings(outlineOf(back, 'pointed', sized('wide')))).toBe(0);
+    // Half a neck of leg, then a curl whose first handle points back, on a narrow one.
+    const narrow = sized('narrow');
+    const leg = narrow.neck / 2;
+    const curl: Cubic[] = [line([0, 0], [0, -leg]), [[0, -leg], [5, -leg + 20], [-40, -leg - 50], [-80, -leg - 50]]];
+    expect(selfCrossings(outlineOf(curl, 'pointed', narrow))).toBe(0);
+  });
+
   it('draws a path that crosses itself as offset, overlapping itself (not supported in v1)', () => {
     const crossing: Cubic[] = [[[0, 120], [220, 0], [-60, 0], [160, 120]]];
     const outline = outlineOf(crossing);
