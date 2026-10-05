@@ -11,7 +11,7 @@ import {
   steppedNode,
   type AnnotationEdit,
 } from './annotationActions';
-import { ANNOTATION_KINDS, ARROW_BEND, MAX_PATH_NODES } from './annotationModel';
+import { flipChangesArc, ANNOTATION_KINDS, ARROW_BEND, MAX_PATH_NODES } from './annotationModel';
 
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
 
@@ -126,16 +126,24 @@ describe('Edit Path’s node verbs', () => {
       'corner-node (off)',
       'add-node',
       'delete-node',
-      'flip-arc',
-      // Straight already: nothing to go back to.
+      // Straight already: a flip mirrors it onto itself, and there is nothing to go back to.
+      'flip-arc (off)',
       'reset-path (off)',
       'delete',
     ]);
     // With Select a straight one offers no Reset; a bent one does, and Reset lays it straight.
-    expect(ids(straight, false)).toEqual(['flip-arc', 'delete']);
+    expect(ids(straight, false)).toEqual(['flip-arc (off)', 'delete']);
     const bent = { ...straight, path: [{ at: [0.2, 0.3] as [number, number], out: [0.3, 0.1] as [number, number] }, { at: [0.6, 0.3] as [number, number] }] };
     expect(ids(bent, false)).toEqual(['flip-arc', 'reset-path', 'delete']);
     expect(annotationActionEdit('reset-path', 'w').edit([bent])).toEqual([straight]);
+    // Nodes added along a straight one leave it straight: still nothing to flip (review).
+    const along = { ...straight, path: [{ at: [0.2, 0.3] as [number, number] }, { at: [0.4, 0.3] as [number, number], in: [0.3, 0.3] as [number, number], out: [0.5, 0.3] as [number, number] }, { at: [0.6, 0.3] as [number, number] }] };
+    // (Reset takes the nodes out again.)
+    expect(ids(along, false)).toEqual(['flip-arc (off)', 'reset-path', 'delete']);
+    expect(flipChangesArc(along)).toBe(false);
+    expect(flipChangesArc(bent)).toBe(true);
+    // An arc flips while it bends.
+    expect(flipChangesArc(of('v', 'valley-arrow', { bend: 0.1 }))).toBe(true);
   });
 
   it('step from node to node, stopping at the ends, from none to the first or the last', () => {

@@ -15,6 +15,7 @@ import {
   selectedDiagramPathNode,
 } from '../store/workspaceStore/diagramState';
 import { annotationActionEdit, nudgePathNodeEdit, offersAnnotationAction } from './annotate/annotationActions';
+import { flipChangesArc } from './annotate/annotationModel';
 import { applyAnnotationEdit } from './annotate/applyAnnotationEdit';
 import { indexForStepNumber, stepsOf, type KnownDiagramAnnotation } from './document/diagramDocument';
 import {
@@ -50,8 +51,9 @@ function keyState(state: WorkspaceState): DiagramKeyState {
   };
 }
 
+/** Whether F flips the selected annotation: one that flips, and would change (a straight arrow's key falls through). */
 function offersFlipArc(annotation: KnownDiagramAnnotation | null): boolean {
-  return annotation !== null && offersAnnotationAction('flip-arc', annotation);
+  return annotation !== null && offersAnnotationAction('flip-arc', annotation) && flipChangesArc(annotation);
 }
 
 /** The step whose card has focus, if one does. */

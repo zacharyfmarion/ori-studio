@@ -6,6 +6,7 @@ import {
   MAX_PATH_NODES,
   canBeShaped,
   flipAnnotationArc,
+  flipChangesArc,
   flipsArc,
   isCornerKind,
   isShapedArrow,
@@ -392,6 +393,12 @@ export function buildAnnotationActions(
           run: () => deps.apply(annotationActionEdit(id, annotation.id, context)),
         };
       case 'flip-arc':
+        return {
+          ...base,
+          // A straight arrow mirrors onto itself: offered, as on any arrow that flips, and held.
+          disabled: !state.editable || !flipChangesArc(annotation),
+          run: () => deps.apply(annotationActionEdit(id, annotation.id, context)),
+        };
       case 'turn-right-angle':
       case 'delete':
         return {

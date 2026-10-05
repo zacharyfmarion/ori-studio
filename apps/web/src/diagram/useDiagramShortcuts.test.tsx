@@ -139,3 +139,32 @@ describe('Edit Path’s arrow keys (decision 6)', () => {
     expect(runtime.diagram!('diagram.nudgeNodeRight')).toBe(true);
   });
 });
+
+describe('F, Flip Arc (review)', () => {
+  /** A step open in Annotate on one white arrow, selected. */
+  function selected(path: KnownDiagramAnnotation['path']) {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"/>';
+    state().addDiagramPictures([{ id: 'asset-1', kind: 'svg', svg, widthPx: 400, heightPx: 300, bytes: svg.length }]);
+    const stepId = state().diagramSelectedStepId!;
+    state().openDiagramStep(stepId, 'annotate');
+    state().editDiagramAnnotations(stepId, 'Add annotation', () => [
+      { id: 'w', kind: 'white-arrow', from: [0.2, 0.5], to: [0.6, 0.5], path, width: 'regular', tail: 'pointed' },
+    ]);
+    state().selectDiagramAnnotation('w');
+    return stepId;
+  }
+  const arrow = () => stepsIn(state().diagram!)[0]!.annotations[0] as KnownDiagramAnnotation;
+
+  it('is no key of a straight white arrow’s, which a flip mirrors onto itself, and flips a bent one', () => {
+    const stepId = selected([{ at: [0.2, 0.5] }, { at: [0.6, 0.5] }]);
+    const past = state().diagramHistory.past.length;
+    expect(runtime.diagram!('diagram.flipArc')).toBe(false);
+    expect(state().diagramHistory.past).toHaveLength(past);
+    state().editDiagramAnnotations(stepId, 'Shape', () => [
+      { ...arrow(), path: [{ at: [0.2, 0.5], out: [0.3, 0.3] }, { at: [0.6, 0.5] }] },
+    ]);
+    state().selectDiagramAnnotation('w');
+    expect(runtime.diagram!('diagram.flipArc')).toBe(true);
+    expect(arrow().path![0]!.out![1]).toBeCloseTo(0.7, 12);
+  });
+});

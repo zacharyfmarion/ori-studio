@@ -805,6 +805,24 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
  * arrow is mirrored across its chord, every node and handle, which is what
  * flipping an arc is; one whose ends meet has no chord, and stays.
  */
+/**
+ * Whether Flip changes what `annotation` draws: an arc that bends, or a path
+ * with a node or a handle off the line between its ends. A straight arrow —
+ * a white arrow as it is laid, or one with nodes added along it — and one
+ * whose ends meet mirror onto themselves.
+ */
+export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
+  if (!flipsArc(annotation.kind)) return false;
+  const shape = arrowShape(annotation);
+  if (shape.kind === 'arc') return shape.bend !== 0;
+  const { from, to } = annotation;
+  const chord = Math.hypot(to[0] - from[0], to[1] - from[1]);
+  if (!(chord > 1e-9)) return false;
+  const off = ([x, y]: PicturePoint) =>
+    Math.abs((x - from[0]) * (to[1] - from[1]) - (y - from[1]) * (to[0] - from[0])) / chord > 1e-9;
+  return shape.path.some((node) => off(node.at) || (node.in !== undefined && off(node.in)) || (node.out !== undefined && off(node.out)));
+}
+
 export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   if (!flipsArc(annotation.kind)) return annotation;
   const shape = arrowShape(annotation);
