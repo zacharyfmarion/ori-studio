@@ -629,7 +629,6 @@ export function useAnnotateCanvas({
     }
   };
 
-
   /**
    * A pointer over the stage with nothing in hand (hover is new): with a tool
    * that snaps, the target a press here would land on — shown over the marks,
