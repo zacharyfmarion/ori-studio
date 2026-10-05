@@ -784,7 +784,7 @@
       "sideToSide": "Seitlich",
       "smooth": "Glatt",
       "snap": "Am Bild einrasten",
-      "snapHelp": "Kreise, die Punkte von Hinweisen sowie die Enden von Pfeilen und Linien rasten an nahe Punkte des Bildes und an andere Annotationen ein. Halte {{modifier}} gedrückt, um sie frei zu setzen.",
+      "snapHelp": "Kreise, die Ecken rechter Winkel, die Punkte von Hinweisen sowie die Enden von Pfeilen und Linien rasten an nahe Punkte des Bildes und an andere Annotationen ein. Halte {{modifier}} gedrückt, um sie frei zu setzen.",
       "tail": "Ende",
       "tailCleft": "Gekerbt",
       "tailPointed": "Spitz",

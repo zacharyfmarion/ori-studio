@@ -815,7 +815,7 @@
       "sideToSide": "De lado a lado",
       "smooth": "Suave",
       "snap": "Ajustar a la imagen",
-      "snapHelp": "Los círculos, los puntos de las llamadas y los extremos de flechas y líneas se ajustan a los puntos cercanos de la imagen y a otras anotaciones. Mantén pulsado {{modifier}} para colocarlos en cualquier lugar.",
+      "snapHelp": "Los círculos, las esquinas de los ángulos rectos, los puntos de las llamadas y los extremos de flechas y líneas se ajustan a los puntos cercanos de la imagen y a otras anotaciones. Mantén pulsado {{modifier}} para colocarlos en cualquier lugar.",
       "tail": "Cola",
       "tailCleft": "Hendida",
       "tailPointed": "En punta",
