@@ -401,6 +401,53 @@ describe('a linked picture turned about its middle', () => {
       }
     });
 
+    it('keeps a mark on the corner it was put on when a face has since come over it, as a turn under a depth spread brings one', () => {
+      // A deeper face, and one drawn over it that has come over its far corner (40, 40).
+      const square = (lo: number, hi: number): ScenePoint[] => [
+        [lo, lo],
+        [hi, lo],
+        [hi, hi],
+        [lo, hi],
+      ];
+      const scene = (step: number) =>
+        sceneOf([face([square(0, 40).map(([x, y]): ScenePoint => [x - step, y - step])], { face: 0 }), face([square(30, 70)], { face: 1 })]);
+      const before = { ...scenePicture(), sceneJson: storedSceneJson(scene(0))!, key: 'scene-0' };
+      const after = { ...before, sceneJson: storedSceneJson(scene(10))!, key: 'scene-10' };
+      const picturePoint = ({ bounds }: PaperScene, [x, y]: ScenePoint): [number, number] => {
+        const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+        return [(x - bounds.minX) / span, (y - bounds.minY) / span];
+      };
+      const corner = picturePoint(scene(0), [40, 40]);
+      // And one drawn on the face over it, a hair off that corner: it goes with that face.
+      const inside = picturePoint(scene(0), [40.5, 40.5]);
+      const marks: KnownDiagramAnnotation[] = [
+        { id: 'corner', kind: 'circle', from: corner, to: corner },
+        { id: 'inside', kind: 'circle', from: inside, to: inside },
+      ];
+      const moved = setLinkedPicture(annotated(cpStep('step-1', { ...FLAT, spread: SPREAD }, before), marks), 'step-1', {
+        source: cpSource({ ...FLAT, spread: { ...SPREAD, amount: 0.1 } }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+      close((moved.annotations[0] as KnownDiagramAnnotation).from, picturePoint(scene(10), [30, 30]));
+      close((moved.annotations[1] as KnownDiagramAnnotation).from, picturePoint(scene(10), [40.5, 40.5]));
+
+      // Where the face over it has an edge through that corner, the corner is still what it was put on.
+      const edged = (step: number) =>
+        sceneOf([
+          face([square(0, 40).map(([x, y]): ScenePoint => [x - step, y - step])], { face: 0 }),
+          face([[[40, 20], [80, 20], [80, 60], [40, 60]]], { face: 1 }),
+        ]);
+      const edgedBefore = { ...before, sceneJson: storedSceneJson(edged(0))!, key: 'edged-0' };
+      const edgedAfter = { ...before, sceneJson: storedSceneJson(edged(10))!, key: 'edged-10' };
+      const onEdge = picturePoint(edged(0), [40, 40]);
+      const carried = setLinkedPicture(
+        annotated(cpStep('step-1', { ...FLAT, spread: SPREAD }, edgedBefore), [{ id: 'corner', kind: 'circle', from: onEdge, to: onEdge }]),
+        'step-1',
+        { source: cpSource({ ...FLAT, spread: { ...SPREAD, amount: 0.1 } }), picture: edgedAfter }
+      ).steps[0] as DiagramStep;
+      close((carried.annotations[0] as KnownDiagramAnnotation).from, picturePoint(edged(10), [30, 30]));
+    });
+
     it('moves a callout with the face under its point, its box keeping its place beside it', () => {
       const before = scenePicture();
       const sceneBefore = storedScene(before)!;

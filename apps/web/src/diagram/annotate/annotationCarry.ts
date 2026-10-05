@@ -180,11 +180,12 @@ function pictureMove(
 /**
  * A flat fold's layers spread otherwise, and perhaps turned, or turned under a
  * depth spread, which stays on the screen as the picture turns: a point moves
- * with the face it was drawn on — the nearest face under it, whole or a woven
- * patch of it — to where that face went, by mean value coordinates over its
- * whole outline, which take its corners exactly where the spread took them
- * and everything between as the spread's own field does
- * (`foldedLayerSpread.ts`). The nearest layer is not still where it meets
+ * with the face it was drawn on — the one whose corner it lies on, else whose
+ * edge, else the nearest face under it, whole or a woven patch of it — to
+ * where that face went, by mean value coordinates over its whole outline,
+ * which take its corners exactly where the spread took them and everything
+ * between as the spread's own field does (`foldedLayerSpread.ts`). The
+ * nearest layer is not still where it meets
  * deeper ones at a crease, nor is a deeper layer, so the turn alone would
  * leave a mark there off its paper. A point on no face, or on one the other
  * picture does not draw (a layer a picture with no spread leaves out), moves
@@ -214,23 +215,31 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
     },
     point: ([u, v]) => {
       const at = { x: from.minX + u * longerFrom, y: from.minY + v * longerFrom };
-      // Back to front, so the last face found is the one the mark sits on.
-      for (let i = drawn.length - 1; i >= 0; i -= 1) {
-        const piece = drawn[i]!.rings[0]!;
-        // On its outline counts: a mark snapped to a face's corner is that face's.
-        if (!insideRing(piece, at) && !onRing(piece, at, epsilon)) continue;
-        const ring = source.get(drawn[i]!.face)!;
-        const goal = target.get(drawn[i]!.face);
-        const weights = goal?.length === ring.length ? meanValueWeights(ring.map(([x, y]) => ({ x, y })), at, epsilon) : null;
-        if (!goal || !weights) break;
-        let [x, y] = [0, 0];
-        weights.forEach((weight, corner) => {
-          x += weight * goal[corner]![0];
-          y += weight * goal[corner]![1];
-        });
-        return [(x - to.minX) / longerTo, (y - to.minY) / longerTo];
-      }
-      return turn.point([u, v]);
+      // Front to back, the first found. A mark on a face's corner was put on
+      // it, as a snap puts it, and is that face's though one drawn over it
+      // since — a turn under a depth spread slides the layers apart on the
+      // screen — covers it there, or has an edge through it; then one on a
+      // face's edge, which the even-odd test counts outside the face on its
+      // far edges besides. Any other is the face's it lies on.
+      const topmost = (holds: (piece: readonly ScenePoint[]) => boolean) => {
+        for (let i = drawn.length - 1; i >= 0; i -= 1) if (holds(drawn[i]!.rings[0]!)) return drawn[i]!;
+        return null;
+      };
+      const under =
+        topmost((piece) => piece.some(([x, y]) => Math.hypot(x - at.x, y - at.y) <= epsilon)) ??
+        topmost((piece) => onRing(piece, at, epsilon)) ??
+        topmost((piece) => insideRing(piece, at));
+      const ring = under && source.get(under.face)!;
+      const goal = under && target.get(under.face);
+      const weights =
+        ring && goal?.length === ring.length ? meanValueWeights(ring.map(([x, y]) => ({ x, y })), at, epsilon) : null;
+      if (!goal || !weights) return turn.point([u, v]);
+      let [x, y] = [0, 0];
+      weights.forEach((weight, corner) => {
+        x += weight * goal[corner]![0];
+        y += weight * goal[corner]![1];
+      });
+      return [(x - to.minX) / longerTo, (y - to.minY) / longerTo];
     },
   };
 }
