@@ -114,6 +114,17 @@ describe('a click that found no right angle', () => {
     // What the press found comes first.
     const found = placeRightAngle(context(), [0.95, 0.04], { free: false });
     expect(clickedOpening(context(), found, FRAME, { free: false })).toBe(found.opens);
+    // Lines drawn on an upload meeting square away from the middle: into their angle, not toward the middle.
+    const { step, assets } = uploadStep();
+    const lines = [
+      annotation({ id: 'a', kind: 'valley-line', from: [0.3, 0.4], to: [0.1, 0.4] }),
+      annotation({ id: 'b', kind: 'valley-line', from: [0.3, 0.4], to: [0.3, 0.1] }),
+    ];
+    const away = { ...context(step), assets, annotations: lines };
+    const pressed = placeRightAngle(away, [0.301, 0.401], { free: false });
+    expect(pressed).toMatchObject({ at: [0.3, 0.4], opens: null });
+    expect(round(clickedOpening(away, pressed, FRAME, { free: false }))).toEqual(round([-R, -R]));
+    expect(round(clickedOpening(away, pressed, FRAME, { free: true }))).toEqual(round([R, R]));
   });
 
   it('opens up and to the right from the middle itself', () => {
