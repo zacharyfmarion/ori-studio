@@ -784,7 +784,8 @@
       "snapHelp": "Kreise sowie die Enden von Pfeilen und Linien rasten an nahe Punkte des Bildes und an andere Annotationen ein. Halte {{modifier}} gedrückt, um sie frei zu setzen.",
       "text": "Text",
       "topToBottom": "Von oben nach unten",
-      "turn": "Drehung"
+      "turn": "Drehung",
+      "turnRightAngle": "Um 90° drehen"
     },
     "card": {
       "badgeCreasePattern": "Faltmuster",

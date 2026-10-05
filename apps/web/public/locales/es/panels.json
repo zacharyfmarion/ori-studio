@@ -815,7 +815,8 @@
       "snapHelp": "Los círculos y los extremos de flechas y líneas se ajustan a los puntos cercanos de la imagen y a otras anotaciones. Mantén pulsado {{modifier}} para colocarlos en cualquier lugar.",
       "text": "Texto",
       "topToBottom": "De arriba abajo",
-      "turn": "Giro"
+      "turn": "Giro",
+      "turnRightAngle": "Girar 90°"
     },
     "card": {
       "badgeCreasePattern": "Patrón de pliegues",

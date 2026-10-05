@@ -753,7 +753,8 @@
       "snapHelp": "円と、矢印や線の端は、近くにある図の点やほかの注記にスナップします。{{modifier}} を押したままにすると、どこにでも置けます。",
       "text": "文字",
       "topToBottom": "上下",
-      "turn": "回転量"
+      "turn": "回転量",
+      "turnRightAngle": "90°回す"
     },
     "card": {
       "badgeCreasePattern": "展開図",

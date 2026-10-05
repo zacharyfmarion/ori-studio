@@ -753,7 +753,8 @@
       "snapHelp": "圆圈以及箭头和线的端点会吸附到附近的图上的点和其他标注。按住 {{modifier}} 可放在任意位置。",
       "text": "文字",
       "topToBottom": "上下",
-      "turn": "旋转量"
+      "turn": "旋转量",
+      "turnRightAngle": "旋转 90°"
     },
     "card": {
       "badgeCreasePattern": "折痕图",

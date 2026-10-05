@@ -815,7 +815,8 @@
       "snapHelp": "Les cercles et les extrémités des flèches et des lignes s’aimantent aux points proches de l’image et aux autres annotations. Maintenez {{modifier}} pour les placer n’importe où.",
       "text": "Texte",
       "topToBottom": "De haut en bas",
-      "turn": "Rotation"
+      "turn": "Rotation",
+      "turnRightAngle": "Tourner de 90°"
     },
     "card": {
       "badgeCreasePattern": "Patron de plis",

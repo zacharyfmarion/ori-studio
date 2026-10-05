@@ -2,7 +2,16 @@ import type { TFunction } from 'i18next';
 import type { DiagramArrowShapeGesture } from '../../analytics/events';
 import type { ShortcutActionId } from '../../keyboard/shortcuts';
 import type { KnownDiagramAnnotation } from '../document/diagramDocument';
-import { MAX_PATH_NODES, canBeShaped, flipAnnotationArc, flipsArc, type PictureFrame, type PicturePoint } from './annotationModel';
+import {
+  MAX_PATH_NODES,
+  canBeShaped,
+  flipAnnotationArc,
+  flipsArc,
+  isCornerKind,
+  turnRightAngle,
+  type PictureFrame,
+  type PicturePoint,
+} from './annotationModel';
 import {
   canResetPath,
   deletePathNode,
@@ -37,6 +46,7 @@ export type AnnotationActionId =
   | 'delete-node'
   | 'flip-arc'
   | 'reset-path'
+  | 'turn-right-angle'
   | 'delete';
 
 /** Where a surface puts a verb: with the selected node, or with the annotation as a whole. */
@@ -52,6 +62,7 @@ const ANNOTATION_ACTION_ORDER: readonly AnnotationActionId[] = [
   'delete-node',
   'flip-arc',
   'reset-path',
+  'turn-right-angle',
   'delete',
 ];
 
@@ -146,8 +157,8 @@ const SQUARE: PictureFrame = { width: 1, height: 1 };
 /**
  * Whether `annotation` offers a verb at all: the node verbs a fold arrow
  * with Edit Path in hand; Flip arc an arc to flip; Reset an arrow shaped, or
- * any fold arrow in Edit Path (where it waits for the first edit); Delete,
- * every one.
+ * any fold arrow in Edit Path (where it waits for the first edit); Turn 90°
+ * a right angle; Delete, every one.
  */
 export function offersAnnotationAction(
   id: AnnotationActionId,
@@ -167,6 +178,8 @@ export function offersAnnotationAction(
       return flipsArc(annotation.kind);
     case 'reset-path':
       return editingPath || (canBeShaped(annotation.kind) && annotation.path !== undefined);
+    case 'turn-right-angle':
+      return isCornerKind(annotation.kind);
     case 'delete':
       return true;
   }
@@ -244,6 +257,12 @@ export function annotationActionEdit(
         edit: editAnnotation(annotationId, (annotation) => resetPath(annotation, context.frame ?? SQUARE)),
         selectPathNode: null,
       };
+    case 'turn-right-angle':
+      // Into the next quadrant clockwise, about its corner: where a click found the wrong one.
+      return {
+        label: 'Turn right angle',
+        edit: editAnnotation(annotationId, turnRightAngle),
+      };
     case 'delete':
       return {
         label: 'Delete annotation',
@@ -304,6 +323,8 @@ function annotationActionLabel(t: TFunction, id: AnnotationActionId): string {
       return t('tools:diagram.flipArc', 'Flip Arc');
     case 'reset-path':
       return t('panels:diagram.annotations.resetShape', 'Reset Shape');
+    case 'turn-right-angle':
+      return t('panels:diagram.annotations.turnRightAngle', 'Turn 90°');
     case 'delete':
       return t('panels:diagram.annotations.delete', 'Delete');
   }
@@ -370,6 +391,7 @@ export function buildAnnotationActions(
           run: () => deps.apply(annotationActionEdit(id, annotation.id, context)),
         };
       case 'flip-arc':
+      case 'turn-right-angle':
       case 'delete':
         return {
           ...base,

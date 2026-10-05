@@ -474,6 +474,27 @@ describe('DiagramStepPanel in Annotate', () => {
     expect(state().diagramSelectedAnnotationId).toBeNull();
   });
 
+  it('turns a right angle a quarter clockwise with Turn 90°, as one undo step', () => {
+    const stepId = annotatedStep();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 'a-4', kind: 'right-angle', from: [0.3, 0.3], to: [0.32, 0.3] },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+    });
+    act(() => row('Right Angle').click());
+    expect(buttonNamed('Flip Arc')).toBeUndefined();
+    const past = state().diagramHistory.past.length;
+    act(() => buttonNamed('Turn 90°').click());
+    const turned = annotations()[3] as unknown as { from: [number, number]; to: [number, number] };
+    // Opening right, now down: clockwise on the page, about its corner.
+    expect(turned.from).toEqual([0.3, 0.3]);
+    expect(turned.to[0]).toBeCloseTo(0.3, 12);
+    expect(turned.to[1]).toBeCloseTo(0.32, 12);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+  });
+
   it('edits a label’s text in one line, and focuses it for a label just put down', async () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));

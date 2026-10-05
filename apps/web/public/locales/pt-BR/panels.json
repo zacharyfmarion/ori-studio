@@ -815,7 +815,8 @@
       "snapHelp": "Círculos e as pontas de setas e linhas se ajustam aos pontos próximos da imagem e a outras anotações. Segure {{modifier}} para colocá-los em qualquer lugar.",
       "text": "Texto",
       "topToBottom": "De cima para baixo",
-      "turn": "Giro"
+      "turn": "Giro",
+      "turnRightAngle": "Girar 90°"
     },
     "card": {
       "badgeCreasePattern": "Padrão de vincos",
