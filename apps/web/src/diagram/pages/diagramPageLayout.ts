@@ -284,9 +284,11 @@ export interface ScaleFit {
  * more room (a flap's outline far above it) lowers its run or stands alone —
  * drawn a zoom under its neighbours if it needs a little more room than that
  * — whichever costs least. A run is drawn at its smallest picture's scale, or
- * a zoom under one: the least-cost cut and scales among those are found
- * exactly (dynamic programming over where the last run starts and its
- * scale), the same answer read from either end.
+ * a zoom under another's, but never a whole zoom under its own smallest: a
+ * run that small would be there only to part the runs either side, letting
+ * them differ by less than a zoom. The least-cost cut and scales among those
+ * are found exactly (dynamic programming over where the last run starts and
+ * its scale), the same answer read from either end.
  *
  * Runs whose scales are within {@link FIT_SAME} are then drawn at one,
  * wherever in the diagram, where that keeps each a zoom from its neighbours.
@@ -365,6 +367,9 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
       sum += logs[i]!;
       const pictures = j - i;
       for (let v = 0; v < width && levels[v]! <= low; v += 1) {
+        // Never a whole zoom under its own smallest picture: it would only part
+        // the runs either side, a step drawn small to let them differ by less.
+        if (levels[v]! <= low - apart) continue;
         const earlier = i === 0 ? 0 : next[i * width + v]! + FIT_RUN_BREAK;
         if (earlier === Infinity) continue;
         const cost = earlier + sum - pictures * levels[v]!;

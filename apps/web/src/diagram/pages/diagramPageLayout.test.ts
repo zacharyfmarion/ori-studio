@@ -163,7 +163,10 @@ describe('scaleRuns', () => {
     const costOf = (values: number[], drawn: number[]) =>
       values.reduce((sum, value, index) => sum + Math.log(value / drawn[index]!), 0) +
       drawn.slice(1).filter((scale, index) => scale !== drawn[index]).length * FIT_RUN_BREAK;
-    /** The least cost of every cut into runs, each run at any level its pictures fit, each a zoom from the next. */
+    /**
+     * The least cost of every cut into runs, each run at any level its pictures fit but a whole zoom under
+     * its smallest, each a zoom from the next.
+     */
     const cheapest = (values: number[]) => {
       const levels = [...new Set(FITS.flatMap((fit) => [Math.log(fit), Math.log(fit) - zoom]))];
       let least = Infinity;
@@ -177,6 +180,7 @@ describe('scaleRuns', () => {
           const low = Math.log(Math.min(...run));
           for (const level of levels) {
             if (level > low + 1e-12) continue;
+            if (level <= low - zoom * (1 - 1e-9)) continue;
             if (previous !== null && Math.abs(level - previous) < zoom * (1 - 1e-9)) continue;
             const spent = run.reduce((sum, value) => sum + Math.log(value) - level, 0) + (previous === null ? 0 : FIT_RUN_BREAK);
             walk(end, level, cost + spent);
@@ -229,6 +233,45 @@ describe('scaleRuns', () => {
     expect(scales(each([...fill(20, 1), 0.78, ...fill(20, 1)]))).toEqual([...fill(20, 1), 1 / FIT_ZOOM, ...fill(20, 1)]);
     // Needing much more: alone at its own.
     expect(scales(each([...fill(20, 1), 0.5, ...fill(20, 1)]))).toEqual([...fill(20, 1), 0.5, ...fill(20, 1)]);
+  });
+
+  it('never draws a run a whole zoom under its own pictures, to part two scales by less than a zoom (review)', () => {
+    const fill = (steps: number, fit: number) => Array<number>(steps).fill(fit);
+    // A model a seventh or a tenth smaller for long: one scale, not one step dipped a zoom between two.
+    expect(scales(each([...fill(20, 1), ...fill(20, 1.14)]))).toEqual(fill(40, 1));
+    expect(scales(each([...fill(20, 1.14), ...fill(20, 1)]))).toEqual(fill(40, 1));
+    expect(scales(each([...fill(40, 1), ...fill(40, 1.1)]))).toEqual(fill(80, 1));
+    // Nor where the scale past it would have been snapped to the one before it.
+    expect(scales(each([...fill(60, 1), ...fill(60, 1.06)]))).toEqual(fill(120, 1));
+
+    // Phases of a model changing size, each step a little off: a run is drawn under both its
+    // neighbours only where a picture in it needs the room.
+    let seed = 11;
+    const random = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let trial = 0; trial < 200; trial += 1) {
+      let level = 0;
+      const values: number[] = [];
+      for (let phase = 2 + Math.floor(random() * 3); phase > 0; phase -= 1) {
+        level += (random() * 2 - 1) * 0.8 * Math.log(FIT_ZOOM);
+        for (let step = 8 + Math.floor(random() * 40); step > 0; step -= 1) values.push(Math.exp(level) * (1 + (random() * 2 - 1) * 0.04));
+      }
+      const drawn = scales(each(values));
+      const runs: { from: number; to: number }[] = [];
+      drawn.forEach((scale, index) => {
+        if (index > 0 && scale === drawn[index - 1]) runs[runs.length - 1]!.to = index + 1;
+        else runs.push({ from: index, to: index + 1 });
+      });
+      runs.forEach((run, k) => {
+        const [left, right] = [runs[k - 1], runs[k + 1]];
+        if (!left || !right) return;
+        const lower = Math.min(drawn[left.from]!, drawn[right.from]!);
+        if (!(drawn[run.from]! < lower)) return;
+        expect(Math.min(...values.slice(run.from, run.to)), `trial ${trial}, steps ${run.from}–${run.to}`).toBeLessThan(lower);
+      });
+    }
   });
 
   it('draws runs whose scales are near one another at one, wherever they are', () => {
