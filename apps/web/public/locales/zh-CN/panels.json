@@ -983,10 +983,12 @@
     "picture": {
       "capturing": "正在捕获…",
       "checking": "正在检查…",
+      "creasePatternSideHelp": "背面显示从纸的另一面看到的折痕图：左右镜像，山折与谷折互换。",
       "cssDropped": "部分样式无法保留，因此某些地方可能看起来不同。",
       "current": "最新",
       "flowedText": "不支持流动文本，已将其略去：请先转换为普通文本，再替换图片。",
       "linkedCreasePattern": "折痕图",
+      "linkedCreasePatternBack": "折痕图（背面）",
       "linkedFolded": "折叠形态",
       "linkedFolded3d": "折叠形态（3D）",
       "linkedFoldedBack": "折叠形态（背面）",

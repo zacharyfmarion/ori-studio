@@ -18,6 +18,9 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramStepPanel } from './DiagramStepPanel';
 
+const side = vi.hoisted(() => ({ showCreasePatternSide: vi.fn(async () => true) }));
+vi.mock('../../diagram/capture/creasePatternSide', () => side);
+
 /**
  * The Step pane through the store: what it says with nothing selected, and
  * what its position field, verbs and instruction do to the selected step.
@@ -259,6 +262,51 @@ describe('DiagramStepPanel', () => {
       expect(stepsIn(state().diagram!)[0]!.picture).toMatchObject({ mirrored: true });
     });
 
+    it('offers a crease pattern’s side right under Show as, and only a crease pattern’s, held while it is captured', () => {
+      const group = (label: string) => host!.querySelector(`[role="group"][aria-label="${label}"]`);
+      act(() => {
+        useWorkspaceStore.setState({
+          diagram: {
+            ...createDiagram({ newId: () => 'diagram-1' }),
+            steps: [
+              cpStep('step-cp', { mode: 'crease-pattern', rotationDeg: 0 }),
+              cpStep('step-f', { mode: 'folded-flat', side: 'back', rotationDeg: 0, foldCase: 1 }),
+              cpStep('step-sim', { mode: 'simulated', foldPercent: 0, view: { yaw: 1, pitch: -0.9, zoom: 1.4 } }),
+              referencesStep('step-r'),
+            ],
+          },
+          // A pattern open, so the step can be captured again.
+          oristudioCpDocument: { handle: 1, document: cpDocument(), geometry: null } as unknown as OristudioCpDocumentState,
+        });
+        state().selectDiagramStep('step-cp');
+      });
+      expect(pressed('Side')).toBe('Front');
+      expect(group('Show as')!.compareDocumentPosition(group('Side')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // A field, not one of Pose's verbs: there outside Pose too, and no Turn Over beside it.
+      expect(state().diagramDetail).toBeNull();
+      expect(textButton('Turn Over')).toBeUndefined();
+      act(() => textButton('Back')!.click());
+      expect(side.showCreasePatternSide).toHaveBeenCalledExactlyOnceWith('step-cp', 'back');
+      // Held while a capture of the step runs, as Show as is.
+      act(() => useWorkspaceStore.setState({ diagramCaptures: { 'step-cp': { runId: null } } }));
+      expect(textButton('Back')!.disabled).toBe(true);
+      act(() => useWorkspaceStore.setState({ diagramCaptures: {} }));
+      for (const other of ['step-f', 'step-sim', 'step-r']) {
+        act(() => state().selectDiagramStep(other));
+        expect(group('Side')).toBeNull();
+      }
+      // Shown from the back, it says so.
+      act(() => {
+        const diagram = state().diagram!;
+        useWorkspaceStore.setState({
+          diagram: { ...diagram, steps: [cpStep('step-cp', { mode: 'crease-pattern', rotationDeg: 330, side: 'back' })] },
+        });
+        state().selectDiagramStep('step-cp');
+      });
+      expect(pressed('Side')).toBe('Back');
+      expect(host?.textContent).toContain('Crease pattern, from the back');
+    });
+
     it('poses a linked flat fold from the pane with the open step’s own verbs, and its turn as a field', () => {
       const pose = vi.fn();
       const rotateTo = vi.fn();
@@ -277,6 +325,7 @@ describe('DiagramStepPanel', () => {
           onCamera: () => {},
           rotateTo,
           showAs: async () => true,
+          setSide: async () => true,
           simulate: async () => {},
           wantsRest: () => false,
           spread: null,
@@ -327,6 +376,7 @@ describe('DiagramStepPanel', () => {
           onCamera: () => {},
           rotateTo: () => {},
           showAs: async () => true,
+          setSide: async () => true,
           simulate: async () => {},
           wantsRest: () => false,
           spread: controls && { ...controls, preview: verbs.preview, commit: verbs.commit, start: () => true },

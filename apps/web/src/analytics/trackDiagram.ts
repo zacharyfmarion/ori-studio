@@ -26,6 +26,7 @@ import type {
   DiagramPictureExportFormat,
   DiagramPictureFormat,
   DiagramPictureKind,
+  DiagramPictureSide,
   DiagramPageSetting,
   DiagramPictureUploadOutcome,
   DiagramPoseAction,
@@ -141,17 +142,19 @@ export function trackDiagramArrowReturnShaped(gesture: DiagramArrowShapeGesture)
  * A pose verb on a step's picture, and what the picture is. A spread verb
  * that leaves the layers spread also says how (Phase 13): its kind and the
  * amount bucketed, and a depth spread's direction or an affine one's layer
- * held still, with its skew and axis bucketed — never a value itself.
+ * held still, with its skew and axis bucketed — never a value itself. A
+ * turn-over says which side of the paper the picture shows after it.
  */
 export function trackDiagramPicturePosed(
   action: DiagramPoseAction,
   kind: DiagramPictureKind,
-  spread?: DiagramSpreadTracking
+  { spread, side }: { spread?: DiagramSpreadTracking; side?: DiagramPictureSide } = {}
 ): void {
   track(ANALYTICS_EVENTS.diagramPicturePosed, {
     action,
     kind,
     ...(spread ? spreadProperties(spread) : {}),
+    ...(side ? { side } : {}),
   });
 }
 

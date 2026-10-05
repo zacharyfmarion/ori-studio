@@ -470,7 +470,9 @@ export function useDiagramPoseActions(stepId: string | null): DiagramPoseAction[
           t,
           setSide: (mirrored, verb) => {
             if (useWorkspaceStore.getState().setDiagramReferencesSide(step.id, mirrored)) {
-              trackDiagramPicturePosed(TRACKED_POSE_ACTIONS[verb], 'references');
+              // A turn-over says the side it left showing.
+              const side = verb === 'turn-over' ? (mirrored ? 'back' : 'front') : undefined;
+              trackDiagramPicturePosed(TRACKED_POSE_ACTIONS[verb], 'references', { side });
             }
           },
         }

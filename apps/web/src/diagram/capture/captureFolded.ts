@@ -42,15 +42,17 @@ import {
 import type { Point } from '../../lib/geometry';
 import { DEFAULT_FOLDED_MODEL, foldedFigureModelFromOrieditaMetadata } from '../../lib/orieditaNativeMetadata';
 import type { PaperScene, ScenePoint } from '../../lib/paper/paperScene';
-import type {
-  DiagramCpRender,
-  DiagramCpScope,
-  DiagramCpSource,
-  DiagramFixedPicture,
-  DiagramLayerSpread,
-  DiagramScenePicture,
-  DiagramSimulatedView,
-  DiagramStyle,
+import {
+  creasePatternSide,
+  type DiagramCpRender,
+  type DiagramCpScope,
+  type DiagramCpSource,
+  type DiagramCreasePatternRender,
+  type DiagramFixedPicture,
+  type DiagramLayerSpread,
+  type DiagramScenePicture,
+  type DiagramSimulatedView,
+  type DiagramStyle,
 } from '../document/diagramDocument';
 import { storedCpSource, storedSceneJson } from '../document/diagramFile';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
@@ -161,13 +163,14 @@ export async function captureSimulated(
   return scene ? storeScene(scene, null, simulatorSceneStyleKey(drawn)) : null;
 }
 
-/** A crease-pattern picture, from the document alone: no fold. */
+/** A crease-pattern picture, from the document alone: no fold. Seen from the side its render says. */
 export function captureCreasePattern(
   document: OristudioCpDocumentSnapshot,
   creases: StepCreases,
-  rotationDeg: number
+  render: DiagramCreasePatternRender
 ): CapturedPicture {
-  return storeScene(creasePatternScene(document, creases, rotationDeg), CAPTURE_PX_PER_UNIT, null);
+  const scene = creasePatternScene(document, creases, render.rotationDeg, creasePatternSide(render));
+  return storeScene(scene, CAPTURE_PX_PER_UNIT, null);
 }
 
 /**
@@ -371,7 +374,7 @@ export async function captureStep(
   };
 
   if (request.render.mode === 'crease-pattern') {
-    const captured = captureCreasePattern(document, creases, request.render.rotationDeg);
+    const captured = captureCreasePattern(document, creases, request.render);
     return { status: 'captured', source: source(request.render), captured, noLayerOrder: false };
   }
 

@@ -884,6 +884,8 @@ function linkedDiagram() {
     },
     // Opened as DEFOX opens a fold (13g).
     cpStep('step-affine', { ...SPREAD_FLAT, spread: AFFINE_SPREAD }),
+    // A crease pattern seen from the paper's back.
+    cpStep('step-cp-back', { mode: 'crease-pattern', rotationDeg: 330, side: 'back' }),
   ];
   const diagram = createDiagram({ title: 'Crane', newId: ids });
   return insertSteps(diagram, steps, 0);
@@ -997,6 +999,33 @@ describe('linked steps in the file', () => {
     const steps = stepsIn(readDiagram(written)!.document);
     expect(steps[0].source).toMatchObject({ render: { rotationDeg: 315 } });
     expect(steps[1].source).toMatchObject({ render: { rotationDeg: 90 } });
+  });
+
+  it('writes a crease pattern’s side only for its back, and reads one with none as the front', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    // Files from before there was a back read as the front, as this build writes it.
+    expect(written.steps[0].source.render).toEqual({ mode: 'crease-pattern', rotationDeg: 45 });
+    expect(written.steps[10].source.render).toEqual({ mode: 'crease-pattern', rotationDeg: 330, side: 'back' });
+    const steps = stepsIn(readDiagram(written)!.document);
+    expect((steps[10].source as DiagramCpSource).render).toEqual({ mode: 'crease-pattern', rotationDeg: 330, side: 'back' });
+    // A front said out loud — never written, but a hand may — is the front, written back as none.
+    written.steps[0].source.render.side = 'front';
+    const front = stepsIn(readDiagram(written)!.document)[0];
+    expect(front.unknown).toBeUndefined();
+    expect((front.source as DiagramCpSource).render).toEqual({ mode: 'crease-pattern', rotationDeg: 45 });
+  });
+
+  it.each([
+    ['a side that is not a word', 3],
+    ['a side of null', null],
+    ['a side that is true', true],
+  ])('drops a crease pattern with %s, and the picture with it; the words stay', (_label, side) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[10].text = 'Turn it over.';
+    written.steps[10].source.render.side = side;
+    const step = stepsIn(readDiagram(written)!.document)[10];
+    expect(step).toMatchObject({ source: null, picture: null, text: 'Turn it over.' });
+    expect(step.unknown).toBeUndefined();
   });
 
   it.each([
@@ -1138,6 +1167,14 @@ describe('linked steps in the file', () => {
     }],
     ['a way of showing it does not know', (source: WrittenSource) => {
       source.remembered.animated = { mode: 'animated', percent: 40 };
+    }],
+    // A crease pattern seen from a side this build has no name for.
+    ['a crease pattern seen from a side it does not know', (source: WrittenSource) => {
+      source.render = { mode: 'crease-pattern', rotationDeg: 0, side: 'both' };
+      delete source.remembered['crease-pattern'];
+    }],
+    ['a remembered crease pattern seen from a side it does not know', (source: WrittenSource) => {
+      source.remembered['crease-pattern'].side = 'edge-on';
     }],
   ])('carries, locked and verbatim, a linked step with %s', (_label, newer) => {
     const written = throughJson(writeDiagram(linkedDiagram()));

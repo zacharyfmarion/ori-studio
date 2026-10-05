@@ -26,7 +26,9 @@ import {
   clampSpreadAxis,
   clampSpreadSkew,
   renderToShowAs,
+  turnCreasePatternOver,
   type DiagramCpRender,
+  type DiagramCreasePatternRender,
   type DiagramCpSource,
   type DiagramLayerSpread,
   type DiagramSimulatedView,
@@ -176,10 +178,11 @@ export async function poseLinkedStep(
 ): Promise<LinkedPoseResult> {
   const spatialRoute = resolveFoldRoute(document, creases.foldLineIds).kind === 'spatial';
 
-  const creasePattern = (rotationDeg: number): LinkedPoseResult => ({
+  /** The crease pattern in a pose: turned, and seen from a side (the front unless said). */
+  const creasePattern = (posed: DiagramCreasePatternRender): LinkedPoseResult => ({
     status: 'posed',
-    render: { mode: 'crease-pattern', rotationDeg },
-    picture: captureCreasePattern(document, creases, rotationDeg),
+    render: posed,
+    picture: captureCreasePattern(document, creases, posed),
     noLayerOrder: false,
   });
 
@@ -283,7 +286,7 @@ export async function poseLinkedStep(
     // Nothing folded to keep: let the kernel have its memory back.
     session.dispose();
     const target = renderToShowAs({ render, remembered }, 'crease-pattern');
-    return creasePattern(target.mode === 'crease-pattern' ? target.rotationDeg : 0);
+    return creasePattern(target.mode === 'crease-pattern' ? target : { mode: 'crease-pattern', rotationDeg: 0 });
   }
   if (render.mode === 'simulated') {
     switch (verb) {
@@ -296,20 +299,26 @@ export async function poseLinkedStep(
     }
   }
   if (render.mode === 'crease-pattern') {
+    // Every turn keeps the side it is seen from: a choice about the picture,
+    // as a flat fold's spread is, with its own field (Front | Back).
+    const at = (rotationDeg: number) => creasePattern({ ...render, rotationDeg });
     switch (verb) {
       case 'show-folded':
         return foldedAsRemembered();
       case 'rotate-left':
-        return creasePattern(turned(render.rotationDeg, -POSE_ROTATION_STEP_DEG));
+        return at(turned(render.rotationDeg, -POSE_ROTATION_STEP_DEG));
       case 'rotate-right':
-        return creasePattern(turned(render.rotationDeg, POSE_ROTATION_STEP_DEG));
+        return at(turned(render.rotationDeg, POSE_ROTATION_STEP_DEG));
       case 'rotate-to':
-        return creasePattern(turned(request.verb === 'rotate-to' ? request.degrees : render.rotationDeg, 0));
+        return at(turned(request.verb === 'rotate-to' ? request.degrees : render.rotationDeg, 0));
+      case 'turn-over':
+        // Seen from the paper's other side, where it lies, as a flat fold turns over.
+        return creasePattern(turnCreasePatternOver(render));
       case 'reset':
-        return creasePattern(0);
+        return at(0);
       default:
         // A folded verb on a crease pattern: there is nothing folded to move.
-        return creasePattern(render.rotationDeg);
+        return creasePattern(render);
     }
   }
   // The creases now fold the other way — a partial fold added or taken away

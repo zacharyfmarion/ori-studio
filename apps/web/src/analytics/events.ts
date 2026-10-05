@@ -168,6 +168,13 @@ export type DiagramPoseAction =
   | 'spread_skew'
   | 'spread_axis';
 
+/**
+ * The side of the paper a picture shows after it is turned over, for
+ * `diagram picture posed`'s `turn_over`: a flat fold, a 3D one, a crease
+ * pattern (the Step pane's Front | Back) or a References step.
+ */
+export type DiagramPictureSide = 'front' | 'back';
+
 /** How a flat fold's layers are spread (13g): stepped by depth, or DEFOX's affine opening. */
 export type DiagramSpreadKind = 'depth' | 'affine';
 

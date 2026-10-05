@@ -421,11 +421,11 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     two.dispose();
 
     expect(analytics.trackDiagramPicturePosed.mock.calls.slice(-5)).toEqual([
-      ['show_folded', 'flat', undefined],
-      ['spread_keep', 'flat', { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 }],
-      ['show_folded', 'flat', undefined],
-      ['spread_off', 'flat', undefined],
-      ['spread_on', 'flat', { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 }],
+      ['show_folded', 'flat', {}],
+      ['spread_keep', 'flat', { spread: { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 } }],
+      ['show_folded', 'flat', {}],
+      ['spread_off', 'flat', {}],
+      ['spread_on', 'flat', { spread: { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 } }],
     ]);
   });
 
@@ -466,12 +466,12 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(spreadOf(first)).toEqual(opened);
     expect(state().diagramHistory.past.length).toBe(past + 6);
     expect(analytics.trackDiagramPicturePosed.mock.calls.slice(-6)).toEqual([
-      ['spread_kind', 'flat', { kind: 'depth', direction: 'down', amount: 0.025 }],
-      ['spread_kind', 'flat', { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 }],
-      ['spread_keep', 'flat', { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 }],
-      ['spread_skew', 'flat', { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 0.46, axisDeg: 81 }],
-      ['spread_axis', 'flat', { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 0.46, axisDeg: 99 }],
-      ['spread_amount', 'flat', { kind: 'affine', amount: 0.25, keep: 'bottom', skew: 0.46, axisDeg: 99 }],
+      ['spread_kind', 'flat', { spread: { kind: 'depth', direction: 'down', amount: 0.025 } }],
+      ['spread_kind', 'flat', { spread: { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 } }],
+      ['spread_keep', 'flat', { spread: { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 } }],
+      ['spread_skew', 'flat', { spread: { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 0.46, axisDeg: 81 } }],
+      ['spread_axis', 'flat', { spread: { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 0.46, axisDeg: 99 } }],
+      ['spread_amount', 'flat', { spread: { kind: 'affine', amount: 0.25, keep: 'bottom', skew: 0.46, axisDeg: 99 } }],
     ]);
     one.dispose();
 
@@ -520,7 +520,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(heard.preview).toHaveBeenLastCalledWith(null, null);
     // One drag, one event.
     expect(analytics.trackDiagramPicturePosed.mock.calls.slice(posed)).toEqual([
-      ['spread_amount', 'flat', { kind: 'affine', amount: 0.15, keep: 'top', skew: 1, axisDeg: 81 }],
+      ['spread_amount', 'flat', { spread: { kind: 'affine', amount: 0.15, keep: 'top', skew: 1, axisDeg: 81 } }],
     ]);
     controller.dispose();
   });

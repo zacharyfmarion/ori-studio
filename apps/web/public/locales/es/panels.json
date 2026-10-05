@@ -1055,10 +1055,12 @@
     "picture": {
       "capturing": "Capturando…",
       "checking": "Comprobando…",
+      "creasePatternSideHelp": "Reverso muestra el patrón de pliegues desde el otro lado del papel: reflejado, con los montes y los valles intercambiados.",
       "cssDropped": "No se pudo conservar parte de su estilo, así que algunas partes pueden verse distintas.",
       "current": "Actualizado",
       "flowedText": "El texto fluido no es compatible y se omitió: conviértelo en texto normal y luego reemplaza la imagen.",
       "linkedCreasePattern": "Patrón de pliegues",
+      "linkedCreasePatternBack": "Patrón de pliegues, desde atrás",
       "linkedFolded": "Plegado",
       "linkedFolded3d": "Plegado, en 3D",
       "linkedFoldedBack": "Plegado, desde atrás",

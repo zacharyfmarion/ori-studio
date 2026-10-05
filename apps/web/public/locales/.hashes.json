@@ -4098,7 +4098,9 @@
     "panels:diagram.layers.list": "0bcd66e677f4",
     "panels:sidePane.layers": "0bcd66e677f4",
     "panels:diagram.pose.upright": "501808a8c753",
-    "panels:diagram.pose.uprightNone": "ce799c098cd7"
+    "panels:diagram.pose.uprightNone": "ce799c098cd7",
+    "panels:diagram.picture.creasePatternSideHelp": "45cd143fa0cb",
+    "panels:diagram.picture.linkedCreasePatternBack": "bddd959b2829"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8199,7 +8201,9 @@
     "panels:diagram.layers.list": "0bcd66e677f4",
     "panels:sidePane.layers": "0bcd66e677f4",
     "panels:diagram.pose.upright": "501808a8c753",
-    "panels:diagram.pose.uprightNone": "ce799c098cd7"
+    "panels:diagram.pose.uprightNone": "ce799c098cd7",
+    "panels:diagram.picture.creasePatternSideHelp": "45cd143fa0cb",
+    "panels:diagram.picture.linkedCreasePatternBack": "bddd959b2829"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12302,7 +12306,9 @@
     "panels:diagram.layers.list": "0bcd66e677f4",
     "panels:sidePane.layers": "0bcd66e677f4",
     "panels:diagram.pose.upright": "501808a8c753",
-    "panels:diagram.pose.uprightNone": "ce799c098cd7"
+    "panels:diagram.pose.uprightNone": "ce799c098cd7",
+    "panels:diagram.picture.creasePatternSideHelp": "45cd143fa0cb",
+    "panels:diagram.picture.linkedCreasePatternBack": "bddd959b2829"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -16317,7 +16323,9 @@
     "panels:diagram.layers.list": "0bcd66e677f4",
     "panels:sidePane.layers": "0bcd66e677f4",
     "panels:diagram.pose.upright": "501808a8c753",
-    "panels:diagram.pose.uprightNone": "ce799c098cd7"
+    "panels:diagram.pose.uprightNone": "ce799c098cd7",
+    "panels:diagram.picture.creasePatternSideHelp": "45cd143fa0cb",
+    "panels:diagram.picture.linkedCreasePatternBack": "bddd959b2829"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -20332,7 +20340,9 @@
     "panels:diagram.layers.list": "0bcd66e677f4",
     "panels:sidePane.layers": "0bcd66e677f4",
     "panels:diagram.pose.upright": "501808a8c753",
-    "panels:diagram.pose.uprightNone": "ce799c098cd7"
+    "panels:diagram.pose.uprightNone": "ce799c098cd7",
+    "panels:diagram.picture.creasePatternSideHelp": "45cd143fa0cb",
+    "panels:diagram.picture.linkedCreasePatternBack": "bddd959b2829"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -24433,7 +24443,9 @@
     "panels:diagram.layers.list": "0bcd66e677f4",
     "panels:sidePane.layers": "0bcd66e677f4",
     "panels:diagram.pose.upright": "501808a8c753",
-    "panels:diagram.pose.uprightNone": "ce799c098cd7"
+    "panels:diagram.pose.uprightNone": "ce799c098cd7",
+    "panels:diagram.picture.creasePatternSideHelp": "45cd143fa0cb",
+    "panels:diagram.picture.linkedCreasePatternBack": "bddd959b2829"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -28534,7 +28546,9 @@
     "panels:diagram.layers.list": "0bcd66e677f4",
     "panels:sidePane.layers": "0bcd66e677f4",
     "panels:diagram.pose.upright": "501808a8c753",
-    "panels:diagram.pose.uprightNone": "ce799c098cd7"
+    "panels:diagram.pose.uprightNone": "ce799c098cd7",
+    "panels:diagram.picture.creasePatternSideHelp": "45cd143fa0cb",
+    "panels:diagram.picture.linkedCreasePatternBack": "bddd959b2829"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -32549,6 +32563,8 @@
     "panels:diagram.layers.list": "0bcd66e677f4",
     "panels:sidePane.layers": "0bcd66e677f4",
     "panels:diagram.pose.upright": "501808a8c753",
-    "panels:diagram.pose.uprightNone": "ce799c098cd7"
+    "panels:diagram.pose.uprightNone": "ce799c098cd7",
+    "panels:diagram.picture.creasePatternSideHelp": "45cd143fa0cb",
+    "panels:diagram.picture.linkedCreasePatternBack": "bddd959b2829"
   }
 }

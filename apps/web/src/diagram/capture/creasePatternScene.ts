@@ -21,15 +21,19 @@ import type {
 import type { StepCreases } from './captureCreases';
 import { CAPTURE_PX_PER_UNIT, sceneBoundsOf, turnClockwise } from './captureGeometry';
 
-/** What a kernel line is on the paper, by its colour. */
-function lineRole(color: string): PaperLineRole {
+/**
+ * What a kernel line is on the paper, by its colour, seen from `side`: a
+ * mountain from the front is a valley from the back, and a valley a mountain,
+ * as Edit's flip with Swap M/V turns them (`creasePatternClipboard.ts`).
+ */
+function lineRole(color: string, side: 'front' | 'back'): PaperLineRole {
   switch (color) {
     case 'Black0':
       return 'edge';
     case 'Red1':
-      return 'diagram-mountain';
+      return side === 'back' ? 'diagram-valley' : 'diagram-mountain';
     case 'Blue2':
-      return 'diagram-valley';
+      return side === 'back' ? 'diagram-mountain' : 'diagram-valley';
     default:
       // Cyan3, and any other colour a construction line can carry.
       return 'aux';
@@ -48,19 +52,26 @@ const ROLE_LAYER: Partial<Record<PaperLineRole, number>> = {
  * The scope's creases as a scene, turned clockwise by `rotationDeg` about the
  * paper's centre, at {@link CAPTURE_PX_PER_UNIT}: the size Edit draws a
  * pattern at 100%, so a step and the model it folds into share one scale.
+ *
+ * From the `back`, the paper is seen from its other side: mirrored left to
+ * right about its centre before the turn — as a flat fold's back is its
+ * front mirrored — each mountain a valley and each valley a mountain, and the
+ * paper its back colour.
  */
 export function creasePatternScene(
   document: OristudioCpDocumentSnapshot,
   creases: StepCreases,
-  rotationDeg: number
+  rotationDeg: number,
+  side: 'front' | 'back' = 'front'
 ): PaperScene {
   const paperBox = boxOf(creases.paper.flat());
   const span = Math.max(paperBox.maxX - paperBox.minX, paperBox.maxY - paperBox.minY);
   const epsilon = Math.max(span, 1) * 1e-6;
   const centre = { x: (paperBox.minX + paperBox.maxX) / 2, y: (paperBox.minY + paperBox.maxY) / 2 };
   const turn = turnClockwise(rotationDeg);
+  const across = side === 'back' ? -1 : 1;
   const toScene = (point: Point): ScenePoint => {
-    const turned = turn({ x: point.x - centre.x, y: point.y - centre.y });
+    const turned = turn({ x: across * (point.x - centre.x), y: point.y - centre.y });
     return [turned.x * CAPTURE_PX_PER_UNIT, turned.y * CAPTURE_PX_PER_UNIT];
   };
 
@@ -69,7 +80,7 @@ export function creasePatternScene(
     const line = document.crease_pattern.line_segments[id - 1];
     if (!line) continue;
     if (Math.hypot(line.b.x - line.a.x, line.b.y - line.a.y) <= epsilon) continue;
-    drawn.push({ role: lineRole(line.color), a: line.a, b: line.b });
+    drawn.push({ role: lineRole(line.color, side), a: line.a, b: line.b });
   }
   drawn.sort((left, right) => (ROLE_LAYER[left.role] ?? 0) - (ROLE_LAYER[right.role] ?? 0));
 
@@ -90,7 +101,7 @@ export function creasePatternScene(
   const face: PaperFaceItem = {
     kind: 'face',
     face: 0,
-    side: 'front',
+    side,
     rings: creases.paper.map((ring) => ring.map(toScene)),
     shade: 1,
     hidden: false,

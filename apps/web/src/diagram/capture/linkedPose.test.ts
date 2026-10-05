@@ -113,6 +113,54 @@ describe('posing a crease pattern', () => {
   });
 });
 
+describe('a crease pattern seen from the paper’s back', () => {
+  const BACK: DiagramCpRender = { mode: 'crease-pattern', rotationDeg: 15, side: 'back' };
+  const sceneOf = (result: Awaited<ReturnType<typeof pose>>) =>
+    result.status === 'posed' && result.picture.kind === 'picture' && result.picture.picture.kind === 'scene'
+      ? JSON.parse(result.picture.picture.sceneJson)
+      : null;
+
+  it('turns it over where it lies: its other side, the turn the other way, and back again, folding nothing', async () => {
+    const { session, runtime } = sessionWith();
+    const over = await pose(session, CP, { verb: 'turn-over' });
+    expect(over).toMatchObject({ status: 'posed', render: { mode: 'crease-pattern', rotationDeg: 15, side: 'back' } });
+    // Its paper is the back, its fold the other way up.
+    const scene = sceneOf(over);
+    expect(scene.items[0]).toMatchObject({ kind: 'face', side: 'back' });
+    expect(scene.items.some((item: { role?: string }) => item.role === 'diagram-valley')).toBe(true);
+    expect(scene.items.some((item: { role?: string }) => item.role === 'diagram-mountain')).toBe(false);
+    const again = await pose(session, BACK, { verb: 'turn-over' });
+    expect(again).toMatchObject({ render: { mode: 'crease-pattern', rotationDeg: 345 } });
+    expect(again.status === 'posed' && 'side' in again.render).toBe(false);
+    expect(runtime.fold).not.toHaveBeenCalled();
+  });
+
+  it('keeps its side through every turn and Reset Pose: a choice about the picture, with its own field', async () => {
+    const { session } = sessionWith();
+    for (const request of [
+      { verb: 'rotate-right' },
+      { verb: 'rotate-left' },
+      { verb: 'rotate-to', degrees: 40 },
+      { verb: 'reset' },
+      { verb: 'upright' },
+    ] as const) {
+      expect(await pose(session, BACK, request)).toMatchObject({ render: { mode: 'crease-pattern', side: 'back' } });
+    }
+    expect(await pose(session, BACK, { verb: 'reset' })).toMatchObject({ render: { rotationDeg: 0, side: 'back' } });
+  });
+
+  it('folds from the front, lying as its back does, and comes back to the back it was', async () => {
+    const { session } = sessionWith();
+    // A back at 15 is the front at 345, turned over: the fold lies as that front does.
+    expect(await pose(session, BACK, { verb: 'show-folded' })).toMatchObject({
+      render: { mode: 'folded-flat', side: 'front', rotationDeg: 345, foldCase: 1 },
+    });
+    const pattern = await pose(session, FLAT, { verb: 'show-crease-pattern' }, cpDocument(), { 'crease-pattern': BACK });
+    expect(pattern).toMatchObject({ render: BACK });
+    expect(sceneOf(pattern).items[0]).toMatchObject({ side: 'back' });
+  });
+});
+
 describe('showing it another way (D19)', () => {
   it('folds it in the pose the folded form last had, and shows the pattern turned as it last was', async () => {
     const { session } = sessionWith();

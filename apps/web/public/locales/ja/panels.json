@@ -983,10 +983,12 @@
     "picture": {
       "capturing": "キャプチャ中…",
       "checking": "確認中…",
+      "creasePatternSideHelp": "「裏」では、紙の裏側から見た展開図を表示します。左右が反転し、山折りと谷折りが入れ替わります。",
       "cssDropped": "一部のスタイルを保持できなかったため、見た目が異なる部分があります。",
       "current": "最新",
       "flowedText": "フローテキストには対応していないため省かれました。通常のテキストに変換してから、図を差し替えてください。",
       "linkedCreasePattern": "展開図",
+      "linkedCreasePatternBack": "展開図（裏から）",
       "linkedFolded": "折り上がり",
       "linkedFolded3d": "折り上がり（3D）",
       "linkedFoldedBack": "折り上がり（裏から）",

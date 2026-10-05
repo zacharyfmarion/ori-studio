@@ -118,6 +118,7 @@ describe('showLinkedStepAs', () => {
     onCamera: () => {},
     rotateTo: () => {},
     showAs: vi.fn(async () => landed),
+    setSide: vi.fn(async () => landed),
     simulate: async () => {},
     wantsRest: () => false,
     spread: null,

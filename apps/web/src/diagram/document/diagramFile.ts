@@ -381,7 +381,7 @@ const CP_SCOPE_KINDS = new Set(['segment']);
  * mode or a field it has no name for is a newer build's render.
  */
 const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<string>>> = {
-  'crease-pattern': new Set(['mode', 'rotationDeg']),
+  'crease-pattern': new Set(['mode', 'rotationDeg', 'side']),
   'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread']),
   'folded-3d': new Set(['mode', 'camera', 'side']),
   simulated: new Set(['mode', 'foldPercent', 'view']),
@@ -494,15 +494,26 @@ function isNewerCpSource(value: unknown): boolean {
 }
 
 /**
- * A render of a mode, with a field, or with a spread this build does not read.
- * A render that does not read at all is damage, judged where it is read.
+ * A render of a mode, with a field, or with a spread or a crease pattern's
+ * side this build does not read. A render that does not read at all is
+ * damage, judged where it is read.
  */
 function isNewerRender(value: unknown): boolean {
   if (!isRecord(value) || typeof value.mode !== 'string') return false;
   if (!Object.hasOwn(CP_RENDER_FIELDS, value.mode)) return true;
   const fields = CP_RENDER_FIELDS[value.mode as DiagramCpRender['mode']];
   if (Object.keys(value).some((key) => !fields.has(key))) return true;
+  if (value.mode === 'crease-pattern') return readPatternSide(value.side) === NEWER;
   return value.mode === 'folded-flat' && readSpread(value.spread) === NEWER;
+}
+
+/**
+ * The side a crease pattern is seen from: the front when unsaid, as every one
+ * was before it had a back; a newer build's when a word this build has no
+ * name for; anything else, damage.
+ */
+function readPatternSide(value: unknown): 'front' | 'back' | typeof NEWER | null {
+  return readPreset(value, ['front', 'back'] as const, 'front');
 }
 
 /** Remembered poses under a way of showing this build does not know, or one of them a newer build's render. */
@@ -664,8 +675,17 @@ function readCpRender(value: unknown): DiagramCpRender | null {
   const side = value.side === 'front' || value.side === 'back' ? value.side : null;
   const rotationDeg = finiteNumber(value.rotationDeg);
   switch (value.mode) {
-    case 'crease-pattern':
-      return rotationDeg === null ? null : { mode: 'crease-pattern', rotationDeg: normalizeDegrees(rotationDeg) };
+    case 'crease-pattern': {
+      const seen = readPatternSide(value.side);
+      // A newer build's side made the step a newer build's before this was reached.
+      if (rotationDeg === null || seen === null || seen === NEWER) return null;
+      // The front is written as no side at all, so a front read with one is written back without it.
+      return {
+        mode: 'crease-pattern',
+        rotationDeg: normalizeDegrees(rotationDeg),
+        ...(seen === 'back' ? { side: 'back' as const } : {}),
+      };
+    }
     case 'folded-flat': {
       const foldCase = wholeNumber(value.foldCase);
       const spread = readSpread(value.spread);

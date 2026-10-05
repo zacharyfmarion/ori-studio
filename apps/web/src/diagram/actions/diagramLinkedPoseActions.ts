@@ -387,6 +387,7 @@ export function spreadDirectionLabel(toward: SpreadDirection, t: TFunction): str
 export function isDefaultRender(render: DiagramCpRender): boolean {
   switch (render.mode) {
     case 'crease-pattern':
+      // Its side is the Step pane's Front | Back, kept by Reset as a spread is.
       return render.rotationDeg === 0;
     case 'folded-flat':
       return render.rotationDeg === 0 && render.side === 'front' && render.foldCase === 1;

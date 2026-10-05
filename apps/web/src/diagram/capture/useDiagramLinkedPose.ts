@@ -18,6 +18,7 @@ import {
   clampSpreadAmount,
   clampSpreadAxis,
   clampSpreadSkew,
+  creasePatternSide,
   showAsOf,
   stepById,
   type DiagramShowAs,
@@ -66,6 +67,12 @@ export interface DiagramLinkedPose {
    * Whether the step now shows it that way.
    */
   showAs: (way: DiagramShowAs) => Promise<boolean>;
+  /**
+   * Show a crease pattern from a side of the paper — turned over, where it
+   * lies, when it shows the other — for the Step pane's Front | Back, counted
+   * as a turn-over. Whether the step now shows that side.
+   */
+  setSide: (side: 'front' | 'back') => Promise<boolean>;
   /** Pose's simulator came to rest: captured, if it is not the step's picture already (D19). */
   simulate: (rest: SimulatedRest) => Promise<void>;
   /** Whether a rest at this pose would be captured: asked before its scene is drawn. */
@@ -221,6 +228,23 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
     [controller, readOnly, stepId]
   );
 
+  const setSide = useCallback(
+    async (side: 'front' | 'back'): Promise<boolean> => {
+      if (!controller || readOnly || stepId === null) return false;
+      const shown = () => {
+        const { diagram } = useWorkspaceStore.getState();
+        const now = diagram ? stepById(diagram, stepId) : null;
+        const render = now?.source?.kind === 'cp' ? now.source.render : null;
+        return render?.mode === 'crease-pattern' ? creasePatternSide(render) : null;
+      };
+      const before = shown();
+      if (before === null) return false;
+      if (before !== side) await controller.run({ verb: 'turn-over' });
+      return shown() === side;
+    },
+    [controller, readOnly, stepId]
+  );
+
   const simulate = useCallback(
     async (rest: SimulatedRest) => {
       if (controller && !readOnly) await controller.simulate(rest);
@@ -236,9 +260,9 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   const pose = useMemo(
     () =>
       source
-        ? { actions, layerOrder, spatial: view, onCamera, rotateTo, showAs, simulate, wantsRest, spread, preview }
+        ? { actions, layerOrder, spatial: view, onCamera, rotateTo, showAs, setSide, simulate, wantsRest, spread, preview }
         : null,
-    [source, actions, layerOrder, view, onCamera, rotateTo, showAs, simulate, wantsRest, spread, preview]
+    [source, actions, layerOrder, view, onCamera, rotateTo, showAs, setSide, simulate, wantsRest, spread, preview]
   );
   // The Step pane offers these verbs too, through this one controller.
   useEffect(() => publishOpenLinkedPose(stepId, pose), [stepId, pose]);

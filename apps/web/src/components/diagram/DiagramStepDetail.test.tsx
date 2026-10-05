@@ -37,6 +37,7 @@ function linkedPose(preview: DiagramStep | null, actions: DiagramLinkedPoseActio
     onCamera: () => {},
     rotateTo: () => {},
     showAs: async () => true,
+    setSide: async () => true,
     simulate: async () => {},
     wantsRest: () => false,
     spread: null,

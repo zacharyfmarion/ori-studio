@@ -1055,10 +1055,12 @@
     "picture": {
       "capturing": "Capture…",
       "checking": "Vérification…",
+      "creasePatternSideHelp": "Verso montre le patron de plis depuis l’autre face du papier : en miroir, montagnes et vallées inversées.",
       "cssDropped": "Une partie de son style n’a pas pu être conservée, certains éléments peuvent donc paraître différents.",
       "current": "À jour",
       "flowedText": "Le texte encadré n’est pas pris en charge et a été omis\u00a0: convertissez-le en texte ordinaire, puis remplacez l’image.",
       "linkedCreasePattern": "Patron de plis",
+      "linkedCreasePatternBack": "Patron de plis, vu de dos",
       "linkedFolded": "Plié",
       "linkedFolded3d": "Plié, en 3D",
       "linkedFoldedBack": "Plié, vu de dos",

@@ -9,6 +9,7 @@ import {
   DEFAULT_DIAGRAM_STYLE,
   insertSteps,
   setLinkedPicture,
+  turnCreasePatternOver,
   type DiagramCpRender,
   type DiagramCpScope,
   type DiagramCpSource,
@@ -112,6 +113,62 @@ describe('annotations on a linked crease pattern, turned', () => {
     document = await turnTo(document, { mode: 'crease-pattern', rotationDeg: 0 });
     expectOnMark(document);
     expect(axis(document)).toBe('vertical');
+  });
+});
+
+describe('annotations on a linked crease pattern, seen from the paper’s other side', () => {
+  const PATTERN = { mode: 'crease-pattern' as const, rotationDeg: 0 };
+  const arrowOf = (document: DiagramDocument) => stepsIn(document)[0]!.annotations[0] as KnownDiagramAnnotation;
+
+  it('are mirrored with it, Front to Back, and stay on their crease', async () => {
+    const front = await annotatedAt(PATTERN);
+    const was = arrowOf(front);
+    const back = await turnTo(front, turnCreasePatternOver(PATTERN));
+    const step = stepsIn(back)[0]!;
+    expect(step.source).toMatchObject({ render: { mode: 'crease-pattern', rotationDeg: 0, side: 'back' } });
+    // Another picture, and the marks drawn on it now.
+    expect(step.picture!.key).not.toBe(stepsIn(front)[0]!.picture!.key);
+    expectOnMark(back);
+    // Pointing the other way across the page, as the paper does now.
+    const is = arrowOf(back);
+    expect(is.to[0] - is.from[0]).toBeCloseTo(-(was.to[0] - was.from[0]), 4);
+    expect(is.to[1] - is.from[1]).toBeCloseTo(was.to[1] - was.from[1], 4);
+    // A mirror turns no axis: the sign still turns the model side to side.
+    expect(axis(back)).toBe('vertical');
+  });
+
+  it('come home when it is turned back over, at any turn', async () => {
+    for (const rotationDeg of [0, 30, 90, 157.5]) {
+      const front = await annotatedAt({ ...PATTERN, rotationDeg });
+      const back = await turnTo(front, turnCreasePatternOver({ ...PATTERN, rotationDeg }));
+      expectOnMark(back);
+      const again = await turnTo(back, { ...PATTERN, rotationDeg });
+      expectOnMark(again);
+      const [was, is] = [arrowOf(front), arrowOf(again)];
+      for (const end of ['from', 'to'] as const) {
+        expect(is[end][0]).toBeCloseTo(was[end][0], 4);
+        expect(is[end][1]).toBeCloseTo(was[end][1], 4);
+      }
+      expect(axis(again)).toBe('vertical');
+    }
+  });
+
+  it('bend the other way: an arc mirrored bulges to the other side of its travel', async () => {
+    const front = await annotatedAt(PATTERN);
+    const step = stepsIn(front)[0]!;
+    const fold: KnownDiagramAnnotation = { id: 'f', kind: 'valley-arrow', from: [0.2, 0.3], to: [0.6, 0.5], bend: 0.3 };
+    const marked = insertSteps(createDiagram(), [{ ...step, annotations: [fold] }], 0);
+    const back = await turnTo(marked, turnCreasePatternOver(PATTERN));
+    expect((stepsIn(back)[0]!.annotations[0] as KnownDiagramAnnotation).bend).toBe(-0.3);
+  });
+
+  it('carry a back turned as a back — the turn alone — and a side changed with a turn at once', async () => {
+    let document = await annotatedAt({ ...PATTERN, side: 'back' });
+    document = await turnTo(document, { ...PATTERN, rotationDeg: 45, side: 'back' });
+    expectOnMark(document);
+    // Mirrored and turned at once: no verb does both, but the carry is still the picture's own move.
+    document = await turnTo(document, { ...PATTERN, rotationDeg: 120 });
+    expectOnMark(document);
   });
 });
 

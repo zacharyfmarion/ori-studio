@@ -107,7 +107,18 @@ export type DiagramCpScope = { kind: 'segment'; region: RegionReference };
  * flat folded model, or the folded model in 3D. Each keeps its own pose.
  */
 export type DiagramCpRender =
-  | { mode: 'crease-pattern'; rotationDeg: number }
+  | {
+      mode: 'crease-pattern';
+      rotationDeg: number;
+      /**
+       * Seen from the paper's back: mirrored left to right before the turn,
+       * its mountains drawn as valleys and its valleys as mountains, on the
+       * paper's back colour — as a flat fold's back is its front mirrored.
+       * Written only for the back; absent, the front, as every crease pattern
+       * was before.
+       */
+      side?: 'back';
+    }
   | {
       mode: 'folded-flat';
       side: 'front' | 'back';
@@ -287,6 +298,26 @@ export type DiagramShowAs = 'crease-pattern' | 'folded' | 'simulated';
 /** The ways, in the order every surface offers them. */
 export const DIAGRAM_SHOW_AS: readonly DiagramShowAs[] = ['crease-pattern', 'folded', 'simulated'];
 
+/** A crease pattern's render. */
+export type DiagramCreasePatternRender = Extract<DiagramCpRender, { mode: 'crease-pattern' }>;
+
+/** The side of the paper a crease pattern is seen from. */
+export function creasePatternSide(render: DiagramCreasePatternRender): 'front' | 'back' {
+  return render.side === 'back' ? 'back' : 'front';
+}
+
+/**
+ * A crease pattern turned over where it lies, as a flat fold's Turn Over
+ * turns it: what shows now is the mirror of what showed, left to right on the
+ * page, so its turn runs the other way. Turned over twice, it is as it was.
+ */
+export function turnCreasePatternOver(render: DiagramCreasePatternRender): DiagramCreasePatternRender {
+  const rotationDeg = (360 - render.rotationDeg) % 360;
+  return creasePatternSide(render) === 'back'
+    ? { mode: 'crease-pattern', rotationDeg }
+    : { mode: 'crease-pattern', rotationDeg, side: 'back' };
+}
+
 /** How a render shows its pattern. */
 export function showAsOf(render: DiagramCpRender): DiagramShowAs {
   switch (render.mode) {
@@ -324,9 +355,10 @@ export interface DiagramCpSource {
  * now when that is the way, else the one that way last had, else that way's
  * start — a crease pattern or a flat fold lying as the step lies now, from the
  * front at the first layer order. A flat fold's back at a turn is its front at
- * the opposite turn, mirrored (Turn Over, 12d), so its front's turn is the one
- * carried. A flat fold asked of creases that fold in 3D becomes the 3D one
- * where it is captured (`renderForRoute`). A flat fold started here, not
+ * the opposite turn, mirrored (Turn Over, 12d), and so is a crease pattern's
+ * back: its front's turn is the one carried, and a way started here starts
+ * from the front. A flat fold asked of creases that fold in 3D becomes the 3D
+ * one where it is captured (`renderForRoute`). A flat fold started here, not
  * remembered, has its layers spread by `spread` (13g: on by default — the
  * nearest earlier step's, `spreadStartsFor`); one remembered keeps its own.
  */
@@ -344,14 +376,16 @@ export function renderToShowAs(
   if (way === 'simulated') {
     return { mode: 'simulated', foldPercent: 0, view: kept?.mode === 'simulated' ? kept.view : DEFAULT_SIMULATED_VIEW };
   }
-  const turn =
+  const back =
     render.mode === 'crease-pattern'
-      ? render.rotationDeg
-      : render.mode === 'folded-flat'
-        ? render.side === 'back'
-          ? (360 - render.rotationDeg) % 360
-          : render.rotationDeg
-        : 0;
+      ? creasePatternSide(render) === 'back'
+      : render.mode === 'folded-flat' && render.side === 'back';
+  const turn =
+    render.mode === 'crease-pattern' || render.mode === 'folded-flat'
+      ? back
+        ? (360 - render.rotationDeg) % 360
+        : render.rotationDeg
+      : 0;
   return way === 'crease-pattern'
     ? { mode: 'crease-pattern', rotationDeg: turn }
     : { mode: 'folded-flat', side: 'front', rotationDeg: turn, foldCase: 1, ...(spread ? { spread } : {}) };

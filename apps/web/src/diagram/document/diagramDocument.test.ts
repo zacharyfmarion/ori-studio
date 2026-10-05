@@ -39,6 +39,8 @@ import {
   renderToShowAs,
   setLinkedPicture,
   showAsOf,
+  creasePatternSide,
+  turnCreasePatternOver,
   withRememberedPoses,
   anchorTakesCard,
   createTurn,
@@ -613,6 +615,30 @@ describe('the ways a linked pattern is shown (D19)', () => {
     const threeD = { mode: 'folded-3d' as const, camera: { yaw: 1, pitch: 0, zoom: 1 }, side: 'front' as const };
     expect(renderToShowAs({ render: threeD }, 'crease-pattern')).toEqual({ mode: 'crease-pattern', rotationDeg: 0 });
     expect(showAsOf(threeD)).toBe('folded');
+  });
+
+  it('turns a crease pattern over where it lies: its other side, the turn the other way, and back again', () => {
+    expect(creasePatternSide(pattern)).toBe('front');
+    const over = turnCreasePatternOver(pattern);
+    expect(over).toEqual({ mode: 'crease-pattern', rotationDeg: 315, side: 'back' });
+    expect(creasePatternSide(over)).toBe('back');
+    // The front is written as no side at all.
+    expect(turnCreasePatternOver(over)).toEqual(pattern);
+    expect(turnCreasePatternOver({ mode: 'crease-pattern', rotationDeg: 0 })).toEqual({
+      mode: 'crease-pattern',
+      rotationDeg: 0,
+      side: 'back',
+    });
+  });
+
+  it('keeps a crease pattern’s back through the other ways, and starts them from the front as it lies', () => {
+    const back = { mode: 'crease-pattern' as const, rotationDeg: 30, side: 'back' as const };
+    // A back at 30 is the front at 330, turned over: the fold lies as that front does.
+    expect(renderToShowAs({ render: back }, 'folded')).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 330, foldCase: 1 });
+    // Remembered while it is shown folded, and brought back as it was.
+    const folded = withRememberedPoses(cpSource(back), cpSource(flat));
+    expect(folded.remembered).toEqual({ 'crease-pattern': back });
+    expect(renderToShowAs(folded, 'crease-pattern')).toBe(back);
   });
 
   it('shows Simulated at 0%, from the camera it last had or Simulate’s own default', () => {

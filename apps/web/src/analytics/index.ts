@@ -36,6 +36,7 @@ export type {
   DiagramCaptureOutcome,
   DiagramCaptureVia,
   DiagramPictureKind,
+  DiagramPictureSide,
   DiagramPictureUploadOutcome,
   DiagramPoseAction,
   DiagramPageSetting,

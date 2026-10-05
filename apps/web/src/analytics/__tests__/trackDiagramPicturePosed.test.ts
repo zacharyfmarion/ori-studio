@@ -24,8 +24,18 @@ describe('trackDiagramPicturePosed', () => {
     expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', { action: 'turn_over', kind: 'flat' });
   });
 
+  it('sends the side a turn-over leaves the paper showing, as a word', () => {
+    // A crease pattern turned over by the Step pane's Front | Back.
+    trackDiagramPicturePosed('turn_over', 'crease_pattern', { side: 'back' });
+    expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', {
+      action: 'turn_over',
+      kind: 'crease_pattern',
+      side: 'back',
+    });
+  });
+
   it('sends a depth spread as its kind, direction and bucketed amount', () => {
-    trackDiagramPicturePosed('spread_on', 'flat', { kind: 'depth', direction: 'down', amount: 0.025 });
+    trackDiagramPicturePosed('spread_on', 'flat', { spread: { kind: 'depth', direction: 'down', amount: 0.025 } });
     expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', {
       action: 'spread_on',
       kind: 'flat',
@@ -36,7 +46,9 @@ describe('trackDiagramPicturePosed', () => {
   });
 
   it('sends an affine spread as its kind, the layer held still, and its amount, skew and axis bucketed', () => {
-    trackDiagramPicturePosed('spread_axis', 'flat', { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
+    trackDiagramPicturePosed('spread_axis', 'flat', {
+      spread: { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 },
+    });
     const [, properties] = runtime.track.mock.calls[0]!;
     expect(properties).toEqual({
       action: 'spread_axis',
@@ -47,7 +59,9 @@ describe('trackDiagramPicturePosed', () => {
       spread_skew_bucket: '>99',
       spread_axis_bucket: '<=90',
     });
-    trackDiagramPicturePosed('spread_skew', 'flat', { kind: 'affine', amount: 0.2, keep: 'bottom', skew: 0, axisDeg: 170 });
+    trackDiagramPicturePosed('spread_skew', 'flat', {
+      spread: { kind: 'affine', amount: 0.2, keep: 'bottom', skew: 0, axisDeg: 170 },
+    });
     expect(runtime.track.mock.calls[1]![1]).toMatchObject({
       spread_amount_bucket: '>12.5',
       spread_skew_bucket: '<=0',

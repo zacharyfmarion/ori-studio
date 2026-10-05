@@ -33,6 +33,7 @@ import {
   type StepCaptureStart,
 } from '../../store/workspaceStore/diagramCapture';
 import {
+  creasePatternSide,
   spreadStartsFor,
   stepById,
   type DiagramCpRender,
@@ -102,13 +103,21 @@ const SPREAD_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set([
  * A pose that changed the step's picture, counted: by its verb — Spread
  * Layers as on or off by what it left — and for a spread verb that left the
  * layers spread, how: its kind, the amount bucketed, and a depth spread's
- * direction or an affine one's layer held still, skew and axis (bucketed).
+ * direction or an affine one's layer held still, skew and axis (bucketed). A
+ * turn-over says the side it left showing.
  */
 function trackPose(verb: LinkedPoseRequest['verb'], render: DiagramCpRender): void {
   const spread = render.mode === 'folded-flat' ? render.spread : undefined;
   const action = verb === 'spread-layers' && !spread ? 'spread_off' : TRACKED[verb];
   const how = SPREAD_VERBS.has(verb) && spread ? spreadTracking(spread) : undefined;
-  trackDiagramPicturePosed(action, captureKind(render), how);
+  const side = verb === 'turn-over' ? renderSide(render) : undefined;
+  trackDiagramPicturePosed(action, captureKind(render), { ...(how ? { spread: how } : {}), ...(side ? { side } : {}) });
+}
+
+/** The side of the paper a render shows; none for a simulation, which has no side. */
+function renderSide(render: DiagramCpRender): 'front' | 'back' | undefined {
+  if (render.mode === 'crease-pattern') return creasePatternSide(render);
+  return render.mode === 'simulated' ? undefined : render.side;
 }
 
 function spreadTracking(spread: LayerSpreadOptions): DiagramSpreadTracking {
