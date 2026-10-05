@@ -6,7 +6,6 @@ import {
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_ROTATE_INK,
   DIAGRAM_TURN_OVER_INK,
-  canvasDiagramInk,
 } from '../../cp-workspace/references/diagram/diagramInk';
 import { useViewportSurface } from '../../hooks/useViewportSurface';
 import { readHeldModifiers, subscribeHeldModifiers } from '../../keyboard/heldModifiers';
@@ -27,7 +26,6 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { paintSource, stepPictureSource, type PictureBox } from '../pictures/paintDiagramStep';
-import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { stepPictureUrl } from '../pictures/useStepPictureUrl';
 import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useDiagramShortcuts';
 import { EDIT_PATH, drawingKind, drawingLook, isPickTool } from './annotateTools';
@@ -72,6 +70,7 @@ import { cancelLabelFocus, pendingLabelFocus, requestLabelFocus } from './labelF
 import { isViewportInteractiveTarget } from '../../components/panels/ViewportToolbar';
 import { annotationDrawing, annotationReach, calloutPen } from './annotationPrimitives';
 import { CARD_FRAME_PX } from './paintAnnotations';
+import { INK_UNITS } from './canvasInk';
 import type { SnapTarget } from './pictureSnap';
 import { useAnnotateSnap } from './useAnnotateSnap';
 import { usePickTool } from './usePickTool';
@@ -109,11 +108,10 @@ const DRAFT_ID = 'annotation-draft';
  * draw it: half the turn-over glyph, or the rotate glyph's circle and heads.
  */
 export const GLYPH_REACH =
-  Math.max(DIAGRAM_TURN_OVER_INK / 2, DIAGRAM_ROTATE_INK.radius + DIAGRAM_ARROWHEAD_INK.length / 2) *
-  (canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / CARD_FRAME_PX);
+  Math.max(DIAGRAM_TURN_OVER_INK / 2, DIAGRAM_ROTATE_INK.radius + DIAGRAM_ARROWHEAD_INK.length / 2) * INK_UNITS;
 
-/** One ink in picture units, as the canvas draws: what an arrow's head and a push's width are measured in. */
-export const INK_UNITS = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / CARD_FRAME_PX;
+// One ink in picture units, as the canvas draws: `canvasInk.ts` owns it, for the model's derived shapes too.
+export { INK_UNITS };
 
 /** A callout's outline's pen in picture units, as the canvas draws it in `style`. */
 export function calloutPenUnits(style: DiagramStyle): number {

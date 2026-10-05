@@ -1,4 +1,4 @@
-import { trackDiagramAnnotationFlipped, trackDiagramArrowShaped } from '../../analytics';
+import { trackDiagramAnnotationFlipped, trackDiagramArrowReturnShaped, trackDiagramArrowShaped } from '../../analytics';
 import type { DiagramShapedArrowKind } from '../../analytics/events';
 import type { WorkspaceState } from '../../store/workspaceStore/types';
 import {
@@ -18,8 +18,9 @@ import { isShapedArrow } from './annotationModel';
  * pane, the keys, Delete and the canvas's gestures. Here, not in each, it
  * counts an arrow shaped for the first time (`diagram arrow shaped`): once,
  * when the edit makes an arc a path, or a white arrow no longer straight
- * (`isShapedArrow`), never for the edits after; and each flip (`diagram
- * annotation flipped`). Whether anything changed.
+ * (`isShapedArrow`), never for the edits after; a fold-and-unfold arrow's
+ * return made its own by hand the same way (`diagram arrow return shaped`);
+ * and each flip (`diagram annotation flipped`). Whether anything changed.
  */
 export function applyAnnotationEdit(
   workspace: Pick<WorkspaceState, 'diagram' | 'editDiagramAnnotations'>,
@@ -34,11 +35,12 @@ export function applyAnnotationEdit(
     ...(selectPathNode !== undefined ? { selectPathNode } : {}),
     ...options,
   });
-  if (changed && shapes && before && !isShapedArrow(before)) {
+  if (changed && shapes && before && (!isShapedArrow(before) || before.back === undefined)) {
     // The edit is pure: what it made of the arrow, without reading the store back.
     const after = edit([before]).find((annotation) => annotation.id === shapes.annotationId);
     const kind = shapedKind(before.kind);
-    if (after && isShapedArrow(after) && kind) trackDiagramArrowShaped(kind, shapes.gesture);
+    if (!isShapedArrow(before) && after && isShapedArrow(after) && kind) trackDiagramArrowShaped(kind, shapes.gesture);
+    if (before.back === undefined && after?.back !== undefined) trackDiagramArrowReturnShaped(shapes.gesture);
   }
   if (changed && flips && flipped) trackDiagramAnnotationFlipped(annotationEventKind(flipped), flips.axis);
   return changed;

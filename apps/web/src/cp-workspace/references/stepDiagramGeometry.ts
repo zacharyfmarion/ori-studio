@@ -1171,8 +1171,9 @@ const toSvg = (p: Vec2): SvgPoint => ({ x: p[0], y: p[1] });
  * - A one-way arrow's shaft stops at its head's notch, and the head sits
  *   there along the shaft's direction where it stops (`oneWayArrow`).
  * - A fold-and-unfold arrow's shaft starts a rim in from its tail, always
- *   (`foldArrowTrim`), and its return is derived from the landed path
- *   ({@link pathReturn}) and carries the head.
+ *   (`foldArrowTrim`), and its return — derived from the landed path
+ *   ({@link pathReturn}), or `back` where it was shaped by hand — carries the
+ *   head.
  *
  * `sizes` are asked for by the path's whole length; `marks` are the ring
  * centres, and `tolerance` how far the return's runs may stand off the
@@ -1183,7 +1184,8 @@ export function pathArrowGeometry(
   fold: PathArrowFold,
   sizesFor: (length: number) => PathArrowSizes,
   marks: readonly SvgPoint[],
-  tolerance: number
+  tolerance: number,
+  back?: readonly PathCubic[]
 ): PathArrowGeometry | null {
   const measure = measurePath(path);
   const { length } = measure;
@@ -1210,15 +1212,28 @@ export function pathArrowGeometry(
   }
 
   const landed = trimPath(measure, 0, end);
-  const back = pathReturn(landed, sizes.offset, tolerance);
+  const returning = back ? shapedReturn(back, length - end, tolerance) : pathReturn(landed, sizes.offset, tolerance);
   const shaft = sizes.rim < end ? trimPath(measure, sizes.rim, end) : null;
-  if (!back) {
+  if (!returning) {
     const head = headAt(pathPointAt(measure, end), pathTangentAt(measure, end));
     return { shaft, back: null, head, inside: head.notch };
   }
-  const stopped = polylineStoppedShort(back, reach);
+  const stopped = polylineStoppedShort(returning, reach);
   const head = headAt(stopped.end, stopped.direction);
   return { shaft, back: stopped.points, head, inside: head.notch };
+}
+
+/**
+ * A return shaped by hand as the drawing runs it: its own path, from the tip,
+ * its start cut back by as much as the outgoing stroke was where it landed on
+ * a ring, so the two leave the ring alike. As runs; null for a return of no
+ * length.
+ */
+function shapedReturn(back: readonly PathCubic[], cut: number, tolerance: number): Vec2[] | null {
+  const measure = measurePath(back);
+  if (!(measure.length > 1e-9)) return null;
+  const from = Math.min(Math.max(0, cut), measure.length / 2);
+  return flattenPath(from > 0 ? trimPath(measure, from, measure.length) : back, tolerance);
 }
 
 /**
@@ -1441,14 +1456,16 @@ export function pathArrowDrawn(
   path: readonly DiagramCubic[],
   fold: PathArrowFold,
   project: DiagramProjector,
-  marks: readonly SvgPoint[]
+  marks: readonly SvgPoint[],
+  back?: readonly DiagramCubic[]
 ): PathArrowGeometry | null {
   return pathArrowGeometry(
     projectPath(path, project),
     fold,
     (length) => pathArrowSizes(length, project),
     marks,
-    PATH_FLATTEN_INK * project.ink
+    PATH_FLATTEN_INK * project.ink,
+    back && projectPath(back, project)
   );
 }
 

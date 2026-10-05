@@ -388,6 +388,35 @@ describe('annotations in the file', () => {
       expect(read.map((annotation) => annotation.id)).toEqual(['kept']);
     });
 
+    it('round-trips a fold-and-unfold arrow’s return shaped by hand, from the tip', () => {
+      const back = [
+        { at: [0.7, 0.5], out: [0.6, 0.65] },
+        { at: [0.15, 0.55], in: [0.3, 0.7], out: [0.1, 0.5] },
+        { at: [0.12, 0.45], in: [0.1, 0.48] },
+      ];
+      const read = withAnnotations([shaped({ back })]);
+      expect(read).toEqual([shaped({ back })]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual([shaped({ back })]);
+    });
+
+    it('drops a return that does not start at the tip, and carries one no build writes as a newer build’s', () => {
+      const back = [{ at: [0.7, 0.5], out: [0.6, 0.65] }, { at: [0.15, 0.55] }];
+      const read = withAnnotations([
+        shaped({ id: 'd-start', back: [{ at: [0.6, 0.5] }, { at: [0.15, 0.55] }] }),
+        shaped({ id: 'd-one', back: [{ at: [0.7, 0.5] }] }),
+        shaped({ id: 'kept', back }),
+      ]);
+      expect(read.map((annotation) => annotation.id)).toEqual(['kept']);
+      const newer = [
+        // A return on an arrow that has none, or with no path to return along.
+        shaped({ id: 'n-valley', kind: 'valley-arrow', back }),
+        { id: 'n-arc', kind: 'fold-unfold-arrow', from: [0.1, 0.5], to: [0.7, 0.5], bend: 0.2, back },
+      ];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    });
+
     it('is kept, verbatim and undrawn, by a build that reads no path: as any field it has no name for', () => {
       // What a build before shaped arrows does with one: its reader names no
       // `path`, so the arrow is a newer build's (`colour` here stands for it).

@@ -62,6 +62,7 @@ import {
   rightAngleDiagonal,
   turnRightAngle,
   placedByClick,
+  withPath,
   textEms,
   type PictureMove,
   type PicturePoint,
@@ -428,6 +429,66 @@ describe('a shaped arrow', () => {
     const lone = cleanAnnotation({ ...shaped, path: [path[0]!] });
     expect(lone.bend).toBe(ARROW_BEND);
     expect(lone.path).toBeUndefined();
+  });
+});
+
+describe('a fold-and-unfold arrow’s return shaped by hand', () => {
+  const path: DiagramPathNode[] = [
+    { at: [0.2, 0.5], out: [0.3, 0.4] },
+    { at: [0.6, 0.5], in: [0.5, 0.4] },
+  ];
+  const back: DiagramPathNode[] = [
+    { at: [0.6, 0.5], out: [0.5, 0.65] },
+    { at: [0.25, 0.55], in: [0.35, 0.7] },
+  ];
+  const unfold: KnownDiagramAnnotation = { id: 'u', kind: 'fold-unfold-arrow', from: [0.2, 0.5], to: [0.6, 0.5], path, back };
+  const near = (point: readonly number[]) => point.map((value) => expect.closeTo(value, 12));
+
+  it('starts where the path ends, wherever the tip goes, its handle with it', () => {
+    const moved = withPath(unfold, [path[0]!, { at: [0.7, 0.45], in: [0.6, 0.4] }]);
+    expect(moved.to).toEqual([0.7, 0.45]);
+    expect(moved.back![0]).toEqual({ at: [0.7, 0.45], out: near([0.6, 0.6]) });
+    expect(moved.back![1]).toBe(back[1]);
+  });
+
+  it('moves whole with its path, only as far as keeps every point of both within reach', () => {
+    const moved = moveAnnotation(unfold, [0.1, -0.1]);
+    expect(moved.back![1]).toEqual({ at: near([0.35, 0.45]), in: near([0.45, 0.6]) });
+    expect(moved.back![0]!.at).toEqual(moved.to);
+    const far = moveAnnotation(unfold, [9, 0]);
+    const xs = [...far.path!, ...far.back!].flatMap((node) => [node.at, node.in, node.out].flatMap((p) => (p ? [p[0]] : [])));
+    expect(Math.max(...xs)).toBeCloseTo(ANNOTATION_REACH, 12);
+    expect(far.back![0]!.at).toEqual(far.to);
+  });
+
+  it('is carried with its picture, and flipped across the chord with its path', () => {
+    const mirrored = carryAnnotation(unfold, mirrorMove(SQUARE));
+    expect(mirrored.back![1]).toEqual({ at: near([0.75, 0.55]), in: near([0.65, 0.7]) });
+    expect(mirrored.back![0]!.at).toEqual(mirrored.to);
+    const flipped = flipAnnotationArc(unfold);
+    expect(flipped.back![0]).toEqual({ at: [0.6, 0.5], out: near([0.5, 0.35]) });
+    expect(flipped.back![1]).toEqual({ at: near([0.25, 0.45]), in: near([0.35, 0.3]) });
+    // A straight path still flips with a return off its chord: the return changes sides.
+    const straight: KnownDiagramAnnotation = { ...unfold, path: [{ at: [0.2, 0.5] }, { at: [0.6, 0.5] }] };
+    expect(flipChangesArc(straight)).toBe(true);
+    const { back: _back, ...derived } = straight;
+    expect(flipChangesArc(derived)).toBe(false);
+  });
+
+  it('is written as the reader reads it, and only on a fold-and-unfold arrow with a path', () => {
+    expect(cleanAnnotation(unfold)).toBe(unfold);
+    // Off the tip: put on it, its handle with it.
+    const off = cleanAnnotation({ ...unfold, back: [{ at: [0.5, 0.5], out: [0.4, 0.65] }, back[1]!] });
+    expect(off.back![0]).toEqual({ at: [0.6, 0.5], out: near([0.5, 0.65]) });
+    // No stray handle at either end, as a path has none.
+    const stray = cleanAnnotation({ ...unfold, back: [{ ...back[0]!, in: [0, 0] }, { ...back[1]!, out: [1, 1] }] });
+    expect(stray.back).toEqual(back);
+    // One node is no return to keep: the drawing derives it again.
+    expect(cleanAnnotation({ ...unfold, back: [back[0]!] })).not.toHaveProperty('back');
+    // On an arc, or on an arrow of another kind, it goes.
+    const { path: _path, ...arc } = unfold;
+    expect(cleanAnnotation({ ...arc, bend: 0.2 })).not.toHaveProperty('back');
+    expect(cleanAnnotation({ ...unfold, kind: 'valley-arrow' })).not.toHaveProperty('back');
   });
 });
 

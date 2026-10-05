@@ -10,7 +10,7 @@ import {
   rightAngleLegs,
 } from '../../diagram/annotate/annotationHit';
 import { angleMarkArcPoints } from '../../cp-workspace/references/stepDiagramGeometry';
-import { pathNodesOf, visiblePathHandles } from '../../diagram/annotate/annotationPath';
+import { pathNodesOf, pathNodesPolyline, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { pictureGeometry } from '../../diagram/annotate/pictureGeometry';
 import { useCloseUpInsides } from '../../diagram/annotate/useCloseUpInsides';
@@ -407,7 +407,7 @@ function RightAngleGhost({ preview, layout }: { preview: RightAnglePreview; layo
 
 /**
  * A fold arrow in Edit Path (decision 3), over everything: a hairline along
- * its curve, every node — smooth a circle, corner a square, the selected one
+ * its curve — a fold-and-unfold arrow's out and back — every node — smooth a circle, corner a square, the selected one
  * filled — and the handles that shape the curve either side of the selected
  * node (Affinity): its own two and its neighbours' facing ones. An arc shows
  * the nodes its first edit would give it. Sized for the screen at any zoom.
@@ -430,7 +430,7 @@ function PathSelection({
   const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit] as const;
   const node = (coarse ? NODE_PX.coarse : NODE_PX.fine) / zoom;
   const handle = (coarse ? PATH_HANDLE_PX.coarse : PATH_HANDLE_PX.fine) / zoom;
-  const points = arrowPolyline(annotation).map(at);
+  const points = (pathNodesPolyline(annotation) ?? []).map(at);
   return (
     <g data-selection="" data-path-selection="">
       <polyline className={styles.pathLine} points={points.map((point) => point.join(',')).join(' ')} />

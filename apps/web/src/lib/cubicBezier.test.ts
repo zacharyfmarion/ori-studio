@@ -4,6 +4,7 @@ import {
   cubicBounds,
   cubicPoint,
   cubicTangent,
+  fitCubic,
   flattenCubic,
   flattenPath,
   measurePath,
@@ -202,5 +203,38 @@ describe('a path', () => {
     const [bx, by] = pathTangentAt(measurePath([...stacked].reverse().map((c) => [...c].reverse() as unknown as Cubic)), Infinity)!;
     expect(bx).toBeCloseTo(0, 9);
     expect(by).toBeCloseTo(-1, 9);
+  });
+});
+
+describe('fitCubic', () => {
+  const unit = (v: readonly [number, number]): [number, number] => {
+    const length = Math.hypot(v[0], v[1]);
+    return [v[0] / length, v[1] / length];
+  };
+  /** How far the fit strays from the points it was fitted to, at most. */
+  const strays = (cubic: Cubic, points: readonly (readonly [number, number])[]) =>
+    Math.max(...points.map((point) => nearestOnPath([cubic], point)!.distance));
+
+  it('gives back a cubic sampled along itself, its handles where they were', () => {
+    const cubic: Cubic = [[0, 0], [2, 3], [6, 3], [8, 0]];
+    const points = Array.from({ length: 41 }, (_, i) => cubicPoint(cubic, i / 40));
+    const fitted = fitCubic(points, unit([2, 3]), unit([-2, 3]));
+    for (let i = 0; i < 4; i += 1) {
+      expect(fitted[i]![0]).toBeCloseTo(cubic[i]![0], 3);
+      expect(fitted[i]![1]).toBeCloseTo(cubic[i]![1], 3);
+    }
+  });
+
+  it('follows a quarter circle within a few thousandths of its radius', () => {
+    const points = Array.from({ length: 33 }, (_, i) => {
+      const angle = ((Math.PI / 2) * i) / 32;
+      return [Math.cos(angle), Math.sin(angle)] as const;
+    });
+    const fitted = fitCubic(points, [0, 1], [1, 0]);
+    expect(strays(fitted, points)).toBeLessThan(0.003);
+  });
+
+  it('takes a third of the chord for each handle with too little to fit', () => {
+    expect(fitCubic([[0, 0], [3, 0]], [1, 0], [-1, 0])).toEqual([[0, 0], [1, 0], [2, 0], [3, 0]]);
   });
 });

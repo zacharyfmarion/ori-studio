@@ -345,6 +345,45 @@ describe('hitAnnotation', () => {
       // And the head, which ends the return beside the tail.
       expect(hitAnnotation([curve], [drawn.head.tip.x, drawn.head.tip.y], tight, null)?.annotationId).toBe('fold');
     });
+
+    it('is taken along a fold-and-unfold arrow’s return shaped by hand, and not where the derived one would be', () => {
+      const curve: KnownDiagramAnnotation = {
+        id: 'fold',
+        kind: 'fold-unfold-arrow',
+        from: [0.2, 0.6],
+        to: [0.6, 0.6],
+        path: [
+          { at: [0.2, 0.6], out: [0.25, 0.4] },
+          { at: [0.6, 0.6], in: [0.55, 0.4] },
+        ],
+      };
+      // Under the path, where the drawing would put none.
+      const shaped: KnownDiagramAnnotation = {
+        ...curve,
+        back: [
+          { at: [0.6, 0.6], out: [0.55, 0.75] },
+          { at: [0.25, 0.62], in: [0.3, 0.75] },
+        ],
+      };
+      const below = cubicPoint(pathCubics(shaped.back!)[0]!, 0.5);
+      expect(hitAnnotation([shaped], [below[0], below[1]], tight, null)?.annotationId).toBe('fold');
+      expect(hitAnnotation([curve], [below[0], below[1]], tight, null)).toBeNull();
+      // Above it, where the derived return stands, nothing is drawn once it is shaped.
+      const derived = pathArrowGeometry(
+        pathCubics(curve.path!),
+        'fold-unfold',
+        (length) => ({
+          head: Math.min(8.5 * SIZES.ink, 0.26 * length),
+          offset: Math.min(10.56 * SIZES.ink, 0.26 * length),
+          rim: 0,
+        }),
+        [],
+        2e-4
+      )!;
+      const above = derived.back![Math.floor(derived.back!.length / 2)]!;
+      expect(hitAnnotation([curve], [above[0], above[1]], tight, null)?.annotationId).toBe('fold');
+      expect(hitAnnotation([shaped], [above[0], above[1]], tight, null)).toBeNull();
+    });
   });
 
   it('ignores one this build cannot read', () => {

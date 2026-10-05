@@ -66,10 +66,13 @@ the Pose toolbar, `analytics/`, `docs/analytics.md`, the catalogs.
 
 Return: `document/diagramDocument.ts`, `document/diagramFile.ts`,
 `annotate/annotationModel.ts`, `annotate/annotationPath.ts`,
+`annotate/derivedReturn.ts` (new), `annotate/canvasInk.ts` (new),
+`annotate/annotationActions.ts`, `annotate/applyAnnotationEdit.ts`,
 `annotate/annotationPrimitives.tsx`, `cp-workspace/references/stepDiagramGeometry.ts`
 (`pathArrowGeometry`), `references/diagram/DiagramPrimitives.tsx`,
 `markReach.ts`, `annotate/annotationHit.ts`, `annotate/useAnnotateCanvas.ts`,
-`lib/cubicBezier.ts` (a cubic fit).
+`components/diagram/DiagramAnnotateCanvas.tsx` (the hairline),
+`lib/cubicBezier.ts` (a cubic fit), `analytics/`, `docs/analytics.md`.
 
 ## Checklist
 
@@ -84,5 +87,34 @@ Return: `document/diagramDocument.ts`, `document/diagramFile.ts`,
     along each edge, not their middles: a square creased along one diagonal
     has symmetric corners and middles (the diagonal's middle is the centre)
     but no mirror axis.
-- [ ] The return's nodes: model, file, drawing, Edit Path (derived until edited), moves, Reset; tests.
-- [ ] Browser: a fold-and-unfold arrow shaped by both halves; before/after.
+- [x] The return's nodes: model, file, drawing, Edit Path (derived until edited), moves, Reset; tests.
+  - As built: the return Edit Path shows is the one the arrow is drawn
+    with. An arc never shaped is drawn with its own return arc
+    (`returnStroke`), not a path's, so its return nodes are that arc exactly
+    (`arcReturn`, one cubic: the return turns a quarter); a path's are fitted
+    to `pathReturn` (`derivedReturn`): a piece per outgoing segment, a corner
+    node where the drawing cuts a loop out (a turn over 20°), then the piece
+    that strays most halved until every one is within a tenth of an ink.
+    Measured: a 60° arc's path return 0.06 ink off with no halving; the test
+    S needs eight return nodes from the tip, one a corner. A first fit with one cubic per
+    segment and no corners was a full ink off on that S.
+  - The tip is a corner in the run, so dragging a handle on one side of it
+    never swings the other's. Only the tip, and the return's one node past
+    it, cannot be deleted; the return's end can, once there is a node before
+    it. Each half counts against `MAX_PATH_NODES` on its own, as the file
+    holds them (a run cleaned as one would have cut the return short).
+  - Flip Arc and Flip mirror the return with the path, Flip about the middle
+    of both; a straight path with a return off its chord still flips.
+  - The Edit Path hairline runs through the shown nodes, out and back.
+  - `diagram arrow return shaped` counts a return first made its own, by the
+    gesture, at the same chokepoint as `diagram arrow shaped`.
+- [x] Browser: a fold-and-unfold arrow shaped by both halves; before/after.
+  - `artifacts/diagram-second-pass/p17f.mjs` (an arc: before, 3 nodes and a
+    drag on the return that does nothing; after, 4 nodes on the drawn
+    strokes and the drag bends the return alone) and `p18g.mjs` (a shaped
+    S: 9 nodes on the drawn line, the return's end dragged with the path
+    unchanged, the tip moved with the return starting from it).
+  - Not changed, noted: an arc's first edit on its outgoing half still
+    switches its return from the arc's own to the path's (`pathReturn`),
+    which ends a little elsewhere beside the tail. That was so before; an
+    edit to the return first keeps the arc's return where it was drawn.

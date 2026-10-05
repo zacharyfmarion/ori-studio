@@ -634,6 +634,14 @@ export interface KnownDiagramAnnotation {
    * white arrow always has one: it is laid straight, and shaped from there.
    */
   path?: DiagramPathNode[];
+  /**
+   * A fold-and-unfold arrow's return shaped by hand (Edit Path), as a path of
+   * its own: from the tip — its first node where `path`'s last is, carrying
+   * the return's first handle — back to beside the tail, where its head is.
+   * Only with `path`. Absent, the return is derived from the path where it is
+   * drawn, and follows it.
+   */
+  back?: DiagramPathNode[];
   /** A white arrow's width: one of three print sizes, in ink, as every mark's is (decision 14). */
   width?: DiagramWhiteArrowWidth;
   /** A white arrow's tail: drawn to a point, cut square, or cleft in a V. */

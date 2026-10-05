@@ -48,6 +48,31 @@ describe('flipping a mark over', () => {
     ]);
   });
 
+  it('turns a fold-and-unfold arrow’s return shaped by hand over with it, about the middle of both', () => {
+    const unfold: KnownDiagramAnnotation = {
+      id: 'u',
+      kind: 'fold-unfold-arrow',
+      from: [0.2, 0.5],
+      to: [0.6, 0.5],
+      path: [
+        { at: [0.2, 0.5], out: [0.3, 0.4] },
+        { at: [0.6, 0.5], in: [0.5, 0.4] },
+      ],
+      back: [
+        { at: [0.6, 0.5], out: [0.5, 0.65] },
+        { at: [0.25, 0.55], in: [0.35, 0.7] },
+      ],
+    };
+    expect(flipCentre(unfold)).toEqual(near([0.4, 0.525]));
+    const flipped = flipAnnotation(unfold, 'vertical');
+    expect(flipped.back).toEqual([
+      { at: near([0.6, 0.55]), out: near([0.5, 0.4]) },
+      { at: near([0.25, 0.5]), in: near([0.35, 0.35]) },
+    ]);
+    expect(flipped.back![0]!.at).toEqual(flipped.to);
+    expect(flipChangesMark(unfold, 'vertical')).toBe(true);
+  });
+
   it('steps a pleat arrow’s Zs to the other side, and turns a rotation the other way where it is', () => {
     const pleat: KnownDiagramAnnotation = { id: 'p', kind: 'pleat-arrow', from: [0.2, 0.4], to: [0.6, 0.4] };
     expect(flipAnnotation(pleat, 'horizontal')).toEqual({ ...pleat, from: near([0.6, 0.4]), to: near([0.2, 0.4]), mirrored: true });

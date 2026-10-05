@@ -229,6 +229,31 @@ describe('a fold-and-unfold path arrow', () => {
     expect(selfCrossings(untrimmed)).toBe(0);
   });
 
+  it('comes back along a return shaped by hand where it has one, from the tip, carrying the head to its end', () => {
+    // Below the S where the derived return would stand above it.
+    const back = projectPath(
+      [
+        [
+          [0.85, 0.45],
+          [0.7, 0.2],
+          [0.3, 0.2],
+          [0.12, 0.42],
+        ],
+      ],
+      PROJECT
+    );
+    const arrow = pathArrowGeometry(path, 'fold-unfold', sizesFor, [], TOLERANCE, back)!;
+    const drawn = arrow.back!;
+    expect(distance(drawn[0]!, path[path.length - 1]![3])).toBeLessThan(1e-9);
+    for (const point of drawn) expect(nearestOnPath(back, point)!.distance).toBeLessThan(2 * TOLERANCE);
+    // Stopped short of its end by the head, which ends it there.
+    expect(distance(drawn[drawn.length - 1]!, arrow.head.notch)).toBeLessThan(1e-9);
+    expect(distance(arrow.head.tip, back[0]![3])).toBeLessThan(0.05 * arrowheadReach(sizes.head));
+    // The outgoing stroke is the path's, as without one.
+    const derived = pathArrowGeometry(path, 'fold-unfold', sizesFor, [], TOLERANCE)!;
+    expect(arrow.shaft).toEqual(derived.shaft);
+  });
+
   it('opens from nothing at the tip, wider in the middle than at the tail, as References’ return does', () => {
     const untrimmed = pathReturn(path, sizes.offset, TOLERANCE)!;
     const measure = measurePath(path);

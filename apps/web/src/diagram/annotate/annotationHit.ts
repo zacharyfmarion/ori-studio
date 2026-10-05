@@ -280,7 +280,9 @@ function pathArrowAt(
     fold,
     (length) => ({ head: headLength(length, ink), offset: returnOffset(length, ink), rim: circleRadius(ink) }),
     marks.map(([x, y]) => ({ x, y })),
-    PATH_TOLERANCE
+    PATH_TOLERANCE,
+    // A return shaped by hand, where it is drawn.
+    annotation.kind === 'fold-unfold-arrow' && annotation.back ? pathCubics(annotation.back) : undefined
   );
   const found = geometry && {
     back: (geometry.back ?? []).map(([x, y]): PicturePoint => [x, y]),

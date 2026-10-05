@@ -302,6 +302,11 @@ export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagra
 }
 
 function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  // A return is a fold-and-unfold arrow's shaped by hand, back along its path: without one, it goes.
+  if (annotation.back !== undefined && (annotation.kind !== 'fold-unfold-arrow' || annotation.path === undefined)) {
+    const { back: _dropped, ...rest } = annotation;
+    return cleanShape(rest);
+  }
   // A white arrow is always a path: one without is laid straight between its ends.
   if (annotation.path === undefined && isAlwaysPath(annotation.kind)) {
     return cleanShape(withPath(annotation, straightPath(annotation.from, annotation.to)));
@@ -310,15 +315,21 @@ function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation 
     const path = canBeShaped(annotation.kind) ? cleanPath(annotation.path) : null;
     if (path) {
       const ends = endsOf(path);
+      // A return as the reader takes it too, from the tip; one this build would not write is derived again.
+      const back = annotation.back && cleanPath(annotation.back);
       const clean =
         path === annotation.path &&
+        back === annotation.back &&
+        (!back || samePoint(back[0]!.at, ends.to)) &&
         annotation.bend === undefined &&
         samePoint(annotation.from, ends.from) &&
         samePoint(annotation.to, ends.to);
-      return clean ? annotation : withPath(annotation, path);
+      if (clean) return annotation;
+      const { back: _was, ...arrow } = annotation;
+      return withPath(back ? { ...arrow, back } : arrow, path);
     }
-    // A path this build would not write: the arrow is an arc again.
-    const { path: _dropped, ...arc } = annotation;
+    // A path this build would not write: the arrow is an arc again, its return derived.
+    const { path: _dropped, back: _back, ...arc } = annotation;
     return cleanShape(isArrowKind(arc.kind) ? { ...arc, bend: arc.bend ?? ARROW_BEND } : arc);
   }
   if (isCornerKind(annotation.kind)) return cleanCorner(annotation);
@@ -556,10 +567,22 @@ function endsOf(path: readonly DiagramPathNode[]): { from: PicturePoint; to: Pic
   return { from: [first[0], first[1]], to: [last[0], last[1]] };
 }
 
-/** An arrow along `path`, its ends the path's, with no bend: a path is not an arc. */
+/**
+ * An arrow along `path`, its ends the path's, with no bend: a path is not an
+ * arc. A return shaped by hand starts where the path now ends: wherever the tip
+ * went, the return goes from it.
+ */
 export function withPath(annotation: KnownDiagramAnnotation, path: DiagramPathNode[]): KnownDiagramAnnotation {
   const { bend: _arc, ...rest } = annotation;
-  return { ...rest, ...endsOf(path), path };
+  const shaped = { ...rest, ...endsOf(path), path };
+  return annotation.back ? { ...shaped, back: returnFrom(annotation.back, path[path.length - 1]!.at) } : shaped;
+}
+
+/** A return re-anchored at `tip`: its first node put there, its handle moved with it; as it was when it is there. */
+export function returnFrom(back: DiagramPathNode[], tip: PicturePoint): DiagramPathNode[] {
+  const first = back[0];
+  if (!first || samePoint(first.at, tip)) return back;
+  return [shiftNode(first, [tip[0] - first.at[0], tip[1] - first.at[1]]), ...back.slice(1)];
 }
 
 /**
@@ -1137,10 +1160,13 @@ function shiftNode(node: DiagramPathNode, [dx, dy]: PicturePoint): DiagramPathNo
 
 /** The whole annotation moved by `delta`, no further than keeps it within reach: its shape kept. */
 export function moveAnnotation(annotation: KnownDiagramAnnotation, delta: PicturePoint): KnownDiagramAnnotation {
-  const { from, to, path } = annotation;
-  const [dx, dy] = deltaWithinReach(path ? pathPoints(path) : [from, to], delta);
+  const { from, to, path, back } = annotation;
+  const [dx, dy] = deltaWithinReach(path ? [...pathPoints(path), ...pathPoints(back ?? [])] : [from, to], delta);
   if (dx === 0 && dy === 0) return annotation;
-  if (path) return withPath(annotation, path.map((node) => shiftNode(node, [dx, dy])));
+  if (path) {
+    const moved = back ? { ...annotation, back: back.map((node) => shiftNode(node, [dx, dy])) } : annotation;
+    return withPath(moved, path.map((node) => shiftNode(node, [dx, dy])));
+  }
   const shift = (point: PicturePoint): PicturePoint => [point[0] + dx, point[1] + dy];
   const other = annotation.other ? { other: shift(annotation.other) } : {};
   return { ...annotation, from: shift(from), to: shift(to), ...other };
@@ -1258,15 +1284,10 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
 }
 
 /**
- * A fold arrow bulging the other way; anything else as it was. A shaped
- * arrow is mirrored across its chord, every node and handle, which is what
- * flipping an arc is; one whose ends meet has no chord, and stays.
- */
-/**
  * Whether Flip changes what `annotation` draws: an arc that bends, or a path
- * with a node or a handle off the line between its ends. A straight arrow —
- * a white arrow as it is laid, or one with nodes added along it — and one
- * whose ends meet mirror onto themselves.
+ * — or a return shaped by hand — with a node or a handle off the line between
+ * its ends. A straight arrow — a white arrow as it is laid, or one with nodes
+ * added along it — and one whose ends meet mirror onto themselves.
  */
 export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
   if (!flipsArc(annotation.kind)) return false;
@@ -1279,9 +1300,17 @@ export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
   if (!(chord > 1e-9)) return false;
   const off = ([x, y]: PicturePoint) =>
     Math.abs((x - from[0]) * (to[1] - from[1]) - (y - from[1]) * (to[0] - from[0])) / chord > 1e-9;
-  return shape.path.some((node) => off(node.at) || (node.in !== undefined && off(node.in)) || (node.out !== undefined && off(node.out)));
+  return [...shape.path, ...(annotation.back ?? [])].some(
+    (node) => off(node.at) || (node.in !== undefined && off(node.in)) || (node.out !== undefined && off(node.out))
+  );
 }
 
+/**
+ * A fold arrow bulging the other way; anything else as it was. A shaped
+ * arrow is mirrored across its chord, every node and handle — a return shaped
+ * by hand with it — which is what flipping an arc is; one whose ends meet has
+ * no chord, and stays.
+ */
 export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   if (!flipsArc(annotation.kind)) return annotation;
   if (annotation.kind === 'pleat-arrow') return withPleatSide(annotation, annotation.mirrored !== true);
@@ -1297,14 +1326,19 @@ export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiag
     const foot: PicturePoint = [from[0] + along * ux, from[1] + along * uy];
     return [2 * foot[0] - x, 2 * foot[1] - y];
   };
-  const path = shape.path.map((node) => ({
-    ...node,
-    at: mirror(node.at),
-    ...(node.in ? { in: mirror(node.in) } : {}),
-    ...(node.out ? { out: mirror(node.out) } : {}),
-  }));
-  // Mirrored inside the frame it was in can still leave reach: kept within it.
-  return withPath(annotation, cleanPath(path) ?? path);
+  const mirrored = (nodes: readonly DiagramPathNode[]) => {
+    const each = nodes.map((node) => ({
+      ...node,
+      at: mirror(node.at),
+      ...(node.in ? { in: mirror(node.in) } : {}),
+      ...(node.out ? { out: mirror(node.out) } : {}),
+    }));
+    // Mirrored inside the frame it was in can still leave reach: kept within it.
+    return cleanPath(each) ?? each;
+  };
+  // A return shaped by hand is mirrored with the path, across the same chord.
+  const withBack = annotation.back ? { ...annotation, back: mirrored(annotation.back) } : annotation;
+  return withPath(withBack, mirrored(shape.path));
 }
 
 /**
@@ -1392,14 +1426,19 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
   if (annotation.kind === 'callout') return carryCallout(annotation, move);
   if (annotation.kind === 'close-up') return carryCloseUp(annotation, move);
   if (annotation.path) {
-    const path = annotation.path.map((node) => ({
-      ...node,
-      at: move.point(node.at),
-      ...(node.in ? { in: move.point(node.in) } : {}),
-      ...(node.out ? { out: move.point(node.out) } : {}),
-    }));
-    // Kept within reach, as every carried point is, a handle drawn in along itself.
-    return withPath(annotation, cleanPath(path) ?? path);
+    const carry = (nodes: readonly DiagramPathNode[]) => {
+      const carried = nodes.map((node) => ({
+        ...node,
+        at: move.point(node.at),
+        ...(node.in ? { in: move.point(node.in) } : {}),
+        ...(node.out ? { out: move.point(node.out) } : {}),
+      }));
+      // Kept within reach, as every carried point is, a handle drawn in along itself.
+      return cleanPath(carried) ?? carried;
+    };
+    // A return shaped by hand goes with it, every point as the path's.
+    const withBack = annotation.back ? { ...annotation, back: carry(annotation.back) } : annotation;
+    return withPath(withBack, carry(annotation.path));
   }
   if (isAngleKind(annotation.kind)) return carryAngle(annotation, move);
   // Kept within reach: a carried point that would leave it was three frames off the picture already.
@@ -1582,14 +1621,17 @@ export function flipsOver(kind: DiagramAnnotationKind): boolean {
 
 /**
  * The point Flip turns a mark over about: an arrow's or a line's middle — the
- * middle of its ends, or of its path's nodes — so it stays where it is; any
- * other mark's anchor, `from`: a right angle's corner, an angle mark's vertex,
- * a callout's point, a close-up's area, a sign's place.
+ * middle of its ends, or of its path's nodes and a return's shaped by hand —
+ * so it stays where it is; any other mark's anchor, `from`: a right angle's
+ * corner, an angle mark's vertex, a callout's point, a close-up's area, a
+ * sign's place.
  */
 export function flipCentre(annotation: KnownDiagramAnnotation): PicturePoint {
   const shape = ANNOTATION_SHAPES[annotation.kind];
   if (shape !== 'arc' && shape !== 'straight' && shape !== 'path' && shape !== 'line') return annotation.from;
-  const points = annotation.path ? annotation.path.map((node) => node.at) : [annotation.from, annotation.to];
+  const points = annotation.path
+    ? [...annotation.path, ...(annotation.back ?? [])].map((node) => node.at)
+    : [annotation.from, annotation.to];
   const xs = points.map(([x]) => x);
   const ys = points.map(([, y]) => y);
   return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];

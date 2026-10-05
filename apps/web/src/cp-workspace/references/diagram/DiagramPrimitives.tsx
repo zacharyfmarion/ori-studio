@@ -663,7 +663,7 @@ function diagramPrimitiveShape(
     }
     case 'path-arrow': {
       // The arc arrows' rules, along a path: see `pathArrowGeometry`.
-      const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, context.marks);
+      const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, context.marks, primitive.back);
       if (!arrow) return null;
       const stroke = strokeAttributes('arrow', project.ink, project.dashScale, project.pens);
       // Behind a flap (15e), its stretches there dotted, measured along the

@@ -338,3 +338,90 @@ export function chordSide(points: readonly Vec2[], length: number): -1 | 0 | 1 {
   if (!(Math.abs(twice) > 1e-9 * length * length)) return 0;
   return twice < 0 ? -1 : 1;
 }
+
+/**
+ * The cubic from the first of `points` to the last that best follows the
+ * points between (least squares, Schneider's method): its handles along
+ * `startTangent` and `endTangent` — unit directions pointing into the curve
+ * from each end — their lengths fitted to the points at their chord-length
+ * parameters, which Newton steps then move to the curve's nearest, ten times over. A
+ * handle that would come out non-positive, or a fit with too few points,
+ * takes a third of the chord, as a straight-ish run would.
+ */
+export function fitCubic(points: readonly Vec2[], startTangent: Vec2, endTangent: Vec2): Cubic {
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
+  const chord = norm(minus(last, first));
+  const fallback = (): Cubic => [
+    first,
+    [first[0] + startTangent[0] * chord / 3, first[1] + startTangent[1] * chord / 3],
+    [last[0] + endTangent[0] * chord / 3, last[1] + endTangent[1] * chord / 3],
+    last,
+  ];
+  if (points.length < 3 || !(chord > 0)) return fallback();
+  // Chord-length parameters.
+  const lengths = [0];
+  for (let i = 1; i < points.length; i += 1) lengths.push(lengths[i - 1]! + norm(minus(points[i]!, points[i - 1]!)));
+  const total = lengths[lengths.length - 1]!;
+  if (!(total > 0)) return fallback();
+  let u = lengths.map((length) => length / total);
+  let cubic = fallback();
+  for (let pass = 0; pass < 10; pass += 1) {
+    let c00 = 0;
+    let c01 = 0;
+    let c11 = 0;
+    let x0 = 0;
+    let x1 = 0;
+    points.forEach((point, i) => {
+      const t = u[i]!;
+      const s = 1 - t;
+      const b0 = s * s * s;
+      const b1 = 3 * s * s * t;
+      const b2 = 3 * s * t * t;
+      const b3 = t * t * t;
+      const a1: Vec2 = [startTangent[0] * b1, startTangent[1] * b1];
+      const a2: Vec2 = [endTangent[0] * b2, endTangent[1] * b2];
+      c00 += a1[0] * a1[0] + a1[1] * a1[1];
+      c01 += a1[0] * a2[0] + a1[1] * a2[1];
+      c11 += a2[0] * a2[0] + a2[1] * a2[1];
+      const rest: Vec2 = [
+        point[0] - (first[0] * (b0 + b1) + last[0] * (b2 + b3)),
+        point[1] - (first[1] * (b0 + b1) + last[1] * (b2 + b3)),
+      ];
+      x0 += a1[0] * rest[0] + a1[1] * rest[1];
+      x1 += a2[0] * rest[0] + a2[1] * rest[1];
+    });
+    const det = c00 * c11 - c01 * c01;
+    let alpha1 = Math.abs(det) > 1e-12 ? (x0 * c11 - x1 * c01) / det : 0;
+    let alpha2 = Math.abs(det) > 1e-12 ? (c00 * x1 - c01 * x0) / det : 0;
+    const floor = chord * 1e-6;
+    if (!(alpha1 > floor) || !(alpha2 > floor)) alpha1 = alpha2 = chord / 3;
+    cubic = [
+      first,
+      [first[0] + startTangent[0] * alpha1, first[1] + startTangent[1] * alpha1],
+      [last[0] + endTangent[0] * alpha2, last[1] + endTangent[1] * alpha2],
+      last,
+    ];
+    // Each parameter moved to where the curve passes nearest its point (one Newton step).
+    u = u.map((t, i) => newtonParameter(cubic, points[i]!, t));
+  }
+  return cubic;
+}
+
+/** One Newton step toward the parameter whose point on `cubic` is nearest `point`, kept in [0, 1]. */
+function newtonParameter(cubic: Cubic, point: Vec2, t: number): number {
+  const [p0, p1, p2, p3] = cubic;
+  const at = cubicPoint(cubic, t);
+  const d1 = cubicDerivative(cubic, t);
+  // The second derivative.
+  const s = 1 - t;
+  const d2: Vec2 = [
+    6 * s * (p2[0] - 2 * p1[0] + p0[0]) + 6 * t * (p3[0] - 2 * p2[0] + p1[0]),
+    6 * s * (p2[1] - 2 * p1[1] + p0[1]) + 6 * t * (p3[1] - 2 * p2[1] + p1[1]),
+  ];
+  const diff = minus(at, point);
+  const numerator = diff[0] * d1[0] + diff[1] * d1[1];
+  const denominator = d1[0] * d1[0] + d1[1] * d1[1] + diff[0] * d2[0] + diff[1] * d2[1];
+  if (!(Math.abs(denominator) > 1e-12)) return t;
+  return Math.max(0, Math.min(1, t - numerator / denominator));
+}

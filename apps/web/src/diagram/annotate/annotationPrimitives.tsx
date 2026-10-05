@@ -75,6 +75,7 @@ import {
   isKnownAnnotation,
   type DiagramAnnotation,
   type DiagramHanStyle,
+  type DiagramPathNode,
   type DiagramStyle,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
@@ -289,8 +290,11 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
       if (shape.kind === 'path') {
         // A path of no length draws nothing, as an arc between two ends that meet does not.
         if (!(pathLength(shape.path) > 0)) return null;
-        const path = pathCubics(shape.path).map(([a, b, c, d]) => [up(a), up(b), up(c), up(d)] as const);
-        return { kind: 'mark', primitive: { kind: 'path-arrow', path, fold: PATH_FOLD[annotation.kind] } };
+        const cubics = (nodes: readonly DiagramPathNode[]) =>
+          pathCubics(nodes).map(([a, b, c, d]) => [up(a), up(b), up(c), up(d)] as const);
+        // A return shaped by hand is its own path; one never shaped is derived where it is drawn.
+        const back = annotation.kind === 'fold-unfold-arrow' && annotation.back ? { back: cubics(annotation.back) } : {};
+        return { kind: 'mark', primitive: { kind: 'path-arrow', path: cubics(shape.path), fold: PATH_FOLD[annotation.kind], ...back } };
       }
       const out = arcThroughPoints(up(from), up(arrowApex(from, to, shape.bend)), up(to));
       if (!out) return null;

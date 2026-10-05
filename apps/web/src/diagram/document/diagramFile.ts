@@ -293,6 +293,7 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     to,
     bend,
     path,
+    back,
     width,
     tail,
     fill,
@@ -318,6 +319,7 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     to,
     ...(bend !== undefined ? { bend } : {}),
     ...(path !== undefined ? { path: path.map(writePathNode) } : {}),
+    ...(back !== undefined ? { back: back.map(writePathNode) } : {}),
     ...(width !== undefined ? { width } : {}),
     ...(tail !== undefined ? { tail } : {}),
     ...(fill !== undefined ? { fill } : {}),
@@ -849,7 +851,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
   return {
     'valley-arrow': fields('bend', 'path', 'behind'),
     'mountain-arrow': fields('bend', 'path', 'behind'),
-    'fold-unfold-arrow': fields('bend', 'path', 'behind'),
+    'fold-unfold-arrow': fields('bend', 'path', 'behind', 'back'),
     'pleat-arrow': fields('kinks', 'mirrored', 'behind'),
     'push-arrow': fields(),
     'white-arrow': fields('path', 'width', 'tail', 'fill'),
@@ -928,8 +930,16 @@ function readAnnotation(
         const last = path[path.length - 1]!.at;
         // The arrow's ends are its path's: one that says otherwise does not read.
         if (first[0] !== from[0] || first[1] !== from[1] || last[0] !== to[0] || last[1] !== to[1]) return null;
-        return { ...annotation, path };
+        if (entry.back === undefined) return { ...annotation, path };
+        // A fold-and-unfold arrow's return shaped by hand: a path from the tip.
+        const back = readPath(entry.back);
+        if (back === null || back === NEWER) return back;
+        const start = back[0]!.at;
+        if (start[0] !== to[0] || start[1] !== to[1]) return null;
+        return { ...annotation, path, back };
       }
+      // A return with no path to return along: no build of this one writes that.
+      if (entry.back !== undefined) return NEWER;
       if (entry.bend === undefined) {
         const shape = arrowShape(annotation);
         return shape.kind === 'arc' ? { ...annotation, bend: shape.bend } : annotation;

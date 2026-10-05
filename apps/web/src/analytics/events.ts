@@ -1363,6 +1363,11 @@ export const ANALYTICS_EVENTS = {
    * not each edit after.
    */
   diagramArrowShaped: 'diagram arrow shaped',
+  /**
+   * A fold-and-unfold arrow's return shaped by hand for the first time (Edit
+   * Path): made a path of its own rather than the one the drawing derives.
+   */
+  diagramArrowReturnShaped: 'diagram arrow return shaped',
   /** A step's picture taken away (Remove picture). */
   diagramPictureRemoved: 'diagram picture removed',
   /**

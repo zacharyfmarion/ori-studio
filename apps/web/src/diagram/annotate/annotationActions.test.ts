@@ -275,6 +275,27 @@ describe('Edit Path’s node verbs', () => {
     expect(build(full, { node: 3 }).verb('add-node').disabled).toBe(true);
   });
 
+  it('keep a fold-and-unfold arrow’s tip, where it turns back, and its return’s one node past it', () => {
+    // Its nodes run from the tail through the tip to the return's end.
+    const unfold = of('u', 'fold-unfold-arrow', { bend: ARROW_BEND });
+    const tip = build(unfold, { node: 1 });
+    expect(['smooth-node', 'corner-node', 'add-node', 'delete-node'].map((id) => tip.verb(id).disabled)).toEqual([
+      true,
+      true,
+      false,
+      true,
+    ]);
+    expect(build(unfold, { node: 2 }).verb('delete-node').disabled).toBe(true);
+    // Add Node at the tip adds to the return, and selects what it adds.
+    tip.verb('add-node').run();
+    const edit = tip.apply.mock.calls[0]![0];
+    expect(edit.selectPathNode).toBe(2);
+    const added = edit.edit([unfold])[0]!;
+    expect(added.back).toHaveLength(3);
+    const middle = build(added, { node: 2 });
+    expect([middle.verb('smooth-node').disabled, middle.verb('delete-node').disabled]).toEqual([false, false]);
+  });
+
   it('offer no Reset on a loop whose ends meet, which has no arc to go back to', () => {
     const loop: KnownDiagramAnnotation = {
       ...S,

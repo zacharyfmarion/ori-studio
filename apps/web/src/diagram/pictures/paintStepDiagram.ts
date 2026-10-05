@@ -22,7 +22,7 @@ import { canvasDiagramInk, canvasDiagramPens } from '../../cp-workspace/referenc
 import { diagramToPaperScene } from '../../cp-workspace/references/diagramToPaperScene';
 import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
 import { createOverlayProjector, sheetCorners, sheetFrame } from '../../cp-workspace/references/stepDiagramGeometry';
-import { DEFAULT_ORISTUDIO_CP_LINE_WIDTH } from '../../lib/creasePatternViewport';
+import { STEP_DIAGRAM_LINE_WIDTH } from '../annotate/canvasInk';
 import type { PaperPage } from '../../lib/paper/paperPage';
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
@@ -30,12 +30,8 @@ import { PT_PER_CSS_PX, mmToCssPx, pageMarginPt, pagePtPerPx, paperSceneToSvg } 
 import type { DiagramStyle } from '../document/diagramDocument';
 import { diagramPaperStyle, diagramSurfaceStyle } from './diagramPaperStyle';
 
-/**
- * The crease width a step's marks are inked against: Edit's default, the
- * width References opens at. Fixed rather than the reader's own setting, so a
- * diagram's steps do not change weight with whoever sent them.
- */
-export const STEP_DIAGRAM_LINE_WIDTH = DEFAULT_ORISTUDIO_CP_LINE_WIDTH;
+// The crease width a step's marks are inked against: `canvasInk.ts` owns it with the scale it is drawn at.
+export { STEP_DIAGRAM_LINE_WIDTH };
 
 /** The sheet's units to scene px, the sheet's longer side `sheetMm` across: y down, x reflected on the back. */
 function sheetToScene(model: StepDiagramModel, mirrored: boolean, sheetMm: number) {

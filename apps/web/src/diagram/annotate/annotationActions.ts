@@ -3,7 +3,6 @@ import type { DiagramArrowShapeGesture } from '../../analytics/events';
 import type { ShortcutActionId } from '../../keyboard/shortcuts';
 import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
 import {
-  MAX_PATH_NODES,
   canBeShaped,
   flipAnnotation,
   flipAnnotationArc,
@@ -19,8 +18,11 @@ import {
   type PicturePoint,
 } from './annotationModel';
 import {
+  canDeletePathNode,
   canResetPath,
+  canSplitPathSegment,
   deletePathNode,
+  hasNodeType,
   movePathNode,
   pathNodesOf,
   resetPath,
@@ -247,10 +249,7 @@ export function annotationActionEdit(
       // After the selected node, halfway along: before it for the tip, which has nothing after.
       return {
         label: 'Add node',
-        edit: onNode((annotation, at) => {
-          const count = pathNodesOf(annotation)?.length ?? 0;
-          return splitPathSegment(annotation, Math.min(at, count - 2), 0.5);
-        }),
+        edit: onNode((annotation, at) => splitPathSegment(annotation, addNodeSegment(annotation, at), 0.5)),
         // The node it adds: after the selected one, or before the tip — which then moves on one.
         ...(node !== null
           ? { selectPathNode: (context.nodes !== undefined ? Math.min(node, context.nodes - 2) : node) + 1 }
@@ -336,6 +335,11 @@ export function nudgePathNodeEdit(annotationId: string, node: number, delta: Pic
   };
 }
 
+/** The segment Add Node cuts with `node` selected: the one after it, or before the tip — which has none after. */
+function addNodeSegment(annotation: KnownDiagramAnnotation, node: number): number {
+  return Math.min(node, (pathNodesOf(annotation)?.length ?? 0) - 2);
+}
+
 /**
  * The node a stepper lands on: the next or the one before, stopping at the
  * ends; from none, the first going on and the last going back.
@@ -379,8 +383,10 @@ function annotationActionLabel(t: TFunction, id: AnnotationActionId, kind: Diagr
 /**
  * The verbs `annotation` offers, in order, each enabled only on a step that
  * can change — the node steppers excepted, which change nothing. A node verb
- * needs a node selected, and Smooth and Corner one with a node on either side
- * (an end has one handle, and no type to have). Reset needs a path to undo.
+ * needs a node selected, and Smooth and Corner one with a type to set
+ * (`hasNodeType`): not an end, which has one handle, nor a fold-and-unfold
+ * arrow's tip. Add Node needs room in its half of the arrow, and Delete Node
+ * a node it may take out. Reset needs a path to undo.
  */
 export function buildAnnotationActions(
   annotation: KnownDiagramAnnotation,
@@ -390,7 +396,7 @@ export function buildAnnotationActions(
   const nodes = pathNodesOf(annotation);
   const count = nodes?.length ?? 0;
   const node = state.node ?? null;
-  const interior = node !== null && node > 0 && node < count - 1;
+  const typed = node !== null && hasNodeType(annotation, node);
   const context: AnnotationEditContext = { node, nodes: count, frame: state.frame };
   return ANNOTATION_ACTION_ORDER.filter((id) => offersAnnotationAction(id, annotation, state)).map((id) => {
     const shortcutId = annotationActionShortcut(id, node);
@@ -413,11 +419,11 @@ export function buildAnnotationActions(
       }
       case 'smooth-node':
       case 'corner-node': {
-        const corner = interior && nodes![node!]!.type === 'corner';
+        const corner = typed && nodes![node!]!.type === 'corner';
         return {
           ...base,
-          disabled: !state.editable || !interior,
-          active: interior && (id === 'corner-node' ? corner : !corner),
+          disabled: !state.editable || !typed,
+          active: typed && (id === 'corner-node' ? corner : !corner),
           run: () => deps.apply(annotationActionEdit(id, annotation.id, context)),
         };
       }
@@ -425,8 +431,13 @@ export function buildAnnotationActions(
       case 'delete-node':
         return {
           ...base,
-          // An arrow holds no more than its most nodes: Add Node would add nothing there.
-          disabled: !state.editable || node === null || (id === 'add-node' && count >= MAX_PATH_NODES),
+          // A half holds no more than its most nodes, and a fold-and-unfold arrow keeps its tip and a return.
+          disabled:
+            !state.editable ||
+            node === null ||
+            !(id === 'add-node'
+              ? canSplitPathSegment(annotation, addNodeSegment(annotation, node))
+              : canDeletePathNode(annotation, node)),
           run: () => deps.apply(annotationActionEdit(id, annotation.id, context)),
         };
       case 'reset-path':

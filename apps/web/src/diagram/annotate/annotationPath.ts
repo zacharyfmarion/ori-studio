@@ -8,8 +8,9 @@
  * path, laid straight, and Reset lays it straight again. Every edit takes the
  * arrow, arc or path, and returns it edited, every point within reach; node
  * and segment numbers count along the path as {@link pathNodesOf} gives it,
- * tail first. A kind that is not shaped (a push, a line, a sign) comes back
- * as it was.
+ * tail first — for a fold-and-unfold arrow on through the tip and along its
+ * return, so both halves are shaped alike (Zach, 2026-10-05). A kind that is
+ * not shaped (a push, a line, a sign) comes back as it was.
  *
  * Pure: no DOM, no store, no React.
  */
@@ -35,6 +36,7 @@ import {
   type PictureFrame,
   type PicturePoint,
 } from './annotationModel';
+import { arcReturn, derivedReturn } from './derivedReturn';
 import { perAnnotation } from './perAnnotation';
 
 const plus = (a: PicturePoint, b: PicturePoint): PicturePoint => [a[0] + b[0], a[1] + b[1]];
@@ -47,13 +49,47 @@ const ON_NODE = 1e-9;
 
 /**
  * The nodes Edit Path shows for an arrow: its path, or its arc's as the
- * first edit would make it one. Null for a kind that is not shaped. Worked
- * out once per annotation object: the canvas, its hit test and the store's
- * check of the selected node all ask for the same arrow's.
+ * first edit would make it one — and a fold-and-unfold arrow's on through
+ * its tip along its return: the one shaped by hand, or until then the one
+ * it is drawn with — an arc's own ({@link arcReturn}), a path's fitted to the
+ * one drawn along it ({@link derivedReturn}). The tip carries the
+ * return's first handle, and is a corner: the return leaves it back the way
+ * the path came, and a handle dragged on one side does not swing the other's.
+ * Null for a kind that is not shaped. Worked out once per annotation object:
+ * the canvas, its hit test and the store's check of the selected node all ask
+ * for the same arrow's.
  */
 export const pathNodesOf = perAnnotation((annotation): readonly DiagramPathNode[] | null => {
   if (!canBeShaped(annotation.kind)) return null;
-  return arcToPath(annotation).path ?? null;
+  const out = arcToPath(annotation).path ?? null;
+  if (!out || annotation.kind !== 'fold-unfold-arrow') return out;
+  const shape = arrowShape(annotation);
+  const back = annotation.back ?? (shape.kind === 'arc' ? arcReturn(annotation.from, annotation.to, shape.bend) : derivedReturn(out));
+  if (!back || back.length < 2) return out;
+  const tip: DiagramPathNode = { ...out[out.length - 1]!, ...(back[0]!.out ? { out: back[0]!.out } : {}), type: 'corner' };
+  return [...out.slice(0, -1), tip, ...back.slice(1)];
+});
+
+/**
+ * Where a fold-and-unfold arrow's nodes turn back: its tip, the last of its
+ * outgoing path's. Null for any other arrow, and for one whose return has no
+ * nodes to show.
+ */
+export function returnTurnOf(annotation: KnownDiagramAnnotation): number | null {
+  if (annotation.kind !== 'fold-unfold-arrow') return null;
+  const out = arcToPath(annotation).path;
+  const nodes = pathNodesOf(annotation);
+  return out && nodes && nodes.length > out.length ? out.length - 1 : null;
+}
+
+/**
+ * The curve through the nodes Edit Path shows, as runs from the tail — its
+ * hairline: a fold-and-unfold arrow's out through the tip and back along its
+ * return. Null for a kind that is not shaped.
+ */
+export const pathNodesPolyline = perAnnotation((annotation): PicturePoint[] | null => {
+  const nodes = pathNodesOf(annotation);
+  return nodes && flattenPath(pathCubics(nodes), 2e-4).map(([x, y]): PicturePoint => [x, y]);
 });
 
 /**
@@ -189,7 +225,8 @@ function arcNodes(from: PicturePoint, to: PicturePoint, bend: number): DiagramPa
  * that could be drawn or pressed, and stays.
  */
 export function resetPath(annotation: KnownDiagramAnnotation, frame: PictureFrame): KnownDiagramAnnotation {
-  const { path, ...arc } = annotation;
+  // A return shaped by hand goes with the path: the arc's is References' own again.
+  const { path, back: _back, ...arc } = annotation;
   if (!path || !canResetPath(annotation)) return annotation;
   const { from, to } = annotation;
   if (isAlwaysPath(annotation.kind)) return withPath(annotation, straightPath(from, to));
@@ -210,16 +247,87 @@ export function canResetPath(annotation: KnownDiagramAnnotation): boolean {
   return !isAlwaysPath(annotation.kind) || !isStraightPath(path);
 }
 
-/** The arrow shaped, its nodes edited by `edit`; the arrow as it was when `edit` gives null. */
+/**
+ * The arrow shaped, its nodes edited by `edit`; the arrow as it was when
+ * `edit` gives null. `turnAfter` says where a fold-and-unfold arrow's tip is
+ * after an edit that adds or takes out a node.
+ */
 function shaped(
   annotation: KnownDiagramAnnotation,
-  edit: (nodes: readonly DiagramPathNode[]) => DiagramPathNode[] | null
+  edit: (nodes: readonly DiagramPathNode[]) => DiagramPathNode[] | null,
+  turnAfter: (turn: number) => number = (turn) => turn
 ): KnownDiagramAnnotation {
   const path = pathNodesOf(annotation);
   if (!path) return annotation;
   const edited = edit(path);
   if (!edited) return annotation;
+  const turn = returnTurnOf(annotation);
+  // A fold-and-unfold arrow's halves are each a path of their own, each cleaned once split.
+  if (turn !== null) return splitAtTurn(annotation, path, edited, turn, turnAfter(turn));
   return withPath(annotation, cleanPath(edited) ?? edited);
+}
+
+/**
+ * A fold-and-unfold arrow's nodes, edited, written back as its outgoing path
+ * and its return, split at the tip. A return still derived stays derived
+ * while only the outgoing half is edited — it follows the path, as drawn — and
+ * is written as it shows once one of its own nodes, or the tip's handle into
+ * it, is.
+ */
+function splitAtTurn(
+  annotation: KnownDiagramAnnotation,
+  before: readonly DiagramPathNode[],
+  after: readonly DiagramPathNode[],
+  turnBefore: number,
+  turn: number
+): KnownDiagramAnnotation {
+  // The tip's corner is the turn's, not the outgoing path's: an end has no type.
+  const { out: intoReturn, type: _turn, ...tip } = after[turn]!;
+  const out = [...after.slice(0, turn), tip];
+  const outgoing = cleanPath(out) ?? out;
+  if (annotation.back === undefined) {
+    const was = before[turnBefore]!;
+    const touched =
+      !sameNodes(before.slice(turnBefore + 1), after.slice(turn + 1)) ||
+      (sameAt(was.at, tip.at) && !sameAt(was.out, intoReturn));
+    if (!touched) return withPath(annotation, outgoing);
+  }
+  const back = cleanPath([{ at: tip.at, ...(intoReturn ? { out: intoReturn } : {}) }, ...after.slice(turn + 1)]);
+  // No edit leaves a return without a node past the tip; one that did would be derived again.
+  const { back: _was, ...arrow } = annotation;
+  return withPath(back ? { ...arrow, back } : arrow, outgoing);
+}
+
+/**
+ * The nodes of the half of an arrow that `segment` lies in: a
+ * fold-and-unfold arrow's outgoing path, up to its tip, or its return, from
+ * it; any other arrow's whole path. What {@link MAX_PATH_NODES} counts, as a
+ * file holds each half.
+ */
+function halfNodesAt(annotation: KnownDiagramAnnotation, segment: number): number {
+  const count = pathNodesOf(annotation)?.length ?? 0;
+  const turn = returnTurnOf(annotation);
+  if (turn === null) return count;
+  return segment < turn ? turn + 1 : count - turn;
+}
+
+/** Whether a node can be added along `segment`: one there, in a half with room for another. */
+export function canSplitPathSegment(annotation: KnownDiagramAnnotation, segment: number): boolean {
+  const count = pathNodesOf(annotation)?.length ?? 0;
+  return segment >= 0 && segment < count - 1 && halfNodesAt(annotation, segment) < MAX_PATH_NODES;
+}
+
+const sameAt = (a: PicturePoint | undefined, b: PicturePoint | undefined) =>
+  a === b || (a !== undefined && b !== undefined && a[0] === b[0] && a[1] === b[1]);
+
+function sameNodes(a: readonly DiagramPathNode[], b: readonly DiagramPathNode[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((node, index) => {
+      const other = b[index]!;
+      return sameAt(node.at, other.at) && sameAt(node.in, other.in) && sameAt(node.out, other.out) && node.type === other.type;
+    })
+  );
 }
 
 /** A node put at `point`, its handles with it (as far as keeps them within reach). */
@@ -302,12 +410,13 @@ export function bendPathSegment(
  * A node added where `t` cuts a segment (de Casteljau): the curve drawn as it
  * was, the new node smooth between the two halves' handles, the segment's
  * ends keeping their places with shorter handles. Not past
- * {@link MAX_PATH_NODES}, nor at a segment's end.
+ * {@link MAX_PATH_NODES} ({@link canSplitPathSegment}), nor at a segment's end.
  */
 export function splitPathSegment(annotation: KnownDiagramAnnotation, segment: number, t: number): KnownDiagramAnnotation {
-  return shaped(annotation, (path) => {
+  if (!canSplitPathSegment(annotation, segment)) return annotation;
+  const split = (path: readonly DiagramPathNode[]): DiagramPathNode[] | null => {
     const cubic = pathCubics(path)[segment];
-    if (!cubic || path.length >= MAX_PATH_NODES || !(t > 1e-6 && t < 1 - 1e-6)) return null;
+    if (!cubic || !(t > 1e-6 && t < 1 - 1e-6)) return null;
     const [before, after] = splitCubic(cubic, t);
     const point = (p: readonly [number, number]): PicturePoint => [p[0], p[1]];
     const start = path[segment]!;
@@ -321,20 +430,37 @@ export function splitPathSegment(annotation: KnownDiagramAnnotation, segment: nu
       end.in ? { ...end, in: point(after[2]) } : end,
       ...path.slice(segment + 2),
     ];
-  });
+  };
+  // A node added before a fold-and-unfold arrow's tip moves the tip on one.
+  return shaped(annotation, split, (turn) => (segment < turn ? turn + 1 : turn));
+}
+
+/**
+ * Whether Delete Node can take `node` out: any of an arrow's nodes but a
+ * fold-and-unfold arrow's tip, where it turns back, and its return's one node
+ * past it — the return would have nowhere to go.
+ */
+export function canDeletePathNode(annotation: KnownDiagramAnnotation, node: number): boolean {
+  const path = pathNodesOf(annotation);
+  if (!path?.[node]) return false;
+  const turn = returnTurnOf(annotation);
+  return turn === null || (node !== turn && !(node > turn && path.length - 1 - turn <= 1));
 }
 
 /**
  * A node taken out, its neighbours keeping their outer handles (Affinity,
  * decision 5): the segment that joins them is drawn with the handles they
  * had. An end's neighbour becomes the end, its handle toward the node gone.
- * Null when the arrow has two nodes: deleting one deletes the arrow.
+ * Null when the arrow has two nodes: deleting one deletes the arrow — for a
+ * fold-and-unfold arrow, two going out to its tip. The arrow as it was for a
+ * node {@link canDeletePathNode} keeps.
  */
 export function deletePathNode(annotation: KnownDiagramAnnotation, node: number): KnownDiagramAnnotation | null {
   const path = pathNodesOf(annotation);
-  if (!path || !path[node]) return annotation;
-  if (path.length <= 2) return null;
-  return shaped(annotation, (nodes) => {
+  if (!path || !canDeletePathNode(annotation, node)) return annotation;
+  const turn = returnTurnOf(annotation);
+  if (turn !== null ? node < turn && turn <= 1 : path.length <= 2) return null;
+  const takeOut = (nodes: readonly DiagramPathNode[]): DiagramPathNode[] => {
     const kept = nodes.filter((_, index) => index !== node);
     const last = kept.length - 1;
     return kept.map((each, index) => {
@@ -348,7 +474,19 @@ export function deletePathNode(annotation: KnownDiagramAnnotation, node: number)
       }
       return each;
     });
-  });
+  };
+  // A node taken out before a fold-and-unfold arrow's tip moves the tip back one.
+  return shaped(annotation, takeOut, (turn) => (node < turn ? turn - 1 : turn));
+}
+
+/**
+ * Whether `node` has a type, smooth or corner: one between two others. An
+ * end has one handle, and no type to have; nor has a fold-and-unfold arrow's
+ * tip, where it turns back — a corner, always.
+ */
+export function hasNodeType(annotation: KnownDiagramAnnotation, node: number): boolean {
+  const count = pathNodesOf(annotation)?.length ?? 0;
+  return node > 0 && node < count - 1 && node !== returnTurnOf(annotation);
 }
 
 /**
@@ -356,16 +494,16 @@ export function deletePathNode(annotation: KnownDiagramAnnotation, node: number)
  * its handles turned into line, each keeping its length, along the mean of
  * their two directions. A handle that lay on the node is drawn out along that
  * line a third of the way to its neighbour, so the node is smooth to see.
- * Only between two others: an end has one handle, and no type to have.
+ * Only a node that {@link hasNodeType}.
  */
 export function setPathNodeType(
   annotation: KnownDiagramAnnotation,
   node: number,
   type: 'smooth' | 'corner'
 ): KnownDiagramAnnotation {
+  if (!hasNodeType(annotation, node)) return annotation;
   return shaped(annotation, (path) => {
-    const at = path[node];
-    if (!at || node === 0 || node === path.length - 1) return null;
+    const at = path[node]!;
     let edited: DiagramPathNode;
     if (type === 'corner') {
       if (at.type === 'corner') return null;

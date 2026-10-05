@@ -128,6 +128,16 @@ export function trackDiagramArrowShaped(kind: DiagramShapedArrowKind, gesture: D
 }
 
 /**
+ * A fold-and-unfold arrow's return shaped by hand for the first time — made
+ * a path of its own — by the Edit Path gesture that did it. Once per return,
+ * as `diagram arrow shaped` is once per arrow: whether the return is shaped
+ * at all. Never where.
+ */
+export function trackDiagramArrowReturnShaped(gesture: DiagramArrowShapeGesture): void {
+  track(ANALYTICS_EVENTS.diagramArrowReturnShaped, { gesture });
+}
+
+/**
  * A pose verb on a step's picture, and what the picture is. A spread verb
  * that leaves the layers spread also says how (Phase 13): its kind and the
  * amount bucketed, and a depth spread's direction or an affine one's layer

@@ -109,10 +109,17 @@ export type StepDiagramPrimitive =
    * A fold arrow shaped by hand rather than an arc: its path, tail first, and
    * which fold it says — a valley's or a mountain's head, as a one-way arrow
    * has, or out and back with the fold-and-unfold arrow's return, which is
-   * derived from the path where it is drawn (`pathArrowGeometry`). Its head
+   * derived from the path where it is drawn (`pathArrowGeometry`) unless it
+   * was shaped by hand, when `back` is its own path, from the tip. Its head
    * and return are the drawing's size, as the arc arrows' are.
    */
-  | { kind: 'path-arrow'; path: readonly DiagramCubic[]; fold: PathArrowFold; hidden?: HiddenStretches }
+  | {
+      kind: 'path-arrow';
+      path: readonly DiagramCubic[];
+      fold: PathArrowFold;
+      back?: readonly DiagramCubic[];
+      hidden?: HiddenStretches;
+    }
   /**
    * Push here — a squash, a sink, a reverse fold's push: a straight hollow
    * arrow with a cleft tail, from `from` to its tip at `to`. Its width is the

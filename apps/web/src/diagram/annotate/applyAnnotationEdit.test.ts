@@ -6,7 +6,11 @@ import { annotationActionEdit, nudgePathNodeEdit } from './annotationActions';
 import { ARROW_BEND } from './annotationModel';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
 
-const tracked = vi.hoisted(() => ({ trackDiagramArrowShaped: vi.fn(), trackDiagramAnnotationFlipped: vi.fn() }));
+const tracked = vi.hoisted(() => ({
+  trackDiagramArrowShaped: vi.fn(),
+  trackDiagramArrowReturnShaped: vi.fn(),
+  trackDiagramAnnotationFlipped: vi.fn(),
+}));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
   ...tracked,
@@ -31,6 +35,7 @@ function stepWith(list: KnownDiagramAnnotation[]): string {
 beforeEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
   tracked.trackDiagramArrowShaped.mockClear();
+  tracked.trackDiagramArrowReturnShaped.mockClear();
   tracked.trackDiagramAnnotationFlipped.mockClear();
 });
 
@@ -59,6 +64,29 @@ describe('applyAnnotationEdit', () => {
     applyAnnotationEdit(state(), stepId, annotationActionEdit('add-node', 'm', { node: 0 }));
     expect(annotations()[0]!.path).toHaveLength(3);
     expect(tracked.trackDiagramArrowShaped).toHaveBeenCalledOnce();
+  });
+
+  it('counts a fold-and-unfold arrow’s return shaped once, by the gesture, as well as the arrow, and again after a Reset', () => {
+    const unfold: KnownDiagramAnnotation = { id: 'u', kind: 'fold-unfold-arrow', from: [0.2, 0.3], to: [0.6, 0.3], bend: ARROW_BEND };
+    const stepId = stepWith([unfold]);
+    // The outgoing half first: the arrow is shaped, its return still the drawing's.
+    applyAnnotationEdit(state(), stepId, nudgePathNodeEdit('u', 0, [0.01, 0]));
+    expect(tracked.trackDiagramArrowShaped.mock.calls).toEqual([['fold_unfold_arrow', 'nudge']]);
+    expect(tracked.trackDiagramArrowReturnShaped).not.toHaveBeenCalled();
+    // Then a node on the return (the third: tail, tip, the return's end).
+    applyAnnotationEdit(state(), stepId, nudgePathNodeEdit('u', 2, [0, 0.01]));
+    expect(annotations()[0]!.back).toBeDefined();
+    expect(tracked.trackDiagramArrowReturnShaped.mock.calls).toEqual([['nudge']]);
+    applyAnnotationEdit(state(), stepId, nudgePathNodeEdit('u', 2, [0, 0.01]));
+    expect(tracked.trackDiagramArrowReturnShaped).toHaveBeenCalledOnce();
+    applyAnnotationEdit(state(), stepId, annotationActionEdit('reset-path', 'u', { frame: { width: 1, height: 1 } }));
+    // An arc's return, shaped first, shapes the arrow too.
+    applyAnnotationEdit(state(), stepId, annotationActionEdit('add-node', 'u', { node: 1 }));
+    expect(tracked.trackDiagramArrowReturnShaped.mock.calls).toEqual([['nudge'], ['add_node']]);
+    expect(tracked.trackDiagramArrowShaped.mock.calls).toEqual([
+      ['fold_unfold_arrow', 'nudge'],
+      ['fold_unfold_arrow', 'add_node'],
+    ]);
   });
 
   it('counts an arc shaped again after a Reset, and not the Reset', () => {

@@ -124,7 +124,7 @@ export function markReach(
       break;
     }
     case 'path-arrow': {
-      const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, marks);
+      const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, marks, primitive.back);
       if (!arrow) break;
       cubicStroke(arrow.shaft ?? []);
       polylineStroke(arrow.back ?? []);

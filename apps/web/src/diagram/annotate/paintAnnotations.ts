@@ -14,9 +14,9 @@
  *
  * Pure: no DOM, no store.
  */
-import { DEFAULT_PAPER_SIZE_MM } from '../../lib/paper/paperPage';
 import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
-import { mmToCssPx, paperSceneSvgBody } from '../../lib/paper/paperSvg';
+import { paperSceneSvgBody } from '../../lib/paper/paperSvg';
+import { CARD_FRAME_PX } from './canvasInk';
 import { isKnownAnnotation, type DiagramAnnotation, type DiagramStyle } from '../document/diagramDocument';
 import { diagramSurfaceStyle } from '../pictures/diagramPaperStyle';
 import type { PaintedPicture, PictureBox } from '../pictures/paintDiagramStep';
@@ -32,11 +32,8 @@ import {
 } from './annotationPrimitives';
 import type { PictureLayers } from './pictureGeometry';
 
-/**
- * The frame a card's annotations are drawn at, in CSS px: the size every
- * picture opens at, which a References step's sheet is painted at on a card.
- */
-export const CARD_FRAME_PX = mmToCssPx(DEFAULT_PAPER_SIZE_MM);
+// The frame a card's annotations are drawn at: `canvasInk.ts` owns it with the ink drawn there.
+export { CARD_FRAME_PX };
 
 /** Whether a step has an annotation this build draws. */
 export function hasDrawnAnnotations(annotations: readonly DiagramAnnotation[]): boolean {

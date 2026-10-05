@@ -4,10 +4,13 @@ import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagra
 import {
   arcToPath,
   bendPathSegment,
+  canDeletePathNode,
   canResetPath,
+  canSplitPathSegment,
   constrainHandleAngle,
   constrainToEighths,
   deletePathNode,
+  hasNodeType,
   isCornerNode,
   movePathHandle,
   movePathNode,
@@ -15,6 +18,7 @@ import {
   pathNodesOf,
   pathRepresentation,
   resetPath,
+  returnTurnOf,
   sameRepresentation,
   setPathNodeType,
   splitPathSegment,
@@ -22,6 +26,7 @@ import {
   visiblePathHandles,
 } from './annotationPath';
 import { ANNOTATION_REACH, ARROW_BEND, MAX_PATH_NODES, arrowApex, defaultBend, pathCubics, type PicturePoint } from './annotationModel';
+import { arcReturn, derivedReturn } from './derivedReturn';
 
 const SQUARE = { width: 1, height: 1 };
 
@@ -459,5 +464,138 @@ describe('a white arrow in Edit Path', () => {
     const { path: _path, ...bare } = laid;
     expect(arcToPath(bare)).toEqual(laid);
     expect(pathNodesOf(bare)).toEqual(laid.path);
+  });
+});
+
+/**
+ * A fold-and-unfold arrow in Edit Path (Zach, 2026-10-05): its nodes run on
+ * through the tip along its return, and both halves are shaped alike.
+ */
+describe('a fold-and-unfold arrow’s two halves', () => {
+  const unfold = arc(ARROW_BEND, 'fold-unfold-arrow');
+  const out = arcToPath(unfold).path!;
+  const shown = pathNodesOf(unfold)!;
+  const minus = (a: PicturePoint, b: PicturePoint): PicturePoint => [a[0] - b[0], a[1] - b[1]];
+  const near = (a: PicturePoint, b: PicturePoint) => expect(length(a, b)).toBeLessThan(1e-12);
+
+  it('shows the return after the tip, as it is drawn, the tip a corner carrying both halves’ handles', () => {
+    // An arc is drawn with its own return arc; a path with the one derived along it.
+    const back = arcReturn(unfold.from, unfold.to, ARROW_BEND)!;
+    expect(returnTurnOf(unfold)).toBe(out.length - 1);
+    expect(shown).toHaveLength(out.length + back.length - 1);
+    expect(shown.slice(0, out.length - 1)).toEqual(out.slice(0, -1));
+    expect(shown[1]).toEqual({ at: unfold.to, in: out[1]!.in, out: back[0]!.out, type: 'corner' });
+    expect(shown.slice(2)).toEqual(back.slice(1));
+    const path = movePathNode(unfold, 0, unfold.from);
+    expect(path.path).toEqual(out);
+    expect(pathNodesOf(path)!.slice(2)).toEqual(derivedReturn(out)!.slice(1));
+    // Any other arrow turns nowhere.
+    expect(returnTurnOf(arc(ARROW_BEND))).toBeNull();
+    expect(pathNodesOf(arc(ARROW_BEND))).toHaveLength(2);
+  });
+
+  it('keeps the return derived while only the outgoing half is edited: it follows the path, as drawn', () => {
+    const tail = movePathNode(unfold, 0, [0.15, 0.45]);
+    expect(tail.back).toBeUndefined();
+    expect(tail.path).toHaveLength(2);
+    const followed = derivedReturn(tail.path!)!;
+    expect(pathNodesOf(tail)![1]!.out).toEqual(followed[0]!.out);
+    expect(pathNodesOf(tail)!.slice(2)).toEqual(followed.slice(1));
+    // The tip moved, its handle into the outgoing half, the outgoing curve bent: still derived.
+    expect(movePathNode(unfold, 1, [0.55, 0.45]).back).toBeUndefined();
+    expect(movePathHandle(unfold, 1, 'in', [0.45, 0.3]).back).toBeUndefined();
+    expect(bendPathSegment(unfold, 0, 0.5, [0.35, 0.35]).back).toBeUndefined();
+    // A node added to it adds to the return the drawing derives.
+    const split = splitPathSegment(unfold, 0, 0.5);
+    expect(split.back).toBeUndefined();
+    expect(split.path).toHaveLength(3);
+    expect(returnTurnOf(split)).toBe(2);
+  });
+
+  it('writes the return as it shows once one of its nodes, the curve between them, or the tip’s handle into it is edited', () => {
+    const moved = movePathNode(unfold, 2, [0.25, 0.4]);
+    expect(moved.path).toEqual(out);
+    expect(moved.back).toHaveLength(2);
+    expect(moved.back![0]).toEqual({ at: unfold.to, out: shown[1]!.out });
+    near(moved.back![1]!.at, [0.25, 0.4]);
+    // Its handle came with it.
+    near(minus(moved.back![1]!.in!, moved.back![1]!.at), minus(shown[2]!.in!, shown[2]!.at));
+    expect(pathNodesOf(moved)).toEqual([out[0], { ...out[1], out: moved.back![0]!.out, type: 'corner' }, moved.back![1]]);
+
+    const handle = movePathHandle(unfold, 1, 'out', [0.45, 0.35]);
+    expect(handle.back![0]).toEqual({ at: unfold.to, out: [0.45, 0.35] });
+    // The tip is a corner: the outgoing half's handle stays where it was.
+    expect(handle.path).toEqual(out);
+
+    const bent = bendPathSegment(unfold, 1, 0.5, [0.35, 0.38]);
+    expect(bent.path).toEqual(out);
+    const [x, y] = cubicPoint(pathCubics(bent.back!)[0]!, 0.5);
+    expect(x).toBeCloseTo(0.35, 12);
+    expect(y).toBeCloseTo(0.38, 12);
+  });
+
+  it('keeps a return shaped by hand on the tip wherever the tip goes, and through the outgoing half’s edits', () => {
+    const shaped = movePathNode(unfold, 2, [0.25, 0.4]);
+    const tip = movePathNode(shaped, 1, [0.55, 0.45]);
+    expect(tip.to).toEqual([0.55, 0.45]);
+    expect(tip.back![0]!.at).toEqual([0.55, 0.45]);
+    near(minus(tip.back![0]!.out!, tip.back![0]!.at), minus(shaped.back![0]!.out!, shaped.back![0]!.at));
+    expect(tip.back![1]).toEqual(shaped.back![1]);
+    // Dragging a handle on one side of the tip does not swing the other.
+    expect(movePathHandle(shaped, 1, 'in', [0.45, 0.3]).back).toEqual(shaped.back);
+    expect(movePathNode(shaped, 0, [0.15, 0.5]).back).toEqual(shaped.back);
+  });
+
+  it('adds and takes out nodes on either half, but never the tip nor the return’s one node past it', () => {
+    const added = splitPathSegment(unfold, 1, 0.5);
+    expect(added.path).toEqual(out);
+    expect(added.back).toHaveLength(3);
+    expect(returnTurnOf(added)).toBe(1);
+    expect(canDeletePathNode(unfold, 1)).toBe(false);
+    expect(canDeletePathNode(unfold, 2)).toBe(false);
+    expect(deletePathNode(unfold, 1)).toBe(unfold);
+    expect(deletePathNode(unfold, 2)).toBe(unfold);
+    expect(canDeletePathNode(added, 2)).toBe(true);
+    expect(deletePathNode(added, 2)!.back).toHaveLength(2);
+    // The tail of a two-node outgoing path is the arrow.
+    expect(deletePathNode(unfold, 0)).toBeNull();
+    // Taken out of the outgoing half, a return still derived stays derived.
+    const shorter = deletePathNode(splitPathSegment(unfold, 0, 0.5), 1)!;
+    expect(shorter.back).toBeUndefined();
+    expect(shorter.path).toHaveLength(2);
+  });
+
+  it('counts each half against the most nodes an arrow holds, as a file holds them', () => {
+    let arrow = movePathNode(unfold, 2, [0.25, 0.4]);
+    while (arrow.path!.length < MAX_PATH_NODES) arrow = splitPathSegment(arrow, 0, 0.5);
+    expect(arrow.path).toHaveLength(MAX_PATH_NODES);
+    const turn = returnTurnOf(arrow)!;
+    expect(canSplitPathSegment(arrow, 0)).toBe(false);
+    expect(splitPathSegment(arrow, 0, 0.5)).toBe(arrow);
+    expect(canSplitPathSegment(arrow, turn)).toBe(true);
+    const more = splitPathSegment(arrow, turn, 0.5);
+    expect(more.path).toHaveLength(MAX_PATH_NODES);
+    expect(more.back).toHaveLength(3);
+  });
+
+  it('has no type at the tip: it is neither made smooth nor a corner', () => {
+    expect(hasNodeType(unfold, 1)).toBe(false);
+    expect(setPathNodeType(unfold, 1, 'smooth')).toBe(unfold);
+    expect(togglePathNodeType(unfold, 1)).toBe(unfold);
+    const added = splitPathSegment(unfold, 1, 0.5);
+    expect(hasNodeType(added, 2)).toBe(true);
+    expect(isCornerNode(setPathNodeType(added, 2, 'corner'), 2)).toBe(true);
+  });
+
+  it('goes back to the arc with Reset, its return derived again', () => {
+    const reset = resetPath(movePathNode(unfold, 2, [0.25, 0.4]), SQUARE);
+    expect(reset).not.toHaveProperty('path');
+    expect(reset).not.toHaveProperty('back');
+    expect(reset.bend).toBeDefined();
+  });
+
+  it('is pressed along its return as along its path', () => {
+    const middle = cubicPoint(pathCubics(shown)[1]!, 0.5);
+    expect(nearestPathPoint(unfold, [middle[0], middle[1]])).toMatchObject({ segment: 1, t: expect.closeTo(0.5, 6) });
   });
 });
