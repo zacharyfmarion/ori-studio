@@ -36,6 +36,7 @@ import {
 import { diagramInlineInk, type DiagramInlineTokens } from './diagram/diagramColors';
 import type { LabelPlacement } from './diagram/labelLayout';
 import { penInk } from './diagram/diagramInk';
+import { isDiagramMark, markReach } from './diagram/markReach';
 import { seenFromTheBack } from './diagram/diagramModel';
 import type {
   DiagramLineStyleName,
@@ -44,6 +45,7 @@ import type {
 } from './referenceFinderDiagramToPrimitives';
 import {
   DIAGRAM_PADDING,
+  arcExtremes,
   arcPolyline,
   onSheetBoundary,
   sheetCorners,
@@ -81,6 +83,14 @@ export interface DiagramToPaperSceneOptions {
    * lines are on the page. Absent or null follows the style's own switch.
    */
   showAux?: boolean | null;
+  /**
+   * The bounds grown to hold every mark as it is drawn — its arrows, glyphs
+   * and rings (`markReach`), and its accent lines in their pens — not only
+   * its letters: for a step on a Diagram page, whose arrow pen is the
+   * author's and may be far heavier than a card's, and whose sheet may be
+   * small, so its arrows leave the padding band a card keeps for them.
+   */
+  marksInBounds?: boolean;
   /**
    * The ground a letter's halo is painted in — the page's background, or
    * white when the page has none, since a letter is pushed off the sheet on
@@ -226,6 +236,7 @@ export function diagramToPaperScene(
   });
 
   const bounds = paddedBounds(corners, sheetPx, context.labels);
+  if (options.marksInBounds) grownToMarks(bounds, drawn, symbols, project, context);
   const items: PaperItem[] = [
     {
       kind: 'face',
@@ -253,6 +264,44 @@ export function diagramToPaperScene(
   const over = markupItem(drawn, symbols, context, bounds);
   if (over) items.push(over);
   return { bounds, sheet: sheetPx, items };
+}
+
+/**
+ * `bounds` grown to the listed primitives as they are drawn: a mark as far as
+ * its ink (`markReach`), an accent line or arc its pen's half round it, a
+ * round cap's or a butt end's corners reaching no further. A letter is in
+ * them already.
+ */
+function grownToMarks(
+  bounds: SceneBounds,
+  drawn: readonly StepDiagramPrimitive[],
+  indices: readonly number[],
+  project: DiagramProjector,
+  context: DiagramRenderContext
+): void {
+  const take = (x: number, y: number, pad: number) => {
+    bounds.minX = Math.min(bounds.minX, x - pad);
+    bounds.minY = Math.min(bounds.minY, y - pad);
+    bounds.maxX = Math.max(bounds.maxX, x + pad);
+    bounds.maxY = Math.max(bounds.maxY, y + pad);
+  };
+  for (const index of indices) {
+    const primitive = drawn[index]!;
+    if (isDiagramMark(primitive)) {
+      markReach(primitive, project, context.marks, take);
+      continue;
+    }
+    if (primitive.kind !== 'line' && primitive.kind !== 'arc') continue;
+    const half = ((project.pens[primitive.style]?.width ?? 0) * project.ink) / 2;
+    if (primitive.kind === 'line') {
+      for (const end of [primitive.from, primitive.to]) {
+        const { x, y } = project(end);
+        take(x, y, half);
+      }
+    } else {
+      for (const { x, y } of arcExtremes(primitive, project)) take(x, y, half);
+    }
+  }
 }
 
 /**

@@ -3,6 +3,7 @@ import type {
   StepDiagramModel,
   StepDiagramPrimitive,
 } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
+import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE } from '../../lib/paper/paperStyle';
 import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
 import { referencesStrip } from '../document/referencesSteps.fixtures';
 import { STEP_CARD_PADDING_MM, stepScenePage } from './paintDiagramStep';
@@ -58,6 +59,18 @@ describe('paintStepDiagram', () => {
     };
     expect(edge(large.svg)).toBeCloseTo(edge(small.svg) * 2, 1);
     expect(lineAttributes(large.svg, 1)['stroke-width']).toBe(lineAttributes(small.svg, 1)['stroke-width']);
+  });
+
+  it('bounds its marks as they are drawn, whatever the arrow’s pen and the sheet’s size (review 4)', () => {
+    // A card's band holds its marks at a card's pen; a page's step is drawn in the author's, on a sheet of any size.
+    const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    const [light, weighty] = [stepDiagramScene(FOLD, false, DEFAULT_DIAGRAM_STYLE, 10), stepDiagramScene(FOLD, false, heavy, 10)];
+    const span = ({ bounds }: { bounds: { minX: number; maxX: number } }) => bounds.maxX - bounds.minX;
+    expect(span(weighty)).toBeGreaterThan(span(light) + 5);
+    // At a card's size and pen, the card's own box.
+    expect(stepDiagramScene(FOLD, false, DEFAULT_DIAGRAM_STYLE, 50).bounds).toEqual(
+      stepDiagramScene(FOLD, false, { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: 0.1 } } }, 50).bounds
+    );
   });
 
   it('draws the unit frame y up, as the card does', () => {

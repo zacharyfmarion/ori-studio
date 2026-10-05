@@ -206,6 +206,72 @@ describe('the sheet', () => {
     expect(lettered.bounds.minX).toBeLessThanOrEqual(Number(letter!.x));
   });
 
+  it('grows its bounds to hold every mark as drawn when asked, a Diagram page’s step, not a card’s (review 4)', () => {
+    // A small sheet and the heaviest pen: the fold arrow and the ring stand far past the band a card keeps for them.
+    const heavy = { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: 12 } };
+    const marked = model(
+      { kind: 'fold-arrow', out: { center: [0.5, 0.5], radius: 0.4, from: 0.3, to: 1.2, ccw: true } },
+      { kind: 'point', at: [0, 1], style: 'action' },
+      { kind: 'line', from: [0.1, 0.1], to: [0.9, 0.1], style: 'highlight' }
+    );
+    const at = (marksInBounds: boolean) =>
+      diagramToPaperScene(marked, {
+        style: heavy,
+        project: createOverlayProjector({ origin: [0, 0], ex: [12, 0], ey: [0, -12] }, 1),
+        mirrored: false,
+        marksInBounds,
+      });
+    const [card, page] = [at(false), at(true)];
+    // The ink as drawn, which the markup writes to a thousandth: each stroke sampled along it, half its width round it;
+    // a filled head's points.
+    const ink = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+    const take = (x: number, y: number, pad: number) => {
+      ink.minX = Math.min(ink.minX, x - pad);
+      ink.minY = Math.min(ink.minY, y - pad);
+      ink.maxX = Math.max(ink.maxX, x + pad);
+      ink.maxY = Math.max(ink.maxY, y + pad);
+    };
+    const svg = markups(page)[0]!.svg;
+    for (const path of elements(svg, 'path')) {
+      const numbers = path.d!.match(/-?\d+(?:\.\d+)?(?:e-?\d+)?/g)!.map(Number);
+      if (path.fill && path.fill !== 'none') {
+        for (let i = 0; i + 1 < numbers.length; i += 2) take(numbers[i]!, numbers[i + 1]!, 0);
+        continue;
+      }
+      // An arc, `M x1 y1 A r r 0 large sweep x2 y2`: its centre from its ends, as SVG finds it.
+      const [x1, y1, r, , , large, sweep, x2, y2] = numbers as [number, number, number, number, number, number, number, number, number];
+      const [hx, hy] = [(x1 - x2) / 2, (y1 - y2) / 2];
+      const across = Math.hypot(hx, hy);
+      const radius = Math.max(r, across);
+      const lift = (Math.sqrt(Math.max(0, radius * radius - across * across)) / across) * (large === sweep ? -1 : 1);
+      const [cx, cy] = [(x1 + x2) / 2 + lift * hy, (y1 + y2) / 2 - lift * hx];
+      const from = Math.atan2(y1 - cy, x1 - cx);
+      let turn = Math.atan2(y2 - cy, x2 - cx) - from;
+      if (sweep === 1 && turn < 0) turn += 2 * Math.PI;
+      if (sweep === 0 && turn > 0) turn -= 2 * Math.PI;
+      const half = Number(path['stroke-width']) / 2;
+      for (let i = 0; i <= 2000; i += 1) take(cx + radius * Math.cos(from + (turn * i) / 2000), cy + radius * Math.sin(from + (turn * i) / 2000), half);
+    }
+    for (const circle of elements(svg, 'circle')) {
+      take(Number(circle.cx), Number(circle.cy), Number(circle.r) + Number(circle['stroke-width'] ?? 0) / 2);
+    }
+    for (const accent of elements(svg, 'line')) {
+      const half = Number(accent['stroke-width']) / 2;
+      take(Number(accent.x1), Number(accent.y1), half);
+      take(Number(accent.x2), Number(accent.y2), half);
+    }
+    // The card's own bounds leave its marks out; the page's hold them, and reach no further than they or the card do.
+    expect(card.bounds.minX).toBeGreaterThan(ink.minX + 1);
+    for (const side of ['minX', 'minY'] as const) {
+      expect(page.bounds[side]).toBeCloseTo(Math.min(card.bounds[side], ink[side]), 2);
+    }
+    for (const side of ['maxX', 'maxY'] as const) {
+      expect(page.bounds[side]).toBeCloseTo(Math.max(card.bounds[side], ink[side]), 2);
+    }
+    // Everything else as the card has it.
+    expect(page.items).toEqual(card.items.map((item) => (item.kind === 'markup' ? { ...item, bounds: page.bounds } : item)));
+  });
+
   it('places a letter where the big view does, not where a card’s box would', () => {
     // The card's layout is bounded by its viewBox and charges a letter for
     // leaving it; a page has no such edge, so the two can differ — the

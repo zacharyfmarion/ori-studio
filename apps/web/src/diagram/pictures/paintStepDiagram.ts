@@ -107,7 +107,8 @@ export function stepDiagramScene(
     canvasDiagramPens(STEP_DIAGRAM_LINE_WIDTH, drawn.arrows.width * PT_TO_CSS_PX)
   );
   // No ground: a diagram is printed, and a letter off the sheet stands on paper.
-  return diagramToPaperScene(model, { style: drawn, project, mirrored });
+  // Its bounds hold its marks too: the arrow's pen is the author's, and the sheet may be small.
+  return diagramToPaperScene(model, { style: drawn, project, mirrored, marksInBounds: true });
 }
 
 /**

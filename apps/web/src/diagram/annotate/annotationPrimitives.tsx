@@ -44,35 +44,14 @@ import {
   type DiagramRenderContext,
 } from '../../cp-workspace/references/diagram/DiagramPrimitives';
 import { diagramInlineInk, type DiagramInlineInk } from '../../cp-workspace/references/diagram/diagramColors';
-import { markOuterRadius, markRingWidth } from '../../cp-workspace/references/diagram/labelLayout';
+import { markRingWidth } from '../../cp-workspace/references/diagram/labelLayout';
+import { markReach, type DiagramMarkPrimitive } from '../../cp-workspace/references/diagram/markReach';
 import {
   canvasDiagramInk,
   canvasDiagramPens,
   penInk,
 } from '../../cp-workspace/references/diagram/diagramInk';
-import type { StepDiagramPrimitive } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
-import {
-  arcExtremes,
-  arcThroughPoints,
-  createOverlayProjector,
-  foldArrowDrawn,
-  halfArrowheadCorners,
-  oneWayArrowDrawn,
-  pathArrowDrawn,
-  pushArrowDrawn,
-  rightAngleDrawn,
-  rightAngleReach,
-  rotateGlyphDrawn,
-  strokedOutlinePoints,
-  turnOverDrawn,
-  whiteArrowDrawn,
-  WHITE_ARROW_MITER_LIMIT,
-  type Arrowhead,
-  type DiagramArc,
-  type PathArrowFold,
-  type SvgPoint,
-} from '../../cp-workspace/references/stepDiagramGeometry';
-import { cubicBounds, type Cubic } from '../../lib/cubicBezier';
+import { arcThroughPoints, createOverlayProjector, type PathArrowFold } from '../../cp-workspace/references/stepDiagramGeometry';
 import { referencesPaperTokens } from '../../cp-workspace/references/usePaperStyleTokens';
 import type { PaperItem, PaperLineItem, PaperLineRole, PaperScene } from '../../lib/paper/paperScene';
 import { penForRole } from '../../lib/paper/paperSvg';
@@ -158,21 +137,7 @@ export interface AnnotationLine {
 }
 
 /** The marks an annotation can be: the References primitives it compiles to. */
-export type AnnotationPrimitive = Extract<
-  StepDiagramPrimitive,
-  {
-    kind:
-      | 'fold-arrow'
-      | 'one-way-arrow'
-      | 'path-arrow'
-      | 'push-arrow'
-      | 'white-arrow'
-      | 'turn-over'
-      | 'rotate'
-      | 'point'
-      | 'right-angle';
-  }
->;
+export type AnnotationPrimitive = DiagramMarkPrimitive;
 
 /**
  * One annotation compiled for drawing, in picture units — a mark in the
@@ -490,110 +455,8 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
     take(line.a[0], line.a[1], Math.max(2 * ink, line.halfWidth));
     take(line.b[0], line.b[1], Math.max(2 * ink, line.halfWidth));
   }
-  // An arrow, exactly where it is drawn: its strokes half their pen round
-  // their curves' bounds — a round cap or join, or a butt end's corners,
-  // reach no further — and its head as drawn, filled to its corners, or a
-  // mountain's outline mitred round its own.
-  const pen = project.pens.arrow.width * ink;
-  const arcStroke = (arc: DiagramArc | null) => {
-    if (!arc) return;
-    for (const { x, y } of arcExtremes(arc, project)) take(x, y, pen / 2);
-  };
-  const cubicStroke = (path: readonly Cubic[]) => {
-    for (const cubic of path) {
-      const box = cubicBounds(cubic);
-      take(box.minX, box.minY, pen / 2);
-      take(box.maxX, box.maxY, pen / 2);
-    }
-  };
-  const polylineStroke = (points: readonly (readonly [number, number])[]) => {
-    for (const [x, y] of points) take(x, y, pen / 2);
-  };
-  // A filled head is inside its tip and barbs: its back curves in to the notch.
-  const filledHead = (head: Arrowhead) => {
-    for (const { x, y } of [head.tip, ...head.barbs]) take(x, y, 0);
-  };
-  const mountainHead = (head: Arrowhead, centre: SvgPoint) => {
-    for (const { x, y } of strokedOutlinePoints(halfArrowheadCorners(head, centre), pen)) take(x, y, 0);
-  };
-  for (const primitive of drawing.primitives) {
-    switch (primitive.kind) {
-      case 'fold-arrow': {
-        const arrow = foldArrowDrawn(primitive.out, project, drawing.context.marks);
-        if (!arrow) break;
-        arcStroke(arrow.out);
-        arcStroke(arrow.back);
-        filledHead(arrow.head);
-        break;
-      }
-      case 'one-way-arrow': {
-        const arrow = oneWayArrowDrawn(primitive.out, project, drawing.context.marks);
-        arcStroke(arrow.shaft);
-        if (primitive.fold === 'mountain') mountainHead(arrow.head, project(primitive.out.center));
-        else filledHead(arrow.head);
-        break;
-      }
-      case 'path-arrow': {
-        const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, drawing.context.marks);
-        if (!arrow) break;
-        cubicStroke(arrow.shaft ?? []);
-        polylineStroke(arrow.back ?? []);
-        if (primitive.fold === 'mountain') mountainHead(arrow.head, arrow.inside);
-        else filledHead(arrow.head);
-        break;
-      }
-      case 'push-arrow': {
-        // Its outline's corners, mitred.
-        const outline = pushArrowDrawn(primitive.from, primitive.to, project);
-        if (!outline) break;
-        for (const { x, y } of strokedOutlinePoints(outline, pen)) take(x, y, 0);
-        break;
-      }
-      case 'white-arrow': {
-        // Its outline's corners, mitred as its stroke mitres them: to its own
-        // limit, past which a corner is bevelled.
-        const outline = whiteArrowDrawn(primitive.path, primitive.width, primitive.tail, project);
-        if (!outline) break;
-        for (const { x, y } of strokedOutlinePoints(outline, pen, WHITE_ARROW_MITER_LIMIT)) take(x, y, 0);
-        break;
-      }
-      case 'turn-over': {
-        // Its stroke's curves, half its pen round them, and its head, filled.
-        const glyph = turnOverDrawn(primitive.at, primitive.axis, project);
-        for (const { x, y } of glyph.corners) take(x, y, pen / 2);
-        for (const { x, y } of glyph.head) take(x, y, 0);
-        break;
-      }
-      case 'rotate': {
-        // Its circle's box — a little more than its arcs reach at the gaps at
-        // its sides — and its heads, filled, which a heavy pen makes longer.
-        const glyph = rotateGlyphDrawn(primitive.at, primitive.direction, project);
-        take(glyph.centre.x, glyph.centre.y, glyph.radius + pen / 2);
-        for (const head of glyph.heads) for (const { x, y } of [head.tip, head.notch, ...head.barbs]) take(x, y, 0);
-        break;
-      }
-      case 'point': {
-        // The ring's outer edge: its radius and half its stroke.
-        const { x, y } = project(primitive.at);
-        take(x, y, markOuterRadius(project));
-        break;
-      }
-      case 'right-angle': {
-        // Its legs' ends, cut square, and its corner, mitred: in the ring's pen.
-        const legs = rightAngleDrawn(primitive.at, primitive.toward, project);
-        if (!legs) break;
-        const reach = rightAngleReach(markRingWidth(project));
-        legs.forEach(({ x, y }, index) => take(x, y, reach[index]!));
-        break;
-      }
-      default: {
-        // Every mark an annotation can be has its reach above: a new one is a
-        // compile error here until it does, rather than cut off in a file.
-        const _unreached: never = primitive;
-        break;
-      }
-    }
-  }
+  // Its marks as drawn: as far as their ink, and no further (`markReach`).
+  for (const primitive of drawing.primitives) markReach(primitive, project, drawing.context.marks, take);
   // A callout, exactly: its box and half its outline's pen round it — a
   // rectangle's mitred corner reaches no further — and its line's round ends.
   // Its words are inside its box (`CALLOUT_PAD_EMS`, `CALLOUT_HALF_HEIGHT_EMS`).
