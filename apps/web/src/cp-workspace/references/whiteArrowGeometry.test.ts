@@ -21,6 +21,7 @@ import {
   outlineDistance,
   whiteArrowDrawn,
   whiteArrowOutline,
+  WHITE_ARROW_FLATTEN_INK,
   WHITE_ARROW_MITER_LIMIT,
   type WhiteArrowSize,
   type WhiteArrowTail,
@@ -466,11 +467,38 @@ describe('a white arrow as a picture draws it', () => {
       for (const tail of ['pointed', 'square', 'cleft'] as const) {
         const drawn = whiteArrowDrawn(sheet, width, tail, project)!;
         const projected = sheet.map((cubic) => cubic.map(([x, y]) => [x * 400, 400 - y * 400] as Vec2) as unknown as Cubic);
-        const outline = whiteArrowOutline(projected, sized(width), tail, 0.05 * INK)!;
+        const outline = whiteArrowOutline(projected, sized(width), tail, WHITE_ARROW_FLATTEN_INK * INK)!;
         expect(drawn.map(({ x, y }) => [x, y])).toEqual(outline);
       }
     }
     expect(whiteArrowDrawn([[[0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]]], 'regular', 'pointed', project)).toBeNull();
+  });
+
+  it('turns its sides by under 2° a corner along a curve, so they read as curves at the canvas’s deepest zoom', () => {
+    // A third of a frame across at a card's size, bowed as a new arrow is shaped: the canvas zooms to 63 times this.
+    const card = createOverlayProjector({ origin: [0, 190], ex: [190, 0], ey: [0, -190] }, INK);
+    const bowed: Cubic[] = [
+      [
+        [0.05, 0.55],
+        [0.15, 0.7],
+        [0.35, 0.7],
+        [0.45, 0.55],
+      ],
+    ];
+    for (const width of ['narrow', 'regular', 'wide'] as const) {
+      const outline = whiteArrowDrawn(bowed, width, 'square', card)!;
+      // The two sides: everything but the head's five corners and the tail's two.
+      const sides = [outline.slice(3, outline.length / 2 - 1), outline.slice(outline.length / 2 + 1, -3)];
+      let worst = 0;
+      for (const side of sides) {
+        for (let i = 1; i + 1 < side.length; i += 1) {
+          const [a, b, c] = [side[i - 1]!, side[i]!, side[i + 1]!];
+          const turn = Math.abs(Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(b.y - a.y, b.x - a.x));
+          worst = Math.max(worst, Math.min(turn, 2 * Math.PI - turn));
+        }
+      }
+      expect((worst * 180) / Math.PI, width).toBeLessThan(2);
+    }
   });
 
   it('is stroked to its own mitre limit: a corner past it reaches half the pen, as SVG bevels it', () => {

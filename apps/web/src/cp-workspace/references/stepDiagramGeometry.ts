@@ -1703,12 +1703,22 @@ export function whiteArrowOutline(
 }
 
 /**
+ * How near a white arrow's runs stay to its curve, in ink. Its outline is
+ * nothing but runs, outlined in a thick pen, and the Annotate canvas draws it
+ * at a card's size and zooms up to twelve times past that: at the twentieth
+ * of an ink a fold arrow's return is flattened to, a curved arrow's sides
+ * show their corners there; at a hundredth its runs are half as long and read
+ * as a curve. Twice the corners: about 130 for a regular arrow.
+ */
+export const WHITE_ARROW_FLATTEN_INK = 0.01;
+
+/**
  * A white arrow as a picture draws it, along `path` in sheet units: its
  * outline in the projector's units, sized by its ink at one of its three
- * widths (`DIAGRAM_WHITE_ARROW_INK`), its runs within a twentieth of an ink
- * of the curve. The one place its drawn shape is decided, as
- * {@link pushArrowDrawn} is a push's, so its drawing and the room a page
- * leaves it agree. Null for a path of no length.
+ * widths (`DIAGRAM_WHITE_ARROW_INK`), its runs within
+ * {@link WHITE_ARROW_FLATTEN_INK} of the curve. The one place its drawn
+ * shape is decided, as {@link pushArrowDrawn} is a push's, so its drawing and
+ * the room a page leaves it agree. Null for a path of no length.
  */
 export function whiteArrowDrawn(
   path: readonly DiagramCubic[],
@@ -1722,7 +1732,7 @@ export function whiteArrowDrawn(
     projectPath(path, project),
     { neck: size.neck * ink, headLength: size.headLength * ink, headWidth: size.headWidth * ink },
     tail,
-    PATH_FLATTEN_INK * ink
+    WHITE_ARROW_FLATTEN_INK * ink
   );
   return outline && outline.map(([x, y]) => ({ x, y }));
 }
