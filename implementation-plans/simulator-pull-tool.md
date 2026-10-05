@@ -564,9 +564,9 @@ Each step is its own commit.
     cursor ray at release: 97–99%;
   - `bench:gpu-stability` stays finite with pulls on the lamprey: a grip, swing,
     keep and release across a 12,000-step ramp is stable on both backends.
-- [ ] **Worker and runtime:** the API, the fold-change and reset policy,
-      `posed`/`poseEndedBy` on frames, the framing hold on both paths, the pull
-      lane, coalesced moves.
+- [x] **Worker and runtime:** the API, the fold-change and reset policy,
+      `posed`/`poseEnded` on frames, the framing hold (the worker's; the
+      canvas-2D path's comes with the viewport), the pull lane, coalesced moves.
 - [ ] **Tool core:** types, catalog, actions, engine, intents, `pressRoute`,
       cursor; all pure, all unit-tested.
 - [ ] **Viewport:** live gestures, cancel forwarding, `drawnCamera`, the cursor

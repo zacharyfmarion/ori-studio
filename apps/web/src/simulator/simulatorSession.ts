@@ -42,8 +42,17 @@ import {
   type SimulatorOptions,
   type SimulationRecovery,
   type SolverBackend,
+  type PullOutcome,
 } from '@treemaker/origami-simulator';
-import { pickFacesInFrame, type SimulatorPickQuery } from './pickQuery';
+import {
+  pickFacesInFrame,
+  pullHitInFrame,
+  pullRayInFrame,
+  pullStartFor,
+  type SimulatorPickQuery,
+  type SimulatorPullStart,
+  type SimulatorScreenPoint,
+} from './pickQuery';
 
 // The simulator's solver, off the main thread.
 //
@@ -208,6 +217,36 @@ export interface SimulatorFramePayload {
    * a pinned model jumping to flat can be explained.
    */
   recovered: SimulationRecovery | null;
+  /** The paper holds a pose a pull left it in (`pull.ts`), rather than following the fold. */
+  posed: boolean;
+  /** What ended a pose since the last frame, said once; null when nothing did. */
+  poseEnded: SimulatorPoseEnd | null;
+}
+
+/**
+ * What ended a pose: the fold target moving (play, a scrub, a step, a jump), a
+ * reset back to flat, or an explicit request to let it spring back.
+ */
+export type SimulatorPoseEnd = 'fold' | 'reset' | 'request';
+
+/**
+ * The frame the canvas-2D path drew, for a pull to be answered against. That
+ * path frames on the main thread, so the worker never has its camera; the GPU
+ * path answers against the camera its own last frame used.
+ */
+export interface SimulatorDrawnView {
+  camera: CameraUniforms;
+  perspective: boolean;
+}
+
+/** How a press went: whether it started a pull, and if not, why not. */
+export interface SimulatorPullStartResult {
+  outcome: SimulatorPullStart;
+}
+
+/** What a pull did once it ended. */
+export interface SimulatorPullEndResult {
+  movedCreases: number;
 }
 
 /** What a pin request did: how many faces it pinned, and how many it did not know. */
@@ -249,6 +288,10 @@ interface Session {
   gpuRender: WebglSolver | null;
   /** One per triangle: its crease-pattern face. See {@link SimulatorModelInfo.faceGroups}. */
   faceGroups: Int32Array;
+  /** The nodes the pins hold; null when nothing is pinned. What a pull pulls against. */
+  pinnedNodes: Uint8Array | null;
+  /** What ended a pose since the last frame; reported once, then cleared. */
+  poseEnded: SimulatorPoseEnd | null;
   /**
    * When this session was last spoken to, on a monotonic counter. Eviction picks
    * the least recently *used*, not the oldest loaded — with twenty windows open,
@@ -1171,6 +1214,8 @@ const api = {
       // opened is the last thing eviction would reach for rather than the first.
       lastUsed: ++useCounter,
       gpuRender: gpuSolver && renderCanvas ? gpuSolver : null,
+      pinnedNodes: null,
+      poseEnded: null,
 
     };
     sessions.set(sessionToken, created);
@@ -1260,6 +1305,7 @@ const api = {
     for (let node = 0; node < vertexCount; node += 1) if (mask[node]) nodes.push(node);
 
     active.backend.setFixedNodes(nodes.length > 0 ? mask : null);
+    active.pinnedNodes = nodes.length > 0 ? mask : null;
     active.gpuRender?.setHighlightTriangles(triangles);
     // Hold the camera to the pins from where it is framing now, so the pinned
     // region stays put on screen; see `anchorFraming`.
@@ -1304,9 +1350,83 @@ const api = {
     );
   },
 
+  /**
+   * Grip the paper under a press and start pulling it. Refused — and answered
+   * why — off the paper, on a pinned face, or with nothing pinned to pull
+   * against. `drawn` is the canvas-2D path's frame; the GPU path answers against
+   * the camera its own last frame used. The camera holds still until the pull
+   * ends, so the paper stays under the cursor rather than the view rescaling
+   * beneath it. Null for a stale session.
+   */
+  beginPull(
+    at: SimulatorScreenPoint,
+    drawn?: SimulatorDrawnView,
+    token?: SimulatorSessionToken
+  ): SimulatorPullStartResult | null {
+    const active = sessionFor(token);
+    if (!active) return null;
+    const camera = drawn?.camera ?? active.view.drawn;
+    const perspective = drawn?.perspective ?? true;
+    if (!camera) return { outcome: 'missed' };
+    const positions = new Float32Array(active.model.prepared.vertexCount * 3);
+    active.backend.readPositions(positions);
+    const hit = pullHitInFrame(
+      positions,
+      { indices: active.model.prepared.indices, faceGroups: active.faceGroups },
+      camera,
+      perspective,
+      at
+    );
+    const outcome = pullStartFor(hit, active.pinnedNodes);
+    if (outcome !== 'pulling' || !hit) return { outcome };
+    active.backend.beginPull({ nodes: hit.nodes, weights: hit.weights, ray: pullRayInFrame(camera, perspective, at) });
+    holdFraming(active, true);
+    active.clock.invalidate();
+    return { outcome };
+  },
+
+  /**
+   * Draw the pull toward where the cursor is now. False when no pull is running
+   * any more — the fold target moved underneath it — and null for a stale
+   * session.
+   */
+  movePull(at: SimulatorScreenPoint, drawn?: SimulatorDrawnView, token?: SimulatorSessionToken): boolean | null {
+    const active = sessionFor(token);
+    if (!active) return null;
+    const camera = drawn?.camera ?? active.view.drawn;
+    if (!active.backend.pulling || !camera) return false;
+    active.backend.movePull(pullRayInFrame(camera, drawn?.perspective ?? true, at));
+    active.clock.invalidate();
+    return true;
+  },
+
+  /** Let go: keep the shape as a pose, or put the paper back. Null for a stale session. */
+  endPull(outcome: PullOutcome, token?: SimulatorSessionToken): SimulatorPullEndResult | null {
+    const active = sessionFor(token);
+    if (!active) return null;
+    const { movedCreases } = active.backend.endPull(outcome);
+    holdFraming(active, false);
+    active.clock.invalidate();
+    return { movedCreases };
+  },
+
+  /** Let a pose go: the paper springs back to the fold target. Null for a stale session. */
+  releasePose(token?: SimulatorSessionToken): boolean | null {
+    const active = sessionFor(token);
+    if (!active) return null;
+    endPose(active, 'request');
+    return true;
+  },
+
+  /**
+   * Move the fold target. A target that actually moves ends a pose and any pull
+   * in progress: the fold control takes the paper back, however it is moved —
+   * play, a scrub, a step, a jump.
+   */
   setFoldPercent(percent: number, token?: SimulatorSessionToken): void {
     const active = sessionFor(token);
     if (!active) return;
+    if (percent !== active.foldPercent) endPose(active, 'fold');
     active.backend.setFoldPercent(percent);
     active.foldPercent = percent;
     // A converged clock spends no budget, so a new target must un-converge it
@@ -1343,6 +1463,7 @@ const api = {
   reset(token?: SimulatorSessionToken): void {
     const active = sessionFor(token);
     if (!active) return;
+    endPose(active, 'reset');
     active.backend.reset();
     active.backend.setFoldPercent(0);
     active.foldPercent = 0;
@@ -1698,6 +1819,8 @@ async function readFrame(
     foldPercent: active.foldPercent,
     maxStrain: active.backend.readDiagnostics().maxNodalStrain ?? 0,
     recovered: tick.recovered,
+    posed: active.backend.posed,
+    poseEnded: takePoseEnded(active),
   };
 
   // GPU-render mode: the worker draws straight to the transferred canvas. No
@@ -2108,6 +2231,29 @@ function followFit(solver: WebglSolver, state: SessionView, settled: boolean): b
   state.radius = framing.radius;
   state.fitted = true;
   return arrived;
+}
+
+/**
+ * End a pose and any pull in progress, and remember why for the next frame to
+ * say. Nothing to do, and nothing said, when there was no pose.
+ */
+function endPose(active: Session, why: SimulatorPoseEnd): void {
+  if (!active.backend.posed && !active.backend.pulling) return;
+  active.backend.releasePose();
+  holdFraming(active, false);
+  active.poseEnded = why;
+  active.clock.invalidate();
+}
+
+function takePoseEnded(active: Session): SimulatorPoseEnd | null {
+  const ended = active.poseEnded;
+  active.poseEnded = null;
+  return ended;
+}
+
+/** Freeze the camera's follow while a pull runs; see `FramingFollow.held`. */
+function holdFraming(active: Session, held: boolean): void {
+  (active.view.framing ??= createFramingFollow()).held = held;
 }
 
 /** Frame a set of positions, which is what makes the camera's scale meaningful. */
