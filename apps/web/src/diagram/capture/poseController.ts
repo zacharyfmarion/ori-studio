@@ -589,11 +589,18 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 
     historyMoved() {
       cancelOrbit();
-      // A rest or an amount still waiting is of a pose the undo just took back.
+      // A rest still waiting is of the view before the undo.
       nextRest = null;
-      waiting.clear();
-      endPreview();
       useWorkspaceStore.getState().stopDiagramCapture(stepId);
+      // Heard before the undo or redo runs, which may be of another step: the
+      // slides waiting and the drag shown are of a pose it takes back only if
+      // it moves this step, as the slide being committed is (`committing`).
+      const revision = stepRevision(stepId);
+      queueMicrotask(() => {
+        if (disposed || stepRevision(stepId) === revision) return;
+        waiting.clear();
+        endPreview();
+      });
     },
 
     documentReplaced() {

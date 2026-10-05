@@ -769,7 +769,10 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     await controller.run({ verb: 'show-folded' });
     await controller.run({ verb: 'turn-over' });
     controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.1 });
+    // Heard before the undo, which takes back this step's turn.
     controller.historyMoved();
+    state().undoDiagram();
+    await Promise.resolve();
     expect(heard.preview).toHaveBeenLastCalledWith(null, null);
     await controller.run({ verb: 'reset' });
     expect(render(stepId)).toMatchObject({ render: { side: 'front', rotationDeg: 0, foldCase: 1, spread: DEPTH } });
@@ -786,11 +789,40 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const committing = controller.commitSpread();
     // The commit is waiting for the fold the preview asked for.
     await new Promise((resolve) => setTimeout(resolve, 0));
+    // Heard before the undo, which takes back this step's link.
     controller.historyMoved();
+    state().undoDiagram();
     open();
     await committing;
+    // Nothing recorded since: redone, the step is as it was, the amount let go never landed.
+    expect(state().diagramHistory.past.length).toBe(past - 1);
+    expect(state().diagramHistory.future).toHaveLength(1);
+    state().redoDiagram();
     expect(spreadOf(stepId)).toEqual({ kind: 'depth', amount: 0.1, toward: 'down' });
-    expect(state().diagramHistory.past.length).toBe(past);
+    controller.dispose();
+  });
+
+  it('keeps the amounts waiting and the drag shown through an undo of another step, and commits them (review 4)', async () => {
+    const stepId = await linkedStep();
+    flatInTheFile(stepId, { kind: 'depth', amount: 0.1, toward: 'down' });
+    // The newest history: another step's instruction.
+    const other = state().addDiagramStep()!;
+    state().setDiagramStepText(other, 'Fold in half');
+    const heard = listener();
+    const controller = createPoseController(stepId, heard);
+    const open = holdTheFold();
+    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.15 });
+    const committing = controller.commitSpread();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.historyMoved();
+    expect(state().undoDiagram()).toBe(true);
+    await Promise.resolve();
+    // Only the other step's words went back: this one's drag is still shown, its amount still waiting.
+    expect(stepsIn(state().diagram!).find((step) => step.id === other)?.text).toBe('');
+    expect(heard.preview).not.toHaveBeenLastCalledWith(null, null);
+    open();
+    await committing;
+    expect(spreadOf(stepId)).toEqual({ kind: 'depth', amount: 0.15, toward: 'down' });
     controller.dispose();
   });
 
