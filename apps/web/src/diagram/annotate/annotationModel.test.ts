@@ -171,7 +171,12 @@ describe('a label’s width', () => {
     expect(labelHalfWidth('iii')).toBeLessThan(labelHalfWidth('MMM') / 2);
     // A combining mark adds nothing; a letter the table has no width for, an em.
     expect(labelHalfWidth('e\u0301')).toBeCloseTo(labelHalfWidth('e'), 12);
-    expect(labelHalfWidth('Ж')).toBeCloseTo(LABEL_SIZE * (1 / 2 + 0.2), 12);
+    // Cyrillic and Greek as the font sets them (review: each was an em, a Russian callout twice as wide as its words).
+    expect(labelHalfWidth('Ж')).toBeCloseTo(LABEL_SIZE * ((LABEL_ADVANCES[0x416 - LABEL_ADVANCES_FROM]! / 1000) / 2 + 0.2), 12);
+    expect(labelHalfWidth('Ж')).toBeLessThan(labelHalfWidth('Ա'));
+    expect(labelHalfWidth('Ա')).toBeCloseTo(LABEL_SIZE * (1 / 2 + 0.2), 12);
+    // A joiner and a variation selector draw nothing: a family of three is three emoji wide, not five.
+    expect(labelHalfWidth('🧑\u200d🤝\u200d🧑')).toBeCloseTo(LABEL_SIZE * (3 / 2 + 0.2), 12);
     expect(labelHalfWidth('')).toBeGreaterThan(0);
   });
 
@@ -197,7 +202,7 @@ describe('a label’s width', () => {
       const codePoint = LABEL_ADVANCES_FROM + index;
       expect(advance, codePoint.toString(16)).toBe(font.has(codePoint) ? font.advance(codePoint) : -1);
     });
-    expect(LABEL_ADVANCES_FROM + LABEL_ADVANCES.length - 1).toBe(0x36f);
+    expect(LABEL_ADVANCES_FROM + LABEL_ADVANCES.length - 1).toBe(0x52f);
   });
 });
 

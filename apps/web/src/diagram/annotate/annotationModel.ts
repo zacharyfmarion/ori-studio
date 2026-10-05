@@ -12,6 +12,7 @@
 import { flattenPath, type Cubic } from '../../lib/cubicBezier';
 import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
+import { needsNoGlyph } from '../fonts/fontScripts';
 import { LABEL_ADVANCES, LABEL_ADVANCES_FROM } from './labelAdvances';
 import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
@@ -494,6 +495,8 @@ function graphemeEms(grapheme: string): number {
   if (WIDE.test(grapheme)) return 1;
   let ems = 0;
   for (const character of grapheme) {
+    // A joiner or a variation selector draws nothing.
+    if (needsNoGlyph(character)) continue;
     const advance = LABEL_ADVANCES[character.codePointAt(0)! - LABEL_ADVANCES_FROM];
     ems += advance !== undefined && advance >= 0 ? advance / 1000 : 1;
   }

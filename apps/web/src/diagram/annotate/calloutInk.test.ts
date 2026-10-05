@@ -112,6 +112,8 @@ describe('a callout’s words', () => {
       '将底角向上折至顶角，（压实）',
       '將底角向上摺',
       '모서리를 접고',
+      'Повторить сзади',
+      'ΑΒΓΔΕΖΗΘ',
     ];
     for (const framePx of [151, 1000]) {
       for (const text of texts) {
@@ -121,6 +123,18 @@ describe('a callout’s words', () => {
     }
     // Hugged, not lost in it: "Repeat behind" stands within an em of its sides at the canvas's size.
     expect(clearance('Repeat behind', 1000)).toBeLessThan(0.05 * 1000 * 0.5);
+  });
+
+  it('are hugged by their box across, in every script a label sets in Noto Sans: Latin, Cyrillic, Greek (review)', () => {
+    for (const text of ['Repeat behind', 'Повторить сзади', 'Wiederhole hinten', 'ΑΒΓΔΕΖΗΘ', 'Ещё раз сзади']) {
+      const callout: KnownDiagramAnnotation = { id: 'c', kind: 'callout', from: [0.1, 0.9], to: [0.5, 0.4], text };
+      const { label, box, boxPen } = annotationDrawing([callout], { width: 1, height: 1 }, 1000, DEFAULT_DIAGRAM_STYLE).callouts[0]!;
+      const words = labelRuns(text).reduce((sum, run) => sum + shaped(run.key, run.text).advance, 0);
+      // Half an em of pad each side, and no more: the inside of the outline less the words.
+      const spare = (box.width - boxPen - words * label.size) / label.size;
+      expect(spare, text).toBeGreaterThan(0.9);
+      expect(spare, text).toBeLessThan(1.1);
+    }
   });
 
   it('stand clear of its outline at any arrow pen, the heaviest too, its pen drawn outside the box (review)', () => {
