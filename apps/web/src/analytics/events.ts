@@ -1352,7 +1352,7 @@ export const ANALYTICS_EVENTS = {
   diagramAnnotationAdded: 'diagram annotation added',
   /** A mark put behind a flap for the first time (15e): which ends, how deep. */
   diagramAnnotationBehind: 'diagram annotation behind',
-  /** A mark flipped horizontally or vertically from the Step pane: its kind, which way. */
+  /** A mark flipped horizontally or vertically from the Layers pane: its kind, which way. */
   diagramAnnotationFlipped: 'diagram annotation flipped',
   /** Annotate's Snap switch flipped in the Step pane. */
   diagramAnnotateSnapChanged: 'diagram annotate snap changed',

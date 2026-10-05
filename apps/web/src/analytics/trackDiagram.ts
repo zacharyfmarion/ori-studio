@@ -111,7 +111,7 @@ export function trackDiagramAnnotationBehind(
 }
 
 /**
- * A mark flipped over in Annotate, from the Step pane: its kind and which
+ * A mark flipped over in Annotate, from the Layers pane: its kind and which
  * way — whether flipping is used, and on what. Each flip; never where.
  */
 export function trackDiagramAnnotationFlipped(kind: DiagramAnnotationTool, axis: DiagramFlipAxis): void {
