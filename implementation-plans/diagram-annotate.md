@@ -1025,6 +1025,18 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
 - [x] Review: no window for Select, Annotate's resting tool (decision 7,
   amended): it covered the Step pane's instruction field at 1280–1440 px.
   `annotateToolHint` is null for Select, and the window draws nothing then.
+- [x] Review of 14h and the 14e–g fixes (12 findings, all confirmed),
+  fixed, each failing on the code before it: the window as above (and with
+  it Select's key line); a touch tablet's label and callout lines naming the
+  Settings sheet's Step tab; a turn under a depth spread carrying each mark
+  with its face; corners found within the stored grid's rounding; woven
+  patches carried with their whole face; a selected circle taken by its
+  ring under a hollow arrow, and a hidden one passed over; a callout taken
+  and washed along its outline as drawn; labels as wide as Noto Sans sets
+  its whole cmap, decomposed Greek and emoji included; a pointed tail's knot
+  cut. Found while verifying: a mark on a corner stays with that corner's
+  face when another comes over it (six turns and six back bring it home).
+  Before/after: `artifacts/diagram-annotate/review-14h/compare-*.png`.
 
 ## Risks
 

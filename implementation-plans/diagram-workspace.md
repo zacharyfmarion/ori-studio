@@ -3299,10 +3299,17 @@ folds: https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf.
   with no annotations; step files' marks kept on a canvas of one size; line
   pens and label widths in the reach; the hint reworded. Tests fail on the
   code before each.
-- [ ] Third review (of those fixes; 13 confirmed, 1 refuted, 1 unverified —
-  the run died before its last skeptic). Fixed so far: a run is never drawn
-  a whole zoom under its own pictures (the one-step "spacer" dips, and the
-  dip the snap left).
+- [x] Third review (of those fixes; 13 confirmed, 1 refuted, 1 unverified —
+  the run died before its last skeptic), fixed: a run is never drawn a
+  whole zoom under its own pictures (the one-step "spacer" dips, and the
+  dip the snap left); the fit found by search and by overrun (below); runs
+  read from one end, a palindrome drawn symmetric; the DP in n × levels
+  steps (800 steps 724 → 22 ms); chains of zooms as candidate scales; a
+  turn-over's reach its ink; CJK digits and signs as their font sets them;
+  the spread preview taken down under a verb that lands, and a slide being
+  committed shown only while it can land; tests pinning the 13g fix. Each
+  fails on the code before it. Before/after: `artifacts/diagram-fit-each/
+  review-3/compare-*.png`.
 
 #### Fit by overrun, found by search (third review [6]–[10])
 
@@ -3355,7 +3362,8 @@ Checklist:
   [9]'s cut was of the reach as measured, not the ink: a turn-over's reach
   is its curves' control points and the pen, up to 3.5 mm past its ink at
   the heaviest pen.
-- [ ] Before/after: the three documents in [6]–[8] rendered, and the crane.
+- [x] Before/after: the three documents in [6]–[8] rendered, and the crane
+  (unchanged, both scales).
 
 ### Phase 14: Annotate, after Phase 13 is planned and under way
 
