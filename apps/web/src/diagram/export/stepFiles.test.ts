@@ -1,9 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PT_PER_MM } from '../../lib/paper/paperSvg';
+import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE } from '../../lib/paper/paperStyle';
 import { createDiagram, createStep, createTurn, insertSteps, type DiagramDocument, type DiagramStep } from '../document/diagramDocument';
 import { cpStep, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
 import { FIXTURE_FONTS, fixtureSubsetter } from '../fonts/diagramFonts.fixtures';
 import type { FontSubsetter } from '../fonts/fontSubset';
+import { pictureExtent } from '../pages/diagramPageLayout';
+import { layoutPicture } from '../pages/pagePictures';
 import { PAD_MM, pictureBoxOf } from './stepFileGeometry';
 import { prepareStepFiles, stepFileMinHeightMm, STEP_FILE_TEXT_LINES, type StepFileOptions } from './stepFiles';
 
@@ -135,6 +138,30 @@ describe('prepareStepFiles', () => {
       }
       // And no smaller than that: the one that needs most room fills its box.
       expect(Math.max(...drawn.map(({ w, h }) => Math.max(w, h))), `${widthMm} mm`).toBeCloseTo(box, 1);
+    }
+  });
+
+  it('keeps a heavy pen’s glyphs on a canvas of one size, the paper drawn smaller rather than they be cut (review)', () => {
+    // Glyphs either side of the paper, at the heaviest pen: more than half a 22 mm box.
+    const glyphs: DiagramStep = {
+      ...cpStep('step-glyphs'),
+      annotations: [
+        { id: 'r', kind: 'rotate', from: [1.3, 0.5], to: [1.3, 0.5], rotate: { amount: 'half', direction: 'cw' } },
+        { id: 't', kind: 'turn-over', from: [-0.3, 0.5], to: [-0.3, 0.5], axis: 'vertical' },
+      ],
+    };
+    const style = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    const document = { ...insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [glyphs], 0), style };
+    for (const size of [30, 40]) {
+      const options: StepFileOptions = { ...SAME, number: false, text: false, widthMm: size, heightMm: size };
+      const files = prepareStepFiles(document, FIXTURE_FONTS, subsetter, options);
+      const at = files.mmPerUnit!;
+      const reach = pictureExtent(layoutPicture(glyphs, document.assets, style, { mmPerUnit: at })!, at);
+      expect(reach.width, `${size} mm`).toBeLessThanOrEqual(size + 1e-3);
+      expect(reach.height, `${size} mm`).toBeLessThanOrEqual(size + 1e-3);
+      // A cropped file has no canvas to keep to: its paper as large as the box's floor allows.
+      const cropped = prepareStepFiles(document, FIXTURE_FONTS, subsetter, { ...options, sameSize: false });
+      expect(cropped.mmPerUnit!).toBeGreaterThanOrEqual(at);
     }
   });
 

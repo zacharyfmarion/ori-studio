@@ -87,17 +87,38 @@ const MEASURE_SETTLED = 1e-4;
 
 /**
  * D10's shared scale for a box: the largest mm per unit at which every paper
- * picture fits it, its marks as the pages count them (`pictureFit`).
+ * picture fits it, its marks as the pages count them (`pictureFit`). On a
+ * canvas of one size (`canvas`, the room round the box's centre), where marks
+ * the floor lets reach out of the box would be cut at its edge, no larger than
+ * keeps a picture's whole reach on it — when it can be.
  */
-function sharedScale(steps: readonly LayoutStep[], boxMm: number): number | null {
+function sharedScale(
+  steps: readonly LayoutStep[],
+  boxMm: number,
+  canvas: { across: number; down: number } | null
+): number | null {
   let scale: number | null = null;
   for (const { picture } of steps) {
     if (picture?.kind !== 'paper') continue;
-    const fits = pictureFit(picture, boxMm, boxMm);
+    let fits = pictureFit(picture, boxMm, boxMm);
     if (fits === null || !(fits > 0)) continue;
+    const whole = canvas ? wholeFit(picture, canvas.across, canvas.down) : null;
+    if (whole !== null) fits = Math.min(fits, whole);
     scale = scale === null ? fits : Math.min(scale, fits);
   }
   return scale;
+}
+
+/**
+ * The largest scale at which a picture's whole reach, marks and all, fits
+ * `across` × `down` mm; null when its marks alone are larger, and a cut cannot
+ * be helped.
+ */
+function wholeFit(picture: NonNullable<LayoutStep['picture']>, across: number, down: number): number | null {
+  const side = (room: number, grows: number, beyond: number) =>
+    grows > 0 ? (room - beyond) / grows : beyond <= room ? Infinity : -Infinity;
+  const fit = Math.min(side(across, picture.width, picture.marks.width), side(down, picture.height, picture.marks.height));
+  return fit > 0 ? fit : null;
 }
 
 export function prepareStepFiles(
@@ -110,6 +131,11 @@ export function prepareStepFiles(
   const box = pictureBoxOf(options);
   // A file per step: a turn between two (D22) has no picture of its own.
   const steps = stepsOf(document);
+  // A canvas of one size: the room round the box's centre, the pad included.
+  const middle = box.y + box.size / 2;
+  const canvas = options.sameSize
+    ? { across: options.widthMm, down: 2 * Math.min(middle, options.heightMm - middle) }
+    : null;
   // Again while a References step or an annotated one is measured at another
   // scale than it is drawn at: its letters and marks keep their pt size, so
   // how far they reach past its picture is known only at its scale. Each pass
@@ -117,7 +143,7 @@ export function prepareStepFiles(
   // that does not settle keeps the largest scale every picture, measured at
   // it, was held at.
   let layoutSteps = diagramLayoutSteps(document);
-  let scale = sharedScale(layoutSteps, box.size);
+  let scale = sharedScale(layoutSteps, box.size, canvas);
   const reaching = steps.some(
     (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
   );
@@ -126,7 +152,7 @@ export function prepareStepFiles(
   for (let pass = 0; !settled && scale !== null && pass < MEASURE_PASSES; pass += 1) {
     const measure = { mmPerUnit: scale };
     layoutSteps = diagramLayoutSteps(document, () => measure);
-    const next = sharedScale(layoutSteps, box.size);
+    const next = sharedScale(layoutSteps, box.size, canvas);
     if (next !== null && next >= scale * (1 - MEASURE_SETTLED)) held = Math.max(held ?? 0, scale);
     settled = next !== null && Math.abs(next - scale) <= MEASURE_SETTLED * scale;
     scale = next;
