@@ -22,6 +22,7 @@ import {
   type DiagramAnnotationKind,
   type DiagramIdFactory,
   type DiagramPathNode,
+  type DiagramPleatKinks,
   type DiagramRotation,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
@@ -38,7 +39,7 @@ export interface PictureFrame {
  * How each kind is drawn and put down, which every kind has to say — a
  * record, so a new kind is a compile error here until it does:
  * - `arc`: a fold arrow, dragged from tail to tip, bulging on an arc;
- * - `straight`: a push, dragged, straight from `from` to `to`;
+ * - `straight`: a push or a pleat arrow, dragged, straight from `from` to `to`;
  * - `path`: a white arrow, dragged straight from tail to tip, and always a
  *   path, shaped from there;
  * - `line`: a crease line, dragged, drawn in the diagram's pens;
@@ -59,6 +60,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'valley-arrow': 'arc',
   'mountain-arrow': 'arc',
   'fold-unfold-arrow': 'arc',
+  'pleat-arrow': 'straight',
   'push-arrow': 'straight',
   'white-arrow': 'path',
   'turn-over': 'point',
@@ -120,6 +122,24 @@ export const NEW_CALLOUT_TEXT = 'Repeat behind';
 export const CALLOUT_GAP = 0.08;
 
 export const DEFAULT_ROTATION: DiagramRotation = { amount: 'quarter', direction: 'cw' };
+
+/** A pleat arrow's Zs, as the Step pane offers them: a crimp's one to five. */
+export const PLEAT_KINKS: readonly DiagramPleatKinks[] = [1, 2, 3, 4, 5];
+
+/** A new pleat arrow's Zs, and one's that a file leaves unsaid: one, as a crimp's (decision 10). */
+export const DEFAULT_PLEAT_KINKS: DiagramPleatKinks = 1;
+
+/** A count of Zs a pleat arrow can have: `value` whole, and within one to five. */
+export function pleatKinks(value: number): DiagramPleatKinks {
+  if (!Number.isFinite(value)) return DEFAULT_PLEAT_KINKS;
+  return Math.min(PLEAT_KINKS.length, Math.max(1, Math.round(value))) as DiagramPleatKinks;
+}
+
+/** A pleat arrow with its Zs stepping to the side `mirrored` says: `mirrored` written only when true. */
+export function withPleatSide(annotation: KnownDiagramAnnotation, mirrored: boolean): KnownDiagramAnnotation {
+  const { mirrored: _side, ...rest } = annotation;
+  return mirrored ? { ...rest, mirrored: true } : rest;
+}
 
 /**
  * A new white arrow's look, and one's that a file leaves unsaid: the Origami
@@ -434,8 +454,8 @@ export function withPath(annotation: KnownDiagramAnnotation, path: DiagramPathNo
 
 /**
  * Whether an arrow of `kind` may be shaped by hand (decision 1): the fold
- * arrows and the white arrow; a push and a line stay straight. A switch, so a
- * new kind has to say.
+ * arrows and the white arrow; a push, a pleat arrow and a line stay straight.
+ * A switch, so a new kind has to say.
  */
 export function canBeShaped(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
@@ -444,6 +464,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'fold-unfold-arrow':
     case 'white-arrow':
       return true;
+    case 'pleat-arrow':
     case 'push-arrow':
     case 'turn-over':
     case 'rotate':
@@ -491,6 +512,7 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow':
+    case 'pleat-arrow':
     case 'push-arrow':
     case 'white-arrow':
     case 'turn-over':
@@ -517,6 +539,7 @@ export function annotationEnds(kind: DiagramAnnotationKind): readonly ('from' | 
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow':
+    case 'pleat-arrow':
     case 'push-arrow':
     case 'white-arrow':
     case 'valley-line':
@@ -926,9 +949,10 @@ export function pathLength(path: readonly DiagramPathNode[]): number {
 
 /**
  * Whether Flip arc turns `kind` over: a fold arrow's bulge, or a white
- * arrow's, mirrored across its chord as a shaped fold arrow is. Asked by
- * every surface that offers it (`annotationActions.ts`), and a switch, so a
- * new kind has to answer.
+ * arrow's, mirrored across its chord as a shaped fold arrow is — and a pleat
+ * arrow's Zs, stepping to the other side of it (15c). Asked by every surface
+ * that offers it (`annotationActions.ts`), and a switch, so a new kind has to
+ * answer.
  */
 export function flipsArc(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
@@ -936,6 +960,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'mountain-arrow':
     case 'fold-unfold-arrow':
     case 'white-arrow':
+    case 'pleat-arrow':
       return true;
     case 'push-arrow':
     case 'turn-over':
@@ -965,6 +990,8 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
  */
 export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
   if (!flipsArc(annotation.kind)) return false;
+  // A pleat arrow's Zs change sides, whichever way it points.
+  if (annotation.kind === 'pleat-arrow') return true;
   const shape = arrowShape(annotation);
   if (shape.kind === 'arc') return shape.bend !== 0;
   const { from, to } = annotation;
@@ -977,6 +1004,7 @@ export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
 
 export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   if (!flipsArc(annotation.kind)) return annotation;
+  if (annotation.kind === 'pleat-arrow') return withPleatSide(annotation, annotation.mirrored !== true);
   const shape = arrowShape(annotation);
   if (shape.kind === 'arc') return { ...annotation, bend: -shape.bend };
   const { from, to } = annotation;
@@ -1073,7 +1101,8 @@ export interface PictureMove {
 /**
  * An annotation carried through a picture's move. Every point moves — a
  * shaped arrow's every node and handle, which carries its curve exactly; a
- * mirror turns an arc's bulge and a rotation's sense over, and needs nothing
+ * mirror turns an arc's bulge, a rotation's sense and the side a pleat
+ * arrow's Zs step to over, and needs nothing
  * done to a path, whose handles are points too; a quarter turn (or three)
  * turns a turn-over's axis. A label's text stays upright.
  */
@@ -1120,6 +1149,8 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
     to: withinReach(move.point(annotation.to)),
   };
   if (move.mirrors && annotation.bend !== undefined) carried.bend = -annotation.bend;
+  // A pleat arrow's Zs stay on their side of the paper: a mirror turns the side they step to over.
+  if (move.mirrors && annotation.kind === 'pleat-arrow') return withPleatSide(carried, annotation.mirrored !== true);
   if (move.mirrors && annotation.rotate) {
     carried.rotate = { ...annotation.rotate, direction: annotation.rotate.direction === 'cw' ? 'ccw' : 'cw' };
   }

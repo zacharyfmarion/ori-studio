@@ -60,6 +60,7 @@ function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null 
       return 'fold_unfold_arrow';
     case 'white-arrow':
       return 'white_arrow';
+    case 'pleat-arrow':
     case 'push-arrow':
     case 'turn-over':
     case 'rotate':

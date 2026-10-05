@@ -113,6 +113,20 @@ export type StepDiagramPrimitive =
    */
   | { kind: 'push-arrow'; from: readonly [number, number]; to: readonly [number, number] }
   /**
+   * Crimp or pleat here (Phase 15c): a straight arrow from `from` to its tip
+   * at `to`, its shaft a lightning bolt with `kinks` Zs, which step to the
+   * right of the way it points on the paper or, `mirrored`, to the left, and
+   * the valley arrow's head. Its Zs are the drawing's size, as a push arrow's
+   * outline is.
+   */
+  | {
+      kind: 'pleat-arrow';
+      from: readonly [number, number];
+      to: readonly [number, number];
+      kinks: number;
+      mirrored: boolean;
+    }
+  /**
    * A white arrow (Phase 14f): a hollow band along a path, tail first, with a
    * straight-backed head at its tip and a tail drawn to a point, cut square or
    * cleft (`whiteArrowOutline`), filled with the ground and outlined in the

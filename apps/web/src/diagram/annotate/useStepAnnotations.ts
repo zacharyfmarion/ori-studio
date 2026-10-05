@@ -11,6 +11,7 @@ import {
   isLockedStep,
   type DiagramAngleTicks,
   type DiagramAsset,
+  type DiagramPleatKinks,
   type DiagramRotation,
   type DiagramStep,
   type KnownDiagramAnnotation,
@@ -94,6 +95,9 @@ export function useStepAnnotations(step: DiagramStep | null) {
       /** An angle mark's ticks across each half (15b), as one undo step. */
       setTicks: (id: string, ticks: DiagramAngleTicks) =>
         change(id, 'Change angle mark', (annotation) => ({ ...annotation, ticks })),
+      /** A pleat arrow's Zs (15c), as one undo step. */
+      setKinks: (id: string, kinks: DiagramPleatKinks) =>
+        change(id, 'Change pleat arrow', (annotation) => ({ ...annotation, kinks })),
       /** A line made another type (15a): the same line, its ends and id kept, as one undo step. */
       setLineType: (id: string, type: DiagramLineType) =>
         change(id, 'Change line type', (annotation) =>

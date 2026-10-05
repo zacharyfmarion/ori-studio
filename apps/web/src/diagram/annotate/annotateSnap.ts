@@ -58,6 +58,7 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow':
+    case 'pleat-arrow':
     case 'push-arrow':
     case 'white-arrow':
     case 'turn-over':

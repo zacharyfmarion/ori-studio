@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   DIAGRAM_ANGLE_MARK_INK,
+  DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_LINE_INK,
   DIAGRAM_MARK_INK,
   DIAGRAM_MARKS,
+  DIAGRAM_PLEAT_INK,
   DIAGRAM_RIGHT_ANGLE_INK,
   REFERENCES_VIEW_MARKS,
 } from './diagram/diagramInk';
@@ -47,6 +49,10 @@ import {
   foldReturnOffset,
   halfArrowheadPath,
   oneWayArrow,
+  pleatArrowDrawn,
+  pleatArrowShape,
+  pleatBolt,
+  polylineMitres,
   pushArrowOutline,
   rightAngleDrawn,
   rightAngleReach,
@@ -1266,5 +1272,136 @@ describe('strokedOutlinePoints', () => {
     expect(box(points).bottom).toBeGreaterThanOrEqual(10);
     // Repeated points draw no edge of their own.
     expect(box(strokedOutlinePoints([...sliver, sliver[2]!, sliver[0]!], 20))).toEqual(box(points));
+  });
+});
+
+describe('a pleat arrow (15c)', () => {
+  const size = { step: 4, back: 2, gap: 6, head: 5 };
+  const tail = { x: 0, y: 0 };
+  const tip = { x: 100, y: 0 };
+  /** Its runs: every other segment, the first, the last and the gaps between its Zs. */
+  const runs = (bolt: readonly SvgPoint[]) =>
+    bolt.slice(1).flatMap((point, index) => (index % 2 === 0 ? [[bolt[index]!, point] as const] : []));
+  const direction = ([a, b]: readonly [SvgPoint, SvgPoint]) => {
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    return { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+  };
+
+  it('starts on its tail and ends on its tip, its runs parallel and stepped apart by a Z each', () => {
+    for (const kinks of [1, 2, 3, 5]) {
+      const bolt = pleatBolt(tail, tip, kinks, false, size)!;
+      // Its tail, its first run's end, a Z each, a gap between each, its tip.
+      expect(bolt).toHaveLength(2 * kinks + 2);
+      expect(bolt[0]).toEqual(tail);
+      expect(bolt.at(-1)).toEqual(tip);
+      const way = runs(bolt).map(direction);
+      expect(way).toHaveLength(kinks + 1);
+      for (const each of way) {
+        expect(each.x).toBeCloseTo(way[0]!.x, 12);
+        expect(each.y).toBeCloseTo(way[0]!.y, 12);
+      }
+      // Each Z steps `step` across the runs, and `back` back along them.
+      const d = way[0]!;
+      for (let z = 0; z < kinks; z += 1) {
+        const [a, b] = [bolt[1 + 2 * z]!, bolt[2 + 2 * z]!];
+        const [dx, dy] = [b.x - a.x, b.y - a.y];
+        expect(dx * -d.y + dy * d.x).toBeCloseTo(size.step, 12);
+        expect(dx * d.x + dy * d.y).toBeCloseTo(-size.back, 12);
+      }
+      // The first run and the last alike: the Zs in the middle.
+      const [first, last] = [runs(bolt)[0]!, runs(bolt).at(-1)!];
+      expect(Math.hypot(first[1].x - first[0].x, first[1].y - first[0].y)).toBeCloseTo(
+        Math.hypot(last[1].x - last[0].x, last[1].y - last[0].y),
+        12
+      );
+    }
+  });
+
+  it('steps its Zs to the right of the way it points on a y-down page, mirrored to the left, its runs leaning the other way', () => {
+    // Pointing along +x, y down: the right is +y.
+    const right = pleatBolt(tail, tip, 1, false, size)!;
+    expect(right[2]!.y - right[1]!.y).toBeGreaterThan(0);
+    expect(right[1]!.y).toBeLessThan(0);
+    const left = pleatBolt(tail, tip, 1, true, size)!;
+    expect(left[2]!.y - left[1]!.y).toBeLessThan(0);
+    expect(left[1]!.y).toBeGreaterThan(0);
+    // A mirror image of each other across the line from tail to tip.
+    left.forEach((point, index) => {
+      expect(point.x).toBeCloseTo(right[index]!.x, 12);
+      expect(point.y).toBeCloseTo(-right[index]!.y, 12);
+    });
+  });
+
+  it('draws its Zs smaller on an arrow too short for them, as a short push does, and nothing for one of no length', () => {
+    // At its full size: two heads' room either side, and the Zs.
+    const full = 4 * size.head + 2 * (size.step + size.back) + size.gap;
+    const fits = pleatBolt(tail, { x: full, y: 0 }, 2, false, size)!;
+    const short = pleatBolt(tail, { x: full / 2, y: 0 }, 2, false, size)!;
+    const across = (bolt: readonly SvgPoint[]) => {
+      const d = direction([bolt[0]!, bolt[1]!]);
+      return (bolt[2]!.x - bolt[1]!.x) * -d.y + (bolt[2]!.y - bolt[1]!.y) * d.x;
+    };
+    expect(across(fits)).toBeCloseTo(size.step, 12);
+    expect(across(short)).toBeCloseTo(size.step / 2, 12);
+    expect(pleatBolt(tail, tail, 1, false, size)).toBeNull();
+  });
+
+  it('puts the valley arrow’s head on its last run, its tip on the bolt’s and the shaft stopped at its notch', () => {
+    const shape = pleatArrowShape(tail, tip, 1, false, size, 8)!;
+    expect(shape.head.tip.x).toBeCloseTo(tip.x, 12);
+    expect(shape.head.tip.y).toBeCloseTo(tip.y, 12);
+    const end = shape.shaft!.at(-1)!;
+    expect(end).toEqual(shape.head.notch);
+    // Along the last run: the bolt's way there.
+    const way = direction([shape.bolt.at(-2)!, shape.bolt.at(-1)!]);
+    const axis = direction([shape.head.notch, shape.head.tip]);
+    expect(axis.x).toBeCloseTo(way.x, 12);
+    expect(axis.y).toBeCloseTo(way.y, 12);
+    expect(Math.hypot(tip.x - end.x, tip.y - end.y)).toBeCloseTo(arrowheadReach(8), 12);
+  });
+
+  it('is drawn at its ink’s size, its head a fold arrow’s, its Zs on the paper’s side of it in a picture of the back too', () => {
+    expect(DIAGRAM_PLEAT_INK.step * 0.331).toBeCloseTo(2.25, 2);
+    const overlay = createOverlayProjector({ origin: [0, 0], ex: [400, 0], ey: [0, -400] }, 2);
+    const drawn = pleatArrowDrawn([0.1, 0.5], [0.9, 0.5], 1, false, overlay)!;
+    const across = drawn.bolt[2]!.y - drawn.bolt[1]!.y;
+    // y down on the page, the arrow pointing along +x: its Zs step down, the ink's step.
+    expect(across).toBeGreaterThan(0);
+    const d = direction([drawn.bolt[0]!, drawn.bolt[1]!]);
+    expect((drawn.bolt[2]!.x - drawn.bolt[1]!.x) * -d.y + across * d.x).toBeCloseTo(DIAGRAM_PLEAT_INK.step * 2, 9);
+    // A fold arrow's head at this ink: its full length, as the arrow is long enough for it.
+    expect(Math.hypot(drawn.head.tip.x - drawn.head.notch.x, drawn.head.tip.y - drawn.head.notch.y)).toBeCloseTo(
+      arrowheadReach(DIAGRAM_ARROWHEAD_INK.length * 2),
+      9
+    );
+    // A picture of the paper's back mirrors it: the Zs step to the other side on the page.
+    const back = createDiagramProjector(UNIT, 100, true);
+    const front = createDiagramProjector(UNIT, 100, false);
+    const side = (project: typeof back) => {
+      const bolt = pleatArrowDrawn([0.2, 0.5], [0.8, 0.5], 1, false, project)!.bolt;
+      const run = direction([bolt[0]!, bolt[1]!]);
+      return Math.sign((bolt[2]!.x - bolt[1]!.x) * -run.y + (bolt[2]!.y - bolt[1]!.y) * run.x);
+    };
+    expect(side(back)).toBe(-side(front));
+  });
+
+  it('stands its Zs’ mitres out past half its pen, as SVG mitres them, and no further than its limit', () => {
+    // A right angle: its mitre √2 halves of the pen out along its bisector.
+    const corner = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+    ];
+    const [tip] = polylineMitres(corner, 2);
+    expect(tip!.x).toBeCloseTo(11, 12);
+    expect(tip!.y).toBeCloseTo(-1, 12);
+    // Its ends are caps, not joins; a corner sharper than the limit is bevelled.
+    const spike = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 0, y: 1 },
+    ];
+    expect(polylineMitres(spike, 2)).toEqual([]);
+    expect(polylineMitres(spike, 2, 40)).toHaveLength(1);
   });
 });

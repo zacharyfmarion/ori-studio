@@ -15,10 +15,12 @@ import {
   ARROW_BEND,
   angleMarkArms,
   angleMarkAt,
+  DEFAULT_PLEAT_KINKS,
   DEFAULT_WHITE_ARROW,
   MAX_PATH_NODES,
   MIN_ANNOTATION_LENGTH,
   canBeShaped,
+  flipChangesArc,
   flipsArc,
   isShapedArrow,
   CALLOUT_GAP,
@@ -46,6 +48,8 @@ import {
   moveAnnotation,
   moveAnnotationEnd,
   pathCubics,
+  PLEAT_KINKS,
+  pleatKinks,
   RIGHT_ANGLE_DIAGONAL,
   rightAngleAt,
   rightAngleDiagonal,
@@ -850,5 +854,48 @@ describe('a callout', () => {
   it('is written with its words clean and its box within reach', () => {
     const stray = callout([0.2, 0.3], [9, 0.1], 'Repeat\nbehind');
     expect(cleanAnnotation(stray)).toEqual({ ...stray, to: [ANNOTATION_REACH, 0.1], text: 'Repeat behind' });
+  });
+});
+
+describe('a pleat arrow (15c)', () => {
+  const arrow: KnownDiagramAnnotation = { id: 'p-1', kind: 'pleat-arrow', from: [0.25, 0.5], to: [0.75, 0.375] };
+
+  it('is laid straight from tail to tip — one Z, stepping right, unsaid — and is never shaped, nor has words', () => {
+    expect(createAnnotation('pleat-arrow', [0.25, 0.5], [0.75, 0.375], SQUARE, id)).toEqual({
+      ...arrow,
+      id: 'annotation-1',
+    });
+    expect(DEFAULT_PLEAT_KINKS).toBe(1);
+    expect(canBeShaped('pleat-arrow')).toBe(false);
+    expect(carriesText('pleat-arrow')).toBe(false);
+    expect(annotationEnds('pleat-arrow')).toEqual(['to', 'from']);
+  });
+
+  it('steps its Zs to the other side with Flip, and back, writing `mirrored` only when true', () => {
+    expect(flipsArc('pleat-arrow')).toBe(true);
+    expect(flipChangesArc(arrow)).toBe(true);
+    const flipped = flipAnnotationArc(arrow);
+    expect(flipped).toEqual({ ...arrow, mirrored: true });
+    const back = flipAnnotationArc(flipped);
+    expect(back).toEqual(arrow);
+    expect(Object.hasOwn(back, 'mirrored')).toBe(false);
+  });
+
+  it('keeps its Zs on their side of the paper when the picture is mirrored, and as they were under any other move', () => {
+    const mirrored = carryAnnotation({ ...arrow, kinks: 2 }, mirrorMove(SQUARE));
+    expect(mirrored).toEqual({ ...arrow, kinks: 2, from: [0.75, 0.5], to: [0.25, 0.375], mirrored: true });
+    expect(carryAnnotation(mirrored, mirrorMove(SQUARE))).toEqual({ ...arrow, kinks: 2 });
+    const shift: PictureMove = { point: ([x, y]) => [x + 0.125, y], mirrors: false, turnDeg: 0 };
+    expect(carryAnnotation({ ...arrow, mirrored: true }, shift)).toEqual({
+      ...arrow,
+      from: [0.375, 0.5],
+      to: [0.875, 0.375],
+      mirrored: true,
+    });
+  });
+
+  it('counts its Zs whole, one to five', () => {
+    expect(PLEAT_KINKS).toEqual([1, 2, 3, 4, 5]);
+    expect([0, 1, 2.4, 2.6, 5, 7, -3, Number.NaN].map(pleatKinks)).toEqual([1, 1, 2, 3, 5, 5, 1, 1]);
   });
 });

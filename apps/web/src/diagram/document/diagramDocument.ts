@@ -512,13 +512,15 @@ export type DiagramPicture =
  * made and unfolded — a push, a white arrow, the turn-over and rotate glyphs,
  * a crease line in the diagram's pens, a label, a circle round a point, as
  * References rings one, a right angle marked in a corner, and a callout: a
- * line from a point to a box of words, as diagrams say "repeat behind" — and
- * an angle marked halved, as a bisector's equal angles are (15b).
+ * line from a point to a box of words, as diagrams say "repeat behind" — an
+ * angle marked halved, as a bisector's equal angles are (15b), and a pleat
+ * arrow, its shaft a lightning bolt, as diagrams mark a crimp or a pleat (15c).
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
   | 'mountain-arrow'
   | 'fold-unfold-arrow'
+  | 'pleat-arrow'
   | 'push-arrow'
   | 'white-arrow'
   | 'turn-over'
@@ -534,6 +536,9 @@ export type DiagramAnnotationKind =
 
 /** How many ticks an angle mark draws across each half: a second pair of equal angles in a step takes two. */
 export type DiagramAngleTicks = 1 | 2 | 3;
+
+/** How many Zs a pleat arrow's shaft has: a crimp's one, a pleat's two, up to five. */
+export type DiagramPleatKinks = 1 | 2 | 3 | 4 | 5;
 
 /** How far, and which way, a rotate glyph turns the model. */
 export interface DiagramRotation {
@@ -589,6 +594,13 @@ export interface KnownDiagramAnnotation {
   other?: [number, number];
   /** An angle mark's ticks across each half; one when unsaid (15b). */
   ticks?: DiagramAngleTicks;
+  /** A pleat arrow's Zs; one when unsaid (15c). */
+  kinks?: DiagramPleatKinks;
+  /**
+   * A pleat arrow whose Zs step to the left of the way it points, as the
+   * picture shows it; unsaid, to the right (15c). Only ever written true.
+   */
+  mirrored?: true;
   /**
    * A fold arrow's arc: its sagitta as a share of its chord, positive bulging
    * to the left of its travel as the page shows it. Flip arc negates it.

@@ -4,7 +4,14 @@ import { FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type LucideIcon } fro
 import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
 import { annotationKindLabel, lineTypeLabel } from '../../diagram/annotate/annotateTools';
 import { DIAGRAM_LINE_TYPES, lineTypeOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
-import { ANGLE_MARK_TICKS, carriesText, LABEL_MAX_LENGTH } from '../../diagram/annotate/annotationModel';
+import {
+  ANGLE_MARK_TICKS,
+  carriesText,
+  DEFAULT_PLEAT_KINKS,
+  LABEL_MAX_LENGTH,
+  PLEAT_KINKS,
+  pleatKinks,
+} from '../../diagram/annotate/annotationModel';
 import { onLabelFocusRequest, takeLabelFocus } from '../../diagram/annotate/labelFocus';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
 import { primaryModifierLabel } from '../../lib/platform';
@@ -12,7 +19,7 @@ import type { DiagramStep, KnownDiagramAnnotation } from '../../diagram/document
 import { shortcutLabelForAction } from '../../keyboard/shortcuts';
 import { useShortcutResolution } from '../../store/shortcutStore';
 import { Button } from '../ui/Button';
-import { FieldRow, SegmentedRow, TextAreaRow, ToggleRow } from '../ui/fieldRows';
+import { FieldRow, NumberRow, SegmentedRow, TextAreaRow, ToggleRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
 import { DiagramAnnotationGlyph } from './DiagramAnnotateToolGlyph';
 import { DiagramLineTypeMark } from './DiagramLineTypeMark';
@@ -241,6 +248,17 @@ function SelectedAnnotation({
           disabled={!editable}
           options={ANGLE_MARK_TICKS.map((ticks) => ({ id: String(ticks), label: String(ticks) }))}
           onChange={(ticks) => annotations.setTicks(id, Number(ticks) as 1 | 2 | 3)}
+        />
+      )}
+      {annotation.kind === 'pleat-arrow' && (
+        <NumberRow
+          label={t('panels:diagram.annotations.kinks', 'Kinks')}
+          value={annotation.kinks ?? DEFAULT_PLEAT_KINKS}
+          min={1}
+          max={PLEAT_KINKS.length}
+          disabled={!editable}
+          normalize={pleatKinks}
+          onCommit={(kinks) => annotations.setKinks(id, pleatKinks(kinks))}
         />
       )}
       {annotation.kind === 'white-arrow' && (

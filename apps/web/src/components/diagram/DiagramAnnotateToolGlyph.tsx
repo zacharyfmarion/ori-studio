@@ -95,6 +95,14 @@ export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }
           <path d="M3.4 17.2 L8.2 14.6 L8 18.6 Z" fill="currentColor" strokeWidth={1} />
         </Glyph>
       );
+    case 'pleat-arrow':
+      // A lightning bolt with one Z — `pleatBolt` at this size — and a valley arrow's head.
+      return (
+        <Glyph>
+          <path d="M2.5 14.5 L9.8 8.4 L10.3 12.3 L14.3 9" strokeLinejoin="miter" />
+          <path d="M17.6 6.2 L14.1 10.6 L12 6.8 Z" fill="currentColor" strokeWidth={1} />
+        </Glyph>
+      );
     case 'push-arrow':
       return (
         <Glyph>

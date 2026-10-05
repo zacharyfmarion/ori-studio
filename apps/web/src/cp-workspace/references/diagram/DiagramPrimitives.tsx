@@ -21,6 +21,7 @@ import {
   oneWayArrowDrawn,
   paperRingPoints,
   pathArrowDrawn,
+  pleatArrowDrawn,
   polygonPathData,
   polylinePathData,
   pushArrowDrawn,
@@ -267,6 +268,7 @@ export function canLeavePaper(primitive: StepDiagramPrimitive): boolean {
     case 'fold-arrow':
     case 'one-way-arrow':
     case 'path-arrow':
+    case 'pleat-arrow':
     case 'push-arrow':
     case 'white-arrow':
     case 'rotate':
@@ -645,6 +647,34 @@ function diagramPrimitiveShape(
           </g>
         );
       });
+    }
+    case 'pleat-arrow': {
+      // A lightning bolt in the arrow's pen, solid, its Zs mitred sharp, and
+      // the valley arrow's head on its last run.
+      const arrow = pleatArrowDrawn(primitive.from, primitive.to, primitive.kinks, primitive.mirrored, project);
+      if (!arrow) return null;
+      const stroke = strokeAttributes('arrow', project.ink, 1, project.pens);
+      const shaft = arrow.shaft && polylinePathData(arrow.shaft.map(({ x, y }) => [x, y] as const));
+      return onAndOffPaper(context, index, (inks) => (
+        <g key={index} {...inked(inks, 'step-diagram__arrow', () => ({}))}>
+          {shaft && (
+            <path
+              d={shaft}
+              fill="none"
+              {...stroke}
+              strokeDasharray={undefined}
+              strokeLinejoin="miter"
+              {...inked(inks, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
+                strokeInk(ink.lines.arrow, stroke.strokeOpacity)
+              )}
+            />
+          )}
+          <path
+            d={arrowheadPath(arrow.head)}
+            {...inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))}
+          />
+        </g>
+      ));
     }
     case 'push-arrow': {
       const outline = pushArrowDrawn(primitive.from, primitive.to, project);

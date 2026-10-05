@@ -24,10 +24,22 @@ const of = (id: string, kind: DiagramAnnotationKind, extra: Partial<KnownDiagram
 });
 
 describe('the annotation verbs', () => {
-  it('offer Flip Arc on the three fold arrows and the white arrow alone, and Delete on every kind', () => {
+  it('offer Flip Arc on the three fold arrows, the pleat arrow and the white arrow alone, and Delete on every kind', () => {
     const flips = ANNOTATION_KINDS.filter((kind) => offersAnnotationAction('flip-arc', of('a', kind)));
-    expect(flips).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'white-arrow']);
+    expect(flips).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'white-arrow']);
     expect(ANNOTATION_KINDS.every((kind) => offersAnnotationAction('delete', of('a', kind)))).toBe(true);
+  });
+
+  it('name Flip on a pleat arrow, which has no arc, and step its Zs to the other side and back (15c)', () => {
+    const edits: AnnotationEdit[] = [];
+    const pleat = of('p', 'pleat-arrow');
+    const [flip] = buildAnnotationActions(pleat, { editable: true }, { t, apply: (edit) => edits.push(edit) });
+    expect(flip).toMatchObject({ id: 'flip-arc', label: 'Flip', shortcutId: 'diagram.flipArc', disabled: false });
+    flip!.run();
+    const once = edits[0]!.edit([pleat]);
+    expect(once).toEqual([{ ...pleat, mirrored: true }]);
+    // Back: `mirrored` is written only when true.
+    expect(edits[0]!.edit(once)).toEqual([pleat]);
   });
 
   it('come in the pane’s order with their keys, enabled only on a step that can change', () => {

@@ -16,6 +16,8 @@ import {
   halfArrowheadCorners,
   oneWayArrowDrawn,
   pathArrowDrawn,
+  pleatArrowDrawn,
+  polylineMitres,
   pushArrowDrawn,
   rightAngleDrawn,
   rightAngleReach,
@@ -45,7 +47,8 @@ export type DiagramMarkPrimitive = Extract<
       | 'rotate'
       | 'point'
       | 'right-angle'
-      | 'angle-mark';
+      | 'angle-mark'
+      | 'pleat-arrow';
   }
 >;
 
@@ -60,6 +63,7 @@ const MARK_KINDS: ReadonlySet<StepDiagramPrimitive['kind']> = new Set<DiagramMar
   'point',
   'right-angle',
   'angle-mark',
+  'pleat-arrow',
 ]);
 
 export function isDiagramMark(primitive: StepDiagramPrimitive): primitive is DiagramMarkPrimitive {
@@ -126,6 +130,17 @@ export function markReach(
       polylineStroke(arrow.back ?? []);
       if (primitive.fold === 'mountain') mountainHead(arrow.head, arrow.inside);
       else filledHead(arrow.head);
+      break;
+    }
+    case 'pleat-arrow': {
+      // Its bolt, half its pen round each point and its Zs' mitres out past
+      // that, and its head, filled.
+      const arrow = pleatArrowDrawn(primitive.from, primitive.to, primitive.kinks, primitive.mirrored, project);
+      if (!arrow) break;
+      const shaft = arrow.shaft ?? [];
+      polylineStroke(shaft.map(({ x, y }) => [x, y] as const));
+      for (const { x, y } of polylineMitres(shaft, pen)) take(x, y, 0);
+      filledHead(arrow.head);
       break;
     }
     case 'push-arrow': {

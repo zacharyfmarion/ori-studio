@@ -78,6 +78,7 @@ import {
   calloutDrawnBox,
   calloutShape,
   carriesText,
+  DEFAULT_PLEAT_KINKS,
   DEFAULT_WHITE_ARROW,
   LABEL_SIZE,
   labelHalfWidth,
@@ -254,6 +255,19 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
     }
     case 'push-arrow':
       return { kind: 'mark', primitive: { kind: 'push-arrow', from: up(from), to: up(to) } };
+    case 'pleat-arrow':
+      // Its Zs' side is the picture's, which the y-up sheet and the drawing's
+      // y-down page both keep: flipped twice.
+      return {
+        kind: 'mark',
+        primitive: {
+          kind: 'pleat-arrow',
+          from: up(from),
+          to: up(to),
+          kinks: annotation.kinks ?? DEFAULT_PLEAT_KINKS,
+          mirrored: annotation.mirrored === true,
+        },
+      };
     case 'white-arrow': {
       // Always a path; one read without is the straight one it was laid as.
       const nodes = annotation.path ?? straightPath(from, to);

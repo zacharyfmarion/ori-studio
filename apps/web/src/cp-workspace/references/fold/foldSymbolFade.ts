@@ -46,6 +46,7 @@ export function symbolAnchor(primitive: StepDiagramPrimitive): Point | null {
       return first ? point(first[0]) : null;
     }
     case 'push-arrow':
+    case 'pleat-arrow':
       return point(primitive.from);
     case 'region': {
       const n = primitive.corners.length;

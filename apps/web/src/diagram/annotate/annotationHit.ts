@@ -18,6 +18,7 @@ import {
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_MARK_INK,
+  DIAGRAM_PLEAT_INK,
   DIAGRAM_PUSH_INK,
   DIAGRAM_RIGHT_ANGLE_INK,
   DIAGRAM_WHITE_ARROW_INK,
@@ -33,14 +34,17 @@ import {
   arcThroughPoints,
   outlineDistance,
   pathArrowGeometry,
+  pleatArrowShape,
   pushArrowOutline,
   returnStroke,
   rightAngleSquare,
   whiteArrowOutline,
   type AngleMarkShape,
+  type PleatArrowShape,
 } from '../../cp-workspace/references/stepDiagramGeometry';
 import { flattenPath } from '../../lib/cubicBezier';
 import {
+  DEFAULT_PLEAT_KINKS,
   DEFAULT_WHITE_ARROW,
   LINE_KINDS,
   annotationEnds,
@@ -352,6 +356,42 @@ function pushDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, i
 }
 
 /**
+ * A pleat arrow as the canvas draws it, in picture units: its bolt and its
+ * head at the size its ink gives them (`pleatArrowShape`), the head capped by
+ * its chord as a fold arrow's is. Null for one whose ends meet.
+ */
+export function pleatArrowInPicture(
+  annotation: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'kinks' | 'mirrored'>,
+  ink: number
+): PleatArrowShape | null {
+  const { from, to } = annotation;
+  return pleatArrowShape(
+    { x: from[0], y: from[1] },
+    { x: to[0], y: to[1] },
+    annotation.kinks ?? DEFAULT_PLEAT_KINKS,
+    annotation.mirrored === true,
+    {
+      step: DIAGRAM_PLEAT_INK.step * ink,
+      back: DIAGRAM_PLEAT_INK.back * ink,
+      gap: DIAGRAM_PLEAT_INK.gap * ink,
+      head: DIAGRAM_ARROWHEAD_INK.length * ink,
+    },
+    headLength(Math.hypot(to[0] - from[0], to[1] - from[1]), ink)
+  );
+}
+
+/** How far a press is from a pleat arrow as it is drawn: its bolt, and 0 inside its head. */
+function pleatArrowDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, ink: number): number {
+  const shape = pleatArrowInPicture(annotation, ink);
+  if (!shape) return Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]);
+  const [tip, notch, barbA, barbB] = arrowheadExtent(shape.head).map(({ x, y }): PicturePoint => [x, y]);
+  const outline = [tip!, barbA!, notch!, barbB!];
+  const head = insidePolygon(point, outline) ? 0 : distanceToPolyline(point, [...outline, outline[0]!]);
+  const shaft = shape.shaft?.map(({ x, y }): PicturePoint => [x, y]);
+  return shaft ? Math.min(head, distanceToPolyline(point, shaft)) : head;
+}
+
+/**
  * A white arrow's outline in picture units, at the ink a press is measured
  * in, as the drawing shapes it (`whiteArrowOutline`): worked out once per
  * annotation and ink. Null for a path of no length.
@@ -544,6 +584,8 @@ function bodyDistance(
       return arrowDistance(annotation, point, sizes.ink, marks);
     case 'push-arrow':
       return pushDistance(annotation, point, sizes.ink);
+    case 'pleat-arrow':
+      return pleatArrowDistance(annotation, point, sizes.ink);
     case 'white-arrow':
       return whiteArrowDistance(annotation, point, sizes.ink);
     case 'valley-line':

@@ -440,9 +440,29 @@ The decisions as they were put:
     unchanged.
 
 ### 15c. Pleat arrows
-- [ ] `pleat-arrow`: kind, file, carry (mirror), primitive and golden, reach,
+- [x] `pleat-arrow`: kind, file, carry (mirror), primitive and golden, reach,
   hit; the canvas; Step pane (Kinks, Flip); analytics; i18n; before/after
   beside steps 92 and 129.
+  - As built: `pleatBolt` in `stepDiagramGeometry.ts` builds the bolt in a
+    drawing's own units — runs parallel, each Z stepping `step` across and
+    `back` back, the runs leaning just enough to land on the tip, the Zs in
+    the middle — and `pleatArrowDrawn` builds it after projecting, as a push
+    arrow's outline is, so the Zs are a print size and turn over with a
+    picture of the paper's back; the canvas measures presses against the
+    same shape (`pleatArrowInPicture`). Decision 10 as decided: one Z by
+    default, and `DIAGRAM_PLEAT_INK` steps 6.8 ink across (2.25 mm at an
+    annotation's ink), half the sketch's 12.75. The Zs shrink on an arrow
+    shorter than four heads and the Zs. `kinks` (1–5, unsaid one, past five
+    a newer build's) and `mirrored` (written only when true) in the file;
+    a mirror toggles `mirrored`, as does `diagramInModel` for a frame that
+    turns the paper over. Its reach takes the Zs' mitres (`polylineMitres`).
+    Flip is Flip Arc's verb and key (F), named Flip on a pleat arrow; Kinks
+    is a stepper. Key Z; never snapped (`snap: none`). Golden:
+    `pleatArrowGolden.json` (seven cases, `15c/golden-pleat-arrows*.png`).
+    Browser (`artifacts/diagram-second-pass/p15c.mjs`, `compare-15c.png`):
+    Z and a real drag on the crane's step 14 draw one with one Z, exactly
+    where it was dragged; Kinks + makes two (one undo step), Flip steps them
+    over, F back.
 
 ### 15d. Solid arrows
 - [ ] White arrow `fill`; reader/writer; drawn filled; Step pane Fill; the

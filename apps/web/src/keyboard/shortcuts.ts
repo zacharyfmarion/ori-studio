@@ -105,6 +105,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolValleyArrow'
   | 'diagram.toolMountainArrow'
   | 'diagram.toolFoldUnfoldArrow'
+  | 'diagram.toolPleatArrow'
   | 'diagram.toolPushArrow'
   | 'diagram.toolWhiteArrow'
   | 'diagram.toolTurnOver'
@@ -600,6 +601,8 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolValleyArrow', 'Valley Fold Arrow', { key: 'v' }),
   diagramShortcut('diagram.toolMountainArrow', 'Mountain Fold Arrow', { key: 'm' }),
   diagramShortcut('diagram.toolFoldUnfoldArrow', 'Fold and Unfold Arrow', { key: 'u' }),
+  // Z for the zig-zag in its shaft (15c).
+  diagramShortcut('diagram.toolPleatArrow', 'Pleat Arrow', { key: 'z' }),
   diagramShortcut('diagram.toolPushArrow', 'Push Arrow', { key: 'p' }),
   // W for white, a letter no other Diagram key or the view's has.
   diagramShortcut('diagram.toolWhiteArrow', 'White Arrow', { key: 'w' }),

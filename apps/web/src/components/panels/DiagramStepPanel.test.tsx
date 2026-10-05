@@ -529,6 +529,38 @@ describe('DiagramStepPanel in Annotate', () => {
     expect(ticks()).toEqual([]);
   });
 
+  it('gives a pleat arrow more Zs with Kinks, one to five, and steps them to the other side with Flip, each one undo step (15c)', () => {
+    const stepId = annotatedStep();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 'p-1', kind: 'pleat-arrow', from: [0.6, 0.4], to: [0.2, 0.5] },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+    });
+    act(() => row('Pleat Arrow').click());
+    const pleat = () => annotations().find((annotation) => annotation.id === 'p-1') as Record<string, unknown>;
+    const kinks = host!.querySelector<HTMLInputElement>('input[aria-label="Kinks"]')!;
+    // One when it says none.
+    expect(kinks.value).toBe('1');
+    const past = state().diagramHistory.past.length;
+    act(() => button('Increase Kinks')!.click());
+    expect(pleat().kinks).toBe(2);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change pleat arrow');
+    // No fewer than one, no more than five.
+    act(() => kinks.focus());
+    setField(kinks, '9');
+    act(() => kinks.blur());
+    expect(pleat().kinks).toBe(5);
+    // Flip, as it is named on a pleat arrow: its Zs to the other side, and back.
+    expect(buttonNamed('Flip Arc')).toBeUndefined();
+    act(() => buttonNamed('Flip').click());
+    expect(pleat().mirrored).toBe(true);
+    act(() => buttonNamed('Flip').click());
+    expect('mirrored' in pleat()).toBe(false);
+  });
+
   it('turns a right angle a quarter clockwise with Turn 90°, as one undo step', () => {
     const stepId = annotatedStep();
     act(() => {

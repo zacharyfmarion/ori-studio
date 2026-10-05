@@ -82,6 +82,7 @@ import {
   type DiagramAnnotation,
   type DiagramAnnotationKind,
   type DiagramPathNode,
+  type DiagramPleatKinks,
   type DiagramRotation,
   type KnownDiagramAnnotation,
   type DiagramAsset,
@@ -279,7 +280,8 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
 
 function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown> {
   if (!isKnownAnnotation(annotation)) return annotation.unknown;
-  const { id, kind, from, to, bend, path, width, tail, text, rotate, axis, other, ticks, unknown: _known, ...unwritten } = annotation;
+  const { id, kind, from, to, bend, path, width, tail, text, rotate, axis, other, ticks, kinks, mirrored, unknown: _known, ...unwritten } =
+    annotation;
   // Every field is written: a new one is a compile error here until it is, not dropped from the file.
   const _none: Record<string, never> = unwritten;
   return {
@@ -296,6 +298,8 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(axis !== undefined ? { axis } : {}),
     ...(other !== undefined ? { other } : {}),
     ...(ticks !== undefined ? { ticks } : {}),
+    ...(kinks !== undefined ? { kinks } : {}),
+    ...(mirrored ? { mirrored } : {}),
   };
 }
 
@@ -812,6 +816,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'valley-arrow': fields('bend', 'path'),
     'mountain-arrow': fields('bend', 'path'),
     'fold-unfold-arrow': fields('bend', 'path'),
+    'pleat-arrow': fields('kinks', 'mirrored'),
     'push-arrow': fields(),
     'white-arrow': fields('path', 'width', 'tail'),
     'turn-over': fields('axis'),
@@ -936,6 +941,14 @@ function readAnnotation(
       // Arms that make no angle mark none.
       return angleMarkArms(mark) ? mark : null;
     }
+    case 'pleat-arrow': {
+      // Its Zs and the side they step to; a count past five is news, told before damage.
+      const kinks = readKinks(entry.kinks);
+      const mirrored = readMirrored(entry.mirrored);
+      if (kinks === NEWER) return NEWER;
+      if (kinks === null || mirrored === null) return null;
+      return { ...annotation, ...(kinks !== undefined ? { kinks } : {}), ...(mirrored ? { mirrored: true } : {}) };
+    }
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
     case 'push-arrow':
@@ -1001,6 +1014,19 @@ function readTicks(value: unknown): DiagramAngleTicks | undefined | typeof NEWER
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) return null;
   return value <= 3 ? (value as DiagramAngleTicks) : NEWER;
+}
+
+/** A pleat arrow's Zs: unsaid, one; a whole count past five, a newer build's; anything else, damage. */
+function readKinks(value: unknown): DiagramPleatKinks | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) return null;
+  return value <= 5 ? (value as DiagramPleatKinks) : NEWER;
+}
+
+/** Which side a pleat arrow's Zs step to: unsaid or false, the right; true, the left; anything else, damage. */
+function readMirrored(value: unknown): boolean | null {
+  if (value === undefined) return false;
+  return typeof value === 'boolean' ? value : null;
 }
 
 /** A white arrow's widths and tails, as this build draws them. */

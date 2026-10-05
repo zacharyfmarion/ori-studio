@@ -158,6 +158,17 @@ export const DIAGRAM_ARROWHEAD_INK = { length: 8.5, ofChord: 0.26 } as const;
  */
 export const DIAGRAM_FOLD_RETURN_INK = { offset: 10.56, ofChord: 0.26 } as const;
 
+/**
+ * A pleat arrow's Zs (15c of the second Annotate plan), in ink: how far each
+ * steps across its shaft — the space between the bolt's parallel runs — how
+ * far it steps back along the shaft as it crosses, and the run from one Z to
+ * the next. A fixed print size, as every mark's is; at an annotation's ink
+ * (0.331 mm) a Z steps 2.25 mm across, a little under the head's length —
+ * half the first sketch's step, whose runs Zach found too far apart — and
+ * two Zs stand about as far apart along the shaft.
+ */
+export const DIAGRAM_PLEAT_INK = { step: 6.8, back: 4.1, gap: 10.9 } as const;
+
 /** The turn-over glyph's width: 42% of the paper's shorter side on a card. */
 export const DIAGRAM_TURN_OVER_INK = 40.32;
 

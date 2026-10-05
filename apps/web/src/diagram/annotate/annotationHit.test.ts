@@ -3,7 +3,15 @@ import type { DiagramAnnotation, KnownDiagramAnnotation } from '../document/diag
 import { pathArrowGeometry } from '../../cp-workspace/references/stepDiagramGeometry';
 import { cubicPoint } from '../../lib/cubicBezier';
 import { ARROW_BEND, arrowApex, calloutShape, flipAnnotationArc, pathCubics, rightAngleAt } from './annotationModel';
-import { arrowPolyline, circleRadius, hitAnnotation, hitPathGrip, rightAngleGrips, rightAngleLegs } from './annotationHit';
+import {
+  arrowPolyline,
+  circleRadius,
+  hitAnnotation,
+  hitPathGrip,
+  pleatArrowInPicture,
+  rightAngleGrips,
+  rightAngleLegs,
+} from './annotationHit';
 import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { CARD_FRAME_PX } from './paintAnnotations';
 
@@ -101,6 +109,19 @@ describe('hitAnnotation', () => {
     expect(hitAnnotation([push], [0.4, 0.521], tight, null)?.annotationId).toBe('push');
     expect(hitAnnotation([push], [0.53, 0.545], tight, null)?.annotationId).toBe('push');
     expect(hitAnnotation([push], [0.4, 0.56], tight, null)).toBeNull();
+  });
+
+  it('takes a pleat arrow on its bolt as it is drawn, its Zs on the side it says, and anywhere in its head (15c)', () => {
+    const pleat: KnownDiagramAnnotation = { id: 'pleat', kind: 'pleat-arrow', from: [0.2, 0.5], to: [0.6, 0.5] };
+    const tight = { ...SIZES, tolerance: 0.001 };
+    const shape = pleatArrowInPicture(pleat, SIZES.ink)!;
+    for (const { x, y } of shape.shaft!) expect(hitAnnotation([pleat], [x, y], tight, null)?.annotationId).toBe('pleat');
+    // The Z's far corner is the bolt's, not a mirrored one's: that steps the other way.
+    const corner = shape.bolt[2]!;
+    expect(hitAnnotation([{ ...pleat, mirrored: true }], [corner.x, corner.y], tight, null)).toBeNull();
+    const { tip, barbs } = shape.head;
+    const inside: [number, number] = [(2 * tip.x + barbs[0].x + barbs[1].x) / 4, (2 * tip.y + barbs[0].y + barbs[1].y) / 4];
+    expect(hitAnnotation([pleat], inside, tight, null)?.annotationId).toBe('pleat');
   });
 
   it('takes a white arrow anywhere in its hollow outline, as wide as its width draws it', () => {

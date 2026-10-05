@@ -4066,7 +4066,11 @@
     "panels:diagram.annotate.refusedParallel": "f47746b3101f",
     "panels:diagram.annotations.ticks": "5b50f27e3831",
     "tools:diagram.toolAngleBisector": "09ec88679ba3",
-    "tools:diagram.toolAngleMark": "52e17d45ccb1"
+    "tools:diagram.toolAngleMark": "52e17d45ccb1",
+    "panels:diagram.annotate.pleatHelp": "69857421ac57",
+    "panels:diagram.annotations.flip": "2449d137ea15",
+    "panels:diagram.annotations.kinks": "cd9f6133afd3",
+    "tools:diagram.toolPleatArrow": "147b985ccd79"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8135,7 +8139,11 @@
     "panels:diagram.annotate.refusedParallel": "f47746b3101f",
     "panels:diagram.annotations.ticks": "5b50f27e3831",
     "tools:diagram.toolAngleBisector": "09ec88679ba3",
-    "tools:diagram.toolAngleMark": "52e17d45ccb1"
+    "tools:diagram.toolAngleMark": "52e17d45ccb1",
+    "panels:diagram.annotate.pleatHelp": "69857421ac57",
+    "panels:diagram.annotations.flip": "2449d137ea15",
+    "panels:diagram.annotations.kinks": "cd9f6133afd3",
+    "tools:diagram.toolPleatArrow": "147b985ccd79"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12206,7 +12214,11 @@
     "panels:diagram.annotate.refusedParallel": "f47746b3101f",
     "panels:diagram.annotations.ticks": "5b50f27e3831",
     "tools:diagram.toolAngleBisector": "09ec88679ba3",
-    "tools:diagram.toolAngleMark": "52e17d45ccb1"
+    "tools:diagram.toolAngleMark": "52e17d45ccb1",
+    "panels:diagram.annotate.pleatHelp": "69857421ac57",
+    "panels:diagram.annotations.flip": "2449d137ea15",
+    "panels:diagram.annotations.kinks": "cd9f6133afd3",
+    "tools:diagram.toolPleatArrow": "147b985ccd79"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -16189,7 +16201,11 @@
     "panels:diagram.annotate.refusedParallel": "f47746b3101f",
     "panels:diagram.annotations.ticks": "5b50f27e3831",
     "tools:diagram.toolAngleBisector": "09ec88679ba3",
-    "tools:diagram.toolAngleMark": "52e17d45ccb1"
+    "tools:diagram.toolAngleMark": "52e17d45ccb1",
+    "panels:diagram.annotate.pleatHelp": "69857421ac57",
+    "panels:diagram.annotations.flip": "2449d137ea15",
+    "panels:diagram.annotations.kinks": "cd9f6133afd3",
+    "tools:diagram.toolPleatArrow": "147b985ccd79"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -20172,7 +20188,11 @@
     "panels:diagram.annotate.refusedParallel": "f47746b3101f",
     "panels:diagram.annotations.ticks": "5b50f27e3831",
     "tools:diagram.toolAngleBisector": "09ec88679ba3",
-    "tools:diagram.toolAngleMark": "52e17d45ccb1"
+    "tools:diagram.toolAngleMark": "52e17d45ccb1",
+    "panels:diagram.annotate.pleatHelp": "69857421ac57",
+    "panels:diagram.annotations.flip": "2449d137ea15",
+    "panels:diagram.annotations.kinks": "cd9f6133afd3",
+    "tools:diagram.toolPleatArrow": "147b985ccd79"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -24241,7 +24261,11 @@
     "panels:diagram.annotate.refusedParallel": "f47746b3101f",
     "panels:diagram.annotations.ticks": "5b50f27e3831",
     "tools:diagram.toolAngleBisector": "09ec88679ba3",
-    "tools:diagram.toolAngleMark": "52e17d45ccb1"
+    "tools:diagram.toolAngleMark": "52e17d45ccb1",
+    "panels:diagram.annotate.pleatHelp": "69857421ac57",
+    "panels:diagram.annotations.flip": "2449d137ea15",
+    "panels:diagram.annotations.kinks": "cd9f6133afd3",
+    "tools:diagram.toolPleatArrow": "147b985ccd79"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -28310,7 +28334,11 @@
     "panels:diagram.annotate.refusedParallel": "f47746b3101f",
     "panels:diagram.annotations.ticks": "5b50f27e3831",
     "tools:diagram.toolAngleBisector": "09ec88679ba3",
-    "tools:diagram.toolAngleMark": "52e17d45ccb1"
+    "tools:diagram.toolAngleMark": "52e17d45ccb1",
+    "panels:diagram.annotate.pleatHelp": "69857421ac57",
+    "panels:diagram.annotations.flip": "2449d137ea15",
+    "panels:diagram.annotations.kinks": "cd9f6133afd3",
+    "tools:diagram.toolPleatArrow": "147b985ccd79"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -32293,6 +32321,10 @@
     "panels:diagram.annotate.refusedParallel": "f47746b3101f",
     "panels:diagram.annotations.ticks": "5b50f27e3831",
     "tools:diagram.toolAngleBisector": "09ec88679ba3",
-    "tools:diagram.toolAngleMark": "52e17d45ccb1"
+    "tools:diagram.toolAngleMark": "52e17d45ccb1",
+    "panels:diagram.annotate.pleatHelp": "69857421ac57",
+    "panels:diagram.annotations.flip": "2449d137ea15",
+    "panels:diagram.annotations.kinks": "cd9f6133afd3",
+    "tools:diagram.toolPleatArrow": "147b985ccd79"
   }
 }

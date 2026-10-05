@@ -128,6 +128,7 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolValleyArrow': true,
   'diagram.toolMountainArrow': true,
   'diagram.toolFoldUnfoldArrow': true,
+  'diagram.toolPleatArrow': true,
   'diagram.toolPushArrow': true,
   'diagram.toolWhiteArrow': true,
   'diagram.toolTurnOver': true,

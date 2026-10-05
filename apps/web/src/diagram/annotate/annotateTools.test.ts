@@ -17,12 +17,12 @@ import { ANNOTATION_KINDS } from './annotationModel';
 import { DIAGRAM_LINE_TYPES, isLineKind } from './lineTypes';
 
 describe('the rail', () => {
-  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a)', () => {
+  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a), the pleat arrow among the arrows (15c)', () => {
     expect(ANNOTATE_TOOL_GROUPS).toEqual([
       { id: 'select', tools: [null, 'edit-path'] },
       {
         id: 'arrows',
-        tools: ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'white-arrow', 'turn-over', 'rotate'],
+        tools: ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'push-arrow', 'white-arrow', 'turn-over', 'rotate'],
       },
       { id: 'lines', tools: ['line', 'angle-bisector'] },
       { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark'] },
@@ -91,6 +91,8 @@ describe('the tool window', () => {
         instructions: 'Drag from where the paper starts to where it lands: it folds over, then back.',
         modifiers: [],
       },
+      // Never snapped, as every arrow (15c).
+      'pleat-arrow': { title: 'Pleat Arrow', instructions: 'Drag the way the paper is pleated or crimped.', modifiers: [] },
       'push-arrow': { title: 'Push Arrow', instructions: 'Drag toward the place to push.', modifiers: [] },
       'white-arrow': {
         title: 'White Arrow',

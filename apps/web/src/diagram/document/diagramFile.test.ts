@@ -541,6 +541,45 @@ describe('annotations in the file', () => {
       expect(withAnnotations(damaged)).toEqual([]);
     });
   });
+
+  describe('a pleat arrow (15c)', () => {
+    const pleat = (more: Record<string, unknown> = {}) => ({
+      id: 'p-1',
+      kind: 'pleat-arrow',
+      from: [0.62, 0.42],
+      to: [0.18, 0.5],
+      ...more,
+    });
+
+    it('round-trips its ends, its Zs and the side they step to — one, and the right, when unsaid', () => {
+      const pleated = pleat({ id: 'p-2', kinks: 2, mirrored: true });
+      const read = withAnnotations([pleat(), pleated]);
+      expect(read).toEqual([pleat(), pleated]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual([pleat(), pleated]);
+    });
+
+    it('reads its Zs stepping right when a file says so, and writes nothing for it', () => {
+      const read = withAnnotations([pleat({ mirrored: false })]);
+      expect(read).toEqual([pleat()]);
+    });
+
+    it('carries what a newer build might write: more Zs than five, a field it has no name for', () => {
+      const newer = [pleat({ id: 'p-3', kinks: 6 }), pleat({ id: 'p-4', zigzag: true })];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    });
+
+    it('drops one whose Zs are no count, or whose side is not a yes or a no', () => {
+      const damaged = [
+        pleat({ kinks: 0 }),
+        pleat({ id: 'p-5', kinks: 2.5 }),
+        pleat({ id: 'p-6', kinks: 'two' }),
+        pleat({ id: 'p-7', mirrored: 'left' }),
+      ];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+  });
 });
 
 describe('uploaded pictures in the file', () => {

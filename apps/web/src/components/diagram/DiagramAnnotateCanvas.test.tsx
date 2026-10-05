@@ -15,7 +15,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
 import { TooltipProvider } from '../ui/Tooltip';
 import { CIRCLE_RADIUS, INK_UNITS } from '../../diagram/annotate/useAnnotateCanvas';
-import { rightAngleGrips } from '../../diagram/annotate/annotationHit';
+import { pleatArrowInPicture, rightAngleGrips } from '../../diagram/annotate/annotationHit';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import { rightAngleAt, rightAngleDiagonal } from '../../diagram/annotate/annotationModel';
@@ -272,6 +272,33 @@ describe('DiagramAnnotateCanvas', () => {
     // Drawn hollow, in the page's white.
     rerender();
     expect(overlay().innerHTML).toContain('stroke-miterlimit="1.5"');
+  });
+
+  it('draws a pleat arrow straight with a drag, one Z unsaid, a bolt with its head, and selects it by its bolt (15c)', () => {
+    mount();
+    tool('pleat-arrow');
+    drag(at(0.2, 0.3), at(0.6, 0.4));
+    expect(annotations()).toHaveLength(1);
+    const [pleat] = annotations();
+    expect(Object.keys(pleat!).sort()).toEqual(['from', 'id', 'kind', 'to']);
+    expect(pleat).toMatchObject({ kind: 'pleat-arrow' });
+    expect(pleat!.from[0]).toBeCloseTo(0.2, 3);
+    expect(pleat!.to[1]).toBeCloseTo(0.4, 3);
+    // Never snapped, as no arrow is.
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['pleat_arrow', 'none']]);
+    // A click is no arrow.
+    pointer('pointerdown', at(0.7, 0.7));
+    pointer('pointerup', at(0.7, 0.7));
+    expect(annotations()).toHaveLength(1);
+    // Drawn as a bolt, its corners mitred, and a filled head.
+    rerender();
+    expect(overlay().innerHTML).toContain('stroke-linejoin="miter"');
+    // Pressed with Select at its Z's far corner, it is selected.
+    tool(null);
+    const corner = pleatArrowInPicture(pleat!, INK_UNITS)!.bolt[2]!;
+    pointer('pointerdown', at(corner.x, corner.y));
+    pointer('pointerup', at(corner.x, corner.y));
+    expect(state().diagramSelectedAnnotationId).toBe(pleat!.id);
   });
 
   it('puts a sign down with a click, and draws nothing for a click with a line tool', () => {

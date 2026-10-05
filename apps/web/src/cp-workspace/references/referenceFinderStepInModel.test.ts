@@ -130,6 +130,21 @@ describe('diagramInModel', () => {
     expect(diagramInModel(marked, FLIPPED).primitives).toEqual([{ kind: 'right-angle', at: [0, 100], toward: [10, 90] }]);
   });
 
+  it('carries a pleat arrow’s ends through the frame, and turns the side its Zs step to with a frame that flips (15c)', () => {
+    const pleated: StepDiagramModel = {
+      ...diagram,
+      primitives: [{ kind: 'pleat-arrow', from: [0.1, 0.5], to: [0.9, 0.5], kinks: 2, mirrored: false }],
+    };
+    // Flipped into a y-down model, where a projector counts the paper turned over: once each, as it is drawn.
+    expect(diagramInModel(pleated, FLIPPED).primitives).toEqual([
+      { kind: 'pleat-arrow', from: [10, 50], to: [90, 50], kinks: 2, mirrored: true },
+    ]);
+    const upright: PrecreaseFrame = { ...FLIPPED, origin: [0, 0], y_axis: [0, 1] };
+    expect(diagramInModel(pleated, upright).primitives).toEqual([
+      { kind: 'pleat-arrow', from: [10, 50], to: [90, 50], kinks: 2, mirrored: false },
+    ]);
+  });
+
   it('measures the sheet in model units and knows where its middle is and which way it lies', () => {
     // Re-pinned for Phase 5's erode: the sheet carries the frame's axes, so a
     // turned paper's edge is found where it is and not on an upright box.

@@ -76,6 +76,7 @@ export type DiagramAnnotationTool =
   | 'valley_arrow'
   | 'mountain_arrow'
   | 'fold_unfold_arrow'
+  | 'pleat_arrow'
   | 'push_arrow'
   | 'white_arrow'
   | 'turn_over'

@@ -83,6 +83,7 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   'valley-arrow': 'arrows',
   'mountain-arrow': 'arrows',
   'fold-unfold-arrow': 'arrows',
+  'pleat-arrow': 'arrows',
   'push-arrow': 'arrows',
   'white-arrow': 'arrows',
   'turn-over': 'arrows',
@@ -116,6 +117,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   'valley-arrow': 'diagram.toolValleyArrow',
   'mountain-arrow': 'diagram.toolMountainArrow',
   'fold-unfold-arrow': 'diagram.toolFoldUnfoldArrow',
+  'pleat-arrow': 'diagram.toolPleatArrow',
   'push-arrow': 'diagram.toolPushArrow',
   'white-arrow': 'diagram.toolWhiteArrow',
   'turn-over': 'diagram.toolTurnOver',
@@ -181,6 +183,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolMountainArrow', 'Mountain Fold Arrow');
     case 'fold-unfold-arrow':
       return t('tools:diagram.toolFoldUnfoldArrow', 'Fold and Unfold Arrow');
+    case 'pleat-arrow':
+      return t('tools:diagram.toolPleatArrow', 'Pleat Arrow');
     case 'push-arrow':
       return t('tools:diagram.toolPushArrow', 'Push Arrow');
     case 'white-arrow':
@@ -238,6 +242,8 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
         'panels:diagram.annotate.foldUnfoldHelp',
         'Drag from where the paper starts to where it lands: it folds over, then back.'
       );
+    case 'pleat-arrow':
+      return t('panels:diagram.annotate.pleatHelp', 'Drag the way the paper is pleated or crimped.');
     case 'push-arrow':
       return t('panels:diagram.annotate.pushHelp', 'Drag toward the place to push.');
     case 'white-arrow':
@@ -474,6 +480,7 @@ function annotateToolModifiers(
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow':
+    case 'pleat-arrow':
     case 'push-arrow':
     case 'white-arrow':
     case 'turn-over':

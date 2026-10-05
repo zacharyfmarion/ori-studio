@@ -30,6 +30,7 @@ import {
   DIAGRAM_INK_PER_SHEET,
   DIAGRAM_LINE_INK,
   DIAGRAM_MARKS,
+  DIAGRAM_PLEAT_INK,
   DIAGRAM_PUSH_INK,
   DIAGRAM_RIGHT_ANGLE_INK,
   DIAGRAM_ROTATE_INK,
@@ -1513,6 +1514,181 @@ export function pushArrowDrawn(
     shaftHalf: DIAGRAM_PUSH_INK.shaftHalf * ink,
     cleft: DIAGRAM_PUSH_INK.cleft * ink,
   });
+}
+
+/** A pleat arrow's Zs, and the head they make room for, in the drawing's units (`DIAGRAM_PLEAT_INK` × the ink). */
+export interface PleatBoltSize {
+  /** How far each Z steps across the shaft: the space between the bolt's parallel runs. */
+  step: number;
+  /** How far each Z steps back along the shaft as it crosses it. */
+  back: number;
+  /** The run from one Z to the next. */
+  gap: number;
+  /** A head's length at its full size: the runs either side of the Zs keep room for it. */
+  head: number;
+}
+
+/**
+ * A pleat arrow's shaft (15c), from its tail to its tip: a lightning bolt. It
+ * runs on, steps back across itself and runs on again, once per Z, its runs
+ * parallel; they lean off the line from tail to tip just enough that the bolt
+ * starts on the tail and ends on the tip. The Zs sit in the middle, the runs
+ * either side of them alike, at a fixed size — an arrow too short for them
+ * draws them smaller, as a short push arrow does. They step to the right of
+ * the way it points, as a y-down drawing shows it, or `mirrored`, to the
+ * left. Null when its ends coincide.
+ */
+export function pleatBolt(
+  tail: SvgPoint,
+  tip: SvgPoint,
+  kinks: number,
+  mirrored: boolean,
+  size: PleatBoltSize
+): SvgPoint[] | null {
+  const length = Math.hypot(tip.x - tail.x, tip.y - tail.y);
+  if (!(length > 1e-9)) return null;
+  const zs = Math.max(1, Math.round(kinks));
+  // The length it is drawn its full size at: a head's room twice over on
+  // either run, and the Zs.
+  const full = 4 * size.head + zs * (size.step + size.back) + (zs - 1) * size.gap;
+  const fit = Math.min(1, length / full);
+  const step = size.step * fit;
+  const back = size.back * fit;
+  const gap = size.gap * fit;
+  // Across the tail-to-tip line, the Zs' steps make up the tip's offset from
+  // the runs' line; along it, the runs less the Zs' steps back make up the
+  // rest. That fixes how far the runs lean, and how long they are together.
+  const along = Math.sqrt(length * length - (zs * step) ** 2);
+  const lean = Math.atan2(zs * step, along);
+  const side = mirrored ? -1 : 1;
+  const ux = (tip.x - tail.x) / length;
+  const uy = (tip.y - tail.y) / length;
+  // The runs' way: the line turned off it by the lean, away from the side the Zs step to.
+  const cos = Math.cos(side * lean);
+  const sin = Math.sin(side * lean);
+  const d = { x: ux * cos + uy * sin, y: uy * cos - ux * sin };
+  // Across, the way the Zs step: a quarter turn from the runs, clockwise as a y-down drawing shows it.
+  const n = { x: -d.y * side, y: d.x * side };
+  const end = (along + zs * back - (zs - 1) * gap) / 2;
+  const points: SvgPoint[] = [tail];
+  let at = tail;
+  const go = (dx: number, dy: number) => {
+    at = { x: at.x + dx, y: at.y + dy };
+    points.push(at);
+  };
+  go(d.x * end, d.y * end);
+  for (let z = 0; z < zs; z += 1) {
+    go(n.x * step - d.x * back, n.y * step - d.y * back);
+    if (z < zs - 1) go(d.x * gap, d.y * gap);
+  }
+  // The last run ends on the tip: there, not where the sums round to.
+  points.push({ x: tip.x, y: tip.y });
+  return points;
+}
+
+/** A pleat arrow as it is drawn: its bolt, its shaft stopped where its head's notch goes, and its head. */
+export interface PleatArrowShape {
+  bolt: SvgPoint[];
+  /** The bolt stopped at the head's notch; null for an arrow too short to have a shaft, its head alone drawn. */
+  shaft: SvgPoint[] | null;
+  head: Arrowhead;
+}
+
+/**
+ * A pleat arrow from `tail` to `tip`, in any one space's units: its bolt
+ * ({@link pleatBolt}), and the valley arrow's filled head `head` long on the
+ * last run, its tip on the bolt's — the shaft stopped at its notch, so the
+ * head carries the last run on. The canvas measures a press against it in
+ * picture units; a picture draws it in its own ({@link pleatArrowDrawn}).
+ */
+export function pleatArrowShape(
+  tail: SvgPoint,
+  tip: SvgPoint,
+  kinks: number,
+  mirrored: boolean,
+  size: PleatBoltSize,
+  head: number
+): PleatArrowShape | null {
+  const bolt = pleatBolt(tail, tip, kinks, mirrored, size);
+  if (!bolt) return null;
+  const stopped = polylineStoppedShort(
+    bolt.map(({ x, y }): Vec2 => [x, y]),
+    arrowheadReach(head)
+  );
+  return {
+    bolt,
+    shaft: stopped.points && stopped.points.map(([x, y]) => ({ x, y })),
+    head: arrowheadAt({ x: stopped.end[0], y: stopped.end[1] }, { x: stopped.direction[0], y: stopped.direction[1] }, head),
+  };
+}
+
+/**
+ * A pleat arrow as a picture draws it, from `from` to `to` in sheet units: in
+ * the projector's units, its Zs sized by its ink (`DIAGRAM_PLEAT_INK`) and
+ * its head as a fold arrow's is — by the pen, capped by a share of its chord.
+ * Its Zs step to the side `mirrored` says on the paper, so a projection of
+ * the paper's back turns them over with it. The one place its drawn shape is
+ * decided, as {@link pushArrowDrawn} is a push arrow's. Null when its ends
+ * coincide.
+ */
+export function pleatArrowDrawn(
+  from: readonly [number, number],
+  to: readonly [number, number],
+  kinks: number,
+  mirrored: boolean,
+  project: DiagramProjector
+): PleatArrowShape | null {
+  const ink = project.ink;
+  const tail = project(from);
+  const tip = project(to);
+  const chord = Math.hypot(tip.x - tail.x, tip.y - tail.y);
+  const full = project.marks.arrowheadLength * ink;
+  const head = Math.max(
+    Math.min(full, DIAGRAM_ARROWHEAD_INK.ofChord * chord),
+    ARROWHEAD_MIN_STROKES * project.pens.arrow.width * ink
+  );
+  return pleatArrowShape(
+    tail,
+    tip,
+    kinks,
+    mirrored !== project.mirrored,
+    { step: DIAGRAM_PLEAT_INK.step * ink, back: DIAGRAM_PLEAT_INK.back * ink, gap: DIAGRAM_PLEAT_INK.gap * ink, head: full },
+    head
+  );
+}
+
+/**
+ * The mitres an open run of lines stroked `pen` wide stands out to at its
+ * corners: each corner's tip, out along its bisector away from its arms,
+ * where the mitre is within `miterLimit` (SVG's default, 4); past it SVG
+ * bevels the corner, inside the half pen round it. With half the pen round
+ * every point, the stroke's bounds. A pleat arrow's Zs are sharp enough to
+ * mitre past half a pen.
+ */
+export function polylineMitres(points: readonly SvgPoint[], pen: number, miterLimit: number = SVG_MITER_LIMIT): SvgPoint[] {
+  const half = pen / 2;
+  const tips: SvgPoint[] = [];
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const corner = points[index]!;
+    const before = points[index - 1]!;
+    const after = points[index + 1]!;
+    const back = Math.hypot(before.x - corner.x, before.y - corner.y);
+    const on = Math.hypot(after.x - corner.x, after.y - corner.y);
+    if (!(back > 1e-12) || !(on > 1e-12)) continue;
+    const arms = [
+      { x: (before.x - corner.x) / back, y: (before.y - corner.y) / back },
+      { x: (after.x - corner.x) / on, y: (after.y - corner.y) / on },
+    ] as const;
+    const bisector = { x: arms[0].x + arms[1].x, y: arms[0].y + arms[1].y };
+    const across = Math.hypot(bisector.x, bisector.y);
+    if (!(across > 1e-12)) continue;
+    const angle = Math.acos(Math.max(-1, Math.min(1, arms[0].x * arms[1].x + arms[0].y * arms[1].y)));
+    const mitre = 1 / Math.sin(angle / 2);
+    if (mitre <= miterLimit) {
+      tips.push({ x: corner.x - (bisector.x / across) * half * mitre, y: corner.y - (bisector.y / across) * half * mitre });
+    }
+  }
+  return tips;
 }
 
 /** SVG's default `stroke-miterlimit`: a mitre longer than this many pens is bevelled. */

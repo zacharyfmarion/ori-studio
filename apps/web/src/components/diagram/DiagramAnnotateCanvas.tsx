@@ -2,7 +2,13 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { isDrawingTool } from '../../diagram/annotate/annotateTools';
-import { angleMarkInPicture, arrowPolyline, rightAngleGrips, rightAngleLegs } from '../../diagram/annotate/annotationHit';
+import {
+  angleMarkInPicture,
+  arrowPolyline,
+  pleatArrowInPicture,
+  rightAngleGrips,
+  rightAngleLegs,
+} from '../../diagram/annotate/annotationHit';
 import { angleMarkArcPoints } from '../../cp-workspace/references/stepDiagramGeometry';
 import { pathNodesOf, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
@@ -270,6 +276,12 @@ function Selection({
     case 'hidden-line':
       path = [annotation.from, annotation.to];
       break;
+    case 'pleat-arrow': {
+      // Along its bolt, tail to tip.
+      const shape = pleatArrowInPicture(annotation, INK_UNITS);
+      path = shape ? shape.bolt.map(({ x, y }) => [x, y] as const) : [annotation.from, annotation.to];
+      break;
+    }
     case 'angle-mark': {
       // Along its arc: it moves whole.
       const shape = angleMarkInPicture(annotation, INK_UNITS);

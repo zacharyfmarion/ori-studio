@@ -71,6 +71,8 @@ export function rfSheetOfFrame(frame: PrecreaseFrame): { width: number; height: 
  */
 export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): StepDiagramModel {
   const map = (point: Pair): [number, number] => rfToModel(frame, point);
+  // Whether the map turns the paper over: its axes the other way round.
+  const reverses = frame.x_axis[0] * frame.y_axis[1] - frame.x_axis[1] * frame.y_axis[0] < 0;
   const mapArc = (arc: DiagramArc): DiagramArc | null => {
     const [from, middle, to] = arcSamplePoints(arc).map(map);
     return arcThroughPoints(from, middle, to);
@@ -118,6 +120,16 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
         break;
       case 'push-arrow':
         primitives.push({ kind: 'push-arrow', from: map(primitive.from), to: map(primitive.to) });
+        break;
+      case 'pleat-arrow':
+        // Its ends mapped; its Zs stay on their side of the paper, so a map
+        // that turns the paper over turns the side they step to with it.
+        primitives.push({
+          ...primitive,
+          from: map(primitive.from),
+          to: map(primitive.to),
+          mirrored: primitive.mirrored !== reverses,
+        });
         break;
       case 'white-arrow':
         // Every control point mapped, as a path arrow's: the curve carried exactly.

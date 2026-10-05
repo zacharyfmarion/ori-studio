@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import type { DiagramArrowShapeGesture } from '../../analytics/events';
 import type { ShortcutActionId } from '../../keyboard/shortcuts';
-import type { KnownDiagramAnnotation } from '../document/diagramDocument';
+import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
 import {
   MAX_PATH_NODES,
   canBeShaped,
@@ -307,7 +307,8 @@ export function steppedNode(node: number | null, count: number, direction: -1 | 
   return Math.min(count - 1, Math.max(0, node + direction));
 }
 
-function annotationActionLabel(t: TFunction, id: AnnotationActionId): string {
+/** A verb's name on an annotation of `kind`: Flip arc, on a pleat arrow, only flips — it has no arc. */
+function annotationActionLabel(t: TFunction, id: AnnotationActionId, kind: DiagramAnnotationKind): string {
   switch (id) {
     case 'previous-node':
       return t('panels:diagram.annotations.previousNode', 'Previous Node');
@@ -322,7 +323,7 @@ function annotationActionLabel(t: TFunction, id: AnnotationActionId): string {
     case 'delete-node':
       return t('panels:diagram.annotations.deleteNode', 'Delete Node');
     case 'flip-arc':
-      return t('tools:diagram.flipArc', 'Flip Arc');
+      return kind === 'pleat-arrow' ? t('panels:diagram.annotations.flip', 'Flip') : t('tools:diagram.flipArc', 'Flip Arc');
     case 'reset-path':
       return t('panels:diagram.annotations.resetShape', 'Reset Shape');
     case 'turn-right-angle':
@@ -353,7 +354,7 @@ export function buildAnnotationActions(
     const base = {
       id,
       group: NODE_ACTIONS.has(id) ? ('node' as const) : ('annotation' as const),
-      label: annotationActionLabel(deps.t, id),
+      label: annotationActionLabel(deps.t, id, annotation.kind),
       ...(shortcutId ? { shortcutId } : {}),
     };
     switch (id) {

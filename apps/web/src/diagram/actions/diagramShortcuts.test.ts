@@ -235,6 +235,23 @@ describe('Annotate’s keys', () => {
     expect(press('diagram.toolCallout', annotate('callout')).setTool).toHaveBeenCalledWith(null);
   });
 
+  it.each([
+    ['the pleat arrow', 'diagram.toolPleatArrow', 'z', 'pleat-arrow'],
+    ['the angle bisector', 'diagram.toolAngleBisector', 'b', 'angle-bisector'],
+  ] as const)('binds %s to its letter, which no other Diagram key or the view’s has, and picks it (15b, 15c)', (_name, id, key, tool) => {
+    expect(SHORTCUT_DEFINITIONS.find((shortcut) => shortcut.id === id)).toMatchObject({ scope: 'diagram', defaultChord: { key } });
+    const others = SHORTCUT_DEFINITIONS.filter(
+      (shortcut) =>
+        shortcut.id !== id &&
+        ['diagram', 'diagram-path', 'viewport', 'global'].includes(shortcut.scope) &&
+        shortcut.defaultChords.some((chord) => chord.key === key && !chord.primary && !chord.shift && !chord.alt)
+    );
+    expect(others).toEqual([]);
+    expect(press(id, annotate()).setTool).toHaveBeenCalledWith(tool);
+    expect(press(id, annotate(tool)).setTool).toHaveBeenCalledWith(null);
+    expect(press(id, {})).toMatchObject({ claimed: false });
+  });
+
   it('flips only a selected fold arrow', () => {
     expect(press('diagram.flipArc', annotate(null, true))).toMatchObject({ claimed: true });
     expect(press('diagram.flipArc', annotate(null, false))).toMatchObject({ claimed: false });

@@ -7,6 +7,7 @@ import {
   halfArrowheadCorners,
   oneWayArrowDrawn,
   pathArrowDrawn,
+  polylineMitres,
   pushArrowDrawn,
   rotateGlyphDrawn,
   whiteArrowDrawn,
@@ -437,6 +438,30 @@ describe('paintAnnotations', () => {
         }
       }
     }
+  });
+
+  it('reaches as far as a pleat arrow’s Zs mitre with a heavy pen, out past the frame (15c)', () => {
+    const pt = 3;
+    const style = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: pt } } };
+    const box = { x: 0, y: 0, width: 189, height: 189 };
+    // Along the top edge, pointing right, its Zs stepping up off the picture.
+    const pleat = a('z', 'pleat-arrow', { from: [0.1, 0], to: [0.9, 0], kinks: 3, mirrored: true });
+    const painted = paintAnnotations([pleat], box, 189, style)!;
+    const pen = pt * PT_TO_CSS_PX;
+    const bolt = [...painted.markup.matchAll(/d="(M[^"Z]*)"/g)].map((match) => match[1]!).find((d) => d.split('L').length > 4)!;
+    const numbers = bolt.match(/-?\d+(\.\d+)?/g)!.map(Number);
+    const points = Array.from({ length: numbers.length / 2 }, (_, i) => ({ x: numbers[2 * i]!, y: numbers[2 * i + 1]! }));
+    const mitres = polylineMitres(points, pen);
+    // A mitre each Z's corners make, standing past the half pen round them.
+    expect(mitres).toHaveLength(6);
+    expect(Math.min(...mitres.map(({ y }) => y))).toBeLessThan(Math.min(...points.map(({ y }) => y)) - pen / 2);
+    for (const { x, y } of [...mitres, ...points]) {
+      expect(x).toBeGreaterThanOrEqual(painted.bounds.x);
+      expect(y).toBeGreaterThanOrEqual(painted.bounds.y - 1e-9);
+      expect(x).toBeLessThanOrEqual(painted.bounds.x + painted.bounds.width);
+      expect(y).toBeLessThanOrEqual(painted.bounds.y + painted.bounds.height);
+    }
+    expect(painted.bounds.y).toBeLessThan(0);
   });
 
   it('reaches as far as a fold-and-unfold arrow’s return, which bulges past its outgoing arc', () => {
