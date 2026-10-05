@@ -321,7 +321,9 @@ export interface ScaleFit {
  * run that small would be there only to part the runs either side, letting
  * them differ by less than a zoom. The least-cost cut and scales among those
  * are found exactly (dynamic programming over where the last run starts and
- * its scale), the same answer read from either end.
+ * its scale), read from the same end whichever is given, so where cuts tie
+ * the same one is cut; a diagram that reads the same from either end is drawn
+ * so ({@link mirroredRuns}).
  *
  * Runs whose scales are within {@link FIT_SAME} are then drawn at one,
  * wherever in the diagram, where that keeps each a zoom from its neighbours.
@@ -333,6 +335,10 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
   if (count === 0) return [];
   // A fit of nothing — a room of no size — is a picture drawn at nothing, alone.
   const shares = fits.map(({ shared }) => (Number.isFinite(shared) && shared > 0 ? shared : Number.MIN_VALUE));
+  // Read from one end whichever end is given — the one whose first picture
+  // unlike its mirror's is the smaller — so where cuts tie, the same is cut.
+  const turn = shares.findIndex((share, index) => share !== shares[count - 1 - index]);
+  if (turn >= 0 && shares[turn]! > shares[count - 1 - turn]!) return scaleRuns([...fits].reverse()).reverse();
   const logs = shares.map(Math.log);
   const zoom = Math.log(FIT_ZOOM);
   // The scales a run may be drawn at, as logs, each with the scale it is: a
@@ -419,13 +425,14 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
   // The cheapest end, the larger scale on a tie.
   let level = width - 1;
   for (let v = width - 1; v >= 0; v -= 1) if (best[count * width + v]! < best[count * width + level]!) level = v;
-  const runs: { from: number; to: number; scale: number }[] = [];
+  let runs: { from: number; to: number; scale: number }[] = [];
   for (let j = count; j > 0; ) {
     const at = j * width + level;
     runs.unshift({ from: from[at]!, to: j, scale: scaleAt.get(levels[level]!)! });
     j = from[at]!;
     level = before[at]!;
   }
+  if (turn < 0) runs = mirroredRuns(runs, logs);
 
   // Near enough is one, wherever in the diagram: each scale joins the
   // smallest within FIT_SAME below it that leads its own, so a chain of near
@@ -454,6 +461,34 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
     const drawn = Math.min(run, own);
     return { scale: drawn, reduced: drawn < run * (1 - 1e-9) };
   });
+}
+
+/**
+ * A diagram that reads the same from either end, drawn so: the runs' half
+ * nearer one end mirrored onto the other, whichever half costs least so. A
+ * cut of least cost has two halves, and the drawings each half makes alone,
+ * mirrored, cost twice that half — so one of them costs no more than the cut
+ * itself, and is one of least cost too. The first half on a tie.
+ */
+function mirroredRuns(
+  runs: { from: number; to: number; scale: number }[],
+  logs: readonly number[]
+): { from: number; to: number; scale: number }[] {
+  const count = logs.length;
+  const drawn = new Float64Array(count);
+  for (const { from, to, scale } of runs) drawn.fill(scale, from, to);
+  const mirrored = (nearer: (k: number, mirror: number) => number) =>
+    Array.from({ length: count }, (_, k) => drawn[nearer(k, count - 1 - k)]!);
+  const costOf = (scales: number[]) =>
+    scales.reduce((sum, scale, k) => sum + logs[k]! - Math.log(scale) + (k > 0 && scale !== scales[k - 1] ? FIT_RUN_BREAK : 0), 0);
+  const [first, last] = [mirrored(Math.min), mirrored(Math.max)];
+  const chosen = costOf(last) < costOf(first) ? last : first;
+  const out: { from: number; to: number; scale: number }[] = [];
+  chosen.forEach((scale, k) => {
+    if (k > 0 && scale === chosen[k - 1]) out[out.length - 1]!.to = k + 1;
+    else out.push({ from: k, to: k + 1, scale });
+  });
+  return out;
 }
 
 /**

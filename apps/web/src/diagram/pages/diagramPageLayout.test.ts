@@ -151,9 +151,20 @@ describe('scaleRuns', () => {
       runs([10, 1], [10, 0.8], [10, 1.03], [10, 0.7]),
       runs([6, 0.172], [6, 0.144], [6, 0.175], [6, 0.125]),
       Array.from({ length: 40 }, (_, k) => 1.03 ** k),
+      // Ratios that tie exactly: 0.9 / 0.6 = 0.6 / 0.4 (third review).
+      [0.9, 1.8, 0.6, 1.3, 0.4, 0.6, 1.9, 1.2, 2, 2],
     ];
     for (const values of cases) {
       expect(scales(each([...values].reverse())).reverse()).toEqual(scales(each(values)));
+    }
+    // A model that shrinks and grows back as it shrank is drawn the same both ways, not with the zoom at one end (third review).
+    for (const values of [
+      [2, 1, 0.5, 0.5, 1, 2],
+      [2, 1, 0.5, 1.2, 0.5, 1.2, 0.5, 1, 2],
+      [1.93, 1.69, 1.3, 1.3, 1, 1, 1.3, 1.3, 1.69, 1.93],
+    ]) {
+      const drawn = scales(each(values));
+      expect([...drawn].reverse(), values.join(' ')).toEqual(drawn);
     }
   });
 
