@@ -130,3 +130,50 @@ describe('DiagramStepDetail in Pose', () => {
     expect(toolbarHas('Spread Layers')).toBe(false);
   });
 });
+
+describe('DiagramStepDetail in Annotate', () => {
+  const realRect = HTMLElement.prototype.getBoundingClientRect;
+  afterEach(() => {
+    HTMLElement.prototype.getBoundingClientRect = realRect;
+  });
+
+  /** The phone's media query answered `phone`; the canvas's view laid out as Edit's is. */
+  function layout(phone: boolean) {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: phone && query === PHONE_MEDIA_QUERY,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    );
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      return this.hasAttribute('data-tool')
+        ? ({ left: 0, top: 0, right: 764, bottom: 700, width: 764, height: 700, x: 0, y: 0 } as DOMRect)
+        : realRect.call(this);
+    };
+  }
+  const toolWindow = () => document.querySelector('section[aria-label="Annotate tool instructions"]');
+
+  it('says what the tool in hand does in the tool window, which gives way on a phone with Annotate itself', () => {
+    const step = cpStep('step-1', FLAT);
+    layout(false);
+    show(step, null, 'annotate');
+    expect(toolWindow()?.textContent).toContain('Select');
+    act(() => root?.unmount());
+    root = null;
+    layout(true);
+    show(step, null, 'annotate');
+    expect(host!.textContent).toContain('Annotate on a larger screen');
+    expect(toolWindow()).toBeNull();
+  });
+});

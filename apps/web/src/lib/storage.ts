@@ -72,6 +72,8 @@ export const STORAGE_KEYS = {
    * hold. Absent means on.
    */
   diagramAnnotateSnap: 'diagram-annotate-snap',
+  /** Whether Annotate's tool window is collapsed to its header (`ToolHintWindow`). */
+  diagramToolHintCollapsed: 'diagram-tool-hint-collapsed',
   /** Play a step's fold on arriving at its card in the References workspace. */
   referencesAutoPlayFolds: 'references-auto-play-folds',
   /**

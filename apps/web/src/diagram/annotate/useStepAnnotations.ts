@@ -25,7 +25,7 @@ const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 /**
  * The Step pane's annotations (D13): what the selected step carries, which
- * one is selected, the tool in hand, and the verbs on the selected one — its
+ * one is selected, and the verbs on the selected one — its
  * text, its turn, its axis, a white arrow's look, and the catalog's (`annotationActions.ts`: Flip
  * arc, Reset, Delete, and with Edit Path in hand the node verbs on the node
  * it has selected) — each one undo step through the store — and the Snap
@@ -108,7 +108,6 @@ export function useStepAnnotations(step: DiagramStep | null) {
 
   return {
     annotating,
-    tool,
     known,
     /** Annotations a newer build made, which this one keeps but cannot show. */
     unknownCount: step ? step.annotations.length - known.length : 0,

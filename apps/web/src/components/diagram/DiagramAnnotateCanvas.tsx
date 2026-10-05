@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { drawingKind } from '../../diagram/annotate/annotateTools';
@@ -25,6 +25,7 @@ import {
 } from '../../diagram/document/diagramDocument';
 import { VIEWPORT_PINCH_ZOOM, VIEWPORT_WHEEL_ZOOM } from '../../hooks/useViewportSurface';
 import { ViewportToolbar } from '../panels/ViewportToolbar';
+import { DiagramAnnotateToolWindow } from './DiagramAnnotateToolWindow';
 import { DiagramAnnotationLayer } from './DiagramAnnotationLayer';
 import styles from './DiagramAnnotateCanvas.module.css';
 
@@ -45,6 +46,7 @@ const PATH_HANDLE_PX = { fine: 3.5, coarse: 5.5 } as const;
  * callout's at its point — or, in Edit Path, a fold arrow's nodes and the
  * handles beside the selected one.
  * The behaviour is `useAnnotateCanvas`'s; its presses are the whole stage's.
+ * The tool window floats over its bottom right while the diagram can change.
  */
 export function DiagramAnnotateCanvas({
   step,
@@ -70,98 +72,111 @@ export function DiagramAnnotateCanvas({
     (annotation): annotation is KnownDiagramAnnotation => annotation.id === selectedId && isKnownAnnotation(annotation)
   );
   const zoom = Math.max(zoomPercent, 1) / 100;
+  // The view as an element, for the tool window to anchor to once it is laid out.
+  const [view, setView] = useState<HTMLDivElement | null>(null);
+  const attachView = useCallback(
+    (element: HTMLDivElement | null) => {
+      containerRef.current = element;
+      setView(element);
+    },
+    [containerRef]
+  );
 
   return (
-    <div
-      ref={containerRef}
-      className={styles.view}
-      data-space-pan={spacePressed || undefined}
-      data-tool={tool ?? 'select'}
-      data-draws={drawingKind(tool) !== null || undefined}
-      tabIndex={-1}
-      onPointerDownCapture={onPointerDownCapture}
-      {...handlers}
-    >
-      <TransformWrapper
-        ref={transformRef}
-        initialScale={1}
-        minScale={0.1}
-        maxScale={12}
-        limitToBounds={false}
-        wheel={VIEWPORT_WHEEL_ZOOM}
-        panning={{
-          velocityDisabled: true,
-          wheelPanning: true,
-          allowMiddleClickPan: true,
-          // A drag draws; the picture moves with Space held, the middle button or
-          // two fingers (one finger never reaches the camera: `useAnnotateCanvas`).
-          allowLeftClickPan: spacePressed,
-        }}
-        pinch={VIEWPORT_PINCH_ZOOM}
-        doubleClick={{ disabled: true }}
-        onInit={onInit}
-        onTransformed={onTransformed}
+    <>
+      <div
+        ref={attachView}
+        className={styles.view}
+        data-space-pan={spacePressed || undefined}
+        data-tool={tool ?? 'select'}
+        data-draws={drawingKind(tool) !== null || undefined}
+        tabIndex={-1}
+        onPointerDownCapture={onPointerDownCapture}
+        {...handlers}
       >
-        <TransformComponent
-          wrapperClass={styles.stage}
-          wrapperStyle={{ width: '100%', height: '100%' }}
-          contentStyle={layout ? { width: layout.world.width, height: layout.world.height } : undefined}
+        <TransformWrapper
+          ref={transformRef}
+          initialScale={1}
+          minScale={0.1}
+          maxScale={12}
+          limitToBounds={false}
+          wheel={VIEWPORT_WHEEL_ZOOM}
+          panning={{
+            velocityDisabled: true,
+            wheelPanning: true,
+            allowMiddleClickPan: true,
+            // A drag draws; the picture moves with Space held, the middle button or
+            // two fingers (one finger never reaches the camera: `useAnnotateCanvas`).
+            allowLeftClickPan: spacePressed,
+          }}
+          pinch={VIEWPORT_PINCH_ZOOM}
+          doubleClick={{ disabled: true }}
+          onInit={onInit}
+          onTransformed={onTransformed}
         >
-          {layout && (
-            <div className={styles.world} style={{ width: layout.world.width, height: layout.world.height }}>
-              <div className={styles.paper} style={box(layout.picture)}>
-                {url && <img className={styles.picture} src={url} alt="" draggable={false} />}
+          <TransformComponent
+            wrapperClass={styles.stage}
+            wrapperStyle={{ width: '100%', height: '100%' }}
+            contentStyle={layout ? { width: layout.world.width, height: layout.world.height } : undefined}
+          >
+            {layout && (
+              <div className={styles.world} style={{ width: layout.world.width, height: layout.world.height }}>
+                <div className={styles.paper} style={box(layout.picture)}>
+                  {url && <img className={styles.picture} src={url} alt="" draggable={false} />}
+                </div>
+                {/* The frame, not the painted box: what the picture's units measure, and what a mark is placed against. */}
+                <div className={styles.frame} style={box(layout.frame)} data-annotate-frame="" />
+                <svg
+                  ref={overlay}
+                  className={styles.overlay}
+                  data-annotate-overlay=""
+                  width={layout.world.width}
+                  height={layout.world.height}
+                  viewBox={`0 0 ${layout.world.width} ${layout.world.height}`}
+                  role="img"
+                  aria-label={t('panels:diagram.annotate.canvasLabel', 'Annotations on the step’s picture')}
+                >
+                  {drawing && (
+                    <g
+                      transform={`translate(${layout.frame.x} ${layout.frame.y}) scale(${layout.unit / CARD_FRAME_PX})`}
+                    >
+                      <DiagramAnnotationLayer drawing={drawing} style={style} />
+                    </g>
+                  )}
+                  {selected &&
+                    (canvas.editingPath && canBeShaped(selected.kind) ? (
+                      <PathSelection
+                        annotation={selected}
+                        layout={layout}
+                        zoom={zoom}
+                        selectedNode={canvas.selectedNode}
+                        coarse={canvas.coarse}
+                      />
+                    ) : (
+                      // Edit Path moves nothing it cannot shape: no ends to offer.
+                      <Selection annotation={selected} layout={layout} zoom={zoom} movable={!readOnly && !canvas.editingPath} />
+                    ))}
+                  <SnapTargets targets={canvas.snapTargets} layout={layout} zoom={zoom} />
+                  {canvas.rightAnglePreview && <RightAngleGhost preview={canvas.rightAnglePreview} layout={layout} />}
+                </svg>
               </div>
-              {/* The frame, not the painted box: what the picture's units measure, and what a mark is placed against. */}
-              <div className={styles.frame} style={box(layout.frame)} data-annotate-frame="" />
-              <svg
-                ref={overlay}
-                className={styles.overlay}
-                data-annotate-overlay=""
-                width={layout.world.width}
-                height={layout.world.height}
-                viewBox={`0 0 ${layout.world.width} ${layout.world.height}`}
-                role="img"
-                aria-label={t('panels:diagram.annotate.canvasLabel', 'Annotations on the step’s picture')}
-              >
-                {drawing && (
-                  <g
-                    transform={`translate(${layout.frame.x} ${layout.frame.y}) scale(${layout.unit / CARD_FRAME_PX})`}
-                  >
-                    <DiagramAnnotationLayer drawing={drawing} style={style} />
-                  </g>
-                )}
-                {selected &&
-                  (canvas.editingPath && canBeShaped(selected.kind) ? (
-                    <PathSelection
-                      annotation={selected}
-                      layout={layout}
-                      zoom={zoom}
-                      selectedNode={canvas.selectedNode}
-                      coarse={canvas.coarse}
-                    />
-                  ) : (
-                    // Edit Path moves nothing it cannot shape: no ends to offer.
-                    <Selection annotation={selected} layout={layout} zoom={zoom} movable={!readOnly && !canvas.editingPath} />
-                  ))}
-                <SnapTargets targets={canvas.snapTargets} layout={layout} zoom={zoom} />
-                {canvas.rightAnglePreview && <RightAngleGhost preview={canvas.rightAnglePreview} layout={layout} />}
-              </svg>
-            </div>
-          )}
-        </TransformComponent>
-      </TransformWrapper>
-      <ViewportToolbar
-        ariaLabel={t('panels:diagram.annotate.controls', 'Annotate view controls')}
-        zoomPercent={zoomPercent}
-        zoomIn={zoomIn}
-        zoomOut={zoomOut}
-        fitToView={fitToView}
-        setZoomLevel={setZoomLevel}
-        groups={[]}
-        tone="raised"
-      />
-    </div>
+            )}
+          </TransformComponent>
+        </TransformWrapper>
+        <ViewportToolbar
+          ariaLabel={t('panels:diagram.annotate.controls', 'Annotate view controls')}
+          zoomPercent={zoomPercent}
+          zoomIn={zoomIn}
+          zoomOut={zoomOut}
+          fitToView={fitToView}
+          setZoomLevel={setZoomLevel}
+          groups={[]}
+          tone="raised"
+        />
+      </div>
+      {/* Outside the view in the React tree: see the component. */}
+      {!readOnly && <DiagramAnnotateToolWindow container={view} step={step} />}
+    </>
   );
 }
 

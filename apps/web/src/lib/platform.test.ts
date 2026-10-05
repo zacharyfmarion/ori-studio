@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { formatKeyChord } from '../keyboard/shortcuts';
 import { isApplePlatform as runtimeIsApplePlatform } from '../platform/runtime';
-import { isApplePlatform, isPrimaryModifier, primaryModifierLabel } from './platform';
+import { altModifierLabel, isApplePlatform, isPrimaryModifier, primaryModifierLabel } from './platform';
 
 /**
  * Override the fields `platform/runtime` reads. jsdom defines them on
@@ -60,5 +61,17 @@ describe('isPrimaryModifier', () => {
     mockNavigator({ platform: 'Linux x86_64', userAgent: 'Mozilla/5.0 (X11; Linux x86_64)' });
     expect(isPrimaryModifier(ctrl)).toBe(true);
     expect(primaryModifierLabel()).toBe('Ctrl');
+  });
+});
+
+describe('altModifierLabel', () => {
+  it('names Alt as a chord does: Option on Apple platforms, Alt elsewhere', () => {
+    mockNavigator({ platform: 'MacIntel', maxTouchPoints: 0 });
+    expect(altModifierLabel()).toBe('Option');
+    expect(formatKeyChord({ key: 'a', alt: true })).toMatch(/^Option\+/);
+
+    mockNavigator({ platform: 'Win32', userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' });
+    expect(altModifierLabel()).toBe('Alt');
+    expect(formatKeyChord({ key: 'a', alt: true })).toMatch(/^Alt\+/);
   });
 });
