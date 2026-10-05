@@ -74,9 +74,16 @@ export interface PreparedStepFiles {
   cut: number[];
   /** Characters no font has: drawn as a missing-glyph box. */
   missing: string[];
+  /** The mm per pattern unit every paper picture is drawn at (D10); null with none. */
+  mmPerUnit: number | null;
   /** File `index` (of `files`) as an SVG document. */
   compose: (index: number) => PaperSvgResult;
 }
+
+/** How many times step files measure their pictures again at the scale they are drawn at, as the pages do. */
+const MEASURE_PASSES = 8;
+/** A scale this close to the one its marks were measured at is the one they were measured at. */
+const MEASURE_SETTLED = 1e-4;
 
 /**
  * D10's shared scale for a box: the largest mm per unit at which every paper
@@ -105,20 +112,26 @@ export function prepareStepFiles(
   const steps = stepsOf(document);
   // Again while a References step or an annotated one is measured at another
   // scale than it is drawn at: its letters and marks keep their pt size, so
-  // how far they reach past its picture is known only at its scale.
+  // how far they reach past its picture is known only at its scale. Each pass
+  // measures at the last one's scale, as the pages do (`layoutDiagram`); one
+  // that does not settle keeps the largest scale every picture, measured at
+  // it, was held at.
   let layoutSteps = diagramLayoutSteps(document);
   let scale = sharedScale(layoutSteps, box.size);
   const reaching = steps.some(
     (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
   );
-  for (let pass = 0; reaching && scale !== null && pass < 4; pass += 1) {
+  let settled = !reaching;
+  let held: number | null = null;
+  for (let pass = 0; !settled && scale !== null && pass < MEASURE_PASSES; pass += 1) {
     const measure = { mmPerUnit: scale };
     layoutSteps = diagramLayoutSteps(document, () => measure);
     const next = sharedScale(layoutSteps, box.size);
-    const settled = next !== null && Math.abs(next - scale) <= 1e-4 * scale;
+    if (next !== null && next >= scale * (1 - MEASURE_SETTLED)) held = Math.max(held ?? 0, scale);
+    settled = next !== null && Math.abs(next - scale) <= MEASURE_SETTLED * scale;
     scale = next;
-    if (settled) break;
   }
+  if (!settled && held !== null) scale = held;
 
   const digits = String(steps.length).length;
   const title = document.title.trim() || 'Diagram';
@@ -157,6 +170,7 @@ export function prepareStepFiles(
 
   return {
     files: files.map(({ stepId, number, fileStem }) => ({ stepId, number, fileStem })),
+    mmPerUnit: scale,
     skipped,
     cut,
     missing: [...setter.missing],

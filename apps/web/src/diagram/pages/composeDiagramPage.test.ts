@@ -30,7 +30,8 @@ import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from
 import type { DiagramFonts, LoadedDiagramFont } from '../fonts/diagramFonts';
 import { readFontMetrics } from '../fonts/fontMetrics';
 import { createFontSubsetter, type FontSubsetter } from '../fonts/fontSubset';
-import { layoutDiagramPages, MARKS_FLOOR, PAGE_NUMBER_SIZE_MM } from './diagramPageLayout';
+import { layoutDiagramPages, MARKS_FLOOR, PAGE_NUMBER_SIZE_MM, pictureExtent, pictureFit } from './diagramPageLayout';
+import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE } from '../../lib/paper/paperStyle';
 import { estimateTextSetter } from './estimateTextSetter';
 import { diagramLayoutSteps, layoutDiagram, preparedPages } from './diagramPages';
 import { composeDiagramPage } from './composeDiagramPage';
@@ -289,6 +290,95 @@ describe('composeDiagramPage', () => {
     expect(floored).toBeGreaterThan(0);
     // Fit each drew the captures with no paper at frames of its own.
     expect(framed).toBeGreaterThanOrEqual(2 * SETUPS.length);
+  });
+
+  /** How far laying the pages out again, each step measured at the scale it is drawn at, moves a step's scale. */
+  const unsettled = (document: DiagramDocument, layout: ReturnType<typeof layoutDiagram>) => {
+    const cells = layout.pages.flatMap((page) => page.cells);
+    const measures = new Map(
+      cells.map((each) => [each.stepId, each.mmPerUnit !== null ? { mmPerUnit: each.mmPerUnit } : { frameMm: each.frameMm! }])
+    );
+    const again = layoutDiagramPages(
+      diagramLayoutSteps(document, (id) => measures.get(id) ?? null),
+      document.page,
+      document.title,
+      estimateTextSetter
+    ).pages.flatMap((page) => page.cells);
+    return Math.max(
+      0,
+      ...cells.map((each, index) => {
+        const [was, now] = [each.mmPerUnit ?? each.frameMm, again[index]!.mmPerUnit ?? again[index]!.frameMm];
+        return was === null || now === null ? 0 : Math.abs(now / was - 1);
+      })
+    );
+  };
+
+  it('draws a paper whose glyph is larger than it as large as its room, settled, not crept down to its floor (review)', () => {
+    // A turn-over turned upright, 11.6 mm tall, in a room 10.2 mm tall: past it at any scale.
+    const step: DiagramStep = {
+      ...cpStep('step-1'),
+      text: Array(3).fill('Fold the corner to the line.').join(' '),
+      annotations: [{ id: 't', kind: 'turn-over', from: [0.5, 0.5], to: [0.5, 0.5], axis: 'horizontal' }],
+    };
+    const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [step], 0);
+    const document: DiagramDocument = {
+      ...made,
+      page: { ...made.page, size: 'letter', orientation: 'landscape', columns: 3, rows: 7 },
+    };
+    const layout = layoutDiagram(document, estimateTextSetter);
+    const cell = layout.pages[0]!.cells[0]!;
+    const needs = layoutPicture(stepsIn(document)[0]!, document.assets, document.style, { mmPerUnit: cell.mmPerUnit! })!;
+    expect(pictureExtent(needs, cell.mmPerUnit!).height).toBeGreaterThan(cell.drawMm.h);
+    expect(needs.frame.height * cell.mmPerUnit!).toBeCloseTo(cell.drawMm.h, 3);
+    expect(unsettled(document, layout)).toBeLessThan(1e-3);
+  });
+
+  it('lays out pages that hold every picture with its marks, measured at its scale, at any pen and page (review)', () => {
+    const glyph = (id: string, annotation: DiagramStep['annotations'][number], text = ''): DiagramStep => ({
+      ...cpStep(id),
+      text,
+      annotations: [annotation],
+    });
+    const long = Array(6).fill('Fold the corner to the line.').join(' ');
+    const steps: DiagramStep[] = [
+      cpStep('step-a'),
+      glyph('step-b', { id: 'r', kind: 'rotate', from: [1.3, 0.5], to: [1.3, 0.5], rotate: { amount: 'half', direction: 'cw' } }),
+      glyph('step-c', { id: 't', kind: 'turn-over', from: [0.5, 0.5], to: [0.5, 0.5], axis: 'vertical' }, long),
+      glyph('step-d', { id: 'p', kind: 'push-arrow', from: [-0.5, 0.5], to: [0.2, 0.5] }),
+      glyph('step-e', { id: 'h', kind: 'turn-over', from: [0.5, 0.5], to: [0.5, 0.5], axis: 'horizontal' }, long),
+      glyph('step-f', { id: 'f', kind: 'fold-unfold-arrow', from: [0.1, 0.02], to: [0.9, 0.02], bend: 0.134 }),
+      { ...referencesStep('step-g'), text: long },
+    ];
+    const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), steps, 0);
+    const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    const setups: Partial<DiagramPageSetup>[] = [
+      ...SETUPS,
+      { size: 'letter', orientation: 'landscape', columns: 3, rows: 7 },
+      { columns: 5, rows: 1 },
+      { size: 'a5', orientation: 'landscape', columns: 2, rows: 2 },
+    ];
+    let settled = 0;
+    let layouts = 0;
+    for (const style of [made.style, heavy]) {
+      for (const scale of ['fit', 'paper'] as const) {
+        for (const setup of setups) {
+          const document: DiagramDocument = { ...made, style, page: { ...made.page, ...setup, scale } };
+          const layout = layoutDiagram(document, estimateTextSetter);
+          for (const cell of layout.pages.flatMap((page) => page.cells)) {
+            const at = cell.mmPerUnit ?? cell.frameMm;
+            if (at === null) continue;
+            const step = stepsIn(document).find((each) => each.id === cell.stepId)!;
+            const measure = cell.mmPerUnit !== null ? { mmPerUnit: at } : { frameMm: at };
+            const fit = pictureFit(layoutPicture(step, document.assets, document.style, measure), cell.drawMm.w, cell.drawMm.h);
+            expect(fit! / at, `${style === heavy ? 'heavy' : 'default'} ${scale} ${setupName(setup)} ${cell.stepId}`).toBeGreaterThan(1 - 1e-3);
+          }
+          layouts += 1;
+          if (unsettled(document, layout) < 1e-3) settled += 1;
+        }
+      }
+    }
+    // And nearly every one settled.
+    expect(settled / layouts).toBeGreaterThan(0.9);
   });
 
   it('keeps a picture’s paper in its room when its letters cannot fit there, and its pages settled (review)', () => {

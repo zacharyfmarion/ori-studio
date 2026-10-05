@@ -420,24 +420,39 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
 
 /**
  * The largest scale at which a picture fits a room `across` × `down` mm, in
- * mm per its unit: what its marks keep at their pt size off the room, up to
- * {@link MARKS_FLOOR} of it, and where they lie grown with the picture.
- * Null for no picture, or one with no size.
+ * mm per its unit: its reach as measured (`width × scale + marks`), what is
+ * past the line it grows along taking at most {@link MARKS_FLOOR} of the
+ * room — past it the marks reach out of the room rather than the paper shrink
+ * to a dot — and the paper itself in the room always. A reach that does not
+ * grow with the picture there (a glyph larger than the paper) asks nothing
+ * of the scale: the paper fills its room. Null for no picture, or one with
+ * no size.
  */
 export function pictureFit(picture: LayoutStep['picture'], across: number, down: number): number | null {
-  const width = picture ? extent(picture.width) : null;
-  const height = picture ? extent(picture.height) : null;
-  if (!picture || width === null || height === null) return null;
-  const { marks } = picture;
-  return Math.min(
-    Math.max(across - marks.width, across * (1 - MARKS_FLOOR)) / width,
-    Math.max(down - marks.height, down * (1 - MARKS_FLOOR)) / height
+  if (!picture) return null;
+  const side = (room: number, grows: number, beyond: number, frame: number): number => {
+    if (![grows, beyond, frame].every(Number.isFinite)) return Number.NaN;
+    const paper = frame > 0 ? room / frame : Infinity;
+    if (!(grows > 0)) return paper;
+    return Math.min(paper, Math.max(room - beyond, room * (1 - MARKS_FLOOR)) / grows);
+  };
+  const fit = Math.min(
+    side(across, picture.width, picture.marks.width, picture.frame.width),
+    side(down, picture.height, picture.marks.height, picture.frame.height)
   );
+  return Number.isFinite(fit) && fit >= 0 ? fit : null;
 }
 
-/** A picture's width or height as a number the scale can divide by: positive, or null. */
-function extent(value: number): number | null {
-  return Number.isFinite(value) && value > 0 ? value : null;
+/**
+ * How far a picture reaches with its marks, in mm, drawn at `scale`: as
+ * measured, near the scale it was measured at, and never less than its
+ * frame.
+ */
+export function pictureExtent(picture: NonNullable<LayoutStep['picture']>, scale: number): { width: number; height: number } {
+  return {
+    width: Math.max(picture.width * scale + picture.marks.width, picture.frame.width * scale),
+    height: Math.max(picture.height * scale + picture.marks.height, picture.frame.height * scale),
+  };
 }
 
 /**
@@ -588,7 +603,7 @@ export function layoutDiagramPages(
       const scale = scales.get(entry);
       const at = scale?.mmPerUnit ?? scale?.frameMm ?? null;
       // A picture taller at its scale than its box runs on down its room.
-      const drawnH = at !== null && step.picture ? step.picture.height * at + step.picture.marks.height : 0;
+      const drawnH = at !== null && step.picture ? pictureExtent(step.picture, at).height : 0;
       const drawH = Math.min(Math.max(box, drawnH), roomH(entry));
       return {
         stepId: step.id,

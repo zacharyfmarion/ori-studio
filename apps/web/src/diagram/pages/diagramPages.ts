@@ -15,6 +15,7 @@ import type { FontSubsetter } from '../fonts/fontSubset';
 import { composeDiagramPage, type ComposedPage } from './composeDiagramPage';
 import {
   layoutDiagramPages,
+  pictureFit,
   type DiagramPagesLayout,
   type LayoutStep,
   type LayoutTurn,
@@ -78,7 +79,7 @@ export function diagramLayoutSteps(
 }
 
 /** How many times the pages may be laid out again to measure marks at the scale they are drawn at. */
-const MEASURE_PASSES = 6;
+const MEASURE_PASSES = 8;
 /** A scale this close to the one its marks were measured at is the one they were measured at. */
 const MEASURE_SETTLED = 1e-4;
 
@@ -87,38 +88,52 @@ const MEASURE_SETTLED = 1e-4;
  * drawn at a scale other than the one its marks were measured at: its
  * letters, arrowheads and marks keep their pt size, so how far they reach
  * past its picture is only known at its scale — which depends on how far
- * they reach. Each pass measures a step at where the last two put its
- * scale's fixed point (a secant), so marks large for their room settle in a
- * few passes rather than creeping; a picture drawn smaller alone that has
- * not settled is fitted to its room as it is drawn (`cellPicture`).
+ * they reach. Each pass measures every step at the scale the last drew it at,
+ * reach and slope (`layoutPicture`), so the next fits it as Newton's method
+ * would: a reach of straight pieces settles in a few passes. Should one not
+ * settle — a mark that jumps as the picture grows — the last pages that held
+ * every picture as measured at its own scale are kept, else the last.
  */
 export function layoutDiagram(document: DiagramDocument, setter: TextSetter): DiagramPagesLayout {
-  const layout = (measureOf?: (stepId: string) => PictureMeasure) =>
-    layoutDiagramPages(diagramLayoutSteps(document, measureOf), document.page, document.title, setter);
-  let pages = layout();
+  const layout = (steps: LayoutStep[]) => layoutDiagramPages(steps, document.page, document.title, setter);
+  let pages = layout(diagramLayoutSteps(document));
   const reaching = stepsOf(document).some(
     (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
   );
   if (!reaching) return pages;
-  /** Per step, the scale its marks were last measured at, and the scale the layout then drew it at. */
-  const tried = new Map<string, { at: number; got: number }>();
-  let measures = scalesOf(pages);
-  for (let pass = 0; pass < MEASURE_PASSES && measures.size > 0; pass += 1) {
-    const at = measures;
-    pages = layout((stepId) => at.get(stepId)?.measure ?? null);
-    const got = scalesOf(pages);
-    let settled = true;
-    measures = new Map();
-    for (const [stepId, { scale, measure }] of got) {
-      const was = at.get(stepId);
-      if (!was || Math.abs(scale - was.scale) > MEASURE_SETTLED * scale) settled = false;
-      const next = was ? fixedPoint(tried.get(stepId), { at: was.scale, got: scale }) : scale;
-      if (was) tried.set(stepId, { at: was.scale, got: scale });
-      measures.set(stepId, { scale: next, measure: withScale(measure, next) });
-    }
-    if (settled) break;
+  let held: DiagramPagesLayout | null = null;
+  for (let pass = 0; pass < MEASURE_PASSES; pass += 1) {
+    const drawn = scalesOf(pages);
+    if (drawn.size === 0) return pages;
+    // Every picture measured at the scale these pages drew it at.
+    const steps = diagramLayoutSteps(document, (stepId) => drawn.get(stepId)?.measure ?? null);
+    if (holdsEvery(pages, steps)) held = pages;
+    const next = layout(steps);
+    const got = scalesOf(next);
+    const settled =
+      got.size === drawn.size &&
+      [...got].every(([stepId, { scale }]) => {
+        const was = drawn.get(stepId);
+        return was !== undefined && Math.abs(scale - was.scale) <= MEASURE_SETTLED * scale;
+      });
+    pages = next;
+    if (settled) return pages;
   }
-  return pages;
+  return held ?? pages;
+}
+
+/** Whether each cell's room holds its picture with its marks, measured (`steps`) at the scale it is drawn at. */
+function holdsEvery(pages: DiagramPagesLayout, steps: readonly LayoutStep[]): boolean {
+  const byId = new Map(steps.map((step) => [step.id, step]));
+  return pages.pages.every((page) =>
+    page.cells.every((cell) => {
+      const scale = cell.mmPerUnit ?? cell.frameMm;
+      const picture = byId.get(cell.stepId)?.picture;
+      if (scale === null || !picture) return true;
+      const fit = pictureFit(picture, cell.drawMm.w, cell.drawMm.h);
+      return fit !== null && fit >= scale * (1 - MEASURE_SETTLED);
+    })
+  );
 }
 
 /** The scale each step's picture is drawn at, by its step, and the measure that is. */
@@ -129,24 +144,6 @@ function scalesOf(pages: DiagramPagesLayout): Map<string, { scale: number; measu
     else if (cell.frameMm !== null) scales.set(cell.stepId, { scale: cell.frameMm, measure: { frameMm: cell.frameMm } });
   }
   return scales;
-}
-
-function withScale(measure: PictureMeasure, scale: number): PictureMeasure {
-  if (measure === null) return null;
-  return 'mmPerUnit' in measure ? { mmPerUnit: scale } : { frameMm: scale };
-}
-
-/**
- * Where a step's scale settles — the scale its marks, measured at it, give
- * back — from its last two tries: the secant's root, held between half and
- * one and a half times the latest result. The latest result alone with one try.
- */
-function fixedPoint(before: { at: number; got: number } | undefined, last: { at: number; got: number }): number {
-  if (!before) return last.got;
-  const [f0, f1] = [before.got - before.at, last.got - last.at];
-  const root = last.at - (f1 * (last.at - before.at)) / (f1 - f0);
-  if (!Number.isFinite(root) || root <= 0) return last.got;
-  return Math.min(1.5 * last.got, Math.max(0.5 * last.got, root));
 }
 
 /**

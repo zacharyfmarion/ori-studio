@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { PT_PER_MM } from '../../lib/paper/paperSvg';
+import { mmToCssPx, PT_PER_MM } from '../../lib/paper/paperSvg';
 import { createStep, DEFAULT_DIAGRAM_STYLE, type DiagramStep, type KnownDiagramAsset } from '../document/diagramDocument';
 import { cpStep, fixedPicture, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
 import type { FontMetrics } from '../fonts/fontMetrics';
 import { sanitizeSvg, SVG_NS } from '../upload/svgSanitize';
+import { stepDiagramScene } from '../pictures/paintStepDiagram';
+import { pictureExtent } from './diagramPageLayout';
 import { estimateTextSetter } from './estimateTextSetter';
 import { fontTextSetter } from './fontTextSetter';
 import { cellPicture, layoutPicture, prefixIds, type PictureText } from './pagePictures';
@@ -56,14 +58,16 @@ describe('layoutPicture', () => {
     const atCard = layoutPicture(step, {}, style);
     const small = layoutPicture(step, {}, style, { mmPerUnit: 10 });
     if (atCard?.kind !== 'paper' || small?.kind !== 'paper') throw new Error('paper');
-    // A unit sheet in the margin its scene keeps around it, which grows with it.
+    // A unit sheet in the margin its scene keeps around it, which grows with it: on a card its letters lie within it.
     expect(atCard.frame.width).toBeCloseTo(1, 9);
     expect(atCard.width).toBeCloseTo(1.25, 6);
-    expect(small.width).toBeCloseTo(atCard.width, 6);
-    // Its letters keep their pt size: within that margin on a card, a mm or two past it on a 10 mm sheet.
-    expect(atCard.marks.width).toBe(0);
-    expect(small.marks.width).toBeGreaterThan(1);
-    expect(small.marks.width).toBeLessThan(4);
+    expect(atCard.marks.width).toBeCloseTo(0, 9);
+    // On a 10 mm sheet a letter, at its pt size, reaches past the margin: the reach measured there is the drawing's.
+    if (step.picture?.kind !== 'step-diagram') throw new Error('References');
+    const { bounds } = stepDiagramScene(step.picture.model, step.picture.mirrored, style, 10);
+    const drawn = (bounds.maxX - bounds.minX) / mmToCssPx(1);
+    expect(drawn).toBeGreaterThan(12.5 + 1);
+    expect(pictureExtent(small, 10).width).toBeCloseTo(drawn, 6);
   });
 
   it('measures what an annotation reaches past any picture, one with no paper too', () => {
@@ -194,9 +198,10 @@ describe('cellPicture', () => {
 
     it('leaves a picture at the shared scale at it, and the layout leaves it room', () => {
       const step = annotated(bitmapStep(100));
-      const reach = layoutPicture(step, assets, style, { mmPerUnit: 5 });
-      const bare = layoutPicture(bitmapStep(100), assets, style, { mmPerUnit: 5 });
-      expect(reach?.kind === 'paper' && bare?.kind === 'paper' && reach.width > bare.width * 1.3).toBe(true);
+      const reach = layoutPicture(step, assets, style, { mmPerUnit: 5 })!;
+      const bare = layoutPicture(bitmapStep(100), assets, style, { mmPerUnit: 5 })!;
+      // The push out to its left: the picture with its marks is wider than the picture by more than its tail.
+      expect(pictureExtent(reach, 5).width).toBeGreaterThan(pictureExtent(bare, 5).width * 1.3);
       const plain = cellPicture(bitmapStep(100), assets, style, { ...cell, mmPerUnit: 5 }, 'c0-', TEXT)!;
       const picture = cellPicture(step, assets, style, { ...cell, mmPerUnit: 5 }, 'c0-', TEXT)!;
       const width = (markup: string) => Number(/ width="([\d.]+)"/.exec(markup)![1]);

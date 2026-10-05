@@ -55,9 +55,13 @@ const UNSIZED: NonNullable<LayoutStep['picture']> = {
 
 /**
  * A frame so large, in mm, that what a mark keeps at its pt size is nothing
- * beside it: a picture measured at it reaches only as far as its marks lie.
+ * beside it: a picture measured at it reaches only as far as its marks lie,
+ * and grows as fast as it ever can.
  */
 const GROWN_MM = 1e6;
+
+/** How much smaller than its printed size a picture is measured again, for how its reach grows there. */
+const MEASURE_NEAR = 0.05;
 
 /** The size a References step's picture is measured at for its shape: any size does. */
 const MEASURE_SHEET_MM = 50;
@@ -178,13 +182,16 @@ function stepDiagramBoxes(picture: DiagramStepDiagramPicture, style: DiagramStyl
  * frame's longer side; and the frame alone.
  *
  * A mark is in part where it is on the picture, which grows with it, and in
- * part its pen and its head, its letter, its glyph, which keep their pt size.
- * So the picture is measured twice: at a size so large that the pt-sized
- * part is nothing (`width`, `height`, which grow with the scale), and at the
- * size it prints at (`measure`, a first layout's, else a card's), the
- * difference being what reaches past that in mm (`marks`). The picture with
- * its marks is then `width × scale + marks.width` across, at any scale near
- * the one measured.
+ * part its pen and its head, its letter, its glyph, which keep their pt size;
+ * and a glyph larger than the paper hides the paper's growth until the paper
+ * outgrows it. So the reach is a line only near a scale: the picture is
+ * measured at the size it prints at (`measure`, a first layout's, else a
+ * card's) and a little smaller, for how fast its reach grows there (`width`,
+ * `height`, in its units — held between nothing and how fast it grows at a
+ * vast size, the most it can) and what it reaches past that line at no size
+ * (`marks`, mm). The picture with its marks is `width × scale + marks.width`
+ * across at the scale measured, exactly, and near it; never less than its
+ * frame (`pictureExtent`).
  */
 export function layoutPicture(
   step: DiagramStep,
@@ -205,36 +212,39 @@ export function layoutPicture(
   /**
    * The picture measured by `at(frameMm)`, which gives the frame and what it
    * reaches with its marks, in px, its frame `frameMm` across its longer
-   * side: at the size it prints and at the size that makes its marks' pt
-   * nothing.
+   * side: at the size it prints, a little smaller, and at a vast size.
    */
   const measured = (units: number | null, at: (frameMm: number) => { frame: Rect; reached: Rect } | null) => {
     const printed = at(frameMm(units));
+    const near = at(frameMm(units) * (1 - MEASURE_NEAR));
     const vast = at(GROWN_MM);
-    if (!printed || !vast) return UNSIZED;
+    if (!printed || !near || !vast) return UNSIZED;
     const paper = units !== null && units > 0 && Number.isFinite(units);
     const unitsAcross = paper ? units : 1;
-    // In the picture's units per px of the printed measure.
-    const perPrinted = unitsAcross / longerOf(printed.frame);
-    // What grows with the picture along one side, in px of the printed measure:
-    // as a share of the frame's side, so a picture reaching no further than its
-    // frame has nothing past it, exactly.
-    const grown = (side: 'width' | 'height') =>
-      vast.frame[side] > 0
-        ? printed.frame[side] * (vast.reached[side] / vast.frame[side])
-        : (vast.reached[side] / longerOf(vast.frame)) * longerOf(printed.frame);
-    const width = grown('width');
-    const height = grown('height');
+    const across = longerOf(printed.frame);
+    const nearAcross = longerOf(near.frame);
     const mmPerPx = 1 / mmToCssPx(1);
+    /**
+     * How the reach grows along one side, per px of the frame's longer side,
+     * and what it reaches past that line at none, in px; a picture reaching
+     * no further than its frame is its frame, exactly.
+     */
+    const line = (side: 'width' | 'height') => {
+      if (printed.reached[side] === printed.frame[side] && near.reached[side] === near.frame[side]) {
+        return { grows: printed.frame[side] / across, beyond: 0 };
+      }
+      const most = vast.reached[side] / longerOf(vast.frame);
+      const slope = (printed.reached[side] - near.reached[side]) / (across - nearAcross);
+      const grows = Number.isFinite(slope) ? Math.min(most, Math.max(0, slope)) : most;
+      return { grows, beyond: printed.reached[side] - grows * across };
+    };
+    const [wide, tall] = [line('width'), line('height')];
     return {
       kind: paper ? ('paper' as const) : ('fit' as const),
-      width: width * perPrinted,
-      height: height * perPrinted,
-      frame: { width: printed.frame.width * perPrinted, height: printed.frame.height * perPrinted },
-      marks: {
-        width: Math.max(0, printed.reached.width - width) * mmPerPx,
-        height: Math.max(0, printed.reached.height - height) * mmPerPx,
-      },
+      width: wide.grows * unitsAcross,
+      height: tall.grows * unitsAcross,
+      frame: { width: (printed.frame.width / across) * unitsAcross, height: (printed.frame.height / across) * unitsAcross },
+      marks: { width: wide.beyond * mmPerPx, height: tall.beyond * mmPerPx },
     };
   };
   /** A frame `width` × `height`, `units` pattern units across its longer side when known, with its annotations. */
