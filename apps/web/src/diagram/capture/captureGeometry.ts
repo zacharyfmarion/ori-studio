@@ -47,13 +47,21 @@ export function sceneBoundsOf(items: readonly PaperItem[]): SceneBounds {
 }
 
 /**
+ * The step a stored scene's coordinates are rounded to on a sheet `sheet` px
+ * across: 0.01 scene px on a sheet of 400 px or more, and finer on a smaller
+ * one, so no sheet loses its shape to it.
+ */
+export function storedSceneStep(sheet: number): number {
+  return Math.min(0.01, Math.max(sheet, 1e-9) / 40_000);
+}
+
+/**
  * A scene as a step keeps it (D2): nothing hidden — a page never shows a buried
- * face — no markup, and every coordinate to a fixed step, so the stored string
- * carries no float noise. The step is 0.01 scene px on a sheet of 400 px or
- * more, and finer on a smaller one, so no sheet loses its shape to it.
+ * face — no markup, and every coordinate to a fixed step
+ * ({@link storedSceneStep}), so the stored string carries no float noise.
  */
 export function storableScene(scene: PaperScene): PaperScene {
-  const step = Math.min(0.01, Math.max(scene.sheet, 1e-9) / 40_000);
+  const step = storedSceneStep(scene.sheet);
   const snap = (value: number) => {
     const snapped = Math.round(value / step) * step;
     // Round off the division's own noise, and never write -0.

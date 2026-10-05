@@ -9,6 +9,7 @@
  * Pure: no DOM, no store.
  */
 import { meanValueWeights } from '../../cp-workspace/folded/foldedLayerSpread';
+import { storedSceneStep } from '../capture/captureGeometry';
 import { boundariesMatchMoved, isRelativeFingerprint } from '../../cp-workspace/regions/regionIdentity';
 import { turnClockwise } from '../../lib/geometry';
 import type { PaperFaceItem, PaperScene, SceneBounds, ScenePoint } from '../../lib/paper/paperScene';
@@ -197,7 +198,10 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
   const [from, to] = [before.bounds, after.bounds];
   const longerFrom = Math.max(from.maxX - from.minX, from.maxY - from.minY);
   const longerTo = Math.max(to.maxX - to.minX, to.maxY - to.minY);
-  const epsilon = 1e-9 * longerFrom;
+  // Two of the stored grid's steps: a turn by less than a quarter carries a
+  // mark exactly, but the turned picture's corners are rounded to the grid,
+  // so a mark snapped to one lies that far off it.
+  const epsilon = Math.max(1e-9 * longerFrom, 2 * storedSceneStep(before.sheet));
   return {
     ...turn,
     // A direction goes as the turn takes it, whatever the spread does to the face round it.

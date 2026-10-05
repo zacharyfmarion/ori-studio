@@ -141,8 +141,14 @@ export const MAX_PATH_NODES = 24;
  */
 export const RIGHT_ANGLE_DIAGONAL = 0.02;
 
-/** How far inside its angle a right angle's corner is carried by a spread, in picture units: off every edge, on its face. */
-const CORNER_NUDGE = 1e-6;
+/**
+ * How far inside its angle a right angle's corner is carried by a spread, in
+ * picture units: off every edge, on its face, and clear of the stored grid's
+ * rounding, which the carry counts as on a corner. A depth spread moves a face
+ * whole and takes it back exactly; an affine one costs about this times its
+ * amount.
+ */
+const CORNER_NUDGE = 1e-3;
 
 const clampReach = (value: number) => Math.min(ANNOTATION_REACH, Math.max(-ANNOTATION_REACH, value));
 

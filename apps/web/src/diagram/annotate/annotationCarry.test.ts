@@ -15,6 +15,7 @@ import {
   type KnownDiagramAnnotation,
   type QuarterTurns,
 } from '../document/diagramDocument';
+import { storableScene } from '../capture/captureGeometry';
 import { storedSceneJson } from '../document/diagramFile';
 import { cpSource, cpStep, referencesStep, scenePicture, stepsIn } from '../document/diagramSteps.fixtures';
 import { storedScene } from '../pictures/pictureFrame';
@@ -332,6 +333,72 @@ describe('a linked picture turned about its middle', () => {
       close((moved.annotations[0] as KnownDiagramAnnotation).from, picturePoint(sceneAfter, [sheetCorner![0] - 30, sheetCorner![1] - 30]));
       close((moved.annotations[1] as KnownDiagramAnnotation).from, picturePoint(sceneAfter, flapCorner!));
       expect(moved.annotatedPictureKey).toBe('scene-90');
+    });
+
+    it('carries marks on corners through a turn by less than a quarter, then a spread, as through both at once, though the turn rounds the corners to the stored grid (review)', () => {
+      const square = (lo: number, hi: number): ScenePoint[] => [
+        [lo, lo],
+        [hi, lo],
+        [hi, hi],
+        [lo, hi],
+      ];
+      const [sheet, flap] = [square(0, 100), square(20, 60)];
+      /** The flap over the sheet turned by `degrees`, the sheet stepped by `step` on the screen, stored as a capture stores it. */
+      const posed = (degrees: number, step: number) => {
+        const turn = turnClockwise(degrees);
+        const point = ([x, y]: ScenePoint): ScenePoint => [turn({ x, y }).x, turn({ x, y }).y];
+        const stepped = ([x, y]: ScenePoint): ScenePoint => [x - step, y - step];
+        const scene = storableScene(sceneOf([face([sheet.map(point).map(stepped)], { face: 0 }), face([flap.map(point)], { face: 1 })]));
+        return { scene, sheetCorner: (corner: ScenePoint) => stepped(point(corner)), flapCorner: point };
+      };
+      const picture = (scene: PaperScene, key: string) => ({ ...scenePicture(), sceneJson: storedSceneJson(scene)!, key });
+      const picturePoint = ({ bounds }: PaperScene, [x, y]: ScenePoint): [number, number] => {
+        const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+        return [(x - bounds.minX) / span, (y - bounds.minY) / span];
+      };
+      const [flat, turned15, spread15] = [posed(0, 0), posed(15, 0), posed(15, 30)];
+      // A circle on each of the flap's corners and the sheet's, and a right angle in each of the flap's, opening into it.
+      const opening = ([x, y]: ScenePoint): [number, number] => [40 - x, 40 - y];
+      const marks: KnownDiagramAnnotation[] = [
+        ...flap.map((corner, index): KnownDiagramAnnotation => {
+          const at = picturePoint(flat.scene, corner);
+          return { id: `flap-${index}`, kind: 'circle', from: at, to: at };
+        }),
+        ...sheet.map((corner, index): KnownDiagramAnnotation => {
+          const at = picturePoint(flat.scene, corner);
+          return { id: `sheet-${index}`, kind: 'circle', from: at, to: at };
+        }),
+        ...flap.map((corner, index): KnownDiagramAnnotation => ({
+          id: `angle-${index}`,
+          kind: 'right-angle',
+          ...rightAngleAt(picturePoint(flat.scene, corner), opening(corner)),
+        })),
+      ];
+      const document = annotated(cpStep('step-1', FLAT, picture(flat.scene, 'flat')), marks);
+      const spreadOn = { source: cpSource({ ...FLAT, rotationDeg: 15, spread: SPREAD }), picture: picture(spread15.scene, 'both') };
+      const once = setLinkedPicture(document, 'step-1', spreadOn).steps[0] as DiagramStep;
+      const turnedFirst = setLinkedPicture(document, 'step-1', {
+        source: cpSource({ ...FLAT, rotationDeg: 15 }),
+        picture: picture(turned15.scene, 'turned'),
+      });
+      const twice = setLinkedPicture(turnedFirst, 'step-1', spreadOn).steps[0] as DiagramStep;
+      // Within the stored grid's rounding of the corners: a quarter of a thousandth of the picture.
+      const near = (point: readonly number[], expected: readonly number[], what: string) =>
+        point.forEach((value, index) => expect(Math.abs(value - expected[index]!), what).toBeLessThan(2.5e-4));
+      const turn = turnClockwise(15);
+      for (const [path, step] of [['once', once], ['twice', twice]] as const) {
+        const carried = (id: string) => step.annotations.find((it) => it.id === id) as KnownDiagramAnnotation;
+        flap.forEach((corner, index) => {
+          near(carried(`flap-${index}`).from, picturePoint(spread15.scene, spread15.flapCorner(corner)), `${path} flap ${index}`);
+          near(carried(`angle-${index}`).from, picturePoint(spread15.scene, spread15.flapCorner(corner)), `${path} angle ${index}`);
+          const way = turn({ x: opening(corner)[0], y: opening(corner)[1] });
+          const length = Math.hypot(way.x, way.y);
+          near(rightAngleDiagonal(carried(`angle-${index}`)), [way.x / length, way.y / length], `${path} angle ${index} opening`);
+        });
+        sheet.forEach((corner, index) => {
+          near(carried(`sheet-${index}`).from, picturePoint(spread15.scene, spread15.sheetCorner(corner)), `${path} sheet ${index}`);
+        });
+      }
     });
 
     it('moves a callout with the face under its point, its box keeping its place beside it', () => {
