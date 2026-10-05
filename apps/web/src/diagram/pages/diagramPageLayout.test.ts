@@ -290,6 +290,9 @@ describe('scaleRuns', () => {
     expect(scales(each([...fill(40, 1), ...fill(40, 1.1)]))).toEqual(fill(80, 1));
     // Nor where the scale past it would have been snapped to the one before it.
     expect(scales(each([...fill(60, 1), ...fill(60, 1.06)]))).toEqual(fill(120, 1));
+    // Nor snapped there after the cut: a step a zoom under the run before it is not snapped down to a
+    // scale near that, more than a zoom under its own fit (review 4).
+    expect(scales(each([...fill(10, 0.73), ...fill(10, 0.3), ...fill(50, 1), 0.97])).at(-1)).toBeCloseTo(1 / FIT_ZOOM, 9);
 
     // Phases of a model changing size, each step a little off: a run is drawn under both its
     // neighbours only where a picture in it needs the room.
@@ -317,6 +320,10 @@ describe('scaleRuns', () => {
         const lower = Math.min(drawn[left.from]!, drawn[right.from]!);
         if (!(drawn[run.from]! < lower)) return;
         expect(Math.min(...values.slice(run.from, run.to)), `trial ${trial}, steps ${run.from}–${run.to}`).toBeLessThan(lower);
+      });
+      // And no run a whole zoom under its own smallest picture, snapped or not (review 4).
+      runs.forEach((run) => {
+        expect(Math.min(...values.slice(run.from, run.to)) / drawn[run.from]!, `trial ${trial}, steps ${run.from}–${run.to}`).toBeLessThan(FIT_ZOOM);
       });
     }
   });

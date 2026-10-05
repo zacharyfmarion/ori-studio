@@ -481,8 +481,10 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
   // Near enough is one, wherever in the diagram: each scale joins the
   // smallest within FIT_SAME below it that leads its own, so a chain of near
   // scales does not drift down. A run takes it only where it still reads as a
-  // zoom from each neighbour, as drawn and as snapped — every run decided at
-  // once, so the answer does not depend on which end is read first.
+  // zoom from each neighbour, as drawn and as snapped, and is still less than
+  // a whole zoom under its own smallest picture, as the cut keeps it — every
+  // run decided at once, so the answer does not depend on which end is read
+  // first.
   const leaders = new Map<number, number>();
   let leader = -Infinity;
   for (const scale of [...new Set(runs.map(({ scale }) => scale))].sort((a, b) => a - b)) {
@@ -491,8 +493,15 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
   }
   const reads = (a: number, b: number) => a === b || Math.max(a, b) / Math.min(a, b) >= FIT_ZOOM * (1 - 1e-9);
   const snapped = runs.map(({ scale }) => leaders.get(scale)!);
-  const taken = runs.map((_, k) =>
-    [k - 1, k + 1].every((n) => n < 0 || n >= runs.length || (reads(snapped[k]!, runs[n]!.scale) && reads(snapped[k]!, snapped[n]!)))
+  const holds = runs.map(({ from, to }, k) => {
+    let smallest = Infinity;
+    for (let i = from; i < to; i += 1) smallest = Math.min(smallest, logs[i]!);
+    return Math.log(snapped[k]!) > smallest - apart;
+  });
+  const taken = runs.map(
+    (_, k) =>
+      holds[k]! &&
+      [k - 1, k + 1].every((n) => n < 0 || n >= runs.length || (reads(snapped[k]!, runs[n]!.scale) && reads(snapped[k]!, snapped[n]!)))
   );
   runs.forEach((run, k) => {
     if (taken[k]) run.scale = snapped[k]!;
