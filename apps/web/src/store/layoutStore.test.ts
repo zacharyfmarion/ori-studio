@@ -696,6 +696,7 @@ describe('the View pane under a coarse pointer', () => {
       ['references', 'references-view-controls', 'references'],
       ['diagram', 'diagram-step', 'diagram'],
       ['diagram', 'diagram-page', 'diagram'],
+      ['diagram', 'diagram-layers', 'diagram'],
     ]);
   });
 
@@ -715,6 +716,33 @@ describe('the View pane under a coarse pointer', () => {
       })
     );
     expect([...api.panelMap.keys()]).toEqual(['references', 'references-view-controls']);
+  });
+
+  it('gives a diagram layout saved before the Layers pane its tab, behind Step and Page', () => {
+    // Layers arrived without a `LAYOUT_VERSION` bump: a layout saved with Step
+    // and Page gains it on the reconcile that follows any restore, as the
+    // selection's pane after the others, and Step stays on top.
+    const api = createDockviewApi();
+    api.fromJSON(
+      dockviewLayout('branch', [], [
+        { id: '1', views: ['diagram'], hideHeader: true },
+        { id: '2', views: ['diagram-step', 'diagram-page'] },
+      ])
+    );
+    api.getPanel('diagram-step')!.api.setActive();
+
+    reconcileSidePanes(api, 'diagram', false);
+
+    expect(api.addPanel).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: 'diagram-layers',
+        title: 'Layers',
+        position: { referenceGroup: api.groupMap.get('2') },
+        inactive: true,
+      })
+    );
+    expect([...api.panelMap.keys()]).toEqual(['diagram', 'diagram-step', 'diagram-page', 'diagram-layers']);
+    expect(api.activePanel?.id).toBe('diagram-step');
   });
 
   it('keeps the active editing context on the primary pane', () => {

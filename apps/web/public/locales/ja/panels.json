@@ -790,7 +790,6 @@
       "lineEnd": "終点",
       "lineStart": "始点",
       "lineType": "線種",
-      "list": "注記",
       "newer": "このステップの注記の一部は、新しい Ori Studio で作られています。保持されますが、ここには表示されません。",
       "nextNode": "次のノード",
       "node": "ノード",
@@ -906,6 +905,10 @@
       "uploadPictures": "図をアップロード…"
     },
     "label": "折り図",
+    "layers": {
+      "empty": "ステップを注記で開くと、そのレイヤーが表示されます。",
+      "list": "レイヤー"
+    },
     "pagePane": {
       "columns": "列",
       "exportStyle": "設定の書き出しスタイル",
@@ -1603,6 +1606,7 @@
     "label": "折り紙パターン"
   },
   "sidePane": {
+    "layers": "レイヤー",
     "page": "ページ",
     "properties": "プロパティ",
     "settings": "設定",

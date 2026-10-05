@@ -20,6 +20,9 @@ vi.mock('./panels/SimulatorViewControlsPanel', () => ({
 vi.mock('./panels/ReferencesViewControlsPanel', () => ({
   ReferencesViewControlsPanel: () => <p>references view controls</p>,
 }));
+vi.mock('./panels/DiagramStepPanel', () => ({ DiagramStepPanel: () => <p>diagram step</p> }));
+vi.mock('./panels/DiagramPagePanel', () => ({ DiagramPagePanel: () => <p>diagram page</p> }));
+vi.mock('./panels/DiagramLayersPanel', () => ({ DiagramLayersPanel: () => <p>diagram layers</p> }));
 
 const analytics = vi.hoisted(() => ({ track: vi.fn() }));
 
@@ -30,6 +33,7 @@ vi.mock('../analytics', async (importOriginal) => {
 
 import { useLayoutStore } from '../store/layoutStore';
 import { requestSidePane } from '../store/sidePaneRequests';
+import { useWorkspaceStore } from '../store/workspaceStore';
 import { WorkspaceViewDrawer } from './WorkspaceViewDrawer';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -127,6 +131,7 @@ afterEach(() => {
   mediaListeners.clear();
   vi.unstubAllGlobals();
   useLayoutStore.setState(initialLayoutState, true);
+  useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
 
 describe('the workspace View drawer', () => {
@@ -398,6 +403,35 @@ describe('the workspace View drawer', () => {
 
     expect(dialog()).toBeNull();
     expect(trigger()).toBeNull();
+  });
+
+  it('opens the Diagram’s sheet on Layers with a mark selected, as Edit’s opens on Properties', () => {
+    seatSlot();
+    useLayoutStore.setState({ activeWorkspace: 'diagram' });
+    const store = useWorkspaceStore.getState;
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30" viewBox="0 0 40 30"/>';
+    act(() => {
+      store().addDiagramPictures([{ id: 'asset-1', kind: 'svg', svg, widthPx: 40, heightPx: 30, bytes: svg.length }]);
+    });
+    const stepId = store().diagramSelectedStepId!;
+    act(() => {
+      store().editDiagramAnnotations(stepId, 'Add annotation', () => [{ id: 'a-1', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5] }]);
+      store().openDiagramStep(stepId, 'annotate');
+    });
+    render();
+
+    // Nothing selected: the pane last shown, the column's lead.
+    press(seated());
+    expect(tab('Step')?.getAttribute('aria-pressed')).toBe('true');
+    expect(tab('Layers')).toBeDefined();
+    press(tab('Page'));
+    pressEscape();
+
+    act(() => store().selectDiagramAnnotation('a-1'));
+    press(seated());
+    expect(tab('Layers')?.getAttribute('aria-pressed')).toBe('true');
+    expect(dialog()?.textContent).toContain('diagram layers');
+    expect(analytics.track).toHaveBeenLastCalledWith('view drawer opened', { workspace: 'diagram', pane: 'diagram-layers' });
   });
 
   it('closes when the workspace changes under it', () => {

@@ -1002,6 +1002,16 @@ shows the composed page.**
   - in Pose: source, readouts, presets, Revert;
   - in Annotate: the tool's name and help, the annotation list, the selected
     label's text and **Flip arc**.
+- **Amended (Zach, 2026-10-05): a third pane, Layers.** "There should be a
+  separate Layers panel similar to properties in the edit workspace that
+  focuses when you select an item. It should contain the layer list and all
+  the actions shown below the layers." The list of what is drawn on the step
+  open in Annotate, and the selected mark's controls, are `diagram-layers`, a
+  tab after Page, brought forward when a mark is selected and giving back the
+  tab it covered when the mark is let go, as Edit's Properties does (one rule
+  for both, `store/sidePaneReveal.ts`); the touch drawer opens on it with a
+  mark selected. The Step pane keeps the Snap switch and the notice that the
+  picture changed. See `implementation-plans/diagram-layers-pane.md`.
 
 **D14. View state lives in the slice, outside history.**
 - **What lives there.** `diagramSlice` keeps, as UI fields:

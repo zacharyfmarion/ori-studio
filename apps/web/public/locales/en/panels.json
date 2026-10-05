@@ -820,7 +820,6 @@
       "lineEnd": "End",
       "lineStart": "Start",
       "lineType": "Type",
-      "list": "Annotations",
       "newer": "Some of this step’s annotations were made with a newer Ori Studio. They are kept, but not shown here.",
       "nextNode": "Next Node",
       "node": "Node",
@@ -940,6 +939,10 @@
       "uploadPictures": "Upload pictures…"
     },
     "label": "Diagram",
+    "layers": {
+      "empty": "Open a step in Annotate to see its layers.",
+      "list": "Layers"
+    },
     "pagePane": {
       "columns": "Columns",
       "exportStyle": "Export style from Settings",
@@ -1661,6 +1664,7 @@
     "label": "Crease patterns"
   },
   "sidePane": {
+    "layers": "Layers",
     "page": "Page",
     "properties": "Properties",
     "settings": "Settings",

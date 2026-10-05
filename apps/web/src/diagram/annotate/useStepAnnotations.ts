@@ -41,7 +41,9 @@ const NO_ANNOTATIONS: readonly KnownDiagramAnnotation[] = [];
 const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 /**
- * The Step pane's annotations (D13): what the selected step carries, which
+ * A step's annotations (D13), for the Step pane (the Snap switch, the notice
+ * that the picture changed) and the Layers pane (the list and the selected
+ * one's controls): what the selected step carries, which
  * one is selected, and the verbs on the selected one — its
  * text, its turn, its axis, a white arrow's look, a line's type, and the catalog's (`annotationActions.ts`: Flip
  * arc, Reset, Delete, and with Edit Path in hand the node verbs on the node

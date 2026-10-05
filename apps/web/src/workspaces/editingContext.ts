@@ -46,6 +46,7 @@ const STATIC_PANEL_CONTEXTS: Record<string, EditingContext> = {
   diagram: 'diagram',
   'diagram-step': 'diagram',
   'diagram-page': 'diagram',
+  'diagram-layers': 'diagram',
 };
 
 /**

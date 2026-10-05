@@ -16,6 +16,7 @@ import { ReferencesViewControlsPanel } from './ReferencesViewControlsPanel';
 import { DiagramPanel } from './DiagramPanel';
 import { DiagramStepPanel } from './DiagramStepPanel';
 import { DiagramPagePanel } from './DiagramPagePanel';
+import { DiagramLayersPanel } from './DiagramLayersPanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ConditionsPanel } from './ConditionsPanel';
 import { withPanelErrorBoundary } from '../errors/withPanelErrorBoundary';
@@ -39,6 +40,7 @@ const panels: Record<string, FC<IDockviewPanelProps>> = {
   diagram: DiagramPanel,
   'diagram-step': DiagramStepPanel,
   'diagram-page': DiagramPagePanel,
+  'diagram-layers': DiagramLayersPanel,
   diagnostics: DiagnosticsPanel,
   conditions: ConditionsPanel,
 };

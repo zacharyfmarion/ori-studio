@@ -233,6 +233,14 @@ const WORKSPACE_SIDE_PANES = {
       referencePanelId: 'diagram',
       placement: { kind: 'tab-of', leadId: 'diagram-step' },
     },
+    // The selection's pane, last, as Edit's Properties is.
+    {
+      id: 'diagram-layers',
+      component: 'diagram-layers',
+      role: 'properties',
+      referencePanelId: 'diagram',
+      placement: { kind: 'tab-of', leadId: 'diagram-step' },
+    },
   ],
 } as const satisfies Partial<Record<WorkspaceId, readonly SidePaneDefinition[]>>;
 
@@ -275,9 +283,11 @@ export function drawerTriggerFor(workspace: WorkspaceId): 'lane' | 'slot' {
  */
 export function sidePaneTitle(spec: SidePaneSpec): string {
   // The Diagram's panes are named for what each holds, since they sit side by
-  // side as tabs: the selected step, and the page setup.
+  // side as tabs: the selected step, the page setup, and what is drawn on the
+  // step open in Annotate.
   if (spec.id === 'diagram-step') return i18n.t('panels:sidePane.step', 'Step');
   if (spec.id === 'diagram-page') return i18n.t('panels:sidePane.page', 'Page');
+  if (spec.id === 'diagram-layers') return i18n.t('panels:sidePane.layers', 'Layers');
   switch (spec.role) {
     case 'view':
       return i18n.t('panels:sidePane.view', 'View');

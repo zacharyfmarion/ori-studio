@@ -11,19 +11,12 @@ import {
 import { publishOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { ANNOTATE_TOOL_GROUPS, annotateToolHelp } from '../../diagram/annotate/annotateTools';
-import { angleMarkAt } from '../../diagram/annotate/annotationModel';
 import i18n from '../../i18n';
 import { STORAGE_KEYS, storageKey } from '../../lib/storage';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramStepPanel } from './DiagramStepPanel';
-
-const tracked = vi.hoisted(() => ({ trackDiagramAnnotationBehind: vi.fn() }));
-vi.mock('../../analytics', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../analytics')>()),
-  trackDiagramAnnotationBehind: tracked.trackDiagramAnnotationBehind,
-}));
 
 /**
  * The Step pane through the store: what it says with nothing selected, and
@@ -449,9 +442,6 @@ describe('DiagramStepPanel in Annotate', () => {
     });
     return stepId;
   }
-  const annotations = () => stepsIn(state().diagram!)[0]!.annotations as { id: string; bend?: number; text?: string; rotate?: unknown }[];
-  const row = (name: string) =>
-    [...(host?.querySelectorAll<HTMLButtonElement>('ul button') ?? [])].find((candidate) => candidate.textContent === name)!;
   const buttonNamed = (name: string) =>
     [...(host?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((candidate) => candidate.textContent?.trim() === name)!;
 
@@ -463,333 +453,13 @@ describe('DiagramStepPanel in Annotate', () => {
     expect(state().diagramSelectedStepId).toBe(stepId);
   });
 
-  it('lists them, selects one with a press, and offers its own controls', () => {
+  it('leaves the list and the selected one’s controls to the Layers pane', () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));
-    // A row pressed with a drawing tool in hand puts Select back, to move what it selected.
-    act(() => state().setDiagramAnnotateTool('line'));
-    act(() => row('Valley Fold Arrow').click());
-    expect(state().diagramSelectedAnnotationId).toBe('a-1');
-    expect(state().diagramAnnotateTool).toBeNull();
-    expect(row('Valley Fold Arrow').getAttribute('aria-pressed')).toBe('true');
-    act(() => buttonNamed('Flip Arc').click());
-    expect(annotations()[0]!.bend).toBe(-0.1);
-    act(() => row('Rotate').click());
-    act(() => buttonNamed('1/2').click());
-    expect(annotations()[2]!.rotate).toEqual({ amount: 'half', direction: 'cw' });
-    act(() => buttonNamed('Delete').click());
-    expect(annotations().map((annotation) => annotation.id)).toEqual(['a-1', 'a-2']);
-    expect(state().diagramSelectedAnnotationId).toBeNull();
-  });
-
-  it('makes a selected line another type with Type, the same line, as one undo step (15a)', () => {
-    const stepId = annotatedStep();
-    act(() => {
-      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
-        ...list,
-        { id: 'l-1', kind: 'valley-line', from: [0.1, 0.6], to: [0.7, 0.6] },
-      ]);
-      state().openDiagramStep(stepId, 'annotate');
-    });
-    act(() => row('Valley Line').click());
-    const type = () => host!.querySelector('[role="group"][aria-label="Type"]')!;
-    const option = (name: string) => [...type().querySelectorAll<HTMLButtonElement>('button')].find((button) => button.getAttribute('aria-label') === name)!;
-    expect(option('Valley').getAttribute('aria-pressed')).toBe('true');
-    const past = state().diagramHistory.past.length;
-    act(() => option('Mountain').click());
-    expect(annotations().find((annotation) => annotation.id === 'l-1')).toEqual({
-      id: 'l-1',
-      kind: 'mountain-line',
-      from: [0.1, 0.6],
-      to: [0.7, 0.6],
-    });
-    expect(state().diagramHistory.past).toHaveLength(past + 1);
-    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change line type');
-    // Not a line: no Type.
-    act(() => row('Valley Fold Arrow').click());
-    expect(host!.querySelector('[role="group"][aria-label="Type"]')).toBeNull();
-  });
-
-  it('gives an equal-angle mark more ticks with Ticks, one when it says none, as one undo step (15b)', () => {
-    const stepId = annotatedStep();
-    const mark = angleMarkAt([0.5, 0.7], [0.4, 0.6], [0.5, 0.6])!;
-    act(() => {
-      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
-        ...list,
-        { id: 'm-1', kind: 'angle-mark', ...mark },
-      ]);
-      state().openDiagramStep(stepId, 'annotate');
-    });
-    act(() => row('Equal Angles').click());
-    const ticks = () => [...host!.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Ticks"] button')];
-    const tick = (count: string) => ticks().find((option) => option.textContent?.trim() === count)!;
-    expect(ticks().map((option) => option.textContent?.trim())).toEqual(['1', '2', '3']);
-    expect(tick('1').getAttribute('aria-pressed')).toBe('true');
-    const past = state().diagramHistory.past.length;
-    act(() => tick('2').click());
-    expect(annotations().find((annotation) => annotation.id === 'm-1')).toEqual({ id: 'm-1', kind: 'angle-mark', ...mark, ticks: 2 });
-    expect(state().diagramHistory.past).toHaveLength(past + 1);
-    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change angle mark');
-    // Not an angle mark: no Ticks.
-    act(() => row('Valley Fold Arrow').click());
-    expect(ticks()).toEqual([]);
-  });
-
-  it('gives a pleat arrow more Zs with Kinks, one to five, and steps them to the other side with Flip, each one undo step (15c)', () => {
-    const stepId = annotatedStep();
-    act(() => {
-      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
-        ...list,
-        { id: 'p-1', kind: 'pleat-arrow', from: [0.6, 0.4], to: [0.2, 0.5] },
-      ]);
-      state().openDiagramStep(stepId, 'annotate');
-    });
-    act(() => row('Pleat Arrow').click());
-    const pleat = () => annotations().find((annotation) => annotation.id === 'p-1') as Record<string, unknown>;
-    const kinks = host!.querySelector<HTMLInputElement>('input[aria-label="Kinks"]')!;
-    // One when it says none.
-    expect(kinks.value).toBe('1');
-    const past = state().diagramHistory.past.length;
-    act(() => button('Increase Kinks')!.click());
-    expect(pleat().kinks).toBe(2);
-    expect(state().diagramHistory.past).toHaveLength(past + 1);
-    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change pleat arrow');
-    // No fewer than one, no more than five.
-    act(() => kinks.focus());
-    setField(kinks, '9');
-    act(() => kinks.blur());
-    expect(pleat().kinks).toBe(5);
-    // Flip, as it is named on a pleat arrow: its Zs to the other side, and back.
-    expect(buttonNamed('Flip Arc')).toBeUndefined();
-    act(() => buttonNamed('Flip').click());
-    expect(pleat().mirrored).toBe(true);
-    act(() => buttonNamed('Flip').click());
-    expect('mirrored' in pleat()).toBe(false);
-  });
-
-  it('flips the selected mark horizontally or vertically from its Flip row, each one undo step, and offers none on a label', () => {
-    const stepId = annotatedStep();
-    act(() => state().openDiagramStep(stepId, 'annotate'));
-    act(() => row('Valley Fold Arrow').click());
-    const arrow = () =>
-      annotations().find((annotation) => annotation.id === 'a-1') as unknown as { from: number[]; to: number[]; bend?: number };
-    // Two mirrors in the Flip row, each named in full.
-    const horizontal = button('Flip Horizontal')!;
-    const vertical = button('Flip Vertical')!;
-    expect(horizontal.querySelector('svg')).not.toBeNull();
-    expect(vertical.textContent).toBe('');
-    const past = state().diagramHistory.past.length;
-    act(() => vertical.click());
-    // About its middle: the same ends, bulging the other way.
-    expect(arrow()).toMatchObject({ from: [0.1, 0.2], to: [0.5, 0.2], bend: -0.1 });
-    expect(state().diagramHistory.past).toHaveLength(past + 1);
-    expect(state().diagramHistory.past.at(-1)?.label).toBe('Flip vertical');
-    act(() => horizontal.click());
-    expect(arrow().from[0]).toBeCloseTo(0.5, 12);
-    expect(arrow().to[0]).toBeCloseTo(0.1, 12);
-    expect(arrow().bend).toBe(0.1);
-    expect(state().diagramHistory.past).toHaveLength(past + 2);
-    // A label is its point, the same either way over.
-    act(() => row('B').click());
-    expect(button('Flip Horizontal')).toBeNull();
-  });
-
-  it('scales a close-up with Scale, by halves or to a hundredth, within its range, each one undo step (15f)', () => {
-    const stepId = annotatedStep();
-    act(() => {
-      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
-        ...list,
-        { id: 'z-1', kind: 'close-up', from: [0.5, 0.4], to: [1.2, 0.4], radius: 0.1, scale: 2 },
-      ]);
-      state().openDiagramStep(stepId, 'annotate');
-    });
-    act(() => row('Close-Up').click());
-    const closeUp = () => annotations().find((annotation) => annotation.id === 'z-1') as Record<string, unknown>;
-    const scale = host!.querySelector<HTMLInputElement>('input[aria-label="Scale"]')!;
-    expect(scale.value).toBe('2');
-    const past = state().diagramHistory.past.length;
-    act(() => button('Increase Scale')!.click());
-    expect(closeUp().scale).toBe(2.5);
-    expect(state().diagramHistory.past).toHaveLength(past + 1);
-    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change close-up');
-    act(() => scale.focus());
-    setField(scale, '3.333');
-    act(() => scale.blur());
-    expect(closeUp().scale).toBe(3.33);
-    act(() => scale.focus());
-    setField(scale, '40');
-    act(() => scale.blur());
-    expect(closeUp().scale).toBe(6);
-    // Nothing to flip, shape or put behind: its own controls are its scale and Delete.
-    expect(buttonNamed('Flip')).toBeUndefined();
-    expect(host!.querySelector('[role="group"][aria-label="Tail"]')).toBeNull();
-  });
-
-  it('puts an arrow’s tail and tip behind a flap and how deep, each one undo step, counted the first time (15e)', () => {
-    tracked.trackDiagramAnnotationBehind.mockClear();
-    const flat = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };
-    act(() => {
-      useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [cpStep('step-f', flat)] } });
-      state().editDiagramAnnotations('step-f', 'Add annotation', () => [
-        { id: 'a-1', kind: 'valley-arrow', from: [0.1, 0.2], to: [0.5, 0.2], bend: 0.1 },
-      ]);
-      state().openDiagramStep('step-f', 'annotate');
-    });
-    act(() => row('Valley Fold Arrow').click());
-    const side = (end: string, name: string) =>
-      [...host!.querySelectorAll<HTMLButtonElement>(`[role="group"][aria-label="${end}"] button`)].find(
-        (option) => option.textContent?.trim() === name
-      )!;
-    const arrow = () => stepsIn(state().diagram!)[0]!.annotations[0] as { behind?: unknown };
-    expect(side('Tail', 'In Front').getAttribute('aria-pressed')).toBe('true');
-    expect(host!.querySelector('input[aria-label="Under"]')).toBeNull();
-    const past = state().diagramHistory.past.length;
-    act(() => side('Tail', 'Behind').click());
-    expect(arrow().behind).toEqual({ from: 1 });
-    expect(state().diagramHistory.past).toHaveLength(past + 1);
-    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change behind');
-    expect(tracked.trackDiagramAnnotationBehind.mock.calls).toEqual([['valley_arrow', 'tail', '1']]);
-    // How deep, for every end behind; the other end goes behind as deep.
-    act(() => button('Increase Under')!.click());
-    expect(arrow().behind).toEqual({ from: 2 });
-    act(() => side('Tip', 'Behind').click());
-    expect(arrow().behind).toEqual({ from: 2, to: 2 });
-    act(() => side('Tail', 'In Front').click());
-    expect(arrow().behind).toEqual({ to: 2 });
-    // Counted once: when it first went behind.
-    expect(tracked.trackDiagramAnnotationBehind).toHaveBeenCalledTimes(1);
-    expect(host!.textContent).not.toContain('Only a folded picture knows its flaps.');
-  });
-
-  it('keeps a mark’s place in the folds off on a picture that knows no flaps, and says why (15e)', () => {
-    const stepId = annotatedStep();
-    act(() => state().openDiagramStep(stepId, 'annotate'));
-    act(() => row('Valley Fold Arrow').click());
-    const options = [...host!.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Tail"] button')];
-    expect(options).toHaveLength(2);
-    expect(options.every((option) => option.disabled)).toBe(true);
-    expect(host!.textContent).toContain('Only a folded picture knows its flaps.');
-  });
-
-  it('turns a right angle a quarter clockwise with Turn 90°, as one undo step', () => {
-    const stepId = annotatedStep();
-    act(() => {
-      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
-        ...list,
-        { id: 'a-4', kind: 'right-angle', from: [0.3, 0.3], to: [0.32, 0.3] },
-      ]);
-      state().openDiagramStep(stepId, 'annotate');
-    });
-    act(() => row('Right Angle').click());
-    expect(buttonNamed('Flip Arc')).toBeUndefined();
-    const past = state().diagramHistory.past.length;
-    act(() => buttonNamed('Turn 90°').click());
-    const turned = annotations()[3] as unknown as { from: [number, number]; to: [number, number] };
-    // Opening right, now down: clockwise on the page, about its corner.
-    expect(turned.from).toEqual([0.3, 0.3]);
-    expect(turned.to[0]).toBeCloseTo(0.3, 12);
-    expect(turned.to[1]).toBeCloseTo(0.32, 12);
-    expect(state().diagramHistory.past).toHaveLength(past + 1);
-  });
-
-  it('sets a white arrow’s width and tail, each one undo step, and shows the template’s for one that says none', () => {
-    const stepId = annotatedStep();
-    act(() => {
-      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
-        ...list,
-        { id: 'w-1', kind: 'white-arrow', from: [0.1, 0.6], to: [0.5, 0.6], path: [{ at: [0.1, 0.6] }, { at: [0.5, 0.6] }] },
-      ]);
-      state().openDiagramStep(stepId, 'annotate');
-    });
-    act(() => row('White Arrow').click());
-    const options = (group: string) => [...host!.querySelectorAll<HTMLButtonElement>(`[role="group"][aria-label="${group}"] button`)];
-    // Each option is a small arrow, named for a screen reader.
-    const segment = (group: string, name: string) => options(group).find((option) => option.getAttribute('aria-label') === name)!;
-    const checked = (group: string) =>
-      options(group)
-        .filter((option) => option.getAttribute('aria-pressed') === 'true')
-        .map((option) => option.getAttribute('aria-label'));
-    expect(checked('Width')).toEqual(['Regular']);
-    expect(checked('Tail')).toEqual(['Pointed']);
-    const past = state().diagramHistory.past.length;
-    act(() => segment('Width', 'Wide').click());
-    act(() => segment('Tail', 'Cleft').click());
-    const white = annotations().find((annotation) => annotation.id === 'w-1') as { width?: string; tail?: string };
-    expect(white).toMatchObject({ width: 'wide', tail: 'cleft' });
-    expect(state().diagramHistory.past).toHaveLength(past + 2);
-    expect(checked('Width')).toEqual(['Wide']);
-    // Its verbs: Flip Arc, and no Reset while it is straight.
-    expect(buttonNamed('Flip Arc')).toBeDefined();
-    expect(buttonNamed('Reset Shape')).toBeUndefined();
-  });
-
-  it('fills a white arrow with ink with Fill and empties it again, each one undo step, a filled one listed as a Solid Arrow (15d)', () => {
-    const stepId = annotatedStep();
-    act(() => {
-      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
-        ...list,
-        { id: 'w-1', kind: 'white-arrow', from: [0.1, 0.6], to: [0.5, 0.6], path: [{ at: [0.1, 0.6] }, { at: [0.5, 0.6] }] },
-      ]);
-      state().openDiagramStep(stepId, 'annotate');
-    });
-    act(() => row('White Arrow').click());
-    const fill = (name: string) =>
-      [...host!.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Fill"] button')].find(
-        (option) => option.getAttribute('aria-label') === name
-      )!;
-    // White, for one that says none.
-    expect(fill('White').getAttribute('aria-pressed')).toBe('true');
-    const past = state().diagramHistory.past.length;
-    act(() => fill('Black').click());
-    const arrow = () => annotations().find((annotation) => annotation.id === 'w-1') as Record<string, unknown>;
-    expect(arrow().fill).toBe('black');
-    expect(state().diagramHistory.past).toHaveLength(past + 1);
-    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change white arrow');
-    // Named by its look in the list, and over its verbs.
-    expect(row('Solid Arrow').getAttribute('aria-pressed')).toBe('true');
-    expect(row('White Arrow')).toBeUndefined();
-    act(() => fill('White').click());
-    expect('fill' in arrow()).toBe(false);
-    expect(row('White Arrow')).toBeDefined();
-  });
-
-  it('edits a label’s text in one line, and focuses it for a label just put down', async () => {
-    const stepId = annotatedStep();
-    act(() => state().openDiagramStep(stepId, 'annotate'));
-    const { requestLabelFocus } = await import('../../diagram/annotate/labelFocus');
-    act(() => {
-      requestLabelFocus('a-2');
-      state().selectDiagramAnnotation('a-2');
-    });
-    const field = host?.querySelector('textarea[maxlength="80"]') as HTMLTextAreaElement;
-    expect(document.activeElement).toBe(field);
-    setField(field, 'C\nD');
-    act(() => field.blur());
-    expect(annotations()[1]!.text).toBe('C D');
-  });
-
-  it('edits a callout’s words as a label’s, focused for one just put down, and lists it by them', async () => {
-    const stepId = annotatedStep();
-    act(() => {
-      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
-        ...list,
-        { id: 'a-4', kind: 'callout', from: [0.2, 0.7], to: [0.6, 0.3], text: 'Repeat behind' },
-      ]);
-      state().openDiagramStep(stepId, 'annotate');
-    });
-    expect(row('Repeat behind')).toBeDefined();
-    const { requestLabelFocus } = await import('../../diagram/annotate/labelFocus');
-    act(() => {
-      requestLabelFocus('a-4');
-      state().selectDiagramAnnotation('a-4');
-    });
-    const field = host?.querySelector('textarea[maxlength="80"]') as HTMLTextAreaElement;
-    expect(document.activeElement).toBe(field);
-    expect(field.value).toBe('Repeat behind');
-    setField(field, '裏側も\n同様に');
-    act(() => field.blur());
-    expect(annotations()[3]!.text).toBe('裏側も 同様に');
-    expect(row('裏側も 同様に').getAttribute('aria-pressed')).toBe('true');
+    act(() => state().selectDiagramAnnotation('a-1'));
+    expect(host?.querySelector('ul[aria-label="Layers"]')).toBeNull();
+    expect(host?.textContent).not.toContain('Flip Arc');
+    expect(host?.querySelector('button[role="switch"][aria-label="Snap to Picture"]')).not.toBeNull();
   });
 
   it('leaves what the tool in hand does to the tool window (decision 7)', () => {
@@ -800,13 +470,9 @@ describe('DiagramStepPanel in Annotate', () => {
       act(() => state().setDiagramAnnotateTool(tool));
       expect(host?.textContent).not.toContain(annotateToolHelp(t, tool));
     }
-    act(() => state().setDiagramAnnotateTool('edit-path'));
-    expect(host?.textContent).not.toContain('Select a fold arrow or a white arrow to shape it.');
-    // Its verbs on what is selected stay: the Snap switch, the list, Delete.
+    // What is about drawing on the step stays: the Snap switch.
     act(() => state().selectDiagramAnnotation('a-2'));
     expect(host?.querySelector('button[role="switch"][aria-label="Snap to Picture"]')).not.toBeNull();
-    expect(row('B').getAttribute('aria-pressed')).toBe('true');
-    expect(buttonNamed('Delete')).toBeDefined();
   });
 
   it('offers the Snap switch in Annotate, for a finger, and remembers it as a preference', () => {
@@ -841,60 +507,5 @@ describe('DiagramStepPanel in Annotate', () => {
     expect(host?.textContent).toContain('The picture changed since these annotations were drawn.');
     act(() => buttonNamed('Keep Them Here').click());
     expect(host?.textContent).not.toContain('The picture changed');
-  });
-
-  describe('with Edit Path in hand', () => {
-    const byLabel = (label: string) => host?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`) ?? null;
-    const arrow = () => annotations()[0] as { id: string; bend?: number; path?: { at: number[]; type?: string }[] };
-
-    it('keeps Edit Path in hand to shape what a row selects, offering node verbs only on what it shapes', () => {
-      const stepId = annotatedStep();
-      act(() => state().openDiagramStep(stepId, 'annotate'));
-      act(() => state().setDiagramAnnotateTool('edit-path'));
-      // A row pressed keeps Edit Path in hand, to shape what it selected.
-      act(() => row('B').click());
-      expect(state().diagramAnnotateTool).toBe('edit-path');
-      expect(host?.textContent).not.toContain('Node');
-      act(() => row('Valley Fold Arrow').click());
-      expect(host?.textContent).toContain('2 nodes');
-    });
-
-    it('steps through the nodes, and adds, turns and deletes them, each one undo step', () => {
-      const stepId = annotatedStep();
-      act(() => state().openDiagramStep(stepId, 'annotate'));
-      act(() => {
-        state().selectDiagramAnnotation('a-1');
-        state().setDiagramAnnotateTool('edit-path');
-      });
-      // The arc's two nodes, none selected: only the steppers act.
-      expect(host?.textContent).toContain('2 nodes');
-      expect(buttonNamed('Add Node').disabled).toBe(true);
-      // Refusing, keeping the focus a press puts on it (`aria-disabled`).
-      expect(buttonNamed('Reset Shape').getAttribute('aria-disabled')).toBe('true');
-      act(() => byLabel('Next Node')!.click());
-      expect(host?.textContent).toContain('Node 1 of 2');
-      expect(arrow().bend).toBe(0.1);
-      const past = state().diagramHistory.past.length;
-      act(() => buttonNamed('Add Node').click());
-      expect(arrow().path).toHaveLength(3);
-      expect(host?.textContent).toContain('Node 2 of 3');
-      act(() => buttonNamed('Corner').click());
-      expect(arrow().path![1]!.type).toBe('corner');
-      expect(buttonNamed('Corner').getAttribute('aria-checked') ?? buttonNamed('Corner').getAttribute('aria-pressed')).toBe('true');
-      act(() => byLabel('Next Node')!.click());
-      expect(host?.textContent).toContain('Node 3 of 3');
-      // An end has no type to have.
-      expect(buttonNamed('Smooth').disabled).toBe(true);
-      act(() => buttonNamed('Delete Node').click());
-      expect(arrow().path).toHaveLength(2);
-      expect(host?.textContent).toContain('Node 2 of 2');
-      expect(state().diagramHistory.past).toHaveLength(past + 3);
-      act(() => buttonNamed('Reset Shape').click());
-      expect(arrow().path).toBeUndefined();
-      expect(host?.textContent).toContain('2 nodes');
-      // Back on the arc: the node selected is none, and Delete takes the arrow, not a node.
-      act(() => buttonNamed('Delete').click());
-      expect(annotations().map((annotation) => annotation.id)).toEqual(['a-2', 'a-3']);
-    });
   });
 });

@@ -820,7 +820,6 @@
       "lineEnd": "Ende",
       "lineStart": "Anfang",
       "lineType": "Typ",
-      "list": "Annotationen",
       "newer": "Einige Annotationen dieses Schritts wurden mit einem neueren Ori Studio erstellt. Sie bleiben erhalten, werden hier aber nicht angezeigt.",
       "nextNode": "Nächster Knoten",
       "node": "Knoten",
@@ -940,6 +939,10 @@
       "uploadPictures": "Bilder hochladen…"
     },
     "label": "Diagramm",
+    "layers": {
+      "empty": "Öffnen Sie einen Schritt in Annotieren, um seine Ebenen zu sehen.",
+      "list": "Ebenen"
+    },
     "pagePane": {
       "columns": "Spalten",
       "exportStyle": "Exportstil aus den Einstellungen",
@@ -1655,6 +1658,7 @@
     "label": "Faltmuster"
   },
   "sidePane": {
+    "layers": "Ebenen",
     "page": "Seite",
     "properties": "Eigenschaften",
     "settings": "Einstellungen",

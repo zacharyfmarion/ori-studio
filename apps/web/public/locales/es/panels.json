@@ -850,7 +850,6 @@
       "lineEnd": "Fin",
       "lineStart": "Inicio",
       "lineType": "Tipo",
-      "list": "Anotaciones",
       "newer": "Algunas anotaciones de este paso se hicieron con un Ori Studio más reciente. Se conservan, pero no se muestran aquí.",
       "nextNode": "Nodo siguiente",
       "node": "Nodo",
@@ -974,6 +973,10 @@
       "uploadPictures": "Subir imágenes…"
     },
     "label": "Diagrama",
+    "layers": {
+      "empty": "Abre un paso en Anotar para ver sus capas.",
+      "list": "Capas"
+    },
     "pagePane": {
       "columns": "Columnas",
       "exportStyle": "Estilo de exportación de Ajustes",
@@ -1711,6 +1714,7 @@
     "label": "Patrones de pliegues"
   },
   "sidePane": {
+    "layers": "Capas",
     "page": "Página",
     "properties": "Propiedades",
     "settings": "Ajustes",

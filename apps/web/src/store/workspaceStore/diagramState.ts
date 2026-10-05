@@ -86,7 +86,7 @@ export function diagramDeleteTarget(
 export function canCopyDiagramAnnotation(
   state: Pick<WorkspaceState, 'activeEditingContext' | 'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId'>
 ): boolean {
-  return state.activeEditingContext === 'diagram' && isDiagramAnnotating(state) && selectedDiagramAnnotation(state) !== null;
+  return state.activeEditingContext === 'diagram' && annotatingSelectionId(state) !== null;
 }
 
 /** Whether Paste has a step to put annotations on: the one open in Annotate, on a diagram that can change. */
@@ -94,6 +94,16 @@ export function canPasteDiagramAnnotations(
   state: Pick<WorkspaceState, 'activeEditingContext' | 'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramReadOnly'>
 ): boolean {
   return state.activeEditingContext === 'diagram' && !state.diagramReadOnly && isDiagramAnnotating(state);
+}
+
+/**
+ * The selected annotation on the step open in Annotate, by id, or null: what
+ * the Layers pane shows selected, and what brings it forward.
+ */
+export function annotatingSelectionId(
+  state: Pick<WorkspaceState, 'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId'>
+): string | null {
+  return isDiagramAnnotating(state) ? (selectedDiagramAnnotation(state)?.id ?? null) : null;
 }
 
 /** The selected annotation, when it is one this build reads, on the selected step. */

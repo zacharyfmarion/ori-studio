@@ -850,7 +850,6 @@
       "lineEnd": "Fin",
       "lineStart": "Début",
       "lineType": "Type",
-      "list": "Annotations",
       "newer": "Certaines annotations de cette étape ont été créées avec une version plus récente d’Ori Studio. Elles sont conservées, mais ne s’affichent pas ici.",
       "nextNode": "Nœud suivant",
       "node": "Nœud",
@@ -974,6 +973,10 @@
       "uploadPictures": "Importer des images…"
     },
     "label": "Diagramme",
+    "layers": {
+      "empty": "Ouvrez une étape dans Annoter pour voir ses calques.",
+      "list": "Calques"
+    },
     "pagePane": {
       "columns": "Colonnes",
       "exportStyle": "Style d’export des Réglages",
@@ -1713,6 +1716,7 @@
     "label": "Patrons de plis"
   },
   "sidePane": {
+    "layers": "Calques",
     "page": "Page",
     "properties": "Propriétés",
     "settings": "Réglages",

@@ -850,7 +850,6 @@
       "lineEnd": "Fim",
       "lineStart": "Início",
       "lineType": "Tipo",
-      "list": "Anotações",
       "newer": "Algumas anotações deste passo foram feitas com um Ori Studio mais novo. Elas são mantidas, mas não aparecem aqui.",
       "nextNode": "Próximo nó",
       "node": "Nó",
@@ -974,6 +973,10 @@
       "uploadPictures": "Enviar imagens…"
     },
     "label": "Diagrama",
+    "layers": {
+      "empty": "Abra um passo em Anotar para ver suas camadas.",
+      "list": "Camadas"
+    },
     "pagePane": {
       "columns": "Colunas",
       "exportStyle": "Estilo de exportação das Configurações",
@@ -1711,6 +1714,7 @@
     "label": "Padrões de vincos"
   },
   "sidePane": {
+    "layers": "Camadas",
     "page": "Página",
     "properties": "Propriedades",
     "settings": "Configurações",

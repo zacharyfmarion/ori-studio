@@ -68,6 +68,7 @@ const WORKSPACE_BY_PANEL_ID: Record<string, WorkspaceId> = {
   diagram: 'diagram',
   'diagram-step': 'diagram',
   'diagram-page': 'diagram',
+  'diagram-layers': 'diagram',
 };
 
 export function workspaceForPanelId(panelId: string): WorkspaceId | null {

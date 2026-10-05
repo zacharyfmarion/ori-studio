@@ -790,7 +790,6 @@
       "lineEnd": "终点",
       "lineStart": "起点",
       "lineType": "线型",
-      "list": "标注",
       "newer": "此步骤的部分标注由更新版本的 Ori Studio 创建。它们会被保留，但不在这里显示。",
       "nextNode": "下一个节点",
       "node": "节点",
@@ -906,6 +905,10 @@
       "uploadPictures": "上传图片…"
     },
     "label": "图解",
+    "layers": {
+      "empty": "在“标注”中打开一个步骤即可查看其图层。",
+      "list": "图层"
+    },
     "pagePane": {
       "columns": "列",
       "exportStyle": "设置中的导出样式",
@@ -1603,6 +1606,7 @@
     "label": "折痕图"
   },
   "sidePane": {
+    "layers": "图层",
     "page": "页面",
     "properties": "属性",
     "settings": "设置",

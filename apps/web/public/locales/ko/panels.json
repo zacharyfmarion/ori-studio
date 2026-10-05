@@ -790,7 +790,6 @@
       "lineEnd": "끝점",
       "lineStart": "시작점",
       "lineType": "종류",
-      "list": "주석",
       "newer": "이 단계의 주석 일부는 더 새로운 Ori Studio에서 만들어졌습니다. 보존되지만 여기에는 표시되지 않습니다.",
       "nextNode": "다음 노드",
       "node": "노드",
@@ -906,6 +905,10 @@
       "uploadPictures": "그림 업로드…"
     },
     "label": "도해",
+    "layers": {
+      "empty": "단계를 주석에서 열면 레이어가 표시됩니다.",
+      "list": "레이어"
+    },
     "pagePane": {
       "columns": "열",
       "exportStyle": "설정의 내보내기 스타일",
@@ -1603,6 +1606,7 @@
     "label": "접힘선 패턴"
   },
   "sidePane": {
+    "layers": "레이어",
     "page": "페이지",
     "properties": "속성",
     "settings": "설정",

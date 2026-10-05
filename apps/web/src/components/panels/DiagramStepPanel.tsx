@@ -39,10 +39,11 @@ const NO_NOTICES: readonly SanitizeNotice[] = [];
  * A composition site (AGENTS.md › Panel components): the verbs come from the
  * action catalog through `useDiagramStepActions`, and the rows are the shared
  * field rows. A linked step's Show as leads, the choice everything under it is
- * about (D19). In Annotate, Annotate's own section leads (D13): the tool in
- * hand, the list, and the selected annotation's controls; elsewhere the
- * Annotations section between the picture and the instruction counts them
- * and leads in.
+ * about (D19). In Annotate, Annotate's own section leads (D13): the Snap switch,
+ * and a notice when the picture changed under the marks — the list and the
+ * selected one's controls are the Layers pane's (`DiagramLayersPanel`);
+ * elsewhere the Annotations section between the picture and the instruction
+ * counts them and leads in.
  */
 export function DiagramStepPanel() {
   const { t } = useTranslation();

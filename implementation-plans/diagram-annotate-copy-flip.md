@@ -74,7 +74,9 @@ time: Annotate selects one (multi-select is a question for Zach, below).
 ## Checklist
 
 - [x] Line Type at the top of the rail; before/after.
-- [x] `flipAnnotation`, the catalog's two verbs, the Step pane's Flip row,
+- [x] `flipAnnotation`, the catalog's two verbs, the Step pane's Flip row
+  (since moved, with the list, to the Layers pane:
+  [`diagram-layers-pane.md`](diagram-layers-pane.md)),
   analytics, i18n, tests; before/after on the crane.
   - As built: the Flip row's two buttons are icons — the mirror marks Edit's
     toolbars use — named "Flip Horizontal" and "Flip Vertical" by their

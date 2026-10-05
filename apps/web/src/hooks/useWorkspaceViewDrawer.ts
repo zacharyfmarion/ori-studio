@@ -12,9 +12,27 @@ import {
 import { subscribeSidePaneRequests } from '../store/sidePaneRequests';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { selectedCanvasObjectIdOf } from '../cp-workspace/canvasObjects/canvasObjectKinds';
+import { annotatingSelectionId } from '../store/workspaceStore/diagramState';
 import { useTranslation } from 'react-i18next';
 
 const NO_PANES: readonly SidePaneSpec[] = [];
+
+/**
+ * The pane that shows what is selected, when this workspace's `panes` have it
+ * and something is: Edit's Properties for a canvas object, the Diagram's
+ * Layers for a mark on the step open in Annotate. Each selection is the
+ * workspace's own, and outlives a switch away from it, so the pane must be
+ * one of these panes.
+ */
+export function selectionPaneIn(
+  panes: readonly SidePaneSpec[],
+  selected: { canvasObject: boolean; layer: boolean }
+): SidePaneId | undefined {
+  const wanted: SidePaneId[] = [];
+  if (selected.canvasObject) wanted.push('cp-properties');
+  if (selected.layer) wanted.push('diagram-layers');
+  return wanted.find((id) => panes.some((pane) => pane.id === id));
+}
 
 export interface WorkspaceViewDrawerState {
   /**
@@ -84,13 +102,15 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
   const drawerId = useId();
   const panes = coarsePointer ? sidePanesFor(activeWorkspace) : NO_PANES;
   const [activePaneId, setActivePaneId] = useState<SidePaneId | null>(null);
-  // The one thing the sheet knows about what it shows: a canvas object being
-  // selected is what makes Properties the pane to open on. The dock's pane
-  // reveals itself on that transition (`usePropertiesPaneActivation`); the
-  // sheet is modal and never opens on a tap, so it asks at open time instead.
+  // The one thing the sheet knows about what it shows: something selected — a
+  // canvas object in Edit, a mark in the Diagram — makes the pane that shows
+  // it the one to open on. The dock's pane reveals itself on that transition
+  // (`usePropertiesPaneActivation`, `useDiagramPaneReveal`); the sheet is modal
+  // and never opens on a tap, so it asks at open time instead.
   const canvasObjectSelected = useWorkspaceStore(
     (state) => selectedCanvasObjectIdOf(state) !== null
   );
+  const layerSelected = useWorkspaceStore((state) => annotatingSelectionId(state) !== null);
   // A request from `activatePanel` — View ▸ Properties, the phone overflow row
   // — parked until this workspace's panes include it. Latched because a request
   // raised from another workspace lands in the same commit as the workspace
@@ -203,7 +223,8 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
     openDrawer: useCallback(
       (paneId?: SidePaneId) => {
         if (open) return;
-        const preferred = paneId ?? (canvasObjectSelected ? 'cp-properties' : undefined);
+        const preferred =
+          paneId ?? selectionPaneIn(panes, { canvasObject: canvasObjectSelected, layer: layerSelected });
         const pane = panes.find((candidate) => candidate.id === preferred) ?? activePane;
         if (pane) setActivePaneId(pane.id);
         setOpen(true);
@@ -212,7 +233,7 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
           pane: pane?.id ?? null,
         });
       },
-      [open, panes, activePane, activeWorkspace, canvasObjectSelected]
+      [open, panes, activePane, activeWorkspace, canvasObjectSelected, layerSelected]
     ),
     close,
     triggerRef,
