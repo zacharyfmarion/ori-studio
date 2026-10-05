@@ -448,6 +448,39 @@ describe('a linked picture turned about its middle', () => {
       close((carried.annotations[0] as KnownDiagramAnnotation).from, picturePoint(edged(10), [30, 30]));
     });
 
+    it('keeps a right angle in its face’s corner when a face without a corner there has since come over the angle (review)', () => {
+      // A deeper face, and one drawn over it that has come over its far corner (40, 40) and the angle there.
+      const square = (lo: number, hi: number): ScenePoint[] => [
+        [lo, lo],
+        [hi, lo],
+        [hi, hi],
+        [lo, hi],
+      ];
+      const scene = (step: number) =>
+        sceneOf([face([square(0, 40).map(([x, y]): ScenePoint => [x - step, y - step])], { face: 0 }), face([square(30, 70)], { face: 1 })]);
+      const before = { ...scenePicture(), sceneJson: storedSceneJson(scene(0))!, key: 'scene-0' };
+      const after = { ...before, sceneJson: storedSceneJson(scene(10))!, key: 'scene-10' };
+      const picturePoint = ({ bounds }: PaperScene, [x, y]: ScenePoint): [number, number] => {
+        const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+        return [(x - bounds.minX) / span, (y - bounds.minY) / span];
+      };
+      // In the deeper face's corner, opening into it; and in the face over it, whose corner it is not.
+      const marks: KnownDiagramAnnotation[] = [
+        { id: 'deeper', kind: 'right-angle', ...rightAngleAt(picturePoint(scene(0), [40, 40]), [-1, -1]) },
+        { id: 'over', kind: 'right-angle', ...rightAngleAt(picturePoint(scene(0), [40, 40]), [1, 1]) },
+      ];
+      const moved = setLinkedPicture(annotated(cpStep('step-1', { ...FLAT, spread: SPREAD }, before), marks), 'step-1', {
+        source: cpSource({ ...FLAT, spread: { ...SPREAD, amount: 0.1 } }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+      const [deeper, over] = moved.annotations as KnownDiagramAnnotation[];
+      close(deeper!.from, picturePoint(scene(10), [30, 30]));
+      close(rightAngleDiagonal(deeper!), [-Math.SQRT1_2, -Math.SQRT1_2]);
+      // Not a corner of the face it opens into: carried by a point inside its angle, with that face.
+      close(over!.from, picturePoint(scene(10), [40, 40]));
+      close(rightAngleDiagonal(over!), [Math.SQRT1_2, Math.SQRT1_2]);
+    });
+
     it('keeps a mark inside a face with that face, though a deeper face has an edge through it (review)', () => {
       // A flap over a sheet whose fold runs under the flap's diagonal: the spread steps the sheet, the flap stays.
       const square = (lo: number, hi: number): ScenePoint[] => [

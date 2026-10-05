@@ -964,6 +964,14 @@ export interface PictureMove {
    * everywhere and `point` says it.
    */
   vector?: (vector: PicturePoint) => PicturePoint;
+  /**
+   * Where a corner goes with the face it is a corner of and `inside` — a
+   * point just inside the angle a mark in it opens into — lies in, when one
+   * does: the face a right angle is drawn in though another face has come
+   * over its inside since. Null when none does, and absent where every face
+   * moves alike; `point` carries it then.
+   */
+  corner?: (corner: PicturePoint, inside: PicturePoint) => PicturePoint | null;
 }
 
 /**
@@ -990,11 +998,15 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
     const opens = rightAngleDiagonal(annotation);
     if (move.vector) {
       // A spread moves each face its own way, and a corner lies on the edge of
-      // every face that meets there: carried by a point just inside its
-      // angle, it goes with the face it is drawn in, opening as the turn takes
-      // it — never by its corner and `to` apart, which two faces may carry.
+      // every face that meets there: carried with the face it is a corner of
+      // and drawn in, else by a point just inside its angle, it goes with that
+      // face, opening as the turn takes it — never by its corner and `to`
+      // apart, which two faces may carry.
       const nudge: PicturePoint = [opens[0] * CORNER_NUDGE, opens[1] * CORNER_NUDGE];
-      const inside = move.point([annotation.from[0] + nudge[0], annotation.from[1] + nudge[1]]);
+      const nudged: PicturePoint = [annotation.from[0] + nudge[0], annotation.from[1] + nudge[1]];
+      const corner = move.corner?.(annotation.from, nudged);
+      if (corner) return { ...annotation, ...rightAngleAt(corner, move.vector(opens)) };
+      const inside = move.point(nudged);
       const back = move.vector(nudge);
       return { ...annotation, ...rightAngleAt([inside[0] - back[0], inside[1] - back[1]], move.vector(opens)) };
     }

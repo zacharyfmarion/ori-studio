@@ -206,6 +206,28 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
   // mark exactly, but the turned picture's corners are rounded to the grid,
   // so a mark snapped to one lies that far off it.
   const epsilon = Math.max(1e-9 * longerFrom, 2 * storedSceneStep(before.sheet));
+  const scenePoint = ([u, v]: PicturePoint) => ({ x: from.minX + u * longerFrom, y: from.minY + v * longerFrom });
+  // Front to back, the first drawn piece that holds.
+  const topmost = (holds: (piece: readonly ScenePoint[]) => boolean) => {
+    for (let i = drawn.length - 1; i >= 0; i -= 1) if (holds(drawn[i]!.rings[0]!)) return drawn[i]!.face;
+    return null;
+  };
+  const cornerAt = (at: { x: number; y: number }) => (piece: readonly ScenePoint[]) =>
+    piece.some(([x, y]) => Math.hypot(x - at.x, y - at.y) <= epsilon);
+  /** Where `at` goes with `face`: null where the other picture does not draw it. */
+  const withFace = (face: number, at: { x: number; y: number }): PicturePoint | null => {
+    const ring = source.get(face)!;
+    const goal = target.get(face);
+    const weights =
+      goal?.length === ring.length ? meanValueWeights(ring.map(([x, y]) => ({ x, y })), at, epsilon) : null;
+    if (!goal || !weights) return null;
+    let [x, y] = [0, 0];
+    weights.forEach((weight, corner) => {
+      x += weight * goal[corner]![0];
+      y += weight * goal[corner]![1];
+    });
+    return [(x - to.minX) / longerTo, (y - to.minY) / longerTo];
+  };
   return {
     ...turn,
     // A direction goes as the turn takes it, whatever the spread does to the face round it.
@@ -214,33 +236,26 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
       const [x1, y1] = turn.point([dx, dy]);
       return [x1 - x0, y1 - y0];
     },
-    point: ([u, v]) => {
-      const at = { x: from.minX + u * longerFrom, y: from.minY + v * longerFrom };
-      // Front to back, the first found. A mark on a face's corner was put on
-      // it, as a snap puts it, and is that face's though one drawn over it
-      // since — a turn under a depth spread slides the layers apart on the
-      // screen — covers it there, or has an edge through it. Any other is the
-      // face's it lies on, its edge counted as on it (the even-odd test counts
-      // a point on its far edges outside it): never a deeper face's, whose
-      // edge runs under the face it shows on.
-      const topmost = (holds: (piece: readonly ScenePoint[]) => boolean) => {
-        for (let i = drawn.length - 1; i >= 0; i -= 1) if (holds(drawn[i]!.rings[0]!)) return drawn[i]!;
-        return null;
-      };
+    point: (point) => {
+      const at = scenePoint(point);
+      // A mark on a face's corner was put on it, as a snap puts it, and is
+      // that face's though one drawn over it since — a turn under a depth
+      // spread slides the layers apart on the screen — covers it there, or
+      // has an edge through it. Any other is the face's it lies on, its edge
+      // counted as on it (the even-odd test counts a point on its far edges
+      // outside it): never a deeper face's, whose edge runs under the face it
+      // shows on.
       const under =
-        topmost((piece) => piece.some(([x, y]) => Math.hypot(x - at.x, y - at.y) <= epsilon)) ??
-        topmost((piece) => insideRing(piece, at) || onRing(piece, at, epsilon));
-      const ring = under && source.get(under.face)!;
-      const goal = under && target.get(under.face);
-      const weights =
-        ring && goal?.length === ring.length ? meanValueWeights(ring.map(([x, y]) => ({ x, y })), at, epsilon) : null;
-      if (!goal || !weights) return turn.point([u, v]);
-      let [x, y] = [0, 0];
-      weights.forEach((weight, corner) => {
-        x += weight * goal[corner]![0];
-        y += weight * goal[corner]![1];
-      });
-      return [(x - to.minX) / longerTo, (y - to.minY) / longerTo];
+        topmost(cornerAt(at)) ?? topmost((piece) => insideRing(piece, at) || onRing(piece, at, epsilon));
+      return (under !== null && withFace(under, at)) || turn.point(point);
+    },
+    // The face it is a corner of and opens into, though one without a corner
+    // there has come over the angle since.
+    corner: (corner, inside) => {
+      const [at, nudged] = [scenePoint(corner), scenePoint(inside)];
+      const isCorner = cornerAt(at);
+      const owner = topmost((piece) => isCorner(piece) && insideRing(piece, nudged));
+      return owner === null ? null : withFace(owner, at);
     },
   };
 }
