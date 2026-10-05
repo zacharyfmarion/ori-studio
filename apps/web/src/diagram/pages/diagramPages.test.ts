@@ -1,5 +1,15 @@
-import { describe, expect, it } from 'vitest';
-import { largestHeld, MEASURE_SETTLED } from './diagramPages';
+import { describe, expect, it, vi } from 'vitest';
+import { createDiagram, insertSteps, type DiagramStep } from '../document/diagramDocument';
+import { cpStep } from '../document/diagramSteps.fixtures';
+import { largestHeld, layoutDiagram, MEASURE_SETTLED } from './diagramPages';
+import { estimateTextSetter } from './estimateTextSetter';
+import { layoutPicture } from './pagePictures';
+
+// Every measure counted, each as it was.
+vi.mock('./pagePictures', async (original) => {
+  const actual = await original<typeof import('./pagePictures')>();
+  return { ...actual, layoutPicture: vi.fn(actual.layoutPicture) };
+});
 
 /** A picture's fit as measured at a scale, and every scale it was measured at. */
 function measured(fit: (scale: number) => number) {
@@ -49,5 +59,23 @@ describe('largestHeld', () => {
     const nowhere = largestHeld(measured((scale) => scale / 2).fitAt)!;
     expect(nowhere).toBeLessThan(1e-6);
     expect(largestHeld(() => null)).toBeNull();
+  });
+});
+
+describe('layoutDiagram', () => {
+  it('measures each picture once at each scale, however often its search, the layouts and their check ask (review 4)', () => {
+    // Pictures whose marks reach past them, so each is searched for in its rooms and checked where drawn.
+    const steps: DiagramStep[] = [0, 1, 2, 3].map((index) => ({
+      ...cpStep(`step-${index}`),
+      annotations: [{ id: 'a', kind: 'valley-arrow', from: [0.2, 0.004 + 0.1 * index], to: [0.8, 0.004], bend: 0.05 }],
+    }));
+    const document = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), steps, 0);
+    for (const scale of ['fit', 'paper'] as const) {
+      vi.mocked(layoutPicture).mockClear();
+      layoutDiagram({ ...document, page: { ...document.page, scale } }, estimateTextSetter);
+      const measures = vi.mocked(layoutPicture).mock.calls.map(([step, , , measure]) => `${step.id} ${JSON.stringify(measure)}`);
+      expect(measures.length, scale).toBeGreaterThan(steps.length);
+      expect(new Set(measures).size, scale).toBe(measures.length);
+    }
   });
 });

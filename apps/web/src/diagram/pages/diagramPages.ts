@@ -7,7 +7,7 @@
  * the subsetter are kept by their modules, so a new call costs the layout and
  * the pages it composes, not a download.
  */
-import { isLockedTurn, isTurn, stepAsset, stepsOf, type DiagramDocument } from '../document/diagramDocument';
+import { isLockedTurn, isTurn, stepAsset, stepsOf, type DiagramDocument, type DiagramStep } from '../document/diagramDocument';
 import type { DiagramFontFace } from '../fonts/diagramFontFaces';
 import { loadDiagramFonts, type DiagramFontSource, type DiagramFontText, type DiagramFonts } from '../fonts/diagramFonts';
 import { embeddedFontFaces } from '../fonts/fontEmbedding';
@@ -44,14 +44,19 @@ export interface PreparedDiagramPages {
   compose: (index: number) => ComposedPage;
 }
 
+/** A step's picture as the layout measures it at `measure` (`layoutPicture`). */
+export type PictureOf = (step: DiagramStep, measure: PictureMeasure) => LayoutStep['picture'];
+
 /**
  * What the layout needs of each step, its marks measured at the size a first
- * layout found for it when known (`measureOf`); each with the turns between
- * it and the step before (D22), the last with any after it.
+ * layout found for it when known (`measureOf`), by `pictureOf`; each with
+ * the turns between it and the step before (D22), the last with any after
+ * it.
  */
 export function diagramLayoutSteps(
   document: DiagramDocument,
-  measureOf: (stepId: string) => PictureMeasure = () => null
+  measureOf: (stepId: string) => PictureMeasure = () => null,
+  pictureOf: PictureOf = (step, measure) => layoutPicture(step, document.assets, document.style, measure)
 ): LayoutStep[] {
   const steps: LayoutStep[] = [];
   let turns: LayoutTurn[] = [];
@@ -67,7 +72,7 @@ export function diagramLayoutSteps(
       id: entry.id,
       text: entry.text,
       breakBefore: entry.breakBefore,
-      picture: layoutPicture(entry, document.assets, document.style, measureOf(entry.id)),
+      picture: pictureOf(entry, measureOf(entry.id)),
       turnsBefore: turns,
       turnsAfter: [],
     });
@@ -138,14 +143,23 @@ export function layoutDiagram(document: DiagramDocument, setter: TextSetter): Di
     (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
   );
   if (!reaching) return layout(diagramLayoutSteps(document));
+  // Each picture measured once at each scale, however often the search, the
+  // layouts and the checks below ask for it.
+  const measured = new Map<string, LayoutStep['picture']>();
+  const pictureOf: PictureOf = (step, measure) => {
+    const key = `${step.id} ${measure === null ? '' : 'mmPerUnit' in measure ? `p${measure.mmPerUnit}` : `f${measure.frameMm}`}`;
+    if (!measured.has(key)) measured.set(key, layoutPicture(step, document.assets, document.style, measure));
+    return measured.get(key)!;
+  };
+  const stepsAt = (measureOf?: (stepId: string) => PictureMeasure) => diagramLayoutSteps(document, measureOf, pictureOf);
   const entries = new Map(stepsOf(document).map((step) => [step.id, step]));
-  const kinds = new Map(diagramLayoutSteps(document).map((step) => [step.id, step.picture?.kind]));
+  const kinds = new Map(stepsAt().map((step) => [step.id, step.picture?.kind]));
   /** A step's picture's fit in a room `across` × `down`, measured at `scale` (a card's at null). */
   const fitAt = (stepId: string, across: number, down: number) => (scale: number | null) => {
     const entry = entries.get(stepId);
     if (!entry) return null;
     const measure = scale === null ? null : kinds.get(stepId) === 'paper' ? { mmPerUnit: scale } : { frameMm: scale };
-    return pictureFit(layoutPicture(entry, document.assets, document.style, measure), across, down);
+    return pictureFit(pictureOf(entry, measure), across, down);
   };
   const fitIn = new Map<string, NonNullable<LayoutStep['fitIn']>>();
   for (const [stepId, kind] of kinds) {
@@ -166,9 +180,9 @@ export function layoutDiagram(document: DiagramDocument, setter: TextSetter): Di
   /** The pages with each picture measured at the scale `pages` drew it at, for how far it reaches there. */
   const measuredAt = (pages: DiagramPagesLayout) => {
     const drawn = scalesOf(pages);
-    return layout(fitted(diagramLayoutSteps(document, (stepId) => drawn.get(stepId)?.measure ?? null)));
+    return layout(fitted(stepsAt((stepId) => drawn.get(stepId)?.measure ?? null)));
   };
-  const pages = measuredAt(layout(fitted(diagramLayoutSteps(document))));
+  const pages = measuredAt(layout(fitted(stepsAt())));
   for (const cell of pages.pages.flatMap((page) => page.cells)) {
     const scale = cell.mmPerUnit ?? cell.frameMm;
     if (scale === null || !(scale > 0)) continue;
@@ -178,7 +192,7 @@ export function layoutDiagram(document: DiagramDocument, setter: TextSetter): Di
     const held = largestHeld(fit, scale);
     if (held !== null) atMost.set(cell.stepId, held);
   }
-  return atMost.size > 0 ? measuredAt(layout(fitted(diagramLayoutSteps(document)))) : pages;
+  return atMost.size > 0 ? measuredAt(layout(fitted(stepsAt()))) : pages;
 }
 
 /** The scale each step's picture is drawn at, by its step, and the measure that is. */
