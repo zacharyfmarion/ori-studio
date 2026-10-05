@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
 import { ToggleRow } from '../components/ui/fieldRows/ToggleRow';
+import { ToolHintInstructions } from '../components/ui/tools/ToolHintInstructions';
 import { ToolHintWindow } from '../components/ui/tools/ToolHintWindow';
 import { STORAGE_KEYS } from '../lib/storage';
 import type { SimulatorToolWindowModel } from './tools/actions';
@@ -38,14 +39,10 @@ export function SimulatorToolWindow({
     >
       {model.instructions.length > 0 && (
         <div className={styles.section}>
-          <div className={styles.heading}>
-            {t('panels:simulator.tools.instructions', 'Instructions')}
-          </div>
-          <ul className={styles.instructions}>
-            {model.instructions.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
+          <ToolHintInstructions
+            heading={t('panels:simulator.tools.instructions', 'Instructions')}
+            items={model.instructions}
+          />
         </div>
       )}
       {/* No divider: the window divides its own sections, so a rule under the
