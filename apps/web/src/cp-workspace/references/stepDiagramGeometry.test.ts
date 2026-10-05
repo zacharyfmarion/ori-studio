@@ -3,6 +3,7 @@ import {
   DIAGRAM_LINE_INK,
   DIAGRAM_MARK_INK,
   DIAGRAM_MARKS,
+  DIAGRAM_RIGHT_ANGLE_INK,
   REFERENCES_VIEW_MARKS,
 } from './diagram/diagramInk';
 import {
@@ -41,6 +42,9 @@ import {
   halfArrowheadPath,
   oneWayArrow,
   pushArrowOutline,
+  rightAngleDrawn,
+  rightAngleReach,
+  rightAngleSquare,
   rotateGlyph,
   offPaperPathData,
   onSheetBoundary,
@@ -1068,5 +1072,55 @@ describe('the Diagram’s glyphs', () => {
         expect(Math.hypot(r.x, r.y)).toBeCloseTo(12, 6);
       }
     }
+  });
+});
+
+describe('a right-angle mark', () => {
+  const close = (a: SvgPoint, b: SvgPoint, digits = 9) => {
+    expect(a.x).toBeCloseTo(b.x, digits);
+    expect(a.y).toBeCloseTo(b.y, digits);
+  };
+
+  it('is the two sides of a square in the corner that the lines it marks do not draw', () => {
+    // Opening down and to the right, y down: the square's sides along x and y.
+    const [a, b, c] = rightAngleSquare({ x: 10, y: 20 }, { x: Math.SQRT1_2, y: Math.SQRT1_2 }, 7);
+    close(a!, { x: 17, y: 20 });
+    close(b!, { x: 17, y: 27 });
+    close(c!, { x: 10, y: 27 });
+    // Any way round: its legs meet square, each `side` long, the far corner on the diagonal.
+    const turned = rightAngleSquare({ x: 0, y: 0 }, { x: Math.cos(0.3), y: Math.sin(0.3) }, 5);
+    const [p, q, r] = turned;
+    expect(Math.hypot(q!.x - p!.x, q!.y - p!.y)).toBeCloseTo(5, 9);
+    expect(Math.hypot(q!.x - r!.x, q!.y - r!.y)).toBeCloseTo(5, 9);
+    expect((p!.x - q!.x) * (r!.x - q!.x) + (p!.y - q!.y) * (r!.y - q!.y)).toBeCloseTo(0, 9);
+    close(q!, { x: 5 * Math.SQRT2 * Math.cos(0.3), y: 5 * Math.SQRT2 * Math.sin(0.3) });
+  });
+
+  it('is drawn at its ink’s size, the way its diagonal goes through the projector, mirrored on the back', () => {
+    const overlay = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2);
+    // Sheet units are y up: toward (1, 1) from (0.5, 0.5) is up and to the right on the page.
+    const [a, b, c] = rightAngleDrawn([0.5, 0.5], [0.6, 0.6], overlay)!;
+    const side = DIAGRAM_RIGHT_ANGLE_INK.side * 2;
+    close(a!, { x: 50, y: -50 - side });
+    close(b!, { x: 50 + side, y: -50 - side });
+    close(c!, { x: 50 + side, y: -50 });
+    // The back of a card: it opens the other way across, as the paper does.
+    const back = createDiagramProjector(UNIT, 100, true);
+    const front = createDiagramProjector(UNIT, 100, false);
+    const onBack = rightAngleDrawn([0.2, 0.2], [0.3, 0.3], back)!;
+    const onFront = rightAngleDrawn([0.2, 0.2], [0.3, 0.3], front)!;
+    expect(onBack[1]!.x - back([0.2, 0.2]).x).toBeCloseTo(-(onFront[1]!.x - front([0.2, 0.2]).x), 9);
+    expect(onBack[1]!.y).toBeCloseTo(onFront[1]!.y, 9);
+    // Only its direction is read: a point twice as far draws the same square.
+    expect(rightAngleDrawn([0.5, 0.5], [0.7, 0.7], overlay)).toEqual(rightAngleDrawn([0.5, 0.5], [0.6, 0.6], overlay));
+    // Opening no way, it draws nothing.
+    expect(rightAngleDrawn([0.5, 0.5], [0.5, 0.5], overlay)).toBeNull();
+  });
+
+  it('reaches half its pen past its square ends, and √2 of that past its mitred corner', () => {
+    const [end, corner, other] = rightAngleReach(2);
+    expect(end).toBe(1);
+    expect(other).toBe(1);
+    expect(corner).toBeCloseTo(Math.SQRT2, 12);
   });
 });

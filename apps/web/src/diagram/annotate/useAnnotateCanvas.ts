@@ -45,13 +45,17 @@ import { dragPath, pathDragEdit, pathGripAnchor, type PathModifiers } from './ed
 import {
   LABEL_SIZE,
   MIN_ANNOTATION_LENGTH,
+  RIGHT_ANGLE_DIAGONAL,
   canBeShaped,
   createAnnotation,
   frameOf,
+  isCornerKind,
   isDegenerate,
   isPointKind,
   moveAnnotation,
   moveAnnotationEnd,
+  rightAngleAt,
+  rightAngleDiagonal,
   type PictureFrame,
   type PicturePoint,
 } from './annotationModel';
@@ -61,6 +65,13 @@ import type { DiagramAnnotationTool } from '../../analytics/events';
 import { CARD_FRAME_PX } from './paintAnnotations';
 import type { SnapTarget } from './pictureSnap';
 import { useAnnotateSnap } from './useAnnotateSnap';
+import {
+  clickedOpening,
+  draggedOpening,
+  placeRightAngle,
+  squaredOpening,
+  type RightAngleStart,
+} from './rightAnglePlacement';
 
 /** The frame's longer side in the canvas's world, CSS px: big enough that the picture is sharp at fit. */
 export const ANNOTATE_FRAME_PX = 1000;
@@ -92,7 +103,7 @@ export const GLYPH_REACH =
   (canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / CARD_FRAME_PX);
 
 /** One ink in picture units, as the canvas draws: what an arrow's head and a push's width are measured in. */
-const INK_UNITS = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / CARD_FRAME_PX;
+export const INK_UNITS = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / CARD_FRAME_PX;
 
 /** A circle's ring, in picture units, as the canvas draws it. */
 export const CIRCLE_RADIUS = circleRadius(INK_UNITS);
@@ -131,6 +142,8 @@ type Gesture =
       start: PicturePoint;
       startTarget: SnapTarget | null;
       free: boolean;
+      /** A right angle's: the way a click opens it, when the press was in a right angle there (decision 12). */
+      opens?: PicturePoint | null;
     })
   | (Press & { mode: 'move'; grip: AnnotationGrip; original: KnownDiagramAnnotation; start: PicturePoint })
   | (Press & {
@@ -157,6 +170,20 @@ interface LastPress {
   count: number;
   added: { annotationId: string; node: number } | null;
   selected: string | null;
+}
+
+/**
+ * The right-angle mark a click would put down where the pointer is (decision
+ * 12): its corner and the way it opens, shown over the marks, never in them.
+ */
+export interface RightAnglePreview {
+  at: PicturePoint;
+  opens: PicturePoint;
+}
+
+function sameRightAngle(a: RightAnglePreview | null, b: RightAnglePreview | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.at[0] === b.at[0] && a.at[1] === b.at[1] && a.opens[0] === b.opens[0] && a.opens[1] === b.opens[1];
 }
 
 /** Where the picture and its frame sit in the canvas's world, in world px. */
@@ -262,14 +289,29 @@ export function useAnnotateCanvas({
   const [draft, setDraft] = useState<KnownDiagramAnnotation | null>(null);
   const snap = useAnnotateSnap({ step, assets, style, overlay, unit: layout?.unit ?? null });
   const { context: snapContext, show: showSnap } = snap;
+  const [rightAngle, setRightAngle] = useState<RightAnglePreview | null>(null);
+  /** Show the right angle a click would put down — none to clear it — re-rendering only for a change. */
+  const showRightAngle = useCallback(
+    (next: RightAnglePreview | null) => setRightAngle((current) => (sameRightAngle(current, next) ? current : next)),
+    []
+  );
+  /** The right angle a click from `start` puts down: its corner, opening as a click opens it. */
+  const clickPreview = useCallback(
+    (start: RightAngleStart, frame: PictureFrame, free: boolean): RightAnglePreview => ({
+      at: start.at,
+      opens: clickedOpening(snapContext(), start, frame, { free }),
+    }),
+    [snapContext]
+  );
 
   const cancel = useCallback(() => {
     showSnap([]);
+    showRightAngle(null);
     if (!gesture.current) return false;
     gesture.current = null;
     setDraft(null);
     return true;
-  }, [showSnap]);
+  }, [showSnap, showRightAngle]);
   useEffect(() => registerDiagramGestureCancel(cancel), [cancel]);
   // A tool picked, another step or another picture: whatever was in hand is dropped.
   useEffect(
@@ -365,25 +407,55 @@ export function useAnnotateCanvas({
    * handles never snap.
    */
   const placeInHand = useCallback(
-    (current: Gesture, at: PicturePoint, free: boolean): PlacedPoint => {
+    (current: Gesture, at: PicturePoint, free: boolean, shift = false): PlacedInHand => {
       const loose = { at, target: null };
       switch (current.mode) {
         case 'draw':
+          // A right angle's drag says which way it opens from its corner: a point along that way.
+          if (isCornerKind(current.kind)) {
+            if (!layout) return loose;
+            const opens =
+              (current.moved ? draggedOpening(snapContext(), current.start, at, { free, shift }) : null) ??
+              clickedOpening(
+                snapContext(),
+                { at: current.start, target: current.startTarget, opens: current.opens ?? null },
+                layout.pictureFrame,
+                { free: current.free }
+              );
+            return { at: along(current.start, opens), target: null };
+          }
           return snapsWhenPlaced(current.kind) ? placePoint(snapContext(), at, { free }) : loose;
         case 'move': {
           const { grip, original } = current;
           if (!snapsWhenPlaced(original.kind)) return loose;
-          if (grip.part === 'from' || grip.part === 'to') return placePoint(snapContext(), at, { free, ignore: original.id });
-          if (grip.part !== 'body' || !isPointKind(original.kind)) return loose;
+          if (grip.part === 'direction') {
+            // The way a right angle opens, turned toward the pointer: a point along it, or where it was.
+            const opens = draggedOpening(snapContext(), original.from, at, { free, shift });
+            return { at: opens ? along(original.from, opens) : original.to, target: null };
+          }
+          // A right angle whose corner lands on a point opens into the right angle there nearest the way it opened.
+          const squared = (landed: PlacedPoint) =>
+            isCornerKind(original.kind) && landed.target
+              ? squaredOpening(snapContext(), landed.at, rightAngleDiagonal(original), { free: false })
+              : undefined;
+          if (grip.part === 'from' || grip.part === 'to' || grip.part === 'corner') {
+            const landed = placePoint(snapContext(), at, { free, ignore: original.id });
+            return { ...landed, opens: squared(landed) };
+          }
+          if (grip.part !== 'body' || !(isPointKind(original.kind) || isCornerKind(original.kind))) return loose;
           const centre: PicturePoint = [original.from[0] + at[0] - current.start[0], original.from[1] + at[1] - current.start[1]];
           const landed = placePoint(snapContext(), centre, { free, ignore: original.id });
-          return { at: [at[0] + landed.at[0] - centre[0], at[1] + landed.at[1] - centre[1]], target: landed.target };
+          return {
+            at: [at[0] + landed.at[0] - centre[0], at[1] + landed.at[1] - centre[1]],
+            target: landed.target,
+            opens: squared(landed),
+          };
         }
         case 'path':
           return loose;
       }
     },
-    [snapContext]
+    [snapContext, layout]
   );
 
   /**
@@ -470,10 +542,14 @@ export function useAnnotateCanvas({
       if (kind !== null) {
         if (readOnly) return;
         const free = isPrimaryModifier(event);
-        const start = snapsWhenPlaced(kind) ? placePoint(snapContext(), at, { free }) : { at, target: null };
-        gesture.current = { mode: 'draw', kind, start: start.at, startTarget: start.target, free, ...press };
-        // Where the press landed, at once: a finger sees it before its slop.
+        // A right angle's corner, and the way a click opens it when the press is in a right angle.
+        const start = isCornerKind(kind)
+          ? placeRightAngle(snapContext(), at, { free })
+          : { ...(snapsWhenPlaced(kind) ? placePoint(snapContext(), at, { free }) : { at, target: null }), opens: null };
+        gesture.current = { mode: 'draw', kind, start: start.at, startTarget: start.target, free, opens: start.opens, ...press };
+        // Where the press landed, at once: a finger sees it before its slop — and a right angle, the mark a click puts down.
         showSnap([start.target]);
+        showRightAngle(isCornerKind(kind) && layout ? clickPreview(start, layout.pictureFrame, free) : null);
       } else if (tool === EDIT_PATH) {
         const started = pressPath(at, press, count);
         if (!started) return;
@@ -515,6 +591,8 @@ export function useAnnotateCanvas({
       transformRef,
       snapContext,
       showSnap,
+      showRightAngle,
+      clickPreview,
     ]
   );
 
@@ -526,12 +604,13 @@ export function useAnnotateCanvas({
   const moved = (
     current: Extract<Gesture, { mode: 'move' }>,
     annotation: KnownDiagramAnnotation,
-    { at, target }: PlacedPoint
+    { at, target, opens }: PlacedInHand
   ) => {
     const { grip } = current;
     switch (grip.part) {
       case 'body':
         if (target && isPointKind(annotation.kind)) return moveAnnotationEnd(annotation, 'from', target.at);
+        if (target && isCornerKind(annotation.kind)) return opening(moveAnnotationEnd(annotation, 'from', target.at), opens);
         return moveAnnotation(annotation, [at[0] - current.start[0], at[1] - current.start[1]]);
       case 'from':
       case 'to':
@@ -542,10 +621,11 @@ export function useAnnotateCanvas({
         // Edit Path's own gesture holds these (`mode: 'path'`), never a move.
         return annotation;
       case 'corner':
+        // A right angle's corner: the mark moves whole, and opens square into a right angle where it lands.
+        return opening(moveAnnotationEnd(annotation, 'from', at), opens);
       case 'direction':
-        // No press takes hold of these yet (`hitAnnotation`): the right-angle
-        // mark will, and say here what moving one does.
-        return annotation;
+        // The way it opens, turned toward the point the pointer gave (`placeInHand`).
+        return moveAnnotationEnd(annotation, 'to', at);
     }
   };
 
@@ -561,9 +641,17 @@ export function useAnnotateCanvas({
       const looking =
         kind !== null && snapsWhenPlaced(kind) && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
       const at = looking && onStage(input.target) ? toPicture(input.clientX, input.clientY) : null;
-      showSnap([at ? placePoint(snapContext(), at, { free: isPrimaryModifier(input) }).target : null]);
+      const free = isPrimaryModifier(input);
+      if (kind !== null && isCornerKind(kind)) {
+        // The corner a press here snaps to, and the mark a click puts down in it.
+        const start = at ? placeRightAngle(snapContext(), at, { free }) : null;
+        showSnap([start?.target ?? null]);
+        showRightAngle(start && layout ? clickPreview(start, layout.pictureFrame, free) : null);
+        return;
+      }
+      showSnap([at ? placePoint(snapContext(), at, { free }).target : null]);
     },
-    [tool, readOnly, spacePressed, onStage, toPicture, snapContext, showSnap]
+    [tool, readOnly, spacePressed, onStage, toPicture, snapContext, showSnap, showRightAngle, layout, clickPreview]
   );
 
   const pointerMoved = useCallback(
@@ -581,6 +669,8 @@ export function useAnnotateCanvas({
       const pointer = toPicture(event.clientX, event.clientY);
       if (!pointer) return;
       current.moved = true;
+      // The drag draws the mark itself now.
+      showRightAngle(null);
       if (current.mode === 'path') {
         // An undo or another edit made the arrow something else under the drag: let it go.
         if (!sameRepresentation(current.representation, pathRepresentationOf(liveAnnotation(step.id, current)))) {
@@ -591,7 +681,7 @@ export function useAnnotateCanvas({
         setDraft(pathDragged(current, current.original, pointer, current.modifiers));
         return;
       }
-      const placed = placeInHand(current, pointer, isPrimaryModifier(event));
+      const placed = placeInHand(current, pointer, isPrimaryModifier(event), event.shiftKey);
       if (current.mode === 'draw') {
         const point = isPointKind(current.kind);
         setDraft(createAnnotation(current.kind, point ? placed.at : current.start, placed.at, layout.pictureFrame, () => DRAFT_ID));
@@ -601,7 +691,7 @@ export function useAnnotateCanvas({
       setDraft(moved(current, current.original, placed));
       showSnap([placed.target]);
     },
-    [layout, toPicture, cancel, step.id, hover, placeInHand, showSnap]
+    [layout, toPicture, cancel, step.id, hover, placeInHand, showSnap, showRightAngle]
   );
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => pointerMoved(event.nativeEvent), [pointerMoved]);
@@ -609,8 +699,10 @@ export function useAnnotateCanvas({
   /** The pointer gone from the stage, with nothing in hand: no target to show. */
   const onPointerLeave = useCallback(() => {
     lastPointer.current = null;
-    if (!gesture.current) showSnap([]);
-  }, [showSnap]);
+    if (gesture.current) return;
+    showSnap([]);
+    showRightAngle(null);
+  }, [showSnap, showRightAngle]);
 
   // ⌘ pressed or let go with the pointer still: what it would snap to, or what
   // the drag in hand lands on, changes all the same. Held keys are tracked for
@@ -699,20 +791,21 @@ export function useAnnotateCanvas({
       gesture.current = null;
       setDraft(null);
       showSnap([]);
+      showRightAngle(null);
       if (!layout) return;
       const store = useWorkspaceStore.getState();
       const { loadId } = current;
       const free = isPrimaryModifier(event);
       if (current.mode === 'draw') {
         const point = isPointKind(current.kind);
-        // A line or an arrow is drawn by a drag; a sign or a label is put down by a click.
-        if (!point && !current.moved) return;
+        // A line or an arrow is drawn by a drag; a sign or a label is put down by a click; a right angle by either.
+        if (!point && !current.moved && !isCornerKind(current.kind)) return;
         // A click puts a point where its press showed it: a hand or a finger
         // drifting within its slop before it lifts has not moved it.
         const { at, target } =
           point && !current.moved
             ? { at: current.start, target: current.startTarget }
-            : placeInHand(current, toPicture(event.clientX, event.clientY) ?? current.start, free);
+            : placeInHand(current, toPicture(event.clientX, event.clientY) ?? current.start, free, event.shiftKey);
         const annotation = createAnnotation(current.kind, point ? at : current.start, at, layout.pictureFrame);
         if (isDegenerate(annotation, MIN_ANNOTATION_LENGTH)) return;
         const added = store.editDiagramAnnotations(step.id, 'Add annotation', (list) => [...list, annotation], {
@@ -740,7 +833,7 @@ export function useAnnotateCanvas({
       if (!current.moved) return;
       const pointer = toPicture(event.clientX, event.clientY);
       if (!pointer) return;
-      const placed = placeInHand(current, pointer, free);
+      const placed = placeInHand(current, pointer, free, event.shiftKey);
       // Applied to the annotation as it is now: an edit that landed during the
       // drag — its text, its arc — is kept, not overwritten by the press's copy.
       store.editDiagramAnnotations(
@@ -755,7 +848,7 @@ export function useAnnotateCanvas({
         { loadId }
       );
     },
-    [layout, toPicture, step.id, release, landPath, showSnap, placeInHand, snap.enabled]
+    [layout, toPicture, step.id, release, landPath, showSnap, showRightAngle, placeInHand, snap.enabled]
   );
 
   const onPointerGone = useCallback(
@@ -780,6 +873,8 @@ export function useAnnotateCanvas({
     coarse,
     /** Where a press would land, or the ends in hand have: shown over the marks, never in them. */
     snapTargets: snap.targets,
+    /** The right angle a click would put down where the pointer is: shown over the marks, never in them. */
+    rightAnglePreview: rightAngle,
     onPointerDownCapture,
     handlers: {
       onPointerDown,
@@ -790,6 +885,22 @@ export function useAnnotateCanvas({
       onLostPointerCapture: onPointerGone,
     },
   };
+}
+
+/**
+ * Where the pointer puts what is in hand (`placeInHand`), and — for a right
+ * angle whose corner landed on a point — the way it opens there.
+ */
+type PlacedInHand = PlacedPoint & { opens?: PicturePoint };
+
+/** A right angle opening the way `opens` goes, about its corner; as it was without one. */
+function opening(mark: KnownDiagramAnnotation, opens: PicturePoint | undefined): KnownDiagramAnnotation {
+  return opens ? { ...mark, ...rightAngleAt(mark.from, opens) } : mark;
+}
+
+/** A point {@link RIGHT_ANGLE_DIAGONAL} from `corner` the way `opens` goes: what a right angle's `to` is made from. */
+function along(corner: PicturePoint, opens: PicturePoint): PicturePoint {
+  return [corner[0] + opens[0] * RIGHT_ANGLE_DIAGONAL, corner[1] + opens[1] * RIGHT_ANGLE_DIAGONAL];
 }
 
 /** Each kind in the analytics event's spelling: a new kind is a type error until it has one. */
@@ -805,6 +916,7 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'hidden-line': 'hidden_line',
   label: 'label',
   circle: 'circle',
+  'right-angle': 'right_angle',
 };
 
 /**

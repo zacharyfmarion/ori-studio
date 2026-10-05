@@ -2,12 +2,19 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { drawingKind } from '../../diagram/annotate/annotateTools';
-import { arrowPolyline } from '../../diagram/annotate/annotationHit';
+import { arrowPolyline, rightAngleGrips, rightAngleLegs } from '../../diagram/annotate/annotationHit';
 import { pathNodesOf, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import type { SnapTarget } from '../../diagram/annotate/pictureSnap';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
-import { CIRCLE_RADIUS, GLYPH_REACH, useAnnotateCanvas, type AnnotateLayout } from '../../diagram/annotate/useAnnotateCanvas';
+import {
+  CIRCLE_RADIUS,
+  GLYPH_REACH,
+  INK_UNITS,
+  useAnnotateCanvas,
+  type AnnotateLayout,
+  type RightAnglePreview,
+} from '../../diagram/annotate/useAnnotateCanvas';
 import { canBeShaped, labelHalfWidth, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
 import {
   isKnownAnnotation,
@@ -137,6 +144,7 @@ export function DiagramAnnotateCanvas({
                     <Selection annotation={selected} layout={layout} zoom={zoom} movable={!readOnly && !canvas.editingPath} />
                   ))}
                 <SnapTargets targets={canvas.snapTargets} layout={layout} zoom={zoom} />
+                {canvas.rightAnglePreview && <RightAngleGhost preview={canvas.rightAnglePreview} layout={layout} />}
               </svg>
             </div>
           )}
@@ -195,6 +203,21 @@ function Selection({
     case 'circle':
       // Along its ring: what a press takes hold of.
       return ring(CIRCLE_RADIUS);
+    case 'right-angle': {
+      // Along its legs, and a dot at its corner, which moves it, and at the
+      // square's far corner, which turns it.
+      const grips = rightAngleGrips(annotation, INK_UNITS);
+      return (
+        <g data-selection="">
+          <polyline className={styles.selection} points={polylinePoints(rightAngleLegs(annotation, INK_UNITS).map(at))} />
+          {movable &&
+            (['corner', 'direction'] as const).map((part) => {
+              const [x, y] = at(grips[part]);
+              return <circle key={part} className={styles.handle} cx={x} cy={y} r={handle} data-handle={part} />;
+            })}
+        </g>
+      );
+    }
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow':
@@ -215,6 +238,26 @@ function Selection({
         const [x, y] = at(annotation[end]);
         return <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />;
       })}
+    </g>
+  );
+}
+
+function polylinePoints(points: readonly (readonly number[])[]): string {
+  return points.map((point) => point.join(',')).join(' ');
+}
+
+/**
+ * The right angle a click puts down where the pointer is (decision 12), over
+ * everything: its open square in the selection's colour on a white halo, at
+ * the size the canvas draws it — a ghost of the mark, never the mark.
+ */
+function RightAngleGhost({ preview, layout }: { preview: RightAnglePreview; layout: AnnotateLayout }) {
+  const legs = rightAngleLegs({ from: preview.at, to: [preview.at[0] + preview.opens[0], preview.at[1] + preview.opens[1]] }, INK_UNITS);
+  const points = polylinePoints(legs.map(([u, v]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit]));
+  return (
+    <g data-right-angle-preview="">
+      <polyline className={styles.ghostHalo} points={points} />
+      <polyline className={styles.ghost} points={points} />
     </g>
   );
 }

@@ -134,6 +134,13 @@ export type StepDiagramPrimitive =
    */
   | { kind: 'turn-over'; at: readonly [number, number]; axis?: 'vertical' | 'horizontal' }
   /**
+   * A right angle marked at `at`: an open square in the corner, opening
+   * toward `toward` — any point along the diagonal into the angle, as only
+   * its direction is read. Its size is the drawing's, as a ring's is; its legs
+   * mirror with the paper, square to the lines it marks.
+   */
+  | { kind: 'right-angle'; at: readonly [number, number]; toward: readonly [number, number] }
+  /**
    * A stretch of the paper a step works in, as a light fill under the lines:
    * the band a grid step's lines are made in, between the bounds the folder
    * sights them from. A convex polygon, in sheet units.

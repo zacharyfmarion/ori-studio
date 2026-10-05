@@ -642,8 +642,79 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
     the press showed); the hover target went stale under a camera move.
 
 ### 14e. Right-angle marks
-- [ ] Shared primitive and golden; kind; ray-based corner detection; drag
+- [x] Shared primitive and golden; kind; ray-based corner detection; drag
   fallback; Turn 90°.
+  - As built:
+    - **Primitive.** `{kind: 'right-angle', at, toward}`: the corner, and any
+      point along the diagonal into the angle (only its direction is read,
+      measured after projecting, so it mirrors with the paper). Its shape is
+      `rightAngleDrawn` (`stepDiagramGeometry.ts`): an open square, the two
+      sides that do not lie on the lines, 7 ink a side
+      (`DIAGRAM_RIGHT_ANGLE_INK`), legs 45° either side of the diagonal.
+      Drawn as a ring is — a mark that can leave the paper, twice through
+      the clip pair — in the ring's pen (`markRingWidth`, three quarters of
+      the arrow's; decision 7's "annotation pen") and the mark's ink, solid,
+      `stroke-linecap="butt"` (the legs end on the lines) and
+      `stroke-linejoin="miter"` set on the element. `rightAngleReach`: half
+      the pen past its ends, √2 of that past its mitred corner.
+      `diagramInModel` and `symbolAnchor` carry it; References' stored-model
+      reader does not read one (a newer build's, as a path arrow is).
+      Goldens: `referencesRightAnglesGolden.json` (front and back through the
+      export) and `annotate/__fixtures__/rightAngleGolden.json` (card, page
+      and canvas, five cases), both checked by eye
+      (`artifacts/diagram-annotate/14e/golden-*.png`).
+    - **Kind.** `right-angle`, shape `corner` (`CORNER_KINDS`): `from` the
+      corner, `to` `RIGHT_ANGLE_DIAGONAL` (0.02) along the diagonal — inside
+      the square it draws, so a spread's carry moves both by one face. Every
+      edit writes `to` that far (`rightAngleAt`, `cleanAnnotation`); at
+      reach's edge the corner is drawn in rather than the direction turned;
+      a corner put on a point stays on it to the bit. Moves whole; its corner
+      moves it with its direction kept; its other end turns it
+      (`moveAnnotationEnd`). Carried by mapping both points and writing `to`
+      again (a mirror turns it over, a turn turns it). `turnRightAngle`: a
+      quarter clockwise on the page about its corner.
+    - **File.** Base fields only; a field, or a point past reach, is a newer
+      build's; `to` at its corner (it opens no way) does not read; any other
+      distance reads as written. a34d74086's reader keeps it verbatim and
+      writes it back unchanged (checked by running that reader).
+    - **Hit.** Its legs, and 0 anywhere in its square (its corner included).
+      Selected, it offers `corner` (its corner) and `direction` (the square's
+      far corner) — the grip parts 14b set aside — instead of ends.
+    - **Placing** (`rightAnglePlacement.ts`, decision 12). Hover with the tool:
+      `rightAngleCorner` at the snap radius — the vertex, and the right angle
+      the pointer is in — shown as a ghost of the mark in the selection colour
+      over the marks (`RightAngleGhost`, canvas state, never drawn into the
+      marks) with the vertex's snap target; a click puts the mark there.
+      Otherwise the corner is the point the press snapped to (14d's
+      `placePoint`, ⌘ and the switch as there), and: a drag at least
+      `MIN_ANNOTATION_LENGTH` opens into a right angle at the corner the drag
+      points into (`draggedOpening`), else toward the pointer, Shift holding it
+      to 45°; a click opens into the right angle at the corner nearest the way
+      to the frame's middle, else that way held to a diagonal (`towardMiddle`;
+      up and to the right from the middle). The hover shows exactly what a
+      click would do, found or not. 3D and simulated pictures give no rays of
+      their own, so only the corner snaps there. Moving one by its body or its
+      corner onto a snapped point opens it into the right angle there nearest
+      the way it opened (`squaredOpening`); dragging its far corner turns it,
+      squared into a right angle the pointer points into, Shift 45°.
+    - **Tool and verb.** Marks group, after the circle; key Q (R is
+      Rotate's), checked free in every scope the Diagram pushes; its glyph two
+      lines meeting square and the open square between them. **Turn 90°**
+      (`turn-right-angle` in `annotationActions.ts`): a right angle's verb in
+      the Step pane, one undo step. No key (Reset Shape has none) and no
+      context menu: the canvas has no annotation context menu to join.
+    - **Analytics.** `diagram annotation added` gains `tool: right_angle`; a
+      click in a right angle counts `snap: snapped`.
+    - **Proof.** Fail-before: the touched sources at a34d74086 under the new
+      tests — 30 tests fail and three suites do not load. Fifteen mutants (the
+      reach without its mitre, no mitre on the element, the arrow's pen, the
+      diagonal read before projecting, `to` not rewritten on a carry, reach
+      kept by clamping `to`, Turn 90° anticlockwise, ends instead of the
+      corner and direction grips, legs only, a reader taking `to` at the
+      corner, a drag squared into the first right angle whichever way it
+      points, no dead-zone squaring on a click, a click placing nothing, a
+      moved mark not squared, no ghost) each fail a test; the dead-zone one
+      survived the first set, and a test was added for it.
   - Analysis as built (`rightAngles.ts`, pure; no kind or canvas yet): rays,
     not lines — one from a line ending at the vertex, two from one running
     through it, rays within 0.5° one; a sector between consecutive rays is a
@@ -662,8 +733,21 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
     box-pleat vertices, a sector round past +x, ±1°, References mirrored, an
     upload's drawn lines, 3D; on the real pictures box_90's 16, counted by
     hand. Timing as 14d.
-- [ ] Browser: a box-pleated capture, a References step, an upload with drawn
+- [x] Browser: a box-pleated capture, a References step, an upload with drawn
   lines, a PDF.
+  - As built (`artifacts/diagram-annotate/14e/rightangle.mjs`, Chromium
+    1440×900, light and dark): box_90's crease pattern linked as a capture,
+    crane.osf's first References step, and an upload with a valley, a
+    mountain and a hidden line drawn on it with the line tools. On each:
+    hovering 9 px into a right angle shows the ghost and the vertex; the
+    click puts the mark on the vertex exactly, opening along that angle's
+    diagonal; a drag from 2 px off a second vertex, 15° off its diagonal,
+    lands on the vertex squared into that angle; a Shift drag in the open
+    holds 45°; a press on a leg selects it with its corner and far-corner
+    grips; Turn 90° turns it a quarter clockwise, four times round. The
+    crane's pages exported to PDF and rasterised (`pdf-light-1.png`,
+    `pdf-zoom-1.png`): the marks print mitred, in the arrows' ink. iPad
+    WebKit and a real finger are not done here.
 
 ### 14f. White arrows
 - [ ] Flatten-and-offset geometry, joins, loop removal, head, tails, mitre

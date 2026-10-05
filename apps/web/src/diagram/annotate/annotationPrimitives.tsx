@@ -14,6 +14,8 @@
  *   annotation pen — three quarters of the style's arrow pen, in its ink
  *   (decision 7) — so an arrow that lands on it stops at its rim, as
  *   References' do.
+ * - A right angle is an open square in its corner (`right-angle`, decision
+ *   11), in the ring's pen and ink: a precise mark, as a circle is.
  * - A label is a line of text at a fixed share of the frame, its runs in the
  *   diagram's fonts as an upload's text is (`uploadText.ts`), so a page sets
  *   and embeds it the same way.
@@ -36,7 +38,7 @@ import {
   type DiagramRenderContext,
 } from '../../cp-workspace/references/diagram/DiagramPrimitives';
 import { diagramInlineInk, type DiagramInlineInk } from '../../cp-workspace/references/diagram/diagramColors';
-import { markOuterRadius } from '../../cp-workspace/references/diagram/labelLayout';
+import { markOuterRadius, markRingWidth } from '../../cp-workspace/references/diagram/labelLayout';
 import {
   canvasDiagramInk,
   canvasDiagramPens,
@@ -54,6 +56,8 @@ import {
   oneWayArrowDrawn,
   pathArrowDrawn,
   pushArrowDrawn,
+  rightAngleDrawn,
+  rightAngleReach,
   rotateGlyphDrawn,
   turnOverDrawn,
   type Arrowhead,
@@ -118,7 +122,9 @@ export interface AnnotationLine {
 /** The marks an annotation can be: the References primitives it compiles to. */
 export type AnnotationPrimitive = Extract<
   StepDiagramPrimitive,
-  { kind: 'fold-arrow' | 'one-way-arrow' | 'path-arrow' | 'push-arrow' | 'turn-over' | 'rotate' | 'point' }
+  {
+    kind: 'fold-arrow' | 'one-way-arrow' | 'path-arrow' | 'push-arrow' | 'turn-over' | 'rotate' | 'point' | 'right-angle';
+  }
 >;
 
 /**
@@ -240,6 +246,9 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
     case 'circle':
       // No letter (decision 8): a label names it, if anything does.
       return { kind: 'mark', primitive: { kind: 'point', at: up(from), style: 'highlight' } };
+    case 'right-angle':
+      // `to` says only which way it opens: the drawing sizes it.
+      return { kind: 'mark', primitive: { kind: 'right-angle', at: up(from), toward: up(to) } };
   }
 }
 
@@ -440,6 +449,14 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
         // The ring's outer edge: its radius and half its stroke.
         const { x, y } = project(primitive.at);
         take(x, y, markOuterRadius(project));
+        break;
+      }
+      case 'right-angle': {
+        // Its legs' ends, cut square, and its corner, mitred: in the ring's pen.
+        const legs = rightAngleDrawn(primitive.at, primitive.toward, project);
+        if (!legs) break;
+        const reach = rightAngleReach(markRingWidth(project));
+        legs.forEach(({ x, y }, index) => take(x, y, reach[index]!));
         break;
       }
       default: {

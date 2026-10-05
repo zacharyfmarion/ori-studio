@@ -37,9 +37,12 @@ export interface PictureFrame {
  * - `straight`: a push, dragged, straight from `from` to `to`;
  * - `line`: a crease line, dragged, drawn in the diagram's pens;
  * - `point`: a sign, a label or a circle, put down with a click at one point
- *   (`to` is `from`).
+ *   (`to` is `from`);
+ * - `corner`: a right-angle mark, put down in a corner — with a click on a
+ *   right angle, or a drag from its corner into the angle — `to` saying only
+ *   which way it opens ({@link RIGHT_ANGLE_DIAGONAL}).
  */
-type AnnotationShape = 'arc' | 'straight' | 'line' | 'point';
+type AnnotationShape = 'arc' | 'straight' | 'line' | 'point' | 'corner';
 
 const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
   'valley-arrow': 'arc',
@@ -53,6 +56,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'hidden-line': 'line',
   label: 'point',
   circle: 'point',
+  'right-angle': 'corner',
 };
 
 /** Every kind, in the order the rail offers them. */
@@ -69,6 +73,9 @@ export const POINT_KINDS = kindsShaped('point');
 
 /** The crease lines, drawn in the diagram's pens. */
 export const LINE_KINDS = kindsShaped('line');
+
+/** The marks put down in a corner, opening along its diagonal: the right angle. */
+export const CORNER_KINDS = kindsShaped('corner');
 
 /**
  * A 60° arc, as References draws a fold arrow (`foldArrowArc`): its sagitta
@@ -98,6 +105,14 @@ export const MAX_STEP_ANNOTATIONS = 500;
 
 /** The most nodes a shaped arrow has: room for any arrow a diagram draws, and a bound on a file's. */
 export const MAX_PATH_NODES = 24;
+
+/**
+ * How far along its diagonal a right-angle mark's `to` is written, in
+ * picture units. Only its direction is read; this near its corner — inside
+ * the square it draws — a move that carries each point by what lies under it
+ * (a spread's faces) carries the two by the same.
+ */
+export const RIGHT_ANGLE_DIAGONAL = 0.02;
 
 const clampReach = (value: number) => Math.min(ANNOTATION_REACH, Math.max(-ANNOTATION_REACH, value));
 
@@ -129,6 +144,7 @@ export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagra
     const { path: _dropped, ...arc } = annotation;
     return cleanAnnotation(isArrowKind(arc.kind) ? { ...arc, bend: arc.bend ?? ARROW_BEND } : arc);
   }
+  if (isCornerKind(annotation.kind)) return cleanCorner(annotation);
   const from = withinReach(annotation.from);
   const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
   const text = annotation.text === undefined ? undefined : cleanLabelText(annotation.text);
@@ -143,6 +159,66 @@ export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagra
     ...(text !== undefined ? { text } : {}),
     ...(bend !== undefined ? { bend } : {}),
   };
+}
+
+/**
+ * A right-angle mark as this build writes it: its corner within reach, and
+ * `to` {@link RIGHT_ANGLE_DIAGONAL} along the way it opens, within reach too
+ * — the corner drawn in, should it lie so near reach's edge that `to` would
+ * pass it, so the way it opens is kept. The same object when it already is.
+ */
+function cleanCorner(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const from = withinReach(annotation.from);
+  const length = Math.hypot(annotation.to[0] - annotation.from[0], annotation.to[1] - annotation.from[1]);
+  const written =
+    samePoint(from, annotation.from) &&
+    Math.abs(length - RIGHT_ANGLE_DIAGONAL) <= 1e-12 &&
+    samePoint(withinReach(annotation.to), annotation.to);
+  if (written) return annotation;
+  return { ...annotation, ...rightAngleAt(from, rightAngleDiagonal(annotation)) };
+}
+
+/**
+ * The unit direction a right-angle mark opens in, from its corner along the
+ * diagonal into the angle; {@link DEFAULT_RIGHT_ANGLE_DIAGONAL} for one whose
+ * `to` is its corner, which opens no way.
+ */
+export function rightAngleDiagonal({ from, to }: Pick<KnownDiagramAnnotation, 'from' | 'to'>): PicturePoint {
+  const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+  if (!(length > 0)) return [DEFAULT_RIGHT_ANGLE_DIAGONAL[0], DEFAULT_RIGHT_ANGLE_DIAGONAL[1]];
+  return [(to[0] - from[0]) / length, (to[1] - from[1]) / length];
+}
+
+/** Up and to the right, as the page shows it: a square in the corner of an ∟. */
+export const DEFAULT_RIGHT_ANGLE_DIAGONAL: PicturePoint = [Math.SQRT1_2, -Math.SQRT1_2];
+
+/**
+ * A right-angle mark's two points, its corner at `corner` and opening along
+ * `direction` (any length; the default way for none): `to`
+ * {@link RIGHT_ANGLE_DIAGONAL} along it. Both within reach — at reach's very
+ * edge the corner is drawn in rather than the way it opens turned.
+ */
+export function rightAngleAt(corner: PicturePoint, direction: PicturePoint): { from: PicturePoint; to: PicturePoint } {
+  const length = Math.hypot(direction[0], direction[1]);
+  const [ux, uy] = length > 0 ? [direction[0] / length, direction[1] / length] : DEFAULT_RIGHT_ANGLE_DIAGONAL;
+  const at = withinReach(corner);
+  const ahead: PicturePoint = [at[0] + RIGHT_ANGLE_DIAGONAL * ux, at[1] + RIGHT_ANGLE_DIAGONAL * uy];
+  const to = withinReach(ahead);
+  // The corner as it was put, to the bit, wherever `to` was not drawn in: a snapped corner stays on its point.
+  if (samePoint(to, ahead)) return { from: at, to };
+  return { from: [to[0] - RIGHT_ANGLE_DIAGONAL * ux, to[1] - RIGHT_ANGLE_DIAGONAL * uy], to };
+}
+
+/**
+ * A right-angle mark turned a quarter clockwise about its corner, as the page
+ * shows it: into the next quadrant of a crossing, where a drag or a click
+ * found the wrong one. Anything else as it was.
+ */
+export function turnRightAngle(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  if (!isCornerKind(annotation.kind)) return annotation;
+  const [dx, dy] = rightAngleDiagonal(annotation);
+  // A quarter turn clockwise with y down: (x, y) to (−y, x).
+  return { ...annotation, ...rightAngleAt(annotation.from, [-dy, dx]) };
 }
 
 /**
@@ -241,6 +317,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'label':
     case 'circle':
+    case 'right-angle':
       return false;
   }
 }
@@ -297,6 +374,10 @@ export function isPointKind(kind: DiagramAnnotationKind): boolean {
   return POINT_KINDS.has(kind);
 }
 
+export function isCornerKind(kind: DiagramAnnotationKind): boolean {
+  return CORNER_KINDS.has(kind);
+}
+
 /**
  * The bulge a new fold arrow is given: toward the frame's middle, as
  * References chooses the centre farther from the sheet's middle so its
@@ -311,7 +392,11 @@ export function defaultBend(from: PicturePoint, to: PicturePoint, frame: Picture
   return toward < 0 ? -ARROW_BEND : ARROW_BEND;
 }
 
-/** A new annotation of `kind`, from a drag (`from` → `to`) or a click (`to` ignored for a point kind). */
+/**
+ * A new annotation of `kind`, from a drag (`from` → `to`) or a click (`to`
+ * ignored for a point kind; for a right angle, the way it opens from its
+ * corner `from`).
+ */
 export function createAnnotation(
   kind: DiagramAnnotationKind,
   start: PicturePoint,
@@ -320,6 +405,11 @@ export function createAnnotation(
   newId: DiagramIdFactory = randomDiagramId
 ): KnownDiagramAnnotation {
   const id = newId('annotation');
+  if (isCornerKind(kind)) {
+    // In the corner `start`, opening toward `end`: the way a drag went, or
+    // the way a click on a right angle found; the default way for neither.
+    return { id, kind, ...rightAngleAt(start, [end[0] - start[0], end[1] - start[1]]) };
+  }
   const from = withinReach(start);
   const to = withinReach(end);
   if (isPointKind(kind)) {
@@ -396,7 +486,8 @@ export function movePathNodeTo(
 
 /**
  * One end put at `point`. A point kind has one place, so both move; a shaped
- * arrow's end is a node, and its handle comes with it.
+ * arrow's end is a node, and its handle comes with it; a right angle's
+ * corner moves whole, and its other end turns it.
  */
 export function moveAnnotationEnd(
   annotation: KnownDiagramAnnotation,
@@ -405,6 +496,12 @@ export function moveAnnotationEnd(
 ): KnownDiagramAnnotation {
   const { path } = annotation;
   if (path) return withPath(annotation, movePathNodeTo(path, end === 'from' ? 0 : path.length - 1, point));
+  if (isCornerKind(annotation.kind)) {
+    // Its corner moves with the way it opens kept; its other end turns it toward the point.
+    return end === 'from'
+      ? { ...annotation, ...rightAngleAt(point, rightAngleDiagonal(annotation)) }
+      : { ...annotation, ...rightAngleAt(annotation.from, [point[0] - annotation.from[0], point[1] - annotation.from[1]]) };
+  }
   const at = withinReach(point);
   if (isPointKind(annotation.kind)) return { ...annotation, from: at, to: [at[0], at[1]] };
   return end === 'from' ? { ...annotation, from: at } : { ...annotation, to: at };
@@ -470,6 +567,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'label':
     case 'circle':
+    case 'right-angle':
       return false;
   }
 }
@@ -509,7 +607,8 @@ export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiag
  * loops back to end beside its tail is still an arrow.
  */
 export function isDegenerate(annotation: KnownDiagramAnnotation, minLength: number): boolean {
-  if (isPointKind(annotation.kind)) return false;
+  // A right angle has a corner and a way to open, not a length.
+  if (isPointKind(annotation.kind) || isCornerKind(annotation.kind)) return false;
   if (annotation.path) return pathLength(annotation.path) < minLength;
   return Math.hypot(annotation.to[0] - annotation.from[0], annotation.to[1] - annotation.from[1]) < minLength;
 }
@@ -571,6 +670,15 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
     return withPath(annotation, cleanPath(path) ?? path);
   }
   // Kept within reach: a carried point that would leave it was three frames off the picture already.
+  if (isCornerKind(annotation.kind)) {
+    // Its corner where the point went, opening the way its diagonal went: so
+    // a mirror turns it over and a turn turns it, and its legs stay on the
+    // lines under any similarity — not under a spread's distortion, which
+    // can bend the angle itself.
+    const from = move.point(annotation.from);
+    const to = move.point(annotation.to);
+    return { ...annotation, ...rightAngleAt(from, [to[0] - from[0], to[1] - from[1]]) };
+  }
   const carried: KnownDiagramAnnotation = {
     ...annotation,
     from: withinReach(move.point(annotation.from)),

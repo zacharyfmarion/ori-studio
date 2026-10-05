@@ -124,6 +124,10 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
         // Drawn in screen space: only its place moves.
         primitives.push({ ...primitive, at: map(primitive.at) });
         break;
+      case 'right-angle':
+        // Its corner and a point along its diagonal: the way it opens turns with the map.
+        primitives.push({ kind: 'right-angle', at: map(primitive.at), toward: map(primitive.toward) });
+        break;
       case 'region':
         primitives.push({ kind: 'region', corners: primitive.corners.map(map) });
         break;

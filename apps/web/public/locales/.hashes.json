@@ -4012,7 +4012,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.rightAngleHelp": "103308cc1b55",
+    "panels:diagram.annotations.turnRightAngle": "e4d9baac2110",
+    "tools:diagram.toolRightAngle": "fc0b8d407b7d"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8027,7 +8030,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.rightAngleHelp": "103308cc1b55",
+    "panels:diagram.annotations.turnRightAngle": "e4d9baac2110",
+    "tools:diagram.toolRightAngle": "fc0b8d407b7d"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12044,7 +12050,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.rightAngleHelp": "103308cc1b55",
+    "panels:diagram.annotations.turnRightAngle": "e4d9baac2110",
+    "tools:diagram.toolRightAngle": "fc0b8d407b7d"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15973,7 +15982,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.rightAngleHelp": "103308cc1b55",
+    "panels:diagram.annotations.turnRightAngle": "e4d9baac2110",
+    "tools:diagram.toolRightAngle": "fc0b8d407b7d"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -19902,7 +19914,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.rightAngleHelp": "103308cc1b55",
+    "panels:diagram.annotations.turnRightAngle": "e4d9baac2110",
+    "tools:diagram.toolRightAngle": "fc0b8d407b7d"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -23917,7 +23932,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.rightAngleHelp": "103308cc1b55",
+    "panels:diagram.annotations.turnRightAngle": "e4d9baac2110",
+    "tools:diagram.toolRightAngle": "fc0b8d407b7d"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -27932,7 +27950,10 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.rightAngleHelp": "103308cc1b55",
+    "panels:diagram.annotations.turnRightAngle": "e4d9baac2110",
+    "tools:diagram.toolRightAngle": "fc0b8d407b7d"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -31861,6 +31882,9 @@
     "panels:diagram.pose.spreadKindDepth": "f1dbc33978a9",
     "panels:diagram.pose.spreadSkew": "06598d480e82",
     "panels:diagram.pose.spreadSkewName": "3404fcb47c93",
-    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c"
+    "panels:diagram.pose.spreadSkewValue": "8db813e29b6c",
+    "panels:diagram.annotate.rightAngleHelp": "103308cc1b55",
+    "panels:diagram.annotations.turnRightAngle": "e4d9baac2110",
+    "tools:diagram.toolRightAngle": "fc0b8d407b7d"
   }
 }

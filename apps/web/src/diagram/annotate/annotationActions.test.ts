@@ -254,3 +254,35 @@ describe('Edit Path’s node verbs', () => {
     expect(node.out![0]).toBeCloseTo(0.351, 12);
   });
 });
+
+describe('Turn 90°', () => {
+  const square = (opens: [number, number]): KnownDiagramAnnotation => ({
+    id: 'r',
+    kind: 'right-angle',
+    from: [0.5, 0.5],
+    to: [0.5 + 0.02 * opens[0], 0.5 + 0.02 * opens[1]],
+  });
+
+  it('is offered on a right angle alone, after the arrows’ verbs and before Delete', () => {
+    const turns = ANNOTATION_KINDS.filter((kind) => offersAnnotationAction('turn-right-angle', of('a', kind)));
+    expect(turns).toEqual(['right-angle']);
+    const actions = buildAnnotationActions(square([1, 0]), { editable: true }, { t, apply: vi.fn() });
+    expect(actions.map(({ id, label, disabled }) => ({ id, label, disabled }))).toEqual([
+      { id: 'turn-right-angle', label: 'Turn 90°', disabled: false },
+      { id: 'delete', label: 'Delete', disabled: false },
+    ]);
+    expect(buildAnnotationActions(square([1, 0]), { editable: false }, { t, apply: vi.fn() })[0]!.disabled).toBe(true);
+  });
+
+  it('turns it a quarter clockwise about its corner, as one edit, on the mark as it is when it lands', () => {
+    const edits: AnnotationEdit[] = [];
+    buildAnnotationActions(square([1, 0]), { editable: true }, { t, apply: (edit) => edits.push(edit) })[0]!.run();
+    expect(edits.map(({ label, select }) => ({ label, select }))).toEqual([{ label: 'Turn right angle', select: undefined }]);
+    // Opening right now, whatever it opened when the verbs were built: it opens down (y down, clockwise on the page).
+    const [turned, other] = edits[0]!.edit([square([0, -1]), of('b', 'valley-line')]);
+    expect(turned!.from).toEqual([0.5, 0.5]);
+    expect(turned!.to[0]).toBeCloseTo(0.52, 12);
+    expect(turned!.to[1]).toBeCloseTo(0.5, 12);
+    expect(other).toEqual(of('b', 'valley-line'));
+  });
+});

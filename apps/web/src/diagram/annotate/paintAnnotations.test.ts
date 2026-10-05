@@ -193,6 +193,49 @@ describe('a circle', () => {
   });
 });
 
+describe('a right angle', () => {
+  const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
+  // In the corner (0.5, 0.5), opening down and to the right.
+  const square = a('r', 'right-angle', { from: [0.5, 0.5], to: [0.52, 0.52] });
+
+  it('is an open square in its corner, 7 ink a side, in a ring’s pen and the arrows’ ink, mitred and cut square', () => {
+    const drawing = annotationDrawing([square], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
+    // y up, as References' unit frame is.
+    expect(drawing.primitives).toEqual([{ kind: 'right-angle', at: [0.5, -0.5], toward: [0.52, -0.52] }]);
+    const arrow = a('v', 'valley-arrow', { from: [0.1, 0.2], to: [0.4, 0.2], bend: ARROW_BEND });
+    const { markup } = paintAnnotations([square, arrow], { x: 0, y: 0, width: 400, height: 300 }, 400, DEFAULT_DIAGRAM_STYLE)!;
+    const mark =
+      /<path d="M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)" stroke-width="([\d.]+)" stroke-linecap="butt" stroke-linejoin="miter" fill="none" stroke="([^"]+)"/.exec(
+        markup
+      );
+    expect(mark).not.toBeNull();
+    const [, ax, ay, bx, by, cx, cy, width, stroke] = mark!;
+    // Its legs along the page's axes from the corner (200, 200), the far corner on the diagonal.
+    expect(Number(ax)).toBeCloseTo(200 + 7 * ink, 2);
+    expect(Number(ay)).toBeCloseTo(200, 2);
+    expect(Number(bx)).toBeCloseTo(200 + 7 * ink, 2);
+    expect(Number(by)).toBeCloseTo(200 + 7 * ink, 2);
+    expect(Number(cx)).toBeCloseTo(200, 2);
+    expect(Number(cy)).toBeCloseTo(200 + 7 * ink, 2);
+    // A ring's pen: three quarters of the arrow's stroke, in the arrow's ink.
+    const [, shaft] = /<path d="M [^"]*A [^"]*" stroke-width="([\d.]+)"/.exec(markup)!;
+    const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
+    expect(Number(width)).toBeCloseTo(0.75 * Number(shaft), 3);
+    expect(stroke).toBe(head);
+    // Mitred though the page joins round, which wraps every mark.
+    expect(markup.startsWith('<g stroke-linejoin="round">')).toBe(true);
+  });
+
+  it('reaches past the frame as far as its mitre', () => {
+    // In the frame's top-left corner, opening up and out of it: its far corner past the frame.
+    const out = a('r', 'right-angle', { from: [0, 0], to: [-0.02, -0.02] });
+    const painted = paintAnnotations([out], { x: 0, y: 0, width: 400, height: 300 }, 400, DEFAULT_DIAGRAM_STYLE)!;
+    const width = Number(/stroke-width="([\d.]+)" stroke-linecap="butt"/.exec(painted.markup)![1]);
+    expect(painted.bounds.x).toBeCloseTo(-7 * ink - (Math.SQRT2 * width) / 2, 3);
+    expect(painted.bounds.y).toBeCloseTo(-7 * ink - (Math.SQRT2 * width) / 2, 3);
+  });
+});
+
 describe('a label’s runs', () => {
   it('sets each script in its font, Han under the key the diagram’s style replaces', () => {
     expect(labelRuns('A 中文')).toEqual([
@@ -414,7 +457,7 @@ describe('paintAnnotations', () => {
     }
   });
 
-  it('keeps a push, a rotate and a turn-over inside their reach at any pen, the heaviest too (review)', () => {
+  it('keeps a push, a rotate, a turn-over and a right angle inside their reach at any pen, the heaviest too (review)', () => {
     const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
     const glyphs = [
       a('push', 'push-arrow', { from: [-0.1, 0.4], to: [0.3, 0.1] }),
@@ -422,6 +465,9 @@ describe('paintAnnotations', () => {
       a('rotate', 'rotate', { from: [0, 0], to: [0, 0], rotate: { amount: 'half', direction: 'ccw' } }),
       a('turn', 'turn-over', { from: [1, 0.5], to: [1, 0.5] }),
       a('turn-h', 'turn-over', { from: [0.5, 1], to: [0.5, 1], axis: 'horizontal' }),
+      // In the frame's corner, opening out of it; and turned off the axes, off the picture.
+      a('square', 'right-angle', { from: [0, 0], to: [-0.01, -0.01] }),
+      a('square-turned', 'right-angle', { from: [1.02, 0.4], to: [1.02 + Math.cos(2), 0.4 + Math.sin(2)] }),
     ];
     for (const style of [DEFAULT_DIAGRAM_STYLE, heavy]) {
       for (const framePx of [300, 1000]) {
@@ -507,6 +553,35 @@ describe('paintAnnotations', () => {
               }
             }
             for (const corner of [TURN_OVER_HEAD.tip, TURN_OVER_HEAD.notch, ...TURN_OVER_HEAD.barbs]) ink.push(place(corner));
+          } else if (primitive.kind === 'right-angle') {
+            // Two legs in a ring's pen — three quarters of the arrow's — each 7 ink, 45° either side of
+            // the way it opens, cut square at their ends and mitred where they meet.
+            const pen = 0.75 * project.pens.arrow.width * project.ink;
+            const corner = project(primitive.at);
+            const toward = project(primitive.toward);
+            const opens = Math.atan2(toward.y - corner.y, toward.x - corner.x);
+            const side = 7 * project.ink;
+            const leg = (turn: number) => ({
+              x: corner.x + side * Math.cos(opens + turn),
+              y: corner.y + side * Math.sin(opens + turn),
+            });
+            const ends = [leg(-Math.PI / 4), leg(Math.PI / 4)];
+            const far = {
+              x: corner.x + side * Math.SQRT2 * Math.cos(opens),
+              y: corner.y + side * Math.SQRT2 * Math.sin(opens),
+            };
+            for (const end of ends) {
+              // A square end: half the pen either side, across the leg.
+              const along = { x: far.x - end.x, y: far.y - end.y };
+              const length = Math.hypot(along.x, along.y);
+              const across = { x: -along.y / length, y: along.x / length };
+              for (const sign of [1, -1]) ink.push({ x: end.x + (sign * pen * across.x) / 2, y: end.y + (sign * pen * across.y) / 2 });
+            }
+            // The mitre: the legs' outer and inner edges meet half a pen from the far corner's sides, on its diagonal.
+            for (const sign of [1, -1]) {
+              const reach = (Math.SQRT2 * pen) / 2;
+              ink.push({ x: far.x + sign * reach * Math.cos(opens), y: far.y + sign * reach * Math.sin(opens) });
+            }
           } else {
             throw new Error(`a glyph, not ${primitive.kind}`);
           }

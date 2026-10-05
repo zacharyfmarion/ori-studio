@@ -65,6 +65,7 @@ function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null 
     case 'hidden-line':
     case 'label':
     case 'circle':
+    case 'right-angle':
       return null;
   }
 }

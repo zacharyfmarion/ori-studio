@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { DiagramAnnotation, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { pathArrowGeometry } from '../../cp-workspace/references/stepDiagramGeometry';
 import { cubicPoint } from '../../lib/cubicBezier';
-import { ARROW_BEND, arrowApex, flipAnnotationArc, pathCubics } from './annotationModel';
-import { arrowPolyline, circleRadius, hitAnnotation, hitPathGrip } from './annotationHit';
+import { ARROW_BEND, arrowApex, flipAnnotationArc, pathCubics, rightAngleAt } from './annotationModel';
+import { arrowPolyline, circleRadius, hitAnnotation, hitPathGrip, rightAngleGrips, rightAngleLegs } from './annotationHit';
 
 /** About the canvas's: an ink is about 0.0066 of the frame. */
 const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066 };
@@ -246,5 +246,48 @@ describe('hitPathGrip', () => {
     const apex = arrowApex(arrow.from, arrow.to, arrow.bend!);
     expect(hitPathGrip(arrow, apex, REACH, null)).toMatchObject({ part: 'segment', segment: 0 });
     expect(hitPathGrip(line, line.from, REACH, null)).toBeNull();
+  });
+});
+
+describe('a right angle', () => {
+  // Opening down and to the right from (0.5, 0.5): its square's sides along x and y, 7 ink long.
+  const mark: KnownDiagramAnnotation = { id: 'square', kind: 'right-angle', ...rightAngleAt([0.5, 0.5], [1, 1]) };
+  const side = 7 * SIZES.ink;
+  const tight = { ...SIZES, tolerance: 0.004 };
+
+  it('is its open square as drawn: the ends of its legs and the far corner, 7 ink a side', () => {
+    const [a, b, c] = rightAngleLegs(mark, SIZES.ink);
+    expect(a[0]).toBeCloseTo(0.5 + side, 12);
+    expect(a[1]).toBeCloseTo(0.5, 12);
+    expect(b[0]).toBeCloseTo(0.5 + side, 12);
+    expect(b[1]).toBeCloseTo(0.5 + side, 12);
+    expect(c[0]).toBeCloseTo(0.5, 12);
+    expect(c[1]).toBeCloseTo(0.5 + side, 12);
+  });
+
+  it('is taken by its legs and anywhere in its square, and not past them', () => {
+    expect(hitAnnotation([mark], [0.5 + side, 0.5 + side / 2], tight, null)).toEqual({ annotationId: 'square', part: 'body' });
+    expect(hitAnnotation([mark], [0.5 + side / 3, 0.5 + side / 3], tight, null)?.annotationId).toBe('square');
+    // Its corner is in its square: the place it marks.
+    expect(hitAnnotation([mark], [0.5, 0.5], tight, null)?.annotationId).toBe('square');
+    expect(hitAnnotation([mark], [0.5 + side + 0.006, 0.5 + side / 2], tight, null)).toBeNull();
+    // The other side of its corner is the lines', not the mark's.
+    expect(hitAnnotation([mark], [0.5 - 0.006, 0.5 - 0.006], tight, null)).toBeNull();
+  });
+
+  it('offers its corner and the way it opens when selected, and no ends', () => {
+    const grips = rightAngleGrips(mark, SIZES.ink);
+    expect(grips.corner).toEqual([0.5, 0.5]);
+    expect(grips.direction[0]).toBeCloseTo(0.5 + side, 12);
+    expect(grips.direction[1]).toBeCloseTo(0.5 + side, 12);
+    expect(hitAnnotation([mark], [0.501, 0.5], tight, 'square')).toEqual({ annotationId: 'square', part: 'corner' });
+    expect(hitAnnotation([mark], [0.5 + side, 0.5 + side + 0.001], tight, 'square')).toEqual({
+      annotationId: 'square',
+      part: 'direction',
+    });
+    // Its `to`, a short way along its diagonal, is no end of it.
+    expect(hitAnnotation([mark], mark.to, tight, 'square')).toEqual({ annotationId: 'square', part: 'body' });
+    // Not selected, a press on its corner takes it whole.
+    expect(hitAnnotation([mark], [0.501, 0.5], tight, null)).toEqual({ annotationId: 'square', part: 'body' });
   });
 });

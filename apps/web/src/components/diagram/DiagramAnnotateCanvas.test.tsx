@@ -11,7 +11,9 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
 import { TooltipProvider } from '../ui/Tooltip';
-import { CIRCLE_RADIUS } from '../../diagram/annotate/useAnnotateCanvas';
+import { CIRCLE_RADIUS, INK_UNITS } from '../../diagram/annotate/useAnnotateCanvas';
+import { rightAngleGrips } from '../../diagram/annotate/annotationHit';
+import { rightAngleAt, rightAngleDiagonal } from '../../diagram/annotate/annotationModel';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 
@@ -1036,5 +1038,155 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
     pointer('pointerup', at(0.184, 0.5), 3, 'mouse');
     rerender();
     expect(last().from).toEqual([0.2, 0.5]);
+  });
+});
+
+describe('DiagramAnnotateCanvas right angles (decision 12)', () => {
+  const R = Math.SQRT1_2;
+  // Two lines drawn on the upload, meeting square at (0.3, 0.4): one right angle there, opening down and to the right.
+  const across: KnownDiagramAnnotation = { id: 'across', kind: 'valley-line', from: [0.3, 0.4], to: [0.7, 0.4] };
+  const down: KnownDiagramAnnotation = { id: 'down', kind: 'mountain-line', from: [0.3, 0.4], to: [0.3, 0.8] };
+
+  beforeEach(() => {
+    useSettingsStore.setState({ diagramAnnotateSnap: true, cpSnapRadius: 10 });
+  });
+
+  function drawn(list: KnownDiagramAnnotation[], toolInHand: Parameters<typeof tool>[0] = null) {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => list);
+      state().selectDiagramAnnotation(null);
+      state().setDiagramAnnotateTool(toolInHand);
+    });
+    rerender();
+    return stepId;
+  }
+  const click = (point: [number, number], init: PressInit = {}) => {
+    pointer('pointerdown', point, 1, 'mouse', overlay(), init);
+    pointer('pointerup', point, 1, 'mouse', overlay(), init);
+    rerender();
+  };
+  const last = () => annotations()[annotations().length - 1]!;
+  const opens = (annotation: KnownDiagramAnnotation) => rightAngleDiagonal(annotation).map((v) => Math.round(v * 1e6) / 1e6 + 0);
+  const ghost = () => overlay().querySelector('[data-right-angle-preview]');
+  const targets = () => [...overlay().querySelectorAll('[data-snap-target]')].map((each) => each.getAttribute('data-snap-target'));
+  const r = Math.round(R * 1e6) / 1e6;
+
+  it('shows the mark a click would put in the corner it hovers, and puts it there, square into the angle', () => {
+    drawn([across, down], 'right-angle');
+    // 8 px off the corner, inside the angle: past the dead zone, within the radius.
+    pointer('pointermove', at(0.306, 0.406));
+    expect(ghost()).not.toBeNull();
+    expect(targets()).toEqual(['annotation']);
+    // Its legs along the lines, from the corner: the ghost's far corner on the diagonal.
+    const points = ghost()!.querySelector('polyline')!.getAttribute('points')!.split(' ').map((pair) => pair.split(',').map(Number));
+    const corner = at(0.3, 0.4);
+    expect(points[1]![0]! - corner[0]).toBeCloseTo(points[1]![1]! - corner[1], 6);
+    click(at(0.306, 0.406));
+    expect(last()).toMatchObject({ kind: 'right-angle', from: [0.3, 0.4] });
+    expect(opens(last())).toEqual([r, r]);
+    expect(state().diagramAnnotateTool).toBe('right-angle');
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['right_angle', 'snapped']]);
+    // Gone once the click lands, and drawn as the mark itself.
+    expect(ghost()).toBeNull();
+    expect(overlay().querySelector(`[data-annotation-id="${last().id}"] path`)).not.toBeNull();
+  });
+
+  it('draws one from a corner into the angle, squared; Shift holds a drag where there is none to 45°', () => {
+    drawn([across, down], 'right-angle');
+    // From the corner itself — too near to say which way — into the angle, well off its diagonal.
+    drag(at(0.301, 0.401), at(0.36, 0.42));
+    rerender();
+    expect(last().from).toEqual([0.3, 0.4]);
+    expect(opens(last())).toEqual([r, r]);
+    // Nothing square here: toward the pointer, and with Shift, the nearest 45°.
+    drag(at(0.6, 0.2), at(0.65, 0.21));
+    rerender();
+    expect(opens(last())).toEqual(rightAngleDiagonal({ from: [0, 0], to: [0.05, 0.01] }).map((v) => Math.round(v * 1e6) / 1e6 + 0));
+    // Away from the one just put down, whose corner is a point to snap to.
+    drag(at(0.6, 0.25), at(0.65, 0.26), 1, 'mouse', overlay(), { shiftKey: true });
+    rerender();
+    expect(opens(last())).toEqual([1, 0]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([
+      ['right_angle', 'snapped'],
+      ['right_angle', 'nothing_near'],
+      ['right_angle', 'nothing_near'],
+    ]);
+  });
+
+  it('puts one down with a click where no right angle is found, opening toward the picture’s middle', () => {
+    drawn([across, down], 'right-angle');
+    pointer('pointermove', at(0.9, 0.7));
+    expect(ghost()).not.toBeNull();
+    click(at(0.9, 0.7));
+    expect(last().from[0]).toBeCloseTo(0.9, 6);
+    // The frame is 1 × 0.75: its middle is up and to the left of here.
+    expect(opens(last())).toEqual([-r, -r]);
+    // ⌘ held: where the pointer is, though it is near the corner.
+    click(at(0.306, 0.406), { free: true });
+    expect(last().from).toEqual([expect.closeTo(0.306, 6), expect.closeTo(0.406, 6)]);
+  });
+
+  it('shows no ghost with another tool, or once the pointer leaves', () => {
+    drawn([across, down], 'circle');
+    pointer('pointermove', at(0.306, 0.406));
+    expect(ghost()).toBeNull();
+    tool('right-angle');
+    pointer('pointermove', at(0.306, 0.406));
+    expect(ghost()).not.toBeNull();
+    // Out of the view altogether (React reads a leave from the `pointerout` it bubbles).
+    act(() => {
+      overlay().dispatchEvent(new MouseEvent('pointerout', { bubbles: true, relatedTarget: document.body }));
+    });
+    expect(ghost()).toBeNull();
+  });
+
+  it('offers a selected one its corner and the way it opens; the far corner turns it, into a right angle where it finds one', () => {
+    // In the corner, opening the wrong way: up and to the left, out of the angle.
+    const mark: KnownDiagramAnnotation = { id: 'mark', kind: 'right-angle', ...rightAngleAt([0.3, 0.4], [-1, -1]) };
+    drawn([across, down, mark]);
+    act(() => state().selectDiagramAnnotation('mark'));
+    rerender();
+    expect([...host.querySelectorAll('[data-handle]')].map((each) => each.getAttribute('data-handle'))).toEqual([
+      'corner',
+      'direction',
+    ]);
+    const { direction } = rightAngleGrips(mark, INK_UNITS);
+    // Turned toward a point inside the angle, off its diagonal: square into it.
+    drag(at(direction[0], direction[1]), at(0.36, 0.42));
+    rerender();
+    expect(annotations()[2]!.from).toEqual([0.3, 0.4]);
+    expect(opens(annotations()[2]!)).toEqual([r, r]);
+    // Turned where there is no right angle, with Shift: the nearest 45°.
+    act(() => state().selectDiagramAnnotation('mark'));
+    rerender();
+    const turned = rightAngleGrips(annotations()[2]!, INK_UNITS).direction;
+    drag(at(turned[0], turned[1]), at(0.28, 0.31), 1, 'mouse', overlay(), { shiftKey: true });
+    rerender();
+    expect(opens(annotations()[2]!)).toEqual([0, -1]);
+  });
+
+  it('moves a selected one by its corner onto another, square into the right angle there', () => {
+    // A second corner, at the lines' other ends: (0.7, 0.4) has a right angle with a third line.
+    const up: KnownDiagramAnnotation = { id: 'up', kind: 'hidden-line', from: [0.7, 0.4], to: [0.7, 0.1] };
+    const mark: KnownDiagramAnnotation = { id: 'mark', kind: 'right-angle', ...rightAngleAt([0.3, 0.4], [1, 1]) };
+    drawn([across, down, up, mark]);
+    act(() => state().selectDiagramAnnotation('mark'));
+    rerender();
+    drag(at(0.3, 0.4), at(0.695, 0.404));
+    rerender();
+    const moved = annotations()[3]!;
+    expect(moved.from).toEqual([0.7, 0.4]);
+    // Up and to the left, between the lines that meet there.
+    expect(opens(moved)).toEqual([-r, -r]);
+    // A press on its legs moves it whole, as far as the pointer went.
+    act(() => state().selectDiagramAnnotation(null));
+    rerender();
+    const leg = rightAngleGrips(moved, INK_UNITS).direction;
+    drag(at(leg[0] - 0.001, leg[1] - 0.001), at(leg[0] - 0.101, leg[1] + 0.199));
+    rerender();
+    expect(annotations()[3]!.from[0]).toBeCloseTo(0.6, 6);
+    expect(annotations()[3]!.from[1]).toBeCloseTo(0.6, 6);
+    expect(opens(annotations()[3]!)).toEqual([-r, -r]);
   });
 });

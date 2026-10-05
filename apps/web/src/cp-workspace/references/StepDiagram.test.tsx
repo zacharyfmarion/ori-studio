@@ -1067,6 +1067,43 @@ describe('a mark that leaves the paper', () => {
     expect(svg.querySelector('text')!.closest('[clip-path]')).toBeNull();
     expect(file).not.toContain('class=');
   });
+
+  it('draws a right angle as it does a ring: twice through the clip pair, in a ring’s pen and class, mitred', () => {
+    // Off the paper's right edge, opening out of it, beside a ring for its pen.
+    const squared: StepDiagramModel = {
+      sheet: UNIT,
+      primitives: [
+        { kind: 'sheet', width: 1, height: 1 },
+        { kind: 'point', at: [0.3, 0.3], style: 'normal' },
+        { kind: 'right-angle', at: [1, 0.5], toward: [1.1, 0.6] },
+      ],
+    };
+    const svg = mount(renderToStaticMarkup(<StepDiagram primitives={squared} size={100} />));
+    const grounds = [...svg.querySelectorAll('.step-diagram__ground')];
+    expect(grounds).toHaveLength(2);
+    const [off, on] = [...grounds[1]!.parentElement!.children];
+    expect(on!.innerHTML).toBe(off!.innerHTML);
+    const mark = on!.querySelector('path')!;
+    expect(mark.getAttribute('class')).toBe('step-diagram__point step-diagram__right-angle');
+    expect(mark.getAttribute('stroke-linejoin')).toBe('miter');
+    expect(mark.getAttribute('stroke-linecap')).toBe('butt');
+    expect(mark.getAttribute('stroke-width')).toBe(svg.querySelector('circle')!.getAttribute('stroke-width'));
+    // In a file on a dark page: the ground's ink off the paper, the ring's on it.
+    const project = createDiagramProjector(UNIT, 100);
+    const context = createDiagramRenderContext(squared.primitives, UNIT, project, {
+      inline: diagramInlineInk({ ...tokens, '--bg-primary': '#15181c' }),
+    });
+    const file = mount(renderToStaticMarkup(<svg>{diagramShapes(squared.primitives, context)}</svg>));
+    const strokes = [...file.querySelectorAll('path[stroke-linejoin="miter"]')].map((path) => [
+      clipOf(path.closest('[clip-path]'))?.includes('ground') ?? false,
+      path.getAttribute('stroke'),
+      path.getAttribute('fill'),
+    ]);
+    expect(strokes).toEqual([
+      [true, '#ffffff', 'none'],
+      [false, '#000000', 'none'],
+    ]);
+  });
 });
 
 describe('labelOnPaper', () => {

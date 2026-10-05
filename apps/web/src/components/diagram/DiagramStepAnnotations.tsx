@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlipVertical2, RotateCcw, Trash2, type LucideIcon } from 'lucide-react';
+import { FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type LucideIcon } from 'lucide-react';
 import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
 import {
   EDIT_PATH,
@@ -27,6 +27,7 @@ import styles from './DiagramStepAnnotations.module.css';
 const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = {
   'flip-arc': FlipVertical2,
   'reset-path': RotateCcw,
+  'turn-right-angle': RotateCwSquare,
   delete: Trash2,
 };
 
