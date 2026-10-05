@@ -557,9 +557,11 @@ export function hitAnnotation(
   for (let index = drawn.length - 1; index >= 0; index -= 1) {
     const annotation = drawn[index]!;
     if (bodyDistance(annotation, point, sizes, marks) > sizes.tolerance) continue;
-    if (annotation.kind === 'circle') {
+    if (annotation.kind === 'circle' && annotation.id !== selectedId) {
       // A hollow arrow drawn after a circle is filled with the page over it:
       // where it covers the press, the circle is hidden and the arrow is taken.
+      // Not once it is selected: its ring is then drawn over everything, the
+      // grip that moves it out from under.
       const over = known
         .slice(known.indexOf(annotation) + 1)
         .reverse()

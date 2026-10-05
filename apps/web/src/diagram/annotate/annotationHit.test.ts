@@ -153,6 +153,34 @@ describe('hitAnnotation', () => {
     expect(hitAnnotation([circle], ring, SIZES, null)?.annotationId).toBe('circle');
   });
 
+  it('takes a selected circle anywhere on its ring, drawn over everything, though a hollow arrow covers it (review)', () => {
+    const circle: KnownDiagramAnnotation = { id: 'circle', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5] };
+    const white: KnownDiagramAnnotation = {
+      id: 'white',
+      kind: 'white-arrow',
+      from: [0.3, 0.5],
+      to: [0.75, 0.5],
+      path: [{ at: [0.3, 0.5] }, { at: [0.75, 0.5] }],
+      width: 'regular',
+      tail: 'square',
+    };
+    const push: KnownDiagramAnnotation = { id: 'push', kind: 'push-arrow', from: [0.3, 0.5], to: [0.75, 0.5] };
+    const radius = circleRadius(SIZES.ink);
+    for (const over of [white, push]) {
+      for (let k = 0; k < 8; k += 1) {
+        const angle = (k * Math.PI) / 4;
+        for (const r of [radius - SIZES.tolerance / 2, radius, radius + SIZES.tolerance / 2]) {
+          const press: [number, number] = [0.5 + r * Math.cos(angle), 0.5 + r * Math.sin(angle)];
+          // Its washed ring is what a press takes hold of, to move it out from under.
+          expect(hitAnnotation([circle, over], press, SIZES, 'circle'), `${over.kind} ${k * 45}° ${r}`).toEqual({
+            annotationId: 'circle',
+            part: 'body',
+          });
+        }
+      }
+    }
+  });
+
   describe('a callout', () => {
     // Its point lower left, its box up to the right: "Repeat behind" is about 0.39 wide and 0.085 tall.
     const callout: KnownDiagramAnnotation = { id: 'callout', kind: 'callout', from: [0.2, 0.7], to: [0.6, 0.3], text: 'Repeat behind' };
