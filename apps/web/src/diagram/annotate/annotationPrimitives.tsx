@@ -57,14 +57,13 @@ import {
   createOverlayProjector,
   foldArrowDrawn,
   halfArrowheadCorners,
-  mitredCornerPoints,
-  mitredCornerReach,
   oneWayArrowDrawn,
   pathArrowDrawn,
   pushArrowDrawn,
   rightAngleDrawn,
   rightAngleReach,
   rotateGlyphDrawn,
+  strokedOutlinePoints,
   turnOverDrawn,
   whiteArrowDrawn,
   WHITE_ARROW_MITER_LIMIT,
@@ -515,7 +514,7 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
     for (const { x, y } of [head.tip, ...head.barbs]) take(x, y, 0);
   };
   const mountainHead = (head: Arrowhead, centre: SvgPoint) => {
-    for (const { x, y, pad } of mitredCornerPoints(halfArrowheadCorners(head, centre), pen)) take(x, y, pad);
+    for (const { x, y } of strokedOutlinePoints(halfArrowheadCorners(head, centre), pen)) take(x, y, 0);
   };
   for (const primitive of drawing.primitives) {
     switch (primitive.kind) {
@@ -544,20 +543,18 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
         break;
       }
       case 'push-arrow': {
-        // Its outline's corners, its mitres out past them.
+        // Its outline's corners, mitred.
         const outline = pushArrowDrawn(primitive.from, primitive.to, project);
         if (!outline) break;
-        const mitres = mitredCornerReach(outline, pen);
-        outline.forEach(({ x, y }, index) => take(x, y, mitres[index]!));
+        for (const { x, y } of strokedOutlinePoints(outline, pen)) take(x, y, 0);
         break;
       }
       case 'white-arrow': {
-        // Its outline's corners, its mitres out past them as its stroke draws
-        // them: to its own limit, past which a corner is bevelled.
+        // Its outline's corners, mitred as its stroke mitres them: to its own
+        // limit, past which a corner is bevelled.
         const outline = whiteArrowDrawn(primitive.path, primitive.width, primitive.tail, project);
         if (!outline) break;
-        const mitres = mitredCornerReach(outline, pen, WHITE_ARROW_MITER_LIMIT);
-        outline.forEach(({ x, y }, index) => take(x, y, mitres[index]!));
+        for (const { x, y } of strokedOutlinePoints(outline, pen, WHITE_ARROW_MITER_LIMIT)) take(x, y, 0);
         break;
       }
       case 'turn-over': {

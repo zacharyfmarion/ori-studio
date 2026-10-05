@@ -676,7 +676,7 @@ describe('paintAnnotations', () => {
     }
   });
 
-  it('keeps a push, a white arrow, a rotate, a turn-over and a right angle inside their reach at any pen, the heaviest too (review)', () => {
+  it('keeps a push, a white arrow, a rotate, a turn-over and a right angle inside their reach at any pen, the heaviest too, a push and a white arrow no further (reviews)', () => {
     const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
     const white = (id: string, width: 'narrow' | 'regular' | 'wide', tail: 'pointed' | 'square' | 'cleft', path: KnownDiagramAnnotation['path']) =>
       a(id, 'white-arrow', { from: path![0]!.at, to: path![path!.length - 1]!.at, path, width, tail });
@@ -715,8 +715,10 @@ describe('paintAnnotations', () => {
             }
           };
           if (primitive.kind === 'push-arrow') {
-            // A mitred outline: each corner's two edges, offset half a pen to either side, meet at
-            // its mitre's tip, or are bevelled where that is past SVG's default limit of 4.
+            // A mitred outline: each corner's two edges, offset half a pen to either side; on the outer
+            // side of its turn they meet at its mitre's tip, or are bevelled where that is past SVG's
+            // default limit of 4. (On the inner side they only overlap: an edge shorter than the pen
+            // ends before they would meet.)
             const outline = pushArrowDrawn(primitive.from, primitive.to, project)!;
             outline.forEach((corner, index) => {
               const before = outline[(index + outline.length - 1) % outline.length]!;
@@ -737,13 +739,14 @@ describe('paintAnnotations', () => {
                 if (Math.abs(cross) < 1e-12) continue;
                 const t = ((a2.x - a1.x) * d2.y - (a2.y - a1.y) * d2.x) / cross;
                 const tip = { x: a1.x + d1.x * t, y: a1.y + d1.y * t };
-                if (Math.hypot(tip.x - corner.x, tip.y - corner.y) <= 4 * half) ink.push(tip);
+                const outer = (tip.x - corner.x) * (d1.x - d2.x) + (tip.y - corner.y) * (d1.y - d2.y) > 0;
+                if (outer && Math.hypot(tip.x - corner.x, tip.y - corner.y) <= 4 * half) ink.push(tip);
               }
             });
           } else if (primitive.kind === 'white-arrow') {
             // A mitred outline as SVG strokes it with `stroke-miterlimit="1.5"`: each corner's two
-            // edges, offset half a pen to either side, meet at its mitre's tip, or are bevelled
-            // where that is past 1.5 half-pens.
+            // edges, offset half a pen to either side, meet on the outer side of its turn at its
+            // mitre's tip, or are bevelled where that is past 1.5 half-pens.
             const outline = whiteArrowDrawn(primitive.path, primitive.width, primitive.tail, project)!;
             expect(outline.length).toBeGreaterThan(5);
             outline.forEach((corner, index) => {
@@ -764,7 +767,8 @@ describe('paintAnnotations', () => {
                 if (Math.abs(cross) < 1e-12) continue;
                 const t = ((a2.x - a1.x) * d2.y - (a2.y - a1.y) * d2.x) / cross;
                 const tip = { x: a1.x + d1.x * t, y: a1.y + d1.y * t };
-                if (Math.hypot(tip.x - corner.x, tip.y - corner.y) <= 1.5 * half) ink.push(tip);
+                const outer = (tip.x - corner.x) * (d1.x - d2.x) + (tip.y - corner.y) * (d1.y - d2.y) > 0;
+                if (outer && Math.hypot(tip.x - corner.x, tip.y - corner.y) <= 1.5 * half) ink.push(tip);
               }
             });
           } else if (primitive.kind === 'rotate') {
@@ -848,14 +852,23 @@ describe('paintAnnotations', () => {
           const overrun = Math.max(...ink.map((point) => Math.max(x - point.x, y - point.y, point.x - x - width, point.y - y - height)));
           expect(ink.length, name).toBeGreaterThan(4);
           expect(overrun, name).toBeLessThanOrEqual(1e-6);
+          if (primitive.kind === 'push-arrow' || primitive.kind === 'white-arrow') {
+            // And no further (review 4): a mitre reaches out along its corner's bisector, not every way round.
+            const xs = ink.map((point) => point.x);
+            const ys = ink.map((point) => point.y);
+            expect(Math.abs(x - Math.min(0, ...xs)), name).toBeLessThan(0.01);
+            expect(Math.abs(y - Math.min(0, ...ys)), name).toBeLessThan(0.01);
+            expect(Math.abs(x + width - Math.max(framePx, ...xs)), name).toBeLessThan(0.01);
+            expect(Math.abs(y + height - Math.max(framePx, ...ys)), name).toBeLessThan(0.01);
+          }
         }
       }
     }
   });
 
-  it('measures a white arrow as its stroke draws it: a corner past its own mitre limit bevelled, not mitred to SVG’s 4', () => {
+  it('measures a white arrow as its stroke draws it: a corner past its own mitre limit bevelled between its edges’ ends, not mitred to SVG’s 4', () => {
     // A narrow head's tip is 64°: its mitre would reach 1.89 half-pens past it, within SVG's
-    // default limit, but the white arrow is stroked to 1.5, which bevels it to half a pen.
+    // default limit, but the white arrow is stroked to 1.5, which bevels it between its edges' ends.
     const arrow = a('w', 'white-arrow', {
       from: [0.6, 0.5],
       to: [1.1, 0.5],
@@ -868,10 +881,16 @@ describe('paintAnnotations', () => {
     const half = (project.pens.arrow.width * project.ink) / 2;
     const primitive = drawing.primitives[0]!;
     if (primitive.kind !== 'white-arrow') throw new Error('a white arrow');
-    const tip = Math.max(...whiteArrowDrawn(primitive.path, primitive.width, primitive.tail, project)!.map(({ x }) => x));
+    const outline = whiteArrowDrawn(primitive.path, primitive.width, primitive.tail, project)!;
+    const tip = Math.max(...outline.map(({ x }) => x));
     expect(tip).toBeCloseTo(1100, 0);
     const painted = paintAnnotations([arrow], { x: 0, y: 0, width: 1000, height: 1000 }, 1000, DEFAULT_DIAGRAM_STYLE)!;
-    expect(painted.bounds.x + painted.bounds.width).toBeCloseTo(tip + half, 6);
+    // Each of the tip's edges ends half a pen out across it: no further along the arrow than that.
+    const at = outline.findIndex(({ x }) => x === tip);
+    const [before, corner, after] = [outline[(at + outline.length - 1) % outline.length]!, outline[at]!, outline[(at + 1) % outline.length]!];
+    const across = (from: SvgPoint, to: SvgPoint) => Math.abs(to.y - from.y) / Math.hypot(to.x - from.x, to.y - from.y);
+    expect(painted.bounds.x + painted.bounds.width).toBeCloseTo(tip + half * Math.max(across(before, corner), across(corner, after)), 6);
+    expect(painted.bounds.x + painted.bounds.width).toBeLessThan(tip + half);
     // Drawn so: hollow in the page's white, outlined in the arrow's pen to that limit.
     expect(painted.markup).toMatch(/stroke="none" fill="#ffffff"/);
     expect(painted.markup).toMatch(/stroke-linejoin="miter" stroke-miterlimit="1.5"/);

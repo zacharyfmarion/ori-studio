@@ -1518,77 +1518,55 @@ export function pushArrowDrawn(
 const SVG_MITER_LIMIT = 4;
 
 /**
- * How far a closed outline stroked `pen` wide with mitred corners reaches past
- * each of its corners: half the pen along the mitre, which grows as the
- * corner sharpens, until SVG bevels it at the stroke's `miterLimit` (its
- * default, 4, unless the stroke sets one) and it reaches half the pen. A push
- * arrow's cleft tail is sharp enough to reach well past one pen; a white
- * arrow is stroked to its own limit ({@link WHITE_ARROW_MITER_LIMIT}), which
- * bevels its sharp corners far sooner.
+ * The points that bound a closed outline stroked `pen` wide with mitred
+ * corners: each edge's ends half the pen out to either side — its inner side
+ * too, which on an outline smaller than its pen reaches past the far side —
+ * and each corner's mitre tip, out along its bisector away from its arms,
+ * where the mitre is within `miterLimit` (SVG's default, 4, unless the
+ * stroke sets one); past it SVG bevels the corner, between the edges' ends.
+ * The stroke's bounds exactly. A push arrow's cleft tail is sharp enough to
+ * mitre well past one pen; a white arrow is stroked to its own limit
+ * ({@link WHITE_ARROW_MITER_LIMIT}), which bevels its sharp corners far
+ * sooner.
  */
-export function mitredCornerReach(
+export function strokedOutlinePoints(
   outline: readonly SvgPoint[],
   pen: number,
   miterLimit: number = SVG_MITER_LIMIT
-): number[] {
-  return outline.map((corner, index) => {
-    const before = outline[(index + outline.length - 1) % outline.length]!;
-    const after = outline[(index + 1) % outline.length]!;
-    const a = { x: before.x - corner.x, y: before.y - corner.y };
-    const b = { x: after.x - corner.x, y: after.y - corner.y };
-    const lengths = Math.hypot(a.x, a.y) * Math.hypot(b.x, b.y);
-    if (!(lengths > 0)) return pen / 2;
-    const angle = Math.acos(Math.max(-1, Math.min(1, (a.x * b.x + a.y * b.y) / lengths)));
-    const mitre = 1 / Math.sin(angle / 2);
-    return (pen / 2) * (mitre <= miterLimit ? mitre : 1);
-  });
-}
-
-/**
- * The points a closed outline stroked `pen` wide with mitred corners reaches
- * furthest, one or two at each corner, each with the room its stroke leaves
- * round it: a mitre's tip, out along the corner's bisector away from its
- * arms; past `miterLimit`, the bevel's two ends, half the pen out from each
- * edge; at a corner with an arm of no length, or none, its corner and half
- * the pen all round. The stroke's bounds exactly, where
- * {@link mitredCornerReach} reaches the mitre's length every way round.
- */
-export function mitredCornerPoints(
-  outline: readonly SvgPoint[],
-  pen: number,
-  miterLimit: number = SVG_MITER_LIMIT
-): { x: number; y: number; pad: number }[] {
-  const points: { x: number; y: number; pad: number }[] = [];
-  outline.forEach((corner, index) => {
-    const before = outline[(index + outline.length - 1) % outline.length]!;
-    const after = outline[(index + 1) % outline.length]!;
-    const [ax, ay] = [before.x - corner.x, before.y - corner.y];
-    const [bx, by] = [after.x - corner.x, after.y - corner.y];
-    const [la, lb] = [Math.hypot(ax, ay), Math.hypot(bx, by)];
+): SvgPoint[] {
+  const half = pen / 2;
+  // Each corner once: a point repeated draws no edge, and no join.
+  const corners: SvgPoint[] = [];
+  for (const point of outline) {
+    const last = corners[corners.length - 1];
+    if (!last || last.x !== point.x || last.y !== point.y) corners.push(point);
+  }
+  while (corners.length > 1 && corners[0]!.x === corners.at(-1)!.x && corners[0]!.y === corners.at(-1)!.y) corners.pop();
+  if (corners.length < 2) return corners.flatMap(({ x, y }) => [{ x: x - half, y: y - half }, { x: x + half, y: y + half }]);
+  const points: SvgPoint[] = [];
+  corners.forEach((corner, index) => {
+    const before = corners[(index + corners.length - 1) % corners.length]!;
+    const after = corners[(index + 1) % corners.length]!;
+    // The edge to the next corner, half the pen either side of it at both ends.
+    const length = Math.hypot(after.x - corner.x, after.y - corner.y);
+    const normal = { x: (-(after.y - corner.y) / length) * half, y: ((after.x - corner.x) / length) * half };
+    for (const end of [corner, after]) {
+      points.push({ x: end.x + normal.x, y: end.y + normal.y }, { x: end.x - normal.x, y: end.y - normal.y });
+    }
+    // The join here, mitred out past the edges' ends where it is within the limit.
+    const back = Math.hypot(before.x - corner.x, before.y - corner.y);
     const arms = [
-      { x: ax / la, y: ay / la },
-      { x: bx / lb, y: by / lb },
+      { x: (before.x - corner.x) / back, y: (before.y - corner.y) / back },
+      { x: (after.x - corner.x) / length, y: (after.y - corner.y) / length },
     ] as const;
     const bisector = { x: arms[0].x + arms[1].x, y: arms[0].y + arms[1].y };
     const across = Math.hypot(bisector.x, bisector.y);
-    // An arm of no length, or a corner that does not turn: round it, half the pen.
-    if (!(la > 0 && lb > 0) || !(across > 1e-12)) {
-      points.push({ x: corner.x, y: corner.y, pad: pen / 2 });
-      return;
-    }
+    if (!(across > 1e-12)) return;
     const angle = Math.acos(Math.max(-1, Math.min(1, arms[0].x * arms[1].x + arms[0].y * arms[1].y)));
     const mitre = 1 / Math.sin(angle / 2);
     if (mitre <= miterLimit) {
-      const reach = (pen / 2) * mitre;
-      points.push({ x: corner.x - (bisector.x / across) * reach, y: corner.y - (bisector.y / across) * reach, pad: 0 });
-      return;
+      points.push({ x: corner.x - (bisector.x / across) * half * mitre, y: corner.y - (bisector.y / across) * half * mitre });
     }
-    // Bevelled: each edge's stroke ends half the pen out on the side away from the other arm.
-    arms.forEach((arm, which) => {
-      const other = arms[1 - which]!;
-      const normal = -arm.y * other.x + arm.x * other.y > 0 ? { x: arm.y, y: -arm.x } : { x: -arm.y, y: arm.x };
-      points.push({ x: corner.x + (normal.x * pen) / 2, y: corner.y + (normal.y * pen) / 2, pad: 0 });
-    });
   });
   return points;
 }

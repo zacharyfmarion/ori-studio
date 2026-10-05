@@ -17,8 +17,8 @@ import {
 } from './diagram/diagramInk';
 import {
   createOverlayProjector,
-  mitredCornerReach,
   outlineDistance,
+  strokedOutlinePoints,
   whiteArrowDrawn,
   whiteArrowOutline,
   WHITE_ARROW_FLATTEN_INK,
@@ -517,7 +517,7 @@ describe('a white arrow as a picture draws it', () => {
     }
   });
 
-  it('is stroked to its own mitre limit: a corner past it reaches half the pen, as SVG bevels it', () => {
+  it('is stroked to its own mitre limit: a corner past it reaches no further than its edges’ ends, as SVG bevels it', () => {
     const pen = 2;
     // A 64° corner — a narrow head's tip — mitres 1.89 half-pens out: within SVG's default 4, past 1.5.
     const corner = (degrees: number) => {
@@ -528,12 +528,15 @@ describe('a white arrow as a picture draws it', () => {
         { x: -10 * Math.cos(half), y: 10 * Math.sin(half) },
       ];
     };
+    const tipReach = (outline: { x: number; y: number }[], limit?: number) =>
+      Math.max(...strokedOutlinePoints(outline, pen, limit).map(({ x }) => x));
     const sharp = corner(64);
-    expect(mitredCornerReach(sharp, pen)[1]).toBeCloseTo(1 / Math.sin((32 * Math.PI) / 180), 9);
-    expect(mitredCornerReach(sharp, pen, WHITE_ARROW_MITER_LIMIT)[1]).toBe(1);
+    expect(tipReach(sharp)).toBeCloseTo(1 / Math.sin((32 * Math.PI) / 180), 9);
+    // Bevelled: its edges' ends, half a pen out from each, the corner itself no further.
+    expect(tipReach(sharp, WHITE_ARROW_MITER_LIMIT)).toBeCloseTo(Math.sin((32 * Math.PI) / 180), 9);
     // A right angle — a regular head's tip — mitres 1.41 half-pens out: within both.
     const square = corner(90);
-    expect(mitredCornerReach(square, pen, WHITE_ARROW_MITER_LIMIT)[1]).toBeCloseTo(Math.SQRT2, 9);
-    expect(mitredCornerReach(square, pen)[1]).toBeCloseTo(Math.SQRT2, 9);
+    expect(tipReach(square, WHITE_ARROW_MITER_LIMIT)).toBeCloseTo(Math.SQRT2, 9);
+    expect(tipReach(square)).toBeCloseTo(Math.SQRT2, 9);
   });
 });

@@ -41,13 +41,13 @@ import {
   foldArrowTrim,
   foldReturnOffset,
   halfArrowheadPath,
-  mitredCornerPoints,
   oneWayArrow,
   pushArrowOutline,
   rightAngleDrawn,
   rightAngleReach,
   rightAngleSquare,
   rotateGlyph,
+  strokedOutlinePoints,
   offPaperPathData,
   onSheetBoundary,
   paperRingPoints,
@@ -1158,36 +1158,44 @@ describe('arcExtremes', () => {
   });
 });
 
-describe('mitredCornerPoints', () => {
-  it('is a mitre’s tip out along the corner’s bisector, and a bevel’s two ends past the limit', () => {
-    // A right angle mitres √2 half pens out; a 20° corner (mitre 5.76) is bevelled at SVG's 4.
+describe('strokedOutlinePoints', () => {
+  const box = (points: SvgPoint[]) => ({
+    left: Math.min(...points.map(({ x }) => x)),
+    right: Math.max(...points.map(({ x }) => x)),
+    top: Math.min(...points.map(({ y }) => y)),
+    bottom: Math.max(...points.map(({ y }) => y)),
+  });
+
+  it('bounds a mitred outline by its mitres’ tips, and a corner past the limit by its edges’ ends', () => {
+    // A right angle mitres √2 half pens out along its bisector: a square's corners, a pen past each side.
     const square = [
       { x: 0, y: 0 },
       { x: 10, y: 0 },
       { x: 10, y: 10 },
       { x: 0, y: 10 },
     ];
-    const corners = mitredCornerPoints(square, 2);
-    expect(corners).toHaveLength(4);
-    expect(corners[0]!.x).toBeCloseTo(-1, 12);
-    expect(corners[0]!.y).toBeCloseTo(-1, 12);
-    expect(corners[2]!.x).toBeCloseTo(11, 12);
-    expect(corners[2]!.y).toBeCloseTo(11, 12);
-    const sharp = [
+    expect(box(strokedOutlinePoints(square, 2))).toEqual({ left: -1, right: 11, top: -1, bottom: 11 });
+    // A 20° spike mitres 5.76 half pens out: bevelled at SVG's 4, mitred under a limit of 6.
+    const spike = [
       { x: 0, y: 0 },
       { x: 100, y: Math.tan((10 * Math.PI) / 180) * 100 },
       { x: 100, y: -Math.tan((10 * Math.PI) / 180) * 100 },
     ];
-    const [first, second, ...rest] = mitredCornerPoints(sharp, 2);
-    // Bevelled: the two ends half the pen out from each edge, behind the corner.
-    expect(first!.x).toBeLessThan(0);
-    expect(Math.hypot(first!.x, first!.y)).toBeCloseTo(1, 12);
-    expect(Math.hypot(second!.x, second!.y)).toBeCloseTo(1, 12);
-    expect(second!.y).toBeCloseTo(-first!.y, 12);
-    // Past its own limit of 6, the same corner mitres.
-    const [tip] = mitredCornerPoints(sharp, 2, 6);
-    expect(tip!.x).toBeCloseTo(-1 / Math.sin((10 * Math.PI) / 180), 9);
-    expect(tip!.y).toBeCloseTo(0, 9);
-    expect(rest.length).toBeGreaterThanOrEqual(2);
+    expect(box(strokedOutlinePoints(spike, 2)).left).toBeCloseTo(-Math.sin((10 * Math.PI) / 180), 12);
+    expect(box(strokedOutlinePoints(spike, 2, 6)).left).toBeCloseTo(-1 / Math.sin((10 * Math.PI) / 180), 9);
+  });
+
+  it('bounds an outline smaller than its pen by its edges’ inner sides too, which reach past its far side', () => {
+    // A thin sliver, a pen of 20: its long edge's inner side is 10 past it, beyond the bevelled far corner's ends.
+    const sliver = [
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 2, y: 0.5 },
+    ];
+    const points = strokedOutlinePoints(sliver, 20);
+    expect(box(points).top).toBeCloseTo(-10, 12);
+    expect(box(points).bottom).toBeGreaterThanOrEqual(10);
+    // Repeated points draw no edge of their own.
+    expect(box(strokedOutlinePoints([...sliver, sliver[2]!, sliver[0]!], 20))).toEqual(box(points));
   });
 });
