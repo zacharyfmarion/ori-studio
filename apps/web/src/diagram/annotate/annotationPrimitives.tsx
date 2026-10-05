@@ -52,12 +52,12 @@ import {
 } from '../../cp-workspace/references/diagram/diagramInk';
 import type { StepDiagramPrimitive } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
 import {
-  arcPolyline,
-  arcPolylineDeviation,
+  arcExtremes,
   arcThroughPoints,
-  arrowheadExtent,
   createOverlayProjector,
   foldArrowDrawn,
+  halfArrowheadCorners,
+  mitredCornerPoints,
   mitredCornerReach,
   oneWayArrowDrawn,
   pathArrowDrawn,
@@ -71,8 +71,9 @@ import {
   type Arrowhead,
   type DiagramArc,
   type PathArrowFold,
+  type SvgPoint,
 } from '../../cp-workspace/references/stepDiagramGeometry';
-import { flattenPath } from '../../lib/cubicBezier';
+import { cubicBounds, type Cubic } from '../../lib/cubicBezier';
 import { referencesPaperTokens } from '../../cp-workspace/references/usePaperStyleTokens';
 import type { PaperItem, PaperLineItem, PaperLineRole, PaperScene } from '../../lib/paper/paperScene';
 import { penForRole } from '../../lib/paper/paperSvg';
@@ -462,14 +463,14 @@ export function annotationDrawing(
   };
 }
 
-/** How far a shaped arrow's shaft may stand off the points it is measured along, in ink: far under its pen. */
-const REACH_FLATTEN_INK = 0.05;
-
 /**
  * What a drawing reaches, in its own px: its frame, and past it whatever its
- * marks reach — an arrow may start off the picture. Generous rather than
- * exact: it is the box a step's file is cropped to, and a mark cut there is
- * worse than a little more paper.
+ * marks reach — an arrow may start off the picture — as far as their ink and
+ * no further: it is the room a page leaves a picture and the box a step's
+ * file is cropped to, so a mark cut there is lost and a reach past its ink
+ * is paper taken from the picture for nothing. Measured as a page draws the
+ * marks (`paintAnnotations`), every join of a stroke round unless the mark
+ * mitres its own.
  */
 export function annotationReach(drawing: AnnotationDrawing): { x: number; y: number; width: number; height: number } {
   const { project } = drawing.context;
@@ -490,26 +491,31 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
     take(line.a[0], line.a[1], Math.max(2 * ink, line.halfWidth));
     take(line.b[0], line.b[1], Math.max(2 * ink, line.halfWidth));
   }
-  // An arrow, exactly where it is drawn: its strokes, and its head as drawn
-  // — a mountain's barb included, which a heavier pen makes bigger — with
-  // room for the pen's width and the mitre at a sharp corner. A stroke is
-  // drawn as a curve and measured along points on it: an arc's room grows by
-  // how far it bows out between them; a shaped arrow's points are close
-  // enough that it never matters.
+  // An arrow, exactly where it is drawn: its strokes half their pen round
+  // their curves' bounds — a round cap or join, or a butt end's corners,
+  // reach no further — and its head as drawn, filled to its corners, or a
+  // mountain's outline mitred round its own.
   const pen = project.pens.arrow.width * ink;
-  const arrowStrokes = (points: Iterable<readonly [number, number]>) => {
-    for (const [x, y] of points) take(x, y, pen);
-  };
   const arcStroke = (arc: DiagramArc | null) => {
     if (!arc) return;
-    const bow = arcPolylineDeviation(arc) * project.scale;
-    for (const point of arcPolyline(arc)) {
-      const { x, y } = project(point);
-      take(x, y, pen + bow);
+    for (const { x, y } of arcExtremes(arc, project)) take(x, y, pen / 2);
+  };
+  const cubicStroke = (path: readonly Cubic[]) => {
+    for (const cubic of path) {
+      const box = cubicBounds(cubic);
+      take(box.minX, box.minY, pen / 2);
+      take(box.maxX, box.maxY, pen / 2);
     }
   };
-  const arrowhead = (head: Arrowhead) => {
-    for (const { x, y } of arrowheadExtent(head)) take(x, y, Math.max(2 * ink, 1.5 * pen));
+  const polylineStroke = (points: readonly (readonly [number, number])[]) => {
+    for (const [x, y] of points) take(x, y, pen / 2);
+  };
+  // A filled head is inside its tip and barbs: its back curves in to the notch.
+  const filledHead = (head: Arrowhead) => {
+    for (const { x, y } of [head.tip, ...head.barbs]) take(x, y, 0);
+  };
+  const mountainHead = (head: Arrowhead, centre: SvgPoint) => {
+    for (const { x, y, pad } of mitredCornerPoints(halfArrowheadCorners(head, centre), pen)) take(x, y, pad);
   };
   for (const primitive of drawing.primitives) {
     switch (primitive.kind) {
@@ -518,21 +524,23 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
         if (!arrow) break;
         arcStroke(arrow.out);
         arcStroke(arrow.back);
-        arrowhead(arrow.head);
+        filledHead(arrow.head);
         break;
       }
       case 'one-way-arrow': {
         const arrow = oneWayArrowDrawn(primitive.out, project, drawing.context.marks);
         arcStroke(arrow.shaft);
-        arrowhead(arrow.head);
+        if (primitive.fold === 'mountain') mountainHead(arrow.head, project(primitive.out.center));
+        else filledHead(arrow.head);
         break;
       }
       case 'path-arrow': {
         const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, drawing.context.marks);
         if (!arrow) break;
-        const shaft = arrow.shaft ? flattenPath(arrow.shaft, REACH_FLATTEN_INK * ink) : [];
-        arrowStrokes([...shaft, ...(arrow.back ?? [])]);
-        arrowhead(arrow.head);
+        cubicStroke(arrow.shaft ?? []);
+        polylineStroke(arrow.back ?? []);
+        if (primitive.fold === 'mountain') mountainHead(arrow.head, arrow.inside);
+        else filledHead(arrow.head);
         break;
       }
       case 'push-arrow': {

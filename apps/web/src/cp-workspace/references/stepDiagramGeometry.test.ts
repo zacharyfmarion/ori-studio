@@ -19,6 +19,7 @@ import {
   arcEndDirection,
   arcEndPoint,
   arcExtent,
+  arcExtremes,
   arcStartDirection,
   arcPathData,
   arrowheadAt,
@@ -40,6 +41,7 @@ import {
   foldArrowTrim,
   foldReturnOffset,
   halfArrowheadPath,
+  mitredCornerPoints,
   oneWayArrow,
   pushArrowOutline,
   rightAngleDrawn,
@@ -1122,5 +1124,70 @@ describe('a right-angle mark', () => {
     expect(end).toBe(1);
     expect(other).toBe(1);
     expect(corner).toBeCloseTo(Math.SQRT2, 12);
+  });
+});
+
+describe('arcExtremes', () => {
+  it('is an arc’s bounds exactly, under a projector that turns and mirrors it', () => {
+    const turned = (degrees: number, mirrored: boolean) => {
+      const [c, s] = [Math.cos((degrees * Math.PI) / 180), Math.sin((degrees * Math.PI) / 180)];
+      return createOverlayProjector({ origin: [40, 70], ex: [3 * c, 3 * s], ey: mirrored ? [3 * s, -3 * c] : [-3 * s, 3 * c] }, 1);
+    };
+    const arcs: DiagramArc[] = [
+      { center: [10, 5], radius: 4, from: 0.3, to: 2.9, ccw: true },
+      { center: [10, 5], radius: 4, from: 0.3, to: 2.9, ccw: false },
+      { center: [-2, 1], radius: 7, from: -1.2, to: -1.1, ccw: true },
+    ];
+    for (const project of [turned(0, false), turned(33, false), turned(-120, true)]) {
+      for (const arc of arcs) {
+        const box = (points: SvgPoint[]) => ({
+          left: Math.min(...points.map(({ x }) => x)),
+          right: Math.max(...points.map(({ x }) => x)),
+          top: Math.min(...points.map(({ y }) => y)),
+          bottom: Math.max(...points.map(({ y }) => y)),
+        });
+        const extent = arcExtent(arc);
+        const sampled = Array.from({ length: 20001 }, (_, i) => {
+          const angle = arc.from + (arc.ccw ? 1 : -1) * extent * (i / 20000);
+          return project([arc.center[0] + arc.radius * Math.cos(angle), arc.center[1] + arc.radius * Math.sin(angle)]);
+        });
+        const [exact, fine] = [box(arcExtremes(arc, project)), box(sampled)];
+        for (const side of ['left', 'right', 'top', 'bottom'] as const) expect(exact[side]).toBeCloseTo(fine[side], 4);
+      }
+    }
+  });
+});
+
+describe('mitredCornerPoints', () => {
+  it('is a mitre’s tip out along the corner’s bisector, and a bevel’s two ends past the limit', () => {
+    // A right angle mitres √2 half pens out; a 20° corner (mitre 5.76) is bevelled at SVG's 4.
+    const square = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+    const corners = mitredCornerPoints(square, 2);
+    expect(corners).toHaveLength(4);
+    expect(corners[0]!.x).toBeCloseTo(-1, 12);
+    expect(corners[0]!.y).toBeCloseTo(-1, 12);
+    expect(corners[2]!.x).toBeCloseTo(11, 12);
+    expect(corners[2]!.y).toBeCloseTo(11, 12);
+    const sharp = [
+      { x: 0, y: 0 },
+      { x: 100, y: Math.tan((10 * Math.PI) / 180) * 100 },
+      { x: 100, y: -Math.tan((10 * Math.PI) / 180) * 100 },
+    ];
+    const [first, second, ...rest] = mitredCornerPoints(sharp, 2);
+    // Bevelled: the two ends half the pen out from each edge, behind the corner.
+    expect(first!.x).toBeLessThan(0);
+    expect(Math.hypot(first!.x, first!.y)).toBeCloseTo(1, 12);
+    expect(Math.hypot(second!.x, second!.y)).toBeCloseTo(1, 12);
+    expect(second!.y).toBeCloseTo(-first!.y, 12);
+    // Past its own limit of 6, the same corner mitres.
+    const [tip] = mitredCornerPoints(sharp, 2, 6);
+    expect(tip!.x).toBeCloseTo(-1 / Math.sin((10 * Math.PI) / 180), 9);
+    expect(tip!.y).toBeCloseTo(0, 9);
+    expect(rest.length).toBeGreaterThanOrEqual(2);
   });
 });

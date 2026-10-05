@@ -520,6 +520,26 @@ export function arcPolyline(arc: DiagramArc): [number, number][] {
 }
 
 /**
+ * Where an arc reaches furthest along each of the picture's axes once
+ * `project` draws it: its ends, and wherever it turns back along x or y
+ * between them — its bounds exactly, under a projector that turns the
+ * picture too.
+ */
+export function arcExtremes(arc: DiagramArc, project: DiagramProjector): SvgPoint[] {
+  const points = [project(pointOnArc(arc, arc.from)), project(pointOnArc(arc, arc.to))];
+  const extent = arcExtent(arc);
+  const { ex, ey } = project;
+  // A point at angle φ is drawn at x = x₀ + r(cos φ·ex.x + sin φ·ey.x): furthest where that turns, and half a turn on.
+  for (const turning of [Math.atan2(ey.x, ex.x), Math.atan2(ey.y, ex.y)]) {
+    for (const angle of [turning, turning + Math.PI]) {
+      const along = arc.ccw ? angle - arc.from : arc.from - angle;
+      if (((along % TWO_PI) + TWO_PI) % TWO_PI <= extent) points.push(project(pointOnArc(arc, angle)));
+    }
+  }
+  return points;
+}
+
+/**
  * How far the arc bows out past {@link arcPolyline}'s points, in its own
  * units: the sagitta of one step, `r · (1 − cos(step / 2))`. Room a measure
  * taken along the points must add, since the arc is drawn as an arc.
@@ -1011,6 +1031,12 @@ export function oneWayArrowDrawn(
  * outline with one side is thin, and has to be wide to read as a head.
  */
 export function halfArrowheadPath(head: Arrowhead, centre: SvgPoint): string {
+  const [tip, barb, notch] = halfArrowheadCorners(head, centre);
+  return `M ${pointText(tip)} L ${pointText(barb)} L ${pointText(notch)} Z`;
+}
+
+/** A mountain fold's head's corners, in the order {@link halfArrowheadPath} draws them: the tip, its one barb, the notch. */
+export function halfArrowheadCorners(head: Arrowhead, centre: SvgPoint): [SvgPoint, SvgPoint, SvgPoint] {
   const [a, b] = head.barbs;
   const away = (p: SvgPoint) => Math.hypot(p.x - centre.x, p.y - centre.y);
   const outer = away(a) >= away(b) ? a : b;
@@ -1019,7 +1045,7 @@ export function halfArrowheadPath(head: Arrowhead, centre: SvgPoint): string {
     x: base.x + (outer.x - base.x) * HALF_ARROWHEAD_SPREAD,
     y: base.y + (outer.y - base.y) * HALF_ARROWHEAD_SPREAD,
   };
-  return `M ${pointText(head.tip)} L ${pointText(barb)} L ${pointText(head.notch)} Z`;
+  return [head.tip, barb, head.notch];
 }
 
 /** How much wider a mountain fold's one barb stands than a filled head's. */
@@ -1027,8 +1053,9 @@ const HALF_ARROWHEAD_SPREAD = 1.8;
 
 /**
  * The corners a head's outline reaches, a filled head's or a mountain fold's
- * half head (whose one barb stands out further, on either side): what a crop
- * keeps, before the stroke's own width round them.
+ * half head (whose one barb stands out further, on either side): what a
+ * press on a head is measured against (`annotationHit`), which need not know
+ * which side the barb is on.
  */
 export function arrowheadExtent(head: Arrowhead): SvgPoint[] {
   const [a, b] = head.barbs;
@@ -1515,6 +1542,55 @@ export function mitredCornerReach(
     const mitre = 1 / Math.sin(angle / 2);
     return (pen / 2) * (mitre <= miterLimit ? mitre : 1);
   });
+}
+
+/**
+ * The points a closed outline stroked `pen` wide with mitred corners reaches
+ * furthest, one or two at each corner, each with the room its stroke leaves
+ * round it: a mitre's tip, out along the corner's bisector away from its
+ * arms; past `miterLimit`, the bevel's two ends, half the pen out from each
+ * edge; at a corner with an arm of no length, or none, its corner and half
+ * the pen all round. The stroke's bounds exactly, where
+ * {@link mitredCornerReach} reaches the mitre's length every way round.
+ */
+export function mitredCornerPoints(
+  outline: readonly SvgPoint[],
+  pen: number,
+  miterLimit: number = SVG_MITER_LIMIT
+): { x: number; y: number; pad: number }[] {
+  const points: { x: number; y: number; pad: number }[] = [];
+  outline.forEach((corner, index) => {
+    const before = outline[(index + outline.length - 1) % outline.length]!;
+    const after = outline[(index + 1) % outline.length]!;
+    const [ax, ay] = [before.x - corner.x, before.y - corner.y];
+    const [bx, by] = [after.x - corner.x, after.y - corner.y];
+    const [la, lb] = [Math.hypot(ax, ay), Math.hypot(bx, by)];
+    const arms = [
+      { x: ax / la, y: ay / la },
+      { x: bx / lb, y: by / lb },
+    ] as const;
+    const bisector = { x: arms[0].x + arms[1].x, y: arms[0].y + arms[1].y };
+    const across = Math.hypot(bisector.x, bisector.y);
+    // An arm of no length, or a corner that does not turn: round it, half the pen.
+    if (!(la > 0 && lb > 0) || !(across > 1e-12)) {
+      points.push({ x: corner.x, y: corner.y, pad: pen / 2 });
+      return;
+    }
+    const angle = Math.acos(Math.max(-1, Math.min(1, arms[0].x * arms[1].x + arms[0].y * arms[1].y)));
+    const mitre = 1 / Math.sin(angle / 2);
+    if (mitre <= miterLimit) {
+      const reach = (pen / 2) * mitre;
+      points.push({ x: corner.x - (bisector.x / across) * reach, y: corner.y - (bisector.y / across) * reach, pad: 0 });
+      return;
+    }
+    // Bevelled: each edge's stroke ends half the pen out on the side away from the other arm.
+    arms.forEach((arm, which) => {
+      const other = arms[1 - which]!;
+      const normal = -arm.y * other.x + arm.x * other.y > 0 ? { x: arm.y, y: -arm.x } : { x: -arm.y, y: arm.x };
+      points.push({ x: corner.x + (normal.x * pen) / 2, y: corner.y + (normal.y * pen) / 2, pad: 0 });
+    });
+  });
+  return points;
 }
 
 /** The rotate glyph's heads, as a share of a fold arrow's. */

@@ -3,9 +3,8 @@ import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE, PT_TO_CSS_PX } from '../../lib/pa
 import { canvasDiagramInk, DIAGRAM_ROTATE_INK, DIAGRAM_TURN_OVER_INK } from '../../cp-workspace/references/diagram/diagramInk';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramAnnotation, type KnownDiagramAnnotation } from '../document/diagramDocument';
 import {
-  arcPolyline,
-  arrowheadExtent,
   foldArrowDrawn,
+  halfArrowheadCorners,
   oneWayArrowDrawn,
   pathArrowDrawn,
   pushArrowDrawn,
@@ -14,7 +13,9 @@ import {
   TURN_OVER_BOX,
   TURN_OVER_HEAD,
   TURN_OVER_PATH,
+  type Arrowhead,
   type DiagramArc,
+  type SvgPoint,
 } from '../../cp-workspace/references/stepDiagramGeometry';
 import { cubicPoint } from '../../lib/cubicBezier';
 import { ARROW_BEND, CALLOUT_TEXT_SIZE, calloutShape } from './annotationModel';
@@ -445,28 +446,103 @@ describe('paintAnnotations', () => {
     expect(painted.bounds.y).toBeLessThan(-0.15 * 0.8 * 453);
   });
 
-  it('reaches an arc arrow where it is drawn, a pen round it, not a head’s length round every point', () => {
-    // At the top edge, so what each reaches past the frame is how far it is measured.
-    for (const kind of ['fold-unfold-arrow', 'valley-arrow', 'mountain-arrow'] as const) {
-      const arrow = a('f', kind, { from: [0.2, 0.004], to: [0.8, 0.004], bend: 0.05 });
-      const drawing = annotationDrawing([arrow], { width: 1, height: 1 }, 453, DEFAULT_DIAGRAM_STYLE);
-      const { project, marks } = drawing.context;
-      const primitive = drawing.primitives.find((each) => each.kind === 'fold-arrow' || each.kind === 'one-way-arrow');
-      if (primitive?.kind !== 'fold-arrow' && primitive?.kind !== 'one-way-arrow') throw new Error('an arc arrow');
-      const drawn =
-        primitive.kind === 'fold-arrow'
-          ? foldArrowDrawn(primitive.out, project, marks)!
-          : { ...oneWayArrowDrawn(primitive.out, project, marks), out: null };
-      const strokes = [drawn.out, 'back' in drawn ? drawn.back : drawn.shaft].flatMap((arc) =>
-        arc ? arcPolyline(arc).map((point) => project(point)) : []
-      );
-      const top = Math.min(...[...strokes, ...arrowheadExtent(drawn.head)].map(({ y }) => y));
-      const painted = paintAnnotations([arrow], { x: 0, y: 0, width: 453, height: 453 }, 453, DEFAULT_DIAGRAM_STYLE)!;
-      const pen = project.pens.arrow.width * project.ink;
-      expect(top).toBeLessThan(0);
-      // Its strokes' half width kept, and no more than a mitre's room round its head.
-      expect(painted.bounds.y).toBeLessThanOrEqual(top - pen / 2);
-      expect(painted.bounds.y).toBeGreaterThanOrEqual(top - Math.max(2 * project.ink, 1.5 * pen) - 1e-6);
+  it('reaches each arrow’s ink and no further, at any pen: half a pen round its strokes, a filled head to its corners, a mountain’s outline mitred (review 4)', () => {
+    // Its reach was a whole pen round its strokes and 1.5 pens round its head's every corner, a mountain's spread barb
+    // on both sides: up to 1.3 mm past its ink at the default pen, 10 mm at the heaviest.
+    const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    const cornered = (kind: 'valley-arrow' | 'mountain-arrow' | 'fold-unfold-arrow', dx: number, dy: number) => {
+      const path = [{ at: [0.2 + dx, 0.7 + dy] as [number, number] }, { at: [0.5 + dx, 0.3 + dy] as [number, number], type: 'corner' as const }, { at: [0.6 + dx, 0.75 + dy] as [number, number] }];
+      return a('c', kind, { from: path[0]!.at, to: path[2]!.at, path });
+    };
+    const arrows = (dx: number, dy: number) => [
+      a('v', 'valley-arrow', { from: [0.2 + dx, 0.5 + dy], to: [0.8 + dx, 0.5 + dy], bend: 0.15 }),
+      a('v', 'valley-arrow', { from: [0.2 + dx, 0.5 + dy], to: [0.8 + dx, 0.5 + dy], bend: 0.01 }),
+      a('m', 'mountain-arrow', { from: [0.2 + dx, 0.5 + dy], to: [0.8 + dx, 0.5 + dy], bend: 0.15 }),
+      a('f', 'fold-unfold-arrow', { from: [0.2 + dx, 0.5 + dy], to: [0.8 + dx, 0.5 + dy], bend: 0.15 }),
+      arcToPath(a('s', 'mountain-arrow', { from: [0.2 + dx, 0.5 + dy], to: [0.8 + dx, 0.5 + dy], bend: 0.3 })),
+      cornered('valley-arrow', dx, dy),
+      cornered('mountain-arrow', dx, dy),
+      cornered('fold-unfold-arrow', dx, dy),
+    ];
+    const framePx = 200;
+    for (const style of [DEFAULT_DIAGRAM_STYLE, heavy]) {
+      // Past each side of the frame in turn, so each side of the reach is the arrow's own.
+      for (const [dx, dy] of [[-1.2, 0], [1.2, 0], [0, -1.2], [0, 1.2]] as const) {
+        for (const arrow of arrows(dx, dy)) {
+          const drawing = annotationDrawing([arrow], { width: 1, height: 1 }, framePx, style);
+          const { project, marks } = drawing.context;
+          const half = (project.pens.arrow.width * project.ink) / 2;
+          const ink = { left: 0, top: 0, right: framePx, bottom: framePx };
+          const take = ({ x, y }: { x: number; y: number }, r: number) => {
+            ink.left = Math.min(ink.left, x - r);
+            ink.right = Math.max(ink.right, x + r);
+            ink.top = Math.min(ink.top, y - r);
+            ink.bottom = Math.max(ink.bottom, y + r);
+          };
+          // Its strokes sampled finely, round-capped and round-joined as a page draws them, half a pen round.
+          const arc = (each: DiagramArc | null) => {
+            if (!each) return;
+            const sweep = each.ccw ? each.to - each.from : each.from - each.to;
+            const extent = ((sweep % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+            for (let i = 0; i <= 4000; i += 1) {
+              const angle = each.from + (each.ccw ? 1 : -1) * extent * (i / 4000);
+              take(project([each.center[0] + each.radius * Math.cos(angle), each.center[1] + each.radius * Math.sin(angle)]), half);
+            }
+          };
+          const filled = (head: Arrowhead) => [head.tip, ...head.barbs].forEach((corner) => take(corner, 0));
+          // A mountain's outline, mitred: each corner where its edges' outer sides meet, bevelled past SVG's limit of 4.
+          const mitred = (outline: readonly SvgPoint[]) =>
+            outline.forEach((corner, index) => {
+              const before = outline[(index + outline.length - 1) % outline.length]!;
+              const after = outline[(index + 1) % outline.length]!;
+              const unit = (from: SvgPoint, to: SvgPoint) => {
+                const length = Math.hypot(to.x - from.x, to.y - from.y);
+                return { x: (to.x - from.x) / length, y: (to.y - from.y) / length };
+              };
+              const [u, w] = [unit(before, corner), unit(corner, after)];
+              // The outer side of the turn: the normals pointing away from where the outline turns.
+              const turn = Math.sign(u.x * w.y - u.y * w.x);
+              const [nu, nw] = [{ x: u.y * turn, y: -u.x * turn }, { x: w.y * turn, y: -w.x * turn }];
+              // The two offset edges' meeting point.
+              const p = { x: corner.x + nu.x * half, y: corner.y + nu.y * half };
+              const q = { x: corner.x + nw.x * half, y: corner.y + nw.y * half };
+              const denominator = u.x * w.y - u.y * w.x;
+              const t = ((q.x - p.x) * w.y - (q.y - p.y) * w.x) / denominator;
+              const tip = { x: p.x + u.x * t, y: p.y + u.y * t };
+              if (Math.hypot(tip.x - corner.x, tip.y - corner.y) <= 4 * half) take(tip, 0);
+              else [p, q].forEach((end) => take(end, 0));
+            });
+          const primitive = drawing.primitives[0]!;
+          if (primitive.kind === 'fold-arrow') {
+            const drawn = foldArrowDrawn(primitive.out, project, marks)!;
+            arc(drawn.out);
+            arc(drawn.back);
+            filled(drawn.head);
+          } else if (primitive.kind === 'one-way-arrow') {
+            const drawn = oneWayArrowDrawn(primitive.out, project, marks);
+            arc(drawn.shaft);
+            if (primitive.fold === 'mountain') mitred(halfArrowheadCorners(drawn.head, project(primitive.out.center)));
+            else filled(drawn.head);
+          } else if (primitive.kind === 'path-arrow') {
+            const drawn = pathArrowDrawn(primitive.path, primitive.fold, project, marks)!;
+            for (const cubic of drawn.shaft ?? []) for (let i = 0; i <= 2000; i += 1) {
+              const [x, y] = cubicPoint(cubic, i / 2000);
+              take({ x, y }, half);
+            }
+            for (const [x, y] of drawn.back ?? []) take({ x, y }, half);
+            if (primitive.fold === 'mountain') mitred(halfArrowheadCorners(drawn.head, drawn.inside));
+            else filled(drawn.head);
+          } else {
+            throw new Error(`an arrow, not ${primitive.kind}`);
+          }
+          const reach = paintAnnotations([arrow], { x: 0, y: 0, width: framePx, height: framePx }, framePx, style)!.bounds;
+          const name = `${arrow.kind} ${arrow.path ? 'shaped' : arrow.bend}, ${dx} ${dy}, pen ${project.pens.arrow.width}`;
+          expect(Math.abs(ink.left - reach.x), name).toBeLessThan(0.01);
+          expect(Math.abs(ink.top - reach.y), name).toBeLessThan(0.01);
+          expect(Math.abs(reach.x + reach.width - ink.right), name).toBeLessThan(0.01);
+          expect(Math.abs(reach.y + reach.height - ink.bottom), name).toBeLessThan(0.01);
+        }
+      }
     }
   });
 
