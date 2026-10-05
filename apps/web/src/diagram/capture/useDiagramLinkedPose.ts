@@ -100,6 +100,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   // Relink or an undo the step links to others, and these are not theirs.
   const [spatial, setSpatial] = useState<{ key: string; view: DiagramPoseSpatialView } | null>(null);
   const [found, setFound] = useState<{ key: string; value: DiagramLinkedPoseState['solutions'] } | null>(null);
+  const [measured, setMeasured] = useState<{ key: string; value: readonly number[] | null } | null>(null);
   const [previewed, setPreviewed] = useState<{ key: string; value: SpreadPreview } | null>(null);
   const foldKey = useMemo(() => (source && stepId ? linkedFoldKey(stepId, source) : null), [source, stepId]);
 
@@ -110,6 +111,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
         : createPoseController(stepId, {
             spatial: (view, key) => setSpatial(view && key ? { key, view } : null),
             solutions: (value, key) => setFound({ key, value }),
+            mirrorAxes: (value, key) => setMeasured({ key, value }),
             preview: (value, key) => setPreviewed(value && key ? { key, value } : null),
           }),
     [stepId]
@@ -146,11 +148,14 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
 
   const render = source?.render ?? null;
   const solutions = found !== null && found.key === foldKey ? found.value : null;
+  // Whether it is symmetric: its side or layer order never changes that, only other creases.
+  const mirrorAxes = measured !== null && measured.key === foldKey ? measured.value : null;
   // A flat fold drawn as its see-through development has no layers to spread.
   const seeThrough = render?.mode === 'folded-flat' && step?.picture?.kind === 'fixed';
   const poseState = useMemo(
-    (): DiagramLinkedPoseState | null => (render ? { render, readOnly, busy, solutions, seeThrough } : null),
-    [render, readOnly, busy, solutions, seeThrough]
+    (): DiagramLinkedPoseState | null =>
+      render ? { render, readOnly, busy, solutions, seeThrough, mirrorAxes } : null,
+    [render, readOnly, busy, solutions, seeThrough, mirrorAxes]
   );
   const actions = useMemo(
     () =>

@@ -120,12 +120,13 @@ export function DiagramStepPose({
           label={t('panels:diagram.pose.rotation', 'Rotation')}
           value={turn}
           min={0}
-          max={359}
+          max={359.9}
           step={15}
           suffix="°"
           // Held as the turn verbs are: on a diagram that cannot change, or while a capture runs.
           disabled={turnHeld || waiting}
-          normalize={(degrees) => ((Math.round(degrees) % 360) + 360) % 360}
+          // Any angle, to a tenth of a degree (Zach, 2026-10-05): a 22.5° design stands at 157.5°.
+          normalize={(degrees) => ((Math.round(degrees * 10) / 10) % 360 + 360) % 360}
           onCommit={linkedPose.rotateTo}
         />
       )}

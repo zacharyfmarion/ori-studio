@@ -1166,6 +1166,8 @@
       "spreadUpLeft": "Couches inférieures en haut à gauche",
       "spreadUpRight": "Couches inférieures en haut à droite",
       "turnOver": "Retourner",
+      "upright": "Redresser",
+      "uprightNone": "Ce pliage n’a pas d’axe de symétrie sur lequel se redresser",
       "view3d": "Modèle plié en 3D\u00a0: faites glisser pour le tourner",
       "viewFront": "Voir de face",
       "viewIso": "Voir en perspective",

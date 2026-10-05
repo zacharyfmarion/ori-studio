@@ -1130,6 +1130,8 @@
       "spreadUpLeft": "Tiefere Lagen nach links oben",
       "spreadUpRight": "Tiefere Lagen nach rechts oben",
       "turnOver": "Umdrehen",
+      "upright": "Aufrichten",
+      "uprightNone": "Diese Faltung hat keine Spiegelachse, auf der sie stehen kann",
       "view3d": "Gefaltetes Modell in 3D: zum Drehen ziehen",
       "viewFront": "Von vorne ansehen",
       "viewIso": "Schräg von oben ansehen",

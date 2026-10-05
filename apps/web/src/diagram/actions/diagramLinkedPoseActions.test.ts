@@ -49,6 +49,7 @@ describe('the linked pose verbs', () => {
       'turn-over',
       'rotate-left',
       'rotate-right',
+      'upright',
       'previous-solution',
       'next-solution',
       'spread-layers',
@@ -62,6 +63,20 @@ describe('the linked pose verbs', () => {
       ...modes,
       'reset',
     ]);
+  });
+
+  it('stands a flat fold upright while its mirror axes are unknown or found, and holds it, saying why, for a fold with none', () => {
+    const flat = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 150, foldCase: 13 };
+    const upright = (mirrorAxes?: readonly number[] | null) =>
+      build({ render: flat, ...(mirrorAxes === undefined ? {} : { mirrorAxes }) }).find((action) => action.id === 'upright')!;
+    // Not known until the fold is held: a press folds it and finds out.
+    expect(upright()).toMatchObject({ label: 'Upright', disabled: false });
+    expect(upright(null)).toMatchObject({ disabled: false });
+    expect(upright([112.5])).toMatchObject({ disabled: false });
+    expect(upright([])).toMatchObject({ disabled: true, hint: 'This fold has no mirror axis to stand on' });
+    const pose = vi.fn();
+    build({ render: flat, mirrorAxes: [112.5] }, pose).find((action) => action.id === 'upright')!.run();
+    expect(pose).toHaveBeenCalledWith('upright');
   });
 
   it('marks how the pattern is shown, and runs each verb by its id', () => {

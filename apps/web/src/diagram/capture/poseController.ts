@@ -75,6 +75,7 @@ const TRACKED: Record<LinkedPoseRequest['verb'], TrackedPoseAction> = {
   reset: 'reset',
   orbit: 'orbit',
   'rotate-to': 'rotate_to',
+  upright: 'upright',
   simulate: 'simulate',
   // On, or off when the verb left none (`trackPose`).
   'spread-layers': 'spread_on',
@@ -197,6 +198,11 @@ export interface PoseControllerListener {
   spatial: (view: DiagramPoseSpatialView | null, key: string | null) => void;
   /** The held flat fold's layer orders as the search knows them; null when unknown. */
   solutions: (solutions: FlatSolutions | null, key: string) => void;
+  /**
+   * The held flat fold's mirror axes, unturned — empty for a fold with no
+   * symmetry, which Upright cannot stand; null for a picture not folded flat.
+   */
+  mirrorAxes: (axes: readonly number[] | null, key: string) => void;
   /** A spread previewed before it is committed; null when the preview ends. */
   preview: (preview: SpreadPreview | null, key: string | null) => void;
 }
@@ -390,6 +396,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       // What a preview may draw from: the flat fold just posed, of these creases.
       heldFor = result.render.mode === 'folded-flat' ? { key, document } : null;
       listener.solutions(result.solutions ?? null, key);
+      listener.mirrorAxes(result.mirrorAxes ?? null, key);
       if (result.spatial) listener.spatial({ model: result.spatial.fold.render, aux: result.spatial.aux }, key);
       return {
         status: 'captured',

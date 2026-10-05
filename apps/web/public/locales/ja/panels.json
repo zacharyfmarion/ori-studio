@@ -1094,6 +1094,8 @@
       "spreadUpLeft": "奥の層を左上へ",
       "spreadUpRight": "奥の層を右上へ",
       "turnOver": "裏返す",
+      "upright": "直立させる",
+      "uprightNone": "この折りには、直立させるための対称軸がありません",
       "view3d": "3Dの折り上がり：ドラッグして回転",
       "viewFront": "正面から見る",
       "viewIso": "斜めから見る",

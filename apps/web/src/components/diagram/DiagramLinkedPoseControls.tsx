@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowDownToDot,
+  ArrowUpToLine,
   Box,
   Eye,
   ChevronLeft,
@@ -27,6 +28,8 @@ import styles from './DiagramLinkedPoseControls.module.css';
 const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> = {
   'rotate-left': RotateCcw,
   'rotate-right': RotateCw,
+  // Stood on its mirror axis: the axis up to the top.
+  upright: ArrowUpToLine,
   // As Edit's folded figures flip (`foldedFigureActionIcons`): the paper turned over, not mirrored.
   'turn-over': RotateCcwSquare,
   'previous-solution': ChevronLeft,

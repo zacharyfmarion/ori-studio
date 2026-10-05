@@ -156,6 +156,7 @@ export type DiagramPoseAction =
   | 'view_iso'
   | 'orbit'
   | 'rotate_to'
+  | 'upright'
   | 'show_simulated'
   | 'simulate'
   | 'spread_on'

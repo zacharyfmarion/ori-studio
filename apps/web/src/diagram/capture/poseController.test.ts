@@ -63,7 +63,7 @@ async function linkedStep(): Promise<string> {
   return stepId;
 }
 
-const listener = () => ({ spatial: vi.fn(), solutions: vi.fn(), preview: vi.fn() });
+const listener = () => ({ spatial: vi.fn(), solutions: vi.fn(), mirrorAxes: vi.fn(), preview: vi.fn() });
 const render = (stepId: string) => stepsIn(state().diagram!).find((step) => step.id === stepId)!.source;
 
 beforeEach(async () => {

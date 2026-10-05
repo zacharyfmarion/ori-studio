@@ -21,6 +21,7 @@ import type {
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import { openFold, readFoldedPicture, type FoldedFigureState, type FoldedPicture } from '../../lib/creaseExportFold';
 import type { DiagramStyle } from '../document/diagramDocument';
+import { foldedMirrorAxes } from './mirrorAxes';
 import type { SanitizeEnv } from '../upload/svgSanitize';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import {
@@ -115,6 +116,12 @@ export interface CaptureSession {
    * order, then drawn from what was read.
    */
   flatPicture: (rotationDeg: number, spread?: LayerSpreadOptions) => Promise<CapturedPicture>;
+  /**
+   * The held flat fold's mirror axes, unturned (`foldedMirrorAxes`): measured
+   * on what the kernel read for its picture, so read once per side and layer
+   * order with it.
+   */
+  flatMirrorAxes: () => Promise<number[]>;
   /**
    * The same picture now, with no call to the kernel, when the session holds
    * this flat fold of `document` on `side` at `foldCase` and has read it;
@@ -282,6 +289,12 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
       const hold = flatHold();
       hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
       return flatPicture(hold.read, rotationDeg, deps.env, spread);
+    },
+
+    async flatMirrorAxes() {
+      const hold = flatHold();
+      hold.read ??= await readFoldedPicture(deps.runtime(), hold.handle, hold.state.displayStyle);
+      return foldedMirrorAxes(hold.read);
     },
 
     heldFlatPicture({ document, side, foldCase }, rotationDeg, spread) {

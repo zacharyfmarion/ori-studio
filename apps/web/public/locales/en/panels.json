@@ -1130,6 +1130,8 @@
       "spreadUpLeft": "Deeper layers up and left",
       "spreadUpRight": "Deeper layers up and right",
       "turnOver": "Turn Over",
+      "upright": "Upright",
+      "uprightNone": "This fold has no mirror axis to stand on",
       "view3d": "Folded model in 3D: drag to turn it",
       "viewFront": "View From the Front",
       "viewIso": "View From the Corner",

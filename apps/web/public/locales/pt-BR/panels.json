@@ -1166,6 +1166,8 @@
       "spreadUpLeft": "Camadas inferiores para cima e à esquerda",
       "spreadUpRight": "Camadas inferiores para cima e à direita",
       "turnOver": "Virar",
+      "upright": "Endireitar",
+      "uprightNone": "Esta dobra não tem um eixo de simetria sobre o qual se endireitar",
       "view3d": "Modelo dobrado em 3D: arraste para girar",
       "viewFront": "Ver de frente",
       "viewIso": "Ver de canto",

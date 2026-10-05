@@ -1166,6 +1166,8 @@
       "spreadUpLeft": "Capas inferiores arriba a la izquierda",
       "spreadUpRight": "Capas inferiores arriba a la derecha",
       "turnOver": "Dar la vuelta",
+      "upright": "Enderezar",
+      "uprightNone": "Este pliegue no tiene un eje de simetría sobre el que enderezarse",
       "view3d": "Modelo plegado en 3D: arrastra para girarlo",
       "viewFront": "Ver desde el frente",
       "viewIso": "Ver desde la esquina",

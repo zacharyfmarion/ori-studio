@@ -2630,7 +2630,6 @@
     "panels:diagram.annotate.canvasLabel": "9964700e2283",
     "panels:diagram.annotate.controls": "1bf2c2ce252f",
     "panels:diagram.annotate.foldUnfoldHelp": "1ca3c6a43d36",
-    "panels:diagram.annotate.glyphHelp": "99a726e144ab",
     "panels:diagram.annotate.groupArrows": "423c677c12e0",
     "panels:diagram.annotate.groupLines": "3b26a5427458",
     "panels:diagram.annotate.groupSelect": "2a78025de6aa",
@@ -4097,7 +4096,9 @@
     "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9",
     "panels:diagram.layers.empty": "9d4346322f96",
     "panels:diagram.layers.list": "0bcd66e677f4",
-    "panels:sidePane.layers": "0bcd66e677f4"
+    "panels:sidePane.layers": "0bcd66e677f4",
+    "panels:diagram.pose.upright": "501808a8c753",
+    "panels:diagram.pose.uprightNone": "ce799c098cd7"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6730,7 +6731,6 @@
     "panels:diagram.annotate.canvasLabel": "9964700e2283",
     "panels:diagram.annotate.controls": "1bf2c2ce252f",
     "panels:diagram.annotate.foldUnfoldHelp": "1ca3c6a43d36",
-    "panels:diagram.annotate.glyphHelp": "99a726e144ab",
     "panels:diagram.annotate.groupArrows": "423c677c12e0",
     "panels:diagram.annotate.groupLines": "3b26a5427458",
     "panels:diagram.annotate.groupSelect": "2a78025de6aa",
@@ -8197,7 +8197,9 @@
     "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9",
     "panels:diagram.layers.empty": "9d4346322f96",
     "panels:diagram.layers.list": "0bcd66e677f4",
-    "panels:sidePane.layers": "0bcd66e677f4"
+    "panels:sidePane.layers": "0bcd66e677f4",
+    "panels:diagram.pose.upright": "501808a8c753",
+    "panels:diagram.pose.uprightNone": "ce799c098cd7"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -10830,7 +10832,6 @@
     "panels:diagram.annotate.canvasLabel": "9964700e2283",
     "panels:diagram.annotate.controls": "1bf2c2ce252f",
     "panels:diagram.annotate.foldUnfoldHelp": "1ca3c6a43d36",
-    "panels:diagram.annotate.glyphHelp": "99a726e144ab",
     "panels:diagram.annotate.groupArrows": "423c677c12e0",
     "panels:diagram.annotate.groupLines": "3b26a5427458",
     "panels:diagram.annotate.groupSelect": "2a78025de6aa",
@@ -12299,7 +12300,9 @@
     "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9",
     "panels:diagram.layers.empty": "9d4346322f96",
     "panels:diagram.layers.list": "0bcd66e677f4",
-    "panels:sidePane.layers": "0bcd66e677f4"
+    "panels:sidePane.layers": "0bcd66e677f4",
+    "panels:diagram.pose.upright": "501808a8c753",
+    "panels:diagram.pose.uprightNone": "ce799c098cd7"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -14886,7 +14889,6 @@
     "panels:diagram.annotate.canvasLabel": "9964700e2283",
     "panels:diagram.annotate.controls": "1bf2c2ce252f",
     "panels:diagram.annotate.foldUnfoldHelp": "1ca3c6a43d36",
-    "panels:diagram.annotate.glyphHelp": "99a726e144ab",
     "panels:diagram.annotate.groupArrows": "423c677c12e0",
     "panels:diagram.annotate.groupLines": "3b26a5427458",
     "panels:diagram.annotate.groupSelect": "2a78025de6aa",
@@ -16313,7 +16315,9 @@
     "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9",
     "panels:diagram.layers.empty": "9d4346322f96",
     "panels:diagram.layers.list": "0bcd66e677f4",
-    "panels:sidePane.layers": "0bcd66e677f4"
+    "panels:sidePane.layers": "0bcd66e677f4",
+    "panels:diagram.pose.upright": "501808a8c753",
+    "panels:diagram.pose.uprightNone": "ce799c098cd7"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18900,7 +18904,6 @@
     "panels:diagram.annotate.canvasLabel": "9964700e2283",
     "panels:diagram.annotate.controls": "1bf2c2ce252f",
     "panels:diagram.annotate.foldUnfoldHelp": "1ca3c6a43d36",
-    "panels:diagram.annotate.glyphHelp": "99a726e144ab",
     "panels:diagram.annotate.groupArrows": "423c677c12e0",
     "panels:diagram.annotate.groupLines": "3b26a5427458",
     "panels:diagram.annotate.groupSelect": "2a78025de6aa",
@@ -20327,7 +20330,9 @@
     "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9",
     "panels:diagram.layers.empty": "9d4346322f96",
     "panels:diagram.layers.list": "0bcd66e677f4",
-    "panels:sidePane.layers": "0bcd66e677f4"
+    "panels:sidePane.layers": "0bcd66e677f4",
+    "panels:diagram.pose.upright": "501808a8c753",
+    "panels:diagram.pose.uprightNone": "ce799c098cd7"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22960,7 +22965,6 @@
     "panels:diagram.annotate.canvasLabel": "9964700e2283",
     "panels:diagram.annotate.controls": "1bf2c2ce252f",
     "panels:diagram.annotate.foldUnfoldHelp": "1ca3c6a43d36",
-    "panels:diagram.annotate.glyphHelp": "99a726e144ab",
     "panels:diagram.annotate.groupArrows": "423c677c12e0",
     "panels:diagram.annotate.groupLines": "3b26a5427458",
     "panels:diagram.annotate.groupSelect": "2a78025de6aa",
@@ -24427,7 +24431,9 @@
     "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9",
     "panels:diagram.layers.empty": "9d4346322f96",
     "panels:diagram.layers.list": "0bcd66e677f4",
-    "panels:sidePane.layers": "0bcd66e677f4"
+    "panels:sidePane.layers": "0bcd66e677f4",
+    "panels:diagram.pose.upright": "501808a8c753",
+    "panels:diagram.pose.uprightNone": "ce799c098cd7"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -27060,7 +27066,6 @@
     "panels:diagram.annotate.canvasLabel": "9964700e2283",
     "panels:diagram.annotate.controls": "1bf2c2ce252f",
     "panels:diagram.annotate.foldUnfoldHelp": "1ca3c6a43d36",
-    "panels:diagram.annotate.glyphHelp": "99a726e144ab",
     "panels:diagram.annotate.groupArrows": "423c677c12e0",
     "panels:diagram.annotate.groupLines": "3b26a5427458",
     "panels:diagram.annotate.groupSelect": "2a78025de6aa",
@@ -28527,7 +28532,9 @@
     "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9",
     "panels:diagram.layers.empty": "9d4346322f96",
     "panels:diagram.layers.list": "0bcd66e677f4",
-    "panels:sidePane.layers": "0bcd66e677f4"
+    "panels:sidePane.layers": "0bcd66e677f4",
+    "panels:diagram.pose.upright": "501808a8c753",
+    "panels:diagram.pose.uprightNone": "ce799c098cd7"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -31114,7 +31121,6 @@
     "panels:diagram.annotate.canvasLabel": "9964700e2283",
     "panels:diagram.annotate.controls": "1bf2c2ce252f",
     "panels:diagram.annotate.foldUnfoldHelp": "1ca3c6a43d36",
-    "panels:diagram.annotate.glyphHelp": "99a726e144ab",
     "panels:diagram.annotate.groupArrows": "423c677c12e0",
     "panels:diagram.annotate.groupLines": "3b26a5427458",
     "panels:diagram.annotate.groupSelect": "2a78025de6aa",
@@ -32541,6 +32547,8 @@
     "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9",
     "panels:diagram.layers.empty": "9d4346322f96",
     "panels:diagram.layers.list": "0bcd66e677f4",
-    "panels:sidePane.layers": "0bcd66e677f4"
+    "panels:sidePane.layers": "0bcd66e677f4",
+    "panels:diagram.pose.upright": "501808a8c753",
+    "panels:diagram.pose.uprightNone": "ce799c098cd7"
   }
 }

@@ -297,6 +297,18 @@ describe('DiagramStepPanel', () => {
       setField(rotation, '100');
       act(() => rotation.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
       expect(rotateTo).toHaveBeenCalledWith(100);
+      // Any angle, to a tenth (Zach, 2026-10-05): a 22.5° design stands at 157.5°, and 359.5 is not 359.
+      for (const [typed, turned] of [
+        ['157.5', 157.5],
+        ['157.54', 157.5],
+        ['359.5', 359.5],
+        ['-22.5', 337.5],
+      ] as const) {
+        act(() => rotation.focus());
+        setField(rotation, typed);
+        act(() => rotation.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+        expect(rotateTo).toHaveBeenLastCalledWith(turned);
+      }
       act(() => publishOpenLinkedPose(null, null));
     });
 

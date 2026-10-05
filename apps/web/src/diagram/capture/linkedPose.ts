@@ -44,6 +44,7 @@ import {
   type StillScene,
 } from './captureFolded';
 import type { CaptureSession, SpatialHold } from './captureSession';
+import { uprightTurn } from './mirrorAxes';
 
 /**
  * A verb, an orbit of the 3D view ending at a camera, a turn typed in degrees
@@ -121,6 +122,8 @@ export type LinkedPoseResult =
       noLayerOrder: boolean;
       /** For a flat fold: how many layer orders are found, and whether another can be searched for. */
       solutions?: FlatSolutions;
+      /** For a flat fold: its mirror axes, unturned (`foldedMirrorAxes`); none for a fold with no symmetry. */
+      mirrorAxes?: readonly number[];
       /** For a 3D fold: what the live view draws. */
       spatial?: SpatialHold;
     }
@@ -183,30 +186,36 @@ export async function poseLinkedStep(
   /**
    * A flat fold in a pose. Every verb keeps the spread unless it is a spread
    * verb: like Turn Over it is a choice about the picture, which the held
-   * fold draws again with no call to the kernel.
+   * fold draws again with no call to the kernel. `upright` turns it to stand
+   * on a mirror axis (`uprightTurn`) measured on the fold just held, and every
+   * pose reports the axes, so the toolbar can say whether Upright can act.
    */
   const flat = async (
     { side, rotationDeg, foldCase, spread }: FlatPose,
     move?: 'turn-over' | 'next-solution',
-    knownCases?: number
+    knownCases?: number,
+    { upright = false }: { upright?: boolean } = {}
   ): Promise<LinkedPoseResult> => {
     // Another layer order is a search of the held fold; one already found, a jump to it.
     let state = await session.flat(document, creases.foldLineIds, side, foldCase, knownCases);
     if (move === 'turn-over') state = await session.turnOver();
     if (move === 'next-solution') state = await session.nextSolution();
-    const picture = await session.flatPicture(rotationDeg, spread);
+    const mirrorAxes = await session.flatMirrorAxes();
+    const turn = upright ? (uprightTurn(mirrorAxes, rotationDeg) ?? rotationDeg) : rotationDeg;
+    const picture = await session.flatPicture(turn, spread);
     return {
       status: 'posed',
       render: {
         mode: 'folded-flat',
         side: state.side,
-        rotationDeg,
+        rotationDeg: turn,
         foldCase: state.foldCase,
         ...(spread ? { spread } : {}),
       },
       picture,
       noLayerOrder: state.noLayerOrder,
       solutions: { discovered: state.discovered, hasNext: state.hasNext, none: state.noLayerOrder },
+      mirrorAxes,
     };
   };
 
@@ -320,6 +329,9 @@ export async function poseLinkedStep(
         return flat({ ...pose, rotationDeg: turned(rotationDeg, POSE_ROTATION_STEP_DEG) });
       case 'rotate-to':
         return flat({ ...pose, rotationDeg: turned(request.verb === 'rotate-to' ? request.degrees : rotationDeg, 0) });
+      case 'upright':
+        // A mirror axis vertical (Zach, 2026-10-05): the nearer way, or from upright the other way up.
+        return flat(pose, undefined, undefined, { upright: true });
       case 'turn-over':
         // Turned over where it lies, as paper is: what shows now is the
         // mirror of what showed, so its turn runs the other way. The spread

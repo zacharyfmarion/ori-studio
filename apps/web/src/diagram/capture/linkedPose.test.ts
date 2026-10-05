@@ -365,6 +365,57 @@ describe('posing a flat fold', () => {
   });
 });
 
+describe('standing a flat fold upright (Zach, 2026-10-05)', () => {
+  // The fake kernel folds a 100 × 50 rectangle: symmetric about its middle, across and down.
+  it('turns it the nearer way to stand on a mirror axis, then the other way up, and reports its axes with every pose', async () => {
+    const { session } = sessionWith();
+    const upright = await pose(session, FLAT, { verb: 'upright' });
+    // At 30°, the axis across stands at 0° — nearer than the one down, at 90°.
+    expect(upright).toMatchObject({ status: 'posed', render: { mode: 'folded-flat', rotationDeg: 0 }, mirrorAxes: [0, 90] });
+    const again = await pose(session, { ...FLAT, rotationDeg: 0 }, { verb: 'upright' });
+    expect(again).toMatchObject({ render: { rotationDeg: 180 } });
+    expect(await pose(session, { ...FLAT, rotationDeg: 70 }, { verb: 'upright' })).toMatchObject({ render: { rotationDeg: 90 } });
+    // Any flat pose says whether it could stand: the toolbar holds Upright on that.
+    expect(await pose(session, FLAT, { verb: 'rotate-right' })).toMatchObject({ render: { rotationDeg: 45 }, mirrorAxes: [0, 90] });
+  });
+
+  it('keeps the spread, the side and the layer order: only the turn changes', async () => {
+    const { session } = sessionWith();
+    const spread = { ...FLAT, side: 'back' as const, spread: DEFAULT_AFFINE_SPREAD };
+    expect(await pose(session, spread, { verb: 'upright' })).toMatchObject({
+      render: { side: 'back', foldCase: 1, rotationDeg: 0, spread: DEFAULT_AFFINE_SPREAD },
+    });
+  });
+
+  it('leaves a fold with no mirror axis as it was, and says it has none', async () => {
+    const lopsided = [
+      { x: 0, y: 0 },
+      { x: 90, y: 10 },
+      { x: 30, y: 70 },
+    ];
+    const edges = lopsided.map((from, index) => ({ from, to: lopsided[(index + 1) % 3]!, kind: 'border' as const }));
+    const runtime = fakeCaptureRuntime({
+      paperScene: vi.fn(async () => ({
+        schema_version: 2,
+        sheet_points: [],
+        flipped: false,
+        sheet: 100,
+        faces: [{ outline: lopsided, points: [0, 1, 2], front_up: true, edges }],
+        subfaces: [{ polygon: lopsided, faces_top_to_bottom: [0] }],
+        aux_lines: [],
+      })),
+    });
+    const { session } = sessionWith(runtime);
+    expect(await pose(session, FLAT, { verb: 'upright' })).toMatchObject({ render: { rotationDeg: 30 }, mirrorAxes: [] });
+  });
+
+  it('has no upright for a crease pattern: a sheet has no up', async () => {
+    const { session, runtime } = sessionWith();
+    expect(await pose(session, CP, { verb: 'upright' })).toMatchObject({ render: { mode: 'crease-pattern', rotationDeg: 345 } });
+    expect(runtime.fold).not.toHaveBeenCalled();
+  });
+});
+
 describe('a flat fold’s spread (Phase 13)', () => {
   const SPREAD = { kind: 'depth' as const, amount: 0.08, toward: 'down-right' as const };
   const SPREAD_FLAT: DiagramCpRender = { ...FLAT, spread: SPREAD };

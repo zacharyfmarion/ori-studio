@@ -1094,6 +1094,8 @@
       "spreadUpLeft": "下层向左上",
       "spreadUpRight": "下层向右上",
       "turnOver": "翻面",
+      "upright": "竖直摆正",
+      "uprightNone": "此折叠没有可用来竖直摆正的对称轴",
       "view3d": "3D 折叠形态：拖动以旋转",
       "viewFront": "从正面查看",
       "viewIso": "从斜角查看",

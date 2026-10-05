@@ -23,10 +23,10 @@ import {
  * `diagramPoseActions.ts` is for an upload.
  *
  * - **Crease pattern:** turn it.
- * - **Folded, flat:** turn it over, turn it, step to another layer order,
- *   and spread its layers apart (Phase 13) — on or off here; its kind (by
- *   depth or affine) and settings are the Step pane's
- *   ({@link buildDiagramSpreadControls}).
+ * - **Folded, flat:** turn it over, turn it — by steps, or to stand upright on
+ *   a mirror axis — step to another layer order, and spread its layers apart
+ *   (Phase 13) — on or off here; its kind (by depth or affine) and settings
+ *   are the Step pane's ({@link buildDiagramSpreadControls}).
  * - **Folded, in 3D:** look from the other side, or from straight above, the
  *   front or the corner; the view itself is dragged in the picture. Spread
  *   Layers is there too, held, saying it needs a flat fold.
@@ -37,6 +37,7 @@ export type DiagramLinkedPoseActionId =
   | 'show-simulated'
   | 'rotate-left'
   | 'rotate-right'
+  | 'upright'
   | 'turn-over'
   | 'previous-solution'
   | 'next-solution'
@@ -80,6 +81,12 @@ export interface DiagramLinkedPoseState {
    * draws when it finds no layer order: no layers to spread.
    */
   seeThrough?: boolean;
+  /**
+   * The held flat fold's mirror axes, unturned; null or absent when not
+   * known yet — Upright then folds it to find out — and empty for a fold with
+   * no symmetry, which has no upright.
+   */
+  mirrorAxes?: readonly number[] | null;
 }
 
 /**
@@ -213,6 +220,11 @@ export function buildDiagramLinkedPoseActions(
         ...modes,
         action('turn-over', t('panels:diagram.pose.turnOver', 'Turn Over')),
         ...turn,
+        // A mirror axis vertical (Zach, 2026-10-05), the nearer way; pressed again, the other way up.
+        action('upright', t('panels:diagram.pose.upright', 'Upright'), {
+          disabled: state.mirrorAxes?.length === 0,
+          hint: t('panels:diagram.pose.uprightNone', 'This fold has no mirror axis to stand on'),
+        }),
         // Any layer order found, in either direction (D23): back to the one
         // before, on to the next — the search's next when none is found past
         // this one — the last wrapping round to the first, as Edit's does.

@@ -1094,6 +1094,8 @@
       "spreadUpLeft": "아래 층을 왼쪽 위로",
       "spreadUpRight": "아래 층을 오른쪽 위로",
       "turnOver": "뒤집기",
+      "upright": "똑바로 세우기",
+      "uprightNone": "이 접기에는 똑바로 세울 대칭축이 없습니다",
       "view3d": "3D 접힌 모델: 드래그해서 돌리기",
       "viewFront": "앞에서 보기",
       "viewIso": "비스듬히 보기",
