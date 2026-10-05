@@ -1,7 +1,7 @@
 # Diagram Pose: Spread Layers (depth steps)
 
 **Status: depth steps built (13a–13f); depth and affine as two kinds, depth
-on by default, built (13g), its review to come.** Phase 13 of
+on by default, built and reviewed (13g), merged into the diagram branch.** Phase 13 of
 `implementation-plans/diagram-workspace.md`. Zach tried the options in the
 playground (https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf, private: his
 crane diagram step by step, twelve cpoogle crease patterns folded to their
@@ -457,7 +457,14 @@ axis only bucketed. i18n in every locale.
   the Step pane is one entry, a skew drag previews with no entry and commits
   as one; save and reopen keep `kind` in the file; the Pages view and the
   PDF draw it.
-- [ ] Review.
+- [x] Review (8 findings, all confirmed; the kernel and the math right — an
+  independent DEFOX probe matched to 1e-12), fixed: the wasm bridge's test
+  at schema 3 and `sheet_points` pinned to the crease pattern's frame (a
+  mirrored sheet turned the axis and passed); the conjugation's order tested
+  on a turned frame; an Amount dragged while the kind switches dropped
+  rather than read as the other kind's; a slider let go kept while another is
+  dragged, and drawn again when it lands; the hook's wiring tested; the
+  affine amount read "along the axis". Merged into the diagram branch.
 
 For Zach (13g, cheap to change):
 - **Keep top by default**, so the bird base opens as in the playground (see
