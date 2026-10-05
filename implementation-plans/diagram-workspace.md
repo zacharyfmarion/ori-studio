@@ -1278,7 +1278,11 @@ and don't count towards the numbers"; on pages, "in the gutter".)*
   pictures. A diagram with any turn reserves a gutter between all its pictures,
   so one paper scale stays one scale; across a row or page break the glyph sits
   at the leading edge of the next step's picture. A step file has no turn: the
-  ZIP's notice says so.
+  ZIP's notice says so. On a flow row read right to left, a turn-over side to
+  side is drawn mirrored, its arrow leading on to the step after it (Zach,
+  2026-10-05: "The turn over symbol needs to be flipped horizontally if the
+  steps are reading right to left in the flow layout"); one top to bottom
+  points down, and a rotation turns the way it says, whichever way a row runs.
 - **Made from** Add step ▾ › Turn Over / Rotate, the card menu's Insert Turn
   Over / Rotate After, and References: a References turn-over card is pulled
   as a turn-over, never as a numbered step, and never fills or replaces one.

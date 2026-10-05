@@ -603,4 +603,25 @@ describe('composeDiagramPage', () => {
     // The third step is still number 3: the turn takes no number.
     expect(pages.layout.pages[0]!.cells.map((cell) => cell.number)).toEqual([1, 2, 3, 4, 5, 6]);
   });
+
+  it('turns a turn-over side to side round on a flow row read right to left, to lead to the step after it', () => {
+    // Two to a row: steps 3 and 4 are read right to left.
+    const document: DiagramDocument = { ...diagram(), page: { ...DEFAULT_PAGE_SETUP, layout: 'flow', columns: 2, rows: 3 } };
+    const over = () => createTurn({ kind: 'turn-over', axis: 'vertical' });
+    const upright = createTurn({ kind: 'turn-over', axis: 'horizontal' });
+    // Before steps 2 and 4, and a turn top to bottom beside the one before step 4.
+    const turned = insertSteps(insertSteps(document, [over(), upright], 3), [over()], 1);
+    const pages = preparedPages(turned, FONTS, subsetter);
+    const turns = pages.layout.pages[0]!.turns;
+    expect(turns.map((turn) => [turn.turn, turn.rightToLeft])).toEqual([
+      [{ kind: 'turn-over', axis: 'vertical' }, false],
+      [{ kind: 'turn-over', axis: 'vertical' }, true],
+      [{ kind: 'turn-over', axis: 'horizontal' }, true],
+    ]);
+    const svg = pages.compose(0).svg;
+    expect(parse(svg).querySelector('parsererror')).toBeNull();
+    // One glyph mirrored, about the place it is printed at.
+    const mirrors = [...svg.matchAll(/<g transform="matrix\(-1 0 0 1 ([\d.]+) 0\)">/g)].map((match) => Number(match[1]));
+    expect(mirrors).toEqual([expect.closeTo(2 * turns[1]!.at.x * PT_PER_MM, 3)]);
+  });
 });

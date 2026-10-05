@@ -266,10 +266,16 @@ export interface LayoutPage {
   band: { x: number; y: number }[] | null;
   /**
    * The turns on the page (D22), in the document's order: each glyph's centre
-   * and printed box, and the step it comes before — null for those after the
-   * last step.
+   * and printed box, the step it comes before — null for those after the last
+   * step — and whether the row it stands in reads right to left, as every
+   * other flow row does.
    */
-  turns: (LayoutTurn & { at: { x: number; y: number }; box: { w: number; h: number }; beforeStepId: string | null })[];
+  turns: (LayoutTurn & {
+    at: { x: number; y: number };
+    box: { w: number; h: number };
+    beforeStepId: string | null;
+    rightToLeft: boolean;
+  })[];
   pageNumberAt: { x: number; y: number; anchor: 'start' | 'end' } | null;
 }
 
@@ -968,14 +974,15 @@ function placeTurns(
     const x = left ? cell.pictureMm.x - gutter / 2 : cell.pictureMm.x + cell.pictureMm.size + gutter / 2;
     return { x, y: centre(cell).y };
   };
-  const stack = (turns: readonly LayoutTurn[], at: { x: number; y: number }, beforeStepId: string | null) => {
+  /** `turns` stood at `at`, in the row of the `k`th picture, which they go the way of. */
+  const stack = (turns: readonly LayoutTurn[], at: { x: number; y: number }, k: number, beforeStepId: string | null) => {
     const x = Math.min(pageWidth - TURN_GUTTER_MM / 2, Math.max(TURN_GUTTER_MM / 2, at.x));
     const boxes = turns.map((turn) => turnGlyphMm(turn.turn));
     const height = boxes.reduce((sum, box) => sum + box.h, 0) + (turns.length - 1) * TURN_STACK_CLEAR_MM;
     let top = at.y - height / 2;
     turns.forEach((turn, n) => {
       const box = boxes[n]!;
-      placed.push({ ...turn, at: { x, y: top + box.h / 2 }, box, beforeStepId });
+      placed.push({ ...turn, at: { x, y: top + box.h / 2 }, box, beforeStepId, rightToLeft: backwards(k) });
       top += box.h + TURN_STACK_CLEAR_MM;
     });
   };
@@ -985,12 +992,12 @@ function placeTurns(
         const a = centre(cells[k - 1]!);
         const b = centre(cells[k]!);
         const facing = (edge(k - 1, false).x + edge(k, true).x) / 2;
-        stack(step.turnsBefore, { x: facing, y: (a.y + b.y) / 2 }, step.id);
+        stack(step.turnsBefore, { x: facing, y: (a.y + b.y) / 2 }, k, step.id);
       } else {
-        stack(step.turnsBefore, edge(k, true), step.id);
+        stack(step.turnsBefore, edge(k, true), k, step.id);
       }
     }
-    if (step.turnsAfter.length > 0) stack(step.turnsAfter, edge(k, false), null);
+    if (step.turnsAfter.length > 0) stack(step.turnsAfter, edge(k, false), k, null);
   });
   return placed;
 }

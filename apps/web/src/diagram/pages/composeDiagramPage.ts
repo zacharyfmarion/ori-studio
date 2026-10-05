@@ -126,11 +126,12 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
     body.push(`<g>\n${parts.join('\n')}\n</g>`);
   });
 
-  // A turn's glyph, as an annotation's prints: at its own ink size, centred on its place.
-  for (const { id, turn, at } of page.turns) {
+  // A turn's glyph, as an annotation's prints: at its own ink size, centred on
+  // its place, going the way its row is read.
+  for (const { id, turn, at, rightToLeft } of page.turns) {
     const sizePt = TURN_FRAME_MM * PT_PER_MM;
     const box = { x: at.x * PT_PER_MM - sizePt / 2, y: at.y * PT_PER_MM - sizePt / 2, width: sizePt, height: sizePt };
-    const glyph = paintTurnGlyph(turn, box, input.style, id);
+    const glyph = paintTurnGlyph(turn, box, input.style, id, { rightToLeft });
     // A rotation's fraction is set as a label's is: in the diagram's fonts, which embed its digits.
     if (glyph) body.push(setUploadText(glyph.markup, input.hanStyle, setter.runs, use));
   }

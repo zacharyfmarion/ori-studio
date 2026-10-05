@@ -20,14 +20,37 @@ export function turnAnnotation(turn: DiagramTurnKind, id = 'turn'): KnownDiagram
     : { id, kind: 'rotate', from: [0.5, 0.5], to: [0.5, 0.5], rotate: turn.rotate };
 }
 
-/** The glyph drawn on `box`, a frame `TURN_FRAME_MM` across in the target's own units. */
+/**
+ * Whether a turn's glyph goes the way its row of steps is read: a turn-over
+ * side to side, whose arrow leads on to the next step. One turned top to
+ * bottom points down whichever way a row runs, and a rotation's sense is
+ * what it says.
+ */
+export function turnFollowsReading(turn: DiagramTurnKind): boolean {
+  return turn.kind === 'turn-over' && turn.axis === 'vertical';
+}
+
+/**
+ * The glyph drawn on `box`, a frame `TURN_FRAME_MM` across in the target's
+ * own units. In a row read right to left, a glyph that goes the way of its
+ * row is drawn mirrored about the frame's middle, where it is centred, so its
+ * arrow leads to the step after it.
+ */
 export function paintTurnGlyph(
   turn: DiagramTurnKind,
   box: PictureBox,
   style: DiagramStyle,
-  id?: string
+  id?: string,
+  { rightToLeft = false }: { rightToLeft?: boolean } = {}
 ): PaintedAnnotations | null {
-  return paintAnnotations([turnAnnotation(turn, id)], box, mmToCssPx(TURN_FRAME_MM), style);
+  const glyph = paintAnnotations([turnAnnotation(turn, id)], box, mmToCssPx(TURN_FRAME_MM), style);
+  if (!glyph || !rightToLeft || !turnFollowsReading(turn)) return glyph;
+  // x to 2m − x, m the frame's middle.
+  const across = 2 * box.x + box.width;
+  return {
+    markup: `<g transform="matrix(-1 0 0 1 ${Number(across.toFixed(4))} 0)">${glyph.markup}</g>`,
+    bounds: { ...glyph.bounds, x: across - glyph.bounds.x - glyph.bounds.width },
+  };
 }
 
 /** The glyph on its frame as one SVG document, in CSS px, for an `<img>`. Null when it draws nothing. */

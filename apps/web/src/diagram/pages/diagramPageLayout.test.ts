@@ -760,14 +760,37 @@ describe('turns between steps on the page (D22)', () => {
     expect(byId.get('turn-end')!.at.x).toBeCloseTo(fourth.pictureMm.x + fourth.pictureMm.size + gutter / 2, 6);
   });
 
-  it('reads a flow row that runs right to left from its right', () => {
-    const list = steps(4, (index) => (index === 3 ? { turnsBefore: [over('turn-a')] } : {}));
+  it('reads a flow row that runs right to left from its right, and says which way each turn’s row reads', () => {
+    const list = steps(6, (index) =>
+      index === 1
+        ? { turnsBefore: [over('turn-first-row')] }
+        : index === 2
+          ? { turnsBefore: [over('turn-into')] }
+          : index === 3
+            ? { turnsBefore: [over('turn-a')] }
+            : index === 4
+              ? { turnsBefore: [over('turn-across')] }
+              : index === 5
+                ? { turnsAfter: [over('turn-end')] }
+                : {}
+    );
     const result = layout(list, { layout: 'flow', columns: 2, rows: 3 });
     // Steps 3 and 4 share the second row, read right to left: the turn is between them.
     const [, , third, fourth] = result.pages[0]!.cells;
     expect(third!.pictureMm.x).toBeGreaterThan(fourth!.pictureMm.x);
-    const [turn] = result.pages[0]!.turns;
-    expect(turn!.at.x).toBeCloseTo((fourth!.pictureMm.x + fourth!.pictureMm.size + third!.pictureMm.x) / 2, 6);
+    const byId = new Map(result.pages[0]!.turns.map((turn) => [turn.id, turn]));
+    expect(byId.get('turn-a')!.at.x).toBeCloseTo((fourth!.pictureMm.x + fourth!.pictureMm.size + third!.pictureMm.x) / 2, 6);
+    // Each in the row of the step it comes before, or after the last: one
+    // across into a row reads as that row does.
+    expect(Object.fromEntries([...byId].map(([id, turn]) => [id, turn.rightToLeft]))).toEqual({
+      'turn-first-row': false,
+      'turn-into': true,
+      'turn-a': true,
+      'turn-across': false,
+      'turn-end': false,
+    });
+    // A grid reads every row left to right.
+    expect(layout(list, { columns: 2, rows: 3 }).pages[0]!.turns.every((turn) => !turn.rightToLeft)).toBe(true);
   });
 
   it('stands several turns in one place one above another, each clear of the next, and keeps them on the paper', () => {
