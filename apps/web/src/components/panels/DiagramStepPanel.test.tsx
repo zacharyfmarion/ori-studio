@@ -485,11 +485,12 @@ describe('DiagramStepPanel in Annotate', () => {
     });
     act(() => row('White Arrow').click());
     const options = (group: string) => [...host!.querySelectorAll<HTMLButtonElement>(`[role="group"][aria-label="${group}"] button`)];
-    const segment = (group: string, name: string) => options(group).find((option) => option.textContent?.trim() === name)!;
+    // Each option is a small arrow, named for a screen reader.
+    const segment = (group: string, name: string) => options(group).find((option) => option.getAttribute('aria-label') === name)!;
     const checked = (group: string) =>
       options(group)
         .filter((option) => option.getAttribute('aria-pressed') === 'true')
-        .map((option) => option.textContent?.trim());
+        .map((option) => option.getAttribute('aria-label'));
     expect(checked('Width')).toEqual(['Regular']);
     expect(checked('Tail')).toEqual(['Pointed']);
     const past = state().diagramHistory.past.length;
