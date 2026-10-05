@@ -11,6 +11,7 @@ import {
   overrunFit,
   pictureFloor,
   pictureOverrun,
+  runLevels,
   scaleRuns,
   STEP_TEXT_LEADING_MM,
   TURN_GUTTER_MM,
@@ -326,6 +327,24 @@ describe('scaleRuns', () => {
         expect(Math.min(...values.slice(run.from, run.to)) / drawn[run.from]!, `trial ${trial}, steps ${run.from}–${run.to}`).toBeLessThan(FIT_ZOOM);
       });
     }
+  });
+
+  it('runs only at levels a picture is less than a zoom above, however far under the rest one fit is (review 4)', () => {
+    // One picture drawn at nearly nothing among 300: a level for every zoom between would be 79,000.
+    const shares = Array.from({ length: 300 }, (_, index) => (index === 150 ? 1e-30 : 1 + (index % 7) * 0.01));
+    const { levels, scaleAt } = runLevels(shares);
+    expect(levels.length).toBeLessThan(2 * shares.length);
+    const zoom = Math.log(FIT_ZOOM);
+    for (const level of levels) {
+      expect(shares.some((share) => Math.log(share) >= level && Math.log(share) < level + zoom)).toBe(true);
+      expect(Math.log(scaleAt.get(level)!)).toBeCloseTo(level, 9);
+    }
+    // Each picture's own, and the levels a zoom under one that another is less than a zoom above.
+    expect(runLevels([1, 1 / 1.2]).levels.map(Math.exp)).toEqual([1 / 1.3, 1 / 1.2, 1].map((value) => expect.closeTo(value, 12)));
+    // And the cut is the same: a step at nearly nothing alone, the rest one run.
+    const drawn = scales(each(shares));
+    expect(drawn[150]).toBe(1e-30);
+    expect(new Set(drawn.filter((_, index) => index !== 150))).toEqual(new Set([1]));
   });
 
   it('draws runs whose scales are near one another at one, wherever they are', () => {

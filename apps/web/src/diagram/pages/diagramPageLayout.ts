@@ -331,6 +331,47 @@ export interface ScaleFit {
  * A picture is drawn at its run's scale, or its own when that is smaller
  * (`reduced`: a long instruction took its room). Pure.
  */
+/**
+ * The scales a run may be drawn at, as logs in order, each with the scale it
+ * is: a picture's own, or any number of zooms under one — a run held a zoom
+ * under one held a zoom under another — down to where no run could be drawn,
+ * a whole zoom under the smallest picture. Only those some picture is less
+ * than a zoom above: a run is never a whole zoom under all its pictures, so
+ * no other can end one, and one fit far under the rest — a picture drawn at
+ * nearly nothing — would otherwise add a level for every zoom between.
+ */
+export function runLevels(shares: readonly number[]): { levels: number[]; scaleAt: Map<number, number> } {
+  const logs = shares.map(Math.log);
+  const zoom = Math.log(FIT_ZOOM);
+  const apart = zoom * (1 - 1e-9);
+  const scaleAt = new Map<number, number>();
+  shares.forEach((share, index) => scaleAt.set(logs[index]!, share));
+  const real = logs.filter((_, index) => shares[index] !== Number.MIN_VALUE);
+  const deepest = (real.length > 0 ? Math.min(...real) : 0) - apart;
+  const sorted = [...logs].sort((a, b) => a - b);
+  shares.forEach((share, index) => {
+    for (let k = 1; logs[index]! - k * zoom > deepest; k += 1) {
+      const level = logs[index]! - k * zoom;
+      if (scaleAt.has(level)) continue;
+      // A picture at or above the level and less than a zoom above it.
+      if (!(sorted[firstAtLeast(sorted, level)]! < level + apart)) continue;
+      scaleAt.set(level, share / FIT_ZOOM ** k);
+    }
+  });
+  return { levels: [...scaleAt.keys()].sort((a, b) => a - b), scaleAt };
+}
+
+/** The first index of ascending `sorted` whose value is at least `value`; its length when none is. */
+function firstAtLeast(sorted: readonly number[], value: number): number {
+  let [low, high] = [0, sorted.length];
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (sorted[middle]! < value) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
 /** How near, as a share, two fits are that differ only by rounding. */
 const MIRROR_SAME = 1e-9;
 
@@ -352,24 +393,10 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
   if (turn >= 0 && shares[turn]! > shares[count - 1 - turn]!) return scaleRuns([...fits].reverse()).reverse();
   const logs = shares.map(Math.log);
   const zoom = Math.log(FIT_ZOOM);
-  // The scales a run may be drawn at, as logs, each with the scale it is: a
-  // picture's own, or any number of zooms under one — a run held a zoom under
-  // one held a zoom under another — down to where no run could be drawn, a
-  // whole zoom under the smallest picture.
-  const scaleAt = new Map<number, number>();
-  shares.forEach((share, index) => scaleAt.set(logs[index]!, share));
-  const real = logs.filter((_, index) => shares[index] !== Number.MIN_VALUE);
-  const deepest = (real.length > 0 ? Math.min(...real) : 0) - zoom * (1 - 1e-9);
-  shares.forEach((share, index) => {
-    for (let k = 1; logs[index]! - k * zoom > deepest; k += 1) {
-      const level = logs[index]! - k * zoom;
-      if (!scaleAt.has(level)) scaleAt.set(level, share / FIT_ZOOM ** k);
-    }
-  });
-  const levels = [...scaleAt.keys()].sort((a, b) => a - b);
+  const apart = zoom * (1 - 1e-9);
+  const { levels, scaleAt } = runLevels(shares);
   const width = levels.length;
   // For each level, the highest a zoom or more below it and the lowest a zoom or more above it.
-  const apart = zoom * (1 - 1e-9);
   const below = new Int32Array(width);
   const above = new Int32Array(width);
   for (let v = 0, u = -1; v < width; v += 1) {
