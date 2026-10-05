@@ -175,7 +175,10 @@ export interface LayoutStep {
    * document units when it knows its paper (`paper`), or per its frame's
    * longer side when it is only fitted (`fit`) — and what they reach past
    * that at their pt size, in mm (`marks`). Its frame alone in the first
-   * units. Null for a step with no picture.
+   * units. And where the reach lies: how far past each edge of the frame, in
+   * the same two parts (`sides`; across, `width` is the frame's and the left
+   * and right sides' growth together, `marks` their pt parts) — absent, its
+   * marks are taken as even on both sides. Null for a step with no picture.
    */
   picture: {
     kind: 'paper' | 'fit';
@@ -183,11 +186,29 @@ export interface LayoutStep {
     height: number;
     frame: { width: number; height: number };
     marks: { width: number; height: number };
+    sides?: ReachSides;
   } | null;
   /** The turns between the step before and this one (D22), in order. */
   turnsBefore: readonly LayoutTurn[];
   /** The turns after the last step; empty on every other. */
   turnsAfter: readonly LayoutTurn[];
+}
+
+/**
+ * How far a picture's reach lies past one edge of its frame, in mm at a
+ * scale: `grows × scale + beyond`, as measured near that scale.
+ */
+export interface ReachLine {
+  grows: number;
+  beyond: number;
+}
+
+/** A picture's reach past each edge of its frame (`ReachLine`). */
+export interface ReachSides {
+  left: ReachLine;
+  right: ReachLine;
+  top: ReachLine;
+  bottom: ReachLine;
 }
 
 /** A turn between two steps, as the layout places it. */

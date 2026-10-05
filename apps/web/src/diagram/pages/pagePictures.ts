@@ -42,7 +42,7 @@ import { frameOf } from '../annotate/annotationModel';
 import { storedScene } from '../pictures/pictureFrame';
 import { fontFaceId } from '../fonts/diagramFontFaces';
 import { setUploadText } from '../upload/uploadText';
-import type { LayoutCell, LayoutStep, TextSetter } from './diagramPageLayout';
+import type { LayoutCell, LayoutStep, ReachLine, TextSetter } from './diagramPageLayout';
 
 /** A picture whose size cannot be read: fitted, square. */
 const UNSIZED: NonNullable<LayoutStep['picture']> = {
@@ -239,12 +239,32 @@ export function layoutPicture(
       return { grows, beyond: printed.reached[side] - grows * across };
     };
     const [wide, tall] = [line('width'), line('height')];
+    /**
+     * How far the reach lies past one edge of the frame, as `line` measures
+     * the whole: its growth held between the most a mark inside the frame
+     * can shrink it, the frame's own side, and the most it grows at a vast
+     * size.
+     */
+    const edge = (past: (measured: { frame: Rect; reached: Rect }) => number, side: 'width' | 'height'): ReachLine => {
+      const [at, nearAt] = [Math.max(0, past(printed)), Math.max(0, past(near))];
+      if (at === 0 && nearAt === 0) return { grows: 0, beyond: 0 };
+      const most = Math.max(0, past(vast)) / longerOf(vast.frame);
+      const slope = (at - nearAt) / (across - nearAcross);
+      const grows = Number.isFinite(slope) ? Math.min(most, Math.max(-printed.frame[side] / across, slope)) : most;
+      return { grows: grows * unitsAcross, beyond: (at - grows * across) * mmPerPx };
+    };
     return {
       kind: paper ? ('paper' as const) : ('fit' as const),
       width: wide.grows * unitsAcross,
       height: tall.grows * unitsAcross,
       frame: { width: (printed.frame.width / across) * unitsAcross, height: (printed.frame.height / across) * unitsAcross },
       marks: { width: wide.beyond * mmPerPx, height: tall.beyond * mmPerPx },
+      sides: {
+        left: edge(({ frame, reached }) => frame.x - reached.x, 'width'),
+        right: edge(({ frame, reached }) => reached.x + reached.width - (frame.x + frame.width), 'width'),
+        top: edge(({ frame, reached }) => frame.y - reached.y, 'height'),
+        bottom: edge(({ frame, reached }) => reached.y + reached.height - (frame.y + frame.height), 'height'),
+      },
     };
   };
   /** A frame `width` × `height`, `units` pattern units across its longer side when known, with its annotations. */

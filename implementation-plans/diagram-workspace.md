@@ -3299,6 +3299,50 @@ folds: https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf.
   with no annotations; step files' marks kept on a canvas of one size; line
   pens and label widths in the reach; the hint reworded. Tests fail on the
   code before each.
+- [ ] Third review (of those fixes; 13 confirmed, 1 refuted, 1 unverified —
+  the run died before its last skeptic). Fixed so far: a run is never drawn
+  a whole zoom under its own pictures (the one-step "spacer" dips, and the
+  dip the snap left).
+
+#### Fit by overrun, found by search (third review [6]–[10])
+
+The measure found the reach's size, not where it lies. A glyph larger than
+its paper and off its middle keeps the reach flat until the paper outgrows
+it, then grows: the fit measured below that knee is the room, above it half
+the room, so the passes cycled and returned pages none of them held ([6],
+[7]). Where the knee is past the room the paper fills the room, and placing
+it cannot centre the glyph: all of it hangs over the instruction ([8]). Step
+files cap by the reach's size against the canvas, not where it lands ([9]),
+and the cap jumps to nothing as a canvas passes the marks' size ([10]).
+
+- The measure gives each side's reach past the paper as a line in the scale
+  (`sides`: top, bottom, left, right), beside the totals.
+- The **overrun** at a scale is the most the reach hangs past the room on
+  either side, the paper kept in its room and the reach centred as
+  `settle()` places it: `max(0, (a + b)/2, b, a − (H − P))` with
+  `a = T − lip`, `b = P + B − H − lip`. Each term is linear in the scale, so
+  it is convex. A picture's fit, each way: the largest scale, from its floor
+  to the paper filling the room, whose overrun is the least it can have. A
+  reach that fits: the old fit. Marks too large even at the floor: the
+  floor. A glyph larger than the paper: as large as the room when centred;
+  off its middle, as large as still lets it be centred.
+- A picture's fit in its room is the largest scale at which it holds,
+  measured there (`pictureFit` of its measure at that scale ≥ the scale):
+  found per picture by Newton's step where it settles and bisection where it
+  does not, never an unchecked scale. The layout is then laid out once with
+  those fits, and once more with each picture measured at the scale it is
+  drawn at, for its extent; the rooms do not depend on the scales, so the
+  fits do not change.
+- Step files: the box's fit by the same rule; on a canvas of one size the
+  whole reach kept on it as placed in the box (the canvas a lip round the
+  box), never cutting a picture's fit by more than half.
+
+Checklist:
+- [x] The measure by side.
+- [ ] Fit by overrun.
+- [ ] Pages: the fit found by search, pages never unchecked.
+- [ ] Step files: the same search, the canvas as placed, the cap continuous.
+- [ ] Before/after: the three documents in [6]–[8] rendered, and the crane.
 
 ### Phase 14: Annotate, after Phase 13 is planned and under way
 

@@ -34,9 +34,11 @@ describe('layoutPicture', () => {
   it('measures a capture by its paper scale, and what has none by its frame’s longer side', () => {
     // The fixture's sheet is 100 scene px at 100 px per unit: one unit.
     const none = { width: 0, height: 0 };
-    expect(layoutPicture(cpStep('step-cp'), {}, style)).toEqual({ kind: 'paper', width: 1, height: 1, frame: { width: 1, height: 1 }, marks: none });
+    const nowhere = { grows: 0, beyond: 0 };
+    const sides = { left: nowhere, right: nowhere, top: nowhere, bottom: nowhere };
+    expect(layoutPicture(cpStep('step-cp'), {}, style)).toEqual({ kind: 'paper', width: 1, height: 1, frame: { width: 1, height: 1 }, marks: none, sides });
     // 300 × 200 px at 100 px per unit.
-    expect(layoutPicture(bitmapStep(100), assets, style)).toEqual({ kind: 'paper', width: 3, height: 2, frame: { width: 3, height: 2 }, marks: none });
+    expect(layoutPicture(bitmapStep(100), assets, style)).toEqual({ kind: 'paper', width: 3, height: 2, frame: { width: 3, height: 2 }, marks: none, sides });
     const upload = layoutPicture(bitmapStep(null), assets, style)!;
     expect(upload.kind).toBe('fit');
     expect(upload.width).toBeCloseTo(1, 9);
@@ -49,6 +51,7 @@ describe('layoutPicture', () => {
       height: 0.5,
       frame: { width: 1, height: 0.5 },
       marks: none,
+      sides,
     });
     expect(layoutPicture(createStep(() => 'step-empty'), {}, style)).toBeNull();
   });
@@ -83,6 +86,28 @@ describe('layoutPicture', () => {
     expect(atCard!.marks.width).toBeLessThan(6);
     const fixed = { ...createStep(() => 'step-fixed'), picture: fixedPicture(), annotations: reaching.annotations };
     expect(layoutPicture(fixed, {}, style)!.width).toBeCloseTo(1.4, 2);
+  });
+
+  it('measures where the reach lies past each edge, which the whole is (third review)', () => {
+    // A push's tail out to the left; nothing past the right edge but its pen.
+    const reaching = { ...bitmapStep(null), annotations: [{ id: 'a', kind: 'push-arrow' as const, from: [-0.4, 0.5] as [number, number], to: [0.1, 0.5] as [number, number] }] };
+    const pushed = layoutPicture(reaching, assets, style)!;
+    expect(pushed.sides!.left.grows).toBeCloseTo(0.4, 2);
+    expect(pushed.sides!.right).toEqual({ grows: 0, beyond: 0 });
+    // A turn-over larger than its paper near the paper's foot: past the top by less as the paper grows, past the
+    // bottom too, nearly as much; at the scale measured, the paper and its two sides are the whole.
+    const glyph: DiagramStep = {
+      ...cpStep('step-glyph'),
+      annotations: [{ id: 't', kind: 'turn-over', from: [0.5, 0.95], to: [0.5, 0.95], axis: 'horizontal' }],
+    };
+    const at = 3;
+    const measured = layoutPicture(glyph, {}, style, { mmPerUnit: at })!;
+    const { top, bottom } = measured.sides!;
+    expect(top.grows).toBeCloseTo(-0.95, 2);
+    expect(bottom.grows).toBeCloseTo(-0.05, 2);
+    expect(bottom.grows * at + bottom.beyond).toBeGreaterThan(top.grows * at + top.beyond);
+    const whole = measured.frame.height * at + top.grows * at + top.beyond + bottom.grows * at + bottom.beyond;
+    expect(whole).toBeCloseTo(pictureExtent(measured, at).height, 6);
   });
 });
 
