@@ -41,10 +41,23 @@ interface RenderCheckRow {
   error?: string;
 }
 
+/** One phase of a scripted pull, run on both backends; see {@link runPullParity}. */
+interface PullParityRow {
+  fixture: string;
+  integrator: 'euler' | 'verlet';
+  phase: 'pulling' | 'kept' | 'cancelled' | 'released';
+  maxAbs: number;
+  /** How far the GPU moved a node it was told to hold, over the whole script. */
+  heldDrift: number;
+  movedCreases?: { reference: number; gpu: number };
+  error?: string;
+}
+
 declare global {
   interface Window {
     runGpuParity: (foldPercent: number, stepCounts: number[]) => GpuParityRow[];
     runRenderCheck: () => RenderCheckRow[];
+    runPullParity: (foldPercent: number) => PullParityRow[];
   }
 }
 
@@ -155,6 +168,109 @@ window.runGpuParity = (foldPercent, stepCounts) => {
     }
   }
 
+  return rows;
+};
+
+/**
+ * A pull, scripted identically on both backends: grip the triangle farthest from
+ * a held one, draw it up and sideways, keep the shape, pull again and cancel,
+ * then drop the pose. Positions are compared after each phase.
+ */
+window.runPullParity = (foldPercent) => {
+  const rows: PullParityRow[] = [];
+  for (const fixture of FIXTURES) {
+    if (fixture.degenerate) continue;
+    for (const integrationType of ['euler', 'verlet'] as const) {
+      const base = { fixture: fixture.name, integrator: integrationType, heldDrift: 0 };
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 2;
+        canvas.height = 2;
+        if (!WebglSolver.isSupported(canvas)) {
+          rows.push({ ...base, phase: 'pulling', maxAbs: 0, error: 'WebGL2 unsupported' });
+          continue;
+        }
+        const fold = fixture.build();
+        const referenceModel = new OrigamiModel(prepareFoldModel(structuredClone(fold), { triangulate: true }));
+        const gpuModel = new OrigamiModel(prepareFoldModel(structuredClone(fold), { triangulate: true }));
+        const reference = new ReferenceSolver(referenceModel, { foldPercent, integrationType });
+        const gpu = new WebglSolver(canvas, gpuModel, { foldPercent, integrationType });
+        const { indices, vertexCount } = referenceModel.prepared;
+        const mask = new Uint8Array(vertexCount);
+        for (let corner = 0; corner < 3; corner += 1) mask[indices[corner]!] = 1;
+        const held = new Float32Array(vertexCount * 3);
+        const now = new Float32Array(vertexCount * 3);
+
+        const both = (act: (solver: ReferenceSolver | WebglSolver) => void) => {
+          act(reference);
+          act(gpu);
+        };
+        both((solver) => solver.step(40));
+        both((solver) => solver.setFixedNodes(mask));
+        gpu.readPositions(held);
+
+        // The grip: the triangle whose centre is farthest from the held one's.
+        const centre = (positions: Float32Array, triangle: number): [number, number, number] => {
+          const out: [number, number, number] = [0, 0, 0];
+          for (let corner = 0; corner < 3; corner += 1) {
+            const node = indices[triangle * 3 + corner]!;
+            for (let axis = 0; axis < 3; axis += 1) out[axis] += positions[node * 3 + axis]! / 3;
+          }
+          return out;
+        };
+        const anchor = centre(referenceModel.positions, 0);
+        let far = 0;
+        let farthest = -1;
+        for (let triangle = 0; triangle < indices.length / 3; triangle += 1) {
+          const c = centre(referenceModel.positions, triangle);
+          const d = Math.hypot(c[0] - anchor[0], c[1] - anchor[1], c[2] - anchor[2]);
+          if (d > farthest) {
+            farthest = d;
+            far = triangle;
+          }
+        }
+        const at = centre(referenceModel.positions, far);
+        const direction: [number, number, number] = [Math.SQRT1_2, 0, Math.SQRT1_2];
+        const rayThrough = (lift: number, side: number) => ({
+          origin: [at[0] - direction[0] * 5 - side, at[1] + lift, at[2] - direction[2] * 5 + side] as [number, number, number],
+          direction,
+        });
+        const grip = {
+          nodes: [indices[far * 3]!, indices[far * 3 + 1]!, indices[far * 3 + 2]!] as [number, number, number],
+          weights: [1 / 3, 1 / 3, 1 / 3] as [number, number, number],
+          ray: rayThrough(0.25, 0),
+        };
+
+        const compareNow = (phase: PullParityRow['phase'], movedCreases?: PullParityRow['movedCreases']) => {
+          gpu.readPositions(now);
+          const heldDrift = maxDriftOf(mask, held, now);
+          const reference3 = referenceModel.positions.slice(0, vertexCount * 3);
+          rows.push({ ...base, phase, heldDrift, ...compare(reference3, now), ...(movedCreases ? { movedCreases } : {}) });
+        };
+
+        both((solver) => solver.beginPull(grip));
+        both((solver) => solver.step(60));
+        compareNow('pulling');
+
+        const kept = { reference: reference.endPull('keep').movedCreases, gpu: gpu.endPull('keep').movedCreases };
+        both((solver) => solver.step(40));
+        compareNow('kept', kept);
+
+        both((solver) => solver.beginPull({ ...grip, ray: rayThrough(0.1, 0.2) }));
+        both((solver) => solver.step(20));
+        both((solver) => solver.endPull('cancel'));
+        both((solver) => solver.step(20));
+        compareNow('cancelled');
+
+        both((solver) => solver.releasePose());
+        both((solver) => solver.step(40));
+        compareNow('released');
+        gpu.dispose();
+      } catch (cause) {
+        rows.push({ ...base, phase: 'pulling', maxAbs: 0, error: cause instanceof Error ? cause.message : String(cause) });
+      }
+    }
+  }
   return rows;
 };
 

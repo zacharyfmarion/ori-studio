@@ -3,6 +3,7 @@ import {
   facesVisibleIn,
   facesWithCentreIn,
   frontmostFaceAt,
+  frontmostHitAt,
   scaleRect,
   type PickTopology,
   type ScreenRect,
@@ -108,6 +109,47 @@ describe('frontmostFaceAt', () => {
     const point = { x: SIZE / 2 + 0.52 * camera.scale, y: SIZE / 2 };
     expect(frontmostFaceAt(positions, topology, camera, point, { perspective: true })).toBe(FRONT);
     expect(frontmostFaceAt(positions, topology, camera, point, { perspective: false })).toBe(BACK);
+  });
+});
+
+describe('frontmostHitAt', () => {
+  /** The world point a hit's weights name. */
+  function pointOf(hit: NonNullable<ReturnType<typeof frontmostHitAt>>): [number, number, number] {
+    const out: [number, number, number] = [0, 0, 0];
+    hit.nodes.forEach((node, slot) => {
+      for (let axis = 0; axis < 3; axis += 1) out[axis] += positions[node * 3 + axis]! * hit.weights[slot]!;
+    });
+    return out;
+  }
+
+  for (const perspective of [true, false]) {
+    it(`grips the spot under the press on the nearer face (${perspective ? 'perspective' : 'orthographic'})`, () => {
+      const press = onScreen(0.1, 0.2, -0.3, perspective);
+      const hit = frontmostHitAt(positions, topology, camera, press, { perspective });
+      expect(hit?.face).toBe(FRONT);
+      const gripped = pointOf(hit!);
+      // On the front face's plane, exactly where the press was aimed.
+      expect(gripped[1]).toBeCloseTo(0.2, 6);
+      const back = onScreen(...gripped, perspective);
+      expect(back.x).toBeCloseTo(press.x, 3);
+      expect(back.y).toBeCloseTo(press.y, 3);
+      expect(hit!.weights.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1, 12);
+    });
+  }
+
+  it('names the triangle and its three nodes', () => {
+    const hit = frontmostHitAt(positions, topology, camera, onScreen(-0.8, 0, 0), { perspective: true });
+    expect(hit?.face).toBe(STRAY);
+    const triangle = hit!.triangle;
+    expect(hit!.nodes).toEqual([
+      topology.indices[triangle * 3],
+      topology.indices[triangle * 3 + 1],
+      topology.indices[triangle * 3 + 2],
+    ]);
+  });
+
+  it('answers null off the model', () => {
+    expect(frontmostHitAt(positions, topology, camera, { x: 2, y: 2 }, { perspective: true })).toBeNull();
   });
 });
 

@@ -27,6 +27,20 @@ const FORCE_SHADER_SAMPLERS = [
 ] as const;
 
 import { copyFixedNodeMask, type SolverBackend } from '../solverBackend.js';
+import {
+  gripParameters,
+  keptRestLength,
+  PULL_MOVED_CREASE_RADIANS,
+  PULL_YIELD_RADIANS,
+  triangleAngles,
+  validatedGrip,
+  validatedRay,
+  type CursorRay,
+  type GripParameters,
+  type PullGrip,
+  type PullOutcome,
+  type PullSummary,
+} from '../pull.js';
 import { GlCore } from './glCore.js';
 import {
   NORMAL_CALC,
@@ -53,6 +67,18 @@ import {
   type PackedModel,
   type SolverMaterial,
 } from './packing.js';
+
+/** The two programs that run the shared force shader, and so read the pose and the grip. */
+const FORCE_PROGRAMS = ['velocityCalc', 'positionCalcVerlet'] as const;
+
+/** A pull in progress; see `pull.ts`. */
+interface GpuPull {
+  grip: PullGrip;
+  parameters: GripParameters;
+  pressTheta: Float32Array;
+  /** The pose's rest angles at the press, or null when there was no pose: what cancel restores. */
+  pressRest: Float32Array | null;
+}
 
 /**
  * The GPU solver: a direct WebGL2 port of upstream's dynamic solver. All state
@@ -88,6 +114,15 @@ export class WebglSolver implements SolverBackend {
   private meshRenderer: MeshRenderer | null = null;
   /** Held until the renderer exists; see {@link setHighlightTriangles}. */
   private highlightTriangles: ArrayLike<number> | null = null;
+  private readonly edgesVertices: [number, number][];
+  private readonly shortestRestLength: number;
+  /** Creases aim at the rest angles thetaCalc carries, not the fold target. */
+  private poseActive = false;
+  /** Each edge's rest length in a kept pose; null is the sheet's. */
+  private poseLengths: Float32Array | null = null;
+  /** Each face's kept rest angles, laid out as `u_nominalTriangles`; null is the sheet's. */
+  private poseAngles: Float32Array | null = null;
+  private pull: GpuPull | null = null;
 
   static isSupported(canvas: HTMLCanvasElement | OffscreenCanvas): boolean {
     const probe = GlCore.create(canvas);
@@ -136,6 +171,7 @@ export class WebglSolver implements SolverBackend {
     this.edgeRestLengths = new Float32Array(
       model.prepared.edgesVertices.map((_, index) => model.edgeRestLength(index))
     );
+    this.edgesVertices = model.prepared.edgesVertices;
     this.material = {
       axialStiffness: options.axialStiffness ?? 20,
       creaseStiffness: options.creaseStiffness ?? 0.7,
@@ -152,6 +188,7 @@ export class WebglSolver implements SolverBackend {
     this.topology = meshTopologyFor(model.prepared, this.packed.dims.textureDim);
     this.dt = timeStepFor(this.packed, this.material);
     this.positionScratch = new Float32Array(this.packed.dims.textureDim * this.packed.dims.textureDim * 4);
+    this.shortestRestLength = this.packed.beamRestLength.reduce((shortest, rest) => Math.min(shortest, rest), Infinity);
 
     this.buildTextures();
     this.buildPrograms();
@@ -215,6 +252,159 @@ export class WebglSolver implements SolverBackend {
     this.gl.updateTexture('u_lastVelocity', zeros);
     this.gl.updateTexture('u_theta', this.packed.thetaInit);
     this.gl.updateTexture('u_lastTheta', this.packed.thetaInit);
+    this.releasePose();
+  }
+
+  beginPull(grip: PullGrip): void {
+    const valid = validatedGrip(grip, this.nodeCount);
+    if (this.pull) this.endPull('cancel');
+    const creases = this.packed.dims.creases;
+    const thetas = this.gl.readTexture('u_lastTheta');
+    const pullData = new Float32Array(this.packed.dims.textureDimCreases * this.packed.dims.textureDimCreases * 4);
+    const pressTheta = new Float32Array(creases);
+    const pressRest = this.poseActive ? new Float32Array(creases) : null;
+    // The fold target exactly as velocityCalc forms it, in float32, so taking a
+    // pose from it changes no crease's aim and a press moves nothing.
+    const percent = Math.fround(this.foldPercent / 100);
+    for (let crease = 0; crease < creases; crease += 1) {
+      const theta = thetas[crease * 4]!;
+      const rest = this.poseActive
+        ? thetas[crease * 4 + 1]!
+        : Math.fround(this.packed.creaseTargetRadians[crease]! * percent);
+      if (pressRest) pressRest[crease] = rest;
+      thetas[crease * 4 + 1] = rest;
+      pullData[crease * 4] = theta - rest;
+      pullData[crease * 4 + 1] = this.packed.creaseIsFlat[crease] ? 0 : 1;
+      pressTheta[crease] = theta;
+    }
+    if (!this.poseActive) this.gl.updateTexture('u_lastTheta', thetas);
+    this.gl.updateTexture('u_creasePull', pullData);
+    this.pull = { grip: valid, parameters: this.gripParametersFor(valid), pressTheta, pressRest };
+    this.setPose(true);
+    this.uploadGrip();
+  }
+
+  movePull(ray: CursorRay): void {
+    if (!this.pull) return;
+    this.pull.grip = { ...this.pull.grip, ray: validatedRay(ray) };
+    this.uploadGrip();
+  }
+
+  endPull(outcome: PullOutcome): PullSummary {
+    const pull = this.pull;
+    if (!pull) return { movedCreases: 0 };
+    this.pull = null;
+    this.uploadGrip();
+    if (outcome === 'cancel') {
+      if (pull.pressRest) this.writeRestAngles((_, crease) => pull.pressRest![crease]!);
+      else this.setPose(false);
+      return { movedCreases: 0 };
+    }
+    let movedCreases = 0;
+    this.writeRestAngles((theta, crease) => {
+      if (!this.packed.creaseIsFlat[crease] && Math.abs(theta - pull.pressTheta[crease]!) > PULL_MOVED_CREASE_RADIANS) {
+        movedCreases += 1;
+      }
+      return theta;
+    });
+    this.keepInPlaneShape();
+    return { movedCreases };
+  }
+
+  releasePose(): void {
+    if (this.pull) {
+      this.pull = null;
+      this.uploadGrip();
+    }
+    this.setPose(false);
+    if (this.poseLengths) {
+      this.poseLengths = null;
+      this.gl.updateTexture('u_beamMeta', packBeamMeta(this.packed, this.material));
+    }
+    if (this.poseAngles) {
+      this.poseAngles = null;
+      this.gl.updateTexture('u_nominalTriangles', this.packed.nominalTriangles);
+    }
+  }
+
+  get posed(): boolean {
+    return this.poseActive;
+  }
+
+  get pulling(): boolean {
+    return this.pull !== null;
+  }
+
+  /** Set every crease's rest angle, given its current angle and index. */
+  private writeRestAngles(rest: (theta: number, crease: number) => number): void {
+    const thetas = this.gl.readTexture('u_lastTheta');
+    for (let crease = 0; crease < this.packed.dims.creases; crease += 1) {
+      thetas[crease * 4 + 1] = rest(thetas[crease * 4]!, crease);
+    }
+    this.gl.updateTexture('u_lastTheta', thetas);
+  }
+
+  /** The edge lengths and face angles of the shape as it is become the paper's rest state. */
+  private keepInPlaneShape(): void {
+    const positions = new Float32Array(this.nodeCount * 3);
+    this.readPositions(positions);
+    const point = (node: number): [number, number, number] => [
+      positions[node * 3]!,
+      positions[node * 3 + 1]!,
+      positions[node * 3 + 2]!,
+    ];
+    const lengths = new Float32Array(this.edgesVertices.length);
+    this.edgesVertices.forEach(([a, b], edge) => {
+      const pa = point(a);
+      const pb = point(b);
+      const current = Math.hypot(pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]);
+      lengths[edge] = keptRestLength(current, Math.max(1e-6, this.edgeRestLengths[edge]!));
+    });
+    const angles = this.packed.nominalTriangles.slice();
+    for (let face = 0; face < this.packed.dims.faces; face += 1) {
+      const corners = this.packed.faceVertexIndices;
+      const [a, b, c] = triangleAngles(
+        point(corners[face * 4]!),
+        point(corners[face * 4 + 1]!),
+        point(corners[face * 4 + 2]!)
+      );
+      angles[face * 4] = a;
+      angles[face * 4 + 1] = b;
+      angles[face * 4 + 2] = c;
+    }
+    this.poseLengths = lengths;
+    this.poseAngles = angles;
+    this.gl.updateTexture('u_beamMeta', packBeamMeta(this.packed, this.material, lengths));
+    this.gl.updateTexture('u_nominalTriangles', angles);
+  }
+
+  private setPose(posed: boolean): void {
+    this.poseActive = posed;
+    this.gl.setUniform('thetaCalc', 'u_posed', posed ? 1 : 0, '1i');
+    for (const program of FORCE_PROGRAMS) this.gl.setUniform(program, 'u_posed', posed ? 1 : 0, '1i');
+  }
+
+  /** The grip's uniforms, or switch it off when there is no pull. */
+  private uploadGrip(): void {
+    const pull = this.pull;
+    this.gl.setUniform('thetaCalc', 'u_pulling', pull ? 1 : 0, '1i');
+    for (const program of FORCE_PROGRAMS) {
+      this.gl.setUniform(program, 'u_gripActive', pull ? 1 : 0, '1i');
+      if (!pull) continue;
+      const { grip, parameters } = pull;
+      this.gl.setUniform(program, 'u_gripNodes', [...grip.nodes], '3f');
+      this.gl.setUniform(program, 'u_gripWeights', [...grip.weights], '3f');
+      this.gl.setUniform(program, 'u_gripRayOrigin', [...grip.ray.origin], '3f');
+      this.gl.setUniform(program, 'u_gripRayDir', [...grip.ray.direction], '3f');
+      this.gl.setUniform(program, 'u_gripStiffness', parameters.stiffness, '1f');
+      this.gl.setUniform(program, 'u_gripDamping', parameters.damping, '1f');
+      this.gl.setUniform(program, 'u_gripMaxForce', parameters.maxForce, '1f');
+      this.gl.setUniform(program, 'u_gripBias', parameters.bias, '1f');
+    }
+  }
+
+  private gripParametersFor(grip: PullGrip): GripParameters {
+    return gripParameters(this.material.axialStiffness, this.shortestRestLength, grip.weights);
   }
 
   setFixedNodes(mask: Uint8Array | null): void {
@@ -406,7 +596,7 @@ export class WebglSolver implements SolverBackend {
     // thetaCalc over creases (accumulator ping-pong)
     gl.step(
       'thetaCalc',
-      ['u_normals', 'u_lastTheta', 'u_creaseVectors', 'u_lastPosition', 'u_originalPosition'],
+      ['u_normals', 'u_lastTheta', 'u_creaseVectors', 'u_lastPosition', 'u_originalPosition', 'u_creasePull'],
       'u_theta'
     );
     // updateCreaseGeo over creases
@@ -489,6 +679,8 @@ export class WebglSolver implements SolverBackend {
     gl.createTexture('u_creaseGeo', { ...creaseSpec, data: zeros(dims.textureDimCreases) });
     gl.createTexture('u_theta', { ...creaseSpec, data: this.packed.thetaInit });
     gl.createTexture('u_lastTheta', { ...creaseSpec, data: this.packed.thetaInit });
+    // A pull's per-crease state, read only by thetaCalc; see `beginPull`.
+    gl.createTexture('u_creasePull', { ...creaseSpec, data: zeros(dims.textureDimCreases) });
   }
 
   private buildPrograms(): void {
@@ -511,7 +703,8 @@ export class WebglSolver implements SolverBackend {
     gl.setUniform('normalCalc', 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
     gl.setUniform('normalCalc', 'u_textureDimFaces', [dims.textureDimFaces, dims.textureDimFaces], '2f');
 
-    bind('thetaCalc', ['u_normals', 'u_lastTheta', 'u_creaseVectors', 'u_lastPosition', 'u_originalPosition']);
+    bind('thetaCalc', ['u_normals', 'u_lastTheta', 'u_creaseVectors', 'u_lastPosition', 'u_originalPosition', 'u_creasePull']);
+    gl.setUniform('thetaCalc', 'u_yield', PULL_YIELD_RADIANS, '1f');
     gl.setUniform('thetaCalc', 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
     gl.setUniform('thetaCalc', 'u_textureDimFaces', [dims.textureDimFaces, dims.textureDimFaces], '2f');
     gl.setUniform('thetaCalc', 'u_textureDimCreases', [dims.textureDimCreases, dims.textureDimCreases], '2f');
@@ -523,7 +716,7 @@ export class WebglSolver implements SolverBackend {
     // Euler's velocityCalc and Verlet's positionCalcVerlet share the force shader,
     // so they take the same inputs and dimension uniforms. Configure both from one
     // place; a program that drifted would compute a different force.
-    for (const program of ['velocityCalc', 'positionCalcVerlet'] as const) {
+    for (const program of FORCE_PROGRAMS) {
       const samplers: string[] = [...FORCE_SHADER_SAMPLERS];
       // Verlet reads one extra texture; it must be the last unit so the shared
       // units line up with the step() input order below.
@@ -557,9 +750,13 @@ export class WebglSolver implements SolverBackend {
 
   private uploadMaterial(): void {
     const gl = this.gl;
-    gl.updateTexture('u_beamMeta', packBeamMeta(this.packed, this.material));
+    gl.updateTexture('u_beamMeta', packBeamMeta(this.packed, this.material, this.poseLengths));
     gl.updateTexture('u_creaseMeta', packCreaseMeta(this.packed, this.material));
-    for (const program of ['velocityCalc', 'positionCalcVerlet'] as const) {
+    if (this.pull) {
+      this.pull.parameters = this.gripParametersFor(this.pull.grip);
+      this.uploadGrip();
+    }
+    for (const program of FORCE_PROGRAMS) {
       gl.setUniform(program, 'u_dt', this.dt, '1f');
       gl.setUniform(program, 'u_axialStiffness', this.material.axialStiffness, '1f');
       gl.setUniform(program, 'u_faceStiffness', this.material.faceStiffness, '1f');

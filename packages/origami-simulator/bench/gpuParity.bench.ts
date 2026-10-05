@@ -35,6 +35,16 @@ interface GpuParityRow {
   error?: string;
 }
 
+interface PullParityRow {
+  fixture: string;
+  integrator: 'euler' | 'verlet';
+  phase: 'pulling' | 'kept' | 'cancelled' | 'released';
+  maxAbs: number;
+  heldDrift: number;
+  movedCreases?: { reference: number; gpu: number };
+  error?: string;
+}
+
 interface RenderCheckRow {
   fixture: string;
   vertices: number;
@@ -135,6 +145,31 @@ describe('GPU solver parity', () => {
         expect(row.strainDiffers, `${row.fixture} strain colour mode changed nothing`).toBe(true);
         expect(row.highlightDiffers, `${row.fixture} highlight pass tinted nothing`).toBe(true);
         expect(row.highlightAbsentUnasked, `${row.fixture} highlight leaked into an unasked frame`).toBe(true);
+      }
+
+      // A scripted pull — grip, keep, pull and cancel, drop the pose — run on
+      // both backends: the pose and the grip live in shaders the parity rows
+      // above never switch on.
+      const pullRows = (await page.evaluate(
+        (foldPercent) =>
+          (window as unknown as { runPullParity: (p: number) => PullParityRow[] }).runPullParity(foldPercent as number),
+        FOLD_PERCENT
+      )) as PullParityRow[];
+      const pullLines = pullRows.map(
+        (row) =>
+          `${row.fixture.padEnd(14)} ${row.integrator.padEnd(6)} ${row.phase.padEnd(9)} | ` +
+          (row.error
+            ? `ERROR: ${row.error}`
+            : `max ${row.maxAbs.toExponential(2)}  held drift ${row.heldDrift.toExponential(2)}` +
+              (row.movedCreases ? `  moved creases ${row.movedCreases.reference}/${row.movedCreases.gpu}` : ''))
+      );
+      process.stdout.write(`pull parity:\n${pullLines.join('\n')}\n\n`);
+      const pulled = pullRows.filter((row) => !row.error);
+      expect(pulled.length, 'no pull ran on the GPU').toBeGreaterThan(0);
+      for (const row of pulled) {
+        const label = `${row.fixture} ${row.integrator} ${row.phase}`;
+        expect(row.maxAbs, `${label} diverged`).toBeLessThan(TIER_C);
+        expect(row.heldDrift, `${label} moved a fixed node`).toBe(0);
       }
     } finally {
       await browser?.close();

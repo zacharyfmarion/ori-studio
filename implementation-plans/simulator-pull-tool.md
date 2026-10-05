@@ -526,7 +526,7 @@ Each step is its own commit.
       release latches and four spring-back mitigations on three model states
       (tables A–D).
 - [x] Decisions 1–5 agreed (2026-10-05).
-- [ ] **Engine: pose and yield,** both backends, with tests:
+- [x] **Engine: pose and yield,** both backends, with tests:
   - golden traces and GPU parity unchanged with no pull;
   - pinned nodes bit-identical through a pull;
   - |θ − rest − e₀| ≤ y for creases while pulling; facets never yield;
@@ -534,13 +534,18 @@ Each step is its own commit.
   - cancel returns it;
   - `releasePose` and `reset` restore targets, lengths and angles;
   - the length clamp holds.
-- [ ] **Engine: grip,** both backends. Tests:
+- [x] **Engine: grip,** both backends. Tests:
   - force ≤ cap;
   - no force along the ray;
   - the bias is zero once the point is on the ray;
   - fixed grip nodes take no force;
   - the GPU sampler count is unchanged; Verlet still links at 16 units.
-- [ ] **Picking:** `cursorRay`, `frontmostHitAt`. Tests:
+  Measured: the scripted pull in `bench:gpu-parity` (grip, keep, pull again and
+  cancel, drop the pose) matches the reference within 3.2e-7 on every fixture
+  and both integrators, with fixed nodes bit-identical and the same moved-crease
+  counts. The book-fold test swings the free half to 89.8° and it drifts 0
+  after release.
+- [x] **Picking:** `cursorRay`, `frontmostHitAt`. Tests:
   - a point along the ray projects back to its pixel, in perspective and
     orthographic;
   - the barycentric weights reproduce the press point;

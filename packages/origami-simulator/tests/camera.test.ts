@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cameraUniforms, fitExtent, projectVertices } from '../src/webgl/camera.js';
+import { cameraUniforms, cursorRay, fitExtent, projectVertices } from '../src/webgl/camera.js';
 
 const CENTER: [number, number, number] = [0, 0, 0];
 const VIEW = { yaw: 0, pitch: 0, zoom: 1 };
@@ -163,5 +163,44 @@ describe('projecting vertices the way the vertex shader does', () => {
     const atEye = project([0, camera.camDist, 0]);
     expect(Number.isFinite(atEye.sx)).toBe(true);
     expect(Number.isFinite(atEye.sy)).toBe(true);
+  });
+});
+
+describe('the line of sight through a pixel', () => {
+  const views = [
+    { yaw: 0, pitch: 0, zoom: 1 },
+    { yaw: 0.7, pitch: 0.38, zoom: 1.6 },
+    { yaw: -2.1, pitch: -0.9, zoom: 0.5, roll: 0.4 },
+  ];
+
+  for (const perspective of [true, false]) {
+    it(`projects back to its pixel at every depth (${perspective ? 'perspective' : 'orthographic'})`, () => {
+      for (const view of views) {
+        const camera = cameraUniforms(view, [0.2, -0.1, 0.3], 1.3, 640, 480);
+        for (const pixel of [{ x: 320, y: 240 }, { x: 17, y: 401 }, { x: 600, y: 33 }]) {
+          const ray = cursorRay(pixel, camera, { perspective });
+          for (const t of [0.5, 2, 3.5]) {
+            const world = new Float32Array([
+              ray.origin[0] + ray.direction[0] * t,
+              ray.origin[1] + ray.direction[1] * t,
+              ray.origin[2] + ray.direction[2] * t,
+            ]);
+            const screen = projectVertices(world, camera, { perspective }).screen;
+            expect(screen[0]).toBeCloseTo(pixel.x, 3);
+            expect(screen[1]).toBeCloseTo(pixel.y, 3);
+          }
+          expect(Math.hypot(...ray.direction)).toBeCloseTo(1, 12);
+        }
+      }
+    });
+  }
+
+  it('points away from the eye: farther along it is deeper in the scene', () => {
+    const camera = cameraUniforms({ yaw: 0.3, pitch: 0.5, zoom: 1 }, [0, 0, 0], 1, 400, 400);
+    const ray = cursorRay({ x: 200, y: 200 }, camera, { perspective: true });
+    const near = projectVertices(new Float32Array(ray.origin.map((o, axis) => o + ray.direction[axis]! * 1)), camera);
+    const far = projectVertices(new Float32Array(ray.origin.map((o, axis) => o + ray.direction[axis]! * 4)), camera);
+    // Larger view depth is nearer the eye.
+    expect(near.view[2]!).toBeGreaterThan(far.view[2]!);
   });
 });
