@@ -7,6 +7,7 @@ import type {
   KnownDiagramAsset,
 } from '../document/diagramDocument';
 import { annotatedPicture, hasDrawnAnnotations } from '../annotate/paintAnnotations';
+import { pictureGeometry, type PictureLayers } from '../annotate/pictureGeometry';
 import { diagramStyleKey } from './diagramPaperStyle';
 import {
   paintAsset,
@@ -37,10 +38,12 @@ export function useStepPictureUrl(
 ): string | null {
   const seen = useNearView(element);
   const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
+  // A flat fold's layers: a mark behind a flap is dotted under it (15e).
+  const layers = useMemo(() => pictureGeometry(step, assets, style).layers, [step, assets, style]);
   const { annotations } = step;
   return useMemo(
-    () => (seen && source ? annotatedStepUrl(source, annotations, style) : null),
-    [seen, source, annotations, style]
+    () => (seen && source ? annotatedStepUrl(source, annotations, style, 1, true, layers) : null),
+    [seen, source, annotations, style, layers]
   );
 }
 
@@ -51,20 +54,21 @@ export function useStepPictureUrl(
  * annotations' list, which an edit replaces rather than changes. A picture
  * shown for a moment — a drag's preview — is painted and not `kept`: every
  * frame of a drag is a new picture, and the cache would give up the cards'
- * for them.
+ * for them. `layers`, the picture's, dot a mark behind a flap (15e).
  */
 export function annotatedStepUrl(
   source: StepPictureSource,
   annotations: readonly DiagramAnnotation[],
   style: DiagramStyle,
   opacity = 1,
-  kept = true
+  kept = true,
+  layers: PictureLayers | null = null
 ): string | null {
   if (!hasDrawnAnnotations(annotations)) return stepPictureUrl(source, style, kept);
-  const key = `annotated|${sourceKey(source)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${opacity}`;
+  const key = `annotated|${sourceKey(source)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${opacity}|${layers ? 'layers' : ''}`;
   return throughCache(key, kept, () => {
     const painted = paintSource(source, style);
-    return painted ? svgDataUrl(annotatedPicture(painted, annotations, style, opacity)) : null;
+    return painted ? svgDataUrl(annotatedPicture(painted, annotations, style, opacity, layers)) : null;
   });
 }
 

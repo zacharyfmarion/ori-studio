@@ -20,6 +20,7 @@ import {
   randomDiagramId,
   type DiagramAngleTicks,
   type DiagramAnnotationKind,
+  type DiagramBehind,
   type DiagramIdFactory,
   type DiagramPathNode,
   type DiagramPleatKinks,
@@ -141,6 +142,76 @@ export function withPleatSide(annotation: KnownDiagramAnnotation, mirrored: bool
   return mirrored ? { ...rest, mirrored: true } : rest;
 }
 
+/** The most layers an end can be behind, as the Step pane counts them: more than a picture shows stacked over a point. */
+export const MAX_BEHIND_LAYERS = 9;
+
+/**
+ * The ends of a mark of `kind` that can be behind a flap (15e): a fold or
+ * pleat arrow's tail and tip, a valley or mountain line's two ends, and a
+ * circle's centre. None for a hidden line, dotted already, nor in v1 for a
+ * push, white or solid arrow, a sign, a label, a callout, or a mark in a
+ * corner or an angle. A switch, so a new kind has to say.
+ */
+export function behindEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to')[] {
+  switch (kind) {
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+    case 'pleat-arrow':
+    case 'valley-line':
+    case 'mountain-line':
+      return ['from', 'to'];
+    case 'circle':
+      return ['from'];
+    case 'push-arrow':
+    case 'white-arrow':
+    case 'turn-over':
+    case 'rotate':
+    case 'hidden-line':
+    case 'label':
+    case 'right-angle':
+    case 'callout':
+    case 'angle-mark':
+      return [];
+  }
+}
+
+/**
+ * A mark with its `end` behind `layers` deep, or in front for null: written
+ * from end to end, and `behind` dropped once no end is.
+ */
+export function withBehind(annotation: KnownDiagramAnnotation, end: 'from' | 'to', layers: number | null): KnownDiagramAnnotation {
+  const ends: DiagramBehind = { ...annotation.behind, [end]: layers ?? undefined };
+  return withBehindEnds(annotation, ends);
+}
+
+/** A mark with every end that is behind `layers` deep. */
+export function withBehindLayers(annotation: KnownDiagramAnnotation, layers: number): KnownDiagramAnnotation {
+  const ends: DiagramBehind = {};
+  for (const end of behindEnds(annotation.kind)) if (annotation.behind?.[end] !== undefined) ends[end] = layers;
+  return withBehindEnds(annotation, ends);
+}
+
+/** `ends` as a mark's `behind`, `from` before `to`, only the ends its kind has, each a whole count within reach; none when no end is. */
+function withBehindEnds(annotation: KnownDiagramAnnotation, ends: DiagramBehind): KnownDiagramAnnotation {
+  const kept: DiagramBehind = {};
+  for (const end of behindEnds(annotation.kind)) {
+    const layers = ends[end];
+    if (layers !== undefined && Number.isInteger(layers) && layers >= 1) kept[end] = Math.min(layers, MAX_BEHIND_LAYERS);
+  }
+  const { behind: _was, ...rest } = annotation;
+  return kept.from !== undefined || kept.to !== undefined ? { ...rest, behind: kept } : rest;
+}
+
+/** A mark's `behind` kept to what its kind can have — none on a line made a hidden line — and the same mark when it already is. */
+function cleanBehind(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  if (annotation.behind === undefined) return annotation;
+  const cleaned = withBehindEnds(annotation, annotation.behind);
+  const [was, now] = [annotation.behind, cleaned.behind];
+  const same = now !== undefined && Object.keys(was).length === Object.keys(now).length && was.from === now.from && was.to === now.to;
+  return same ? annotation : cleaned;
+}
+
 /**
  * A new white arrow's look, and one's that a file leaves unsaid: the Origami
  * House template's white arrow (`path4649`), regular and tapered to a point.
@@ -222,9 +293,13 @@ export function withinReach([x, y]: PicturePoint): PicturePoint {
  * object when it already is.
  */
 export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  return cleanBehind(cleanShape(annotation));
+}
+
+function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   // A white arrow is always a path: one without is laid straight between its ends.
   if (annotation.path === undefined && isAlwaysPath(annotation.kind)) {
-    return cleanAnnotation(withPath(annotation, straightPath(annotation.from, annotation.to)));
+    return cleanShape(withPath(annotation, straightPath(annotation.from, annotation.to)));
   }
   if (annotation.path !== undefined) {
     const path = canBeShaped(annotation.kind) ? cleanPath(annotation.path) : null;
@@ -239,7 +314,7 @@ export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagra
     }
     // A path this build would not write: the arrow is an arc again.
     const { path: _dropped, ...arc } = annotation;
-    return cleanAnnotation(isArrowKind(arc.kind) ? { ...arc, bend: arc.bend ?? ARROW_BEND } : arc);
+    return cleanShape(isArrowKind(arc.kind) ? { ...arc, bend: arc.bend ?? ARROW_BEND } : arc);
   }
   if (isCornerKind(annotation.kind)) return cleanCorner(annotation);
   if (isAngleKind(annotation.kind)) return cleanAngle(annotation);

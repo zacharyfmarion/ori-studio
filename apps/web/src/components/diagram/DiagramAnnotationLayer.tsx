@@ -55,9 +55,12 @@ export const DiagramAnnotationLayer = memo(function DiagramAnnotationLayer({
   );
   return (
     <g strokeLinejoin="round">
-      {drawing.lines.map((line) =>
-        named(<AnnotationLineShape line={line} style={surface} />, line.id)
-      )}
+      {drawing.lines.map((line) => (
+        // A line behind a flap is drawn in pieces: one group each, all named by the line.
+        <g key={`${line.id}:${line.part ?? 0}`} data-annotation-id={line.id}>
+          <AnnotationLineShape line={line} style={surface} />
+        </g>
+      ))}
       {annotationMarks(drawing, named)}
     </g>
   );

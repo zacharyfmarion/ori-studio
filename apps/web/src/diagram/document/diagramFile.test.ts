@@ -559,6 +559,48 @@ describe('annotations in the file', () => {
     });
   });
 
+  describe('a mark behind a flap (15e)', () => {
+    const arrow = (more: Record<string, unknown> = {}) => ({
+      id: 'a-1',
+      kind: 'valley-arrow',
+      from: [0.2, 0.5],
+      to: [0.7, 0.4],
+      bend: 0.1,
+      ...more,
+    });
+
+    it('round-trips the ends behind and how deep each is, from end to end', () => {
+      const read = withAnnotations([arrow({ behind: { from: 1, to: 3 } }), arrow({ id: 'a-2', behind: { to: 2 } })]);
+      expect(read).toEqual([arrow({ behind: { from: 1, to: 3 } }), arrow({ id: 'a-2', behind: { to: 2 } })]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      const written = stepsIn(throughJson(writeDiagram(document)))[0].annotations;
+      expect(written).toEqual([arrow({ behind: { from: 1, to: 3 } }), arrow({ id: 'a-2', behind: { to: 2 } })]);
+      // A circle's one end, a line's two.
+      const circle = { id: 'c-1', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5], behind: { from: 1 } };
+      const line = { id: 'l-1', kind: 'mountain-line', from: [0.1, 0.5], to: [0.9, 0.5], behind: { from: 2, to: 1 } };
+      expect(withAnnotations([circle, line])).toEqual([circle, line]);
+      // Said with no end: in front.
+      expect(withAnnotations([arrow({ behind: {} })])).toEqual([arrow()]);
+    });
+
+    it('carries what a newer build might write: an end its kind has no name for, more layers than nine, behind on a kind that never is', () => {
+      const newer = [
+        { id: 'n-1', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5], behind: { to: 1 } },
+        arrow({ id: 'n-2', behind: { from: 10 } }),
+        arrow({ id: 'n-3', behind: { from: 1, middle: 2 } }),
+        { id: 'n-4', kind: 'push-arrow', from: [0.1, 0.5], to: [0.6, 0.5], behind: { from: 1 } },
+        { id: 'n-5', kind: 'hidden-line', from: [0.1, 0.5], to: [0.6, 0.5], behind: { from: 1 } },
+      ];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    });
+
+    it('drops one whose layers are no whole count, or whose `behind` is no record', () => {
+      const damaged = [arrow({ behind: { from: 0 } }), arrow({ id: 'd-2', behind: { to: 1.5 } }), arrow({ id: 'd-3', behind: true })];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+  });
+
   describe('a pleat arrow (15c)', () => {
     const pleat = (more: Record<string, unknown> = {}) => ({
       id: 'p-1',

@@ -13,6 +13,8 @@ import {
 import type {
   DiagramAnnotationSnap,
   DiagramAnnotationTool,
+  DiagramBehindEnds,
+  DiagramBehindLayers,
   DiagramArrowShapeGesture,
   DiagramShapedArrowKind,
   DiagramCaptureKind,
@@ -92,6 +94,19 @@ export function trackDiagramStepOpened(via: DiagramStepOpenedVia, mode: DiagramS
  */
 export function trackDiagramAnnotationAdded(tool: DiagramAnnotationTool, snap: DiagramAnnotationSnap): void {
   track(ANALYTICS_EVENTS.diagramAnnotationAdded, { tool, snap });
+}
+
+/**
+ * A mark first put behind a flap (15e): its kind, which of its ends, and how
+ * many layers lie over them — whether people mark what is hidden, and on
+ * what. Once, when the first end goes behind; never where.
+ */
+export function trackDiagramAnnotationBehind(
+  kind: DiagramAnnotationTool,
+  ends: DiagramBehindEnds,
+  layers: DiagramBehindLayers
+): void {
+  track(ANALYTICS_EVENTS.diagramAnnotationBehind, { kind, ends, layers });
 }
 
 /**

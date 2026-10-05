@@ -6,9 +6,12 @@ import type {
   SvgPoint,
 } from '../stepDiagramGeometry';
 import {
+  HIDDEN_STROKE_DASH,
   ROTATE_FRACTION,
   TURN_OVER_HEAD_PATH,
   TURN_OVER_PATH,
+  arcExtent,
+  arcPieces,
   arcPathData,
   arrowheadPath,
   angleMarkDrawn,
@@ -21,11 +24,16 @@ import {
   oneWayArrowDrawn,
   paperRingPoints,
   pathArrowDrawn,
+  pathPieces,
   pleatArrowDrawn,
   polygonPathData,
   polylinePathData,
+  polylinePieces,
+  projectedPathLength,
   pushArrowDrawn,
   rightAngleDrawn,
+  reversedStretches,
+  ringPieces,
   rotateGlyphDrawn,
   sheetCorners,
   turnOverDrawn,
@@ -36,6 +44,7 @@ import type {
   DiagramLineStyleName,
   StepDiagramPrimitive,
 } from '../referenceFinderDiagramToPrimitives';
+import { centredDashOffset } from '../../../lib/paper/paperSvg';
 import type { DiagramInlineInk, DiagramInlineStroke } from './diagramColors';
 import {
   DIAGRAM_LABEL_INK,
@@ -254,6 +263,25 @@ function outlineHash(paper: readonly SvgPoint[]): string {
     hash = Math.imul(hash, 0x01000193);
   }
   return (hash >>> 0).toString(36);
+}
+
+/**
+ * A stroke's piece behind a flap (15e), dotted as a hidden line is — one pen
+ * on, two off — in a pen `width` wide, the dots centred on its `length` as a
+ * line's dashes are.
+ */
+function hiddenDots(width: number, length: number) {
+  const dash = HIDDEN_STROKE_DASH.map((run) => run * width);
+  return { strokeDasharray: dash.join(' '), strokeDashoffset: centredDashOffset(dash, length), strokeLinecap: 'butt' as const };
+}
+
+/** A run of lines' length. */
+function runLength(points: readonly (readonly [number, number])[]): number {
+  let length = 0;
+  for (let i = 1; i < points.length; i += 1) {
+    length += Math.hypot(points[i]![0] - points[i - 1]![0], points[i]![1] - points[i - 1]![1]);
+  }
+  return length;
 }
 
 /**
@@ -564,8 +592,15 @@ function diagramPrimitiveShape(
       const arrow = foldArrowDrawn(primitive.out, project, context.marks);
       if (!arrow) return null;
       const stroke = strokeAttributes('arrow', project.ink, project.dashScale, project.pens);
-      const outPath = arcPathData(arrow.out, project);
-      const backPath = arcPathData(arrow.back, project);
+      // Behind a flap (15e), its stretches there dotted: the return, running
+      // back beside the stroke out, takes them from its other end.
+      const strokes = [
+        ...arcPieces(arrow.out, primitive.out, primitive.hidden),
+        ...arcPieces(arrow.back, arrow.back, reversedStretches(primitive.hidden)),
+      ].map(({ arc, hidden }) => ({
+        d: arcPathData(arc, project),
+        dots: hidden ? hiddenDots(stroke.strokeWidth, arc.radius * project.scale * arcExtent(arc)) : null,
+      }));
       // On the return's end and along it, so the stroke runs into the notch
       // and its cap is buried in the head.
       const headPath = arrowheadPath(arrow.head);
@@ -575,8 +610,9 @@ function diagramPrimitiveShape(
         );
         return (
           <g key={index} {...inked(inks, 'step-diagram__arrow', () => ({}))}>
-            <path d={outPath} {...stroke} {...arrowInk} />
-            <path d={backPath} {...stroke} {...arrowInk} />
+            {strokes.map(({ d, dots }, part) => (
+              <path key={part} d={d} {...stroke} {...dots} {...arrowInk} />
+            ))}
             <path
               d={headPath}
               {...inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))}
@@ -590,13 +626,22 @@ function diagramPrimitiveShape(
       const arrow = oneWayArrowDrawn(primitive.out, project, context.marks);
       const stroke = strokeAttributes('arrow', project.ink, project.dashScale, project.pens);
       const centre = project(primitive.out.center);
+      // Behind a flap (15e), its stretches there dotted; the head stays solid.
+      const shaft = arrow.shaft
+        ? arcPieces(arrow.shaft, primitive.out, primitive.hidden).map(({ arc, hidden }) => ({
+            d: arcPathData(arc, project),
+            dots: hidden ? hiddenDots(stroke.strokeWidth, arc.radius * project.scale * arcExtent(arc)) : null,
+          }))
+        : [];
       return onAndOffPaper(context, index, (inks) => {
         const arrowInk = inked(inks, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
           strokeInk(ink.lines.arrow, stroke.strokeOpacity)
         );
         return (
           <g key={index} {...inked(inks, 'step-diagram__arrow', () => ({}))}>
-            {arrow.shaft && <path d={arcPathData(arrow.shaft, project)} {...stroke} {...arrowInk} />}
+            {shaft.map(({ d, dots }, part) => (
+              <path key={part} d={d} {...stroke} {...dots} {...arrowInk} />
+            ))}
             {primitive.fold === 'valley' ? (
               <path
                 d={arrowheadPath(arrow.head)}
@@ -621,14 +666,34 @@ function diagramPrimitiveShape(
       const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, context.marks);
       if (!arrow) return null;
       const stroke = strokeAttributes('arrow', project.ink, project.dashScale, project.pens);
+      // Behind a flap (15e), its stretches there dotted, measured along the
+      // path it was shaped as; the return takes them from its other end.
+      const whole = primitive.hidden?.length ? projectedPathLength(primitive.path, project) : 0;
+      const shaft = arrow.shaft
+        ? pathPieces(arrow.shaft, whole, primitive.hidden).map(({ path, hidden, length }) => ({
+            d: cubicPathData(path),
+            dots: hidden ? hiddenDots(stroke.strokeWidth, length) : null,
+          }))
+        : [];
+      const back = arrow.back
+        ? polylinePieces(
+            arrow.back.map(([x, y]) => ({ x, y })),
+            runLength(arrow.back),
+            reversedStretches(primitive.hidden)
+          ).map(({ points, hidden, length }) => ({
+            d: polylinePathData(points.map(({ x, y }) => [x, y] as const)),
+            dots: hidden ? hiddenDots(stroke.strokeWidth, length) : null,
+          }))
+        : [];
       return onAndOffPaper(context, index, (inks) => {
         const arrowInk = inked(inks, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
           strokeInk(ink.lines.arrow, stroke.strokeOpacity)
         );
         return (
           <g key={index} {...inked(inks, 'step-diagram__arrow', () => ({}))}>
-            {arrow.shaft && <path d={cubicPathData(arrow.shaft)} {...stroke} {...arrowInk} />}
-            {arrow.back && <path d={polylinePathData(arrow.back)} {...stroke} {...arrowInk} />}
+            {[...shaft, ...back].map(({ d, dots }, part) => (
+              <path key={part} d={d} {...stroke} {...dots} {...arrowInk} />
+            ))}
             {primitive.fold === 'mountain' ? (
               // A mountain fold's head is an outline, in the shaft's pen but solid.
               <path
@@ -654,21 +719,31 @@ function diagramPrimitiveShape(
       const arrow = pleatArrowDrawn(primitive.from, primitive.to, primitive.kinks, primitive.mirrored, project);
       if (!arrow) return null;
       const stroke = strokeAttributes('arrow', project.ink, 1, project.pens);
-      const shaft = arrow.shaft && polylinePathData(arrow.shaft.map(({ x, y }) => [x, y] as const));
+      // Behind a flap (15e), its stretches there dotted, as shares of its bolt.
+      const shaft = arrow.shaft
+        ? polylinePieces(arrow.shaft, runLength(arrow.bolt.map(({ x, y }) => [x, y] as const)), primitive.hidden).map(
+            ({ points, hidden, length }) => ({
+              d: polylinePathData(points.map(({ x, y }) => [x, y] as const)),
+              dots: hidden ? hiddenDots(stroke.strokeWidth, length) : null,
+            })
+          )
+        : [];
       return onAndOffPaper(context, index, (inks) => (
         <g key={index} {...inked(inks, 'step-diagram__arrow', () => ({}))}>
-          {shaft && (
+          {shaft.map(({ d, dots }, part) => (
             <path
-              d={shaft}
+              key={part}
+              d={d}
               fill="none"
               {...stroke}
               strokeDasharray={undefined}
               strokeLinejoin="miter"
+              {...dots}
               {...inked(inks, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
                 strokeInk(ink.lines.arrow, stroke.strokeOpacity)
               )}
             />
-          )}
+          ))}
           <path
             d={arrowheadPath(arrow.head)}
             {...inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))}
@@ -861,19 +936,25 @@ function diagramPrimitiveShape(
     }
     case 'point': {
       const at = project(primitive.at);
-      return onAndOffPaper(context, index, (inks) => (
-        <circle
-          key={index}
-          cx={at.x}
-          cy={at.y}
-          r={project.marks.ringRadius * project.ink}
-          strokeWidth={markRingWidth(project)}
-          {...inked(inks, `step-diagram__point step-diagram__point--${primitive.style}`, (ink) => ({
-            fill: 'none',
-            stroke: ink.mark,
-          }))}
-        />
-      ));
+      const radius = project.marks.ringRadius * project.ink;
+      const width = markRingWidth(project);
+      // Behind a flap (15e): its ring in arcs, those under the flap dotted.
+      const arcs = primitive.hidden?.length ? ringPieces(primitive.at, radius, primitive.hidden, project) : null;
+      return onAndOffPaper(context, index, (inks) => {
+        const ring = inked(inks, `step-diagram__point step-diagram__point--${primitive.style}`, (ink) => ({
+          fill: 'none',
+          stroke: ink.mark,
+        }));
+        return arcs ? (
+          <g key={index}>
+            {arcs.map(({ d, hidden, length }, part) => (
+              <path key={part} d={d} strokeWidth={width} {...(hidden ? hiddenDots(width, length) : {})} {...ring} />
+            ))}
+          </g>
+        ) : (
+          <circle key={index} cx={at.x} cy={at.y} r={radius} strokeWidth={width} {...ring} />
+        );
+      });
     }
     case 'label': {
       // Placed against the whole picture, not this primitive alone. Absent

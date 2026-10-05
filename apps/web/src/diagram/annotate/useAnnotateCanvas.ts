@@ -33,6 +33,7 @@ import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useD
 import { EDIT_PATH, drawingKind, drawingLook, isPickTool } from './annotateTools';
 import { placePoint, snapOutcome, snapsEnd, snapsWhenPlaced, type PlacedPoint } from './annotateSnap';
 import { annotationActionEdit, editAnnotation } from './annotationActions';
+import { annotationEventKind } from './annotationEventKind';
 import {
   circleRadius,
   hitAnnotation,
@@ -60,7 +61,6 @@ import {
   placedByClick,
   rightAngleAt,
   rightAngleDiagonal,
-  isSolidArrow,
   withWhiteArrowLook,
   type PictureFrame,
   type PicturePoint,
@@ -68,7 +68,6 @@ import {
 } from './annotationModel';
 import { cancelLabelFocus, pendingLabelFocus, requestLabelFocus } from './labelFocus';
 import { isViewportInteractiveTarget } from '../../components/panels/ViewportToolbar';
-import type { DiagramAnnotationTool } from '../../analytics/events';
 import { calloutPen } from './annotationPrimitives';
 import { CARD_FRAME_PX } from './paintAnnotations';
 import type { SnapTarget } from './pictureSnap';
@@ -903,7 +902,7 @@ export function useAnnotateCanvas({
         if (!added) return;
         const snapped = target !== null || (!point && current.startTarget !== null);
         trackDiagramAnnotationAdded(
-          isSolidArrow(annotation) ? 'solid_arrow' : ANNOTATION_TOOL[annotation.kind],
+          annotationEventKind(annotation),
           snapOutcome(annotation.kind, { enabled: snap.enabled, free: free || current.free, snapped })
         );
         if (carriesText(annotation.kind)) {
@@ -993,25 +992,6 @@ function along(corner: PicturePoint, opens: PicturePoint): PicturePoint {
   return [corner[0] + opens[0] * RIGHT_ANGLE_DIAGONAL, corner[1] + opens[1] * RIGHT_ANGLE_DIAGONAL];
 }
 
-/** Each kind in the analytics event's spelling: a new kind is a type error until it has one. */
-const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationTool>> = {
-  'valley-arrow': 'valley_arrow',
-  'mountain-arrow': 'mountain_arrow',
-  'fold-unfold-arrow': 'fold_unfold_arrow',
-  'pleat-arrow': 'pleat_arrow',
-  'push-arrow': 'push_arrow',
-  'white-arrow': 'white_arrow',
-  'turn-over': 'turn_over',
-  rotate: 'rotate',
-  'valley-line': 'valley_line',
-  'mountain-line': 'mountain_line',
-  'hidden-line': 'hidden_line',
-  label: 'label',
-  circle: 'circle',
-  'right-angle': 'right_angle',
-  callout: 'callout',
-  'angle-mark': 'angle_mark',
-};
 
 /**
  * The press `event` makes after `previous`: how many presses it ends, close

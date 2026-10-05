@@ -23,6 +23,7 @@ import { Button } from '../ui/Button';
 import { FieldRow, NumberRow, SegmentedRow, TextAreaRow, ToggleRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
 import { DiagramAnnotationGlyph, SolidArrowGlyph } from './DiagramAnnotateToolGlyph';
+import { DiagramBehindControls } from './DiagramBehindControls';
 import { DiagramLineTypeMark } from './DiagramLineTypeMark';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { DiagramPathNodeControls } from './DiagramPathNodeControls';
@@ -267,6 +268,13 @@ function SelectedAnnotation({
           onChange={(look) => annotations.setWhiteArrowLook(id, look)}
         />
       )}
+      <DiagramBehindControls
+        annotation={annotation}
+        editable={editable}
+        knowsFlaps={annotations.knowsFlaps}
+        onEnd={(end, behind) => annotations.setBehind(id, end, behind)}
+        onLayers={(layers) => annotations.setBehindLayers(id, layers)}
+      />
       {annotation.kind === 'turn-over' && (
         <SegmentedRow
           label={t('panels:diagram.annotations.axis', 'Turns')}

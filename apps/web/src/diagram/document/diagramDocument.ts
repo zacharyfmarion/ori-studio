@@ -540,6 +540,16 @@ export type DiagramAngleTicks = 1 | 2 | 3;
 /** How many Zs a pleat arrow's shaft has: a crimp's one, a pleat's two, up to five. */
 export type DiagramPleatKinks = 1 | 2 | 3 | 4 | 5;
 
+/**
+ * The ends of a mark that lie behind a flap (15e), and for each how many of
+ * the layers at that end are over it, the top one first; an end not named
+ * is in front. A circle's one end is its centre, `from`.
+ */
+export interface DiagramBehind {
+  from?: number;
+  to?: number;
+}
+
 /** How far, and which way, a rotate glyph turns the model. */
 export interface DiagramRotation {
   amount: 'eighth' | 'quarter' | 'half';
@@ -601,6 +611,13 @@ export interface KnownDiagramAnnotation {
    * picture shows it; unsaid, to the right (15c). Only ever written true.
    */
   mirrored?: true;
+  /**
+   * The ends of a fold or pleat arrow, a valley or mountain line, or a
+   * circle that lie behind a flap (15e): drawn dotted from each until they
+   * come out from under it, on a flat fold, the one picture that knows its
+   * layers. Unsaid, in front, as every mark was before.
+   */
+  behind?: DiagramBehind;
   /**
    * A fold arrow's arc: its sagitta as a share of its chord, positive bulging
    * to the left of its travel as the page shows it. Flip arc negates it.

@@ -488,13 +488,50 @@ The decisions as they were put:
     tip further in and bends it; Fill to White and back to Black.
 
 ### 15e. Behind flaps
-- [ ] `behindFlaps.ts`: faces at a point, over them, the stretches under
+- [x] `behindFlaps.ts`: faces at a point, over them, the stretches under
   them; edge cases (an end on an edge, woven patches, a spread face); tests
   on real folds (the crane's, Oriedita's sample).
-- [ ] `annotationDrawing` takes the layers from every caller; arrows' `hidden`
+- [x] `annotationDrawing` takes the layers from every caller; arrows' `hidden`
   stretches drawn dotted; lines split; circles in arcs; one dash phase.
-- [ ] `behind` in the model, file, clean; Step pane; the canvas preview;
+- [x] `behind` in the model, file, clean; Step pane; the canvas preview;
   analytics; i18n; before/after on the crane, a tail under a flap.
+  - As built: decision 1's rule, as written. A flat fold's faces are cut
+    only at folded creases (the crane's steps have 6 to 28), so a flap's top
+    layer is one face and a flap folded again is faces that overlap: the
+    closure over "painted after, overlapping" finds the whole flap. Overlap
+    is sides crossing through each other, or a point inside one inside the
+    other, so a face laid exactly on another counts and one beside it does
+    not. An end is read a hair along the mark, so one snapped to a corner is
+    in the face the mark goes into; a circle, put on a point, counts the
+    faces whose rims its centre is on. Tests: the rule on squares
+    (`behindFlaps.test.ts`), and on Oriedita's bird base folded by the
+    kernel (`behindFlapsFold.test.ts`), spread and unspread; the crane's
+    own steps in the browser. Woven patches are not tested: there the
+    stored order is patched, not true, and Risk 1 stands. A fold
+    captured without a spread stores only the faces that show
+    (`storableScene` drops the rest), so there "behind" counts the top face
+    alone — out to where the mark leaves it; with the spread, on by default
+    (d65d1a368), every layer. Drawn: `hidden` stretches on the fold, path,
+    pleat and point primitives, cut by `strokePieces` and dotted one pen on,
+    two off (`HIDDEN_STROKE_DASH`), centred on each piece; heads solid; a
+    fold-and-unfold arrow's return takes the stretches from its far end,
+    where the paper comes back to, not from where its offset draws it. A
+    line is pieces in its role and the hidden line's, each dash centred on
+    its own piece rather than one phase across both, as every scene line
+    is. Every surface passes the step's layers (canvas, cards, page, step
+    files); Pose's ghosted preview does not, its picture being the one
+    posed, and draws them in front. Unchanged without `behind`, and with it
+    on a picture with no layers (both pinned). Step pane: Tail and Tip for an
+    arrow — and Start and End for a line, not one switch: a crease's two
+    ends can each lie under a flap — Behind for a circle, Under 1–9; off,
+    with "Only a folded picture knows its flaps.", on any other picture.
+    `diagram annotation behind` {kind, ends, layers} once, when the first
+    end goes behind. Golden: `behindMarkGolden.json` (seven marks on a fold
+    of three faces, `15e/golden-behind-marks.png`). Browser (`p15e.mjs`,
+    `compare-15e.png`): V and a drag on the crane's step 9 from under the
+    left flap, Tail Behind: dotted to the flap's edge; Shift+M across the
+    right flap, Start Behind; Under 2 keeps its stretch — that flap is two
+    layers thick.
 
 ### 15f. Close-ups
 - [ ] `close-up`: kind, file, carry (as a callout), hit and rim grips, reach.

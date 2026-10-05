@@ -19,6 +19,12 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramStepPanel } from './DiagramStepPanel';
 
+const tracked = vi.hoisted(() => ({ trackDiagramAnnotationBehind: vi.fn() }));
+vi.mock('../../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../analytics')>()),
+  trackDiagramAnnotationBehind: tracked.trackDiagramAnnotationBehind,
+}));
+
 /**
  * The Step pane through the store: what it says with nothing selected, and
  * what its position field, verbs and instruction do to the selected step.
@@ -559,6 +565,52 @@ describe('DiagramStepPanel in Annotate', () => {
     expect(pleat().mirrored).toBe(true);
     act(() => buttonNamed('Flip').click());
     expect('mirrored' in pleat()).toBe(false);
+  });
+
+  it('puts an arrow’s tail and tip behind a flap and how deep, each one undo step, counted the first time (15e)', () => {
+    tracked.trackDiagramAnnotationBehind.mockClear();
+    const flat = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };
+    act(() => {
+      useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [cpStep('step-f', flat)] } });
+      state().editDiagramAnnotations('step-f', 'Add annotation', () => [
+        { id: 'a-1', kind: 'valley-arrow', from: [0.1, 0.2], to: [0.5, 0.2], bend: 0.1 },
+      ]);
+      state().openDiagramStep('step-f', 'annotate');
+    });
+    act(() => row('Valley Fold Arrow').click());
+    const side = (end: string, name: string) =>
+      [...host!.querySelectorAll<HTMLButtonElement>(`[role="group"][aria-label="${end}"] button`)].find(
+        (option) => option.textContent?.trim() === name
+      )!;
+    const arrow = () => stepsIn(state().diagram!)[0]!.annotations[0] as { behind?: unknown };
+    expect(side('Tail', 'In Front').getAttribute('aria-pressed')).toBe('true');
+    expect(host!.querySelector('input[aria-label="Under"]')).toBeNull();
+    const past = state().diagramHistory.past.length;
+    act(() => side('Tail', 'Behind').click());
+    expect(arrow().behind).toEqual({ from: 1 });
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change behind');
+    expect(tracked.trackDiagramAnnotationBehind.mock.calls).toEqual([['valley_arrow', 'tail', '1']]);
+    // How deep, for every end behind; the other end goes behind as deep.
+    act(() => button('Increase Under')!.click());
+    expect(arrow().behind).toEqual({ from: 2 });
+    act(() => side('Tip', 'Behind').click());
+    expect(arrow().behind).toEqual({ from: 2, to: 2 });
+    act(() => side('Tail', 'In Front').click());
+    expect(arrow().behind).toEqual({ to: 2 });
+    // Counted once: when it first went behind.
+    expect(tracked.trackDiagramAnnotationBehind).toHaveBeenCalledTimes(1);
+    expect(host!.textContent).not.toContain('Only a folded picture knows its flaps.');
+  });
+
+  it('keeps a mark’s place in the folds off on a picture that knows no flaps, and says why (15e)', () => {
+    const stepId = annotatedStep();
+    act(() => state().openDiagramStep(stepId, 'annotate'));
+    act(() => row('Valley Fold Arrow').click());
+    const options = [...host!.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Tail"] button')];
+    expect(options).toHaveLength(2);
+    expect(options.every((option) => option.disabled)).toBe(true);
+    expect(host!.textContent).toContain('Only a folded picture knows its flaps.');
   });
 
   it('turns a right angle a quarter clockwise with Turn 90°, as one undo step', () => {

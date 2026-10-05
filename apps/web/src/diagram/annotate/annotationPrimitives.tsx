@@ -51,7 +51,13 @@ import {
   canvasDiagramPens,
   penInk,
 } from '../../cp-workspace/references/diagram/diagramInk';
-import { arcThroughPoints, createOverlayProjector, type PathArrowFold } from '../../cp-workspace/references/stepDiagramGeometry';
+import {
+  arcThroughPoints,
+  createOverlayProjector,
+  strokePieces,
+  type HiddenStretches,
+  type PathArrowFold,
+} from '../../cp-workspace/references/stepDiagramGeometry';
 import { referencesPaperTokens } from '../../cp-workspace/references/usePaperStyleTokens';
 import type { PaperItem, PaperLineItem, PaperLineRole, PaperScene } from '../../lib/paper/paperScene';
 import { penForRole } from '../../lib/paper/paperSvg';
@@ -74,12 +80,14 @@ import type { DiagramFontKey } from '../fonts/diagramFontFaces';
 import {
   arrowApex,
   arrowShape,
+  behindEnds,
   CALLOUT_TEXT_SIZE,
   calloutDrawnBox,
   calloutShape,
   carriesText,
   DEFAULT_PLEAT_KINKS,
   DEFAULT_WHITE_ARROW,
+  isArrowKind,
   LABEL_SIZE,
   labelHalfWidth,
   pathCubics,
@@ -89,7 +97,10 @@ import {
   type PictureFrame,
   type PicturePoint,
 } from './annotationModel';
+import { arrowPolyline } from './annotationHit';
+import { hiddenArcs, hiddenStretches } from './behindFlaps';
 import { perAnnotation } from './perAnnotation';
+import type { PictureLayers } from './pictureGeometry';
 
 /** Where a label's baseline sits below its point, in ems: a capital's middle on the point. A callout's words sit so on its box's middle. */
 export const LABEL_BASELINE = 0.36;
@@ -135,6 +146,8 @@ export interface AnnotationLine {
   b: [number, number];
   /** Half its role's pen, in the drawing's px: how far its ink reaches past its ends and to its sides. */
   halfWidth: number;
+  /** Its piece, from its start: a line behind a flap is drawn in pieces, each in its role's pen (15e). */
+  part?: number;
 }
 
 /** The marks an annotation can be: the References primitives it compiles to. */
@@ -354,15 +367,45 @@ export function annotationTextRuns(
 }
 
 /**
+ * Where a mark lies behind a flap (15e), as shares of its length from its
+ * tail — a circle's, of its ring — worked out along the line it is drawn
+ * along: a fold arrow's arc or path, a pleat arrow's or a line's chord.
+ * Nothing for a mark in front, or of a kind no end of which is ever behind.
+ */
+function behindStretches(annotation: KnownDiagramAnnotation, layers: PictureLayers, ringRadius: number): HiddenStretches | undefined {
+  const { behind } = annotation;
+  if (!behind || behindEnds(annotation.kind).length === 0) return undefined;
+  if (annotation.kind === 'circle') return behind.from ? hiddenArcs(annotation.from, ringRadius, behind.from, layers) : undefined;
+  const line = isArrowKind(annotation.kind) ? arrowPolyline(annotation) : [annotation.from, annotation.to];
+  return hiddenStretches(line, behind, layers);
+}
+
+/** A mark drawn with its `hidden` stretches dotted: the kinds a stretch behind a flap is drawn on. */
+function withHidden(primitive: AnnotationPrimitive, hidden: HiddenStretches): AnnotationPrimitive {
+  switch (primitive.kind) {
+    case 'fold-arrow':
+    case 'one-way-arrow':
+    case 'path-arrow':
+    case 'pleat-arrow':
+    case 'point':
+      return { ...primitive, hidden };
+    default:
+      return primitive;
+  }
+}
+
+/**
  * The annotations compiled for a frame `frame` whose longer side is `framePx`
  * CSS px. One this build cannot read is not drawn: only its own build knows
- * what it is.
+ * what it is. Given its picture's `layers` — a flat fold's — a mark behind a
+ * flap is dotted where it is under it (15e); without, it is drawn in front.
  */
 export function annotationDrawing(
   annotations: readonly DiagramAnnotation[],
   frame: PictureFrame,
   framePx: number,
-  style: DiagramStyle
+  style: DiagramStyle,
+  layers: PictureLayers | null = null
 ): AnnotationDrawing {
   const seen = seenStyle(style);
   const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
@@ -384,20 +427,35 @@ export function annotationDrawing(
   // A callout's pens: the arrow pen round its box, the annotation pen — a circle's ring's — along its line.
   const boxPen = calloutPen(style);
   const linePen = markRingWidth(project);
+  // A circle's ring, in picture units: where a ring behind a flap is worked out.
+  const ringRadius = (project.marks.ringRadius * project.ink) / framePx;
   for (const annotation of annotations) {
     if (!isKnownAnnotation(annotation)) continue;
     const compiled = compiledAnnotation(annotation);
     if (!compiled) continue;
+    // Behind a flap, on a picture that knows its layers.
+    const hidden = layers && annotation.behind ? behindStretches(annotation, layers, ringRadius) : undefined;
     switch (compiled.kind) {
-      case 'line':
-        lines.push({
-          id: annotation.id,
-          role: compiled.role,
-          a: at(compiled.from),
-          b: at(compiled.to),
-          halfWidth: ((penForRole(surface, compiled.role)?.width ?? 0) * PT_TO_CSS_PX) / 2,
+      case 'line': {
+        const [a, b] = [at(compiled.from), at(compiled.to)];
+        if (!hidden?.length) {
+          lines.push({ id: annotation.id, role: compiled.role, a, b, halfWidth: ((penForRole(surface, compiled.role)?.width ?? 0) * PT_TO_CSS_PX) / 2 });
+          break;
+        }
+        // A line behind a flap is a drawn piece and a hidden-line piece, each its role's pen.
+        strokePieces(0, 1, hidden).forEach((piece, part) => {
+          const role = piece.hidden ? 'diagram-hidden' : compiled.role;
+          lines.push({
+            id: annotation.id,
+            part,
+            role,
+            a: [a[0] + (b[0] - a[0]) * piece.start, a[1] + (b[1] - a[1]) * piece.start],
+            b: [a[0] + (b[0] - a[0]) * piece.end, a[1] + (b[1] - a[1]) * piece.end],
+            halfWidth: ((penForRole(surface, role)?.width ?? 0) * PT_TO_CSS_PX) / 2,
+          });
         });
         break;
+      }
       case 'label': {
         const [x, y] = at(compiled.at);
         const runs = compiled.runs.map((run) => ({ family: uploadTextFamily(run.key), text: run.text }));
@@ -425,7 +483,7 @@ export function annotationDrawing(
         break;
       }
       case 'mark':
-        primitives.push(compiled.primitive);
+        primitives.push(hidden?.length ? withHidden(compiled.primitive, hidden) : compiled.primitive);
         primitiveIds.push(annotation.id);
         break;
     }

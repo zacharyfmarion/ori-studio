@@ -110,6 +110,15 @@ export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_u
  * bent, a node added (a click on the curve or Add Node), a node made smooth
  * or a corner, a node taken out, or a node nudged with the arrow keys.
  */
+/**
+ * Which ends of a mark were first put behind a flap (15e): its tail (a line's
+ * start), its tip (a line's end), both, or a circle's whole ring.
+ */
+export type DiagramBehindEnds = 'tail' | 'tip' | 'both' | 'whole';
+
+/** How many layers lie over an end put behind a flap: one, two, or three and more. */
+export type DiagramBehindLayers = '1' | '2' | '3+';
+
 export type DiagramArrowShapeGesture =
   | 'drag_node'
   | 'drag_handle'
@@ -1337,6 +1346,8 @@ export const ANALYTICS_EVENTS = {
   diagramPicturePosed: 'diagram picture posed',
   /** An annotation drawn on a step's picture, by the tool that drew it. */
   diagramAnnotationAdded: 'diagram annotation added',
+  /** A mark put behind a flap for the first time (15e): which ends, how deep. */
+  diagramAnnotationBehind: 'diagram annotation behind',
   /** Annotate's Snap switch flipped in the Step pane. */
   diagramAnnotateSnapChanged: 'diagram annotate snap changed',
   /**

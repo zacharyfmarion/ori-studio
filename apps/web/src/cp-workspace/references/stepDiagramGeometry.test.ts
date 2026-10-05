@@ -27,6 +27,7 @@ import {
   arcEndPoint,
   arcExtent,
   arcExtremes,
+  arcPieces,
   arcStartDirection,
   arcPathData,
   arrowheadAt,
@@ -53,6 +54,10 @@ import {
   pleatArrowShape,
   pleatBolt,
   polylineMitres,
+  polylinePieces,
+  reversedStretches,
+  ringPieces,
+  strokePieces,
   pushArrowOutline,
   rightAngleDrawn,
   rightAngleReach,
@@ -1403,5 +1408,62 @@ describe('a pleat arrow (15c)', () => {
     ];
     expect(polylineMitres(spike, 2)).toEqual([]);
     expect(polylineMitres(spike, 2, 40)).toHaveLength(1);
+  });
+});
+
+describe('a stroke behind a flap, in pieces (15e)', () => {
+  it('cuts a stretch where a hidden one starts and ends, each piece in front or behind', () => {
+    expect(strokePieces(0, 1, undefined)).toEqual([{ start: 0, end: 1, hidden: false }]);
+    expect(strokePieces(0, 1, [[0.2, 0.5]])).toEqual([
+      { start: 0, end: 0.2, hidden: false },
+      { start: 0.2, end: 0.5, hidden: true },
+      { start: 0.5, end: 1, hidden: false },
+    ]);
+    // A stroke stopped short of its mark's end: the stretch past it is not drawn.
+    expect(strokePieces(0, 0.4, [[0, 0.6]])).toEqual([{ start: 0, end: 0.4, hidden: true }]);
+    expect(reversedStretches([[0, 0.3]])).toEqual([[0.7, 1]]);
+  });
+
+  it('cuts an arc shaft by shares of the arc its mark was compiled as, the drawn one a stretch of it', () => {
+    const whole = { center: [0, 0] as const, radius: 1, from: 0, to: Math.PI / 2, ccw: true };
+    // Stopped short of its head at 80% of the way.
+    const drawn = { ...whole, to: 0.8 * (Math.PI / 2) };
+    const pieces = arcPieces(drawn, whole, [[0, 0.5]]);
+    expect(pieces.map(({ hidden }) => hidden)).toEqual([true, false]);
+    expect(pieces[0]!.arc.from).toBeCloseTo(0, 12);
+    expect(pieces[0]!.arc.to).toBeCloseTo(Math.PI / 4, 12);
+    expect(pieces[1]!.arc.to).toBeCloseTo(drawn.to, 12);
+    // Nothing hidden: the drawn arc itself, not one rebuilt from shares.
+    expect(arcPieces(drawn, whole, undefined)).toEqual([{ arc: drawn, hidden: false }]);
+  });
+
+  it('cuts a run of lines at the shares of its mark’s length, through its corners', () => {
+    const run = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+    ];
+    const pieces = polylinePieces(run, 20, [[0.25, 0.75]]);
+    expect(pieces.map(({ hidden, length }) => [hidden, length])).toEqual([
+      [false, 5],
+      [true, 10],
+      [false, 5],
+    ]);
+    // The hidden piece turns the corner.
+    expect(pieces[1]!.points).toEqual([
+      { x: 5, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 5 },
+    ]);
+  });
+
+  it('draws a ring’s hidden arcs from its rightmost point, clockwise as the page shows it', () => {
+    // Sheet y up, the page's y down, one unit a px.
+    const project = createOverlayProjector({ origin: [0, 0], ex: [1, 0], ey: [0, -1] }, 1);
+    const pieces = ringPieces([0, 0], 10, [[0, 0.25]], project);
+    expect(pieces.map(({ hidden }) => hidden)).toEqual([true, false]);
+    // From the right to the bottom of the page: a quarter, clockwise (sweep 1).
+    expect(numbers(pieces[0]!.d)).toEqual([10, 0, 10, 10, 0, 0, 1, 0, 10]);
+    expect(pieces[0]!.length).toBeCloseTo(5 * Math.PI, 12);
   });
 });

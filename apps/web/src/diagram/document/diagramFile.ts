@@ -47,9 +47,11 @@ import {
   ANNOTATION_REACH,
   angleMarkArms,
   arrowShape,
+  behindEnds,
   DEFAULT_ROTATION,
   DEFAULT_WHITE_ARROW,
   LABEL_MAX_LENGTH,
+  MAX_BEHIND_LAYERS,
   MAX_BEND,
   MAX_PATH_NODES,
   MAX_STEP_ANNOTATIONS,
@@ -81,6 +83,7 @@ import {
   type DiagramAngleTicks,
   type DiagramAnnotation,
   type DiagramAnnotationKind,
+  type DiagramBehind,
   type DiagramPathNode,
   type DiagramPleatKinks,
   type DiagramRotation,
@@ -280,8 +283,27 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
 
 function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown> {
   if (!isKnownAnnotation(annotation)) return annotation.unknown;
-  const { id, kind, from, to, bend, path, width, tail, fill, text, rotate, axis, other, ticks, kinks, mirrored, unknown: _known, ...unwritten } =
-    annotation;
+  const {
+    id,
+    kind,
+    from,
+    to,
+    bend,
+    path,
+    width,
+    tail,
+    fill,
+    text,
+    rotate,
+    axis,
+    other,
+    ticks,
+    kinks,
+    mirrored,
+    behind,
+    unknown: _known,
+    ...unwritten
+  } = annotation;
   // Every field is written: a new one is a compile error here until it is, not dropped from the file.
   const _none: Record<string, never> = unwritten;
   return {
@@ -301,6 +323,10 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(ticks !== undefined ? { ticks } : {}),
     ...(kinks !== undefined ? { kinks } : {}),
     ...(mirrored ? { mirrored } : {}),
+    // From end to end, as a reader expects it.
+    ...(behind !== undefined
+      ? { behind: { ...(behind.from !== undefined ? { from: behind.from } : {}), ...(behind.to !== undefined ? { to: behind.to } : {}) } }
+      : {}),
   };
 }
 
@@ -814,19 +840,19 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
   const base = ['id', 'kind', 'from', 'to'];
   const fields = (...more: string[]) => new Set([...base, ...more]);
   return {
-    'valley-arrow': fields('bend', 'path'),
-    'mountain-arrow': fields('bend', 'path'),
-    'fold-unfold-arrow': fields('bend', 'path'),
-    'pleat-arrow': fields('kinks', 'mirrored'),
+    'valley-arrow': fields('bend', 'path', 'behind'),
+    'mountain-arrow': fields('bend', 'path', 'behind'),
+    'fold-unfold-arrow': fields('bend', 'path', 'behind'),
+    'pleat-arrow': fields('kinks', 'mirrored', 'behind'),
     'push-arrow': fields(),
     'white-arrow': fields('path', 'width', 'tail', 'fill'),
     'turn-over': fields('axis'),
     rotate: fields('rotate'),
-    'valley-line': fields(),
-    'mountain-line': fields(),
+    'valley-line': fields('behind'),
+    'mountain-line': fields('behind'),
     'hidden-line': fields(),
     label: fields('text'),
-    circle: fields(),
+    circle: fields('behind'),
     'right-angle': fields(),
     callout: fields('text'),
     'angle-mark': fields('other', 'ticks'),
@@ -876,7 +902,10 @@ function readAnnotation(
   const to = isPointKind(kind) ? from : readAnnotationPoint(entry.to);
   if (from === null || to === null) return null;
   if (from === NEWER || to === NEWER) return NEWER;
-  const annotation: KnownDiagramAnnotation = { id, kind, from, to: [to[0], to[1]] };
+  // The ends behind a flap, for a kind that has them: news before damage, as for the rest.
+  const behind = readBehind(entry.behind, behindEnds(kind));
+  if (behind === NEWER || behind === null) return behind;
+  const annotation: KnownDiagramAnnotation = { id, kind, from, to: [to[0], to[1]], ...(behind ? { behind } : {}) };
   switch (kind) {
     case 'valley-arrow':
     case 'mountain-arrow':
@@ -1023,6 +1052,27 @@ function readFill(value: unknown): 'black' | undefined | typeof NEWER | null {
   if (value === undefined) return undefined;
   if (typeof value !== 'string') return null;
   return value === 'black' ? value : NEWER;
+}
+
+/**
+ * The ends of a mark behind a flap (15e): unsaid or empty, none. An end its
+ * kind has no name for, or more layers than this build counts, is a newer
+ * build's; a count that is not a whole number of layers, or not a record,
+ * is damage.
+ */
+function readBehind(value: unknown, ends: readonly ('from' | 'to')[]): DiagramBehind | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) return null;
+  if (Object.keys(value).some((key) => !(ends as readonly string[]).includes(key))) return NEWER;
+  const behind: DiagramBehind = {};
+  for (const end of ends) {
+    const layers = value[end];
+    if (layers === undefined) continue;
+    if (typeof layers !== 'number' || !Number.isInteger(layers) || layers < 1) return null;
+    if (layers > MAX_BEHIND_LAYERS) return NEWER;
+    behind[end] = layers;
+  }
+  return behind.from !== undefined || behind.to !== undefined ? behind : undefined;
 }
 
 /** A pleat arrow's Zs: unsaid, one; a whole count past five, a newer build's; anything else, damage. */

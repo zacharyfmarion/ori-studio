@@ -19,6 +19,7 @@ import type { PaintedPicture, PictureBox } from '../pictures/paintDiagramStep';
 import { SVG_NS } from '../upload/svgSanitize';
 import { frameOf } from './annotationModel';
 import { annotationDrawing, annotationReach, annotationScene } from './annotationPrimitives';
+import type { PictureLayers } from './pictureGeometry';
 
 /**
  * The frame a card's annotations are drawn at, in CSS px: the size every
@@ -40,18 +41,20 @@ export interface PaintedAnnotations {
 
 /**
  * The annotations drawn on `box` — the picture's frame, in the target's own
- * units — compiled with the frame's longer side `framePx` CSS px across.
- * Null when they draw nothing.
+ * units — compiled with the frame's longer side `framePx` CSS px across, a
+ * mark behind a flap dotted under it on a picture whose `layers` are given
+ * (15e). Null when they draw nothing.
  */
 export function paintAnnotations(
   annotations: readonly DiagramAnnotation[],
   box: PictureBox,
   framePx: number,
-  style: DiagramStyle
+  style: DiagramStyle,
+  layers: PictureLayers | null = null
 ): PaintedAnnotations | null {
   const frame = frameOf(box.width, box.height);
   if (!frame || !(framePx > 0)) return null;
-  const drawing = annotationDrawing(annotations, frame, framePx, style);
+  const drawing = annotationDrawing(annotations, frame, framePx, style, layers);
   const scene = annotationScene(drawing);
   if (!scene) return null;
   // Target units per drawing px: the frame's size there over its size here.
@@ -73,15 +76,17 @@ export function paintAnnotations(
  * or the picture itself when they draw nothing. The document grows to hold
  * whatever reaches past the picture — an arrow that starts off it — as a
  * page and a step's file do: an `<img>` cannot paint outside its own box.
- * `opacity` ghosts them, as Pose shows them (D8).
+ * `opacity` ghosts them, as Pose shows them (D8); `layers`, the picture's,
+ * dot a mark behind a flap (15e).
  */
 export function annotatedPicture(
   painted: PaintedPicture,
   annotations: readonly DiagramAnnotation[],
   style: DiagramStyle,
-  opacity = 1
+  opacity = 1,
+  layers: PictureLayers | null = null
 ): string {
-  const drawn = paintAnnotations(annotations, painted.frame, CARD_FRAME_PX, style);
+  const drawn = paintAnnotations(annotations, painted.frame, CARD_FRAME_PX, style, layers);
   if (!drawn) return painted.svg;
   const { widthPx, heightPx, svg } = painted;
   const { bounds } = drawn;

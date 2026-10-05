@@ -1695,6 +1695,169 @@ export function polylineMitres(points: readonly SvgPoint[], pen: number, miterLi
 const SVG_MITER_LIMIT = 4;
 
 /**
+ * The stretches of a mark behind a flap (15e of the second Annotate plan),
+ * drawn dotted: where each starts and ends, as shares of the mark's length
+ * from its start — a ring's, from its rightmost point, clockwise as the page
+ * shows it. Annotate's alone: References never sets one.
+ */
+export type HiddenStretches = readonly (readonly [number, number])[];
+
+/** A piece of a stroke, from `start` to `end` as shares of its mark's length, in front of a flap or behind it. */
+export interface StrokePiece {
+  start: number;
+  end: number;
+  hidden: boolean;
+}
+
+/**
+ * The stretch `[start, end]` of a mark — shares of its length, as `hidden`
+ * is — cut where a hidden stretch starts or ends, each piece in front or
+ * behind. One piece in front when nothing is hidden; none for no stretch.
+ */
+export function strokePieces(start: number, end: number, hidden: HiddenStretches | undefined): StrokePiece[] {
+  if (!(end > start)) return [];
+  const stretches = hidden ?? [];
+  const cuts = [start, end];
+  for (const [a, b] of stretches) for (const at of [a, b]) if (at > start && at < end) cuts.push(at);
+  cuts.sort((a, b) => a - b);
+  const pieces: StrokePiece[] = [];
+  for (let i = 0; i + 1 < cuts.length; i += 1) {
+    const [a, b] = [cuts[i]!, cuts[i + 1]!];
+    if (b - a < 1e-9) continue;
+    const middle = (a + b) / 2;
+    const behind = stretches.some(([h0, h1]) => middle > h0 && middle < h1);
+    const last = pieces[pieces.length - 1];
+    if (last && last.hidden === behind) last.end = b;
+    else pieces.push({ start: a, end: b, hidden: behind });
+  }
+  return pieces;
+}
+
+/** Where an angle on `whole`'s circle lies along it, as a share of its sweep: 0 at its `from`, 1 at its `to`, below 0 just short of its start. */
+function shareAlongArc(whole: DiagramArc, angle: number): number {
+  const extent = arcExtent(whole);
+  if (!(extent > 0)) return 0;
+  const travel = whole.ccw ? angle - whole.from : whole.from - angle;
+  const wrapped = ((travel % TWO_PI) + TWO_PI) % TWO_PI;
+  return (wrapped > (extent + TWO_PI) / 2 ? wrapped - TWO_PI : wrapped) / extent;
+}
+
+/**
+ * An arc stroke's pieces in front of a flap and behind it: `hidden` as shares
+ * of `whole`, the arc the mark was compiled as from its tail to its tip, and
+ * `drawn` a stretch of the same circle the way it goes — the shaft stopped
+ * short of its head, or of a ring it lands on.
+ */
+export function arcPieces(
+  drawn: DiagramArc,
+  whole: DiagramArc,
+  hidden: HiddenStretches | undefined
+): { arc: DiagramArc; hidden: boolean }[] {
+  const extent = arcExtent(whole);
+  // Nothing behind: the stroke as it is, not one rebuilt from its shares.
+  if (!hidden?.length || !(extent > 0)) return [{ arc: drawn, hidden: false }];
+  const start = shareAlongArc(whole, drawn.from);
+  const end = start + arcExtent(drawn) / extent;
+  const angleAt = (share: number) => whole.from + share * extent * (whole.ccw ? 1 : -1);
+  return strokePieces(start, end, hidden).map((piece) => ({
+    arc: { ...drawn, from: angleAt(piece.start), to: angleAt(piece.end) },
+    hidden: piece.hidden,
+  }));
+}
+
+/** Hidden stretches of a mark, read from its other end: a return stroke runs back beside the stroke out. */
+export function reversedStretches(hidden: HiddenStretches | undefined): HiddenStretches | undefined {
+  return hidden?.map(([a, b]) => [1 - b, 1 - a] as const).reverse();
+}
+
+/**
+ * A run of lines' pieces in front of a flap and behind it: the run drawn from
+ * its mark's start, its mark `whole` long in the same units, `hidden` shares
+ * of that length. Each piece its own run of points, cut where it changes.
+ */
+export function polylinePieces(
+  points: readonly SvgPoint[],
+  whole: number,
+  hidden: HiddenStretches | undefined
+): { points: SvgPoint[]; hidden: boolean; length: number }[] {
+  const runs: number[] = [0];
+  for (let i = 1; i < points.length; i += 1) {
+    runs.push(runs[i - 1]! + Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y));
+  }
+  const length = runs[runs.length - 1]!;
+  if (!hidden?.length || !(length > 0) || !(whole > 0)) return [{ points: [...points], hidden: false, length }];
+  const at = (distance: number): SvgPoint => {
+    let i = 1;
+    while (i < runs.length - 1 && runs[i]! < distance) i += 1;
+    const [a, b] = [points[i - 1]!, points[i]!];
+    const span = runs[i]! - runs[i - 1]!;
+    const t = span > 0 ? (distance - runs[i - 1]!) / span : 0;
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  };
+  return strokePieces(0, length / whole, hidden).map((piece) => {
+    const [from, to] = [piece.start * whole, piece.end * whole];
+    const inner = points.filter((_, i) => runs[i]! > from && runs[i]! < to);
+    return { points: [at(from), ...inner, at(to)], hidden: piece.hidden, length: to - from };
+  });
+}
+
+/**
+ * A path stroke's pieces in front of a flap and behind it: `shaft` drawn from
+ * its mark's start, its mark's whole path `whole` long in the same units,
+ * `hidden` shares of that length.
+ */
+export function pathPieces(
+  shaft: readonly PathCubic[],
+  whole: number,
+  hidden: HiddenStretches | undefined
+): { path: PathCubic[]; hidden: boolean; length: number }[] {
+  const measure = measurePath(shaft);
+  if (!hidden?.length || !(measure.length > 0) || !(whole > 0)) return [{ path: [...shaft], hidden: false, length: measure.length }];
+  return strokePieces(0, measure.length / whole, hidden).map((piece) => {
+    const [from, to] = [piece.start * whole, Math.min(measure.length, piece.end * whole)];
+    return { path: trimPath(measure, from, to), hidden: piece.hidden, length: to - from };
+  });
+}
+
+/** A path's length as a picture draws it: through the projector, in its units. */
+export function projectedPathLength(path: readonly DiagramCubic[], project: DiagramProjector): number {
+  return measurePath(projectPath(path, project)).length;
+}
+
+/** A hidden piece's dots: the stroke's own pen, one on and two off, as a hidden line is dotted. */
+export const HIDDEN_STROKE_DASH = [1, 2] as const;
+
+/**
+ * A ring's arcs in front of a flap and behind it (15e): the ring `radius`
+ * round `at` (in the projector's units round a point in sheet units, as a
+ * point primitive's), `hidden` shares of it from its rightmost point,
+ * clockwise as the page shows it. Each arc as SVG path data, with its length.
+ */
+export function ringPieces(
+  at: readonly [number, number],
+  radius: number,
+  hidden: HiddenStretches | undefined,
+  project: DiagramProjector
+): { d: string; hidden: boolean; length: number }[] {
+  const sheetRadius = radius / project.scale;
+  // The page's y runs down where the sheet's runs up: its angle turns the other way there.
+  const point = (share: number) =>
+    project([at[0] + sheetRadius * Math.cos(share * TWO_PI), at[1] - sheetRadius * Math.sin(share * TWO_PI)]);
+  const sweep = project.mirrored ? 0 : 1;
+  const arc = (to: SvgPoint, large: number) => `A ${fmt(radius)} ${fmt(radius)} 0 ${large} ${sweep} ${fmt(to.x)} ${fmt(to.y)}`;
+  return strokePieces(0, 1, hidden).map((piece) => {
+    const [a, b] = [point(piece.start), point(piece.end)];
+    const extent = (piece.end - piece.start) * TWO_PI;
+    const d =
+      extent >= TWO_PI - 1e-9
+        ? // A whole ring: two halves, as one arc cannot close on itself.
+          `M ${fmt(a.x)} ${fmt(a.y)} ${arc(point(piece.start + 0.5), 0)} ${arc(b, 0)}`
+        : `M ${fmt(a.x)} ${fmt(a.y)} ${arc(b, extent > Math.PI ? 1 : 0)}`;
+    return { d, hidden: piece.hidden, length: radius * extent };
+  });
+}
+
+/**
  * The points that bound a closed outline stroked `pen` wide with mitred
  * corners: each edge's ends half the pen out to either side — its inner side
  * too, which on an outline smaller than its pen reaches past the far side —

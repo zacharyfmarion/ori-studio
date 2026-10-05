@@ -12,6 +12,7 @@ import {
 import { angleMarkArcPoints } from '../../cp-workspace/references/stepDiagramGeometry';
 import { pathNodesOf, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
+import { pictureGeometry } from '../../diagram/annotate/pictureGeometry';
 import type { SnapTarget } from '../../diagram/annotate/pictureSnap';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import {
@@ -81,9 +82,11 @@ export function DiagramAnnotateCanvas({
   const { camera, overlay, url, layout, shown, tool, selectedId, onPointerDownCapture, handlers } = canvas;
   const { containerRef, transformRef, zoomPercent, spacePressed, zoomIn, zoomOut, fitToView, setZoomLevel, onInit, onTransformed } =
     camera;
+  // A flat fold's layers: a mark behind a flap is dotted under it as it is drawn (15e).
+  const layers = useMemo(() => pictureGeometry(step, assets, style).layers, [step, assets, style]);
   const drawing = useMemo(
-    () => (layout ? annotationDrawing(shown, layout.pictureFrame, CARD_FRAME_PX, style) : null),
-    [layout, shown, style]
+    () => (layout ? annotationDrawing(shown, layout.pictureFrame, CARD_FRAME_PX, style, layers) : null),
+    [layout, shown, style, layers]
   );
   const selected = shown.find(
     (annotation): annotation is KnownDiagramAnnotation => annotation.id === selectedId && isKnownAnnotation(annotation)

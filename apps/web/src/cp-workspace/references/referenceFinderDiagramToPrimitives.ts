@@ -15,7 +15,14 @@
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { Diagram, RawSolution } from './referenceFinder/solution';
 import type { DiagramWhiteArrowFill, DiagramWhiteArrowWidth } from './diagram/diagramInk';
-import type { DiagramArc, DiagramCubic, DiagramSheet, PathArrowFold, WhiteArrowTail } from './stepDiagramGeometry';
+import type {
+  DiagramArc,
+  DiagramCubic,
+  DiagramSheet,
+  HiddenStretches,
+  PathArrowFold,
+  WhiteArrowTail,
+} from './stepDiagramGeometry';
 
 export type DiagramLineStyleName =
   /** A crease an earlier step made: the paper as it stands. */
@@ -90,14 +97,14 @@ export type StepDiagramPrimitive =
    * against the paper and a camera view against the pen. So it is derived where
    * the picture is drawn, and this stays the one thing both surfaces agree on.
    */
-  | { kind: 'fold-arrow'; out: DiagramArc }
+  | { kind: 'fold-arrow'; out: DiagramArc; hidden?: HiddenStretches }
   /**
    * A fold that is made and kept: the paper goes over along `out` and stays.
    * The head says which way (Yoshizawa–Randlett): a valley fold's is the
    * fold-and-unfold arrow's filled head, a mountain fold's one-sided and
    * hollow. Its size is the drawing's, as the fold arrow's is.
    */
-  | { kind: 'one-way-arrow'; out: DiagramArc; fold: 'valley' | 'mountain' }
+  | { kind: 'one-way-arrow'; out: DiagramArc; fold: 'valley' | 'mountain'; hidden?: HiddenStretches }
   /**
    * A fold arrow shaped by hand rather than an arc: its path, tail first, and
    * which fold it says — a valley's or a mountain's head, as a one-way arrow
@@ -105,7 +112,7 @@ export type StepDiagramPrimitive =
    * derived from the path where it is drawn (`pathArrowGeometry`). Its head
    * and return are the drawing's size, as the arc arrows' are.
    */
-  | { kind: 'path-arrow'; path: readonly DiagramCubic[]; fold: PathArrowFold }
+  | { kind: 'path-arrow'; path: readonly DiagramCubic[]; fold: PathArrowFold; hidden?: HiddenStretches }
   /**
    * Push here — a squash, a sink, a reverse fold's push: a straight hollow
    * arrow with a cleft tail, from `from` to its tip at `to`. Its width is the
@@ -125,6 +132,7 @@ export type StepDiagramPrimitive =
       to: readonly [number, number];
       kinks: number;
       mirrored: boolean;
+      hidden?: HiddenStretches;
     }
   /**
    * A white arrow (Phase 14f): a hollow band along a path, tail first, with a
@@ -188,7 +196,7 @@ export type StepDiagramPrimitive =
    * sights them from. A convex polygon, in sheet units.
    */
   | { kind: 'region'; corners: readonly (readonly [number, number])[] }
-  | { kind: 'point'; at: readonly [number, number]; style: DiagramPointStyleName }
+  | { kind: 'point'; at: readonly [number, number]; style: DiagramPointStyleName; hidden?: HiddenStretches }
   | { kind: 'label'; at: readonly [number, number]; text: string; style: DiagramPointStyleName };
 
 export interface StepDiagramModel {

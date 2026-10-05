@@ -46,6 +46,7 @@ import { stepDiagramPaintStyle, stepDiagramScene, stepDiagramSheetBox } from '..
 import { hasDrawnAnnotations, paintAnnotations } from '../annotate/paintAnnotations';
 import { annotationDrawing, annotationReach } from '../annotate/annotationPrimitives';
 import { frameOf } from '../annotate/annotationModel';
+import { pictureGeometry, type PictureLayers } from '../annotate/pictureGeometry';
 import { storedScene } from '../pictures/pictureFrame';
 import { fontFaceId } from '../fonts/diagramFontFaces';
 import { setUploadText } from '../upload/uploadText';
@@ -144,12 +145,13 @@ function drawingRatio(picture: DiagramStepDiagramPicture, style: DiagramStyle, s
  * `picture` and `frame` are in CSS px at the size the frame prints, which is
  * the size the annotations are drawn at — their marks keep their pt size, so
  * how far they reach depends on it, as a References step's letters do.
+ * `layers`, the picture's, draw a mark behind a flap as the page will (15e).
  */
-function reachedWith(step: DiagramStep, frame: Rect, picture: Rect, style: DiagramStyle): Rect {
+function reachedWith(step: DiagramStep, frame: Rect, picture: Rect, style: DiagramStyle, layers: PictureLayers | null): Rect {
   const pictureFrame = frameOf(frame.width, frame.height);
   const framePx = longerOf(frame);
   if (!pictureFrame || !(framePx > 0)) return picture;
-  const reach = annotationReach(annotationDrawing(step.annotations, pictureFrame, framePx, style));
+  const reach = annotationReach(annotationDrawing(step.annotations, pictureFrame, framePx, style, layers));
   return union(picture, { ...reach, x: frame.x + reach.x, y: frame.y + reach.y });
 }
 
@@ -216,6 +218,8 @@ export function layoutPicture(
         ? units * measure.mmPerUnit
         : MEASURE_SHEET_MM;
   const annotated = hasDrawnAnnotations(step.annotations);
+  // A flat fold's layers: a mark behind a flap is drawn dotted under it (15e).
+  const layers = annotated ? pictureGeometry(step, assets, style).layers : null;
   /**
    * The picture measured by `at(frameMm)`, which gives the frame and what it
    * reaches with its marks, in px, its frame `frameMm` across its longer
@@ -285,7 +289,7 @@ export function layoutPicture(
       const framePx = mmToCssPx(mm);
       const frame = { x: 0, y: 0, width: (width / longer) * framePx, height: (height / longer) * framePx };
       const inked = grown(frame, inkPx);
-      return { frame, reached: annotated ? reachedWith(step, frame, inked, style) : inked };
+      return { frame, reached: annotated ? reachedWith(step, frame, inked, style, layers) : inked };
     });
   };
   switch (source.kind) {
@@ -310,7 +314,7 @@ export function layoutPicture(
         const { drawing, sheet } = stepDiagramBoxes(source.picture, style, mm);
         if (!(longerOf(sheet) > 0)) return null;
         const inked = union(drawing, grown(sheet, ink));
-        return { frame: sheet, reached: annotated ? reachedWith(step, sheet, inked, style) : inked };
+        return { frame: sheet, reached: annotated ? reachedWith(step, sheet, inked, style, layers) : inked };
       });
     }
     case 'fixed':
@@ -334,6 +338,8 @@ export function cellPicture(
 ): CellPicture | null {
   const source = stepPictureSource(step, assets);
   if (!source) return null;
+  // A flat fold's layers: a mark behind a flap is drawn dotted under it (15e).
+  const layers = hasDrawnAnnotations(step.annotations) ? pictureGeometry(step, assets, style).layers : null;
   const area = cell.drawMm ?? { x: cell.pictureMm.x, y: cell.pictureMm.y, w: cell.pictureMm.size, h: cell.pictureMm.size };
   const box: Rect = { x: area.x * PT_PER_MM, y: area.y * PT_PER_MM, width: area.w * PT_PER_MM, height: area.h * PT_PER_MM };
   /** The picture drawn into `inner`, `k` of its room, and its annotations on its frame. */
@@ -343,7 +349,7 @@ export function cellPicture(
     const mmPerUnit = cell.mmPerUnit === null ? null : cell.mmPerUnit * k;
     const drawn = draw(source, step, style, inner, mmPerUnit, frame, text);
     if (!drawn) return null;
-    const marks = paintAnnotations(step.annotations, drawn.framePt, longerOf(drawn.framePt) / PT_PER_CSS_PX, style);
+    const marks = paintAnnotations(step.annotations, drawn.framePt, longerOf(drawn.framePt) / PT_PER_CSS_PX, style, layers);
     return { drawn, marks, reached: marks ? union(drawn.boundsPt, marks.bounds) : drawn.boundsPt };
   };
   let placed = place(box);

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { trackDiagramAnnotationBehind } from '../../analytics';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating, selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
@@ -7,6 +8,7 @@ import {
   annotationsOutOfStep,
   isKnownAnnotation,
   isLockedStep,
+  stepById,
   type DiagramAngleTicks,
   type DiagramAsset,
   type DiagramPleatKinks,
@@ -17,10 +19,23 @@ import {
 import { stepPictureFrame } from '../pictures/pictureFrame';
 import { EDIT_PATH } from './annotateTools';
 import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
-import { withWhiteArrowLook, type WhiteArrowLook } from './annotationModel';
+import { annotationEventKind } from './annotationEventKind';
+import { withBehind, withBehindLayers, withWhiteArrowLook, type WhiteArrowLook } from './annotationModel';
 import { pathNodesOf } from './annotationPath';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
 import { isLineKind, lineKindOf, type DiagramLineType } from './lineTypes';
+import { pictureGeometry } from './pictureGeometry';
+
+/**
+ * A mark first put behind a flap, counted (15e): which of its ends — a
+ * circle's, its whole ring — and how many layers lie over them.
+ */
+function trackBehind(annotation: KnownDiagramAnnotation): void {
+  const { from, to } = annotation.behind ?? {};
+  const ends = annotation.kind === 'circle' ? 'whole' : from !== undefined && to !== undefined ? 'both' : from !== undefined ? 'tail' : 'tip';
+  const deep = from ?? to ?? 1;
+  trackDiagramAnnotationBehind(annotationEventKind(annotation), ends, deep >= 3 ? '3+' : deep === 2 ? '2' : '1');
+}
 
 const NO_ANNOTATIONS: readonly KnownDiagramAnnotation[] = [];
 const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
@@ -42,6 +57,7 @@ export function useStepAnnotations(step: DiagramStep | null) {
   const loadId = useWorkspaceStore((state) => state.diagramLoadId);
   const node = useWorkspaceStore(selectedDiagramPathNode);
   const assets = useWorkspaceStore((state) => state.diagram?.assets ?? NO_ASSETS);
+  const style = useWorkspaceStore((state) => state.diagram?.style);
   const snap = useSettingsStore((state) => state.diagramAnnotateSnap);
   const known = useMemo(
     () => (step ? step.annotations.filter(isKnownAnnotation) : NO_ANNOTATIONS),
@@ -61,6 +77,12 @@ export function useStepAnnotations(step: DiagramStep | null) {
         (list) => list.map((annotation) => (annotation.id === id ? edit(annotation) : annotation)),
         { loadId, session }
       );
+    };
+    /** The annotation as the store has it now. */
+    const current = (id: string) => {
+      const diagram = store().diagram;
+      const found = diagram && stepId !== null ? stepById(diagram, stepId)?.annotations.find((annotation) => annotation.id === id) : undefined;
+      return found && isKnownAnnotation(found) ? found : null;
     };
     /** A verb of the catalog's, made on this step as one undo step. */
     const apply = (edit: AnnotationEdit) => {
@@ -102,9 +124,28 @@ export function useStepAnnotations(step: DiagramStep | null) {
         change(id, 'Change line type', (annotation) =>
           isLineKind(annotation.kind) ? { ...annotation, kind: lineKindOf(type) } : annotation
         ),
+      /**
+       * One end of a mark put behind a flap or brought back in front (15e), as
+       * one undo step: behind as deep as an end already is, else one layer
+       * down. The first end put behind is counted.
+       */
+      setBehind: (id: string, end: 'from' | 'to', behind: boolean) => {
+        const before = current(id);
+        change(id, 'Change behind', (annotation) =>
+          withBehind(annotation, end, behind ? (annotation.behind?.from ?? annotation.behind?.to ?? 1) : null)
+        );
+        const after = current(id);
+        if (before && !before.behind && after?.behind) trackBehind(after);
+      },
+      /** How many layers lie over every end of a mark that is behind (15e), as one undo step. */
+      setBehindLayers: (id: string, layers: number) =>
+        change(id, 'Change behind', (annotation) => withBehindLayers(annotation, layers)),
       setSnap: (value: boolean) => useSettingsStore.getState().setDiagramAnnotateSnap(value),
     };
   }, [stepId, loadId]);
+
+  // Only a flat fold knows its layers, and so its flaps (15e).
+  const knowsFlaps = useMemo(() => step !== null && pictureGeometry(step, assets, style).kind === 'flat-fold', [step, assets, style]);
 
   const selected = known.find((annotation) => annotation.id === selectedId) ?? null;
   const editingPath = tool === EDIT_PATH;
@@ -134,6 +175,8 @@ export function useStepAnnotations(step: DiagramStep | null) {
     nodeCount: selected ? (pathNodesOf(selected)?.length ?? 0) : 0,
     /** Whether circles, right angles, callouts' points and lines' ends snap to the picture (decision 9): Annotate's switch. */
     snap,
+    /** Whether the step's picture knows its flaps, so a mark can be put behind one: a flat fold's (15e). */
+    knowsFlaps,
     ...verbs,
   };
 }
