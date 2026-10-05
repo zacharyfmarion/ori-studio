@@ -8,6 +8,7 @@ import {
   flipAnnotationArc,
   flipsArc,
   isCornerKind,
+  isShapedArrow,
   turnRightAngle,
   type PictureFrame,
   type PicturePoint,
@@ -32,7 +33,7 @@ import {
  * edit are here once, so the pane and the keys cannot drift, and each surface
  * owns only its rendering.
  *
- * With Edit Path in hand on a fold arrow (decision 3) the node verbs join
+ * With Edit Path in hand on a fold or white arrow (decision 3) the node verbs join
  * them: step from node to node, make one smooth or a corner, add one, take
  * one out. Every edit takes the arrow as it is when it lands, arc or path, so
  * the first one shapes an arc.
@@ -155,10 +156,10 @@ export interface AnnotationEditContext {
 const SQUARE: PictureFrame = { width: 1, height: 1 };
 
 /**
- * Whether `annotation` offers a verb at all: the node verbs a fold arrow
- * with Edit Path in hand; Flip arc an arc to flip; Reset an arrow shaped, or
- * any fold arrow in Edit Path (where it waits for the first edit); Turn 90°
- * a right angle; Delete, every one.
+ * Whether `annotation` offers a verb at all: the node verbs a fold or white
+ * arrow with Edit Path in hand; Flip arc an arc to flip; Reset an arrow
+ * shaped (`isShapedArrow`), or any arrow in Edit Path (where it waits for the
+ * first edit); Turn 90° a right angle; Delete, every one.
  */
 export function offersAnnotationAction(
   id: AnnotationActionId,
@@ -177,7 +178,7 @@ export function offersAnnotationAction(
     case 'flip-arc':
       return flipsArc(annotation.kind);
     case 'reset-path':
-      return editingPath || (canBeShaped(annotation.kind) && annotation.path !== undefined);
+      return editingPath || isShapedArrow(annotation);
     case 'turn-right-angle':
       return isCornerKind(annotation.kind);
     case 'delete':

@@ -58,6 +58,28 @@ describe('applyAnnotationEdit', () => {
     ]);
   });
 
+  it('counts a white arrow shaped once it is no longer the straight one it was laid as, and again after a Reset', () => {
+    const straight = [{ at: [0.2, 0.5] as [number, number] }, { at: [0.6, 0.5] as [number, number] }];
+    const stepId = stepWith([
+      { id: 'w', kind: 'white-arrow', from: [0.2, 0.5], to: [0.6, 0.5], path: straight, width: 'regular', tail: 'pointed' },
+    ]);
+    applyAnnotationEdit(state(), stepId, annotationActionEdit('add-node', 'w', { node: 0 }));
+    expect(annotations()[0]!.path).toHaveLength(3);
+    applyAnnotationEdit(state(), stepId, nudgePathNodeEdit('w', 1, [0, 0.05]));
+    expect(tracked.trackDiagramArrowShaped.mock.calls).toEqual([['white_arrow', 'add_node']]);
+    applyAnnotationEdit(state(), stepId, annotationActionEdit('reset-path', 'w'));
+    expect(annotations()[0]!.path).toEqual(straight);
+    // Its tip moved: a straight arrow between other ends, not shaped.
+    applyAnnotationEdit(state(), stepId, nudgePathNodeEdit('w', 1, [0, 0.05]));
+    expect(annotations()[0]!.path).toHaveLength(2);
+    expect(tracked.trackDiagramArrowShaped).toHaveBeenCalledOnce();
+    applyAnnotationEdit(state(), stepId, annotationActionEdit('add-node', 'w', { node: 0 }));
+    expect(tracked.trackDiagramArrowShaped.mock.calls).toEqual([
+      ['white_arrow', 'add_node'],
+      ['white_arrow', 'add_node'],
+    ]);
+  });
+
   it('counts nothing for an edit that changed nothing, deleted the arrow, or was not a shaping one', () => {
     const stepId = stepWith([{ id: 'v', kind: 'valley-arrow', from: [0.2, 0.5], to: [0.6, 0.5], bend: ARROW_BEND }]);
     // A 60° arc has no node between its ends to make a corner of.

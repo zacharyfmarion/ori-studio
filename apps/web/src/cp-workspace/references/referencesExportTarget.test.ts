@@ -17,6 +17,7 @@ import golden from './__fixtures__/referencesStepExportGolden.json';
 import glyphsGolden from './__fixtures__/referencesGlyphsGolden.json';
 import pathArrowsGolden from './__fixtures__/referencesPathArrowsGolden.json';
 import rightAnglesGolden from './__fixtures__/referencesRightAnglesGolden.json';
+import whiteArrowsGolden from './__fixtures__/referencesWhiteArrowsGolden.json';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import {
   canvasDiagramInk,
@@ -241,6 +242,84 @@ const RIGHT_ANGLES: StepDiagramModel = {
   ],
 };
 
+/**
+ * White arrows (Phase 14f), on a unit sheet with a valley across it: every
+ * width and every tail — a regular one tapered to a point along a gentle
+ * arc, a narrow one cut square along an S, a wide one cleft and straight,
+ * and a regular one turned at a corner node, its outside mitred.
+ */
+const WHITE_ARROWS: StepDiagramModel = {
+  sheet: { width: 1, height: 1 },
+  primitives: [
+    { kind: 'sheet', width: 1, height: 1 },
+    { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'valley' },
+    {
+      kind: 'white-arrow',
+      width: 'regular',
+      tail: 'pointed',
+      path: [
+        [
+          [0.06, 0.62],
+          [0.14, 0.86],
+          [0.3, 0.92],
+          [0.46, 0.84],
+        ],
+      ],
+    },
+    {
+      kind: 'white-arrow',
+      width: 'narrow',
+      tail: 'square',
+      path: [
+        [
+          [0.56, 0.6],
+          [0.6, 0.75],
+          [0.7, 0.8],
+          [0.76, 0.74],
+        ],
+        [
+          [0.76, 0.74],
+          [0.82, 0.68],
+          [0.88, 0.7],
+          [0.94, 0.9],
+        ],
+      ],
+    },
+    {
+      kind: 'white-arrow',
+      width: 'wide',
+      tail: 'cleft',
+      path: [
+        [
+          [0.08, 0.14],
+          [0.08, 0.14],
+          [0.46, 0.36],
+          [0.46, 0.36],
+        ],
+      ],
+    },
+    {
+      kind: 'white-arrow',
+      width: 'regular',
+      tail: 'square',
+      path: [
+        [
+          [0.62, 0.08],
+          [0.62, 0.16],
+          [0.63, 0.32],
+          [0.64, 0.4],
+        ],
+        [
+          [0.64, 0.4],
+          [0.72, 0.41],
+          [0.86, 0.42],
+          [0.94, 0.42],
+        ],
+      ],
+    },
+  ],
+};
+
 /** The page the dialog saves for these remembered options, exactly as the dialog reaches it. */
 async function dialogPage(
   capture: StepCapture,
@@ -312,6 +391,18 @@ describe('referencesExportTarget', () => {
         [RIGHT_ANGLES]
       );
       expect(page).toEqual(mirrored ? rightAnglesGolden.back : rightAnglesGolden.front);
+    }
+  });
+
+  it('draws white arrows: every width and tail, hollow in the paper’s face and outlined in the arrow’s pen, mitred to their own limit', async () => {
+    // Front and back: a path mirrors with the paper, every control point with it.
+    for (const mirrored of [false, true]) {
+      const page = await dialogPage(
+        { mirrored, lineWidth: 1, showAux: null },
+        { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm: 80 } },
+        [WHITE_ARROWS]
+      );
+      expect(page).toEqual(mirrored ? whiteArrowsGolden.back : whiteArrowsGolden.front);
     }
   });
 

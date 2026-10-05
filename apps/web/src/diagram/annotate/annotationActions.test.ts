@@ -24,9 +24,9 @@ const of = (id: string, kind: DiagramAnnotationKind, extra: Partial<KnownDiagram
 });
 
 describe('the annotation verbs', () => {
-  it('offer Flip Arc on the three fold arrows alone, and Delete on every kind', () => {
+  it('offer Flip Arc on the three fold arrows and the white arrow alone, and Delete on every kind', () => {
     const flips = ANNOTATION_KINDS.filter((kind) => offersAnnotationAction('flip-arc', of('a', kind)));
-    expect(flips).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow']);
+    expect(flips).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'white-arrow']);
     expect(ANNOTATION_KINDS.every((kind) => offersAnnotationAction('delete', of('a', kind)))).toBe(true);
   });
 
@@ -111,6 +111,31 @@ describe('Edit Path’s node verbs', () => {
     expect(ids(of('a', 'valley-arrow'), false)).toEqual(['annotation:flip-arc', 'annotation:delete']);
     // Edit Path on a kind that is not shaped offers it nothing of its own.
     expect(ids(of('p', 'push-arrow'), true)).toEqual(['annotation:delete']);
+  });
+
+  it('are offered on a white arrow with Edit Path in hand, and Reset with Select only once it is bent', () => {
+    const ids = (annotation: KnownDiagramAnnotation, editingPath: boolean) =>
+      buildAnnotationActions(annotation, { editable: true, editingPath, node: 0 }, { t, apply: vi.fn(), selectNode: vi.fn() }).map(
+        ({ id, disabled }) => `${id}${disabled ? ' (off)' : ''}`
+      );
+    const straight = of('w', 'white-arrow', { path: [{ at: [0.2, 0.3] }, { at: [0.6, 0.3] }], width: 'regular', tail: 'pointed' });
+    expect(ids(straight, true)).toEqual([
+      'previous-node (off)',
+      'next-node',
+      'smooth-node (off)',
+      'corner-node (off)',
+      'add-node',
+      'delete-node',
+      'flip-arc',
+      // Straight already: nothing to go back to.
+      'reset-path (off)',
+      'delete',
+    ]);
+    // With Select a straight one offers no Reset; a bent one does, and Reset lays it straight.
+    expect(ids(straight, false)).toEqual(['flip-arc', 'delete']);
+    const bent = { ...straight, path: [{ at: [0.2, 0.3] as [number, number], out: [0.3, 0.1] as [number, number] }, { at: [0.6, 0.3] as [number, number] }] };
+    expect(ids(bent, false)).toEqual(['flip-arc', 'reset-path', 'delete']);
+    expect(annotationActionEdit('reset-path', 'w').edit([bent])).toEqual([straight]);
   });
 
   it('step from node to node, stopping at the ends, from none to the first or the last', () => {

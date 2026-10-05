@@ -762,9 +762,9 @@
       "canvasLabel": "Anotaciones en la imagen del paso",
       "circleHelp": "Haz clic en un punto para rodearlo con un círculo.",
       "controls": "Controles de la vista Anotar",
-      "editPathCannot": "Solo se puede dar forma a las flechas de plegado: de valle, de monte y de doblar y desdoblar.",
-      "editPathHelp": "Arrastra los nodos de una flecha de plegado, sus tiradores o su curva para darle forma. Haz clic en la curva para añadir un nodo; haz doble clic en un nodo para hacerlo de esquina o suave.",
-      "editPathNone": "Selecciona una flecha de plegado para darle forma.",
+      "editPathCannot": "Solo se puede dar forma a las flechas de plegado y a las flechas blancas.",
+      "editPathHelp": "Arrastra los nodos de una flecha, sus tiradores o su curva para darle forma. Haz clic en la curva para añadir un nodo; haz doble clic en un nodo para hacerlo de esquina o suave.",
+      "editPathNone": "Selecciona una flecha de plegado o una flecha blanca para darle forma.",
       "foldUnfoldHelp": "Arrastra desde donde empieza el papel hasta donde llega: se dobla y luego vuelve.",
       "glyphHelp": "Haz clic donde va el signo.",
       "groupArrows": "Flechas",
@@ -778,8 +778,9 @@
       "pushHelp": "Arrastra hacia el lugar que hay que empujar.",
       "rightAngleHelp": "Haz clic dentro de un ángulo recto para marcarlo, o arrastra desde una esquina hacia dentro del ángulo.",
       "select": "Seleccionar",
-      "selectHelp": "Haz clic en una anotación para seleccionarla. Arrástrala, o el punto de cualquiera de sus extremos, para moverla. Haz doble clic en una flecha de plegado para darle forma.",
-      "toolsLabel": "Herramientas de anotación"
+      "selectHelp": "Haz clic en una anotación para seleccionarla. Arrástrala, o el punto de cualquiera de sus extremos, para moverla. Haz doble clic en una flecha de plegado o una flecha blanca para darle forma.",
+      "toolsLabel": "Herramientas de anotación",
+      "whiteArrowHelp": "Arrastra desde donde empieza el papel hasta donde va. Dale forma con Editar trazado."
     },
     "annotations": {
       "addNode": "Añadir nodo",
@@ -813,10 +814,18 @@
       "smooth": "Suave",
       "snap": "Ajustar a la imagen",
       "snapHelp": "Los círculos y los extremos de flechas y líneas se ajustan a los puntos cercanos de la imagen y a otras anotaciones. Mantén pulsado {{modifier}} para colocarlos en cualquier lugar.",
+      "tail": "Cola",
+      "tailCleft": "Hendida",
+      "tailPointed": "En punta",
+      "tailSquare": "Recta",
       "text": "Texto",
       "topToBottom": "De arriba abajo",
       "turn": "Giro",
-      "turnRightAngle": "Girar 90°"
+      "turnRightAngle": "Girar 90°",
+      "width": "Ancho",
+      "widthNarrow": "Estrecha",
+      "widthRegular": "Normal",
+      "widthWide": "Ancha"
     },
     "card": {
       "badgeCreasePattern": "Patrón de pliegues",

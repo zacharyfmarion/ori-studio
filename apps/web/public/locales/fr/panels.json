@@ -762,9 +762,9 @@
       "canvasLabel": "Annotations sur l’image de l’étape",
       "circleHelp": "Cliquez sur un point pour l’entourer.",
       "controls": "Commandes de la vue Annoter",
-      "editPathCannot": "Seules les flèches de pli peuvent être façonnées\u00a0: vallée, montagne et plier-déplier.",
-      "editPathHelp": "Faites glisser les nœuds d’une flèche de pli, leurs poignées ou sa courbe pour la façonner. Cliquez sur la courbe pour ajouter un nœud\u00a0; double-cliquez sur un nœud pour le rendre anguleux ou lisse.",
-      "editPathNone": "Sélectionnez une flèche de pli pour la façonner.",
+      "editPathCannot": "Seules les flèches de pli et les flèches blanches peuvent être façonnées.",
+      "editPathHelp": "Faites glisser les nœuds d’une flèche, leurs poignées ou sa courbe pour la façonner. Cliquez sur la courbe pour ajouter un nœud\u00a0; double-cliquez sur un nœud pour le rendre anguleux ou lisse.",
+      "editPathNone": "Sélectionnez une flèche de pli ou une flèche blanche pour la façonner.",
       "foldUnfoldHelp": "Faites glisser depuis l’endroit où part le papier jusqu’à celui où il arrive : il se plie, puis revient.",
       "glyphHelp": "Cliquez là où va le signe.",
       "groupArrows": "Flèches",
@@ -778,8 +778,9 @@
       "pushHelp": "Faites glisser vers l’endroit à pousser.",
       "rightAngleHelp": "Cliquez dans un angle droit pour le marquer, ou faites glisser depuis un coin vers l’intérieur de l’angle.",
       "select": "Sélectionner",
-      "selectHelp": "Cliquez sur une annotation pour la sélectionner. Faites-la glisser, ou le point à l’une de ses extrémités, pour la déplacer. Double-cliquez sur une flèche de pli pour la façonner.",
-      "toolsLabel": "Outils d’annotation"
+      "selectHelp": "Cliquez sur une annotation pour la sélectionner. Faites-la glisser, ou le point à l’une de ses extrémités, pour la déplacer. Double-cliquez sur une flèche de pli ou une flèche blanche pour la façonner.",
+      "toolsLabel": "Outils d’annotation",
+      "whiteArrowHelp": "Faites glisser depuis l’endroit où part le papier jusqu’à celui où il va. Façonnez-la avec Modifier le tracé."
     },
     "annotations": {
       "addNode": "Ajouter un nœud",
@@ -813,10 +814,18 @@
       "smooth": "Lisse",
       "snap": "Aimanter à l’image",
       "snapHelp": "Les cercles et les extrémités des flèches et des lignes s’aimantent aux points proches de l’image et aux autres annotations. Maintenez {{modifier}} pour les placer n’importe où.",
+      "tail": "Queue",
+      "tailCleft": "Fendue",
+      "tailPointed": "Pointue",
+      "tailSquare": "Droite",
       "text": "Texte",
       "topToBottom": "De haut en bas",
       "turn": "Rotation",
-      "turnRightAngle": "Tourner de 90°"
+      "turnRightAngle": "Tourner de 90°",
+      "width": "Largeur",
+      "widthNarrow": "Étroite",
+      "widthRegular": "Normale",
+      "widthWide": "Large"
     },
     "card": {
       "badgeCreasePattern": "Patron de plis",

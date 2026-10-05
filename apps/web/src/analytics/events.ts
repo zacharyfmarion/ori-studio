@@ -77,6 +77,7 @@ export type DiagramAnnotationTool =
   | 'mountain_arrow'
   | 'fold_unfold_arrow'
   | 'push_arrow'
+  | 'white_arrow'
   | 'turn_over'
   | 'rotate'
   | 'valley_line'
@@ -94,14 +95,14 @@ export type DiagramAnnotationTool =
  */
 export type DiagramAnnotationSnap = 'snapped' | 'free' | 'off' | 'nothing_near' | 'none';
 
-/** A fold arrow, which Edit Path shapes: its kind, in the event's own spelling. */
-export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow';
+/** A fold arrow or a white arrow, which Edit Path shapes: its kind, in the event's own spelling. */
+export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';
 
 /**
- * The Edit Path gesture that first made an arc arrow a path: a node dragged,
- * a handle dragged, the curve bent, a node added (a click on the curve or
- * Add Node), a node made smooth or a corner, a node taken out, or a node
- * nudged with the arrow keys.
+ * The Edit Path gesture that first shaped an arrow — an arc made a path, a
+ * straight white arrow bent: a node dragged, a handle dragged, the curve
+ * bent, a node added (a click on the curve or Add Node), a node made smooth
+ * or a corner, a node taken out, or a node nudged with the arrow keys.
  */
 export type DiagramArrowShapeGesture =
   | 'drag_node'
@@ -1332,7 +1333,11 @@ export const ANALYTICS_EVENTS = {
   diagramAnnotationAdded: 'diagram annotation added',
   /** Annotate's Snap switch flipped in the Step pane. */
   diagramAnnotateSnapChanged: 'diagram annotate snap changed',
-  /** A fold arrow shaped by hand for the first time (Edit Path): an arc made a path, not each edit after. */
+  /**
+   * An arrow shaped by hand for the first time (Edit Path): a fold arrow's arc
+   * made a path, or a white arrow bent from the straight one it was laid as —
+   * not each edit after.
+   */
   diagramArrowShaped: 'diagram arrow shaped',
   /** A step's picture taken away (Remove picture). */
   diagramPictureRemoved: 'diagram picture removed',

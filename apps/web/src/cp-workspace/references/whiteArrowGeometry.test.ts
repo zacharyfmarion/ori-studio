@@ -16,8 +16,12 @@ import {
   type DiagramWhiteArrowWidth,
 } from './diagram/diagramInk';
 import {
+  createOverlayProjector,
+  mitredCornerReach,
   outlineDistance,
+  whiteArrowDrawn,
   whiteArrowOutline,
+  WHITE_ARROW_FLATTEN_INK,
   WHITE_ARROW_MITER_LIMIT,
   type WhiteArrowSize,
   type WhiteArrowTail,
@@ -443,5 +447,77 @@ describe('a press on a white arrow', () => {
     const hairpin = [line([0, 0], [0, 100]), ...arc([30, 100], 30, Math.PI, 0), line([60, 100], [60, 0])];
     expect(outlineDistance(outlineOf(hairpin), [30, 50])).toBeGreaterThan(10);
     expect(outlineDistance([], [0, 0])).toBe(Infinity);
+  });
+});
+
+describe('a white arrow as a picture draws it', () => {
+  // Sheet units y up, onto a page 400 px a unit, y down: References' own projection.
+  const project = createOverlayProjector({ origin: [0, 400], ex: [400, 0], ey: [0, -400] }, INK);
+  const sheet: Cubic[] = [
+    [
+      [0.1, 0.2],
+      [0.3, 0.5],
+      [0.6, 0.5],
+      [0.8, 0.3],
+    ],
+  ];
+
+  it('is the outline of its path projected, at its width’s size in the drawing’s ink', () => {
+    for (const width of ['narrow', 'regular', 'wide'] as const) {
+      for (const tail of ['pointed', 'square', 'cleft'] as const) {
+        const drawn = whiteArrowDrawn(sheet, width, tail, project)!;
+        const projected = sheet.map((cubic) => cubic.map(([x, y]) => [x * 400, 400 - y * 400] as Vec2) as unknown as Cubic);
+        const outline = whiteArrowOutline(projected, sized(width), tail, WHITE_ARROW_FLATTEN_INK * INK)!;
+        expect(drawn.map(({ x, y }) => [x, y])).toEqual(outline);
+      }
+    }
+    expect(whiteArrowDrawn([[[0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]]], 'regular', 'pointed', project)).toBeNull();
+  });
+
+  it('turns its sides by under 2° a corner along a curve, so they read as curves at the canvas’s deepest zoom', () => {
+    // A third of a frame across at a card's size, bowed as a new arrow is shaped: the canvas zooms to 63 times this.
+    const card = createOverlayProjector({ origin: [0, 190], ex: [190, 0], ey: [0, -190] }, INK);
+    const bowed: Cubic[] = [
+      [
+        [0.05, 0.55],
+        [0.15, 0.7],
+        [0.35, 0.7],
+        [0.45, 0.55],
+      ],
+    ];
+    for (const width of ['narrow', 'regular', 'wide'] as const) {
+      const outline = whiteArrowDrawn(bowed, width, 'square', card)!;
+      // The two sides: everything but the head's five corners and the tail's two.
+      const sides = [outline.slice(3, outline.length / 2 - 1), outline.slice(outline.length / 2 + 1, -3)];
+      let worst = 0;
+      for (const side of sides) {
+        for (let i = 1; i + 1 < side.length; i += 1) {
+          const [a, b, c] = [side[i - 1]!, side[i]!, side[i + 1]!];
+          const turn = Math.abs(Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(b.y - a.y, b.x - a.x));
+          worst = Math.max(worst, Math.min(turn, 2 * Math.PI - turn));
+        }
+      }
+      expect((worst * 180) / Math.PI, width).toBeLessThan(2);
+    }
+  });
+
+  it('is stroked to its own mitre limit: a corner past it reaches half the pen, as SVG bevels it', () => {
+    const pen = 2;
+    // A 64° corner — a narrow head's tip — mitres 1.89 half-pens out: within SVG's default 4, past 1.5.
+    const corner = (degrees: number) => {
+      const half = (degrees / 2) * (Math.PI / 180);
+      return [
+        { x: -10 * Math.cos(half), y: -10 * Math.sin(half) },
+        { x: 0, y: 0 },
+        { x: -10 * Math.cos(half), y: 10 * Math.sin(half) },
+      ];
+    };
+    const sharp = corner(64);
+    expect(mitredCornerReach(sharp, pen)[1]).toBeCloseTo(1 / Math.sin((32 * Math.PI) / 180), 9);
+    expect(mitredCornerReach(sharp, pen, WHITE_ARROW_MITER_LIMIT)[1]).toBe(1);
+    // A right angle — a regular head's tip — mitres 1.41 half-pens out: within both.
+    const square = corner(90);
+    expect(mitredCornerReach(square, pen, WHITE_ARROW_MITER_LIMIT)[1]).toBeCloseTo(Math.SQRT2, 9);
+    expect(mitredCornerReach(square, pen)[1]).toBeCloseTo(Math.SQRT2, 9);
   });
 });

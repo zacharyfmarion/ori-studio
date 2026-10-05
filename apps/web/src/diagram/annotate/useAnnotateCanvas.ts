@@ -909,6 +909,7 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'mountain-arrow': 'mountain_arrow',
   'fold-unfold-arrow': 'fold_unfold_arrow',
   'push-arrow': 'push_arrow',
+  'white-arrow': 'white_arrow',
   'turn-over': 'turn_over',
   rotate: 'rotate',
   'valley-line': 'valley_line',

@@ -14,7 +14,8 @@
  */
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { Diagram, RawSolution } from './referenceFinder/solution';
-import type { DiagramArc, DiagramCubic, DiagramSheet, PathArrowFold } from './stepDiagramGeometry';
+import type { DiagramWhiteArrowWidth } from './diagram/diagramInk';
+import type { DiagramArc, DiagramCubic, DiagramSheet, PathArrowFold, WhiteArrowTail } from './stepDiagramGeometry';
 
 export type DiagramLineStyleName =
   /** A crease an earlier step made: the paper as it stands. */
@@ -111,6 +112,14 @@ export type StepDiagramPrimitive =
    * drawing's.
    */
   | { kind: 'push-arrow'; from: readonly [number, number]; to: readonly [number, number] }
+  /**
+   * A white arrow (Phase 14f): a hollow band along a path, tail first, with a
+   * straight-backed head at its tip and a tail drawn to a point, cut square or
+   * cleft (`whiteArrowOutline`), filled with the ground and outlined in the
+   * arrow's pen. Its width is one of three print sizes, in the drawing's ink,
+   * as a push arrow's is.
+   */
+  | { kind: 'white-arrow'; path: readonly DiagramCubic[]; width: DiagramWhiteArrowWidth; tail: WhiteArrowTail }
   /**
    * Turn the model round in its plane, centred on `at`: a circle of two
    * arrows going the way it turns, and how far, as a fraction of a turn. Its

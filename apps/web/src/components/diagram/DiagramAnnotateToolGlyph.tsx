@@ -28,10 +28,11 @@ function Glyph({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Each Annotate tool's icon: the mark it draws, small. The fold arrows are
- * the arrows themselves; the lines are their dash; the circle its ring; Select, Edit Path, Rotate
- * and Label are the app's own icons for those verbs. Every tool has one: the return
- * type makes a kind left out a compile error, not a blank button.
+ * Each Annotate tool's icon: the mark it draws, small. The fold, push and
+ * white arrows are the arrows themselves; the lines are their dash; the
+ * circle its ring; Select, Edit Path, Rotate and Label are the app's own icons
+ * for those verbs. Every tool has one: the return type makes a kind left out
+ * a compile error, not a blank button.
  */
 export function DiagramAnnotateToolGlyph({ tool }: { tool: AnnotateTool }): ReactElement {
   switch (tool) {
@@ -65,6 +66,17 @@ export function DiagramAnnotateToolGlyph({ tool }: { tool: AnnotateTool }): Reac
       return (
         <Glyph>
           <path d="M2.5 7.5 L10 7.5 L10 4 L17.5 10 L10 16 L10 12.5 L2.5 12.5 L5 10 Z" strokeLinejoin="miter" />
+        </Glyph>
+      );
+    case 'white-arrow':
+      // Hollow, curving up into a straight-backed head from a pointed tail: a new one's look.
+      return (
+        <Glyph>
+          <path
+            d="M17.8 7.1 L13.3 12.5 L12.9 10 C9 10 5 11.5 2.7 15.5 C3.3 10.5 7 6.4 12.3 5.6 L11.9 3 Z"
+            strokeLinejoin="miter"
+            strokeMiterlimit={1.5}
+          />
         </Glyph>
       );
     case 'turn-over': {

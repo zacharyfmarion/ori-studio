@@ -259,7 +259,8 @@
     "toolRotate": "Tourner",
     "toolTurnOver": "Retourner",
     "toolValleyArrow": "Flèche de pli vallée",
-    "toolValleyLine": "Ligne vallée"
+    "toolValleyLine": "Ligne vallée",
+    "toolWhiteArrow": "Flèche blanche"
   },
   "divideMode": {
     "count": "Nombre",

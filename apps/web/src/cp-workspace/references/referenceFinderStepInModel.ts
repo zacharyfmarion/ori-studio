@@ -119,6 +119,13 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
       case 'push-arrow':
         primitives.push({ kind: 'push-arrow', from: map(primitive.from), to: map(primitive.to) });
         break;
+      case 'white-arrow':
+        // Every control point mapped, as a path arrow's: the curve carried exactly.
+        primitives.push({
+          ...primitive,
+          path: primitive.path.map(([a, b, c, d]) => [map(a), map(b), map(c), map(d)] as const),
+        });
+        break;
       case 'turn-over':
       case 'rotate':
         // Drawn in screen space: only its place moves.

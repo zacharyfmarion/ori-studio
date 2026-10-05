@@ -243,7 +243,8 @@
     "toolRotate": "旋转",
     "toolTurnOver": "翻面",
     "toolValleyArrow": "谷折箭头",
-    "toolValleyLine": "谷折线"
+    "toolValleyLine": "谷折线",
+    "toolWhiteArrow": "空心箭头"
   },
   "divideMode": {
     "count": "数量",

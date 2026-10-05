@@ -251,7 +251,8 @@
     "toolRotate": "Drehen",
     "toolTurnOver": "Umdrehen",
     "toolValleyArrow": "Talfaltpfeil",
-    "toolValleyLine": "Talfaltlinie"
+    "toolValleyLine": "Talfaltlinie",
+    "toolWhiteArrow": "Weißer Pfeil"
   },
   "divideMode": {
     "count": "Anzahl",

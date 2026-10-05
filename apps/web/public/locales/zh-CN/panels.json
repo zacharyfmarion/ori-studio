@@ -704,9 +704,9 @@
       "canvasLabel": "步骤图上的标注",
       "circleHelp": "单击一个点，用圆圈圈出它。",
       "controls": "标注视图控件",
-      "editPathCannot": "只有折叠箭头可以调整形状：谷折、山折和折后展开箭头。",
-      "editPathHelp": "拖动折叠箭头的节点、其手柄或曲线来调整形状。单击曲线可添加节点；双击节点可在尖角和平滑之间切换。",
-      "editPathNone": "选择一个折叠箭头来调整其形状。",
+      "editPathCannot": "只有折叠箭头和空心箭头可以调整形状。",
+      "editPathHelp": "拖动箭头的节点、其手柄或曲线来调整形状。单击曲线可添加节点；双击节点可在尖角和平滑之间切换。",
+      "editPathNone": "选择一个折叠箭头或空心箭头来调整其形状。",
       "foldUnfoldHelp": "从纸开始移动的位置拖到它落下的位置：先折过去，再展开回来。",
       "glyphHelp": "在要放置符号的位置单击。",
       "groupArrows": "箭头",
@@ -720,8 +720,9 @@
       "pushHelp": "朝要按压的位置拖动。",
       "rightAngleHelp": "在直角内单击即可标出它，也可以从角点向角内拖动。",
       "select": "选择",
-      "selectHelp": "单击标注将其选中。拖动标注本身或任一端的圆点即可移动。双击折叠箭头可调整其形状。",
-      "toolsLabel": "标注工具"
+      "selectHelp": "单击标注将其选中。拖动标注本身或任一端的圆点即可移动。双击折叠箭头或空心箭头可调整其形状。",
+      "toolsLabel": "标注工具",
+      "whiteArrowHelp": "从纸开始移动的位置拖到它移向的位置。用“编辑路径”调整形状。"
     },
     "annotations": {
       "addNode": "添加节点",
@@ -751,10 +752,18 @@
       "smooth": "平滑",
       "snap": "吸附到图",
       "snapHelp": "圆圈以及箭头和线的端点会吸附到附近的图上的点和其他标注。按住 {{modifier}} 可放在任意位置。",
+      "tail": "尾部",
+      "tailCleft": "燕尾",
+      "tailPointed": "尖",
+      "tailSquare": "平",
       "text": "文字",
       "topToBottom": "上下",
       "turn": "旋转量",
-      "turnRightAngle": "旋转 90°"
+      "turnRightAngle": "旋转 90°",
+      "width": "宽度",
+      "widthNarrow": "窄",
+      "widthRegular": "标准",
+      "widthWide": "宽"
     },
     "card": {
       "badgeCreasePattern": "折痕图",

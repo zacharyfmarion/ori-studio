@@ -750,8 +750,75 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
     WebKit and a real finger are not done here.
 
 ### 14f. White arrows
-- [ ] Flatten-and-offset geometry, joins, loop removal, head, tails, mitre
+- [x] Flatten-and-offset geometry, joins, loop removal, head, tails, mitre
   limit; shared primitive and golden; kind and presets; Edit Path reuse.
+  - Kind as built (`claude/diagram-14f-white-arrows`):
+    - **Primitive.** `{kind: 'white-arrow', path: DiagramCubic[], width,
+      tail}`; `whiteArrowDrawn` is the one place its drawn shape is decided
+      (as `pushArrowDrawn` is a push's): the outline of the projected path at
+      its width's size in the drawing's ink, flattened to
+      `WHITE_ARROW_FLATTEN_INK` (0.01 ink; see the deep-zoom fix below).
+      Drawn as the push is — filled with the paper's face (an annotation's is
+      the page's white), outlined in the arrow pen, solid, mitred — but
+      stroked to its own limit (`stroke-miterlimit="1.5"`). It can leave the
+      paper, maps into a model by every control point, anchors at its tail;
+      References' stored-model reader does not read one (a newer build's),
+      as with `path-arrow`. Golden `referencesWhiteArrowsGolden.json`, front
+      and back: every width and tail (regular pointed on an arc, narrow
+      square on an S, wide cleft straight, regular square round a corner
+      node), checked by eye; the other goldens do not move.
+    - **Model.** Kind `white-arrow` (shape `path`), always a path: a drag
+      lays it straight — two nodes, no handles (`straightPath`) — and one
+      written without a path is laid straight between its ends
+      (`cleanAnnotation`), so nothing takes it for the default arc. `width`
+      (`narrow`/`regular`/`wide`) and `tail` (`pointed`/`square`/`cleft`); a
+      new one, and one a file leaves unsaid, is the template's
+      (`DEFAULT_WHITE_ARROW`: regular, pointed). `canBeShaped` and `flipsArc`
+      say yes (Flip mirrors it across its chord, the shaped fold arrows'
+      rule). `isShapedArrow` — a fold arrow made a path, a white arrow no
+      longer the straight one it was laid as (`isStraightPath`) — decides
+      Reset's offer with Select and the shaped event. Reset lays it straight
+      again (`resetPath`), and is off while it is straight. Carries, moves and
+      ends as a shaped fold arrow does, every node and handle mapped.
+    - **File.** Fields `path`, `width`, `tail`. Damage: no path, a path that
+      does not read, a preset that is not a string, ends that are not the
+      path's. Newer: a preset string it has no name for, a `bend`, any other
+      field, a point past reach — told before damage. a34d74086's reader,
+      run on a document holding one, carries it verbatim and writes it back
+      unchanged.
+    - **Reach.** Its outline's corners with their mitres as its stroke draws
+      them: `mitredCornerReach` takes a limit (SVG's 4 by default) and the
+      white arrow passes 1.5, so a narrow head's 64° tip reaches the half pen
+      its bevel does, not 1.89 half-pens. The push/rotate/turn-over reach
+      test builds a white arrow's ink independently (offset-edge mitres to
+      1.5) at the default and 12 pt pens; a second test holds the narrow tip
+      to exactly the half pen.
+    - **Hit.** `outlineDistance` on its outline in picture units, cached per
+      annotation and ink: anywhere in its hollow, as wide as its width draws
+      it, a pointed tail narrow at its start.
+    - **Canvas and tool.** Rail after the push (Arrows), key W
+      (`diagram.toolWhiteArrow`, free in every scope the Diagram pushes), a
+      hollow curved glyph; its ends snap and others snap to them (decision
+      9); the selection washes its centreline; a double-click with Select
+      picks Edit Path up, which shapes it with every fold-arrow gesture and
+      verb, unforked. Edit Path's and Select's help say white arrows are
+      shaped too.
+    - **Step pane.** Width and Tail as icon segmented controls
+      (`DiagramWhiteArrowControls`, `FieldRow` + `SegmentedControl`
+      `iconsOnly`), each option the small arrow it draws, named by tooltip and
+      accessible name; each change one undo step (`setWhiteArrowLook`).
+    - **Analytics.** `diagram annotation added` `tool` gains `white_arrow`;
+      `diagram arrow shaped` `kind` gains `white_arrow`, counted once when a
+      straight one is first shaped (a node added counts; moving a straight
+      one's end does not) and again after a Reset.
+    - **Proof.** Every behaviour has a test; 19 mutants (hit by spine only,
+      reach at SVG's limit, no reach, the compile ignoring width, the reader
+      filling no default / telling damage before news / not checking ends,
+      the writer dropping the look, any path counted as shaped, Reset making
+      an arc, Reset offered when straight, no snapping, no snap points, no
+      look on a new arrow, a pathless one left pathless, not shaped, the
+      event's kind lost, the pane not applying the look, coarse runs) each
+      fail one.
   - 14f geometry (as built; no kind, primitive, file or canvas yet):
     - **Outline.** `whiteArrowOutline(path, {neck, headLength, headWidth},
       'pointed' | 'square' | 'cleft', tolerance)` in `stepDiagramGeometry.ts`
@@ -792,8 +859,26 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
       `artifacts/diagram-annotate/14f/` (`sheet-cases`, `sheet-stress`,
       `sheet-template`): `path4649` and ours coincide when laid over each
       other.
-- [ ] Browser: the template's white arrow beside ours at the same printed
+- [x] Browser: the template's white arrow beside ours at the same printed
   size; deep zoom; iPad; a PDF.
+  - As built (`artifacts/diagram-annotate/14f/`, dev server :5297, the
+    crane's step 7): `white.mjs` draws three with W and the mouse, sets each
+    width and tail from the Step pane, shapes one with Edit Path by the mouse
+    alone (a curve bend, a click adding a node, a node drag, an Alt handle
+    drag making a corner), bends the others, selects one by a press in its
+    hollow; light and dark; the card, the page and its PDF
+    (`canvas-beside-pdf-light.png`). `template.mjs`/`measure.py`/`compare.mjs`:
+    one regular pointed arrow along `path4649`'s own centreline (fitted
+    within 0.06 mm), exported to PDF, found as the difference from the same
+    export without it, rasterised at 600 dpi beside the template's outline
+    at the same scale and over it (`template-vs-ours.png`): 12.91 × 8.09 mm
+    printed against the template's 12.77 × 8.18, the outlines coinciding.
+    `zoom.mjs` at 1200%: the sides showed their runs' corners (3°, ~250 px
+    apart) — fixed by flattening to 0.01 ink (`zoom-deep-before-after.png`).
+    `ipad.mjs` (WebKit, 1180 × 820, mouse): the pane's Width and Tail words
+    were cut short — fixed with the icon options
+    (`ipad-pane-before-after.png`). Real touch was not driven (not scriptable
+    in headless WebKit), as for 14a.
 
 ### 14g. Repeat behind
 - [ ] Kind `callout`: model, file and round trips, hit test (line, box, text),

@@ -106,6 +106,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolMountainArrow'
   | 'diagram.toolFoldUnfoldArrow'
   | 'diagram.toolPushArrow'
+  | 'diagram.toolWhiteArrow'
   | 'diagram.toolTurnOver'
   | 'diagram.toolRotate'
   | 'diagram.toolValleyLine'
@@ -598,6 +599,8 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolMountainArrow', 'Mountain Fold Arrow', { key: 'm' }),
   diagramShortcut('diagram.toolFoldUnfoldArrow', 'Fold and Unfold Arrow', { key: 'u' }),
   diagramShortcut('diagram.toolPushArrow', 'Push Arrow', { key: 'p' }),
+  // W for white, a letter no other Diagram key or the view's has.
+  diagramShortcut('diagram.toolWhiteArrow', 'White Arrow', { key: 'w' }),
   diagramShortcut('diagram.toolTurnOver', 'Turn Over', { key: 't' }),
   diagramShortcut('diagram.toolRotate', 'Rotate', { key: 'r' }),
   diagramShortcut('diagram.toolValleyLine', 'Valley Line', { shift: true, key: 'v' }),

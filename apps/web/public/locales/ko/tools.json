@@ -243,7 +243,8 @@
     "toolRotate": "회전",
     "toolTurnOver": "뒤집기",
     "toolValleyArrow": "골접기 화살표",
-    "toolValleyLine": "골접기 선"
+    "toolValleyLine": "골접기 선",
+    "toolWhiteArrow": "흰 화살표"
   },
   "divideMode": {
     "count": "개수",

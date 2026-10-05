@@ -4,6 +4,7 @@ import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagra
 import {
   arcToPath,
   bendPathSegment,
+  canResetPath,
   constrainHandleAngle,
   constrainToEighths,
   deletePathNode,
@@ -419,5 +420,44 @@ describe('Shift', () => {
     expect(angle).toBeCloseTo(15, 9);
     expect(Math.hypot(x - 0.5, y - 0.5)).toBeCloseTo(Math.hypot(0.1, 0.03), 12);
     expect(constrainHandleAngle([0.5, 0.5], [0.5, 0.5])).toEqual([0.5, 0.5]);
+  });
+});
+
+describe('a white arrow in Edit Path', () => {
+  const laid: KnownDiagramAnnotation = {
+    id: 'w',
+    kind: 'white-arrow',
+    from: [0.2, 0.5],
+    to: [0.6, 0.5],
+    path: [{ at: [0.2, 0.5] }, { at: [0.6, 0.5] }],
+    width: 'narrow',
+    tail: 'square',
+  };
+
+  it('shows its two nodes and no handles, and bends from straight by its curve', () => {
+    expect(pathNodesOf(laid)).toBe(laid.path);
+    expect(visiblePathHandles(laid.path!, 0)).toEqual([]);
+    const bent = bendPathSegment(laid, 0, 0.5, [0.4, 0.4]);
+    const [x, y] = cubicPoint(pathCubics(bent.path!)[0]!, 0.5);
+    expect(x).toBeCloseTo(0.4, 12);
+    expect(y).toBeCloseTo(0.4, 12);
+    expect(bent).toMatchObject({ kind: 'white-arrow', width: 'narrow', tail: 'square', from: [0.2, 0.5], to: [0.6, 0.5] });
+    expect(bent).not.toHaveProperty('bend');
+    expect(pathRepresentation(bent)).toEqual({ shaped: true, nodes: 2 });
+  });
+
+  it('is laid straight between its ends by Reset, its look kept — never made an arc', () => {
+    const shaped = splitPathSegment(bendPathSegment(laid, 0, 0.5, [0.4, 0.3]), 0, 0.3);
+    expect(canResetPath(shaped)).toBe(true);
+    expect(resetPath(shaped, SQUARE)).toEqual(laid);
+    // Straight already: nothing to go back to.
+    expect(canResetPath(laid)).toBe(false);
+    expect(resetPath(laid, SQUARE)).toBe(laid);
+  });
+
+  it('is its straight path to an edit that finds none written', () => {
+    const { path: _path, ...bare } = laid;
+    expect(arcToPath(bare)).toEqual(laid);
+    expect(pathNodesOf(bare)).toEqual(laid.path);
   });
 });

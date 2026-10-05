@@ -259,7 +259,8 @@
     "toolRotate": "Girar",
     "toolTurnOver": "Virar",
     "toolValleyArrow": "Seta de vale",
-    "toolValleyLine": "Linha de vale"
+    "toolValleyLine": "Linha de vale",
+    "toolWhiteArrow": "Seta branca"
   },
   "divideMode": {
     "count": "Quantidade",

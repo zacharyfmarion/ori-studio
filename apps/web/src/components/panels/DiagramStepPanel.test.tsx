@@ -495,6 +495,37 @@ describe('DiagramStepPanel in Annotate', () => {
     expect(state().diagramHistory.past).toHaveLength(past + 1);
   });
 
+  it('sets a white arrow’s width and tail, each one undo step, and shows the template’s for one that says none', () => {
+    const stepId = annotatedStep();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 'w-1', kind: 'white-arrow', from: [0.1, 0.6], to: [0.5, 0.6], path: [{ at: [0.1, 0.6] }, { at: [0.5, 0.6] }] },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+    });
+    act(() => row('White Arrow').click());
+    const options = (group: string) => [...host!.querySelectorAll<HTMLButtonElement>(`[role="group"][aria-label="${group}"] button`)];
+    // Each option is a small arrow, named for a screen reader.
+    const segment = (group: string, name: string) => options(group).find((option) => option.getAttribute('aria-label') === name)!;
+    const checked = (group: string) =>
+      options(group)
+        .filter((option) => option.getAttribute('aria-pressed') === 'true')
+        .map((option) => option.getAttribute('aria-label'));
+    expect(checked('Width')).toEqual(['Regular']);
+    expect(checked('Tail')).toEqual(['Pointed']);
+    const past = state().diagramHistory.past.length;
+    act(() => segment('Width', 'Wide').click());
+    act(() => segment('Tail', 'Cleft').click());
+    const white = annotations().find((annotation) => annotation.id === 'w-1') as { width?: string; tail?: string };
+    expect(white).toMatchObject({ width: 'wide', tail: 'cleft' });
+    expect(state().diagramHistory.past).toHaveLength(past + 2);
+    expect(checked('Width')).toEqual(['Wide']);
+    // Its verbs: Flip Arc, and no Reset while it is straight.
+    expect(buttonNamed('Flip Arc')).toBeDefined();
+    expect(buttonNamed('Reset Shape')).toBeUndefined();
+  });
+
   it('edits a label’s text in one line, and focuses it for a label just put down', async () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));
@@ -549,14 +580,14 @@ describe('DiagramStepPanel in Annotate', () => {
       act(() => state().openDiagramStep(stepId, 'annotate'));
       act(() => state().setDiagramAnnotateTool('edit-path'));
       expect(host?.textContent).toContain('Edit Path');
-      expect(host?.textContent).toContain('Select a fold arrow to shape it.');
+      expect(host?.textContent).toContain('Select a fold arrow or a white arrow to shape it.');
       // A row pressed keeps Edit Path in hand, to shape what it selected.
       act(() => row('B').click());
       expect(state().diagramAnnotateTool).toBe('edit-path');
-      expect(host?.textContent).toContain('Only fold arrows can be shaped');
+      expect(host?.textContent).toContain('Only fold arrows and white arrows can be shaped.');
       expect(host?.textContent).not.toContain('Node');
       act(() => row('Valley Fold Arrow').click());
-      expect(host?.textContent).toContain('Drag a fold arrow’s nodes');
+      expect(host?.textContent).toContain('Drag an arrow’s nodes');
     });
 
     it('steps through the nodes, and adds, turns and deletes them, each one undo step', () => {

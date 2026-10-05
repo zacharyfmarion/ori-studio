@@ -11,8 +11,9 @@ import { ANNOTATION_KINDS, canBeShaped, isPointKind } from './annotationModel';
  */
 
 /**
- * Edit Path (decision 3): the tool that shapes the selected fold arrow by its
- * nodes, handles and curve, as Affinity's Node tool does. It draws nothing.
+ * Edit Path (decision 3): the tool that shapes the selected fold arrow or
+ * white arrow by its nodes, handles and curve, as Affinity's Node tool does.
+ * It draws nothing.
  */
 export const EDIT_PATH = 'edit-path';
 
@@ -37,6 +38,7 @@ const TOOL_GROUP: Readonly<Record<DiagramAnnotationKind, Exclude<AnnotateToolGro
   'mountain-arrow': 'arrows',
   'fold-unfold-arrow': 'arrows',
   'push-arrow': 'arrows',
+  'white-arrow': 'arrows',
   'turn-over': 'arrows',
   rotate: 'arrows',
   'valley-line': 'lines',
@@ -62,6 +64,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DiagramAnnotationKind, Dia
   'mountain-arrow': 'diagram.toolMountainArrow',
   'fold-unfold-arrow': 'diagram.toolFoldUnfoldArrow',
   'push-arrow': 'diagram.toolPushArrow',
+  'white-arrow': 'diagram.toolWhiteArrow',
   'turn-over': 'diagram.toolTurnOver',
   rotate: 'diagram.toolRotate',
   'valley-line': 'diagram.toolValleyLine',
@@ -100,6 +103,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolFoldUnfoldArrow', 'Fold and Unfold Arrow');
     case 'push-arrow':
       return t('tools:diagram.toolPushArrow', 'Push Arrow');
+    case 'white-arrow':
+      return t('tools:diagram.toolWhiteArrow', 'White Arrow');
     case 'turn-over':
       return t('tools:diagram.toolTurnOver', 'Turn Over');
     case 'rotate':
@@ -130,14 +135,14 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
   if (tool === null) {
     return t(
       'panels:diagram.annotate.selectHelp',
-      'Click an annotation to select it. Drag it, or the dot at either end, to move it. Double-click a fold arrow to shape it.'
+      'Click an annotation to select it. Drag it, or the dot at either end, to move it. Double-click a fold or white arrow to shape it.'
     );
   }
   switch (tool) {
     case EDIT_PATH:
       return t(
         'panels:diagram.annotate.editPathHelp',
-        'Drag a fold arrow’s nodes, their handles or its curve to shape it. Click the curve to add a node; double-click a node to make it a corner or smooth.'
+        'Drag an arrow’s nodes, their handles or its curve to shape it. Click the curve to add a node; double-click a node to make it a corner or smooth.'
       );
     case 'valley-arrow':
     case 'mountain-arrow':
@@ -149,6 +154,11 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       );
     case 'push-arrow':
       return t('panels:diagram.annotate.pushHelp', 'Drag toward the place to push.');
+    case 'white-arrow':
+      return t(
+        'panels:diagram.annotate.whiteArrowHelp',
+        'Drag from where the paper starts to where it goes. Shape it with Edit Path.'
+      );
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
@@ -185,16 +195,15 @@ export function annotateGroupLabel(t: TFunction, group: AnnotateToolGroupId): st
 
 /**
  * What Edit Path says in the Step pane about the annotation selected: how to
- * shape a fold arrow, or that nothing else is shaped (decision 1) — it edits
- * nothing then.
+ * shape a fold or white arrow, or that nothing else is shaped (decision 1) —
+ * it edits nothing then.
  */
 export function editPathHelp(t: TFunction, selected: KnownDiagramAnnotation | null): string {
-  if (selected === null) return t('panels:diagram.annotate.editPathNone', 'Select a fold arrow to shape it.');
+  if (selected === null) {
+    return t('panels:diagram.annotate.editPathNone', 'Select a fold arrow or a white arrow to shape it.');
+  }
   if (!canBeShaped(selected.kind)) {
-    return t(
-      'panels:diagram.annotate.editPathCannot',
-      'Only fold arrows can be shaped: valley, mountain, and fold and unfold arrows.'
-    );
+    return t('panels:diagram.annotate.editPathCannot', 'Only fold arrows and white arrows can be shaped.');
   }
   return annotateToolHelp(t, EDIT_PATH);
 }

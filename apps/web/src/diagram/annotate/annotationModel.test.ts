@@ -5,11 +5,16 @@ import { cubicPoint } from '../../lib/cubicBezier';
 import { readFontMetrics } from '../fonts/fontMetrics';
 import { LABEL_ADVANCES, LABEL_ADVANCES_FROM } from './labelAdvances';
 import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagramDocument';
-import { arcToPath } from './annotationPath';
+import { arcToPath, bendPathSegment, pathNodesOf } from './annotationPath';
 import {
   ANNOTATION_REACH,
   ARROW_BEND,
+  DEFAULT_WHITE_ARROW,
   MAX_PATH_NODES,
+  MIN_ANNOTATION_LENGTH,
+  canBeShaped,
+  flipsArc,
+  isShapedArrow,
   arrowApex,
   arrowShape,
   carryAnnotation,
@@ -453,5 +458,74 @@ describe('a right angle', () => {
     // Scaled up, as a picture refitted larger is: `to` written its set way along again.
     const larger: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
     expect(length(carryAnnotation(mark, larger))).toBeCloseTo(RIGHT_ANGLE_DIAGONAL, 12);
+  });
+});
+
+describe('a white arrow', () => {
+  const laid = () => createAnnotation('white-arrow', [0.2, 0.3], [0.6, 0.5], SQUARE, id);
+  const bent = () => bendPathSegment(laid(), 0, 0.5, [0.35, 0.2]);
+
+  it('is laid straight from the drag, a path of two nodes, in the template’s look: regular, pointed', () => {
+    expect(laid()).toEqual({
+      id: 'annotation-1',
+      kind: 'white-arrow',
+      from: [0.2, 0.3],
+      to: [0.6, 0.5],
+      path: [{ at: [0.2, 0.3] }, { at: [0.6, 0.5] }],
+      width: 'regular',
+      tail: 'pointed',
+    });
+    expect(DEFAULT_WHITE_ARROW).toEqual({ width: 'regular', tail: 'pointed' });
+    // Always a path: no arc to fill in, and Edit Path shows its own nodes, not an arc's.
+    expect(arrowShape(laid())).toEqual({ kind: 'path', path: laid().path });
+    expect(pathNodesOf(laid())).toEqual(laid().path);
+    expect(laid()).not.toHaveProperty('bend');
+  });
+
+  it('is shaped with Edit Path and flipped, as a fold arrow is; shaped only once it is no longer straight', () => {
+    expect(canBeShaped('white-arrow')).toBe(true);
+    expect(flipsArc('white-arrow')).toBe(true);
+    expect(isShapedArrow(laid())).toBe(false);
+    expect(isShapedArrow(bent())).toBe(true);
+    // A fold arrow is shaped once it is a path at all.
+    const arc = createAnnotation('valley-arrow', [0.2, 0.3], [0.6, 0.5], SQUARE, id);
+    expect(isShapedArrow(arc)).toBe(false);
+    expect(isShapedArrow(arcToPath(arc))).toBe(true);
+    // A handle drawn back onto its node is straight again.
+    const onNodes: KnownDiagramAnnotation = { ...laid(), path: [{ at: [0.2, 0.3], out: [0.2, 0.3] }, { at: [0.6, 0.5] }] };
+    expect(isShapedArrow(onNodes)).toBe(false);
+    // Flipped across its chord, its look kept: its bulge's handle on the other side.
+    const flipped = flipAnnotationArc(bent());
+    expect(flipped).toMatchObject({ kind: 'white-arrow', width: 'regular', tail: 'pointed' });
+    expect(flipped.to[0]).toBeCloseTo(0.6, 12);
+    const side = (annotation: KnownDiagramAnnotation) => {
+      const [x, y] = annotation.path![0]!.out!;
+      return Math.sign((0.6 - 0.2) * (y - 0.3) - (0.5 - 0.3) * (x - 0.2));
+    };
+    expect(side(flipped)).toBe(-side(bent()));
+  });
+
+  it('is a path whatever it is written as: one without is laid straight between its ends', () => {
+    const { path: _path, ...bare } = laid();
+    expect(cleanAnnotation(bare)).toEqual(laid());
+    // A path of one node is no path: laid straight again, not made an arc.
+    expect(cleanAnnotation({ ...laid(), path: [{ at: [0.2, 0.3] }] })).toEqual(laid());
+    const clean = laid();
+    expect(cleanAnnotation(clean)).toBe(clean);
+  });
+
+  it('moves, and is carried with its picture, its look kept and its every node and handle with it', () => {
+    const arrow = { ...bent(), width: 'wide' as const, tail: 'cleft' as const };
+    const moved = moveAnnotation(arrow, [0.1, 0]);
+    expect(moved).toMatchObject({ kind: 'white-arrow', width: 'wide', tail: 'cleft', from: [expect.closeTo(0.3, 12), 0.3] });
+    expect(moved.path![0]!.out![0]).toBeCloseTo(arrow.path![0]!.out![0] + 0.1, 12);
+    const mirrored = carryAnnotation(arrow, mirrorMove(SQUARE));
+    expect(mirrored).toMatchObject({ kind: 'white-arrow', width: 'wide', tail: 'cleft', from: [0.8, 0.3], to: [0.4, 0.5] });
+    expect(mirrored.path![0]!.out![0]).toBeCloseTo(1 - arrow.path![0]!.out![0], 12);
+  });
+
+  it('is a slip when shorter than the shortest arrow, measured along it', () => {
+    expect(isDegenerate(createAnnotation('white-arrow', [0.2, 0.3], [0.2, 0.3 + MIN_ANNOTATION_LENGTH / 2], SQUARE, id), MIN_ANNOTATION_LENGTH)).toBe(true);
+    expect(isDegenerate(laid(), MIN_ANNOTATION_LENGTH)).toBe(false);
   });
 });
