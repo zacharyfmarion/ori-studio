@@ -559,14 +559,14 @@ export function hitAnnotation(
     if (bodyDistance(annotation, point, sizes, marks) > sizes.tolerance) continue;
     if (annotation.kind === 'circle' && annotation.id !== selectedId) {
       // A hollow arrow drawn after a circle is filled with the page over it:
-      // where it covers the press, the circle is hidden and the arrow is taken.
-      // Not once it is selected: its ring is then drawn over everything, the
-      // grip that moves it out from under.
-      const over = known
+      // where it covers the press, the circle is hidden, and the press goes
+      // on to what is drawn there — the arrow, or a mark over it. Not once
+      // it is selected: its ring is then drawn over everything, the grip
+      // that moves it out from under.
+      const hidden = known
         .slice(known.indexOf(annotation) + 1)
-        .reverse()
-        .find((other) => HOLLOW_KINDS.has(other.kind) && bodyDistance(other, point, sizes, marks) === 0);
-      if (over) return { annotationId: over.id, part: 'body' };
+        .some((other) => HOLLOW_KINDS.has(other.kind) && bodyDistance(other, point, sizes, marks) === 0);
+      if (hidden) continue;
     }
     // A callout's box is taken on its own; its line takes the whole.
     const onBox = annotation.kind === 'callout' && calloutDistances(annotation, point).box <= sizes.tolerance;

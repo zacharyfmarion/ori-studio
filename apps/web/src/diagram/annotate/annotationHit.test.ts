@@ -151,6 +151,16 @@ describe('hitAnnotation', () => {
     expect(hitAnnotation([white, circle], ring, SIZES, null)?.annotationId).toBe('circle');
     // With nothing over it, as before.
     expect(hitAnnotation([circle], ring, SIZES, null)?.annotationId).toBe('circle');
+    // A mark drawn over the arrow there is taken as if the hidden circle were not (review).
+    const press: [number, number] = [0.5 + circleRadius(SIZES.ink), 0.5];
+    const marks: KnownDiagramAnnotation[] = [
+      { id: 'fold', kind: 'valley-arrow', from: [press[0], 0.3], to: [press[0], 0.7], path: [{ at: [press[0], 0.3] }, { at: [press[0], 0.7] }] },
+      { id: 'turn', kind: 'turn-over', from: press, to: press },
+    ];
+    for (const mark of marks) {
+      expect(hitAnnotation([white, mark], press, SIZES, null)?.annotationId).toBe(mark.id);
+      expect(hitAnnotation([circle, white, mark], press, SIZES, null)?.annotationId, mark.kind).toBe(mark.id);
+    }
   });
 
   it('takes a selected circle anywhere on its ring, drawn over everything, though a hollow arrow covers it (review)', () => {
