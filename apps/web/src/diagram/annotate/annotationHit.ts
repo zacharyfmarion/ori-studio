@@ -474,8 +474,8 @@ function rightAngleDistance(annotation: KnownDiagramAnnotation, point: PicturePo
 /**
  * How far a press is from an annotation's body, as it is drawn; 0 inside a
  * glyph, a label, a push, a white arrow or a callout's box. A circle is its
- * ring, not its inside: an arrow that lands on it ends at its centre, and a
- * press there is the arrow's. Every kind is measured as it is drawn (a
+ * ring, not its inside: an arrow drawn into it ends inside it, and a press
+ * there is the arrow's. Every kind is measured as it is drawn (a
  * switch, so a new kind is a compile error here until it is).
  */
 function bodyDistance(

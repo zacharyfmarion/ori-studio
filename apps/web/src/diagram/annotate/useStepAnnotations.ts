@@ -119,7 +119,7 @@ export function useStepAnnotations(step: DiagramStep | null) {
     /** In Edit Path, the node selected on the selected fold arrow, and how many it shows. */
     node,
     nodeCount: selected ? (pathNodesOf(selected)?.length ?? 0) : 0,
-    /** Whether circles, and arrows' and lines' ends, snap to the picture (decision 9): Annotate's switch. */
+    /** Whether circles, right angles, callouts' points and lines' ends snap to the picture (decision 9): Annotate's switch. */
     snap,
     ...verbs,
   };

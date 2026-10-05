@@ -90,9 +90,10 @@ export type DiagramAnnotationTool =
 
 /**
  * How a new annotation was put down (decision 9): snapped to a point of the
- * picture or another mark (either end, for an arrow or a line), put down
- * freely with ⌘ (Ctrl) held, with the Step pane's Snap switch off, with
- * nothing near enough — or a kind that never snaps (a sign, a label).
+ * picture or another mark (either end, for a line), put down freely with ⌘
+ * (Ctrl) held, with the Step pane's Snap switch off, with nothing near enough
+ * — or a kind that never snaps (an arrow, a sign, a label; arrows snapped
+ * until 2026-10-05).
  */
 export type DiagramAnnotationSnap = 'snapped' | 'free' | 'off' | 'nothing_near' | 'none';
 

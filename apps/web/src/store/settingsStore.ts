@@ -302,8 +302,9 @@ interface SettingsState {
   /** What the Diagram's export last wrote, and how; the export dialog is its only editor. */
   diagramExport: DiagramExportSettings;
   /**
-   * Whether Annotate snaps a circle, and an arrow's or a line's ends, to the
-   * picture's points within Edit's snap radius (decision 9). On by default;
+   * Whether Annotate snaps a circle, a right angle, a callout's point and a
+   * line's ends to the picture's points within Edit's snap radius (decision
+   * 9; an arrow never snaps). On by default;
    * ⌘ (Ctrl) places one freely while it is on, and the Step pane's switch,
    * for a finger, turns it off.
    */

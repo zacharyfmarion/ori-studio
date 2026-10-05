@@ -67,9 +67,9 @@ export const STORAGE_KEYS = {
    */
   diagramExport: 'diagram-export',
   /**
-   * Whether Annotate snaps a circle, and an arrow's or a line's ends, to the
-   * picture's points: the Step pane's switch, for a finger, which has no ⌘ to
-   * hold. Absent means on.
+   * Whether Annotate snaps a circle, a right angle, a callout's point and a
+   * line's ends to the picture's points (an arrow never snaps): the Step
+   * pane's switch, for a finger, which has no ⌘ to hold. Absent means on.
    */
   diagramAnnotateSnap: 'diagram-annotate-snap',
   /** Whether Annotate's tool window is collapsed to its header (`ToolHintWindow`). */

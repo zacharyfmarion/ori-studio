@@ -413,9 +413,9 @@ export function useAnnotateCanvas({
 
   /**
    * Where the pointer at `at` puts what is in hand, snapped as the mark it is
-   * (decision 9): a drawing's end — a circle's centre — or an arrow's or a
-   * line's end, or a callout's point, taken hold of with Select, never onto
-   * the annotation itself; a circle moved whole, its centre, the press
+   * (decision 9): a drawing's end — a circle's centre — or a line's end, or
+   * a callout's point, taken hold of with Select, never onto the annotation
+   * itself (an arrow's end, never: `snapsWhenPlaced`); a circle moved whole, its centre, the press
    * keeping its offset from it. A callout's box never snaps (`snapsEnd`).
    * With ⌘ (Ctrl) held (`free`), where the pointer is. Edit Path's nodes and
    * handles never snap.

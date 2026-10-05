@@ -123,7 +123,8 @@ previews out of the drawn state.
 - Kind `circle`, a point kind, compiled to References' `point` primitive in
   its highlight style: radius 3.07 ink (~1.0 mm printed), the annotation pen
   (Q7). Arrows already stop at rings; snapping their ends makes that reliable
-  (Q9).
+  (Q9). (Arrows no longer snap — decision 9, changed 2026-10-05; one stops at
+  a ring wherever in it its end is drawn.)
 - **Snapping** — a pure module `pictureSnap.ts`, cached per picture: targets
   by picture kind — a crease-pattern capture (line ends, paper corners,
   crossings computed near the cursor, since segments are not split there; a
@@ -556,8 +557,7 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
       circle verbatim and writes it back unchanged (checked by running that
       reader).
     - **Hit.** By its ring, not its inside (`circleRadius(ink)`): an arrow
-      that lands on it ends at its centre, and a press there is the
-      arrow's. Selected, it washes its ring and offers no ends.
+      drawn into it ends inside it, and a press there is the arrow's. Selected, it washes its ring and offers no ends.
     - **Tool.** Its own rail group, Marks; key O (`diagram.toolCircle`,
       free in every scope the Diagram pushes); "Click a point to circle it."
       Annotate's key set is a record now, so a tool key cannot be left out.
@@ -567,8 +567,9 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
       decision 9); `placePoint` over
       `pictureSnapTarget`; `snapOutcome` for the event. In the canvas
       (`placeInHand`): a drawing's start on the press, its end on each move
-      and on release; an arrow's or a line's end dragged with Select, never
-      onto itself (`ignore`); a circle moved whole, its centre, the press
+      and on release; a line's end or a callout's point dragged with
+      Select, never onto itself (`ignore`), an arrow's end left where it is
+      let go; a circle moved whole, its centre, the press
       keeping its offset, landing on the target exactly. Edit Path never
       snaps (decision 9), its end nodes included.
     - **Radius.** `useAnnotateSnap`: `cpSnapRadius` × `CP_MODEL_TO_CSS`
@@ -1082,6 +1083,17 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
     corners, for hidden lines); a circle placed there incidentally slides
     across the face it shows on.
   Before/after: `artifacts/diagram-annotate/review-4/compare-*.png`.
+- [x] Arrows drawn free (Zach, 2026-10-05; decision 9 changed), and its
+  review — the fifth (8 findings, all confirmed, three distinct), fixed:
+  - An arrow's end is no snap target: drawn a few px off a point, it pulled
+    a circle put on that point onto itself (crane step 4: 9 px off the
+    corner; on the corner now).
+  - The Snap help names ⌘ straight after the marks it frees; the arrows
+    sentence between them made its pronoun the arrows in most languages.
+  - The comments, the analytics type and the plan's as-built notes that
+    still said arrows snap.
+  Before/after: `artifacts/diagram-annotate/arrows-free/compare-*.png`,
+  `snap-help-{before,after}.txt`.
 
 ## Risks
 
