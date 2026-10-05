@@ -63,6 +63,7 @@ import {
 import { flattenPath } from '../../lib/cubicBezier';
 import { referencesPaperTokens } from '../../cp-workspace/references/usePaperStyleTokens';
 import type { PaperItem, PaperLineItem, PaperLineRole, PaperScene } from '../../lib/paper/paperScene';
+import { penForRole } from '../../lib/paper/paperSvg';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
 import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import { graphemesOf } from '../../lib/paper/textWrap';
@@ -75,7 +76,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { scriptFonts, textCjkKey } from '../fonts/fontScripts';
-import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
+import { diagramPaperStyle, diagramSurfaceStyle } from '../pictures/diagramPaperStyle';
 import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { UPLOAD_HAN_KEY, uploadTextFamily, type UploadTextRun } from '../upload/uploadText';
 import type { DiagramFontKey } from '../fonts/diagramFontFaces';
@@ -110,6 +111,8 @@ export interface AnnotationLine {
   role: PaperLineRole;
   a: [number, number];
   b: [number, number];
+  /** Half its role's pen, in the drawing's px: how far its ink reaches past its ends and to its sides. */
+  halfWidth: number;
 }
 
 /** The marks an annotation can be: the References primitives it compiles to. */
@@ -296,6 +299,8 @@ export function annotationDrawing(
     ...pens,
     arrow: penInk(seen.arrows, arrowCss / ink),
   });
+  // The pens the lines are painted in, as `paintAnnotations` and the canvas paint them.
+  const surface = diagramSurfaceStyle(style);
   const lines: AnnotationLine[] = [];
   const primitives: AnnotationPrimitive[] = [];
   const primitiveIds: string[] = [];
@@ -307,7 +312,13 @@ export function annotationDrawing(
     if (!compiled) continue;
     switch (compiled.kind) {
       case 'line':
-        lines.push({ id: annotation.id, role: compiled.role, a: at(compiled.from), b: at(compiled.to) });
+        lines.push({
+          id: annotation.id,
+          role: compiled.role,
+          a: at(compiled.from),
+          b: at(compiled.to),
+          halfWidth: ((penForRole(surface, compiled.role)?.width ?? 0) * PT_TO_CSS_PX) / 2,
+        });
         break;
       case 'label': {
         const [x, y] = at(compiled.at);
@@ -354,9 +365,11 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
     maxX = Math.max(maxX, x + pad);
     maxY = Math.max(maxY, y + pad);
   };
+  // A line, its pen's half-width round each end: as far as a butt end's
+  // corner or a round cap reaches, and its sides.
   for (const line of drawing.lines) {
-    take(line.a[0], line.a[1], 2 * ink);
-    take(line.b[0], line.b[1], 2 * ink);
+    take(line.a[0], line.a[1], Math.max(2 * ink, line.halfWidth));
+    take(line.b[0], line.b[1], Math.max(2 * ink, line.halfWidth));
   }
   // An arrow, exactly where it is drawn: its strokes, and its head as drawn
   // — a mountain's barb included, which a heavier pen makes bigger — with

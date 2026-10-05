@@ -382,6 +382,38 @@ describe('paintAnnotations', () => {
     }
   });
 
+  it('keeps a crease line inside its reach at any pen, its ends and its sides, round-capped or not (review)', () => {
+    const heavy = (cap: 'butt' | 'round') => ({
+      style: {
+        ...DEFAULT_PAPER_STYLE,
+        valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, width: PEN_WIDTH_RANGE.max, cap },
+        mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, width: PEN_WIDTH_RANGE.max, cap },
+        edges: { ...DEFAULT_PAPER_STYLE.edges, width: PEN_WIDTH_RANGE.max },
+      },
+    });
+    const lines = [
+      a('v', 'valley-line', { from: [0.1, 0], to: [0.9, 0] }),
+      a('m', 'mountain-line', { from: [0.5, 0], to: [0.5, 0.6] }),
+      a('h', 'hidden-line', { from: [1, 0.2], to: [1, 0.8] }),
+    ];
+    for (const style of [DEFAULT_DIAGRAM_STYLE, heavy('butt'), heavy('round')]) {
+      for (const line of lines) {
+        const painted = paintAnnotations([line], { x: 0, y: 0, width: 300, height: 300 }, 1000, style)!;
+        // The line as painted, in the box's units: its ends, and half its stroke round them.
+        const element = /<line[^>]*>/.exec(painted.markup)![0];
+        const attribute = (name: string) => Number(new RegExp(`${name}="([-\\d.]+)"`).exec(element)![1]);
+        const half = attribute('stroke-width') / 2;
+        const [x1, y1, x2, y2] = [attribute('x1'), attribute('y1'), attribute('x2'), attribute('y2')];
+        const { x, y, width, height } = painted.bounds;
+        const name = `${line.kind}, ${JSON.stringify(style).length}`;
+        expect(Math.min(x1, x2) - half, name).toBeGreaterThanOrEqual(x - 1e-6);
+        expect(Math.min(y1, y2) - half, name).toBeGreaterThanOrEqual(y - 1e-6);
+        expect(Math.max(x1, x2) + half, name).toBeLessThanOrEqual(x + width + 1e-6);
+        expect(Math.max(y1, y2) + half, name).toBeLessThanOrEqual(y + height + 1e-6);
+      }
+    }
+  });
+
   it('keeps a push, a rotate and a turn-over inside their reach at any pen, the heaviest too (review)', () => {
     const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
     const glyphs = [
