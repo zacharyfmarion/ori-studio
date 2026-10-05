@@ -110,7 +110,8 @@ export function annotationsOf(step: DiagramStep, { annotations, ignore }: SnapOp
 /**
  * The points of an annotation another snaps to (Q9): an arrow's or a line's
  * two ends, where a line meets another, a circle's centre, which an arrow
- * lands on, and the corner a right angle marks.
+ * lands on, the corner a right angle marks, and the point a callout marks
+ * (its box is no point).
  */
 export function annotationSnapPoints(annotation: KnownDiagramAnnotation): readonly PicturePoint[] {
   switch (annotation.kind) {
@@ -125,6 +126,7 @@ export function annotationSnapPoints(annotation: KnownDiagramAnnotation): readon
       return [annotation.from, annotation.to];
     case 'circle':
     case 'right-angle':
+    case 'callout':
       return [annotation.from];
     case 'turn-over':
     case 'rotate':

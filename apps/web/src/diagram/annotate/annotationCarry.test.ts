@@ -239,6 +239,33 @@ describe('a linked picture turned about its middle', () => {
       expect(shift).toBeLessThan(20 / span);
     });
 
+    it('moves a callout with the face under its point, its box keeping its place beside it', () => {
+      const before = scenePicture();
+      const sceneBefore = storedScene(before)!;
+      // As above: the face's far corner steps, so a box farther along it would be carried farther.
+      const top = sceneBefore.items.find((item) => item.kind === 'face')!;
+      if (top.kind !== 'face') throw new Error('a face');
+      const ring = top.rings[0]!.map(([x, y], corner): ScenePoint => (corner === 2 ? [x - 20, y - 20] : [x, y]));
+      const sceneAfter: PaperScene = {
+        ...sceneBefore,
+        items: sceneBefore.items.map((item) => (item === top ? { ...top, rings: [ring] } : item)),
+      };
+      const after = { ...before, sceneJson: storedSceneJson(sceneAfter)!, key: 'scene-callout' };
+      const callout: KnownDiagramAnnotation = { id: 'c-1', kind: 'callout', from: [0.5, 0.5], to: [0.9, 0.6], text: 'Repeat behind' };
+      const document = annotated(cpStep('step-1', FLAT), [callout]);
+      const moved = setLinkedPicture(document, 'step-1', {
+        source: cpSource({ ...FLAT, spread: SPREAD }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+      const carried = moved.annotations[0] as KnownDiagramAnnotation;
+      const span = Math.max(sceneBefore.bounds.maxX - sceneBefore.bounds.minX, sceneBefore.bounds.maxY - sceneBefore.bounds.minY);
+      // Its point as any mark's on that face: a quarter of the corner's step.
+      close(carried.from, [0.5 - 5 / span, 0.5 - 5 / span]);
+      // Its box where it was beside the point, not stretched with the face under it.
+      close([carried.to[0] - carried.from[0], carried.to[1] - carried.from[1]], [0.4, 0.1]);
+      expect(carried.text).toBe('Repeat behind');
+    });
+
     it('moves a mark with the face under it when an affine spread changes, which moves a face by an affine map (13g)', () => {
       const before = scenePicture();
       const sceneBefore = storedScene(before)!;

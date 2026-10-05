@@ -7,6 +7,7 @@ import { LABEL_ADVANCES, LABEL_ADVANCES_FROM } from './labelAdvances';
 import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { arcToPath, bendPathSegment, pathNodesOf } from './annotationPath';
 import {
+  ANNOTATION_KINDS,
   ANNOTATION_REACH,
   ARROW_BEND,
   DEFAULT_WHITE_ARROW,
@@ -15,8 +16,18 @@ import {
   canBeShaped,
   flipsArc,
   isShapedArrow,
+  CALLOUT_GAP,
+  CALLOUT_HALF_HEIGHT_EMS,
+  CALLOUT_PAD_EMS,
+  CALLOUT_TEXT_SIZE,
+  LABEL_MAX_LENGTH,
+  NEW_CALLOUT_TEXT,
+  annotationEnds,
   arrowApex,
   arrowShape,
+  calloutHalfBox,
+  calloutShape,
+  carriesText,
   carryAnnotation,
   cleanAnnotation,
   createAnnotation,
@@ -34,6 +45,8 @@ import {
   rightAngleAt,
   rightAngleDiagonal,
   turnRightAngle,
+  placedByClick,
+  textEms,
   type PictureMove,
 } from './annotationModel';
 
@@ -527,5 +540,143 @@ describe('a white arrow', () => {
   it('is a slip when shorter than the shortest arrow, measured along it', () => {
     expect(isDegenerate(createAnnotation('white-arrow', [0.2, 0.3], [0.2, 0.3 + MIN_ANNOTATION_LENGTH / 2], SQUARE, id), MIN_ANNOTATION_LENGTH)).toBe(true);
     expect(isDegenerate(laid(), MIN_ANNOTATION_LENGTH)).toBe(false);
+  });
+});
+
+describe('a callout', () => {
+  const callout = (from: [number, number], to: [number, number], text = 'Repeat behind'): KnownDiagramAnnotation => ({
+    id: 'c',
+    kind: 'callout',
+    from,
+    to,
+    text,
+  });
+
+  it('is drawn from the point it marks to where its box sits, saying the words it is given', () => {
+    expect(createAnnotation('callout', [0.2, 0.3], [0.6, 0.1], SQUARE, id, '裏側も同様に')).toEqual({
+      id: 'annotation-1',
+      kind: 'callout',
+      from: [0.2, 0.3],
+      to: [0.6, 0.1],
+      text: '裏側も同様に',
+    });
+    // Words of no language given: English's.
+    expect(createAnnotation('callout', [0.2, 0.3], [0.6, 0.1], SQUARE, id).text).toBe(NEW_CALLOUT_TEXT);
+    // Kept to what a label may say.
+    expect(createAnnotation('callout', [0.2, 0.3], [0.6, 0.1], SQUARE, id, `a\nb${'x'.repeat(200)}`).text).toHaveLength(
+      LABEL_MAX_LENGTH
+    );
+  });
+
+  it('puts its box beside its point for a click, out from the middle, its near corner a gap out each way', () => {
+    const { halfWidth, halfHeight } = calloutHalfBox(NEW_CALLOUT_TEXT);
+    const cases: Array<[[number, number], [1 | -1, 1 | -1]]> = [
+      [[0.3, 0.2], [-1, -1]],
+      [[0.7, 0.2], [1, -1]],
+      [[0.3, 0.8], [-1, 1]],
+      [[0.7, 0.8], [1, 1]],
+      // The middle itself: up and to the right.
+      [[0.5, 0.5], [1, -1]],
+    ];
+    for (const [at, [sx, sy]] of cases) {
+      const placed = createAnnotation('callout', at, at, SQUARE, id);
+      expect(placed.from).toEqual(at);
+      expect(placed.to[0]).toBeCloseTo(at[0] + sx * (halfWidth + CALLOUT_GAP), 12);
+      expect(placed.to[1]).toBeCloseTo(at[1] + sy * (halfHeight + CALLOUT_GAP), 12);
+      const { line, box } = calloutShape(placed);
+      const corner = [sx > 0 ? box.x : box.x + box.width, sy > 0 ? box.y : box.y + box.height];
+      expect(Math.abs(corner[0]! - at[0])).toBeCloseTo(CALLOUT_GAP, 12);
+      expect(Math.abs(corner[1]! - at[1])).toBeCloseTo(CALLOUT_GAP, 12);
+      // Its line heads for the box's middle and stops on the side facing the point: a wide box's top or bottom.
+      expect(line![0]).toEqual(at);
+      expect(line![1][1]).toBeCloseTo(sy > 0 ? box.y : box.y + box.height, 12);
+      const toward = Math.atan2(placed.to[1] - at[1], placed.to[0] - at[0]);
+      expect(Math.atan2(line![1][1] - at[1], line![1][0] - at[0])).toBeCloseTo(toward, 12);
+    }
+    // A drag shorter than a slip is a click.
+    const slip = createAnnotation('callout', [0.3, 0.2], [0.305, 0.2], SQUARE, id);
+    expect(slip.to).toEqual(createAnnotation('callout', [0.3, 0.2], [0.3, 0.2], SQUARE, id).to);
+  });
+
+  it('has a box as wide as its words are set, and a pad, as tall as a line and a pad', () => {
+    const { halfWidth, halfHeight } = calloutHalfBox('Repeat behind');
+    // Noto Sans sets "Repeat behind" 6.835 em wide.
+    expect(textEms('Repeat behind')).toBeCloseTo(6.835, 9);
+    expect(halfWidth).toBeCloseTo(CALLOUT_TEXT_SIZE * (6.835 / 2 + CALLOUT_PAD_EMS), 12);
+    expect(halfHeight).toBeCloseTo(CALLOUT_TEXT_SIZE * CALLOUT_HALF_HEIGHT_EMS, 12);
+    expect(calloutHalfBox('iii').halfWidth).toBeLessThan(calloutHalfBox('MMM').halfWidth);
+    // Han an em a character; nothing at all as wide as a label with nothing in it.
+    expect(calloutHalfBox('裏側').halfWidth).toBeCloseTo(CALLOUT_TEXT_SIZE * (2 / 2 + CALLOUT_PAD_EMS), 12);
+    expect(calloutHalfBox('').halfWidth).toBeCloseTo(CALLOUT_TEXT_SIZE * (0.6 / 2 + CALLOUT_PAD_EMS), 12);
+  });
+
+  it('stops its line at its box’s outline, whichever side it comes in by, and has none from inside the box', () => {
+    const { halfWidth, halfHeight } = calloutHalfBox('Repeat behind');
+    const to: [number, number] = [0.5, 0.5];
+    // From the left, straight in: the left side's middle.
+    expect(calloutShape(callout([0.1, 0.5], to)).line).toEqual([[0.1, 0.5], [0.5 - halfWidth, 0.5]]);
+    // From below: the bottom side's middle.
+    const below = calloutShape(callout([0.5, 0.9], to)).line!;
+    expect(below[1][0]).toBeCloseTo(0.5, 12);
+    expect(below[1][1]).toBeCloseTo(0.5 + halfHeight, 12);
+    // Steeply from above and to the right: through the top, on the way to the middle.
+    const steep = calloutShape(callout([0.6, 0.1], to)).line!;
+    expect(steep[1][1]).toBeCloseTo(0.5 - halfHeight, 12);
+    expect((steep[1][0] - 0.5) / (steep[1][1] - 0.5)).toBeCloseTo((0.6 - 0.5) / (0.1 - 0.5), 12);
+    // The box over its own point: no line.
+    expect(calloutShape(callout([0.5 + halfWidth * 0.9, 0.5], to)).line).toBeNull();
+    expect(calloutShape(callout([0.5, 0.5], to)).line).toBeNull();
+    const { box } = calloutShape(callout([0.1, 0.5], to));
+    expect(box.x).toBeCloseTo(0.5 - halfWidth, 12);
+    expect(box.width).toBeCloseTo(2 * halfWidth, 12);
+    expect(box.height).toBeCloseTo(2 * halfHeight, 12);
+  });
+
+  it('is never a slip: its box is drawn wherever it sits, its point under it or not', () => {
+    expect(isDegenerate(callout([0.5, 0.5], [0.5, 0.5]), 0.5)).toBe(false);
+    expect(placedByClick('callout')).toBe(true);
+    expect(placedByClick('valley-line')).toBe(false);
+    expect(placedByClick('label')).toBe(true);
+  });
+
+  it('carries words, as a label does, and offers its point to take hold of, its box being taken where it is drawn', () => {
+    expect(ANNOTATION_KINDS.filter(carriesText).sort()).toEqual(['callout', 'label']);
+    expect(annotationEnds('callout')).toEqual(['from']);
+    expect(annotationEnds('valley-arrow')).toEqual(['to', 'from']);
+    expect(annotationEnds('circle')).toEqual([]);
+  });
+
+  it('moves whole by its line, and its box or its point alone', () => {
+    const it = callout([0.2, 0.3], [0.6, 0.1]);
+    expect(moveAnnotation(it, [0.1, 0.1])).toMatchObject({ from: [0.30000000000000004, 0.4], to: [0.7, 0.2] });
+    expect(moveAnnotationEnd(it, 'to', [0.9, 0.9])).toMatchObject({ from: [0.2, 0.3], to: [0.9, 0.9] });
+    expect(moveAnnotationEnd(it, 'from', [0.1, 0.1])).toMatchObject({ from: [0.1, 0.1], to: [0.6, 0.1] });
+  });
+
+  it('is carried with the face under its point: its box keeps its place beside the point, turned as the picture is', () => {
+    const it = callout([0.2, 0.3], [0.6, 0.1]);
+    // A mirror: the box goes to the point's other side, its words upright.
+    expect(carryAnnotation(it, mirrorMove(SQUARE))).toEqual({ ...it, from: [0.8, 0.3], to: [0.4, 0.1] });
+    // A spread: the point goes with its face, by a map no box follows — but the box
+    // keeps its offset, turned as the picture turned (here a quarter turn clockwise).
+    const spread: PictureMove = {
+      point: ([x, y]) => [x + 0.3 * x * x, y + 0.05],
+      mirrors: false,
+      turnDeg: 90,
+      vector: ([dx, dy]) => [-dy, dx],
+    };
+    const carried = carryAnnotation(it, spread);
+    expect(carried.from[0]).toBeCloseTo(0.2 + 0.3 * 0.04, 12);
+    expect(carried.from[1]).toBeCloseTo(0.35, 12);
+    expect(carried.to[0]).toBeCloseTo(carried.from[0] + 0.2, 12);
+    expect(carried.to[1]).toBeCloseTo(carried.from[1] + 0.4, 12);
+    expect(carried.text).toBe('Repeat behind');
+    // Not a fold arrow: Flip arc leaves it.
+    expect(flipAnnotationArc(it)).toBe(it);
+  });
+
+  it('is written with its words clean and its box within reach', () => {
+    const stray = callout([0.2, 0.3], [9, 0.1], 'Repeat\nbehind');
+    expect(cleanAnnotation(stray)).toEqual({ ...stray, to: [ANNOTATION_REACH, 0.1], text: 'Repeat behind' });
   });
 });

@@ -47,6 +47,7 @@ const TOOL_GROUP: Readonly<Record<DiagramAnnotationKind, Exclude<AnnotateToolGro
   label: 'text',
   circle: 'marks',
   'right-angle': 'marks',
+  callout: 'text',
 };
 
 /** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Marks; Text — each kind's tool in its group, in kind order. */
@@ -73,6 +74,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DiagramAnnotationKind, Dia
   label: 'diagram.toolLabel',
   circle: 'diagram.toolCircle',
   'right-angle': 'diagram.toolRightAngle',
+  callout: 'diagram.toolCallout',
 };
 
 /** Edit Path's key. */
@@ -121,6 +123,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolCircle', 'Circle');
     case 'right-angle':
       return t('tools:diagram.toolRightAngle', 'Right Angle');
+    case 'callout':
+      return t('tools:diagram.toolCallout', 'Callout');
   }
 }
 
@@ -174,6 +178,11 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       return t(
         'panels:diagram.annotate.rightAngleHelp',
         'Click inside a right angle to mark it, or drag from a corner into the angle.'
+      );
+    case 'callout':
+      return t(
+        'panels:diagram.annotate.calloutHelp',
+        'Drag from a point to where the box goes, or click the point, then type its words here.'
       );
   }
 }

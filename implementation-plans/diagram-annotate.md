@@ -881,12 +881,101 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
     in headless WebKit), as for 14a.
 
 ### 14g. Repeat behind
-- [ ] Kind `callout`: model, file and round trips, hit test (line, box, text),
+- [x] Kind `callout`: model, file and round trips, hit test (line, box, text),
   the shared primitive and golden, text editing as a label's, snapping of its
   point; a rail tool and its key; i18n; analytics through the
   annotation-added event.
-- [ ] Browser: placed on a crane step, its text edited, dragged by box and by
+  - As built:
+    - **Model.** `callout` is its own shape (`ANNOTATION_SHAPES`): `from` the
+      point its line touches, `to` the middle of its box, `text` its words.
+      A drag from the point draws one; a click — or a drag shorter than a
+      slip — puts its box beside the point (`calloutBeside`): out from the
+      frame's middle diagonally (up and right from the middle itself), its
+      near corner `CALLOUT_GAP` (0.08) out each way. Never degenerate: its
+      box is drawn wherever it sits. New predicates, each a switch over kinds:
+      `carriesText` (label, callout: the Step pane's field, the page's
+      fonts, Select back in hand and the field focused once placed),
+      `annotationEnds` (the dots a selected annotation offers: a callout only
+      its point) and `placedByClick`.
+    - **Words.** "Repeat behind" in the author's language when it is made
+      (`panels:diagram.annotations.repeatBehind`, passed to
+      `createAnnotation`): stored as typed, so they print as the author read
+      them and do not change for a reader in another language — they are the
+      diagram's words, not the app's. Edited as a label's (one line, 80
+      characters, `cleanLabelText`).
+    - **Shape, one place** (`calloutShape`, picture units): the box round
+      `to`, as wide as its words are set by the advance table a label's reach
+      uses (`textEms`, now shared; never narrower than a label with nothing
+      in it), `CALLOUT_PAD_EMS` (0.5 em) past each side, and
+      `CALLOUT_HALF_HEIGHT_EMS` (0.85 em) above and below its words' middle;
+      the line from the point toward the box's middle, stopped at its
+      outline, none when the point is in the box. Its words are a label's
+      size (`CALLOUT_TEXT_SIZE` = `LABEL_SIZE`), centred on `to` as a label's
+      are on its point.
+    - **Drawing.** An annotation primitive, not a References one: References
+      knows nothing of the diagram's fonts or advance table.
+      `AnnotationDrawing.callouts`, drawn by `calloutElement` over the marks
+      and under the labels: the line in the annotation pen (a ring's, 0.75 of
+      the arrow pen), round-capped; the box filled with the page's white and
+      outlined in the arrow pen, mitred; the words as a label's
+      (`labelElement`, each script's font, Han under the key a page swaps for
+      the diagram's style). A callout with no words draws nothing, as a label
+      does. `annotationTextRuns` sets its words, so a page loads and embeds
+      their faces (the PDF embeds the CJK face; checked with `pdffonts`).
+    - **Golden.** `calloutsGolden.json`: eight cases (each side, a corner,
+      the point under the box, off the frame, Han, kana, mixed, one letter,
+      80 characters) on a card, a page and the canvas, checked by eye in the
+      diagram's fonts before freezing (`artifacts/diagram-annotate/14g/
+      golden-sheet.png`).
+    - **Reach.** Exactly the box with half its outline's pen round it and the
+      line's round ends — read back off the painted markup at the default
+      and a 12 pt pen. The words inside the box are checked apart, by their
+      glyphs' own outlines (HarfBuzz, Noto Sans and the CJK fixtures): every
+      Latin glyph the table counts, tall and stacked marks, Han, kana,
+      Hangul, at a 40 mm frame and the canvas's.
+    - **Hit.** The box, its words in it, is `box` — a new grip part — and
+      moves alone by the pointer's travel from wherever it was pressed; the
+      line is `body` and moves both; selected, the dot at its point is
+      `from`. Hit order as drawn: labels over callouts over circles over the
+      other marks over lines.
+    - **Snapping.** Its point snaps when put down and when dragged
+      (`snapsEnd`), never its box; others snap to its point.
+    - **Carry.** With the face under its point: the point moves as a point
+      does, the box keeps its offset, turned and mirrored as the picture was
+      (`PictureMove.vector`, which a spread now gives from its turn), never
+      spread with the face under the box. Words stay upright.
+    - **File.** `text` read as a label's; a field it has no name for, words
+      over 80 or a point past reach are a newer build's; no words, or words
+      not a string, drop it. a34d74086's reader keeps one verbatim and writes
+      it back unchanged (checked by running that reader).
+    - **Tool.** In Text beside Label, a glyph of a dot, a line and a box; key
+      C (`diagram.toolCallout`, free in every scope the Diagram pushes).
+      Analytics: `callout` in `diagram annotation added`'s `tool`.
+    - **Proof.** The new tests against a34d74086's sources: 41 fail. Mutants
+      (reach without the box pen or the line, the line in the arrow pen, no
+      pad, a capital-high box, a box not from the advance table, the line to
+      the box's middle, the box taken as the body, the hit order swapped, the
+      box's middle offered as an end, the box jumping to the pointer, the box
+      snapping, no click placement, a click putting the box on the point,
+      English words always, no field after placing, carried point by point, a
+      spread with no direction, words off the page's fonts, the reader
+      without the kind, no Step pane field, an empty box drawn) each fail a
+      test.
+- [x] Browser: placed on a crane step, its text edited, dragged by box and by
   point, on a page and in a PDF.
+  - As built (`artifacts/diagram-annotate/14g/callout.mjs`, crane.osf step 8,
+    desktop 1440×900, light and dark): C picks the tool; hovering by the
+    bottom tip shows its vertex; a drag from 5 px off it lands the point on
+    it exactly, one undo step, the field focused with "Repeat behind"
+    selected; typed over in Latin, then 裏側も同様に, then mixed; the box
+    dragged off its middle moves by the pointer's travel, the point staying;
+    the point dragged near the right corner snaps to it, the box staying; the
+    line dragged moves both; each one undo step. On its page (Pages view),
+    and in the PDF the export writes (its own `diagramPdfInput` and writer):
+    `pdftotext` reads "Repeat behind 裏側も同様に", `pdffonts` lists
+    NotoSansJP-Regular embedded (`canvas-beside-pdf-light.png`). The CJK
+    fonts are a build output (`apps/web/public/fonts/diagram/`); a worktree
+    without them refuses the PDF for a label or a callout alike.
 
 ### 14h. The tool hint window
 - [ ] Main merged in; every Annotate tool's hint in `ToolHintWindow` (Select,

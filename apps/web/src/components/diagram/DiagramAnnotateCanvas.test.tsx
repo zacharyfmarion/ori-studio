@@ -1,7 +1,10 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { pathCubics } from '../../diagram/annotate/annotationModel';
+import { calloutShape, NEW_CALLOUT_TEXT, pathCubics } from '../../diagram/annotate/annotationModel';
+import { pendingLabelFocus } from '../../diagram/annotate/labelFocus';
+import i18n from '../../i18n';
+import { preloadLocale } from '../../test/preloadLocale';
 import { nearestPathPoint, pathNodesOf } from '../../diagram/annotate/annotationPath';
 import type { KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { CP_MODEL_TO_CSS } from '../../cp-workspace/snapRadius';
@@ -298,6 +301,60 @@ describe('DiagramAnnotateCanvas', () => {
     expect(state().diagramAnnotateTool).toBeNull();
   });
 
+  it('draws a callout from a point to where its box goes, as one undo step, its words then waiting in its field', () => {
+    mount();
+    tool('callout');
+    const past = state().diagramHistory.past.length;
+    drag(at(0.2, 0.6), at(0.55, 0.25));
+    expect(annotations()).toHaveLength(1);
+    const [callout] = annotations();
+    expect(callout).toMatchObject({ kind: 'callout', text: NEW_CALLOUT_TEXT });
+    expect(callout!.from[0]).toBeCloseTo(0.2, 3);
+    expect(callout!.to[0]).toBeCloseTo(0.55, 3);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['callout', 'nothing_near']]);
+    // Written, not drawn again: Select in hand, it selected, and its field asked for.
+    expect(state().diagramAnnotateTool).toBeNull();
+    expect(state().diagramSelectedAnnotationId).toBe(callout!.id);
+    expect(pendingLabelFocus()).toBe(callout!.id);
+    // Drawn: its line, its box and its words.
+    rerender();
+    const drawnCallout = overlay().querySelector(`[data-annotation-id="${callout!.id}"]`)!;
+    expect(drawnCallout.querySelector('line')).not.toBeNull();
+    expect(drawnCallout.querySelector('rect')).not.toBeNull();
+    expect(drawnCallout.querySelector('text')?.textContent).toBe(NEW_CALLOUT_TEXT);
+  });
+
+  it('gives a new callout its words in the author’s language, which stay the author’s', async () => {
+    preloadLocale('ja');
+    i18n.addResourceBundle('ja', 'panels', { diagram: { annotations: { repeatBehind: '裏側も同様に' } } }, true, true);
+    try {
+      await act(() => i18n.changeLanguage('ja'));
+      mount();
+      tool('callout');
+      drag(at(0.2, 0.6), at(0.55, 0.25));
+      expect(annotations()[0]).toMatchObject({ kind: 'callout', text: '裏側も同様に' });
+    } finally {
+      await act(() => i18n.changeLanguage('en'));
+    }
+    // Written into the diagram: another language later leaves it as it is.
+    expect(annotations()[0]!.text).toBe('裏側も同様に');
+  });
+
+  it('puts a callout down with a click, its box beside its point', () => {
+    mount();
+    tool('callout');
+    pointer('pointerdown', at(0.2, 0.6));
+    pointer('pointerup', at(0.2, 0.6));
+    expect(annotations()).toHaveLength(1);
+    const [callout] = annotations();
+    expect(callout!.from).toEqual([expect.closeTo(0.2, 6), expect.closeTo(0.6, 6)]);
+    // Away from the middle: up (the point is below it) and to the left.
+    expect(callout!.to[0]).toBeLessThan(0.2);
+    expect(callout!.to[1]).toBeGreaterThan(0.6);
+    expect(calloutShape(callout!).line).not.toBeNull();
+  });
+
   it('drops the stroke in hand for a second finger, a cancel or a lost capture', () => {
     mount();
     tool('valley-line');
@@ -514,6 +571,62 @@ describe('DiagramAnnotateCanvas', () => {
   it('sets its zoom pill on a solid ground, the stage being white in every theme', () => {
     mount();
     expect(host.querySelector('[data-viewport-toolbar]')?.getAttribute('data-tone')).toBe('raised');
+  });
+});
+
+describe('DiagramAnnotateCanvas with a callout', () => {
+  const callout: KnownDiagramAnnotation = { id: 'callout', kind: 'callout', from: [0.2, 0.6], to: [0.55, 0.25], text: 'Repeat behind' };
+
+  function placed() {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => [callout]);
+      state().selectDiagramAnnotation(null);
+    });
+    rerender();
+    return stepId;
+  }
+  const now = () => annotations()[0]!;
+
+  it('drags its box alone, by the pointer’s travel from wherever on it it was taken, as one undo step', () => {
+    placed();
+    const past = state().diagramHistory.past.length;
+    // Off its middle, on a letter.
+    drag(at(0.45, 0.26), at(0.5, 0.16));
+    expect(now().from).toEqual([0.2, 0.6]);
+    expect(now().to[0]).toBeCloseTo(0.6, 6);
+    expect(now().to[1]).toBeCloseTo(0.15, 6);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramSelectedAnnotationId).toBe('callout');
+  });
+
+  it('drags its point alone once selected, and the whole by its line', () => {
+    placed();
+    act(() => state().selectDiagramAnnotation('callout'));
+    rerender();
+    // Selected: a dot at its point, none at its box's middle; its box and line washed.
+    expect([...host.querySelectorAll('[data-handle]')].map((each) => each.getAttribute('data-handle'))).toEqual(['from']);
+    expect(overlay().querySelector('[data-callout-box]')).not.toBeNull();
+    drag(at(0.2, 0.6), at(0.1, 0.7));
+    expect(now().from).toEqual([expect.closeTo(0.1, 6), expect.closeTo(0.7, 6)]);
+    expect(now().to).toEqual([0.55, 0.25]);
+    // On its line, halfway: both go.
+    const { line } = calloutShape(now());
+    const middle: [number, number] = [(line![0][0] + line![1][0]) / 2, (line![0][1] + line![1][1]) / 2];
+    const past = state().diagramHistory.past.length;
+    drag(at(...middle), at(middle[0] + 0.05, middle[1] + 0.05));
+    expect(now().from).toEqual([expect.closeTo(0.15, 6), expect.closeTo(0.75, 6)]);
+    expect(now().to).toEqual([expect.closeTo(0.6, 6), expect.closeTo(0.3, 6)]);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(tracked.trackDiagramAnnotationAdded).not.toHaveBeenCalled();
+  });
+
+  it('selects it by its box with a click, moving nothing', () => {
+    placed();
+    pointer('pointerdown', at(0.55, 0.25));
+    pointer('pointerup', at(0.55, 0.25));
+    expect(state().diagramSelectedAnnotationId).toBe('callout');
+    expect(now()).toEqual(callout);
   });
 });
 
@@ -992,6 +1105,49 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
     drag(at(0.2, 0.5), at(0.208, 0.5));
     rerender();
     expect(annotations()[0]!.from[0]).toBeCloseTo(0.208, 6);
+  });
+
+  it('snaps a callout’s point where it is pressed, and its point dragged, never its box', () => {
+    drawn([line], 'callout');
+    // Pressed beside the line's end, let go beside its other: the point lands on the end, the box where it was let go.
+    pointer('pointerdown', at(0.605, 0.505));
+    expect(targets()).toEqual(['annotation']);
+    pointer('pointermove', at(0.4, 0.4));
+    pointer('pointermove', at(0.205, 0.503));
+    // Only the point's target: the box is no point.
+    expect(targets()).toEqual(['annotation']);
+    pointer('pointerup', at(0.205, 0.503));
+    rerender();
+    expect(last()).toMatchObject({ kind: 'callout', from: [0.6, 0.5] });
+    expect(last().to).toEqual([expect.closeTo(0.205, 6), expect.closeTo(0.503, 6)]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['callout', 'snapped']]);
+    // Its point dragged onto the line's other end.
+    act(() => state().selectDiagramAnnotation(last().id));
+    rerender();
+    drag(at(0.6, 0.5), at(0.206, 0.497));
+    rerender();
+    expect(last().from).toEqual([0.2, 0.5]);
+    // Its box — taken clear of its point, which lies under it — dragged so its middle comes
+    // beside the line's end: it stays where it is let go.
+    const box = last().to;
+    drag(at(box[0] + 0.03, box[1]), at(0.633, 0.502));
+    rerender();
+    expect(last().to).toEqual([expect.closeTo(0.603, 6), expect.closeTo(0.502, 6)]);
+  });
+
+  it('puts a callout clicked beside a point on it, its box beside it, not at the pointer', () => {
+    drawn([line], 'callout');
+    // Zoomed out to half: the snap radius is 0.029 of the frame, more than a slip's length.
+    (SVGElement.prototype as unknown as { getScreenCTM: () => typeof identity }).getScreenCTM = () => ({ ...identity, a: 0.5, d: 0.5 });
+    // 0.025 off the line's end: the press lands on the end.
+    click(at(0.625, 0.5));
+    expect(last()).toMatchObject({ kind: 'callout', from: [0.6, 0.5] });
+    // A click, however far its press snapped: the box beside the point, not on it where the
+    // pointer was — below and to the right, away from the frame's middle.
+    expect(calloutShape(last()).line).not.toBeNull();
+    expect(last().to[0]).toBeGreaterThan(0.6 + 0.1);
+    expect(last().to[1]).toBeGreaterThan(0.5 + 0.05);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['callout', 'snapped']]);
   });
 
   it('moves a circle whole onto a point: its centre snaps, wherever on its ring it was taken', () => {

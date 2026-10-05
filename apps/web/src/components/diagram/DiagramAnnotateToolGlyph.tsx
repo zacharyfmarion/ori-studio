@@ -30,9 +30,10 @@ function Glyph({ children }: { children: React.ReactNode }) {
 /**
  * Each Annotate tool's icon: the mark it draws, small. The fold, push and
  * white arrows are the arrows themselves; the lines are their dash; the
- * circle its ring; Select, Edit Path, Rotate and Label are the app's own icons
- * for those verbs. Every tool has one: the return type makes a kind left out
- * a compile error, not a blank button.
+ * circle its ring; the right angle its open square; the callout its line and
+ * box; Select, Edit Path, Rotate and Label are the app's own icons for those
+ * verbs. Every tool has one: the return type makes a kind left out a compile
+ * error, not a blank button.
  */
 export function DiagramAnnotateToolGlyph({ tool }: { tool: AnnotateTool }): ReactElement {
   switch (tool) {
@@ -128,6 +129,16 @@ export function DiagramAnnotateToolGlyph({ tool }: { tool: AnnotateTool }): Reac
         <Glyph>
           <path d="M3.5 2.5 L3.5 16.5 L17.5 16.5" strokeWidth={1} />
           <path d="M3.5 9.5 L10.5 9.5 L10.5 16.5" strokeLinecap="butt" strokeLinejoin="miter" />
+        </Glyph>
+      );
+    case 'callout':
+      // A line from the point it marks up to a box of words: two lines of text in it.
+      return (
+        <Glyph>
+          <circle cx={4} cy={16.5} r={1.3} fill="currentColor" stroke="none" />
+          <path d="M4 16.5 L8.5 11.5" />
+          <rect x={7.5} y={3.5} width={10} height={8} strokeLinejoin="miter" />
+          <path d="M10 6.5 H15 M10 8.75 H13.5" strokeWidth={1.1} />
         </Glyph>
       );
   }

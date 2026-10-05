@@ -39,9 +39,10 @@ export function snapRadiusUnits(setting: number, screenPerUnit: number): number 
 
 /**
  * Whether a mark of `kind` snaps where it is put (decision 9): a circle, a
- * right angle's corner, and each end of an arrow or a line. A sign or a label is put beside what it
- * names, never on it; a fold arrow's inner nodes and handles are shaped by
- * eye. A switch, so a new kind has to say.
+ * right angle's corner, each end of an arrow or a line, and the point a
+ * callout marks. A sign or a label is put beside what it names, never on it;
+ * a fold arrow's inner nodes and handles are shaped by eye. A switch, so a
+ * new kind has to say.
  */
 export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
@@ -55,12 +56,22 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'circle':
     case 'right-angle':
+    case 'callout':
       return true;
     case 'turn-over':
     case 'rotate':
     case 'label':
       return false;
   }
+}
+
+/**
+ * Whether one end of a mark of `kind` snaps where it is put: either end of
+ * one that snaps ({@link snapsWhenPlaced}), but never a callout's box (`to`),
+ * which sits where its words are read rather than on a point.
+ */
+export function snapsEnd(kind: DiagramAnnotationKind, end: 'from' | 'to'): boolean {
+  return snapsWhenPlaced(kind) && (end === 'from' || kind !== 'callout');
 }
 
 /** What the canvas snaps against now: the step, its annotations as the store has them, the switch and the reach. */

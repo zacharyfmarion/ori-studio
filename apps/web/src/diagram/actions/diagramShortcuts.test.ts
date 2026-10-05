@@ -195,6 +195,21 @@ describe('Annotate’s keys', () => {
     expect(press('diagram.toolWhiteArrow', {})).toMatchObject({ claimed: false });
   });
 
+  it('binds the callout to C, a letter no other Diagram key or the view’s has, and picks it with it', () => {
+    const callout = SHORTCUT_DEFINITIONS.find((shortcut) => shortcut.id === 'diagram.toolCallout');
+    expect(callout).toMatchObject({ scope: 'diagram', defaultChord: { key: 'c' } });
+    const others = SHORTCUT_DEFINITIONS.filter(
+      (shortcut) =>
+        shortcut.id !== 'diagram.toolCallout' &&
+        ['diagram', 'diagram-path', 'viewport', 'global'].includes(shortcut.scope) &&
+        shortcut.defaultChords.some((chord) => chord.key === 'c' && !chord.primary && !chord.shift && !chord.alt)
+    );
+    expect(others).toEqual([]);
+    expect(press('diagram.toolCallout', annotate())).toMatchObject({ claimed: true });
+    expect(press('diagram.toolCallout', annotate()).setTool).toHaveBeenCalledWith('callout');
+    expect(press('diagram.toolCallout', annotate('callout')).setTool).toHaveBeenCalledWith(null);
+  });
+
   it('flips only a selected fold arrow', () => {
     expect(press('diagram.flipArc', annotate(null, true))).toMatchObject({ claimed: true });
     expect(press('diagram.flipArc', annotate(null, false))).toMatchObject({ claimed: false });

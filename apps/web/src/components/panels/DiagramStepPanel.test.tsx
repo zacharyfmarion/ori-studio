@@ -541,6 +541,30 @@ describe('DiagramStepPanel in Annotate', () => {
     expect(annotations()[1]!.text).toBe('C D');
   });
 
+  it('edits a callout’s words as a label’s, focused for one just put down, and lists it by them', async () => {
+    const stepId = annotatedStep();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 'a-4', kind: 'callout', from: [0.2, 0.7], to: [0.6, 0.3], text: 'Repeat behind' },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+    });
+    expect(row('Repeat behind')).toBeDefined();
+    const { requestLabelFocus } = await import('../../diagram/annotate/labelFocus');
+    act(() => {
+      requestLabelFocus('a-4');
+      state().selectDiagramAnnotation('a-4');
+    });
+    const field = host?.querySelector('textarea[maxlength="80"]') as HTMLTextAreaElement;
+    expect(document.activeElement).toBe(field);
+    expect(field.value).toBe('Repeat behind');
+    setField(field, '裏側も\n同様に');
+    act(() => field.blur());
+    expect(annotations()[3]!.text).toBe('裏側も 同様に');
+    expect(row('裏側も 同様に').getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('offers the Snap switch in Annotate, for a finger, and remembers it as a preference', () => {
     const stepId = annotatedStep();
     const snapSwitch = () => host?.querySelector<HTMLButtonElement>('button[role="switch"][aria-label="Snap to Picture"]') ?? null;

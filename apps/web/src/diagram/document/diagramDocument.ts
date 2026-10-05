@@ -503,7 +503,8 @@ export type DiagramPicture =
  * What an annotation draws (D8): a fold arrow — kept (valley, mountain) or
  * made and unfolded — a push, a white arrow, the turn-over and rotate glyphs,
  * a crease line in the diagram's pens, a label, a circle round a point, as
- * References rings one, and a right angle marked in a corner.
+ * References rings one, a right angle marked in a corner, and a callout: a
+ * line from a point to a box of words, as diagrams say "repeat behind".
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
@@ -518,7 +519,8 @@ export type DiagramAnnotationKind =
   | 'hidden-line'
   | 'label'
   | 'circle'
-  | 'right-angle';
+  | 'right-angle'
+  | 'callout';
 
 /** How far, and which way, a rotate glyph turns the model. */
 export interface DiagramRotation {
@@ -557,12 +559,15 @@ export interface KnownDiagramAnnotation {
   /** `annotation-<uuid>`. */
   id: string;
   kind: DiagramAnnotationKind;
-  /** Where it starts: an arrow's tail, a line's end, a glyph's or a label's centre, a right angle's corner. */
+  /**
+   * Where it starts: an arrow's tail, a line's end, a glyph's or a label's
+   * centre, a right angle's corner, the point a callout marks.
+   */
   from: [number, number];
   /**
-   * Where it ends: an arrow's tip; `from` again for a glyph or a label; for a
-   * right angle, a point along the diagonal into the angle — only its
-   * direction is read.
+   * Where it ends: an arrow's tip, the middle of a callout's box; `from` again
+   * for a glyph or a label; for a right angle, a point along the diagonal into
+   * the angle — only its direction is read.
    */
   to: [number, number];
   /**
@@ -582,7 +587,7 @@ export interface KnownDiagramAnnotation {
   width?: DiagramWhiteArrowWidth;
   /** A white arrow's tail: drawn to a point, cut square, or cleft in a V. */
   tail?: WhiteArrowTail;
-  /** A label's text. */
+  /** A label's or a callout's text. */
   text?: string;
   rotate?: DiagramRotation;
   /** The axis a turn-over turns the model about. */

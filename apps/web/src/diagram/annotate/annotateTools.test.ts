@@ -12,7 +12,7 @@ describe('the rail', () => {
       },
       { id: 'lines', tools: ['valley-line', 'mountain-line', 'hidden-line'] },
       { id: 'marks', tools: ['circle', 'right-angle'] },
-      { id: 'text', tools: ['label'] },
+      { id: 'text', tools: ['label', 'callout'] },
     ]);
     const tools = ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((tool) => tool !== null && tool !== 'edit-path');
     expect([...tools].sort()).toEqual([...ANNOTATION_KINDS].sort());

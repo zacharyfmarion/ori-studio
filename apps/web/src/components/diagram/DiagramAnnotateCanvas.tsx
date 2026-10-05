@@ -15,7 +15,7 @@ import {
   type AnnotateLayout,
   type RightAnglePreview,
 } from '../../diagram/annotate/useAnnotateCanvas';
-import { canBeShaped, labelHalfWidth, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
+import { annotationEnds, calloutShape, canBeShaped, labelHalfWidth, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
 import {
   isKnownAnnotation,
   type DiagramAsset,
@@ -41,8 +41,9 @@ const PATH_HANDLE_PX = { fine: 3.5, coarse: 5.5 } as const;
  * drawn over it live as they print — under one camera, on a stage as white as
  * the page in every theme, so a mark that reaches past the picture reads as it
  * will print. A hairline marks the picture's frame. The selected annotation
- * shows where it is and, for a line or an arrow, a dot at each end — or, in
- * Edit Path, a fold arrow's nodes and the handles beside the selected one.
+ * shows where it is and, for a line or an arrow, a dot at each end — a
+ * callout's at its point — or, in Edit Path, a fold arrow's nodes and the
+ * handles beside the selected one.
  * The behaviour is `useAnnotateCanvas`'s; its presses are the whole stage's.
  */
 export function DiagramAnnotateCanvas({
@@ -170,8 +171,9 @@ function box({ x, y, width, height }: { x: number; y: number; width: number; hei
 
 /**
  * Where the selected annotation is, over everything: a wash along it, and a
- * dot at each end of a line or an arrow to take hold of. Sized for the
- * screen at any zoom.
+ * dot at each end of a line or an arrow to take hold of (`annotationEnds`) —
+ * a callout's at its point; its box is taken where it is drawn. Sized for
+ * the screen at any zoom.
  */
 function Selection({
   annotation,
@@ -192,8 +194,10 @@ function Selection({
     return <circle className={styles.selection} cx={x} cy={y} r={reach * layout.unit} data-selection="" />;
   };
   // Washed along as it is drawn: a sign or a label round its place, an arrow
-  // along its arc or path, a push or a line straight. A switch, so a new kind has to say.
+  // along its arc or path, a push or a line straight, a callout round its box
+  // and along its line. A switch, so a new kind has to say.
   let path: readonly (readonly [number, number])[];
+  let box: ReturnType<typeof calloutShape>['box'] | null = null;
   switch (annotation.kind) {
     case 'label':
       return ring(labelHalfWidth(annotation.text ?? '') + 0.1 * LABEL_SIZE);
@@ -230,12 +234,31 @@ function Selection({
     case 'hidden-line':
       path = [annotation.from, annotation.to];
       break;
+    case 'callout': {
+      const shape = calloutShape(annotation);
+      path = shape.line ?? [];
+      box = shape.box;
+      break;
+    }
   }
   const points = path.map(at);
+  const corner = box && at([box.x, box.y]);
   return (
     <g data-selection="">
-      <polyline className={styles.selection} points={points.map((point) => point.join(',')).join(' ')} />
-      {movable && (['from', 'to'] as const).map((end) => {
+      {points.length > 1 && (
+        <polyline className={styles.selection} points={points.map((point) => point.join(',')).join(' ')} />
+      )}
+      {box && corner && (
+        <rect
+          className={styles.selection}
+          x={corner[0]}
+          y={corner[1]}
+          width={box.width * layout.unit}
+          height={box.height * layout.unit}
+          data-callout-box=""
+        />
+      )}
+      {movable && annotationEnds(annotation.kind).map((end) => {
         const [x, y] = at(annotation[end]);
         return <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />;
       })}

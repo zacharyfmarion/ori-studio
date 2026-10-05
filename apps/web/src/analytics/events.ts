@@ -85,7 +85,8 @@ export type DiagramAnnotationTool =
   | 'hidden_line'
   | 'label'
   | 'circle'
-  | 'right_angle';
+  | 'right_angle'
+  | 'callout';
 
 /**
  * How a new annotation was put down (decision 9): snapped to a point of the

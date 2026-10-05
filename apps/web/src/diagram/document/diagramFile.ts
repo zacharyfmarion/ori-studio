@@ -816,6 +816,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     label: fields('text'),
     circle: fields(),
     'right-angle': fields(),
+    callout: fields('text'),
   };
 })();
 
@@ -900,7 +901,9 @@ function readAnnotation(
       if (first[0] !== from[0] || first[1] !== from[1] || last[0] !== to[0] || last[1] !== to[1]) return null;
       return { ...annotation, path, width, tail };
     }
-    case 'label': {
+    // A callout's words are read as a label's: one line, as long as a label may be.
+    case 'label':
+    case 'callout': {
       if (typeof entry.text !== 'string') return null;
       const text = xmlText(entry.text);
       return text.length > LABEL_MAX_LENGTH ? NEWER : { ...annotation, text };
