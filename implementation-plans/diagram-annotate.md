@@ -202,6 +202,14 @@ tool keys. Select's help line stays in the rail's tooltip; its two keys (⌘
 to place freely, Shift-drag a right angle's far corner) lose their place on
 screen.
 
+*Amended again after the fourth review (2026-10-05, awaiting Zach):* every
+other tool's window lay over the Instruction too, and a drawing tool stays
+in hand after it draws, so drawing an arrow and then typing the step's words
+did the same. Annotate's window keeps to the canvas's side of the seam, its
+right edge 12 px in from it (`ToolHintWindow`'s `inside`); Edit's and the
+Simulator's still overhang it. It covers a corner of the canvas instead,
+which pans, and it collapses.
+
 ## Affected Areas
 
 `diagram/annotate/*`; `diagram/document/diagramDocument.ts`, `diagramFile.ts`;
@@ -1037,6 +1045,33 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
   cut. Found while verifying: a mark on a corner stays with that corner's
   face when another comes over it (six turns and six back bring it home).
   Before/after: `artifacts/diagram-annotate/review-14h/compare-*.png`.
+- [x] Fourth review (14 findings, all confirmed; the Annotate ones here, the
+  layout ones in `diagram-workspace.md`), fixed, each failing on the code
+  before it:
+  - The carry: a deeper face's edge no longer takes a mark inside the face
+    over it (the corner pass first, then the topmost face the mark is in or
+    on); a right angle goes with the face it is a corner of and opens into,
+    though another has come over its angle (`PictureMove.corner`); and a
+    carry remembers, per picture it carried marks to, each point's place on
+    its face (`placesOnFaces`, for the session; held by picture object, so
+    undo keeps it): a mark a nearer face slid over, or on a face a picture
+    with no spread leaves out, comes home. On Oriedita's sample and the
+    kabuto, folded by the kernel, every circle and right angle comes home
+    through every spread and turn round trip (65 of 261 circles were up to
+    15.7 px off).
+  - Labels: ⸺ ⸻ in the CJK table, and a character its run's font lacks
+    counted in the other's, as a page sets it.
+  - The tool window on the canvas's side of the seam (decision 7, amended
+    again above).
+  - Spread: an undo of another step keeps the slides waiting and the drag
+    shown.
+  - The header's cog renamed App Settings, so the Settings a touch help
+    names is one button.
+  - Open for Zach: a mark snapped to a corner covered by the face it shows
+    on follows that corner when the spread changes (the snap offers covered
+    corners, for hidden lines); a circle placed there incidentally slides
+    across the face it shows on.
+  Before/after: `artifacts/diagram-annotate/review-4/compare-*.png`.
 
 ## Risks
 

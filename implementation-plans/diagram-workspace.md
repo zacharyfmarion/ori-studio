@@ -3310,6 +3310,41 @@ folds: https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf.
   committed shown only while it can land; tests pinning the 13g fix. Each
   fails on the code before it. Before/after: `artifacts/diagram-fit-each/
   review-3/compare-*.png`.
+- [x] Fourth review (of the third's fixes and the 14h review's; 14 findings,
+  all confirmed; the layout and runs ones here, the Annotate ones in
+  `diagram-annotate.md`), fixed:
+  - Every mark measured to its ink, no further: a fold arrow's strokes half
+    a pen round their curves' exact bounds, a filled head at its tip and
+    barbs, a mountain's, a push's and a white arrow's outlines at their
+    mitres' tips or bevels' ends, edge sides included where an outline is
+    smaller than its pen (`markReach`, `strokedOutlinePoints`, `arcExtremes`).
+    Rasterised in Chromium, every arrow kind at 0.75–12 pt is within the
+    raster's step of its reach (it ran 39 px past). At a 12 pt arrow pen the
+    crane's pictures are 8–11% larger.
+  - A References step's own arrows, rings and accent lines measured too:
+    its card's band held them only at a card's size and pen. At 12 pt in a
+    B5 4×4 cell its fold arrows ran over their instruction; a step's file
+    cropped through them.
+  - A scene's and a card's lines' ink, half the widest pen past them, in
+    their reach (2.1 mm at a 12 pt edge pen). At the default pens pictures
+    draw 0.2–0.6% smaller; on A4 landscape 5×1 the crane's steps 11–15,
+    which zoomed from 8–10 by 1.3001, now fit just under a zoom and join
+    their run.
+  - A picture that holds its room and still hangs out of it, where a
+    smaller scale would not (a mark shrinking with its paper): drawn alone
+    at the least-overrun scale under its own (`leastOverrunHeld`). The runs
+    keep `largestHeld`'s fits — a least-overrun fit dragged a run's others
+    under their floors, where 12 pt fold arrows loop. No crane layout
+    changes once the measures are true.
+  - Each picture measured once per scale in a layout: 90 measures for the
+    crane to 43, 7.8 → 4.4 ms (e1f7b8ca7: about 3).
+  - Runs: mirror fits a few ulps apart are one, so a palindrome is drawn
+    symmetric though real fits carry rounding; the snap never leaves a run a
+    whole zoom under its own pictures; only levels some picture can hold a
+    run at are made (one fit at 1e-30 among 300: 385 → 7.5 ms). A model
+    spread over a range of 50 costs what the chained levels cost (1000 steps
+    140 ms): 143002097's "keeps the time as it was" held only near one size.
+  Before/after: `artifacts/diagram-fit-each/review-4/compare-*.png`.
 
 #### Fit by overrun, found by search (third review [6]–[10])
 
@@ -3364,6 +3399,14 @@ Checklist:
   the heaviest pen.
 - [x] Before/after: the three documents in [6]–[8] rendered, and the crane
   (unchanged, both scales).
+
+Fourth review: "convex, found exactly" holds for the reach as measured at
+one scale. The reach is a line only near it, and where a mark shrinks with
+the paper (an arrowhead capped by a share of its arc) a picture can hold
+its room in two separate ranges of scales; `largestHeld` finds the upper.
+The measures being its ink, no crane cell does that at four pens and five
+setups; a picture that still hangs out where it is drawn is looked at again
+below (`leastOverrunHeld`), alone.
 
 ### Phase 14: Annotate, after Phase 13 is planned and under way
 
