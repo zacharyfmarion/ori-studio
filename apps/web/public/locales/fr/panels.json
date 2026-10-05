@@ -941,7 +941,7 @@
       "rows": "Rangées",
       "scale": "Échelle",
       "scaleFit": "Ajuster chacun",
-      "scaleHint": "Ajuster garde le papier à la même taille d’une étape à l’autre tant qu’il tient, et agrandit là où le modèle devient bien plus petit. Une échelle dessine chaque motif à la même taille par unité de papier, si bien que le modèle rétrécit à mesure qu’il est plié.",
+      "scaleHint": "Ajuster garde le papier à la même taille d’une étape à l’autre tant qu’il tient, et agrandit là où le modèle reste bien plus petit pendant plusieurs étapes. Une échelle dessine chaque motif à la même taille par unité de papier, si bien que le modèle rétrécit à mesure qu’il est plié.",
       "scalePaper": "Une échelle",
       "showPath": "Afficher le chemin",
       "size": "Format",

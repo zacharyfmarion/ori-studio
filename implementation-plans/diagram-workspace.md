@@ -116,7 +116,7 @@ At the end of this plan a user can:
 | "Simulated 40%" chosen in the inspector | A simulation can be captured only from a live, mounted session | Crease pattern \| Folded form \| Simulated is a choice **inside Pose**. The inspector's Render rows are read-only. |
 | CP picker "from the Edit workspace" | Patterns are regions of the one Edit document | The picker lists the Edit document's patterns, segmented in kernel space (D3) |
 | Click a card's picture to open Pose | Touch and keyboard need click to select | Click selects; double-click or Enter opens Pose |
-| Picture fitted to each cell | Real diagrams keep one paper scale | "Fit each" by default since 2026-10-04 (Zach): the paper keeps one scale from step to step while it fits, zooming in where the model gets much smaller; one shared paper scale (D10) as the option |
+| Picture fitted to each cell | Real diagrams keep one paper scale | "Fit each" by default since 2026-10-04 (Zach): the paper keeps one scale from step to step while it fits, zooming in where the model stays much smaller for several steps; one shared paper scale (D10) as the option |
 | PDF export | No PDF writer anywhere | Phase 0 spike, then D11 |
 | Text in pages and PDF | No text font is bundled; SVG-as-`<img>` cannot load web fonts | One bundled TTF, embedded in every page and in the PDF (Decision 2) |
 | Rail: Design / Crease Pattern / Simulator / Diagram | The real order is Edit, Design, Simulate, References | Diagram is the **fifth** entry, after References |
@@ -753,19 +753,23 @@ shows the composed page.**
     Uploads, and simulations whose camera has no orthographic scale, are fitted
     to their box.
   - Under `'fit'` the paper keeps one scale from step to step while it can
-    (`scaleRuns`). The steps are cut into runs, each drawn at the largest
-    scale every picture in it fits its room, by the cut that costs least:
-    each picture drawn smaller than it fits costs the log of how much, each
-    change of scale `FIT_RUN_BREAK` (1). So a model smaller for one step is
-    drawn at its neighbours' scale, one smaller for several zooms in, and a
-    step needing more room (a flap's outline reaching far) lowers its run or
-    stands alone, whichever costs less — the same answer read from either
-    end, where a greedy pass from the first step was not (review). Runs
-    within `FIT_SAME` (1.06) are then one scale anywhere in the diagram, and
-    two runs side by side less than `FIT_ZOOM` (1.3) apart are drawn as one at
-    the smaller: a change that small reads as the paper changing size, not
-    as a zoom. Pictures with no paper do the same by their frames, among
-    themselves. Zach, 2026-10-04: "keep the paper the same size where
+    (`scaleRuns`). The steps are cut into runs, each drawn at one scale no
+    picture in it is too big for, by the cut that costs least: each picture
+    drawn smaller than it fits costs the log of how much, each change of
+    scale `FIT_RUN_BREAK` (1), and two runs side by side are at least
+    `FIT_ZOOM` (1.3) apart — a smaller change reads as the paper changing
+    size, not as a zoom. A run's scale is its smallest picture's, or a zoom
+    under one, so a step needing a little more room stands alone a zoom
+    under its neighbours rather than draw them all smaller. So a model
+    smaller for one step is drawn at its neighbours' scale, one smaller for
+    several zooms in, and a step needing more room lowers its run or stands
+    alone, whichever costs less. A dynamic program over where the last run
+    starts and its scale finds the least cost exactly (a test tries every
+    cut), the same answer from either end; a greedy pass and then a merge
+    of near runs did not (reviews). Runs within `FIT_SAME` (1.06) are then
+    one scale anywhere in the diagram — each joining its chain's leader —
+    where that keeps each a zoom from its neighbours. Pictures with no paper
+    do the same by their frames, among themselves. Zach, 2026-10-04: "keep the paper the same size where
     possible, it's okay if the aspect ratio changes … that step would just be
     taller."
   - **Rooms.** A picture is drawn in its cell's room: the cell's width less
@@ -776,21 +780,28 @@ shows the composed page.**
   - **Marks.** A picture is measured with what its marks reach past it —
     annotations, a References step's letters. A mark is in part where it lies
     on the picture, which grows with it, and in part its pen, head, letter or
-    glyph, which keep their pt size. So `layoutPicture` measures twice: at a
-    frame so large the pt part is nothing (`width`, `height`, in the
-    picture's units) and at the size it prints, the difference being the
-    pt part in mm (`marks`); the picture with its marks is `width × scale +
-    marks.width` across. A head capped by its arrow's chord is not quite
-    either, so `layoutDiagram` lays the pages out again, each step measured
-    where a secant puts its scale's fixed point, until each is drawn at the
-    scale it was measured at; step files do the same. The pt part costs a
-    picture at most half its room (`MARKS_FLOOR`): in a room cut to a few mm
-    for text the paper keeps the other half and the letters reach out — but
-    the paper itself stays in its room (`settle`), never on a neighbour's.
+    glyph, which keep their pt size; a glyph larger than the paper hides the
+    paper's growth until the paper outgrows it, and a head capped by its
+    arrow's chord is neither. So the reach is a line only near a scale:
+    `layoutPicture` measures at the size it prints and 5% smaller, for how
+    fast the reach grows there (`width`, `height`, held between nothing and
+    its growth at a vast size) and what it reaches past that line (`marks`,
+    mm) — exact at the scale measured. `layoutDiagram` lays the pages out
+    again at the scales drawn, Newton's method on that line, until each is
+    drawn at the scale it was measured at; if eight passes do not settle it
+    keeps the last pages that held every picture as measured at its own
+    scale. Step files do the same. What lies past the line costs a picture
+    at most half its room (`MARKS_FLOOR`): in a room cut to a few mm for text
+    the paper keeps the other half and the letters reach out — but the paper
+    itself stays in its room always (`pictureFit`, `settle`), annotated or
+    not, never on a neighbour's; a reach that does not grow there (the glyph)
+    lets the paper fill its room. On a step file of one size the reach also
+    keeps to the canvas where it can.
     Every mark is measured where it is drawn — arc arrows (`foldArrowDrawn`,
     `oneWayArrowDrawn`) with their curve's bow between the points, a push by
     its outline and the mitres at its corners, the rotate and turn-over
-    glyphs by their shapes, heads grown with a heavy pen (review).
+    glyphs by their shapes, heads grown with a heavy pen, a crease line by
+    its pen, a label by its font's advances (reviews).
 
   Phase 3 confirms which captures keep paper units.
 - **Text.**
@@ -3279,6 +3290,15 @@ folds: https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf.
   re-measure (fails without it, at a 12 mm box).
 - [x] Before/after: `artifacts/diagram-fit-each/compare3-fit-*.png` (before
   Fit each, 7bbcdb3c8, now): steps 4–15 one scale, 8–14 taller.
+- [x] Second review (15 findings, all confirmed), fixed: the zoom rule inside
+  the least-cost cut, with a zoom under a neighbour as a scale a run may take
+  (a merge after the cut cascaded: a model halving in fifths never zoomed;
+  one step needing a little more room dragged 200 down); the snap a chain's
+  leader, guarded, all at once; reach measured as it grows where it is drawn,
+  no secant, and the pages kept to ones that hold; a References sheet settled
+  with no annotations; step files' marks kept on a canvas of one size; line
+  pens and label widths in the reach; the hint reworded. Tests fail on the
+  code before each.
 
 ### Phase 14: Annotate, after Phase 13 is planned and under way
 

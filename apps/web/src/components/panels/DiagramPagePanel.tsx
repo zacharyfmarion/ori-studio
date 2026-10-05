@@ -130,7 +130,7 @@ export function DiagramPagePanel() {
             disabled={readOnly}
             help={t(
               'panels:diagram.pagePane.scaleHint',
-              'Fit each keeps the paper one size from step to step while it fits, and zooms in where the model gets much smaller. One scale draws every pattern at the same size per unit of paper, so the model shrinks as it is folded.'
+              'Fit each keeps the paper one size from step to step while it fits, and zooms in where the model stays much smaller for several steps. One scale draws every pattern at the same size per unit of paper, so the model shrinks as it is folded.'
             )}
             options={[
               { id: 'fit', label: t('panels:diagram.pagePane.scaleFit', 'Fit each') },

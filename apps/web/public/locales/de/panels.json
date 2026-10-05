@@ -905,7 +905,7 @@
       "rows": "Reihen",
       "scale": "Maßstab",
       "scaleFit": "Jeden einpassen",
-      "scaleHint": "Einpassen hält das Papier von Schritt zu Schritt gleich groß, solange es passt, und vergrößert dort, wo das Modell deutlich kleiner wird. Ein Maßstab zeichnet jedes Muster in derselben Größe je Papiereinheit, sodass das Modell beim Falten kleiner wird.",
+      "scaleHint": "Einpassen hält das Papier von Schritt zu Schritt gleich groß, solange es passt, und vergrößert dort, wo das Modell über mehrere Schritte deutlich kleiner bleibt. Ein Maßstab zeichnet jedes Muster in derselben Größe je Papiereinheit, sodass das Modell beim Falten kleiner wird.",
       "scalePaper": "Ein Maßstab",
       "showPath": "Pfad zeigen",
       "size": "Größe",

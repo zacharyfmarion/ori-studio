@@ -941,7 +941,7 @@
       "rows": "Filas",
       "scale": "Escala",
       "scaleFit": "Ajustar cada uno",
-      "scaleHint": "Ajustar mantiene el papel del mismo tamaño de un paso a otro mientras cabe, y amplía donde el modelo se hace mucho más pequeño. Una escala dibuja cada patrón al mismo tamaño por unidad de papel, así que el modelo se encoge a medida que se pliega.",
+      "scaleHint": "Ajustar mantiene el papel del mismo tamaño de un paso a otro mientras cabe, y amplía donde el modelo sigue siendo mucho más pequeño durante varios pasos. Una escala dibuja cada patrón al mismo tamaño por unidad de papel, así que el modelo se encoge a medida que se pliega.",
       "scalePaper": "Una escala",
       "showPath": "Mostrar recorrido",
       "size": "Tamaño",
