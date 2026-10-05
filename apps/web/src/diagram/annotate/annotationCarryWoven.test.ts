@@ -33,7 +33,7 @@ import {
   type DiagramStep,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
-import { cpStep } from '../document/diagramSteps.fixtures';
+import { cpSource, cpStep } from '../document/diagramSteps.fixtures';
 import { storedScene } from '../pictures/pictureFrame';
 
 const ORIEDITA_TEST_RESOURCES = resolve(process.cwd(), '../../third_party/oriedita/oriedita-data/src/test/resources');
@@ -105,7 +105,7 @@ describe('a woven fold spread otherwise', () => {
     });
     const step: DiagramStep = { ...cpStep('step-1', render(0.025), before), annotations: marks, annotatedPictureKey: before.key };
     const moved = setLinkedPicture(insertSteps(createDiagram(), [step], 0), 'step-1', {
-      source: cpStep('step-1', render(0.1)).source!,
+      source: cpSource(render(0.1)),
       picture: after,
     }).steps[0] as DiagramStep;
     expect(moved.annotatedPictureKey).toBe(after.key);
