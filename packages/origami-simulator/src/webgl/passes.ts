@@ -218,8 +218,6 @@ uniform sampler2D u_meta2;
 uniform sampler2D u_nodeFaceMeta;
 uniform sampler2D u_nominalTriangles;
 uniform bool u_calcFaceStrain;
-// A pose (pull.ts): creases aim at the rest angle thetaCalc carries in .y.
-uniform bool u_posed;
 // The grip: three nodes, the press's weights among them, and the cursor's ray.
 uniform bool u_gripActive;
 uniform vec3 u_gripNodes;
@@ -273,7 +271,17 @@ float gripShare(float nodeIndex){
 
 `;
 
-const FORCE_SHADER_MAIN = `void main(){
+/**
+ * What a crease aims at: the fold target, upstream's expression; or, for paper
+ * in a pose (`pull.ts`), the rest angle thetaCalc carries in `.y`. A compile-time
+ * variant rather than a branch, because any condition here changes how the
+ * compiler forms the fold target's arithmetic, and the unposed solve has to stay
+ * exactly what it was.
+ */
+const FOLD_TARGET = 'creaseMeta[2] * u_creasePercent';
+const POSE_TARGET = 'thetas[1]';
+
+const forceShaderMain = (creaseTarget: string) => `void main(){
   vec2 fragCoord = gl_FragCoord.xy;
   vec2 scaledFragCoord = fragCoord/u_textureDim;
   vec2 mass = texture2D(u_mass, scaledFragCoord).xy;
@@ -327,7 +335,7 @@ const FORCE_SHADER_MAIN = `void main(){
     vec3 creaseMeta = texture2D(u_creaseMeta, scaledCreaseIndex).xyz;
     vec4 creaseGeo = texture2D(u_creaseGeo, scaledCreaseIndex);
     if (creaseGeo[0]< 0.0) continue;
-    float targetTheta = u_posed ? thetas[1] : creaseMeta[2] * u_creasePercent;
+    float targetTheta = ${creaseTarget};
     float angForce = creaseMeta[0]*(targetTheta-thetas[0]);
     float nodeNum = nodeCreaseMeta[1];
     if (nodeNum > 2.0){
@@ -457,11 +465,14 @@ vec4 fixedNodeOutput(vec2 scaledFragCoord){
 }
 `;
 
-export const VELOCITY_CALC = `${FORCE_SHADER_HEAD}${EULER_PRELUDE}${FORCE_SHADER_MAIN}
+const velocityCalc = (creaseTarget: string) => `${FORCE_SHADER_HEAD}${EULER_PRELUDE}${forceShaderMain(creaseTarget)}
   vec3 velocity = force*u_dt/mass[0] + lastVelocity;
   gl_FragColor = vec4(velocity, nodeError);
 }
 `;
+
+export const VELOCITY_CALC = velocityCalc(FOLD_TARGET);
+export const VELOCITY_CALC_POSED = velocityCalc(POSE_TARGET);
 
 
 /**
@@ -470,12 +481,15 @@ export const VELOCITY_CALC = `${FORCE_SHADER_HEAD}${EULER_PRELUDE}${FORCE_SHADER
  * positionCalcVerlet, including carrying the node's strain in alpha (which is
  * where upstream reads it back from).
  */
-export const POSITION_CALC_VERLET = `${FORCE_SHADER_HEAD}${VERLET_PRELUDE}${FORCE_SHADER_MAIN}
+const positionCalcVerlet = (creaseTarget: string) => `${FORCE_SHADER_HEAD}${VERLET_PRELUDE}${forceShaderMain(creaseTarget)}
   vec3 lastLastPosition = texture2D(u_lastLastPosition, scaledFragCoord).xyz;
   vec3 nextPosition = force*u_dt*u_dt/mass[0] + 2.0*lastPosition - lastLastPosition;
   gl_FragColor = vec4(sanitizeVec3(nextPosition), nodeError);
 }
 `;
+
+export const POSITION_CALC_VERLET = positionCalcVerlet(FOLD_TARGET);
+export const POSITION_CALC_VERLET_POSED = positionCalcVerlet(POSE_TARGET);
 
 /**
  * Verlet velocity is a diagnostic, not state: it is derived from how far the

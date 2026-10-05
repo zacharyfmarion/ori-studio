@@ -303,9 +303,14 @@ SimulatorPanel                         composition only (+ drawnCamera for canva
      brings it to 6 samplers. When not posed it writes `diff` exactly as today.
      When posed it carries the rest angle in `.y`, and applies the yield while
      pulling.
-   - **The force main** reads `targetTheta = u_posed ? thetas[1] : creaseMeta[2]
-     * u_creasePercent`. That is a uniform branch, and the unposed path is the
-     same expression as today.
+   - **The force main** aims creases at `thetas[1]` in a posed twin of each
+     integrator's program (`velocityCalcPosed`, `positionCalcVerletPosed`),
+     which the solver runs while posed. Built as a branch first, it changed the
+     unposed solve: any condition on the target stops SwiftShader fusing
+     `creaseMeta[2] * u_creasePercent - theta` the way it did, and an
+     over-constrained pinned run in `bench:gpu-stability` flipped from stable to
+     unstable. As a compile-time variant the unposed program's output matches
+     the base commit's on every `bench:gpu-parity` row.
    - **The grip** is uniforms:
      - `u_gripActive`, `u_gripNodes`, `u_gripWeights`;
      - `u_gripRayOrigin`, `u_gripRayDir`;

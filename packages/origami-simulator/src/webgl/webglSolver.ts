@@ -47,8 +47,10 @@ import {
   THETA_CALC,
   CREASE_GEO_CALC,
   VELOCITY_CALC,
+  VELOCITY_CALC_POSED,
   POSITION_CALC,
   POSITION_CALC_VERLET,
+  POSITION_CALC_VERLET_POSED,
   VELOCITY_CALC_VERLET,
 } from './passes.js';
 import {
@@ -68,8 +70,17 @@ import {
   type SolverMaterial,
 } from './packing.js';
 
-/** The two programs that run the shared force shader, and so read the pose and the grip. */
-const FORCE_PROGRAMS = ['velocityCalc', 'positionCalcVerlet'] as const;
+/**
+ * The programs that run the shared force shader: each integrator's, aiming at
+ * the fold target, and its twin for paper in a pose. All of them carry the grip.
+ */
+const FORCE_PROGRAMS = ['velocityCalc', 'positionCalcVerlet', 'velocityCalcPosed', 'positionCalcVerletPosed'] as const;
+
+/** The force program an integrator runs, given whether the paper is posed. */
+function forceProgram(integration: 'euler' | 'verlet', posed: boolean): (typeof FORCE_PROGRAMS)[number] {
+  if (integration === 'verlet') return posed ? 'positionCalcVerletPosed' : 'positionCalcVerlet';
+  return posed ? 'velocityCalcPosed' : 'velocityCalc';
+}
 
 /** A pull in progress; see `pull.ts`. */
 interface GpuPull {
@@ -381,7 +392,6 @@ export class WebglSolver implements SolverBackend {
   private setPose(posed: boolean): void {
     this.poseActive = posed;
     this.gl.setUniform('thetaCalc', 'u_posed', posed ? 1 : 0, '1i');
-    for (const program of FORCE_PROGRAMS) this.gl.setUniform(program, 'u_posed', posed ? 1 : 0, '1i');
   }
 
   /** The grip's uniforms, or switch it off when there is no pull. */
@@ -605,13 +615,13 @@ export class WebglSolver implements SolverBackend {
       // positionCalcVerlet integrates the force straight into position from two
       // steps of history; velocityCalcVerlet then derives velocity from how far it
       // moved. Same force shader as Euler, different final line.
-      gl.step('positionCalcVerlet', [...FORCE_SHADER_SAMPLERS, 'u_lastLastPosition'], 'u_position');
+      gl.step(forceProgram('verlet', this.poseActive), [...FORCE_SHADER_SAMPLERS, 'u_lastLastPosition'], 'u_position');
       gl.step('velocityCalcVerlet', ['u_position', 'u_lastPosition', 'u_mass'], 'u_velocity');
       // Age the history: this step's "last" becomes "lastLast", and the swap below
       // makes the new position "last". Matches upstream's swap order.
       gl.swap('u_lastPosition', 'u_lastLastPosition');
     } else {
-      gl.step('velocityCalc', [...FORCE_SHADER_SAMPLERS], 'u_velocity');
+      gl.step(forceProgram('euler', this.poseActive), [...FORCE_SHADER_SAMPLERS], 'u_velocity');
       gl.step('positionCalc', ['u_velocity', 'u_lastPosition', 'u_mass'], 'u_position');
     }
 
@@ -691,8 +701,10 @@ export class WebglSolver implements SolverBackend {
     gl.createProgram('thetaCalc', THETA_CALC);
     gl.createProgram('updateCreaseGeo', CREASE_GEO_CALC);
     gl.createProgram('velocityCalc', VELOCITY_CALC);
+    gl.createProgram('velocityCalcPosed', VELOCITY_CALC_POSED);
     gl.createProgram('positionCalc', POSITION_CALC);
     gl.createProgram('positionCalcVerlet', POSITION_CALC_VERLET);
+    gl.createProgram('positionCalcVerletPosed', POSITION_CALC_VERLET_POSED);
     gl.createProgram('velocityCalcVerlet', VELOCITY_CALC_VERLET);
 
     // Bind every sampler to a texture unit, matching the input order in `step`.
@@ -720,7 +732,7 @@ export class WebglSolver implements SolverBackend {
       const samplers: string[] = [...FORCE_SHADER_SAMPLERS];
       // Verlet reads one extra texture; it must be the last unit so the shared
       // units line up with the step() input order below.
-      if (program === 'positionCalcVerlet') samplers.push('u_lastLastPosition');
+      if (program === 'positionCalcVerlet' || program === 'positionCalcVerletPosed') samplers.push('u_lastLastPosition');
       bind(program, samplers);
       gl.setUniform(program, 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
       gl.setUniform(program, 'u_textureDimEdges', [dims.textureDimEdges, dims.textureDimEdges], '2f');
