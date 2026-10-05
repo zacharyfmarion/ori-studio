@@ -52,7 +52,8 @@ export interface FramingFollow {
   /**
    * Frozen where it is: while the paper is being pulled, a camera that followed
    * the shape would rescale under the cursor and slide the grabbed point away
-   * from it. The follow resumes, eased, when the hold is let go.
+   * from it. Held on through the pose a pull leaves, so letting go moves nothing
+   * on screen either; the follow resumes, eased, when the pose ends.
    */
   held: boolean;
 }

@@ -217,6 +217,9 @@ export function drawFrame(
     surface.anchorFor = highlights.pinned;
     anchorFraming(surface.framing, pinnedNodes(model, highlights.pinned), positions);
   }
+  // Held where it is while a pull is in hand or its pose holds, as the worker
+  // holds its own camera: see `FramingFollow.held`.
+  surface.framing.held = frame.framingHeld ?? false;
   const { framing, arrived } = followFraming(
     surface.framing,
     performance.now(),
@@ -346,11 +349,6 @@ export function drawFrame(
  */
 export function drawnCameraOf(canvas: HTMLCanvasElement): CameraUniforms | null {
   return surfaceCache.get(canvas)?.drawn?.camera ?? null;
-}
-
-/** Hold the canvas-2D camera where it is, or let it follow the shape again. */
-export function holdSurfaceFraming(canvas: HTMLCanvasElement, held: boolean): void {
-  surfaceFor(canvas).framing.held = held;
 }
 
 /**

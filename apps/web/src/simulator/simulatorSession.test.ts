@@ -1569,6 +1569,25 @@ describe('pulling the paper', () => {
     session.dispose();
   });
 
+  it('holds the camera through a pull and the pose it leaves, and lets go with the pose', async () => {
+    const { session, drawn, pointOn, near, far } = await sheet();
+    await session.setPinnedFaces([near]);
+    expect((await frame(session.tick({}))).framingHeld).toBe(false);
+
+    session.beginPull(pointOn(far), drawn);
+    expect((await frame(session.tick({}))).framingHeld).toBe(true);
+    session.endPull('cancel');
+    expect((await frame(session.tick({}))).framingHeld).toBe(false);
+
+    // Kept, the view stays where the pull left it until the pose ends.
+    session.beginPull(pointOn(far), drawn);
+    session.endPull('keep');
+    expect((await frame(session.tick({}))).framingHeld).toBe(true);
+    session.setFoldPercent(30);
+    expect((await frame(session.tick({}))).framingHeld).toBe(false);
+    session.dispose();
+  });
+
   it('is posed once a pull is let go and kept, not while it is in the hand', async () => {
     const { session, drawn, pointOn, near, far } = await sheet();
     await session.setPinnedFaces([near]);

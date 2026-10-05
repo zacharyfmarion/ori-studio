@@ -221,6 +221,12 @@ export interface SimulatorFramePayload {
   posed: boolean;
   /** What ended a pose since the last frame, said once; null when nothing did. */
   poseEnded: SimulatorPoseEnd | null;
+  /**
+   * The camera holds its framing: a pull is in hand, or the paper holds the pose
+   * one left. The canvas-2D path frames on the main thread, and holds when this
+   * says, as the worker's own camera does.
+   */
+  framingHeld: boolean;
 }
 
 /**
@@ -1362,8 +1368,8 @@ const api = {
    * why — off the paper, on a pinned face, or with nothing pinned to pull
    * against. `drawn` is the canvas-2D path's frame; the GPU path answers against
    * the camera its own last frame used. The camera holds still until the pull
-   * ends, so the paper stays under the cursor rather than the view rescaling
-   * beneath it. Null for a stale session.
+   * ends — kept, until its pose does — so the paper stays under the cursor
+   * rather than the view rescaling beneath it. Null for a stale session.
    */
   beginPull(
     at: SimulatorScreenPoint,
@@ -1414,7 +1420,9 @@ const api = {
     const pulling = active.backend.pulling;
     const { movedCreases } = active.backend.endPull(outcome);
     if (pulling && outcome === 'keep') active.poseKept = true;
-    holdFraming(active, false);
+    // A pose keeps the camera where the pull left it, so letting go moves
+    // nothing on screen: the view follows the shape again when the pose ends.
+    holdFraming(active, active.poseKept);
     active.clock.invalidate();
     return { movedCreases };
   },
@@ -1830,6 +1838,7 @@ async function readFrame(
     recovered: tick.recovered,
     posed: active.poseKept,
     poseEnded: takePoseEnded(active),
+    framingHeld: active.view.framing?.held ?? false,
   };
 
   // GPU-render mode: the worker draws straight to the transferred canvas. No
@@ -2262,7 +2271,7 @@ function takePoseEnded(active: Session): SimulatorPoseEnd | null {
   return ended;
 }
 
-/** Freeze the camera's follow while a pull runs; see `FramingFollow.held`. */
+/** Freeze the camera's follow while a pull runs or its pose holds; see `FramingFollow.held`. */
 function holdFraming(active: Session, held: boolean): void {
   (active.view.framing ??= createFramingFollow()).held = held;
 }

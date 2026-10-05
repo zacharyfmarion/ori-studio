@@ -11,7 +11,6 @@ import type { CameraUniforms, RenderSettings } from "@treemaker/origami-simulato
 import {
   drawFrame,
   drawnCameraOf,
-  holdSurfaceFraming,
   invalidateSimulatorSurface,
   pickDrawnFrame,
   type SimulatorHighlights,
@@ -217,8 +216,8 @@ type CanvasDrag =
       /** The canvas's box when the press landed; it does not move under a drag. */
       box: { left: number; top: number; width: number; height: number };
       touch: boolean;
-      /** The camera is held still while this gesture moves the paper. */
-      holdsCamera: boolean;
+      /** The gesture has hold of the paper: the cursor is a closed hand while it runs. */
+      grabsPaper: boolean;
     };
 
 export interface SimulatorViewportProps {
@@ -878,7 +877,7 @@ export function SimulatorViewport({
       ? simulatorCanvasCursor({
           tool: input.cursor,
           orbiting: drag?.kind === "orbit",
-          pulling: drag?.kind === "gesture" && drag.holdsCamera,
+          pulling: drag?.kind === "gesture" && drag.grabsPaper,
           refused: input.refused ?? false,
           navigateModifierHeld: readHeldModifiers().meta,
         })
@@ -933,15 +932,6 @@ export function SimulatorViewport({
     if (canvas?.hasPointerCapture?.(pointerId)) canvas.releasePointerCapture(pointerId);
   };
 
-  /**
-   * Hold the canvas-2D camera for a gesture that moves the paper under the
-   * cursor. The GPU path's camera is the worker's, which holds it itself.
-   */
-  const holdCamera = (held: boolean) => {
-    const canvas = canvasRef.current;
-    if (canvas && !gpuActiveRef.current) holdSurfaceFraming(canvas, held);
-  };
-
   /** Hand a gesture to the tool, measured against the canvas box its press landed in. */
   const deliver = (out: { gesture: SimulatorGesture | null }, drag: Extract<CanvasDrag, { kind: "gesture" }>) => {
     if (out.gesture) toolInputRef.current?.onGesture(out.gesture, { width: drag.box.width, height: drag.box.height });
@@ -967,7 +957,6 @@ export function SimulatorViewport({
         drag
       );
       showMarquee(null);
-      if (drag.holdsCamera) holdCamera(false);
     }
     updateCursor();
     return true;
@@ -1025,12 +1014,11 @@ export function SimulatorViewport({
           state: route.engine.initialState,
           box: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
           touch: event.pointerType === "touch",
-          holdsCamera: route.holdsCamera ?? false,
+          grabsPaper: route.grabsPaper ?? false,
         };
         const out = drag.engine.reduce(drag.state, sampleOf("down", event, drag));
         drag.state = out.state;
         dragRef.current = drag;
-        if (drag.holdsCamera) holdCamera(true);
         showMarquee(out.preview?.marquee ?? null, drag.box);
         deliver(out, drag);
         updateCursor();
@@ -1085,7 +1073,6 @@ export function SimulatorViewport({
     const kind = event.type === "pointercancel" ? "cancel" : "up";
     const out = drag.engine.reduce(drag.state, sampleOf(kind, event, drag));
     showMarquee(null);
-    if (drag.holdsCamera) holdCamera(false);
     deliver(out, drag);
     updateCursor();
   };

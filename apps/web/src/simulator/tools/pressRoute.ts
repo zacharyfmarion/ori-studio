@@ -24,10 +24,10 @@ export type SimulatorPressRoute =
   | { kind: 'ignore' }
   | { kind: 'orbit'; mode: SimulatorOrbitMode }
   /**
-   * A tool's gesture. `holdsCamera`: the gesture moves the paper under the
-   * cursor, so the camera must not rescale beneath it while it runs.
+   * A tool's gesture. `grabsPaper`: the gesture takes hold of the paper, which
+   * the cursor shows as a closed hand while it runs.
    */
-  | { kind: 'gesture'; engine: SimulatorGestureEngine<unknown>; holdsCamera?: boolean };
+  | { kind: 'gesture'; engine: SimulatorGestureEngine<unknown>; grabsPaper?: boolean };
 
 function orbit(press: SimulatorPress): SimulatorPressRoute {
   return { kind: 'orbit', mode: press.shift ? 'roll' : 'orbit' };
@@ -46,7 +46,7 @@ const ROUTES: Record<SimulatorInputMode, (press: SimulatorPress) => SimulatorPre
   pull: () => ({
     kind: 'gesture',
     engine: pullGestureEngine as SimulatorGestureEngine<unknown>,
-    holdsCamera: true,
+    grabsPaper: true,
   }),
 };
 

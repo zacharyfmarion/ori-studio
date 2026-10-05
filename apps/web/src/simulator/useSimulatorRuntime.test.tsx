@@ -52,6 +52,7 @@ function liveFrame(): SimulatorFramePayload | null {
     recovered: null,
     posed: false,
     poseEnded: null,
+    framingHeld: false,
   };
 }
 

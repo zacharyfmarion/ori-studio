@@ -36,11 +36,11 @@ describe('routeSimulatorPress', () => {
     });
   });
 
-  it('hands a pull its engine, holding the camera while it runs', () => {
+  it('hands a pull its engine, which takes hold of the paper', () => {
     expect(routeSimulatorPress(press(), 'pull')).toEqual({
       kind: 'gesture',
       engine: pullGestureEngine,
-      holdsCamera: true,
+      grabsPaper: true,
     });
     // Meta still orbits under Pull, as under every tool.
     expect(routeSimulatorPress(press({ meta: true }), 'pull')).toEqual({ kind: 'orbit', mode: 'orbit' });

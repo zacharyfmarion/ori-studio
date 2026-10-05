@@ -88,6 +88,11 @@ export interface SimulatorFrameView {
   posed?: boolean;
   /** What ended a pose since the last frame. Absent on a redraw. */
   poseEnded?: SimulatorPoseEnd | null;
+  /**
+   * The camera holds its framing — a pull in hand, or the pose one left — as
+   * the worker's does. Read by the canvas-2D path, which frames here.
+   */
+  framingHeld?: boolean;
 }
 
 /** What a pin request did; see `SimulatorPinResult`. */
@@ -335,6 +340,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     recovered: null,
     posed: false,
     poseEnded: null,
+    framingHeld: false,
   });
   // Kept in a ref so the play loop does not have to tear down and rebuild every
   // time the caller passes a new closure. Assigned in an effect rather than
@@ -400,6 +406,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       recovered: payload.recovered,
       posed: payload.posed,
       poseEnded: payload.poseEnded,
+      framingHeld: payload.framingHeld,
     });
     convergedRef.current = payload.converged;
     framedRef.current = payload.framed;
@@ -415,6 +422,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       recovered: null,
       posed: payload.posed,
       poseEnded: null,
+      framingHeld: payload.framingHeld,
     };
     // Give the buffer straight back to the worker on the next request so the
     // steady-state CPU loop allocates nothing. (Null in GPU mode.)
