@@ -16,6 +16,7 @@ import { paperExportDraft } from '../../paperExport/usePaperExportDialog';
 import golden from './__fixtures__/referencesStepExportGolden.json';
 import glyphsGolden from './__fixtures__/referencesGlyphsGolden.json';
 import pathArrowsGolden from './__fixtures__/referencesPathArrowsGolden.json';
+import rightAnglesGolden from './__fixtures__/referencesRightAnglesGolden.json';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import {
   canvasDiagramInk,
@@ -221,6 +222,25 @@ const PATH_ARROWS: StepDiagramModel = {
   ],
 };
 
+/**
+ * Right-angle marks (Phase 14e), on a unit sheet crossed by a valley and a
+ * mountain: in two corners of the paper, in two of the four quadrants where
+ * the creases cross, and one turned off the creases' axes.
+ */
+const RIGHT_ANGLES: StepDiagramModel = {
+  sheet: { width: 1, height: 1 },
+  primitives: [
+    { kind: 'sheet', width: 1, height: 1 },
+    { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'valley' },
+    { kind: 'line', from: [0.5, 0], to: [0.5, 1], style: 'mountain' },
+    { kind: 'right-angle', at: [0, 0], toward: [0.1, 0.1] },
+    { kind: 'right-angle', at: [1, 1], toward: [0.9, 0.9] },
+    { kind: 'right-angle', at: [0.5, 0.5], toward: [0.6, 0.6] },
+    { kind: 'right-angle', at: [0.5, 0.5], toward: [0.4, 0.4] },
+    { kind: 'right-angle', at: [0.25, 0.75], toward: [0.25 + Math.cos(1), 0.75 + Math.sin(1)] },
+  ],
+};
+
 /** The page the dialog saves for these remembered options, exactly as the dialog reaches it. */
 async function dialogPage(
   capture: StepCapture,
@@ -281,6 +301,17 @@ describe('referencesExportTarget', () => {
         [PATH_ARROWS]
       );
       expect(page).toEqual(mirrored ? pathArrowsGolden.back : pathArrowsGolden.front);
+    }
+  });
+
+  it('draws right-angle marks: an open square in each corner, mitred, mirrored with the paper on the back', async () => {
+    for (const mirrored of [false, true]) {
+      const page = await dialogPage(
+        { mirrored, lineWidth: 1, showAux: null },
+        { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm: 80 } },
+        [RIGHT_ANGLES]
+      );
+      expect(page).toEqual(mirrored ? rightAnglesGolden.back : rightAnglesGolden.front);
     }
   });
 

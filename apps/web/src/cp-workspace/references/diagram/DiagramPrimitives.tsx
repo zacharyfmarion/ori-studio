@@ -22,6 +22,7 @@ import {
   polygonPathData,
   polylinePathData,
   pushArrowDrawn,
+  rightAngleDrawn,
   rotateGlyphDrawn,
   sheetCorners,
   turnOverDrawn,
@@ -265,6 +266,7 @@ export function canLeavePaper(primitive: StepDiagramPrimitive): boolean {
     case 'push-arrow':
     case 'rotate':
     case 'turn-over':
+    case 'right-angle':
     case 'point':
       return true;
     case 'line':
@@ -745,6 +747,28 @@ function diagramPrimitiveShape(
             {...inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))}
           />
         </g>
+      ));
+    }
+    case 'right-angle': {
+      // An open square in the corner (decision 11 of the Annotate plan): its
+      // two legs in a ring's pen and ink, solid, ending square on the lines it
+      // marks and mitred at its own corner — set here, as whatever it is drawn
+      // in may join round.
+      const legs = rightAngleDrawn(primitive.at, primitive.toward, project);
+      if (!legs) return null;
+      const d = polylinePathData(legs.map(({ x, y }) => [x, y] as const));
+      return onAndOffPaper(context, index, (inks) => (
+        <path
+          key={index}
+          d={d}
+          strokeWidth={markRingWidth(project)}
+          strokeLinecap="butt"
+          strokeLinejoin="miter"
+          {...inked(inks, 'step-diagram__point step-diagram__right-angle', (ink) => ({
+            fill: 'none',
+            stroke: ink.mark,
+          }))}
+        />
       ));
     }
     case 'point': {

@@ -29,6 +29,7 @@ import {
   DIAGRAM_LINE_INK,
   DIAGRAM_MARKS,
   DIAGRAM_PUSH_INK,
+  DIAGRAM_RIGHT_ANGLE_INK,
   DIAGRAM_ROTATE_INK,
   DIAGRAM_TURN_OVER_INK,
   type DiagramMarks,
@@ -2042,6 +2043,60 @@ export function turnOverDrawn(
     transform: `${turn}translate(${round(x)} ${round(y)}) scale(${round(scale)})`,
     corners: [place(minX, minY), place(maxX, minY), place(maxX, maxY), place(minX, maxY)],
   };
+}
+
+/**
+ * A right-angle mark's open square (decision 11 of the Annotate plan): the
+ * two sides of a square with one corner at `corner` that do not lie along
+ * the lines it marks — from the end of one leg, round the square's far
+ * corner, to the end of the other — the square opening along the unit
+ * `diagonal`, `side` long. Its legs lie 45° either side of the diagonal: the
+ * first anticlockwise of it as the page shows it (y down), the second
+ * clockwise.
+ */
+export function rightAngleSquare(corner: SvgPoint, diagonal: SvgPoint, side: number): [SvgPoint, SvgPoint, SvgPoint] {
+  // A leg is the diagonal turned 45° either way: (d ∓ d⊥)/√2, d⊥ its quarter turn clockwise on the page.
+  const half = side / Math.SQRT2;
+  const across = { x: -diagonal.y, y: diagonal.x };
+  const legA = { x: half * (diagonal.x - across.x), y: half * (diagonal.y - across.y) };
+  const legB = { x: half * (diagonal.x + across.x), y: half * (diagonal.y + across.y) };
+  return [
+    { x: corner.x + legA.x, y: corner.y + legA.y },
+    { x: corner.x + legA.x + legB.x, y: corner.y + legA.y + legB.y },
+    { x: corner.x + legB.x, y: corner.y + legB.y },
+  ];
+}
+
+/**
+ * A right-angle mark as a picture draws it, its corner at `at` and opening
+ * toward `toward` (any point along its diagonal), both in sheet units: its
+ * open square ({@link rightAngleSquare}) in the projector's units, sized by
+ * its ink. The way it opens is measured after projecting, so it mirrors with
+ * the paper and its legs stay square to the lines under any similarity. The
+ * one place its drawn shape is decided, as {@link pushArrowDrawn} is a push's.
+ * Null when `toward` is the corner itself: it opens no way.
+ */
+export function rightAngleDrawn(
+  at: readonly [number, number],
+  toward: readonly [number, number],
+  project: DiagramProjector
+): [SvgPoint, SvgPoint, SvgPoint] | null {
+  const corner = project(at);
+  const ahead = project(toward);
+  const length = Math.hypot(ahead.x - corner.x, ahead.y - corner.y);
+  if (!(length > 0)) return null;
+  const diagonal = { x: (ahead.x - corner.x) / length, y: (ahead.y - corner.y) / length };
+  return rightAngleSquare(corner, diagonal, DIAGRAM_RIGHT_ANGLE_INK.side * project.ink);
+}
+
+/**
+ * How far a right-angle mark's stroke, `pen` wide, reaches past each of its
+ * three points: half the pen round its butt ends, and at its square corner
+ * half the pen along the mitre, √2 of that — under SVG's limit, so it is
+ * never bevelled.
+ */
+export function rightAngleReach(pen: number): [number, number, number] {
+  return [pen / 2, (Math.SQRT2 * pen) / 2, pen / 2];
 }
 
 /** A point as SVG path data writes one. */

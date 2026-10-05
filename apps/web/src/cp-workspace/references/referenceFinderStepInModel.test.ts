@@ -82,6 +82,15 @@ describe('diagramInModel', () => {
     expect(arcEndPoint(out)[1]).toBeCloseTo(25, 6);
   });
 
+  it('carries a right angle’s corner and the way it opens through the frame, which flips it', () => {
+    const marked: StepDiagramModel = {
+      ...diagram,
+      primitives: [{ kind: 'right-angle', at: [0, 0], toward: [0.1, 0.1] }],
+    };
+    // The paper's lower-left corner, opening up and to the right: on a y-down canvas, up is a smaller y.
+    expect(diagramInModel(marked, FLIPPED).primitives).toEqual([{ kind: 'right-angle', at: [0, 100], toward: [10, 90] }]);
+  });
+
   it('measures the sheet in model units and knows where its middle is and which way it lies', () => {
     // Re-pinned for Phase 5's erode: the sheet carries the frame's axes, so a
     // turned paper's edge is found where it is and not on an upright box.

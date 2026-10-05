@@ -116,6 +116,15 @@ export const DIAGRAM_SHEET_INK = { width: 1, opacity: 0.55 } as const;
 export const DIAGRAM_MARK_INK = { radius: 3.07, ofArrow: 0.75 } as const;
 
 /**
+ * A right-angle mark (decision 11 of the Annotate plan): the side of the open
+ * square it draws in the corner, in ink. At an annotation's ink (1.25 CSS px,
+ * 0.331 mm) it prints 2.3 mm a side: big enough to read as a square beside
+ * the lines it sits between, small enough to stay inside a narrow flap. Its
+ * stroke is a ring's (`markRingWidth`): a precise mark, lighter than an arrow.
+ */
+export const DIAGRAM_RIGHT_ANGLE_INK = { side: 7 } as const;
+
+/**
  * An arrowhead: its length, tip to barbs, and the cap for a short arrow as a
  * share of the chord it spans.
  *
