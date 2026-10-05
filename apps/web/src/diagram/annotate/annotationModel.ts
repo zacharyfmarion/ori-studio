@@ -12,6 +12,7 @@
 import { flattenPath, type Cubic } from '../../lib/cubicBezier';
 import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
+import { LABEL_ADVANCES, LABEL_ADVANCES_FROM } from './labelAdvances';
 import {
   randomDiagramId,
   type DiagramAnnotationKind,
@@ -265,14 +266,27 @@ const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han
 
 /**
  * Half a label's width, in picture units, as it is drawn centred on its
- * point: about half an em for each Latin letter, a whole em for a wide one.
- * An estimate — the canvas cannot measure the text it draws — that the hit
- * test, the selection and a file's crop all share.
+ * point: its Latin as wide as the font it is set in sets it
+ * (`LABEL_ADVANCES`), a whole em for a wide grapheme or one that font has no
+ * width for; and a fifth of an em past that, more than any Latin glyph's ink
+ * stands past its advance (ť's 0.109 em). The canvas cannot measure the text
+ * it draws: the hit test, the selection and a file's crop all share this.
  */
 export function labelHalfWidth(text: string): number {
   let ems = 0;
-  for (const grapheme of graphemesOf(text)) ems += WIDE.test(grapheme) ? 1 : 0.6;
+  for (const grapheme of graphemesOf(text)) ems += graphemeEms(grapheme);
   return LABEL_SIZE * (Math.max(ems, 0.6) / 2 + 0.2);
+}
+
+/** A grapheme's advance in ems, its combining marks included, as `labelHalfWidth` counts it. */
+function graphemeEms(grapheme: string): number {
+  if (WIDE.test(grapheme)) return 1;
+  let ems = 0;
+  for (const character of grapheme) {
+    const advance = LABEL_ADVANCES[character.codePointAt(0)! - LABEL_ADVANCES_FROM];
+    ems += advance !== undefined && advance >= 0 ? advance / 1000 : 1;
+  }
+  return ems;
 }
 
 export function isArrowKind(kind: DiagramAnnotationKind): boolean {

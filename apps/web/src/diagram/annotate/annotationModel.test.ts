@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { cubicPoint } from '../../lib/cubicBezier';
+import { readFontMetrics } from '../fonts/fontMetrics';
+import { LABEL_ADVANCES, LABEL_ADVANCES_FROM } from './labelAdvances';
 import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { arcToPath } from './annotationPath';
 import {
@@ -15,6 +19,7 @@ import {
   flipAnnotationArc,
   frameOf,
   isDegenerate,
+  LABEL_SIZE,
   labelHalfWidth,
   mirrorMove,
   moveAnnotation,
@@ -139,9 +144,38 @@ describe('keeping within reach', () => {
 });
 
 describe('a label’s width', () => {
-  it('counts a wide character as an em and a Latin one as a little over half', () => {
-    expect(labelHalfWidth('漢字漢字')).toBeGreaterThan(labelHalfWidth('ABCD') * 1.5);
+  it('counts a wide character as an em and Latin as wide as its font sets it', () => {
+    expect(labelHalfWidth('漢字漢字')).toBeCloseTo(LABEL_SIZE * (4 / 2 + 0.2), 12);
+    expect(labelHalfWidth('iii')).toBeLessThan(labelHalfWidth('MMM') / 2);
+    // A combining mark adds nothing; a letter the table has no width for, an em.
+    expect(labelHalfWidth('e\u0301')).toBeCloseTo(labelHalfWidth('e'), 12);
+    expect(labelHalfWidth('Ж')).toBeCloseTo(LABEL_SIZE * (1 / 2 + 0.2), 12);
     expect(labelHalfWidth('')).toBeGreaterThan(0);
+  });
+
+  it('holds the ink of the widest Latin labels (review)', () => {
+    // Half each one's ink, in ems, on its wider side: Noto Sans Regular's glyph outlines laid side by
+    // side, measured in the review of c8389df19. The estimate before reached 0.04–0.6 em short.
+    const ink: [string, number][] = [
+      ['MAMMOTH', 2.622],
+      ['WOW', 1.309],
+      ['WHOM', 1.668],
+      ['WWWWW', 2.313],
+      ['mmmmm', 2.257],
+      ['MW', 0.906],
+      ['MOUNTAIN', 2.639],
+    ];
+    for (const [text, half] of ink) expect(labelHalfWidth(text) / LABEL_SIZE, text).toBeGreaterThanOrEqual(half);
+  });
+
+  it('sets its Latin as the bundled Noto Sans does, glyph for glyph', () => {
+    const font = readFontMetrics(readFileSync(resolve(__dirname, '../fonts/NotoSans-Regular.ttf')));
+    expect(font.unitsPerEm).toBe(1000);
+    LABEL_ADVANCES.forEach((advance, index) => {
+      const codePoint = LABEL_ADVANCES_FROM + index;
+      expect(advance, codePoint.toString(16)).toBe(font.has(codePoint) ? font.advance(codePoint) : -1);
+    });
+    expect(LABEL_ADVANCES_FROM + LABEL_ADVANCES.length - 1).toBe(0x36f);
   });
 });
 
