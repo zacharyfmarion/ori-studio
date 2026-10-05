@@ -366,19 +366,26 @@ SimulatorPanel                         composition only (+ drawnCamera for canva
      clock, and redraws.
 - **`movePull(at, drawn?, token)`** sets the ray and invalidates the clock. It
   answers `false` once the pull has ended underneath it.
-- **`endPull(outcome, token)`** keeps or cancels, releases the framing hold,
-  and returns `movedCreases` for analytics.
+- **`endPull(outcome, token)`** keeps or cancels and returns `movedCreases`
+  for analytics. A kept pose keeps the framing hold; a cancel with no pose
+  releases it.
 - **`releasePose(token)`** is the Spring back verb.
 - **Policy.** `setFoldPercent` with a *different* percent cancels any pull and
   releases the pose; this one place covers Play, scrub, step and jump. `reset`
   does the same.
-- **Frames carry `posed`**, and `poseEndedBy: 'fold' | 'reset' | 'request' |
-  null`, so the UI can show the pose and analytics can say what ended it.
-- **Framing hold.** `followFraming` gains a hold: no measure, no ease, while a
-  pull is in flight. The camera otherwise rescales as a flap swings out, which
-  slides the paper out from under the cursor. It eases to the new shape after
-  release; the pinned-centroid anchor keeps the pins still on screen.
-  `canvas2dFrame` takes the same hold from the viewport.
+- **Frames carry `posed`** (a pose kept, not a pull still in the hand), and
+  `poseEnded: 'fold' | 'reset' | 'request' | null`, so the UI can show the pose
+  and analytics can say what ended it.
+- **Framing hold.** `followFraming` gains a hold: no measure, no ease, from
+  the press until the pull ends or, kept, until its pose does. The camera
+  otherwise rescales as a flap swings out, which slides the paper out from
+  under the cursor; and if it re-fit on release, the whole picture would jump
+  the moment the paper was let go. (The first build released at let-go, and
+  the browser check caught exactly that: 143,914 pixels changed on release.)
+  The session owns the hold for both renderers and puts it on every frame as
+  `framingHeld`, which the canvas-2D path, framing on the main thread, obeys.
+  The camera follows the shape again when the pose ends; the pinned-centroid
+  anchor keeps the pins still on screen.
 
 **`useSimulatorRuntime`**
 
@@ -547,10 +554,10 @@ Each step is its own commit.
   - fixed grip nodes take no force;
   - the GPU sampler count is unchanged; Verlet still links at 16 units.
   Measured: the scripted pull in `bench:gpu-parity` (grip, keep, pull again and
-  cancel, drop the pose) matches the reference within 3.2e-7 on every fixture
-  and both integrators, with fixed nodes bit-identical and the same moved-crease
-  counts. The book-fold test swings the free half to 89.8° and it drifts 0
-  after release.
+  cancel, drop the pose) matches the reference within 4.8e-7 on every fixture
+  and both integrators (3.2e-7 before posed paper got its own force program),
+  with fixed nodes bit-identical and the same moved-crease counts. The
+  book-fold test swings the free half to 89.8° and it drifts 0 after release.
 - [x] **Picking:** `cursorRay`, `frontmostHitAt`. Tests:
   - a point along the ray projects back to its pixel, in perspective and
     orthographic;
@@ -567,28 +574,37 @@ Each step is its own commit.
 - [x] **Worker and runtime:** the API, the fold-change and reset policy,
       `posed`/`poseEnded` on frames, the framing hold (the worker's; the
       canvas-2D path's comes with the viewport), the pull lane, coalesced moves.
-- [ ] **Tool core:** types, catalog, actions, engine, intents, `pressRoute`,
+- [x] **Tool core:** types, catalog, actions, engine, intents, `pressRoute`,
       cursor; all pure, all unit-tested.
-- [ ] **Viewport:** live gestures, cancel forwarding, `drawnCamera`, the cursor
+- [x] **Viewport:** live gestures, cancel forwarding, `drawnCamera`, the cursor
       states. Pin's tests stay green.
-- [ ] **Bindings:** the pull lane in `useSimulatorTools`, Spring back, refusal
+- [x] **Bindings:** the pull lane in `useSimulatorTools`, Spring back, refusal
       handling. Hook tests with a fake runtime cover ordering, a refused begin,
-      a stale end, and a fold change mid-pull.
-- [ ] **UI:** rail, window, context menu, shortcuts, phone sheet.
-- [ ] **Analytics:** events, wrappers with tests, `docs/analytics.md`.
-- [ ] **Errors,** **i18n** (eight locales, stamped, `i18n:check`).
-- [ ] **Browser verification** on Oriedita's `birdbase.cp` and a kabuto, on the
-      GPU path and the canvas-2D fallback, in light and dark, at phone width
-      with touch. If the agent pane is hidden, use headless Chromium against
-      the dev server, as the Pin tool's verification did. Each with before and
-      after screenshots and a tint-centroid measurement:
-  - pin the body, pull a flap open, let go: the flap moves under 1 px after
-    release;
-  - Play or a scrub springs it back; Restart goes flat;
-  - Escape mid-drag puts it back;
-  - with no pins the press is refused and the window explains;
-  - the pinned region does not move on screen;
-  - the worker goes idle after release.
-- [ ] `npm run lint:web`, `typecheck:web`, `test:web`, package tests, a
+      a stale end, and a fold change mid-pull. The stale end needed a fix: the
+      runtime's `endPull` now takes the model, as `beginPull` does.
+- [x] **UI:** rail, window, context menu, shortcuts, phone sheet.
+- [x] **Analytics:** events, wrappers with tests, `docs/analytics.md`.
+- [x] **Errors,** **i18n** (eight locales, stamped, `i18n:check`).
+- [x] **Browser verification**, headless Chromium against the dev server (the
+      agent pane was hidden), on Oriedita's `birdbase.cp` at 60% and a
+      one-crease flap at 90% (the kabuto was swapped for the flap: a single
+      hinge shows the swing plainly), GPU and canvas-2D, dark and light, and
+      a phone at 390 px with CDP touch. Screenshots before and after every
+      step, diffed pixel by pixel with the tool window and view cube masked:
+  - let go, the paper moves 0 px, from the frame before release to three
+    seconds after, on every run (after the framing fix above);
+  - a scrub ends the pose and the paper follows the fold; Restart goes flat;
+  - Escape, and on the phone a second finger, put it back: identical to the
+    Spring back frame, and on canvas-2D to the frame before the pull. On the
+    GPU path the camera's 2% dead band can settle a pixel away after any
+    motion, which is the residue there;
+  - with no pins the cursor is not-allowed, the press steps nothing, and the
+    window says why with a Pin faces button;
+  - the pinned faces' tint is pixel-identical through the pull and after;
+  - the Step counter stops after release: the worker goes idle.
+  Found on the way: the bird base's front is one face at full fold, so every
+  press there is `pinned-face` once it is pinned. Correct, and a hint that a
+  model's pinnable and pullable faces are not always where a user expects.
+- [x] `npm run lint:web`, `typecheck:web`, `test:web`, package tests, a
       production build.
 - [ ] Draft PR against `main`.
