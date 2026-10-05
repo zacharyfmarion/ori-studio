@@ -3350,7 +3350,11 @@ Checklist:
   and not at a smaller scale its run draws it at: it is then drawn alone at
   the largest below that it holds (`atMost`), the runs unchanged. The crane
   lays out as before, both scales.
-- [ ] Step files: the same search, the canvas as placed, the cap continuous.
+- [x] Step files: the same search, the canvas as placed, the cap continuous
+  (never under half the box's fit: as a canvas grows the scale never falls).
+  [9]'s cut was of the reach as measured, not the ink: a turn-over's reach
+  is its curves' control points and the pen, up to 3.5 mm past its ink at
+  the heaviest pen.
 - [ ] Before/after: the three documents in [6]–[8] rendered, and the crane.
 
 ### Phase 14: Annotate, after Phase 13 is planned and under way

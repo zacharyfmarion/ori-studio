@@ -23,20 +23,18 @@ import type { DiagramDocument } from '../document/diagramDocument';
 import type { DiagramFonts } from '../fonts/diagramFonts';
 import { embeddedFontFaces } from '../fonts/fontEmbedding';
 import type { FontSubsetter } from '../fonts/fontSubset';
-import { hasDrawnAnnotations } from '../annotate/paintAnnotations';
 import { stepPictureSource } from '../pictures/paintDiagramStep';
 import { stepNumberElement, stepTextElement, svgDocument } from '../pages/composeDiagramPage';
+import { STEP_NUMBER_SIZE_MM, STEP_TEXT_LEADING_MM, STEP_TEXT_SIZE_MM, pictureFit, type SetLine } from '../pages/diagramPageLayout';
 import {
-  STEP_NUMBER_SIZE_MM,
-  STEP_TEXT_LEADING_MM,
-  STEP_TEXT_SIZE_MM,
-  pictureFit,
-  type LayoutStep,
-  type SetLine,
-} from '../pages/diagramPageLayout';
-import { diagramLabelTexts, diagramLayoutSteps, diagramUploadTexts } from '../pages/diagramPages';
+  diagramLabelTexts,
+  diagramLayoutSteps,
+  diagramUploadTexts,
+  largestHeld,
+  MEASURE_SETTLED,
+} from '../pages/diagramPages';
 import { fontTextSetter } from '../pages/fontTextSetter';
-import { cellPicture } from '../pages/pagePictures';
+import { cellPicture, layoutPicture } from '../pages/pagePictures';
 import {
   ASCENT_EM,
   CROPPED_TEXT_MIN_WIDTH_MM,
@@ -80,45 +78,57 @@ export interface PreparedStepFiles {
   compose: (index: number) => PaperSvgResult;
 }
 
-/** How many times step files measure their pictures again at the scale they are drawn at, as the pages do. */
-const MEASURE_PASSES = 8;
-/** A scale this close to the one its marks were measured at is the one they were measured at. */
-const MEASURE_SETTLED = 1e-4;
+/** The least of its box's fit a picture is drawn at to keep its whole reach on a canvas of one size. */
+const CANVAS_KEEP = 0.5;
+
+/** How many times the shared scale may be taken down for a picture that does not hold at it. */
+const HOLD_PASSES = 8;
 
 /**
  * D10's shared scale for a box: the largest mm per unit at which every paper
- * picture fits it, its marks as the pages count them (`pictureFit`). On a
- * canvas of one size (`canvas`, the room round the box's centre), where marks
- * the floor lets reach out of the box would be cut at its edge, no larger than
- * keeps a picture's whole reach on it — when it can be.
+ * picture holds the box, its marks as the pages count them, measured at that
+ * scale (`largestHeld`). On a canvas of one size (`canvas`, the room round
+ * the box's centre), where marks the floor lets reach out of the box would be
+ * cut at its edge, no larger than keeps a picture's whole reach on the
+ * canvas, placed in the box as a file places it — or off it the least it can,
+ * never drawn under {@link CANVAS_KEEP} of its box's fit for it. A picture
+ * drawn smaller than its own at the shared scale, whose marks reach out
+ * unevenly, may not hold there: the scale goes down to the largest it does.
  */
 function sharedScale(
-  steps: readonly LayoutStep[],
+  document: DiagramDocument,
   boxMm: number,
   canvas: { across: number; down: number } | null
 ): number | null {
-  let scale: number | null = null;
-  for (const { picture } of steps) {
-    if (picture?.kind !== 'paper') continue;
-    let fits = pictureFit(picture, boxMm, boxMm);
-    if (fits === null || !(fits > 0)) continue;
-    const whole = canvas ? wholeFit(picture, canvas.across, canvas.down) : null;
-    if (whole !== null) fits = Math.min(fits, whole);
-    scale = scale === null ? fits : Math.min(scale, fits);
+  const lip = canvas ? { across: (canvas.across - boxMm) / 2, down: (canvas.down - boxMm) / 2 } : null;
+  const pictures = stepsOf(document).flatMap((step) => {
+    const measured = (scale: number | null) =>
+      layoutPicture(step, document.assets, document.style, scale === null ? null : { mmPerUnit: scale });
+    if (measured(null)?.kind !== 'paper') return [];
+    const boxFit = largestHeld((scale) => pictureFit(measured(scale), boxMm, boxMm));
+    if (boxFit === null || !(boxFit > 0)) return [];
+    /** Its fit measured at `scale`: in the box, and on the canvas. */
+    const fit = (scale: number | null) => {
+      const picture = measured(scale);
+      const inBox = pictureFit(picture, boxMm, boxMm);
+      if (!lip || inBox === null) return inBox;
+      const onCanvas = pictureFit(picture, boxMm, boxMm, { lip, from: CANVAS_KEEP * boxFit });
+      return onCanvas === null ? inBox : Math.min(inBox, onCanvas);
+    };
+    const held = lip ? largestHeld(fit) : boxFit;
+    return held !== null && held > 0 ? [{ fit, held }] : [];
+  });
+  if (pictures.length === 0) return null;
+  let scale = Math.min(...pictures.map(({ held }) => held));
+  for (let pass = 0; pass < HOLD_PASSES; pass += 1) {
+    const failing = pictures.filter(({ fit }) => {
+      const there = fit(scale);
+      return there === null || there < scale * (1 - MEASURE_SETTLED);
+    });
+    if (failing.length === 0) break;
+    scale = Math.min(...failing.map(({ fit }) => largestHeld(fit, scale) ?? 0));
   }
   return scale;
-}
-
-/**
- * The largest scale at which a picture's whole reach, marks and all, fits
- * `across` × `down` mm; null when its marks alone are larger, and a cut cannot
- * be helped.
- */
-function wholeFit(picture: NonNullable<LayoutStep['picture']>, across: number, down: number): number | null {
-  const side = (room: number, grows: number, beyond: number) =>
-    grows > 0 ? (room - beyond) / grows : beyond <= room ? Infinity : -Infinity;
-  const fit = Math.min(side(across, picture.width, picture.marks.width), side(down, picture.height, picture.marks.height));
-  return fit > 0 ? fit : null;
 }
 
 export function prepareStepFiles(
@@ -136,28 +146,11 @@ export function prepareStepFiles(
   const canvas = options.sameSize
     ? { across: options.widthMm, down: 2 * Math.min(middle, options.heightMm - middle) }
     : null;
-  // Again while a References step or an annotated one is measured at another
-  // scale than it is drawn at: its letters and marks keep their pt size, so
-  // how far they reach past its picture is known only at its scale. Each pass
-  // measures at the last one's scale, as the pages do (`layoutDiagram`); one
-  // that does not settle keeps the largest scale every picture, measured at
-  // it, was held at.
-  let layoutSteps = diagramLayoutSteps(document);
-  let scale = sharedScale(layoutSteps, box.size, canvas);
-  const reaching = steps.some(
-    (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
-  );
-  let settled = !reaching;
-  let held: number | null = null;
-  for (let pass = 0; !settled && scale !== null && pass < MEASURE_PASSES; pass += 1) {
-    const measure = { mmPerUnit: scale };
-    layoutSteps = diagramLayoutSteps(document, () => measure);
-    const next = sharedScale(layoutSteps, box.size, canvas);
-    if (next !== null && next >= scale * (1 - MEASURE_SETTLED)) held = Math.max(held ?? 0, scale);
-    settled = next !== null && Math.abs(next - scale) <= MEASURE_SETTLED * scale;
-    scale = next;
-  }
-  if (!settled && held !== null) scale = held;
+  // Its letters and marks keep their pt size, so how far they reach past a
+  // picture is known only at its scale: each found where it holds, measured
+  // there, as the pages find theirs (`layoutDiagram`).
+  const layoutSteps = diagramLayoutSteps(document);
+  const scale = sharedScale(document, box.size, canvas);
 
   const digits = String(steps.length).length;
   const title = document.title.trim() || 'Diagram';

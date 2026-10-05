@@ -465,14 +465,22 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
  * what grows with it takes {@link MARKS_FLOOR} of the room, nor letting the
  * paper itself out of it. Its reach as measured, near the scale it was
  * measured at; where it lies, by side, when measured (`sides`), else even.
- * Null for no picture, or one with no size.
+ * Past the room, a `lip` each way the reach may hang into for nothing (a
+ * step file's canvas round its box), and the scales sought from `from` up
+ * rather than from the floor. Null for no picture, or one with no size.
  */
-export function pictureFit(picture: LayoutStep['picture'], across: number, down: number): number | null {
+export function pictureFit(
+  picture: LayoutStep['picture'],
+  across: number,
+  down: number,
+  options: { lip?: { across: number; down: number }; from?: number } = {}
+): number | null {
   if (!picture) return null;
   const sides = picture.sides ?? evenSides(picture);
+  const { lip = { across: 0, down: 0 }, from } = options;
   const fit = Math.min(
-    overrunFit(across, picture.frame.width, sides.left, sides.right),
-    overrunFit(down, picture.frame.height, sides.top, sides.bottom)
+    overrunFit(across, picture.frame.width, sides.left, sides.right, lip.across, from),
+    overrunFit(down, picture.frame.height, sides.top, sides.bottom, lip.down, from)
   );
   return Number.isFinite(fit) && fit >= 0 ? fit : null;
 }
@@ -495,9 +503,10 @@ interface ScaleLine {
  * The largest scale, one way, at which a picture's reach hangs past its room
  * `room` mm (and a `lip` either side it may reach into for nothing) the
  * least it can, from its floor — what grows with the picture taking half the
- * room, or the paper half of it where nothing grows — to the paper filling
- * the room. So a reach that fits is as large as fits; marks larger than the
- * room even at the floor leave the paper at the floor; and a glyph larger
+ * room, or the paper half of it where nothing grows; or from `from`, when
+ * given — to the paper filling the room. So a reach that fits is as large as
+ * fits; marks larger than the room even at the floor leave the paper at the
+ * floor; and a glyph larger
  * than the paper, which no scale makes smaller, leaves it as large as its
  * room where the glyph is centred on it, and as large as still lets the
  * reach be centred where it is not, rather than hang all over one side.
@@ -510,11 +519,11 @@ interface ScaleLine {
  * `max(0, (a + b)/2, b, a − (h − p))` — the largest of lines in the scale,
  * so it is least, and stays least up to a point, as convex functions are.
  */
-export function overrunFit(room: number, frame: number, before: ReachLine, after: ReachLine, lip = 0): number {
+export function overrunFit(room: number, frame: number, before: ReachLine, after: ReachLine, lip = 0, from?: number): number {
   if (![room, frame, before.grows, before.beyond, after.grows, after.beyond, lip].every(Number.isFinite)) return Number.NaN;
   const paper = frame > 0 ? room / frame : Infinity;
   const grows = frame + before.grows + after.grows;
-  const floor = Math.min(paper, ((1 - MARKS_FLOOR) * room) / Math.max(grows, frame));
+  const floor = Math.min(paper, from ?? ((1 - MARKS_FLOOR) * room) / Math.max(grows, frame));
   if (!(floor < Infinity)) return paper;
   // Each side's reach, at least nothing: its line or none, whichever is more.
   const nears: ScaleLine[] = [

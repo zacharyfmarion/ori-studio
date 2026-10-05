@@ -6,7 +6,8 @@ import { cpStep, referencesStep, scenePicture } from '../document/diagramSteps.f
 import { FIXTURE_FONTS, fixtureSubsetter } from '../fonts/diagramFonts.fixtures';
 import type { FontSubsetter } from '../fonts/fontSubset';
 import { pictureExtent } from '../pages/diagramPageLayout';
-import { layoutPicture } from '../pages/pagePictures';
+import { cellPicture, layoutPicture } from '../pages/pagePictures';
+import { estimateTextSetter } from '../pages/estimateTextSetter';
 import { PAD_MM, pictureBoxOf } from './stepFileGeometry';
 import { prepareStepFiles, stepFileMinHeightMm, STEP_FILE_TEXT_LINES, type StepFileOptions } from './stepFiles';
 
@@ -162,6 +163,58 @@ describe('prepareStepFiles', () => {
       // A cropped file has no canvas to keep to: its paper as large as the box's floor allows.
       const cropped = prepareStepFiles(document, FIXTURE_FONTS, subsetter, { ...options, sameSize: false });
       expect(cropped.mmPerUnit!).toBeGreaterThanOrEqual(at);
+    }
+  });
+
+  it('never draws the paper smaller as a canvas of one size grows, nor under half its box’s fit for its marks (third review)', () => {
+    // The glyphs either side of the paper at the heaviest pen, and a plain step drawn at the same scale.
+    const glyphs: DiagramStep = {
+      ...cpStep('step-glyphs'),
+      annotations: [
+        { id: 'r', kind: 'rotate', from: [1.3, 0.5], to: [1.3, 0.5], rotate: { amount: 'half', direction: 'cw' } },
+        { id: 't', kind: 'turn-over', from: [-0.3, 0.5], to: [-0.3, 0.5], axis: 'vertical' },
+      ],
+    };
+    const style = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    const document = { ...insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [glyphs, cpStep('step-plain')], 0), style };
+    let last = 0;
+    for (let size = 20; size <= 40; size += 1) {
+      const options: StepFileOptions = { ...SAME, number: false, text: false, widthMm: size, heightMm: size };
+      const at = prepareStepFiles(document, FIXTURE_FONTS, subsetter, options).mmPerUnit!;
+      // Past the glyphs' own width the cap once dropped from 4.06 to 0.53 mm per unit: every file a dot.
+      expect(at, `${size} mm`).toBeGreaterThanOrEqual(last * (1 - 1e-6));
+      const boxFit = prepareStepFiles(document, FIXTURE_FONTS, subsetter, { ...options, sameSize: false }).mmPerUnit!;
+      expect(at / boxFit, `${size} mm`).toBeGreaterThanOrEqual(0.5 * (1 - 1e-3));
+      last = at;
+    }
+  });
+
+  it('keeps a glyph on a canvas of one size where its whole reach fits it, placed as the box places it (third review)', () => {
+    // A turn-over over the top edge and a valley line off to the right: a reach that fits a 20 mm canvas,
+    // but the paper kept in its box could not centre it, and the glyph was cut 0.62 mm at the top.
+    const step: DiagramStep = {
+      ...cpStep('step-1'),
+      annotations: [
+        { id: 'v', kind: 'valley-line', from: [1.147, 0.934], to: [1.04, 0.0996] },
+        { id: 't', kind: 'turn-over', from: [0.38, -0.05], to: [0.38, -0.05], axis: 'horizontal' },
+      ],
+    };
+    const style = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    const document = { ...insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [step], 0), style };
+    for (const size of [20, 22, 24]) {
+      const options: StepFileOptions = { ...SAME, number: false, text: false, widthMm: size, heightMm: size };
+      const files = prepareStepFiles(document, FIXTURE_FONTS, subsetter, options);
+      const box = pictureBoxOf(options);
+      const placed = cellPicture(step, document.assets, document.style, { pictureMm: box, mmPerUnit: files.mmPerUnit, frameMm: null }, 's-', {
+        hanStyle: 'sc',
+        runs: estimateTextSetter.runs,
+      })!;
+      const [top, bottom] = [placed.boundsPt.y / PT_PER_MM, (placed.boundsPt.y + placed.boundsPt.height) / PT_PER_MM];
+      const [left, right] = [placed.boundsPt.x / PT_PER_MM, (placed.boundsPt.x + placed.boundsPt.width) / PT_PER_MM];
+      expect(top, `${size} mm`).toBeGreaterThanOrEqual(-1e-3);
+      expect(bottom, `${size} mm`).toBeLessThanOrEqual(size + 1e-3);
+      expect(left, `${size} mm`).toBeGreaterThanOrEqual(-1e-3);
+      expect(right, `${size} mm`).toBeLessThanOrEqual(size + 1e-3);
     }
   });
 
