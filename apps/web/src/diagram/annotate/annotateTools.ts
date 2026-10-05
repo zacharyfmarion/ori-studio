@@ -257,11 +257,31 @@ export function annotateToolHint(
   host: AnnotateToolHost
 ): AnnotateToolHint | null {
   if (tool === null) return null;
+  let instructions: string;
+  if (tool === EDIT_PATH) instructions = editPathHelp(t, selected);
+  else if (host.coarse && (tool === 'label' || tool === 'callout')) instructions = textHelpOnTouch(t, tool);
+  else instructions = annotateToolHelp(t, tool);
   return {
     title: annotateToolLabel(t, tool),
-    instructions: tool === EDIT_PATH ? editPathHelp(t, selected) : annotateToolHelp(t, tool),
+    instructions,
     modifiers: host.coarse ? [] : annotateToolModifiers(t, tool, host),
   };
+}
+
+/**
+ * A label's and a callout's help on a touch screen, which keeps the Step pane
+ * as a tab of the sheet behind its Settings pill: the field its words are
+ * typed in named where that surface shows it, in its own words.
+ */
+function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout'): string {
+  const where = { sheet: t('common:viewDrawer.openSettings', 'Settings'), tab: t('panels:sidePane.step', 'Step') };
+  return tool === 'label'
+    ? t('panels:diagram.annotate.labelHelpTouch', 'Click where the label goes, then type it in {{sheet}}, under {{tab}}.', where)
+    : t(
+        'panels:diagram.annotate.calloutHelpTouch',
+        'Drag from a point to where the box goes, or click the point, then type its words in {{sheet}}, under {{tab}}.',
+        where
+      );
 }
 
 /**

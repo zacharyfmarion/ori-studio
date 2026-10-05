@@ -760,6 +760,7 @@
     "annotate": {
       "arrowHelp": "Faites glisser depuis l’endroit où part le papier jusqu’à celui où il arrive.",
       "calloutHelp": "Faites glisser d’un point jusqu’à l’emplacement du cadre, ou cliquez sur le point, puis saisissez son texte dans le panneau Étape.",
+      "calloutHelpTouch": "Faites glisser d’un point jusqu’à l’emplacement du cadre, ou cliquez sur le point, puis saisissez son texte dans {{sheet}}, sous {{tab}}.",
       "canvasLabel": "Annotations sur l’image de l’étape",
       "circleFreeKey": "Maintenez {{modifier}} pour le poser n’importe où, sans aimantation.",
       "circleHelp": "Cliquez sur un point pour l’entourer.",
@@ -780,6 +781,7 @@
       "handleShiftKey": "Faites glisser une poignée avec Maj pour la tourner par pas de 15°.",
       "instructions": "Instructions",
       "labelHelp": "Cliquez là où va l’étiquette, puis saisissez-la dans le panneau Étape.",
+      "labelHelpTouch": "Cliquez là où va l’étiquette, puis saisissez-la dans {{sheet}}, sous {{tab}}.",
       "largerScreen": "Annotez sur un écran plus grand : une tablette ou un ordinateur.",
       "lineHelp": "Faites glisser le long du pli.",
       "nodeShiftKey": "Faites glisser un nœud avec Maj pour le déplacer seulement à l’horizontale, à la verticale ou à 45°.",

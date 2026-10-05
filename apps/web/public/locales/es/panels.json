@@ -760,6 +760,7 @@
     "annotate": {
       "arrowHelp": "Arrastra desde donde empieza el papel hasta donde llega.",
       "calloutHelp": "Arrastra desde un punto hasta donde va el recuadro, o haz clic en el punto, y escribe su texto en el panel Paso.",
+      "calloutHelpTouch": "Arrastra desde un punto hasta donde va el recuadro, o haz clic en el punto, y escribe su texto en {{sheet}}, en {{tab}}.",
       "canvasLabel": "Anotaciones en la imagen del paso",
       "circleFreeKey": "Mantén pulsado {{modifier}} para colocarlo en cualquier lugar, sin ajustar.",
       "circleHelp": "Haz clic en un punto para rodearlo con un círculo.",
@@ -780,6 +781,7 @@
       "handleShiftKey": "Arrastra un tirador con Mayús para girarlo en pasos de 15°.",
       "instructions": "Instrucciones",
       "labelHelp": "Haz clic donde va la etiqueta y escríbela en el panel Paso.",
+      "labelHelpTouch": "Haz clic donde va la etiqueta y escríbela en {{sheet}}, en {{tab}}.",
       "largerScreen": "Anota en una pantalla más grande: una tableta o un ordenador.",
       "lineHelp": "Arrastra a lo largo del pliegue.",
       "nodeShiftKey": "Arrastra un nodo con Mayús para moverlo solo en horizontal, en vertical o a 45°.",

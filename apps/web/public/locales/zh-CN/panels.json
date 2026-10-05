@@ -702,6 +702,7 @@
     "annotate": {
       "arrowHelp": "从纸开始移动的位置拖到它落下的位置。",
       "calloutHelp": "从一个点拖到要放置方框的位置，或单击该点，然后在“步骤”窗格中输入文字。",
+      "calloutHelpTouch": "从一个点拖到要放置方框的位置，或单击该点，然后在“{{sheet}}”的“{{tab}}”中输入文字。",
       "canvasLabel": "步骤图上的标注",
       "circleFreeKey": "按住 {{modifier}} 可放在任意位置，不吸附。",
       "circleHelp": "单击一个点，用圆圈圈出它。",
@@ -722,6 +723,7 @@
       "handleShiftKey": "按住 Shift 拖动手柄，可按 15° 步进旋转。",
       "instructions": "说明",
       "labelHelp": "在要放置标签的位置单击，然后在“步骤”窗格中输入。",
+      "labelHelpTouch": "在要放置标签的位置单击，然后在“{{sheet}}”的“{{tab}}”中输入。",
       "largerScreen": "请在平板或电脑等更大的屏幕上标注。",
       "lineHelp": "沿折痕拖动。",
       "nodeShiftKey": "按住 Shift 拖动节点，只沿水平、垂直或 45° 方向移动。",

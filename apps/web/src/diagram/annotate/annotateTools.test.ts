@@ -112,7 +112,9 @@ describe('the tool window', () => {
     for (const tool of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null)) {
       const hint = annotateToolHint(t, tool, null, finger)!;
       expect(hint.modifiers).toEqual([]);
-      expect(hint.instructions).toBe(annotateToolHint(t, tool, null, mac)!.instructions);
+      // A label's and a callout's words are typed in the Settings sheet's Step tab there (review).
+      if (tool === 'label' || tool === 'callout') expect(hint.instructions).toMatch(/ in Settings, under Step\.$/);
+      else expect(hint.instructions).toBe(annotateToolHint(t, tool, null, mac)!.instructions);
     }
   });
 

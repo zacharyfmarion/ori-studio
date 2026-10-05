@@ -760,6 +760,7 @@
     "annotate": {
       "arrowHelp": "Arraste de onde o papel começa até onde ele chega.",
       "calloutHelp": "Arraste de um ponto até onde a caixa deve ficar, ou clique no ponto, e digite o texto no painel Passo.",
+      "calloutHelpTouch": "Arraste de um ponto até onde a caixa deve ficar, ou clique no ponto, e digite o texto em {{sheet}}, na aba {{tab}}.",
       "canvasLabel": "Anotações na imagem do passo",
       "circleFreeKey": "Segure {{modifier}} para colocá-lo em qualquer lugar, sem ajuste.",
       "circleHelp": "Clique em um ponto para circulá-lo.",
@@ -780,6 +781,7 @@
       "handleShiftKey": "Arraste uma alça com Shift para girá-la em passos de 15°.",
       "instructions": "Instruções",
       "labelHelp": "Clique onde o rótulo deve ficar e digite-o no painel Passo.",
+      "labelHelpTouch": "Clique onde o rótulo deve ficar e digite-o em {{sheet}}, na aba {{tab}}.",
       "largerScreen": "Anote em uma tela maior: um tablet ou um computador.",
       "lineHelp": "Arraste ao longo do vinco.",
       "nodeShiftKey": "Arraste um nó com Shift para movê-lo só na horizontal, na vertical ou a 45°.",

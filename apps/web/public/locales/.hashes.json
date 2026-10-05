@@ -4038,7 +4038,9 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
+    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
+    "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8079,7 +8081,9 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
+    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
+    "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12122,7 +12126,9 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
+    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
+    "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -16077,7 +16083,9 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
+    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
+    "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -20032,7 +20040,9 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
+    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
+    "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -24073,7 +24083,9 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
+    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
+    "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -28114,7 +28126,9 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
+    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
+    "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -32069,6 +32083,8 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
+    "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c",
+    "panels:diagram.annotate.calloutHelpTouch": "769db86c64a2",
+    "panels:diagram.annotate.labelHelpTouch": "fb37f068ed97"
   }
 }

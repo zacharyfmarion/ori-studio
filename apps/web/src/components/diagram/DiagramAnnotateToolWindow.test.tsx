@@ -184,6 +184,11 @@ describe('DiagramAnnotateToolWindow', () => {
     tool('circle');
     expect(intro()).toBe('Click a point to circle it.');
     expect(windowEl()?.querySelector('ul')).toBeNull();
+    // The words are typed where a touch screen keeps the Step pane: a tab of the Settings sheet (review).
+    tool('label');
+    expect(intro()).toBe('Click where the label goes, then type it in Settings, under Step.');
+    tool('callout');
+    expect(intro()).toBe('Drag from a point to where the box goes, or click the point, then type its words in Settings, under Step.');
   });
 
   it('is not shown on a diagram that cannot change, as Edit’s is not', () => {

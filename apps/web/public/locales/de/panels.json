@@ -731,6 +731,7 @@
     "annotate": {
       "arrowHelp": "Ziehe von dort, wo das Papier startet, bis dorthin, wo es landet.",
       "calloutHelp": "Ziehe von einem Punkt dorthin, wo der Kasten hin soll, oder klicke auf den Punkt, und tippe dann den Text im Bereich Schritt ein.",
+      "calloutHelpTouch": "Ziehe von einem Punkt dorthin, wo der Kasten hin soll, oder klicke auf den Punkt, und tippe dann den Text unter {{sheet}} › {{tab}} ein.",
       "canvasLabel": "Annotationen auf dem Bild des Schritts",
       "circleFreeKey": "Halte {{modifier}} gedrückt, um ihn frei zu setzen, ohne Einrasten.",
       "circleHelp": "Klicke auf einen Punkt, um ihn einzukreisen.",
@@ -751,6 +752,7 @@
       "handleShiftKey": "Ziehe einen Griff mit Umschalt, um ihn in 15°-Schritten zu drehen.",
       "instructions": "Anweisungen",
       "labelHelp": "Klicke dort, wo die Beschriftung hin soll, und tippe sie im Bereich Schritt ein.",
+      "labelHelpTouch": "Klicke dort, wo die Beschriftung hin soll, und tippe sie unter {{sheet}} › {{tab}} ein.",
       "largerScreen": "Annotiere auf einem größeren Bildschirm: einem Tablet oder Computer.",
       "lineHelp": "Ziehe entlang der Falte.",
       "nodeShiftKey": "Ziehe einen Knoten mit Umschalt, um ihn nur waagerecht, senkrecht oder im 45°-Winkel zu bewegen.",

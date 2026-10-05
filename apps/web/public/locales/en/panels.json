@@ -731,6 +731,7 @@
     "annotate": {
       "arrowHelp": "Drag from where the paper starts to where it lands.",
       "calloutHelp": "Drag from a point to where the box goes, or click the point, then type its words in the Step pane.",
+      "calloutHelpTouch": "Drag from a point to where the box goes, or click the point, then type its words in {{sheet}}, under {{tab}}.",
       "canvasLabel": "Annotations on the step’s picture",
       "circleFreeKey": "Hold {{modifier}} to put it down anywhere, without snapping.",
       "circleHelp": "Click a point to circle it.",
@@ -751,6 +752,7 @@
       "handleShiftKey": "Shift-drag a handle to turn it in 15° steps.",
       "instructions": "Instructions",
       "labelHelp": "Click where the label goes, then type it in the Step pane.",
+      "labelHelpTouch": "Click where the label goes, then type it in {{sheet}}, under {{tab}}.",
       "largerScreen": "Annotate on a larger screen: a tablet or a computer.",
       "lineHelp": "Drag along the crease.",
       "nodeShiftKey": "Shift-drag a node to move it only across, up and down, or at 45°.",
