@@ -135,11 +135,13 @@ export const MAX_PATH_NODES = 24;
 
 /**
  * How far along its diagonal a right-angle mark's `to` is written, in
- * picture units. Only its direction is read; this near its corner — inside
- * the square it draws — a move that carries each point by what lies under it
- * (a spread's faces) carries the two by the same.
+ * picture units. Only its direction is read: a move carries it by its
+ * corner and the way it opens (`carryAnnotation`), never `to` as a point.
  */
 export const RIGHT_ANGLE_DIAGONAL = 0.02;
+
+/** How far inside its angle a right angle's corner is carried by a spread, in picture units: off every edge, on its face. */
+const CORNER_NUDGE = 1e-6;
 
 const clampReach = (value: number) => Math.min(ANNOTATION_REACH, Math.max(-ANNOTATION_REACH, value));
 
@@ -909,10 +911,20 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
   }
   // Kept within reach: a carried point that would leave it was three frames off the picture already.
   if (isCornerKind(annotation.kind)) {
+    const opens = rightAngleDiagonal(annotation);
+    if (move.vector) {
+      // A spread moves each face its own way, and a corner lies on the edge of
+      // every face that meets there: carried by a point just inside its
+      // angle, it goes with the face it is drawn in, opening as the turn takes
+      // it — never by its corner and `to` apart, which two faces may carry.
+      const nudge: PicturePoint = [opens[0] * CORNER_NUDGE, opens[1] * CORNER_NUDGE];
+      const inside = move.point([annotation.from[0] + nudge[0], annotation.from[1] + nudge[1]]);
+      const back = move.vector(nudge);
+      return { ...annotation, ...rightAngleAt([inside[0] - back[0], inside[1] - back[1]], move.vector(opens)) };
+    }
     // Its corner where the point went, opening the way its diagonal went: so
     // a mirror turns it over and a turn turns it, and its legs stay on the
-    // lines under any similarity — not under a spread's distortion, which
-    // can bend the angle itself.
+    // lines under any similarity.
     const from = move.point(annotation.from);
     const to = move.point(annotation.to);
     return { ...annotation, ...rightAngleAt(from, [to[0] - from[0], to[1] - from[1]]) };

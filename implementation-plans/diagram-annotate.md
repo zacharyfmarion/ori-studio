@@ -664,8 +664,11 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
       and canvas, five cases), both checked by eye
       (`artifacts/diagram-annotate/14e/golden-*.png`).
     - **Kind.** `right-angle`, shape `corner` (`CORNER_KINDS`): `from` the
-      corner, `to` `RIGHT_ANGLE_DIAGONAL` (0.02) along the diagonal — inside
-      the square it draws, so a spread's carry moves both by one face. Every
+      corner, `to` `RIGHT_ANGLE_DIAGONAL` (0.02) along the diagonal — only
+      its direction read: a spread carries the corner by a point just inside
+      its angle (so with the face it is drawn in) and the direction as the
+      turn takes it, never the two apart (review: two faces carried them, and
+      a mark turned up to 180°). Every
       edit writes `to` that far (`rightAngleAt`, `cleanAnnotation`); at
       reach's edge the corner is drawn in rather than the direction turned;
       a corner put on a point stays on it to the bit. Moves whole; its corner

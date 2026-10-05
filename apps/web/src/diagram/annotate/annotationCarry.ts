@@ -205,7 +205,8 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
       // Back to front, so the last face found is the one the mark sits on.
       for (let i = drawn.length - 1; i >= 0; i -= 1) {
         const ring = drawn[i]!.rings[0]!;
-        if (!insideRing(ring, at)) continue;
+        // On its outline counts: a mark snapped to a face's corner is that face's.
+        if (!insideRing(ring, at) && !onRing(ring, at, epsilon)) continue;
         const goal = target.get(drawn[i]!.face);
         const weights = goal?.length === ring.length ? meanValueWeights(ring.map(([x, y]) => ({ x, y })), at, epsilon) : null;
         if (!goal || !weights) break;
@@ -224,6 +225,22 @@ function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): P
 /** A face drawn whole, as one ring — not a woven patch's piece of one. */
 function isWholeFace(item: PaperScene['items'][number]): item is PaperFaceItem {
   return item.kind === 'face' && item.group === undefined && item.rings.length === 1;
+}
+
+/**
+ * Whether `point` lies on the closed `ring`'s outline, within `epsilon`: the
+ * even-odd test counts a point on a face's far edges as outside it.
+ */
+function onRing(ring: readonly ScenePoint[], point: { x: number; y: number }, epsilon: number): boolean {
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [ax, ay] = ring[j]!;
+    const [bx, by] = ring[i]!;
+    const [dx, dy] = [bx - ax, by - ay];
+    const length = dx * dx + dy * dy;
+    const t = length > 0 ? Math.max(0, Math.min(1, ((point.x - ax) * dx + (point.y - ay) * dy) / length)) : 0;
+    if (Math.hypot(point.x - (ax + t * dx), point.y - (ay + t * dy)) <= epsilon) return true;
+  }
+  return false;
 }
 
 /** Even-odd: whether `point` is inside the closed `ring`. */

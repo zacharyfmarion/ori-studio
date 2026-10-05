@@ -18,7 +18,9 @@ import {
 import { storedSceneJson } from '../document/diagramFile';
 import { cpSource, cpStep, referencesStep, scenePicture, stepsIn } from '../document/diagramSteps.fixtures';
 import { storedScene } from '../pictures/pictureFrame';
+import { face, sceneOf } from '../../lib/paper/paperScene.fixtures';
 import { poseMove } from './annotationCarry';
+import { rightAngleAt, rightAngleDiagonal } from './annotationModel';
 
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"/>';
 const ASSET = { id: 'asset-1', kind: 'svg' as const, svg: SVG, widthPx: 400, heightPx: 300, bytes: SVG.length };
@@ -237,6 +239,60 @@ describe('a linked picture turned about its middle', () => {
       const shift = 0.9 - arrow.to[0];
       expect(shift).toBeGreaterThan(5 / span);
       expect(shift).toBeLessThan(20 / span);
+    });
+
+    it('keeps a right angle in its corner of the face it is drawn in, and a circle on that corner, wherever the spread steps the faces round them (review)', () => {
+      // A flap over a sheet; the spread steps the sheet up and to the left, the flap stays put in the scene.
+      const square = (lo: number, hi: number): ScenePoint[] => [
+        [lo, lo],
+        [hi, lo],
+        [hi, hi],
+        [lo, hi],
+      ];
+      const sheet = (step: number) => face([square(0, 100).map(([x, y]): ScenePoint => [x - step, y - step])], { face: 0 });
+      const flap = face([square(20, 60)], { face: 1 });
+      const before = { ...scenePicture(), sceneJson: storedSceneJson(sceneOf([sheet(0), flap]))!, key: 'scene-flat' };
+      const after = { ...before, sceneJson: storedSceneJson(sceneOf([sheet(30), flap]))!, key: 'scene-spread' };
+      // A mark in each of the flap's corners, opening into it; a circle on its far corner.
+      const corners: [number, number][] = [
+        [0.2, 0.2],
+        [0.6, 0.2],
+        [0.2, 0.6],
+        [0.6, 0.6],
+      ];
+      const marks = corners.map(([x, y], index): KnownDiagramAnnotation => ({
+        id: `r-${index}`,
+        kind: 'right-angle',
+        ...rightAngleAt([x, y], [0.4 - x, 0.4 - y]),
+      }));
+      const circle: KnownDiagramAnnotation = { id: 'c', kind: 'circle', from: [0.6, 0.6], to: [0.6, 0.6] };
+      const document = annotated(cpStep('step-1', FLAT, before), [...marks, circle]);
+      const moved = setLinkedPicture(document, 'step-1', {
+        source: cpSource({ ...FLAT, spread: SPREAD }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+      // The sheet's bounds moved 30 of 100 up and left: the flap's corners are 0.3 further along.
+      corners.forEach(([x, y], index) => {
+        const carried = moved.annotations[index] as KnownDiagramAnnotation;
+        close(carried.from, [x + 0.3, y + 0.3]);
+        close(rightAngleDiagonal(carried), rightAngleDiagonal(marks[index]!));
+      });
+      close((moved.annotations[4] as KnownDiagramAnnotation).from, [0.9, 0.9]);
+
+      // A flap thinner than the way a mark's `to` is written along: `to` lies on the sheet under it, the
+      // mark on the flap. Carried with the flap, its opening kept.
+      const sliver = face([[[20, 20], [60, 20], [60, 21], [20, 21]]], { face: 1 });
+      const thin = { ...before, sceneJson: storedSceneJson(sceneOf([sheet(0), sliver]))!, key: 'scene-thin' };
+      const thinAfter = { ...before, sceneJson: storedSceneJson(sceneOf([sheet(30), sliver]))!, key: 'scene-thin-spread' };
+      const mark: KnownDiagramAnnotation = { id: 'r', kind: 'right-angle', ...rightAngleAt([0.2, 0.2], [1, 1]) };
+      const carried = (
+        setLinkedPicture(annotated(cpStep('step-1', FLAT, thin), [mark]), 'step-1', {
+          source: cpSource({ ...FLAT, spread: SPREAD }),
+          picture: thinAfter,
+        }).steps[0] as DiagramStep
+      ).annotations[0] as KnownDiagramAnnotation;
+      close(carried.from, [0.5, 0.5]);
+      close(rightAngleDiagonal(carried), rightAngleDiagonal(mark));
     });
 
     it('moves a callout with the face under its point, its box keeping its place beside it', () => {
