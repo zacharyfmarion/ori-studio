@@ -759,9 +759,7 @@
       "rightAngleHelp": "Click inside a right angle to mark it, or drag from a corner into the angle.",
       "rightAngleShiftKey": "Shift-drag to open it in 45° steps where it finds no right angle.",
       "select": "Select",
-      "selectFreeKey": "Hold {{modifier}} as you drag to put it down anywhere, without snapping.",
       "selectHelp": "Click an annotation to select it. Drag it, or the dot at either end, to move it. Double-click a fold or white arrow to shape it.",
-      "selectTurnKey": "Shift-drag a right angle’s far corner to turn it in 45° steps.",
       "toolsLabel": "Annotate tools",
       "toolWindowLabel": "Annotate tool instructions",
       "whiteArrowHelp": "Drag from where the paper starts to where it goes. Shape it with Edit Path."

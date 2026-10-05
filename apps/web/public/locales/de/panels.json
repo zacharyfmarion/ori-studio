@@ -759,9 +759,7 @@
       "rightAngleHelp": "Klicke in einen rechten Winkel, um ihn zu markieren, oder ziehe von einer Ecke aus in den Winkel hinein.",
       "rightAngleShiftKey": "Ziehe mit Umschalt, um ihn in 45°-Schritten zu öffnen, wo er keinen rechten Winkel findet.",
       "select": "Auswählen",
-      "selectFreeKey": "Halte beim Ziehen {{modifier}} gedrückt, um es frei zu setzen, ohne Einrasten.",
       "selectHelp": "Klicke auf eine Annotation, um sie auszuwählen. Ziehe sie oder den Punkt an einem ihrer Enden, um sie zu verschieben. Doppelklicke auf einen Faltpfeil oder einen weißen Pfeil, um ihn zu formen.",
-      "selectTurnKey": "Ziehe die gegenüberliegende Ecke eines rechten Winkels mit Umschalt, um ihn in 45°-Schritten zu drehen.",
       "toolsLabel": "Annotationswerkzeuge",
       "toolWindowLabel": "Anweisungen zum Annotationswerkzeug",
       "whiteArrowHelp": "Ziehe von dort, wo das Papier startet, bis dorthin, wo es hingeht. Forme ihn mit „Pfad bearbeiten“."

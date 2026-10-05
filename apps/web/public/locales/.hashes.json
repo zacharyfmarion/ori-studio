@@ -4038,8 +4038,6 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.selectFreeKey": "a4b0480d4c80",
-    "panels:diagram.annotate.selectTurnKey": "871b9b9f6425",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
   },
   "es": {
@@ -8081,8 +8079,6 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.selectFreeKey": "a4b0480d4c80",
-    "panels:diagram.annotate.selectTurnKey": "871b9b9f6425",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
   },
   "fr": {
@@ -12126,8 +12122,6 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.selectFreeKey": "a4b0480d4c80",
-    "panels:diagram.annotate.selectTurnKey": "871b9b9f6425",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
   },
   "ja": {
@@ -16083,8 +16077,6 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.selectFreeKey": "a4b0480d4c80",
-    "panels:diagram.annotate.selectTurnKey": "871b9b9f6425",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
   },
   "ko": {
@@ -20040,8 +20032,6 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.selectFreeKey": "a4b0480d4c80",
-    "panels:diagram.annotate.selectTurnKey": "871b9b9f6425",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
   },
   "pt-BR": {
@@ -24083,8 +24073,6 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.selectFreeKey": "a4b0480d4c80",
-    "panels:diagram.annotate.selectTurnKey": "871b9b9f6425",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
   },
   "ru": {
@@ -28126,8 +28114,6 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.selectFreeKey": "a4b0480d4c80",
-    "panels:diagram.annotate.selectTurnKey": "871b9b9f6425",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
   },
   "zh-CN": {
@@ -32083,8 +32069,6 @@
     "panels:diagram.annotate.nodeShiftKey": "54ba2d5fda22",
     "panels:diagram.annotate.pointFreeKey": "51bf96f8e833",
     "panels:diagram.annotate.rightAngleShiftKey": "a6c71b1ba94e",
-    "panels:diagram.annotate.selectFreeKey": "a4b0480d4c80",
-    "panels:diagram.annotate.selectTurnKey": "871b9b9f6425",
     "panels:diagram.annotate.toolWindowLabel": "f0b8d5466e8c"
   }
 }

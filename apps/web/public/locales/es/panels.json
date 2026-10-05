@@ -788,9 +788,7 @@
       "rightAngleHelp": "Haz clic dentro de un ángulo recto para marcarlo, o arrastra desde una esquina hacia dentro del ángulo.",
       "rightAngleShiftKey": "Arrastra con Mayús para abrirlo en pasos de 45° donde no encuentre un ángulo recto.",
       "select": "Seleccionar",
-      "selectFreeKey": "Mantén pulsado {{modifier}} al arrastrar para colocarlo en cualquier lugar, sin ajustar.",
       "selectHelp": "Haz clic en una anotación para seleccionarla. Arrástrala, o el punto de cualquiera de sus extremos, para moverla. Haz doble clic en una flecha de plegado o una flecha blanca para darle forma.",
-      "selectTurnKey": "Arrastra con Mayús la esquina opuesta de un ángulo recto para girarlo en pasos de 45°.",
       "toolsLabel": "Herramientas de anotación",
       "toolWindowLabel": "Instrucciones de la herramienta de anotación",
       "whiteArrowHelp": "Arrastra desde donde empieza el papel hasta donde va. Dale forma con Editar trazado."

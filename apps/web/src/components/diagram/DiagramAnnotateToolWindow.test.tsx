@@ -106,7 +106,7 @@ const tool = (kind: Parameters<ReturnType<typeof state>['setDiagramAnnotateTool'
 describe('DiagramAnnotateToolWindow', () => {
   it('names every tool and says how to use it, over the canvas rather than in it', () => {
     mount();
-    for (const each of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools)) {
+    for (const each of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null)) {
       tool(each);
       expect(title()).toContain(annotateToolLabel(i18n.t.bind(i18n), each));
       expect(intro()).toBeTruthy();
@@ -134,11 +134,14 @@ describe('DiagramAnnotateToolWindow', () => {
     expect(keys()).toEqual([]);
   });
 
-  it('says what Select does when nothing is in hand', () => {
+  it('is not shown with Select in hand, where Annotate rests, as Edit’s is not with Box Select (review)', () => {
+    // Up whenever Annotate was open, it lay over the Step pane's last fields, the instruction's among them.
     mount();
-    expect(title()).toContain('Select');
-    expect(intro()).toMatch(/^Click an annotation to select it\./);
-    expect(keys()).toContain('Hold Cmd as you drag to put it down anywhere, without snapping.');
+    expect(windowEl()).toBeNull();
+    tool('valley-arrow');
+    expect(title()).toContain('Valley Fold Arrow');
+    tool(null);
+    expect(windowEl()).toBeNull();
   });
 
   it('says what Edit Path can shape, by what is selected, and its keys', () => {
@@ -191,11 +194,13 @@ describe('DiagramAnnotateToolWindow', () => {
 
   it('collapses on its own, apart from Edit’s and the Simulator’s windows', () => {
     mount();
+    tool('valley-arrow');
     act(() => windowEl()!.querySelector<HTMLButtonElement>('button[aria-expanded]')!.click());
     expect(intro()).toBeNull();
     expect(localStorage.getItem(storageKey(STORAGE_KEYS.diagramToolHintCollapsed))).toBe('true');
     expect(localStorage.getItem(storageKey(STORAGE_KEYS.cpToolHintCollapsed))).toBeNull();
-    // Still collapsed with another tool in hand, still saying which.
+    // Still collapsed with another tool in hand, and after Select, still saying which.
+    tool(null);
     tool('circle');
     expect(intro()).toBeNull();
     expect(title()).toContain('Circle');

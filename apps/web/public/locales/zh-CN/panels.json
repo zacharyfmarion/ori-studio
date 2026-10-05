@@ -730,9 +730,7 @@
       "rightAngleHelp": "在直角内单击即可标出它，也可以从角点向角内拖动。",
       "rightAngleShiftKey": "按住 Shift 拖动，在找不到直角的地方按 45° 步进张开。",
       "select": "选择",
-      "selectFreeKey": "拖动时按住 {{modifier}} 可放在任意位置，不吸附。",
       "selectHelp": "单击标注将其选中。拖动标注本身或任一端的圆点即可移动。双击折叠箭头或空心箭头可调整其形状。",
-      "selectTurnKey": "按住 Shift 拖动直角标记的对角点，可按 45° 步进旋转。",
       "toolsLabel": "标注工具",
       "toolWindowLabel": "标注工具说明",
       "whiteArrowHelp": "从纸开始移动的位置拖到它移向的位置。用“编辑路径”调整形状。"

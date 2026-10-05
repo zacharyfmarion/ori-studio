@@ -9,6 +9,7 @@ import { cpStep, scenePicture } from '../../diagram/document/diagramSteps.fixtur
 import { stepPictureCacheBytesForTests } from '../../diagram/pictures/stepPictureCache';
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 import { PHONE_MEDIA_QUERY } from '../../platform/phoneLayout';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramStepDetail } from './DiagramStepDetail';
 
@@ -167,13 +168,15 @@ describe('DiagramStepDetail in Annotate', () => {
   it('says what the tool in hand does in the tool window, which gives way on a phone with Annotate itself', () => {
     const step = cpStep('step-1', FLAT);
     layout(false);
+    act(() => useWorkspaceStore.getState().setDiagramAnnotateTool('circle'));
     show(step, null, 'annotate');
-    expect(toolWindow()?.textContent).toContain('Select');
+    expect(toolWindow()?.textContent).toContain('Circle');
     act(() => root?.unmount());
     root = null;
     layout(true);
     show(step, null, 'annotate');
     expect(host!.textContent).toContain('Annotate on a larger screen');
     expect(toolWindow()).toBeNull();
+    act(() => useWorkspaceStore.getState().setDiagramAnnotateTool(null));
   });
 });

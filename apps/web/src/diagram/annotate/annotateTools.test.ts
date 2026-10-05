@@ -33,15 +33,8 @@ describe('the tool window', () => {
       ])
     );
     expect(hints).toEqual({
-      select: {
-        title: 'Select',
-        instructions:
-          'Click an annotation to select it. Drag it, or the dot at either end, to move it. Double-click a fold or white arrow to shape it.',
-        modifiers: [
-          'Hold Cmd as you drag to put it down anywhere, without snapping.',
-          'Shift-drag a right angle’s far corner to turn it in 45° steps.',
-        ],
-      },
+      // None for Select, where Annotate rests, as Edit's Box Select has none (review).
+      select: null,
       'edit-path': {
         title: 'Edit Path',
         instructions: 'Select a fold arrow or a white arrow to shape it.',
@@ -106,25 +99,25 @@ describe('the tool window', () => {
 
   it('names the keys as this platform does', () => {
     const other: AnnotateToolHost = { coarse: false, primary: 'Ctrl', alt: 'Alt' };
-    expect(annotateToolHint(t, 'circle', null, other).modifiers).toEqual([
+    expect(annotateToolHint(t, 'circle', null, other)!.modifiers).toEqual([
       'Hold Ctrl to put it down anywhere, without snapping.',
     ]);
-    expect(annotateToolHint(t, EDIT_PATH, null, other).modifiers[2]).toBe(
+    expect(annotateToolHint(t, EDIT_PATH, null, other)!.modifiers[2]).toBe(
       'Alt-drag a smooth node’s handle to move it alone: the node becomes a corner.'
     );
   });
 
   it('offers a finger no keys to hold', () => {
     const finger: AnnotateToolHost = { ...mac, coarse: true };
-    for (const tool of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools)) {
-      const hint = annotateToolHint(t, tool, null, finger);
+    for (const tool of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null)) {
+      const hint = annotateToolHint(t, tool, null, finger)!;
       expect(hint.modifiers).toEqual([]);
-      expect(hint.instructions).toBe(annotateToolHint(t, tool, null, mac).instructions);
+      expect(hint.instructions).toBe(annotateToolHint(t, tool, null, mac)!.instructions);
     }
   });
 
   it('says what Edit Path can do to what is selected', () => {
-    const say = (kind: Parameters<typeof annotateToolHint>[2]) => annotateToolHint(t, EDIT_PATH, kind, mac).instructions;
+    const say = (kind: Parameters<typeof annotateToolHint>[2]) => annotateToolHint(t, EDIT_PATH, kind, mac)!.instructions;
     expect(say(null)).toBe('Select a fold arrow or a white arrow to shape it.');
     expect(say('label')).toBe('Only fold arrows and white arrows can be shaped.');
     expect(say('push-arrow')).toBe('Only fold arrows and white arrows can be shaped.');

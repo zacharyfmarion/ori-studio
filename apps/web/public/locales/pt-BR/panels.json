@@ -788,9 +788,7 @@
       "rightAngleHelp": "Clique dentro de um ângulo reto para marcá-lo, ou arraste de um canto para dentro do ângulo.",
       "rightAngleShiftKey": "Arraste com Shift para abri-lo em passos de 45° onde não houver um ângulo reto.",
       "select": "Selecionar",
-      "selectFreeKey": "Segure {{modifier}} ao arrastar para colocá-lo em qualquer lugar, sem ajuste.",
       "selectHelp": "Clique em uma anotação para selecioná-la. Arraste-a, ou o ponto em qualquer uma das pontas, para movê-la. Clique duas vezes em uma seta de dobra ou em uma seta branca para dar forma a ela.",
-      "selectTurnKey": "Arraste com Shift o canto oposto de um ângulo reto para girá-lo em passos de 45°.",
       "toolsLabel": "Ferramentas de anotação",
       "toolWindowLabel": "Instruções da ferramenta de anotação",
       "whiteArrowHelp": "Arraste de onde o papel começa até para onde ele vai. Dê forma a ela com Editar traçado."

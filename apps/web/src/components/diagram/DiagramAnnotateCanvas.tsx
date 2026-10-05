@@ -54,7 +54,8 @@ const PATH_HANDLE_PX = { fine: 3.5, coarse: 5.5 } as const;
  * callout's at its point — or, in Edit Path, a fold arrow's nodes and the
  * handles beside the selected one.
  * The behaviour is `useAnnotateCanvas`'s; its presses are the whole stage's.
- * The tool window floats over its bottom right while the diagram can change.
+ * The tool window floats over its bottom right while a tool is in hand and
+ * the diagram can change.
  */
 export function DiagramAnnotateCanvas({
   step,

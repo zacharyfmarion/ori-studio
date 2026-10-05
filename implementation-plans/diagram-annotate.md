@@ -193,6 +193,15 @@ use it, and its modifiers (Shift, Alt, ⌘ to place freely). The Step pane
 keeps the selected annotation's verbs. On a phone the window gives way as it
 does in Edit.
 
+*Amended after review (2026-10-04, awaiting Zach):* Select has no window, as
+Edit's Box Select and the Simulator's orbit have none. Select is where
+Annotate rests, so its window was up whenever Annotate was open, and at
+1280–1440 px it lay over the Step pane's last fields: a click meant for the
+instruction landed in the window, and the words typed went to the canvas's
+tool keys. Select's help line stays in the rail's tooltip; its two keys (⌘
+to place freely, Shift-drag a right angle's far corner) lose their place on
+screen.
+
 ## Affected Areas
 
 `diagram/annotate/*`; `diagram/document/diagramDocument.ts`, `diagramFile.ts`;
@@ -1013,6 +1022,9 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
   seam by 50 px) and on a coarse-pointer 1180×820 tablet (no keys, clamped
   to the screen's right edge), light and dark; a 390×844 phone shows the
   larger-screen note and no window, and its Step drawer no help line.
+- [x] Review: no window for Select, Annotate's resting tool (decision 7,
+  amended): it covered the Step pane's instruction field at 1280–1440 px.
+  `annotateToolHint` is null for Select, and the window draws nothing then.
 
 ## Risks
 

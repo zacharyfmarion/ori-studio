@@ -788,9 +788,7 @@
       "rightAngleHelp": "Cliquez dans un angle droit pour le marquer, ou faites glisser depuis un coin vers l’intérieur de l’angle.",
       "rightAngleShiftKey": "Faites glisser avec Maj pour l’ouvrir par pas de 45° là où il ne trouve aucun angle droit.",
       "select": "Sélectionner",
-      "selectFreeKey": "Maintenez {{modifier}} pendant le glissement pour le poser n’importe où, sans aimantation.",
       "selectHelp": "Cliquez sur une annotation pour la sélectionner. Faites-la glisser, ou le point à l’une de ses extrémités, pour la déplacer. Double-cliquez sur une flèche de pli ou une flèche blanche pour la façonner.",
-      "selectTurnKey": "Faites glisser avec Maj le coin opposé d’un angle droit pour le tourner par pas de 45°.",
       "toolsLabel": "Outils d’annotation",
       "toolWindowLabel": "Instructions de l’outil d’annotation",
       "whiteArrowHelp": "Faites glisser depuis l’endroit où part le papier jusqu’à celui où il va. Façonnez-la avec Modifier le tracé."

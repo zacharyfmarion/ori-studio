@@ -246,14 +246,17 @@ export interface AnnotateToolHint {
 
 /**
  * The tool window for `tool`. Edit Path says what it can do to the selected
- * annotation, by its kind (null for none selected).
+ * annotation, by its kind (null for none selected). None for Select, where
+ * Annotate rests, as Edit's Box Select and the Simulator's orbit have none:
+ * up whenever Annotate is open, it would lie over the Step pane's last fields.
  */
 export function annotateToolHint(
   t: TFunction,
   tool: AnnotateTool,
   selected: DiagramAnnotationKind | null,
   host: AnnotateToolHost
-): AnnotateToolHint {
+): AnnotateToolHint | null {
+  if (tool === null) return null;
   return {
     title: annotateToolLabel(t, tool),
     instructions: tool === EDIT_PATH ? editPathHelp(t, selected) : annotateToolHelp(t, tool),
@@ -267,15 +270,11 @@ export function annotateToolHint(
  * to the eight directions and a handle to 15° steps; Alt breaks a smooth
  * node's handles apart. A switch, so a new tool has to say.
  */
-function annotateToolModifiers(t: TFunction, tool: AnnotateTool, { primary, alt }: AnnotateToolHost): string[] {
-  if (tool === null) {
-    return [
-      t('panels:diagram.annotate.selectFreeKey', 'Hold {{modifier}} as you drag to put it down anywhere, without snapping.', {
-        modifier: primary,
-      }),
-      t('panels:diagram.annotate.selectTurnKey', 'Shift-drag a right angle’s far corner to turn it in 45° steps.'),
-    ];
-  }
+function annotateToolModifiers(
+  t: TFunction,
+  tool: Exclude<AnnotateTool, null>,
+  { primary, alt }: AnnotateToolHost
+): string[] {
   switch (tool) {
     case EDIT_PATH:
       return [

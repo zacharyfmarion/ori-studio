@@ -8,12 +8,13 @@ import { annotateToolHint, type AnnotateToolHint } from './annotateTools';
 
 /**
  * What the tool window says for the tool in hand on `step`, in this device's
- * terms: the keys by the platform's names, and none for a finger.
+ * terms: the keys by the platform's names, and none for a finger. Null with
+ * Select in hand, which has no window.
  *
  * Edit Path's line depends on what is selected, by kind only, so a drag that
  * reshapes the selected arrow does not rebuild it on every move.
  */
-export function useAnnotateToolHint(step: DiagramStep): AnnotateToolHint {
+export function useAnnotateToolHint(step: DiagramStep): AnnotateToolHint | null {
   const { t } = useTranslation();
   const coarse = useIsCoarsePointerSurface();
   const tool = useWorkspaceStore((state) => state.diagramAnnotateTool);
