@@ -77,6 +77,9 @@ const LEGACY_SIMULATE_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo'
 const LEGACY_DIAGRAM_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>([
   'edit.undo',
   'edit.redo',
+  'edit.cut',
+  'edit.copy',
+  'edit.paste',
   'edit.delete',
 ]);
 
@@ -108,7 +111,8 @@ function legacyMask(
   // the list left the Insert menu standing open over both read-only workspaces.
   // The Diagram joined with a mask of its own: it authors its own document, so
   // it keeps undo, redo and Delete, and hides everything that authors a crease
-  // pattern or a tree.
+  // pattern or a tree. Cut, Copy and Paste joined it when annotations could be
+  // copied from one step to another.
   if (context === 'diagram') {
     for (const id of ids) {
       const foreign =
@@ -174,6 +178,8 @@ function allVisibleCapabilities(): WorkspaceCapabilities {
     diagramStepCount: 0,
     hasDeletableDiagramSelection: false,
     diagramDeleteTarget: 'step',
+    canCopyDiagramAnnotation: false,
+    canPasteDiagramAnnotations: false,
     historyPastCount: 0,
     historyFutureCount: 0,
     clipboard: null,

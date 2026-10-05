@@ -94,6 +94,7 @@ import type {
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
+import type { DiagramAnnotationClipboardPayload } from '../../diagram/annotate/annotationClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 import type { CanvasAnnotation, AnnotationUpdate } from '../../cp-workspace/annotations/annotation';
 import type { UserCamera } from '../../cp-workspace/renderer/camera';
@@ -694,7 +695,7 @@ export interface TreeClipboardPayload {
   edges: ClipboardEdge[];
 }
 
-export type WorkspaceClipboardPayload = TreeClipboardPayload | CpLineClipboardPayload;
+export type WorkspaceClipboardPayload = TreeClipboardPayload | CpLineClipboardPayload | DiagramAnnotationClipboardPayload;
 
 export interface ClipboardSliceState {
   clipboard: WorkspaceClipboardPayload | null;

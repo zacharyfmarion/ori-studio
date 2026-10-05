@@ -7,6 +7,11 @@ import {
   placeCpLineSegmentsAt,
 } from '../../../lib/creasePatternClipboard';
 import type { Selection, TreeProject } from '../../../lib/sampleProject';
+import { EDIT_PATH } from '../../../diagram/annotate/annotateTools';
+import { annotationActionEdit } from '../../../diagram/annotate/annotationActions';
+import { annotationClipboard, pastedAnnotations, pastedOnto } from '../../../diagram/annotate/annotationClipboard';
+import { applyAnnotationEdit } from '../../../diagram/annotate/applyAnnotationEdit';
+import { canCopyDiagramAnnotation, canPasteDiagramAnnotations, selectedDiagramAnnotation } from '../diagramState';
 import { selectedEdgeIds, selectedNodeIds } from '../../../lib/selection';
 import {
   engineError,
@@ -72,6 +77,13 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
   clipboardPasteCount: 0,
 
   copySelection: () => {
+    // The Diagram's own marks, never the tree's: the diagram is what is on screen.
+    if (get().activeEditingContext === 'diagram') {
+      const annotation = canCopyDiagramAnnotation(get()) ? selectedDiagramAnnotation(get()) : null;
+      const stepId = get().diagramSelectedStepId;
+      if (annotation && stepId !== null) set({ clipboard: annotationClipboard([annotation], stepId), clipboardPasteCount: 0 });
+      return;
+    }
     if (get().activeEditingContext === 'crease-pattern') {
       const clipboard = buildCpLineClipboardPayload(
         get().oristudioCpDocument?.document,
@@ -105,6 +117,16 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
   },
 
   cutSelection: async () => {
+    if (get().activeEditingContext === 'diagram') {
+      // Taken out as Delete takes it — the whole annotation, Edit Path's node
+      // or not — onto a clipboard whose first paste on this step puts it back.
+      const annotation = canCopyDiagramAnnotation(get()) ? selectedDiagramAnnotation(get()) : null;
+      const stepId = get().diagramSelectedStepId;
+      if (!annotation || stepId === null || !canPasteDiagramAnnotations(get())) return;
+      const cut = applyAnnotationEdit(get(), stepId, { ...annotationActionEdit('delete', annotation.id), label: 'Cut annotation' });
+      if (cut) set({ clipboard: annotationClipboard([annotation], stepId, { cut: true }), clipboardPasteCount: 0 });
+      return;
+    }
     if (get().activeEditingContext === 'crease-pattern') {
       set({
         error: {
@@ -120,6 +142,22 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
   },
 
   pasteClipboard: async (at) => {
+    if (get().activeEditingContext === 'diagram') {
+      // On the step open in Annotate, the first copy selected with Select in
+      // hand to move it — Edit Path kept — as a press on the list selects.
+      const clipboard = get().clipboard;
+      const stepId = get().diagramSelectedStepId;
+      if (clipboard?.kind !== 'diagram-annotations' || stepId === null || !canPasteDiagramAnnotations(get())) return;
+      const pasted = pastedAnnotations(clipboard, stepId);
+      const label = pasted.length === 1 ? 'Paste annotation' : 'Paste annotations';
+      const changed = get().editDiagramAnnotations(stepId, label, (list) => [...list, ...pasted], {
+        select: pasted[0]?.id ?? null,
+      });
+      if (!changed) return;
+      set({ clipboard: pastedOnto(clipboard, stepId) });
+      if (get().diagramAnnotateTool !== EDIT_PATH) get().setDiagramAnnotateTool(null);
+      return;
+    }
     if (get().activeEditingContext === 'crease-pattern') {
       const clipboard = get().clipboard;
       if (!clipboard || clipboard.kind !== 'cp-lines' || clipboard.lines.length === 0) return;

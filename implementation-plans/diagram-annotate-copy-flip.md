@@ -34,8 +34,9 @@ time: Annotate selects one (multi-select is a question for Zach, below).
    {tool, axis}.
 3. **Copy, Cut and Paste** through the Edit menu and its keys, in Annotate:
    - The workspace clipboard (`clipboardSlice`) gains a third kind,
-     `diagram-annotations`: the annotations as they were, and the step they
-     came from. Copy and Cut need an annotation selected (Cut a diagram that
+     `diagram-annotations`: the annotations as they were, and how many times
+     they are already on each step (the step a copy came from counts its
+     original). Copy and Cut need an annotation selected (Cut a diagram that
      can change); Paste a step open in Annotate that can change, and
      annotations on the clipboard.
    - Paste puts fresh copies on the step open in Annotate and selects the
@@ -84,6 +85,11 @@ time: Annotate selects one (multi-select is a question for Zach, below).
     written without a bend bulging the same way (`carryAnnotation` only
     negated a bend that was spelled out); an arc's own 60° is turned over now.
     Files and new arrows always write one, so no saved diagram changes.
-- [ ] The clipboard's Diagram branch: copy, cut, paste (placement, ids,
+- [x] The clipboard's Diagram branch: copy, cut, paste (placement, ids,
   selection), capabilities and the Edit menu, i18n, tests; ⌘C, ⌘V, ⌘X and ⌘Z
   with a real keyboard on the crane, from step to step.
+  - As built: a cut annotation's clipboard counts no step, so its first paste
+    puts it back where it was, even on its own step. In the Diagram the three
+    verbs answer to the Diagram alone: a crease pattern's selected lines, or
+    its copied ones, left in Edit once made Copy and Paste read as on there
+    (found by the capability test, before anything shipped).

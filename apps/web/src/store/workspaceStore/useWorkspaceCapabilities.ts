@@ -1,4 +1,8 @@
-import { diagramDeleteTarget as diagramDeleteTargetOf } from './diagramState';
+import {
+  canCopyDiagramAnnotation as selectCanCopyDiagramAnnotation,
+  canPasteDiagramAnnotations as selectCanPasteDiagramAnnotations,
+  diagramDeleteTarget as diagramDeleteTargetOf,
+} from './diagramState';
 import { bpSheetCanSubdivide, bpSheetCanUnsubdivide } from './bpSheetCapabilities';
 import { selectOristudioBpDocument, selectProject, selectSelection } from './designTabs';
 import { useMemo } from 'react';
@@ -63,6 +67,8 @@ export function useWorkspaceCapabilities() {
   const diagramStepCount = useWorkspaceStore((state) => state.diagram?.steps.length ?? 0);
   const hasDeletableDiagramSelection = useWorkspaceStore(selectHasDeletableDiagramSelection);
   const diagramDeleteTarget = useWorkspaceStore(diagramDeleteTargetOf);
+  const canCopyDiagramAnnotation = useWorkspaceStore(selectCanCopyDiagramAnnotation);
+  const canPasteDiagramAnnotations = useWorkspaceStore(selectCanPasteDiagramAnnotations);
   const diagramHistoryPastCount = useWorkspaceStore((state) => state.diagramHistory.past.length);
   const diagramHistoryFutureCount = useWorkspaceStore(
     (state) => state.diagramHistory.future.length
@@ -121,6 +127,8 @@ export function useWorkspaceCapabilities() {
           diagramStepCount,
           hasDeletableDiagramSelection,
           diagramDeleteTarget,
+          canCopyDiagramAnnotation,
+          canPasteDiagramAnnotations,
           historyPastCount,
           historyFutureCount,
           clipboard,
@@ -153,6 +161,8 @@ export function useWorkspaceCapabilities() {
       diagramStepCount,
       hasDeletableDiagramSelection,
       diagramDeleteTarget,
+      canCopyDiagramAnnotation,
+      canPasteDiagramAnnotations,
       historyFutureCount,
       historyPastCount,
       selection,

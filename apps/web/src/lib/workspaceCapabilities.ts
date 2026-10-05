@@ -193,6 +193,10 @@ export interface WorkspaceCapabilityInput {
    * selected annotation while annotating, else the step.
    */
   diagramDeleteTarget: 'step' | 'annotation' | 'node';
+  /** Whether Copy has an annotation in the Diagram: the one selected while annotating, on any diagram. */
+  canCopyDiagramAnnotation: boolean;
+  /** Whether Paste has a step to put annotations on: the one open in Annotate, on a diagram that can change. */
+  canPasteDiagramAnnotations: boolean;
   historyPastCount: number;
   historyFutureCount: number;
   clipboard: unknown | null;
@@ -476,37 +480,56 @@ export function getWorkspaceCapabilities(
           ? t('common:capability.redoNextCpEdit', 'Redo the next crease-pattern edit')
           : t('common:capability.redoNextTreeEdit', 'Redo the next tree edit')
     ),
+    // In the Diagram, Cut, Copy and Paste act on its annotations alone: a
+    // selection or clipboard left in another workspace is not theirs.
     'edit.cut': capability(
-      treeMode && hasSelection && !isBusy,
+      diagramMode
+        ? input.canCopyDiagramAnnotation && input.canPasteDiagramAnnotations
+        : treeMode && hasSelection && !isBusy,
       t('common:capability.cut', 'Cut'),
-      treeMode
-        ? t('common:capability.cutSelectedTreeParts', 'Cut selected tree parts')
-        : t('common:capability.importedCpReadOnly', 'Imported crease patterns are read-only')
+      diagramMode
+        ? input.canCopyDiagramAnnotation
+          ? t('common:capability.cutSelectedDiagramAnnotation', 'Cut the selected annotation')
+          : t('common:capability.selectDiagramAnnotationFirst', 'Select an annotation first')
+        : treeMode
+          ? t('common:capability.cutSelectedTreeParts', 'Cut selected tree parts')
+          : t('common:capability.importedCpReadOnly', 'Imported crease patterns are read-only')
     ),
     'edit.copy': capability(
-      (treeMode && hasSelection) || (canEditCp && hasSelectedCpLines),
+      diagramMode ? input.canCopyDiagramAnnotation : (treeMode && hasSelection) || (canEditCp && hasSelectedCpLines),
       t('common:capability.copy', 'Copy'),
-      treeMode
-        ? t('common:capability.copySelectedTreeParts', 'Copy selected tree parts')
-        : canEditCp
-          ? hasSelectedCpLines
-            ? t('common:capability.copySelectedCpLines', 'Copy selected crease-pattern lines')
-            : t('common:capability.selectCpLinesFirst', 'Select one or more crease-pattern lines first')
-          : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+      diagramMode
+        ? input.canCopyDiagramAnnotation
+          ? t('common:capability.copySelectedDiagramAnnotation', 'Copy the selected annotation')
+          : t('common:capability.selectDiagramAnnotationFirst', 'Select an annotation first')
+        : treeMode
+          ? t('common:capability.copySelectedTreeParts', 'Copy selected tree parts')
+          : canEditCp
+            ? hasSelectedCpLines
+              ? t('common:capability.copySelectedCpLines', 'Copy selected crease-pattern lines')
+              : t('common:capability.selectCpLinesFirst', 'Select one or more crease-pattern lines first')
+            : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'edit.paste': capability(
-      (treeMode && clipboardKind === 'tree' && !isBusy) ||
-        (canEditCp && clipboardKind === 'cp-lines'),
+      diagramMode
+        ? input.canPasteDiagramAnnotations && clipboardKind === 'diagram-annotations'
+        : (treeMode && clipboardKind === 'tree' && !isBusy) || (canEditCp && clipboardKind === 'cp-lines'),
       t('common:capability.paste', 'Paste'),
-      treeMode
-        ? clipboardKind === 'tree'
-          ? busyOr(t('common:capability.pasteCopiedTreeParts', 'Paste copied tree parts'), input.status, t)
-          : t('common:capability.copyTreePartsBeforePasting', 'Copy tree parts before pasting')
-        : canEditCp
-          ? clipboardKind === 'cp-lines'
-            ? t('common:capability.pasteCopiedCpLines', 'Paste copied crease-pattern lines')
-            : t('common:capability.copyCpLinesBeforePasting', 'Copy crease-pattern lines before pasting')
-          : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+      diagramMode
+        ? !input.canPasteDiagramAnnotations
+          ? t('common:capability.annotateToPaste', 'Open a step in Annotate to paste on it')
+          : clipboardKind === 'diagram-annotations'
+            ? t('common:capability.pasteCopiedDiagramAnnotation', 'Paste the copied annotation')
+            : t('common:capability.copyDiagramAnnotationFirst', 'Copy an annotation before pasting')
+        : treeMode
+          ? clipboardKind === 'tree'
+            ? busyOr(t('common:capability.pasteCopiedTreeParts', 'Paste copied tree parts'), input.status, t)
+            : t('common:capability.copyTreePartsBeforePasting', 'Copy tree parts before pasting')
+          : canEditCp
+            ? clipboardKind === 'cp-lines'
+              ? t('common:capability.pasteCopiedCpLines', 'Paste copied crease-pattern lines')
+              : t('common:capability.copyCpLinesBeforePasting', 'Copy crease-pattern lines before pasting')
+            : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'edit.delete': capability(
       (diagramMode && input.hasDeletableDiagramSelection) ||
@@ -1140,11 +1163,18 @@ const SIMULATE_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit
 const READ_ONLY_CONTEXTS: ReadonlySet<EditingContext> = new Set(['simulate', 'references']);
 
 /**
- * What stays in the Edit menu while authoring a diagram: its own undo, redo
- * and Delete. Cut, copy and paste have nothing to act on there yet, and the
- * rest of `edit.*` authors a tree.
+ * What stays in the Edit menu while authoring a diagram: its own undo, redo,
+ * Delete, and Cut, Copy and Paste of annotations in Annotate; the rest of
+ * `edit.*` authors a tree.
  */
-const DIAGRAM_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit.redo', 'edit.delete']);
+const DIAGRAM_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>([
+  'edit.undo',
+  'edit.redo',
+  'edit.cut',
+  'edit.copy',
+  'edit.paste',
+  'edit.delete',
+]);
 
 export function maskCapabilitiesForContext(
   capabilities: WorkspaceCapabilities,

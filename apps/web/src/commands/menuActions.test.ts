@@ -890,6 +890,8 @@ describe('menu actions', () => {
         diagramStepCount: 0,
         hasDeletableDiagramSelection: false,
         diagramDeleteTarget: 'step',
+        canCopyDiagramAnnotation: false,
+        canPasteDiagramAnnotations: false,
         historyPastCount: 0,
         historyFutureCount: 0,
         clipboard: null,

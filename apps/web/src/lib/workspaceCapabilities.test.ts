@@ -30,6 +30,8 @@ function capabilities({
   diagramStepCount = 0,
   hasDeletableDiagramSelection = false,
   diagramDeleteTarget = 'step',
+  canCopyDiagramAnnotation = false,
+  canPasteDiagramAnnotations = false,
   historyPastCount = 0,
   historyFutureCount = 0,
   clipboard = null,
@@ -60,6 +62,8 @@ function capabilities({
   diagramStepCount?: number;
   hasDeletableDiagramSelection?: boolean;
   diagramDeleteTarget?: 'step' | 'annotation' | 'node';
+  canCopyDiagramAnnotation?: boolean;
+  canPasteDiagramAnnotations?: boolean;
   historyPastCount?: number;
   historyFutureCount?: number;
   clipboard?: unknown | null;
@@ -91,6 +95,8 @@ function capabilities({
     diagramStepCount,
     hasDeletableDiagramSelection,
     diagramDeleteTarget,
+    canCopyDiagramAnnotation,
+    canPasteDiagramAnnotations,
     historyPastCount,
     historyFutureCount,
     clipboard,
@@ -199,7 +205,7 @@ describe('workspace capabilities', () => {
     expect(getNextDocumentAction(state)).toBe(null);
   });
 
-  it('gives the Diagram its own undo, redo and Delete, and nothing that authors a pattern or tree', () => {
+  it('gives the Diagram its own undo, redo, Delete, Cut, Copy and Paste, and nothing that authors a pattern or tree', () => {
     const idle = capabilities({ activeEditingContext: 'diagram', canSaveDesign: false });
     expect(idle['edit.undo']).toMatchObject({
       visible: true,
@@ -218,7 +224,7 @@ describe('workspace capabilities', () => {
       historyPastCount: 2,
       historyFutureCount: 1,
       hasDeletableDiagramSelection: true,
-      // Selections elsewhere that Delete must not act on from here.
+      // Selections elsewhere that Delete, Cut and Copy must not act on from here.
       hasEditableCreasePattern: true,
       oristudioCpSelectedLineCount: 3,
     });
@@ -229,9 +235,6 @@ describe('workspace capabilities', () => {
       reason: 'Delete the selected step',
     });
     for (const id of [
-      'edit.cut',
-      'edit.copy',
-      'edit.paste',
       'edit.selectAll',
       'insert.image',
       'cp.checkCamv',
@@ -254,6 +257,41 @@ describe('workspace capabilities', () => {
         'edit.delete'
       ]
     ).toMatchObject({ enabled: true, reason: 'Delete the selected node' });
+
+    // Cut, Copy and Paste act on annotations, and say what they need when they cannot.
+    expect(live['edit.copy']).toMatchObject({ visible: true, enabled: false, reason: 'Select an annotation first' });
+    expect(live['edit.cut']).toMatchObject({ visible: true, enabled: false, reason: 'Select an annotation first' });
+    expect(live['edit.paste']).toMatchObject({
+      visible: true,
+      enabled: false,
+      reason: 'Open a step in Annotate to paste on it',
+    });
+    const clipboardVerbs = (canCopyDiagramAnnotation: boolean, clipboard: unknown | null) => {
+      const state = capabilities({
+        activeEditingContext: 'diagram',
+        canCopyDiagramAnnotation,
+        canPasteDiagramAnnotations: true,
+        clipboard,
+      });
+      return { cut: state['edit.cut'], copy: state['edit.copy'], paste: state['edit.paste'] };
+    };
+    const annotations = { kind: 'diagram-annotations', annotations: [], pastes: {} };
+    expect(clipboardVerbs(true, null)).toMatchObject({
+      cut: { enabled: true, reason: 'Cut the selected annotation' },
+      copy: { enabled: true, reason: 'Copy the selected annotation' },
+      paste: { enabled: false, reason: 'Copy an annotation before pasting' },
+    });
+    expect(clipboardVerbs(false, annotations).paste).toMatchObject({ enabled: true, reason: 'Paste the copied annotation' });
+    // The tree's clipboard is not the Diagram's to paste, nor the crease pattern's, open beside it.
+    const tree = { kind: 'tree', nodes: [], edges: [] };
+    expect(clipboardVerbs(false, tree).paste).toMatchObject({ enabled: false, reason: 'Copy an annotation before pasting' });
+    const lines = capabilities({
+      activeEditingContext: 'diagram',
+      hasEditableCreasePattern: true,
+      canPasteDiagramAnnotations: true,
+      clipboard: { kind: 'cp-lines', lines: [] },
+    })['edit.paste'];
+    expect(lines).toMatchObject({ enabled: false, reason: 'Copy an annotation before pasting' });
   });
 
   it("keeps the Diagram's own edits while TreeMaker is busy, and saving held until it is done", () => {

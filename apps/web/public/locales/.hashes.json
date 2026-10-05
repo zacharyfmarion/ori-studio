@@ -4090,7 +4090,12 @@
     "tools:diagram.toolCloseUp": "e6fc898c91f9",
     "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
     "panels:diagram.annotations.flipRow": "2449d137ea15",
-    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e",
+    "common:capability.annotateToPaste": "2da2fcfa50d6",
+    "common:capability.copyDiagramAnnotationFirst": "76d4d0c57f00",
+    "common:capability.copySelectedDiagramAnnotation": "184a9c24d5f9",
+    "common:capability.cutSelectedDiagramAnnotation": "fd1819de3fa6",
+    "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8183,7 +8188,12 @@
     "tools:diagram.toolCloseUp": "e6fc898c91f9",
     "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
     "panels:diagram.annotations.flipRow": "2449d137ea15",
-    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e",
+    "common:capability.annotateToPaste": "2da2fcfa50d6",
+    "common:capability.copyDiagramAnnotationFirst": "76d4d0c57f00",
+    "common:capability.copySelectedDiagramAnnotation": "184a9c24d5f9",
+    "common:capability.cutSelectedDiagramAnnotation": "fd1819de3fa6",
+    "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12278,7 +12288,12 @@
     "tools:diagram.toolCloseUp": "e6fc898c91f9",
     "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
     "panels:diagram.annotations.flipRow": "2449d137ea15",
-    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e",
+    "common:capability.annotateToPaste": "2da2fcfa50d6",
+    "common:capability.copyDiagramAnnotationFirst": "76d4d0c57f00",
+    "common:capability.copySelectedDiagramAnnotation": "184a9c24d5f9",
+    "common:capability.cutSelectedDiagramAnnotation": "fd1819de3fa6",
+    "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -16285,7 +16300,12 @@
     "tools:diagram.toolCloseUp": "e6fc898c91f9",
     "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
     "panels:diagram.annotations.flipRow": "2449d137ea15",
-    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e",
+    "common:capability.annotateToPaste": "2da2fcfa50d6",
+    "common:capability.copyDiagramAnnotationFirst": "76d4d0c57f00",
+    "common:capability.copySelectedDiagramAnnotation": "184a9c24d5f9",
+    "common:capability.cutSelectedDiagramAnnotation": "fd1819de3fa6",
+    "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -20292,7 +20312,12 @@
     "tools:diagram.toolCloseUp": "e6fc898c91f9",
     "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
     "panels:diagram.annotations.flipRow": "2449d137ea15",
-    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e",
+    "common:capability.annotateToPaste": "2da2fcfa50d6",
+    "common:capability.copyDiagramAnnotationFirst": "76d4d0c57f00",
+    "common:capability.copySelectedDiagramAnnotation": "184a9c24d5f9",
+    "common:capability.cutSelectedDiagramAnnotation": "fd1819de3fa6",
+    "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -24385,7 +24410,12 @@
     "tools:diagram.toolCloseUp": "e6fc898c91f9",
     "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
     "panels:diagram.annotations.flipRow": "2449d137ea15",
-    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e",
+    "common:capability.annotateToPaste": "2da2fcfa50d6",
+    "common:capability.copyDiagramAnnotationFirst": "76d4d0c57f00",
+    "common:capability.copySelectedDiagramAnnotation": "184a9c24d5f9",
+    "common:capability.cutSelectedDiagramAnnotation": "fd1819de3fa6",
+    "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -28478,7 +28508,12 @@
     "tools:diagram.toolCloseUp": "e6fc898c91f9",
     "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
     "panels:diagram.annotations.flipRow": "2449d137ea15",
-    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e",
+    "common:capability.annotateToPaste": "2da2fcfa50d6",
+    "common:capability.copyDiagramAnnotationFirst": "76d4d0c57f00",
+    "common:capability.copySelectedDiagramAnnotation": "184a9c24d5f9",
+    "common:capability.cutSelectedDiagramAnnotation": "fd1819de3fa6",
+    "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -32485,6 +32520,11 @@
     "tools:diagram.toolCloseUp": "e6fc898c91f9",
     "panels:diagram.annotations.flipHorizontal": "7bb5bf753e0d",
     "panels:diagram.annotations.flipRow": "2449d137ea15",
-    "panels:diagram.annotations.flipVertical": "06d6fcadf22e"
+    "panels:diagram.annotations.flipVertical": "06d6fcadf22e",
+    "common:capability.annotateToPaste": "2da2fcfa50d6",
+    "common:capability.copyDiagramAnnotationFirst": "76d4d0c57f00",
+    "common:capability.copySelectedDiagramAnnotation": "184a9c24d5f9",
+    "common:capability.cutSelectedDiagramAnnotation": "fd1819de3fa6",
+    "common:capability.pasteCopiedDiagramAnnotation": "5b4e5eb48be9"
   }
 }
