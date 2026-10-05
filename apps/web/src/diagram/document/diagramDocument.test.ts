@@ -57,6 +57,7 @@ import {
   clampSpreadAxis,
   clampSpreadSkew,
   DEFAULT_AFFINE_SPREAD,
+  DEFAULT_DEPTH_SPREAD,
   DEFAULT_LAYER_SPREAD,
   DEFAULT_SPREAD_STARTS,
   nearestEarlierSpread,
@@ -654,7 +655,7 @@ describe('the ways a linked pattern is shown (D19)', () => {
       side: 'front',
       rotationDeg: 45,
       foldCase: 1,
-      spread: { kind: 'depth', amount: 0.025, toward: 'down' },
+      spread: { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 },
     });
     expect(renderToShowAs({ render: pattern }, 'folded')).not.toHaveProperty('spread');
     // The pattern and the simulation take none.
@@ -714,10 +715,11 @@ describe('a flat fold’s spread (Phase 13)', () => {
     expect(spreadStartsFor(document, 'step-a')).toEqual(DEFAULT_SPREAD_STARTS);
   });
 
-  it('defaults to depth, 2.5%, deeper layers down; and affine to the playground’s bird base (13g)', () => {
-    expect(DEFAULT_LAYER_SPREAD).toEqual({ kind: 'depth', amount: 0.025, toward: 'down' });
+  it('defaults to affine, at the playground’s bird base; and depth to 2.5%, deeper layers down (Zach, 2026-10-05)', () => {
+    expect(DEFAULT_LAYER_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
     expect(DEFAULT_AFFINE_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
-    expect(DEFAULT_SPREAD_STARTS).toEqual({ any: DEFAULT_LAYER_SPREAD, depth: DEFAULT_LAYER_SPREAD, affine: DEFAULT_AFFINE_SPREAD });
+    expect(DEFAULT_DEPTH_SPREAD).toEqual({ kind: 'depth', amount: 0.025, toward: 'down' });
+    expect(DEFAULT_SPREAD_STARTS).toEqual({ any: DEFAULT_AFFINE_SPREAD, depth: DEFAULT_DEPTH_SPREAD, affine: DEFAULT_AFFINE_SPREAD });
   });
 
   it('keeps a depth amount within 0.5% and 20%, to a hundredth of a percent', () => {
@@ -726,7 +728,7 @@ describe('a flat fold’s spread (Phase 13)', () => {
     expect(clampSpreadAmount('depth', 0.123456)).toBe(0.1235);
     expect(clampSpreadAmount('depth', 0.5)).toBe(SPREAD_AMOUNT_RANGE.depth.max);
     expect(clampSpreadAmount('depth', 0)).toBe(SPREAD_AMOUNT_RANGE.depth.min);
-    expect(clampSpreadAmount('depth', Number.NaN)).toBe(DEFAULT_LAYER_SPREAD.amount);
+    expect(clampSpreadAmount('depth', Number.NaN)).toBe(DEFAULT_DEPTH_SPREAD.amount);
   });
 
   it('keeps an affine amount within 0.5% and 25%, a skew within 0 and 1, an axis in whole degrees of a half turn', () => {

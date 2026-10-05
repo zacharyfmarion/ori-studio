@@ -78,7 +78,8 @@ export const SPREAD_DIRECTIONS: readonly SpreadDirection[] = [
 /** The two ways a picture's layers are spread: by depth, or DEFOX's affine opening. */
 export type SpreadKind = 'depth' | 'affine';
 
-export const SPREAD_KINDS: readonly SpreadKind[] = ['depth', 'affine'];
+/** The kinds, in the order every surface offers them: affine first, the default (Zach, 2026-10-05). */
+export const SPREAD_KINDS: readonly SpreadKind[] = ['affine', 'depth'];
 
 /** A depth spread: how far the deepest layer moves, and which way. */
 export interface DepthSpreadOptions {

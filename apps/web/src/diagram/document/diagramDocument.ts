@@ -162,7 +162,7 @@ export const SPREAD_AXIS_RANGE = { min: 0, max: 179 } as const;
  */
 export function clampSpreadAmount(kind: SpreadKind, amount: number): number {
   const { min, max } = SPREAD_AMOUNT_RANGE[kind];
-  const fallback = kind === 'depth' ? DEFAULT_LAYER_SPREAD.amount : DEFAULT_AFFINE_SPREAD.amount;
+  const fallback = kind === 'depth' ? DEFAULT_DEPTH_SPREAD.amount : DEFAULT_AFFINE_SPREAD.amount;
   const within = Number.isFinite(amount) ? Math.min(max, Math.max(min, amount)) : fallback;
   return Number(within.toFixed(4));
 }
@@ -180,10 +180,11 @@ export function clampSpreadAxis(degrees: number): number {
 }
 
 /**
- * The spread a folded-flat pose starts with when no earlier step has one —
- * Zach, 2026-10-04: "depth based ON for folded figures, set to down and 2.5%".
+ * The depth spread Depth starts from when no earlier step has one — Zach,
+ * 2026-10-04: "depth based ON for folded figures, set to down and 2.5%". It
+ * was every new flat pose's until affine took its place (2026-10-05).
  */
-export const DEFAULT_LAYER_SPREAD: DiagramDepthSpread = { kind: 'depth', amount: 0.025, toward: 'down' };
+export const DEFAULT_DEPTH_SPREAD: DiagramDepthSpread = { kind: 'depth', amount: 0.025, toward: 'down' };
 
 /**
  * The affine spread Affine starts from when no earlier step has one: the
@@ -199,6 +200,13 @@ export const DEFAULT_AFFINE_SPREAD: DiagramAffineSpread = {
   skew: 1,
   axisDeg: 81,
 };
+
+/**
+ * The spread a folded-flat pose starts with when no earlier step has one, and
+ * Spread Layers turned on takes then — Zach, 2026-10-05: "I want affine to be
+ * the default option and the first displayed, and default to on".
+ */
+export const DEFAULT_LAYER_SPREAD: DiagramLayerSpread = DEFAULT_AFFINE_SPREAD;
 
 /**
  * The spread of the nearest step before `stepId` whose flat fold has one —
@@ -236,7 +244,7 @@ export interface DiagramSpreadStarts {
 /** The starts when there is no diagram to look in: the defaults. */
 export const DEFAULT_SPREAD_STARTS: DiagramSpreadStarts = {
   any: DEFAULT_LAYER_SPREAD,
-  depth: DEFAULT_LAYER_SPREAD,
+  depth: DEFAULT_DEPTH_SPREAD,
   affine: DEFAULT_AFFINE_SPREAD,
 };
 
@@ -246,7 +254,7 @@ export function spreadStartsFor(document: DiagramDocument, stepId: string): Diag
   const affine = nearestEarlierSpread(document, stepId, 'affine');
   return {
     any: nearestEarlierSpread(document, stepId) ?? DEFAULT_LAYER_SPREAD,
-    depth: depth?.kind === 'depth' ? depth : DEFAULT_LAYER_SPREAD,
+    depth: depth?.kind === 'depth' ? depth : DEFAULT_DEPTH_SPREAD,
     affine: affine?.kind === 'affine' ? affine : DEFAULT_AFFINE_SPREAD,
   };
 }

@@ -368,10 +368,10 @@ describe('DiagramStepPanel', () => {
       act(() => amount()!.dispatchEvent(new Event('change', { bubbles: true })));
       expect(verbs.commit).toHaveBeenCalledOnce();
 
-      // Depth | Affine, under the switch.
+      // Affine | Depth, under the switch: affine first (Zach, 2026-10-05).
       const segments = [...kinds()!.querySelectorAll<HTMLButtonElement>('button')];
-      expect(segments.map((button) => button.textContent)).toEqual(['Depth', 'Affine']);
-      act(() => segments[1]!.click());
+      expect(segments.map((button) => button.textContent)).toEqual(['Affine', 'Depth']);
+      act(() => segments[0]!.click());
       expect(verbs.kind).toHaveBeenCalledWith('affine');
       act(() => publishOpenLinkedPose(null, null));
     });

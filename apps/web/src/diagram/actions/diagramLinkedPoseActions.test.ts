@@ -203,9 +203,10 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(controls({ render: { mode: 'crease-pattern', rotationDeg: 0 } }, SPREAD)).toBeNull();
     const on = controls({ render: { ...FLAT, spread: SPREAD } })!;
     expect(on).toMatchObject({ spread: SPREAD, disabled: false, keeps: [] });
+    // Affine first (Zach, 2026-10-05).
     expect(on.kinds.map(({ value, label, pressed }) => [value, label, pressed])).toEqual([
-      ['depth', 'Depth', true],
       ['affine', 'Affine', false],
+      ['depth', 'Depth', true],
     ]);
     expect(on.directions.map((option) => option.value)).toEqual([
       'up-left', 'up', 'up-right', 'right', 'down-right', 'down', 'down-left', 'left',

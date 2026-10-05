@@ -8,6 +8,7 @@ import type { SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   DEFAULT_AFFINE_SPREAD,
   DEFAULT_DIAGRAM_STYLE,
+  DEFAULT_DEPTH_SPREAD,
   DEFAULT_LAYER_SPREAD,
   DEFAULT_SIMULATED_VIEW,
   type DiagramCpRender,
@@ -435,7 +436,8 @@ describe('a flat fold’s spread (Phase 13)', () => {
     const { session } = sessionWith();
     const document = cpDocument();
     expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }))).toEqual(DEFAULT_LAYER_SPREAD);
-    expect(DEFAULT_LAYER_SPREAD).toEqual({ kind: 'depth', amount: 0.025, toward: 'down' });
+    // Affine, on (Zach, 2026-10-05).
+    expect(DEFAULT_LAYER_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
     expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }, STARTS))).toEqual(STARTS.any);
     const off = await pose(session, SPREAD_FLAT, { verb: 'spread-layers' }, document);
     expect(off.status === 'posed' && off.render).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 30, foldCase: 1 });
@@ -469,7 +471,7 @@ describe('a flat fold’s spread (Phase 13)', () => {
     const cases: Array<[DiagramCpRender, SpreadKind, DiagramSpreadStarts | undefined, unknown]> = [
       [SPREAD_FLAT, 'affine', undefined, DEFAULT_AFFINE_SPREAD],
       [SPREAD_FLAT, 'affine', STARTS, STARTS.affine],
-      [AFFINE_FLAT, 'depth', undefined, DEFAULT_LAYER_SPREAD],
+      [AFFINE_FLAT, 'depth', undefined, DEFAULT_DEPTH_SPREAD],
       [AFFINE_FLAT, 'depth', STARTS, STARTS.depth],
       // The kind it has: nothing changes.
       [AFFINE_FLAT, 'affine', STARTS, AFFINE],

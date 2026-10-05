@@ -368,9 +368,12 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     return source?.kind === 'cp' && source.render.mode === 'folded-flat' ? (source.render.spread ?? null) : undefined;
   };
 
-  /** Depth, 2.5%, deeper layers down: what a new flat pose starts with when no step before has a spread (13g). */
+  /** Depth, 2.5%, deeper layers down: what Depth starts with when no step before has a depth spread (13g). */
   const DEPTH = { kind: 'depth' as const, amount: 0.025, toward: 'down' as const };
-  /** The playground's bird base: what Affine starts with when no step before has an affine spread. */
+  /**
+   * The playground's bird base: what a new flat pose starts with when no step
+   * before has a spread (Zach, 2026-10-05), and Affine when none has an affine one.
+   */
   const AFFINE = { kind: 'affine' as const, amount: 0.03, keep: 'top' as const, skew: 1, axisDeg: 81 };
 
   /** A linked step shown flat, spread or not, as a file would hold it, and no fold held yet. */
@@ -393,36 +396,36 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     });
   }
 
-  it('starts a new flat pose spread — the nearest step before’s, else depth 2.5% down — and turns it off and on, counted with how', async () => {
+  it('starts a new flat pose spread — the nearest step before’s, else affine (Zach, 2026-10-05) — and turns it off and on, counted with how', async () => {
     const first = await linkedStep();
     const second = await linkedStep();
     expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first, second]);
     const one = createPoseController(first, listener());
     await one.run({ verb: 'show-folded' });
-    // No step before it has one: the default, on.
-    expect(spreadOf(first)).toEqual(DEPTH);
-    await one.run({ verb: 'spread-direction', toward: 'up-left' });
-    expect(spreadOf(first)).toEqual({ ...DEPTH, toward: 'up-left' });
+    // No step before it has one: the default, affine, on.
+    expect(spreadOf(first)).toEqual(AFFINE);
+    await one.run({ verb: 'spread-keep', keep: 'bottom' });
+    expect(spreadOf(first)).toEqual({ ...AFFINE, keep: 'bottom' });
     one.dispose();
 
     const two = createPoseController(second, listener());
     await two.run({ verb: 'show-folded' });
     // The step before's.
-    expect(spreadOf(second)).toEqual({ ...DEPTH, toward: 'up-left' });
+    expect(spreadOf(second)).toEqual({ ...AFFINE, keep: 'bottom' });
     const past = state().diagramHistory.past.length;
     await two.run({ verb: 'spread-layers' });
     expect(spreadOf(second)).toBeNull();
     await two.run({ verb: 'spread-layers' });
-    expect(spreadOf(second)).toEqual({ ...DEPTH, toward: 'up-left' });
+    expect(spreadOf(second)).toEqual({ ...AFFINE, keep: 'bottom' });
     expect(state().diagramHistory.past.length).toBe(past + 2);
     two.dispose();
 
     expect(analytics.trackDiagramPicturePosed.mock.calls.slice(-5)).toEqual([
       ['show_folded', 'flat', undefined],
-      ['spread_direction', 'flat', { kind: 'depth', direction: 'up_left', amount: 0.025 }],
+      ['spread_keep', 'flat', { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 }],
       ['show_folded', 'flat', undefined],
       ['spread_off', 'flat', undefined],
-      ['spread_on', 'flat', { kind: 'depth', direction: 'up_left', amount: 0.025 }],
+      ['spread_on', 'flat', { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 }],
     ]);
   });
 
@@ -439,12 +442,15 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     controller.dispose();
   });
 
-  it('switches to affine from the nearest step before’s, else the bird base’s, and each kind keeps to its own settings', async () => {
+  it('switches kind from the nearest step before’s of that kind, else its default, and each kind keeps to its own settings', async () => {
     const first = await linkedStep();
     const second = await linkedStep();
     const one = createPoseController(first, listener());
     await one.run({ verb: 'show-folded' });
     const past = state().diagramHistory.past.length;
+    // To depth, which no step before has: its default; and back to affine, which this one had.
+    await one.run({ verb: 'spread-kind', kind: 'depth' });
+    expect(spreadOf(first)).toEqual(DEPTH);
     await one.run({ verb: 'spread-kind', kind: 'affine' });
     expect(spreadOf(first)).toEqual(AFFINE);
     await one.run({ verb: 'spread-keep', keep: 'bottom' });
@@ -453,13 +459,14 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     await one.run({ verb: 'spread-amount', amount: 0.3 });
     const opened = { ...AFFINE, keep: 'bottom' as const, skew: 0.46, axisDeg: 99, amount: 0.25 };
     expect(spreadOf(first)).toEqual(opened);
-    expect(state().diagramHistory.past.length).toBe(past + 5);
+    expect(state().diagramHistory.past.length).toBe(past + 6);
     // A depth verb on an affine spread, and the kind it has, change nothing.
     await one.run({ verb: 'spread-direction', toward: 'left' });
     await one.run({ verb: 'spread-kind', kind: 'affine' });
     expect(spreadOf(first)).toEqual(opened);
-    expect(state().diagramHistory.past.length).toBe(past + 5);
-    expect(analytics.trackDiagramPicturePosed.mock.calls.slice(-5)).toEqual([
+    expect(state().diagramHistory.past.length).toBe(past + 6);
+    expect(analytics.trackDiagramPicturePosed.mock.calls.slice(-6)).toEqual([
+      ['spread_kind', 'flat', { kind: 'depth', direction: 'down', amount: 0.025 }],
       ['spread_kind', 'flat', { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 }],
       ['spread_keep', 'flat', { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 }],
       ['spread_skew', 'flat', { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 0.46, axisDeg: 81 }],
@@ -491,13 +498,13 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const source = render(stepId)!;
     if (source.kind !== 'cp') throw new Error('linked');
 
-    for (const value of [0.1, 0.12, 0.15]) controller.previewSpread({ slider: 'amount', kind: 'depth', value });
+    for (const value of [0.1, 0.12, 0.15]) controller.previewSpread({ slider: 'amount', kind: 'affine', value });
     expect(heard.preview).toHaveBeenCalledTimes(3);
     expect(heard.preview).toHaveBeenLastCalledWith(
       {
-        slide: { slider: 'amount', kind: 'depth', value: 0.15 },
-        slides: [{ slider: 'amount', kind: 'depth', value: 0.15 }],
-        spread: { ...DEPTH, amount: 0.15 },
+        slide: { slider: 'amount', kind: 'affine', value: 0.15 },
+        slides: [{ slider: 'amount', kind: 'affine', value: 0.15 }],
+        spread: { ...AFFINE, amount: 0.15 },
         picture: expect.objectContaining({ kind: 'scene' }),
       },
       linkedFoldKey(stepId, source)
@@ -507,13 +514,13 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(bindings.runtime!.paperScene).toHaveBeenCalledTimes(reads);
 
     await controller.commitSpread();
-    expect(spreadOf(stepId)).toEqual({ ...DEPTH, amount: 0.15 });
+    expect(spreadOf(stepId)).toEqual({ ...AFFINE, amount: 0.15 });
     expect(state().diagramHistory.past.length).toBe(past + 1);
     expect(bindings.runtime!.paperScene).toHaveBeenCalledTimes(reads);
     expect(heard.preview).toHaveBeenLastCalledWith(null, null);
     // One drag, one event.
     expect(analytics.trackDiagramPicturePosed.mock.calls.slice(posed)).toEqual([
-      ['spread_amount', 'flat', { kind: 'depth', direction: 'down', amount: 0.15 }],
+      ['spread_amount', 'flat', { kind: 'affine', amount: 0.15, keep: 'top', skew: 1, axisDeg: 81 }],
     ]);
     controller.dispose();
   });
@@ -582,11 +589,11 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     await controller.run({ verb: 'show-folded' });
     const past = state().diagramHistory.past.length;
     const commits = [0.1, 0.12, 0.14].map((value) => {
-      controller.previewSpread({ slider: 'amount', kind: 'depth', value });
+      controller.previewSpread({ slider: 'amount', kind: 'affine', value });
       return controller.commitSpread();
     });
     await Promise.all(commits);
-    expect(spreadOf(stepId)).toEqual({ ...DEPTH, amount: 0.14 });
+    expect(spreadOf(stepId)).toEqual({ ...AFFINE, amount: 0.14 });
     expect(state().diagramHistory.past.length).toBe(past + 1);
     controller.dispose();
   });
@@ -768,14 +775,14 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
     await controller.run({ verb: 'turn-over' });
-    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.1 });
+    controller.previewSpread({ slider: 'amount', kind: 'affine', value: 0.1 });
     // Heard before the undo, which takes back this step's turn.
     controller.historyMoved();
     state().undoDiagram();
     await Promise.resolve();
     expect(heard.preview).toHaveBeenLastCalledWith(null, null);
     await controller.run({ verb: 'reset' });
-    expect(render(stepId)).toMatchObject({ render: { side: 'front', rotationDeg: 0, foldCase: 1, spread: DEPTH } });
+    expect(render(stepId)).toMatchObject({ render: { side: 'front', rotationDeg: 0, foldCase: 1, spread: AFFINE } });
     controller.dispose();
   });
 
@@ -867,9 +874,9 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const heard = listener();
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
-    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.1 });
+    controller.previewSpread({ slider: 'amount', kind: 'affine', value: 0.1 });
     expect(heard.preview).toHaveBeenLastCalledWith(
-      expect.objectContaining({ spread: { ...DEPTH, amount: 0.1 } }),
+      expect.objectContaining({ spread: { ...AFFINE, amount: 0.1 } }),
       expect.any(String)
     );
     controller.dispose();
@@ -881,6 +888,8 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const heard = listener();
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
+    // A direction is a depth spread's.
+    await controller.run({ verb: 'spread-kind', kind: 'depth' });
     // A drag back to where it began commits nothing; the preview stays up.
     controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.025 });
     await controller.run({ verb: 'spread-direction', toward: 'up-left' });

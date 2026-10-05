@@ -169,8 +169,8 @@ export async function duplicateLinkedStepAs(stepId: string, way: DiagramShowAs):
 
 /**
  * The spread a flat fold this step starts takes (13g: on by default): the
- * nearest earlier step's, else depth 2.5% down. A fold the step remembers
- * keeps its own (`renderToShowAs`).
+ * nearest earlier step's, else the default, affine (`DEFAULT_LAYER_SPREAD`).
+ * A fold the step remembers keeps its own (`renderToShowAs`).
  */
 function startingSpread(stepId: string): DiagramLayerSpread {
   const { diagram } = useWorkspaceStore.getState();

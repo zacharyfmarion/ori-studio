@@ -174,6 +174,10 @@ defaults he has not seen yet and are cheap to change.
    default for every new flat pose, down, 2.5% (Zach, 2026-10-04) — 13g.
    Decisions 1, 4 and 7 stand for the depth kind; 3's default direction is
    now down.
+   *Changed by Zach, 2026-10-05:* "I want affine to be the default option and
+   the first displayed, and default to on." A new flat pose starts affine
+   (decision 10's start) when no step before it is spread, and every surface
+   offers Affine before Depth; depth still starts at 2.5% down when chosen.
 10. Affine starts at 3%, keep top, skew 1, axis 81° — the playground's bird
    base in the kernel's frame (13g as built) — *for Zach*.
 
@@ -318,7 +322,8 @@ newer build's, as today.
 
 **Defaults.** A folded-flat pose made from anything that is not one — a new
 step, Show As Folded from a crease pattern or 3D, a fold reread flat — starts
-with the nearest earlier step's spread, else depth 2.5% down. A flat fold that
+with the nearest earlier step's spread, else depth 2.5% down (affine since
+2026-10-05: decision 9). A flat fold that
 already has a pose keeps it: a file whose step has no spread stays unspread,
 and Spread Layers still turns it off. Turning the affine kind on starts from
 the nearest earlier affine spread, else amount 3%, keep **top**, skew 1, axis
@@ -417,6 +422,14 @@ axis only bucketed. i18n in every locale.
   `folded()` for a 3D pose whose creases fold flat. A flat fold that has a
   pose keeps it: Zach's crane's step 5 (a crease pattern remembering an
   unspread fold) comes back unspread. Reset Pose still keeps the spread.
+- [x] Affine the default, offered first, on (Zach, 2026-10-05; decision 9):
+  `DEFAULT_LAYER_SPREAD` is `DEFAULT_AFFINE_SPREAD` — what a new flat pose
+  and Spread Layers turned on start from when no step before is spread —
+  and depth's own start is `DEFAULT_DEPTH_SPREAD`; `SPREAD_KINDS` lists
+  affine first, so the Step pane reads Affine | Depth. A step before that is
+  spread is still followed, of either kind. Browser: crane step 4 shown
+  Folded starts affine 3%, keep top, skew 1, axis 81°, Spread layers on
+  (`artifacts/diagram-spread-default/`).
 - [x] Verbs, controller previews, Step pane, phone drawer, analytics, i18n.
   As built: `spread-kind` (the other kind from `spreadStarts[kind]`; the
   kind it has, or no spread, changes nothing), `spread-keep`, `spread-skew`,
