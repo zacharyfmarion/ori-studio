@@ -498,10 +498,16 @@ export function textEms(text: string): number {
   const fonts = scriptFonts(graphemes, textCjkKey(text, 'sc'));
   let ems = 0;
   graphemes.forEach((grapheme, index) => {
-    ems += graphemeEms(grapheme, fonts[index] === 'latin' ? characterEms : cjkCharacterEms);
+    ems += graphemeEms(grapheme, fonts[index] === 'latin' ? latinRunEms : cjkRunEms);
   });
   return ems;
 }
+
+// A character its run's font has no glyph for is set in the other, which
+// has it, as a page sets it (`coverFonts`): ‱ among CJK words in Noto Sans,
+// ⸻ among Latin ones in a CJK font.
+const latinRunEms = (character: string) => characterEms(character) ?? cjkCharacterEms(character);
+const cjkRunEms = (character: string) => cjkCharacterEms(character) ?? characterEms(character);
 
 /** A grapheme's advance in ems, its combining marks included, as `textEms` counts it: each character as `measure` reads it. */
 function graphemeEms(grapheme: string, measure: (character: string) => number | null): number {

@@ -199,6 +199,11 @@ export const CJK_RUN_ADVANCE_RUNS: readonly LabelAdvanceRun[] = [
       -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     ],
   },
+  // U+2E3A–U+2E3B: the two- and three-em dashes, the only Supplemental Punctuation the CJK fonts set.
+  {
+    from: 0x2e3a,
+    advances: [1676, 2459],
+  },
 ];
 
 /** The widest a CJK font sets `codePoint` at among CJK words, in thousandths of an em; null where none has it. */

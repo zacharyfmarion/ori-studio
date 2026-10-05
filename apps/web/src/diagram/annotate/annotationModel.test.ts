@@ -222,6 +222,13 @@ describe('a label’s width', () => {
     expect(textEms('中心线 ±1·2')).toBeCloseTo(3 + 0.224 + 1 + 0.555 + 1 + 0.555, 9);
     // Among Latin words, as Noto Sans sets them.
     expect(textEms('1·2')).toBeCloseTo((labelAdvance(0x31)! + labelAdvance(0xb7)! + labelAdvance(0x32)!) / 1000, 9);
+    // A dash only the CJK fonts have, a sign only Noto Sans has: each as the font that has it sets it (review 4).
+    expect(textEms('折⸻')).toBeCloseTo(1 + 2.459, 9);
+    expect(textEms('折⸺折')).toBeCloseTo(2 + 1.676, 9);
+    const fold = [...'Fold '].reduce((sum, character) => sum + labelAdvance(character.codePointAt(0)!)!, 0) / 1000;
+    expect(textEms('Fold ⸻')).toBeCloseTo(fold + 2.459, 9);
+    expect(textEms('折‱')).toBeCloseTo(1 + labelAdvance(0x2031)! / 1000, 9);
+    expect(labelAdvance(0x2031)! / 1000).toBeCloseTo(1.544, 3);
   });
 
   // The CJK fonts are a build output: checked against them where they are built.
