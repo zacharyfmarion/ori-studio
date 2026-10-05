@@ -187,7 +187,7 @@ body (the line) moves both. A shared primitive with a golden, as every mark
 ### 7. The tool hint window (Zach, 2026-10-04)
 
 Every Annotate tool says what it does in the shared tool hint window main
-gained (`components/ui/tools/ToolHintWindow`, the bottom-left window Edit and
+gained (`components/ui/tools/ToolHintWindow`, the bottom-right window Edit and
 the Simulator use) rather than in the Step pane: its name, a line on how to
 use it, and its modifiers (Shift, Alt, ⌘ to place freely). The Step pane
 keeps the selected annotation's verbs. On a phone the window gives way as it
@@ -978,10 +978,35 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
     without them refuses the PDF for a label or a callout alike.
 
 ### 14h. The tool hint window
-- [ ] Main merged in; every Annotate tool's hint in `ToolHintWindow` (Select,
+- [x] Main merged in; every Annotate tool's hint in `ToolHintWindow` (Select,
   Edit Path, each drawing tool, circles, right angles, white arrows,
   callouts), the Step pane's help line retired; phone behaviour as Edit's.
-- [ ] Browser: each tool's window, light and dark, desktop and phone.
+  As built: the window is `components/diagram/DiagramAnnotateToolWindow`,
+  mounted by the canvas beside (not inside) its view and anchored to it, so
+  it overhangs the seam with the Step pane as Edit's does over View; its
+  collapse is its own preference (`diagramToolHintCollapsed`). What it says
+  is `annotateToolHint` in `annotateTools.ts`: the tool's name, its help
+  line (moved from the Step pane; the rail's tooltip keeps it too, as
+  Edit's does), and its keys as the canvas honours them — ⌘/Ctrl to put
+  what snaps down anywhere, Shift's 45° steps for right angles and Edit
+  Path's nodes and 15° for its handles, Option/Alt to break a smooth node —
+  in the platform's names (`altModifierLabel` joins `primaryModifierLabel`).
+  A finger gets no keys, as the Simulator's Pin window gives it none. The
+  heading-and-list look is `ui/tools/ToolHintInstructions`, extracted from
+  the Simulator's window (computed styles identical before and after). The
+  label's and callout's help said "type it here", meaning the Step pane; it
+  says "in the Step pane" now. Not shown on a diagram that cannot change, as
+  Edit's is not. On a phone Annotate is "Annotate on a larger screen", so
+  there is no canvas and no window; Edit's window on a phone stays up,
+  clamped to the screen over its toolbar, which the shared placement would
+  give Annotate too if it ever comes to phones.
+- [x] Browser: each tool's window, light and dark, desktop and phone.
+  `artifacts/diagram-annotate/14h/` (`tool-window.mjs`): all 16 tools on a
+  1440×900 desktop (name, help, keys; portaled to the body, outside the
+  view, 12 px above the view's bottom beside the zoom pill, overhanging the
+  seam by 50 px) and on a coarse-pointer 1180×820 tablet (no keys, clamped
+  to the screen's right edge), light and dark; a 390×844 phone shows the
+  larger-screen note and no window, and its Step drawer no help line.
 
 ## Risks
 

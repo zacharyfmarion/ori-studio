@@ -10,6 +10,8 @@ import {
 } from '../../diagram/actions/diagramLinkedPoseActions';
 import { publishOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
+import { ANNOTATE_TOOL_GROUPS, annotateToolHelp } from '../../diagram/annotate/annotateTools';
+import i18n from '../../i18n';
 import { STORAGE_KEYS, storageKey } from '../../lib/storage';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -457,7 +459,6 @@ describe('DiagramStepPanel in Annotate', () => {
   it('lists them, selects one with a press, and offers its own controls', () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));
-    expect(host?.textContent).toContain('Select');
     // A row pressed with a drawing tool in hand puts Select back, to move what it selected.
     act(() => state().setDiagramAnnotateTool('mountain-line'));
     act(() => row('Valley Fold Arrow').click());
@@ -565,6 +566,23 @@ describe('DiagramStepPanel in Annotate', () => {
     expect(row('裏側も 同様に').getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('leaves what the tool in hand does to the tool window (decision 7)', () => {
+    const stepId = annotatedStep();
+    act(() => state().openDiagramStep(stepId, 'annotate'));
+    const t = i18n.t.bind(i18n);
+    for (const tool of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools)) {
+      act(() => state().setDiagramAnnotateTool(tool));
+      expect(host?.textContent).not.toContain(annotateToolHelp(t, tool));
+    }
+    act(() => state().setDiagramAnnotateTool('edit-path'));
+    expect(host?.textContent).not.toContain('Select a fold arrow or a white arrow to shape it.');
+    // Its verbs on what is selected stay: the Snap switch, the list, Delete.
+    act(() => state().selectDiagramAnnotation('a-2'));
+    expect(host?.querySelector('button[role="switch"][aria-label="Snap to Picture"]')).not.toBeNull();
+    expect(row('B').getAttribute('aria-pressed')).toBe('true');
+    expect(buttonNamed('Delete')).toBeDefined();
+  });
+
   it('offers the Snap switch in Annotate, for a finger, and remembers it as a preference', () => {
     const stepId = annotatedStep();
     const snapSwitch = () => host?.querySelector<HTMLButtonElement>('button[role="switch"][aria-label="Snap to Picture"]') ?? null;
@@ -599,19 +617,16 @@ describe('DiagramStepPanel in Annotate', () => {
     const byLabel = (label: string) => host?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`) ?? null;
     const arrow = () => annotations()[0] as { id: string; bend?: number; path?: { at: number[]; type?: string }[] };
 
-    it('says what it shapes, and that it shapes nothing else', () => {
+    it('keeps Edit Path in hand to shape what a row selects, offering node verbs only on what it shapes', () => {
       const stepId = annotatedStep();
       act(() => state().openDiagramStep(stepId, 'annotate'));
       act(() => state().setDiagramAnnotateTool('edit-path'));
-      expect(host?.textContent).toContain('Edit Path');
-      expect(host?.textContent).toContain('Select a fold arrow or a white arrow to shape it.');
       // A row pressed keeps Edit Path in hand, to shape what it selected.
       act(() => row('B').click());
       expect(state().diagramAnnotateTool).toBe('edit-path');
-      expect(host?.textContent).toContain('Only fold arrows and white arrows can be shaped.');
       expect(host?.textContent).not.toContain('Node');
       act(() => row('Valley Fold Arrow').click());
-      expect(host?.textContent).toContain('Drag an arrow’s nodes');
+      expect(host?.textContent).toContain('2 nodes');
     });
 
     it('steps through the nodes, and adds, turns and deletes them, each one undo step', () => {

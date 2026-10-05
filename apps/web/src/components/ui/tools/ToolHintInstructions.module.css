@@ -1,0 +1,36 @@
+/*
+ * A tool window's instructions (ToolHintInstructions.tsx). The values follow
+ * Edit's window content, so every workspace's window reads as one window.
+ */
+.instructions {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.heading {
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.intro {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.list li {
+  padding-left: 2px;
+}

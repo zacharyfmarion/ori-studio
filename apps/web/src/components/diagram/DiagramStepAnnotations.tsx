@@ -2,13 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type LucideIcon } from 'lucide-react';
 import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
-import {
-  EDIT_PATH,
-  annotateToolHelp,
-  annotateToolLabel,
-  annotationKindLabel,
-  editPathHelp,
-} from '../../diagram/annotate/annotateTools';
+import { annotationKindLabel } from '../../diagram/annotate/annotateTools';
 import { carriesText, LABEL_MAX_LENGTH } from '../../diagram/annotate/annotationModel';
 import { onLabelFocusRequest, takeLabelFocus } from '../../diagram/annotate/labelFocus';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
@@ -35,11 +29,12 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
 /**
  * The Step pane's annotations (D13).
  *
- * Out of Annotate, how many the step has and the way in. In Annotate, the
- * tool in hand and what it does — for Edit Path, what it can shape — the
- * Snap switch (for a finger, which has no ⌘ to hold), a notice when they
- * were drawn on another picture, the list — a press selects
- * one, as a press on the canvas does — and the selected one's own controls:
+ * Out of Annotate, how many the step has and the way in. In Annotate — where
+ * the tool in hand says what it does in the tool window over the canvas
+ * (`DiagramAnnotateToolWindow`) — the Snap switch (for a finger, which has
+ * no ⌘ to hold), a notice when they were drawn on another picture, the list —
+ * a press selects one, as a press on the canvas does — and the selected
+ * one's own controls:
  * a label's or a callout's text, an arrow's Flip arc and Reset, a white
  * arrow's width and tail, a rotation's turn, a turn-over's axis, Delete, and
  * in Edit Path a fold or white arrow's node verbs.
@@ -70,12 +65,6 @@ export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
 
   return (
     <div className={styles.annotations}>
-      <div className={styles.tool}>
-        <span className={styles.toolName}>{annotateToolLabel(t, annotations.tool)}</span>
-        <p className={styles.help}>
-          {annotations.tool === EDIT_PATH ? editPathHelp(t, selected) : annotateToolHelp(t, annotations.tool)}
-        </p>
-      </div>
       <ToggleRow
         label={t('panels:diagram.annotations.snap', 'Snap to Picture')}
         help={t(

@@ -1,13 +1,13 @@
 import type { TFunction } from 'i18next';
 import type { DiagramAnnotateShortcutId } from '../../keyboard/shortcuts';
-import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
+import type { DiagramAnnotationKind } from '../document/diagramDocument';
 import { ANNOTATION_KINDS, canBeShaped, isPointKind } from './annotationModel';
 
 /**
  * Annotate's tools (D8), for every surface that offers them: the rail beside
- * the canvas, the keys, and the Step pane's name and help for the one in
- * hand. React-free and store-free, as `diagramActions.ts` is; each surface
- * draws its own.
+ * the canvas, the keys, and the tool window's name, help and modifier keys
+ * for the one in hand. React-free and store-free, as `diagramActions.ts` is;
+ * each surface draws its own.
  */
 
 /**
@@ -134,7 +134,7 @@ export function annotateToolLabel(t: TFunction, tool: AnnotateTool): string {
   return annotationKindLabel(t, tool);
 }
 
-/** What the tool in hand does, in a line: the Step pane says it under the tool's name. */
+/** What a tool does, in a line: the tool window says it under the tool's name, and the rail's tooltip after it. */
 export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
   if (tool === null) {
     return t(
@@ -171,7 +171,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
     case 'rotate':
       return t('panels:diagram.annotate.glyphHelp', 'Click where the sign goes.');
     case 'label':
-      return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it here.');
+      return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it in the Step pane.');
     case 'circle':
       return t('panels:diagram.annotate.circleHelp', 'Click a point to circle it.');
     case 'right-angle':
@@ -182,7 +182,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
     case 'callout':
       return t(
         'panels:diagram.annotate.calloutHelp',
-        'Drag from a point to where the box goes, or click the point, then type its words here.'
+        'Drag from a point to where the box goes, or click the point, then type its words in the Step pane.'
       );
   }
 }
@@ -203,15 +203,15 @@ export function annotateGroupLabel(t: TFunction, group: AnnotateToolGroupId): st
 }
 
 /**
- * What Edit Path says in the Step pane about the annotation selected: how to
- * shape a fold or white arrow, or that nothing else is shaped (decision 1) —
- * it edits nothing then.
+ * What Edit Path says in the tool window about the annotation selected, by
+ * its kind: how to shape a fold or white arrow, or that nothing else is
+ * shaped (decision 1) — it edits nothing then.
  */
-export function editPathHelp(t: TFunction, selected: KnownDiagramAnnotation | null): string {
+export function editPathHelp(t: TFunction, selected: DiagramAnnotationKind | null): string {
   if (selected === null) {
     return t('panels:diagram.annotate.editPathNone', 'Select a fold arrow or a white arrow to shape it.');
   }
-  if (!canBeShaped(selected.kind)) {
+  if (!canBeShaped(selected)) {
     return t('panels:diagram.annotate.editPathCannot', 'Only fold arrows and white arrows can be shaped.');
   }
   return annotateToolHelp(t, EDIT_PATH);
@@ -221,4 +221,107 @@ export function editPathHelp(t: TFunction, selected: KnownDiagramAnnotation | nu
 export function isClickTool(tool: AnnotateTool): boolean {
   const kind = drawingKind(tool);
   return kind !== null && isPointKind(kind);
+}
+
+/** What the tool window can promise on this device, and the names of its keys. */
+export interface AnnotateToolHost {
+  /** A finger: no keys to hold, so none are offered. */
+  coarse: boolean;
+  /** The platform's name for the key that places freely: Cmd or Ctrl (`primaryModifierLabel`). */
+  primary: string;
+  /** Its name for Alt: Option or Alt (`altModifierLabel`). */
+  alt: string;
+}
+
+/**
+ * What the tool window says for the tool in hand (decision 7): its name, how
+ * to use it, and the keys held while using it, a line each — as the canvas
+ * honours them (`useAnnotateCanvas`, `editPathGesture`, `rightAnglePlacement`).
+ */
+export interface AnnotateToolHint {
+  title: string;
+  instructions: string;
+  modifiers: readonly string[];
+}
+
+/**
+ * The tool window for `tool`. Edit Path says what it can do to the selected
+ * annotation, by its kind (null for none selected).
+ */
+export function annotateToolHint(
+  t: TFunction,
+  tool: AnnotateTool,
+  selected: DiagramAnnotationKind | null,
+  host: AnnotateToolHost
+): AnnotateToolHint {
+  return {
+    title: annotateToolLabel(t, tool),
+    instructions: tool === EDIT_PATH ? editPathHelp(t, selected) : annotateToolHelp(t, tool),
+    modifiers: host.coarse ? [] : annotateToolModifiers(t, tool, host),
+  };
+}
+
+/**
+ * The keys a tool honours, a line each: ⌘ (Ctrl) puts what snaps down
+ * anywhere; Shift holds a right angle to 45° steps, and in Edit Path a node
+ * to the eight directions and a handle to 15° steps; Alt breaks a smooth
+ * node's handles apart. A switch, so a new tool has to say.
+ */
+function annotateToolModifiers(t: TFunction, tool: AnnotateTool, { primary, alt }: AnnotateToolHost): string[] {
+  if (tool === null) {
+    return [
+      t('panels:diagram.annotate.selectFreeKey', 'Hold {{modifier}} as you drag to put it down anywhere, without snapping.', {
+        modifier: primary,
+      }),
+      t('panels:diagram.annotate.selectTurnKey', 'Shift-drag a right angle’s far corner to turn it in 45° steps.'),
+    ];
+  }
+  switch (tool) {
+    case EDIT_PATH:
+      return [
+        t('panels:diagram.annotate.nodeShiftKey', 'Shift-drag a node to move it only across, up and down, or at 45°.'),
+        t('panels:diagram.annotate.handleShiftKey', 'Shift-drag a handle to turn it in 15° steps.'),
+        t(
+          'panels:diagram.annotate.handleAltKey',
+          '{{modifier}}-drag a smooth node’s handle to move it alone: the node becomes a corner.',
+          { modifier: alt }
+        ),
+      ];
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+    case 'push-arrow':
+    case 'white-arrow':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+      return [
+        t('panels:diagram.annotate.endsFreeKey', 'Hold {{modifier}} to put an end down anywhere, without snapping.', {
+          modifier: primary,
+        }),
+      ];
+    case 'circle':
+      return [
+        t('panels:diagram.annotate.circleFreeKey', 'Hold {{modifier}} to put it down anywhere, without snapping.', {
+          modifier: primary,
+        }),
+      ];
+    case 'right-angle':
+      return [
+        t('panels:diagram.annotate.rightAngleShiftKey', 'Shift-drag to open it in 45° steps where it finds no right angle.'),
+        t('panels:diagram.annotate.cornerFreeKey', 'Hold {{modifier}} to put its corner down anywhere, without snapping.', {
+          modifier: primary,
+        }),
+      ];
+    case 'callout':
+      return [
+        t('panels:diagram.annotate.pointFreeKey', 'Hold {{modifier}} to put its point down anywhere, without snapping.', {
+          modifier: primary,
+        }),
+      ];
+    case 'turn-over':
+    case 'rotate':
+    case 'label':
+      return [];
+  }
 }

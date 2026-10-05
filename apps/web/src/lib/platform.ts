@@ -47,3 +47,11 @@ export function isPrimaryModifier(event: {
 export function primaryModifierLabel(): string {
   return isApplePlatform() ? 'Cmd' : 'Ctrl';
 }
+
+/**
+ * Display name of the Alt key, for prose in tooltips and help text: Option on
+ * Apple platforms, Alt elsewhere. Matches the spelling `formatKeyChord` uses.
+ */
+export function altModifierLabel(): string {
+  return isApplePlatform() ? 'Option' : 'Alt';
+}

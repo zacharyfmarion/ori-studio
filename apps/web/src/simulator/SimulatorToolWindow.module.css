@@ -1,7 +1,8 @@
 /*
  * The content of the Simulate tool window (SimulatorToolWindow.tsx); the window
- * itself is ToolHintWindow's. The values follow Edit's window content, so the two
- * read as one window in two workspaces.
+ * itself is ToolHintWindow's, and its instructions ToolHintInstructions'. The
+ * values follow Edit's window content, so the two read as one window in two
+ * workspaces.
  */
 .section {
   display: grid;
@@ -12,27 +13,6 @@
 .section + .section {
   padding-top: 8px;
   border-top: 1px solid var(--border-subtle);
-}
-
-.heading {
-  color: var(--text-muted);
-  font-size: 0.58rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.instructions {
-  display: grid;
-  gap: 5px;
-  margin: 0;
-  padding-left: 1.1rem;
-  color: var(--text-secondary);
-  line-height: 1.35;
-}
-
-.instructions li {
-  padding-left: 2px;
 }
 
 .clear {
