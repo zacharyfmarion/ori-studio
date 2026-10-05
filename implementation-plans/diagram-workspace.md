@@ -3423,12 +3423,24 @@ Zach, 2026-10-04:
 
 Plan, for discussion: `implementation-plans/diagram-annotate.md`.
 
+### Phase 15: Annotate, second pass (Zach's Diagramming note, 2026-10-05)
+
+1. Arrows behind or in front of flaps, dotted where they are behind.
+2. A line type (mountain, valley, dotted) and one Line tool; an angle
+   bisector that works like Edit's and draws in the active type.
+3. Crimp and pleat arrows with a chosen number of lightning-bolt kinks.
+4. A solid arrow: a push with a flat bottom, black or unfilled, its length
+   under the path tools.
+5. Close-ups: a circled area drawn larger beside the picture, at larger mm.
+
+Plan, for discussion: `implementation-plans/diagram-annotate-second-pass.md`.
+
 ### Later (written up, not built)
 
 - 2-D drag reorder and multi-select.
 - A per-step zoom ("enlarge from here").
 - Multi-cell steps, a front-matter block, and a first step number for diagrams
   split across files.
-- Repeat and zoom symbols.
+- Repeat symbols (zoom is Phase 15's close-up).
 - Multiple diagrams per project.
 - A web Content-Security-Policy mirroring Tauri's `script-src`.
