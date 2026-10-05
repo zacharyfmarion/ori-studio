@@ -556,6 +556,50 @@ describe('paintAnnotations', () => {
     }
   });
 
+  it('reaches a turn-over’s ink and no further, at any pen: its curves, not their handles, and half its pen (third review)', () => {
+    // Its reach was its handles' box and a whole pen round it: up to 3.5 mm past its ink at the heaviest pen.
+    const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    for (const style of [DEFAULT_DIAGRAM_STYLE, heavy]) {
+      for (const axis of ['vertical', 'horizontal'] as const) {
+        // On a frame far smaller than the glyph, so its reach is the glyph's.
+        const glyph = a('turn', 'turn-over', { from: [0.5, 0.5], to: [0.5, 0.5], axis });
+        const framePx = 1;
+        const drawing = annotationDrawing([glyph], { width: 1, height: 1 }, framePx, style);
+        const { project } = drawing.context;
+        const half = (project.pens.arrow.width * project.ink) / 2;
+        const primitive = drawing.primitives[0]!;
+        if (primitive.kind !== 'turn-over') throw new Error('a turn-over');
+        const centre = project(primitive.at);
+        const scale = (DIAGRAM_TURN_OVER_INK * project.ink) / TURN_OVER_BOX.width;
+        const place = ([px, py]: readonly [number, number]) => {
+          const at = { x: centre.x + (px - TURN_OVER_BOX.width / 2) * scale, y: centre.y + (py - TURN_OVER_BOX.height / 2) * scale };
+          return axis === 'horizontal' ? { x: centre.x - (at.y - centre.y), y: centre.y + (at.x - centre.x) } : at;
+        };
+        // The ink: its stroke's cubics sampled, half a pen out each way, and its head's corners.
+        const ink = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+        const take = ({ x, y }: { x: number; y: number }, r: number) => {
+          ink.left = Math.min(ink.left, x - r);
+          ink.right = Math.max(ink.right, x + r);
+          ink.top = Math.min(ink.top, y - r);
+          ink.bottom = Math.max(ink.bottom, y + r);
+        };
+        const numbers = TURN_OVER_PATH.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
+        const points = Array.from({ length: numbers.length / 2 }, (_, i) => [numbers[2 * i]!, numbers[2 * i + 1]!] as [number, number]);
+        for (let start = 0; start + 3 < points.length; start += 3) {
+          const cubic = [points[start]!, points[start + 1]!, points[start + 2]!, points[start + 3]!] as const;
+          for (let i = 0; i <= 2000; i += 1) take(place(cubicPoint(cubic, i / 2000)), half);
+        }
+        for (const corner of [TURN_OVER_HEAD.tip, TURN_OVER_HEAD.notch, ...TURN_OVER_HEAD.barbs]) take(place([corner.x, corner.y]), 0);
+        const reach = paintAnnotations([glyph], { x: 0, y: 0, width: framePx, height: framePx }, framePx, style)!.bounds;
+        const name = `${axis}, pen ${project.pens.arrow.width}`;
+        expect(ink.left - reach.x, name).toBeLessThan(0.01);
+        expect(ink.top - reach.y, name).toBeLessThan(0.01);
+        expect(reach.x + reach.width - ink.right, name).toBeLessThan(0.01);
+        expect(reach.y + reach.height - ink.bottom, name).toBeLessThan(0.01);
+      }
+    }
+  });
+
   it('keeps a push, a white arrow, a rotate, a turn-over and a right angle inside their reach at any pen, the heaviest too (review)', () => {
     const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
     const white = (id: string, width: 'narrow' | 'regular' | 'wide', tail: 'pointed' | 'square' | 'cleft', path: KnownDiagramAnnotation['path']) =>

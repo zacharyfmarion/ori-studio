@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   chordSide,
+  cubicBounds,
   cubicPoint,
   cubicTangent,
   flattenCubic,
@@ -47,6 +48,23 @@ const close = (a: Vec2, b: Vec2, digits = 9) => {
 };
 
 describe('a cubic', () => {
+  it('lies in the box of its ends and where it turns back, not its handles’', () => {
+    // An arch whose handles stand twice as high as it does, and an S whose handles cross over.
+    for (const cubic of [
+      [[0, 0], [0, 2], [3, 2], [3, 0]],
+      [[0, 0], [4, 1], [-1, 2], [3, 3]],
+      [[1, 1], [1, 1], [1, 1], [1, 1]],
+    ] as Cubic[]) {
+      const box = cubicBounds(cubic);
+      const samples = Array.from({ length: 2001 }, (_, i) => cubicPoint(cubic, i / 2000));
+      expect(box.minX).toBeCloseTo(Math.min(...samples.map(([x]) => x)), 5);
+      expect(box.maxX).toBeCloseTo(Math.max(...samples.map(([x]) => x)), 5);
+      expect(box.minY).toBeCloseTo(Math.min(...samples.map(([, y]) => y)), 5);
+      expect(box.maxY).toBeCloseTo(Math.max(...samples.map(([, y]) => y)), 5);
+    }
+    expect(cubicBounds([[0, 0], [0, 2], [3, 2], [3, 0]]).maxY).toBeCloseTo(1.5, 12);
+  });
+
   it('runs from its start to its end through points near the circle it stands for', () => {
     close(cubicPoint(QUARTER, 0), [1, 0]);
     close(cubicPoint(QUARTER, 1), [0, 1]);

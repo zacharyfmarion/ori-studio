@@ -29,6 +29,37 @@ export function cubicPoint([p0, p1, p2, p3]: Cubic, t: number): Vec2 {
   return [a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0], a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1]];
 }
 
+/**
+ * The box the curve itself lies in — its ends, and where it turns back along
+ * either axis — not its handles', which may stand well off it.
+ */
+export function cubicBounds(cubic: Cubic): { minX: number; minY: number; maxX: number; maxY: number } {
+  const ts = [0, 1];
+  for (const axis of [0, 1] as const) {
+    // Where the velocity along the axis is nothing: a quadratic in t.
+    const [p0, p1, p2, p3] = cubic.map((point) => point[axis]) as [number, number, number, number];
+    const a = -p0 + 3 * p1 - 3 * p2 + p3;
+    const b = 2 * (p0 - 2 * p1 + p2);
+    const c = p1 - p0;
+    if (Math.abs(a) < 1e-12) {
+      if (Math.abs(b) > 1e-12) ts.push(-c / b);
+    } else {
+      const discriminant = b * b - 4 * a * c;
+      if (discriminant >= 0) {
+        const root = Math.sqrt(discriminant);
+        ts.push((-b + root) / (2 * a), (-b - root) / (2 * a));
+      }
+    }
+  }
+  const points = ts.filter((t) => t >= 0 && t <= 1).map((t) => cubicPoint(cubic, t));
+  return {
+    minX: Math.min(...points.map(([x]) => x)),
+    minY: Math.min(...points.map(([, y]) => y)),
+    maxX: Math.max(...points.map(([x]) => x)),
+    maxY: Math.max(...points.map(([, y]) => y)),
+  };
+}
+
 /** The velocity at parameter `t`: which way, and how fast, the curve runs there. */
 export function cubicDerivative([p0, p1, p2, p3]: Cubic, t: number): Vec2 {
   const s = 1 - t;

@@ -553,7 +553,10 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
         break;
       }
       case 'turn-over': {
-        for (const { x, y } of turnOverDrawn(primitive.at, primitive.axis, project).corners) take(x, y, pen);
+        // Its stroke's curves, half its pen round them, and its head, filled.
+        const glyph = turnOverDrawn(primitive.at, primitive.axis, project);
+        for (const { x, y } of glyph.corners) take(x, y, pen / 2);
+        for (const { x, y } of glyph.head) take(x, y, 0);
         break;
       }
       case 'rotate': {

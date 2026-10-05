@@ -10,6 +10,7 @@
 
 import {
   chordSide,
+  cubicBounds,
   cubicTangent,
   flattenCubic,
   flattenPath,
@@ -2055,29 +2056,39 @@ export const TURN_OVER_PATH =
 export const TURN_OVER_BOX = { width: 29, height: 14 } as const;
 
 /**
- * What the turn-over symbol covers in its own box: its stroke's control
- * points, which its curves lie within, and its head's corners.
+ * Where the turn-over symbol's stroke lies in its own box: its curves, not
+ * their handles, which stand well off them. Its head is filled, and covers
+ * its own corners.
  */
-const TURN_OVER_EXTENT = (() => {
+const TURN_OVER_STROKE_EXTENT = (() => {
   const numbers = TURN_OVER_PATH.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
-  const points: SvgPoint[] = [TURN_OVER_HEAD.tip, TURN_OVER_HEAD.notch, ...TURN_OVER_HEAD.barbs];
-  for (let i = 0; i + 1 < numbers.length; i += 2) points.push({ x: numbers[i]!, y: numbers[i + 1]! });
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
-  return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+  const points: Vec2[] = [];
+  for (let i = 0; i + 1 < numbers.length; i += 2) points.push([numbers[i]!, numbers[i + 1]!]);
+  const boxes: { minX: number; minY: number; maxX: number; maxY: number }[] = [];
+  // `M p C p p p C p p p …`: each cubic starts where the last one ends.
+  for (let start = 0; start + 3 < points.length; start += 3) {
+    boxes.push(cubicBounds([points[start]!, points[start + 1]!, points[start + 2]!, points[start + 3]!]));
+  }
+  return {
+    minX: Math.min(...boxes.map((box) => box.minX)),
+    minY: Math.min(...boxes.map((box) => box.minY)),
+    maxX: Math.max(...boxes.map((box) => box.maxX)),
+    maxY: Math.max(...boxes.map((box) => box.maxY)),
+  };
 })();
 
 /**
  * The turn-over glyph as a picture draws it, centred on `at` in sheet units:
- * its transform from its own box, its scale, and the corners of what it
- * covers in the projector's units, turned a quarter for a horizontal axis
- * (none is vertical). Its stroke is the arrow's pen past those.
+ * its transform from its own box, its scale, and in the projector's units,
+ * turned a quarter for a horizontal axis (none is vertical), the corners of
+ * the box its stroke's curves lie in — the stroke is half the arrow's pen
+ * past them, its curves meeting smoothly — and its filled head's corners.
  */
 export function turnOverDrawn(
   at: readonly [number, number],
   axis: 'vertical' | 'horizontal' | undefined,
   project: DiagramProjector
-): { centre: SvgPoint; scale: number; transform: string; corners: SvgPoint[] } {
+): { centre: SvgPoint; scale: number; transform: string; corners: SvgPoint[]; head: SvgPoint[] } {
   const centre = project(at);
   const scale = (DIAGRAM_TURN_OVER_INK * project.ink) / TURN_OVER_BOX.width;
   const x = centre.x - (TURN_OVER_BOX.width / 2) * scale;
@@ -2092,12 +2103,13 @@ export function turnOverDrawn(
     // rotate(90) about the centre: (dx, dy) to (-dy, dx).
     return turned ? { x: centre.x - (point.y - centre.y), y: centre.y + (point.x - centre.x) } : point;
   };
-  const { minX, minY, maxX, maxY } = TURN_OVER_EXTENT;
+  const { minX, minY, maxX, maxY } = TURN_OVER_STROKE_EXTENT;
   return {
     centre,
     scale,
     transform: `${turn}translate(${round(x)} ${round(y)}) scale(${round(scale)})`,
     corners: [place(minX, minY), place(maxX, minY), place(maxX, maxY), place(minX, maxY)],
+    head: [TURN_OVER_HEAD.tip, TURN_OVER_HEAD.notch, ...TURN_OVER_HEAD.barbs].map(({ x: px, y: py }) => place(px, py)),
   };
 }
 
