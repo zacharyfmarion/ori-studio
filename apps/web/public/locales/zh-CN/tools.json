@@ -231,6 +231,8 @@
     "pathScopeLabel": "路径编辑",
     "previousStep": "上一步",
     "scopeLabel": "图解",
+    "toolAngleBisector": "角平分线",
+    "toolAngleMark": "等角",
     "toolCallout": "引线框",
     "toolCircle": "圆圈",
     "toolEditPath": "编辑路径",

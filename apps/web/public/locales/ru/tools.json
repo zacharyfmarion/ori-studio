@@ -255,6 +255,8 @@
     "pathScopeLabel": "редактирование пути",
     "previousStep": "Предыдущий шаг",
     "scopeLabel": "схема",
+    "toolAngleBisector": "Биссектриса",
+    "toolAngleMark": "Равные углы",
     "toolCallout": "Выноска",
     "toolCircle": "Кружок",
     "toolEditPath": "Редактировать путь",

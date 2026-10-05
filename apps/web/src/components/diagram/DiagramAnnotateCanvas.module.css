@@ -185,3 +185,41 @@
   stroke: var(--annotate-selection);
   stroke-width: 1.5px;
 }
+
+/*
+ * A pick tool's picks (15b): the lines picked, washed as a selection is; the
+ * line a press would pick, more lightly; the midline between two parallel
+ * lines, dashed; and the points picked, solid dots on a white halo.
+ */
+.pickLine,
+.pickHover,
+.pickMidline {
+  fill: none;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.pickLine {
+  stroke: color-mix(in srgb, var(--annotate-selection) 55%, transparent);
+  stroke-width: 6px;
+}
+
+.pickHover {
+  stroke: color-mix(in srgb, var(--annotate-selection) 30%, transparent);
+  stroke-width: 6px;
+}
+
+.pickMidline {
+  stroke: var(--annotate-selection);
+  stroke-width: 1.25px;
+  stroke-dasharray: 5 4;
+}
+
+.pickPoint {
+  fill: var(--annotate-selection);
+  stroke: #ffffff;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}

@@ -239,6 +239,8 @@
     "pathScopeLabel": "Pfadbearbeitung",
     "previousStep": "Vorheriger Schritt",
     "scopeLabel": "Diagramm",
+    "toolAngleBisector": "Winkelhalbierende",
+    "toolAngleMark": "Gleiche Winkel",
     "toolCallout": "Hinweis",
     "toolCircle": "Kreis",
     "toolEditPath": "Pfad bearbeiten",

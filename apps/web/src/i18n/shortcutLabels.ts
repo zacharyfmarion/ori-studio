@@ -143,6 +143,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.toolRightAngle', 'Right Angle');
     case 'diagram.toolCallout':
       return t('tools:diagram.toolCallout', 'Callout');
+    case 'diagram.toolAngleBisector':
+      return t('tools:diagram.toolAngleBisector', 'Angle Bisector');
     case 'diagram.flipArc':
       return t('tools:diagram.flipArc', 'Flip Arc');
     case 'diagram.nudgeNodeLeft':

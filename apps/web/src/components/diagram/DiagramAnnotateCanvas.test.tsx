@@ -28,6 +28,19 @@ vi.mock('../../analytics', async (importOriginal) => ({
   ...tracked,
 }));
 
+/** What Escape asks of the canvas: the cancel it registers, caught as it registers it. */
+const gestures = vi.hoisted(() => ({ cancel: null as null | (() => boolean) }));
+vi.mock('../../diagram/useDiagramShortcuts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../diagram/useDiagramShortcuts')>();
+  return {
+    ...actual,
+    registerDiagramGestureCancel: (cancel: () => boolean) => {
+      gestures.cancel = cancel;
+      return actual.registerDiagramGestureCancel(cancel);
+    },
+  };
+});
+
 /** How many times the marks were drawn: `DiagramAnnotationLayer` draws them with `annotationMarks`. */
 const marksDrawn = vi.hoisted(() => ({ count: 0 }));
 vi.mock('../../diagram/annotate/annotationPrimitives', async (importOriginal) => {
@@ -1483,5 +1496,142 @@ describe('DiagramAnnotateCanvas right angles (decision 12)', () => {
     expect(annotations()[3]!.from[0]).toBeCloseTo(0.6, 6);
     expect(annotations()[3]!.from[1]).toBeCloseTo(0.6, 6);
     expect(opens(annotations()[3]!)).toEqual([-r, -r]);
+  });
+});
+
+describe('the Angle Bisector and the equal-angle mark (15b)', () => {
+  beforeEach(() => {
+    useSettingsStore.setState({ diagramAnnotateSnap: true, cpSnapRadius: 10, diagramAnnotateLineType: 'valley' });
+  });
+
+  /** The step with these annotations, and a tool in hand. */
+  function drawn(list: KnownDiagramAnnotation[], toolInHand: Parameters<typeof tool>[0]) {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => list);
+      state().selectDiagramAnnotation(null);
+      state().setDiagramAnnotateTool(toolInHand);
+    });
+    rerender();
+    return stepId;
+  }
+  const click = (point: [number, number], init: PressInit = {}) => {
+    pointer('pointerdown', point, 1, 'mouse', overlay(), init);
+    pointer('pointerup', point, 1, 'mouse', overlay(), init);
+    rerender();
+  };
+  const kinds = () => annotations().map((annotation) => annotation.kind);
+  const direction = (from: readonly number[], to: readonly number[]) => Math.atan2(to[1]! - from[1]!, to[0]! - from[0]!);
+  const picked = () => overlay().querySelectorAll('[data-pick-point]').length;
+
+  it('bisects the angle three points make, the vertex second, to where a press on no line ends it, as one undo step', () => {
+    drawn([], 'angle-bisector');
+    const past = state().diagramHistory.past.length;
+    click(at(0.1, 0.5));
+    click(at(0.5, 0.9));
+    click(at(0.5, 0.1));
+    expect(annotations()).toHaveLength(0);
+    expect(picked()).toBe(3);
+    // The next press would draw it: shown under the pointer, line and mark.
+    pointer('pointermove', at(0.35, 0.3));
+    rerender();
+    expect(overlay().querySelector('[data-annotation-id="annotation-pick-line"]')).not.toBeNull();
+    expect(overlay().querySelector('[data-annotation-id="annotation-pick-mark"]')).not.toBeNull();
+    click(at(0.35, 0.3));
+    expect(kinds()).toEqual(['valley-line', 'angle-mark']);
+    const [line, mark] = annotations() as [KnownDiagramAnnotation, KnownDiagramAnnotation];
+    expect(line.from[0]).toBeCloseTo(0.5, 9);
+    expect(line.from[1]).toBeCloseTo(0.9, 9);
+    // It halves the angle.
+    const along = direction(line.from, line.to);
+    expect(along - direction([0.5, 0.9], [0.1, 0.5])).toBeCloseTo(direction([0.5, 0.9], [0.5, 0.1]) - along, 9);
+    // The mark is at the vertex, its arms the points picked.
+    expect(mark.from[0]).toBeCloseTo(0.5, 9);
+    expect(mark.from[1]).toBeCloseTo(0.9, 9);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Bisect angle');
+    expect(state().diagramSelectedAnnotationId).toBe(line.id);
+    expect(state().diagramAnnotateTool).toBe('angle-bisector');
+    expect(picked()).toBe(0);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['angle_bisector', 'nothing_near']]);
+  });
+
+  it('bisects the angle two drawn lines make, from where they cross, its far ends the arms', () => {
+    drawn(
+      [
+        { id: 'a', kind: 'valley-line', from: [0.1, 0.8], to: [0.9, 0.8] },
+        { id: 'b', kind: 'valley-line', from: [0.2, 0.9], to: [0.8, 0.3] },
+      ],
+      'angle-bisector'
+    );
+    // On each line, well away from its ends and the crossing: lines, not points.
+    click(at(0.5, 0.8));
+    click(at(0.6, 0.5));
+    expect(overlay().querySelectorAll('[data-pick-marks] line')).toHaveLength(2);
+    click(at(0.9, 0.62));
+    expect(kinds()).toEqual(['valley-line', 'valley-line', 'valley-line', 'angle-mark']);
+    const line = annotations()[2]!;
+    expect(line.from[0]).toBeCloseTo(0.3, 9);
+    expect(line.from[1]).toBeCloseTo(0.8, 9);
+    // Between the line along x and the one up at 45°: 22.5° up, as the page shows it.
+    expect(direction(line.from, line.to)).toBeCloseTo(-Math.PI / 8, 9);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['angle_bisector', 'none']]);
+  });
+
+  it('draws its line in the rail’s line type', () => {
+    useSettingsStore.setState({ diagramAnnotateLineType: 'mountain' });
+    drawn([], 'angle-bisector');
+    for (const point of [at(0.1, 0.5), at(0.5, 0.9), at(0.5, 0.1), at(0.35, 0.3)]) click(point);
+    expect(kinds()).toEqual(['mountain-line', 'angle-mark']);
+  });
+
+  it('takes back the last pick with Escape, and goes on to the ladder once none is left', () => {
+    drawn([], 'angle-bisector');
+    click(at(0.1, 0.5));
+    click(at(0.5, 0.9));
+    expect(picked()).toBe(2);
+    act(() => {
+      expect(gestures.cancel!()).toBe(true);
+    });
+    rerender();
+    expect(picked()).toBe(1);
+    act(() => {
+      expect(gestures.cancel!()).toBe(true);
+    });
+    act(() => {
+      expect(gestures.cancel!()).toBe(false);
+    });
+    expect(state().diagramAnnotateTool).toBe('angle-bisector');
+  });
+
+  it('draws nothing for points that make no angle, and starts again', () => {
+    drawn([], 'angle-bisector');
+    for (const point of [at(0.1, 0.5), at(0.5, 0.5), at(0.9, 0.5), at(0.5, 0.2)]) click(point);
+    expect(annotations()).toEqual([]);
+    expect(picked()).toBe(0);
+    expect(tracked.trackDiagramAnnotationAdded).not.toHaveBeenCalled();
+  });
+
+  it('puts an equal-angle mark down on its own: an arm, the vertex, the other arm', () => {
+    drawn([], 'angle-mark');
+    click(at(0.1, 0.5));
+    click(at(0.5, 0.9));
+    expect(annotations()).toEqual([]);
+    click(at(0.5, 0.1));
+    expect(kinds()).toEqual(['angle-mark']);
+    expect(annotations()[0]!.from[0]).toBeCloseTo(0.5, 9);
+    expect(annotations()[0]!.from[1]).toBeCloseTo(0.9, 9);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['angle_mark', 'nothing_near']]);
+  });
+
+  it('snaps its points to the picture’s, the vertex counted as snapped', () => {
+    drawn([{ id: 'l', kind: 'valley-line', from: [0.5, 0.9], to: [0.9, 0.9] }], 'angle-mark');
+    click(at(0.1, 0.5));
+    // A hair off the line's end: the vertex lands on it.
+    click(at(0.505, 0.895));
+    click(at(0.5, 0.1));
+    const mark = annotations().find((annotation) => annotation.kind === 'angle-mark')!;
+    expect(mark.from).toEqual([0.5, 0.9]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['angle_mark', 'snapped']]);
   });
 });

@@ -2,7 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { isDrawingTool } from '../../diagram/annotate/annotateTools';
-import { arrowPolyline, rightAngleGrips, rightAngleLegs } from '../../diagram/annotate/annotationHit';
+import { angleMarkInPicture, arrowPolyline, rightAngleGrips, rightAngleLegs } from '../../diagram/annotate/annotationHit';
+import { angleMarkArcPoints } from '../../cp-workspace/references/stepDiagramGeometry';
 import { pathNodesOf, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import type { SnapTarget } from '../../diagram/annotate/pictureSnap';
@@ -16,6 +17,7 @@ import {
   type AnnotateLayout,
   type RightAnglePreview,
 } from '../../diagram/annotate/useAnnotateCanvas';
+import type { PickPreview } from '../../diagram/annotate/usePickTool';
 import {
   annotationEnds,
   calloutDrawnBox,
@@ -171,6 +173,7 @@ export function DiagramAnnotateCanvas({
                         calloutPen={calloutPenUnits(style)}
                       />
                     ))}
+                  <PickMarks preview={canvas.pickPreview} layout={layout} zoom={zoom} />
                   <SnapTargets targets={canvas.snapTargets} layout={layout} zoom={zoom} />
                   {canvas.rightAnglePreview && <RightAngleGhost preview={canvas.rightAnglePreview} layout={layout} />}
                 </svg>
@@ -267,6 +270,12 @@ function Selection({
     case 'hidden-line':
       path = [annotation.from, annotation.to];
       break;
+    case 'angle-mark': {
+      // Along its arc: it moves whole.
+      const shape = angleMarkInPicture(annotation, INK_UNITS);
+      path = shape ? angleMarkArcPoints(shape).map(({ x, y }) => [x, y] as const) : [];
+      break;
+    }
     case 'callout': {
       const shape = calloutShape(annotation);
       path = shape.line ?? [];
@@ -377,6 +386,43 @@ function PathSelection({
         ) : (
           <circle key={index} className={styles.node} cx={x} cy={y} r={node} data-path-node={index} data-selected={selected} />
         );
+      })}
+    </g>
+  );
+}
+
+/**
+ * A pick tool's picks (15b), over the marks: the lines picked, the one a
+ * press would pick, the midline two parallel lines make, and the points
+ * picked — sized for the screen. Lines run on past their ends, as the
+ * bisector takes them, a little way each side.
+ */
+function PickMarks({ preview, layout, zoom }: { preview: PickPreview; layout: AnnotateLayout; zoom: number }) {
+  const { points, lines, hovered, midline } = preview;
+  if (points.length === 0 && lines.length === 0 && !hovered && !midline) return null;
+  const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit] as const;
+  const segment = (key: string, className: string, a: readonly [number, number], b: readonly [number, number]) => {
+    const [x1, y1] = at(a);
+    const [x2, y2] = at(b);
+    return <line key={key} className={className} x1={x1} y1={y1} x2={x2} y2={y2} />;
+  };
+  // The midline across the frame and past it: a line, not a segment.
+  const across = midline
+    ? (() => {
+        const length = Math.hypot(midline.along[0], midline.along[1]) || 1;
+        const reach = 2;
+        const [ux, uy] = [(midline.along[0] / length) * reach, (midline.along[1] / length) * reach];
+        return segment('midline', styles.pickMidline, [midline.at[0] - ux, midline.at[1] - uy], [midline.at[0] + ux, midline.at[1] + uy]);
+      })()
+    : null;
+  return (
+    <g data-pick-marks="">
+      {hovered && segment('hovered', styles.pickHover, hovered.a, hovered.b)}
+      {lines.map((line, index) => segment(`line-${index}`, styles.pickLine, line.a, line.b))}
+      {across}
+      {points.map((point, index) => {
+        const [x, y] = at(point);
+        return <circle key={index} className={styles.pickPoint} cx={x} cy={y} r={SNAP_PX / zoom} data-pick-point={index} />;
       })}
     </g>
   );

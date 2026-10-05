@@ -231,6 +231,8 @@
     "pathScopeLabel": "パス編集",
     "previousStep": "前のステップ",
     "scopeLabel": "折り図",
+    "toolAngleBisector": "角の二等分線",
+    "toolAngleMark": "等角",
     "toolCallout": "引き出し",
     "toolCircle": "円",
     "toolEditPath": "パスを編集",

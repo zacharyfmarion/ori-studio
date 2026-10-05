@@ -11,6 +11,8 @@ import {
   TURN_OVER_PATH,
   arcPathData,
   arrowheadPath,
+  angleMarkDrawn,
+  angleMarkPathData,
   cubicPathData,
   erodeCreaseOnSheet,
   foldArrowDrawn,
@@ -270,6 +272,7 @@ export function canLeavePaper(primitive: StepDiagramPrimitive): boolean {
     case 'rotate':
     case 'turn-over':
     case 'right-angle':
+    case 'angle-mark':
     case 'point':
       return true;
     case 'line':
@@ -798,6 +801,25 @@ function diagramPrimitiveShape(
           strokeLinecap="butt"
           strokeLinejoin="miter"
           {...inked(inks, 'step-diagram__point step-diagram__right-angle', (ink) => ({
+            fill: 'none',
+            stroke: ink.mark,
+          }))}
+        />
+      ));
+    }
+    case 'angle-mark': {
+      // An arc across the angle and ticks across its halves (15b of the
+      // second Annotate plan), in a ring's pen and ink, as a right angle is.
+      const shape = angleMarkDrawn(primitive.at, primitive.arms, primitive.ticks, project);
+      if (!shape) return null;
+      const d = angleMarkPathData(shape);
+      return onAndOffPaper(context, index, (inks) => (
+        <path
+          key={index}
+          d={d}
+          strokeWidth={markRingWidth(project)}
+          strokeLinecap="butt"
+          {...inked(inks, 'step-diagram__point step-diagram__angle-mark', (ink) => ({
             fill: 'none',
             stroke: ink.mark,
           }))}

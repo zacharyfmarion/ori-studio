@@ -231,6 +231,8 @@
     "pathScopeLabel": "경로 편집",
     "previousStep": "이전 단계",
     "scopeLabel": "도해",
+    "toolAngleBisector": "각의 이등분선",
+    "toolAngleMark": "등각",
     "toolCallout": "설명선",
     "toolCircle": "원",
     "toolEditPath": "경로 편집",

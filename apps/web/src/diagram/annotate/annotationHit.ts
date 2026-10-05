@@ -14,6 +14,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import {
+  DIAGRAM_ANGLE_MARK_INK,
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_MARK_INK,
@@ -22,6 +23,8 @@ import {
   DIAGRAM_WHITE_ARROW_INK,
 } from '../../cp-workspace/references/diagram/diagramInk';
 import {
+  angleMarkArcPoints,
+  angleMarkShape,
   arcPolyline,
   arrowheadAt,
   arrowheadExtent,
@@ -34,6 +37,7 @@ import {
   returnStroke,
   rightAngleSquare,
   whiteArrowOutline,
+  type AngleMarkShape,
 } from '../../cp-workspace/references/stepDiagramGeometry';
 import { flattenPath } from '../../lib/cubicBezier';
 import {
@@ -472,6 +476,45 @@ function rightAngleDistance(annotation: KnownDiagramAnnotation, point: PicturePo
 }
 
 /**
+ * An angle mark as the canvas draws it, in picture units: its arc and its
+ * ticks at the size its ink gives them (`angleMarkShape`). Null for one with
+ * no angle.
+ */
+export function angleMarkInPicture(
+  annotation: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'other' | 'ticks'>,
+  ink: number
+): AngleMarkShape | null {
+  if (!annotation.other) return null;
+  const point = ([x, y]: readonly [number, number]) => ({ x, y });
+  return angleMarkShape(point(annotation.from), point(annotation.to), point(annotation.other), annotation.ticks ?? 1, {
+    radius: DIAGRAM_ANGLE_MARK_INK.radius * ink,
+    tick: DIAGRAM_ANGLE_MARK_INK.tick * ink,
+    spacing: DIAGRAM_ANGLE_MARK_INK.spacing * ink,
+  });
+}
+
+/**
+ * How far a press is from an angle mark: 0 in the wedge its arc closes — its
+ * whole place, as a right angle's square is — else the distance to its arc
+ * and its ticks.
+ */
+function angleMarkDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, ink: number): number {
+  const shape = angleMarkInPicture(annotation, ink);
+  if (!shape) return Infinity;
+  const dx = point[0] - shape.centre.x;
+  const dy = point[1] - shape.centre.y;
+  if (Math.hypot(dx, dy) <= shape.radius) {
+    // Its angle from the first arm, the way the arc sweeps.
+    const turn = 2 * Math.PI;
+    const angle = (((Math.atan2(dy, dx) - shape.start) * Math.sign(shape.sweep)) % turn + turn) % turn;
+    if (angle <= Math.abs(shape.sweep)) return 0;
+  }
+  const arc = angleMarkArcPoints(shape).map(({ x, y }): PicturePoint => [x, y]);
+  const ticks = shape.ticks.map(([a, b]) => distanceToSegment(point, [a.x, a.y], [b.x, b.y]));
+  return Math.min(distanceToPolyline(point, arc), ...ticks);
+}
+
+/**
  * How far a press is from an annotation's body, as it is drawn; 0 inside a
  * glyph, a label, a push, a white arrow or a callout's box. A circle is its
  * ring, not its inside: an arrow drawn into it ends inside it, and a press
@@ -511,6 +554,8 @@ function bodyDistance(
       return Math.abs(Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - circleRadius(sizes.ink));
     case 'right-angle':
       return rightAngleDistance(annotation, point, sizes.ink);
+    case 'angle-mark':
+      return angleMarkDistance(annotation, point, sizes.ink);
     case 'callout': {
       const { box, line } = calloutDistances(annotation, point, sizes.calloutPen);
       return Math.min(box, line);

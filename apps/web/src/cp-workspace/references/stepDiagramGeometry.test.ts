@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DIAGRAM_ANGLE_MARK_INK,
   DIAGRAM_LINE_INK,
   DIAGRAM_MARK_INK,
   DIAGRAM_MARKS,
@@ -7,6 +8,10 @@ import {
   REFERENCES_VIEW_MARKS,
 } from './diagram/diagramInk';
 import {
+  angleMarkArcPoints,
+  angleMarkDrawn,
+  angleMarkPathData,
+  angleMarkShape,
   ARROWHEAD_ASPECT,
   ARROWHEAD_MIN_STROKES,
   ARROWHEAD_NOTCH,
@@ -1124,6 +1129,70 @@ describe('a right-angle mark', () => {
     expect(end).toBe(1);
     expect(other).toBe(1);
     expect(corner).toBeCloseTo(Math.SQRT2, 12);
+  });
+});
+
+describe('an angle mark (15b)', () => {
+  const size = { radius: 10, tick: 1, spacing: 2 };
+
+  it('sweeps the angle between its arms, under a half turn, whichever arm comes first', () => {
+    // Arms along +x and +y (y down: a quarter turn clockwise on the page).
+    const shape = angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 0, y: 3 }, 1, size)!;
+    expect(shape.start).toBeCloseTo(0, 12);
+    expect(shape.sweep).toBeCloseTo(Math.PI / 2, 12);
+    // The other way round sweeps back: the same arc.
+    const back = angleMarkShape({ x: 0, y: 0 }, { x: 0, y: 3 }, { x: 5, y: 0 }, 1, size)!;
+    expect(back.sweep).toBeCloseTo(-Math.PI / 2, 12);
+    // An obtuse angle across the ±π seam is still the angle the arms make, never its reflex.
+    const obtuse = angleMarkShape({ x: 0, y: 0 }, { x: -1, y: 0.2 }, { x: -1, y: -0.2 }, 1, size)!;
+    expect(Math.abs(obtuse.sweep)).toBeCloseTo(2 * Math.atan(0.2), 12);
+  });
+
+  it('puts each half’s ticks across its middle, spaced along the arc, each its length either side', () => {
+    const shape = angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 0, y: 3 }, 1, size)!;
+    expect(shape.ticks).toHaveLength(2);
+    const [inner, outer] = shape.ticks[0]!;
+    // A quarter of the way: 22.5°, from 9 to 11.
+    expect(Math.atan2(inner.y, inner.x)).toBeCloseTo(Math.PI / 8, 12);
+    expect(Math.hypot(inner.x, inner.y)).toBeCloseTo(9, 12);
+    expect(Math.hypot(outer.x, outer.y)).toBeCloseTo(11, 12);
+    expect(Math.atan2(shape.ticks[1]![0].y, shape.ticks[1]![0].x)).toBeCloseTo((3 * Math.PI) / 8, 12);
+    // Two ticks a half: 2 apart along the arc, either side of its middle.
+    const two = angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 0, y: 3 }, 2, size)!;
+    expect(two.ticks).toHaveLength(4);
+    const [a, b] = [two.ticks[0]![0], two.ticks[1]![0]];
+    // Measured along the arc: 2 at a radius of 10 is a fifth of a radian.
+    expect(Math.atan2(b.y, b.x) - Math.atan2(a.y, a.x)).toBeCloseTo(2 / 10, 12);
+  });
+
+  it('is nothing when an arm has no direction, or the arms lie along one line', () => {
+    expect(angleMarkShape({ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 3 }, 1, size)).toBeNull();
+    expect(angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 2, y: 0 }, 1, size)).toBeNull();
+    expect(angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: -2, y: 0 }, 1, size)).toBeNull();
+  });
+
+  it('is drawn at its ink’s size — about 5 mm at an annotation’s ink — mirrored with the paper', () => {
+    expect(DIAGRAM_ANGLE_MARK_INK.radius * 0.331).toBeCloseTo(5, 0);
+    const overlay = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2);
+    const shape = angleMarkDrawn([0.5, 0.5], [[0.9, 0.5], [0.5, 0.9]], 1, overlay)!;
+    expect(shape.radius).toBe(DIAGRAM_ANGLE_MARK_INK.radius * 2);
+    // Sheet y up: the second arm is up the page, so the arc sweeps anticlockwise there.
+    expect(shape.sweep).toBeCloseTo(-Math.PI / 2, 12);
+    const back = createDiagramProjector(UNIT, 100, true);
+    const front = createDiagramProjector(UNIT, 100, false);
+    const arms = [[0.4, 0.2], [0.2, 0.4]] as const;
+    expect(angleMarkDrawn([0.2, 0.2], arms, 1, back)!.sweep).toBeCloseTo(-angleMarkDrawn([0.2, 0.2], arms, 1, front)!.sweep, 12);
+  });
+
+  it('writes its arc and ticks as one path, and gives its arc as points a degree apart at most', () => {
+    const shape = angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 0, y: 3 }, 1, size)!;
+    const d = angleMarkPathData(shape);
+    // The arc from the first arm to the second, then a tick a half.
+    expect(d.startsWith('M 10 0 A 10 10 0 0 1 0 10 M ')).toBe(true);
+    expect(d.match(/M /g)).toHaveLength(3);
+    const points = angleMarkArcPoints(shape);
+    expect(points).toHaveLength(91);
+    expect(points[45]!.x).toBeCloseTo(10 * Math.SQRT1_2, 12);
   });
 });
 

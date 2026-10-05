@@ -9,6 +9,7 @@ import {
   annotationsOutOfStep,
   isKnownAnnotation,
   isLockedStep,
+  type DiagramAngleTicks,
   type DiagramAsset,
   type DiagramRotation,
   type DiagramStep,
@@ -90,6 +91,9 @@ export function useStepAnnotations(step: DiagramStep | null) {
       /** A white arrow's width or tail, or both, as one undo step. */
       setWhiteArrowLook: (id: string, look: { width?: DiagramWhiteArrowWidth; tail?: WhiteArrowTail }) =>
         change(id, 'Change white arrow', (annotation) => ({ ...annotation, ...look })),
+      /** An angle mark's ticks across each half (15b), as one undo step. */
+      setTicks: (id: string, ticks: DiagramAngleTicks) =>
+        change(id, 'Change angle mark', (annotation) => ({ ...annotation, ticks })),
       /** A line made another type (15a): the same line, its ends and id kept, as one undo step. */
       setLineType: (id: string, type: DiagramLineType) =>
         change(id, 'Change line type', (annotation) =>

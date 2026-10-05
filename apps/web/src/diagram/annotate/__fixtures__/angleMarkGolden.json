@@ -1,0 +1,128 @@
+{
+  "kite": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><path d=\"M 81.23 122.805 A 18.75 18.75 0 0 1 94.488 117.313 M 85.321 122.344 L 82.821 118.602 M 91.269 119.88 L 90.391 115.467\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><path d=\"M 128.472 190.833 A 18.75 18.75 0 0 1 141.73 185.341 M 132.563 190.372 L 130.063 186.63 M 138.511 187.908 L 137.633 183.495\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<path d=\"M 81.23 122.805 A 18.75 18.75 0 0 1 94.488 117.313 M 85.321 122.344 L 82.821 118.602 M 91.269 119.88 L 90.391 115.467\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path>"
+  },
+  "square": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><path d=\"M 75.443 113.386 A 18.75 18.75 0 0 0 56.693 94.636 M 71.937 107.072 L 76.094 105.349 M 63.007 98.142 L 64.729 93.984\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><path d=\"M 103.788 170.076 A 18.75 18.75 0 0 0 85.038 151.326 M 100.282 163.762 L 104.439 162.04 M 91.352 154.832 L 93.074 150.675\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<path d=\"M 75.443 113.386 A 18.75 18.75 0 0 0 56.693 94.636 M 71.937 107.072 L 76.094 105.349 M 63.007 98.142 L 64.729 93.984\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path>"
+  },
+  "obtuse": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><path d=\"M 94.729 77.456 A 18.75 18.75 0 0 1 126.644 62.332 M 99.02 67.474 L 95.102 65.26 M 116.201 59.332 L 116.968 54.898\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><path d=\"M 151.419 115.25 A 18.75 18.75 0 0 1 183.334 100.126 M 155.71 105.267 L 151.793 103.054 M 172.891 97.126 L 173.658 92.692\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<path d=\"M 94.729 77.456 A 18.75 18.75 0 0 1 126.644 62.332 M 99.02 67.474 L 95.102 65.26 M 116.201 59.332 L 116.968 54.898\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path>"
+  },
+  "two-ticks": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><path d=\"M 56.545 132.283 A 18.75 18.75 0 0 0 49.045 117.283 M 53.598 127.536 L 57.907 126.242 M 54.052 129.462 L 58.486 128.693 M 49.806 120.971 L 53.082 117.885 M 51.074 122.49 L 54.696 119.819\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><path d=\"M 75.442 198.422 A 18.75 18.75 0 0 0 67.942 183.422 M 72.494 193.675 L 76.804 192.38 M 72.949 195.601 L 77.383 194.831 M 68.703 187.109 L 71.979 184.024 M 69.971 188.628 L 73.593 185.957\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<path d=\"M 56.545 132.283 A 18.75 18.75 0 0 0 49.045 117.283 M 53.598 127.536 L 57.907 126.242 M 54.052 129.462 L 58.486 128.693 M 49.806 120.971 L 53.082 117.885 M 51.074 122.49 L 54.696 119.819\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path>"
+  },
+  "three-ticks": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><path d=\"M 132.431 56.693 A 18.75 18.75 0 0 0 139.931 71.693 M 135.692 62.379 L 131.467 63.93 M 135.122 60.484 L 130.743 61.518 M 134.784 58.534 L 130.312 59.036 M 139.87 68.706 L 136.785 71.982 M 138.513 67.265 L 135.058 70.149 M 137.339 65.673 L 133.563 68.122\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><path d=\"M 208.018 85.038 A 18.75 18.75 0 0 0 215.518 100.038 M 211.279 90.724 L 207.054 92.275 M 210.709 88.829 L 206.33 89.863 M 210.371 86.879 L 205.899 87.381 M 215.457 97.051 L 212.372 100.327 M 214.1 95.61 L 210.645 98.494 M 212.926 94.018 L 209.15 96.467\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<path d=\"M 132.431 56.693 A 18.75 18.75 0 0 0 139.931 71.693 M 135.692 62.379 L 131.467 63.93 M 135.122 60.484 L 130.743 61.518 M 134.784 58.534 L 130.312 59.036 M 139.87 68.706 L 136.785 71.982 M 138.513 67.265 L 135.058 70.149 M 137.339 65.673 L 133.563 68.122\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path>"
+  },
+  "off-picture": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><path d=\"M -0.148 113.386 A 18.75 18.75 0 0 0 -8.497 97.785 M -2.893 109.372 L 1.472 108.278 M -6.681 102.296 L -3.349 99.271\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": -18.77908596231125,
+        "y": 0,
+        "width": 418.7790859623113,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><path d=\"M -9.596 170.076 A 18.75 18.75 0 0 0 -17.945 154.475 M -12.342 166.063 L -7.977 164.968 M -16.129 158.986 L -12.797 155.961\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path></g>\n</g>",
+      "bounds": {
+        "x": -6.320371320776967,
+        "y": 30,
+        "width": 301.78037132077696,
+        "height": 212.6
+      }
+    },
+    "canvas": "<path d=\"M -0.148 113.386 A 18.75 18.75 0 0 0 -8.497 97.785 M -2.893 109.372 L 1.472 108.278 M -6.681 102.296 L -3.349 99.271\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"butt\" fill=\"none\" stroke=\"#231f20\"></path>"
+  }
+}

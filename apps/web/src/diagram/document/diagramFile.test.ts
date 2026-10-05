@@ -505,6 +505,42 @@ describe('annotations in the file', () => {
       expect(again.steps[0].annotations).toEqual([older]);
     });
   });
+
+  describe('an angle mark (15b)', () => {
+    const mark = (more: Record<string, unknown> = {}) => ({
+      id: 'm-1',
+      kind: 'angle-mark',
+      from: [0.5, 0.98],
+      to: [0.48, 0.96],
+      other: [0.5, 0.96],
+      ...more,
+    });
+
+    it('round-trips its vertex, its arms and its ticks', () => {
+      const ticked = mark({ id: 'm-2', ticks: 2 });
+      const read = withAnnotations([mark(), ticked]);
+      expect(read).toEqual([mark(), ticked]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual([mark(), ticked]);
+    });
+
+    it('carries what a newer build might write: more ticks than three, a field it has no name for, an arm past reach', () => {
+      const newer = [mark({ id: 'm-3', ticks: 4 }), mark({ id: 'm-4', style: 'arc' }), mark({ id: 'm-5', other: [4.5, 0.5] })];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    });
+
+    it('drops one with no second arm, ticks that are no count, or arms that make no angle', () => {
+      const damaged = [
+        mark({ other: undefined }),
+        mark({ id: 'm-6', ticks: 0 }),
+        mark({ id: 'm-7', ticks: 1.5 }),
+        // Along one line: no angle to mark.
+        mark({ id: 'm-8', to: [0.4, 0.98], other: [0.6, 0.98] }),
+      ];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+  });
 });
 
 describe('uploaded pictures in the file', () => {

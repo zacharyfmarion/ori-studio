@@ -1,11 +1,18 @@
 import type { ReactElement } from 'react';
 import { MousePointer2, RotateCw, SplinePointer, Type } from 'lucide-react';
 import { TURN_OVER_BOX, TURN_OVER_HEAD_PATH, TURN_OVER_PATH } from '../../cp-workspace/references/stepDiagramGeometry';
-import { EDIT_PATH, LINE_TOOL, type AnnotateTool } from '../../diagram/annotate/annotateTools';
+import { ANGLE_BISECTOR, EDIT_PATH, LINE_TOOL, type AnnotateTool } from '../../diagram/annotate/annotateTools';
 import { lineKindOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
 import type { DiagramAnnotationKind } from '../../diagram/document/diagramDocument';
 
 const SIZE = 20;
+
+/** Each line type's dash in a glyph, as its line glyph draws it. */
+const LINE_DASH: Readonly<Record<DiagramLineType, string>> = {
+  valley: '3.2 2.2',
+  mountain: '4 1.6 0.8 1.6',
+  hidden: '0.9 1.9',
+};
 
 /** The shaft every fold arrow's icon shares: a 60° arc, left to right. */
 const ARC = 'M3 14 A10.5 10.5 0 0 1 15.2 8.4';
@@ -44,6 +51,15 @@ export function DiagramAnnotateToolGlyph({
 }): ReactElement {
   if (tool === null) return <MousePointer2 size={17} aria-hidden="true" />;
   if (tool === EDIT_PATH) return <SplinePointer size={17} aria-hidden="true" />;
+  if (tool === ANGLE_BISECTOR) {
+    // Two arms, and the line halving them in the type it draws in.
+    return (
+      <Glyph>
+        <path d="M3 16.5 L17.5 16.5 M3 16.5 L14 4.5" strokeWidth={1} />
+        <path d="M3 16.5 L16.7 10.5" strokeDasharray={LINE_DASH[lineType]} strokeLinecap="butt" />
+      </Glyph>
+    );
+  }
   return <DiagramAnnotationGlyph kind={tool === LINE_TOOL ? lineKindOf(lineType) : tool} />;
 }
 
@@ -145,6 +161,15 @@ export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }
         <Glyph>
           <path d="M3.5 2.5 L3.5 16.5 L17.5 16.5" strokeWidth={1} />
           <path d="M3.5 9.5 L10.5 9.5 L10.5 16.5" strokeLinecap="butt" strokeLinejoin="miter" />
+        </Glyph>
+      );
+    case 'angle-mark':
+      // Two arms, an arc across them, a tick across each half.
+      return (
+        <Glyph>
+          <path d="M3 16.5 L17.5 16.5 M3 16.5 L14 4.5" strokeWidth={1} />
+          <path d="M12 16.5 A9 9 0 0 0 9.1 9.9" />
+          <path d="M10.4 14.9 L13.2 14.4 M9.2 12.1 L11.5 10.5" strokeWidth={1.1} strokeLinecap="butt" />
         </Glyph>
       );
     case 'callout':

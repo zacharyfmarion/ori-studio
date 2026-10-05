@@ -83,7 +83,7 @@ export function DiagramAnnotateRail({
               value: type,
               label,
               icon: <DiagramLineTypeMark type={type} />,
-              tooltip: `${key ? `${label} (${key})` : label} - ${t('panels:diagram.annotate.lineTypeHelp', 'The line the Line tool draws.')}`,
+              tooltip: `${key ? `${label} (${key})` : label} - ${t('panels:diagram.annotate.lineTypeHelp', 'The line the Line tool and the Angle Bisector draw.')}`,
             };
           })}
           onChange={setLineType}

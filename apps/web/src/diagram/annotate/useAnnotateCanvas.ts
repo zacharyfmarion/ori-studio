@@ -30,7 +30,7 @@ import { paintSource, stepPictureSource, type PictureBox } from '../pictures/pai
 import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { stepPictureUrl } from '../pictures/useStepPictureUrl';
 import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useDiagramShortcuts';
-import { EDIT_PATH, drawingKind } from './annotateTools';
+import { EDIT_PATH, drawingKind, isPickTool } from './annotateTools';
 import { placePoint, snapOutcome, snapsEnd, snapsWhenPlaced, type PlacedPoint } from './annotateSnap';
 import { annotationActionEdit, editAnnotation } from './annotationActions';
 import {
@@ -70,6 +70,7 @@ import { calloutPen } from './annotationPrimitives';
 import { CARD_FRAME_PX } from './paintAnnotations';
 import type { SnapTarget } from './pictureSnap';
 import { useAnnotateSnap } from './useAnnotateSnap';
+import { usePickTool } from './usePickTool';
 import {
   clickedOpening,
   draggedOpening,
@@ -328,7 +329,6 @@ export function useAnnotateCanvas({
     setDraft(null);
     return true;
   }, [showSnap, showRightAngle]);
-  useEffect(() => registerDiagramGestureCancel(cancel), [cancel]);
   // A tool picked, another step or another picture: whatever was in hand is dropped.
   useEffect(
     () => () => {
@@ -368,18 +368,6 @@ export function useAnnotateCanvas({
     return () => view.removeEventListener('touchstart', keepOneFinger, { capture: true });
   }, [containerRef, onStage]);
 
-  /**
-   * The annotations as the canvas draws them: the step's, and the one in hand
-   * where it is now. Only a drag joins them — anything shown over the marks
-   * for a moment stays out — so a pointer's every move recompiles at most the
-   * one annotation that moved (`compiledAnnotation`), and nothing else redraws
-   * the marks.
-   */
-  const shown = useMemo<readonly DiagramAnnotation[]>(() => {
-    if (!draft) return step.annotations;
-    if (draft.id === DRAFT_ID) return [...step.annotations, draft];
-    return step.annotations.map((annotation) => (annotation.id === draft.id ? draft : annotation));
-  }, [step.annotations, draft]);
 
   /**
    * A client point in picture units, through the overlay's matrix wherever on
@@ -405,6 +393,39 @@ export function useAnnotateCanvas({
     const reach = (coarse ? REACH_PX.coarse : REACH_PX.fine) / (screenPerWorld * (layout?.unit ?? 1));
     return { tolerance: reach, glyph: GLYPH_REACH, label: LABEL_SIZE, ink: INK_UNITS, calloutPen: calloutPenUnits(style) };
   }, [coarse, layout, style]);
+
+  /** The Angle Bisector's and the equal-angle mark's picks (15b), while one of them is in hand. */
+  const picker = usePickTool({
+    step,
+    assets,
+    style,
+    tool,
+    lineType,
+    readOnly,
+    snapContext,
+    showSnap,
+    reach: () => hitSizes().tolerance,
+  });
+  const { unpick } = picker;
+  // Escape: the drag in hand dropped, else the last pick taken back.
+  useEffect(() => registerDiagramGestureCancel(() => cancel() || unpick()), [cancel, unpick]);
+
+  /**
+   * The annotations as the canvas draws them: the step's, and the one in hand
+   * where it is now. Only a drag joins them — anything shown over the marks
+   * for a moment stays out — so a pointer's every move recompiles at most the
+   * one annotation that moved (`compiledAnnotation`), and nothing else redraws
+   * the marks.
+   */
+  const shown = useMemo<readonly DiagramAnnotation[]>(() => {
+    const withDraft = !draft
+      ? step.annotations
+      : draft.id === DRAFT_ID
+        ? [...step.annotations, draft]
+        : step.annotations.map((annotation) => (annotation.id === draft.id ? draft : annotation));
+    // What a pick tool's next press would draw, under the pointer.
+    return picker.drafts.length === 0 ? withDraft : [...withDraft, ...picker.drafts];
+  }, [step.annotations, draft, picker.drafts]);
 
   const known = useCallback(
     (id: string) =>
@@ -559,6 +580,11 @@ export function useAnnotateCanvas({
         loadId: store.diagramLoadId,
         moved: false,
       };
+      if (isPickTool(tool)) {
+        // A pick, on the press: the Angle Bisector's, or the equal-angle mark's (15b).
+        if (picker.press(at, isPrimaryModifier(event))) event.preventDefault();
+        return;
+      }
       const kind = drawingKind(tool, lineType);
       if (kind !== null) {
         if (readOnly) return;
@@ -605,6 +631,7 @@ export function useAnnotateCanvas({
       toPicture,
       tool,
       lineType,
+      picker,
       step.annotations,
       hitSizes,
       selectedId,
@@ -665,6 +692,11 @@ export function useAnnotateCanvas({
    */
   const hover = useCallback(
     (input: PointerInput) => {
+      if (isPickTool(tool)) {
+        const over = !readOnly && !spacePressed && !pinching.current && input.buttons === 0 && onStage(input.target);
+        picker.hover(over ? toPicture(input.clientX, input.clientY) : null, isPrimaryModifier(input));
+        return;
+      }
       const kind = drawingKind(tool, lineType);
       const looking =
         kind !== null && snapsWhenPlaced(kind) && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
@@ -679,7 +711,7 @@ export function useAnnotateCanvas({
       }
       showSnap([at ? placePoint(snapContext(), at, { free }).target : null]);
     },
-    [tool, lineType, readOnly, spacePressed, onStage, toPicture, snapContext, showSnap, showRightAngle, layout, clickPreview]
+    [tool, lineType, picker, readOnly, spacePressed, onStage, toPicture, snapContext, showSnap, showRightAngle, layout, clickPreview]
   );
 
   const pointerMoved = useCallback(
@@ -916,6 +948,8 @@ export function useAnnotateCanvas({
     snapTargets: snap.targets,
     /** The right angle a click would put down where the pointer is: shown over the marks, never in them. */
     rightAnglePreview: rightAngle,
+    /** A pick tool's picks, and what a press would pick: shown over the marks (15b). */
+    pickPreview: picker.preview,
     onPointerDownCapture,
     handlers: {
       onPointerDown,
@@ -960,6 +994,7 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   circle: 'circle',
   'right-angle': 'right_angle',
   callout: 'callout',
+  'angle-mark': 'angle_mark',
 };
 
 /**

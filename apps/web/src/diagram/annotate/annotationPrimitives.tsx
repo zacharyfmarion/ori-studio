@@ -286,6 +286,14 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
     case 'right-angle':
       // `to` says only which way it opens: the drawing sizes it.
       return { kind: 'mark', primitive: { kind: 'right-angle', at: up(from), toward: up(to) } };
+    case 'angle-mark': {
+      // `to` and `other` say only which way its arms run: the drawing sizes it.
+      if (!annotation.other) return null;
+      return {
+        kind: 'mark',
+        primitive: { kind: 'angle-mark', at: up(from), arms: [up(to), up(annotation.other)], ticks: annotation.ticks ?? 1 },
+      };
+    }
     case 'callout': {
       // As a label with no words draws nothing, so does a callout: an empty box says nothing.
       const text = annotation.text ?? '';

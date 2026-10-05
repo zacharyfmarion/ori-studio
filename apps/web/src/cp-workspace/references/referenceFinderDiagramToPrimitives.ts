@@ -150,6 +150,19 @@ export type StepDiagramPrimitive =
    */
   | { kind: 'right-angle'; at: readonly [number, number]; toward: readonly [number, number] }
   /**
+   * An angle marked halved (Phase 15b): an arc across the angle at `at`
+   * between its two arms — a point along each, only their directions read —
+   * with `ticks` across the middle of each half, as a bisector's equal angles
+   * are marked. Its size is the drawing's, as a right angle's is; measured
+   * after projecting, so it mirrors with the paper.
+   */
+  | {
+      kind: 'angle-mark';
+      at: readonly [number, number];
+      arms: readonly [readonly [number, number], readonly [number, number]];
+      ticks: 1 | 2 | 3;
+    }
+  /**
    * A stretch of the paper a step works in, as a light fill under the lines:
    * the band a grid step's lines are made in, between the bounds the folder
    * sights them from. A convex polygon, in sheet units.

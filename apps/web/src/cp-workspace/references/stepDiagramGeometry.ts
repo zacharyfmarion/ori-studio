@@ -24,6 +24,7 @@ import {
 } from '../../lib/cubicBezier';
 import { erodeSegment } from '../../lib/paper/paperSvg';
 import {
+  DIAGRAM_ANGLE_MARK_INK,
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_INK_PER_SHEET,
@@ -2219,6 +2220,96 @@ export function rightAngleDrawn(
  */
 export function rightAngleReach(pen: number): [number, number, number] {
   return [pen / 2, (Math.SQRT2 * pen) / 2, pen / 2];
+}
+
+/**
+ * An angle mark's shape: the arc across its angle — centred on the vertex,
+ * from the first arm's direction, sweeping the angle between the arms (signed,
+ * under a half turn: the angle the arms make, never its reflex) — and the
+ * ticks across the middle of each half.
+ */
+export interface AngleMarkShape {
+  centre: SvgPoint;
+  radius: number;
+  /** The first arm's direction, in radians as the drawing's axes measure it. */
+  start: number;
+  sweep: number;
+  ticks: [SvgPoint, SvgPoint][];
+}
+
+/**
+ * An angle mark at `vertex` between the arms through `first` and `second`, in
+ * one space: its arc `size.radius` out, and `ticks` ticks across each half,
+ * `size.spacing` apart along the arc, each `size.tick` either side of it.
+ * Null when an arm has no direction, or the arms lie along one line.
+ */
+export function angleMarkShape(
+  vertex: SvgPoint,
+  first: SvgPoint,
+  second: SvgPoint,
+  ticks: number,
+  size: { radius: number; tick: number; spacing: number }
+): AngleMarkShape | null {
+  if (!(Math.hypot(first.x - vertex.x, first.y - vertex.y) > 0)) return null;
+  if (!(Math.hypot(second.x - vertex.x, second.y - vertex.y) > 0)) return null;
+  if (!(size.radius > 0)) return null;
+  const start = Math.atan2(first.y - vertex.y, first.x - vertex.x);
+  let sweep = Math.atan2(second.y - vertex.y, second.x - vertex.x) - start;
+  while (sweep > Math.PI) sweep -= 2 * Math.PI;
+  while (sweep <= -Math.PI) sweep += 2 * Math.PI;
+  if (Math.abs(sweep) < 1e-9 || Math.abs(Math.abs(sweep) - Math.PI) < 1e-9) return null;
+  const at = (angle: number, r: number): SvgPoint => ({
+    x: vertex.x + Math.cos(angle) * r,
+    y: vertex.y + Math.sin(angle) * r,
+  });
+  const marks: [SvgPoint, SvgPoint][] = [];
+  for (const share of [0.25, 0.75]) {
+    const middle = start + sweep * share;
+    for (let k = 0; k < ticks; k += 1) {
+      const angle = middle + ((k - (ticks - 1) / 2) * size.spacing) / size.radius;
+      marks.push([at(angle, size.radius - size.tick), at(angle, size.radius + size.tick)]);
+    }
+  }
+  return { centre: vertex, radius: size.radius, start, sweep, ticks: marks };
+}
+
+/**
+ * An angle mark as a picture draws it, its vertex at `at` and its arms
+ * through `arms`, in sheet units: its shape in the projector's units, sized
+ * by its ink (`DIAGRAM_ANGLE_MARK_INK`). Measured after projecting, so it
+ * mirrors with the paper. The one place its drawn shape is decided.
+ */
+export function angleMarkDrawn(
+  at: readonly [number, number],
+  arms: readonly [readonly [number, number], readonly [number, number]],
+  ticks: number,
+  project: DiagramProjector
+): AngleMarkShape | null {
+  const ink = project.ink;
+  return angleMarkShape(project(at), project(arms[0]), project(arms[1]), ticks, {
+    radius: DIAGRAM_ANGLE_MARK_INK.radius * ink,
+    tick: DIAGRAM_ANGLE_MARK_INK.tick * ink,
+    spacing: DIAGRAM_ANGLE_MARK_INK.spacing * ink,
+  });
+}
+
+/** An angle mark's arc as points along it, a degree apart at most: its reach and the hit along it. */
+export function angleMarkArcPoints(shape: AngleMarkShape): SvgPoint[] {
+  const steps = Math.max(2, Math.ceil(Math.abs(shape.sweep) / (Math.PI / 180)));
+  return Array.from({ length: steps + 1 }, (_, index) => {
+    const angle = shape.start + (shape.sweep * index) / steps;
+    return { x: shape.centre.x + Math.cos(angle) * shape.radius, y: shape.centre.y + Math.sin(angle) * shape.radius };
+  });
+}
+
+/** An angle mark as SVG path data: its arc, then each tick. */
+export function angleMarkPathData(shape: AngleMarkShape): string {
+  const { centre, radius, start, sweep } = shape;
+  const from = { x: centre.x + Math.cos(start) * radius, y: centre.y + Math.sin(start) * radius };
+  const to = { x: centre.x + Math.cos(start + sweep) * radius, y: centre.y + Math.sin(start + sweep) * radius };
+  // Under a half turn, so never the large arc; the sweep flag follows its sign, as the drawing's axes run.
+  const arc = `M ${pointText(from)} A ${fmt(radius)} ${fmt(radius)} 0 0 ${sweep > 0 ? 1 : 0} ${pointText(to)}`;
+  return [arc, ...shape.ticks.map(([a, b]) => `M ${pointText(a)} L ${pointText(b)}`)].join(' ');
 }
 
 /** A point as SVG path data writes one. */

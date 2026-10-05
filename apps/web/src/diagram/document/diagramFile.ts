@@ -45,6 +45,7 @@ import { normalizePaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import {
   ANNOTATION_REACH,
+  angleMarkArms,
   arrowShape,
   DEFAULT_ROTATION,
   DEFAULT_WHITE_ARROW,
@@ -77,6 +78,7 @@ import {
   randomDiagramId,
   withReferencedAssets,
   isKnownAnnotation,
+  type DiagramAngleTicks,
   type DiagramAnnotation,
   type DiagramAnnotationKind,
   type DiagramPathNode,
@@ -277,7 +279,9 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
 
 function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown> {
   if (!isKnownAnnotation(annotation)) return annotation.unknown;
-  const { id, kind, from, to, bend, path, width, tail, text, rotate, axis } = annotation;
+  const { id, kind, from, to, bend, path, width, tail, text, rotate, axis, other, ticks, unknown: _known, ...unwritten } = annotation;
+  // Every field is written: a new one is a compile error here until it is, not dropped from the file.
+  const _none: Record<string, never> = unwritten;
   return {
     id,
     kind,
@@ -290,6 +294,8 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(text !== undefined ? { text } : {}),
     ...(rotate !== undefined ? { rotate } : {}),
     ...(axis !== undefined ? { axis } : {}),
+    ...(other !== undefined ? { other } : {}),
+    ...(ticks !== undefined ? { ticks } : {}),
   };
 }
 
@@ -817,6 +823,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     circle: fields(),
     'right-angle': fields(),
     callout: fields('text'),
+    'angle-mark': fields('other', 'ticks'),
   };
 })();
 
@@ -919,6 +926,16 @@ function readAnnotation(
     case 'right-angle':
       // `to` says which way it opens, from its corner, at any distance: at the corner it opens no way.
       return from[0] === to[0] && from[1] === to[1] ? null : annotation;
+    case 'angle-mark': {
+      // Its second arm, and its ticks; a count past three is news, told before damage.
+      const other = readAnnotationPoint(entry.other);
+      const ticks = readTicks(entry.ticks);
+      if (other === NEWER || ticks === NEWER) return NEWER;
+      if (other === null || ticks === null) return null;
+      const mark: KnownDiagramAnnotation = { ...annotation, other, ...(ticks !== undefined ? { ticks } : {}) };
+      // Arms that make no angle mark none.
+      return angleMarkArms(mark) ? mark : null;
+    }
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
     case 'push-arrow':
@@ -977,6 +994,13 @@ function readPath(value: unknown): DiagramPathNode[] | typeof NEWER | null {
     });
   }
   return past ? NEWER : nodes;
+}
+
+/** An angle mark's ticks: unsaid, one; a whole count past three, a newer build's; anything else, damage. */
+function readTicks(value: unknown): DiagramAngleTicks | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) return null;
+  return value <= 3 ? (value as DiagramAngleTicks) : NEWER;
 }
 
 /** A white arrow's widths and tails, as this build draws them. */

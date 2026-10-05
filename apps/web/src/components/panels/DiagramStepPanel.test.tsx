@@ -11,6 +11,7 @@ import {
 import { publishOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { ANNOTATE_TOOL_GROUPS, annotateToolHelp } from '../../diagram/annotate/annotateTools';
+import { angleMarkAt } from '../../diagram/annotate/annotationModel';
 import i18n from '../../i18n';
 import { STORAGE_KEYS, storageKey } from '../../lib/storage';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -501,6 +502,31 @@ describe('DiagramStepPanel in Annotate', () => {
     // Not a line: no Type.
     act(() => row('Valley Fold Arrow').click());
     expect(host!.querySelector('[role="group"][aria-label="Type"]')).toBeNull();
+  });
+
+  it('gives an equal-angle mark more ticks with Ticks, one when it says none, as one undo step (15b)', () => {
+    const stepId = annotatedStep();
+    const mark = angleMarkAt([0.5, 0.7], [0.4, 0.6], [0.5, 0.6])!;
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 'm-1', kind: 'angle-mark', ...mark },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+    });
+    act(() => row('Equal Angles').click());
+    const ticks = () => [...host!.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Ticks"] button')];
+    const tick = (count: string) => ticks().find((option) => option.textContent?.trim() === count)!;
+    expect(ticks().map((option) => option.textContent?.trim())).toEqual(['1', '2', '3']);
+    expect(tick('1').getAttribute('aria-pressed')).toBe('true');
+    const past = state().diagramHistory.past.length;
+    act(() => tick('2').click());
+    expect(annotations().find((annotation) => annotation.id === 'm-1')).toEqual({ id: 'm-1', kind: 'angle-mark', ...mark, ticks: 2 });
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change angle mark');
+    // Not an angle mark: no Ticks.
+    act(() => row('Valley Fold Arrow').click());
+    expect(ticks()).toEqual([]);
   });
 
   it('turns a right angle a quarter clockwise with Turn 90°, as one undo step', () => {

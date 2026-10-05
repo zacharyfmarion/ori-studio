@@ -86,7 +86,9 @@ export type DiagramAnnotationTool =
   | 'label'
   | 'circle'
   | 'right_angle'
-  | 'callout';
+  | 'callout'
+  | 'angle_mark'
+  | 'angle_bisector';
 
 /**
  * How a new annotation was put down (decision 9): snapped to a point of the

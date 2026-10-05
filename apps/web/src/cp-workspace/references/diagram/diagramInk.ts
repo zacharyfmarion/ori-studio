@@ -125,6 +125,15 @@ export const DIAGRAM_MARK_INK = { radius: 3.07, ofArrow: 0.75 } as const;
 export const DIAGRAM_RIGHT_ANGLE_INK = { side: 7 } as const;
 
 /**
+ * An angle marked halved (15b of the second Annotate plan): the radius of the
+ * arc it draws across the angle, in ink — at an annotation's ink (0.331 mm)
+ * 5 mm, twice the first sketch's, which Zach found "way too small" — and each
+ * tick across it: half its length, and how far apart two or three lie along
+ * the arc. Its stroke is a ring's (`markRingWidth`), as a right angle's is.
+ */
+export const DIAGRAM_ANGLE_MARK_INK = { radius: 15, tick: 1.8, spacing: 1.8 } as const;
+
+/**
  * An arrowhead: its length, tip to barbs, and the cap for a short arrow as a
  * share of the chord it spans.
  *

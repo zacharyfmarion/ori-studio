@@ -32,9 +32,11 @@ describe('the snap radius (decision 10)', () => {
 });
 
 describe('what snaps (decision 9)', () => {
-  it('is a circle, a right angle’s corner, a line’s ends and a callout’s point, never an arrow, a sign or a label', () => {
+  it('is a circle, a right angle’s corner, a line’s ends, a callout’s point and an angle mark’s points, never an arrow, a sign or a label', () => {
     const snapping = ANNOTATION_KINDS.filter(snapsWhenPlaced);
-    expect([...snapping].sort()).toEqual(['callout', 'circle', 'right-angle', 'hidden-line', 'mountain-line', 'valley-line'].sort());
+    expect([...snapping].sort()).toEqual(
+      ['angle-mark', 'callout', 'circle', 'right-angle', 'hidden-line', 'mountain-line', 'valley-line'].sort()
+    );
     // An arrow is drawn where it is drawn (Zach, 2026-10-05).
     for (const arrow of ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'white-arrow'] as const) {
       expect(snapsWhenPlaced(arrow), arrow).toBe(false);

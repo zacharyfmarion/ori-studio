@@ -247,6 +247,8 @@
     "pathScopeLabel": "edición de trazado",
     "previousStep": "Paso anterior",
     "scopeLabel": "diagrama",
+    "toolAngleBisector": "Bisectriz",
+    "toolAngleMark": "Ángulos iguales",
     "toolCallout": "Llamada",
     "toolCircle": "Círculo",
     "toolEditPath": "Editar trazado",

@@ -5,6 +5,7 @@ import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isKnownAnnotation, type DiagramStep } from '../document/diagramDocument';
 import { annotateToolHint, type AnnotateToolHint } from './annotateTools';
+import { usePickProgress } from './pickProgress';
 
 /**
  * What the tool window says for the tool in hand on `step`, in this device's
@@ -12,7 +13,8 @@ import { annotateToolHint, type AnnotateToolHint } from './annotateTools';
  * Select in hand, which has no window.
  *
  * Edit Path's line depends on what is selected, by kind only, so a drag that
- * reshapes the selected arrow does not rebuild it on every move.
+ * reshapes the selected arrow does not rebuild it on every move. A pick
+ * tool's says what its next press is for (15b).
  */
 export function useAnnotateToolHint(step: DiagramStep): AnnotateToolHint | null {
   const { t } = useTranslation();
@@ -21,8 +23,10 @@ export function useAnnotateToolHint(step: DiagramStep): AnnotateToolHint | null 
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
   const selected = step.annotations.find((annotation) => annotation.id === selectedId);
   const selectedKind = selected && isKnownAnnotation(selected) ? selected.kind : null;
+  const progress = usePickProgress();
   return useMemo(
-    () => annotateToolHint(t, tool, selectedKind, { coarse, primary: primaryModifierLabel(), alt: altModifierLabel() }),
-    [t, tool, selectedKind, coarse]
+    () =>
+      annotateToolHint(t, tool, selectedKind, { coarse, primary: primaryModifierLabel(), alt: altModifierLabel() }, progress),
+    [t, tool, selectedKind, coarse, progress]
   );
 }

@@ -122,6 +122,7 @@ export function annotationSnapPoints(annotation: KnownDiagramAnnotation): readon
     case 'circle':
     case 'right-angle':
     case 'callout':
+    case 'angle-mark':
       return [annotation.from];
     // An arrow is drawn where it is drawn, a few px off the point it shows
     // (Zach, 2026-10-05): its end would pull a circle off that point. A sign

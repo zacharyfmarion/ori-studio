@@ -70,6 +70,7 @@ function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null 
     case 'circle':
     case 'right-angle':
     case 'callout':
+    case 'angle-mark':
       return null;
   }
 }

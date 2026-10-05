@@ -7,6 +7,7 @@ import {
   annotateToolHint,
   drawingKind,
   EDIT_PATH,
+  isPickTool,
   LINE_TYPE_SHORTCUTS,
   lineTypeForShortcut,
   toolForShortcut,
@@ -23,13 +24,14 @@ describe('the rail', () => {
         id: 'arrows',
         tools: ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'white-arrow', 'turn-over', 'rotate'],
       },
-      { id: 'lines', tools: ['line'] },
-      { id: 'marks', tools: ['circle', 'right-angle'] },
+      { id: 'lines', tools: ['line', 'angle-bisector'] },
+      { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark'] },
       { id: 'text', tools: ['label', 'callout'] },
     ]);
-    // Every kind is drawn by a tool: each its own, the lines by Line in each type.
+    // Every kind is drawn by a tool: each its own, the lines by Line in each
+    // type, the angle mark by its picks (alone, or with a bisector's line).
     const drawn = ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).flatMap((tool) =>
-      DIAGRAM_LINE_TYPES.map((type) => drawingKind(tool, type))
+      isPickTool(tool) ? ['angle-mark' as const] : DIAGRAM_LINE_TYPES.map((type) => drawingKind(tool, type))
     );
     expect([...new Set(drawn.filter((kind) => kind !== null))].sort()).toEqual([...ANNOTATION_KINDS].sort());
     expect(DIAGRAM_LINE_TYPES.map((type) => drawingKind('line', type))).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
@@ -52,6 +54,7 @@ describe('the tool window', () => {
   const t = i18n.t.bind(i18n);
   const mac: AnnotateToolHost = { coarse: false, primary: 'Cmd', alt: 'Option' };
   const ends = 'Hold Cmd to put an end down anywhere, without snapping.';
+  const picks = 'Hold Cmd to put a point down anywhere, without snapping.';
 
   it('says each tool’s name, how to use it, and the keys it honours (decision 7)', () => {
     const hints = Object.fromEntries(
@@ -121,7 +124,30 @@ describe('the tool window', () => {
         instructions: 'Drag from a point to where the box goes, or click the point, then type its words in the Step pane.',
         modifiers: ['Hold Cmd to put its point down anywhere, without snapping.'],
       },
+      'angle-bisector': {
+        title: 'Angle Bisector',
+        instructions: 'Click three points, the vertex second, or two lines; then the line it runs to.',
+        modifiers: [picks],
+      },
+      'angle-mark': {
+        title: 'Equal Angles',
+        instructions: 'Click a point on one arm, the vertex, then a point on the other arm.',
+        modifiers: [picks],
+      },
     });
+  });
+
+  it('says what a pick tool’s next press is for, and why its last drew nothing (15b)', () => {
+    const hint = (tool: 'angle-bisector' | 'angle-mark', progress: Parameters<typeof annotateToolHint>[4]) =>
+      annotateToolHint(t, tool, null, mac, progress)!.instructions;
+    expect(hint('angle-bisector', { step: 'vertex', refusal: null })).toBe('Click the angle’s vertex.');
+    expect(hint('angle-bisector', { step: 'line-end', refusal: null })).toBe('Click the line it runs to, or where it ends.');
+    expect(hint('angle-bisector', { step: 'first', refusal: 'no-angle' })).toBe(
+      'Those make no angle. Click a point on one arm of the angle, or a line.'
+    );
+    expect(hint('angle-mark', { step: 'other-arm', refusal: null })).toBe('Click a point on the other arm.');
+    // With no sequence under way, its help.
+    expect(hint('angle-mark', null)).toBe('Click a point on one arm, the vertex, then a point on the other arm.');
   });
 
   it('names the keys as this platform does', () => {

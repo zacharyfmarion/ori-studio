@@ -139,6 +139,7 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolCircle': true,
   'diagram.toolRightAngle': true,
   'diagram.toolCallout': true,
+  'diagram.toolAngleBisector': true,
   'diagram.flipArc': true,
 };
 
@@ -187,8 +188,9 @@ export function runDiagramPathShortcut(
  * A is Edit Path's —
  * and F flips the selected annotation's arc, when it offers Flip arc
  * (`annotationActions.ts`). A line type's key (Shift+V, Shift+M, H) picks
- * that type, and the Line tool with it unless the Line tool is in hand —
- * pressed again on its own type, back to Select, as a tool's letter is. Outside Annotate, and on a diagram
+ * that type, and the Line tool with it unless a tool that draws in the type
+ * (Line, the Angle Bisector) is in hand — and with Line in hand on its own
+ * type, back to Select, as a tool's letter is. Outside Annotate, and on a diagram
  * that cannot change, they decline: the letters are a crease-pattern tool's
  * too, and nothing here should eat them.
  */
@@ -207,7 +209,7 @@ export function runDiagramAnnotateShortcut(
   const lineType = lineTypeForShortcut(id);
   if (lineType !== undefined) {
     if (!actions.setTool || !actions.setLineType) return false;
-    if (isLineTool(annotate.tool) && annotate.lineType === lineType) {
+    if (annotate.tool === LINE_TOOL && annotate.lineType === lineType) {
       actions.setTool(null);
       return true;
     }

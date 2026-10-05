@@ -18,6 +18,7 @@ import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagr
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import {
   randomDiagramId,
+  type DiagramAngleTicks,
   type DiagramAnnotationKind,
   type DiagramIdFactory,
   type DiagramPathNode,
@@ -47,9 +48,12 @@ export interface PictureFrame {
  *   right angle, or a drag from its corner into the angle — `to` saying only
  *   which way it opens ({@link RIGHT_ANGLE_DIAGONAL});
  * - `callout`: a line from a point to a box of words, dragged from the point
- *   to where the box sits, or put down beside the point with a click.
+ *   to where the box sits, or put down beside the point with a click;
+ * - `angle`: an angle marked halved, put down by three presses — an arm, the
+ *   vertex, the other arm — or with a bisector, `to` and `other` saying only
+ *   which way its arms run (15b).
  */
-type AnnotationShape = 'arc' | 'straight' | 'path' | 'line' | 'point' | 'corner' | 'callout';
+type AnnotationShape = 'arc' | 'straight' | 'path' | 'line' | 'point' | 'corner' | 'callout' | 'angle';
 
 const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
   'valley-arrow': 'arc',
@@ -66,6 +70,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   circle: 'point',
   'right-angle': 'corner',
   callout: 'callout',
+  'angle-mark': 'angle',
 };
 
 /** Every kind, in the order the rail offers them. */
@@ -85,6 +90,9 @@ export const LINE_KINDS = kindsShaped('line');
 
 /** The marks put down in a corner, opening along its diagonal: the right angle. */
 export const CORNER_KINDS = kindsShaped('corner');
+
+/** The marks of an angle between two arms: the angle mark. */
+export const ANGLE_KINDS = kindsShaped('angle');
 
 /**
  * A 60° arc, as References draws a fold arrow (`foldArrowArc`): its sagitta
@@ -185,6 +193,7 @@ export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagra
     return cleanAnnotation(isArrowKind(arc.kind) ? { ...arc, bend: arc.bend ?? ARROW_BEND } : arc);
   }
   if (isCornerKind(annotation.kind)) return cleanCorner(annotation);
+  if (isAngleKind(annotation.kind)) return cleanAngle(annotation);
   const from = withinReach(annotation.from);
   const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
   const text = annotation.text === undefined ? undefined : cleanLabelText(annotation.text);
@@ -216,6 +225,76 @@ function cleanCorner(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation
     samePoint(withinReach(annotation.to), annotation.to);
   if (written) return annotation;
   return { ...annotation, ...rightAngleAt(from, rightAngleDiagonal(annotation)) };
+}
+
+/**
+ * How far along each arm an angle mark keeps the point that says which way
+ * the arm runs: only its direction is read, as a right angle's diagonal's
+ * is, and kept this near its vertex the point is within reach wherever the
+ * vertex is.
+ */
+export const ANGLE_MARK_ARM = RIGHT_ANGLE_DIAGONAL;
+
+/** An angle mark's ticks across each half, as written: one, two or three. */
+export const ANGLE_MARK_TICKS: readonly DiagramAngleTicks[] = [1, 2, 3];
+
+/**
+ * An angle mark's two arms, each a unit direction from its vertex; null when
+ * one has none, or they lie along one line — there is no angle to mark.
+ */
+export function angleMarkArms(
+  annotation: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'other'>
+): [PicturePoint, PicturePoint] | null {
+  const { from, other } = annotation;
+  if (!other) return null;
+  const unit = ([x, y]: PicturePoint): PicturePoint | null => {
+    const length = Math.hypot(x - from[0], y - from[1]);
+    return length > 0 ? [(x - from[0]) / length, (y - from[1]) / length] : null;
+  };
+  const first = unit(annotation.to);
+  const second = unit(other);
+  if (!first || !second || Math.abs(first[0] * second[1] - first[1] * second[0]) < 1e-9) return null;
+  return [first, second];
+}
+
+/**
+ * An angle mark at `vertex` between the arms toward `first` and `second`, as
+ * this build writes one: its vertex within reach, each arm's point
+ * {@link ANGLE_MARK_ARM} along it. Null when they make no angle.
+ */
+export function angleMarkAt(
+  vertex: PicturePoint,
+  first: PicturePoint,
+  second: PicturePoint
+): Pick<KnownDiagramAnnotation, 'from' | 'to' | 'other'> | null {
+  const arms = angleMarkArms({ from: vertex, to: first, other: second });
+  if (!arms) return null;
+  const from = withinReach(vertex);
+  const along = ([x, y]: PicturePoint): [number, number] => {
+    const [u, v] = withinReach([from[0] + x * ANGLE_MARK_ARM, from[1] + y * ANGLE_MARK_ARM]);
+    return [u, v];
+  };
+  return { from, to: along(arms[0]), other: along(arms[1]) };
+}
+
+/**
+ * An angle mark as this build writes it ({@link angleMarkAt}), its ticks one
+ * of three; one with no angle is left as it is — the reader refuses it, and
+ * no drawing makes one. The same object when it already is.
+ */
+function cleanAngle(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const placed = angleMarkAt(annotation.from, annotation.to, annotation.other ?? annotation.to);
+  if (!placed) return annotation;
+  const ticks = annotation.ticks === undefined || ANGLE_MARK_TICKS.includes(annotation.ticks) ? annotation.ticks : 1;
+  const written =
+    samePoint(placed.from, annotation.from) &&
+    samePoint(placed.to, annotation.to) &&
+    annotation.other !== undefined &&
+    samePoint(placed.other!, annotation.other) &&
+    ticks === annotation.ticks;
+  if (written) return annotation;
+  const { ticks: _ticks, ...rest } = annotation;
+  return { ...rest, ...placed, ...(ticks !== undefined ? { ticks } : {}) };
 }
 
 /**
@@ -375,6 +454,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'circle':
     case 'right-angle':
     case 'callout':
+    case 'angle-mark':
       return false;
   }
 }
@@ -420,6 +500,7 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'circle':
     case 'right-angle':
+    case 'angle-mark':
       return false;
   }
 }
@@ -429,7 +510,7 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
  * dot: an arrow's or a line's two, a callout's point — its box is taken
  * where it is drawn — and none for a mark at one point, nor a right angle,
  * which offers its corner and the way it opens instead
- * ({@link rightAngleGrips}). A switch, so a new kind has to say.
+ * ({@link rightAngleGrips}), nor an angle mark, moved whole. A switch, so a new kind has to say.
  */
 export function annotationEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to')[] {
   switch (kind) {
@@ -449,6 +530,7 @@ export function annotationEnds(kind: DiagramAnnotationKind): readonly ('from' | 
     case 'label':
     case 'circle':
     case 'right-angle':
+    case 'angle-mark':
       return [];
   }
 }
@@ -559,6 +641,10 @@ export function isArrowKind(kind: DiagramAnnotationKind): boolean {
 
 export function isPointKind(kind: DiagramAnnotationKind): boolean {
   return POINT_KINDS.has(kind);
+}
+
+export function isAngleKind(kind: DiagramAnnotationKind): boolean {
+  return ANGLE_KINDS.has(kind);
 }
 
 export function isCornerKind(kind: DiagramAnnotationKind): boolean {
@@ -754,7 +840,8 @@ export function moveAnnotation(annotation: KnownDiagramAnnotation, delta: Pictur
   if (dx === 0 && dy === 0) return annotation;
   if (path) return withPath(annotation, path.map((node) => shiftNode(node, [dx, dy])));
   const shift = (point: PicturePoint): PicturePoint => [point[0] + dx, point[1] + dy];
-  return { ...annotation, from: shift(from), to: shift(to) };
+  const other = annotation.other ? { other: shift(annotation.other) } : {};
+  return { ...annotation, from: shift(from), to: shift(to), ...other };
 }
 
 /**
@@ -860,6 +947,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'circle':
     case 'right-angle':
     case 'callout':
+    case 'angle-mark':
       return false;
   }
 }
@@ -922,6 +1010,8 @@ export function isDegenerate(annotation: KnownDiagramAnnotation, minLength: numb
   if (isPointKind(annotation.kind) || isCornerKind(annotation.kind) || ANNOTATION_SHAPES[annotation.kind] === 'callout') {
     return false;
   }
+  // An angle mark has a vertex and two arms, not a length: none when its arms make no angle.
+  if (isAngleKind(annotation.kind)) return angleMarkArms(annotation) === null;
   if (annotation.path) return pathLength(annotation.path) < minLength;
   return Math.hypot(annotation.to[0] - annotation.from[0], annotation.to[1] - annotation.from[1]) < minLength;
 }
@@ -999,6 +1089,7 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
     // Kept within reach, as every carried point is, a handle drawn in along itself.
     return withPath(annotation, cleanPath(path) ?? path);
   }
+  if (isAngleKind(annotation.kind)) return carryAngle(annotation, move);
   // Kept within reach: a carried point that would leave it was three frames off the picture already.
   if (isCornerKind(annotation.kind)) {
     const opens = rightAngleDiagonal(annotation);
@@ -1037,6 +1128,35 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
     carried.axis = annotation.axis === 'vertical' ? 'horizontal' : 'vertical';
   }
   return carried;
+}
+
+/**
+ * An angle mark carried as a right angle is: its vertex with the face it is
+ * drawn in — the one a point just inside its angle lies in — and its arms
+ * turned as the picture turns there; under a move the same everywhere, each
+ * point where it went.
+ */
+function carryAngle(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  const arms = angleMarkArms(annotation);
+  if (!arms || !annotation.other) return annotation;
+  const [first, second] = arms;
+  let placed: ReturnType<typeof angleMarkAt>;
+  if (move.vector) {
+    // Its inside: between its arms, which make an angle under a half turn.
+    const middle = [first[0] + second[0], first[1] + second[1]];
+    const length = Math.hypot(middle[0]!, middle[1]!) || 1;
+    const nudge: PicturePoint = [(middle[0]! / length) * CORNER_NUDGE, (middle[1]! / length) * CORNER_NUDGE];
+    const nudged: PicturePoint = [annotation.from[0] + nudge[0], annotation.from[1] + nudge[1]];
+    const inside = move.point(nudged);
+    const back = move.vector(nudge);
+    const vertex = move.corner?.(annotation.from, nudged) ?? [inside[0] - back[0], inside[1] - back[1]];
+    const a = move.vector(first);
+    const b = move.vector(second);
+    placed = angleMarkAt(vertex, [vertex[0] + a[0], vertex[1] + a[1]], [vertex[0] + b[0], vertex[1] + b[1]]);
+  } else {
+    placed = angleMarkAt(move.point(annotation.from), move.point(annotation.to), move.point(annotation.other));
+  }
+  return placed ? { ...annotation, ...placed } : annotation;
 }
 
 /**

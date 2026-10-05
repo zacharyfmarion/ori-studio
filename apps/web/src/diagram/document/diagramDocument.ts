@@ -512,7 +512,8 @@ export type DiagramPicture =
  * made and unfolded — a push, a white arrow, the turn-over and rotate glyphs,
  * a crease line in the diagram's pens, a label, a circle round a point, as
  * References rings one, a right angle marked in a corner, and a callout: a
- * line from a point to a box of words, as diagrams say "repeat behind".
+ * line from a point to a box of words, as diagrams say "repeat behind" — and
+ * an angle marked halved, as a bisector's equal angles are (15b).
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
@@ -528,7 +529,11 @@ export type DiagramAnnotationKind =
   | 'label'
   | 'circle'
   | 'right-angle'
-  | 'callout';
+  | 'callout'
+  | 'angle-mark';
+
+/** How many ticks an angle mark draws across each half: a second pair of equal angles in a step takes two. */
+export type DiagramAngleTicks = 1 | 2 | 3;
 
 /** How far, and which way, a rotate glyph turns the model. */
 export interface DiagramRotation {
@@ -569,15 +574,21 @@ export interface KnownDiagramAnnotation {
   kind: DiagramAnnotationKind;
   /**
    * Where it starts: an arrow's tail, a line's end, a glyph's or a label's
-   * centre, a right angle's corner, the point a callout marks.
+   * centre, a right angle's corner, the point a callout marks, an angle
+   * mark's vertex.
    */
   from: [number, number];
   /**
    * Where it ends: an arrow's tip, the middle of a callout's box; `from` again
    * for a glyph or a label; for a right angle, a point along the diagonal into
-   * the angle — only its direction is read.
+   * the angle — only its direction is read; for an angle mark, a point along
+   * its first arm — only its direction is read.
    */
   to: [number, number];
+  /** An angle mark's second arm: a point along it, only its direction read (15b). */
+  other?: [number, number];
+  /** An angle mark's ticks across each half; one when unsaid (15b). */
+  ticks?: DiagramAngleTicks;
   /**
    * A fold arrow's arc: its sagitta as a share of its chord, positive bulging
    * to the left of its travel as the page shows it. Flip arc negates it.

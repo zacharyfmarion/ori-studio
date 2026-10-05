@@ -3,6 +3,7 @@ import type { DiagramAnnotateShortcutId } from '../../keyboard/shortcuts';
 import type { DiagramAnnotationKind } from '../document/diagramDocument';
 import { canBeShaped, isPointKind } from './annotationModel';
 import { lineKindOf, type DiagramLineKind, type DiagramLineType } from './lineTypes';
+import type { PickProgress } from './pickProgress';
 
 /**
  * Annotate's tools (D8), for every surface that offers them: the rail beside
@@ -25,11 +26,18 @@ export const EDIT_PATH = 'edit-path';
 export const LINE_TOOL = 'line';
 
 /**
- * A tool that draws: the kind it draws, for every kind but the three lines,
- * which the Line tool draws in the type chosen. Its own id, so a tool need
- * not be a kind.
+ * The Angle Bisector (15b): Edit's, on the picture — three points or two
+ * lines, then the line it runs to — drawing a line in the type the rail's
+ * Line Type says, and the equal-angle mark of the angle it halves.
  */
-export type DrawingTool = Exclude<DiagramAnnotationKind, DiagramLineKind> | typeof LINE_TOOL;
+export const ANGLE_BISECTOR = 'angle-bisector';
+
+/**
+ * A tool that draws: the kind it draws, for every kind but the three lines,
+ * which the Line tool draws in the type chosen, and the Angle Bisector,
+ * which draws a line and a mark. Its own id, so a tool need not be a kind.
+ */
+export type DrawingTool = Exclude<DiagramAnnotationKind, DiagramLineKind> | typeof LINE_TOOL | typeof ANGLE_BISECTOR;
 
 /** A tool that draws, Edit Path, or Select. */
 export type AnnotateTool = DrawingTool | typeof EDIT_PATH | null;
@@ -39,15 +47,28 @@ export function isDrawingTool(tool: AnnotateTool): tool is DrawingTool {
   return tool !== null && tool !== EDIT_PATH;
 }
 
-/** The kind a tool draws, a line in `lineType`; null for Select and Edit Path, which draw nothing. */
+/**
+ * The kind a tool draws with a drag or a click, a line in `lineType`; null
+ * for Select and Edit Path, which draw nothing, and for the tools that are a
+ * sequence of picks (`isPickTool`), which draw what their picks make.
+ */
 export function drawingKind(tool: AnnotateTool, lineType: DiagramLineType): DiagramAnnotationKind | null {
-  if (!isDrawingTool(tool)) return null;
+  if (!isDrawingTool(tool) || isPickTool(tool)) return null;
   return tool === LINE_TOOL ? lineKindOf(lineType) : tool;
 }
 
-/** Whether a tool draws in the line type: the Line tool. */
+/** Whether a tool draws in the line type: the Line tool and the Angle Bisector. */
 export function isLineTool(tool: AnnotateTool): boolean {
-  return tool === LINE_TOOL;
+  return tool === LINE_TOOL || tool === ANGLE_BISECTOR;
+}
+
+/**
+ * Whether a tool draws by a sequence of presses, each a pick, rather than a
+ * drag or a click: the Angle Bisector, and the equal-angle mark put down on
+ * its own (three points: an arm, the vertex, the other arm).
+ */
+export function isPickTool(tool: AnnotateTool): tool is typeof ANGLE_BISECTOR | 'angle-mark' {
+  return tool === ANGLE_BISECTOR || tool === 'angle-mark';
 }
 
 export type AnnotateToolGroupId = 'select' | 'arrows' | 'lines' | 'marks' | 'text';
@@ -67,9 +88,11 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   'turn-over': 'arrows',
   rotate: 'arrows',
   [LINE_TOOL]: 'lines',
+  [ANGLE_BISECTOR]: 'lines',
   label: 'text',
   circle: 'marks',
   'right-angle': 'marks',
+  'angle-mark': 'marks',
   callout: 'text',
 };
 
@@ -98,9 +121,11 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   'turn-over': 'diagram.toolTurnOver',
   rotate: 'diagram.toolRotate',
   [LINE_TOOL]: null,
+  [ANGLE_BISECTOR]: 'diagram.toolAngleBisector',
   label: 'diagram.toolLabel',
   circle: 'diagram.toolCircle',
   'right-angle': 'diagram.toolRightAngle',
+  'angle-mark': null,
   callout: 'diagram.toolCallout',
 };
 
@@ -178,6 +203,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolRightAngle', 'Right Angle');
     case 'callout':
       return t('tools:diagram.toolCallout', 'Callout');
+    case 'angle-mark':
+      return t('tools:diagram.toolAngleMark', 'Equal Angles');
   }
 }
 
@@ -185,6 +212,7 @@ export function annotateToolLabel(t: TFunction, tool: AnnotateTool): string {
   if (tool === null) return t('panels:diagram.annotate.select', 'Select');
   if (tool === EDIT_PATH) return t('tools:diagram.toolEditPath', 'Edit Path');
   if (tool === LINE_TOOL) return t('tools:diagram.toolLine', 'Line');
+  if (tool === ANGLE_BISECTOR) return t('tools:diagram.toolAngleBisector', 'Angle Bisector');
   return annotationKindLabel(t, tool);
 }
 
@@ -219,6 +247,13 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       );
     case LINE_TOOL:
       return t('panels:diagram.annotate.lineHelp', 'Drag along the crease.');
+    case ANGLE_BISECTOR:
+      return t(
+        'panels:diagram.annotate.bisectorHelp',
+        'Click three points, the vertex second, or two lines; then the line it runs to.'
+      );
+    case 'angle-mark':
+      return t('panels:diagram.annotate.angleMarkHelp', 'Click a point on one arm, the vertex, then a point on the other arm.');
     case 'turn-over':
     case 'rotate':
       return t('panels:diagram.annotate.glyphHelp', 'Click where the sign goes.');
@@ -271,7 +306,7 @@ export function editPathHelp(t: TFunction, selected: DiagramAnnotationKind | nul
 
 /** Whether the tool is placed with a click rather than drawn with a drag. */
 export function isClickTool(tool: AnnotateTool): boolean {
-  return isDrawingTool(tool) && tool !== LINE_TOOL && isPointKind(tool);
+  return isDrawingTool(tool) && tool !== LINE_TOOL && !isPickTool(tool) && isPointKind(tool);
 }
 
 /** What the tool window can promise on this device, and the names of its keys. */
@@ -305,11 +340,13 @@ export function annotateToolHint(
   t: TFunction,
   tool: AnnotateTool,
   selected: DiagramAnnotationKind | null,
-  host: AnnotateToolHost
+  host: AnnotateToolHost,
+  progress: PickProgress | null = null
 ): AnnotateToolHint | null {
   if (tool === null) return null;
   let instructions: string;
   if (tool === EDIT_PATH) instructions = editPathHelp(t, selected);
+  else if (isPickTool(tool) && progress) instructions = pickHelp(t, progress);
   else if (host.coarse && (tool === 'label' || tool === 'callout')) instructions = textHelpOnTouch(t, tool);
   else instructions = annotateToolHelp(t, tool);
   return {
@@ -317,6 +354,50 @@ export function annotateToolHint(
     instructions,
     modifiers: host.coarse ? [] : annotateToolModifiers(t, tool, host),
   };
+}
+
+/**
+ * What a pick tool's next press is for (15b), and — when its last sequence
+ * drew nothing — why, first.
+ */
+function pickHelp(t: TFunction, { step, refusal }: PickProgress): string {
+  const next = (() => {
+    switch (step) {
+      case 'first':
+        return t('panels:diagram.annotate.bisectFirst', 'Click a point on one arm of the angle, or a line.');
+      case 'vertex':
+        return t('panels:diagram.annotate.bisectVertex', 'Click the angle’s vertex.');
+      case 'third':
+        return t('panels:diagram.annotate.bisectThird', 'Click a point on the other arm.');
+      case 'end':
+      case 'line-end':
+        return t('panels:diagram.annotate.bisectEnd', 'Click the line it runs to, or where it ends.');
+      case 'second-line':
+        return t('panels:diagram.annotate.bisectSecondLine', 'Click the second line.');
+      case 'parallel-first-end':
+        return t('panels:diagram.annotate.bisectParallelFirst', 'The lines are parallel: click the line one end of the midline runs to.');
+      case 'parallel-second-end':
+        return t('panels:diagram.annotate.bisectParallelSecond', 'Click the line its other end runs to.');
+      case 'arm':
+        return t('panels:diagram.annotate.markArm', 'Click a point on one arm of the angle.');
+      case 'mark-vertex':
+        return t('panels:diagram.annotate.markVertex', 'Click the angle’s vertex.');
+      case 'other-arm':
+        return t('panels:diagram.annotate.markOtherArm', 'Click a point on the other arm.');
+    }
+  })();
+  if (refusal === null) return next;
+  const why = (() => {
+    switch (refusal) {
+      case 'no-angle':
+        return t('panels:diagram.annotate.refusedNoAngle', 'Those make no angle.');
+      case 'parallel':
+        return t('panels:diagram.annotate.refusedParallel', 'It runs along that line, so it meets it nowhere.');
+      case 'no-length':
+        return t('panels:diagram.annotate.refusedNoLength', 'It would have no length.');
+    }
+  })();
+  return `${why} ${next}`;
 }
 
 /**
@@ -361,6 +442,13 @@ function annotateToolModifiers(
     case LINE_TOOL:
       return [
         t('panels:diagram.annotate.endsFreeKey', 'Hold {{modifier}} to put an end down anywhere, without snapping.', {
+          modifier: primary,
+        }),
+      ];
+    case ANGLE_BISECTOR:
+    case 'angle-mark':
+      return [
+        t('panels:diagram.annotate.pickFreeKey', 'Hold {{modifier}} to put a point down anywhere, without snapping.', {
           modifier: primary,
         }),
       ];

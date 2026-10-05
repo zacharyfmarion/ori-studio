@@ -53,6 +53,7 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'circle':
     case 'right-angle':
     case 'callout':
+    case 'angle-mark':
       return true;
     case 'valley-arrow':
     case 'mountain-arrow':

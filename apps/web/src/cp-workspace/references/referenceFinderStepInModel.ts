@@ -135,6 +135,10 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
         // Its corner and a point along its diagonal: the way it opens turns with the map.
         primitives.push({ kind: 'right-angle', at: map(primitive.at), toward: map(primitive.toward) });
         break;
+      case 'angle-mark':
+        // Its vertex and a point along each arm: the way they run turns with the map.
+        primitives.push({ ...primitive, at: map(primitive.at), arms: [map(primitive.arms[0]), map(primitive.arms[1])] });
+        break;
       case 'region':
         primitives.push({ kind: 'region', corners: primitive.corners.map(map) });
         break;

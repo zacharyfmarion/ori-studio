@@ -9,9 +9,12 @@ import { graphemesOf } from '../../lib/paper/textWrap';
 import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { arcToPath, bendPathSegment, pathNodesOf } from './annotationPath';
 import {
+  ANGLE_MARK_ARM,
   ANNOTATION_KINDS,
   ANNOTATION_REACH,
   ARROW_BEND,
+  angleMarkArms,
+  angleMarkAt,
   DEFAULT_WHITE_ARROW,
   MAX_PATH_NODES,
   MIN_ANNOTATION_LENGTH,
@@ -443,6 +446,75 @@ describe('a circle', () => {
       from: [ANNOTATION_REACH, 0.3],
       to: [ANNOTATION_REACH, 0.3],
     });
+  });
+});
+
+describe('an angle mark (15b)', () => {
+  const vertex: PicturePoint = [0.5, 0.98];
+  const placed = angleMarkAt(vertex, [0, 0.49], [0.5, 0])!;
+  const mark: KnownDiagramAnnotation = { id: 'm-1', kind: 'angle-mark', ...placed };
+  const armDirections = (annotation: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'other'>) =>
+    angleMarkArms(annotation)!.map(([x, y]) => [Math.round(x * 1e9) / 1e9 + 0, Math.round(y * 1e9) / 1e9 + 0]);
+
+  it('keeps its vertex where it was put, and each arm’s point a short way along the arm: only its direction', () => {
+    expect(placed.from).toEqual(vertex);
+    for (const arm of [placed.to, placed.other!]) {
+      expect(Math.hypot(arm[0] - vertex[0], arm[1] - vertex[1])).toBeCloseTo(ANGLE_MARK_ARM, 12);
+    }
+    // Toward the points it was given.
+    const up = Math.hypot(0.5, 0.49);
+    expect(armDirections(mark)).toEqual([
+      [Math.round((-0.5 / up) * 1e9) / 1e9, Math.round((-0.49 / up) * 1e9) / 1e9],
+      [0, -1],
+    ]);
+    // Arms along one line make no angle: none.
+    expect(angleMarkAt(vertex, [0.2, 0.98], [0.8, 0.98])).toBeNull();
+    expect(angleMarkAt(vertex, vertex, [0.8, 0.5])).toBeNull();
+  });
+
+  it('is written as placed, and placed again when an arm was written further along', () => {
+    expect(cleanAnnotation(mark)).toBe(mark);
+    const far: KnownDiagramAnnotation = { ...mark, to: [0, 0.49], other: [0.5, 0] };
+    expect(cleanAnnotation(far)).toEqual(mark);
+    // A tick count past three is written as one.
+    expect(cleanAnnotation({ ...mark, ticks: 7 as never }).ticks).toBe(1);
+    expect(cleanAnnotation({ ...mark, ticks: 2 })).toEqual({ ...mark, ticks: 2 });
+  });
+
+  it('moves whole, arms and all; and is degenerate only with no angle', () => {
+    const moved = moveAnnotation(mark, [0.1, -0.2]);
+    expect(moved.from).toEqual([0.6, 0.78]);
+    expect(moved.other![0]).toBeCloseTo(mark.other![0] + 0.1, 12);
+    expect(moved.other![1]).toBeCloseTo(mark.other![1] - 0.2, 12);
+    expect(isDegenerate(mark, MIN_ANNOTATION_LENGTH)).toBe(false);
+    expect(isDegenerate({ ...mark, other: mark.to }, MIN_ANNOTATION_LENGTH)).toBe(true);
+    expect(annotationEnds('angle-mark')).toEqual([]);
+  });
+
+  it('is carried by a mirror and a turn, its arms with the picture', () => {
+    const mirrored = carryAnnotation(mark, mirrorMove(SQUARE));
+    expect(mirrored.from[0]).toBeCloseTo(0.5, 12);
+    expect(armDirections(mirrored)[0]![0]).toBeCloseTo(-armDirections(mark)[0]![0], 9);
+    // A quarter turn clockwise about the frame's middle.
+    const quarter: PictureMove = { point: ([u, v]) => [1 - v, u], mirrors: false, turnDeg: 90 };
+    const turned = carryAnnotation(mark, quarter);
+    expect(turned.from[0]).toBeCloseTo(0.02, 12);
+    expect(turned.from[1]).toBeCloseTo(0.5, 12);
+    expect(armDirections(turned)[1]).toEqual([1, 0]);
+  });
+
+  it('goes with the face its angle opens into under a spread, its arms turned as that face is', () => {
+    // Two faces moved apart: the one its inside lies in slides right; its corner, on both, goes with that one.
+    const spread: PictureMove = {
+      point: ([u, v]) => (v < 0.98 ? [u + 0.05, v] : [u - 0.05, v]),
+      mirrors: false,
+      turnDeg: 0,
+      vector: (vector) => vector,
+      corner: (corner, inside) => (inside[1] < 0.98 ? [corner[0] + 0.05, corner[1]] : null),
+    };
+    const carried = carryAnnotation(mark, spread);
+    expect(carried.from[0]).toBeCloseTo(0.55, 12);
+    expect(armDirections(carried)).toEqual(armDirections(mark));
   });
 });
 

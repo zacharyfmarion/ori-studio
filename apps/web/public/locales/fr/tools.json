@@ -247,6 +247,8 @@
     "pathScopeLabel": "modification du tracé",
     "previousStep": "Étape précédente",
     "scopeLabel": "diagramme",
+    "toolAngleBisector": "Bissectrice",
+    "toolAngleMark": "Angles égaux",
     "toolCallout": "Bulle",
     "toolCircle": "Cercle",
     "toolEditPath": "Modifier le tracé",

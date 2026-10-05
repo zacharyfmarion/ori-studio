@@ -9,6 +9,8 @@
 import { cubicBounds, type Cubic } from '../../../lib/cubicBezier';
 import type { StepDiagramPrimitive } from '../referenceFinderDiagramToPrimitives';
 import {
+  angleMarkArcPoints,
+  angleMarkDrawn,
   arcExtremes,
   foldArrowDrawn,
   halfArrowheadCorners,
@@ -42,7 +44,8 @@ export type DiagramMarkPrimitive = Extract<
       | 'turn-over'
       | 'rotate'
       | 'point'
-      | 'right-angle';
+      | 'right-angle'
+      | 'angle-mark';
   }
 >;
 
@@ -56,6 +59,7 @@ const MARK_KINDS: ReadonlySet<StepDiagramPrimitive['kind']> = new Set<DiagramMar
   'rotate',
   'point',
   'right-angle',
+  'angle-mark',
 ]);
 
 export function isDiagramMark(primitive: StepDiagramPrimitive): primitive is DiagramMarkPrimitive {
@@ -166,6 +170,18 @@ export function markReach(
       if (!legs) break;
       const reach = rightAngleReach(markRingWidth(project));
       legs.forEach(({ x, y }, index) => take(x, y, reach[index]!));
+      break;
+    }
+    case 'angle-mark': {
+      // Its arc and its ticks' ends, butt, in the ring's pen.
+      const shape = angleMarkDrawn(primitive.at, primitive.arms, primitive.ticks, project);
+      if (!shape) break;
+      const pad = markRingWidth(project) / 2;
+      for (const { x, y } of angleMarkArcPoints(shape)) take(x, y, pad);
+      for (const [a, b] of shape.ticks) {
+        take(a.x, a.y, pad);
+        take(b.x, b.y, pad);
+      }
       break;
     }
     default: {

@@ -405,13 +405,39 @@ The decisions as they were put:
     as they were: no kind changed.
 
 ### 15b. Angle Bisector
-- [ ] `angleBisector.ts`: three points, two lines, parallel lines, the
+- [x] `angleBisector.ts`: three points, two lines, parallel lines, the
   destination; refusals; tests mirroring the kernel's.
-- [ ] The canvas's pick sequence, previews, Escape; the tool window's steps.
-- [ ] `angle-mark`: kind, file, carry, hit, primitive, golden, Step pane
+- [x] The canvas's pick sequence, previews, Escape; the tool window's steps.
+- [x] `angle-mark`: kind, file, carry, hit, primitive, golden, Step pane
   (Ticks), alone in Marks.
-- [ ] One undo step for line and mark; analytics; i18n; before/after beside
+- [x] One undo step for line and mark; analytics; i18n; before/after beside
   step 125.
+  - As built: `annotate/angleBisector.ts` ports `square_bisector_*` to
+    picture units — the incentre of the three points (the kernel's
+    `center`, checked against it), the crossing of two lines and the far
+    ends they span, the midline of two parallel ones — and refuses as it
+    does (no angle, parallel to the destination, no length). The sequence
+    is `usePickTool`: what a press takes depends on the pick (the first a
+    snapped point, else a line; middle picks points; the destination a line
+    first, else the press, projected), ⌘ a free point. The canvas shows the
+    picks, the line under the pointer and, before the last press, the line
+    and mark it would draw; Escape takes back a pick, then puts the tool
+    down. The tool window says the next press only, a sentence that changes
+    with each (`pickProgress`), and why a press was refused — Edit's lists
+    every step, none marked, so "the current one marked" described neither.
+    The mark (`angle-mark`: `from` the vertex, `to` and `other` its arms,
+    kept `ANGLE_MARK_ARM` from it, `ticks` 1–3) is drawn at 15 ink, about
+    5 mm as it prints (decision 8 as decided: twice the sketch), one tick a
+    half by default; its golden is `angleMarkGolden.json` (six cases on a
+    card, a page and the canvas, `15b/golden-angle-marks.png`). Offered
+    alone as Equal Angles in Marks, with no key. The writer now names every
+    field and fails to compile on one it does not write. Browser
+    (`artifacts/diagram-second-pass/p15b.mjs`, `compare-15b.png`): B, then
+    four presses of a real mouse on the crane's step 5 — left corner,
+    vertex, top corner, upper-left edge — redraw Zach's left kite line as
+    one undo step ("Bisect angle"); his line by eye was 1.42° off the
+    bisector. The crane reads with every annotation known and writes back
+    unchanged.
 
 ### 15c. Pleat arrows
 - [ ] `pleat-arrow`: kind, file, carry (mirror), primitive and golden, reach,
