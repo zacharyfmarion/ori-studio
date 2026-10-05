@@ -55,13 +55,22 @@ describe('pictureSnapTarget on a crease pattern', () => {
   });
 
   it('takes the nearest of every kind', () => {
-    // An arrow's tip a little nearer than the corner.
-    const arrow = annotation({ kind: 'valley-arrow', from: [0.5, 0.2], to: [0.05, 0.03] });
-    expect(pictureSnapTarget(step, NO_ASSETS, [0.06, 0.04], 0.1, { annotations: [arrow] })).toEqual({
+    // A line's end a little nearer than the corner.
+    const line = annotation({ kind: 'valley-line', from: [0.5, 0.2], to: [0.05, 0.03] });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.06, 0.04], 0.1, { annotations: [line] })).toEqual({
       at: [0.05, 0.03],
       kind: 'annotation',
     });
-    expect(pictureSnapTarget(step, NO_ASSETS, [0.02, 0.01], 0.1, { annotations: [arrow] })).toEqual({
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.02, 0.01], 0.1, { annotations: [line] })).toEqual({
+      at: [0, 0],
+      kind: 'corner',
+    });
+  });
+
+  it('takes the corner a free arrow’s end was drawn beside, though the end is nearer (Zach)', () => {
+    // Drawn where it was drawn, a few px off the corner: no point to land on.
+    const arrow = annotation({ kind: 'valley-arrow', from: [0.03, 0.02], to: [0.5, 0.2] });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.035, 0.025], 0.1, { annotations: [arrow] })).toEqual({
       at: [0, 0],
       kind: 'corner',
     });
@@ -79,21 +88,29 @@ describe('pictureSnapTarget on annotations', () => {
     });
   });
 
-  it('snaps to arrow and line ends, never to a sign’s or a letter’s place', () => {
+  it('snaps to a line’s ends, never to an arrow’s, a sign’s or a letter’s place', () => {
     const marks = [
+      annotation({ kind: 'hidden-line', from: [0.7, 0.6], to: [0.7, 0.8] }),
       annotation({ kind: 'push-arrow', from: [0.3, 0.6], to: [0.3, 0.8] }),
       annotation({ kind: 'label', from: [0.6, 0.3], to: [0.6, 0.3], text: 'A' }),
       annotation({ kind: 'turn-over', from: [0.8, 0.4], to: [0.8, 0.4] }),
     ];
-    expect(pictureSnapTarget(step, NO_ASSETS, [0.31, 0.79], 0.05, { annotations: marks })).toMatchObject({
-      at: [0.3, 0.8],
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.71, 0.79], 0.05, { annotations: marks })).toMatchObject({
+      at: [0.7, 0.8],
       kind: 'annotation',
     });
+    // An arrow is drawn where it is drawn, so its ends name no point (Zach, 2026-10-05).
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.31, 0.79], 0.05, { annotations: marks })).toBeNull();
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.31, 0.61], 0.05, { annotations: marks })).toBeNull();
     expect(pictureSnapTarget(step, NO_ASSETS, [0.6, 0.31], 0.05, { annotations: marks })).toBeNull();
     expect(pictureSnapTarget(step, NO_ASSETS, [0.8, 0.41], 0.05, { annotations: marks })).toBeNull();
+    for (const kind of ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow'] as const) {
+      const arrow = annotation({ kind, from: [0.3, 0.6], to: [0.3, 0.8] });
+      expect(pictureSnapTarget(step, NO_ASSETS, [0.31, 0.79], 0.05, { annotations: [arrow] }), kind).toBeNull();
+    }
   });
 
-  it('snaps to a white arrow’s tail and tip, never a point along its path', () => {
+  it('never snaps to a white arrow’s tail, its tip or a point along its path', () => {
     const white = annotation({
       kind: 'white-arrow',
       from: [0.3, 0.6],
@@ -102,12 +119,12 @@ describe('pictureSnapTarget on annotations', () => {
       width: 'regular',
       tail: 'pointed',
     });
-    expect(pictureSnapTarget(step, NO_ASSETS, [0.69, 0.61], 0.05, { annotations: [white] })).toEqual({ at: [0.7, 0.6], kind: 'annotation' });
-    expect(pictureSnapTarget(step, NO_ASSETS, [0.31, 0.59], 0.05, { annotations: [white] })).toEqual({ at: [0.3, 0.6], kind: 'annotation' });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.69, 0.61], 0.05, { annotations: [white] })).toBeNull();
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.31, 0.59], 0.05, { annotations: [white] })).toBeNull();
     expect(pictureSnapTarget(step, NO_ASSETS, [0.4, 0.3], 0.05, { annotations: [white] })).toBeNull();
   });
 
-  it('snaps to a circle’s centre, which an arrow lands on', () => {
+  it('snaps to a circle’s centre', () => {
     const circle = annotation({ kind: 'circle', from: [0.45, 0.35], to: [0.45, 0.35] });
     expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [circle] })).toEqual({
       at: [0.45, 0.35],

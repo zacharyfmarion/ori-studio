@@ -264,7 +264,10 @@ drag; the white arrow a new kind with width presets in ink.
    the Arrows group — fold, push and white arrows, with turn-over and rotate,
    which never snapped — is drawn where it is drawn, its ends dragged where
    they are let go, with no snap target shown and no ⌘ key in its window.
-   Lines, circles, right angles and a callout's point still snap.
+   Lines, circles, right angles and a callout's point still snap. Nor is an
+   arrow's end a point another mark snaps to (the fifth review): drawn a few
+   px off the point it shows, it would pull a circle put on that point onto
+   itself.
 10. **Snap radius:** fixed 14/22 px, or Edit's snap setting. *Recommend
     Edit's setting, so there is one.*
 11. **The right-angle mark's look:** an open square (what you described) —
@@ -825,8 +828,8 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
       it, a pointed tail narrow at its start.
     - **Canvas and tool.** Rail after the push (Arrows), key W
       (`diagram.toolWhiteArrow`, free in every scope the Diagram pushes), a
-      hollow curved glyph; its ends snap and others snap to them (decision
-      9); the selection washes its centreline; a double-click with Select
+      hollow curved glyph; its ends neither snap nor are snapped to (decision
+      9, as changed 2026-10-05); the selection washes its centreline; a double-click with Select
       picks Edit Path up, which shapes it with every fold-arrow gesture and
       verb, unforked. Edit Path's and Select's help say white arrows are
       shaped too.

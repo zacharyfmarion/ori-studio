@@ -1126,6 +1126,24 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
     expect(tracked.trackDiagramAnnotationAdded.mock.calls.map(([, snap]) => snap)).toEqual(['none', 'none', 'none', 'none', 'none']);
   });
 
+  it('puts a circle on the point beside an arrow’s free end, never on the end, though it is nearer', () => {
+    // An arrow drawn to a few thousandths off the line's end, as one is drawn.
+    const arrow: KnownDiagramAnnotation = { id: 'arrow', kind: 'valley-arrow', from: [0.3, 0.3], to: [0.603, 0.497] };
+    drawn([line, arrow], 'circle');
+    pointer('pointermove', at(0.605, 0.495));
+    expect(targets()).toEqual(['annotation']);
+    click(at(0.605, 0.495));
+    // The line's end, 0.007 away, and not the arrow's tip, 0.003 away.
+    expect(last()).toMatchObject({ kind: 'circle', from: [0.6, 0.5], to: [0.6, 0.5] });
+    // Nothing else near the arrow's tail: the circle goes where it is put.
+    click(at(0.302, 0.301));
+    expect(last().from).toEqual([expect.closeTo(0.302, 6), expect.closeTo(0.301, 6)]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([
+      ['circle', 'snapped'],
+      ['circle', 'nothing_near'],
+    ]);
+  });
+
   it('puts a mark down where the pointer is with ⌘ (Ctrl) held, and anywhere with the switch off', () => {
     drawn([line], 'valley-line');
     drag(at(0.605, 0.505), at(0.3, 0.7), 1, 'mouse', overlay(), { free: true });

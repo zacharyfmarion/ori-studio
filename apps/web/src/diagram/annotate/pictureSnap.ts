@@ -2,9 +2,9 @@
  * Where a mark put down near a point lands (implementation-plans/
  * diagram-annotate.md, 3; Q9): the nearest point of the picture within the
  * snap radius — a vertex, a line's end, a corner of the paper, a References
- * mark, a crossing of two lines — or of the step's other annotations, so an
- * arrow lands on a circle and a line meets a line. Nothing within the radius
- * leaves the mark where it was put.
+ * mark, a crossing of two lines — or of the step's other annotations, so a
+ * line meets a circle or another line. Nothing within the radius leaves the
+ * mark where it was put.
  *
  * The radius comes in picture units: the canvas turns Edit's snap setting
  * (Q10) into them at its zoom, as it does its hit reach.
@@ -108,18 +108,13 @@ export function annotationsOf(step: DiagramStep, { annotations, ignore }: SnapOp
 }
 
 /**
- * The points of an annotation another snaps to (Q9): an arrow's or a line's
- * two ends, where a line meets another, a circle's centre, which an arrow
- * lands on, the corner a right angle marks, and the point a callout marks
- * (its box is no point).
+ * The points of an annotation another snaps to (Q9): a line's two ends, where
+ * a line meets another, a circle's centre, the corner a right angle marks, and
+ * the point a callout marks (its box is no point). Each of these was snapped
+ * onto a point of the picture, or put on purpose where it is.
  */
 export function annotationSnapPoints(annotation: KnownDiagramAnnotation): readonly PicturePoint[] {
   switch (annotation.kind) {
-    case 'valley-arrow':
-    case 'mountain-arrow':
-    case 'fold-unfold-arrow':
-    case 'push-arrow':
-    case 'white-arrow':
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
@@ -128,10 +123,17 @@ export function annotationSnapPoints(annotation: KnownDiagramAnnotation): readon
     case 'right-angle':
     case 'callout':
       return [annotation.from];
+    // An arrow is drawn where it is drawn, a few px off the point it shows
+    // (Zach, 2026-10-05): its end would pull a circle off that point. A sign
+    // or a letter is put beside what it names, never on it.
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+    case 'push-arrow':
+    case 'white-arrow':
     case 'turn-over':
     case 'rotate':
     case 'label':
-      // A sign or a letter is put beside what it names, never on it.
       return [];
     default: {
       // Every kind says what it offers: a new one is a compile error here.
