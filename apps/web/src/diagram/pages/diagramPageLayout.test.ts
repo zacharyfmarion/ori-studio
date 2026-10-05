@@ -167,6 +167,23 @@ describe('scaleRuns', () => {
     ]) {
       const drawn = scales(each(values));
       expect([...drawn].reverse(), values.join(' ')).toEqual(drawn);
+      // As real fits are: the same picture a row lower, its room a few ulps off (review 4).
+      const bumped = (at: number, ulps: number) => values.map((value, index) => (index === at ? value * (1 + ulps * Number.EPSILON) : value));
+      for (const nudged of [bumped(values.length - 1, 1), bumped(0, 1), bumped(1, -2)]) {
+        const near = scales(each(nudged));
+        expect([...near].reverse(), nudged.join(' ')).toEqual(near);
+      }
+      let seed = 7;
+      for (let trial = 0; trial < 200; trial += 1) {
+        const noisy = values.map((value) => {
+          seed = (seed * 16807) % 2147483647;
+          return value * (1 + (Math.floor((seed / 2147483647) * 9) - 4) * Number.EPSILON);
+        });
+        const near = scales(each(noisy));
+        expect(near.map((scale) => Number(scale.toPrecision(12))).reverse(), noisy.join(' ')).toEqual(
+          near.map((scale) => Number(scale.toPrecision(12)))
+        );
+      }
     }
   });
 

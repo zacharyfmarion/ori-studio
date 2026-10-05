@@ -331,11 +331,21 @@ export interface ScaleFit {
  * A picture is drawn at its run's scale, or its own when that is smaller
  * (`reduced`: a long instruction took its room). Pure.
  */
+/** How near, as a share, two fits are that differ only by rounding. */
+const MIRROR_SAME = 1e-9;
+
 export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: boolean }[] {
   const count = fits.length;
   if (count === 0) return [];
   // A fit of nothing — a room of no size — is a picture drawn at nothing, alone.
-  const shares = fits.map(({ shared }) => (Number.isFinite(shared) && shared > 0 ? shared : Number.MIN_VALUE));
+  const given = fits.map(({ shared }) => (Number.isFinite(shared) && shared > 0 ? shared : Number.MIN_VALUE));
+  // A picture and its mirror that fit alike but for rounding — the same
+  // picture in a room a row lower, its height a few ulps off — fit the same,
+  // the smaller: so a diagram that reads the same either way is drawn so.
+  const shares = given.map((share, index) => {
+    const mirror = given[count - 1 - index]!;
+    return Math.abs(share - mirror) <= MIRROR_SAME * Math.max(share, mirror) ? Math.min(share, mirror) : share;
+  });
   // Read from one end whichever end is given — the one whose first picture
   // unlike its mirror's is the smaller — so where cuts tie, the same is cut.
   const turn = shares.findIndex((share, index) => share !== shares[count - 1 - index]);
