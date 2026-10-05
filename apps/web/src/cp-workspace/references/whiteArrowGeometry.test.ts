@@ -398,14 +398,19 @@ describe('a short or broken white arrow', () => {
         coversShaft(path, outlineOf(path, tail), tail);
       }
     }
-    // A curl too big to be a hook, on a narrow arrow: its loop is cut, never round the tail.
+    // A curl too big to be a hook, on a narrow arrow: its loop is cut, never round the tail — a
+    // pointed tail's too, a single point (review: its leg was cut away whole, drawn and pressed).
     const narrow = sized('narrow');
-    const leg = 3 * narrow.neck;
-    const curl: Cubic[] = [line([0, 0], [0, -leg]), [[0, -leg], [2.4, -leg + 12], [-40, -leg - 50], [-80, -leg - 50]]];
-    const outline = outlineOf(curl, 'square', narrow);
-    const measure = measurePath(curl);
-    for (let s = narrow.neck; s < leg - narrow.neck; s += 0.5) {
-      expect(outlineDistance(outline, pathPointAt(measure, s)), `at ${s.toFixed(1)}`).toBe(0);
+    for (const tail of ['square', 'cleft', 'pointed'] as const) {
+      for (const necks of [3, 4]) {
+        const leg = necks * narrow.neck;
+        const curl: Cubic[] = [line([0, 0], [0, -leg]), [[0, -leg], [2.4, -leg + 12], [-40, -leg - 50], [-80, -leg - 50]]];
+        const outline = outlineOf(curl, tail, narrow);
+        const measure = measurePath(curl);
+        for (let s = narrow.neck; s < leg - narrow.neck; s += 0.5) {
+          expect(outlineDistance(outline, pathPointAt(measure, s)), `${tail}, ${necks} necks, at ${s.toFixed(1)}`).toBe(0);
+        }
+      }
     }
   });
 

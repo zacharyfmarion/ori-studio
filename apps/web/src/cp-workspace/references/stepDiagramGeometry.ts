@@ -1694,9 +1694,10 @@ export function whiteArrowOutline(
     across(joint, axis, -headWidth / 2),
     tip,
   ].filter((p, index, all) => index === 0 || dist(all[index - 1]!, p) > 1e-12);
-  // The tail is the shaft's start, never a fold: no cut drops it.
+  // The tail is the shaft's start, never a fold: no cut drops it. A pointed
+  // tail is one point, its sides meeting there, which the ring keeps once.
   const tailFrom = ring.indexOf(leftTail);
-  const tailTo = ring.indexOf(rightTail);
+  const tailTo = ring.indexOf(dist(leftTail, rightTail) > 1e-12 ? rightTail : leftTail);
   const keep = tailFrom >= 0 && tailTo >= tailFrom ? { from: tailFrom, to: tailTo } : undefined;
   const cut = cutLoops(ring, WHITE_ARROW_FOLD_SPAN * neck, keep);
   cut.pop();
