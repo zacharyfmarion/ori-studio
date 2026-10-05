@@ -592,12 +592,16 @@ Each step is its own commit.
       a phone at 390 px with CDP touch. Screenshots before and after every
       step, diffed pixel by pixel with the tool window and view cube masked:
   - let go, the paper moves 0 px, from the frame before release to three
-    seconds after, on every run (after the framing fix above);
+    seconds after, on every run (after the framing fix above) bar one: the
+    bird base with only its back pinned, where a pull that opened the petal
+    fold (10 creases) settled by 27 antialiased edge pixels, sub-pixel;
   - a scrub ends the pose and the paper follows the fold; Restart goes flat;
   - Escape, and on the phone a second finger, put it back: identical to the
     Spring back frame, and on canvas-2D to the frame before the pull. On the
     GPU path the camera's 2% dead band can settle a pixel away after any
-    motion, which is the residue there;
+    motion, which is the residue there. A cancel restores the press's rest
+    angles, not its positions, so a lightly pinned bird base settles a few
+    pixels off where it started, as it does after any motion;
   - with no pins the cursor is not-allowed, the press steps nothing, and the
     window says why with a Pin faces button;
   - the pinned faces' tint is pixel-identical through the pull and after;
