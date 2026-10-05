@@ -134,6 +134,17 @@ describe('the Step pane’s spread, through the hook', () => {
     await landed(stepId, { ...AFFINE, axisDeg: 1, skew: 1, amount: 0.25 });
   });
 
+  it('shows a slider let go at its value in the pane while another is dragged, before it lands (third review)', async () => {
+    const stepId = await flatStep(AFFINE);
+    act(() => seen.pose!.spread!.preview('skew', 0.3));
+    act(() => seen.pose!.spread!.commit());
+    act(() => seen.pose!.spread!.preview('axis', 50));
+    // Not landed yet; the pane shows both, as the picture does.
+    expect(spreadOf(stepId)).toEqual(AFFINE);
+    expect(seen.pose!.spread!.spread).toEqual({ ...AFFINE, skew: 0.3, axisDeg: 50 });
+    await landed(stepId, { ...AFFINE, skew: 0.3 });
+  });
+
   it('lets no drag start on a diagram that cannot change', async () => {
     await flatStep(DEPTH);
     expect(seen.pose!.spread!.start()).toBe(true);

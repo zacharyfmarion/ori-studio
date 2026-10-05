@@ -13,6 +13,7 @@ import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 import { cpDocument, fakeCaptureRuntime, movedLines, TWO_SQUARES, twoSquaresSegmentation } from './capture.fixtures';
 import type { CpCaptureRuntime } from './captureFolded';
 import { createPoseController, linkedFoldKey } from './poseController';
+import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
 import { stepsIn } from '../document/diagramSteps.fixtures';
 import type { DiagramLayerSpread } from '../document/diagramDocument';
 
@@ -674,6 +675,60 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     );
     await controller.commitSpread();
     expect(spreadOf(stepId)).toEqual({ ...AFFINE, skew: 0.3, axisDeg: 50 });
+    controller.dispose();
+  });
+
+  /** Stop the next creases lookup — a commit's, under a fold held — until opened: whether it has begun, and the key. */
+  function holdTheLookup(): { begun: () => boolean; open: () => void } {
+    let begun = false;
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    vi.mocked(ensureCpSegmentationArtifacts).mockImplementationOnce(async () => {
+      begun = true;
+      await gate;
+      return segmentation;
+    });
+    return { begun: () => begun, open };
+  }
+
+  /** A preview drawn from the fold held: what every drag draws from once one is. */
+  async function holdAFold(controller: ReturnType<typeof createPoseController>, heard: ReturnType<typeof listener>) {
+    controller.previewSpread({ slider: 'skew', value: 1 });
+    await vi.waitFor(() =>
+      expect(heard.preview).toHaveBeenLastCalledWith(
+        expect.objectContaining({ picture: expect.objectContaining({ kind: 'scene' }) }),
+        expect.any(String)
+      )
+    );
+  }
+
+  it('keeps a slider being committed at its value while another is dragged, from the fold held (third review)', async () => {
+    const stepId = await linkedStep();
+    flatInTheFile(stepId, AFFINE);
+    const heard = listener();
+    const controller = createPoseController(stepId, heard);
+    await holdAFold(controller, heard);
+    const lookup = holdTheLookup();
+    controller.previewSpread({ slider: 'skew', value: 0.3 });
+    const skew = controller.commitSpread();
+    await vi.waitFor(() => expect(lookup.begun()).toBe(true));
+    // The skew is being committed, the axis dragged: both shown, drawn from the fold held.
+    controller.previewSpread({ slider: 'axis', value: 50 });
+    expect(heard.preview).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        slides: [
+          { slider: 'skew', value: 0.3 },
+          { slider: 'axis', value: 50 },
+        ],
+        spread: { ...AFFINE, skew: 0.3, axisDeg: 50 },
+        picture: expect.objectContaining({ kind: 'scene' }),
+      }),
+      expect.any(String)
+    );
+    lookup.open();
+    await skew;
     controller.dispose();
   });
 
