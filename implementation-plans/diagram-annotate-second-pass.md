@@ -1,6 +1,7 @@
 # Diagram Annotate, second pass: flaps, line types, bisectors, pleat and solid arrows, close-ups
 
-**Status: for discussion (2026-10-05).** Zach's Diagramming note
+**Status: decided (2026-10-05) — Zach took every recommendation, with the
+changes under Decisions; being built.** Zach's Diagramming note
 (`Oristudio/Diagramming.md` in his notes), five requests with five
 screenshots from published diagrams. Phase 15 of
 `implementation-plans/diagram-workspace.md`, after Phase 14
@@ -309,7 +310,25 @@ behind and scale; `cp-workspace/references/stepDiagramGeometry.ts`,
 `diagram/useDiagramShortcuts.ts`; `analytics/events.ts`, `docs/analytics.md`;
 `public/locales/*`.
 
-## Decisions (for Zach)
+## Decisions
+
+Zach, 2026-10-05: "behind from an end sounds right. Recommended line type
+looks good. Angle bisector looks good too, one tick… Recommended close up
+looks right… Otherwise looks good, please implement." Every recommendation
+below stands, with these changes:
+
+- **8:** one tick, and the mark's arc about twice the sketch's radius: about
+  5 mm as it prints ("the angle indicators are way too small").
+- **10:** one Z by default, and the Zs' step across the shaft — the space
+  between the bolt's parallel runs — smaller than sketched.
+- **12:** either circle dragged freely, anywhere, the line following them.
+- **The file:** a breaking change is fine, as nothing is merged; Zach's crane
+  (`crane.osf`, the diagram he is drawing) must keep working, migrated if a
+  break is better. As planned every change is an addition, so the crane
+  reads as it is; each phase checks that it loads, every mark known, and
+  saves back unchanged.
+
+The decisions as they were put:
 
 1. **What "behind" means.** Recommended: each end can be behind; from that
    end the mark is dotted until it comes out from under the flap at that end
