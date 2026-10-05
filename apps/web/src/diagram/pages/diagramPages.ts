@@ -16,6 +16,8 @@ import { composeDiagramPage, type ComposedPage } from './composeDiagramPage';
 import {
   layoutDiagramPages,
   pictureFit,
+  pictureFloor,
+  pictureOverrun,
   type DiagramPagesLayout,
   type LayoutStep,
   type LayoutTurn,
@@ -124,18 +126,78 @@ export function largestHeld(fitAt: (scale: number | null) => number | null, belo
   return held > 0 ? held : Math.max(0, Math.min(fit, scale));
 }
 
+/** A picture as measured at one scale, in one room: its fit there, how far it hangs out of it at that scale, and its floor. */
+export interface RoomMeasure {
+  fit: number | null;
+  overrun: number;
+  floor: number;
+}
+
+/** Overruns this close, in mm, are the same: a smaller scale must hang out less than that to be drawn at. */
+export const OVERRUN_SAME_MM = 0.05;
+/** How many scales between a picture's floor and the largest it holds a room at are measured, when it still hangs out there. */
+const OVERRUN_SAMPLES = 8;
+/** How many times the scale found there is halved toward the next above it. */
+const OVERRUN_HALVINGS = 12;
+
+/**
+ * The largest scale at which a picture hangs out of a room the least it can,
+ * measured there (`measureAt`, a card's at null), and below `below` when
+ * given: {@link largestHeld}'s, unless its marks still hang out there and a
+ * smaller one, down to its floor, holds the room with them hanging out less.
+ * A mark's pt-size part need not reach as far at a smaller scale — an
+ * arrowhead is capped by a share of its arc — and the measure at one scale
+ * cannot see that, so the scales between are measured, the least found
+ * taken (the largest of those as little), and refined by halving toward the
+ * next one up. Only a scale found to hold is returned.
+ */
+export function leastOverrunHeld(measureAt: (scale: number | null) => RoomMeasure | null, below = Infinity): number | null {
+  const upper = largestHeld((scale) => measureAt(scale)?.fit ?? null, below);
+  if (upper === null || !(upper > 0)) return upper;
+  const there = measureAt(upper);
+  if (!there || there.overrun <= OVERRUN_SAME_MM || !(there.floor < upper)) return upper;
+  /** How far it hangs out at `scale`, where it holds the room there above its floor; null where it does not. */
+  const overrunAt = (scale: number) => {
+    const measure = measureAt(scale);
+    if (!measure || measure.fit === null) return null;
+    const holds = measure.fit >= scale * (1 - MEASURE_SETTLED) && scale >= measure.floor * (1 - MEASURE_SETTLED);
+    return holds ? measure.overrun : null;
+  };
+  // Its floor up to the scale found, evenly in the log, that one last.
+  const scales = Array.from({ length: OVERRUN_SAMPLES }, (_, k) => there.floor * (upper / there.floor) ** (k / OVERRUN_SAMPLES));
+  const overruns = scales.map(overrunAt);
+  const least = Math.min(...overruns.map((overrun) => overrun ?? Infinity));
+  if (!(least < there.overrun - OVERRUN_SAME_MM)) return upper;
+  // The largest scale as little: past the last measured so, toward the next one up.
+  let found = overruns.length - 1;
+  while (!(overruns[found] !== null && overruns[found]! <= least + OVERRUN_SAME_MM)) found -= 1;
+  let held = scales[found]!;
+  let fails = scales[found + 1] ?? upper;
+  for (let halving = 0; halving < OVERRUN_HALVINGS && fails > held * (1 + MEASURE_SETTLED); halving += 1) {
+    const middle = Math.sqrt(held * fails);
+    const overrun = overrunAt(middle);
+    if (overrun !== null && overrun <= least + OVERRUN_SAME_MM) held = middle;
+    else fails = middle;
+  }
+  return held;
+}
+
 /**
  * The pages, with every picture whose marks reach past it — a References
- * step's letters, any step's annotations — fitted to its room at the largest
- * scale it holds it at, measured there (`largestHeld`): its room is the
- * page's and its text's, whatever its scale, so each is found on its own,
- * before the runs choose among them. A run may draw a picture smaller than
- * its fit, and one whose marks reach out unevenly — the reach of a mark's
- * pt-size part shrinking as the picture grows — need not hold its room
- * there: it is drawn alone at the largest scale below that at which it does
- * (`atMost`), its run as it was. Laid out last with each picture measured at
- * the scale it is drawn at, for how far it reaches there; its fits, and so
- * the scales, are the ones found. Every picture holds its room.
+ * step's letters and arrows, any step's annotations — fitted to its room at
+ * the largest scale it holds it at, measured there (`largestHeld`): its room
+ * is the page's and its text's, whatever its scale, so each is found on its
+ * own, before the runs choose among them. A run may draw a picture smaller
+ * than its fit, and one whose marks reach out unevenly — the reach of a
+ * mark's pt-size part shrinking as the picture grows — need not hold its
+ * room there; and one that holds it where it is drawn may still hang out of
+ * it where a smaller scale would not, a mark that shrinks with its paper
+ * (`leastOverrunHeld`). Either is drawn alone at the largest scale under
+ * that which holds and hangs out least (`atMost`), its run as it was: a
+ * smaller scale for one picture never draws its run's others smaller, whose
+ * marks may not shrink with them. Laid out last with each picture measured
+ * at the scale it is drawn at, for how far it reaches there; its fits, and
+ * so the scales, are the ones found. Every picture holds its room.
  */
 export function layoutDiagram(document: DiagramDocument, setter: TextSetter): DiagramPagesLayout {
   const layout = (steps: LayoutStep[]) => layoutDiagramPages(steps, document.page, document.title, setter);
@@ -154,20 +216,28 @@ export function layoutDiagram(document: DiagramDocument, setter: TextSetter): Di
   const stepsAt = (measureOf?: (stepId: string) => PictureMeasure) => diagramLayoutSteps(document, measureOf, pictureOf);
   const entries = new Map(stepsOf(document).map((step) => [step.id, step]));
   const kinds = new Map(stepsAt().map((step) => [step.id, step.picture?.kind]));
-  /** A step's picture's fit in a room `across` × `down`, measured at `scale` (a card's at null). */
-  const fitAt = (stepId: string, across: number, down: number) => (scale: number | null) => {
-    const entry = entries.get(stepId);
-    if (!entry) return null;
-    const measure = scale === null ? null : kinds.get(stepId) === 'paper' ? { mmPerUnit: scale } : { frameMm: scale };
-    return pictureFit(pictureOf(entry, measure), across, down);
-  };
+  /** A step's picture in a room `across` × `down`, measured at `scale` (a card's at null). */
+  const measureAt =
+    (stepId: string, across: number, down: number) =>
+    (scale: number | null): RoomMeasure | null => {
+      const entry = entries.get(stepId);
+      if (!entry) return null;
+      const measure = scale === null ? null : kinds.get(stepId) === 'paper' ? { mmPerUnit: scale } : { frameMm: scale };
+      const picture = pictureOf(entry, measure);
+      if (!picture) return null;
+      return {
+        fit: pictureFit(picture, across, down),
+        overrun: scale === null ? 0 : pictureOverrun(picture, across, down, scale),
+        floor: pictureFloor(picture, across, down),
+      };
+    };
   const fitIn = new Map<string, NonNullable<LayoutStep['fitIn']>>();
   for (const [stepId, kind] of kinds) {
     if (!kind) continue;
     const found = new Map<string, number | null>();
     fitIn.set(stepId, (across, down) => {
       const key = `${across}|${down}`;
-      if (!found.has(key)) found.set(key, largestHeld(fitAt(stepId, across, down)));
+      if (!found.has(key)) found.set(key, largestHeld((scale) => measureAt(stepId, across, down)(scale)?.fit ?? null));
       return found.get(key)!;
     });
   }
@@ -186,11 +256,16 @@ export function layoutDiagram(document: DiagramDocument, setter: TextSetter): Di
   for (const cell of pages.pages.flatMap((page) => page.cells)) {
     const scale = cell.mmPerUnit ?? cell.frameMm;
     if (scale === null || !(scale > 0)) continue;
-    const fit = fitAt(cell.stepId, cell.drawMm.w, cell.drawMm.h);
-    const there = fit(scale);
-    if (there !== null && there >= scale * (1 - MEASURE_SETTLED)) continue;
-    const held = largestHeld(fit, scale);
-    if (held !== null) atMost.set(cell.stepId, held);
+    const measure = measureAt(cell.stepId, cell.drawMm.w, cell.drawMm.h);
+    const there = measure(scale);
+    const holds = there?.fit !== null && there?.fit !== undefined && there.fit >= scale * (1 - MEASURE_SETTLED);
+    if (holds && there!.overrun <= OVERRUN_SAME_MM) continue;
+    // At or under the scale it is drawn at, where it holds and hangs out least.
+    const held = leastOverrunHeld(measure, holds ? scale * (1 + MEASURE_SETTLED) : scale);
+    if (held === null) continue;
+    // Held where it is drawn, it is drawn smaller only where it hangs out less.
+    if (holds && !((measure(held)?.overrun ?? Infinity) < there!.overrun - OVERRUN_SAME_MM)) continue;
+    atMost.set(cell.stepId, held);
   }
   return atMost.size > 0 ? measuredAt(layout(fitted(stepsAt()))) : pages;
 }

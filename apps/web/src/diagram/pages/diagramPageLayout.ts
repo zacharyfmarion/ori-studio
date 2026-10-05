@@ -554,6 +554,31 @@ export function pictureFit(
   return Number.isFinite(fit) && fit >= 0 ? fit : null;
 }
 
+/**
+ * How far a picture's reach, measured at `scale`, hangs out of a room
+ * `across` × `down` mm when drawn there, the more of the two ways, placed as
+ * the page places it ({@link overrunFit}): nothing when it fits.
+ */
+export function pictureOverrun(picture: NonNullable<LayoutStep['picture']>, across: number, down: number, scale: number): number {
+  const sides = picture.sides ?? evenSides(picture);
+  const way = (room: number, frame: number, before: ReachLine, after: ReachLine) =>
+    Math.max(...overrunLines(room, frame, before, after, 0).map(({ slope, at }) => slope * scale + at));
+  return Math.max(way(across, picture.frame.width, sides.left, sides.right), way(down, picture.frame.height, sides.top, sides.bottom));
+}
+
+/**
+ * The least scale {@link pictureFit} may draw a picture at in a room, as
+ * measured: where what grows with it takes {@link MARKS_FLOOR} of the room
+ * the way that lets it shrink further.
+ */
+export function pictureFloor(picture: NonNullable<LayoutStep['picture']>, across: number, down: number): number {
+  const sides = picture.sides ?? evenSides(picture);
+  return Math.min(
+    overrunFloor(across, picture.frame.width, sides.left, sides.right),
+    overrunFloor(down, picture.frame.height, sides.top, sides.bottom)
+  );
+}
+
 /** A picture's reach past each edge when only its whole is known: half on either side. */
 function evenSides(picture: NonNullable<LayoutStep['picture']>): ReachSides {
   const half = (grows: number, frame: number, beyond: number): ReachLine => ({ grows: (grows - frame) / 2, beyond: beyond / 2 });
@@ -591,9 +616,35 @@ interface ScaleLine {
 export function overrunFit(room: number, frame: number, before: ReachLine, after: ReachLine, lip = 0, from?: number): number {
   if (![room, frame, before.grows, before.beyond, after.grows, after.beyond, lip].every(Number.isFinite)) return Number.NaN;
   const paper = frame > 0 ? room / frame : Infinity;
-  const grows = frame + before.grows + after.grows;
-  const floor = Math.min(paper, from ?? ((1 - MARKS_FLOOR) * room) / Math.max(grows, frame));
+  const floor = Math.min(paper, from ?? overrunFloor(room, frame, before, after));
   if (!(floor < Infinity)) return paper;
+  const lines = overrunLines(room, frame, before, after, lip);
+  const overrun = (scale: number) => Math.max(...lines.map(({ slope, at }) => slope * scale + at));
+  // The least it hangs out: at an end, or where two lines cross.
+  let least = overrun(floor);
+  if (paper < Infinity) least = Math.min(least, overrun(paper));
+  lines.forEach((one, i) =>
+    lines.slice(i + 1).forEach((other) => {
+      if (one.slope === other.slope) return;
+      const crossing = (other.at - one.at) / (one.slope - other.slope);
+      if (crossing > floor && crossing < paper) least = Math.min(least, overrun(crossing));
+    })
+  );
+  // The largest scale at which no line is more than that.
+  const tolerance = 1e-12 * Math.max(room, 1);
+  let largest = paper;
+  for (const { slope, at } of lines) if (slope > 0) largest = Math.min(largest, (least + tolerance - at) / slope);
+  return Math.max(floor, largest);
+}
+
+/** One way's floor ({@link overrunFit}): what grows with the picture taking half the room, or the paper half of it where nothing grows; never past the paper filling it. */
+function overrunFloor(room: number, frame: number, before: ReachLine, after: ReachLine): number {
+  const paper = frame > 0 ? room / frame : Infinity;
+  return Math.min(paper, ((1 - MARKS_FLOOR) * room) / Math.max(frame + before.grows + after.grows, frame));
+}
+
+/** One way's overrun as lines in the scale ({@link overrunFit}): the most of them is how far the reach hangs out. */
+function overrunLines(room: number, frame: number, before: ReachLine, after: ReachLine, lip: number): ScaleLine[] {
   // Each side's reach, at least nothing: its line or none, whichever is more.
   const nears: ScaleLine[] = [
     { slope: 0, at: 0 },
@@ -614,22 +665,7 @@ export function overrunFit(room: number, frame: number, before: ReachLine, after
   }
   // Past the far edge with the near one met.
   for (const far of fars) lines.push({ slope: frame + far.slope, at: far.at - room - lip });
-  const overrun = (scale: number) => Math.max(...lines.map(({ slope, at }) => slope * scale + at));
-  // The least it hangs out: at an end, or where two lines cross.
-  let least = overrun(floor);
-  if (paper < Infinity) least = Math.min(least, overrun(paper));
-  lines.forEach((one, i) =>
-    lines.slice(i + 1).forEach((other) => {
-      if (one.slope === other.slope) return;
-      const crossing = (other.at - one.at) / (one.slope - other.slope);
-      if (crossing > floor && crossing < paper) least = Math.min(least, overrun(crossing));
-    })
-  );
-  // The largest scale at which no line is more than that.
-  const tolerance = 1e-12 * Math.max(room, 1);
-  let largest = paper;
-  for (const { slope, at } of lines) if (slope > 0) largest = Math.min(largest, (least + tolerance - at) / slope);
-  return Math.max(floor, largest);
+  return lines;
 }
 
 /**

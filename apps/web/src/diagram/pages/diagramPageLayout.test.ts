@@ -9,6 +9,8 @@ import {
   layoutDiagramPages,
   MARKS_FLOOR,
   overrunFit,
+  pictureFloor,
+  pictureOverrun,
   scaleRuns,
   STEP_TEXT_LEADING_MM,
   TURN_GUTTER_MM,
@@ -328,6 +330,39 @@ describe('scaleRuns', () => {
     expect(scales([fit(1), fit(0), fit(1)])).toEqual([1, 0, 1]);
     const broken = scales([fit(1), fit(Number.NaN), fit(1)]);
     expect([broken[0], broken[2]]).toEqual([1, 1]);
+  });
+});
+
+describe('pictureOverrun and pictureFloor', () => {
+  const line = (grows: number, beyond: number) => ({ grows, beyond });
+  /** A unit-square paper picture, its marks past each side as given. */
+  const square = (left: number, right: number, top = 0, bottom = 0) => ({
+    kind: 'paper' as const,
+    width: 1,
+    height: 1,
+    frame: { width: 1, height: 1 },
+    marks: { width: left + right, height: top + bottom },
+    sides: { left: line(0, left), right: line(0, right), top: line(0, top), bottom: line(0, bottom) },
+  });
+
+  it('is how far a picture hangs out of its room as the page places it: nothing that fits, its marks split where they are even', () => {
+    expect(pictureOverrun(square(1, 1), 20, 20, 15)).toBe(0);
+    // 15 mm of paper and 4 mm past each side in a 20 mm room: 3 mm over, 1.5 out of each side.
+    expect(pictureOverrun(square(4, 4), 20, 20, 15)).toBeCloseTo(1.5, 12);
+    // All of it on one side: the paper against the far side of the room, its marks 4 mm out of the near one.
+    expect(pictureOverrun(square(9, 0), 20, 20, 15)).toBeCloseTo(4, 12);
+    // The worse way of the two.
+    expect(pictureOverrun(square(0, 0, 4, 4), 30, 20, 15)).toBeCloseTo(1.5, 12);
+    // At the scale its fit gives it, as little as it can.
+    const fit = overrunFit(20, 1, line(0, 4), line(0, 4));
+    expect(pictureOverrun(square(4, 4), 20, 20, fit)).toBeCloseTo(0, 9);
+  });
+
+  it('is the least scale the fit draws a picture at: what grows with it half the room, the way that lets it shrink more', () => {
+    const grown = { ...square(0, 0), sides: { left: line(0.5, 0), right: line(0.5, 0), top: line(0, 0), bottom: line(0, 0) } };
+    // Across, 2 per scale grows in 20 mm; down, the paper alone in 30 mm.
+    expect(pictureFloor(grown, 20, 30)).toBeCloseTo(((1 - MARKS_FLOOR) * 20) / 2, 12);
+    expect(pictureFloor(square(1, 1), 20, 30)).toBeCloseTo((1 - MARKS_FLOOR) * 20, 12);
   });
 });
 
