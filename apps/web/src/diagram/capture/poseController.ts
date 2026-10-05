@@ -291,7 +291,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   let own: Promise<unknown> | null = null;
   /** The spread commits: the one being captured, and the newest of each slider waiting for it. */
   let spreading: Promise<void> | null = null;
-  let committing: SpreadSlide | null = null;
+  let committing: { slide: SpreadSlide; revision: number | undefined } | null = null;
   const waiting = new Map<SpreadSlider, SpreadSlide>();
   const session: CaptureSession = createCaptureSession({
     search: (work) => {
@@ -452,7 +452,10 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       return;
     }
     const slide = previewing;
-    const slides = [...(committing ? [committing] : []), ...waiting.values(), slide];
+    // The slide being committed while it can still land: begun at the step's
+    // revision as it is (`commitStepCapture`), not one an undo took back.
+    const landing = committing && committing.revision === stepRevision(stepId) ? [committing.slide] : [];
+    const slides = [...landing, ...waiting.values(), slide];
     const spread = slides.reduce(withSlide, stored);
     const picture = drawPreview(spread);
     listener.preview({ slide, slides, spread, picture: picture ?? null }, linkedFoldKey(stepId, linked));
@@ -543,7 +546,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
             if (next.done || disposed) break;
             const [slider, slide] = next.value;
             waiting.delete(slider);
-            committing = slide;
+            committing = { slide, revision: stepRevision(stepId) };
             try {
               await run(slideRequest(slide));
             } finally {
@@ -635,6 +638,12 @@ function spreadStartsOf(stepId: string) {
 }
 
 /** The step's source, if it is still in the diagram and linked. */
+/** The step's revision: what a capture begun now is guarded by. */
+function stepRevision(stepId: string): number | undefined {
+  const { diagram } = useWorkspaceStore.getState();
+  return diagram ? stepById(diagram, stepId)?.revision : undefined;
+}
+
 function currentLinkedSource(stepId: string): DiagramCpSource | null {
   const { diagram } = useWorkspaceStore.getState();
   const step = diagram ? stepById(diagram, stepId) : null;

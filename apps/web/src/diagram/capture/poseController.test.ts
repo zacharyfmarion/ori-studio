@@ -732,6 +732,36 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     controller.dispose();
   });
 
+  it('drags without a slider being committed once an undo has taken back the step it was committed on (third review)', async () => {
+    const stepId = await linkedStep();
+    flatInTheFile(stepId, AFFINE);
+    const heard = listener();
+    const controller = createPoseController(stepId, heard);
+    await holdAFold(controller, heard);
+    controller.previewSpread({ slider: 'axis', value: 70 });
+    await controller.commitSpread();
+    expect(spreadOf(stepId)).toEqual({ ...AFFINE, axisDeg: 70 });
+    const lookup = holdTheLookup();
+    controller.previewSpread({ slider: 'skew', value: 0.3 });
+    const skew = controller.commitSpread();
+    await vi.waitFor(() => expect(lookup.begun()).toBe(true));
+    // Undone as the menu undoes: the controller told first. The axis is taken back, and the skew cannot land.
+    controller.historyMoved();
+    act(() => {
+      state().undoDiagram();
+    });
+    expect(spreadOf(stepId)).toEqual(AFFINE);
+    controller.previewSpread({ slider: 'axis', value: 50 });
+    expect(heard.preview).toHaveBeenLastCalledWith(
+      expect.objectContaining({ spread: { ...AFFINE, axisDeg: 50 } }),
+      expect.any(String)
+    );
+    lookup.open();
+    await skew;
+    expect(spreadOf(stepId)).toEqual(AFFINE);
+    controller.dispose();
+  });
+
   it('ends a preview when an undo comes, and keeps its spread through Reset Pose', async () => {
     const stepId = await linkedStep();
     const heard = listener();
