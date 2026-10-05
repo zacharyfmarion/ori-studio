@@ -317,7 +317,8 @@ export interface ScaleFit {
  * more room (a flap's outline far above it) lowers its run or stands alone —
  * drawn a zoom under its neighbours if it needs a little more room than that
  * — whichever costs least. A run is drawn at its smallest picture's scale, or
- * a zoom under another's, but never a whole zoom under its own smallest: a
+ * some zooms under another's — under a run under another run — but never a
+ * whole zoom under its own smallest: a
  * run that small would be there only to part the runs either side, letting
  * them differ by less than a zoom. The least-cost cut and scales among those
  * are found exactly (dynamic programming over where the last run starts and
@@ -342,11 +343,18 @@ export function scaleRuns(fits: readonly ScaleFit[]): { scale: number; reduced: 
   const logs = shares.map(Math.log);
   const zoom = Math.log(FIT_ZOOM);
   // The scales a run may be drawn at, as logs, each with the scale it is: a
-  // picture's own, or a zoom under one.
+  // picture's own, or any number of zooms under one — a run held a zoom under
+  // one held a zoom under another — down to where no run could be drawn, a
+  // whole zoom under the smallest picture.
   const scaleAt = new Map<number, number>();
   shares.forEach((share, index) => scaleAt.set(logs[index]!, share));
+  const real = logs.filter((_, index) => shares[index] !== Number.MIN_VALUE);
+  const deepest = (real.length > 0 ? Math.min(...real) : 0) - zoom * (1 - 1e-9);
   shares.forEach((share, index) => {
-    if (!scaleAt.has(logs[index]! - zoom)) scaleAt.set(logs[index]! - zoom, share / FIT_ZOOM);
+    for (let k = 1; logs[index]! - k * zoom > deepest; k += 1) {
+      const level = logs[index]! - k * zoom;
+      if (!scaleAt.has(level)) scaleAt.set(level, share / FIT_ZOOM ** k);
+    }
   });
   const levels = [...scaleAt.keys()].sort((a, b) => a - b);
   const width = levels.length;

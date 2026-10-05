@@ -177,10 +177,11 @@ describe('scaleRuns', () => {
       drawn.slice(1).filter((scale, index) => scale !== drawn[index]).length * FIT_RUN_BREAK;
     /**
      * The least cost of every cut into runs, each run at any level its pictures fit but a whole zoom under
-     * its smallest, each a zoom from the next.
+     * its smallest, each a zoom from the next: a picture's own, or any number of zooms under it, as a run
+     * held under one held under another is (third review).
      */
     const cheapest = (values: number[]) => {
-      const levels = [...new Set(FITS.flatMap((fit) => [Math.log(fit), Math.log(fit) - zoom]))];
+      const levels = [...new Set(FITS.flatMap((fit) => Array.from({ length: 7 }, (_, k) => Math.log(fit) - k * zoom)))];
       let least = Infinity;
       const walk = (start: number, previous: number | null, cost: number) => {
         if (start === values.length) {
@@ -245,6 +246,21 @@ describe('scaleRuns', () => {
     expect(scales(each([...fill(20, 1), 0.78, ...fill(20, 1)]))).toEqual([...fill(20, 1), 1 / FIT_ZOOM, ...fill(20, 1)]);
     // Needing much more: alone at its own.
     expect(scales(each([...fill(20, 1), 0.5, ...fill(20, 1)]))).toEqual([...fill(20, 1), 0.5, ...fill(20, 1)]);
+  });
+
+  it('draws a run under a chain of zooms where that costs least, not only one zoom under a picture (third review)', () => {
+    const fill = (steps: number, fit: number) => Array<number>(steps).fill(fit);
+    // One step a little smaller than six a zoom under twenty: two zooms under the twenty, not alone at a third.
+    const chain = scales(each([fill(1, FIT_ZOOM ** -1.9), fill(6, FIT_ZOOM ** -0.5), fill(20, 1)].flat()));
+    expect(chain[0]).toBeCloseTo(FIT_ZOOM ** -2, 9);
+    expect(chain[1]).toBeCloseTo(1 / FIT_ZOOM, 9);
+    expect(chain[26]).toBe(1);
+    // A model shrinking a fifth at a time: a zoom at each, the first ten at their own.
+    const staircase = scales(each([fill(10, 1), fill(10, 0.8), fill(10, 0.6), fill(10, 0.46)].flat()));
+    expect(staircase.slice(0, 10)).toEqual(fill(10, 1));
+    expect(staircase[10]).toBeCloseTo(1 / FIT_ZOOM, 9);
+    expect(staircase[20]).toBeCloseTo(FIT_ZOOM ** -2, 9);
+    expect(staircase[30]).toBeCloseTo(FIT_ZOOM ** -3, 9);
   });
 
   it('never draws a run a whole zoom under its own pictures, to part two scales by less than a zoom (review)', () => {
