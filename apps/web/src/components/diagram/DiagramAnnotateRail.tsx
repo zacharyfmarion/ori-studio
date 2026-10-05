@@ -20,11 +20,11 @@ import { DiagramLineTypeMark } from './DiagramLineTypeMark';
 
 /**
  * Annotate's tools down the left of the canvas (D8): the Edit rail's
- * `ToolRail`, in groups — Select and Edit Path; Arrows; Line Type, the one
- * control across the rail that heads the Lines (15a), as Edit's line types
- * head its rail; Lines; Marks; Text. Each names its key in its tooltip,
+ * `ToolRail`, in groups — Line Type first, the one control across the rail,
+ * at the top as Edit's line types are (Zach, 2026-10-05); then Select and Edit
+ * Path; Arrows; Lines; Marks; Text. Each names its key in its tooltip,
  * resolved against the reader's own layout. The line type is a preference,
- * kept as it was left: the Line tool draws in it.
+ * kept as it was left: the Line tool and the Angle Bisector draw in it.
  */
 export function DiagramAnnotateRail({
   tool,
@@ -91,13 +91,11 @@ export function DiagramAnnotateRail({
       ),
     },
   };
-  const lines = tools.findIndex((group) => group.id === 'lines');
-  const groups = [...tools.slice(0, lines), lineTypes, ...tools.slice(lines)];
   return (
     <ToolRail
       aria-label={t('panels:diagram.annotate.toolsLabel', 'Annotate tools')}
       idPrefix="diagram-annotate-group"
-      groups={groups}
+      groups={[lineTypes, ...tools]}
     />
   );
 }
