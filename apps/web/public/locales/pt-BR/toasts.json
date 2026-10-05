@@ -69,6 +69,9 @@
     "pickFailed": "Não foi possível identificar quais faces estão ali. Tente novamente.",
     "updateFailed": "Não foi possível fixar essas faces. Tente novamente."
   },
+  "simulatorPull": {
+    "failed": "Não foi possível puxar o papel. Tente novamente."
+  },
   "update": {
     "available": "A versão {{version}} está disponível",
     "checkFailed": "Não foi possível verificar atualizações",

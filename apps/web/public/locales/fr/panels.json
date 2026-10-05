@@ -1134,8 +1134,10 @@
     "backToPatterns": "Patrons",
     "canvasAriaLabel": "Simulateur de base pliée en origami. Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue.",
     "canvasAriaLabelPin": "Simulateur de base pliée en origami. Tracez un cadre ou cliquez sur une face pour l’épingler, défilez pour zoomer.",
+    "canvasAriaLabelPull": "Simulateur de bases d’origami. Faites glisser le papier pour le tirer autour de ses épingles, défilez pour zoomer.",
     "canvasTitle": "Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue",
     "canvasTitlePin": "Tracez un cadre ou cliquez sur une face pour l’épingler, défilez pour zoomer",
+    "canvasTitlePull": "Faites glisser le papier pour le tirer, défilez pour zoomer",
     "contextMenu": {
       "pause": "Pause",
       "play": "Lecture",
@@ -1190,6 +1192,20 @@
         "count_many": "{{count}} faces épinglées",
         "count_other": "{{count}} faces épinglées",
         "title": "Épingles"
+      },
+      "pose": {
+        "meta": "Maintenue",
+        "springBack": "Revenir au pliage",
+        "title": "Pose"
+      },
+      "pull": {
+        "cancel": "Échap pendant le glissement le remet en place.",
+        "description": "Ouvrez le papier en le tirant autour de ses épingles. Il reste où vous le lâchez.",
+        "drag": "Faites glisser le papier pour le tirer. Les faces épinglées ne bougent pas.",
+        "keep": "Relâchez et il reste ainsi. Lancez ou faites défiler le pliage pour qu’il revienne.",
+        "label": "Tirer",
+        "needsPins": "Épinglez les faces qui doivent rester immobiles, puis tirez.",
+        "pinFaces": "Épingler des faces"
       },
       "railLabel": "Outils du simulateur",
       "windowLabel": "Options des outils du simulateur"

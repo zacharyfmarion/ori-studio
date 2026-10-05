@@ -290,12 +290,14 @@
     "playPause": "접기 재생 / 일시정지",
     "replay": "시뮬레이션 다시 시작",
     "resetView": "시뮬레이터 보기 초기화",
+    "springBack": "접은 모양으로 되돌리기",
     "toggleCreases": "접는 선",
     "toggleFaces": "면",
     "toggleLighting": "조명",
     "toolExit": "도구 종료",
     "toolOrbit": "궤도 도구",
-    "toolPin": "고정 도구"
+    "toolPin": "고정 도구",
+    "toolPull": "당기기 도구"
   },
   "viewport": {
     "contextMenu": "컨텍스트 메뉴 열기",

@@ -1058,8 +1058,10 @@
     "backToPatterns": "折痕图",
     "canvasAriaLabel": "折纸折叠基础模拟器。拖动以旋转，滚动以缩放，双击以重置视图。",
     "canvasAriaLabelPin": "折纸折叠基础模拟器。拖出方框或点击面以固定，滚动以缩放。",
+    "canvasAriaLabelPull": "折纸基础形模拟器。拖动纸张可绕固定处拉动，滚动以缩放。",
     "canvasTitle": "拖动以旋转，滚动以缩放，双击以重置视图",
     "canvasTitlePin": "拖出方框或点击面以固定，滚动以缩放",
+    "canvasTitlePull": "拖动纸张以拉动，滚动以缩放",
     "contextMenu": {
       "pause": "暂停",
       "play": "播放",
@@ -1112,6 +1114,20 @@
         "clear": "清除固定",
         "count_other": "已固定 {{count}} 个面",
         "title": "固定"
+      },
+      "pose": {
+        "meta": "已保持形状",
+        "springBack": "弹回",
+        "title": "保持的形状"
+      },
+      "pull": {
+        "cancel": "拖动时按 Esc 可放回原处。",
+        "description": "绕着固定处把纸拉开。松手后停在原处。",
+        "drag": "拖动纸张以拉动它。固定的面保持不动。",
+        "keep": "松手后形状保持不变。播放或拖动折叠进度会让它弹回。",
+        "label": "拉动",
+        "needsPins": "先固定应保持不动的面，再拉动。",
+        "pinFaces": "固定面"
       },
       "railLabel": "模拟器工具",
       "windowLabel": "模拟器工具选项"

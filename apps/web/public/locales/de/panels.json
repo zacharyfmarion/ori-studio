@@ -1093,8 +1093,10 @@
     "backToPatterns": "Muster",
     "canvasAriaLabel": "Origami-Simulator für gefaltete Basen. Ziehen zum Drehen, Scrollen zum Zoomen, Doppelklick zum Zurücksetzen der Ansicht.",
     "canvasAriaLabelPin": "Origami-Simulator für gefaltete Basen. Rahmen aufziehen oder eine Fläche anklicken, um sie zu fixieren, Scrollen zum Zoomen.",
+    "canvasAriaLabelPull": "Simulator für Origami-Grundformen. Am Papier ziehen, um es um seine Fixierungen zu bewegen, Scrollen zum Zoomen.",
     "canvasTitle": "Ziehen zum Drehen, Scrollen zum Zoomen, Doppelklick zum Zurücksetzen der Ansicht",
     "canvasTitlePin": "Rahmen aufziehen oder eine Fläche anklicken, um sie zu fixieren, Scrollen zum Zoomen",
+    "canvasTitlePull": "Am Papier ziehen, Scrollen zum Zoomen",
     "contextMenu": {
       "pause": "Pause",
       "play": "Abspielen",
@@ -1148,6 +1150,20 @@
         "count_one": "1 Fläche fixiert",
         "count_other": "{{count}} Flächen fixiert",
         "title": "Fixierungen"
+      },
+      "pose": {
+        "meta": "Gehalten",
+        "springBack": "Zurückfedern",
+        "title": "Pose"
+      },
+      "pull": {
+        "cancel": "Esc während des Ziehens setzt es zurück.",
+        "description": "Zieht das Papier um seine Fixierungen auf. Es bleibt, wo Sie es loslassen.",
+        "drag": "Ziehen Sie am Papier. Fixierte Flächen bleiben stehen.",
+        "keep": "Loslassen, und es bleibt so. Abspielen oder Verschieben der Faltung lässt es zurückfedern.",
+        "label": "Ziehen",
+        "needsPins": "Fixieren Sie zuerst die Flächen, die stillhalten sollen, dann ziehen Sie.",
+        "pinFaces": "Flächen fixieren"
       },
       "railLabel": "Simulator-Werkzeuge",
       "windowLabel": "Optionen der Simulator-Werkzeuge"
