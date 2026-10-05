@@ -16,6 +16,8 @@ import { selectedDiagramPathNode } from '../../store/workspaceStore/diagramState
 import { TooltipProvider } from '../ui/Tooltip';
 import { CIRCLE_RADIUS, INK_UNITS } from '../../diagram/annotate/useAnnotateCanvas';
 import { rightAngleGrips } from '../../diagram/annotate/annotationHit';
+import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
+import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import { rightAngleAt, rightAngleDiagonal } from '../../diagram/annotate/annotationModel';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
@@ -606,7 +608,15 @@ describe('DiagramAnnotateCanvas with a callout', () => {
     rerender();
     // Selected: a dot at its point, none at its box's middle; its box and line washed.
     expect([...host.querySelectorAll('[data-handle]')].map((each) => each.getAttribute('data-handle'))).toEqual(['from']);
-    expect(overlay().querySelector('[data-callout-box]')).not.toBeNull();
+    // Its box washed along its outline as drawn, the pen outside the box the words were measured for (review).
+    const washed = overlay().querySelector('[data-callout-box]')!;
+    const { box } = annotationDrawing([now()], { width: 1, height: 1 }, CARD_FRAME_PX, state().diagram!.style).callouts[0]!;
+    const [x, y] = at(box.x / CARD_FRAME_PX, box.y / CARD_FRAME_PX);
+    expect(Number(washed.getAttribute('x'))).toBeCloseTo(x, 6);
+    expect(Number(washed.getAttribute('y'))).toBeCloseTo(y, 6);
+    expect(Number(washed.getAttribute('width'))).toBeCloseTo((box.width / CARD_FRAME_PX) * 1000, 6);
+    expect(Number(washed.getAttribute('height'))).toBeCloseTo((box.height / CARD_FRAME_PX) * 1000, 6);
+    expect(box.width / CARD_FRAME_PX).toBeGreaterThan(calloutShape(now()).box.width);
     drag(at(0.2, 0.6), at(0.1, 0.7));
     expect(now().from).toEqual([expect.closeTo(0.1, 6), expect.closeTo(0.7, 6)]);
     expect(now().to).toEqual([0.55, 0.25]);

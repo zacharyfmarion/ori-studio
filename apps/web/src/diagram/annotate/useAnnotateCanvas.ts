@@ -65,6 +65,7 @@ import {
 import { cancelLabelFocus, pendingLabelFocus, requestLabelFocus } from './labelFocus';
 import { isViewportInteractiveTarget } from '../../components/panels/ViewportToolbar';
 import type { DiagramAnnotationTool } from '../../analytics/events';
+import { calloutPen } from './annotationPrimitives';
 import { CARD_FRAME_PX } from './paintAnnotations';
 import type { SnapTarget } from './pictureSnap';
 import { useAnnotateSnap } from './useAnnotateSnap';
@@ -107,6 +108,11 @@ export const GLYPH_REACH =
 
 /** One ink in picture units, as the canvas draws: what an arrow's head and a push's width are measured in. */
 export const INK_UNITS = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / CARD_FRAME_PX;
+
+/** A callout's outline's pen in picture units, as the canvas draws it in `style`. */
+export function calloutPenUnits(style: DiagramStyle): number {
+  return calloutPen(style) / CARD_FRAME_PX;
+}
 
 /** A circle's ring, in picture units, as the canvas draws it. */
 export const CIRCLE_RADIUS = circleRadius(INK_UNITS);
@@ -394,8 +400,8 @@ export function useAnnotateCanvas({
   const hitSizes = useCallback((): HitSizes => {
     const screenPerWorld = overlay.current?.getScreenCTM()?.a ?? 1;
     const reach = (coarse ? REACH_PX.coarse : REACH_PX.fine) / (screenPerWorld * (layout?.unit ?? 1));
-    return { tolerance: reach, glyph: GLYPH_REACH, label: LABEL_SIZE, ink: INK_UNITS };
-  }, [coarse, layout]);
+    return { tolerance: reach, glyph: GLYPH_REACH, label: LABEL_SIZE, ink: INK_UNITS, calloutPen: calloutPenUnits(style) };
+  }, [coarse, layout, style]);
 
   const known = useCallback(
     (id: string) =>

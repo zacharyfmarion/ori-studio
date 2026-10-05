@@ -4,9 +4,11 @@ import { pathArrowGeometry } from '../../cp-workspace/references/stepDiagramGeom
 import { cubicPoint } from '../../lib/cubicBezier';
 import { ARROW_BEND, arrowApex, calloutShape, flipAnnotationArc, pathCubics, rightAngleAt } from './annotationModel';
 import { arrowPolyline, circleRadius, hitAnnotation, hitPathGrip, rightAngleGrips, rightAngleLegs } from './annotationHit';
+import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
+import { CARD_FRAME_PX } from './paintAnnotations';
 
-/** About the canvas's: an ink is about 0.0066 of the frame. */
-const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066 };
+/** About the canvas's: an ink is about 0.0066 of the frame, a callout's outline at the default 1.05 pt pen 0.0025. */
+const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066, calloutPen: 0.0025 };
 
 const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.1, 0.5], to: [0.9, 0.5] };
 const arrow: KnownDiagramAnnotation = { id: 'arrow', kind: 'valley-arrow', from: [0.2, 0.3], to: [0.6, 0.3], bend: 0.2 };
@@ -229,6 +231,23 @@ describe('hitAnnotation', () => {
       expect(hitAnnotation([push], [0.4, 0.3], tight, null)?.annotationId).toBe('push');
       expect(hitAnnotation([callout, push], [0.4, 0.3], tight, null)?.annotationId).toBe('callout');
       expect(hitAnnotation([over, callout], [0.6, 0.3], tight, null)?.annotationId).toBe('over');
+    });
+
+    it('takes its box on all of its outline as drawn, outside the box, at the heaviest pen too — over a line it covers (review)', () => {
+      // A 12 pt arrow pen, as the canvas draws it: about 0.028 of the frame, the outline from the box's edge out.
+      const pen = (12 * PT_TO_CSS_PX) / CARD_FRAME_PX;
+      const heavy = { ...tight, calloutPen: pen };
+      // A valley line under the outline's top, along the middle of its stroke.
+      const under: KnownDiagramAnnotation = { id: 'under', kind: 'valley-line', from: [0.3, box.y - pen / 2], to: [0.9, box.y - pen / 2] };
+      for (const out of [0, pen / 4, pen / 2, (3 * pen) / 4, pen]) {
+        expect(hitAnnotation([callout, under], [0.6, box.y - out], heavy, null), `${out / pen} of the pen out`).toEqual({
+          annotationId: 'callout',
+          part: 'box',
+        });
+      }
+      // Within reach of its outer edge, and past it.
+      expect(hitAnnotation([callout], [0.6, box.y - pen - 0.004], heavy, null)?.part).toBe('box');
+      expect(hitAnnotation([callout], [0.6, box.y - pen - 0.006], heavy, null)).toBeNull();
     });
 
     it('has no line to take with its point inside its box', () => {

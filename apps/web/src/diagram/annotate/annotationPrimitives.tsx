@@ -96,6 +96,7 @@ import {
   arrowApex,
   arrowShape,
   CALLOUT_TEXT_SIZE,
+  calloutDrawnBox,
   calloutShape,
   carriesText,
   DEFAULT_WHITE_ARROW,
@@ -203,6 +204,14 @@ export interface AnnotationDrawing {
 /** The style an annotation's marks are drawn in: the diagram's, as References applies it. */
 function seenStyle(style: DiagramStyle): PaperStyle {
   return applyPaperStylePolicy(diagramPaperStyle(style), PAPER_STYLE_POLICIES.references);
+}
+
+/**
+ * A callout's outline's pen, in CSS px whatever the frame: the style's arrow
+ * pen at its pt width, as a References step's page draws an arrow.
+ */
+export function calloutPen(style: DiagramStyle): number {
+  return seenStyle(style).arrows.width * PT_TO_CSS_PX;
 }
 
 /** The page an annotation is printed on: a hollow push or white arrow is this inside. */
@@ -385,7 +394,7 @@ export function annotationDrawing(
   const labels: AnnotationLabel[] = [];
   const at = ([u, v]: PicturePoint): [number, number] => [u * framePx, v * framePx];
   // A callout's pens: the arrow pen round its box, the annotation pen — a circle's ring's — along its line.
-  const boxPen = project.pens.arrow.width * project.ink;
+  const boxPen = calloutPen(style);
   const linePen = markRingWidth(project);
   for (const annotation of annotations) {
     if (!isKnownAnnotation(annotation)) continue;
@@ -416,12 +425,10 @@ export function annotationDrawing(
           line: line ? { a: at(line[0]), b: at(line[1]) } : null,
           linePen,
           // The pen outside the box the words were measured for: a heavy one never covers them.
-          box: {
-            x: box.x * framePx - boxPen / 2,
-            y: box.y * framePx - boxPen / 2,
-            width: box.width * framePx + boxPen,
-            height: box.height * framePx + boxPen,
-          },
+          box: calloutDrawnBox(
+            { x: box.x * framePx, y: box.y * framePx, width: box.width * framePx, height: box.height * framePx },
+            boxPen
+          ),
           boxPen,
           ink: seen.arrows.color,
           ground: PAGE_GROUND,

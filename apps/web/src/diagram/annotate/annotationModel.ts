@@ -660,6 +660,17 @@ export function calloutShape({ from, to, text }: Pick<KnownDiagramAnnotation, 'f
 }
 
 /**
+ * A callout's box as its outline is stroked, in the units of `box` and its
+ * pen `pen`: grown by half the pen on every side, to the stroke's middle, so
+ * the pen lies outside the box its words were measured for and never covers
+ * them. The drawing strokes it, the selection washes it, and the hit test
+ * reaches half a pen past it, to the ink's outer edge.
+ */
+export function calloutDrawnBox(box: CalloutShape['box'], pen: number): CalloutShape['box'] {
+  return { x: box.x - pen / 2, y: box.y - pen / 2, width: box.width + pen, height: box.height + pen };
+}
+
+/**
  * `delta`, cut short so that every one of `points` moved by it stays within
  * reach: what keeps a shape whole when it is moved against reach's edge.
  */

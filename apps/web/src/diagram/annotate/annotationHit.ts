@@ -42,6 +42,7 @@ import {
   annotationEnds,
   arrowApex,
   arrowShape,
+  calloutDrawnBox,
   calloutShape,
   isCornerKind,
   rightAngleDiagonal,
@@ -88,6 +89,8 @@ export interface HitSizes {
   label: number;
   /** One ink, as the canvas draws it: what a head's length and a push's width are measured in. */
   ink: number;
+  /** A callout's outline's pen, as the canvas draws it: outside its box, and all of it taken. */
+  calloutPen: number;
 }
 
 /** How many straight pieces an arrow's arc is measured and washed along. */
@@ -410,11 +413,18 @@ function boxDistance([x, y]: PicturePoint, box: { x: number; y: number; width: n
 
 /**
  * How far a press is from a callout's box — 0 on it, its words included,
- * which are inside it — and from its line, as they are drawn.
+ * which are inside it, and on its outline out to the ink's outer edge, its
+ * pen `pen` drawn outside it — and from its line, as they are drawn.
  */
-function calloutDistances(annotation: KnownDiagramAnnotation, point: PicturePoint): { box: number; line: number } {
+function calloutDistances(
+  annotation: KnownDiagramAnnotation,
+  point: PicturePoint,
+  pen: number
+): { box: number; line: number } {
   const { box, line } = calloutShape(annotation);
-  return { box: boxDistance(point, box), line: line ? distanceToSegment(point, line[0], line[1]) : Infinity };
+  // The stroke's middle half a pen out, its outer edge a whole one.
+  const inked = calloutDrawnBox(box, 2 * pen);
+  return { box: boxDistance(point, inked), line: line ? distanceToSegment(point, line[0], line[1]) : Infinity };
 }
 
 /**
@@ -502,7 +512,7 @@ function bodyDistance(
     case 'right-angle':
       return rightAngleDistance(annotation, point, sizes.ink);
     case 'callout': {
-      const { box, line } = calloutDistances(annotation, point);
+      const { box, line } = calloutDistances(annotation, point, sizes.calloutPen);
       return Math.min(box, line);
     }
   }
@@ -569,7 +579,7 @@ export function hitAnnotation(
       if (hidden) continue;
     }
     // A callout's box is taken on its own; its line takes the whole.
-    const onBox = annotation.kind === 'callout' && calloutDistances(annotation, point).box <= sizes.tolerance;
+    const onBox = annotation.kind === 'callout' && calloutDistances(annotation, point, sizes.calloutPen).box <= sizes.tolerance;
     return { annotationId: annotation.id, part: onBox ? 'box' : 'body' };
   }
   return null;

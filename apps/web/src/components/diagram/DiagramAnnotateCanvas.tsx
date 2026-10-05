@@ -8,6 +8,7 @@ import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import type { SnapTarget } from '../../diagram/annotate/pictureSnap';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import {
+  calloutPenUnits,
   CIRCLE_RADIUS,
   GLYPH_REACH,
   INK_UNITS,
@@ -15,7 +16,14 @@ import {
   type AnnotateLayout,
   type RightAnglePreview,
 } from '../../diagram/annotate/useAnnotateCanvas';
-import { annotationEnds, calloutShape, canBeShaped, labelHalfWidth, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
+import {
+  annotationEnds,
+  calloutDrawnBox,
+  calloutShape,
+  canBeShaped,
+  labelHalfWidth,
+  LABEL_SIZE,
+} from '../../diagram/annotate/annotationModel';
 import {
   isKnownAnnotation,
   type DiagramAsset,
@@ -154,7 +162,13 @@ export function DiagramAnnotateCanvas({
                       />
                     ) : (
                       // Edit Path moves nothing it cannot shape: no ends to offer.
-                      <Selection annotation={selected} layout={layout} zoom={zoom} movable={!readOnly && !canvas.editingPath} />
+                      <Selection
+                        annotation={selected}
+                        layout={layout}
+                        zoom={zoom}
+                        movable={!readOnly && !canvas.editingPath}
+                        calloutPen={calloutPenUnits(style)}
+                      />
                     ))}
                   <SnapTargets targets={canvas.snapTargets} layout={layout} zoom={zoom} />
                   {canvas.rightAnglePreview && <RightAngleGhost preview={canvas.rightAnglePreview} layout={layout} />}
@@ -195,12 +209,15 @@ function Selection({
   layout,
   zoom,
   movable,
+  calloutPen,
 }: {
   annotation: KnownDiagramAnnotation;
   layout: AnnotateLayout;
   zoom: number;
   /** Whether its ends can be taken hold of: not on a diagram that cannot change. */
   movable: boolean;
+  /** A callout's outline's pen, in picture units: its box is washed where it is stroked. */
+  calloutPen: number;
 }) {
   const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit];
   const handle = HANDLE_PX / zoom;
@@ -252,7 +269,8 @@ function Selection({
     case 'callout': {
       const shape = calloutShape(annotation);
       path = shape.line ?? [];
-      box = shape.box;
+      // Along its outline as drawn, outside the box its words were measured for.
+      box = calloutDrawnBox(shape.box, calloutPen);
       break;
     }
   }
