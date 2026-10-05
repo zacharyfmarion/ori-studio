@@ -43,11 +43,14 @@ interface StabilityRow {
   firstBadTextureStep?: number;
   maxAbsPositionAtFailure?: number;
   pinned?: boolean;
+  pulled?: boolean;
   error?: string;
 }
 
 /** Where the pinned run fixes its two far-apart triangles: half way up the ramp. */
 const PIN_AT_FRACTION = 0.5;
+/** Where the pulled run grips one of them, holding the other. */
+const PULL_AT_FRACTION = 0.4;
 
 describe('solver long-run stability', () => {
   it('reports where each backend destabilizes under a ramping fold', async () => {
@@ -149,12 +152,46 @@ describe('solver long-run stability', () => {
         [extraFolds, TOTAL_STEPS, CHUNK, STRAIN_LIMIT, PIN_AT_FRACTION] as const
       )) as StabilityRow[];
       allRows.push(...pinnedRows);
+      // A pull across a dense model on the shipping settings: grip, swing, keep,
+      // then drop the pose while the ramp goes on.
+      const pulledRows = (await page.evaluate(
+        ([folds, totalSteps, chunk, strainLimit, pullAt]) =>
+          (
+            window as unknown as {
+              runStabilitySweep: (
+                f: string[],
+                t: number,
+                c: number,
+                s: number,
+                x: Record<string, unknown>,
+                ts: number,
+                ff: number,
+                it: 'euler' | 'verlet',
+                pin: number,
+                pull: number
+              ) => StabilityRow[];
+            }
+          ).runStabilitySweep(
+            [],
+            totalSteps as number,
+            chunk as number,
+            strainLimit as number,
+            folds as Record<string, unknown>,
+            0.35,
+            Number.POSITIVE_INFINITY,
+            'euler',
+            Number.POSITIVE_INFINITY,
+            pullAt as number
+          ),
+        [extraFolds, TOTAL_STEPS, CHUNK, STRAIN_LIMIT, PULL_AT_FRACTION] as const
+      )) as StabilityRow[];
+      allRows.push(...pulledRows);
       const rows = allRows;
 
       const lines = rows.map((row) =>
         row.error
           ? `${row.fixture.padEnd(14)} ${row.backend.padEnd(10)} ERROR: ${row.error}`
-          : `${row.fixture.padEnd(16)} ${row.backend.padEnd(10)} ${(row.integrator ?? '').padEnd(6)} ts=${String(row.timeStepScale).padEnd(5)}${row.pinned ? ' pinned' : '       '} | ` +
+          : `${row.fixture.padEnd(16)} ${row.backend.padEnd(10)} ${(row.integrator ?? '').padEnd(6)} ts=${String(row.timeStepScale).padEnd(5)}${row.pinned ? ' pinned' : row.pulled ? ' pulled' : '       '} | ` +
             (row.firstBadStep === null
               ? `stable through ${row.steps} steps (max strain ${row.maxStrainSeen.toExponential(2)})`
               : `UNSTABLE at step ${row.firstBadStep} (fold ${row.firstBadFoldPercent?.toFixed(1)}%, ` +

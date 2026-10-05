@@ -27,7 +27,7 @@ and folded 3D windows keep orbit-only input.
 | --- | --- | --- |
 | 1 | Pull with nothing pinned | **Refused.** The press does nothing, the cursor shows not-allowed, and the window says "Pin the faces that should hold still, then pull", with a button that picks Pin. Why: the solver's damping only acts between neighbouring nodes, so motion of the model as a whole is undamped. An unpinned pull would set the whole model drifting or spinning, and the camera would follow its centre, so on screen it would look like a clumsy orbit. The alternative is a "free swing" that stops dead on release. |
 | 2 | What ends a pose | **Any change to the fold target**: Play, a scrub, a fold step, Cmd+←/→. Also Restart and Spring back. These do **not** end it: pin edits, orbit and zoom, tool switches, material edits. You said "reset or played". A scrub drives the same target that Play drives, so it is the same event; a pose can't survive under a slider that just moved. |
-| 3 | What release keeps | **The whole shape.** Release fixes the crease angles, facet bends, edge lengths and face angles as the paper's rest state. It is the only option measured to give zero spring-back (table D). The price: up to about 3% of in-plane stretch is kept while posed (0.2–3.3% measured). It is invisible, and Spring back or Play removes it. The physics-pure alternative locks only the crease and facet angles. That springs back by up to 0.10, about 25 px, on part-folded models. |
+| 3 | What release keeps | **The whole shape.** Release fixes the crease angles, facet bends, edge lengths and face angles as the paper's rest state. It is the only option measured to give zero spring-back (table D). The price: whatever stretch the paper holds at release is kept while posed. `bench:pull` measured single edges up to 9% on a part-folded kabuto, of which 5.5% was the fold's own before any pull; it is invisible at that size, and Spring back or Play removes it. The physics-pure alternative locks only the crease and facet angles. That springs back by up to 0.10, about 25 px, on part-folded models. |
 | 4 | Escape or a second finger mid-drag | **Cancel.** The creases go back to their rest angles from the press, and the paper springs back to where it was. |
 | 5 | Shortcut | **U** (for "unfold"). G is Oriedita's Fold estimate in Edit. U and H are free across the app's scopes and Oriedita's defaults; verify against the registry's duplicate checks. |
 
@@ -217,11 +217,12 @@ For reference, holding nothing (yield 2°) springs the iguana back 0.155, about
 **On release ("keep")**
 
 - Every crease's rest angle becomes its current angle. This includes facets.
-- Every edge's rest length becomes its current length, clamped to ±3% of the
-  sheet's. The clamp stops repeated taut pulls from piling up stretch. It is
-  untested: the spike held lengths unclamped. Release stretch there was 0.2–3.3%
-  per node, which is a mean over the node's edges, so check in `bench:pull` how
-  often single edges hit the clamp.
+- Every edge's rest length becomes its current length, clamped to ±10% of the
+  sheet's. The clamp stops repeated taut pulls from piling up stretch. It was
+  planned at ±3%, and `bench:pull` showed that was wrong: a kabuto at 60% already
+  stretches single edges 5.5% before anything is pulled, and up to 8.9% after,
+  so a 3% clamp undid the fold's own stretch and the pose sprang back 0.033.
+  At ±10%, every bench run springs back under 0.0003.
 - Every face's rest angles become its current angles.
 
 The paper is now at rest in the shape on screen, so it has nothing to spring
@@ -250,7 +251,7 @@ measurements beside them:
 | grip stiffness | the stiffest edge's, `axial / shortest rest length`: inside the stable step by construction |
 | grip damping | critical, `2√(k · m)` with `m = 1/Σw²` |
 | toward-viewer bias | 0.3 |
-| length clamp | ±3% |
+| length clamp | ±10% |
 
 Not user settings in v1.
 
@@ -292,8 +293,8 @@ SimulatorPanel                         composition only (+ drawnCamera for canva
    `reset()` also ends a pull and releases the pose, because flat paper has no
    pose. That includes the clock's NaN guard, which calls `reset()`.
    `arrestDynamics()` keeps the pose. `setMaterial` while posed rebuilds
-   `beamMeta` from the posed lengths. The timestep stays derived from the
-   sheet's lengths, which are within ±3%.
+   `beamMeta` from the posed lengths. Stiffness, damping and the timestep stay
+   the sheet's; only the rest length moves.
 
 2. **GPU (`WebglSolver`, `passes.ts`).**
 
@@ -550,11 +551,14 @@ Each step is its own commit.
     orthographic;
   - the barycentric weights reproduce the press point;
   - the reflection is honoured.
-- [ ] **`bench:pull`** on both backends. Tune the constants. Acceptance:
-  - after release, the grabbed point moves < 0.005 (about 1 px);
+- [x] **`bench:pull`** (CPU; the GPU is held to it by the pull rows in
+      `bench:gpu-parity`). Acceptance:
+  - after release, the grabbed point moves < 0.005 (about 1 px): 27 of 27 runs
+    under 0.0003, pins unmoved;
   - on the bench's free-swing cases the point is within 3% of the drag of the
-    cursor ray at release;
-  - `bench:gpu-stability` stays finite with pulls on the lamprey.
+    cursor ray at release: 97–99%;
+  - `bench:gpu-stability` stays finite with pulls on the lamprey: a grip, swing,
+    keep and release across a 12,000-step ramp is stable on both backends.
 - [ ] **Worker and runtime:** the API, the fold-change and reset policy,
       `posed`/`poseEndedBy` on frames, the framing hold on both paths, the pull
       lane, coalesced moves.

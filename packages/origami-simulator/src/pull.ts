@@ -32,8 +32,14 @@ export const PULL_MAX_FORCE_PER_AXIAL_STIFFNESS = 0.06;
  */
 export const PULL_TOWARD_VIEWER_BIAS = 0.3;
 
-/** How far an edge kept in a pose may differ from its length on the flat sheet. */
-export const POSE_REST_LENGTH_TOLERANCE = 0.03;
+/**
+ * How far an edge kept in a pose may differ from its length on the flat sheet.
+ * Wide enough for the stretch a mid-fold already holds before anything is
+ * pulled (single edges at 5.5% on a kabuto at 60%), which a pose must keep or
+ * it springs back; narrow enough that repeated taut pulls cannot pile stretch
+ * on stretch without end.
+ */
+export const POSE_REST_LENGTH_TOLERANCE = 0.1;
 
 /** How far a fold crease has to turn to count as moved by a pull. */
 export const PULL_MOVED_CREASE_RADIANS = (2 * Math.PI) / 180;

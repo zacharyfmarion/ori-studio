@@ -422,6 +422,8 @@ interface StabilityRow {
   maxAbsPositionAtFailure?: number;
   /** Run with the two farthest-apart triangles fixed part-way through the ramp. */
   pinned?: boolean;
+  /** Run with one of them held and the other pulled, kept, and let go. */
+  pulled?: boolean;
   error?: string;
 }
 
@@ -436,7 +438,8 @@ declare global {
       timeStepScale?: number,
       fineFrom?: number,
       integrationType?: 'euler' | 'verlet',
-      pinAtFraction?: number
+      pinAtFraction?: number,
+      pullAtFraction?: number
     ) => StabilityRow[];
   }
 }
@@ -449,6 +452,13 @@ declare global {
  */
 function farthestTrianglePairMask(model: OrigamiModel): Uint8Array {
   const { indices, vertexCount } = model.prepared;
+  const mask = new Uint8Array(vertexCount);
+  for (const t of farthestTrianglePair(model)) for (let corner = 0; corner < 3; corner += 1) mask[indices[t * 3 + corner]!] = 1;
+  return mask;
+}
+
+function farthestTrianglePair(model: OrigamiModel): [number, number] {
+  const { indices } = model.prepared;
   const rest = model.originalPositions;
   const triangles = indices.length / 3;
   const centre = (t: number, axis: number) =>
@@ -464,12 +474,53 @@ function farthestTrianglePairMask(model: OrigamiModel): Uint8Array {
       }
     }
   }
-  const mask = new Uint8Array(vertexCount);
-  for (const t of best) for (let corner = 0; corner < 3; corner += 1) mask[indices[t * 3 + corner]!] = 1;
-  return mask;
+  return best;
 }
 
-window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraFolds = {}, timeStepScale = 1, fineFrom = Number.POSITIVE_INFINITY, integrationType = 'euler', pinAtFraction = Number.POSITIVE_INFINITY) => {
+/**
+ * A pull across the rest of a ramp: hold one of the farthest-apart triangles,
+ * grip the other, lift it and swing it sideways over a quarter of the run, keep
+ * the shape, and drop the pose a little later. Returns what to do at each step.
+ */
+function scriptedPull(model: OrigamiModel, totalSteps: number, fromFraction: number) {
+  const { indices, vertexCount } = model.prepared;
+  const [held, gripped] = farthestTrianglePair(model);
+  const mask = new Uint8Array(vertexCount);
+  for (let corner = 0; corner < 3; corner += 1) mask[indices[held * 3 + corner]!] = 1;
+  const nodes: [number, number, number] = [indices[gripped * 3]!, indices[gripped * 3 + 1]!, indices[gripped * 3 + 2]!];
+  const direction: [number, number, number] = [Math.SQRT1_2, 0, Math.SQRT1_2];
+  let started: [number, number, number] | null = null;
+  let state: 'waiting' | 'pulling' | 'kept' | 'released' = 'waiting';
+  return (solver: WebglSolver | ReferenceSolver, done: number) => {
+    const fraction = done / totalSteps;
+    if (state === 'waiting' && fraction >= fromFraction) {
+      const positions = new Float32Array(vertexCount * 3);
+      solver.readPositions(positions);
+      started = [0, 0, 0];
+      for (const node of nodes) for (let axis = 0; axis < 3; axis += 1) started[axis] += positions[node * 3 + axis]! / 3;
+      solver.setFixedNodes(mask);
+      solver.beginPull({ nodes, weights: [1 / 3, 1 / 3, 1 / 3], ray: { origin: [...started], direction } });
+      state = 'pulling';
+    }
+    if (state === 'pulling' && started) {
+      const progress = Math.min(1, (fraction - fromFraction) / 0.25);
+      solver.movePull({
+        origin: [started[0] - 0.3 * progress, started[1] + 0.5 * progress, started[2] + 0.3 * progress],
+        direction,
+      });
+      if (progress >= 1) {
+        solver.endPull('keep');
+        state = 'kept';
+      }
+    }
+    if (state === 'kept' && fraction >= fromFraction + 0.4) {
+      solver.releasePose();
+      state = 'released';
+    }
+  };
+}
+
+window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraFolds = {}, timeStepScale = 1, fineFrom = Number.POSITIVE_INFINITY, integrationType = 'euler', pinAtFraction = Number.POSITIVE_INFINITY, pullAtFraction = Number.POSITIVE_INFINITY) => {
   const rows: StabilityRow[] = [];
   const builders: Array<{ name: string; build: () => FoldDocument }> = [
     ...fixtureNames.flatMap((name) => {
@@ -501,9 +552,11 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraF
         timeStepScale,
         integrator: integrationType,
         pinned: Number.isFinite(pinAtFraction),
+        pulled: Number.isFinite(pullAtFraction),
       };
       const pinMaskForRun = Number.isFinite(pinAtFraction) ? farthestTrianglePairMask(model) : null;
       let pinnedYet = false;
+      const pull = Number.isFinite(pullAtFraction) ? scriptedPull(model, totalSteps, pullAtFraction) : null;
 
       try {
         let solver: WebglSolver | ReferenceSolver;
@@ -529,6 +582,7 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraF
             pinnedYet = true;
           }
           solver.setFoldPercent(foldPercent);
+          pull?.(solver, done);
           solver.step(thisChunk);
           done += thisChunk;
 
