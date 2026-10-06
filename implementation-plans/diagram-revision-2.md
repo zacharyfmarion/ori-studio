@@ -1,9 +1,10 @@
 # Diagram, Revision 2: equal divisions, a right-angle mark, enlarged steps
 
-**Status: planned (2026-10-05), not built. The enlarged-steps decisions were
-settled by Zach on 2026-10-06 and are recorded in that part; the
-equal-divisions (ED1–ED13) and right-angle (RA0–RA8) decisions are still
-PENDING, and those two parts wait on his answers.** Phase 16 of
+**Status: planned 2026-10-05. The right-angle mark (16a) and equal divisions
+(16b) are built (2026-10-06); enlarged steps (16c–16g) are not. Zach settled
+every decision on 2026-10-06: the enlarged steps' Z1–Z10, and the
+equal-divisions (ED1–ED13) and right-angle (RA0–RA8) decisions as
+recommended. Each is recorded in its part.** Phase 16 of
 `implementation-plans/diagram-workspace.md`, after Phase 15
 (`implementation-plans/diagram-annotate-second-pass.md`), whose kinds, tools,
 painter and close-ups this builds on. Built by hand, phase by phase, as Phase
@@ -26,11 +27,12 @@ prototype (a white-paper panel, a row of layered edges, glyph variants,
 narrow flaps), that is what the prototype must show; the check before 16a
 and 16b confirms it does.
 
-**How the text reads while decisions are PENDING.** The equal-divisions and
-right-angle parts are described as they would be built under the recommended
+**How the text reads.** The equal-divisions and right-angle parts were
+written before Zach's answers, as they would be built under the recommended
 options. Wherever the text depends on a decision it names it, as "(ED5 A)",
-and that decision's entry says what changes if Zach picks another option.
-Nothing marked that way is settled until his answer is recorded. The
+and that decision's entry says what another option would have changed. Zach
+took every recommendation, so each such passage stands as written and the
+options it names beside the recommendation were not taken. The
 enlarged-steps part names its decisions, Z1–Z10, only to point at the record
 of what Zach decided.
 
@@ -123,8 +125,8 @@ blocks it.
   Circle, Right Angle, Equal Angles, Close-Up, `annotateTools.ts:108-123`).
 - **Decisions** are named Z1–Z10 (enlarged steps), ED1–ED13 (equal
   divisions) and RA0–RA8 (right angle); Z1–Z6, ED and RA follow the
-  prototypes' numbering. Z1–Z10 were decided on 2026-10-06. Each ED and RA
-  decision has a recommendation and is still pending.
+  prototypes' numbering. All were decided on 2026-10-06; every ED and RA
+  decision as recommended.
 - **Names.** The UI, tool ids, i18n keys and analytics say *enlarge*; types,
   modules, fields and the file say `zoom`. A component is code, so it is
   `DiagramZoomControls`, `DiagramZoomView`, `DiagramStepZoomStatus`.
@@ -1648,11 +1650,15 @@ the tick sizes put to Zach (ED11); the Select help and the Shift line;
 `flipChangesMark`; `INLINE_LABEL_FONT`; the uploads sentence; test placement
 (in the checklist).
 
-#### Decisions for Zach: equal divisions (all PENDING)
+#### Decisions: equal divisions (all DECIDED, 2026-10-06)
 
-The interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
+Zach answered on 2026-10-06, "oh yeah they look good", to the
+recommendations: all A, except ED9 B and ED10 B, each the recommended option.
+Built in 16b. The interactive versions are in
+`artifacts/revision-2/revision-2-marks.html`. **No equal-divisions decision is
+pending.**
 
-**ED1. How do you lay it? PENDING.**
+**ED1. How do you lay it? DECIDED: A.**
 - A. Drag from one end to the other, both ends snapping as a Line's do, or
   click a line of the picture (or a drawn line) to divide it whole.
 - B. Drag only: exactly the Line tool's gesture.
@@ -1664,7 +1670,7 @@ The interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
   gesture, but it would be the only three-press placement outside the pick
   tools, and a touch screen has no hover to preview the offset.
 
-**ED2. What does dragging a laid mark do? PENDING.**
+**ED2. What does dragging a laid mark do? DECIDED: A.**
 - A. It slides the line nearer or farther (the offset); across the measured
   line it goes to the other side; Shift holds 0.5 mm. The end dots move the
   ends. It is never moved whole.
@@ -1676,7 +1682,7 @@ The interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
   small target for the thing actually adjusted; C makes an eye-judged setting
   a typed one.
 
-**ED3. What unit is the offset in? PENDING.**
+**ED3. What unit is the offset in? DECIDED: A.**
 - A. Millimetres as it prints: 0 to 15 mm, 2.5 by default, in 0.5 mm steps.
   The whole symbol is one print size, like every mark.
 - B. A share of the picture: 5% of the frame by default, the sketch's. The
@@ -1691,7 +1697,7 @@ The interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
   edge, 13% with Number on, lowering its run's scale under Fit each and every
   step's under Paper.
 
-**ED4. How far do the dividers run? PENDING.**
+**ED4. How far do the dividers run? DECIDED: A.**
 - A. From the measured line to 1.65 mm past the line, as in the sketch. Where
   the offset is smaller, they straddle the line evenly; at 0 that is the
   template's |\|\| symbol.
@@ -1707,7 +1713,7 @@ The interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
   prototype shows 2.5, 1 and 0 mm on white paper. B and C read as an
   engineering drawing rather than the sketch.
 
-**ED5. How many parts, and how is the count set? PENDING.**
+**ED5. How many parts, and how is the count set? DECIDED: A.**
 - A. 2 to 32, laid at 4. The Parts field takes the focus as a new label's Text
   does: type 5, press Enter, and the canvas has its keys back.
 - B. 2 to 32, laid at 4, changed only in Layers, as a pleat arrow's Kinks are.
@@ -1717,7 +1723,7 @@ The interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
   to every mark. C saves it only when marks repeat, and makes each new mark
   depend on history no one can see.
 
-**ED6. Does it print the count? PENDING.**
+**ED6. Does it print the count? DECIDED: A.**
 - A. A Number switch on each mark, off by default; on, the count prints
   upright beside the middle of the line.
 - B. Never: ticks only, as the sketch and the template.
@@ -1727,7 +1733,7 @@ The interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
   the mark would not move with it. The rotate glyph already sets a number
   inside a mark through the same text path to the PDF.
 
-**ED7. How are two sets of equal parts in one step told apart? PENDING.**
+**ED7. How are two sets of equal parts in one step told apart? DECIDED: A.**
 - A. Ticks 1, 2 or 3 per mark: the equal-angle mark's field and Layers row,
   shared (Lang: one group gets one hash, another two).
 - B. Always one tick; a second set is told apart by its count (Number on).
@@ -1739,7 +1745,7 @@ The interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
   sketch's. Whether they should match is ED11, where the prototype draws the
   two side by side.
 
-**ED8. Name, key and place on the rail. PENDING.**
+**ED8. Name, key and place on the rail. DECIDED: A.**
 - A. "Equal Divisions" (the note's words), key D, in Marks after Equal Angles.
 - B. "Equal Parts" (Sturm's words, a pair with Equal Angles), key E. E is
   Enlarge's (Z1, decided), so B would need another key.
@@ -1747,21 +1753,22 @@ The interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
 - **Recommended: A.** D is free in the Diagram's scope and suggests "divide";
   beside Equal Angles, the two equality marks sit together.
 
-**ED9. Which pen draws the dimension line, on white paper? PENDING.**
+**ED9. Which pen draws the dimension line, on white paper? DECIDED: B.**
 (Raised by the review.)
 - A. Every stroke in the ring pen, 0.5625 pt.
 - B. The line in 0.25 pt (0.09 mm), the existing creases' pen and the
   template's crease weight; dividers and ticks in the ring pen.
 - C. The line in the ring pen at 45% ink, like the sketch's light grey;
   dividers and ticks in full ink.
-- **Recommended: B**, judged on the prototype's white-paper panel; if B
-  still reads as a taller sheet, C, or ED4's B (a 0.7 mm gap at the edge).
-  The sketch's line is thin and grey, on green paper. In the Diagram preset
-  the ring pen is heavier than the 0.5 pt edge, and the end dividers
-  continue the sheet's sides by 4.15 mm, so A draws a closed band in the
-  edges' ink. C adds a second ink to a preset that has one.
+- **Recommended: B**, to be judged on the prototype's white-paper panel,
+  with C, or ED4's B (a 0.7 mm gap at the edge), as the fallback had B still
+  read as a taller sheet. Zach took B. The sketch's line is thin and grey, on
+  green paper. In the Diagram preset the ring pen is heavier than the 0.5 pt
+  edge, and the end dividers continue the sheet's sides by 4.15 mm, so A
+  draws a closed band in the edges' ink. C adds a second ink to a preset that
+  has one.
 
-**ED10. Ticks on crowded parts. PENDING.** (Raised by the review.)
+**ED10. Ticks on crowded parts. DECIDED: B.** (Raised by the review.)
 - A. Shrink freely, with no lower limit.
 - B. Shrink to a floor (spacing at least two pens, a half-tick at least 1.5
   ink) and stop there; the Parts row warns that the parts are too short.
@@ -1771,7 +1778,7 @@ The interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
   minimum (`ARROWHEAD_MIN_STROKES`). C stays legible but changes what the
   mark says, since two ticks mean a second set.
 
-**ED11. Tick size beside the equal-angle mark. PENDING.** (Raised by the
+**ED11. Tick size beside the equal-angle mark. DECIDED: A.** (Raised by the
 review.)
 - A. Each its own: division ticks ±3 ink leaning 20°, 2 ink apart, as the
   sketch; angle ticks stay ±1.8 ink, square to the arc, 1.8 apart.
@@ -1780,7 +1787,7 @@ review.)
 - **Recommended: A.** It keeps the sketch's proportions; the shared Ticks
   field is one vocabulary of counts, not of sizes (ED7).
 
-**ED12. Pasting on the same step. PENDING.** (Raised by the review.)
+**ED12. Pasting on the same step. DECIDED: A.** (Raised by the review.)
 - A. In place, 2.5 mm further out for each earlier paste, up to 15 mm.
 - B. In place, its line on the other side.
 - C. Moved down and right by `PASTE_OFFSET`, as every mark's paste is.
@@ -1788,7 +1795,7 @@ review.)
   sets the offset, so a moved copy (C) could only be put back end by end.
   B works once; a second paste has nowhere to go.
 
-**ED13. After laying one. PENDING.** (Raised by the review.)
+**ED13. After laying one. DECIDED: A.** (Raised by the review.)
 - A. The tool stays in hand, as after every mark but a label or callout.
 - B. Select comes back, as after a label.
 - **Recommended: A.** A label goes back to Select because its words come
@@ -1817,9 +1824,9 @@ edge is level; units are its px, the square about 13.5 a side.
   side, a leg about 1.6 sides. It is drawn in the book's red-brown at about
   the edge's weight.
 - A short black tick continues the fold a few px past the edge, off the paper.
-  Whether it is the fold's or a mark of its own is asked in RA0.
+  It is the fold line's own overshoot, not part of the mark (Zach, RA0).
 - The reading: today's open square given its own two legs and moved off the
-  vertex into the angle (RA0 confirms it).
+  vertex into the angle (RA0 A).
 
 **Why it is better, and what it costs.** Today's mark (`diagram-annotate.md`
 decision 11, built in 14e) borrows two sides of its square from the picture's
@@ -1977,23 +1984,28 @@ crane's byte-identical save stays in the proof); the glyph made a decision
 dropped and its options reworded; the reflow check; the sketch's reading and
 the black tick put to Zach, with a closed-square-only control (RA0).
 
-#### Decisions for Zach: the right-angle mark (all PENDING)
+#### Decisions: the right-angle mark (all DECIDED, 2026-10-06)
 
-The interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
-RA0 comes first.
+Zach answered on 2026-10-06, "oh yeah they look good", to the
+recommendations: RA0–RA8 all A. For RA0 he settled the black tick too: it is
+the fold line's overshoot, not part of the mark. Built in 16a. The
+interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
+**No right-angle decision is pending.**
 
-**RA0. What does the sketch mean? PENDING.**
+**RA0. What does the sketch mean? DECIDED: A.**
 - A. An ∟ of two legs with a closed square in its corner, inset from the
   vertex (the reading above).
 - B. A closed square only, inset, with no legs (the prototype's control
   column).
 - Also asked (a caption under RA-0's figure, not one of its options): the
   short black tick past the edge. Is it the fold line's own overshoot (not
-  drawn here), or part of the mark?
-- **Recommended: A**; the tick is for Zach to say. Under B the legs, RA5 and
-  RA6 fall away and RA1 sets only the inset and the square.
+  drawn here), or part of the mark? **Zach: the fold line's overshoot, not
+  part of the mark.** The mark draws nothing past the edge.
+- **Recommended: A**, with the tick left for Zach to say. Under B the legs,
+  RA5 and RA6 would have fallen away and RA1 set only the inset and the
+  square.
 
-**RA1. How big is the mark, and how far into the angle? PENDING.** (Ink is
+**RA1. How big is the mark, and how far into the angle? DECIDED: A.** (Ink is
 0.331 mm; legs are measured from the inner corner.)
 - A. Inset 4, square 7, legs 11: 1.3 mm in, a 2.3 mm square (today's), legs
   ending 5 mm from the vertex along each line; a footprint of about 5 × 5 mm.
@@ -2010,7 +2022,7 @@ RA0 comes first.
   picks.
 
 **RA2. Does every right angle take the new look, or is it an option?
-PENDING.**
+DECIDED: A.**
 - A. Every right-angle mark, with no new field. Existing marks redraw; the
   file is unchanged.
 - B. A per-mark Look row in Layers (Inset / On the Corner): a `look` field,
@@ -2026,7 +2038,7 @@ PENDING.**
   look.
 
 **RA3. Is the inset fixed, or can a mark move further into its angle?
-PENDING.**
+DECIDED: A.**
 - A. A fixed inset, placement as today: the vertex the anchor; click in the
   angle, or drag from the corner into it.
 - B. A fixed default plus a third grip: drag the square along its diagonal to
@@ -2043,7 +2055,7 @@ PENDING.**
   upload.
 
 **RA4. What happens on a flap narrower than the mark (about 5 mm at RA1 A)?
-PENDING.**
+DECIDED: A.**
 - A. Draw it as it is. If it does not fit, Turn 90° to the fold's other side,
   or delete it.
 - B. A per-mark Size row in Layers (Regular / Small, Small 0.6×), with a
@@ -2053,12 +2065,12 @@ PENDING.**
 - **Recommended: A for now**; B can be added later without changing anything
   else, if a real diagram needs it. The prototype shows flaps 5 and 4 mm
   wide, with how far the leg along the edge ends from the far edge (on the 5
-  mm flap, right on it: 15 ink = 4.97 mm). It does not yet show pictures
-  printed at 40 and 54 mm; the canvas draws at 50 mm, so it understates
-  crowding on a 4-column page (the check before 16a and 16b).
+  mm flap, right on it: 15 ink = 4.97 mm). It never showed pictures printed
+  at 40 and 54 mm; the canvas draws at 50 mm, so it understates crowding on a
+  4-column page. RA4 was decided without them (the check before 16a and 16b).
 
-**RA5. The mark's ink and weight in the Diagram preset. PENDING.** (Raised by
-the review.)
+**RA5. The mark's ink and weight in the Diagram preset. DECIDED: A.**
+(Raised by the review.)
 - A. Legs and square in one path, in the ring pen and `ink.mark` (the
   arrows' #231f20).
 - B. The square in the ring pen; the legs past it in 0.25 pt, an existing
@@ -2075,9 +2087,10 @@ the review.)
   3.6 mm legs run parallel to an edge 1.1 mm inside it, in its ink, which is
   how stacked layers are drawn. B's thinner solid leg reads as a crease. D
   adds a style token. (The prototype recommends A with this fallback; the
-  plan follows it.)
+  plan follows it.) Zach took A, and 16a's browser proof shows the legs
+  beside the sketch.
 
-**RA6. Tie the vertex dot to the mark? PENDING.** (Raised by the review.)
+**RA6. Tie the vertex dot to the mark? DECIDED: A.** (Raised by the review.)
 - A. Selected or hovered, a hairline in the selection colour runs from the
   vertex to the mark's inner corner.
 - B. No hairline: the vertex dot sits alone in the gap.
@@ -2086,7 +2099,7 @@ the review.)
   size, so the gap grows as the canvas zooms in. Without a tie the dot reads
   as a separate point. The prototype shows both at 100% and 300%.
 
-**RA7. The rail icon. PENDING.** (Raised by the review.)
+**RA7. The rail icon. DECIDED: A.** (Raised by the review.)
 - A. Shows the inset: the picture's two lines in a 1 px hairline, with the
   inset ∟ and square inside them.
 - B. ∟ legs and a closed square at the rail's 1.5 stroke, butt caps and miter
@@ -2096,7 +2109,7 @@ the review.)
   B looks unchanged on the rail. The prototype draws all three at 20 px and
   6×, light and dark.
 
-**RA8. The ⌘ hint. PENDING.** (Raised by the review.)
+**RA8. The ⌘ hint. DECIDED: A.** (Raised by the review.)
 - A. "Hold ⌘ to put the corner it marks down anywhere, without snapping."
 - B. Unchanged: "…to put its corner down anywhere…".
 - **Recommended: A.** The drawn mark now has a corner of its own, away from
@@ -2253,8 +2266,8 @@ The builder owns every gate, the browser's included, and shares the proof
 with Zach. What was built is written under each phase's checklist, as in
 Phase 15. Each phase is built to the decisions recorded here: the
 enlarged steps' Z1–Z10, and for 16a and 16b Zach's answers to RA0–RA8 and
-ED1–ED13 once he gives them; where those differ from the recommendations,
-the items below change with them.
+ED1–ED13 (2026-10-06, each the recommendation, so the items below stand as
+written).
 
 **Order.** 16.0, the enlarged-steps spike, comes first, before 16c–16g. 16a
 and 16b need only their own decisions, not the spike, and can land before or
@@ -2582,7 +2595,10 @@ left out of the sizes above.
 
 ### Before 16a and 16b: the marks' decisions (nothing merges)
 
-- [ ] The marks prototype shows what each decision names. Checked on
+**DECIDED, 2026-10-06.** Zach: "oh yeah they look good", to the
+recommendations.
+
+- [x] The marks prototype shows what each decision names. Checked on
   2026-10-05: present are ED4's offsets of 2.5, 1 and 0 mm and ED9's pens on
   white, grey and the sketch's paper; ED10's 32 parts with an edge-size
   slider; ED11's two kinds of tick side by side; ED12's pasted copy; RA0's
@@ -2590,17 +2606,27 @@ left out of the sizes above.
   slider; RA4's 5 and 4 mm flaps; RA5's layered-edge cell; RA6's hairline at
   100% and 300%; RA7's three icons. Missing: RA4's pictures printed at 40 and
   54 mm. Add it before Zach is asked, or drop the claim from RA4.
-- [ ] The prototype and this plan agree on every decision's options and
+  *As it went:* the 40 and 54 mm pictures were never added. RA4 now says so,
+  and that it was decided without them.
+- [x] The prototype and this plan agree on every decision's options and
   recommendation (checked 2026-10-05; the plan follows the prototype's
   numbering, ED9's option C and RA5's recommendation).
-- [ ] Zach tries the marks prototype and answers ED1–ED13 and RA0–RA8 (its
+- [x] Zach tries the marks prototype and answers ED1–ED13 and RA0–RA8 (its
   "Copy picks" text names them by number). His answers are recorded under
   each part's decisions, and every passage marked with a decision he did not
   take is rewritten to his answer.
+  *As it went:* he took every recommendation: ED1–ED13 all A except ED9 B and
+  ED10 B, and RA0–RA8 all A. For RA0's black tick: the fold line's overshoot,
+  not part of the mark. No passage needed rewriting; each decision is marked
+  DECIDED in its part.
 
 ### 16a The right-angle mark
 
-- [ ] Geometry: `DIAGRAM_RIGHT_ANGLE_INK {inset, side, leg}`,
+**Built 2026-10-06, commit 83fe37d37**, to RA0–RA8 all A. The sketch's short
+black tick past the edge is the fold line's overshoot, so the mark draws
+nothing past the edge.
+
+- [x] Geometry: `DIAGRAM_RIGHT_ANGLE_INK {inset, side, leg}`,
   `rightAngleShape`, `rightAngleDrawn`, `rightAnglePathData`,
   `rightAngleReach`. `stepDiagramGeometry.test.ts`, replacing the cases at
   about l.1104-1139: the inner corner inset·√2 along the diagonal; each leg
@@ -2608,16 +2634,54 @@ left out of the sizes above.
   (inset + side)·√2 out; the square's far sides ending on the legs; a diagonal
   turned 0.3 rad; a mirrored projector; null with no diagonal; reach per
   point; two subpaths.
-- [ ] Drawing: the right-angle case in `DiagramPrimitives.tsx`; six points in
+  *As built:* `DIAGRAM_RIGHT_ANGLE_INK = { inset: 4, side: 7, leg: 11 }`
+  (`diagramInk.ts`): the ∟'s corner 1.3 mm in from each line, the square 2.3
+  mm a side, the legs ending 15 ink (5 mm) out, an angle mark's radius.
+  - `rightAngleShape(vertex, diagonal, size)` returns
+    `{ legs: [endA, inner, endB], square: [onA, far, onB] }`: the inner corner
+    inset·(a + b) from the vertex, the legs from it to leg·a and leg·b, the
+    square's far sides ending on the legs; a and b are the diagonal turned 45°
+    anticlockwise and clockwise on the page.
+  - `rightAngleDrawn(at, toward, project)` sizes it by `project.ink` and
+    measures the diagonal after projecting, so the mark mirrors with the
+    paper. Null with no diagonal.
+  - `rightAnglePathData` writes `M endA L inner L endB M onA L far L onB`.
+  - `rightAngleReach(pen)` returns `{ legs, square }`: pen/2 at the four butt
+    ends, √2·pen/2 at the two mitred corners. `rightAngleSquare` is gone.
+  - Tests: `stepDiagramGeometry.test.ts`, "a right-angle mark (Revision 2)".
+- [x] Drawing: the right-angle case in `DiagramPrimitives.tsx`; six points in
   `markReach.ts`; `paintAnnotations.test.ts`'s shape regex, bounds and
   reach-at-any-pen model rewritten.
-- [ ] Placement: the footprint search in `rightAngles.ts` and
+  *As built:* one path in the ring pen and `ink.mark`, butt caps and
+  `stroke-linejoin="miter"`, through `onAndOffPaper`. `markReach.ts` takes all
+  six points. `paintAnnotations.test.ts` reads both subpaths and builds the
+  reach from first principles.
+- [x] Placement: the footprint search in `rightAngles.ts` and
   `rightAnglePlacement.ts`; the canvas's hover and click preview. Tests
   (`rightAngles.test.ts`, `rightAnglePlacement.test.ts`,
   `DiagramAnnotateCanvas.test.tsx`): hovering where the ghost is draws the
   same ghost; a click there marks that vertex; a press at the vertex still
   drags from the corner; ⌘ puts the vertex at the pointer.
-- [ ] Hit and canvas: `rightAngleInPicture`, `rightAngleGrips` (direction on
+  *As built:* nearest first, with no dead zone (this tool was its only user).
+  - `rightAngleCorner(step, assets, point, radius, { footprint, ...snap })`
+    asks every vertex within radius + footprint, nearest first, and returns
+    the first whose sector holding the pointer is a right angle, else null.
+    A nearer vertex with no right angle there never hides one that has it:
+    the stacked flap corners 0.0075 either side of crane step 8's crossing
+    (fixture `STACKED_CROSSING`, `pictureSnap.fixtures.ts`).
+  - `footprint` is required. `deadZone`, `DEAD_ZONE_SHARE` and
+    `nearestVertex` are gone, and the module doc is rewritten.
+    `placeRightAngle` passes `RIGHT_ANGLE_FOOTPRINT`,
+    (inset + side)·√2·`INK_UNITS`, about 0.103 of the frame;
+    `useAnnotateCanvas` is unchanged.
+  - Tests: the mark found from over it; a nearer vertex with none passed
+    over; each quadrant at the crossing; a drag from the crossing squares;
+    hovering over the mark draws the identical ghost.
+  - Browser, crane step 8: a Chromium mouse 3 and 8 px into each quadrant,
+    8 of 8 (HEAD 0 of 8); iPad finger taps at 6, 10 and 14 px, 3 of 3 (HEAD 0
+    of 3). Hovering over the ghost draws the same ghost for 1,965 of the
+    crane's 1,985 right-angle ghosts.
+- [x] Hit and canvas: `rightAngleInPicture`, `rightAngleGrips` (direction on
   the far corner), `rightAngleDistance` (0 inside the square, Infinity nearer
   the vertex than the inner corner); the Selection and `RightAngleGhost` draw
   the path and, under RA6 A, the vertex hairline. `annotationHit.test.ts`
@@ -2628,36 +2692,113 @@ left out of the sizes above.
   polyline): ghost and selection markup; the far-corner grip turns the mark;
   the corner grip moves and squares it; with a valley line ending at the
   vertex and nothing selected, a press at the vertex selects the line.
-- [ ] The glyph (RA7); under RA8 A, `cornerFreeKey` reworded in nine
+  *As built:* `rightAngleInPicture` replaces `rightAngleLegs`.
+  `rightAngleDistance` is Infinity when |P − V| < |P − I|, I the ∟'s corner:
+  the perpendicular bisector, which never cuts ink. It is 0 inside the closed
+  square, and otherwise the distance to the nearer stroke. The `direction`
+  grip is on the square's far corner; `corner` stays on the vertex. The
+  Selection and `RightAngleGhost` draw the path and the RA6 tie (`.cornerTie`
+  in `DiagramAnnotateCanvas.module.css`), its `strokeWidth` 1/zoom set on the
+  element, because `vector-effect` does not undo react-zoom-pan-pinch's CSS
+  transform: measured 0.99 px at 47% and 1.00 px at 1200%, in Chromium and
+  WebKit. The tie also shows on a selected mark in a read-only diagram.
+- [x] The glyph (RA7); under RA8 A, `cornerFreeKey` reworded in nine
   catalogs and in `DiagramAnnotateToolWindow.test.tsx:131-135`; the stale doc
   comments.
-- [ ] Goldens re-recorded and checked by eye beside the sketch:
+  *As built:* RA7 A: hairline lines with the inset ∟ and its square, its
+  paths carrying `data-glyph-part` (`DiagramAnnotateToolGlyph.test.tsx`,
+  new). RA8 A: `cornerFreeKey` reads "Hold {{modifier}} to put the corner it
+  marks down anywhere, without snapping." in all nine catalogs, extracted,
+  translated and stamped; the i18n check passes.
+- [x] Goldens re-recorded and checked by eye beside the sketch:
   `rightAngleGolden.json` (frame-corner, up-right, turned, off-picture,
   at-reach; card, page, canvas) and `referencesRightAnglesGolden.json` (front
   and back).
-- [ ] `diagram-annotate.md`: decision 11 and the 14e as-built marked
+  *As built:* as written: 5 cases × card, page and canvas, and References
+  front and back.
+- [x] `diagram-annotate.md`: decision 11 and the 14e as-built marked
   superseded by this section.
-- [ ] Browser, before and after: a box_90 capture; a References step, front
+- [x] Browser, before and after: a box_90 capture; a References step, front
   and back; an upload with lines drawn on it; a 45° flap whose fold meets its
   edge, beside the sketch; a 3D capture, a simulated capture, a photo upload
   with a perspective corner, and a mark carried through an affine spread, each
   beside today's look; the crane, its right angles redrawn, saved and diffed
   identical, and its pages and a PDF at 300 dpi compared before and after for
   reflow.
+  *As built:*
+  - The verify pass (`artifacts/revision-2/16a/verify/`; composite
+    `artifacts/revision-2/16a/16a-before-after.png`), BEFORE being HEAD's 14
+    changed sources routed into a private browser on :5291: crane step 8's
+    45° flap corner and its centre crossing, at print size (96 dpi) and ×3
+    (288 dpi) from each build's PDF, beside the sketch; the canvas plain and
+    selected in Chromium light and dark and in WebKit iPad 1024×1366 light
+    and dark; the rail glyph before and after.
+  - The fixer (`artifacts/revision-2/16a/fix/index.html`), on the canvas at
+    fit and on each card: box_90's crease pattern and its 3D capture; the
+    crane's crease pattern; References front and back; an upload with lines
+    drawn on it; the 45° flap beside the sketch; the crane's simulated
+    capture; a synthetic perspective photo; an affine spread carry (skewed in
+    Chromium only). RA2's trade-off shows as this plan says: on projected
+    pictures the legs float off the lines or cross face edges.
+  - Existing diagrams: a crane saved by HEAD with 8 marks (3 opening off the
+    picture) loads in this build with all 8 and writes back byte-identical
+    (sha256 3a2de540…). PDF pages 2 and 3 are pixel-identical; page 1
+    changes only at the marks, and at step 3, whose mark opens off the top:
+    that picture sits 2.0 mm lower. The fixer's Pages check agrees: 26 cells
+    identical but for one turn glyph 1.8 px lower. Zach's crane file itself
+    holds no right-angle mark, so its own pages cannot reflow.
+  - Where the proof differs from the item: the PDF was compared at 96 and 288
+    dpi, not 300; and the flat-fold case is step 8's crossing and the 45°
+    flap corner, not the vertex at (0.3514, 0.4969), whose right angles come
+    from a hidden layer edge.
+- [x] Analytics (added as built): no new event. `diagram annotation added
+  {tool: right_angle}` stands, and a click on the mark shown counts as
+  `snap: snapped`; one clause added to its row in `docs/analytics.md`.
+- [x] Proof and gate (added as built): the implementer's 30 tests fail on
+  HEAD's sources, and 11 of 11 mutants are caught; the fixer's step-8 and tie
+  tests fail on the reviewed code. At the commit, 838 files and 11,082 tests
+  pass (2 files and 13 tests skipped); lint, tsc and the i18n check are
+  clean.
 
 ### 16b Equal divisions
 
-- [ ] Model: kind `divisions`; `parts`, `offset`, `numbered`; `mirrored` and
+**Built 2026-10-06, commit 650bc8871**, to ED1–ED13: all A, except ED9 B and
+ED10 B. Implemented, reviewed (code and print), fixed and verified.
+
+- [x] Model: kind `divisions`; `parts`, `offset`, `numbered`; `mirrored` and
   `ticks` reused (`DiagramTicks`); the shape; defaults; clean; degenerate; the
   exhaustive switches; `hasTicks`; `withSide`. `annotationModel.test.ts`:
   laying one (4 parts, 2.5 mm, the side away from the middle on each edge of a
   square and on a line through it); clean and degenerate cases; the
   `carriesText` and behind lists.
-- [ ] File: required fields; newer builds' (`parts` 33, `offset` 16, an
+  *As built:* its own `AnnotationShape`, `divisions`, kept out of
+  `LINE_KINDS`; after `angle-mark` in `ANNOTATION_KINDS` and on the rail.
+  - Fields: `parts` (`DIVISIONS_PARTS` 2–32, laid at 4); `offset`
+    (`DIVISIONS_OFFSET_MM` 0–15, laid at 2.5, step 0.5, kept to 0.1);
+    `numbered?: true`; `mirrored?: true` and `ticks` reused, with
+    `DiagramAngleTicks` renamed `DiagramTicks`.
+  - Helpers: `withSide` (was `withPleatSide`), `hasTicks`, `divisionsParts`,
+    `divisionsOffsetWithin`, `withParts`, `withDivisionsOffset`,
+    `withNumbered`.
+  - The default side, `divisionsAwayFromMiddle`, lives in
+    `annotationModel.ts` beside `createAnnotation`, not in
+    `divisionsPlacement.ts` as the Placing item says, to avoid an import
+    cycle.
+  - `cleanDivisions` holds the offset to its range, never rounds it, and
+    drops bad ticks. `isDegenerate` checks the length; `flipsArc` is true;
+    `flipCentre` is the middle of the measured line.
+- [x] File: required fields; newer builds' (`parts` 33, `offset` 16, an
   unknown field, `behind`); damage (`parts` 1 or 2.5, `offset` −1); round
   trips, the every-kind round trip included; an older build keeping it
   verbatim; the crane written back unchanged.
-- [ ] Drawing: `DIAGRAM_DIVISIONS_INK` (overshoot 5, tick 3, spacing 2, lean
+  *As built:* `ANNOTATION_FIELDS.divisions` = `parts`, `offset`, `mirrored`,
+  `ticks`, `numbered`; `parts` and `offset` required. Kept verbatim as a newer
+  build's: `parts` over 32, `offset` over 15, `ticks` over 3, any unknown
+  field, `behind`. Dropped as damage: `parts` under 2 or not whole; `offset`
+  negative or not a number; either missing; a `numbered` or `mirrored` that
+  is not a boolean. A build that knows no such kind keeps it verbatim. The
+  crane writes back identical.
+- [x] Drawing: `DIAGRAM_DIVISIONS_INK` (overshoot 5, tick 3, spacing 2, lean
   20°, number 7.2, gap 2, the tick floors, as ED9–ED11 settle them) and
   `ANNOTATION_INK_MM`; `divisionsShape`, `divisionsDrawn`,
   `divisionsPathData`; the primitive in `DiagramPrimitives` (`canLeavePaper`
@@ -2668,17 +2809,51 @@ left out of the sizes above.
   the floor and the warning past it, at 32 parts on 25 mm; the number's place
   on level and upright lines; `paintAnnotations.test.ts`'s reach-against-ink
   table, the number's box at both style pens; `diagramInk.test.ts` pins.
-- [ ] Golden: `divisions.cases.ts`, `divisions.test.ts`,
+  *As built:* `DIAGRAM_DIVISIONS_INK = {overshoot 5, tick 3, spacing 2,
+  leanDeg 20, tickFloor 1.5, spacingFloor 2, number 7.2, gap 2, pens {line:
+  'crease', marks: 'ring'}}`, the pens typed `DivisionsPen` (ED9 B).
+  `divisionsDrawn` takes each stroke's pen, and the crowding floor's, from
+  that table, and so does the hit test. `ANNOTATION_INK_MM` (0.3307) and
+  `mmInPictureUnits` are in `canvasInk.ts`. `stepDiagramGeometry.ts` has
+  `divisionsShape`, `divisionsDrawn`, `divisionsPathData` (a `line` and a
+  `marks` path) and `divisionsStrokes`.
+  - Dividers run from the measured line to past the dimension line, as in
+    the sketch.
+  - The tick lean is decided on the page: the quarter turn clockwise of the
+    line's rightward (or downward) direction, tipped 20°.
+  - Ticks scale down to their floors on short parts (ED10 B); `crowded` is
+    set when the half-tick or the spacing would go under its floor.
+  - The count stands upright beside the line's middle, `gap` past the
+    dividers, its box estimated at 0.62 em a digit and a half-height of 0.4
+    em. It is `INLINE_LABEL_FONT` 700, and Noto Sans Bold on pages and in the
+    PDF.
+  - The primitive is in `DiagramPrimitives` (`canLeavePaper`; classes
+    `step-diagram__divisions` and `step-diagram__divisions-number`).
+    `markReach` covers every stroke's ends plus half its pen, and the count's
+    box; `diagramInModel`'s side follows `reverses`; the `symbolAnchor` is
+    the middle of the line.
+  - The annotation projector now carries the style's aux pen as `crease`, so
+    the line prints at 0.25 pt in the Diagram preset.
+- [x] Golden: `divisions.cases.ts`, `divisions.test.ts`,
   `divisionsGolden.json`, on a card, a page and the canvas: the sketch; a left
   edge, mirrored; a diagonal in 3 with two ticks; offsets 0 and 1 mm; 7 parts,
   numbered; 32 parts on a short edge.
-- [ ] Tool: Marks after Equal Angles, key D, label, help and touch help,
+  *As built:* as written (`__fixtures__/divisionsGolden.json`), the cases
+  named sketch, left-edge, diagonal, offset-0, offset-1, seven-numbered and
+  crowded.
+- [x] Tool: Marks after Equal Angles, key D, label, help and touch help,
   modifiers (⌘ `endsFreeKey`; Shift for the offset drag), the glyph (the
   template's |\|\| symbol), shortcut executor and label, the Select help's
   exception. Tests: `annotateTools.test.ts` (the Marks order, the tool window,
   D bound, plain T and R still unbound), `diagramShortcuts.test.ts`'s tool-key
   table (l.239), `DiagramAnnotateRail.test.tsx`.
-- [ ] Placing (ED1 A): the drag with snapped ends; `nearestLine.ts`, moved
+  *As built:* Marks read Circle, Right Angle, Equal Angles, Equal Divisions,
+  Close-Up. D is `diagram.toolDivisions`, with its shortcut label; the glyph
+  is |\|\|. The help and touch help are as planned. The modifier lines are
+  `endsFreeKey` and `divisionsShiftKey`, which reads "With Select, Shift-drag
+  the mark to move its line by half millimetres." The Select help gains the
+  drag-offset exception.
+- [x] Placing (ED1 A): the drag with snapped ends; `nearestLine.ts`, moved
   out of `usePickTool` with collinear pieces joined, shared with Angle
   Bisector, and its hover highlight; `divisionsPlacement.ts` (the default
   side; the offset and side from a pointer, 0.1 mm, Shift 0.5 mm); a short
@@ -2686,34 +2861,126 @@ left out of the sizes above.
   rim fixture's top edge taken whole; a flat fold with a covered face;
   `DiagramAnnotateToolWindow.test.tsx` for the notice; the bisector's tests
   unchanged.
-- [ ] The count (ED5 A, ED13 A): `useFieldFocusRequest`; `fieldRef` on
+  *As built:* a drag snaps both ends; ⌘/Ctrl puts an end down freely. A click
+  takes `nearestLine(..., { whole: true })`, and a release past the slop but
+  shorter than `MIN_ANNOTATION_LENGTH` counts as a click. `nearestLine.ts`,
+  out of `usePickTool`, is shared with the Angle Bisector, which still takes
+  only the piece; it joins collinear pieces that meet or overlap
+  (`nearestLine.test.ts`: a crease pattern's rim, a flat fold's covered
+  face's edge and a line drawn on an upload, each taken whole). On hover the
+  line a click would take is drawn as a 3 px line in the full selection
+  colour (`PickPreview.hoverTakes`, `[data-takes]`); the bisector keeps its
+  30% wash. A click on no line shows a notice in the tool window
+  (`pickProgress`: `setToolNotice`, `toolNotice`, `useToolNotice`), cleared
+  on the next press, a tool change or a step change.
+- [x] The count (ED5 A, ED13 A): `useFieldFocusRequest`; `fieldRef` on
   `NumberRow` and `NumberField`; contents selected on focus; the tool kept in
   hand. Tests:
   Parts takes the focus and Enter gives the keys back; typing 5 over 4 gives 5
   (jsdom, then WebKit in the browser check).
-- [ ] Snap: both ends; division points as targets, not on projected pictures
+  *As built:* `labelFocus.ts` became `fieldFocus.ts` (`requestFieldFocus`,
+  `takeFieldFocus`, `pendingFieldFocus`, `cancelFieldFocus`,
+  `onFieldFocusRequest`; a field of `'text'` or `'parts'`).
+  `useFieldFocusRequest` replaces `DiagramLayers`' inline effect and selects
+  the contents when it takes a request; `NumberField` gains `inputRef`,
+  `NumberRow` `fieldRef`. The hook takes the focus back, on the next frame,
+  from a container that focused itself afterwards (the touch Settings
+  sheet), which fixes labels in that sheet too. `DiagramDivisionsControls` is
+  keyed by the mark's id, so a second mark laid in a row gets its own count
+  to type over.
+- [x] Snap: both ends; division points as targets, not on projected pictures
   (`annotateSnap.test.ts`, `pictureSnap.test.ts`).
-- [ ] Hit and grips: the `offset` grip part; `moved()` and `placeInHand`;
+  *As built:* `snapsWhenPlaced('divisions')` is true. The snap points are the
+  ends and the division points, with no division points on projected (3D or
+  simulated) pictures. Divisions are not in `drawnLines`.
+- [x] Hit and grips: the `offset` grip part; `moved()` and `placeInHand`;
   `DivisionsSelection`. `annotationHit.test.ts` (the ink, the number, the
   ends, the offset grip); canvas tests: a drag with snapped ends; a click on
   an edge; dragging the mark sets the offset, and across the measured line
   flips the side; Shift holds halves.
-- [ ] Carry, flips, copy: a mirror toggles the side and a spread carries the
+  *As built:* the body is measured to the line, dividers and ticks, and is 0
+  on the count's box; the measured line is never the mark's. The `offset`
+  grip is a handle at the middle of the line (`divisionsOffsetGrip`).
+  `draggedDivisions` moves the line square to the measured line, switching
+  side when dragged across; the offset is kept to 0.1 mm, or 0.5 mm with
+  Shift, and each drag is one undo step. `DivisionsSelection`: a wash along
+  the ink and the count's box, a hairline along the measured line, end dots,
+  and `data-handle="offset"`.
+- [x] Carry, flips, copy: a mirror toggles the side and a spread carries the
   ends by their faces (`annotationCarry.test.ts`); Flip Horizontal, Vertical
   and F (`flipAnnotation.test.ts`; `annotationActions.test.ts`: Flip offered
   and named, a do-nothing Flip Horizontal held); the same-step paste as ED12
   settles it (`annotationClipboard.test.ts`); the side on a frame that turns
   the paper over (`referenceFinderStepInModel.test.ts`).
-- [ ] Layers: `DiagramDivisionsControls`, `DiagramTicksRow`, the crowding
+  *As built:* mirror, References turned over, a per-face spread, Flip
+  Horizontal and Vertical, F, and a flipping frame in
+  `referenceFinderStepInModel`. A mirror toggles `mirrored`; offset, parts,
+  ticks and the count never change. One check, `divisionsAlikeEitherSide`
+  (offset 0 and no count), is behind both F's hold (`flipChangesArc`) and
+  `divisionsFootprint`, so Flip Horizontal and Vertical are held exactly
+  where F is, and also along the mark's own level line. ED12 A: a paste on
+  the same step stands 2.5 mm further out for each earlier paste, up to 15
+  mm (`PASTE_DIVISIONS_OFFSET_MM`).
+- [x] Layers: `DiagramDivisionsControls`, `DiagramTicksRow`, the crowding
   warning; the `useStepAnnotations` setters. `DiagramLayersPanel.test.tsx`:
   the rows, one undo step each.
-- [ ] Analytics (`tool: divisions`, `snap`, `placed`) and `docs/analytics.md`
+  *As built:* `DiagramDivisionsControls`: Parts, Offset (mm, a literal
+  suffix), Ticks, and Number with its help; Flip and Delete come from the
+  shared rows. It has a CSS module of its own, with one rule for the
+  warning's inset, where the Layers pane text above says none.
+  `DiagramTicksRow` is extracted and shared with the equal-angle mark.
+  - The crowding warning is judged at the printed frame: `DiagramPanel`
+    publishes it (`printedFrames.ts`, `usePublishPrintedFrames`) and
+    `useDivisionsCrowded` reads it. `printedFrameMm` (`pagePictures.ts`)
+    falls back, for a cell with no scale, to the size the page fits the
+    picture to (`fittedFrameMm` / `fittedSheetMm`, not counting the marks'
+    small extra shrink), and to 50 mm before the pages are laid out.
+  - `setParts`, `setDivisionsOffset` and `setNumbered`, and `setTicks`
+    widened through `hasTicks`, are each one undo step, "Change equal
+    divisions".
+- [x] Analytics (`tool: divisions`, `snap`, `placed`) and `docs/analytics.md`
   (the tool list, the snap sentence, the flipped row); i18n in nine catalogs.
-- [ ] Browser, on a square step of the crane: D and a real drag along the top
+  *As built:* `tool: divisions` and the new optional `placed` (`drag`/`line`,
+  type `DiagramDivisionsPlaced`), through
+  `trackDiagramAnnotationAdded(tool, snap, placed)`. `docs/analytics.md`: the
+  added and flipped rows (divisions flip about the middle of their line; F is
+  not counted). 11 keys in all nine catalogs: `tools:diagram.toolDivisions`;
+  `panels:diagram.annotate` `divisionsHelp`, `divisionsHelpTouch`,
+  `divisionsNoLine`, `divisionsShiftKey`; `panels:diagram.annotations`
+  `parts`, `offset`, `number`, `numberHelp`, `partsCrowded`; and
+  `selectHelp`, reworded in place.
+- [x] Browser, on a square step of the crane: D and a real drag along the top
   edge, 5 typed, a Line from the first division, set beside the sketch; a
   click on a crease pattern's edge after a book fold; the card, the page, and
   the PDF through `pdftoppm` at 600 dpi; light and dark; Chromium, and
   iPad-sized WebKit for the touch help and the focus.
+  *As built:*
+  - The implementer (`artifacts/revision-2/16b/browser.mjs`, `shots/`),
+    Chromium 1440×900 light and dark: the crane read with no unknown
+    annotation and written back identical; D, a real drag along step 1's top
+    edge, 5 typed and Enter; a Line from the first division snapping to it;
+    the handle dragged to 4 mm; on step 3's crease pattern, hover lighting
+    the whole diamond edge, split by a crease at its middle, and a click
+    dividing it whole; a click on no line showing the notice; the cards, the
+    pages, and the PDF through `pdftoppm -r 600`. WebKit 1180×820 with touch:
+    the touch help; a tap dividing the top edge whole; Parts taking the focus
+    when the Settings sheet opens on Layers, and 5 with Enter giving 5.
+  - The verify pass (`artifacts/revision-2/16b/verify/`, composite
+    `16b-before-after.png`), on crane step 1's top edge: fifths at 6 mm with
+    2 ticks and Number on; quarters at 2.5 mm with 1 tick; a valley from the
+    first quarter. Shown: the PDF at print size and ×3 beside the sketch; the
+    flow D → drag → 5 → Enter → rows in Chromium light and dark; the canvas
+    plain and selected, and the card, in Chromium and in WebKit iPad
+    1024×1366, light and dark; the touch flow through the Settings sheet; the
+    Pages view. No console errors (WebKit with interception on; its COEP
+    worker noise also shows on a bare load).
+  - The gate on HEAD 3d6210133 plus 16b: 843 files and 11,160 tests passed.
+  - Not tried on a real iPad, where a focus outside a user gesture may not
+    raise the keyboard.
+- [ ] For Zach, not changed:
+  - ⌘Z straight after laying a mark is swallowed by the focused Parts field,
+    as with labels; Escape or Enter first.
+  - Crossed corners where two divided edges meet (ED4 A, ED9 B).
 
 ### 16c Enlarged steps: model, file, imprint
 
