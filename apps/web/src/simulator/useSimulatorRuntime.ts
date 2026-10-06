@@ -24,6 +24,7 @@ import {
 } from './simulatorPerfProbe';
 import { useSimulatorPerfLog } from './useSimulatorPerfLog';
 import { simulatorDevicePixelRatio } from './simulatorDevicePixelRatio';
+import type { SimulatorFraming } from './framingFollow';
 import type { PaperScene } from '../lib/paper/paperScene';
 import type {
   SimulatorDrawnView,
@@ -174,6 +175,12 @@ export interface UseSimulatorRuntimeOptions {
    * simulation runs at a time".
    */
   paused?: boolean;
+  /**
+   * How the camera frames paper the tools have pinned or posed (`framingFollow`);
+   * `'anchor'`, Simulate's, when omitted. Read at load, so a change takes effect
+   * with the next model rather than reloading this one.
+   */
+  framing?: SimulatorFraming;
   /** Called on the main thread whenever a new frame is available. */
   onFrame?: (frame: SimulatorFrameView) => void;
 }
@@ -269,6 +276,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     allowGpuRender = true,
     bitmapOutput = null,
     paused = false,
+    framing,
     onFrame,
   } = options;
 
@@ -361,6 +369,10 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
+  const framingRef = useRef(framing);
+  useEffect(() => {
+    framingRef.current = framing;
+  }, [framing]);
 
   /** Hand a model back to the worker, if there is one. Safe to call with none. */
   const releaseToken = useCallback((token: number | undefined) => {
@@ -494,6 +506,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
             camera: lastCameraRef.current ?? undefined,
             settings: lastRenderSettingsRef.current ?? undefined,
           },
+          // Left out rather than sent as undefined when the host has no say, so
+          // Simulate's load is the message it always was.
+          ...(framingRef.current ? { framing: framingRef.current } : {}),
         });
         // A load that has been cancelled or superseded still *made* a session in
         // the worker — `load` registers it before it returns. Abandoning the

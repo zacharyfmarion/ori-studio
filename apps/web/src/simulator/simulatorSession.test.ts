@@ -1616,3 +1616,86 @@ describe('pulling the paper', () => {
     session.dispose();
   });
 });
+
+describe('framing paper the tools shaped', () => {
+  const SIZE = 400;
+  type Framing = 'anchor' | 'shape' | undefined;
+
+  /**
+   * One scripted session: settle flat, pin a face, fold part way, pull a far
+   * face and keep it, fold on. Every frame is `settle`'s, which runs a fixed
+   * number of steps where `tick` runs to a wall-clock budget, so two runs of
+   * the same script step alike.
+   */
+  async function script(framing: Framing) {
+    const session = createSimulatorSession();
+    session.dispose();
+    const info = session.load(miura(4, 4), framing ? { framing } : {});
+    const frames: SimulatorFramePayload[] = [];
+    const take = async (steps: number) => frames.push(await frame(session.settle(steps, {})));
+    await take(4000);
+
+    const positions = new Float32Array(positionsOf(frames[0]!));
+    const center = centroid(positions);
+    const view = { yaw: 0, pitch: Math.PI / 2, zoom: 1 };
+    const camera = cameraUniforms(view, center, boundingRadius(positions, center), SIZE, SIZE);
+    const drawn = { camera, perspective: false };
+    const groups = new Int32Array(info.faceGroups);
+    const indices = new Uint32Array(info.indices);
+    const pointOn = (face: number) => {
+      const triangle = groups.indexOf(face);
+      const centre = new Float32Array(3);
+      for (let corner = 0; corner < 3; corner += 1) {
+        const node = indices[triangle * 3 + corner]!;
+        for (let axis = 0; axis < 3; axis += 1) centre[axis] += positions[node * 3 + axis]! / 3;
+      }
+      const screen = projectVertices(centre, camera, { perspective: false }).screen;
+      return { x: screen[0]!, y: screen[1]!, cssWidth: SIZE, cssHeight: SIZE };
+    };
+    const faces = [...new Set(groups)];
+    const near = faces[0]!;
+    const far = faces[faces.length - 1]!;
+
+    await session.setPinnedFaces([near]);
+    await take(200);
+    session.setFoldPercent(40);
+    await take(600);
+    const press = pointOn(far);
+    expect(session.beginPull(press, drawn)?.outcome).toBe('pulling');
+    session.movePull({ ...press, x: press.x - 40, y: press.y - 30 }, drawn);
+    await take(400);
+    session.endPull('keep');
+    await take(400);
+    session.setFoldPercent(60);
+    await take(400);
+    session.dispose();
+    return frames;
+  }
+
+  /** Everything a frame says, bar the wall-clock time it took. */
+  function comparable(payload: SimulatorFramePayload) {
+    const { elapsedMs: _elapsed, positions, ...rest } = payload;
+    return { ...rest, positions: Array.from(new Uint8Array(positionsOf({ positions }))) };
+  }
+
+  it('frames as it always has under `anchor`, which a load with no say gets', async () => {
+    const before = (await script(undefined)).map(comparable);
+    const anchored = (await script('anchor')).map(comparable);
+
+    expect(anchored).toEqual(before);
+    // A kept pull holds the camera until its pose ends.
+    expect(before.map((payload) => payload.framingHeld)).toEqual([false, false, false, true, true, false]);
+  }, 30_000);
+
+  it('follows the shape once a pull is let go under `shape`, and moves no paper differently', async () => {
+    const anchored = (await script('anchor')).map(comparable);
+    const shaped = (await script('shape')).map(comparable);
+
+    // The press still holds the camera, so the paper stays under the cursor.
+    expect(shaped.map((payload) => payload.framingHeld)).toEqual([false, false, false, true, false, false]);
+    expect(shaped.map(({ framingHeld: _held, ...rest }) => rest)).toEqual(
+      anchored.map(({ framingHeld: _held, ...rest }) => rest)
+    );
+    expect(shaped[4]).toMatchObject({ posed: true });
+  }, 30_000);
+});

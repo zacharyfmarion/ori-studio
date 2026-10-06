@@ -12,10 +12,12 @@ import {
 } from './foldedMeshSource';
 import {
   createFramingFollow,
-  anchorFraming,
   followFraming,
+  framePins,
+  framingHeldAfterPull,
   framingOf,
   type FramingFollow,
+  type SimulatorFraming,
 } from './framingFollow';
 import {
   GlCore,
@@ -101,6 +103,11 @@ export interface SimulatorLoadOptions {
    * message later.
    */
   view?: SimulatorOpeningView;
+  /**
+   * How the camera frames paper the tools have pinned or posed; see
+   * {@link SimulatorFraming}. `'anchor'` when omitted, which is Simulate's.
+   */
+  framing?: SimulatorFraming;
 }
 
 /** What a new session should look through, when its owner already knows. */
@@ -285,6 +292,8 @@ interface Session {
   foldPercent: number;
   /** How this model is being looked at — see {@link SessionView}. */
   view: SessionView;
+  /** How the camera takes pins and poses; fixed at load. */
+  framing: SimulatorFraming;
   /**
    * Present only when the panel transferred its canvas and the GPU solver was
    * selected: the solver renders straight to that canvas in the worker, so no
@@ -1222,6 +1231,7 @@ const api = {
         framing: createFramingFollow(),
         lastRenderedAt: -Infinity,
       },
+      framing: options.framing ?? 'anchor',
       // A fresh load counts as the most recent use, so a window that has just
       // opened is the last thing eviction would reach for rather than the first.
       lastUsed: ++useCounter,
@@ -1321,13 +1331,17 @@ const api = {
     active.pinnedNodes = nodes.length > 0 ? mask : null;
     active.gpuRender?.setHighlightTriangles(triangles);
     // Hold the camera to the pins from where it is framing now, so the pinned
-    // region stays put on screen; see `anchorFraming`.
-    const positions = new Float32Array(vertexCount * 3);
-    active.backend.readPositions(positions);
-    anchorFraming(
+    // region stays put on screen, unless this session frames the shape; see
+    // `framePins`.
+    framePins(
       (active.view.framing ??= createFramingFollow()),
+      active.framing,
       nodes.length > 0 ? Uint32Array.from(nodes) : null,
-      positions
+      () => {
+        const positions = new Float32Array(vertexCount * 3);
+        active.backend.readPositions(positions);
+        return positions;
+      }
     );
     // Released faces have somewhere to go, and a settled clock would not let them.
     active.clock.invalidate();
@@ -1422,7 +1436,8 @@ const api = {
     if (pulling && outcome === 'keep') active.poseKept = true;
     // A pose keeps the camera where the pull left it, so letting go moves
     // nothing on screen: the view follows the shape again when the pose ends.
-    holdFraming(active, active.poseKept);
+    // A session framing the shape follows it from the moment the hand lets go.
+    holdFraming(active, framingHeldAfterPull(active.framing, active.poseKept));
     active.clock.invalidate();
     return { movedCreases };
   },

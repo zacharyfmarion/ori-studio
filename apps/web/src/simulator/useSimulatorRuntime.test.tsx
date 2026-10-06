@@ -260,6 +260,32 @@ describe('useSimulatorRuntime session ownership', () => {
   });
 });
 
+describe('framing', () => {
+  function FramingProbe({ fold, framing }: { fold: FoldDocument | null; framing?: 'anchor' | 'shape' }) {
+    useSimulatorRuntime({ fold, solverOptions: {}, triangulate: false, canvas: null, paused: true, framing });
+    return null;
+  }
+
+  function loadOptions(call: number): Record<string, unknown> | undefined {
+    const calls = client.load.mock.calls as unknown as Array<[unknown, Record<string, unknown>]>;
+    return calls[call]?.[1];
+  }
+
+  it('asks the worker to frame the shape when the host says so', async () => {
+    await act(async () => root?.render(<FramingProbe fold={FOLD} framing="shape" />));
+    await settleLoads();
+    expect(loadOptions(0)?.framing).toBe('shape');
+    await act(async () => root?.unmount());
+  });
+
+  it('sends Simulate’s load as it always was when the host has no say', async () => {
+    await act(async () => root?.render(<FramingProbe fold={FOLD} />));
+    await settleLoads();
+    expect(loadOptions(0)).not.toHaveProperty('framing');
+    await act(async () => root?.unmount());
+  });
+});
+
 describe('recovering from an eviction', () => {
   /** Run animation frames until `done`, or give up. */
   async function pump(done: () => boolean, frames = 20) {
