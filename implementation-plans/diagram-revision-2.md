@@ -2,10 +2,10 @@
 
 **Status: planned 2026-10-05. The right-angle mark (16a) and equal divisions
 (16b) are built (2026-10-06), and so are enlarged steps' model, file and
-imprint (16c), but for the writer of a flat step's faces, held back on the
-size budget for Zach's answer; enlarged steps' drawing, tools, pages and
+imprint (16c), the writer of a flat step's faces with them since Zach's
+answer on its size budget (Z11); enlarged steps' drawing, tools, pages and
 carries (16d–16g) are not. Zach settled every decision on 2026-10-06: the
-enlarged steps' Z1–Z10, and the
+enlarged steps' Z1–Z11, and the
 equal-divisions (ED1–ED13) and right-angle (RA0–RA8) decisions as
 recommended. Each is recorded in its part.** Phase 16 of
 `implementation-plans/diagram-workspace.md`, after Phase 15
@@ -365,11 +365,12 @@ places; with no spread it also drops hidden faces (`storableScene`,
 `captureGeometry.ts:63`), and the backmost face is usually hidden. So a flat
 capture also stores `paperFaces` (below): each point's place on the paper and
 on the unspread picture, and each face's corners and level. It is computed in
-`flatPicture` (`captureFolded.ts:201`), the one path for Link, Refresh and
-Pose, from the paper scene it already reads. The drawn places are not stored
-again: the stored scene has them whenever they differ from the unspread ones.
-Flat captures made before it have none, and anchor nothing until refreshed
-(S5).
+`flatPicture` (`captureFolded.ts:201`), the one path for Link, Refresh,
+Show as and Pose, from the paper scene it already reads, on every flat step
+(Z11). The drawn places are not stored again: the stored scene has them
+whenever they differ from the unspread ones. Flat captures made before it
+have none until they are needed, and then get them from their pattern
+folded again while the link is current, or else by a Refresh (S5).
 
 **On the crane.** Step 55's area rings the head. Its default anchor is the
 body's back layer, wholly outside the ring. Step 57 refolds the head on the
@@ -561,9 +562,17 @@ own: only the toggle and Update Enlarged Steps take a frame from another step.
   prints soft". An upload that is already an enlargement (a hand-drawn one) is
   framed by moving and resizing the frame by hand to take in the picture.
 - **A flat capture older than `paperFaces`** (every flat step of the crane
-  today). It has no faces until refreshed, so a capture from it or onto it
-  copies the frame in picture units, and the Step pane says "Refresh step 55
-  to anchor the frame to its paper", naming whichever step lacks them.
+  today). Its faces are fetched when they are needed — as it becomes an
+  enlarge source or is enlarged, the capture paths 16e calls — by folding its
+  linked pattern again (`stepWithPaperFaces`, `capture/stepPaperFaces.ts`),
+  but only while its link is current and the fold draws its stored picture
+  (the same picture key), so the faces are that picture's. Otherwise —
+  stale, missing, no pattern open, or drawn differently by this build — it
+  has none until refreshed: a capture from it or onto it copies the frame in
+  picture units, and the Step pane says "Refresh step 55 to anchor the frame
+  to its paper", naming whichever step lacks them. Refresh is offered on a
+  current flat step with no faces (`facesMissing` in `diagramActions.ts`),
+  so that notice never names a disabled verb.
 
 **S6, print.** Defaults: A4 portrait, 12 mm margins, 3×3 grid; each cell 62 ×
 84.67 mm. Every diagram fits each, no longer a choice since the One scale
@@ -783,18 +792,20 @@ other picture has faces.
   `paperFaces` would add 126 kB instead of 20.6 kB. In memory it stays the
   string and is read through `paperFacesOf`, memoized per picture as the
   stored scene is.
-- **The budget.** On the crane, with every flat step refreshed, the `.osf`
-  grows by at most 1%, and no flat step's `paperFaces` is more than 0.3 of
-  its `sceneJson`, both as the file writes them. Measured: 0.83% (20.6 kB on
-  2.49 MB, 5.9% of its diagram) and 0.16–0.26 a step; on the heart
-  (`heart.osf`), 0.67% and 0.06–0.22. 16c's size test holds both. If a
-  change, or a diagram 16c checks, breaks the budget, 16c does not raise it:
-  it stops and takes the numbers to Zach, whose answer depended on the file
-  not getting huge. The lever then is to write `paperFaces` only on steps that
-  hold an area or a frame, refreshing a step when it first gets one; not
-  coarser rounding, which would give up exactness. *At 16c's gate the
-  per-step half broke while no file grew more than 0.87%; the writer is held
-  back, PENDING Zach (16c's checklist).*
+- **The budget (Z11).** The whole file: with every flat step refreshed, the
+  `.osf` grows by at most 1%, the faces as the file writes them. There is no
+  cap per step: with no spread a step's stored scene drops the faces it
+  hides while `paperFaces` keeps every one, so a step's faces may outweigh
+  its scene (1.35–1.45 on the 16.0 fixture) while the file barely grows.
+  Measured as the writer landed, every flat step refreshed through Refresh
+  and saved by the app: the crane +0.84% (20.5 kB of faces on 2.49 MB), the
+  heart (`heart.osf`) +0.65%, the chipmunk +0.18%, Reference Diagrams +0.37%.
+  `zoom/paperFacesBudget.test.ts` holds what the budget rests on: a step's
+  faces add their compact string to the file and nothing more, the same
+  whatever the spread. If a change or a diagram breaks the 1%, it does not
+  raise it: the numbers go to Zach. The lever then is to write `paperFaces`
+  only on steps that hold an area or a frame; not coarser rounding, which
+  would give up exactness.
 
 Pure modules in `diagram/zoom/`:
 
@@ -1220,15 +1231,16 @@ is two keys, one step and a range, not a plural.
 - **Later stages on other sheets** share paper coordinates only if Edit's
   copy of the sheet keeps its orientation; a sheet turned in Edit lands the
   frame turned. The spike checks the crane's sheets.
-- **`paperFaces` size.** On every flat capture. Measured on the crane in the
-  form chosen (each point's paper and unspread places, the drawn ones read
-  from the scene, as a string): 0.83% of the file, 0.16–0.26 of each step's
-  `sceneJson`. The budget (Model and file format) holds it, and breaking it
-  goes back to Zach. It broke at 16c on captures with no spread, and is with
-  him (16c's checklist).
-- **Older captures have no faces** until refreshed, so on the crane as it
-  stands every frame is copied in picture units, with a notice, until its
-  steps are refreshed.
+- **`paperFaces` size.** On every flat capture (Z11). Measured on the crane
+  in the form chosen (each point's paper and unspread places, the drawn ones
+  read from the scene, as a string): 0.84% of the file. The whole-file budget
+  (Model and file format) holds it, and breaking it goes back to Zach.
+- **Older captures have no faces** until they are needed, and then get them
+  from their pattern only while the link is current and the fold draws the
+  stored picture. On Zach's four diagrams that is 28 of 30 flat steps; the
+  heart's step 14 (stale) and Reference Diagrams' step 6 (current, but drawn
+  differently by this build) need a Refresh first, and until then their
+  frames are copied in picture units, with a notice.
 - **Frame maintenance** must run on every picture-edit path. Mitigations: one
   funnel around `withCarriedAnnotations`, explicit verbs, and the invariant
   helper after every slice verb in the tests.
@@ -1252,8 +1264,8 @@ is two keys, one step and a range, not a plural.
 Zach answered in conversation on 2026-10-06. Z1–Z6 follow the prototype's
 numbering (`artifacts/revision-2/enlarged-steps.html`, which predates these
 answers and still shows the walk-back and the plane); Z7–Z10 were settled in
-the same conversation and have no prototype panel. **No enlarged-steps
-decision is pending.**
+the same conversation and have no prototype panel, and Z11 at 16c's gate.
+**No enlarged-steps decision is pending.**
 
 **Z1. How an area is made, and whether drawing it makes a step. DECIDED: the
 Enlarge tools on the step before, and drawing changes nothing else.** Zach:
@@ -1329,6 +1341,16 @@ largest face; the face under the area's centre (Alternatives considered).
 moved and resized by hand.** It is listed in the Layers pane and selectable on
 the canvas. Update Enlarged Steps and the toggle place it again, over a hand
 move, and the UI says so. The step's marks go with the frame.
+
+**Z11. What a flat step's faces may cost. DECIDED: every flat step saves
+them, under a whole-file budget.** Zach: "I'd rather always save the faces
+because later down the line I also want to do stuff like you know, being
+able to hide specific faces and show the faces underneath. Like, you know,
+things that would require us to have all the faces for a step." Option (a)
+of 16c's budget item: the per-step cap (a step's faces at most 0.3 of its
+scene) is dropped and the whole-file one (the `.osf` grows by at most 1%)
+kept; a step captured before faces were kept gets them when they are needed,
+from its pattern while its link is current, else by Refresh (S5).
 
 #### Alternatives considered
 
@@ -2993,12 +3015,11 @@ ED10 B. Implemented, reviewed (code and print), fixed and verified.
 
 ### 16c Enlarged steps: model, file, imprint
 
-**Built 2026-10-06, commits 3fc2e4f36 (the key sets) and cbcb60fe4 (the
-rest)**, to Z1–Z10, the anchor rule and two-stage landing. Implemented,
-reviewed, fixed and verified. One part is held back: the writer of
-`paperFaces`, because the size budget broke. It waits on Zach's answer
-(PENDING; the budget item). Nothing draws an area or a frame yet (16d), and
-no store verb reaches the pure modules yet (16e, 16g).
+**Built 2026-10-06, commits 3fc2e4f36 (the key sets), cbcb60fe4 (the rest)
+and ab3b6b26a (the writer of `paperFaces`, after Zach's answer on the
+size budget, Z11)**, to Z1–Z11, the anchor rule and two-stage landing.
+Implemented, reviewed, fixed and verified. Nothing draws an area or a frame
+yet (16d), and no store verb reaches the pure modules yet (16e, 16g).
 
 - [x] `STEP_KEYS` and `SCENE_PICTURE_KEYS`, a commit of its own, holding
   today's keys: an unknown step key or scene-picture key (`zoom` and
@@ -3017,7 +3038,7 @@ no store verb reaches the pure modules yet (16e, 16g).
   `app-keysets.json`): the build before 16c drops step 20's frame and both
   steps' faces; the same build with the key sets alone opens both steps
   locked and writes them back unchanged.
-- [ ] `paperFaces`, in the form chosen after 16.0: written by `flatPicture`
+- [x] `paperFaces`, in the form chosen after 16.0: written by `flatPicture`
   (Link, Refresh, Pose) from the kernel's paper scene, hidden faces
   included, as a string of compact JSON holding each point's paper and
   unspread places (paper to the power of ten under the scene step over the
@@ -3028,8 +3049,8 @@ no store verb reaches the pure modules yet (16e, 16g).
   unchanged until refreshed. Tests: with a spread on, every face's drawn ring
   read from the stored scene equals the painter's spread places; with none,
   the unspread places equal the scene's visible rings.
-  *As built, in part: the reader is committed (cbcb60fe4), the writer held
-  back.*
+  *As built: the reader in cbcb60fe4, the writer in ab3b6b26a, on every
+  flat step (Z11).*
   - The stored form: one compact JSON string; points `[paper x, paper y,
     unspread x, unspread y]`, rings, and levels from `layerLevels` over
     `foldedPaintOrder`. Paper places are rounded to 10^floor(log10(scene
@@ -3041,15 +3062,50 @@ no store verb reaches the pure modules yet (16e, 16g).
     `readScenes` WeakMap), so no scene is parsed twice. `paperFaces` is in
     `SCENE_PICTURE_KEYS`. A `setLinkedPicture` test checks that a capture
     adding only faces counts as an edit and keeps the picture key.
-  - **Held back: the writer**, uncommitted, kept as
-    `artifacts/revision-2/16c/fixes/paperFacesWriting.patch` with its tests.
-    `flatPicture(..., { faces })` calls `flatPaperFaces`
-    (`capture/capturePaperFaces.ts`) and stores through `storedPaperFaces`
-    (committed, in `diagramFile.ts`); Pose's preview passes `faces: false`.
-    It lands with Zach's answer on the size budget (next item). Until then
-    no build writes faces, so every flat step stays a capture older than
-    `paperFaces` (S5), the crane's among them.
-- [ ] The size budget. A vitest over the 16.0 fixture: each capture's
+  - **The writer**, held back at 16c's gate on the size budget and landed
+    with Zach's answer (Z11) in ab3b6b26a. `flatPicture(..., { faces })`
+    calls `flatPaperFaces` (`capture/capturePaperFaces.ts`) and stores
+    through `storedPaperFaces` (in `diagramFile.ts`), so every flat capture
+    keeps them: Link, Refresh and Show as through `captureStep`, Pose's
+    commits through its session. Pose's preview, never stored, passes
+    `faces: false`. Faces are not in the picture's key: a capture that only
+    adds them changes no mark's place, but is an edit (`setLinkedPicture`).
+  - **Older steps: the backfill route.** `stepWithPaperFaces(runtime,
+    {step, document, segmentation, style})` (`capture/stepPaperFaces.ts`,
+    the kernel injected as `captureStep`'s is) returns the step with its
+    faces, or why not: `none` for a picture with no faces to have, `refresh`
+    with `stale`, `missing`, `unknown` or `redrawn`. It folds only when the
+    link is current, and keeps the faces only when the fold draws the stored
+    picture (the same key), so they are that picture's; the picture,
+    revision and marks are untouched, and committing is the caller's (16e's
+    capture paths, when a step becomes an enlarge source or is enlarged).
+    `lacksPaperFaces(step)` says whether a step is such an older capture.
+  - **Refresh on a current, faceless flat step.** `DiagramStepActionState`
+    gains `facesMissing` (`lacksPaperFaces`), which makes a current link
+    refreshable as a stale light does, so "Refresh step N to anchor the
+    frame" never names a disabled verb (the Step pane hides a disabled
+    Refresh). Refresh all and the count it is offered by (`refreshKind`)
+    are unchanged: they stay about pictures that are out of date. The Step
+    pane and the card's menu now offer Refresh on every older flat step
+    until it has its faces.
+  - Verified at :5291 (`artifacts/revision-2/16c/writer/`: `app.mjs`,
+    `pose.mjs`, `backfill.mjs`, `budget.mjs`, composite
+    `writer-composite.png`). On the crane: all 18 flat steps older and
+    current, Refresh offered on each; the backfill gave step 22 its faces (47
+    points, 44 faces, picture and revision untouched), and a real click on
+    the Step pane's Refresh then wrote byte-identical faces and the row went;
+    Link, Show as and Pose (a real click on Rotate Right) each wrote faces;
+    every flat step refreshed and saved, the crane reopened with nothing
+    locked, all 18 with faces, Refresh offered on none, and saved again
+    byte-identical but `savedAt`. Over Zach's four diagrams the backfill gave
+    faces to 28 of 30 flat steps, each byte-identical to what Refresh then
+    wrote; the heart's step 14 (stale) and Reference Diagrams' step 6
+    (current, but this build draws it with another key) went to Refresh,
+    which redrew both. The new tests fail on 16c's HEAD without the change
+    (16 of them). Gate on exactly the commit (HEAD exported, the change
+    applied): lint, tsc and the i18n check clean; 855 files and 11,342
+    tests passed, 2 files and 14 tests skipped, no expected failure left.
+- [x] The size budget. A vitest over the 16.0 fixture: each capture's
   `paperFaces` at most 0.3 of its `sceneJson`, both as the file writes them
   (16.0: 0.16–0.26). A script beside `twoStageSizes.mjs`, run at 16c's gate
   on the crane with every flat step refreshed: the `.osf` grows by at most 1%
@@ -3076,11 +3132,37 @@ no store verb reaches the pure modules yet (16e, 16g).
   and R21). It also breaks on Reference Diagrams' one small step (0.344).
   So 16c stopped there: the vitest's no-spread case is an expected failure
   (`it.fails`, "BREACHED, awaiting Zach"), to be rewritten with the answer,
-  and the writer is held back (above). **For Zach, PENDING:**
+  and the writer is held back (above). **For Zach, then PENDING:**
   - (a) a whole-file budget (the `.osf` grows by at most 1%) in place of the
     per-step one; or
   - (b) the plan's lever: faces saved only on steps that hold an area or a
     frame, captured when a step first gets one.
+
+  **DECIDED, 2026-10-06: (a)** (Z11). Zach: "I'd rather always save the
+  faces because later down the line I also want to do stuff like you know,
+  being able to hide specific faces and show the faces underneath. Like, you
+  know, things that would require us to have all the faces for a step."
+  *As rewritten:* the budget is the whole file's, every flat step refreshed:
+  the `.osf` grows by at most 1%. `zoom/paperFacesBudget.test.ts` no longer
+  caps a step: it holds that a step's faces add only their compact string to
+  a file written as the app writes one (never a value, a number to a line),
+  and the same bytes whatever the spread, and it still reports each
+  capture's faces against its scene. The whole file is weighed on Zach's
+  diagrams, which are not committed, by
+  `artifacts/revision-2/16c/writer/budget.mjs`: every flat step refreshed
+  through Refresh, the file saved by the app's Save and weighed against the
+  app's own save before the refresh:
+
+  | Diagram | Flat steps | File growth | Faces in the file | Faces / scene, per step (reported) |
+  | --- | --- | --- | --- | --- |
+  | crane | 18 | +0.84% | 20,497 B | 0.153–0.254 |
+  | heart | 8 | +0.65% | 8,143 B | 0.061–0.221 |
+  | chipmunk | 3 | +0.18% | 1,315 B | 0.083–0.121 |
+  | Reference Diagrams | 1 | +0.37% | 267 B | 0.344 |
+
+  Reference Diagrams grows by more than at 16c's gate (+0.26%) only because
+  it is weighed against the app's save of it (80,222 B), not the file on
+  disk (114,434 B); its faces are the same 267 B.
 - [x] The `zoom` kind and its fields (`angle` and `anchor` with the rest),
   `cleanZoom`, `carryZoom` (any angle, mirrored with the side), shape
   conversion, per-shape defaults; `DiagramStepZoom`; readers and writers,
@@ -3222,6 +3304,9 @@ no store verb reaches the pure modules yet (16e, 16g).
 - [ ] `zoomActions`: the Enlarged toggle on both pose catalogs, removing a
   step's own areas when it has them; Update Enlarged Steps; Pick and Reset;
   the Go to verbs. `DiagramStepZoomStatus` and its notices; the card chip.
+  A capture whose source or enlarged step is an older flat capture first
+  gives it its faces through `stepWithPaperFaces` (16c, Z11), in the same
+  undo step; one it sends to Refresh gets the S5 notice.
   Tests: the toggle on captures and off carries the marks out; on a
   duplicate of the area's step it removes the copied area; disabled with its
   reason when no earlier step has an area or a frame.
