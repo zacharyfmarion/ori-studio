@@ -187,6 +187,24 @@ describe('captureDiagramStep', () => {
     expect(state().oristudioCpFoldRuns).toEqual({});
   });
 
+  it('keeps the kernel’s reason when it will not fold the pattern, and changes nothing', async () => {
+    const stepId = state().addDiagramStep()!;
+    const refusal = {
+      code: 'fold_same_parity',
+      message: 'WorkerOverlap(Setup(InitialHierarchy(SameParityAdjacentFaces { line: 10, first_face: 5, second_face: 6 })))',
+    };
+    bindings.runtime = fakeCaptureRuntime({
+      fold: vi.fn(async () => {
+        throw refusal;
+      }),
+    });
+    const before = state().diagramHistory.past.length;
+    expect(await state().captureDiagramStep(stepId, flatRequest)).toEqual({ status: 'failed', ...refusal });
+    expect(stepsIn(state().diagram!)[0]!.source).toBeNull();
+    expect(state().diagramHistory.past).toHaveLength(before);
+    expect(state().oristudioCpFoldRuns).toEqual({});
+  });
+
   it('cannot link with no pattern open, or a step that is not there', async () => {
     const stepId = state().addDiagramStep()!;
     expect(await state().captureDiagramStep('step-gone', linkRequest)).toEqual({ status: 'discarded' });

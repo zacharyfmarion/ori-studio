@@ -101,7 +101,7 @@ describe('linkDiagramStep', () => {
   });
 
   it('keeps the picker open, and says why, when the link fails', async () => {
-    answer({ status: 'failed', message: 'kernel says no' });
+    answer({ status: 'failed', code: 'oristudio_cp', message: 'kernel says no' });
     useWorkspaceStore.setState({ diagramPatternPicker: 'step-empty' });
     expect(await linkDiagramStep('step-empty', left!)).toBe(false);
     expect(state().diagramPatternPicker).toBe('step-empty');
@@ -196,6 +196,22 @@ describe('refreshDiagramStep', () => {
     await refreshDiagramStep('step-flat');
     expect(analytics.trackDiagramPictureCaptured).toHaveBeenCalledWith('flat', 'stopped', 'refresh');
     expect(toasts.error).not.toHaveBeenCalled();
+  });
+
+  // Crane step 9: its sheet was edited after it was captured and no longer
+  // folds flat. The kernel's verdict reaches the reader in Edit's words, not
+  // as the Rust value it was raised as.
+  it('says in words why a pattern that does not fold flat could not be refreshed', async () => {
+    answer({
+      status: 'failed',
+      code: 'fold_same_parity',
+      message: 'WorkerOverlap(Setup(InitialHierarchy(SameParityAdjacentFaces { line: 10, first_face: 5, second_face: 6 })))',
+    });
+    expect(await refreshDiagramStep('step-flat')).toBe(false);
+    expect(toasts.error).toHaveBeenCalledWith('The picture couldn’t be captured', {
+      description: "This crease pattern can't be folded flat: two faces meet with the same orientation across a crease.",
+    });
+    expect(analytics.trackDiagramPictureCaptured).toHaveBeenCalledWith('flat', 'failed', 'refresh');
   });
 });
 

@@ -14,6 +14,7 @@ import { requestCpRegionFocus } from '../../cp-workspace/regions/regionFocusRequ
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import i18n from '../../i18n';
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
+import { humanizeError } from '../../lib/toastMessages';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramCaptureOutcome } from '../../store/workspaceStore/diagramCapture';
@@ -289,9 +290,11 @@ export function sayCaptureOutcome(outcome: DiagramCaptureOutcome): void {
         description: fold3dRefusalMessage(t, outcome.refusal),
       });
       return;
+    // In Edit's words for the same fold (a pattern that does not fold flat,
+    // a cut through the sheet…), not the kernel's Rust value.
     case 'failed':
       toast.error(t('toasts:diagram.capture.failed', 'The picture couldn’t be captured'), {
-        description: outcome.message,
+        description: humanizeError(outcome, t),
       });
       return;
     case 'missing':

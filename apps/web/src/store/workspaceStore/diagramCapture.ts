@@ -98,7 +98,11 @@ export type DiagramCaptureOutcome =
   | { status: 'discarded' }
   | { status: 'busy' }
   | { status: 'read-only' }
-  | { status: 'failed'; message: string };
+  /**
+   * The engine's envelope, kept whole: its `code` is what `humanizeError`
+   * words for the reader, and its `message` is often a Rust value.
+   */
+  | { status: 'failed'; code: string; message: string };
 
 /** One capture in flight, by step: what a card shows progress and a Stop for. */
 export interface DiagramCaptureRun {
@@ -222,7 +226,8 @@ export async function commitStepCapture(
 /** A capture that threw: stopped by the user, or failed. */
 export function captureFailure(error: unknown): Extract<DiagramCaptureOutcome, { status: 'stopped' | 'failed' }> {
   if (isFoldCancellation(error)) return { status: 'stopped' };
-  return { status: 'failed', message: oristudioCpError(error).message };
+  const { code, message } = oristudioCpError(error);
+  return { status: 'failed', code, message };
 }
 
 /** The slice's commit: one undo step, the project dirty, nothing for an edit that changes nothing. */
