@@ -15,8 +15,8 @@
  *   (decision 7) — so an arrow that lands on it stops at its rim, as
  *   References' do.
  * - A right angle is an ∟ set into its angle with a closed square in its
- *   corner (`right-angle`, Revision 2), in the ring's pen and ink: a precise
- *   mark, as a circle is.
+ *   corner (`right-angle`, Revision 2), in the ring's ink and the style's aux
+ *   pen — the existing creases' — a fine, precise mark.
  * - Equal divisions (`divisions`, Revision 2) are a line set off the line
  *   they measure, in the style's aux pen — the existing creases' — with
  *   dividers and ticks across it in the ring's pen, in the ring's ink; their

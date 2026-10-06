@@ -239,7 +239,7 @@ describe('a right angle (Revision 2)', () => {
     `<path d="${run} ${run}" stroke-width="([\\d.]+)" stroke-linecap="butt" stroke-linejoin="miter" fill="none" stroke="([^"]+)"`
   );
 
-  it('is an ∟ set 4 ink into the angle with a 7-ink square in its corner, one path in a ring’s pen and the arrows’ ink, mitred and cut square', () => {
+  it('is an ∟ set 2 ink into the angle with a 3.5-ink square in its corner, one path in the aux lines’ pen and the arrows’ ink, mitred and cut square', () => {
     const drawing = annotationDrawing([square], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
     // y up, as References' unit frame is.
     expect(drawing.primitives).toEqual([{ kind: 'right-angle', at: [0.5, -0.5], toward: [0.52, -0.52] }]);
@@ -248,34 +248,35 @@ describe('a right angle (Revision 2)', () => {
     const mark = markPath.exec(markup);
     expect(mark).not.toBeNull();
     const numbers = mark!.slice(1, 13).map(Number);
-    // From the vertex (200, 200): the ∟ — a leg along x, its corner 4 ink in, a leg along y — then the
+    // From the vertex (200, 200): the ∟ — a leg along x, its corner 2 ink in, a leg along y — then the
     // square's far sides, from the first leg round its far corner to the second.
     const expected = [
-      [15, 4],
-      [4, 4],
-      [4, 15],
-      [11, 4],
-      [11, 11],
-      [4, 11],
+      [7.5, 2],
+      [2, 2],
+      [2, 7.5],
+      [5.5, 2],
+      [5.5, 5.5],
+      [2, 5.5],
     ].flatMap(([x, y]) => [200 + x! * ink, 200 + y! * ink]);
     numbers.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, 2));
     const [width, stroke] = [Number(mark![13]), mark![14]];
-    // A ring's pen: three quarters of the arrow's stroke, in the arrow's ink.
+    // The aux lines' pen — the Diagram preset's 0.25 pt, a third of its arrows' 0.75 — in the arrow's ink.
     const [, shaft] = /<path d="M [^"]*A [^"]*" stroke-width="([\d.]+)"/.exec(markup)!;
     const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
-    expect(width).toBeCloseTo(0.75 * Number(shaft), 3);
+    expect(width).toBeCloseTo(0.25 * PT_TO_CSS_PX, 3);
+    expect(Number(shaft)).toBeCloseTo(0.75 * PT_TO_CSS_PX, 3);
     expect(stroke).toBe(head);
     // Mitred though the page joins round, which wraps every mark.
     expect(markup.startsWith('<g stroke-linejoin="round">')).toBe(true);
   });
 
   it('reaches past the frame as far as its legs’ ends', () => {
-    // At the frame's top-left corner, opening up and out of it: its legs end 15 ink out along the frame's edges.
+    // At the frame's top-left corner, opening up and out of it: its legs end 7.5 ink out along the frame's edges.
     const out = a('r', 'right-angle', { from: [0, 0], to: [-0.02, -0.02] });
     const painted = paintAnnotations([out], { x: 0, y: 0, width: 400, height: 300 }, 400, DEFAULT_DIAGRAM_STYLE)!;
     const width = Number(/stroke-width="([\d.]+)" stroke-linecap="butt"/.exec(painted.markup)![1]);
-    expect(painted.bounds.x).toBeCloseTo(-15 * ink - width / 2, 3);
-    expect(painted.bounds.y).toBeCloseTo(-15 * ink - width / 2, 3);
+    expect(painted.bounds.x).toBeCloseTo(-7.5 * ink - width / 2, 3);
+    expect(painted.bounds.y).toBeCloseTo(-7.5 * ink - width / 2, 3);
   });
 });
 
@@ -807,7 +808,14 @@ describe('paintAnnotations', () => {
   });
 
   it('keeps a push, a white arrow, a rotate, a turn-over and a right angle inside their reach at any pen, the heaviest too, a push and a white arrow no further (reviews)', () => {
-    const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    // The heaviest arrow pen, and the heaviest aux pen, which a right angle is drawn in.
+    const heavy = {
+      style: {
+        ...DEFAULT_PAPER_STYLE,
+        arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max },
+        auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, pen: { ...DEFAULT_PAPER_STYLE.auxCreases.pen, width: PEN_WIDTH_RANGE.max } },
+      },
+    };
     const white = (id: string, width: 'narrow' | 'regular' | 'wide', tail: 'pointed' | 'square' | 'cleft', path: KnownDiagramAnnotation['path']) =>
       a(id, 'white-arrow', { from: path![0]!.at, to: path![path!.length - 1]!.at, path, width, tail });
     const glyphs = [
@@ -945,10 +953,10 @@ describe('paintAnnotations', () => {
             }
             for (const corner of [TURN_OVER_HEAD.tip, TURN_OVER_HEAD.notch, ...TURN_OVER_HEAD.barbs]) ink.push(place(corner));
           } else if (primitive.kind === 'right-angle') {
-            // An ∟ 4 ink into the angle, its legs 11 long, and a 7-ink square in its corner, in a ring's
-            // pen — three quarters of the arrow's: each run cut square at its two ends and mitred at its
-            // corner, its legs 45° either side of the way it opens.
-            const pen = 0.75 * project.pens.arrow.width * project.ink;
+            // An ∟ 2 ink into the angle, its legs 5.5 long, and a 3.5-ink square in its corner, in the aux
+            // lines' pen: each run cut square at its two ends and mitred at its corner, its legs 45° either
+            // side of the way it opens.
+            const pen = project.pens.aux.width * project.ink;
             const vertex = project(primitive.at);
             const toward = project(primitive.toward);
             const opens = Math.atan2(toward.y - vertex.y, toward.x - vertex.x);
@@ -959,8 +967,8 @@ describe('paintAnnotations', () => {
               y: vertex.y + (alongA * legA.y + alongB * legB.y) * project.ink,
             });
             const runs = [
-              [point(15, 4), point(4, 4), point(4, 15)],
-              [point(11, 4), point(11, 11), point(4, 11)],
+              [point(7.5, 2), point(2, 2), point(2, 7.5)],
+              [point(5.5, 2), point(5.5, 5.5), point(2, 5.5)],
             ];
             for (const [start, corner, end] of runs) {
               // A square end: half the pen either side, across the stroke.

@@ -119,21 +119,22 @@ export const DIAGRAM_MARK_INK = { radius: 3.07, ofArrow: 0.75 } as const;
  * A right-angle mark (Revision 2's, RA0–RA1): an ∟ of two legs of its own,
  * parallel to the lines it marks and set into the angle off its vertex, with
  * a closed square in its corner — in ink, at an annotation's ink (0.331 mm):
- * - `inset`: how far the ∟'s corner is in from each line, 1.3 mm;
- * - `side`: the square's side, 2.3 mm, the size the first mark had;
- * - `leg`: each leg from the ∟'s corner, so it ends 15 ink (5 mm) out along
- *   its line, an angle mark's radius.
- * Its stroke is a ring's (`markRingWidth`): a precise mark, lighter than an arrow.
+ * - `inset`: how far the ∟'s corner is in from each line, 0.66 mm;
+ * - `side`: the square's side, 1.16 mm;
+ * - `leg`: each leg from the ∟'s corner, so it ends 7.5 ink (2.5 mm) out
+ *   along its line.
+ * Half the size it was first built at (inset 4, side 7, leg 11), in the same
+ * proportions: Zach found that "twice as big as it should be" (2026-10-06).
+ * Its stroke is the aux lines' pen (`rightAnglePen`), for the same review.
  */
-export const DIAGRAM_RIGHT_ANGLE_INK = { inset: 4, side: 7, leg: 11 } as const;
+export const DIAGRAM_RIGHT_ANGLE_INK = { inset: 2, side: 3.5, leg: 5.5 } as const;
 
 /**
  * An angle marked halved (15b of the second Annotate plan): the radius of the
  * arc it draws across the angle, in ink — at an annotation's ink (0.331 mm)
  * 5 mm, twice the first sketch's, which Zach found "way too small" — and each
  * tick across it: half its length, and how far apart two or three lie along
- * the arc. Its stroke is a ring's (`markRingWidth`), as a right angle's is,
- * and a right angle's legs end on its radius.
+ * the arc. Its stroke is a ring's (`markRingWidth`).
  */
 export const DIAGRAM_ANGLE_MARK_INK = { radius: 15, tick: 1.8, spacing: 1.8 } as const;
 

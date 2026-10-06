@@ -1874,7 +1874,9 @@ beside today's look (RA2).
 **Geometry**, in ink, under RA0 A (legs and a square), RA1 A's sizes and RA5
 A's full-length legs: `DIAGRAM_RIGHT_ANGLE_INK = { inset: 4, side: 7, leg: 11
 }`. RA5 C makes `leg` 9, so the legs end 13 ink (4.3 mm) out; RA0 B drops the
-legs and draws the closed square alone. V is the vertex
+legs and draws the closed square alone. *Revised 2026-10-06 after Zach's
+review (RA1, RA5): half that, `{ inset: 2, side: 3.5, leg: 5.5 }`, in the aux
+lines' pen.* V is the vertex
 and d the unit diagonal into the angle, measured after projecting; a and b are
 d turned 45° either way, as `rightAngleSquare` turns them today.
 
@@ -2050,6 +2052,14 @@ interactive versions are in `artifacts/revision-2/revision-2-marks.html`.
   diagrams have many narrow flaps; C starts to crowd a corner. The
   prototype's sliders set any size, and a custom size comes back in the
   picks.
+- **Revised 2026-10-06, on seeing 16a built: half of A.** Zach: "the right
+  angle mark is twice as big as it should be". Inset 2, square 3.5, legs 5.5
+  (`DIAGRAM_RIGHT_ANGLE_INK`), A's proportions kept: 0.66 mm in, a 1.16 mm
+  square, legs ending 7.5 ink (2.5 mm) from the vertex along each line; a
+  footprint of about 2.5 × 2.5 mm. The legs no longer end on the angle
+  mark's radius. The hit test, the placement's footprint search
+  (`RIGHT_ANGLE_FOOTPRINT`, now about 0.051 of the frame), the selection's
+  wash, tie and grips and the canvas's ghost all follow the constants.
 
 **RA2. Does every right angle take the new look, or is it an option?
 DECIDED: A.**
@@ -2119,6 +2129,14 @@ DECIDED: A.**
   adds a style token. (The prototype recommends A with this fallback; the
   plan follows it.) Zach took A, and 16a's browser proof shows the legs
   beside the sketch.
+- **Revised 2026-10-06, on seeing 16a built: the aux lines' pen.** Zach: the
+  mark "should be the thickness of aux lines (right now it looks like arrow
+  thickness)". Still one path, now drawn in the paper style's aux pen
+  (`rightAnglePen`: `project.pens.aux`, an existing crease's pen — 0.25 pt in
+  the Diagram preset, 0.5 pt in the Default) instead of the ring's (0.5625 pt
+  in the Diagram preset), and still in the ring's ink, `ink.mark`: the
+  Diagram preset's aux pen is the same #231f20, and the Default's grey would
+  make the mark read as a crease. `markReach` measures it in the same pen.
 
 **RA6. Tie the vertex dot to the mark? DECIDED: A.** (Raised by the review.)
 - A. Selected or hovered, a hairline in the selection colour runs from the
@@ -2790,6 +2808,12 @@ nothing past the edge.
   tests fail on the reviewed code. At the commit, 838 files and 11,082 tests
   pass (2 files and 13 tests skipped); lint, tsc and the i18n check are
   clean.
+- [x] Zach's ink review (2026-10-06, RA1 and RA5 revised): half the size,
+  `{ inset: 2, side: 3.5, leg: 5.5 }`, in the aux lines' pen
+  (`rightAnglePen`). The goldens (`rightAngleGolden.json`,
+  `referencesRightAnglesGolden.json`) re-recorded and checked by eye; the
+  crane's step 8 at print size and ×3 beside its aux lines, before and after:
+  `artifacts/revision-2/review-ink/right-angle.png`.
 
 ### 16b Equal divisions
 

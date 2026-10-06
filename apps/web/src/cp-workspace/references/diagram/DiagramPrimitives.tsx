@@ -35,6 +35,7 @@ import {
   pushArrowDrawn,
   rightAngleDrawn,
   rightAnglePathData,
+  rightAnglePen,
   reversedStretches,
   ringPieces,
   rotateGlyphDrawn,
@@ -899,9 +900,9 @@ function diagramPrimitiveShape(
     }
     case 'right-angle': {
       // An ∟ set into the angle with a closed square in its corner (Revision
-      // 2's): one path in a ring's pen and ink, solid, its ends cut square
-      // and its corners mitred — set here, as whatever it is drawn in may
-      // join round.
+      // 2's): one path in the aux lines' pen and a ring's ink, solid, its
+      // ends cut square and its corners mitred — set here, as whatever it is
+      // drawn in may join round.
       const shape = rightAngleDrawn(primitive.at, primitive.toward, project);
       if (!shape) return null;
       const d = rightAnglePathData(shape);
@@ -909,7 +910,7 @@ function diagramPrimitiveShape(
         <path
           key={index}
           d={d}
-          strokeWidth={markRingWidth(project)}
+          strokeWidth={rightAnglePen(project)}
           strokeLinecap="butt"
           strokeLinejoin="miter"
           {...inked(inks, 'step-diagram__point step-diagram__right-angle', (ink) => ({

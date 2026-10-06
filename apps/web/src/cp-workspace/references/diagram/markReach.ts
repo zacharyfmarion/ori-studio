@@ -21,6 +21,7 @@ import {
   polylineMitres,
   pushArrowDrawn,
   rightAngleDrawn,
+  rightAnglePen,
   rightAngleReach,
   rotateGlyphDrawn,
   strokedOutlinePoints,
@@ -184,10 +185,10 @@ export function markReach(
     }
     case 'right-angle': {
       // Its ∟ and its square, their ends cut square and their corners
-      // mitred: all six points, in the ring's pen.
+      // mitred: all six points, in the aux lines' pen.
       const shape = rightAngleDrawn(primitive.at, primitive.toward, project);
       if (!shape) break;
-      const reach = rightAngleReach(markRingWidth(project));
+      const reach = rightAngleReach(rightAnglePen(project));
       for (const part of ['legs', 'square'] as const) {
         shape[part].forEach(({ x, y }, index) => take(x, y, reach[part][index]));
       }

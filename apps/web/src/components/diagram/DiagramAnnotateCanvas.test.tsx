@@ -1444,13 +1444,13 @@ describe('DiagramAnnotateCanvas right angles (decision 12)', () => {
     pointer('pointermove', at(0.306, 0.406));
     expect(ghost()).not.toBeNull();
     expect(targets()).toEqual(['annotation']);
-    // Its ∟ set into the angle off the corner, 4 ink in from each line, its legs along them, and its
+    // Its ∟ set into the angle off the corner, 2 ink in from each line, its legs along them, and its
     // square's far corner on the diagonal; tied to the corner by a hairline.
     const corner = at(0.3, 0.4);
     const [endA, inner, endB, , far] = ghostPoints();
     const ink = INK_UNITS * 1000;
-    expect(inner![0] - corner[0]).toBeCloseTo(4 * ink, 2);
-    expect(inner![1] - corner[1]).toBeCloseTo(4 * ink, 2);
+    expect(inner![0] - corner[0]).toBeCloseTo(2 * ink, 2);
+    expect(inner![1] - corner[1]).toBeCloseTo(2 * ink, 2);
     expect(endA![1]).toBeCloseTo(inner![1], 2);
     expect(endB![0]).toBeCloseTo(inner![0], 2);
     expect(far![0] - corner[0]).toBeCloseTo(far![1] - corner[1], 2);

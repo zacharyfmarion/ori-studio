@@ -2593,6 +2593,15 @@ export function rightAngleDrawn(
   return rightAngleShape(vertex, diagonal, { inset: inset * project.ink, side: side * project.ink, leg: leg * project.ink });
 }
 
+/**
+ * A right-angle mark's stroke, in the projector's units: the aux lines' pen
+ * — an existing crease's, 0.25 pt in the Diagram preset — not a ring's, which
+ * beside the lines it marks read as heavy as an arrow (Zach, 2026-10-06).
+ */
+export function rightAnglePen(project: DiagramProjector): number {
+  return project.pens.aux.width * project.ink;
+}
+
 /** A right-angle mark as one path: its ∟, then its square's two sides — so where they overlap, the ink is never doubled. */
 export function rightAnglePathData({ legs, square }: RightAngleShape): string {
   const run = ([first, corner, last]: readonly [SvgPoint, SvgPoint, SvgPoint]) =>

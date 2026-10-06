@@ -1068,12 +1068,13 @@ describe('a mark that leaves the paper', () => {
     expect(file).not.toContain('class=');
   });
 
-  it('draws a right angle as it does a ring: twice through the clip pair, in a ring’s pen and class, mitred', () => {
-    // Off the paper's right edge, opening out of it, beside a ring for its pen.
+  it('draws a right angle as it does a ring: twice through the clip pair, in a ring’s class, mitred, in the aux lines’ pen', () => {
+    // Off the paper's right edge, opening out of it, beside a ring and an existing crease for its pen.
     const squared: StepDiagramModel = {
       sheet: UNIT,
       primitives: [
         { kind: 'sheet', width: 1, height: 1 },
+        { kind: 'line', from: [0.1, 0.9], to: [0.9, 0.9], style: 'crease' },
         { kind: 'point', at: [0.3, 0.3], style: 'normal' },
         { kind: 'right-angle', at: [1, 0.5], toward: [1.1, 0.6] },
       ],
@@ -1087,7 +1088,10 @@ describe('a mark that leaves the paper', () => {
     expect(mark.getAttribute('class')).toBe('step-diagram__point step-diagram__right-angle');
     expect(mark.getAttribute('stroke-linejoin')).toBe('miter');
     expect(mark.getAttribute('stroke-linecap')).toBe('butt');
-    expect(mark.getAttribute('stroke-width')).toBe(svg.querySelector('circle')!.getAttribute('stroke-width'));
+    // The existing creases' pen, which aux lines are drawn in, lighter than the ring's (Zach, 2026-10-06).
+    const crease = svg.querySelector('line.step-diagram__line--crease')!;
+    expect(mark.getAttribute('stroke-width')).toBe(crease.getAttribute('stroke-width'));
+    expect(Number(mark.getAttribute('stroke-width'))).toBeLessThan(Number(svg.querySelector('circle')!.getAttribute('stroke-width')));
     // In a file on a dark page: the ground's ink off the paper, the ring's on it.
     const project = createDiagramProjector(UNIT, 100);
     const context = createDiagramRenderContext(squared.primitives, UNIT, project, {

@@ -69,6 +69,7 @@ import {
   pushArrowOutline,
   rightAngleDrawn,
   rightAnglePathData,
+  rightAnglePen,
   rightAngleReach,
   rightAngleShape,
   rotateGlyph,
@@ -1159,11 +1160,12 @@ describe('a right-angle mark (Revision 2)', () => {
     // Sheet units are y up: toward (1, 1) from (0.5, 0.5) is up and to the right on the page.
     const drawn = rightAngleDrawn([0.5, 0.5], [0.6, 0.6], overlay)!;
     const ink = 2;
-    expect(DIAGRAM_RIGHT_ANGLE_INK).toEqual({ inset: 4, side: 7, leg: 11 });
-    close(drawn.legs[0], { x: 50 + 4 * ink, y: -50 - 15 * ink });
-    close(drawn.legs[1], { x: 50 + 4 * ink, y: -50 - 4 * ink });
-    close(drawn.legs[2], { x: 50 + 15 * ink, y: -50 - 4 * ink });
-    close(drawn.square[1], { x: 50 + 11 * ink, y: -50 - 11 * ink });
+    // Half the size 16a built (Zach, 2026-10-06): 2 in, a 3.5 square, legs ending 7.5 out.
+    expect(DIAGRAM_RIGHT_ANGLE_INK).toEqual({ inset: 2, side: 3.5, leg: 5.5 });
+    close(drawn.legs[0], { x: 50 + 2 * ink, y: -50 - 7.5 * ink });
+    close(drawn.legs[1], { x: 50 + 2 * ink, y: -50 - 2 * ink });
+    close(drawn.legs[2], { x: 50 + 7.5 * ink, y: -50 - 2 * ink });
+    close(drawn.square[1], { x: 50 + 5.5 * ink, y: -50 - 5.5 * ink });
     // The back of a card: it opens the other way across, as the paper does.
     const back = createDiagramProjector(UNIT, 100, true);
     const front = createDiagramProjector(UNIT, 100, false);
@@ -1196,6 +1198,13 @@ describe('a right-angle mark (Revision 2)', () => {
     expect(reach.square[0]).toBe(1);
     expect(reach.square[1]).toBeCloseTo(Math.SQRT2, 12);
     expect(reach.square[2]).toBe(1);
+  });
+
+  it('is drawn in the aux lines’ pen, whatever the arrow’s, not a ring’s (Zach, 2026-10-06)', () => {
+    const pens = { ...DIAGRAM_LINE_INK, aux: { ...DIAGRAM_LINE_INK.aux, width: 0.3 }, arrow: { ...DIAGRAM_LINE_INK.arrow, width: 2 } };
+    const project = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2, pens);
+    expect(rightAnglePen(project)).toBeCloseTo(0.6, 12);
+    expect(markRingWidth(project)).toBeCloseTo(3, 12);
   });
 });
 

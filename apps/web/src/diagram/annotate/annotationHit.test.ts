@@ -469,7 +469,7 @@ describe('hitPathGrip', () => {
 });
 
 describe('a right angle (Revision 2)', () => {
-  // Its vertex at (0.5, 0.5), opening down and to the right: its legs along x and y, 4 ink in from the lines.
+  // Its vertex at (0.5, 0.5), opening down and to the right: its legs along x and y, 2 ink in from the lines.
   const mark: KnownDiagramAnnotation = { id: 'square', kind: 'right-angle', ...rightAngleAt([0.5, 0.5], [1, 1]) };
   const ink = SIZES.ink;
   const at = (x: number, y: number): [number, number] => [0.5 + x * ink, 0.5 + y * ink];
@@ -479,7 +479,7 @@ describe('a right angle (Revision 2)', () => {
 
   it('is its ∟ and its square as drawn, set into the angle off the vertex', () => {
     const { legs, square } = rightAngleInPicture(mark, ink);
-    const expected = { legs: [at(15, 4), at(4, 4), at(4, 15)], square: [at(11, 4), at(11, 11), at(4, 11)] };
+    const expected = { legs: [at(7.5, 2), at(2, 2), at(2, 7.5)], square: [at(5.5, 2), at(5.5, 5.5), at(2, 5.5)] };
     for (const part of ['legs', 'square'] as const) {
       const points = { legs, square }[part];
       points.forEach((point, index) => {
@@ -490,20 +490,20 @@ describe('a right angle (Revision 2)', () => {
   });
 
   it('is taken anywhere in its square and along its strokes, a leg’s far end included, and not past them', () => {
-    expect(hitAnnotation([mark], at(7, 7), tight, null)).toEqual({ annotationId: 'square', part: 'body' });
-    expect(hitAnnotation([mark], at(15, 4), tight, null)).toEqual({ annotationId: 'square', part: 'body' });
-    expect(hitAnnotation([mark], at(4, 15), tight, null)).toEqual({ annotationId: 'square', part: 'body' });
-    expect(hitAnnotation([mark], at(13, 4.5), tight, null)?.annotationId).toBe('square');
-    expect(hitAnnotation([mark], [0.5 + 15 * ink + 0.006, 0.5 + 4 * ink], tight, null)).toBeNull();
+    expect(hitAnnotation([mark], at(3.75, 3.75), tight, null)).toEqual({ annotationId: 'square', part: 'body' });
+    expect(hitAnnotation([mark], at(7.5, 2), tight, null)).toEqual({ annotationId: 'square', part: 'body' });
+    expect(hitAnnotation([mark], at(2, 7.5), tight, null)).toEqual({ annotationId: 'square', part: 'body' });
+    expect(hitAnnotation([mark], at(6.5, 2.25), tight, null)?.annotationId).toBe('square');
+    expect(hitAnnotation([mark], [0.5 + 7.5 * ink + 0.006, 0.5 + 2 * ink], tight, null)).toBeNull();
     // Beyond the square, between the legs: the angle's, not the mark's.
-    expect(hitAnnotation([mark], at(14, 14), tight, null)).toBeNull();
+    expect(hitAnnotation([mark], at(8, 8), tight, null)).toBeNull();
   });
 
   it('leaves the vertex to the lines that meet there, at a finger’s reach at fit', () => {
     // Nearer the vertex than its ∟'s corner, nothing; nearer the corner, the mark.
     expect(hitAnnotation([mark], [0.5, 0.5], finger, null)).toBeNull();
-    expect(hitAnnotation([mark], at(1.9, 1.9), finger, null)).toBeNull();
-    expect(hitAnnotation([mark], at(2.1, 2.1), finger, null)?.annotationId).toBe('square');
+    expect(hitAnnotation([mark], at(0.9, 0.9), finger, null)).toBeNull();
+    expect(hitAnnotation([mark], at(1.1, 1.1), finger, null)?.annotationId).toBe('square');
     // A valley ending at the vertex: a press there takes the line, though marks are taken over lines.
     const edge: KnownDiagramAnnotation = { id: 'edge', kind: 'valley-line', from: [0.5, 0.5], to: [0.5, 0.9] };
     expect(hitAnnotation([edge, mark], [0.5, 0.5], finger, null)).toEqual({ annotationId: 'edge', part: 'body' });
@@ -513,16 +513,16 @@ describe('a right angle (Revision 2)', () => {
   it('offers the vertex it marks and its square’s far corner when selected, and no ends', () => {
     const grips = rightAngleGrips(mark, ink);
     expect(grips.corner).toEqual([0.5, 0.5]);
-    expect(grips.direction[0]).toBeCloseTo(0.5 + 11 * ink, 12);
-    expect(grips.direction[1]).toBeCloseTo(0.5 + 11 * ink, 12);
+    expect(grips.direction[0]).toBeCloseTo(0.5 + 5.5 * ink, 12);
+    expect(grips.direction[1]).toBeCloseTo(0.5 + 5.5 * ink, 12);
     // The vertex, though the mark leaves it to the lines: selected, it is the grip that moves it.
     expect(hitAnnotation([mark], [0.501, 0.5], tight, 'square')).toEqual({ annotationId: 'square', part: 'corner' });
-    expect(hitAnnotation([mark], [0.5 + 11 * ink, 0.5 + 11 * ink + 0.001], tight, 'square')).toEqual({
+    expect(hitAnnotation([mark], [0.5 + 5.5 * ink, 0.5 + 5.5 * ink + 0.001], tight, 'square')).toEqual({
       annotationId: 'square',
       part: 'direction',
     });
-    // Its `to`, a short way along its diagonal, is no end of it: in the gap before the mark, nothing.
-    expect(hitAnnotation([mark], mark.to, tight, 'square')).toBeNull();
+    // Its `to`, a short way along its diagonal, is no end of it: there, inside its square, it is the mark's body.
+    expect(hitAnnotation([mark], mark.to, tight, 'square')).toEqual({ annotationId: 'square', part: 'body' });
     // Not selected, a press on its vertex is not the mark's at all.
     expect(hitAnnotation([mark], [0.501, 0.5], tight, null)).toBeNull();
   });
