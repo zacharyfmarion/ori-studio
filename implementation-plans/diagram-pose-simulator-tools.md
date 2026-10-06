@@ -568,7 +568,7 @@ Then run `i18n:extract`, `i18n:stamp` and `i18n:check`.
 
 Numbered so picks can be pasted back.
 
-**D1. Should a step shaped by hand keep its shape? PENDING.**
+**D1. Should a step shaped by hand keep its shape? DECIDED: A** (Zach, 2026-10-06: "As long as it's not really expensive to do, I agree with A." Open with him: whether every simulated step, not only a shaped one, should store its shape so that reopening Pose always shows the captured mesh.)
 - **A.** Store it in `render.shape`: pins as points on the sheet, positions and
   crease angles, and whether it is posed. Reopening, undo, Pose Again and
   Refresh in new light all give the same picture. A changed pattern drops the
@@ -586,8 +586,7 @@ Numbered so picks can be pasted back.
   plan. The engine cost is small, because both backends already build a pose
   from the current positions.
 
-**D2. Where do the tools sit in Pose? PENDING. I'll hand you a mock of all three
-first, at 1280 and 375 px.**
+**D2. Where do the tools sit in Pose? DECIDED: A** (Zach, 2026-10-06: "yep A"; no mock needed.)
 - **A.** Simulate's rail (Orbit, Pin, Pull) down the stage's left edge, where
   Annotate's rail sits, with the Tools pill on a phone. Clear Pins and Spring
   Back go on the Pose bar, refused with a hint when they don't apply. The tool
@@ -609,7 +608,7 @@ first, at 1280 and 375 px.**
     has. Three tools also have nothing to group under that rail's headers.
   - The cost of A is two icons on the phone bar.
 
-**D3. How should Pose's live view frame a pinned or pulled model? PENDING.**
+**D3. How should Pose's live view frame a pinned or pulled model? DECIDED: A** (Zach, 2026-10-06.)
 - **A.** Frame it the way its capture does, on the shape. Pins never anchor the
   camera. Framing holds only while a pull is in hand, then eases to fit.
 - **B.** Frame it the way Simulate does: anchored to the pins and held after a
@@ -620,7 +619,7 @@ first, at 1280 and 375 px.**
   The cost of A is a short ease after you let go of a pull. Simulate keeps its
   behaviour, because framing is an option per session.
 
-**D4. Which other parts of Simulate does Pose get? PENDING.**
+**D4. Which other parts of Simulate does Pose get? DECIDED: A, plus the tool hint window** (Zach, 2026-10-06: "A, it should also get the like tool hint stuff in the bottom right, 'cause that's where like the pen tools render." Pose shows Simulate's tool window — instructions, notices, the Pin-faces prompt — in the shared tool hint window at the bottom right, where the Diagram's other tools put theirs.)
 - **A.** Three things now:
   - the context menu: Simulate's rows, without the View submenu;
   - a read-only Step pane line for a shaped step, "Pinned: 3 faces · Pulled by
@@ -639,7 +638,7 @@ first, at 1280 and 375 px.**
     the step does not store, which is why Pose fixes
     `DEFAULT_SIMULATOR_SETTINGS`.
 
-**D5. Where does the shared work land? PENDING.**
+**D5. Where does the shared work land? DECIDED: A** (Zach, 2026-10-06: "This PR is already huge, I'd rather have an agent work in isolation on the simulation stuff." PRs 1 and 2 are built in their own worktree off main.)
 - **A.** Two small PRs to main first, then merge main into #436 and build the
   Diagram part there:
   1. the tool-state port, `surface` on the tool events, and the framing option;
