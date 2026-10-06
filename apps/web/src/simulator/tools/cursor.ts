@@ -5,6 +5,10 @@ export interface SimulatorCanvasCursorState {
   tool: SimulatorToolCursor;
   /** An orbit drag is in progress, whatever started it. */
   orbiting: boolean;
+  /** A pull is in flight: the hand has closed on the paper. */
+  pulling: boolean;
+  /** The tool in hand cannot act on a press: Pull with nothing pinned. */
+  refused: boolean;
   /** Meta is held, so a drag would orbit whatever the tool. */
   navigateModifierHeld: boolean;
 }
@@ -18,8 +22,9 @@ export interface SimulatorCanvasCursorState {
  */
 export function simulatorCanvasCursor(
   state: SimulatorCanvasCursorState
-): 'grab' | 'grabbing' | 'crosshair' {
-  if (state.orbiting) return 'grabbing';
+): 'grab' | 'grabbing' | 'crosshair' | 'not-allowed' {
+  if (state.orbiting || state.pulling) return 'grabbing';
   if (state.navigateModifierHeld) return 'grab';
+  if (state.refused) return 'not-allowed';
   return state.tool;
 }

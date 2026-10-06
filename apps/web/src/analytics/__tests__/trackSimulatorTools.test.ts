@@ -13,9 +13,12 @@ vi.mock('../runtime', async (importOriginal) => {
 });
 
 const {
+  trackSimulatorModelPulled,
   trackSimulatorPinnedFoldMoved,
   trackSimulatorPinsCleared,
   trackSimulatorPinsEdited,
+  trackSimulatorPoseReleased,
+  trackSimulatorPullRefused,
   trackSimulatorSolverRecovered,
   trackSimulatorToolOptionChanged,
   trackSimulatorToolPickerOpened,
@@ -79,6 +82,32 @@ describe('simulator tool events', () => {
     expect(runtime.track.mock.calls).toEqual([
       ['simulator pinned fold moved', { direction: 'unfold', pinned_count_bucket: '>500' }],
       ['simulator solver recovered', { action: 'reset', pinned: 'yes' }],
+    ]);
+  });
+
+  it('reports a pull as enums and buckets, a press let go where it was included', () => {
+    trackSimulatorModelPulled({ outcome: 'kept', touch: false, pinnedCount: 3, movedCreases: 12 });
+    trackSimulatorModelPulled({ outcome: 'cancelled', touch: true, pinnedCount: 1, movedCreases: 0 });
+    expect(runtime.track.mock.calls).toEqual([
+      [
+        'simulator model pulled',
+        { outcome: 'kept', input: 'pointer', pinned_count_bucket: '<=5', moved_creases_bucket: '<=20' },
+      ],
+      [
+        'simulator model pulled',
+        { outcome: 'cancelled', input: 'touch', pinned_count_bucket: '<=1', moved_creases_bucket: '<=0' },
+      ],
+    ]);
+  });
+
+  it('says why a pull did not grip, what ended a pose, and when Pull sent someone to Pin', () => {
+    trackSimulatorPullRefused({ reason: 'no-pins' });
+    trackSimulatorPoseReleased({ source: 'fold-control' });
+    trackSimulatorToolSelected({ tool: 'pin', source: 'tool-window' });
+    expect(runtime.track.mock.calls).toEqual([
+      ['simulator pull refused', { reason: 'no-pins' }],
+      ['simulator pose released', { source: 'fold-control' }],
+      ['simulator tool selected', { tool: 'pin', source: 'tool-window' }],
     ]);
   });
 });

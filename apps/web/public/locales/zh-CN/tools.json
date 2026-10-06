@@ -333,12 +333,14 @@
     "playPause": "播放 / 暂停折叠",
     "replay": "重新开始模拟",
     "resetView": "重置模拟器视图",
+    "springBack": "弹回",
     "toggleCreases": "折线",
     "toggleFaces": "面",
     "toggleLighting": "光照",
     "toolExit": "退出工具",
     "toolOrbit": "环绕工具",
-    "toolPin": "固定工具"
+    "toolPin": "固定工具",
+    "toolPull": "拉动工具"
   },
   "viewport": {
     "contextMenu": "打开上下文菜单",

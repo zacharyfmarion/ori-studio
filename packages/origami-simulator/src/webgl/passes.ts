@@ -77,11 +77,29 @@ uniform sampler2D u_lastTheta;
 uniform sampler2D u_creaseVectors;
 uniform sampler2D u_lastPosition;
 uniform sampler2D u_originalPosition;
+// The pull (pull.ts): [baseline, isFoldCrease, -, -] per crease.
+uniform sampler2D u_creasePull;
+uniform bool u_posed;
+uniform bool u_pulling;
+uniform float u_yield;
 
 vec4 getFromArray(float index1D, vec2 dimensions, sampler2D tex){
   vec2 index = vec2(mod(index1D, dimensions.x)+0.5, floor(index1D/dimensions.x)+0.5);
   vec2 scaledIndex = index/dimensions;
   return texture2D(tex, scaledIndex);
+}
+
+// Upstream writes the step's change of angle into .y, and nothing reads it. A
+// posed crease carries its rest angle there instead, yielding during a pull as
+// pull.ts's yieldedRest does: the force pass is at its sampler limit, so the
+// angle cannot have a texture of its own.
+float restSlot(float theta, float diff, float lastRest, vec2 scaledFragCoord){
+  if (!u_posed) return diff;
+  if (!u_pulling) return lastRest;
+  vec4 pull = texture2D(u_creasePull, scaledFragCoord);
+  if (pull[1] < 0.5) return lastRest;
+  float freeAngle = theta - pull[0];
+  return clamp(lastRest, freeAngle - u_yield, freeAngle + u_yield);
 }
 
 void main(){
@@ -115,7 +133,7 @@ void main(){
     diff -= TWO_PI;
   }
   theta = lastTheta[0] + diff;
-  gl_FragColor = vec4(theta, diff, lastTheta[2], lastTheta[3]);
+  gl_FragColor = vec4(theta, restSlot(theta, diff, lastTheta[1], scaledFragCoord), lastTheta[2], lastTheta[3]);
 }
 `;
 
@@ -200,6 +218,16 @@ uniform sampler2D u_meta2;
 uniform sampler2D u_nodeFaceMeta;
 uniform sampler2D u_nominalTriangles;
 uniform bool u_calcFaceStrain;
+// The grip: three nodes, the press's weights among them, and the cursor's ray.
+uniform bool u_gripActive;
+uniform vec3 u_gripNodes;
+uniform vec3 u_gripWeights;
+uniform vec3 u_gripRayOrigin;
+uniform vec3 u_gripRayDir;
+uniform float u_gripStiffness;
+uniform float u_gripDamping;
+uniform float u_gripMaxForce;
+uniform float u_gripBias;
 
 vec4 getFromArray(float index1D, vec2 dimensions, sampler2D tex){
   vec2 index = vec2(mod(index1D, dimensions.x)+0.5, floor(index1D/dimensions.x)+0.5);
@@ -213,9 +241,47 @@ vec3 getPosition(float index1D){
   return texture2D(u_lastPosition, scaledIndex).xyz + texture2D(u_originalPosition, scaledIndex).xyz;
 }
 
+vec3 getVelocity(float index1D){
+  return getFromArray(index1D, u_textureDim, u_lastVelocity).xyz;
+}
+
+// pull.ts's gripForce: toward the ray across it, damped across it, toward the
+// eye by the bias, capped.
+vec3 gripForce(){
+  vec3 point = u_gripWeights.x*getPosition(u_gripNodes.x) + u_gripWeights.y*getPosition(u_gripNodes.y)
+    + u_gripWeights.z*getPosition(u_gripNodes.z);
+  vec3 velocity = u_gripWeights.x*getVelocity(u_gripNodes.x) + u_gripWeights.y*getVelocity(u_gripNodes.y)
+    + u_gripWeights.z*getVelocity(u_gripNodes.z);
+  vec3 toRay = u_gripRayOrigin + u_gripRayDir*dot(point - u_gripRayOrigin, u_gripRayDir) - point;
+  vec3 across = velocity - u_gripRayDir*dot(velocity, u_gripRayDir);
+  vec3 force = u_gripStiffness*toRay - u_gripDamping*across - u_gripBias*u_gripStiffness*length(toRay)*u_gripRayDir;
+  float size = length(force);
+  if (size > u_gripMaxForce && size > 0.0) force *= u_gripMaxForce/size;
+  return force;
+}
+
+// This node's share of the grip: its weight, summed if it fills two slots.
+float gripShare(float nodeIndex){
+  float share = 0.0;
+  if (abs(nodeIndex - u_gripNodes.x) < 0.5) share += u_gripWeights.x;
+  if (abs(nodeIndex - u_gripNodes.y) < 0.5) share += u_gripWeights.y;
+  if (abs(nodeIndex - u_gripNodes.z) < 0.5) share += u_gripWeights.z;
+  return share;
+}
+
 `;
 
-const FORCE_SHADER_MAIN = `void main(){
+/**
+ * What a crease aims at: the fold target, upstream's expression; or, for paper
+ * in a pose (`pull.ts`), the rest angle thetaCalc carries in `.y`. A compile-time
+ * variant rather than a branch, because any condition here changes how the
+ * compiler forms the fold target's arithmetic, and the unposed solve has to stay
+ * exactly what it was.
+ */
+const FOLD_TARGET = 'creaseMeta[2] * u_creasePercent';
+const POSE_TARGET = 'thetas[1]';
+
+const forceShaderMain = (creaseTarget: string) => `void main(){
   vec2 fragCoord = gl_FragCoord.xy;
   vec2 scaledFragCoord = fragCoord/u_textureDim;
   vec2 mass = texture2D(u_mass, scaledFragCoord).xy;
@@ -269,7 +335,7 @@ const FORCE_SHADER_MAIN = `void main(){
     vec3 creaseMeta = texture2D(u_creaseMeta, scaledCreaseIndex).xyz;
     vec4 creaseGeo = texture2D(u_creaseGeo, scaledCreaseIndex);
     if (creaseGeo[0]< 0.0) continue;
-    float targetTheta = creaseMeta[2] * u_creasePercent;
+    float targetTheta = ${creaseTarget};
     float angForce = creaseMeta[0]*(targetTheta-thetas[0]);
     float nodeNum = nodeCreaseMeta[1];
     if (nodeNum > 2.0){
@@ -356,6 +422,10 @@ const FORCE_SHADER_MAIN = `void main(){
     }
   }
   if (u_calcFaceStrain) nodeError /= meta2[1];
+  if (u_gripActive){
+    float share = gripShare(floor(fragCoord.y)*u_textureDim.x + floor(fragCoord.x));
+    if (share > 0.0) force += share*gripForce();
+  }
 `;
 
 /**
@@ -395,11 +465,14 @@ vec4 fixedNodeOutput(vec2 scaledFragCoord){
 }
 `;
 
-export const VELOCITY_CALC = `${FORCE_SHADER_HEAD}${EULER_PRELUDE}${FORCE_SHADER_MAIN}
+const velocityCalc = (creaseTarget: string) => `${FORCE_SHADER_HEAD}${EULER_PRELUDE}${forceShaderMain(creaseTarget)}
   vec3 velocity = force*u_dt/mass[0] + lastVelocity;
   gl_FragColor = vec4(velocity, nodeError);
 }
 `;
+
+export const VELOCITY_CALC = velocityCalc(FOLD_TARGET);
+export const VELOCITY_CALC_POSED = velocityCalc(POSE_TARGET);
 
 
 /**
@@ -408,12 +481,15 @@ export const VELOCITY_CALC = `${FORCE_SHADER_HEAD}${EULER_PRELUDE}${FORCE_SHADER
  * positionCalcVerlet, including carrying the node's strain in alpha (which is
  * where upstream reads it back from).
  */
-export const POSITION_CALC_VERLET = `${FORCE_SHADER_HEAD}${VERLET_PRELUDE}${FORCE_SHADER_MAIN}
+const positionCalcVerlet = (creaseTarget: string) => `${FORCE_SHADER_HEAD}${VERLET_PRELUDE}${forceShaderMain(creaseTarget)}
   vec3 lastLastPosition = texture2D(u_lastLastPosition, scaledFragCoord).xyz;
   vec3 nextPosition = force*u_dt*u_dt/mass[0] + 2.0*lastPosition - lastLastPosition;
   gl_FragColor = vec4(sanitizeVec3(nextPosition), nodeError);
 }
 `;
+
+export const POSITION_CALC_VERLET = positionCalcVerlet(FOLD_TARGET);
+export const POSITION_CALC_VERLET_POSED = positionCalcVerlet(POSE_TARGET);
 
 /**
  * Verlet velocity is a diagnostic, not state: it is derived from how far the

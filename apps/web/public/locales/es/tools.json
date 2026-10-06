@@ -349,12 +349,14 @@
     "playPause": "Reproducir / pausar plegado",
     "replay": "Reiniciar simulación",
     "resetView": "Restablecer vista del simulador",
+    "springBack": "Volver al pliegue",
     "toggleCreases": "Líneas de pliegue",
     "toggleFaces": "Caras",
     "toggleLighting": "Iluminación",
     "toolExit": "Salir de la herramienta",
     "toolOrbit": "Herramienta Órbita",
-    "toolPin": "Herramienta Fijar"
+    "toolPin": "Herramienta Fijar",
+    "toolPull": "Herramienta Tirar"
   },
   "viewport": {
     "contextMenu": "Abrir menú contextual",

@@ -5,8 +5,9 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { simulatorPinsFor } from '../store/workspaceStore/slices/simulatorSlice';
 import type { SimulatorGesture } from './tools/types';
 import type { SimulatorModelView, SimulatorPinOutcome } from './useSimulatorRuntime';
+import type { SimulatorPullStart } from './pickQuery';
+import { classifySimulatorCallFailure } from './simulatorCallFailure';
 import {
-  classifySimulatorCallFailure,
   nextPinNotices,
   PIN_STRAIN_NOTICE_THRESHOLD,
   useSimulatorTools,
@@ -67,6 +68,10 @@ function fakeRuntime(extra: Partial<SimulatorToolsRuntime> = {}): SimulatorTools
     gpuActive: true,
     pickFaces: vi.fn(async () => [] as number[]),
     setPinnedFaces: vi.fn(async (): Promise<SimulatorPinOutcome | null> => ({ applied: 1, dropped: 0 })),
+    beginPull: vi.fn(async (): Promise<SimulatorPullStart | null> => 'pulling'),
+    movePull: vi.fn(),
+    endPull: vi.fn(async () => ({ movedCreases: 4 })),
+    releasePose: vi.fn(async (): Promise<boolean | null> => true),
     ...extra,
   };
 }
@@ -90,6 +95,7 @@ function options(extra: Partial<UseSimulatorToolsOptions> = {}): UseSimulatorToo
     revision: 1,
     sourceKey: 'whole:1:all',
     pickDrawn: vi.fn(() => null),
+    drawnCamera: vi.fn(() => null),
     cancelGesture: vi.fn(() => false),
     ...extra,
   };
@@ -562,5 +568,197 @@ describe('useSimulatorTools analytics', () => {
       { event: 'simulator solver recovered', properties: { action: 'arrest', pinned: 'no' } },
       { event: 'simulator solver recovered', properties: { action: 'reset', pinned: 'no' } },
     ]);
+  });
+});
+
+describe('pulling', () => {
+  const step = (phase: 'begin' | 'move' | 'end' | 'cancel', x = 10): SimulatorGesture => ({
+    kind: 'pull',
+    phase,
+    point: { x, y: 20 },
+    touch: false,
+  });
+  const AT = (x: number) => ({ x, y: 20, cssWidth: 400, cssHeight: 300 });
+
+  function framed(extra: Partial<{ posed: boolean; poseEnded: 'fold' | 'reset' | 'request' | null }>) {
+    return { foldPercent: 0, recovered: null, maxStrain: 0, converged: false, ...extra } as never;
+  }
+
+  beforeEach(() => {
+    useWorkspaceStore.setState({ simulatorActiveToolId: 'pull' });
+  });
+
+  it('refuses a press with nothing pinned, asking the worker nothing, and says why', async () => {
+    const runtime = fakeRuntime();
+    render(options({ runtime }));
+
+    expect(tools().toolInput.refused).toBe(true);
+    act(() => tools().runGesture(step('begin'), SURFACE));
+    act(() => tools().runGesture(step('end'), SURFACE));
+    await settle();
+
+    expect(runtime.beginPull).not.toHaveBeenCalled();
+    expect(runtime.endPull).not.toHaveBeenCalled();
+    expect(tracked).toEqual([{ event: 'simulator pull refused', properties: { reason: 'no-pins' } }]);
+  });
+
+  it('grips, draws and keeps through the runtime, on the model on screen', async () => {
+    useWorkspaceStore.getState().setSimulatorPins(1, 'whole:1:all', [3, 4]);
+    const runtime = fakeRuntime();
+    render(options({ runtime }));
+    await settle();
+    expect(tools().toolInput.refused).toBe(false);
+
+    act(() => tools().runGesture(step('begin', 10), SURFACE));
+    act(() => tools().runGesture(step('move', 30), SURFACE));
+    act(() => tools().runGesture(step('end', 40), SURFACE));
+    await settle();
+
+    // The GPU path's worker has its own camera: no drawn frame goes with the calls.
+    expect(runtime.beginPull).toHaveBeenCalledWith(AT(10), runtime.model, undefined);
+    expect(runtime.movePull).toHaveBeenCalledWith(AT(30), undefined);
+    expect(runtime.endPull).toHaveBeenCalledWith('keep', runtime.model);
+    expect(tracked).toEqual([
+      {
+        event: 'simulator model pulled',
+        properties: { outcome: 'kept', input: 'pointer', pinned_count_bucket: '<=5', moved_creases_bucket: '<=5' },
+      },
+    ]);
+  });
+
+  it('measures a pull against the drawn frame on the canvas-2D path, and waits for one', async () => {
+    useWorkspaceStore.getState().setSimulatorPins(1, 'whole:1:all', [3]);
+    const runtime = fakeRuntime({ gpuActive: false });
+    const camera = { width: 400 } as never;
+    const drawnCamera = vi.fn<() => never | null>(() => null);
+    render(options({ runtime, drawnCamera }));
+    await settle();
+
+    // Nothing drawn yet: there is no picture to have aimed at.
+    act(() => tools().runGesture(step('begin'), SURFACE));
+    expect(runtime.beginPull).not.toHaveBeenCalled();
+
+    drawnCamera.mockReturnValue(camera);
+    act(() => tools().runGesture(step('begin'), SURFACE));
+    expect(runtime.beginPull).toHaveBeenCalledWith(AT(10), runtime.model, { camera, perspective: false });
+  });
+
+  it('puts the paper back when the pull is abandoned', async () => {
+    useWorkspaceStore.getState().setSimulatorPins(1, 'whole:1:all', [3]);
+    const runtime = fakeRuntime();
+    render(options({ runtime }));
+    await settle();
+
+    act(() => tools().runGesture(step('begin'), SURFACE));
+    act(() => tools().runGesture(step('cancel'), SURFACE));
+    await settle();
+
+    expect(runtime.endPull).toHaveBeenCalledWith('cancel', runtime.model);
+    expect(tracked.at(-1)).toMatchObject({ event: 'simulator model pulled', properties: { outcome: 'cancelled' } });
+  });
+
+  it('counts nothing for a pull whose model went before it was let go', async () => {
+    useWorkspaceStore.getState().setSimulatorPins(1, 'whole:1:all', [3]);
+    const runtime = fakeRuntime({ endPull: vi.fn(async () => null) });
+    render(options({ runtime }));
+    await settle();
+
+    act(() => tools().runGesture(step('begin'), SURFACE));
+    act(() => tools().runGesture(step('end'), SURFACE));
+    await settle();
+
+    expect(runtime.endPull).toHaveBeenCalledWith('keep', runtime.model);
+    expect(tracked).toEqual([]);
+  });
+
+  it('lets go of nothing when the worker refused the press, and says why', async () => {
+    useWorkspaceStore.getState().setSimulatorPins(1, 'whole:1:all', [3]);
+    const runtime = fakeRuntime({ beginPull: vi.fn(async () => 'pinned-face' as const) });
+    render(options({ runtime }));
+    await settle();
+
+    act(() => tools().runGesture(step('begin'), SURFACE));
+    act(() => tools().runGesture(step('move'), SURFACE));
+    act(() => tools().runGesture(step('end'), SURFACE));
+    await settle();
+
+    expect(runtime.endPull).not.toHaveBeenCalled();
+    expect(tracked).toEqual([{ event: 'simulator pull refused', properties: { reason: 'pinned-face' } }]);
+  });
+
+  it('waits for a slow press before letting go', async () => {
+    useWorkspaceStore.getState().setSimulatorPins(1, 'whole:1:all', [3]);
+    const press = deferred<'pulling' | null>();
+    const runtime = fakeRuntime({ beginPull: vi.fn(() => press.promise) });
+    render(options({ runtime }));
+    await settle();
+
+    act(() => tools().runGesture(step('begin'), SURFACE));
+    act(() => tools().runGesture(step('end'), SURFACE));
+    await settle();
+    expect(runtime.endPull).not.toHaveBeenCalled();
+
+    press.resolve('pulling');
+    await settle();
+    expect(runtime.endPull).toHaveBeenCalledWith('keep', runtime.model);
+  });
+
+  it('toasts and reports a press that fails for any other reason', async () => {
+    useWorkspaceStore.getState().setSimulatorPins(1, 'whole:1:all', [3]);
+    const runtime = fakeRuntime({ beginPull: vi.fn(async () => Promise.reject(new Error('readback failed'))) });
+    render(options({ runtime }));
+    await settle();
+
+    act(() => tools().runGesture(step('begin'), SURFACE));
+    act(() => tools().runGesture(step('end'), SURFACE));
+    await settle();
+
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(reported).toHaveLength(1);
+    expect(reported[0]?.context).toMatchObject({ surface: 'simulator:pull', tags: { backend: 'gpu' } });
+    expect(runtime.endPull).not.toHaveBeenCalled();
+  });
+
+  it('reads the pose from frames, and springs it back from any of its verbs', async () => {
+    const runtime = fakeRuntime();
+    render(options({ runtime }));
+
+    // Not posed: a Spring back has nothing to let go.
+    act(() => tools().verbs.springBack('tool-window'));
+    await settle();
+    expect(runtime.releasePose).not.toHaveBeenCalled();
+
+    act(() => tools().observeFrame(framed({ posed: true })));
+    expect(tools().view.posed).toBe(true);
+    act(() => tools().shortcuts.springBack('context-menu'));
+    await settle();
+
+    expect(runtime.releasePose).toHaveBeenCalledTimes(1);
+    expect(tracked).toEqual([{ event: 'simulator pose released', properties: { source: 'context-menu' } }]);
+  });
+
+  it('reports a pose the fold control or a restart took back, and not one it was asked to drop', () => {
+    render(options());
+
+    act(() => tools().observeFrame(framed({ posed: true })));
+    act(() => tools().observeFrame(framed({ posed: false, poseEnded: 'fold' })));
+    act(() => tools().observeFrame(framed({ posed: true })));
+    act(() => tools().observeFrame(framed({ posed: false, poseEnded: 'reset' })));
+    act(() => tools().observeFrame(framed({ posed: false, poseEnded: 'request' })));
+
+    expect(tools().view.posed).toBe(false);
+    expect(tracked).toEqual([
+      { event: 'simulator pose released', properties: { source: 'fold-control' } },
+      { event: 'simulator pose released', properties: { source: 'restart' } },
+    ]);
+  });
+
+  it('cancels a pull in flight on Escape before leaving the tool', () => {
+    const cancelGesture = vi.fn(() => true);
+    render(options({ cancelGesture }));
+
+    expect(tools().shortcuts.exitTool()).toBe(true);
+    expect(cancelGesture).toHaveBeenCalledTimes(1);
+    expect(useWorkspaceStore.getState().simulatorActiveToolId).toBe('pull');
   });
 });

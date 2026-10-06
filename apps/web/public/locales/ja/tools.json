@@ -333,12 +333,14 @@
     "playPause": "折りたたみの再生 / 一時停止",
     "replay": "シミュレーションを再スタート",
     "resetView": "シミュレーターの視点をリセット",
+    "springBack": "折りの形に戻す",
     "toggleCreases": "折り線",
     "toggleFaces": "面",
     "toggleLighting": "ライティング",
     "toolExit": "ツールを終了",
     "toolOrbit": "オービットツール",
-    "toolPin": "固定ツール"
+    "toolPin": "固定ツール",
+    "toolPull": "引っ張りツール"
   },
   "viewport": {
     "contextMenu": "コンテキストメニューを開く",

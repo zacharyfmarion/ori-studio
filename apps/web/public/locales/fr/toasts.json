@@ -118,6 +118,9 @@
     "pickFailed": "Impossible de déterminer quelles faces se trouvent là. Réessayez.",
     "updateFailed": "Impossible d’épingler ces faces. Réessayez."
   },
+  "simulatorPull": {
+    "failed": "Impossible de tirer le papier. Réessayez."
+  },
   "update": {
     "available": "La version {{version}} est disponible",
     "checkFailed": "Impossible de rechercher des mises à jour",

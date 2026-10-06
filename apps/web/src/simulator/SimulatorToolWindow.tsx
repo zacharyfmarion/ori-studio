@@ -9,8 +9,9 @@ import styles from './SimulatorToolWindow.module.css';
 
 /**
  * The Simulate canvas's tool window: Edit's window chrome, with whatever the
- * tool in hand has to say inside it — how to use it, its options, Clear while
- * there are pins, and the simulation's notices about them.
+ * tool in hand has to say inside it — what it needs first, how to use it, its
+ * options, Clear while there are pins, Spring back while the paper holds a pose,
+ * and the simulation's notices about them.
  *
  * One renderer for every tool. What a tool shows is its model, built in
  * `tools/actions.ts`; nothing here knows which tool it is drawing.
@@ -37,6 +38,14 @@ export function SimulatorToolWindow({
       meta={model.meta}
       ariaLabel={t('panels:simulator.tools.windowLabel', 'Simulator tool options')}
     >
+      {model.needsPins && (
+        <div className={styles.section}>
+          <p className={styles.notice}>{model.needsPins.text}</p>
+          <Button size="sm" variant="secondary" className={styles.action} onClick={model.needsPins.pin}>
+            {model.needsPins.pinLabel}
+          </Button>
+        </div>
+      )}
       {model.instructions.length > 0 && (
         <div className={styles.section}>
           <ToolHintInstructions
@@ -62,8 +71,15 @@ export function SimulatorToolWindow({
       )}
       {model.pins && (
         <div className={styles.section}>
-          <Button size="sm" variant="secondary" className={styles.clear} onClick={model.pins.clear}>
+          <Button size="sm" variant="secondary" className={styles.action} onClick={model.pins.clear}>
             {model.pins.clearLabel}
+          </Button>
+        </div>
+      )}
+      {model.pose && (
+        <div className={styles.section}>
+          <Button size="sm" variant="secondary" className={styles.action} onClick={model.pose.springBack}>
+            {model.pose.springBackLabel}
           </Button>
         </div>
       )}

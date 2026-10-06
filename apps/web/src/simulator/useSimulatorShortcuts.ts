@@ -64,6 +64,8 @@ export interface SimulatorToolShortcutHandlers {
   exitTool: () => boolean;
   clearPins: (source: SimulatorVerbSource) => void;
   togglePinThroughLayers: (source: SimulatorVerbSource) => void;
+  /** Let a pose a pull left go, back to the fold. */
+  springBack: (source: SimulatorVerbSource) => void;
 }
 
 /** Zoom step, matching the wheel's feel. */
@@ -143,6 +145,10 @@ export function runSimulatorShortcut(
       if (!handlers.tools) return false;
       handlers.tools.selectTool('pin', source);
       return true;
+    case 'simulator.tool.pull':
+      if (!handlers.tools) return false;
+      handlers.tools.selectTool('pull', source);
+      return true;
     case 'simulator.tool.exit':
       return handlers.tools?.exitTool() ?? false;
     case 'simulator.pins.clear':
@@ -152,6 +158,10 @@ export function runSimulatorShortcut(
     case 'simulator.pins.throughLayers':
       if (!handlers.tools) return false;
       handlers.tools.togglePinThroughLayers(source);
+      return true;
+    case 'simulator.pull.springBack':
+      if (!handlers.tools) return false;
+      handlers.tools.springBack(source);
       return true;
   }
 }

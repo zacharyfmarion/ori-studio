@@ -49,6 +49,13 @@ export interface FramingFollow {
   measuredSettled: boolean;
   /** What the centre is held to while anything is pinned; null otherwise. */
   anchor: FramingAnchor | null;
+  /**
+   * Frozen where it is: while the paper is being pulled, a camera that followed
+   * the shape would rescale under the cursor and slide the grabbed point away
+   * from it. Held on through the pose a pull leaves, so letting go moves nothing
+   * on screen either; the follow resumes, eased, when the pose ends.
+   */
+  held: boolean;
 }
 
 /** How often, at most, a moving shape is measured. */
@@ -131,6 +138,7 @@ export function createFramingFollow(): FramingFollow {
     easedAt: 0,
     measuredSettled: false,
     anchor: null,
+    held: false,
   };
 }
 
@@ -147,6 +155,11 @@ export function followFraming(
   measure: () => Framing,
   settled: boolean
 ): { framing: Framing; arrived: boolean } {
+  if (follow.held && follow.current) {
+    // Kept current, so the ease resumes from now rather than leaping.
+    follow.easedAt = now;
+    return { framing: follow.current, arrived: true };
+  }
   if (!follow.current || !follow.target) {
     const first = measure();
     follow.current = first;

@@ -9,7 +9,7 @@
 // Faces are the source faces of the crease pattern — triangles joined across
 // the triangulation's diagonals (`sourceFaceGroups`) — and are named by their
 // group id.
-import { projectVertices, type CameraUniforms } from './webgl/camera.js';
+import { cursorRay, projectVertices, type CameraUniforms } from './webgl/camera.js';
 
 export interface PickTopology {
   /** Triangles, three vertex indices each. */
@@ -93,7 +93,7 @@ export function facesVisibleIn(
     rows,
   });
   const picked = new Set<number>();
-  for (const face of winners) if (face >= 0) picked.add(face);
+  for (const triangle of winners) if (triangle >= 0) picked.add(topology.faceGroups[triangle]!);
   return [...picked];
 }
 
@@ -105,7 +105,55 @@ export function frontmostFaceAt(
   point: ScreenPoint,
   options: PickOptions
 ): number | null {
-  const [face] = rasterizeFrontmost(positions, topology, camera, options, {
+  const triangle = frontmostTriangleAt(positions, topology, camera, point, options);
+  return triangle === null ? null : topology.faceGroups[triangle]!;
+}
+
+/**
+ * The point of the paper under a press: the frontmost triangle there, its source
+ * face, and the barycentric weights of the spot the cursor's ray meets it — the
+ * point itself, not the nearest vertex, which can sit on the hinge it should
+ * swing about.
+ */
+export interface SurfaceHit {
+  triangle: number;
+  face: number;
+  nodes: [number, number, number];
+  weights: [number, number, number];
+}
+
+/** What a press at `point` lands on, or null where the model is not. */
+export function frontmostHitAt(
+  positions: Float32Array,
+  topology: PickTopology,
+  camera: CameraUniforms,
+  point: ScreenPoint,
+  options: PickOptions
+): SurfaceHit | null {
+  const triangle = frontmostTriangleAt(positions, topology, camera, point, options);
+  if (triangle === null) return null;
+  const nodes: [number, number, number] = [
+    topology.indices[triangle * 3]!,
+    topology.indices[triangle * 3 + 1]!,
+    topology.indices[triangle * 3 + 2]!,
+  ];
+  const ray = cursorRay(point, camera, { perspective: options.perspective });
+  return {
+    triangle,
+    face: topology.faceGroups[triangle]!,
+    nodes,
+    weights: rayWeights(positions, nodes, ray) ?? [1 / 3, 1 / 3, 1 / 3],
+  };
+}
+
+function frontmostTriangleAt(
+  positions: Float32Array,
+  topology: PickTopology,
+  camera: CameraUniforms,
+  point: ScreenPoint,
+  options: PickOptions
+): number | null {
+  const [triangle] = rasterizeFrontmost(positions, topology, camera, options, {
     // One sample, centred on the point.
     originX: point.x - 0.5,
     originY: point.y - 0.5,
@@ -113,7 +161,42 @@ export function frontmostFaceAt(
     columns: 1,
     rows: 1,
   });
-  return face !== undefined && face >= 0 ? face : null;
+  return triangle !== undefined && triangle >= 0 ? triangle : null;
+}
+
+/**
+ * Where a ray meets a triangle's plane, as barycentric weights clamped into the
+ * triangle; null when the triangle is edge-on to it.
+ */
+function rayWeights(
+  positions: Float32Array,
+  nodes: readonly [number, number, number],
+  ray: { origin: readonly [number, number, number]; direction: readonly [number, number, number] }
+): [number, number, number] | null {
+  const at = (node: number, axis: number) => positions[node * 3 + axis]!;
+  const a = [at(nodes[0], 0), at(nodes[0], 1), at(nodes[0], 2)] as const;
+  const u = [at(nodes[1], 0) - a[0], at(nodes[1], 1) - a[1], at(nodes[1], 2) - a[2]] as const;
+  const v = [at(nodes[2], 0) - a[0], at(nodes[2], 1) - a[1], at(nodes[2], 2) - a[2]] as const;
+  const normal = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]] as const;
+  const area2 = normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2];
+  const facing = normal[0] * ray.direction[0] + normal[1] * ray.direction[1] + normal[2] * ray.direction[2];
+  if (area2 <= 0 || Math.abs(facing) <= 1e-9 * Math.sqrt(area2)) return null;
+  const toA = [a[0] - ray.origin[0], a[1] - ray.origin[1], a[2] - ray.origin[2]];
+  const t = (normal[0] * toA[0]! + normal[1] * toA[1]! + normal[2] * toA[2]!) / facing;
+  const p = [
+    ray.origin[0] + ray.direction[0] * t - a[0],
+    ray.origin[1] + ray.direction[1] * t - a[1],
+    ray.origin[2] + ray.direction[2] * t - a[2],
+  ];
+  // p = s·u + r·v, solved through the normal: the weights of nodes 1 and 2.
+  const pv = [p[1]! * v[2] - p[2]! * v[1], p[2]! * v[0] - p[0]! * v[2], p[0]! * v[1] - p[1]! * v[0]];
+  const up = [u[1] * p[2]! - u[2] * p[1]!, u[2] * p[0]! - u[0] * p[2]!, u[0] * p[1]! - u[1] * p[0]!];
+  const s1 = (pv[0]! * normal[0] + pv[1]! * normal[1] + pv[2]! * normal[2]) / area2;
+  const s2 = (up[0]! * normal[0] + up[1]! * normal[1] + up[2]! * normal[2]) / area2;
+  const weights = [1 - s1 - s2, s1, s2].map((weight) => Math.max(0, weight));
+  const sum = weights[0]! + weights[1]! + weights[2]!;
+  if (!(sum > 0)) return null;
+  return [weights[0]! / sum, weights[1]! / sum, weights[2]! / sum];
 }
 
 /**
@@ -146,7 +229,7 @@ interface SampleGrid {
 }
 
 /**
- * The frontmost face at each sample of `grid`, -1 where nothing is drawn.
+ * The frontmost triangle at each sample of `grid`, -1 where nothing is drawn.
  * Samples sit at cell centres, `origin + (i + 0.5) · step`.
  */
 function rasterizeFrontmost(
@@ -204,7 +287,7 @@ function rasterizeFrontmost(
         const sample = row * grid.columns + column;
         if (z >= depth[sample]!) {
           depth[sample] = z;
-          winner[sample] = faceGroups[t]!;
+          winner[sample] = t;
         }
       }
     }

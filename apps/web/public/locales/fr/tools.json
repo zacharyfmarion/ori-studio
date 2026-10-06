@@ -349,12 +349,14 @@
     "playPause": "Lecture / pause du pliage",
     "replay": "Redémarrer la simulation",
     "resetView": "Réinitialiser la vue du simulateur",
+    "springBack": "Revenir au pliage",
     "toggleCreases": "Lignes de pli",
     "toggleFaces": "Faces",
     "toggleLighting": "Éclairage",
     "toolExit": "Quitter l’outil",
     "toolOrbit": "Outil Orbite",
-    "toolPin": "Outil Épingler"
+    "toolPin": "Outil Épingler",
+    "toolPull": "Outil Tirer"
   },
   "viewport": {
     "contextMenu": "Ouvrir le menu contextuel",

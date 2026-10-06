@@ -18,6 +18,8 @@ function model(extra: Partial<SimulatorToolWindowModel> = {}): SimulatorToolWind
     instructions: ['Drag a box.', 'Shift adds.'],
     toggles: [{ id: 'pinThroughLayers', label: 'Select through all layers', checked: true, set: vi.fn() }],
     pins: { clearLabel: 'Clear pins', clear: vi.fn() },
+    pose: null,
+    needsPins: null,
     notices: [],
     ...extra,
   };
@@ -84,6 +86,33 @@ describe('SimulatorToolWindow', () => {
     );
     act(() => clear?.click());
     expect(value.pins?.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks for pins first, with a way to make some, when Pull has nothing to pull against', () => {
+    const pin = vi.fn();
+    render(
+      model({
+        kind: 'pull',
+        title: 'Pull',
+        pins: null,
+        toggles: [],
+        needsPins: { text: 'Pin the faces that should hold still, then pull.', pinLabel: 'Pin faces', pin },
+      })
+    );
+
+    expect(windowEl()?.textContent).toContain('Pin the faces that should hold still, then pull.');
+    const button = [...(windowEl()?.querySelectorAll('button') ?? [])].find((b) => b.textContent === 'Pin faces');
+    act(() => button?.click());
+    expect(pin).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a pose spring back from its button', () => {
+    const springBack = vi.fn();
+    render(model({ pose: { springBackLabel: 'Spring back', springBack } }));
+
+    const button = [...(windowEl()?.querySelectorAll('button') ?? [])].find((b) => b.textContent === 'Spring back');
+    act(() => button?.click());
+    expect(springBack).toHaveBeenCalledTimes(1);
   });
 
   it('reads its notices out as status, not as errors', () => {

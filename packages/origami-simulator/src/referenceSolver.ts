@@ -7,6 +7,22 @@ import type {
   SimulatorOptions,
 } from './types.js';
 import { copyFixedNodeMask, type SolverBackend } from './solverBackend.js';
+import {
+  gripForce,
+  gripParameters,
+  keptRestLength,
+  PULL_MOVED_CREASE_RADIANS,
+  PULL_YIELD_RADIANS,
+  triangleAngles,
+  validatedGrip,
+  validatedRay,
+  yieldedRest,
+  type CursorRay,
+  type GripParameters,
+  type PullGrip,
+  type PullOutcome,
+  type PullSummary,
+} from './pull.js';
 
 // TypeScript CPU port of Amanda Ghassaei's Origami Simulator dynamic solver.
 //
@@ -76,6 +92,19 @@ export class ReferenceSolver implements SolverBackend {
   private foldProfileRanges = new Map<number, CreaseFoldRange>();
   /** Nodes held in place (`u_mass.y` upstream); null when nothing is fixed. */
   private fixed: Uint8Array | null = null;
+  /**
+   * Each crease's rest angle while posed, in radians; null follows the fold
+   * target. Doubles, so a pose taken from the fold target aims exactly where the
+   * fold did and a press moves nothing.
+   */
+  private poseRest: Float64Array | null = null;
+  /** Each edge's rest length in a kept pose; null is the sheet's. */
+  private poseLengths: Float32Array | null = null;
+  /** Each face's rest angles in a kept pose; null is the sheet's. */
+  private poseAngles: Vec3[] | null = null;
+  private pull: ActivePull | null = null;
+  /** This step's grip force on each gripped node, while a pull runs. */
+  private gripStep: Map<number, Vec3> | null = null;
 
   constructor(model: OrigamiModel, options: SimulatorOptions = {}) {
     this.model = model;
@@ -115,6 +144,7 @@ export class ReferenceSolver implements SolverBackend {
       this.foldProfileRanges = foldProfileRangeMap(options.foldProfile?.ranges ?? []);
     }
     this.cachedTimeStep = null;
+    if (this.pull) this.pull.parameters = this.gripParametersFor(this.pull.grip);
   }
 
   reset(): void {
@@ -126,10 +156,65 @@ export class ReferenceSolver implements SolverBackend {
     this.lastVelocity.fill(0);
     this.theta.fill(0);
     this.model.reset();
+    this.releasePose();
   }
 
   setFixedNodes(mask: Uint8Array | null): void {
     this.fixed = copyFixedNodeMask(mask, this.model.prepared.vertexCount);
+  }
+
+  beginPull(grip: PullGrip): void {
+    const valid = validatedGrip(grip, this.model.prepared.vertexCount);
+    if (this.pull) this.endPull('cancel');
+    const creases = this.model.prepared.creaseParams;
+    const pressRest = this.poseRest ? this.poseRest.slice() : null;
+    const rest = this.poseRest ?? Float64Array.from(creases, (crease) => this.foldTargetRadians(crease));
+    const baseline = new Float32Array(creases.length);
+    for (let index = 0; index < creases.length; index += 1) {
+      baseline[index] = (this.theta[index] ?? 0) - rest[index]!;
+    }
+    this.poseRest = rest;
+    this.pull = {
+      grip: valid,
+      parameters: this.gripParametersFor(valid),
+      baseline,
+      pressTheta: this.theta.slice(),
+      pressRest,
+    };
+  }
+
+  movePull(ray: CursorRay): void {
+    if (!this.pull) return;
+    this.pull.grip = { ...this.pull.grip, ray: validatedRay(ray) };
+  }
+
+  endPull(outcome: PullOutcome): PullSummary {
+    const pull = this.pull;
+    if (!pull) return { movedCreases: 0 };
+    this.pull = null;
+    this.gripStep = null;
+    if (outcome === 'cancel') {
+      this.poseRest = pull.pressRest;
+      return { movedCreases: 0 };
+    }
+    this.keepShape();
+    return { movedCreases: this.foldCreasesTurnedSince(pull.pressTheta) };
+  }
+
+  releasePose(): void {
+    this.pull = null;
+    this.gripStep = null;
+    this.poseRest = null;
+    this.poseLengths = null;
+    this.poseAngles = null;
+  }
+
+  get posed(): boolean {
+    return this.poseRest !== null;
+  }
+
+  get pulling(): boolean {
+    return this.pull !== null;
   }
 
   arrestDynamics(): void {
@@ -262,7 +347,9 @@ export class ReferenceSolver implements SolverBackend {
     const dt = this.timeStep();
     const normals = this.normalCalc();
     const theta = this.thetaCalc(normals);
+    if (this.pull) this.yieldFoldCreases(theta, this.pull);
     const creaseGeometry = this.updateCreaseGeo();
+    this.gripStep = this.pull ? this.gripForcesNow(this.pull) : null;
 
     if (this.options.integrationType === 'verlet') {
       this.positionCalcVerlet(dt, normals, theta, creaseGeometry);
@@ -431,7 +518,79 @@ export class ReferenceSolver implements SolverBackend {
     force = add(force, this.beamForce(vertex));
     force = add(force, this.creaseForce(vertex, normals, theta, creaseGeometry));
     force = add(force, this.faceForce(vertex, normals));
+    const grip = this.gripStep?.get(vertex);
+    if (grip) force = add(force, grip);
     return force;
+  }
+
+  /** A crease's fold-driven target, in radians: what it springs to when not posed. */
+  private foldTargetRadians(crease: CreaseParameter): number {
+    return (this.targetAngleDegrees(crease, this.foldProfileRanges.get(crease.edge)) * Math.PI) / 180;
+  }
+
+  /** A crease the solver gives crease stiffness, as opposed to a panel's: the ones that yield. */
+  private isFoldCrease(crease: CreaseParameter): boolean {
+    return !isFlatTarget(crease, this.foldProfileRanges.get(crease.edge));
+  }
+
+  private yieldFoldCreases(theta: Float32Array, pull: ActivePull): void {
+    const rest = this.poseRest;
+    if (!rest) return;
+    this.model.prepared.creaseParams.forEach((crease, index) => {
+      if (!this.isFoldCrease(crease)) return;
+      rest[index] = yieldedRest(rest[index]!, theta[index] ?? 0, pull.baseline[index]!, PULL_YIELD_RADIANS);
+    });
+  }
+
+  /** The grip's force this step, shared out to the gripped nodes by their weights. */
+  private gripForcesNow(pull: ActivePull): Map<number, Vec3> {
+    const { nodes, weights, ray } = pull.grip;
+    let point: Vec3 = [0, 0, 0];
+    let velocity: Vec3 = [0, 0, 0];
+    for (let slot = 0; slot < 3; slot += 1) {
+      point = add(point, scale(this.absolutePointAt(nodes[slot]!), weights[slot]!));
+      velocity = add(velocity, scale(this.velocityPointAt(this.lastVelocity, nodes[slot]!), weights[slot]!));
+    }
+    const force = gripForce(point, velocity, ray, pull.parameters);
+    const shares = new Map<number, Vec3>();
+    for (let slot = 0; slot < 3; slot += 1) {
+      const node = nodes[slot]!;
+      shares.set(node, add(shares.get(node) ?? [0, 0, 0], scale(force, weights[slot]!)));
+    }
+    return shares;
+  }
+
+  private gripParametersFor(grip: PullGrip): GripParameters {
+    let shortest = Infinity;
+    for (const beams of this.nodeBeams) for (const beam of beams) shortest = Math.min(shortest, beam.restLength);
+    return gripParameters(this.options.axialStiffness, shortest, grip.weights);
+  }
+
+  /** Make the shape as it is the paper's rest shape, so nothing is left to spring back. */
+  private keepShape(): void {
+    this.poseRest = Float64Array.from(this.theta);
+    const lengths = new Float32Array(this.model.prepared.edgesVertices.length);
+    this.model.prepared.edgesVertices.forEach((edge, index) => {
+      const current = magnitude(subtract(this.absolutePointAt(edge[1]), this.absolutePointAt(edge[0])));
+      lengths[index] = keptRestLength(current, Math.max(EPSILON, this.model.edgeRestLength(index)));
+    });
+    this.poseLengths = lengths;
+    this.poseAngles = this.model.prepared.facesVertices.map((face) =>
+      triangleAngles(
+        this.absolutePointAt(face[0] ?? 0),
+        this.absolutePointAt(face[1] ?? 0),
+        this.absolutePointAt(face[2] ?? 0)
+      )
+    );
+  }
+
+  private foldCreasesTurnedSince(pressTheta: Float32Array): number {
+    let moved = 0;
+    this.model.prepared.creaseParams.forEach((crease, index) => {
+      if (!this.isFoldCrease(crease)) return;
+      if (Math.abs((this.theta[index] ?? 0) - (pressTheta[index] ?? 0)) > PULL_MOVED_CREASE_RADIANS) moved += 1;
+    });
+    return moved;
   }
 
   private beamForce(vertex: number): Vec3 {
@@ -452,7 +611,8 @@ export class ReferenceSolver implements SolverBackend {
       if (deltaPLength < EPSILON) continue;
       const stiffness = axialStiffness / beam.restLength;
       const beamDamping = damping * 2 * Math.sqrt(stiffness);
-      deltaP = subtract(deltaP, scale(deltaP, beam.restLength / deltaPLength));
+      const restLength = this.poseLengths?.[beam.edge] ?? beam.restLength;
+      deltaP = subtract(deltaP, scale(deltaP, restLength / deltaPLength));
       const deltaV = subtract(neighborLastVelocity, lastVelocity);
       force = add(force, add(scale(deltaP, stiffness), scale(deltaV, beamDamping)));
     }
@@ -473,7 +633,9 @@ export class ReferenceSolver implements SolverBackend {
       if (!crease || !geo || !geo.enabled) continue;
 
       const range = this.foldProfileRanges.get(crease.edge);
-      const targetTheta = (this.targetAngleDegrees(crease, range) * Math.PI) / 180;
+      const targetTheta = this.poseRest
+        ? (this.poseRest[ref.creaseIndex] ?? 0)
+        : (this.targetAngleDegrees(crease, range) * Math.PI) / 180;
       const stiffness =
         (isFlatTarget(crease, range) ? this.options.panelStiffness : this.options.creaseStiffness) *
         this.model.edgeRestLength(crease.edge);
@@ -515,7 +677,7 @@ export class ReferenceSolver implements SolverBackend {
     const vertexPosition = this.absolutePointAt(vertex);
 
     for (const ref of this.nodeFaces[vertex] ?? []) {
-      const nominal = this.nominalAngles[ref.faceIndex];
+      const nominal = this.poseAngles?.[ref.faceIndex] ?? this.nominalAngles[ref.faceIndex];
       if (!nominal) continue;
 
       const a = ref.vertexOffset === 0 ? vertexPosition : this.absolutePointAt(ref.face[0] ?? 0);
@@ -620,7 +782,19 @@ type Vec3 = [number, number, number];
 
 interface NodeBeamRef {
   otherVertex: number;
+  /** The beam's edge, which a kept pose's rest length is looked up by. */
+  edge: number;
   restLength: number;
+}
+
+interface ActivePull {
+  grip: PullGrip;
+  parameters: GripParameters;
+  /** Each crease's deviation from its rest angle at the press; yielding keeps it. */
+  baseline: Float32Array;
+  pressTheta: Float32Array;
+  /** The pose's rest angles at the press, or null when there was no pose: what cancel restores. */
+  pressRest: Float64Array | null;
 }
 
 interface NodeCreaseRef {
@@ -732,8 +906,8 @@ function buildNodeBeams(model: OrigamiModel): NodeBeamRef[][] {
   const refs = Array.from({ length: model.prepared.vertexCount }, (): NodeBeamRef[] => []);
   model.prepared.edgesVertices.forEach((edge, edgeIndex) => {
     const restLength = Math.max(EPSILON, model.edgeRestLength(edgeIndex));
-    refs[edge[0]]?.push({ otherVertex: edge[1], restLength });
-    refs[edge[1]]?.push({ otherVertex: edge[0], restLength });
+    refs[edge[0]]?.push({ otherVertex: edge[1], edge: edgeIndex, restLength });
+    refs[edge[1]]?.push({ otherVertex: edge[0], edge: edgeIndex, restLength });
   });
   return refs;
 }

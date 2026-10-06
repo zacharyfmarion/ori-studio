@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { cameraUniforms, type PickTopology } from '@treemaker/origami-simulator';
-import { pickFacesInFrame, type SimulatorPickQuery } from './pickQuery';
+import {
+  pickFacesInFrame,
+  pullHitInFrame,
+  pullRayInFrame,
+  pullStartFor,
+  type SimulatorPickQuery,
+} from './pickQuery';
 
 /**
  * Two stacked squares seen straight on (yaw = pitch = 0 looks down world y):
@@ -47,5 +53,37 @@ describe('pickFacesInFrame', () => {
 
   it('answers nothing for a press off the model', () => {
     expect(pickFacesInFrame(positions, topology, camera, true, query({ kind: 'point', x: 5, y: 5 }))).toEqual([]);
+  });
+});
+
+describe('pulling in a drawn frame', () => {
+  const at = (x: number, y: number) => ({ x, y, ...CSS });
+
+  it('grips the front face under a CSS point, scaled into the frame', () => {
+    const hit = pullHitInFrame(positions, topology, camera, true, at(200, 200));
+    expect(hit?.face).toBe(7);
+    expect(pullHitInFrame(positions, topology, camera, true, at(5, 5))).toBeNull();
+  });
+
+  it('casts the cursor’s line of sight through the same scaled point', () => {
+    // Straight on at the centre, the line of sight is world -y through the centre.
+    const ray = pullRayInFrame(camera, true, at(200, 200));
+    expect(ray.direction[1]).toBeCloseTo(-1, 9);
+    expect(ray.origin[0]).toBeCloseTo(0, 9);
+    expect(ray.origin[2]).toBeCloseTo(0, 9);
+  });
+
+  it('pulls only with something pinned, and never a pinned face', () => {
+    const hit = pullHitInFrame(positions, topology, camera, true, at(200, 200));
+    const none = null;
+    const pinnedFront = new Uint8Array(8);
+    pinnedFront.set([1, 1, 1, 1], 0);
+    const pinnedBack = new Uint8Array(8);
+    pinnedBack.set([1, 1, 1, 1], 4);
+
+    expect(pullStartFor(hit, none)).toBe('no-pins');
+    expect(pullStartFor(null, pinnedBack)).toBe('missed');
+    expect(pullStartFor(hit, pinnedFront)).toBe('pinned-face');
+    expect(pullStartFor(hit, pinnedBack)).toBe('pulling');
   });
 });

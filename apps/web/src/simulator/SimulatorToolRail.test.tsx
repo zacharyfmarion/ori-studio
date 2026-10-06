@@ -10,7 +10,7 @@ import type { SimulatorToolButton } from './tools/actions';
 let host: HTMLDivElement;
 let root: Root;
 
-function buttons(extra: Partial<Record<'orbit' | 'pin', Partial<SimulatorToolButton>>> = {}) {
+function buttons(extra: Partial<Record<SimulatorToolButton['id'], Partial<SimulatorToolButton>>> = {}) {
   const base: SimulatorToolButton[] = [
     {
       id: 'orbit',

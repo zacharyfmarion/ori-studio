@@ -55,6 +55,7 @@ import { IconButton } from "../ui/IconButton";
 import { NextDocumentAction } from "./NextDocumentAction";
 import { useSimulatorTools } from "../../simulator/useSimulatorTools";
 import { useSimulatorToolActions } from "../../simulator/useSimulatorToolActions";
+import { simulatorCanvasLabels } from "../../simulator/tools/actions";
 import { SimulatorToolRail } from "../../simulator/SimulatorToolRail";
 import { SimulatorToolWindow } from "../../simulator/SimulatorToolWindow";
 import { SimulatorToolsTrigger } from "../../simulator/SimulatorToolsTrigger";
@@ -244,14 +245,20 @@ export function SimulatorPanel() {
       gpuActive,
       pickFaces: runtime.pickFaces,
       setPinnedFaces: runtime.setPinnedFaces,
+      beginPull: runtime.beginPull,
+      movePull: runtime.movePull,
+      endPull: runtime.endPull,
+      releasePose: runtime.releasePose,
     },
     ready: loadState === "ready",
     revision: foldArtifactRevision,
     sourceKey: simulationSourceKey,
     pickDrawn: (query) => viewportRef.current?.pickDrawnFaces(query) ?? null,
+    drawnCamera: () => viewportRef.current?.drawnCamera() ?? null,
     cancelGesture: () => viewportRef.current?.cancelToolGesture() ?? false,
   });
   const toolActions = useSimulatorToolActions(tools);
+  const canvasLabels = simulatorCanvasLabels(t, tools.tool.id);
   useEffect(() => {
     observeFrameRef.current = tools.observeFrame;
   }, [tools.observeFrame]);
@@ -630,28 +637,8 @@ export function SimulatorPanel() {
                   pushRenderSettings={pushRenderSettings}
                   perfSurface="simulate-panel"
                   className="simulator-canvas"
-                  ariaLabel={
-                    tools.tool.id === "pin"
-                      ? t(
-                          "panels:simulator.canvasAriaLabelPin",
-                          "Origami folded-base simulator. Drag a box or click a face to pin it, scroll to zoom.",
-                        )
-                      : t(
-                          "panels:simulator.canvasAriaLabel",
-                          "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
-                        )
-                  }
-                  title={
-                    tools.tool.id === "pin"
-                      ? t(
-                          "panels:simulator.canvasTitlePin",
-                          "Drag a box or click a face to pin it, scroll to zoom",
-                        )
-                      : t(
-                          "panels:simulator.canvasTitle",
-                          "Drag to rotate, scroll to zoom, double-click to reset view",
-                        )
-                  }
+                  ariaLabel={canvasLabels.ariaLabel}
+                  title={canvasLabels.title}
                 />
                 {loadState !== "ready" && (
                   <div className="simulator-panel__empty">

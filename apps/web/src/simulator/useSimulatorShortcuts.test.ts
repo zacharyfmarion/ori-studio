@@ -28,6 +28,7 @@ function toolHandlers(
     exitTool: vi.fn(() => true),
     clearPins: vi.fn(),
     togglePinThroughLayers: vi.fn(),
+    springBack: vi.fn(),
     ...extra,
   };
 }
@@ -35,9 +36,11 @@ function toolHandlers(
 const TOOL_VERBS: SimulatorShortcutId[] = [
   'simulator.tool.orbit',
   'simulator.tool.pin',
+  'simulator.tool.pull',
   'simulator.tool.exit',
   'simulator.pins.clear',
   'simulator.pins.throughLayers',
+  'simulator.pull.springBack',
 ];
 
 describe('runSimulatorShortcut', () => {
@@ -93,11 +96,15 @@ describe('runSimulatorShortcut', () => {
     expect(runSimulatorShortcut('simulator.tool.orbit', bound, 5)).toBe(true);
     expect(runSimulatorShortcut('simulator.pins.clear', bound, 5, 'context-menu')).toBe(true);
     expect(runSimulatorShortcut('simulator.pins.throughLayers', bound, 5)).toBe(true);
+    expect(runSimulatorShortcut('simulator.tool.pull', bound, 5)).toBe(true);
+    expect(runSimulatorShortcut('simulator.pull.springBack', bound, 5, 'context-menu')).toBe(true);
 
     expect(tools.selectTool).toHaveBeenNthCalledWith(1, 'pin', 'shortcut');
     expect(tools.selectTool).toHaveBeenNthCalledWith(2, 'orbit', 'shortcut');
+    expect(tools.selectTool).toHaveBeenNthCalledWith(3, 'pull', 'shortcut');
     expect(tools.clearPins).toHaveBeenCalledWith('context-menu');
     expect(tools.togglePinThroughLayers).toHaveBeenCalledWith('shortcut');
+    expect(tools.springBack).toHaveBeenCalledWith('context-menu');
   });
 
   it('claims Escape only when exiting did something', () => {
@@ -141,7 +148,7 @@ describe('the simulator keymap through the dispatcher', () => {
     const tools = toolHandlers();
     const workspace = handlers({ tools });
 
-    for (const key of ['p', 'o', 'Escape']) {
+    for (const key of ['p', 'o', 'u', 'Escape']) {
       handleShortcutKeyDown(press(key), {
         scopeStack: [...stack],
         executors: {
@@ -153,6 +160,7 @@ describe('the simulator keymap through the dispatcher', () => {
 
     expect(tools.selectTool).toHaveBeenNthCalledWith(1, 'pin', 'shortcut');
     expect(tools.selectTool).toHaveBeenNthCalledWith(2, 'orbit', 'shortcut');
+    expect(tools.selectTool).toHaveBeenNthCalledWith(3, 'pull', 'shortcut');
     expect(tools.exitTool).toHaveBeenCalledTimes(1);
     expect(viewport).not.toHaveBeenCalled();
   });

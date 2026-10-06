@@ -50,6 +50,9 @@ function liveFrame(): SimulatorFramePayload | null {
     foldPercent: 0,
     maxStrain: 0,
     recovered: null,
+    posed: false,
+    poseEnded: null,
+    framingHeld: false,
   };
 }
 
@@ -126,6 +129,20 @@ const client = {
     })
   ),
   pickFaces: vi.fn(async (): Promise<number[] | null> => [1]),
+  beginPull: vi.fn(
+    async (
+      _at: unknown,
+      _drawn?: unknown,
+      _token?: number
+    ): Promise<{ outcome: 'pulling' | 'missed' | 'pinned-face' | 'no-pins' } | null> => ({ outcome: 'pulling' })
+  ),
+  movePull: vi.fn(async (_at: { x: number }, _drawn?: unknown, _token?: number): Promise<boolean | null> => true),
+  endPull: vi.fn(
+    async (_outcome: 'keep' | 'cancel', _token?: number): Promise<{ movedCreases: number } | null> => ({
+      movedCreases: 3,
+    })
+  ),
+  releasePose: vi.fn(async (_token?: number): Promise<boolean | null> => true),
 };
 
 vi.mock('../store/workspaceStore/simulatorRuntime', () => ({
@@ -1002,5 +1019,132 @@ describe('pins', () => {
     });
     expect(picked).toBeNull();
     expect(client.pickFaces).not.toHaveBeenCalled();
+  });
+});
+
+describe('pulls', () => {
+  let live: ReturnType<typeof useSimulatorRuntime> | null = null;
+
+  function CpuProbe({ fold }: { fold: FoldDocument | null }) {
+    const runtime = useSimulatorRuntime({
+      fold,
+      solverOptions: {},
+      triangulate: false,
+      canvas: null,
+      bitmapOutput: null,
+      paused: true,
+    });
+    useEffect(() => {
+      live = runtime;
+    });
+    return null;
+  }
+
+  const at = (x: number) => ({ x, y: 5, cssWidth: 10, cssHeight: 10 });
+
+  beforeEach(() => {
+    live = null;
+    for (const call of [client.beginPull, client.movePull, client.endPull, client.releasePose]) call.mockClear();
+    client.beginPull.mockImplementation(async () => ({ outcome: 'pulling' }));
+    client.movePull.mockImplementation(async () => true);
+  });
+
+  async function mountLoaded(fold: FoldDocument) {
+    await act(async () => root?.render(<CpuProbe fold={fold} />));
+    await settleLoads();
+  }
+
+  it('starts a pull on the model it holds, quoting its session, and says how the press went', async () => {
+    await mountLoaded(FOLD);
+    const drawn = { camera: {} as never, perspective: false };
+    let outcome: unknown;
+    await act(async () => {
+      outcome = await live!.beginPull(at(1), live!.model!, drawn);
+    });
+    expect(client.beginPull).toHaveBeenCalledWith(at(1), drawn, 1);
+    expect(outcome).toBe('pulling');
+  });
+
+  it('asks nothing for a press read against a model it no longer holds', async () => {
+    await mountLoaded(FOLD);
+    const stale = live!.model!;
+    await mountLoaded({ ...FOLD } as FoldDocument);
+    let outcome: unknown = 'unset';
+    await act(async () => {
+      outcome = await live!.beginPull(at(1), stale);
+    });
+    expect(outcome).toBeNull();
+    expect(client.beginPull).not.toHaveBeenCalled();
+  });
+
+  it('keeps one move in flight and sends the newest once the worker answers', async () => {
+    await mountLoaded(FOLD);
+    const answers: Array<() => void> = [];
+    client.movePull.mockImplementation(
+      () => new Promise<boolean>((resolve) => answers.push(() => resolve(true)))
+    );
+    await act(async () => {
+      await live!.beginPull(at(1), live!.model!);
+      for (const x of [2, 3, 4]) live!.movePull(at(x));
+    });
+    expect(client.movePull.mock.calls.map((call) => call[0].x)).toEqual([2]);
+
+    await act(async () => {
+      answers.shift()?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(client.movePull.mock.calls.map((call) => call[0].x)).toEqual([2, 4]);
+  });
+
+  it('sends no moves after a refused press or once the pull has ended', async () => {
+    await mountLoaded(FOLD);
+    client.beginPull.mockImplementation(async () => ({ outcome: 'no-pins' }));
+    await act(async () => {
+      expect(await live!.beginPull(at(1), live!.model!)).toBe('no-pins');
+      live!.movePull(at(2));
+    });
+    expect(client.movePull).not.toHaveBeenCalled();
+
+    client.beginPull.mockImplementation(async () => ({ outcome: 'pulling' }));
+    await act(async () => {
+      await live!.beginPull(at(1), live!.model!);
+      await live!.endPull('keep', live!.model!);
+      live!.movePull(at(3));
+    });
+    expect(client.movePull).not.toHaveBeenCalled();
+  });
+
+  it('lets go of nothing for a pull pressed on a model it no longer holds', async () => {
+    await mountLoaded(FOLD);
+    const stale = live!.model!;
+    await act(async () => {
+      await live!.beginPull(at(1), stale);
+    });
+    await mountLoaded({ ...FOLD } as FoldDocument);
+    let ended: unknown = 'unset';
+    await act(async () => {
+      ended = await live!.endPull('keep', stale);
+      live!.movePull(at(2));
+    });
+    // The pull went with the session it was made in; the new one has none.
+    expect(ended).toBeNull();
+    expect(client.endPull).not.toHaveBeenCalled();
+    expect(client.movePull).not.toHaveBeenCalled();
+  });
+
+  it('lets go and lets a pose spring back, quoting the session', async () => {
+    await mountLoaded(FOLD);
+    let ended: unknown;
+    let released: unknown;
+    await act(async () => {
+      await live!.beginPull(at(1), live!.model!);
+      ended = await live!.endPull('keep', live!.model!);
+      released = await live!.releasePose();
+    });
+    expect(client.endPull).toHaveBeenCalledWith('keep', 1);
+    expect(ended).toEqual({ movedCreases: 3 });
+    expect(client.releasePose).toHaveBeenCalledWith(1);
+    expect(released).toBe(true);
   });
 });

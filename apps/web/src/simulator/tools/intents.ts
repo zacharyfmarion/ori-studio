@@ -3,6 +3,7 @@ import type {
   CssSize,
   SimulatorGesture,
   SimulatorPickFacesIntent,
+  SimulatorPullIntent,
   SimulatorToolOptions,
 } from './types';
 
@@ -22,7 +23,7 @@ import type {
  * the paper by a millimetre must not throw away every pin.
  */
 export function pinIntentFor(
-  gesture: SimulatorGesture,
+  gesture: Exclude<SimulatorGesture, { kind: 'pull' }>,
   options: SimulatorToolOptions,
   surface: CssSize
 ): SimulatorPickFacesIntent {
@@ -45,6 +46,19 @@ export function pinIntentFor(
     reach: 'front',
     mode: keeps ? 'toggle' : 'replace',
     surface,
+  };
+}
+
+/** A step of a pull, measured against the canvas's CSS size when it was made. */
+export function pullIntentFor(
+  gesture: Extract<SimulatorGesture, { kind: 'pull' }>,
+  surface: CssSize
+): SimulatorPullIntent {
+  return {
+    kind: 'pull',
+    phase: gesture.phase,
+    at: { x: gesture.point.x, y: gesture.point.y, cssWidth: surface.width, cssHeight: surface.height },
+    touch: gesture.touch,
   };
 }
 

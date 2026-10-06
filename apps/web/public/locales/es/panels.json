@@ -1748,8 +1748,10 @@
     "backToPatterns": "Patrones",
     "canvasAriaLabel": "Simulador de bases plegadas de origami. Arrastre para rotar, desplace para ampliar, haga doble clic para restablecer la vista.",
     "canvasAriaLabelPin": "Simulador de bases plegadas de origami. Arrastre un recuadro o haga clic en una cara para fijarla, desplace para ampliar.",
+    "canvasAriaLabelPull": "Simulador de bases de origami. Arrastre el papel para tirar de él alrededor de sus fijaciones, desplace para ampliar.",
     "canvasTitle": "Arrastre para rotar, desplace para ampliar, haga doble clic para restablecer la vista",
     "canvasTitlePin": "Arrastre un recuadro o haga clic en una cara para fijarla, desplace para ampliar",
+    "canvasTitlePull": "Arrastre el papel para tirar de él, desplace para ampliar",
     "contextMenu": {
       "pause": "Pausar",
       "play": "Reproducir",
@@ -1804,6 +1806,20 @@
         "count_many": "{{count}} caras fijadas",
         "count_other": "{{count}} caras fijadas",
         "title": "Fijaciones"
+      },
+      "pose": {
+        "meta": "Mantenida",
+        "springBack": "Volver al pliegue",
+        "title": "Pose"
+      },
+      "pull": {
+        "cancel": "Esc durante el arrastre lo devuelve a su sitio.",
+        "description": "Abra el papel tirando de él alrededor de sus fijaciones. Se queda donde lo deje.",
+        "drag": "Arrastre el papel para tirar de él. Las caras fijadas no se mueven.",
+        "keep": "Al soltar, se queda así. Reproduzca o desplace el plegado para que vuelva.",
+        "label": "Tirar",
+        "needsPins": "Fije las caras que deben quedarse quietas y luego tire.",
+        "pinFaces": "Fijar caras"
       },
       "railLabel": "Herramientas del simulador",
       "windowLabel": "Opciones de herramientas del simulador"

@@ -1748,8 +1748,10 @@
     "backToPatterns": "Padrões",
     "canvasAriaLabel": "Simulador de base dobrada de origami. Arraste para girar, role para aproximar, clique duplo para redefinir a visualização.",
     "canvasAriaLabelPin": "Simulador de base dobrada de origami. Arraste uma caixa ou clique em uma face para fixá-la, role para aproximar.",
+    "canvasAriaLabelPull": "Simulador de bases de origami. Arraste o papel para puxá-lo em torno das fixações, role para aproximar.",
     "canvasTitle": "Arraste para girar, role para aproximar, clique duplo para redefinir a visualização",
     "canvasTitlePin": "Arraste uma caixa ou clique em uma face para fixá-la, role para aproximar",
+    "canvasTitlePull": "Arraste o papel para puxá-lo, role para aproximar",
     "contextMenu": {
       "pause": "Pausar",
       "play": "Reproduzir",
@@ -1804,6 +1806,20 @@
         "count_many": "{{count}} faces fixadas",
         "count_other": "{{count}} faces fixadas",
         "title": "Fixações"
+      },
+      "pose": {
+        "meta": "Mantida",
+        "springBack": "Voltar à dobra",
+        "title": "Pose"
+      },
+      "pull": {
+        "cancel": "Esc durante o arraste o devolve ao lugar.",
+        "description": "Abra o papel puxando-o em torno das fixações. Ele fica onde você soltar.",
+        "drag": "Arraste o papel para puxá-lo. As faces fixadas ficam paradas.",
+        "keep": "Solte e ele fica assim. Reproduza ou arraste a dobra para que ele volte.",
+        "label": "Puxar",
+        "needsPins": "Fixe as faces que devem ficar paradas e depois puxe.",
+        "pinFaces": "Fixar faces"
       },
       "railLabel": "Ferramentas do simulador",
       "windowLabel": "Opções das ferramentas do simulador"
