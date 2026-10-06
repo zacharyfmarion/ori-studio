@@ -1,7 +1,7 @@
 # Diagram: the simulator's tools in Pose
 
-**Status: planned 2026-10-06. Nothing is built. Decisions D1–D5 are PENDING
-(Zach); Phase 0, merging main, needs none of them.** This follows Phase 8d of
+**Status: planned 2026-10-06. Phase 0 (merging main and the 0% guard) is
+built; nothing else is. Decisions D1–D5 are PENDING (Zach).** This follows Phase 8d of
 `implementation-plans/diagram-workspace.md` (Simulated in Pose, D19). It
 builds on main's Pin tool (#437, `implementation-plans/simulator-tool-rail-and-pins.md`)
 and Pull tool (#438, `implementation-plans/simulator-pull-tool.md`), and both
@@ -782,33 +782,78 @@ Vitest runs in the web workspace under Node 22.
 
 ### Phase 0: merge main (#438) into #436
 
-- [ ] Wait until the enlarged-steps agents have committed: `git status` must be
+- [x] Wait until the enlarged-steps agents have committed: `git status` must be
   clean under `diagram/**` and `components/diagram/**`. No `git stash`.
-- [ ] Before shots:
-  - the crane's simulated step in Pose at 0% and 40%, then Done, then undo and
-    redo;
-  - Pin in Simulate.
-- [ ] `git -C <worktree> merge origin/main`.
-  - Resolve `.hashes.json` with `i18n:stamp`.
-  - In `SimulatorToolWindow.module.css`, keep `.action` and `.notice`, and drop
-    `.heading` and `.instructions`.
-  - In `useSimulatorRuntime.ts`, take the union of the imports.
-  - Read the files that merged cleanly but changed on both sides.
-  - Commit "Merge main: the simulator's Pull tool (#438)".
-- [ ] A commit of its own: the `sessionScene` 0% guard, with `simulatorSession`
-  tests for:
-  - pinned at 40%, then scrubbed to 0;
-  - a pull kept at 0%;
-  - plain 0%, which must still give the `flatScene` picture.
-- [ ] Checks: `lint:web`, `typecheck:web`, `i18n:check`, vitest for
-  `simulator/**`, `diagram/**` and `keyboard/**`, the origami-simulator package
-  tests, and `build:web`. Nothing Rust or wasm changed.
-- [ ] After shots:
-  - In Simulate: Pin, Pull a bird base's flap, let go, Spring back; then U and
-    Escape.
-  - The Diagram, unchanged against the before shots, plus a headless 0%
-    Refresh.
-- [ ] Gate: push to the PR branch, never to main.
+  *As built:* clean; the merge started on eb36424b4.
+- [ ] Before shots: **not taken.** The merge had already been started when
+  this phase ran, so there was no pre-merge build to shoot. The after shots
+  compare against what the crane's file holds instead: its step 5 picture
+  (Simulated, 75.2%) was captured before the merge, and the undo walk below
+  returns to that exact picture key.
+- [x] `git -C <worktree> merge origin/main`: merge 2d7eb24f2.
+  - `.hashes.json`: took this branch's side, then `i18n:stamp`. It stamped
+    120 hashes, main's 15 Pull keys × 8 locales, and nothing else. Every hash
+    in the result equals one side's, so no stale translation was marked fresh.
+    Every key either side added or changed is present in all 9 catalogs.
+  - `SimulatorToolWindow.module.css`: as planned. Kept main's `.action` and
+    its comment and `.notice`, and dropped `.heading` and `.instructions`;
+    the merged `SimulatorToolWindow.tsx` uses `ToolHintInstructions` and
+    `.action`.
+  - `useSimulatorRuntime.ts`: the union of the imports. The rest auto-merged:
+    the branch's `stillScene` and main's pull lane (`beginPull`, `movePull`,
+    `endPull` and `releasePose`) are both on the runtime.
+  - The files that merged cleanly on both sides: typecheck, lint and the
+    simulator, inline-simulation, diagram, keyboard and analytics suites
+    passed before the commit, with the simulator package rebuilt
+    (`build:simulator`; its `dist` is what the web app imports). No semantic
+    conflict beyond the one below.
+  - The commit kept git's message (`--no-edit`), not the planned subject.
+- [x] A commit of its own: the `sessionScene` 0% guard, 4d8e0cafd.
+  - It is the guard planned:
+    `foldPercent === 0 && !backend.posed && !pinnedNodes` draws the flat
+    sheet. Anything else reads the solver, settling it first when asked.
+    `backend.posed` is true from a pull's press, so a pull still in the hand
+    is covered too.
+  - Both new tests failed before the guard, at their "not the flat sheet"
+    assertion:
+    - a sheet pinned at 40% (two far faces), then scrubbed to 0. With the
+      pins cleared, it is `flatScene`'s picture again.
+    - a pull kept at 0%, with its pins and then with them cleared, so
+      `posed` alone is tested. After Spring back, it is `flatScene`'s
+      picture again.
+  - Plain 0% stays covered by the existing "same flat sheet with no session
+    and from a session at 0%" test.
+  - Not changed: the headless paths (`flatStill`, `DiagramStepPicture`,
+    `isDefaultRender`). They read 0% as flat by design until a step stores a
+    shape (Phase 5).
+- [x] Checks: `lint:web`, `tsc --noEmit`, `i18n:check`, the whole web vitest
+  suite (860 files, 11,453 passed, 13 skipped), the origami-simulator package (383 passed, 1 skipped)
+  and its typecheck, and a production `vite build`. That build skipped `prebuild`'s wasm rebuild and the landing prerender: nothing Rust, wasm or landing changed. Nothing Rust or wasm changed on main.
+- [x] After shots, `artifacts/diagram-second-pass/p29.mjs` →
+  `artifacts/diagram-second-pass/29/`. Headless Chromium, SwiftShader GPU,
+  against the :5291 dev server.
+  - The crane's step 5 (Simulated, 75.2%):
+    - Opening Pose wrote nothing.
+    - The slider at 40% made one "Adjust pose" capture (~4.4 s), and so did
+      0%.
+    - Done kept 0%.
+    - A headless Refresh at 0% gave a byte-identical `sceneJson` to Pose's 0%
+      capture, so it added no undo step.
+    - Undo walked 40% → 75.2%, back to the file's own picture key. Redo
+      walked 40% → 0%.
+    - No page or console errors.
+  - Simulate, on the crane's pattern 10 (24 faces) at 60%:
+    - P took Pin, and a box pinned 13 faces.
+    - U took Pull, and a drag pulled the free flap (70k px changed). Letting
+      go kept it, and Spring back appeared.
+    - The frame 150 ms after letting go and the frame 3 s later look the same.
+      They differ by 8k antialiased pixels, the sub-pixel settle
+      `simulator-pull-tool.md` records.
+    - Escape went to Orbit with the pose kept. The rail badged Pull, and
+      Orbit's window offered Spring back.
+    - Spring back cleared the pose and the badge.
+    - U and Escape switched Pull and Orbit.
+- [ ] Gate: push to the PR branch, never to main. Ready; Zach pushes.
 
 ### Phase 1: decisions and the mock
 
