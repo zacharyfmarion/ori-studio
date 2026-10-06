@@ -1712,9 +1712,12 @@ const api = {
     // At 0% the model is its flat sheet, drawn from where it started rather
     // than from the solver's float noise around it — noise that can split a
     // face the flat sheet draws whole, so a step posed back to 0% would not be
-    // the picture `flatScene` gives it.
+    // the picture `flatScene` gives it. Unless something holds it off the
+    // sheet: pins keep their faces where they were pinned, through a scrub
+    // back to 0%, and a pull (in the hand or kept) is not the fold target.
+    const flat = active.foldPercent === 0 && !active.backend.posed && !active.pinnedNodes;
     let positions = originalPositions;
-    if (active.foldPercent !== 0) {
+    if (!flat) {
       if (options.settleSteps) active.clock.runToConvergence(active.backend, options.settleSteps);
       positions = new Float32Array(prepared.vertexCount * 3);
       active.backend.readPositions(positions);

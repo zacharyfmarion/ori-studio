@@ -569,6 +569,30 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     session.dispose();
   }, 30_000);
 
+  it('keeps faces pinned part-folded where they are through a scrub back to 0%', async () => {
+    // A pin holds its faces where they were when pinned, so a sheet pinned at
+    // 40% is not flat at 0%: drawn as the flat sheet, the step would lose the
+    // shape Pose shows.
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const info = session.load(fold, {});
+    const flat = session.flatScene(fold, still);
+    const faces = [...new Set(new Int32Array(info.faceGroups))];
+    session.setFoldPercent(40, info.token);
+    await session.settle(2_000, { token: info.token });
+    await session.setPinnedFaces([faces[0]!, faces[faces.length - 1]!], info.token);
+    session.setFoldPercent(0, info.token);
+    await session.settle(2_000, { token: info.token });
+    const pinned = session.sessionScene({ ...still, token: info.token });
+    expect(pinned).not.toBeNull();
+    expect(pinned).not.toEqual(flat);
+
+    // With the pins gone, 0% is the flat sheet again.
+    await session.setPinnedFaces([], info.token);
+    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    session.dispose();
+  }, 30_000);
+
   it('is the same picture whatever size it is framed in, scaled', async () => {
     // Content-bounded: the frame's size is a scale, never a different shape.
     const session = createSimulatorSession();
@@ -1680,6 +1704,33 @@ describe('pulling the paper', () => {
     expect((await frame(session.tick({}))).posed).toBe(true);
     session.dispose();
   });
+
+  it('is drawn as posed in a Diagram step’s picture at 0%, pinned or not, until it springs back', async () => {
+    // `sessionScene` draws 0% from the flat sheet; a pose is not one.
+    const fold = miura(4, 4);
+    const { session, info, drawn, pointOn, near, far } = await sheet(fold);
+    const view = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
+    const still = { view, size: 512, style: EXPORT_STYLE, markHidden: true };
+    const flat = session.flatScene(fold, still);
+    await session.setPinnedFaces([near]);
+    const press = pointOn(far);
+    session.beginPull(press, drawn);
+    session.movePull({ ...press, x: press.x - 60, y: press.y - 40 }, drawn);
+    await settled(session);
+    session.endPull('keep');
+    await settled(session);
+    expect(session.sessionScene({ ...still, token: info.token })).not.toEqual(flat);
+
+    // Unpinned, the pose still holds the shape.
+    await session.setPinnedFaces([]);
+    const posed = session.sessionScene({ ...still, token: info.token });
+    expect(posed).not.toBeNull();
+    expect(posed).not.toEqual(flat);
+
+    session.releasePose();
+    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    session.dispose();
+  }, 30_000);
 
   it('answers null for a session that has gone', async () => {
     const { session, info, drawn, pointOn, far } = await sheet();
