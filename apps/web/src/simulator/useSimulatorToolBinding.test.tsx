@@ -7,9 +7,13 @@ import { EMPTY_PIN_SET, type PinSet } from './tools/pinSet';
 import type { SimulatorHandChange, SimulatorToolSnapshot, SimulatorToolState } from './tools/toolState';
 import type { SimulatorGesture } from './tools/types';
 import type { SimulatorFrameView, SimulatorModelView, SimulatorPinOutcome } from './useSimulatorRuntime';
+import type { SimulatorViewportHandle } from './SimulatorViewport';
+import type { SimulatorRuntime } from './useSimulatorRuntime';
 import {
+  simulatorToolsRuntime,
   useSimulatorToolBinding,
   useSimulatorTools,
+  useViewportToolHooks,
   type SimulatorTools,
   type SimulatorToolsRuntime,
   type UseSimulatorToolBindingOptions,
@@ -483,5 +487,58 @@ describe('useSimulatorToolBinding renders', () => {
     act(() => useWorkspaceStore.getState().setSimulatorActiveTool('pin'));
     expect(simulateCommits.count).toBe(before + 1);
     expect(simulate!.tool.id).toBe('pin');
+  });
+});
+
+describe('the helpers a host composes', () => {
+  it('hands the tools the runtime’s own calls, and nothing else of it', () => {
+    const calls = fakeRuntime();
+    const runtime = { ...calls, status: 'ready', reset: vi.fn(), setCamera: vi.fn() } as unknown as SimulatorRuntime;
+
+    const picked = simulatorToolsRuntime(runtime);
+
+    expect(Object.keys(picked).sort()).toEqual(
+      ['beginPull', 'endPull', 'gpuActive', 'model', 'movePull', 'pickFaces', 'releasePose', 'setPinnedFaces'].sort()
+    );
+    for (const key of Object.keys(picked) as (keyof SimulatorToolsRuntime)[]) {
+      expect(picked[key]).toBe(calls[key]);
+    }
+  });
+
+  it('reads the viewport when a tool calls, not when the hooks were made', () => {
+    const ref: { current: SimulatorViewportHandle | null } = { current: null };
+    let made: ReturnType<typeof useViewportToolHooks> | null = null;
+    function HooksProbe() {
+      const hooks = useViewportToolHooks(ref);
+      useEffect(() => {
+        made = hooks;
+      });
+      return null;
+    }
+    act(() => root?.render(<HooksProbe />));
+    const first = made!;
+    act(() => root?.render(<HooksProbe />));
+    // The same three, render after render.
+    expect(made).toBe(first);
+    const hooks = first;
+    const query = { region: { kind: 'point' as const, x: 1, y: 2 }, cssWidth: 10, cssHeight: 10, depth: 'visible' as const };
+
+    // No viewport yet: nothing drawn, nothing to pick or cancel.
+    expect(hooks.pickDrawn(query)).toBeNull();
+    expect(hooks.drawnCamera()).toBeNull();
+    expect(hooks.cancelGesture()).toBe(false);
+
+    const camera = { width: 10 } as never;
+    const viewport = {
+      pickDrawnFaces: vi.fn(() => [3]),
+      drawnCamera: vi.fn(() => camera),
+      cancelToolGesture: vi.fn(() => true),
+    };
+    ref.current = viewport as unknown as SimulatorViewportHandle;
+
+    expect(hooks.pickDrawn(query)).toEqual([3]);
+    expect(viewport.pickDrawnFaces).toHaveBeenCalledWith(query);
+    expect(hooks.drawnCamera()).toBe(camera);
+    expect(hooks.cancelGesture()).toBe(true);
   });
 });

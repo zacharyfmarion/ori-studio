@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import type { CameraUniforms } from '@treemaker/origami-simulator';
@@ -39,7 +39,7 @@ import type { SimulatorHandChange, SimulatorToolState } from './tools/toolState'
 import { pinnedHighlights, type SimulatorHighlights } from './canvas2dFrame';
 import { classifySimulatorCallFailure, simulatorBackendTag } from './simulatorCallFailure';
 import type { SimulatorPickQuery } from './pickQuery';
-import type { SimulatorViewportToolInput } from './SimulatorViewport';
+import type { SimulatorViewportHandle, SimulatorViewportToolInput } from './SimulatorViewport';
 import type { SimulatorFrameView, SimulatorModelView, SimulatorRuntime } from './useSimulatorRuntime';
 import type { SimulatorToolShortcutHandlers } from './useSimulatorShortcuts';
 import { useSimulatorPull } from './useSimulatorPull';
@@ -57,7 +57,7 @@ export interface SimulatorToolsRuntime {
 }
 
 /** What every host hands the tools: its runtime, and its canvas's half of a gesture. */
-interface SimulatorToolHostOptions {
+export interface SimulatorToolHostOptions {
   runtime: SimulatorToolsRuntime;
   /** Tools act only on a simulation that is ready. */
   ready: boolean;
@@ -170,6 +170,37 @@ export function nextPinNotices(
     next = next.filter((notice) => notice !== 'strained');
   }
   return next;
+}
+
+/** The calls the tools make, out of a host's runtime. */
+export function simulatorToolsRuntime(runtime: SimulatorRuntime): SimulatorToolsRuntime {
+  return {
+    model: runtime.model,
+    gpuActive: runtime.gpuActive,
+    pickFaces: runtime.pickFaces,
+    setPinnedFaces: runtime.setPinnedFaces,
+    beginPull: runtime.beginPull,
+    movePull: runtime.movePull,
+    endPull: runtime.endPull,
+    releasePose: runtime.releasePose,
+  };
+}
+
+/**
+ * The viewport's half of a tool gesture, through a host's ref to it: read when
+ * a tool calls, so a viewport mounted after the tools still answers.
+ */
+export function useViewportToolHooks(
+  viewportRef: RefObject<SimulatorViewportHandle | null>
+): Pick<SimulatorToolHostOptions, 'pickDrawn' | 'drawnCamera' | 'cancelGesture'> {
+  return useMemo(
+    () => ({
+      pickDrawn: (query) => viewportRef.current?.pickDrawnFaces(query) ?? null,
+      drawnCamera: () => viewportRef.current?.drawnCamera() ?? null,
+      cancelGesture: () => viewportRef.current?.cancelToolGesture() ?? false,
+    }),
+    [viewportRef]
+  );
 }
 
 /**
