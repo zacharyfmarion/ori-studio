@@ -348,6 +348,17 @@ describe('workspace capabilities', () => {
     }
   });
 
+  it('prints a diagram with a step from any workspace, as it exports one', () => {
+    expect(capabilities({ hasDiagram: true, diagramStepCount: 0 })['file.printDiagram']).toMatchObject({
+      enabled: false,
+      reason: 'Add a step to the diagram to print it',
+    });
+    for (const activeEditingContext of ['diagram', 'treemaker-tree', 'crease-pattern'] as const) {
+      const state = capabilities({ activeEditingContext, status: 'optimizing', hasDiagram: true, diagramStepCount: 3 });
+      expect(state['file.printDiagram'].enabled, activeEditingContext).toBe(true);
+    }
+  });
+
   it('enables CP save actions when an editable CP kernel is available', () => {
     const state = capabilities({
       documentMode: 'crease-pattern',

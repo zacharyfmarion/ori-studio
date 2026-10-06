@@ -54,6 +54,9 @@
   "diagramExport": {
     "saved": "{{name}}을(를) 내보냈습니다"
   },
+  "diagramPrint": {
+    "failed": "도해를 인쇄하지 못했습니다"
+  },
   "fileDrop": {
     "ignoredFile": "{{name}}을(를) 사용했습니다. 놓은 다른 파일 1개는 무시되었습니다.",
     "ignoredFiles": "{{name}}을(를) 사용했습니다. 놓은 다른 파일 {{others}}개는 무시되었습니다."

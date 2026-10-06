@@ -986,6 +986,32 @@ shows the composed page.**
   (visible only in the diagram context) both dispatch `file.exportDiagram`
   through `handleMenuAction`, so `command invoked` fires once. **Edit page
   setup** closes the dialog, switches to Pages and reveals the Page tab.
+- *Amended, Print* (Zach, 2026-10-06: "I'd like a print option next to export
+  so people can easily print the diagram"). Route (B) above, beside the PDF
+  rather than instead of it. The header's **Print…** (beside Export…), **File ›
+  Print Diagram...** and ⌘P / Ctrl+P (a menu shortcut, so from any workspace,
+  as the export) dispatch `file.printDiagram` through `handleMenuAction`, so
+  `command invoked` counts it; the capability is the export's, a diagram with
+  a step. `diagram/print/printDiagram.ts` lays the pages out with their fonts
+  (`prepareDiagramPages`, the Pages view's and the PDF's) and hands each
+  composed page to `platform/printPages.ts`, which puts them in a print-only
+  layer of the document, the app hidden behind it in print, with
+  `@page { size: <w>mm <h>mm; margin: 0 }`, and calls `window.print()`. The
+  layer goes on `afterprint`, or when the next print replaces it.
+  - **Why not the PDF in a frame.** Printing a PDF from an iframe works only
+    where the browser draws PDFs in frames (not headless Chromium, not
+    WebKitGTK), and Tauri's macOS print opens the panel on the whole webview,
+    never a frame. The layer prints the same composed pages everywhere.
+  - **Desktop.** Windows and Linux webviews print `window.print()` as
+    browsers do. On macOS Tauri replaces it with its `print` command (the
+    panel on the webview), which needs `core:webview:allow-print`, now in the
+    default capability; a refusal is reported and said in a toast.
+  - **Measured** (`artifacts/diagram-second-pass/25/`): Chromium's own print
+    pipeline (page.pdf, print media) on the layer gives the heart's two A4
+    pages with its text as embedded fonts, within 0.7% of pixels of the
+    exported PDF at 100 dpi (anti-aliasing at edges); WebKit under print media
+    shows only the two pages. Neither headless browser shows a dialog; the
+    desktop print panel is not verified here.
 
 **D12. The shell: a fifth, authoring workspace.**
 - **Registration.** Copy References' registration file by file; the list is in

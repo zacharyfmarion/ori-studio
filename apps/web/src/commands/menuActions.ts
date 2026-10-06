@@ -62,6 +62,7 @@ export const MENU_ACTION_IDS = [
   'file.exportSvg',
   'file.exportPng',
   'file.exportDiagram',
+  'file.printDiagram',
   'edit.undo',
   'edit.redo',
   'edit.cut',
@@ -550,6 +551,11 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       case 'file.exportDiagram':
         useDiagramExportUiStore.getState().open(focusedElement(), useWorkspaceStore.getState().diagramLoadId);
         return true;
+      case 'file.printDiagram':
+        // Its pages, as the PDF prints them, through the runtime's print dialog.
+        // Loaded when asked for: the page composer and its fonts stay out of
+        // the shell's own chunk.
+        return (await import('../diagram/print/printDiagram')).printDiagram();
       case 'file.settings':
         deps.settings?.();
         return true;

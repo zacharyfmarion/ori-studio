@@ -66,6 +66,9 @@
   "diagramExport": {
     "saved": "{{name}} exportado"
   },
+  "diagramPrint": {
+    "failed": "Não foi possível imprimir o diagrama"
+  },
   "fileDrop": {
     "ignoredFile": "{{name}} usado; 1 outro arquivo solto foi ignorado.",
     "ignoredFiles": "{{name}} usado; {{others}} outros arquivos soltos foram ignorados."

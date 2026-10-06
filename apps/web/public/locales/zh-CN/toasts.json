@@ -54,6 +54,9 @@
   "diagramExport": {
     "saved": "已导出 {{name}}"
   },
+  "diagramPrint": {
+    "failed": "无法打印图解"
+  },
   "fileDrop": {
     "ignoredFile": "已使用 {{name}}；忽略了另外 1 个拖放的文件。",
     "ignoredFiles": "已使用 {{name}}；忽略了另外 {{others}} 个拖放的文件。"

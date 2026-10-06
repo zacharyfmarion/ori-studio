@@ -4117,7 +4117,15 @@
     "panels:diagram.annotations.partsCrowded": "d822a69dfbde",
     "tools:diagram.toolDivisions": "65faf95d24e3",
     "panels:diagram.pagePane.pathColor": "0f79cbd37c4e",
-    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559"
+    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559",
+    "common:capability.noDiagramToPrint": "80e6cb8816d5",
+    "common:capability.printDiagram": "e290dcb7c23b",
+    "common:capability.printDiagramHint": "fc56271285f2",
+    "menu:file.printDiagram": "e290dcb7c23b",
+    "panels:diagram.header.nothingToPrint": "7f563e65cdf5",
+    "panels:diagram.header.preparingPrint": "5d1fa38bcf0d",
+    "panels:diagram.header.print": "07c371255954",
+    "toasts:diagramPrint.failed": "2a21746df819"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8237,7 +8245,15 @@
     "panels:diagram.annotations.partsCrowded": "d822a69dfbde",
     "tools:diagram.toolDivisions": "65faf95d24e3",
     "panels:diagram.pagePane.pathColor": "0f79cbd37c4e",
-    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559"
+    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559",
+    "common:capability.noDiagramToPrint": "80e6cb8816d5",
+    "common:capability.printDiagram": "e290dcb7c23b",
+    "common:capability.printDiagramHint": "fc56271285f2",
+    "menu:file.printDiagram": "e290dcb7c23b",
+    "panels:diagram.header.nothingToPrint": "7f563e65cdf5",
+    "panels:diagram.header.preparingPrint": "5d1fa38bcf0d",
+    "panels:diagram.header.print": "07c371255954",
+    "toasts:diagramPrint.failed": "2a21746df819"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12359,7 +12375,15 @@
     "panels:diagram.annotations.partsCrowded": "d822a69dfbde",
     "tools:diagram.toolDivisions": "65faf95d24e3",
     "panels:diagram.pagePane.pathColor": "0f79cbd37c4e",
-    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559"
+    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559",
+    "common:capability.noDiagramToPrint": "80e6cb8816d5",
+    "common:capability.printDiagram": "e290dcb7c23b",
+    "common:capability.printDiagramHint": "fc56271285f2",
+    "menu:file.printDiagram": "e290dcb7c23b",
+    "panels:diagram.header.nothingToPrint": "7f563e65cdf5",
+    "panels:diagram.header.preparingPrint": "5d1fa38bcf0d",
+    "panels:diagram.header.print": "07c371255954",
+    "toasts:diagramPrint.failed": "2a21746df819"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -16393,7 +16417,15 @@
     "panels:diagram.annotations.partsCrowded": "d822a69dfbde",
     "tools:diagram.toolDivisions": "65faf95d24e3",
     "panels:diagram.pagePane.pathColor": "0f79cbd37c4e",
-    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559"
+    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559",
+    "common:capability.noDiagramToPrint": "80e6cb8816d5",
+    "common:capability.printDiagram": "e290dcb7c23b",
+    "common:capability.printDiagramHint": "fc56271285f2",
+    "menu:file.printDiagram": "e290dcb7c23b",
+    "panels:diagram.header.nothingToPrint": "7f563e65cdf5",
+    "panels:diagram.header.preparingPrint": "5d1fa38bcf0d",
+    "panels:diagram.header.print": "07c371255954",
+    "toasts:diagramPrint.failed": "2a21746df819"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -20427,7 +20459,15 @@
     "panels:diagram.annotations.partsCrowded": "d822a69dfbde",
     "tools:diagram.toolDivisions": "65faf95d24e3",
     "panels:diagram.pagePane.pathColor": "0f79cbd37c4e",
-    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559"
+    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559",
+    "common:capability.noDiagramToPrint": "80e6cb8816d5",
+    "common:capability.printDiagram": "e290dcb7c23b",
+    "common:capability.printDiagramHint": "fc56271285f2",
+    "menu:file.printDiagram": "e290dcb7c23b",
+    "panels:diagram.header.nothingToPrint": "7f563e65cdf5",
+    "panels:diagram.header.preparingPrint": "5d1fa38bcf0d",
+    "panels:diagram.header.print": "07c371255954",
+    "toasts:diagramPrint.failed": "2a21746df819"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -24547,7 +24587,15 @@
     "panels:diagram.annotations.partsCrowded": "d822a69dfbde",
     "tools:diagram.toolDivisions": "65faf95d24e3",
     "panels:diagram.pagePane.pathColor": "0f79cbd37c4e",
-    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559"
+    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559",
+    "common:capability.noDiagramToPrint": "80e6cb8816d5",
+    "common:capability.printDiagram": "e290dcb7c23b",
+    "common:capability.printDiagramHint": "fc56271285f2",
+    "menu:file.printDiagram": "e290dcb7c23b",
+    "panels:diagram.header.nothingToPrint": "7f563e65cdf5",
+    "panels:diagram.header.preparingPrint": "5d1fa38bcf0d",
+    "panels:diagram.header.print": "07c371255954",
+    "toasts:diagramPrint.failed": "2a21746df819"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -28667,7 +28715,15 @@
     "panels:diagram.annotations.partsCrowded": "d822a69dfbde",
     "tools:diagram.toolDivisions": "65faf95d24e3",
     "panels:diagram.pagePane.pathColor": "0f79cbd37c4e",
-    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559"
+    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559",
+    "common:capability.noDiagramToPrint": "80e6cb8816d5",
+    "common:capability.printDiagram": "e290dcb7c23b",
+    "common:capability.printDiagramHint": "fc56271285f2",
+    "menu:file.printDiagram": "e290dcb7c23b",
+    "panels:diagram.header.nothingToPrint": "7f563e65cdf5",
+    "panels:diagram.header.preparingPrint": "5d1fa38bcf0d",
+    "panels:diagram.header.print": "07c371255954",
+    "toasts:diagramPrint.failed": "2a21746df819"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -32701,6 +32757,14 @@
     "panels:diagram.annotations.partsCrowded": "d822a69dfbde",
     "tools:diagram.toolDivisions": "65faf95d24e3",
     "panels:diagram.pagePane.pathColor": "0f79cbd37c4e",
-    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559"
+    "panels:diagram.pagePane.pathWidthMm": "4feb23bbd559",
+    "common:capability.noDiagramToPrint": "80e6cb8816d5",
+    "common:capability.printDiagram": "e290dcb7c23b",
+    "common:capability.printDiagramHint": "fc56271285f2",
+    "menu:file.printDiagram": "e290dcb7c23b",
+    "panels:diagram.header.nothingToPrint": "7f563e65cdf5",
+    "panels:diagram.header.preparingPrint": "5d1fa38bcf0d",
+    "panels:diagram.header.print": "07c371255954",
+    "toasts:diagramPrint.failed": "2a21746df819"
   }
 }

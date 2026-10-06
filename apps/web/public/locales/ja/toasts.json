@@ -54,6 +54,9 @@
   "diagramExport": {
     "saved": "{{name}} を書き出しました"
   },
+  "diagramPrint": {
+    "failed": "折り図を印刷できませんでした"
+  },
   "fileDrop": {
     "ignoredFile": "{{name}} を使用しました。ドロップされた他の 1 件は無視されました。",
     "ignoredFiles": "{{name}} を使用しました。ドロップされた他の {{others}} 件は無視されました。"

@@ -93,6 +93,12 @@ export function getMenuBarDef(
             { type: 'action', id: 'file.exportDiagram', label: t('menu:file.exportDiagram', 'Export Diagram...') },
           ],
         },
+        {
+          type: 'action',
+          id: 'file.printDiagram',
+          label: t('menu:file.printDiagram', 'Print Diagram...'),
+          shortcut: shortcut('file.printDiagram', resolution),
+        },
         { type: 'separator' },
         { type: 'action', id: 'file.settings', label: t('menu:file.settings', 'Settings'), shortcut: shortcut('file.settings', resolution) },
       ],

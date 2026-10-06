@@ -348,6 +348,7 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
     ),
     inFormControls: true,
   },
+  menuShortcut('file.printDiagram', 'Print Diagram...', 'File', { primary: true, key: 'p' }),
   menuShortcut('file.settings', 'Settings', 'File', { primary: true, key: ',' }, 'prefAction'),
   menuShortcut('edit.undo', 'Undo', 'Edit', { primary: true, key: 'z' }, 'undoAction'),
   menuShortcut('edit.redo', 'Redo', 'Edit', { primary: true, shift: true, key: 'z' }, 'redoAction'),

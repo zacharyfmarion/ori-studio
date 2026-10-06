@@ -33,6 +33,7 @@ import {
 } from '../../diagram/useDiagramActions';
 import { useDiagramShortcuts } from '../../diagram/useDiagramShortcuts';
 import { useDiagramStepMenu } from '../../diagram/useDiagramStepMenu';
+import { useDiagramPrintUiStore } from '../../store/diagramPrintUiStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramViewMode } from '../../store/workspaceStore/types';
@@ -118,6 +119,7 @@ export function DiagramPanel() {
   const assets = useWorkspaceStore((state) => state.diagram?.assets ?? NO_ASSETS);
   const style = useWorkspaceStore((state) => state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE);
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
+  const printing = useDiagramPrintUiStore((state) => state.preparing);
   const selectedStepId = useWorkspaceStore((state) => state.diagramSelectedStepId);
   const selectStep = useWorkspaceStore((state) => state.selectDiagramStep);
   const detail = useWorkspaceStore((state) => state.diagramDetail);
@@ -229,6 +231,8 @@ export function DiagramPanel() {
         onRefreshAll={refreshAll}
         onStopRefreshing={stopRefreshAll}
         onExport={() => void handleMenuAction('file.exportDiagram')}
+        onPrint={() => void handleMenuAction('file.printDiagram')}
+        printing={printing}
         drawerSlot={setViewDrawerSlot}
       />
       {readOnly && (

@@ -22,6 +22,9 @@ const routingMocks = vi.hoisted(() => ({
   currentPath: vi.fn<() => string | null>(() => '/welcome'),
 }));
 
+const printMocks = vi.hoisted(() => ({ printDiagram: vi.fn(() => Promise.resolve(true)) }));
+vi.mock('../diagram/print/printDiagram', () => ({ printDiagram: printMocks.printDiagram }));
+
 vi.mock('../routing/appRouter', () => ({
   navigateTo: routingMocks.navigateTo,
   currentPath: routingMocks.currentPath,
@@ -860,6 +863,22 @@ describe('menu actions', () => {
       if (request) useDiagramExportUiStore.getState().closeRequest(request.id);
       button.remove();
     }
+  });
+
+  it('prints the diagram from the File menu: its pages, through the print dialog', async () => {
+    printMocks.printDiagram.mockClear();
+    expect(isMenuActionId('file.printDiagram')).toBe(true);
+    await expect(createMenuActionHandler(createDeps())('file.printDiagram')).resolves.toBe(true);
+    expect(printMocks.printDiagram).toHaveBeenCalledOnce();
+    // Nothing to print: the capability holds it back before it is asked.
+    printMocks.printDiagram.mockClear();
+    const disabled = { enabled: false, visible: true, label: 'Print Diagram...', reason: 'Add a step to the diagram to print it' };
+    const deps = {
+      ...createDeps(),
+      capabilities: () => ({ 'file.printDiagram': disabled }) as unknown as ReturnType<typeof getWorkspaceCapabilities>,
+    };
+    await expect(createMenuActionHandler(deps)('file.printDiagram')).resolves.toBe(false);
+    expect(printMocks.printDiagram).not.toHaveBeenCalled();
   });
 
   it('does not dispatch disabled capabilities', async () => {

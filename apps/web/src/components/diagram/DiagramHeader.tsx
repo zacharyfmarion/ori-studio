@@ -1,6 +1,6 @@
 import type { Ref } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, Plus } from "lucide-react";
+import { Download, Loader2, Plus, Printer } from "lucide-react";
 import { Button } from "../ui/Button";
 import { SplitButton } from "../ui/SplitButton";
 import { DiagramHistoryButtons } from "./DiagramHistoryButtons";
@@ -36,6 +36,8 @@ export function DiagramHeader({
   onRefreshAll,
   onStopRefreshing,
   onExport,
+  onPrint,
+  printing,
   drawerSlot,
 }: {
   title: string;
@@ -67,6 +69,10 @@ export function DiagramHeader({
   onStopRefreshing: () => void;
   /** Open the export dialog: a PDF of the pages, or a file for each step. */
   onExport: () => void;
+  /** Print the pages, as the PDF prints them, through the print dialog. */
+  onPrint: () => void;
+  /** The pages are being made ready for the print dialog. */
+  printing: boolean;
   /** Where the touch layer seats the Step pane's pill (`viewDrawerSlot`). */
   drawerSlot: Ref<HTMLDivElement>;
 }) {
@@ -219,6 +225,30 @@ export function DiagramHeader({
                   },
             ]}
           />
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={stepCount === 0 || printing}
+            aria-busy={printing || undefined}
+            title={
+              stepCount === 0
+                ? t(
+                    "panels:diagram.header.nothingToPrint",
+                    "Add a step to print the diagram",
+                  )
+                : undefined
+            }
+            onClick={onPrint}
+          >
+            {printing ? (
+              <Loader2 size={14} className={styles.spinner} aria-hidden="true" />
+            ) : (
+              <Printer size={14} aria-hidden="true" />
+            )}
+            {printing
+              ? t("panels:diagram.header.preparingPrint", "Preparing…")
+              : t("panels:diagram.header.print", "Print…")}
+          </Button>
           <Button
             size="sm"
             variant="primary"

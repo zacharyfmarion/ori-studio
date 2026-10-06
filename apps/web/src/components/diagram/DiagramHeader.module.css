@@ -136,3 +136,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Print's icon while the pages are made ready for the print dialog. */
+.spinner {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

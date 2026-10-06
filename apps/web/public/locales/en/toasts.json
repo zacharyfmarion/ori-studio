@@ -60,6 +60,9 @@
   "diagramExport": {
     "saved": "Exported {{name}}"
   },
+  "diagramPrint": {
+    "failed": "The diagram couldn’t be printed"
+  },
   "fileDrop": {
     "ignoredFile": "Used {{name}}; ignored 1 other dropped file.",
     "ignoredFiles": "Used {{name}}; ignored {{others}} other dropped files."

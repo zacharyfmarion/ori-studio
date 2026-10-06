@@ -28,6 +28,7 @@ export type WorkspaceCapabilityId =
   | 'file.exportSvg'
   | 'file.exportPng'
   | 'file.exportDiagram'
+  | 'file.printDiagram'
   | 'file.exportFoldedFold'
   | 'file.exportObj'
   | 'file.exportStl'
@@ -459,6 +460,14 @@ export function getWorkspaceCapabilities(
       input.diagramStepCount > 0
         ? t('common:capability.exportDiagramHint', 'Export the diagram as a PDF or as a file for each step')
         : t('common:capability.noDiagramToExport', 'Add a step to the diagram to export it')
+    ),
+    // As the export: from any workspace, the pages the PDF would print.
+    'file.printDiagram': capability(
+      input.diagramStepCount > 0,
+      t('common:capability.printDiagram', 'Print Diagram...'),
+      input.diagramStepCount > 0
+        ? t('common:capability.printDiagramHint', 'Print the diagram’s pages, as the PDF prints them')
+        : t('common:capability.noDiagramToPrint', 'Add a step to the diagram to print it')
     ),
     // The Diagram's history is its own: a TreeMaker build or optimize running
     // in another workspace is no reason to hold its Undo back.
