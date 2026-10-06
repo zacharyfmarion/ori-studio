@@ -517,7 +517,11 @@ cell 62 × 84.67 mm. Sizes are Fill's (Z4) and the arrow's places D22's (Z3).
   (Zach's change to D22 of 2026-10-06, being built now); in the grid, D22's
   place there as built. It points on to 56.
 - **Flow.** A left-to-right row as the grid. A right-to-left row: mirrored,
-  pointing left, the bow still up, the lift applied.
+  pointing left, the bow still up, the lift applied. Which rows run right to
+  left is per page since printed spreads (D10, 2026-10-06): read it from the
+  layout's `rightToLeft`, never from the row's index; on a right page read
+  from the bottom up, a row break's place is still D22's, on the lane between
+  the upper step's words and the lower one's number.
 - **Different pages.** The area prints with 55 on page p and the arrow on p+1
   at 56's leading edge, D22's page-break place. The Pages view and the Export
   dialog say "Step 56 is on the page after the area it enlarges"; the fix is
@@ -2140,10 +2144,52 @@ lands before anything writes `zoom` or `paperFaces`.
 
 Face-anchored imprinting, measured on the crane before any of it is built.
 
-- [ ] A spike branch of `flatPicture` that keeps `paperFaces`. Capture the
+**Result, 2026-10-06: FAIL.** With no spread the imprint is exact on every
+refold, within 0.01% of the frame. With a spread it passes whenever S and N
+hold the same face still. It fails when N's fold holds another face still and
+a spread is on: under the default affine spread, by 5.46% on refold C and by
+4.80% on the crane's own 21 → 22; under the depth spread, by 2.44% on refold C
+shown in S's pose. The design is unchanged. Zach decides; see "For Zach"
+below the checklist.
+
+Everything the spike ran is under `artifacts/revision-2/spike/` (gitignored),
+on the dev server's own modules. Nothing under `apps/` or `crates/` changed.
+Two helpers that the app does not export, `placement` (foldedFlatScene.ts) and
+`piecesUnder` (behindFlaps.ts), were reached by importing the dev server's
+module again as a blob with one extra `export` line, so the code that ran is
+the app's own. The scripts:
+
+- `spike.mjs`, with `common.mjs`, `pageHelpers.mjs` and `geom.mjs`, writes
+  `spike-results.json` and `spike-captures.json`;
+- `summary.mjs` prints the tables below;
+- `sizes.mjs`, `orientation.py`, `cut.mjs` and `figures.mjs` cover the other
+  items.
+
+The crane has no step 55. S is its step 22, the last, in its linked pose
+(front, 157.5°, case 13).
+
+- [x] A spike branch of `flatPicture` that keeps `paperFaces`. Capture the
   crane's 55 with it; draw an area round the head; mark one point of the head
   on the paper to measure against.
-- [ ] Refold to a 57 three ways: by editing 55's sheet; on the next sheet;
+  *As built:* `spikeFlatPicture` (`common.mjs`) calls the app's
+  `flatPicture` unchanged and builds `paperFaces` from the same kernel scene.
+  For each kernel face, hidden ones included, it keeps three things:
+  - its corners on the paper, `sheet_points` about their box's centre;
+  - the same corners through the painter's own `placement`;
+  - its `layerLevels` level over `foldedPaintOrder`.
+
+  Both rings are rounded to the stored step. Recaptured through the branch,
+  17 of the crane's 18 flat steps write a `sceneJson` byte-identical to the
+  file's. Step 9 cannot be refolded today (see the note at the end).
+
+  The area is a circle round the head. The head is the right-hand flap,
+  which step 21 raises ("Repeat step 20 on the right side") and the refold
+  below folds. The circle is centred on the flap's axis, 0.34 of the way down
+  from the tip, with a radius of 0.4 of the flap: 116 px, on a model about
+  305 px across. The marked head point is the paper under the circle's
+  centre, on the face drawn on top there: face 42, the neck's top layer. The
+  refold below leaves that paper where it is.
+- [x] Refold to a 57 three ways: by editing 55's sheet; on the next sheet;
   and one whose capture's fold holds a different face still (`openFold` folds
   from face 1, `lib/creaseExportFold.ts:333`, which lands elsewhere on a
   changed sheet). Imprint the area through its default anchor and land it on
@@ -2152,18 +2198,196 @@ Face-anchored imprinting, measured on the crane before any of it is built.
   with no spread, the default affine spread and a depth spread. Pass: under
   2%. If it fails, the result goes to Zach, with the rejected anchor rules'
   results beside it, before 16c starts.
-- [ ] The default anchor on those captures: which face it picks (expected:
+  *As built:* the crane has no head fold, so the spike builds one: an outside
+  reverse fold of the neck's tip (`pageHelpers.headFold`).
+  - **The fold line** crosses the neck 0.3 of the way from the tip, at 55° to
+    the flap's axis.
+  - **The creases** are carried onto the sheet through each neck layer's own
+    map. The layers above the flap's middle fold one way and those below fold
+    the other. The spine flips beyond the line.
+  - **The kernel solves it**, with 52 faces. An inside reverse fold along the
+    same line has no layer order (Contradiction). Mirrored, it solves, but the
+    head points into the wings.
+
+  It was made in the store with the store's own verbs,
+  `insertOristudioCpLineSegments` and `replaceOristudioCpLineSegments`, as
+  three refolds:
+  - **A**: step 22's sheet edited in place.
+  - **B**: a copy of that sheet 500 units below it, with the fold on the copy.
+  - **C**: B's sheet folded from face 18 instead of face 1, as a renumbered
+    face 1 would fold it. Face 18 shows its back in face 1's fold, so the
+    model comes out turned over. It is shown in S's pose.
+  - **C posed**: C as an author would pose it to match S, back at 225°.
+
+  Each refold uses the fold case whose layer order agrees with S's over the
+  faces both have: case 9 for A and B, case 5 for C. A and B hold the same
+  face still as S, and C, by construction, does not.
+
+  Beside them, **R** is the crane's own 21 → 22:
+  - the area is round the tail, which step 20 raises, on step 21;
+  - it lands on step 22 as linked, on the next sheet, in 22's own pose
+    (21 is back at 315°, 22 front at 157.5°);
+  - the two folds hold different faces still, with no help from the spike:
+    21's face 1 is not 22's.
+
+  Every pair is measured three ways, the same on S and on N: no spread, the
+  default affine spread (3%, top, skew 1, 81°) and the default depth spread
+  (2.5%, down). Imprinting and landing work as `zoomImprint` will (`geom.mjs`):
+  - each face is placed by the least-squares similarity, reflected when its
+    affine fit is;
+  - the anchor's paper point is the face's pole of inaccessibility;
+  - on N, that point is held by the face that contains it, the lower index on
+    a crease.
+
+  The truth is where N's own painter draws the marked paper. The share is the
+  landed centre's distance from it over the frame's diameter:
+
+  | Refold | No spread | Default affine | Depth |
+  | --- | --- | --- | --- |
+  | A: S's sheet edited | 0.009% | 0.004% | 0.565% |
+  | B: the next sheet | 0.005% | 0.002% | 0.561% |
+  | C: another face still, S's pose | 0.005% | **5.458%** | **2.436%** |
+  | C posed like S | 0.008% | **5.458%** | 0.591% |
+  | R: the crane's 21 → 22 | 0.001% | **4.804%** | 0.064% |
+
+  The frame does not jump; it drifts: by 12.4 px on C and 11.0 px on R,
+  against a 116 px radius. To pass at that drift, a frame's radius would have
+  to be 311 px on C or 276 px on R, about the size of the whole model (305 to
+  333 px). Any head-sized frame fails there.
+
+  The cause is the affine spread. It holds still the face on top "as the
+  front sees it", and which paper that is depends on which face the fold
+  holds still. By the middle of its paper, the held face is (52.5, −173.6) on
+  S, A, B and step 22, (−52.5, 173.6) on C, and (−67.6, 176.6) on step 21. So S
+  and N spread the model differently, and the body (the anchor) and the head
+  move apart by different amounts.
+
+  Posing C like S does not change the held face: C posed fails by the same
+  5.458%. The depth spread fails only on C left unposed (2.44%), where the
+  screen's "down" meets a turned-over model; posed like S, C passes at 0.59%.
+
+  Copied in picture units, as an older capture is, C lands 43–52% off. On
+  every refold whose fold changed, the imprint is what places the frame.
+  Images: `imprint-head.png` (S, then A, B, C and C posed, by spread, with
+  every landing drawn) and `imprint-tail.png` (R).
+- [x] The default anchor on those captures: which face it picks (expected:
   the body's back layer), and the largest face and the face under the centre
   beside it, to show why they were not taken.
-- [ ] A circle under the default affine spread: the landed frame against the
+  *As built:* the default anchor is the body's back layer, as expected.
+  - **Step 22**: face 33, the lower rear of the body, at level 23, the
+    deepest. Under the depth spread its symmetric twin, face 14, is taken
+    instead.
+  - **Step 21**: face 30, also at level 23.
+
+  The two rules not taken, measured on the same captures:
+  - **The largest face** (19, a wing layer; on step 21, face 11). It lands
+    within 0.002% unspread. Under the affine spread it is worse than the
+    default: 10.16% on C and 4.36% on R. Under the depth spread on C it lands
+    at 1.59%.
+  - **The face under the centre** (42). It lands within 0.10% in every row,
+    but only because the marked point lies on that face. Take instead an area
+    centred on the head itself, above the fold line (0.12 of the flap, radius
+    0.22), anchored by the paper under its centre: it follows the folded head
+    and lands 67% off on A, B and C. The default and the largest face stay
+    within 0.02% there. Anchored by its own pole, the face under the centre
+    lands at 0.00%, but only because the pole of the uncut neck triangle lies
+    below the fold line.
+
+  A finding for 16c: faces 33 and 14 tie on level, and their picture areas
+  differ only by rounding: 2706.41540 against 2706.41540, and 2625.954
+  against 2625.950 under the depth spread. An affine spread changes those
+  areas by 5%. Their paper areas are equal, 1252.5035 each. So the tie should
+  be broken on the paper's area, with a relative tolerance, then by the lower
+  index.
+- [x] A circle under the default affine spread: the landed frame against the
   circle's paper carried point by point through its face's affine move (how
   far the similarity departs).
-- [ ] `paperFaces` in bytes beside `sceneJson` on the crane's flat steps. If
+  *As built:* carried through the landing face's own affine map instead of
+  the similarity, the circle's points move by up to 11.0 px. That is 4.7% of
+  the frame's diameter on A and B, and 4.8% on R:
+  - 2.7% is the centre moving;
+  - 1.9% is the circle turning into an ellipse, whose axes are 1.038 and 0.976
+    of the similarity's scale.
+
+  When S and N spread alike, the same face is fitted alike on both, and the
+  error cancels between imprint and land: A and B land at 0.004%. The drift on
+  C and R comes from the held face, above, not from the fit. Under the depth
+  spread the same comparison gives 1.3–1.5%.
+- [x] `paperFaces` in bytes beside `sceneJson` on the crane's flat steps. If
   it is more than half as large, 16c stores the shared-points form (Risks).
-- [ ] Whether the crane's stage sheets keep one orientation in Edit (Risks).
-- [ ] Cut pieces from `piecesUnder` on a flat fold and on a crease pattern,
+  *As built:* in the per-face form (two rings and a level), `paperFaces` is
+  0.42 to 1.14 times `sceneJson` on the 17 refoldable flat steps: 82.9 kB
+  against 83.2 kB in all. It is more than half on 16 of the 17, so **16c
+  stores the shared-points form**:
+  - each wireframe point once, as its paper x and y and its picture x and y;
+  - each face as indices into those points, with its level.
+
+  That form is 0.24 to 0.43 times `sceneJson`, 31.2 kB in all (0.38). It loses
+  nothing at the stored step: where two faces name one point, they place it
+  within 0.007 px of each other. Per step: `sizes.json`.
+- [x] Whether the crane's stage sheets keep one orientation in Edit (Risks).
+  *As built:* yes. Each stage sheet's creases, about its box's centre, were
+  compared with the previous stage's under the square's eight symmetries,
+  counting a crease only where a line of its own colour lies on it. At all 15
+  transitions, from step 5 to step 22, the identity matches best. The half
+  turn and the diagonal mirrors tie with it only where the crane's creases
+  are symmetric, and there a copy turned by them would hold the same creases,
+  so it would fold the same. Run with `orientation.py`; the output is in
+  `orientation.txt`.
+- [x] Cut pieces from `piecesUnder` on a flat fold and on a crease pattern,
   compared with look 1's arc (its span and overshoot).
-- [ ] The results, with images, written here under this phase.
+  *As built:* `piecesUnder` runs over a flat fold's `layers.covers` and over a
+  crease pattern's sheet ring. Each case gives one clean arc, unbroken where
+  the circle crosses face seams:
+  - the head frame landed on B: 134.6° over paper (the wing and the neck),
+    drawn as 157.5° with 0.2 r past each end;
+  - a head-sized circle (radius 0.22 of the flap) on B: 35.9° over paper,
+    58.8° drawn;
+  - step 3's crease pattern, with a circle round its top corner: 134.3° over
+    the sheet.
+
+  Look 1 was measured from Zach's image by fitting a circle to its arc:
+  radius about 294 px, no point more than 1.9 px off the fit. It is one arc,
+  about 33° over paper and 61° drawn, running about 0.24 r and 0.26 r past
+  its crossings: a little more than the plan's 0.2 r. Images: `cut.png`;
+  data: `cut.json`.
+- [x] The results, with images, written here under this phase.
+
+**For Zach: the failure.** When a capture's fold holds another face still
+than its source's and a spread is on, a frame landed through the backmost
+face drifts by about 5% of its diameter under the default affine spread. On
+a frame printed at Fill's 64 mm, that is about 3.5 mm. The crane's own
+21 → 22 does it. Without a spread, or with S and N holding the same face
+still, the frame lands within 0.6%. Two ways on, and 16c waits for the
+choice:
+
+1. **Keep the design and accept the drift.** The frame still holds the head,
+   and the frame's hand move (Z10) corrects it.
+2. **Land in two stages.** This was measured, not built. First imprint and
+   land through the default anchor on the unspread pictures, the same folds
+   and poses, which is exact on every refold here. Then let the frame follow
+   the spread, as the spread moves the paper under its centre on each step.
+   Every row then lands within 1.36%:
+   - 0.26% on C under the affine spread, 0.003% on R and 0.55% on C under the
+     depth spread;
+   - the worst is A and B under the depth spread, 1.36%, where the spike
+     inverts the depth spread at the centre only approximately.
+
+   `paperFaces` would also keep each point's unspread place: two more numbers
+   a point in the shared-points form.
+
+**Before 16c starts, whichever way:**
+- store `paperFaces` in the shared-points form;
+- break the anchor's level tie on paper area, with a tolerance;
+- use R (21 → 22) and C as the "different face still" fixtures that the
+  `zoomImprint` tests name; under a spread, they pass only with the
+  two-stage landing.
+
+*A note:* crane step 9 ("Repeat steps 5-8 behind") cannot be refolded
+today. The app's own Refresh of it fails in the kernel with
+`WorkerOverlap(Setup(InitialHierarchy(SameParityAdjacentFaces { line: 10,
+first_face: 5, second_face: 6 })))`. That is not the spike's doing, and it is
+left out of the sizes above.
 
 ### Before 16a and 16b: the marks' decisions (nothing merges)
 
