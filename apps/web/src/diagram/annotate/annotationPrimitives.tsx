@@ -14,8 +14,9 @@
  *   annotation pen — three quarters of the style's arrow pen, in its ink
  *   (decision 7) — so an arrow that lands on it stops at its rim, as
  *   References' do.
- * - A right angle is an open square in its corner (`right-angle`, decision
- *   11), in the ring's pen and ink: a precise mark, as a circle is.
+ * - A right angle is an ∟ set into its angle with a closed square in its
+ *   corner (`right-angle`, Revision 2), in the ring's pen and ink: a precise
+ *   mark, as a circle is.
  * - A label is a line of text at a fixed share of the frame, its runs in the
  *   diagram's fonts as an upload's text is (`uploadText.ts`), so a page sets
  *   and embeds it the same way.

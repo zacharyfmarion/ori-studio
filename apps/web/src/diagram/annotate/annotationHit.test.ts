@@ -10,7 +10,7 @@ import {
   hitPathGrip,
   pleatArrowInPicture,
   rightAngleGrips,
-  rightAngleLegs,
+  rightAngleInPicture,
 } from './annotationHit';
 import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { CARD_FRAME_PX } from './paintAnnotations';
@@ -465,45 +465,62 @@ describe('hitPathGrip', () => {
   });
 });
 
-describe('a right angle', () => {
-  // Opening down and to the right from (0.5, 0.5): its square's sides along x and y, 7 ink long.
+describe('a right angle (Revision 2)', () => {
+  // Its vertex at (0.5, 0.5), opening down and to the right: its legs along x and y, 4 ink in from the lines.
   const mark: KnownDiagramAnnotation = { id: 'square', kind: 'right-angle', ...rightAngleAt([0.5, 0.5], [1, 1]) };
-  const side = 7 * SIZES.ink;
+  const ink = SIZES.ink;
+  const at = (x: number, y: number): [number, number] => [0.5 + x * ink, 0.5 + y * ink];
   const tight = { ...SIZES, tolerance: 0.004 };
+  // A finger's reach (18 px) at fit, where an ink is about 3 screen px: about 6 ink.
+  const finger = { ...SIZES, tolerance: (18 / 3) * ink };
 
-  it('is its open square as drawn: the ends of its legs and the far corner, 7 ink a side', () => {
-    const [a, b, c] = rightAngleLegs(mark, SIZES.ink);
-    expect(a[0]).toBeCloseTo(0.5 + side, 12);
-    expect(a[1]).toBeCloseTo(0.5, 12);
-    expect(b[0]).toBeCloseTo(0.5 + side, 12);
-    expect(b[1]).toBeCloseTo(0.5 + side, 12);
-    expect(c[0]).toBeCloseTo(0.5, 12);
-    expect(c[1]).toBeCloseTo(0.5 + side, 12);
+  it('is its ∟ and its square as drawn, set into the angle off the vertex', () => {
+    const { legs, square } = rightAngleInPicture(mark, ink);
+    const expected = { legs: [at(15, 4), at(4, 4), at(4, 15)], square: [at(11, 4), at(11, 11), at(4, 11)] };
+    for (const part of ['legs', 'square'] as const) {
+      const points = { legs, square }[part];
+      points.forEach((point, index) => {
+        expect(point.x).toBeCloseTo(expected[part][index]![0], 12);
+        expect(point.y).toBeCloseTo(expected[part][index]![1], 12);
+      });
+    }
   });
 
-  it('is taken by its legs and anywhere in its square, and not past them', () => {
-    expect(hitAnnotation([mark], [0.5 + side, 0.5 + side / 2], tight, null)).toEqual({ annotationId: 'square', part: 'body' });
-    expect(hitAnnotation([mark], [0.5 + side / 3, 0.5 + side / 3], tight, null)?.annotationId).toBe('square');
-    // Its corner is in its square: the place it marks.
-    expect(hitAnnotation([mark], [0.5, 0.5], tight, null)?.annotationId).toBe('square');
-    expect(hitAnnotation([mark], [0.5 + side + 0.006, 0.5 + side / 2], tight, null)).toBeNull();
-    // The other side of its corner is the lines', not the mark's.
-    expect(hitAnnotation([mark], [0.5 - 0.006, 0.5 - 0.006], tight, null)).toBeNull();
+  it('is taken anywhere in its square and along its strokes, a leg’s far end included, and not past them', () => {
+    expect(hitAnnotation([mark], at(7, 7), tight, null)).toEqual({ annotationId: 'square', part: 'body' });
+    expect(hitAnnotation([mark], at(15, 4), tight, null)).toEqual({ annotationId: 'square', part: 'body' });
+    expect(hitAnnotation([mark], at(4, 15), tight, null)).toEqual({ annotationId: 'square', part: 'body' });
+    expect(hitAnnotation([mark], at(13, 4.5), tight, null)?.annotationId).toBe('square');
+    expect(hitAnnotation([mark], [0.5 + 15 * ink + 0.006, 0.5 + 4 * ink], tight, null)).toBeNull();
+    // Beyond the square, between the legs: the angle's, not the mark's.
+    expect(hitAnnotation([mark], at(14, 14), tight, null)).toBeNull();
   });
 
-  it('offers its corner and the way it opens when selected, and no ends', () => {
-    const grips = rightAngleGrips(mark, SIZES.ink);
+  it('leaves the vertex to the lines that meet there, at a finger’s reach at fit', () => {
+    // Nearer the vertex than its ∟'s corner, nothing; nearer the corner, the mark.
+    expect(hitAnnotation([mark], [0.5, 0.5], finger, null)).toBeNull();
+    expect(hitAnnotation([mark], at(1.9, 1.9), finger, null)).toBeNull();
+    expect(hitAnnotation([mark], at(2.1, 2.1), finger, null)?.annotationId).toBe('square');
+    // A valley ending at the vertex: a press there takes the line, though marks are taken over lines.
+    const edge: KnownDiagramAnnotation = { id: 'edge', kind: 'valley-line', from: [0.5, 0.5], to: [0.5, 0.9] };
+    expect(hitAnnotation([edge, mark], [0.5, 0.5], finger, null)).toEqual({ annotationId: 'edge', part: 'body' });
+    expect(hitAnnotation([mark, edge], [0.5, 0.501], finger, null)).toEqual({ annotationId: 'edge', part: 'body' });
+  });
+
+  it('offers the vertex it marks and its square’s far corner when selected, and no ends', () => {
+    const grips = rightAngleGrips(mark, ink);
     expect(grips.corner).toEqual([0.5, 0.5]);
-    expect(grips.direction[0]).toBeCloseTo(0.5 + side, 12);
-    expect(grips.direction[1]).toBeCloseTo(0.5 + side, 12);
+    expect(grips.direction[0]).toBeCloseTo(0.5 + 11 * ink, 12);
+    expect(grips.direction[1]).toBeCloseTo(0.5 + 11 * ink, 12);
+    // The vertex, though the mark leaves it to the lines: selected, it is the grip that moves it.
     expect(hitAnnotation([mark], [0.501, 0.5], tight, 'square')).toEqual({ annotationId: 'square', part: 'corner' });
-    expect(hitAnnotation([mark], [0.5 + side, 0.5 + side + 0.001], tight, 'square')).toEqual({
+    expect(hitAnnotation([mark], [0.5 + 11 * ink, 0.5 + 11 * ink + 0.001], tight, 'square')).toEqual({
       annotationId: 'square',
       part: 'direction',
     });
-    // Its `to`, a short way along its diagonal, is no end of it.
-    expect(hitAnnotation([mark], mark.to, tight, 'square')).toEqual({ annotationId: 'square', part: 'body' });
-    // Not selected, a press on its corner takes it whole.
-    expect(hitAnnotation([mark], [0.501, 0.5], tight, null)).toEqual({ annotationId: 'square', part: 'body' });
+    // Its `to`, a short way along its diagonal, is no end of it: in the gap before the mark, nothing.
+    expect(hitAnnotation([mark], mark.to, tight, 'square')).toBeNull();
+    // Not selected, a press on its vertex is not the mark's at all.
+    expect(hitAnnotation([mark], [0.501, 0.5], tight, null)).toBeNull();
   });
 });

@@ -224,9 +224,10 @@ const PATH_ARROWS: StepDiagramModel = {
 };
 
 /**
- * Right-angle marks (Phase 14e), on a unit sheet crossed by a valley and a
- * mountain: in two corners of the paper, in two of the four quadrants where
- * the creases cross, and one turned off the creases' axes.
+ * Right-angle marks (Phase 14e; Revision 2's look, 16a), on a unit sheet
+ * crossed by a valley and a mountain: in two corners of the paper, in two of
+ * the four quadrants where the creases cross, and one turned off the creases'
+ * axes.
  */
 const RIGHT_ANGLES: StepDiagramModel = {
   sheet: { width: 1, height: 1 },
@@ -387,7 +388,7 @@ describe('referencesExportTarget', () => {
     }
   });
 
-  it('draws right-angle marks: an open square in each corner, mitred, mirrored with the paper on the back', async () => {
+  it('draws right-angle marks: an ∟ and its square set into each corner, mitred, mirrored with the paper on the back', async () => {
     for (const mirrored of [false, true]) {
       const page = await dialogPage(
         { mirrored, lineWidth: 1, showAux: null },

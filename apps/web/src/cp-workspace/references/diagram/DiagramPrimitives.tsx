@@ -32,6 +32,7 @@ import {
   projectedPathLength,
   pushArrowDrawn,
   rightAngleDrawn,
+  rightAnglePathData,
   reversedStretches,
   ringPieces,
   rotateGlyphDrawn,
@@ -894,13 +895,13 @@ function diagramPrimitiveShape(
       ));
     }
     case 'right-angle': {
-      // An open square in the corner (decision 11 of the Annotate plan): its
-      // two legs in a ring's pen and ink, solid, ending square on the lines it
-      // marks and mitred at its own corner — set here, as whatever it is drawn
-      // in may join round.
-      const legs = rightAngleDrawn(primitive.at, primitive.toward, project);
-      if (!legs) return null;
-      const d = polylinePathData(legs.map(({ x, y }) => [x, y] as const));
+      // An ∟ set into the angle with a closed square in its corner (Revision
+      // 2's): one path in a ring's pen and ink, solid, its ends cut square
+      // and its corners mitred — set here, as whatever it is drawn in may
+      // join round.
+      const shape = rightAngleDrawn(primitive.at, primitive.toward, project);
+      if (!shape) return null;
+      const d = rightAnglePathData(shape);
       return onAndOffPaper(context, index, (inks) => (
         <path
           key={index}

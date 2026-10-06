@@ -180,11 +180,14 @@ export function markReach(
       break;
     }
     case 'right-angle': {
-      // Its legs' ends, cut square, and its corner, mitred: in the ring's pen.
-      const legs = rightAngleDrawn(primitive.at, primitive.toward, project);
-      if (!legs) break;
+      // Its ∟ and its square, their ends cut square and their corners
+      // mitred: all six points, in the ring's pen.
+      const shape = rightAngleDrawn(primitive.at, primitive.toward, project);
+      if (!shape) break;
       const reach = rightAngleReach(markRingWidth(project));
-      legs.forEach(({ x, y }, index) => take(x, y, reach[index]!));
+      for (const part of ['legs', 'square'] as const) {
+        shape[part].forEach(({ x, y }, index) => take(x, y, reach[part][index]));
+      }
       break;
     }
     case 'angle-mark': {

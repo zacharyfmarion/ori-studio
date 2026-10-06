@@ -1459,8 +1459,8 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
       return { ...annotation, ...rightAngleAt([inside[0] - back[0], inside[1] - back[1]], move.vector(opens)) };
     }
     // Its corner where the point went, opening the way its diagonal went: so
-    // a mirror turns it over and a turn turns it, and its legs stay on the
-    // lines under any similarity.
+    // a mirror turns it over and a turn turns it, and its legs stay parallel
+    // to the lines, as far inside them, under any similarity.
     const from = move.point(annotation.from);
     const to = move.point(annotation.to);
     return { ...annotation, ...rightAngleAt(from, [to[0] - from[0], to[1] - from[1]]) };

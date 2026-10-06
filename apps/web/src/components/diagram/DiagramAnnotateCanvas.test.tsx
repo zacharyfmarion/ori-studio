@@ -15,7 +15,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
 import { TooltipProvider } from '../ui/Tooltip';
 import { CIRCLE_RADIUS, INK_UNITS } from '../../diagram/annotate/useAnnotateCanvas';
-import { pleatArrowInPicture, rightAngleGrips } from '../../diagram/annotate/annotationHit';
+import { pleatArrowInPicture, rightAngleGrips, rightAngleInPicture } from '../../diagram/annotate/annotationHit';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import { rightAngleAt, rightAngleDiagonal } from '../../diagram/annotate/annotationModel';
@@ -1422,19 +1422,35 @@ describe('DiagramAnnotateCanvas right angles (decision 12)', () => {
   const last = () => annotations()[annotations().length - 1]!;
   const opens = (annotation: KnownDiagramAnnotation) => rightAngleDiagonal(annotation).map((v) => Math.round(v * 1e6) / 1e6 + 0);
   const ghost = () => overlay().querySelector('[data-right-angle-preview]');
+  /** The ghost's path: its ∟, then its square's far sides, as client points. */
+  const ghostPoints = () =>
+    [...ghost()!.querySelectorAll('path')[1]!.getAttribute('d')!.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map(
+      ([, x, y]) => [Number(x), Number(y)] as const
+    );
   const targets = () => [...overlay().querySelectorAll('[data-snap-target]')].map((each) => each.getAttribute('data-snap-target'));
   const r = Math.round(R * 1e6) / 1e6;
+  /** The mark at the corner (0.3, 0.4) opening into the angle there, as the canvas draws it, in picture units. */
+  const inCorner = rightAngleInPicture(rightAngleAt([0.3, 0.4], [1, 1]), INK_UNITS);
 
   it('shows the mark a click would put in the corner it hovers, and puts it there, square into the angle', () => {
     drawn([across, down], 'right-angle');
-    // 8 px off the corner, inside the angle: past the dead zone, within the radius.
+    // 8 px off the corner, inside the angle: within the radius.
     pointer('pointermove', at(0.306, 0.406));
     expect(ghost()).not.toBeNull();
     expect(targets()).toEqual(['annotation']);
-    // Its legs along the lines, from the corner: the ghost's far corner on the diagonal.
-    const points = ghost()!.querySelector('polyline')!.getAttribute('points')!.split(' ').map((pair) => pair.split(',').map(Number));
+    // Its ∟ set into the angle off the corner, 4 ink in from each line, its legs along them, and its
+    // square's far corner on the diagonal; tied to the corner by a hairline.
     const corner = at(0.3, 0.4);
-    expect(points[1]![0]! - corner[0]).toBeCloseTo(points[1]![1]! - corner[1], 6);
+    const [endA, inner, endB, , far] = ghostPoints();
+    const ink = INK_UNITS * 1000;
+    expect(inner![0] - corner[0]).toBeCloseTo(4 * ink, 2);
+    expect(inner![1] - corner[1]).toBeCloseTo(4 * ink, 2);
+    expect(endA![1]).toBeCloseTo(inner![1], 2);
+    expect(endB![0]).toBeCloseTo(inner![0], 2);
+    expect(far![0] - corner[0]).toBeCloseTo(far![1] - corner[1], 2);
+    const tie = ghost()!.querySelector('[data-corner-tie]')!;
+    expect(Number(tie.getAttribute('x1'))).toBeCloseTo(corner[0], 6);
+    expect(Number(tie.getAttribute('y2'))).toBeCloseTo(inner![1], 2);
     click(at(0.306, 0.406));
     expect(last()).toMatchObject({ kind: 'right-angle', from: [0.3, 0.4] });
     expect(opens(last())).toEqual([r, r]);
@@ -1445,9 +1461,48 @@ describe('DiagramAnnotateCanvas right angles (decision 12)', () => {
     expect(overlay().querySelector(`[data-annotation-id="${last().id}"] path`)).not.toBeNull();
   });
 
+  it('shows the same mark hovering over the ghost, and a click there marks that corner; ⌘ puts the corner at the pointer', () => {
+    drawn([across, down], 'right-angle');
+    pointer('pointermove', at(0.306, 0.406));
+    const shown = ghost()!.innerHTML;
+    // Over the ghost, well past the snap radius: through its square, along a leg to its end, at its far corner.
+    const { legs, square } = inCorner;
+    const over: [number, number][] = [
+      [(legs[1].x + square[1].x) / 2, (legs[1].y + square[1].y) / 2],
+      [legs[0].x, legs[0].y],
+      [legs[2].x - 0.0005, legs[2].y],
+      [square[1].x, square[1].y],
+    ];
+    for (const [u, v] of over) {
+      pointer('pointermove', at(u, v));
+      expect(ghost()!.innerHTML).toBe(shown);
+      expect(targets()).toEqual(['annotation']);
+    }
+    const [u, v] = over[0]!;
+    click(at(u, v));
+    expect(last()).toMatchObject({ kind: 'right-angle', from: [0.3, 0.4] });
+    expect(opens(last())).toEqual([r, r]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['right_angle', 'snapped']]);
+    // ⌘ held over it: its corner where the pointer is.
+    click(at(u, v), { free: true });
+    expect(last().from).toEqual([expect.closeTo(u, 6), expect.closeTo(v, 6)]);
+  });
+
+  it('leaves a press at the corner to a line that ends there, with nothing selected', () => {
+    const mark: KnownDiagramAnnotation = { id: 'mark', kind: 'right-angle', ...rightAngleAt([0.3, 0.4], [1, 1]) };
+    drawn([across, down, mark]);
+    click(at(0.3, 0.4));
+    // The topmost line there, as drawn: though marks are taken over lines, the gap is the lines'.
+    expect(state().diagramSelectedAnnotationId).toBe('down');
+    // Its ink takes it: a press on its square.
+    act(() => state().selectDiagramAnnotation(null));
+    click(at(inCorner.square[1].x - 0.001, inCorner.square[1].y - 0.001));
+    expect(state().diagramSelectedAnnotationId).toBe('mark');
+  });
+
   it('draws one from a corner into the angle, squared; Shift holds a drag where there is none to 45°', () => {
     drawn([across, down], 'right-angle');
-    // From the corner itself — too near to say which way — into the angle, well off its diagonal.
+    // From the corner itself into the angle, well off its diagonal.
     drag(at(0.301, 0.401), at(0.36, 0.42));
     rerender();
     expect(last().from).toEqual([0.3, 0.4]);
@@ -1504,7 +1559,17 @@ describe('DiagramAnnotateCanvas right angles (decision 12)', () => {
       'corner',
       'direction',
     ]);
+    // Washed along its ∟ and its square as one path, and tied to its corner by a hairline.
+    const selection = host.querySelector('[data-selection]')!;
+    expect(selection.querySelectorAll('path')).toHaveLength(1);
+    expect(selection.querySelector('path')!.getAttribute('d')!.match(/M /g)).toHaveLength(2);
+    const tie = selection.querySelector('[data-corner-tie]')!;
+    expect([Number(tie.getAttribute('x1')), Number(tie.getAttribute('y1'))]).toEqual(at(0.3, 0.4));
     const { direction } = rightAngleGrips(mark, INK_UNITS);
+    // The way it opens is held by its square's far corner.
+    const opened = rightAngleInPicture(mark, INK_UNITS).square[1];
+    expect(direction[0]).toBeCloseTo(opened.x, 12);
+    expect(direction[1]).toBeCloseTo(opened.y, 12);
     // Turned toward a point inside the angle, off its diagonal: square into it.
     drag(at(direction[0], direction[1]), at(0.36, 0.42));
     rerender();
@@ -1517,6 +1582,26 @@ describe('DiagramAnnotateCanvas right angles (decision 12)', () => {
     drag(at(turned[0], turned[1]), at(0.28, 0.31), 1, 'mouse', overlay(), { shiftKey: true });
     rerender();
     expect(opens(annotations()[2]!)).toEqual([0, -1]);
+  });
+
+  it('ties a mark to its vertex with a hairline a screen px wide at any zoom, selected or about to be put down', () => {
+    const mark: KnownDiagramAnnotation = { id: 'mark', kind: 'right-angle', ...rightAngleAt([0.3, 0.4], [1, 1]) };
+    drawn([across, down, mark], 'right-angle');
+    act(() => state().selectDiagramAnnotation('mark'));
+    rerender();
+    const zoomed = () => Number(host.querySelector('[data-viewport-zoom]')!.textContent!.replace('%', '')) / 100;
+    const widths = () =>
+      [...overlay().querySelectorAll('[data-corner-tie]')].map((tie) => Number(tie.getAttribute('stroke-width')) * zoomed());
+    pointer('pointermove', at(0.306, 0.406));
+    expect(widths()).toEqual([expect.closeTo(1, 6), expect.closeTo(1, 6)]);
+    // A pinch zooms the camera in: thinner on the overlay, the same on the screen.
+    const before = zoomed();
+    act(() => {
+      view().dispatchEvent(new WheelEvent('wheel', { deltaY: -200, ctrlKey: true, bubbles: true, cancelable: true }));
+    });
+    pointer('pointermove', at(0.306, 0.406));
+    expect(zoomed()).toBeGreaterThan(before);
+    expect(widths()).toEqual([expect.closeTo(1, 6), expect.closeTo(1, 6)]);
   });
 
   it('moves a selected one by its corner onto another, square into the right angle there', () => {

@@ -37,10 +37,12 @@ import {
   pleatArrowShape,
   pushArrowOutline,
   returnStroke,
-  rightAngleSquare,
+  rightAngleShape,
   whiteArrowOutline,
   type AngleMarkShape,
   type PleatArrowShape,
+  type RightAngleShape,
+  type SvgPoint,
 } from '../../cp-workspace/references/stepDiagramGeometry';
 import { flattenPath } from '../../lib/cubicBezier';
 import {
@@ -478,47 +480,50 @@ function calloutDistances(
 }
 
 /**
- * A right-angle mark's open square in picture units, at the ink a press is
- * measured in, as it is drawn (`rightAngleDrawn`): the end of one leg, the
- * square's far corner, the end of the other.
+ * A right-angle mark as the canvas draws it, in picture units, at the ink a
+ * press is measured in (`rightAngleShape`, sized as `rightAngleDrawn` sizes
+ * it): its ∟ and its square, set into the angle off its vertex.
  */
-export function rightAngleLegs(
+export function rightAngleInPicture(
   annotation: Pick<KnownDiagramAnnotation, 'from' | 'to'>,
   ink: number
-): [PicturePoint, PicturePoint, PicturePoint] {
+): RightAngleShape {
   const [dx, dy] = rightAngleDiagonal(annotation);
-  const [a, b, c] = rightAngleSquare(
-    { x: annotation.from[0], y: annotation.from[1] },
-    { x: dx, y: dy },
-    DIAGRAM_RIGHT_ANGLE_INK.side * ink
-  );
-  return [
-    [a.x, a.y],
-    [b.x, b.y],
-    [c.x, c.y],
-  ];
+  const { inset, side, leg } = DIAGRAM_RIGHT_ANGLE_INK;
+  return rightAngleShape({ x: annotation.from[0], y: annotation.from[1] }, { x: dx, y: dy }, {
+    inset: inset * ink,
+    side: side * ink,
+    leg: leg * ink,
+  });
 }
 
 /**
- * Where the selected right angle is taken hold of: its corner, which moves it
- * whole, and the square's far corner, which turns the way it opens.
+ * Where the selected right angle is taken hold of: the vertex it marks,
+ * which moves it whole, and its square's far corner, which turns the way it
+ * opens.
  */
 export function rightAngleGrips(
   annotation: Pick<KnownDiagramAnnotation, 'from' | 'to'>,
   ink: number
 ): { corner: PicturePoint; direction: PicturePoint } {
-  return { corner: annotation.from, direction: rightAngleLegs(annotation, ink)[1] };
+  const far = rightAngleInPicture(annotation, ink).square[1];
+  return { corner: annotation.from, direction: [far.x, far.y] };
 }
 
 /**
- * How far a press is from a right-angle mark: 0 in its square — the corner
- * it sits in included, which is its whole place — else the distance to its
- * legs.
+ * How far a press is from a right-angle mark: 0 in its square, else the
+ * distance to its strokes — and none at all nearer the vertex than its ∟'s
+ * corner. That gap is the lines' that meet there: at a finger's reach a mark
+ * would otherwise take a press meant for their ends, as marks are hit first.
  */
 function rightAngleDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, ink: number): number {
-  const legs = rightAngleLegs(annotation, ink);
-  if (insidePolygon(point, [annotation.from, ...legs])) return 0;
-  return distanceToPolyline(point, legs);
+  const { legs, square } = rightAngleInPicture(annotation, ink);
+  const inner = legs[1];
+  const fromVertex = Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]);
+  if (fromVertex < Math.hypot(point[0] - inner.x, point[1] - inner.y)) return Infinity;
+  const tuple = ({ x, y }: SvgPoint): PicturePoint => [x, y];
+  if (insidePolygon(point, [inner, ...square].map(tuple))) return 0;
+  return Math.min(distanceToPolyline(point, legs.map(tuple)), distanceToPolyline(point, square.map(tuple)));
 }
 
 /**

@@ -509,9 +509,11 @@ function annotateToolModifiers(
     case 'right-angle':
       return [
         t('panels:diagram.annotate.rightAngleShiftKey', 'Shift-drag to open it in 45° steps where it finds no right angle.'),
-        t('panels:diagram.annotate.cornerFreeKey', 'Hold {{modifier}} to put its corner down anywhere, without snapping.', {
-          modifier: primary,
-        }),
+        t(
+          'panels:diagram.annotate.cornerFreeKey',
+          'Hold {{modifier}} to put the corner it marks down anywhere, without snapping.',
+          { modifier: primary }
+        ),
       ];
     case 'close-up':
       return [t('panels:diagram.annotate.closeUpShiftKey', 'Shift-drag the close-up’s ring to scale it by halves.')];

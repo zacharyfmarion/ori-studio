@@ -2525,57 +2525,87 @@ export function turnOverDrawn(
 }
 
 /**
- * A right-angle mark's open square (decision 11 of the Annotate plan): the
- * two sides of a square with one corner at `corner` that do not lie along
- * the lines it marks — from the end of one leg, round the square's far
- * corner, to the end of the other — the square opening along the unit
- * `diagonal`, `side` long. Its legs lie 45° either side of the diagonal: the
- * first anticlockwise of it as the page shows it (y down), the second
- * clockwise.
+ * A right-angle mark's shape (Revision 2, RA0): an ∟ of two legs of its own
+ * and a closed square in its corner, both in the angle off its vertex.
  */
-export function rightAngleSquare(corner: SvgPoint, diagonal: SvgPoint, side: number): [SvgPoint, SvgPoint, SvgPoint] {
-  // A leg is the diagonal turned 45° either way: (d ∓ d⊥)/√2, d⊥ its quarter turn clockwise on the page.
-  const half = side / Math.SQRT2;
-  const across = { x: -diagonal.y, y: diagonal.x };
-  const legA = { x: half * (diagonal.x - across.x), y: half * (diagonal.y - across.y) };
-  const legB = { x: half * (diagonal.x + across.x), y: half * (diagonal.y + across.y) };
-  return [
-    { x: corner.x + legA.x, y: corner.y + legA.y },
-    { x: corner.x + legA.x + legB.x, y: corner.y + legA.y + legB.y },
-    { x: corner.x + legB.x, y: corner.y + legB.y },
-  ];
+export interface RightAngleShape {
+  /** The ∟: the end of one leg, its inner corner, the end of the other. */
+  legs: [SvgPoint, SvgPoint, SvgPoint];
+  /**
+   * The square's two sides off the legs: from its corner on the first leg,
+   * round its far corner, to its corner on the other — each ending on a leg.
+   */
+  square: [SvgPoint, SvgPoint, SvgPoint];
 }
 
 /**
- * A right-angle mark as a picture draws it, its corner at `at` and opening
+ * A right-angle mark at `vertex`, opening along the unit `diagonal`, sized
+ * by `size` in the drawing's units: its inner corner `inset` off each line,
+ * along the diagonal; its legs `leg` long from there, parallel to the lines;
+ * its square `side` a side in their corner. A leg is the diagonal turned 45°
+ * either way — the first anticlockwise of it as the page shows it (y down),
+ * the second clockwise.
+ */
+export function rightAngleShape(
+  vertex: SvgPoint,
+  diagonal: SvgPoint,
+  size: { inset: number; side: number; leg: number }
+): RightAngleShape {
+  // (d ∓ d⊥)/√2, d⊥ the diagonal's quarter turn clockwise on the page.
+  const across = { x: -diagonal.y, y: diagonal.x };
+  const a = { x: (diagonal.x - across.x) * Math.SQRT1_2, y: (diagonal.y - across.y) * Math.SQRT1_2 };
+  const b = { x: (diagonal.x + across.x) * Math.SQRT1_2, y: (diagonal.y + across.y) * Math.SQRT1_2 };
+  const inner = { x: vertex.x + size.inset * (a.x + b.x), y: vertex.y + size.inset * (a.y + b.y) };
+  const out = (alongA: number, alongB: number): SvgPoint => ({
+    x: inner.x + alongA * a.x + alongB * b.x,
+    y: inner.y + alongA * a.y + alongB * b.y,
+  });
+  return {
+    legs: [out(size.leg, 0), inner, out(0, size.leg)],
+    square: [out(size.side, 0), out(size.side, size.side), out(0, size.side)],
+  };
+}
+
+/**
+ * A right-angle mark as a picture draws it, its vertex at `at` and opening
  * toward `toward` (any point along its diagonal), both in sheet units: its
- * open square ({@link rightAngleSquare}) in the projector's units, sized by
- * its ink. The way it opens is measured after projecting, so it mirrors with
- * the paper and its legs stay square to the lines under any similarity. The
- * one place its drawn shape is decided, as {@link pushArrowDrawn} is a push's.
- * Null when `toward` is the corner itself: it opens no way.
+ * shape ({@link rightAngleShape}) in the projector's units, sized by its ink
+ * (`DIAGRAM_RIGHT_ANGLE_INK`). The way it opens is measured after projecting,
+ * so it mirrors with the paper, and being symmetric about its diagonal it has
+ * no side to keep. The one place its drawn shape is decided, as
+ * {@link pushArrowDrawn} is a push's. Null when `toward` is the vertex itself:
+ * it opens no way.
  */
 export function rightAngleDrawn(
   at: readonly [number, number],
   toward: readonly [number, number],
   project: DiagramProjector
-): [SvgPoint, SvgPoint, SvgPoint] | null {
-  const corner = project(at);
+): RightAngleShape | null {
+  const vertex = project(at);
   const ahead = project(toward);
-  const length = Math.hypot(ahead.x - corner.x, ahead.y - corner.y);
+  const length = Math.hypot(ahead.x - vertex.x, ahead.y - vertex.y);
   if (!(length > 0)) return null;
-  const diagonal = { x: (ahead.x - corner.x) / length, y: (ahead.y - corner.y) / length };
-  return rightAngleSquare(corner, diagonal, DIAGRAM_RIGHT_ANGLE_INK.side * project.ink);
+  const diagonal = { x: (ahead.x - vertex.x) / length, y: (ahead.y - vertex.y) / length };
+  const { inset, side, leg } = DIAGRAM_RIGHT_ANGLE_INK;
+  return rightAngleShape(vertex, diagonal, { inset: inset * project.ink, side: side * project.ink, leg: leg * project.ink });
+}
+
+/** A right-angle mark as one path: its ∟, then its square's two sides — so where they overlap, the ink is never doubled. */
+export function rightAnglePathData({ legs, square }: RightAngleShape): string {
+  const run = ([first, corner, last]: readonly [SvgPoint, SvgPoint, SvgPoint]) =>
+    `M ${pointText(first)} L ${pointText(corner)} L ${pointText(last)}`;
+  return `${run(legs)} ${run(square)}`;
 }
 
 /**
- * How far a right-angle mark's stroke, `pen` wide, reaches past each of its
- * three points: half the pen round its butt ends, and at its square corner
- * half the pen along the mitre, √2 of that — under SVG's limit, so it is
- * never bevelled.
+ * How far a right-angle mark's stroke, `pen` wide, reaches past each point of
+ * its shape, in the same order: half the pen round its four butt ends, and
+ * at its two square corners — the ∟'s and the square's far one — half the pen
+ * along the mitre, √2 of that: under SVG's limit, so neither is bevelled.
  */
-export function rightAngleReach(pen: number): [number, number, number] {
-  return [pen / 2, (Math.SQRT2 * pen) / 2, pen / 2];
+export function rightAngleReach(pen: number): { legs: [number, number, number]; square: [number, number, number] } {
+  const run = (): [number, number, number] => [pen / 2, (Math.SQRT2 * pen) / 2, pen / 2];
+  return { legs: run(), square: run() };
 }
 
 /**

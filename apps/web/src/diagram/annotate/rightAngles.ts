@@ -8,8 +8,11 @@
  * vertex cut the plane round it into sectors, and a sector is a right angle
  * when its two rays are 90° apart (±1°) with no ray between them — so a box
  * pleat's eight-way vertex has none, and a paper corner's reflex side, 270°
- * of it, is never one. Which sector is meant is the one the pointer is in, as
- * seen from the vertex nearest it; too near the vertex to tell, it is none.
+ * of it, is never one. The angle meant is the one the pointer is in. The
+ * mark is drawn into its angle, off the vertex (Revision 2), so the pointer
+ * may be anywhere over it: the search asks each vertex as far out as the
+ * mark reaches, nearest first, and takes the first whose right angle holds
+ * the pointer, passing over a nearer vertex with none there.
  *
  * A picture taken through a camera (3D, simulated) offers no right angles of
  * its own: a right angle on the paper is not drawn square there. Lines drawn
@@ -63,36 +66,49 @@ const RAY_MIN_LENGTH = 4 * PICTURE_POINT_EPSILON;
  */
 const RAY_COVER_SAMPLE = 0.002;
 
-/** The share of the radius round a vertex where the pointer says nothing about which way. */
-const DEAD_ZONE_SHARE = 0.25;
-
 const DEGREE = Math.PI / 180;
 const TURN = 2 * Math.PI;
 
 /**
- * The right angle the pointer is in at the vertex nearest it within
- * `radius`, both in picture units; null when that vertex has none there, the
- * pointer is within `deadZone` of it (a quarter of the radius when left out),
- * or no vertex is that near.
+ * The right angle the pointer is in. Of the vertices within `radius +
+ * footprint` of it (picture units), nearest first, the first whose sector
+ * holding the pointer is a right angle; null when none is. `footprint` is
+ * how far past its vertex a mark in the angle is drawn, so the pointer over
+ * the mark a click puts down finds that mark's vertex.
+ *
+ * Every vertex in reach is asked, at any distance: a vertex nearer the
+ * pointer with no right angle there — a flap's corner a few px off a
+ * crossing — never hides the right angle the pointer is in. There is no dead
+ * zone round a vertex: the mark is drawn off it, so the pointer on it has a
+ * side of the lines to say which angle.
  */
 export function rightAngleCorner(
   step: DiagramStep,
   assets: Readonly<Record<string, DiagramAsset>>,
   point: PicturePoint,
   radius: number,
-  options: SnapOptions & { deadZone?: number } = {}
+  { footprint, ...options }: SnapOptions & { footprint: number }
 ): RightAngleCorner | null {
   if (!(radius > 0)) return null;
   const geometry = pictureGeometry(step, assets, options.style);
   const drawn = drawnLines(annotationsOf(step, options));
-  const vertex = nearestVertex(geometry, drawn, point, radius);
-  if (!vertex) return null;
-  const dx = point[0] - vertex[0];
-  const dy = point[1] - vertex[1];
-  if (Math.hypot(dx, dy) <= (options.deadZone ?? radius * DEAD_ZONE_SHARE)) return null;
+  for (const vertex of verticesNear(geometry, drawn, point, radius + Math.max(footprint, 0))) {
+    const corner = cornerHolding(geometry, drawn, vertex, point);
+    if (corner) return corner;
+  }
+  return null;
+}
+
+/** The right angle at `vertex` whose sector `point` is in, if that sector is one. */
+function cornerHolding(
+  geometry: PictureGeometry,
+  drawn: readonly IndexedSegment[],
+  vertex: PicturePoint,
+  point: PicturePoint
+): RightAngleCorner | null {
   const rays = raysAt(geometry, drawn, vertex);
   if (rays.length < 2) return null;
-  const pointing = angleOf(dx, dy);
+  const pointing = angleOf(point[0] - vertex[0], point[1] - vertex[1]);
   // The sector the pointer is in begins at the last ray at or before it, going round.
   const after = rays.findIndex((ray) => ray > pointing);
   const start = after <= 0 ? rays.length - 1 : after - 1;
@@ -118,34 +134,41 @@ export function rightAnglesAt(
 }
 
 /**
- * The vertex nearest a point within `radius`: a point of the picture where
- * its angles are true, an end of a drawn line, or a crossing.
+ * Every vertex within `reach` of a point, nearest first: a point of the
+ * picture where its angles are true, an end of a drawn line, or a crossing.
  */
-function nearestVertex(
+function verticesNear(
   geometry: PictureGeometry,
   drawn: readonly IndexedSegment[],
   point: PicturePoint,
-  radius: number
-): PicturePoint | null {
+  reach: number
+): PicturePoint[] {
   const candidates: PicturePoint[] = [];
   if (geometry.trueAngles) {
-    const vertex = geometry.points[geometry.pointIndex.query(point[0], point[1], radius)];
-    if (vertex) candidates.push(vertex.at);
+    for (const { id } of geometry.pointIndex.segmentsNear(point[0], point[1], reach)) candidates.push(geometry.points[id]!.at);
   }
-  for (const { a, b } of drawn) candidates.push([a.x, a.y], [b.x, b.y]);
+  candidates.push(...drawnVertices(geometry, drawn, point, reach));
+  const away = (at: PicturePoint) => Math.hypot(at[0] - point[0], at[1] - point[1]);
+  return candidates
+    .filter((at) => away(at) <= reach)
+    .sort((left, right) => away(left) - away(right))
+    .map(([x, y]): PicturePoint => [x, y]);
+}
+
+/** The vertices lines drawn on a picture make: their ends, and their crossings near a point. */
+function drawnVertices(
+  geometry: PictureGeometry,
+  drawn: readonly IndexedSegment[],
+  point: PicturePoint,
+  reach: number
+): PicturePoint[] {
+  const ends = drawn.flatMap(({ a, b }): PicturePoint[] => [
+    [a.x, a.y],
+    [b.x, b.y],
+  ]);
   // Where angles are not true the picture's own lines give no rays, so a
   // drawn line crossing one is no corner — and would hide a drawn one nearby.
-  candidates.push(...crossingsNear(geometry, drawn, point, radius, { pictureLines: geometry.trueAngles }));
-  let best: PicturePoint | null = null;
-  let bestDistance = radius;
-  for (const at of candidates) {
-    const distance = Math.hypot(at[0] - point[0], at[1] - point[1]);
-    if (distance <= bestDistance) {
-      best = [at[0], at[1]];
-      bestDistance = distance;
-    }
-  }
-  return best;
+  return [...ends, ...crossingsNear(geometry, drawn, point, reach, { pictureLines: geometry.trueAngles })];
 }
 
 /**

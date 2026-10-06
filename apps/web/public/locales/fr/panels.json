@@ -776,7 +776,7 @@
       "closeUpHelp": "Faites glisser vers l’extérieur depuis le centre de la zone à agrandir, ou cliquez dessus. Avec Sélectionner, faites glisser l’un des cercles pour le déplacer, ou son contour pour le redimensionner.",
       "closeUpShiftKey": "Faites glisser le contour de la vue agrandie avec Maj pour changer son agrandissement par pas de 0,5.",
       "controls": "Commandes de la vue Annoter",
-      "cornerFreeKey": "Maintenez {{modifier}} pour poser son sommet n’importe où, sans aimantation.",
+      "cornerFreeKey": "Maintenez {{modifier}} pour poser le sommet qu’il marque n’importe où, sans aimantation.",
       "editPathCannot": "Seules les flèches de pli et les flèches blanches peuvent être façonnées.",
       "editPathHelp": "Faites glisser les nœuds d’une flèche, leurs poignées ou sa courbe pour la façonner. Cliquez sur la courbe pour ajouter un nœud\u00a0; double-cliquez sur un nœud pour le rendre anguleux ou lisse.",
       "editPathNone": "Sélectionnez une flèche de pli ou une flèche blanche pour la façonner.",

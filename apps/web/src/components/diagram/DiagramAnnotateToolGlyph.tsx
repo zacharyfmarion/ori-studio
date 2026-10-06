@@ -80,9 +80,10 @@ export function SolidArrowGlyph(): ReactElement {
  * Each kind's icon: the mark, small — the rail's tools and the Step pane's
  * list both show it. The fold, push and white arrows are the arrows
  * themselves; the lines are their dash; the circle its ring; the right angle
- * its open square; the callout its line and box; Rotate and Label are the
- * app's own icons for those verbs. Every kind has one: the return type makes
- * a kind left out a compile error, not a blank button.
+ * its ∟ and square inside the two lines it marks; the callout its line and
+ * box; Rotate and Label are the app's own icons for those verbs. Every kind
+ * has one: the return type makes a kind left out a compile error, not a
+ * blank button.
  */
 export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }): ReactElement {
   switch (kind) {
@@ -177,11 +178,17 @@ export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }
         </Glyph>
       );
     case 'right-angle':
-      // Two lines meeting square, and the open square it draws in their corner.
+      // Two lines meeting square, in a hairline, and the mark set into their
+      // corner (RA7): its ∟ and the square in the ∟'s corner, clear of them.
       return (
         <Glyph>
-          <path d="M3.5 2.5 L3.5 16.5 L17.5 16.5" strokeWidth={1} />
-          <path d="M3.5 9.5 L10.5 9.5 L10.5 16.5" strokeLinecap="butt" strokeLinejoin="miter" />
+          <path d="M3 2.5 L3 17 L17.5 17" strokeWidth={1} data-glyph-part="lines" />
+          <path
+            d="M6.5 3.5 L6.5 13.5 L16.5 13.5 M11 13.5 L11 9 L6.5 9"
+            strokeLinecap="butt"
+            strokeLinejoin="miter"
+            data-glyph-part="mark"
+          />
         </Glyph>
       );
     case 'angle-mark':

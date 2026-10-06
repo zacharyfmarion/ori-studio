@@ -187,6 +187,17 @@
 }
 
 /*
+ * A right angle selected or about to be put down (RA6): a hairline from the
+ * vertex it marks to its ∟'s corner, so the vertex's dot reads as the mark's.
+ * Its width is the element's, a screen px at the camera's zoom.
+ */
+.cornerTie {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+/*
  * A pick tool's picks (15b): the lines picked, washed as a selection is; the
  * line a press would pick, more lightly; the midline between two parallel
  * lines, dashed; and the points picked, solid dots on a white halo.

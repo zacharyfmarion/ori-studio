@@ -7,9 +7,9 @@ import {
   arrowPolyline,
   pleatArrowInPicture,
   rightAngleGrips,
-  rightAngleLegs,
+  rightAngleInPicture,
 } from '../../diagram/annotate/annotationHit';
-import { angleMarkArcPoints } from '../../cp-workspace/references/stepDiagramGeometry';
+import { angleMarkArcPoints, rightAnglePathData, type SvgPoint } from '../../cp-workspace/references/stepDiagramGeometry';
 import { pathNodesOf, pathNodesPolyline, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { pictureGeometry } from '../../diagram/annotate/pictureGeometry';
@@ -56,6 +56,8 @@ const SNAP_PX = 5;
 /** Edit Path's grips, in screen px: a node's half-size and a handle's dot — larger for a finger. */
 const NODE_PX = { fine: 4.5, coarse: 7 } as const;
 const PATH_HANDLE_PX = { fine: 3.5, coarse: 5.5 } as const;
+/** A right angle's tie to its vertex (RA6), in screen px: a hairline. */
+const TIE_PX = 1;
 
 /**
  * The Annotate canvas (D8): the step's picture alone, with its annotations
@@ -199,7 +201,7 @@ export function DiagramAnnotateCanvas({
                     ))}
                   <PickMarks preview={canvas.pickPreview} layout={layout} zoom={zoom} />
                   <SnapTargets targets={canvas.snapTargets} layout={layout} zoom={zoom} />
-                  {canvas.rightAnglePreview && <RightAngleGhost preview={canvas.rightAnglePreview} layout={layout} />}
+                  {canvas.rightAnglePreview && <RightAngleGhost preview={canvas.rightAnglePreview} layout={layout} zoom={zoom} />}
                 </svg>
               </div>
             )}
@@ -268,12 +270,15 @@ function Selection({
       // Along its ring: what a press takes hold of.
       return ring(CIRCLE_RADIUS);
     case 'right-angle': {
-      // Along its legs, and a dot at its corner, which moves it, and at the
+      // Along its ∟ and its square, as one path; a dot at the vertex it
+      // marks, which moves it, tied to it by a hairline (RA6), and one at the
       // square's far corner, which turns it.
       const grips = rightAngleGrips(annotation, INK_UNITS);
+      const drawn = rightAngleOnCanvas(annotation, layout);
       return (
         <g data-selection="">
-          <polyline className={styles.selection} points={polylinePoints(rightAngleLegs(annotation, INK_UNITS).map(at))} />
+          <path className={styles.selection} d={drawn.d} />
+          <CornerTie tie={drawn.tie} zoom={zoom} />
           {movable &&
             (['corner', 'direction'] as const).map((part) => {
               const [x, y] = at(grips[part]);
@@ -390,19 +395,53 @@ function polylinePoints(points: readonly (readonly number[])[]): string {
 }
 
 /**
- * The right angle a click puts down where the pointer is (decision 12), over
- * everything: its open square in the selection's colour on a white halo, at
- * the size the canvas draws it — a ghost of the mark, never the mark.
+ * A right-angle mark on the canvas, in world px: its ∟ and its square as one
+ * path's data, and the hairline that ties it to the vertex it marks, from the
+ * vertex to the ∟'s corner (RA6) — the vertex's dot otherwise sits alone in
+ * the gap the mark leaves the lines.
  */
-function RightAngleGhost({ preview, layout }: { preview: RightAnglePreview; layout: AnnotateLayout }) {
-  const legs = rightAngleLegs({ from: preview.at, to: [preview.at[0] + preview.opens[0], preview.at[1] + preview.opens[1]] }, INK_UNITS);
-  const points = polylinePoints(legs.map(([u, v]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit]));
+function rightAngleOnCanvas(
+  mark: Pick<KnownDiagramAnnotation, 'from' | 'to'>,
+  layout: AnnotateLayout
+): { d: string; tie: { x1: number; y1: number; x2: number; y2: number } } {
+  const world = ({ x, y }: SvgPoint): SvgPoint => ({ x: layout.frame.x + x * layout.unit, y: layout.frame.y + y * layout.unit });
+  const { legs, square } = rightAngleInPicture(mark, INK_UNITS);
+  const inner = world(legs[1]);
+  const vertex = world({ x: mark.from[0], y: mark.from[1] });
+  return {
+    d: rightAnglePathData({
+      legs: [world(legs[0]), inner, world(legs[2])],
+      square: [world(square[0]), world(square[1]), world(square[2])],
+    }),
+    tie: { x1: vertex.x, y1: vertex.y, x2: inner.x, y2: inner.y },
+  };
+}
+
+/**
+ * The right angle a click puts down where the pointer is (decision 12), over
+ * everything: the mark in the selection's colour on a white halo, at the size
+ * the canvas draws it, tied to its vertex as a selected one is — a ghost of
+ * the mark, never the mark.
+ */
+function RightAngleGhost({ preview, layout, zoom }: { preview: RightAnglePreview; layout: AnnotateLayout; zoom: number }) {
+  const drawn = rightAngleOnCanvas({ from: preview.at, to: [preview.at[0] + preview.opens[0], preview.at[1] + preview.opens[1]] }, layout);
   return (
     <g data-right-angle-preview="">
-      <polyline className={styles.ghostHalo} points={points} />
-      <polyline className={styles.ghost} points={points} />
+      <path className={styles.ghostHalo} d={drawn.d} />
+      <path className={styles.ghost} d={drawn.d} />
+      <CornerTie tie={drawn.tie} zoom={zoom} />
     </g>
   );
+}
+
+/**
+ * A right angle's tie to the vertex it marks (RA6): a hairline at any zoom.
+ * The camera scales the overlay by `zoom` with a CSS transform, which no
+ * `vector-effect` undoes, so its width is divided by the zoom as the grips'
+ * sizes are.
+ */
+function CornerTie({ tie, zoom }: { tie: { x1: number; y1: number; x2: number; y2: number }; zoom: number }) {
+  return <line className={styles.cornerTie} {...tie} strokeWidth={TIE_PX / zoom} data-corner-tie="" />;
 }
 
 /**

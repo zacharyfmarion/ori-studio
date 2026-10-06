@@ -227,46 +227,53 @@ describe('a circle', () => {
   });
 });
 
-describe('a right angle', () => {
+describe('a right angle (Revision 2)', () => {
   const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
-  // In the corner (0.5, 0.5), opening down and to the right.
+  // At the vertex (0.5, 0.5), opening down and to the right.
   const square = a('r', 'right-angle', { from: [0.5, 0.5], to: [0.52, 0.52] });
+  const number = '(-?[\\d.]+)';
+  const run = `M ${number} ${number} L ${number} ${number} L ${number} ${number}`;
+  const markPath = new RegExp(
+    `<path d="${run} ${run}" stroke-width="([\\d.]+)" stroke-linecap="butt" stroke-linejoin="miter" fill="none" stroke="([^"]+)"`
+  );
 
-  it('is an open square in its corner, 7 ink a side, in a ring’s pen and the arrows’ ink, mitred and cut square', () => {
+  it('is an ∟ set 4 ink into the angle with a 7-ink square in its corner, one path in a ring’s pen and the arrows’ ink, mitred and cut square', () => {
     const drawing = annotationDrawing([square], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
     // y up, as References' unit frame is.
     expect(drawing.primitives).toEqual([{ kind: 'right-angle', at: [0.5, -0.5], toward: [0.52, -0.52] }]);
     const arrow = a('v', 'valley-arrow', { from: [0.1, 0.2], to: [0.4, 0.2], bend: ARROW_BEND });
     const { markup } = paintAnnotations([square, arrow], { x: 0, y: 0, width: 400, height: 300 }, 400, DEFAULT_DIAGRAM_STYLE)!;
-    const mark =
-      /<path d="M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)" stroke-width="([\d.]+)" stroke-linecap="butt" stroke-linejoin="miter" fill="none" stroke="([^"]+)"/.exec(
-        markup
-      );
+    const mark = markPath.exec(markup);
     expect(mark).not.toBeNull();
-    const [, ax, ay, bx, by, cx, cy, width, stroke] = mark!;
-    // Its legs along the page's axes from the corner (200, 200), the far corner on the diagonal.
-    expect(Number(ax)).toBeCloseTo(200 + 7 * ink, 2);
-    expect(Number(ay)).toBeCloseTo(200, 2);
-    expect(Number(bx)).toBeCloseTo(200 + 7 * ink, 2);
-    expect(Number(by)).toBeCloseTo(200 + 7 * ink, 2);
-    expect(Number(cx)).toBeCloseTo(200, 2);
-    expect(Number(cy)).toBeCloseTo(200 + 7 * ink, 2);
+    const numbers = mark!.slice(1, 13).map(Number);
+    // From the vertex (200, 200): the ∟ — a leg along x, its corner 4 ink in, a leg along y — then the
+    // square's far sides, from the first leg round its far corner to the second.
+    const expected = [
+      [15, 4],
+      [4, 4],
+      [4, 15],
+      [11, 4],
+      [11, 11],
+      [4, 11],
+    ].flatMap(([x, y]) => [200 + x! * ink, 200 + y! * ink]);
+    numbers.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, 2));
+    const [width, stroke] = [Number(mark![13]), mark![14]];
     // A ring's pen: three quarters of the arrow's stroke, in the arrow's ink.
     const [, shaft] = /<path d="M [^"]*A [^"]*" stroke-width="([\d.]+)"/.exec(markup)!;
     const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
-    expect(Number(width)).toBeCloseTo(0.75 * Number(shaft), 3);
+    expect(width).toBeCloseTo(0.75 * Number(shaft), 3);
     expect(stroke).toBe(head);
     // Mitred though the page joins round, which wraps every mark.
     expect(markup.startsWith('<g stroke-linejoin="round">')).toBe(true);
   });
 
-  it('reaches past the frame as far as its mitre', () => {
-    // In the frame's top-left corner, opening up and out of it: its far corner past the frame.
+  it('reaches past the frame as far as its legs’ ends', () => {
+    // At the frame's top-left corner, opening up and out of it: its legs end 15 ink out along the frame's edges.
     const out = a('r', 'right-angle', { from: [0, 0], to: [-0.02, -0.02] });
     const painted = paintAnnotations([out], { x: 0, y: 0, width: 400, height: 300 }, 400, DEFAULT_DIAGRAM_STYLE)!;
     const width = Number(/stroke-width="([\d.]+)" stroke-linecap="butt"/.exec(painted.markup)![1]);
-    expect(painted.bounds.x).toBeCloseTo(-7 * ink - (Math.SQRT2 * width) / 2, 3);
-    expect(painted.bounds.y).toBeCloseTo(-7 * ink - (Math.SQRT2 * width) / 2, 3);
+    expect(painted.bounds.x).toBeCloseTo(-15 * ink - width / 2, 3);
+    expect(painted.bounds.y).toBeCloseTo(-15 * ink - width / 2, 3);
   });
 });
 
@@ -842,33 +849,39 @@ describe('paintAnnotations', () => {
             }
             for (const corner of [TURN_OVER_HEAD.tip, TURN_OVER_HEAD.notch, ...TURN_OVER_HEAD.barbs]) ink.push(place(corner));
           } else if (primitive.kind === 'right-angle') {
-            // Two legs in a ring's pen — three quarters of the arrow's — each 7 ink, 45° either side of
-            // the way it opens, cut square at their ends and mitred where they meet.
+            // An ∟ 4 ink into the angle, its legs 11 long, and a 7-ink square in its corner, in a ring's
+            // pen — three quarters of the arrow's: each run cut square at its two ends and mitred at its
+            // corner, its legs 45° either side of the way it opens.
             const pen = 0.75 * project.pens.arrow.width * project.ink;
-            const corner = project(primitive.at);
+            const vertex = project(primitive.at);
             const toward = project(primitive.toward);
-            const opens = Math.atan2(toward.y - corner.y, toward.x - corner.x);
-            const side = 7 * project.ink;
-            const leg = (turn: number) => ({
-              x: corner.x + side * Math.cos(opens + turn),
-              y: corner.y + side * Math.sin(opens + turn),
+            const opens = Math.atan2(toward.y - vertex.y, toward.x - vertex.x);
+            const unit = (turn: number) => ({ x: Math.cos(opens + turn), y: Math.sin(opens + turn) });
+            const [legA, legB] = [unit(-Math.PI / 4), unit(Math.PI / 4)];
+            const point = (alongA: number, alongB: number) => ({
+              x: vertex.x + (alongA * legA.x + alongB * legB.x) * project.ink,
+              y: vertex.y + (alongA * legA.y + alongB * legB.y) * project.ink,
             });
-            const ends = [leg(-Math.PI / 4), leg(Math.PI / 4)];
-            const far = {
-              x: corner.x + side * Math.SQRT2 * Math.cos(opens),
-              y: corner.y + side * Math.SQRT2 * Math.sin(opens),
-            };
-            for (const end of ends) {
-              // A square end: half the pen either side, across the leg.
-              const along = { x: far.x - end.x, y: far.y - end.y };
-              const length = Math.hypot(along.x, along.y);
-              const across = { x: -along.y / length, y: along.x / length };
-              for (const sign of [1, -1]) ink.push({ x: end.x + (sign * pen * across.x) / 2, y: end.y + (sign * pen * across.y) / 2 });
-            }
-            // The mitre: the legs' outer and inner edges meet half a pen from the far corner's sides, on its diagonal.
-            for (const sign of [1, -1]) {
-              const reach = (Math.SQRT2 * pen) / 2;
-              ink.push({ x: far.x + sign * reach * Math.cos(opens), y: far.y + sign * reach * Math.sin(opens) });
+            const runs = [
+              [point(15, 4), point(4, 4), point(4, 15)],
+              [point(11, 4), point(11, 11), point(4, 11)],
+            ];
+            for (const [start, corner, end] of runs) {
+              // A square end: half the pen either side, across the stroke.
+              for (const [tip, from] of [
+                [start!, corner!],
+                [end!, corner!],
+              ] as const) {
+                const length = Math.hypot(tip.x - from.x, tip.y - from.y);
+                const across = { x: -(tip.y - from.y) / length, y: (tip.x - from.x) / length };
+                for (const sign of [1, -1]) ink.push({ x: tip.x + (sign * pen * across.x) / 2, y: tip.y + (sign * pen * across.y) / 2 });
+              }
+              // The mitre: the stroke's outer and inner edges meet √2 half-pens from its corner, on its diagonal.
+              const diagonal = unit(0);
+              for (const sign of [1, -1]) {
+                const reach = (Math.SQRT2 * pen) / 2;
+                ink.push({ x: corner!.x + sign * reach * diagonal.x, y: corner!.y + sign * reach * diagonal.y });
+              }
             }
           } else {
             throw new Error(`a glyph, not ${primitive.kind}`);

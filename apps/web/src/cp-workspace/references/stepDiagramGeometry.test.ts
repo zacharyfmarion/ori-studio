@@ -60,8 +60,9 @@ import {
   strokePieces,
   pushArrowOutline,
   rightAngleDrawn,
+  rightAnglePathData,
   rightAngleReach,
-  rightAngleSquare,
+  rightAngleShape,
   rotateGlyph,
   strokedOutlinePoints,
   offPaperPathData,
@@ -1093,53 +1094,99 @@ describe('the Diagram’s glyphs', () => {
   });
 });
 
-describe('a right-angle mark', () => {
+describe('a right-angle mark (Revision 2)', () => {
   const close = (a: SvgPoint, b: SvgPoint, digits = 9) => {
     expect(a.x).toBeCloseTo(b.x, digits);
     expect(a.y).toBeCloseTo(b.y, digits);
   };
+  const length = (a: SvgPoint, b: SvgPoint) => Math.hypot(b.x - a.x, b.y - a.y);
+  const size = { inset: 4, side: 7, leg: 11 };
 
-  it('is the two sides of a square in the corner that the lines it marks do not draw', () => {
-    // Opening down and to the right, y down: the square's sides along x and y.
-    const [a, b, c] = rightAngleSquare({ x: 10, y: 20 }, { x: Math.SQRT1_2, y: Math.SQRT1_2 }, 7);
-    close(a!, { x: 17, y: 20 });
-    close(b!, { x: 17, y: 27 });
-    close(c!, { x: 10, y: 27 });
-    // Any way round: its legs meet square, each `side` long, the far corner on the diagonal.
-    const turned = rightAngleSquare({ x: 0, y: 0 }, { x: Math.cos(0.3), y: Math.sin(0.3) }, 5);
-    const [p, q, r] = turned;
-    expect(Math.hypot(q!.x - p!.x, q!.y - p!.y)).toBeCloseTo(5, 9);
-    expect(Math.hypot(q!.x - r!.x, q!.y - r!.y)).toBeCloseTo(5, 9);
-    expect((p!.x - q!.x) * (r!.x - q!.x) + (p!.y - q!.y) * (r!.y - q!.y)).toBeCloseTo(0, 9);
-    close(q!, { x: 5 * Math.SQRT2 * Math.cos(0.3), y: 5 * Math.SQRT2 * Math.sin(0.3) });
+  it('is an ∟ set into the angle off its vertex, with a closed square in its corner', () => {
+    // Opening down and to the right from (10, 20), y down: the lines it marks run along x and y from there.
+    const { legs, square } = rightAngleShape({ x: 10, y: 20 }, { x: Math.SQRT1_2, y: Math.SQRT1_2 }, size);
+    const [endA, inner, endB] = legs;
+    // Its inner corner 4 in from each line: inset·√2 along the diagonal.
+    close(inner, { x: 14, y: 24 });
+    expect(length({ x: 10, y: 20 }, inner)).toBeCloseTo(4 * Math.SQRT2, 9);
+    // Each leg parallel to a line, `leg` long, ending 15 out along it: past the square.
+    close(endA, { x: 25, y: 24 });
+    close(endB, { x: 14, y: 35 });
+    // The square in the ∟'s corner, its far corner (inset + side)·√2 out along the diagonal.
+    const [onA, far, onB] = square;
+    close(onA, { x: 21, y: 24 });
+    close(far, { x: 21, y: 31 });
+    close(onB, { x: 14, y: 31 });
+    expect(length({ x: 10, y: 20 }, far)).toBeCloseTo(11 * Math.SQRT2, 9);
+  });
+
+  it('keeps its shape turned any way: legs square and `leg` long, the square’s far sides ending on them', () => {
+    const vertex = { x: 0, y: 0 };
+    const diagonal = { x: Math.cos(0.3), y: Math.sin(0.3) };
+    const { legs, square } = rightAngleShape(vertex, diagonal, size);
+    const [endA, inner, endB] = legs;
+    const [onA, far, onB] = square;
+    const along = (from: SvgPoint, to: SvgPoint) => ({ x: (to.x - from.x) / length(from, to), y: (to.y - from.y) / length(from, to) });
+    const a = along(inner, endA);
+    const b = along(inner, endB);
+    expect(length(inner, endA)).toBeCloseTo(11, 9);
+    expect(length(inner, endB)).toBeCloseTo(11, 9);
+    expect(a.x * b.x + a.y * b.y).toBeCloseTo(0, 9);
+    // Each leg 45° off the diagonal, the first anticlockwise of it on the page (y down), the second clockwise.
+    expect(Math.atan2(a.y, a.x)).toBeCloseTo(0.3 - Math.PI / 4, 9);
+    expect(Math.atan2(b.y, b.x)).toBeCloseTo(0.3 + Math.PI / 4, 9);
+    close(inner, { x: 4 * Math.SQRT2 * diagonal.x, y: 4 * Math.SQRT2 * diagonal.y });
+    close(far, { x: 11 * Math.SQRT2 * diagonal.x, y: 11 * Math.SQRT2 * diagonal.y });
+    // The square's far sides end on the legs, `side` from the inner corner, and meet square at the far corner.
+    close(onA, { x: inner.x + 7 * a.x, y: inner.y + 7 * a.y });
+    close(onB, { x: inner.x + 7 * b.x, y: inner.y + 7 * b.y });
+    expect((onA.x - far.x) * (onB.x - far.x) + (onA.y - far.y) * (onB.y - far.y)).toBeCloseTo(0, 9);
+    expect(length(onA, far)).toBeCloseTo(7, 9);
+    expect(length(onB, far)).toBeCloseTo(7, 9);
   });
 
   it('is drawn at its ink’s size, the way its diagonal goes through the projector, mirrored on the back', () => {
     const overlay = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2);
     // Sheet units are y up: toward (1, 1) from (0.5, 0.5) is up and to the right on the page.
-    const [a, b, c] = rightAngleDrawn([0.5, 0.5], [0.6, 0.6], overlay)!;
-    const side = DIAGRAM_RIGHT_ANGLE_INK.side * 2;
-    close(a!, { x: 50, y: -50 - side });
-    close(b!, { x: 50 + side, y: -50 - side });
-    close(c!, { x: 50 + side, y: -50 });
+    const drawn = rightAngleDrawn([0.5, 0.5], [0.6, 0.6], overlay)!;
+    const ink = 2;
+    expect(DIAGRAM_RIGHT_ANGLE_INK).toEqual({ inset: 4, side: 7, leg: 11 });
+    close(drawn.legs[0], { x: 50 + 4 * ink, y: -50 - 15 * ink });
+    close(drawn.legs[1], { x: 50 + 4 * ink, y: -50 - 4 * ink });
+    close(drawn.legs[2], { x: 50 + 15 * ink, y: -50 - 4 * ink });
+    close(drawn.square[1], { x: 50 + 11 * ink, y: -50 - 11 * ink });
     // The back of a card: it opens the other way across, as the paper does.
     const back = createDiagramProjector(UNIT, 100, true);
     const front = createDiagramProjector(UNIT, 100, false);
     const onBack = rightAngleDrawn([0.2, 0.2], [0.3, 0.3], back)!;
     const onFront = rightAngleDrawn([0.2, 0.2], [0.3, 0.3], front)!;
-    expect(onBack[1]!.x - back([0.2, 0.2]).x).toBeCloseTo(-(onFront[1]!.x - front([0.2, 0.2]).x), 9);
-    expect(onBack[1]!.y).toBeCloseTo(onFront[1]!.y, 9);
-    // Only its direction is read: a point twice as far draws the same square.
+    for (const part of ['legs', 'square'] as const) {
+      onBack[part].forEach((point, index) => {
+        const mirror = onFront[part][2 - index]!;
+        // Symmetric about its diagonal: its first leg on the back is its second on the front, mirrored.
+        expect(point.x - back([0.2, 0.2]).x).toBeCloseTo(-(mirror.x - front([0.2, 0.2]).x), 9);
+        expect(point.y).toBeCloseTo(mirror.y, 9);
+      });
+    }
+    // Only its direction is read: a point twice as far draws the same mark.
     expect(rightAngleDrawn([0.5, 0.5], [0.7, 0.7], overlay)).toEqual(rightAngleDrawn([0.5, 0.5], [0.6, 0.6], overlay));
     // Opening no way, it draws nothing.
     expect(rightAngleDrawn([0.5, 0.5], [0.5, 0.5], overlay)).toBeNull();
   });
 
-  it('reaches half its pen past its square ends, and √2 of that past its mitred corner', () => {
-    const [end, corner, other] = rightAngleReach(2);
-    expect(end).toBe(1);
-    expect(other).toBe(1);
-    expect(corner).toBeCloseTo(Math.SQRT2, 12);
+  it('is one path of two subpaths: its ∟, then its square’s far sides', () => {
+    const shape = rightAngleShape({ x: 10, y: 20 }, { x: Math.SQRT1_2, y: Math.SQRT1_2 }, size);
+    expect(rightAnglePathData(shape)).toBe('M 25 24 L 14 24 L 14 35 M 21 24 L 21 31 L 14 31');
+  });
+
+  it('reaches half its pen past its four square ends, and √2 of that past its two mitred corners', () => {
+    const reach = rightAngleReach(2);
+    expect(reach.legs[0]).toBe(1);
+    expect(reach.legs[1]).toBeCloseTo(Math.SQRT2, 12);
+    expect(reach.legs[2]).toBe(1);
+    expect(reach.square[0]).toBe(1);
+    expect(reach.square[1]).toBeCloseTo(Math.SQRT2, 12);
+    expect(reach.square[2]).toBe(1);
   });
 });
 

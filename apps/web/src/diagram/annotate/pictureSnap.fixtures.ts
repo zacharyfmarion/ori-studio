@@ -1,5 +1,5 @@
 import type { PaperItem } from '../../lib/paper/paperScene';
-import { sceneOf } from '../../lib/paper/paperScene.fixtures';
+import { face, line, sceneOf, SQUARE } from '../../lib/paper/paperScene.fixtures';
 import type {
   DiagramAsset,
   DiagramCpRender,
@@ -8,6 +8,7 @@ import type {
 } from '../document/diagramDocument';
 import { storedSceneJson } from '../document/diagramFile';
 import { cpStep } from '../document/diagramSteps.fixtures';
+import type { PicturePoint } from './annotationModel';
 
 /**
  * Hand-built steps for the snapping and right-angle tests: a scene picture of
@@ -37,6 +38,27 @@ export function sceneStep(items: PaperItem[], render: DiagramCpRender = PATTERN)
   const paperScale = render.mode === 'folded-3d' || render.mode === 'simulated' ? null : 1;
   return cpStep('step-scene', render, { kind: 'scene', sceneJson, paperScale, styleKey: null, key: 'scene-test' });
 }
+
+/**
+ * The crane's step 8, as far as a right angle there goes: a valley across the
+ * centre line, square to it at `at`, and a flap's corners on the valley
+ * 0.0075 either side of the crossing (about 3.8 px at fit), each where a
+ * flap's edge leaves the valley at a slant, so neither has a right angle.
+ */
+export const STACKED_CROSSING: { step: DiagramStep; at: PicturePoint; flaps: readonly [PicturePoint, PicturePoint] } = {
+  step: sceneStep([
+    face([SQUARE]),
+    line('diagram-valley', [50, 0], [50, 100]),
+    line('diagram-valley', [0, 29.6], [100, 29.6]),
+    line('edge', [50.75, 29.6], [70, 0]),
+    line('edge', [49.25, 29.6], [30, 0]),
+  ]),
+  at: [0.5, 0.296],
+  flaps: [
+    [0.5075, 0.296],
+    [0.4925, 0.296],
+  ],
+};
 
 const UPLOAD_ASSET: DiagramAsset = {
   id: 'asset-upload',

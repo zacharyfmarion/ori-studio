@@ -275,6 +275,9 @@ drag; the white arrow a new kind with width presets in ink.
 11. **The right-angle mark's look:** an open square (what you described) —
     *recommended* — or the Origami House template's quarter arc with a dot
     (whose own legend symbol also draws two legs), or either per diagram style.
+    *Superseded (2026-10-06) by `diagram-revision-2.md`, "3. The right-angle
+    mark" (16a): an ∟ of its own legs set into the angle, with a closed square
+    in its corner, for every right-angle mark.*
 12. **Placing a right-angle mark:** hover a perpendicular corner and click,
     else press and drag into the angle — *recommended* — or always two clicks,
     or three.
@@ -671,6 +674,14 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
     the press showed); the hover target went stale under a camera move.
 
 ### 14e. Right-angle marks
+*The look, the hit, the grips' places and the hover's search below are
+superseded by `diagram-revision-2.md`, "3. The right-angle mark" (16a): the
+mark is an ∟ set 4 ink into the angle with a 7-ink closed square in its
+corner, its legs 11 long; a press nearer the vertex than the ∟'s corner is the
+lines'; the turning grip is the square's far corner; the hover finds the vertex
+from over the mark, asking every vertex out to the mark's reach, nearest
+first, for a right angle that holds the pointer, with no dead zone. The kind,
+the file, the carry, Turn 90° and the analytics are unchanged.*
 - [x] Shared primitive and golden; kind; ray-based corner detection; drag
   fallback; Turn 90°.
   - As built:

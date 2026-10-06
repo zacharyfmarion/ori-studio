@@ -4,8 +4,18 @@ import { face, line, SQUARE } from '../../lib/paper/paperScene.fixtures';
 import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
 import type { SnapContext } from './annotateSnap';
 import type { PicturePoint } from './annotationModel';
-import { annotation, IN_3D, NO_ASSETS, sceneStep, uploadStep } from './pictureSnap.fixtures';
-import { clickedOpening, draggedOpening, placeRightAngle, squaredOpening, towardMiddle } from './rightAnglePlacement';
+import { annotation, IN_3D, NO_ASSETS, sceneStep, STACKED_CROSSING, uploadStep } from './pictureSnap.fixtures';
+import { rightAngleInPicture } from './annotationHit';
+import { rightAngleAt } from './annotationModel';
+import { INK_UNITS } from './canvasInk';
+import {
+  clickedOpening,
+  draggedOpening,
+  placeRightAngle,
+  RIGHT_ANGLE_FOOTPRINT,
+  squaredOpening,
+  towardMiddle,
+} from './rightAnglePlacement';
 
 /** The pictures' frame: a square, its longer side one unit. */
 const FRAME = { width: 1, height: 1 };
@@ -34,15 +44,59 @@ describe('placeRightAngle (decision 12)', () => {
     expect(round(placeRightAngle(context(CROSS), [0.55, 0.45], { free: false }).opens)).toEqual(round([R, -R]));
   });
 
-  it('snaps the corner and opens no way where it finds no right angle: in the dead zone, or where the diagonal halves one', () => {
-    // On the vertex itself: too near to say which way.
-    expect(placeRightAngle(context(), [0.995, 0.005], { free: false })).toEqual({
+  it('opens into the angle the pointer is on the side of, on the vertex itself: the mark is drawn off it', () => {
+    expect(placeRightAngle(context(), [0.995, 0.005], { free: false })).toMatchObject({
       at: [1, 0],
       target: { at: [1, 0], kind: 'corner' },
-      opens: null,
     });
-    // The top-left corner, which the diagonal halves.
+    expect(round(placeRightAngle(context(), [0.995, 0.005], { free: false }).opens)).toEqual(round([-R, R]));
+  });
+
+  it('snaps the corner and opens no way where it finds no right angle: where the diagonal halves one', () => {
     expect(placeRightAngle(context(), [0.04, 0.06], { free: false })).toMatchObject({ at: [0, 0], opens: null });
+  });
+
+  it('finds the vertex from anywhere over the mark a click there puts down: the ghost under the pointer is what it clicks', () => {
+    // The canvas's snap radius at fit, about: the mark reaches well past it.
+    const fit = context(DIAGONAL, { radius: 0.02 });
+    const start = placeRightAngle(fit, [0.95, 0.05], { free: false });
+    expect(start.at).toEqual([1, 0]);
+    const ghost = rightAngleInPicture(rightAngleAt(start.at, start.opens!), INK_UNITS);
+    // Its far corner is the footprint the search reaches.
+    expect(Math.hypot(ghost.square[1].x - 1, ghost.square[1].y)).toBeCloseTo(RIGHT_ANGLE_FOOTPRINT, 12);
+    // Along its strokes and through its square: each the same mark, at the same vertex, opening the same way.
+    const { legs, square } = ghost;
+    const over = [
+      ...[...legs, ...square].map(({ x, y }): PicturePoint => [x, y]),
+      [(legs[1].x + square[1].x) / 2, (legs[1].y + square[1].y) / 2] as PicturePoint,
+    ];
+    for (const point of over) {
+      const there = placeRightAngle(fit, point, { free: false });
+      expect(there.at).toEqual([1, 0]);
+      expect(there.target).toEqual({ at: [1, 0], kind: 'corner' });
+      expect(round(there.opens)).toEqual(round(start.opens));
+    }
+    // ⌘ held over it: where the pointer is.
+    expect(placeRightAngle(fit, over[4]!, { free: true }).at).toEqual(over[4]);
+  });
+
+  it('puts the corner on a crossing a flap’s corner sits just off, in the pointer’s quadrant (the crane’s step 8)', () => {
+    const { step, at } = STACKED_CROSSING;
+    // The canvas's snap radius at fit, about; each press nearer a flap's corner than the crossing.
+    const fit = context(step, { radius: 0.02 });
+    for (const [sx, sy] of [
+      [1, 1],
+      [-1, 1],
+      [1, -1],
+      [-1, -1],
+    ] as const) {
+      const start = placeRightAngle(fit, [at[0] + 0.0045 * sx, at[1] + 0.0045 * sy], { free: false });
+      expect(round(start.at)).toEqual(round(at));
+      expect(round(start.opens)).toEqual(round([R * sx, R * sy]));
+      // Dragged from there, off the diagonal: square into the quadrant it goes into, from the crossing.
+      const drag: PicturePoint = [at[0] + 0.05 * sx, at[1] + 0.03 * sy];
+      expect(round(draggedOpening(fit, start.at, drag, { free: false, shift: false }))).toEqual(round([R * sx, R * sy]));
+    }
   });
 
   it('puts it where the pointer is with ⌘ held or snapping off', () => {
@@ -105,8 +159,9 @@ describe('draggedOpening', () => {
 
 describe('a click that found no right angle', () => {
   it('opens into the right angle at its corner nearest the way to the middle, else toward the middle', () => {
-    // The top-right corner from its dead zone: its one right angle.
-    const start = placeRightAngle(context(), [0.995, 0.005], { free: false });
+    // The top-right corner from off the paper, on the reflex side: its one right angle.
+    const start = placeRightAngle(context(), [1.005, -0.005], { free: false });
+    expect(start).toMatchObject({ at: [1, 0], opens: null });
     expect(round(clickedOpening(context(), start, FRAME, { free: false }))).toEqual(round([-R, R]));
     // Nowhere in particular: toward the middle, square on the page.
     const loose = placeRightAngle(context(), [0.3, 0.8], { free: false });

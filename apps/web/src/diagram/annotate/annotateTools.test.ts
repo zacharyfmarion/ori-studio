@@ -150,7 +150,7 @@ describe('the tool window', () => {
         instructions: 'Click inside a right angle to mark it, or drag from a corner into the angle.',
         modifiers: [
           'Shift-drag to open it in 45° steps where it finds no right angle.',
-          'Hold Cmd to put its corner down anywhere, without snapping.',
+          'Hold Cmd to put the corner it marks down anywhere, without snapping.',
         ],
       },
       // Its words are typed in the Layers pane, not in the window that says so.

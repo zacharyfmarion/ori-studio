@@ -747,7 +747,7 @@
       "closeUpHelp": "Ziehe von der Mitte des Bereichs, der größer gezeigt werden soll, nach außen, oder klicke darauf. Mit Auswählen ziehst du einen der Kreise, um ihn zu verschieben, oder seinen Ring, um seine Größe zu ändern.",
       "closeUpShiftKey": "Ziehe den Ring der Detailansicht mit Umschalt, um ihre Vergrößerung in halben Schritten zu ändern.",
       "controls": "Steuerung der Ansicht Annotieren",
-      "cornerFreeKey": "Halte {{modifier}} gedrückt, um seine Ecke frei zu setzen, ohne Einrasten.",
+      "cornerFreeKey": "Halte {{modifier}} gedrückt, um die Ecke, die er markiert, frei zu setzen, ohne Einrasten.",
       "editPathCannot": "Nur Faltpfeile und weiße Pfeile lassen sich formen.",
       "editPathHelp": "Ziehe die Knoten eines Pfeils, ihre Griffe oder seine Kurve, um ihn zu formen. Klicke auf die Kurve, um einen Knoten hinzuzufügen; doppelklicke auf einen Knoten, um ihn zur Ecke oder glatt zu machen.",
       "editPathNone": "Wähle einen Faltpfeil oder einen weißen Pfeil aus, um ihn zu formen.",

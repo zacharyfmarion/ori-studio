@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PicturePoint } from './annotationModel';
 import { NO_ASSETS } from './pictureSnap.fixtures';
+import { RIGHT_ANGLE_FOOTPRINT } from './rightAnglePlacement';
 import { rightAngleCorner, rightAnglesAt } from './rightAngles';
 import { distance, onSegment, pointerGrid, readLongWay, realPicture, square } from './snapPictures.fixtures';
 
@@ -34,7 +35,7 @@ describe('right angles on real pictures', () => {
     // creases meet the rim's sides, and eight at the three vertices inside.
     expect(found).toBe(16);
     // The pointer finds the one at the top-left corner, which no crease leaves.
-    expect(rightAngleCorner(step, NO_ASSETS, [0.03, 0.03], 0.06)).toMatchObject({ at: [0, 0] });
+    expect(rightAngleCorner(step, NO_ASSETS, [0.03, 0.03], 0.06, { footprint: 0 })).toMatchObject({ at: [0, 0] });
   });
 
   it('finds the crane pattern’s where its creases meet the rim square, and none at its eight-way middle', () => {
@@ -65,6 +66,8 @@ describe('right angles on real pictures', () => {
   it('finds none in box_90’s 3D picture, its own lines drawn through a camera', () => {
     const step = realPicture('box_90 3D');
     for (const at of readLongWay(step).points) expect(rightAnglesAt(step, NO_ASSETS, at)).toEqual([]);
-    for (const pointer of pointerGrid(0.05)) expect(rightAngleCorner(step, NO_ASSETS, pointer, 0.1)).toBeNull();
+    for (const pointer of pointerGrid(0.05)) {
+      expect(rightAngleCorner(step, NO_ASSETS, pointer, 0.1, { footprint: RIGHT_ANGLE_FOOTPRINT })).toBeNull();
+    }
   });
 });

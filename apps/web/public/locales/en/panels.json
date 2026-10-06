@@ -747,7 +747,7 @@
       "closeUpHelp": "Drag out from the middle of the area to show larger, or click it. With Select, drag either circle to move it, or its ring to resize it.",
       "closeUpShiftKey": "Shift-drag the close-up’s ring to scale it by halves.",
       "controls": "Annotate view controls",
-      "cornerFreeKey": "Hold {{modifier}} to put its corner down anywhere, without snapping.",
+      "cornerFreeKey": "Hold {{modifier}} to put the corner it marks down anywhere, without snapping.",
       "editPathCannot": "Only fold arrows and white arrows can be shaped.",
       "editPathHelp": "Drag an arrow’s nodes, their handles or its curve to shape it. Click the curve to add a node; double-click a node to make it a corner or smooth.",
       "editPathNone": "Select a fold arrow or a white arrow to shape it.",

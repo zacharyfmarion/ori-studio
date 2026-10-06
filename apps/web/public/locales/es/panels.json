@@ -776,7 +776,7 @@
       "closeUpHelp": "Arrastra hacia fuera desde el centro de la zona que quieres ampliar, o haz clic en ella. Con Seleccionar, arrastra cualquiera de los círculos para moverlo, o su borde para cambiar su tamaño.",
       "closeUpShiftKey": "Arrastra el borde del detalle ampliado con Mayús para cambiar su ampliación en pasos de 0,5.",
       "controls": "Controles de la vista Anotar",
-      "cornerFreeKey": "Mantén pulsado {{modifier}} para colocar su esquina en cualquier lugar, sin ajustar.",
+      "cornerFreeKey": "Mantén pulsado {{modifier}} para colocar la esquina que marca en cualquier lugar, sin ajustar.",
       "editPathCannot": "Solo se puede dar forma a las flechas de plegado y a las flechas blancas.",
       "editPathHelp": "Arrastra los nodos de una flecha, sus tiradores o su curva para darle forma. Haz clic en la curva para añadir un nodo; haz doble clic en un nodo para hacerlo de esquina o suave.",
       "editPathNone": "Selecciona una flecha de plegado o una flecha blanca para darle forma.",

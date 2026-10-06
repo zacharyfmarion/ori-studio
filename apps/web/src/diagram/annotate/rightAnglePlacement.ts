@@ -11,12 +11,17 @@
  *
  * What there is to square to is `rightAngles.ts`'s: a 3D or simulated
  * picture's own lines give none (a projected right angle is not drawn
- * square), so there the corner alone snaps.
+ * square), so there the corner alone snaps. The mark is drawn into its angle
+ * off the vertex (Revision 2), so a press finds the vertex from anywhere over
+ * the mark its click would put down, not only near the vertex: the hover's
+ * ghost lies under the pointer, and a click there marks that angle.
  *
  * Pure: no DOM, no store.
  */
+import { DIAGRAM_RIGHT_ANGLE_INK } from '../../cp-workspace/references/diagram/diagramInk';
 import { placePoint, type PlacedPoint, type SnapContext } from './annotateSnap';
 import { DEFAULT_RIGHT_ANGLE_DIAGONAL, MIN_ANNOTATION_LENGTH, type PictureFrame, type PicturePoint } from './annotationModel';
+import { INK_UNITS } from './canvasInk';
 import { pictureSnapTarget } from './pictureSnap';
 import { rightAngleCorner, rightAnglesAt, type RightAngleCorner } from './rightAngles';
 
@@ -33,13 +38,24 @@ export interface RightAngleStart extends PlacedPoint {
 const snapOptions = (context: SnapContext) => ({ annotations: context.annotations, style: context.style });
 
 /**
+ * How far past its vertex a right-angle mark is drawn on the canvas, in
+ * picture units: its square's far corner, along the diagonal.
+ */
+export const RIGHT_ANGLE_FOOTPRINT = (DIAGRAM_RIGHT_ANGLE_INK.inset + DIAGRAM_RIGHT_ANGLE_INK.side) * Math.SQRT2 * INK_UNITS;
+
+/**
  * The corner a press at `point` puts a right-angle mark in, and the way it
- * opens if the press was in a right angle (decision 12). With snapping off
- * or ⌘ held (`free`), where the pointer is, opening no way yet.
+ * opens if the press was in a right angle (decision 12) — near its vertex,
+ * or over the mark a click there puts down ({@link RIGHT_ANGLE_FOOTPRINT}).
+ * With snapping off or ⌘ held (`free`), where the pointer is, opening no
+ * way yet.
  */
 export function placeRightAngle(context: SnapContext, point: PicturePoint, { free }: { free: boolean }): RightAngleStart {
   if (context.enabled && !free && context.radius > 0) {
-    const corner = rightAngleCorner(context.step, context.assets, point, context.radius, snapOptions(context));
+    const corner = rightAngleCorner(context.step, context.assets, point, context.radius, {
+      ...snapOptions(context),
+      footprint: RIGHT_ANGLE_FOOTPRINT,
+    });
     if (corner) {
       // The vertex, as the snap would report it: a point of the picture, a line's end, a crossing.
       const found = pictureSnapTarget(context.step, context.assets, corner.at, context.radius, snapOptions(context));

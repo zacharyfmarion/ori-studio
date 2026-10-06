@@ -12,12 +12,14 @@ function mark(id: string, at: PicturePoint, opens: PicturePoint): KnownDiagramAn
 }
 
 /**
- * The right-angle marks (Phase 14e) as each surface draws them — a card, a
- * page and the canvas — recorded when the mark was made and checked by eye
- * (`artifacts/diagram-annotate/14e/golden-annotate.png`): square into the
- * frame's corner, up and to the right as an ∟'s is, turned off the axes, off
- * the picture, and at reach's very edge, where its corner was drawn in so the
- * way it opens is kept.
+ * The right-angle marks as each surface draws them — a card, a page and the
+ * canvas — recorded when the mark was made (Phase 14e) and again when it took
+ * Revision 2's look, an ∟ set into the angle with a closed square in its
+ * corner, checked by eye beside Zach's sketch
+ * (`artifacts/revision-2/16a/goldens.png`): square into the frame's corner,
+ * up and to the right as an ∟'s is, turned off the axes, off the picture, and
+ * at reach's very edge, where its corner was drawn in so the way it opens is
+ * kept.
  */
 const RIGHT_ANGLE_CASES: readonly KnownDiagramAnnotation[] = [
   mark('frame-corner', [0, 0], [1, 1]),
