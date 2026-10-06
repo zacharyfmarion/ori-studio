@@ -683,8 +683,10 @@ export interface KnownDiagramAnnotation {
    * A fold-and-unfold arrow's return shaped by hand (Edit Path), as a path of
    * its own: from the tip — its first node where `path`'s last is, carrying
    * the return's first handle — back to beside the tail, where its head is.
-   * Only with `path`. Absent, the return is derived from the path where it is
-   * drawn, and follows it.
+   * Only with `path`: the arrow's first edit writes both, the return as it
+   * was drawn, and each half is edited on its own after. Absent (an older
+   * file's path), the return is derived from the path where it is drawn, and
+   * follows it until the arrow's next edit writes it.
    */
   back?: DiagramPathNode[];
   /** A white arrow's width: one of three print sizes, in ink, as every mark's is (decision 14). */

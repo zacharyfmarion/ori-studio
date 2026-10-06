@@ -106,6 +106,12 @@ export type DiagramAnnotationSnap = 'snapped' | 'free' | 'off' | 'nothing_near' 
 export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';
 
 /**
+ * Which half of a fold-and-unfold arrow the edit that first shaped it
+ * touched: its outgoing path (the tip included) or its return.
+ */
+export type DiagramShapedArrowHalf = 'out' | 'return';
+
+/**
  * The Edit Path gesture that first shaped an arrow — an arc made a path, a
  * straight white arrow bent: a node dragged, a handle dragged, the curve
  * bent, a node added (a click on the curve or Add Node), a node made smooth
@@ -1368,14 +1374,9 @@ export const ANALYTICS_EVENTS = {
   /**
    * An arrow shaped by hand for the first time (Edit Path): a fold arrow's arc
    * made a path, or a white arrow bent from the straight one it was laid as —
-   * not each edit after.
+   * not each edit after. A fold-and-unfold arrow's says which half.
    */
   diagramArrowShaped: 'diagram arrow shaped',
-  /**
-   * A fold-and-unfold arrow's return shaped by hand for the first time (Edit
-   * Path): made a path of its own rather than the one the drawing derives.
-   */
-  diagramArrowReturnShaped: 'diagram arrow return shaped',
   /** A step's picture taken away (Remove picture). */
   diagramPictureRemoved: 'diagram picture removed',
   /**

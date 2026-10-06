@@ -118,3 +118,30 @@ Return: `document/diagramDocument.ts`, `document/diagramFile.ts`,
     switches its return from the arc's own to the path's (`pathReturn`),
     which ends a little elsewhere beside the tail. That was so before; an
     edit to the return first keeps the arc's return where it was drawn.
+- [x] Changed 2026-10-06: no "derived until edited" — once shaped, the two
+  halves are independent paths.
+  - Why: Zach, editing a fold-and-unfold arrow's outgoing half, found the
+    return "still like mirrored" — it re-derived along the out path on every
+    edit and jumped about (4 nodes, then 14, then 9). His words: "when it's
+    created you default the arrow to this like there and back shape. But then
+    like afterward it should just be editable like it's a normal like you
+    know affinity or inkscape object and it shouldn't do any crazy like
+    mirroring or mapping splines onto the other half."
+  - As built: an arrow never shaped is still the arc, drawn with its own
+    return. Its first shaping edit, on either half, writes both `path` and
+    `back` as they were shown (`arcReturn` for an arc, `derivedReturn` for an
+    older file's path without `back`) and applies the edit to what it
+    touched; after that an edit of one half never changes the other, the tip
+    being the one node they share (still a corner). `splitAtTurn` lost its
+    `touched` test; `derivedReturn`/`arcReturn` remain for showing an
+    unshaped arrow's return and for that first write. Reset Shape drops both.
+    This also retires the note above: an arc's first outgoing edit now keeps
+    the arc's own return where it was drawn.
+  - Analytics: `diagram arrow return shaped` is retired (every first edit
+    now writes `back`, so it would only echo `diagram arrow shaped`); that
+    event gains `half` (`out`/`return`) for a fold-and-unfold arrow — which
+    half its first shaping edit touched (`shapedHalf`).
+  - Browser: `artifacts/diagram-second-pass/p24-fu.mjs`, composite
+    `24/fold-unfold-edit.png` — a new arc, its outgoing curve bent, then its
+    tail dragged: before, the return follows (4 → 14 → 9 nodes shown); after,
+    it stays put (4 → 4 → 4, `back` unchanged byte for byte).

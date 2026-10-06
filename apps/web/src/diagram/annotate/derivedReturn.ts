@@ -1,11 +1,12 @@
 /**
  * A fold-and-unfold arrow's return as the drawing derives it, as nodes: what
- * Edit Path shows of a return never shaped by hand, and what the return is
- * written as once one of its nodes is edited (`annotationPath.ts`). An arc's
- * is its own return arc, exactly ({@link arcReturn}); a path's is fitted to
- * the return drawn along it to within {@link RETURN_FIT_INKS}
- * ({@link derivedReturn}). Either way an edit to one part of it leaves the
- * rest where it was drawn.
+ * Edit Path shows of an arrow not yet shaped, and what the arrow's first
+ * edit, of either half, writes as its return (`annotationPath.ts`) — from
+ * then on a path of its own, which the outgoing half's edits leave alone. An
+ * arc's is its own return arc, exactly ({@link arcReturn}); an older file's
+ * path without a return of its own has one fitted to the return drawn along
+ * it to within {@link RETURN_FIT_INKS} ({@link derivedReturn}). Either way
+ * the return is written where it was drawn.
  *
  * Pure: no DOM, no store.
  */
@@ -92,8 +93,9 @@ export function derivedReturn(out: readonly DiagramPathNode[]): DiagramPathNode[
  * (`returnStroke`, as the arc drawing and its hit test build it), as nodes
  * from the tip: one cubic for each quarter turn of it, exactly that arc. An
  * arc is drawn with a return of its own, not a path's ({@link derivedReturn});
- * Edit Path shows that one, so its nodes sit on the line drawn. Null where
- * the arc has none: ends that meet, or a bend of nothing.
+ * Edit Path shows that one, so its nodes sit on the line drawn, and the
+ * arrow's first edit writes it. Null where the arc has none: ends that meet,
+ * or a bend of nothing.
  */
 export function arcReturn(from: PicturePoint, to: PicturePoint, bend: number): DiagramPathNode[] | null {
   const up = ([x, y]: readonly [number, number]): [number, number] => [x, -y];

@@ -9,8 +9,11 @@
  * arrow, arc or path, and returns it edited, every point within reach; node
  * and segment numbers count along the path as {@link pathNodesOf} gives it,
  * tail first — for a fold-and-unfold arrow on through the tip and along its
- * return, so both halves are shaped alike (Zach, 2026-10-05). A kind that is
- * not shaped (a push, a line, a sign) comes back as it was.
+ * return, so both halves are shaped alike (Zach, 2026-10-05). Its first edit
+ * writes both halves as they were shown, and from then on each is a path of
+ * its own that only its own edits change, the tip the one node they share
+ * (Zach, 2026-10-06). A kind that is not shaped (a push, a line, a sign) comes
+ * back as it was.
  *
  * Pure: no DOM, no store, no React.
  */
@@ -50,9 +53,10 @@ const ON_NODE = 1e-9;
 /**
  * The nodes Edit Path shows for an arrow: its path, or its arc's as the
  * first edit would make it one — and a fold-and-unfold arrow's on through
- * its tip along its return: the one shaped by hand, or until then the one
- * it is drawn with — an arc's own ({@link arcReturn}), a path's fitted to the
- * one drawn along it ({@link derivedReturn}). The tip carries the
+ * its tip along its return: its own once shaped (`back`), or until then the
+ * one it is drawn with, as the first edit writes it — an arc's own
+ * ({@link arcReturn}), or for an older file's path without one, fitted to the
+ * return drawn along it ({@link derivedReturn}). The tip carries the
  * return's first handle, and is a corner: the return leaves it back the way
  * the path came, and a handle dragged on one side does not swing the other's.
  * Null for a kind that is not shaped. Worked out once per annotation object:
@@ -225,7 +229,7 @@ function arcNodes(from: PicturePoint, to: PicturePoint, bend: number): DiagramPa
  * that could be drawn or pressed, and stays.
  */
 export function resetPath(annotation: KnownDiagramAnnotation, frame: PictureFrame): KnownDiagramAnnotation {
-  // A return shaped by hand goes with the path: the arc's is References' own again.
+  // A fold-and-unfold arrow's return goes with the path: the arc is drawn with its own again.
   const { path, back: _back, ...arc } = annotation;
   if (!path || !canResetPath(annotation)) return annotation;
   const { from, to } = annotation;
@@ -263,39 +267,41 @@ function shaped(
   if (!edited) return annotation;
   const turn = returnTurnOf(annotation);
   // A fold-and-unfold arrow's halves are each a path of their own, each cleaned once split.
-  if (turn !== null) return splitAtTurn(annotation, path, edited, turn, turnAfter(turn));
+  if (turn !== null) return splitAtTurn(annotation, edited, turnAfter(turn));
   return withPath(annotation, cleanPath(edited) ?? edited);
 }
 
 /**
  * A fold-and-unfold arrow's nodes, edited, written back as its outgoing path
- * and its return, split at the tip. A return still derived stays derived
- * while only the outgoing half is edited — it follows the path, as drawn — and
- * is written as it shows once one of its own nodes, or the tip's handle into
- * it, is.
+ * and its return, split at the tip: both, every time. The first edit writes
+ * the return as it was shown, the arc's own or the one an older file's path
+ * was drawn with; an edit of one half leaves the other's nodes as they were,
+ * so each is a path of its own from then on, joined only at the tip.
  */
 function splitAtTurn(
   annotation: KnownDiagramAnnotation,
-  before: readonly DiagramPathNode[],
   after: readonly DiagramPathNode[],
-  turnBefore: number,
   turn: number
 ): KnownDiagramAnnotation {
   // The tip's corner is the turn's, not the outgoing path's: an end has no type.
   const { out: intoReturn, type: _turn, ...tip } = after[turn]!;
   const out = [...after.slice(0, turn), tip];
-  const outgoing = cleanPath(out) ?? out;
-  if (annotation.back === undefined) {
-    const was = before[turnBefore]!;
-    const touched =
-      !sameNodes(before.slice(turnBefore + 1), after.slice(turn + 1)) ||
-      (sameAt(was.at, tip.at) && !sameAt(was.out, intoReturn));
-    if (!touched) return withPath(annotation, outgoing);
-  }
   const back = cleanPath([{ at: tip.at, ...(intoReturn ? { out: intoReturn } : {}) }, ...after.slice(turn + 1)]);
   // No edit leaves a return without a node past the tip; one that did would be derived again.
   const { back: _was, ...arrow } = annotation;
-  return withPath(back ? { ...arrow, back } : arrow, outgoing);
+  return withPath(back ? { ...arrow, back } : arrow, cleanPath(out) ?? out);
+}
+
+/**
+ * Which half of a fold-and-unfold arrow an edit shaped, `before` to `after`:
+ * its return when the outgoing path came through it as it was shown, else
+ * the outgoing half — the tip, the end of both, the outgoing half's with the
+ * rest of it. Null for any other arrow, and one with no return to show.
+ */
+export function shapedHalf(before: KnownDiagramAnnotation, after: KnownDiagramAnnotation): 'out' | 'return' | null {
+  if (returnTurnOf(before) === null) return null;
+  const out = arcToPath(before).path;
+  return out && after.path && sameNodes(out, after.path) ? 'return' : 'out';
 }
 
 /**

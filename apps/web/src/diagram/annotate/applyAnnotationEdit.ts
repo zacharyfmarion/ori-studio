@@ -1,4 +1,4 @@
-import { trackDiagramAnnotationFlipped, trackDiagramArrowReturnShaped, trackDiagramArrowShaped } from '../../analytics';
+import { trackDiagramAnnotationFlipped, trackDiagramArrowShaped } from '../../analytics';
 import type { DiagramShapedArrowKind } from '../../analytics/events';
 import type { WorkspaceState } from '../../store/workspaceStore/types';
 import {
@@ -11,6 +11,7 @@ import {
 import type { AnnotationEdit } from './annotationActions';
 import { annotationEventKind } from './annotationEventKind';
 import { isShapedArrow } from './annotationModel';
+import { shapedHalf } from './annotationPath';
 
 /**
  * Make one of the catalog's edits (`annotationActions.ts`) on a step, as one
@@ -18,9 +19,9 @@ import { isShapedArrow } from './annotationModel';
  * pane, the keys, Delete and the canvas's gestures. Here, not in each, it
  * counts an arrow shaped for the first time (`diagram arrow shaped`): once,
  * when the edit makes an arc a path, or a white arrow no longer straight
- * (`isShapedArrow`), never for the edits after; a fold-and-unfold arrow's
- * return made its own by hand the same way (`diagram arrow return shaped`);
- * and each flip (`diagram annotation flipped`). Whether anything changed.
+ * (`isShapedArrow`), never for the edits after — for a fold-and-unfold arrow,
+ * which writes both its halves then, with the half the edit touched; and each
+ * flip (`diagram annotation flipped`). Whether anything changed.
  */
 export function applyAnnotationEdit(
   workspace: Pick<WorkspaceState, 'diagram' | 'editDiagramAnnotations'>,
@@ -35,12 +36,15 @@ export function applyAnnotationEdit(
     ...(selectPathNode !== undefined ? { selectPathNode } : {}),
     ...options,
   });
-  if (changed && shapes && before && (!isShapedArrow(before) || before.back === undefined)) {
+  if (changed && shapes && before && !isShapedArrow(before)) {
     // The edit is pure: what it made of the arrow, without reading the store back.
     const after = edit([before]).find((annotation) => annotation.id === shapes.annotationId);
     const kind = shapedKind(before.kind);
-    if (!isShapedArrow(before) && after && isShapedArrow(after) && kind) trackDiagramArrowShaped(kind, shapes.gesture);
-    if (before.back === undefined && after?.back !== undefined) trackDiagramArrowReturnShaped(shapes.gesture);
+    if (after && isShapedArrow(after) && kind) {
+      const half = shapedHalf(before, after);
+      if (half === null) trackDiagramArrowShaped(kind, shapes.gesture);
+      else trackDiagramArrowShaped(kind, shapes.gesture, half);
+    }
   }
   if (changed && flips && flipped) trackDiagramAnnotationFlipped(annotationEventKind(flipped), flips.axis);
   return changed;

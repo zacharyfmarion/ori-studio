@@ -17,6 +17,7 @@ import type {
   DiagramBehindLayers,
   DiagramFlipAxis,
   DiagramArrowShapeGesture,
+  DiagramShapedArrowHalf,
   DiagramShapedArrowKind,
   DiagramCaptureKind,
   DiagramCaptureOutcome,
@@ -121,21 +122,17 @@ export function trackDiagramAnnotationFlipped(kind: DiagramAnnotationTool, axis:
 
 /**
  * A fold arrow shaped by hand for the first time — its arc made a path — by
- * the Edit Path gesture that did it. Once per arrow, not per edit: whether
- * arrows are shaped at all, and which way in people find. Never where.
+ * the Edit Path gesture that did it, and for a fold-and-unfold arrow the half
+ * that edit touched (`half`). Once per arrow, not per edit: whether arrows
+ * are shaped at all, which way in people find, and whether a return is
+ * reshaped first. Never where.
  */
-export function trackDiagramArrowShaped(kind: DiagramShapedArrowKind, gesture: DiagramArrowShapeGesture): void {
-  track(ANALYTICS_EVENTS.diagramArrowShaped, { kind, gesture });
-}
-
-/**
- * A fold-and-unfold arrow's return shaped by hand for the first time — made
- * a path of its own — by the Edit Path gesture that did it. Once per return,
- * as `diagram arrow shaped` is once per arrow: whether the return is shaped
- * at all. Never where.
- */
-export function trackDiagramArrowReturnShaped(gesture: DiagramArrowShapeGesture): void {
-  track(ANALYTICS_EVENTS.diagramArrowReturnShaped, { gesture });
+export function trackDiagramArrowShaped(
+  kind: DiagramShapedArrowKind,
+  gesture: DiagramArrowShapeGesture,
+  half?: DiagramShapedArrowHalf
+): void {
+  track(ANALYTICS_EVENTS.diagramArrowShaped, half === undefined ? { kind, gesture } : { kind, gesture, half });
 }
 
 /**
