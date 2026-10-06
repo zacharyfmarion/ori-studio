@@ -40,8 +40,8 @@ const NO_NOTICES: readonly SanitizeNotice[] = [];
  * A composition site (AGENTS.md › Panel components): the verbs come from the
  * action catalog through `useDiagramStepActions`, and the rows are the shared
  * field rows. A linked step's Show as leads, the choice everything under it is
- * about (D19) — with, for a crease pattern, the side of the paper it is seen
- * from. In Annotate, Annotate's own section leads (D13): the Snap switch,
+ * about (D19) — with, for a crease pattern, its paper's colour, front or
+ * back. In Annotate, Annotate's own section leads (D13): the Snap switch,
  * and a notice when the picture changed under the marks — the list and the
  * selected one's controls are the Layers pane's (`DiagramLayersPanel`);
  * elsewhere the Annotations section between the picture and the instruction
@@ -78,7 +78,7 @@ export function DiagramStepPanel() {
   const annotating = useWorkspaceStore(isDiagramAnnotating);
   const poseActions = useDiagramPoseActions(detailOpen ? stepId : null);
   const { link, patternOpen, capture, picker } = useDiagramStepLink(step);
-  // Shown as its crease pattern: the side of the paper it is seen from, under Show as.
+  // Shown as its crease pattern: its paper's colour, front or back, under Show as.
   const side = useCreasePatternSide(step);
 
   if (turn) {

@@ -35,12 +35,7 @@ import type { PaperScene, SceneBounds } from '../../lib/paper/paperScene';
 import { turnClockwise } from '../../lib/geometry';
 import { rectangleAngle, type PicturePoint } from '../annotate/annotationModel';
 import { CAPTURE_PX_PER_UNIT, storedSceneStep } from '../capture/captureGeometry';
-import {
-  creasePatternSide,
-  type DiagramScenePicture,
-  type DiagramStep,
-  type DiagramZoomOutline,
-} from '../document/diagramDocument';
+import type { DiagramScenePicture, DiagramStep, DiagramZoomOutline } from '../document/diagramDocument';
 import { readPaperFaces } from '../document/diagramFile';
 import { storedScene } from '../pictures/pictureFrame';
 import { distanceOutside, distanceToSegment, zoomCore, zoomShapeOf } from './zoomModel';
@@ -92,7 +87,7 @@ export function paperFacesOf(step: DiagramStep): StepFaces | null {
   if (scene) {
     faces =
       render.mode === 'crease-pattern'
-        ? creasePatternFaces(scene, render.rotationDeg, creasePatternSide(render))
+        ? creasePatternFaces(scene, render.rotationDeg)
         : flatFaces(scene, picture.paperFaces, render.spread !== undefined);
   }
   memo.set(picture, { render: key, faces });
@@ -146,10 +141,11 @@ function flatFaces(scene: PaperScene, stored: string | undefined, spread: boolea
 
 /**
  * A crease pattern's one face: the paper, placed as `creasePatternScene`
- * places it — about its centre, mirrored for the back, turned, at the capture
- * scale — so its ring on the paper is its drawn ring with that undone.
+ * places it — about its centre, turned, at the capture scale, on either
+ * side's colour alike — so its ring on the paper is its drawn ring with that
+ * undone.
  */
-function creasePatternFaces(scene: PaperScene, rotationDeg: number, side: 'front' | 'back'): StepFaces | null {
+function creasePatternFaces(scene: PaperScene, rotationDeg: number): StepFaces | null {
   let ring: Pt[] | null = null;
   for (const item of scene.items) {
     if (item.kind !== 'face' || item.face !== 0) continue;
@@ -158,13 +154,12 @@ function creasePatternFaces(scene: PaperScene, rotationDeg: number, side: 'front
   }
   if (!ring || ring.length < 3) return null;
   const unturn = turnClockwise(-rotationDeg);
-  const across = side === 'back' ? -1 : 1;
   const paper = ring.map(([x, y]): Pt => {
     const p = unturn({
       x: x / CAPTURE_PX_PER_UNIT,
       y: y / CAPTURE_PX_PER_UNIT,
     });
-    return [across * p.x, p.y];
+    return [p.x, p.y];
   });
   return {
     kind: 'crease-pattern',

@@ -25,10 +25,15 @@ describe('trackDiagramPicturePosed', () => {
   });
 
   it('sends the side a turn-over leaves the paper showing, as a word', () => {
-    // A crease pattern turned over by the Step pane's Front | Back.
-    trackDiagramPicturePosed('turn_over', 'crease_pattern', { side: 'back' });
+    trackDiagramPicturePosed('turn_over', 'flat', { side: 'back' });
+    expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', { action: 'turn_over', kind: 'flat', side: 'back' });
+  });
+
+  it('sends a crease pattern’s paper side, chosen in the Step pane, as a word', () => {
+    // Front | Back under Show as: the paper's colour, not a turn-over.
+    trackDiagramPicturePosed('paper_side', 'crease_pattern', { side: 'back' });
     expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', {
-      action: 'turn_over',
+      action: 'paper_side',
       kind: 'crease_pattern',
       side: 'back',
     });

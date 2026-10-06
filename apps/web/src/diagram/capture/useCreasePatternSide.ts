@@ -7,18 +7,18 @@ import {
 } from '../document/diagramDocument';
 import { showCreasePatternSide } from './creasePatternSide';
 
-/** The side a crease pattern is seen from, and the way to choose the other. */
+/** The side whose colour a crease pattern's paper is drawn in, and the way to choose the other. */
 export interface CreasePatternSideField {
   side: 'front' | 'back';
-  /** Show it from `side`: turned over where it lies, as one undo step; nothing for the side it shows. */
+  /** Draw its paper in `side`'s colour, as one undo step, nothing else changed; nothing for the side it is on. */
   choose: (side: 'front' | 'back') => void;
 }
 
 /**
- * The side of the paper a step shown as its crease pattern is seen from, for
- * the Step pane's Front | Back: a field, beside Show as, never one of Pose's
- * verbs. Null for any other step — one shown folded or simulated, one not
- * linked, a newer build's.
+ * The side of the paper whose colour a step shown as its crease pattern is
+ * drawn in, for the Step pane's Front | Back: a field, beside Show as, never
+ * one of Pose's verbs. Null for any other step — one shown folded or
+ * simulated, one not linked, a newer build's.
  */
 export function useCreasePatternSide(step: DiagramStep | null): CreasePatternSideField | null {
   const render: DiagramCreasePatternRender | null =

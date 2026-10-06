@@ -295,7 +295,7 @@ describe('DiagramStepPanel', () => {
         act(() => state().selectDiagramStep(other));
         expect(group('Side')).toBeNull();
       }
-      // Shown from the back, it says so.
+      // On its back color, it says so: the paper's color, not the pattern seen from behind.
       act(() => {
         const diagram = state().diagram!;
         useWorkspaceStore.setState({
@@ -304,7 +304,8 @@ describe('DiagramStepPanel', () => {
         state().selectDiagramStep('step-cp');
       });
       expect(pressed('Side')).toBe('Back');
-      expect(host?.textContent).toContain('Crease pattern, from the back');
+      expect(host?.textContent).toContain('Crease pattern, back color');
+      expect(host?.textContent).not.toContain('from the back');
     });
 
     it('poses a linked flat fold from the pane with the open step’s own verbs, and its turn as a field', () => {

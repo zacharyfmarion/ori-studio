@@ -86,6 +86,8 @@ const TRACKED: Record<LinkedPoseRequest['verb'], TrackedPoseAction> = {
   'spread-keep': 'spread_keep',
   'spread-skew': 'spread_skew',
   'spread-axis': 'spread_axis',
+  // A crease pattern's paper on the colour of one side: not a turn-over (Zach, 2026-10-06).
+  'paper-side': 'paper_side',
 };
 
 /** The verbs that spread a flat fold's layers: they say how it is spread after them. */
@@ -104,13 +106,14 @@ const SPREAD_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set([
  * Layers as on or off by what it left — and for a spread verb that left the
  * layers spread, how: its kind, the amount bucketed, and a depth spread's
  * direction or an affine one's layer held still, skew and axis (bucketed). A
- * turn-over says the side it left showing.
+ * turn-over says the side it left showing, and a crease pattern's paper side
+ * the side whose colour it chose.
  */
 function trackPose(verb: LinkedPoseRequest['verb'], render: DiagramCpRender): void {
   const spread = render.mode === 'folded-flat' ? render.spread : undefined;
   const action = verb === 'spread-layers' && !spread ? 'spread_off' : TRACKED[verb];
   const how = SPREAD_VERBS.has(verb) && spread ? spreadTracking(spread) : undefined;
-  const side = verb === 'turn-over' ? renderSide(render) : undefined;
+  const side = verb === 'turn-over' || verb === 'paper-side' ? renderSide(render) : undefined;
   trackDiagramPicturePosed(action, captureKind(render), { ...(how ? { spread: how } : {}), ...(side ? { side } : {}) });
 }
 

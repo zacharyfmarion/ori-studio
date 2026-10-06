@@ -68,9 +68,9 @@ export interface DiagramLinkedPose {
    */
   showAs: (way: DiagramShowAs) => Promise<boolean>;
   /**
-   * Show a crease pattern from a side of the paper — turned over, where it
-   * lies, when it shows the other — for the Step pane's Front | Back, counted
-   * as a turn-over. Whether the step now shows that side.
+   * Put a crease pattern's paper on the colour of a side — nothing else about
+   * the picture changes — for the Step pane's Front | Back, counted as the
+   * paper's side. Whether the step's paper is now that side's colour.
    */
   setSide: (side: 'front' | 'back') => Promise<boolean>;
   /** Pose's simulator came to rest: captured, if it is not the step's picture already (D19). */
@@ -239,7 +239,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
       };
       const before = shown();
       if (before === null) return false;
-      if (before !== side) await controller.run({ verb: 'turn-over' });
+      if (before !== side) await controller.run({ verb: 'paper-side', side });
       return shown() === side;
     },
     [controller, readOnly, stepId]

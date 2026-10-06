@@ -11,17 +11,17 @@ import styles from './DiagramStepShowAs.module.css';
  * other control in the pane is about. The ways and what each does are the
  * step's action catalog's (`show-as`); nothing for a step that is not linked.
  *
- * Shown as its crease pattern, the side of the paper it is seen from, Front
- * or Back, right under it (`useCreasePatternSide`): a field, as a flat fold's
- * side is in Pose's section, and held whenever Show as is — each captures the
- * step again from its pattern.
+ * Shown as its crease pattern, the side of the paper whose colour it is drawn
+ * on, Front or Back, right under it (`useCreasePatternSide`): a field, as a
+ * flat fold's side is in Pose's section, and held whenever Show as is — each
+ * captures the step again from its pattern.
  */
 export function DiagramStepShowAs({
   actions,
   side,
 }: {
   actions: readonly DiagramStepAction[];
-  /** The crease pattern's side, for a step shown as one; null otherwise. */
+  /** The side whose colour a crease pattern's paper is, for a step shown as one; null otherwise. */
   side: CreasePatternSideField | null;
 }) {
   const { t } = useTranslation();
@@ -51,7 +51,7 @@ export function DiagramStepShowAs({
           label={t('panels:diagram.pose.side', 'Side')}
           help={t(
             'panels:diagram.picture.creasePatternSideHelp',
-            'Back shows the crease pattern from the other side of the paper: mirrored, with its mountains and valleys swapped.'
+            'Back fills the paper with its back color. The creases are drawn as they are.'
           )}
           value={side.side}
           options={[

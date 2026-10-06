@@ -154,7 +154,8 @@ export type DiagramArrowShapeGesture =
  * another layer order, look from a named side, orbit the 3D view, bring
  * Pose's simulator to rest at a fold % and camera, or spread a flat fold's
  * layers: on, off, the other kind, another amount or direction, or an affine
- * spread's other layer held still, skew or axis).
+ * spread's other layer held still, skew or axis; or put a crease pattern's
+ * paper on the colour of one side).
  */
 export type DiagramPoseAction =
   | 'rotate_left'
@@ -182,12 +183,14 @@ export type DiagramPoseAction =
   | 'spread_direction'
   | 'spread_keep'
   | 'spread_skew'
-  | 'spread_axis';
+  | 'spread_axis'
+  | 'paper_side';
 
 /**
- * The side of the paper a picture shows after it is turned over, for
- * `diagram picture posed`'s `turn_over`: a flat fold, a 3D one, a crease
- * pattern (the Step pane's Front | Back) or a References step.
+ * A side of the paper, for `diagram picture posed`: the one a picture shows
+ * after `turn_over` (a flat fold, a 3D one or a References step), or the one
+ * whose colour a crease pattern's paper takes after `paper_side` (the Step
+ * pane's Front | Back).
  */
 export type DiagramPictureSide = 'front' | 'back';
 

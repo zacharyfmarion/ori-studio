@@ -201,7 +201,7 @@ function describeLinked(source: DiagramCpSource, posed: boolean, t: TFunction): 
   switch (render.mode) {
     case 'crease-pattern':
       return render.side === 'back'
-        ? t('panels:diagram.picture.linkedCreasePatternBack', 'Crease pattern, from the back')
+        ? t('panels:diagram.picture.linkedCreasePatternBack', 'Crease pattern, back color')
         : t('panels:diagram.picture.linkedCreasePattern', 'Crease pattern');
     case 'folded-flat':
       return render.side === 'back'

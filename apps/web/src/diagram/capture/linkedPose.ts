@@ -25,8 +25,9 @@ import {
   clampSpreadAmount,
   clampSpreadAxis,
   clampSpreadSkew,
+  creasePatternSide,
   renderToShowAs,
-  turnCreasePatternOver,
+  withCreasePatternSide,
   type DiagramCpRender,
   type DiagramCreasePatternRender,
   type DiagramCpSource,
@@ -52,8 +53,9 @@ import { uprightTurn } from './mirrorAxes';
  * A verb, an orbit of the 3D view ending at a camera, a turn typed in degrees
  * (D5's angle field) for a crease pattern or a flat fold, a flat fold's spread
  * set to a kind, an amount or a direction, or an affine one's layer held
- * still, skew or axis (Phase 13), or Pose's simulator come to rest (D19): its
- * model where the solver holds it, at a fold %, from a camera.
+ * still, skew or axis (Phase 13), Pose's simulator come to rest (D19): its
+ * model where the solver holds it, at a fold %, from a camera — or a crease
+ * pattern's paper on the colour of one side (the Step pane's Front | Back).
  */
 export type LinkedPoseRequest =
   | { verb: DiagramLinkedPoseActionId }
@@ -74,7 +76,8 @@ export type LinkedPoseRequest =
   | { verb: 'spread-keep'; keep: SpreadKeep }
   | { verb: 'spread-skew'; skew: number }
   | { verb: 'spread-axis'; axisDeg: number }
-  | { verb: 'simulate'; foldPercent: number; view: DiagramSimulatedView; still: StillScene };
+  | { verb: 'simulate'; foldPercent: number; view: DiagramSimulatedView; still: StillScene }
+  | { verb: 'paper-side'; side: 'front' | 'back' };
 
 /** The verbs that set one field of a spread: each a no-op on a fold with none, or of the other kind. */
 type SpreadFieldRequest = Extract<
@@ -178,7 +181,7 @@ export async function poseLinkedStep(
 ): Promise<LinkedPoseResult> {
   const spatialRoute = resolveFoldRoute(document, creases.foldLineIds).kind === 'spatial';
 
-  /** The crease pattern in a pose: turned, and seen from a side (the front unless said). */
+  /** The crease pattern in a pose: turned, on the colour of a side (the front unless said). */
   const creasePattern = (posed: DiagramCreasePatternRender): LinkedPoseResult => ({
     status: 'posed',
     render: posed,
@@ -299,8 +302,8 @@ export async function poseLinkedStep(
     }
   }
   if (render.mode === 'crease-pattern') {
-    // Every turn keeps the side it is seen from: a choice about the picture,
-    // as a flat fold's spread is, with its own field (Front | Back).
+    // Every turn keeps the colour of the side its paper is on: a choice about
+    // the picture, as a flat fold's spread is, with its own field (Front | Back).
     const at = (rotationDeg: number) => creasePattern({ ...render, rotationDeg });
     switch (verb) {
       case 'show-folded':
@@ -311,9 +314,11 @@ export async function poseLinkedStep(
         return at(turned(render.rotationDeg, POSE_ROTATION_STEP_DEG));
       case 'rotate-to':
         return at(turned(request.verb === 'rotate-to' ? request.degrees : render.rotationDeg, 0));
-      case 'turn-over':
-        // Seen from the paper's other side, where it lies, as a flat fold turns over.
-        return creasePattern(turnCreasePatternOver(render));
+      case 'paper-side': {
+        // The paper's colour alone (Zach, 2026-10-06): no mirror, no other turn, the same mountains and valleys.
+        const side = request.verb === 'paper-side' ? request.side : creasePatternSide(render);
+        return creasePattern(withCreasePatternSide(render, side));
+      }
       case 'reset':
         return at(0);
       default:

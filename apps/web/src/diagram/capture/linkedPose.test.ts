@@ -119,26 +119,34 @@ describe('posing a crease pattern', () => {
   });
 });
 
-describe('a crease pattern seen from the paper’s back', () => {
+// Zach, 2026-10-06: "I wanted to just change the color of the face and not flip the creases."
+describe('a crease pattern on the paper’s back colour', () => {
   const BACK: DiagramCpRender = { mode: 'crease-pattern', rotationDeg: 15, side: 'back' };
   const sceneOf = (result: Awaited<ReturnType<typeof pose>>) =>
     result.status === 'posed' && result.picture.kind === 'picture' && result.picture.picture.kind === 'scene'
       ? JSON.parse(result.picture.picture.sceneJson)
       : null;
 
-  it('turns it over where it lies: its other side, the turn the other way, and back again, folding nothing', async () => {
+  it('recolours the paper where it lies: the same turn, the same lines, and back again, folding nothing', async () => {
     const { session, runtime } = sessionWith();
-    const over = await pose(session, CP, { verb: 'turn-over' });
-    expect(over).toMatchObject({ status: 'posed', render: { mode: 'crease-pattern', rotationDeg: 15, side: 'back' } });
-    // Its paper is the back, its fold the other way up.
-    const scene = sceneOf(over);
-    expect(scene.items[0]).toMatchObject({ kind: 'face', side: 'back' });
-    expect(scene.items.some((item: { role?: string }) => item.role === 'diagram-valley')).toBe(true);
-    expect(scene.items.some((item: { role?: string }) => item.role === 'diagram-mountain')).toBe(false);
-    const again = await pose(session, BACK, { verb: 'turn-over' });
-    expect(again).toMatchObject({ render: { mode: 'crease-pattern', rotationDeg: 345 } });
+    const front = await pose(session, CP, { verb: 'show-crease-pattern' });
+    const back = await pose(session, CP, { verb: 'paper-side', side: 'back' });
+    expect(back).toMatchObject({ status: 'posed', render: { mode: 'crease-pattern', rotationDeg: 345, side: 'back' } });
+    const [seen, recoloured] = [sceneOf(front), sceneOf(back)];
+    expect(recoloured.items[0]).toMatchObject({ kind: 'face', side: 'back' });
+    expect({ ...recoloured.items[0], side: 'front' }).toEqual(seen.items[0]);
+    expect(recoloured.items.slice(1)).toEqual(seen.items.slice(1));
+    const again = await pose(session, { ...CP, side: 'back' }, { verb: 'paper-side', side: 'front' });
+    expect(again).toMatchObject({ render: CP });
     expect(again.status === 'posed' && 'side' in again.render).toBe(false);
+    expect(sceneOf(again)).toEqual(seen);
     expect(runtime.fold).not.toHaveBeenCalled();
+  });
+
+  it('is never turned over: Turn Over is a fold’s, and leaves a crease pattern as it is', async () => {
+    const { session } = sessionWith();
+    expect(await pose(session, CP, { verb: 'turn-over' })).toMatchObject({ render: CP });
+    expect(await pose(session, BACK, { verb: 'turn-over' })).toMatchObject({ render: BACK });
   });
 
   it('keeps its side through every turn and Reset Pose: a choice about the picture, with its own field', async () => {
@@ -155,11 +163,11 @@ describe('a crease pattern seen from the paper’s back', () => {
     expect(await pose(session, BACK, { verb: 'reset' })).toMatchObject({ render: { rotationDeg: 0, side: 'back' } });
   });
 
-  it('folds from the front, lying as its back does, and comes back to the back it was', async () => {
+  it('folds from the front, lying as the pattern lies, and comes back to the back it was', async () => {
     const { session } = sessionWith();
-    // A back at 15 is the front at 345, turned over: the fold lies as that front does.
+    // Nothing mirrored: the fold lies at the pattern's own turn.
     expect(await pose(session, BACK, { verb: 'show-folded' })).toMatchObject({
-      render: { mode: 'folded-flat', side: 'front', rotationDeg: 345, foldCase: 1 },
+      render: { mode: 'folded-flat', side: 'front', rotationDeg: 15, foldCase: 1 },
     });
     const pattern = await pose(session, FLAT, { verb: 'show-crease-pattern' }, cpDocument(), { 'crease-pattern': BACK });
     expect(pattern).toMatchObject({ render: BACK });

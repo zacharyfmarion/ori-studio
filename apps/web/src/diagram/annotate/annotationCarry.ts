@@ -1,11 +1,12 @@
 /**
  * Annotations that follow their picture (D8). A pose the app applied — a
  * quarter turn or a flip of an upload, a References step turned over, a
- * linked picture turned about its middle, a crease pattern seen from the
- * paper's other side — moves what the picture shows by a
- * known amount, and every annotation is moved with it. Anything else — a
- * refold, a Refresh, a new camera, the other side of a fold, a new picture —
- * leaves them where they were, and Annotate says the picture changed.
+ * linked picture turned about its middle — moves what the picture shows by a
+ * known amount, and every annotation is moved with it. A crease pattern's
+ * paper put on the other side's colour moves nothing, and every annotation
+ * stays where it is, in step with the new picture. Anything else — a refold,
+ * a Refresh, a new camera, the other side of a fold, a new picture — leaves
+ * them where they were, and Annotate says the picture changed.
  *
  * No DOM, no store; pure but for what a spread's carry remembers of the
  * pictures it carried marks to ({@link placesOnFaces}).
@@ -27,7 +28,7 @@ import {
   type QuarterTurns,
 } from '../document/diagramDocument';
 import { stepPictureFrame, storedScene } from '../pictures/pictureFrame';
-import { carryAnnotation, frameOf, mirrorMove, type PictureMove, type PicturePoint } from './annotationModel';
+import { carryAnnotation, mirrorMove, type PictureMove, type PicturePoint } from './annotationModel';
 
 interface Pose {
   rotationQuarterTurns: QuarterTurns;
@@ -103,26 +104,6 @@ export function sceneTurnMove(
 }
 
 /**
- * A crease pattern seen from its other side (`creasePatternScene`): mirrored
- * left to right about the paper's centre before its turn. From a turn `wasDeg`
- * to `isDeg` that is the picture mirrored on the page — inside its frame, as a
- * References step turned over is ({@link mirrorMove}) — then turned by the two
- * turns together, about the same centre: no turn at all for Front | Back,
- * which turns it over where it lies (`turnCreasePatternOver`).
- */
-export function sideMove(before: SceneBounds, after: SceneBounds, wasDeg: number, isDeg: number): PictureMove | null {
-  const frame = frameOf(before.maxX - before.minX, before.maxY - before.minY);
-  if (!frame) return null;
-  const mirror = mirrorMove(frame);
-  // The picture mirrored about the paper's centre, the scene's origin: where its frame lies then.
-  const mirrored: SceneBounds = { minX: -before.maxX, minY: before.minY, maxX: -before.minX, maxY: before.maxY };
-  const turnDeg = (((wasDeg + isDeg) % 360) + 360) % 360;
-  const turn = sceneTurnMove(mirrored, after, turnDeg, Math.round(turnDeg / 90));
-  if (!turn) return null;
-  return { ...turn, point: (point) => turn.point(mirror.point(point)), mirrors: true };
-}
-
-/**
  * Whether two captures are of one region: the same scope, or — for a crease
  * pattern, drawn about its paper's centre wherever the paper is — the region
  * where it moved to, its outline the same shape (its creases are the same: the
@@ -137,6 +118,28 @@ function sameRegion(from: DiagramCpSource, to: DiagramCpSource): boolean {
     to.render.mode === 'crease-pattern' &&
     isRelativeFingerprint(from.fingerprint) &&
     boundariesMatchMoved(from.scope.region.boundary, to.scope.region.boundary)
+  );
+}
+
+/**
+ * Whether `after`'s picture is `before`'s in another colour and nothing else:
+ * a crease pattern's paper put on the other side's colour (the Step pane's
+ * Front | Back), of the same region and creases at the same turn — so every
+ * line, and the frame, is where it was.
+ */
+function recolouredOnly(before: DiagramStep, after: DiagramStep): boolean {
+  const [from, to] = [before.source, after.source];
+  const [was, is] = [before.picture, after.picture];
+  if (from?.kind !== 'cp' || to?.kind !== 'cp' || !was || !is || was.kind !== is.kind) return false;
+  if (was.kind === 'scene' && is.kind === 'scene' && was.paperScale !== is.paperScale) return false;
+  const [wasRender, isRender] = [from.render, to.render];
+  return (
+    wasRender.mode === 'crease-pattern' &&
+    isRender.mode === 'crease-pattern' &&
+    wasRender.rotationDeg === isRender.rotationDeg &&
+    creasePatternSide(wasRender) !== creasePatternSide(isRender) &&
+    from.fingerprint === to.fingerprint &&
+    sameRegion(from, to)
   );
 }
 
@@ -173,14 +176,6 @@ function pictureMove(
     sameRegion(from, to)
   ) {
     const [was, is] = [from.render, to.render];
-    // A crease pattern seen from its other side: the same paper, mirrored.
-    const turnedOver =
-      was.mode === 'crease-pattern' && is.mode === 'crease-pattern' && creasePatternSide(was) !== creasePatternSide(is);
-    if (turnedOver) {
-      const [sceneBefore, sceneAfter] = [storedScene(before.picture), storedScene(after.picture)];
-      if (!sceneBefore || !sceneAfter) return null;
-      return sideMove(sceneBefore.bounds, sceneAfter.bounds, was.rotationDeg, is.rotationDeg);
-    }
     // Turned, its layers spread otherwise, or both, and nothing else: the same
     // mode, and a flat model's same side and layer order. A camera moved (3D,
     // a simulation) is a new picture.
@@ -413,9 +408,11 @@ function insideRing(ring: readonly ScenePoint[], point: { x: number; y: number }
  * the picture they were drawn on: `after` itself when there is nothing to
  * carry or the change was not a move. Only annotations in step with the
  * picture are carried — ones drawn on another picture were never placed on
- * this one, and stay where they are, still out of step. An annotation this
- * build cannot read cannot be moved, so a step carrying one keeps all of them
- * where they were, and says the picture changed.
+ * this one, and stay where they are, still out of step. A picture only
+ * recoloured moves nothing: every annotation stays exactly where it is, in
+ * step with it. An annotation this build cannot read cannot be moved, so a
+ * step carrying one keeps all of them where they were, and says the picture
+ * changed.
  */
 export function withCarriedAnnotations(
   before: DiagramStep,
@@ -423,9 +420,11 @@ export function withCarriedAnnotations(
   assets: Readonly<Record<string, DiagramAsset>>
 ): DiagramStep {
   if (after.annotations.length === 0 || after.annotations !== before.annotations) return after;
-  if (!before.annotations.every(isKnownAnnotation)) return after;
   const inStep = before.annotatedPictureKey !== null && before.annotatedPictureKey === (before.picture?.key ?? null);
   if (!inStep) return after;
+  // Nothing moved, so nothing is carried — not even an annotation this build cannot read.
+  if (recolouredOnly(before, after)) return { ...after, annotatedPictureKey: after.picture?.key ?? null };
+  if (!before.annotations.every(isKnownAnnotation)) return after;
   const move = pictureMove(before, after, assets);
   if (!move) return after;
   return {

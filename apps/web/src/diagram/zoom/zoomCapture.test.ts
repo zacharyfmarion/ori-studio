@@ -193,7 +193,7 @@ describe('a crease pattern’s one face', () => {
     return { ...cpStep('step-cp', render, result.captured.picture), source: result.source };
   }
 
-  it('is the paper about its centre, placed as the pattern is drawn — mirrored from the back', async () => {
+  it('is the paper about its centre, placed as the pattern is drawn — on its back colour too, never mirrored', async () => {
     for (const side of ['front', 'back'] as const) {
       const step = await patternStep({ mode: 'crease-pattern', rotationDeg: 30, ...(side === 'back' ? { side } : {}) });
       const faces = paperFacesOf(step)!;
@@ -204,7 +204,7 @@ describe('a crease pattern’s one face', () => {
       expect(Math.min(...xs)).toBeCloseTo(-50, 2);
       expect(Math.max(...xs)).toBeCloseTo(50, 2);
       const placement = facePlacement(faces, 0)!;
-      expect(placement.reflected).toBe(side === 'back');
+      expect(placement.reflected).toBe(false);
       faces.paper[0]!.forEach((corner, index) => expect(distance(placement.apply(corner), faces.unspread[0]![index]!)).toBeLessThan(1e-9));
     }
   });
@@ -234,7 +234,7 @@ describe('a crease pattern’s one face', () => {
     const turned = await patternStep({ mode: 'crease-pattern', rotationDeg: 120, side: 'back' });
     const captured = capture(diagramOf(withArea(step, area), { ...turned, id: 'step-turned' }), 'step-turned')!;
     expect(captured.placed).toBe('sheet');
-    // The same paper under it, turned and turned over with the sheet.
+    // The same paper under it, turned with the sheet; its back colour moves nothing.
     const there = paperFacesOf({ ...turned, id: 'step-turned' })!;
     const centre = toScene(there, captured.zoom.frame!).centre;
     expect(distance(facePlacement(there, 0)!.invert(centre), anchor.on)).toBeLessThan(1e-9);

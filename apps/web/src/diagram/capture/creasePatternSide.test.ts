@@ -15,10 +15,11 @@ import { publishOpenLinkedPose } from './openLinkedPose';
 import type { DiagramLinkedPose } from './useDiagramLinkedPose';
 
 /**
- * The Step pane's Front | Back for a crease pattern (Zach, 2026-10-05), in
- * Pose or not: Pose's own turn-over, through the open step's controller or
- * one made for the verb, so the pose is Pose's in every way — one undo step,
- * a fingerprint kept as a pose keeps it, the marks mirrored with the picture.
+ * The Step pane's Front | Back for a crease pattern (Zach, 2026-10-05; the
+ * colour alone since 2026-10-06), in Pose or not: a pose, through the open
+ * step's controller or one made for the verb, so it is Pose's in every way —
+ * one undo step, a fingerprint kept as a pose keeps it, the marks left where
+ * they are and kept in step with the picture.
  */
 const bindings = vi.hoisted(() => ({ runtime: null as CpCaptureRuntime | null }));
 vi.mock('../../store/workspaceStore/cpFoldRuntimeBindings', async (importOriginal) => ({
@@ -63,13 +64,9 @@ async function markedPattern(): Promise<string> {
 
 const stepOf = (stepId: string): DiagramStep => stepsIn(state().diagram!).find((step) => step.id === stepId)!;
 const sourceOf = (stepId: string) => stepOf(stepId).source as DiagramCpSource;
-const arrowOf = (stepId: string) => stepOf(stepId).annotations[0] as KnownDiagramAnnotation;
 
-/** The picture's frame width, its longer side one unit. */
-function frameWidth(step: DiagramStep): number {
-  const { bounds } = storedScene(step.picture as never)!;
-  return (bounds.maxX - bounds.minX) / Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
-}
+/** What a step's picture draws. */
+const sceneOf = (step: DiagramStep) => storedScene(step.picture as never)!;
 
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -83,39 +80,40 @@ beforeEach(async () => {
 });
 
 describe('showCreasePatternSide', () => {
-  it('turns the pattern over where it lies, as one pose, its marks mirrored with it, and counts a turn-over', async () => {
+  it('recolours the paper alone, as one pose: the same lines, turn and marks, a picture of its own, counted as the paper’s side', async () => {
     const stepId = await markedPattern();
     const front = stepOf(stepId);
     const past = state().diagramHistory.past.length;
     expect(await showCreasePatternSide(stepId, 'back')).toBe(true);
     const back = stepOf(stepId);
-    // Its back at the opposite turn: the front's mirror, where it lay.
-    expect(sourceOf(stepId).render).toEqual({ mode: 'crease-pattern', rotationDeg: 330, side: 'back' });
+    // The turn it had: nothing mirrored, so nothing turned the other way.
+    expect(sourceOf(stepId).render).toEqual({ mode: 'crease-pattern', rotationDeg: 30, side: 'back' });
+    expect(sourceOf(stepId).fingerprint).toBe((front.source as DiagramCpSource).fingerprint);
     expect(state().diagramHistory.past.slice(past).map((entry) => entry.label)).toEqual(['Adjust pose']);
+    // Its paper the back colour, and every line where it was, mountains and valleys as they were.
+    const [seen, recoloured] = [sceneOf(front), sceneOf(back)];
+    expect(recoloured.items[0]).toMatchObject({ kind: 'face', side: 'back' });
+    expect(seen.items[0]).toMatchObject({ kind: 'face', side: 'front' });
+    expect({ ...recoloured.items[0], side: 'front' }).toEqual(seen.items[0]);
+    expect(recoloured.items.slice(1)).toEqual(seen.items.slice(1));
+    expect(recoloured.bounds).toEqual(seen.bounds);
+    // Another picture, so nothing cached serves the other colour; the marks untouched, and in step with it.
+    expect(back.picture!.key).not.toBe(front.picture!.key);
+    expect(back.annotations).toEqual(front.annotations);
     expect(back.annotatedPictureKey).toBe(back.picture!.key);
-    const width = frameWidth(front);
-    expect(arrowOf(stepId).from[0]).toBeCloseTo(width - ARROW.from[0], 6);
-    expect(arrowOf(stepId).from[1]).toBeCloseTo(ARROW.from[1], 6);
-    expect(arrowOf(stepId).to[0]).toBeCloseTo(width - ARROW.to[0], 6);
-    expect(arrowOf(stepId).bend).toBe(-0.3);
-    expect(analytics.trackDiagramPicturePosed).toHaveBeenCalledExactlyOnceWith('turn_over', 'crease_pattern', {
+    expect(analytics.trackDiagramPicturePosed).toHaveBeenCalledExactlyOnceWith('paper_side', 'crease_pattern', {
       side: 'back',
     });
     expect(state().diagramCaptures).toEqual({});
 
-    // Front again: as it was.
+    // Front again: exactly as it was.
     expect(await showCreasePatternSide(stepId, 'front')).toBe(true);
     const again = stepOf(stepId);
     expect(again.source).toEqual(front.source);
     expect(again.picture).toEqual(front.picture);
+    expect(again.annotations).toEqual(front.annotations);
     expect(again.annotatedPictureKey).toBe(front.picture!.key);
-    const arrow = arrowOf(stepId);
-    for (const end of ['from', 'to'] as const) {
-      expect(arrow[end][0]).toBeCloseTo(ARROW[end][0], 9);
-      expect(arrow[end][1]).toBeCloseTo(ARROW[end][1], 9);
-    }
-    expect(arrow.bend).toBe(0.3);
-    expect(analytics.trackDiagramPicturePosed).toHaveBeenLastCalledWith('turn_over', 'crease_pattern', { side: 'front' });
+    expect(analytics.trackDiagramPicturePosed).toHaveBeenLastCalledWith('paper_side', 'crease_pattern', { side: 'front' });
 
     // Undone, the back; undone again, the front exactly.
     state().undoDiagram();
@@ -125,9 +123,10 @@ describe('showCreasePatternSide', () => {
   });
 
   // A step saved before fingerprints were relative (the crane's own): a pose
-  // keeps its `cs1:` fingerprint while its creases match, so its marks carry.
-  // A plain capture would write the relative one, and leave them behind.
-  it('keeps a fingerprint from before as a pose does, and carries the marks of a step that has one', async () => {
+  // keeps its `cs1:` fingerprint while its creases match, so its marks stay
+  // in step. A plain capture would write the relative one, and leave them
+  // out of step with the picture.
+  it('keeps a fingerprint from before as a pose does, and the marks of a step that has one in step', async () => {
     const stepId = await markedPattern();
     const choice = chooseStepCreases(document, scope, segmentation);
     if (choice.status !== 'found') throw new Error('the left square');
@@ -142,7 +141,7 @@ describe('showCreasePatternSide', () => {
     expect(await showCreasePatternSide(stepId, 'back')).toBe(true);
     expect(sourceOf(stepId).fingerprint).toBe(absolute);
     expect(stepOf(stepId).annotatedPictureKey).toBe(stepOf(stepId).picture!.key);
-    expect(arrowOf(stepId).bend).toBe(-0.3);
+    expect(stepOf(stepId).annotations).toEqual([ARROW]);
   });
 
   it('does nothing for the side it shows, a step shown another way, or a read-only diagram', async () => {

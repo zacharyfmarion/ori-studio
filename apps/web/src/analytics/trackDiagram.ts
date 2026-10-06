@@ -146,7 +146,8 @@ export function trackDiagramArrowShaped(
  * that leaves the layers spread also says how (Phase 13): its kind and the
  * amount bucketed, and a depth spread's direction or an affine one's layer
  * held still, with its skew and axis bucketed — never a value itself. A
- * turn-over says which side of the paper the picture shows after it.
+ * turn-over says which side of the paper the picture shows after it, and a
+ * crease pattern's paper side the side whose colour its paper takes.
  */
 export function trackDiagramPicturePosed(
   action: DiagramPoseAction,

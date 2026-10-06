@@ -67,52 +67,25 @@ describe('creasePatternScene', () => {
     expect(diagonal.a[0]).toBeCloseTo(diagonal.b[0]);
   });
 
-  describe('from the back', () => {
-    const front = () => creasePatternScene(cpDocument(), leftCreases(), 0);
+  // Zach, 2026-10-06: "I wanted to just change the color of the face and not flip the creases."
+  describe('on the paper’s back colour', () => {
+    const front = (rotationDeg = 0) => creasePatternScene(cpDocument(), leftCreases(), rotationDeg);
     const back = (rotationDeg = 0) => creasePatternScene(cpDocument(), leftCreases(), rotationDeg, 'back');
 
-    it('is the front mirrored left to right about the paper, its sheet and its outline the same', () => {
-      const [seen, mirrored] = [front(), back()];
-      expect(mirrored.sheet).toBe(seen.sheet);
-      expect(mirrored.bounds).toEqual({
-        minX: -seen.bounds.maxX,
-        minY: seen.bounds.minY,
-        maxX: -seen.bounds.minX,
-        maxY: seen.bounds.maxY,
-      });
-      lines(mirrored).forEach((line, index) => {
-        const was = lines(seen)[index]!;
-        // To the hair: the scene is stored to a grid (`storableScene`), which also takes the -0 out.
-        expect(line.a[0]).toBeCloseTo(-was.a[0], 9);
-        expect(line.b[0]).toBeCloseTo(-was.b[0], 9);
-        expect([line.a[1], line.b[1]]).toEqual([was.a[1], was.b[1]]);
-        // Where lines meet and where an aux line pulls back are the paper's, whichever side shows.
-        expect(line.joined).toEqual(was.joined);
-        expect(line.onBoundary).toEqual(was.onBoundary);
-      });
-    });
-
-    it('draws each mountain as a valley and each valley as a mountain, the edge and aux lines as they are', () => {
-      expect(lines(back()).map((item) => item.role)).toEqual(['aux', 'diagram-valley', 'edge', 'edge', 'edge', 'edge']);
-      // The right square's one fold, a valley from the front.
+    it('fills the paper with its back colour and changes nothing else: every line, the outline, the frame', () => {
+      for (const rotationDeg of [0, 30, 315]) {
+        const [seen, recoloured] = [front(rotationDeg), back(rotationDeg)];
+        expect(recoloured.items[0]).toMatchObject({ kind: 'face', side: 'back', shade: 1, hidden: false });
+        expect(seen.items[0]).toMatchObject({ kind: 'face', side: 'front' });
+        // Not mirrored, not turned the other way, its mountains and valleys as they are.
+        expect({ ...recoloured.items[0], side: 'front' }).toEqual(seen.items[0]);
+        expect(recoloured.items.slice(1)).toEqual(seen.items.slice(1));
+        expect(recoloured.bounds).toEqual(seen.bounds);
+        expect(recoloured.sheet).toBe(seen.sheet);
+      }
+      expect(lines(back()).map((item) => item.role)).toEqual(['aux', 'diagram-mountain', 'edge', 'edge', 'edge', 'edge']);
       const valley = creasePatternScene(cpDocument(), regionCreases(right), 0, 'back');
-      expect(lines(valley).map((item) => item.role)).toEqual(['diagram-mountain', 'edge', 'edge', 'edge', 'edge']);
-    });
-
-    it('fills the paper with its back', () => {
-      expect(back().items[0]).toMatchObject({ kind: 'face', side: 'back', shade: 1 });
-    });
-
-    it('turns after the mirror: its back at a turn is the front at the opposite turn, mirrored on the page', () => {
-      const turned = back(30);
-      const opposite = creasePatternScene(cpDocument(), leftCreases(), 330);
-      lines(turned).forEach((line, index) => {
-        const was = lines(opposite)[index]!;
-        expect(line.a[0]).toBeCloseTo(-was.a[0]);
-        expect(line.a[1]).toBeCloseTo(was.a[1]);
-        expect(line.b[0]).toBeCloseTo(-was.b[0]);
-        expect(line.b[1]).toBeCloseTo(was.b[1]);
-      });
+      expect(lines(valley).map((item) => item.role)).toEqual(['diagram-valley', 'edge', 'edge', 'edge', 'edge']);
     });
   });
 });

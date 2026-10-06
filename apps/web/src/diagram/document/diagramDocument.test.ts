@@ -40,7 +40,7 @@ import {
   setLinkedPicture,
   showAsOf,
   creasePatternSide,
-  turnCreasePatternOver,
+  withCreasePatternSide,
   withRememberedPoses,
   anchorTakesCard,
   createTurn,
@@ -623,24 +623,19 @@ describe('the ways a linked pattern is shown (D19)', () => {
     expect(showAsOf(threeD)).toBe('folded');
   });
 
-  it('turns a crease pattern over where it lies: its other side, the turn the other way, and back again', () => {
+  it('gives a crease pattern’s paper its back colour and changes nothing else; the front is written as no side', () => {
     expect(creasePatternSide(pattern)).toBe('front');
-    const over = turnCreasePatternOver(pattern);
-    expect(over).toEqual({ mode: 'crease-pattern', rotationDeg: 315, side: 'back' });
-    expect(creasePatternSide(over)).toBe('back');
-    // The front is written as no side at all.
-    expect(turnCreasePatternOver(over)).toEqual(pattern);
-    expect(turnCreasePatternOver({ mode: 'crease-pattern', rotationDeg: 0 })).toEqual({
-      mode: 'crease-pattern',
-      rotationDeg: 0,
-      side: 'back',
-    });
+    const back = withCreasePatternSide(pattern, 'back');
+    expect(back).toEqual({ ...pattern, side: 'back' });
+    expect(creasePatternSide(back)).toBe('back');
+    expect(withCreasePatternSide(back, 'front')).toEqual(pattern);
+    expect('side' in withCreasePatternSide(back, 'front')).toBe(false);
   });
 
-  it('keeps a crease pattern’s back through the other ways, and starts them from the front as it lies', () => {
+  it('keeps a crease pattern’s back through the other ways, and starts them from the front at its own turn', () => {
     const back = { mode: 'crease-pattern' as const, rotationDeg: 30, side: 'back' as const };
-    // A back at 30 is the front at 330, turned over: the fold lies as that front does.
-    expect(renderToShowAs({ render: back }, 'folded')).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 330, foldCase: 1 });
+    // Nothing mirrored (Zach, 2026-10-06: the back is the paper's colour): the fold lies as the pattern does.
+    expect(renderToShowAs({ render: back }, 'folded')).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 30, foldCase: 1 });
     // Remembered while it is shown folded, and brought back as it was.
     const folded = withRememberedPoses(cpSource(back), cpSource(flat));
     expect(folded.remembered).toEqual({ 'crease-pattern': back });
