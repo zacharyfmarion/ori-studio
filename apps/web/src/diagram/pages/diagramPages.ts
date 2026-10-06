@@ -42,8 +42,8 @@ export interface PreparedDiagramPages {
   missing: string[];
   /** CJK faces the text needs that could not be loaded. */
   unavailableFonts: DiagramFontFace[];
-  /** Page `index` (from 0) as an SVG document. */
-  compose: (index: number) => ComposedPage;
+  /** Page `index` (from 0) as an SVG document; `band: false` leaves the flow band out, for the Pages view. */
+  compose: (index: number, options?: { band?: boolean }) => ComposedPage;
 }
 
 /** A step's picture as the layout measures it at `measure` (`layoutPicture`). */
@@ -342,7 +342,7 @@ export function preparedPages(
     setter,
     missing: [...setter.missing],
     unavailableFonts: fonts.unavailable,
-    compose(index) {
+    compose(index, options) {
       const page = layout.pages[index];
       if (!page) throw new RangeError(`No page ${index}`);
       return composeDiagramPage({
@@ -354,6 +354,7 @@ export function preparedPages(
         hanStyle: document.hanStyle,
         setter,
         embedFonts: (usage) => embeddedFontFaces(usage, fonts, subsetter),
+        band: options?.band,
       });
     },
   };

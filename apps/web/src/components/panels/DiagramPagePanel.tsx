@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { LayoutGrid, Waypoints } from 'lucide-react';
 import {
-  DEFAULT_PATH_COLOR,
   FIRST_PAGE_NUMBER_RANGE,
   PAGE_COLUMNS_RANGE,
   PAGE_MARGIN_MM_RANGE,
@@ -16,9 +15,10 @@ import {
 } from '../../diagram/document/diagramDocument';
 import { layoutLabel, orientationLabel, paperSizeLabel } from '../../diagram/pages/pageSetupLabels';
 import { useDiagramPageSetup } from '../../diagram/pages/useDiagramPageSetup';
+import { DiagramPathColorRow } from '../diagram/DiagramPathColorRow';
 import { DiagramStyleControl } from '../diagram/DiagramStyleControl';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
-import { ColorRow, NumberRow, SegmentedRow, SelectRow, ToggleRow } from '../ui/fieldRows';
+import { NumberRow, SegmentedRow, SelectRow, ToggleRow } from '../ui/fieldRows';
 import { OptionCards } from '../ui/OptionCard';
 import styles from './DiagramPagePanel.module.css';
 
@@ -30,7 +30,8 @@ const PAPER_SIZES: readonly DiagramPaperSize[] = ['a4', 'a5', 'b5-jis', 'letter'
  *
  * A composition site (AGENTS.md › Panel components): the bindings, each one
  * undo step and one count, are `useDiagramPageSetup`; the rows are the shared
- * field rows.
+ * field rows, but for the path's colour (`DiagramPathColorRow`), whose
+ * pick re-renders its row and not the pane.
  */
 export function DiagramPagePanel() {
   const { t } = useTranslation();
@@ -141,14 +142,7 @@ export function DiagramPagePanel() {
                 // Until one is set the path keeps in proportion to the steps; the reset goes back to that.
                 onReset={setup.pathWidth.chosen ? () => setup.setPathWidth(null) : undefined}
               />
-              <ColorRow
-                label={t('panels:diagram.pagePane.pathColor', 'Path color')}
-                value={page.pathColor}
-                disabled={readOnly}
-                onChange={setup.pickPathColor}
-                onCommit={setup.endPathColorPick}
-                onClear={page.pathColor !== DEFAULT_PATH_COLOR ? setup.resetPathColor : undefined}
-              />
+              <DiagramPathColorRow />
             </>
           )}
           <SegmentedRow

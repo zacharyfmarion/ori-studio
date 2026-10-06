@@ -17,6 +17,7 @@ import type { PreparedDiagramPages } from '../../diagram/pages/diagramPages';
 import { composedPageUrl } from '../../diagram/pages/useDiagramPages';
 import { PAGES_PAD, PAGES_PX_PER_MM, usePagesView } from '../../diagram/pages/usePagesView';
 import { ViewportToolbar } from '../panels/ViewportToolbar';
+import { DiagramPageBand } from './DiagramPageBand';
 import styles from './DiagramPagesView.module.css';
 import { turnLabel, type TurnBetween } from '../../diagram/actions/diagramTurnActions';
 
@@ -31,7 +32,10 @@ const TURN_TARGET_PAD_MM = TURN_STACK_CLEAR_MM / 2;
 
 /**
  * The Pages view (D10): each page as it will print, composed into an SVG and
- * shown as an `<img>`, so what the screen shows is the file.
+ * shown as an `<img>`, so what the screen shows is the file — all but the
+ * flow band, which the view draws under the image from the file's own path
+ * and pen (`DiagramPageBand`), so that a colour being picked repaints the
+ * band alone and a new colour composes no page again.
  *
  * Over each page, and never in it: the margin guide, a box for a step with no
  * picture yet, a mark where an instruction was cut, and each step as an option
@@ -47,6 +51,7 @@ export function DiagramPagesView({
   failed,
   steps,
   selectedStepId,
+  pathColor,
   fitKey,
   onSelect,
   onOpen,
@@ -56,6 +61,8 @@ export function DiagramPagesView({
   failed: boolean;
   steps: readonly DiagramStep[];
   selectedStepId: string | null;
+  /** The flow band's colour as the diagram has it now, which a layout under way may not yet. */
+  pathColor: string;
   /** What counts as a new set of pages to frame: a new diagram, or new paper. */
   fitKey: string;
   onSelect: (stepId: string) => void;
@@ -174,8 +181,22 @@ export function DiagramPagesView({
                       if (!pressWasPan()) onPageClick();
                     }}
                   >
+                    {isNear(index) && page.band && page.band.curves.length > 0 && (
+                      <DiagramPageBand
+                        className={styles.band}
+                        lane={page.band}
+                        widthMm={pages.layout.bandWidthMm}
+                        paper={pages.layout.paper}
+                        color={pathColor}
+                      />
+                    )}
                     {isNear(index) && (
-                      <img className={styles.image} src={composedPageUrl(pages, index)} alt="" draggable={false} />
+                      <img
+                        className={styles.image}
+                        src={composedPageUrl(pages, index, { band: false })}
+                        alt=""
+                        draggable={false}
+                      />
                     )}
                     {margin > 0 && (
                       <div

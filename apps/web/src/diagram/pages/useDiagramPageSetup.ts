@@ -1,10 +1,9 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { trackDiagramPageSetupChanged, type DiagramPageSetting } from '../../analytics';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
   DEFAULT_DIAGRAM_STYLE,
   DEFAULT_PAGE_SETUP,
-  DEFAULT_PATH_COLOR,
   defaultHanStyle,
   type DiagramHanStyle,
   type DiagramPageSetup,
@@ -16,16 +15,13 @@ import type { DiagramStyleChoice } from './diagramStyleChoices';
 
 const NO_STEPS: readonly DiagramStep[] = [];
 
-/** Picks of the path's colour, numbered: each one undo step however often its picker reports. */
-let colorPicks = 0;
-
 /**
  * The Page pane's store bindings (AGENTS.md › Panel components): the page
  * setup, style and Han style, each change one undo step and one count of
  * which setting changed, and how many pages the steps make.
  *
- * The flow path's colour is shown as it is picked — the picker reports every
- * move — and the pick is one undo step and one count, when it closes.
+ * The flow path's colour is not here: its row binds itself
+ * (`usePathColorPick`), so that a pick's moves re-render the row alone.
  */
 export function useDiagramPageSetup() {
   const page = useWorkspaceStore((state) => state.diagram?.page ?? DEFAULT_PAGE_SETUP);
@@ -60,19 +56,6 @@ export function useDiagramPageSetup() {
   );
   const setPathWidth = useCallback((mm: number | null) => setPage({ pathWidthMm: mm }, 'path_width'), [setPage]);
 
-  const pick = useRef<{ session: number; changed: boolean } | null>(null);
-  const pickPathColor = useCallback((pathColor: string) => {
-    pick.current ??= { session: (colorPicks += 1), changed: false };
-    if (useWorkspaceStore.getState().setDiagramPage({ pathColor }, { session: pick.current.session })) {
-      pick.current.changed = true;
-    }
-  }, []);
-  const endPathColorPick = useCallback(() => {
-    if (pick.current?.changed) trackDiagramPageSetupChanged('path_color');
-    pick.current = null;
-  }, []);
-  const resetPathColor = useCallback(() => setPage({ pathColor: DEFAULT_PATH_COLOR }, 'path_color'), [setPage]);
-
   return {
     page,
     style,
@@ -86,8 +69,5 @@ export function useDiagramPageSetup() {
     setStyle,
     setHanStyle,
     setPathWidth,
-    pickPathColor,
-    endPathColorPick,
-    resetPathColor,
   };
 }

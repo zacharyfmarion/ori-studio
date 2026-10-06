@@ -10,7 +10,9 @@ import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from
 import type { DiagramFonts } from '../../diagram/fonts/diagramFonts';
 import { readFontMetrics } from '../../diagram/fonts/fontMetrics';
 import { createFontSubsetter, type FontSubsetter } from '../../diagram/fonts/fontSubset';
+import { bandPath } from '../../diagram/pages/composeDiagramPage';
 import { preparedPages, type PreparedDiagramPages } from '../../diagram/pages/diagramPages';
+import { clearPathColorPick, publishPathColorPick } from '../../diagram/pages/pathColorPick';
 import { TooltipProvider } from '../ui/Tooltip';
 import { focusLeavesEnterToSteps, focusOwnsArrowKeys } from '../../diagram/actions/diagramShortcuts';
 import { DiagramPagesView } from './DiagramPagesView';
@@ -65,7 +67,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function render(pages: PreparedDiagramPages, handlers: Partial<Record<'onSelect' | 'onOpen' | 'onPageClick', () => void>> = {}) {
+function render(
+  pages: PreparedDiagramPages,
+  handlers: Partial<Record<'onSelect' | 'onOpen' | 'onPageClick', () => void>> = {},
+  pathColor = pages.layout.bandInk
+) {
   const document = diagram();
   const props = { onSelect: vi.fn(), onOpen: vi.fn(), onPageClick: vi.fn(), ...handlers };
   act(() =>
@@ -76,6 +82,7 @@ function render(pages: PreparedDiagramPages, handlers: Partial<Record<'onSelect'
           failed={false}
           steps={stepsIn(document)}
           selectedStepId="step-a"
+          pathColor={pathColor}
           fitKey="test"
           {...props}
         />
@@ -86,6 +93,8 @@ function render(pages: PreparedDiagramPages, handlers: Partial<Record<'onSelect'
 }
 
 const cells = () => [...host.querySelectorAll<HTMLElement>('[role="option"][data-step-id]')];
+/** The SVG an image shows, from its `data:` URL. */
+const svgOf = (image: HTMLImageElement) => Buffer.from(image.src.split(',')[1]!, 'base64').toString('utf8');
 
 describe('DiagramPagesView', () => {
   it('shows each page as its composed image, named and captioned, and says which page is in view', () => {
@@ -98,6 +107,40 @@ describe('DiagramPagesView', () => {
     const turn = (name: string) => host.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
     expect(turn('Previous Page')?.disabled).toBe(true);
     expect(turn('Next Page')?.disabled).toBe(true);
+  });
+
+  it('draws the flow band under the page’s image, which leaves it out, and a colour being picked repaints the band alone', () => {
+    const pages = preparedPages(diagram(), FONTS, subsetter);
+    const lane = pages.layout.pages[0]!.band!;
+    // The file draws the band; the image on screen is the file without it.
+    const file = pages.compose(0).svg;
+    expect(file).toContain(`<path d="${bandPath(lane)}"`);
+    const compose = vi.spyOn(pages, 'compose');
+    render(pages, {}, '#ecece8');
+    const page = host.querySelector<HTMLElement>('[data-page="0"]')!;
+    const image = page.querySelector('img')!;
+    const art = svgOf(image);
+    expect(art).not.toContain(bandPath(lane));
+    expect(art).toBe(pages.compose(0, { band: false }).svg);
+    const band = page.querySelector('[data-page-band] path')!;
+    expect(band.getAttribute('d')).toBe(bandPath(lane));
+    expect(band.getAttribute('stroke')).toBe('#ecece8');
+    // Under the image, as the file draws it first.
+    expect(page.querySelector('[data-page-band]')!.compareDocumentPosition(image) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const composed = compose.mock.calls.length;
+    const src = image.src;
+    for (const color of ['#d0e0f0', '#c0d8f0', '#b0d0f0']) {
+      act(() => publishPathColorPick(color));
+      expect(band.getAttribute('stroke')).toBe(color);
+    }
+    expect(page.querySelector('img')!.src).toBe(src);
+    expect(compose.mock.calls.length).toBe(composed);
+    // Written and dropped: the diagram's colour, still no page composed.
+    render(pages, {}, '#b0d0f0');
+    act(() => clearPathColorPick());
+    expect(band.getAttribute('stroke')).toBe('#b0d0f0');
+    expect(page.querySelector('img')!.src).toBe(src);
+    expect(compose.mock.calls.length).toBe(composed);
   });
 
   it('lays the steps over the page as one listbox, the selected one marked and the tab stop', () => {

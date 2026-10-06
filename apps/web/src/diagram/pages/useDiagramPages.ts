@@ -23,41 +23,53 @@ const EMPTY: DiagramPagesState = { pages: null, of: null, failed: false };
  *
  * The fonts load once a session, so after the first a new layout costs the
  * layout alone; the last pages stay on screen until the next are ready, so an
- * edit never blanks the view. A layout that outlives its diagram is dropped.
+ * edit never blanks the view. A layout that outlives its diagram is dropped,
+ * and one whose diagram is outlived before it starts is never begun: it
+ * starts a task later, behind the input already waiting, so a burst of edits
+ * — Arrow Up held in the path's width — lays out its last diagram, not each.
  */
 export function useDiagramPages(document: DiagramDocument | null): DiagramPagesState {
   const [state, setState] = useState<DiagramPagesState>(EMPTY);
   useEffect(() => {
     if (!document) return;
     let current = true;
-    prepareDiagramPages(document, { fontSource: browserFontSource, subsetter: browserFontSubsetter })
-      .then((pages) => {
-        if (current) setState({ pages, of: document, failed: false });
-      })
-      .catch((error: unknown) => {
-        reportError(error, { surface: 'diagram:pages' });
-        if (current) setState((previous) => ({ ...previous, failed: true }));
-      });
+    const start = setTimeout(() => {
+      prepareDiagramPages(document, { fontSource: browserFontSource, subsetter: browserFontSubsetter })
+        .then((pages) => {
+          if (current) setState({ pages, of: document, failed: false });
+        })
+        .catch((error: unknown) => {
+          reportError(error, { surface: 'diagram:pages' });
+          if (current) setState((previous) => ({ ...previous, failed: true }));
+        });
+    });
     return () => {
       current = false;
+      clearTimeout(start);
     };
   }, [document]);
   return document ? state : EMPTY;
 }
 
-const composed = new WeakMap<PreparedDiagramPages, Map<number, string>>();
+const composed = new WeakMap<PreparedDiagramPages, Map<string, string>>();
 
-/** Page `index` as a `data:` URL, composed once per layout. */
-export function composedPageUrl(pages: PreparedDiagramPages, index: number): string {
-  let byIndex = composed.get(pages);
-  if (!byIndex) {
-    byIndex = new Map();
-    composed.set(pages, byIndex);
+/**
+ * Page `index` as a `data:` URL, composed once per layout. `band: false`
+ * leaves the flow band out, for the Pages view, which draws it under the
+ * image itself (`DiagramPageBand`): the band's colour is then not in the
+ * image, and a new one leaves the image as it was.
+ */
+export function composedPageUrl(pages: PreparedDiagramPages, index: number, { band = true } = {}): string {
+  let byPage = composed.get(pages);
+  if (!byPage) {
+    byPage = new Map();
+    composed.set(pages, byPage);
   }
-  let url = byIndex.get(index);
+  const key = `${index}${band ? '' : ' art'}`;
+  let url = byPage.get(key);
   if (url === undefined) {
-    url = svgDataUrl(pages.compose(index).svg);
-    byIndex.set(index, url);
+    url = svgDataUrl(pages.compose(index, { band }).svg);
+    byPage.set(key, url);
   }
   return url;
 }

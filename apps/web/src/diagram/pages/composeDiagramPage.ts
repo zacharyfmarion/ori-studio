@@ -1,7 +1,8 @@
 /**
  * One diagram page as an SVG document, in pt (D10): what the Pages view shows
  * as an `<img>`, what a page file is, and what the PDF prints — the screen is
- * the file.
+ * the file. (The view leaves the flow band out and draws it under the image
+ * from the same path and pen, so a colour pick repaints only the band.)
  *
  * From back to front: the flow band, the title tab and its rule, each cell's
  * picture, number and instruction, the turns between steps (D22) in the
@@ -71,6 +72,12 @@ export interface ComposeDiagramPageInput {
    * grows by it, and what reaches the trim — the flow band — runs on into it.
    */
   bleedMm?: number;
+  /**
+   * Draw the flow band (true). False for the Pages view, which draws it
+   * itself under the rest (`DiagramPageBand`), from {@link bandPath} and the
+   * same pen, so that a new colour repaints the band and not the page.
+   */
+  band?: boolean;
 }
 
 export interface ComposedPage {
@@ -92,9 +99,9 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
   };
   const body: string[] = [];
 
-  if (page.band && page.band.curves.length > 0) {
+  if (input.band !== false && page.band && page.band.curves.length > 0) {
     body.push(
-      `<path d="${lanePath(page.band)}" fill="none" stroke="${escapeXml(layout.bandInk)}" ` +
+      `<path d="${bandPath(page.band)}" fill="none" stroke="${escapeXml(layout.bandInk)}" ` +
         `stroke-width="${pt(layout.bandWidthMm)}" stroke-linecap="round" stroke-linejoin="round"/>`
     );
   }
@@ -231,7 +238,7 @@ function textElement(
 }
 
 /** The lane as the layout made it (`flowLane`): its cubic Béziers, end to end, in pt. */
-function lanePath(lane: Lane): string {
+export function bandPath(lane: Lane): string {
   const at = ({ x, y }: { x: number; y: number }) => `${pt(x)} ${pt(y)}`;
   return [`M ${at(lane.from)}`, ...lane.curves.map(({ c1, c2, to }) => `C ${at(c1)} ${at(c2)} ${at(to)}`)].join(' ');
 }

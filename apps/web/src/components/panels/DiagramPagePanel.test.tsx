@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PATH_COLOR_SETTLE_MS } from '../../diagram/pages/usePathColorPick';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramPagePanel } from './DiagramPagePanel';
@@ -56,6 +57,21 @@ const toggle = (name: string) =>
     (element) => element.getAttribute('aria-label') === name || element.closest('.control-row')?.textContent?.includes(name)
   )!;
 
+const swatch = () => host!.querySelector<HTMLInputElement>('input[type="color"]')!;
+/** One move of the colour picker: it sets the swatch's value and reports it. */
+const move = (color: string) => {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(swatch(), color);
+  swatch().dispatchEvent(new Event('input', { bubbles: true }));
+};
+/** How many times the diagram itself changes from here on. */
+const diagramChanges = () => {
+  const changes = { count: 0, stop: () => {} };
+  changes.stop = useWorkspaceStore.subscribe((next, previous) => {
+    if (next.diagram !== previous.diagram) changes.count += 1;
+  });
+  return changes;
+};
+
 describe('DiagramPagePanel', () => {
   it('offers Flow first, and a new diagram starts in it, with its path', () => {
     const layouts = [...(host?.querySelectorAll<HTMLElement>('[role="radio"]') ?? [])].map(
@@ -97,26 +113,69 @@ describe('DiagramPagePanel', () => {
     expect(field().value).toBe('26');
   });
 
-  it('shows the path’s colour as it is picked, one undo step and one count for the pick', () => {
-    const swatch = () => host!.querySelector<HTMLInputElement>('input[type="color"]')!;
+  it('shows the path’s colour as it is picked and writes it once: one store change, one undo step, one count', () => {
     expect(swatch().value).toBe('#ecece8');
+    const before = state().diagram;
     const past = state().diagramHistory.past.length;
-    // The picker reports every move; the pick ends when it lets go of focus.
+    const changes = diagramChanges();
+    // The picker reports every move; the swatch follows it, and the document does not.
     for (const color of ['#d0e0f0', '#c0d8f0', '#b0d0f0']) {
-      act(() => {
-        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-        setValue.call(swatch(), color);
-        swatch().dispatchEvent(new Event('input', { bubbles: true }));
-      });
-      expect(state().diagram?.page.pathColor).toBe(color);
+      act(() => move(color));
+      expect(swatch().value).toBe(color);
     }
-    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagram).toBe(before);
+    expect(changes.count).toBe(0);
+    expect(state().diagramHistory.past).toHaveLength(past);
     expect(analytics.trackDiagramPageSetupChanged).not.toHaveBeenCalledWith('path_color');
+    // Letting go of focus writes the pick: once.
     act(() => swatch().dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+    expect(changes.count).toBe(1);
+    expect(state().diagram?.page.pathColor).toBe('#b0d0f0');
+    expect(swatch().value).toBe('#b0d0f0');
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
     expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledExactlyOnceWith('path_color');
-    // One undo takes the whole pick back.
+    // One undo takes the whole pick back; the reset is one change of its own.
     act(() => useWorkspaceStore.getState().undoDiagram());
     expect(state().diagram?.page.pathColor).toBe('#ecece8');
+    act(() => useWorkspaceStore.getState().redoDiagram());
+    act(() => host!.querySelector<HTMLButtonElement>('[aria-label="Reset Path color to default"]')!.click());
+    expect(state().diagram?.page.pathColor).toBe('#ecece8');
+    expect(state().diagramHistory.past).toHaveLength(past + 2);
+    changes.stop();
+  });
+
+  it('writes a pick that goes quiet before the picker lets go, and one that carries on is still one undo step', () => {
+    vi.useFakeTimers();
+    try {
+      const past = state().diagramHistory.past.length;
+      act(() => move('#d0e0f0'));
+      act(() => move('#c0d8f0'));
+      act(() => vi.advanceTimersByTime(PATH_COLOR_SETTLE_MS - 1));
+      expect(state().diagram?.page.pathColor).toBe('#ecece8');
+      act(() => vi.advanceTimersByTime(1));
+      expect(state().diagram?.page.pathColor).toBe('#c0d8f0');
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      // The same pick, on after the pause.
+      act(() => move('#b0d0f0'));
+      expect(state().diagram?.page.pathColor).toBe('#c0d8f0');
+      act(() => vi.advanceTimersByTime(PATH_COLOR_SETTLE_MS));
+      expect(state().diagram?.page.pathColor).toBe('#b0d0f0');
+      act(() => swatch().dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledExactlyOnceWith('path_color');
+      act(() => useWorkspaceStore.getState().undoDiagram());
+      expect(state().diagram?.page.pathColor).toBe('#ecece8');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('writes a pick still under way when its row goes', () => {
+    act(() => move('#d0e0f0'));
+    expect(state().diagram?.page.pathColor).toBe('#ecece8');
+    act(() => toggle('Show path').click());
+    expect(host?.textContent).not.toContain('Path color');
+    expect(state().diagram?.page.pathColor).toBe('#d0e0f0');
   });
 
   it('offers the path’s width and colour only while the flow shows its path', () => {

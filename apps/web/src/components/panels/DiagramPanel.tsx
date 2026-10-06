@@ -252,6 +252,7 @@ export function DiagramPanel() {
             failed={pages.failed}
             steps={steps}
             selectedStepId={selectedStepId}
+            pathColor={page.pathColor}
             fitKey={`${diagram?.id ?? ''}:${page.size}:${page.orientation}`}
             onSelect={selectStep}
             onOpen={openOnDoubleClick}

@@ -32,7 +32,16 @@
     0 14px 36px rgba(0, 0, 0, 0.35);
 }
 
-/* The composed page: the file itself. */
+/* The flow band (DiagramPageBand), under the composed page, which leaves it out. */
+.band {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* The composed page: the file itself, but for its band. */
 .image {
   position: absolute;
   inset: 0;
