@@ -7,7 +7,7 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import type { DiagramPoseAction } from './actions/diagramPoseActions';
 import { diagramStepChoice, diagramStepCommand, type DiagramStepAction } from './actions/diagramActions';
 import { createDiagram, insertSteps } from './document/diagramDocument';
-import { cpStep } from './document/diagramSteps.fixtures';
+import { cpStep, scenePicture } from './document/diagramSteps.fixtures';
 import {
   appendDiagramStep,
   diagramStepActions,
@@ -35,6 +35,21 @@ vi.mock('./capture/stepCaptureActions', async (importOriginal) => ({
   ...capture,
 }));
 
+/** Every linked step read current, when a test says so; as the pattern says otherwise. */
+const links = vi.hoisted(() => ({ current: false }));
+vi.mock('./capture/useLinkStatus', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./capture/useLinkStatus')>();
+  return {
+    ...original,
+    linkStatusNow: (step: Parameters<typeof original.linkStatusNow>[0]) =>
+      links.current ? 'current' : original.linkStatusNow(step),
+    useDiagramLinkStatuses: (steps: Parameters<typeof original.useDiagramLinkStatuses>[0]) => {
+      const statuses = original.useDiagramLinkStatuses(steps);
+      return links.current ? new Map(steps.map((step) => [step.id, 'current' as const])) : statuses;
+    },
+  };
+});
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
@@ -57,6 +72,7 @@ function pictureStep(): string {
 beforeEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
   vi.clearAllMocks();
+  links.current = false;
 });
 
 describe('appendDiagramStep', () => {
@@ -108,6 +124,46 @@ describe('Show as, by the surface it is chosen on', () => {
     act(() => root.render(<Pane />));
     choose(seen.actions);
     expect(capture.showLinkedStepAs).toHaveBeenLastCalledWith('step-l', 'folded', 'pane');
+    act(() => root.unmount());
+    host.remove();
+  });
+});
+
+describe('Refresh on a flat fold captured before its faces on the paper were kept (Revision 2)', () => {
+  it('is offered on the card’s menu and in the Step pane while its link is current, and not once it has them', () => {
+    links.current = true;
+    const FLAT = { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 } as const;
+    useWorkspaceStore.setState({
+      diagram: insertSteps(
+        createDiagram({ title: 'Faces' }),
+        [cpStep('step-older', FLAT), cpStep('step-kept', FLAT, { ...scenePicture(), paperFaces: '{"points":[],"rings":[],"levels":[]}' })],
+        0
+      ),
+    });
+    const refresh = (actions: readonly DiagramStepAction[]) => diagramStepCommand(actions, 'refresh-picture');
+    expect(refresh(diagramStepActions('step-older', t))?.disabled).toBe(false);
+    expect(refresh(diagramStepActions('step-kept', t))).toMatchObject({
+      disabled: true,
+      hint: 'Already shows its pattern as it is',
+    });
+
+    const seen: Record<string, DiagramStepAction[]> = {};
+    function Pane({ stepId }: { stepId: string }) {
+      seen[stepId] = useDiagramStepActions(stepId);
+      return null;
+    }
+    const host = document.body.appendChild(document.createElement('div'));
+    const root = createRoot(host);
+    act(() =>
+      root.render(
+        <>
+          <Pane stepId="step-older" />
+          <Pane stepId="step-kept" />
+        </>
+      )
+    );
+    expect(refresh(seen['step-older']!)?.disabled).toBe(false);
+    expect(refresh(seen['step-kept']!)?.disabled).toBe(true);
     act(() => root.unmount());
     host.remove();
   });

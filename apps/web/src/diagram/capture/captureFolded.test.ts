@@ -13,6 +13,7 @@ import {
   createStep,
   type DiagramCpRender,
   type DiagramCpScope,
+  type DiagramPaperFaces,
 } from '../document/diagramDocument';
 import { readDiagram, writeDiagram } from '../document/diagramFile';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
@@ -21,6 +22,7 @@ import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
 import {
   cpDocument,
   fakeCaptureRuntime,
+  halfFoldOnSheetKernelScene,
   LEFT_FOLD_LINE_IDS,
   movedLines,
   TWO_SQUARES,
@@ -33,8 +35,10 @@ import {
   storeScene,
   type CaptureStepRequest,
 } from './captureFolded';
-import { CAPTURE_PX_PER_UNIT } from './captureGeometry';
-import { stepsIn } from '../document/diagramSteps.fixtures';
+import { CAPTURE_PX_PER_UNIT, storedSceneStep } from './captureGeometry';
+import { cpSource, stepsIn } from '../document/diagramSteps.fixtures';
+import { affineSpread, layerSpread } from '../../cp-workspace/folded/foldedLayerSpread';
+import { foldedPaintOrder, foldedSceneEpsilon } from '../../cp-workspace/folded/foldedFlatScene';
 
 const folded3dStoredScene = vi.hoisted(() => ({ folded3dFigureScene: vi.fn() }));
 vi.mock('../../cp-workspace/folded/folded3dStoredScene', async (importOriginal) => ({
@@ -286,6 +290,121 @@ describe('readFlatPicture with a spread', () => {
         }
       }
     }
+  });
+});
+
+describe('a flat capture’s faces on the paper (Revision 2)', () => {
+  /** A flat picture of the half fold on its sheet, and its stored faces. */
+  async function captured(rotationDeg: number, spread?: LayerSpreadOptions, flipped = false) {
+    const runtime = fakeCaptureRuntime({ paperScene: vi.fn(async () => halfFoldOnSheetKernelScene({ flipped })) });
+    const picture = await readFlatPicture(runtime, 7, { displayStyle: 'Paper5' }, rotationDeg, undefined, spread);
+    if (picture.kind !== 'picture' || picture.picture.kind !== 'scene') throw new Error('expected a scene');
+    const faces = JSON.parse(picture.picture.paperFaces!) as DiagramPaperFaces;
+    const scene = JSON.parse(picture.picture.sceneJson) as { items: Array<{ kind: string; face: number; rings: number[][][] }> };
+    const drawn = new Map<number, number[][]>();
+    for (const item of scene.items) if (item.kind === 'face' && !drawn.has(item.face)) drawn.set(item.face, item.rings[0]!);
+    return { picture: picture.picture, faces, drawn };
+  }
+  const turned = (rotationDeg: number, { x, y }: { x: number; y: number }) => {
+    const r = (rotationDeg * Math.PI) / 180;
+    return [(x * Math.cos(r) - y * Math.sin(r)) * CAPTURE_PX_PER_UNIT, (x * Math.sin(r) + y * Math.cos(r)) * CAPTURE_PX_PER_UNIT];
+  };
+
+  it('keeps each point once, on the paper about its centre and on the unspread picture, and every face, buried ones too', async () => {
+    const { faces, drawn } = await captured(30);
+    const kernel = halfFoldOnSheetKernelScene();
+    expect(faces.rings).toEqual([
+      [0, 1, 2, 3],
+      [4, 5, 2, 3],
+    ]);
+    // The near half on top; the far one beneath it, at the back.
+    expect(faces.levels).toEqual([0, 1]);
+    // The buried face is not drawn, but it is kept.
+    expect([...drawn.keys()]).toEqual([0]);
+    const paperStep = 10 ** Math.floor(Math.log10(storedSceneStep(100 * CAPTURE_PX_PER_UNIT) / CAPTURE_PX_PER_UNIT));
+    faces.points.forEach(([px, py, ux, uy], vertex) => {
+      expect([px, py]).toEqual([kernel.sheet_points[vertex]!.x - 50, kernel.sheet_points[vertex]!.y - 50]);
+      // Where the fold lays it, turned with the pose, to the stored scene's step.
+      const face = vertex < 4 ? 0 : 1;
+      const corner = kernel.faces[face]!.points.indexOf(vertex);
+      const [x, y] = turned(30, kernel.faces[face]!.outline[corner]!);
+      expect(ux).toBeCloseTo(x!, 2);
+      expect(uy).toBeCloseTo(y!, 2);
+      for (const [value, step] of [[px, paperStep], [ux, storedSceneStep(100 * CAPTURE_PX_PER_UNIT)]] as const) {
+        expect(Math.abs(Math.round(value / step) * step - value)).toBeLessThan(1e-9);
+      }
+    });
+  });
+
+  it('with no spread, places each face where the stored scene draws it', async () => {
+    const { faces, drawn } = await captured(90);
+    expect(faces.rings[0]!.map((vertex) => faces.points[vertex]!.slice(2))).toEqual(drawn.get(0));
+  });
+
+  it.each([
+    ['a depth spread', { kind: 'depth', amount: 0.05, toward: 'up-left' } as LayerSpreadOptions],
+    ['an affine spread', { kind: 'affine', amount: 0.04, keep: 'top', skew: 1, axisDeg: 81 } as LayerSpreadOptions],
+  ])('with %s on, keeps the unspread places, and the stored scene draws every face whole, corner for corner, where the painter spreads it', async (_label, spread) => {
+    const { faces, drawn } = await captured(45, spread);
+    const plain = await captured(45);
+    expect(faces.points).toEqual(plain.faces.points);
+    const kernel = halfFoldOnSheetKernelScene();
+    const order = foldedPaintOrder(kernel);
+    const scale = CAPTURE_PX_PER_UNIT;
+    const epsilon = foldedSceneEpsilon(kernel);
+    // The painter's own field: where it moves each corner of each face.
+    const painted = (face: number, point: { x: number; y: number }) => {
+      if (spread.kind === 'depth') {
+        const [dx, dy] = layerSpread(kernel, order, spread, { scale, epsilon }).offset(face, point);
+        const [x, y] = turned(45, point);
+        return [x! + dx, y! + dy];
+      }
+      const { x, y } = affineSpread(kernel, spread, { epsilon }).offset(face, point);
+      return turned(45, { x: point.x + x, y: point.y + y });
+    };
+    faces.rings.forEach((ring, face) => {
+      const whole = drawn.get(face)!;
+      expect(whole).toHaveLength(ring.length);
+      ring.forEach((_vertex, corner) => {
+        const [x, y] = painted(face, kernel.faces[face]!.outline[corner]!);
+        expect(whole[corner]![0]).toBeCloseTo(x!, 2);
+        expect(whole[corner]![1]).toBeCloseTo(y!, 2);
+      });
+    });
+  });
+
+  it('ranks a back pass from its own side: its stacks read from the back', async () => {
+    const { faces } = await captured(0, undefined, true);
+    expect(faces.levels).toEqual([1, 0]);
+  });
+
+  // Link, Refresh and Show as capture through `captureStep`; Pose commits through its session (linkedPose.test.ts).
+  it('is kept by every flat capture of a linked step, the same faces its picture is read with', async () => {
+    const runtime = fakeCaptureRuntime({ paperScene: vi.fn(async () => halfFoldOnSheetKernelScene()) });
+    const render: DiagramCpRender = { ...FLAT, rotationDeg: 30 };
+    const result = await captureStep(runtime, request(render));
+    if (result.status !== 'captured' || result.captured.kind !== 'picture' || result.captured.picture.kind !== 'scene') {
+      throw new Error('expected a scene');
+    }
+    const { picture } = await captured(30);
+    expect(result.captured.picture.paperFaces).toBe(picture.paperFaces);
+  });
+
+  it('keeps none for a fold named nowhere on its paper', async () => {
+    const picture = await readFlatPicture(fakeCaptureRuntime(), 7, { displayStyle: 'Paper5' }, 0);
+    expect(picture.kind === 'picture' && picture.picture.kind === 'scene' && picture.picture.paperFaces).toBeUndefined();
+  });
+
+  it('is written in the file as a load reads it back, and does not change the picture’s key', async () => {
+    const { picture } = await captured(30, { kind: 'depth', amount: 0.05, toward: 'down' });
+    const source = cpSource({ mode: 'folded-flat', side: 'front', rotationDeg: 30, foldCase: 1, spread: { kind: 'depth', amount: 0.05, toward: 'down' } });
+    const diagram = insertSteps(createDiagram({ title: 'Faces' }), [{ ...createStep(() => 'step-1'), source, picture }], 0);
+    const written = JSON.parse(JSON.stringify(writeDiagram(diagram), null, 2));
+    expect(typeof written.steps[0].picture.paperFaces).toBe('string');
+    const read = readDiagram(written)!;
+    expect(JSON.stringify(read.document)).toBe(JSON.stringify(diagram));
+    const { paperFaces: _faces, ...without } = picture;
+    expect(storeScene(JSON.parse(picture.sceneJson), CAPTURE_PX_PER_UNIT, null)).toEqual({ kind: 'picture', picture: without });
   });
 });
 

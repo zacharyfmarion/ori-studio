@@ -63,6 +63,7 @@ import { pickStepPictures } from './upload/addStepPictures';
 import { needsPose } from './capture/linkStatus';
 import { simulatedRestNow } from './capture/openLinkedPose';
 import { lightingChanged } from './pictures/lighting';
+import { lacksPaperFaces } from './capture/stepPaperFaces';
 
 /**
  * Add an empty step after the selected one (or at the end) and select it: the
@@ -183,6 +184,7 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       linkKind: linkKindOf(step),
       breakBefore: step.breakBefore,
       lightingChanged: lightingChanged(step, diagram.style),
+      facesMissing: lacksPaperFaces(step),
       capturing: Object.hasOwn(diagramCaptures, stepId),
       patternOpen: oristudioCpDocument !== null,
       showAs: showAsOfStep(step),
@@ -337,6 +339,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
   const relight = useWorkspaceStore((state) =>
     step && state.diagram ? lightingChanged(step, state.diagram.style) : false
   );
+  const facesMissing = step ? lacksPaperFaces(step) : false;
 
   return useMemo(
     () =>
@@ -356,6 +359,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
               linkKind,
               breakBefore,
               lightingChanged: relight,
+              facesMissing,
               capturing,
               patternOpen,
               showAs: showAsOfStep(step),
@@ -378,6 +382,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
       linkKind,
       breakBefore,
       relight,
+      facesMissing,
       capturing,
       patternOpen,
       t,

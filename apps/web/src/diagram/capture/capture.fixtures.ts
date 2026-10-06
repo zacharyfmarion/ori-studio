@@ -146,6 +146,47 @@ export function halfFoldKernelScene(): OristudioCpFoldedPaperScene {
   };
 }
 
+/**
+ * A 100-unit sheet folded in half along y = 50, its far half brought up over
+ * the near one — the near half (face 0) on top here — with every point named
+ * on the sheet: sheet vertices 0–3 the near half's corners, 4 and 5 the far
+ * corners, which the fold lays on 0 and 1. Two layers, one buried, each on
+ * its own paper: what anchoring an enlarged step reads (Revision 2).
+ */
+export function halfFoldOnSheetKernelScene({ flipped = false }: { flipped?: boolean } = {}): OristudioCpFoldedPaperScene {
+  const outline = [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: 50 },
+    { x: 0, y: 50 },
+  ];
+  const edges = outline.map((from, index) => ({
+    from,
+    to: outline[(index + 1) % outline.length]!,
+    kind: index === 2 ? ('fold' as const) : ('border' as const),
+  }));
+  return {
+    schema_version: 3,
+    sheet_points: [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 50 },
+      { x: 0, y: 50 },
+      { x: 0, y: 100 },
+      { x: 100, y: 100 },
+    ],
+    flipped,
+    sheet: 100,
+    faces: [
+      { outline, points: [0, 1, 2, 3], front_up: !flipped, edges },
+      { outline, points: [4, 5, 2, 3], front_up: flipped, edges },
+    ],
+    // A back pass reads its stacks from the other side: the far half on top.
+    subfaces: [{ polygon: outline, faces_top_to_bottom: flipped ? [1, 0] : [0, 1] }],
+    aux_lines: [],
+  };
+}
+
 /** A render snapshot with one filled square, as the kernel draws a transparent development. */
 export function squareRenderSnapshot(): OristudioCpFoldedRenderSnapshot {
   const primitive = {

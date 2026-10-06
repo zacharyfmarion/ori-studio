@@ -113,6 +113,13 @@ export interface DiagramStepActionState {
   breakBefore: boolean;
   /** A 3D picture whose light is not the diagram's style's any more: Refresh relights it. */
   lightingChanged: boolean;
+  /**
+   * A flat fold captured before its faces on the paper were kept (Revision
+   * 2), which an enlarged step's frame anchors to: Refresh keeps them, so it
+   * is offered even while the picture shows its pattern as it is — the way
+   * the "Refresh step N to anchor the frame" notice points.
+   */
+  facesMissing: boolean;
   /** A capture of this step is running. */
   capturing: boolean;
   /** A crease pattern is open to link to. */
@@ -387,8 +394,8 @@ export function buildDiagramStepActions(
               ? t('panels:diagram.actions.poseAgain', 'Pose Again')
               : t('panels:diagram.actions.refreshPicture', 'Refresh Picture'),
             deps.refreshPicture,
-            state.capturing || !refreshable(state.link, state.lightingChanged, state.patternOpen),
-            state.capturing ? capturingHint : refreshHint(state.link, state.lightingChanged, state.patternOpen, t)
+            state.capturing || !refreshable(state.link, stillBehind(state), state.patternOpen),
+            state.capturing ? capturingHint : refreshHint(state.link, stillBehind(state), state.patternOpen, t)
           ),
           command(
             'open-in-edit',
@@ -475,24 +482,33 @@ export function buildDiagramStepActions(
 }
 
 /**
- * Whether Refresh can do anything: the pattern changed, a 3D picture's light
- * is not the diagram's, or a pattern is open and the link cannot be checked
- * yet (its segmentation is still coming), where a capture finds out. Not for a
- * current link in its light, or one whose pattern is gone.
+ * A picture that shows its pattern as it is but still gains from a capture:
+ * a 3D picture's light is not the diagram's, or a flat fold has no faces on
+ * the paper.
  */
-function refreshable(link: DiagramLinkStatus, lighting: boolean, patternOpen: boolean): boolean {
-  return link === 'stale' || (link === 'current' && lighting) || (link === 'unknown' && patternOpen);
+function stillBehind(state: DiagramStepActionState): boolean {
+  return state.lightingChanged || state.facesMissing;
+}
+
+/**
+ * Whether Refresh can do anything: the pattern changed, a current picture is
+ * {@link stillBehind}, or a pattern is open and the link cannot be checked
+ * yet (its segmentation is still coming), where a capture finds out. Not for
+ * a current link with nothing to gain, or one whose pattern is gone.
+ */
+function refreshable(link: DiagramLinkStatus, behind: boolean, patternOpen: boolean): boolean {
+  return link === 'stale' || (link === 'current' && behind) || (link === 'unknown' && patternOpen);
 }
 
 function refreshHint(
   link: DiagramLinkStatus,
-  lighting: boolean,
+  behind: boolean,
   patternOpen: boolean,
   t: TFunction
 ): string | undefined {
   switch (link) {
     case 'current':
-      return lighting ? undefined : t('panels:diagram.actions.currentHint', 'Already shows its pattern as it is');
+      return behind ? undefined : t('panels:diagram.actions.currentHint', 'Already shows its pattern as it is');
     case 'missing':
       return t('panels:diagram.actions.missingHint', 'Its pattern is gone: relink it to another');
     case 'unknown':

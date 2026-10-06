@@ -50,11 +50,12 @@ import {
   type DiagramCreasePatternRender,
   type DiagramFixedPicture,
   type DiagramLayerSpread,
+  type DiagramPaperFaces,
   type DiagramScenePicture,
   type DiagramSimulatedView,
   type DiagramStyle,
 } from '../document/diagramDocument';
-import { storedCpSource, storedSceneJson } from '../document/diagramFile';
+import { storedCpSource, storedPaperFaces, storedSceneJson } from '../document/diagramFile';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
 import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
@@ -70,6 +71,7 @@ import {
 } from './captureCreases';
 import { creasesThumbnail } from './captureThumbnail';
 import { CAPTURE_PX_PER_UNIT, storableScene, turnClockwise } from './captureGeometry';
+import { flatPaperFaces } from './capturePaperFaces';
 import { creasePatternScene } from './creasePatternScene';
 
 /**
@@ -116,11 +118,17 @@ export function sideState(side: 'front' | 'back'): OristudioCpFoldedFigureState 
   return side === 'back' ? 'Back1' : 'Front0';
 }
 
-/** A scene in stored form, or over the budget. */
+/**
+ * A scene in stored form, or over the budget. A flat fold's faces on the paper
+ * go with it (`flatPaperFaces`), when the file can keep them; a bitmap has no
+ * faces. They are not the picture, so they are not in its key: a capture that
+ * adds them to a picture drawn the same changes no mark's place.
+ */
 export function storeScene(
   scene: PaperScene,
   paperScale: number | null,
-  styleKey: string | null
+  styleKey: string | null,
+  faces?: DiagramPaperFaces
 ): CapturedPicture {
   const stored = storableScene(scene);
   const sceneJson = storedSceneJson(stored);
@@ -128,9 +136,17 @@ export function storeScene(
     throw new Error('The capture produced nothing to draw');
   }
   if (sceneJson.length > SCENE_BUDGET_BYTES) return { kind: 'over-budget', scene: stored, paperScale };
+  const paperFaces = faces ? storedPaperFaces(faces) : null;
   return {
     kind: 'picture',
-    picture: { kind: 'scene', sceneJson, paperScale, styleKey, key: `scene-${digest(sceneJson)}` },
+    picture: {
+      kind: 'scene',
+      sceneJson,
+      paperScale,
+      styleKey,
+      key: `scene-${digest(sceneJson)}`,
+      ...(paperFaces !== null ? { paperFaces } : {}),
+    },
   };
 }
 
@@ -197,12 +213,15 @@ export async function readFlatPicture(
  * {@link readFlatPicture} of a figure already read: the turn and the spread
  * are the picture's, applied here with no call to the kernel, so a Pose
  * session that keeps what it read turns and spreads it again for nothing.
+ * `faces: false` leaves the faces on the paper out: a preview drawn at every
+ * move of a slider is never stored, and nothing anchors to it.
  */
 export function flatPicture(
   { snapshot, scene }: FoldedPicture,
   rotationDeg: number,
   env?: SanitizeEnv,
-  spread?: LayerSpreadOptions
+  spread?: LayerSpreadOptions,
+  { faces = true }: { faces?: boolean } = {}
 ): CapturedPicture {
   if (scene && scene.faces.length > 0) {
     const turn = turnClockwise(rotationDeg);
@@ -216,7 +235,8 @@ export function flatPicture(
       scale: CAPTURE_PX_PER_UNIT,
       ...(spread ? { spread } : {}),
     });
-    return storeScene(flat, CAPTURE_PX_PER_UNIT, null);
+    const paperFaces = faces ? flatPaperFaces(scene, toScenePx, CAPTURE_PX_PER_UNIT) : null;
+    return storeScene(flat, CAPTURE_PX_PER_UNIT, null, paperFaces ?? undefined);
   }
   const page = foldedFigureExportDocument(snapshot, { showBackgroundColor: false, rotationDeg });
   if (!page) throw new Error('The folded figure produced nothing to draw');

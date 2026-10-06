@@ -16,7 +16,13 @@ import {
   type DiagramSimulatedView,
   type DiagramSpreadStarts,
 } from '../document/diagramDocument';
-import { cpDocument, fakeCaptureRuntime, LEFT_FOLD_LINE_IDS, twoSquaresSegmentation } from './capture.fixtures';
+import {
+  cpDocument,
+  fakeCaptureRuntime,
+  halfFoldOnSheetKernelScene,
+  LEFT_FOLD_LINE_IDS,
+  twoSquaresSegmentation,
+} from './capture.fixtures';
 import { chooseStepCreases } from './captureCreases';
 import type { CpCaptureRuntime } from './captureFolded';
 import { CaptureSessionClosedError, createCaptureSession, type CaptureSessionDeps } from './captureSession';
@@ -640,6 +646,19 @@ describe('a flat fold’s spread (Phase 13)', () => {
     expect(session.heldFlatPicture({ ...held, document: cpDocument() }, 30, SPREAD)).toBeNull();
     session.dispose();
     expect(session.heldFlatPicture(held, 30, SPREAD)).toBeNull();
+  });
+
+  it('draws a preview without the faces on the paper a committed flat capture keeps', async () => {
+    const { session } = sessionWith(fakeCaptureRuntime({ paperScene: vi.fn(async () => halfFoldOnSheetKernelScene()) }));
+    const document = cpDocument();
+    const committed = await pose(session, SPREAD_FLAT, { verb: 'show-folded' }, document);
+    if (committed.status !== 'posed' || committed.picture.kind !== 'picture' || committed.picture.picture.kind !== 'scene') {
+      throw new Error('expected a scene');
+    }
+    expect(committed.picture.picture.paperFaces).toEqual(expect.any(String));
+    const preview = session.heldFlatPicture({ document, side: 'front', foldCase: 1 }, 30, SPREAD);
+    expect(preview).toMatchObject({ kind: 'picture', picture: { kind: 'scene' } });
+    expect(preview?.kind === 'picture' && preview.picture.kind === 'scene' && preview.picture.paperFaces).toBeUndefined();
   });
 
   it('remembers it while the pattern is shown, and folds back to it (D19)', async () => {

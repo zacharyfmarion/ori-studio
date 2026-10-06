@@ -51,6 +51,7 @@ function build(state: Partial<DiagramStepActionState>, bound = deps()) {
       linkKind: state.link ? 'cp' : null,
       breakBefore: false,
       lightingChanged: false,
+      facesMissing: false,
       capturing: false,
       patternOpen: true,
       showAs: null,
@@ -274,6 +275,22 @@ describe('the diagram step verbs', () => {
     expect(refresh({ link: 'missing', lightingChanged: true })?.disabled).toBe(true);
     // Not on a step that is not linked.
     expect(refresh({ link: null })).toBeNull();
+  });
+
+  // Every flat capture keeps its faces on the paper now (Revision 2), and an
+  // enlarged step's frame anchors to them. A step captured before reads
+  // current, so Refresh was disabled — while the enlarged step's notice says
+  // "Refresh step N to anchor the frame".
+  it('refreshes a current flat fold captured before its faces on the paper were kept', () => {
+    const refresh = (state: Partial<DiagramStepActionState>) =>
+      diagramStepCommand(build({ hasSource: true, facesMissing: true, ...state }), 'refresh-picture');
+    expect(refresh({ link: 'current' })).toMatchObject({ label: 'Refresh Picture', disabled: false });
+    expect(refresh({ link: 'current' })?.hint).toBeUndefined();
+    expect(refresh({ link: 'stale' })?.disabled).toBe(false);
+    // Still not without its pattern, or while it captures.
+    expect(refresh({ link: 'missing' })?.disabled).toBe(true);
+    expect(refresh({ link: 'unknown', patternOpen: false })?.disabled).toBe(true);
+    expect(refresh({ link: 'current', capturing: true })?.disabled).toBe(true);
   });
 
   it('poses again a step folded part way in the simulator, which only Pose captures', () => {

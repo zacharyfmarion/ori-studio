@@ -17,6 +17,7 @@ const BASE: DiagramStepActionState = {
   linkKind: null,
   breakBefore: false,
   lightingChanged: false,
+  facesMissing: false,
   capturing: false,
   patternOpen: true,
   showAs: null,

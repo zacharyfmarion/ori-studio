@@ -126,7 +126,7 @@ export interface CaptureSession {
    * The same picture now, with no call to the kernel, when the session holds
    * this flat fold of `document` on `side` at `foldCase` and has read it;
    * null otherwise. For a preview, never a commit: the caller says which
-   * creases the fold is of.
+   * creases the fold is of, and it has no faces on the paper.
    */
   heldFlatPicture: (
     held: { document: OristudioCpDocumentSnapshot; side: 'front' | 'back'; foldCase: number },
@@ -300,7 +300,8 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
     heldFlatPicture({ document, side, foldCase }, rotationDeg, spread) {
       if (held?.kind !== 'flat' || held.epoch !== deps.epoch() || held.document !== document) return null;
       if (!held.read || held.side !== side || flatState(held).foldCase !== foldCase) return null;
-      return flatPicture(held.read, rotationDeg, deps.env, spread);
+      // A preview, never stored: no faces on the paper, which only a stored capture is anchored by.
+      return flatPicture(held.read, rotationDeg, deps.env, spread, { faces: false });
     },
 
     async spatial(document, lineIds) {
