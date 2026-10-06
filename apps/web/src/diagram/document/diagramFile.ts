@@ -451,14 +451,50 @@ function readEntry(
 }
 
 /**
+ * The keys a step is written with (`writeStep`). A step is built from named
+ * fields, so any other key — a field a newer build added — would be dropped
+ * on the way in and lost on the way out: it makes the step a newer build's
+ * instead, carried whole and locked. A field joins this set only in the
+ * build that reads it.
+ */
+const STEP_KEYS: ReadonlySet<string> = new Set([
+  'id',
+  'revision',
+  'source',
+  'picture',
+  'annotations',
+  'annotatedPictureKey',
+  'text',
+  'breakBefore',
+]);
+
+/**
+ * The keys a scene picture is written with, as {@link STEP_KEYS} are a
+ * step's: any other makes its step a newer build's.
+ */
+const SCENE_PICTURE_KEYS: ReadonlySet<string> = new Set(['kind', 'sceneJson', 'paperScale', 'styleKey', 'key']);
+
+/** A record with a key outside `known`: a field a newer build wrote. */
+function hasNewerKey(value: Record<string, unknown>, known: ReadonlySet<string>): boolean {
+  return Object.keys(value).some((key) => !known.has(key));
+}
+
+/** A scene picture with a field this build has no name for. */
+function isNewerScenePicture(value: unknown): boolean {
+  return isRecord(value) && value.kind === 'scene' && hasNewerKey(value, SCENE_PICTURE_KEYS);
+}
+
+/**
  * One step. A source or picture of a kind this build does not know — at any
  * depth: a crease-pattern source's scope, or a render's mode or field, the
  * remembered ones' too — makes the step a newer build's, carried whole and
  * locked; and so does one of a known kind
  * that names an asset of a kind this build does not know, which only that
- * newer build can draw. One of a known kind that does not read — or that names
- * an asset the file does not hold, or one dropped on the way in — is left out,
- * and the step keeps its words.
+ * newer build can draw, and a field of the step or of its scene picture this
+ * build has no name for ({@link STEP_KEYS}, {@link SCENE_PICTURE_KEYS}). One
+ * of a known kind that does not read — or that names an asset the file does
+ * not hold, or one dropped on the way in — is left out, and the step keeps
+ * its words.
  */
 function readStep(
   value: unknown,
@@ -481,6 +517,8 @@ function readStep(
     breakBefore: value.breakBefore === true,
   };
   if (
+    hasNewerKey(value, STEP_KEYS) ||
+    isNewerScenePicture(value.picture) ||
     isNewerKind(value.source, SOURCE_KINDS) ||
     isNewerKind(value.picture, PICTURE_KINDS) ||
     isNewerCpSource(value.source) ||

@@ -217,6 +217,31 @@ describe('a newer build’s work', () => {
     expect(stepsIn(throughJson(writeDiagram(read.document)))[0]).toEqual(newer);
   });
 
+  it.each([
+    ['a step field', (step: Record<string, unknown>) => ({ ...step, zoom: { from: 'annotation-1', shape: 'circle' } })],
+    ['a field of its scene picture', (step: Record<string, unknown>) => ({ ...step, picture: { ...(step.picture as object), paperFaces: '{}' } })],
+    ['a step field no build has written yet', (step: Record<string, unknown>) => ({ ...step, layers: [1, 2] })],
+  ])('carries a step with %s it has no name for, locked, and writes it back byte for byte', (_label, patch) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    const newer = patch(written.steps[0]);
+    written.steps[0] = newer;
+    const read = readDiagram(written)!;
+    expect(read.readOnly).toBe(false);
+    expect(stepsIn(read.document)[0].unknown).toEqual(newer);
+    // The other steps read as ever.
+    expect(stepsIn(read.document).slice(1).every((step) => step.unknown === undefined)).toBe(true);
+    expect(JSON.stringify(writeDiagram(read.document))).toBe(JSON.stringify(written));
+  });
+
+  it('reads every step a build writes with nothing locked, and writes it back byte for byte', () => {
+    for (const document of [sampleDiagram(), linkedDiagram(), uploadDiagram().document]) {
+      const written = throughJson(writeDiagram(document));
+      const read = readDiagram(written)!;
+      expect(stepsIn(read.document).every((step) => step.unknown === undefined)).toBe(true);
+      expect(JSON.stringify(throughJson(writeDiagram(read.document)))).toBe(JSON.stringify(written));
+    }
+  });
+
   it('carries annotations and assets it cannot read, verbatim', () => {
     const written = throughJson(writeDiagram(sampleDiagram()));
     const annotation = { id: 'ann-1', kind: 'spiral-arrow', from: [0, 0], to: [1, 1] };
