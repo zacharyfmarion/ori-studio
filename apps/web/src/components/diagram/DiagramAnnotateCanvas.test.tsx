@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { calloutShape, closeUpShape, NEW_CALLOUT_TEXT, pathCubics } from '../../diagram/annotate/annotationModel';
 import { pendingFieldFocus } from '../../diagram/annotate/fieldFocus';
-import { mmInPictureUnits } from '../../diagram/annotate/canvasInk';
+import { ANNOTATE_SELECTION_INK, mmInPictureUnits } from '../../diagram/annotate/canvasInk';
 import { setToolNotice, toolNotice } from '../../diagram/annotate/pickProgress';
 import i18n from '../../i18n';
 import { preloadLocale } from '../../test/preloadLocale';
@@ -23,6 +25,8 @@ import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import { rightAngleAt, rightAngleDiagonal } from '../../diagram/annotate/annotationModel';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
+import { ZOOM_SURROUND_DIM } from '../../diagram/zoom/paintZoomed';
+import { ZOOM_FRAME_ID } from '../../diagram/zoom/zoomModel';
 
 const tracked = vi.hoisted(() => ({ trackDiagramAnnotationAdded: vi.fn(), trackDiagramArrowShaped: vi.fn() }));
 vi.mock('../../analytics', async (importOriginal) => ({
@@ -1981,5 +1985,139 @@ describe('DiagramAnnotateCanvas equal divisions (Revision 2)', () => {
     expect(overlay().querySelector('[data-measured-line]')).not.toBeNull();
     drag(at(0.6, 0.5), at(0.695, 0.405));
     expect(annotations().find((each) => each.id === 'd')).toMatchObject({ from: [0.2, 0.5], to: [0.7, 0.4], offset: 2.5 });
+  });
+});
+
+describe('DiagramAnnotateCanvas on an enlarged step (Revision 2)', () => {
+  /** An SVG data URL's document. */
+  const decoded = (href: string) => new TextDecoder().decode(Uint8Array.from(atob(href.split(',')[1]!), (c) => c.charCodeAt(0)));
+
+  /** The step enlarged on its picture's circle of radius 0.2 about [0.5, 0.375]: its window a 0.4 square. */
+  function enlarge() {
+    const stepId = mount();
+    act(() =>
+      useWorkspaceStore.setState({
+        diagram: {
+          ...state().diagram!,
+          steps: stepsIn(state().diagram!).map((step) =>
+            step.id === stepId
+              ? { ...step, zoom: { from: 'area-1', shape: 'circle' as const, frame: { centre: [0.5, 0.375] as [number, number], radius: 0.2 } } }
+              : step
+          ),
+        },
+      })
+    );
+    rerender();
+    return stepId;
+  }
+
+  it('shows its window as the canvas’s frame, its picture clipped to the circle', () => {
+    enlarge();
+    const zoom = host.querySelector('[data-zoom-view]')!;
+    expect(zoom).not.toBeNull();
+    // No image of the whole picture as a card's: the window's own, under its clip.
+    expect(host.querySelector('img')).toBeNull();
+    const frame = host.querySelector('[data-annotate-frame]') as HTMLDivElement;
+    expect(frame.dataset.zoomed).toBe('');
+    // The window, 1000 world px across, inside the world's margin and the margin a card gives it (1 mm in 50):
+    // a fit leaves its edge the room it leaves any picture's.
+    expect([frame.style.left, frame.style.top, frame.style.width, frame.style.height]).toEqual(['270px', '270px', '1000px', '1000px']);
+    // The window as its card paints it — clipped to its circle, its boundary over it — its window on the frame.
+    const image = zoom.querySelector('image[data-zoom-window-picture]')!;
+    expect(['x', 'y', 'width', 'height'].map((name) => Number(image.getAttribute(name)))).toEqual(
+      [250, 250, 1040, 1040].map((value) => expect.closeTo(value, 6))
+    );
+    const picture = decoded(image.getAttribute('href')!);
+    expect(picture).toContain('data-zoom-window');
+    expect(picture).toMatch(/<clipPath id="zoom-clip"><circle [^>]*\/><\/clipPath>/);
+    // An upload has no paper to cut along: its frame is drawn whole.
+    expect(picture.match(/stroke-linecap="round"/g)).toHaveLength(1);
+    expect(zoom.querySelector('[data-zoom-surround]')).toBeNull();
+  });
+
+  it('shows a small window by an image of the window, not of its whole picture enlarged', () => {
+    const stepId = mount();
+    // A window a fiftieth of the picture across: its whole picture at the window's scale would be fifty frames wide.
+    act(() =>
+      useWorkspaceStore.setState({
+        diagram: {
+          ...state().diagram!,
+          steps: stepsIn(state().diagram!).map((step) =>
+            step.id === stepId
+              ? { ...step, zoom: { from: 'area-1', shape: 'circle' as const, frame: { centre: [0.5, 0.375] as [number, number], radius: 0.01 } } }
+              : step
+          ),
+        },
+      })
+    );
+    rerender();
+    const images = [...host.querySelectorAll('[data-zoom-view] image')];
+    expect(images).toHaveLength(1);
+    expect(Number(images[0]!.getAttribute('width'))).toBeCloseTo(1040, 6);
+  });
+
+  it('draws a mark in its window’s units: the window is the frame', () => {
+    enlarge();
+    tool('valley-arrow');
+    drag(at(0.2, 0.3), at(0.6, 0.3));
+    expect(annotations()).toHaveLength(1);
+    expect(annotations()[0]!.from[0]).toBeCloseTo(0.2, 3);
+    expect(annotations()[0]!.to[0]).toBeCloseTo(0.6, 3);
+  });
+
+  it('neither draws nor takes a press on a mark lying far off its window, which it keeps', () => {
+    const stepId = enlarge();
+    // The window's frame is 1 × 1: one mark on it, one three windows off.
+    const near: KnownDiagramAnnotation = { id: 'near', kind: 'valley-line', from: [0.2, 0.5], to: [0.8, 0.5] };
+    const far: KnownDiagramAnnotation = { id: 'far', kind: 'valley-line', from: [3, 0.5], to: [3.6, 0.5] };
+    act(() => state().editDiagramAnnotations(stepId, 'Add annotation', () => [near, far]));
+    rerender();
+    expect(overlay().querySelector('[data-annotation-id="near"]')).not.toBeNull();
+    expect(overlay().querySelector('[data-annotation-id="far"]')).toBeNull();
+    const press = (point: [number, number]) => {
+      pointer('pointerdown', point);
+      pointer('pointerup', point);
+      rerender();
+    };
+    press(at(3.3, 0.5));
+    expect(state().diagramSelectedAnnotationId).toBeNull();
+    press(at(0.5, 0.5));
+    expect(state().diagramSelectedAnnotationId).toBe('near');
+    // Kept: the step still has it.
+    expect(annotations().map(({ id }) => id)).toEqual(['near', 'far']);
+  });
+
+  it('shows a close-up on it its window again, larger, as its card does', () => {
+    const stepId = enlarge();
+    const closeUp: KnownDiagramAnnotation = { id: 'c', kind: 'close-up', from: [0.5, 0.5], to: [0.8, 0.2], radius: 0.1 };
+    act(() => state().editDiagramAnnotations(stepId, 'Close-up', () => [closeUp]));
+    rerender();
+    const inside = decoded(host.querySelector('[data-close-up-inside] image')!.getAttribute('href')!);
+    expect(inside).toContain('data-zoom-window');
+    expect(inside).toContain('clip-path="url(#zoom-clip)"');
+  });
+
+  it('selects in the ink Pose outlines its frame in', () => {
+    // The canvas's stylesheet and a picture painted as a document each hold it: the two are one blue.
+    const css = readFileSync(resolve(process.cwd(), 'src/components/diagram/DiagramAnnotateCanvas.module.css'), 'utf8');
+    expect(/--annotate-selection:\s*([^;]+);/.exec(css)?.[1]).toBe(ANNOTATE_SELECTION_INK);
+  });
+
+  it('shows the picture round the frame, dimmed, when the frame is selected', () => {
+    enlarge();
+    act(() => useWorkspaceStore.setState({ diagramSelectedAnnotationId: ZOOM_FRAME_ID }));
+    rerender();
+    const surround = host.querySelector('[data-zoom-surround]')!;
+    expect(surround).not.toBeNull();
+    // The whole picture, unclipped, and the page's white over all of it but the frame.
+    expect(surround.querySelector('image')).not.toBeNull();
+    const dim = surround.querySelector('path')!;
+    expect(dim.getAttribute('fill-opacity')).toBe(String(ZOOM_SURROUND_DIM));
+    // Over all of the picture round the frame, which reaches past the canvas's world: the window is small.
+    const [x, y, right, bottom] = /^M (\S+) (\S+) H (\S+) V (\S+) H/.exec(dim.getAttribute('d')!)!.slice(1).map(Number);
+    const image = surround.querySelector('image')!;
+    const [ix, iy, iw, ih] = ['x', 'y', 'width', 'height'].map((name) => Number(image.getAttribute(name)));
+    expect(ix! + iw!).toBeGreaterThan(1540);
+    expect([x, y, right, bottom]).toEqual([Math.min(0, ix!), Math.min(0, iy!), Math.max(1540, ix! + iw!), Math.max(1540, iy! + ih!)]);
   });
 });

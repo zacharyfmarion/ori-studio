@@ -9,11 +9,11 @@ import {
   folded3dWindowView,
 } from '../../cp-workspace/folded/folded3dWindow';
 import { useFolded3dMeshRuntime } from '../../cp-workspace/folded/useFolded3dMeshRuntime';
-import { CARD_FRAME_PX, paintAnnotations } from '../../diagram/annotate/paintAnnotations';
 import type { DiagramPoseSpatialView } from '../../diagram/capture/useDiagramLinkedPose';
 import type { DiagramStyle } from '../../diagram/document/diagramDocument';
 import { diagramPaperStyle } from '../../diagram/pictures/diagramPaperStyle';
 import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
+import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { folded3dCaptureFrame } from '../../diagram/pictures/folded3dCaptureFrame';
 import { withRollAbsorbed } from '../../lib/simulatorOrbit';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
@@ -125,9 +125,9 @@ export function DiagramPose3dView({
 
   const frameRadius = useMemo(() => folded3dFrameRadius(view.model), [view]);
   const ghostMarkup = useMemo(() => {
-    if (!ghost || !size || ghost.annotations.length === 0) return null;
+    if (!ghost || !size || (ghost.annotations.length === 0 && !ghost.zoom)) return null;
     const frame = folded3dCaptureFrame(ghost.bounds, frameRadius, size.width, size.height);
-    return frame ? paintAnnotations(ghost.annotations, frame, CARD_FRAME_PX, style)?.markup ?? null : null;
+    return frame ? poseGhostMarkup(ghost.annotations, frame, style, ghost.zoom) : null;
   }, [ghost, size, frameRadius, style]);
 
   if (!mesh || status === 'error') return <>{fallback}</>;

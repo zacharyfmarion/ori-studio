@@ -23,10 +23,10 @@ import {
 import { divisionsPartsOf, type PicturePoint } from './annotationModel';
 import {
   crossingsNear,
-  pictureGeometry,
   PICTURE_POINT_EPSILON,
   type PicturePointKind,
 } from './pictureGeometry';
+import { markGeometry } from '../zoom/stepView';
 
 /** What a snap landed on, for its preview to show. */
 export type SnapTargetKind = PicturePointKind | 'crossing' | 'annotation';
@@ -71,7 +71,7 @@ export function pictureSnapTarget(
   options: SnapOptions = {}
 ): SnapTarget | null {
   if (!(radius > 0)) return null;
-  const geometry = pictureGeometry(step, assets, options.style);
+  const geometry = markGeometry(step, assets, options.style);
   const annotations = annotationsOf(step, options);
   const candidates: SnapTarget[] = [];
   const vertex = geometry.points[geometry.pointIndex.query(point[0], point[1], radius)];

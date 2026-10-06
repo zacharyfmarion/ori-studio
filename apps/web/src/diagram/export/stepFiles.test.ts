@@ -9,6 +9,7 @@ import { pictureExtent } from '../pages/diagramPageLayout';
 import { cellPicture, layoutPicture } from '../pages/pagePictures';
 import { estimateTextSetter } from '../pages/estimateTextSetter';
 import { PAD_MM, pictureBoxOf } from './stepFileGeometry';
+import { craneStep } from '../zoom/zoom.fixtures';
 import { prepareStepFiles, stepFileMinHeightMm, STEP_FILE_TEXT_LINES, type StepFileOptions } from './stepFiles';
 
 let subsetter: FontSubsetter;
@@ -250,5 +251,25 @@ describe('prepareStepFiles', () => {
 
   it('says how tall a canvas must be to leave a picture between the number and the text', () => {
     expect(stepFileMinHeightMm({ number: true, text: true })).toBeGreaterThan(stepFileMinHeightMm({ number: false, text: false }));
+  });
+});
+
+describe('an enlarged step’s file (Revision 2)', () => {
+  it('is its window, clipped to its frame, as its page cell draws it', () => {
+    const crane = craneStep('S.none');
+    const enlarged: DiagramStep = {
+      ...crane,
+      id: 'step-enlarged',
+      zoom: { from: 'area-1', shape: 'circle', frame: { centre: [0.37, 0.13], radius: 0.13 } },
+      annotatedPictureKey: crane.picture!.key,
+    };
+    const document = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [crane, enlarged], 0);
+    const files = prepareStepFiles(document, FIXTURE_FONTS, subsetter, SAME);
+    const [whole, window] = [files.compose(0).svg, files.compose(1).svg];
+    expect(whole).not.toContain('zoom-clip');
+    expect(window).toMatch(/<clipPath id="[^"]*zoom-clip"><circle /);
+    // Only the paper near the window is drawn into it.
+    const faces = (svg: string) => (svg.match(/<path d="M[^"]*Z" fill=/g) ?? []).length;
+    expect(faces(window)).toBeLessThan(faces(whole));
   });
 });

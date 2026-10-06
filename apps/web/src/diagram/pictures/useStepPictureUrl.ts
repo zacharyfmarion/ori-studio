@@ -7,7 +7,16 @@ import type {
   KnownDiagramAsset,
 } from '../document/diagramDocument';
 import { annotatedPicture, hasDrawnAnnotations } from '../annotate/paintAnnotations';
-import { pictureGeometry, type PictureLayers } from '../annotate/pictureGeometry';
+import type { PictureLayers } from '../annotate/pictureGeometry';
+import { viewGeometry, viewOfStep } from '../zoom/stepView';
+import {
+  paintZoomedPicture,
+  posedZoomPicture,
+  zoomedCardPicture,
+  zoomedKey,
+  zoomedSource,
+  type ZoomedSource,
+} from '../zoom/paintZoomed';
 import { diagramStyleKey } from './diagramPaperStyle';
 import {
   paintAsset,
@@ -30,7 +39,8 @@ const PAINT_AHEAD = '400px';
  *
  * Painting waits until the card is within {@link PAINT_AHEAD} of being seen
  * (IntersectionObserver), and is cached ({@link stepPictureUrl}), so a long
- * diagram costs only the cards looked at, and a remount costs nothing.
+ * diagram costs only the cards looked at, and a remount costs nothing. An
+ * enlarged step shows its window (Revision 2, {@link zoomedStepUrl}).
  */
 export function useStepPictureUrl(
   element: RefObject<Element | null>,
@@ -40,14 +50,87 @@ export function useStepPictureUrl(
 ): string | null {
   const seen = useNearView(element);
   const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
-  // A flat fold's layers: a mark behind a flap is dotted under it (15e).
-  const layers = useMemo(() => pictureGeometry(step, assets, style).layers, [step, assets, style]);
+  const zoomed = useMemo(() => zoomedSource(step, assets), [step, assets]);
+  // A flat fold's layers, in the units the marks are in: a mark behind a flap is dotted under it (15e).
+  const layers = useMemo(() => viewGeometry(viewOfStep(step), assets, style).layers, [step, assets, style]);
   const { annotations } = step;
-  return useMemo(
-    () => (seen && source ? annotatedStepUrl(source, annotations, style, 1, true, layers) : null),
-    [seen, source, annotations, style, layers]
-  );
+  return useMemo(() => {
+    if (!seen || !source) return null;
+    return zoomed ? zoomedStepUrl(zoomed, annotations, style, true, layers) : annotatedStepUrl(source, annotations, style, 1, true, layers);
+  }, [seen, source, zoomed, annotations, style, layers]);
 }
+
+/**
+ * An enlarged step's window with its marks drawn on it (Revision 2), as a
+ * card shows it: the window 50 mm across, its picture clipped to its frame
+ * and its boundary, its marks — in the window's units — over it, a
+ * close-up's inside the window painted larger. Through the cache, keyed by
+ * the picture as {@link annotatedStepUrl} is, and by the frame.
+ */
+export function zoomedStepUrl(
+  zoomed: ZoomedSource,
+  annotations: readonly DiagramAnnotation[],
+  style: DiagramStyle,
+  kept = true,
+  layers: PictureLayers | null = null
+): string | null {
+  const key = `zoomed|${sourceKey(zoomed.source)}|${zoomedKey(zoomed)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${layers ? 'layers' : ''}`;
+  return throughCache(key, kept, () => {
+    const svg = zoomedCardPicture(zoomed, annotations, style, layers);
+    return svg ? svgDataUrl(svg) : null;
+  });
+}
+
+/**
+ * An enlarged step in Pose (Revision 2): its whole picture, the frame
+ * outlined dashed and everything outside it dimmed, its marks ghosted at
+ * `opacity` where they lie. Through the cache unless only shown for a moment.
+ */
+export function posedZoomUrl(
+  zoomed: ZoomedSource,
+  annotations: readonly DiagramAnnotation[],
+  style: DiagramStyle,
+  opacity: number,
+  kept = true
+): string | null {
+  const key = `zoom-pose|${sourceKey(zoomed.source)}|${zoomedKey(zoomed)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${opacity}`;
+  return throughCache(key, kept, () => {
+    const painted = paintSource(zoomed.source, style);
+    return painted
+      ? svgDataUrl(posedZoomPicture(painted, zoomed.view, zoomed.pictureFrame, annotations, style, opacity))
+      : null;
+  });
+}
+
+/** What an enlarged step's window painted at a scale measures, by frame and style and scale. */
+const zoomedSizes = new Map<string, Omit<CloseUpPictureUrl, 'url'>>();
+
+/**
+ * An enlarged step's window `scale` times the size a card paints it at, for
+ * a close-up's inside on the canvas (15f on an enlarged step): its URL, its
+ * size and where its frame — the window — is on it. Through the cache.
+ */
+export function zoomedPictureUrl(zoomed: ZoomedSource, style: DiagramStyle, scale: number): CloseUpPictureUrl | null {
+  const key = `zoomed-at|${sourceKey(zoomed.source)}|${zoomedKey(zoomed)}|${diagramStyleKey(style)}|${scale}`;
+  const paint = () => paintZoomedPicture(zoomed, style, { scale });
+  let size = zoomedSizes.get(key);
+  let painted: ReturnType<typeof paint> = null;
+  if (!size) {
+    painted = paint();
+    if (!painted) return null;
+    size = { widthPx: painted.widthPx, heightPx: painted.heightPx, frame: painted.frame };
+    zoomedSizes.set(key, size);
+    if (zoomedSizes.size > ZOOMED_SIZES_KEPT) zoomedSizes.delete(zoomedSizes.keys().next().value!);
+  }
+  const url = cachedPictureUrl(key, () => {
+    const svg = (painted ?? paint())?.svg;
+    return svg ? svgDataUrl(svg) : null;
+  });
+  return url ? { url, ...size } : null;
+}
+
+/** How many windows' sizes are kept: a canvas's close-ups, a few times over. */
+const ZOOMED_SIZES_KEPT = 64;
 
 /**
  * A step's picture with its annotations drawn on it (D8), through the cache:

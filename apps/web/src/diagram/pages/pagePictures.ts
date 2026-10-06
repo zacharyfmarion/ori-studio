@@ -15,6 +15,11 @@
  *   at their pt widths. A References step is built at its sheet's size on the
  *   page, so its marks keep their pt size. Anything else is nested as itself.
  *
+ * An enlarged step (Revision 2) is its window: its frame's box, fitted as a
+ * picture with no paper is, its own picture drawn larger under a clip in the
+ * frame's shape, its boundary over it, and its marks — in the window's units
+ * — on the window, as on any frame.
+ *
  * Everything a picture names by id is renamed under the cell's prefix, so two
  * cells drawn from one asset never share an id on a page. An upload's text is
  * set in the diagram's fonts (`uploadText.ts`), and a picture says what its
@@ -41,12 +46,29 @@ import type {
   DiagramStyle,
 } from '../document/diagramDocument';
 import { diagramScenePaintStyle, diagramStyleKey } from '../pictures/diagramPaperStyle';
-import { paintSource, poseTransform, stepPictureSource, type StepPictureSource } from '../pictures/paintDiagramStep';
+import {
+  paintSource,
+  poseTransform,
+  sceneCulledTo,
+  stepPictureSource,
+  type StepPictureSource,
+} from '../pictures/paintDiagramStep';
 import { stepDiagramPaintStyle, stepDiagramScene, stepDiagramSheetBox } from '../pictures/paintStepDiagram';
 import { hasDrawnAnnotations, paintAnnotations, type CloseUpPicture } from '../annotate/paintAnnotations';
 import { annotationDrawing, annotationReach } from '../annotate/annotationPrimitives';
 import { frameOf } from '../annotate/annotationModel';
-import { pictureGeometry, type PictureLayers } from '../annotate/pictureGeometry';
+import type { PictureLayers } from '../annotate/pictureGeometry';
+import { stepAsDrawn, viewGeometry, viewOfStep } from '../zoom/stepView';
+import {
+  paintZoomed,
+  windowBox,
+  zoomCull,
+  zoomEdgePen,
+  zoomedSource,
+  zoomPlacement,
+  type ZoomedSource,
+} from '../zoom/paintZoomed';
+import type { PictureBox } from '../zoom/zoomModel';
 import { storedScene } from '../pictures/pictureFrame';
 import { prefixIds } from '../pictures/prefixIds';
 import { fontFaceId } from '../fonts/diagramFontFaces';
@@ -162,7 +184,9 @@ export function printedFrameMm(
   const units = cell.mmPerUnit === null ? null : unitsAcross(source, step);
   if (units !== null && units > 0 && Number.isFinite(units)) return units * cell.mmPerUnit!;
   const area = cell.drawMm ?? { w: cell.pictureMm.size, h: cell.pictureMm.size };
-  const mm = fittedFrameMm(source, style, area);
+  // An enlarged step's frame is its window (Revision 2): fitted, as a picture with no paper is.
+  const shown = viewOfStep(step).window;
+  const mm = shown ? fittedBoxMm(shown.width, shown.height, area) : fittedFrameMm(source, style, area);
   return mm !== null && mm > 0 && Number.isFinite(mm) ? mm : null;
 }
 
@@ -173,9 +197,7 @@ export function printedFrameMm(
  * marks reach out: near enough to judge their print sizes by.
  */
 function fittedFrameMm(source: StepPictureSource, style: DiagramStyle, area: { w: number; h: number }): number | null {
-  const box: Rect = { x: 0, y: 0, width: area.w, height: area.h };
-  const fitted = (width: number, height: number) =>
-    width > 0 && height > 0 ? fitScale(box, width, height, null) * Math.max(width, height) : null;
+  const fitted = (width: number, height: number) => fittedBoxMm(width, height, area);
   switch (source.kind) {
     case 'scene': {
       const scene = storedScene(source.picture);
@@ -192,6 +214,12 @@ function fittedFrameMm(source: StepPictureSource, style: DiagramStyle, area: { w
     case 'step-diagram':
       return fittedSheetMm(source.picture, style, Math.min(area.w, area.h));
   }
+}
+
+/** The longer side, in mm, of a `width` × `height` box fitted to a room `area` mm; null for one of no size. */
+function fittedBoxMm(width: number, height: number, area: { w: number; h: number }): number | null {
+  const box: Rect = { x: 0, y: 0, width: area.w, height: area.h };
+  return width > 0 && height > 0 ? fitScale(box, width, height, null) * Math.max(width, height) : null;
 }
 
 /**
@@ -290,11 +318,13 @@ function stepDiagramBoxes(picture: DiagramStepDiagramPicture, style: DiagramStyl
  * frame (`pictureExtent`).
  */
 export function layoutPicture(
-  step: DiagramStep,
+  whole: DiagramStep,
   assets: Readonly<Record<string, DiagramAsset>>,
   style: DiagramStyle,
   measure: PictureMeasure = null
 ): LayoutStep['picture'] {
+  // An enlarged step's marks far off its window are neither drawn nor measured.
+  const step = stepAsDrawn(whole);
   const source = stepPictureSource(step, assets);
   if (!source) return null;
   /** The frame's longer side in mm, `units` pattern units across when it knows its paper. */
@@ -305,8 +335,9 @@ export function layoutPicture(
         ? units * measure.mmPerUnit
         : MEASURE_SHEET_MM;
   const annotated = hasDrawnAnnotations(step.annotations);
-  // A flat fold's layers: a mark behind a flap is drawn dotted under it (15e).
-  const layers = annotated ? pictureGeometry(step, assets, style).layers : null;
+  const view = viewOfStep(step);
+  // A flat fold's layers, in the marks' units: a mark behind a flap is drawn dotted under it (15e).
+  const layers = annotated ? viewGeometry(view, assets, style).layers : null;
   /**
    * The picture measured by `at(frameMm)`, which gives the frame and what it
    * reaches with its marks, in px, its frame `frameMm` across its longer
@@ -379,6 +410,9 @@ export function layoutPicture(
       return { frame, reached: annotated ? reachedWith(step, frame, inked, style, layers) : inked };
     });
   };
+  // An enlarged step is its window, fitted: nothing of its picture reaches past
+  // its frame but its boundary's pen (Revision 2).
+  if (view.window) return framed(null, view.window.width, view.window.height, zoomEdgePen(style, 1).width / 2);
   switch (source.kind) {
     case 'scene': {
       const scene = storedScene(source.picture);
@@ -412,17 +446,23 @@ export function layoutPicture(
  * square box. Null for a step with nothing to draw.
  */
 export function cellPicture(
-  step: DiagramStep,
+  whole: DiagramStep,
   assets: Readonly<Record<string, DiagramAsset>>,
   style: DiagramStyle,
   cell: Pick<LayoutCell, 'pictureMm' | 'mmPerUnit' | 'frameMm'> & Partial<Pick<LayoutCell, 'drawMm'>>,
   idPrefix: string,
   text: PictureText
 ): CellPicture | null {
+  // An enlarged step's marks far off its window are neither drawn nor measured.
+  const step = stepAsDrawn(whole);
   const source = stepPictureSource(step, assets);
   if (!source) return null;
-  // A flat fold's layers: a mark behind a flap is drawn dotted under it (15e).
-  const layers = hasDrawnAnnotations(step.annotations) ? pictureGeometry(step, assets, style).layers : null;
+  // A flat fold's layers, in the marks' units: a mark behind a flap is drawn dotted under it (15e).
+  const layers = hasDrawnAnnotations(step.annotations) ? viewGeometry(viewOfStep(step), assets, style).layers : null;
+  // An enlarged step draws its window (Revision 2), a close-up's inside included.
+  const zoomed = zoomedSource(step, assets);
+  const drawPicture = (inner: Rect, mmPerUnit: number | null, framePt: number | null) =>
+    zoomed ? drawZoomed(zoomed, step, style, inner, framePt, text) : draw(source, step, style, inner, mmPerUnit, framePt, text);
   const area = cell.drawMm ?? { x: cell.pictureMm.x, y: cell.pictureMm.y, w: cell.pictureMm.size, h: cell.pictureMm.size };
   const box: Rect = { x: area.x * PT_PER_MM, y: area.y * PT_PER_MM, width: area.w * PT_PER_MM, height: area.h * PT_PER_MM };
   /** The picture drawn into `inner`, `k` of its room, and its annotations on its frame. */
@@ -430,7 +470,7 @@ export function cellPicture(
     // A scale the layout found shrinks with the room it is drawn into.
     const frame = cell.frameMm === null ? null : cell.frameMm * PT_PER_MM * k;
     const mmPerUnit = cell.mmPerUnit === null ? null : cell.mmPerUnit * k;
-    const drawn = draw(source, step, style, inner, mmPerUnit, frame, text);
+    const drawn = drawPicture(inner, mmPerUnit, frame);
     if (!drawn) return null;
     const marks = paintAnnotations(step.annotations, drawn.framePt, longerOf(drawn.framePt) / PT_PER_CSS_PX, style, layers);
     return { drawn, marks, reached: marks ? union(drawn.boundsPt, marks.bounds) : drawn.boundsPt };
@@ -489,7 +529,7 @@ export function cellPicture(
   const usage = new Map(drawn.text.map(({ face, characters }) => [face, characters]));
   const count = (face: string, characters: string) => usage.set(face, (usage.get(face) ?? '') + characters);
   const closeUpPicture: CloseUpPicture = (scale, frame, prefix) => {
-    const inside = draw(source, step, style, frame, null, scale * longerOf(drawn.framePt), text);
+    const inside = drawPicture(frame, null, scale * longerOf(drawn.framePt));
     if (!inside) return null;
     for (const { face, characters } of inside.text) count(face, characters);
     // Drawn centred in the frame's box: moved so its frame is the close-up's,
@@ -569,7 +609,8 @@ function draw(
   box: Rect,
   mmPerUnit: number | null,
   framePt: number | null,
-  text: PictureText
+  text: PictureText,
+  cull: PictureBox | null = null
 ): DrawnPicture | null {
   switch (source.kind) {
     case 'scene': {
@@ -583,7 +624,7 @@ function draw(
           : longerSide(scene.bounds) > 0
             ? fitScale(box, maxX - minX, maxY - minY, framePt)
             : PT_PER_CSS_PX;
-      const placed = placedScene(scene, diagramScenePaintStyle(style, source.pattern), box, ptPerPx);
+      const placed = placedScene(sceneCulledTo(scene, cull), diagramScenePaintStyle(style, source.pattern), box, ptPerPx);
       // A scene's frame is its bounds; its ink reaches past them.
       return {
         ...placed,
@@ -655,6 +696,53 @@ function draw(
       };
     }
   }
+}
+
+/**
+ * An enlarged step's window drawn into `box`, centred (Revision 2): its
+ * longer side `framePt` across when given, else fitted to the box; the step's
+ * own picture drawn under it larger by its own painter — only what lies near
+ * the window — and moved so its frame is where the window puts it, clipped to
+ * the frame, the boundary over it. Its frame is the window.
+ */
+function drawZoomed(
+  zoomed: ZoomedSource,
+  step: DiagramStep,
+  style: DiagramStyle,
+  box: Rect,
+  framePt: number | null,
+  text: PictureText
+): DrawnPicture | null {
+  const { view, source, pictureFrame, silhouette } = zoomed;
+  const shape = frameOf(view.window.width, view.window.height);
+  if (!shape) return null;
+  const longer = framePt ?? fitScale(box, shape.width, shape.height, null);
+  if (!(longer > 0) || !Number.isFinite(longer)) return null;
+  const [width, height] = [shape.width * longer, shape.height * longer];
+  const placed = windowBox(shape, longer, box.x + (box.width - width) / 2, box.y + (box.height - height) / 2);
+  const placement = zoomPlacement(view, pictureFrame, placed);
+  const printedMm = longer / PT_PER_MM;
+  const target = placement.pictureFrame;
+  const inside = draw(source, step, style, target, null, longerOf(target), text, zoomCull(view, printedMm));
+  // Drawn centred in its box: moved so its frame is where the window puts it,
+  // where a References step's letters reach past one side of its sheet.
+  const [dx, dy] = inside ? [target.x - inside.framePt.x, target.y - inside.framePt.y] : [0, 0];
+  const inPlace = Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9;
+  const picture = inside && (inPlace ? inside.markup : `<g transform="translate(${num(dx)} ${num(dy)})">${inside.markup}</g>`);
+  const painted = paintZoomed(view, placement, picture, {
+    style,
+    silhouette,
+    unitsPerPx: PT_PER_CSS_PX,
+    printedMm,
+    idPrefix: '',
+  });
+  return {
+    markup: painted.markup,
+    boundsPt: painted.bounds,
+    framePt: placed,
+    fitted: framePt === null,
+    text: inside?.text ?? [],
+  };
 }
 
 /** A scene's elements at `ptPerPx`, its drawing centred in the box, and the box it fills. */

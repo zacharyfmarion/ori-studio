@@ -69,6 +69,28 @@ describe('printedFrames (Revision 2)', () => {
     expect(scaledWithout.get('upload')).toBe(40);
   });
 
+  it('reads an enlarged step’s frame as its window, fitted to its room as a picture with no paper is (Revision 2)', () => {
+    // The wide upload enlarged on a circle: its window is square.
+    const enlarged: DiagramStep = {
+      ...wide,
+      id: 'enlarged',
+      zoom: { from: 'area-1', shape: 'circle', frame: { centre: [0.5, 0.25], radius: 0.2 } },
+    };
+    const withEnlarged = { ...insertSteps(document, [enlarged], 3), assets: document.assets };
+    const frames = printedFrames(
+      laidOut([
+        // In a room 45 mm across and 40 down: the whole picture is 45 mm across, its square window 40.
+        { stepId: 'wide', mmPerUnit: null, frameMm: null, ...room(40, 45, 40) },
+        { stepId: 'enlarged', mmPerUnit: null, frameMm: null, ...room(40, 45, 40) },
+      ]),
+      withEnlarged
+    );
+    expect(Object.fromEntries(frames)).toEqual({ wide: 45, enlarged: 40 });
+    // Given its frame by its run: that.
+    const run = printedFrames(laidOut([{ stepId: 'enlarged', mmPerUnit: null, frameMm: 32, ...room(40, 45, 40) }]), withEnlarged);
+    expect(run.get('enlarged')).toBe(32);
+  });
+
   it('knows none before the pages are laid out, nor for a step that is gone', () => {
     expect(printedFrames(null, document).size).toBe(0);
     expect(printedFrames(laidOut([{ stepId: 'gone', mmPerUnit: null, frameMm: 30 }]), document).size).toBe(0);

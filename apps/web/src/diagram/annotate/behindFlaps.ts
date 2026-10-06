@@ -168,9 +168,10 @@ function over(layers: PictureLayers, faces: readonly PictureCover[], deep: numbe
  * Where a run of lines is under any of `faces`, as runs of its length from
  * its start: each line cut where it crosses a face's side, and each piece
  * under or not by a point in its middle. Closed, for a ring, it runs on from
- * its last point to its first.
+ * its last point to its first. Also where an enlarged step's frame crosses
+ * its paper (`zoomEdge.ts`), with the paper's faces as `faces`.
  */
-function piecesUnder(
+export function piecesUnder(
   line: readonly PicturePoint[],
   faces: readonly PictureCover[],
   closed = false

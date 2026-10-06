@@ -12,20 +12,23 @@
  * Pure: no store, no DOM; a memo per picture geometry.
  */
 import { LineHitIndex, type IndexedSegment } from '../../cp-workspace/picking/lineHitIndex';
-import { frameOf, type PictureFrame, type PicturePoint } from '../annotate/annotationModel';
+import { closeUpShape, frameOf, type PictureFrame, type PicturePoint } from '../annotate/annotationModel';
 import { pictureGeometry, type PictureCover, type PictureGeometry } from '../annotate/pictureGeometry';
 import {
+  isKnownAnnotation,
   stepById,
+  type DiagramAnnotation,
   type DiagramAsset,
   type DiagramDocument,
   type DiagramStep,
   type DiagramStepZoom,
   type DiagramStyle,
   type DiagramZoomOutline,
+  type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { stepPictureFrame } from '../pictures/pictureFrame';
 import { intoBox, stepWindow } from './zoomFrames';
-import type { PictureBox } from './zoomModel';
+import { frameWindow, zoomOutlineOf, type PictureBox } from './zoomModel';
 
 /** An enlarged step's frame as it is shown: the frame, and its window. */
 export interface StepZoomView {
@@ -67,6 +70,79 @@ export function stepView(document: DiagramDocument, stepId: string): StepView | 
 export function viewFrame(view: StepView, assets: Readonly<Record<string, DiagramAsset>>): PictureFrame | null {
   if (view.window) return frameOf(view.window.width, view.window.height);
   return stepPictureFrame(view.step, assets);
+}
+
+/**
+ * A step's picture geometry in the units its marks are in — its window's on
+ * an enlarged step, else its picture's — what a mark snaps to, opens a right
+ * angle on, divides, or lies behind a flap of.
+ */
+export function markGeometry(
+  step: DiagramStep,
+  assets: Readonly<Record<string, DiagramAsset>>,
+  style?: DiagramStyle
+): PictureGeometry {
+  return viewGeometry(viewOfStep(step), assets, style);
+}
+
+/**
+ * The marks an enlarged step draws (Revision 2, Edge cases): every one but
+ * those lying wholly outside its window grown by a window each way, which are
+ * kept — the Layers pane lists them — but neither drawn nor measured: a mark
+ * carried in from the whole picture, far off the window, would otherwise
+ * shrink the step to make room for it. `window` in picture units; the marks
+ * in the window's own. The list itself when it keeps them all.
+ */
+export function marksInWindow(window: PictureBox, annotations: readonly DiagramAnnotation[]): readonly DiagramAnnotation[] {
+  const frame = frameOf(window.width, window.height);
+  if (!frame) return annotations;
+  const near = (mark: DiagramAnnotation) => {
+    if (!isKnownAnnotation(mark)) return true;
+    const [minX, minY, maxX, maxY] = markExtent(mark);
+    return maxX >= -frame.width && minX <= 2 * frame.width && maxY >= -frame.height && minY <= 2 * frame.height;
+  };
+  return annotations.every(near) ? annotations : annotations.filter(near);
+}
+
+/**
+ * What a mark's points span, its rings' radii round them and an area's
+ * outline: near enough to tell one far off a window.
+ */
+function markExtent(mark: KnownDiagramAnnotation): [number, number, number, number] {
+  const points: PicturePoint[] = [mark.from, mark.to];
+  if (mark.other) points.push(mark.other);
+  for (const node of [...(mark.path ?? []), ...(mark.back ?? [])]) {
+    points.push(node.at);
+    if (node.in) points.push(node.in);
+    if (node.out) points.push(node.out);
+  }
+  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+  const take = ([x, y]: PicturePoint, r = 0) => {
+    minX = Math.min(minX, x - r);
+    minY = Math.min(minY, y - r);
+    maxX = Math.max(maxX, x + r);
+    maxY = Math.max(maxY, y + r);
+  };
+  for (const point of points) take(point);
+  if (mark.kind === 'close-up') {
+    const { area, inset } = closeUpShape(mark);
+    take(area.centre, area.radius);
+    take(inset.centre, inset.radius);
+  } else if (mark.kind === 'zoom') {
+    // An area: a circle, or a rounded rectangle about `from` turned by its angle.
+    const { x, y, width, height } = frameWindow(zoomOutlineOf(mark));
+    take([x, y]);
+    take([x + width, y + height]);
+  } else if (mark.radius !== undefined) take(mark.from, mark.radius);
+  return [minX, minY, maxX, maxY];
+}
+
+/** A step as it is drawn: an enlarged step without the marks it keeps but does not draw ({@link marksInWindow}). */
+export function stepAsDrawn(step: DiagramStep): DiagramStep {
+  const window = stepWindow(step);
+  if (!window) return step;
+  const annotations = marksInWindow(window, step.annotations);
+  return annotations === step.annotations ? step : { ...step, annotations: [...annotations] };
 }
 
 /** How far past an enlarged step's window its picture is read for snapping, in window lengths. */

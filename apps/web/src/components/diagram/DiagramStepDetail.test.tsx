@@ -103,6 +103,20 @@ describe('DiagramStepDetail in Pose', () => {
     expect(show(step, null)).toBe(own);
   });
 
+  it('shows an enlarged step whole, its frame outlined, though it has no marks (Revision 2)', () => {
+    const step: DiagramStep = {
+      ...cpStep('step-1', FLAT),
+      zoom: { from: 'area-1', shape: 'circle', frame: { centre: [0.5, 0.5], radius: 0.2 } },
+    };
+    const decoded = (url: string) => new TextDecoder().decode(Uint8Array.from(atob(url.split(',')[1]!), (c) => c.charCodeAt(0)));
+    const enlarged = decoded(show(step, null)!);
+    expect(enlarged).toContain('data-zoom-frame-ghost');
+    // Not its window, as its card shows it: the whole picture, the frame outlined over it.
+    expect(enlarged).not.toContain('data-zoom-window');
+    // Not enlarged, no frame.
+    expect(decoded(show(cpStep('step-1', FLAT), null)!)).not.toContain('data-zoom-frame-ghost');
+  });
+
   it('leaves Spread Layers to the Step drawer on a phone, where the toolbar has no room for it', () => {
     const verb = (id: DiagramLinkedPoseAction['id'], label: string): DiagramLinkedPoseAction => ({
       id,

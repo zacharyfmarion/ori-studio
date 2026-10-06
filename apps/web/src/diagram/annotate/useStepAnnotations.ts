@@ -16,7 +16,6 @@ import {
   type DiagramStep,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
-import { stepPictureFrame } from '../pictures/pictureFrame';
 import { EDIT_PATH } from './annotateTools';
 import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
 import { annotationEventKind } from './annotationEventKind';
@@ -34,7 +33,7 @@ import {
 import { pathNodesOf } from './annotationPath';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
 import { isLineKind, lineKindOf, type DiagramLineType } from './lineTypes';
-import { pictureGeometry } from './pictureGeometry';
+import { markGeometry, viewFrame, viewOfStep } from '../zoom/stepView';
 
 /**
  * A mark first put behind a flap, counted (15e): which of its ends — a
@@ -177,11 +176,12 @@ export function useStepAnnotations(step: DiagramStep | null) {
   }, [stepId, loadId]);
 
   // Only a flat fold knows its layers, and so its flaps (15e).
-  const knowsFlaps = useMemo(() => step !== null && pictureGeometry(step, assets, style).kind === 'flat-fold', [step, assets, style]);
+  const knowsFlaps = useMemo(() => step !== null && markGeometry(step, assets, style).kind === 'flat-fold', [step, assets, style]);
 
   const selected = known.find((annotation) => annotation.id === selectedId) ?? null;
   const editingPath = tool === EDIT_PATH;
-  const frame = useMemo(() => (step ? stepPictureFrame(step, assets) : null) ?? undefined, [step, assets]);
+  // The frame the marks are measured in: an enlarged step's window (Revision 2).
+  const frame = useMemo(() => (step ? viewFrame(viewOfStep(step), assets) : null) ?? undefined, [step, assets]);
   const { apply, selectNode } = verbs;
   /** The selected annotation's verbs from the catalog, in the pane's order. */
   const actions = useMemo(

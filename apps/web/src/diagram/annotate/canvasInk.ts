@@ -40,3 +40,12 @@ export const ANNOTATION_INK_MM = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / mmT
 export function mmInPictureUnits(mm: number): number {
   return (mm / ANNOTATION_INK_MM) * INK_UNITS;
 }
+
+/**
+ * The Annotate canvas's selection ink, for a picture painted as a document,
+ * where no stylesheet reaches: Pose outlines an enlarged step's frame in it.
+ * The canvas's own is its module's `--annotate-selection`
+ * (`DiagramAnnotateCanvas.module.css`, which says why this blue), which a
+ * component owns rather than a theme; a test holds the two equal.
+ */
+export const ANNOTATE_SELECTION_INK = '#4078f2';

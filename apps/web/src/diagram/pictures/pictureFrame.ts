@@ -13,7 +13,15 @@ import type { PaperScene } from '@treemaker/origami-simulator';
 import { readPaperScene } from '../../lib/paper/paperSceneValidate';
 import type { DiagramAsset, DiagramScenePicture, DiagramStep } from '../document/diagramDocument';
 import { frameOf, type PictureFrame } from '../annotate/annotationModel';
-import { poseTransform, stepPictureSource } from './paintDiagramStep';
+import { mmToCssPx, pagePtPerPx, PT_PER_CSS_PX } from '../../lib/paper/paperSvg';
+import {
+  poseTransform,
+  sceneMeasure,
+  STEP_CARD_PADDING_MM,
+  stepPictureSource,
+  stepScenePage,
+  type StepPictureSource,
+} from './paintDiagramStep';
 
 const scenes = new WeakMap<DiagramScenePicture, PaperScene | null>();
 
@@ -58,5 +66,33 @@ export function stepPictureFrame(
       return frameOf(source.picture.widthPx, source.picture.heightPx);
     case 'step-diagram':
       return frameOf(source.picture.model.sheet.width, source.picture.model.sheet.height);
+  }
+}
+
+/**
+ * The longer side of a source's frame as `paintSource` paints it at a scale
+ * of one, in CSS px, worked out without painting it — a scene read once per
+ * picture ({@link storedScene}): every source's frame grows in step with the
+ * scale it is painted at, so this times a scale is its frame there. Null for
+ * a scene that does not read.
+ */
+export function paintedFrameLongerPx(source: StepPictureSource): number | null {
+  switch (source.kind) {
+    case 'asset': {
+      const posed = poseTransform(source.asset.widthPx, source.asset.heightPx, source.pose);
+      return Math.max(posed.widthPx, posed.heightPx);
+    }
+    case 'fixed':
+      return Math.max(source.picture.widthPx, source.picture.heightPx);
+    case 'scene': {
+      const scene = storedScene(source.picture);
+      if (!scene) return null;
+      const { minX, minY, maxX, maxY } = scene.bounds;
+      const ptPerPx = pagePtPerPx(scene, stepScenePage(STEP_CARD_PADDING_MM), sceneMeasure(source.pattern));
+      return (Math.max(maxX - minX, maxY - minY) * ptPerPx) / PT_PER_CSS_PX;
+    }
+    case 'step-diagram':
+      // Built at its sheet's size and painted at the screen's ratio: its sheet is the page's.
+      return mmToCssPx(stepScenePage(STEP_CARD_PADDING_MM).sheet.mm);
   }
 }

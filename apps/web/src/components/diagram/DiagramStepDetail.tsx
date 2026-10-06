@@ -29,7 +29,9 @@ import {
 } from '../../diagram/document/diagramDocument';
 import { stepPictureSource } from '../../diagram/pictures/paintDiagramStep';
 import { storedScene } from '../../diagram/pictures/pictureFrame';
-import { annotatedStepUrl } from '../../diagram/pictures/useStepPictureUrl';
+import { annotatedStepUrl, posedZoomUrl } from '../../diagram/pictures/useStepPictureUrl';
+import { zoomedSource } from '../../diagram/zoom/paintZoomed';
+import { viewOfStep } from '../../diagram/zoom/stepView';
 import type { AnnotateTool } from '../../diagram/annotate/annotateTools';
 import type { DiagramDetailMode } from '../../store/workspaceStore/types';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
@@ -156,17 +158,25 @@ export function DiagramStepDetail({
   const { annotations } = posed;
   // A preview is drawn for the moment it is shown, not kept among the cards' pictures.
   const kept = posed === step;
-  const url = useMemo(
-    () => (source ? annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY, kept) : null),
-    [source, annotations, style, kept]
-  );
+  // An enlarged step shows its whole picture in Pose, its frame outlined and the rest dimmed (Revision 2).
+  const zoomed = useMemo(() => zoomedSource(posed, assets), [posed, assets]);
+  const url = useMemo(() => {
+    if (!source) return null;
+    return zoomed
+      ? posedZoomUrl(zoomed, annotations, style, POSE_ANNOTATION_OPACITY, kept)
+      : annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY, kept);
+  }, [source, zoomed, annotations, style, kept]);
   // Annotate needs a picture to draw on.
   const annotating = mode === 'annotate' && source !== null && !locked;
   // Over a live view (3D or simulated), the annotations drawn on its capture, while they are.
+  // An enlarged step's frame is outlined over it, whatever its marks (Revision 2).
   const ghost = useMemo((): DiagramPoseAnnotations | null => {
-    if (step.picture?.kind !== 'scene' || annotations.length === 0 || annotationsOutOfStep(step)) return null;
+    if (step.picture?.kind !== 'scene') return null;
+    const marks = annotationsOutOfStep(step) ? [] : annotations;
+    const zoom = viewOfStep(step).zoom;
+    if (marks.length === 0 && !zoom) return null;
     const scene = storedScene(step.picture);
-    return scene ? { annotations, bounds: scene.bounds } : null;
+    return scene ? { annotations: marks, bounds: scene.bounds, zoom } : null;
   }, [step, annotations]);
   const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
   const picture = url && <img className={styles.picture} src={url} alt="" draggable={false} />;

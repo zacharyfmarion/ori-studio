@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiagramAnnotation } from '../../diagram/document/diagramDocument';
+import type { StepZoomView } from '../../diagram/zoom/stepView';
 import type { SceneBounds } from '../../lib/paper/paperScene';
 import { ViewportStatusReadout } from '../ui/ViewportStatusReadout';
 import styles from './DiagramPoseStage.module.css';
@@ -13,6 +14,8 @@ export interface DiagramPoseAnnotations {
   annotations: readonly DiagramAnnotation[];
   /** The stored scene's bounds: the picture's frame (D8). */
   bounds: SceneBounds;
+  /** An enlarged step's frame: its marks are on its window, and its frame is outlined (Revision 2). */
+  zoom?: StepZoomView | null;
 }
 
 /** The step's annotations, painted for the view in its own device px. */

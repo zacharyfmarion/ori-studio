@@ -36,6 +36,12 @@
  *   picture painted again, the other marks with it — is each surface's to
  *   paint under the marks, as only a surface has the picture
  *   (`paintAnnotations`, the canvas); here it is where that goes.
+ * - An enlarge area (Revision 2) is its outline, a circle or a rounded
+ *   rectangle turned with its paper, in the annotation pen and the arrows'
+ *   ink, as a close-up's ring is; a rounded rectangle on a white casing a
+ *   little wider than its pen, which knocks out the creases it crosses (Z5),
+ *   and a circle on none. It lies with the close-ups, over the marks and
+ *   under the callouts and labels.
  *
  * The drawing is in CSS px, the frame's top-left at the origin, its longer
  * side `framePx` across — the size it prints at — so its marks have the
@@ -83,6 +89,7 @@ import {
   type DiagramHanStyle,
   type DiagramPathNode,
   type DiagramStyle,
+  type DiagramZoomOutline,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { scriptFonts, textCjkKey } from '../fonts/fontScripts';
@@ -116,6 +123,7 @@ import {
   type PicturePoint,
 } from './annotationModel';
 import { arrowPolyline } from './annotationHit';
+import { frameWindow, zoomCornerRadius, zoomOutlineOf, zoomShapeOf } from '../zoom/zoomModel';
 import { ANNOTATION_INK_MM } from './canvasInk';
 import { hiddenArcs, hiddenStretches } from './behindFlaps';
 import { perAnnotation } from './perAnnotation';
@@ -181,6 +189,28 @@ export interface AnnotationCloseUp {
   frame: { x: number; y: number; width: number; height: number };
 }
 
+/** An enlarge area as drawn, in CSS px (Revision 2). */
+export interface AnnotationZoomArea {
+  id: string;
+  /** Its outline, in the drawing's px: centred, a circle's radius or a rounded rectangle's size, and its turn. */
+  outline: DiagramZoomOutline;
+  /** Its pen: the annotation pen, a close-up's ring's. */
+  pen: number;
+  /** Its ink: the arrows'. */
+  ink: string;
+  /**
+   * The white casing under a rounded rectangle (Z5), its stroke's width: the
+   * pen and {@link ZOOM_CASING_INKS} of ink each side. Null for a circle,
+   * which has none.
+   */
+  casing: number | null;
+  /** What the casing is: the page's white. */
+  ground: string;
+}
+
+/** How far an enlarge area's casing reaches past its pen on each side, in ink: about half a millimetre (Z5). */
+export const ZOOM_CASING_INKS = 1.5;
+
 /** A line as drawn, in CSS px. */
 export interface AnnotationLine {
   id: string;
@@ -207,6 +237,7 @@ export type CompiledAnnotation =
   | { kind: 'label'; at: PicturePoint; runs: { key: DiagramFontKey; text: string }[] }
   | { kind: 'callout'; shape: CalloutShape; at: PicturePoint; runs: { key: DiagramFontKey; text: string }[] }
   | { kind: 'close-up'; shape: CloseUpShape }
+  | { kind: 'zoom'; outline: DiagramZoomOutline }
   | { kind: 'mark'; primitive: AnnotationPrimitive };
 
 /** The annotations ready to draw, on screen or into a file. */
@@ -219,6 +250,8 @@ export interface AnnotationDrawing {
   primitives: AnnotationPrimitive[];
   primitiveIds: string[];
   context: DiagramRenderContext;
+  /** Over the marks, under the close-ups: an enlarge area's outline. */
+  zoomAreas: AnnotationZoomArea[];
   /** Over the marks: a close-up's rings and line. */
   closeUps: AnnotationCloseUp[];
   /** Over the marks: a callout's box hides what lies under it. */
@@ -395,10 +428,9 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
       };
     case 'close-up':
       return { kind: 'close-up', shape: closeUpShape(annotation) };
-    // An enlarge area marks what a later step shows enlarged. Its outline is
-    // not drawn yet: it comes with the painter that draws enlarged steps.
+    // An enlarge area marks what a later step shows enlarged: its outline.
     case 'zoom':
-      return null;
+      return { kind: 'zoom', outline: zoomOutlineOf(annotation) };
   }
 }
 
@@ -496,6 +528,7 @@ export function annotationDrawing(
   const primitives: AnnotationPrimitive[] = [];
   const primitiveIds: string[] = [];
   const closeUps: AnnotationCloseUp[] = [];
+  const zoomAreas: AnnotationZoomArea[] = [];
   const callouts: AnnotationCallout[] = [];
   const labels: AnnotationLabel[] = [];
   const at = ([u, v]: PicturePoint): [number, number] => [u * framePx, v * framePx];
@@ -573,6 +606,24 @@ export function annotationDrawing(
         });
         break;
       }
+      case 'zoom': {
+        const { centre, radius, size, angle } = compiled.outline;
+        const rounded = zoomShapeOf(compiled.outline) === 'rounded';
+        zoomAreas.push({
+          id: annotation.id,
+          outline: {
+            centre: at(centre),
+            ...(radius !== undefined ? { radius: radius * framePx } : {}),
+            ...(size !== undefined ? { size: [size[0] * framePx, size[1] * framePx] as [number, number] } : {}),
+            ...(angle ? { angle } : {}),
+          },
+          pen: linePen,
+          ink: seen.arrows.color,
+          casing: rounded ? linePen + 2 * ZOOM_CASING_INKS * project.ink : null,
+          ground: PAGE_GROUND,
+        });
+        break;
+      }
       case 'mark':
         primitives.push(hidden?.length ? withHidden(compiled.primitive, hidden) : compiled.primitive);
         primitiveIds.push(annotation.id);
@@ -594,6 +645,7 @@ export function annotationDrawing(
     primitives,
     primitiveIds,
     context,
+    zoomAreas,
     closeUps,
     callouts,
     labels,
@@ -666,6 +718,14 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
       take(line.a[0], line.a[1], linePen / 2);
       take(line.b[0], line.b[1], linePen / 2);
     }
+  }
+  // An enlarge area, its outline and half its pen or its casing, the wider,
+  // round it: a turned rectangle's box.
+  for (const { outline, pen, casing } of drawing.zoomAreas) {
+    const box = frameWindow(outline);
+    const half = Math.max(pen, casing ?? 0) / 2;
+    take(box.x, box.y, half);
+    take(box.x + box.width, box.y + box.height, half);
   }
   // A close-up, its two rings and half their pen round them: its line runs
   // between their rims, and its inside is drawn within the outer one.
@@ -765,9 +825,46 @@ export function closeUpElement(closeUp: AnnotationCloseUp): ReactNode {
 }
 
 /**
- * The marks, close-ups, callouts and labels, as React: the shapes
- * `diagramShapes` draws, the close-ups' rings over them, the callouts over
- * those, then the labels over everything. `wrap` puts each in a group of the
+ * One enlarge area as SVG (Revision 2): a rounded rectangle's white casing,
+ * then its outline in the annotation pen, turned with it; a circle its
+ * outline alone.
+ */
+export function zoomAreaElement(area: AnnotationZoomArea): ReactNode {
+  const { outline } = area;
+  const [cx, cy] = outline.centre;
+  const shape = (paint: { stroke: string; strokeWidth: number }, key: string) => {
+    if (zoomShapeOf(outline) === 'circle') {
+      return <circle key={key} cx={round(cx)} cy={round(cy)} r={round(outline.radius!)} fill="none" {...paint} />;
+    }
+    const [width, height] = outline.size!;
+    const r = round(zoomCornerRadius(outline));
+    return (
+      <rect
+        key={key}
+        x={round(cx - width / 2)}
+        y={round(cy - height / 2)}
+        width={round(width)}
+        height={round(height)}
+        rx={r}
+        ry={r}
+        fill="none"
+        transform={outline.angle ? `rotate(${round(outline.angle)} ${round(cx)} ${round(cy)})` : undefined}
+        {...paint}
+      />
+    );
+  };
+  return (
+    <g key={area.id}>
+      {area.casing !== null && shape({ stroke: area.ground, strokeWidth: round(area.casing) }, 'casing')}
+      {shape({ stroke: area.ink, strokeWidth: round(area.pen) }, 'outline')}
+    </g>
+  );
+}
+
+/**
+ * The marks, enlarge areas, close-ups, callouts and labels, as React: the
+ * shapes `diagramShapes` draws, the enlarge areas and the close-ups' rings
+ * over them, the callouts over those, then the labels over everything. `wrap` puts each in a group of the
  * caller's, by its annotation's id.
  */
 export function annotationMarks(
@@ -780,6 +877,7 @@ export function annotationMarks(
   return (
     <>
       {shapes}
+      {drawing.zoomAreas.map((area) => (wrap ? wrap(zoomAreaElement(area), area.id) : zoomAreaElement(area)))}
       {drawing.closeUps.map((closeUp) => (wrap ? wrap(closeUpElement(closeUp), closeUp.id) : closeUpElement(closeUp)))}
       {drawing.callouts.map((callout) => (wrap ? wrap(calloutElement(callout), callout.id) : calloutElement(callout)))}
       {drawing.labels.map((label) => (wrap ? wrap(labelElement(label), label.id) : labelElement(label)))}

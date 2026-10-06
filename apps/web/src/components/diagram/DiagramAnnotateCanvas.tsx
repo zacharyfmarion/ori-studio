@@ -19,7 +19,6 @@ import {
 } from '../../cp-workspace/references/stepDiagramGeometry';
 import { pathNodesOf, pathNodesPolyline, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
-import { pictureGeometry } from '../../diagram/annotate/pictureGeometry';
 import { useCloseUpInsides } from '../../diagram/annotate/useCloseUpInsides';
 import type { SnapTarget } from '../../diagram/annotate/pictureSnap';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
@@ -54,7 +53,9 @@ import { ViewportToolbar } from '../panels/ViewportToolbar';
 import { DiagramAnnotateToolWindow } from './DiagramAnnotateToolWindow';
 import { DiagramAnnotationLayer } from './DiagramAnnotationLayer';
 import { DiagramCloseUpInsides } from './DiagramCloseUpInsides';
-import { zoomOutlineOf, zoomOutlinePoints } from '../../diagram/zoom/zoomModel';
+import { markGeometry } from '../../diagram/zoom/stepView';
+import { ZOOM_FRAME_ID, zoomOutlineOf, zoomOutlinePoints } from '../../diagram/zoom/zoomModel';
+import { DiagramZoomView } from './DiagramZoomView';
 import styles from './DiagramAnnotateCanvas.module.css';
 
 /** An end's dot, in screen px. */
@@ -95,8 +96,8 @@ export function DiagramAnnotateCanvas({
   const { camera, overlay, url, layout, shown, tool, selectedId, onPointerDownCapture, handlers } = canvas;
   const { containerRef, transformRef, zoomPercent, spacePressed, zoomIn, zoomOut, fitToView, setZoomLevel, onInit, onTransformed } =
     camera;
-  // A flat fold's layers: a mark behind a flap is dotted under it as it is drawn (15e).
-  const layers = useMemo(() => pictureGeometry(step, assets, style).layers, [step, assets, style]);
+  // A flat fold's layers, in the marks' units: a mark behind a flap is dotted under it as it is drawn (15e).
+  const layers = useMemo(() => markGeometry(step, assets, style).layers, [step, assets, style]);
   const drawing = useMemo(
     () => (layout ? annotationDrawing(shown, layout.pictureFrame, CARD_FRAME_PX, style, layers) : null),
     [layout, shown, style, layers]
@@ -107,6 +108,7 @@ export function DiagramAnnotateCanvas({
     shown,
     committed: step.annotations,
     source: canvas.source,
+    zoomed: canvas.zoomed,
     style,
     layers,
     pictureFrame: layout?.pictureFrame ?? null,
@@ -165,11 +167,26 @@ export function DiagramAnnotateCanvas({
           >
             {layout && (
               <div className={styles.world} style={{ width: layout.world.width, height: layout.world.height }}>
-                <div className={styles.paper} style={box(layout.picture)}>
-                  {url && <img className={styles.picture} src={url} alt="" draggable={false} />}
-                </div>
+                {canvas.zoomed ? (
+                  // An enlarged step: its window, its picture clipped to its frame (Revision 2).
+                  <DiagramZoomView
+                    zoomed={canvas.zoomed}
+                    layout={layout}
+                    style={style}
+                    surround={selectedId === ZOOM_FRAME_ID}
+                  />
+                ) : (
+                  <div className={styles.paper} style={box(layout.picture)}>
+                    {url && <img className={styles.picture} src={url} alt="" draggable={false} />}
+                  </div>
+                )}
                 {/* The frame, not the painted box: what the picture's units measure, and what a mark is placed against. */}
-                <div className={styles.frame} style={box(layout.frame)} data-annotate-frame="" />
+                <div
+                  className={styles.frame}
+                  style={box(layout.frame)}
+                  data-annotate-frame=""
+                  data-zoomed={canvas.zoomed ? '' : undefined}
+                />
                 <svg
                   ref={overlay}
                   className={styles.overlay}

@@ -5,7 +5,8 @@ import {
   type DiagramStyle,
 } from '../document/diagramDocument';
 import type { StepPictureSource } from '../pictures/paintDiagramStep';
-import { closeUpPictureUrl } from '../pictures/useStepPictureUrl';
+import { closeUpPictureUrl, zoomedPictureUrl } from '../pictures/useStepPictureUrl';
+import type { ZoomedSource } from '../zoom/paintZoomed';
 import { closeUpScale, type PictureFrame } from './annotationModel';
 import { annotationDrawing, closeUpMarks, type AnnotationDrawing } from './annotationPrimitives';
 import type { PictureLayers } from './pictureGeometry';
@@ -32,6 +33,8 @@ export interface CloseUpInsidesInput {
   /** The step's, as the store has them: the scale each close-up's picture is painted at. */
   committed: readonly DiagramAnnotation[];
   source: StepPictureSource | null;
+  /** An enlarged step's window: what its close-ups show of its picture (Revision 2). */
+  zoomed?: ZoomedSource | null;
   style: DiagramStyle;
   layers: PictureLayers | null;
   pictureFrame: PictureFrame | null;
@@ -45,13 +48,15 @@ export interface CloseUpInsidesInput {
  * larger with it. The picture is painted at the scale the step has the
  * close-up at (`committed`): a ring dragged stretches the picture it has
  * until the drag lands and it is painted again at the new one, and a move
- * only shifts it.
+ * only shifts it. On an enlarged step, its window painted again, clipped to
+ * its frame with its boundary, as its card's close-ups are.
  */
 export function closeUpInsides({
   drawing,
   shown,
   committed,
   source,
+  zoomed = null,
   style,
   layers,
   pictureFrame,
@@ -62,7 +67,11 @@ export function closeUpInsides({
   return drawing.closeUps.map((closeUp): CloseUpInside => {
     const stored = committed.find((annotation) => annotation.id === closeUp.id);
     const paintedAt = stored && isKnownAnnotation(stored) ? closeUpScale(stored) : closeUp.scale;
-    const painted = source ? closeUpPictureUrl(source, style, paintedAt) : null;
+    const painted = zoomed
+      ? zoomedPictureUrl(zoomed, style, paintedAt)
+      : source
+        ? closeUpPictureUrl(source, style, paintedAt)
+        : null;
     const { frame } = closeUp;
     // Its frame on the close-up's: a pixel for a pixel, unless painted at another scale.
     const m = painted ? Math.max(frame.width, frame.height) / Math.max(painted.frame.width, painted.frame.height) : 1;
@@ -84,9 +93,9 @@ export function closeUpInsides({
 
 /** {@link closeUpInsides}, worked out again only when what it is drawn from changes. */
 export function useCloseUpInsides(input: CloseUpInsidesInput): readonly CloseUpInside[] {
-  const { drawing, shown, committed, source, style, layers, pictureFrame, framePx } = input;
+  const { drawing, shown, committed, source, zoomed = null, style, layers, pictureFrame, framePx } = input;
   return useMemo(
-    () => closeUpInsides({ drawing, shown, committed, source, style, layers, pictureFrame, framePx }),
-    [drawing, shown, committed, source, style, layers, pictureFrame, framePx]
+    () => closeUpInsides({ drawing, shown, committed, source, zoomed, style, layers, pictureFrame, framePx }),
+    [drawing, shown, committed, source, zoomed, style, layers, pictureFrame, framePx]
   );
 }

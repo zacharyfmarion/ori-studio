@@ -64,6 +64,11 @@
   pointer-events: none;
 }
 
+/* An enlarged step's window: its frame's own shape carries the hairline (DiagramZoomView). */
+.frame[data-zoomed] {
+  box-shadow: none;
+}
+
 .overlay {
   position: absolute;
   inset: 0;

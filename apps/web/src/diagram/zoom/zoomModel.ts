@@ -34,6 +34,14 @@ import { randomDiagramId } from '../document/diagramDocument';
 
 export { ZOOM_CLICK, ZOOM_SCALE };
 
+/**
+ * The id an enlarged step's frame is selected by on its canvas, beside its
+ * marks' (Controls, "Annotate canvas, an enlarged step"): no mark has it, so
+ * selection and Escape take their paths and nothing mistakes it for a mark.
+ * Selected, the canvas shows the picture round the frame, dimmed.
+ */
+export const ZOOM_FRAME_ID = 'zoom-frame';
+
 /** A rounded rectangle's corners: 0.22 of its shorter side, as both of Zach's examples draw them (45/205 = 75/342). */
 export const ZOOM_CORNER = 0.22;
 

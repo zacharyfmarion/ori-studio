@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { pictureGeometry } from '../annotate/pictureGeometry';
-import { createDiagram, insertSteps, type DiagramStep } from '../document/diagramDocument';
+import {
+  createDiagram,
+  insertSteps,
+  type DiagramAnnotation,
+  type DiagramStep,
+  type KnownDiagramAnnotation,
+} from '../document/diagramDocument';
 import { stepPictureFrame } from '../pictures/pictureFrame';
 import { craneStep } from './zoom.fixtures';
-import { stepView, viewFrame, viewGeometry, viewOfStep } from './stepView';
+import { marksInWindow, stepAsDrawn, stepView, viewFrame, viewGeometry, viewOfStep } from './stepView';
 import { fromBox, intoBox } from './zoomFrames';
 import { frameWindow } from './zoomModel';
 
@@ -77,5 +83,80 @@ describe('what a step shows', () => {
     const again = viewGeometry(viewOfStep(at(0.35)), NO_ASSETS);
     expect(again).not.toBe(first);
     expect(again.points).toEqual(first.points);
+  });
+});
+
+describe('the marks an enlarged step draws', () => {
+  // A window twice as wide as it is tall: its marks' frame 1 × 0.5, grown by a window each way [-1, 2] × [-0.5, 1].
+  const window = { x: 0.2, y: 0.4, width: 0.4, height: 0.2 };
+  const line = (id: string, from: [number, number], to: [number, number]): KnownDiagramAnnotation => ({
+    id,
+    kind: 'valley-line',
+    from,
+    to,
+  });
+  const ids = (marks: readonly DiagramAnnotation[]) => marks.map(({ id }) => id);
+
+  it('keeps a mark inside the window, one partly outside it, and one off it but within a window of it', () => {
+    const marks = [
+      line('inside', [0.2, 0.2], [0.8, 0.3]),
+      line('across', [0.5, 0.25], [1.6, 0.25]),
+      line('beside', [-0.9, 0.2], [-0.95, 0.3]),
+      line('below', [0.5, 0.95], [0.6, 0.98]),
+    ];
+    expect(marksInWindow(window, marks)).toBe(marks);
+  });
+
+  it('drops a mark lying wholly beyond the window grown by a window each way, measured along each side', () => {
+    const marks = [
+      line('inside', [0.2, 0.2], [0.8, 0.3]),
+      line('right', [2.1, 0.2], [2.8, 0.3]),
+      line('left', [-1.5, 0.2], [-1.1, 0.3]),
+      // Within a window's width across, but beyond its height down: the frame is half as tall.
+      line('under', [0.5, 1.1], [0.6, 1.4]),
+      line('over', [0.5, -0.6], [0.6, -0.9]),
+    ];
+    expect(ids(marksInWindow(window, marks))).toEqual(['inside']);
+  });
+
+  it('reaches a mark’s whole extent: a ring round its centre, a close-up’s two rings, an area’s outline, a path’s nodes', () => {
+    const ring: KnownDiagramAnnotation = { id: 'ring', kind: 'circle', from: [2.2, 0.25], to: [2.2, 0.25], radius: 0.3 };
+    // Its area far off, its inset ring reaching back over the window.
+    const closeUp: KnownDiagramAnnotation = { id: 'close-up', kind: 'close-up', from: [3, 0.25], to: [2.3, 0.25], radius: 0.2, scale: 2 };
+    const area: KnownDiagramAnnotation = { id: 'area', kind: 'zoom', from: [2.4, 0.25], to: [2.4, 0.25], size: [1, 0.2] };
+    const path: KnownDiagramAnnotation = {
+      id: 'path',
+      kind: 'valley-arrow',
+      from: [3, 0.2],
+      to: [3.5, 0.2],
+      path: [{ at: [3, 0.2] }, { at: [3.2, 0.2], in: [1.9, 0.2] }, { at: [3.5, 0.2] }],
+    };
+    const marks = [ring, closeUp, area, path];
+    expect(marksInWindow(window, marks)).toBe(marks);
+    // Each moved on by a window: none reaches it now.
+    const away = marks.map((mark) => ({
+      ...mark,
+      from: [mark.from[0] + 1, mark.from[1]] as [number, number],
+      to: [mark.to[0] + 1, mark.to[1]] as [number, number],
+      ...(mark.path ? { path: mark.path.map((node) => ({ at: [node.at[0] + 1, node.at[1]] as [number, number], ...(node.in ? { in: [node.in[0] + 1, node.in[1]] as [number, number] } : {}) })) } : {}),
+    }));
+    expect(marksInWindow(window, away)).toEqual([]);
+  });
+
+  it('keeps a mark this build cannot read, wherever it is', () => {
+    const unknown: DiagramAnnotation = { id: 'newer', unknown: { id: 'newer', kind: 'sparkle', from: [9, 9] } };
+    const marks = [unknown, line('right', [2.1, 0.2], [2.8, 0.3])];
+    expect(ids(marksInWindow(window, marks))).toEqual(['newer']);
+  });
+
+  it('draws a step as it is when it keeps every mark, or is not enlarged; else without the marks far off its window', () => {
+    const marks = [line('inside', [0.2, 0.2], [0.8, 0.3]), line('far', [5, 0.2], [5.5, 0.3])];
+    const plain = { ...whole, annotations: marks };
+    expect(stepAsDrawn(plain)).toBe(plain);
+    const near = { ...enlarged, annotations: [marks[0]!] };
+    expect(stepAsDrawn(near)).toBe(near);
+    const drawn = stepAsDrawn({ ...enlarged, annotations: marks });
+    expect(ids(drawn.annotations)).toEqual(['inside']);
+    expect(drawn).toMatchObject({ id: enlarged.id, zoom: enlarged.zoom, picture: enlarged.picture });
   });
 });

@@ -27,6 +27,8 @@ import {
 } from '../document/diagramDocument';
 import { paintSource, stepPictureSource, type PictureBox } from '../pictures/paintDiagramStep';
 import { stepPictureUrl } from '../pictures/useStepPictureUrl';
+import { ZOOM_CARD_MARGIN, zoomedSource, type ZoomedSource } from '../zoom/paintZoomed';
+import { marksInWindow } from '../zoom/stepView';
 import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useDiagramShortcuts';
 import { EDIT_PATH, drawingKind, drawingLook, isPickTool } from './annotateTools';
 import { placePoint, snapOutcome, snapsEnd, snapsWhenPlaced, type PlacedPoint } from './annotateSnap';
@@ -244,6 +246,23 @@ function closeUpRings(annotation: KnownDiagramAnnotation, layout: AnnotateLayout
   return unionPlotRect(ring(area), ring(inset));
 }
 
+/**
+ * An enlarged step's window as the picture the canvas lays out: its frame is
+ * the window, in any units — the canvas draws it at its own size — with the
+ * margin its card gives it, so a fit leaves its boundary the room it leaves
+ * any picture's edge, clear of the zoom pill.
+ */
+function windowPainted({ view }: ZoomedSource): { widthPx: number; heightPx: number; frame: PictureBox } {
+  const { width, height } = view.window;
+  const pad = Math.max(width, height) * ZOOM_CARD_MARGIN;
+  return { widthPx: width + 2 * pad, heightPx: height + 2 * pad, frame: { x: pad, y: pad, width, height } };
+}
+
+/** Where an enlarged step's window sits in the canvas's world: the canvas's frame (Revision 2). */
+export function zoomedCanvasLayout(zoomed: ZoomedSource): AnnotateLayout | null {
+  return layoutFor(windowPainted(zoomed));
+}
+
 function layoutFor(painted: { widthPx: number; heightPx: number; frame: PictureBox }): AnnotateLayout | null {
   const longer = Math.max(painted.frame.width, painted.frame.height);
   const pictureFrame = frameOf(painted.frame.width, painted.frame.height);
@@ -308,20 +327,36 @@ export function useAnnotateCanvas({
   const selectedNode = useWorkspaceStore(selectedDiagramPathNode);
   // The picture, from what it is made of: a text or an annotation edit keeps
   // these, so it is neither repainted nor taken for another picture.
-  const { picture, source: pictureSource, unknown } = step;
+  const { picture, source: pictureSource, unknown, zoom } = step;
   const source = useMemo(
     () => stepPictureSource({ ...step, picture, source: pictureSource, unknown }, assets),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only the picture's inputs
     [picture, pictureSource, unknown, assets]
   );
-  const painted = useMemo(() => (source ? paintSource(source, style) : null), [source, style]);
-  const url = useMemo(() => (source ? stepPictureUrl(source, style) : null), [source, style]);
+  // An enlarged step's window is the canvas's frame (Revision 2): its marks are in its units.
+  const zoomed = useMemo(
+    () => zoomedSource({ ...step, picture, source: pictureSource, unknown, zoom }, assets),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the picture's and the frame's inputs
+    [picture, pictureSource, unknown, zoom, assets]
+  );
+  const painted = useMemo(
+    () => (zoomed ? windowPainted(zoomed) : source ? paintSource(source, style) : null),
+    [zoomed, source, style]
+  );
+  // An enlarged step's marks far off its window: kept, but neither drawn, framed nor pressed.
+  const zoomWindow = zoomed?.view.window ?? null;
+  const viewed = useMemo(
+    () => (zoomWindow ? marksInWindow(zoomWindow, step.annotations) : step.annotations),
+    [zoomWindow, step.annotations]
+  );
+  // An enlarged step's picture is drawn under its frame's clip (`DiagramZoomView`), not as an image of the whole.
+  const url = useMemo(() => (source && !zoomed ? stepPictureUrl(source, style) : null), [source, zoomed, style]);
   const layout = useMemo(() => (painted ? layoutFor(painted) : null), [painted]);
   // What a fit frames: the picture and every mark the step draws past it, as
   // a page leaves them room — a close-up beside the picture among them (15f).
   const framed = useMemo(
-    () => (layout ? withMarksReach(layout, step.annotations, style) : undefined),
-    [layout, step.annotations, style]
+    () => (layout ? withMarksReach(layout, viewed, style) : undefined),
+    [layout, viewed, style]
   );
 
   const camera = useViewportSurface({
@@ -469,13 +504,13 @@ export function useAnnotateCanvas({
    */
   const shown = useMemo<readonly DiagramAnnotation[]>(() => {
     const withDraft = !draft
-      ? step.annotations
+      ? viewed
       : draft.id === DRAFT_ID
-        ? [...step.annotations, draft]
-        : step.annotations.map((annotation) => (annotation.id === draft.id ? draft : annotation));
+        ? [...viewed, draft]
+        : viewed.map((annotation) => (annotation.id === draft.id ? draft : annotation));
     // What a pick tool's next press would draw, under the pointer.
     return picker.drafts.length === 0 ? withDraft : [...withDraft, ...picker.drafts];
-  }, [step.annotations, draft, picker.drafts]);
+  }, [viewed, draft, picker.drafts]);
 
   const known = useCallback(
     (id: string) =>
@@ -565,7 +600,7 @@ export function useAnnotateCanvas({
       const grip =
         selected && canBeShaped(selected.kind) ? hitPathGrip(selected, at, hitSizes().tolerance, selectedNode) : null;
       if (!selected || !grip) {
-        const hit = hitAnnotation(step.annotations, at, hitSizes(), selectedId);
+        const hit = hitAnnotation(viewed, at, hitSizes(), selectedId);
         if (hit !== null && hit.annotationId === selectedId) return null;
         if (hit === null && selectedNode !== null) store.selectDiagramPathNode(null);
         else store.selectDiagramAnnotation(hit?.annotationId ?? null);
@@ -595,7 +630,7 @@ export function useAnnotateCanvas({
       const modifiers = { shift: false, alt: false };
       return { mode: 'path', grip, original: selected, start: at, anchor, representation, modifiers, ...press };
     },
-    [selectedId, known, hitSizes, selectedNode, step.annotations, step.id, readOnly]
+    [selectedId, known, hitSizes, selectedNode, viewed, step.id, readOnly]
   );
 
   /** A press anywhere on the canvas takes the keyboard there, as Edit's does: Space pans, letters pick tools. */
@@ -666,7 +701,7 @@ export function useAnnotateCanvas({
         gesture.current = started;
       } else {
         // Selecting is not an edit: a diagram that cannot change still selects.
-        const grip = hitAnnotation(step.annotations, at, hitSizes(), selectedId);
+        const grip = hitAnnotation(viewed, at, hitSizes(), selectedId);
         const original = grip ? known(grip.annotationId) : undefined;
         store.selectDiagramAnnotation(grip?.annotationId ?? null);
         if (readOnly || !grip || !original) return;
@@ -695,7 +730,7 @@ export function useAnnotateCanvas({
       tool,
       lineType,
       picker,
-      step.annotations,
+      viewed,
       hitSizes,
       selectedId,
       known,
@@ -1101,6 +1136,8 @@ export function useAnnotateCanvas({
     url,
     /** What the picture is painted from: a close-up paints it again, larger (15f). */
     source,
+    /** An enlarged step's window, and what it is painted from (Revision 2); null for a whole picture. */
+    zoomed,
     layout,
     shown,
     tool,

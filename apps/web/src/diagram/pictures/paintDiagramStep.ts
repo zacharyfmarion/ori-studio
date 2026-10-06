@@ -18,6 +18,7 @@
  * Pure: no DOM, no store.
  */
 import { DEFAULT_PAPER_SIZE_MM, type PaperPage, type PaperSizeMeasure } from '../../lib/paper/paperPage';
+import type { PaperScene } from '../../lib/paper/paperScene';
 import { PT_PER_CSS_PX, pageMarginPt, pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import { readPaperScene } from '../../lib/paper/paperSceneValidate';
 import {
@@ -179,16 +180,58 @@ export function stepScenePage(paddingMm: number, scale = 1): PaperPage {
 export const STEP_CARD_PADDING_MM = 1;
 
 /**
+ * A scene with only the items whose extent meets `cull` — a box in picture
+ * units, the scene's bounds' longer side one — kept: what an enlarged step's
+ * window shows of it (Revision 2), so a step that shows a corner of a model
+ * does not carry the whole of it into every card and page. Its bounds and
+ * sheet are kept, so whatever it is painted at, what is left lies where it
+ * did. The scene itself with no box.
+ */
+export function sceneCulledTo(scene: PaperScene, cull: PictureBox | null | undefined): PaperScene {
+  if (!cull) return scene;
+  const { minX, minY, maxX, maxY } = scene.bounds;
+  const longer = Math.max(maxX - minX, maxY - minY);
+  if (!(longer > 0)) return scene;
+  const box = {
+    minX: minX + cull.x * longer,
+    minY: minY + cull.y * longer,
+    maxX: minX + (cull.x + cull.width) * longer,
+    maxY: minY + (cull.y + cull.height) * longer,
+  };
+  const items = scene.items.filter((item) => {
+    const extent = itemExtent(item);
+    return extent.maxX >= box.minX && extent.minX <= box.maxX && extent.maxY >= box.minY && extent.minY <= box.maxY;
+  });
+  return items.length === scene.items.length ? scene : { ...scene, items };
+}
+
+/** What an item of a scene covers, in scene px. */
+function itemExtent(item: PaperScene['items'][number]): { minX: number; minY: number; maxX: number; maxY: number } {
+  if (item.kind === 'markup') return item.bounds;
+  const points = item.kind === 'face' ? item.rings.flat() : [item.a, item.b];
+  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [x, y] of points) {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+/**
  * A captured scene in the diagram's pens, `scale` times the size every
- * picture opens at, its pens at their print weight. `null` for a scene that
- * does not read: the file's validator has already checked it, so this is a
- * guard, not a path.
+ * picture opens at, its pens at their print weight — only what lies over
+ * `cull` (picture units) when given ({@link sceneCulledTo}). `null` for a
+ * scene that does not read: the file's validator has already checked it, so
+ * this is a guard, not a path.
  */
 export function paintScene(
   { picture, pattern }: SceneSource,
   style: DiagramStyle,
   paddingMm: number = STEP_CARD_PADDING_MM,
-  scale = 1
+  scale = 1,
+  cull: PictureBox | null = null
 ): PaintedPicture | null {
   const measure = sceneMeasure(pattern);
   let raw: unknown;
@@ -197,8 +240,9 @@ export function paintScene(
   } catch {
     return null;
   }
-  const scene = readPaperScene(raw);
-  if (!scene) return null;
+  const read = readPaperScene(raw);
+  if (!read) return null;
+  const scene = sceneCulledTo(read, cull);
   const surface = diagramScenePaintStyle(style, pattern);
   const page = stepScenePage(paddingMm, scale);
   const painted = paperSceneToSvg(scene, surface, page, measure);
@@ -225,18 +269,20 @@ export function paintScene(
  * References step are painted afresh at that size, so their lines, letters
  * and arrowheads keep their print weight; an upload and a fixed picture are
  * drawn larger whole, their own strokes with them ({@link enlargedPicture}).
+ * A scene keeps only what lies over `cull` when given ({@link sceneCulledTo}).
  */
 export function paintSource(
   source: StepPictureSource,
   style: DiagramStyle,
   paddingMm?: number,
-  scale = 1
+  scale = 1,
+  cull: PictureBox | null = null
 ): PaintedPicture | null {
   switch (source.kind) {
     case 'asset':
       return enlargedPicture(paintAsset(source.asset, source.pose), scale);
     case 'scene':
-      return paintScene(source, style, paddingMm, scale);
+      return paintScene(source, style, paddingMm, scale, cull);
     case 'fixed': {
       const { svg, widthPx, heightPx } = source.picture;
       return enlargedPicture({ svg, widthPx, heightPx, frame: { x: 0, y: 0, width: widthPx, height: heightPx } }, scale);

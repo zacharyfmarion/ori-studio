@@ -26,11 +26,11 @@ import type { PicturePoint } from './annotationModel';
 import {
   crossingsNear,
   distanceTo,
-  pictureGeometry,
   PICTURE_POINT_EPSILON,
   type PictureGeometry,
   type PictureLayers,
 } from './pictureGeometry';
+import { markGeometry } from '../zoom/stepView';
 import { annotationsOf, drawnLines, type SnapOptions } from './pictureSnap';
 
 export interface RightAngleCorner {
@@ -90,7 +90,7 @@ export function rightAngleCorner(
   { footprint, ...options }: SnapOptions & { footprint: number }
 ): RightAngleCorner | null {
   if (!(radius > 0)) return null;
-  const geometry = pictureGeometry(step, assets, options.style);
+  const geometry = markGeometry(step, assets, options.style);
   const drawn = drawnLines(annotationsOf(step, options));
   for (const vertex of verticesNear(geometry, drawn, point, radius + Math.max(footprint, 0))) {
     const corner = cornerHolding(geometry, drawn, vertex, point);
@@ -122,7 +122,7 @@ export function rightAnglesAt(
   at: PicturePoint,
   options: SnapOptions = {}
 ): RightAngleCorner[] {
-  const geometry = pictureGeometry(step, assets, options.style);
+  const geometry = markGeometry(step, assets, options.style);
   const rays = raysAt(geometry, drawnLines(annotationsOf(step, options)), at);
   if (rays.length < 2) return [];
   const corners: RightAngleCorner[] = [];

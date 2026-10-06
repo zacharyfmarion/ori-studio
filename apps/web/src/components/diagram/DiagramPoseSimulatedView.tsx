@@ -1,7 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pause, Play, RotateCcw, StepForward } from 'lucide-react';
-import { CARD_FRAME_PX, paintAnnotations } from '../../diagram/annotate/paintAnnotations';
 import type { KnownCreases } from '../../diagram/capture/captureCreases';
 import type { SimulatedRest } from '../../diagram/capture/poseController';
 import {
@@ -16,6 +15,7 @@ import type {
 import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import { diagramPaperStyle } from '../../diagram/pictures/diagramPaperStyle';
 import { simulatedCaptureFrame } from '../../diagram/pictures/simulatedCaptureFrame';
+import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { SimulatorViewport } from '../../simulator/SimulatorViewport';
 import { SIMULATED_FRAME_PX } from '../../store/workspaceStore/diagramCapture';
@@ -77,9 +77,9 @@ export function DiagramPoseSimulatedView({
 
   const { size, atStored } = pose;
   const ghost = useMemo(() => {
-    if (!annotations || !size || !atStored || annotations.annotations.length === 0) return null;
+    if (!annotations || !size || !atStored || (annotations.annotations.length === 0 && !annotations.zoom)) return null;
     const frame = simulatedCaptureFrame(annotations.bounds, SIMULATED_FRAME_PX, size.width, size.height);
-    const markup = frame ? (paintAnnotations(annotations.annotations, frame, CARD_FRAME_PX, style)?.markup ?? null) : null;
+    const markup = frame ? poseGhostMarkup(annotations.annotations, frame, style, annotations.zoom) : null;
     return markup ? { markup, ...size } : null;
   }, [annotations, size, atStored, style]);
 

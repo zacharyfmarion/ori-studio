@@ -16,7 +16,8 @@ import type { IndexedSegment } from '../../cp-workspace/picking/lineHitIndex';
 import type { DiagramAsset, DiagramStep, DiagramStyle } from '../document/diagramDocument';
 import type { PickedLine } from './angleBisector';
 import type { PicturePoint } from './annotationModel';
-import { alongLine, distanceTo, pictureGeometry, PICTURE_POINT_EPSILON, type PictureGeometry } from './pictureGeometry';
+import { alongLine, distanceTo, PICTURE_POINT_EPSILON, type PictureGeometry } from './pictureGeometry';
+import { markGeometry } from '../zoom/stepView';
 import { annotationsOf, drawnLines } from './pictureSnap';
 
 /**
@@ -32,7 +33,7 @@ export function nearestLine(
   within: number,
   { whole = false }: { whole?: boolean } = {}
 ): PickedLine | null {
-  const geometry = pictureGeometry(step, assets, style);
+  const geometry = markGeometry(step, assets, style);
   const drawn = drawnLines(annotationsOf(step, {}));
   let best: { segment: IndexedSegment; distance: number } | null = null;
   for (const segment of [...geometry.segmentIndex.segmentsNear(at[0], at[1], within), ...drawn]) {
