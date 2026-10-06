@@ -13,11 +13,14 @@ import {
   pictureOverrun,
   runLevels,
   scaleRuns,
+  STEP_NUMBER_SIZE_MM,
   STEP_TEXT_LEADING_MM,
+  STEP_TEXT_SIZE_MM,
   TURN_GUTTER_MM,
   TURN_STACK_CLEAR_MM,
   turnGlyphMm,
   type LayoutCell,
+  type LayoutPage,
   type LayoutStep,
   type LayoutTurn,
 } from './diagramPageLayout';
@@ -745,7 +748,7 @@ describe('turns between steps on the page (D22)', () => {
     expect(turn!.at.y).toBeCloseTo(centreOf(a!).y, 6);
   });
 
-  it('prints one across a row or a page at the next picture’s leading edge, and one after the last at its trailing edge', () => {
+  it('prints one across a grid’s row or a page at the next picture’s leading edge, and one after the last at its trailing edge', () => {
     const list = steps(4, (index) =>
       index === 3 ? { turnsBefore: [over('turn-row')], turnsAfter: [over('turn-end')] } : {}
     );
@@ -758,6 +761,93 @@ describe('turns between steps on the page (D22)', () => {
     expect(byId.get('turn-row')!.at.x).toBeCloseTo(fourth.pictureMm.x - gutter / 2, 6);
     expect(byId.get('turn-row')!.at.y).toBeCloseTo(centreOf(fourth).y, 6);
     expect(byId.get('turn-end')!.at.x).toBeCloseTo(fourth.pictureMm.x + fourth.pictureMm.size + gutter / 2, 6);
+  });
+
+  /** Where a cell's text ends, with its descenders; its picture's bottom when it has none. */
+  const textBottom = (cell: LayoutCell) =>
+    cell.text.lines.length > 0
+      ? cell.text.firstBaseline + (cell.text.lines.length - 1) * STEP_TEXT_LEADING_MM + 0.3 * STEP_TEXT_SIZE_MM
+      : cell.drawMm.y + cell.drawMm.h;
+  /** The top of a cell's number: its figures stand under three quarters of its size. */
+  const numberTop = (cell: LayoutCell) => cell.numberAt.y - 0.75 * STEP_NUMBER_SIZE_MM;
+  /** The turns' stack, top to bottom, as printed. */
+  const extent = (turns: LayoutPage['turns']) => ({
+    top: Math.min(...turns.map((turn) => turn.at.y - turn.box.h / 2)),
+    bottom: Math.max(...turns.map((turn) => turn.at.y + turn.box.h / 2)),
+  });
+
+  it('prints one across a flow row’s end in the band’s bend: under the step before’s text, over the next one’s number', () => {
+    // Zach, 2026-10-06, the X-ray Heart's page 1: "the turn over step between
+    // 3 and 4 should be rendered in the flow lane between steps 3 and 4, not
+    // to the right of step 4."
+    const list = steps(9, (index) =>
+      index === 3 ? { turnsBefore: [over('turn-down-right')] } : index === 6 ? { turnsBefore: [over('turn-down-left')] } : {}
+    );
+    const result = layout(list, { layout: 'flow', columns: 3, rows: 3 });
+    const page = result.pages[0]!;
+    const centres = new Set(page.cells.map((cell) => `${cell.pictureMm.x + cell.pictureMm.size / 2}`));
+    // The band's points that are no picture's centre: where it turns down from one row to the next.
+    const bends = page.band!.filter((point) => !centres.has(`${point.x}`));
+    expect(bends).toHaveLength(2);
+    const byId = new Map(page.turns.map((turn) => [turn.id, turn]));
+    for (const [id, before, bend] of [
+      ['turn-down-right', 2, bends[0]!],
+      ['turn-down-left', 5, bends[1]!],
+    ] as const) {
+      const turn = byId.get(id)!;
+      const [above, below] = [page.cells[before]!, page.cells[before + 1]!];
+      expect(turn.at.x, id).toBeCloseTo(bend.x, 6);
+      // Between the rows, clear of the words above and the number below, and centred there.
+      const { top, bottom } = extent([turn]);
+      expect(top, id).toBeGreaterThan(textBottom(above));
+      expect(bottom, id).toBeLessThan(numberTop(below));
+      expect(Math.abs(turn.at.y - (textBottom(above) + numberTop(below)) / 2), id).toBeLessThan(1);
+    }
+    // The first bend is at the right, the second at the left.
+    expect(byId.get('turn-down-right')!.at.x).toBeGreaterThan(page.cells[2]!.pictureMm.x + page.cells[2]!.pictureMm.size);
+    expect(byId.get('turn-down-left')!.at.x).toBeLessThan(page.cells[5]!.pictureMm.x);
+    // Each goes the way of the row it leads into.
+    expect(byId.get('turn-down-right')!.rightToLeft).toBe(true);
+    expect(byId.get('turn-down-left')!.rightToLeft).toBe(false);
+  });
+
+  it('keeps a flow row’s end clear for the turns after it: the step before gives up its text’s room, or its picture’s', () => {
+    const upright: LayoutTurn = { id: 'turn-b', turn: { kind: 'turn-over', axis: 'horizontal' } };
+    const rotate: LayoutTurn = { id: 'turn-c', turn: { kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } } };
+    const stacked = [over('turn-a'), upright, rotate];
+    // A text that fills its cell to the last line, and a tall picture with no text.
+    for (const before of [{ text: `${LONG} ${LONG} ${LONG}` }, { text: '', picture: paper(150, 600) }]) {
+      const list = steps(6, (index) => (index === 2 ? before : index === 3 ? { turnsBefore: stacked } : {}));
+      const result = layout(list, { layout: 'flow', columns: 3, rows: 3 });
+      const page = result.pages[0]!;
+      const [above, below] = [page.cells[2]!, page.cells[3]!];
+      const { top, bottom } = extent(page.turns);
+      const label = before.text === '' ? 'picture' : 'text';
+      expect(top, label).toBeGreaterThanOrEqual(textBottom(above) + TURN_STACK_CLEAR_MM - 1e-6);
+      expect(bottom, label).toBeLessThanOrEqual(numberTop(below) - TURN_STACK_CLEAR_MM + 1e-6);
+      // Only the step before the turns gives way: without them, it reaches further down.
+      const plain = layout(
+        steps(6, (index) => (index === 2 ? before : index === 3 ? {} : index === 4 ? { turnsBefore: [over('turn-row')] } : {})),
+        { layout: 'flow', columns: 3, rows: 3 }
+      ).pages[0]!;
+      expect(textBottom(plain.cells[2]!), label).toBeGreaterThan(top);
+      expect(plain.cells[0]!.pictureMm.size).toBeCloseTo(page.cells[0]!.pictureMm.size, 6);
+    }
+  });
+
+  it('prints one before a flow page’s first step at its leading edge, as on the page before there is no row to turn from', () => {
+    const list = steps(11, (index) => (index === 0 || index === 9 ? { turnsBefore: [over(`turn-${index}`)] } : {}));
+    const result = layout(list, { layout: 'flow', columns: 3, rows: 3 });
+    for (const [pageIndex, id] of [
+      [0, 'turn-0'],
+      [1, 'turn-9'],
+    ] as const) {
+      const page = result.pages[pageIndex]!;
+      const first = page.cells[0]!;
+      const turn = page.turns.find((each) => each.id === id)!;
+      expect(turn.at.x, id).toBeCloseTo(first.pictureMm.x - (first.cellMm.w - first.pictureMm.size) / 2, 6);
+      expect(turn.at.y, id).toBeCloseTo(first.drawMm.y + first.drawMm.h / 2, 6);
+    }
   });
 
   it('reads a flow row that runs right to left from its right, and says which way each turn’s row reads', () => {

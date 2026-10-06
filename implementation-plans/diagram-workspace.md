@@ -1293,6 +1293,23 @@ and don't count towards the numbers"; on pages, "in the gutter".)*
   2026-10-05: "The turn over symbol needs to be flipped horizontally if the
   steps are reading right to left in the flow layout"); one top to bottom
   points down, and a rotation turns the way it says, whichever way a row runs.
+  - *Amended, flow row breaks* (Zach, 2026-10-06, the X-ray Heart's page 1:
+    "the turn over step between 3 and 4 should be rendered in the flow lane
+    between steps 3 and 4, not to the right of step 4"). In the flow layout a
+    turn across a row's end prints in the band's bend (`FLOW_BEND`, shared
+    with `flowBand`), midway down from the step before's last line, or its
+    picture when it has no text, to the next step's number. That step before
+    keeps the stack's room under its text (`slotBottom`): when the room is
+    short, its text ends higher and its picture gives way, as it does for any
+    long text. No other step changes, so the one paper scale holds. Kept as
+    they were: a grid's row break (no lane: the glyph reads at the start of the
+    next row, at its leading edge); a page break, and a turn before a page's
+    first step (no row on the page to turn from, and the band comes in at that
+    step's left, so the leading edge is on the lane); turns after the last
+    step; several turns at one place stand stacked, the stack centred.
+    Browser: `artifacts/diagram-second-pass/21/` (`p21.mjs`,
+    `turn-glyph-row-break.png`; `p21-pdf.mjs` shows that the PDF writer gets
+    the Pages view's own page SVG).
 - **Made from** Add step ▾ › Turn Over / Rotate, the card menu's Insert Turn
   Over / Rotate After, and References: a References turn-over card is pulled
   as a turn-over, never as a numbered step, and never fills or replaces one.

@@ -30,10 +30,12 @@
  * one size of frame the same way.
  *
  * A turn between two steps (D22) has no cell: its glyph prints in the gutter
- * between the two pictures — midway on a row; at the next picture's leading
- * edge across a row or a page; at the last picture's trailing edge after it.
- * A diagram with any turn keeps a gutter wide enough between all its
- * pictures, so its one paper scale stays one scale.
+ * between the two pictures — midway on a row; across a flow row's end, in the
+ * band's bend between the rows; at the next picture's leading edge across a
+ * grid's row or a page; at the last picture's trailing edge after it. A
+ * diagram with any turn keeps a gutter wide enough between all its pictures,
+ * so its one paper scale stays one scale; a step before a flow row's end with
+ * turns after it keeps their room under its text, and only it gives way.
  *
  * Measurement is injected ({@link TextSetter}): the composer sets text from
  * the font's own advances, tests with an estimate.
@@ -51,6 +53,8 @@ export const STEP_TEXT_LEADING_MM = 4.1;
 export const STEP_NUMBER_SIZE_MM = 6.2;
 const STEP_NUMBER_BASELINE_MM = 7;
 const STEP_NUMBER_INSET_MM = 1.5;
+/** The top of the step number below the cell's top: its figures stand under three quarters of its size. */
+const STEP_NUMBER_TOP_MM = STEP_NUMBER_BASELINE_MM - 0.75 * STEP_NUMBER_SIZE_MM;
 /** The picture box's top below the cell's top: under the number. */
 const PICTURE_TOP_MM = 8;
 /** The instruction's first baseline below the picture box. */
@@ -78,6 +82,8 @@ const PAGE_NUMBER_RAISE_MM = 1.5;
 const OFF_PAGE_MM = 10;
 /** Flow: every other cell of a row steps down by this share of the cell, and the text gives up as much. */
 const FLOW_STEP = 0.06;
+/** Flow: how far out past a row's last picture's centre the band turns down to the next row, as a share of the cell's width. */
+const FLOW_BEND = 0.46;
 /** The room beside a picture box in its cell, together: the gutter between two pictures. */
 const PICTURE_SIDE_ROOM_MM = 6;
 /**
@@ -125,6 +131,11 @@ export function turnGlyphMm(turn: DiagramTurnKind): { w: number; h: number } {
   if (turn.kind === 'rotate') return { w: ROTATE_GLYPH_MM, h: ROTATE_GLYPH_MM };
   const { long, short } = TURN_OVER_GLYPH_MM;
   return turn.axis === 'horizontal' ? { w: short, h: long } : { w: long, h: short };
+}
+
+/** How tall turns standing in one place are, one above another, each clear of the next. */
+function stackHeight(turns: readonly LayoutTurn[]): number {
+  return turns.reduce((sum, turn) => sum + turnGlyphMm(turn.turn).h, 0) + (turns.length - 1) * TURN_STACK_CLEAR_MM;
 }
 
 /** One run of a set line: a font and its text, placed from the line's start. */
@@ -781,55 +792,73 @@ export function layoutDiagramPages(
     index: number;
     x: number;
     y: number;
+    /** How far down the page the text's last line may sit. */
+    slot: number;
     box: number;
     text: SetText;
     overflow: boolean;
   }
-  /** How far below the box's top the text's last line may sit, and how many lines fit there. */
-  const slotBottom = (cellTop: number) => cellTop + cellH * (flow ? 1 - FLOW_STEP : 1) - TEXT_DESCENT_MM;
+  /** The top-left of a page's `k`th cell: a flow row that runs right to left from the right, every other cell lower. */
+  const cellAt = (k: number) => {
+    const row = Math.floor(k / setup.columns);
+    const k0 = k % setup.columns;
+    const col = flow && row % 2 === 1 ? setup.columns - 1 - k0 : k0;
+    return { x: m + col * cellW, y: m + headH + row * cellH + (flow && k0 % 2 === 1 ? cellH * FLOW_STEP : 0) };
+  };
+  /** How far down the page the text of a page's `k`th cell may sit, by its cell. */
+  const cellFoot = (k: number) => cellAt(k).y + cellH * (flow ? 1 - FLOW_STEP : 1) - TEXT_DESCENT_MM;
+  /**
+   * The same, before a flow row's end with turns after it: above their room
+   * over the next step's number, clear of both (`placeTurns`).
+   */
+  const slotBottom = (entries: readonly { step: LayoutStep }[], k: number) => {
+    const own = cellFoot(k);
+    const turns = entries[k + 1]?.step.turnsBefore ?? [];
+    if (!flow || turns.length === 0 || (k + 1) % setup.columns !== 0) return own;
+    const room = stackHeight(turns) + 2 * TURN_STACK_CLEAR_MM;
+    return Math.min(own, cellAt(k + 1).y + STEP_NUMBER_TOP_MM - room - TEXT_DESCENT_MM);
+  };
   const firstBaselineOf = (cellTop: number, box: number) => cellTop + PICTURE_TOP_MM + box + TEXT_GAP_MM;
-  const slotLines = (cellTop: number, box: number) =>
-    Math.max(
-      0,
-      Math.floor((slotBottom(cellTop) - firstBaselineOf(cellTop, box)) / STEP_TEXT_LEADING_MM + 1e-9) + 1
-    );
+  /** How many lines fit between a box and the foot of its slot. */
+  const slotLines = (slot: number, cellTop: number, box: number) =>
+    Math.max(0, Math.floor((slot - firstBaselineOf(cellTop, box)) / STEP_TEXT_LEADING_MM + 1e-9) + 1);
   const placedPages: Placed[][] = pagesOfSteps.map((entries) =>
     entries.map(({ step, index }, k) => {
-      const row = Math.floor(k / setup.columns);
-      const k0 = k % setup.columns;
-      const col = flow && row % 2 === 1 ? setup.columns - 1 - k0 : k0;
-      const x = m + col * cellW;
-      const y = m + headH + row * cellH + (flow && k0 % 2 === 1 ? cellH * FLOW_STEP : 0);
+      const { x, y } = cellAt(k);
+      const slot = slotBottom(entries, k);
       let box = fullBox;
       const full = setter.paragraph(step.text, textWidth, STEP_TEXT_SIZE_MM, Number.MAX_SAFE_INTEGER);
-      let maxLines = slotLines(y, box);
+      let maxLines = slotLines(slot, y, box);
       if (full.linesNeeded > maxLines) {
         // Text first: the picture gives up the room the text's last line is
         // short of — measured, not counted in lines, since a slot can be
         // short of more than it holds — down to its floor.
         const lastBaseline = firstBaselineOf(y, box) + (full.linesNeeded - 1) * STEP_TEXT_LEADING_MM;
-        box = Math.max(fullBox * PICTURE_FLOOR, box - (lastBaseline - slotBottom(y)));
-        maxLines = slotLines(y, box);
+        box = Math.max(fullBox * PICTURE_FLOOR, box - (lastBaseline - slot));
+        maxLines = slotLines(slot, y, box);
         if (maxLines === 0) {
           // A cell so short that half a picture leaves no line at all: the
           // picture gives way further, for one line — a cut instruction says
           // so; a missing one says nothing.
-          box = Math.max(0, slotBottom(y) - (firstBaselineOf(y, box) - box));
-          maxLines = slotLines(y, box);
+          box = Math.max(0, slot - (firstBaselineOf(y, box) - box));
+          maxLines = slotLines(slot, y, box);
         }
+      } else if (full.linesNeeded === 0 && slot < cellFoot(k)) {
+        // No text, and turns kept under it: the picture ends where text would, above them.
+        box = Math.max(0, Math.min(box, slot + TEXT_DESCENT_MM - (y + PICTURE_TOP_MM)));
       }
       const text =
         full.linesNeeded <= maxLines ? full : setter.paragraph(step.text, textWidth, STEP_TEXT_SIZE_MM, maxLines);
-      return { step, index, x, y, box, text, overflow: full.linesNeeded > maxLines };
+      return { step, index, x, y, slot, box, text, overflow: full.linesNeeded > maxLines };
     })
   );
 
   // Each picture's room: across, the cell less its gutter; down, what its
   // text leaves, at least its box. It fits where both its sides do.
-  const roomH = ({ y, box, text }: Placed) =>
+  const roomH = ({ y, slot, box, text }: Placed) =>
     Math.max(
       box,
-      slotBottom(y) -
+      slot -
         (y + PICTURE_TOP_MM) -
         (text.lines.length > 0 ? TEXT_GAP_MM + (text.lines.length - 1) * STEP_TEXT_LEADING_MM : 0)
     );
@@ -945,11 +974,14 @@ export function layoutDiagramPages(
 
 /**
  * Where the turns on a page print (D22): between two pictures on one row,
- * midway between them at their centres' height; before a picture that starts
- * a row or the page, at its leading edge — the right one on a flow row that
- * runs right to left; after the last picture, at its trailing edge. Several
- * in one place stand one above another, each glyph clear of the next, the
- * stack centred on the place. Kept on the paper.
+ * midway between them at their centres' height; across a flow row's end, in
+ * the band's bend between the rows, midway down from the last line of the
+ * step before to the next step's number (the step before kept the room:
+ * `slotBottom`); before a picture that starts a grid's row or the page, at
+ * its leading edge — a page's first step has no row on the page to turn from,
+ * and the band comes in at its left; after the last picture, at its trailing
+ * edge. Several in one place stand one above another, each glyph clear of the
+ * next, the stack centred on the place. Kept on the paper.
  */
 function placeTurns(
   steps: readonly LayoutStep[],
@@ -966,6 +998,11 @@ function placeTurns(
     x: cell.pictureMm.x + cell.pictureMm.size / 2,
     y: cell.drawMm.y + cell.drawMm.h / 2,
   });
+  /** How far down a cell's own ink reaches: its text's last line, with its descenders, or its picture. */
+  const foot = (cell: LayoutCell) =>
+    cell.text.lines.length > 0
+      ? cell.text.firstBaseline + (cell.text.lines.length - 1) * STEP_TEXT_LEADING_MM + TEXT_DESCENT_MM
+      : cell.drawMm.y + cell.drawMm.h;
   /** The edge of a picture facing the gutter before (`lead`) or after it, half a gutter out. */
   const edge = (k: number, lead: boolean) => {
     const cell = cells[k]!;
@@ -978,8 +1015,7 @@ function placeTurns(
   const stack = (turns: readonly LayoutTurn[], at: { x: number; y: number }, k: number, beforeStepId: string | null) => {
     const x = Math.min(pageWidth - TURN_GUTTER_MM / 2, Math.max(TURN_GUTTER_MM / 2, at.x));
     const boxes = turns.map((turn) => turnGlyphMm(turn.turn));
-    const height = boxes.reduce((sum, box) => sum + box.h, 0) + (turns.length - 1) * TURN_STACK_CLEAR_MM;
-    let top = at.y - height / 2;
+    let top = at.y - stackHeight(turns) / 2;
     turns.forEach((turn, n) => {
       const box = boxes[n]!;
       placed.push({ ...turn, at: { x, y: top + box.h / 2 }, box, beforeStepId, rightToLeft: backwards(k) });
@@ -993,6 +1029,11 @@ function placeTurns(
         const b = centre(cells[k]!);
         const facing = (edge(k - 1, false).x + edge(k, true).x) / 2;
         stack(step.turnsBefore, { x: facing, y: (a.y + b.y) / 2 }, k, step.id);
+      } else if (k > 0 && flow) {
+        const before = cells[k - 1]!;
+        const x = centre(before).x + (backwards(k - 1) ? -1 : 1) * FLOW_BEND * before.cellMm.w;
+        const y = (foot(before) + cells[k]!.cellMm.y + STEP_NUMBER_TOP_MM) / 2;
+        stack(step.turnsBefore, { x, y }, k, step.id);
       } else {
         stack(step.turnsBefore, edge(k, true), k, step.id);
       }
@@ -1024,7 +1065,7 @@ function flowBand(
   centres.forEach((a, n) => {
     points.push({ x: a.x, y: a.y });
     const b = centres[n + 1];
-    if (b && b.row !== a.row) points.push({ x: a.x + (a.row % 2 ? -1 : 1) * cellW * 0.46, y: (a.y + b.y) / 2 });
+    if (b && b.row !== a.row) points.push({ x: a.x + (a.row % 2 ? -1 : 1) * cellW * FLOW_BEND, y: (a.y + b.y) / 2 });
   });
   const last = centres.at(-1)!;
   if (pageIndex < pageCount - 1) {
