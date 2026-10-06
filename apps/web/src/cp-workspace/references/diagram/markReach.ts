@@ -12,6 +12,7 @@ import {
   angleMarkArcPoints,
   angleMarkDrawn,
   arcExtremes,
+  divisionsDrawn,
   foldArrowDrawn,
   halfArrowheadCorners,
   oneWayArrowDrawn,
@@ -48,6 +49,7 @@ export type DiagramMarkPrimitive = Extract<
       | 'point'
       | 'right-angle'
       | 'angle-mark'
+      | 'divisions'
       | 'pleat-arrow';
   }
 >;
@@ -63,6 +65,7 @@ const MARK_KINDS: ReadonlySet<StepDiagramPrimitive['kind']> = new Set<DiagramMar
   'point',
   'right-angle',
   'angle-mark',
+  'divisions',
   'pleat-arrow',
 ]);
 
@@ -199,6 +202,24 @@ export function markReach(
       for (const [a, b] of shape.ticks) {
         take(a.x, a.y, pad);
         take(b.x, b.y, pad);
+      }
+      break;
+    }
+    case 'divisions': {
+      // Every stroke's ends, cut square, half its pen round them — the line
+      // in its own pen, the dividers and ticks in a ring's — and the count's
+      // box, upright.
+      const shape = divisionsDrawn(primitive.from, primitive.to, primitive, project);
+      if (!shape) break;
+      for (const end of shape.line) take(end.x, end.y, shape.pens.line / 2);
+      for (const [a, b] of [...shape.dividers, ...shape.ticks]) {
+        take(a.x, a.y, shape.pens.marks / 2);
+        take(b.x, b.y, shape.pens.marks / 2);
+      }
+      if (shape.number) {
+        const { at, halfWidth, halfHeight } = shape.number;
+        take(at.x - halfWidth, at.y - halfHeight, 0);
+        take(at.x + halfWidth, at.y + halfHeight, 0);
       }
       break;
     }

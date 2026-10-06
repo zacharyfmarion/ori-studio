@@ -5,11 +5,18 @@ import { isDrawingTool } from '../../diagram/annotate/annotateTools';
 import {
   angleMarkInPicture,
   arrowPolyline,
+  divisionsInPicture,
+  divisionsOffsetGrip,
   pleatArrowInPicture,
   rightAngleGrips,
   rightAngleInPicture,
 } from '../../diagram/annotate/annotationHit';
-import { angleMarkArcPoints, rightAnglePathData, type SvgPoint } from '../../cp-workspace/references/stepDiagramGeometry';
+import {
+  angleMarkArcPoints,
+  divisionsStrokes,
+  rightAnglePathData,
+  type SvgPoint,
+} from '../../cp-workspace/references/stepDiagramGeometry';
 import { pathNodesOf, pathNodesPolyline, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { pictureGeometry } from '../../diagram/annotate/pictureGeometry';
@@ -318,6 +325,8 @@ function Selection({
       box = calloutDrawnBox(shape.box, calloutPen);
       break;
     }
+    case 'divisions':
+      return <DivisionsSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
     case 'close-up':
       return <CloseUpSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
   }
@@ -342,6 +351,59 @@ function Selection({
         const [x, y] = at(annotation[end]);
         return <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />;
       })}
+    </g>
+  );
+}
+
+/**
+ * Selected equal divisions (Revision 2): washed along their ink — the line,
+ * the dividers, the ticks and the count — with a hairline along the line they
+ * measure, which they never draw, between a dot at each of its ends, which
+ * moves that end; and a handle at the middle of their line, which sets how
+ * far off it stands, as a drag of the mark does.
+ */
+function DivisionsSelection({
+  annotation,
+  layout,
+  zoom,
+  movable,
+}: {
+  annotation: KnownDiagramAnnotation;
+  layout: AnnotateLayout;
+  zoom: number;
+  movable: boolean;
+}) {
+  const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit] as const;
+  const world = ({ x, y }: SvgPoint) => at([x, y]);
+  const shape = divisionsInPicture(annotation, INK_UNITS);
+  const handle = HANDLE_PX / zoom;
+  const [x1, y1] = at(annotation.from);
+  const [x2, y2] = at(annotation.to);
+  const number = shape?.number;
+  const corner = number && world({ x: number.at.x - number.halfWidth, y: number.at.y - number.halfHeight });
+  const [hx, hy] = at(divisionsOffsetGrip(annotation, INK_UNITS));
+  return (
+    <g data-selection="" data-divisions-selection="">
+      {shape &&
+        divisionsStrokes(shape).map(([a, b], index) => (
+          <polyline key={index} className={styles.selection} points={polylinePoints([world(a), world(b)])} />
+        ))}
+      {number && corner && (
+        <rect
+          className={styles.selection}
+          x={corner[0]}
+          y={corner[1]}
+          width={2 * number.halfWidth * layout.unit}
+          height={2 * number.halfHeight * layout.unit}
+        />
+      )}
+      <line className={styles.measuredLine} x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth={TIE_PX / zoom} data-measured-line="" />
+      {movable &&
+        annotationEnds(annotation.kind).map((end) => {
+          const [x, y] = at(annotation[end]);
+          return <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />;
+        })}
+      {movable && <circle className={styles.handle} cx={hx} cy={hy} r={handle * 0.8} data-handle="offset" />}
     </g>
   );
 }
@@ -508,18 +570,25 @@ function PathSelection({
 
 /**
  * A pick tool's picks (15b), over the marks: the lines picked, the one a
- * press would pick, the midline two parallel lines make, and the points
+ * press would pick — firmly where the press takes it outright, as Equal
+ * Divisions' click does — the midline two parallel lines make, and the points
  * picked — sized for the screen. Lines run on past their ends, as the
  * bisector takes them, a little way each side.
  */
 function PickMarks({ preview, layout, zoom }: { preview: PickPreview; layout: AnnotateLayout; zoom: number }) {
-  const { points, lines, hovered, midline } = preview;
+  const { points, lines, hovered, midline, hoverTakes } = preview;
   if (points.length === 0 && lines.length === 0 && !hovered && !midline) return null;
   const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit] as const;
-  const segment = (key: string, className: string, a: readonly [number, number], b: readonly [number, number]) => {
+  const segment = (
+    key: string,
+    className: string,
+    a: readonly [number, number],
+    b: readonly [number, number],
+    takes?: boolean
+  ) => {
     const [x1, y1] = at(a);
     const [x2, y2] = at(b);
-    return <line key={key} className={className} x1={x1} y1={y1} x2={x2} y2={y2} />;
+    return <line key={key} className={className} x1={x1} y1={y1} x2={x2} y2={y2} data-takes={takes ? '' : undefined} />;
   };
   // The midline across the frame and past it: a line, not a segment.
   const across = midline
@@ -532,7 +601,7 @@ function PickMarks({ preview, layout, zoom }: { preview: PickPreview; layout: An
     : null;
   return (
     <g data-pick-marks="">
-      {hovered && segment('hovered', styles.pickHover, hovered.a, hovered.b)}
+      {hovered && segment('hovered', styles.pickHover, hovered.a, hovered.b, hoverTakes)}
       {lines.map((line, index) => segment(`line-${index}`, styles.pickLine, line.a, line.b))}
       {across}
       {points.map((point, index) => {

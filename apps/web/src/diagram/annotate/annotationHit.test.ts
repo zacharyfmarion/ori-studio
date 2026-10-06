@@ -6,6 +6,8 @@ import { ARROW_BEND, arrowApex, calloutShape, flipAnnotationArc, pathCubics, rig
 import {
   arrowPolyline,
   circleRadius,
+  divisionsInPicture,
+  divisionsOffsetGrip,
   hitAnnotation,
   hitPathGrip,
   pleatArrowInPicture,
@@ -14,6 +16,7 @@ import {
 } from './annotationHit';
 import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { CARD_FRAME_PX } from './paintAnnotations';
+import { ANNOTATION_INK_MM } from './canvasInk';
 
 /** About the canvas's: an ink is about 0.0066 of the frame, a callout's outline at the default 1.05 pt pen 0.0025. */
 const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066, calloutPen: 0.0025 };
@@ -522,5 +525,51 @@ describe('a right angle (Revision 2)', () => {
     expect(hitAnnotation([mark], mark.to, tight, 'square')).toBeNull();
     // Not selected, a press on its vertex is not the mark's at all.
     expect(hitAnnotation([mark], [0.501, 0.5], tight, null)).toBeNull();
+  });
+});
+
+describe('equal divisions (Revision 2)', () => {
+  // Along a level line, their line 2.5 mm below it, numbered.
+  const divisions: KnownDiagramAnnotation = {
+    id: 'd',
+    kind: 'divisions',
+    from: [0.2, 0.5],
+    to: [0.8, 0.5],
+    parts: 4,
+    offset: 2.5,
+    numbered: true,
+  };
+  const tight = { ...SIZES, tolerance: 0.004 };
+  const below = (2.5 / ANNOTATION_INK_MM) * SIZES.ink;
+
+  it('are their ink as drawn: the line set off the measured line, the dividers and the ticks', () => {
+    const shape = divisionsInPicture(divisions, SIZES.ink)!;
+    expect(shape.line[0].y).toBeCloseTo(0.5 + below, 12);
+    expect(shape.dividers).toHaveLength(5);
+    expect(shape.ticks).toHaveLength(4);
+  });
+
+  it('are taken on their line, a divider or a tick, and on their count’s box — never on the line they measure', () => {
+    expect(hitAnnotation([divisions], [0.35, 0.5 + below], tight, null)).toEqual({ annotationId: 'd', part: 'body' });
+    // Down a divider, past the line.
+    expect(hitAnnotation([divisions], [0.5, 0.5 + below + 3 * SIZES.ink], tight, null)?.annotationId).toBe('d');
+    // On a tick, off the line along its lean.
+    const [tickTop] = divisionsInPicture(divisions, SIZES.ink)!.ticks[0]!;
+    expect(hitAnnotation([divisions], [tickTop.x, tickTop.y], tight, null)?.annotationId).toBe('d');
+    const { at } = divisionsInPicture(divisions, SIZES.ink)!.number!;
+    expect(hitAnnotation([divisions], [at.x, at.y], tight, null)?.annotationId).toBe('d');
+    // Along the measured line, between dividers, nothing is theirs.
+    expect(hitAnnotation([divisions], [0.4, 0.5], tight, null)).toBeNull();
+  });
+
+  it('offer, selected, the ends of the line they measure and a handle at the middle of their line', () => {
+    expect(hitAnnotation([divisions], [0.8, 0.5], tight, 'd')).toEqual({ annotationId: 'd', part: 'to' });
+    expect(hitAnnotation([divisions], [0.2, 0.5], tight, 'd')).toEqual({ annotationId: 'd', part: 'from' });
+    const grip = divisionsOffsetGrip(divisions, SIZES.ink);
+    expect(grip[0]).toBeCloseTo(0.5, 12);
+    expect(grip[1]).toBeCloseTo(0.5 + below, 12);
+    expect(hitAnnotation([divisions], grip, tight, 'd')).toEqual({ annotationId: 'd', part: 'offset' });
+    // Unselected, the handle is only their body.
+    expect(hitAnnotation([divisions], grip, tight, null)).toEqual({ annotationId: 'd', part: 'body' });
   });
 });

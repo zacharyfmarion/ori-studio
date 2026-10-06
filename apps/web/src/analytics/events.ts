@@ -91,6 +91,7 @@ export type DiagramAnnotationTool =
   | 'callout'
   | 'angle_mark'
   | 'angle_bisector'
+  | 'divisions'
   | 'close_up';
 
 /**
@@ -101,6 +102,13 @@ export type DiagramAnnotationTool =
  * until 2026-10-05).
  */
 export type DiagramAnnotationSnap = 'snapped' | 'free' | 'off' | 'nothing_near' | 'none';
+
+/**
+ * How equal divisions were laid (Revision 2, ED1): dragged from one end of a
+ * line to the other, or put on a line of the picture or a drawn one with a
+ * click, which divides it whole.
+ */
+export type DiagramDivisionsPlaced = 'drag' | 'line';
 
 /** A fold arrow or a white arrow, which Edit Path shapes: its kind, in the event's own spelling. */
 export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';

@@ -198,8 +198,20 @@
 }
 
 /*
+ * Selected equal divisions (Revision 2): a hairline along the line they
+ * measure, which they never draw themselves, between the dots at its ends.
+ */
+.measuredLine {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+/*
  * A pick tool's picks (15b): the lines picked, washed as a selection is; the
- * line a press would pick, more lightly; the midline between two parallel
+ * line a press would pick, more lightly — or, where the press takes it
+ * outright (Equal Divisions' click, `data-takes`), in the selection's colour,
+ * so it reads over a solid black edge; the midline between two parallel
  * lines, dashed; and the points picked, solid dots on a white halo.
  */
 .pickLine,
@@ -219,6 +231,11 @@
 .pickHover {
   stroke: color-mix(in srgb, var(--annotate-selection) 30%, transparent);
   stroke-width: 6px;
+}
+
+.pickHover[data-takes] {
+  stroke: var(--annotate-selection);
+  stroke-width: 3px;
 }
 
 .pickMidline {

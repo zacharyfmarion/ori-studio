@@ -32,7 +32,7 @@ describe('the rail', () => {
     expect(annotationLabel(t, { kind: 'white-arrow' })).toBe('White Arrow');
   });
 
-  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a), the pleat and solid arrows among the arrows (15c, 15d), the close-up among the marks (15f)', () => {
+  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a), the pleat and solid arrows among the arrows (15c, 15d), equal divisions and the close-up among the marks (Revision 2, 15f)', () => {
     expect(ANNOTATE_TOOL_GROUPS).toEqual([
       { id: 'select', tools: [null, 'edit-path'] },
       {
@@ -48,7 +48,8 @@ describe('the rail', () => {
         ],
       },
       { id: 'lines', tools: ['line', 'angle-bisector'] },
-      { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark', 'close-up'] },
+      // The two equality marks side by side (ED8).
+      { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark', 'divisions', 'close-up'] },
       { id: 'text', tools: ['label', 'callout'] },
     ]);
     // Every kind is drawn by a tool: each its own, the lines by Line in each
@@ -68,6 +69,9 @@ describe('the rail', () => {
       .map((chord) => chord.key);
     expect(plain).not.toContain('t');
     expect(plain).not.toContain('r');
+    // D divides (ED8), and picks Equal Divisions.
+    expect(plain).toContain('d');
+    expect(toolForShortcut('diagram.toolDivisions')).toBe('divisions');
     expect(DIAGRAM_LINE_TYPES.map((type) => drawingKind('line', type))).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
     expect(ANNOTATION_KINDS.filter(isLineKind)).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
   });
@@ -174,6 +178,14 @@ describe('the tool window', () => {
         instructions: 'Click a point on one arm, the vertex, then a point on the other arm.',
         modifiers: [picks],
       },
+      // Its count is typed next, and its offset set with Select: the window
+      // says so, the ⌘ line every line's end has, and Shift's halves (Revision 2).
+      divisions: {
+        title: 'Equal Divisions',
+        instructions:
+          'Drag along a line from one end to the other, or click it, to divide it; then type how many parts. With Select, drag the mark to set how far off the line it sits.',
+        modifiers: [ends, 'With Select, Shift-drag the mark to move its line by half millimetres.'],
+      },
       // Its rings are moved and sized with Select: the window says how, and Shift's halves (15f).
       'close-up': {
         title: 'Close-Up',
@@ -197,6 +209,18 @@ describe('the tool window', () => {
     expect(hint('angle-mark', null)).toBe('Click a point on one arm, the vertex, then a point on the other arm.');
   });
 
+  it('says what equal divisions clicked on no line could not do, until the next press (Revision 2)', () => {
+    const notice = { tool: 'divisions', notice: 'no-line' } as const;
+    expect(annotateToolHint(t, 'divisions', null, mac, null, notice)!.instructions).toBe(
+      'Click on a line to divide it whole, or drag from one end to the other.'
+    );
+    // Said only for the tool it is about, and on a touch screen too.
+    expect(annotateToolHint(t, 'circle', null, mac, null, notice)!.instructions).toBe('Click a point to circle it.');
+    expect(annotateToolHint(t, 'divisions', null, { ...mac, coarse: true }, null, notice)!.instructions).toBe(
+      'Click on a line to divide it whole, or drag from one end to the other.'
+    );
+  });
+
   it('names the keys as this platform does', () => {
     const other: AnnotateToolHost = { coarse: false, primary: 'Ctrl', alt: 'Alt' };
     expect(annotateToolHint(t, 'circle', null, other)!.modifiers).toEqual([
@@ -212,9 +236,10 @@ describe('the tool window', () => {
     for (const tool of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null)) {
       const hint = annotateToolHint(t, tool, null, finger)!;
       expect(hint.modifiers).toEqual([]);
-      // A label's and a callout's words are typed in the Settings sheet's Step tab there (review).
-      if (tool === 'label' || tool === 'callout') expect(hint.instructions).toMatch(/ in Settings, under Layers\.$/);
-      else expect(hint.instructions).toBe(annotateToolHint(t, tool, null, mac)!.instructions);
+      // A label's and a callout's words, and equal divisions' count, are typed in the Settings sheet's Layers tab there (review).
+      if (tool === 'label' || tool === 'callout' || tool === 'divisions') {
+        expect(hint.instructions).toMatch(/ in Settings, under Layers\.$/);
+      } else expect(hint.instructions).toBe(annotateToolHint(t, tool, null, mac)!.instructions);
     }
   });
 

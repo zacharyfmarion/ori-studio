@@ -2,7 +2,9 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { calloutShape, closeUpShape, NEW_CALLOUT_TEXT, pathCubics } from '../../diagram/annotate/annotationModel';
-import { pendingLabelFocus } from '../../diagram/annotate/labelFocus';
+import { pendingFieldFocus } from '../../diagram/annotate/fieldFocus';
+import { mmInPictureUnits } from '../../diagram/annotate/canvasInk';
+import { setToolNotice, toolNotice } from '../../diagram/annotate/pickProgress';
 import i18n from '../../i18n';
 import { preloadLocale } from '../../test/preloadLocale';
 import { nearestPathPoint, pathNodesOf } from '../../diagram/annotate/annotationPath';
@@ -396,7 +398,7 @@ describe('DiagramAnnotateCanvas', () => {
     // Written, not drawn again: Select in hand, it selected, and its field asked for.
     expect(state().diagramAnnotateTool).toBeNull();
     expect(state().diagramSelectedAnnotationId).toBe(callout!.id);
-    expect(pendingLabelFocus()).toBe(callout!.id);
+    expect(pendingFieldFocus()).toEqual({ annotationId: callout!.id, field: 'text' });
     // Drawn: its line, its box and its words.
     rerender();
     const drawnCallout = overlay().querySelector(`[data-annotation-id="${callout!.id}"]`)!;
@@ -545,14 +547,14 @@ describe('DiagramAnnotateCanvas', () => {
       ]);
     });
     rerender();
-    const { requestLabelFocus, pendingLabelFocus } = await import('../../diagram/annotate/labelFocus');
+    const { requestFieldFocus } = await import('../../diagram/annotate/fieldFocus');
     act(() => {
       state().selectDiagramAnnotation('label');
-      requestLabelFocus('label');
+      requestFieldFocus('label', 'text');
     });
-    expect(pendingLabelFocus()).toBe('label');
+    expect(pendingFieldFocus()?.annotationId).toBe('label');
     act(() => state().selectDiagramAnnotation('line'));
-    expect(pendingLabelFocus()).toBeNull();
+    expect(pendingFieldFocus()).toBeNull();
   });
 
   it('draws from a press anywhere on the stage, past the picture’s margin, no further out than reach', () => {
@@ -1694,6 +1696,9 @@ describe('the Angle Bisector and the equal-angle mark (15b)', () => {
       ],
       'angle-bisector'
     );
+    // The line a press would pick, lightly: a pick toward more, not taken outright.
+    pointer('pointermove', at(0.5, 0.8));
+    expect(overlay().querySelector('[data-pick-marks] line')?.hasAttribute('data-takes')).toBe(false);
     // On each line, well away from its ends and the crossing: lines, not points.
     click(at(0.5, 0.8));
     click(at(0.6, 0.5));
@@ -1853,5 +1858,128 @@ describe('a close-up (15f)', () => {
     drag(at(0.6, 0.4), at(0.6, 0.45));
     expect(closeUp().radius).toBeCloseTo(0.15, 6);
     expect(closeUp().scale).toBe(2.5);
+  });
+});
+
+describe('DiagramAnnotateCanvas equal divisions (Revision 2)', () => {
+  const left: KnownDiagramAnnotation = { id: 'a', kind: 'circle', from: [0.2, 0.4], to: [0.2, 0.4] };
+  const right: KnownDiagramAnnotation = { id: 'b', kind: 'circle', from: [0.7, 0.4], to: [0.7, 0.4] };
+  const crease: KnownDiagramAnnotation = { id: 'crease', kind: 'valley-line', from: [0.2, 0.5], to: [0.6, 0.5] };
+
+  beforeEach(() => {
+    useSettingsStore.setState({ diagramAnnotateSnap: true, cpSnapRadius: 10 });
+    setToolNotice(null);
+  });
+
+  function drawn(list: KnownDiagramAnnotation[], toolInHand: Parameters<typeof tool>[0] = null) {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => list);
+      state().selectDiagramAnnotation(null);
+      state().setDiagramAnnotateTool(toolInHand);
+    });
+    rerender();
+    return stepId;
+  }
+  const click = (point: [number, number], init: PressInit = {}) => {
+    pointer('pointerdown', point, 1, 'mouse', overlay(), init);
+    pointer('pointerup', point, 1, 'mouse', overlay(), init);
+    rerender();
+  };
+  const last = () => annotations()[annotations().length - 1]!;
+  const hovered = () => overlay().querySelector('[data-pick-marks] line');
+
+  it('lays them with a drag, each end snapped as a line’s: four parts, 2.5 mm off away from the middle, the tool kept and Parts asked for (ED1, ED5, ED13)', () => {
+    drawn([left, right], 'divisions');
+    const past = state().diagramHistory.past.length;
+    drag(at(0.206, 0.404), at(0.694, 0.397));
+    expect(last()).toMatchObject({ kind: 'divisions', from: [0.2, 0.4], to: [0.7, 0.4], parts: 4, offset: 2.5 });
+    // Below the frame's middle, so its line below the measured one: to the right of the way it was drawn, unsaid.
+    expect(last().mirrored).toBeUndefined();
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['divisions', 'snapped', 'drag']]);
+    expect(state().diagramAnnotateTool).toBe('divisions');
+    expect(state().diagramSelectedAnnotationId).toBe(last().id);
+    expect(pendingFieldFocus()).toEqual({ annotationId: last().id, field: 'parts' });
+  });
+
+  it('divides a line whole with a click on it, the line under the pointer and not its snapped start, counted as a line', () => {
+    drawn([crease, { ...left, from: [0.4, 0.5], to: [0.4, 0.5] }], 'divisions');
+    // On the line, a hair from a circle on it: a click takes the line, never the point.
+    click(at(0.405, 0.503));
+    expect(last()).toMatchObject({ kind: 'divisions', from: [0.2, 0.5], to: [0.6, 0.5], parts: 4, offset: 2.5 });
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['divisions', 'none', 'line']]);
+    // A drag past the slop but shorter than a slip is a click too.
+    drag(at(0.3, 0.502), at(0.306, 0.502));
+    expect(annotations().filter((each) => each.kind === 'divisions')).toHaveLength(2);
+    expect(last()).toMatchObject({ from: [0.2, 0.5], to: [0.6, 0.5] });
+  });
+
+  it('puts nothing down for a click on no line, and says so in the tool window until the next press', () => {
+    drawn([crease], 'divisions');
+    click(at(0.4, 0.7));
+    expect(annotations()).toHaveLength(1);
+    expect(toolNotice()).toEqual({ tool: 'divisions', notice: 'no-line' });
+    expect(tracked.trackDiagramAnnotationAdded).not.toHaveBeenCalled();
+    pointer('pointerdown', at(0.4, 0.502));
+    expect(toolNotice()).toBeNull();
+    pointer('pointerup', at(0.4, 0.502));
+    // Another tool, and it is gone too.
+    click(at(0.4, 0.7));
+    expect(toolNotice()).not.toBeNull();
+    tool('circle');
+    expect(toolNotice()).toBeNull();
+  });
+
+  it('shows the line a click would divide, whole, under the pointer', () => {
+    drawn([crease], 'divisions');
+    pointer('pointermove', at(0.3, 0.503));
+    const line = hovered()!;
+    expect(line).not.toBeNull();
+    // Shown firmly: a click takes it outright, not toward a pick to come.
+    expect(line.hasAttribute('data-takes')).toBe(true);
+    const [x1, y1] = at(0.2, 0.5);
+    const [x2] = at(0.6, 0.5);
+    expect([Number(line.getAttribute('x1')), Number(line.getAttribute('y1')), Number(line.getAttribute('x2'))]).toEqual([x1, y1, x2]);
+    pointer('pointermove', at(0.3, 0.7));
+    expect(hovered()).toBeNull();
+  });
+
+  it('slides its line nearer and farther with a drag of the mark, over to the other side across its line, Shift to half millimetres, never moved whole (ED2)', () => {
+    const divisions: KnownDiagramAnnotation = { id: 'd', kind: 'divisions', from: [0.2, 0.5], to: [0.6, 0.5], parts: 4, offset: 2.5 };
+    drawn([divisions]);
+    const mm = mmInPictureUnits(1);
+    const past = state().diagramHistory.past.length;
+    // On its line, out a millimetre.
+    drag(at(0.3, 0.5 + 2.5 * mm), at(0.3, 0.5 + 3.5 * mm));
+    expect(last()).toMatchObject({ from: [0.2, 0.5], to: [0.6, 0.5], offset: 3.5 });
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    rerender();
+    // Across the line it measures: its line on the other side.
+    drag(at(0.3, 0.5 + 3.5 * mm), at(0.32, 0.5 - mm));
+    expect(last()).toMatchObject({ from: [0.2, 0.5], to: [0.6, 0.5], offset: 1, mirrored: true });
+    rerender();
+    // By its handle, with Shift: half millimetres.
+    const handle = overlay().querySelector('[data-handle="offset"]')!;
+    const hx = Number(handle.getAttribute('cx'));
+    const hy = Number(handle.getAttribute('cy'));
+    drag([hx, hy], [hx, hy - 0.3 * mm * 1000], 1, 'mouse', overlay(), { shiftKey: true });
+    expect(last().offset).toBe(1.5);
+    expect(state().diagramHistory.past).toHaveLength(past + 3);
+  });
+
+  it('moves an end of its line by its dot, snapping as when drawn', () => {
+    const divisions: KnownDiagramAnnotation = { id: 'd', kind: 'divisions', from: [0.2, 0.5], to: [0.6, 0.5], parts: 4, offset: 2.5 };
+    drawn([divisions, right]);
+    act(() => state().selectDiagramAnnotation('d'));
+    rerender();
+    expect([...overlay().querySelectorAll('[data-divisions-selection] [data-handle]')].map((dot) => dot.getAttribute('data-handle'))).toEqual([
+      'to',
+      'from',
+      'offset',
+    ]);
+    expect(overlay().querySelector('[data-measured-line]')).not.toBeNull();
+    drag(at(0.6, 0.5), at(0.695, 0.405));
+    expect(annotations().find((each) => each.id === 'd')).toMatchObject({ from: [0.2, 0.5], to: [0.7, 0.4], offset: 2.5 });
   });
 });

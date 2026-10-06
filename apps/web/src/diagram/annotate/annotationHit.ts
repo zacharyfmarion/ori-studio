@@ -16,7 +16,9 @@ import {
 import {
   DIAGRAM_ANGLE_MARK_INK,
   DIAGRAM_ARROWHEAD_INK,
+  DIAGRAM_DIVISIONS_INK,
   DIAGRAM_FOLD_RETURN_INK,
+  DIAGRAM_LINE_INK,
   DIAGRAM_MARK_INK,
   DIAGRAM_PLEAT_INK,
   DIAGRAM_PUSH_INK,
@@ -32,6 +34,8 @@ import {
   arrowheadReach,
   backToRing,
   arcThroughPoints,
+  divisionsShape,
+  divisionsStrokes,
   outlineDistance,
   pathArrowGeometry,
   pleatArrowShape,
@@ -40,6 +44,7 @@ import {
   rightAngleShape,
   whiteArrowOutline,
   type AngleMarkShape,
+  type DivisionsShape,
   type PleatArrowShape,
   type RightAngleShape,
   type SvgPoint,
@@ -55,6 +60,8 @@ import {
   calloutDrawnBox,
   calloutShape,
   closeUpShape,
+  divisionsOffsetOf,
+  divisionsPartsOf,
   isCornerKind,
   rightAngleDiagonal,
   labelHalfWidth,
@@ -63,6 +70,7 @@ import {
   type PicturePoint,
 } from './annotationModel';
 import { nearestPathPoint, pathNodesOf, visiblePathHandles } from './annotationPath';
+import { ANNOTATION_INK_MM } from './canvasInk';
 import { perAnnotation } from './perAnnotation';
 
 /**
@@ -72,7 +80,9 @@ import { perAnnotation } from './perAnnotation';
  * [0, 1], {@link hitPathGrip}); and a right angle's corner or the direction
  * it opens in, which the selected right angle offers in place of ends
  * ({@link rightAngleGrips}); and one of a close-up's two circles, taken
- * anywhere inside to move it, or by its ring to resize it (15f).
+ * anywhere inside to move it, or by its ring to resize it (15f); and the
+ * handle at the middle of equal divisions' line, which sets how far off the
+ * line they measure it stands, as a drag of the mark does (Revision 2).
  */
 export type AnnotationGripPart =
   | { part: 'body' }
@@ -85,7 +95,8 @@ export type AnnotationGripPart =
   | { part: 'corner' }
   | { part: 'direction' }
   | { part: 'circle'; end: 'from' | 'to' }
-  | { part: 'ring'; end: 'from' | 'to' };
+  | { part: 'ring'; end: 'from' | 'to' }
+  | { part: 'offset' };
 
 /** What a press took hold of: the annotation, and which part of it. */
 export type AnnotationGrip = { annotationId: string } & AnnotationGripPart;
@@ -566,6 +577,75 @@ function angleMarkDistance(annotation: KnownDiagramAnnotation, point: PicturePoi
 }
 
 /**
+ * Equal divisions as the canvas draws them, in picture units, at the ink a
+ * press is measured in (`divisionsShape`, sized as `divisionsDrawn` sizes
+ * it): their offset, a print length in mm, in that ink; a crowded part's
+ * spacing held to two of their marks' pens at the table's pens, near enough
+ * for a press. Null for a line whose ends meet.
+ */
+export function divisionsInPicture(
+  annotation: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'parts' | 'offset' | 'mirrored' | 'ticks' | 'numbered'>,
+  ink: number
+): DivisionsShape | null {
+  const point = ([x, y]: readonly [number, number]) => ({ x, y });
+  const sizes = DIAGRAM_DIVISIONS_INK;
+  const marksPen =
+    (sizes.pens.marks === 'ring' ? DIAGRAM_MARK_INK.ofArrow * DIAGRAM_LINE_INK.arrow.width : DIAGRAM_LINE_INK.crease.width) * ink;
+  return divisionsShape(
+    point(annotation.from),
+    point(annotation.to),
+    {
+      parts: divisionsPartsOf(annotation),
+      ticks: annotation.ticks ?? 1,
+      mirrored: annotation.mirrored === true,
+      numbered: annotation.numbered === true,
+    },
+    {
+      offset: (divisionsOffsetOf(annotation) / ANNOTATION_INK_MM) * ink,
+      overshoot: sizes.overshoot * ink,
+      tick: sizes.tick * ink,
+      spacing: sizes.spacing * ink,
+      tickFloor: sizes.tickFloor * ink,
+      spacingFloor: sizes.spacingFloor * marksPen,
+      lean: (sizes.leanDeg * Math.PI) / 180,
+      number: sizes.number * ink,
+      gap: sizes.gap * ink,
+    }
+  );
+}
+
+/** Where the selected equal divisions' line is taken hold of to set its offset: its middle. */
+export function divisionsOffsetGrip(
+  annotation: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'parts' | 'offset' | 'mirrored' | 'ticks' | 'numbered'>,
+  ink: number
+): PicturePoint {
+  const shape = divisionsInPicture(annotation, ink);
+  if (!shape) return [annotation.from[0], annotation.from[1]];
+  const [a, b] = shape.line;
+  return [(a.x + b.x) / 2, (a.y + b.y) / 2];
+}
+
+/**
+ * How far a press is from equal divisions as they are drawn: their line, the
+ * dividers and the ticks, and 0 on the count's box. Never the line they
+ * measure, which is the picture's.
+ */
+function divisionsDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, ink: number): number {
+  const shape = divisionsInPicture(annotation, ink);
+  if (!shape) return Infinity;
+  const strokes = divisionsStrokes(shape).map(([a, b]) => distanceToSegment(point, [a.x, a.y], [b.x, b.y]));
+  const number = shape.number
+    ? boxDistance(point, {
+        x: shape.number.at.x - shape.number.halfWidth,
+        y: shape.number.at.y - shape.number.halfHeight,
+        width: 2 * shape.number.halfWidth,
+        height: 2 * shape.number.halfHeight,
+      })
+    : Infinity;
+  return Math.min(number, ...strokes);
+}
+
+/**
  * How far a press is from a close-up's two circles — 0 inside either: each
  * is a place of its own, the area's or the close-up's — and from the line
  * between them (15f).
@@ -648,6 +728,8 @@ function bodyDistance(
       return rightAngleDistance(annotation, point, sizes.ink);
     case 'angle-mark':
       return angleMarkDistance(annotation, point, sizes.ink);
+    case 'divisions':
+      return divisionsDistance(annotation, point, sizes.ink);
     case 'callout': {
       const { box, line } = calloutDistances(annotation, point, sizes.calloutPen);
       return Math.min(box, line);
@@ -689,11 +771,17 @@ export function hitAnnotation(
       .sort((a, b) => a.distance - b.distance);
     if (near[0]) return { annotationId: selected.id, part: near[0].part };
   } else if (selected) {
-    const ends = annotationEnds(selected.kind)
-      .map((part) => ({ part, distance: Math.hypot(point[0] - selected[part][0], point[1] - selected[part][1]) }))
+    // The ends it shows, and equal divisions' handle at the middle of their line.
+    const handle = selected.kind === 'divisions' ? divisionsOffsetGrip(selected, sizes.ink) : null;
+    const grips: { part: 'from' | 'to' | 'offset'; at: PicturePoint }[] = [
+      ...annotationEnds(selected.kind).map((part) => ({ part, at: selected[part] })),
+      ...(handle ? [{ part: 'offset' as const, at: handle }] : []),
+    ];
+    const near = grips
+      .map(({ part, at }) => ({ part, distance: Math.hypot(point[0] - at[0], point[1] - at[1]) }))
       .filter(({ distance }) => distance <= sizes.tolerance)
       .sort((a, b) => a.distance - b.distance);
-    if (ends[0]) return { annotationId: selected.id, part: ends[0].part };
+    if (near[0]) return { annotationId: selected.id, part: near[0].part };
   }
   // An arrow that lands in a circle is drawn stopped on its ring: its head is pressed there.
   const marks = known.filter((annotation) => annotation.kind === 'circle').map(({ from }) => from);

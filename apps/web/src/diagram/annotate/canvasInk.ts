@@ -27,3 +27,16 @@ export const CARD_FRAME_PX = mmToCssPx(DEFAULT_PAPER_SIZE_MM);
 
 /** One ink in picture units, as the canvas draws: what an arrow's head and a push's width are measured in. */
 export const INK_UNITS = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / CARD_FRAME_PX;
+
+/**
+ * One ink in mm as a mark prints — 1.25 CSS px, 0.331 mm — wherever it is
+ * drawn: the canvas and a card draw the frame at its 50 mm, a page at the
+ * size it prints. What a print length a mark stores (equal divisions'
+ * offset, Revision 2) is turned into ink by.
+ */
+export const ANNOTATION_INK_MM = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / mmToCssPx(1);
+
+/** A print length in mm, in picture units as the canvas and a card draw the frame. */
+export function mmInPictureUnits(mm: number): number {
+  return (mm / ANNOTATION_INK_MM) * INK_UNITS;
+}

@@ -51,6 +51,8 @@ import {
   CLOSE_UP_SCALE,
   DEFAULT_ROTATION,
   DEFAULT_WHITE_ARROW,
+  DIVISIONS_OFFSET_MM,
+  DIVISIONS_PARTS,
   LABEL_MAX_LENGTH,
   MAX_BEHIND_LAYERS,
   MAX_BEND,
@@ -84,7 +86,7 @@ import {
   randomDiagramId,
   withReferencedAssets,
   isKnownAnnotation,
-  type DiagramAngleTicks,
+  type DiagramTicks,
   type DiagramAnnotation,
   type DiagramAnnotationKind,
   type DiagramBehind,
@@ -319,6 +321,9 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ticks,
     kinks,
     mirrored,
+    parts,
+    offset,
+    numbered,
     behind,
     radius,
     scale,
@@ -345,6 +350,9 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(ticks !== undefined ? { ticks } : {}),
     ...(kinks !== undefined ? { kinks } : {}),
     ...(mirrored ? { mirrored } : {}),
+    ...(parts !== undefined ? { parts } : {}),
+    ...(offset !== undefined ? { offset } : {}),
+    ...(numbered ? { numbered } : {}),
     ...(radius !== undefined ? { radius } : {}),
     ...(scale !== undefined ? { scale } : {}),
     // From end to end, as a reader expects it.
@@ -900,6 +908,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'right-angle': fields(),
     callout: fields('text'),
     'angle-mark': fields('other', 'ticks'),
+    divisions: fields('parts', 'offset', 'mirrored', 'ticks', 'numbered'),
     'close-up': fields('radius', 'scale'),
   };
 })();
@@ -1033,6 +1042,26 @@ function readAnnotation(
       if (kinks === null || mirrored === null) return null;
       return { ...annotation, ...(kinks !== undefined ? { kinks } : {}), ...(mirrored ? { mirrored: true } : {}) };
     }
+    case 'divisions': {
+      // Its parts and its offset, which it must have, its ticks, its side and
+      // whether it prints its count; a value past the ranges this build draws
+      // is news, told before damage.
+      const parts = readDivisionsParts(entry.parts);
+      const offset = readDivisionsOffset(entry.offset);
+      const ticks = readTicks(entry.ticks);
+      const mirrored = readMirrored(entry.mirrored);
+      const numbered = readNumbered(entry.numbered);
+      if (parts === NEWER || offset === NEWER || ticks === NEWER) return NEWER;
+      if (parts === null || offset === null || ticks === null || mirrored === null || numbered === null) return null;
+      return {
+        ...annotation,
+        parts,
+        offset,
+        ...(ticks !== undefined ? { ticks } : {}),
+        ...(mirrored ? { mirrored: true } : {}),
+        ...(numbered ? { numbered: true } : {}),
+      };
+    }
     case 'close-up': {
       // Its area's radius, which it must have, and its scale; a value past the
       // ranges this build draws is news, told before damage.
@@ -1102,11 +1131,11 @@ function readPath(value: unknown): DiagramPathNode[] | typeof NEWER | null {
   return past ? NEWER : nodes;
 }
 
-/** An angle mark's ticks: unsaid, one; a whole count past three, a newer build's; anything else, damage. */
-function readTicks(value: unknown): DiagramAngleTicks | undefined | typeof NEWER | null {
+/** An angle mark's ticks, or equal divisions': unsaid, one; a whole count past three, a newer build's; anything else, damage. */
+function readTicks(value: unknown): DiagramTicks | undefined | typeof NEWER | null {
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) return null;
-  return value <= 3 ? (value as DiagramAngleTicks) : NEWER;
+  return value <= 3 ? (value as DiagramTicks) : NEWER;
 }
 
 /** A white arrow's fill: unsaid, the page's white; `black`, a solid arrow (15d); another word, a newer build's; anything else, damage. */
@@ -1161,7 +1190,33 @@ function readKinks(value: unknown): DiagramPleatKinks | undefined | typeof NEWER
   return value <= 5 ? (value as DiagramPleatKinks) : NEWER;
 }
 
-/** Which side a pleat arrow's Zs step to: unsaid or false, the right; true, the left; anything else, damage. */
+/**
+ * How many parts equal divisions cut their line into, which they must say: a
+ * whole number past the most this build draws, a newer build's; fewer than
+ * two, not whole, or unsaid, damage.
+ */
+function readDivisionsParts(value: unknown): number | typeof NEWER | null {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < DIVISIONS_PARTS.min) return null;
+  return value > DIVISIONS_PARTS.max ? NEWER : value;
+}
+
+/**
+ * How far equal divisions' line stands off the line they measure, in mm,
+ * which they must say: past the furthest this build draws, a newer build's;
+ * below none, not a number, or unsaid, damage.
+ */
+function readDivisionsOffset(value: unknown): number | typeof NEWER | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < DIVISIONS_OFFSET_MM.min) return null;
+  return value > DIVISIONS_OFFSET_MM.max ? NEWER : value;
+}
+
+/** Whether equal divisions print their count: unsaid or false, no; true, yes; anything else, damage. */
+function readNumbered(value: unknown): boolean | null {
+  if (value === undefined) return false;
+  return typeof value === 'boolean' ? value : null;
+}
+
+/** Which side a pleat arrow's Zs step to, or equal divisions' line lies: unsaid or false, the right; true, the left; anything else, damage. */
 function readMirrored(value: unknown): boolean | null {
   if (value === undefined) return false;
   return typeof value === 'boolean' ? value : null;

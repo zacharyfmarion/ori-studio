@@ -117,6 +117,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolRightAngle'
   | 'diagram.toolCallout'
   | 'diagram.toolAngleBisector'
+  | 'diagram.toolDivisions'
   | 'diagram.toolCloseUp'
   | 'diagram.flipArc';
 
@@ -620,6 +621,9 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolCallout', 'Callout', { key: 'c' }),
   // B for the bisector, as Edit's Angle Bisector is (15b).
   diagramShortcut('diagram.toolAngleBisector', 'Angle Bisector', { key: 'b' }),
+  // D for divide: Edit's Edge line type is in the crease pattern's scope,
+  // never live with this one (Revision 2, ED8).
+  diagramShortcut('diagram.toolDivisions', 'Equal Divisions', { key: 'd' }),
   // I for the inset a close-up draws (15f).
   diagramShortcut('diagram.toolCloseUp', 'Close-Up', { key: 'i' }),
   diagramShortcut('diagram.flipArc', 'Flip Arc', { key: 'f' }),

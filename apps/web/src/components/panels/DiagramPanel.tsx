@@ -40,6 +40,7 @@ import { DiagramEmptyState } from '../diagram/DiagramEmptyState';
 import { DiagramHeader } from '../diagram/DiagramHeader';
 import { DiagramPagesView } from '../diagram/DiagramPagesView';
 import { useReferencesStepWays } from '../../diagram/references/useReferencesStepWays';
+import { usePublishPrintedFrames } from '../../diagram/pages/printedFrames';
 import { DiagramStepDetail } from '../diagram/DiagramStepDetail';
 import { DiagramStepsGrid } from '../diagram/DiagramStepsGrid';
 import { ContextMenu } from '../ui/ContextMenu';
@@ -146,6 +147,8 @@ export function DiagramPanel() {
     [steps, page.columns, page.rows]
   );
   const textCut = useMemo(() => cutStepIds(pages.pages), [pages.pages]);
+  // And the size each step prints at, for the Layers pane's warnings (Revision 2).
+  usePublishPrintedFrames(pages.pages, pages.of);
 
   const detailIndex =
     detail !== null && selectedStepId !== null

@@ -83,6 +83,38 @@ describe('an upload re-posed', () => {
   });
 });
 
+describe('equal divisions carried (Revision 2)', () => {
+  const DIVISIONS: KnownDiagramAnnotation = {
+    id: 'd-1',
+    kind: 'divisions',
+    from: [0, 0],
+    to: [1, 0],
+    parts: 5,
+    offset: 2.5,
+    mirrored: true,
+    ticks: 2,
+    numbered: true,
+  };
+
+  it('keep their line on the paper’s same side through a mirror, and their print sizes through a turn', () => {
+    const document = annotated(uploadStep(), [DIVISIONS]);
+    const flipped = stepsIn(setUploadPose(document, 'step-1', { rotationQuarterTurns: 0, mirrored: true }))[0]!;
+    const mirrored = flipped.annotations[0] as KnownDiagramAnnotation;
+    close(mirrored.from, [1, 0]);
+    close(mirrored.to, [0, 0]);
+    // Its side turned over with the picture: still off the top edge.
+    expect(mirrored.mirrored).toBeUndefined();
+    expect(mirrored).toMatchObject({ parts: 5, offset: 2.5, ticks: 2, numbered: true });
+    const turned = stepsIn(setUploadPose(document, 'step-1', { rotationQuarterTurns: 1, mirrored: false }))[0]!;
+    expect(turned.annotations[0]).toMatchObject({ parts: 5, offset: 2.5, mirrored: true, ticks: 2, numbered: true });
+  });
+
+  it('turn their side over on a References step turned over', () => {
+    const back = stepsIn(setReferencesSide(annotated(referencesStep('step-1'), [DIVISIONS]), 'step-1', true))[0]!;
+    expect((back.annotations[0] as KnownDiagramAnnotation).mirrored).toBeUndefined();
+  });
+});
+
 describe('a References step turned over', () => {
   it('flips its annotations about the sheet, and keeps them in step with the other side', () => {
     const document = annotated(referencesStep('step-1'));
@@ -582,6 +614,33 @@ describe('a linked picture turned about its middle', () => {
       close(angle!.from, picturePoint(scene(30), [20, 20]));
       close(rightAngleDiagonal(angle!), [Math.SQRT1_2, Math.SQRT1_2]);
       close(circle!.from, picturePoint(scene(30), [40, 40]));
+    });
+
+    it('moves each end of equal divisions with the face under it, their offset a print size kept (Revision 2)', () => {
+      const before = scenePicture();
+      const sceneBefore = storedScene(before)!;
+      // The face's far corner steps, so the end nearer it is carried farther.
+      const top = sceneBefore.items.find((item) => item.kind === 'face')!;
+      if (top.kind !== 'face') throw new Error('a face');
+      const ring = top.rings[0]!.map(([x, y], corner): ScenePoint => (corner === 2 ? [x - 20, y - 20] : [x, y]));
+      const sceneAfter: PaperScene = {
+        ...sceneBefore,
+        items: sceneBefore.items.map((item) => (item === top ? { ...top, rings: [ring] } : item)),
+      };
+      const after = { ...before, sceneJson: storedSceneJson(sceneAfter)!, key: 'scene-divisions' };
+      const divisions: KnownDiagramAnnotation = { id: 'd-1', kind: 'divisions', from: [0.5, 0.5], to: [0.9, 0.5], parts: 4, offset: 2.5 };
+      const document = annotated(cpStep('step-1', FLAT), [divisions]);
+      const moved = setLinkedPicture(document, 'step-1', {
+        source: cpSource({ ...FLAT, spread: SPREAD }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+      const carried = moved.annotations[0] as KnownDiagramAnnotation;
+      const span = Math.max(sceneBefore.bounds.maxX - sceneBefore.bounds.minX, sceneBefore.bounds.maxY - sceneBefore.bounds.minY);
+      // Each end as a line's: the middle a quarter of the corner's step, the far end more.
+      close(carried.from, [0.5 - 5 / span, 0.5 - 5 / span]);
+      expect(0.9 - carried.to[0]).toBeGreaterThan(5 / span);
+      expect(carried).toMatchObject({ parts: 4, offset: 2.5 });
+      expect(carried.mirrored).toBeUndefined();
     });
 
     it('moves a callout with the face under its point, its box keeping its place beside it', () => {

@@ -66,7 +66,11 @@ import {
   type PicturePoint,
   type WhiteArrowLook,
 } from './annotationModel';
-import { cancelLabelFocus, pendingLabelFocus, requestLabelFocus } from './labelFocus';
+import { cancelFieldFocus, pendingFieldFocus, requestFieldFocus } from './fieldFocus';
+import { draggedDivisions } from './divisionsPlacement';
+import { nearestLine } from './nearestLine';
+import { setToolNotice } from './pickProgress';
+import type { PickedLine } from './angleBisector';
 import { isViewportInteractiveTarget } from '../../components/panels/ViewportToolbar';
 import { annotationDrawing, annotationReach, calloutPen } from './annotationPrimitives';
 import { CARD_FRAME_PX } from './paintAnnotations';
@@ -159,6 +163,8 @@ type Gesture =
       free: boolean;
       /** A right angle's: the way a click opens it, when the press was in a right angle there (decision 12). */
       opens?: PicturePoint | null;
+      /** Where the pointer pressed, unsnapped: the line equal divisions clicked there divide (Revision 2). */
+      pressed: PicturePoint;
     })
   | (Press & { mode: 'move'; grip: AnnotationGrip; original: KnownDiagramAnnotation; start: PicturePoint })
   | (Press & {
@@ -355,26 +361,36 @@ export function useAnnotateCanvas({
     [snapContext]
   );
 
+  /** The line a click with Equal Divisions would divide, under the pointer (Revision 2). */
+  const [lineHover, setLineHover] = useState<PickedLine | null>(null);
+  const showLineHover = useCallback(
+    (next: PickedLine | null) => setLineHover((current) => (sameLine(current, next) ? current : next)),
+    []
+  );
+
   const cancel = useCallback(() => {
     showSnap([]);
     showRightAngle(null);
+    showLineHover(null);
     if (!gesture.current) return false;
     gesture.current = null;
     setDraft(null);
     return true;
-  }, [showSnap, showRightAngle]);
-  // A tool picked, another step or another picture: whatever was in hand is dropped.
+  }, [showSnap, showRightAngle, showLineHover]);
+  // A tool picked, another step or another picture: whatever was in hand is
+  // dropped, and what the last press could not do is no longer said.
   useEffect(
     () => () => {
       cancel();
+      setToolNotice(null);
     },
     [cancel, step.id, tool, source]
   );
-  // A label's field asks for the focus only while that label is the one selected.
+  // A field asks for the focus only while its annotation is the one selected.
   useEffect(() => {
-    if (selectedId === null || selectedId !== pendingLabelFocus()) cancelLabelFocus();
+    if (selectedId === null || selectedId !== pendingFieldFocus()?.annotationId) cancelFieldFocus();
   }, [selectedId]);
-  useEffect(() => cancelLabelFocus, []);
+  useEffect(() => cancelFieldFocus, []);
 
   /**
    * Whether a press landed on the stage: on the surface the camera pans
@@ -605,6 +621,8 @@ export function useAnnotateCanvas({
       if (!at) return;
       const count = nextPress(lastPress.current, event);
       lastPress.current = count;
+      // What the last press could not do is said until the next.
+      setToolNotice(null);
       const store = useWorkspaceStore.getState();
       const press = {
         pointerId: event.pointerId,
@@ -635,8 +653,10 @@ export function useAnnotateCanvas({
           startTarget: start.target,
           free,
           opens: start.opens,
+          pressed: at,
           ...press,
         };
+        showLineHover(null);
         // Where the press landed, at once: a finger sees it before its slop — and a right angle, the mark a click puts down.
         showSnap([start.target]);
         showRightAngle(isCornerKind(kind) && layout ? clickPreview(start, layout.pictureFrame, free) : null);
@@ -684,6 +704,7 @@ export function useAnnotateCanvas({
       snapContext,
       showSnap,
       showRightAngle,
+      showLineHover,
       clickPreview,
     ]
   );
@@ -703,6 +724,8 @@ export function useAnnotateCanvas({
     const { grip } = current;
     switch (grip.part) {
       case 'body':
+        // Equal divisions belong to their line: a drag of the mark sets how far off it they stand (ED2).
+        if (annotation.kind === 'divisions') return draggedDivisions(annotation, current.start, at, { halves });
         if (target && isPointKind(annotation.kind)) return moveAnnotationEnd(annotation, 'from', target.at);
         if (target && isCornerKind(annotation.kind)) return opening(moveAnnotationEnd(annotation, 'from', target.at), opens);
         return moveAnnotation(annotation, [at[0] - current.start[0], at[1] - current.start[1]]);
@@ -740,6 +763,9 @@ export function useAnnotateCanvas({
         const away = (point: PicturePoint) => Math.hypot(point[0] - centre[0], point[1] - centre[1]);
         return withCloseUpRing(annotation, grip.end, radius + away(at) - away(current.start), halves);
       }
+      case 'offset':
+        // The handle at the middle of equal divisions' line: as a drag of the mark.
+        return draggedDivisions(annotation, current.start, at, { halves });
     }
   };
 
@@ -761,6 +787,9 @@ export function useAnnotateCanvas({
         kind !== null && snapsWhenPlaced(kind) && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
       const at = looking && onStage(input.target) ? toPicture(input.clientX, input.clientY) : null;
       const free = isPrimaryModifier(input);
+      // The line a click would divide, seen before it is taken: on a flat
+      // fold, a covered face's edge among them (Revision 2).
+      showLineHover(kind === 'divisions' && at ? nearestLine(step, assets, style, at, hitSizes().tolerance, { whole: true }) : null);
       if (kind !== null && isCornerKind(kind)) {
         // The corner a press here snaps to, and the mark a click puts down in it.
         const start = at ? placeRightAngle(snapContext(), at, { free }) : null;
@@ -770,7 +799,25 @@ export function useAnnotateCanvas({
       }
       showSnap([at ? placePoint(snapContext(), at, { free }).target : null]);
     },
-    [tool, lineType, picker, readOnly, spacePressed, onStage, toPicture, snapContext, showSnap, showRightAngle, layout, clickPreview]
+    [
+      tool,
+      lineType,
+      picker,
+      readOnly,
+      spacePressed,
+      onStage,
+      toPicture,
+      snapContext,
+      showSnap,
+      showRightAngle,
+      showLineHover,
+      layout,
+      clickPreview,
+      step,
+      assets,
+      style,
+      hitSizes,
+    ]
   );
 
   const pointerMoved = useCallback(
@@ -827,7 +874,8 @@ export function useAnnotateCanvas({
     if (gesture.current) return;
     showSnap([]);
     showRightAngle(null);
-  }, [showSnap, showRightAngle]);
+    showLineHover(null);
+  }, [showSnap, showRightAngle, showLineHover]);
 
   // ⌘ pressed or let go with the pointer still: what it would snap to, or what
   // the drag in hand lands on, changes all the same. Held keys are tracked for
@@ -908,6 +956,55 @@ export function useAnnotateCanvas({
     [step.id, toPicture]
   );
 
+  /**
+   * Equal divisions landing (Revision 2, ED1): a drag measures the line from
+   * where it began to where it ends, each snapped as a line's end; a click —
+   * or a drag shorter than a slip — divides the whole line under where it
+   * pressed, unsnapped, or puts nothing down and says so. Selected, so its
+   * Parts field takes the count (ED5); the tool stays in hand (ED13).
+   */
+  const layDivisions = useCallback(
+    (current: Extract<Gesture, { mode: 'draw' }>, event: ReactPointerEvent<HTMLElement>) => {
+      if (!layout) return;
+      const store = useWorkspaceStore.getState();
+      const free = isPrimaryModifier(event);
+      const placed = current.moved
+        ? placeInHand(current, toPicture(event.clientX, event.clientY) ?? current.start, free, event.shiftKey)
+        : null;
+      const dragged = placed && createAnnotation('divisions', current.start, placed.at, layout.pictureFrame);
+      let annotation: KnownDiagramAnnotation;
+      let placedBy: 'drag' | 'line';
+      if (dragged && !isDegenerate(dragged, MIN_ANNOTATION_LENGTH)) {
+        annotation = dragged;
+        placedBy = 'drag';
+      } else {
+        const line = nearestLine(step, assets, style, current.pressed, hitSizes().tolerance, { whole: true });
+        if (!line) {
+          setToolNotice({ tool: 'divisions', notice: 'no-line' });
+          return;
+        }
+        annotation = createAnnotation('divisions', line.a, line.b, layout.pictureFrame);
+        if (isDegenerate(annotation, MIN_ANNOTATION_LENGTH)) return;
+        placedBy = 'line';
+      }
+      const added = store.editDiagramAnnotations(step.id, 'Add annotation', (list) => [...list, annotation], {
+        select: annotation.id,
+        loadId: current.loadId,
+      });
+      if (!added) return;
+      // A click on a line picks lines rather than points, as a bisector between two lines does.
+      const snapped = placedBy === 'drag' && (current.startTarget !== null || placed?.target != null);
+      trackDiagramAnnotationAdded(
+        'divisions',
+        placedBy === 'line' ? 'none' : snapOutcome('divisions', { enabled: snap.enabled, free: free || current.free, snapped }),
+        placedBy
+      );
+      // Its count comes next: typed into the Parts field, then Enter.
+      requestFieldFocus(annotation.id, 'parts');
+    },
+    [layout, placeInHand, toPicture, step, assets, style, hitSizes, snap.enabled]
+  );
+
   const onPointerUp = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
       release(event.pointerId);
@@ -921,6 +1018,10 @@ export function useAnnotateCanvas({
       const store = useWorkspaceStore.getState();
       const { loadId } = current;
       const free = isPrimaryModifier(event);
+      if (current.mode === 'draw' && current.kind === 'divisions') {
+        layDivisions(current, event);
+        return;
+      }
       if (current.mode === 'draw') {
         const point = isPointKind(current.kind);
         // A line or an arrow is drawn by a drag; a sign or a label is put down
@@ -957,7 +1058,7 @@ export function useAnnotateCanvas({
           // A label or a callout is written, not drawn again: Select comes
           // back to hand, and its field takes the keys.
           store.setDiagramAnnotateTool(null);
-          requestLabelFocus(annotation.id);
+          requestFieldFocus(annotation.id, 'text');
         }
         return;
       }
@@ -983,7 +1084,7 @@ export function useAnnotateCanvas({
         { loadId }
       );
     },
-    [layout, toPicture, step.id, release, landPath, showSnap, showRightAngle, placeInHand, snap.enabled, calloutText, camera]
+    [layout, toPicture, step.id, release, landPath, showSnap, showRightAngle, placeInHand, snap.enabled, calloutText, camera, layDivisions]
   );
 
   const onPointerGone = useCallback(
@@ -1012,8 +1113,11 @@ export function useAnnotateCanvas({
     snapTargets: snap.targets,
     /** The right angle a click would put down where the pointer is: shown over the marks, never in them. */
     rightAnglePreview: rightAngle,
-    /** A pick tool's picks, and what a press would pick: shown over the marks (15b). */
-    pickPreview: picker.preview,
+    /**
+     * A pick tool's picks, and what a press would pick: shown over the marks
+     * (15b) — with Equal Divisions, the line a click would divide.
+     */
+    pickPreview: lineHover ? { ...picker.preview, hovered: lineHover, hoverTakes: true } : picker.preview,
     onPointerDownCapture,
     handlers: {
       onPointerDown,
@@ -1035,6 +1139,12 @@ type PlacedInHand = PlacedPoint & { opens?: PicturePoint };
 /** A right angle opening the way `opens` goes, about its corner; as it was without one. */
 function opening(mark: KnownDiagramAnnotation, opens: PicturePoint | undefined): KnownDiagramAnnotation {
   return opens ? { ...mark, ...rightAngleAt(mark.from, opens) } : mark;
+}
+
+/** Whether two lines are one, end for end. */
+function sameLine(a: PickedLine | null, b: PickedLine | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.a[0] === b.a[0] && a.a[1] === b.a[1] && a.b[0] === b.b[0] && a.b[1] === b.b[1];
 }
 
 /** A point {@link RIGHT_ANGLE_DIAGONAL} from `corner` the way `opens` goes: what a right angle's `to` is made from. */

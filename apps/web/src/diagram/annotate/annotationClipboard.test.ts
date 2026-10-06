@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { KnownDiagramAnnotation } from '../document/diagramDocument';
-import { PASTE_OFFSET, annotationClipboard, pastedAnnotations, pastedOnto } from './annotationClipboard';
+import { PASTE_DIVISIONS_OFFSET_MM, PASTE_OFFSET, annotationClipboard, pastedAnnotations, pastedOnto } from './annotationClipboard';
 import { ANNOTATION_REACH } from './annotationModel';
 
 const white: KnownDiagramAnnotation = {
@@ -26,6 +26,21 @@ describe('annotations on the clipboard', () => {
     clipboard = pastedOnto(pastedOnto(clipboard, 'step-2'), 'step-1');
     expect(clipboard.pastes).toEqual({ 'step-1': 2, 'step-2': 1 });
     expect(pastedAnnotations(clipboard, 'step-2', newId)[0]!.from).toEqual([0.2 + PASTE_OFFSET, 0.3 + PASTE_OFFSET]);
+  });
+
+  it('keeps equal divisions on their line, each paste on their own step standing 2.5 mm further out, up to 15 (ED12)', () => {
+    const divisions: KnownDiagramAnnotation = { id: 'd', kind: 'divisions', from: [0, 0], to: [1, 0], parts: 4, offset: 2.5, mirrored: true };
+    expect(PASTE_DIVISIONS_OFFSET_MM).toBe(2.5);
+    let clipboard = annotationClipboard([divisions], 'step-1');
+    const [first] = pastedAnnotations(clipboard, 'step-1', () => 'annotation-1');
+    // Not moved by PASTE_OFFSET, which would leave it measuring nothing.
+    expect(first).toEqual({ ...divisions, id: 'annotation-1', offset: 5 });
+    clipboard = pastedOnto(clipboard, 'step-1');
+    expect(pastedAnnotations(clipboard, 'step-1', () => 'annotation-2')[0]!.offset).toBe(7.5);
+    for (let i = 0; i < 6; i += 1) clipboard = pastedOnto(clipboard, 'step-1');
+    expect(pastedAnnotations(clipboard, 'step-1', () => 'annotation-3')[0]!.offset).toBe(15);
+    // In place, as it was, on another step.
+    expect(pastedAnnotations(clipboard, 'step-2', () => 'annotation-4')[0]).toEqual({ ...divisions, id: 'annotation-4' });
   });
 
   it('puts a cut mark back where it was on its own step', () => {

@@ -31,3 +31,29 @@ describe('the right angle’s icon (RA7)', () => {
     }
   });
 });
+
+describe('equal divisions’ icon (Revision 2)', () => {
+  it('draws the template’s |\\|\\| symbol: a line in a hairline, three dividers straddling it, a tick leaning across each part', () => {
+    const markup = renderToStaticMarkup(<DiagramAnnotationGlyph kind="divisions" />);
+    const line = part(markup, 'line');
+    const dividers = part(markup, 'dividers');
+    const ticks = part(markup, 'ticks');
+    expect(line.width).toBe(1);
+    const [[x0, y], [x1]] = line.points as [[number, number], [number, number]];
+    expect(dividers.runs).toBe(3);
+    // Each divider square to the line and straddling it evenly; the end ones at its ends.
+    for (let i = 0; i < 3; i += 1) {
+      const [[ax, ay], [bx, by]] = [dividers.points[2 * i]!, dividers.points[2 * i + 1]!];
+      expect(ax).toBe(bx);
+      expect(y - ay).toBeCloseTo(by - y, 9);
+    }
+    expect([dividers.points[0]![0], dividers.points[4]![0]]).toEqual([x0, x1]);
+    // A tick on each part, leaning 20° off square as a backslash does: down to the right.
+    expect(ticks.runs).toBe(2);
+    for (let i = 0; i < 2; i += 1) {
+      const [[ax, ay], [bx, by]] = [ticks.points[2 * i]!, ticks.points[2 * i + 1]!];
+      expect(bx - ax).toBeGreaterThan(0);
+      expect((Math.atan2(bx - ax, by - ay) * 180) / Math.PI).toBeCloseTo(20, 0);
+    }
+  });
+});

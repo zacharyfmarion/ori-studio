@@ -151,6 +151,17 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
         // Its vertex and a point along each arm: the way they run turns with the map.
         primitives.push({ ...primitive, at: map(primitive.at), arms: [map(primitive.arms[0]), map(primitive.arms[1])] });
         break;
+      case 'divisions':
+        // Its ends mapped; its line stays on its side of the paper, so a map
+        // that turns the paper over turns the side with it, as a pleat
+        // arrow's Zs. Its offset is a print size, as its ticks are.
+        primitives.push({
+          ...primitive,
+          from: map(primitive.from),
+          to: map(primitive.to),
+          mirrored: primitive.mirrored !== reverses,
+        });
+        break;
       case 'region':
         primitives.push({ kind: 'region', corners: primitive.corners.map(map) });
         break;

@@ -140,6 +140,7 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolRightAngle': true,
   'diagram.toolCallout': true,
   'diagram.toolAngleBisector': true,
+  'diagram.toolDivisions': true,
   'diagram.toolCloseUp': true,
   'diagram.flipArc': true,
 };

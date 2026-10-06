@@ -17,6 +17,8 @@ import {
   angleMarkDrawn,
   angleMarkPathData,
   cubicPathData,
+  divisionsDrawn,
+  divisionsPathData,
   erodeCreaseOnSheet,
   foldArrowDrawn,
   halfArrowheadPath,
@@ -304,6 +306,7 @@ export function canLeavePaper(primitive: StepDiagramPrimitive): boolean {
     case 'turn-over':
     case 'right-angle':
     case 'angle-mark':
+    case 'divisions':
     case 'point':
       return true;
     case 'line':
@@ -934,6 +937,43 @@ function diagramPrimitiveShape(
           }))}
         />
       ));
+    }
+    case 'divisions': {
+      // A line set off the line it measures, in the existing creases' pen,
+      // and the dividers and ticks across it in a ring's (Revision 2, ED9),
+      // solid and cut square, in a ring's ink; the count upright beside it,
+      // set as the rotate glyph's fraction is, so a page embeds its digits.
+      const shape = divisionsDrawn(primitive.from, primitive.to, primitive, project);
+      if (!shape) return null;
+      const d = divisionsPathData(shape);
+      const { number } = shape;
+      return onAndOffPaper(context, index, (inks) => {
+        const ink = inked(inks, 'step-diagram__point step-diagram__divisions', (each) => ({
+          fill: 'none',
+          stroke: each.mark,
+        }));
+        return (
+          <g key={index}>
+            <path d={d.line} strokeWidth={round(shape.pens.line)} strokeLinecap="butt" {...ink} />
+            <path d={d.marks} strokeWidth={round(shape.pens.marks)} strokeLinecap="butt" {...ink} />
+            {number && (
+              <text
+                x={round(number.at.x)}
+                y={round(number.at.y + ROTATE_FRACTION_BASELINE * number.size)}
+                textAnchor="middle"
+                fontSize={round(number.size)}
+                {...inked(inks, 'step-diagram__arrowhead step-diagram__divisions-number', (each) => ({
+                  fill: each.mark,
+                  fontFamily: INLINE_LABEL_FONT,
+                  fontWeight: 700,
+                }))}
+              >
+                {number.text}
+              </text>
+            )}
+          </g>
+        );
+      });
     }
     case 'point': {
       const at = project(primitive.at);

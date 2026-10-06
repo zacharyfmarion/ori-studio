@@ -199,6 +199,25 @@ export type StepDiagramPrimitive =
       ticks: 1 | 2 | 3;
     }
   /**
+   * Equal divisions of the line from `from` to `to` (Revision 2): a line
+   * `offset` ink off it — on the right of the way it runs on the paper or,
+   * `mirrored`, the left — cut into `parts` equal parts by dividers square to
+   * it, `ticks` across each part, and — `numbered` — the count beside it. The
+   * line it measures is the picture's, never drawn here. Its sizes are the
+   * drawing's, as an angle mark's are; measured after projecting, so the line
+   * stays on the paper's side through a mirror.
+   */
+  | {
+      kind: 'divisions';
+      from: readonly [number, number];
+      to: readonly [number, number];
+      parts: number;
+      offset: number;
+      mirrored: boolean;
+      ticks: 1 | 2 | 3;
+      numbered: boolean;
+    }
+  /**
    * A stretch of the paper a step works in, as a light fill under the lines:
    * the band a grid step's lines are made in, between the bounds the folder
    * sights them from. A convex polygon, in sheet units.

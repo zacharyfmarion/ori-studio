@@ -396,7 +396,7 @@ export function segmentCrossing(first: IndexedSegment, second: IndexedSegment): 
 }
 
 /** Whether both of `other`'s ends lie on `line` run on past its ends, within a point's tolerance. */
-function alongLine(line: IndexedSegment, other: IndexedSegment): boolean {
+export function alongLine(line: IndexedSegment, other: IndexedSegment): boolean {
   const dx = line.b.x - line.a.x;
   const dy = line.b.y - line.a.y;
   const length = Math.hypot(dx, dy);

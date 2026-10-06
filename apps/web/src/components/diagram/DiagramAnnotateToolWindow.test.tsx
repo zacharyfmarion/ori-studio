@@ -139,6 +139,26 @@ describe('DiagramAnnotateToolWindow', () => {
     expect(keys()).toEqual([]);
   });
 
+  it('says how to lay equal divisions and their keys, and what a click on no line could not do until the tool changes (Revision 2)', async () => {
+    mount();
+    tool('divisions');
+    expect(title()).toContain('Equal Divisions');
+    expect(intro()).toBe(
+      'Drag along a line from one end to the other, or click it, to divide it; then type how many parts. With Select, drag the mark to set how far off the line it sits.'
+    );
+    expect(keys()).toEqual([
+      'Hold Cmd to put an end down anywhere, without snapping.',
+      'With Select, Shift-drag the mark to move its line by half millimetres.',
+    ]);
+    const { setToolNotice } = await import('../../diagram/annotate/pickProgress');
+    act(() => setToolNotice({ tool: 'divisions', notice: 'no-line' }));
+    expect(intro()).toBe('Click on a line to divide it whole, or drag from one end to the other.');
+    // Another tool, and back: it is said no more.
+    tool('circle');
+    tool('divisions');
+    expect(intro()).toMatch(/^Drag along a line/);
+  });
+
   it('is not shown with Select in hand, where Annotate rests, as Edit’s is not with Box Select (review)', () => {
     // Up whenever Annotate was open, it lay over the Step pane's last fields, the instruction's among them.
     mount();
@@ -194,6 +214,11 @@ describe('DiagramAnnotateToolWindow', () => {
     expect(intro()).toBe('Click where the label goes, then type it in Settings, under Layers.');
     tool('callout');
     expect(intro()).toBe('Drag from a point to where the box goes, or click the point, then type its words in Settings, under Layers.');
+    // Equal divisions' count too (Revision 2).
+    tool('divisions');
+    expect(intro()).toBe(
+      'Drag along a line from one end to the other, or click it, to divide it; then type how many parts in Settings, under Layers.'
+    );
   });
 
   it('is not shown on a diagram that cannot change, as Edit’s is not', () => {

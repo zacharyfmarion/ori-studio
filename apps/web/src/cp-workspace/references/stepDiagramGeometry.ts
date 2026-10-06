@@ -26,6 +26,7 @@ import { erodeSegment } from '../../lib/paper/paperSvg';
 import {
   DIAGRAM_ANGLE_MARK_INK,
   DIAGRAM_ARROWHEAD_INK,
+  DIAGRAM_DIVISIONS_INK,
   DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_INK_PER_SHEET,
   DIAGRAM_LINE_INK,
@@ -39,7 +40,9 @@ import {
   type DiagramMarks,
   type DiagramPens,
   type DiagramWhiteArrowWidth,
+  type DivisionsPen,
 } from './diagram/diagramInk';
+import { markRingWidth } from './diagram/labelLayout';
 
 export interface DiagramSheet {
   width: number;
@@ -2696,6 +2699,186 @@ export function angleMarkPathData(shape: AngleMarkShape): string {
   // Under a half turn, so never the large arc; the sweep flag follows its sign, as the drawing's axes run.
   const arc = `M ${pointText(from)} A ${fmt(radius)} ${fmt(radius)} 0 0 ${sweep > 0 ? 1 : 0} ${pointText(to)}`;
   return [arc, ...shape.ticks.map(([a, b]) => `M ${pointText(a)} L ${pointText(b)}`)].join(' ');
+}
+
+/**
+ * Equal divisions' sizes in one space's units (`DIAGRAM_DIVISIONS_INK` × the
+ * ink): the line's offset, the dividers' overshoot past it, a tick's
+ * half-length and the spacing between two or three, the floors a crowded
+ * part's ticks shrink to, the lean in radians, and the count's size and gap.
+ */
+export interface DivisionsSize {
+  offset: number;
+  overshoot: number;
+  tick: number;
+  spacing: number;
+  tickFloor: number;
+  spacingFloor: number;
+  lean: number;
+  number: number;
+  gap: number;
+}
+
+/** What equal divisions say: how many parts, how many ticks on each, the side their line is on, and whether they print the count. */
+export interface DivisionsLook {
+  parts: number;
+  ticks: number;
+  /** The line to the left of the way from `from` to `to` runs, as a y-down drawing shows it; else to the right. */
+  mirrored: boolean;
+  numbered: boolean;
+}
+
+/** Equal divisions as drawn (Revision 2), in one space's units. */
+export interface DivisionsShape {
+  /** The line, set off the measured line, from end divider to end divider. */
+  line: [SvgPoint, SvgPoint];
+  /** Square to the measured line at each end and between parts, `parts + 1` of them, each from its start to its end. */
+  dividers: [SvgPoint, SvgPoint][];
+  /** Across the line at the middle of each part, leaning as a backslash does across a level line. */
+  ticks: [SvgPoint, SvgPoint][];
+  /** The unit normal from the measured line toward the line. */
+  side: SvgPoint;
+  /**
+   * The count, upright beside the line's middle on its side: its centre, its
+   * size and its box's half-extents; null for divisions that do not print it.
+   */
+  number: { at: SvgPoint; text: string; size: number; halfWidth: number; halfHeight: number } | null;
+  /** A part too short for its ticks even at their floor (ED10): they stop shrinking there, and crowd. */
+  crowded: boolean;
+}
+
+/**
+ * A digit's advance, in ems, as the count is set (Inter and Noto Sans Bold
+ * both under it): what its box is measured by, as an SVG `<text>` cannot be
+ * before it is drawn.
+ */
+export const DIVISIONS_DIGIT_EMS = 0.62;
+/** Half a digit's height about the middle it is centred on, in ems: a figure's middle on the centre. */
+export const DIVISIONS_DIGIT_HALF_HEIGHT_EMS = 0.4;
+
+/**
+ * Which way a tick leans across a line running along `along`, decided on the
+ * page — whichever way the line was drawn — as a backslash does across a
+ * level line: the line's direction taken rightward (or downward, upright),
+ * and its quarter turn clockwise on a y-down page tipped `lean` toward it.
+ */
+function tickDirection(along: SvgPoint, lean: number): SvgPoint {
+  const backwards = along.x < -AXIS_TOLERANCE || (along.x <= AXIS_TOLERANCE && along.y < 0);
+  const c = backwards ? { x: -along.x, y: -along.y } : along;
+  const square = { x: -c.y, y: c.x };
+  return { x: square.x * Math.cos(lean) + c.x * Math.sin(lean), y: square.y * Math.cos(lean) + c.y * Math.sin(lean) };
+}
+
+/**
+ * Equal divisions of the line from `from` to `to` (Revision 2), in one
+ * space's units: the line `size.offset` off it, on the side `look.mirrored`
+ * says; `parts + 1` dividers square to it, each from the measured line to
+ * `overshoot` past the line — or, where the line is nearer the measured line
+ * than that, straddling the line evenly, as the template's |\|\| symbol does
+ * at no offset; `ticks` ticks across the line at each part's middle, leaning
+ * on the page ({@link tickDirection}), drawn smaller on a part shorter than
+ * twice their span, down to their floors and no further (`crowded` past
+ * them); and the count upright beside the line's middle, `gap` past the
+ * dividers' ends. Null when its ends meet.
+ */
+export function divisionsShape(from: SvgPoint, to: SvgPoint, look: DivisionsLook, size: DivisionsSize): DivisionsShape | null {
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  if (!(length > 1e-12)) return null;
+  const parts = Math.max(1, Math.round(look.parts));
+  const u = { x: (to.x - from.x) / length, y: (to.y - from.y) / length };
+  const side = look.mirrored ? { x: u.y, y: -u.x } : { x: -u.y, y: u.x };
+  const at = (share: number, out: number): SvgPoint => ({
+    x: from.x + (to.x - from.x) * share + side.x * out,
+    y: from.y + (to.y - from.y) * share + side.y * out,
+  });
+  const offset = Math.max(0, size.offset);
+  const start = Math.min(0, offset - size.overshoot);
+  const end = offset + size.overshoot;
+  const dividers: [SvgPoint, SvgPoint][] = [];
+  for (let i = 0; i <= parts; i += 1) dividers.push([at(i / parts, start), at(i / parts, end)]);
+  // The ticks on each part: as large as the sketch's on a part twice their
+  // span, smaller on a shorter one, down to their floors.
+  const count = Math.max(1, Math.round(look.ticks));
+  const lean = tickDirection(u, size.lean);
+  const span = (count - 1) * size.spacing + 2 * size.tick * Math.abs(lean.x * u.x + lean.y * u.y);
+  const fit = span > 0 ? Math.min(1, length / parts / (2 * span)) : 1;
+  const tickFloor = Math.min(size.tickFloor, size.tick);
+  const spacingFloor = Math.min(size.spacingFloor, size.spacing);
+  const half = Math.max(size.tick * fit, tickFloor);
+  const spacing = Math.max(size.spacing * fit, spacingFloor);
+  const crowded = size.tick * fit < tickFloor || (count > 1 && size.spacing * fit < spacingFloor);
+  const ticks: [SvgPoint, SvgPoint][] = [];
+  for (let j = 0; j < parts; j += 1) {
+    const middle = at((j + 0.5) / parts, offset);
+    for (let k = 0; k < count; k += 1) {
+      const along = (k - (count - 1) / 2) * spacing;
+      const c = { x: middle.x + u.x * along, y: middle.y + u.y * along };
+      ticks.push([
+        { x: c.x - lean.x * half, y: c.y - lean.y * half },
+        { x: c.x + lean.x * half, y: c.y + lean.y * half },
+      ]);
+    }
+  }
+  let number: DivisionsShape['number'] = null;
+  if (look.numbered) {
+    const text = String(parts);
+    const halfWidth = (text.length * DIVISIONS_DIGIT_EMS * size.number) / 2;
+    const halfHeight = DIVISIONS_DIGIT_HALF_HEIGHT_EMS * size.number;
+    // Upright: its box reaches this far along the side it stands off on.
+    const extent = halfWidth * Math.abs(side.x) + halfHeight * Math.abs(side.y);
+    number = { at: at(0.5, end + size.gap + extent), text, size: size.number, halfWidth, halfHeight };
+  }
+  return { line: [at(0, offset), at(1, offset)], dividers, ticks, side, number, crowded };
+}
+
+/** Equal divisions as a picture draws them: their shape, and the pens the line and the marks across it are drawn in. */
+export interface DivisionsDrawn extends DivisionsShape {
+  pens: { line: number; marks: number };
+}
+
+/**
+ * Equal divisions as a picture draws them, measuring the line from `from` to
+ * `to` in sheet units, `offset` ink off it: their shape
+ * ({@link divisionsShape}) in the projector's units, sized by their ink
+ * (`DIAGRAM_DIVISIONS_INK`), the side measured after projecting so a
+ * projection of the paper's back keeps the line on the paper's same side, as
+ * a pleat arrow's Zs; each stroke in the pen the table names (ED9: the line
+ * in the existing creases', the dividers and ticks in a ring's). The one
+ * place their drawn shape is decided. Null when the ends meet.
+ */
+export function divisionsDrawn(
+  from: readonly [number, number],
+  to: readonly [number, number],
+  look: DivisionsLook & { offset: number },
+  project: DiagramProjector
+): DivisionsDrawn | null {
+  const ink = project.ink;
+  const sizes = DIAGRAM_DIVISIONS_INK;
+  const pen = (name: DivisionsPen) => (name === 'crease' ? project.pens.crease.width * ink : markRingWidth(project));
+  const pens = { line: pen(sizes.pens.line), marks: pen(sizes.pens.marks) };
+  const shape = divisionsShape(project(from), project(to), { ...look, mirrored: look.mirrored !== project.mirrored }, {
+    offset: look.offset * ink,
+    overshoot: sizes.overshoot * ink,
+    tick: sizes.tick * ink,
+    spacing: sizes.spacing * ink,
+    tickFloor: sizes.tickFloor * ink,
+    spacingFloor: sizes.spacingFloor * pens.marks,
+    lean: (sizes.leanDeg * Math.PI) / 180,
+    number: sizes.number * ink,
+    gap: sizes.gap * ink,
+  });
+  return shape && { ...shape, pens };
+}
+
+/** Equal divisions as SVG path data: the line on its own, in its pen, and the dividers and ticks, in theirs. */
+export function divisionsPathData(shape: DivisionsShape): { line: string; marks: string } {
+  const segment = ([a, b]: readonly [SvgPoint, SvgPoint]) => `M ${pointText(a)} L ${pointText(b)}`;
+  return { line: segment(shape.line), marks: [...shape.dividers, ...shape.ticks].map(segment).join(' ') };
+}
+
+/** Every stroke's ends of equal divisions, the line's first: their reach, and a press along them. */
+export function divisionsStrokes(shape: DivisionsShape): [SvgPoint, SvgPoint][] {
+  return [shape.line, ...shape.dividers, ...shape.ticks];
 }
 
 /** A point as SVG path data writes one. */

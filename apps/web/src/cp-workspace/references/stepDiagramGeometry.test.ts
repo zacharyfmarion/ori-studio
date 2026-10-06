@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   DIAGRAM_ANGLE_MARK_INK,
   DIAGRAM_ARROWHEAD_INK,
+  DIAGRAM_DIVISIONS_INK,
   DIAGRAM_LINE_INK,
   DIAGRAM_MARK_INK,
   DIAGRAM_MARKS,
   DIAGRAM_PLEAT_INK,
   DIAGRAM_RIGHT_ANGLE_INK,
   REFERENCES_VIEW_MARKS,
+  type DivisionsPen,
 } from './diagram/diagramInk';
 import {
   angleMarkArcPoints,
@@ -38,6 +40,12 @@ import {
   createOverlayProjector,
   dashRulerAlong,
   dashZeroOf,
+  divisionsDrawn,
+  divisionsPathData,
+  divisionsShape,
+  divisionsStrokes,
+  DIVISIONS_DIGIT_EMS,
+  DIVISIONS_DIGIT_HALF_HEIGHT_EMS,
   erodeCreaseOnSheet,
   foldAndUnfoldArrow,
   foldAndUnfoldFromArc,
@@ -74,6 +82,7 @@ import {
   type DiagramArc,
   type SvgPoint,
 } from './stepDiagramGeometry';
+import { markRingWidth } from './diagram/labelLayout';
 
 const UNIT = { width: 1, height: 1 };
 const CENTRE: readonly [number, number] = [0.5, 0.5];
@@ -1512,5 +1521,154 @@ describe('a stroke behind a flap, in pieces (15e)', () => {
     // From the right to the bottom of the page: a quarter, clockwise (sweep 1).
     expect(numbers(pieces[0]!.d)).toEqual([10, 0, 10, 10, 0, 0, 1, 0, 10]);
     expect(pieces[0]!.length).toBeCloseTo(5 * Math.PI, 12);
+  });
+});
+
+describe('equal divisions (Revision 2)', () => {
+  /** An annotation's ink in mm, as the canvas and a page print one. */
+  const INK_MM = 0.3307;
+  const mm = (value: number) => value / INK_MM;
+  /** The sizes at one ink: the shape is then in ink. */
+  const size = (offset: number) => ({
+    offset,
+    overshoot: DIAGRAM_DIVISIONS_INK.overshoot,
+    tick: DIAGRAM_DIVISIONS_INK.tick,
+    spacing: DIAGRAM_DIVISIONS_INK.spacing,
+    tickFloor: DIAGRAM_DIVISIONS_INK.tickFloor,
+    spacingFloor: 1.2,
+    lean: (DIAGRAM_DIVISIONS_INK.leanDeg * Math.PI) / 180,
+    number: DIAGRAM_DIVISIONS_INK.number,
+    gap: DIAGRAM_DIVISIONS_INK.gap,
+  });
+  const look = { parts: 4, ticks: 1, mirrored: false, numbered: false };
+  const from = { x: 0, y: 0 };
+  const to = { x: 100, y: 0 };
+  /** A segment as a sorted key, whichever end it is drawn from. */
+  const key = ([a, b]: readonly [SvgPoint, SvgPoint]) =>
+    [a, b]
+      .map(({ x, y }) => `${x.toFixed(9)},${y.toFixed(9)}`)
+      .sort()
+      .join(' ');
+
+  it('stands a divider square to the line it measures at each end and between parts, `parts + 1` of them', () => {
+    const shape = divisionsShape(from, to, { ...look, parts: 5 }, size(mm(2.5)))!;
+    expect(shape.dividers).toHaveLength(6);
+    shape.dividers.forEach(([a, b], i) => {
+      expect(a.x).toBeCloseTo((100 * i) / 5, 12);
+      expect(b.x).toBeCloseTo((100 * i) / 5, 12);
+    });
+    // To the right of the way it runs, y down: below a line running right.
+    expect(shape.side).toEqual({ x: -0, y: 1 });
+    expect(shape.line[0].y).toBeCloseTo(mm(2.5), 12);
+    expect(shape.line[1]).toMatchObject({ x: 100 });
+    // `mirrored`, to the left.
+    expect(divisionsShape(from, to, { ...look, mirrored: true }, size(mm(2.5)))!.line[0].y).toBeCloseTo(-mm(2.5), 12);
+    expect(divisionsShape(from, from, look, size(5))).toBeNull();
+  });
+
+  it('runs a divider from the line it measures to 1.65 mm past its line, straddling the line evenly where it is nearer than that (ED4)', () => {
+    const ends = (offset: number) => {
+      const [a, b] = divisionsShape(from, to, look, size(mm(offset)))!.dividers[1]!;
+      return [a.y, b.y].map((y) => Number((y * INK_MM).toFixed(2)) + 0);
+    };
+    // 2.5 mm: in the margin, from the edge out past the line.
+    expect(ends(2.5)).toEqual([0, 4.15]);
+    // 1 mm: as far on the paper's side of its line as past it, 0.65 mm into the paper.
+    expect(ends(1)).toEqual([-0.65, 2.65]);
+    // None: the template's |\|\| symbol, the line on the edge, dividers straddling it.
+    expect(ends(0)).toEqual([-1.65, 1.65]);
+  });
+
+  it('leans each tick 20° off square as a backslash does across a level line, whichever way the line was drawn', () => {
+    const forward = divisionsShape(from, to, { ...look, ticks: 2 }, size(mm(2.5)))!;
+    // Drawn the other way, on the same side: the very same ticks.
+    const backward = divisionsShape(to, from, { ...look, ticks: 2, mirrored: true }, size(mm(2.5)))!;
+    expect(backward.ticks.map(key).sort()).toEqual(forward.ticks.map(key).sort());
+    for (const [a, b] of forward.ticks) {
+      // Down and to the right, top to bottom: a backslash.
+      const lean = Math.atan2(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+      expect((b.x - a.x) * (b.y - a.y)).toBeGreaterThan(0);
+      expect((lean * 180) / Math.PI).toBeCloseTo(20, 9);
+      expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeCloseTo(2 * DIAGRAM_DIVISIONS_INK.tick, 9);
+    }
+    // Two ticks a part, spaced along the line at its middle.
+    const first = forward.ticks.slice(0, 2).map(([a, b]) => (a.x + b.x) / 2);
+    expect(first[1]! - first[0]!).toBeCloseTo(DIAGRAM_DIVISIONS_INK.spacing, 9);
+    expect((first[0]! + first[1]!) / 2).toBeCloseTo(12.5, 9);
+  });
+
+  it('leans its ticks as a backslash on the page in a picture of the paper’s back, its line kept on the paper’s side', () => {
+    const drawn = (mirrored: boolean) =>
+      divisionsDrawn([0.2, 0.8], [0.8, 0.8], { ...look, offset: 7.5 }, createDiagramProjector(UNIT, 100, mirrored))!;
+    const [front, back] = [drawn(false), drawn(true)];
+    for (const shape of [front, back]) {
+      for (const [a, b] of shape.ticks) expect((b.x - a.x) * (b.y - a.y)).toBeGreaterThan(0);
+    }
+    // The paper's side of its line is mirrored with it: the line stays on the same side of the edge on the page.
+    expect(Math.sign(back.side.y)).toBe(Math.sign(front.side.y));
+  });
+
+  it('draws a crowded part’s ticks smaller, down to their floor and no further, and says so: 32 parts on 25 mm', () => {
+    const short = { x: mm(25), y: 0 };
+    const three = divisionsShape(from, short, { ...look, parts: 32, ticks: 3 }, size(mm(2.5)))!;
+    expect(three.crowded).toBe(true);
+    const group = three.ticks.slice(0, 3).map(([a, b]) => (a.x + b.x) / 2);
+    // Spaced at the floor: two pens.
+    expect(group[1]! - group[0]!).toBeCloseTo(1.2, 9);
+    const [a, b] = three.ticks[0]!;
+    expect(Math.hypot(b.x - a.x, b.y - a.y) / 2).toBeCloseTo(DIAGRAM_DIVISIONS_INK.tickFloor, 9);
+    // One tick a part shrinks too, and fits above its floor.
+    const one = divisionsShape(from, short, { ...look, parts: 32 }, size(mm(2.5)))!;
+    expect(one.crowded).toBe(false);
+    const [c, d] = one.ticks[0]!;
+    const half = Math.hypot(d.x - c.x, d.y - c.y) / 2;
+    expect(half).toBeLessThan(DIAGRAM_DIVISIONS_INK.tick);
+    expect(half).toBeGreaterThan(DIAGRAM_DIVISIONS_INK.tickFloor);
+    // A part long enough: the sketch's size.
+    expect(divisionsShape(from, to, look, size(mm(2.5)))!.crowded).toBe(false);
+  });
+
+  it('prints its count upright beside its line’s middle, its box 2 ink past the dividers’ ends, on level and upright lines', () => {
+    const offset = mm(2.5);
+    const level = divisionsShape(from, to, { ...look, parts: 7, numbered: true }, size(offset))!.number!;
+    expect(level.text).toBe('7');
+    expect(level.size).toBe(DIAGRAM_DIVISIONS_INK.number);
+    expect(level.at.x).toBeCloseTo(50, 9);
+    const past = offset + DIAGRAM_DIVISIONS_INK.overshoot + DIAGRAM_DIVISIONS_INK.gap;
+    expect(level.at.y - level.halfHeight).toBeCloseTo(past, 9);
+    expect(level.halfHeight).toBeCloseTo(DIVISIONS_DIGIT_HALF_HEIGHT_EMS * DIAGRAM_DIVISIONS_INK.number, 9);
+    // Upright, to the left of a line running down: its box's side 2 ink past.
+    const upright = divisionsShape(from, { x: 0, y: 100 }, { ...look, parts: 12, numbered: true }, size(offset))!.number!;
+    expect(upright.halfWidth).toBeCloseTo(DIVISIONS_DIGIT_EMS * DIAGRAM_DIVISIONS_INK.number, 9);
+    expect(upright.at.y).toBeCloseTo(50, 9);
+    expect(upright.at.x + upright.halfWidth).toBeCloseTo(-past, 9);
+    expect(divisionsShape(from, to, look, size(offset))!.number).toBeNull();
+  });
+
+  it('is drawn at its ink, its line in the existing creases’ pen and its marks in a ring’s, its offset taken in ink', () => {
+    const overlay = createOverlayProjector({ origin: [0, 0], ex: [400, 0], ey: [0, -400] }, 2);
+    const drawn = divisionsDrawn([0.1, -0.5], [0.9, -0.5], { ...look, offset: 7.5 }, overlay)!;
+    expect(drawn.pens).toEqual({ line: DIAGRAM_LINE_INK.crease.width * 2, marks: markRingWidth(overlay) });
+    expect(drawn.line[0].y - 200).toBeCloseTo(15, 9);
+    expect(drawn.dividers[0]![1].y - 200).toBeCloseTo(15 + DIAGRAM_DIVISIONS_INK.overshoot * 2, 9);
+    // Two paths: the line, and the dividers and ticks.
+    const d = divisionsPathData(drawn);
+    expect(d.line.match(/M/g)).toHaveLength(1);
+    expect(d.marks.match(/M/g)).toHaveLength(5 + 4);
+    expect(divisionsStrokes(drawn)).toHaveLength(1 + 5 + 4);
+  });
+
+  it('draws each stroke in the pen its table names', () => {
+    const overlay = createOverlayProjector({ origin: [0, 0], ex: [400, 0], ey: [0, -400] }, 2);
+    const pens = DIAGRAM_DIVISIONS_INK.pens as { line: DivisionsPen; marks: DivisionsPen };
+    const was = { ...pens };
+    try {
+      // The table swapped: the drawing follows it, not a choice of its own.
+      Object.assign(pens, { line: 'ring', marks: 'crease' });
+      const drawn = divisionsDrawn([0.1, -0.5], [0.9, -0.5], { ...look, offset: 7.5 }, overlay)!;
+      expect(drawn.pens).toEqual({ line: markRingWidth(overlay), marks: DIAGRAM_LINE_INK.crease.width * 2 });
+    } finally {
+      Object.assign(pens, was);
+    }
   });
 });

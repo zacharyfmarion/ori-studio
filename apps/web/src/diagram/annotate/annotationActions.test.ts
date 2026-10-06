@@ -28,9 +28,9 @@ const of = (id: string, kind: DiagramAnnotationKind, extra: Partial<KnownDiagram
 });
 
 describe('the annotation verbs', () => {
-  it('offer Flip Arc on the three fold arrows, the pleat arrow and the white arrow alone, and Delete on every kind', () => {
+  it('offer Flip Arc on the three fold arrows, the pleat arrow, the white arrow and equal divisions alone, and Delete on every kind', () => {
     const flips = ANNOTATION_KINDS.filter((kind) => offersAnnotationAction('flip-arc', of('a', kind)));
-    expect(flips).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'white-arrow']);
+    expect(flips).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'white-arrow', 'divisions']);
     expect(ANNOTATION_KINDS.every((kind) => offersAnnotationAction('delete', of('a', kind)))).toBe(true);
   });
 
@@ -44,6 +44,27 @@ describe('the annotation verbs', () => {
     expect(once).toEqual([{ ...pleat, mirrored: true }]);
     // Back: `mirrored` is written only when true.
     expect(edits[0]!.edit(once)).toEqual([pleat]);
+  });
+
+  it('name Flip on equal divisions, which have no arc, put their line over and back, and hold it where it is alike on both sides (Revision 2)', () => {
+    const edits: AnnotationEdit[] = [];
+    const divisions = of('d', 'divisions', { parts: 4, offset: 2.5 });
+    const [flip] = verbsOf(buildAnnotationActions(divisions, { editable: true }, { t, apply: (edit) => edits.push(edit) }));
+    expect(flip).toMatchObject({ id: 'flip-arc', label: 'Flip', shortcutId: 'diagram.flipArc', disabled: false });
+    flip!.run();
+    const once = edits[0]!.edit([divisions]);
+    expect(once).toEqual([{ ...divisions, mirrored: true }]);
+    expect(edits[0]!.edit(once)).toEqual([divisions]);
+    // On their line with no count, the template's symbol: alike either side, so held.
+    const symbol = of('d', 'divisions', { parts: 4, offset: 0 });
+    expect(verbsOf(buildAnnotationActions(symbol, { editable: true }, { t, apply: vi.fn() }))[0]).toMatchObject({
+      id: 'flip-arc',
+      disabled: true,
+    });
+    const numbered = of('d', 'divisions', { parts: 4, offset: 0, numbered: true });
+    expect(verbsOf(buildAnnotationActions(numbered, { editable: true }, { t, apply: vi.fn() }))[0]).toMatchObject({
+      disabled: false,
+    });
   });
 
   it('come in the pane’s order with their keys, enabled only on a step that can change', () => {
@@ -347,6 +368,20 @@ describe('Flip Horizontal and Flip Vertical (Zach, 2026-10-05)', () => {
     expect(horizontal).toMatchObject({ id: 'flip-horizontal', disabled: false });
     const [held] = buildAnnotationActions(of('a', 'valley-arrow'), { editable: false }, { t, apply: vi.fn() });
     expect(held).toMatchObject({ id: 'flip-horizontal', disabled: true });
+  });
+
+  it('hold a Flip Horizontal along equal divisions’ level line, which draws them as they were, and offer Flip Vertical (Revision 2)', () => {
+    // Left to right, the ends change places and the side turns over: the same mark.
+    const divisions = of('d', 'divisions', { parts: 4, offset: 2.5 });
+    const [horizontal, vertical] = buildAnnotationActions(divisions, { editable: true }, { t, apply: vi.fn() });
+    expect(horizontal).toMatchObject({ id: 'flip-horizontal', disabled: true });
+    // Top to bottom, the line goes to the other side of the edge.
+    expect(vertical).toMatchObject({ id: 'flip-vertical', disabled: false });
+    expect(annotationActionEdit('flip-vertical', 'd').edit([divisions])).toEqual([{ ...divisions, mirrored: true }]);
+    // On a slant, either way moves it.
+    const slant = of('d', 'divisions', { from: [0.2, 0.2], to: [0.6, 0.5], parts: 4, offset: 2.5 });
+    const [h, v] = buildAnnotationActions(slant, { editable: true }, { t, apply: vi.fn() });
+    expect([h!.disabled, v!.disabled]).toEqual([false, false]);
   });
 
   it('turn the mark over as one edit, on the mark as it is when it lands, saying which way for the count', () => {

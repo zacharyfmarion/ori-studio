@@ -20,7 +20,7 @@ import {
   type DiagramStyle,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
-import type { PicturePoint } from './annotationModel';
+import { divisionsPartsOf, type PicturePoint } from './annotationModel';
 import {
   crossingsNear,
   pictureGeometry,
@@ -76,8 +76,11 @@ export function pictureSnapTarget(
   const candidates: SnapTarget[] = [];
   const vertex = geometry.points[geometry.pointIndex.query(point[0], point[1], radius)];
   if (vertex) candidates.push(vertex);
+  // Equal parts on the page are equal on the paper only where the picture
+  // has no perspective: a camera's picture offers no division points.
+  const divisionPoints = geometry.kind !== 'projected';
   for (const annotation of annotations) {
-    for (const at of annotationSnapPoints(annotation)) candidates.push({ at, kind: 'annotation' });
+    for (const at of annotationSnapPoints(annotation, { divisionPoints })) candidates.push({ at, kind: 'annotation' });
   }
   for (const at of crossingsNear(geometry, drawnLines(annotations), point, radius)) {
     candidates.push({ at, kind: 'crossing' });
@@ -109,12 +112,26 @@ export function annotationsOf(step: DiagramStep, { annotations, ignore }: SnapOp
 
 /**
  * The points of an annotation another snaps to (Q9): a line's two ends, where
- * a line meets another, a circle's centre, the corner a right angle marks, and
- * the point a callout marks (its box is no point). Each of these was snapped
- * onto a point of the picture, or put on purpose where it is.
+ * a line meets another, a circle's centre, the corner a right angle marks,
+ * the point a callout marks (its box is no point), and the ends of the line
+ * equal divisions measure and — with `divisionPoints`, on a picture whose
+ * equal parts are the paper's — each point dividing it, so a line drawn from
+ * the first quarter lands on it (Revision 2). Each of these was snapped onto
+ * a point of the picture, or put on purpose where it is.
  */
-export function annotationSnapPoints(annotation: KnownDiagramAnnotation): readonly PicturePoint[] {
+export function annotationSnapPoints(
+  annotation: KnownDiagramAnnotation,
+  { divisionPoints = true }: { divisionPoints?: boolean } = {}
+): readonly PicturePoint[] {
   switch (annotation.kind) {
+    case 'divisions': {
+      const { from, to } = annotation;
+      if (!divisionPoints) return [from, to];
+      const parts = divisionsPartsOf(annotation);
+      return Array.from({ length: parts + 1 }, (_, i): PicturePoint =>
+        i === 0 ? from : i === parts ? to : [from[0] + ((to[0] - from[0]) * i) / parts, from[1] + ((to[1] - from[1]) * i) / parts]
+      );
+    }
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':

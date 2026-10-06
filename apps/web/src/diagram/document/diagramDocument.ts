@@ -560,8 +560,11 @@ export type DiagramPicture =
  * line from a point to a box of words, as diagrams say "repeat behind" — an
  * angle marked halved, as a bisector's equal angles are (15b), a pleat
  * arrow, its shaft a lightning bolt, as diagrams mark a crimp or a pleat (15c),
- * and a close-up: a ring round an area of the picture and a larger one
- * beside it, the area drawn again inside it at a larger size (15f).
+ * a close-up: a ring round an area of the picture and a larger one beside
+ * it, the area drawn again inside it at a larger size (15f), and equal
+ * divisions: a line set off from a line of the picture, cut into equal parts
+ * by strokes across it, each part ticked, as a draftsman's dimension is
+ * (Revision 2).
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
@@ -580,10 +583,15 @@ export type DiagramAnnotationKind =
   | 'right-angle'
   | 'callout'
   | 'angle-mark'
+  | 'divisions'
   | 'close-up';
 
-/** How many ticks an angle mark draws across each half: a second pair of equal angles in a step takes two. */
-export type DiagramAngleTicks = 1 | 2 | 3;
+/**
+ * How many ticks an equality mark draws: across each half of an angle mark,
+ * on each part of equal divisions. A second set of equal angles or parts in a
+ * step takes two.
+ */
+export type DiagramTicks = 1 | 2 | 3;
 
 /** How many Zs a pleat arrow's shaft has: a crimp's one, a pleat's two, up to five. */
 export type DiagramPleatKinks = 1 | 2 | 3 | 4 | 5;
@@ -638,27 +646,40 @@ export interface KnownDiagramAnnotation {
   /**
    * Where it starts: an arrow's tail, a line's end, a glyph's or a label's
    * centre, a right angle's corner, the point a callout marks, an angle
-   * mark's vertex.
+   * mark's vertex, one end of the line equal divisions measure.
    */
   from: [number, number];
   /**
    * Where it ends: an arrow's tip, the middle of a callout's box; `from` again
    * for a glyph or a label; for a right angle, a point along the diagonal into
    * the angle — only its direction is read; for an angle mark, a point along
-   * its first arm — only its direction is read.
+   * its first arm — only its direction is read; for equal divisions, the
+   * measured line's other end.
    */
   to: [number, number];
   /** An angle mark's second arm: a point along it, only its direction read (15b). */
   other?: [number, number];
-  /** An angle mark's ticks across each half; one when unsaid (15b). */
-  ticks?: DiagramAngleTicks;
+  /** An angle mark's ticks across each half, or equal divisions' on each part; one when unsaid (15b, Revision 2). */
+  ticks?: DiagramTicks;
   /** A pleat arrow's Zs; one when unsaid (15c). */
   kinks?: DiagramPleatKinks;
   /**
    * A pleat arrow whose Zs step to the left of the way it points, as the
-   * picture shows it; unsaid, to the right (15c). Only ever written true.
+   * picture shows it; unsaid, to the right (15c). Equal divisions whose line
+   * lies to the left of the way from `from` to `to` runs; unsaid, to the
+   * right. Only ever written true.
    */
   mirrored?: true;
+  /** How many equal parts equal divisions cut their line into: 2 to 32, always written (Revision 2). */
+  parts?: number;
+  /**
+   * How far equal divisions' line is set off the line they measure, in
+   * millimetres as it prints — the first print length a mark stores — 0 to
+   * 15, always written: at 0 it lies on it (Revision 2).
+   */
+  offset?: number;
+  /** Equal divisions that print their count beside their line; unsaid, they do not. Only ever written true. */
+  numbered?: true;
   /**
    * The ends of a fold or pleat arrow, a valley or mountain line, or a
    * circle that lie behind a flap (15e): drawn dotted from each until they

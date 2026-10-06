@@ -3,7 +3,7 @@ import type { DiagramAnnotateShortcutId } from '../../keyboard/shortcuts';
 import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { canBeShaped, isPointKind, isSolidArrow, SOLID_ARROW_LOOK, type WhiteArrowLook } from './annotationModel';
 import { DEFAULT_DIAGRAM_LINE_TYPE, lineKindOf, type DiagramLineKind, type DiagramLineType } from './lineTypes';
-import type { PickProgress } from './pickProgress';
+import type { PickProgress, ToolNotice } from './pickProgress';
 
 /**
  * Annotate's tools (D8), for every surface that offers them: the rail beside
@@ -119,6 +119,7 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   circle: 'marks',
   'right-angle': 'marks',
   'angle-mark': 'marks',
+  divisions: 'marks',
   'close-up': 'marks',
   callout: 'text',
 };
@@ -153,6 +154,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   circle: 'diagram.toolCircle',
   'right-angle': 'diagram.toolRightAngle',
   'angle-mark': null,
+  divisions: 'diagram.toolDivisions',
   'close-up': 'diagram.toolCloseUp',
   callout: 'diagram.toolCallout',
 };
@@ -235,6 +237,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolCallout', 'Callout');
     case 'angle-mark':
       return t('tools:diagram.toolAngleMark', 'Equal Angles');
+    case 'divisions':
+      return t('tools:diagram.toolDivisions', 'Equal Divisions');
     case 'close-up':
       return t('tools:diagram.toolCloseUp', 'Close-Up');
   }
@@ -262,7 +266,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
   if (tool === null) {
     return t(
       'panels:diagram.annotate.selectHelp',
-      'Click an annotation to select it. Drag it, or the dot at either end, to move it. Double-click a fold or white arrow to shape it.'
+      'Click an annotation to select it. Drag it, or the dot at either end, to move it; drag equal divisions to set how far off their line they sit. Double-click a fold or white arrow to shape it.'
     );
   }
   switch (tool) {
@@ -298,6 +302,11 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       );
     case 'angle-mark':
       return t('panels:diagram.annotate.angleMarkHelp', 'Click a point on one arm, the vertex, then a point on the other arm.');
+    case 'divisions':
+      return t(
+        'panels:diagram.annotate.divisionsHelp',
+        'Drag along a line from one end to the other, or click it, to divide it; then type how many parts. With Select, drag the mark to set how far off the line it sits.'
+      );
     case 'label':
       return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it in the Layers pane.');
     case 'circle':
@@ -380,22 +389,26 @@ export interface AnnotateToolHint {
 
 /**
  * The tool window for `tool`. Edit Path says what it can do to the selected
- * annotation, by its kind (null for none selected). None for Select, where
- * Annotate rests, as Edit's Box Select and the Simulator's orbit have none:
- * up whenever Annotate is open, it would lie over the Step pane's last fields.
+ * annotation, by its kind (null for none selected). A pick tool says what its
+ * next press is for; a drawing tool, what its last press could not do, when
+ * it set a `notice`. None for Select, where Annotate rests, as Edit's Box
+ * Select and the Simulator's orbit have none: up whenever Annotate is open,
+ * it would lie over the Step pane's last fields.
  */
 export function annotateToolHint(
   t: TFunction,
   tool: AnnotateTool,
   selected: DiagramAnnotationKind | null,
   host: AnnotateToolHost,
-  progress: PickProgress | null = null
+  progress: PickProgress | null = null,
+  notice: ToolNotice | null = null
 ): AnnotateToolHint | null {
   if (tool === null) return null;
   let instructions: string;
   if (tool === EDIT_PATH) instructions = editPathHelp(t, selected);
   else if (isPickTool(tool) && progress) instructions = pickHelp(t, progress);
-  else if (host.coarse && (tool === 'label' || tool === 'callout')) instructions = textHelpOnTouch(t, tool);
+  else if (notice !== null && notice.tool === tool) instructions = noticeHelp(t, notice);
+  else if (host.coarse && (tool === 'label' || tool === 'callout' || tool === 'divisions')) instructions = textHelpOnTouch(t, tool);
   else instructions = annotateToolHelp(t, tool);
   return {
     title: annotateToolLabel(t, tool),
@@ -448,28 +461,47 @@ function pickHelp(t: TFunction, { step, refusal }: PickProgress): string {
   return `${why} ${next}`;
 }
 
+/** What a drawing tool's last press could not do, and what to do instead: equal divisions clicked on no line. */
+function noticeHelp(t: TFunction, notice: ToolNotice): string {
+  switch (notice.notice) {
+    case 'no-line':
+      return t('panels:diagram.annotate.divisionsNoLine', 'Click on a line to divide it whole, or drag from one end to the other.');
+  }
+}
+
 /**
- * A label's and a callout's help on a touch screen, which keeps the Layers
- * pane as a tab of the sheet behind its Settings pill: the field its words are
- * typed in named where that surface shows it, in its own words.
+ * A label's, a callout's and equal divisions' help on a touch screen, which
+ * keeps the Layers pane as a tab of the sheet behind its Settings pill: the
+ * field their words or their count are typed in named where that surface
+ * shows it, in its own words.
  */
-function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout'): string {
+function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions'): string {
   const where = { sheet: t('common:viewDrawer.openSettings', 'Settings'), tab: t('panels:sidePane.layers', 'Layers') };
-  return tool === 'label'
-    ? t('panels:diagram.annotate.labelHelpTouch', 'Click where the label goes, then type it in {{sheet}}, under {{tab}}.', where)
-    : t(
+  switch (tool) {
+    case 'label':
+      return t('panels:diagram.annotate.labelHelpTouch', 'Click where the label goes, then type it in {{sheet}}, under {{tab}}.', where);
+    case 'callout':
+      return t(
         'panels:diagram.annotate.calloutHelpTouch',
         'Drag from a point to where the box goes, or click the point, then type its words in {{sheet}}, under {{tab}}.',
         where
       );
+    case 'divisions':
+      return t(
+        'panels:diagram.annotate.divisionsHelpTouch',
+        'Drag along a line from one end to the other, or click it, to divide it; then type how many parts in {{sheet}}, under {{tab}}.',
+        where
+      );
+  }
 }
 
 /**
  * The keys a tool honours, a line each: ⌘ (Ctrl) puts what snaps down
  * anywhere (an arrow snaps nowhere, `snapsWhenPlaced`); Shift holds a right
- * angle to 45° steps, and in Edit Path a node to the eight directions and a
- * handle to 15° steps; Alt breaks a smooth node's handles apart. A switch, so
- * a new tool has to say.
+ * angle to 45° steps, equal divisions' line to half millimetres as Select
+ * drags it, and in Edit Path a node to the eight directions and a handle to
+ * 15° steps; Alt breaks a smooth node's handles apart. A switch, so a new
+ * tool has to say.
  */
 function annotateToolModifiers(
   t: TFunction,
@@ -514,6 +546,13 @@ function annotateToolModifiers(
           'Hold {{modifier}} to put the corner it marks down anywhere, without snapping.',
           { modifier: primary }
         ),
+      ];
+    case 'divisions':
+      return [
+        t('panels:diagram.annotate.endsFreeKey', 'Hold {{modifier}} to put an end down anywhere, without snapping.', {
+          modifier: primary,
+        }),
+        t('panels:diagram.annotate.divisionsShiftKey', 'With Select, Shift-drag the mark to move its line by half millimetres.'),
       ];
     case 'close-up':
       return [t('panels:diagram.annotate.closeUpShiftKey', 'Shift-drag the close-up’s ring to scale it by halves.')];

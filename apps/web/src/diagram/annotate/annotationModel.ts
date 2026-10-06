@@ -18,7 +18,7 @@ import type { DiagramWhiteArrowFill, DiagramWhiteArrowWidth } from '../../cp-wor
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import {
   randomDiagramId,
-  type DiagramAngleTicks,
+  type DiagramTicks,
   type DiagramAnnotationKind,
   type DiagramBehind,
   type DiagramIdFactory,
@@ -54,11 +54,25 @@ export interface PictureFrame {
  * - `angle`: an angle marked halved, put down by three presses — an arm, the
  *   vertex, the other arm — or with a bisector, `to` and `other` saying only
  *   which way its arms run (15b);
+ * - `divisions`: equal divisions of a line, dragged from one end of it to
+ *   the other or put down on a line with a click, drawn set off it, never
+ *   along it — a mark, not a line, so a line's every consumer passes it by
+ *   (Revision 2);
  * - `close-up`: a ring round an area of the picture and a larger one beside
  *   it, dragged from the area's centre out to its ring, or put down with a
  *   click (15f).
  */
-type AnnotationShape = 'arc' | 'straight' | 'path' | 'line' | 'point' | 'corner' | 'callout' | 'angle' | 'close-up';
+type AnnotationShape =
+  | 'arc'
+  | 'straight'
+  | 'path'
+  | 'line'
+  | 'point'
+  | 'corner'
+  | 'callout'
+  | 'angle'
+  | 'divisions'
+  | 'close-up';
 
 const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
   'valley-arrow': 'arc',
@@ -77,6 +91,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'right-angle': 'corner',
   callout: 'callout',
   'angle-mark': 'angle',
+  divisions: 'divisions',
   'close-up': 'close-up',
 };
 
@@ -140,10 +155,19 @@ export function pleatKinks(value: number): DiagramPleatKinks {
   return Math.min(PLEAT_KINKS.length, Math.max(1, Math.round(value))) as DiagramPleatKinks;
 }
 
-/** A pleat arrow with its Zs stepping to the side `mirrored` says: `mirrored` written only when true. */
-export function withPleatSide(annotation: KnownDiagramAnnotation, mirrored: boolean): KnownDiagramAnnotation {
+/**
+ * A mark with a side, on the side `mirrored` says — a pleat arrow's Zs
+ * stepping, equal divisions' line lying, to the left of the way it runs —
+ * `mirrored` written only when true.
+ */
+export function withSide(annotation: KnownDiagramAnnotation, mirrored: boolean): KnownDiagramAnnotation {
   const { mirrored: _side, ...rest } = annotation;
   return mirrored ? { ...rest, mirrored: true } : rest;
+}
+
+/** Whether a mark of `kind` has ticks the Layers pane sets: an angle mark, and equal divisions (ED7). */
+export function hasTicks(kind: DiagramAnnotationKind): boolean {
+  return kind === 'angle-mark' || kind === 'divisions';
 }
 
 /** The most layers an end can be behind, as the Step pane counts them: more than a picture shows stacked over a point. */
@@ -176,6 +200,7 @@ export function behindEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to'
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
+    case 'divisions':
     case 'close-up':
       return [];
   }
@@ -334,6 +359,7 @@ function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation 
   }
   if (isCornerKind(annotation.kind)) return cleanCorner(annotation);
   if (isAngleKind(annotation.kind)) return cleanAngle(annotation);
+  if (annotation.kind === 'divisions') return cleanDivisions(annotation);
   if (annotation.kind === 'close-up') return cleanCloseUp(annotation);
   const from = withinReach(annotation.from);
   const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
@@ -377,7 +403,7 @@ function cleanCorner(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation
 export const ANGLE_MARK_ARM = RIGHT_ANGLE_DIAGONAL;
 
 /** An angle mark's ticks across each half, as written: one, two or three. */
-export const ANGLE_MARK_TICKS: readonly DiagramAngleTicks[] = [1, 2, 3];
+export const ANGLE_MARK_TICKS: readonly DiagramTicks[] = [1, 2, 3];
 
 /**
  * An angle mark's two arms, each a unit direction from its vertex; null when
@@ -436,6 +462,159 @@ function cleanAngle(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation 
   if (written) return annotation;
   const { ticks: _ticks, ...rest } = annotation;
   return { ...rest, ...placed, ...(ticks !== undefined ? { ticks } : {}) };
+}
+
+/**
+ * Equal divisions' parts (ED5): two to thirty-two — the largest
+ * box-pleating grid commonly marked; past it a printed mark is a ruler — and
+ * the sketch's four for a new mark.
+ */
+export const DIVISIONS_PARTS = { min: 2, max: 32, laid: 4 } as const;
+
+/**
+ * How far equal divisions' line is set off the line they measure, in mm as
+ * it prints (ED3): none, where the dividers straddle it — the template's
+ * |\|\| symbol — to 15; a new mark's 2.5, the sketch's at the 50 mm a canvas
+ * and a card draw at; the Layers pane's steps of 0.5, which Shift holds a
+ * drag to; and the tenth a drag and a typed value are kept to.
+ */
+export const DIVISIONS_OFFSET_MM = { min: 0, max: 15, laid: 2.5, step: 0.5, precision: 0.1 } as const;
+
+/** Equal divisions' parts, whole and within {@link DIVISIONS_PARTS}; the laid count for one that is no number. */
+export function divisionsParts(value: number): number {
+  if (!Number.isFinite(value)) return DIVISIONS_PARTS.laid;
+  return Math.min(DIVISIONS_PARTS.max, Math.max(DIVISIONS_PARTS.min, Math.round(value)));
+}
+
+/**
+ * Equal divisions' offset held to its range (in mm) and kept to a tenth —
+ * or, with `halves`, as Shift holds a drag, to a half.
+ */
+export function divisionsOffsetWithin(offset: number, halves = false): number {
+  if (!Number.isFinite(offset)) return DIVISIONS_OFFSET_MM.laid;
+  const step = halves ? DIVISIONS_OFFSET_MM.step : DIVISIONS_OFFSET_MM.precision;
+  const kept = Math.round(offset / step) * step;
+  return Math.min(DIVISIONS_OFFSET_MM.max, Math.max(DIVISIONS_OFFSET_MM.min, Number(kept.toFixed(1))));
+}
+
+/** Equal divisions' parts as drawn: a file's always says; a guard puts down the laid count. */
+export function divisionsPartsOf({ parts }: Pick<KnownDiagramAnnotation, 'parts'>): number {
+  return parts ?? DIVISIONS_PARTS.laid;
+}
+
+/** Equal divisions' offset as drawn, in mm: a file's always says; a guard puts down the laid one. */
+export function divisionsOffsetOf({ offset }: Pick<KnownDiagramAnnotation, 'offset'>): number {
+  return offset ?? DIVISIONS_OFFSET_MM.laid;
+}
+
+/**
+ * Whether new equal divisions measuring the line from `from` to `to` lie to
+ * its left (`mirrored`): on the side away from the frame's middle — off the
+ * paper when the line is an edge — as a callout's box goes; to the right of
+ * the way it runs on a line through the middle.
+ */
+export function divisionsAwayFromMiddle(from: PicturePoint, to: PicturePoint, frame: PictureFrame): boolean {
+  const right: PicturePoint = [-(to[1] - from[1]), to[0] - from[0]];
+  const length = Math.hypot(right[0], right[1]);
+  if (!(length > 0)) return false;
+  const middle: PicturePoint = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
+  const toward = ((frame.width / 2 - middle[0]) * right[0] + (frame.height / 2 - middle[1]) * right[1]) / length;
+  // Off a line through the middle by less than a hair: it is through it.
+  return toward > 1e-9;
+}
+
+/**
+ * Equal divisions with their line `offset` mm off the one they measure, held
+ * and kept as {@link divisionsOffsetWithin} holds them; `side`, where given,
+ * the side it lies on (`mirrored`).
+ */
+export function withDivisionsOffset(
+  annotation: KnownDiagramAnnotation,
+  offset: number,
+  { halves = false, mirrored }: { halves?: boolean; mirrored?: boolean } = {}
+): KnownDiagramAnnotation {
+  const placed = { ...annotation, offset: divisionsOffsetWithin(offset, halves) };
+  return mirrored === undefined ? placed : withSide(placed, mirrored);
+}
+
+/** Equal divisions in `parts` parts, held to their range ({@link divisionsParts}). */
+export function withParts(annotation: KnownDiagramAnnotation, parts: number): KnownDiagramAnnotation {
+  return { ...annotation, parts: divisionsParts(parts) };
+}
+
+/** Equal divisions printing their count, or not: `numbered` written only when true (ED6). */
+export function withNumbered(annotation: KnownDiagramAnnotation, numbered: boolean): KnownDiagramAnnotation {
+  const { numbered: _was, ...rest } = annotation;
+  return numbered ? { ...rest, numbered: true } : rest;
+}
+
+/**
+ * Equal divisions as this build writes them: their ends within reach, their
+ * parts whole and in range, their offset in range — never rounded, so a value
+ * the reader takes is written back as it was — their ticks one of three, and
+ * `mirrored` and `numbered` only when true. The same object when they
+ * already are.
+ */
+function cleanDivisions(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const from = withinReach(annotation.from);
+  const to = withinReach(annotation.to);
+  const parts = divisionsParts(divisionsPartsOf(annotation));
+  const was = divisionsOffsetOf(annotation);
+  const offset = Number.isFinite(was) ? Math.min(DIVISIONS_OFFSET_MM.max, Math.max(DIVISIONS_OFFSET_MM.min, was)) : DIVISIONS_OFFSET_MM.laid;
+  const ticks = annotation.ticks === undefined || ANGLE_MARK_TICKS.includes(annotation.ticks) ? annotation.ticks : undefined;
+  const written =
+    samePoint(from, annotation.from) &&
+    samePoint(to, annotation.to) &&
+    parts === annotation.parts &&
+    offset === annotation.offset &&
+    ticks === annotation.ticks &&
+    (annotation.mirrored === undefined || annotation.mirrored === true) &&
+    (annotation.numbered === undefined || annotation.numbered === true);
+  if (written) return annotation;
+  const { ticks: _ticks, mirrored, numbered, ...rest } = annotation;
+  return {
+    ...rest,
+    from,
+    to: [to[0], to[1]],
+    parts,
+    offset,
+    ...(ticks !== undefined ? { ticks } : {}),
+    ...(mirrored === true ? { mirrored: true as const } : {}),
+    ...(numbered === true ? { numbered: true as const } : {}),
+  };
+}
+
+/**
+ * Whether equal divisions draw alike on either side of their line: lying on
+ * it, with no count beside it — the template's symbol, its dividers
+ * straddling the line evenly and its ticks leaning as the page sets them.
+ */
+function divisionsAlikeEitherSide(annotation: KnownDiagramAnnotation): boolean {
+  return !(divisionsOffsetOf(annotation) > 0) && annotation.numbered !== true;
+}
+
+/**
+ * What equal divisions draw, whichever way they were laid: the line they
+ * measure as its two ends in order, the side their line lies on as a
+ * direction on the picture — none for divisions alike on either side — and
+ * what they say. Two that draw alike have the same — a mark flipped along
+ * its own line, its ends swapped and its side turned over, draws as it did.
+ */
+function divisionsFootprint(annotation: KnownDiagramAnnotation): number[] {
+  const { from, to } = annotation;
+  const [a, b] = from[0] < to[0] || (from[0] === to[0] && from[1] <= to[1]) ? [from, to] : [to, from];
+  const length = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
+  const sign = divisionsAlikeEitherSide(annotation) ? 0 : annotation.mirrored === true ? -1 : 1;
+  const side = [(-(to[1] - from[1]) / length) * sign, ((to[0] - from[0]) / length) * sign];
+  return [
+    ...a,
+    ...b,
+    ...side,
+    divisionsPartsOf(annotation),
+    divisionsOffsetOf(annotation),
+    annotation.ticks ?? 1,
+    annotation.numbered === true ? 1 : 0,
+  ];
 }
 
 /**
@@ -609,6 +788,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
+    case 'divisions':
     case 'close-up':
       return false;
   }
@@ -657,6 +837,7 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'circle':
     case 'right-angle':
     case 'angle-mark':
+    case 'divisions':
     case 'close-up':
       return false;
   }
@@ -667,7 +848,8 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
  * dot: an arrow's or a line's two, a callout's point — its box is taken
  * where it is drawn — and none for a mark at one point, nor a right angle,
  * which offers its corner and the way it opens instead
- * ({@link rightAngleGrips}), nor an angle mark, moved whole. A switch, so a new kind has to say.
+ * ({@link rightAngleGrips}), nor an angle mark, moved whole; equal divisions
+ * offer the ends of the line they measure. A switch, so a new kind has to say.
  */
 export function annotationEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to')[] {
   switch (kind) {
@@ -680,6 +862,7 @@ export function annotationEnds(kind: DiagramAnnotationKind): readonly ('from' | 
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'divisions':
       return ['to', 'from'];
     case 'callout':
       return ['from'];
@@ -837,7 +1020,9 @@ export function defaultBend(from: PicturePoint, to: PicturePoint, frame: Picture
 /**
  * A new annotation of `kind`, from a drag (`from` → `to`) or a click (`to`
  * ignored for a point kind; for a right angle, the way it opens from its
- * corner `from`). A callout says `calloutText` — the author's language's
+ * corner `from`). Equal divisions measure the line dragged along, in four
+ * parts, their line 2.5 mm off on the side away from the middle. A callout
+ * says `calloutText` — the author's language's
  * "Repeat behind" — and one clicked, or dragged shorter than a slip, has its
  * box put beside its point ({@link calloutBeside}). A close-up's drag is its
  * area's radius, a click's a corner's worth, and its close-up goes beside the
@@ -883,6 +1068,12 @@ export function createAnnotation(
     return base;
   }
   const annotation: KnownDiagramAnnotation = { id, kind, from: [from[0], from[1]], to: [to[0], to[1]] };
+  if (kind === 'divisions') {
+    // The sketch's four parts and one tick, the line 2.5 mm off on the side
+    // away from the picture's middle (ED3, ED5).
+    const laid = { ...annotation, parts: DIVISIONS_PARTS.laid, offset: DIVISIONS_OFFSET_MM.laid };
+    return withSide(laid, divisionsAwayFromMiddle(from, to, frame));
+  }
   // A white arrow is laid straight, to be shaped with Edit Path, in the template's look.
   if (isAlwaysPath(kind)) return { ...withPath(annotation, straightPath(from, to)), ...DEFAULT_WHITE_ARROW };
   return isArrowKind(kind) ? { ...annotation, bend: defaultBend(from, to, frame) } : annotation;
@@ -1255,7 +1446,8 @@ export function pathLength(path: readonly DiagramPathNode[]): number {
 /**
  * Whether Flip arc turns `kind` over: a fold arrow's bulge, or a white
  * arrow's, mirrored across its chord as a shaped fold arrow is — and a pleat
- * arrow's Zs, stepping to the other side of it (15c). Asked by every surface
+ * arrow's Zs, stepping to the other side of it (15c), and equal divisions'
+ * line, over to the other side of the line it measures (Revision 2). Asked by every surface
  * that offers it (`annotationActions.ts`), and a switch, so a new kind has to
  * answer.
  */
@@ -1266,6 +1458,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'fold-unfold-arrow':
     case 'white-arrow':
     case 'pleat-arrow':
+    case 'divisions':
       return true;
     case 'push-arrow':
     case 'turn-over':
@@ -1293,6 +1486,8 @@ export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
   if (!flipsArc(annotation.kind)) return false;
   // A pleat arrow's Zs change sides, whichever way it points.
   if (annotation.kind === 'pleat-arrow') return true;
+  // Equal divisions' line goes over, unless they are alike either way.
+  if (annotation.kind === 'divisions') return !divisionsAlikeEitherSide(annotation);
   const shape = arrowShape(annotation);
   if (shape.kind === 'arc') return shape.bend !== 0;
   const { from, to } = annotation;
@@ -1306,14 +1501,15 @@ export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
 }
 
 /**
- * A fold arrow bulging the other way; anything else as it was. A shaped
+ * A fold arrow bulging the other way; a pleat arrow's Zs or equal divisions'
+ * line on the other side; anything else as it was. A shaped
  * arrow is mirrored across its chord, every node and handle — a return shaped
  * by hand with it — which is what flipping an arc is; one whose ends meet has
  * no chord, and stays.
  */
 export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   if (!flipsArc(annotation.kind)) return annotation;
-  if (annotation.kind === 'pleat-arrow') return withPleatSide(annotation, annotation.mirrored !== true);
+  if (annotation.kind === 'pleat-arrow' || annotation.kind === 'divisions') return withSide(annotation, annotation.mirrored !== true);
   const shape = arrowShape(annotation);
   if (shape.kind === 'arc') return { ...annotation, bend: -shape.bend };
   const { from, to } = annotation;
@@ -1472,8 +1668,12 @@ export function carryAnnotation(annotation: KnownDiagramAnnotation, move: Pictur
   };
   // An arc bulges the other way: the one it is drawn with, References' 60° where none is written.
   if (move.mirrors && isArrowKind(annotation.kind)) carried.bend = -(annotation.bend ?? ARROW_BEND);
-  // A pleat arrow's Zs stay on their side of the paper: a mirror turns the side they step to over.
-  if (move.mirrors && annotation.kind === 'pleat-arrow') return withPleatSide(carried, annotation.mirrored !== true);
+  // A pleat arrow's Zs, and equal divisions' line, stay on their side of the
+  // paper: a mirror turns the side they lie on over. A turn leaves it, and
+  // equal divisions' offset is a print size, which no move scales.
+  if (move.mirrors && (annotation.kind === 'pleat-arrow' || annotation.kind === 'divisions')) {
+    return withSide(carried, annotation.mirrored !== true);
+  }
   if (move.mirrors && annotation.rotate) {
     carried.rotate = { ...annotation.rotate, direction: annotation.rotate.direction === 'cw' ? 'ccw' : 'cw' };
   }
@@ -1610,6 +1810,7 @@ export function flipsOver(kind: DiagramAnnotationKind): boolean {
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
+    case 'divisions':
     case 'close-up':
       return true;
     case 'turn-over':
@@ -1622,13 +1823,16 @@ export function flipsOver(kind: DiagramAnnotationKind): boolean {
 /**
  * The point Flip turns a mark over about: an arrow's or a line's middle — the
  * middle of its ends, or of its path's nodes and a return's shaped by hand —
- * so it stays where it is; any other mark's anchor, `from`: a right angle's
+ * so it stays where it is, and the middle of the line equal divisions
+ * measure; any other mark's anchor, `from`: a right angle's
  * corner, an angle mark's vertex, a callout's point, a close-up's area, a
  * sign's place.
  */
 export function flipCentre(annotation: KnownDiagramAnnotation): PicturePoint {
   const shape = ANNOTATION_SHAPES[annotation.kind];
-  if (shape !== 'arc' && shape !== 'straight' && shape !== 'path' && shape !== 'line') return annotation.from;
+  if (shape !== 'arc' && shape !== 'straight' && shape !== 'path' && shape !== 'line' && shape !== 'divisions') {
+    return annotation.from;
+  }
   const points = annotation.path
     ? [...annotation.path, ...(annotation.back ?? [])].map((node) => node.at)
     : [annotation.from, annotation.to];
@@ -1660,7 +1864,14 @@ export function flipAnnotation(annotation: KnownDiagramAnnotation, axis: FlipAxi
  * nor a mark whose sides are alike that way — it would turn over onto itself.
  */
 export function flipChangesMark(annotation: KnownDiagramAnnotation, axis: FlipAxis): boolean {
-  return JSON.stringify(flipAnnotation(annotation, axis)) !== JSON.stringify(annotation);
+  const flipped = flipAnnotation(annotation, axis);
+  if (annotation.kind === 'divisions') {
+    // Its ends swap and its side turns over along a line flipped along
+    // itself: what it draws, not how it is written, says whether it changed.
+    const [was, now] = [divisionsFootprint(annotation), divisionsFootprint(flipped)];
+    return was.some((value, index) => Math.abs(value - now[index]!) > 1e-12);
+  }
+  return JSON.stringify(flipped) !== JSON.stringify(annotation);
 }
 
 /** A picture flipped left to right inside its frame. */

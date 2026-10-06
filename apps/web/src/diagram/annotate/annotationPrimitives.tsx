@@ -17,6 +17,10 @@
  * - A right angle is an ∟ set into its angle with a closed square in its
  *   corner (`right-angle`, Revision 2), in the ring's pen and ink: a precise
  *   mark, as a circle is.
+ * - Equal divisions (`divisions`, Revision 2) are a line set off the line
+ *   they measure, in the style's aux pen — the existing creases' — with
+ *   dividers and ticks across it in the ring's pen, in the ring's ink; their
+ *   offset is a print length, stored in mm and drawn in ink.
  * - A label is a line of text at a fixed share of the frame, its runs in the
  *   diagram's fonts as an upload's text is (`uploadText.ts`), so a page sets
  *   and embeds it the same way.
@@ -61,13 +65,14 @@ import {
 import {
   arcThroughPoints,
   createOverlayProjector,
+  divisionsDrawn,
   strokePieces,
   type HiddenStretches,
   type PathArrowFold,
 } from '../../cp-workspace/references/stepDiagramGeometry';
 import { referencesPaperTokens } from '../../cp-workspace/references/usePaperStyleTokens';
 import type { PaperItem, PaperLineItem, PaperLineRole, PaperScene } from '../../lib/paper/paperScene';
-import { penForRole } from '../../lib/paper/paperSvg';
+import { mmToCssPx, penForRole } from '../../lib/paper/paperSvg';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
 import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import { graphemesOf } from '../../lib/paper/textWrap';
@@ -96,6 +101,8 @@ import {
   closeUpFrame,
   closeUpShape,
   DEFAULT_PLEAT_KINKS,
+  divisionsOffsetOf,
+  divisionsPartsOf,
   DEFAULT_WHITE_ARROW,
   isArrowKind,
   LABEL_SIZE,
@@ -109,6 +116,7 @@ import {
   type PicturePoint,
 } from './annotationModel';
 import { arrowPolyline } from './annotationHit';
+import { ANNOTATION_INK_MM } from './canvasInk';
 import { hiddenArcs, hiddenStretches } from './behindFlaps';
 import { perAnnotation } from './perAnnotation';
 import type { PictureLayers } from './pictureGeometry';
@@ -368,6 +376,23 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
       const text = annotation.text ?? '';
       return text.trim() === '' ? null : { kind: 'callout', shape: calloutShape(annotation), at: to, runs: labelRuns(text) };
     }
+    case 'divisions':
+      // Their side is the picture's, which the y-up sheet and the drawing's
+      // y-down page both keep, as a pleat arrow's is; their offset, stored in
+      // mm as it prints, in the drawing's ink.
+      return {
+        kind: 'mark',
+        primitive: {
+          kind: 'divisions',
+          from: up(from),
+          to: up(to),
+          parts: divisionsPartsOf(annotation),
+          offset: divisionsOffsetOf(annotation) / ANNOTATION_INK_MM,
+          mirrored: annotation.mirrored === true,
+          ticks: annotation.ticks ?? 1,
+          numbered: annotation.numbered === true,
+        },
+      };
     case 'close-up':
       return { kind: 'close-up', shape: closeUpShape(annotation) };
   }
@@ -453,7 +478,9 @@ export function annotationDrawing(
   const seen = seenStyle(style);
   const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
   const arrowCss = seen.arrows.width * PT_TO_CSS_PX;
-  const pens = canvasDiagramPens(STEP_DIAGRAM_LINE_WIDTH, arrowCss);
+  // The existing creases' pen, at its pt width: what equal divisions' line is drawn in (ED9).
+  const aux = { pen: seen.auxCreases.pen, css: seen.auxCreases.pen.width * PT_TO_CSS_PX };
+  const pens = canvasDiagramPens(STEP_DIAGRAM_LINE_WIDTH, arrowCss, aux);
   // The arrow is the style's pen, at its pt width, as on a References step's page.
   const project = createOverlayProjector({ origin: [0, 0], ex: [framePx, 0], ey: [0, -framePx] }, ink, {
     ...pens,
@@ -567,6 +594,24 @@ export function annotationDrawing(
     callouts,
     labels,
   };
+}
+
+/**
+ * Whether equal divisions crowd on a picture whose frame `frame` prints
+ * `frameMm` across its longer side: a part too short for its ticks even at
+ * their floor (ED10), measured as a page draws them at that size.
+ */
+export function divisionsCrowded(
+  annotation: KnownDiagramAnnotation,
+  frame: PictureFrame,
+  frameMm: number,
+  style: DiagramStyle
+): boolean {
+  if (annotation.kind !== 'divisions' || !(frameMm > 0)) return false;
+  const drawing = annotationDrawing([annotation], frame, mmToCssPx(frameMm), style);
+  const primitive = drawing.primitives[0];
+  if (primitive?.kind !== 'divisions') return false;
+  return divisionsDrawn(primitive.from, primitive.to, primitive, drawing.context.project)?.crowded ?? false;
 }
 
 /**

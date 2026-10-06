@@ -13,6 +13,7 @@ import {
 import type {
   DiagramAnnotationSnap,
   DiagramAnnotationTool,
+  DiagramDivisionsPlaced,
   DiagramBehindEnds,
   DiagramBehindLayers,
   DiagramFlipAxis,
@@ -91,12 +92,17 @@ export function trackDiagramStepOpened(via: DiagramStepOpenedVia, mode: DiagramS
 
 /**
  * An annotation drawn on a step's picture, by its tool, and how it was put
- * down: snapped, freely, or neither. Which marks a diagram is drawn with,
- * whether Annotate is used at all, and whether snapping helps. Never where
- * it is, nor a label's words.
+ * down: snapped, freely, or neither — and equal divisions, whether they were
+ * dragged or put on a line with a click (`placed`). Which marks a diagram is
+ * drawn with, whether Annotate is used at all, and whether snapping helps.
+ * Never where it is, nor a label's words.
  */
-export function trackDiagramAnnotationAdded(tool: DiagramAnnotationTool, snap: DiagramAnnotationSnap): void {
-  track(ANALYTICS_EVENTS.diagramAnnotationAdded, { tool, snap });
+export function trackDiagramAnnotationAdded(
+  tool: DiagramAnnotationTool,
+  snap: DiagramAnnotationSnap,
+  placed?: DiagramDivisionsPlaced
+): void {
+  track(ANALYTICS_EVENTS.diagramAnnotationAdded, placed === undefined ? { tool, snap } : { tool, snap, placed });
 }
 
 /**

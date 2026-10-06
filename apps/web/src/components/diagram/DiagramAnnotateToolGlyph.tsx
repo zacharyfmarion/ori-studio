@@ -80,8 +80,8 @@ export function SolidArrowGlyph(): ReactElement {
  * Each kind's icon: the mark, small — the rail's tools and the Step pane's
  * list both show it. The fold, push and white arrows are the arrows
  * themselves; the lines are their dash; the circle its ring; the right angle
- * its ∟ and square inside the two lines it marks; the callout its line and
- * box; Rotate and Label are the app's own icons for those verbs. Every kind
+ * its ∟ and square inside the two lines it marks; equal divisions the
+ * template's |\|\| symbol; the callout its line and box; Rotate and Label are the app's own icons for those verbs. Every kind
  * has one: the return type makes a kind left out a compile error, not a
  * blank button.
  */
@@ -198,6 +198,17 @@ export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }
           <path d="M3 16.5 L17.5 16.5 M3 16.5 L14 4.5" strokeWidth={1} />
           <path d="M12 16.5 A9 9 0 0 0 9.1 9.9" />
           <path d="M10.4 14.9 L13.2 14.4 M9.2 12.1 L11.5 10.5" strokeWidth={1.1} strokeLinecap="butt" />
+        </Glyph>
+      );
+    case 'divisions':
+      // The template's |\|\| symbol (Revision 2): a line cut in two by three
+      // dividers straddling it, a tick leaning across each part, 20° off
+      // square as a backslash does.
+      return (
+        <Glyph>
+          <path d="M3 10 L17 10" strokeWidth={1} data-glyph-part="line" />
+          <path d="M3 5.5 L3 14.5 M10 5.5 L10 14.5 M17 5.5 L17 14.5" strokeLinecap="butt" data-glyph-part="dividers" />
+          <path d="M5.63 7.6 L7.37 12.4 M12.63 7.6 L14.37 12.4" strokeLinecap="butt" data-glyph-part="ticks" />
         </Glyph>
       );
     case 'callout':

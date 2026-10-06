@@ -256,6 +256,8 @@ describe('annotations in the file', () => {
     { id: 'a-10', kind: 'label', from: [0.3, 0.3], to: [0.3, 0.3], text: 'A 谷折り' },
     { id: 'a-11', kind: 'circle', from: [0.25, 0.75], to: [0.25, 0.75] },
     { id: 'a-12', kind: 'callout', from: [0.4, 0.6], to: [1.3, -0.2], text: 'Repeat behind 裏も同様に' },
+    // Every field equal divisions write (Revision 2).
+    { id: 'a-13', kind: 'divisions', from: [0, 0], to: [1, 0], parts: 7, offset: 1.5, mirrored: true, ticks: 2, numbered: true },
   ];
 
   function withAnnotations(annotations: unknown[]) {
@@ -681,6 +683,72 @@ describe('annotations in the file', () => {
         pleat({ id: 'p-7', mirrored: 'left' }),
       ];
       expect(withAnnotations(damaged)).toEqual([]);
+    });
+  });
+
+  describe('equal divisions (Revision 2)', () => {
+    const divisions = (more: Record<string, unknown> = {}) => ({
+      id: 'e-1',
+      kind: 'divisions',
+      from: [0, 0],
+      to: [1, 0],
+      parts: 4,
+      offset: 2.5,
+      ...more,
+    });
+
+    it('round-trip their line, parts and offset — the line to the right, one tick and no count when unsaid — and every field when said', () => {
+      const full = divisions({ id: 'e-2', parts: 32, offset: 0, mirrored: true, ticks: 3, numbered: true });
+      const odd = divisions({ id: 'e-3', offset: 2.37 });
+      const read = withAnnotations([divisions(), full, odd]);
+      expect(read).toEqual([divisions(), full, odd]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual([divisions(), full, odd]);
+    });
+
+    it('read a side, a count or ticks said as their defaults, and write nothing for them', () => {
+      const read = withAnnotations([divisions({ mirrored: false, numbered: false })]);
+      expect(read).toEqual([divisions()]);
+      const written = throughJson(writeDiagram({ ...sampleDiagram(), steps: [{ ...stepsIn(sampleDiagram())[0]!, annotations: read }] }));
+      expect(Object.keys(written.steps[0].annotations[0]).sort()).toEqual(['from', 'id', 'kind', 'offset', 'parts', 'to']);
+    });
+
+    it('carry what a newer build might write: more parts than 32, an offset past 15 mm, a field they have no name for, `behind`', () => {
+      const newer = [
+        divisions({ id: 'e-4', parts: 33 }),
+        divisions({ id: 'e-5', offset: 16 }),
+        divisions({ id: 'e-6', style: 'drafting' }),
+        divisions({ id: 'e-7', behind: { from: 1 } }),
+        divisions({ id: 'e-8', ticks: 4 }),
+      ];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    });
+
+    it('drop those whose parts are no count of two or more, whose offset is below none or no number, or that leave either unsaid', () => {
+      const damaged = [
+        divisions({ parts: 1 }),
+        divisions({ id: 'e-9', parts: 2.5 }),
+        divisions({ id: 'e-10', offset: -1 }),
+        divisions({ id: 'e-11', offset: '2.5' }),
+        divisions({ id: 'e-12', parts: undefined }),
+        divisions({ id: 'e-13', offset: undefined }),
+        divisions({ id: 'e-14', numbered: 'yes' }),
+        divisions({ id: 'e-15', mirrored: 'left' }),
+        divisions({ id: 'e-16', ticks: 0 }),
+      ];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+
+    it('are kept, verbatim and undrawn, by a build that knows none: as any kind it has no name for', () => {
+      // What a build before them does: its reader names no such kind, so they
+      // are a newer build's (`spiral-arrow` here stands for it).
+      const older = divisions({ kind: 'spiral-arrow', mirrored: true, numbered: true, ticks: 2 });
+      expect(withAnnotations([older])).toEqual([{ id: 'e-1', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      const again = throughJson(writeDiagram(readDiagram(written)!.document));
+      expect(again.steps[0].annotations).toEqual([older]);
     });
   });
 

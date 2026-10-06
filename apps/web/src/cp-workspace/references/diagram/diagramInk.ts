@@ -138,6 +138,51 @@ export const DIAGRAM_RIGHT_ANGLE_INK = { inset: 4, side: 7, leg: 11 } as const;
 export const DIAGRAM_ANGLE_MARK_INK = { radius: 15, tick: 1.8, spacing: 1.8 } as const;
 
 /**
+ * Equal divisions (Revision 2): a line set off from the line they measure,
+ * dividers square to it at each end and between parts, and ticks on each
+ * part — Lang's dimension line and hash marks, the sketch's sizes, in ink at
+ * an annotation's ink (0.331 mm):
+ * - `overshoot`: how far a divider runs past the line, 1.65 mm (ED4); where
+ *   the line lies nearer the measured line than that, the divider straddles
+ *   it evenly, this far either side;
+ * - `tick`: a tick's half-length either side of the line, 1 mm (ED11), and
+ *   `spacing`, how far apart two or three stand along it, 0.66 mm;
+ * - `leanDeg`: how far a tick leans off square, as a backslash does across a
+ *   level line;
+ * - the floors a crowded part's ticks shrink to and no further (ED10):
+ *   `tickFloor`, a half-tick in ink, and `spacingFloor`, the spacing in pens;
+ * - `number`: the count's size, the rotate glyph's fraction (2.4 mm), and
+ *   `gap`, how far past the dividers' ends its box stands.
+ * Its pens (ED9), which `divisionsDrawn` draws each stroke in: the line in
+ * the existing creases' (`crease`, 0.25 pt in the Diagram preset), the
+ * dividers and ticks — one path, `marks` — in a ring's (`markRingWidth`).
+ */
+export const DIAGRAM_DIVISIONS_INK: {
+  readonly overshoot: 5;
+  readonly tick: 3;
+  readonly spacing: 2;
+  readonly leanDeg: 20;
+  readonly tickFloor: 1.5;
+  readonly spacingFloor: 2;
+  readonly number: 7.2;
+  readonly gap: 2;
+  readonly pens: { readonly line: DivisionsPen; readonly marks: DivisionsPen };
+} = {
+  overshoot: 5,
+  tick: 3,
+  spacing: 2,
+  leanDeg: 20,
+  tickFloor: 1.5,
+  spacingFloor: 2,
+  number: 7.2,
+  gap: 2,
+  pens: { line: 'crease', marks: 'ring' },
+};
+
+/** A pen equal divisions draw a stroke in: the existing creases', or a ring's. */
+export type DivisionsPen = 'crease' | 'ring';
+
+/**
  * An arrowhead: its length, tip to barbs, and the cap for a short arrow as a
  * share of the chord it spans.
  *

@@ -145,6 +145,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.toolCallout', 'Callout');
     case 'diagram.toolAngleBisector':
       return t('tools:diagram.toolAngleBisector', 'Angle Bisector');
+    case 'diagram.toolDivisions':
+      return t('tools:diagram.toolDivisions', 'Equal Divisions');
     case 'diagram.toolCloseUp':
       return t('tools:diagram.toolCloseUp', 'Close-Up');
     case 'diagram.flipArc':

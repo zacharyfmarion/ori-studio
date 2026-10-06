@@ -1,11 +1,9 @@
-import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlipHorizontal2, FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type LucideIcon } from 'lucide-react';
 import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
 import { annotationLabel, lineTypeLabel } from '../../diagram/annotate/annotateTools';
 import { DIAGRAM_LINE_TYPES, lineTypeOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
 import {
-  ANGLE_MARK_TICKS,
   carriesText,
   CLOSE_UP_SCALE,
   CLOSE_UP_SCALE_STEP,
@@ -17,7 +15,7 @@ import {
   PLEAT_KINKS,
   pleatKinks,
 } from '../../diagram/annotate/annotationModel';
-import { onLabelFocusRequest, takeLabelFocus } from '../../diagram/annotate/labelFocus';
+import { useFieldFocusRequest } from '../../diagram/annotate/useFieldFocusRequest';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
 import type { DiagramStep, KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { shortcutLabelForAction } from '../../keyboard/shortcuts';
@@ -26,12 +24,13 @@ import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { FieldRow, NumberRow, SegmentedRow, TextAreaRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
-import { observeResizeDeferred } from '../ui/observeResizeDeferred';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { DiagramAnnotationGlyph, SolidArrowGlyph } from './DiagramAnnotateToolGlyph';
 import { DiagramBehindControls } from './DiagramBehindControls';
+import { DiagramDivisionsControls } from './DiagramDivisionsControls';
 import { DiagramLineTypeMark } from './DiagramLineTypeMark';
 import { DiagramPathNodeControls } from './DiagramPathNodeControls';
+import { DiagramTicksRow } from './DiagramTicksRow';
 import { DiagramWhiteArrowControls } from './DiagramWhiteArrowControls';
 import styles from './DiagramLayers.module.css';
 
@@ -50,8 +49,9 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * Annotate, and the selected one's own controls — a notice when some were made
  * by a newer Ori Studio, which the list leaves out; the list, in the order they
  * were drawn, a press selecting one as a press on the canvas does; and under
- * it the selected one's text, turn, type, ticks, kinks, scale, white arrow
- * look, place in the folds, axis, Flip Horizontal and Vertical, its verbs
+ * it the selected one's text, turn, type, ticks, equal divisions' parts,
+ * offset, ticks and count, kinks, scale, white arrow look, place in the
+ * folds, axis, Flip Horizontal and Vertical, its verbs
  * (Flip Arc, Reset, Turn 90°, Delete), and in Edit Path a fold or white
  * arrow's node verbs. The Snap switch and the notice that the picture changed
  * stay in the Step pane, with the step (`DiagramStepAnnotations`).
@@ -94,49 +94,28 @@ export function DiagramLayers({ step }: { step: DiagramStep }) {
           ))}
         </ul>
       )}
-      {selected && <SelectedAnnotation annotation={selected} editable={editable} annotations={annotations} />}
+      {selected && <SelectedAnnotation step={step} annotation={selected} editable={editable} annotations={annotations} />}
     </div>
   );
 }
 
 /** The selected annotation's own controls, by its kind, and Delete. */
 function SelectedAnnotation({
+  step,
   annotation,
   editable,
   annotations,
 }: {
+  step: DiagramStep;
   annotation: KnownDiagramAnnotation;
   editable: boolean;
   annotations: ReturnType<typeof useStepAnnotations>;
 }) {
   const { t } = useTranslation();
   const resolution = useShortcutResolution();
-  const field = useRef<HTMLTextAreaElement | null>(null);
   const { id } = annotation;
-
   // A label or a callout just put down on the canvas asks for its text (D8).
-  // The field takes the request once it is in the page, and asks again each
-  // time it is laid out: the Layers tab comes forward after the press that
-  // selected the label, and until then the dock keeps the pane mounted with
-  // its content out of the page, where a focus does nothing.
-  useEffect(() => {
-    const element = field.current;
-    if (!element) return;
-    const take = () => {
-      if (!element.isConnected || !takeLabelFocus(id)) return;
-      element.focus();
-      element.select();
-    };
-    take();
-    const stop = onLabelFocusRequest((requested) => {
-      if (requested === id) take();
-    });
-    const unwatch = typeof ResizeObserver === 'undefined' ? () => {} : observeResizeDeferred(element, take);
-    return () => {
-      stop();
-      unwatch();
-    };
-  }, [id]);
+  const field = useFieldFocusRequest<HTMLTextAreaElement>(id, 'text');
 
   const keyed = ({ label, shortcutId }: Pick<AnnotationAction, 'label' | 'shortcutId'>) => {
     const key = shortcutId ? shortcutLabelForAction(shortcutId, resolution) : undefined;
@@ -219,12 +198,19 @@ function SelectedAnnotation({
         </FieldRow>
       )}
       {annotation.kind === 'angle-mark' && (
-        <SegmentedRow
-          label={t('panels:diagram.annotations.ticks', 'Ticks')}
-          value={String(annotation.ticks ?? 1)}
-          disabled={!editable}
-          options={ANGLE_MARK_TICKS.map((ticks) => ({ id: String(ticks), label: String(ticks) }))}
-          onChange={(ticks) => annotations.setTicks(id, Number(ticks) as 1 | 2 | 3)}
+        <DiagramTicksRow value={annotation.ticks} disabled={!editable} onChange={(ticks) => annotations.setTicks(id, ticks)} />
+      )}
+      {annotation.kind === 'divisions' && (
+        <DiagramDivisionsControls
+          // One set of fields per mark: the next one's Parts, asked for as it is laid, shows its own count when it takes the focus.
+          key={id}
+          step={step}
+          annotation={annotation}
+          editable={editable}
+          onParts={(parts) => annotations.setParts(id, parts)}
+          onOffset={(offset) => annotations.setDivisionsOffset(id, offset)}
+          onTicks={(ticks) => annotations.setTicks(id, ticks)}
+          onNumbered={(numbered) => annotations.setNumbered(id, numbered)}
         />
       )}
       {annotation.kind === 'pleat-arrow' && (

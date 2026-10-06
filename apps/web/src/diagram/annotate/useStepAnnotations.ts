@@ -9,7 +9,7 @@ import {
   isKnownAnnotation,
   isLockedStep,
   stepById,
-  type DiagramAngleTicks,
+  type DiagramTicks,
   type DiagramAsset,
   type DiagramPleatKinks,
   type DiagramRotation,
@@ -20,7 +20,17 @@ import { stepPictureFrame } from '../pictures/pictureFrame';
 import { EDIT_PATH } from './annotateTools';
 import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
 import { annotationEventKind } from './annotationEventKind';
-import { withBehind, withBehindLayers, withCloseUpScale, withWhiteArrowLook, type WhiteArrowLook } from './annotationModel';
+import {
+  hasTicks,
+  withBehind,
+  withBehindLayers,
+  withCloseUpScale,
+  withDivisionsOffset,
+  withNumbered,
+  withParts,
+  withWhiteArrowLook,
+  type WhiteArrowLook,
+} from './annotationModel';
 import { pathNodesOf } from './annotationPath';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
 import { isLineKind, lineKindOf, type DiagramLineType } from './lineTypes';
@@ -115,9 +125,26 @@ export function useStepAnnotations(step: DiagramStep | null) {
       /** A white arrow's width, tail or fill, or any of them together, as one undo step. */
       setWhiteArrowLook: (id: string, look: WhiteArrowLook) =>
         change(id, 'Change white arrow', (annotation) => withWhiteArrowLook(annotation, look)),
-      /** An angle mark's ticks across each half (15b), as one undo step. */
-      setTicks: (id: string, ticks: DiagramAngleTicks) =>
-        change(id, 'Change angle mark', (annotation) => ({ ...annotation, ticks })),
+      /** An angle mark's ticks across each half (15b), or equal divisions' on each part (ED7), as one undo step. */
+      setTicks: (id: string, ticks: DiagramTicks) =>
+        change(id, current(id)?.kind === 'divisions' ? 'Change equal divisions' : 'Change angle mark', (annotation) =>
+          hasTicks(annotation.kind) ? { ...annotation, ticks } : annotation
+        ),
+      /** How many parts equal divisions cut their line into (ED5), held to two to thirty-two, as one undo step. */
+      setParts: (id: string, parts: number) =>
+        change(id, 'Change equal divisions', (annotation) =>
+          annotation.kind === 'divisions' ? withParts(annotation, parts) : annotation
+        ),
+      /** How far equal divisions' line stands off the line they measure, in mm (ED3), as one undo step. */
+      setDivisionsOffset: (id: string, offset: number) =>
+        change(id, 'Change equal divisions', (annotation) =>
+          annotation.kind === 'divisions' ? withDivisionsOffset(annotation, offset) : annotation
+        ),
+      /** Whether equal divisions print their count (ED6), as one undo step. */
+      setNumbered: (id: string, numbered: boolean) =>
+        change(id, 'Change equal divisions', (annotation) =>
+          annotation.kind === 'divisions' ? withNumbered(annotation, numbered) : annotation
+        ),
       /** A pleat arrow's Zs (15c), as one undo step. */
       setKinks: (id: string, kinks: DiagramPleatKinks) =>
         change(id, 'Change pleat arrow', (annotation) => ({ ...annotation, kinks })),

@@ -147,6 +147,22 @@ describe('diagramInModel', () => {
     ]);
   });
 
+  it('carries equal divisions’ ends through the frame, and turns their side with a frame that flips, their offset a print size (Revision 2)', () => {
+    const divided: StepDiagramModel = {
+      ...diagram,
+      primitives: [
+        { kind: 'divisions', from: [0.1, 0.5], to: [0.9, 0.5], parts: 4, offset: 7.5, mirrored: false, ticks: 2, numbered: true },
+      ],
+    };
+    expect(diagramInModel(divided, FLIPPED).primitives).toEqual([
+      { kind: 'divisions', from: [10, 50], to: [90, 50], parts: 4, offset: 7.5, mirrored: true, ticks: 2, numbered: true },
+    ]);
+    const upright: PrecreaseFrame = { ...FLIPPED, origin: [0, 0], y_axis: [0, 1] };
+    expect(diagramInModel(divided, upright).primitives).toEqual([
+      { kind: 'divisions', from: [10, 50], to: [90, 50], parts: 4, offset: 7.5, mirrored: false, ticks: 2, numbered: true },
+    ]);
+  });
+
   it('measures the sheet in model units and knows where its middle is and which way it lies', () => {
     // Re-pinned for Phase 5's erode: the sheet carries the frame's axes, so a
     // turned paper's edge is found where it is and not on an upright box.

@@ -82,6 +82,7 @@ function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null 
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
+    case 'divisions':
     case 'close-up':
       return null;
   }

@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, type Ref } from 'react';
 import { NumberField } from '../NumberField';
 import { FieldRow } from './FieldRow';
 
@@ -17,6 +17,7 @@ export function NumberRow({
   disabled,
   title,
   normalize,
+  fieldRef,
   onCommit,
   onReset,
 }: {
@@ -29,6 +30,8 @@ export function NumberRow({
   disabled?: boolean;
   title?: string;
   normalize?: (value: number) => number;
+  /** The input itself, for a caller that puts the focus in it. */
+  fieldRef?: Ref<HTMLInputElement>;
   onCommit: (value: number) => void;
   onReset?: () => void;
 }) {
@@ -52,6 +55,7 @@ export function NumberRow({
         suffix={suffix}
         disabled={disabled}
         normalize={normalize}
+        inputRef={fieldRef}
         onCommit={onCommit}
       />
     </FieldRow>

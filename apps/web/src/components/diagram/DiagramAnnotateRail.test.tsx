@@ -34,5 +34,10 @@ describe('DiagramAnnotateRail', () => {
       group.id.replace('diagram-annotate-group-', '')
     );
     expect(groups).toEqual(['line-type', 'select', 'arrows', 'lines', 'marks', 'text']);
+    // The two equality marks side by side, Equal Divisions on D (Revision 2, ED8).
+    const marks = [...container.querySelectorAll('#diagram-annotate-group-marks button[aria-label]')].map((button) =>
+      button.getAttribute('aria-label')
+    );
+    expect(marks).toEqual(['Circle', 'Right Angle', 'Equal Angles', 'Equal Divisions', 'Close-Up']);
   });
 });

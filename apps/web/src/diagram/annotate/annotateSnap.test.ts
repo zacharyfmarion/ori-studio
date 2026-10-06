@@ -32,10 +32,10 @@ describe('the snap radius (decision 10)', () => {
 });
 
 describe('what snaps (decision 9)', () => {
-  it('is a circle, a right angle’s corner, a line’s ends, a callout’s point and an angle mark’s points, never an arrow, a sign or a label', () => {
+  it('is a circle, a right angle’s corner, a line’s ends, a callout’s point, an angle mark’s points and the ends equal divisions measure, never an arrow, a sign or a label', () => {
     const snapping = ANNOTATION_KINDS.filter(snapsWhenPlaced);
     expect([...snapping].sort()).toEqual(
-      ['angle-mark', 'callout', 'circle', 'right-angle', 'hidden-line', 'mountain-line', 'valley-line'].sort()
+      ['angle-mark', 'callout', 'circle', 'divisions', 'right-angle', 'hidden-line', 'mountain-line', 'valley-line'].sort()
     );
     // An arrow is drawn where it is drawn (Zach, 2026-10-05).
     for (const arrow of ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'white-arrow'] as const) {
@@ -72,6 +72,14 @@ describe('placePoint', () => {
       target: { at: [0.6, 0.2], kind: 'annotation' },
     });
     expect(placePoint(context(), [0.63, 0.21], { free: false })).toEqual({ at: [0.63, 0.21], target: null });
+  });
+
+  it('lands a line’s end on a point dividing equal divisions, as the sketch’s valley starts from the first quarter (Revision 2)', () => {
+    const divisions = annotation({ kind: 'divisions', from: [0.2, 0.5], to: [0.6, 0.5], parts: 4, offset: 2.5 });
+    expect(placePoint(context({ annotations: [divisions] }), [0.305, 0.51], { free: false })).toEqual({
+      at: [0.3, 0.5],
+      target: { at: [0.3, 0.5], kind: 'annotation' },
+    });
   });
 
   it('lands where it was put with ⌘ held, with the switch off, or on the annotation in hand', () => {

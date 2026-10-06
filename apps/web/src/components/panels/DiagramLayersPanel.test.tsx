@@ -201,6 +201,147 @@ describe('DiagramLayersPanel', () => {
     expect('mirrored' in pleat()).toBe(false);
   });
 
+  describe('equal divisions (Revision 2)', () => {
+    function divided(more: Record<string, unknown> = {}) {
+      const stepId = annotatedStep();
+      act(() => {
+        state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+          ...list,
+          { id: 'd-1', kind: 'divisions', from: [0, 0], to: [1, 0], parts: 4, offset: 2.5, mirrored: true, ...more },
+        ]);
+        state().openDiagramStep(stepId, 'annotate');
+      });
+      return stepId;
+    }
+    const divisions = () => annotations().find((annotation) => annotation.id === 'd-1') as Record<string, unknown>;
+    const input = (name: string) => host!.querySelector<HTMLInputElement>(`input[aria-label="${name}"]`)!;
+    const number = () => host!.querySelector<HTMLButtonElement>('[role="switch"][aria-label="Number"]')!;
+    const ticks = () => [...host!.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Ticks"] button')];
+    const last = () => state().diagramHistory.past.at(-1)?.label;
+
+    it('sets their Parts, Offset, Ticks and Number in that order, and puts their line over with Flip, each one undo step', () => {
+      divided();
+      act(() => row('Equal Divisions').click());
+      const parts = input('Parts');
+      const offset = input('Offset');
+      // Parts, Offset, Ticks, Number.
+      const order = [parts, offset, ticks()[0]!, number()];
+      for (let i = 1; i < order.length; i += 1) {
+        expect(order[i - 1]!.compareDocumentPosition(order[i]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      }
+      expect([parts.value, offset.value]).toEqual(['4', '2.5']);
+      const past = state().diagramHistory.past.length;
+      act(() => button('Increase Parts')!.click());
+      expect(divisions().parts).toBe(5);
+      expect(last()).toBe('Change equal divisions');
+      // Two to thirty-two.
+      act(() => parts.focus());
+      setField(parts, '40');
+      act(() => parts.blur());
+      expect(divisions().parts).toBe(32);
+      act(() => button('Increase Offset')!.click());
+      expect(divisions().offset).toBe(3);
+      // Any tenth typed; no further than 15 mm.
+      act(() => offset.focus());
+      setField(offset, '2.34');
+      act(() => offset.blur());
+      expect(divisions().offset).toBe(2.3);
+      act(() => offset.focus());
+      setField(offset, '20');
+      act(() => offset.blur());
+      expect(divisions().offset).toBe(15);
+      act(() => ticks().find((option) => option.textContent?.trim() === '2')!.click());
+      expect(divisions().ticks).toBe(2);
+      expect(last()).toBe('Change equal divisions');
+      expect(number().getAttribute('aria-checked')).toBe('false');
+      act(() => number().click());
+      expect(divisions().numbered).toBe(true);
+      act(() => number().click());
+      expect('numbered' in divisions()).toBe(false);
+      expect(state().diagramHistory.past).toHaveLength(past + 8);
+      // Flip, as on a pleat arrow: its line to the other side of the edge, and back.
+      expect(buttonNamed('Flip Arc')).toBeUndefined();
+      act(() => buttonNamed('Flip').click());
+      expect('mirrored' in divisions()).toBe(false);
+      act(() => buttonNamed('Flip').click());
+      expect(divisions().mirrored).toBe(true);
+    });
+
+    it('gives new divisions’ Parts the focus, its count selected to be typed over, and Enter gives the canvas its keys back (ED5)', async () => {
+      divided();
+      const select = vi.spyOn(HTMLInputElement.prototype, 'select');
+      const { requestFieldFocus, pendingFieldFocus } = await import('../../diagram/annotate/fieldFocus');
+      act(() => {
+        requestFieldFocus('d-1', 'parts');
+        state().selectDiagramAnnotation('d-1');
+      });
+      const parts = input('Parts');
+      expect(document.activeElement).toBe(parts);
+      expect(select.mock.contexts).toContain(parts);
+      expect(pendingFieldFocus()).toBeNull();
+      // 5 typed over the 4, then Enter.
+      setField(parts, '5');
+      act(() => {
+        parts.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      });
+      expect(document.activeElement).not.toBe(parts);
+      expect(divisions().parts).toBe(5);
+      select.mockRestore();
+    });
+
+    it('gives a second mark laid in a row its own count to type over, not the one selected before it (ED5)', async () => {
+      const stepId = divided({ parts: 5 });
+      act(() => state().selectDiagramAnnotation('d-1'));
+      expect(input('Parts').value).toBe('5');
+      // The browser drops a field's selection when its value is written: no write may land after the select.
+      const selected: { field: HTMLInputElement; value: string }[] = [];
+      const writes: HTMLInputElement[] = [];
+      const select = vi.spyOn(HTMLInputElement.prototype, 'select').mockImplementation(function (this: HTMLInputElement) {
+        selected.push({ field: this, value: this.value });
+      });
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      const write = vi.spyOn(HTMLInputElement.prototype, 'value', 'set').mockImplementation(function (
+        this: HTMLInputElement,
+        value: string
+      ) {
+        if (selected.some(({ field }) => field === this)) writes.push(this);
+        valueSetter.call(this, value);
+      });
+      const { requestFieldFocus } = await import('../../diagram/annotate/fieldFocus');
+      // The next mark, along another edge, laid at four parts: the canvas asks for its count.
+      act(() => {
+        state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+          ...list,
+          { id: 'd-2', kind: 'divisions', from: [0, 0], to: [0, 0.75], parts: 4, offset: 2.5 },
+        ]);
+        requestFieldFocus('d-2', 'parts');
+        state().selectDiagramAnnotation('d-2');
+      });
+      const parts = input('Parts');
+      expect(document.activeElement).toBe(parts);
+      expect(parts.value).toBe('4');
+      // What was selected is the 4 it shows, and stays selected: a 3 typed is 3, not 43.
+      expect(selected.at(-1)).toEqual({ field: parts, value: '4' });
+      expect(writes).toEqual([]);
+      select.mockRestore();
+      write.mockRestore();
+    });
+
+    it('warns when their parts are too short for their ticks to print clearly at the size the step prints (ED10)', () => {
+      divided({ from: [0.4, 0.2], to: [0.6, 0.2], parts: 32, ticks: 3 });
+      act(() => row('Equal Divisions').click());
+      const warning = () => host!.querySelector('[role="status"]')?.textContent ?? null;
+      // A fifth of a 50 mm picture (10 mm) in 32 parts, three ticks each: crowded.
+      expect(warning()).toBe('Too many parts to print clearly at this size.');
+      // In four parts there is room for them.
+      const parts = input('Parts');
+      act(() => parts.focus());
+      setField(parts, '4');
+      act(() => parts.blur());
+      expect(warning()).toBeNull();
+    });
+  });
+
   it('flips the selected mark horizontally or vertically from its Flip row, each one undo step, and offers none on a label', () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));
@@ -390,9 +531,9 @@ describe('DiagramLayersPanel', () => {
   it('edits a label’s text in one line, and focuses it for a label just put down', async () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));
-    const { requestLabelFocus } = await import('../../diagram/annotate/labelFocus');
+    const { requestFieldFocus } = await import('../../diagram/annotate/fieldFocus');
     act(() => {
-      requestLabelFocus('a-2');
+      requestFieldFocus('a-2', 'text');
       state().selectDiagramAnnotation('a-2');
     });
     const field = host?.querySelector('textarea[maxlength="80"]') as HTMLTextAreaElement;
@@ -422,19 +563,19 @@ describe('DiagramLayersPanel', () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));
     host!.remove();
-    const { pendingLabelFocus, requestLabelFocus } = await import('../../diagram/annotate/labelFocus');
+    const { pendingFieldFocus, requestFieldFocus } = await import('../../diagram/annotate/fieldFocus');
     act(() => {
       state().selectDiagramAnnotation('a-2');
-      requestLabelFocus('a-2');
+      requestFieldFocus('a-2', 'text');
     });
     const field = host!.querySelector('textarea[maxlength="80"]') as HTMLTextAreaElement;
     expect(document.activeElement).not.toBe(field);
     // Still asked for: a focus out of the page would have spent it.
-    expect(pendingLabelFocus()).toBe('a-2');
+    expect(pendingFieldFocus()?.annotationId).toBe('a-2');
     document.body.append(host!);
     act(() => laidOut.forEach((report) => report()));
     expect(document.activeElement).toBe(field);
-    expect(pendingLabelFocus()).toBeNull();
+    expect(pendingFieldFocus()).toBeNull();
     vi.unstubAllGlobals();
   });
 
@@ -448,9 +589,9 @@ describe('DiagramLayersPanel', () => {
       state().openDiagramStep(stepId, 'annotate');
     });
     expect(row('Repeat behind')).toBeDefined();
-    const { requestLabelFocus } = await import('../../diagram/annotate/labelFocus');
+    const { requestFieldFocus } = await import('../../diagram/annotate/fieldFocus');
     act(() => {
-      requestLabelFocus('a-4');
+      requestFieldFocus('a-4', 'text');
       state().selectDiagramAnnotation('a-4');
     });
     const field = host?.querySelector('textarea[maxlength="80"]') as HTMLTextAreaElement;

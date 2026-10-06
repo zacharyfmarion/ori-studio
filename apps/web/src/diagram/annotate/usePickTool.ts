@@ -19,8 +19,8 @@ import { placePoint, snapOutcome, type SnapContext } from './annotateSnap';
 import { angleMarkAt, cleanAnnotation, isDegenerate, MIN_ANNOTATION_LENGTH, type PicturePoint } from './annotationModel';
 import { lineKindOf, type DiagramLineType } from './lineTypes';
 import { setPickProgress, type AngleMarkStep } from './pickProgress';
-import { distanceTo, pictureGeometry } from './pictureGeometry';
-import { drawnLines, annotationsOf, type SnapTarget } from './pictureSnap';
+import { nearestLine } from './nearestLine';
+import type { SnapTarget } from './pictureSnap';
 
 /**
  * What the next pick takes: a point; a line; either, the point first (the
@@ -54,6 +54,11 @@ export interface PickPreview {
   /** The lines picked, and the one under the pointer that a press would pick. */
   lines: readonly PickedLine[];
   hovered: PickedLine | null;
+  /**
+   * A press takes the hovered line outright — Equal Divisions divides it —
+   * rather than picking it toward more: shown firmly, as what a click does.
+   */
+  hoverTakes?: boolean;
   /** Between two parallel lines, the midline the ends are aimed along. */
   midline: { at: PicturePoint; along: PicturePoint } | null;
 }
@@ -141,23 +146,9 @@ export function usePickTool({
     return () => setPickProgress(null);
   }, [reset, step.id]);
 
-  /** The line of the picture, or drawn on it, nearest a press within reach; null for none. */
+  /** The line of the picture, or drawn on it, nearest a press within reach; null for none (`nearestLine`). */
   const lineAt = useCallback(
-    (at: PicturePoint): PickedLine | null => {
-      const within = reach();
-      const geometry = pictureGeometry(step, assets, style);
-      const candidates = [
-        ...geometry.segmentIndex.segmentsNear(at[0], at[1], within),
-        ...drawnLines(annotationsOf(step, {})),
-      ];
-      let best: { line: PickedLine; distance: number } | null = null;
-      for (const segment of candidates) {
-        const distance = distanceTo(at, segment);
-        if (distance > within || (best && distance >= best.distance)) continue;
-        best = { line: { a: [segment.a.x, segment.a.y], b: [segment.b.x, segment.b.y] }, distance };
-      }
-      return best?.line ?? null;
-    },
+    (at: PicturePoint): PickedLine | null => nearestLine(step, assets, style, at, reach()),
     [step, assets, style, reach]
   );
 

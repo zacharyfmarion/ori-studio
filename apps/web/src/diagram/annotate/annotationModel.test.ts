@@ -64,6 +64,16 @@ import {
   placedByClick,
   withPath,
   textEms,
+  DIVISIONS_OFFSET_MM,
+  DIVISIONS_PARTS,
+  divisionsOffsetWithin,
+  divisionsParts,
+  flipAnnotation,
+  flipChangesMark,
+  hasTicks,
+  withDivisionsOffset,
+  withNumbered,
+  withParts,
   type PictureMove,
   type PicturePoint,
 } from './annotationModel';
@@ -1036,5 +1046,133 @@ describe('a mark behind a flap (15e)', () => {
     expect(cleanAnnotation({ ...line, kind: 'hidden-line' })).toEqual({ id: 'l-1', kind: 'hidden-line', from: [0.25, 0.5], to: [0.75, 0.5] });
     const circle: KnownDiagramAnnotation = { id: 'c-1', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5], behind: { from: 2, to: 1 } };
     expect(cleanAnnotation(circle).behind).toEqual({ from: 2 });
+  });
+});
+
+describe('equal divisions (Revision 2)', () => {
+  const top: KnownDiagramAnnotation = { id: 'd-1', kind: 'divisions', from: [0, 0], to: [1, 0], parts: 4, offset: 2.5, mirrored: true };
+
+  /** The side a mark's line lies on, as a direction on the picture. */
+  const sideOf = ({ from, to, mirrored }: KnownDiagramAnnotation): PicturePoint => {
+    const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    const right: PicturePoint = [-(to[1] - from[1]) / length, (to[0] - from[0]) / length];
+    return mirrored ? [-right[0], -right[1]] : right;
+  };
+
+  it('is laid in four parts, 2.5 mm off, on the side away from the picture’s middle — off the paper on each edge (ED3, ED5)', () => {
+    expect(createAnnotation('divisions', [0, 0], [1, 0], SQUARE, id)).toEqual({ ...top, id: 'annotation-1' });
+    expect(DIVISIONS_PARTS.laid).toBe(4);
+    expect(DIVISIONS_OFFSET_MM.laid).toBe(2.5);
+    const edges: [PicturePoint, PicturePoint, PicturePoint][] = [
+      // Each edge either way round, and the way off the paper there.
+      [[0, 0], [1, 0], [0, -1]],
+      [[1, 0], [0, 0], [0, -1]],
+      [[1, 0], [1, 1], [1, 0]],
+      [[1, 1], [1, 0], [1, 0]],
+      [[1, 1], [0, 1], [0, 1]],
+      [[0, 1], [1, 1], [0, 1]],
+      [[0, 1], [0, 0], [-1, 0]],
+      [[0, 0], [0, 1], [-1, 0]],
+    ];
+    for (const [from, to, off] of edges) {
+      const laid = createAnnotation('divisions', from, to, SQUARE, id);
+      const side = sideOf(laid);
+      expect([side[0] + 0, side[1] + 0], `${from} → ${to}`).toEqual(off);
+      // `mirrored` written only when true.
+      expect(laid.mirrored === undefined || laid.mirrored === true).toBe(true);
+    }
+    // Through the middle, to the right of the way it was drawn.
+    const through = createAnnotation('divisions', [0, 0], [1, 1], SQUARE, id);
+    expect(Object.hasOwn(through, 'mirrored')).toBe(false);
+    expect(createAnnotation('divisions', [1, 1], [0, 0], SQUARE, id).mirrored).toBeUndefined();
+  });
+
+  it('is a mark, not a line nor shaped, with no words and no end behind a flap, its ends taken hold of, and ticks of its own', () => {
+    expect(canBeShaped('divisions')).toBe(false);
+    expect(carriesText('divisions')).toBe(false);
+    expect(behindEnds('divisions')).toEqual([]);
+    expect(annotationEnds('divisions')).toEqual(['to', 'from']);
+    expect(placedByClick('divisions')).toBe(false);
+    expect(ANNOTATION_KINDS.filter(hasTicks)).toEqual(['angle-mark', 'divisions']);
+    expect(ANNOTATION_KINDS.indexOf('divisions')).toBe(ANNOTATION_KINDS.indexOf('angle-mark') + 1);
+  });
+
+  it('is written as the reader reads it: parts whole within two to thirty-two, the offset within its range, `mirrored`, `numbered` and ticks only as written', () => {
+    expect(cleanAnnotation(top)).toBe(top);
+    const numbered = { ...top, numbered: true as const, ticks: 2 as const };
+    expect(cleanAnnotation(numbered)).toBe(numbered);
+    expect(cleanAnnotation({ ...top, parts: 2.6 }).parts).toBe(3);
+    expect(cleanAnnotation({ ...top, parts: 40 }).parts).toBe(32);
+    expect(cleanAnnotation({ ...top, parts: 1 }).parts).toBe(2);
+    expect(cleanAnnotation({ ...top, offset: -1 }).offset).toBe(0);
+    expect(cleanAnnotation({ ...top, offset: 20 }).offset).toBe(15);
+    // Any value in range kept as it was, never rounded.
+    expect(cleanAnnotation({ ...top, offset: 2.37 }).offset).toBe(2.37);
+    // Always written: one with none is given the laid ones.
+    const { parts: _p, offset: _o, ...bare } = top;
+    expect(cleanAnnotation(bare)).toMatchObject({ parts: 4, offset: 2.5 });
+    const loose = cleanAnnotation({ ...top, mirrored: false as unknown as true, numbered: false as unknown as true, ticks: 7 as 1 });
+    expect(['mirrored', 'numbered', 'ticks'].filter((key) => Object.hasOwn(loose, key))).toEqual([]);
+    expect(cleanAnnotation({ ...top, from: [9, 0] }).from).toEqual([ANNOTATION_REACH, 0]);
+  });
+
+  it('is a slip when shorter than the shortest line, as a line is', () => {
+    expect(isDegenerate(top, MIN_ANNOTATION_LENGTH)).toBe(false);
+    expect(isDegenerate({ ...top, to: [MIN_ANNOTATION_LENGTH / 2, 0] }, MIN_ANNOTATION_LENGTH)).toBe(true);
+  });
+
+  it('holds its parts and its offset to their ranges: the offset to a tenth, or with Shift a half', () => {
+    expect([1, 2, 4.4, 4.6, 32, 33, Number.NaN].map(divisionsParts)).toEqual([2, 2, 4, 5, 32, 32, 4]);
+    expect([-1, 0, 2.34, 2.36, 14.97, 16].map((mm) => divisionsOffsetWithin(mm))).toEqual([0, 0, 2.3, 2.4, 15, 15]);
+    expect([2.2, 2.3, 2.76, 14.9].map((mm) => divisionsOffsetWithin(mm, true))).toEqual([2, 2.5, 3, 15]);
+    expect(withParts(top, 7).parts).toBe(7);
+    expect(withDivisionsOffset(top, 1.04)).toEqual({ ...top, offset: 1 });
+    expect(withDivisionsOffset(top, 3, { mirrored: false })).toEqual({ id: 'd-1', kind: 'divisions', from: [0, 0], to: [1, 0], parts: 4, offset: 3 });
+    expect(withNumbered(top, true)).toEqual({ ...top, numbered: true });
+    expect(Object.hasOwn(withNumbered({ ...top, numbered: true }, false), 'numbered')).toBe(false);
+  });
+
+  it('keeps its line on its side of the paper through a mirror, its offset and its count through any move', () => {
+    const mirrored = carryAnnotation(top, mirrorMove(SQUARE));
+    expect(mirrored).toEqual({ ...top, from: [1, 0], to: [0, 0], mirrored: undefined });
+    expect(Object.hasOwn(mirrored, 'mirrored')).toBe(false);
+    // Still off the paper, above its top edge.
+    expect(sideOf(mirrored).map((value) => value + 0)).toEqual([0, -1]);
+    // Twice its size: its ends with it, its print sizes as they were.
+    const grown: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
+    expect(carryAnnotation({ ...top, numbered: true, ticks: 3 }, grown)).toEqual({
+      ...top,
+      numbered: true,
+      ticks: 3,
+      to: [2, 0],
+    });
+  });
+
+  it('flips about the middle of its line, a do-nothing flip along its own line told by what it draws', () => {
+    // Left to right, its ends change places and its side turns over: drawn as it was.
+    const across = flipAnnotation(top, 'horizontal');
+    expect(across).toMatchObject({ from: [1, 0], to: [0, 0] });
+    expect(flipChangesMark(top, 'horizontal')).toBe(false);
+    // Top to bottom, its line goes over to the paper's side.
+    expect(flipAnnotation(top, 'vertical')).toEqual({ ...top, mirrored: undefined });
+    expect(flipChangesMark(top, 'vertical')).toBe(true);
+    // F puts it over in place, unless it is alike on both sides (`flipChangesArc`).
+    expect(flipsArc('divisions')).toBe(true);
+    expect(flipAnnotationArc(top)).toEqual({ id: 'd-1', kind: 'divisions', from: [0, 0], to: [1, 0], parts: 4, offset: 2.5 });
+    expect(flipChangesArc(top)).toBe(true);
+    expect(flipChangesArc({ ...top, offset: 0 })).toBe(false);
+    expect(flipChangesArc({ ...top, offset: 0, numbered: true })).toBe(true);
+  });
+
+  it('holds Flip Horizontal and Vertical where F is held: on its line with no count, alike on either side', () => {
+    // Top to bottom only turns its side over, which draws nothing new on the line.
+    expect(flipChangesMark({ ...top, offset: 0 }, 'vertical')).toBe(false);
+    expect(flipChangesMark({ ...top, offset: 0 }, 'horizontal')).toBe(false);
+    // With its count beside it, the count goes over.
+    expect(flipChangesMark({ ...top, offset: 0, numbered: true }, 'vertical')).toBe(true);
+    // Off a slanted line, its line goes elsewhere whichever side it is on.
+    const slant = { ...top, to: [1, 0.5] as PicturePoint, offset: 0 };
+    expect(flipChangesMark(slant, 'vertical')).toBe(true);
+    expect(flipChangesMark(slant, 'horizontal')).toBe(true);
   });
 });

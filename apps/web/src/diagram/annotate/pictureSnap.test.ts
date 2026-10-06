@@ -4,7 +4,7 @@ import type { ScenePoint } from '../../lib/paper/paperScene';
 import { face, line, SQUARE } from '../../lib/paper/paperScene.fixtures';
 import { referencesStep, stepDiagramPicture } from '../document/diagramSteps.fixtures';
 import { pictureGeometry } from './pictureGeometry';
-import { pictureSnapTarget } from './pictureSnap';
+import { annotationSnapPoints, pictureSnapTarget } from './pictureSnap';
 import { annotation, FLAT, IN_3D, NO_ASSETS, sceneStep, uploadStep } from './pictureSnap.fixtures';
 
 const crease = (a: ScenePoint, b: ScenePoint) => line('diagram-valley', a, b);
@@ -108,6 +108,29 @@ describe('pictureSnapTarget on annotations', () => {
       const arrow = annotation({ kind, from: [0.3, 0.6], to: [0.3, 0.8] });
       expect(pictureSnapTarget(step, NO_ASSETS, [0.31, 0.79], 0.05, { annotations: [arrow] }), kind).toBeNull();
     }
+  });
+
+  it('snaps to the ends of the line equal divisions measure and to each point dividing it — not on a picture through a camera (Revision 2)', () => {
+    const divisions = annotation({ kind: 'divisions', from: [0, 0], to: [1, 0], parts: 4, offset: 2.5, mirrored: true });
+    // The first quarter, where the sketch's dashed valley starts.
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.26, 0.02], 0.05, { annotations: [divisions] })).toEqual({
+      at: [0.25, 0],
+      kind: 'annotation',
+    });
+    expect(annotationSnapPoints(divisions)).toEqual([
+      [0, 0],
+      [0.25, 0],
+      [0.5, 0],
+      [0.75, 0],
+      [1, 0],
+    ]);
+    // Equal on the page is not equal on the paper through a camera: its ends alone.
+    const projected = sceneStep([line('edge', [0, 0], [100, 0]), line('valley', [0, 100], [100, 100])], IN_3D);
+    expect(pictureSnapTarget(projected, NO_ASSETS, [0.26, 0.02], 0.05, { annotations: [divisions] })).toBeNull();
+    expect(annotationSnapPoints(divisions, { divisionPoints: false })).toEqual([
+      [0, 0],
+      [1, 0],
+    ]);
   });
 
   it('never snaps to a white arrow’s tail, its tip or a point along its path', () => {

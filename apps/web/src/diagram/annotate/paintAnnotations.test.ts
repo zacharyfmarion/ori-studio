@@ -3,6 +3,7 @@ import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE, PT_TO_CSS_PX } from '../../lib/pa
 import { canvasDiagramInk, DIAGRAM_ROTATE_INK, DIAGRAM_TURN_OVER_INK } from '../../cp-workspace/references/diagram/diagramInk';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramAnnotation, type KnownDiagramAnnotation } from '../document/diagramDocument';
 import {
+  divisionsDrawn,
   foldArrowDrawn,
   halfArrowheadCorners,
   oneWayArrowDrawn,
@@ -23,7 +24,8 @@ import { ARROW_BEND, CALLOUT_TEXT_SIZE, calloutShape } from './annotationModel';
 import { arcToPath } from './annotationPath';
 import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { paintAsset } from '../pictures/paintDiagramStep';
-import { annotationDrawing, annotationScene, annotationTextRuns, labelRuns } from './annotationPrimitives';
+import { annotationDrawing, annotationReach, annotationScene, annotationTextRuns, divisionsCrowded, labelRuns } from './annotationPrimitives';
+import { ANNOTATION_INK_MM } from './canvasInk';
 import { annotatedPicture, CARD_FRAME_PX, paintAnnotations } from './paintAnnotations';
 
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"/>';
@@ -274,6 +276,100 @@ describe('a right angle (Revision 2)', () => {
     const width = Number(/stroke-width="([\d.]+)" stroke-linecap="butt"/.exec(painted.markup)![1]);
     expect(painted.bounds.x).toBeCloseTo(-15 * ink - width / 2, 3);
     expect(painted.bounds.y).toBeCloseTo(-15 * ink - width / 2, 3);
+  });
+});
+
+describe('equal divisions (Revision 2)', () => {
+  const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
+  // Along the top edge, their line above it, off the picture.
+  const top = a('d', 'divisions', { from: [0.1, 0], to: [0.9, 0], parts: 4, offset: 2.5, mirrored: true });
+
+  it('compile to References’ primitive, their offset — a print length in mm — in the drawing’s ink, y up', () => {
+    const drawing = annotationDrawing([{ ...top, ticks: 2, numbered: true }], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
+    expect(drawing.primitives).toEqual([
+      {
+        kind: 'divisions',
+        from: [0.1, -0],
+        to: [0.9, -0],
+        parts: 4,
+        offset: 2.5 / ANNOTATION_INK_MM,
+        mirrored: true,
+        ticks: 2,
+        numbered: true,
+      },
+    ]);
+    // An ink is 0.331 mm wherever it prints: 2.5 mm is about 7.6 ink.
+    expect(ANNOTATION_INK_MM).toBeCloseTo(0.3307, 4);
+  });
+
+  it('draw their line in the existing creases’ pen, their dividers and ticks in a ring’s, the count set as a page sets the rotate glyph’s fraction', () => {
+    const { markup } = paintAnnotations(
+      [{ ...top, parts: 7, numbered: true }],
+      { x: 0, y: 0, width: 400, height: 300 },
+      400,
+      DEFAULT_DIAGRAM_STYLE
+    )!;
+    const widths = [...markup.matchAll(/<path d="M[^"]*" stroke-width="([\d.]+)" stroke-linecap="butt" fill="none" stroke="([^"]+)"/g)];
+    expect(widths).toHaveLength(2);
+    // The Diagram preset's aux creases are 0.25 pt; its arrows 0.75 pt, a ring three quarters of that.
+    expect(Number(widths[0]![1])).toBeCloseTo(0.25 * PT_TO_CSS_PX, 3);
+    expect(Number(widths[1]![1])).toBeCloseTo(0.75 * 0.75 * PT_TO_CSS_PX, 3);
+    expect(widths[0]![2]).toBe(widths[1]![2]);
+    expect(markup).toContain(`font-family="'Noto Sans', sans-serif" font-weight="700">7</text>`);
+    expect(markup).not.toContain('Inter');
+    // Above the edge: 2.5 mm, then 1.65 mm of dividers past it.
+    const divider = /M ([\d.]+) (-?[\d.]+) L ([\d.]+) (-?[\d.]+)/.exec(widths[1]![0])!;
+    expect(Number(divider[2])).toBeCloseTo(0, 6);
+    expect(Number(divider[4])).toBeCloseTo(-(2.5 / ANNOTATION_INK_MM + 5) * ink, 2);
+  });
+
+  it('reach each stroke’s ink and the count’s box and no further, at either style’s pens and any size', () => {
+    const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
+    const marks = [
+      { ...top, numbered: true as const },
+      a('d-slant', 'divisions', { from: [0.95, 0.2], to: [1.05, 0.9], parts: 32, offset: 0, ticks: 3 }),
+      a('d-left', 'divisions', { from: [0, 0.9], to: [0, 0.1], parts: 12, offset: 15, numbered: true }),
+    ];
+    for (const style of [DEFAULT_DIAGRAM_STYLE, heavy]) {
+      for (const framePx of [300, 1000]) {
+        for (const mark of marks) {
+          const drawing = annotationDrawing([mark], { width: 1, height: 1 }, framePx, style);
+          const primitive = drawing.primitives[0]!;
+          if (primitive.kind !== 'divisions') throw new Error('not divisions');
+          const shape = divisionsDrawn(primitive.from, primitive.to, primitive, drawing.context.project)!;
+          let [minX, minY, maxX, maxY] = [0, 0, framePx, framePx];
+          const take = (x: number, y: number, pad: number) => {
+            [minX, minY, maxX, maxY] = [Math.min(minX, x - pad), Math.min(minY, y - pad), Math.max(maxX, x + pad), Math.max(maxY, y + pad)];
+          };
+          // A butt end reaches half its pen to each side of it, and no further along.
+          for (const [stroke, pen] of [
+            [shape.line, shape.pens.line],
+            ...[...shape.dividers, ...shape.ticks].map((each) => [each, shape.pens.marks] as const),
+          ] as const) {
+            for (const end of stroke) take(end.x, end.y, pen / 2);
+          }
+          if (shape.number) {
+            const { at, halfWidth, halfHeight } = shape.number;
+            take(at.x - halfWidth, at.y - halfHeight, 0);
+            take(at.x + halfWidth, at.y + halfHeight, 0);
+          }
+          const reach = annotationReach(drawing);
+          const name = `${mark.id} ${framePx}`;
+          expect(reach.x, name).toBeCloseTo(minX, 6);
+          expect(reach.y, name).toBeCloseTo(minY, 6);
+          expect(reach.x + reach.width, name).toBeCloseTo(maxX, 6);
+          expect(reach.y + reach.height, name).toBeCloseTo(maxY, 6);
+        }
+      }
+    }
+  });
+
+  it('crowd at 32 parts on a 25 mm edge with three ticks, and not with one, nor on a 50 mm edge with two', () => {
+    const edge = a('d', 'divisions', { from: [0, 0], to: [1, 0], parts: 32, offset: 2.5, ticks: 3 });
+    expect(divisionsCrowded(edge, { width: 1, height: 1 }, 25, DEFAULT_DIAGRAM_STYLE)).toBe(true);
+    expect(divisionsCrowded({ ...edge, ticks: undefined }, { width: 1, height: 1 }, 25, DEFAULT_DIAGRAM_STYLE)).toBe(false);
+    expect(divisionsCrowded({ ...edge, parts: 4, ticks: 2 }, { width: 1, height: 1 }, 50, DEFAULT_DIAGRAM_STYLE)).toBe(false);
+    expect(divisionsCrowded(a('l', 'valley-line'), { width: 1, height: 1 }, 25, DEFAULT_DIAGRAM_STYLE)).toBe(false);
   });
 });
 

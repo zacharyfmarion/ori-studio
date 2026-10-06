@@ -48,6 +48,9 @@ export function symbolAnchor(primitive: StepDiagramPrimitive): Point | null {
     case 'push-arrow':
     case 'pleat-arrow':
       return point(primitive.from);
+    case 'divisions':
+      // The middle of the line it measures.
+      return { x: (primitive.from[0] + primitive.to[0]) / 2, y: (primitive.from[1] + primitive.to[1]) / 2 };
     case 'region': {
       const n = primitive.corners.length;
       if (n === 0) return null;

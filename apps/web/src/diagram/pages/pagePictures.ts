@@ -119,6 +119,92 @@ function sentSheetUnits(step: DiagramStep): number | null {
 }
 
 /**
+ * How many pattern units a picture's frame is across its longer side, for
+ * one that knows its paper — a capture's scene or bitmap at its paper scale,
+ * a References step's sheet — or null for one only ever fitted: how a layout's
+ * mm per pattern unit becomes the size its frame prints at.
+ */
+function unitsAcross(source: StepPictureSource, step: DiagramStep): number | null {
+  switch (source.kind) {
+    case 'scene': {
+      const scene = storedScene(source.picture);
+      const scale = source.picture.paperScale;
+      return scene && scale ? longerSide(scene.bounds) / scale : null;
+    }
+    case 'asset': {
+      const scale = step.picture?.kind === 'asset' ? step.picture.paperScale : null;
+      const posed = poseTransform(source.asset.widthPx, source.asset.heightPx, source.pose);
+      return scale ? Math.max(posed.widthPx, posed.heightPx) / scale : null;
+    }
+    case 'step-diagram':
+      return sentSheetUnits(step);
+    case 'fixed':
+      return null;
+  }
+}
+
+/**
+ * The longer side a step's picture frame prints at in `cell`, in mm: the
+ * frame size a fitted picture's run gives it, its pattern units at the
+ * cell's mm per unit, or — for a picture the layout found no scale for, as
+ * an upload under the Paper scale — the size the page fits it to its room
+ * at ({@link fittedFrameMm}). Null for a step with no picture.
+ */
+export function printedFrameMm(
+  step: DiagramStep,
+  assets: Readonly<Record<string, DiagramAsset>>,
+  style: DiagramStyle,
+  cell: Pick<LayoutCell, 'mmPerUnit' | 'frameMm' | 'pictureMm'> & Partial<Pick<LayoutCell, 'drawMm'>>
+): number | null {
+  if (cell.frameMm !== null) return cell.frameMm;
+  const source = stepPictureSource(step, assets);
+  if (!source) return null;
+  const units = cell.mmPerUnit === null ? null : unitsAcross(source, step);
+  if (units !== null && units > 0 && Number.isFinite(units)) return units * cell.mmPerUnit!;
+  const area = cell.drawMm ?? { w: cell.pictureMm.size, h: cell.pictureMm.size };
+  const mm = fittedFrameMm(source, style, area);
+  return mm !== null && mm > 0 && Number.isFinite(mm) ? mm : null;
+}
+
+/**
+ * The longer side, in mm, a picture with no scale is drawn at, fitted to a
+ * room `area` mm (`draw`) — before what its marks reach shrinks it to make
+ * room for them (`cellPicture`), which takes a little off a picture whose
+ * marks reach out: near enough to judge their print sizes by.
+ */
+function fittedFrameMm(source: StepPictureSource, style: DiagramStyle, area: { w: number; h: number }): number | null {
+  const box: Rect = { x: 0, y: 0, width: area.w, height: area.h };
+  const fitted = (width: number, height: number) =>
+    width > 0 && height > 0 ? fitScale(box, width, height, null) * Math.max(width, height) : null;
+  switch (source.kind) {
+    case 'scene': {
+      const scene = storedScene(source.picture);
+      if (!scene) return null;
+      const { minX, minY, maxX, maxY } = scene.bounds;
+      return fitted(maxX - minX, maxY - minY);
+    }
+    case 'asset': {
+      const posed = poseTransform(source.asset.widthPx, source.asset.heightPx, source.pose);
+      return fitted(posed.widthPx, posed.heightPx);
+    }
+    case 'fixed':
+      return fitted(source.picture.widthPx, source.picture.heightPx);
+    case 'step-diagram':
+      return fittedSheetMm(source.picture, style, Math.min(area.w, area.h));
+  }
+}
+
+/**
+ * A References step's sheet fitted to a square `boxMm` across, with its
+ * letters: the sheet's size for a card first, then again at the size that
+ * gives, as its letters keep their pt size.
+ */
+function fittedSheetMm(picture: DiagramStepDiagramPicture, style: DiagramStyle, boxMm: number): number {
+  const first = boxMm / drawingRatio(picture, style, MEASURE_SHEET_MM);
+  return boxMm / drawingRatio(picture, style, first);
+}
+
+/**
  * A References step's drawing across its longer side, per its sheet's longer
  * side, with the sheet `sheetMm` across. It depends on the size: the letters,
  * rings and arrowheads keep their pt size, so on a small sheet they reach
@@ -297,21 +383,17 @@ export function layoutPicture(
     case 'scene': {
       const scene = storedScene(source.picture);
       if (!scene) return UNSIZED;
-      const scale = source.picture.paperScale;
-      const units = scale ? longerSide(scene.bounds) / scale : null;
       const { minX, minY, maxX, maxY } = scene.bounds;
-      return framed(units, maxX - minX, maxY - minY, inkPt(diagramScenePaintStyle(style, source.pattern)) / PT_PER_CSS_PX);
+      return framed(unitsAcross(source, step), maxX - minX, maxY - minY, inkPt(diagramScenePaintStyle(style, source.pattern)) / PT_PER_CSS_PX);
     }
     case 'asset': {
-      const scale = step.picture?.kind === 'asset' ? step.picture.paperScale : null;
       const posed = poseTransform(source.asset.widthPx, source.asset.heightPx, source.pose);
-      const units = scale ? Math.max(posed.widthPx, posed.heightPx) / scale : null;
-      return framed(units, posed.widthPx, posed.heightPx);
+      return framed(unitsAcross(source, step), posed.widthPx, posed.heightPx);
     }
     case 'step-diagram': {
       // Its letters, its marks, its lines' ink past its sheet and its annotations together, measured against its sheet.
       const ink = inkPt(stepDiagramPaintStyle(style)) / PT_PER_CSS_PX;
-      return measured(sentSheetUnits(step), (mm) => {
+      return measured(unitsAcross(source, step), (mm) => {
         const { drawing, sheet } = stepDiagramBoxes(source.picture, style, mm);
         if (!(longerOf(sheet) > 0)) return null;
         const inked = union(drawing, grown(sheet, ink));
@@ -514,13 +596,12 @@ function draw(
     case 'step-diagram': {
       const units = sentSheetUnits(step);
       const boxMm = Math.min(box.width, box.height) / PT_PER_MM;
-      // Fitted: the sheet's size for a card first, then again at the size that gives.
-      const fitted = () => {
-        const first = boxMm / drawingRatio(source.picture, style, MEASURE_SHEET_MM);
-        return boxMm / drawingRatio(source.picture, style, first);
-      };
       const sheetMm =
-        mmPerUnit !== null && units !== null ? units * mmPerUnit : framePt !== null ? framePt / PT_PER_MM : fitted();
+        mmPerUnit !== null && units !== null
+          ? units * mmPerUnit
+          : framePt !== null
+            ? framePt / PT_PER_MM
+            : fittedSheetMm(source.picture, style, boxMm);
       const { model, mirrored } = source.picture;
       const scene = stepDiagramScene(model, mirrored, style, sheetMm);
       // Built at its size on the page: one scene px is one CSS px of it.

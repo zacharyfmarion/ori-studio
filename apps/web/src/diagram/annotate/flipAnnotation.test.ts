@@ -105,6 +105,18 @@ describe('flipping a mark over', () => {
     expect(flipAnnotation(zoom, 'horizontal')).toEqual({ ...zoom, to: near([-0.21, 0.3]), radius: expect.closeTo(0.08, 12) });
   });
 
+  it('turns equal divisions over about the middle of the line they measure, their line kept on its side of the paper (Revision 2)', () => {
+    const slant: KnownDiagramAnnotation = { id: 'd', kind: 'divisions', from: [0.2, 0.3], to: [0.6, 0.5], parts: 4, offset: 2.5 };
+    expect(flipCentre(slant)).toEqual(near([0.4, 0.4]));
+    expect(flipAnnotation(slant, 'horizontal')).toEqual({ ...slant, from: near([0.6, 0.3]), to: near([0.2, 0.5]), mirrored: true });
+    expect(flipChangesMark(slant, 'horizontal')).toBe(true);
+    // Along a level line, left to right draws it as it was; top to bottom puts the line over.
+    const level: KnownDiagramAnnotation = { ...slant, from: [0.2, 0.3], to: [0.6, 0.3] };
+    expect(flipChangesMark(level, 'horizontal')).toBe(false);
+    expect(flipChangesMark(level, 'vertical')).toBe(true);
+    expect(flipAnnotation(level, 'vertical')).toEqual({ ...level, from: near([0.2, 0.3]), to: near([0.6, 0.3]), mirrored: true });
+  });
+
   it('leaves a circle, a label and a turn-over as they are: their point, the same either way over', () => {
     expect(ANNOTATION_KINDS.filter((kind) => !flipsOver(kind))).toEqual(['turn-over', 'label', 'circle']);
     const label: KnownDiagramAnnotation = { id: 'l', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'A' };
