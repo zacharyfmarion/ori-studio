@@ -3,8 +3,8 @@
 **Status: planned 2026-10-05. The right-angle mark (16a) and equal divisions
 (16b) are built (2026-10-06), and so are enlarged steps' model, file and
 imprint (16c), the writer of a flat step's faces with them since Zach's
-answer on its size budget (Z11); enlarged steps' drawing, tools, pages and
-carries (16d–16g) are not. Zach settled every decision on 2026-10-06: the
+answer on its size budget (Z11), and their drawing on every surface (16d);
+their tools, pages and carries (16e–16g) are not. Zach settled every decision on 2026-10-06: the
 enlarged steps' Z1–Z11, and the
 equal-divisions (ED1–ED13) and right-angle (RA0–RA8) decisions as
 recommended. Each is recorded in its part.** Phase 16 of
@@ -3278,22 +3278,126 @@ yet (16d), and no store verb reaches the pure modules yet (16e, 16g).
 
 ### 16d Enlarged steps: painting
 
-- [ ] `paintZoomed` (the clip, turned with the frame; the repaint at scale;
+**Built 2026-10-06**, to the part's "Rendering on every surface". An area is
+drawn on its step, and an enlarged step is drawn as its window on every
+surface — card, Annotate canvas, Pose (flat and live), page cell, PDF, step
+files, Export Picture — from the frame it stores, faces or none. Nothing
+authors an area or a frame yet (16e); pages lay an enlarged step out as a
+fitted picture of its window until 16f's 'zoom' kind.
+
+- [x] `paintZoomed` (the clip, turned with the frame; the repaint at scale;
   culling); `zoomEdge`, with `piecesUnder` exported; the area's
   `CompiledAnnotation` with its casing and reach.
-- [ ] Cards; the Pose stage's dimmed frame; the Annotate canvas
+  *As built:* `zoom/paintZoomed.ts` holds what surfaces share:
+  `zoomPlacement` (window, whole picture and frame on a surface by one scale
+  and shift), `zoomClipShape`, `zoomCull` (the window grown by the
+  overshoot, in picture units), `zoomBoundary`, `paintZoomed` (clip, the
+  surface's own picture, boundary), and `paintZoomedPicture`, the window as a
+  document of its own at a card's 50 mm, which cards, the canvas and
+  close-ups use; `zoomedPictureFile` is the same window as Export Picture's
+  file, sized and drawn in pt with its XML declaration, as every captured
+  picture and step file is. Culling is `sceneCulledTo` (`paintDiagramStep.ts`): scene
+  items whose extent misses the box are dropped, bounds and sheet kept, so
+  what is left lands where it did; `paintSource`/`paintScene` and the page's
+  `draw` take it. `paintedFrameLongerPx` (`pictureFrame.ts`) gives a source's
+  frame at scale one without painting it, for the repaint's scale, from the
+  scene as `storedScene` read it once per picture. `zoom/zoomEdge.ts`:
+  `paperSilhouette` (a scene's visible face rings, a References card's sheet
+  and regions, null for uploads and fixed pictures, memoized per picture);
+  `zoomEdgeDrawn` (Whole, or Cut by `piecesUnder` over the faces near the
+  outline: stretches grown by the overshoot, then gaps under 2 mm drawn
+  through, closed at ≥ 97% raw cover or when the grown stretches meet; a
+  small per-silhouette cache); `zoomEdgePaths` (a circle's arcs through
+  `ringPieces`, a rounded rectangle whole with true quarter-circle corners,
+  its stretches as polylines along 32 points a corner). The area compiles to
+  `{kind: 'zoom', outline}`; `AnnotationDrawing.zoomAreas` draws it in the
+  ring pen and the arrows' ink, a rounded rectangle on a white casing
+  `ZOOM_CASING_INKS` (1.5) ink past its pen each side, between the marks and
+  the close-ups; its reach is the turned outline's box and half its pen or
+  casing.
+- [x] Cards; the Pose stage's dimmed frame; the Annotate canvas
   (`DiagramZoomView`, the window as frame, the dimmed surround when the frame
   is selected, snapping and layers from `viewGeometry`); Export Picture; a
   close-up on an enlarged step.
-- [ ] `zoomEdge` fixtures: look 1 (the arc's span and overshoot); look 2
+  *As built:* every surface asks `zoomedSource(step, assets)` (null for a
+  step that shows its whole picture). Cards: `zoomedStepUrl` →
+  `zoomedCardPicture`, keyed by the frame, its shape and edge. Pose, flat:
+  `posedZoomUrl` → `posedZoomPicture` (the whole picture, the frame dashed in
+  `ZOOM_SELECTION_INK`, the rest under 45% white, the marks ghosted on the
+  window); live 3D and simulated views: `poseGhostMarkup`, the outline
+  undimmed with the marks. The posed picture's box takes in all of the
+  frame's outline, marks or none, so a circle round the model's edge is
+  never cut at the picture's side. Canvas: `useAnnotateCanvas` lays the window out as
+  the frame (`zoomedCanvasLayout`), with the margin its card gives it
+  (`ZOOM_CARD_MARGIN`, 1 mm in 50), so a fit leaves its boundary clear of the
+  zoom pill as any picture's edge is; `DiagramZoomView` (own CSS module)
+  draws the window as its card paints it (`zoomedPictureUrl` at scale one:
+  culled, clipped, its boundary on it) laid on the frame, an image no larger
+  than the window however small it is, and a hairline in the frame's shape
+  (the frame div's box hairline is off, `data-zoomed`); with the reserved id
+  `ZOOM_FRAME_ID` selected (16e selects it), the whole picture instead
+  (`closeUpPictureUrl` at the window's 50 mm), under 45% white but the
+  frame, the boundary over it. *Deviation:* the plan drew the whole picture
+  under a clip always; for a small window that image is many frames across
+  (some 33,000 world px at the least radius), so only the surround draws it.
+  The selection's ink is held in two places, which a canvas test holds
+  equal: the canvas module's `--annotate-selection` (a component's own value,
+  which `themeTokens.test.ts` has its module define) and
+  `ANNOTATE_SELECTION_INK` (`canvasInk.ts`), which Pose's outline draws on a
+  picture no stylesheet reaches. Snapping, right angles, nearest lines, Layers' frame
+  and the divisions read through `markGeometry`/`viewFrame`, the window's
+  units. Export Picture writes the window with its boundary, no marks, as
+  SVG whatever the picture. A close-up on an enlarged step shows the window
+  again, larger: cards and the canvas through `paintZoomedPicture` at the
+  close-up's scale, a page through its own windowed draw.
+  **Added, from the Edge cases:** `marksInWindow` — marks lying wholly
+  outside the window grown by a window each way are kept but neither drawn,
+  measured nor pressed (cards, cells, the canvas's drawing, fit and hits);
+  Pose shows them all, in place. Their Layers badge is 16e's. An area's
+  extent is its outline's box. Tests: `stepView.test.ts` (kept, dropped
+  along each side, a ring's, a close-up's, an area's and a path's extent,
+  unknown marks kept, `stepAsDrawn`), a card and a cell that neither draw
+  nor measure a far mark (`paintZoomed.test.ts`), and a press on one hitting
+  nothing on the canvas.
+- [x] `zoomEdge` fixtures: look 1 (the arc's span and overshoot); look 2
   (Whole; and with Cut, the broken corner); a rounded rectangle at an angle;
   the ≥ 97% close; the empty case.
-- [ ] Goldens on a card, a page and the canvas: look 1, a circle cut on a
+  *As built:* `zoom/zoomEdge.test.ts`, with the gap rule (measured after the
+  overshoots: a slot is drawn through when what they leave of it is under
+  2 mm) and the silhouette reader.
+- [x] Goldens on a card, a page and the canvas: look 1, a circle cut on a
   crane flat fold; look 2, a rounded rectangle drawn whole, with the casing on
   the step before; a rounded rectangle landed at an angle; an upload drawn
   whole; a References card.
-- [ ] A label on an enlarged step prints the same size as on an unenlarged
+  *As built:* `zoom/zoom.cases.ts`, `zoom.surfaces.tsx`,
+  `zoomGolden.test.ts` and `__fixtures__/zoomGolden.json` (recorded with
+  `ZOOM_GOLDEN_WRITE=1`), on 16c's crane fixture `S.none`; checked by eye
+  beside Zach's two examples, `artifacts/revision-2/16d/shots/goldens.png`
+  (`goldens.mjs`).
+- [x] A label on an enlarged step prints the same size as on an unenlarged
   step of the same printed frame.
+  *As built:* in `zoom/paintZoomed.test.ts`, on a page cell at a 40 mm frame.
+- [x] Proof (added as built). In the app at :5291 on Zach's crane
+  (`artifacts/revision-2/16d/verify/browser.mjs`): an area on step 19 (a
+  circle) and on step 15 (a rounded rectangle), each step duplicated and the
+  copy enlarged through `zoomFrames.enlargeStep`, its carried marks replaced
+  by a valley line and a label; the grid, Pose, Annotate (and the frame
+  selected), the area's step and the pages, against the build before 16d
+  (HEAD copies routed, `headBuild.mjs`), in Chromium and iPad-sized WebKit,
+  light and dark: `artifacts/revision-2/16d/16d-before-after-*.png`. The
+  look-1 boundary runs past where it leaves the paper; look 2 is whole; the
+  area's casing knocks out the creases. A PDF of the golden's steps through
+  the real writer, rasterised by `pdftoppm`: `verify/shots/pdf-1.png` (the
+  writer case itself is 16f's). The browser found one bug, fixed: a selected
+  frame's dimming covered only the canvas's world, not the whole picture
+  past it. The review's fixes (2026-10-06): Pose's cut outline, the canvas's
+  margin and small-window image, Export Picture in pt, the scene read once,
+  and `marksInWindow`'s tests, above; `printedFrameMm` on a window and Pose on
+  an enlarged step with no marks have tests of their own. Left for Zach's
+  eye: the rounded rectangle's casing (Z5's 1.5 ink, about 0.5 mm of white
+  each side) reads heavier on the crane's gray than look 2's hairline
+  knock-out (about 0.1 mm); about 0.4–0.5 ink would match it
+  (`ZOOM_CASING_INKS`, the golden re-recorded).
 
 ### 16e Enlarged steps: authoring
 
@@ -3312,12 +3416,22 @@ yet (16d), and no store verb reaches the pure modules yet (16e, 16g).
   reason when no earlier step has an area or a frame.
 - [ ] `DiagramZoomControls` with `useZoomControls`: the area rows and the
   frame row, their subtitles by provenance, Update's count and disabled
-  state, the frame's note, the badge on marks outside the window. Tests:
+  state, the frame's note, the badge on marks outside the window — the only
+  place a mark 16d's `marksInWindow` keeps, but neither draws nor lets be
+  pressed on cards, cells and the canvas, can be seen again. Tests:
   Layers rows on both steps; Update as one undo step.
 - [ ] The frame as a layer: selected by its boundary and by its row; the
   dimmed surround and the anchor face outlined; grips; a drop moves the frame,
   makes its imprint again and carries the marks, one undo step. Tests: marks
-  stay on the same paper through a move and a resize.
+  stay on the same paper through a move and a resize. The surround (16d)
+  paints the whole picture at the window's scale, a new picture per frame
+  and many frames across for a small window: cap or cull it, and keep a
+  drag from painting one per move.
+- [ ] Not shipped before 16f: until 16f's 'zoom' kind, pages lay an enlarged
+  step out as a 'fit' picture, which can share a Fit each run with uploads,
+  3D and other fitted pictures and change their printed size (S6: enlarged
+  steps never enter `scaleRuns`). The toggle that makes one reaches no user
+  until 16f lands.
 - [ ] The Anchor row and the pick mode (`useAnchorPick`): Pick, the hover
   highlight, a click anchoring, Escape through the shortcut runtime, Reset;
   hidden with no faces and on a crease pattern. Tests: a pick stores the
