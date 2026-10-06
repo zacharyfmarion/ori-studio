@@ -26,11 +26,11 @@ describe('an enlarge area, drawn on its step', () => {
     expect(area!.outline).toEqual({ centre: [0.4 * CARD_FRAME_PX, 0.3 * CARD_FRAME_PX], radius: 0.15 * CARD_FRAME_PX });
   });
 
-  it('cases a rounded rectangle in white, 1.5 ink past its pen each side, turned with it; a circle on none (Z5)', () => {
+  it('cases a rounded rectangle in white, a hairline 0.45 ink past its pen each side, turned with it; a circle on none (Z5)', () => {
     const drawing = annotationDrawing([rounded, circle], frame, CARD_FRAME_PX, style);
     const [area] = drawing.zoomAreas;
     const ink = drawing.context.project.ink;
-    expect(area!.casing).toBeCloseTo(area!.pen + 3 * ink, 9);
+    expect(area!.casing).toBeCloseTo(area!.pen + 0.9 * ink, 9);
     expect(area!.ground).toBe('#ffffff');
     const svg = renderToStaticMarkup(annotationMarks(drawing));
     // The casing under the outline, both turned; their corners 0.22 of the shorter side.

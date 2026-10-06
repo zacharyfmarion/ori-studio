@@ -426,8 +426,10 @@ The gesture is E, one drag, Duplicate Step, Enlarged.
 **S2, look 2: 46 → 47 (an interior region; a rounded rectangle drawn whole).**
 
 1. Open 46 in Annotate and press Shift+E (**Enlarge in Frame**).
-2. Drag corner to corner around the central column. Shift makes it square; Alt
-   drags from the middle. The corners round at 0.22 × the shorter side.
+2. Drag corner to corner around the central column. Its aspect is free: the
+   drag sets the width and the height on their own, so it is any rectangle;
+   Shift makes it square; Alt drags from the middle. The corners round at
+   0.22 × the shorter side.
 3. Release. One undo step: the rounded rectangle is added to 46 in the ring
    pen, over a white casing that knocks out the creases it crosses (Z5); Edge
    is Whole. Nothing else changes.
@@ -624,7 +626,11 @@ D22's (Z3).
 
 - **Annotate rail, Marks group, after Close-Up.** **Enlarge (E)** draws a
   circle from its middle; **Enlarge in Frame (Shift+E)** draws a rounded
-  rectangle corner to corner. They are `DrawingTool` ids `ENLARGE`
+  rectangle corner to corner. The rounded rectangle's aspect ratio is free:
+  any rectangle, drawn corner to corner (Shift squares it, Alt draws it from
+  the middle), no ratio special, and freely resizable afterwards by corner
+  and edge grips, on the area and on an enlarged step's frame (S3). Zach, 2026-10-06: "you should be able to draw like some rectangle, or you know, it could be a square, but it's like the like that aspect ratio isn't special. It should be like you know you should be able to modify it."
+  They are `DrawingTool` ids `ENLARGE`
   (`'enlarge'`) and `ENLARGE_FRAME` (`'enlarge-frame'`), as `SOLID_ARROW` is
   one, laying kind `zoom` with a look `{shape}`; `drawingLook`
   (`annotateTools.ts`) widens from `WhiteArrowLook` to a per-tool look, after
@@ -966,8 +972,9 @@ ink. Uploads, fixed SVGs and rasters have no silhouette and draw Whole.
 `close-up` (`annotationPrimitives.tsx:196-200`; its `compileAnnotation` case at
 l.273), drawn by a `zoomAreaElement` beside `closeUpElement` (l.696): the full
 outline, turned by its angle, in the ring pen and the arrows' ink, plus a
-white casing on a rounded rectangle (Z5), 1.5 ink (≈ 0.5 mm) wider than the
-pen on each side. It lies in the close-ups' layer, over the shapes and under
+white casing on a rounded rectangle (Z5), 0.45 ink (≈ 0.15 mm, a hairline
+knock-out) wider than the pen on each side; 1.5 ink (≈ 0.5 mm) until Zach's
+review of 16d. It lies in the close-ups' layer, over the shapes and under
 callouts and labels. Its reach is the outline plus half the pen and the
 casing. Pose ghosts it as the other marks. It is not a References primitive,
 so the primitive switches are untouched.
@@ -1306,6 +1313,13 @@ printed size; the read-out says what prints. Not taken: a literal ×2.
 **Z5. The casing on the area's outline. DECIDED: A, by shape.** "all those
 defaults look good". A rounded rectangle is cased in white, a circle is not,
 as in the two examples. Not taken: both cased; neither.
+**Revised 2026-10-06, on seeing 16d built: the casing is a hairline.** Zach,
+of the rounded rectangle's white outline: "this white outline on look two is
+way too wide. It should just be like a tiny line." `ZOOM_CASING_INKS` goes
+from 1.5 to 0.45 ink past the pen each side (0.5 mm to 0.15 mm, 0.42 pt).
+Measured on look 2 at print size: its knock-out is about 1.7 px beside a
+1.05 px crease and a 1.65 px outline, about 1.65 times its thinnest crease,
+which at the Diagram preset's 0.25 pt aux pen is 0.41 pt (0.44 ink).
 
 **Z6. Drawing an area when a next step exists. SUPERSEDED by Z1.** Drawing
 never inserts or adopts a step. The next step is made with Duplicate Step or
@@ -3336,7 +3350,8 @@ fitted picture of its window until 16f's 'zoom' kind.
   its stretches as polylines along 32 points a corner). The area compiles to
   `{kind: 'zoom', outline}`; `AnnotationDrawing.zoomAreas` draws it in the
   ring pen and the arrows' ink, a rounded rectangle on a white casing
-  `ZOOM_CASING_INKS` (1.5) ink past its pen each side, between the marks and
+  `ZOOM_CASING_INKS` (1.5; 0.45 since Zach's review, Z5) ink past its pen
+  each side, between the marks and
   the close-ups; its reach is the turned outline's box and half its pen or
   casing.
 - [x] Cards; the Pose stage's dimmed frame; the Annotate canvas
@@ -3422,13 +3437,25 @@ fitted picture of its window until 16f's 'zoom' kind.
   each side) reads heavier on the crane's gray than look 2's hairline
   knock-out (about 0.1 mm); about 0.4–0.5 ink would match it
   (`ZOOM_CASING_INKS`, the golden re-recorded).
+- [x] Zach's ink review (2026-10-06, Z5 revised): "way too wide. It should
+  just be like a tiny line." `ZOOM_CASING_INKS` 0.45, chosen against look 2
+  at print size; `zoomGolden.json` re-recorded and checked by eye beside
+  look 2; step 15's area on the crane at print size and ×3 beside look 2,
+  before and after: `artifacts/revision-2/review-ink/casing.png`.
 
 ### 16e Enlarged steps: authoring
 
 - [ ] Enlarge and Enlarge in Frame: tools, keys, glyphs, help, disabled
   reasons; release adds the area only, as one undo step; grips and hit.
+  Enlarge in Frame's aspect ratio is free: any rectangle, drawn corner to
+  corner (Shift squares it, Alt from the middle), and freely resizable
+  afterwards by its corner and edge grips (Shift keeps the aspect, Alt about
+  the centre), on the area and on an enlarged step's frame (Zach,
+  2026-10-06).
   Tests: a drag adds the area and no step; several areas on one step; grips;
-  the area hit under other marks; the tools disabled on an enlarged step.
+  the area hit under other marks; the tools disabled on an enlarged step; a
+  drag of any aspect, Shift square, Alt from the middle; an edge grip
+  changes one side only, on the area and on the frame.
 - [ ] `zoomActions`: the Enlarged toggle on both pose catalogs, removing a
   step's own areas when it has them; Update Enlarged Steps; Pick and Reset;
   the Go to verbs. `DiagramStepZoomStatus` and its notices; the card chip.

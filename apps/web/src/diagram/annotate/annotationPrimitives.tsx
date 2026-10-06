@@ -208,8 +208,14 @@ export interface AnnotationZoomArea {
   ground: string;
 }
 
-/** How far an enlarge area's casing reaches past its pen on each side, in ink: about half a millimetre (Z5). */
-export const ZOOM_CASING_INKS = 1.5;
+/**
+ * How far an enlarge area's casing reaches past its pen on each side, in ink
+ * (Z5): 0.15 mm, a hairline knock-out. It was 1.5 ink (0.5 mm), which Zach
+ * found "way too wide. It should just be like a tiny line." (2026-10-06).
+ * Measured on his look-2 example at print size, where the knock-out is about
+ * 1.65 times its thinnest crease: here 0.42 pt beside a 0.25 pt aux line.
+ */
+export const ZOOM_CASING_INKS = 0.45;
 
 /** A line as drawn, in CSS px. */
 export interface AnnotationLine {
