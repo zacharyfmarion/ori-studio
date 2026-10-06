@@ -298,12 +298,14 @@
     "playPause": "Play / Pause Fold",
     "replay": "Restart Simulation",
     "resetView": "Reset Simulator View",
+    "springBack": "Spring Back",
     "toggleCreases": "Crease lines",
     "toggleFaces": "Faces",
     "toggleLighting": "Lighting",
     "toolExit": "Exit Tool",
     "toolOrbit": "Orbit Tool",
-    "toolPin": "Pin Tool"
+    "toolPin": "Pin Tool",
+    "toolPull": "Pull Tool"
   },
   "viewport": {
     "contextMenu": "Open Context Menu",

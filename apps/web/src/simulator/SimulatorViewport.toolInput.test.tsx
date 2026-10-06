@@ -253,4 +253,74 @@ describe('SimulatorViewport tool input', () => {
     expect(pushCamera).toHaveBeenCalled();
     expect(marquee()).toBeNull();
   });
+
+  describe('pull', () => {
+    const PULL = { mode: 'pull', cursor: 'grab' } as const;
+
+    it('hands the tool every step as it happens, measured in canvas pixels', () => {
+      render(PULL);
+
+      pointer('pointerdown', 30, 40);
+      expect(onGesture).toHaveBeenLastCalledWith(
+        { kind: 'pull', phase: 'begin', point: { x: 20, y: 20 }, touch: false },
+        { width: 400, height: 300 }
+      );
+      pointer('pointermove', 50, 70);
+      expect(onGesture).toHaveBeenLastCalledWith(
+        { kind: 'pull', phase: 'move', point: { x: 40, y: 50 }, touch: false },
+        { width: 400, height: 300 }
+      );
+      pointer('pointerup', 60, 80);
+      expect(onGesture).toHaveBeenLastCalledWith(
+        { kind: 'pull', phase: 'end', point: { x: 50, y: 60 }, touch: false },
+        { width: 400, height: 300 }
+      );
+      expect(onGesture).toHaveBeenCalledTimes(3);
+      expect(marquee()?.hidden).toBe(true);
+      expect(pushCamera).not.toHaveBeenCalled();
+    });
+
+    it('tells the tool when a pull is abandoned, so it can put the paper back', () => {
+      render(PULL);
+
+      pointer('pointerdown', 30, 40);
+      pointer('pointermove', 50, 70);
+      let cancelled = false;
+      act(() => {
+        cancelled = handle.current?.cancelToolGesture() ?? false;
+      });
+
+      expect(cancelled).toBe(true);
+      expect(onGesture.mock.calls.at(-1)?.[0]).toMatchObject({ kind: 'pull', phase: 'cancel' });
+      pointer('pointerup', 60, 80);
+      expect(onGesture).toHaveBeenCalledTimes(3);
+    });
+
+    it('lets a second finger cancel the pull rather than keep it', () => {
+      render(PULL);
+
+      pointer('pointerdown', 30, 40, { pointerType: 'touch', pointerId: 1 });
+      pointer('pointermove', 50, 70, { pointerType: 'touch', pointerId: 1 });
+      pointer('pointerdown', 200, 200, { pointerType: 'touch', pointerId: 2 });
+      pointer('pointerup', 50, 70, { pointerType: 'touch', pointerId: 1 });
+
+      const phases = onGesture.mock.calls.map(([gesture]) => (gesture.kind === 'pull' ? gesture.phase : gesture.kind));
+      expect(phases).toEqual(['begin', 'move', 'cancel']);
+    });
+
+    it('closes the hand while pulling, and opens it again on letting go', () => {
+      render(PULL);
+      expect(canvas().style.cursor).toBe('grab');
+
+      pointer('pointerdown', 30, 40);
+      expect(canvas().style.cursor).toBe('grabbing');
+      pointer('pointerup', 30, 40);
+      expect(canvas().style.cursor).toBe('grab');
+    });
+
+    it('says a press would be refused before anyone presses', () => {
+      render({ ...PULL, refused: true });
+      expect(canvas().style.cursor).toBe('not-allowed');
+    });
+  });
 });

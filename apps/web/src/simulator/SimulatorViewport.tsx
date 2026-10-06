@@ -7,9 +7,10 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from "react";
-import type { RenderSettings } from "@treemaker/origami-simulator";
+import type { CameraUniforms, RenderSettings } from "@treemaker/origami-simulator";
 import {
   drawFrame,
+  drawnCameraOf,
   invalidateSimulatorSurface,
   pickDrawnFrame,
   type SimulatorHighlights,
@@ -173,6 +174,12 @@ export interface SimulatorViewportHandle {
    * worker draws and picks from, and before anything has been drawn.
    */
   pickDrawnFaces: (query: SimulatorPickQuery) => number[] | null;
+  /**
+   * The camera of the frame this surface last drew, for the worker to measure a
+   * pull against on the canvas-2D path. Null on the GPU path, whose camera the
+   * worker already has, and before anything has been drawn.
+   */
+  drawnCamera: () => CameraUniforms | null;
 }
 
 /**
@@ -186,7 +193,15 @@ export interface SimulatorViewportToolInput {
   cursor: SimulatorToolCursor;
   /** Whether a press may start a tool gesture at all. */
   enabled: boolean;
-  /** A finished gesture, with the canvas's CSS size it is measured against. */
+  /**
+   * The tool would refuse a press — Pull with nothing pinned — which the cursor
+   * says before anyone presses. The press still reaches the tool, to be refused.
+   */
+  refused?: boolean;
+  /**
+   * A gesture for the tool to act on, with the canvas's CSS size it is measured
+   * against: a box or a click when it finishes, every step of a pull.
+   */
   onGesture: (gesture: SimulatorGesture, surface: CssSize) => void;
 }
 
@@ -201,6 +216,8 @@ type CanvasDrag =
       /** The canvas's box when the press landed; it does not move under a drag. */
       box: { left: number; top: number; width: number; height: number };
       touch: boolean;
+      /** The gesture has hold of the paper: the cursor is a closed hand while it runs. */
+      grabsPaper: boolean;
     };
 
 export interface SimulatorViewportProps {
@@ -781,6 +798,11 @@ export function SimulatorViewport({
         if (gpuActiveRef.current || !canvas || !model) return null;
         return pickDrawnFrame(canvas, model, query);
       },
+      drawnCamera: () => {
+        const canvas = canvasRef.current;
+        if (gpuActiveRef.current || !canvas) return null;
+        return drawnCameraOf(canvas);
+      },
     }),
     // `abandonDrag` reads only refs, so it is the same function every render
     // in all but identity; listing it would rebuild the handle each render.
@@ -850,10 +872,13 @@ export function SimulatorViewport({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const input = toolInputRef.current;
+    const drag = dragRef.current;
     canvas.style.cursor = input
       ? simulatorCanvasCursor({
           tool: input.cursor,
-          orbiting: dragRef.current?.kind === "orbit",
+          orbiting: drag?.kind === "orbit",
+          pulling: drag?.kind === "gesture" && drag.grabsPaper,
+          refused: input.refused ?? false,
           navigateModifierHeld: readHeldModifiers().meta,
         })
       : "";
@@ -907,6 +932,11 @@ export function SimulatorViewport({
     if (canvas?.hasPointerCapture?.(pointerId)) canvas.releasePointerCapture(pointerId);
   };
 
+  /** Hand a gesture to the tool, measured against the canvas box its press landed in. */
+  const deliver = (out: { gesture: SimulatorGesture | null }, drag: Extract<CanvasDrag, { kind: "gesture" }>) => {
+    if (out.gesture) toolInputRef.current?.onGesture(out.gesture, { width: drag.box.width, height: drag.box.height });
+  };
+
   /** Drop whatever the canvas is following, with nothing to show for it. */
   function abandonDrag(): boolean {
     const drag = dragRef.current;
@@ -916,12 +946,16 @@ export function SimulatorViewport({
     if (drag.kind === "orbit") {
       orbit.end();
     } else {
-      drag.engine.reduce(drag.state, {
-        kind: "cancel",
-        point: { x: 0, y: 0 },
-        shift: false,
-        touch: drag.touch,
-      });
+      // Said to the tool: a pull has to put the paper back.
+      deliver(
+        drag.engine.reduce(drag.state, {
+          kind: "cancel",
+          point: { x: 0, y: 0 },
+          shift: false,
+          touch: drag.touch,
+        }),
+        drag
+      );
       showMarquee(null);
     }
     updateCursor();
@@ -980,11 +1014,14 @@ export function SimulatorViewport({
           state: route.engine.initialState,
           box: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
           touch: event.pointerType === "touch",
+          grabsPaper: route.grabsPaper ?? false,
         };
         const out = drag.engine.reduce(drag.state, sampleOf("down", event, drag));
         drag.state = out.state;
         dragRef.current = drag;
         showMarquee(out.preview?.marquee ?? null, drag.box);
+        deliver(out, drag);
+        updateCursor();
         return;
       }
     }
@@ -1012,6 +1049,7 @@ export function SimulatorViewport({
     const out = drag.engine.reduce(drag.state, sampleOf("move", event, drag));
     drag.state = out.state;
     showMarquee(out.preview?.marquee ?? null, drag.box);
+    deliver(out, drag);
   };
 
   const handlePointerEnd = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -1035,9 +1073,8 @@ export function SimulatorViewport({
     const kind = event.type === "pointercancel" ? "cancel" : "up";
     const out = drag.engine.reduce(drag.state, sampleOf(kind, event, drag));
     showMarquee(null);
-    if (out.gesture && input) {
-      input.onGesture(out.gesture, { width: drag.box.width, height: drag.box.height });
-    }
+    deliver(out, drag);
+    updateCursor();
   };
 
   // A double click resets the view under Orbit. Under a tool it is two clicks,

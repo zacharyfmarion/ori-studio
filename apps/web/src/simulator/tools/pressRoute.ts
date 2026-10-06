@@ -1,5 +1,6 @@
 import type { SimulatorOrbitMode } from '../../lib/simulatorOrbit';
 import { boxGestureEngine } from './engines/boxGesture';
+import { pullGestureEngine } from './engines/pullGesture';
 import type { SimulatorGestureEngine, SimulatorInputMode } from './types';
 
 /** The parts of a `pointerdown` that decide what it is. */
@@ -22,7 +23,11 @@ export type SimulatorPressRoute =
   /** A button nothing answers (back, forward). */
   | { kind: 'ignore' }
   | { kind: 'orbit'; mode: SimulatorOrbitMode }
-  | { kind: 'gesture'; engine: SimulatorGestureEngine<unknown> };
+  /**
+   * A tool's gesture. `grabsPaper`: the gesture takes hold of the paper, which
+   * the cursor shows as a closed hand while it runs.
+   */
+  | { kind: 'gesture'; engine: SimulatorGestureEngine<unknown>; grabsPaper?: boolean };
 
 function orbit(press: SimulatorPress): SimulatorPressRoute {
   return { kind: 'orbit', mode: press.shift ? 'roll' : 'orbit' };
@@ -37,6 +42,11 @@ const ROUTES: Record<SimulatorInputMode, (press: SimulatorPress) => SimulatorPre
   'pick-faces': () => ({
     kind: 'gesture',
     engine: boxGestureEngine as SimulatorGestureEngine<unknown>,
+  }),
+  pull: () => ({
+    kind: 'gesture',
+    engine: pullGestureEngine as SimulatorGestureEngine<unknown>,
+    grabsPaper: true,
   }),
 };
 

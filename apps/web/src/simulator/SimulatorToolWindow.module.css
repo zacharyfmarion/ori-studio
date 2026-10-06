@@ -35,7 +35,8 @@
   padding-left: 2px;
 }
 
-.clear {
+/* A button that acts on what the tool made: Clear pins, Spring back, Pin faces. */
+.action {
   justify-self: start;
 }
 

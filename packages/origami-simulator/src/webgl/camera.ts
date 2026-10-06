@@ -358,6 +358,41 @@ export function projectViewPoint(
   ];
 }
 
+/**
+ * The line of sight through a pixel, in world space: every point on it projects
+ * back to that pixel. The inverse of {@link projectViewPoint} with the depth left
+ * free — through the eye in perspective, along the view axis in the canvas-2D
+ * fallback's orthographic projection.
+ */
+export function cursorRay(
+  point: { x: number; y: number },
+  camera: CameraUniforms,
+  options: ProjectVerticesOptions = {}
+): { origin: [number, number, number]; direction: [number, number, number] } {
+  const perspective = options.perspective ?? true;
+  // Where the pixel's line crosses depth 0, where the perspective factor is 1.
+  const x = (point.x - camera.width / 2) / camera.scale;
+  const y = -(point.y - camera.height / 2) / camera.scale;
+  const viewOrigin: [number, number, number] = perspective ? [0, 0, camera.camDist] : [x, y, 0];
+  const viewDirection: [number, number, number] = perspective ? [x, y, -camera.camDist] : [0, 0, -1];
+  const length = Math.hypot(viewDirection[0], viewDirection[1], viewDirection[2]);
+  const back = transposeMat3(camera.rotation);
+  const origin = applyMat3(back, viewOrigin);
+  const direction = applyMat3(back, [viewDirection[0] / length, viewDirection[1] / length, viewDirection[2] / length]);
+  return {
+    origin: [origin[0] + camera.center[0], origin[1] + camera.center[1], origin[2] + camera.center[2]],
+    direction,
+  };
+}
+
+function applyMat3(m: Mat3, v: readonly [number, number, number]): [number, number, number] {
+  return [
+    m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
+    m[3] * v[0] + m[4] * v[1] + m[5] * v[2],
+    m[6] * v[0] + m[7] * v[1] + m[8] * v[2],
+  ];
+}
+
 /** Centroid (mean of vertex positions), matching SimulatorPanel's boundsCenter. */
 export function centroid(positions: Float32Array): [number, number, number] {
   let sx = 0;

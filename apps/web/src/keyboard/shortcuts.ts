@@ -55,9 +55,11 @@ export type SimulatorShortcutId =
   | 'simulator.setUpright'
   | 'simulator.tool.orbit'
   | 'simulator.tool.pin'
+  | 'simulator.tool.pull'
   | 'simulator.tool.exit'
   | 'simulator.pins.clear'
-  | 'simulator.pins.throughLayers';
+  | 'simulator.pins.throughLayers'
+  | 'simulator.pull.springBack';
 export type ReferencesShortcutId =
   | 'references.nextStep'
   | 'references.previousStep'
@@ -388,18 +390,23 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
   simulatorShortcut('simulator.exportView', 'Export view…', null),
   simulatorShortcut('simulator.setUpright', 'Set upright', null),
   // The tools. Only the Simulate workspace has any, and an inline window on the
-  // Edit canvas declines all five, so O, P and Escape reach the canvas beneath
-  // it as though no simulation were in hand. O and P are free in every scope.
+  // Edit canvas declines every tool verb, so O, P, U and Escape reach the canvas
+  // beneath it as though no simulation were in hand. O, P and U are free in
+  // every scope (G is Oriedita's Fold estimate in Edit; U is for unfold).
   simulatorShortcut('simulator.tool.orbit', 'Orbit Tool', { key: 'o' }),
   simulatorShortcut('simulator.tool.pin', 'Pin Tool', { key: 'p' }),
-  // Cancel a box in flight, else back to Orbit. Declined when there is neither,
-  // so an idle Escape still reaches whatever answered it before there were tools.
+  simulatorShortcut('simulator.tool.pull', 'Pull Tool', { key: 'u' }),
+  // Cancel a box or a pull in flight, else back to Orbit. Declined when there is
+  // neither, so an idle Escape still reaches whatever answered it before there
+  // were tools.
   simulatorShortcut('simulator.tool.exit', 'Exit Tool', { key: 'escape' }),
   // Unbound: a pin holds the pose it was made in, which Clear throws away, so it
   // is not one stray key away. The window's button and the context menu are the
   // routes; a chord is there for anyone who binds one.
   simulatorShortcut('simulator.pins.clear', 'Clear Pins', null),
   simulatorShortcut('simulator.pins.throughLayers', 'Pin Through All Layers', null),
+  // Unbound for the same reason as Clear Pins: it throws away a pose made by hand.
+  simulatorShortcut('simulator.pull.springBack', 'Spring Back', null),
 ];
 
 function referencesShortcut(

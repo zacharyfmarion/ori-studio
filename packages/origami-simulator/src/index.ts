@@ -5,6 +5,15 @@ export { SimulationClock } from './simulationClock.js';
 export type { SimulationClockOptions, SimulationRecovery, SimulationTick } from './simulationClock.js';
 export type { SolverBackend, SolverBackendInfo } from './solverBackend.js';
 export { InvalidFixedNodeMaskError } from './solverBackend.js';
+export {
+  InvalidPullGripError,
+  POSE_REST_LENGTH_TOLERANCE,
+  PULL_YIELD_RADIANS,
+  type CursorRay,
+  type PullGrip,
+  type PullOutcome,
+  type PullSummary,
+} from './pull.js';
 export { WebglSolver } from './webgl/webglSolver.js';
 export {
   GlCore,
@@ -91,6 +100,7 @@ export {
 } from './coplanarRuns.js';
 export {
   cameraUniforms,
+  cursorRay,
   centroid,
   boundingRadius,
   sheetExtent,
@@ -119,11 +129,13 @@ export {
   facesVisibleIn,
   facesWithCentreIn,
   frontmostFaceAt,
+  frontmostHitAt,
   scaleRect,
   type PickOptions,
   type PickTopology,
   type ScreenPoint,
   type ScreenRect,
+  type SurfaceHit,
 } from './picking.js';
 export { GpuMath, detectWebGlSupport } from './gpuMath.js';
 export { OrigamiModel } from './model.js';

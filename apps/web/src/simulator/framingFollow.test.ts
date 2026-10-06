@@ -26,6 +26,29 @@ function shapeOf(shape: { current: Framing }) {
 }
 
 describe('followFraming', () => {
+  it('stays exactly put while held, measuring nothing, and eases on from the release', () => {
+    const follow = createFramingFollow();
+    const shape = { current: FLAT };
+    const tracked = shapeOf(shape);
+    followFraming(follow, 0, tracked.measure, false);
+    follow.held = true;
+    shape.current = FOLDED;
+
+    // A pull swinging a flap out: the shape changes, the camera does not.
+    for (const now of [100, 400, 2000]) {
+      expect(followFraming(follow, now, tracked.measure, true)).toEqual({ framing: FLAT, arrived: true });
+    }
+    expect(tracked.measures()).toBe(1);
+
+    // Let go, the next frame measures and starts easing from where the camera
+    // was, rather than jumping as though the hold had been an ease all along.
+    follow.held = false;
+    const resumed = followFraming(follow, 2000 + FRAMING_MEASURE_MS, tracked.measure, false);
+    expect(resumed.arrived).toBe(false);
+    expect(resumed.framing.radius).toBeLessThan(FLAT.radius);
+    expect(resumed.framing.radius).toBeGreaterThan(FOLDED.radius);
+  });
+
   it('lands on the first shape it sees', () => {
     const follow = createFramingFollow();
     const { measure } = shapeOf({ current: FLAT });

@@ -4,6 +4,7 @@ import type {
   FoldDocument as SimulatorFoldDocument,
   FoldProfile,
   OrbitView,
+  PullOutcome,
   RenderSettings,
   SimulatorDiagnostics,
   SimulatorOptions,
@@ -24,8 +25,13 @@ import {
 import { useSimulatorPerfLog } from './useSimulatorPerfLog';
 import { simulatorDevicePixelRatio } from './simulatorDevicePixelRatio';
 import type { PaperScene } from '../lib/paper/paperScene';
-import type { SimulatorExportSceneOptions } from './simulatorSession';
-import type { SimulatorPickQuery } from './pickQuery';
+import type {
+  SimulatorDrawnView,
+  SimulatorExportSceneOptions,
+  SimulatorPoseEnd,
+  SimulatorPullEndResult,
+} from './simulatorSession';
+import type { SimulatorPickQuery, SimulatorPullStart, SimulatorScreenPoint } from './pickQuery';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
 //
@@ -78,6 +84,15 @@ export interface SimulatorFrameView {
    * anything. Absent on a redraw, which ran no solver step.
    */
   recovered?: SimulationRecovery | null;
+  /** The paper holds a pose a pull left it in. */
+  posed?: boolean;
+  /** What ended a pose since the last frame. Absent on a redraw. */
+  poseEnded?: SimulatorPoseEnd | null;
+  /**
+   * The camera holds its framing — a pull in hand, or the pose one left — as
+   * the worker's does. Read by the canvas-2D path, which frames here.
+   */
+  framingHeld?: boolean;
 }
 
 /** What a pin request did; see `SimulatorPinResult`. */
@@ -210,6 +225,25 @@ export interface SimulatorRuntime {
     forModel: SimulatorModelView
   ) => Promise<SimulatorPinOutcome | null>;
   /**
+   * Grip the paper under a press and start pulling it, or say why not. Null
+   * when `forModel` is no longer the model on screen, or the session is gone.
+   * `drawn` is the canvas-2D path's frame; the GPU path leaves it out.
+   */
+  beginPull: (
+    at: SimulatorScreenPoint,
+    forModel: SimulatorModelView,
+    drawn?: SimulatorDrawnView
+  ) => Promise<SimulatorPullStart | null>;
+  /** Draw the pull toward where the cursor is now. Coalesced: the newest wins. */
+  movePull: (at: SimulatorScreenPoint, drawn?: SimulatorDrawnView) => void;
+  /**
+   * Let go: keep the shape as a pose, or put the paper back. Null when
+   * `forModel` is no longer the model on screen: its pull went with its session.
+   */
+  endPull: (outcome: PullOutcome, forModel: SimulatorModelView) => Promise<SimulatorPullEndResult | null>;
+  /** Let a pose spring back to the fold. */
+  releasePose: () => Promise<boolean | null>;
+  /**
    * Freeze the current view for the export dialog, or null when this runtime
    * holds no model.
    *
@@ -304,6 +338,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     foldPercent: 0,
     maxStrain: 0,
     recovered: null,
+    posed: false,
+    poseEnded: null,
+    framingHeld: false,
   });
   // Kept in a ref so the play loop does not have to tear down and rebuild every
   // time the caller passes a new closure. Assigned in an effect rather than
@@ -367,6 +404,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       foldPercent: payload.foldPercent,
       maxStrain: payload.maxStrain,
       recovered: payload.recovered,
+      posed: payload.posed,
+      poseEnded: payload.poseEnded,
+      framingHeld: payload.framingHeld,
     });
     convergedRef.current = payload.converged;
     framedRef.current = payload.framed;
@@ -380,6 +420,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       maxStrain: payload.maxStrain,
       // A redraw reuses these scalars, and must not report a recovery twice.
       recovered: null,
+      posed: payload.posed,
+      poseEnded: null,
+      framingHeld: payload.framingHeld,
     };
     // Give the buffer straight back to the worker on the next request so the
     // steady-state CPU loop allocates nothing. (Null in GPU mode.)
@@ -792,6 +835,95 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     []
   );
 
+  /**
+   * A pull's moves, coalesced as camera messages are: at most one in flight,
+   * the newest waiting behind it. A pull's begin, moves and end reach the worker
+   * in the order they were sent, so a move needs no wait for its begin; the
+   * lane only stops moves outliving their pull.
+   */
+  const pullLaneRef = useRef<{ open: boolean; moving: boolean; pending: PullMove | null }>({
+    open: false,
+    moving: false,
+    pending: null,
+  });
+
+  const sendPullMove = useCallback(function send(move: PullMove): void {
+    const client = clientRef.current;
+    const lane = pullLaneRef.current;
+    if (!client || !lane.open) return;
+    lane.moving = true;
+    convergedRef.current = false;
+    void client
+      .movePull(move.at, move.drawn, tokenRef.current)
+      .catch(() => undefined)
+      .finally(() => {
+        lane.moving = false;
+        const next = lane.pending;
+        lane.pending = null;
+        if (next) send(next);
+      });
+  }, []);
+
+  const beginPull = useCallback(
+    async (
+      at: SimulatorScreenPoint,
+      forModel: SimulatorModelView,
+      drawn?: SimulatorDrawnView
+    ): Promise<SimulatorPullStart | null> => {
+      const client = clientRef.current;
+      const lane = pullLaneRef.current;
+      lane.pending = null;
+      if (!client || modelRef.current !== forModel || tokenRef.current === undefined) {
+        lane.open = false;
+        return null;
+      }
+      lane.open = true;
+      convergedRef.current = false;
+      try {
+        const result = await client.beginPull(at, drawn, tokenRef.current);
+        if (result?.outcome !== 'pulling') lane.open = false;
+        return result?.outcome ?? null;
+      } catch (cause) {
+        lane.open = false;
+        throw cause;
+      }
+    },
+    []
+  );
+
+  const movePull = useCallback(
+    (at: SimulatorScreenPoint, drawn?: SimulatorDrawnView) => {
+      const lane = pullLaneRef.current;
+      if (!lane.open) return;
+      if (lane.moving) {
+        lane.pending = { at, drawn };
+        return;
+      }
+      sendPullMove({ at, drawn });
+    },
+    [sendPullMove]
+  );
+
+  const endPull = useCallback(
+    async (outcome: PullOutcome, forModel: SimulatorModelView): Promise<SimulatorPullEndResult | null> => {
+      const lane = pullLaneRef.current;
+      lane.open = false;
+      lane.pending = null;
+      const client = clientRef.current;
+      if (!client || modelRef.current !== forModel || tokenRef.current === undefined) return null;
+      convergedRef.current = false;
+      return client.endPull(outcome, tokenRef.current);
+    },
+    []
+  );
+
+  const releasePose = useCallback(async (): Promise<boolean | null> => {
+    const client = clientRef.current;
+    if (!client || tokenRef.current === undefined) return null;
+    convergedRef.current = false;
+    return client.releasePose(tokenRef.current);
+  }, []);
+
   const beginExport = useCallback(async (): Promise<SimulatorExportSnapshot | null> => {
     const client = clientRef.current;
     if (!client || tokenRef.current === undefined) return null;
@@ -840,6 +972,16 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     setRenderSettings,
     pickFaces,
     setPinnedFaces,
+    beginPull,
+    movePull,
+    endPull,
+    releasePose,
     beginExport,
   };
+}
+
+/** One move of a pull: where the cursor is, and the frame it is measured against. */
+interface PullMove {
+  at: SimulatorScreenPoint;
+  drawn?: SimulatorDrawnView;
 }

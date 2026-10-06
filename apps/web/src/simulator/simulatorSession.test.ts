@@ -29,7 +29,15 @@ import {
   paperExportStyle,
 } from '../paperExport/paperExportSession';
 import { paperExportDraft } from '../paperExport/usePaperExportDialog';
-import type { FoldDocument, PaperScene, RenderSettings } from '@treemaker/origami-simulator';
+import {
+  boundingRadius,
+  cameraUniforms,
+  centroid,
+  projectVertices,
+  type FoldDocument,
+  type PaperScene,
+  type RenderSettings,
+} from '@treemaker/origami-simulator';
 
 /**
  * A frame the session actually produced. `tick`/`settle` return null when the
@@ -1443,6 +1451,168 @@ describe('pinned faces', () => {
     const session = createSimulatorSession();
     session.load(miura(2, 2), {});
     expect((await frame(session.settle(4000, {}))).recovered).toBeNull();
+    session.dispose();
+  });
+});
+
+describe('pulling the paper', () => {
+  const SIZE = 400;
+
+  /**
+   * A loaded, settled sheet seen face-on, as the canvas-2D path would draw it —
+   * that path hands the worker the camera it drew with. The Miura sheet is
+   * given in 3D on z = 0, so face-on is looking down z: a quarter pitch.
+   */
+  async function sheet(fold: FoldDocument = miura(4, 4)) {
+    const session = createSimulatorSession();
+    const info = session.load(fold, {});
+    const positions = new Float32Array(positionsOf(await frame(session.settle(4000, {}))));
+    const center = centroid(positions);
+    const view = { yaw: 0, pitch: Math.PI / 2, zoom: 1 };
+    const camera = cameraUniforms(view, center, boundingRadius(positions, center), SIZE, SIZE);
+    const drawn = { camera, perspective: false };
+    const groups = new Int32Array(info.faceGroups);
+    const indices = new Uint32Array(info.indices);
+    /** Where a crease-pattern face's first triangle's centre is on screen. */
+    const pointOn = (face: number) => {
+      const triangle = groups.indexOf(face);
+      const centre = new Float32Array(3);
+      for (let corner = 0; corner < 3; corner += 1) {
+        const node = indices[triangle * 3 + corner]!;
+        for (let axis = 0; axis < 3; axis += 1) centre[axis] += positions[node * 3 + axis]! / 3;
+      }
+      const screen = projectVertices(centre, camera, { perspective: false }).screen;
+      return { x: screen[0]!, y: screen[1]!, cssWidth: SIZE, cssHeight: SIZE };
+    };
+    const faces = [...new Set(groups)];
+    return { session, info, drawn, pointOn, near: faces[0]!, far: faces[faces.length - 1]! };
+  }
+
+  async function settled(session: SimulatorWorkerApi): Promise<Float32Array> {
+    let payload = await frame(session.tick({}));
+    for (let i = 0; i < 80 && !payload.converged; i += 1) payload = await frame(session.tick({}));
+    return new Float32Array(positionsOf(payload));
+  }
+
+  it('refuses a press with nothing pinned, off the paper, or on a pinned face', async () => {
+    const { session, drawn, pointOn, near, far } = await sheet();
+    expect(session.beginPull(pointOn(far), drawn)).toEqual({ outcome: 'no-pins' });
+
+    await session.setPinnedFaces([near]);
+    expect(session.beginPull(pointOn(near), drawn)).toEqual({ outcome: 'pinned-face' });
+    expect(session.beginPull({ x: 1, y: 1, cssWidth: SIZE, cssHeight: SIZE }, drawn)).toEqual({ outcome: 'missed' });
+    expect(session.beginPull(pointOn(far), drawn)).toEqual({ outcome: 'pulling' });
+    session.dispose();
+  });
+
+  it('draws the paper toward the cursor, and keeps the shape once let go', async () => {
+    const { session, drawn, pointOn, near, far } = await sheet();
+    await session.setPinnedFaces([near]);
+    const before = await settled(session);
+    const press = pointOn(far);
+    expect(session.beginPull(press, drawn)?.outcome).toBe('pulling');
+    expect(session.movePull({ ...press, x: press.x - 60, y: press.y - 40 }, drawn)).toBe(true);
+    const pulled = await settled(session);
+    expect(maxAbsDelta(before, pulled)).toBeGreaterThan(0.05);
+
+    const ended = session.endPull('keep');
+    expect(ended?.movedCreases).toBeGreaterThan(0);
+    const kept = await settled(session);
+    const payload = await frame(session.tick({}));
+    expect(payload.posed).toBe(true);
+    expect(maxAbsDelta(pulled, kept)).toBeLessThan(0.005);
+    session.dispose();
+  });
+
+  it('ends a pose when the fold target moves, and says why once', async () => {
+    const { session, drawn, pointOn, near, far } = await sheet();
+    await session.setPinnedFaces([near]);
+    session.beginPull(pointOn(far), drawn);
+    session.endPull('keep');
+    await settled(session);
+
+    // The same target again is no move.
+    session.setFoldPercent(0);
+    expect((await frame(session.tick({}))).posed).toBe(true);
+
+    session.setFoldPercent(30);
+    const first = await frame(session.tick({}));
+    expect(first).toMatchObject({ posed: false, poseEnded: 'fold' });
+    expect((await frame(session.tick({}))).poseEnded).toBeNull();
+    session.dispose();
+  });
+
+  it('ends a pose on a restart, or on request', async () => {
+    const { session, drawn, pointOn, near, far } = await sheet();
+    await session.setPinnedFaces([near]);
+    session.beginPull(pointOn(far), drawn);
+    session.endPull('keep');
+    session.reset();
+    expect(await frame(session.tick({}))).toMatchObject({ posed: false, poseEnded: 'reset' });
+
+    session.beginPull(pointOn(far), drawn);
+    session.endPull('keep');
+    expect(session.releasePose()).toBe(true);
+    expect(await frame(session.tick({}))).toMatchObject({ posed: false, poseEnded: 'request' });
+    session.dispose();
+  });
+
+  it('stops answering moves once the fold has taken the paper back', async () => {
+    const { session, drawn, pointOn, near, far } = await sheet();
+    await session.setPinnedFaces([near]);
+    session.beginPull(pointOn(far), drawn);
+    session.setFoldPercent(50);
+    expect(session.movePull(pointOn(far), drawn)).toBe(false);
+    expect(session.endPull('keep')).toEqual({ movedCreases: 0 });
+    // A pull still in the hand was never a pose, so nothing says one ended.
+    expect(await frame(session.tick({}))).toMatchObject({ posed: false, poseEnded: null });
+    session.dispose();
+  });
+
+  it('holds the camera through a pull and the pose it leaves, and lets go with the pose', async () => {
+    const { session, drawn, pointOn, near, far } = await sheet();
+    await session.setPinnedFaces([near]);
+    expect((await frame(session.tick({}))).framingHeld).toBe(false);
+
+    session.beginPull(pointOn(far), drawn);
+    expect((await frame(session.tick({}))).framingHeld).toBe(true);
+    session.endPull('cancel');
+    expect((await frame(session.tick({}))).framingHeld).toBe(false);
+
+    // Kept, the view stays where the pull left it until the pose ends.
+    session.beginPull(pointOn(far), drawn);
+    session.endPull('keep');
+    expect((await frame(session.tick({}))).framingHeld).toBe(true);
+    session.setFoldPercent(30);
+    expect((await frame(session.tick({}))).framingHeld).toBe(false);
+    session.dispose();
+  });
+
+  it('is posed once a pull is let go and kept, not while it is in the hand', async () => {
+    const { session, drawn, pointOn, near, far } = await sheet();
+    await session.setPinnedFaces([near]);
+    session.beginPull(pointOn(far), drawn);
+    expect((await frame(session.tick({}))).posed).toBe(false);
+    session.endPull('cancel');
+    expect((await frame(session.tick({}))).posed).toBe(false);
+
+    session.beginPull(pointOn(far), drawn);
+    session.endPull('keep');
+    expect((await frame(session.tick({}))).posed).toBe(true);
+    // A second pull abandoned puts back what it moved, and the first pose stays.
+    session.beginPull(pointOn(far), drawn);
+    session.endPull('cancel');
+    expect((await frame(session.tick({}))).posed).toBe(true);
+    session.dispose();
+  });
+
+  it('answers null for a session that has gone', async () => {
+    const { session, info, drawn, pointOn, far } = await sheet();
+    session.release(info.token);
+    expect(session.beginPull(pointOn(far), drawn, info.token)).toBeNull();
+    expect(session.movePull(pointOn(far), drawn, info.token)).toBeNull();
+    expect(session.endPull('cancel', info.token)).toBeNull();
+    expect(session.releasePose(info.token)).toBeNull();
     session.dispose();
   });
 });

@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EDGE_BOUNDARY_A, EDGE_CODE, type RenderSettings } from '@treemaker/origami-simulator';
-import { drawFrame, EMPTY_HIGHLIGHTS, invalidateSimulatorSurface, pickDrawnFrame } from './canvas2dFrame';
+import {
+  drawFrame,
+  drawnCameraOf,
+  EMPTY_HIGHLIGHTS,
+  invalidateSimulatorSurface,
+  pickDrawnFrame,
+} from './canvas2dFrame';
 import type { SimulatorRenderModel } from './renderModel';
 import type { SimulatorPaint } from './simulatorPalette';
 import type { SimulatorFrameView } from './useSimulatorRuntime';
@@ -444,6 +450,26 @@ describe('drawFrame edges', () => {
     // The aux line is √5 ≈ 2.24 units long and the pull is 1.2, past its
     // midpoint; the four borders never erode.
     expect(strokes()).toHaveLength(4);
+  });
+});
+
+describe('drawFrame framing', () => {
+  // The sheet at twice the size, as a pull that opened it out would leave it.
+  const GROWN = frameOf([-2, 0, -2, 2, 0, -2, -2, 0, 2]);
+
+  it('holds the camera while the frame says a pull or its pose holds it, and follows after', () => {
+    const now = vi.spyOn(performance, 'now');
+    now.mockReturnValue(0);
+    drawFrame(canvas, MODEL, FACING_SHEET, VIEW, paintWith({}), EMPTY_HIGHLIGHTS);
+    const before = drawnCameraOf(canvas);
+
+    now.mockReturnValue(1000);
+    drawFrame(canvas, MODEL, { ...GROWN, framingHeld: true }, VIEW, paintWith({}), EMPTY_HIGHLIGHTS);
+    expect(drawnCameraOf(canvas)).toEqual(before);
+
+    now.mockReturnValue(2000);
+    drawFrame(canvas, MODEL, GROWN, VIEW, paintWith({}), EMPTY_HIGHLIGHTS);
+    expect(drawnCameraOf(canvas)).not.toEqual(before);
   });
 });
 

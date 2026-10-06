@@ -68,6 +68,9 @@
     "pickFailed": "Die Flächen an dieser Stelle konnten nicht ermittelt werden. Bitte erneut versuchen.",
     "updateFailed": "Diese Flächen konnten nicht fixiert werden. Bitte erneut versuchen."
   },
+  "simulatorPull": {
+    "failed": "Das Papier konnte nicht gezogen werden. Versuchen Sie es erneut."
+  },
   "update": {
     "available": "Version {{version}} ist verfügbar",
     "checkFailed": "Nach Updates konnte nicht gesucht werden",

@@ -66,6 +66,8 @@ export type {
   ReferenceTargetKind,
   SettingsSectionName,
   SimulatorPinsClearSource,
+  SimulatorPoseReleaseSource,
+  SimulatorPullRefusal,
   SimulatorToolOptionSource,
   SimulatorToolSelectSource,
   UpdateCheckResult,
@@ -103,9 +105,12 @@ export {
 } from './trackPaperExport';
 export { trackSymmetryPairChanged, type SymmetryPairAction } from './trackSymmetryPairChanged';
 export {
+  trackSimulatorModelPulled,
   trackSimulatorPinnedFoldMoved,
   trackSimulatorPinsCleared,
   trackSimulatorPinsEdited,
+  trackSimulatorPoseReleased,
+  trackSimulatorPullRefused,
   trackSimulatorSolverRecovered,
   trackSimulatorToolOptionChanged,
   trackSimulatorToolPickerOpened,

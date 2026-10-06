@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import { describe, expect, it, vi } from 'vitest';
 import { getShortcutDefinition } from '../../keyboard/shortcuts';
 import {
+  simulatorCanvasLabels,
   simulatorToolButtons,
   simulatorToolMenuVerbs,
   simulatorToolWindow,
@@ -30,12 +31,13 @@ function view(extra: Partial<SimulatorToolsView> = {}): SimulatorToolsView {
     pinnedCount: 0,
     options: DEFAULT_SIMULATOR_TOOL_OPTIONS,
     notices: [],
+    posed: false,
     ...extra,
   };
 }
 
 function verbs(): SimulatorToolVerbs {
-  return { selectTool: vi.fn(), clearPins: vi.fn(), setOption: vi.fn() };
+  return { selectTool: vi.fn(), clearPins: vi.fn(), setOption: vi.fn(), springBack: vi.fn() };
 }
 
 const MAC: SimulatorToolHost = { apple: true, coarse: false };
@@ -53,13 +55,14 @@ describe('the tool catalog', () => {
 });
 
 describe('simulatorToolButtons', () => {
-  it('lists Orbit then Pin, with the active one marked and each selecting itself', () => {
+  it('lists Orbit, Pin then Pull, with the active one marked and each selecting itself', () => {
     const bound = verbs();
     const buttons = simulatorToolButtons(t, view({ activeToolId: 'pin' }), bound, 'rail');
 
     expect(buttons.map((button) => [button.id, button.label, button.active])).toEqual([
       ['orbit', 'Orbit', false],
       ['pin', 'Pin', true],
+      ['pull', 'Pull', false],
     ]);
     buttons[0].select();
     expect(bound.selectTool).toHaveBeenCalledWith('orbit', 'rail');
@@ -72,6 +75,15 @@ describe('simulatorToolButtons', () => {
     expect(badge({ pinnedCount: 3 })).toBe(true);
     expect(badge({ pinnedCount: 3, activeToolId: 'pin' })).toBe(false);
     expect(badge({ pinnedCount: 0 })).toBe(false);
+  });
+
+  it('marks Pull while the paper holds a pose and another tool is in hand', () => {
+    const badge = (extra: Partial<SimulatorToolsView>) =>
+      simulatorToolButtons(t, view(extra), verbs(), 'rail').find((button) => button.id === 'pull')?.badge;
+
+    expect(badge({ posed: true })).toBe(true);
+    expect(badge({ posed: true, activeToolId: 'pull' })).toBe(false);
+    expect(badge({ posed: false })).toBe(false);
   });
 });
 
@@ -131,9 +143,69 @@ describe('simulatorToolWindow', () => {
   });
 });
 
+describe('the Pull tool’s window', () => {
+  it('asks for pins first when there are none, with Pin as the way to make some', () => {
+    const bound = verbs();
+    const window = simulatorToolWindow(t, view({ activeToolId: 'pull' }), bound, MAC);
+
+    expect(window).toMatchObject({
+      kind: 'pull',
+      title: 'Pull',
+      meta: 'Instructions',
+      pins: null,
+      pose: null,
+      needsPins: { text: 'Pin the faces that should hold still, then pull.', pinLabel: 'Pin faces' },
+    });
+    window?.needsPins?.pin();
+    expect(bound.selectTool).toHaveBeenCalledWith('pin', 'tool-window');
+  });
+
+  it('says how to pull, keep and put it back, in this device’s terms', () => {
+    const instructions = (host: SimulatorToolHost) =>
+      simulatorToolWindow(t, view({ activeToolId: 'pull', pinnedCount: 2 }), verbs(), host)?.instructions;
+
+    expect(instructions(MAC)).toEqual([
+      'Drag the paper to pull it. Pinned faces hold still.',
+      'Let go and it stays. Play or scrub the fold to let it spring back.',
+      'Esc while dragging puts it back.',
+      'Cmd-drag turns the model.',
+    ]);
+    expect(instructions(PHONE)?.at(-1)).toBe('Switch to Orbit to turn the model.');
+    expect(instructions(PHONE)).toHaveLength(3);
+  });
+
+  it('offers Spring back while posed, under any tool', () => {
+    const bound = verbs();
+    const pulling = simulatorToolWindow(t, view({ activeToolId: 'pull', pinnedCount: 1, posed: true }), bound, MAC);
+    expect(pulling?.pose?.springBackLabel).toBe('Spring back');
+    pulling?.pose?.springBack();
+    expect(bound.springBack).toHaveBeenCalledWith('tool-window');
+
+    const orbiting = simulatorToolWindow(t, view({ posed: true }), verbs(), MAC);
+    expect(orbiting).toMatchObject({ kind: 'pins', title: 'Pose', meta: 'Posed', pins: null });
+    expect(orbiting?.pose).not.toBeNull();
+
+    const pinning = simulatorToolWindow(t, view({ activeToolId: 'pin', posed: true }), verbs(), MAC);
+    expect(pinning?.pose).not.toBeNull();
+  });
+});
+
 describe('simulatorToolMenuVerbs', () => {
-  it('offers Clear only while there are pins', () => {
+  it('offers Clear only while there are pins, and Spring back only while posed', () => {
     expect(simulatorToolMenuVerbs(view())).toEqual([]);
     expect(simulatorToolMenuVerbs(view({ pinnedCount: 2 }))).toEqual(['simulator.pins.clear']);
+    expect(simulatorToolMenuVerbs(view({ pinnedCount: 2, posed: true }))).toEqual([
+      'simulator.pins.clear',
+      'simulator.pull.springBack',
+    ]);
+  });
+});
+
+describe('simulatorCanvasLabels', () => {
+  it('says what a drag on the canvas does under each tool', () => {
+    expect(simulatorCanvasLabels(t, 'orbit').title).toBe('Drag to rotate, scroll to zoom, double-click to reset view');
+    expect(simulatorCanvasLabels(t, 'pin').title).toBe('Drag a box or click a face to pin it, scroll to zoom');
+    expect(simulatorCanvasLabels(t, 'pull').title).toBe('Drag the paper to pull it, scroll to zoom');
+    expect(simulatorCanvasLabels(t, 'pull').ariaLabel).toContain('pull it around its pins');
   });
 });

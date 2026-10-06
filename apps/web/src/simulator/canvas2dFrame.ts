@@ -217,6 +217,9 @@ export function drawFrame(
     surface.anchorFor = highlights.pinned;
     anchorFraming(surface.framing, pinnedNodes(model, highlights.pinned), positions);
   }
+  // Held where it is while a pull is in hand or its pose holds, as the worker
+  // holds its own camera: see `FramingFollow.held`.
+  surface.framing.held = frame.framingHeld ?? false;
   const { framing, arrived } = followFraming(
     surface.framing,
     performance.now(),
@@ -337,6 +340,15 @@ export function drawFrame(
     drawAllEdges(ctx, model, projected, map, dpr, 0.95, palette, highlights);
   }
   return arrived;
+}
+
+/**
+ * The camera the frame last drawn on `canvas` used, in its drawing-buffer
+ * pixels — what a pull on the canvas-2D path is measured against, since the
+ * worker never sees this path's camera. Null before anything is drawn.
+ */
+export function drawnCameraOf(canvas: HTMLCanvasElement): CameraUniforms | null {
+  return surfaceCache.get(canvas)?.drawn?.camera ?? null;
 }
 
 /**

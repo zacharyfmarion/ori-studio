@@ -1,3 +1,4 @@
+import type { CursorRay, PullGrip, PullOutcome, PullSummary } from './pull.js';
 import type { FoldProfile, SimulatorDiagnostics, SimulatorOptions } from './types.js';
 
 /**
@@ -25,8 +26,38 @@ export interface SolverBackend {
   setFoldProfile(profile: FoldProfile | null): void;
   setMaterial(options: Partial<SimulatorOptions>): void;
 
-  /** Return to the flat rest state and zero all velocities. */
+  /**
+   * Return to the flat rest state and zero all velocities. Ends a pull and
+   * releases the pose: flat paper has neither.
+   */
   reset(): void;
+
+  /**
+   * Grip a point of the paper and draw it toward a ray (`pull.ts`). Fold creases
+   * yield from where they are for as long as the pull lasts. A pull already in
+   * progress is cancelled first.
+   *
+   * @throws {InvalidPullGripError} when the grip does not describe this model.
+   */
+  beginPull(grip: PullGrip): void;
+
+  /** Draw the grip toward a new ray. Nothing to do without a pull. */
+  movePull(ray: CursorRay): void;
+
+  /**
+   * Let go. `keep` makes the shape as it is the paper's rest shape — crease
+   * angles, edge lengths and face angles — so nothing springs back: a pose.
+   * `cancel` puts the rest state back as the pull found it.
+   */
+  endPull(outcome: PullOutcome): PullSummary;
+
+  /** Drop the pose: creases follow the fold target again, edges and faces the sheet. */
+  releasePose(): void;
+
+  /** Crease targets come from a pose, not the fold target. True during a pull, too. */
+  readonly posed: boolean;
+
+  readonly pulling: boolean;
 
   /**
    * Hold nodes where they are: a fixed node keeps its current position and has

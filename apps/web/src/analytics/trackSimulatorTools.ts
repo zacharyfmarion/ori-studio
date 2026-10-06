@@ -11,8 +11,11 @@ import type { PinMode, SimulatorPickReach, SimulatorToolId } from '../simulator/
 import {
   ANALYTICS_EVENTS,
   bucketCount,
+  SIMULATOR_MOVED_CREASE_BUCKETS,
   SIMULATOR_PIN_COUNT_BUCKETS,
   type SimulatorPinsClearSource,
+  type SimulatorPoseReleaseSource,
+  type SimulatorPullRefusal,
   type SimulatorToolOptionSource,
   type SimulatorToolSelectSource,
 } from './events';
@@ -93,4 +96,27 @@ export function trackSimulatorSolverRecovered(input: {
     action: input.action,
     pinned: input.pinned ? 'yes' : 'no',
   });
+}
+
+export function trackSimulatorModelPulled(input: {
+  outcome: 'kept' | 'cancelled';
+  touch: boolean;
+  pinnedCount: number;
+  /** Fold creases the pull turned, as the solver counts them. */
+  movedCreases: number;
+}): void {
+  track(ANALYTICS_EVENTS.simulatorModelPulled, {
+    outcome: input.outcome,
+    input: input.touch ? 'touch' : 'pointer',
+    pinned_count_bucket: pinBucket(input.pinnedCount),
+    moved_creases_bucket: bucketCount(input.movedCreases, SIMULATOR_MOVED_CREASE_BUCKETS),
+  });
+}
+
+export function trackSimulatorPullRefused(input: { reason: SimulatorPullRefusal }): void {
+  track(ANALYTICS_EVENTS.simulatorPullRefused, { reason: input.reason });
+}
+
+export function trackSimulatorPoseReleased(input: { source: SimulatorPoseReleaseSource }): void {
+  track(ANALYTICS_EVENTS.simulatorPoseReleased, { source: input.source });
 }

@@ -68,6 +68,8 @@ export interface PackedModel {
   /** Beam rest lengths and neighbour indices, needed to rebuild beamMeta on material change. */
   beamRestLength: Float32Array;
   beamOtherNode: Float32Array;
+  /** Each beam incidence's edge, which a kept pose's rest length is looked up by. */
+  beamEdge: Uint32Array;
   /** Which creases are flat panels (targetAngle 0) vs folds; and their rest lengths and target radians. */
   creaseIsFlat: Uint8Array;
   creaseRestLength: Float32Array;
@@ -97,14 +99,14 @@ export function packModel(model: OrigamiModel, material: SolverMaterial): Packed
   const creaseCount = creaseParams.length;
 
   // --- per-node beam incidences (CSR) ---
-  const nodeBeams: Array<{ other: number; rest: number }[]> = Array.from(
+  const nodeBeams: Array<{ other: number; rest: number; edge: number }[]> = Array.from(
     { length: nodeCount },
     () => []
   );
   prepared.edgesVertices.forEach((edge, edgeIndex) => {
     const rest = Math.max(EPSILON, model.edgeRestLength(edgeIndex));
-    nodeBeams[edge[0]]!.push({ other: edge[1], rest });
-    nodeBeams[edge[1]]!.push({ other: edge[0], rest });
+    nodeBeams[edge[0]]!.push({ other: edge[1], rest, edge: edgeIndex });
+    nodeBeams[edge[1]]!.push({ other: edge[0], rest, edge: edgeIndex });
   });
   const edgeIncidences = nodeBeams.reduce((sum, list) => sum + list.length, 0);
 
@@ -155,6 +157,7 @@ export function packModel(model: OrigamiModel, material: SolverMaterial): Packed
   const externalForces = rgba(dims.textureDim);
   const beamRestLength = new Float32Array(edgeIncidences);
   const beamOtherNode = new Float32Array(edgeIncidences);
+  const beamEdge = new Uint32Array(edgeIncidences);
   const nodeCreaseMeta = rgba(dims.textureDimNodeCreases);
   const nodeFaceMeta = rgba(dims.textureDimNodeFaces);
 
@@ -175,6 +178,7 @@ export function packModel(model: OrigamiModel, material: SolverMaterial): Packed
     for (const beam of nodeBeams[i]!) {
       beamRestLength[beamCursor] = beam.rest;
       beamOtherNode[beamCursor] = beam.other;
+      beamEdge[beamCursor] = beam.edge;
       beamCursor += 1;
     }
   }
@@ -264,6 +268,7 @@ export function packModel(model: OrigamiModel, material: SolverMaterial): Packed
     thetaInit,
     beamRestLength,
     beamOtherNode,
+    beamEdge,
     creaseIsFlat,
     creaseRestLength,
     creaseTargetRadians,
@@ -271,8 +276,16 @@ export function packModel(model: OrigamiModel, material: SolverMaterial): Packed
   };
 }
 
-/** beamMeta = [k, d, restLength, otherNodeIndex] per incidence; k/d depend on material. */
-export function packBeamMeta(packed: PackedModel, material: SolverMaterial): Float32Array {
+/**
+ * beamMeta = [k, d, restLength, otherNodeIndex] per incidence; k/d depend on
+ * material. `poseLengths` (one per edge) replaces the rest length a kept pose
+ * holds; stiffness and damping stay the sheet's.
+ */
+export function packBeamMeta(
+  packed: PackedModel,
+  material: SolverMaterial,
+  poseLengths: Float32Array | null = null
+): Float32Array {
   const size = packed.dims.textureDimEdges;
   const out = new Float32Array(size * size * 4);
   const axial = Math.max(0, material.axialStiffness);
@@ -282,7 +295,7 @@ export function packBeamMeta(packed: PackedModel, material: SolverMaterial): Flo
     const k = axial / rest;
     out[i * 4] = k;
     out[i * 4 + 1] = damping * 2 * Math.sqrt(k); // getD with minMass 1
-    out[i * 4 + 2] = rest;
+    out[i * 4 + 2] = poseLengths ? poseLengths[packed.beamEdge[i]!]! : rest;
     out[i * 4 + 3] = packed.beamOtherNode[i]!;
   }
   return out;

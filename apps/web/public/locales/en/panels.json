@@ -1099,8 +1099,10 @@
     "backToPatterns": "Patterns",
     "canvasAriaLabel": "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
     "canvasAriaLabelPin": "Origami folded-base simulator. Drag a box or click a face to pin it, scroll to zoom.",
+    "canvasAriaLabelPull": "Origami folded-base simulator. Drag the paper to pull it around its pins, scroll to zoom.",
     "canvasTitle": "Drag to rotate, scroll to zoom, double-click to reset view",
     "canvasTitlePin": "Drag a box or click a face to pin it, scroll to zoom",
+    "canvasTitlePull": "Drag the paper to pull it, scroll to zoom",
     "contextMenu": {
       "pause": "Pause",
       "play": "Play",
@@ -1154,6 +1156,20 @@
         "count_one": "1 face pinned",
         "count_other": "{{count}} faces pinned",
         "title": "Pins"
+      },
+      "pose": {
+        "meta": "Posed",
+        "springBack": "Spring back",
+        "title": "Pose"
+      },
+      "pull": {
+        "cancel": "Esc while dragging puts it back.",
+        "description": "Drag the paper open around its pins. It stays where you leave it.",
+        "drag": "Drag the paper to pull it. Pinned faces hold still.",
+        "keep": "Let go and it stays. Play or scrub the fold to let it spring back.",
+        "label": "Pull",
+        "needsPins": "Pin the faces that should hold still, then pull.",
+        "pinFaces": "Pin faces"
       },
       "railLabel": "Simulator tools",
       "windowLabel": "Simulator tool options"

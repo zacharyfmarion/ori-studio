@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import type {
   SimulatorPinsClearSource,
+  SimulatorPoseReleaseSource,
   SimulatorToolOptionSource,
   SimulatorToolSelectSource,
 } from '../../analytics/events';
@@ -32,6 +33,8 @@ export interface SimulatorToolVerbs {
   selectTool: (id: SimulatorToolId, source: SimulatorToolSelectSource) => void;
   clearPins: (source: SimulatorPinsClearSource) => void;
   setOption: (id: SimulatorToolOptionId, value: boolean, source: SimulatorToolOptionSource) => void;
+  /** Let the pose a pull left go: the paper springs back to the fold. */
+  springBack: (source: Exclude<SimulatorPoseReleaseSource, 'fold-control' | 'restart'>) => void;
 }
 
 /** What the instructions can promise on this device. */
@@ -53,7 +56,7 @@ export interface SimulatorToolButton {
   active: boolean;
   /**
    * Something this tool made is still in effect while another tool is in hand:
-   * pins, under Orbit. Without it pins would be invisible from the rail.
+   * pins, or a pose. Without it they would be invisible from the rail.
    */
   badge: boolean;
   select: () => void;
@@ -67,14 +70,18 @@ export interface SimulatorToolToggle {
 }
 
 export interface SimulatorToolWindowModel {
-  /** Which window: the Pin tool's, or the pins' while another tool is active. */
-  kind: 'pin' | 'pins';
+  /** Which window: the Pin or Pull tool's, or the pins' and pose's under another tool. */
+  kind: 'pin' | 'pull' | 'pins';
   title: string;
   meta: string;
   instructions: readonly string[];
   toggles: readonly SimulatorToolToggle[];
   /** Clear, while there are pins. The count is the header's `meta`. */
   pins: { clearLabel: string; clear: () => void } | null;
+  /** Spring back, while the paper holds a pose. */
+  pose: { springBackLabel: string; springBack: () => void } | null;
+  /** Pull with nothing pinned: pins come first, and the way to make some. */
+  needsPins: { text: string; pinLabel: string; pin: () => void } | null;
   notices: readonly string[];
 }
 
@@ -84,6 +91,8 @@ export function simulatorToolLabel(t: TFunction, id: SimulatorToolId): string {
       return t('panels:simulator.tools.orbit.label', 'Orbit');
     case 'pin':
       return t('panels:simulator.tools.pin.label', 'Pin');
+    case 'pull':
+      return t('panels:simulator.tools.pull.label', 'Pull');
   }
 }
 
@@ -96,6 +105,41 @@ export function simulatorToolDescription(t: TFunction, id: SimulatorToolId): str
         'panels:simulator.tools.pin.description',
         'Hold faces in place while the rest of the paper folds.'
       );
+    case 'pull':
+      return t(
+        'panels:simulator.tools.pull.description',
+        'Drag the paper open around its pins. It stays where you leave it.'
+      );
+  }
+}
+
+/** What the canvas says it does under each tool: its accessible name, and its hover title. */
+export function simulatorCanvasLabels(t: TFunction, id: SimulatorToolId): { ariaLabel: string; title: string } {
+  switch (id) {
+    case 'pin':
+      return {
+        ariaLabel: t(
+          'panels:simulator.canvasAriaLabelPin',
+          'Origami folded-base simulator. Drag a box or click a face to pin it, scroll to zoom.'
+        ),
+        title: t('panels:simulator.canvasTitlePin', 'Drag a box or click a face to pin it, scroll to zoom'),
+      };
+    case 'pull':
+      return {
+        ariaLabel: t(
+          'panels:simulator.canvasAriaLabelPull',
+          'Origami folded-base simulator. Drag the paper to pull it around its pins, scroll to zoom.'
+        ),
+        title: t('panels:simulator.canvasTitlePull', 'Drag the paper to pull it, scroll to zoom'),
+      };
+    case 'orbit':
+      return {
+        ariaLabel: t(
+          'panels:simulator.canvasAriaLabel',
+          'Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.'
+        ),
+        title: t('panels:simulator.canvasTitle', 'Drag to rotate, scroll to zoom, double-click to reset view'),
+      };
   }
 }
 
@@ -113,7 +157,9 @@ export function simulatorToolButtons(
     description: simulatorToolDescription(t, tool.id),
     shortcut: tool.shortcut,
     active: view.activeToolId === tool.id,
-    badge: tool.id === 'pin' && view.activeToolId !== 'pin' && view.pinnedCount > 0,
+    badge:
+      view.activeToolId !== tool.id &&
+      ((tool.id === 'pin' && view.pinnedCount > 0) || (tool.id === 'pull' && view.posed)),
     select: () => verbs.selectTool(tool.id, surface),
   }));
 }
@@ -144,6 +190,45 @@ function pinInstructions(t: TFunction, host: SimulatorToolHost): string[] {
       ? t('panels:simulator.tools.pin.orbitApple', 'Cmd-drag turns the model.')
       : t('panels:simulator.tools.pin.orbitMiddle', 'Drag with the middle button to turn the model.'),
   ];
+}
+
+function pullInstructions(t: TFunction, host: SimulatorToolHost): string[] {
+  const lines = [
+    t('panels:simulator.tools.pull.drag', 'Drag the paper to pull it. Pinned faces hold still.'),
+    t(
+      'panels:simulator.tools.pull.keep',
+      'Let go and it stays. Play or scrub the fold to let it spring back.'
+    ),
+  ];
+  if (host.coarse) {
+    return [...lines, t('panels:simulator.tools.pin.touchOrbit', 'Switch to Orbit to turn the model.')];
+  }
+  return [
+    ...lines,
+    t('panels:simulator.tools.pull.cancel', 'Esc while dragging puts it back.'),
+    host.apple
+      ? t('panels:simulator.tools.pin.orbitApple', 'Cmd-drag turns the model.')
+      : t('panels:simulator.tools.pin.orbitMiddle', 'Drag with the middle button to turn the model.'),
+  ];
+}
+
+function windowTitle(t: TFunction, kind: SimulatorToolWindowModel['kind'], pinnedCount: number): string {
+  switch (kind) {
+    case 'pin':
+      return simulatorToolLabel(t, 'pin');
+    case 'pull':
+      return simulatorToolLabel(t, 'pull');
+    case 'pins':
+      return pinnedCount > 0
+        ? t('panels:simulator.tools.pins.title', 'Pins')
+        : t('panels:simulator.tools.pose.title', 'Pose');
+  }
+}
+
+function windowMeta(t: TFunction, view: SimulatorToolsView): string {
+  if (view.pinnedCount > 0) return pinCountLabel(t, view.pinnedCount);
+  if (view.posed) return t('panels:simulator.tools.pose.meta', 'Posed');
+  return t('panels:simulator.tools.instructions', 'Instructions');
 }
 
 function optionLabel(t: TFunction, id: SimulatorToolOptionId): string {
@@ -177,18 +262,15 @@ export function simulatorToolWindow(
 ): SimulatorToolWindowModel | null {
   const sections = simulatorTool(view.activeToolId).window(view);
   if (!sections) return null;
-  const count = view.pinnedCount;
   return {
     kind: sections.kind,
-    title:
-      sections.kind === 'pin'
-        ? simulatorToolLabel(t, 'pin')
-        : t('panels:simulator.tools.pins.title', 'Pins'),
-    meta:
-      count > 0
-        ? pinCountLabel(t, count)
-        : t('panels:simulator.tools.instructions', 'Instructions'),
-    instructions: sections.instructions ? pinInstructions(t, host) : [],
+    title: windowTitle(t, sections.kind, view.pinnedCount),
+    meta: windowMeta(t, view),
+    instructions: !sections.instructions
+      ? []
+      : sections.kind === 'pull'
+        ? pullInstructions(t, host)
+        : pinInstructions(t, host),
     toggles: sections.options.map((id) => ({
       id,
       label: optionLabel(t, id),
@@ -201,6 +283,22 @@ export function simulatorToolWindow(
           clear: () => verbs.clearPins('tool-window'),
         }
       : null,
+    pose: sections.pose
+      ? {
+          springBackLabel: t('panels:simulator.tools.pose.springBack', 'Spring back'),
+          springBack: () => verbs.springBack('tool-window'),
+        }
+      : null,
+    needsPins: sections.needsPins
+      ? {
+          text: t(
+            'panels:simulator.tools.pull.needsPins',
+            'Pin the faces that should hold still, then pull.'
+          ),
+          pinLabel: t('panels:simulator.tools.pull.pinFaces', 'Pin faces'),
+          pin: () => verbs.selectTool('pin', 'tool-window'),
+        }
+      : null,
     notices: view.notices.map((notice) => noticeText(t, notice)),
   };
 }
@@ -210,5 +308,8 @@ export function simulatorToolWindow(
  * its own label and key. Only while there is something to act on.
  */
 export function simulatorToolMenuVerbs(view: SimulatorToolsView): SimulatorShortcutId[] {
-  return view.pinnedCount > 0 ? ['simulator.pins.clear'] : [];
+  const verbs: SimulatorShortcutId[] = [];
+  if (view.pinnedCount > 0) verbs.push('simulator.pins.clear');
+  if (view.posed) verbs.push('simulator.pull.springBack');
+  return verbs;
 }

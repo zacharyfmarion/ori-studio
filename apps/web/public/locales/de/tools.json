@@ -298,12 +298,14 @@
     "playPause": "Faltung abspielen / pausieren",
     "replay": "Simulation neu starten",
     "resetView": "Simulatoransicht zurücksetzen",
+    "springBack": "Zurückfedern",
     "toggleCreases": "Falzlinien",
     "toggleFaces": "Flächen",
     "toggleLighting": "Beleuchtung",
     "toolExit": "Werkzeug beenden",
     "toolOrbit": "Orbit-Werkzeug",
-    "toolPin": "Fixier-Werkzeug"
+    "toolPin": "Fixier-Werkzeug",
+    "toolPull": "Zieh-Werkzeug"
   },
   "viewport": {
     "contextMenu": "Kontextmenü öffnen",

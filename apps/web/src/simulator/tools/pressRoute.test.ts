@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { boxGestureEngine } from './engines/boxGesture';
+import { pullGestureEngine } from './engines/pullGesture';
 import { routeSimulatorPress, type SimulatorPress } from './pressRoute';
 
 function press(extra: Partial<SimulatorPress> = {}): SimulatorPress {
@@ -33,6 +34,16 @@ describe('routeSimulatorPress', () => {
       kind: 'gesture',
       engine: boxGestureEngine,
     });
+  });
+
+  it('hands a pull its engine, which takes hold of the paper', () => {
+    expect(routeSimulatorPress(press(), 'pull')).toEqual({
+      kind: 'gesture',
+      engine: pullGestureEngine,
+      grabsPaper: true,
+    });
+    // Meta still orbits under Pull, as under every tool.
+    expect(routeSimulatorPress(press({ meta: true }), 'pull')).toEqual({ kind: 'orbit', mode: 'orbit' });
   });
 
   it('ignores the buttons nothing answers', () => {
