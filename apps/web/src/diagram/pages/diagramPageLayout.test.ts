@@ -51,8 +51,9 @@ function step(index: number, patch: Partial<LayoutStep> = {}): LayoutStep {
 const steps = (count: number, patch: (index: number) => Partial<LayoutStep> = () => ({})) =>
   Array.from({ length: count }, (_, index) => step(index, patch(index)));
 
+/** The pages under a setup: the grid unless it says, as these cases were written for (a new diagram's is the flow). */
 function layout(list: LayoutStep[], setup: Partial<DiagramPageSetup> = {}, title = 'Crane') {
-  return layoutDiagramPages(list, { ...DEFAULT_PAGE_SETUP, ...setup }, title, estimateTextSetter);
+  return layoutDiagramPages(list, { ...DEFAULT_PAGE_SETUP, layout: 'grid', ...setup }, title, estimateTextSetter);
 }
 
 const paper = (width: number, height: number = width): LayoutStep['picture'] => ({
@@ -512,7 +513,7 @@ describe('layoutDiagramPages', () => {
     const CJK = '将底角向上折至顶角，压实折痕后展开。将底角向上折至顶角，压实折痕后展开。';
     for (const [columns, rows] of [[2, 1], [3, 3], [5, 6]] as const) {
       const list = steps(12, (index) => ({ text: [SHORT, LONG, CJK][index % 3]! }));
-      const result = layoutDiagramPages(list, { ...DEFAULT_PAGE_SETUP, columns, rows }, 'Crane', setter);
+      const result = layoutDiagramPages(list, { ...DEFAULT_PAGE_SETUP, layout: 'grid', columns, rows }, 'Crane', setter);
       for (const cell of result.pages.flatMap((page) => page.cells)) {
         for (const line of cell.text.lines) expect(line.widthMm).toBeLessThanOrEqual(cell.text.widthMm + 1e-9);
         const last = cell.text.firstBaseline + (cell.text.lines.length - 1) * STEP_TEXT_LEADING_MM;

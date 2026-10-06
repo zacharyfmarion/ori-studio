@@ -395,7 +395,10 @@ describe('composeDiagramPage', () => {
       ],
       0
     );
-    const document: DiagramDocument = { ...made, page: { ...made.page, size: 'a5', orientation: 'landscape', columns: 3, rows: 5 } };
+    const document: DiagramDocument = {
+      ...made,
+      page: { ...made.page, layout: 'grid', size: 'a5', orientation: 'landscape', columns: 3, rows: 5 },
+    };
     const cell = layoutDiagram(document, estimateTextSetter).pages[0]!.cells[0]!;
     const { above, below, bottom } = overruns(document, cell);
     expect(above).toBeGreaterThan(1);

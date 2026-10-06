@@ -237,8 +237,14 @@ describe('page setup', () => {
     expect(setPageSetup(diagram, { columns: 3 })).toBe(diagram);
   });
 
+  it('starts a new diagram in the flow layout', () => {
+    expect(DEFAULT_PAGE_SETUP.layout).toBe('flow');
+    expect(createDiagram().page.layout).toBe('flow');
+  });
+
   it('reads anything, falling back field by field', () => {
-    expect(normalizePageSetup(null)).toEqual(DEFAULT_PAGE_SETUP);
+    // A layout not said is the grid, every diagram's before the flow was a new one's.
+    expect(normalizePageSetup(null)).toEqual({ ...DEFAULT_PAGE_SETUP, layout: 'grid' });
     expect(
       normalizePageSetup({
         size: 'letter',

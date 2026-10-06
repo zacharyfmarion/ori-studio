@@ -275,6 +275,10 @@ export function writeDiagram(
  * it is the right — so a diagram on the left, as every one was before the
  * choice, opens in a build that does not know it (an unknown page key opens
  * read-only: `unknownDocumentField`).
+ *
+ * The layout is always written. One that is not said reads as the grid
+ * (`UNSAID_PAGE_LAYOUT`), the layout of every diagram saved before the flow
+ * became a new one's default; a new diagram's flow is said, so it stays one.
  */
 function writePageSetup(page: DiagramPageSetup): Record<string, unknown> {
   const { firstPageSide, ...rest } = page;

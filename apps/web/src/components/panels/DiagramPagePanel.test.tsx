@@ -57,15 +57,29 @@ const toggle = (name: string) =>
   )!;
 
 describe('DiagramPagePanel', () => {
-  it('lays the steps out in a flow, one undo step and one count, and offers its path', () => {
-    const past = state().diagramHistory.past.length;
-    expect(host?.textContent).not.toContain('Show path');
-    act(() => radio('Flow').click());
+  it('offers Flow first, and a new diagram starts in it, with its path', () => {
+    const layouts = [...(host?.querySelectorAll<HTMLElement>('[role="radio"]') ?? [])].map(
+      (element) => element.textContent
+    );
+    expect(layouts[0]).toMatch(/^Flow/);
+    expect(layouts[1]).toMatch(/^Grid/);
     expect(state().diagram?.page.layout).toBe('flow');
-    expect(state().diagramHistory.past).toHaveLength(past + 1);
-    expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledWith('layout');
+    expect(radio('Flow').getAttribute('aria-checked')).toBe('true');
     expect(host?.textContent).toContain('Show path');
     expect(host?.textContent).toContain('Steps per row');
+  });
+
+  it('lays the steps out in a grid, one undo step and one count, and takes the path away', () => {
+    const past = state().diagramHistory.past.length;
+    act(() => radio('Grid').click());
+    expect(state().diagram?.page.layout).toBe('grid');
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledWith('layout');
+    expect(host?.textContent).not.toContain('Show path');
+    expect(host?.textContent).toContain('Columns');
+    act(() => radio('Flow').click());
+    expect(state().diagram?.page.layout).toBe('flow');
+    expect(host?.textContent).toContain('Show path');
   });
 
   it('puts the first page on the right, one undo step and one count, in either layout', () => {
@@ -75,7 +89,7 @@ describe('DiagramPagePanel', () => {
     expect(state().diagram?.page.firstPageSide).toBe('right');
     expect(state().diagramHistory.past).toHaveLength(past + 1);
     expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledWith('first_page_side');
-    act(() => radio('Flow').click());
+    act(() => radio('Grid').click());
     expect(segment('First page', 'Right').getAttribute('aria-pressed')).toBe('true');
     act(() => segment('First page', 'Left').click());
     expect(state().diagram?.page.firstPageSide).toBe('left');
@@ -95,8 +109,8 @@ describe('DiagramPagePanel', () => {
 
   it('changes nothing on a read-only diagram', () => {
     act(() => useWorkspaceStore.setState({ diagramReadOnly: true }));
-    act(() => radio('Flow').click());
-    expect(state().diagram?.page.layout).toBe('grid');
+    act(() => radio('Grid').click());
+    expect(state().diagram?.page.layout).toBe('flow');
     expect(analytics.trackDiagramPageSetupChanged).not.toHaveBeenCalled();
   });
 });

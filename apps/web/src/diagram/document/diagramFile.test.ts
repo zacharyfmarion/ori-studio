@@ -70,6 +70,46 @@ describe('writeDiagram / readDiagram', () => {
     expect(readDiagram({ ...right, page: { ...right.page, firstPageSide: 'both' } })!.readOnly).toBe(true);
   });
 
+  it('keeps a diagram saved in the grid a grid, now that a new one starts in the flow', () => {
+    // As a build before the flow was the default wrote it: every page field, the layout said.
+    const saved = {
+      formatVersion: 1,
+      id: 'diagram-old',
+      title: 'Crane',
+      hanStyle: 'sc',
+      style: { preset: 'diagram' },
+      page: {
+        size: 'a4',
+        orientation: 'portrait',
+        marginMm: 12,
+        layout: 'grid',
+        columns: 3,
+        rows: 3,
+        showPath: true,
+        scale: 'fit',
+        showTitle: true,
+        pageNumbers: { enabled: true, first: 1 },
+      },
+      steps: [],
+      assets: {},
+    };
+    const read = readDiagram(saved)!;
+    expect(read.readOnly).toBe(false);
+    expect(read.document.page.layout).toBe('grid');
+    expect(throughJson(writeDiagram(read.document)).page.layout).toBe('grid');
+    // A layout not said — a hand-edited or damaged page — reads as the grid too, never as the new default.
+    const { layout: _layout, ...unsaid } = saved.page;
+    expect(readDiagram({ ...saved, page: unsaid })!.document.page.layout).toBe('grid');
+    expect(readDiagram({ ...saved, page: { ...saved.page, layout: 7 } })!.document.page.layout).toBe('grid');
+    expect(readDiagram({ ...saved, page: undefined })!.document.page.layout).toBe('grid');
+    // A new diagram is a flow, and says so: it opens as one again.
+    const fresh = createDiagram({ newId: sequentialIds() });
+    expect(fresh.page.layout).toBe('flow');
+    const written = throughJson(writeDiagram(fresh));
+    expect(written.page.layout).toBe('flow');
+    expect(readDiagram(written)!.document.page.layout).toBe('flow');
+  });
+
   it('round-trips a resolved paper style', () => {
     const diagram = { ...sampleDiagram(), style: { style: DEFAULT_PAPER_STYLE } };
     expect(readDiagram(throughJson(writeDiagram(diagram)))!.document.style).toEqual({

@@ -882,11 +882,15 @@ export const PAGE_COLUMNS_RANGE = { min: 2, max: 5 } as const;
 export const PAGE_ROWS_RANGE = { min: 1, max: 6 } as const;
 export const FIRST_PAGE_NUMBER_RANGE = { min: 1, max: 9999 } as const;
 
+/**
+ * A new diagram's page setup. It starts in the flow layout; a page setup that
+ * does not say its layout reads as the grid instead ({@link UNSAID_PAGE_LAYOUT}).
+ */
 export const DEFAULT_PAGE_SETUP: DiagramPageSetup = {
   size: 'a4',
   orientation: 'portrait',
   marginMm: 12,
-  layout: 'grid',
+  layout: 'flow',
   columns: 3,
   rows: 3,
   showPath: true,
@@ -1672,6 +1676,14 @@ function updateStep(
 export const PAPER_SIZES: readonly DiagramPaperSize[] = ['a4', 'a5', 'b5-jis', 'letter'];
 
 /**
+ * The layout of a page setup that does not say: the grid, which every diagram
+ * was in until the flow became a new one's (2026-10-06). Every file written
+ * says its layout, so this reads a hand-edited or damaged one as it would have
+ * read before — never a saved grid as a flow — and a new diagram says `flow`.
+ */
+export const UNSAID_PAGE_LAYOUT: DiagramPageLayout = 'grid';
+
+/**
  * A page setup from anything, every field checked and clamped, each falling
  * back to its default on its own. Used by the edit above and by the file
  * reader, so a hand-edited file and a stepper reach the same legal values.
@@ -1688,8 +1700,7 @@ export function normalizePageSetup(value: unknown): DiagramPageSetup {
         ? source.orientation
         : DEFAULT_PAGE_SETUP.orientation,
     marginMm: clampNumber(source.marginMm, PAGE_MARGIN_MM_RANGE, DEFAULT_PAGE_SETUP.marginMm),
-    layout:
-      source.layout === 'flow' || source.layout === 'grid' ? source.layout : DEFAULT_PAGE_SETUP.layout,
+    layout: source.layout === 'flow' || source.layout === 'grid' ? source.layout : UNSAID_PAGE_LAYOUT,
     columns: clampWhole(source.columns, PAGE_COLUMNS_RANGE, DEFAULT_PAGE_SETUP.columns),
     rows: clampWhole(source.rows, PAGE_ROWS_RANGE, DEFAULT_PAGE_SETUP.rows),
     showPath: typeof source.showPath === 'boolean' ? source.showPath : DEFAULT_PAGE_SETUP.showPath,

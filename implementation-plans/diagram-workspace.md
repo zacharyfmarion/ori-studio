@@ -746,6 +746,13 @@ shows the composed page.**
   - odd page numbers on the right (amended below: at the outer corner of the
     page's side);
   - a step's `breakBefore` starts a new page.
+  - *Amended, flow first and the default* (Zach, 2026-10-06: "can you make
+    flow the first option for display and make it the default"). The Page
+    pane offers Flow, then Grid, and a new diagram starts in the flow
+    (`DEFAULT_PAGE_SETUP.layout`). Every file written says its layout, and one
+    that does not reads as the grid (`UNSAID_PAGE_LAYOUT`) — the layout every
+    diagram was saved in before — so no saved grid opens as a flow; a new
+    diagram's `flow` is written like any other.
   - *Amended, printed spreads and a smooth lane* (Zach, 2026-10-06, page 2 of
     the X-ray Heart: "it kind of has kinks in it - can you make it be smooth
     like a nice bezier curve"; "in print, the end of the flow on one page lines

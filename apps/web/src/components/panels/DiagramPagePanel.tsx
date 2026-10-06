@@ -78,18 +78,19 @@ export function DiagramPagePanel() {
               label={t('panels:diagram.pagePane.layout', 'Layout')}
               value={page.layout}
               disabled={readOnly}
+              // Flow first: the layout a new diagram starts in.
               options={[
-                {
-                  value: 'grid',
-                  label: layoutLabel('grid', t),
-                  description: t('panels:diagram.pagePane.gridHint', 'Rows read left to right.'),
-                  icon: <LayoutGrid size={16} />,
-                },
                 {
                   value: 'flow',
                   label: layoutLabel('flow', t),
                   description: t('panels:diagram.pagePane.flowHint', 'Rows turn back at each end.'),
                   icon: <Waypoints size={16} />,
+                },
+                {
+                  value: 'grid',
+                  label: layoutLabel('grid', t),
+                  description: t('panels:diagram.pagePane.gridHint', 'Rows read left to right.'),
+                  icon: <LayoutGrid size={16} />,
                 },
               ]}
               onChange={(layout) => setPage({ layout }, 'layout')}
