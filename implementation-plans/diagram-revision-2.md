@@ -1,8 +1,11 @@
 # Diagram, Revision 2: equal divisions, a right-angle mark, enlarged steps
 
 **Status: planned 2026-10-05. The right-angle mark (16a) and equal divisions
-(16b) are built (2026-10-06); enlarged steps (16c–16g) are not. Zach settled
-every decision on 2026-10-06: the enlarged steps' Z1–Z10, and the
+(16b) are built (2026-10-06), and so are enlarged steps' model, file and
+imprint (16c), but for the writer of a flat step's faces, held back on the
+size budget for Zach's answer; enlarged steps' drawing, tools, pages and
+carries (16d–16g) are not. Zach settled every decision on 2026-10-06: the
+enlarged steps' Z1–Z10, and the
 equal-divisions (ED1–ED13) and right-angle (RA0–RA8) decisions as
 recommended. Each is recorded in its part.** Phase 16 of
 `implementation-plans/diagram-workspace.md`, after Phase 15
@@ -112,9 +115,10 @@ blocks it.
   The right angle adds none.
 - **The file.** Every new kind or field is read by the newer-build rule: an
   older build keeps it verbatim and does not draw it. Zach's crane
-  (`crane.osf`) loads with every mark known and saves back byte-identical
-  after every phase. `DIAGRAM_FORMAT_VERSION` stays 1; the Diagram is
-  unreleased (PR #436).
+  (`crane.osf`) loads with every mark known after every phase, and every
+  step saves back byte-identical; since 95a516de1 the file itself differs in
+  one place, the page setup's `scale`, which is no longer written.
+  `DIAGRAM_FORMAT_VERSION` stays 1; the Diagram is unreleased (PR #436).
 - **Keys.** D (Equal Divisions, ED8 A), E (Enlarge) and Shift+E (Enlarge in
   Frame) (Z1) are unbound in the Diagram's scope today
   (`keyboard/shortcuts.ts:600-625`). Plain D is Edit's Edge line type and
@@ -561,8 +565,10 @@ own: only the toggle and Update Enlarged Steps take a frame from another step.
   copies the frame in picture units, and the Step pane says "Refresh step 55
   to anchor the frame to its paper", naming whichever step lacks them.
 
-**S6, print.** Defaults: A4 portrait, 12 mm margins, 3×3 grid, Fit each; each
-cell 62 × 84.67 mm. Sizes are Fill's (Z4) and the arrow's places D22's (Z3).
+**S6, print.** Defaults: A4 portrait, 12 mm margins, 3×3 grid; each cell 62 ×
+84.67 mm. Every diagram fits each, no longer a choice since the One scale
+option was removed (95a516de1). Sizes are Fill's (Z4) and the arrow's places
+D22's (Z3).
 
 - **Gutter.** A diagram with any enlarge arrow reserves D22's 14 mm gutter
   between every pair of rooms (`diagramPageLayout.ts:764-769`), as one turn
@@ -592,10 +598,10 @@ cell 62 × 84.67 mm. Sizes are Fill's (Z4) and the arrow's places D22's (Z3).
   at 56's leading edge, D22's page-break place. The Pages view and the Export
   dialog say "Step 56 is on the page after the area it enlarges"; the fix is
   **Start a New Page Here** on 55.
-- **Paper and Fit each.** Enlarged steps leave both policies: they never lower
-  Paper's shared mm per unit and never enter `scaleRuns`. They print at Fill,
-  or at Size × the area's printed size. 55 and 61 stay neighbours in one
-  Fit-each run. D10 is amended to say so.
+- **Fit each.** Enlarged steps stay out of the Fit each runs: they never
+  enter `scaleRuns`. They print at Fill, or at Size × the area's printed
+  size. 55 and 61 stay neighbours in one Fit-each run. D10 is amended to say
+  so.
 - **A turn between** ([55, Rotate, 56]): the rotate glyph and the arrow stack
   in one gutter, turns first, 1.5 mm apart. No lift.
 - **PDF**: the composed page SVG goes to the writer unchanged; krilla's clip
@@ -786,7 +792,9 @@ other picture has faces.
   it stops and takes the numbers to Zach, whose answer depended on the file
   not getting huge. The lever then is to write `paperFaces` only on steps that
   hold an area or a frame, refreshing a step when it first gets one; not
-  coarser rounding, which would give up exactness.
+  coarser rounding, which would give up exactness. *At 16c's gate the
+  per-step half broke while no file grew more than 0.87%; the writer is held
+  back, PENDING Zach (16c's checklist).*
 
 Pure modules in `diagram/zoom/`:
 
@@ -1014,13 +1022,14 @@ LayoutPage.zoomArrows: { at; box; beforeStepId; areaStepId; areaId; rightToLeft:
 - **Runs**, for layout only: an enlarged step and the enlarged steps directly
   after it, turns passed, up to a step that is not enlarged or that has an
   arrow before it. Under Fill a run prints at one size.
-- **Scale**, a post-pass after the policy block
-  (`diagramPageLayout.ts:847-874`). 'zoom' pictures match neither the `paper`
-  nor the `fit` filter, so neither policy sees them; otherwise `scaleRuns`
-  would absorb a lone enlargement under about 7.4× into its neighbours' run,
-  and `paper` always would. The post-pass first computes each run's `areaMm`:
-  with an arrow before its first step, the area's longer side × the area
-  cell's printed frame (× `mmPerUnit` for paper, `frameMm` for fit); without
+- **Scale**, a post-pass after the runs loop (`diagramPageLayout.ts:924-940`,
+  `scaleRuns` over the `paper` pictures by mm per unit, then over the `fit`
+  pictures by frame). 'zoom' pictures are of neither kind, so no run takes
+  them; otherwise `scaleRuns` would absorb a lone enlargement under about
+  7.4× into its neighbours' run. The post-pass first computes each run's
+  `areaMm`: with an arrow before its first step, the area's longer side × the
+  area cell's printed frame (× the cell's `mmPerUnit` for a paper picture,
+  its `frameMm` for a fit one); without
   one, the first step's `frameShare` at the scale its whole picture would
   print at among its neighbours. The area's step may be on an earlier page;
   every scale is known before cells are built.
@@ -1191,7 +1200,7 @@ is two keys, one step and a range, not a plural.
   window units. Its frame follows its own picture through a re-pose, a
   Refresh or a relink by its imprint, and its marks go with it; nothing
   follows another step's changes.
-- **D10**: enlarged steps leave both scale policies (a stated exception).
+- **D10**: enlarged steps stay out of Fit each's runs (a stated exception).
 - **D22**: enlarge arrows are between-step glyphs that reserve the gutter and
   take a turn's places.
 - **Later**: remove "A per-step zoom ("enlarge from here")"; add Phase 16,
@@ -1215,7 +1224,8 @@ is two keys, one step and a range, not a plural.
   form chosen (each point's paper and unspread places, the drawn ones read
   from the scene, as a string): 0.83% of the file, 0.16–0.26 of each step's
   `sceneJson`. The budget (Model and file format) holds it, and breaking it
-  goes back to Zach.
+  goes back to Zach. It broke at 16c on captures with no spread, and is with
+  him (16c's checklist).
 - **Older captures have no faces** until refreshed, so on the crane as it
   stands every frame is copied in picture units, with a notice, until its
   steps are refreshed.
@@ -1537,8 +1547,7 @@ after projecting (`mirrored !== project.mirrored`), as a pleat arrow's Zs are.
   draw none.
 - **Reach** (`markReach`): every stroke's ends plus half a pen, and the
   number's box. A mark along a picture's top edge takes about 4.2 mm of its
-  room, which lowers its Fit-each run's scale, or every step's under Paper
-  (ED3).
+  room, which lowers its Fit-each run's scale (ED3).
 - **Calibration**: on the sketch the offset is about 11 px on a 205 px edge,
   the dividers run about 8 px past the line, and the ticks are about 8 px at
   about 20°. At a 50 mm edge that is 2.7, 2 and 2 mm.
@@ -1694,8 +1703,7 @@ pending.**
   sketch's offset at the 50 mm the canvas and cards draw at, so the two rules
   look the same on screen and differ only on the page. Either way the mark's
   reach costs room: about 8% of the default A4 3×3 box for a mark along a top
-  edge, 13% with Number on, lowering its run's scale under Fit each and every
-  step's under Paper.
+  edge, 13% with Number on, lowering its Fit-each run's scale.
 
 **ED4. How far do the dividers run? DECIDED: A.**
 - A. From the measured line to 1.65 mm past the line, as in the sketch. Where
@@ -2260,8 +2268,9 @@ has one: `DiagramAnnotateCanvas`, `DiagramLayers`, `DiagramStepCard`,
 rule added to a shared block. Then before and after in the browser, light and
 dark, desktop Chromium and iPad-sized WebKit, beside the image it answers,
 each fix shown on its own with its confidence and evidence; the crane loading
-with every mark known and saving back byte-identical; a review of the phase;
-the gate (lint, typecheck, i18n check, the whole vitest suite) and a push.
+with every mark known and every step saving back byte-identical; a review of
+the phase; the gate (lint, typecheck, i18n check, the whole vitest suite) and
+a push.
 The builder owns every gate, the browser's included, and shares the proof
 with Zach. What was built is written under each phase's checklist, as in
 Phase 15. Each phase is built to the decisions recorded here: the
@@ -2984,11 +2993,30 @@ ED10 B. Implemented, reviewed (code and print), fixed and verified.
 
 ### 16c Enlarged steps: model, file, imprint
 
-- [ ] `STEP_KEYS` and `SCENE_PICTURE_KEYS`, a commit of its own, holding
+**Built 2026-10-06, commits 3fc2e4f36 (the key sets) and cbcb60fe4 (the
+rest)**, to Z1–Z10, the anchor rule and two-stage landing. Implemented,
+reviewed, fixed and verified. One part is held back: the writer of
+`paperFaces`, because the size budget broke. It waits on Zach's answer
+(PENDING; the budget item). Nothing draws an area or a frame yet (16d), and
+no store verb reaches the pure modules yet (16e, 16g).
+
+- [x] `STEP_KEYS` and `SCENE_PICTURE_KEYS`, a commit of its own, holding
   today's keys: an unknown step key or scene-picture key (`zoom` and
   `paperFaces` included, until the items below) locks the step, which writes
-  back byte-equal; the crane loads with nothing locked and saves back
-  byte-identical; the fixtures checked for stray keys first.
+  back byte-equal; the crane loads with nothing locked and every step saves
+  back byte-identical (since 95a516de1 the file differs in one place only,
+  the page setup's `scale`, no longer written); the fixtures checked for
+  stray keys first.
+  *As built:* 3fc2e4f36, alone and first, as "Reading and writing" requires.
+  `STEP_KEYS` is the eight keys `writeStep` writes; `SCENE_PICTURE_KEYS` is
+  {kind, sceneJson, paperScale, styleKey, key}. Any other key locks the
+  step, which is written back byte-equal. The crane, the heart, the chipmunk
+  and Reference Diagrams open with nothing locked, and every step saves back
+  byte-identical. In the app, on a crane with an area on step 19 and step 20
+  enlarged from it (`artifacts/revision-2/16c/verify/app-head.json`,
+  `app-keysets.json`): the build before 16c drops step 20's frame and both
+  steps' faces; the same build with the key sets alone opens both steps
+  locked and writes them back unchanged.
 - [ ] `paperFaces`, in the form chosen after 16.0: written by `flatPicture`
   (Link, Refresh, Pose) from the kernel's paper scene, hidden faces
   included, as a string of compact JSON holding each point's paper and
@@ -3000,6 +3028,27 @@ ED10 B. Implemented, reviewed (code and print), fixed and verified.
   unchanged until refreshed. Tests: with a spread on, every face's drawn ring
   read from the stored scene equals the painter's spread places; with none,
   the unspread places equal the scene's visible rings.
+  *As built, in part: the reader is committed (cbcb60fe4), the writer held
+  back.*
+  - The stored form: one compact JSON string; points `[paper x, paper y,
+    unspread x, unspread y]`, rings, and levels from `layerLevels` over
+    `foldedPaintOrder`. Paper places are rounded to 10^floor(log10(scene
+    step / scale)), 0.001 on the crane; unspread places to
+    `storedSceneStep`.
+  - `readPaperFaces` (`diagramFile.ts`) takes the NEWER case (another field
+    locks the step) and damage (the field is dropped, the picture kept). It
+    cross-checks against the scene the reader has already parsed (the
+    `readScenes` WeakMap), so no scene is parsed twice. `paperFaces` is in
+    `SCENE_PICTURE_KEYS`. A `setLinkedPicture` test checks that a capture
+    adding only faces counts as an edit and keeps the picture key.
+  - **Held back: the writer**, uncommitted, kept as
+    `artifacts/revision-2/16c/fixes/paperFacesWriting.patch` with its tests.
+    `flatPicture(..., { faces })` calls `flatPaperFaces`
+    (`capture/capturePaperFaces.ts`) and stores through `storedPaperFaces`
+    (committed, in `diagramFile.ts`); Pose's preview passes `faces: false`.
+    It lands with Zach's answer on the size budget (next item). Until then
+    no build writes faces, so every flat step stays a capture older than
+    `paperFaces` (S5), the crane's among them.
 - [ ] The size budget. A vitest over the 16.0 fixture: each capture's
   `paperFaces` at most 0.3 of its `sceneJson`, both as the file writes them
   (16.0: 0.16–0.26). A script beside `twoStageSizes.mjs`, run at 16c's gate
@@ -3007,13 +3056,60 @@ ED10 B. Implemented, reviewed (code and print), fixed and verified.
   (16.0: 0.83%), its numbers written under this phase. If either fails, 16c
   stops and takes the numbers to Zach rather than raise the budget (Model
   and file format).
-- [ ] The `zoom` kind and its fields (`angle` and `anchor` with the rest),
+  *As built, and broken: PENDING Zach.* The vitest is
+  `zoom/paperFacesBudget.test.ts`, over `zoom/__fixtures__/zoomImprint.json`;
+  the script is `artifacts/revision-2/16c/paperFacesBudget.mjs`, run with the
+  held-back writer applied, every flat step refreshed:
+
+  | Diagram | File growth | Faces / scene, per step | Budget |
+  | --- | --- | --- | --- |
+  | crane (2,492,341 B today) | +0.84% | 0.153–0.254 | holds |
+  | heart | +0.67% | 0.061–0.221 | holds |
+  | chipmunk | +0.18% | 0.083–0.121 | holds |
+  | Reference Diagrams | +0.26% | 0.344 | breaks |
+  | crane, Spread Layers off | +0.87% | 0.392–1.804 | breaks |
+
+  No whole file grows more than 0.87%, under the 1%. The per-step 0.3 breaks
+  on captures with no spread, where the stored scene drops the faces it
+  hides while `paperFaces` keeps every face: the faces' bytes barely change,
+  the scene shrinks (0.39–1.80 on the crane; 1.35–1.45 on the fixture's S, C
+  and R21). It also breaks on Reference Diagrams' one small step (0.344).
+  So 16c stopped there: the vitest's no-spread case is an expected failure
+  (`it.fails`, "BREACHED, awaiting Zach"), to be rewritten with the answer,
+  and the writer is held back (above). **For Zach, PENDING:**
+  - (a) a whole-file budget (the `.osf` grows by at most 1%) in place of the
+    per-step one; or
+  - (b) the plan's lever: faces saved only on steps that hold an area or a
+    frame, captured when a step first gets one.
+- [x] The `zoom` kind and its fields (`angle` and `anchor` with the rest),
   `cleanZoom`, `carryZoom` (any angle, mirrored with the side), shape
   conversion, per-shape defaults; `DiagramStepZoom`; readers and writers,
   `zoom` added to `STEP_KEYS` with `readStepZoom`. Tests: round trips;
   defaults unsaid; NEWER and damage for each field; a malformed `zoom`
   dropped with `annotatedPictureKey` null; the older-build-verbatim case.
-- [ ] `zoomImprint`, landing in two stages. Tests: a face's placement exact
+  *As built:*
+  - The area's fields: exactly one of `radius` and `size`, with `angle`,
+    `scale`, `edge` and `anchor`; `to` is read as `from`. An out-of-range
+    value, an unknown edge word or an unknown field is NEWER; both or neither
+    of `radius` and `size` drops the mark; a bad optional field drops only
+    that field.
+  - `cleanZoom` and `carryZoom` are in `annotationModel.ts`, not
+    `zoomModel.ts` as "Model and file format" lists them, to avoid an import
+    cycle. `carryZoom` carries a rectangle's angle through any turn, mirrored
+    with the side, normalised to [0, 180).
+  - An area has no Flip. `compileAnnotation('zoom')` returns null, so nothing
+    draws one until 16d; it is hit on its outline only, below every other
+    mark. Layers lists it as "Enlarge Area" (`enlargeArea`, one key in nine
+    catalogs), with a glyph of a rounded frame with outward corner ticks.
+    `DiagramAnnotationTool` gains `enlarge` and `enlarge_frame`, and
+    `docs/analytics.md`'s row says so; nothing sends them until 16e's tools.
+  - `DiagramStepZoom`'s keys: `from`, `shape`, `frame`, `imprint` {`outline`,
+    `on`, `picked`}, `scale`, `edge`. An unknown key or value locks the step;
+    a malformed zoom is dropped and sets `annotatedPictureKey` to null. A
+    seeded step keeps the source's frame, copied in picture units, beside its
+    imprint. A step with no faces keeps its capture's imprint until its frame
+    is set by hand.
+- [x] `zoomImprint`, landing in two stages. Tests: a face's placement exact
   on the unspread picture, and mirrored on a face showing its back; off and
   onto the spread are the identity with no spread, and inverse with one
   (exact under the affine spread, to 1e-9 px under the depth spread), but in
@@ -3029,7 +3125,22 @@ ED10 B. Implemented, reviewed (code and print), fixed and verified.
   circle; a crease pattern, Front and Back; a step with no faces copies in
   picture units; a paper point off the paper; a centre over no paper follows
   the nearest face.
-- [ ] The default anchor. Tests: the backmost face entirely outside the
+  *As built:* a face's placement is the least-squares similarity, reflected
+  when the face's affine fit has a negative determinant. Off the spread by
+  Newton's method, started from the face's affine fit; onto the spread
+  through the topmost face under the point, else by the nearest ring point's
+  move. Measured live at :5291 (`verify/imprintLive.mjs`), 16.0's refolds
+  captured afresh and run through `enlargeStep`; the worst is 1.362%, against
+  the 2% allowed:
+
+  | Case | No spread | Affine spread | Depth spread |
+  | --- | --- | --- | --- |
+  | A | 0.004% | 0.521% | 1.362% |
+  | B | 0.006% | 0.518% | 1.356% |
+  | C | 0.002% | 0.257% | 0.549% |
+  | C posed like S | 0.004% | 0.510% | 1.335% |
+  | R (21 → 22) | 0.001% | 0.002% | 0.002% |
+- [x] The default anchor. Tests: the backmost face entirely outside the
   frame, by drawn rings; a level tie broken on paper area within 0.1%, then
   by the lower face index (crane step 22's faces 33 and 14, equal on the
   paper, their picture areas apart by rounding and by 5% under a spread);
@@ -3037,7 +3148,15 @@ ED10 B. Implemented, reviewed (code and print), fixed and verified.
   reaching outside; the frame covering the model → the backmost; a picture
   turned over and a Back pass, each ranked from its own side; a crease
   pattern anchoring at the frame's centre; a picked anchor taking precedence.
-- [ ] `zoomCapture`. Tests: the source (the nearest earlier step with an area
+  *As built:* faces are ranked by level, then by paper area (ties within
+  0.1%), then by the lower index; the anchor is the first wholly outside the
+  frame, else the first reaching outside it, else the backmost. Its paper
+  point, `poleOf`, is polylabel on a binary heap: precision 1e-3 of the
+  face's longer side, at most 20,000 cells, starting cells of max(shorter
+  side, longer / 64). The crane fixture's 420 faces take 19.6 ms in all.
+  Crane step 22 anchors on face 14, which lands on face 12; R on face 30,
+  which lands on 14.
+- [x] `zoomCapture`. Tests: the source (the nearest earlier step with an area
   or a frame, turns passed, a locked step passed over); provenance (an area's
   id, or inherited through a frame); a picked anchor copied, a default one
   worked out afresh; the seed at creation (imprint stored, the frame landed
@@ -3045,8 +3164,35 @@ ED10 B. Implemented, reviewed (code and print), fixed and verified.
   area or its step changes no enlarged step; Update captures exactly the steps
   with that provenance, wherever they sit, in one undo step, over hand moves;
   toggling off and on captures from what is before the step now.
-- [ ] `zoomIndex`, `stepView`, `viewFrame`, `viewGeometry`; `zoomFrames`,
+  *As built:* `captureSource` passes over turns and locked steps.
+  `areaSource` finds an area by id: Update captures from the area itself,
+  wherever the enlarged steps sit, and never changes `from`. `sourceImprint`:
+  a source step with faces is imprinted afresh, one with a picture but no
+  faces has its frame copied, and one with no picture gives its stored
+  imprint. `heldFrame` keeps the frame's centre within reach. `capture`
+  returns {zoom, placed: face | sheet | picture | null, anchor: auto |
+  picked | none}. "One undo step" comes with the store verbs (16e).
+- [x] `zoomIndex`, `stepView`, `viewFrame`, `viewGeometry`; `zoomFrames`,
   every row of its table, and the invariant helper.
+  *As built:* `zoomFrames.ts` has one pure function per row of the table:
+  `enlargeStep`, `unenlargeStep`, `updateEnlargedSteps`, `relandFrame`,
+  `setFrameOutline`, `setFrameAnchor` and `reposeFrame(before, after, move,
+  assets)`. Marks are carried between units with an exact round-trip check:
+  if any mark would not come back the same, every mark keeps its numbers and
+  the step is marked out of step. None is wired to a store verb yet (16e,
+  16g). The invariant helper is `frameProblems`
+  (`zoom/zoomInvariant.fixtures.ts`), run by `zoomFrames.test.ts`.
+  `zoomIndex` is a WeakMap memo per document order. `stepView.ts` has
+  `stepView`, `viewOfStep`, `viewFrame` and `viewGeometry` (a margin of 0.1
+  window lengths; it keeps only the last window per geometry).
+- [x] Proof and gate (added as built). The verify scripts are in
+  `artifacts/revision-2/16c/verify/`: `imprintLive.mjs`; `app.mjs`, with
+  make, canvas, head and keysets modes; `roundTrip.mjs`, `headBuild.mjs`
+  and `composite.mjs` (composite
+  `artifacts/revision-2/16c/16c-before-after.png`); and `gate/hunks.py` and
+  `gate/locales.py`, which rebuilt 16c's hunks on each new base. At the gate, 854 files and 11,324 tests passed, with one
+  expected failure (the budget's) and 2 files and 13 tests skipped; lint,
+  tsc and the i18n check were clean.
 
 ### 16d Enlarged steps: painting
 
@@ -3155,7 +3301,8 @@ ED10 B. Implemented, reviewed (code and print), fixed and verified.
 - [ ] Lint, typecheck, the i18n check and the whole vitest suite
   (`npm run lint:web`, `typecheck:web`, `i18n:check`, `test:web`), and
   `npm run build:web`, as bundling and the PDF path change.
-- [ ] The crane: every mark known, nothing locked, saved back byte-identical;
-  its pages and PDF compared with the build before Phase 16, each difference
-  traced to the phase that made it.
+- [ ] The crane: every mark known, nothing locked, every step saved back
+  byte-identical (the file differs only by the page setup's `scale`, no
+  longer written since 95a516de1); its pages and PDF compared with the build
+  before Phase 16, each difference traced to the phase that made it.
 - [ ] This checklist current, with what was built written under each phase.
