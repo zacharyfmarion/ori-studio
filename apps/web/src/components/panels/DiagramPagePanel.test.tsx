@@ -202,6 +202,14 @@ describe('DiagramPagePanel', () => {
     expect(state().diagram?.page.firstPageSide).toBe('left');
   });
 
+  it('offers no choice of scale: every diagram fits each, in either layout', () => {
+    for (const layout of ['Flow', 'Grid']) {
+      act(() => radio(layout).click());
+      expect(host?.querySelector('[role="group"][aria-label="Scale"]'), layout).toBeNull();
+      expect(host?.textContent, layout).not.toMatch(/One scale|Fit each/);
+    }
+  });
+
   it('says how many steps a page holds and how many pages there are', () => {
     expect(host?.textContent).toContain('9 steps per page · 2 pages');
   });

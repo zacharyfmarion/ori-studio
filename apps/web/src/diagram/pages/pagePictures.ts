@@ -7,8 +7,8 @@
  *   whose size in pattern units is where it came from.
  * - An upload, a fold kept as a fixed picture and a 3D capture have no paper
  *   scale: they are fitted to their box.
- * - Under `fit` a picture is drawn at its run's scale (`scaleRuns`): the
- *   paper keeps one size from step to step where it can.
+ * - A picture is drawn at its run's scale (`scaleRuns`): the paper keeps one
+ *   size from step to step where it can.
  * - A picture is centred in the room the layout drew for it, which a tall
  *   one fills down its cell.
  * - A scene is drawn by the painter's body at the cell's projection, its pens

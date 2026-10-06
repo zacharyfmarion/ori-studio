@@ -290,7 +290,7 @@ export type DiagramPdfPreset = 'home' | 'print_shop';
 /** The Diagram's two views: the steps as cards, or the printed pages. */
 export type DiagramView = 'steps' | 'pages';
 
-/** Which page setting changed in the Page pane (D10). */
+/** Which page setting changed in the Page pane (D10). `scale` is retired: every diagram fits each since 2026-10-06. */
 export type DiagramPageSetting =
   | 'size'
   | 'orientation'
@@ -302,7 +302,6 @@ export type DiagramPageSetting =
   | 'path_width'
   | 'path_color'
   | 'first_page_side'
-  | 'scale'
   | 'title'
   | 'page_numbers'
   | 'first_page'

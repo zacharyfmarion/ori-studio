@@ -140,6 +140,17 @@ describe('writeDiagram / readDiagram', () => {
     expect(readDiagram(written)!.document.page.layout).toBe('flow');
   });
 
+  it('opens a diagram saved with One scale as any other, and writes no scale', () => {
+    const saved = throughJson(writeDiagram(sampleDiagram()));
+    expect('scale' in saved.page).toBe(false);
+    for (const scale of ['paper', 'fit', 'another', 7]) {
+      const read = readDiagram({ ...saved, page: { ...saved.page, scale } })!;
+      expect(read.readOnly, String(scale)).toBe(false);
+      expect(read.document.page).toEqual(readDiagram(saved)!.document.page);
+      expect('scale' in throughJson(writeDiagram(read.document)).page).toBe(false);
+    }
+  });
+
   it('round-trips a resolved paper style', () => {
     const diagram = { ...sampleDiagram(), style: { style: DEFAULT_PAPER_STYLE } };
     expect(readDiagram(throughJson(writeDiagram(diagram)))!.document.style).toEqual({

@@ -166,12 +166,10 @@ describe('layoutDiagram', () => {
       annotations: [{ id: 'a', kind: 'valley-arrow', from: [0.2, 0.004 + 0.1 * index], to: [0.8, 0.004], bend: 0.05 }],
     }));
     const document = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), steps, 0);
-    for (const scale of ['fit', 'paper'] as const) {
-      vi.mocked(layoutPicture).mockClear();
-      layoutDiagram({ ...document, page: { ...document.page, scale } }, estimateTextSetter);
-      const measures = vi.mocked(layoutPicture).mock.calls.map(([step, , , measure]) => `${step.id} ${JSON.stringify(measure)}`);
-      expect(measures.length, scale).toBeGreaterThan(steps.length);
-      expect(new Set(measures).size, scale).toBe(measures.length);
-    }
+    vi.mocked(layoutPicture).mockClear();
+    layoutDiagram(document, estimateTextSetter);
+    const measures = vi.mocked(layoutPicture).mock.calls.map(([step, , , measure]) => `${step.id} ${JSON.stringify(measure)}`);
+    expect(measures.length).toBeGreaterThan(steps.length);
+    expect(new Set(measures).size).toBe(measures.length);
   });
 });

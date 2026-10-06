@@ -24,7 +24,7 @@ import {
   stepDiagramPicture,
   stepsIn,
 } from '../document/diagramSteps.fixtures';
-import { storedSceneJson } from '../document/diagramFile';
+import { readDiagram, storedSceneJson, writeDiagram } from '../document/diagramFile';
 import { face, sceneOf } from '../../lib/paper/paperScene.fixtures';
 import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from '../fonts/diagramFontFaces';
 import type { DiagramFonts, LoadedDiagramFont } from '../fonts/diagramFonts';
@@ -200,16 +200,15 @@ describe('composeDiagramPage', () => {
   });
 
   it('draws the linked pattern and the sent step at one scale: one pattern unit, one size', () => {
-    const document: DiagramDocument = { ...diagram(), page: { ...DEFAULT_PAGE_SETUP, scale: 'paper' } };
+    const document = diagram();
     for (const step of stepsIn(document).slice(0, 2)) {
       expect(layoutPicture(step, document.assets, document.style)).toMatchObject({ kind: 'paper' });
     }
     expect(layoutPicture(stepsIn(document)[2]!, document.assets, document.style)).toMatchObject({ kind: 'fit' });
     const pages = preparedPages(document, FONTS, subsetter);
     const [cp, sent] = pages.layout.pages[0]!.cells;
-    expect(pages.layout.mmPerUnit).not.toBeNull();
-    expect(cp!.mmPerUnit).toBe(pages.layout.mmPerUnit);
-    expect(sent!.mmPerUnit).toBe(pages.layout.mmPerUnit);
+    expect(cp!.mmPerUnit).not.toBeNull();
+    expect(sent!.mmPerUnit).toBe(cp!.mmPerUnit);
   });
 
   /** Each scene's paper on a composed page, the first face its painter draws: its width in pt. */
@@ -228,8 +227,8 @@ describe('composeDiagramPage', () => {
   ];
   const setupName = (setup: Partial<DiagramPageSetup>) => JSON.stringify(setup);
 
-  it('fits each step by default, the paper one scale whatever their marks reach a little past, on any page', () => {
-    // An arrow bulging over the top edge, and a push from far off the picture.
+  /** Four steps of one paper: an arrow bulging over the top edge of the second, a push from far off the fourth. */
+  const reaching = () => {
     const over: DiagramStep = {
       ...cpStep('step-2'),
       annotations: [{ id: 'a', kind: 'valley-arrow', from: [0.2, 0.004], to: [0.8, 0.004], bend: 0.05 }],
@@ -238,8 +237,11 @@ describe('composeDiagramPage', () => {
       ...cpStep('step-4'),
       annotations: [{ id: 'b', kind: 'push-arrow', from: [-0.5, 0.5], to: [0.2, 0.5] }],
     };
-    const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [cpStep('step-1'), over, cpStep('step-3'), far], 0);
-    expect(made.page.scale).toBe('fit');
+    return insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [cpStep('step-1'), over, cpStep('step-3'), far], 0);
+  };
+
+  it('fits each step, the paper one scale whatever their marks reach a little past, on any page', () => {
+    const made = reaching();
     for (const setup of SETUPS) {
       const document: DiagramDocument = { ...made, page: { ...made.page, ...setup } };
       const pages = preparedPages(document, FONTS, subsetter);
@@ -251,6 +253,19 @@ describe('composeDiagramPage', () => {
       expect(widths[3]!, setupName(setup)).toBeLessThanOrEqual(widths[0]! * 1.001);
       if (Object.keys(setup).length === 0) expect(widths[3]!).toBeLessThan(widths[0]! * 0.8);
     }
+  });
+
+  it('lays out a diagram saved with One scale as Fit each', () => {
+    const made = reaching();
+    const saved = JSON.parse(JSON.stringify(writeDiagram(made)));
+    const read = readDiagram({ ...saved, page: { ...saved.page, scale: 'paper' } })!;
+    expect(read.readOnly).toBe(false);
+    const pages = preparedPages(read.document, FONTS, subsetter);
+    expect(pages.layout).toEqual(preparedPages(made, FONTS, subsetter).layout);
+    // One scale drew every step at the far push's scale; Fit each draws only that step smaller.
+    const widths = paperWidths(pages.compose(0).svg);
+    expect(widths[2]! / widths[0]!).toBeCloseTo(1, 3);
+    expect(widths[3]!).toBeLessThan(widths[0]! * 0.8);
   });
 
   it('keeps every picture and its marks inside the room the layout drew for it, at any scale and page', () => {
@@ -280,41 +295,39 @@ describe('composeDiagramPage', () => {
     const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [cpStep('step-1'), lettered, arrowed, long, pushed, over], 0);
     let floored = 0;
     let framed = 0;
-    for (const scale of ['fit', 'paper'] as const) {
-      for (const setup of SETUPS) {
-        const document: DiagramDocument = { ...made, page: { ...made.page, ...setup, scale } };
-        const layout = layoutDiagram(document, estimateTextSetter);
-        for (const cell of layout.pages.flatMap((page) => page.cells)) {
-          const step = stepsIn(document).find((each) => each.id === cell.stepId)!;
-          const picture = cellPicture(step, document.assets, document.style, cell, 'c-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
-          const room = { x: cell.drawMm.x * PT_PER_MM, y: cell.drawMm.y * PT_PER_MM, w: cell.drawMm.w * PT_PER_MM, h: cell.drawMm.h * PT_PER_MM };
-          const name = `${scale} ${setupName(setup)} ${cell.stepId}`;
-          // What the layout found the picture needs, measured at the scale it is drawn at: per pattern
-          // unit, or per its frame's longer side when it has no paper.
-          const at = cell.mmPerUnit ?? cell.frameMm;
-          if (at === null) continue;
-          const needs = layoutPicture(step, document.assets, document.style, cell.mmPerUnit === null ? { frameMm: at } : { mmPerUnit: at })!;
-          if (cell.mmPerUnit === null) framed += 1;
-          const fits =
-            needs.width * at + needs.marks.width <= cell.drawMm.w * (1 + 1e-3) &&
-            needs.height * at + needs.marks.height <= cell.drawMm.h * (1 + 1e-3);
-          if (fits) {
-            // Within a hair: the marks were measured at the scale the picture is drawn at.
-            const hair = 0.002 * Math.max(room.w, room.h);
-            expect(picture.boundsPt.x, name).toBeGreaterThanOrEqual(room.x - hair);
-            expect(picture.boundsPt.y, name).toBeGreaterThanOrEqual(room.y - hair);
-            expect(picture.boundsPt.x + picture.boundsPt.width, name).toBeLessThanOrEqual(room.x + room.w + hair);
-            expect(picture.boundsPt.y + picture.boundsPt.height, name).toBeLessThanOrEqual(room.y + room.h + hair);
-          } else {
-            // A room its letters cannot fit: where its marks lie fits the share of it the floor leaves, and
-            // the letters reach out.
-            const share = 1 - MARKS_FLOOR;
-            const across = needs.width * at <= cell.drawMm.w * share * (1 + 1e-3);
-            const down = needs.height * at <= cell.drawMm.h * share * (1 + 1e-3);
-            expect(across && down, name).toBe(true);
-            expect(Math.max(needs.width * at / (cell.drawMm.w * share), needs.height * at / (cell.drawMm.h * share)), name).toBeCloseTo(1, 2);
-            floored += 1;
-          }
+    for (const setup of SETUPS) {
+      const document: DiagramDocument = { ...made, page: { ...made.page, ...setup } };
+      const layout = layoutDiagram(document, estimateTextSetter);
+      for (const cell of layout.pages.flatMap((page) => page.cells)) {
+        const step = stepsIn(document).find((each) => each.id === cell.stepId)!;
+        const picture = cellPicture(step, document.assets, document.style, cell, 'c-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
+        const room = { x: cell.drawMm.x * PT_PER_MM, y: cell.drawMm.y * PT_PER_MM, w: cell.drawMm.w * PT_PER_MM, h: cell.drawMm.h * PT_PER_MM };
+        const name = `${setupName(setup)} ${cell.stepId}`;
+        // What the layout found the picture needs, measured at the scale it is drawn at: per pattern
+        // unit, or per its frame's longer side when it has no paper.
+        const at = cell.mmPerUnit ?? cell.frameMm;
+        if (at === null) continue;
+        const needs = layoutPicture(step, document.assets, document.style, cell.mmPerUnit === null ? { frameMm: at } : { mmPerUnit: at })!;
+        if (cell.mmPerUnit === null) framed += 1;
+        const fits =
+          needs.width * at + needs.marks.width <= cell.drawMm.w * (1 + 1e-3) &&
+          needs.height * at + needs.marks.height <= cell.drawMm.h * (1 + 1e-3);
+        if (fits) {
+          // Within a hair: the marks were measured at the scale the picture is drawn at.
+          const hair = 0.002 * Math.max(room.w, room.h);
+          expect(picture.boundsPt.x, name).toBeGreaterThanOrEqual(room.x - hair);
+          expect(picture.boundsPt.y, name).toBeGreaterThanOrEqual(room.y - hair);
+          expect(picture.boundsPt.x + picture.boundsPt.width, name).toBeLessThanOrEqual(room.x + room.w + hair);
+          expect(picture.boundsPt.y + picture.boundsPt.height, name).toBeLessThanOrEqual(room.y + room.h + hair);
+        } else {
+          // A room its letters cannot fit: where its marks lie fits the share of it the floor leaves, and
+          // the letters reach out.
+          const share = 1 - MARKS_FLOOR;
+          const across = needs.width * at <= cell.drawMm.w * share * (1 + 1e-3);
+          const down = needs.height * at <= cell.drawMm.h * share * (1 + 1e-3);
+          expect(across && down, name).toBe(true);
+          expect(Math.max(needs.width * at / (cell.drawMm.w * share), needs.height * at / (cell.drawMm.h * share)), name).toBeCloseTo(1, 2);
+          floored += 1;
         }
       }
     }
@@ -432,18 +445,16 @@ describe('composeDiagramPage', () => {
       { size: 'a5', orientation: 'landscape', columns: 2, rows: 2 },
     ];
     for (const style of [made.style, heavy]) {
-      for (const scale of ['fit', 'paper'] as const) {
-        for (const setup of setups) {
-          const document: DiagramDocument = { ...made, style, page: { ...made.page, ...setup, scale } };
-          const layout = layoutDiagram(document, estimateTextSetter);
-          for (const cell of layout.pages.flatMap((page) => page.cells)) {
-            const at = cell.mmPerUnit ?? cell.frameMm;
-            if (at === null) continue;
-            const step = stepsIn(document).find((each) => each.id === cell.stepId)!;
-            const measure = cell.mmPerUnit !== null ? { mmPerUnit: at } : { frameMm: at };
-            const fit = pictureFit(layoutPicture(step, document.assets, document.style, measure), cell.drawMm.w, cell.drawMm.h);
-            expect(fit! / at, `${style === heavy ? 'heavy' : 'default'} ${scale} ${setupName(setup)} ${cell.stepId}`).toBeGreaterThan(1 - 1e-3);
-          }
+      for (const setup of setups) {
+        const document: DiagramDocument = { ...made, style, page: { ...made.page, ...setup } };
+        const layout = layoutDiagram(document, estimateTextSetter);
+        for (const cell of layout.pages.flatMap((page) => page.cells)) {
+          const at = cell.mmPerUnit ?? cell.frameMm;
+          if (at === null) continue;
+          const step = stepsIn(document).find((each) => each.id === cell.stepId)!;
+          const measure = cell.mmPerUnit !== null ? { mmPerUnit: at } : { frameMm: at };
+          const fit = pictureFit(layoutPicture(step, document.assets, document.style, measure), cell.drawMm.w, cell.drawMm.h);
+          expect(fit! / at, `${style === heavy ? 'heavy' : 'default'} ${setupName(setup)} ${cell.stepId}`).toBeGreaterThan(1 - 1e-3);
         }
       }
     }
@@ -486,9 +497,7 @@ describe('composeDiagramPage', () => {
       ],
       0
     );
-    for (const scale of ['fit', 'paper'] as const) {
-      largest({ ...both, page: { ...both.page, size: 'a5', orientation: 'portrait', columns: 3, rows: 6, scale } });
-    }
+    largest({ ...both, page: { ...both.page, size: 'a5', orientation: 'portrait', columns: 3, rows: 6 } });
   });
 
   it('keeps a sheet in its room when its letters cannot fit there, annotated or not, every picture held (review)', () => {

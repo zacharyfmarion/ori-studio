@@ -54,13 +54,6 @@ export type DiagramPageLayout = 'grid' | 'flow';
  */
 export type DiagramPageSide = 'left' | 'right';
 export const DIAGRAM_PAGE_SIDES: readonly DiagramPageSide[] = ['left', 'right'];
-/**
- * `paper`: every picture that knows its paper's size is drawn at one shared
- * scale, so the model visibly shrinks as it is folded. `fit` (the default):
- * the paper keeps one scale from step to step while it fits, zooming in where
- * the model has grown much smaller (`scaleRuns`).
- */
-export type DiagramPictureScale = 'paper' | 'fit';
 
 export interface DiagramPageSetup {
   size: DiagramPaperSize;
@@ -84,7 +77,6 @@ export interface DiagramPageSetup {
   pathColor: string;
   /** The side the first page prints on ({@link DiagramPageSide}); written to the file only when `right`. */
   firstPageSide: DiagramPageSide;
-  scale: DiagramPictureScale;
   /** Draws {@link DiagramDocument.title} in a tab at the top of every page. */
   showTitle: boolean;
   pageNumbers: { enabled: boolean; first: number };
@@ -913,7 +905,6 @@ export const DEFAULT_PAGE_SETUP: DiagramPageSetup = {
   pathWidthMm: null,
   pathColor: DEFAULT_PATH_COLOR,
   firstPageSide: 'left',
-  scale: 'fit',
   showTitle: true,
   pageNumbers: { enabled: true, first: 1 },
 };
@@ -1730,7 +1721,6 @@ export function normalizePageSetup(value: unknown): DiagramPageSetup {
     pathColor: readHexColor(source.pathColor) ?? DEFAULT_PATH_COLOR,
     // Unsaid, as in every file before there was a choice: the left.
     firstPageSide: source.firstPageSide === 'right' ? 'right' : DEFAULT_PAGE_SETUP.firstPageSide,
-    scale: source.scale === 'fit' || source.scale === 'paper' ? source.scale : DEFAULT_PAGE_SETUP.scale,
     showTitle:
       typeof source.showTitle === 'boolean' ? source.showTitle : DEFAULT_PAGE_SETUP.showTitle,
     pageNumbers: {
@@ -1755,7 +1745,6 @@ export function pageSetupEquals(a: DiagramPageSetup, b: DiagramPageSetup): boole
     a.pathWidthMm === b.pathWidthMm &&
     a.pathColor === b.pathColor &&
     a.firstPageSide === b.firstPageSide &&
-    a.scale === b.scale &&
     a.showTitle === b.showTitle &&
     a.pageNumbers.enabled === b.pageNumbers.enabled &&
     a.pageNumbers.first === b.pageNumbers.first

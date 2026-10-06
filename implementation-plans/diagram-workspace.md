@@ -116,7 +116,7 @@ At the end of this plan a user can:
 | "Simulated 40%" chosen in the inspector | A simulation can be captured only from a live, mounted session | Crease pattern \| Folded form \| Simulated is a choice **inside Pose**. The inspector's Render rows are read-only. |
 | CP picker "from the Edit workspace" | Patterns are regions of the one Edit document | The picker lists the Edit document's patterns, segmented in kernel space (D3) |
 | Click a card's picture to open Pose | Touch and keyboard need click to select | Click selects; double-click or Enter opens Pose |
-| Picture fitted to each cell | Real diagrams keep one paper scale | "Fit each" by default since 2026-10-04 (Zach): the paper keeps one scale from step to step while it fits, zooming in where the model stays much smaller for several steps; one shared paper scale (D10) as the option |
+| Picture fitted to each cell | Real diagrams keep one paper scale | "Fit each" by default since 2026-10-04 (Zach): the paper keeps one scale from step to step while it fits, zooming in where the model stays much smaller for several steps; one shared paper scale (D10) as the option until 2026-10-06, when Zach had it removed: every diagram fits each |
 | PDF export | No PDF writer anywhere | Phase 0 spike, then D11 |
 | Text in pages and PDF | No text font is bundled; SVG-as-`<img>` cannot load web fonts | One bundled TTF, embedded in every page and in the PDF (Decision 2) |
 | Rail: Design / Crease Pattern / Simulator / Diagram | The real order is Edit, Design, Simulate, References | Diagram is the **fifth** entry, after References |
@@ -832,6 +832,19 @@ shows the composed page.**
       Measured over seven setups at 8–60 mm: no bend tighter than 0.97 of the
       half-width, where the band is no wider than a cell.
 - **Scale policy.** `page.scale` is `'fit'` (default since 2026-10-04) or `'paper'`.
+  - *Amended, Fit each only* (Zach, 2026-10-06: "we basically never want the
+    "one scale" option, can you please remove that option entirely, it should
+    always fit each"; "i don't care about old diagrams, they should all be on
+    fit each"). There is no policy: every diagram is laid out as `'fit'`
+    describes below, and the `'paper'` path is gone from the layout, with
+    `DiagramPagesLayout.mmPerUnit` (each run has its own) and the Page pane's
+    Scale control and its strings. `page.scale` is no longer in the page setup
+    and is never written; the reader still knows the key, so a file that says
+    `paper` (or anything else) opens editable, laid out as Fit each, not as a
+    newer build's. A build that still offers the choice reads a file without
+    it as Fit each, its default since 2026-10-04. `diagram page setup changed`
+    no longer sends `scale`. Step files (D11) keep their own one scale, which
+    the Page pane never chose. What follows on `'paper'` is history.
   - Under `'paper'`, every picture with a paper scale is drawn at one shared mm
     per document unit: the largest at which the biggest such picture fits its
     cell. Pictures with a paper scale are crease-pattern, folded and References
@@ -1587,7 +1600,7 @@ interface DiagramPageSetup {
   columns: number;                    // 2–5
   rows: number;                       // 1–6
   showPath: boolean;                  // flow only
-  scale: 'paper' | 'fit';             // D10
+  // scale: 'paper' | 'fit' — retired 2026-10-06; every diagram fits each (D10)
   showTitle: boolean;                 // draws DiagramDocument.title
   pageNumbers: { enabled: boolean; first: number };
 }

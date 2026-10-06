@@ -198,6 +198,9 @@ const PAGE_KEYS = new Set([
   'pathWidthMm',
   'pathColor',
   'firstPageSide',
+  // Retired 2026-10-06, when every diagram came to fit each: the choice of One
+  // scale (`paper`) or Fit each (`fit`). Whatever it says is let go, and it is
+  // never written.
   'scale',
   'showTitle',
   'pageNumbers',
@@ -206,7 +209,6 @@ const PAGE_ENUMS: Record<string, readonly string[]> = {
   size: PAPER_SIZES,
   orientation: ['portrait', 'landscape'],
   layout: ['grid', 'flow'],
-  scale: ['paper', 'fit'],
   firstPageSide: DIAGRAM_PAGE_SIDES,
 };
 

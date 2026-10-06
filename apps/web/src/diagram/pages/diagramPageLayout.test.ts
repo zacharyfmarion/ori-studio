@@ -530,26 +530,7 @@ describe('layoutDiagramPages', () => {
     expect(layout(steps(2, (index) => ({ breakBefore: index === 0 }))).pages).toHaveLength(1);
   });
 
-  it('draws every paper picture at one scale under One scale: the largest at which each fits its room', () => {
-    const list = [step(0, { picture: paper(400) }), step(1, { picture: paper(200) }), step(2, { picture: paper(150, 450) })];
-    const result = layout(list, { scale: 'paper' });
-    const [first, second, tall] = result.pages[0]!.cells;
-    // The smaller model is drawn smaller: one scale, not two fits.
-    for (const cell of [first, second, tall]) expect(cell!.mmPerUnit).toBe(result.mmPerUnit);
-    // The largest: the square fills its room across, or the tall one its room down.
-    const limits = [first!.drawMm.w / 400, tall!.drawMm.h / 450, first!.drawMm.h / 400];
-    expect(Math.min(...limits.map((limit) => Math.abs(limit - result.mmPerUnit!)))).toBeLessThan(1e-9);
-    // The tall one runs past its square box, its text below it.
-    expect(tall!.drawMm.h).toBeGreaterThan(tall!.pictureMm.size);
-    expect(tall!.text.firstBaseline).toBeGreaterThan(tall!.drawMm.y + tall!.drawMm.h);
-    // Uploads are fitted to their box under One scale.
-    const fitted = layout([step(0, { picture: upload(1, 1) })], { scale: 'paper' }).pages[0]!.cells[0]!;
-    expect(fitted.mmPerUnit).toBeNull();
-    expect(fitted.frameMm).toBeNull();
-  });
-
-  it('fits each by default, keeping the paper one scale while it can, a taller model running taller', () => {
-    expect(DEFAULT_PAGE_SETUP.scale).toBe('fit');
+  it('fits each step, keeping the paper one scale while it can, a taller model running taller', () => {
     // Zach's crane in paper units: the square base, its kite, the bird base taller than both, no words under it.
     const list = [
       step(0, { picture: paper(283, 285) }),
@@ -557,7 +538,6 @@ describe('layoutDiagramPages', () => {
       step(2, { picture: paper(166, 403), text: '' }),
     ];
     const result = layout(list);
-    expect(result.mmPerUnit).toBeNull();
     const [base, kite, bird] = result.pages[0]!.cells;
     expect(kite!.mmPerUnit).toBe(base!.mmPerUnit);
     expect(bird!.mmPerUnit).toBe(base!.mmPerUnit);
@@ -603,19 +583,17 @@ describe('layoutDiagramPages', () => {
   });
 
   it('gives marks that keep their pt size up to their floor of the room, and where marks lie always', () => {
-    for (const scale of ['fit', 'paper'] as const) {
-      // A square picture's room is its cell's width less the gutter: under the height its short text leaves.
-      const room = (cell: LayoutCell) => cell.drawMm.w;
-      // Letters 10 mm across past a 400-unit sheet: they take 10 mm, the sheet the rest.
-      const near = layout([step(0, { picture: marked(400, 400, { width: 10, height: 10 }) })], { scale }).pages[0]!.cells[0]!;
-      expect(near.mmPerUnit! * 400).toBeCloseTo(room(near) - 10, 6);
-      // Letters wider than the room: the sheet keeps its floor's share of it, the letters reach out.
-      const over = layout([step(0, { picture: marked(400, 400, { width: 200, height: 200 }) })], { scale }).pages[0]!.cells[0]!;
-      expect(over.mmPerUnit! * 400).toBeCloseTo(room(over) * (1 - MARKS_FLOOR), 6);
-      // A mark lying far from the picture grows with it: the picture shrinks as far as it must, no floor.
-      const far = layout([step(0, { picture: marked(1600, 400, { width: 0, height: 0 }) })], { scale }).pages[0]!.cells[0]!;
-      expect(far.mmPerUnit! * 1600).toBeCloseTo(far.drawMm.w, 6);
-    }
+    // A square picture's room is its cell's width less the gutter: under the height its short text leaves.
+    const room = (cell: LayoutCell) => cell.drawMm.w;
+    // Letters 10 mm across past a 400-unit sheet: they take 10 mm, the sheet the rest.
+    const near = layout([step(0, { picture: marked(400, 400, { width: 10, height: 10 }) })]).pages[0]!.cells[0]!;
+    expect(near.mmPerUnit! * 400).toBeCloseTo(room(near) - 10, 6);
+    // Letters wider than the room: the sheet keeps its floor's share of it, the letters reach out.
+    const over = layout([step(0, { picture: marked(400, 400, { width: 200, height: 200 }) })]).pages[0]!.cells[0]!;
+    expect(over.mmPerUnit! * 400).toBeCloseTo(room(over) * (1 - MARKS_FLOOR), 6);
+    // A mark lying far from the picture grows with it: the picture shrinks as far as it must, no floor.
+    const far = layout([step(0, { picture: marked(1600, 400, { width: 0, height: 0 }) })]).pages[0]!.cells[0]!;
+    expect(far.mmPerUnit! * 1600).toBeCloseTo(far.drawMm.w, 6);
   });
 
   it('draws a picture whose box gave room to long text smaller alone, and never anything that is not a number', () => {

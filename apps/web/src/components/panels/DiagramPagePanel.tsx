@@ -11,7 +11,6 @@ import {
   type DiagramPageOrientation,
   type DiagramPageSide,
   type DiagramPaperSize,
-  type DiagramPictureScale,
 } from '../../diagram/document/diagramDocument';
 import { layoutLabel, orientationLabel, paperSizeLabel } from '../../diagram/pages/pageSetupLabels';
 import { useDiagramPageSetup } from '../../diagram/pages/useDiagramPageSetup';
@@ -165,20 +164,6 @@ export function DiagramPagePanel() {
               { id: 'right', label: t('panels:diagram.pagePane.sideRight', 'Right') },
             ]}
             onChange={(side) => setPage({ firstPageSide: side as DiagramPageSide }, 'first_page_side')}
-          />
-          <SegmentedRow
-            label={t('panels:diagram.pagePane.scale', 'Scale')}
-            value={page.scale}
-            disabled={readOnly}
-            help={t(
-              'panels:diagram.pagePane.scaleHint',
-              'Fit each keeps the paper one size from step to step while it fits, and zooms in where the model stays much smaller for several steps. One scale draws every pattern at the same size per unit of paper, so the model shrinks as it is folded.'
-            )}
-            options={[
-              { id: 'fit', label: t('panels:diagram.pagePane.scaleFit', 'Fit each') },
-              { id: 'paper', label: t('panels:diagram.pagePane.scalePaper', 'One scale') },
-            ]}
-            onChange={(scale) => setPage({ scale: scale as DiagramPictureScale }, 'scale')}
           />
           <p className={styles.readout}>
             {t('panels:diagram.pagePane.perPage', {

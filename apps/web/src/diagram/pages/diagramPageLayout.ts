@@ -17,17 +17,13 @@
  * is short, so a tall model keeps its scale and its cell runs taller rather
  * than the model shrinking. The text then starts below it.
  *
- * Under the `paper` scale every picture that knows its paper's size is drawn
- * at one millimetre per document unit for the whole diagram: the largest at
- * which each fits its room. A picture in a cell whose box gave room to text,
- * and no longer fits there at that scale, is drawn smaller, alone. Uploads and
- * 3D pictures are fitted to their boxes.
- *
- * Under `fit` the paper keeps one scale from step to step while it can
- * ({@link scaleRuns}): a run of steps shares the largest scale at which each
- * fits its room, and a new run zooms in where the model has grown much
- * smaller, or out where it has grown for good. Pictures with no paper keep
- * one size of frame the same way.
+ * Every step is fitted (D10, "Fit each"), the paper keeping one scale from
+ * step to step while it can ({@link scaleRuns}): a run of steps shares the
+ * largest scale at which each fits its room, and a new run zooms in where the
+ * model has grown much smaller, or out where it has grown for good. A picture
+ * in a cell whose box gave room to text, and no longer fits there at its
+ * run's scale, is drawn smaller, alone. Pictures with no paper — uploads, 3D
+ * captures — keep one size of frame the same way.
  *
  * In the flow layout the rows turn back at each end, and each page's rows run
  * so that the lane carries on across a printed spread ({@link flowPagePlan}):
@@ -107,16 +103,16 @@ export const AUTO_PATH_WIDTH_SHARE = 0.42;
 /** The room beside a picture box in its cell, together: the gutter between two pictures. */
 const PICTURE_SIDE_ROOM_MM = 6;
 /**
- * Under `fit`, what a change of scale between two steps costs, against how
+ * What a change of scale between two steps costs, against how
  * much smaller than it could be each picture is drawn — the log of the
  * ratio, summed over the pictures (`scaleRuns`). One: as much as five
  * pictures drawn a fifth smaller, or one at under two fifths of its size.
  */
 export const FIT_RUN_BREAK = 1;
-/** Under `fit`, scales this near each other are one: the larger drawn at the smaller, wherever in the diagram. */
+/** Scales this near each other are one: the larger drawn at the smaller, wherever in the diagram. */
 export const FIT_SAME = 1.06;
 /**
- * Under `fit`, the least change of scale from one step to the next: a
+ * The least change of scale from one step to the next: a
  * smaller one does not read as a zoom, only as the paper changing size, so
  * two runs nearer than this are drawn as one at the smaller of their scales.
  */
@@ -201,7 +197,7 @@ export interface LayoutStep {
   breakBefore: boolean;
   /**
    * The picture with what its marks reach past it — annotations, a
-   * References step's letters — for the scale policy, in two parts: where
+   * References step's letters — for its scale, in two parts: where
    * its marks lie, which grows with the picture — its width and height in
    * document units when it knows its paper (`paper`), or per its frame's
    * longer side when it is only fitted (`fit`) — and what they reach past
@@ -276,9 +272,9 @@ export interface LayoutCell {
   /** Millimetres per document unit for a paper picture; null when it is fitted (or there is none). */
   mmPerUnit: number | null;
   /**
-   * Under `fit`, the longer side a picture with no paper is drawn at, in mm,
-   * as its run keeps it ({@link scaleRuns}). Null under `paper`, for a paper
-   * picture, and for a step with no picture.
+   * The longer side a picture with no paper is drawn at, in mm, as its run
+   * keeps it ({@link scaleRuns}). Null for a paper picture, and for a step
+   * with no picture.
    */
   frameMm: number | null;
   /** The picture drawn smaller than its scale's run: its box gave room to text, or it reached too far. */
@@ -316,8 +312,6 @@ export interface DiagramPagesLayout {
   paper: PrintPaper;
   pages: LayoutPage[];
   cellMm: { w: number; h: number };
-  /** The shared mm per document unit under `paper`; null under `fit` (each run has its own) or with no paper picture. */
-  mmPerUnit: number | null;
   /** The title tab, when shown. */
   title: {
     tab: { x: number; y: number; w: number; h: number };
@@ -352,7 +346,7 @@ export function pathWidthMm(setup: DiagramPageSetup, cell: { w: number; h: numbe
 /**
  * The largest scale at which a picture fits its cell's room: with its text
  * in full (`own`), and for the runs, with a long text's cut to its box left
- * aside (`shared`) — such a picture is drawn smaller alone, as under `paper`.
+ * aside (`shared`) — such a picture is drawn smaller alone.
  */
 export interface ScaleFit {
   own: number;
@@ -360,7 +354,7 @@ export interface ScaleFit {
 }
 
 /**
- * Under `fit`, the scale each picture is drawn at, in order, so that the
+ * The scale each picture is drawn at, in order, so that the
  * paper keeps one size from step to step where it can — a diagram's steps
  * draw the model alike — and changes it only where the model has grown
  * smaller or larger for long enough to be worth it, and by enough to read as
@@ -929,34 +923,20 @@ export function layoutDiagramPages(
   };
   const scales = new Map<Placed, { mmPerUnit: number | null; frameMm: number | null; reduced: boolean }>();
   const all = placedPages.flat();
-  let mmPerUnit: number | null = null;
-  if (setup.scale === 'paper') {
-    // One scale for every paper picture: the largest at which each fits its room.
-    const paper = all.flatMap((placed) => {
-      const fit = placed.step.picture?.kind === 'paper' ? fitOf(placed) : null;
+  // The paper in runs, by the mm per document unit; pictures with no paper
+  // the same way by their frames, a run of their own.
+  for (const kind of ['paper', 'fit'] as const) {
+    const pictures = all.flatMap((placed) => {
+      const fit = placed.step.picture?.kind === kind ? fitOf(placed) : null;
       return fit ? [{ placed, fit }] : [];
     });
-    for (const { fit } of paper) mmPerUnit = mmPerUnit === null ? fit.shared : Math.min(mmPerUnit, fit.shared);
-    for (const { placed, fit } of paper) {
-      const scale = Math.min(mmPerUnit!, fit.own);
-      scales.set(placed, { mmPerUnit: scale, frameMm: null, reduced: scale < mmPerUnit! * (1 - 1e-9) });
-    }
-  } else {
-    // The paper in runs, by the mm per document unit; pictures with no paper
-    // the same way by their frames, a run of their own.
-    for (const kind of ['paper', 'fit'] as const) {
-      const pictures = all.flatMap((placed) => {
-        const fit = placed.step.picture?.kind === kind ? fitOf(placed) : null;
-        return fit ? [{ placed, fit }] : [];
+    scaleRuns(pictures.map(({ fit }) => fit)).forEach(({ scale, reduced }, at) => {
+      scales.set(pictures[at]!.placed, {
+        mmPerUnit: kind === 'paper' ? scale : null,
+        frameMm: kind === 'fit' ? scale : null,
+        reduced,
       });
-      scaleRuns(pictures.map(({ fit }) => fit)).forEach(({ scale, reduced }, at) => {
-        scales.set(pictures[at]!.placed, {
-          mmPerUnit: kind === 'paper' ? scale : null,
-          frameMm: kind === 'fit' ? scale : null,
-          reduced,
-        });
-      });
-    }
+    });
   }
 
   const cellPages: LayoutCell[][] = placedPages.map((placed) =>
@@ -1067,7 +1047,6 @@ export function layoutDiagramPages(
     paper,
     pages,
     cellMm: { w: cellW, h: cellH },
-    mmPerUnit,
     title: titleLayout,
     bandWidthMm,
     bandInk: setup.pathColor,
