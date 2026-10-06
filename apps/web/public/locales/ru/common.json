@@ -104,7 +104,7 @@
     "exportCreasePatternPng": "Экспортировать паттерн складок в PNG",
     "exportCreasePatternSvg": "Экспортировать паттерн складок в SVG",
     "exportDiagram": "Экспорт схемы...",
-    "exportDiagramHint": "Экспортировать схему в PDF или по файлу на шаг",
+    "exportDiagramHint": "Экспортировать схему в PDF, в один SVG или по файлу на шаг",
     "exportEditableCpAsCp": "Экспортировать редактируемый паттерн складок как CP",
     "exportEditableCpAsOrh": "Экспортировать редактируемый паттерн складок как устаревший документ ORH Oriedita/Orihime",
     "exportEditableCpAsOri": "Экспортировать редактируемый паттерн складок как документ ORI Oriedita",

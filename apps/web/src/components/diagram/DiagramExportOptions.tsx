@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { FileText, Images, Printer, Scissors } from 'lucide-react';
+import { BookOpen, FileText, Images, Printer, Scissors } from 'lucide-react';
 import { STEP_FILE_DPIS, type DiagramExportSettings } from '../../diagram/export/diagramExportSettings';
 import { PRINT_SHOP_BLEED_MM } from '../../diagram/export/diagramPdf';
 import { STEP_FILE_MM_RANGE } from '../../diagram/export/stepFiles';
 import type { DiagramExportBinding } from '../../diagram/export/useDiagramExport';
 import type { DiagramPageSetup } from '../../diagram/document/diagramDocument';
-import { pageSetupSummary } from '../../diagram/pages/pageSetupLabels';
+import { pageSetupSummary, pageSideLabel } from '../../diagram/pages/pageSetupLabels';
 import { Button } from '../ui/Button';
 import { NumberRow, SegmentedRow, ToggleRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
@@ -28,8 +28,9 @@ export function formatStepNumbers(numbers: readonly number[], language: string, 
 
 /**
  * The export dialog's options (D11): a PDF of the pages, to print at home or
- * at a print shop, or a file for each step, and how those are made; then a
- * Notice of what the export will leave out or cut. Presentation over the
+ * at a print shop, the pages as one SVG in printed spreads, or a file for each
+ * step, and how those are made; then a Notice of what the export will leave
+ * out or cut. Presentation over the
  * dialog's draft (`useDiagramExport`): every control patches the draft and
  * nothing else.
  */
@@ -47,7 +48,28 @@ export function DiagramExportOptions({
   const { t, i18n } = useTranslation();
   const { draft, patch } = binding;
   const pdf = draft.kind === 'pdf';
+  const svg = draft.kind === 'svg';
+  // The PDF and the SVG print the pages: a step with no picture is blank space there, not a file left out.
+  const printed = pdf || svg;
   const steps = (numbers: readonly number[]) => formatStepNumbers(numbers, i18n.language, t);
+  const pageSetup = (
+    <div className={styles.pageSetup}>
+      <span className={styles.setup}>
+        <span className={styles.setupLabel}>{t('dialogs:diagramExport.pageSetup', 'Page setup')}</span>
+        <span>{pageSetupSummary(page, t)}</span>
+        {svg && (
+          <span>
+            {t('dialogs:diagramExport.firstPageSide', 'First page: {{side}}', {
+              side: pageSideLabel(page.firstPageSide, t),
+            })}
+          </span>
+        )}
+      </span>
+      <Button size="sm" variant="ghost" onClick={onEditPageSetup}>
+        {t('dialogs:diagramExport.editPageSetup', 'Edit page setup')}
+      </Button>
+    </div>
+  );
 
   return (
     <>
@@ -56,12 +78,19 @@ export function DiagramExportOptions({
           label={t('dialogs:diagramExport.kind', 'Export as')}
           value={draft.kind}
           onChange={(kind) => patch({ kind })}
+          columns={3}
           options={[
             {
               value: 'pdf',
               label: t('dialogs:diagramExport.pdf', 'PDF'),
               description: t('dialogs:diagramExport.pdfHint', 'Every page, ready to print.'),
               icon: <FileText size={16} />,
+            },
+            {
+              value: 'svg',
+              label: t('dialogs:diagramExport.svg', 'SVG'),
+              description: t('dialogs:diagramExport.svgHint', 'Every page on one sheet, as spreads.'),
+              icon: <BookOpen size={16} />,
             },
             {
               value: 'steps',
@@ -98,16 +127,10 @@ export function DiagramExportOptions({
               },
             ]}
           />
-          <div className={styles.pageSetup}>
-            <span className={styles.setup}>
-              <span className={styles.setupLabel}>{t('dialogs:diagramExport.pageSetup', 'Page setup')}</span>
-              <span>{pageSetupSummary(page, t)}</span>
-            </span>
-            <Button size="sm" variant="ghost" onClick={onEditPageSetup}>
-              {t('dialogs:diagramExport.editPageSetup', 'Edit page setup')}
-            </Button>
-          </div>
+          {pageSetup}
         </section>
+      ) : svg ? (
+        <section className={styles.section}>{pageSetup}</section>
       ) : (
         <section className={styles.section}>
           <SegmentedRow
@@ -185,7 +208,7 @@ export function DiagramExportOptions({
         binding.cut.length > 0 ||
         binding.missing.length > 0 ||
         binding.unavailable ||
-        (!pdf && binding.turns > 0)) && (
+        (!printed && binding.turns > 0)) && (
         <Notice tone={(pdf && binding.missing.length > 0) || binding.unavailable ? 'warning' : 'info'}>
           <ul className={styles.notes}>
             {binding.unavailable && (
@@ -209,18 +232,26 @@ export function DiagramExportOptions({
                       'The diagram’s fonts have no {{characters}}, so a PDF can’t be made. Change the text, or export step files.',
                       { characters: binding.missing.join(' ') }
                     )
-                  : t(
+                  : svg
+                    ? t(
+                        'dialogs:diagramExport.missingSvg',
+                        'The diagram’s fonts have no {{characters}}: the SVG leaves them to the fonts of whatever opens it.',
+                        { characters: binding.missing.join(' ') }
+                      )
+                    : t(
                       'dialogs:diagramExport.missingFiles',
                       'The diagram’s fonts have no {{characters}}: the files draw a box for each.',
                       { characters: binding.missing.join(' ') }
                     )}
               </li>
             )}
-            {binding.empty.length > 0 && <li>{emptySentence(t, pdf, steps(binding.empty), binding.empty.length)}</li>}
+            {binding.empty.length > 0 && (
+              <li>{emptySentence(t, printed, steps(binding.empty), binding.empty.length)}</li>
+            )}
             {binding.cut.length > 0 && (
               <li>{cutSentence(t, steps(binding.cut), binding.cut.length)}</li>
             )}
-            {!pdf && binding.turns > 0 && (
+            {!printed && binding.turns > 0 && (
               <li>
                 {t('dialogs:diagramExport.turnsLeftOut', {
                   count: binding.turns,
@@ -241,8 +272,8 @@ export function DiagramExportOptions({
  * several, chosen by how many — not by the plural form of the count, which in
  * Russian is "one" for 21 and 101 too.
  */
-function emptySentence(t: TFunction, pdf: boolean, steps: string, count: number): string {
-  if (pdf) {
+function emptySentence(t: TFunction, printed: boolean, steps: string, count: number): string {
+  if (printed) {
     return count === 1
       ? t('dialogs:diagramExport.emptyPdfStep', 'Step {{steps}} has no picture and will print as blank space.', { steps })
       : t('dialogs:diagramExport.emptyPdfSteps', 'Steps {{steps}} have no picture and will print as blank space.', {

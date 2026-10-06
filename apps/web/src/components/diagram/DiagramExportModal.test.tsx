@@ -56,6 +56,7 @@ function diagram(text = 'Fold in half.'): DiagramDocument {
 let host: HTMLDivElement;
 let root: Root;
 let saveBinaryFile: ReturnType<typeof vi.fn>;
+let saveTextFile: ReturnType<typeof vi.fn>;
 let writePdf: ReturnType<typeof vi.fn<PdfWriter>>;
 let dependencies: DiagramExportDependencies;
 
@@ -70,11 +71,12 @@ beforeEach(() => {
   );
   useSettingsStore.setState({ diagramExport: DEFAULT_DIAGRAM_EXPORT_SETTINGS });
   saveBinaryFile = vi.fn(async (options: { suggestedName: string }) => ({ name: options.suggestedName, path: null }));
+  saveTextFile = vi.fn(async (options: { suggestedName: string }) => ({ name: options.suggestedName, path: null }));
   writePdf = vi.fn<PdfWriter>(async () => new Uint8Array([0x25, 0x50, 0x44, 0x46]));
   dependencies = {
     load: async () => ({ fonts: FIXTURE_FONTS, subsetter }),
     writePdf,
-    fileService: () => ({ saveBinaryFile }) as unknown as FileService,
+    fileService: () => ({ saveBinaryFile, saveTextFile }) as unknown as FileService,
   };
   track.mockClear();
   toastSuccess.mockClear();
@@ -188,12 +190,68 @@ describe('DiagramExportDialog', () => {
     );
   });
 
+  it('lays the pages out as spreads on one SVG: a spread in the preview, the sheet in the caption', async () => {
+    // Twelve steps with pictures: two pages, which face each other from a left first page.
+    const document = insertSteps(
+      createDiagram({ title: 'Crane' }),
+      Array.from({ length: 12 }, (_, index) => cpStep(`step-${index}`)),
+      0
+    );
+    await open(document);
+    await click(radio('SVG'));
+    expect(host.textContent).toContain('Every page on one sheet, as spreads.');
+    expect(host.textContent).toContain('First page: Left');
+    expect(host.textContent).toContain('Crane.svg');
+    expect(exportButton().textContent).toBe('Export SVG');
+    // No print shop: that is the PDF's.
+    expect(host.textContent).not.toContain('Print shop');
+    expect(caption()).toBe('420 × 297 mm · 2 pages · 1 spread');
+    expect(host.querySelectorAll('img')).toHaveLength(2);
+    expect(host.querySelector('button[aria-label="Next spread"]')).toBeNull();
+
+    await click(exportButton());
+    expect(writePdf).not.toHaveBeenCalled();
+    const saved = saveTextFile.mock.calls[0]![0] as { contents: string; suggestedName: string; extensions: string[] };
+    expect(saved.suggestedName).toBe('Crane.svg');
+    expect(saved.extensions).toEqual(['svg']);
+    expect(saved.contents).toContain('<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm"');
+    expect(saved.contents.match(/<g id="page-\d+">/g)).toHaveLength(2);
+    expect(toastSuccess).toHaveBeenCalledWith('Exported Crane.svg');
+    expect(track).toHaveBeenCalledWith('diagram exported', {
+      format: 'svg',
+      file_count_bucket: '<=2',
+      step_count_bucket: '<=20',
+      empty_step_bucket: '<=0',
+    });
+    expect(useSettingsStore.getState().diagramExport.kind).toBe('svg');
+  });
+
+  it('walks the spreads of a right first page, page 1 alone on the right', async () => {
+    const document = insertSteps(
+      createDiagram({ title: 'Crane' }),
+      Array.from({ length: 12 }, (_, index) => cpStep(`step-${index}`)),
+      0
+    );
+    await open({ ...document, page: { ...document.page, firstPageSide: 'right' } });
+    await click(radio('SVG'));
+    expect(host.textContent).toContain('First page: Right');
+    expect(caption()).toBe('420 × 604 mm · 2 pages · 2 spreads');
+    expect(host.textContent).toContain('Page 1 · 1 of 2');
+    // The left of the first spread is empty: one page on show.
+    expect(host.querySelectorAll('img')).toHaveLength(1);
+    await click(host.querySelector<HTMLButtonElement>('button[aria-label="Next spread"]')!);
+    expect(host.textContent).toContain('Page 2 · 2 of 2');
+  });
+
   it('refuses a PDF with a character the fonts lack, and lets the step files draw a box for it', async () => {
     await open(diagram('Fold 𠀀'));
     expect(notice()).toContain('so a PDF can’t be made');
     expect(exportButton().disabled).toBe(true);
     await click(radio('Step files (ZIP)'));
     expect(notice()).toContain('the files draw a box for each');
+    expect(exportButton().disabled).toBe(false);
+    await click(radio('SVG'));
+    expect(notice()).toContain('the SVG leaves them to the fonts of whatever opens it');
     expect(exportButton().disabled).toBe(false);
   });
 

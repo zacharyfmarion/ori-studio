@@ -1,6 +1,6 @@
 /**
  * What the diagram's export remembers (D11): the file it last wrote — one PDF
- * of the pages, or the steps as files — and how. The dialog opens on it, and
+ * of the pages, the pages as one SVG, or the steps as files — and how. The dialog opens on it, and
  * a save remembers what the dialog wrote.
  *
  * Pure data and its normaliser; the settings store reads and writes this
@@ -9,8 +9,8 @@
 import type { DiagramPdfMode } from './diagramPdf';
 import { STEP_FILE_MM_RANGE, stepFileMinHeightMm, type StepFileOptions } from './stepFileGeometry';
 
-/** One PDF of the pages, or a ZIP with a file for each step. */
-export type DiagramExportKind = 'pdf' | 'steps';
+/** One PDF of the pages, one SVG of them laid out in spreads (`diagramSheet.ts`), or a ZIP with a file for each step. */
+export type DiagramExportKind = 'pdf' | 'svg' | 'steps';
 
 export type StepFileFormat = 'svg' | 'png';
 
@@ -54,7 +54,7 @@ export function normalizeDiagramExportSettings(source: unknown): DiagramExportSe
   const number = flag(raw.number, fallback.number);
   const text = flag(raw.text, fallback.text);
   return {
-    kind: oneOf(raw.kind, ['pdf', 'steps'] as const, fallback.kind),
+    kind: oneOf(raw.kind, ['pdf', 'svg', 'steps'] as const, fallback.kind),
     pdf: oneOf(raw.pdf, ['home', 'print-shop'] as const, fallback.pdf),
     format: oneOf(raw.format, ['svg', 'png'] as const, fallback.format),
     dpi: oneOf(raw.dpi, STEP_FILE_DPIS, fallback.dpi),

@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { DiagramDocument } from '../../diagram/document/diagramDocument';
 import { PRINT_SHOP_BLEED_MM } from '../../diagram/export/diagramPdf';
+import { PT_PER_MM } from '../../lib/paper/paperSvg';
 import {
   useDiagramExport,
   type DiagramExportBinding,
@@ -22,8 +23,9 @@ import styles from './DiagramExportModal.module.css';
 
 /**
  * The Diagram's export dialog (D11), mounted once at the app root and opened
- * by `file.exportDiagram`: a PDF of the pages, or a file for each step, with
- * the page or file it will write beside the options. Each opening mounts a
+ * by `file.exportDiagram`: a PDF of the pages, the pages as one SVG in
+ * spreads, or a file for each step, with the page, spread or file it will
+ * write beside the options. Each opening mounts a
  * fresh dialog on the diagram as it is then. The state and the save are
  * `useDiagramExport`'s; this is the layout.
  */
@@ -137,17 +139,34 @@ function exportLabel(t: TFunction, binding: DiagramExportBinding): string {
   }
   if (binding.phase !== null) return t('dialogs:diagramExport.exporting', 'Exporting…');
   if (binding.draft.kind === 'pdf') return t('dialogs:diagramExport.confirmPdf', 'Export PDF');
+  if (binding.draft.kind === 'svg') return t('dialogs:diagramExport.confirmSvg', 'Export SVG');
   return t('dialogs:diagramExport.confirmZip', 'Export {{format}}s as ZIP', { format: binding.draft.format.toUpperCase() });
 }
 
-/** The page or the file the export will write, how big it is, and how many there are. */
+/** The page, spread or file the export will write, how big it is, and how many there are. */
 function DiagramExportPreview({ binding }: { binding: DiagramExportBinding }) {
   const { t, i18n } = useTranslation();
   const number = (value: number) => value.toLocaleString(i18n.language);
-  const { preview, pager, draft } = binding;
+  const { preview, sheet, pager, draft } = binding;
   const pdf = draft.kind === 'pdf';
   const parts: string[] = [];
-  if (preview) {
+  if (sheet) {
+    // The whole sheet's size, though one spread is on show.
+    parts.push(
+      t('dialogs:diagramExport.sizeMm', '{{width}} × {{height}} mm', {
+        width: formatPageMm(sheet.widthMm * PT_PER_MM),
+        height: formatPageMm(sheet.heightMm * PT_PER_MM),
+      }),
+      t('dialogs:diagramExport.pageCount', '{{count}} pages', {
+        count: binding.count,
+        defaultValue_one: '{{count}} page',
+      }),
+      t('dialogs:diagramExport.spreadCount', '{{count}} spreads', {
+        count: sheet.spreads,
+        defaultValue_one: '{{count}} spread',
+      })
+    );
+  } else if (preview) {
     parts.push(
       t('dialogs:diagramExport.sizeMm', '{{width}} × {{height}} mm', {
         width: formatPageMm(preview.page.widthPt),
@@ -182,7 +201,9 @@ function DiagramExportPreview({ binding }: { binding: DiagramExportBinding }) {
   if (binding.status === 'loading') state = t('dialogs:diagramExport.preparing', 'Preparing preview…');
   else if (binding.status === 'failed') {
     state = t('dialogs:diagramExport.fontsFailed', 'The diagram’s fonts couldn’t be loaded. Check your connection and try again.');
-  } else if (!preview) state = t('dialogs:diagramExport.nothing', 'No step has a picture yet: there is nothing to export.');
+  } else if (!preview && !sheet) {
+    state = t('dialogs:diagramExport.nothing', 'No step has a picture yet: there is nothing to export.');
+  }
 
   return (
     <div className={styles.column}>
@@ -191,6 +212,27 @@ function DiagramExportPreview({ binding }: { binding: DiagramExportBinding }) {
         aria-label={t('dialogs:export.preview', 'Export preview')}
         aria-busy={binding.status === 'loading'}
       >
+        {sheet && (
+          <div
+            className={styles.spread}
+            style={
+              {
+                '--page-aspect': String((sheet.spread.length * sheet.pageMm.width) / sheet.pageMm.height),
+                '--spread-across': String(sheet.spread.length),
+              } as CSSProperties
+            }
+          >
+            {sheet.spread.map((url, side) =>
+              url === null ? (
+                <span key={side} />
+              ) : (
+                <span key={side} className={styles.spreadPage}>
+                  <img src={url} alt="" />
+                </span>
+              )
+            )}
+          </div>
+        )}
         {preview && (
           <div
             className={styles.sheet}
@@ -215,7 +257,13 @@ function DiagramExportPreview({ binding }: { binding: DiagramExportBinding }) {
         <div className={styles.pager}>
           <IconButton
             size="sm"
-            aria-label={pdf ? t('dialogs:diagramExport.previousPage', 'Previous page') : t('dialogs:diagramExport.previousFile', 'Previous step')}
+            aria-label={
+              sheet
+                ? t('dialogs:diagramExport.previousSpread', 'Previous spread')
+                : pdf
+                  ? t('dialogs:diagramExport.previousPage', 'Previous page')
+                  : t('dialogs:diagramExport.previousFile', 'Previous step')
+            }
             disabled={pager.index <= 0}
             onClick={() => pager.setIndex(pager.index - 1)}
           >
@@ -230,7 +278,13 @@ function DiagramExportPreview({ binding }: { binding: DiagramExportBinding }) {
           </span>
           <IconButton
             size="sm"
-            aria-label={pdf ? t('dialogs:diagramExport.nextPage', 'Next page') : t('dialogs:diagramExport.nextFile', 'Next step')}
+            aria-label={
+              sheet
+                ? t('dialogs:diagramExport.nextSpread', 'Next spread')
+                : pdf
+                  ? t('dialogs:diagramExport.nextPage', 'Next page')
+                  : t('dialogs:diagramExport.nextFile', 'Next step')
+            }
             disabled={pager.index >= pager.count - 1}
             onClick={() => pager.setIndex(pager.index + 1)}
           >

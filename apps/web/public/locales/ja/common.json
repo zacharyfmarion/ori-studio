@@ -104,7 +104,7 @@
     "exportCreasePatternPng": "展開図の PNG をエクスポート",
     "exportCreasePatternSvg": "展開図の SVG をエクスポート",
     "exportDiagram": "折り図をエクスポート...",
-    "exportDiagramHint": "折り図を PDF またはステップごとのファイルとしてエクスポート",
+    "exportDiagramHint": "折り図を PDF、1つの SVG、またはステップごとのファイルとしてエクスポート",
     "exportEditableCpAsCp": "編集可能な展開図を CP としてエクスポート",
     "exportEditableCpAsOrh": "編集可能な展開図を従来の Oriedita/Orihime ORH ドキュメントとしてエクスポート",
     "exportEditableCpAsOri": "編集可能な展開図を Oriedita ORI ドキュメントとしてエクスポート",

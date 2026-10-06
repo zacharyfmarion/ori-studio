@@ -104,7 +104,7 @@
     "exportCreasePatternPng": "导出折痕图 PNG",
     "exportCreasePatternSvg": "导出折痕图 SVG",
     "exportDiagram": "导出图解...",
-    "exportDiagramHint": "将图解导出为 PDF 或每一步的文件",
+    "exportDiagramHint": "将图解导出为 PDF、单个 SVG 或每一步的文件",
     "exportEditableCpAsCp": "将可编辑折痕图导出为 CP",
     "exportEditableCpAsOrh": "将可编辑折痕图导出为旧版 Oriedita/Orihime ORH 文档",
     "exportEditableCpAsOri": "将可编辑折痕图导出为 Oriedita ORI 文档",

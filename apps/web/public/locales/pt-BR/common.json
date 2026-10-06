@@ -104,7 +104,7 @@
     "exportCreasePatternPng": "Exportar PNG do padrão de vincos",
     "exportCreasePatternSvg": "Exportar SVG do padrão de vincos",
     "exportDiagram": "Exportar diagrama...",
-    "exportDiagramHint": "Exportar o diagrama como PDF ou como um arquivo por passo",
+    "exportDiagramHint": "Exportar o diagrama como PDF, como um único SVG ou como um arquivo por passo",
     "exportEditableCpAsCp": "Exportar padrão de vincos editável como CP",
     "exportEditableCpAsOrh": "Exportar padrão de vincos editável como documento ORH legado do Oriedita/Orihime",
     "exportEditableCpAsOri": "Exportar padrão de vincos editável como documento ORI do Oriedita",

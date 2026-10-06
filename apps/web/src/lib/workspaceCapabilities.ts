@@ -458,7 +458,7 @@ export function getWorkspaceCapabilities(
       input.diagramStepCount > 0,
       t('common:capability.exportDiagram', 'Export Diagram...'),
       input.diagramStepCount > 0
-        ? t('common:capability.exportDiagramHint', 'Export the diagram as a PDF or as a file for each step')
+        ? t('common:capability.exportDiagramHint', 'Export the diagram as a PDF, as one SVG or as a file for each step')
         : t('common:capability.noDiagramToExport', 'Add a step to the diagram to export it')
     ),
     // As the export: from any workspace, the pages the PDF would print.

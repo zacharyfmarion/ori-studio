@@ -281,8 +281,8 @@ export type DiagramPulledInto = 'after' | 'end' | 'fill' | 'replace';
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
 
-/** What the Diagram's export wrote: one PDF of the pages, or a ZIP of the steps' own files. */
-export type DiagramExportFormat = 'pdf' | 'zip';
+/** What the Diagram's export wrote: one PDF of the pages, one SVG of them laid out in spreads, or a ZIP of the steps' own files. */
+export type DiagramExportFormat = 'pdf' | 'svg' | 'zip';
 
 /** Who a diagram's PDF is for: a printer at home, or a print shop (bleed, page boxes and crop marks). */
 export type DiagramPdfPreset = 'home' | 'print_shop';

@@ -104,7 +104,7 @@
     "exportCreasePatternPng": "Exporter le patron de plis en PNG",
     "exportCreasePatternSvg": "Exporter le patron de plis en SVG",
     "exportDiagram": "Exporter le diagramme...",
-    "exportDiagramHint": "Exporter le diagramme en PDF ou en un fichier par étape",
+    "exportDiagramHint": "Exporter le diagramme en PDF, en un seul SVG ou en un fichier par étape",
     "exportEditableCpAsCp": "Exporter le patron de plis modifiable au format CP",
     "exportEditableCpAsOrh": "Exporter le patron de plis modifiable comme document ORH Oriedita/Orihime hérité",
     "exportEditableCpAsOri": "Exporter le patron de plis modifiable comme document ORI Oriedita",

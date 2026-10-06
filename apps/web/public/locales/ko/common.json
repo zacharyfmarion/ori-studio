@@ -104,7 +104,7 @@
     "exportCreasePatternPng": "전개도 PNG 내보내기",
     "exportCreasePatternSvg": "전개도 SVG 내보내기",
     "exportDiagram": "도해 내보내기...",
-    "exportDiagramHint": "도해을 PDF 또는 단계별 파일로 내보내기",
+    "exportDiagramHint": "도해를 PDF, 하나의 SVG 또는 단계별 파일로 내보내기",
     "exportEditableCpAsCp": "편집 가능한 전개도를 CP로 내보내기",
     "exportEditableCpAsOrh": "편집 가능한 전개도를 레거시 Oriedita/Orihime ORH 문서로 내보내기",
     "exportEditableCpAsOri": "편집 가능한 전개도를 Oriedita ORI 문서로 내보내기",

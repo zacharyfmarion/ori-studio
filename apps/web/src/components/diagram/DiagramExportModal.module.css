@@ -25,7 +25,8 @@
   container-type: size;
 }
 
-.sheet {
+.sheet,
+.spread {
   --page-inset: var(--space-3);
 
   width: min(
@@ -33,16 +34,34 @@
     calc((100cqh - 2 * var(--page-inset)) * var(--page-aspect, 1))
   );
   aspect-ratio: var(--page-aspect, 1);
+}
+
+.sheet,
+.spreadPage {
   /* A page prints on white paper; a file with a ground has one of its own. */
   background: #ffffff;
   box-shadow: 0 0 0 1px var(--border-subtle);
+}
+
+/*
+ * The SVG's spread on show: its pages side by side, meeting at the spine, as
+ * the sheet lays them out; the side of a spread with no page is left empty.
+ */
+.spread {
+  display: grid;
+  grid-template-columns: repeat(var(--spread-across, 2), minmax(0, 1fr));
+}
+
+.spreadPage {
+  min-width: 0;
 }
 
 .sheet[data-transparent] {
   background: repeating-conic-gradient(#dcdcdc 0% 25%, #ffffff 0% 50%) 0 0 / 12px 12px;
 }
 
-.sheet img {
+.sheet img,
+.spreadPage img {
   display: block;
   width: 100%;
   height: 100%;

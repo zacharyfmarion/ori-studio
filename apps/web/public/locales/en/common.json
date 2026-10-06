@@ -104,7 +104,7 @@
     "exportCreasePatternPng": "Export crease pattern PNG",
     "exportCreasePatternSvg": "Export crease pattern SVG",
     "exportDiagram": "Export Diagram...",
-    "exportDiagramHint": "Export the diagram as a PDF or as a file for each step",
+    "exportDiagramHint": "Export the diagram as a PDF, as one SVG or as a file for each step",
     "exportEditableCpAsCp": "Export editable crease pattern as CP",
     "exportEditableCpAsOrh": "Export editable crease pattern as a legacy Oriedita/Orihime ORH document",
     "exportEditableCpAsOri": "Export editable crease pattern as an Oriedita ORI document",

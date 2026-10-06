@@ -104,7 +104,7 @@
     "exportCreasePatternPng": "Faltmuster-PNG exportieren",
     "exportCreasePatternSvg": "Faltmuster-SVG exportieren",
     "exportDiagram": "Diagramm exportieren...",
-    "exportDiagramHint": "Das Diagramm als PDF oder als eine Datei je Schritt exportieren",
+    "exportDiagramHint": "Das Diagramm als PDF, als ein SVG oder als eine Datei je Schritt exportieren",
     "exportEditableCpAsCp": "Bearbeitbares Faltmuster als CP exportieren",
     "exportEditableCpAsOrh": "Bearbeitbares Faltmuster als Legacy-Oriedita/Orihime-ORH-Dokument exportieren",
     "exportEditableCpAsOri": "Bearbeitbares Faltmuster als Oriedita-ORI-Dokument exportieren",

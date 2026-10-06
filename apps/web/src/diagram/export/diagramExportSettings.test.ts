@@ -36,6 +36,7 @@ describe('normalizeDiagramExportSettings', () => {
       transparent: false,
     });
     expect(normalizeDiagramExportSettings({ kind: 'docx', dpi: 72 })).toMatchObject({ kind: 'pdf', dpi: 300 });
+    expect(normalizeDiagramExportSettings({ kind: 'svg' }).kind).toBe('svg');
   });
 
   it('holds the canvas to its range, tall enough for the number and the text it carries', () => {

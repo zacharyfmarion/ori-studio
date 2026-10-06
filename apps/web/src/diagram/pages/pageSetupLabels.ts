@@ -10,6 +10,7 @@ import type {
   DiagramPageLayout,
   DiagramPageOrientation,
   DiagramPageSetup,
+  DiagramPageSide,
   DiagramPaperSize,
 } from '../document/diagramDocument';
 
@@ -34,6 +35,13 @@ export function orientationLabel(orientation: DiagramPageOrientation, t: TFuncti
 
 export function layoutLabel(layout: DiagramPageLayout, t: TFunction): string {
   return layout === 'grid' ? t('panels:diagram.pagePane.grid', 'Grid') : t('panels:diagram.pagePane.flow', 'Flow');
+}
+
+/** The side of its spread page 1 prints on: the Page pane's First page choice. */
+export function pageSideLabel(side: DiagramPageSide, t: TFunction): string {
+  return side === 'left'
+    ? t('panels:diagram.pagePane.sideLeft', 'Left')
+    : t('panels:diagram.pagePane.sideRight', 'Right');
 }
 
 /** The setup in a line: "A4 Portrait · Grid, 3 × 3". */

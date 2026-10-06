@@ -1012,6 +1012,36 @@ shows the composed page.**
     exported PDF at 100 dpi (anti-aliasing at edges); WebKit under print media
     shows only the two pages. Neither headless browser shows a dialog; the
     desktop print panel is not verified here.
+- *Amended, one SVG* (Zach, 2026-10-06: "right now I can either export as a
+  PDF or export as individual SVG files. I'm wondering if there's a middle
+  ground where we can like export like a single SVG that has all the pages
+  like laid out"). A third card, **SVG** ("Every page on one sheet, as
+  spreads."), between PDF and Step files. `export/diagramSheet.ts` lays the
+  pages out as they print: pairs side by side from First page (Left: 1|2,
+  3|4, …; Right: 1 alone on the right, then 2|3, …), meeting at the spine,
+  the spreads stacked 10 mm apart; two pages wide, one for a diagram of a
+  single page. Each page is the PDF's (`composeEveryPage`, which the PDF now
+  uses too), nested in its own `<svg>` viewport on a white page (no page
+  edge: the PDF draws none), its ids renamed under `p<N>-`. Text stays live:
+  each face is embedded once in the sheet's one `<style>`, cut to every
+  character the pages set in it. The sheet is in mm (`width="420mm"`,
+  a user unit a millimetre), with the diagram's `<title>`; the file is
+  `<Title>.svg`, saved through `saveTextFile` as the other SVG exports are.
+  The dialog shows the page setup with First page, no print-shop options; the
+  preview is one spread at a time (its pages as the PDF's preview draws them,
+  the empty side of a lone page left empty) and the pager walks the spreads;
+  the caption gives the whole sheet's size. A missing character does not
+  refuse it (the reader's fonts draw it). `diagram exported` gains `format`
+  `svg`, with the counts and no options.
+  - **Measured** (`artifacts/diagram-second-pass/28/`): the heart (2 pages)
+    and a 3-page copy, Left and Right, each page cut from the sheet as
+    Chromium and WebKit draw it against the app's PDF drawn by pdftoppm at
+    127 dpi: 0.44–0.94% of pixels differ by more than 25%, at the edges of
+    lines and letters; against the page SVG the Pages view shows, in the same
+    browser, at most 0.037% by more than 3%. Inkscape 1.4.4 opens it and draws
+    everything but sets the text in a fallback font (it ignores an embedded
+    `@font-face`; Noto Sans is not installed there). The desktop save dialog
+    is not verified here.
 
 **D12. The shell: a fifth, authoring workspace.**
 - **Registration.** Copy References' registration file by file; the list is in

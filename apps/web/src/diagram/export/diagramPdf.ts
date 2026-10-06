@@ -18,9 +18,10 @@
 import type { DiagramDocument } from '../document/diagramDocument';
 import { parseFontFaceId } from '../fonts/diagramFontFaces';
 import type { DiagramFonts } from '../fonts/diagramFonts';
+import type { FontUsage } from '../fonts/fontEmbedding';
 import type { FontSubsetter } from '../fonts/fontSubset';
 import { composeDiagramPage } from '../pages/composeDiagramPage';
-import { preparedPages } from '../pages/diagramPages';
+import { preparedPages, type PreparedDiagramPages } from '../pages/diagramPages';
 import { stepsOf } from '../document/diagramDocument';
 
 /** The print shop's margins: the art past the trim, and the slug the crop marks stand in. */
@@ -56,17 +57,19 @@ export interface DiagramPdfInput {
   missing: string[];
 }
 
-/** What the writer is handed: the composed pages, and one subset per face they set. */
-export function diagramPdfInput(
+/**
+ * Every page composed as the Pages view shows it, `bleedMm` past its trim,
+ * with no fonts in it, and the characters each face sets across them all: a
+ * document's fonts are embedded once, cut to what every page sets in them —
+ * in the PDF by its writer, in the one SVG by its style (`diagramSheet.ts`).
+ */
+export function composeEveryPage(
   document: DiagramDocument,
-  fonts: DiagramFonts,
-  subsetter: FontSubsetter,
-  mode: DiagramPdfMode
-): DiagramPdfInput {
-  const prepared = preparedPages(document, fonts, subsetter);
+  prepared: PreparedDiagramPages,
+  bleedMm = 0
+): { pages: string[]; usage: FontUsage } {
   const { layout } = prepared;
   const steps = new Map(stepsOf(document).map((step) => [step.id, step]));
-  const bleedMm = mode === 'print-shop' ? PRINT_SHOP_BLEED_MM : 0;
   const usage = new Map<string, Set<string>>();
   const pages = layout.pages.map(
     (page) =>
@@ -89,11 +92,25 @@ export function diagramPdfInput(
         },
       }).svg
   );
+  return { pages, usage: new Map([...usage].map(([face, characters]) => [face, [...characters].join('')])) };
+}
+
+/** What the writer is handed: the composed pages, and one subset per face they set. */
+export function diagramPdfInput(
+  document: DiagramDocument,
+  fonts: DiagramFonts,
+  subsetter: FontSubsetter,
+  mode: DiagramPdfMode
+): DiagramPdfInput {
+  const prepared = preparedPages(document, fonts, subsetter);
+  const { layout } = prepared;
+  const bleedMm = mode === 'print-shop' ? PRINT_SHOP_BLEED_MM : 0;
+  const { pages, usage } = composeEveryPage(document, prepared, bleedMm);
   const subsets: Uint8Array[] = [];
   for (const id of [...usage.keys()].sort()) {
     const face = parseFontFaceId(id);
     const font = face ? fonts.font(face.key, face.weight) : null;
-    const characters = [...(usage.get(id) ?? [])].join('');
+    const characters = usage.get(id) ?? '';
     if (font && characters !== '') subsets.push(subsetter.subset(`${id}-${font.tier}`, font.bytes, characters));
   }
   return {
