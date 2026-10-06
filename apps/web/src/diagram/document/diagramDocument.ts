@@ -519,6 +519,36 @@ export interface DiagramScenePicture {
   /** For a 3D capture, the style its light was baked under (`folded3dSceneStyleKey`); null otherwise. */
   styleKey: string | null;
   key: string;
+  /**
+   * A flat fold's faces on the paper, as an enlarged step anchors its frame
+   * to them (Revision 2): a {@link DiagramPaperFaces} as one string of compact
+   * JSON, as `sceneJson` is a scene — written pretty-printed as a value it
+   * would be a line per number. Written by flat captures only; absent on a
+   * capture made before it, which anchors nothing until it is refreshed.
+   */
+  paperFaces?: string;
+}
+
+/**
+ * A flat fold's faces as anchoring an enlarged step's frame needs them
+ * (Revision 2), each wireframe point once. Paper coordinates are pattern
+ * units about the centre of the paper's box, shared by every step of one
+ * paper; the unspread picture is the step's picture as its pose draws it
+ * (side, turn, case) with no spread, in scene px. A point's drawn place is
+ * never stored: with a spread on it is in the stored scene, each face whole
+ * there, and with none it is its unspread place.
+ */
+export interface DiagramPaperFaces {
+  /** Per point: its place on the paper, then on the unspread picture. */
+  points: [number, number, number, number][];
+  /**
+   * Per face, in the kernel's face order (the `face` the stored scene's face
+   * items carry): its corners as indices into `points`, in its outline's
+   * order; empty for a face the kernel could not name on the paper.
+   */
+  rings: number[][];
+  /** Per face: the longest chain of faces stacked over it as the picture is seen (`layerLevels`); the greatest is backmost. */
+  levels: number[];
 }
 
 /**
@@ -564,7 +594,9 @@ export type DiagramPicture =
  * it, the area drawn again inside it at a larger size (15f), and equal
  * divisions: a line set off from a line of the picture, cut into equal parts
  * by strokes across it, each part ticked, as a draftsman's dimension is
- * (Revision 2).
+ * (Revision 2), and an enlarge area: a circle or a rounded rectangle marking
+ * what a later step may show enlarged (Revision 2) — drawing one changes no
+ * other step.
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
@@ -584,7 +616,65 @@ export type DiagramAnnotationKind =
   | 'callout'
   | 'angle-mark'
   | 'divisions'
-  | 'close-up';
+  | 'close-up'
+  | 'zoom';
+
+/**
+ * How an enlarged step draws its frame (Revision 2): only where it crosses
+ * paper (look 1), or all of it (look 2).
+ */
+export type DiagramZoomEdge = 'cut' | 'whole';
+
+/** An enlarge area's, or an enlarged step's frame's, shape: a circle, or a rectangle with rounded corners. */
+export type DiagramZoomShape = 'circle' | 'rounded';
+
+/**
+ * A circle or a rounded rectangle, centred on `centre` and turned clockwise
+ * by `angle` degrees: exactly one of `radius` and `size`. In whatever units
+ * it is held in — a step's picture units, or the paper's.
+ */
+export interface DiagramZoomOutline {
+  centre: [number, number];
+  /** A circle's radius. */
+  radius?: number;
+  /** A rounded rectangle's width and height. */
+  size?: [number, number];
+  /** Degrees clockwise; unsaid, 0. */
+  angle?: number;
+}
+
+/**
+ * An enlarged step (Revision 2): it shows a frame of its own picture,
+ * captured from an earlier step at one moment and its own from then on.
+ */
+export interface DiagramStepZoom {
+  /**
+   * Provenance only: the id of the area it was captured from, directly or
+   * through an enlarged step. Never read to draw.
+   */
+  from: string;
+  shape: DiagramZoomShape;
+  /**
+   * The frame in this step's picture units, as drawn (onto its spread). The
+   * step's marks are in the units of its upright box, the window: the window
+   * is its frame. On a step with no picture yet (seeded empty), the source's
+   * frame copied in picture units: what its first picture shows when the
+   * imprint cannot land there.
+   */
+  frame?: DiagramZoomOutline;
+  /**
+   * The frame on the paper, in paper coordinates, and `on`, the anchor's
+   * point on the paper; `picked` when the anchor was picked. Absent where the
+   * capture had no faces to imprint through. A step with no faces of its own
+   * keeps the one it was captured with, for a picture with faces to land —
+   * until its frame is set by hand, which then is the frame.
+   */
+  imprint?: DiagramZoomOutline & { on: [number, number]; picked?: true };
+  /** As an area's: that many times the area as it prints, 1.25–6; unsaid, Fill. */
+  scale?: number;
+  /** As an area's: unsaid, the shape's own. */
+  edge?: DiagramZoomEdge;
+}
 
 /**
  * How many ticks an equality mark draws: across each half of an angle mark,
@@ -721,14 +811,29 @@ export interface KnownDiagramAnnotation {
   fill?: 'black';
   /**
    * A close-up's area (15f): the radius of the ring round it, in picture
-   * units. Its centre is `from`; the close-up's is `to`.
+   * units. Its centre is `from`; the close-up's is `to`. An enlarge area's,
+   * when it is a circle (Revision 2): its centre is `from`, and `to` again.
    */
   radius?: number;
   /**
    * How many times larger a close-up draws its area (15f): its ring is
-   * `radius` times this. Two when unsaid.
+   * `radius` times this. Two when unsaid. An enlarge area's Size, which the
+   * steps enlarged from it copy: that many times the area as it prints,
+   * 1.25–6; unsaid, Fill (Revision 2).
    */
   scale?: number;
+  /**
+   * An enlarge area that is a rounded rectangle: its width and height in
+   * picture units, about its centre `from`. Exactly one of this and `radius`
+   * (Revision 2).
+   */
+  size?: [number, number];
+  /** An enlarge area's turn, in degrees clockwise, from a pose that carried it; unsaid, 0 (Revision 2). */
+  angle?: number;
+  /** How the steps enlarged from an area draw their frame; unsaid, its shape's own (Revision 2). */
+  edge?: DiagramZoomEdge;
+  /** An enlarge area's picked anchor: a point on the paper, in paper coordinates; unsaid, the default rule (Revision 2). */
+  anchor?: [number, number];
   /** A label's or a callout's text. */
   text?: string;
   rotate?: DiagramRotation;
@@ -808,6 +913,8 @@ export interface DiagramStep {
   text: string;
   /** Start a new page at this step. */
   breakBefore: boolean;
+  /** Set when the step is enlarged (Revision 2): the frame of its picture it shows. */
+  zoom?: DiagramStepZoom;
   /**
    * Set when the step was written by a newer build in a shape this one cannot
    * read: the raw step, re-emitted verbatim on save. Such a step is locked — it
@@ -1203,8 +1310,8 @@ export interface CapturedLink {
  * Link a step to the pattern, or give a linked step a new capture: its source
  * and picture become the capture's, and it keeps its instruction and
  * annotations. A capture that changes nothing — the same source, and a picture
- * with the same key — is no edit, so a Refresh of a current step records no
- * undo step.
+ * with the same key and the same faces on the paper — is no edit, so a
+ * Refresh of a current step records no undo step.
  */
 export function setLinkedPicture(
   document: DiagramDocument,
@@ -1215,6 +1322,7 @@ export function setLinkedPicture(
   if (!step || isLockedStep(step)) return document;
   if (
     (step.picture?.key ?? null) === (link.picture?.key ?? null) &&
+    paperFacesOn(step.picture) === paperFacesOn(link.picture) &&
     JSON.stringify(step.source) === JSON.stringify(withRememberedPoses(step.source, link.source))
   ) {
     return document;
@@ -1232,6 +1340,15 @@ export function setLinkedPicture(
       withAsset.assets
     )
   );
+}
+
+/**
+ * A picture's faces on the paper, as stored: a capture that adds them to a
+ * picture drawn the same (its key unchanged) is still an edit, which keeps
+ * every mark where it is.
+ */
+function paperFacesOn(picture: DiagramPicture | null): string | undefined {
+  return picture?.kind === 'scene' ? picture.paperFaces : undefined;
 }
 
 /** One References card, as a step is made from it. */

@@ -351,7 +351,7 @@ describe('Edit Path’s node verbs', () => {
 describe('Flip Horizontal and Flip Vertical (Zach, 2026-10-05)', () => {
   it('are offered on every mark with a side to it, a row of their own ahead of the rest, with no keys', () => {
     const flips = ANNOTATION_KINDS.filter((kind) => offersAnnotationAction('flip-horizontal', of('a', kind)));
-    expect(flips).toEqual(ANNOTATION_KINDS.filter((kind) => !['turn-over', 'label', 'circle'].includes(kind)));
+    expect(flips).toEqual(ANNOTATION_KINDS.filter((kind) => !['turn-over', 'label', 'circle', 'zoom'].includes(kind)));
     const actions = buildAnnotationActions(of('a', 'valley-arrow'), { editable: true }, { t, apply: vi.fn() });
     expect(actions.map(({ id, group, label, shortcutId, disabled }) => ({ id, group, label, shortcutId, disabled }))).toEqual([
       { id: 'flip-horizontal', group: 'flip', label: 'Flip Horizontal', shortcutId: undefined, disabled: false },

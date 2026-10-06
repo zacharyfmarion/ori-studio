@@ -395,6 +395,10 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
       };
     case 'close-up':
       return { kind: 'close-up', shape: closeUpShape(annotation) };
+    // An enlarge area marks what a later step shows enlarged. Its outline is
+    // not drawn yet: it comes with the painter that draws enlarged steps.
+    case 'zoom':
+      return null;
   }
 }
 

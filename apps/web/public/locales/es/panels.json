@@ -840,6 +840,7 @@
       "deleteNode": "Eliminar nodo",
       "direction": "Sentido",
       "empty": "Aún no hay nada dibujado.",
+      "enlargeArea": "Área de ampliación",
       "fill": "Relleno",
       "fillBlack": "Negro",
       "fillWhite": "Blanco",

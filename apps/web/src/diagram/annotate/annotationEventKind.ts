@@ -22,13 +22,20 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'angle-mark': 'angle_mark',
   divisions: 'divisions',
   'close-up': 'close_up',
+  // A circle; a rounded rectangle is the Enlarge in Frame tool's (`annotationEventKind`).
+  zoom: 'enlarge',
 };
 
 /**
  * An annotation as the analytics events name it: by its kind, and by its look
  * where the look is a tool's own — a white arrow filled with ink is the Solid
- * Arrow's (15d).
+ * Arrow's (15d), and an enlarge area drawn as a rounded rectangle Enlarge in
+ * Frame's (Revision 2).
  */
-export function annotationEventKind(annotation: Pick<KnownDiagramAnnotation, 'kind' | 'fill'>): DiagramAnnotationTool {
-  return isSolidArrow(annotation) ? 'solid_arrow' : ANNOTATION_TOOL[annotation.kind];
+export function annotationEventKind(
+  annotation: Pick<KnownDiagramAnnotation, 'kind' | 'fill' | 'radius' | 'size'>
+): DiagramAnnotationTool {
+  if (isSolidArrow(annotation)) return 'solid_arrow';
+  if (annotation.kind === 'zoom' && annotation.radius === undefined && annotation.size !== undefined) return 'enlarge_frame';
+  return ANNOTATION_TOOL[annotation.kind];
 }

@@ -48,13 +48,14 @@ type TurnSignKind = 'turn-over' | 'rotate';
 
 /**
  * A tool that draws: the kind it draws, for every kind but the three lines,
- * which the Line tool draws in the type chosen, and the turn signs, which
- * none does; the Angle Bisector, which draws a line and a mark; and the Solid
- * Arrow, a white arrow in a look of its own. Its own id, so a tool need not
- * be a kind.
+ * which the Line tool draws in the type chosen, the turn signs, which none
+ * does, and the enlarge area, which tools of its own lay in a shape each
+ * (Revision 2); the Angle Bisector, which draws a line and a mark; and the
+ * Solid Arrow, a white arrow in a look of its own. Its own id, so a tool need
+ * not be a kind.
  */
 export type DrawingTool =
-  | Exclude<DiagramAnnotationKind, DiagramLineKind | TurnSignKind>
+  | Exclude<DiagramAnnotationKind, DiagramLineKind | TurnSignKind | 'zoom'>
   | typeof LINE_TOOL
   | typeof ANGLE_BISECTOR
   | typeof SOLID_ARROW;
@@ -241,6 +242,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolDivisions', 'Equal Divisions');
     case 'close-up':
       return t('tools:diagram.toolCloseUp', 'Close-Up');
+    case 'zoom':
+      return t('panels:diagram.annotations.enlargeArea', 'Enlarge Area');
   }
 }
 

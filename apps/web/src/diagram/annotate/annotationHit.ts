@@ -72,6 +72,7 @@ import {
 import { nearestPathPoint, pathNodesOf, visiblePathHandles } from './annotationPath';
 import { ANNOTATION_INK_MM } from './canvasInk';
 import { perAnnotation } from './perAnnotation';
+import { distanceToRim, zoomOutlineOf } from '../zoom/zoomModel';
 
 /**
  * Which part of an annotation a press took hold of: its body, or one end; a
@@ -738,6 +739,9 @@ function bodyDistance(
       const { area, inset, line } = closeUpDistances(annotation, point);
       return Math.min(area, inset, line);
     }
+    case 'zoom':
+      // Its outline, not its inside: the marks drawn inside it are pressed there.
+      return distanceToRim(zoomOutlineOf(annotation), point);
   }
 }
 
@@ -786,16 +790,20 @@ export function hitAnnotation(
   // An arrow that lands in a circle is drawn stopped on its ring: its head is pressed there.
   const marks = known.filter((annotation) => annotation.kind === 'circle').map(({ from }) => from);
   // Topmost first, as they are drawn: labels over callouts over marks over
-  // lines over close-ups, whose insides are painted under everything — and
+  // lines over close-ups, whose insides are painted under everything, over
+  // enlarge areas — and
   // a circle over the other marks, its ring the one place to take it, where
   // an arrow that lands on it has the rest of its length; but not where a
   // hollow arrow drawn after it hides it.
   const last = new Set(['circle', 'callout', 'label']);
+  const under = new Set<DiagramAnnotationKind>(['zoom', 'close-up']);
   const drawn = [
+    // An enlarge area under everything, as a close-up's insides are: it marks an area, and what is inside it stays pressable.
+    ...known.filter((annotation) => annotation.kind === 'zoom'),
     ...known.filter((annotation) => annotation.kind === 'close-up'),
     ...known.filter((annotation) => LINE_KINDS.has(annotation.kind)),
     ...known.filter(
-      (annotation) => !LINE_KINDS.has(annotation.kind) && !last.has(annotation.kind) && annotation.kind !== 'close-up'
+      (annotation) => !LINE_KINDS.has(annotation.kind) && !last.has(annotation.kind) && !under.has(annotation.kind)
     ),
     ...known.filter((annotation) => annotation.kind === 'circle'),
     ...known.filter((annotation) => annotation.kind === 'callout'),

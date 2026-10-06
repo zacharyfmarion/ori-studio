@@ -44,7 +44,8 @@ export function snapRadiusUnits(setting: number, screenPerUnit: number): number 
  * An arrow is drawn where it is drawn (Zach, 2026-10-05): its ends are rarely
  * on a corner — a fold arrow starts on the flap and lands on the paper past
  * the crease — so a snap there would only pull it off. A sign or a label is
- * put beside what it names, never on it. A switch, so a new kind has to say.
+ * put beside what it names, never on it; a close-up's area or an enlarge
+ * area round what it shows. A switch, so a new kind has to say.
  */
 export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
@@ -67,6 +68,7 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'rotate':
     case 'label':
     case 'close-up':
+    case 'zoom':
       return false;
   }
 }

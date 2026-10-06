@@ -671,6 +671,17 @@ describe('the ways a linked pattern is shown (D19)', () => {
     expect(setLinkedPicture(shown, 'step-1', { source: cpSource(pattern), picture: scenePicture('b') })).toBe(shown);
   });
 
+  it('takes a capture that adds the faces on the paper to a picture drawn the same, its marks kept in step (Revision 2)', () => {
+    const mark = { id: 'annotation-1', kind: 'valley-line' as const, from: [0, 0] as [number, number], to: [1, 1] as [number, number] };
+    const step = { ...createStep(() => 'step-1'), source: cpSource(flat), picture: scenePicture('a'), annotations: [mark], annotatedPictureKey: 'a' };
+    const document = insertSteps(createDiagram({ newId: () => 'diagram-1' }), [step], 0);
+    const faces = JSON.stringify({ points: [], rings: [], levels: [] });
+    const refreshed = setLinkedPicture(document, 'step-1', { source: cpSource(flat), picture: { ...scenePicture('a'), paperFaces: faces } });
+    expect(refreshed).not.toBe(document);
+    expect(stepsIn(refreshed)[0]).toMatchObject({ picture: { key: 'a', paperFaces: faces }, annotations: [mark], annotatedPictureKey: 'a' });
+    expect(setLinkedPicture(refreshed, 'step-1', { source: cpSource(flat), picture: { ...scenePicture('a'), paperFaces: faces } })).toBe(refreshed);
+  });
+
   it('remembers a fold’s spread while the pattern is shown, and brings it back with the fold (Phase 13)', () => {
     const spread = { ...flat, spread: { kind: 'depth' as const, amount: 0.08, toward: 'left' as const } };
     const shown = withRememberedPoses(cpSource(spread), cpSource(pattern));

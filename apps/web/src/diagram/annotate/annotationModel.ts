@@ -60,7 +60,10 @@ export interface PictureFrame {
  *   (Revision 2);
  * - `close-up`: a ring round an area of the picture and a larger one beside
  *   it, dragged from the area's centre out to its ring, or put down with a
- *   click (15f).
+ *   click (15f);
+ * - `zoom`: an enlarge area, a circle or a rounded rectangle round what a
+ *   later step may show enlarged, its centre `from` and `to` alike, put down
+ *   with a drag or a click (Revision 2).
  */
 type AnnotationShape =
   | 'arc'
@@ -72,7 +75,8 @@ type AnnotationShape =
   | 'callout'
   | 'angle'
   | 'divisions'
-  | 'close-up';
+  | 'close-up'
+  | 'zoom';
 
 const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
   'valley-arrow': 'arc',
@@ -93,6 +97,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'angle-mark': 'angle',
   divisions: 'divisions',
   'close-up': 'close-up',
+  zoom: 'zoom',
 };
 
 /** Every kind, in the order the rail offers them. */
@@ -202,6 +207,7 @@ export function behindEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to'
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
+    case 'zoom':
       return [];
   }
 }
@@ -361,6 +367,7 @@ function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation 
   if (isAngleKind(annotation.kind)) return cleanAngle(annotation);
   if (annotation.kind === 'divisions') return cleanDivisions(annotation);
   if (annotation.kind === 'close-up') return cleanCloseUp(annotation);
+  if (annotation.kind === 'zoom') return cleanZoom(annotation);
   const from = withinReach(annotation.from);
   const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
   const text = annotation.text === undefined ? undefined : cleanLabelText(annotation.text);
@@ -790,6 +797,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
+    case 'zoom':
       return false;
   }
 }
@@ -839,6 +847,7 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
+    case 'zoom':
       return false;
   }
 }
@@ -873,6 +882,7 @@ export function annotationEnds(kind: DiagramAnnotationKind): readonly ('from' | 
     case 'right-angle':
     case 'angle-mark':
     case 'close-up':
+    case 'zoom':
       return [];
   }
 }
@@ -996,11 +1006,12 @@ export function isCornerKind(kind: DiagramAnnotationKind): boolean {
 /**
  * Whether a click puts an annotation of `kind` down: a point kind's at its
  * point, a right angle's in the corner it is in, a callout's beside its
- * point, a close-up's area round it. A drag draws the rest.
+ * point, a close-up's area round it, an enlarge area a standard size round
+ * it. A drag draws the rest.
  */
 export function placedByClick(kind: DiagramAnnotationKind): boolean {
   const shape = ANNOTATION_SHAPES[kind];
-  return isPointKind(kind) || isCornerKind(kind) || shape === 'callout' || shape === 'close-up';
+  return isPointKind(kind) || isCornerKind(kind) || shape === 'callout' || shape === 'close-up' || shape === 'zoom';
 }
 
 /**
@@ -1046,6 +1057,15 @@ export function createAnnotation(
   }
   const from = withinReach(start);
   const to = withinReach(end);
+  if (kind === 'zoom') {
+    // A circle, dragged from its middle out to its rim, unsnapped as a
+    // close-up's area is; a click, or a drag shorter than a slip, puts down
+    // a standard size. A rounded rectangle is drawn corner to corner
+    // (`zoomAreaFromCorners`).
+    const drag = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    const radius = drag < MIN_ZOOM_SIDE ? ZOOM_CLICK.radius : zoomRadiusWithin(drag);
+    return { id, kind, from: [from[0], from[1]], to: [from[0], from[1]], radius };
+  }
   if (kind === 'close-up') {
     // Dragged from its area's centre out to its ring; a click, or a drag
     // shorter than a slip, puts down a corner's worth. Its close-up beside it.
@@ -1319,6 +1339,125 @@ function cleanCloseUp(annotation: KnownDiagramAnnotation): KnownDiagramAnnotatio
 }
 
 /**
+ * An enlarge area's Size (Revision 2): how many times the area as it prints
+ * the steps enlarged from it print, when it is fixed rather than Fill — the
+ * close-up's range.
+ */
+export const ZOOM_SCALE = CLOSE_UP_SCALE;
+/** An enlarge area's circle: its radius, in picture units, as a close-up's area's range. */
+export const ZOOM_RADIUS = { min: MIN_CLOSE_UP_RADIUS, max: MAX_CLOSE_UP_RADIUS } as const;
+/** An enlarge area's rounded rectangle: each side, in picture units — up to twice the frame, about any centre. */
+export const ZOOM_SIDE = { min: MIN_ANNOTATION_LENGTH, max: 2 } as const;
+/** The smallest area's radius or side: a drag shorter than a slip is a click. */
+export const MIN_ZOOM_SIDE = MIN_ANNOTATION_LENGTH;
+/** The area a click puts down, in picture units: a circle of this radius, or a square of this size. */
+export const ZOOM_CLICK = { radius: 0.15, size: [0.3, 0.3] as const } as const;
+
+/** An enlarge area's circle's radius held to its range; a click's for one that is no number. */
+export function zoomRadiusWithin(radius: number): number {
+  if (!Number.isFinite(radius)) return ZOOM_CLICK.radius;
+  return Math.min(ZOOM_RADIUS.max, Math.max(ZOOM_RADIUS.min, radius));
+}
+
+/** One side of an enlarge area's rounded rectangle held to its range; a click's for one that is no number. */
+export function zoomSideWithin(side: number): number {
+  if (!Number.isFinite(side)) return ZOOM_CLICK.size[0];
+  return Math.min(ZOOM_SIDE.max, Math.max(ZOOM_SIDE.min, side));
+}
+
+/** An angle, in degrees, as a rectangle reads it: a half turn is no turn, so within [0, 180). */
+export function rectangleAngle(degrees: number): number {
+  if (!Number.isFinite(degrees)) return 0;
+  const turned = degrees % 180;
+  return turned < 0 ? turned + 180 : turned;
+}
+
+/**
+ * An enlarge area as this build writes it (Revision 2): its centre within
+ * reach and `to` on it; exactly one of a circle's `radius` and a rounded
+ * rectangle's `size`, each in its range — a circle when it has a radius,
+ * else a rectangle, else the click's circle; a turn only on a rectangle, as
+ * it was written; a Size in its range, unsaid left unsaid; an edge and an
+ * anchor only when they read. Never rounded, so a value the reader takes is
+ * written back as it was. The same object when it already is.
+ */
+function cleanZoom(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const from = withinReach(annotation.from);
+  const { radius: wasRadius, size: wasSize, angle: wasAngle, scale: wasScale, edge: wasEdge, anchor: wasAnchor, ...rest } = annotation;
+  const sized = wasRadius === undefined && wasSize !== undefined;
+  const radius = sized ? undefined : zoomRadiusWithin(wasRadius ?? ZOOM_CLICK.radius);
+  const size: [number, number] | undefined = sized ? [zoomSideWithin(wasSize[0]), zoomSideWithin(wasSize[1])] : undefined;
+  const angle = sized && wasAngle !== undefined && Number.isFinite(wasAngle) ? wasAngle : undefined;
+  const scale =
+    wasScale === undefined
+      ? undefined
+      : Number.isFinite(wasScale)
+        ? Math.min(ZOOM_SCALE.max, Math.max(ZOOM_SCALE.min, wasScale))
+        : undefined;
+  const edge = wasEdge === 'cut' || wasEdge === 'whole' ? wasEdge : undefined;
+  const anchor =
+    wasAnchor !== undefined && Number.isFinite(wasAnchor[0]) && Number.isFinite(wasAnchor[1]) ? wasAnchor : undefined;
+  const same =
+    samePoint(from, annotation.from) &&
+    samePoint(from, annotation.to) &&
+    radius === wasRadius &&
+    (size === undefined ? wasSize === undefined : wasSize !== undefined && samePoint(size, wasSize)) &&
+    angle === wasAngle &&
+    scale === wasScale &&
+    edge === wasEdge &&
+    anchor === wasAnchor;
+  if (same) return annotation;
+  return {
+    ...rest,
+    from,
+    to: [from[0], from[1]],
+    ...(radius !== undefined ? { radius } : {}),
+    ...(size !== undefined ? { size } : {}),
+    ...(angle !== undefined ? { angle } : {}),
+    ...(scale !== undefined ? { scale } : {}),
+    ...(edge !== undefined ? { edge } : {}),
+    ...(anchor !== undefined ? { anchor } : {}),
+  };
+}
+
+/**
+ * An enlarge area carried with the paper (Revision 2), as a close-up's area
+ * is: its centre with the face under it, its size as the move scales the
+ * picture as a whole — never stretched with whatever face a spread moves
+ * under its rim — and a rounded rectangle's turn with the move's, at any
+ * angle: its long side goes where the move takes the way it ran, which a
+ * mirror turns over with the side. Its anchor is on the paper, which no move
+ * of the picture moves.
+ */
+function carryZoom(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  const { from } = annotation;
+  const carried = withinReach(move.point(from));
+  const turned = (vector: PicturePoint): PicturePoint => {
+    if (move.vector) return move.vector(vector);
+    const [x0, y0] = move.point(from);
+    const [x1, y1] = move.point([from[0] + vector[0], from[1] + vector[1]]);
+    return [x1 - x0, y1 - y0];
+  };
+  const at = { from: carried, to: [carried[0], carried[1]] as [number, number] };
+  if (annotation.size === undefined || annotation.radius !== undefined) {
+    const [rx, ry] = turned([closeUpRadius(annotation), 0]);
+    return { ...annotation, ...at, radius: zoomRadiusWithin(Math.hypot(rx, ry)) };
+  }
+  const radians = ((annotation.angle ?? 0) * Math.PI) / 180;
+  const [ux, uy] = turned([Math.cos(radians), Math.sin(radians)]);
+  const stretch = Math.hypot(ux, uy);
+  const { angle: _was, ...rest } = annotation;
+  // To a billionth of a degree: a quarter turn is 90, not 90.00000000000001.
+  const angle = rectangleAngle(Number(((Math.atan2(uy, ux) * 180) / Math.PI).toFixed(9)));
+  return {
+    ...rest,
+    ...at,
+    size: [zoomSideWithin(annotation.size[0] * stretch), zoomSideWithin(annotation.size[1] * stretch)],
+    ...(angle !== 0 ? { angle } : {}),
+  };
+}
+
+/**
  * `delta`, cut short so that every one of `points` moved by it stays within
  * reach: what keeps a shape whole when it is moved against reach's edge.
  */
@@ -1474,6 +1613,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'callout':
     case 'angle-mark':
     case 'close-up':
+    case 'zoom':
       return false;
   }
 }
@@ -1547,9 +1687,16 @@ export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiag
 export function isDegenerate(annotation: KnownDiagramAnnotation, minLength: number): boolean {
   // A right angle has a corner and a way to open, not a length; a callout's
   // box is drawn wherever it sits, its point under it or not.
-  // A close-up has an area, never less than a slip's (`closeUpRadiusWithin`), not a length.
+  // A close-up or an enlarge area has an area, never less than a slip's
+  // (`closeUpRadiusWithin`, `zoomSideWithin`), not a length.
   const shape = ANNOTATION_SHAPES[annotation.kind];
-  if (isPointKind(annotation.kind) || isCornerKind(annotation.kind) || shape === 'callout' || shape === 'close-up') {
+  if (
+    isPointKind(annotation.kind) ||
+    isCornerKind(annotation.kind) ||
+    shape === 'callout' ||
+    shape === 'close-up' ||
+    shape === 'zoom'
+  ) {
     return false;
   }
   // An angle mark has a vertex and two arms, not a length: none when its arms make no angle.
@@ -1623,6 +1770,7 @@ export interface PictureMove {
 export function carryAnnotation(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
   if (annotation.kind === 'callout') return carryCallout(annotation, move);
   if (annotation.kind === 'close-up') return carryCloseUp(annotation, move);
+  if (annotation.kind === 'zoom') return carryZoom(annotation, move);
   if (annotation.path) {
     const carry = (nodes: readonly DiagramPathNode[]) => {
       const carried = nodes.map((node) => ({
@@ -1795,7 +1943,10 @@ export type FlipAxis = 'horizontal' | 'vertical';
 /**
  * Whether Flip can turn a mark of `kind` over (Zach, 2026-10-05): every mark
  * with a side to it. A circle, a label and a turn-over are their point, drawn
- * the same either way over. A switch, so a new kind has to say.
+ * the same either way over. An enlarge area is not offered it: Revision 2
+ * gives an area no Flip, and a turned rounded rectangle, which one would draw
+ * at another angle, takes its turn only from its paper (`carryZoom`). A
+ * switch, so a new kind has to say.
  */
 export function flipsOver(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
@@ -1815,9 +1966,11 @@ export function flipsOver(kind: DiagramAnnotationKind): boolean {
     case 'divisions':
     case 'close-up':
       return true;
+    // An enlarge area: not offered, though a turned rounded rectangle has a side (see above).
     case 'turn-over':
     case 'label':
     case 'circle':
+    case 'zoom':
       return false;
   }
 }

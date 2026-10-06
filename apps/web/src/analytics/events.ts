@@ -92,7 +92,9 @@ export type DiagramAnnotationTool =
   | 'angle_mark'
   | 'angle_bisector'
   | 'divisions'
-  | 'close_up';
+  | 'close_up'
+  | 'enlarge'
+  | 'enlarge_frame';
 
 /**
  * How a new annotation was put down (decision 9): snapped to a point of the

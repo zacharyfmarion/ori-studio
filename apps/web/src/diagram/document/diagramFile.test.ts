@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import {
@@ -13,9 +13,10 @@ import {
   isTurn,
   stepNumber,
   type DiagramIdFactory,
+  type DiagramCpRender,
   type DiagramCpSource,
 } from './diagramDocument';
-import { readDiagram, writeDiagram } from './diagramFile';
+import { readDiagram, storedSceneJson, writeDiagram } from './diagramFile';
 import { SVG_STORED_MAX_BYTES, sanitizeSvg } from '../upload/svgSanitize';
 import { insertPictureSteps, setStepText as setText, type KnownDiagramAsset } from './diagramDocument';
 import {
@@ -218,8 +219,8 @@ describe('a newer build’s work', () => {
   });
 
   it.each([
-    ['a step field', (step: Record<string, unknown>) => ({ ...step, zoom: { from: 'annotation-1', shape: 'circle' } })],
-    ['a field of its scene picture', (step: Record<string, unknown>) => ({ ...step, picture: { ...(step.picture as object), paperFaces: '{}' } })],
+    ['a step field', (step: Record<string, unknown>) => ({ ...step, hologram: { from: 'annotation-1', depth: 3 } })],
+    ['a field of its scene picture', (step: Record<string, unknown>) => ({ ...step, picture: { ...(step.picture as object), depthMap: '{}' } })],
     ['a step field no build has written yet', (step: Record<string, unknown>) => ({ ...step, layers: [1, 2] })],
   ])('carries a step with %s it has no name for, locked, and writes it back byte for byte', (_label, patch) => {
     const written = throughJson(writeDiagram(linkedDiagram()));
@@ -902,6 +903,275 @@ describe('annotations in the file', () => {
       ];
       expect(withAnnotations(damaged)).toEqual([]);
     });
+  });
+});
+
+describe('an enlarge area in the file (Revision 2)', () => {
+  const area = (more: Record<string, unknown> = {}) => ({
+    id: 'z-1',
+    kind: 'zoom',
+    from: [0.4, 0.3],
+    to: [0.4, 0.3],
+    radius: 0.15,
+    ...more,
+  });
+  const rounded = (more: Record<string, unknown> = {}) => {
+    const { radius: _circle, ...rest } = area({ id: 'z-2', size: [0.3, 0.2], ...more });
+    return rest;
+  };
+  function withAnnotations(annotations: unknown[]) {
+    const written = throughJson(writeDiagram(sampleDiagram()));
+    written.steps[0].annotations = annotations;
+    return stepsIn(readDiagram(written)!.document)[0]!.annotations;
+  }
+  const writtenBack = (annotations: unknown[]) => {
+    const document = { ...sampleDiagram() };
+    document.steps = [{ ...stepsIn(document)[0]!, annotations: withAnnotations(annotations) }, stepsIn(document)[1]!];
+    return stepsIn(throughJson(writeDiagram(document)))[0].annotations;
+  };
+
+  it('round-trips a circle and a rounded rectangle, every field when said and nothing for what is not', () => {
+    const full = rounded({ id: 'z-3', angle: 37.5, scale: 2.25, edge: 'cut', anchor: [12.5, -40.125] });
+    const all = [area(), rounded(), full, area({ id: 'z-4', edge: 'whole', scale: 6 })];
+    expect(withAnnotations(all)).toEqual(all);
+    expect(writtenBack(all)).toEqual(all);
+    expect(Object.keys(writtenBack([area()])[0]).sort()).toEqual(['from', 'id', 'kind', 'radius', 'to']);
+  });
+
+  it('carries what a newer build might write: a size, a radius or a Size past this build’s, an edge or a field it has no name for', () => {
+    const newer = [
+      rounded({ id: 'n-1', size: [2.5, 0.2] }),
+      area({ id: 'n-2', radius: 1.5 }),
+      area({ id: 'n-3', scale: 7 }),
+      area({ id: 'n-4', edge: 'feathered' }),
+      area({ id: 'n-5', glow: true }),
+      area({ id: 'n-6', from: [4.5, 0.3] }),
+    ];
+    expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    expect(writtenBack(newer)).toEqual(newer);
+  });
+
+  it('drops one with both a radius and a size, or neither, or a size that is not two sizes', () => {
+    const damaged = [
+      area({ size: [0.3, 0.3] }),
+      area({ id: 'd-2', radius: undefined }),
+      rounded({ id: 'd-3', size: [0, 0.2] }),
+      rounded({ id: 'd-4', size: [0.3] }),
+      area({ id: 'd-5', radius: '0.1' }),
+    ];
+    expect(withAnnotations(damaged)).toEqual([]);
+  });
+
+  it('drops alone a turn, a Size, an edge or an anchor that does not read, and keeps the area', () => {
+    const read = withAnnotations([
+      rounded({ angle: 'askew', scale: -2, edge: 3, anchor: [1] }),
+      area({ id: 'z-5', anchor: ['a', 2] }),
+    ]);
+    expect(read).toEqual([rounded(), area({ id: 'z-5' })]);
+  });
+
+  it('is kept, verbatim and undrawn, by a build that knows none: as any kind it has no name for', () => {
+    const older = rounded({ kind: 'spiral-arrow', angle: 12, edge: 'cut', anchor: [1, 2] });
+    expect(withAnnotations([older])).toEqual([{ id: 'z-2', unknown: older }]);
+    expect(writtenBack([older])).toEqual([older]);
+  });
+});
+
+describe('an enlarged step in the file (Revision 2)', () => {
+  const zoom = (more: Record<string, unknown> = {}) => ({
+    from: 'annotation-9',
+    shape: 'circle',
+    frame: { centre: [0.5, 0.4], radius: 0.2 },
+    imprint: { centre: [12.5, -8.25], radius: 30.5, on: [40.25, 60.5] },
+    ...more,
+  });
+  function withZoom(value: unknown, step = 1) {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    // Its marks drawn on its picture, as an enlarged step's are, in its window.
+    written.steps[step].annotatedPictureKey = written.steps[step].picture.key;
+    written.steps[step].zoom = value;
+    const read = readDiagram(written)!;
+    return { written, read, step: stepsIn(read.document)[step]! };
+  }
+
+  it('round-trips its provenance, shape, frame, imprint, Size and Edge, every optional field only when said', () => {
+    for (const value of [
+      zoom(),
+      zoom({ shape: 'rounded', frame: { centre: [0.5, 0.4], size: [0.4, 0.2], angle: 30 }, imprint: undefined, scale: 1.5, edge: 'cut' }),
+      zoom({ imprint: { centre: [1, 2], radius: 3, on: [4, 5], picked: true } }),
+      zoom({ frame: undefined }),
+    ]) {
+      const { written, read, step } = withZoom(JSON.parse(JSON.stringify(value)));
+      expect(step.unknown).toBeUndefined();
+      expect(step.zoom).toEqual(JSON.parse(JSON.stringify(value)));
+      expect(JSON.stringify(throughJson(writeDiagram(read.document)))).toBe(JSON.stringify(written));
+    }
+  });
+
+  it('writes none for a step that is not enlarged', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    expect(written.steps.every((step: Record<string, unknown>) => !('zoom' in step))).toBe(true);
+  });
+
+  it.each([
+    ['a field it has no name for', zoom({ depth: 2 })],
+    ['a shape it has no name for', zoom({ shape: 'hexagon' })],
+    ['an edge it has no name for', zoom({ edge: 'feathered' })],
+    ['a Size past its range', zoom({ scale: 8 })],
+    ['a field of its frame it has no name for', zoom({ frame: { centre: [0.5, 0.4], radius: 0.2, blur: 1 } })],
+    ['a frame past reach', zoom({ frame: { centre: [5, 0.4], radius: 0.2 } })],
+    ['a field of its imprint it has no name for', zoom({ imprint: { centre: [1, 2], radius: 3, on: [4, 5], face: 3 } })],
+  ])('locks a step whose zoom has %s, and writes it back byte for byte', (_label, value) => {
+    const { written, read, step } = withZoom(value);
+    expect(step.unknown).toBeDefined();
+    expect(JSON.stringify(writeDiagram(read.document))).toBe(JSON.stringify(written));
+  });
+
+  it.each([
+    ['no provenance', zoom({ from: '' })],
+    ['no shape', zoom({ shape: 7 })],
+    ['a frame of both a radius and a size', zoom({ frame: { centre: [0.5, 0.4], radius: 0.2, size: [1, 1] } })],
+    ['a frame of neither', zoom({ frame: { centre: [0.5, 0.4] } })],
+    ['a frame not of its shape', zoom({ shape: 'rounded' })],
+    ['an imprint with no paper point', zoom({ imprint: { centre: [1, 2], radius: 3 } })],
+    ['a picked flag that is not true', zoom({ imprint: { centre: [1, 2], radius: 3, on: [4, 5], picked: 'yes' } })],
+    ['a Size that is no size', zoom({ scale: 'twice' })],
+    ['a zoom that is no record', 'enlarged'],
+  ])('drops a zoom with %s, and leaves the marks drawn in its window out of step', (_label, value) => {
+    const { step } = withZoom(value);
+    expect(step.unknown).toBeUndefined();
+    expect(step.zoom).toBeUndefined();
+    expect(step.annotatedPictureKey).toBeNull();
+    // Read with a zoom that reads, the same marks are in step.
+    expect(withZoom(zoom()).step.annotatedPictureKey).not.toBeNull();
+    expect(step.picture).not.toBeNull();
+  });
+
+  it('is kept, locked and verbatim, by a build that reads no zoom: as any step field it has no name for', () => {
+    // A build before enlarged steps knows no `zoom` key (`STEP_KEYS`): `hologram` stands for it here.
+    const { written, read, step } = withZoom(undefined);
+    written.steps[1].hologram = zoom();
+    const older = readDiagram(written)!;
+    expect(stepsIn(older.document)[1]!.unknown).toEqual(written.steps[1]);
+    expect(JSON.stringify(writeDiagram(older.document))).toBe(JSON.stringify(written));
+    expect(step.zoom).toBeUndefined();
+    expect(read.readOnly).toBe(false);
+  });
+});
+
+describe('a flat capture’s faces in the file (Revision 2)', () => {
+  /** A flat step whose scene draws faces 0 and 1, and its faces as a capture keeps them. */
+  function flatFaces(spread: boolean, faces: Record<string, unknown> = {}) {
+    const scene = {
+      bounds: { minX: 0, minY: 0, maxX: 10, maxY: 10 },
+      sheet: 10,
+      items: [
+        { kind: 'face', face: 0, side: 'front', rings: [[[0, 0], [10, 0], [10, 10], [0, 10]]], shade: 1, hidden: false },
+        ...(spread
+          ? [{ kind: 'face', face: 1, side: 'back', rings: [[[1, 1], [11, 1], [11, 11], [1, 11]]], shade: 1, hidden: false }]
+          : []),
+      ],
+    };
+    const paperFaces = JSON.stringify({
+      points: [
+        [0, 0, 0, 0],
+        [5, 0, 10, 0],
+        [5, 5, 10, 10],
+        [0, 5, 0, 10],
+        [5, 10, 0, 0],
+        [0, 10, 10, 0],
+      ],
+      rings: [
+        [0, 1, 2, 3],
+        [4, 5, 2, 3],
+      ],
+      levels: [0, 1],
+      ...faces,
+    });
+    const render: DiagramCpRender = {
+      mode: 'folded-flat',
+      side: 'front',
+      rotationDeg: 0,
+      foldCase: 1,
+      ...(spread ? { spread: { kind: 'depth', amount: 0.05, toward: 'down' } } : {}),
+    };
+    const picture = { ...scenePicture('scene-faces'), sceneJson: storedSceneJson(scene)!, paperFaces };
+    const diagram = insertSteps(createDiagram({ title: 'Faces' }), [cpStep('step-faces', render, picture)], 0);
+    return throughJson(writeDiagram(diagram));
+  }
+  const readFaces = (written: Record<string, unknown>) => {
+    const read = readDiagram(written)!;
+    return { read, step: stepsIn(read.document)[0]! };
+  };
+
+  it('round-trips them, as one string, byte for byte', () => {
+    for (const spread of [false, true]) {
+      const written = flatFaces(spread);
+      expect(typeof written.steps[0].picture.paperFaces).toBe('string');
+      const { read, step } = readFaces(written);
+      expect(step.unknown).toBeUndefined();
+      expect(step.picture).toMatchObject({ paperFaces: written.steps[0].picture.paperFaces });
+      expect(JSON.stringify(throughJson(writeDiagram(read.document)))).toBe(JSON.stringify(written));
+    }
+  });
+
+  it('locks a step whose faces have a field it has no name for, and writes it back byte for byte', () => {
+    const written = flatFaces(true, { held: 3 });
+    const { read, step } = readFaces(written);
+    expect(step.unknown).toEqual(written.steps[0]);
+    expect(JSON.stringify(writeDiagram(read.document))).toBe(JSON.stringify(written));
+  });
+
+  it.each([
+    ['not JSON', (picture: Record<string, unknown>) => (picture.paperFaces = '{points')],
+    ['not a string', (picture: Record<string, unknown>) => (picture.paperFaces = { points: [] })],
+    ['counts that disagree', (picture: Record<string, unknown>) => (picture.paperFaces = flatFaces(false, { levels: [0] }).steps[0].picture.paperFaces)],
+    ['an index past the points', (picture: Record<string, unknown>) => (picture.paperFaces = flatFaces(false, { rings: [[0, 1, 2, 3], [4, 5, 9]] }).steps[0].picture.paperFaces)],
+    ['a ring of two', (picture: Record<string, unknown>) => (picture.paperFaces = flatFaces(false, { rings: [[0, 1], [4, 5, 2, 3]] }).steps[0].picture.paperFaces)],
+    ['a point of three numbers', (picture: Record<string, unknown>) => (picture.paperFaces = flatFaces(false, { points: [[0, 0, 0]] }).steps[0].picture.paperFaces)],
+    ['a level that is no count', (picture: Record<string, unknown>) => (picture.paperFaces = flatFaces(false, { levels: [0, -1] }).steps[0].picture.paperFaces)],
+    ['a face the scene draws that it does not list', (picture: Record<string, unknown>) => (picture.paperFaces = flatFaces(true, { rings: [[0, 1, 2, 3]], levels: [0] }).steps[0].picture.paperFaces)],
+  ])('drops faces that are %s, and keeps the step and its picture', (_label, damage) => {
+    const written = flatFaces(true);
+    damage(written.steps[0].picture);
+    const { step } = readFaces(written);
+    expect(step.unknown).toBeUndefined();
+    expect(step.picture?.kind).toBe('scene');
+    expect(step.picture && 'paperFaces' in step.picture).toBe(false);
+  });
+
+  it('drops them on a spread step whose scene does not draw a face whole, corner for corner, as they list it', () => {
+    const written = flatFaces(true, {
+      rings: [
+        [0, 1, 2, 3],
+        [4, 5, 2],
+      ],
+    });
+    const { step } = readFaces(written);
+    expect(step.picture && 'paperFaces' in step.picture).toBe(false);
+    // With no spread the drawn places are the unspread ones: a buried face need not be drawn.
+    const plain = readFaces(flatFaces(false, { rings: [[0, 1, 2, 3], [4, 5, 2]] })).step;
+    expect(plain.picture && 'paperFaces' in plain.picture).toBe(true);
+  });
+
+  it('checks them against the scene as the load read it, with no second parse of the scene', () => {
+    const written = flatFaces(true);
+    const sceneJson = written.steps[0].picture.sceneJson as string;
+    const parse = vi.spyOn(JSON, 'parse');
+    try {
+      const { step } = readFaces(written);
+      expect(step.picture && 'paperFaces' in step.picture).toBe(true);
+      expect(parse.mock.calls.filter(([text]) => text === sceneJson)).toHaveLength(1);
+    } finally {
+      parse.mockRestore();
+    }
+  });
+
+  it('keeps them only on a flat fold’s scene', () => {
+    const written = flatFaces(false);
+    written.steps[0].source.render = { mode: 'crease-pattern', rotationDeg: 0 };
+    const { step } = readFaces(written);
+    expect(step.picture && 'paperFaces' in step.picture).toBe(false);
   });
 });
 

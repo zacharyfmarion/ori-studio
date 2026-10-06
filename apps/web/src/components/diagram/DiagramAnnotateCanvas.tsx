@@ -54,6 +54,7 @@ import { ViewportToolbar } from '../panels/ViewportToolbar';
 import { DiagramAnnotateToolWindow } from './DiagramAnnotateToolWindow';
 import { DiagramAnnotationLayer } from './DiagramAnnotationLayer';
 import { DiagramCloseUpInsides } from './DiagramCloseUpInsides';
+import { zoomOutlineOf, zoomOutlinePoints } from '../../diagram/zoom/zoomModel';
 import styles from './DiagramAnnotateCanvas.module.css';
 
 /** An end's dot, in screen px. */
@@ -329,6 +330,12 @@ function Selection({
       return <DivisionsSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
     case 'close-up':
       return <CloseUpSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
+    case 'zoom': {
+      // Along its outline, all the way round: what a press takes hold of.
+      const outline = zoomOutlinePoints(zoomOutlineOf(annotation));
+      path = [...outline, outline[0]!];
+      break;
+    }
   }
   const points = path.map(at);
   const corner = box && at([box.x, box.y]);

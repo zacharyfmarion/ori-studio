@@ -84,6 +84,7 @@ function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null 
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
+    case 'zoom':
       return null;
   }
 }

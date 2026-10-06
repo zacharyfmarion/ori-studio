@@ -60,6 +60,7 @@ import {
   MAX_PATH_NODES,
   MAX_STEP_ANNOTATIONS,
   MIN_CLOSE_UP_RADIUS,
+  ZOOM_SIDE,
   isPointKind,
 } from '../annotate/annotationModel';
 import {
@@ -116,6 +117,12 @@ import {
   type DiagramStyle,
   type DiagramSvgAsset,
   type DiagramTurn,
+  type DiagramPaperFaces,
+  type DiagramScenePicture,
+  type DiagramStepZoom,
+  type DiagramZoomEdge,
+  type DiagramZoomOutline,
+  type DiagramZoomShape,
   type QuarterTurns,
   type ReferencesPlanSettings,
 } from './diagramDocument';
@@ -316,6 +323,7 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
     annotatedPictureKey: step.annotatedPictureKey,
     text: step.text,
     breakBefore: step.breakBefore,
+    ...(step.zoom ? { zoom: writeStepZoom(step.zoom) } : {}),
   };
 }
 
@@ -345,6 +353,10 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     behind,
     radius,
     scale,
+    size,
+    angle,
+    edge,
+    anchor,
     unknown: _known,
     ...unwritten
   } = annotation;
@@ -373,6 +385,10 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(numbered ? { numbered } : {}),
     ...(radius !== undefined ? { radius } : {}),
     ...(scale !== undefined ? { scale } : {}),
+    ...(size !== undefined ? { size } : {}),
+    ...(angle !== undefined ? { angle } : {}),
+    ...(edge !== undefined ? { edge } : {}),
+    ...(anchor !== undefined ? { anchor } : {}),
     // From end to end, as a reader expects it.
     ...(behind !== undefined
       ? { behind: { ...(behind.from !== undefined ? { from: behind.from } : {}), ...(behind.to !== undefined ? { to: behind.to } : {}) } }
@@ -466,13 +482,21 @@ const STEP_KEYS: ReadonlySet<string> = new Set([
   'annotatedPictureKey',
   'text',
   'breakBefore',
+  'zoom',
 ]);
 
 /**
  * The keys a scene picture is written with, as {@link STEP_KEYS} are a
  * step's: any other makes its step a newer build's.
  */
-const SCENE_PICTURE_KEYS: ReadonlySet<string> = new Set(['kind', 'sceneJson', 'paperScale', 'styleKey', 'key']);
+const SCENE_PICTURE_KEYS: ReadonlySet<string> = new Set([
+  'kind',
+  'sceneJson',
+  'paperScale',
+  'styleKey',
+  'key',
+  'paperFaces',
+]);
 
 /** A record with a key outside `known`: a field a newer build wrote. */
 function hasNewerKey(value: Record<string, unknown>, known: ReadonlySet<string>): boolean {
@@ -516,9 +540,16 @@ function readStep(
     text: typeof value.text === 'string' ? xmlText(value.text) : '',
     breakBefore: value.breakBefore === true,
   };
+  const zoom = value.zoom === undefined ? undefined : readStepZoom(value.zoom);
+  const paperFaces =
+    isRecord(value.picture) && value.picture.kind === 'scene' && value.picture.paperFaces !== undefined
+      ? readPaperFaces(value.picture.paperFaces)
+      : undefined;
   if (
     hasNewerKey(value, STEP_KEYS) ||
     isNewerScenePicture(value.picture) ||
+    zoom === NEWER ||
+    paperFaces === NEWER ||
     isNewerKind(value.source, SOURCE_KINDS) ||
     isNewerKind(value.picture, PICTURE_KINDS) ||
     isNewerCpSource(value.source) ||
@@ -529,27 +560,37 @@ function readStep(
   ) {
     return { ...base, unknown: value };
   }
+  // An enlarged step keeps its frame; one that does not read is dropped, and
+  // the marks drawn in its window are out of step with the whole picture.
+  const enlarged: DiagramStep =
+    zoom === undefined ? base : zoom === null ? { ...base, annotatedPictureKey: null } : { ...base, zoom };
   const source = readSource(value.source, assets);
   const picture = readPicture(value.picture, assets, env);
   if (source?.kind === 'upload') {
     // An upload is its asset: a source and a picture that disagree about which
     // one are not a picture to show.
     return picture?.kind === 'asset' && picture.assetId === source.assetId
-      ? { ...base, source, picture }
-      : base;
+      ? { ...enlarged, source, picture }
+      : enlarged;
   }
   if (source?.kind === 'cp') {
     // A linked step may have no picture yet ("Pose to capture"); its picture is
     // a scene, a fixed picture, or a capture too detailed to keep as vector,
-    // kept as a bitmap asset.
-    return { ...base, source, picture: picture?.kind === 'step-diagram' ? null : picture };
+    // kept as a bitmap asset. A flat fold's scene keeps its faces when they
+    // agree with it.
+    const flat = source.render.mode === 'folded-flat' ? source.render : null;
+    const faces =
+      picture?.kind === 'scene' && flat && paperFaces && paperFacesFitScene(paperFaces.faces, picture, flat.spread !== undefined)
+        ? { ...picture, paperFaces: paperFaces.json }
+        : picture;
+    return { ...enlarged, source, picture: faces?.kind === 'step-diagram' ? null : faces };
   }
   if (source?.kind === 'references-step') {
     // A References step's picture is its card's diagram, or none.
-    return { ...base, source, picture: picture?.kind === 'step-diagram' ? picture : null };
+    return { ...enlarged, source, picture: picture?.kind === 'step-diagram' ? picture : null };
   }
   // A picture with no source to say what it is of is left out.
-  return base;
+  return enlarged;
 }
 
 /** A References card drawn with a primitive kind or style this build does not draw. */
@@ -867,10 +908,12 @@ function readPicture(
       return { kind: 'asset', assetId, paperScale, ...(styleKey === null ? {} : { styleKey }), key };
     }
     case 'scene': {
-      const sceneJson = readSceneJson(value.sceneJson);
-      if (sceneJson === null) return null;
+      const read = readSceneJson(value.sceneJson);
+      if (read === null) return null;
       const styleKey = typeof value.styleKey === 'string' ? value.styleKey : null;
-      return { kind: 'scene', sceneJson, paperScale, styleKey, key };
+      const picture: DiagramScenePicture = { kind: 'scene', sceneJson: read.json, paperScale, styleKey, key };
+      readScenes.set(picture, read.scene);
+      return picture;
     }
     case 'fixed':
       return readFixedPicture(value, key, env());
@@ -890,11 +933,18 @@ function positiveOrNull(value: unknown): number | null {
 }
 
 /**
+ * Each scene picture a load read, and the scene its JSON was checked as: what
+ * a flat capture's faces are checked against (`paperFacesFitScene`) with no
+ * second parse of a scene that may be megabytes.
+ */
+const readScenes = new WeakMap<DiagramScenePicture, unknown>();
+
+/**
  * A stored scene, validated as any scene from a file is (`readPaperScene`,
  * which drops markup), and written back in the validated form, so what is kept
- * is only what was checked.
+ * is only what was checked; with the scene it was checked as.
  */
-function readSceneJson(value: unknown): string | null {
+function readSceneJson(value: unknown): { json: string; scene: unknown } | null {
   if (typeof value !== 'string' || value.length > SCENE_JSON_MAX_BYTES) return null;
   let parsed: unknown;
   try {
@@ -902,11 +952,13 @@ function readSceneJson(value: unknown): string | null {
   } catch {
     return null;
   }
+  const scene = readPaperScene(parsed);
+  if (!scene) return null;
   // The cap holds for what is kept, too: filling in a field's default can
   // make the written scene longer than the one read, and a file this build
   // saved must load in it again.
-  const stored = storedSceneJson(parsed);
-  return stored !== null && stored.length <= SCENE_JSON_MAX_BYTES ? stored : null;
+  const json = JSON.stringify(scene);
+  return json.length <= SCENE_JSON_MAX_BYTES ? { json, scene } : null;
 }
 
 /**
@@ -966,6 +1018,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'angle-mark': fields('other', 'ticks'),
     divisions: fields('parts', 'offset', 'mirrored', 'ticks', 'numbered'),
     'close-up': fields('radius', 'scale'),
+    zoom: fields('radius', 'size', 'angle', 'scale', 'edge', 'anchor'),
   };
 })();
 
@@ -1009,7 +1062,8 @@ function readAnnotation(
   const fields = ANNOTATION_FIELDS[kind];
   if (Object.keys(entry).some((key) => !fields.has(key))) return NEWER;
   const from = readAnnotationPoint(entry.from);
-  const to = isPointKind(kind) ? from : readAnnotationPoint(entry.to);
+  // A sign's, a label's or an enlarge area's one place is `from`; `to` is written as it again.
+  const to = isPointKind(kind) || kind === 'zoom' ? from : readAnnotationPoint(entry.to);
   if (from === null || to === null) return null;
   if (from === NEWER || to === NEWER) return NEWER;
   // The ends behind a flap, for a kind that has them: news before damage, as for the rest.
@@ -1127,6 +1181,8 @@ function readAnnotation(
       if (radius === null || scale === null) return null;
       return { ...annotation, radius, ...(scale !== undefined ? { scale } : {}) };
     }
+    case 'zoom':
+      return readZoomArea(annotation, entry);
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
     case 'push-arrow':
@@ -1237,6 +1293,230 @@ function readCloseUpScale(value: unknown): number | undefined | typeof NEWER | n
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
   return value < CLOSE_UP_SCALE.min || value > CLOSE_UP_SCALE.max ? NEWER : value;
+}
+
+/**
+ * An enlarge area (Revision 2): a circle's radius, as a close-up's area's is
+ * read, or a rounded rectangle's size, exactly one of them — both or neither
+ * does not read; its turn, its Size, its Edge and a picked anchor, each
+ * unsaid by default. A value past what this build reads is a newer build's,
+ * told before damage; a turn, Size, Edge or anchor that does not read is
+ * dropped alone, and the area is kept.
+ */
+function readZoomArea(
+  annotation: KnownDiagramAnnotation,
+  entry: Record<string, unknown>
+): KnownDiagramAnnotation | typeof NEWER | null {
+  const radius = entry.radius === undefined ? undefined : readCloseUpRadius(entry.radius);
+  const size = entry.size === undefined ? undefined : readZoomSize(entry.size);
+  const scale = readCloseUpScale(entry.scale);
+  const edge = entry.edge === undefined ? undefined : readPreset(entry.edge, ZOOM_EDGES, 'cut');
+  if (radius === NEWER || size === NEWER || scale === NEWER || edge === NEWER) return NEWER;
+  if ((radius === undefined) === (size === undefined) || radius === null || size === null) return null;
+  const angle = finiteNumber(entry.angle);
+  const anchor = readPaperPoint(entry.anchor);
+  return {
+    ...annotation,
+    ...(radius !== undefined ? { radius } : {}),
+    ...(size !== undefined ? { size } : {}),
+    ...(angle !== null ? { angle } : {}),
+    ...(scale !== undefined && scale !== null ? { scale } : {}),
+    ...(edge !== undefined && edge !== null ? { edge } : {}),
+    ...(anchor !== null ? { anchor } : {}),
+  };
+}
+
+/** How an enlarged step draws its frame, as this build draws it. */
+const ZOOM_EDGES: readonly DiagramZoomEdge[] = ['cut', 'whole'];
+/** An enlarge area's, or a frame's, shapes, as this build draws them. */
+const ZOOM_SHAPES: readonly DiagramZoomShape[] = ['circle', 'rounded'];
+
+/**
+ * A rounded rectangle's width and height: two sizes, each from a slip to
+ * twice the frame — past that, a newer build's, as a close-up's radius is;
+ * anything that is not two sizes, damage.
+ */
+function readZoomSize(value: unknown): [number, number] | typeof NEWER | null {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const [width, height] = value;
+  if (![width, height].every((side) => typeof side === 'number' && Number.isFinite(side) && side > 0)) return null;
+  const sides = [width, height] as [number, number];
+  return sides.some((side) => side < ZOOM_SIDE.min || side > ZOOM_SIDE.max) ? NEWER : sides;
+}
+
+/** A point on the paper, in paper coordinates: two finite numbers, or null. Paper is never past reach. */
+function readPaperPoint(value: unknown): [number, number] | null {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const [x, y] = value;
+  return typeof x === 'number' && typeof y === 'number' && Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+}
+
+/** The fields an enlarged step's `zoom` is written with; any other makes the step a newer build's. */
+const STEP_ZOOM_KEYS: ReadonlySet<string> = new Set(['from', 'shape', 'frame', 'imprint', 'scale', 'edge']);
+/** The fields an outline is written with; an imprint's add its paper point and whether it was picked. */
+const OUTLINE_KEYS: ReadonlySet<string> = new Set(['centre', 'radius', 'size', 'angle']);
+const IMPRINT_KEYS: ReadonlySet<string> = new Set([...OUTLINE_KEYS, 'on', 'picked']);
+
+/**
+ * An enlarged step's `zoom` (Revision 2). A field, a shape or an edge this
+ * build has no name for, or a value past what it reads, is a newer build's,
+ * and makes the step one: locked, written back whole. Anything else that does
+ * not read is damage: the zoom is dropped (the step's marks were in its
+ * window's units, so they are out of step with the whole picture now).
+ */
+function readStepZoom(value: unknown): DiagramStepZoom | typeof NEWER | null {
+  if (!isRecord(value)) return null;
+  if (hasNewerKey(value, STEP_ZOOM_KEYS)) return NEWER;
+  const shape = typeof value.shape === 'string' ? readPreset(value.shape, ZOOM_SHAPES, 'circle') : null;
+  const edge = value.edge === undefined ? undefined : readPreset(value.edge, ZOOM_EDGES, 'cut');
+  const scale = readCloseUpScale(value.scale);
+  const frame = value.frame === undefined ? undefined : readZoomOutline(value.frame, OUTLINE_KEYS, true);
+  const imprint = value.imprint === undefined ? undefined : readZoomOutline(value.imprint, IMPRINT_KEYS, false);
+  if (shape === NEWER || edge === NEWER || scale === NEWER || frame === NEWER || imprint === NEWER) return NEWER;
+  if (typeof value.from !== 'string' || value.from.length === 0) return null;
+  if (shape === null || edge === null || scale === null || frame === null || imprint === null) return null;
+  const outlines = [frame, imprint].filter((outline) => outline !== undefined) as DiagramZoomOutline[];
+  // Its outlines are its shape: a circle's a radius, a rectangle's a size.
+  if (outlines.some((outline) => (outline.radius !== undefined) !== (shape === 'circle'))) return null;
+  let readImprint: DiagramStepZoom['imprint'];
+  if (imprint !== undefined) {
+    const raw = value.imprint as Record<string, unknown>;
+    const on = readPaperPoint(raw.on);
+    if (on === null || (raw.picked !== undefined && raw.picked !== true)) return null;
+    readImprint = { ...imprint, on, ...(raw.picked === true ? { picked: true as const } : {}) };
+  }
+  return {
+    from: value.from,
+    shape,
+    ...(frame !== undefined ? { frame } : {}),
+    ...(readImprint !== undefined ? { imprint: readImprint } : {}),
+    ...(scale !== undefined ? { scale } : {}),
+    ...(edge !== undefined ? { edge } : {}),
+  };
+}
+
+/**
+ * A frame's outline, in its step's picture units (`inPicture`, its centre
+ * within reach, past which it is a newer build's) or its imprint's on the
+ * paper: a centre, exactly one of a radius and a size, each a size, and a
+ * turn. A field outside `keys` is a newer build's.
+ */
+function readZoomOutline(
+  value: unknown,
+  keys: ReadonlySet<string>,
+  inPicture: boolean
+): DiagramZoomOutline | typeof NEWER | null {
+  if (!isRecord(value)) return null;
+  if (hasNewerKey(value, keys)) return NEWER;
+  const centre = inPicture ? readAnnotationPoint(value.centre) : readPaperPoint(value.centre);
+  if (centre === NEWER) return NEWER;
+  const radius = value.radius === undefined ? undefined : finiteNumber(value.radius);
+  const size = value.size === undefined ? undefined : readPaperPoint(value.size);
+  const angle = value.angle === undefined ? undefined : finiteNumber(value.angle);
+  if (centre === null || radius === null || size === null || angle === null) return null;
+  if ((radius === undefined) === (size === undefined)) return null;
+  if (radius !== undefined && !(radius > 0)) return null;
+  if (size !== undefined && !(size[0] > 0 && size[1] > 0)) return null;
+  return {
+    centre,
+    ...(radius !== undefined ? { radius } : {}),
+    ...(size !== undefined ? { size } : {}),
+    ...(angle !== undefined ? { angle } : {}),
+  };
+}
+
+/** An enlarged step's `zoom` as written: every optional field only when set, in the order it is read. */
+function writeStepZoom(zoom: DiagramStepZoom): Record<string, unknown> {
+  const outline = ({ centre, radius, size, angle }: DiagramZoomOutline) => ({
+    centre,
+    ...(radius !== undefined ? { radius } : {}),
+    ...(size !== undefined ? { size } : {}),
+    ...(angle !== undefined ? { angle } : {}),
+  });
+  return {
+    from: zoom.from,
+    shape: zoom.shape,
+    ...(zoom.frame ? { frame: outline(zoom.frame) } : {}),
+    ...(zoom.imprint
+      ? { imprint: { ...outline(zoom.imprint), on: zoom.imprint.on, ...(zoom.imprint.picked ? { picked: true } : {}) } }
+      : {}),
+    ...(zoom.scale !== undefined ? { scale: zoom.scale } : {}),
+    ...(zoom.edge !== undefined ? { edge: zoom.edge } : {}),
+  };
+}
+
+/** The fields a stored `paperFaces` is written with; any other makes its step a newer build's. */
+const PAPER_FACES_KEYS: ReadonlySet<string> = new Set(['points', 'rings', 'levels']);
+
+/**
+ * A flat capture's `paperFaces` (Revision 2): a string of JSON holding each
+ * point's place on the paper and on the unspread picture, and each face's
+ * ring of points and level. A field this build has no name for is a newer
+ * build's. Damage — a string that is not that, counts that disagree, an index
+ * past the points, a ring of one or two — drops it, and the step anchors
+ * nothing until it is refreshed. Kept as this build writes it: compact, its
+ * three fields in order.
+ */
+export function readPaperFaces(value: unknown): { json: string; faces: DiagramPaperFaces } | typeof NEWER | null {
+  if (typeof value !== 'string' || value.length > SCENE_JSON_MAX_BYTES) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  if (!isRecord(parsed)) return null;
+  if (hasNewerKey(parsed, PAPER_FACES_KEYS)) return NEWER;
+  const { points, rings, levels } = parsed;
+  if (!Array.isArray(points) || !Array.isArray(rings) || !Array.isArray(levels)) return null;
+  if (rings.length !== levels.length) return null;
+  const isPoint = (point: unknown) =>
+    Array.isArray(point) && point.length === 4 && point.every((value) => typeof value === 'number' && Number.isFinite(value));
+  if (!points.every(isPoint)) return null;
+  const isRing = (ring: unknown) =>
+    Array.isArray(ring) &&
+    (ring.length === 0 || ring.length >= 3) &&
+    ring.every((index) => Number.isInteger(index) && index >= 0 && index < points.length);
+  if (!rings.every(isRing) || !levels.every((level) => Number.isInteger(level) && level >= 0)) return null;
+  const faces = { points, rings, levels } as DiagramPaperFaces;
+  return { json: JSON.stringify(faces), faces };
+}
+
+/**
+ * A flat capture's faces as a step stores them: through the file's own
+ * reader, so what a capture writes is byte for byte what a load reads back.
+ * Null for faces the reader refuses, or that would be past what it reads.
+ */
+export function storedPaperFaces(faces: DiagramPaperFaces): string | null {
+  const read = readPaperFaces(JSON.stringify(faces));
+  return read && read !== NEWER ? read.json : null;
+}
+
+/**
+ * Whether a flat capture's faces agree with its stored scene: every face the
+ * scene draws is one `rings` lists, and — when the step's picture is spread,
+ * where a face's drawn places are read from the scene — every named face is
+ * drawn whole there once, one ring corner for corner with its own.
+ */
+function paperFacesFitScene(faces: DiagramPaperFaces, picture: DiagramScenePicture, spread: boolean): boolean {
+  let scene = readScenes.get(picture);
+  if (scene === undefined) {
+    try {
+      scene = JSON.parse(picture.sceneJson);
+    } catch {
+      return false;
+    }
+  }
+  const items = isRecord(scene) && Array.isArray(scene.items) ? scene.items : [];
+  const whole = new Map<number, number | null>();
+  for (const item of items) {
+    if (!isRecord(item) || item.kind !== 'face' || typeof item.face !== 'number') continue;
+    if (!Number.isInteger(item.face) || item.face < 0 || item.face >= faces.rings.length) return false;
+    if (whole.has(item.face)) continue;
+    whole.set(item.face, Array.isArray(item.rings) && item.rings.length === 1 && Array.isArray(item.rings[0]) ? item.rings[0].length : null);
+  }
+  if (!spread) return true;
+  return faces.rings.every((ring, face) => ring.length === 0 || whole.get(face) === ring.length);
 }
 
 /** A pleat arrow's Zs: unsaid, one; a whole count past five, a newer build's; anything else, damage. */

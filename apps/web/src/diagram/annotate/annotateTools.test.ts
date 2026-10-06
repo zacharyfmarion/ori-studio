@@ -55,12 +55,13 @@ describe('the rail', () => {
     // Every kind is drawn by a tool: each its own, the lines by Line in each
     // type, the angle mark by its picks (alone, or with a bisector's line) —
     // but the turn signs, which none draws: turning the model over or round is
-    // a step between steps (D22; Zach, 2026-10-05).
+    // a step between steps (D22; Zach, 2026-10-05) — and the enlarge area,
+    // which is laid in a shape by tools of its own (Revision 2).
     const drawn = ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).flatMap((tool) =>
       isPickTool(tool) ? ['angle-mark' as const] : DIAGRAM_LINE_TYPES.map((type) => drawingKind(tool, type))
     );
     expect([...new Set(drawn.filter((kind) => kind !== null))].sort()).toEqual(
-      ANNOTATION_KINDS.filter((kind) => kind !== 'turn-over' && kind !== 'rotate').sort()
+      ANNOTATION_KINDS.filter((kind) => kind !== 'turn-over' && kind !== 'rotate' && kind !== 'zoom').sort()
     );
     // Nor has either a key: plain T and R, theirs, pick nothing in the Diagram.
     const plain = SHORTCUT_DEFINITIONS.filter((definition) => definition.scope === 'diagram')

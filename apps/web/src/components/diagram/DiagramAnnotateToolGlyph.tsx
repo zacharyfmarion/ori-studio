@@ -230,5 +230,14 @@ export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }
           <circle cx={13} cy={7} r={5.5} />
         </Glyph>
       );
+    case 'zoom':
+      // An area framed, its corners pushed outward: what a later step shows larger. Not a ring with an
+      // arrow off it, which reads as ♂, nor Close-Up's two rings.
+      return (
+        <Glyph>
+          <rect x={5.5} y={5.5} width={9} height={9} rx={2} />
+          <path d="M4.2 4.2 L2 2 M15.8 4.2 L18 2 M15.8 15.8 L18 18 M4.2 15.8 L2 18" />
+        </Glyph>
+      );
   }
 }

@@ -810,6 +810,7 @@
       "deleteNode": "Knoten löschen",
       "direction": "Richtung",
       "empty": "Noch nichts gezeichnet.",
+      "enlargeArea": "Vergrößerungsbereich",
       "fill": "Füllung",
       "fillBlack": "Schwarz",
       "fillWhite": "Weiß",

@@ -780,6 +780,7 @@
       "deleteNode": "ノードを削除",
       "direction": "向き",
       "empty": "まだ何も描かれていません。",
+      "enlargeArea": "拡大範囲",
       "fill": "塗り",
       "fillBlack": "黒",
       "fillWhite": "白",

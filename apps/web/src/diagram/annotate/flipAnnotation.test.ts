@@ -117,11 +117,15 @@ describe('flipping a mark over', () => {
     expect(flipAnnotation(level, 'vertical')).toEqual({ ...level, from: near([0.2, 0.3]), to: near([0.6, 0.3]), mirrored: true });
   });
 
-  it('leaves a circle, a label and a turn-over as they are: their point, the same either way over', () => {
-    expect(ANNOTATION_KINDS.filter((kind) => !flipsOver(kind))).toEqual(['turn-over', 'label', 'circle']);
+  it('leaves a circle, a label and a turn-over as they are, their point the same either way over; and offers an enlarge area no Flip', () => {
+    expect(ANNOTATION_KINDS.filter((kind) => !flipsOver(kind))).toEqual(['turn-over', 'label', 'circle', 'zoom']);
     const label: KnownDiagramAnnotation = { id: 'l', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'A' };
     expect(flipAnnotation(label, 'horizontal')).toBe(label);
     expect(flipChangesMark(label, 'vertical')).toBe(false);
+    // Not because it has no side: a turned rounded rectangle mirrored would lie at 180° less its angle.
+    // Revision 2 gives an area no Flip; its turn comes only from its paper.
+    const turned: KnownDiagramAnnotation = { id: 'z', kind: 'zoom', from: [0.5, 0.5], to: [0.5, 0.5], size: [0.3, 0.1], angle: 30 };
+    expect(flipAnnotation(turned, 'horizontal')).toBe(turned);
   });
 
   it('keeps a line’s ends behind a flap with their ends, and says when it would turn over onto itself', () => {

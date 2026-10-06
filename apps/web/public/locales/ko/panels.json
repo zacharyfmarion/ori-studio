@@ -780,6 +780,7 @@
       "deleteNode": "노드 삭제",
       "direction": "방향",
       "empty": "아직 그린 것이 없습니다.",
+      "enlargeArea": "확대 영역",
       "fill": "채우기",
       "fillBlack": "검은색",
       "fillWhite": "흰색",

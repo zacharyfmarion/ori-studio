@@ -840,6 +840,7 @@
       "deleteNode": "Supprimer le nœud",
       "direction": "Sens",
       "empty": "Rien n’est encore dessiné.",
+      "enlargeArea": "Zone d’agrandissement",
       "fill": "Remplissage",
       "fillBlack": "Noir",
       "fillWhite": "Blanc",

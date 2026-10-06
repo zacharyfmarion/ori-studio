@@ -154,8 +154,10 @@ export function annotationSnapPoints(
     case 'rotate':
     case 'label':
       return [];
-    // A close-up's rings are round an area and beside the picture, on no point.
+    // A close-up's rings are round an area and beside the picture, on no
+    // point; so is an enlarge area's outline.
     case 'close-up':
+    case 'zoom':
       return [];
     default: {
       // Every kind says what it offers: a new one is a compile error here.

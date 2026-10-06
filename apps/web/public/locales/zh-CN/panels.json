@@ -780,6 +780,7 @@
       "deleteNode": "删除节点",
       "direction": "方向",
       "empty": "还没有画任何标注。",
+      "enlargeArea": "放大区域",
       "fill": "填充",
       "fillBlack": "黑色",
       "fillWhite": "白色",
