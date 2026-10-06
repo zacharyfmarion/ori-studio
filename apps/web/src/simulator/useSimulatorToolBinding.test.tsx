@@ -151,6 +151,7 @@ function options(
     cancelGesture: vi.fn(() => false),
     state,
     scope: { stepId: 'a' },
+    surface: 'diagram-pose',
     onHandChange: (change) => hand.push(change),
     ...extra,
   };
@@ -234,6 +235,32 @@ describe('useSimulatorToolBinding, through a host’s own port', () => {
     expect(store.simulatorActiveToolId).toBe('orbit');
     expect(store.simulatorPins).toEqual({ revision: null, bySource: {} });
     expect(store.simulatorToolOptions.pinThroughLayers).toBe(true);
+  });
+
+  it('says in every event which host it ran in', async () => {
+    const state = fakeToolState('pull');
+    state.seed('a', [3]);
+    const runtime = fakeRuntime({ pickFaces: vi.fn(async () => [1]) });
+    render(options(state.port, { runtime }));
+    await settle();
+
+    act(() => tools().runGesture({ kind: 'pull', phase: 'begin', point: { x: 1, y: 1 }, touch: false }, SURFACE));
+    act(() => tools().runGesture({ kind: 'pull', phase: 'end', point: { x: 9, y: 9 }, touch: false }, SURFACE));
+    await settle();
+    act(() => tools().verbs.selectTool('pin', 'rail'));
+    act(() => tools().runGesture(BOX, SURFACE));
+    await settle();
+    act(() => tools().verbs.clearPins('context-menu'));
+    act(() => tools().observeFrame(quietFrame({ recovered: 'arrest' })));
+
+    expect(tracked.map((entry) => entry.event)).toEqual([
+      'simulator model pulled',
+      'simulator tool selected',
+      'simulator pins edited',
+      'simulator pins cleared',
+      'simulator solver recovered',
+    ]);
+    for (const entry of tracked) expect(entry.properties).toMatchObject({ surface: 'diagram-pose' });
   });
 
   it('applies two quick picks in the order they were made, however slowly each is answered', async () => {

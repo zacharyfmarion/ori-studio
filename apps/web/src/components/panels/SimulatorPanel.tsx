@@ -597,7 +597,11 @@ export function SimulatorPanel() {
               */}
               {/* The rail's tools on a phone, left of the Settings pill. */}
               {phoneLayout && (
-                <SimulatorToolsTrigger buttons={toolActions.picker} disabled={!tools.enabled} />
+                <SimulatorToolsTrigger
+                  buttons={toolActions.picker}
+                  disabled={!tools.enabled}
+                  surface="simulate"
+                />
               )}
               <div className="panel-toolbar__pills" ref={setViewDrawerSlot} />
             </div>
