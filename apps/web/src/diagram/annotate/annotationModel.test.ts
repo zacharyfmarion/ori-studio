@@ -102,15 +102,20 @@ describe('a new annotation', () => {
     expect(line).toEqual({ id: 'annotation-1', kind: 'hidden-line', from: [0, 0], to: [1, 1] });
   });
 
-  it('bulges a fold arrow toward the picture’s middle, as References does', () => {
-    // Along the top, left to right: the middle is below, which is the right of its travel.
+  it('bulges a new fold arrow away from the picture’s middle (Zach, 2026-10-06)', () => {
+    // Along the top, left to right: the middle is below, the right of its travel; it bulges up, to its left.
     const top = createAnnotation('valley-arrow', [0.2, 0.1], [0.8, 0.1], SQUARE, id);
-    expect(top.bend).toBeCloseTo(-ARROW_BEND, 9);
-    expect(arrowApex(top.from, top.to, top.bend!)[1]).toBeGreaterThan(0.1);
-    // Along the bottom: the middle is above.
+    expect(top.bend).toBeCloseTo(ARROW_BEND, 9);
+    expect(arrowApex(top.from, top.to, top.bend!)[1]).toBeLessThan(0.1);
+    // Along the bottom: the middle is above; it bulges down.
     const bottom = createAnnotation('valley-arrow', [0.2, 0.9], [0.8, 0.9], SQUARE, id);
-    expect(arrowApex(bottom.from, bottom.to, bottom.bend!)[1]).toBeLessThan(0.9);
-    expect(defaultBend([0.2, 0.9], [0.8, 0.9], SQUARE)).toBeCloseTo(ARROW_BEND, 9);
+    expect(arrowApex(bottom.from, bottom.to, bottom.bend!)[1]).toBeGreaterThan(0.9);
+    expect(defaultBend([0.2, 0.9], [0.8, 0.9], SQUARE)).toBeCloseTo(-ARROW_BEND, 9);
+    // Down either side, a mountain and a fold-and-unfold arrow alike: outward.
+    const left = createAnnotation('mountain-arrow', [0.1, 0.3], [0.1, 0.7], SQUARE, id);
+    expect(arrowApex(left.from, left.to, left.bend!)[0]).toBeLessThan(0.1);
+    const right = createAnnotation('fold-unfold-arrow', [0.9, 0.7], [0.9, 0.3], SQUARE, id);
+    expect(arrowApex(right.from, right.to, right.bend!)[0]).toBeGreaterThan(0.9);
   });
 });
 

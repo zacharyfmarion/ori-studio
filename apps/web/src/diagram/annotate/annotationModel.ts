@@ -1004,9 +1004,10 @@ export function placedByClick(kind: DiagramAnnotationKind): boolean {
 }
 
 /**
- * The bulge a new fold arrow is given: toward the frame's middle, as
- * References chooses the centre farther from the sheet's middle so its
- * arrows bulge inward (`foldArrowArc`). Either way for an arrow through the
+ * The bulge a new fold arrow is given: away from the frame's middle. It was
+ * toward it, as References' own arrows bulge (`foldArrowArc`, which draws a
+ * References step's arrows and is not this), until Zach found he flipped
+ * nearly every arc he drew (2026-10-06). Either way for an arrow through the
  * middle.
  */
 export function defaultBend(from: PicturePoint, to: PicturePoint, frame: PictureFrame): number {
@@ -1014,7 +1015,8 @@ export function defaultBend(from: PicturePoint, to: PicturePoint, frame: Picture
   const left = leftNormal(from, to);
   const mid: PicturePoint = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
   const toward = (middle[0] - mid[0]) * left[0] + (middle[1] - mid[1]) * left[1];
-  return toward < 0 ? -ARROW_BEND : ARROW_BEND;
+  // A positive bend bulges to the left of the travel (`arrowApex`): away is the side the middle is not on.
+  return toward > 0 ? -ARROW_BEND : ARROW_BEND;
 }
 
 /**

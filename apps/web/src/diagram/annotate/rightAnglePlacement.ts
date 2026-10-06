@@ -149,8 +149,8 @@ function nearestEighth([x, y]: PicturePoint): PicturePoint {
 
 /**
  * The diagonal from `corner` nearest the way toward the frame's middle — a
- * mark opening into the picture, as a new arrow bulges toward it — or the
- * default way, up and to the right, from the middle itself.
+ * mark opening into the picture — or the default way, up and to the right,
+ * from the middle itself.
  */
 export function towardMiddle(corner: PicturePoint, frame: PictureFrame): PicturePoint {
   const dx = frame.width / 2 - corner[0];

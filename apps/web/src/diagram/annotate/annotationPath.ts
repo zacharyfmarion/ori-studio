@@ -222,11 +222,11 @@ function arcNodes(from: PicturePoint, to: PicturePoint, bend: number): DiagramPa
 
 /**
  * A shaped arrow made an arc again (Reset): References' 60° arc between its
- * ends, bulging the side the path lies on of its chord — toward the frame's
- * middle, as a new arrow does, for a path that lies on neither. A white
- * arrow, which has no arc, is laid straight between its ends again. One whose
- * ends lie closer than the shortest arrow (a loop) has no arc to go back to
- * that could be drawn or pressed, and stays.
+ * ends, bulging the side the path lies on of its chord — away from the
+ * frame's middle, as a new arrow does, for a path that lies on neither. A
+ * white arrow, which has no arc, is laid straight between its ends again. One
+ * whose ends lie closer than the shortest arrow (a loop) has no arc to go back
+ * to that could be drawn or pressed, and stays.
  */
 export function resetPath(annotation: KnownDiagramAnnotation, frame: PictureFrame): KnownDiagramAnnotation {
   // A fold-and-unfold arrow's return goes with the path: the arc is drawn with its own again.

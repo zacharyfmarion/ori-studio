@@ -141,7 +141,7 @@ describe('Reset', () => {
     expect(resetPath(arcToPath(arc(-0.2)), SQUARE)).toEqual(arc(-ARROW_BEND));
   });
 
-  it('bulges toward the frame’s middle, as a new arrow does, for a path on neither side', () => {
+  it('bulges away from the frame’s middle, as a new arrow does, for a path on neither side', () => {
     const symmetric: KnownDiagramAnnotation = {
       ...S_ARROW,
       path: [
@@ -153,6 +153,8 @@ describe('Reset', () => {
     };
     expect(resetPath(symmetric, SQUARE).bend).toBe(defaultBend([0.1, 0.2], [0.7, 0.2], SQUARE));
     expect(resetPath(symmetric, SQUARE).path).toBeUndefined();
+    // Near the top, the middle below it: the arc goes up, toward the edge.
+    expect(arrowApex([0.1, 0.2], [0.7, 0.2], resetPath(symmetric, SQUARE).bend!)[1]).toBeLessThan(0.2);
   });
 
   it('leaves an arc, and a path whose ends meet, as they are', () => {
