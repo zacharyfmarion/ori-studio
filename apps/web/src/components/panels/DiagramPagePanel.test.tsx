@@ -46,6 +46,11 @@ const radio = (name: string) =>
   [...(host?.querySelectorAll<HTMLElement>('[role="radio"]') ?? [])].find((element) =>
     element.textContent?.startsWith(name)
   )!;
+/** An option of the segmented control named `group`, by its label. */
+const segment = (group: string, name: string) =>
+  [...(host?.querySelectorAll<HTMLElement>(`[role="group"][aria-label="${group}"] button`) ?? [])].find(
+    (element) => element.textContent === name
+  )!;
 const toggle = (name: string) =>
   [...(host?.querySelectorAll<HTMLElement>('[role="switch"]') ?? [])].find(
     (element) => element.getAttribute('aria-label') === name || element.closest('.control-row')?.textContent?.includes(name)
@@ -61,6 +66,19 @@ describe('DiagramPagePanel', () => {
     expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledWith('layout');
     expect(host?.textContent).toContain('Show path');
     expect(host?.textContent).toContain('Steps per row');
+  });
+
+  it('puts the first page on the right, one undo step and one count, in either layout', () => {
+    expect(state().diagram?.page.firstPageSide).toBe('left');
+    const past = state().diagramHistory.past.length;
+    act(() => segment('First page', 'Right').click());
+    expect(state().diagram?.page.firstPageSide).toBe('right');
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledWith('first_page_side');
+    act(() => radio('Flow').click());
+    expect(segment('First page', 'Right').getAttribute('aria-pressed')).toBe('true');
+    act(() => segment('First page', 'Left').click());
+    expect(state().diagram?.page.firstPageSide).toBe('left');
   });
 
   it('says how many steps a page holds and how many pages there are', () => {

@@ -285,6 +285,7 @@ export type DiagramPageSetting =
   | 'columns'
   | 'rows'
   | 'path'
+  | 'first_page_side'
   | 'scale'
   | 'title'
   | 'page_numbers'

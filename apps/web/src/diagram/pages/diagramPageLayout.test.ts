@@ -25,6 +25,7 @@ import {
   type LayoutTurn,
 } from './diagramPageLayout';
 import { readFontMetrics, type FontMetrics } from '../fonts/fontMetrics';
+import { curvePoint, curveStart, type Lane } from './flowLane';
 import { estimateTextSetter } from './estimateTextSetter';
 import { fontTextSetter } from './fontTextSetter';
 import { printPaper } from './printPaper';
@@ -76,6 +77,19 @@ const upload = (width: number, height: number): LayoutStep['picture'] => ({
   frame: { width, height },
   marks: NO_MARKS,
 });
+
+/** How near the lane comes to a point, mm: sampled finely along each of its curves. */
+function laneDistance(lane: Lane, point: { x: number; y: number }): number {
+  let nearest = Infinity;
+  lane.curves.forEach((curve, index) => {
+    const from = curveStart(lane, index);
+    for (let n = 0; n <= 2000; n += 1) {
+      const at = curvePoint(from, curve, n / 2000);
+      nearest = Math.min(nearest, Math.hypot(at.x - point.x, at.y - point.y));
+    }
+  });
+  return nearest;
+}
 
 /** Where a cell draws its picture, at its scale, centred in its room. */
 function drawnOf(cell: LayoutCell, picture: LayoutStep['picture']) {
@@ -659,21 +673,29 @@ describe('layoutDiagramPages', () => {
     }
   });
 
-  it('runs every other row right to left in flow, with a band that leaves the page where the sequence goes on', () => {
+  it('runs every other row back in flow, with a band that leaves the page where the sequence goes on', () => {
     const result = layout(steps(10), { layout: 'flow', columns: 3, rows: 2 });
-    const [first] = result.pages;
-    const rowTwo = first!.cells.slice(3, 6).map((cell) => cell.cellMm.x);
-    expect(rowTwo).toEqual([...rowTwo].sort((a, b) => b - a));
-    expect(first!.band?.at(-1)).toMatchObject({ x: -10 });
-    expect(result.pages[1]!.band?.[0]).toMatchObject({ x: -10 });
+    const [first, second] = result.pages;
+    const xs = (cells: LayoutCell[]) => cells.map((cell) => cell.cellMm.x);
+    // The left page ends its two rows at the spine: the first reads right to left, the second back.
+    expect(xs(first!.cells.slice(0, 3))).toEqual([...xs(first!.cells.slice(0, 3))].sort((a, b) => b - a));
+    expect(xs(first!.cells.slice(3, 6))).toEqual([...xs(first!.cells.slice(3, 6))].sort((a, b) => a - b));
+    expect(first!.band?.curves.at(-1)?.to).toMatchObject({ x: result.paper.widthMm + 10 });
+    expect(second!.band?.from).toMatchObject({ x: -10 });
     expect(layout(steps(3), { layout: 'flow', showPath: false }).pages[0]!.band).toBeNull();
   });
 
-  it('numbers pages from the first number, odd ones on the right', () => {
+  it('numbers pages from the first number, each at its outer corner', () => {
     const result = layout(steps(12), { pageNumbers: { enabled: true, first: 4 } });
-    expect(result.pages.map((page) => [page.number, page.pageNumberAt?.anchor])).toEqual([
-      [4, 'start'],
-      [5, 'end'],
+    expect(result.pages.map((page) => [page.number, page.side, page.pageNumberAt?.anchor])).toEqual([
+      [4, 'left', 'start'],
+      [5, 'right', 'end'],
+    ]);
+    // The first page on the right: its number at the right, whatever it is.
+    const right = layout(steps(12), { firstPageSide: 'right' });
+    expect(right.pages.map((page) => [page.number, page.side, page.pageNumberAt?.anchor])).toEqual([
+      [1, 'right', 'end'],
+      [2, 'left', 'start'],
     ]);
     expect(layout(steps(1), { pageNumbers: { enabled: false, first: 1 } }).pages[0]!.pageNumberAt).toBeNull();
   });
@@ -785,18 +807,15 @@ describe('turns between steps on the page (D22)', () => {
     );
     const result = layout(list, { layout: 'flow', columns: 3, rows: 3 });
     const page = result.pages[0]!;
-    const centres = new Set(page.cells.map((cell) => `${cell.pictureMm.x + cell.pictureMm.size / 2}`));
-    // The band's points that are no picture's centre: where it turns down from one row to the next.
-    const bends = page.band!.filter((point) => !centres.has(`${point.x}`));
-    expect(bends).toHaveLength(2);
     const byId = new Map(page.turns.map((turn) => [turn.id, turn]));
-    for (const [id, before, bend] of [
-      ['turn-down-right', 2, bends[0]!],
-      ['turn-down-left', 5, bends[1]!],
+    for (const [id, before] of [
+      ['turn-down-right', 2],
+      ['turn-down-left', 5],
     ] as const) {
       const turn = byId.get(id)!;
       const [above, below] = [page.cells[before]!, page.cells[before + 1]!];
-      expect(turn.at.x, id).toBeCloseTo(bend.x, 6);
+      // On the lane itself, where it crosses the gap between the rows.
+      expect(laneDistance(page.band!, turn.at), id).toBeLessThan(0.05);
       // Between the rows, clear of the words above and the number below, and centred there.
       const { top, bottom } = extent([turn]);
       expect(top, id).toBeGreaterThan(textBottom(above));

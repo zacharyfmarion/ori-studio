@@ -743,8 +743,59 @@ shows the composed page.**
   - header 11 mm and footer 8 mm;
   - picture `min(cellW−6, cellH·0.64)`;
   - text 3.2 mm at 4.1 mm leading;
-  - odd page numbers on the right;
+  - odd page numbers on the right (amended below: at the outer corner of the
+    page's side);
   - a step's `breakBefore` starts a new page.
+  - *Amended, printed spreads and a smooth lane* (Zach, 2026-10-06, page 2 of
+    the X-ray Heart: "it kind of has kinks in it - can you make it be smooth
+    like a nice bezier curve"; "in print, the end of the flow on one page lines
+    up with the start on the next … for heart, the flow should start on the
+    bottom left. And there should be an option for setting whether the initial
+    page is on the right or left hand side … it should default to left").
+    As built (`diagram/pages/flowLane.ts`):
+    - **First page: Left | Right** (`page.firstPageSide`, default `left`,
+      written only when `right`, so a file on the left opens in a build that
+      predates it; older files read as Left). Pages pair into spreads from it:
+      Left 1–2, 3–4, …; Right 1 alone, then 2–3, 4–5, …. Each page's number
+      prints at its outer corner, in both layouts (the old rule, odd numbers on
+      the right, made page 1 a right page; with the default Left, page 1's
+      number now prints bottom left). The Page pane shows the row in both
+      layouts for that reason; `diagram page setup changed` counts it as
+      `first_page_side`.
+    - **Across a spread** the lane leaves the left page at its spine edge and
+      enters the right page at its spine edge at one height (halfway between
+      the two pictures it joins), level there on both, and runs 10 mm on into
+      the bleed. A right page entered there reads from the bottom row up, the
+      bottom row left to right from the spine; one with fewer steps than its
+      rows hold starts there and goes on up. A left page handing over ends its
+      bottom row at the spine: odd rows start at the top left (the heart: 1 2 3
+      / 6 5 4 / 7 8 9, then page 2: 10 11 12 at the bottom, 15 14 13 over them,
+      16 at the top left); even rows start at the top right (3 2 1 / 4 5 6),
+      rather than run the lane back under the last row. A left page cut short
+      by a page break runs the lane on through its empty cells to the spine.
+    - **Across a page turn** nothing lines up: the next page starts at its top
+      left as before (top right for a left page with an even number of rows,
+      as above), and the lane runs off a page, or in, only at its outer edge —
+      never into the spine, where it would seem to go on on the facing page.
+    - **The curve.** A cubic Hermite spline: through each picture's centre
+      heading along its row, and round each row break by a half ellipse
+      through an apex `FLOW_BEND` (0.46 cell) past the row's end, heading
+      straight down or up. Every knot has one handle shared by the curves
+      either side (C1), the shorter of a third of a run and a quarter
+      ellipse's handle. The old lane was a Catmull–Rom spline through the same
+      points: also C1 at its joins (measured, under 0.002°), but its tangent at
+      a row's last picture aimed at the bend, so it rose up to 2–4 mm over that
+      picture and fell back, and on the heart's page 2 bent tighter (12.6 mm)
+      than the band's half width (13 mm), folding its inner edge. Now no run
+      rises or falls past its two pictures, and the heart's tightest bend is
+      19.5 mm.
+    - A turn across a flow row break (D22) sits on this lane: its x is the
+      lane's where it crosses the glyph's height, from the same curves, drawn
+      or not.
+
+    Browser: `artifacts/diagram-second-pass/22/` (`p22.mjs` the Pages view,
+    `spreads.mjs` the spreads, `kinks.mjs` the measurements, `p22-pdf.mjs` the
+    PDF from the same page SVGs; `flow-spreads.png`).
 - **Scale policy.** `page.scale` is `'fit'` (default since 2026-10-04) or `'paper'`.
   - Under `'paper'`, every picture with a paper scale is drawn at one shared mm
     per document unit: the largest at which the biggest such picture fits its
@@ -1296,16 +1347,18 @@ and don't count towards the numbers"; on pages, "in the gutter".)*
   - *Amended, flow row breaks* (Zach, 2026-10-06, the X-ray Heart's page 1:
     "the turn over step between 3 and 4 should be rendered in the flow lane
     between steps 3 and 4, not to the right of step 4"). In the flow layout a
-    turn across a row's end prints in the band's bend (`FLOW_BEND`, shared
-    with `flowBand`), midway down from the step before's last line, or its
-    picture when it has no text, to the next step's number. That step before
-    keeps the stack's room under its text (`slotBottom`): when the room is
+    turn across a row's end prints on the lane in its bend (`flowLane`'s
+    curves: the lane's x at the glyph's height, also when the lane is hidden),
+    midway from the upper step's last line, or its picture when it has no
+    text, to the lower step's number — on a right page read up (D10, spreads)
+    the upper step is the one after the turn. The upper step keeps the
+    stack's room under its text (`slotBottom`): when the room is
     short, its text ends higher and its picture gives way, as it does for any
     long text. No other step changes, so the one paper scale holds. Kept as
     they were: a grid's row break (no lane: the glyph reads at the start of the
     next row, at its leading edge); a page break, and a turn before a page's
     first step (no row on the page to turn from, and the band comes in at that
-    step's left, so the leading edge is on the lane); turns after the last
+    step's leading side, so the leading edge is on the lane); turns after the last
     step; several turns at one place stand stacked, the stack centred.
     Browser: `artifacts/diagram-second-pass/21/` (`p21.mjs`,
     `turn-glyph-row-break.png`; `p21-pdf.mjs` shows that the PDF writer gets

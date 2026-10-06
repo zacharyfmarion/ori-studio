@@ -178,8 +178,9 @@ describe('composeDiagramPage', () => {
     expect(texts[1]).toBe(cell.text.lines.map((line) => line.text).join(''));
   });
 
-  it('places every run where the line set it, and right-aligns an odd page’s number by its width', () => {
-    const pages = preparedPages(diagram(), FONTS, subsetter);
+  it('places every run where the line set it, and right-aligns a right-hand page’s number by its width', () => {
+    const onTheRight = diagram();
+    const pages = preparedPages({ ...onTheRight, page: { ...onTheRight.page, firstPageSide: 'right' } }, FONTS, subsetter);
     const { layout } = pages;
     const document = parse(pages.compose(0).svg);
     const title = document.querySelector('svg > text')!;

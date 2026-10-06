@@ -46,6 +46,15 @@ export type DiagramPaperSize = 'a4' | 'a5' | 'b5-jis' | 'letter';
 export type DiagramPageOrientation = 'portrait' | 'landscape';
 export type DiagramPageLayout = 'grid' | 'flow';
 /**
+ * Which side of a printed spread the first page falls on. Pages pair into
+ * spreads from it — `left`: 1–2, 3–4, …; `right`: 1 alone, then 2–3, 4–5, … —
+ * and each page's number prints at its outer corner. In the flow layout the
+ * path runs on across each spread, leaving a left page at its spine and
+ * coming into the right page there at the same height.
+ */
+export type DiagramPageSide = 'left' | 'right';
+export const DIAGRAM_PAGE_SIDES: readonly DiagramPageSide[] = ['left', 'right'];
+/**
  * `paper`: every picture that knows its paper's size is drawn at one shared
  * scale, so the model visibly shrinks as it is folded. `fit` (the default):
  * the paper keeps one scale from step to step while it fits, zooming in where
@@ -65,6 +74,8 @@ export interface DiagramPageSetup {
   rows: number;
   /** Flow layout only: the band that joins one step to the next. */
   showPath: boolean;
+  /** The side the first page prints on ({@link DiagramPageSide}); written to the file only when `right`. */
+  firstPageSide: DiagramPageSide;
   scale: DiagramPictureScale;
   /** Draws {@link DiagramDocument.title} in a tab at the top of every page. */
   showTitle: boolean;
@@ -856,6 +867,7 @@ export const DEFAULT_PAGE_SETUP: DiagramPageSetup = {
   columns: 3,
   rows: 3,
   showPath: true,
+  firstPageSide: 'left',
   scale: 'fit',
   showTitle: true,
   pageNumbers: { enabled: true, first: 1 },
@@ -1658,6 +1670,8 @@ export function normalizePageSetup(value: unknown): DiagramPageSetup {
     columns: clampWhole(source.columns, PAGE_COLUMNS_RANGE, DEFAULT_PAGE_SETUP.columns),
     rows: clampWhole(source.rows, PAGE_ROWS_RANGE, DEFAULT_PAGE_SETUP.rows),
     showPath: typeof source.showPath === 'boolean' ? source.showPath : DEFAULT_PAGE_SETUP.showPath,
+    // Unsaid, as in every file before there was a choice: the left.
+    firstPageSide: source.firstPageSide === 'right' ? 'right' : DEFAULT_PAGE_SETUP.firstPageSide,
     scale: source.scale === 'fit' || source.scale === 'paper' ? source.scale : DEFAULT_PAGE_SETUP.scale,
     showTitle:
       typeof source.showTitle === 'boolean' ? source.showTitle : DEFAULT_PAGE_SETUP.showTitle,
@@ -1680,6 +1694,7 @@ export function pageSetupEquals(a: DiagramPageSetup, b: DiagramPageSetup): boole
     a.columns === b.columns &&
     a.rows === b.rows &&
     a.showPath === b.showPath &&
+    a.firstPageSide === b.firstPageSide &&
     a.scale === b.scale &&
     a.showTitle === b.showTitle &&
     a.pageNumbers.enabled === b.pageNumbers.enabled &&

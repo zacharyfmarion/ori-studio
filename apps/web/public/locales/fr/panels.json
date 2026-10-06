@@ -980,6 +980,9 @@
       "columns": "Colonnes",
       "exportStyle": "Style d’export des Réglages",
       "firstPage": "Premier numéro",
+      "firstPageSide": "Première page",
+      "firstPageSideFlowHint": "Le côté d’une double page imprimée où tombe la page 1. Sur chaque double page, le chemin continue par-dessus le pli, donc une page de droite commence en bas, là où finit celle de gauche. Les numéros de page s’impriment aux coins extérieurs.",
+      "firstPageSideHint": "Le côté d’une double page imprimée où tombe la page 1. Les numéros de page s’impriment aux coins extérieurs.",
       "flow": "Flux",
       "flowHint": "Les rangées tournent à chaque bout.",
       "grid": "Grille",
@@ -1015,6 +1018,8 @@
       "scaleHint": "Ajuster garde le papier à la même taille d’une étape à l’autre tant qu’il tient, et agrandit là où le modèle reste bien plus petit pendant plusieurs étapes. Une échelle dessine chaque motif à la même taille par unité de papier, si bien que le modèle rétrécit à mesure qu’il est plié.",
       "scalePaper": "Une échelle",
       "showPath": "Afficher le chemin",
+      "sideLeft": "Gauche",
+      "sideRight": "Droite",
       "size": "Format",
       "sizes": {
         "a4": "A4",

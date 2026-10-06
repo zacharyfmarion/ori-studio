@@ -980,6 +980,9 @@
       "columns": "Columnas",
       "exportStyle": "Estilo de exportación de Ajustes",
       "firstPage": "Primer número",
+      "firstPageSide": "Primera página",
+      "firstPageSideFlowHint": "En qué lado de una doble página impresa cae la página 1. En cada doble página el recorrido sigue por encima del lomo, así que una página derecha empieza abajo, donde termina la izquierda. Los números de página se imprimen en las esquinas exteriores.",
+      "firstPageSideHint": "En qué lado de una doble página impresa cae la página 1. Los números de página se imprimen en las esquinas exteriores.",
       "flow": "Flujo",
       "flowHint": "Las filas giran en cada extremo.",
       "grid": "Cuadrícula",
@@ -1015,6 +1018,8 @@
       "scaleHint": "Ajustar mantiene el papel del mismo tamaño de un paso a otro mientras cabe, y amplía donde el modelo sigue siendo mucho más pequeño durante varios pasos. Una escala dibuja cada patrón al mismo tamaño por unidad de papel, así que el modelo se encoge a medida que se pliega.",
       "scalePaper": "Una escala",
       "showPath": "Mostrar recorrido",
+      "sideLeft": "Izquierda",
+      "sideRight": "Derecha",
       "size": "Tamaño",
       "sizes": {
         "a4": "A4",

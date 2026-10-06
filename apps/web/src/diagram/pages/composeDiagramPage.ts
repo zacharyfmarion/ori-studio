@@ -35,6 +35,7 @@ import {
   type TextSetter,
 } from './diagramPageLayout';
 import { paintTurnGlyph, TURN_FRAME_MM } from '../annotate/turnGlyph';
+import type { Lane } from './flowLane';
 import { setUploadText } from '../upload/uploadText';
 import { cellPicture } from './pagePictures';
 
@@ -92,9 +93,9 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
   };
   const body: string[] = [];
 
-  if (page.band && page.band.length > 1) {
+  if (page.band && page.band.curves.length > 0) {
     body.push(
-      `<path d="${smoothPath(page.band)}" fill="none" stroke="${BAND_INK}" ` +
+      `<path d="${lanePath(page.band)}" fill="none" stroke="${BAND_INK}" ` +
         `stroke-width="${pt(layout.bandWidthMm)}" stroke-linecap="round" stroke-linejoin="round"/>`
     );
   }
@@ -230,20 +231,10 @@ function textElement(
   );
 }
 
-/** The band through its points, smoothed as the mockup draws it (Catmull–Rom as cubic Béziers). */
-function smoothPath(points: readonly { x: number; y: number }[]): string {
-  const p = points.map(({ x, y }) => ({ x: x * PT_PER_MM, y: y * PT_PER_MM }));
-  let d = `M ${num(p[0]!.x)} ${num(p[0]!.y)}`;
-  for (let i = 0; i < p.length - 1; i += 1) {
-    const a = p[i - 1] ?? p[i]!;
-    const b = p[i]!;
-    const c = p[i + 1]!;
-    const e = p[i + 2] ?? c;
-    d +=
-      ` C ${num(b.x + (c.x - a.x) / 6)} ${num(b.y + (c.y - a.y) / 6)}` +
-      ` ${num(c.x - (e.x - b.x) / 6)} ${num(c.y - (e.y - b.y) / 6)} ${num(c.x)} ${num(c.y)}`;
-  }
-  return d;
+/** The lane as the layout made it (`flowLane`): its cubic Béziers, end to end, in pt. */
+function lanePath(lane: Lane): string {
+  const at = ({ x, y }: { x: number; y: number }) => `${pt(x)} ${pt(y)}`;
+  return [`M ${at(lane.from)}`, ...lane.curves.map(({ c1, c2, to }) => `C ${at(c1)} ${at(c2)} ${at(to)}`)].join(' ');
 }
 
 const pt = (mm: number) => num(mm * PT_PER_MM);

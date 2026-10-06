@@ -71,6 +71,7 @@ import {
 import {
   DEFAULT_DIAGRAM_STYLE,
   DIAGRAM_FORMAT_VERSION,
+  DIAGRAM_PAGE_SIDES,
   DIAGRAM_SHOW_AS,
   PAPER_SIZES,
   SPREAD_AMOUNT_RANGE,
@@ -103,6 +104,7 @@ import {
   type DiagramHanStyle,
   type DiagramIdFactory,
   type DiagramLayerSpread,
+  type DiagramPageSetup,
   type DiagramRasterAsset,
   type DiagramShowAs,
   type DiagramStep,
@@ -189,6 +191,7 @@ const PAGE_KEYS = new Set([
   'columns',
   'rows',
   'showPath',
+  'firstPageSide',
   'scale',
   'showTitle',
   'pageNumbers',
@@ -198,6 +201,7 @@ const PAGE_ENUMS: Record<string, readonly string[]> = {
   orientation: ['portrait', 'landscape'],
   layout: ['grid', 'flow'],
   scale: ['paper', 'fit'],
+  firstPageSide: DIAGRAM_PAGE_SIDES,
 };
 
 /**
@@ -256,12 +260,23 @@ export function writeDiagram(
     title: document.title,
     hanStyle: document.hanStyle,
     style: document.style,
-    page: document.page,
+    page: writePageSetup(document.page),
     steps: document.steps.map(writeStep),
     assets: Object.fromEntries(
       Object.entries(document.assets).map(([id, asset]) => [id, writeAsset(asset)])
     ),
   };
+}
+
+/**
+ * The page setup as written: every field, but the first page's side only when
+ * it is the right — so a diagram on the left, as every one was before the
+ * choice, opens in a build that does not know it (an unknown page key opens
+ * read-only: `unknownDocumentField`).
+ */
+function writePageSetup(page: DiagramPageSetup): Record<string, unknown> {
+  const { firstPageSide, ...rest } = page;
+  return firstPageSide === 'right' ? { ...rest, firstPageSide } : rest;
 }
 
 function writeStep(step: DiagramEntry): Record<string, unknown> {

@@ -8,6 +8,7 @@ import {
   type DiagramHanStyle,
   type DiagramPageLayout,
   type DiagramPageOrientation,
+  type DiagramPageSide,
   type DiagramPaperSize,
   type DiagramPictureScale,
 } from '../../diagram/document/diagramDocument';
@@ -124,6 +125,27 @@ export function DiagramPagePanel() {
               onChange={(showPath) => setPage({ showPath }, 'path')}
             />
           )}
+          <SegmentedRow
+            label={t('panels:diagram.pagePane.firstPageSide', 'First page')}
+            value={page.firstPageSide}
+            disabled={readOnly}
+            help={
+              flow
+                ? t(
+                    'panels:diagram.pagePane.firstPageSideFlowHint',
+                    'Which side of a printed spread page 1 falls on. Across each spread the path runs on over the spine, so a right-hand page starts at the bottom, where the left one ends. Page numbers print at the outer corners.'
+                  )
+                : t(
+                    'panels:diagram.pagePane.firstPageSideHint',
+                    'Which side of a printed spread page 1 falls on. Page numbers print at the outer corners.'
+                  )
+            }
+            options={[
+              { id: 'left', label: t('panels:diagram.pagePane.sideLeft', 'Left') },
+              { id: 'right', label: t('panels:diagram.pagePane.sideRight', 'Right') },
+            ]}
+            onChange={(side) => setPage({ firstPageSide: side as DiagramPageSide }, 'first_page_side')}
+          />
           <SegmentedRow
             label={t('panels:diagram.pagePane.scale', 'Scale')}
             value={page.scale}

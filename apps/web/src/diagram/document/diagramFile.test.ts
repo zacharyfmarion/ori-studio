@@ -55,6 +55,21 @@ describe('writeDiagram / readDiagram', () => {
     expect(read!.document).toEqual(diagram);
   });
 
+  it('writes the first page’s side only when it is the right, and reads a file without it as the left', () => {
+    const left = throughJson(writeDiagram(sampleDiagram()));
+    expect('firstPageSide' in left.page).toBe(false);
+    expect(readDiagram(left)!.document.page.firstPageSide).toBe('left');
+    const onTheRight = setPageSetup(sampleDiagram(), { firstPageSide: 'right' });
+    const right = throughJson(writeDiagram(onTheRight));
+    expect(right.page.firstPageSide).toBe('right');
+    const read = readDiagram(right)!;
+    expect(read.readOnly).toBe(false);
+    expect(read.document).toEqual(onTheRight);
+    // Damage reads as the left; a side this build has no name for is a newer build's.
+    expect(readDiagram({ ...right, page: { ...right.page, firstPageSide: 3 } })!.document.page.firstPageSide).toBe('left');
+    expect(readDiagram({ ...right, page: { ...right.page, firstPageSide: 'both' } })!.readOnly).toBe(true);
+  });
+
   it('round-trips a resolved paper style', () => {
     const diagram = { ...sampleDiagram(), style: { style: DEFAULT_PAPER_STYLE } };
     expect(readDiagram(throughJson(writeDiagram(diagram)))!.document.style).toEqual({

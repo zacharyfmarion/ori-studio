@@ -29,9 +29,14 @@
  * smaller, or out where it has grown for good. Pictures with no paper keep
  * one size of frame the same way.
  *
+ * In the flow layout the rows turn back at each end, and each page's rows run
+ * so that the lane carries on across a printed spread ({@link flowPagePlan}):
+ * a right page the lane comes into at its spine reads from the bottom row up.
+ * The lane is one smooth curve through the pictures ({@link flowLane}).
+ *
  * A turn between two steps (D22) has no cell: its glyph prints in the gutter
- * between the two pictures — midway on a row; across a flow row's end, in the
- * band's bend between the rows; at the next picture's leading edge across a
+ * between the two pictures — midway on a row; across a flow row's end, on the
+ * lane in its bend between the rows; at the next picture's leading edge across a
  * grid's row or a page; at the last picture's trailing edge after it. A
  * diagram with any turn keeps a gutter wide enough between all its pictures,
  * so its one paper scale stays one scale; a step before a flow row's end with
@@ -42,8 +47,19 @@
  *
  * Pure.
  */
-import type { DiagramPageSetup, DiagramTurnKind } from '../document/diagramDocument';
+import type { DiagramPageSetup, DiagramPageSide, DiagramTurnKind } from '../document/diagramDocument';
 import type { DiagramFontFace } from '../fonts/diagramFontFaces';
+import {
+  bendXAt,
+  FLOW_BEND,
+  flowLane,
+  flowPagePlan,
+  pageSide,
+  rowRightToLeft,
+  type FlowPagePlan,
+  type Lane,
+  type LaneStop,
+} from './flowLane';
 import { printPaper, type PrintPaper } from './printPaper';
 
 /** The instruction's size and leading, mm. */
@@ -82,8 +98,6 @@ const PAGE_NUMBER_RAISE_MM = 1.5;
 const OFF_PAGE_MM = 10;
 /** Flow: every other cell of a row steps down by this share of the cell, and the text gives up as much. */
 const FLOW_STEP = 0.06;
-/** Flow: how far out past a row's last picture's centre the band turns down to the next row, as a share of the cell's width. */
-const FLOW_BEND = 0.46;
 /** The room beside a picture box in its cell, together: the gutter between two pictures. */
 const PICTURE_SIDE_ROOM_MM = 6;
 /**
@@ -272,14 +286,16 @@ export interface LayoutCell {
 export interface LayoutPage {
   /** As printed: the setup's first number plus the page's index. */
   number: number;
+  /** The side of its spread the page prints on: its number is at the outer corner. */
+  side: DiagramPageSide;
   cells: LayoutCell[];
-  /** The flow band's points, in order, or null. */
-  band: { x: number; y: number }[] | null;
+  /** The flow layout's lane, as drawn, or null. */
+  band: Lane | null;
   /**
    * The turns on the page (D22), in the document's order: each glyph's centre
    * and printed box, the step it comes before — null for those after the last
    * step — and whether the row it stands in reads right to left, as every
-   * other flow row does.
+   * other flow row does (which ones, the page's plan says).
    */
   turns: (LayoutTurn & {
     at: { x: number; y: number };
@@ -785,6 +801,13 @@ export function layoutDiagramPages(
   const pagesOfSteps = splitIntoPages(steps, perPage).map((page) =>
     page.map((index) => ({ step: steps[index]!, index }))
   );
+  // Which way each page's rows run: in a grid, down and left to right; in a
+  // flow, so that the lane carries on across each spread.
+  const plans: FlowPagePlan[] = pagesOfSteps.map((_, pageIndex) =>
+    flow
+      ? flowPagePlan(pageIndex, pagesOfSteps.length, setup.firstPageSide, setup.rows)
+      : { side: pageSide(pageIndex, setup.firstPageSide), up: false, firstRightToLeft: false, entry: 'none', exit: 'none' }
+  );
 
   // Each cell's box and text, before the scale is known.
   interface Placed {
@@ -798,34 +821,43 @@ export function layoutDiagramPages(
     text: SetText;
     overflow: boolean;
   }
-  /** The top-left of a page's `k`th cell: a flow row that runs right to left from the right, every other cell lower. */
-  const cellAt = (k: number) => {
+  /**
+   * The top-left of a page's `k`th cell: rows down the page, or up it; a flow
+   * row that runs right to left from the right, every other cell lower.
+   */
+  const cellAt = (plan: FlowPagePlan, k: number) => {
     const row = Math.floor(k / setup.columns);
     const k0 = k % setup.columns;
-    const col = flow && row % 2 === 1 ? setup.columns - 1 - k0 : k0;
-    return { x: m + col * cellW, y: m + headH + row * cellH + (flow && k0 % 2 === 1 ? cellH * FLOW_STEP : 0) };
+    const col = flow && rowRightToLeft(plan, row) ? setup.columns - 1 - k0 : k0;
+    const down = plan.up ? setup.rows - 1 - row : row;
+    return { x: m + col * cellW, y: m + headH + down * cellH + (flow && k0 % 2 === 1 ? cellH * FLOW_STEP : 0) };
   };
   /** How far down the page the text of a page's `k`th cell may sit, by its cell. */
-  const cellFoot = (k: number) => cellAt(k).y + cellH * (flow ? 1 - FLOW_STEP : 1) - TEXT_DESCENT_MM;
+  const cellFoot = (plan: FlowPagePlan, k: number) =>
+    cellAt(plan, k).y + cellH * (flow ? 1 - FLOW_STEP : 1) - TEXT_DESCENT_MM;
   /**
-   * The same, before a flow row's end with turns after it: above their room
-   * over the next step's number, clear of both (`placeTurns`).
+   * The same, over a flow row break with turns at it: above their room over
+   * the number of the step under it, clear of both (`placeTurns`). The break
+   * under a cell is after it on a page read down, before it on one read up.
    */
-  const slotBottom = (entries: readonly { step: LayoutStep }[], k: number) => {
-    const own = cellFoot(k);
-    const turns = entries[k + 1]?.step.turnsBefore ?? [];
-    if (!flow || turns.length === 0 || (k + 1) % setup.columns !== 0) return own;
+  const slotBottom = (entries: readonly { step: LayoutStep }[], k: number, plan: FlowPagePlan) => {
+    const own = cellFoot(plan, k);
+    const after = plan.up ? k : k + 1;
+    const turns = after > 0 ? (entries[after]?.step.turnsBefore ?? []) : [];
+    if (!flow || turns.length === 0 || after % setup.columns !== 0) return own;
+    const under = plan.up ? after - 1 : after;
     const room = stackHeight(turns) + 2 * TURN_STACK_CLEAR_MM;
-    return Math.min(own, cellAt(k + 1).y + STEP_NUMBER_TOP_MM - room - TEXT_DESCENT_MM);
+    return Math.min(own, cellAt(plan, under).y + STEP_NUMBER_TOP_MM - room - TEXT_DESCENT_MM);
   };
   const firstBaselineOf = (cellTop: number, box: number) => cellTop + PICTURE_TOP_MM + box + TEXT_GAP_MM;
   /** How many lines fit between a box and the foot of its slot. */
   const slotLines = (slot: number, cellTop: number, box: number) =>
     Math.max(0, Math.floor((slot - firstBaselineOf(cellTop, box)) / STEP_TEXT_LEADING_MM + 1e-9) + 1);
-  const placedPages: Placed[][] = pagesOfSteps.map((entries) =>
+  const placedPages: Placed[][] = pagesOfSteps.map((entries, pageIndex) =>
     entries.map(({ step, index }, k) => {
-      const { x, y } = cellAt(k);
-      const slot = slotBottom(entries, k);
+      const plan = plans[pageIndex]!;
+      const { x, y } = cellAt(plan, k);
+      const slot = slotBottom(entries, k, plan);
       let box = fullBox;
       const full = setter.paragraph(step.text, textWidth, STEP_TEXT_SIZE_MM, Number.MAX_SAFE_INTEGER);
       let maxLines = slotLines(slot, y, box);
@@ -843,7 +875,7 @@ export function layoutDiagramPages(
           box = Math.max(0, slot - (firstBaselineOf(y, box) - box));
           maxLines = slotLines(slot, y, box);
         }
-      } else if (full.linesNeeded === 0 && slot < cellFoot(k)) {
+      } else if (full.linesNeeded === 0 && slot < cellFoot(plan, k)) {
         // No text, and turns kept under it: the picture ends where text would, above them.
         box = Math.max(0, Math.min(box, slot + TEXT_DESCENT_MM - (y + PICTURE_TOP_MM)));
       }
@@ -902,9 +934,8 @@ export function layoutDiagramPages(
     }
   }
 
-  const pages: LayoutPage[] = placedPages.map((placed, pageIndex) => {
-    const number = setup.pageNumbers.first + pageIndex;
-    const cells: LayoutCell[] = placed.map((entry) => {
+  const cellPages: LayoutCell[][] = placedPages.map((placed) =>
+    placed.map((entry) => {
       const { step, index, x, y, box, text, overflow } = entry;
       const pictureX = x + (cellW - box) / 2;
       const pictureY = y + PICTURE_TOP_MM;
@@ -931,13 +962,57 @@ export function layoutDiagramPages(
         },
         textOverflow: overflow,
       };
-    });
-    const band =
-      flow && setup.showPath && cells.length > 0 ? flowBand(cells, pageIndex, placedPages.length, W, cellW) : null;
-    const turns = placeTurns(placed.map(({ step }) => step), cells, setup.columns, flow, W);
-    const right = number % 2 === 1;
+    })
+  );
+
+  // The lane's stops on each page: every picture's centre as drawn, and on a
+  // page that runs on to its spine, the empty cells after its last step.
+  const stopPages: LaneStop[][] = cellPages.map((cells, pageIndex) => {
+    if (!flow) return [];
+    const plan = plans[pageIndex]!;
+    const stop = (k: number, at: { x: number; y: number }): LaneStop => {
+      const row = Math.floor(k / setup.columns);
+      return { ...at, row, rightToLeft: rowRightToLeft(plan, row) };
+    };
+    const stops = cells.map((cell, k) => stop(k, laneCentre(cell)));
+    if (plan.exit === 'spine') {
+      for (let k = cells.length; k < perPage; k += 1) {
+        const { x, y } = cellAt(plan, k);
+        stops.push(stop(k, { x: x + cellW / 2, y: y + PICTURE_TOP_MM + fullBox / 2 }));
+      }
+    }
+    return stops;
+  });
+  // Across a spread the lane meets the spine at one height: halfway between
+  // where it leaves the left page and where it comes into the right one.
+  const spineAt = (leftIndex: number) => {
+    const out = stopPages[leftIndex]?.at(-1);
+    const into = stopPages[leftIndex + 1]?.[0];
+    return out && into ? (out.y + into.y) / 2 : null;
+  };
+
+  const pages: LayoutPage[] = placedPages.map((placed, pageIndex) => {
+    const number = setup.pageNumbers.first + pageIndex;
+    const plan = plans[pageIndex]!;
+    const cells = cellPages[pageIndex]!;
+    const lane =
+      flow && cells.length > 0
+        ? flowLane({
+            stops: stopPages[pageIndex]!,
+            plan,
+            pageWidth: W,
+            cellW,
+            offPage: OFF_PAGE_MM,
+            spineIn: plan.entry === 'spine' ? spineAt(pageIndex - 1) : null,
+            spineOut: plan.exit === 'spine' ? spineAt(pageIndex) : null,
+          })
+        : null;
+    const band = setup.showPath ? (lane?.lane ?? null) : null;
+    const turns = placeTurns(placed.map(({ step }) => step), cells, setup.columns, flow ? plan : null, lane, W);
+    const right = plan.side === 'right';
     return {
       number,
+      side: plan.side,
       cells,
       band,
       turns,
@@ -972,32 +1047,35 @@ export function layoutDiagramPages(
   };
 }
 
+/** The middle of a picture as drawn, which a tall one has lower than its box's: where the lane passes behind it. */
+function laneCentre(cell: LayoutCell): { x: number; y: number } {
+  return { x: cell.pictureMm.x + cell.pictureMm.size / 2, y: cell.drawMm.y + cell.drawMm.h / 2 };
+}
+
 /**
  * Where the turns on a page print (D22): between two pictures on one row,
- * midway between them at their centres' height; across a flow row's end, in
- * the band's bend between the rows, midway down from the last line of the
- * step before to the next step's number (the step before kept the room:
- * `slotBottom`); before a picture that starts a grid's row or the page, at
- * its leading edge — a page's first step has no row on the page to turn from,
- * and the band comes in at its left; after the last picture, at its trailing
- * edge. Several in one place stand one above another, each glyph clear of the
- * next, the stack centred on the place. Kept on the paper.
+ * midway between them at their centres' height; across a flow row's end, on
+ * the lane in its bend between the rows (`flowLane`, also when the lane is
+ * not shown), midway from the last line of the upper step to the lower one's
+ * number (the upper kept the room: `slotBottom`); before a picture that
+ * starts a grid's row or the page, at its leading edge — a page's first step
+ * has no row on the page to turn from, and the lane comes in at its leading
+ * side; after the last picture, at its trailing edge. Several in one place
+ * stand one above another, each glyph clear of the next, the stack centred on
+ * the place. Kept on the paper.
  */
 function placeTurns(
   steps: readonly LayoutStep[],
   cells: readonly LayoutCell[],
   columns: number,
-  flow: boolean,
+  plan: FlowPagePlan | null,
+  lane: ReturnType<typeof flowLane>,
   pageWidth: number
 ): LayoutPage['turns'] {
   const placed: LayoutPage['turns'] = [];
   const rowOf = (k: number) => Math.floor(k / columns);
-  const backwards = (k: number) => flow && rowOf(k) % 2 === 1;
-  // The middle of the picture as drawn, which a tall one has lower than its box's.
-  const centre = (cell: LayoutCell) => ({
-    x: cell.pictureMm.x + cell.pictureMm.size / 2,
-    y: cell.drawMm.y + cell.drawMm.h / 2,
-  });
+  const backwards = (k: number) => plan !== null && rowRightToLeft(plan, rowOf(k));
+  const centre = laneCentre;
   /** How far down a cell's own ink reaches: its text's last line, with its descenders, or its picture. */
   const foot = (cell: LayoutCell) =>
     cell.text.lines.length > 0
@@ -1029,10 +1107,15 @@ function placeTurns(
         const b = centre(cells[k]!);
         const facing = (edge(k - 1, false).x + edge(k, true).x) / 2;
         stack(step.turnsBefore, { x: facing, y: (a.y + b.y) / 2 }, k, step.id);
-      } else if (k > 0 && flow) {
-        const before = cells[k - 1]!;
-        const x = centre(before).x + (backwards(k - 1) ? -1 : 1) * FLOW_BEND * before.cellMm.w;
-        const y = (foot(before) + cells[k]!.cellMm.y + STEP_NUMBER_TOP_MM) / 2;
+      } else if (k > 0 && plan) {
+        // In the gap between the two rows, under the upper step's words and
+        // over the lower one's number, where the lane crosses it.
+        const [before, next] = [cells[k - 1]!, cells[k]!];
+        const [upper, lower] = before.cellMm.y < next.cellMm.y ? [before, next] : [next, before];
+        const y = (foot(upper) + lower.cellMm.y + STEP_NUMBER_TOP_MM) / 2;
+        const bend = lane?.bends.get(k);
+        const onLane = lane && bend !== undefined ? bendXAt(lane.lane, bend, y) : null;
+        const x = onLane ?? centre(before).x + (backwards(k - 1) ? -1 : 1) * FLOW_BEND * before.cellMm.w;
         stack(step.turnsBefore, { x, y }, k, step.id);
       } else {
         stack(step.turnsBefore, edge(k, true), k, step.id);
@@ -1041,35 +1124,4 @@ function placeTurns(
     if (step.turnsAfter.length > 0) stack(step.turnsAfter, edge(k, false), k, null);
   });
   return placed;
-}
-
-/**
- * The flow band through a page's pictures, in reading order: a turn out past
- * the row's end between rows, and a stub off the page's edge where the
- * sequence goes on from the page before or to the page after.
- */
-function flowBand(
-  cells: readonly LayoutCell[],
-  pageIndex: number,
-  pageCount: number,
-  pageWidth: number,
-  cellW: number
-): { x: number; y: number }[] {
-  const centres = cells.map((cell) => ({
-    x: cell.pictureMm.x + cell.pictureMm.size / 2,
-    y: cell.drawMm.y + cell.drawMm.h / 2,
-    row: Math.round((cell.cellMm.y - cells[0]!.cellMm.y) / cell.cellMm.h),
-  }));
-  const points: { x: number; y: number }[] = [];
-  if (pageIndex > 0) points.push({ x: -OFF_PAGE_MM, y: centres[0]!.y });
-  centres.forEach((a, n) => {
-    points.push({ x: a.x, y: a.y });
-    const b = centres[n + 1];
-    if (b && b.row !== a.row) points.push({ x: a.x + (a.row % 2 ? -1 : 1) * cellW * FLOW_BEND, y: (a.y + b.y) / 2 });
-  });
-  const last = centres.at(-1)!;
-  if (pageIndex < pageCount - 1) {
-    points.push({ x: last.row % 2 ? -OFF_PAGE_MM : pageWidth + OFF_PAGE_MM, y: last.y });
-  }
-  return points;
 }

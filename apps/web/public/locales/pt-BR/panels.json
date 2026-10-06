@@ -980,6 +980,9 @@
       "columns": "Colunas",
       "exportStyle": "Estilo de exportação das Configurações",
       "firstPage": "Primeiro número",
+      "firstPageSide": "Primeira página",
+      "firstPageSideFlowHint": "Em que lado de uma página dupla impressa fica a página 1. Em cada página dupla o trajeto continua por cima da lombada, então uma página direita começa embaixo, onde a esquerda termina. Os números de página ficam nos cantos externos.",
+      "firstPageSideHint": "Em que lado de uma página dupla impressa fica a página 1. Os números de página ficam nos cantos externos.",
       "flow": "Fluxo",
       "flowHint": "As linhas fazem a volta em cada ponta.",
       "grid": "Grade",
@@ -1015,6 +1018,8 @@
       "scaleHint": "Ajustar mantém o papel do mesmo tamanho de um passo a outro enquanto couber, e amplia onde o modelo continua bem menor por vários passos. Uma escala desenha cada padrão no mesmo tamanho por unidade de papel, então o modelo encolhe à medida que é dobrado.",
       "scalePaper": "Uma escala",
       "showPath": "Mostrar trajeto",
+      "sideLeft": "Esquerda",
+      "sideRight": "Direita",
       "size": "Tamanho",
       "sizes": {
         "a4": "A4",

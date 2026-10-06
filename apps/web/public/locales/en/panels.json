@@ -946,6 +946,9 @@
       "columns": "Columns",
       "exportStyle": "Export style from Settings",
       "firstPage": "First number",
+      "firstPageSide": "First page",
+      "firstPageSideFlowHint": "Which side of a printed spread page 1 falls on. Across each spread the path runs on over the spine, so a right-hand page starts at the bottom, where the left one ends. Page numbers print at the outer corners.",
+      "firstPageSideHint": "Which side of a printed spread page 1 falls on. Page numbers print at the outer corners.",
       "flow": "Flow",
       "flowHint": "Rows turn back at each end.",
       "grid": "Grid",
@@ -979,6 +982,8 @@
       "scaleHint": "Fit each keeps the paper one size from step to step while it fits, and zooms in where the model stays much smaller for several steps. One scale draws every pattern at the same size per unit of paper, so the model shrinks as it is folded.",
       "scalePaper": "One scale",
       "showPath": "Show path",
+      "sideLeft": "Left",
+      "sideRight": "Right",
       "size": "Size",
       "sizes": {
         "a4": "A4",

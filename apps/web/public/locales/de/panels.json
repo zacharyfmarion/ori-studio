@@ -946,6 +946,9 @@
       "columns": "Spalten",
       "exportStyle": "Exportstil aus den Einstellungen",
       "firstPage": "Erste Nummer",
+      "firstPageSide": "Erste Seite",
+      "firstPageSideFlowHint": "Auf welcher Seite einer gedruckten Doppelseite Seite 1 liegt. Auf jeder Doppelseite läuft der Pfad über den Bund weiter, daher beginnt eine rechte Seite unten, wo die linke endet. Seitenzahlen stehen in den äußeren Ecken.",
+      "firstPageSideHint": "Auf welcher Seite einer gedruckten Doppelseite Seite 1 liegt. Seitenzahlen stehen in den äußeren Ecken.",
       "flow": "Fluss",
       "flowHint": "Die Reihen wenden an jedem Ende.",
       "grid": "Raster",
@@ -979,6 +982,8 @@
       "scaleHint": "Einpassen hält das Papier von Schritt zu Schritt gleich groß, solange es passt, und vergrößert dort, wo das Modell über mehrere Schritte deutlich kleiner bleibt. Ein Maßstab zeichnet jedes Muster in derselben Größe je Papiereinheit, sodass das Modell beim Falten kleiner wird.",
       "scalePaper": "Ein Maßstab",
       "showPath": "Pfad zeigen",
+      "sideLeft": "Links",
+      "sideRight": "Rechts",
       "size": "Größe",
       "sizes": {
         "a4": "A4",
