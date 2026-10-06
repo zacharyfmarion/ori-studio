@@ -2065,7 +2065,11 @@ export interface DiagramSliceActions {
   /** Record, or with none clear, what sanitizing changed in an upload. */
   noteDiagramPictureChanges: (assetId: string, notices: readonly SanitizeNotice[]) => void;
   setDiagramTitle: (title: string) => boolean;
-  setDiagramPage: (patch: Partial<DiagramPageSetup>) => boolean;
+  /**
+   * Change the page setup. Edits in one `session` — a colour dragged through
+   * its picker — are one undo step.
+   */
+  setDiagramPage: (patch: Partial<DiagramPageSetup>, options?: { session?: number }) => boolean;
   /** Start a new page at the step, or stop doing so ("Start a new page here", D10). */
   setDiagramStepBreakBefore: (stepId: string, breakBefore: boolean) => boolean;
   /** The paper style every step is painted in (D9): a built-in by id, or a resolved style. */

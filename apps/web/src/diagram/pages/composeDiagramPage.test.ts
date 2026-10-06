@@ -608,6 +608,28 @@ describe('composeDiagramPage', () => {
     expect(pages.layout.pages[0]!.cells.map((cell) => cell.number)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
+  it('draws the flow band at the page setup’s width and in its colour', () => {
+    /** The page's paths in the band's ink, behind everything else. */
+    const bands = (page: Partial<DiagramDocument['page']>) => {
+      const document: DiagramDocument = { ...diagram(), page: { ...DEFAULT_PAGE_SETUP, layout: 'flow', ...page } };
+      const pages = preparedPages(document, FONTS, subsetter);
+      const svg = parse(pages.compose(0).svg);
+      const ink = pages.layout.bandInk;
+      return {
+        paths: [...svg.querySelectorAll('path')].filter((path) => path.getAttribute('stroke') === ink),
+        layout: pages.layout,
+      };
+    };
+    const plain = bands({});
+    expect(plain.layout.bandInk).toBe('#ecece8');
+    expect(plain.paths).toHaveLength(1);
+    expect(Number(plain.paths[0]!.getAttribute('stroke-width'))).toBeCloseTo(plain.layout.bandWidthMm * PT_PER_MM, 2);
+    const chosen = bands({ pathWidthMm: 12, pathColor: '#d6e8f5' });
+    expect(chosen.paths).toHaveLength(1);
+    expect(Number(chosen.paths[0]!.getAttribute('stroke-width'))).toBeCloseTo(12 * PT_PER_MM, 2);
+    expect(bands({ showPath: false }).paths).toHaveLength(0);
+  });
+
   it('turns a turn-over side to side round on a flow row read right to left, to lead to the step after it', () => {
     // Two to a row: steps 3 and 4 are read right to left.
     const document: DiagramDocument = { ...diagram(), page: { ...DEFAULT_PAGE_SETUP, layout: 'flow', columns: 2, rows: 3 } };

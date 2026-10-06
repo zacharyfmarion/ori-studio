@@ -21,7 +21,8 @@
  *
  * **The curve.** The lane passes through every picture's centre heading along
  * its row, and turns between rows in a half ellipse out past the row's end
- * (`FLOW_BEND`), through an apex heading straight down or up. It is a cubic
+ * (`FLOW_BEND`, or further for a wide band: {@link bendReach}), through an
+ * apex heading straight down or up. It is a cubic
  * Hermite spline through those knots: each knot has one handle, shared by the
  * curves either side, so the lane is tangent-continuous (C1) everywhere and
  * has no corner. The earlier lane was a Catmull–Rom spline through the same
@@ -35,11 +36,43 @@ import type { DiagramPageSide } from '../document/diagramDocument';
 
 /** How far out past a row's last picture's centre the lane turns to the next row, as a share of the cell's width. */
 export const FLOW_BEND = 0.46;
+
 /**
  * A quarter ellipse's handle, as a share of its radius: the cubic closest to
  * the arc, `4/3·(√2 − 1)`.
  */
 const QUARTER = (4 / 3) * (Math.SQRT2 - 1);
+
+/**
+ * How much rounder a bend's cubic is where it ends than the quarter ellipse
+ * it stands for: its radius there over the ellipse's, `1.5·QUARTER²/(1 − QUARTER)`
+ * (about 1.022). Between its ends it is as round as the ellipse, within 1%.
+ */
+const CUBIC_END = (1.5 * QUARTER * QUARTER) / (1 - QUARTER);
+
+/**
+ * How far out past a row's last picture's centre the lane's apex is, turning
+ * to a row `halfPitch` × 2 below or above it, for a band `halfWidth` either
+ * side of the lane: `FLOW_BEND` of the cell, moved only as far as keeps the
+ * bend no tighter than the band is half wide, so its inner edge never folds.
+ *
+ * The bend is a quarter ellipse each way, across `reach` and down
+ * `halfPitch`: tightest where it leaves the row, `reach²/halfPitch`, or at
+ * its apex, `halfPitch²/reach` — each {@link CUBIC_END} rounder as drawn. So
+ * `reach` stays between `√(halfWidth·halfPitch/CUBIC_END)` and
+ * `CUBIC_END·halfPitch²/halfWidth`. A band wider than the rows are apart
+ * covers the bend's inside, its two runs overlapping: it is taken as wide as
+ * they are apart, a round bend. Every bend a band as wide as an A4 page of
+ * 3 × 3 steps draws by itself already keeps clear: there it is unmoved.
+ */
+export function bendReach(cellW: number, halfPitch: number, halfWidth: number): number {
+  const reach = FLOW_BEND * cellW;
+  const half = Math.min(halfWidth, halfPitch);
+  if (!(half > 0) || !(halfPitch > 0)) return reach;
+  const least = Math.sqrt((half * halfPitch) / CUBIC_END);
+  const most = (CUBIC_END * halfPitch * halfPitch) / half;
+  return Math.min(Math.max(reach, least), most);
+}
 
 export interface LanePoint {
   x: number;
@@ -116,18 +149,20 @@ interface Knot extends LanePoint {
  * index of the curve that runs into the bend before it (the next runs out).
  * `spineIn` and `spineOut` are its height at the spine, coming in and going
  * out, shared with the facing page; `offPage` how far past the paper's edge
- * it runs.
+ * it runs; `halfWidth` how far the band is drawn either side of it, which
+ * its bends keep clear of ({@link bendReach}).
  */
 export function flowLane(input: {
   stops: readonly LaneStop[];
   plan: FlowPagePlan;
   pageWidth: number;
   cellW: number;
+  halfWidth: number;
   offPage: number;
   spineIn: number | null;
   spineOut: number | null;
 }): { lane: Lane; bends: Map<number, number> } | null {
-  const { stops, plan, pageWidth: W, cellW, offPage } = input;
+  const { stops, plan, pageWidth: W, cellW, halfWidth, offPage } = input;
   const first = stops[0];
   const last = stops.at(-1);
   if (!first || !last) return null;
@@ -154,7 +189,7 @@ export function flowLane(input: {
     const before = stops[n - 1];
     if (before && before.row !== stop.row) {
       bendAt.set(n, knots.length - 1);
-      knots.push(bendApex(before, stop, cellW));
+      knots.push(bendApex(before, stop, cellW, halfWidth));
     }
     knots.push({ x: stop.x, y: stop.y, heading: along(stop.rightToLeft), off: false });
   });
@@ -187,12 +222,13 @@ export function flowLane(input: {
 
 /**
  * Where the lane turns from one row to the next: out past the row's end by
- * `FLOW_BEND` of a cell, halfway between the two pictures' heights, heading
+ * {@link bendReach}, halfway between the two pictures' heights, heading
  * straight down or up.
  */
-function bendApex(before: LaneStop, next: LaneStop, cellW: number): Knot {
+function bendApex(before: LaneStop, next: LaneStop, cellW: number, halfWidth: number): Knot {
+  const reach = bendReach(cellW, Math.abs(next.y - before.y) / 2, halfWidth);
   return {
-    x: before.x + (before.rightToLeft ? -1 : 1) * FLOW_BEND * cellW,
+    x: before.x + (before.rightToLeft ? -1 : 1) * reach,
     y: (before.y + next.y) / 2,
     heading: { x: 0, y: next.y >= before.y ? 1 : -1 },
     off: false,
@@ -203,24 +239,36 @@ function bendApex(before: LaneStop, next: LaneStop, cellW: number): Knot {
  * Each knot's handle length, shared by the curves either side of it (C1): the
  * shorter of what each would take alone — a third of the way along a run
  * between two pictures or to an edge, and a quarter ellipse's handle round a
- * bend (`QUARTER` of its radius each way). A run past the paper's edge takes
- * no say at its end on the paper, so a short stub off the page never pinches
- * the curve where it is seen; there it is straight, and stays off the paper.
+ * bend (`QUARTER` of its radius each way). A picture beside a bend may take up
+ * to half its run instead: a wide band's bend reaches further out
+ * ({@link bendReach}), its quarter ellipse's handle with it, and a third would
+ * pinch the bend where it leaves the row. The run's other end takes no more
+ * than half either, so the run never doubles back; beside a bend as far out
+ * as `FLOW_BEND`, a third is never the shorter. A run past the paper's edge
+ * takes no say at its end on the paper, so a short stub off the page never
+ * pinches the curve where it is seen; there it is straight, and stays off the
+ * paper.
  */
 function knotHandles(knots: readonly Knot[]): number[] {
   const handles = knots.map(() => Infinity);
   const alone = knots.map(() => Infinity);
+  const turning = (n: number) => {
+    const [a, b] = [knots[n], knots[n + 1]];
+    return a !== undefined && b !== undefined && (a.heading.y !== 0 || b.heading.y !== 0);
+  };
   for (let n = 0; n + 1 < knots.length; n += 1) {
     const [a, b] = [knots[n]!, knots[n + 1]!];
     const dx = Math.abs(b.x - a.x);
     const dy = Math.abs(b.y - a.y);
-    const turning = a.heading.y !== 0 || b.heading.y !== 0;
+    const bend = turning(n);
+    /** The share of a run the `at`th knot's handle may take: half when the curve on its other side is a bend, else a third. */
+    const share = (at: number) => (turning(at - 1) || turning(at) ? 1 / 2 : 1 / 3);
     // Round a bend: each end's handle a quarter ellipse's, across its radius that way.
-    const handle = (end: Knot) => (turning ? QUARTER * (end.heading.y !== 0 ? dy : dx) : dx / 3);
-    alone[n] = Math.min(alone[n]!, handle(a));
-    alone[n + 1] = Math.min(alone[n + 1]!, handle(b));
-    if (!(b.off && !a.off)) handles[n] = Math.min(handles[n]!, handle(a));
-    if (!(a.off && !b.off)) handles[n + 1] = Math.min(handles[n + 1]!, handle(b));
+    const handle = (end: Knot, at: number) => (bend ? QUARTER * (end.heading.y !== 0 ? dy : dx) : dx * share(at));
+    alone[n] = Math.min(alone[n]!, handle(a, n));
+    alone[n + 1] = Math.min(alone[n + 1]!, handle(b, n + 1));
+    if (!(b.off && !a.off)) handles[n] = Math.min(handles[n]!, handle(a, n));
+    if (!(a.off && !b.off)) handles[n + 1] = Math.min(handles[n + 1]!, handle(b, n + 1));
   }
   // A picture with only stubs either side — alone on its page — takes theirs: they are straight.
   return handles.map((handle, n) => (Number.isFinite(handle) ? handle : Number.isFinite(alone[n]!) ? alone[n]! : 0));

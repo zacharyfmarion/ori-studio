@@ -946,6 +946,8 @@
       "pageCount_other": "{{count}} 页",
       "pageNumbers": "页码",
       "paper": "纸张",
+      "pathColor": "路径颜色",
+      "pathWidthMm": "路径宽度（mm）",
       "perPage_other": "每页 {{count}} 步",
       "perRow": "每行步骤数",
       "portrait": "纵向",

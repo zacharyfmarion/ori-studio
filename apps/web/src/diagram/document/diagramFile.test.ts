@@ -70,6 +70,36 @@ describe('writeDiagram / readDiagram', () => {
     expect(readDiagram({ ...right, page: { ...right.page, firstPageSide: 'both' } })!.readOnly).toBe(true);
   });
 
+  it('writes the flow band’s width and colour only when chosen, and reads a file without them as before', () => {
+    const plain = throughJson(writeDiagram(sampleDiagram()));
+    expect('pathWidthMm' in plain.page).toBe(false);
+    expect('pathColor' in plain.page).toBe(false);
+    expect(readDiagram(plain)!.document.page).toMatchObject({ pathWidthMm: null, pathColor: '#ecece8' });
+    const chosen = setPageSetup(sampleDiagram(), { pathWidthMm: 18, pathColor: '#D6E8F5' });
+    expect(chosen.page).toMatchObject({ pathWidthMm: 18, pathColor: '#d6e8f5' });
+    const written = throughJson(writeDiagram(chosen));
+    expect(written.page).toMatchObject({ pathWidthMm: 18, pathColor: '#d6e8f5' });
+    const read = readDiagram(written)!;
+    expect(read.readOnly).toBe(false);
+    expect(read.document).toEqual(chosen);
+    // Back to the defaults: unsaid again.
+    const reset = throughJson(writeDiagram(setPageSetup(chosen, { pathWidthMm: null, pathColor: '#ecece8' })));
+    expect('pathWidthMm' in reset.page || 'pathColor' in reset.page).toBe(false);
+    // A width past the range is clamped, as the margin is; damage reads as the default.
+    const page = (patch: Record<string, unknown>) => readDiagram({ ...written, page: { ...written.page, ...patch } })!;
+    expect(page({ pathWidthMm: 400 }).document.page.pathWidthMm).toBe(60);
+    expect(page({ pathWidthMm: 1 }).document.page.pathWidthMm).toBe(4);
+    expect(page({ pathWidthMm: '18' }).document.page.pathWidthMm).toBeNull();
+    expect(page({ pathColor: 7 }).document.page.pathColor).toBe('#ecece8');
+    expect(page({ pathColor: 7 }).readOnly).toBe(false);
+    // A colour in a notation this build cannot read is a newer build's: kept, read-only.
+    for (const pathColor of ['oklch(0.9 0.02 90)', '#d6e8f580', 'teal']) {
+      const newer = page({ pathColor });
+      expect(newer.readOnly, pathColor).toBe(true);
+      expect(writeDiagram(newer.document, newer.raw)).toBe(newer.raw);
+    }
+  });
+
   it('keeps a diagram saved in the grid a grid, now that a new one starts in the flow', () => {
     // As a build before the flow was the default wrote it: every page field, the layout said.
     const saved = {

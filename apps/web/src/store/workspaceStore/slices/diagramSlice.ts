@@ -450,8 +450,13 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     setDiagramTitle: (title) =>
       commit('Rename diagram', (document) => setDiagramTitle(document, title)) !== null,
 
-    setDiagramPage: (patch) =>
-      commit('Change page setup', (document) => setPageSetup(document, patch)) !== null,
+    setDiagramPage: (patch, { session } = {}) => {
+      const { extend, remember } = sessionFor('page', session);
+      const next = commit('Change page setup', (document) => setPageSetup(document, patch), extend);
+      if (!next) return false;
+      remember();
+      return true;
+    },
 
     setDiagramStepBreakBefore: (stepId, breakBefore) =>
       commit(breakBefore ? 'Start a new page' : 'Continue the page', (document) =>

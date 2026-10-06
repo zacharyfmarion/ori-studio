@@ -74,6 +74,14 @@ export interface DiagramPageSetup {
   rows: number;
   /** Flow layout only: the band that joins one step to the next. */
   showPath: boolean;
+  /**
+   * The band's printed width, mm ({@link PATH_WIDTH_MM_RANGE}); null, as in
+   * every file before it could be chosen, draws it in proportion to the steps
+   * (`pathWidthMm` in `diagramPageLayout.ts`). Written only when set.
+   */
+  pathWidthMm: number | null;
+  /** The band's colour, `#rrggbb`; written only when not {@link DEFAULT_PATH_COLOR}. */
+  pathColor: string;
   /** The side the first page prints on ({@link DiagramPageSide}); written to the file only when `right`. */
   firstPageSide: DiagramPageSide;
   scale: DiagramPictureScale;
@@ -881,6 +889,14 @@ export const PAGE_MARGIN_MM_RANGE = { min: 0, max: 30 } as const;
 export const PAGE_COLUMNS_RANGE = { min: 2, max: 5 } as const;
 export const PAGE_ROWS_RANGE = { min: 1, max: 6 } as const;
 export const FIRST_PAGE_NUMBER_RANGE = { min: 1, max: 9999 } as const;
+/**
+ * The flow band's width, mm: from a thin line to more than twice the 26 mm an
+ * A4 page of 3 × 3 steps draws it by itself — as wide as the widest it draws
+ * by itself, two steps to a landscape page.
+ */
+export const PATH_WIDTH_MM_RANGE = { min: 4, max: 60 } as const;
+/** The flow band's colour: the mockup's light warm grey. */
+export const DEFAULT_PATH_COLOR = '#ecece8';
 
 /**
  * A new diagram's page setup. It starts in the flow layout; a page setup that
@@ -894,6 +910,8 @@ export const DEFAULT_PAGE_SETUP: DiagramPageSetup = {
   columns: 3,
   rows: 3,
   showPath: true,
+  pathWidthMm: null,
+  pathColor: DEFAULT_PATH_COLOR,
   firstPageSide: 'left',
   scale: 'fit',
   showTitle: true,
@@ -1704,6 +1722,12 @@ export function normalizePageSetup(value: unknown): DiagramPageSetup {
     columns: clampWhole(source.columns, PAGE_COLUMNS_RANGE, DEFAULT_PAGE_SETUP.columns),
     rows: clampWhole(source.rows, PAGE_ROWS_RANGE, DEFAULT_PAGE_SETUP.rows),
     showPath: typeof source.showPath === 'boolean' ? source.showPath : DEFAULT_PAGE_SETUP.showPath,
+    // Unsaid, or damaged: in proportion to the steps, as before there was a choice.
+    pathWidthMm:
+      typeof source.pathWidthMm === 'number' && Number.isFinite(source.pathWidthMm)
+        ? clampNumber(source.pathWidthMm, PATH_WIDTH_MM_RANGE, PATH_WIDTH_MM_RANGE.min)
+        : null,
+    pathColor: readHexColor(source.pathColor) ?? DEFAULT_PATH_COLOR,
     // Unsaid, as in every file before there was a choice: the left.
     firstPageSide: source.firstPageSide === 'right' ? 'right' : DEFAULT_PAGE_SETUP.firstPageSide,
     scale: source.scale === 'fit' || source.scale === 'paper' ? source.scale : DEFAULT_PAGE_SETUP.scale,
@@ -1728,12 +1752,19 @@ export function pageSetupEquals(a: DiagramPageSetup, b: DiagramPageSetup): boole
     a.columns === b.columns &&
     a.rows === b.rows &&
     a.showPath === b.showPath &&
+    a.pathWidthMm === b.pathWidthMm &&
+    a.pathColor === b.pathColor &&
     a.firstPageSide === b.firstPageSide &&
     a.scale === b.scale &&
     a.showTitle === b.showTitle &&
     a.pageNumbers.enabled === b.pageNumbers.enabled &&
     a.pageNumbers.first === b.pageNumbers.first
   );
+}
+
+/** A colour as `#rrggbb`, lower case; null for anything else. */
+export function readHexColor(value: unknown): string | null {
+  return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : null;
 }
 
 function diagramStyleEquals(a: DiagramStyle, b: DiagramStyle): boolean {

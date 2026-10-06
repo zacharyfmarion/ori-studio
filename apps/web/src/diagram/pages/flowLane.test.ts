@@ -10,7 +10,7 @@ import {
   type LayoutTurn,
 } from './diagramPageLayout';
 import { estimateTextSetter } from './estimateTextSetter';
-import { curvePoint, curveStart, flowPagePlan, pageSide, type Lane, type LanePoint } from './flowLane';
+import { curvePoint, curveStart, FLOW_BEND, flowPagePlan, pageSide, type Lane, type LaneCurve, type LanePoint } from './flowLane';
 
 /**
  * The flow layout's lane (Zach, 2026-10-06, the X-ray Heart: "it kind of has
@@ -80,6 +80,33 @@ function heightAt(lane: Lane, x: number): number | null {
     }
   }
   return null;
+}
+
+/** The lane's radius of curvature at `t` along a curve: how tight it bends there. */
+function radiusAt(from: LanePoint, curve: LaneCurve, t: number): number {
+  const u = 1 - t;
+  const { c1, c2, to } = curve;
+  const d1 = {
+    x: 3 * u * u * (c1.x - from.x) + 6 * u * t * (c2.x - c1.x) + 3 * t * t * (to.x - c2.x),
+    y: 3 * u * u * (c1.y - from.y) + 6 * u * t * (c2.y - c1.y) + 3 * t * t * (to.y - c2.y),
+  };
+  const d2 = {
+    x: 6 * u * (c2.x - 2 * c1.x + from.x) + 6 * t * (to.x - 2 * c2.x + c1.x),
+    y: 6 * u * (c2.y - 2 * c1.y + from.y) + 6 * t * (to.y - 2 * c2.y + c1.y),
+  };
+  const cross = Math.abs(d1.x * d2.y - d1.y * d2.x);
+  return cross === 0 ? Infinity : Math.hypot(d1.x, d1.y) ** 3 / cross;
+}
+
+/** Each half of each bend between rows: the curve, where it starts, and how far it falls or rises. */
+function bendHalves(lane: Lane): { from: LanePoint; curve: LaneCurve; drop: number }[] {
+  return lane.curves.flatMap((curve, index) => {
+    const from = curveStart(lane, index);
+    // Into an apex its last handle is upright; out of one, its first.
+    const into = Math.abs(curve.c2.x - curve.to.x) < 1e-9 && Math.abs(curve.c2.y - curve.to.y) > 1e-9;
+    const out = Math.abs(curve.c1.x - from.x) < 1e-9 && Math.abs(curve.c1.y - from.y) > 1e-9;
+    return into || out ? [{ from, curve, drop: Math.abs(curve.to.y - from.y) }] : [];
+  });
 }
 
 const SETUPS: Partial<DiagramPageSetup>[] = [
@@ -165,6 +192,64 @@ describe('the flow lane', () => {
         expect(at).toBeGreaterThan(after);
         after = at;
       }
+    }
+  });
+});
+
+describe('the band’s width and colour (Zach, 2026-10-06: "an option for how wide the flow ribbon is, and for what color it is")', () => {
+  it('draws the band at the width the setup says, and without one as wide as before: 0.42 of a cell’s smaller side', () => {
+    for (const setup of SETUPS) {
+      const auto = flow(steps(12), setup);
+      expect(auto.bandWidthMm).toBeCloseTo(0.42 * Math.min(auto.cellMm.w, auto.cellMm.h), 9);
+      expect(auto.bandInk).toBe('#ecece8');
+      const chosen = flow(steps(12), { ...setup, pathWidthMm: 18, pathColor: '#d6e8f5' });
+      expect(chosen.bandWidthMm).toBe(18);
+      expect(chosen.bandInk).toBe('#d6e8f5');
+    }
+    // The heart's page, A4 3 × 3: 26 mm by itself.
+    expect(flow(steps(16), { columns: 3, rows: 3 }).bandWidthMm).toBeCloseTo(26.04, 2);
+  });
+
+  it('keeps every bend no tighter than the band is half wide, at any width the steps leave room for', () => {
+    for (const setup of SETUPS) {
+      for (const pathWidthMm of [null, 8, 26, 40, 60]) {
+        const result = flow(steps(23), { ...setup, pathWidthMm });
+        // A band wider than a step's cell has no room to turn in.
+        if (result.bandWidthMm > result.cellMm.w) continue;
+        const half = result.bandWidthMm / 2;
+        for (const [index, page] of result.pages.entries()) {
+          for (const { from, curve, drop } of bendHalves(page.band!)) {
+            // A band wider than its rows are apart covers its bend's inside: then the bend is round, as tight as they are apart.
+            const needs = Math.min(half, drop);
+            const tightest = Math.min(...Array.from({ length: 201 }, (_, n) => radiusAt(from, curve, n / 200)));
+            expect(tightest, `${JSON.stringify(setup)} ${pathWidthMm} mm, page ${index + 1}`).toBeGreaterThan(0.96 * needs);
+          }
+        }
+      }
+    }
+  });
+
+  it('moves a bend out only as far as a wider band needs: the heart’s stay where they were', () => {
+    const apexes = (pathWidthMm: number | null) =>
+      flow(steps(16), { columns: 3, rows: 3, pathWidthMm }).pages.flatMap((page) =>
+        bendHalves(page.band!).flatMap(({ from, curve }) => (Math.abs(curve.c2.x - curve.to.x) < 1e-9 ? [{ from, to: curve.to }] : []))
+      );
+    const cellW = flow(steps(16), { columns: 3, rows: 3 }).cellMm.w;
+    // Its own width and a narrower one: FLOW_BEND of a cell past the row's last picture, as before there was a choice.
+    for (const width of [null, 8, 26]) {
+      for (const { from, to } of apexes(width)) expect(Math.abs(to.x - from.x)).toBeCloseTo(FLOW_BEND * cellW, 9);
+    }
+    // Wider than its bends allow: out past that.
+    const wide = apexes(50);
+    expect(wide.length).toBeGreaterThan(0);
+    for (const { from, to } of wide) expect(Math.abs(to.x - from.x)).toBeGreaterThan(FLOW_BEND * cellW + 1);
+  });
+
+  it('keeps the band level and at one height over the spine, at any width', () => {
+    for (const pathWidthMm of [8, 50]) {
+      const result = flow(steps(16), { columns: 3, rows: 3, pathWidthMm });
+      const W = result.paper.widthMm;
+      expect(heightAt(result.pages[1]!.band!, 0)).toBeCloseTo(heightAt(result.pages[0]!.band!, W)!, 6);
     }
   });
 });
@@ -294,12 +379,12 @@ describe('a turn across a flow row break, on the lane', () => {
   const distance = (lane: Lane, point: LanePoint) =>
     Math.min(...sample(lane, 2000).flat().map((at) => Math.hypot(at.x - point.x, at.y - point.y)));
 
-  it('sits on the lane in its bend, on a page read down and on one read up', () => {
+  it('sits on the lane in its bend, on a page read down and on one read up, however wide the band', () => {
     // Turns into steps 4 and 7 (page 1, read down) and 13 and 16 (page 2, read up).
     const list = steps(16, (index) => ([3, 6, 12, 15].includes(index) ? { turnsBefore: [over(`turn-${index}`)] } : {}));
-    for (const showPath of [true, false]) {
-      const result = flow(list, { columns: 3, rows: 3, showPath });
-      const lanes = flow(list, { columns: 3, rows: 3 }).pages.map((page) => page.band!);
+    for (const [showPath, pathWidthMm] of [[true, null], [false, null], [true, 50], [false, 50]] as const) {
+      const result = flow(list, { columns: 3, rows: 3, showPath, pathWidthMm });
+      const lanes = flow(list, { columns: 3, rows: 3, pathWidthMm }).pages.map((page) => page.band!);
       result.pages.forEach((page, pageIndex) => {
         for (const turn of page.turns) {
           const k = page.cells.findIndex((cell) => cell.stepId === turn.beforeStepId);

@@ -50,8 +50,8 @@
 import type { DiagramPageSetup, DiagramPageSide, DiagramTurnKind } from '../document/diagramDocument';
 import type { DiagramFontFace } from '../fonts/diagramFontFaces';
 import {
+  bendReach,
   bendXAt,
-  FLOW_BEND,
   flowLane,
   flowPagePlan,
   pageSide,
@@ -98,6 +98,12 @@ const PAGE_NUMBER_RAISE_MM = 1.5;
 const OFF_PAGE_MM = 10;
 /** Flow: every other cell of a row steps down by this share of the cell, and the text gives up as much. */
 const FLOW_STEP = 0.06;
+/**
+ * The flow band's width where the page setup does not say, as a share of the
+ * smaller side of a cell: the width every flow diagram had before it could be
+ * chosen (`DiagramPageSetup.pathWidthMm`).
+ */
+export const AUTO_PATH_WIDTH_SHARE = 0.42;
 /** The room beside a picture box in its cell, together: the gutter between two pictures. */
 const PICTURE_SIDE_ROOM_MM = 6;
 /**
@@ -319,8 +325,28 @@ export interface DiagramPagesLayout {
     line: SetLine;
     rule: { x1: number; x2: number; y: number };
   } | null;
-  /** The band's width, for the flow layout's path. */
+  /** The band's width, for the flow layout's path ({@link pathWidthMm}). */
   bandWidthMm: number;
+  /** The band's ink: the page setup's path colour. */
+  bandInk: string;
+}
+
+/** The size of a page's cells under a setup: the page inside its margins, less the header and footer, cut into columns and rows. */
+export function pageCellMm(setup: DiagramPageSetup, title: string): { w: number; h: number } {
+  const { widthMm: W, heightMm: H, marginMm: m } = printPaper(setup);
+  const headH = setup.showTitle && title.trim() !== '' ? HEADER_MM : 0;
+  const footH = setup.pageNumbers.enabled ? FOOTER_MM : 0;
+  return { w: (W - 2 * m) / setup.columns, h: (H - 2 * m - headH - footH) / setup.rows };
+}
+
+/**
+ * The flow band's printed width, mm: the page setup's when it says, otherwise
+ * {@link AUTO_PATH_WIDTH_SHARE} of the smaller side of a cell — so a diagram
+ * that never chose one keeps the band it always had, in proportion to its
+ * steps.
+ */
+export function pathWidthMm(setup: DiagramPageSetup, cell: { w: number; h: number }): number {
+  return setup.pathWidthMm ?? Math.min(cell.w, cell.h) * AUTO_PATH_WIDTH_SHARE;
 }
 
 /**
@@ -785,9 +811,8 @@ export function layoutDiagramPages(
   const flow = setup.layout === 'flow';
   const showTitle = setup.showTitle && title.trim() !== '';
   const headH = showTitle ? HEADER_MM : 0;
-  const footH = setup.pageNumbers.enabled ? FOOTER_MM : 0;
-  const cellW = (W - 2 * m) / setup.columns;
-  const cellH = (H - 2 * m - headH - footH) / setup.rows;
+  const { w: cellW, h: cellH } = pageCellMm(setup, title);
+  const bandWidthMm = pathWidthMm(setup, { w: cellW, h: cellH });
   const turning = steps.some((step) => step.turnsBefore.length > 0 || step.turnsAfter.length > 0);
   // A turn at a row's end prints in the half gutter outside the outer picture,
   // which a narrow margin cannot give: the boxes give up what it lacks.
@@ -1002,13 +1027,14 @@ export function layoutDiagramPages(
             plan,
             pageWidth: W,
             cellW,
+            halfWidth: bandWidthMm / 2,
             offPage: OFF_PAGE_MM,
             spineIn: plan.entry === 'spine' ? spineAt(pageIndex - 1) : null,
             spineOut: plan.exit === 'spine' ? spineAt(pageIndex) : null,
           })
         : null;
     const band = setup.showPath ? (lane?.lane ?? null) : null;
-    const turns = placeTurns(placed.map(({ step }) => step), cells, setup.columns, flow ? plan : null, lane, W);
+    const turns = placeTurns(placed.map(({ step }) => step), cells, setup.columns, flow ? plan : null, lane, W, bandWidthMm / 2);
     const right = plan.side === 'right';
     return {
       number,
@@ -1043,7 +1069,8 @@ export function layoutDiagramPages(
     cellMm: { w: cellW, h: cellH },
     mmPerUnit,
     title: titleLayout,
-    bandWidthMm: Math.min(cellW, cellH) * 0.42,
+    bandWidthMm,
+    bandInk: setup.pathColor,
   };
 }
 
@@ -1070,7 +1097,8 @@ function placeTurns(
   columns: number,
   plan: FlowPagePlan | null,
   lane: ReturnType<typeof flowLane>,
-  pageWidth: number
+  pageWidth: number,
+  halfWidth: number
 ): LayoutPage['turns'] {
   const placed: LayoutPage['turns'] = [];
   const rowOf = (k: number) => Math.floor(k / columns);
@@ -1115,7 +1143,8 @@ function placeTurns(
         const y = (foot(upper) + lower.cellMm.y + STEP_NUMBER_TOP_MM) / 2;
         const bend = lane?.bends.get(k);
         const onLane = lane && bend !== undefined ? bendXAt(lane.lane, bend, y) : null;
-        const x = onLane ?? centre(before).x + (backwards(k - 1) ? -1 : 1) * FLOW_BEND * before.cellMm.w;
+        const reach = bendReach(before.cellMm.w, Math.abs(centre(next).y - centre(before).y) / 2, halfWidth);
+        const x = onLane ?? centre(before).x + (backwards(k - 1) ? -1 : 1) * reach;
         stack(step.turnsBefore, { x, y }, k, step.id);
       } else {
         stack(step.turnsBefore, edge(k, true), k, step.id);

@@ -946,6 +946,8 @@
       "pageCount_other": "{{count}} ページ",
       "pageNumbers": "ページ番号",
       "paper": "用紙",
+      "pathColor": "経路の色",
+      "pathWidthMm": "経路の幅（mm）",
       "perPage_other": "1ページに {{count}} ステップ",
       "perRow": "1行のステップ数",
       "portrait": "縦向き",

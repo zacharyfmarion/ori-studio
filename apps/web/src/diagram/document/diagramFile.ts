@@ -83,6 +83,8 @@ import {
   showAsOf,
   isKnownAsset,
   normalizePageSetup,
+  DEFAULT_PATH_COLOR,
+  readHexColor,
   randomDiagramId,
   withReferencedAssets,
   isKnownAnnotation,
@@ -193,6 +195,8 @@ const PAGE_KEYS = new Set([
   'columns',
   'rows',
   'showPath',
+  'pathWidthMm',
+  'pathColor',
   'firstPageSide',
   'scale',
   'showTitle',
@@ -234,6 +238,8 @@ export function unknownDocumentField(value: Record<string, unknown>): string | n
       const entry = value.page[key];
       if (typeof entry === 'string' && !known.includes(entry)) return `page.${key}`;
     }
+    // A colour this build cannot read — another notation, a colour with alpha — is a newer build's.
+    if (typeof value.page.pathColor === 'string' && readHexColor(value.page.pathColor) === null) return 'page.pathColor';
     const numbers = value.page.pageNumbers;
     if (isRecord(numbers)) {
       for (const key of Object.keys(numbers)) if (key !== 'enabled' && key !== 'first') return `page.pageNumbers.${key}`;
@@ -272,17 +278,23 @@ export function writeDiagram(
 
 /**
  * The page setup as written: every field, but the first page's side only when
- * it is the right — so a diagram on the left, as every one was before the
- * choice, opens in a build that does not know it (an unknown page key opens
- * read-only: `unknownDocumentField`).
+ * it is the right, and the flow band's width and colour only when chosen — so
+ * a diagram that never chose, as every one before the choices, opens in a
+ * build that does not know them (an unknown page key opens read-only:
+ * `unknownDocumentField`).
  *
  * The layout is always written. One that is not said reads as the grid
  * (`UNSAID_PAGE_LAYOUT`), the layout of every diagram saved before the flow
  * became a new one's default; a new diagram's flow is said, so it stays one.
  */
 function writePageSetup(page: DiagramPageSetup): Record<string, unknown> {
-  const { firstPageSide, ...rest } = page;
-  return firstPageSide === 'right' ? { ...rest, firstPageSide } : rest;
+  const { firstPageSide, pathWidthMm, pathColor, ...rest } = page;
+  return {
+    ...rest,
+    ...(pathWidthMm !== null ? { pathWidthMm } : {}),
+    ...(pathColor !== DEFAULT_PATH_COLOR ? { pathColor } : {}),
+    ...(firstPageSide === 'right' ? { firstPageSide } : {}),
+  };
 }
 
 function writeStep(step: DiagramEntry): Record<string, unknown> {

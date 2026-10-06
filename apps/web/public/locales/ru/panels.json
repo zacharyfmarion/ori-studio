@@ -1051,6 +1051,8 @@
       "pageCount_other": "{{count}} страницы",
       "pageNumbers": "Номера страниц",
       "paper": "Бумага",
+      "pathColor": "Цвет пути",
+      "pathWidthMm": "Ширина пути (мм)",
       "perPage_one": "{{count}} шаг на странице",
       "perPage_few": "{{count}} шага на странице",
       "perPage_many": "{{count}} шагов на странице",

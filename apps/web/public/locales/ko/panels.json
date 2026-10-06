@@ -946,6 +946,8 @@
       "pageCount_other": "{{count}}페이지",
       "pageNumbers": "페이지 번호",
       "paper": "용지",
+      "pathColor": "경로 색상",
+      "pathWidthMm": "경로 너비(mm)",
       "perPage_other": "페이지당 {{count}}단계",
       "perRow": "줄당 단계 수",
       "portrait": "세로",

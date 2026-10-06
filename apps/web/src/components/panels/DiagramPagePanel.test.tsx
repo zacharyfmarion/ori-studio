@@ -82,6 +82,54 @@ describe('DiagramPagePanel', () => {
     expect(host?.textContent).toContain('Show path');
   });
 
+  it('sets the flow path’s width, one undo step and one count, and goes back to the steps’ own', () => {
+    const field = () => host!.querySelector<HTMLInputElement>('input[aria-label="Path width (mm)"]')!;
+    // A4, 3 × 3, a title: the 26 mm the path draws by itself.
+    expect(field().value).toBe('26');
+    expect(host?.querySelector('[aria-label="Reset Path width (mm) to default"]')).toBeNull();
+    const past = state().diagramHistory.past.length;
+    act(() => host!.querySelector<HTMLButtonElement>('button[aria-label="Increase Path width (mm)"]')!.click());
+    expect(state().diagram?.page.pathWidthMm).toBe(27);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledWith('path_width');
+    act(() => host!.querySelector<HTMLButtonElement>('[aria-label="Reset Path width (mm) to default"]')!.click());
+    expect(state().diagram?.page.pathWidthMm).toBeNull();
+    expect(field().value).toBe('26');
+  });
+
+  it('shows the path’s colour as it is picked, one undo step and one count for the pick', () => {
+    const swatch = () => host!.querySelector<HTMLInputElement>('input[type="color"]')!;
+    expect(swatch().value).toBe('#ecece8');
+    const past = state().diagramHistory.past.length;
+    // The picker reports every move; the pick ends when it lets go of focus.
+    for (const color of ['#d0e0f0', '#c0d8f0', '#b0d0f0']) {
+      act(() => {
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+        setValue.call(swatch(), color);
+        swatch().dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      expect(state().diagram?.page.pathColor).toBe(color);
+    }
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(analytics.trackDiagramPageSetupChanged).not.toHaveBeenCalledWith('path_color');
+    act(() => swatch().dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+    expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledExactlyOnceWith('path_color');
+    // One undo takes the whole pick back.
+    act(() => useWorkspaceStore.getState().undoDiagram());
+    expect(state().diagram?.page.pathColor).toBe('#ecece8');
+  });
+
+  it('offers the path’s width and colour only while the flow shows its path', () => {
+    expect(host?.textContent).toContain('Path width (mm)');
+    expect(host?.textContent).toContain('Path color');
+    act(() => toggle('Show path').click());
+    expect(host?.textContent).not.toContain('Path width (mm)');
+    expect(host?.textContent).not.toContain('Path color');
+    act(() => toggle('Show path').click());
+    act(() => radio('Grid').click());
+    expect(host?.textContent).not.toContain('Path width (mm)');
+  });
+
   it('puts the first page on the right, one undo step and one count, in either layout', () => {
     expect(state().diagram?.page.firstPageSide).toBe('left');
     const past = state().diagramHistory.past.length;

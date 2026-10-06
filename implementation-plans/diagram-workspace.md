@@ -803,6 +803,34 @@ shows the composed page.**
     Browser: `artifacts/diagram-second-pass/22/` (`p22.mjs` the Pages view,
     `spreads.mjs` the spreads, `kinks.mjs` the measurements, `p22-pdf.mjs` the
     PDF from the same page SVGs; `flow-spreads.png`).
+  - *Amended, the path's width and colour* (Zach, 2026-10-06: "I want an
+    option for how wide the flow ribbon is, and for what color it is"). The
+    Page pane shows Path width (mm) and Path color under Show path, in the
+    flow with the path on.
+    - **Width** (`page.pathWidthMm`, 4–60 mm, or null). Null — every file
+      before, and a new diagram — draws it as before, 0.42 of a cell's smaller
+      side (`AUTO_PATH_WIDTH_SHARE`; 26 mm on an A4 page of 3 × 3); the pane
+      shows that width, to the mm, and a set one has a reset back to it.
+      Written only when set; out of range clamps, as the margin does.
+    - **Colour** (`page.pathColor`, `#rrggbb`, default `#ecece8`). The page
+      setup owns it, not the paper style: the page's own inks (the title tab,
+      the numbers, the text) are the mockup's whatever the style, and a style
+      is the pictures'. Written only when not the default; a colour in another
+      notation is a newer build's (read-only). The swatch shows each move of
+      the picker; the pick is one undo step and one count, when it closes.
+    - **The bends keep clear of the band** (`bendReach`). A bend is a quarter
+      ellipse each way, tightest where it leaves the row (`reach²/halfPitch`)
+      or at its apex (`halfPitch²/reach`), each 1.022 rounder as a cubic. Its
+      apex stays at `FLOW_BEND` unless that would bend tighter than the band
+      is half wide; then it moves out, or in, just enough. A picture beside a
+      bend may take half its run as its handle rather than a third, so a wide
+      bend is not pinched where it leaves the row. At its own width no bend of
+      the heart moves; setups whose band folded before (5 × 2 portrait, 2 × 6
+      landscape: tightest bend 0.60 and 0.33 of the half-width) no longer do.
+      Turns at a row break sit on the moved bend (`bendXAt`). A band wider
+      than the rows are apart is taken as wide as they are, a round bend.
+      Measured over seven setups at 8–60 mm: no bend tighter than 0.97 of the
+      half-width, where the band is no wider than a cell.
 - **Scale policy.** `page.scale` is `'fit'` (default since 2026-10-04) or `'paper'`.
   - Under `'paper'`, every picture with a paper scale is drawn at one shared mm
     per document unit: the largest at which the biggest such picture fits its

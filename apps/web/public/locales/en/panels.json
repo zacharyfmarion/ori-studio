@@ -981,6 +981,8 @@
       "pageCount_other": "{{count}} pages",
       "pageNumbers": "Page numbers",
       "paper": "Paper",
+      "pathColor": "Path color",
+      "pathWidthMm": "Path width (mm)",
       "perPage_one": "1 step per page",
       "perPage_other": "{{count}} steps per page",
       "perRow": "Steps per row",

@@ -39,10 +39,9 @@ import type { Lane } from './flowLane';
 import { setUploadText } from '../upload/uploadText';
 import { cellPicture } from './pagePictures';
 
-/** The page's own inks: the mockup's, whatever the paper style. */
+/** The page's own inks: the mockup's, whatever the paper style. The band's is the page setup's (`layout.bandInk`). */
 const INK = '#16191c';
 const TEXT_INK = '#26292c';
-const BAND_INK = '#ecece8';
 const TAB_RADIUS_MM = 1.4;
 const RULE_WIDTH_MM = 0.35;
 
@@ -95,7 +94,7 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
 
   if (page.band && page.band.curves.length > 0) {
     body.push(
-      `<path d="${lanePath(page.band)}" fill="none" stroke="${BAND_INK}" ` +
+      `<path d="${lanePath(page.band)}" fill="none" stroke="${escapeXml(layout.bandInk)}" ` +
         `stroke-width="${pt(layout.bandWidthMm)}" stroke-linecap="round" stroke-linejoin="round"/>`
     );
   }

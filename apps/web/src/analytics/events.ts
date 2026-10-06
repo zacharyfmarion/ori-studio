@@ -299,6 +299,8 @@ export type DiagramPageSetting =
   | 'columns'
   | 'rows'
   | 'path'
+  | 'path_width'
+  | 'path_color'
   | 'first_page_side'
   | 'scale'
   | 'title'

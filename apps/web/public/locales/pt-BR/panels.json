@@ -1016,6 +1016,8 @@
       "pageCount_other": "{{count}} páginas",
       "pageNumbers": "Números de página",
       "paper": "Papel",
+      "pathColor": "Cor do trajeto",
+      "pathWidthMm": "Largura do trajeto (mm)",
       "perPage_one": "1 passo por página",
       "perPage_many": "{{count}} passos por página",
       "perPage_other": "{{count}} passos por página",
