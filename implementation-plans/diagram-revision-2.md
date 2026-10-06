@@ -144,7 +144,9 @@ enlarged) and stores it on the step, with the area's id as provenance. The
 capture is an *imprint*: the source frame is laid on the paper through the
 source step's *anchor face* (by default the backmost face lying outside the
 frame), and drawn on this step where that paper lies, through the face that
-holds the anchor's point on the paper here, turned and mirrored with it. From
+holds the anchor's point on the paper here, turned and mirrored with it. Both
+happen on the two pictures with their spread taken off; the landed frame then
+follows this step's spread by its centre (two stages, Zach after 16.0). From
 then on the step owns its frame: moving steps, or editing or deleting the
 area, changes nothing on it. Toggling Enlarged off and on captures again, and
 the area's **Update Enlarged Steps** captures again every step with its
@@ -214,44 +216,91 @@ picture units against the plane, belonged to the plane, which is gone.
   crease pattern's paper is its scope's (the centre `creasePatternScene` turns
   about, `creasePatternScene.ts:70-76`); a flat fold's is the box of the
   kernel's `sheet_points`.
+- **The unspread picture**: a flat step's picture as its pose draws it (side,
+  turn, case) with no spread. A flat capture keeps each point's place on it
+  in `paperFaces`. On a step with no spread it is the picture.
 - **A face's placement**: the map from paper coordinates to this step's
-  picture units for one face of the paper: the similarity (a turn or a
+  unspread picture for one face of the paper: the similarity (a turn or a
   reflection, one scale, a shift) fitted by least squares to the face's
-  corners on the paper and as this picture draws them. Without a spread the
-  fold's own map is exactly such a similarity at the model's scale, mirrored
-  exactly when the face shows its other side
+  corners on the paper and on the unspread picture. The fold's own map is
+  exactly such a similarity at the model's scale, mirrored exactly when the
+  face shows its other side
   (`paper_scene_sheet_points_map_each_face_to_the_scene_by_a_similarity`,
-  `crates/oristudio-cp/tests/folding.rs:2088`). A spread moves each face by an
-  affine map, and the fitted similarity is the nearest one, so a circle stays
-  a circle. A crease pattern is one face, the paper, placed by
+  `crates/oristudio-cp/tests/folding.rs:2088`), so the fit is exact to the
+  stored step. A crease pattern is one face, the paper, placed by
   `creasePatternScene`'s own map: about the paper's centre, mirrored for Back
-  (`side`, 5b6872f8c), turned by `rotationDeg`, at `CAPTURE_PX_PER_UNIT`.
+  (`side`, 5b6872f8c), turned by `rotationDeg`, at `CAPTURE_PX_PER_UNIT`. It
+  has no spread.
+- **A face's drawn ring**: its whole ring in the stored scene when the step
+  has a spread, and its unspread ring when it has none. A spread keeps every
+  face, whole, one ring, corner for corner in the kernel's outline order
+  (`markHidden: !spread`, `captureFolded.ts:214`; `emitWholeFace`,
+  `foldedFlatScene.ts:763`), so the drawn places need no storing.
+- **A face's spread move**: where the spread takes a point of the face: its
+  mean value coordinates over the face's unspread ring (`meanValueWeights`,
+  `foldedLayerSpread.ts:495`), and the same weights over its drawn ring. For
+  both spreads that is the painter's own field (`placement`,
+  `foldedFlatScene.ts:179`), exactly: it moves the corners and blends them by
+  those weights inside. It is how `spreadMove` already carries marks when a
+  spread changes (`annotationCarry.ts:284`).
+- **Onto the spread**: an unspread point goes by the spread move of the face
+  on top there unspread: the last whole face, in the stored scene's paint
+  order, whose unspread ring holds it.
+- **Off the spread**: a drawn point goes to the unspread point that onto the
+  spread takes to it. Of the faces whose drawn ring holds it, the last
+  painted whose spread move, undone there, lands where that face is on top
+  unspread. Undoing is solved, not fitted: Newton's method from the face's
+  affine fit, exact for the affine spread (its move is affine on a face) and
+  within 2e-12 px for the depth spread on 16.0's captures. Where no face
+  qualifies, the point lies in a strip the spread opened, where a lower layer
+  shows; the face drawn on top there is used. Everywhere else the two are
+  inverse. A point on no face goes by the nearest face's move at the nearest
+  point of its ring. With no spread both are the identity.
 - **A frame's anchor face**, on its own step: a picked one (the face holding
   the paper point stored with the frame), or the face the default rule below
   chooses.
 - **The anchor's paper point**: the picked point, or, by default, the point
   inside the anchor face farthest from its edges, on the paper.
 
-**A capture**, from a source frame F on step S onto step N:
+**A capture**, from a source frame F on step S onto step N, in two stages
+(Zach, after 16.0; "For Zach" there):
 
 1. F's anchor face A on S, and its paper point P.
-2. *Imprint*: F carried onto the paper by A's placement on S, inverted: its
-   centre, size and angle in paper coordinates.
-3. The face B of N's paper that holds P. A flat fold's faces tile its paper,
+2. *Off S's spread*: F's centre taken off the spread. Its size and angle stay
+   as drawn.
+3. *Imprint*: that frame carried onto the paper by A's placement on S,
+   inverted: its centre, size and angle in paper coordinates.
+4. The face B of N's paper that holds P. A flat fold's faces tile its paper,
    so there is one; a point on a crease goes to the lower face index.
-4. *Land*: the imprint carried into N's picture by B's placement on N. It
-   turns and mirrors with B, so a rounded rectangle may land at any angle;
-   no rule keeps it upright.
-5. N stores the landed frame, the imprint and P, F's shape, Size and Edge,
-   F's anchor if it was picked, and F's provenance: the area's id, or, when F
-   is an enlarged step's frame, that step's provenance.
+5. *Land*: the imprint carried into N's unspread picture by B's placement on
+   N. It turns and mirrors with B, so a rounded rectangle may land at any
+   angle; no rule keeps it upright.
+6. *Onto N's spread*: the landed centre taken onto the spread, by the face on
+   top under it, not by B. The frame keeps the size and angle it landed with:
+   a circle stays a circle and a rectangle is not skewed.
+7. N stores the frame as drawn (step 6), the imprint and P, F's shape, Size
+   and Edge, F's anchor if it was picked, and F's provenance: the area's id,
+   or, when F is an enlarged step's frame, that step's provenance.
 
 Zach: "imagine imprinting the frame onto the face and seeing where it lands on
 the paper. Then using that every time to draw the frame on subsequent steps."
-Steps 3–4 also place a frame again when its own step's picture changes, from
-its stored imprint and P. Step 2 alone, on its own step, runs when the frame
-is moved by hand or its anchor is picked: the frame stays and its imprint is
-made again.
+Steps 4–6 also place a frame again when its own step's picture changes, from
+its stored imprint and P. Steps 2–3 alone, on its own step, run when the
+frame is moved by hand or its anchor is picked: the frame stays and its
+imprint is made again. Since onto the spread undoes off the spread, the frame
+lands again where it was left, except a frame whose centre was dropped in a
+strip the spread opened, which settles on the layer above, at most the
+strip's width away.
+
+**Why two stages.** Landed in one stage, through placements fitted to the
+spread pictures, a frame drifts by up to 5.46% of its diameter whenever S's
+and N's folds hold different faces still and a spread is on: the spread then
+moves the anchor and the framed part apart differently on the two steps.
+Unspread, the imprint is exact on every refold 16.0 tried. Following the
+spread by the face under the centre lands every case within 1.36%; following
+it by B instead lands up to 5.22% off, no better than one stage, because B
+is the part the spread moves differently from the framed one. The measured
+cases are under 16.0.
 
 **Where faces are missing.** A 3D, simulated, References, uploaded, fixed or
 raster picture has no faces to anchor to. When S or N is one, F is copied in
@@ -273,9 +322,13 @@ face least likely to move."
    (`faces_top_to_bottom`), so a picture turned over, or seen from the back,
    is ranked from the side it shows: a stack's top layer seen from the front
    is its bottom one seen from the back. The greatest level is backmost; a
-   tie goes to the larger face, then the lower face index.
-2. The backmost face lying entirely outside F: its outline in S's picture
-   misses F's shape.
+   tie goes to the larger face on the paper, areas within 0.1% counting as
+   equal, then to the lower face index. Paper areas, not picture areas: on
+   crane step 22 the two deepest faces, 33 and 14, are symmetric twins of
+   equal paper area whose picture areas differ only by rounding, and by up
+   to 5% under a spread (16.0).
+2. The backmost face lying entirely outside F: its drawn ring misses F's
+   shape as drawn.
 3. If every face touches F, the backmost face that reaches outside it.
 4. If none does (F takes in the whole model), the backmost face.
 
@@ -285,11 +338,12 @@ what a fold inside the frame leaves still.
 
 **Picking.** The Anchor row (Controls) arms a pick mode on the canvas; a click
 anchors the frame to the face drawn on top under the pointer, at the point
-clicked, carried onto the paper. Re-picking never moves the frame on its own
-step: it makes the imprint again on the picked face, and so changes where
-later captures from it land. A picked anchor is copied by captures, so a
-series of steps keeps one point on the paper; a default one is worked out
-afresh on each step a capture is taken from.
+clicked: that face's spread move undone there, then its placement inverted.
+Re-picking never moves the frame on its own step: it makes the imprint again
+on the picked face, and so changes where later captures from it land. A
+picked anchor is copied by captures, so a series of steps keeps one point on
+the paper; a default one is worked out afresh on each step a capture is taken
+from.
 
 **Where the faces come from.** The kernel already gives everything this needs,
 and no kernel change is planned: `FoldedPaperScene` (schema 3,
@@ -300,20 +354,26 @@ each of those points on the unfolded sheet, and each subface's
 (`affineSpread`, `fitAffine`, `anchorFace` and `layerLevels` in
 `cp-workspace/folded/foldedLayerSpread.ts`). What is missing is on our side.
 A step keeps only its `PaperScene` (`DiagramScenePicture.sceneJson`,
-`diagramDocument.ts:502`), which has no paper coordinates and drops hidden
-faces (`storableScene`, `captureGeometry.ts:63`), and the backmost face is
-usually hidden. So a flat capture also stores `paperFaces` (below), computed
-in `flatPicture` (`captureFolded.ts:201`), the one path for Link, Refresh and
-Pose, from the paper scene it already reads. Flat captures made before it
-have none, and anchor nothing until refreshed (S5).
+`diagramDocument.ts:502`), which has no paper coordinates and no unspread
+places; with no spread it also drops hidden faces (`storableScene`,
+`captureGeometry.ts:63`), and the backmost face is usually hidden. So a flat
+capture also stores `paperFaces` (below): each point's place on the paper and
+on the unspread picture, and each face's corners and level. It is computed in
+`flatPicture` (`captureFolded.ts:201`), the one path for Link, Refresh and
+Pose, from the paper scene it already reads. The drawn places are not stored
+again: the stored scene has them whenever they differ from the unspread ones.
+Flat captures made before it have none, and anchor nothing until refreshed
+(S5).
 
 **On the crane.** Step 55's area rings the head. Its default anchor is the
 body's back layer, wholly outside the ring. Step 57 refolds the head on the
 next sheet, and that capture's fold may hold another face still and give the
 model new bounds. The back layer's paper point is still on 57's paper, on the
 face that holds it there, and the frame lands where that face puts the
-imprint: round the head, as long as the body has not moved against the head.
-The spike (16.0) measures it.
+imprint, unspread: round the head, as long as the body has not moved against
+the head. It then follows 57's spread with the head. On 16.0's refolds of the
+crane's head it lands within 1.36% of its diameter under the default affine
+and depth spreads, and within 0.01% with none.
 
 #### Walkthroughs
 
@@ -433,9 +493,10 @@ The gesture is E, one drag, Duplicate Step, Enlarged.
    provenance (55's area), Shape, Size, Edge, anchor and imprint. It has no
    picture yet, so no landed frame; it is an empty card with the chip
    "Enlarged · 55".
-3. **Link Pattern…** › the sheet › Folded. The imprint lands on 57's picture
-   through the face that holds the anchor's paper point, though the folded
-   model's bounds changed and the capture's fold may hold another face still.
+3. **Link Pattern…** › the sheet › Folded. The imprint lands on 57's
+   unspread picture through the face that holds the anchor's paper point,
+   though the folded model's bounds changed and the capture's fold may hold
+   another face still, and the frame then follows 57's spread by its centre.
    If the frame holds no paper, the Step pane warns "The enlarged frame holds
    no paper on this step." Another route: **Duplicate** 56 (the copy keeps
    Enlarged, the frame, the imprint and the marks), delete the marks that no
@@ -469,12 +530,15 @@ own: only the toggle and Update Enlarged Steps take a frame from another step.
   the move, its angle with the turn at any angle, mirrored with the side.
   56–60 are unchanged.
 - **56 refreshed, relinked or re-posed.** Its frame stays on its paper: the
-  stored imprint lands on the new picture through the face that holds its
-  paper point. This is the step's own capture following its own picture, not
-  a capture from another step. Its marks, in the window's units, go with the
-  frame; a refresh still shows D8's out-of-step notice. If the paper point is
-  not on the new paper, the frame stays where it was in picture units, with
-  the notice "The frame's anchor is not on this step's paper".
+  stored imprint lands on the new unspread picture through the face that
+  holds its paper point, then follows its spread. A re-pose that changes only
+  the spread (Spread Layers, its kind or amount) moves the frame with the
+  layer under its centre and changes neither its size nor its angle. This is
+  the step's own capture following its own picture, not a capture from
+  another step. Its marks, in the window's units, go with the frame; a
+  refresh still shows D8's out-of-step notice. If the paper point is not on
+  the new paper, the frame stays where it was in picture units, with the
+  notice "The frame's anchor is not on this step's paper".
 - **Duplicate 55.** The copy and its area (a fresh id) land between 55 and 56,
   and 56 keeps its provenance. The arrow now prints from the copy to 56 (it
   shows an area and 56 is enlarged), leaving the copy's first area, and none
@@ -661,8 +725,9 @@ export interface DiagramStepZoom {
   /** Provenance only: the area it was captured from, directly or through an enlarged step. Never read to draw. */
   from: string;
   shape: DiagramZoomShape;
-  /** The frame in this step's picture units. Absent while the step has no picture (seeded empty).
-   *  The step's marks are in the units of its upright box, the window: the window is its frame. */
+  /** The frame in this step's picture units, as drawn (onto its spread). Absent while the step has no
+   *  picture (seeded empty). The step's marks are in the units of its upright box, the window: the window
+   *  is its frame. */
   frame?: DiagramZoomOutline;
   /** The frame on the paper, in paper coordinates, and `on`, the anchor's paper point; `picked` when the
    *  anchor was picked. Absent where the step has no faces. */
@@ -672,16 +737,17 @@ export interface DiagramStepZoom {
 }
 export interface DiagramStep { /* …existing (l.758)… */ zoom?: DiagramStepZoom }
 
-/** One face of a flat fold, as anchoring needs it. */
-export interface DiagramPaperFace {
-  /** Its corners on the paper, in paper coordinates. */
-  paper: [number, number][];
-  /** The same corners, in order, as this picture places them: scene px, turned and spread. */
-  picture: [number, number][];
-  /** Faces stacked over it as the picture is seen (`layerLevels`); the greatest is backmost. */
-  level: number;
+/** A flat fold's faces as anchoring needs them, each wireframe point once (the shared-points form). */
+export interface DiagramPaperFaces {
+  /** Per point: its place on the paper (paper coordinates), then on the unspread picture (scene px). */
+  points: [number, number, number, number][];
+  /** Per face, in the kernel's face order: its corners as indices into `points`, in its outline's order. */
+  rings: number[][];
+  /** Per face: the faces stacked over it as the picture is seen (`layerLevels`); the greatest is backmost. */
+  levels: number[];
 }
-export interface DiagramScenePicture { /* …existing (l.502)… */ paperFaces?: DiagramPaperFace[] }
+/** `paperFaces`: a `DiagramPaperFaces` as a string of compact JSON, as `sceneJson` is a scene. */
+export interface DiagramScenePicture { /* …existing (l.502)… */ paperFaces?: string }
 ```
 
 `paperFaces` lists every face the kernel names on the sheet (`sheetNamedFaces`,
@@ -689,6 +755,36 @@ export interface DiagramScenePicture { /* …existing (l.502)… */ paperFaces?:
 which the stored scene's face items already carry as `face`. It is written by
 flat captures only: a crease pattern's one face comes from its render, and no
 other picture has faces.
+
+- **Unspread places only.** A point's drawn place is read from the stored
+  scene, through its face's drawn ring (Terms): with a spread on it is there,
+  and with none it is the unspread place. Storing it as well would add 7 kB
+  on the crane and say nothing new. Recomputing one set of places from the
+  other is possible, by running the spread or inverting it (the affine
+  spread inverts to 0.007 px, given the face it holds still), but it would
+  tie a stored snapshot to the spread code of whichever build reads it,
+  which the stored scene never is.
+- **Rounding.** Unspread places to the stored scene's step
+  (`storedSceneStep`). Paper places to the power of ten at or below that step
+  over the capture scale: 0.001 of a unit on the crane, within the scene's
+  step, and short decimals (117.156) where 16.0's rounding wrote twelve
+  digits (117.156462585).
+- **A string, not a JSON value.** The project file is written pretty-printed
+  (`serializeNativeProjectFile`, `lib/nativeProjectFile.ts:480`), which puts
+  each number of an array on a line of its own: as a value, the crane's
+  `paperFaces` would add 126 kB instead of 20.6 kB. In memory it stays the
+  string and is read through `paperFacesOf`, memoized per picture as the
+  stored scene is.
+- **The budget.** On the crane, with every flat step refreshed, the `.osf`
+  grows by at most 1%, and no flat step's `paperFaces` is more than 0.3 of
+  its `sceneJson`, both as the file writes them. Measured: 0.83% (20.6 kB on
+  2.49 MB, 5.9% of its diagram) and 0.16–0.26 a step; on the heart
+  (`heart.osf`), 0.67% and 0.06–0.22. 16c's size test holds both. If a
+  change, or a diagram 16c checks, breaks the budget, 16c does not raise it:
+  it stops and takes the numbers to Zach, whose answer depended on the file
+  not getting huge. The lever then is to write `paperFaces` only on steps that
+  hold an area or a frame, refreshing a step when it first gets one; not
+  coarser rounding, which would give up exactness.
 
 Pure modules in `diagram/zoom/`:
 
@@ -700,11 +796,14 @@ Pure modules in `diagram/zoom/`:
   in [0.015, 2]); `carryZoom` (the centre with the paper, the angle with any
   turn, mirrored with the side); shape conversion; per-shape defaults;
   `frameWindow`, a frame's upright box.
-- `zoomImprint.ts`: `paperFacesOf(step, assets)` (the stored `paperFaces`, a
-  crease pattern's one face from its render, or null); `facePlacement` (the
-  least-squares similarity, reflected when the face's affine fit is);
-  `defaultAnchor(faces, frame)`; `anchorPoint(face)`; `faceAt(faces, point)`;
-  `imprint(frame, placement)`; `land(imprint, placement)`.
+- `zoomImprint.ts`: `paperFacesOf(step, assets)` (the stored `paperFaces`
+  read, a crease pattern's one face from its render, or null);
+  `drawnRing(faces, scene, face)`; `ontoSpread` and `offSpread` (Terms);
+  `facePlacement` (the least-squares similarity to the face's unspread ring,
+  reflected when the face's affine fit is); `defaultAnchor(faces, frame)`
+  (drawn rings, ties on paper area); `anchorPoint(face)`;
+  `faceAt(faces, point)`; `imprint(frame, placement)`;
+  `land(imprint, placement)`; `landFrame`, steps 4–6 of a capture.
 - `zoomCapture.ts`: `captureSource(doc, stepId)` (the nearest earlier step
   with an area or a frame, turns passed, a locked newer-build step passed
   over); `capture(doc, stepId, assets)`, the `DiagramStepZoom` a step would
@@ -746,11 +845,16 @@ Pure modules in `diagram/zoom/`:
   and `annotatedPictureKey` is set to null, so D8's out-of-step notice shows
   (the step's marks were in window units). `writeStep` adds `zoom` when set,
   each optional field only when set.
-- **`readPaperFaces`.** An array of faces, each with `paper` and `picture`
-  rings of one length ≥ 3 of finite pairs and a whole `level` ≥ 0; another key
-  on a face makes the step NEWER; anything else is damage, and the field is
-  dropped, so the step anchors nothing until refreshed. Capped, with the
-  scene, by `SCENE_JSON_MAX_BYTES`; a capture over the cap is kept without
+- **`readPaperFaces`.** A string that parses to an object with `points`,
+  `rings` and `levels`: each point four finite numbers; one ring and one
+  whole level ≥ 0 per face, each ring empty (a face the kernel could not
+  name) or ≥ 3 indices into `points`. Another key on the object makes the
+  step NEWER. Anything else is damage: counts that disagree, an index out of
+  range, a face the stored scene names that `rings` does not have, or, on a
+  step whose render has a spread, a face whose whole ring in the scene is
+  missing or of another length, since its drawn places would be wrong. Damage
+  drops the field, so the step anchors nothing until refreshed. Capped, with
+  the scene, by `SCENE_JSON_MAX_BYTES`; a capture over the cap is kept without
   it, with the older-capture notice.
 - **The `zoom` annotation.**
   `ANNOTATION_FIELDS.zoom = fields('radius', 'size', 'angle', 'scale', 'edge', 'anchor')`
@@ -783,19 +887,20 @@ frame's upright box. The rules are pure functions in
 | --- | --- | --- |
 | Enlarged turned on; a seeded step's first picture; Update Enlarged Steps | Captured from the source and landed; Update overwrites a hand move | Carried from the whole picture, or the old window, into the new window |
 | Enlarged turned off | Dropped | Carried from the window to the whole picture |
-| The frame moved or resized by hand, or its Shape changed | As set; the imprint made again on the same face | Carried by the window's move (a scale and a shift), so they stay on the same paper |
+| The frame moved or resized by hand, or its Shape changed | As set, but for a centre dropped in a strip the spread opened, which settles on the layer above (Capturing a frame); its centre taken off the spread and the imprint made again on the same face | Carried by the window's move (a scale and a shift), so they stay on the same paper |
 | The frame's anchor picked or reset | Unchanged; the imprint made again on the new face | Unchanged |
 | This step re-posed (the `withCarriedAnnotations` call sites: `diagramDocument.ts:1176/1311/1339/1394`, `useDiagramLinkedPose.ts:209`) | Its imprint landed on the re-posed picture; with no faces, carried by the pose's move | The pose's own move, composed through old window → picture → new window |
 | This step refreshed or relinked | Its imprint landed on the new picture; kept in picture units when it has no faces or the paper point is off the paper | Unchanged in window units, so they go with the frame; D8 out of step as for any refresh |
 | The source area edited, re-posed, refreshed or deleted; its step deleted; steps moved | Unchanged | Unchanged |
 
-A test helper asserts after every store verb in the slice tests: each
+"Landed" is steps 4–6 of a capture: on the unspread picture, then onto the
+spread. A test helper asserts after every store verb in the slice tests: each
 enlarged step whose picture has faces has a frame equal to its imprint landed
-on that picture (or carries the off-paper notice), and no mark moved on the
-paper unless the verb moved it. Copy and paste remember their source view
-(picture key and window): pasted onto a step with the same picture key, marks
-map by the window's move; otherwise they land in identical units, as today
-(`annotationClipboard.ts:48`).
+on that picture, to the stored step (or carries the off-paper notice), and no
+mark moved on the paper unless the verb moved it. Copy and paste remember
+their source view (picture key and window): pasted onto a step with the same
+picture key, marks map by the window's move; otherwise they land in identical
+units, as today (`annotationClipboard.ts:48`).
 
 #### Rendering on every surface
 
@@ -870,8 +975,8 @@ so the primitive switches are untouched.
   rectangle's corners, edges and centre, through new `AnnotationGripPart`
   values. It hits on its outline only, last in the hit order (l.696). The
   same grips serve an enlarged step's frame.
-- **Pick mode**: the faces' picture rings from `paperFaces`, the top one under
-  the pointer filled in the selection ink at low opacity.
+- **Pick mode**: the faces' drawn rings (Terms), the top one under the
+  pointer filled in the selection ink at low opacity.
 - **Pose**: see Controls.
 - **Pages**: `cellPicture` (`pagePictures.ts:332`) draws through the windowed
   painter at the pinned size, and `settle()` (l.438) centres the content plus
@@ -988,9 +1093,15 @@ PDF: cards never draw across cards, so they show the chip.
   picked anchor on the source and Update, or a hand move.
 - The anchor's paper point not on the step's paper (another paper, a sheet cut
   down): the frame is copied in picture units, with its notice.
-- Spread layers: the fitted similarity is the nearest to the face's affine
-  move, so under a strong affine spread the frame follows the face's mean
-  scale and turn, not its skew. The spike measures how far that is.
+- Spread layers: the frame lands unspread and follows the spread by its
+  centre, so it keeps its unspread size and turn, unskewed. Under the default
+  affine spread the paper inside it is skewed by up to 4% (axes 1.038 and
+  0.976 of the scale, 16.0), so its rim and the ellipse that paper would make
+  differ by up to 1.9% of its diameter. It follows the layer on top under its
+  centre. When a fold has laid another layer over the paper the area was
+  drawn round, the frame follows the new top layer, which the spread moves a
+  little apart from the covered one: up to 1.36% of its diameter on 16.0's
+  refolds (A and B under the depth spread).
 - Rotation by any angle (447568348): exact; the frame turns with its face.
 - Raster pictures (an over-budget capture kept as an 80 mm, 300 dpi bitmap, or
   a raster upload): the soft-print notice below 200 dpi effective.
@@ -1090,15 +1201,19 @@ is two keys, one step and a range, not a plural.
   fold that moves the back layer against the framed part (a reverse fold of
   the body, a sink) takes the frame with it. Mitigations: Pick, and a hand
   move. The spike (16.0) measures the crane.
-- **A spread distorts faces.** The fitted similarity is approximate under an
-  affine spread; the spike measures it with the default spread on.
+- **A spread moves the anchor and the framed part apart.** Landed in one
+  stage, a frame drifted up to 5.46% of its diameter when the two steps held
+  different faces still. Two-stage landing (Zach's decision after 16.0)
+  brings every measured case within 1.36%; a hand move (Z10) corrects the
+  rest.
 - **Later stages on other sheets** share paper coordinates only if Edit's
   copy of the sheet keeps its orientation; a sheet turned in Edit lands the
   frame turned. The spike checks the crane's sheets.
-- **`paperFaces` size.** Two rings and a level per face, on every flat
-  capture. The spike measures it on the crane; if it is large beside
-  `sceneJson`, the shared-points form (the kernel's own: `sheet_points` once,
-  each face's corners as indices) is used instead.
+- **`paperFaces` size.** On every flat capture. Measured on the crane in the
+  form chosen (each point's paper and unspread places, the drawn ones read
+  from the scene, as a string): 0.83% of the file, 0.16–0.26 of each step's
+  `sceneJson`. The budget (Model and file format) holds it, and breaking it
+  goes back to Zach.
 - **Older captures have no faces** until refreshed, so on the crane as it
   stands every frame is copied in picture units, with a notice, until its
   steps are refreshed.
@@ -1186,7 +1301,9 @@ subsequent steps." The face is found on each step by a point on the paper,
 because faces differ between steps; the frame turns and mirrors with it, with
 no rule keeping it upright. Crease-pattern steps map through the sheet, Front
 and Back mirrored; 3D, simulated, References and uploaded steps keep the
-frame in picture units.
+frame in picture units. Under a spread it lands in two stages, unspread and
+then onto the spread by its centre: Zach's answer to 16.0's failure, recorded
+there ("For Zach", 2026-10-06).
 
 **Z9. The anchor face. DECIDED: selectable, by default the backmost face
 outside the frame.** Zach: "it should be selectable, lets try defaulting to
@@ -1999,8 +2116,9 @@ the review.)
   `components/diagram/DiagramZoomControls.tsx` (the Anchor row inside it),
   `DiagramStepZoomStatus.tsx`, `DiagramZoomView.tsx`.
 - Document: `diagram/document/diagramDocument.ts` (the kind, its fields,
-  `DiagramStepZoom`, `DiagramStep.zoom`, `DiagramPaperFace`,
-  `DiagramScenePicture.paperFaces`, the seed on insert, duplicate);
+  `DiagramStepZoom`, `DiagramStep.zoom`, `DiagramPaperFaces`,
+  `DiagramScenePicture.paperFaces` (a string), the seed on insert,
+  duplicate);
   `diagramFile.ts` (`STEP_KEYS`, `SCENE_PICTURE_KEYS`, `readStepZoom`,
   `readPaperFaces`, `writeStep`, `ANNOTATION_FIELDS.zoom`, `readAnnotation`,
   `writeAnnotation`).
@@ -2011,7 +2129,8 @@ the review.)
   `annotateTools.ts` (`ENLARGE`, `ENLARGE_FRAME`, `drawingLook`, help,
   disabled reasons); `useAnnotateCanvas.ts` (the window as frame; the frame's
   selection and grips; the pick mode); `behindFlaps.ts` (`piecesUnder`
-  exported); `annotationCarry.ts` (one funnel, the frame's re-landing);
+  exported); `annotationCarry.ts` (one funnel, the frame's re-landing;
+  `wholeFaces` exported for a face's drawn ring);
   `annotationClipboard.ts` (the source view); `paintAnnotations.ts` (a
   close-up on an enlarged step); `annotationEventKind.ts`; `turnGlyph.ts` (the
   arrow is painted as a turn glyph is);
@@ -2025,8 +2144,10 @@ the review.)
   `pictureFrame.ts`, `paintStepDiagram.ts`, `exportStepPicture.ts`,
   `prefixIds.ts`.
 - Capture and pose: `diagram/capture/captureFolded.ts` (`flatPicture` writes
-  `paperFaces`); `cp-workspace/folded/foldedLayerSpread.ts` (`fitAffine` and
-  `sheetNamedFaces` exported beside `layerLevels`, read not changed);
+  `paperFaces`, unspread places from the placement with no spread);
+  `cp-workspace/folded/foldedLayerSpread.ts` (`fitAffine` and
+  `sheetNamedFaces` exported beside `layerLevels` and `meanValueWeights`,
+  read not changed);
   `diagram/capture/creasePatternScene.ts` (its paper's placement, exported);
   `useDiagramLinkedPose.ts`, `stepCaptureActions.ts` (a frame re-landed on
   refresh, relink and pose); `diagram/actions/diagramLinkedPoseActions.ts` and
@@ -2149,8 +2270,9 @@ refold, within 0.01% of the frame. With a spread it passes whenever S and N
 hold the same face still. It fails when N's fold holds another face still and
 a spread is on: under the default affine spread, by 5.46% on refold C and by
 4.80% on the crane's own 21 → 22; under the depth spread, by 2.44% on refold C
-shown in S's pose. The design is unchanged. Zach decides; see "For Zach"
-below the checklist.
+shown in S's pose. Zach decided on 2026-10-06 to land in two stages, which
+every case passes, within 1.36%; the rest of the design is unchanged. See
+"For Zach" below the checklist, and the last item for what it costs the file.
 
 Everything the spike ran is under `artifacts/revision-2/spike/` (gitignored),
 on the dev server's own modules. Nothing under `apps/` or `crates/` changed.
@@ -2163,7 +2285,9 @@ the app's own. The scripts:
   `spike-results.json` and `spike-captures.json`;
 - `summary.mjs` prints the tables below;
 - `sizes.mjs`, `orientation.py`, `cut.mjs` and `figures.mjs` cover the other
-  items.
+  items;
+- after the decision, `twoStageExact.mjs` lands in two stages from stored
+  data alone, and `twoStageSizes.mjs` weighs `paperFaces` in the crane's file.
 
 The crane has no step 55. S is its step 22, the last, in its linked pose
 (front, 157.5°, case 13).
@@ -2324,7 +2448,9 @@ The crane has no step 55. S is its step 22, the last, in its linked pose
 
   That form is 0.24 to 0.43 times `sceneJson`, 31.2 kB in all (0.38). It loses
   nothing at the stored step: where two faces name one point, they place it
-  within 0.007 px of each other. Per step: `sizes.json`.
+  within 0.007 px of each other. Per step: `sizes.json`. After the decision
+  the picture places are the unspread ones, and the form is weighed as the
+  file writes it: the last item.
 - [x] Whether the crane's stage sheets keep one orientation in Edit (Risks).
   *As built:* yes. Each stage sheet's creases, about its box's centre, were
   compared with the previous stage's under the square's eight symmetries,
@@ -2352,33 +2478,98 @@ The crane has no step 55. S is its step 22, the last, in its linked pose
   its crossings: a little more than the plan's 0.2 r. Images: `cut.png`;
   data: `cut.json`.
 - [x] The results, with images, written here under this phase.
+- [x] After Zach's decision: two-stage landing as 16c will do it, from what a
+  step stores, and what it costs the file.
+  *As built:* `twoStageExact.mjs` lands every case above in two stages from
+  the spike's stored rings alone, with no kernel and no spread code. Off S's
+  spread by solving the face's mean value coordinates (Newton; residual at
+  most 1.3e-12 px); imprint and land unspread; onto N's spread by the face on
+  top under the landed centre. Beside it, the last stage by B's move instead:
 
-**For Zach: the failure.** When a capture's fold holds another face still
-than its source's and a spread is on, a frame landed through the backmost
-face drifts by about 5% of its diameter under the default affine spread. On
-a frame printed at Fill's 64 mm, that is about 3.5 mm. The crane's own
-21 → 22 does it. Without a spread, or with S and N holding the same face
-still, the frame lands within 0.6%. Two ways on, and 16c waits for the
-choice:
+  | Refold, spread | One stage (above) | Two stages | Two stages, by B's move |
+  | --- | --- | --- | --- |
+  | A, affine | 0.004% | 0.513% | 5.202% |
+  | B, affine | 0.002% | 0.511% | 5.212% |
+  | C, affine | **5.458%** | 0.263% | 5.215% |
+  | C posed, affine | **5.458%** | 0.513% | 5.224% |
+  | R, affine | **4.804%** | 0.002% | 5.030% |
+  | A, depth | 0.565% | 1.362% | 2.063% |
+  | B, depth | 0.561% | 1.356% | 2.063% |
+  | C, depth | **2.436%** | 0.549% | 1.503% |
+  | C posed, depth | 0.591% | 1.335% | 2.020% |
+  | R, depth | 0.064% | 0.002% | 2.446% |
 
-1. **Keep the design and accept the drift.** The frame still holds the head,
-   and the frame's hand move (Z10) corrects it.
-2. **Land in two stages.** This was measured, not built. First imprint and
-   land through the default anchor on the unspread pictures, the same folds
-   and poses, which is exact on every refold here. Then let the frame follow
-   the spread, as the spread moves the paper under its centre on each step.
-   Every row then lands within 1.36%:
-   - 0.26% on C under the affine spread, 0.003% on R and 0.55% on C under the
-     depth spread;
-   - the worst is A and B under the depth spread, 1.36%, where the spike
-     inverts the depth spread at the centre only approximately.
+  With no spread both stages are the identity, and every row lands as above
+  (at most 0.009%). Solved rather than fitted, the two stages land where the
+  first, fitted measurement put them, to 0.002%: the 1.36% is not the
+  inversion, as was first thought. It is the layer followed. On A, B and C
+  the refold lays another layer over the marked paper (face 39, under 41 on
+  A and B and under 40 on C), and the frame follows the layer on top under
+  its centre, which the spread moves a little apart from the covered one. On
+  R the marked paper stays on top, and the frame lands within 0.002%. Where S
+  and N hold the same face still, one stage was exact under the affine spread
+  and two stages land at 0.51%, still a pass. Following B lands as badly as
+  one stage, so the frame follows the face under its centre.
 
-   `paperFaces` would also keep each point's unspread place: two more numbers
-   a point in the shared-points form.
+  `twoStageSizes.mjs` then recaptured the crane's 17 refoldable flat steps
+  through the app's own modules, each with its own render and its own affine
+  spread (every flat step of the crane has one), and wrote `paperFaces` into
+  the file as `serializeNativeProjectFile` writes it, pretty-printed:
 
-**Before 16c starts, whichever way:**
-- store `paperFaces` in the shared-points form;
-- break the anchor's level tie on paper area, with a tolerance;
+  | 17 flat steps | Bytes in the file | The `.osf`, 2,488,783 B today |
+  | --- | --- | --- |
+  | `sceneJson`, for scale | 93,887 | — |
+  | 16.0's form: paper and drawn places, a string | 33,582 | +33,718 B, +1.35% |
+  | The same plus the unspread places, a string | 40,633 | +40,769 B, +1.64% |
+  | **Chosen**: paper and unspread places, paper to 0.001, rings and levels as arrays, a string | 20,473 | +20,609 B, **+0.83%** |
+  | The chosen form as a JSON value | 79,376 | +126,136 B, +5.07% |
+
+  The chosen form is 0.16–0.26 of each step's `sceneJson`, 0.22 in all, and
+  5.9% of the crane's 347 kB diagram; the rest of the file is its crease
+  pattern. Step 9 is left out, as above; at its neighbours' ratio it would
+  add about 0.4 kB. On the heart (`heart.osf`, 8 flat steps, each with an
+  affine spread) it adds 8,367 B, +0.67%, 0.06–0.22 a step; its stored scenes
+  differ from what a recapture draws today, so there it weighs fresh
+  captures beside them. Three checks behind the choice:
+  - **The drawn places are already stored.** With a spread on, every face is
+    whole in the stored scene, one ring, corner for corner, equal bit for bit
+    to what 16.0's form would store: on all 17 crane steps and on all 14 of
+    16.0's spread captures. With no spread, they are the unspread places.
+  - **Recomputing is possible, and not chosen.** 16.0's form gives the
+    unspread places back by inverting the affine spread, to 0.0068 px over
+    all 17 steps, given the face the spread holds still: one more number,
+    which takes the kernel's subfaces to find. The depth spread would also
+    need the model's unspread size. Either reads a stored snapshot through
+    whichever build's spread code, and neither is needed.
+  - **Each point once stays lossless** with the unspread places: the faces
+    naming a point place it identically.
+
+  Data: `twoStageExact.json`, `twoStageSizes-crane.json`,
+  `twoStageSizes-heart.json`.
+
+**For Zach: the failure. DECIDED, 2026-10-06: land in two stages.** Zach:
+"Land in two stages sounds good, assuming file size doesn't get huge. And
+they can always move it if its wrong." The failure: when a capture's fold
+holds another face still than its source's and a spread is on, a frame landed
+in one stage through the backmost face drifts by about 5% of its diameter
+under the default affine spread, about 3.5 mm on a frame printed at Fill's
+64 mm. The crane's own 21 → 22 does it.
+
+1. **Keep the design and accept the drift.** Not taken.
+2. **Land in two stages.** Taken: imprint and land on the unspread pictures,
+   then let the frame follow the spread by its centre, as "Capturing a frame"
+   now describes. Every measured case lands within 1.36% (the item above).
+   `paperFaces` keeps each point's unspread place instead of its drawn one,
+   which the stored scene already holds, so two stages cost no more than
+   16.0's form: +0.83% on the crane's file, within the budget set in "Model
+   and file format". "They can always move it": the frame's hand move (Z10)
+   is unchanged.
+
+**Before 16c starts:**
+- store `paperFaces` in the chosen form: each point's paper and unspread
+  places, the faces' rings and levels, as a string;
+- break the anchor's level tie on paper area, within 0.1%, then by the lower
+  face index;
 - use R (21 → 22) and C as the "different face still" fixtures that the
   `zoomImprint` tests name; under a spread, they pass only with the
   two-stage landing.
@@ -2531,27 +2722,51 @@ left out of the sizes above.
   `paperFaces` included, until the items below) locks the step, which writes
   back byte-equal; the crane loads with nothing locked and saves back
   byte-identical; the fixtures checked for stray keys first.
-- [ ] `paperFaces`: written by `flatPicture` (Link, Refresh, Pose) from the
-  kernel's paper scene, hidden faces included, levels from `layerLevels`,
-  rounded to the stored step; `readPaperFaces` with its NEWER and damage
-  cases; round trips; `paperFaces` added to `SCENE_PICTURE_KEYS`; the crane's
-  existing steps unchanged until refreshed. In the form 16.0 chose.
+- [ ] `paperFaces`, in the form chosen after 16.0: written by `flatPicture`
+  (Link, Refresh, Pose) from the kernel's paper scene, hidden faces
+  included, as a string of compact JSON holding each point's paper and
+  unspread places (paper to the power of ten under the scene step over the
+  scale, unspread to the scene step) and the faces' rings and levels
+  (`layerLevels`); never the drawn places. `readPaperFaces` with its NEWER
+  and damage cases, the scene cross-check among them; round trips;
+  `paperFaces` added to `SCENE_PICTURE_KEYS`; the crane's existing steps
+  unchanged until refreshed. Tests: with a spread on, every face's drawn ring
+  read from the stored scene equals the painter's spread places; with none,
+  the unspread places equal the scene's visible rings.
+- [ ] The size budget. A vitest over the 16.0 fixture: each capture's
+  `paperFaces` at most 0.3 of its `sceneJson`, both as the file writes them
+  (16.0: 0.16–0.26). A script beside `twoStageSizes.mjs`, run at 16c's gate
+  on the crane with every flat step refreshed: the `.osf` grows by at most 1%
+  (16.0: 0.83%), its numbers written under this phase. If either fails, 16c
+  stops and takes the numbers to Zach rather than raise the budget (Model
+  and file format).
 - [ ] The `zoom` kind and its fields (`angle` and `anchor` with the rest),
   `cleanZoom`, `carryZoom` (any angle, mirrored with the side), shape
   conversion, per-shape defaults; `DiagramStepZoom`; readers and writers,
   `zoom` added to `STEP_KEYS` with `readStepZoom`. Tests: round trips;
   defaults unsaid; NEWER and damage for each field; a malformed `zoom`
   dropped with `annotatedPictureKey` null; the older-build-verbatim case.
-- [ ] `zoomImprint`. Tests: a face's placement exact on an unspread fold, and
-  mirrored on a face showing its back; imprint then land on the same picture
-  is the identity; a frame survives a capture onto a picture whose fold holds
-  a different face still (the crane fixture from 16.0); a turn by any angle
-  and a turn-over carry the frame turned and mirrored (a rounded rectangle
-  lands at an angle); under an affine spread a circle lands a circle; a
-  crease pattern, Front and Back; a step with no faces copies in picture
-  units; a paper point off the paper.
+- [ ] `zoomImprint`, landing in two stages. Tests: a face's placement exact
+  on the unspread picture, and mirrored on a face showing its back; off and
+  onto the spread are the identity with no spread, and inverse with one
+  (exact under the affine spread, to 1e-9 px under the depth spread), but in
+  a strip the spread opened, where a dropped centre settles on the layer
+  above; imprint then land on the same picture is the identity, spread or
+  not; R (21 → 22) and C, the 16.0 fixtures whose folds hold different faces
+  still, land within 2% under the default affine and depth spreads (16.0:
+  0.002% and 0.26%; 0.002% and 0.55%), and the same cases by B's move would
+  not (5.0% and 5.2% under the affine spread), so the last stage follows the
+  face under the centre; the frame keeps its unspread size and angle; a turn
+  by any angle and a turn-over carry the frame turned and mirrored (a rounded
+  rectangle lands at an angle); under an affine spread a circle lands a
+  circle; a crease pattern, Front and Back; a step with no faces copies in
+  picture units; a paper point off the paper; a centre over no paper follows
+  the nearest face.
 - [ ] The default anchor. Tests: the backmost face entirely outside the
-  frame; ties by area, then face index; every face touching → the backmost
+  frame, by drawn rings; a level tie broken on paper area within 0.1%, then
+  by the lower face index (crane step 22's faces 33 and 14, equal on the
+  paper, their picture areas apart by rounding and by 5% under a spread);
+  every face touching → the backmost
   reaching outside; the frame covering the model → the backmost; a picture
   turned over and a Back pass, each ranked from its own side; a crease
   pattern anchoring at the frame's centre; a picked anchor taking precedence.
@@ -2651,7 +2866,9 @@ left out of the sizes above.
 
 - [ ] Seeding on insert and duplicate; the carries on enlarging and
   un-enlarging; the frame re-landed on its own step's refresh, relink and
-  re-pose, marks with it; moves and deletes changing no frame. The invariant
+  re-pose, marks with it, a spread turned on, off or changed among the
+  re-poses (the frame moves with the layer under its centre, its size and
+  angle unchanged); moves and deletes changing no frame. The invariant
   helper runs after each verb. Copy and paste remember their source view
   (picture key and window), with `annotationClipboard.test.ts` cases for a
   paste between two enlarged steps of one picture and from an enlarged step
