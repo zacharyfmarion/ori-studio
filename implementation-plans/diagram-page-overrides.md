@@ -1,6 +1,6 @@
 # Diagram: placing things on the page by hand
 
-**Status: planned 2026-10-07. Nothing is built. Decisions 1–6 are DECIDED: all A** (Zach, 2026-10-07: "please just go with your recommended answers for everything").
+**Status: planned 2026-10-07. Nothing is built. Decisions 1–6 are PENDING** (recommended: all A).
 This builds on D10 (pages come from one pure layout; Fit each), D11 (export),
 D22 (turn glyphs) and the flow lane in `implementation-plans/diagram-workspace.md`,
 and on Revision 2's enlarged steps (16f, `implementation-plans/diagram-revision-2.md`).
@@ -634,9 +634,9 @@ Every new string goes in all 9 catalogs, through `i18n:extract`, then
 
 ## Decisions for Zach
 
-All DECIDED: A (Zach, 2026-10-07: "please just go with your recommended answers for everything"). Decision 1A keeps Zach's rule that a reorder sends a moved frame home and widens it to any edit that lands the step in a different cell.
+Numbered so picks can be pasted back. All PENDING.
 
-**1. When does a dragged step frame go back to its cell? DECIDED: A.** (You
+**1. When does a dragged step frame go back to its cell? PENDING.** (You
 flagged this one to talk through.)
 - **A.** Whenever the step lands in a different cell, for any reason:
   - its own move;
@@ -669,7 +669,7 @@ flagged this one to talk through.)
   - Its cost: an insert early in a run of full pages sends every moved frame
     after it home, up to the next page break. The toast says how many.
 
-**2. When one picture's scale is pinned, do the other steps react? DECIDED: A.**
+**2. When one picture's scale is pinned, do the other steps react? PENDING.**
 - **A.** No. They size exactly as if it were still computed, so pinning and
   clearing touch only that picture.
 - **B.** Yes. The pinned picture leaves Fit each's runs, and the rest re-run
@@ -684,7 +684,7 @@ flagged this one to talk through.)
     6"). A later "Use this size for its run" verb could make it one click.
 
 **3. A pin bigger than the room its cell gives it: honour it, or hold it to
-the room? DECIDED: A.**
+the room? PENDING.**
 - **A.** Honour it. The picture is drawn at the pin, and its text moves down
   under it and keeps every line. Whatever it then runs into is outlined amber
   and listed at export, with a one-click page break offered. An enlarged
@@ -701,7 +701,7 @@ the room? DECIDED: A.**
     the two rules agree. Fill is unchanged.
 
 **4. What does a pin hold when the picture changes (re-posed, recaptured, its
-frame edited)? DECIDED: A.**
+frame edited)? PENDING.**
 - **A.** The paper's scale: mm per pattern unit for a picture that knows its
   paper, the frame's mm for a fitted one. The pane shows it as printed mm.
 - **B.** The printed size: the frame's longer side in mm, whatever the
@@ -716,7 +716,7 @@ frame edited)? DECIDED: A.**
     back.
 
 **5. Is a moved number, picture or text a nudge from its computed place, or a
-fixed spot in the frame? DECIDED: A.**
+fixed spot in the frame? PENDING.**
 - **A.** A nudge. Text moved 3 mm right still sits under its picture when the
   picture grows.
 - **B.** A fixed spot in the frame, whatever the picture does.
@@ -728,7 +728,7 @@ fixed spot in the frame? DECIDED: A.**
   - B is truer to "I put it there", but an edit elsewhere could bury this
     step's text under its own picture without this step being touched.
 
-**6. Where does it land? DECIDED: A.**
+**6. Where does it land? PENDING.**
 - **A.** Phase 1 (the model, the file and the clearing, with no UI) goes into
   #436 before it merges. The layout and the UI come in a PR of their own on
   main after #436 merges, as you chose for the simulator work.
@@ -891,13 +891,13 @@ Vitest runs in the web workspace under Node 22.
 
 ### Phase 0: decisions
 
-- [x] ~~A throwaway prototype,~~ Skipped: Zach would rather not build twice when the recommendation is clear ("i don't really need a prototype if you're confident"). It would have been `artifacts/page-overrides/page-overrides.html`,
+- [ ] A throwaway prototype, `artifacts/page-overrides/page-overrides.html`,
   gitignored. It shows one flow spread at print size, where Zach can:
   - drag frames and watch the ribbon follow live across the spine;
   - pin a scale and see the neighbours hold (2A) or re-run (2B);
   - pin past the room (3A against 3B);
   - insert a step to see frames go home under 1A, 1B and 1C.
-- [x] Zach answers Decisions 1–6; record each here with his words. All A, 2026-10-07.
+- [ ] Zach answers Decisions 1–6; record each here with his words.
 
 ### Phase 1: model, file and clearing, no UI (into #436 under 6A, after 16g lands)
 

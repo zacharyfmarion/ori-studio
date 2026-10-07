@@ -1,6 +1,6 @@
 # Diagram: a References step's marks as annotations
 
-**Status: planned 2026-10-07. Nothing is built. Decisions RM1–RM13 are DECIDED: every recommendation** (Zach, 2026-10-07: "please just go with your recommended answers for everything"; his own answers, given while the plan was being written, are quoted under RM4, RM6, RM8 and RM9). It lands in a PR of its own, stacked on #436, as page overrides and the simulator tools do.
+**Status: planned 2026-10-07. Nothing is built. Decisions RM1–RM13 are PENDING, except where Zach answered them himself** (quoted under RM4, RM6, RM8 and RM9; RM12 is superseded by his Text request). Where it lands is proposed, not decided: a PR of its own, stacked on #436.
 
 **Revised 2026-10-07: there is no `letter` kind.** A pulled letter is a Text annotation (`label`), and Text gains the options it needs (§4). Zach: "why is letter different from text annotation in diagram references? Id rather just extend text to have color / any other options we need". RM1 and RM3 now speak of Text options, RM12 is superseded, and Reset Position is dropped.
 
@@ -782,9 +782,9 @@ gate, because `line` grows there and the letter placement is exported from
 
 ## Decisions for Zach
 
-All DECIDED: the **(rec)** option in each (Zach, 2026-10-07: "please just go with your recommended answers for everything"). Zach's own answers, 2026-10-07, agree with the recommendations and are quoted where they apply. Later that day he asked for letters to be Text with options: RM1 and RM3 are re-worded for it, and RM12 is superseded.
+PENDING unless marked otherwise. Recommendations are marked **(rec)**. Zach's own answers, 2026-10-07, are quoted where they apply; they settle only what they say. Later that day he asked for letters to be Text with options: RM1 and RM3 are re-worded for it, and RM12 is superseded.
 
-**RM1. How do pulled letters look and sit? DECIDED: L3.** Revised 2026-10-07:
+**RM1. How do pulled letters look and sit? PENDING (rec: L3).** Revised 2026-10-07:
 each look is now a set of Text options, since a letter is Text (§4).
 - **L1.** Plain Text with a colour: regular, no halo, at the picture's size,
   so smaller at 50 mm and scaling with the picture. Visibly not today's letter.
@@ -802,7 +802,7 @@ each look is now a set of Text options, since a letter is Text (§4).
 Why L3: it is the only one that is both editable and keeps the look at every
 size.
 
-**RM2. Choosing a solid line's colour. DECIDED: (rec).**
+**RM2. Choosing a solid line's colour. PENDING.**
 - A fixed palette only.
 - A free picker only.
 - **(rec)** Palette plus Custom: Ink, Reference magenta, red, orange, green,
@@ -813,7 +813,7 @@ colours. Custom answers "choose the color" without a second control. The five
 colours are print colours, not Edit's screen ones. Text's colour uses the same
 control (§4).
 
-**RM3. Which marks have a colour, and what colour do pulled marks keep? DECIDED: (rec).** Revised 2026-10-07: letters are Text, so the colour is Text's.
+**RM3. Which marks have a colour, and what colour do pulled marks keep? PARTLY ANSWERED:** Zach asked for solid lines in a colour he chooses and for Text to gain colour, so "which" is solid lines and Text. What pulled marks keep is PENDING. Revised 2026-10-07: letters are Text, so the colour is Text's.
 - Which:
   - **(rec)** Solid lines and Text.
   - Every mark.
@@ -827,7 +827,7 @@ Why: colour on arrows and folds would bypass the paper style (Annotate's
 decision 7), which nobody asked for. A callout keeps the arrow ink for now
 (§4).
 
-**RM4. The import toggles. DECIDED: (rec)** — Zach: the show/hide choices live at import, "since they become editable" a toggle elsewhere "would be confusing".
+**RM4. The import toggles. PARTLY ANSWERED** (where: at import; "remembered" and what a hidden mark does are PENDING) — Zach: the show/hide choices live at import, "since they become editable" a toggle elsewhere "would be confusing".
 - Where:
   - **(rec)** A Show ▾ menu in the browser's bar, the previews following it.
   - Checkboxes in the footer beside "With the turn-over before it".
@@ -840,12 +840,12 @@ decision 7), which nobody asked for. A callout keeps the arrow ink for now
 Why: the bar is where the browser's view options live, and previews that
 follow the menu show what you will get.
 
-**RM5. One name. DECIDED: (rec).**
+**RM5. One name. PENDING.**
 - **(rec)** "Reference lines" in the Show menu and the export dialog.
 - Keep "Line highlights" in both.
 - Different names in each.
 
-**RM6. Replace from References and the Way chooser on a step with pulled marks. DECIDED: R-A** — Zach: "Replace should replace."
+**RM6. Replace from References and the Way chooser on a step with pulled marks. ANSWERED: Replace replaces** (whether edited pulled marks are replaced too, R-A, is the recommendation) — Zach: "Replace should replace."
 - **R-A (rec).** Every pulled mark follows the card, edited or not. Your own
   marks stay, with the notice. A toast with Undo says when edited marks went.
 - **R-B.** Edited pulled marks stay, as D20 keeps an edited instruction. Nudge
@@ -857,7 +857,7 @@ follow the menu show what you will get.
 Why R-A: it never leaves duplicates, Undo restores the edits, and your own
 marks are never touched.
 
-**RM7. Turning over renames folds. DECIDED: (rec).**
+**RM7. Turning over renames folds. PENDING.**
 - What is renamed:
   - Lines only, References' own rule.
   - **(rec)** Lines plus valley and mountain arrows and a shaped arrow's fold,
@@ -867,7 +867,7 @@ marks are never touched.
 A crease-pattern step's Front | Back is not affected: you decided on
 2026-10-06 that it only recolours the face.
 
-**RM8. Steps already in your diagrams. DECIDED: (rec)** — Zach: "For steps already in the diagram, i guess they just get rendered as a picture? ... if its easy not to have to migrate and it won't cause tech debt thats slightly preferred."
+**RM8. Steps already in your diagrams. ANSWERED: left as pictures, no migration** (the Make Marks Editable button is the recommendation) — Zach: "For steps already in the diagram, i guess they just get rendered as a picture? ... if its easy not to have to migrate and it won't cause tech debt thats slightly preferred."
 - **(rec)** Leave them, and offer Make Marks Editable in Annotate's notice and
   the Step pane.
 - Convert them when the file opens.
@@ -876,7 +876,7 @@ A crease-pattern step's Front | Back is not affected: you decided on
 Why: opening a file never changes it, and one click converts a step you
 want to edit.
 
-**RM9. What lifts. DECIDED: (rec)** — Zach: "If you mean aux crease, those stay in the picture. If you mean the pink highlighted lines, those are editable."
+**RM9. What lifts. PARTLY ANSWERED** (aux creases stay, the pink reference lines lift; unlettered rings, grid steps and unassigned folds are PENDING) — Zach: "If you mean aux crease, those stay in the picture. If you mean the pink highlighted lines, those are editable."
 - Rings with no letter (ReferenceFinder's earlier marks):
   - **(rec)** Circles too, so every ring behaves the same and arrows land on
     them.
@@ -889,7 +889,7 @@ want to edit.
   - The planner tags them, which changes References' model and goldens, and
     they lift as thin solid lines. That needs a second weight.
 
-**RM10. One fold drawn in pieces. DECIDED: (rec).** The planner draws one crease as several
+**RM10. One fold drawn in pieces. PENDING.** The planner draws one crease as several
 spans (`plannerDiagram.ts:1319-1352`).
 - **(rec)** Pieces of one style that touch end to end merge into one line.
   Disjoint pieces, like two pinches, stay apart. The dashes then run as on
@@ -897,7 +897,7 @@ spans (`plannerDiagram.ts:1319-1352`).
 - One annotation per piece: identical dashes, but you edit two or three
   segments for one fold.
 
-**RM11. Can a step bring back marks you chose not to pull? DECIDED: (rec).**
+**RM11. Can a step bring back marks you chose not to pull? PENDING.**
 - **(rec)** No: pull it again with Replace from References. The step stores
   only the paper, so nothing that paints it can draw a mark twice.
 - Yes, with Letters and Reference lines toggles on the step at any time. The
@@ -913,7 +913,7 @@ white.
 It was decided as: **(rec)** yes, beside Label, with no key in v1; or pulled
 letters only.
 
-**RM13. Pose. DECIDED: (rec).**
+**RM13. Pose. PENDING.**
 - **(rec)** Pulled marks ghost in Pose, as every annotation does.
 - They show solid there, as they do today.
 
@@ -1110,7 +1110,7 @@ Vitest runs in the web workspace under Node 22.
 
 ### Phase 0: decisions
 
-- [x] Zach answers RM1–RM13; record each here with his words. Every recommendation, 2026-10-07.
+- [ ] Zach answers RM1–RM13; record each here with his words. (RM4, RM6, RM8 and RM9 partly answered; RM12 superseded.)
 - [x] Revised the same day: no `letter` kind; a pulled letter is Text with options (Zach). RM1 and RM3 re-worded, RM12 superseded.
 
 ### 17a: Solid line
