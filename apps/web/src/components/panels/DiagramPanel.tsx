@@ -10,7 +10,7 @@ import {
   type DiagramEntry,
   type DiagramStep,
 } from '../../diagram/document/diagramDocument';
-import { splitIntoPages } from '../../diagram/pages/diagramPageLayout';
+import { cellsPerPage, splitIntoPages } from '../../diagram/pages/diagramPageLayout';
 import type { PreparedDiagramPages } from '../../diagram/pages/diagramPages';
 import { useDiagramPages } from '../../diagram/pages/useDiagramPages';
 import { fillStepFromReferences, openReferencesBrowser } from '../../diagram/references/referencesBrowserActions';
@@ -149,8 +149,8 @@ export function DiagramPanel() {
   const pages = useDiagramPages(steps.length > 0 ? diagram : null);
   const page = diagram?.page ?? DEFAULT_PAGE_SETUP;
   const pageCount = useMemo(
-    () => splitIntoPages(steps, page.columns * page.rows).length,
-    [steps, page.columns, page.rows]
+    () => splitIntoPages(steps, cellsPerPage(page)).length,
+    [steps, page]
   );
   const textCut = useMemo(() => cutStepIds(pages.pages), [pages.pages]);
   // And the size each step prints at, for the Layers pane's warnings (Revision 2).

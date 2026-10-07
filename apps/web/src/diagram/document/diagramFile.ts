@@ -123,6 +123,7 @@ import {
   type DiagramTurn,
   type DiagramPaperFaces,
   type DiagramScenePicture,
+  type DiagramStepPlace,
   type DiagramStepZoom,
   type DiagramZoomEdge,
   type DiagramZoomOutline,
@@ -131,6 +132,7 @@ import {
   type ReferencesPlanSettings,
 } from './diagramDocument';
 import { validateStepDiagramModel } from './stepDiagramModelFile';
+import { normalizeStepPlace, PLACE_OFFSETS, placeOffset, placeScale } from './stepPlace';
 
 /** A diagram read from a file. */
 export interface ReadDiagram {
@@ -328,7 +330,19 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
     text: step.text,
     breakBefore: step.breakBefore,
     ...(step.zoom ? { zoom: writeStepZoom(step.zoom) } : {}),
+    ...writeStepPlace(step),
   };
+}
+
+/**
+ * A step's hand placement as written: a newer build's as it came, else this
+ * build's as it keeps one (`normalizeStepPlace`: offsets to a tenth of a mm,
+ * none of none, every field only when set) — and nothing when there is none.
+ */
+function writeStepPlace(step: DiagramStep): Record<string, unknown> {
+  if (step.placeNewer) return { place: step.placeNewer };
+  const place = normalizeStepPlace(step.place);
+  return place ? { place } : {};
 }
 
 function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown> {
@@ -484,6 +498,7 @@ const STEP_KEYS: ReadonlySet<string> = new Set([
   'text',
   'breakBefore',
   'zoom',
+  'place',
 ]);
 
 /**
@@ -565,8 +580,10 @@ function readStep(
   }
   // An enlarged step keeps its frame; one that does not read is dropped, and
   // the marks drawn in its window are out of step with the whole picture.
-  const enlarged: DiagramStep =
-    zoom === undefined ? base : zoom === null ? { ...base, annotatedPictureKey: null } : { ...base, zoom };
+  const enlarged: DiagramStep = {
+    ...(zoom === undefined ? base : zoom === null ? { ...base, annotatedPictureKey: null } : { ...base, zoom }),
+    ...readStepPlace(value.place),
+  };
   const source = readSource(value.source, assets);
   const picture = readPicture(value.picture, assets, env);
   if (source?.kind === 'upload') {
@@ -1447,6 +1464,35 @@ function writeStepZoom(zoom: DiagramStepZoom): Record<string, unknown> {
     ...(zoom.scale !== undefined ? { scale: zoom.scale } : {}),
     ...(zoom.edge !== undefined ? { edge: zoom.edge } : {}),
   };
+}
+
+/** The fields a step's placement is written with, and its pin's; any other is a newer build's. */
+const PLACE_KEYS: ReadonlySet<string> = new Set([...PLACE_OFFSETS, 'scale']);
+const PLACE_SCALE_KEYS: ReadonlySet<string> = new Set(['mmPerUnit', 'frameMm']);
+
+/**
+ * A step's hand placement (`implementation-plans/diagram-page-overrides.md`).
+ * A field this build has no name for, of the placement or of its pin, keeps
+ * the whole record as it came, a newer build's (`placeNewer`): written back
+ * verbatim and never applied, the step still editable — placement is how a
+ * step is laid out, and a locked step would print with no picture. A field
+ * that does not read is dropped alone, as is an offset of none; a placement
+ * left with nothing is none. How large a pin may print is the layout's to
+ * hold, not the reader's, which does not know the picture's units.
+ */
+function readStepPlace(value: unknown): Pick<DiagramStep, 'place' | 'placeNewer'> {
+  if (!isRecord(value)) return {};
+  if (hasNewerKey(value, PLACE_KEYS) || (isRecord(value.scale) && hasNewerKey(value.scale, PLACE_SCALE_KEYS))) {
+    return { placeNewer: value };
+  }
+  const place: DiagramStepPlace = {};
+  for (const part of PLACE_OFFSETS) {
+    const offset = placeOffset(value[part]);
+    if (offset) place[part] = offset;
+  }
+  const scale = placeScale(value.scale);
+  if (scale) place.scale = scale;
+  return Object.keys(place).length > 0 ? { place } : {};
 }
 
 /**

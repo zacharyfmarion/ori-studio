@@ -28,6 +28,7 @@
  */
 import { PT_PER_MM, type PaperSvgResult } from '../../lib/paper/paperSvg';
 import type { DiagramDocument } from '../document/diagramDocument';
+import { unplacedDiagram } from '../document/stepPlace';
 import type { DiagramFonts } from '../fonts/diagramFonts';
 import { embeddedFontFaces } from '../fonts/fontEmbedding';
 import type { FontSubsetter } from '../fonts/fontSubset';
@@ -170,11 +171,14 @@ export function zoomFileFrameMm(
 }
 
 export function prepareStepFiles(
-  document: DiagramDocument,
+  placed: DiagramDocument,
   fonts: DiagramFonts,
   subsetter: FontSubsetter,
   options: StepFileOptions
 ): PreparedStepFiles {
+  // Hand placement is the pages' alone: a file, and the page an enlarged
+  // step's window is read from, put every step where its cell does.
+  const document = unplacedDiagram(placed);
   const setter = fontTextSetter((key, weight) => fonts.font(key, weight)?.metrics ?? null, document.hanStyle);
   const box = pictureBoxOf(options);
   // A file per step: a turn between two (D22) has no picture of its own.

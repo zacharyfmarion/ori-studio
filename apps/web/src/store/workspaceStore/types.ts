@@ -51,7 +51,7 @@ import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import type { FoldArtifactStatus } from './foldArtifactResource';
-import type { SnapshotHistory } from './snapshotHistory';
+import type { SnapshotEntry, SnapshotHistory } from './snapshotHistory';
 import type {
   DiagramCpSource,
   DiagramPullAnchor,
@@ -65,8 +65,10 @@ import type {
   DiagramStyle,
   KnownDiagramAsset,
   UploadPose,
+  DiagramPlaceReset,
 } from '../../diagram/document/diagramDocument';
 import type { ReadDiagram } from '../../diagram/document/diagramFile';
+import type { DiagramStepPlacePatch } from '../../diagram/document/stepPlace';
 import type { AnnotateTool } from '../../diagram/annotate/annotateTools';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import type {
@@ -1963,6 +1965,17 @@ export interface DiagramSliceState {
    * not selected. Not saved.
    */
   diagramAnchorPick: DiagramAnchorPick | null;
+  /**
+   * The newest edit that sent frames moved by hand back to their cells
+   * (`settlePlaces`, inside that edit's undo step): how many; a `nonce` that
+   * is new with every such edit, so what tells the user — a toast with
+   * Undo — shows once per edit, never for one already shown; and the undo
+   * `entry` the edit landed in (null when the history kept none), so that
+   * Undo undoes only while that entry is still the newest — never another
+   * edit made since, or a duplicate a failed capture already took back.
+   * Undo and redo leave it as it is. Not saved.
+   */
+  diagramPlacesSettled: { count: number; nonce: number; entry: SnapshotEntry<DiagramDocument | null> | null } | null;
 }
 
 /** What an anchor is being picked for: an enlarge area on a step, or the step's own frame. */
@@ -2225,6 +2238,33 @@ export interface DiagramSliceActions {
   giveDiagramStepPaperFaces: (stepId: string) => Promise<boolean>;
   /** Arm the anchor's pick mode for an area or a frame, or leave it (null). View state. */
   setDiagramAnchorPick: (pick: DiagramAnchorPick | null) => void;
+  /**
+   * Place a step by hand on the printed pages: its frame, number, picture or
+   * text moved, or its picture's scale pinned — each field of `patch` set, or
+   * cleared with null (`setStepPlace`). One undo step; edits in one `session`
+   * at the same fields — a sitting of nudges — are one. Refused on a
+   * read-only diagram, a newer build's step, a step whose placement only a
+   * newer build reads, and for a pin on an enlarged step. `loadId` drops an
+   * edit that outlived its diagram, as a debounced one may. Whether it changed.
+   */
+  setDiagramStepPlace: (
+    stepId: string,
+    patch: DiagramStepPlacePatch,
+    options?: { session?: number; loadId?: number }
+  ) => boolean;
+  /**
+   * Reset a step's placement, one undo step: an offset, its pin (`scale`),
+   * every offset (`position`), or all of it (`all`), which alone drops a newer
+   * build's placement too. Refused as {@link setDiagramStepPlace} is, but for
+   * `all`. Whether it changed.
+   */
+  resetDiagramStepPlace: (stepId: string, part: DiagramPlaceReset) => boolean;
+  /**
+   * Reset every step's placement on one page (its index, from 0, as the
+   * layout numbers them) or, for null, in the whole diagram: Reset This Page
+   * and Reset All. One undo step. Whether it changed.
+   */
+  resetDiagramPlaces: (pageIndex: number | null) => boolean;
 }
 
 export type DiagramSlice = DiagramSliceState & DiagramSliceActions;

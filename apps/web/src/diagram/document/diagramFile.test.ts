@@ -29,6 +29,7 @@ import {
   stepsIn,
 } from './diagramSteps.fixtures';
 import { markup, sceneOf, sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
+import { diagramLayoutSteps } from '../pages/diagramPages';
 
 function sequentialIds(): DiagramIdFactory {
   let next = 0;
@@ -1056,6 +1057,102 @@ describe('an enlarged step in the file (Revision 2)', () => {
     expect(JSON.stringify(writeDiagram(older.document))).toBe(JSON.stringify(written));
     expect(step.zoom).toBeUndefined();
     expect(read.readOnly).toBe(false);
+  });
+});
+
+describe('a step placed by hand in the file (page overrides)', () => {
+  const PLACED = { frame: [3.5, -2], number: [1, 0], picture: [0, 4.2], text: [-1.5, 2], scale: { mmPerUnit: 0.25 } };
+  function withPlace(value: unknown, step = 1) {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[step].place = value;
+    const read = readDiagram(written)!;
+    return { written, read, step: stepsIn(read.document)[step]! };
+  }
+
+  it('round-trips every field, each only when said, byte for byte', () => {
+    for (const value of [PLACED, { scale: { frameMm: 52.5 } }, { text: [0, 3] }, { frame: [-4, 0], picture: [1, 1] }]) {
+      const { written, read, step } = withPlace(value);
+      expect(read.readOnly).toBe(false);
+      expect(step.unknown).toBeUndefined();
+      expect(step.placeNewer).toBeUndefined();
+      expect(step.place).toEqual(value);
+      expect(JSON.stringify(throughJson(writeDiagram(read.document)))).toBe(JSON.stringify(written));
+    }
+  });
+
+  it('writes none for a step placed by no one, or whose placement comes to nothing', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    expect(written.steps.every((step: Record<string, unknown>) => !('place' in step))).toBe(true);
+    const document = linkedDiagram();
+    const steps = document.steps.map((entry, index) => (index === 1 ? { ...entry, place: { frame: [0, 0], text: [0.01, -0.04] } } : entry));
+    expect('place' in throughJson(writeDiagram({ ...document, steps } as typeof document)).steps[1]).toBe(false);
+  });
+
+  it('keeps an offset to a tenth of a mm, and one under 0.05 mm both ways as none', () => {
+    const { step } = withPlace({ frame: [1.234, -0.26], number: [0.04, -0.049], text: [0.06, 0] });
+    expect(step.place).toEqual({ frame: [1.2, -0.3], text: [0.1, 0] });
+    const document = linkedDiagram();
+    const steps = document.steps.map((entry, index) => (index === 1 ? { ...entry, place: { picture: [2.449, 0.0000001] } } : entry));
+    expect(throughJson(writeDiagram({ ...document, steps } as typeof document)).steps[1].place).toEqual({ picture: [2.4, 0] });
+  });
+
+  it.each([
+    ['an offset that is not two numbers', { ...PLACED, frame: [1, 2, 3] }, 'frame'],
+    ['an offset that is not finite', { ...PLACED, text: [Number.MAX_VALUE * 10, 1] }, 'text'],
+    ['a pin of no size', { ...PLACED, scale: { mmPerUnit: 0 } }, 'scale'],
+    ['a pin of both measures', { ...PLACED, scale: { mmPerUnit: 1, frameMm: 40 } }, 'scale'],
+    ['a pin that is no record', { ...PLACED, scale: 40 }, 'scale'],
+  ] as const)('drops %s alone, and keeps the rest of the placement', (_label, value, dropped) => {
+    const { step } = withPlace(value);
+    const { [dropped]: _gone, ...rest } = PLACED;
+    expect(step.place).toEqual(rest);
+    expect(step.placeNewer).toBeUndefined();
+    expect(step.picture).not.toBeNull();
+  });
+
+  it('reads a placement that is no record, or one left with nothing, as none', () => {
+    for (const value of ['moved', [1, 2], null, {}, { frame: 'left' }]) {
+      const { step } = withPlace(value);
+      expect(step.place).toBeUndefined();
+      expect(step.placeNewer).toBeUndefined();
+      expect(step.unknown).toBeUndefined();
+    }
+  });
+
+  it.each([
+    ['a field it has no name for', { ...PLACED, rotate: 15 }],
+    ['a field of its pin it has no name for', { ...PLACED, scale: { printedMm: 40 } }],
+  ])('carries a placement with %s whole, written back byte for byte and never applied, the step still editable', (_label, value) => {
+    const { written, read, step } = withPlace(value);
+    expect(step.unknown).toBeUndefined();
+    expect(step.place).toBeUndefined();
+    expect(step.placeNewer).toEqual(value);
+    expect(read.readOnly).toBe(false);
+    expect(JSON.stringify(writeDiagram(read.document))).toBe(JSON.stringify(written));
+    // Never applied: the layout is not given it.
+    expect(diagramLayoutSteps(read.document).every((each) => each.place === undefined)).toBe(true);
+    // Placed by this build, it is.
+    expect(diagramLayoutSteps(withPlace(PLACED).read.document)[1]!.place).toEqual(PLACED);
+  });
+
+  it('leaves a newer build’s step as it came, placement and all: never read, never applied', () => {
+    const { written } = withPlace(PLACED);
+    written.steps[1].hologram = 3;
+    const read = readDiagram(written)!;
+    const step = stepsIn(read.document)[1]!;
+    expect(step.unknown).toEqual(written.steps[1]);
+    expect(step.place).toBeUndefined();
+    expect(diagramLayoutSteps(read.document)[1]!.place).toBeUndefined();
+    expect(JSON.stringify(writeDiagram(read.document))).toBe(JSON.stringify(written));
+  });
+
+  it('is kept, locked and verbatim, by a build that reads no placement: as any step field it has no name for', () => {
+    // A build before placement knows no `place` key (`STEP_KEYS`): `hologram` stands for it here, as for `zoom`.
+    const { written } = withPlace(undefined);
+    written.steps[1].hologram = PLACED;
+    const older = readDiagram(written)!;
+    expect(stepsIn(older.document)[1]!.unknown).toEqual(written.steps[1]);
+    expect(JSON.stringify(writeDiagram(older.document))).toBe(JSON.stringify(written));
   });
 });
 

@@ -8,6 +8,7 @@
  * the pages it composes, not a download.
  */
 import {
+  isLockedStep,
   isLockedTurn,
   isTurn,
   stepAsset,
@@ -102,6 +103,8 @@ export function diagramLayoutSteps(
       turnsAfter: [],
       // Enlarged, with no window yet: in no run of enlarged steps, and parting none.
       ...(zoom ? { zoom } : entry.zoom ? { zoomPending: true as const } : {}),
+      // Placed by hand, by this build: a newer build's placement, or step, prints where its cell puts it.
+      ...(entry.place && !entry.placeNewer && !isLockedStep(entry) ? { place: entry.place } : {}),
     });
     turns = [];
   }

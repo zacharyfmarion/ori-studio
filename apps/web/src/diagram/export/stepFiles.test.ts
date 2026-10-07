@@ -10,6 +10,7 @@ import {
   stepsOf,
   type DiagramDocument,
   type DiagramStep,
+  type DiagramStepPlace,
 } from '../document/diagramDocument';
 import { cpStep, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
 import { FIXTURE_FONTS, fixtureSubsetter } from '../fonts/diagramFonts.fixtures';
@@ -282,6 +283,22 @@ describe('an enlarged step’s file (Revision 2)', () => {
     // Only the paper near the window is drawn into it.
     const faces = (svg: string) => (svg.match(/<path d="M[^"]*Z" fill=/g) ?? []).length;
     expect(faces(window)).toBeLessThan(faces(whole));
+  });
+
+  it('ignores hand placement, which is the pages’ alone: an area pinned and moved makes the same files', () => {
+    const crane = craneStep('S.none');
+    const area = { id: 'area-1', kind: 'zoom' as const, from: [0.37, 0.13] as [number, number], to: [0.37, 0.13] as [number, number], radius: 0.13 };
+    const zoom = { from: 'area-1', shape: 'circle' as const, frame: { centre: [0.37, 0.13] as [number, number], radius: 0.13 } };
+    const key = crane.picture!.key;
+    const composed = (place?: DiagramStepPlace) => {
+      const steps: DiagramStep[] = [
+        { ...crane, id: 'step-area', annotations: [area], annotatedPictureKey: key, ...(place ? { place } : {}) },
+        { ...crane, id: 'step-enlarged', zoom, annotatedPictureKey: key, ...(place ? { place: { frame: place.frame, text: place.text } } : {}) },
+      ];
+      const files = prepareStepFiles(insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), steps, 0), FIXTURE_FONTS, subsetter, SAME);
+      return files.files.map((_, index) => files.compose(index).svg);
+    };
+    expect(composed({ frame: [6, -3], number: [2, 1], picture: [-4, 2], text: [0, 5], scale: { mmPerUnit: 2 } })).toEqual(composed());
   });
 
   /**

@@ -50,7 +50,7 @@
  *
  * Pure.
  */
-import type { DiagramPageSetup, DiagramPageSide, DiagramTurnKind } from '../document/diagramDocument';
+import type { DiagramPageSetup, DiagramPageSide, DiagramStepPlace, DiagramTurnKind } from '../document/diagramDocument';
 import type { DiagramFontFace } from '../fonts/diagramFontFaces';
 import {
   bendReach,
@@ -283,6 +283,13 @@ export interface LayoutStep {
    * prints before it. Absent on every other.
    */
   zoomPending?: true;
+  /**
+   * The step's hand placement (`implementation-plans/diagram-page-overrides.md`):
+   * absent on a step placed by no one, a newer build's step, and one whose
+   * placement only a newer build reads. Not read yet: every step is laid out
+   * where its cell puts it, placed or not, until the layout applies it.
+   */
+  place?: DiagramStepPlace;
 }
 
 /**
@@ -459,12 +466,30 @@ export interface DiagramPagesLayout {
   bandInk: string;
 }
 
+/**
+ * The columns and rows a page's cells are cut into under a setup: what the
+ * layout cuts its pages by, and what every count of a page's cells reads —
+ * the page count, and which cell a step is in (`stepPlaces.ts`). Read from
+ * the setup alone, never the title, so typing a title never re-cuts a page
+ * (`implementation-plans/diagram-page-overrides.md`, Phase 1b).
+ */
+export function pageGrid(setup: DiagramPageSetup): { columns: number; rows: number } {
+  return { columns: setup.columns, rows: setup.rows };
+}
+
+/** How many steps a page holds under a setup ({@link pageGrid}). */
+export function cellsPerPage(setup: DiagramPageSetup): number {
+  const { columns, rows } = pageGrid(setup);
+  return columns * rows;
+}
+
 /** The size of a page's cells under a setup: the page inside its margins, less the header and footer, cut into columns and rows. */
 export function pageCellMm(setup: DiagramPageSetup, title: string): { w: number; h: number } {
   const { widthMm: W, heightMm: H, marginMm: m } = printPaper(setup);
   const headH = setup.showTitle && title.trim() !== '' ? HEADER_MM : 0;
   const footH = setup.pageNumbers.enabled ? FOOTER_MM : 0;
-  return { w: (W - 2 * m) / setup.columns, h: (H - 2 * m - headH - footH) / setup.rows };
+  const { columns, rows } = pageGrid(setup);
+  return { w: (W - 2 * m) / columns, h: (H - 2 * m - headH - footH) / rows };
 }
 
 /**
@@ -952,7 +977,8 @@ export function layoutDiagramPages(
   const roomW = Math.max(12, cellW - (turning ? TURN_GUTTER_MM : PICTURE_SIDE_ROOM_MM) - 2 * outerShortfall);
   const fullBox = Math.max(12, Math.min(roomW, cellH * 0.64));
   const textWidth = cellW * 0.8;
-  const perPage = setup.columns * setup.rows;
+  const { columns, rows } = pageGrid(setup);
+  const perPage = cellsPerPage(setup);
 
   const pagesOfSteps = splitIntoPages(steps, perPage).map((page) =>
     page.map((index) => ({ step: steps[index]!, index }))
@@ -961,7 +987,7 @@ export function layoutDiagramPages(
   // flow, so that the lane carries on across each spread.
   const plans: FlowPagePlan[] = pagesOfSteps.map((_, pageIndex) =>
     flow
-      ? flowPagePlan(pageIndex, pagesOfSteps.length, setup.firstPageSide, setup.rows)
+      ? flowPagePlan(pageIndex, pagesOfSteps.length, setup.firstPageSide, rows)
       : { side: pageSide(pageIndex, setup.firstPageSide), up: false, firstRightToLeft: false, entry: 'none', exit: 'none' }
   );
 
@@ -982,10 +1008,10 @@ export function layoutDiagramPages(
    * row that runs right to left from the right, every other cell lower.
    */
   const cellAt = (plan: FlowPagePlan, k: number) => {
-    const row = Math.floor(k / setup.columns);
-    const k0 = k % setup.columns;
-    const col = flow && rowRightToLeft(plan, row) ? setup.columns - 1 - k0 : k0;
-    const down = plan.up ? setup.rows - 1 - row : row;
+    const row = Math.floor(k / columns);
+    const k0 = k % columns;
+    const col = flow && rowRightToLeft(plan, row) ? columns - 1 - k0 : k0;
+    const down = plan.up ? rows - 1 - row : row;
     return { x: m + col * cellW, y: m + headH + down * cellH + (flow && k0 % 2 === 1 ? cellH * FLOW_STEP : 0) };
   };
   /** How far down the page the text of a page's `k`th cell may sit, by its cell. */
@@ -1001,7 +1027,7 @@ export function layoutDiagramPages(
     const after = plan.up ? k : k + 1;
     const next = after > 0 ? entries[after]?.step : undefined;
     const glyphs = next ? glyphsBefore(next) : [];
-    if (!flow || glyphs.length === 0 || after % setup.columns !== 0) return own;
+    if (!flow || glyphs.length === 0 || after % columns !== 0) return own;
     const under = plan.up ? after - 1 : after;
     const room = stackHeight(glyphs, true) + 2 * TURN_STACK_CLEAR_MM;
     return Math.min(own, cellAt(plan, under).y + STEP_NUMBER_TOP_MM - room - TEXT_DESCENT_MM);
@@ -1119,7 +1145,7 @@ export function layoutDiagramPages(
     if (!flow) return [];
     const plan = plans[pageIndex]!;
     const stop = (k: number, at: { x: number; y: number }): LaneStop => {
-      const row = Math.floor(k / setup.columns);
+      const row = Math.floor(k / columns);
       return { ...at, row, rightToLeft: rowRightToLeft(plan, row) };
     };
     const stops = cells.map((cell, k) => stop(k, laneCentre(cell)));
@@ -1160,7 +1186,7 @@ export function layoutDiagramPages(
     const { turns, zoomArrows } = placeTurns(
       placed.map(({ step }) => step),
       cells,
-      setup.columns,
+      columns,
       flow ? plan : null,
       lane,
       W,

@@ -10,7 +10,7 @@ import {
   type DiagramStep,
   stepsOf,
 } from '../document/diagramDocument';
-import { pageCellMm, pathWidthMm, splitIntoPages } from './diagramPageLayout';
+import { cellsPerPage, pageCellMm, pathWidthMm, splitIntoPages } from './diagramPageLayout';
 import type { DiagramStyleChoice } from './diagramStyleChoices';
 
 const NO_STEPS: readonly DiagramStep[] = [];
@@ -34,7 +34,7 @@ export function useDiagramPageSetup() {
   );
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const steps = useWorkspaceStore((state) => (state.diagram ? stepsOf(state.diagram) : NO_STEPS));
-  const perPage = page.columns * page.rows;
+  const perPage = cellsPerPage(page);
   const pageCount = useMemo(() => splitIntoPages(steps, perPage).length, [steps, perPage]);
 
   const setPage = useCallback((patch: Partial<DiagramPageSetup>, setting: DiagramPageSetting) => {

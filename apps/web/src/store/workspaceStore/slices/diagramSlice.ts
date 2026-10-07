@@ -62,6 +62,8 @@ import {
   withPaperFaces,
 } from '../diagramZoom';
 import { lacksPaperFaces } from '../../../diagram/capture/stepPaperFaces';
+import { resetStepPlace, resetStepPlaces, setStepPlace } from '../../../diagram/document/stepPlace';
+import { cellSlots, settlePlaces } from '../../../diagram/pages/stepPlaces';
 import {
   emptySnapshotHistory,
   recordSnapshot,
@@ -122,6 +124,9 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
   /** The References browser's openings, counted: what a pull names its browser by. */
   let browserOpenings = 0;
 
+  /** The edits that sent frames moved by hand home, counted: `diagramPlacesSettled`'s nonce. */
+  let placesSettled = 0;
+
   /** Whether an edit in `session` at `key` extends the newest entry, and the session to remember after it. */
   const sessionFor = (key: string, session: number | undefined) => {
     const loadId = get().diagramLoadId;
@@ -152,21 +157,25 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     // An edit that changed nothing records nothing — and does not bring a
     // diagram into being just to leave it empty.
     if (edited === base) return null;
+    // A frame moved by hand whose step the edit put in another cell goes back
+    // to it, in this edit's undo step (Decision 1A): one rule, here, whatever
+    // the edit was, so no verb can forget it.
+    const { document: settled, settled: count } = settlePlaces(base, edited);
     // An asset nothing refers to any more goes as the edit lands. Each undo
     // snapshot keeps its own assets table, so undo still has the picture a
     // replace took away; and with the current diagram no longer holding it,
     // the history byte cap (`trimDiagramHistory`) sees what only history keeps.
-    const next = withReferencedAssets(edited);
+    const next = withReferencedAssets(settled);
     if (!extend) openSession = null;
+    const history = extend
+      ? state.diagramHistory
+      : trimDiagramHistory(recordSnapshot(state.diagramHistory, snapshotEntry(before, label)), next);
     set({
       diagram: next,
-      diagramHistory: extend
-        ? state.diagramHistory
-        : trimDiagramHistory(
-            recordSnapshot(state.diagramHistory, snapshotEntry(before, label)),
-            next
-          ),
+      diagramHistory: history,
       dirty: true,
+      // With the undo entry they went home in, so what offers to undo it can tell it is still the newest.
+      ...(count > 0 ? { diagramPlacesSettled: { count, nonce: (placesSettled += 1), entry: history.past.at(-1) ?? null } } : {}),
     });
     return next;
   };
@@ -725,5 +734,26 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       const same = current === pick || (current && pick && current.stepId === pick.stepId && current.target === pick.target);
       if (!same) set({ diagramAnchorPick: pick });
     },
+
+    setDiagramStepPlace: (stepId, patch, { session, loadId } = {}) => {
+      if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
+      // A sitting extends its entry only while it edits the same fields: a nudge of the text after the number is a step of its own.
+      const fields = Object.keys(patch).sort().join(',');
+      const { extend, remember } = sessionFor(`place:${stepId}:${fields}`, session);
+      const next = commit('Place on page', (document) => setStepPlace(document, stepId, patch), extend);
+      if (!next) return false;
+      remember();
+      return true;
+    },
+
+    resetDiagramStepPlace: (stepId, part) =>
+      commit('Reset placement', (document) => resetStepPlace(document, stepId, part)) !== null,
+
+    resetDiagramPlaces: (pageIndex) =>
+      commit('Reset placements', (document) => {
+        if (pageIndex === null) return resetStepPlaces(document, null);
+        const page = cellSlots(document).pages[pageIndex];
+        return page ? resetStepPlaces(document, new Set(page)) : document;
+      }) !== null,
   };
 };

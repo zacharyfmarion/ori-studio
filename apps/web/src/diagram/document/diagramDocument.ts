@@ -672,6 +672,51 @@ export interface DiagramStepZoom {
 }
 
 /**
+ * A step placed by hand on the printed pages
+ * (`implementation-plans/diagram-page-overrides.md`): every field optional,
+ * and absent means where the layout puts it. Offsets are print mm, to a tenth
+ * (`stepPlace.ts`), and one of none is never kept.
+ */
+export interface DiagramStepPlace {
+  /**
+   * The whole step, away from its cell, mm, in the page's reading terms:
+   * `along` its row's reading direction (right on a row read left to right,
+   * left on one read right to left), and `across` toward the page's next row
+   * (down a page whose rows read downward, up a flow page whose rows read
+   * up from its foot). So a frame keeps its place among its neighbours when
+   * a page turns its rows or reads them the other way, as a page renumbered
+   * or the first page's side changed does. Kept only while the step stays in
+   * its cell (`pages/stepPlaces.ts`).
+   */
+  frame?: [along: number, across: number];
+  /** Each part away from where the layout puts it in the frame: mm, on the page's axes (+x right, +y down). */
+  number?: [dx: number, dy: number];
+  picture?: [dx: number, dy: number];
+  text?: [dx: number, dy: number];
+  /**
+   * The picture's scale, pinned, in the measure Fit each sizes its kind of
+   * picture by: mm per pattern unit for one that knows its paper, its
+   * frame's longer side in mm for one that is fitted. A pin of the other
+   * kind than the picture is now sleeps, kept until a picture of its kind
+   * comes back. Finite and above zero.
+   */
+  scale?: DiagramPlaceScale;
+}
+
+/** A pinned scale ({@link DiagramStepPlace.scale}): the `PictureMeasure` the layout passes around. */
+export type DiagramPlaceScale = { mmPerUnit: number } | { frameMm: number };
+
+/** A part of a step that can be moved by hand: the frame carries the others. */
+export type DiagramPlaceOffset = 'frame' | 'number' | 'picture' | 'text';
+
+/**
+ * What a reset of a step's placement clears: one offset, the pinned scale,
+ * every offset (`position`), or the lot (`all`), which drops a newer build's
+ * record too.
+ */
+export type DiagramPlaceReset = DiagramPlaceOffset | 'scale' | 'position' | 'all';
+
+/**
  * How many ticks an equality mark draws: across each half of an angle mark,
  * on each part of equal divisions. A second set of equal angles or parts in a
  * step takes two.
@@ -910,6 +955,18 @@ export interface DiagramStep {
   breakBefore: boolean;
   /** Set when the step is enlarged (Revision 2): the frame of its picture it shows. */
   zoom?: DiagramStepZoom;
+  /** Set when the step is placed by hand on the printed pages; never empty. */
+  place?: DiagramStepPlace;
+  /**
+   * A newer build's placement, with a field this build has no name for: the
+   * raw `place`, written back as it came and never applied, so the step
+   * prints where the layout puts it and stays editable. Never beside
+   * {@link place}. Carried as it is through every edit but for its `frame`,
+   * which this build knows belongs to the step's cell: it goes home when the
+   * step changes cell, as this build's does, and a duplicate does not copy
+   * it. A reset of the whole placement drops the lot.
+   */
+  placeNewer?: Record<string, unknown>;
   /**
    * Set when the step was written by a newer build in a shape this one cannot
    * read: the raw step, re-emitted verbatim on save. Such a step is locked — it
@@ -1219,8 +1276,15 @@ export function duplicateStep(
   const original = document.steps[index];
   // A turn is not duplicated: two turns in a row are one turn, or none.
   if (isTurn(original) || isLockedStep(original)) return null;
+  const { place, placeNewer, ...kept } = original;
+  // Its pin and its parts' offsets are the original's; a frame offset belongs
+  // to the original's cell — a newer build's too, whose `frame` this one knows.
+  const { frame: _cell, ...placed } = place ?? {};
+  const { frame: _newerCell, ...newer } = placeNewer ?? {};
   const copy: DiagramStep = {
-    ...original,
+    ...kept,
+    ...(Object.keys(placed).length > 0 ? { place: placed } : {}),
+    ...(Object.keys(newer).length > 0 ? { placeNewer: newer } : {}),
     id: newId('step'),
     revision: 0,
     // A new page belongs to where the original starts one; the copy follows it.
