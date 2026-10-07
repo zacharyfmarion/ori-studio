@@ -15,7 +15,9 @@ import {
   isTurn,
   stepById,
   stepIndex,
+  type DiagramCpRender,
   type DiagramDocument,
+  type DiagramLayerSpread,
   type DiagramStep,
   type DiagramStepZoom,
   type DiagramZoomEdge,
@@ -289,4 +291,32 @@ export function seededCapture(document: DiagramDocument, stepId: string): ZoomCa
 /** What a new step starts with: {@link seededCapture}'s frame. */
 export function seededZoom(document: DiagramDocument, stepId: string): DiagramStepZoom | null {
   return seededCapture(document, stepId)?.zoom ?? null;
+}
+
+/**
+ * The pose an enlarged step's first link starts in (16h): its capture
+ * source's turn, so what its frame shows of the paper faces the way it does
+ * there — the source's rotation, which holds an Upright, and, from a flat
+ * fold, the side it shows; a flat fold starts with `spread`, as every new
+ * flat pose does. A step whose frame was captured before it had a pattern
+ * would otherwise start at no turn, and its head point elsewhere. A whole
+ * step's first link starts at no turn, as ever. Null for a step linked
+ * already, one not enlarged, or one whose source is not a linked crease
+ * pattern or flat fold.
+ */
+export function firstLinkPose(document: DiagramDocument, stepId: string, spread?: DiagramLayerSpread): DiagramCpRender | null {
+  const step = stepById(document, stepId);
+  if (!step?.zoom || step.source?.kind === 'cp') return null;
+  const source = captureSource(document, stepId)?.step.source;
+  if (source?.kind !== 'cp') return null;
+  const { render } = source;
+  switch (render.mode) {
+    case 'crease-pattern':
+      return { mode: 'crease-pattern', rotationDeg: render.rotationDeg };
+    case 'folded-flat':
+      return { mode: 'folded-flat', side: render.side, rotationDeg: render.rotationDeg, foldCase: 1, ...(spread ? { spread } : {}) };
+    case 'folded-3d':
+    case 'simulated':
+      return null;
+  }
 }

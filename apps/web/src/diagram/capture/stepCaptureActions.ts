@@ -30,6 +30,7 @@ import {
   type DiagramStep,
   stepById,
 } from '../document/diagramDocument';
+import { firstLinkPose } from '../zoom/zoomCapture';
 import { knownCreasesOf } from './captureCreases';
 import { stepSheetNow } from './stepSheetNow';
 import { openLinkedPoseOf } from './openLinkedPose';
@@ -63,18 +64,21 @@ export function pickerShowAs(step: DiagramStep | null): DiagramShowAs {
  * Link a step to a pattern — or relink a linked one to another — shown as
  * `way`, and capture its picture (D19): the picker links and chooses the way
  * in one pick. A relink in the way the step is shown keeps its pose, except a
- * Simulated fold %, which starts again at 0%. Whether it was linked.
+ * Simulated fold %, which starts again at 0%. A first link starts at no turn,
+ * but an enlarged step's in its frame's source's turn (`firstLinkPose`).
+ * Whether it was linked.
  */
 export async function linkDiagramStep(stepId: string, segment: CpSegment, way?: DiagramShowAs): Promise<boolean> {
   const store = useWorkspaceStore.getState();
   const step = store.diagram ? stepById(store.diagram, stepId) : null;
-  if (!step) return false;
+  if (!step || !store.diagram) return false;
   const linked = step.source?.kind === 'cp' ? step.source : null;
   const showAs = way ?? (linked ? showAsOf(linked.render) : 'crease-pattern');
+  const spread = startingSpread(stepId);
   const asked = renderToShowAs(
-    linked ?? { render: { mode: 'crease-pattern', rotationDeg: 0 } },
+    linked ?? { render: firstLinkPose(store.diagram, stepId, spread) ?? { mode: 'crease-pattern', rotationDeg: 0 } },
     showAs,
-    startingSpread(stepId)
+    spread
   );
   // A link chooses a region, and a fold % above 0 is only Pose's live solver's
   // to settle (D19): shown Simulated, it links at 0%, from the camera it had.

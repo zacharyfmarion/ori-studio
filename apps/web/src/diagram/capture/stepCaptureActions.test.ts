@@ -100,6 +100,50 @@ describe('linkDiagramStep', () => {
     expect(toasts.message).not.toHaveBeenCalled();
   });
 
+  describe('an enlarged step’s first link (16h)', () => {
+    const zoom = { from: 'area-head', shape: 'circle' as const, frame: { centre: [0.4, 0.3] as [number, number], radius: 0.1 } };
+    /** A flat step turned 158° and enlarged, then an empty step enlarged after it — as Insert Step After seeds one — and a whole one. */
+    function afterTurned(render: Parameters<typeof cpStep>[1]) {
+      const diagram = insertSteps(createDiagram({ title: 'Crane' }), [
+        { ...cpStep('step-turned', render), zoom },
+        { ...cpStep('step-seeded', undefined, null), source: null, zoom },
+        { ...cpStep('step-whole', undefined, null), source: null },
+      ], 0);
+      useWorkspaceStore.setState({ diagram });
+    }
+    const asked = (capture: ReturnType<typeof answer>) => (capture.mock.calls.at(-1) as unknown as [string, { render: unknown }])[1].render;
+
+    it('starts in its source’s turn, folded or as a crease pattern; a whole step starts at none, as ever', async () => {
+      afterTurned({ mode: 'folded-flat', side: 'front', rotationDeg: 158, foldCase: 2 });
+      const capture = answer(CAPTURED);
+      await linkDiagramStep('step-seeded', left!, 'folded');
+      expect(asked(capture)).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 158, foldCase: 1, spread: expect.objectContaining({ kind: 'affine' }) });
+      await linkDiagramStep('step-seeded', left!, 'crease-pattern');
+      expect(asked(capture)).toEqual({ mode: 'crease-pattern', rotationDeg: 158 });
+      await linkDiagramStep('step-whole', left!, 'folded');
+      expect(asked(capture)).toMatchObject({ mode: 'folded-flat', side: 'front', rotationDeg: 0 });
+    });
+
+    it('from a flat fold seen from the back: that side folded, the mirrored turn as a crease pattern', async () => {
+      afterTurned({ mode: 'folded-flat', side: 'back', rotationDeg: 30, foldCase: 1 });
+      const capture = answer(CAPTURED);
+      await linkDiagramStep('step-seeded', left!, 'folded');
+      expect(asked(capture)).toMatchObject({ mode: 'folded-flat', side: 'back', rotationDeg: 30 });
+      await linkDiagramStep('step-seeded', left!, 'crease-pattern');
+      expect(asked(capture)).toEqual({ mode: 'crease-pattern', rotationDeg: 330 });
+    });
+
+    it('relinked, keeps its own pose', async () => {
+      afterTurned({ mode: 'crease-pattern', rotationDeg: 90 });
+      const diagram = state().diagram!;
+      const own = { ...cpStep('step-seeded', { mode: 'crease-pattern', rotationDeg: 45 }), zoom };
+      useWorkspaceStore.setState({ diagram: { ...diagram, steps: diagram.steps.map((entry) => (entry.id === 'step-seeded' ? own : entry)) } });
+      const capture = answer(CAPTURED);
+      await linkDiagramStep('step-seeded', left!);
+      expect(asked(capture)).toEqual({ mode: 'crease-pattern', rotationDeg: 45 });
+    });
+  });
+
   it('keeps the picker open, and says why, when the link fails', async () => {
     answer({ status: 'failed', code: 'oristudio_cp', message: 'kernel says no' });
     useWorkspaceStore.setState({ diagramPatternPicker: 'step-empty' });
