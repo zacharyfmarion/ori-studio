@@ -17,6 +17,7 @@ import {
   distanceToRim,
   frameWindow,
   outlineAsShape,
+  stretchInside,
   withZoomAnchor,
   withZoomEdge,
   withZoomScale,
@@ -214,5 +215,36 @@ describe('a rectangle’s turn', () => {
     expect(rectangleAngle(180)).toBe(0);
     expect(rectangleAngle(-90)).toBe(90);
     expect(rectangleAngle(359.5)).toBeCloseTo(179.5, 9);
+  });
+});
+
+describe('a line through a frame (Zach, 2026-10-07)', () => {
+  const circle = { centre: [0.5, 0.5] as PicturePoint, radius: 0.2 };
+  const at = (from: PicturePoint, to: PicturePoint, t: number): PicturePoint => [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
+
+  it('is inside a circle over one stretch, its ends on the rim', () => {
+    const [from, to]: PicturePoint[] = [[0.5, -0.5], [0.5, 1.5]];
+    const [start, end] = stretchInside(circle, from, to)!;
+    expect(start).toBeCloseTo(0.4, 9);
+    expect(end).toBeCloseTo(0.6, 9);
+    // An end inside stays the end.
+    expect(stretchInside(circle, [0.5, 0.5], [0.5, 1.5])).toEqual([0, expect.closeTo(0.2, 9)]);
+    expect(stretchInside(circle, [0.45, 0.5], [0.55, 0.5])).toEqual([0, 1]);
+  });
+
+  it('is inside a turned rounded rectangle where its outline holds it, its ends on the rim', () => {
+    const outline = { centre: [0.5, 0.5] as PicturePoint, size: [0.4, 0.2] as [number, number], angle: 30 };
+    const [from, to]: PicturePoint[] = [[-0.5, 0.2], [1.5, 0.9]];
+    const [start, end] = stretchInside(outline, from, to)!;
+    expect(start).toBeLessThan(end);
+    expect(distanceToRim(outline, at(from, to, start))).toBeLessThan(1e-9);
+    expect(distanceToRim(outline, at(from, to, end))).toBeLessThan(1e-9);
+    expect(distanceOutside(outline, at(from, to, (start + end) / 2))).toBe(0);
+  });
+
+  it('misses a frame it passes by, even inside its upright box', () => {
+    expect(stretchInside(circle, [0, 0.1], [1, 0.1])).toBeNull();
+    // Across the square's corner, outside the circle.
+    expect(stretchInside(circle, [0.3, 0.36], [0.36, 0.3])).toBeNull();
   });
 });

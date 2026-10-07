@@ -1,4 +1,4 @@
-import type { PicturePoint } from '../annotate/annotationModel';
+import { LINE_KINDS, type PicturePoint } from '../annotate/annotationModel';
 import { storedSceneStep } from '../capture/captureGeometry';
 import { isKnownAnnotation, isTurn, type DiagramDocument, type DiagramStep, type DiagramZoomOutline } from '../document/diagramDocument';
 import { storedScene } from '../pictures/pictureFrame';
@@ -79,10 +79,13 @@ export function marksMoved(before: DiagramStep, after: DiagramStep): string[] {
  * The marks that moved on the paper from `was` to `now` where no verb meant
  * to move them: on each step enlarged before or after whose picture is the
  * one it was — its key and its source — every mark in both stays where it
- * was on that picture. Not checked: steps in `allowed`, the ones the verbs
- * under test move marks on; a step whose own picture the verb changed, which
- * carries its marks itself; and one the change left out of step with its
- * picture, which its notice says (D8). One line per step.
+ * was on that picture; a line carried into a window from the whole picture
+ * may be trimmed there, its ends on the line it was (`trimmedAtFrame`), and
+ * made whole again along itself by the undo. Not checked: steps in
+ * `allowed`, the ones the verbs under test move marks on; a step whose own
+ * picture the verb changed, which carries its marks itself; and one the
+ * change left out of step with its picture, which its notice says (D8). One
+ * line per step.
  */
 export function marksProblems(was: DiagramDocument, now: DiagramDocument, allowed: ReadonlySet<string> = new Set()): string[] {
   const before = new Map(was.steps.filter((entry): entry is DiagramStep => !isTurn(entry)).map((entry) => [entry.id, entry]));
@@ -94,10 +97,26 @@ export function marksProblems(was: DiagramDocument, now: DiagramDocument, allowe
     const samePicture = old.picture?.key === entry.picture?.key && JSON.stringify(old.source) === JSON.stringify(entry.source);
     if (!old.picture || !samePicture || (inStep(old) && !inStep(entry))) continue;
     const kept = marksInPicture(entry);
-    const moved = marksMoved(old, entry).filter((id) => kept.has(id));
+    // Into a window from the whole picture, or back out of one by an undo.
+    const entered = !stepWindow(old) !== !stepWindow(entry);
+    const olds = marksInPicture(old);
+    const lines = new Set(entry.annotations.filter((mark) => isKnownAnnotation(mark) && LINE_KINDS.has(mark.kind)).map((mark) => mark.id));
+    const along = (shorter: PicturePoint[], longer: PicturePoint[]) => shorter.every((point) => onSegment(point, longer));
+    const trimmed = (id: string) =>
+      entered && lines.has(id) && (along(kept.get(id)!, olds.get(id)!) || along(olds.get(id)!, kept.get(id)!));
+    const moved = marksMoved(old, entry).filter((id) => kept.has(id) && !trimmed(id));
     if (moved.length > 0) problems.push(`${entry.id}: marks moved on the paper (${moved.join(', ')})`);
   }
   return problems;
+}
+
+/** Whether `point` lies on the segment `a`–`b`, but for float noise. */
+function onSegment([x, y]: PicturePoint, [[ax, ay], [bx, by]]: PicturePoint[]): boolean {
+  const [dx, dy] = [bx - ax, by - ay];
+  const length2 = dx * dx + dy * dy;
+  const t = length2 > 0 ? ((x - ax) * dx + (y - ay) * dy) / length2 : 0;
+  if (t < -1e-9 || t > 1 + 1e-9) return false;
+  return Math.hypot(x - (ax + t * dx), y - (ay + t * dy)) <= 1e-9;
 }
 
 /** The invariant, watched over a store: what broke it, and the steps a test lets its verbs move marks on. */

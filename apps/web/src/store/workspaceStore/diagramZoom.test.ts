@@ -18,7 +18,7 @@ import { referencesStep, stepsIn } from '../../diagram/document/diagramSteps.fix
 import { craneStep, imprintCase, turnedCapture } from '../../diagram/zoom/zoom.fixtures';
 import { paperFacesOf, toPicture } from '../../diagram/zoom/zoomImprint';
 import { frameProblems, marksInPicture, marksMoved, marksProblems, watchFrames } from '../../diagram/zoom/zoomInvariant.fixtures';
-import { ZOOM_FRAME_ID } from '../../diagram/zoom/zoomModel';
+import { ZOOM_FRAME_ID, ZOOM_LINE_OVERSHOOT } from '../../diagram/zoom/zoomModel';
 import { useWorkspaceStore } from '../workspaceStore';
 import { activeAnchorPick } from './diagramState';
 import type { DiagramCommit } from './diagramCapture';
@@ -175,6 +175,47 @@ describe('Pose’s Enlarged (Z2)', () => {
       expect(mark.to[0]).toBeCloseTo(was.to[0], 12);
       expect(mark.to[1]).toBeCloseTo(was.to[1], 12);
     }
+  });
+
+  it('S1 with the long line through the head (Zach, 2026-10-07): trimmed just past the frame in the same undo step, and kept so', async () => {
+    const s = craneStep('S.none');
+    const area = { ...headArea(s), radius: 0.05 };
+    // Down the model through the area's centre, as the crane's centre valley line runs.
+    const long: KnownDiagramAnnotation = { id: 'long', kind: 'valley-line', from: [area.from[0], 0.98], to: [area.from[0], 0.01] };
+    const body: KnownDiagramAnnotation = { id: 'body', kind: 'circle', from: [0.4, 0.7], to: [0.4, 0.7] };
+    install([{ ...s, id: 'step-1', annotations: [area, long, body], annotatedPictureKey: s.picture!.key }]);
+    const copy = state().duplicateDiagramStep('step-1')!;
+    // A duplicate's marks have ids of their own.
+    const lineOf = (each: DiagramStep) => (each.annotations as KnownDiagramAnnotation[]).find((mark) => mark.kind === 'valley-line')!;
+    const lineId = lineOf(step(copy)).id;
+    const circleId = (step(copy).annotations as KnownDiagramAnnotation[]).find((mark) => mark.kind === 'circle')!.id;
+    const drawn = marksInPicture(step(copy));
+    const whole = step(copy);
+    const was = past();
+    expect(await state().enlargeDiagramStep(copy)).toBe(true);
+    expect(past()).toBe(was + 1);
+    const enlarged = step(copy);
+    const trimmed = lineOf(enlarged);
+    // Its ends just past the window's circle — centre (0.5, 0.5), radius 0.5 in its units — not ten windows down the page.
+    for (const end of [trimmed.from, trimmed.to]) expect(Math.hypot(end[0] - 0.5, end[1] - 0.5)).toBeCloseTo(0.5 + ZOOM_LINE_OVERSHOOT, 6);
+    expect(enlarged.annotatedPictureKey).toBe(enlarged.picture!.key);
+    // On the line it was on the paper; the circle where it was.
+    const [a, b] = drawn.get(lineId)!;
+    for (const end of marksInPicture(enlarged).get(lineId)!) {
+      expect(end[0]).toBeCloseTo(a![0], 9);
+      expect(end[1]).toBeGreaterThan(Math.min(a![1], b![1]));
+      expect(end[1]).toBeLessThan(Math.max(a![1], b![1]));
+    }
+    // The copied area goes with Enlarged; of the marks it keeps, only the line moved, along itself.
+    expect(marksMoved(whole, enlarged).filter((id) => id !== lineId && enlarged.annotations.some((mark) => mark.id === id))).toEqual([]);
+    expect(enlarged.annotations.map((mark) => mark.id)).toContain(circleId);
+    // Undone, the line is whole again; turned off, it stays trimmed, where it was on the paper.
+    state().undoDiagram();
+    expect(lineOf(step(copy)).from).toEqual(long.from);
+    state().redoDiagram();
+    expect(state().unenlargeDiagramStep(copy)).toBe(true);
+    const off = lineOf(step(copy));
+    expect(Math.abs(off.to[1] - off.from[1])).toBeLessThan(Math.abs(long.to[1] - long.from[1]) / 4);
   });
 
   it('captures nothing with nothing before it to capture from, nor on a step enlarged already', async () => {

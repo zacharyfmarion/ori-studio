@@ -37,6 +37,7 @@ import {
   setFrameScale,
   setFrameShape,
   stepWindow,
+  trimmedAtFrame,
   unenlargeStep,
   unitsMove,
   updateEnlargedSteps,
@@ -54,7 +55,7 @@ import {
   topUnspread,
   unspreadOn,
 } from './zoomImprint';
-import { frameWindow, outlineAsShape } from './zoomModel';
+import { ZOOM_LINE_OVERSHOOT, frameWindow, outlineAsShape } from './zoomModel';
 
 const NO_ASSETS = {};
 
@@ -201,6 +202,85 @@ describe('Update Enlarged Steps', () => {
     expect(step(updated).zoom!.frame).toEqual(placed.zoom!.frame);
     expect(marksMoved(moved, step(updated))).toEqual([]);
     expect(frameProblems(updated)).toEqual([]);
+  });
+});
+
+describe('lines carried into the window from the whole picture (Zach, 2026-10-07)', () => {
+  /** Step N whole, marked about where its frame lands: lines across it, out of it, inside it and past it; an arrow and a label. */
+  function markedAboutFrame(): { document: DiagramDocument; frame: { centre: PicturePoint; radius: number } } {
+    const document = crane('none');
+    const { centre, radius } = step(enlargeStep(document, 'step-n', NO_ASSETS).document).zoom!.frame!;
+    const [cx, cy] = centre;
+    const r = radius!;
+    const marks: KnownDiagramAnnotation[] = [
+      { id: 'across', kind: 'valley-line', from: [cx, cy - 4 * r], to: [cx, cy + 6 * r] },
+      { id: 'out', kind: 'mountain-line', from: [cx, cy], to: [cx + 5 * r, cy] },
+      { id: 'hidden', kind: 'hidden-line', from: [cx - 3 * r, cy + 0.5 * r], to: [cx + 3 * r, cy + 0.5 * r] },
+      { id: 'inside', kind: 'valley-line', from: [cx - 0.5 * r, cy], to: [cx + 0.5 * r, cy] },
+      { id: 'past', kind: 'valley-line', from: [cx + 3 * r, cy - 3 * r], to: [cx + 3 * r, cy + 3 * r] },
+      { id: 'arrow', kind: 'valley-arrow', from: [cx, cy - 4 * r], to: [cx, cy + 4 * r] },
+      { id: 'label', kind: 'label', from: [cx, cy], to: [cx, cy], text: 'A' },
+    ];
+    const n = step(document);
+    const marked = { ...n, annotations: marks, annotatedPictureKey: n.picture!.key };
+    return { document: { ...document, steps: document.steps.map((entry) => (entry.id === 'step-n' ? marked : entry)) }, frame: { centre, radius: r } };
+  }
+  const mark = (each: DiagramStep, id: string) => each.annotations.find((m) => m.id === id) as KnownDiagramAnnotation;
+  /** Whether a point lies on the segment `a`–`b`. */
+  const onLine = (p: PicturePoint, [a, b]: PicturePoint[]) => {
+    const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
+    const t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy);
+    return t >= -1e-9 && t <= 1 + 1e-9 && distance(p, [a[0] + t * dx, a[1] + t * dy]) < 1e-9;
+  };
+
+  it('Enlarged turned on trims a line across the frame to end just past its rim, on the same line; the rest as they were', () => {
+    const { document } = markedAboutFrame();
+    const before = step(document);
+    const after = step(enlargeStep(document, 'step-n', NO_ASSETS).document);
+    // In the window's units the frame is the window's own circle: centre (0.5, 0.5), radius 0.5.
+    const rimPast = 0.5 + ZOOM_LINE_OVERSHOOT;
+    const across = mark(after, 'across');
+    expect(distance(across.from, [0.5, 0.5])).toBeCloseTo(rimPast, 9);
+    expect(distance(across.to, [0.5, 0.5])).toBeCloseTo(rimPast, 9);
+    const out = mark(after, 'out');
+    expect(out.from).toEqual([expect.closeTo(0.5, 9), expect.closeTo(0.5, 9)]);
+    expect(distance(out.to, [0.5, 0.5])).toBeCloseTo(rimPast, 9);
+    // The hidden line crosses off the centre: each end the overshoot past where it leaves the rim.
+    const hidden = mark(after, 'hidden');
+    const chordHalf = Math.sqrt(0.5 ** 2 - 0.25 ** 2);
+    expect(Math.abs(hidden.from[0] - 0.5)).toBeCloseTo(chordHalf + ZOOM_LINE_OVERSHOOT, 9);
+    expect(Math.abs(hidden.to[0] - 0.5)).toBeCloseTo(chordHalf + ZOOM_LINE_OVERSHOOT, 9);
+    // On the paper they were on: each trimmed end on the line it was, in picture units.
+    const [was, now] = [marksInPicture(before), marksInPicture(after)];
+    for (const id of ['across', 'out', 'hidden']) for (const point of now.get(id)!) expect(onLine(point, was.get(id)!), id).toBe(true);
+    // Inside the frame, outside it, an arrow and a label: carried as ever, still in step.
+    expect(marksMoved(before, after).sort()).toEqual(['across', 'hidden', 'out']);
+    expect(after.annotatedPictureKey).toBe(after.picture!.key);
+    // Turned off, the trimmed lines stay trimmed, on their paper; the rest come back exactly.
+    const off = step(unenlargeStep(enlargeStep(document, 'step-n', NO_ASSETS).document, 'step-n', NO_ASSETS));
+    expect(marksMoved(before, off).sort()).toEqual(['across', 'hidden', 'out']);
+    for (const point of marksInPicture(off).get('across')!) expect(onLine(point, was.get('across')!)).toBe(true);
+  });
+
+  it('a step made after an enlarged one with marks on its picture: the seed trims its lines too', () => {
+    const { document } = markedAboutFrame();
+    const enlarged = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
+    const made = { ...step(document), id: 'step-made' };
+    const seeded = step(seedNewSteps(insertSteps(enlarged, [made], enlarged.steps.length), ['step-made'], NO_ASSETS).document, 'step-made');
+    expect(seeded.zoom).toBeDefined();
+    expect(distance(mark(seeded, 'across').from, [0.5, 0.5])).toBeCloseTo(0.5 + ZOOM_LINE_OVERSHOOT, 6);
+    expect(mark(seeded, 'arrow')).not.toEqual(mark(step(document), 'arrow'));
+    expect(distance(mark(seeded, 'arrow').from, [0.5, 0.5])).toBeGreaterThan(1);
+  });
+
+  it('never lengthens a line, nor moves one that ends within the overshoot of the rim', () => {
+    const frame = { centre: [0.5, 0.5] as PicturePoint, radius: 0.5 };
+    const near: KnownDiagramAnnotation = { id: 'near', kind: 'valley-line', from: [0.5, 0.5], to: [0.5, 1.02] };
+    expect(trimmedAtFrame(near, frame)).toBe(near);
+    const far: KnownDiagramAnnotation = { ...near, to: [0.5, 1.3] };
+    expect(trimmedAtFrame(far, frame).to).toEqual([0.5, expect.closeTo(1 + ZOOM_LINE_OVERSHOOT, 9)]);
+    const arrow: KnownDiagramAnnotation = { id: 'arrow', kind: 'push-arrow', from: [0.5, -1], to: [0.5, 2] };
+    expect(trimmedAtFrame(arrow, frame)).toBe(arrow);
   });
 });
 

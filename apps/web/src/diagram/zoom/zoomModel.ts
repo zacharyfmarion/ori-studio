@@ -68,6 +68,17 @@ export const ZOOM_CLOSED_SHARE = 0.97;
 /** Gaps between a cut frame's pieces under this, in mm as it prints, are drawn through. */
 export const ZOOM_GAP_MM = 2;
 
+/**
+ * How far a line carried into an enlarged step's window from its whole
+ * picture runs on past the frame's rim once it is trimmed there, in the
+ * window's units (its longer side one), as a picture's lines are in its own:
+ * the short run past the paper's edge a fold line has on a whole picture,
+ * which reads as the line going on. Zach's crane: the lines he ran past the
+ * paper rather than to its edge end 0.007–0.045 past it; this prints about
+ * 1.9 mm on its enlarged window at Fill (48 mm).
+ */
+export const ZOOM_LINE_OVERSHOOT = 0.04;
+
 /** An area's, or a frame's, shape: a circle when it has a radius, else a rounded rectangle. */
 export function zoomShapeOf(outline: Pick<DiagramZoomOutline, 'radius' | 'size'>): DiagramZoomShape {
   return outline.radius === undefined && outline.size !== undefined ? 'rounded' : 'circle';
@@ -234,6 +245,36 @@ function turnedAbout(outline: DiagramZoomOutline, [x, y]: PicturePoint): Picture
 export function distanceOutside(outline: DiagramZoomOutline, point: PicturePoint): number {
   const { core, radius } = zoomCore(outline);
   return Math.max(0, distanceToConvex(core, point) - radius);
+}
+
+/**
+ * The stretch of the segment `from`–`to` inside an outline, rim included, as
+ * shares of its length from `from`; null when the two do not meet. The
+ * outline is convex, so how far a point of the segment is outside it is
+ * convex along it: its least is found by thirds, and the stretch where that is
+ * nothing is one, its ends found by halves.
+ */
+export function stretchInside(outline: DiagramZoomOutline, from: PicturePoint, to: PicturePoint): [number, number] | null {
+  const outside = (t: number) => distanceOutside(outline, [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t]);
+  let [lo, hi] = [0, 1];
+  for (let step = 0; step < 200 && hi - lo > 1e-13; step += 1) {
+    const [a, b] = [lo + (hi - lo) / 3, hi - (hi - lo) / 3];
+    if (outside(a) <= outside(b)) hi = b;
+    else lo = a;
+  }
+  const middle = (lo + hi) / 2;
+  if (outside(middle) > 1e-12) return null;
+  const rim = (end: number) => {
+    if (outside(end) === 0) return end;
+    let [inside, out] = [middle, end];
+    for (let step = 0; step < 60; step += 1) {
+      const half = (inside + out) / 2;
+      if (outside(half) === 0) inside = half;
+      else out = half;
+    }
+    return inside;
+  };
+  return [rim(0), rim(1)];
 }
 
 /** How far `point` is from an outline's rim, either side of it. */

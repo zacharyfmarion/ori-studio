@@ -12,7 +12,7 @@
  *
  * | What changed | Frame | Marks |
  * | --- | --- | --- |
- * | Enlarged turned on; Update | captured and landed ({@link enlargeStep}, {@link updateEnlargedSteps}) | whole picture or old window → new window |
+ * | Enlarged turned on; Update | captured and landed ({@link enlargeStep}, {@link updateEnlargedSteps}) | whole picture or old window → new window; from the whole picture, lines trimmed at the frame ({@link trimmedAtFrame}) |
  * | A step made after an enlarged one | captured at creation ({@link seedNewSteps}) | none yet |
  * | A seeded step's first picture; a refresh or relink | landed from its imprint ({@link relandFrame}) | unchanged |
  * | Enlarged turned off | dropped ({@link unenlargeStep}) | window → whole picture |
@@ -29,6 +29,7 @@
  * Pure: no store.
  */
 import {
+  LINE_KINDS,
   PICTURE_REACH,
   ZOOM_RADIUS,
   ZOOM_SIDE,
@@ -66,7 +67,16 @@ import {
   type ZoomImprint,
 } from './zoomCapture';
 import { faceAt, imprintFrame, offSpread, ontoSpread, paperFacesOf, toPicture, toScene } from './zoomImprint';
-import { ZOOM_SCALE, frameWindow, outlineAsShape, stepReach, zoomShapeOf, type PictureBox } from './zoomModel';
+import {
+  ZOOM_LINE_OVERSHOOT,
+  ZOOM_SCALE,
+  frameWindow,
+  outlineAsShape,
+  stepReach,
+  stretchInside,
+  zoomShapeOf,
+  type PictureBox,
+} from './zoomModel';
 
 type Assets = Readonly<Record<string, DiagramAsset>>;
 
@@ -159,7 +169,8 @@ export function unitsMove(from: PictureBox, to: PictureBox, move?: PictureMove):
  * reaches as far as its whole picture's, so a mark across the model from a
  * small frame goes there and back exactly. One the move cannot take where it
  * goes even so — which `back`, the move undone, shows — keeps them all where
- * they were, out of step, rather than be held at reach's edge.
+ * they were, out of step, rather than be held at reach's edge. Carried, each
+ * is then `finished`, where it went.
  */
 function carryMarks(
   step: DiagramStep,
@@ -168,7 +179,13 @@ function carryMarks(
     was = step,
     reach = PICTURE_REACH,
     back,
-  }: { was?: DiagramStep; reach?: AnnotationReach; back?: { move: PictureMove; reach: AnnotationReach } } = {}
+    finish,
+  }: {
+    was?: DiagramStep;
+    reach?: AnnotationReach;
+    back?: { move: PictureMove; reach: AnnotationReach };
+    finish?: (mark: KnownDiagramAnnotation) => KnownDiagramAnnotation;
+  } = {}
 ): DiagramStep {
   if (!move || step.annotations.length === 0) return step;
   if (!step.annotations.every(isKnownAnnotation)) return { ...step, annotatedPictureKey: null };
@@ -181,7 +198,31 @@ function carryMarks(
       carried.some((mark, index) => !sameMark(carryAnnotation(mark, back.move), marks[index]!))
     );
   if (lost) return { ...step, annotatedPictureKey: null };
-  return { ...step, annotations: carried, annotatedPictureKey: step.picture?.key ?? null };
+  return { ...step, annotations: finish ? carried.map(finish) : carried, annotatedPictureKey: step.picture?.key ?? null };
+}
+
+/**
+ * A line carried into an enlarged step's window from its whole picture (Zach,
+ * 2026-10-07): one crossing the frame — `frame` in the window's units —
+ * trimmed along itself to end {@link ZOOM_LINE_OVERSHOOT} past the rim at
+ * each end that lay farther out, as a fold line ends just past the paper's
+ * edge, and never made longer. Magnified, it would otherwise run on across
+ * the page. A line wholly inside the frame or wholly outside it, and every
+ * other mark, as it was: one outside keeps its "Outside the enlarged frame"
+ * badge. Stored, so every surface draws the trimmed line, and dragged longer
+ * by hand as any line is.
+ */
+export function trimmedAtFrame(mark: KnownDiagramAnnotation, frame: DiagramZoomOutline): KnownDiagramAnnotation {
+  if (!LINE_KINDS.has(mark.kind)) return mark;
+  const { from, to } = mark;
+  const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+  const inside = length > 0 ? stretchInside(frame, from, to) : null;
+  if (!inside) return mark;
+  const run = ZOOM_LINE_OVERSHOOT / length;
+  const [start, end] = [Math.max(0, inside[0] - run), Math.min(1, inside[1] + run)];
+  if (start === 0 && end === 1) return mark;
+  const at = (t: number): PicturePoint => [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
+  return { ...mark, from: start === 0 ? from : at(start), to: end === 1 ? to : at(end) };
 }
 
 /** Whether two marks are one, but for float noise in their numbers. */
@@ -212,12 +253,21 @@ function marksUnits(step: DiagramStep, assets: Assets): MarkUnits | null {
   return whole && { box: whole, reach: PICTURE_REACH };
 }
 
-/** A step's marks moved from one set of units to another, when both are known, and each can go there and back. */
-function carryBetween(step: DiagramStep, from: MarkUnits | null, to: MarkUnits | null): DiagramStep {
+/**
+ * A step's marks moved from one set of units to another, when both are known,
+ * and each can go there and back; each then `finished` where it went.
+ */
+function carryBetween(
+  step: DiagramStep,
+  from: MarkUnits | null,
+  to: MarkUnits | null,
+  finish?: (mark: KnownDiagramAnnotation) => KnownDiagramAnnotation
+): DiagramStep {
   if (!from || !to) return step;
   return carryMarks(step, unitsMove(from.box, to.box), {
     reach: to.reach,
     back: { move: unitsMove(to.box, from.box), reach: from.reach },
+    ...(finish ? { finish } : {}),
   });
 }
 
@@ -237,12 +287,18 @@ function withStep(
   return { ...document, steps };
 }
 
-/** A step with `zoom` as its frame — or none — and its marks carried from the units they were in to the new ones. */
+/**
+ * A step with `zoom` as its frame — or none — and its marks carried from the
+ * units they were in to the new ones: from its whole picture into a window,
+ * its lines trimmed at the frame ({@link trimmedAtFrame}).
+ */
 function withZoom(step: DiagramStep, zoom: DiagramStepZoom | undefined, assets: Assets): DiagramStep {
   const before = marksUnits(step, assets);
   const { zoom: _was, ...rest } = step;
   const next: DiagramStep = zoom ? { ...rest, zoom } : rest;
-  return carryBetween(next, before, marksUnits(next, assets));
+  const window = stepWindow(next);
+  const frame = !stepWindow(step) && window && next.zoom?.frame ? outlineIntoBox(window, next.zoom.frame) : null;
+  return carryBetween(next, before, marksUnits(next, assets), frame ? (mark) => trimmedAtFrame(mark, frame) : undefined);
 }
 
 /**
