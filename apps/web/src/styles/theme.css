@@ -6102,18 +6102,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-primary);
 }
 
-/* A colour named in a select's option, drawn as a dot beside its label. */
-.select-swatch {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin-right: 7px;
-  border: 1px solid var(--border-default);
-  border-radius: 50%;
-  vertical-align: -1px;
-}
-
-
 /* The active tool's option window: a transparent frame around the geometry the
    chosen answer would change, with its header attached to the top edge. The
    creases themselves are the content — already stroked in the colour the answer

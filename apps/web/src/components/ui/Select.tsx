@@ -59,3 +59,11 @@ export const SelectItem = forwardRef<
 ));
 
 SelectItem.displayName = 'SelectItem';
+
+/**
+ * The colour an option names, as a dot before its label. Put inside the
+ * item's children, so the trigger shows it too once the option is chosen.
+ */
+export function SelectSwatch({ color }: { color: string }) {
+  return <span className={styles.swatch} style={{ background: color }} aria-hidden="true" />;
+}

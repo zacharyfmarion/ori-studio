@@ -49,6 +49,18 @@
   width: 16px;
 }
 
+/* A colour an option names, drawn as a dot before its label (`SelectSwatch`):
+   in the list and, the option chosen, in the trigger. */
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 7px;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
 @media (pointer: coarse) {
   .item {
     min-height: var(--touch-target);
