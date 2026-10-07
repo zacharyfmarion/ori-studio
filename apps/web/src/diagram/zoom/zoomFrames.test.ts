@@ -11,12 +11,15 @@ import {
   setReferencesSide,
   setUploadPose,
   stepById,
+  type DiagramCpRender,
   type DiagramCpSource,
   type DiagramDocument,
   type DiagramStep,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
-import { readDiagram, writeDiagram } from '../document/diagramFile';
+import { readDiagram, storedSceneJson, writeDiagram } from '../document/diagramFile';
+import { CAPTURE_PX_PER_UNIT } from '../capture/captureGeometry';
+import { face as sceneFace, sceneOf } from '../../lib/paper/paperScene.fixtures';
 import { cpStep, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
 import { storedScene } from '../pictures/pictureFrame';
 import { craneStep, imprintCase, turnedCapture } from './zoom.fixtures';
@@ -46,6 +49,7 @@ import {
   anchorPoint,
   defaultAnchor,
   faceAt,
+  facePlacement,
   offSpread,
   ontoSpread,
   paperFacesOf,
@@ -759,6 +763,62 @@ describe('a new step after an enlarged one, however it is made (16g)', () => {
     expect(seedNewSteps(withCopy, ['step-copy'], NO_ASSETS)).toEqual({ document: withCopy, seeded: [] });
     const plain = insertSteps(crane('none'), [{ ...craneStep('C.none'), id: 'step-whole' }], 1);
     expect(seedNewSteps(plain, ['step-whole'], NO_ASSETS)).toEqual({ document: plain, seeded: [] });
+  });
+});
+
+describe('a folded enlarged step shown as its crease pattern (Z8 amended, Zach, 2026-10-07)', () => {
+  /** The crane's sheet as Show as Crease Pattern draws it, unturned: the paper its faces fold, at the capture's scale. */
+  function sheetOf(folded: DiagramStep): DiagramStep {
+    const corners = paperFacesOf(folded)!.paper.flat();
+    const [xs, ys] = [corners.map(([x]) => x), corners.map(([, y]) => y)];
+    const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const ring = [[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY]].map(([x, y]) => [x! * CAPTURE_PX_PER_UNIT, y! * CAPTURE_PX_PER_UNIT] as [number, number]);
+    const scene = sceneOf([sceneFace([ring])], (maxX - minX) * CAPTURE_PX_PER_UNIT);
+    const render: DiagramCpRender = { mode: 'crease-pattern', rotationDeg: 0 };
+    return {
+      ...folded,
+      source: { ...(folded.source as DiagramCpSource), render },
+      picture: { kind: 'scene', sceneJson: storedSceneJson(scene)!, paperScale: CAPTURE_PX_PER_UNIT, styleKey: null, key: 'scene-sheet' },
+    };
+  }
+  const linked = (each: DiagramStep) => ({ source: each.source as DiagramCpSource, picture: each.picture });
+  /** The paper under a frame's centre: through the face on top there. */
+  const paperUnder = (each: DiagramStep) => {
+    const faces = paperFacesOf(each)!;
+    const unspread = offSpread(faces, toScene(faces, each.zoom!.frame!).centre);
+    return facePlacement(faces, topUnspread(faces, unspread)!)!.invert(unspread);
+  };
+
+  it('lands the frame on the paper its window showed, not at its anchor face’s, and folded again comes back', () => {
+    const document = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
+    const folded = step(document);
+    const sheet = sheetOf(folded);
+    const shown = setLinkedPicture(document, 'step-n', linked(sheet));
+    const flat = step(shown);
+    expect(frameProblems(shown)).toEqual([]);
+    // On the sheet, the frame's centre is the paper the folded window showed at its centre.
+    expect(distance(paperUnder(flat), paperUnder(folded))).toBeLessThan(1e-6);
+    // At its size there, but for the fit of the face's placement (a few parts in 1e5).
+    const [onSheet, onFold] = [toScene(paperFacesOf(flat)!, flat.zoom!.frame!).radius!, toScene(paperFacesOf(folded)!, folded.zoom!.frame!).radius!];
+    expect(Math.abs(onSheet / onFold - 1)).toBeLessThan(1e-4);
+    // Where the anchor face would have put it: far off, on the paper under the head.
+    const anchored = relandFrame({ ...folded, ...linked(sheet) });
+    expect(distance(paperUnder(anchored), paperUnder(folded))).toBeGreaterThan(20);
+    // Folded again: the frame where it was, anchored again by the default rule, its imprint as before.
+    const back = step(setLinkedPicture(shown, 'step-n', linked(folded)));
+    expect(distance(back.zoom!.frame!.centre, folded.zoom!.frame!.centre)).toBeLessThan(1e-9);
+    expect(back.zoom!.frame!.radius).toBeCloseTo(folded.zoom!.frame!.radius!, 9);
+    expect(back.zoom!.imprint).toEqual(imprintOn(back, back.zoom!.frame!));
+    expect(frameProblems(setLinkedPicture(shown, 'step-n', linked(folded)))).toEqual([]);
+  });
+
+  it('a picked anchor lands by its pick, as ever', () => {
+    const document = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
+    const folded = step(document);
+    const picked = { ...folded, zoom: { ...folded.zoom!, imprint: { ...folded.zoom!.imprint!, picked: true as const } } };
+    const withPick = { ...document, steps: document.steps.map((entry) => (entry.id === 'step-n' ? picked : entry)) };
+    const sheet = sheetOf(folded);
+    expect(step(setLinkedPicture(withPick, 'step-n', linked(sheet))).zoom!.frame).toEqual(relandFrame({ ...picked, ...linked(sheet) }).zoom!.frame);
   });
 });
 

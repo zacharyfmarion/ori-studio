@@ -15,6 +15,7 @@
  * | Enlarged turned on; Update | captured and landed ({@link enlargeStep}, {@link updateEnlargedSteps}) | whole picture or old window → new window; from the whole picture, lines trimmed at the frame ({@link trimmedAtFrame}) |
  * | A step made after an enlarged one | captured at creation ({@link seedNewSteps}) | none yet |
  * | A seeded step's first picture; a refresh or relink | landed from its imprint ({@link relandFrame}) | unchanged |
+ * | A folded step shown as its crease pattern, and back | on the paper its window showed, imprinted there ({@link landedOnSheet}); back, anchored again ({@link anchoredOffSheet}) | unchanged |
  * | Enlarged turned off | dropped ({@link unenlargeStep}) | window → whole picture |
  * | Moved, resized or reshaped by hand | as set, its imprint made again ({@link setFrameOutline}) | by the window's move |
  * | Its anchor picked or reset | unchanged, its imprint made again ({@link setFrameAnchor}) | unchanged |
@@ -67,7 +68,7 @@ import {
   type ZoomImprint,
   type ZoomSource,
 } from './zoomCapture';
-import { faceAt, imprintFrame, offSpread, ontoSpread, paperFacesOf, toPicture, toScene } from './zoomImprint';
+import { faceAt, imprintFrame, offSpread, ontoSpread, paperFacesOf, toPicture, toScene, topUnspread } from './zoomImprint';
 import {
   ZOOM_LINE_OVERSHOOT,
   ZOOM_SCALE,
@@ -558,7 +559,10 @@ export type OwnPictureChange = PictureMove | 'recoloured' | null;
  *   of step with a picture that changed, as any refresh leaves them (D8);
  *   out of step too when the picture's key is the same but the frame moved —
  *   a Refresh that gave an older capture its faces, landing a frame that was
- *   only copied — since the window shows other paper under them now.
+ *   only copied — since the window shows other paper under them now. A
+ *   folded picture shown as its crease pattern lands the frame on the paper
+ *   its window showed instead ({@link landedOnSheet}), and folded again is
+ *   anchored again by the default rule ({@link anchoredOffSheet}).
  *
  * `after` as it is for a step that is not enlarged, or has no picture now.
  */
@@ -570,7 +574,7 @@ export function followOwnPicture(
 ): DiagramStep {
   if (!after.zoom || !after.picture) return after;
   if (!before.zoom || !before.picture || change === null) {
-    const landed = relandFrame(after);
+    const landed = landedOnSheet(before, after) ?? anchoredOffSheet(before, relandFrame(after));
     const stillInStep = landed !== after && landed.annotations.length > 0 && landed.annotatedPictureKey === after.picture.key;
     return stillInStep ? { ...landed, annotatedPictureKey: null } : landed;
   }
@@ -581,6 +585,51 @@ export function followOwnPicture(
     before.annotatedPictureKey !== null &&
     before.annotatedPictureKey === before.picture.key;
   return inStep ? { ...landed, annotatedPictureKey: after.picture.key } : landed;
+}
+
+/**
+ * An enlarged folded step shown as its crease pattern — Show as, or Duplicate
+ * As — (Z8 amended, Zach, 2026-10-07): its frame landed on the flat sheet on
+ * the paper its window showed, imprinted afresh through the face on top at
+ * the frame's centre, not through its anchor face. The anchor (Z9), the
+ * backmost face outside the frame, is what a re-posed picture follows, since
+ * it is least likely to move; but it lies under the paper the window showed,
+ * as far off on the unfolded sheet as the model is folded — 288 sheet units
+ * from the crane's head. A flat sheet moves no face, so it needs none. The
+ * new imprint is kept, so the frame stays on that paper as the sheet is
+ * turned. Null where this does not apply, for {@link relandFrame} to land
+ * the frame as ever: `after` not a crease pattern, `before` not a folded
+ * picture with faces, a picked anchor, which the frame follows wherever, or
+ * no paper at the frame's centre, or none of it on the sheet.
+ */
+function landedOnSheet(before: DiagramStep, after: DiagramStep): DiagramStep | null {
+  const { zoom } = after;
+  const [was, now] = [paperFacesOf(before), paperFacesOf(after)];
+  if (!zoom || !before.zoom?.frame || zoom.imprint?.picked || was?.kind !== 'flat' || now?.kind !== 'crease-pattern') return null;
+  const drawn = toScene(was, before.zoom.frame);
+  const face = topUnspread(was, offSpread(was, drawn.centre));
+  const outline = face === null ? null : imprintFrame(was, face, drawn);
+  if (!outline || faceAt(now, outline.centre) === null) return null;
+  const imprint: ZoomImprint = { ...outline, on: outline.centre };
+  const { frame } = placeOn(after, imprint, zoom.frame);
+  return frame ? { ...after, zoom: { ...zoom, frame, imprint } } : null;
+}
+
+/**
+ * An enlarged step's crease pattern shown folded again, its frame landed from
+ * the sheet's imprint ({@link landedOnSheet}) where the paper it showed lies:
+ * anchored again there by the default rule (Z9), as it was before the sheet
+ * was shown, so a re-pose of the folded picture follows the face least likely
+ * to move. The step itself where its frame did not land on the folded paper,
+ * or its anchor is picked.
+ */
+function anchoredOffSheet(before: DiagramStep, landed: DiagramStep): DiagramStep {
+  const { zoom } = landed;
+  const [was, now] = [paperFacesOf(before), paperFacesOf(landed)];
+  if (!zoom?.frame || !zoom.imprint || zoom.imprint.picked || was?.kind !== 'crease-pattern' || now?.kind !== 'flat') return landed;
+  if (faceAt(now, zoom.imprint.on) === null) return landed;
+  const imprint = imprintOn(landed, zoom.frame);
+  return imprint ? { ...landed, zoom: { ...zoom, imprint } } : landed;
 }
 
 /**
