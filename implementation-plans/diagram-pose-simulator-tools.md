@@ -1,7 +1,7 @@
 # Diagram: the simulator's tools in Pose
 
 **Status: planned 2026-10-06. Phase 0 (merging main and the 0% guard) is
-built; nothing else is. Decisions D1–D5 are PENDING (Zach).** This follows Phase 8d of
+built; nothing else is. Decisions D1–D5 are decided (Zach, 2026-10-06).** This follows Phase 8d of
 `implementation-plans/diagram-workspace.md` (Simulated in Pose, D19). It
 builds on main's Pin tool (#437, `implementation-plans/simulator-tool-rail-and-pins.md`)
 and Pull tool (#438, `implementation-plans/simulator-pull-tool.md`), and both
@@ -36,10 +36,11 @@ So:
 
    There is one implementation and two hosts. A tool behaves and looks the
    same in both, and a later change to a tool reaches both.
-3. A picture shaped by those tools belongs to the step. Leaving Pose and coming
-   back, undo and redo, Pose Again, and a Refresh in new light must all give
-   back the picture the author made, not the unpinned, unposed model at the
-   same fold %.
+3. A simulated step's picture belongs to the step, and so does the mesh it
+   was drawn from (D1). Leaving Pose and coming back, undo and redo, Pose
+   Again, and a Refresh in new light must all give back the picture the author
+   made: the captured mesh, not the model solved again at the same fold %, and
+   for a step shaped by those tools, not the unpinned, unposed model.
 4. Simulate is unchanged, and we prove it.
 
 Not part of this: Simulate's options pane (render, paper, material, solver),
@@ -170,7 +171,10 @@ Today a simulated step stores only `{foldPercent, view}`. Without a stored
 shape, every reload, undo, Pose Again and Refresh rebuilds an unpinned,
 unposed model. Worse, the first orbit after reopening Pose silently writes over
 the posed picture, because `wantsRest` compares only fold % and camera
-(`poseController.ts` l.427–431, HEAD).
+(`poseController.ts` l.427–431, HEAD). Even a step no tool touched is solved
+again to its fold % on every open, so a later solver change, or the GPU's
+rounding, can show a mesh its picture was not drawn from. Hence D1: every
+simulated step stores its mesh.
 
 The work comes in three layers:
 
@@ -179,8 +183,8 @@ The work comes in three layers:
   - a `surface` property on the tool events;
   - a framing option;
   - an engine and worker that can read a shape and restore it.
-- **The Diagram's model (#436):** `render.shape`, plus capture and Refresh that
-  carry it.
+- **The Diagram's model (#436):** `render.shape` on every simulated step, plus
+  capture and Refresh that carry it.
 - **Pose (#436):**
   - a tool state per step;
   - a hand hook beside `useDiagramSimulatedPose`;
@@ -261,18 +265,18 @@ forwards frames to `observeFrame`. Otherwise `simulator solver recovered` and
 
 ### What a step stores
 
-One optional field on the simulated render
-(`diagram/document/diagramDocument.ts` l.146–152, HEAD):
+One field on the simulated render (`diagram/document/diagramDocument.ts`
+l.146–152, HEAD), optional only because older steps lack it:
 
 ```ts
 render: { mode: 'simulated'; foldPercent; view; shape?: DiagramSimulatedShape }
 
 interface DiagramSimulatedShape {
-  /** Minted when the hand last changed the paper; adopted on restore. What a rest is compared by. */
+  /** Minted when the hand last changed the paper, or by the first capture of paper it never touched; adopted on restore. What a rest is compared by. */
   id: string;
   /** The region's flat sheet this shape belongs to (`simulatorSheetKey`). */
   sheet: string;
-  /** Each pinned face as a point inside it on the flat sheet, relative to the sheet's corner. */
+  /** Each pinned face as a point inside it on the flat sheet, relative to the sheet's corner. Empty when nothing is pinned. */
   pins: readonly (readonly [number, number])[];
   /** A kept pull holds: Spring Back applies. */
   posed: boolean;
@@ -281,9 +285,20 @@ interface DiagramSimulatedShape {
 }
 ```
 
-**Present only when the hand shaped the paper**: something is pinned, or a pull
-was kept. An unshaped step is byte-for-byte what it is today, and takes no new
-code path.
+**Present on every simulated step this build captures** (D1): pinned, pulled
+or untouched. An untouched step stores the mesh it was captured from, with no
+pins and `posed: false`, so reopening Pose shows exactly that mesh instead of
+solving to the fold % again. A step is *shaped by hand* when its shape has pins
+or is posed; "shaped" means that in the rest of this plan.
+
+**An older simulated step has no shape.** One saved before this build keeps
+re-simulating to its fold %, as today, until it is next captured: a rest in
+Pose, a Refresh, or Show as. Opening Pose does not backfill it.
+*(Recommended; to confirm with Zach.)*
+- Opening Pose writes nothing today (Phase 0 checked it). A backfill would make
+  opening an undo step and a changed file, for a picture that did not change.
+- The mesh a backfill stored would be a fresh solve, not the one the picture
+  was drawn from: it would record the very drift this decision is for.
 
 **It stores positions and crease angles, not gestures.**
 - A pull depends on its path. Main's plan notes that cancel restores rest
@@ -315,24 +330,49 @@ Each pin is stored as a point: the centroid of one of the face's triangles.
 That point is strictly inside even a non-convex face, and on restore it is
 resolved back to a face by point-in-triangle.
 
-**Size.** 12 bytes per node plus 4 per crease, times 4/3 for base64. That is
-tens of KB for a large region. The picture beside it is bounded by
-`SCENE_JSON_MAX_BYTES` (4 MB, `diagramFile.ts` l.448, HEAD). The writer
-refuses a shape over 1 MB.
+**Size.** 12 bytes per node plus 4 per crease, times 4/3 for base64, plus the
+id, the sheet key and any pins. *(Estimated from mesh counts, not measured.)*
+- **Per step.** The crane's whole sheet (186 vertices and 396 edges in
+  `artifacts/diagram-phase4/crane.osf`) is about 5 KB. A large region is tens
+  of KB: 2,000 nodes and 6,000 creases make 64 KB. The writer refuses a shape
+  over 1 MB, around 30,000 nodes. The picture beside it is bounded by
+  `SCENE_JSON_MAX_BYTES` (4 MB, `diagramFile.ts` l.448, HEAD).
+- **Per file.** Zach's crane diagram has one simulated step in 20 (step 5, a
+  small segment whose stored scene is 4.6 KB), so its shape is well under
+  1 KB on a 2.49 MB file: under 0.05%.
+- **The budget is the whole file's, as the enlarged steps' faces are** (Z11,
+  `diagram-revision-2.md`). With every simulated step captured with its shape,
+  the `.osf` grows by at most 1%, the shapes as the file writes them. There is
+  no cap per step beyond the writer's 1 MB.
+  - `state` is one string, never a JSON array: the project file is
+    pretty-printed (`serializeNativeProjectFile`), a number to a line.
+  - It is weighed on Zach's diagrams, which are not committed, the way 16c's
+    `artifacts/revision-2/16c/writer/budget.mjs` weighs faces: every simulated
+    step recaptured, the file saved by the app.
+  - If a diagram breaks the 1%, the budget is not raised: the numbers go to
+    Zach. The lever then is lossless (deflate before base64), never fewer bits,
+    which would give up the exact mesh this is for.
 
 **File format.** `CP_RENDER_FIELDS.simulated` (`diagramFile.ts` l.444, HEAD),
 `readCpRender`'s validation and the writer all change together. An older build
-reads a shaped step as a newer build's locked step (3fc2e4f36). That is fine
-while #436 is unreleased.
+reads every simulated step this build writes as a newer build's locked step
+(3fc2e4f36). That is fine while #436 is unreleased. A file without shapes
+still reads, its simulated steps as older ones (above).
 
 **Lifecycle.**
 - One rest is still one "Adjust pose" undo step. A pin edit or a pull is
   committed with the rest that follows it.
-- Reset Pose drops the shape. `isDefaultRender` (`diagramLinkedPoseActions.ts`
-  l.405–413, HEAD) now also requires it to be absent.
-- Showing the step another way and coming back drops it, since
-  `renderToShowAs` (`diagramDocument.ts` l.376–389) keeps only the camera.
-  Duplicate as Simulated starts unshaped.
+- Reset Pose keeps a shape rather than dropping it: a fresh, unshaped one at
+  the reset fold % (0%, the flat sheet), with a new id. In Pose the session
+  follows through `restoreShape`, which lets go of the pins and the pose.
+  `isDefaultRender` (`diagramLinkedPoseActions.ts` l.405–413, HEAD) no longer
+  asks for the shape to be absent; it asks for no pins and no pose.
+- Showing the step another way and coming back recaptures its shape.
+  `renderToShowAs` (`diagramDocument.ts` l.376–389) keeps only the camera and
+  rebuilds at 0%, and that headless capture stores the flat sheet's shape. The
+  pins and the pose are let go.
+- Duplicate as Simulated captures its own, the same way. A plain duplicate of
+  a simulated step copies its render, shape included.
 - Back to Flat keeps the pins, because the worker keeps the fixed-node mask
   through a reset. It ends a pose.
 
@@ -375,19 +415,23 @@ Tests, on both backends:
   - letting go releases the hold even when the pose is kept (l.1425).
 
   A test checks that `'anchor'` frames stay byte-identical.
-- **A load option `shape`**, applied before the first frame.
+- **A load option `shape`**, applied before the first frame. When its sheet
+  key does not match, the session folds from flat, as it does today, and the
+  load says `'mismatch'`.
 - **`restoreShape(token, {foldPercent, shape | null})`, one atomic call:**
   1. End any pose quietly, with a new `poseEnded: 'restore'` that no analytics
      counts.
   2. Set the fold target.
   3. With a shape: write it, resolve its pin points to faces, and fix those
      faces. With `null`: release the pins, reset and refold. This is the free
-     path, so an undo back to an unshaped step does not keep the orientation
-     the pins left behind.
+     path, for an undo back to an older step with no shape, so it does not
+     keep the orientation the pins left behind.
 
   It answers `{pins: faceIds, posed}`, `'mismatch'` or `null`.
 - **`sessionScene` returns `{scene, shape}` from one call**, so the picture and
-  its record come from the same moment. It also gets the 0% guard above.
+  its record come from the same moment. It also gets the 0% guard above, and
+  the shape follows it: at 0% with nothing pinned or posed, the shape is the
+  flat sheet's, so an untouched 0% in Pose stores what the headless 0% stores.
   - While a pull is in hand it answers `pulling` instead, and the rest
     re-arms.
   - With `settleSteps` (Pose closing) it cancels the grip first, so 20,000
@@ -411,17 +455,30 @@ Tests, on both backends:
   - It is not a content hash. It is known before the scene is drawn, which
     matters because `wantsRest` decides whether to draw at all, and it never
     jitters with solver noise.
+  - A session opened on an older step, with no shape, has no id until its
+    first capture, which mints one. So opening it compares equal and writes
+    nothing.
 - **Comparing rests.** `SimulatedRest` (`poseController.ts` l.172, HEAD) gains
   `hand: string | null`. `wantsRest` (l.427) and `sameSimulatedPose` (l.677)
   also compare it with `render.shape?.id ?? null`.
-- **Capturing.**
+- **Capturing: every capture stores a shape.**
   - `StillScene` (`captureFolded.ts` ~l.157, HEAD) answers `{scene, shape}`.
-  - `captureSimulated` stores the shape, with the rest's `hand` as its id.
-  - `flatStill` answers with no shape.
-  - A new `shapeStill` beside it redraws a shaped step headless.
+  - `captureSimulated` puts the shape in the render it returns, with the rest's
+    `hand` as its id. So every path that captures a simulated picture writes
+    one: Pose's rest, and the headless 0% of Show as, Duplicate as and Reset.
+  - `flatStill` answers the flat sheet's shape: flat positions, every θ zero,
+    no pins, not posed. It needs no solve.
+  - A new `shapeStill` beside it redraws a step from its stored shape,
+    headless.
+  - **`readShape` runs on every capture in Pose**, not only a shaped step's.
+    `sessionScene` already reads the positions back to draw, so what it adds
+    is θ's readback, the canonical reorder and the encoding, once per rest.
+    The simulator PR (Phase 3) is measuring that cost.
 - **Refresh** (`linkStatus.needsPose`, l.48, HEAD).
-  - A shaped step whose link is current redraws headless in new light through
-    `shapeStill`.
+  - Any step with a shape and a current link redraws headless in new light
+    through `shapeStill`, at any fold %. Its shape is kept as it is, id and
+    all; only the picture changes. Above 0% that no longer needs Pose.
+  - An older step with no shape needs Pose above 0%, as today.
   - A stale one needs Pose, and there the sheet key decides whether the shape
     survives.
 
@@ -436,18 +493,27 @@ Tests, on both backends:
 - **`diagram/capture/useDiagramSimulatedHand.ts`** (new). It sits beside
   `useDiagramSimulatedPose`, which is already 516 lines. It:
   - owns the hand id;
-  - seeds the pins from a load or a restore, and ignores the `pins`
-    acknowledgement that equals the set it seeded;
-  - turns `onHandChange` into a new id plus the existing `moved()`;
-  - on a sheet mismatch, drops the shape with a toast and sends
-    `diagram simulated shape dropped`.
+  - restores on every open: when the stored shape's sheet key matches, the
+    session starts from it, and the hand adopts its id and its pins;
+  - on a mismatch, lets the session fold from flat with a notice (for a
+    shaped step, that its pins and pose were let go; for an unshaped one, that
+    it was folded again from flat), and sends
+    `diagram simulated shape dropped`. The hand still adopts the stored id,
+    so opening writes nothing, and the next capture replaces the shape.
+    *(inferred: a changed pattern also makes the step out of date, so its
+    first rest recaptures it through `needsRecapture`, as Pose Again does
+    today.)*
+  - ignores the `pins` acknowledgement that equals the set it seeded;
+  - turns `onHandChange` into a new id plus the existing `moved()`.
 - **`useDiagramSimulatedPose`** (HEAD):
-  - the runtime (l.293–301) gets `framing: 'shape'` and `initialShape`;
+  - the runtime (l.293–301) gets `framing: 'shape'`, and `initialShape`, the
+    step's stored shape, on every open;
   - `handleFrame` (l.280–291) forwards frames to `tools.observeFrame`;
   - one `useSimulatorToolBinding` call, with `surface: 'diagram-pose'`;
   - `useSimulatorShortcuts` (l.481–496) gets `tools: tools.shortcuts`;
   - undo-follow (l.340–365) calls `restoreShape` instead of `setFoldPercent`
-    whenever either the old or the new render has a shape.
+    whenever the fold % or the shape differs: with the render's shape, or
+    `null`, the free path, for an older render with none.
 
   The close-capture effect stays declared before the runtime (l.265–278), so
   its scene is requested before the model goes away.
@@ -538,8 +604,9 @@ executor and Pose's never compete for the single executor slot *(inferred)*.
   `SimulatorPoseReleaseSource`.
 - **`hand: 'none' | 'pinned' | 'posed'`** on `diagram picture posed` for a
   simulated step.
-- **New: `diagram simulated shape dropped {reason}`**, where the reason is
-  `pattern-changed` or `model-changed`.
+- **New: `diagram simulated shape dropped {reason, hand}`**, where the reason
+  is `pattern-changed` or `model-changed`, and `hand` is the stored shape's
+  (`'none'` for an unshaped one).
 - **`'diagram-pose'` as a context-menu surface.**
 - **A restore must not log `simulator pose released`.** That is why it ends the
   pose with `'restore'`.
@@ -559,7 +626,8 @@ in `tools.json`.
   - "Nothing is pinned";
   - "The paper isn't posed".
 - The Step pane line.
-- The dropped-shape toast: "Its pins and pose were let go: the pattern
+- The dropped-shape toasts: "Its pins and pose were let go: the pattern
+  changed", and for an unshaped step, "Folded again from flat: the pattern
   changed".
 
 Then run `i18n:extract`, `i18n:stamp` and `i18n:check`.
@@ -568,7 +636,7 @@ Then run `i18n:extract`, `i18n:stamp` and `i18n:check`.
 
 Numbered so picks can be pasted back.
 
-**D1. Should a step shaped by hand keep its shape? DECIDED: A** (Zach, 2026-10-06: "As long as it's not really expensive to do, I agree with A." Open with him: whether every simulated step, not only a shaped one, should store its shape so that reopening Pose always shows the captured mesh.)
+**D1. Should a step shaped by hand keep its shape? DECIDED: A, on every simulated step** (Zach, 2026-10-06: "As long as it's not really expensive to do, I agree with A." Then, asked whether every simulated step should save its shape, or only the ones pinned or pulled: "I think every one". So every simulated step stores `render.shape`, with empty pins and `posed: false` when untouched, and reopening Pose shows exactly the captured mesh rather than solving to the fold % again, whatever a later solver or the GPU's rounding would make of it. The cost is a few KB a step under a whole-file budget: see What a step stores.)
 - **A.** Store it in `render.shape`: pins as points on the sheet, positions and
   crease angles, and whether it is posed. Reopening, undo, Pose Again and
   Refresh in new light all give the same picture. A changed pattern drops the
@@ -683,9 +751,10 @@ Numbered so picks can be pasted back.
 - **A bundling `useSimulatorToolHost` hook.** Not needed. With the two helpers
   each host is three calls, and a bundling hook would take the whole runtime
   and the viewport ref to save nothing.
-- **Positions stored for every simulated step**, so that any step could be
-  relit headless. Not proposed: it grows every step and changes D19 for steps
-  the tools never touch.
+- **A shape only on steps the hand touched**, this plan's first draft. Not
+  chosen (D1): an untouched step would be solved again to its fold % on every
+  open, so a solver change or GPU rounding could move a picture nobody
+  touched, and only Pose could refresh it above 0%.
 - **Keeping pins across a pattern change**, by re-resolving their points on the
   new model. Not proposed: re-applied pins at the stored fold % do not give the
   picture, and a stale step is posed again anyway.
@@ -696,6 +765,12 @@ Numbered so picks can be pasted back.
   Verlet history; a mistake shows as a restored pose that creeps. Mitigation:
   the engine tests on both backends come first, and nothing depends on them
   until they pass.
+- **Every simulated step rides on the restore** (D1), not only shaped ones, so
+  a restore bug would show on every reopen. Mitigation: a mismatch or a failed
+  restore falls back to folding from flat, as today, with the notice; and the
+  older-file path, which never restores, stays tested.
+- **File growth.** Every simulated step grows by its shape. Mitigation: the
+  whole-file 1% budget, weighed on Zach's diagrams before the writer lands.
 - **Bitmap-present picks and pulls have never run** on a shipped surface *(inferred to work)*.
   Pose is the first. Mitigation: a browser check in Phase 6, through the keys,
   before any UI exists.
@@ -895,7 +970,8 @@ Vitest runs in the web workspace under Node 22.
 ### Phase 3: read and restore a shape, on main (PR 2)
 
 - [ ] Engine: `readShape` and `writeShape` on both backends, with the tests
-  listed in Approach, and `bench:pull` unchanged.
+  listed in Approach, and `bench:pull` unchanged. Measure `readShape`'s cost,
+  which every capture in Pose now pays (D1), on the crane and a large region.
 - [ ] Worker:
   - the canonical sheet order and `simulatorSheetKey`;
   - the `shape` load option and the atomic `restoreShape`;
@@ -916,27 +992,44 @@ Vitest runs in the web workspace under Node 22.
 
 ### Phase 5: the model, the file and capture (#436)
 
-- [ ] `DiagramSimulatedShape` and `render.shape`.
+- [ ] `DiagramSimulatedShape` and `render.shape`, written on every simulated
+  capture.
   - `CP_RENDER_FIELDS`.
   - `readCpRender` validation: the base64 length must be nodes × 12 + creases
     × 4; the id a string; the points finite; `posed` a boolean.
   - The writer's 1 MB cap.
-  - Tests: a round trip, an older build reading the step as locked, and a
-    refusal.
-- [ ] `isDefaultRender`, Reset, `renderToShowAs` and Duplicate as Simulated all
-  drop the shape. Tests.
+  - Tests:
+    - a round trip, shaped and unshaped;
+    - an unshaped step round-trips its exact mesh: the same `state` bytes, and
+      the same picture from `shapeStill`;
+    - an older file with no shapes still opens, and its simulated steps read
+      as before;
+    - an older build reading the step as locked;
+    - a refusal over 1 MB.
+- [ ] The budget: a test beside `zoom/paperFacesBudget.test.ts` that a shape
+  adds only its compact string to a file written as the app writes one; then
+  every simulated step recaptured on Zach's diagrams, weighed against the 1%.
+  A breach goes to Zach.
+- [ ] Reset keeps a fresh flat shape; `isDefaultRender` asks for no pins and no
+  pose; Show as and back, and Duplicate as Simulated, capture their own; a
+  plain duplicate copies its shape. Tests.
 - [ ] Capture and Refresh:
-  - `sessionScene` returns `{scene, shape}`;
-  - `shapeScene`, `shapeStill` and `StillScene`;
+  - `sessionScene` returns `{scene, shape}`, with the 0% guard covering both;
+  - `flatStill` answers the flat shape; `shapeScene`, `shapeStill` and
+    `StillScene`;
   - `captureSimulated`;
   - `SimulatedRest.hand`, with `wantsRest` and `sameSimulatedPose` comparing
     it;
-  - `needsPose`, and Refresh in new light;
-  - tests in `poseController`, `linkedPose` and `linkStatus`.
+  - `needsPose`, and Refresh in new light, keeping the shape;
+  - tests in `poseController`, `linkedPose` and `linkStatus`, including a
+    headless Refresh at 0% that adds no undo step, as Phase 0 saw.
 - [ ] Analytics: `hand` on `diagram picture posed`, and
   `diagram simulated shape dropped`.
 - [ ] Browser:
-  - an unshaped step's Pose and Refresh are unchanged, before and after;
+  - an older step without a shape opens and re-simulates as before, and
+    writes nothing;
+  - once captured, it reopens to the same mesh, and refreshes headless in new
+    light above 0%;
   - a fixture document with a shaped step refreshes headless in new light.
 
 ### Phase 6: Pose's binding (#436)
@@ -946,11 +1039,14 @@ Vitest runs in the web workspace under Node 22.
 - [ ] Hook tests with a fake runtime:
   - a rest follows only an acknowledged hand change;
   - reopening adopts the stored id and causes no capture;
+  - reopening an unshaped step restores its stored mesh, not a fresh solve;
+  - opening an older step with no shape re-simulates and causes no capture;
   - undo-follow makes one `restoreShape` call;
-  - an undo to an unshaped step takes the free path;
+  - an undo to an older render with no shape takes the free path;
   - there is no rest while a pull is in hand;
   - closing cancels the grip;
-  - a mismatch drops the shape with the toast.
+  - a mismatch folds from flat with its notice, shaped and unshaped, and
+    writes nothing on open.
 - [ ] Keyboard tests:
   - O, P and U pick tools while Pose's simulator holds the keyboard;
   - Escape goes gesture, then Orbit, then closes the detail;
@@ -958,8 +1054,10 @@ Vitest runs in the web workspace under Node 22.
 - [ ] Browser, early, through the keys alone, because bitmap-present picks and
   pulls have never run:
   - P, then a box pin, then U, then pull a bird base's flap and let go;
-  - Done, then reopen: the same shape, with the ghost aligned.
-- [ ] i18n for the toast. Gate.
+  - Done, then reopen: the same shape, with the ghost aligned;
+  - an untouched step at 75%, Done, then reopen: the same mesh, and no
+    capture.
+- [ ] i18n for the toasts. Gate.
 
 ### Phase 7: Pose's UI (#436)
 
@@ -990,7 +1088,8 @@ have landed.
   - Back to Flat and scrubbing end a pose and keep the pins;
   - undo and redo across a pull;
   - Reset Pose;
-  - a light change refreshes a shaped step;
+  - a light change refreshes a shaped step, and an untouched one above 0%,
+    headless;
   - a pattern edit drops the shape and marks the step out of date;
   - a phone at 375 px with the pill and sheet;
   - light and dark;
