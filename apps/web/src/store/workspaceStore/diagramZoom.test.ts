@@ -438,6 +438,9 @@ describe('every way a step is made after an enlarged one (16g)', () => {
     expect(past()).toBe(was + 1);
     for (const id of added.stepIds) {
       expect(step(id).zoom).toMatchObject({ from: 'area-head', shape: 'circle', frame: { centre: expect.any(Array) } });
+      // Every one of the run keeps the source's imprint, for a picture with faces to land (16h).
+      expect(step(id).zoom!.imprint, id).toEqual(step(added.stepIds[0]!).zoom!.imprint);
+      expect(step(id).zoom!.imprint).toBeDefined();
     }
     expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([
       ['seeded', 'picture', 'none', 'circle', 'svg'],
@@ -459,7 +462,11 @@ describe('every way a step is made after an enlarged one (16g)', () => {
     const sent = [{ source: card.source as DiagramReferencesSource, picture: card.picture as DiagramStepDiagramPicture, text: card.text }];
     const filled = state().pullReferencesDiagramSteps([...sent, ...sent], { kind: 'fill', stepId: empty }, { loadId: state().diagramLoadId, label: 'Add from References' })!;
     expect(filled.stepIds[0]).toBe(empty);
-    for (const id of filled.stepIds) expect(step(id).zoom).toMatchObject({ from: 'area-head', frame: { centre: expect.any(Array) } });
+    for (const id of filled.stepIds) {
+      expect(step(id).zoom).toMatchObject({ from: 'area-head', frame: { centre: expect.any(Array) } });
+      // The card made after the filled step keeps the imprint it was seeded with too (16h).
+      expect(step(id).zoom!.imprint, id).toBeDefined();
+    }
     expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([
       ['seeded', 'picture', 'none', 'circle', 'references'],
       ['seeded', 'picture', 'none', 'circle', 'references'],

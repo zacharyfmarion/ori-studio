@@ -280,7 +280,9 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
         landed = { ...first, stepId: result.filled };
         edited = first.document;
       }
-      const seeding = seedNewSteps(edited, result.made, edited.assets);
+      // The steps made after a filled one are seeded from its frame and imprint as it held them before its picture.
+      const filled = result.filled === undefined ? undefined : (stepById(document, result.filled) ?? undefined);
+      const seeding = seedNewSteps(edited, result.made, edited.assets, filled);
       seeded = seeding.seeded;
       return seeding.document;
     });

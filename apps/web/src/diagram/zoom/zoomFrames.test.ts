@@ -699,7 +699,7 @@ describe('an enlarged step’s own picture changed, by any edit of it (16g)', ()
 });
 
 describe('a new step after an enlarged one, however it is made (16g)', () => {
-  it('made with its picture, lands its frame at once; a run of them each from the one before; a turn passed', () => {
+  it('made with its picture, lands its frame at once; a run of them each from the run’s source; a turn passed', () => {
     const enlarged = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
     const made = [{ ...craneStep('C.none'), id: 'step-a' }, createTurn({ kind: 'turn-over', axis: 'vertical' }, () => 'turn-1'), { ...craneStep('S.none'), id: 'step-b' }];
     const { document, seeded } = seedNewSteps(insertSteps(enlarged, made, enlarged.steps.length), ['step-a', 'turn-1', 'step-b'], NO_ASSETS);
@@ -713,6 +713,43 @@ describe('a new step after an enlarged one, however it is made (16g)', () => {
     expect(step(document, 'step-b').zoom!.from).toBe('area-head');
     // The same picture as N's: the same frame.
     expect(distance(step(document, 'step-a').zoom!.frame!.centre, step(enlarged).zoom!.frame!.centre)).toBeLessThan(1e-9);
+  });
+
+  it('a run of uploads: every one from the run’s source, so each keeps its imprint for a picture with faces (16h)', () => {
+    const enlarged = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"/>';
+    const assets = Object.fromEntries(['u1', 'u2', 'u3'].map((id) => [id, { id, kind: 'svg' as const, svg, widthPx: 400, heightPx: 300, bytes: svg.length }]));
+    const upload = (id: string): DiagramStep => ({
+      ...createStep(() => `step-${id}`),
+      source: { kind: 'upload', assetId: id, rotationQuarterTurns: 0, mirrored: false },
+      picture: { kind: 'asset', assetId: id, paperScale: null, key: `asset:${id}` },
+    });
+    const made = [upload('u1'), upload('u2'), upload('u3')];
+    const withUploads = { ...insertSteps(enlarged, made, enlarged.steps.length), assets };
+    const { document, seeded } = seedNewSteps(withUploads, made.map((each) => each.id), assets);
+    expect(seeded.map((each) => [each.stepId, each.captured.placed])).toEqual([
+      ['step-u1', 'picture'],
+      ['step-u2', 'picture'],
+      ['step-u3', 'picture'],
+    ]);
+    const source = imprintOn(step(enlarged), step(enlarged).zoom!.frame!);
+    for (const each of made) {
+      expect(step(document, each.id).zoom!.imprint, each.id).toEqual(source);
+      expect(step(document, each.id).zoom!.frame).toEqual(step(enlarged).zoom!.frame);
+    }
+    // A step the same edit filled starts the run as it was before its picture: its imprint too.
+    const empty = { ...createStep(() => 'step-empty'), id: 'step-empty' };
+    const before = seedNewSteps(insertSteps(enlarged, [empty], enlarged.steps.length), ['step-empty'], NO_ASSETS).document;
+    const was = step(before, 'step-empty');
+    const filled = { ...was, source: upload('u1').source, picture: upload('u1').picture };
+    const afterFill = {
+      ...insertSteps({ ...before, steps: before.steps.map((entry) => (entry.id === 'step-empty' ? filled : entry)) }, [upload('u2')], before.steps.length),
+      assets,
+    };
+    const run = seedNewSteps(afterFill, ['step-u2'], assets, was).document;
+    expect(step(run, 'step-u2').zoom!.imprint).toEqual(was.zoom!.imprint);
+    // Without it, from the filled step as it shows: its frame alone.
+    expect(step(seedNewSteps(afterFill, ['step-u2'], assets).document, 'step-u2').zoom!.imprint).toBeUndefined();
   });
 
   it('leaves a step that is enlarged already — a duplicate — as it is, and one after a whole step whole', () => {

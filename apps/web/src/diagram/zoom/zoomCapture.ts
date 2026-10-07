@@ -280,10 +280,16 @@ export function stepsFrom(document: DiagramDocument, areaId: string): string[] {
  * faces (`placed` null until then). Null otherwise.
  */
 export function seededCapture(document: DiagramDocument, stepId: string): ZoomCaptured | null {
+  const source = seedSource(document, stepId);
+  return source && capture(document, stepId, source);
+}
+
+/** Where {@link seededCapture} captures from: the nearest earlier source, when the step before, turns passed, is enlarged. */
+export function seedSource(document: DiagramDocument, stepId: string): ZoomSource | null {
   for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
     const entry = document.steps[index]!;
     if (isTurn(entry)) continue;
-    return entry.zoom ? capture(document, stepId) : null;
+    return entry.zoom ? captureSource(document, stepId) : null;
   }
   return null;
 }

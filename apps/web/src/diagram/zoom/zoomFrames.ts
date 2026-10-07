@@ -61,10 +61,11 @@ import {
   heldFrame,
   imprintOn,
   placeOn,
-  seededCapture,
+  seedSource,
   stepsFrom,
   type ZoomCaptured,
   type ZoomImprint,
+  type ZoomSource,
 } from './zoomCapture';
 import { faceAt, imprintFrame, offSpread, ontoSpread, paperFacesOf, toPicture, toScene } from './zoomImprint';
 import {
@@ -631,25 +632,40 @@ export interface SeededStep {
  * before it, turns passed, is (Z2, "yeah sounds right"): captured at creation
  * from that step's frame. The one way every new step is seeded. In the
  * diagram's order, so a run of new steps after an enlarged one is enlarged
- * through, each from the one before it. A step made with its picture has its
- * frame landed at once; an empty one keeps its imprint for its first picture
- * ({@link landSeededFrame}). A step enlarged already — a duplicate keeps its
- * original's frame — is left as it is, as is one after a step that is not
- * enlarged. The diagram, and the steps seeded with their captures, for what
- * counts them.
+ * through, every step of the run from the run's source — the step its first
+ * is captured from — so each keeps the source's imprint: one captured from
+ * the step before it, an upload with no faces, would have only its frame
+ * (16h). A step `filled` in the same edit starts the run as it was before its
+ * picture, its frame and imprint as it was seeded with them. A step made with
+ * its picture has its frame landed at once; an empty one keeps its imprint for
+ * its first picture ({@link landSeededFrame}). A step enlarged already — a
+ * duplicate keeps its original's frame — is left as it is, as is one after a
+ * step that is not enlarged. The diagram, and the steps seeded with their
+ * captures, for what counts them.
  */
 export function seedNewSteps(
   document: DiagramDocument,
   stepIds: readonly string[],
-  assets: Assets
+  assets: Assets,
+  filled?: DiagramStep
 ): { document: DiagramDocument; seeded: SeededStep[] } {
   const made = new Set(stepIds);
   let next = document;
   const seeded: SeededStep[] = [];
+  let run: ZoomSource | null = null;
   for (const entry of document.steps) {
-    if (!made.has(entry.id) || isTurn(entry) || entry.zoom) continue;
-    const result = enlargeWith(next, entry.id, seededCapture(next, entry.id), assets);
-    if (!result.captured || result.document === next) continue;
+    if (isTurn(entry)) continue;
+    if (!made.has(entry.id) || entry.zoom) {
+      run = entry.id === filled?.id && filled.zoom ? { step: filled, zoom: filled.zoom } : null;
+      continue;
+    }
+    const source: ZoomSource | null = run ?? seedSource(next, entry.id);
+    const result = enlargeWith(next, entry.id, source && capture(next, entry.id, source), assets);
+    if (!result.captured || result.document === next) {
+      run = null;
+      continue;
+    }
+    run = source;
     next = result.document;
     seeded.push({ stepId: entry.id, captured: result.captured });
   }
