@@ -232,9 +232,15 @@ describe('step and document fields', () => {
 describe('page setup', () => {
   it('clamps every field to its range and keeps the rest', () => {
     const { diagram } = diagramWith(0);
-    const next = setPageSetup(diagram, { columns: 9, rows: 0, marginMm: -4 });
-    expect(next.page).toMatchObject({ columns: 5, rows: 1, marginMm: 0, size: 'a4' });
+    const next = setPageSetup(diagram, { columns: 9, rows: 0, marginMm: -4, stepsPerPage: 40 });
+    expect(next.page).toMatchObject({ columns: 5, rows: 1, marginMm: 0, size: 'a4', stepsPerPage: 30 });
     expect(setPageSetup(diagram, { columns: 3 })).toBe(diagram);
+    expect(setPageSetup(diagram, { stepsPerPage: 9 })).toBe(diagram);
+    expect(setPageSetup(diagram, { stepsPerPage: 1 }).page.stepsPerPage).toBe(2);
+    // As many as a flow page's 5 × 6 held before it took a count.
+    expect(setPageSetup(diagram, { stepsPerPage: 30 }).page.stepsPerPage).toBe(30);
+    // Each is its own: the grid's columns leave the flow's steps per page as they were.
+    expect(setPageSetup(diagram, { columns: 4 }).page.stepsPerPage).toBe(9);
   });
 
   it('starts a new diagram in the flow layout', () => {
@@ -256,8 +262,13 @@ describe('page setup', () => {
       size: 'letter',
       orientation: 'portrait',
       columns: 3,
+      // Unsaid: as many as the columns and rows hold.
+      stepsPerPage: 9,
       pageNumbers: { enabled: false, first: 1 },
     });
+    expect(normalizePageSetup({ layout: 'flow', columns: 4, rows: 2 }).stepsPerPage).toBe(8);
+    expect(normalizePageSetup({ layout: 'flow', columns: 5, rows: 6 }).stepsPerPage).toBe(30);
+    expect(normalizePageSetup({ layout: 'flow', columns: 4, rows: 2, stepsPerPage: 5 }).stepsPerPage).toBe(5);
   });
 });
 

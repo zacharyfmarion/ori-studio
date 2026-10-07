@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAGE_SETUP, type DiagramPageSetup, type DiagramPageSide } from '../document/diagramDocument';
 import {
   layoutDiagramPages,
+  pageGrid,
   STEP_NUMBER_SIZE_MM,
   STEP_TEXT_LEADING_MM,
   STEP_TEXT_SIZE_MM,
@@ -109,15 +110,46 @@ function bendHalves(lane: Lane): { from: LanePoint; curve: LaneCurve; drop: numb
   });
 }
 
-const SETUPS: Partial<DiagramPageSetup>[] = [
-  { columns: 3, rows: 3 },
-  { columns: 3, rows: 2 },
-  { columns: 4, rows: 3 },
-  { columns: 2, rows: 4 },
-  { columns: 3, rows: 1 },
-  { columns: 5, rows: 3, orientation: 'landscape' },
-  { columns: 3, rows: 3, marginMm: 0 },
+/**
+ * Flow pages of every shape the steps per page derive (`flowShape`), each
+ * with the shape it derives: odd and even rows, one row, one column, up to
+ * seven columns or seven rows, and last rows the steps leave short — on a
+ * left page, where the lane runs on through the empty cells to the spine.
+ */
+const SHAPED: readonly (readonly [Partial<DiagramPageSetup>, string])[] = [
+  // The default.
+  [{ stepsPerPage: 9 }, '3×3'],
+  // An even number of rows.
+  [{ stepsPerPage: 6, orientation: 'landscape' }, '3×2'],
+  [{ stepsPerPage: 12, orientation: 'landscape' }, '4×3'],
+  // 3 · 3 · 1 and 3 · 3 · 2: an odd number of rows, the last short.
+  [{ stepsPerPage: 7 }, '3×3'],
+  [{ stepsPerPage: 8 }, '3×3'],
+  // 3 · 3 · 3 · 1: an even number of rows, the last short.
+  [{ stepsPerPage: 10 }, '3×4'],
+  // 2 × 4 full, and 2 · 2 · 2 · 1, on A5.
+  [{ stepsPerPage: 8, size: 'a5' }, '2×4'],
+  [{ stepsPerPage: 7, size: 'a5' }, '2×4'],
+  // One row, and one column.
+  [{ stepsPerPage: 2, orientation: 'landscape' }, '2×1'],
+  [{ stepsPerPage: 2 }, '1×2'],
+  // Five columns, six and seven; and seven rows, past the six a flow page's own rows reached.
+  [{ stepsPerPage: 15, orientation: 'landscape' }, '5×3'],
+  [{ stepsPerPage: 24, orientation: 'landscape' }, '6×4'],
+  [{ stepsPerPage: 28, orientation: 'landscape' }, '7×4'],
+  [{ stepsPerPage: 28 }, '4×7'],
+  [{ stepsPerPage: 9, marginMm: 0 }, '3×3'],
 ];
+const SETUPS = SHAPED.map(([setup]) => setup);
+
+describe('the flow setups these cases run over', () => {
+  it('derive the shapes they name', () => {
+    for (const [setup, shape] of SHAPED) {
+      const { columns, rows } = pageGrid({ ...DEFAULT_PAGE_SETUP, layout: 'flow', ...setup });
+      expect(`${columns}×${rows}`, JSON.stringify(setup)).toBe(shape);
+    }
+  });
+});
 
 describe('flowPagePlan', () => {
   it('pairs pages into spreads from the side the first one falls on', () => {
@@ -207,7 +239,7 @@ describe('the band’s width and colour (Zach, 2026-10-06: "an option for how wi
       expect(chosen.bandInk).toBe('#d6e8f5');
     }
     // The heart's page, A4 3 × 3: 26 mm by itself.
-    expect(flow(steps(16), { columns: 3, rows: 3 }).bandWidthMm).toBeCloseTo(26.04, 2);
+    expect(flow(steps(16), { stepsPerPage: 9 }).bandWidthMm).toBeCloseTo(26.04, 2);
   });
 
   it('keeps every bend no tighter than the band is half wide, at any width the steps leave room for', () => {
@@ -231,10 +263,10 @@ describe('the band’s width and colour (Zach, 2026-10-06: "an option for how wi
 
   it('moves a bend out only as far as a wider band needs: the heart’s stay where they were', () => {
     const apexes = (pathWidthMm: number | null) =>
-      flow(steps(16), { columns: 3, rows: 3, pathWidthMm }).pages.flatMap((page) =>
+      flow(steps(16), { stepsPerPage: 9, pathWidthMm }).pages.flatMap((page) =>
         bendHalves(page.band!).flatMap(({ from, curve }) => (Math.abs(curve.c2.x - curve.to.x) < 1e-9 ? [{ from, to: curve.to }] : []))
       );
-    const cellW = flow(steps(16), { columns: 3, rows: 3 }).cellMm.w;
+    const cellW = flow(steps(16), { stepsPerPage: 9 }).cellMm.w;
     // Its own width and a narrower one: FLOW_BEND of a cell past the row's last picture, as before there was a choice.
     for (const width of [null, 8, 26]) {
       for (const { from, to } of apexes(width)) expect(Math.abs(to.x - from.x)).toBeCloseTo(FLOW_BEND * cellW, 9);
@@ -247,7 +279,7 @@ describe('the band’s width and colour (Zach, 2026-10-06: "an option for how wi
 
   it('keeps the band level and at one height over the spine, at any width', () => {
     for (const pathWidthMm of [8, 50]) {
-      const result = flow(steps(16), { columns: 3, rows: 3, pathWidthMm });
+      const result = flow(steps(16), { stepsPerPage: 9, pathWidthMm });
       const W = result.paper.widthMm;
       expect(heightAt(result.pages[1]!.band!, 0)).toBeCloseTo(heightAt(result.pages[0]!.band!, W)!, 6);
     }
@@ -259,7 +291,7 @@ describe('a printed spread', () => {
     for (const setup of SETUPS) {
       for (const firstPageSide of ['left', 'right'] as const) {
         // Enough steps for several spreads, the last page short.
-        const result = flow(steps(4 * (setup.columns ?? 3) * (setup.rows ?? 3) + 2), { ...setup, firstPageSide });
+        const result = flow(steps(4 * (setup.stepsPerPage ?? 9) + 2), { ...setup, firstPageSide });
         const W = result.paper.widthMm;
         let spreads = 0;
         result.pages.forEach((left, index) => {
@@ -287,7 +319,7 @@ describe('a printed spread', () => {
 
   it('starts the heart’s page 2 at its bottom left, its rows running up', () => {
     // The X-ray Heart: 16 steps, 3 × 3, page 1 on the left.
-    const result = flow(steps(16), { columns: 3, rows: 3 });
+    const result = flow(steps(16), { stepsPerPage: 9 });
     const [one, two] = result.pages;
     const at = (cell: LayoutCell) => ({ x: Math.round(cell.cellMm.x), y: Math.round(cell.cellMm.y) });
     // Page 1: 1 2 3, 6 5 4, 7 8 9 — ending at its bottom right, by the spine.
@@ -309,7 +341,7 @@ describe('a printed spread', () => {
 
   it('runs a left page that ends early on through its empty cells to the spine', () => {
     // A page break before step 5: page 1 holds four steps.
-    const result = flow(steps(12, (index) => ({ breakBefore: index === 4 })), { columns: 3, rows: 3 });
+    const result = flow(steps(12, (index) => ({ breakBefore: index === 4 })), { stepsPerPage: 9 });
     const [one, two] = result.pages;
     expect(one!.cells).toHaveLength(4);
     const lane = one!.band!;
@@ -321,8 +353,24 @@ describe('a printed spread', () => {
     expect(heightAt(lane, result.paper.widthMm)).toBeCloseTo(heightAt(two!.band!, 0)!, 6);
   });
 
+  it('runs a left page whose steps per page leave its last row short on to the spine, as one a page break ends there', () => {
+    // 7 steps on A4 are 3 · 3 · 1: the lane goes on from the seventh through the two empty cells.
+    const short = flow(steps(14), { stepsPerPage: 7 });
+    expect(short.pages.map((page) => page.cells.length)).toEqual([7, 7]);
+    const lane = short.pages[0]!.band!;
+    const knots = [lane.from, ...lane.curves.map((curve) => curve.to)];
+    const seventh = centreOf(short.pages[0]!.cells[6]!);
+    const beyond = knots.slice(knots.findIndex((knot) => knot.x === seventh.x && knot.y === seventh.y) + 1);
+    // Two empty cells' stops along the bottom row, then the spine and the bleed past it.
+    expect(beyond.slice(0, 2).every((knot) => knot.x > seventh.x)).toBe(true);
+    expect(heightAt(lane, short.paper.widthMm)).toBeCloseTo(heightAt(short.pages[1]!.band!, 0)!, 6);
+    // The same pages, band and all, as 9 steps a page with a page break after the seventh.
+    const broken = flow(steps(14, (index) => ({ breakBefore: index === 7 })), { stepsPerPage: 9 });
+    expect(short.pages).toEqual(broken.pages);
+  });
+
   it('starts a right page with fewer steps than rows at the spine’s row, and goes on up from there', () => {
-    const result = flow(steps(11), { columns: 3, rows: 3 });
+    const result = flow(steps(11), { stepsPerPage: 9 });
     const two = result.pages[1]!;
     expect(two.cells.map((cell) => cell.number)).toEqual([10, 11]);
     // The bottom row, read from the spine.
@@ -332,9 +380,10 @@ describe('a printed spread', () => {
   });
 
   it('over a page turn, starts the next page at its top left and runs the lane only off the outer edge', () => {
-    for (const rows of [2, 3]) {
+    // 3 × 2 and 3 × 3.
+    for (const [rows, setup] of [[2, { stepsPerPage: 6, orientation: 'landscape' }], [3, { stepsPerPage: 9 }]] as const) {
       for (const firstPageSide of ['left', 'right'] as const) {
-        const result = flow(steps(5 * 3 * rows), { columns: 3, rows, firstPageSide });
+        const result = flow(steps(5 * 3 * rows), { ...setup, firstPageSide });
         const W = result.paper.widthMm;
         result.pages.forEach((page, index) => {
           const next = result.pages[index + 1];
@@ -358,7 +407,7 @@ describe('a printed spread', () => {
   });
 
   it('starts a lone first right page at its top left, as a single page does', () => {
-    const result = flow(steps(12), { columns: 3, rows: 3, firstPageSide: 'right' });
+    const result = flow(steps(12), { stepsPerPage: 9, firstPageSide: 'right' });
     const one = result.pages[0]!;
     expect(one.side).toBe('right');
     expect(one.cells[0]!.cellMm.x).toBeCloseTo(result.paper.marginMm, 9);
@@ -383,8 +432,8 @@ describe('a turn across a flow row break, on the lane', () => {
     // Turns into steps 4 and 7 (page 1, read down) and 13 and 16 (page 2, read up).
     const list = steps(16, (index) => ([3, 6, 12, 15].includes(index) ? { turnsBefore: [over(`turn-${index}`)] } : {}));
     for (const [showPath, pathWidthMm] of [[true, null], [false, null], [true, 50], [false, 50]] as const) {
-      const result = flow(list, { columns: 3, rows: 3, showPath, pathWidthMm });
-      const lanes = flow(list, { columns: 3, rows: 3, pathWidthMm }).pages.map((page) => page.band!);
+      const result = flow(list, { stepsPerPage: 9, showPath, pathWidthMm });
+      const lanes = flow(list, { stepsPerPage: 9, pathWidthMm }).pages.map((page) => page.band!);
       result.pages.forEach((page, pageIndex) => {
         for (const turn of page.turns) {
           const k = page.cells.findIndex((cell) => cell.stepId === turn.beforeStepId);
@@ -415,7 +464,7 @@ describe('a turn across a flow row break, on the lane', () => {
     const list = steps(16, (index) =>
       index === 12 ? { text: long, turnsBefore: [over('turn-a'), over('turn-b'), over('turn-c')] } : {}
     );
-    const page = flow(list, { columns: 3, rows: 3 }).pages[1]!;
+    const page = flow(list, { stepsPerPage: 9 }).pages[1]!;
     const upper = page.cells.find((cell) => cell.stepId === 'step-12')!;
     const lower = page.cells.find((cell) => cell.stepId === 'step-11')!;
     expect(upper.cellMm.y).toBeLessThan(lower.cellMm.y);

@@ -82,7 +82,10 @@ describe('DiagramPagePanel', () => {
     expect(state().diagram?.page.layout).toBe('flow');
     expect(radio('Flow').getAttribute('aria-checked')).toBe('true');
     expect(host?.textContent).toContain('Show path');
-    expect(host?.textContent).toContain('Steps per row');
+    // The flow takes a number of steps, not columns and rows.
+    expect(host?.querySelector('input[aria-label="Steps per page"]')).not.toBeNull();
+    expect(host?.querySelector('input[aria-label="Columns"]')).toBeNull();
+    expect(host?.querySelector('input[aria-label="Rows"]')).toBeNull();
   });
 
   it('lays the steps out in a grid, one undo step and one count, and takes the path away', () => {
@@ -92,7 +95,9 @@ describe('DiagramPagePanel', () => {
     expect(state().diagramHistory.past).toHaveLength(past + 1);
     expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledWith('layout');
     expect(host?.textContent).not.toContain('Show path');
-    expect(host?.textContent).toContain('Columns');
+    expect(host?.querySelector('input[aria-label="Columns"]')).not.toBeNull();
+    expect(host?.querySelector('input[aria-label="Rows"]')).not.toBeNull();
+    expect(host?.querySelector('input[aria-label="Steps per page"]')).toBeNull();
     act(() => radio('Flow').click());
     expect(state().diagram?.page.layout).toBe('flow');
     expect(host?.textContent).toContain('Show path');
@@ -210,7 +215,27 @@ describe('DiagramPagePanel', () => {
     }
   });
 
-  it('says how many steps a page holds and how many pages there are', () => {
+  it('sets a flow page’s steps per page, one undo step and one count, and the pages follow', () => {
+    const field = () => host!.querySelector<HTMLInputElement>('input[aria-label="Steps per page"]')!;
+    expect(field().value).toBe('9');
+    const past = state().diagramHistory.past.length;
+    act(() => host!.querySelector<HTMLButtonElement>('button[aria-label="Decrease Steps per page"]')!.click());
+    expect(state().diagram?.page.stepsPerPage).toBe(8);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledExactlyOnceWith('steps_per_page');
+    // Ten steps, eight a page: two pages. The grid's columns and rows are left as they were.
+    expect(host?.textContent).toContain('2 pages');
+    expect(state().diagram?.page).toMatchObject({ columns: 3, rows: 3 });
+    act(() => useWorkspaceStore.getState().undoDiagram());
+    expect(state().diagram?.page.stepsPerPage).toBe(9);
+    expect(field().value).toBe('9');
+  });
+
+  it('says how many pages there are, and in the grid how many steps a page holds', () => {
+    // The flow's steps per page are its own row.
+    expect(host?.textContent).toContain('2 pages');
+    expect(host?.textContent).not.toContain('steps per page ·');
+    act(() => radio('Grid').click());
     expect(host?.textContent).toContain('9 steps per page · 2 pages');
   });
 

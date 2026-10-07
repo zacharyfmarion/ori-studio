@@ -141,7 +141,7 @@ describe('DiagramExportDialog', () => {
     expect(exportButton().textContent).toBe('Export PDF');
     expect(exportButton().disabled).toBe(false);
     // The setup it lays out, and the name the save is offered.
-    expect(host.textContent).toContain('Page setupA4 Portrait · Flow, 3 × 3');
+    expect(host.textContent).toContain('Page setupA4 Portrait · Flow, 9 steps per page');
     expect(host.textContent).toContain('Crane.pdf');
     await click(radio('Step files (ZIP)'));
     expect(host.textContent).toContain('Crane.zip');

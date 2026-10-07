@@ -1005,7 +1005,6 @@
       "pathColor": "路径颜色",
       "pathWidthMm": "路径宽度（mm）",
       "perPage_other": "每页 {{count}} 步",
-      "perRow": "每行步骤数",
       "portrait": "纵向",
       "rows": "行",
       "showPath": "显示路径",
@@ -1018,6 +1017,7 @@
         "b5Jis": "B5（JIS）",
         "letter": "美国信纸"
       },
+      "stepsPerPage": "每页步骤数",
       "style": "样式",
       "styleHint": "墨色和笔画会同时改变所有步骤。3D 步骤在刷新后采用新的光照。",
       "styleSection": "样式",

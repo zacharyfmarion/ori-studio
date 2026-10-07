@@ -1077,7 +1077,6 @@
       "perPage_one": "1 paso por página",
       "perPage_many": "{{count}} pasos por página",
       "perPage_other": "{{count}} pasos por página",
-      "perRow": "Pasos por fila",
       "portrait": "Vertical",
       "rows": "Filas",
       "showPath": "Mostrar recorrido",
@@ -1090,6 +1089,7 @@
         "b5Jis": "B5 (JIS)",
         "letter": "Carta EE. UU."
       },
+      "stepsPerPage": "Pasos por página",
       "style": "Estilo",
       "styleHint": "La tinta y las plumas cambian en todos los pasos a la vez. Un paso 3D toma la nueva iluminación al actualizarlo.",
       "styleSection": "Estilo",

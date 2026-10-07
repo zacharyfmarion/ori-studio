@@ -88,6 +88,7 @@ import {
   showAsOf,
   isKnownAsset,
   normalizePageSetup,
+  unsaidStepsPerPage,
   DEFAULT_PATH_COLOR,
   readHexColor,
   randomDiagramId,
@@ -207,6 +208,7 @@ const PAGE_KEYS = new Set([
   'layout',
   'columns',
   'rows',
+  'stepsPerPage',
   'showPath',
   'pathWidthMm',
   'pathColor',
@@ -301,11 +303,18 @@ export function writeDiagram(
  * The layout is always written. One that is not said reads as the grid
  * (`UNSAID_PAGE_LAYOUT`), the layout of every diagram saved before the flow
  * became a new one's default; a new diagram's flow is said, so it stays one.
+ *
+ * The steps per page are written only where they differ from what a page
+ * without them reads, as many as its columns and rows hold
+ * (`unsaidStepsPerPage`): a flow diagram that never chose them saves as it
+ * did before, and one that did keeps them on a grid too, for when it turns
+ * back to flow.
  */
 function writePageSetup(page: DiagramPageSetup): Record<string, unknown> {
-  const { firstPageSide, pathWidthMm, pathColor, ...rest } = page;
+  const { firstPageSide, pathWidthMm, pathColor, stepsPerPage, ...rest } = page;
   return {
     ...rest,
+    ...(stepsPerPage !== unsaidStepsPerPage(page) ? { stepsPerPage } : {}),
     ...(pathWidthMm !== null ? { pathWidthMm } : {}),
     ...(pathColor !== DEFAULT_PATH_COLOR ? { pathColor } : {}),
     ...(firstPageSide === 'right' ? { firstPageSide } : {}),

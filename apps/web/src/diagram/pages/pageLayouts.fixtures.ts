@@ -18,7 +18,8 @@ import { cpStep, referencesStep } from '../document/diagramSteps.fixtures';
 
 /**
  * Whole diagrams whose pages take every path the layout has for splitting
- * steps into pages and cells: the grid and the flow, a page break, turns at
+ * steps into pages and cells: the grid and the flow (its steps per page
+ * filling every cell, or leaving a short last row), a page break, turns at
  * a row's end and after the last step, spreads from either side, enlarged
  * steps (with their arrow, and one waiting for its picture), a newer build's
  * steps and turns, empty steps, uploads and References cards, and a diagram
@@ -121,15 +122,20 @@ export function pageLayoutFixtures(): PageLayoutFixture[] {
     },
     {
       name: 'flow, a page break and turns at a row’s end',
-      document: diagram(withTurns(steps(14, 'step', [8]), [3, 5, 9]), { layout: 'flow', columns: 3, rows: 3 }),
+      document: diagram(withTurns(steps(14, 'step', [8]), [3, 5, 9]), { layout: 'flow', stepsPerPage: 9 }),
     },
     {
       name: 'flow from the right, across spreads, rows read upward',
-      document: diagram(steps(10), { layout: 'flow', columns: 2, rows: 2, firstPageSide: 'right', pageNumbers: { enabled: false, first: 1 } }),
+      document: diagram(steps(10), { layout: 'flow', stepsPerPage: 4, firstPageSide: 'right', pageNumbers: { enabled: false, first: 1 } }),
+    },
+    {
+      name: 'flow, seven steps a page: short last rows, across a spread and a page turn',
+      // 3 · 3 · 1 on Letter: page 1's lane runs on through its empty cells to the spine.
+      document: diagram(withTurns(steps(17), [3, 6, 10]), { layout: 'flow', stepsPerPage: 7, size: 'letter' }),
     },
     {
       name: 'flow landscape, an odd row count',
-      document: diagram(withTurns(steps(16), [7]), { layout: 'flow', columns: 4, rows: 3, orientation: 'landscape', size: 'letter', marginMm: 6 }),
+      document: diagram(withTurns(steps(16), [7]), { layout: 'flow', stepsPerPage: 12, orientation: 'landscape', size: 'letter', marginMm: 6 }),
     },
     {
       name: 'enlarged steps: a Fill run, a Size, and one waiting for its picture',
@@ -144,7 +150,8 @@ export function pageLayoutFixtures(): PageLayoutFixture[] {
           over('turn-1'),
           cpStep('step-c'),
         ],
-        { layout: 'flow', columns: 3, rows: 2 }
+        // 2 × 3: until Phase 1b, 3 × 2, which prints six steps smaller on A4 (48 mm, not 58).
+        { layout: 'flow', stepsPerPage: 6 }
       ),
     },
     {

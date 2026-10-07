@@ -1005,7 +1005,6 @@
       "pathColor": "경로 색상",
       "pathWidthMm": "경로 너비(mm)",
       "perPage_other": "페이지당 {{count}}단계",
-      "perRow": "줄당 단계 수",
       "portrait": "세로",
       "rows": "줄",
       "showPath": "경로 표시",
@@ -1018,6 +1017,7 @@
         "b5Jis": "B5 (JIS)",
         "letter": "US 레터"
       },
+      "stepsPerPage": "페이지당 단계 수",
       "style": "스타일",
       "styleHint": "잉크와 펜은 모든 단계에 한꺼번에 바뀝니다. 3D 단계는 새로 고치면 새 조명을 받습니다.",
       "styleSection": "스타일",

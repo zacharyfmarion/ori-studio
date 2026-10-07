@@ -102,6 +102,74 @@ describe('writeDiagram / readDiagram', () => {
     }
   });
 
+  it('writes the steps per page only where they differ from the columns × rows a page without them reads', () => {
+    // A new diagram's flow, 9 on its 3 × 3: unsaid, as a build before the choice wrote it.
+    const fresh = throughJson(writeDiagram(createDiagram({ newId: sequentialIds() })));
+    expect('stepsPerPage' in fresh.page).toBe(false);
+    expect(readDiagram(fresh)!.document.page.stepsPerPage).toBe(9);
+    const seven = setPageSetup(sampleDiagram(), { stepsPerPage: 7 });
+    const written = throughJson(writeDiagram(seven));
+    expect(written.page.stepsPerPage).toBe(7);
+    const read = readDiagram(written)!;
+    expect(read.readOnly).toBe(false);
+    expect(read.document).toEqual(seven);
+    // A grid keeps them, for when it turns back to flow; where they are its cells, it says nothing.
+    const grid = setPageSetup(seven, { layout: 'grid', columns: 4, rows: 3 });
+    const gridWritten = throughJson(writeDiagram(grid));
+    expect(gridWritten.page.stepsPerPage).toBe(7);
+    expect(readDiagram(gridWritten)!.document).toEqual(grid);
+    const twelve = throughJson(writeDiagram(setPageSetup(grid, { stepsPerPage: 12 })));
+    expect('stepsPerPage' in twelve.page).toBe(false);
+    expect(readDiagram(twelve)!.document.page).toMatchObject({ layout: 'grid', columns: 4, rows: 3, stepsPerPage: 12 });
+    // A flow page from before they could be chosen holds as many steps as its columns and rows did, 5 × 6 included.
+    const { stepsPerPage: _unsaid, ...before } = written.page;
+    const page = (patch: Record<string, unknown>) => readDiagram({ ...written, page: { ...before, ...patch } })!;
+    expect(page({ columns: 2, rows: 3 }).document.page.stepsPerPage).toBe(6);
+    expect(page({ columns: 4, rows: 3 }).readOnly).toBe(false);
+    expect(page({ columns: 5, rows: 5 }).document.page.stepsPerPage).toBe(25);
+    expect(page({ columns: 5, rows: 6 }).document.page.stepsPerPage).toBe(30);
+    // Clamped to their range, whole; damage reads as the columns × rows.
+    expect(page({ stepsPerPage: 40 }).document.page.stepsPerPage).toBe(30);
+    expect(page({ stepsPerPage: 1 }).document.page.stepsPerPage).toBe(2);
+    expect(page({ stepsPerPage: 7.4 }).document.page.stepsPerPage).toBe(7);
+    expect(page({ stepsPerPage: '7', columns: 2, rows: 2 }).document.page.stepsPerPage).toBe(4);
+    expect(page({ stepsPerPage: '7' }).readOnly).toBe(false);
+  });
+
+  it('saves a flow diagram from before the steps per page byte for byte, so the build before opens it as it was', () => {
+    // As the build before wrote a flow page: every field it knew, none of the choices made.
+    for (const [columns, rows] of [
+      [3, 3],
+      [4, 2],
+      [5, 6],
+    ]) {
+      const saved = {
+        formatVersion: 1,
+        id: 'diagram-flow',
+        title: 'Crane',
+        hanStyle: 'sc',
+        style: { preset: 'diagram' },
+        page: {
+          size: 'a4',
+          orientation: 'portrait',
+          marginMm: 12,
+          layout: 'flow',
+          columns,
+          rows,
+          showPath: true,
+          showTitle: true,
+          pageNumbers: { enabled: true, first: 1 },
+        },
+        steps: [],
+        assets: {},
+      };
+      const read = readDiagram(saved)!;
+      expect(read.readOnly).toBe(false);
+      expect(read.document.page.stepsPerPage).toBe(columns * rows);
+      expect(JSON.stringify(writeDiagram(read.document), null, 2)).toBe(JSON.stringify(saved, null, 2));
+    }
+  });
+
   it('keeps a diagram saved in the grid a grid, now that a new one starts in the flow', () => {
     // As a build before the flow was the default wrote it: every page field, the layout said.
     const saved = {

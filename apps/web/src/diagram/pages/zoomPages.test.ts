@@ -234,7 +234,7 @@ describe('the enlarge arrow on a page', () => {
     expect(pages.zoomArrows(0)).toEqual(pages.layout.pages[0]!.zoomArrows);
     // Two to a row: the second row reads right to left.
     const rows = insertSteps(
-      { ...areaThenEnlarged(), page: { ...document.page, layout: 'flow', columns: 2, rows: 3 } },
+      { ...areaThenEnlarged(), page: { ...document.page, layout: 'flow', stepsPerPage: 6 } },
       [cpStep('step-a'), cpStep('step-b')],
       0
     );
@@ -250,7 +250,7 @@ describe('the enlarge arrow on a page', () => {
   it('prints across a flow row’s end aimed at the enlarged step, as the layout aims it', () => {
     // The area's step ends the first row; the enlarged step starts the second, under it.
     const document = insertSteps(
-      { ...areaThenEnlarged(), page: { ...createDiagram().page, layout: 'flow', columns: 2, rows: 3 } },
+      { ...areaThenEnlarged(), page: { ...createDiagram().page, layout: 'flow', stepsPerPage: 6 } },
       [cpStep('step-a')],
       0
     );

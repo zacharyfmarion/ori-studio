@@ -62,10 +62,20 @@ export interface DiagramPageSetup {
   /** 0–30 mm. */
   marginMm: number;
   layout: DiagramPageLayout;
-  /** 2–5. */
+  /** Grid layout only: 2–5. */
   columns: number;
-  /** 1–6. */
+  /** Grid layout only: 1–6. */
   rows: number;
+  /**
+   * Flow layout only: how many steps a page holds ({@link STEPS_PER_PAGE_RANGE}).
+   * The layout cuts the page into the columns and rows that print the largest
+   * pictures (`flowShape` in `diagramPageLayout.ts`), the last row short where
+   * the steps do not fill it. Kept on a grid, for when it turns back to flow.
+   * Written only where it differs from `columns × rows`, which a file without
+   * it reads ({@link unsaidStepsPerPage}), as every flow file before it could
+   * be chosen.
+   */
+  stepsPerPage: number;
   /** Flow layout only: the band that joins one step to the next. */
   showPath: boolean;
   /**
@@ -1039,6 +1049,8 @@ export const randomDiagramId: DiagramIdFactory = (prefix) => `${prefix}-${crypto
 export const PAGE_MARGIN_MM_RANGE = { min: 0, max: 30 } as const;
 export const PAGE_COLUMNS_RANGE = { min: 2, max: 5 } as const;
 export const PAGE_ROWS_RANGE = { min: 1, max: 6 } as const;
+/** A flow page's steps per page: up to the 5 × 6 a flow page could hold before it took a count, so every one keeps its count. */
+export const STEPS_PER_PAGE_RANGE = { min: 2, max: 30 } as const;
 export const FIRST_PAGE_NUMBER_RANGE = { min: 1, max: 9999 } as const;
 /**
  * The flow band's width, mm: from a thin line to more than twice the 26 mm an
@@ -1060,6 +1072,7 @@ export const DEFAULT_PAGE_SETUP: DiagramPageSetup = {
   layout: 'flow',
   columns: 3,
   rows: 3,
+  stepsPerPage: 9,
   showPath: true,
   pathWidthMm: null,
   pathColor: DEFAULT_PATH_COLOR,
@@ -1869,6 +1882,16 @@ export const PAPER_SIZES: readonly DiagramPaperSize[] = ['a4', 'a5', 'b5-jis', '
 export const UNSAID_PAGE_LAYOUT: DiagramPageLayout = 'grid';
 
 /**
+ * The steps per page of a setup that does not say: as many as its columns
+ * and rows hold, as every flow file before they could be chosen. The file
+ * writes the steps per page only where they differ from this, so a diagram
+ * that never chose them saves as it did before.
+ */
+export function unsaidStepsPerPage(page: Pick<DiagramPageSetup, 'columns' | 'rows'>): number {
+  return clampInteger(page.columns * page.rows, STEPS_PER_PAGE_RANGE.min, STEPS_PER_PAGE_RANGE.max);
+}
+
+/**
  * A page setup from anything, every field checked and clamped, each falling
  * back to its default on its own. Used by the edit above and by the file
  * reader, so a hand-edited file and a stepper reach the same legal values.
@@ -1876,6 +1899,8 @@ export const UNSAID_PAGE_LAYOUT: DiagramPageLayout = 'grid';
 export function normalizePageSetup(value: unknown): DiagramPageSetup {
   const source = isRecord(value) ? value : {};
   const numbers = isRecord(source.pageNumbers) ? source.pageNumbers : {};
+  const columns = clampWhole(source.columns, PAGE_COLUMNS_RANGE, DEFAULT_PAGE_SETUP.columns);
+  const rows = clampWhole(source.rows, PAGE_ROWS_RANGE, DEFAULT_PAGE_SETUP.rows);
   return {
     size: PAPER_SIZES.includes(source.size as DiagramPaperSize)
       ? (source.size as DiagramPaperSize)
@@ -1886,8 +1911,9 @@ export function normalizePageSetup(value: unknown): DiagramPageSetup {
         : DEFAULT_PAGE_SETUP.orientation,
     marginMm: clampNumber(source.marginMm, PAGE_MARGIN_MM_RANGE, DEFAULT_PAGE_SETUP.marginMm),
     layout: source.layout === 'flow' || source.layout === 'grid' ? source.layout : UNSAID_PAGE_LAYOUT,
-    columns: clampWhole(source.columns, PAGE_COLUMNS_RANGE, DEFAULT_PAGE_SETUP.columns),
-    rows: clampWhole(source.rows, PAGE_ROWS_RANGE, DEFAULT_PAGE_SETUP.rows),
+    columns,
+    rows,
+    stepsPerPage: clampWhole(source.stepsPerPage, STEPS_PER_PAGE_RANGE, unsaidStepsPerPage({ columns, rows })),
     showPath: typeof source.showPath === 'boolean' ? source.showPath : DEFAULT_PAGE_SETUP.showPath,
     // Unsaid, or damaged: in proportion to the steps, as before there was a choice.
     pathWidthMm:
@@ -1917,6 +1943,7 @@ export function pageSetupEquals(a: DiagramPageSetup, b: DiagramPageSetup): boole
     a.layout === b.layout &&
     a.columns === b.columns &&
     a.rows === b.rows &&
+    a.stepsPerPage === b.stepsPerPage &&
     a.showPath === b.showPath &&
     a.pathWidthMm === b.pathWidthMm &&
     a.pathColor === b.pathColor &&

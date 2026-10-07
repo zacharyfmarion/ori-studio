@@ -175,6 +175,7 @@
     "pagerLabel": "{{label}} · {{total}} 件中 {{index}}",
     "pageSetup": "ページ設定",
     "pageSetupSummary": "{{size}} {{orientation}} · {{layout}}、{{columns}} × {{rows}}",
+    "pageSetupSummaryFlow_other": "{{size}} {{orientation}} · {{layout}}、1ページに {{count}} ステップ",
     "pdf": "PDF",
     "pdfFailed": "PDF を作成できませんでした: {{message}}",
     "pdfHint": "すべてのページを、そのまま印刷できる形で。",

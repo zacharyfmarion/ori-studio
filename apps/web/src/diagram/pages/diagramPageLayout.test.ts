@@ -1,14 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DIAGRAM_STYLE, DEFAULT_PAGE_SETUP, type DiagramPageSetup } from '../document/diagramDocument';
+import { DEFAULT_DIAGRAM_STYLE, DEFAULT_PAGE_SETUP, STEPS_PER_PAGE_RANGE, type DiagramPageSetup } from '../document/diagramDocument';
 import {
+  cellsPerPage,
   FIT_RUN_BREAK,
   FIT_SAME,
   FIT_ZOOM,
+  flowShape,
   layoutDiagramPages,
   MARKS_FLOOR,
   overrunFit,
+  pageGrid,
+  PICTURE_HEIGHT_SHARE,
   pictureFloor,
   pictureOverrun,
   runLevels,
@@ -112,6 +116,111 @@ describe('printPaper', () => {
       marginMm: 12,
     });
     expect(printPaper({ size: 'b5-jis', orientation: 'portrait', marginMm: 0 })).toMatchObject({ widthMm: 182, heightMm: 257 });
+  });
+});
+
+describe('a flow page’s shape, from its steps per page (Phase 1b)', () => {
+  /** The paper inside its margins, as `pageGrid` hands `flowShape` it. */
+  const area = (setup: Partial<DiagramPageSetup>) => {
+    const { widthMm, heightMm, marginMm } = printPaper({ ...DEFAULT_PAGE_SETUP, ...setup });
+    return { w: widthMm - 2 * marginMm, h: heightMm - 2 * marginMm };
+  };
+  const shape = (steps: number, setup: Partial<DiagramPageSetup> = {}) => {
+    const { columns, rows } = flowShape(steps, area(setup));
+    return `${columns}×${rows}`;
+  };
+  /** A picture box on that area, as the layout sizes one in a diagram with turns. */
+  const box = ({ w, h }: { w: number; h: number }, columns: number, rows: number) =>
+    Math.min(w / columns - TURN_GUTTER_MM, (h / rows) * PICTURE_HEIGHT_SHARE);
+  const PAPERS: Partial<DiagramPageSetup>[] = (['a4', 'letter', 'b5-jis', 'a5'] as const).flatMap((size) =>
+    (['portrait', 'landscape'] as const).map((orientation) => ({ size, orientation }))
+  );
+
+  it('takes the shape that prints the largest pictures: on A4 upright, 7 steps are 3 · 3 · 1, and 6, 9 and 12 are 2 × 3, 3 × 3 and 3 × 4', () => {
+    // Zach, 2026-10-07: 7 steps are 3·3·1, the short row last. The squarest cell made them 2 · 2 · 2 · 1, at 41 mm where 9 print at 48.
+    expect([6, 7, 8, 9, 12].map((steps) => shape(steps))).toEqual(['2×3', '3×3', '3×3', '3×3', '3×4']);
+    // 16 fill 4 × 4, not 3 · 3 · 3 · 3 · 3 · 1 at smaller pictures than 17 get.
+    expect([15, 16, 17].map((steps) => shape(steps))).toEqual(['3×5', '4×4', '4×5']);
+    // Letter, much the same.
+    expect([7, 9, 12, 16].map((steps) => shape(steps, { size: 'letter' }))).toEqual(['3×3', '3×3', '3×4', '4×4']);
+    // On its side, wider rows; 4 are 2 × 2, never 3 · 1.
+    expect([4, 6, 7, 12].map((steps) => shape(steps, { orientation: 'landscape' }))).toEqual(['2×2', '3×2', '4×2', '4×3']);
+    // The fewest and the most.
+    expect([shape(2), shape(2, { orientation: 'landscape' })]).toEqual(['1×2', '2×1']);
+    expect([shape(30), shape(30, { orientation: 'landscape' })]).toEqual(['5×6', '6×5']);
+  });
+
+  it('fills its rows, the last one short, and finds no larger picture, for 2 to 30 steps on every paper either way up', () => {
+    for (const paper of PAPERS) {
+      const room = area(paper);
+      let before = Infinity;
+      for (let steps = STEPS_PER_PAGE_RANGE.min; steps <= STEPS_PER_PAGE_RANGE.max; steps += 1) {
+        const label = `${JSON.stringify(paper)} ${steps}`;
+        const { columns, rows } = flowShape(steps, room);
+        // Every row holds steps, and only the last may be short: 7 in 3 columns are 3 · 3 · 1.
+        expect(rows, label).toBe(Math.ceil(steps / columns));
+        expect(columns * (rows - 1), label).toBeLessThan(steps);
+        const best = box(room, columns, rows);
+        for (let other = 1; other <= steps; other += 1) {
+          expect(box(room, other, Math.ceil(steps / other)), `${label} ${other}`).toBeLessThanOrEqual(best + 1e-9);
+        }
+        // So a page of more steps never prints larger pictures than one of fewer.
+        expect(best, label).toBeLessThanOrEqual(before + 1e-9);
+        before = best;
+      }
+    }
+    // A landscape page never takes fewer columns than the same paper upright.
+    for (const size of ['a4', 'letter', 'b5-jis', 'a5'] as const) {
+      for (let steps = STEPS_PER_PAGE_RANGE.min; steps <= STEPS_PER_PAGE_RANGE.max; steps += 1) {
+        expect(flowShape(steps, area({ size, orientation: 'landscape' })).columns, `${size} ${steps}`).toBeGreaterThanOrEqual(
+          flowShape(steps, area({ size, orientation: 'portrait' })).columns
+        );
+      }
+    }
+  });
+
+  it('gives a tie to fewer columns', () => {
+    // 4 steps on A4 on its side: 2 × 2 and 3 × 2 print the same pictures, the rows' height their limit.
+    const side = area({ orientation: 'landscape' });
+    expect(box(side, 3, 2)).toBeCloseTo(box(side, 2, 2), 9);
+    expect(flowShape(4, side)).toEqual({ columns: 2, rows: 2 });
+    // 9 on Letter on its side: 3 × 3 or 4 × 3.
+    expect(flowShape(9, area({ size: 'letter', orientation: 'landscape' }))).toEqual({ columns: 3, rows: 3 });
+  });
+
+  it('is what the layout cuts a flow page by, from the steps per page, the paper and its margins alone', () => {
+    // The default: 9 steps, 3 × 3, as every flow page was before it could choose.
+    expect(DEFAULT_PAGE_SETUP.stepsPerPage).toBe(9);
+    expect(pageGrid({ ...DEFAULT_PAGE_SETUP, layout: 'flow' })).toEqual({ columns: 3, rows: 3 });
+    const seven: DiagramPageSetup = { ...DEFAULT_PAGE_SETUP, layout: 'flow', stepsPerPage: 7 };
+    expect([pageGrid(seven), cellsPerPage(seven)]).toEqual([{ columns: 3, rows: 3 }, 7]);
+    // A flow page's columns and rows are the grid's: it does not read them.
+    expect(pageGrid({ ...seven, columns: 5, rows: 1 })).toEqual(pageGrid(seven));
+    // Nor the title or the page numbers, which take room from its cells but never re-cut them.
+    expect(pageGrid({ ...seven, showTitle: false, pageNumbers: { enabled: false, first: 1 } })).toEqual(pageGrid(seven));
+    // The paper and its margins do.
+    expect(pageGrid({ ...seven, size: 'letter' })).toEqual({ columns: 3, rows: 3 });
+    expect(pageGrid({ ...seven, orientation: 'landscape' })).toEqual({ columns: 4, rows: 2 });
+    expect(pageGrid({ ...seven, marginMm: 30 })).toEqual({ columns: 2, rows: 4 });
+    // A grid's are its own, and it holds every cell, whatever its steps per page say.
+    const grid: DiagramPageSetup = { ...seven, layout: 'grid', columns: 4, rows: 2 };
+    expect([pageGrid(grid), cellsPerPage(grid)]).toEqual([{ columns: 4, rows: 2 }, 8]);
+  });
+
+  it('lays a flow page’s steps in reading order, the short row last, and starts the next page after its steps per page', () => {
+    const result = layout(steps(16), { layout: 'flow', stepsPerPage: 7 });
+    expect(result.pages.map((page) => page.cells.length)).toEqual([7, 7, 2]);
+    // 3 · 3 · 1, down the left page: rows turning back at each end, the seventh alone at the bottom.
+    const [one] = result.pages;
+    const top = Math.min(...one!.cells.map((cell) => cell.cellMm.y));
+    // Every other cell of a row steps down a little: still its row.
+    expect(one!.cells.map((cell) => Math.floor((cell.cellMm.y - top) / result.cellMm.h + 1e-9))).toEqual([0, 0, 0, 1, 1, 1, 2]);
+    expect(result.cellMm.w).toBeCloseTo((210 - 24) / 3, 9);
+    // The left page hands over at its spine: an odd number of rows, so its first row reads left to right,
+    // its second back, and the seventh starts its third at the outer edge, running on to the spine.
+    expect(one!.cells.map((cell) => Math.round((cell.cellMm.x - result.paper.marginMm) / result.cellMm.w))).toEqual([
+      0, 1, 2, 2, 1, 0, 0,
+    ]);
   });
 });
 
@@ -656,7 +765,7 @@ describe('layoutDiagramPages', () => {
   });
 
   it('runs every other row back in flow, with a band that leaves the page where the sequence goes on', () => {
-    const result = layout(steps(10), { layout: 'flow', columns: 3, rows: 2 });
+    const result = layout(steps(10), { layout: 'flow', stepsPerPage: 6, orientation: 'landscape' });
     const [first, second] = result.pages;
     const xs = (cells: LayoutCell[]) => cells.map((cell) => cell.cellMm.x);
     // The left page ends its two rows at the spine: the first reads right to left, the second back.
@@ -787,7 +896,7 @@ describe('turns between steps on the page (D22)', () => {
     const list = steps(9, (index) =>
       index === 3 ? { turnsBefore: [over('turn-down-right')] } : index === 6 ? { turnsBefore: [over('turn-down-left')] } : {}
     );
-    const result = layout(list, { layout: 'flow', columns: 3, rows: 3 });
+    const result = layout(list, { layout: 'flow', stepsPerPage: 9 });
     const page = result.pages[0]!;
     const byId = new Map(page.turns.map((turn) => [turn.id, turn]));
     for (const [id, before] of [
@@ -819,7 +928,7 @@ describe('turns between steps on the page (D22)', () => {
     // A text that fills its cell to the last line, and a tall picture with no text.
     for (const before of [{ text: `${LONG} ${LONG} ${LONG}` }, { text: '', picture: paper(150, 600) }]) {
       const list = steps(6, (index) => (index === 2 ? before : index === 3 ? { turnsBefore: stacked } : {}));
-      const result = layout(list, { layout: 'flow', columns: 3, rows: 3 });
+      const result = layout(list, { layout: 'flow', stepsPerPage: 9 });
       const page = result.pages[0]!;
       const [above, below] = [page.cells[2]!, page.cells[3]!];
       const { top, bottom } = extent(page.turns);
@@ -829,7 +938,7 @@ describe('turns between steps on the page (D22)', () => {
       // Only the step before the turns gives way: without them, it reaches further down.
       const plain = layout(
         steps(6, (index) => (index === 2 ? before : index === 3 ? {} : index === 4 ? { turnsBefore: [over('turn-row')] } : {})),
-        { layout: 'flow', columns: 3, rows: 3 }
+        { layout: 'flow', stepsPerPage: 9 }
       ).pages[0]!;
       expect(textBottom(plain.cells[2]!), label).toBeGreaterThan(top);
       expect(plain.cells[0]!.pictureMm.size).toBeCloseTo(page.cells[0]!.pictureMm.size, 6);
@@ -838,7 +947,7 @@ describe('turns between steps on the page (D22)', () => {
 
   it('prints one before a flow page’s first step at its leading edge, as on the page before there is no row to turn from', () => {
     const list = steps(11, (index) => (index === 0 || index === 9 ? { turnsBefore: [over(`turn-${index}`)] } : {}));
-    const result = layout(list, { layout: 'flow', columns: 3, rows: 3 });
+    const result = layout(list, { layout: 'flow', stepsPerPage: 9 });
     for (const [pageIndex, id] of [
       [0, 'turn-0'],
       [1, 'turn-9'],
@@ -865,7 +974,7 @@ describe('turns between steps on the page (D22)', () => {
                 ? { turnsAfter: [over('turn-end')] }
                 : {}
     );
-    const result = layout(list, { layout: 'flow', columns: 2, rows: 3 });
+    const result = layout(list, { layout: 'flow', stepsPerPage: 6 });
     // Steps 3 and 4 share the second row, read right to left: the turn is between them.
     const [, , third, fourth] = result.pages[0]!.cells;
     expect(third!.pictureMm.x).toBeGreaterThan(fourth!.pictureMm.x);
@@ -1167,7 +1276,7 @@ describe('enlarged steps on the page (Revision 2)', () => {
     });
 
     it('reads a flow row right to left: between the two pictures, mirrored', () => {
-      const result = layout(arrowed(4, 2), { layout: 'flow', columns: 2, rows: 3 });
+      const result = layout(arrowed(4, 2), { layout: 'flow', stepsPerPage: 6 });
       const [, , third, fourth] = result.pages[0]!.cells;
       const [arrow] = result.pages[0]!.zoomArrows;
       expect(third!.pictureMm.x).toBeGreaterThan(fourth!.pictureMm.x);
@@ -1177,7 +1286,7 @@ describe('enlarged steps on the page (Revision 2)', () => {
     });
 
     it('prints across a flow row’s end in the lane’s bend, where a turn would, clear of the words above and the number below', () => {
-      const result = layout(arrowed(6, 2), { layout: 'flow', columns: 3, rows: 3 });
+      const result = layout(arrowed(6, 2), { layout: 'flow', stepsPerPage: 9 });
       const page = result.pages[0]!;
       const [arrow] = page.zoomArrows;
       expect(laneDistance(page.band!, arrow!.at)).toBeLessThan(0.05);
@@ -1190,13 +1299,13 @@ describe('enlarged steps on the page (Revision 2)', () => {
       expect(arrow!.at.y + arrow!.box.h / 2).toBeLessThan(below.numberAt.y - 0.75 * STEP_NUMBER_SIZE_MM);
       expect(arrow!.liftable).toBe(false);
       // Where a turn there prints.
-      const turned = layout(steps(6, (index) => (index === 3 ? { turnsBefore: [over('turn-a')] } : {})), { layout: 'flow', columns: 3, rows: 3 });
+      const turned = layout(steps(6, (index) => (index === 3 ? { turnsBefore: [over('turn-a')] } : {})), { layout: 'flow', stepsPerPage: 9 });
       expect(arrow!.at.x).toBeCloseTo(turned.pages[0]!.turns[0]!.at.x, 1);
     });
 
     it('points across a flow row’s end at the enlarged step it leads to, its bow on the outside of the bend', () => {
       // Zach, 2026-10-07: in the lane's bend it is turned toward the step, not mirrored the next row's way.
-      const page = layout(arrowed(6, 2), { layout: 'flow', columns: 3, rows: 3 }).pages[0]!;
+      const page = layout(arrowed(6, 2), { layout: 'flow', stepsPerPage: 9 }).pages[0]!;
       const [arrow] = page.zoomArrows;
       const next = page.cells[3]!;
       const middle = { x: next.pictureMm.x + next.pictureMm.size / 2, y: next.drawMm.y + next.drawMm.h / 2 };
@@ -1210,7 +1319,7 @@ describe('enlarged steps on the page (Revision 2)', () => {
       expect(arrow!.box).toEqual(SIZES.aimedBox(arrow!.aim!));
       expect(arrow!.box.h).toBeGreaterThan(ARROW.h);
       // On a right page, read from the bottom up, the next row is above: up, and flipped to keep the bow outside.
-      const up = layout(arrowed(18, 11), { layout: 'flow', columns: 3, rows: 3 }).pages[1]!;
+      const up = layout(arrowed(18, 11), { layout: 'flow', stepsPerPage: 9 }).pages[1]!;
       expect(up.side).toBe('right');
       const [rising] = up.zoomArrows;
       expect(Math.sin(rising!.aim!.angle)).toBeLessThan(-0.5);
@@ -1273,7 +1382,7 @@ describe('enlarged steps on the page (Revision 2)', () => {
 
     it('keeps its room at a flow row’s end, as turns there keep theirs', () => {
       const list = arrowed(6, 2, (index) => (index === 2 ? { text: `${LONG} ${LONG} ${LONG}` } : {}));
-      const page = layout(list, { layout: 'flow', columns: 3, rows: 3 }).pages[0]!;
+      const page = layout(list, { layout: 'flow', stepsPerPage: 9 }).pages[0]!;
       const above = page.cells[2]!;
       const [arrow] = page.zoomArrows;
       const textFoot = above.text.firstBaseline + (above.text.lines.length - 1) * STEP_TEXT_LEADING_MM + 0.3 * STEP_TEXT_SIZE_MM;

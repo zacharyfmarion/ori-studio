@@ -75,6 +75,10 @@ describe('pages as they printed before placement came', () => {
   it('are held to their digests: the page, the Pages view’s page and its arrows, page by page', () => {
     // Taken from the layout at 6f7792459 (Phase 1 changes no page). A change here
     // is a change to what every diagram prints: say why when updating them.
+    // - Phase 1b: a flow page takes its steps per page and derives its shape, the
+    //   one that prints the largest pictures. Every flow fixture already in that
+    //   shape prints as it did (14 of the 16 digests); the enlarged steps' six a
+    //   page are 2 × 3 now, not 3 × 2, and the seven-steps fixture is new.
     const digests = Object.fromEntries(
       pageLayoutFixtures().flatMap(({ name, document }) =>
         printed(document).pages.map((page, index) => [
@@ -87,8 +91,8 @@ describe('pages as they printed before placement came', () => {
       {
         "a newer build’s steps and turns · page 1": "f803ef9681c5a607 f803ef9681c5a607 4f53cda18c2baa0c",
         "a newer build’s steps and turns · page 2": "85e09522e6de28d1 85e09522e6de28d1 4f53cda18c2baa0c",
-        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 1": "7f6c48df8defbd61 9535b811db5c0aa3 876e59c41d97d596",
-        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 2": "be8d762f97e72ba9 0ac2f144a218ed83 4f53cda18c2baa0c",
+        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 1": "aa5f0ffa04c3116c 9a4b83507bf9b3eb 5deb1d72903a8140",
+        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 2": "0d680ab6ea2404e3 b07ba08a2ed20746 4f53cda18c2baa0c",
         "flow from the right, across spreads, rows read upward · page 1": "3a6e4305e285fe94 b79c120d0613ba75 4f53cda18c2baa0c",
         "flow from the right, across spreads, rows read upward · page 2": "3ef69e5a3f333367 2d8632e2032a1725 4f53cda18c2baa0c",
         "flow from the right, across spreads, rows read upward · page 3": "fbd4486130f49007 0eaca7a42f75118c 4f53cda18c2baa0c",
@@ -96,6 +100,9 @@ describe('pages as they printed before placement came', () => {
         "flow landscape, an odd row count · page 2": "96a2c93f2fa952c0 71e2d0cdd67f4ff4 4f53cda18c2baa0c",
         "flow, a page break and turns at a row’s end · page 1": "33991adafc828a8c 6fce8802ca15174f 4f53cda18c2baa0c",
         "flow, a page break and turns at a row’s end · page 2": "41a3253410e92e8c 14fb417aa7d3eeb1 4f53cda18c2baa0c",
+        "flow, seven steps a page: short last rows, across a spread and a page turn · page 1": "f694a959319e7591 2be889dd8e690a78 4f53cda18c2baa0c",
+        "flow, seven steps a page: short last rows, across a spread and a page turn · page 2": "aeb619fdccd041aa 5678aa18f6b5f334 4f53cda18c2baa0c",
+        "flow, seven steps a page: short last rows, across a spread and a page turn · page 3": "b8e77e44ad3dd26e d07799e499d00e12 4f53cda18c2baa0c",
         "grid, a page break, turns and an upload · page 1": "762034dc73a12f50 762034dc73a12f50 4f53cda18c2baa0c",
         "grid, a page break, turns and an upload · page 2": "8254deff8fc82487 8254deff8fc82487 4f53cda18c2baa0c",
         "grid, two pages · page 1": "55238bffde0a38d1 55238bffde0a38d1 4f53cda18c2baa0c",

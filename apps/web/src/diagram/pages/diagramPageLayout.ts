@@ -76,6 +76,8 @@ const STEP_NUMBER_INSET_MM = 1.5;
 const STEP_NUMBER_TOP_MM = STEP_NUMBER_BASELINE_MM - 0.75 * STEP_NUMBER_SIZE_MM;
 /** The picture box's top below the cell's top: under the number. */
 export const PICTURE_TOP_MM = 8;
+/** The most of a cell's height its picture box takes: the rest is its number and its text. */
+export const PICTURE_HEIGHT_SHARE = 0.64;
 /** The instruction's first baseline below the picture box. */
 const TEXT_GAP_MM = 5;
 /** Room kept under the last baseline, for descenders. */
@@ -467,18 +469,57 @@ export interface DiagramPagesLayout {
 }
 
 /**
+ * The columns and rows a flow page of `steps` steps is cut into, on a
+ * printable `area` (mm): the column count that prints the largest pictures —
+ * the picture box as {@link layoutDiagramPages} sizes it, the lesser of a
+ * cell's width less the turn gutter and its height's picture share, a tie
+ * going to fewer columns — and as many rows as the steps then fill, the last
+ * one short where they do not fill it (7 steps on A4 are 3 · 3 · 1).
+ *
+ * Always the gutter a diagram with turns keeps, so a turn added or removed
+ * never re-cuts a page. A landscape page takes wider rows than a portrait one.
+ * Pure.
+ */
+export function flowShape(steps: number, area: { w: number; h: number }): { columns: number; rows: number } {
+  const count = Math.max(1, Math.floor(steps));
+  let best = { columns: 1, rows: count };
+  let bestBox = -Infinity;
+  for (let columns = 1; columns <= count; columns += 1) {
+    const rows = Math.ceil(count / columns);
+    const box = Math.min(area.w / columns - TURN_GUTTER_MM, (area.h / rows) * PICTURE_HEIGHT_SHARE);
+    // Only a clearly larger picture takes more columns: a tie, to rounding, keeps the fewer.
+    if (box > bestBox + 1e-9) {
+      best = { columns, rows };
+      bestBox = box;
+    }
+  }
+  return best;
+}
+
+/**
  * The columns and rows a page's cells are cut into under a setup: what the
  * layout cuts its pages by, and what every count of a page's cells reads —
- * the page count, and which cell a step is in (`stepPlaces.ts`). Read from
- * the setup alone, never the title, so typing a title never re-cuts a page
+ * the page count, and which cell a step is in (`stepPlaces.ts`). A grid's are
+ * its own; a flow page's are {@link flowShape}'s for its steps per page, on
+ * the paper inside its margins.
+ *
+ * Read from the setup alone, never the title, and never less the header and
+ * the footer: typing a title or turning page numbers on never re-cuts a page
  * (`implementation-plans/diagram-page-overrides.md`, Phase 1b).
  */
 export function pageGrid(setup: DiagramPageSetup): { columns: number; rows: number } {
-  return { columns: setup.columns, rows: setup.rows };
+  if (setup.layout !== 'flow') return { columns: setup.columns, rows: setup.rows };
+  const { widthMm: W, heightMm: H, marginMm: m } = printPaper(setup);
+  return flowShape(setup.stepsPerPage, { w: W - 2 * m, h: H - 2 * m });
 }
 
-/** How many steps a page holds under a setup ({@link pageGrid}). */
+/**
+ * How many steps a page holds under a setup: a grid's every cell
+ * ({@link pageGrid}); a flow page its steps per page, which a short last row
+ * makes fewer than its cells.
+ */
 export function cellsPerPage(setup: DiagramPageSetup): number {
+  if (setup.layout === 'flow') return setup.stepsPerPage;
   const { columns, rows } = pageGrid(setup);
   return columns * rows;
 }
@@ -975,7 +1016,7 @@ export function layoutDiagramPages(
   const outerShortfall = turning ? Math.max(0, TURN_GUTTER_MM / 2 - m) : 0;
   // A picture's room across the cell: the cell less the gutter between pictures.
   const roomW = Math.max(12, cellW - (turning ? TURN_GUTTER_MM : PICTURE_SIDE_ROOM_MM) - 2 * outerShortfall);
-  const fullBox = Math.max(12, Math.min(roomW, cellH * 0.64));
+  const fullBox = Math.max(12, Math.min(roomW, cellH * PICTURE_HEIGHT_SHARE));
   const textWidth = cellW * 0.8;
   const { columns, rows } = pageGrid(setup);
   const perPage = cellsPerPage(setup);
@@ -1140,7 +1181,9 @@ export function layoutDiagramPages(
   );
 
   // The lane's stops on each page: every picture's centre as drawn, and on a
-  // page that runs on to its spine, the empty cells after its last step.
+  // page that runs on to its spine, the empty cells after its last step — to
+  // the end of its last row, the spine's end (`flowPagePlan`), whether a page
+  // break ended it early or its steps per page leave the row short.
   const stopPages: LaneStop[][] = cellPages.map((cells, pageIndex) => {
     if (!flow) return [];
     const plan = plans[pageIndex]!;
@@ -1150,7 +1193,7 @@ export function layoutDiagramPages(
     };
     const stops = cells.map((cell, k) => stop(k, laneCentre(cell)));
     if (plan.exit === 'spine') {
-      for (let k = cells.length; k < perPage; k += 1) {
+      for (let k = cells.length; k < columns * rows; k += 1) {
         const { x, y } = cellAt(plan, k);
         stops.push(stop(k, { x: x + cellW / 2, y: y + PICTURE_TOP_MM + fullBox / 2 }));
       }

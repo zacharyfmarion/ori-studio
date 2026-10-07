@@ -1077,7 +1077,6 @@
       "perPage_one": "{{count}} étape par page",
       "perPage_many": "{{count}} étapes par page",
       "perPage_other": "{{count}} étapes par page",
-      "perRow": "Étapes par rangée",
       "portrait": "Portrait",
       "rows": "Rangées",
       "showPath": "Afficher le chemin",
@@ -1090,6 +1089,7 @@
         "b5Jis": "B5 (JIS)",
         "letter": "Lettre US"
       },
+      "stepsPerPage": "Étapes par page",
       "style": "Style",
       "styleHint": "L’encre et les plumes changent sur toutes les étapes à la fois. Une étape 3D prend le nouvel éclairage quand elle est actualisée.",
       "styleSection": "Style",

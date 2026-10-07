@@ -338,7 +338,10 @@ export type DiagramPdfPreset = 'home' | 'print_shop';
 /** The Diagram's two views: the steps as cards, or the printed pages. */
 export type DiagramView = 'steps' | 'pages';
 
-/** Which page setting changed in the Page pane (D10). `scale` is retired: every diagram fits each since 2026-10-06. */
+/**
+ * Which page setting changed in the Page pane (D10). `scale` is retired: every diagram fits each since 2026-10-06.
+ * `columns` and `rows` are the grid's; the flow takes `steps_per_page` instead (since 2026-10-07).
+ */
 export type DiagramPageSetting =
   | 'size'
   | 'orientation'
@@ -346,6 +349,7 @@ export type DiagramPageSetting =
   | 'layout'
   | 'columns'
   | 'rows'
+  | 'steps_per_page'
   | 'path'
   | 'path_width'
   | 'path_color'

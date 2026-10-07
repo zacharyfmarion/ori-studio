@@ -180,6 +180,8 @@
     "pagerLabel": "{{label}} · {{index}} von {{total}}",
     "pageSetup": "Seiteneinrichtung",
     "pageSetupSummary": "{{size}} {{orientation}} · {{layout}}, {{columns}} × {{rows}}",
+    "pageSetupSummaryFlow_one": "{{size}} {{orientation}} · {{layout}}, 1 Schritt pro Seite",
+    "pageSetupSummaryFlow_other": "{{size}} {{orientation}} · {{layout}}, {{count}} Schritte pro Seite",
     "pdf": "PDF",
     "pdfFailed": "Das PDF konnte nicht erstellt werden: {{message}}",
     "pdfHint": "Alle Seiten, fertig zum Drucken.",

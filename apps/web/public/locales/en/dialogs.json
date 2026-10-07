@@ -180,6 +180,8 @@
     "pagerLabel": "{{label}} · {{index}} of {{total}}",
     "pageSetup": "Page setup",
     "pageSetupSummary": "{{size}} {{orientation}} · {{layout}}, {{columns}} × {{rows}}",
+    "pageSetupSummaryFlow_one": "{{size}} {{orientation}} · {{layout}}, 1 step per page",
+    "pageSetupSummaryFlow_other": "{{size}} {{orientation}} · {{layout}}, {{count}} steps per page",
     "pdf": "PDF",
     "pdfFailed": "The PDF couldn’t be written: {{message}}",
     "pdfHint": "Every page, ready to print.",

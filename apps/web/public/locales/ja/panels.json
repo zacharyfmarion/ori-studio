@@ -1005,7 +1005,6 @@
       "pathColor": "経路の色",
       "pathWidthMm": "経路の幅（mm）",
       "perPage_other": "1ページに {{count}} ステップ",
-      "perRow": "1行のステップ数",
       "portrait": "縦向き",
       "rows": "行",
       "showPath": "経路を表示",
@@ -1018,6 +1017,7 @@
         "b5Jis": "B5（JIS）",
         "letter": "USレター"
       },
+      "stepsPerPage": "1ページのステップ数",
       "style": "スタイル",
       "styleHint": "インクとペンはすべてのステップに一度に反映されます。3Dのステップは更新すると新しい照明になります。",
       "styleSection": "スタイル",

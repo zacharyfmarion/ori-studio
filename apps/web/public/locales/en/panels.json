@@ -1041,7 +1041,6 @@
       "pathWidthMm": "Path width (mm)",
       "perPage_one": "1 step per page",
       "perPage_other": "{{count}} steps per page",
-      "perRow": "Steps per row",
       "portrait": "Portrait",
       "rows": "Rows",
       "showPath": "Show path",
@@ -1054,6 +1053,7 @@
         "b5Jis": "B5 (JIS)",
         "letter": "US Letter"
       },
+      "stepsPerPage": "Steps per page",
       "style": "Style",
       "styleHint": "Ink and pens change on every step at once. A 3D step takes a new light when it is refreshed.",
       "styleSection": "Style",

@@ -1041,7 +1041,6 @@
       "pathWidthMm": "Pfadbreite (mm)",
       "perPage_one": "1 Schritt pro Seite",
       "perPage_other": "{{count}} Schritte pro Seite",
-      "perRow": "Schritte pro Reihe",
       "portrait": "Hochformat",
       "rows": "Reihen",
       "showPath": "Pfad zeigen",
@@ -1054,6 +1053,7 @@
         "b5Jis": "B5 (JIS)",
         "letter": "US Letter"
       },
+      "stepsPerPage": "Schritte pro Seite",
       "style": "Stil",
       "styleHint": "Tinte und Stifte ändern sich bei allen Schritten zugleich. Ein 3D-Schritt erhält die neue Beleuchtung, wenn er aktualisiert wird.",
       "styleSection": "Stil",

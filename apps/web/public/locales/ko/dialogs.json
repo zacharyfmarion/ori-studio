@@ -175,6 +175,7 @@
     "pagerLabel": "{{label}} · {{total}}개 중 {{index}}",
     "pageSetup": "페이지 설정",
     "pageSetupSummary": "{{size}} {{orientation}} · {{layout}}, {{columns}} × {{rows}}",
+    "pageSetupSummaryFlow_other": "{{size}} {{orientation}} · {{layout}}, 페이지당 {{count}}단계",
     "pdf": "PDF",
     "pdfFailed": "PDF를 만들지 못했습니다: {{message}}",
     "pdfHint": "모든 페이지를 바로 인쇄할 수 있게.",

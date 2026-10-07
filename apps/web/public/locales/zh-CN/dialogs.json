@@ -175,6 +175,7 @@
     "pagerLabel": "{{label}} · 第 {{index}}/{{total}}",
     "pageSetup": "页面设置",
     "pageSetupSummary": "{{size}} {{orientation}} · {{layout}}，{{columns}} × {{rows}}",
+    "pageSetupSummaryFlow_other": "{{size}} {{orientation}} · {{layout}}，每页 {{count}} 步",
     "pdf": "PDF",
     "pdfFailed": "无法生成 PDF：{{message}}",
     "pdfHint": "所有页面，可直接打印。",
