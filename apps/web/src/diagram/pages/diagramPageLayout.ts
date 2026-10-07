@@ -1209,15 +1209,17 @@ export function layoutDiagramPages(
  * The size each enlarged step prints at (Revision 2, Z4), every other
  * picture's scale known (`scales`, which this adds the enlarged steps to):
  * in runs of their own — an enlarged step and those directly after it, up to
- * one that is not enlarged, one with an arrow before it, or one asking for
- * another Size, passing over one with no window yet — each run measured
- * against the area it enlarges as that prints (`areaMm`): the area's longer
- * side at its step's printed frame when
- * an arrow leaves it, else the run's first frame as its whole picture would
- * print among the steps round it.
+ * one that is not enlarged or one with an arrow before it, passing over one
+ * with no window yet — each run measured against the area it enlarges as
+ * that prints (`areaMm`): the area's longer side at its step's printed frame
+ * when an arrow leaves it, else the run's first frame as its whole picture
+ * would print among the steps round it. Every step of a run is measured
+ * against that one area, whatever Size it asks for, so ×2 means the same all
+ * along the run, a step captured from an earlier enlarged step included
+ * (Zach, 2026-10-07): a Size starts no run of its own.
  *
- * - **Fill**: the run's frames print at one size, the largest every one of
- *   them fits its room at, held to 1–6 times the area.
+ * - **Fill**: the run's Fill frames print at one size, the largest every one
+ *   of them fits its room at, held to 1–6 times the area.
  * - **Size**: that many times the area, held the same.
  *
  * A step its room cannot hold at its run's size — a long instruction took
@@ -1280,8 +1282,8 @@ function zoomScales<T extends { step: LayoutStep }>(
       return;
     }
     if (step.picture?.kind !== 'zoom') return;
-    const first = current ? all[current[0]!]!.step.zoom : undefined;
-    if (current && first && !step.zoom.arrowFrom && first.scale === step.zoom.scale) current.push(at);
+    // Only an arrow, or a step that is not enlarged, starts another run: a Size does not.
+    if (current && !step.zoom.arrowFrom) current.push(at);
     else runs.push((current = [at]));
   });
 
@@ -1295,16 +1297,20 @@ function zoomScales<T extends { step: LayoutStep }>(
     const fits = run.map((at) => fitOf(all[at]!));
     const [least, most] = [ZOOM_FILL.min * areaMm, ZOOM_FILL.max * areaMm];
     const held = (mm: number) => (known ? Math.min(most, Math.max(least, mm)) : mm);
-    // The printed frame the run asks for: its Size times the area, or the most every one of its frames' rooms holds.
-    const frameMm =
-      zoom.scale !== null && known
-        ? held(zoom.scale * areaMm)
-        : held(Math.min(...run.map((at, n) => (fits[n] ? fits[n]!.shared * frameInWindow(all[at]!) : Infinity))));
-    if (!(frameMm > 0) || !Number.isFinite(frameMm)) continue;
+    /** The Size a step of the run asks for, against the run's area; null for Fill, or where the area's size is not known. */
+    const sizeOf = (at: number) => (known ? all[at]!.step.zoom!.scale : null);
+    // The printed frame its Fill steps ask for: the most every one of their rooms holds.
+    const fillMm = held(
+      Math.min(...run.map((at, n) => (sizeOf(at) === null && fits[n] ? fits[n]!.shared * frameInWindow(all[at]!) : Infinity)))
+    );
     run.forEach((at, n) => {
       const item = all[at]!;
       const fit = fits[n];
       if (!fit) return;
+      // Its Size times the run's area, or the run's Fill.
+      const size = sizeOf(at);
+      const frameMm = size !== null ? held(size * areaMm) : fillMm;
+      if (!(frameMm > 0) || !Number.isFinite(frameMm)) return;
       const window = frameMm / frameInWindow(item);
       const drawn = Math.min(window, fit.own);
       const reduced = drawn < window * (1 - 1e-9);

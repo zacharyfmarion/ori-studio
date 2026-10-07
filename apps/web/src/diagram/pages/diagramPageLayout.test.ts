@@ -1052,7 +1052,7 @@ describe('enlarged steps on the page (Revision 2)', () => {
     expect(cells.get('step-4')!.mmPerUnit).toBe(cells.get('step-0')!.mmPerUnit);
   });
 
-  it('prints at a typed Size times the area, held to its room, and a new arrow or Size starts a run of its own', () => {
+  it('prints at a typed Size times the area, held to its room, and a new arrow starts a run of its own', () => {
     const list = steps(4, (index) =>
       index === 1 ? enlarged({ arrowFrom: from('step-0'), scale: 2 }) : index === 2 ? enlarged({ scale: 2 }) : index === 3 ? enlarged({ scale: 6 }) : {}
     );
@@ -1062,10 +1062,40 @@ describe('enlarged steps on the page (Revision 2)', () => {
     expect(cells[1]!.zoom).toEqual({ asked: 2, printed: expect.closeTo(2, 9), reduced: false });
     // The same Size after it: the same run, the same size.
     expect(cells[2]!.frameMm).toBeCloseTo(2 * areaMm, 9);
-    // Six times its run's own measure is more than its room holds: as large as it does, and reduced.
+    // Six times the run's area is more than its room holds: as large as it does, and reduced.
     expect(cells[3]!.zoom!.asked).toBe(6);
     expect(cells[3]!.zoom!.reduced).toBe(true);
     expect(cells[3]!.frameMm).toBeCloseTo(cells[3]!.drawMm.w, 6);
+  });
+
+  it('measures every step of a run against the run’s area, whatever Size it asks for', () => {
+    // Zach, 2026-10-07: step 2 was captured from step 1, its frame half as large in their whole picture; a
+    // Size on it, or on the step after it, is still so many times the area the run was enlarged from.
+    const later = { frameShare: 0.15, windowShare: 0.15 };
+    const list = steps(5, (index) =>
+      index === 1
+        ? enlarged({ arrowFrom: from('step-0') })
+        : index === 2
+          ? enlarged({ ...later, scale: 2 })
+          : index === 3
+            ? enlarged({ ...later, scale: 1.5 })
+            : {}
+    );
+    const cells = byId(layout(list));
+    const areaMm = 0.3 * 400 * cells.get('step-0')!.mmPerUnit!;
+    expect(cells.get('step-2')!.frameMm).toBeCloseTo(2 * areaMm, 9);
+    expect(cells.get('step-2')!.zoom).toEqual({ asked: 2, printed: expect.closeTo(2, 9), reduced: false });
+    expect(cells.get('step-3')!.frameMm).toBeCloseTo(1.5 * areaMm, 9);
+    expect(cells.get('step-3')!.zoom!.printed).toBeCloseTo(1.5, 9);
+    // Fill after a Size, in the same run: held to six times the run's area, not its own frame's.
+    const tiny = from('step-0', 0.02);
+    const filled = byId(
+      layout(steps(4, (index) => (index === 1 ? enlarged({ arrowFrom: tiny, scale: 2 }) : index === 2 ? enlarged(later) : {})))
+    );
+    const tinyMm = 0.02 * 400 * filled.get('step-0')!.mmPerUnit!;
+    expect(filled.get('step-1')!.frameMm).toBeCloseTo(2 * tinyMm, 9);
+    expect(filled.get('step-2')!.frameMm).toBeCloseTo(6 * tinyMm, 9);
+    expect(filled.get('step-2')!.zoom!.printed).toBeCloseTo(6, 9);
   });
 
   it('measures a run with no arrow by its frame as its whole picture would print among its neighbours', () => {
