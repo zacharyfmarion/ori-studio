@@ -129,7 +129,9 @@ interface DiagramStepPlace {
   mean down on the page. they can manually drag it up if that's what they
   want." So the vertical part goes back to being stored down the page, as
   first planned; Phase 2 makes that change. The paragraph below is the
-  amendment he overruled, kept for the record.
+  amendment he overruled, kept for the record. The horizontal part stays
+  along the row's reading direction, so it reverses with the row (Zach: "no
+  those can reverse").
 - **The frame in the page's reading terms** *(amended in Phase 1; its vertical part overruled by Zach)*. A frame
   offset is usually about the step's neighbours: room for a glyph between two
   steps or at a row break, a big picture beside it. Those flip sides when the
@@ -951,7 +953,7 @@ upright, with its title, page numbers and turns
     print larger than one fewer. On A4 upright, 16 a page prints at 40.5 mm
     where 15 print at 32.5.
 
-**8. Page 1 starting at its top right. DECIDED: never** (Zach, 2026-10-07: "no - first step always needs to start top left. so that should restrict how the flow works"). Step 1 is always at the top left, so a flow page that hands over at the spine takes an odd number of rows, and the shape rule (Decision 7) picks among odd row counts only. Still to confirm with Zach: whether a right-hand page, which today starts at the spine at its foot and reads upward, must also start at its top left.
+**8. Page 1 starting at its top right. DECIDED: never** (Zach, 2026-10-07: "no - first step always needs to start top left. so that should restrict how the flow works"). Step 1 is always at the top left, so a flow page that hands over at the spine takes an odd number of rows, and the shape rule (Decision 7) picks among odd row counts only. Zach, on the other pages: "they always need to start on the left. Only the first step needs to start top left. Otherwise subsequent page starts where the ribbon left off on previous page, as it does now." How to honour step 1 when a shape has an even number of rows (odd rows only, or page 1 holding one row fewer) is open while he looks at renders of both.
 A left page that hands over at the spine starts at its top right when it has
 an even number of rows, so that its bottom row ends at the spine (D10). The
 layout now picks the rows, so page 1 of a diagram starts at its top right at
