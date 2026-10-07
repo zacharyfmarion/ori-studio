@@ -11,6 +11,7 @@ import {
 } from '../diagram/export/diagramExportSettings';
 import { DEFAULT_DIAGRAM_LINE_TYPE, isDiagramLineType, type DiagramLineType } from '../diagram/annotate/lineTypes';
 import { isAnnotationColor } from '../diagram/annotate/annotationColors';
+import { PLAIN_TEXT_STYLE, readTextStyle, sameTextStyle, type TextStyle } from '../diagram/annotate/textStyle';
 import {
   hasCoarsePointer,
   resolveCpSnapRadius,
@@ -97,6 +98,7 @@ const DIAGRAM_EXPORT_KEY = storageKey(STORAGE_KEYS.diagramExport);
 const DIAGRAM_ANNOTATE_SNAP_KEY = storageKey(STORAGE_KEYS.diagramAnnotateSnap);
 const DIAGRAM_ANNOTATE_LINE_TYPE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineType);
 const DIAGRAM_ANNOTATE_LINE_COLOR_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineColor);
+const DIAGRAM_ANNOTATE_TEXT_STYLE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateTextStyle);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
@@ -337,6 +339,12 @@ interface SettingsState {
    * ink. Kept as you left it, as the type is.
    */
   diagramAnnotateLineColor: string | null;
+  /**
+   * The style a new label is set in (17b): the rail's Text Style while the
+   * Label tool is in hand — a colour, Bold, a halo and a size. Today's look
+   * until one is chosen; kept as you left it, as the line's colour is.
+   */
+  diagramAnnotateTextStyle: TextStyle;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -352,6 +360,8 @@ interface SettingsState {
   setDiagramAnnotateLineType: (value: DiagramLineType) => void;
   /** Null for the style's ink. */
   setDiagramAnnotateLineColor: (value: string | null) => void;
+  /** One option or more of the next label's style, the rest as they were. */
+  setDiagramAnnotateTextStyle: (value: Partial<TextStyle>) => void;
   /** `null` hands the choice back to the paper style. */
   setReferencesShowAuxCreases: (value: boolean | null) => void;
   /** Write one field of a slot's style. Editing export while it follows display detaches it. */
@@ -419,6 +429,7 @@ export const useSettingsStore = create<SettingsState>()(
       diagramAnnotateSnap: readBoolean(DIAGRAM_ANNOTATE_SNAP_KEY, true),
       diagramAnnotateLineType: readDiagramAnnotateLineType(),
       diagramAnnotateLineColor: readDiagramAnnotateLineColor(),
+      diagramAnnotateTextStyle: readTextStyle(readJson<unknown>(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY, null)),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -494,6 +505,16 @@ export const useSettingsStore = create<SettingsState>()(
         // No event, as for the type: the lines drawn in each colour are
         // counted (`diagram annotation added`'s `color`).
         set({ diagramAnnotateLineColor: value });
+      },
+      setDiagramAnnotateTextStyle: (value) => {
+        // Each option read as a stored one is: a colour or a size that is not one is never taken.
+        const next = readTextStyle({ ...get().diagramAnnotateTextStyle, ...value });
+        if (sameTextStyle(next, get().diagramAnnotateTextStyle)) return;
+        if (sameTextStyle(next, PLAIN_TEXT_STYLE)) removeKey(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY);
+        else writeJson(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY, next);
+        // No event, as for the line's colour: the labels set in each style are
+        // counted (`diagram annotation added`'s `color`, `bold`, `halo`, `size`).
+        set({ diagramAnnotateTextStyle: next });
       },
       setReferencesShowAuxCreases: (value) => {
         if (get().referencesShowAuxCreases === value) return;

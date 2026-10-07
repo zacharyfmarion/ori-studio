@@ -19,7 +19,7 @@ let picks = 0;
 
 /**
  * The colour a solid line is drawn in (17a, RM2 of
- * `diagram-references-annotations.md`): Ink — the style's arrow ink, no
+ * `diagram-references-annotations.md`), or a label (17b): Ink — the style's arrow ink, no
  * colour stored — References' magenta, five print colours, and Custom…,
  * which opens the engine's colour picker as a context menu's colour row does
  * (`ContextMenuColorItem`), the focus staying on the trigger. A colour picked

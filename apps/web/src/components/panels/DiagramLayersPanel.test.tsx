@@ -10,11 +10,16 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramLayersPanel } from './DiagramLayersPanel';
 
-const tracked = vi.hoisted(() => ({ trackDiagramAnnotationBehind: vi.fn(), trackDiagramAnnotationRecolored: vi.fn() }));
+const tracked = vi.hoisted(() => ({
+  trackDiagramAnnotationBehind: vi.fn(),
+  trackDiagramAnnotationRecolored: vi.fn(),
+  trackDiagramTextStyled: vi.fn(),
+}));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
   trackDiagramAnnotationBehind: tracked.trackDiagramAnnotationBehind,
   trackDiagramAnnotationRecolored: tracked.trackDiagramAnnotationRecolored,
+  trackDiagramTextStyled: tracked.trackDiagramTextStyled,
 }));
 
 /**
@@ -201,6 +206,74 @@ describe('DiagramLayersPanel', () => {
     act(() => [...type.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.getAttribute('aria-label') === 'Valley')!.click());
     expect(solid()).toEqual({ id: 's-1', kind: 'valley-line', from: [0.1, 0.6], to: [0.7, 0.6] });
     expect(host!.querySelector('button[aria-label="Color"]')).toBeNull();
+  });
+
+  it('styles a selected label with Color, Bold, Halo and Size, each one undo step and counted; a callout has none of them (17b)', () => {
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => undefined;
+    Element.prototype.scrollIntoView ??= () => undefined;
+    tracked.trackDiagramAnnotationRecolored.mockClear();
+    tracked.trackDiagramTextStyled.mockClear();
+    const stepId = annotatedStep();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 'c-1', kind: 'callout', from: [0.1, 0.1], to: [0.3, 0.3], text: 'Repeat' },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+    });
+    const label = () => stepsIn(state().diagram!)[0]!.annotations.find((annotation) => annotation.id === 'a-2') as KnownDiagramAnnotation;
+    const field = (name: string) => host!.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
+    // A callout keeps its look: Text, but no colour, weight, halo or size.
+    act(() => row('Repeat').click());
+    expect(host!.querySelector('textarea')).not.toBeNull();
+    for (const name of ['Color', 'Bold', 'Halo', 'Size']) expect(field(name), name).toBeNull();
+    act(() => row('B').click());
+    // Under its Text row: Color, Bold, Halo and Size, in that order.
+    const labels = [...host!.querySelectorAll('[aria-label]')].map((each) => each.getAttribute('aria-label'));
+    const order = ['Color', 'Bold', 'Halo', 'Size'].map((name) => labels.indexOf(name));
+    expect(order.every((at, index) => at >= 0 && (index === 0 || at > order[index - 1]!))).toBe(true);
+    expect(field('Color')!.textContent).toBe('Ink');
+    expect(field('Size')!.textContent).toBe('With the picture');
+    const choose = (select: string, name: string) => {
+      act(() => field(select)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+      const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((each) => each.textContent === name)!;
+      act(() => option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    };
+    const past = state().diagramHistory.past.length;
+    choose('Color', 'Reference');
+    act(() => field('Bold')!.click());
+    act(() => field('Halo')!.click());
+    choose('Size', '9 pt');
+    expect(label()).toMatchObject({ color: '#c91d87', bold: true, halo: true, sizePt: 9 });
+    expect(state().diagramHistory.past.slice(past).map((entry) => entry.label)).toEqual([
+      'Change color',
+      'Change bold',
+      'Change halo',
+      'Change text size',
+    ]);
+    expect(tracked.trackDiagramAnnotationRecolored.mock.calls).toEqual([['label', 'reference']]);
+    expect(tracked.trackDiagramTextStyled.mock.calls).toEqual([
+      ['bold', 'on'],
+      ['halo', 'on'],
+      ['size', '9'],
+    ]);
+    // With the picture again, and Bold off: written as today's label is.
+    choose('Size', 'With the picture');
+    act(() => field('Bold')!.click());
+    expect(label()).not.toHaveProperty('sizePt');
+    expect(label()).not.toHaveProperty('bold');
+    expect(tracked.trackDiagramTextStyled.mock.calls.slice(3)).toEqual([
+      ['size', 'picture'],
+      ['bold', 'off'],
+    ]);
+    // A size a file brought that Size does not offer shows as its own.
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Edit', (list) =>
+        list.map((annotation) => (annotation.id === 'a-2' ? { ...annotation, sizePt: 10.5 } : annotation))
+      );
+    });
+    expect(field('Size')!.textContent).toBe('10.5 pt');
   });
 
   it('draws each solid line’s row in its colour, one with none in the icon’s ink (17a)', () => {

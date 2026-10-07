@@ -777,8 +777,9 @@ export interface KnownDiagramAnnotation {
   id: string;
   kind: DiagramAnnotationKind;
   /**
-   * Where it starts: an arrow's tail, a line's end, a glyph's or a label's
-   * centre, a right angle's corner, the point a callout marks, an angle
+   * Where it starts: an arrow's tail, a line's end, a glyph's centre, a
+   * label's anchor — its centre, or the point its words hang off (17b,
+   * `offsetPt`) — a right angle's corner, the point a callout marks, an angle
    * mark's vertex, one end of the line equal divisions measure.
    */
   from: [number, number];
@@ -878,12 +879,37 @@ export interface KnownDiagramAnnotation {
   /** An enlarge area's picked anchor: a point on the paper, in paper coordinates; unsaid, the default rule (Revision 2). */
   anchor?: [number, number];
   /**
-   * A solid line's colour (17a): a `#rrggbb` string, printed as given in any
-   * style. Unsaid, the style's arrow ink, so a change of style recolours it.
+   * A solid line's colour (17a), or a label's (17b): a `#rrggbb` string,
+   * printed as given in any style. Unsaid, the style's arrow ink, so a change
+   * of style recolours it.
    */
   color?: string;
   /** A label's or a callout's text. */
   text?: string;
+  /**
+   * A label set in Noto Sans Bold (17b): the text fonts come in Regular and
+   * Bold only. Unsaid, Regular. Only ever written true.
+   */
+  bold?: true;
+  /**
+   * A label knocked out of what it stands on (17b): a stroke under its
+   * letters in the paper's face where it stands on a References step's sheet,
+   * else in the page's white. Unsaid, none. Only ever written true.
+   */
+  halo?: true;
+  /**
+   * A label's em in print pt (17b), 4 to 48, so it keeps its size at every
+   * size its picture prints. Unsaid, a share of the frame (`LABEL_SIZE`), so
+   * it scales with its picture (D8).
+   */
+  sizePt?: number;
+  /**
+   * How far a label's words hang off `from`, its anchor, in print pt, y down
+   * (17b): its centre is drawn there, keeping its distance in print at every
+   * size, as a References letter keeps its distance from its ring. Unsaid,
+   * the words are centred on `from`.
+   */
+  offsetPt?: [number, number];
   rotate?: DiagramRotation;
   /** The axis a turn-over turns the model about. */
   axis?: 'vertical' | 'horizontal';

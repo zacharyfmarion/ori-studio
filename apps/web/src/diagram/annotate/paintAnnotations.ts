@@ -29,6 +29,7 @@ import {
   annotationScene,
   closeUpMarks,
   type AnnotationDrawing,
+  type AnnotationPaper,
 } from './annotationPrimitives';
 import type { PictureLayers } from './pictureGeometry';
 
@@ -65,6 +66,8 @@ export interface AnnotationPaint {
   closeUpPicture?: CloseUpPicture | null;
   /** How the marks' text is set — a page's fonts — on every mark's markup, never on a picture's. */
   setText?: (markup: string) => string;
+  /** A References picture's sheet (17b): a label's halo is filled with the face it stands on. */
+  paper?: AnnotationPaper | null;
 }
 
 /**
@@ -84,7 +87,8 @@ export function paintAnnotations(
 ): PaintedAnnotations | null {
   const frame = frameOf(box.width, box.height);
   if (!frame || !(framePx > 0)) return null;
-  const drawing = annotationDrawing(annotations, frame, framePx, style, layers);
+  const paper = paint.paper ?? null;
+  const drawing = annotationDrawing(annotations, frame, framePx, style, layers, paper);
   const scene = annotationScene(drawing);
   if (!scene) return null;
   // Target units per drawing px: the frame's size there over its size here.
@@ -96,7 +100,7 @@ export function paintAnnotations(
     keepHiddenFaces: true,
   });
   const insides = paint.closeUpPicture
-    ? closeUpInsides(drawing, annotations, { box, framePx, k }, style, layers, paint.closeUpPicture, setText)
+    ? closeUpInsides(drawing, annotations, { box, framePx, k }, style, layers, paint.closeUpPicture, setText, paper)
     : '';
   const reach = annotationReach(drawing);
   return {
@@ -119,7 +123,8 @@ function closeUpInsides(
   style: DiagramStyle,
   layers: PictureLayers | null,
   picture: CloseUpPicture,
-  setText: (markup: string) => string
+  setText: (markup: string) => string,
+  paper: AnnotationPaper | null
 ): string {
   if (drawing.closeUps.length === 0) return '';
   const others = closeUpMarks(annotations);
@@ -134,7 +139,7 @@ function closeUpInsides(
         height: closeUp.frame.height * k,
       };
       // The marks at `scale` times the frame, in the same pens: a target unit per drawing px as here.
-      const marks = paintAnnotations(others, frame, framePx * closeUp.scale, style, layers, { setText });
+      const marks = paintAnnotations(others, frame, framePx * closeUp.scale, style, layers, { setText, paper });
       const ring = `cx="${num(x)}" cy="${num(y)}" r="${num(r)}"`;
       return (
         `<defs><clipPath id="${id}"><circle ${ring}/></clipPath></defs>` +
@@ -153,7 +158,8 @@ function closeUpInsides(
  * `opacity` ghosts them, as Pose shows them (D8); `layers`, the picture's,
  * dot a mark behind a flap (15e). `paintAt` paints the picture `scale` times
  * as large, for a close-up's inside (15f); without it, as ghosted in Pose,
- * a close-up is its rings.
+ * a close-up is its rings. `paper`, a References picture's sheet, fills a
+ * label's halo with the face it stands on (17b).
  */
 export function annotatedPicture(
   painted: PaintedPicture,
@@ -161,7 +167,8 @@ export function annotatedPicture(
   style: DiagramStyle,
   opacity = 1,
   layers: PictureLayers | null = null,
-  paintAt: ((scale: number) => PaintedPicture | null) | null = null
+  paintAt: ((scale: number) => PaintedPicture | null) | null = null,
+  paper: AnnotationPaper | null = null
 ): string {
   const closeUpPicture: CloseUpPicture | null =
     paintAt &&
@@ -177,7 +184,7 @@ export function annotatedPicture(
         `viewBox="0 0 ${num(larger.widthPx)} ${num(larger.heightPx)}" overflow="visible">${body}</svg>`
       );
     });
-  const drawn = paintAnnotations(annotations, painted.frame, CARD_FRAME_PX, style, layers, { closeUpPicture });
+  const drawn = paintAnnotations(annotations, painted.frame, CARD_FRAME_PX, style, layers, { closeUpPicture, paper });
   if (!drawn) return painted.svg;
   const { widthPx, heightPx, svg } = painted;
   const { bounds } = drawn;

@@ -8,6 +8,7 @@ import { annotationInkColor } from '../../diagram/annotate/annotationPrimitives'
 import {
   carriesColor,
   carriesText,
+  carriesTextStyle,
   CLOSE_UP_SCALE,
   CLOSE_UP_SCALE_STEP,
   closeUpScale,
@@ -40,6 +41,7 @@ import { DiagramColorSelect } from './DiagramColorSelect';
 import { DiagramDivisionsControls } from './DiagramDivisionsControls';
 import { DiagramLineTypeMark } from './DiagramLineTypeMark';
 import { DiagramPathNodeControls } from './DiagramPathNodeControls';
+import { DiagramTextStyleRows } from './DiagramTextStyleRows';
 import { DiagramTicksRow } from './DiagramTicksRow';
 import { DiagramWhiteArrowControls } from './DiagramWhiteArrowControls';
 import { DiagramZoomControls } from './DiagramZoomControls';
@@ -60,7 +62,8 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * Annotate, and the selected one's own controls — a notice when some were made
  * by a newer Ori Studio, which the list leaves out; the list, in the order they
  * were drawn, a press selecting one as a press on the canvas does; and under
- * it the selected one's text, turn, type, a solid line's colour (17a), ticks, equal divisions' parts,
+ * it the selected one's text, turn, type, a solid line's or a label's colour (17a, 17b), a label's
+ * Bold, Halo and Size (17b), ticks, equal divisions' parts,
  * offset, ticks and count, kinks, scale, white arrow look, place in the
  * folds, axis, Flip Horizontal and Vertical, its verbs
  * (Flip Arc, Reset, Turn 90°, Delete), and in Edit Path a fold or white
@@ -295,7 +298,7 @@ function SelectedAnnotation({
         </FieldRow>
       )}
       {carriesColor(annotation.kind) && (
-        // A solid line's colour (17a): the rail's select, on the mark.
+        // A solid line's colour (17a), or a label's (17b): the rail's select, on the mark.
         <FieldRow label={colorName} kind="select" disabled={!editable}>
           <DiagramColorSelect
             // One per mark: a pick still under way when another is selected ends with the select, its picker closing with its input, rather than going on to recolour the next one in the same undo step.
@@ -308,6 +311,10 @@ function SelectedAnnotation({
             onChange={(color, pick) => annotations.setColor(id, color, pick)}
           />
         </FieldRow>
+      )}
+      {carriesTextStyle(annotation.kind) && (
+        // A label's Bold, Halo and Size (17b), under its colour.
+        <DiagramTextStyleRows annotation={annotation} editable={editable} onChange={(option) => annotations.setTextStyle(id, option)} />
       )}
       {annotation.kind === 'angle-mark' && (
         <DiagramTicksRow value={annotation.ticks} disabled={!editable} onChange={(ticks) => annotations.setTicks(id, ticks)} />

@@ -1,0 +1,20 @@
+/*
+ * The rail's Text Style (DiagramTextStyleControl.tsx), down the column: the
+ * colour select, Bold and Halo in the rail's own grid, and the Size select,
+ * each row the column's width.
+ */
+.control {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.size {
+  display: flex;
+  min-width: 0;
+}
+
+/* The size chosen, after its glyph: it takes the trigger's room, so the chevron stays at the end. */
+.sizeValue {
+  flex: 1 1 auto;
+}

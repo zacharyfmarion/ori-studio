@@ -121,9 +121,10 @@ describe('its colours (17a, RM2)', () => {
 describe('a solid line, edited (17a)', () => {
   const blue = line({ color: '#1971c2' });
 
-  it('alone of every kind has a colour, which another kind of line drops', () => {
+  it('alone of the lines has a colour, as a label does (17b), which another kind of line drops', () => {
     expect(carriesColor('solid-line')).toBe(true);
-    for (const kind of ['valley-line', 'mountain-line', 'hidden-line', 'label', 'valley-arrow', 'circle'] as const) {
+    expect(carriesColor('label')).toBe(true);
+    for (const kind of ['valley-line', 'mountain-line', 'hidden-line', 'callout', 'valley-arrow', 'circle'] as const) {
       expect(carriesColor(kind), kind).toBe(false);
     }
     expect(withColor(blue, null)).toEqual(line());

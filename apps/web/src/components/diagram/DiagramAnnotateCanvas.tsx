@@ -7,6 +7,7 @@ import {
   arrowPolyline,
   divisionsInPicture,
   divisionsOffsetGrip,
+  labelBox,
   pleatArrowInPicture,
   rightAngleGrips,
   rightAngleInPicture,
@@ -39,7 +40,6 @@ import {
   calloutShape,
   canBeShaped,
   closeUpShape,
-  labelHalfWidth,
   LABEL_SIZE,
 } from '../../diagram/annotate/annotationModel';
 import {
@@ -55,7 +55,7 @@ import { ViewportToolbar } from '../panels/ViewportToolbar';
 import { DiagramAnnotateToolWindow } from './DiagramAnnotateToolWindow';
 import { DiagramAnnotationLayer } from './DiagramAnnotationLayer';
 import { DiagramCloseUpInsides } from './DiagramCloseUpInsides';
-import { markGeometry } from '../../diagram/zoom/stepView';
+import { markGeometry, markPaper } from '../../diagram/zoom/stepView';
 import { zoomGrips } from '../../diagram/zoom/zoomGrips';
 import { zoomOutlineOf, zoomOutlinePoints } from '../../diagram/zoom/zoomModel';
 import { DiagramZoomView } from './DiagramZoomView';
@@ -110,9 +110,11 @@ export function DiagramAnnotateCanvas({
     camera;
   // A flat fold's layers, in the marks' units: a mark behind a flap is dotted under it as it is drawn (15e).
   const layers = useMemo(() => markGeometry(step, assets, style).layers, [step, assets, style]);
+  // A References picture's sheet, in the marks' units: a label's halo is filled with the face it stands on (17b).
+  const paper = useMemo(() => markPaper(step, assets), [step, assets]);
   const drawing = useMemo(
-    () => (layout ? annotationDrawing(shown, layout.pictureFrame, CARD_FRAME_PX, style, layers) : null),
-    [layout, shown, style, layers]
+    () => (layout ? annotationDrawing(shown, layout.pictureFrame, CARD_FRAME_PX, style, layers, paper) : null),
+    [layout, shown, style, layers, paper]
   );
   // Each close-up's inside, under the marks: the picture painted again, larger (15f).
   const insides = useCloseUpInsides({
@@ -123,6 +125,7 @@ export function DiagramAnnotateCanvas({
     zoomed: canvas.zoomed,
     style,
     layers,
+    paper,
     pictureFrame: layout?.pictureFrame ?? null,
     framePx: CARD_FRAME_PX,
   });
@@ -321,7 +324,7 @@ function Selection({
   let box: ReturnType<typeof calloutShape>['box'] | null = null;
   switch (annotation.kind) {
     case 'label':
-      return ring(labelHalfWidth(annotation.text ?? '') + 0.1 * LABEL_SIZE);
+      return <LabelSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
     case 'turn-over':
     case 'rotate':
       return ring(GLYPH_REACH);
@@ -406,10 +409,49 @@ function Selection({
           data-callout-box=""
         />
       )}
-      {movable && annotationEnds(annotation.kind).map((end) => {
+      {movable && annotationEnds(annotation).map((end) => {
         const [x, y] = at(annotation[end]);
         return <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />;
       })}
+    </g>
+  );
+}
+
+/**
+ * A selected label: washed round its words, at its size and weight (17b) —
+ * hung text's where they hang — and, for hung text, a dot at its anchor,
+ * which moves it whole and snaps as a callout's point does, tied to its words
+ * by a hairline, as a right angle's corner is tied to its vertex.
+ */
+function LabelSelection({
+  annotation,
+  layout,
+  zoom,
+  movable,
+}: {
+  annotation: KnownDiagramAnnotation;
+  layout: AnnotateLayout;
+  zoom: number;
+  movable: boolean;
+}) {
+  const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit] as const;
+  const { centre, halfWidth, size } = labelBox(annotation, LABEL_SIZE);
+  const radius = halfWidth + 0.1 * size;
+  const [cx, cy] = at(centre);
+  const ends = annotationEnds(annotation);
+  const [ax, ay] = at(annotation.from);
+  // From the anchor to the ring round the words, along the way between them; none where the anchor is inside it.
+  const apart = Math.hypot(centre[0] - annotation.from[0], centre[1] - annotation.from[1]);
+  const rim = apart > radius ? at([centre[0] + ((annotation.from[0] - centre[0]) * radius) / apart, centre[1] + ((annotation.from[1] - centre[1]) * radius) / apart]) : null;
+  return (
+    <g data-selection="">
+      <circle className={styles.selection} cx={cx} cy={cy} r={radius * layout.unit} />
+      {ends.length > 0 && rim && <CornerTie tie={{ x1: ax, y1: ay, x2: rim[0], y2: rim[1] }} zoom={zoom} />}
+      {movable &&
+        ends.map((end) => {
+          const [x, y] = at(annotation[end]);
+          return <circle key={end} className={styles.handle} cx={x} cy={y} r={HANDLE_PX / zoom} data-handle={end} />;
+        })}
     </g>
   );
 }
@@ -473,7 +515,7 @@ function DivisionsSelection({
       )}
       <line className={styles.measuredLine} x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth={TIE_PX / zoom} data-measured-line="" />
       {movable &&
-        annotationEnds(annotation.kind).map((end) => {
+        annotationEnds(annotation).map((end) => {
           const [x, y] = at(annotation[end]);
           return <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />;
         })}

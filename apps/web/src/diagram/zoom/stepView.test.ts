@@ -159,7 +159,20 @@ describe('the marks an enlarged step draws', () => {
     expect(marksInWindow(window, away)).toEqual([]);
   });
 
+  it('reaches hung text’s words where they hang, however far off its anchor is (17b)', () => {
+    // Its anchor past a window right of the frame; its words hung 200 pt back left, inside it.
+    const hung: KnownDiagramAnnotation = { id: 'hung', kind: 'label', from: [2.05, 0.25], to: [2.05, 0.25], text: 'P', sizePt: 9, offsetPt: [-200, 0] };
+    expect(marksInWindow(window, [hung])).toEqual([hung]);
+    expect(marksTouchingWindow(window, [hung])).toEqual([hung]);
+    // Its words hung further right instead: off the window as its anchor is.
+    expect(marksInWindow(window, [{ ...hung, offsetPt: [200, 0] }])).toEqual([]);
+    // Plain text is where its anchor is, as before.
+    const plain: KnownDiagramAnnotation = { id: 'plain', kind: 'label', from: [2.05, 0.25], to: [2.05, 0.25], text: 'P' };
+    expect(marksInWindow(window, [plain])).toEqual([]);
+  });
+
   it('keeps a mark this build cannot read, wherever it is', () => {
+
     const unknown: DiagramAnnotation = { id: 'newer', unknown: { id: 'newer', kind: 'sparkle', from: [9, 9] } };
     const marks = [unknown, line('right', [2.1, 0.2], [2.8, 0.3])];
     expect(ids(marksInWindow(window, marks))).toEqual(['newer']);

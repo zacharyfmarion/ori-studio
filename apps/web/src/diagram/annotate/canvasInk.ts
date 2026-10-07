@@ -10,7 +10,7 @@
 import { canvasDiagramInk } from '../../cp-workspace/references/diagram/diagramInk';
 import { DEFAULT_ORISTUDIO_CP_LINE_WIDTH } from '../../lib/creasePatternViewport';
 import { DEFAULT_PAPER_SIZE_MM } from '../../lib/paper/paperPage';
-import { mmToCssPx } from '../../lib/paper/paperSvg';
+import { mmToCssPx, PT_PER_MM } from '../../lib/paper/paperSvg';
 
 /**
  * The crease width a step's marks are inked against: Edit's default, the
@@ -39,6 +39,15 @@ export const ANNOTATION_INK_MM = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / mmT
 /** A print length in mm, in picture units as the canvas and a card draw the frame. */
 export function mmInPictureUnits(mm: number): number {
   return (mm / ANNOTATION_INK_MM) * INK_UNITS;
+}
+
+/**
+ * A print length in pt, in picture units as the canvas and a card draw the
+ * frame: what a text's size and its offset from its anchor (17b) are on the
+ * canvas, where a press finds them.
+ */
+export function ptInPictureUnits(pt: number): number {
+  return mmInPictureUnits(pt / PT_PER_MM);
 }
 
 /**

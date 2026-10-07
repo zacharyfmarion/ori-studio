@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { calloutShape, closeUpShape, NEW_CALLOUT_TEXT, pathCubics } from '../../diagram/annotate/annotationModel';
 import { pendingFieldFocus } from '../../diagram/annotate/fieldFocus';
-import { ANNOTATE_SELECTION_INK, mmInPictureUnits } from '../../diagram/annotate/canvasInk';
+import { ANNOTATE_SELECTION_INK, mmInPictureUnits, ptInPictureUnits } from '../../diagram/annotate/canvasInk';
 import { setToolNotice, toolNotice } from '../../diagram/annotate/pickProgress';
 import i18n from '../../i18n';
 import { preloadLocale } from '../../test/preloadLocale';
@@ -24,7 +24,8 @@ import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import { rightAngleAt, rightAngleDiagonal } from '../../diagram/annotate/annotationModel';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
-import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
+import { referencesStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
+
 import { ZOOM_SURROUND_DIM } from '../../diagram/zoom/paintZoomed';
 import { ZOOM_FRAME_ID } from '../../diagram/zoom/zoomModel';
 import { craneStep, imprintCase } from '../../diagram/zoom/zoom.fixtures';
@@ -100,6 +101,8 @@ beforeEach(() => {
   frames = watchFrames(useWorkspaceStore.subscribe);
   // The Line tool draws a valley line unless a test picks another type, a solid one in the style's ink.
   useSettingsStore.setState({ diagramAnnotateLineType: 'valley', diagramAnnotateLineColor: null });
+  // A label is put down in today's look unless a test chooses a Text Style (17b).
+  useSettingsStore.setState({ diagramAnnotateTextStyle: { color: null, bold: false, halo: false, sizePt: null } });
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -349,7 +352,10 @@ describe('DiagramAnnotateCanvas', () => {
     pointer('pointerdown', at(0.5, 0.5));
     pointer('pointerup', at(0.5, 0.5));
     expect(annotations().map((annotation) => annotation.kind)).toEqual(['label']);
-    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['label', 'none']]);
+    // A label says its look (17b): today's, with no Text Style chosen.
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([
+      ['label', 'none', { color: 'ink', bold: 'off', halo: 'off', size: 'picture' }],
+    ]);
   });
 
   it('draws a line in the type the rail’s Line Type says, each its own kind (15a)', () => {
@@ -2523,5 +2529,112 @@ describe('the anchor’s pick mode (Revision 2, 16e)', () => {
     act(() => state().selectDiagramAnnotation(null));
     rerender();
     expect(view().dataset.picking).toBeUndefined();
+  });
+});
+
+describe('DiagramAnnotateCanvas hung text (17b)', () => {
+  beforeEach(() => {
+    useSettingsStore.setState({ diagramAnnotateSnap: true, cpSnapRadius: 10 });
+  });
+
+  /** A step with a ring and words hung off a point near it, Select in hand, the words selected. */
+  function hung() {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => [
+        { id: 'ring', kind: 'circle', from: [0.6, 0.4], to: [0.6, 0.4] },
+        { id: 'p', kind: 'label', from: [0.3, 0.4], to: [0.3, 0.4], text: 'P', bold: true, halo: true, sizePt: 9, color: '#c91d87', offsetPt: [-10, -8] },
+      ]);
+      state().setDiagramAnnotateTool(null);
+      state().selectDiagramAnnotation('p');
+    });
+    rerender();
+    return stepId;
+  }
+  const words = () => {
+    const unit = ptInPictureUnits(1);
+    const label = annotations().find((each) => each.id === 'p')!;
+    return [label.from[0] + label.offsetPt![0] * unit, label.from[1] + label.offsetPt![1] * unit] as const;
+  };
+
+  it('shows a dot at its anchor, and drags its words alone by them: its offset changes, its anchor stays, nothing snaps', () => {
+    hung();
+    expect(overlay().querySelector('[data-handle="from"]')).not.toBeNull();
+    const unit = ptInPictureUnits(1);
+    const [x, y] = words();
+    // Taken by its words and moved 20 pt right, 12 down: past the ring's centre, which it does not snap to.
+    drag(at(x, y), at(x + 20 * unit, y + 12 * unit));
+    rerender();
+    const label = annotations().find((each) => each.id === 'p')!;
+    expect(label.from).toEqual([0.3, 0.4]);
+    expect(label.offsetPt![0]).toBeCloseTo(10, 6);
+    expect(label.offsetPt![1]).toBeCloseTo(4, 6);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Move annotation');
+  });
+
+  it('drags it by its anchor onto a ring’s centre, snapped, the words following at their offset', () => {
+    hung();
+    // Dropped 0.006 from the ring's centre: within the snap radius.
+    drag(at(0.3, 0.4), at(0.594, 0.405));
+    rerender();
+    const label = annotations().find((each) => each.id === 'p')!;
+    expect(label.from).toEqual([0.6, 0.4]);
+    expect(label.to).toEqual([0.6, 0.4]);
+    expect(label.offsetPt).toEqual([-10, -8]);
+  });
+
+  it('drags plain text whole, unsnapped, as before', () => {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => [
+        { id: 'ring', kind: 'circle', from: [0.6, 0.4], to: [0.6, 0.4] },
+        { id: 'q', kind: 'label', from: [0.3, 0.4], to: [0.3, 0.4], text: 'Q' },
+      ]);
+      state().setDiagramAnnotateTool(null);
+      state().selectDiagramAnnotation('q');
+    });
+    rerender();
+    expect(overlay().querySelector('[data-handle="from"]')).toBeNull();
+    drag(at(0.3, 0.4), at(0.596, 0.404));
+    rerender();
+    const label = annotations().find((each) => each.id === 'q')!;
+    expect(label.from[0]).toBeCloseTo(0.596, 6);
+    expect(label.from[1]).toBeCloseTo(0.404, 6);
+    expect(label).not.toHaveProperty('offsetPt');
+  });
+
+  it('fills a halo with the face it stands on, on a References step’s back: grey on the sheet, white off it', () => {
+    const sent = referencesStep('step-back', { side: 'back' });
+    const step = {
+      ...sent,
+      annotations: [
+        { id: 'on', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'ON', halo: true, sizePt: 9 },
+        { id: 'off', kind: 'label', from: [1.2, 0.5], to: [1.2, 0.5], text: 'OFF', halo: true, sizePt: 9 },
+      ] satisfies KnownDiagramAnnotation[],
+      annotatedPictureKey: sent.picture!.key,
+    };
+    act(() => {
+      useWorkspaceStore.setState({ diagram: insertSteps(createDiagram({ title: 'Halo' }), [step], 0) });
+      state().openDiagramStep(step.id, 'annotate');
+    });
+    rerender();
+    const halo = (text: string) =>
+      [...host.querySelectorAll('text')].find((element) => element.textContent === text)?.getAttribute('stroke');
+    expect(halo('ON')).toBe('#b3b3b3');
+    expect(halo('OFF')).toBe('#ffffff');
+  });
+
+  it('puts a label down in the rail’s Text Style, and says so when it counts it', () => {
+
+    mount();
+    useSettingsStore.setState({ diagramAnnotateTextStyle: { color: '#c91d87', bold: true, halo: true, sizePt: 9 } });
+    tool('label');
+    pointer('pointerdown', at(0.5, 0.5));
+    pointer('pointerup', at(0.5, 0.5));
+    expect(annotations()[0]).toMatchObject({ kind: 'label', color: '#c91d87', bold: true, halo: true, sizePt: 9 });
+    expect(annotations()[0]).not.toHaveProperty('offsetPt');
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([
+      ['label', 'none', { color: 'reference', bold: 'on', halo: 'on', size: '9' }],
+    ]);
   });
 });

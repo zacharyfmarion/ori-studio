@@ -3,6 +3,7 @@ import type { DiagramAnnotateShortcutId } from '../../keyboard/shortcuts';
 import type { DiagramAnnotationKind, DiagramZoomShape, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { canBeShaped, isPointKind, isSolidArrow, SOLID_ARROW_LOOK, type WhiteArrowLook } from './annotationModel';
 import type { AnnotationPaletteName } from './annotationColors';
+import { isTextSizePt, TEXT_SIZES_PT, type TextStyle } from './textStyle';
 import { DEFAULT_DIAGRAM_LINE_TYPE, lineKindOf, type DiagramLineKind, type DiagramLineType } from './lineTypes';
 import type { PickProgress, ToolNotice } from './pickProgress';
 
@@ -95,10 +96,11 @@ export function drawingKind(tool: AnnotateTool, lineType: DiagramLineType): Diag
 /**
  * The look a tool lays what it draws in, over its kind's own: the Solid
  * Arrow's (15d), the shape an enlarge area is drawn in (Revision 2) — a
- * circle with Enlarge, a rounded rectangle with Enlarge in Frame — or the
- * colour the Line tool draws a solid line in (17a).
+ * circle with Enlarge, a rounded rectangle with Enlarge in Frame — the
+ * colour the Line tool draws a solid line in (17a), or the style the Label
+ * tool sets its text in (17b).
  */
-export type DrawingLook = WhiteArrowLook & { shape?: DiagramZoomShape; color?: string };
+export type DrawingLook = WhiteArrowLook & { shape?: DiagramZoomShape; color?: string; text?: TextStyle };
 
 /** The line the Line tool draws: its type, and the colour a solid one is drawn in, null for the style's ink. */
 export interface LineChoice {
@@ -106,12 +108,17 @@ export interface LineChoice {
   color: string | null;
 }
 
-/** The look a tool lays what it draws in ({@link DrawingLook}); nothing for any other tool. */
-export function drawingLook(tool: AnnotateTool, line?: LineChoice): DrawingLook {
+/**
+ * The look a tool lays what it draws in ({@link DrawingLook}): `line` the
+ * Line tool's choice, `text` the rail's Text Style for the Label tool's
+ * (17b); nothing for any other tool.
+ */
+export function drawingLook(tool: AnnotateTool, line?: LineChoice, text?: TextStyle): DrawingLook {
   if (tool === SOLID_ARROW) return SOLID_ARROW_LOOK;
   if (tool === ENLARGE) return { shape: 'circle' };
   if (tool === ENLARGE_FRAME) return { shape: 'rounded' };
   if (tool === LINE_TOOL && line?.type === 'solid' && line.color !== null) return { color: line.color };
+  if (tool === 'label' && text) return { text };
   return {};
 }
 
@@ -289,6 +296,34 @@ export function annotationColorLabel(t: TFunction, name: AnnotationPaletteName):
   }
 }
 
+/** Size's With the picture (17b): a label with no size of its own, as an id a select can hold. */
+export const TEXT_SIZE_PICTURE = 'picture';
+
+/**
+ * The sizes Size offers (17b), for the rail's Text Style and a label's Layers
+ * row: With the picture, then 7, 9, 12 and 16 pt — and a size from a file
+ * that is none of these as an item of its own while it is `current`, as a
+ * colour picked by hand is. Each an id a select holds ({@link textSizeOfId}).
+ */
+export function textSizeOptions(t: TFunction, current: number | null): { id: string; label: string }[] {
+  const sizes = current !== null && !TEXT_SIZES_PT.includes(current) ? [...TEXT_SIZES_PT, current].sort((a, b) => a - b) : TEXT_SIZES_PT;
+  return [
+    { id: TEXT_SIZE_PICTURE, label: t('panels:diagram.annotations.sizeWithPicture', 'With the picture') },
+    ...sizes.map((size) => ({ id: String(size), label: t('panels:diagram.annotations.sizePt', '{{size}} pt', { size }) })),
+  ];
+}
+
+/** A size's id as a select holds it ({@link textSizeOptions}). */
+export function textSizeId(sizePt: number | null): string {
+  return sizePt === null ? TEXT_SIZE_PICTURE : String(sizePt);
+}
+
+/** The size an id names: null for With the picture, or for one that names no size a label can have. */
+export function textSizeOfId(id: string): number | null {
+  const size = Number(id);
+  return id !== TEXT_SIZE_PICTURE && isTextSizePt(size) ? size : null;
+}
+
 /** A kind's name: the tool that draws it, and the row an annotation of it is listed as. */
 export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): string {
   switch (kind) {
@@ -359,7 +394,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
   if (tool === null) {
     return t(
       'panels:diagram.annotate.selectHelp',
-      'Click an annotation to select it. Drag it, or the dot at either end, to move it; drag equal divisions to set how far off their line they sit. Double-click a fold or white arrow to shape it.'
+      'Click an annotation to select it. Drag it, or the dot at either end, to move it. A label that hangs off a dot moves by its words alone; drag its dot to move both. Drag equal divisions to set how far off their line they sit. Double-click a fold or white arrow to shape it.'
     );
   }
   switch (tool) {

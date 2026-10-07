@@ -66,6 +66,7 @@ import {
   type AnnotationReach,
 } from '../annotate/annotationModel';
 import { isAnnotationColor } from '../annotate/annotationColors';
+import { TEXT_OFFSET_PT_MAX, TEXT_SIZE_PT } from '../annotate/textStyle';
 import { windowReach } from '../zoom/zoomModel';
 import { NEWER_PAPER_FACES, SCENE_JSON_MAX_BYTES, readPaperFaces } from './paperFacesFile';
 import {
@@ -361,6 +362,10 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     fill,
     color,
     text,
+    bold,
+    halo,
+    sizePt,
+    offsetPt,
     rotate,
     axis,
     other,
@@ -395,6 +400,11 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(fill !== undefined ? { fill } : {}),
     ...(color !== undefined ? { color } : {}),
     ...(text !== undefined ? { text } : {}),
+    // Text's options (17b), each only as it is set: a plain label is written as every label was before them.
+    ...(bold ? { bold } : {}),
+    ...(halo ? { halo } : {}),
+    ...(sizePt !== undefined ? { sizePt } : {}),
+    ...(offsetPt !== undefined ? { offsetPt: [offsetPt[0], offsetPt[1]] } : {}),
     ...(rotate !== undefined ? { rotate } : {}),
     ...(axis !== undefined ? { axis } : {}),
     ...(other !== undefined ? { other } : {}),
@@ -1035,7 +1045,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'mountain-line': fields('behind'),
     'hidden-line': fields(),
     'solid-line': fields('color', 'behind'),
-    label: fields('text'),
+    label: fields('text', 'color', 'bold', 'halo', 'sizePt', 'offsetPt'),
     circle: fields('behind'),
     'right-angle': fields(),
     callout: fields('text'),
@@ -1141,12 +1151,30 @@ function readAnnotation(
       if (first[0] !== from[0] || first[1] !== from[1] || last[0] !== to[0] || last[1] !== to[1]) return null;
       return { ...annotation, path, width, tail, ...(fill !== undefined ? { fill } : {}) };
     }
+    case 'label': {
+      // Its words, then its options (17b): news before damage, as for the rest.
+      const text = readLabelText(entry.text);
+      const color = readColor(entry.color);
+      const bold = readFlag(entry.bold);
+      const halo = readFlag(entry.halo);
+      const sizePt = readTextSize(entry.sizePt);
+      const offsetPt = readTextOffset(entry.offsetPt);
+      if (text === NEWER || color === NEWER || sizePt === NEWER || offsetPt === NEWER) return NEWER;
+      if (text === null || color === null || bold === null || halo === null || sizePt === null || offsetPt === null) return null;
+      return {
+        ...annotation,
+        text,
+        ...(color !== undefined ? { color } : {}),
+        ...(bold ? { bold: true } : {}),
+        ...(halo ? { halo: true } : {}),
+        ...(sizePt !== undefined ? { sizePt } : {}),
+        ...(offsetPt !== undefined ? { offsetPt } : {}),
+      };
+    }
     // A callout's words are read as a label's: one line, as long as a label may be.
-    case 'label':
     case 'callout': {
-      if (typeof entry.text !== 'string') return null;
-      const text = xmlText(entry.text);
-      return text.length > LABEL_MAX_LENGTH ? NEWER : { ...annotation, text };
+      const text = readLabelText(entry.text);
+      return text === null || text === NEWER ? text : { ...annotation, text };
     }
     case 'rotate': {
       const rotate = readRotation(entry.rotate);
@@ -1281,8 +1309,44 @@ function readTicks(value: unknown): DiagramTicks | undefined | typeof NEWER | nu
   return value <= 3 ? (value as DiagramTicks) : NEWER;
 }
 
+/** A label's or a callout's words: one line, as long as a label may be; longer, a newer build's; not a string, damage. */
+function readLabelText(value: unknown): string | typeof NEWER | null {
+  if (typeof value !== 'string') return null;
+  const text = xmlText(value);
+  return text.length > LABEL_MAX_LENGTH ? NEWER : text;
+}
+
+/** A label's Bold or halo (17b), read as `numbered` is: unsaid or false, no; true, yes; anything else, damage. */
+function readFlag(value: unknown): boolean | null {
+  if (value === undefined) return false;
+  return typeof value === 'boolean' ? value : null;
+}
+
 /**
- * A solid line's colour (17a): unsaid, the style's arrow ink; a `#rrggbb`
+ * A label's size in pt (17b): unsaid, with the picture; a finite number from
+ * 4 to 48, that size; a larger one, a newer build's; anything else, damage.
+ */
+function readTextSize(value: unknown): number | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < TEXT_SIZE_PT.min) return null;
+  return value <= TEXT_SIZE_PT.max ? value : NEWER;
+}
+
+/**
+ * How far a label's words hang off its anchor, in pt (17b): unsaid, centred
+ * on it; two finite numbers each within ±200 pt, that offset; one further, a
+ * newer build's; anything else, damage.
+ */
+function readTextOffset(value: unknown): [number, number] | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const [dx, dy] = value as unknown[];
+  if (typeof dx !== 'number' || typeof dy !== 'number' || !Number.isFinite(dx) || !Number.isFinite(dy)) return null;
+  return Math.abs(dx) <= TEXT_OFFSET_PT_MAX && Math.abs(dy) <= TEXT_OFFSET_PT_MAX ? [dx, dy] : NEWER;
+}
+
+/**
+ * A solid line's colour (17a), or a label's (17b): unsaid, the style's arrow ink; a `#rrggbb`
  * string, that colour; any other string, a newer build's — a named colour, a
  * theme's — and anything else, damage. Read as a white arrow's fill is.
  */

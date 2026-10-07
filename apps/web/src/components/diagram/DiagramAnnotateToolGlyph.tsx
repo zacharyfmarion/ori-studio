@@ -111,7 +111,7 @@ export function SolidArrowGlyph(): ReactElement {
  * has one: the return type makes a kind left out a compile error, not a
  * blank button.
  *
- * `color` is a mark's own colour: a solid line's glyph is drawn in it, so the
+ * `color` is a mark's own colour: a solid line's glyph is drawn in it — a label's too (17b) — so the
  * Layers list tells one line from the next (17a). None is the icon's ink.
  */
 export function DiagramAnnotationGlyph({ kind, color }: { kind: DiagramAnnotationKind; color?: string }): ReactElement {
@@ -204,7 +204,8 @@ export function DiagramAnnotationGlyph({ kind, color }: { kind: DiagramAnnotatio
         </Glyph>
       );
     case 'label':
-      return <Type size={17} aria-hidden="true" />;
+      // In the label's colour when it has one (17b), as a solid line's glyph is.
+      return <Type size={17} color={color} aria-hidden="true" />;
     case 'circle':
       // The ring, round the point it marks.
       return (

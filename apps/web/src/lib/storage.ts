@@ -83,6 +83,12 @@ export const STORAGE_KEYS = {
    * string. Absent, or anything else, means the style's arrow ink.
    */
   diagramAnnotateLineColor: 'diagram-annotate-line-color',
+  /**
+   * The style Annotate's next label is set in (17b): `{ color, bold, halo,
+   * sizePt }` as JSON (`diagram/annotate/textStyle.ts`). Absent, or any
+   * option that does not read, is today's plain label's.
+   */
+  diagramAnnotateTextStyle: 'diagram-annotate-text-style',
   /** Whether Annotate's tool window is collapsed to its header (`ToolHintWindow`). */
   diagramToolHintCollapsed: 'diagram-tool-hint-collapsed',
   /** Play a step's fold on arriving at its card in the References workspace. */

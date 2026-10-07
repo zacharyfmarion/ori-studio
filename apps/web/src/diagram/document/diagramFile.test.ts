@@ -673,6 +673,59 @@ describe('annotations in the file', () => {
     });
   });
 
+  describe('a label’s options (17b)', () => {
+    const label = (more: Record<string, unknown> = {}) => ({ id: 't-1', kind: 'label', from: [0.2, 0.3], to: [0.2, 0.3], text: 'P', ...more });
+
+    it('round-trips every option, each written only as it is set, and a plain label as it was', () => {
+      const every = [
+        label({ color: '#c91d87', bold: true, halo: true, sizePt: 9, offsetPt: [-6.5, 4.25] }),
+        label({ id: 't-2', bold: true }),
+        label({ id: 't-3', sizePt: 4 }),
+        label({ id: 't-4', sizePt: 48, offsetPt: [200, -200] }),
+        label({ id: 't-5' }),
+      ];
+      expect(withAnnotations(every)).toEqual(every);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: withAnnotations(every) }, stepsIn(document)[1]!];
+      const written = throughJson(writeDiagram(document)).steps[0].annotations;
+      expect(written).toEqual(every);
+      // A plain label is written with the fields every label was written with before them.
+      expect(Object.keys(written[4])).toEqual(['id', 'kind', 'from', 'to', 'text']);
+      // Bold and the halo read false as unsaid, and are never written false.
+      expect(withAnnotations([label({ id: 't-6', bold: false, halo: false })])).toEqual([label({ id: 't-6' })]);
+    });
+
+    it('carries a colour, a size or an offset past what it draws as a newer build’s', () => {
+      const newer = [
+        label({ id: 'n-color', color: 'magenta' }),
+        label({ id: 'n-size', sizePt: 72 }),
+        label({ id: 'n-offset', offsetPt: [0, 240] }),
+      ];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    });
+
+    it('drops one whose options are damaged', () => {
+      const damaged = [
+        label({ id: 'd-bold', bold: 'yes' }),
+        label({ id: 'd-halo', halo: 1 }),
+        label({ id: 'd-size', sizePt: 2 }),
+        label({ id: 'd-size-nan', sizePt: 'large' }),
+        label({ id: 'd-offset', offsetPt: [1] }),
+        label({ id: 'd-offset-word', offsetPt: ['1', 2] }),
+        label({ id: 'd-color', color: 7 }),
+      ];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+
+    it('is kept, verbatim and undrawn, by a build before them, as a field it has no name for is; a callout never had them', () => {
+      // A build before 17b names `text` alone on a label: any option is a field it has no name for.
+      const styled = label({ bold: true, offsetPt: [3, 4], underline: true });
+      expect(withAnnotations([styled])).toEqual([{ id: 't-1', unknown: styled }]);
+      const callout = { id: 'c-bold', kind: 'callout', from: [0.1, 0.1], to: [0.3, 0.3], text: 'Repeat', bold: true };
+      expect(withAnnotations([callout])).toEqual([{ id: 'c-bold', unknown: callout }]);
+    });
+  });
+
   describe('a right angle', () => {
     const mark = (more: Record<string, unknown> = {}) => ({
       id: 'r-1',

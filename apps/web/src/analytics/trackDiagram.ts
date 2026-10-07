@@ -13,6 +13,9 @@ import {
 import type {
   DiagramAnnotationColor,
   DiagramAnnotationSnap,
+  DiagramTextSize,
+  DiagramTextStyleOption,
+  DiagramTextToggle,
   DiagramAnnotationTool,
   DiagramDivisionsPlaced,
   DiagramBehindEnds,
@@ -91,17 +94,25 @@ export function trackDiagramStepOpened(via: DiagramStepOpenedVia, mode: DiagramS
   track(ANALYTICS_EVENTS.diagramStepOpened, { via, mode });
 }
 
-/** What `diagram annotation added` says about some marks alone: how equal divisions were laid, a solid line's colour. */
+/**
+ * What `diagram annotation added` says about some marks alone: how equal
+ * divisions were laid, a solid line's or a label's colour, and a label's
+ * Bold, halo and size (17b).
+ */
 export interface DiagramAnnotationAddedDetail {
   placed?: DiagramDivisionsPlaced;
   color?: DiagramAnnotationColor;
+  bold?: DiagramTextToggle;
+  halo?: DiagramTextToggle;
+  size?: DiagramTextSize;
 }
 
 /**
  * An annotation drawn on a step's picture, by its tool, and how it was put
  * down: snapped, freely, or neither — and equal divisions, whether they were
- * dragged or put on a line with a click (`placed`), and a solid line, the
- * colour it was drawn in, by name (`color`, 17a). Which marks a diagram is
+ * dragged or put on a line with a click (`placed`), a solid line, the
+ * colour it was drawn in, by name (`color`, 17a), and a label, its colour,
+ * Bold, halo and size, as the rail's Text Style set them (17b). Which marks a diagram is
  * drawn with, whether Annotate is used at all, and whether snapping helps.
  * Never where it is, nor a label's words, nor a colour's value.
  */
@@ -114,7 +125,16 @@ export function trackDiagramAnnotationAdded(
 }
 
 /**
- * A solid line's colour changed in the Layers pane (17a): its kind and the
+ * A label's Bold, Halo or Size changed in the Layers pane (17b): which, and
+ * what to — whether people style text beyond what they pull from References.
+ * Never the text, nor a size but by name.
+ */
+export function trackDiagramTextStyled(option: DiagramTextStyleOption, value: DiagramTextToggle | DiagramTextSize): void {
+  track(ANALYTICS_EVENTS.diagramTextStyled, { option, value });
+}
+
+/**
+ * A solid line's colour changed in the Layers pane (17a), or a label's (17b): its kind and the
  * colour, by name — whether a line's colour is changed after it is drawn,
  * and to what. Once per pick: a custom colour dragged about in the picker is
  * one. Never the colour itself.

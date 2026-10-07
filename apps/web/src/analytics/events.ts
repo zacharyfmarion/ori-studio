@@ -122,6 +122,18 @@ export type DiagramDivisionsPlaced = 'drag' | 'line';
  */
 export type DiagramAnnotationColor = 'ink' | 'reference' | 'red' | 'orange' | 'green' | 'blue' | 'purple' | 'custom';
 
+/** One of a label's options on or off (17b): Bold, a halo. */
+export type DiagramTextToggle = 'on' | 'off';
+
+/**
+ * A label's size, by name (17b): with the picture (none in pt), one of the
+ * four Size offers, or another a file brought. Never the size itself.
+ */
+export type DiagramTextSize = 'picture' | '7' | '9' | '12' | '16' | 'other';
+
+/** Which of a label's options the Layers pane changed (17b). */
+export type DiagramTextStyleOption = 'bold' | 'halo' | 'size';
+
 /** A fold arrow or a white arrow, which Edit Path shapes: its kind, in the event's own spelling. */
 export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';
 
@@ -1454,8 +1466,10 @@ export const ANALYTICS_EVENTS = {
   diagramAnnotationBehind: 'diagram annotation behind',
   /** A mark flipped horizontally or vertically from the Layers pane: its kind, which way. */
   diagramAnnotationFlipped: 'diagram annotation flipped',
-  /** A solid line's colour changed in the Layers pane (17a): its kind, the colour by name. Once per pick. */
+  /** A solid line's or a label's colour changed in the Layers pane (17a, 17b): its kind, the colour by name. Once per pick. */
   diagramAnnotationRecolored: 'diagram annotation recolored',
+  /** A label's Bold, Halo or Size changed in the Layers pane (17b): which, and to what. */
+  diagramTextStyled: 'diagram text styled',
   /** A frame placed on an enlarged step by a capture (Revision 2): how, through what, by which anchor. One per step placed. */
   diagramStepEnlarged: 'diagram step enlarged',
   /** An enlarge area or an enlarged step's frame changed: moved, its Shape, Size, Edge or Anchor, or an area deleted. */

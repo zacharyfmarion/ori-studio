@@ -3,7 +3,13 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { cubicPoint } from '../../lib/cubicBezier';
 import { readFontMetrics } from '../fonts/fontMetrics';
-import { CJK_RUN_ADVANCE_RUNS, LABEL_ADVANCE_RUNS, labelAdvance } from './labelAdvances';
+import {
+  CJK_RUN_ADVANCE_RUNS,
+  CJK_RUN_BOLD_ADVANCE_RUNS,
+  LABEL_ADVANCE_RUNS,
+  LABEL_BOLD_ADVANCE_RUNS,
+  labelAdvance,
+} from './labelAdvances';
 import { scriptFonts, textCjkKey } from '../fonts/fontScripts';
 import { graphemesOf } from '../../lib/paper/textWrap';
 import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagramDocument';
@@ -240,10 +246,13 @@ describe('a label’s width', () => {
     for (const [text, half] of ink) expect(labelHalfWidth(text) / LABEL_SIZE, text).toBeGreaterThanOrEqual(half);
   });
 
-  it('sets its Latin as the bundled Noto Sans does, glyph for glyph, every glyph it has', () => {
-    const font = readFontMetrics(readFileSync(resolve(__dirname, '../fonts/NotoSans-Regular.ttf')));
+  it.each([
+    ['Regular', LABEL_ADVANCE_RUNS, false],
+    ['Bold', LABEL_BOLD_ADVANCE_RUNS, true],
+  ] as const)('sets its Latin as the bundled Noto Sans %s does, glyph for glyph, every glyph it has (Bold: 17b)', (weight, runs, bold) => {
+    const font = readFontMetrics(readFileSync(resolve(__dirname, `../fonts/NotoSans-${weight}.ttf`)));
     expect(font.unitsPerEm).toBe(1000);
-    for (const run of LABEL_ADVANCE_RUNS) {
+    for (const run of runs) {
       run.advances.forEach((advance, index) => {
         const codePoint = run.from + index;
         expect(advance, codePoint.toString(16)).toBe(font.has(codePoint) ? font.advance(codePoint) : -1);
@@ -251,7 +260,7 @@ describe('a label’s width', () => {
     }
     // All of its map: no block it sets is left out of the table (review: its punctuation and Vietnamese were).
     for (const codePoint of font.codePoints()) {
-      if (codePoint >= 0x20) expect(labelAdvance(codePoint), codePoint.toString(16)).toBe(font.advance(codePoint));
+      if (codePoint >= 0x20) expect(labelAdvance(codePoint, bold), codePoint.toString(16)).toBe(font.advance(codePoint));
     }
   });
 
@@ -272,6 +281,17 @@ describe('a label’s width', () => {
   // The CJK fonts are a build output: checked against them where they are built.
   const built = resolve(__dirname, '../../../public/fonts/diagram');
   const cjkFonts = existsSync(built) ? readdirSync(built).filter((name) => /^NotoSans(SC|TC|JP|KR)-Regular\.full\./.test(name)) : [];
+  const cjkBoldFonts = existsSync(built) ? readdirSync(built).filter((name) => /^NotoSans(SC|TC|JP|KR)-Bold\.full\./.test(name)) : [];
+  it.runIf(cjkBoldFonts.length === 4)('holds the widest the four CJK fonts’ Bold set each, for a bold label (17b)', () => {
+    const fonts = cjkBoldFonts.map((name) => readFontMetrics(readFileSync(resolve(built, name))));
+    for (const run of CJK_RUN_BOLD_ADVANCE_RUNS) {
+      run.advances.forEach((advance, index) => {
+        const codePoint = run.from + index;
+        const widest = Math.max(-1, ...fonts.filter((font) => font.has(codePoint)).map((font) => Math.round((font.advance(codePoint) * 1000) / font.unitsPerEm)));
+        expect(advance, codePoint.toString(16)).toBe(widest);
+      });
+    }
+  });
   it.runIf(cjkFonts.length === 4)('holds the widest the four CJK fonts set each, and a label as wide as any of them sets it', () => {
     const fonts = cjkFonts.map((name) => readFontMetrics(readFileSync(resolve(built, name))));
     for (const run of CJK_RUN_ADVANCE_RUNS) {
@@ -583,7 +603,7 @@ describe('an angle mark (15b)', () => {
     expect(moved.other![1]).toBeCloseTo(mark.other![1] - 0.2, 12);
     expect(isDegenerate(mark, MIN_ANNOTATION_LENGTH)).toBe(false);
     expect(isDegenerate({ ...mark, other: mark.to }, MIN_ANNOTATION_LENGTH)).toBe(true);
-    expect(annotationEnds('angle-mark')).toEqual([]);
+    expect(annotationEnds({ kind: 'angle-mark' })).toEqual([]);
   });
 
   it('is carried by a mirror and a turn, its arms with the picture', () => {
@@ -875,9 +895,9 @@ describe('a callout', () => {
 
   it('carries words, as a label does, and offers its point to take hold of, its box being taken where it is drawn', () => {
     expect(ANNOTATION_KINDS.filter(carriesText).sort()).toEqual(['callout', 'label']);
-    expect(annotationEnds('callout')).toEqual(['from']);
-    expect(annotationEnds('valley-arrow')).toEqual(['to', 'from']);
-    expect(annotationEnds('circle')).toEqual([]);
+    expect(annotationEnds({ kind: 'callout' })).toEqual(['from']);
+    expect(annotationEnds({ kind: 'valley-arrow' })).toEqual(['to', 'from']);
+    expect(annotationEnds({ kind: 'circle' })).toEqual([]);
   });
 
   it('moves whole by its line, and its box or its point alone', () => {
@@ -959,7 +979,7 @@ describe('a pleat arrow (15c)', () => {
     expect(DEFAULT_PLEAT_KINKS).toBe(1);
     expect(canBeShaped('pleat-arrow')).toBe(false);
     expect(carriesText('pleat-arrow')).toBe(false);
-    expect(annotationEnds('pleat-arrow')).toEqual(['to', 'from']);
+    expect(annotationEnds({ kind: 'pleat-arrow' })).toEqual(['to', 'from']);
   });
 
   it('steps its Zs to the other side with Flip, and back, writing `mirrored` only when true', () => {
@@ -1105,7 +1125,7 @@ describe('equal divisions (Revision 2)', () => {
     expect(canBeShaped('divisions')).toBe(false);
     expect(carriesText('divisions')).toBe(false);
     expect(behindEnds('divisions')).toEqual([]);
-    expect(annotationEnds('divisions')).toEqual(['to', 'from']);
+    expect(annotationEnds({ kind: 'divisions' })).toEqual(['to', 'from']);
     expect(placedByClick('divisions')).toBe(false);
     expect(ANNOTATION_KINDS.filter(hasTicks)).toEqual(['angle-mark', 'divisions']);
     expect(ANNOTATION_KINDS.indexOf('divisions')).toBe(ANNOTATION_KINDS.indexOf('angle-mark') + 1);

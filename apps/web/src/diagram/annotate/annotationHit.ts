@@ -64,7 +64,9 @@ import {
   divisionsPartsOf,
   isCornerKind,
   rightAngleDiagonal,
+  labelCentre,
   labelHalfWidth,
+  labelSize,
   pathCubics,
   pathLength,
   type PicturePoint,
@@ -72,6 +74,7 @@ import {
 import { nearestPathPoint, pathNodesOf, visiblePathHandles } from './annotationPath';
 import { ANNOTATION_INK_MM } from './canvasInk';
 import { perAnnotation } from './perAnnotation';
+import { TEXT_HALO_EMS } from './textStyle';
 import { zoomGripAt, type ZoomGrip } from '../zoom/zoomGrips';
 import { distanceToRim, zoomOutlineOf } from '../zoom/zoomModel';
 
@@ -114,7 +117,7 @@ export interface HitSizes {
   tolerance: number;
   /** A glyph's reach from its centre: the turn-over and rotate signs. */
   glyph: number;
-  /** A label's letters' size. */
+  /** A label's letters' size, where it has none of its own in pt (17b). */
   label: number;
   /** One ink, as the canvas draws it: what a head's length and a push's width are measured in. */
   ink: number;
@@ -689,6 +692,26 @@ function closeUpGripAt(
 }
 
 /**
+ * Where a label's words are on the canvas, in picture units (17b): their
+ * centre — hung text's off its anchor — and half their box, at the label's
+ * size (`plain` when it has none in pt) and weight, a halo's half width past
+ * its letters. The one box a press, the selection's ring and the reach agree on.
+ */
+export function labelBox(
+  annotation: Pick<KnownDiagramAnnotation, 'from' | 'offsetPt' | 'text' | 'bold' | 'halo' | 'sizePt'>,
+  plain: number
+): { centre: PicturePoint; halfWidth: number; halfHeight: number; size: number } {
+  const size = annotation.sizePt !== undefined ? labelSize(annotation) : plain;
+  const halo = annotation.halo ? (TEXT_HALO_EMS * size) / 2 : 0;
+  return {
+    centre: labelCentre(annotation),
+    halfWidth: labelHalfWidth(annotation.text ?? '', { bold: annotation.bold === true, size }) + halo,
+    halfHeight: size * 0.6 + halo,
+    size,
+  };
+}
+
+/**
  * How far a press is from an annotation's body, as it is drawn; 0 inside a
  * glyph, a label, a push, a white arrow or a callout's box. A circle is its
  * ring, not its inside: an arrow drawn into it ends inside it, and a press
@@ -703,10 +726,10 @@ function bodyDistance(
 ): number {
   switch (annotation.kind) {
     case 'label': {
-      const halfWidth = labelHalfWidth(annotation.text ?? '');
-      const halfHeight = sizes.label * 0.6;
-      const dx = Math.max(0, Math.abs(point[0] - annotation.from[0]) - halfWidth);
-      const dy = Math.max(0, Math.abs(point[1] - annotation.from[1]) - halfHeight);
+      // Round its words' centre, at its size and weight, its halo too (17b): hung text's words, not its anchor.
+      const { halfWidth, halfHeight, centre } = labelBox(annotation, sizes.label);
+      const dx = Math.max(0, Math.abs(point[0] - centre[0]) - halfWidth);
+      const dy = Math.max(0, Math.abs(point[1] - centre[1]) - halfHeight);
       return Math.hypot(dx, dy);
     }
     case 'turn-over':
@@ -793,7 +816,7 @@ export function hitAnnotation(
     // The ends it shows, and equal divisions' handle at the middle of their line.
     const handle = selected.kind === 'divisions' ? divisionsOffsetGrip(selected, sizes.ink) : null;
     const grips: { part: 'from' | 'to' | 'offset'; at: PicturePoint }[] = [
-      ...annotationEnds(selected.kind).map((part) => ({ part, at: selected[part] })),
+      ...annotationEnds(selected).map((part) => ({ part, at: selected[part] })),
       ...(handle ? [{ part: 'offset' as const, at: handle }] : []),
     ];
     const near = grips

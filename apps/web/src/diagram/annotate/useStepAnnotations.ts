@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { trackDiagramAnnotationBehind, trackDiagramAnnotationRecolored } from '../../analytics';
+import { trackDiagramAnnotationBehind, trackDiagramAnnotationRecolored, trackDiagramTextStyled } from '../../analytics';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating, selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
@@ -18,7 +18,7 @@ import {
 } from '../document/diagramDocument';
 import { EDIT_PATH } from './annotateTools';
 import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
-import { annotationEventColor, annotationEventKind } from './annotationEventKind';
+import { annotationEventColor, annotationEventKind, textSizeName, textToggleName } from './annotationEventKind';
 import {
   hasTicks,
   withBehind,
@@ -28,6 +28,7 @@ import {
   withDivisionsOffset,
   withNumbered,
   withParts,
+  withTextStyle,
   withWhiteArrowLook,
   type WhiteArrowLook,
 } from './annotationModel';
@@ -48,6 +49,9 @@ function trackBehind(annotation: KnownDiagramAnnotation): void {
 }
 
 const NO_ANNOTATIONS: readonly KnownDiagramAnnotation[] = [];
+
+/** One of a label's options, as the Layers pane sets it (17b): Bold or a halo on or off, or its size in pt — null for With the picture. */
+export type TextStyleOption = { option: 'bold' | 'halo'; value: boolean } | { option: 'size'; value: number | null };
 
 /** The colour pick last counted (17a): every move of one pick is one recolouring. Picks are numbered app-wide (`DiagramColorSelect`). */
 let countedPick: number | null = null;
@@ -176,6 +180,21 @@ export function useStepAnnotations(step: DiagramStep | null) {
         countedPick = pick ?? null;
         const name = annotationEventColor(after);
         if (name) trackDiagramAnnotationRecolored(annotationEventKind(after), name);
+      },
+      /**
+       * A label's Bold, halo or size (17b), as one undo step, counted when it
+       * changes what the label is: `size` in pt, or null for With the picture.
+       */
+      setTextStyle: (id: string, option: TextStyleOption) => {
+        const before = current(id);
+        const label = option.option === 'size' ? 'Change text size' : option.option === 'bold' ? 'Change bold' : 'Change halo';
+        const style = option.option === 'size' ? { sizePt: option.value } : { [option.option]: option.value };
+        change(id, label, (annotation) => withTextStyle(annotation, style));
+        const after = current(id);
+        // Counted once it changed what the label is, not for a choice it already had.
+        if (!before || !after || before === after) return;
+        if (option.option === 'size') trackDiagramTextStyled('size', textSizeName(after.sizePt));
+        else trackDiagramTextStyled(option.option, textToggleName(after[option.option]));
       },
       /**
        * One end of a mark put behind a flap or brought back in front (15e), as

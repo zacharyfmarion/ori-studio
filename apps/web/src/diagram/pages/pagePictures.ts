@@ -64,7 +64,7 @@ import { hasDrawnAnnotations, paintAnnotations, type CloseUpPicture } from '../a
 import { annotationDrawing, annotationReach } from '../annotate/annotationPrimitives';
 import { frameOf } from '../annotate/annotationModel';
 import type { PictureLayers } from '../annotate/pictureGeometry';
-import { marksTouchingWindow, stepAsDrawn, viewGeometry, viewOfStep } from '../zoom/stepView';
+import { markPaper, marksTouchingWindow, stepAsDrawn, viewGeometry, viewOfStep } from '../zoom/stepView';
 import {
   paintZoomed,
   windowBox,
@@ -522,6 +522,8 @@ export function cellPicture(
   if (!source) return null;
   // A flat fold's layers, in the marks' units: a mark behind a flap is drawn dotted under it (15e).
   const layers = hasDrawnAnnotations(step.annotations) ? viewGeometry(viewOfStep(step), assets, style).layers : null;
+  // A References picture's sheet: a label's halo is filled with the face it stands on (17b).
+  const textPaper = markPaper(step, assets);
   // An enlarged step draws its window (Revision 2), a close-up's inside included.
   const zoomed = zoomedSource(step, assets);
   const drawPicture = (inner: Rect, mmPerUnit: number | null, framePt: number | null) =>
@@ -538,10 +540,11 @@ export function cellPicture(
     const drawn = drawPicture(inner, mmPerUnit, frame);
     if (!drawn) return null;
     const framePx = longerOf(drawn.framePt) / PT_PER_CSS_PX;
-    const marks = paintAnnotations(step.annotations, drawn.framePt, framePx, style, layers);
+    const marks = paintAnnotations(step.annotations, drawn.framePt, framePx, style, layers, { paper: textPaper });
     if (!marks) return { drawn, marks, reached: drawn.boundsPt };
     if (!zoomed) return { drawn, marks, reached: union(drawn.boundsPt, marks.bounds) };
-    const counted = touching === step.annotations ? marks : paintAnnotations(touching, drawn.framePt, framePx, style, layers);
+    const counted =
+      touching === step.annotations ? marks : paintAnnotations(touching, drawn.framePt, framePx, style, layers, { paper: textPaper });
     const inside = counted ? intersection(counted.bounds, drawn.framePt) : null;
     return { drawn, marks, reached: inside ? union(drawn.boundsPt, inside) : drawn.boundsPt };
   };
@@ -613,7 +616,7 @@ export function cellPicture(
   };
   const setText = (markup: string) => setUploadText(markup, text.hanStyle, text.runs, count);
   const framePx = longerOf(drawn.framePt) / PT_PER_CSS_PX;
-  const marks = paintAnnotations(step.annotations, drawn.framePt, framePx, style, layers, { closeUpPicture, setText });
+  const marks = paintAnnotations(step.annotations, drawn.framePt, framePx, style, layers, { closeUpPicture, setText, paper: textPaper });
   return {
     markup: prefixIds(shift(`${drawn.markup}\n${marks?.markup ?? ''}`), idPrefix),
     boundsPt: { ...reached, x: reached.x + dx, y: reached.y + dy },

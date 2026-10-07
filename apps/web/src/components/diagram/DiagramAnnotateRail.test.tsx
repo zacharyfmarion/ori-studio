@@ -16,6 +16,7 @@ afterEach(() => {
   container?.remove();
   container = null;
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('DiagramAnnotateRail', () => {
@@ -102,5 +103,81 @@ describe('DiagramAnnotateRail', () => {
     act(() => reference.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
     expect(useSettingsStore.getState().diagramAnnotateLineColor).toBe('#c91d87');
     expect(color()!.textContent).toBe('Reference');
+  });
+
+  it('shows the Text Style under Text while the Label tool is in hand, and keeps what it sets for the next label (17b)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => undefined;
+    Element.prototype.scrollIntoView ??= () => undefined;
+    useSettingsStore.setState({ diagramAnnotateTextStyle: { color: null, bold: false, halo: false, sizePt: null } });
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const render = (tool: 'label' | null) =>
+      act(() =>
+        root!.render(
+          <TooltipProvider>
+            <DiagramAnnotateRail tool={tool} readOnly={false} onTool={() => undefined} />
+          </TooltipProvider>
+        )
+      );
+    const group = () => container!.querySelector('section[aria-label="Text Style"]');
+    render(null);
+    expect(group()).toBeNull();
+    render('label');
+    // Right under the Text group.
+    const sections = [...container.querySelectorAll('section')].map((each) => each.getAttribute('aria-label'));
+    expect(sections.slice(-2)).toEqual(['Text', 'Text Style']);
+    const color = () => group()!.querySelector<HTMLButtonElement>('button[aria-label="Text Color"]')!;
+    const size = () => group()!.querySelector<HTMLButtonElement>('button[aria-label="Size"]')!;
+    const bold = () => group()!.querySelector<HTMLButtonElement>('button[aria-label="Bold"]')!;
+    const halo = () => group()!.querySelector<HTMLButtonElement>('button[aria-label="Halo"]')!;
+    // Today's look until one is chosen.
+    expect([color().textContent, size().textContent]).toEqual(['Ink', 'With the picture']);
+    expect([bold().getAttribute('aria-pressed'), halo().getAttribute('aria-pressed')]).toEqual(['false', 'false']);
+    const choose = (select: HTMLButtonElement, name: string) => {
+      act(() => select.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+      const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((each) => each.textContent === name)!;
+      act(() => option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    };
+    choose(color(), 'Reference');
+    act(() => bold().click());
+    act(() => halo().click());
+    choose(size(), '9 pt');
+    expect(useSettingsStore.getState().diagramAnnotateTextStyle).toEqual({ color: '#c91d87', bold: true, halo: true, sizePt: 9 });
+    expect([bold().getAttribute('aria-pressed'), halo().getAttribute('aria-pressed')]).toEqual(['true', 'true']);
+    expect(size().textContent).toBe('9 pt');
+    // Size says what it sets by its glyph, as the colour select says its colour by its swatch.
+    expect(size().querySelector('[data-glyph="text-size"]')).not.toBeNull();
+  });
+
+  it('brings the Text Style into the rail’s view when the Label tool is taken, on a screen too short to show it (17b)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    // An iPad on its side: the rail's column ends at 700 px; the group comes in at 680–868.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const rect = (top: number, bottom: number) => ({ top, bottom, left: 0, right: 180, x: 0, y: top, width: 180, height: bottom - top }) as DOMRect;
+      if (this.dataset.railPart === 'groups') return rect(0, 700);
+      if (this.getAttribute('aria-label') === 'Text Style') return rect(680, 868);
+      return rect(0, 0);
+    });
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const render = (tool: 'label' | null) =>
+      act(() =>
+        root!.render(
+          <TooltipProvider>
+            <DiagramAnnotateRail tool={tool} readOnly={false} onTool={() => undefined} />
+          </TooltipProvider>
+        )
+      );
+    render(null);
+    const column = container.querySelector<HTMLDivElement>('[data-rail-part="groups"]')!;
+    Object.defineProperty(column, 'clientHeight', { configurable: true, value: 700 });
+    let scrolled = 0;
+    Object.defineProperty(column, 'scrollTop', { configurable: true, get: () => scrolled, set: (value: number) => (scrolled = value) });
+    render('label');
+    expect(scrolled).toBe(168);
   });
 });

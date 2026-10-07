@@ -14,6 +14,15 @@ import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
 import { needsNoGlyph, scriptFonts, textCjkKey } from '../fonts/fontScripts';
 import { isAnnotationColor } from './annotationColors';
+import { ptInPictureUnits } from './canvasInk';
+import {
+  isTextSizePt,
+  PLAIN_TEXT_STYLE,
+  sameTextStyle,
+  TEXT_OFFSET_PT_MAX,
+  TEXT_SIZE_PT,
+  type TextStyle,
+} from './textStyle';
 import { cjkRunAdvance, labelAdvance } from './labelAdvances';
 import type { DiagramWhiteArrowFill, DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
@@ -131,7 +140,11 @@ export const ARROW_BEND = 1 - Math.cos(Math.PI / 6);
 /** The most an arc may bulge: a half circle. */
 export const MAX_BEND = 0.5;
 
-/** A label's letters, as a share of the frame's longer side: a fixed size in picture units (D8). */
+/**
+ * A label's letters, as a share of the frame's longer side: a fixed size in
+ * picture units (D8) — a label's size when it has none of its own in pt
+ * (`sizePt`, 17b).
+ */
 export const LABEL_SIZE = 0.05;
 /** What a new label says until it is typed over: the letter diagrams name a point with. */
 export const NEW_LABEL_TEXT = 'A';
@@ -370,7 +383,7 @@ export function withinReach([x, y]: PicturePoint, reach: AnnotationReach = activ
  * object when it already is.
  */
 export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
-  return cleanColor(cleanBehind(cleanShape(annotation)));
+  return cleanTextStyle(cleanColor(cleanBehind(cleanShape(annotation))));
 }
 
 /** A mark's colour kept only where its kind has one, and one a mark can store: the same mark when it already is. */
@@ -903,13 +916,15 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
 }
 
 /**
- * Whether an annotation of `kind` has a colour of its own (17a, RM3): a solid
- * line. Every other mark is drawn in the style's inks, as Annotate's decision
- * 7 has it. A switch, so a new kind has to say.
+ * Whether an annotation of `kind` has a colour of its own (RM3): a solid line
+ * (17a) and a label (17b). Every other mark is drawn in the style's inks, as
+ * Annotate's decision 7 has it — a callout too, whose words, box and line
+ * would each need one. A switch, so a new kind has to say.
  */
 export function carriesColor(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
     case 'solid-line':
+    case 'label':
       return true;
     case 'valley-arrow':
     case 'mountain-arrow':
@@ -922,7 +937,6 @@ export function carriesColor(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
-    case 'label':
     case 'circle':
     case 'right-angle':
     case 'callout':
@@ -945,14 +959,168 @@ export function withColor(annotation: KnownDiagramAnnotation, color: string | nu
 }
 
 /**
+ * Whether an annotation of `kind` has Text's options (17b): Bold, a halo, a
+ * size in pt and words hung off its anchor — a label. A callout keeps its
+ * look: its words sit in a box sized from them, which a size or a weight
+ * would resize, and a halo means nothing in a white box (§4). A switch, so a
+ * new kind has to say.
+ */
+export function carriesTextStyle(kind: DiagramAnnotationKind): boolean {
+  switch (kind) {
+    case 'label':
+      return true;
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+    case 'pleat-arrow':
+    case 'push-arrow':
+    case 'white-arrow':
+    case 'turn-over':
+    case 'rotate':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+    case 'solid-line':
+    case 'circle':
+    case 'right-angle':
+    case 'callout':
+    case 'angle-mark':
+    case 'divisions':
+    case 'close-up':
+    case 'zoom':
+      return false;
+  }
+}
+
+/** A label's look ({@link TextStyle}); a mark with no text options is {@link PLAIN_TEXT_STYLE}. */
+export function textStyleOf(annotation: Pick<KnownDiagramAnnotation, 'kind' | 'color' | 'bold' | 'halo' | 'sizePt'>): TextStyle {
+  if (!carriesTextStyle(annotation.kind)) return { ...PLAIN_TEXT_STYLE };
+  return {
+    color: annotation.color ?? null,
+    bold: annotation.bold === true,
+    halo: annotation.halo === true,
+    sizePt: annotation.sizePt ?? null,
+  };
+}
+
+/**
+ * A label in `style`, the options it leaves out as they were: each written
+ * only when set — Bold and the halo only true, a size within
+ * {@link TEXT_SIZE_PT} — so a label in {@link PLAIN_TEXT_STYLE} is written
+ * as every label was before (17b). Any other mark, and a label already in
+ * that style, as it was.
+ */
+export function withTextStyle(annotation: KnownDiagramAnnotation, style: Partial<TextStyle>): KnownDiagramAnnotation {
+  if (!carriesTextStyle(annotation.kind)) return annotation;
+  const was = textStyleOf(annotation);
+  const next = { ...was, ...style };
+  if (sameTextStyle(next, was)) return annotation;
+  const { color: _color, bold: _bold, halo: _halo, sizePt: _size, ...rest } = annotation;
+  return {
+    ...rest,
+    ...(next.color !== null ? { color: next.color } : {}),
+    ...(next.bold ? { bold: true as const } : {}),
+    ...(next.halo ? { halo: true as const } : {}),
+    ...(next.sizePt !== null && isTextSizePt(next.sizePt) ? { sizePt: next.sizePt } : {}),
+  };
+}
+
+/** Whether a label's words hang off its anchor (17b): it has an offset, in pt, from `from`. */
+export function isHungText(annotation: Pick<KnownDiagramAnnotation, 'kind' | 'offsetPt'>): boolean {
+  return carriesTextStyle(annotation.kind) && annotation.offsetPt !== undefined;
+}
+
+/** An offset kept to what a label stores: each axis within {@link TEXT_OFFSET_PT_MAX}; null for one that is not two finite numbers. */
+function offsetWithin(offset: readonly number[]): [number, number] | null {
+  if (offset.length !== 2 || !offset.every(Number.isFinite)) return null;
+  const within = (value: number) => Math.min(TEXT_OFFSET_PT_MAX, Math.max(-TEXT_OFFSET_PT_MAX, value));
+  return [within(offset[0]!), within(offset[1]!)];
+}
+
+/** A label with its words hung `offsetPt` off its anchor, each axis within reach — or centred on it again, for null. */
+export function withLabelOffset(annotation: KnownDiagramAnnotation, offsetPt: readonly [number, number] | null): KnownDiagramAnnotation {
+  const { offsetPt: _was, ...rest } = annotation;
+  if (offsetPt === null || !carriesTextStyle(annotation.kind)) return rest;
+  const kept = offsetWithin(offsetPt);
+  return kept ? { ...rest, offsetPt: kept } : rest;
+}
+
+/**
+ * A label's size, its em, in picture units as the canvas and a card draw the
+ * frame (50 mm): its size in pt there, or {@link LABEL_SIZE} of the frame.
+ */
+export function labelSize(annotation: Pick<KnownDiagramAnnotation, 'sizePt'>): number {
+  return annotation.sizePt !== undefined ? ptInPictureUnits(annotation.sizePt) : LABEL_SIZE;
+}
+
+/**
+ * Where a label's words are centred, in picture units as the canvas draws
+ * the frame: its anchor, or — hung text (17b) — its anchor and its offset,
+ * a print length, at the canvas's 50 mm. Where a press finds it.
+ */
+export function labelCentre(annotation: Pick<KnownDiagramAnnotation, 'from' | 'offsetPt'>): PicturePoint {
+  const { from, offsetPt } = annotation;
+  if (!offsetPt) return from;
+  const unit = ptInPictureUnits(1);
+  return [from[0] + offsetPt[0] * unit, from[1] + offsetPt[1] * unit];
+}
+
+/**
+ * Hung text taken by its words and moved `by`, in picture units on the
+ * canvas (17b): the words go by the pointer's travel, in pt at the canvas's
+ * 50 mm, and its anchor stays. Any other mark as it was.
+ */
+export function moveLabelWords(annotation: KnownDiagramAnnotation, by: PicturePoint): KnownDiagramAnnotation {
+  if (!annotation.offsetPt || !carriesTextStyle(annotation.kind)) return annotation;
+  if (by[0] === 0 && by[1] === 0) return annotation;
+  const unit = ptInPictureUnits(1);
+  return withLabelOffset(annotation, [annotation.offsetPt[0] + by[0] / unit, annotation.offsetPt[1] + by[1] / unit]);
+}
+
+/**
+ * A mark's text options kept to what this build writes (17b): none on a mark
+ * that has no text options, Bold and a halo only true, a size within its
+ * range, an offset two finite numbers within reach. The same mark when it
+ * already is.
+ */
+function cleanTextStyle(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const { bold, halo, sizePt, offsetPt } = annotation;
+  if (bold === undefined && halo === undefined && sizePt === undefined && offsetPt === undefined) return annotation;
+  const { bold: _bold, halo: _halo, sizePt: _size, offsetPt: _offset, ...plain } = annotation;
+  if (!carriesTextStyle(annotation.kind)) return plain;
+  const keptSize =
+    sizePt === undefined || !Number.isFinite(sizePt)
+      ? undefined
+      : Math.min(TEXT_SIZE_PT.max, Math.max(TEXT_SIZE_PT.min, sizePt));
+  const keptOffset = offsetPt === undefined ? null : offsetWithin(offsetPt);
+  const same =
+    (bold === undefined || bold === true) &&
+    (halo === undefined || halo === true) &&
+    keptSize === sizePt &&
+    (offsetPt === undefined || (keptOffset !== null && keptOffset[0] === offsetPt[0] && keptOffset[1] === offsetPt[1]));
+  if (same) return annotation;
+  return {
+    ...plain,
+    ...(bold === true ? { bold } : {}),
+    ...(halo === true ? { halo } : {}),
+    ...(keptSize !== undefined ? { sizePt: keptSize } : {}),
+    ...(keptOffset !== null ? { offsetPt: keptOffset } : {}),
+  };
+}
+
+/**
  * The ends a selected annotation offers to take hold of, each shown as a
  * dot: an arrow's or a line's two, a callout's point — its box is taken
- * where it is drawn — and none for a mark at one point, nor a right angle,
+ * where it is drawn — and a label's anchor when its words hang off it (17b,
+ * {@link isHungText}), as a callout's point; none for any other mark at one
+ * point, nor a right angle,
  * which offers its corner and the way it opens instead
  * ({@link rightAngleGrips}), nor an angle mark, moved whole; equal divisions
- * offer the ends of the line they measure. A switch, so a new kind has to say.
+ * offer the ends of the line they measure. Asked of the annotation, as a
+ * label's answer is its own; a switch on its kind, so a new kind has to say.
  */
-export function annotationEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to')[] {
+export function annotationEnds(annotation: Pick<KnownDiagramAnnotation, 'kind' | 'offsetPt'>): readonly ('from' | 'to')[] {
+  const { kind } = annotation;
   switch (kind) {
     case 'valley-arrow':
     case 'mountain-arrow':
@@ -968,9 +1136,10 @@ export function annotationEnds(kind: DiagramAnnotationKind): readonly ('from' | 
       return ['to', 'from'];
     case 'callout':
       return ['from'];
+    case 'label':
+      return annotation.offsetPt !== undefined ? ['from'] : [];
     case 'turn-over':
     case 'rotate':
-    case 'label':
     case 'circle':
     case 'right-angle':
     case 'angle-mark':
@@ -1000,15 +1169,17 @@ function samePoint(a: PicturePoint, b: PicturePoint): boolean {
 const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\u3000-\u303f\uff00-\uffef]/u;
 
 /**
- * Half a label's width, in picture units, as it is drawn centred on its
- * point: its Latin as wide as the font it is set in sets it
- * (`labelAdvance`), a whole em for a wide grapheme or one that font has no
+ * Half a label's width, in the units of `size`, its em — picture units at
+ * {@link LABEL_SIZE} unless said — as it is drawn centred on its point: its
+ * Latin as wide as the font it is set in sets it (`labelAdvance`), Regular
+ * or `bold` (17b), a whole em for a wide grapheme or one that font has no
  * width for; and a fifth of an em past that, more than any Latin glyph's ink
  * stands past its advance (ť's 0.109 em). The canvas cannot measure the text
- * it draws: the hit test, the selection and a file's crop all share this.
+ * it draws: the hit test, the selection and a file's crop all share this. A
+ * halo reaches further still ({@link TEXT_HALO_EMS}): its measurers add it.
  */
-export function labelHalfWidth(text: string): number {
-  return LABEL_SIZE * (Math.max(textEms(text), 0.6) / 2 + 0.2);
+export function labelHalfWidth(text: string, { bold = false, size = LABEL_SIZE }: { bold?: boolean; size?: number } = {}): number {
+  return size * (Math.max(textEms(text, bold), 0.6) / 2 + 0.2);
 }
 
 /**
@@ -1019,22 +1190,21 @@ export function labelHalfWidth(text: string): number {
  * grapheme or one its font has no width for. The one measure a label's reach
  * and a callout's box are both taken from.
  */
-export function textEms(text: string): number {
+export function textEms(text: string, bold = false): number {
   const graphemes = graphemesOf(text);
   // Any CJK key: only whether a grapheme is set in Noto Sans is asked.
   const fonts = scriptFonts(graphemes, textCjkKey(text, 'sc'));
+  // A character its run's font has no glyph for is set in the other, which
+  // has it, as a page sets it (`coverFonts`): ‱ among CJK words in Noto Sans,
+  // ⸻ among Latin ones in a CJK font. Each at the text's weight (17b).
+  const latinRunEms = (character: string) => characterEms(character, bold) ?? cjkCharacterEms(character, bold);
+  const cjkRunEms = (character: string) => cjkCharacterEms(character, bold) ?? characterEms(character, bold);
   let ems = 0;
   graphemes.forEach((grapheme, index) => {
     ems += graphemeEms(grapheme, fonts[index] === 'latin' ? latinRunEms : cjkRunEms);
   });
   return ems;
 }
-
-// A character its run's font has no glyph for is set in the other, which
-// has it, as a page sets it (`coverFonts`): ‱ among CJK words in Noto Sans,
-// ⸻ among Latin ones in a CJK font.
-const latinRunEms = (character: string) => characterEms(character) ?? cjkCharacterEms(character);
-const cjkRunEms = (character: string) => cjkCharacterEms(character) ?? characterEms(character);
 
 /** A grapheme's advance in ems, its combining marks included, as `textEms` counts it: each character as `measure` reads it. */
 function graphemeEms(grapheme: string, measure: (character: string) => number | null): number {
@@ -1054,26 +1224,26 @@ function graphemeEms(grapheme: string, measure: (character: string) => number | 
   return unknown ? Math.max(ems, 1) : ems;
 }
 
-/** One character's advance in ems among CJK words, as the widest CJK font sets it; null where none has it. */
-function cjkCharacterEms(character: string): number | null {
-  const advance = cjkRunAdvance(character.codePointAt(0)!);
+/** One character's advance in ems among CJK words, as the widest CJK font sets it at its weight; null where none has it. */
+function cjkCharacterEms(character: string, bold: boolean): number | null {
+  const advance = cjkRunAdvance(character.codePointAt(0)!, bold);
   return advance === null ? null : advance / 1000;
 }
 
 /**
- * One character's advance in ems, as the font sets it: its own glyph's, or
+ * One character's advance in ems, as Noto Sans sets it at its weight: its own glyph's, or
  * — for a letter it has no glyph for, as polytonic Greek's ἀ — its
  * decomposition's, a letter and its marks, which is how the font sets it.
  * Null when neither is in the font.
  */
-function characterEms(character: string): number | null {
-  const advance = labelAdvance(character.codePointAt(0)!);
+function characterEms(character: string, bold: boolean): number | null {
+  const advance = labelAdvance(character.codePointAt(0)!, bold);
   if (advance !== null) return advance / 1000;
   const parts = character.normalize('NFD');
   if (parts === character) return null;
   let ems = 0;
   for (const part of parts) {
-    const each = labelAdvance(part.codePointAt(0)!);
+    const each = labelAdvance(part.codePointAt(0)!, bold);
     if (each === null) return null;
     ems += each / 1000;
   }
@@ -1861,10 +2031,13 @@ export interface PictureMove {
  * mirror turns an arc's bulge, a rotation's sense and the side a pleat
  * arrow's Zs step to over, and needs nothing
  * done to a path, whose handles are points too; a quarter turn (or three)
- * turns a turn-over's axis. A label's text stays upright.
+ * turns a turn-over's axis. A label's text stays upright; words hung off
+ * their anchor (17b) keep their side of it as the picture turns or mirrors,
+ * as far off it in print as they were ({@link carryHungText}).
  */
 export function carryAnnotation(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
   if (annotation.kind === 'callout') return carryCallout(annotation, move);
+  if (isHungText(annotation)) return carryHungText(annotation, move);
   if (annotation.kind === 'close-up') return carryCloseUp(annotation, move);
   if (annotation.kind === 'zoom') return carryZoom(annotation, move);
   if (annotation.path) {
@@ -2004,6 +2177,42 @@ function keptBeside(text: string, offset: PicturePoint, turned: PicturePoint): P
   const now = outline(way);
   const along = now * Math.min(length / was, 1) + (turnedLength / length) * Math.max(length - was, 0);
   return [way[0] * along, way[1] * along];
+}
+
+/**
+ * A label whose words hang off its anchor (17b), carried as a callout's box
+ * is: its anchor moves as a point does, and its offset is turned and mirrored
+ * as the picture is there — by `move.vector`, or where the move takes the
+ * offset's far end — its length kept in pt: a print length, which no move
+ * scales. So Turn over and Upright keep a letter on the same side of its
+ * ring, and a change of units — an enlarged step's window — keeps it as far
+ * off. Only a turn that would carry an axis past {@link TEXT_OFFSET_PT_MAX}
+ * shortens it, along the same way.
+ */
+function carryHungText(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  const { from } = annotation;
+  const [dx, dy] = annotation.offsetPt!;
+  const carried = withinReach(move.point(from));
+  const moved: KnownDiagramAnnotation = { ...annotation, from: carried, to: [carried[0], carried[1]] };
+  const length = Math.hypot(dx, dy);
+  if (!(length > 0)) return moved;
+  const unit = ptInPictureUnits(1);
+  const offset: PicturePoint = [dx * unit, dy * unit];
+  let turned: PicturePoint;
+  if (move.vector) turned = move.vector(offset);
+  else {
+    const [x0, y0] = move.point(from);
+    const [x1, y1] = move.point([from[0] + offset[0], from[1] + offset[1]]);
+    turned = [x1 - x0, y1 - y0];
+  }
+  const turnedLength = Math.hypot(turned[0], turned[1]);
+  if (!(turnedLength > 0)) return moved;
+  const way: PicturePoint = [turned[0] / turnedLength, turned[1] / turnedLength];
+  // A turn that is no quarter turn can carry an axis past what a label stores (45° takes
+  // [180, 180] to [0, 255]): the words come in along the same way until it is back in reach,
+  // so what this build writes, it reads back as its own.
+  const along = Math.min(length, TEXT_OFFSET_PT_MAX / Math.max(Math.abs(way[0]), Math.abs(way[1])));
+  return withLabelOffset(moved, [way[0] * along, way[1] * along]);
 }
 
 /**

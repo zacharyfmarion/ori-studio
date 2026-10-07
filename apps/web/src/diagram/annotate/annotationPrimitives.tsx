@@ -27,7 +27,11 @@
  *   offset is a print length, stored in mm and drawn in ink.
  * - A label is a line of text at a fixed share of the frame, its runs in the
  *   diagram's fonts as an upload's text is (`uploadText.ts`), so a page sets
- *   and embeds it the same way.
+ *   and embeds it the same way. Its options (17b) are its own: a colour, Bold
+ *   — the weight written on the text and its runs, so a page sets and embeds
+ *   Noto Sans Bold — a halo, References' look, a stroke under the letters in
+ *   what the text stands on (`paper`), a size in pt, and an offset in pt from
+ *   its anchor. A label with none is drawn exactly as before them.
  * - A callout is a line from a point to a box of words: the line in the
  *   annotation pen, the box filled with the page's white and outlined in the
  *   arrow pen, its words set as a label's are. Its shape is decided in
@@ -62,6 +66,7 @@ import {
   INLINE_LABEL_FONT,
   createDiagramRenderContext,
   diagramShapes,
+  labelOnPaper,
   strokeAttributes,
   type DiagramRenderContext,
 } from '../../cp-workspace/references/diagram/DiagramPrimitives';
@@ -133,6 +138,7 @@ import { frameWindow, zoomCornerRadius, zoomOutlineOf, zoomShapeOf } from '../zo
 import { ANNOTATION_INK_MM } from './canvasInk';
 import { hiddenArcs, hiddenStretches } from './behindFlaps';
 import { perAnnotation } from './perAnnotation';
+import { TEXT_HALO_EMS } from './textStyle';
 import type { PictureLayers } from './pictureGeometry';
 
 /** Where a label's baseline sits below its point, in ems: a capital's middle on the point. A callout's words sit so on its box's middle. */
@@ -146,6 +152,22 @@ export interface AnnotationLabel {
   size: number;
   fill: string;
   runs: { family: string; text: string }[];
+  /** Set in Noto Sans Bold (17b); absent, Regular. */
+  bold?: true;
+  /** A stroke under its letters, in what it stands on (17b): its colour and its width, in the drawing's px. */
+  halo?: { color: string; width: number };
+}
+
+/**
+ * The paper a References picture's text stands on (17b), for a halo to be
+ * filled with: the sheet's outline, in the marks' units — a References
+ * picture's sheet is its frame (D8), an enlarged step's that frame in its
+ * window's units — and whether the picture shows its back. Text off it, and
+ * text on any other picture (none given), stands on the page's white.
+ */
+export interface AnnotationPaper {
+  outline: readonly PicturePoint[];
+  back: boolean;
 }
 
 /** A callout as drawn, in CSS px: its line, its box and its words, and the pens they are drawn in. */
@@ -249,11 +271,20 @@ export type AnnotationPrimitive = DiagramMarkPrimitive | LinePrimitive;
  */
 export type CompiledAnnotation =
   | { kind: 'line'; role: PaperLineRole; from: PicturePoint; to: PicturePoint }
-  | { kind: 'label'; at: PicturePoint; runs: { key: DiagramFontKey; text: string }[] }
+  | { kind: 'label'; at: PicturePoint; runs: { key: DiagramFontKey; text: string }[]; style: CompiledTextStyle }
   | { kind: 'callout'; shape: CalloutShape; at: PicturePoint; runs: { key: DiagramFontKey; text: string }[] }
   | { kind: 'close-up'; shape: CloseUpShape }
   | { kind: 'zoom'; outline: DiagramZoomOutline }
   | { kind: 'mark'; primitive: AnnotationPrimitive };
+
+/** A label's options as it is compiled (17b): each only as it is set. */
+export interface CompiledTextStyle {
+  color?: string;
+  bold?: true;
+  halo?: true;
+  sizePt?: number;
+  offsetPt?: [number, number];
+}
 
 /** The annotations ready to draw, on screen or into a file. */
 export interface AnnotationDrawing {
@@ -295,6 +326,15 @@ export function calloutPen(style: DiagramStyle): number {
 /** The page an annotation is printed on: a hollow push or white arrow is this inside. */
 const PAGE_GROUND = '#ffffff';
 
+/** The marks' colours as a References step's are given them in a file, before an annotation's own are made of them. */
+function seenInk(seen: PaperStyle): DiagramInlineInk {
+  return diagramInlineInk({
+    ...referencesPaperTokens(seen),
+    '--cp-reference-input': REFERENCE_COLORS.light.input,
+    '--bg-primary': PAGE_GROUND,
+  });
+}
+
 /**
  * The marks' colours as attributes: the style's arrow ink, one ink on and off
  * the paper, so nothing is clipped (`oneInk`) — a solid line with no colour
@@ -306,11 +346,7 @@ const PAGE_GROUND = '#ffffff';
  * it may lie on a photo, on either face, or off the picture.
  */
 function annotationInk(seen: PaperStyle): DiagramInlineInk {
-  const ink = diagramInlineInk({
-    ...referencesPaperTokens(seen),
-    '--cp-reference-input': REFERENCE_COLORS.light.input,
-    '--bg-primary': PAGE_GROUND,
-  });
+  const ink = seenInk(seen);
   return {
     ...ink,
     // A solid line with no colour of its own is in the arrows' ink (17a).
@@ -359,7 +395,17 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
       };
     case 'label': {
       const text = annotation.text ?? '';
-      return text.trim() === '' ? null : { kind: 'label', at: from, runs: labelRuns(text) };
+      if (text.trim() === '') return null;
+      // Its options (17b), each only as it is set: a label with none compiles as one did before them.
+      const { color, bold, halo, sizePt, offsetPt } = annotation;
+      const style: CompiledTextStyle = {
+        ...(color !== undefined ? { color } : {}),
+        ...(bold ? { bold } : {}),
+        ...(halo ? { halo } : {}),
+        ...(sizePt !== undefined ? { sizePt } : {}),
+        ...(offsetPt !== undefined ? { offsetPt } : {}),
+      };
+      return { kind: 'label', at: from, runs: labelRuns(text), style };
     }
     case 'valley-arrow':
     case 'mountain-arrow':
@@ -491,7 +537,12 @@ export function labelRuns(text: string): { key: DiagramFontKey; text: string }[]
   return runs;
 }
 
-/** The runs of text a step's labels and callouts set, each in its face, Han in the diagram's style: for the page's fonts. */
+/**
+ * The runs of text a step's labels and callouts set, each in its face, Han in
+ * the diagram's style, at its weight — a bold label's (17b) at 700, so the
+ * page loads and embeds Noto Sans Bold, or its CJK face's Bold: for the
+ * page's fonts.
+ */
 export function annotationTextRuns(
   annotations: readonly DiagramAnnotation[],
   hanStyle: DiagramHanStyle
@@ -499,8 +550,9 @@ export function annotationTextRuns(
   const runs: UploadTextRun[] = [];
   for (const annotation of annotations) {
     if (!isKnownAnnotation(annotation) || !carriesText(annotation.kind)) continue;
+    const weight = annotation.kind === 'label' && annotation.bold ? 700 : 400;
     for (const run of labelRuns(annotation.text ?? '')) {
-      runs.push({ face: { key: run.key === UPLOAD_HAN_KEY ? hanStyle : run.key, weight: 400 }, text: run.text });
+      runs.push({ face: { key: run.key === UPLOAD_HAN_KEY ? hanStyle : run.key, weight }, text: run.text });
     }
   }
   return runs;
@@ -540,15 +592,20 @@ function withHidden(primitive: AnnotationPrimitive, hidden: HiddenStretches): An
  * CSS px. One this build cannot read is not drawn: only its own build knows
  * what it is. Given its picture's `layers` — a flat fold's — a mark behind a
  * flap is dotted where it is under it (15e); without, it is drawn in front.
+ * Given its `paper` — a References picture's (17b) — a label's halo is
+ * filled with the face it stands on; without, with the page's white.
  */
 export function annotationDrawing(
   annotations: readonly DiagramAnnotation[],
   frame: PictureFrame,
   framePx: number,
   style: DiagramStyle,
-  layers: PictureLayers | null = null
+  layers: PictureLayers | null = null,
+  paper: AnnotationPaper | null = null
 ): AnnotationDrawing {
   const seen = seenStyle(style);
+  // What a halo is filled with where a label's centre stands, in the drawing's px (17b).
+  const haloGround = haloGroundOf(seen, paper, framePx);
   const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
   const arrowCss = seen.arrows.width * PT_TO_CSS_PX;
   // The existing creases' pen, at its pt width: what equal divisions' line is drawn in (ED9).
@@ -605,9 +662,24 @@ export function annotationDrawing(
         break;
       }
       case 'label': {
-        const [x, y] = at(compiled.at);
+        const [ax, ay] = at(compiled.at);
         const runs = compiled.runs.map((run) => ({ family: uploadTextFamily(run.key), text: run.text }));
-        labels.push({ id: annotation.id, x, y, size: LABEL_SIZE * framePx, fill: seen.arrows.color, runs });
+        const { color, bold, halo, sizePt, offsetPt } = compiled.style;
+        // Its options (17b): words hung off its anchor by a print length, a size
+        // in pt, its own colour; each, unset, as a label was drawn before them.
+        const x = offsetPt ? ax + offsetPt[0] * PT_TO_CSS_PX : ax;
+        const y = offsetPt ? ay + offsetPt[1] * PT_TO_CSS_PX : ay;
+        const size = sizePt !== undefined ? sizePt * PT_TO_CSS_PX : LABEL_SIZE * framePx;
+        labels.push({
+          id: annotation.id,
+          x,
+          y,
+          size,
+          fill: color ?? seen.arrows.color,
+          runs,
+          ...(bold ? { bold } : {}),
+          ...(halo ? { halo: { color: haloGround(x, y), width: TEXT_HALO_EMS * size } } : {}),
+        });
         break;
       }
       case 'callout': {
@@ -690,6 +762,22 @@ export function annotationDrawing(
     callouts,
     labels,
   };
+}
+
+/**
+ * What a halo is filled with where a label's centre is, at (`x`, `y`) in a
+ * drawing `framePx` across (17b): the paper's face the picture shows — read
+ * from the style's inks before an annotation's whiten them, the test a baked
+ * letter makes (`labelOnPaper`) — where it stands on a References picture's
+ * sheet; the page's white off it, and on every other picture.
+ */
+function haloGroundOf(seen: PaperStyle, paper: AnnotationPaper | null, framePx: number): (x: number, y: number) => string {
+  if (!paper || paper.outline.length < 3) return () => PAGE_GROUND;
+  const { sheet } = seenInk(seen);
+  const face = paper.back ? sheet.back : sheet.front;
+  const outline = paper.outline.map(([x, y]) => ({ x, y }));
+  // The text's centre as a box with no size: the baked letter's own test, by its box's middle.
+  return (x, y) => (labelOnPaper({ x: x / framePx, y: y / framePx, width: 0, height: 0 }, outline) ? face : PAGE_GROUND);
 }
 
 /**
@@ -785,20 +873,29 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
     take(area.x, area.y, area.r + pen / 2);
     take(inset.x, inset.y, inset.r + pen / 2);
   }
+  // A label at its size and weight, and its halo half its width past its letters (17b).
   for (const label of drawing.labels) {
-    const half = (labelHalfWidth(label.runs.map((run) => run.text).join('')) / LABEL_SIZE) * label.size;
+    const halo = label.halo ? label.halo.width / 2 : 0;
+    const half = labelHalfWidth(label.runs.map((run) => run.text).join(''), { bold: label.bold, size: label.size }) + halo;
     minX = Math.min(minX, label.x - half);
     maxX = Math.max(maxX, label.x + half);
-    minY = Math.min(minY, label.y - label.size);
-    maxY = Math.max(maxY, label.y + label.size);
+    minY = Math.min(minY, label.y - label.size - halo);
+    maxY = Math.max(maxY, label.y + label.size + halo);
   }
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
 const round = (value: number) => Number(value.toFixed(3));
 
-/** One label as SVG: a `<text>` of runs, each run its own font as an upload's are. */
+/**
+ * One label as SVG: a `<text>` of runs, each run its own font as an upload's
+ * are. Bold (17b) writes its weight on the text and each run, which a page
+ * reads off the markup to set and embed it (`setUploadText`); a halo is a
+ * stroke painted under the fill, round at its joins, as References draws its
+ * letters'. A label with neither is the markup it always was.
+ */
 function labelElement(label: AnnotationLabel): ReactNode {
+  const { halo } = label;
   return (
     <text
       key={label.id}
@@ -807,9 +904,14 @@ function labelElement(label: AnnotationLabel): ReactNode {
       fontSize={round(label.size)}
       textAnchor="middle"
       fill={label.fill}
+      fontWeight={label.bold ? 700 : undefined}
+      stroke={halo?.color}
+      strokeWidth={halo ? round(halo.width) : undefined}
+      strokeLinejoin={halo ? 'round' : undefined}
+      paintOrder={halo ? 'stroke' : undefined}
     >
       {label.runs.map((run, index) => (
-        <tspan key={index} fontFamily={run.family} fontWeight={400}>
+        <tspan key={index} fontFamily={run.family} fontWeight={label.bold ? 700 : 400}>
           {run.text}
         </tspan>
       ))}
