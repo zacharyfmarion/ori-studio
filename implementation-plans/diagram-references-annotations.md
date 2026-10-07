@@ -1,6 +1,6 @@
 # Diagram: a References step's marks as annotations
 
-**Status: planned 2026-10-07. Nothing is built. Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
+**Status: planned 2026-10-07; 17a built the same day. Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
 
 **Revised 2026-10-07: there is no `letter` kind.** A pulled letter is a Text annotation (`label`), and Text gains the options it needs (§4). Zach: "why is letter different from text annotation in diagram references? Id rather just extend text to have color / any other options we need". RM1 and RM3 now speak of Text options, RM12 is superseded, and Reset Position is dropped.
 
@@ -1115,20 +1115,99 @@ Vitest runs in the web workspace under Node 22.
 
 ### 17a: Solid line
 
-- [ ] `SelectSwatch` in `components/ui/Select` with its module; `.select-swatch`
+- [x] `SelectSwatch` in `components/ui/Select` with its module; `.select-swatch`
   out of `theme.css`; `CpTextEditor` on it; the ratchet lowered. Its own
   commit, computed styles matching before and after.
-- [ ] `solid-line` in the model, `ANNOTATION_SHAPES` and every exhaustive switch.
-- [ ] `line` gains `ink` and `hidden` in References' primitives, drawn by
+- [x] `solid-line` in the model, `ANNOTATION_SHAPES` and every exhaustive switch.
+- [x] `line` gains `ink` and `hidden` in References' primitives, drawn by
   `diagramShapes`; References' tests unchanged.
-- [ ] `annotationDrawing`'s `highlight` override; `annotationReach` for `line`.
-- [ ] The Solid Line Type segment, Shift+L, the rail's colour select with its
+- [x] `annotationDrawing`'s `highlight` override; `annotationReach` for `line`.
+- [x] The Solid Line Type segment, Shift+L, the rail's colour select with its
   preference, and the Layers Color row.
-- [ ] Behind, flip, clipboard and snapping.
-- [ ] File: `color` and the new kind; tests.
-- [ ] Analytics (`solid_line`, `color`, `annotation recolored`) and i18n.
-- [ ] Browser: a solid line in each palette colour and a custom one, behind a
-  flap, on a page and in the PDF; a printed proof of the five colours.
+- [x] Behind, flip, clipboard and snapping.
+- [x] File: `color` and the new kind; tests.
+- [x] Analytics (`solid_line`, `color`, `annotation recolored`) and i18n.
+- [x] Browser: a solid line in each palette colour and a custom one, behind a
+  flap, on a page and in the PDF. A printed proof of the five colours: the
+  PDF is made (`17a/evidence/17a-crane.pdf`, page 1); printing it is Zach's.
+
+**17a as built** (2026-10-07; the SelectSwatch move is its own commit):
+- `SelectSwatch` is a part in `Select.tsx`, its rule `.swatch` in
+  `Select.module.css`; `.select-swatch` is out of `theme.css` (ratchet 5425).
+  Edit's text-colour list and trigger compute identical styles at HEAD, at
+  the move and in the final tree, light and dark
+  (`artifacts/references-marks/17a/swatch-styles.mjs`).
+- The colours live in `diagram/annotate/annotationColors.ts`: the palette, the
+  `#rrggbb` test (either case), `paletteEntryOf` (the one case-insensitive
+  lookup: `#1971C2` is Blue, and the file keeps it as written) and the names
+  the events send. `carriesColor(kind)` (only `solid-line`; 17b adds `label`)
+  and `withColor` are in `annotationModel.ts`; `cleanAnnotation` drops a
+  colour a kind has no use for, so a solid line made another type loses it.
+- No colour stored is the arrow ink: `annotationInk`'s `highlight` stroke is
+  now the arrow's. References' magenta stays `--cp-reference-input` for
+  References' own drawings.
+- References' `line` gains `ink` (the stroke attribute in a file;
+  `style="stroke: …"` on screen, where a class would beat an attribute) and
+  `hidden` (stretches dotted with the arrows' dash). References never sets
+  either; `diagramToScene` strips both before packing, as its own `ink` is an
+  `Rgba` for the off-paper pieces.
+- `annotationReach` counts half the pen round each end of a `line`;
+  `enlargeArrow.ts` measures only `isDiagramMark` primitives.
+- §3 was wrong that `LINE_KINDS` gives a solid line the line behaviour for
+  hit testing too. It is drawn among the marks, so it is pressed among them,
+  in the order added (`underMarks` in `annotationHit.ts`): over an arrow it
+  takes the press. Snapping, flip, clipboard and Layers keep the line
+  behaviour.
+- The select is `components/diagram/DiagramColorSelect.tsx`; the rail's Line
+  Type and its select are `DiagramLineTypeControl`. On the rail it sits under
+  the Line Type, not beside it: four segments fill the 172 px column. A
+  colour picked by hand is an item of its own, named by its hex; Custom… has
+  a hue swatch so the names line up.
+- Custom… opens the picker on the list's `onCloseAutoFocus` through
+  `components/ui/openColorPicker.ts` (shared with `ContextMenuColorItem`),
+  with `focusInput: false`: the trigger keeps the focus, as a focused colour
+  input owns every key (`isShortcutEditingTarget`) and left Undo, Delete,
+  Escape and Shift+L dead after a pick. So "as `ContextMenuColorItem` does"
+  holds for opening the picker, not for focus: the context menu still
+  focuses its input, because it commits on the blur. Every move of one pick
+  shares a negative session number: one undo step, one `diagram annotation
+  recolored`. The Layers select is keyed by the mark, so a pick still open
+  when another line is selected ends with it.
+- `SelectContent` takes `fit="available"` (a `data-fit` rule in
+  `Select.module.css`): the colour list is as tall as the window allows. The
+  shared 220 px cap cut Custom… in half, and hid it behind a hand-picked
+  colour.
+- A selected solid line is washed under its stroke (`SelectionUnder`, 12 px,
+  in the canvas's module), so it shows its own colour; washed over it,
+  orange read mauve.
+- Each solid line's Layers row draws its glyph in the line's colour; with
+  none stored, in the icon's ink, as the style's would vanish on a dark
+  theme.
+- `trackDiagramAnnotationAdded`'s third argument is an object,
+  `{ placed?, color? }`. A solid line the Angle Bisector draws takes the
+  colour and counts as `angle_bisector`, with no `color`.
+- Left out: `imported` (the tag is 17d's); a "Solid line" string for Layers,
+  which names the kind by its tool, "Solid Line", as for the other lines;
+  `implementation-plans/posthog-analytics.md`, which has no Diagram table
+  (`docs/analytics.md` has both events).
+
+**17a verified** (2026-10-07): lint, typecheck, `i18n:check` and the whole
+vitest suite (874 files, 11,662 tests) green on what was committed. In the
+browser (`artifacts/references-marks/17a/evidence/`, composite
+`17a/17a-evidence.png`): Ink, each palette colour and a custom one drawn by
+real input on crane step 8 and on step 1, a References step, in Chromium
+light and dark at 1280 px and in an iPad-sized WebKit by touch; each colour
+exact in screen pixels, on the page and in the PDF at 300 dpi (about
+0.72 pt wide); a line behind the right flap dotted under it; every option
+of both lists in view; Undo by key after a Layers pick. At 375 px a phone
+has no Annotate (unchanged); in a 375 px desktop window the Layers Color
+row works, and the rail is clipped by the side pane, as every rail row
+already was.
+
+Open, Zach's call: Ink's swatch reads as an empty ring in a dark theme (a
+lighter ring read worse, `fixes/shots/swatch-ring-compare.png`); choosing
+Solid moves the rail's tools down about 36 px; the printed proof of the
+five colours (`17a/evidence/17a-crane.pdf`, page 1, steps 1 and 8).
 
 ### 17b: Text options: colour, weight, halo, size and offset
 
