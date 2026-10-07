@@ -1,6 +1,6 @@
 # Diagram: a References step's marks as annotations
 
-**Status: planned 2026-10-07; 17a built the same day. Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
+**Status: planned 2026-10-07; 17a and 17b built the same day. Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
 
 **Revised 2026-10-07: there is no `letter` kind.** A pulled letter is a Text annotation (`label`), and Text gains the options it needs (§4). Zach: "why is letter different from text annotation in diagram references? Id rather just extend text to have color / any other options we need". RM1 and RM3 now speak of Text options, RM12 is superseded, and Reset Position is dropped.
 
@@ -659,8 +659,10 @@ In `analytics/trackDiagram.ts`, `analytics/events.ts`, `docs/analytics.md` and
 New strings:
 - the Line Type "Solid" and the tool name "Solid Line";
 - Color, the seven swatch names and Custom…;
-- Text's style: the rail's "Text Style", Bold, Halo and its hint ("Knocks the
-  text out of what it stands on."), Size, "With the picture" and "{{size}} pt";
+- Text's style: the rail's "Text Style", Bold, Halo and its hint (as built,
+  after review: "Outlines the text so it reads over lines: in the colour of a
+  References sheet under it, and in white anywhere else."), Size, "With the
+  picture" and "{{size}} pt";
 - the Show menu, Letters, Reference lines and their two hints;
 - the new kind's name in Layers ("Solid line");
 - Make Editable, its notice, its disabled reason and its toast;
@@ -1211,24 +1213,139 @@ five colours (`17a/evidence/17a-crane.pdf`, page 1, steps 1 and 8).
 
 ### 17b: Text options: colour, weight, halo, size and offset
 
-- [ ] `label` gains `color`, `bold`, `halo`, `sizePt` and `offsetPt` in the
+- [x] `label` gains `color`, `bold`, `halo`, `sizePt` and `offsetPt` in the
   model, `compileAnnotation`, `annotationDrawing` and `labelElement`; a plain
   label draws byte-identical markup.
-- [ ] `annotationDrawing` takes the picture's `paper`; cards, pages, the
+- [x] `annotationDrawing` takes the picture's `paper`; cards, pages, the
   canvas, step files and close-ups pass it for a References picture.
-- [ ] Noto Sans Bold's advances in `labelAdvances.ts`; `labelHalfWidth`,
+- [x] Noto Sans Bold's advances in `labelAdvances.ts`; `labelHalfWidth`,
   `bodyDistance` and `annotationReach` at a label's size, weight, halo and
   offset; `annotationTextRuns` at 700.
-- [ ] Dragging hung text by its words and by its anchor; plain text unchanged.
+- [x] Dragging hung text by its words and by its anchor; plain text unchanged.
   Carrying turns and mirrors the offset.
-- [ ] The rail's Text Style with its preferences; the Layers Color, Bold, Halo
+- [x] The rail's Text Style with its preferences; the Layers Color, Bold, Halo
   and Size rows.
-- [ ] File, analytics (`color`, `bold`, `halo`, `size`, `text styled`) and
+- [x] File, analytics (`color`, `bold`, `halo`, `size`, `text styled`) and
   i18n.
-- [ ] Browser: a bold, magenta, haloed 9 pt label on a front and a back
+- [x] Browser: a bold, magenta, haloed 9 pt label on a front and a back
   References step in the Diagram preset, the halo against the grey back; a
   hung label from a fixture file (the lift comes in 17d) dragged by its words
   and its anchor; the PDF's font.
+
+**17b as built** (2026-10-07; the review's fixes folded in):
+- **Model.** Text's look is a leaf, `diagram/annotate/textStyle.ts`
+  (`TextStyle`, `PLAIN_TEXT_STYLE`, the sizes and ranges, `TEXT_HALO_EMS`,
+  `readTextStyle`), so the settings store reads it without
+  `annotationModel`, which now pulls in the paper painter through
+  `canvasInk`. The verbs are in `annotationModel.ts`: `carriesTextStyle` (a
+  label alone; a callout keeps its look), `withTextStyle` (each option
+  written only as set), `textStyleOf`, `withLabelOffset` (each axis within
+  ±200 pt), `isHungText`, `labelCentre`, `labelSize`, `moveLabelWords`, and
+  `cleanTextStyle` in `cleanAnnotation`. `carriesColor` answers yes for a
+  label. `annotationEnds` takes the annotation, not its kind: hung text
+  offers `from`, plain text nothing.
+- **Carrying.** `carryHungText` moves the anchor as a point and turns or
+  mirrors the offset by `move.vector` (or where the move takes its far end),
+  its length kept in pt. A turn that is no quarter turn (a linked step's 15°
+  presses) could carry an axis past the ±200 pt a file reads, and carried
+  marks are not cleaned, so the words come in along the same way until both
+  axes are in reach (45° takes `[180, 180]` to `[0, 200]`); a 45°
+  `sceneTurnMove` written and read back holds it.
+- **The paper.** `AnnotationPaper` (`annotationPrimitives.tsx`) is the
+  sheet's outline in the marks' units and its side; `markPaper(step,
+  assets)` and `sourcePaper(source, window)` are in `zoom/stepView.ts`. It
+  reaches the drawing as `annotationDrawing`'s sixth argument,
+  `paintAnnotations`' `paint.paper`, `annotatedPicture`'s seventh and
+  `posedZoomPicture`'s eighth: cards (`annotatedStepUrl`,
+  `zoomedCardPicture`), Pose's enlarged picture, pages and step files
+  (`cellPicture`), the canvas and its close-ups. Calls that only measure a
+  reach pass none. The face is read from the style's inks before an
+  annotation's whiten them (`seenInk`); the on-sheet test is References' own
+  `labelOnPaper` at the words' centre. `textHaloSurfaces.test.ts` (page, step
+  file, card, whole and enlarged) and a canvas test hold the wiring. Pose's
+  3D and simulated ghosts take none: they are never References pictures.
+- **Drawing.** A plain label is byte-identical (verified below;
+  `textOptions.test.tsx` holds HEAD's markup as a literal). Bold writes
+  `font-weight="700"` on the text and each run, so a page sets and embeds
+  Noto Sans Bold; a halo is a stroke 0.3125 em wide, round joins,
+  `paint-order="stroke"`.
+- **Measuring.** `LABEL_BOLD_ADVANCE_RUNS` is the bundled `NotoSans-Bold.ttf`'s,
+  held to it by `annotationModel.test.ts`. Beyond the plan,
+  `CJK_RUN_BOLD_ADVANCE_RUNS`: the CJK fonts' Bold set a digit or a sign
+  among CJK words wider than Regular (a digit 0.590 em, not 0.555), so a
+  bold label with them would have measured short; its test runs where the
+  CJK fonts are built. `labelBox` (`annotationHit.ts`) is the one box a
+  press, the selection's ring and the reach use, and `markExtent` counts
+  hung text's words by it, so an enlarged step draws words that hang into
+  its window from an anchor a window or more off it.
+- **Dragging.** A press on hung text's words moves its offset alone
+  (`moveLabelWords`), never snapping; its anchor's dot snaps as a callout's
+  point does (`snapsAnchor`) and the words follow. The selection ties the
+  dot to the ring round the words with a hairline, as a right angle's corner
+  is tied (§4 named the dot alone).
+- **Rail.** Text Style sits under Text while the Label tool is in hand: the
+  colour select ("Text Color"); Bold and Halo as the rail's own buttons
+  (`ToolRailButtons`; a `toggle` tool says `aria-pressed`; their tooltips
+  open above, so Bold's never covers Halo); then Size on a row of its own,
+  led by a text-size glyph (With the picture did not fit beside the toggles
+  in the 172 px column). The group asks to be revealed (`ToolRail`'s
+  `reveal`): on an iPad on its side it came in below the fold, and the
+  rail's own column now scrolls to show it. One preference,
+  `diagramAnnotateTextStyle` (key `diagram-annotate-text-style`, JSON,
+  removed when it is the plain look).
+- **Layers.** A label's Color row is the solid line's; under it
+  `DiagramTextStyleRows`: Bold, Halo with its hint, and Size, where a size
+  from a file is an item of its own. Undo labels: Change color, Change bold,
+  Change halo, Change text size. A label's row glyph takes its colour.
+- **File.** A label reads `text`, `color`, `bold`, `halo`, `sizePt` and
+  `offsetPt` by §10's rules; a callout still reads `text` alone, so a bold
+  callout is a newer build's.
+- **Analytics.** Every label added sends `color`, `bold`, `halo` and `size`
+  (a plain one `ink`/`off`/`off`/`picture`), as every solid line sends its
+  colour; `diagram annotation recolored` counts a label's; `diagram text
+  styled` is new. `posthog-analytics.md` still has no Diagram table.
+- **Strings.** Select's help says a hung label moves by its words alone and
+  by its dot whole; Snap to Picture's names the dots labels hang from;
+  Halo's hint says what it is filled with. All nine catalogs.
+
+**17b verified** (2026-10-07): lint, typecheck, `i18n:check` and the whole
+vitest suite (880 files, 11,809 tests; 2 files and 15 tests skipped) green
+on what was committed. Evidence in `artifacts/references-marks/17b/verify/`,
+composite `17b/17b-evidence.png`:
+- No option set: Zach's four diagrams (crane, heart, chipmunk, Reference
+  Diagrams), as saved and with two plain labels and a callout on every step
+  with a picture, give identical pages, step files, cards, canvas markup and
+  PDF bytes at `ade79de26` (its source exported afresh) and in this tree
+  after the review's fixes.
+- One label per option, and one with all of them hung, on crane's front
+  References step, its back and a folded step, on the canvas, on the page and
+  in the PDF rasterised at 300 dpi: the halo white on the front, `#b3b3b3` on
+  the back, white off the sheet and on the folded step; 9 and 12 pt keep
+  their size on the page while plain labels scale; the PDF embeds Noto Sans
+  Bold and Regular, nothing missing.
+- Hung text in Chromium at 1280 px, light and dark, and in an iPad-sized
+  WebKit (selected by a tap): by its words the offset moved by the pointer's
+  travel in pt and the anchor stayed; by its dot it snapped onto the sheet's
+  corner, the offset kept; two undos restored it; plain text still moves
+  whole. The rail and the Layers rows at 1280 px in both themes, at 375 px,
+  and on the iPad (Layers in the Settings sheet, Bold toggled by touch).
+- Not checked in a browser: a CJK bold label in the PDF. The CJK fonts are a
+  build output this worktree lacks; `diagramFontTexts` asks for their Bold
+  in a unit test.
+
+Open, Zach's call (built as §4 says until he says otherwise):
+- **A halo across the sheet's edge** takes one colour, by where the text's
+  centre is, as a baked letter's does: a label straddling a References
+  back's edge paints grey over the page's white (or a white notch into the
+  grey just off it), and a white halo off the sheet shows on a page's grey
+  flow band. Painting it twice, clipped inside the sheet in its face and
+  outside in white, would follow the edge.
+- **A halo on any other picture is white**, a folded step's grey faces
+  included; the hint says so. Giving scene and folded pictures a `paper` of
+  their faces would fill it with the face under the text instead.
+- In a 375 px desktop window the Label tool's floating window lies over the
+  lower half of the rail's Text Style; the rail there is already clipped by
+  the side pane, as 17a found.
 
 ### 17c: Turn over renames folds
 
