@@ -3,11 +3,14 @@
 **Status: planned 2026-10-05. The right-angle mark (16a) and equal divisions
 (16b) are built (2026-10-06), and so are enlarged steps' model, file and
 imprint (16c), the writer of a flat step's faces with them since Zach's
-answer on its size budget (Z11), and their drawing on every surface (16d);
-their tools, pages and carries (16e–16g) are not. Zach settled every decision on 2026-10-06: the
-enlarged steps' Z1–Z11, and the
-equal-divisions (ED1–ED13) and right-angle (RA0–RA8) decisions as
-recommended. Each is recorded in its part.** Phase 16 of
+answer on its size budget (Z11), their drawing on every surface (16d),
+their pages and export (16f, 2026-10-06) and their authoring (16e,
+2026-10-07). Their moves, deletes and changing pictures (16g) are in
+progress, and 16e does not ship without them. Zach settled every decision
+on 2026-10-06: the enlarged steps' Z1–Z11, and the equal-divisions
+(ED1–ED13) and right-angle (RA0–RA8) decisions as recommended. Each is
+recorded in its part; what building 16e and 16f raised since is under
+"Open with Zach (2026-10-07)" below.** Phase 16 of
 `implementation-plans/diagram-workspace.md`, after Phase 15
 (`implementation-plans/diagram-annotate-second-pass.md`), whose kinds, tools,
 painter and close-ups this builds on. Built by hand, phase by phase, as Phase
@@ -38,6 +41,35 @@ took every recommendation, so each such passage stands as written and the
 options it names beside the recommendation were not taken. The
 enlarged-steps part names its decisions, Z1–Z10, only to point at the record
 of what Zach decided.
+
+**Open with Zach (2026-10-07).** Raised by building and verifying 16e and
+16f; nothing is built for them yet.
+
+1. **The arrow across a flow row break** sits in the lane's bend but is
+   mirrored to the next row's way, so it points across the page, not at the
+   enlarged step (16f; the crane's 21 → 22). *Recommended:* turn it toward
+   the step.
+2. **Step files print an enlarged step small.** `zoomFileFrameMm` caps it
+   at 6× the area as the area's own step file draws it: on the crane's
+   same-size files step 22's window is 23.8 mm in a 61 mm box (48 mm on the
+   page). *Recommended:* match the page's enlargement.
+3. **Copied marks after Duplicate Step and Enlarged** reach far outside the
+   window: Annotate's fit zooms out to them (13%, not 70%) and Fill sizes the
+   step by them (×1.52 on the crane, ×3.67 with them deleted).
+   *Recommended:* marks outside the frame count neither for Fill nor for
+   Annotate's fit; they keep their "Outside the enlarged frame" badge.
+4. **A Size change mid-run** starts a run, so the Fill steps after it
+   measure against their own frame, not the area they came from.
+   *Recommended:* every step of a run measures against the same area.
+5. **An enlarged step's marks' reach** (`zoomModel.windowReach`, in "Model
+   and file format"): the file rule now lets a mark on an enlarged step sit
+   as far from the small window as a whole picture's marks may from its
+   frame, so Enlarged carries the crane's long valley line there and back
+   exactly. *To confirm.*
+6. **A frame dropped in a gap Spread Layers opens** settles on the layer
+   above, the plan's rule: 61 px at 43% zoom on crane step 21 (0.028
+   picture units); every other drop landed where it was dropped. *To
+   confirm.*
 
 ## Goal
 
@@ -3470,7 +3502,19 @@ fitted picture of its window until 16f's 'zoom' kind.
 
 ### 16e Enlarged steps: authoring
 
-- [ ] Enlarge and Enlarge in Frame: tools, keys, glyphs, help, disabled
+**Built 2026-10-07** (commit 63f390cf2), to the part's "Walkthroughs" S1–S3
+and "Controls, pane by pane". Annotate gains Enlarge (E) and Enlarge in Frame
+(Shift+E); Pose gains Enlarged, which captures and carries, and turned off
+carries back, one undo step each; Layers shows an area's and a frame's
+Shape, Size, Edge and Anchor with Update Enlarged Steps and the Go to verbs;
+the Step pane and the cards say where a frame came from and, from 16f's
+layout, what it prints at. The part's text was amended as built in the same
+commit: Anchor "Auto"; S5's refresh notice; the enlarged step's reason; the
+Step pane's rows; the phone's toggle in the Step drawer; the marks' reach on
+an enlarged step, for Zach; the 16g gate and the 16g seeding funnel. It does
+not ship before 16g (below).
+
+- [x] Enlarge and Enlarge in Frame: tools, keys, glyphs, help, disabled
   reasons; release adds the area only, as one undo step; grips and hit.
   Enlarge in Frame's aspect ratio is free: any rectangle, drawn corner to
   corner (Shift squares it, Alt from the middle), and freely resizable
@@ -3481,7 +3525,43 @@ fitted picture of its window until 16f's 'zoom' kind.
   the area hit under other marks; the tools disabled on an enlarged step; a
   drag of any aspect, Shift square, Alt from the middle; an edge grip
   changes one side only, on the area and on the frame.
-- [ ] `zoomActions`: the Enlarged toggle on both pose catalogs, removing a
+  *As built:*
+  - **Tools.** `annotateTools.ts`: `ENLARGE` ('enlarge', E) and
+    `ENLARGE_FRAME` ('enlarge-frame', Shift+E), drawing tools that lay kind
+    'zoom'; `drawingLook` returns `DrawingLook` (`WhiteArrowLook & {
+    shape? }`); `isEnlargeTool`, `annotateToolBlocker` and
+    `enlargedStepTakesNoArea`, whose reason reads "This step is already
+    enlarged — draw the area on a step that shows the whole model"; the help
+    and modifier lines (Shift square, Alt from the middle) and
+    `EnlargeGlyph` (circle and rounded). The keys are in
+    `keyboard/shortcuts.ts`, `ANNOTATE_SHORTCUT_IDS` and `shortcutLabels`;
+    `runDiagramAnnotateShortcut` takes the key on an enlarged step and picks
+    nothing.
+  - **The drag.** `useAnnotateCanvas`'s `laid()` builds the draft and the
+    drop: `zoomAreaFromCorners` for a rectangle (Shift, Alt),
+    `createAnnotation` otherwise; undo label 'Enlarge area'. `diagramState`'s
+    `annotateToolInHand` is Select for an Enlarge tool on an enlarged step,
+    read by `useAnnotateCanvas`, `useAnnotateToolHint` and DiagramPanel's
+    rail; the stored tool is untouched. `clipboardSlice.pasteClipboard`
+    leaves kind 'zoom' out on an enlarged step, with a toast, and makes no
+    history entry when nothing is left.
+  - **Grips.** `zoom/zoomGrips.ts`: `ZoomGrip` (centre, rim, corner 0–3,
+    edge 0–3), `zoomGrips`, `zoomGripPoint`, `zoomGripAt` and
+    `draggedOutline`, which holds the opposite side, resizes about the
+    centre with Alt, keeps one scale with Shift and turns with the
+    rectangle. `AnnotationGripPart` gains `{ part: 'zoom' }`;
+    `hitAnnotation` tries a selected area's grips first, and an area hits on
+    its outline only, last. Undo label 'Change enlarge area'. Fixed on the
+    way: `rectangleAngle` maps a hair under 0 to 0, not 180.
+  - Tests: `DiagramAnnotateCanvas.test.tsx` ("the Enlarge tools and the
+    enlarged frame": a drag adds the area alone, one undo step, and a second
+    on the same step; a rectangle of any aspect, Shift square, Alt from the
+    middle; an area taken by its outline under the marks inside it; a
+    circle's centre and rim, a rectangle's corner, Alt and edge grips;
+    nothing drawn on an enlarged step), `zoomGrips.test.ts`,
+    `annotateTools.test.ts`, `diagramShortcuts.test.ts`,
+    `DiagramAnnotateRail.test.tsx`, `diagramClipboard.test.ts`.
+- [x] `zoomActions`: the Enlarged toggle on both pose catalogs, removing a
   step's own areas when it has them; Update Enlarged Steps; Pick and Reset;
   the Go to verbs. `DiagramStepZoomStatus` and its notices; the card chip.
   A capture whose source or enlarged step is an older flat capture first
@@ -3490,49 +3570,217 @@ fitted picture of its window until 16f's 'zoom' kind.
   Tests: the toggle on captures and off carries the marks out; on a
   duplicate of the area's step it removes the copied area; disabled with its
   reason when no earlier step has an area or a frame.
-- [ ] `DiagramZoomControls` with `useZoomControls`: the area rows and the
+  *As built:*
+  - **Store verbs.** `diagramSlice`: `enlargeDiagramStep`,
+    `unenlargeDiagramStep`, `updateEnlargedDiagramSteps`,
+    `editDiagramStepZoom`, `giveDiagramStepPaperFaces` (joins only the
+    newest history entry) and `setDiagramAnchorPick`.
+    `store/workspaceStore/diagramZoom.ts`: `storePaperFacesBackfill` (a
+    `FOLD_RUN_NONE` runtime through `stepWithPaperFaces`), `withPaperFaces`
+    (only while the revision and picture key still match), `enlargeInStore`
+    ('Enlarge step'), `unenlargeInStore` ('Show whole step') and
+    `updateInStore` ('Update enlarged steps'), each guarded while in flight,
+    and `trackCaptured`/`trackSeeded`. `zoomFrames` adds `setFrameShape`,
+    `setFrameScale`, `setFrameEdge`, `seedStepZoom`, `landFirstFrame`,
+    `landSeededFrame`, `sizedByHand` and `MarkUnits`. `addAt` seeds a new
+    step; `commitStepCapture` and the upload's fill and replace land a
+    seeded frame (every other way a step is made is 16g's funnel).
+  - **Catalog and hooks.** `zoom/zoomActions.ts`: `enlargedState`,
+    `buildEnlargedAction`, `buildAreaActions` (`waiting`, and aria-busy
+    while Update folds faces), `buildFrameActions`, `buildAnchorActions`,
+    `stepsEnlargedFrom`, `areaStepOf`, `areaSubtitle`, `frameSubtitle`,
+    `stepZoomStatus` (the notices: no paper; anchor off paper; refresh
+    {stepId, number, then}; unanchored {then}), `zoomReadout` and
+    `zoomReadoutText` (over 16f's `usePrintedZoom`: 'prints', amber 'room',
+    'barely') and `enlargedChips`. Hooks: `useStepZoom` (Pose's toggle and
+    the Step pane) and `useZoomControls` (Layers).
+  - **UI.** Pose's Enlarged is on the toolbar on both paths
+    (`DiagramLinkedPoseControls`'s `enlarged`) except on a phone; the Step
+    pane's Pose section has it as a `ToggleRow` switch on every path.
+    `DiagramStepZoomStatus` (its own CSS module, one line in
+    `DiagramStepPanel`): an Enlarged section with From (a link) and Size
+    ("Fill · prints ×N"), the amber read-outs and the notices. The card's
+    chip, "Enlarged · N", sits in its header.
+  - Tests: `diagramZoom.test.ts` (on and off, one undo step each, the marks
+    carried; a duplicate's copied area removed; S1 on the crane in step
+    there and back; nothing to capture from; a step added after an enlarged
+    one; older captures' faces), `zoomActions.test.ts`,
+    `DiagramStepZoom.test.tsx`, `DiagramStepsGrid.test.tsx` (the chip).
+- [x] `DiagramZoomControls` with `useZoomControls`: the area rows and the
   frame row, their subtitles by provenance, Update's count and disabled
   state, the frame's note, the badge on marks outside the window — the only
   place a mark 16d's `marksInWindow` keeps, but neither draws nor lets be
   pressed on cards, cells and the canvas, can be seen again. Tests:
   Layers rows on both steps; Update as one undo step.
-- [ ] The frame as a layer: selected by its boundary and by its row; the
+  *As built:* `DiagramZoomControls` (its own CSS module): Shape as icon
+  segments; Size as Fill | Fixed and a ×N field (1.25–6, by 0.25); Edge as
+  Cut | Whole, Cut held without an outline; Anchor on one line ("Auto" or
+  "Picked", each with its tooltip); the read-out, `data-tone="warning"` when
+  amber; the frame's note; the verbs. `DiagramLayers`: the frame's row first
+  (`data-zoom-frame-row`), an area's subtitle "Enlarged on step N", "…steps
+  A–B" or none, and the badge "Outside the enlarged frame".
+  `useDiagramPaneReveal`: `layersSelectionId` brings Layers forward for the
+  frame, and a change of step brings the Step pane forward only while no
+  layer is selected, so Go to Area keeps Layers. Tests:
+  `DiagramZoomControls.test.tsx` (both steps' rows, Update offered and
+  waiting, a read-only diagram holding every control, the badge),
+  `diagramZoom.test.ts` (Update as one undo step, over a hand move),
+  `useDiagramPaneReveal.test.tsx`.
+- [x] The frame as a layer: selected by its boundary and by its row; the
   dimmed surround and the anchor face outlined; grips; a drop moves the frame,
   makes its imprint again and carries the marks, one undo step. Tests: marks
   stay on the same paper through a move and a resize. The surround (16d)
   paints the whole picture at the window's scale, a new picture per frame
   and many frames across for a small window: cap or cull it, and keep a
   drag from painting one per move.
-- [ ] Not shipped before 16f: until 16f's 'zoom' kind, pages lay an enlarged
+  *As built:*
+  - `frameOutline = outlineIntoBox(window, frame)`; the gesture mode 'frame'
+    draws only a `frameDraft` outline while dragging. The drop is
+    `editDiagramStepZoom` → `setFrameOutline(outlineFromBox(…))`:
+    `sizedByHand` (no smaller than an area may be drawn), off then onto the
+    spread, the imprint made again on the same face; labels 'Move enlarged
+    frame' and 'Resize enlarged frame'. `holdCamera` keeps the picture's
+    points still on screen; `revealFrame` steps back on selection.
+    `ZOOM_FRAME_ID` is selectable while `showsFrame`, and `keepSelectable`
+    runs after the zoom verbs. The anchor face's ring and the frame's line
+    keep their screen width (`px / zoom`).
+  - **The surround, capped:** `zoomSurroundUrl` → `zoomSurroundRegion` (the
+    window ±2 cells, at a quarter-octave scale) and `paintZoomSurround`. It
+    grows toward `alsoShow` (the anchor's ring, or the whole picture while
+    picking) up to `ZOOM_SURROUND_MOST_CELLS` (24), and a small move or
+    resize paints nothing new.
+  - **The off-paper inverse.** `zoomImprint`'s `offPaper` solves onto(p) =
+    drawn in up to 32 fixed-point steps. A point in a strip a spread opens
+    settles on the layer above, per the plan: 0.028 picture units on crane
+    step 21; every other drop landed exactly (`verify/probe/`; Open with
+    Zach, 6).
+  - **Reach** (for Zach to confirm; "Model and file format"; Open with Zach,
+    5). `annotationModel` adds `AnnotationReach`, `PICTURE_REACH`,
+    `withAnnotationReach` (scoped, try/finally) and `isWithinReach`;
+    `withinReach`, `handleWithinReach` and `deltaWithinReach` read the
+    active reach. `zoomModel.windowReach(frame)` joins reach's four windows
+    round the window with the whole picture's ±4 frames taken into window
+    units; `stepReach` is that on an enlarged step with a picture, else the
+    picture's. `diagramFile.readStep` reads `zoom` first and checks the
+    marks against `windowReach` (the frame's centre still against
+    `PICTURE_REACH`); `editStepAnnotations` cleans within `stepReach`;
+    `zoomFrames.carryMarks` carries within the reach of the units it goes
+    to, with a round trip back, and a failure keeps every mark where it was,
+    out of step.
+  - Tests: `DiagramAnnotateCanvas.test.tsx` ("an enlarged step's frame":
+    selected by its boundary under every mark, with an Enlarge tool in hand
+    from another step too; moved, one undo step, the marks on the same
+    paper; resized, drawing only an outline until it lands; still on a
+    read-only diagram), `zoomFrames.test.ts` (the long mark there and back,
+    S1.6; resized again and again off the paper; held no smaller than an
+    area), `zoomImprint.test.ts`, `zoomSurround.test.ts`,
+    `zoomModel.test.ts`.
+- [x] Not shipped before 16f: until 16f's 'zoom' kind, pages lay an enlarged
   step out as a 'fit' picture, which can share a Fit each run with uploads,
   3D and other fitted pictures and change their printed size (S6: enlarged
   steps never enter `scaleRuns`). The toggle that makes one reaches no user
   until 16f lands.
+  *Retired by 16f* (46c5de201), which landed first: an enlarged step is laid
+  out as its own 'zoom' kind and shares no Fit each run.
 - [ ] Not shipped before 16g: re-posing, refreshing or relinking an enlarged
   step garbles its marks and leaves its frame. `withCarriedAnnotations` is
   not frame-aware until 16g wires `reposeFrame` and `relandFrame` into it:
   it carries the window-unit marks as if they were the whole picture's, and
   the frame stays where it was in picture units while the picture turns
   (review of 16e, 2026-10-06). 16g lands in the same release as 16e.
-- [ ] The Anchor row and the pick mode (`useAnchorPick`): Pick, the hover
+- [x] The Anchor row and the pick mode (`useAnchorPick`): Pick, the hover
   highlight, a click anchoring, Escape through the shortcut runtime, Reset;
   hidden with no faces and on a crease pattern. Tests: a pick stores the
   paper point and leaves the frame where it is; a later capture lands through
   the picked face; Reset returns to the default; Escape leaves the mode with
   the focus in Layers.
-- [ ] Analytics (`enlarge`, `enlarge_frame`; `diagram step enlarged` with
+  *As built:* `zoom/zoomAnchor.ts`: `anchorPickable` (flat faces only),
+  `anchorFace`, `anchorFaceRing`, `faceUnder`, `pickedAnchor`,
+  `frameHoldsPaper` and `anchorOnPaper`. The pick mode is store state,
+  `diagramAnchorPick` {stepId, target} in `DIAGRAM_SCOPED_KEYS`, read
+  through `activeAnchorPick`; `diagramSlice`'s `pickPutDown` clears it on
+  any selection change, open or close that no longer matches it.
+  `useAnchorPick` binds the canvas's hover and press ('Pick anchor');
+  `runDiagramCancel` ends the pick first; Reset is 'Reset anchor'. Tests:
+  `zoomAnchor.test.ts` (none without faces; a pick stores the paper point
+  and leaves the frame; a later capture lands through the picked face;
+  Reset goes back to the rule), `DiagramAnnotateCanvas.test.tsx` ("the
+  anchor's pick mode"), `diagramShortcuts.test.ts` (Escape leaves the pick
+  first, wherever the focus is), `DiagramZoomControls.test.tsx`,
+  `diagramZoom.test.ts`.
+- [x] Analytics (`enlarge`, `enlarge_frame`; `diagram step enlarged` with
   `via`, `placed` and `anchor`; `diagram enlargement changed`;
   `enlarge_off`) and `docs/analytics.md`; i18n in nine catalogs, the one-step
   and range strings as two keys each.
-- [ ] Browser: S1 and S2 by a real mouse on the crane, its steps refreshed so
+  *As built:* `analytics/trackDiagramZoom.ts`: `trackDiagramStepEnlarged`
+  (`via` toggle | seeded | update, `placed` face | sheet | picture, `anchor`
+  auto | picked | none, `shape`, `picture`) and
+  `trackDiagramEnlargementChanged` (`on` area | frame, `setting` moved |
+  shape | size | edge | anchor | deleted, `value`, `size_bucket` <=1.5 |
+  <=2 | <=3 | <=6); `enlarge_off` on `diagram picture posed`; `enlarge` and
+  `enlarge_frame` on `diagram annotation added`; their rows in
+  `docs/analytics.md`. 72 new English strings in `tools` and `panels`,
+  translated in all nine catalogs and stamped; `i18n:check` passes. The
+  French panels catalog wrote its existing no-break-space escapes as the
+  characters themselves, its values unchanged.
+- [x] Browser: S1 and S2 by a real mouse on the crane, its steps refreshed so
   they carry `paperFaces`, beside the two examples; S3's frame move and
   anchor pick; a read-only diagram with every enlarge control disabled; the
   Pose toolbar at 375 px with Enlarged showing (if it wraps, the toggle moves
   to the Step drawer, as Spread Layers does).
+  *As built:* `artifacts/revision-2/16e/verify/proof.mjs` on Zach's crane at
+  :5291, by real mouse and keys, in Chromium light and dark and iPad-sized
+  WebKit (`shots/*-results.json`): S1 (E and a drag, Duplicate Step,
+  Enlarged: one "Enlarge step" undo step, imprinted, the copied area
+  removed, the marks in step, no "picture changed" notice; undo and redo);
+  S2 (Shift+E corner to corner, the casing, Edge Whole); the Pages view (the
+  area's step, the arrow and the enlarged step cut by its arc, beside look
+  1; S2 beside look 2); the area's and the
+  rectangle's grips (Shift's aspect exact, Alt's centre kept, three undos
+  back exactly); Update Enlarged Steps as one undo step; S3's pick (the face
+  under the pointer lit, the anchor stored with the area unmoved, the row
+  one line, Escape from Layers, Reset and its undo) and the frame selected
+  by its boundary, moved (landed where dropped, the camera held), resized
+  and sized Fixed; Insert Step After seeding an empty enlarged step,
+  "Enlarged · 20", landed by its first picture in the same undo step; off
+  as one undo step; saved through the app's Save and opened in a fresh
+  browser, every area, frame and imprint identical. A read-only diagram
+  holds the rail's tools, every control, Pick and the toggle
+  (`16e/browser.mjs`, `shots/*-readonly-*.png`). At 375 px, by touch
+  (`phone.mjs`), Enlarged is in the Step drawer, not on the toolbar.
+  Before and after (`before.mjs`, HEAD's sources routed through
+  `headBuild.mjs`): E picks nothing before and Enlarge after, and Pose shows
+  Enlarged before Reset Pose; composite
+  `artifacts/revision-2/16e/16e-before-after.png` (`composite.py`). No app
+  errors in Chromium; WebKit's worker COEP refusal follows Playwright's
+  request routing, not the build (`coep.mjs`, `coep2.mjs`).
+- [x] Gate (added as built): in a copy-on-write clone of 46c5de201 with
+  exactly the committed patch (91 files), lint, tsc and the i18n check
+  clean; 871 test files and 11,581 tests passed, 2 files and 13 tests
+  skipped. The committed patch was checked byte for byte against the gated
+  one.
+- [ ] Left open by the verify (2026-10-07), small; the larger questions are
+  "Open with Zach" 3, 5 and 6. On an iPad the panes are a sheet, so the
+  first Escape closes it and only the second puts Pick down. The badge
+  "Outside the enlarged frame" wraps to two lines and cuts off the mark's
+  name. A fixed Size of 1.25 reads "Prints ×1.3". After a large shrink the
+  cropped surround's edge can still show at a very low zoom. The anchor
+  face's outline is often off screen with the frame selected (arming Pick
+  zooms out to it; selecting does not). `DiagramEnlargementValue` holds
+  'none', which is never sent.
 
 ### 16f Enlarged steps: pages and export
 
-- [ ] The 'zoom' layout kind; the computed arrow; runs; the scale post-pass
+**Built 2026-10-06** (commit 46c5de201, before 16e), to the part's "Page
+layout and scale" and "The enlarge arrow". An enlarged step is laid out as
+its own kind, by what it prints, in runs of its own; the arrow is computed
+from the order, placed as a turn is, lifted to its area where it stands
+alone beside it, and printed on every path that composes pages — the Pages
+view, the PDF, Print and the single SVG. Step files frame an enlarged step
+alone, with no arrow. This retires 16e's "not shipped before 16f" item: no
+enlarged step shares a Fit each run any more.
+
+- [x] The 'zoom' layout kind; the computed arrow; runs; the scale post-pass
   (Fill and fixed, `areaMm` from the area or from the step's own frame); the
   `LayoutCell.zoom` read-out; the gutter rule. Tests: unenlarged steps'
   scales identical with and without an enlarged step, apart from the gutter;
@@ -3540,7 +3788,61 @@ fitted picture of its window until 16f's 'zoom' kind.
   several areas the one with the step's provenance, else the first; Fill
   takes the run's minimum, and a long caption reduces only its own step; a
   fixed Size and its reduction; Cut laid out by its content box.
-- [ ] `placeTurns` over `BetweenGlyph`; `LayoutPage.zoomArrows`;
+  *As built:*
+  - **The kind.** `layoutPicture` measures an enlarged step as `kind: 'zoom'`
+    in its window's units (longer side one), its `frame` the content box and
+    its scale the window's printed longer side (a `frameMm` measure, so
+    `layoutDiagram`'s measure-at-scale passes treat it as a fitted picture's;
+    a diagram with an enlarged step is always measured at scale, since a cut
+    frame's overshoot is set in mm). The content box is
+    `zoom/zoomContent.ts`: Whole, or a Cut that draws closed, is the window;
+    a Cut is the paper inside the frame (each silhouette face near it clipped
+    to the outline's 96-gon, Sutherland–Hodgman) with the boundary's drawn
+    stretches, overshoot included; a frame over no paper keeps its window.
+    `drawZoomed` places the window so the content's middle is the room's,
+    and `cellPicture` keeps the content, not the window, in the room
+    (`DrawnPicture.paperPt`); `boundsPt` is the content and half the
+    boundary's pen.
+  - **What the layout is handed** (`LayoutStep.zoom`, from
+    `diagramLayoutSteps`): `arrowFrom` {stepId, areaId, `share` (the area's
+    longer side in its step's picture units), `box` (the arrow's)} or null;
+    `frameShare` and `windowShare` (the frame's and the window's longer sides
+    in whole-picture units); `whole` ({paper, units} or fit); `scale` (Size).
+    *Deviation:* no stored `run`; runs are derived in the layout. The arrow's
+    box rides on `arrowFrom`, and `ZOOM_FILL` moved into `diagramPageLayout.ts`
+    (re-exported by `zoomModel.ts`), because the layout must import nothing
+    that paints: `settingsStore → diagramExportSettings → stepFileGeometry →
+    diagramPageLayout → … → settingsStore` left `DEFAULT_DIAGRAM_EXPORT_SETTINGS`
+    uninitialised.
+  - **Runs and scale** (`zoomScales`, after the paper and fit runs, every
+    other scale known): a run is an enlarged step and those directly after it
+    (turns passed), broken by a step that is not enlarged, an arrow, or a
+    change of Size — "a step with its own Size starts a run of its own" read
+    as that; an enlarged step with no window yet (seeded, before its first
+    picture: `LayoutStep.zoomPending`) joins none and breaks none, and no
+    arrow prints before it. `arrowArea()` (`diagramPages.ts`) is the one
+    arrow rule, read by `layoutZoom` and by `enlargeArrowCount(document)`
+    for the export notice. Under
+    Fill a run prints one frame size: the least `shared` fit over it, held to
+    1–6 × `areaMm`; Size × `areaMm` held the same; each step at that or its
+    `own` fit, `reduced` when that bites. A frame turned in its window is
+    measured by its own longer side (`frameShare / windowShare`).
+    `areaMm` with an arrow: the area's `share` × the area cell's printed frame;
+    without one: `frameShare` × the scale of the nearest step of its whole
+    picture's kind (before it, else after) × its whole picture's units, or,
+    with none, the square box. *Deviation from the letter:* "the scale its
+    whole picture would print at among its neighbours" is the nearest
+    neighbour's scale; putting the whole picture into `scaleRuns` would move
+    its neighbours, which this phase must not.
+  - **Read-out.** `LayoutCell.zoom` {asked, printed, reduced}, published per
+    step by `printedFrames.ts` as `usePrintedZoom(stepId)` for 16e's Layers
+    and Step pane read-outs (the amber under `FIT_ZOOM` is theirs).
+  - **Gutter.** An arrow keeps a turn's gutter (`turning`).
+  - Tests: `pages/diagramPageLayout.test.ts` ("enlarged steps on the page"),
+    `pages/zoomPages.test.ts` (the arrow read from the order, provenance among
+    several areas, turns passed; Cut laid out by its content box and centred
+    by it), `pages/printedFrames.test.ts`.
+- [x] `placeTurns` over `BetweenGlyph`; `LayoutPage.zoomArrows`;
   `CellPicture.framePt`; the composer's arrow and lift, its box measured from
   the painted outline; Pages-view hit targets. Tests: same-row left-to-right
   and right-to-left; a flow row break, in the lane between the rows as D22
@@ -3548,13 +3850,141 @@ fitted picture of its window until 16f's 'zoom' kind.
   lift clamped clear of the number band; the containment test at any scale
   and page; ids unique per page, clip ids included; the arrow glyph's golden,
   both directions.
-- [ ] Step files (the windowed painter at the scale rule's size, no arrow);
+  *As built:*
+  - `placeTurns` stacks `BetweenGlyph`s (turns, then the arrow, 1.5 mm
+    apart) and returns `turns` (type unchanged) and `zoomArrows` {at, box,
+    beforeStepId, areaStepId, areaId, rightToLeft, liftable}; a flow row's end
+    keeps room for the whole stack (`slotBottom`). `liftable` is the arrow
+    alone in the gutter of a row it shares with the area's step.
+  - **The arrow** is `zoom/enlargeArrow.ts`: a white arrow, regular, pointed
+    tail, on an 11 mm chord bowed up by 0.18 (the path `arcToPath` gives a
+    fold arrow of that bend), painted through `paintAnnotations` on a 20 mm
+    frame as a turn glyph is, mirrored about its place on a row read right to
+    left. Its box is measured from the painted outline (`markReach` over
+    the compiled arrow), once per style, since it grows with the arrows' pen:
+    **11.63 × 7.91 mm** in the Diagram preset (12.50 × 8.46 at a 3 pt pen),
+    not the plan's estimated 12 × 9.5; the layout is handed the document
+    style's box, and the box is centred on its place.
+  - **The lift** is `pages/zoomArrows.ts`, one function for the composer
+    (from the pictures it draws) and for `PreparedDiagramPages.zoomArrows`
+    (two `cellPicture`s per lifted arrow, once a page), so the Pages view's
+    targets sit over the arrow as printed. y is the area's printed centre
+    (`CellPicture.framePt` and the area's `from`), the box clamped into both
+    pictures' vertical overlap and below *both* steps' number bands (cell y
+    + 8 mm) — the number facing the gutter is either step's, by which way the
+    row reads — the numbers first where the overlap is too short.
+  - **Pages view:** a target per arrow over its printed box, for the pointer
+    only (`aria-hidden`, not a listbox option: the keyboard reaches both steps
+    as cells): a press selects the enlarged step, a double press opens the
+    area's step in Annotate with the area selected (`zoom/openEnlargeArea.ts`),
+    counted as `diagram step opened` with `via: enlarge_arrow`.
+  - Tests: the layout's arrow cases in `diagramPageLayout.test.ts`; the lift,
+    the right-to-left mirror on a page, the unlifted arrow beside a turn and
+    unique ids with two clips in `zoomPages.test.ts`; the containment test in
+    `composeDiagramPage.test.ts` with a cut circle at a sheet's edge and a
+    turned rounded rectangle; `zoom/enlargeArrow.test.ts` with
+    `__fixtures__/enlargeArrowGolden.json` (both directions, recorded with
+    `ENLARGE_ARROW_GOLDEN_WRITE=1`); `DiagramPagesView.test.tsx`.
+  - Goldens re-recorded: `zoomGolden.json` (each page cell gains `framePt`;
+    the cut cases move by their content, the References circle at the sheet's
+    edge 14.2 pt) and `closeUpGolden.json` (`framePt` added, nothing else).
+- [x] Step files (the windowed painter at the scale rule's size, no arrow);
   the export notices; `diagram exported`'s `enlarged_step_bucket` and its
   docs row; a `diagramPdf.wasm.test` case with a turned rounded clip and cut
   arcs; a real PDF through `pdftoppm`.
-- [ ] Browser: S6's placements on A4 in grid and flow; the page-break notice;
+  *As built:* `zoomFileFrameMm` (`stepFiles.ts`): Fill against the file's
+  picture box, held to 1–6 × the area as the area's own file draws it (or the
+  frame as its whole picture would), or Size × that, never more than the box
+  holds. Measured on the crane's same-size step files
+  (`gate/probe-stepfile.mjs`): step 21 at 22.0 mm and its area 3.96 mm, so
+  step 22's window is 23.8 mm (×6) in a 61 mm box, 48 mm on the page ("Open
+  with Zach", 2). The export dialog says "Enlarge arrows print only on the
+  pages" (or "Turns and enlarge arrows…") for step files, and for the PDF
+  and the SVG which enlarged step prints on the page after its area — one
+  sentence,
+  `panels:diagram.pages.zoomSplitStep`/`zoomSplitSteps`, shared with the Pages
+  view's notice row (`useZoomSplitNotice`), as `pageSetupLabels.ts` shares
+  its keys, its numbers listed by `diagram/stepNumberList.ts` in both, the
+  area steps named in the plural too. It names only the splits Start a New
+  Page Here on the area's step mends: not an enlarged step that starts its
+  page by its own Start a New Page Here, nor one whose area's step already
+  starts its page. The arrows the step-files notice counts are the layout's
+  (`enlargeArrowCount`), none before a seeded step. New strings: dialogs
+  `arrowsLeftOut` and `turnsAndArrowsLeftOut`, panels `zoomSplitStep` and
+  `zoomSplitSteps`, in all nine catalogs (32 hashes). `enlarged_step_bucket`
+  (`<=0`…`>20`, the empty steps' ladder) and its row in
+  `docs/analytics.md`. The wasm case writes a page with a turned
+  rounded clip, a cut circle's arcs and the arrow through the real writer;
+  rasterised by `pdftoppm`: `artifacts/revision-2/16f/zoom-wasm-1.png`, and
+  the app's own PDF (browser writer) `verify/shots/pdf-pages.png`.
+- [x] Browser: S6's placements on A4 in grid and flow; the page-break notice;
   the crane's pages before and after its first enlarged step (the gutter),
   kept apart from 16a's reflow.
+  *As built:* `artifacts/revision-2/16f/verify/browser.mjs` (before = HEAD
+  copies routed, `headBuild.mjs`; after; Chromium light and dark, iPad-sized
+  WebKit dark) on Zach's crane, areas on steps 9, 16 and 21 and the steps
+  after them enlarged through `zoomFrames.enlargeStep`: a page break (9 → 10,
+  the arrow at 10's leading edge, the notice over the pages and in the export
+  dialog), one row (16 → 17, lifted to the area, 8 mm in the grid), a flow row
+  break (21 → 22, in the lane's bend, mirrored on the right-to-left row) and a
+  grid row break (at 22's leading edge). Composites:
+  `artifacts/revision-2/16f/16f-before-after-{grid,flow}-p{2,3}.png`. Every
+  unenlarged step's scale is the same before and after, in flow and grid; the
+  crane already keeps the turn gutter (rooms 48 mm before and after), so its
+  first enlarged step changes no room. The PDF (3 pages), the one SVG and the
+  composed pages carry the arrows; step files none. `clicks.mjs`: a real
+  click on an arrow's target selects the enlarged step and a double click
+  opens the area, in Chromium and WebKit; a finger's double tap on an iPad
+  is not tried (it is the cards' handler). WebKit's console shows the dev
+  server's worker COEP refusal that 16d's runs show too; it follows whether
+  Playwright intercepts requests, not the code
+  (`gate/probe-webkit-annotate.mjs`).
+- [x] Review fixes (2026-10-06): a seeded step parts no run
+  (`zoomPending`); the step-files notice counts the arrows the layout prints;
+  the arrow's box per style; `via: enlarge_arrow`; the split sentence listed
+  one way, naming the area steps, and only for splits a break mends. Tests
+  fail before each: `diagramPageLayout.test.ts` (a seeded step mid-run; the
+  splits said), `zoomPages.test.ts` (`zoomPending`, `enlargeArrowCount`, the
+  style's box), `enlargeArrow.test.ts`, `zoomSplitLabels.test.ts`,
+  `zoom/openEnlargeArea.test.ts`, `DiagramExportModal.test.tsx`. Crane
+  numbers: `artifacts/revision-2/16f/fixes/after.json` (the reviewer's
+  seeded run: step z2 at 25.90 mm with the seeded step as without, was
+  12.95); the notice in the app: `fixes/notice.mjs`,
+  `fixes/shots/notice-before-after.png`.
+- [x] Gate (added as built): in a separate copy of HEAD with this phase's 56
+  files laid over it (scripts in `artifacts/revision-2/16f/gate/`), lint,
+  tsc and the i18n check clean; 864 test files and 11,492 tests passed, 2
+  files and 14 tests skipped; `diagramPdf.wasm.test.ts` ran all six cases
+  against the real writer. The commit was checked byte for byte against the
+  gated files.
+- [ ] **For Zach** (the review, 2026-10-06; nothing built for these). The
+  first three are "Open with Zach (2026-10-07)" 3, 4 and 1 at the top, each
+  with a recommendation; the read-outs are done:
+  - *Copied marks shrink a Fill step (S1).* E, a drag, Duplicate Step,
+    Enlarged: the copy's marks, carried into the window's units, reach far
+    past the frame, and the edge-case rule "marks partly outside the window
+    are drawn unclipped and measured" sizes the step by them — ×1.52 on the
+    crane, not "filling its room" as S1 step 9 says (×3.67 with them
+    deleted), with no warning. The plan contradicts itself; options: (a)
+    Enlarged on a copy drops or badges the copied marks outside the window,
+    as it drops the copied area; (b) Fill sizes by the content box, marks
+    outside the window overflowing rather than reaching; (c) keep the rule
+    and say so in the read-out and Pages view.
+  - *A Size mid-run.* A Size change starts a run, and the Fill steps after it
+    then start one with no arrow, measured by their own frame, not the area
+    they were captured from: their cap and "prints ×N" are against another
+    reference. Option: only a step that is not enlarged, or an arrow, resets
+    the area; a Size change keeps it.
+  - *The arrow across a flow row break* is mirrored to the next row's way
+    and points across the page, not at the enlarged step above or below it
+    in the bend: keep D22's placement, or turn it toward the step there.
+  - *The read-outs* (16e): the Layers pane said the Size asked for and the
+    Step pane only "Fill"; `usePrintedZoom(stepId)` has what prints
+    ({asked, printed, reduced}) for the plan's "Prints ×3.67" / "Asked ×6 ·
+    prints ×2.78 — the room is too small" and the amber under `FIT_ZOOM`.
+    *Done in 16e* (63f390cf2): `zoomReadout`/`zoomReadoutText` over
+    `usePrintedZoom`, in Layers and the Step pane ("Fill · prints ×N"),
+    amber where the room or the area holds it back.
 
 ### 16g Enlarged steps: moves, deletes and changing pictures
 
