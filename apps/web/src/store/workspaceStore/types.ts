@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { PaperExportStyleChoice } from '../../lib/paperExportSettings';
+import type { PaperExportMarks, PaperExportStyleChoice } from '../../lib/paperExportSettings';
 import type {
   ConditionKind,
   FoldArtifacts,
@@ -57,6 +57,8 @@ import type {
   DiagramPullAnchor,
   DiagramTurnKind,
   DiagramStepDiagramPicture,
+  LiftedCard,
+  PulledMarks,
   SentReferencesEntry,
   DiagramDocument,
   DiagramHanStyle,
@@ -2009,6 +2011,13 @@ export interface DiagramReferencesBrowserState {
    * came from is no longer listed (planned again since), not on another.
    */
   sheet?: Point[][] | null;
+  /**
+   * Which of a card's marks a pull brings (17d), as the Show menu shows them:
+   * for Replace, the step's own choice as it opens; once the menu is used,
+   * its choice. Absent, the menu's remembered choice
+   * (`diagramReferencesMarks`).
+   */
+  marks?: PaperExportMarks;
 }
 
 export interface DiagramSliceActions {
@@ -2189,16 +2198,20 @@ export interface DiagramSliceActions {
    * that browser's: once it has closed the pull adds nothing. The steps the
    * cards became, or null.
    */
-  /** Fold a References step's card another way (D23): one undo step. Whether it changed. */
+  /**
+   * Fold a References step's card another way (D23): one undo step, the
+   * card's marks swapped for the way's (`lifted`, 17d) when they fit beside
+   * the author's. Whether it changed.
+   */
   setDiagramReferencesWay: (
     stepId: string,
-    way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string }
+    way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string; lifted?: LiftedCard | null }
   ) => boolean;
   pullReferencesDiagramSteps: (
     sent: readonly SentReferencesEntry[],
     anchor: DiagramPullAnchor,
     options: { loadId: number; label: string; opening?: number }
-  ) => { stepIds: string[]; turnIds: string[] } | null;
+  ) => ({ stepIds: string[]; turnIds: string[] } & PulledMarks) | null;
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;
   /**

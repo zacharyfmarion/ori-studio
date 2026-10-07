@@ -20,10 +20,18 @@
  * each frames the paper its area framed. Everything a paste does, its offset
  * too, is held within the reach of the units they go to.
  *
+ * A mark lifted from a References card (17d) stays the card's only pasted
+ * onto a step showing the same card, front or back, baked or lifted, where
+ * no copy of it lies yet — so a cut pasted back where it was is still the
+ * card's. A copy pasted beside the original, or beside another copy, is a
+ * mark the author made, as is one pasted anywhere else.
+ *
  * Pure: no DOM, no store.
  */
+import { showsCard, untagged } from '../document/cardMarks';
 import {
   randomDiagramId,
+  stepDiagramCardKey,
   type DiagramIdFactory,
   type DiagramStep,
   type KnownDiagramAnnotation,
@@ -45,6 +53,8 @@ export interface DiagramAnnotationView {
   pictureKey: string | null;
   /** Their units: the step's window when it is enlarged, else null, its whole picture. */
   window: PictureBox | null;
+  /** The References card the step shows (17d, `stepDiagramCardKey`); absent on any other picture. */
+  card?: string;
 }
 
 /** Annotations copied from a step, as the clipboard holds them. */
@@ -63,7 +73,9 @@ export interface DiagramAnnotationClipboardPayload {
 
 /** The view a step's marks are drawn on now: its picture's and its units; null for a step with no picture. */
 export function annotationView(step: DiagramStep): DiagramAnnotationView | null {
-  return step.picture ? { pictureKey: step.picture.key, window: stepWindow(step) } : null;
+  if (!step.picture) return null;
+  const card = showsCard(step) ? stepDiagramCardKey(step.picture.key) : null;
+  return { pictureKey: step.picture.key, window: stepWindow(step), ...(card !== null ? { card } : {}) };
 }
 
 /** The view copied marks were drawn in: a step's units, and its picture while its marks are in step with it. */
@@ -138,8 +150,11 @@ export function pastedAnnotations(
 ): KnownDiagramAnnotation[] {
   const earlier = clipboard.pastes[stepId] ?? 0;
   const offset = PASTE_OFFSET * earlier;
+  const view = onto ? annotationView(onto) : null;
+  // The card's marks stay its own only on a step that shows the same card, as the one copy there (17d).
+  const cards = earlier === 0 && clipboard.view?.card !== undefined && clipboard.view.card === view?.card;
   return withAnnotationReach(onto ? stepReach(onto) : PICTURE_REACH, () =>
-    intoView(clipboard.annotations, clipboard.view, onto ? annotationView(onto) : null).map((annotation) => {
+    intoView(clipboard.annotations.map((annotation) => (cards ? annotation : untagged(annotation))), clipboard.view, view).map((annotation) => {
       const copy =
         annotation.kind === 'divisions'
           ? {

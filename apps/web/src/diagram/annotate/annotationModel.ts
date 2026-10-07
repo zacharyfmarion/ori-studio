@@ -386,6 +386,23 @@ export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagra
   return cleanTextStyle(cleanColor(cleanBehind(cleanShape(annotation))));
 }
 
+/**
+ * Whether two annotations say the same, field for field, whatever order their
+ * keys are in and with a field set to nothing the same as one left out: what
+ * tells an edit from a control pressed on the value it already shows, and a
+ * mark a References card brought changed from one left as it came (17d).
+ */
+export function sameAnnotation(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((value, index) => sameAnnotation(value, b[index]));
+  }
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+  const fields = (value: object) => Object.entries(value).filter(([, field]) => field !== undefined);
+  const [fa, fb] = [fields(a), new Map(fields(b))];
+  return fa.length === fb.size && fa.every(([key, field]) => fb.has(key) && sameAnnotation(field, fb.get(key)));
+}
+
 /** A mark's colour kept only where its kind has one, and one a mark can store: the same mark when it already is. */
 function cleanColor(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   if (annotation.color === undefined) return annotation;

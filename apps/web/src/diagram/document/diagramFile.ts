@@ -99,6 +99,7 @@ import {
   type DiagramAnnotation,
   type DiagramAnnotationKind,
   type DiagramBehind,
+  type DiagramImportedMark,
   type DiagramPathNode,
   type DiagramPleatKinks,
   type DiagramRotation,
@@ -382,6 +383,7 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     angle,
     edge,
     anchor,
+    imported,
     unknown: _known,
     ...unwritten
   } = annotation;
@@ -420,6 +422,8 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(angle !== undefined ? { angle } : {}),
     ...(edge !== undefined ? { edge } : {}),
     ...(anchor !== undefined ? { anchor } : {}),
+    // A mark lifted from a References card (17d); the author's own are written as every mark was.
+    ...(imported !== undefined ? { imported } : {}),
     // From end to end, as a reader expects it.
     ...(behind !== undefined
       ? { behind: { ...(behind.from !== undefined ? { from: behind.from } : {}), ...(behind.to !== undefined ? { to: behind.to } : {}) } }
@@ -753,6 +757,20 @@ export function storedReferencesSource(source: DiagramReferencesSource): Diagram
   return readReferencesSource(JSON.parse(JSON.stringify(source)) as Record<string, unknown>);
 }
 
+/**
+ * Marks as a step stores them (17d): written and read back through the
+ * file's own reader, as {@link storedReferencesSource} is, so the marks lifted
+ * from a card are field for field what a load gives — the same shapes, in
+ * the same order. One the reader would not take as this build's is left out.
+ */
+export function storedAnnotations(
+  annotations: readonly KnownDiagramAnnotation[],
+  reach: AnnotationReach = PICTURE_REACH
+): KnownDiagramAnnotation[] {
+  const written = JSON.parse(JSON.stringify(annotations.map(writeAnnotation))) as unknown;
+  return readAnnotations(written, reach).filter(isKnownAnnotation);
+}
+
 /** A References source, every field checked; null when any does not read. */
 function readReferencesSource(value: Record<string, unknown>): DiagramReferencesSource | null {
   const region = readRegionReference(value.region);
@@ -773,6 +791,7 @@ function readReferencesSource(value: Record<string, unknown>): DiagramReferences
   const plan = typeof value.plan === 'string' && value.plan.length > 0 ? value.plan : undefined;
   const way = typeof value.way === 'string' && value.way.length > 0 ? value.way : undefined;
   const sentence = typeof value.sentence === 'string' ? xmlText(value.sentence) : undefined;
+  const marks = readPulledMarks(value.marks);
   return {
     kind: 'references-step',
     region,
@@ -786,7 +805,18 @@ function readReferencesSource(value: Record<string, unknown>): DiagramReferences
     ...(plan !== undefined ? { plan } : {}),
     ...(way !== undefined ? { way } : {}),
     ...(sentence !== undefined ? { sentence } : {}),
+    ...(marks !== undefined ? { marks } : {}),
   };
+}
+
+/**
+ * Which of a card's marks a step pulled (17d): letters and reference lines,
+ * each a boolean. One that does not read is dropped alone, as a plan or a
+ * way is: the step pulls every mark again, as one sent before the choice.
+ */
+function readPulledMarks(value: unknown): DiagramReferencesSource['marks'] {
+  if (!isRecord(value) || typeof value.letters !== 'boolean' || typeof value.highlights !== 'boolean') return undefined;
+  return { letters: value.letters, highlights: value.highlights };
 }
 
 /** The four planner settings, each a boolean; undefined when they do not read. */
@@ -1030,7 +1060,8 @@ function hasKnownAsset(assets: Record<string, DiagramAsset>, id: string): boolea
 
 /** The fields each kind is written with; any other makes the annotation a newer build's. */
 const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<string>>> = (() => {
-  const base = ['id', 'kind', 'from', 'to'];
+  // Every kind can be a mark lifted from a References card (17d).
+  const base = ['id', 'kind', 'from', 'to', 'imported'];
   const fields = (...more: string[]) => new Set([...base, ...more]);
   return {
     'valley-arrow': fields('bend', 'path', 'behind'),
@@ -1086,7 +1117,31 @@ function readAnnotations(value: unknown, reach: AnnotationReach): DiagramAnnotat
   return out;
 }
 
+/**
+ * One annotation: its kind's fields, then the tag a mark lifted from a
+ * References card carries (17d) — a state this build does not know is news,
+ * told before any damage, as for the rest.
+ */
 function readAnnotation(
+  id: string,
+  entry: Record<string, unknown>,
+  reach: AnnotationReach
+): KnownDiagramAnnotation | typeof NEWER | null {
+  const imported = readImported(entry.imported);
+  if (imported === NEWER) return NEWER;
+  const read = readAnnotationOfKind(id, entry, reach);
+  if (read === null || read === NEWER || imported === undefined) return read;
+  return imported === null ? null : { ...read, imported };
+}
+
+/** A lifted mark's tag (17d): unsaid, the author's; `untouched` or `edited`; another word, a newer build's; anything else, damage. */
+function readImported(value: unknown): DiagramImportedMark | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return null;
+  return value === 'untouched' || value === 'edited' ? value : NEWER;
+}
+
+function readAnnotationOfKind(
   id: string,
   entry: Record<string, unknown>,
   reach: AnnotationReach

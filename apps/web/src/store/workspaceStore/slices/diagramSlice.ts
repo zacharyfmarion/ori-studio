@@ -40,6 +40,9 @@ import {
   anchorTakesCard,
 } from '../../../diagram/document/diagramDocument';
 import i18n from '../../../i18n';
+import { trackDiagramImportedMarkEdited } from '../../../analytics';
+import { annotationEventKind } from '../../../diagram/annotate/annotationEventKind';
+import { cardMarkEdits } from '../../../diagram/document/cardMarks';
 import { requestConfirmation } from '../../commandDialogStore';
 import { commitStepCapture, runDiagramCapture, stopDiagramCapture } from '../diagramCapture';
 import { discardDiagramState, selectedDiagramAnnotation, trimDiagramHistory } from '../diagramState';
@@ -462,9 +465,17 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     editDiagramAnnotations: (stepId, label, edit, { select, selectPathNode, session, loadId } = {}) => {
       if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
       const { extend, remember } = sessionFor(`annotations:${stepId}`, session);
+      const was = get().diagram ? stepById(get().diagram!, stepId) : null;
       const next = commit(label, (document) => editStepAnnotations(document, stepId, edit), extend);
       if (!next) return false;
       remember();
+      // A mark the step's References card brought, edited for the first time or taken away (17d).
+      const now = stepById(next, stepId);
+      if (was && now) {
+        for (const { annotation, edit: how } of cardMarkEdits(was, now)) {
+          trackDiagramImportedMarkEdited(annotationEventKind(annotation), how);
+        }
+      }
       const selected = select !== undefined ? select : get().diagramSelectedAnnotationId;
       const kept = selected !== null && hasAnnotation(next, get().diagramSelectedStepId, selected) ? selected : null;
       set({ diagramSelectedAnnotationId: kept, ...pickPutDown(kept) });
@@ -634,7 +645,12 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       if (loadId !== get().diagramLoadId || sent.length === 0) return null;
       // Pressed in a browser that has closed since: it adds nothing, and closes nothing.
       if (opening !== undefined && get().diagramReferencesBrowser?.opening !== opening) return null;
-      let pulled: { stepIds: string[]; turnIds: string[] } = { stepIds: [], turnIds: [] };
+      let pulled: { stepIds: string[]; turnIds: string[]; baked: string[]; replaced: number } = {
+        stepIds: [],
+        turnIds: [],
+        baked: [],
+        replaced: 0,
+      };
       // A filled step lands the frame it was enlarged with, and each card made a step after an enlarged one starts enlarged (Revision 2).
       const next = commitMade(label, (document) => {
         // The step a card fills or replaces is not a new one; a filled one gets its first picture.

@@ -37,9 +37,13 @@
     "references": {
       "addedSteps": "ステップ {{first}}–{{last}} として追加しました",
       "addedTurnOvers_other": "裏返しを{{count}}件追加しました",
+      "bakedStep": "ステップ {{number}} の記号は図の一部のままです：1つのステップに入る数を超えています。",
+      "bakedSteps_other": "{{count}} 個のステップの記号は図の一部のままです：1つのステップに入る数を超えています。",
       "filledStep": "ステップ {{number}} を埋めました",
+      "replacedEdited_other": "編集した記号を {{count}} 件置き換えました",
       "replacedStep": "ステップ {{number}} のカードを置き換えました",
-      "tooLarge": "このステップは細かすぎて折り図に保持できません。"
+      "tooLarge": "このステップは細かすぎて折り図に保持できません。",
+      "undoReplaced": "元に戻す"
     },
     "refreshedAll_other": "{{count}} 個のステップを更新しました",
     "uploadFailed_other": "{{count}} 枚の図を追加できませんでした",

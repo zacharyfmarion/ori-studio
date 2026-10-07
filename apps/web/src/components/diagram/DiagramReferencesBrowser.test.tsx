@@ -62,6 +62,8 @@ function browser(patch: Partial<ReferencesBrowser> = {}, anchor: DiagramPullAnch
     selection: browserSelection.empty(),
     pullable: [],
     pulling: false,
+    marks: { letters: true, highlights: true },
+    toggleMark: vi.fn(),
     turnOverBefore: null,
     withTurnOver: true,
     setWithTurnOver: vi.fn(),
@@ -109,6 +111,33 @@ beforeEach(() => {
 });
 
 describe('the References browser', () => {
+  // 17d (RM4): which marks a pull brings, in the bar beside Sequence | Find; a switch per mark, the menu open for the next.
+  it('shows the marks a pull brings in its Show menu, and changes one at a time', () => {
+    render(browser());
+    expect(button('Show')).toBeTruthy();
+    // A mark hidden, by a choice remembered from another day perhaps: the trigger says so (17d review).
+    const toggleMark = vi.fn();
+    render(browser({ marks: { letters: true, highlights: false }, toggleMark }));
+    expect(button('Show')).toBeUndefined();
+    const show = button('Show · 1 hidden');
+    expect(show).toBeTruthy();
+    act(() => {
+      show!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+      show!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
+    const rows = [...document.querySelectorAll<HTMLElement>('[role="menu"] [role="menuitemcheckbox"]')];
+    expect(rows.map((row) => [row.textContent, row.getAttribute('aria-checked')])).toEqual([
+      ['LettersThe names of the points a step refers to. Its instruction may still name them.', 'true'],
+      ['Reference linesThe lines a step lines up against.', 'false'],
+    ]);
+    act(() => rows[1]!.click());
+    expect(toggleMark).toHaveBeenCalledWith('highlights');
+    // A switch, not a verb: the menu stays open.
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+    act(() => document.querySelector<HTMLElement>('[role="menu"] [role="menuitemcheckbox"]')!.click());
+    expect(toggleMark).toHaveBeenLastCalledWith('letters');
+  });
+
   it('lists the planned patterns, the plan’s settings, and its cards with what the diagram already uses', () => {
     render(browser());
     expect(text()).toContain('Pattern 1');

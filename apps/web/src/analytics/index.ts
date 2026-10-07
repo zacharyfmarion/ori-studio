@@ -134,6 +134,7 @@ export {
   trackDiagramSourceOpened,
   trackDiagramReferencesBrowserOpened,
   trackDiagramStepsPulledFromReferences,
+  trackDiagramImportedMarkEdited,
   trackDiagramPictureUploaded,
   trackDiagramStepAdded,
   trackDiagramTurnAdded,

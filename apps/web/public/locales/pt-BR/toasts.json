@@ -41,9 +41,17 @@
       "addedTurnOvers_one": "Virada adicionada",
       "addedTurnOvers_many": "{{count}} viradas adicionadas",
       "addedTurnOvers_other": "{{count}} viradas adicionadas",
+      "bakedStep": "As marcas do passo {{number}} continuam fazendo parte da imagem: há mais do que um passo comporta.",
+      "bakedSteps_one": "As marcas de um passo continuam fazendo parte da imagem: há mais do que um passo comporta.",
+      "bakedSteps_many": "As marcas de {{count}} passos continuam fazendo parte das imagens: há mais do que um passo comporta.",
+      "bakedSteps_other": "As marcas de {{count}} passos continuam fazendo parte das imagens: há mais do que um passo comporta.",
       "filledStep": "Passo {{number}} preenchido",
+      "replacedEdited_one": "Uma marca que você editou foi substituída",
+      "replacedEdited_many": "{{count}} marcas que você editou foram substituídas",
+      "replacedEdited_other": "{{count}} marcas que você editou foram substituídas",
       "replacedStep": "Cartão do passo {{number}} substituído",
-      "tooLarge": "Este passo é detalhado demais para ser mantido no diagrama."
+      "tooLarge": "Este passo é detalhado demais para ser mantido no diagrama.",
+      "undoReplaced": "Desfazer"
     },
     "refreshedAll_one": "1 passo atualizado",
     "refreshedAll_many": "{{count}} passos atualizados",

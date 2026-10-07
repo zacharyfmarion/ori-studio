@@ -41,9 +41,17 @@
       "addedTurnOvers_one": "Retournement ajouté",
       "addedTurnOvers_many": "{{count}} retournements ajoutés",
       "addedTurnOvers_other": "{{count}} retournements ajoutés",
+      "bakedStep": "Les marques de l’étape {{number}} restent dans son image : il y en a plus qu’une étape ne peut en contenir.",
+      "bakedSteps_one": "Les marques d’une étape restent dans son image : il y en a plus qu’une étape ne peut en contenir.",
+      "bakedSteps_many": "Les marques de {{count}} étapes restent dans leurs images : il y en a plus qu’une étape ne peut en contenir.",
+      "bakedSteps_other": "Les marques de {{count}} étapes restent dans leurs images : il y en a plus qu’une étape ne peut en contenir.",
       "filledStep": "Étape {{number}} remplie",
+      "replacedEdited_one": "Une marque que vous aviez modifiée a été remplacée",
+      "replacedEdited_many": "{{count}} marques que vous aviez modifiées ont été remplacées",
+      "replacedEdited_other": "{{count}} marques que vous aviez modifiées ont été remplacées",
       "replacedStep": "Carte de l’étape {{number}} remplacée",
-      "tooLarge": "Cette étape est trop détaillée pour être conservée dans le diagramme."
+      "tooLarge": "Cette étape est trop détaillée pour être conservée dans le diagramme.",
+      "undoReplaced": "Annuler"
     },
     "refreshedAll_one": "{{count}} étape actualisée",
     "refreshedAll_many": "{{count}} étapes actualisées",

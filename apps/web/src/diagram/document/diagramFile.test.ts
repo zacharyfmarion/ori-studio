@@ -726,6 +726,51 @@ describe('annotations in the file', () => {
     });
   });
 
+  describe('a mark lifted from a References card (17d)', () => {
+    const lifted = [
+      { id: 'i-1', kind: 'valley-line', from: [0, 0.5], to: [1, 0.5], imported: 'untouched' },
+      { id: 'i-2', kind: 'solid-line', from: [0, 0], to: [1, 0], color: '#c91d87', imported: 'edited' },
+      { id: 'i-3', kind: 'circle', from: [0, 1], to: [0, 1], imported: 'untouched' },
+      { id: 'i-4', kind: 'fold-unfold-arrow', from: [0.1, 0.4], to: [0.5, 0.4], bend: -0.134, imported: 'untouched' },
+      {
+        id: 'i-5',
+        kind: 'label',
+        from: [0, 1],
+        to: [0, 1],
+        text: 'P',
+        color: '#c91d87',
+        bold: true,
+        halo: true,
+        sizePt: 9,
+        offsetPt: [-6.02, 7.73],
+        imported: 'untouched',
+      },
+    ];
+
+    it('round-trips its tag on every kind, and a mark of the author’s with none', () => {
+      expect(withAnnotations(lifted)).toEqual(lifted);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: withAnnotations(lifted) }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual(lifted);
+      expect(Object.keys(stepsIn(throughJson(writeDiagram(sampleDiagram())))[0].annotations[0] ?? {})).not.toContain('imported');
+    });
+
+    it('carries a state it does not know as a newer build’s, told before damage, and drops a tag that is not a word', () => {
+      const newer = { id: 'n-1', kind: 'circle', from: [0, 1], to: [0, 1], imported: 'linked' };
+      expect(withAnnotations([newer])).toEqual([{ id: 'n-1', unknown: newer }]);
+      // News before damage: a newer tag on a mark whose bend does not read is still a newer build's.
+      const both = { id: 'n-2', kind: 'valley-arrow', from: [0, 0], to: [1, 0], bend: 'wide', imported: 'linked' };
+      expect(withAnnotations([both])).toEqual([{ id: 'n-2', unknown: both }]);
+      expect(withAnnotations([{ ...lifted[0], imported: 3 }, { ...lifted[2], imported: null }])).toEqual([]);
+    });
+
+    it('is kept, verbatim and undrawn, by a build before 17d, as a field it has no name for is', () => {
+      // A build before 17d names no `imported`; `borrowed` stands for it here.
+      const older = { id: 'o-1', kind: 'circle', from: [0, 1], to: [0, 1], borrowed: 'untouched' };
+      expect(withAnnotations([older])).toEqual([{ id: 'o-1', unknown: older }]);
+    });
+  });
+
   describe('a right angle', () => {
     const mark = (more: Record<string, unknown> = {}) => ({
       id: 'r-1',
@@ -1858,6 +1903,7 @@ function sentDiagram() {
     referencesStep('step-find', { mode: 'find', settings: null, line: null, card: 1, side: 'back' }),
     referencesStep('step-turn', { card: null, line: null, fingerprint: null }),
     referencesStep('step-pulled', { plan: '{"planner":"p"}', way: 'O1:c0,c1:0', sentence: 'Fold P onto Q &amp; R.' }),
+    referencesStep('step-shown', { plan: '{"planner":"p"}', marks: { letters: false, highlights: true } }),
   ];
   return insertSteps(createDiagram({ title: 'Crane', newId: sequentialIds() }), steps, 0);
 }
@@ -1880,6 +1926,19 @@ describe('steps sent from References in the file', () => {
     expect(step.source).not.toHaveProperty('plan');
     expect(step.source).not.toHaveProperty('way');
     expect(step.source).not.toHaveProperty('sentence');
+  });
+
+  it('keeps the marks a step pulled (17d), and drops a choice that does not read alone', () => {
+    const read = stepsIn(readDiagram(throughJson(writeDiagram(sentDiagram())))!.document);
+    expect(read[4]!.source).toMatchObject({ marks: { letters: false, highlights: true } });
+    expect(read[0]!.source).not.toHaveProperty('marks');
+    for (const marks of [{ letters: 'no', highlights: true }, { letters: false }, 'none', null]) {
+      const written = throughJson(writeDiagram(sentDiagram()));
+      written.steps[4].source.marks = marks;
+      const step = stepsIn(readDiagram(written)!.document)[4]!;
+      expect(step.source).toMatchObject({ kind: 'references-step', plan: '{"planner":"p"}' });
+      expect(step.source).not.toHaveProperty('marks');
+    }
   });
 
   it('reads a card’s recorded sentence as a step’s text is read: XML-clean', () => {

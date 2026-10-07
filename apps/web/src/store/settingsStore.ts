@@ -46,6 +46,8 @@ import {
   type PaperStyleValue,
 } from '../lib/paper/paperStyle';
 import {
+  DEFAULT_PAPER_EXPORT_MARKS,
+  normalizePaperExportMarks,
   normalizePaperExportMemory,
   normalizePaperExportSettings,
   PAPER_EXPORT_STYLE_SLOT,
@@ -53,6 +55,7 @@ import {
   paperExportMemoryOf,
   persistedPaperExport,
   type PaperExportKind,
+  type PaperExportMarks,
   type PaperExportMemory,
   type PaperExportSettings,
   type PaperExportStyleChoice,
@@ -99,6 +102,7 @@ const DIAGRAM_ANNOTATE_SNAP_KEY = storageKey(STORAGE_KEYS.diagramAnnotateSnap);
 const DIAGRAM_ANNOTATE_LINE_TYPE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineType);
 const DIAGRAM_ANNOTATE_LINE_COLOR_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineColor);
 const DIAGRAM_ANNOTATE_TEXT_STYLE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateTextStyle);
+const DIAGRAM_REFERENCES_MARKS_KEY = storageKey(STORAGE_KEYS.diagramReferencesMarks);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
@@ -345,6 +349,13 @@ interface SettingsState {
    * until one is chosen; kept as you left it, as the line's colour is.
    */
   diagramAnnotateTextStyle: TextStyle;
+  /**
+   * Which of a References card's marks the Diagram's References browser
+   * pulls (17d, RM4): its letters and its reference lines, as its Show menu
+   * left them — both until one is hidden, as in export. A hidden mark is not
+   * pulled. Kept as you left it.
+   */
+  diagramReferencesMarks: PaperExportMarks;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -362,6 +373,7 @@ interface SettingsState {
   setDiagramAnnotateLineColor: (value: string | null) => void;
   /** One option or more of the next label's style, the rest as they were. */
   setDiagramAnnotateTextStyle: (value: Partial<TextStyle>) => void;
+  setDiagramReferencesMarks: (value: PaperExportMarks) => void;
   /** `null` hands the choice back to the paper style. */
   setReferencesShowAuxCreases: (value: boolean | null) => void;
   /** Write one field of a slot's style. Editing export while it follows display detaches it. */
@@ -430,6 +442,7 @@ export const useSettingsStore = create<SettingsState>()(
       diagramAnnotateLineType: readDiagramAnnotateLineType(),
       diagramAnnotateLineColor: readDiagramAnnotateLineColor(),
       diagramAnnotateTextStyle: readTextStyle(readJson<unknown>(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY, null)),
+      diagramReferencesMarks: normalizePaperExportMarks(readJson<unknown>(DIAGRAM_REFERENCES_MARKS_KEY, null)),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -515,6 +528,16 @@ export const useSettingsStore = create<SettingsState>()(
         // No event, as for the line's colour: the labels set in each style are
         // counted (`diagram annotation added`'s `color`, `bold`, `halo`, `size`).
         set({ diagramAnnotateTextStyle: next });
+      },
+      setDiagramReferencesMarks: (value) => {
+        const next = normalizePaperExportMarks(value);
+        const was = get().diagramReferencesMarks;
+        if (next.letters === was.letters && next.highlights === was.highlights) return;
+        if (next.letters === DEFAULT_PAPER_EXPORT_MARKS.letters && next.highlights === DEFAULT_PAPER_EXPORT_MARKS.highlights) {
+          removeKey(DIAGRAM_REFERENCES_MARKS_KEY);
+        } else writeJson(DIAGRAM_REFERENCES_MARKS_KEY, next);
+        // No event: what is pulled under it is counted (`diagram steps pulled from references`' `letters` and `reference_lines`).
+        set({ diagramReferencesMarks: next });
       },
       setReferencesShowAuxCreases: (value) => {
         if (get().referencesShowAuxCreases === value) return;

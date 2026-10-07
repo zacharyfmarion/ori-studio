@@ -346,6 +346,16 @@ export type DiagramPulledMode = 'sequence' | 'find';
  */
 export type DiagramPulledInto = 'after' | 'end' | 'fill' | 'replace';
 
+/**
+ * Whether a pull's marks were lifted into annotations (17d) or left in the
+ * picture, as every card was before: `baked` when any card's marks were more
+ * than a step holds.
+ */
+export type DiagramPulledMarks = 'lifted' | 'baked';
+
+/** What an edit did to a mark a References card brought (17d): changed for the first time, or taken away. */
+export type DiagramImportedMarkEdit = 'changed' | 'deleted';
+
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
 
@@ -1470,6 +1480,11 @@ export const ANALYTICS_EVENTS = {
   diagramAnnotationRecolored: 'diagram annotation recolored',
   /** A label's Bold, Halo or Size changed in the Layers pane (17b): which, and to what. */
   diagramTextStyled: 'diagram text styled',
+  /**
+   * A mark a References card brought (17d) edited for the first time, or
+   * taken away: its kind, and which. Whether people edit what they pull.
+   */
+  diagramImportedMarkEdited: 'diagram imported mark edited',
   /** A frame placed on an enlarged step by a capture (Revision 2): how, through what, by which anchor. One per step placed. */
   diagramStepEnlarged: 'diagram step enlarged',
   /** An enlarge area or an enlarged step's frame changed: moved, its Shape, Size, Edge or Anchor, or an area deleted. */

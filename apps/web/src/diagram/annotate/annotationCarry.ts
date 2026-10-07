@@ -19,10 +19,12 @@ import { storedSceneStep } from '../capture/captureGeometry';
 import { boundariesMatchMoved, isRelativeFingerprint } from '../../cp-workspace/regions/regionIdentity';
 import { turnClockwise } from '../../lib/geometry';
 import type { PaperFaceItem, PaperScene, SceneBounds, ScenePoint } from '../../lib/paper/paperScene';
+import { isCardMark } from '../document/cardMarks';
 import {
   creasePatternSide,
   isKnownAnnotation,
   sameSpread,
+  type DiagramAnnotation,
   type DiagramAsset,
   type DiagramCpSource,
   type DiagramScenePicture,
@@ -416,8 +418,9 @@ function insideRing(ring: readonly ScenePoint[], point: { x: number; y: number }
  * this one, and stay where they are, still out of step. A picture only
  * recoloured moves nothing: every annotation stays exactly where it is, in
  * step with it. An annotation this build cannot read cannot be moved, so a
- * step carrying one keeps all of them where they were, and says the picture
- * changed.
+ * step carrying one keeps all the author's where they were, and says the
+ * picture changed. The marks a References card brought (17d, `isCardMark`)
+ * are never out of step: they go with every move, whatever the author's do.
  *
  * Every edit of a step's own picture comes through here — a re-pose, a
  * Refresh, a relink, a References step's side or way, an upload's pose, and
@@ -433,16 +436,19 @@ export function withCarriedAnnotations(
   if (after.zoom) return followOwnPicture(before, after, ownPictureChange(before, after, assets), assets);
   if (after.annotations.length === 0 || after.annotations !== before.annotations) return after;
   const inStep = before.annotatedPictureKey !== null && before.annotatedPictureKey === (before.picture?.key ?? null);
-  if (!inStep) return after;
   // Nothing moved, so nothing is carried — not even an annotation this build cannot read.
-  if (recolouredOnly(before, after)) return { ...after, annotatedPictureKey: after.picture?.key ?? null };
-  if (!before.annotations.every(isKnownAnnotation)) return after;
+  if (inStep && recolouredOnly(before, after)) return { ...after, annotatedPictureKey: after.picture?.key ?? null };
+  const authorsGo = inStep && before.annotations.every(isKnownAnnotation);
+  const goes = (annotation: DiagramAnnotation): annotation is KnownDiagramAnnotation =>
+    isKnownAnnotation(annotation) && (authorsGo || isCardMark(before, annotation));
+  if (!before.annotations.some(goes)) return after;
   const move = pictureMove(before, after, assets);
   if (!move) return after;
   return {
     ...after,
-    annotations: (before.annotations as KnownDiagramAnnotation[]).map((annotation) => carryAnnotation(annotation, move)),
-    annotatedPictureKey: after.picture?.key ?? null,
+    annotations: before.annotations.map((annotation) => (goes(annotation) ? carryAnnotation(annotation, move) : annotation)),
+    // The author's in step with it now, when they went; else as they were.
+    ...(authorsGo ? { annotatedPictureKey: after.picture?.key ?? null } : {}),
   };
 }
 

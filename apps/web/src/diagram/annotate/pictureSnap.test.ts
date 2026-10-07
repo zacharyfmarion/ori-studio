@@ -147,11 +147,12 @@ describe('pictureSnapTarget on annotations', () => {
     expect(pictureSnapTarget(step, NO_ASSETS, [0.4, 0.3], 0.05, { annotations: [white] })).toBeNull();
   });
 
-  it('snaps to a circle’s centre', () => {
+  // At a picture point's rank (17d): a ring lifted from a References card snaps as the card's point did.
+  it('snaps to a circle’s centre, as a point the picture marks', () => {
     const circle = annotation({ kind: 'circle', from: [0.45, 0.35], to: [0.45, 0.35] });
     expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [circle] })).toEqual({
       at: [0.45, 0.35],
-      kind: 'annotation',
+      kind: 'point',
     });
     // Not when it is the one being moved.
     expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [circle], ignore: circle.id })).toBeNull();

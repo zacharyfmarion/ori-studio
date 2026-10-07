@@ -1228,13 +1228,13 @@ describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
       'line'
     );
     pointer('pointerdown', at(0.308, 0.394));
-    // Shown at the press, before any move.
-    expect(targets()).toEqual(['annotation']);
+    // Shown at the press, before any move: a circle's centre is a point the picture marks (17d).
+    expect(targets()).toEqual(['point']);
     pointer('pointermove', at(0.45, 0.42));
-    expect(targets()).toEqual(['annotation']);
+    expect(targets()).toEqual(['point']);
     pointer('pointermove', at(0.593, 0.405));
     // Both ends, each on its circle.
-    expect(targets()).toEqual(['annotation', 'annotation']);
+    expect(targets()).toEqual(['point', 'point']);
     const draft = overlay().querySelectorAll('[data-annotation-id="annotation-draft"]');
     expect(draft).toHaveLength(1);
     pointer('pointerup', at(0.594, 0.406));

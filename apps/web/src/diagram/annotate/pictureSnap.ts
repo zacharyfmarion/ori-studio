@@ -80,7 +80,11 @@ export function pictureSnapTarget(
   // has no perspective: a camera's picture offers no division points.
   const divisionPoints = geometry.kind !== 'projected';
   for (const annotation of annotations) {
-    for (const at of annotationSnapPoints(annotation, { divisionPoints })) candidates.push({ at, kind: 'annotation' });
+    // A circle's centre is a point the picture marks, as References' ring is
+    // (17d): a ring lifted from a card snaps as the card's point did, and so
+    // does one drawn by hand.
+    const kind: SnapTargetKind = annotation.kind === 'circle' ? 'point' : 'annotation';
+    for (const at of annotationSnapPoints(annotation, { divisionPoints })) candidates.push({ at, kind });
   }
   for (const at of crossingsNear(geometry, drawnLines(annotations), point, radius)) {
     candidates.push({ at, kind: 'crossing' });

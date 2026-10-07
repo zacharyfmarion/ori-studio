@@ -13,7 +13,7 @@
  * | What changed | Frame | Marks |
  * | --- | --- | --- |
  * | Enlarged turned on; Update | captured and landed ({@link enlargeStep}, {@link updateEnlargedSteps}) | whole picture or old window → new window; from the whole picture, lines trimmed at the frame ({@link trimmedAtFrame}) |
- * | A step made after an enlarged one | captured at creation ({@link seedNewSteps}) | none yet |
+ * | A step made after an enlarged one | captured at creation ({@link seedNewSteps}) | none yet; a References card's, carried into the window, those outside the frame dropped |
  * | A seeded step's first picture; a refresh or relink | landed from its imprint ({@link relandFrame}) | unchanged |
  * | A folded step shown as its crease pattern, and back | on the paper its window showed, imprinted there ({@link landedOnSheet}); back, anchored again ({@link anchoredOffSheet}) | unchanged |
  * | Enlarged turned off | dropped ({@link unenlargeStep}) | window → whole picture |
@@ -30,21 +30,26 @@
  * Pure: no store.
  */
 import {
+  ARROW_BEND,
   LINE_KINDS,
   PICTURE_REACH,
   ZOOM_RADIUS,
   ZOOM_SIDE,
+  arrowApex,
   carryAnnotation,
+  isArrowKind,
   withAnnotationReach,
   type AnnotationReach,
   type PictureMove,
   type PicturePoint,
 } from '../annotate/annotationModel';
+import { isCardMark } from '../document/cardMarks';
 import {
   isKnownAnnotation,
   isLockedStep,
   isTurn,
   stepIndex,
+  type DiagramAnnotation,
   type DiagramAsset,
   type DiagramDocument,
   type DiagramStep,
@@ -72,6 +77,7 @@ import { faceAt, imprintFrame, offSpread, ontoSpread, paperFacesOf, toPicture, t
 import {
   ZOOM_LINE_OVERSHOOT,
   ZOOM_SCALE,
+  distanceOutside,
   frameWindow,
   outlineAsShape,
   stepReach,
@@ -168,8 +174,10 @@ export function unitsMove(from: PictureBox, to: PictureBox, move?: PictureMove):
  * A step's marks carried by `move`, when they are in step with the picture
  * they were drawn on — `was`, the step before the move — and all read; then
  * in step with the step's picture now. Ones drawn on another picture stay as
- * they were. A step with a mark this build cannot read keeps them all, out of
- * step: the move would leave that one behind. Each mark is kept within
+ * they were. A step with a mark this build cannot read keeps the author's
+ * all, out of step: the move would leave that one behind. The marks its
+ * References card brought (17d, `isCardMark`) are never out of step, and go
+ * with every move whatever the author's do. Each mark is kept within
  * `reach`, the reach of the units it goes to: an enlarged step's window's
  * reaches as far as its whole picture's, so a mark across the model from a
  * small frame goes there and back exactly. One the move cannot take where it
@@ -193,9 +201,12 @@ function carryMarks(
   } = {}
 ): DiagramStep {
   if (!move || step.annotations.length === 0) return step;
-  if (!step.annotations.every(isKnownAnnotation)) return { ...step, annotatedPictureKey: null };
-  if (!was.picture || was.annotatedPictureKey !== was.picture.key) return step;
-  const marks = step.annotations as KnownDiagramAnnotation[];
+  const readable = step.annotations.every(isKnownAnnotation);
+  const authorsGo = readable && was.picture !== null && was.annotatedPictureKey === was.picture.key;
+  const goes = (mark: DiagramAnnotation): mark is KnownDiagramAnnotation =>
+    isKnownAnnotation(mark) && (authorsGo || isCardMark(was, mark));
+  const marks = step.annotations.filter(goes);
+  if (marks.length === 0) return readable ? step : { ...step, annotatedPictureKey: null };
   const carried = withAnnotationReach(reach, () => marks.map((mark) => carryAnnotation(mark, move)));
   const lost =
     back !== undefined &&
@@ -203,7 +214,13 @@ function carryMarks(
       carried.some((mark, index) => !sameMark(carryAnnotation(mark, back.move), marks[index]!))
     );
   if (lost) return { ...step, annotatedPictureKey: null };
-  return { ...step, annotations: finish ? carried.map(finish) : carried, annotatedPictureKey: step.picture?.key ?? null };
+  const went = new Map(carried.map((mark, index) => [marks[index]!.id, finish ? finish(mark) : mark]));
+  return {
+    ...step,
+    annotations: step.annotations.map((mark) => went.get(mark.id) ?? mark),
+    // In step now if the author's went; else as they were, out of step — or, beside a mark this build cannot read, out of step whatever.
+    annotatedPictureKey: authorsGo ? (step.picture?.key ?? null) : readable ? step.annotatedPictureKey : null,
+  };
 }
 
 /**
@@ -228,6 +245,70 @@ export function trimmedAtFrame(mark: KnownDiagramAnnotation, frame: DiagramZoomO
   if (start === 0 && end === 1) return mark;
   const at = (t: number): PicturePoint => [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
   return { ...mark, from: start === 0 ? from : at(start), to: end === 1 ? to : at(end) };
+}
+
+/**
+ * Marks laid out on a step's whole picture — a References card's, lifted
+ * (17d) — in the units the step keeps its marks in: into its window when it
+ * is enlarged, by the window's move, its lines trimmed at the frame as a
+ * step's are when it is enlarged ({@link trimmedAtFrame}), each kept within
+ * its reach, and only those that lie in the frame ({@link liesInFrame}); as
+ * they are on a step that shows its whole picture.
+ */
+export function marksIntoUnits(
+  step: DiagramStep,
+  marks: readonly KnownDiagramAnnotation[],
+  assets: Assets
+): KnownDiagramAnnotation[] {
+  const window = stepWindow(step);
+  const whole = wholeBox(step, assets);
+  if (!window || !whole || !step.zoom?.frame) return [...marks];
+  const move = unitsMove(whole, window);
+  const frame = outlineIntoBox(window, step.zoom.frame);
+  return withAnnotationReach(stepReach(step), () =>
+    marks.map((mark) => trimmedAtFrame(carryAnnotation(mark, move), frame)).filter((mark) => liesInFrame(mark, frame))
+  );
+}
+
+/**
+ * Whether a mark lifted from a References card onto an enlarged step lies in
+ * its frame — `frame` and the mark in the window's units — so the step draws
+ * no more of the card than its picture in the window did, which the frame
+ * cuts (17d review: a fold-and-unfold arrow kept whole swept across the
+ * neighbouring steps and off the page). A line that meets the frame, cut at
+ * it already ({@link trimmedAtFrame}); any other mark when every point it is
+ * drawn through — an arrow's ends and the top of its arc, a ring's centre,
+ * the point a letter hangs from — is inside it, or no further past its rim
+ * than a cut line runs. One the frame cuts is not drawn at all: a mark cannot
+ * be cut as a picture is, and half an arrow says nothing.
+ */
+function liesInFrame(mark: KnownDiagramAnnotation, frame: DiagramZoomOutline): boolean {
+  const near = (point: PicturePoint) => distanceOutside(frame, point) <= ZOOM_LINE_OVERSHOOT;
+  if (LINE_KINDS.has(mark.kind)) {
+    const length = Math.hypot(mark.to[0] - mark.from[0], mark.to[1] - mark.from[1]);
+    return length > 0 ? stretchInside(frame, mark.from, mark.to) !== null : near(mark.from);
+  }
+  const points: PicturePoint[] = [mark.from, mark.to];
+  if (mark.other) points.push(mark.other);
+  for (const node of [...(mark.path ?? []), ...(mark.back ?? [])]) points.push(node.at);
+  if (isArrowKind(mark.kind) && !mark.path) points.push(arrowApex(mark.from, mark.to, mark.bend ?? ARROW_BEND));
+  return points.every(near);
+}
+
+/**
+ * A step just made from a References card and enlarged as it was made — a
+ * card pulled after an enlarged step, its marks carried into the window it
+ * was seeded with — without the card's marks that lie outside its frame
+ * ({@link liesInFrame}), as a card pulled into an enlarged step arrives
+ * ({@link marksIntoUnits}). The step itself when none does, or it is not
+ * enlarged.
+ */
+function withCardMarksInFrame(step: DiagramStep): DiagramStep {
+  const window = stepWindow(step);
+  if (!window || !step.zoom?.frame) return step;
+  const frame = outlineIntoBox(window, step.zoom.frame);
+  const kept = step.annotations.filter((mark) => !isCardMark(step, mark) || liesInFrame(mark, frame));
+  return kept.length === step.annotations.length ? step : { ...step, annotations: kept };
 }
 
 /** Whether two marks are one, but for float noise in their numbers. */
@@ -718,7 +799,8 @@ export function seedNewSteps(
       continue;
     }
     run = source;
-    next = result.document;
+    // A card pulled after an enlarged step keeps of its marks only those in the frame it starts with (17d).
+    next = withStep(result.document, entry.id, withCardMarksInFrame);
     seeded.push({ stepId: entry.id, captured: result.captured });
   }
   return { document: next, seeded };

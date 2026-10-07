@@ -15,8 +15,12 @@ import {
   rightAngleInPicture,
 } from './annotationHit';
 import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
+import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
+import { liftCardMarks } from '../references/referencesCardMarks';
+import { pointsCard } from '../references/referencesCardMarks.fixtures';
 import { CARD_FRAME_PX } from './paintAnnotations';
 import { ANNOTATION_INK_MM } from './canvasInk';
+import { labelCentre } from './annotationModel';
 
 /** About the canvas's: an ink is about 0.0066 of the frame, a callout's outline at the default 1.05 pt pen 0.0025. */
 const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066, calloutPen: 0.0025 };
@@ -27,6 +31,34 @@ const sign: KnownDiagramAnnotation = { id: 'sign', kind: 'turn-over', from: [0.8
 const label: KnownDiagramAnnotation = { id: 'label', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'AB' };
 
 describe('hitAnnotation', () => {
+  // 17d review: a pulled letter's halo and the margin round it covered its ring's near rim, so the ring could only be
+  // taken on its far side.
+  it('takes a pulled ring anywhere on its rim, and its letter on its words or, with nothing under it, its halo', () => {
+    const { annotations } = liftCardMarks(pointsCard(), false, { letters: true, highlights: true }, DEFAULT_DIAGRAM_STYLE)!;
+    const letter = annotations.find((mark) => mark.kind === 'label')!;
+    const ring = annotations.find((mark) => mark.kind === 'circle' && mark.from[0] === letter.from[0] && mark.from[1] === letter.from[1])!;
+    const pair = [ring, letter];
+    const r = circleRadius(SIZES.ink);
+    for (let step = 0; step < 8; step += 1) {
+      const angle = (step * Math.PI) / 4;
+      const on: [number, number] = [ring.from[0] + r * Math.cos(angle), ring.from[1] + r * Math.sin(angle)];
+      expect(hitAnnotation(pair, on, SIZES, null)?.annotationId).toBe(ring.id);
+    }
+    // The rim nearest the letter lies in the letter's halo and margin: the letter's when nothing is under it, or
+    // when it is selected, to drag; else the ring's.
+    const words = labelCentre(letter);
+    const toWords = Math.hypot(words[0] - ring.from[0], words[1] - ring.from[1]);
+    const near: [number, number] = [
+      ring.from[0] + (r * (words[0] - ring.from[0])) / toWords,
+      ring.from[1] + (r * (words[1] - ring.from[1])) / toWords,
+    ];
+    expect(hitAnnotation([letter], near, SIZES, null)?.annotationId).toBe(letter.id);
+    expect(hitAnnotation(pair, near, SIZES, null)?.annotationId).toBe(ring.id);
+    expect(hitAnnotation(pair, near, SIZES, letter.id)?.annotationId).toBe(letter.id);
+    // Its words take it, over anything.
+    expect(hitAnnotation(pair, words, SIZES, null)?.annotationId).toBe(letter.id);
+  });
+
   it('takes a line by its length and an arrow by its arc, not its chord', () => {
     expect(hitAnnotation([line], [0.5, 0.51], SIZES, null)).toEqual({ annotationId: 'line', part: 'body' });
     expect(hitAnnotation([line], [0.5, 0.6], SIZES, null)).toBeNull();

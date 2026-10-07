@@ -37,7 +37,10 @@ import type {
   DiagramPictureUploadOutcome,
   DiagramPoseAction,
   DiagramPulledInto,
+  DiagramPulledMarks,
   DiagramPulledMode,
+  DiagramImportedMarkEdit,
+  PaperExportMarkShown,
   DiagramSourceWorkspace,
   DiagramShowAsName,
   DiagramShowAsVia,
@@ -255,13 +258,25 @@ export function trackDiagramReferencesBrowserOpened(into: DiagramPulledInto): vo
 export function trackDiagramStepsPulledFromReferences(
   mode: DiagramPulledMode,
   into: DiagramPulledInto,
-  count: number
+  count: number,
+  shown: { letters: PaperExportMarkShown; reference_lines: PaperExportMarkShown; marks: DiagramPulledMarks }
 ): void {
   track(ANALYTICS_EVENTS.diagramStepsPulledFromReferences, {
     mode,
     into,
     count_bucket: bucketCount(count, COUNT_BUCKETS),
+    ...shown,
   });
+}
+
+/**
+ * A mark a References card brought edited for the first time, or taken
+ * away (17d): its kind — a pulled letter is a `label` — and which. Fired by
+ * the edit, so after an undo a fresh edit counts again: a rough count of
+ * whether people edit what they pull. Never the mark.
+ */
+export function trackDiagramImportedMarkEdited(kind: DiagramAnnotationTool, edit: DiagramImportedMarkEdit): void {
+  track(ANALYTICS_EVENTS.diagramImportedMarkEdited, { kind, edit });
 }
 
 /** The Diagram's view switched, by the tabs or a verb that shows the pages. */

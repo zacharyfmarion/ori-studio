@@ -156,6 +156,21 @@ describe('settingsStore', () => {
     expect((await freshSettingsStore()).getState().diagramAnnotateLineColor).toBeNull();
   });
 
+  it('pulls every mark of a References card until the Show menu hides one, and remembers the choice (17d)', async () => {
+    const key = storageKey(STORAGE_KEYS.diagramReferencesMarks);
+    localStorage.removeItem(key);
+    expect((await freshSettingsStore()).getState().diagramReferencesMarks).toEqual({ letters: true, highlights: true });
+    useSettingsStore.getState().setDiagramReferencesMarks({ letters: false, highlights: true });
+    expect(useSettingsStore.getState().diagramReferencesMarks).toEqual({ letters: false, highlights: true });
+    expect((await freshSettingsStore()).getState().diagramReferencesMarks).toEqual({ letters: false, highlights: true });
+    // Both shown again forgets the key; a hand-edited one reads mark by mark, as export's do.
+    useSettingsStore.getState().setDiagramReferencesMarks({ letters: true, highlights: true });
+    expect(localStorage.getItem(key)).toBeNull();
+    localStorage.setItem(key, JSON.stringify({ letters: 'no', highlights: false }));
+    expect((await freshSettingsStore()).getState().diagramReferencesMarks).toEqual({ letters: true, highlights: false });
+    localStorage.removeItem(key);
+  });
+
   it('sets the next label in today’s look until a Text Style is chosen, and remembers one option by option (17b)', async () => {
     const key = storageKey(STORAGE_KEYS.diagramAnnotateTextStyle);
     localStorage.removeItem(key);

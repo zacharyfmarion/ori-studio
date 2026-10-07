@@ -776,7 +776,9 @@ function bodyDistance(
  * What a press at `point` takes hold of: an end of the selected annotation
  * first — the dots it shows (`annotationEnds`) — then the topmost annotation
  * whose body is within reach: a callout by its box, which moves alone, or
- * its line, which moves the whole. Null for empty paper.
+ * its line, which moves the whole; a label by its words, and by its halo or
+ * the margin round them only where nothing under it is within reach. Null
+ * for empty paper.
  */
 /** The marks filled with the page inside their outline: they hide what was drawn under them. */
 const HOLLOW_KINDS: ReadonlySet<DiagramAnnotationKind> = new Set(['push-arrow', 'white-arrow']);
@@ -848,9 +850,16 @@ export function hitAnnotation(
     ...known.filter((annotation) => annotation.kind === 'callout'),
     ...known.filter((annotation) => annotation.kind === 'label'),
   ];
+  // A label pressed on its halo or the margin round it, not its words: taken only when nothing under it is (17d
+  // review). A pulled letter hangs beside its ring, its halo over the ring's near rim, which is the ring's to take.
+  let margin: AnnotationGrip | null = null;
   for (let index = drawn.length - 1; index >= 0; index -= 1) {
     const annotation = drawn[index]!;
     if (bodyDistance(annotation, point, sizes, marks) > sizes.tolerance) continue;
+    if (annotation.kind === 'label' && annotation.id !== selectedId && bodyDistance({ ...annotation, halo: undefined }, point, sizes, marks) > 0) {
+      margin ??= { annotationId: annotation.id, part: 'body' };
+      continue;
+    }
     if (annotation.kind === 'circle' && annotation.id !== selectedId) {
       // A hollow arrow drawn after a circle is filled with the page over it:
       // where it covers the press, the circle is hidden, and the press goes
@@ -874,7 +883,7 @@ export function hitAnnotation(
     const onBox = annotation.kind === 'callout' && calloutDistances(annotation, point, sizes.calloutPen).box <= sizes.tolerance;
     return { annotationId: annotation.id, part: onBox ? 'box' : 'body' };
   }
-  return null;
+  return margin;
 }
 
 /**

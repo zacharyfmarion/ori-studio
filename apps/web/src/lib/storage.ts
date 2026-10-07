@@ -89,6 +89,12 @@ export const STORAGE_KEYS = {
    * option that does not read, is today's plain label's.
    */
   diagramAnnotateTextStyle: 'diagram-annotate-text-style',
+  /**
+   * Which of a References card's marks the Diagram's References browser pulls
+   * (17d, its Show menu): `{ letters, highlights }` as JSON, read as export's
+   * marks are (`normalizePaperExportMarks`). Absent, both.
+   */
+  diagramReferencesMarks: 'diagram-references-marks',
   /** Whether Annotate's tool window is collapsed to its header (`ToolHintWindow`). */
   diagramToolHintCollapsed: 'diagram-tool-hint-collapsed',
   /** Play a step's fold on arriving at its card in the References workspace. */

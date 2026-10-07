@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DiagramStep, KnownDiagramAnnotation } from '../document/diagramDocument';
-import { cpStep, scenePicture } from '../document/diagramSteps.fixtures';
+import { cpStep, referencesStep, scenePicture, stepDiagramPicture } from '../document/diagramSteps.fixtures';
 import { fromBox, stepWindow } from '../zoom/zoomFrames';
 import {
   PASTE_DIVISIONS_OFFSET_MM,
@@ -50,6 +50,44 @@ describe('annotations on the clipboard', () => {
     expect(pastedAnnotations(clipboard, 'step-1', () => 'annotation-3')[0]!.offset).toBe(15);
     // In place, as it was, on another step.
     expect(pastedAnnotations(clipboard, 'step-2', () => 'annotation-4')[0]).toEqual({ ...divisions, id: 'annotation-4' });
+  });
+
+  // 17d: a mark lifted from a card is the card's on a step that shows that card, the author's anywhere else.
+  it('keeps a pulled mark the card’s only on a step showing the same card, front or back', () => {
+    const ring: KnownDiagramAnnotation = { id: 'r', kind: 'circle', from: [0, 1], to: [0, 1], imported: 'edited' };
+    const pulled = (id: string, key: string, mirrored = false): DiagramStep => ({
+      ...referencesStep(id),
+      picture: { ...stepDiagramPicture(mirrored), key },
+      annotatedPictureKey: key,
+    });
+    const from = pulled('step-1', 'steps-c-marks');
+    const clipboard = annotationClipboard([ring], 'step-1', { cut: true, view: copiedView(from) });
+    expect(clipboard.view?.card).toBe('steps-c');
+    // Cut and pasted back: still the card's.
+    expect(pastedAnnotations(clipboard, 'step-1', () => 'p-1', from)[0]).toEqual({ ...ring, id: 'p-1' });
+    // Onto the card's back, or its baked picture on an older step: the card's.
+    expect(pastedAnnotations(clipboard, 'step-2', () => 'p-2', pulled('step-2', 'steps-c-marks-back', true))[0]?.imported).toBe('edited');
+    expect(pastedAnnotations(clipboard, 'step-3', () => 'p-3', pulled('step-3', 'steps-c'))[0]?.imported).toBe('edited');
+    // Onto another card, or another picture: the author's.
+    expect(pastedAnnotations(clipboard, 'step-4', () => 'p-4', pulled('step-4', 'steps-d-marks'))[0]).toEqual({ ...ring, id: 'p-4', imported: undefined });
+    expect(pastedAnnotations(clipboard, 'step-5', () => 'p-5', cpStep('step-5'))[0]).not.toHaveProperty('imported');
+    // Copied from a step that is no card's, a tag goes too.
+    const plain = annotationClipboard([ring], 'step-6', { view: copiedView(cpStep('step-6')) });
+    expect(plain.view).not.toHaveProperty('card');
+    expect(pastedAnnotations(plain, 'step-1', () => 'p-6', from)[0]).not.toHaveProperty('imported');
+  });
+
+  // 17d review: a second P pasted beside the card's own would go with the card on the next Replace, unsaid.
+  it('makes a pulled mark pasted beside a copy of itself the author’s', () => {
+    const letter: KnownDiagramAnnotation = { id: 'p', kind: 'label', from: [0, 1], to: [0, 1], text: 'P', imported: 'untouched' };
+    const from: DiagramStep = { ...referencesStep('step-1'), picture: { ...stepDiagramPicture(), key: 'steps-c-marks' }, annotatedPictureKey: 'steps-c-marks' };
+    // Copied: the original still lies on its step, so the copy pasted there is a second P, the author's.
+    const copied = annotationClipboard([letter], 'step-1', { view: copiedView(from) });
+    expect(pastedAnnotations(copied, 'step-1', () => 'p-1', from)[0]).not.toHaveProperty('imported');
+    // Cut, the first paste puts the card's P back; a second paste of it is the author's.
+    const cut = annotationClipboard([letter], 'step-1', { cut: true, view: copiedView(from) });
+    expect(pastedAnnotations(cut, 'step-1', () => 'p-2', from)[0]?.imported).toBe('untouched');
+    expect(pastedAnnotations(pastedOnto(cut, 'step-1'), 'step-1', () => 'p-3', from)[0]).not.toHaveProperty('imported');
   });
 
   it('puts a cut mark back where it was on its own step', () => {

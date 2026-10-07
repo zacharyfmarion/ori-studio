@@ -30,8 +30,10 @@ import type { BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
-import { cleanAnnotation, MAX_STEP_ANNOTATIONS, withAnnotationReach } from '../annotate/annotationModel';
+import { cleanAnnotation, MAX_STEP_ANNOTATIONS, sameAnnotation, withAnnotationReach } from '../annotate/annotationModel';
+import { marksIntoUnits } from '../zoom/zoomFrames';
 import { stepReach } from '../zoom/zoomModel';
+import { authorMarksChanged, authorMarksOf, editedCardMarksGone, isCardMark, releaseCardMarks, withEditTags } from './cardMarks';
 
 /** The version of this document's own shape, inside the project file. */
 export const DIAGRAM_FORMAT_VERSION = 1;
@@ -468,6 +470,13 @@ export interface DiagramReferencesSource {
    * reader's. Absent on a step sent before the browser.
    */
   sentence?: string;
+  /**
+   * Which of the card's marks were pulled (17d): its letters and its
+   * reference lines, as the browser's Show menu had them. A Replace opens the
+   * browser on them, and another way is pulled with them. Absent on a step
+   * pulled before marks were lifted, which pulled every mark.
+   */
+  marks?: { letters: boolean; highlights: boolean };
 }
 
 /**
@@ -913,8 +922,19 @@ export interface KnownDiagramAnnotation {
   rotate?: DiagramRotation;
   /** The axis a turn-over turns the model about. */
   axis?: 'vertical' | 'horizontal';
+  /**
+   * A mark lifted from the References card the step shows (17d): `untouched`
+   * as it was pulled, `edited` once the author changed it. It follows the
+   * card — Replace from References and another way swap it — where a mark
+   * with none is the author's own. Read only on a step that shows a card
+   * (`isCardMark`); unsaid on every mark drawn by hand.
+   */
+  imported?: DiagramImportedMark;
   unknown?: undefined;
 }
+
+/** Where a mark lifted from a References card stands (17d): as pulled, or changed by the author since. */
+export type DiagramImportedMark = 'untouched' | 'edited';
 
 /**
  * An annotation this build cannot read, kept verbatim so a newer build's work
@@ -1384,11 +1404,14 @@ export function setStepPicture(
 ): DiagramDocument {
   const step = stepById(document, stepId);
   if (!step || isLockedStep(step)) return document;
-  return updateStep(withAssets(document, [asset]), stepId, (step) => ({
-    ...step,
-    ...uploadStepParts(asset),
-    revision: step.revision + 1,
-  }));
+  // A card's marks are the author's once its picture is not the card (17d).
+  return updateStep(withAssets(document, [asset]), stepId, (step) =>
+    releaseCardMarks({
+      ...step,
+      ...uploadStepParts(asset),
+      revision: step.revision + 1,
+    })
+  );
 }
 
 /** A linked step's picture as a capture made it: its source, and the picture with any bitmap it is kept as. */
@@ -1422,15 +1445,18 @@ export function setLinkedPicture(
   }
   const withAsset = withAssets(document, link.asset ? [link.asset] : []);
   return updateStep(withAsset, stepId, (current) =>
-    withCarriedAnnotations(
-      current,
-      {
-        ...current,
-        source: withRememberedPoses(current.source, link.source),
-        picture: link.picture,
-        revision: current.revision + 1,
-      },
-      withAsset.assets
+    // A card's marks are the author's once its picture is a capture (17d).
+    releaseCardMarks(
+      withCarriedAnnotations(
+        current,
+        {
+          ...current,
+          source: withRememberedPoses(current.source, link.source),
+          picture: link.picture,
+          revision: current.revision + 1,
+        },
+        withAsset.assets
+      )
     )
   );
 }
@@ -1447,9 +1473,31 @@ function paperFacesOn(picture: DiagramPicture | null): string | undefined {
 /** One References card, as a step is made from it. */
 export interface SentReferencesStep {
   source: DiagramReferencesSource;
+  /** The card's whole picture, its marks in it: what the step shows when they are not lifted. */
   picture: DiagramStepDiagramPicture;
+  /**
+   * The card split (17d): its paper as the picture, its marks as annotations
+   * in picture units, tagged. Null for a card whose marks are past what a
+   * step holds, pulled baked and said so; absent, pulled baked as a card was
+   * before marks were lifted.
+   */
+  lifted?: LiftedCard | null;
   /** The card's sentence: the step's instruction until it is edited. */
   text: string;
+}
+
+/** A References card split (17d): its sheet — the paper, as it stands — and its marks, lifted. */
+export interface LiftedCard {
+  picture: DiagramStepDiagramPicture;
+  annotations: KnownDiagramAnnotation[];
+}
+
+/** What a pull did beyond making steps (17d): the steps a card was pulled baked into, and the edited marks a Replace swapped away. */
+export interface PulledMarks {
+  /** Steps that show their card baked: its marks past what a step holds. */
+  baked: string[];
+  /** Marks lifted from the card a replaced step showed, edited by the author, that went with it. */
+  replaced: number;
 }
 
 /**
@@ -1482,12 +1530,24 @@ export function pullReferencesSteps(
   sent: readonly SentReferencesEntry[],
   anchor: DiagramPullAnchor,
   { newId = randomDiagramId }: { newId?: DiagramIdFactory } = {}
-): { document: DiagramDocument; stepIds: string[]; turnIds: string[] } {
-  if (sent.length === 0) return { document, stepIds: [], turnIds: [] };
-  const make = (card: SentReferencesEntry): DiagramEntry =>
-    'kind' in card
-      ? createTurn(card, newId)
-      : { ...createStep(newId), source: card.source, picture: card.picture, text: xmlText(card.text) };
+): { document: DiagramDocument; stepIds: string[]; turnIds: string[] } & PulledMarks {
+  const baked: string[] = [];
+  if (sent.length === 0) return { document, stepIds: [], turnIds: [], baked, replaced: 0 };
+  /** The card as a new step: its marks lifted, in step with its sheet, when they fit (17d). */
+  const make = (card: SentReferencesEntry): DiagramEntry => {
+    if ('kind' in card) return createTurn(card, newId);
+    const step = createStep(newId);
+    const lifted = card.lifted && card.lifted.annotations.length <= MAX_STEP_ANNOTATIONS ? card.lifted : null;
+    if (!lifted && card.lifted !== undefined) baked.push(step.id);
+    const picture = lifted?.picture ?? card.picture;
+    return {
+      ...step,
+      source: card.source,
+      picture,
+      ...(lifted ? { annotations: [...lifted.annotations], annotatedPictureKey: picture.key } : {}),
+      text: xmlText(card.text),
+    };
+  };
   const insertAt = (index: number, cards: readonly SentReferencesEntry[], into = document) => {
     const entries = cards.map(make);
     return {
@@ -1496,7 +1556,7 @@ export function pullReferencesSteps(
       turnIds: entries.filter(isTurn).map((turn) => turn.id),
     };
   };
-  if (anchor.kind === 'end') return insertAt(document.steps.length, sent);
+  if (anchor.kind === 'end') return { ...insertAt(document.steps.length, sent), baked, replaced: 0 };
   const at = stepIndex(document, anchor.stepId);
   const target = stepById(document, anchor.stepId);
   const firstStep = sent.findIndex((card) => !('kind' in card));
@@ -1504,7 +1564,7 @@ export function pullReferencesSteps(
     // Into a step that cannot take a card, or with no card that makes one: after it — a turn sent for
     // an empty step goes before it, which stays for the card that fills it.
     const before = target && firstStep < 0 && anchor.kind !== 'after' && anchorTakesCard(document, anchor);
-    return insertAt(at < 0 ? document.steps.length : before ? at : at + 1, sent);
+    return { ...insertAt(at < 0 ? document.steps.length : before ? at : at + 1, sent), baked, replaced: 0 };
   }
   const first = sent[firstStep] as SentReferencesStep;
   const leading = sent.slice(0, firstStep);
@@ -1515,20 +1575,81 @@ export function pullReferencesSteps(
     const own = step.source?.kind === 'references-step' ? step.source.sentence : undefined;
     return own !== undefined && step.text === own ? xmlText(first.text) : step.text;
   };
-  const taken = updateStep(document, target.id, (step) => ({
-    ...step,
-    source: first.source,
-    picture: first.picture,
-    text: words(step),
-    revision: step.revision + 1,
-  }));
+  // The card's marks follow the card (RM6): every one the old card brought
+  // goes, edited or not, the new card's arrive, and the author's stay.
+  let replaced = 0;
+  const taken = updateStep(document, target.id, (step) => {
+    const lifted = fits(step, first.lifted) ? first.lifted : null;
+    if (!lifted && first.lifted !== undefined) baked.push(step.id);
+    const next: DiagramStep = {
+      ...step,
+      source: first.source,
+      picture: lifted?.picture ?? first.picture,
+      text: words(step),
+      revision: step.revision + 1,
+    };
+    const swapped = swapCardMarks(step, next, lifted?.annotations ?? [], document.assets);
+    replaced = editedCardMarksGone(step, swapped);
+    return swapped;
+  });
   const before = insertAt(at, leading, taken);
   const after = insertAt(at + leading.length + 1, rest, before.document);
   return {
     document: after.document,
     stepIds: [target.id, ...after.stepIds],
     turnIds: [...before.turnIds, ...after.turnIds],
+    baked,
+    replaced,
   };
+}
+
+/** Whether a card's lifted marks fit on `step` beside the author's own (17d): a step holds no more than a file keeps. */
+function fits(step: DiagramStep, lifted: LiftedCard | null | undefined): lifted is LiftedCard {
+  return !!lifted && lifted.annotations.length + authorMarksOf(step).length <= MAX_STEP_ANNOTATIONS;
+}
+
+/**
+ * A References step given another card or another way (17d, RM6): `next`,
+ * the step with its new source and picture, with every mark the old card
+ * brought taken away — edited or not, so trying another way never leaves two
+ * arrows or two Ps — the new card's `arriving` first, in the step's units
+ * (an enlarged step's window, `marksIntoUnits`), then the author's own, kept
+ * where they were. Those are in step with the new picture if it is the
+ * picture they were drawn on, or the same card's sheet seen from the same
+ * side — its marks lifted now where they were baked, or pulled again — whose
+ * paper has not moved under them (as Make Editable keeps them, §9); with
+ * none, the step's marks are all the card's and in step with it.
+ */
+export function swapCardMarks(
+  was: DiagramStep,
+  next: DiagramStep,
+  arriving: readonly KnownDiagramAnnotation[],
+  assets: Readonly<Record<string, DiagramAsset>>
+): DiagramStep {
+  const own = next.annotations.filter((annotation) => !isCardMark(was, annotation));
+  const placed = arriving.length > 0 ? marksIntoUnits(next, arriving, assets) : [];
+  const key = own.length === 0 || sameSheetInStep(was, next) ? (next.picture?.key ?? null) : next.annotatedPictureKey;
+  if (placed.length === 0 && own.length === next.annotations.length) {
+    return key === next.annotatedPictureKey ? next : { ...next, annotatedPictureKey: key };
+  }
+  return { ...next, annotations: [...placed, ...own], annotatedPictureKey: key };
+}
+
+/**
+ * Whether a References step's author's marks were in step with the card it
+ * showed, `was`, and `next` shows the same card from the same side: one
+ * sheet, its marks in the picture or lifted from it, so the paper under them
+ * has not moved.
+ */
+function sameSheetInStep(was: DiagramStep, next: DiagramStep): boolean {
+  const [before, after] = [was.picture, next.picture];
+  return (
+    before?.kind === 'step-diagram' &&
+    after?.kind === 'step-diagram' &&
+    was.annotatedPictureKey === before.key &&
+    before.mirrored === after.mirrored &&
+    stepDiagramCardKey(before.key) === stepDiagramCardKey(after.key)
+  );
 }
 
 /**
@@ -1551,6 +1672,28 @@ export function stepDiagramKey(modelKey: string, mirrored: boolean): string {
 }
 
 const BACK_SUFFIX = '-back';
+
+/** What a card's sheet with its marks lifted is keyed by (17d): after the card's own key, before the side's. */
+const MARKS_SUFFIX = '-marks';
+
+/**
+ * The card a References picture shows, by its key (17d): the same on either
+ * side, and whether its marks are in the picture or lifted from it — what
+ * tells two pictures of one card, as the Way chooser and a paste do.
+ */
+export function stepDiagramCardKey(key: string): string {
+  const front = stepDiagramKey(key, false);
+  return front.endsWith(MARKS_SUFFIX) ? front.slice(0, -MARKS_SUFFIX.length) : front;
+}
+
+/**
+ * The key of a card's sheet with its marks lifted (17d): the card's own,
+ * marked `-marks`, then `-back` for the back. Never the baked picture's, so no
+ * paint cache mixes a picture with its marks and one without.
+ */
+export function liftedStepDiagramKey(cardKey: string, mirrored: boolean): string {
+  return stepDiagramKey(`${stepDiagramCardKey(cardKey)}${MARKS_SUFFIX}`, mirrored);
+}
 
 /**
  * Show a References step from one side or the other (D5: its pose is Turn
@@ -1582,21 +1725,27 @@ export function setReferencesSide(document: DiagramDocument, stepId: string, mir
 export function setReferencesWay(
   document: DiagramDocument,
   stepId: string,
-  way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string }
+  way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string; lifted?: LiftedCard | null }
 ): DiagramDocument {
   return updateStep(document, stepId, (step) => {
     if (step.source?.kind !== 'references-step' || step.picture?.kind !== 'step-diagram') return step;
-    if (step.source.way === way.signature && step.picture.key === way.picture.key) return step;
+    // The way it shows, baked or lifted: the same card.
+    if (step.source.way === way.signature && stepDiagramCardKey(step.picture.key) === stepDiagramCardKey(way.picture.key)) {
+      return step;
+    }
     const sentence = xmlText(way.sentence);
     const own = step.source.sentence;
+    // Lifted with the step's own choice of marks, when they fit beside the author's (17d).
+    const lifted = fits(step, way.lifted) ? way.lifted : null;
     const chosen: DiagramStep = {
       ...step,
       source: { ...step.source, way: way.signature, sentence },
-      picture: way.picture,
+      picture: lifted?.picture ?? way.picture,
       text: own !== undefined && step.text === own ? sentence : step.text,
       revision: step.revision + 1,
     };
-    return withCarriedAnnotations(step, chosen, document.assets);
+    // The card's marks follow the card (RM6); the author's stay where they were on a picture that changed (D8).
+    return swapCardMarks(step, withCarriedAnnotations(step, chosen, document.assets), lifted?.annotations ?? [], document.assets);
   });
 }
 
@@ -1659,7 +1808,9 @@ export function setUploadPose(
  * A step's annotations edited: `edit` gets the readable ones and returns them
  * as they should be; one this build cannot read keeps its place. Touching
  * them marks them drawn on the picture the step has now (D8: "until they are
- * touched"). A step with no picture takes none.
+ * touched") — the author's: a mark a References card brought is in step
+ * whatever, so touching only those leaves the author's out of step as they
+ * were, under the notice (17d). A step with no picture takes none.
  */
 export function editStepAnnotations(
   document: DiagramDocument,
@@ -1669,12 +1820,17 @@ export function editStepAnnotations(
   return updateStep(document, stepId, (step) => {
     if (step.picture === null) return step;
     const known = step.annotations.filter(isKnownAnnotation);
-    // As this build writes them, whoever made them: within the step's reach, a label's text clean.
-    const edited = withAnnotationReach(stepReach(step), () => edit(known).map(cleanAnnotation));
+    // As this build writes them, whoever made them: within the step's reach, a label's text clean;
+    // a mark its card brought, `edited` once it says anything else (17d).
+    const edited = withAnnotationReach(stepReach(step), () =>
+      withEditTags(known, edit(known).map(cleanAnnotation), cleanAnnotation)
+    );
     if (sameAnnotations(edited, known)) return step;
     // A step holds no more than a file keeps.
     if (edited.length + (step.annotations.length - known.length) > MAX_STEP_ANNOTATIONS) return step;
-    return { ...step, annotations: mergeAnnotations(step.annotations, edited), annotatedPictureKey: step.picture.key };
+    const next: DiagramStep = { ...step, annotations: mergeAnnotations(step.annotations, edited) };
+    const touched = !annotationsOutOfStep(step) || authorMarksChanged(step, next);
+    return touched ? { ...next, annotatedPictureKey: step.picture.key } : next;
   });
 }
 
@@ -1691,9 +1847,13 @@ export function keepStepAnnotations(document: DiagramDocument, stepId: string): 
   );
 }
 
-/** Whether a step's annotations were drawn on a picture other than the one it has (D8). */
+/**
+ * Whether a step's annotations were drawn on a picture other than the one it
+ * has (D8): the author's — the marks a References card brought are made for
+ * the picture they arrive with, and every carry takes them along (17d).
+ */
 export function annotationsOutOfStep(step: DiagramStep): boolean {
-  return step.annotations.length > 0 && step.annotatedPictureKey !== (step.picture?.key ?? null);
+  return authorMarksOf(step).length > 0 && step.annotatedPictureKey !== (step.picture?.key ?? null);
 }
 
 /**
@@ -1724,17 +1884,17 @@ function mergeAnnotations(
  * value it already shows builds a new annotation, and must not cost an undo step.
  */
 function sameAnnotations(a: readonly KnownDiagramAnnotation[], b: readonly KnownDiagramAnnotation[]): boolean {
-  return (
-    a.length === b.length &&
-    a.every((annotation, index) => annotation === b[index] || JSON.stringify(annotation) === JSON.stringify(b[index]))
-  );
+  return a.length === b.length && a.every((annotation, index) => sameAnnotation(annotation, b[index]));
 }
 
-/** Take a step's picture away, and its source with it. Its words and annotations stay. */
+/**
+ * Take a step's picture away, and its source with it. Its words and
+ * annotations stay — a card's marks the author's now (17d).
+ */
 export function removeStepPicture(document: DiagramDocument, stepId: string): DiagramDocument {
   return updateStep(document, stepId, (step) =>
     stepHasPicture(step)
-      ? { ...step, source: null, picture: null, revision: step.revision + 1 }
+      ? releaseCardMarks({ ...step, source: null, picture: null, revision: step.revision + 1 })
       : step
   );
 }

@@ -1,9 +1,9 @@
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { trackDiagramPicturePosed } from '../../analytics';
 import { reportError } from '../../monitoring';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramStep } from '../document/diagramDocument';
+import { chooseReferencesWay } from './referencesPulledSteps';
 import { referencesStepWays, type ReferencesStepWay } from './referencesStepWays';
 import { useDecodedPlan, useReferencesSheets } from './useReferencesSheets';
 
@@ -50,9 +50,7 @@ export function useReferencesStepWays(step: DiagramStep | null): ReferencesStepW
     (index: number) => {
       if (stepId === null || readOnly || drawn?.status !== 'ready') return;
       const way = drawn.ways[index];
-      if (way && useWorkspaceStore.getState().setDiagramReferencesWay(stepId, way)) {
-        trackDiagramPicturePosed('choose_way', 'references');
-      }
+      if (way) chooseReferencesWay(stepId, way);
     },
     [stepId, readOnly, drawn]
   );
