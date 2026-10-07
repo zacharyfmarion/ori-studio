@@ -431,6 +431,18 @@ describe('useSimulatorToolBinding, through a host’s own port', () => {
     ]);
   });
 
+  it('counts and reports nothing for a pose a restore ended: that was the host’s doing', () => {
+    const state = fakeToolState('orbit');
+    render(options(state.port));
+
+    act(() => tools().observeFrame(quietFrame({ posed: true })));
+    act(() => tools().observeFrame(quietFrame({ posed: false, poseEnded: 'restore' })));
+
+    expect(tools().view.posed).toBe(false);
+    expect(hand).toEqual([]);
+    expect(tracked.filter((entry) => entry.event === 'simulator pose released')).toEqual([]);
+  });
+
   it('reports nothing for a Spring back the session no longer had', async () => {
     const state = fakeToolState('orbit');
     const runtime = fakeRuntime({ releasePose: vi.fn(async () => null) });

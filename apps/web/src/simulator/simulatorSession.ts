@@ -26,6 +26,7 @@ import {
   SimulationClock,
   WebglSolver,
   cameraUniforms,
+  createSolverShape,
   glContextAttributeOverrides,
   meshTopologyFor,
   meshToPaperScene,
@@ -55,6 +56,18 @@ import {
   type SimulatorPullStart,
   type SimulatorScreenPoint,
 } from './pickQuery';
+import {
+  facesAtPinPoints,
+  pinPointsOf,
+  shapeStateOf,
+  SIMULATOR_SHAPE_MAX_BYTES,
+  simulatorShapeBytes,
+  simulatorSheetOf,
+  solverShapeOf,
+  type SimulatorPinSheet,
+  type SimulatorShape,
+  type SimulatorSheet,
+} from './simulatorShape';
 
 // The simulator's solver, off the main thread.
 //
@@ -108,6 +121,12 @@ export interface SimulatorLoadOptions {
    * {@link SimulatorFraming}. `'anchor'` when omitted, which is Simulate's.
    */
   framing?: SimulatorFraming;
+  /**
+   * A shape to put the paper in before the first frame, at the solver's
+   * `foldPercent`, as {@link SimulatorWorkerApi.restoreShape} would. What it
+   * did comes back as the model's `restored`.
+   */
+  shape?: SimulatorShape | null;
 }
 
 /** What a new session should look through, when its owner already knows. */
@@ -174,6 +193,8 @@ export interface SimulatorModelInfo {
    */
   faceGroups: ArrayBuffer;
   diagnostics: SimulatorDiagnostics;
+  /** What the load's `shape` did; null when it was given none. */
+  restored: SimulatorShapeRestore | null;
   /** Which solver actually got selected, for the UI's backend indicator. */
   backend: SimulatorBackendId;
   /** Quote this on later calls; see {@link SimulatorSessionToken}. */
@@ -238,9 +259,30 @@ export interface SimulatorFramePayload {
 
 /**
  * What ended a pose: the fold target moving (play, a scrub, a step, a jump), a
- * reset back to flat, or an explicit request to let it spring back.
+ * reset back to flat, an explicit request to let it spring back, or a shape
+ * put back over it (`restoreShape`), which is the host's doing and no one's
+ * gesture: analytics counts no `restore`.
  */
-export type SimulatorPoseEnd = 'fold' | 'reset' | 'request';
+export type SimulatorPoseEnd = 'fold' | 'reset' | 'request' | 'restore';
+
+/**
+ * A shape read from a session (`readShape`), or why there is none: a pull is
+ * in the hand, the sheet's order cannot be decided (`simulatorShape.ts`), or
+ * the model is past {@link SIMULATOR_SHAPE_MAX_BYTES}.
+ */
+export type SimulatorShapeRead = SimulatorShape | 'pulling' | 'ambiguous' | 'too-large';
+
+/**
+ * What a restore did: the faces it pinned and whether the paper is posed, or
+ * `mismatch` when the shape is not this sheet's, in which case nothing changed.
+ */
+export type SimulatorShapeRestore = { pins: number[]; posed: boolean } | 'mismatch';
+
+/** A restore: the fold target, and the shape to put on it, or null for the free paper at that fold. */
+export interface SimulatorRestoreRequest {
+  foldPercent: number;
+  shape: SimulatorShape | null;
+}
 
 /**
  * The frame the canvas-2D path drew, for a pull to be answered against. That
@@ -305,6 +347,10 @@ interface Session {
   faceGroups: Int32Array;
   /** The nodes the pins hold; null when nothing is pinned. What a pull pulls against. */
   pinnedNodes: Uint8Array | null;
+  /** The faces those pins are, ascending: what a shape read names as points. */
+  pinnedFaces: number[];
+  /** The flat sheet's order and key, worked out the first time a shape needs it. */
+  sheet: SimulatorSheet | null;
   /**
    * A pull has been let go and kept: the paper holds a pose. Not the backend's
    * `posed`, which is true from the press on, so a first pull still in the hand
@@ -1237,12 +1283,16 @@ const api = {
       lastUsed: ++useCounter,
       gpuRender: gpuSolver && renderCanvas ? gpuSolver : null,
       pinnedNodes: null,
+      pinnedFaces: [],
+      sheet: null,
       poseKept: false,
       poseEnded: null,
 
     };
     sessions.set(sessionToken, created);
     evictBeyondCap();
+    // Before the first frame, so no frame ever shows the paper without it.
+    const restored = options.shape ? restore(created, created.foldPercent, options.shape) : null;
 
 
     const indices = prepared.indices.slice();
@@ -1284,6 +1334,7 @@ const api = {
         sheet: sheetExtent(model.originalPositions),
         faceGroups: faceGroups.slice().buffer as ArrayBuffer,
         diagnostics: backend.readDiagnostics(),
+        restored,
         backend: backendId,
         token: sessionToken,
       },
@@ -1314,44 +1365,9 @@ const api = {
   ): Promise<SimulatorPinResult | null> {
     const active = sessionFor(token);
     if (!active) return null;
-    const known = new Set(active.faceGroups);
-    const pinned = new Set(faces.filter((face) => known.has(face)));
-    const { indices, vertexCount } = active.model.prepared;
-    const mask = new Uint8Array(vertexCount);
-    const triangles: number[] = [];
-    for (let triangle = 0; triangle < active.faceGroups.length; triangle += 1) {
-      if (!pinned.has(active.faceGroups[triangle]!)) continue;
-      triangles.push(triangle);
-      for (let corner = 0; corner < 3; corner += 1) mask[indices[triangle * 3 + corner]!] = 1;
-    }
-    const nodes: number[] = [];
-    for (let node = 0; node < vertexCount; node += 1) if (mask[node]) nodes.push(node);
-
-    active.backend.setFixedNodes(nodes.length > 0 ? mask : null);
-    active.pinnedNodes = nodes.length > 0 ? mask : null;
-    active.gpuRender?.setHighlightTriangles(triangles);
-    // Hold the camera to the pins from where it is framing now, so the pinned
-    // region stays put on screen, unless this session frames the shape; see
-    // `framePins`.
-    framePins(
-      (active.view.framing ??= createFramingFollow()),
-      active.framing,
-      nodes.length > 0 ? Uint32Array.from(nodes) : null,
-      () => {
-        const positions = new Float32Array(vertexCount * 3);
-        active.backend.readPositions(positions);
-        return positions;
-      }
-    );
-    // Released faces have somewhere to go, and a settled clock would not let them.
-    active.clock.invalidate();
-
+    const { applied, dropped } = applyPins(active, faces);
     const bitmap = active.gpuRender ? await renderGpu(active.gpuRender, active.view) : null;
-    const result: SimulatorPinResult = {
-      applied: pinned.size,
-      dropped: new Set(faces).size - pinned.size,
-      bitmap,
-    };
+    const result: SimulatorPinResult = { applied, dropped, bitmap };
     return bitmap ? transfer(result, [bitmap]) : result;
   },
 
@@ -1448,6 +1464,41 @@ const api = {
     if (!active) return null;
     endPose(active, 'request');
     return true;
+  },
+
+  /**
+   * The paper's shape as it is now, keyed by its flat sheet (`simulatorShape.ts`),
+   * or why there is none. Two readbacks on the GPU path and copies on the
+   * CPU's; the sheet's order is worked out once per session. Null for a stale
+   * session.
+   */
+  readShape(token?: SimulatorSessionToken): SimulatorShapeRead | null {
+    const active = sessionFor(token);
+    if (!active) return null;
+    const read = shapeOf(active);
+    return typeof read === 'string' ? read : transfer(read, [read.state.buffer as ArrayBuffer]);
+  },
+
+  /**
+   * Put the paper in a shape at a fold target, in one call, so no frame shows
+   * the one without the other:
+   *
+   * 1. A pose ends quietly (`poseEnded: 'restore'`, which no analytics counts).
+   * 2. The fold target is set.
+   * 3. With a shape, it is written, its pin points are found on the sheet and
+   *    those faces pinned, and it is kept as a pose if it was one. It was at
+   *    rest when read, so the solver is left settled and the paper stays
+   *    exactly as written until something changes. With null, the pins are
+   *    let go, the paper goes flat, and it folds to the target freely: the
+   *    orientation pins left behind is not kept.
+   *
+   * A shape from another sheet answers `mismatch` and changes nothing. Null
+   * for a stale session.
+   */
+  restoreShape(request: SimulatorRestoreRequest, token?: SimulatorSessionToken): SimulatorShapeRestore | null {
+    const active = sessionFor(token);
+    if (!active) return null;
+    return restore(active, request.foldPercent, request.shape);
   },
 
   /**
@@ -2264,6 +2315,113 @@ function followFit(solver: WebglSolver, state: SessionView, settled: boolean): b
   state.radius = framing.radius;
   state.fitted = true;
   return arrived;
+}
+
+/**
+ * Hold exactly these faces: fix their triangles' nodes, tint them, and frame
+ * them as the session frames pins. Ids this model does not have are dropped
+ * and counted.
+ */
+function applyPins(active: Session, faces: readonly number[]): { applied: number; dropped: number } {
+  const known = new Set(active.faceGroups);
+  const pinned = new Set(faces.filter((face) => known.has(face)));
+  const { indices, vertexCount } = active.model.prepared;
+  const mask = new Uint8Array(vertexCount);
+  const triangles: number[] = [];
+  for (let triangle = 0; triangle < active.faceGroups.length; triangle += 1) {
+    if (!pinned.has(active.faceGroups[triangle]!)) continue;
+    triangles.push(triangle);
+    for (let corner = 0; corner < 3; corner += 1) mask[indices[triangle * 3 + corner]!] = 1;
+  }
+  const nodes: number[] = [];
+  for (let node = 0; node < vertexCount; node += 1) if (mask[node]) nodes.push(node);
+
+  active.backend.setFixedNodes(nodes.length > 0 ? mask : null);
+  active.pinnedNodes = nodes.length > 0 ? mask : null;
+  active.pinnedFaces = [...pinned].sort((a, b) => a - b);
+  active.gpuRender?.setHighlightTriangles(triangles);
+  // Hold the camera to the pins from where it is framing now, so the pinned
+  // region stays put on screen, unless this session frames the shape; see
+  // `framePins`.
+  framePins(
+    (active.view.framing ??= createFramingFollow()),
+    active.framing,
+    nodes.length > 0 ? Uint32Array.from(nodes) : null,
+    () => {
+      const positions = new Float32Array(vertexCount * 3);
+      active.backend.readPositions(positions);
+      return positions;
+    }
+  );
+  // Released faces have somewhere to go, and a settled clock would not let them.
+  active.clock.invalidate();
+  return { applied: pinned.size, dropped: new Set(faces).size - pinned.size };
+}
+
+/** The flat sheet's order and key, once per session. */
+function sheetOf(active: Session): SimulatorSheet {
+  const { prepared } = active.model;
+  active.sheet ??= simulatorSheetOf({
+    flat: active.model.originalPositions,
+    triangles: prepared.indices,
+    edges: prepared.edgesVertices,
+    creases: prepared.creaseParams,
+  });
+  return active.sheet;
+}
+
+function pinSheetOf(active: Session): SimulatorPinSheet {
+  return { flat: active.model.originalPositions, triangles: active.model.prepared.indices, faceGroups: active.faceGroups };
+}
+
+/** The shape a session's paper is in; see {@link SimulatorWorkerApi.readShape}. */
+function shapeOf(active: Session): SimulatorShapeRead {
+  // Mid-gesture: the paper is under the cursor, not anywhere it was left.
+  if (active.backend.pulling) return 'pulling';
+  const { vertexCount, creaseParams } = active.model.prepared;
+  if (simulatorShapeBytes(vertexCount, creaseParams.length) > SIMULATOR_SHAPE_MAX_BYTES) return 'too-large';
+  const sheet = sheetOf(active);
+  if (sheet.key === null) return 'ambiguous';
+  const solverShape = createSolverShape(vertexCount, creaseParams.length);
+  active.backend.readShape(solverShape);
+  return {
+    sheet: sheet.key,
+    pins: pinPointsOf(sheet, pinSheetOf(active), active.pinnedFaces),
+    posed: active.poseKept,
+    state: shapeStateOf(sheet, solverShape),
+  };
+}
+
+/** Put a shape on a session at a fold target; see {@link SimulatorWorkerApi.restoreShape}. */
+function restore(active: Session, foldPercent: number, shape: SimulatorShape | null): SimulatorShapeRestore {
+  if (shape === null) {
+    endPose(active, 'restore');
+    applyPins(active, []);
+    active.backend.reset();
+    active.backend.setFoldPercent(foldPercent);
+    active.foldPercent = foldPercent;
+    active.clock.reset();
+    holdFraming(active, false);
+    return { pins: [], posed: false };
+  }
+  // Everything checked before anything changes: a mismatch leaves the paper be.
+  const sheet = sheetOf(active);
+  if (sheet.key === null || sheet.key !== shape.sheet) return 'mismatch';
+  const solverShape = solverShapeOf(sheet, shape.state);
+  const faces = facesAtPinPoints(sheet, pinSheetOf(active), shape.pins);
+  if (!solverShape || !faces) return 'mismatch';
+
+  endPose(active, 'restore');
+  active.backend.setFoldPercent(foldPercent);
+  active.foldPercent = foldPercent;
+  active.backend.writeShape(solverShape, shape.posed);
+  applyPins(active, faces);
+  active.poseKept = shape.posed;
+  // The restored shape is framed afresh, held by nothing.
+  holdFraming(active, false);
+  // Read at rest, so at rest: nothing steps it until something changes.
+  active.clock.markSettled();
+  return { pins: faces, posed: shape.posed };
 }
 
 /**

@@ -125,6 +125,17 @@ export class SimulationClock {
     this.lastMaxVelocity = null;
   }
 
+  /**
+   * Count the model as settled where it is: for a state put back exactly as it
+   * was kept (`SolverBackend.writeShape`), which was at rest, so nothing steps
+   * it away from that until something changes and {@link invalidate} starts
+   * the clock again.
+   */
+  markSettled(): void {
+    this.settledTicks = this.options.convergenceTicks;
+    this.lastMaxVelocity = null;
+  }
+
   reset(): void {
     this.settledTicks = 0;
     this.totalSteps = 0;
