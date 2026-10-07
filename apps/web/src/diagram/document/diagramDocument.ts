@@ -1555,7 +1555,9 @@ const BACK_SUFFIX = '-back';
 /**
  * Show a References step from one side or the other (D5: its pose is Turn
  * over). The picture is re-keyed, and its annotations are flipped with it
- * (D8); the source keeps the side the card was sent from.
+ * (D8), each fold named from the side it now shows (RM7: a valley line or
+ * arrow a mountain, and back); the source keeps the side the card was sent
+ * from.
  */
 export function setReferencesSide(document: DiagramDocument, stepId: string, mirrored: boolean): DiagramDocument {
   return updateStep(document, stepId, (step) => {

@@ -132,7 +132,8 @@ function outlineBetween(outline: DiagramZoomOutline, centre: PicturePoint, by: n
 /**
  * Marks moved from one set of units to another — a window, or the whole
  * picture — on one picture, or through `move` from one picture to the next: a
- * scale and a shift, with the move's turn and mirror between.
+ * scale and a shift, with the move's turn and mirror between, and the side it
+ * shows the paper from.
  */
 export function unitsMove(from: PictureBox, to: PictureBox, move?: PictureMove): PictureMove {
   const [fromUnit, toUnit] = [unitOf(from), unitOf(to)];
@@ -142,6 +143,8 @@ export function unitsMove(from: PictureBox, to: PictureBox, move?: PictureMove):
     mirrors: move?.mirrors ?? false,
     turnDeg: move?.turnDeg ?? 0,
     ...(move?.quarterTurns !== undefined ? { quarterTurns: move.quarterTurns } : {}),
+    // Onto the paper's other side, a turn-over's folds are named from there wherever the marks are kept.
+    ...(move?.otherSide ? { otherSide: true as const } : {}),
     ...(move?.vector
       ? {
           vector: ([x, y]: PicturePoint): PicturePoint => {

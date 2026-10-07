@@ -2023,6 +2023,54 @@ export interface PictureMove {
    * moves alike; `point` carries it then.
    */
   corner?: (corner: PicturePoint, inside: PicturePoint) => PicturePoint | null;
+  /**
+   * The picture now shows the paper's other side: a References step turned
+   * over (RM7), whose card names its folds from that side as its own lines
+   * do (`seenFromTheBack`). Every mark that says which way a fold goes is
+   * named from it too ({@link kindFromOtherSide}). Absent, the same side: a
+   * mark flipped in place, an upload mirrored, a crease pattern put on its
+   * back's colour (which moves nothing at all).
+   */
+  otherSide?: true;
+}
+
+/**
+ * The kind a mark is named by from the paper's other side (RM7): a valley
+ * line or arrow seen from the back is a mountain, and a mountain a valley,
+ * as References names a card's folds (`seenFromTheBack`). A shaped arrow's
+ * head is its kind's, so it goes with it. Every other mark says no way to
+ * fold — a fold-and-unfold arrow, a hidden or solid line, a circle, text — or
+ * one no turn-over changes, and keeps its kind. A switch, so a new kind has
+ * to say.
+ */
+export function kindFromOtherSide(kind: DiagramAnnotationKind): DiagramAnnotationKind {
+  switch (kind) {
+    case 'valley-line':
+      return 'mountain-line';
+    case 'mountain-line':
+      return 'valley-line';
+    case 'valley-arrow':
+      return 'mountain-arrow';
+    case 'mountain-arrow':
+      return 'valley-arrow';
+    case 'fold-unfold-arrow':
+    case 'pleat-arrow':
+    case 'push-arrow':
+    case 'white-arrow':
+    case 'turn-over':
+    case 'rotate':
+    case 'hidden-line':
+    case 'solid-line':
+    case 'label':
+    case 'circle':
+    case 'right-angle':
+    case 'callout':
+    case 'angle-mark':
+    case 'divisions':
+    case 'close-up':
+    case 'zoom':
+      return kind;
+  }
 }
 
 /**
@@ -2033,9 +2081,19 @@ export interface PictureMove {
  * done to a path, whose handles are points too; a quarter turn (or three)
  * turns a turn-over's axis. A label's text stays upright; words hung off
  * their anchor (17b) keep their side of it as the picture turns or mirrors,
- * as far off it in print as they were ({@link carryHungText}).
+ * as far off it in print as they were ({@link carryHungText}). Onto the
+ * paper's other side, a fold is named from there ({@link PictureMove.otherSide}),
+ * drawn by hand or not: which way it goes is the paper's.
  */
 export function carryAnnotation(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  const carried = carriedOnPicture(annotation, move);
+  if (!move.otherSide) return carried;
+  const kind = kindFromOtherSide(carried.kind);
+  return kind === carried.kind ? carried : { ...carried, kind };
+}
+
+/** An annotation's every point and side carried through a picture's move ({@link carryAnnotation}), its kind kept. */
+function carriedOnPicture(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
   if (annotation.kind === 'callout') return carryCallout(annotation, move);
   if (isHungText(annotation)) return carryHungText(annotation, move);
   if (annotation.kind === 'close-up') return carryCloseUp(annotation, move);

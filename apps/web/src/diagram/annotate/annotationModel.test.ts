@@ -48,6 +48,7 @@ import {
   carryAnnotation,
   cleanAnnotation,
   createAnnotation,
+  kindFromOtherSide,
   defaultBend,
   flipAnnotationArc,
   frameOf,
@@ -192,6 +193,65 @@ describe('carrying one through its picture’s move', () => {
     // A move that is no mirror leaves it unwritten, drawn as it was.
     const shift = { point: ([x, y]: [number, number]): [number, number] => [x + 0.1, y], mirrors: false, turnDeg: 0 };
     expect(carryAnnotation(arrow, shift).bend).toBeUndefined();
+  });
+});
+
+describe('carrying one onto the paper’s other side (RM7: 17c)', () => {
+  const SIDE = { width: 1, height: 1 };
+  /** A References step turned over: mirrored, and seen from the other side. */
+  const turnOver = { ...mirrorMove(SIDE), otherSide: true as const };
+  const at = (kind: KnownDiagramAnnotation['kind']): KnownDiagramAnnotation => ({ id: kind, kind, from: [0.1, 0.2], to: [0.4, 0.3] });
+
+  it('names a valley line or arrow a mountain, and a mountain a valley', () => {
+    expect(carryAnnotation(at('valley-line'), turnOver)).toEqual({ ...at('valley-line'), kind: 'mountain-line', from: [0.9, 0.2], to: [0.6, 0.3] });
+    expect(carryAnnotation(at('mountain-line'), turnOver).kind).toBe('valley-line');
+    const valley = { ...at('valley-arrow'), bend: 0.1 };
+    expect(carryAnnotation(valley, turnOver)).toEqual({ ...valley, kind: 'mountain-arrow', from: [0.9, 0.2], to: [0.6, 0.3], bend: -0.1 });
+    expect(carryAnnotation(at('mountain-arrow'), turnOver)).toMatchObject({ kind: 'valley-arrow', bend: -ARROW_BEND });
+  });
+
+  it('names a shaped arrow’s fold from there too, every node and handle mirrored with it', () => {
+    const shaped: KnownDiagramAnnotation = {
+      id: 's',
+      kind: 'mountain-arrow',
+      from: [0.2, 0.5],
+      to: [0.6, 0.5],
+      path: [
+        { at: [0.2, 0.5], out: [0.3, 0.2] },
+        { at: [0.6, 0.5], in: [0.5, 0.2] },
+      ],
+    };
+    const turned = carryAnnotation(shaped, turnOver);
+    expect(turned.kind).toBe('valley-arrow');
+    expect(turned.path).toEqual([
+      { at: [0.8, 0.5], out: [0.7, 0.2] },
+      { at: [0.4, 0.5], in: [0.5, 0.2] },
+    ]);
+  });
+
+  it('moves every mark that says no way to fold, and keeps its kind', () => {
+    const folds = new Set(['valley-line', 'mountain-line', 'valley-arrow', 'mountain-arrow']);
+    for (const kind of ANNOTATION_KINDS) {
+      if (folds.has(kind)) expect(kindFromOtherSide(kind), kind).not.toBe(kind);
+      else expect(kindFromOtherSide(kind), kind).toBe(kind);
+    }
+    for (const kind of ['fold-unfold-arrow', 'hidden-line', 'solid-line', 'pleat-arrow', 'push-arrow', 'circle'] as const) {
+      const turned = carryAnnotation(at(kind), turnOver);
+      expect(turned.kind, kind).toBe(kind);
+      expect(turned.from, kind).toEqual([0.9, 0.2]);
+    }
+    const label: KnownDiagramAnnotation = { id: 'l', kind: 'label', from: [0.1, 0.2], to: [0.1, 0.2], text: 'P' };
+    expect(carryAnnotation(label, turnOver)).toEqual({ ...label, from: [0.9, 0.2], to: [0.9, 0.2] });
+  });
+
+  it('names each fold back on the way back, and only on a move onto the other side', () => {
+    for (const kind of ANNOTATION_KINDS) expect(kindFromOtherSide(kindFromOtherSide(kind)), kind).toBe(kind);
+    const valley = at('valley-line');
+    const near = (point: readonly number[]) => point.map((value) => expect.closeTo(value, 12));
+    expect(carryAnnotation(carryAnnotation(valley, turnOver), turnOver)).toEqual({ ...valley, from: near(valley.from), to: near(valley.to) });
+    // A mirror on the same side — an upload flipped, a mark flipped in place — names nothing.
+    expect(carryAnnotation(valley, mirrorMove(SIDE)).kind).toBe('valley-line');
+    expect(flipAnnotation(at('valley-arrow'), 'horizontal').kind).toBe('valley-arrow');
   });
 });
 

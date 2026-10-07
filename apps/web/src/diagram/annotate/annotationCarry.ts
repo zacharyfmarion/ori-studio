@@ -2,9 +2,12 @@
  * Annotations that follow their picture (D8). A pose the app applied — a
  * quarter turn or a flip of an upload, a References step turned over, a
  * linked picture turned about its middle — moves what the picture shows by a
- * known amount, and every annotation is moved with it. A crease pattern's
- * paper put on the other side's colour moves nothing, and every annotation
- * stays where it is, in step with the new picture. Anything else — a refold,
+ * known amount, and every annotation is moved with it. A References step
+ * turned over also shows the paper's other side, so a valley line or arrow
+ * becomes a mountain and a mountain a valley, as the card's own folds do
+ * (RM7). A crease pattern's paper put on the other side's colour moves
+ * nothing and renames nothing (Zach, 2026-10-06), and every annotation stays
+ * where it is, in step with the new picture. Anything else — a refold,
  * a Refresh, a new camera, the other side of a fold, a new picture — leaves
  * them where they were, and Annotate says the picture changed.
  *
@@ -164,8 +167,9 @@ function pictureMove(
     before.picture.model === after.picture.model &&
     before.picture.mirrored !== after.picture.mirrored
   ) {
+    // The card seen from the paper's other side: mirrored, and every fold named from there (RM7).
     const frame = stepPictureFrame(before, assets);
-    return frame ? mirrorMove(frame) : null;
+    return frame ? { ...mirrorMove(frame), otherSide: true } : null;
   }
   if (
     from?.kind === 'cp' &&
