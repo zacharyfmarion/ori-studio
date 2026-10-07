@@ -1,6 +1,7 @@
 # Diagram: placing things on the page by hand
 
-**Status: planned 2026-10-07. Nothing is built. Decisions 1–6 are DECIDED: all A** (Zach, 2026-10-07: "in this case i agree with all the decision for the diagram page - you can go ahead and start building once the plan is up to date"). The same day he asked for flow pages to take a number of steps instead of rows and columns; that is Phase 1b.
+**Status: Phase 1 built 2026-10-07 (the model, the file and the clearing, no UI; as-built notes under Phase 1). Phase 1b is next. Decisions 1–6 are DECIDED: all A** (Zach, 2026-10-07: "in this case i agree with all the decision for the diagram page - you can go ahead and start building once the plan is up to date"). The same day he asked for flow pages to take a number of steps instead of rows and columns; that is Phase 1b.
+Phase 1's review amended four things here, each marked *(amended in Phase 1)*: what a cell is (a page keeps its number or its first step), the frame's vertical part (stored across the rows in reading order), what a flow page's shape reads (Phase 1b), and step files laying out an unplaced diagram.
 This builds on D10 (pages come from one pure layout; Fit each), D11 (export),
 D22 (turn glyphs) and the flow lane in `implementation-plans/diagram-workspace.md`,
 and on Revision 2's enlarged steps (16f, `implementation-plans/diagram-revision-2.md`).
@@ -101,8 +102,8 @@ On the step, as a new optional field, next to `zoom`:
 ```ts
 /** Hand placement on the printed pages. Every field optional; absent means computed. */
 interface DiagramStepPlace {
-  /** The whole step, away from its cell: mm along its row's reading direction, and down the page. */
-  frame?: [along: number, down: number];
+  /** The whole step, away from its cell: mm along its row's reading direction, and across the rows toward the page's next one. */
+  frame?: [along: number, across: number];
   /** Each part away from where the layout puts it inside the frame: mm, page axes (+x right, +y down). */
   number?: [dx: number, dy: number];
   picture?: [dx: number, dy: number];
@@ -122,16 +123,30 @@ interface DiagramStepPlace {
 - **Parts in page axes.** A cell is laid out the same way in every row (the
   number top left, the text under the picture), so a part's offset is never
   mirrored.
-- **The frame along its row.** A frame offset is usually about the step's
-  neighbours: room for a glyph between two steps, a big picture beside it.
-  Those flip sides when a row's reading direction flips, so the horizontal
-  part is stored along the reading direction (`dx = rightToLeft ? −along :
-  along`; grid rows always read left to right) and the vertical part down the
-  page. This also keeps a frame where it belongs when a row flips without the
-  step moving. With an even row count, appending a page turns the old last
-  page's exit into the spine, and `flowPagePlan` then reverses every row on
-  it (`flowLane.ts:123–125`). A First page Left/Right change does the same
-  to every page.
+- **The frame in the page's reading terms** *(amended in Phase 1)*. A frame
+  offset is usually about the step's neighbours: room for a glyph between two
+  steps or at a row break, a big picture beside it. Those flip sides when the
+  page's reading order flips, so both parts are stored in reading terms:
+  - the horizontal part along the row's reading direction:
+    `dx = rightToLeft ? −along : along` (grid rows always read left to right);
+  - the vertical part across the rows, toward the page's next row:
+    `dy = up ? −across : across` (grid pages and most flow pages read
+    downward; a flow page whose lane comes in at its spine reads its rows up
+    from the foot, `flowLane.ts:126`).
+
+  This keeps a frame where it belongs when a page flips without the step
+  moving. With an even row count, appending a page turns the old last page's
+  exit into the spine, and `flowPagePlan` then reverses every row on it
+  (`flowLane.ts:123–125`). A First page Left/Right change, or a page added or
+  removed before a page a page break holds, changes the page's side, which
+  mirrors its rows top to bottom as well (`up`) and reverses them.
+  - Phase 1's first version stored the vertical part down the page. Its
+    review showed a side change moving a step from the bottom row to the top
+    (`artifacts/page-overrides/po1/review/upflip.mjs`), where "down" points
+    at the neighbour it was moved away from. Keying the cell by `up` instead
+    would have cleared every frame on half the pages at a First page change,
+    which Decision 1A keeps. No build writes `place` before Phase 3, so the
+    meaning could still change at no cost.
 - **Scale.** The pin has the `PictureMeasure` shape the layout already passes
   around: `mmPerUnit` for a picture that knows its paper, `frameMm` for a
   fitted one. The panes show it as printed mm (`printedFrameMm`). A pin
@@ -158,6 +173,12 @@ interface DiagramStepPlace {
   placement edit on that step is refused. This departs from the `zoom`
   precedent, which locks the step, on purpose: placement is presentation, and
   a locked step prints with no picture (`pictures/paintDiagramStep.ts:145`).
+  - Its `frame` is a key this build knows, and it belongs to the step's cell,
+    so it is the one part of the record this build changes *(amended in
+    Phase 1)*: it goes home when the step changes cell, counted with this
+    build's, and a duplicate does not copy it. Otherwise a newer build would
+    apply it in a cell it was never set for. `duplicateStep` already rewrites
+    a known field (`id`) inside an annotation's raw record.
 - Never stored: positions in page mm, home cells, clashes, whether a pin
   applies, the ribbon.
 - **No older reader exists yet.** `origin/main` holds 0 files under
@@ -191,15 +212,29 @@ interface DiagramStepPlace {
   `discardDiagramState` (`store/workspaceStore/diagramState.ts:29`, `:220`).
   It resets when `diagramSelectedStepId` changes, and `travel()` drops it
   when its step is gone.
-- `diagramPlacesSettled: { count; nonce } | null`. It is set when an edit
-  sends frames back to their cells, and the Diagram shows that as a toast.
+- `diagramPlacesSettled: { count; nonce; entry } | null`. It is set when an
+  edit sends frames back to their cells, and the Diagram shows that as a
+  toast. `entry` is the undo entry the edit landed in (null when the history
+  cap kept none), so the toast's Undo can refuse once that entry is no longer
+  the newest *(amended in Phase 1)*. Three paths make that real:
+  - another edit made while the toast is up;
+  - `duplicateLinkedStepAs` undoing its own duplicate when the capture
+    fails, after the duplicate set the notice (`stepCaptureActions.ts`, which
+    guards its own undo the same way);
+  - a failed open restoring the old notice through `pickDiagramState`.
 
 **Store** (`slices/diagramSlice.ts`). Each verb is one `commit` and one undo
 entry:
-- `setDiagramStepPlace(stepId, patch, session?)`. `session` folds a nudge
-  sitting into one entry (`sessionFor`).
+- `setDiagramStepPlace(stepId, patch, { session?, loadId? })`. `session`
+  folds a nudge sitting into one entry (`sessionFor`), while it sets the same
+  fields on the same step. `loadId` drops a debounced nudge that outlived its
+  diagram. `patch` sets each field to a value or clears it with `null`; a
+  value that is no offset or pin at all (NaN, a pin of 0) changes nothing,
+  so only `null` clears.
 - `resetDiagramStepPlace(stepId, part)`, where `part` is
-  `'frame' | 'number' | 'picture' | 'text' | 'scale' | 'all'`.
+  `'frame' | 'number' | 'picture' | 'text' | 'scale' | 'position' | 'all'`.
+  `position` is every offset (Reset Position). `all` is the only reset that
+  also drops a newer build's record.
 - `resetDiagramPlaces(pageIndex | null)`: one page, or the whole diagram.
 - All three are refused on a read-only diagram and on a locked step.
 - **`settlePlaces(before, after)` runs inside `commit`** after every edit,
@@ -209,8 +244,9 @@ entry:
   dropped. When no step has a frame offset, it returns `after` untouched.
   It is built on a pure `cellSlots(document)` in `pages/stepPlaces.ts`:
   `splitIntoPages` over the document's non-turn entries, exactly as
-  `diagramLayoutSteps` lists them. A test holds it equal to the layout's
-  cells on every fixture.
+  `diagramLayoutSteps` lists them, by the layout's own `cellsPerPage`. A test
+  holds it equal to the layout's cells on every fixture. `sameCell(was, now,
+  id)` compares a step's two cells.
 
 ### How the layout uses it
 
@@ -318,7 +354,12 @@ step to another page stays a reorder (Alt+arrows, Move to).
 - `printedFrames` picks up pins, so the ED10 print-size read-outs stay right.
   It also publishes `auto`.
 - Step files (`export/stepFiles.ts`) have their own one-scale layout and
-  ignore placement.
+  ignore placement. They also lay the pages out, to read an enlarged step's
+  window from its cell (`frameMm`), and an enlarged step's size follows its
+  area's pin (step 2 above). So `prepareStepFiles` lays out
+  `unplacedDiagram(document)` (`document/stepPlace.ts`), which leaves every
+  `place` out *(amended in Phase 1, where it is built)*. A test holds a
+  pinned, moved area's files equal to the unplaced ones.
 
 ### The Pages view
 
@@ -454,6 +495,12 @@ so `DiagramPagePanel` stays under its cap.
 **Toast.** When an edit sends frames back to their cells, a sonner toast (as
 `stepCaptureActions` uses) says "2 moved steps went back to their cells" and
 offers Undo. A small hook reads `diagramPlacesSettled` to show it.
+- The hook remembers the highest `nonce` it has shown, so a notice restored
+  by a failed open is never shown twice.
+- Undo undoes only while `diagramPlacesSettled.entry` is still the newest
+  undo entry (`diagramHistory.past.at(-1)`), the identity check
+  `duplicateLinkedStepAs` uses. Otherwise it does nothing and the toast
+  closes.
 
 **Export dialog.**
 - Its Notice lists clashing and off-paper steps, next to "Text doesn't fit".
@@ -473,6 +520,23 @@ pages keep Columns and Rows.
   ties going to fewer columns. On A4 portrait, 9 steps give 3×3, 6 give 2×3
   and 12 give 3×4. Orientation and paper size feed it, so landscape gets
   wider rows.
+  - The printable area is the paper inside its margins, *not* less the
+    title's header and the page-number footer *(decided in Phase 1)*. Typing
+    a title or turning page numbers on then never re-cuts a page, moves steps
+    between pages or sends frames home. It also lets `pageGrid(setup)` keep
+    reading the setup alone, with no title, for every caller (the layout,
+    `cellSlots`, `useDiagramPageSetup` and `DiagramPanel`'s page counts). The
+    A4 shapes above are the same either way.
+  - **The seam is built** (Phase 1): every count of a page's cells reads
+    `pageGrid(setup)` and `cellsPerPage(setup)` in `diagramPageLayout.ts`.
+    That covers `pageCellMm`, `layoutDiagramPages` (`perPage`, `cellAt`,
+    `slotBottom`, the lane stops, `placeTurns`), `cellSlots`,
+    `useDiagramPageSetup` and `DiagramPanel`. Phase 1b changes those two
+    functions: `pageGrid` returns `flowShape`'s columns and rows for flow, and
+    `cellsPerPage` returns `stepsPerPage` for flow, which a short last row
+    makes fewer than columns × rows. Then check the lane's empty-cell stops
+    on a spine page (`k < perPage`): whether they run to the steps per page
+    or to the full grid.
 - **Short rows.** Steps fill rows in reading order and the last row may be
   short, as the last page of a diagram is today (crane page 3: 25, 26): 7
   steps are 3·3·1, not a balanced 3·2·2. DECIDED (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch").
@@ -485,7 +549,9 @@ pages keep Columns and Rows.
   one was the squarest; a wide shape (4 columns × 2 rows on A4 portrait)
   becomes 2 × 4. Grid files are unchanged.
 - **Cells.** `cellSlots` reads the derived shape, and a change of steps per
-  page sends moved frames home like a change of columns or rows (below).
+  page sends moved frames home like a change of columns or rows (below). So
+  does a change of paper size, orientation or margin that changes a flow
+  page's derived shape: the cell changed shape (Decision 1A).
 - **Analytics.** `diagram page setup changed` gains the setting
   `steps_per_page`, beside `columns` and `rows` (which setting, never its
   value).
@@ -493,16 +559,32 @@ pages keep Columns and Rows.
 ### When an override clears
 
 One rule decides the frame. A step's **cell** is its place among its page's
-steps, on a page that starts with a given step, at given columns and rows (a
-flow page's derived from its steps per page) and
-layout (grid or flow). The frame offset is kept while that cell is unchanged,
-and cleared automatically when it changes, whatever caused it. That is
-Decision 1, A.
+steps (`k`), on its page, at given columns and rows (a flow page's derived
+from its steps per page) and layout (grid or flow). The frame offset is kept
+while that cell is unchanged, and cleared automatically when it changes,
+whatever caused it. That is Decision 1, A.
 
-The page is identified by the step it starts with, not by its number. A step
-inserted earlier can add a page, renumbering every later page while a page
-break keeps their contents exactly as they were. A number would clear all of
-those; the first step clears none.
+A page is the same page while it keeps its number **or** the step it starts
+with *(amended in Phase 1)*:
+- **Its first step.** A step inserted earlier can add a page, renumbering
+  every later page while a page break keeps their contents exactly as they
+  were. By number alone, all of those would clear; by first step, none do.
+- **Its number.** A reorder can change the step a page starts with while
+  every other step on it stays where it was. By first step alone, a single
+  Move Earlier on a page's second step sent home every moved frame on the
+  page (seven of nine on a 3×3 grid,
+  `artifacts/page-overrides/po1/review/firstswap.mjs`), and moving a step
+  from page one to page two sent home a step that stayed in page two's
+  fourth cell. By number, only the steps that changed place go.
+- Either is enough, because each one alone is the same physical page: same
+  number, same paper; or the same steps from the same first one, with only
+  its number and side changed, which the frame's reading-terms storage
+  follows. The review's other candidate (a step identified by the set of
+  steps before it on its page) still cleared the page-two step above.
+- A randomised test over moves, inserts, deletes and page breaks on a grid
+  holds the rule to the printed pages. A frame goes home exactly when its
+  step prints in another cell of its page, or on a page that is neither its
+  own number nor its own page renumbered.
 
 The clearing is done centrally, once, by `settlePlaces` inside `commit`, never
 in each verb. It lands in the same undo entry as the edit, and the toast
@@ -510,7 +592,7 @@ offers Undo.
 
 | Edit | Scale pin | Number, picture, text offsets | Frame offset |
 | --- | --- | --- | --- |
-| Its own move: Alt+arrows, Move to, Move Earlier/Later, a Steps-grid reorder | kept | kept | **cleared** |
+| Its own move: Alt+arrows, Move to, Move Earlier/Later, a Steps-grid reorder | kept | kept | **cleared**, with the steps it passed; a swap that changes the step a page starts with clears only the two |
 | A step added, inserted, duplicated, uploaded, pulled from References, deleted or made into a turn **before it** | kept | kept | **cleared** where the shift reaches it (a page that ends in a page break stops the shift) |
 | Steps added, deleted or moved **after it**, staying after it | kept | kept | kept |
 | A turn added, removed or moved (turns take no cell) | kept | kept | kept |
@@ -518,15 +600,17 @@ offers Undo.
 | Start a New Page on a later step | kept | kept | kept |
 | Columns or rows (grid), steps per page (flow) | kept | kept | **cleared** (the cell changed shape) |
 | Grid ↔ flow | kept | kept | **cleared** |
-| First page Left/Right; a page added or removed after its page | kept | kept | kept (stored along the row, it follows a row that flips) |
-| Paper size, orientation, margin, title, page numbers | kept | kept | kept (anything now off the paper is flagged) |
+| First page Left/Right; a page added or removed after its page, or before it where a page break holds it | kept | kept | kept (stored along the row and across the rows in reading order, it follows a page whose rows reverse or read upward) |
+| Paper size, orientation, margin | kept | kept | kept, unless it changes a flow page's derived shape (Phase 1b): then the cell changed shape, and it is **cleared**, as for columns and rows. Anything now off the paper is flagged |
+| Title, page numbers | kept | kept | kept (a flow page's shape is read from the paper inside its margins, without the header and footer) |
 | Path width or colour, style | kept | kept | kept |
 | Caption edits | kept | kept | kept (moved text never uncuts) |
 | Picture refreshed, re-posed, recaptured, frame edited, annotated (same kind) | kept: the paper scale holds, so the printed size follows the model | kept | kept |
 | Picture removed (empty step) | **sleeps** until a picture of its kind returns | kept (the picture offset moves the placeholder) | kept |
 | Picture changes kind (an upload over a crease pattern, Show as) | **sleeps** while the kind differs; Show as back restores it | kept | kept |
 | The step becomes enlarged | sleeps (Size is its pin) | kept | kept |
-| Duplicate: the copy | copied | copied | not copied (a new step has no cell to keep) |
+| Duplicate: the copy | copied | copied | not copied (a new step has no cell to keep); a newer build's record (`placeNewer`) is copied without its `frame` |
+| A newer build's record (`placeNewer`), on any edit above | carried as it came | carried as it came | its `frame` **cleared** where this build's would be, and counted |
 | Delete, make into a turn: the step itself | goes with it | goes with it | goes with it |
 | Undo, redo | whole snapshots, nothing settles | | |
 | Reset Size / Position / Layout / This Page / All; dragged or snapped home | clears what it names | clears what it names | clears what it names |
@@ -573,12 +657,16 @@ right. The trigger should be the outcome rather than the verb.
   at export. Nothing is clamped silently at print.
 - **Right-to-left rows and pages that read upward.** Part offsets stay in page
   axes. The frame's horizontal offset runs along the row, and its vertical
-  one down the page.
+  one across the rows toward the next, up a page that reads upward.
 - **Two-digit and three-digit numbers.** The number's offset is from its left
   baseline origin, so it still grows to the right, as today.
 - **Locked steps.** Carried verbatim; this build never applies or clears
   their placement.
 - **`placeNewer` steps.** They print computed, and offer only Reset Layout.
+  Their `frame` goes home when the step changes cell, and a duplicate does
+  not copy it.
+- **A patch value that is no value.** A Size typed as 0, or an offset of NaN,
+  changes nothing; only a reset or `null` clears.
 - **Read-only diagrams.** No handles, but placements still print.
 - **Step files.** Unaffected. The export dialog says so.
 - **Undo during a drag** cancels the drag first.
@@ -638,11 +726,17 @@ Every new string goes in all 9 catalogs, through `i18n:extract`, then
 - **`settlePlaces`**, one test per row of the clearing table, including:
   - an insert on an earlier page whose shift a page break stops;
   - an append that flips the old last page's rows (kept);
-  - one undo entry, with the count reported.
+  - a swap that changes the step a page starts with (only the two clear);
+  - a newer build's `frame` sent home;
+  - one undo entry, with the count and the entry reported;
+  - a randomised walk on a grid, held to the printed cells.
 - **Layout:**
   - **The golden.** Every fixture with no `place`, and with an all-zero
     `place`, gives byte-identical composed pages and identical existing
-    `LayoutPage` fields.
+    `LayoutPage` fields. Every fixture page's digests (the page, the Pages
+    view's page, its arrows) are committed as they print before placement
+    (Phase 1, checked equal to the layout at 6f7792459), so a layout edit is
+    held to today's pages, not only to itself.
   - **Pins.** A pin keeps its neighbours' scales, and clearing it restores
     the page exactly. A pin past its room widens `drawMm` and pushes the
     text down without cutting it. `atMost` is measured at `auto`. A sleeping
@@ -651,7 +745,8 @@ Every new string goes in all 9 catalogs, through `i18n:extract`, then
   - **Moves.**
     - Part offsets survive a reorder and a new page.
     - The frame carries its parts.
-    - `along` flips with the row.
+    - `along` flips with the row, and `across` with a page that reads upward
+      (a First page side change, and a page renumbered by a page break).
   - **Lane.**
     - Stops sit at the moved centres.
     - The facing page's spine follows.
@@ -695,7 +790,9 @@ flagged this one to talk through.)
 
   It is checked once per edit, in that edit's undo entry, with a toast "2
   moved steps went back to their cells · Undo". It is kept through:
-  - paper, margin and orientation;
+  - paper, margin and orientation (on a flow page, once Phase 1b derives its
+    shape from them, unless they change that shape: then the cell changed
+    shape, as with columns and rows);
   - First page Left/Right;
   - turns;
   - anything after it.
@@ -805,8 +902,11 @@ Decided, not pending. Say if any is wrong.
 - Delete with a part selected does nothing.
 - There is one set of placements for grid and flow.
 - A pin of the other kind sleeps rather than clearing (rule above).
-- Part offsets are in page axes; the frame's runs along its row.
-- Step files ignore placement.
+- Part offsets are in page axes; the frame's are in the page's reading terms,
+  along its row and across its rows.
+- Step files ignore placement: they lay out `unplacedDiagram(document)`.
+- A flow page's derived shape reads the paper inside its margins, not less
+  the header and footer (Phase 1b).
 
 ## Alternatives considered
 
@@ -836,9 +936,16 @@ Decided, not pending. Say if any is wrong.
 - **Clearing in each verb** (`moveDiagramStep` and the rest). Not chosen. It
   misses inserts, deletes and breaks before the step, and a later verb could
   forget it.
-- **The cell keyed by page number.** Not chosen. A page added earlier would
-  clear every frame on every later page, even where a page break keeps those
-  pages' contents unchanged.
+- **The cell keyed by page number alone.** Not chosen. A page added earlier
+  would clear every frame on every later page, even where a page break keeps
+  those pages' contents unchanged.
+- **The page keyed by its first step alone** (Phase 1's first version). Not
+  chosen: a reorder that changes the step a page starts with cleared every
+  frame on the page. See "When an override clears".
+- **The cell keyed by the page's `up`**, so a page that turns upward clears.
+  Not chosen: a First page Left/Right change would clear every frame on half
+  the pages, which Decision 1A keeps. The frame is stored in reading terms
+  instead.
 - **Taking a pinned picture out of the runs** (2B), **holding a pin to its
   room** (3B), **a printed-size pin** (4B), **fixed spots** (5B). See the
   decisions.
@@ -889,9 +996,15 @@ Decided, not pending. Say if any is wrong.
 - **Model and file:**
   - `diagram/document/diagramDocument.ts` (`DiagramStep.place`,
     `placeNewer`; `duplicateStep` drops `frame`);
-  - `diagram/document/diagramFile.ts` (`STEP_KEYS`, `readStep`, `writeStep`).
+  - `diagram/document/diagramFile.ts` (`STEP_KEYS`, `readStep`, `writeStep`);
+  - `diagram/document/stepPlace.ts` (new: the kept shape and the edits,
+    `unplacedDiagram`);
+  - `diagram/export/stepFiles.ts` (lays out the unplaced diagram).
 - **Clearing:**
-  - `diagram/pages/stepPlaces.ts` (new: `cellSlots`, `settlePlaces`);
+  - `diagram/pages/stepPlaces.ts` (new: `cellSlots`, `sameCell`,
+    `settlePlaces`);
+  - `diagram/pages/diagramPageLayout.ts` (`pageGrid`, `cellsPerPage`), and
+    their callers `useDiagramPageSetup.ts` and `DiagramPanel.tsx`;
   - `store/workspaceStore/slices/diagramSlice.ts` (`commit`, the verbs);
   - `store/workspaceStore/diagramState.ts`, `store/workspaceStore/types.ts`.
 - **Layout:**
@@ -950,28 +1063,98 @@ Vitest runs in the web workspace under Node 22.
 
 ### Phase 1: model, file and clearing, no UI (into #436 under 6A, after 16g lands)
 
-- [ ] `DiagramStepPlace`, `place` and `placeNewer` on `DiagramStep`.
-  `duplicateStep` keeps the pin and part offsets and drops `frame`.
-- [ ] Reader and writer:
+- [x] `DiagramStepPlace`, `place` and `placeNewer` on `DiagramStep`.
+  `duplicateStep` keeps the pin and part offsets and drops `frame`, a newer
+  build's included.
+- [x] Reader and writer:
   - `place` in `STEP_KEYS`;
   - written only when set;
   - 0.1 mm rounding;
   - malformed sub-fields dropped;
   - unknown sub-keys carried raw;
   - tests.
-- [ ] `cellSlots` and `settlePlaces` (`pages/stepPlaces.ts`), and the
-  `commit` hook with `diagramPlacesSettled`. A test per row of the clearing
-  table, and `cellSlots` checked against the layout on every fixture.
-- [ ] The store verbs: set, reset part, reset page or all. Refused when
+- [x] `cellSlots`, `sameCell` and `settlePlaces` (`pages/stepPlaces.ts`), and
+  the `commit` hook with `diagramPlacesSettled`. A test per row of the
+  clearing table, `cellSlots` checked against the layout on every fixture,
+  and a randomised walk held to the printed grid.
+- [x] The store verbs: set, reset part, reset page or all. Refused when
   read-only, locked or `placeNewer`. Sessions for nudges. Tests.
-- [ ] `diagramLayoutSteps` copies `place` onto `LayoutStep`. The layout
+- [x] `diagramLayoutSteps` copies `place` onto `LayoutStep`. The layout
   ignores it until Phase 2.
-- [ ] Gate: lint, typecheck, `test:web`. No UI, so no browser shots.
+- [x] The golden, with the fixture pages' digests committed as they print
+  before placement (moved here from Phase 2's first item, by review).
+- [x] Step files lay out `unplacedDiagram(document)`.
+- [x] Gate, on a clone holding only HEAD and this phase: `lint:web`,
+  typecheck, `i18n:check` and the whole vitest suite under Node 22, without
+  the `pre*` hooks. No UI, so no browser shots; the evidence is through the
+  app's store and file paths instead (below).
+
+**As built (Phase 1).** Where it differs from the plan above, or adds to it:
+- **Reset parts** add `'position'` (every offset), for Reset Position.
+  `'all'` alone also drops `placeNewer`.
+- **`setDiagramStepPlace(stepId, patch, { session, loadId })`.** `patch`
+  sets each field or clears it with `null`. A value that is not one (an
+  offset of NaN, a pin of 0) changes nothing. `loadId` drops a debounced
+  nudge that outlived its diagram (Phase 4). A session folds edits only while
+  they set the same fields on the same step: one undo entry per part per
+  sitting.
+- **One shape** (`normalizeStepPlace`), on read as well as on write: tenths
+  of a mm, offsets of none and an empty `place` left out.
+- **The `pageGrid` / `cellsPerPage` seam** in `diagramPageLayout.ts`. Every
+  count of a page's cells reads it: the layout, the page counts and
+  `cellSlots`. Phase 1b changes those two functions and nothing that calls
+  them.
+- **Two amendments** made in review under "default to my recommendations",
+  each marked *(amended in Phase 1)* above:
+  - **The cell rule.** A page keeps its number or its first step
+    (`sameCell`), not its first step alone.
+  - **The frame's second component.** It is `across`, toward the page's next
+    row, not down. Phase 2 converts it with `dy = up ? −across : across`.
+- **A newer build's `frame`** goes home with this build's and is counted. A
+  duplicate drops it.
+- **`diagramPlacesSettled`** is `{count, nonce, entry}`. `entry` is the undo
+  entry the frames went home in, for Phase 3's Undo.
+- **Step files** lay out `unplacedDiagram(document)`.
+- **The golden.** `placeGolden.test.ts` checks that an all-zero `place`
+  prints like no `place`. It holds the 16 page digests of the 8 fixtures to
+  the layout at 6f7792459, checked through HEAD's copies of the two layout
+  modules (`artifacts/page-overrides/po1/fixes/head-digests.txt`).
+- **No analytics or i18n.** There is no UI. The undo labels are internal
+  English like the rest of the slice. The events come with Phase 3, and
+  `diagramPagesPart` with Phase 4.
+
+**Verified (Phase 1)** through the running app, with its own Open and Save
+(`artifacts/page-overrides/po1/po1-evidence.txt`):
+- **Zach's four diagrams.**
+  - Crane and chipmunk save back byte for byte.
+  - Reference Diagrams and heart save exactly as HEAD's code saves them.
+    Their differences from the files are older and outside the steps: a
+    stale fold artifact and the legacy `page.scale`; a crease pattern's
+    references view state.
+  - All four compose byte for byte as HEAD's layout does.
+- **A hand-edited crane** with a pin, part offsets, a frame offset and all
+  three:
+  - It saves back byte for byte.
+  - The store holds each placement as written.
+  - Its pages are identical to the plain crane's.
+- **A newer build's sub-keys** are kept verbatim as `placeNewer`:
+  - The steps stay editable; the setter refuses them.
+  - An insert before one sends only its `frame` home.
+  - One undo restores it, and the file saves back byte for byte.
+- **The clearing rules, through the store on the crane.**
+  - **Sent home:** an insert, a delete or a move before the step; its own
+    move; columns; grid; Start a New Page on it.
+  - **Kept:** a swap of two steps before it on its page; an insert after
+    it; paper, orientation, margin and First page side; a break on a later
+    step.
+  - Every edit was one undo entry, and one undo restored the whole diagram.
 
 ### Phase 1b: flow steps per page (into #436, after Phase 1)
 
 - [ ] `stepsPerPage` on `DiagramPageSetup`: clamped, default 9, reader and
   writer (flow only; a flow file without it reads `columns × rows`), tests.
+- [ ] `pageGrid` and `cellsPerPage` (the seam Phase 1 built) take the flow
+  shape and the steps per page; nothing that calls them changes.
 - [ ] `flowShape` with tests: A4 and Letter, portrait and landscape, 2–24
   steps, ties, the default.
 - [ ] The flow layout and `cellSlots` take the derived shape; every existing
@@ -984,16 +1167,22 @@ Vitest runs in the web workspace under Node 22.
 
 ### Phase 2: the layout (its own PR on main under 6A)
 
-- [ ] Golden fixtures first, before any layout edit: composed pages of every
-  fixture, with no `place` and with an all-zero `place`.
+- [x] Golden fixtures first, before any layout edit: composed pages of every
+  fixture, with no `place` and with an all-zero `place`, and their digests
+  as they print today. Built in Phase 1 (`placeGolden.test.ts`); a digest
+  that changes is a page that changed.
 - [ ] Pins:
   - in the per-kind loop after `scaleRuns` (or filtered out, under 2B);
   - `auto` recorded, and sleeping pins;
   - before `zoomScales`; set Size at its window (3A);
   - `atMost` measured at `auto`;
   - a pinned picture's `drawMm` and text default.
-- [ ] Offsets: the frame, with `along` converted by row direction, then the
-  parts. `homeMm`, `numberMm` and `placed`.
+- [ ] Offsets: the frame, with `along` converted by the row's direction and
+  `across` by the page's (`up`), then the parts. `homeMm`, `numberMm` and
+  `placed`.
+- [ ] A test that step files are unchanged by a pin on an enlarged step's
+  area once the layout reads pins (Phase 1's guard passes trivially until
+  then).
 - [ ] Lane stops from the final cells, `spineAt`, guards (a)–(c), and
   `LayoutPage` carrying the lane's inputs.
 - [ ] `placeTurns`' number top and the arrow band as plus-offset forms; the
@@ -1021,7 +1210,9 @@ Vitest runs in the web workspace under Node 22.
 - [ ] Step catalog: Reset Size, Reset Position and Reset Layout.
 - [ ] Page pane summary: Reset This Page and Reset All.
 - [ ] Steps-grid badge.
-- [ ] The settled toast with Undo.
+- [ ] The settled toast with Undo: shown once per `nonce` (the hook keeps
+  the highest it has shown), and Undo only while `entry` is the newest undo
+  entry.
 - [ ] Export dialog: the clash list and the step-files line.
 - [ ] Analytics events and `docs/analytics.md` rows. i18n in all 9 catalogs.
 - [ ] Browser:
