@@ -151,10 +151,12 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
 
   // An enlarge arrow, as a turn's glyph prints: at its own ink size, its box
   // centred on its place — lifted to its area's height where it stands alone
-  // beside it — pointing the way its row is read.
-  placedZoomArrows(page, input.steps, (index) => pictures[index] ?? null).forEach(({ at, rightToLeft }, index) => {
+  // beside it — pointing the way its row is read, or across a flow row's end
+  // aimed at the step it leads to.
+  placedZoomArrows(page, input.steps, (index) => pictures[index] ?? null).forEach(({ at, rightToLeft, aim }, index) => {
     const arrow = paintEnlargeArrow({ x: at.x * PT_PER_MM, y: at.y * PT_PER_MM }, PT_PER_MM, input.style, {
       rightToLeft,
+      aim,
       id: `enlarge-arrow-${index}`,
     });
     if (arrow) body.push(arrow.markup);

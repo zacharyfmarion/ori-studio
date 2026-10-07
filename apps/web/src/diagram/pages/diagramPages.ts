@@ -39,7 +39,7 @@ import { annotationTextRuns } from '../annotate/annotationPrimitives';
 import { hasDrawnAnnotations } from '../annotate/paintAnnotations';
 import { viewOfStep } from '../zoom/stepView';
 import { zoomAreas } from '../zoom/zoomCapture';
-import { enlargeArrowMm } from '../zoom/enlargeArrow';
+import { enlargeArrowSizes } from '../zoom/enlargeArrow';
 import { zoomIndex, type ZoomIndex } from '../zoom/zoomIndex';
 import { zoomOutlineOf, zoomShapeOf } from '../zoom/zoomModel';
 import { liftedZoomArrows, type PlacedZoomArrow } from './zoomArrows';
@@ -151,7 +151,7 @@ function layoutZoom(step: DiagramStep, document: DiagramDocument, index: ZoomInd
   const units = wholeUnitsAcross(step, document.assets);
   return {
     arrowFrom: arrow
-      ? { ...arrow.from, share: outlineLonger(zoomOutlineOf(arrow.area)), box: enlargeArrowMm(document.style) }
+      ? { ...arrow.from, share: outlineLonger(zoomOutlineOf(arrow.area)), ...enlargeArrowSizes(document.style) }
       : null,
     frameShare: outlineLonger(view.frame),
     windowShare: Math.max(view.window.width, view.window.height),

@@ -176,14 +176,20 @@ function glyphsBefore(step: LayoutStep): BetweenGlyph[] {
   return arrowFrom ? [...turns, { kind: 'enlarge', arrowFrom }] : turns;
 }
 
-/** The box a glyph prints in, in mm, centred on its place. */
-function glyphMm(glyph: BetweenGlyph): { w: number; h: number } {
-  return glyph.kind === 'turn' ? turnGlyphMm(glyph.turn) : glyph.arrowFrom.box;
+/** The box a glyph prints in, in mm, centred on its place: an enlarge arrow's along its row, or aimed so. */
+function glyphMm(glyph: BetweenGlyph, aim: LayoutArrowAim | null = null): { w: number; h: number } {
+  if (glyph.kind === 'turn') return turnGlyphMm(glyph.turn);
+  return aim ? glyph.arrowFrom.aimedBox(aim) : glyph.arrowFrom.box;
 }
 
-/** How tall glyphs standing in one place are, one above another, each clear of the next. */
-function stackHeight(glyphs: readonly BetweenGlyph[]): number {
-  return glyphs.reduce((sum, glyph) => sum + glyphMm(glyph).h, 0) + (glyphs.length - 1) * TURN_STACK_CLEAR_MM;
+/**
+ * How tall glyphs standing in one place are, one above another, each clear of
+ * the next: an enlarge arrow at its tallest where it is `aimed` across a flow
+ * row's end, before the layout knows which way.
+ */
+function stackHeight(glyphs: readonly BetweenGlyph[], aimed = false): number {
+  const height = (glyph: BetweenGlyph) => (aimed && glyph.kind === 'enlarge' ? glyph.arrowFrom.tallest : glyphMm(glyph).h);
+  return glyphs.reduce((sum, glyph) => sum + height(glyph), 0) + (glyphs.length - 1) * TURN_STACK_CLEAR_MM;
 }
 
 /** One run of a set line: a font and its text, placed from the line's start. */
@@ -282,14 +288,29 @@ export interface LayoutStep {
 /**
  * The enlarge area an arrow leaves: on which step, which area there, and its
  * longer side in that step's picture units; and the box the arrow prints in,
- * mm, as its outline paints it (`enlargeArrowMm`), which this module, laying
- * out and never painting, is handed.
+ * mm, as its outline paints it (`enlargeArrowSizes`), which this module,
+ * laying out and never painting, is handed — along a row, aimed across a flow
+ * row's end, and the tallest it is aimed any way.
  */
 export interface LayoutZoomArea {
   stepId: string;
   areaId: string;
   share: number;
   box: { w: number; h: number };
+  aimedBox: (aim: LayoutArrowAim) => { w: number; h: number };
+  tallest: number;
+}
+
+/**
+ * Which way an enlarge arrow points where it does not point along its row —
+ * across a flow row's end, at the enlarged step it leads to (Zach,
+ * 2026-10-07): the arrow that points right with its bow up, flipped about its
+ * chord when `flipped` (its bow then on its right), turned `angle` radians
+ * clockwise on the page, whose y runs down.
+ */
+export interface LayoutArrowAim {
+  angle: number;
+  flipped: boolean;
 }
 
 /**
@@ -417,6 +438,8 @@ export interface LayoutZoomArrow {
   areaId: string;
   rightToLeft: boolean;
   liftable: boolean;
+  /** Across a flow row's end, aimed at the enlarged step it leads to; null where it points along its row. */
+  aim: LayoutArrowAim | null;
 }
 
 export interface DiagramPagesLayout {
@@ -980,7 +1003,7 @@ export function layoutDiagramPages(
     const glyphs = next ? glyphsBefore(next) : [];
     if (!flow || glyphs.length === 0 || after % setup.columns !== 0) return own;
     const under = plan.up ? after - 1 : after;
-    const room = stackHeight(glyphs) + 2 * TURN_STACK_CLEAR_MM;
+    const room = stackHeight(glyphs, true) + 2 * TURN_STACK_CLEAR_MM;
     return Math.min(own, cellAt(plan, under).y + STEP_NUMBER_TOP_MM - room - TEXT_DESCENT_MM);
   };
   const firstBaselineOf = (cellTop: number, box: number) => cellTop + PICTURE_TOP_MM + box + TEXT_GAP_MM;
@@ -1312,7 +1335,10 @@ function laneCentre(cell: LayoutCell): { x: number; y: number } {
  * An enlarge arrow (Revision 2) takes the same places, standing after the
  * turns before its step: a turn's places are the arrow's, so the two agree
  * however D22 places them. Alone in a row's gutter, beside the area's step,
- * it is `liftable`.
+ * it is `liftable`. Across a flow row's end it is aimed from its place at the
+ * middle of the enlarged step's picture, the next row's (Zach, 2026-10-07),
+ * its bow on the outside of the lane's bend, the way the row before it read:
+ * it leaves heading on round the bend and comes into the step.
  */
 function placeTurns(
   steps: readonly LayoutStep[],
@@ -1341,18 +1367,26 @@ function placeTurns(
     const x = left ? cell.pictureMm.x - gutter / 2 : cell.pictureMm.x + cell.pictureMm.size + gutter / 2;
     return { x, y: centre(cell).y };
   };
-  /** `glyphs` stood at `at`, in the row of the `k`th picture, which they go the way of. */
+  /**
+   * `glyphs` stood at `at`, in the row of the `k`th picture, which they go the
+   * way of; an enlarge arrow among them aimed at `toward`, when given, its bow
+   * `outward` (+1 to the page's right, −1 to its left).
+   */
   const stack = (
     glyphs: readonly BetweenGlyph[],
     at: { x: number; y: number },
     k: number,
     beforeStepId: string | null,
-    shared = false
+    { shared = false, toward = null, outward = 1 }: { shared?: boolean; toward?: { x: number; y: number } | null; outward?: number } = {}
   ) => {
     const x = Math.min(pageWidth - TURN_GUTTER_MM / 2, Math.max(TURN_GUTTER_MM / 2, at.x));
-    let top = at.y - stackHeight(glyphs) / 2;
-    for (const glyph of glyphs) {
-      const box = glyphMm(glyph);
+    const angle = toward ? Math.atan2(toward.y - at.y, toward.x - x) : 0;
+    // Its bow on the `outward` side: the side unflipped is the one its turn puts its up on.
+    const aim: LayoutArrowAim | null = toward ? { angle, flipped: Math.sin(angle) * outward < 0 } : null;
+    const boxes = glyphs.map((glyph) => glyphMm(glyph, aim));
+    let top = at.y - (boxes.reduce((sum, box) => sum + box.h, 0) + (glyphs.length - 1) * TURN_STACK_CLEAR_MM) / 2;
+    glyphs.forEach((glyph, index) => {
+      const box = boxes[index]!;
       const middle = { x, y: top + box.h / 2 };
       if (glyph.kind === 'turn') {
         const { kind: _kind, ...turn } = glyph;
@@ -1367,10 +1401,11 @@ function placeTurns(
           rightToLeft: backwards(k),
           // Alone between the area's step and its own on one row: the page lifts it to the area.
           liftable: shared && glyphs.length === 1 && cells[k - 1]?.stepId === glyph.arrowFrom.stepId,
+          aim,
         });
       }
       top += box.h + TURN_STACK_CLEAR_MM;
-    }
+    });
   };
   steps.forEach((step, k) => {
     const before = glyphsBefore(step);
@@ -1379,7 +1414,7 @@ function placeTurns(
         const a = centre(cells[k - 1]!);
         const b = centre(cells[k]!);
         const facing = (edge(k - 1, false).x + edge(k, true).x) / 2;
-        stack(before, { x: facing, y: (a.y + b.y) / 2 }, k, step.id, true);
+        stack(before, { x: facing, y: (a.y + b.y) / 2 }, k, step.id, { shared: true });
       } else if (k > 0 && plan) {
         // In the gap between the two rows, under the upper step's words and
         // over the lower one's number, where the lane crosses it.
@@ -1389,8 +1424,10 @@ function placeTurns(
         const bend = lane?.bends.get(k);
         const onLane = lane && bend !== undefined ? bendXAt(lane.lane, bend, y) : null;
         const reach = bendReach(previous.cellMm.w, Math.abs(centre(next).y - centre(previous).y) / 2, halfWidth);
-        const x = onLane ?? centre(previous).x + (backwards(k - 1) ? -1 : 1) * reach;
-        stack(before, { x, y }, k, step.id);
+        const outward = backwards(k - 1) ? -1 : 1;
+        const x = onLane ?? centre(previous).x + outward * reach;
+        // An arrow there points at the step it leads to, not across the page.
+        stack(before, { x, y }, k, step.id, { toward: centre(next), outward });
       } else {
         stack(before, edge(k, true), k, step.id);
       }

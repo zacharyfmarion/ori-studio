@@ -25,7 +25,7 @@ import {
   type LayoutTurn,
   type LayoutZoom,
 } from './diagramPageLayout';
-import { enlargeArrowMm } from '../zoom/enlargeArrow';
+import { enlargeArrowMm, enlargeArrowSizes } from '../zoom/enlargeArrow';
 import { zoomSplits } from './zoomArrows';
 import { readFontMetrics, type FontMetrics } from '../fonts/fontMetrics';
 import { curvePoint, curveStart, type Lane } from './flowLane';
@@ -962,6 +962,7 @@ describe('turns between steps on the page (D22)', () => {
 
 describe('enlarged steps on the page (Revision 2)', () => {
   const ARROW = enlargeArrowMm(DEFAULT_DIAGRAM_STYLE);
+  const SIZES = enlargeArrowSizes(DEFAULT_DIAGRAM_STYLE);
   /** A window `width` × `height` of its own units, its marks reaching `marks` mm past it. */
   const window = (width = 1, height = 1, marks = NO_MARKS): LayoutStep['picture'] => ({
     kind: 'zoom',
@@ -971,7 +972,7 @@ describe('enlarged steps on the page (Revision 2)', () => {
     marks,
   });
   /** An area on step `stepId`, 0.3 of its picture's frame across. */
-  const from = (stepId: string, share = 0.3) => ({ stepId, areaId: `area-${stepId}`, share, box: ARROW });
+  const from = (stepId: string, share = 0.3) => ({ stepId, areaId: `area-${stepId}`, share, ...SIZES });
   /** An enlarged step: its window, a frame 0.3 of its 400-unit picture across, Fill unless it says. */
   const enlarged = (zoom: Partial<LayoutZoom> = {}, picture = window()): Partial<LayoutStep> => ({
     picture,
@@ -1161,6 +1162,33 @@ describe('enlarged steps on the page (Revision 2)', () => {
       // Where a turn there prints.
       const turned = layout(steps(6, (index) => (index === 3 ? { turnsBefore: [over('turn-a')] } : {})), { layout: 'flow', columns: 3, rows: 3 });
       expect(arrow!.at.x).toBeCloseTo(turned.pages[0]!.turns[0]!.at.x, 1);
+    });
+
+    it('points across a flow row’s end at the enlarged step it leads to, its bow on the outside of the bend', () => {
+      // Zach, 2026-10-07: in the lane's bend it is turned toward the step, not mirrored the next row's way.
+      const page = layout(arrowed(6, 2), { layout: 'flow', columns: 3, rows: 3 }).pages[0]!;
+      const [arrow] = page.zoomArrows;
+      const next = page.cells[3]!;
+      const middle = { x: next.pictureMm.x + next.pictureMm.size / 2, y: next.drawMm.y + next.drawMm.h / 2 };
+      expect(arrow!.aim).not.toBeNull();
+      expect(arrow!.aim!.angle).toBeCloseTo(Math.atan2(middle.y - arrow!.at.y, middle.x - arrow!.at.x), 9);
+      // Down into the next row, which lies below the bend at the right-hand end of the first.
+      expect(Math.sin(arrow!.aim!.angle)).toBeGreaterThan(0.5);
+      // The row before read left to right: the bow on the bend's outside, the page's right, which a turn
+      // down puts the arrow's up on unflipped.
+      expect(arrow!.aim!.flipped).toBe(false);
+      expect(arrow!.box).toEqual(SIZES.aimedBox(arrow!.aim!));
+      expect(arrow!.box.h).toBeGreaterThan(ARROW.h);
+      // On a right page, read from the bottom up, the next row is above: up, and flipped to keep the bow outside.
+      const up = layout(arrowed(18, 11), { layout: 'flow', columns: 3, rows: 3 }).pages[1]!;
+      expect(up.side).toBe('right');
+      const [rising] = up.zoomArrows;
+      expect(Math.sin(rising!.aim!.angle)).toBeLessThan(-0.5);
+      expect(rising!.aim!.flipped).toBe(true);
+      // Along a row, in a grid's row break and across a page it points along its row, as before.
+      expect(layout(arrowed(3, 0)).pages[0]!.zoomArrows[0]!.aim).toBeNull();
+      expect(layout(arrowed(4, 2), { columns: 3, rows: 3 }).pages[0]!.zoomArrows[0]!.aim).toBeNull();
+      expect(layout(arrowed(10, 8), { columns: 3, rows: 3 }).pages[1]!.zoomArrows[0]!.aim).toBeNull();
     });
 
     it('prints across a grid’s row at the next picture’s leading edge', () => {

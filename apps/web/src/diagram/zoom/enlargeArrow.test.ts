@@ -5,7 +5,13 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
 import golden from './__fixtures__/enlargeArrowGolden.json';
-import { ENLARGE_ARROW_CHORD_MM, enlargeArrowMm, paintEnlargeArrow } from './enlargeArrow';
+import {
+  aimedEnlargeArrowMm,
+  ENLARGE_ARROW_CHORD_MM,
+  enlargeArrowMm,
+  paintEnlargeArrow,
+  tallestEnlargeArrowMm,
+} from './enlargeArrow';
 
 const style = DEFAULT_DIAGRAM_STYLE;
 
@@ -25,6 +31,16 @@ function outline(markup: string): { points: [number, number][]; pen: number } {
     points.push([across === null ? x : across - x, ty! + numbers[index + 1]! * k!]);
   }
   return { points, pen: Number(path[2]) * k! };
+}
+
+/** The outline an aimed arrow draws: its points through the turn round it. */
+function aimedOutline(markup: string): { points: [number, number][]; pen: number } {
+  const [a, b, c, d, e, f] = /^<g transform="matrix\(([-\d.e]+) ([-\d.e]+) ([-\d.e]+) ([-\d.e]+) ([-\d.e]+) ([-\d.e]+)\)">/
+    .exec(markup)!
+    .slice(1)
+    .map(Number);
+  const { points, pen } = outline(markup.replace(/^<g transform="matrix\([^)]*\)">/, ''));
+  return { points: points.map(([x, y]) => [a! * x + c! * y + e!, b! * x + d! * y + f!]), pen };
 }
 
 const box = (points: readonly [number, number][]) => {
@@ -93,6 +109,40 @@ describe('the enlarge arrow (Revision 2)', () => {
       expect(x).toBeCloseTo(80 - ltr[index]![0], 2);
       expect(y).toBeCloseTo(ltr[index]![1], 6);
     });
+  });
+
+  it('is aimed across a flow row’s end: turned to point that way, its box measured turned, its bow on the side it is put', () => {
+    // Pointing right, unflipped: the arrow along a row, exactly.
+    const along = aimedEnlargeArrowMm(style, { angle: 0, flipped: false });
+    expect(along.w).toBeCloseTo(enlargeArrowMm(style).w, 9);
+    expect(along.h).toBeCloseTo(enlargeArrowMm(style).h, 9);
+    const at = { x: 40, y: 25 };
+    for (const flipped of [false, true]) {
+      // Down and a little to the left, as into the step under a row's right-hand end.
+      const aim = { angle: (5 * Math.PI) / 8, flipped };
+      const { points, pen } = aimedOutline(paintEnlargeArrow(at, 1, style, { aim })!.markup);
+      const { minX, maxX, minY, maxY } = box(points);
+      // Centred on its place, in the box measured for it.
+      expect((minX + maxX) / 2, String(flipped)).toBeCloseTo(at.x, 1);
+      expect((minY + maxY) / 2, String(flipped)).toBeCloseTo(at.y, 1);
+      const { w, h } = aimedEnlargeArrowMm(style, aim);
+      expect(Math.abs(w - (maxX - minX + pen)), String(flipped)).toBeLessThan(0.1);
+      expect(Math.abs(h - (maxY - minY + pen)), String(flipped)).toBeLessThan(0.1);
+      expect(h, String(flipped)).toBeLessThanOrEqual(tallestEnlargeArrowMm(style) + 1e-9);
+      // Its head the furthest point along the aim: the tip lowest, a little left.
+      const along = ([x, y]: [number, number]) => x * Math.cos(aim.angle) + y * Math.sin(aim.angle);
+      const tip = points.reduce((best, point) => (along(point) > along(best) ? point : best));
+      expect(tip[1], String(flipped)).toBeCloseTo(maxY, 0);
+      // Its bow across the aim, in its middle third: on its left unflipped, which turned down is the page's
+      // right; flipped, on the page's left.
+      const across = ([x, y]: [number, number]) => -x * Math.sin(aim.angle) + y * Math.cos(aim.angle);
+      const side = flipped ? 1 : -1;
+      const bow = points.reduce((best, point) => (side * across(point) > side * across(best) ? point : best));
+      const reach = points.map(along);
+      const [first, last] = [Math.min(...reach), Math.max(...reach)];
+      expect(Math.abs(along(bow) - (first + last) / 2), String(flipped)).toBeLessThan((last - first) / 3);
+      expect(Math.sign(bow[0] - at.x), String(flipped)).toBe(flipped ? -1 : 1);
+    }
   });
 
   it('paints as recorded, both ways', () => {

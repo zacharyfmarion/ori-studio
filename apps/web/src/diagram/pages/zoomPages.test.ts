@@ -22,7 +22,7 @@ import { diagramLayoutSteps, enlargeArrowCount, preparedPages } from './diagramP
 import { estimateTextSetter } from './estimateTextSetter';
 import { cellPicture, layoutPicture, type CellPicture } from './pagePictures';
 import { placedZoomArrows } from './zoomArrows';
-import { enlargeArrowMm, paintEnlargeArrow } from '../zoom/enlargeArrow';
+import { enlargeArrowMm, paintEnlargeArrow, tallestEnlargeArrowMm } from '../zoom/enlargeArrow';
 
 /**
  * Enlarged steps on the pages (Revision 2, 16f), from the document: the
@@ -77,9 +77,10 @@ describe('the enlarge arrow, read from the order (Revision 2)', () => {
       0
     );
     const box = enlargeArrowMm(document.style);
+    const sizes = { box, aimedBox: expect.any(Function), tallest: tallestEnlargeArrowMm(document.style) };
     const zoom = new Map(diagramLayoutSteps(document).map((step) => [step.id, step.zoom]));
-    expect(zoom.get('step-1')?.arrowFrom).toEqual({ stepId: 'step-0', areaId: 'area-b', share: expect.closeTo(0.4, 12), box });
-    expect(zoom.get('step-3')?.arrowFrom).toEqual({ stepId: 'step-2', areaId: 'area-c', share: expect.closeTo(0.3, 12), box });
+    expect(zoom.get('step-1')?.arrowFrom).toEqual({ stepId: 'step-0', areaId: 'area-b', share: expect.closeTo(0.4, 12), ...sizes });
+    expect(zoom.get('step-3')?.arrowFrom).toEqual({ stepId: 'step-2', areaId: 'area-c', share: expect.closeTo(0.3, 12), ...sizes });
     expect(zoom.get('step-5')?.arrowFrom).toBeNull();
     expect(zoom.get('step-4')).toBeUndefined();
     // Its frame and window against its whole picture, which knows its paper.
@@ -215,6 +216,27 @@ describe('the enlarge arrow on a page', () => {
     expect(mirrors).toHaveLength(1);
     // Mirrored about its frame's middle, which is not its box's: the bow up, the head on the left.
     expect(mirrors[0]! / PT_PER_MM / 2).toBeCloseTo(flowPages.zoomArrows(0)[0]!.at.x, 0);
+  });
+
+  it('prints across a flow row’s end aimed at the enlarged step, as the layout aims it', () => {
+    // The area's step ends the first row; the enlarged step starts the second, under it.
+    const document = insertSteps(
+      { ...areaThenEnlarged(), page: { ...createDiagram().page, layout: 'flow', columns: 2, rows: 3 } },
+      [cpStep('step-a')],
+      0
+    );
+    const pages = preparedPages(document, FIXTURE_FONTS, subsetter);
+    const [arrow] = pages.zoomArrows(0);
+    expect(arrow!.aim).not.toBeNull();
+    expect(Math.sin(arrow!.aim!.angle)).toBeGreaterThan(0.5);
+    const svg = pages.compose(0).svg;
+    const aimed = paintEnlargeArrow({ x: arrow!.at.x * PT_PER_MM, y: arrow!.at.y * PT_PER_MM }, PT_PER_MM, document.style, {
+      aim: arrow!.aim,
+      id: 'enlarge-arrow-0',
+    })!;
+    expect(svg).toContain(aimed.markup);
+    // Turned, not mirrored the next row's way.
+    expect(svg).not.toContain('matrix(-1 0 0 1');
   });
 
   it('gives every id on a page once, two windows of one picture and their clips included', () => {
