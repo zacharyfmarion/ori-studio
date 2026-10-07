@@ -136,6 +136,35 @@ describe('an enlarged step’s window on a page', () => {
   });
 });
 
+describe('an enlarged step’s marks on a page (Zach, 2026-10-07)', () => {
+  const line = (id: string, from: [number, number], to: [number, number]): KnownDiagramAnnotation => ({ id, kind: 'valley-line', from, to });
+  const withMarks = (marks: KnownDiagramAnnotation[]) => ({ ...enlargedStep('step-cut', AT_EDGE), annotations: marks });
+  // On the paper, in the window's left half.
+  const inside = line('inside', [0.1, 0.5], [0.4, 0.5]);
+  // Duplicate Step's copy of a long crease, from the paper down eight windows; and a mark a window off it.
+  const copied = [inside, line('long', [0.3, 0.4], [0.3, 8]), line('beside', [-0.8, 0.5], [-0.4, 0.5])];
+
+  it('is measured by what lies inside its window: a mark reaching out of it, or lying off it, sizes nothing', () => {
+    const style = createDiagram().style;
+    const measured = (marks: KnownDiagramAnnotation[]) => layoutPicture(withMarks(marks), {}, style, { frameMm: 60 })!;
+    expect(measured(copied)).toEqual(measured([inside]));
+    // Marks only off it: laid out by its content box, as with none.
+    expect(measured(copied.slice(2))).toEqual(measured([]));
+    expect(measured(copied.slice(2)).frame.width).toBeLessThan(0.7);
+  });
+
+  it('is kept in its room by what lies inside its window, the marks past it drawn whole, overflowing', () => {
+    const cell = { pictureMm: { x: 10, y: 20, size: 60 }, drawMm: { x: 10, y: 20, w: 60, h: 60 }, mmPerUnit: null, frameMm: 60 };
+    const drawn = (marks: KnownDiagramAnnotation[]) => cellPicture(withMarks(marks), {}, createDiagram().style, cell, 'c0-', text)!;
+    const [alone, withCopied] = [drawn([inside]), drawn(copied)];
+    expect(withCopied.boundsPt).toEqual(alone.boundsPt);
+    expect(withCopied.framePt).toEqual(alone.framePt);
+    // Drawn all the same: two more creases.
+    const creases = (markup: string) => (markup.match(/stroke-dasharray/g) ?? []).length;
+    expect(creases(withCopied.markup)).toBeGreaterThan(creases(alone.markup));
+  });
+});
+
 /** A diagram of an area on step 1 and the step enlarged from it beside it, on a flow row read left to right. */
 function areaThenEnlarged(area = circleArea('area-1', [0.5, 0.4], 0.15)): DiagramDocument {
   return insertSteps(

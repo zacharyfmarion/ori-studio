@@ -19,7 +19,7 @@ import {
 import { useFieldFocusRequest } from '../../diagram/annotate/useFieldFocusRequest';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
 import type { DiagramStep, KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
-import { marksInWindow, viewOfStep } from '../../diagram/zoom/stepView';
+import { marksTouchingWindow, viewOfStep } from '../../diagram/zoom/stepView';
 import { useAreaSubtitle } from '../../diagram/zoom/useZoomControls';
 import { frameSubtitle, areaStepOf } from '../../diagram/zoom/zoomActions';
 import { ZOOM_FRAME_ID, zoomShapeOf } from '../../diagram/zoom/zoomModel';
@@ -65,9 +65,9 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * stay in the Step pane, with the step (`DiagramStepAnnotations`).
  *
  * An enlarged step's frame is its first row (Revision 2): selected, its
- * controls (`DiagramZoomControls`); a mark it keeps but no longer draws,
- * lying far outside its window, is badged so. An enlarge area's row says
- * which steps were enlarged from it.
+ * controls (`DiagramZoomControls`); a mark lying wholly outside its window,
+ * which it keeps but sizes nothing by — and far off it, no longer draws — is
+ * badged so. An enlarge area's row says which steps were enlarged from it.
  */
 export function DiagramLayers({ step }: { step: DiagramStep }) {
   const { t } = useTranslation();
@@ -76,11 +76,11 @@ export function DiagramLayers({ step }: { step: DiagramStep }) {
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
   const view = useMemo(() => viewOfStep(step), [step]);
   const frame = view.zoom;
-  // The marks an enlarged step keeps but neither draws nor measures: far outside its window.
+  // The marks an enlarged step keeps but is not sized by: wholly outside its window (Zach, 2026-10-07).
   const outside = useMemo(() => {
     if (!view.window) return null;
-    const drawn = new Set(marksInWindow(view.window, step.annotations).map((mark) => mark.id));
-    return new Set(step.annotations.filter((mark) => !drawn.has(mark.id)).map((mark) => mark.id));
+    const touching = new Set(marksTouchingWindow(view.window, step.annotations).map((mark) => mark.id));
+    return new Set(step.annotations.filter((mark) => !touching.has(mark.id)).map((mark) => mark.id));
   }, [view.window, step.annotations]);
   const frameSelected = frame !== null && selectedId === ZOOM_FRAME_ID;
 

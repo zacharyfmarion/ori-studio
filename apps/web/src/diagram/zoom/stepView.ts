@@ -94,12 +94,31 @@ export function markGeometry(
  * in the window's own. The list itself when it keeps them all.
  */
 export function marksInWindow(window: PictureBox, annotations: readonly DiagramAnnotation[]): readonly DiagramAnnotation[] {
+  return marksNear(window, annotations, 1);
+}
+
+/**
+ * The marks an enlarged step is sized by (Zach, 2026-10-07): those touching
+ * its window. One lying wholly outside it — a mark Duplicate Step copied in
+ * from the whole picture, say — is kept, badged in the Layers pane, and
+ * counts neither for the size the page and its file print the step at nor
+ * for Annotate's fit; of one reaching out of the window only what lies inside
+ * it counts, its reach clipped there by whoever measures it. Which are drawn
+ * is {@link marksInWindow}'s. The list itself when every mark touches it.
+ */
+export function marksTouchingWindow(window: PictureBox, annotations: readonly DiagramAnnotation[]): readonly DiagramAnnotation[] {
+  return marksNear(window, annotations, 0);
+}
+
+/** The marks within `windows` windows of a window, each way; `window` in picture units, the marks in its own. */
+function marksNear(window: PictureBox, annotations: readonly DiagramAnnotation[], windows: number): readonly DiagramAnnotation[] {
   const frame = frameOf(window.width, window.height);
   if (!frame) return annotations;
   const near = (mark: DiagramAnnotation) => {
     if (!isKnownAnnotation(mark)) return true;
     const [minX, minY, maxX, maxY] = markExtent(mark);
-    return maxX >= -frame.width && minX <= 2 * frame.width && maxY >= -frame.height && minY <= 2 * frame.height;
+    const [across, down] = [windows * frame.width, windows * frame.height];
+    return maxX >= -across && minX <= frame.width + across && maxY >= -down && minY <= frame.height + down;
   };
   return annotations.every(near) ? annotations : annotations.filter(near);
 }

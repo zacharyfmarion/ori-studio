@@ -9,7 +9,7 @@ import {
 } from '../document/diagramDocument';
 import { stepPictureFrame } from '../pictures/pictureFrame';
 import { craneStep } from './zoom.fixtures';
-import { marksInWindow, stepAsDrawn, stepView, viewFrame, viewGeometry, viewOfStep } from './stepView';
+import { marksInWindow, marksTouchingWindow, stepAsDrawn, stepView, viewFrame, viewGeometry, viewOfStep } from './stepView';
 import { fromBox, intoBox } from './zoomFrames';
 import { frameWindow } from './zoomModel';
 
@@ -117,6 +117,22 @@ describe('the marks an enlarged step draws', () => {
       line('over', [0.5, -0.6], [0.6, -0.9]),
     ];
     expect(ids(marksInWindow(window, marks))).toEqual(['inside']);
+  });
+
+  it('sizes the step by the marks touching its window: one off it, drawn or not, counts for neither its size nor its fit', () => {
+    // Zach, 2026-10-07: a mark wholly outside the window is kept, and badged; one reaching out of it counts inside it.
+    const marks = [
+      line('inside', [0.2, 0.2], [0.8, 0.3]),
+      line('across', [0.5, 0.25], [1.6, 0.25]),
+      line('beside', [-0.9, 0.2], [-0.95, 0.3]),
+      line('below', [0.5, 0.95], [0.6, 0.98]),
+      line('right', [2.1, 0.2], [2.8, 0.3]),
+    ];
+    expect(ids(marksTouchingWindow(window, marks))).toEqual(['inside', 'across']);
+    // Drawn: all but the one beyond a window of it.
+    expect(ids(marksInWindow(window, marks))).toEqual(['inside', 'across', 'beside', 'below']);
+    const touching = marks.slice(0, 2);
+    expect(marksTouchingWindow(window, touching)).toBe(touching);
   });
 
   it('reaches a mark’s whole extent: a ring round its centre, a close-up’s two rings, an area’s outline, a path’s nodes', () => {

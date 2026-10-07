@@ -261,7 +261,24 @@ export interface AnnotateLayout {
   unit: number;
 }
 
-/** The picture's box with what `annotations` draw past it, in world px: what a fit frames. */
+/**
+ * What the canvas's fit frames, in world px: the picture and every mark the
+ * step draws past it, as a page leaves them room — a close-up beside the
+ * picture among them (15f). On an enlarged step (`enlarged`) its window
+ * alone: a page sizes it by what lies inside it, and a mark reaching out of
+ * it, or copied in from the whole picture and lying off it, counts for
+ * neither (Zach, 2026-10-07).
+ */
+export function annotateFitRect(
+  layout: AnnotateLayout,
+  annotations: readonly DiagramAnnotation[],
+  style: DiagramStyle,
+  enlarged: boolean
+): PlotRect {
+  return enlarged ? layout.picture : withMarksReach(layout, annotations, style);
+}
+
+/** The picture's box with what `annotations` draw past it, in world px. */
 function withMarksReach(layout: AnnotateLayout, annotations: readonly DiagramAnnotation[], style: DiagramStyle): PlotRect {
   const reach = annotationReach(annotationDrawing(annotations, layout.pictureFrame, CARD_FRAME_PX, style));
   const k = layout.unit / CARD_FRAME_PX;
@@ -399,11 +416,10 @@ export function useAnnotateCanvas({
   // An enlarged step's picture is drawn under its frame's clip (`DiagramZoomView`), not as an image of the whole.
   const url = useMemo(() => (source && !zoomed ? stepPictureUrl(source, style) : null), [source, zoomed, style]);
   const layout = useMemo(() => (painted ? layoutFor(painted) : null), [painted]);
-  // What a fit frames: the picture and every mark the step draws past it, as
-  // a page leaves them room — a close-up beside the picture among them (15f).
+  // What a fit frames: the picture and the marks past it, or an enlarged step's window alone.
   const framed = useMemo(
-    () => (layout ? withMarksReach(layout, viewed, style) : undefined),
-    [layout, viewed, style]
+    () => (layout ? annotateFitRect(layout, viewed, style, zoomed !== null) : undefined),
+    [layout, zoomed, viewed, style]
   );
 
   const camera = useViewportSurface({

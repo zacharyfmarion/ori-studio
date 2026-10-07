@@ -20,7 +20,11 @@
  * the boundary's pieces (`zoomContentBox`) — at the size the layout gives
  * enlarged steps, its own picture drawn larger under a clip in the frame's
  * shape, its boundary over it, and its marks — in the window's units — on the
- * window, as on any frame.
+ * window, as on any frame. It is measured, and kept in its room, by what lies
+ * inside its window (Zach, 2026-10-07): a mark reaching out of it is drawn
+ * whole but counts only inside it, and one wholly outside it not at all
+ * (`marksTouchingWindow`), so marks copied in from the whole picture cannot
+ * shrink it.
  *
  * Everything a picture names by id is renamed under the cell's prefix, so two
  * cells drawn from one asset never share an id on a page. An upload's text is
@@ -60,7 +64,7 @@ import { hasDrawnAnnotations, paintAnnotations, type CloseUpPicture } from '../a
 import { annotationDrawing, annotationReach } from '../annotate/annotationPrimitives';
 import { frameOf } from '../annotate/annotationModel';
 import type { PictureLayers } from '../annotate/pictureGeometry';
-import { stepAsDrawn, viewGeometry, viewOfStep } from '../zoom/stepView';
+import { marksTouchingWindow, stepAsDrawn, viewGeometry, viewOfStep } from '../zoom/stepView';
 import {
   paintZoomed,
   windowBox,
@@ -440,8 +444,9 @@ export function layoutPicture(
   };
   // An enlarged step is its window (Revision 2), laid out by what of it
   // prints: its content box, the boundary's pen half past it, its marks on
-  // the window. Measured at one content box, the overshoot's at its printed
-  // size, which is all that changes it.
+  // the window — only what of them lies inside it (Zach, 2026-10-07).
+  // Measured at one content box, the overshoot's at its printed size, which
+  // is all that changes it.
   const zoomed = view.zoom ? zoomedSource(step, assets) : null;
   if (zoomed) {
     const window = frameOf(zoomed.view.window.width, zoomed.view.window.height);
@@ -450,6 +455,9 @@ export function layoutPicture(
     const contentShare = Math.max(content.width, content.height);
     if (!(contentShare > 0)) return UNSIZED;
     const pen = zoomEdgePen(style, 1).width / 2;
+    const touching = marksTouchingWindow(zoomed.view.window, step.annotations);
+    const sizedBy = touching === step.annotations ? step : { ...step, annotations: [...touching] };
+    const marked = hasDrawnAnnotations(touching);
     return measured(
       null,
       (mm) => {
@@ -462,7 +470,8 @@ export function layoutPicture(
           height: content.height * unitPx,
         };
         const inked = grown(paper, pen);
-        return { frame: paper, reached: annotated ? reachedWith(step, frame, inked, style, layers) : inked };
+        const inside = marked ? intersection(reachedWith(sizedBy, frame, inked, style, layers), frame) : null;
+        return { frame: paper, reached: inside ? union(inked, inside) : inked };
       },
       contentShare
     );
@@ -519,6 +528,8 @@ export function cellPicture(
     zoomed ? drawZoomed(zoomed, step, style, inner, framePt, text) : draw(source, step, style, inner, mmPerUnit, framePt, text);
   const area = cell.drawMm ?? { x: cell.pictureMm.x, y: cell.pictureMm.y, w: cell.pictureMm.size, h: cell.pictureMm.size };
   const box: Rect = { x: area.x * PT_PER_MM, y: area.y * PT_PER_MM, width: area.w * PT_PER_MM, height: area.h * PT_PER_MM };
+  // An enlarged step keeps in its room what lies inside its window, as it was measured: its marks past it overflow.
+  const touching = zoomed ? marksTouchingWindow(zoomed.view.window, step.annotations) : step.annotations;
   /** The picture drawn into `inner`, `k` of its room, and its annotations on its frame. */
   const place = (inner: Rect, k = 1) => {
     // A scale the layout found shrinks with the room it is drawn into.
@@ -526,8 +537,13 @@ export function cellPicture(
     const mmPerUnit = cell.mmPerUnit === null ? null : cell.mmPerUnit * k;
     const drawn = drawPicture(inner, mmPerUnit, frame);
     if (!drawn) return null;
-    const marks = paintAnnotations(step.annotations, drawn.framePt, longerOf(drawn.framePt) / PT_PER_CSS_PX, style, layers);
-    return { drawn, marks, reached: marks ? union(drawn.boundsPt, marks.bounds) : drawn.boundsPt };
+    const framePx = longerOf(drawn.framePt) / PT_PER_CSS_PX;
+    const marks = paintAnnotations(step.annotations, drawn.framePt, framePx, style, layers);
+    if (!marks) return { drawn, marks, reached: drawn.boundsPt };
+    if (!zoomed) return { drawn, marks, reached: union(drawn.boundsPt, marks.bounds) };
+    const counted = touching === step.annotations ? marks : paintAnnotations(touching, drawn.framePt, framePx, style, layers);
+    const inside = counted ? intersection(counted.bounds, drawn.framePt) : null;
+    return { drawn, marks, reached: inside ? union(drawn.boundsPt, inside) : drawn.boundsPt };
   };
   let placed = place(box);
   if (!placed) return null;
@@ -636,6 +652,15 @@ function inkPt(paint: PaperStyle): number {
 /** `rect` grown by `by` on every side. */
 function grown(rect: Rect, by: number): Rect {
   return { x: rect.x - by, y: rect.y - by, width: rect.width + 2 * by, height: rect.height + 2 * by };
+}
+
+/** What two rects share, or null where they do not meet. */
+function intersection(a: Rect, b: Rect): Rect | null {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  return right >= x && bottom >= y ? { x, y, width: right - x, height: bottom - y } : null;
 }
 
 function union(a: Rect, b: Rect): Rect {
