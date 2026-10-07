@@ -293,8 +293,9 @@ or is posed; "shaped" means that in the rest of this plan.
 
 **An older simulated step has no shape.** One saved before this build keeps
 re-simulating to its fold %, as today, until it is next captured: a rest in
-Pose, a Refresh, or Show as. Opening Pose does not backfill it.
-*(Recommended; to confirm with Zach.)*
+Pose, a Refresh, or Show as. Opening Pose does not backfill it, silently or
+otherwise. *Decided* (Zach, 2026-10-07: "please just go with your recommended
+answers for everything").
 - Opening Pose writes nothing today (Phase 0 checked it). A backfill would make
   opening an undo step and a changed file, for a picture that did not change.
 - The mesh a backfill stored would be a fresh solve, not the one the picture

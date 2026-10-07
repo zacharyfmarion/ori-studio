@@ -9,8 +9,9 @@ their pages and export (16f, 2026-10-06) and their authoring (16e,
 progress, and 16e does not ship without them. Zach settled every decision
 on 2026-10-06: the enlarged steps' Z1–Z11, and the equal-divisions
 (ED1–ED13) and right-angle (RA0–RA8) decisions as recommended. Each is
-recorded in its part; what building 16e and 16f raised since is under
-"Open with Zach (2026-10-07)" below.** Phase 16 of
+recorded in its part. What building 16e and 16f raised since, Zach settled
+on 2026-10-07 as recommended: "Decided with Zach (2026-10-07)" below, four
+of them built since ("Follow-ups to 16e and 16f").** Phase 16 of
 `implementation-plans/diagram-workspace.md`, after Phase 15
 (`implementation-plans/diagram-annotate-second-pass.md`), whose kinds, tools,
 painter and close-ups this builds on. Built by hand, phase by phase, as Phase
@@ -42,34 +43,44 @@ options it names beside the recommendation were not taken. The
 enlarged-steps part names its decisions, Z1–Z10, only to point at the record
 of what Zach decided.
 
-**Open with Zach (2026-10-07).** Raised by building and verifying 16e and
-16f; nothing is built for them yet.
+**Decided with Zach (2026-10-07).** Raised by building and verifying 16e and
+16f. Zach: "please just go with your recommended answers for everything".
+1–4 are built ("Follow-ups to 16e and 16f", after 16f); 5 and 6 confirm
+what 16e built.
 
-1. **The arrow across a flow row break** sits in the lane's bend but is
-   mirrored to the next row's way, so it points across the page, not at the
-   enlarged step (16f; the crane's 21 → 22). *Recommended:* turn it toward
-   the step.
-2. **Step files print an enlarged step small.** `zoomFileFrameMm` caps it
+1. **The arrow across a flow row break** sat in the lane's bend but was
+   mirrored to the next row's way, so it pointed across the page, not at the
+   enlarged step (16f; the crane's 21 → 22). *Decided: turned toward the
+   step.* It is aimed from its place in the bend at the middle of the
+   enlarged step's picture, its bow on the outside of the bend; on a row,
+   across a grid's row and across a page it is as before (2541506f2).
+2. **Step files printed an enlarged step small.** `zoomFileFrameMm` capped it
    at 6× the area as the area's own step file draws it: on the crane's
-   same-size files step 22's window is 23.8 mm in a 61 mm box (48 mm on the
-   page). *Recommended:* match the page's enlargement.
+   same-size files step 22's window was 23.8 mm in a 61 mm box (48 mm on the
+   page). *Decided: match the page's enlargement.* The file draws the window
+   at the size its page cell prints it, no larger than the box holds: 48 mm
+   (4f842157d).
 3. **Copied marks after Duplicate Step and Enlarged** reach far outside the
-   window: Annotate's fit zooms out to them (13%, not 70%) and Fill sizes the
-   step by them (×1.52 on the crane, ×3.67 with them deleted).
-   *Recommended:* marks outside the frame count neither for Fill nor for
-   Annotate's fit; they keep their "Outside the enlarged frame" badge.
-4. **A Size change mid-run** starts a run, so the Fill steps after it
-   measure against their own frame, not the area they came from.
-   *Recommended:* every step of a run measures against the same area.
+   window: Annotate's fit zoomed out to them (13%, not 70%) and Fill sized the
+   step by them (×1.52 on the crane, ×3.67 with them deleted; ×1.4 and ×6 on
+   today's crane). *Decided: marks outside the frame count neither for Fill
+   nor for Annotate's fit, and keep their "Outside the enlarged frame"
+   badge.* Built as: what lies outside the window counts for neither; a mark
+   wholly outside it is badged; one reaching out of it counts inside it and
+   is drawn whole, overflowing its room (86ebf9e12).
+4. **A Size change mid-run** started a run, so the Fill steps after it
+   measured against their own frame, not the area they came from. *Decided:
+   every step of a run measures against the same area.* Only an arrow, or a
+   step not enlarged, starts a run (493e7b4e1).
 5. **An enlarged step's marks' reach** (`zoomModel.windowReach`, in "Model
-   and file format"): the file rule now lets a mark on an enlarged step sit
-   as far from the small window as a whole picture's marks may from its
-   frame, so Enlarged carries the crane's long valley line there and back
-   exactly. *To confirm.*
+   and file format"): the file rule lets a mark on an enlarged step sit as
+   far from the small window as a whole picture's marks may from its frame,
+   so Enlarged carries the crane's long valley line there and back exactly.
+   *Confirmed* as 16e built it.
 6. **A frame dropped in a gap Spread Layers opens** settles on the layer
-   above, the plan's rule: 61 px at 43% zoom on crane step 21 (0.028
-   picture units); every other drop landed where it was dropped. *To
-   confirm.*
+   above, the plan's rule: 61 px at 43% zoom on crane step 21 (0.028 picture
+   units); every other drop landed where it was dropped. *Confirmed* as 16e
+   built it.
 
 ## Goal
 
@@ -328,7 +339,7 @@ frame is moved by hand or its anchor is picked: the frame stays and its
 imprint is made again. Since onto the spread undoes off the spread, the frame
 lands again where it was left, except a frame whose centre was dropped in a
 strip the spread opened, which settles on the layer above, at most the
-strip's width away.
+strip's width away (confirmed by Zach, 2026-10-07).
 
 **Why two stages.** Landed in one stage, through placements fitted to the
 spread pictures, a frame drifts by up to 5.46% of its diameter whenever S's
@@ -638,7 +649,11 @@ D22's (Z3).
   break, with no lift. In the flow layout that is the lane between the rows
   where the flow turns, between the bottom of 55's row and the top of 56's
   (Zach's change to D22 of 2026-10-06, being built now); in the grid, D22's
-  place there as built. It points on to 56.
+  place there as built. It points on to 56: in the grid along 56's row; in
+  the flow aimed from the bend at 56's picture, its bow on the bend's
+  outside, and the row above keeps room for it at its tallest, 11.7 mm
+  (Zach, 2026-10-07: mirrored the next row's way, it pointed across the
+  page).
 - **Flow.** A left-to-right row as the grid. A right-to-left row: mirrored,
   pointing left, the bow still up, the lift applied. Which rows run right to
   left is per page since printed spreads (D10, 2026-10-06): read it from the
@@ -657,8 +672,10 @@ D22's (Z3).
   in one gutter, turns first, 1.5 mm apart. No lift.
 - **PDF**: the composed page SVG goes to the writer unchanged; krilla's clip
   paths were proven in 15f.
-- **ZIP step files.** 55 keeps its area. 56 is framed alone, at Fill against
-  its file's picture box, or at Size × the area's size in the files. No arrow:
+- **ZIP step files.** 55 keeps its area. 56 is framed alone, at the size its
+  page prints it, no larger than its file's picture box holds (Zach,
+  2026-10-07: measured against the area's size in the files, which share one
+  scale smaller than the page's, it printed half its page size). No arrow:
   the `turnsLeftOut` notice (`DiagramExportOptions.tsx:223-230`) becomes
   "Turns and enlarge arrows print only on pages".
 
@@ -917,8 +934,8 @@ Pure modules in `diagram/zoom/`:
   (the step's marks were in window units). `writeStep` adds `zoom` when set,
   each optional field only when set.
 - **An enlarged step's marks reach as far as its whole picture's**
-  (`zoomModel.windowReach`; review of 16e, 2026-10-06, **for Zach to
-  confirm**). They are in the window's units, so reach's four frames would
+  (`zoomModel.windowReach`; review of 16e, 2026-10-06; confirmed by Zach,
+  2026-10-07). They are in the window's units, so reach's four frames would
   be four *windows*: a mark across the model from a small frame (the crane's
   long valley line beside a head area of radius 0.05 lies some eight windows
   out) could not be carried into the window and back, and S1.6 carried no
@@ -1097,7 +1114,10 @@ LayoutPage.zoomArrows: { at; box; beforeStepId; areaStepId; areaId; rightToLeft:
   is: after a move it prints wherever the rule now holds.
 - **Runs**, for layout only: an enlarged step and the enlarged steps directly
   after it, turns passed, up to a step that is not enlarged or that has an
-  arrow before it. Under Fill a run prints at one size.
+  arrow before it. Every step of a run is measured against the run's area,
+  whatever Size it asks for, so ×2 means the same all along it, on a step
+  captured from an earlier enlarged step too (Zach, 2026-10-07). Under Fill
+  a run's Fill steps print at one size.
 - **Scale**, a post-pass after the runs loop (`diagramPageLayout.ts:924-940`,
   `scaleRuns` over the `paper` pictures by mm per unit, then over the `fit`
   pictures by frame). 'zoom' pictures are of neither kind, so no run takes
@@ -1113,8 +1133,9 @@ LayoutPage.zoomArrows: { at; box; beforeStepId; areaStepId; areaId; rightToLeft:
     `shared` fit (`ScaleFit`, l.304), clamped to [1, 6] × `areaMm`. Each step
     prints at min(`windowMm`, its own fit) and is flagged `reduced` when that
     bites, so one long caption reduces only its own step.
-  - **Fixed Size**: `windowMm` = Size × `areaMm`, capped the same way; a step
-    with its own Size starts a run of its own.
+  - **Fixed Size**: `windowMm` = Size × the run's `areaMm`, capped the same
+    way. A Size starts no run of its own (Zach, 2026-10-07; as 16f was
+    built it did, and the Fill steps after it measured by their own frames).
   - The read-out is `printed / areaMm`; it turns amber under `FIT_ZOOM` (1.3):
     "Prints only ×1.1 — draw a smaller area".
   - `layoutDiagram`'s measure-at-scale passes re-measure reach at the pinned
@@ -1162,8 +1183,12 @@ exactly as `paintTurnGlyph` paints a turn (`turnGlyph.ts:39`):
 Its box, about 12 × 9.5 mm, is measured once from the painted outline, not
 typed as a constant (the 11.6 × 7 and 12 × 6 mm boxes two proposals typed
 cannot hold the 7.94 mm head). Mirrored on right-to-left rows
-(`turnFollowsReading`), the bow kept up. It shows only on pages and in the
-PDF: cards never draw across cards, so they show the chip.
+(`turnFollowsReading`), the bow kept up. Across a flow row break it is aimed
+instead (Zach, 2026-10-07): turned from its place toward the middle of the
+enlarged step's picture, flipped about its chord where that keeps its bow on
+the outside of the lane's bend (`LayoutArrowAim`), its box measured turned.
+It shows only on pages and in the PDF: cards never draw across cards, so they
+show the chip.
 
 #### Edge cases
 
@@ -1195,9 +1220,11 @@ PDF: cards never draw across cards, so they show the chip.
 - 3D and simulated pictures: frames in picture units; the Cut silhouette comes
   from the painter's-tree faces and is approximate. Live orbit views show the
   outline only.
-- Marks partly outside the window are drawn unclipped and measured; marks
-  wholly outside it (beyond the window grown by one window) are kept, not
-  drawn, not measured, and badged.
+- What lies outside the window counts neither for the step's size nor for
+  Annotate's fit (Zach, 2026-10-07). A mark partly outside it is drawn
+  unclipped and measured only inside it, so it overflows its room; one wholly
+  outside it is kept, badged and measured nowhere, and drawn only within a
+  window of it (`marksTouchingWindow`, `marksInWindow`).
 - A picture with no paper outline: the Edge row is disabled with its hint.
 - An empty enlarged step (seeded, before Link) shows the placeholder with its
   chip; its first picture lands the imprint captured at creation, or the frame
@@ -3652,11 +3679,12 @@ not ship before 16g (below).
   - **The off-paper inverse.** `zoomImprint`'s `offPaper` solves onto(p) =
     drawn in up to 32 fixed-point steps. A point in a strip a spread opens
     settles on the layer above, per the plan: 0.028 picture units on crane
-    step 21; every other drop landed exactly (`verify/probe/`; Open with
-    Zach, 6).
-  - **Reach** (for Zach to confirm; "Model and file format"; Open with Zach,
-    5). `annotationModel` adds `AnnotationReach`, `PICTURE_REACH`,
-    `withAnnotationReach` (scoped, try/finally) and `isWithinReach`;
+    step 21; every other drop landed exactly (`verify/probe/`; confirmed by
+    Zach, 2026-10-07).
+  - **Reach** (confirmed by Zach, 2026-10-07; "Model and file format";
+    Decided with Zach, 5). `annotationModel` adds `AnnotationReach`,
+    `PICTURE_REACH`, `withAnnotationReach` (scoped, try/finally) and
+    `isWithinReach`;
     `withinReach`, `handleWithinReach` and `deltaWithinReach` read the
     active reach. `zoomModel.windowReach(frame)` joins reach's four windows
     round the window with the whole picture's ±4 frames taken into window
@@ -3759,12 +3787,13 @@ not ship before 16g (below).
   clean; 871 test files and 11,581 tests passed, 2 files and 13 tests
   skipped. The committed patch was checked byte for byte against the gated
   one.
-- [ ] Left open by the verify (2026-10-07), small; the larger questions are
-  "Open with Zach" 3, 5 and 6. On an iPad the panes are a sheet, so the
-  first Escape closes it and only the second puts Pick down. The badge
-  "Outside the enlarged frame" wraps to two lines and cuts off the mark's
-  name. A fixed Size of 1.25 reads "Prints ×1.3". After a large shrink the
-  cropped surround's edge can still show at a very low zoom. The anchor
+- [ ] Left open by the verify (2026-10-07), small; the larger questions,
+  "Open with Zach" 3, 5 and 6, are decided (Decided with Zach, at the top).
+  On an iPad the panes are a sheet, so the first Escape closes it and only
+  the second puts Pick down. The badge "Outside the enlarged frame" wraps to
+  two lines and cuts off the mark's name. A fixed Size of 1.25 reads "Prints
+  ×1.3". After a large shrink the cropped surround's edge can still show at
+  a very low zoom. The anchor
   face's outline is often off screen with the frame selected (arming Pick
   zooms out to it; selecting does not). `DiagramEnlargementValue` holds
   'none', which is never sent.
@@ -3898,8 +3927,10 @@ enlarged step shares a Fit each run any more.
   holds. Measured on the crane's same-size step files
   (`gate/probe-stepfile.mjs`): step 21 at 22.0 mm and its area 3.96 mm, so
   step 22's window is 23.8 mm (×6) in a 61 mm box, 48 mm on the page ("Open
-  with Zach", 2). The export dialog says "Enlarge arrows print only on the
-  pages" (or "Turns and enlarge arrows…") for step files, and for the PDF
+  with Zach", 2). *Amended* (4f842157d, Zach 2026-10-07): the page's size,
+  no larger than the box holds; see the follow-ups below. The export dialog
+  says "Enlarge arrows print only on the pages" (or "Turns and enlarge
+  arrows…") for step files, and for the PDF
   and the SVG which enlarged step prints on the page after its area — one
   sentence,
   `panels:diagram.pages.zoomSplitStep`/`zoomSplitSteps`, shared with the Pages
@@ -3957,9 +3988,9 @@ enlarged step shares a Fit each run any more.
   files and 14 tests skipped; `diagramPdf.wasm.test.ts` ran all six cases
   against the real writer. The commit was checked byte for byte against the
   gated files.
-- [ ] **For Zach** (the review, 2026-10-06; nothing built for these). The
-  first three are "Open with Zach (2026-10-07)" 3, 4 and 1 at the top, each
-  with a recommendation; the read-outs are done:
+- [x] **For Zach** (the review, 2026-10-06). The first three are "Decided
+  with Zach (2026-10-07)" 3, 4 and 1 at the top, decided as recommended and
+  built in the follow-ups below; the read-outs are done:
   - *Copied marks shrink a Fill step (S1).* E, a drag, Duplicate Step,
     Enlarged: the copy's marks, carried into the window's units, reach far
     past the frame, and the edge-case rule "marks partly outside the window
@@ -3969,15 +4000,17 @@ enlarged step shares a Fit each run any more.
     Enlarged on a copy drops or badges the copied marks outside the window,
     as it drops the copied area; (b) Fill sizes by the content box, marks
     outside the window overflowing rather than reaching; (c) keep the rule
-    and say so in the read-out and Pages view.
+    and say so in the read-out and Pages view. *Decided:* (b), with the
+    badge on marks wholly outside the window (86ebf9e12).
   - *A Size mid-run.* A Size change starts a run, and the Fill steps after it
     then start one with no arrow, measured by their own frame, not the area
     they were captured from: their cap and "prints ×N" are against another
     reference. Option: only a step that is not enlarged, or an arrow, resets
-    the area; a Size change keeps it.
+    the area; a Size change keeps it. *Decided:* so (493e7b4e1).
   - *The arrow across a flow row break* is mirrored to the next row's way
     and points across the page, not at the enlarged step above or below it
     in the bend: keep D22's placement, or turn it toward the step there.
+    *Decided:* turned toward it (2541506f2).
   - *The read-outs* (16e): the Layers pane said the Size asked for and the
     Step pane only "Fill"; `usePrintedZoom(stepId)` has what prints
     ({asked, printed, reduced}) for the plan's "Prints ×3.67" / "Asked ×6 ·
@@ -3985,6 +4018,81 @@ enlarged step shares a Fit each run any more.
     *Done in 16e* (63f390cf2): `zoomReadout`/`zoomReadoutText` over
     `usePrintedZoom`, in Layers and the Step pane ("Fill · prints ×N"),
     amber where the room or the area holds it back.
+
+### Follow-ups to 16e and 16f (Zach, 2026-10-07)
+
+**Built 2026-10-07**, to "Decided with Zach (2026-10-07)" 1–4 at the top
+(Zach: "please just go with your recommended answers for everything"); 5 and
+6 confirm what 16e built and change no code. One commit each. Verified on
+Zach's crane at :5291 by the scripts in
+`artifacts/revision-2/16-followups/` (`setup.mjs` makes 16f verify's three
+enlarged steps), shots in its `shots/`. The batch's gate is the caller's.
+
+- [x] 1. The enlarge arrow across a flow row break points at the enlarged
+  step (2541506f2). `LayoutZoomArrow.aim` ({angle, flipped}, `LayoutArrowAim`):
+  `placeTurns` aims an arrow standing in the lane's bend from its place at
+  the middle of the next picture, flipped where that keeps its bow on the
+  outside of the bend (the way the row before read); null on a row, across a
+  grid's row and across a page, which are unchanged. The arrow's box is
+  measured turned from its painted outline (`aimedEnlargeArrowMm`), and
+  `slotBottom` keeps room for its tallest at any aim
+  (`tallestEnlargeArrowMm`, 11.65 mm in the Diagram preset, against 7.91
+  along a row), since the bend's place is known only after the slot: the
+  layout is handed all three (`enlargeArrowSizes`). `paintEnlargeArrow` turns
+  the arrow about its frame's middle; the golden is unchanged. Tests, failing
+  before: `diagramPageLayout.test.ts` (aimed down into the next row, bow
+  outside, its box the aimed box; up on a right page read from the bottom,
+  flipped; null elsewhere), `zoomPages.test.ts` (the page prints the aimed
+  arrow, not a mirror), `enlargeArrow.test.ts` (turned and centred, its box
+  measured turned, the tip along the aim, the bow on the side it is put).
+  Crane, 21 → 22 in the flow: at (195.5, 97.8) mm, 124°, a 6.5 × 10.3 mm box
+  (`arrow.mjs`, `shots/arrow-flow-page-3.png`, `arrow-flow-zoom.png`;
+  before: `16f/verify/shots/after-chromium-light-flow-page-3.png`).
+- [x] 2. An enlarged step's step file matches its page enlargement
+  (4f842157d). `zoomFileFrameMm(document, laidOut, step, box, pageFrameMm)`:
+  the window as its page cell prints it, no larger than the box holds its
+  content and marks at; Fill against the box where the pages give no size.
+  `prepareStepFiles` lays the pages out once, on the first enlarged step's
+  file, with a setter of its own. Tests, failing before:
+  `stepFiles.test.ts` (a large file, where six times the area as its file
+  draws it is not the page's size: the page's frame and its ×6; Size ×2 as
+  the page; a small file held to its box). Crane, same-size 80 × 100 mm:
+  step 22's window 48.0 mm in the 61.1 mm box, as its page (×5.61), was
+  23.8 (`stepfile.mjs`, `shots/stepfile-21-22.png`).
+- [x] 3. Marks outside an enlarged frame don't size it (86ebf9e12).
+  `marksTouchingWindow` (`stepView.ts`): the marks an enlarged step is sized
+  by. `layoutPicture` measures it by its content and those marks' reach
+  clipped to the window; `cellPicture` keeps the same in its room, so a step
+  file is cropped to it too; Annotate's fit frames the window alone
+  (`annotateFitRect`); Layers badges a mark wholly outside the window,
+  drawn or not. Tests, failing before: `zoomPages.test.ts` (measured, and
+  kept in its room, as without the copied marks, which still draw),
+  `useAnnotateCanvas.test.ts` (the fit is the window), `stepView.test.ts`,
+  `DiagramZoomControls.test.tsx` (a mark just off the window badged too).
+  Crane, 16e's S1 with the copied marks kept: Fill ×5.94 (48 mm), was ×1.4
+  (11.3 mm), ×6 with them deleted; Annotate 70%, was 13%; the copied arrow
+  badged (`copied.mjs`, `shots/copied-page-before-after.png`,
+  `copied-annotate-before-after.png`). *For Zach:* the copied valley line
+  crosses the window, so it is not badged, and drawn whole it now runs down
+  the rest of the page under step 20 — the overflow option (b) named. If
+  that is not wanted: clip printed marks at the window, badge a mark that
+  reaches more than a window out, or have Enlarged on a copy drop such
+  marks as it drops the copied area. Two things left as they were: a card
+  still grows to take in an enlarged step's marks; and any mark makes a Cut
+  frame measure as its whole window, since a mark's reach starts from its
+  frame (`annotationReach`), so ×5.94 here, not ×6.
+- [x] 4. A run of enlarged steps measures Size against its area (493e7b4e1).
+  `zoomScales`: only an arrow, or a step that is not enlarged, starts a run;
+  each step prints at its Size × the run's area, or the run's one Fill size,
+  held to 1–6 × the area. Tests, failing before: `diagramPageLayout.test.ts`
+  (steps captured from an earlier enlarged step, half its frame, at ×2 and
+  ×1.5 of the run's area; Fill after a Size held to ×6 of it). Crane: 22
+  (Fill, ×5.61) duplicated as 23, its frame 0.6 of 22's and Size ×2: 17.1
+  mm, twice 21's area of 8.56 mm, was 10.3 mm while reading "prints ×2"
+  (`runsize.mjs`, `shots/runsize-before-after.png`; before is the layout at
+  4f842157d, routed).
+- [x] 5 and 6 recorded as confirmed: the marks' reach (`windowReach`) and the
+  frame dropped in a spread's strip settling on the layer above.
 
 ### 16g Enlarged steps: moves, deletes and changing pictures
 
