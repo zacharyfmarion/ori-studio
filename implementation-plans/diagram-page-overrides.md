@@ -474,9 +474,8 @@ pages keep Columns and Rows.
   and 12 give 3×4. Orientation and paper size feed it, so landscape gets
   wider rows.
 - **Short rows.** Steps fill rows in reading order and the last row may be
-  short, as the last page of a diagram is today (crane page 3: 25, 26). Open
-  with Zach: whether a short row should instead be balanced (7 steps as 3·2·2
-  rather than 3·3·1). Recommended: leave it at the end, as today.
+  short, as the last page of a diagram is today (crane page 3: 25, 26): 7
+  steps are 3·3·1, not a balanced 3·2·2. DECIDED (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch").
 - **Winding.** Unchanged: `flowPagePlan` takes the derived row count, rows
   alternate direction, the lane turns at row ends and runs across a spread's
   spine.
