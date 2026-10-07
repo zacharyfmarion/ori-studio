@@ -1,6 +1,6 @@
 # Diagram: placing things on the page by hand
 
-**Status: planned 2026-10-07. Nothing is built. Decisions 1–6 are PENDING** (recommended: all A).
+**Status: planned 2026-10-07. Nothing is built. Decisions 1–6 are DECIDED: all A** (Zach, 2026-10-07: "in this case i agree with all the decision for the diagram page - you can go ahead and start building once the plan is up to date"). The same day he asked for flow pages to take a number of steps instead of rows and columns; that is Phase 1b.
 This builds on D10 (pages come from one pure layout; Fit each), D11 (export),
 D22 (turn glyphs) and the flow lane in `implementation-plans/diagram-workspace.md`,
 and on Revision 2's enlarged steps (16f, `implementation-plans/diagram-revision-2.md`).
@@ -38,8 +38,20 @@ Zach, 2026-10-07:
 So:
 
 1. **Scale.** A step's picture can be given a size of its own. Fit each keeps
-   sizing every other picture from the steps around it. A pinned picture is
-   never recomputed until its pin is cleared.
+   sizing every other picture from the steps around it. Once a picture is
+   pinned, Fit each stops sizing it: adding or deleting steps around it,
+   changing the paper, the margins or the steps per page, or re-posing a
+   neighbour leaves it as set, until the pin is cleared (Reset Size).
+   - What the pin holds is the paper's scale, not the printed box. Re-pose the
+     pinned step itself and a flap that opens prints bigger, at the same scale,
+     so it stays matched to its neighbours (Decision 4).
+   - Every other picture sizes as if the pin were not there, so pinning and
+     clearing change only that picture (Decision 2).
+   - A pin bigger than its cell is honoured, its text moves down, and any
+     overlap is flagged (Decision 3). The layout still holds it between 4 mm
+     and the paper's printable side.
+   - A pin sleeps while the picture is of another kind, and an enlarged step
+     has its Size instead of a pin.
 2. **Moving parts.** A step's number, picture and text can each be moved. A
    move is kept relative to the step's frame, so it rides along through a
    reorder or a move to another page. Each one clears on its own.
@@ -51,6 +63,12 @@ So:
 5. **One truth.** The Pages view, the PDF, Print and the single SVG all show
    the same placement. With nothing placed, every page is byte for byte what
    it is today.
+
+6. **Flow: steps per page.** Zach, 2026-10-07: "I think it makes more sense
+   for flow, instead of showing an option for the number of rows and cols, to
+   just have an option for the number of steps to show. and that determines
+   how the flow is rendered, roughly keeping the same winding behavior." See
+   "Flow: steps per page" below; built as Phase 1b.
 
 ## Approach
 
@@ -442,10 +460,42 @@ offers Undo. A small hook reads `diagramPlacesSettled` to show it.
 - When the step-files format is picked and any step is placed, it says in
   one line that hand placement applies to the pages only.
 
+### Flow: steps per page
+
+A flow page takes a number of steps, and the layout chooses its rows. Grid
+pages keep Columns and Rows.
+- **Model.** `DiagramPageSetup` gains `stepsPerPage` (2–24), used by flow
+  only. The Page pane shows "Steps per page" in place of Columns and Rows
+  while the layout is flow.
+- **Shape.** A pure `flowShape(stepsPerPage, printable area)` picks the column
+  count whose cells come closest to square on the page's printable area, with
+  `rows = ceil(steps / columns)`: it minimises `|ln(cellWidth / cellHeight)|`,
+  ties going to fewer columns. On A4 portrait, 9 steps give 3×3, 6 give 2×3
+  and 12 give 3×4. Orientation and paper size feed it, so landscape gets
+  wider rows.
+- **Short rows.** Steps fill rows in reading order and the last row may be
+  short, as the last page of a diagram is today (crane page 3: 25, 26). Open
+  with Zach: whether a short row should instead be balanced (7 steps as 3·2·2
+  rather than 3·3·1). Recommended: leave it at the end, as today.
+- **Winding.** Unchanged: `flowPagePlan` takes the derived row count, rows
+  alternate direction, the lane turns at row ends and runs across a spread's
+  spine.
+- **Files.** `stepsPerPage` is written for flow only. A flow file without it
+  reads as `columns × rows`, so every existing flow page keeps its count. Its
+  shape then follows the rule, which matches the old one wherever the old
+  one was the squarest; a wide shape (4 columns × 2 rows on A4 portrait)
+  becomes 2 × 4. Grid files are unchanged.
+- **Cells.** `cellSlots` reads the derived shape, and a change of steps per
+  page sends moved frames home like a change of columns or rows (below).
+- **Analytics.** `diagram page setup changed` gains the setting
+  `steps_per_page`, beside `columns` and `rows` (which setting, never its
+  value).
+
 ### When an override clears
 
 One rule decides the frame. A step's **cell** is its place among its page's
-steps, on a page that starts with a given step, at given columns, rows and
+steps, on a page that starts with a given step, at given columns and rows (a
+flow page's derived from its steps per page) and
 layout (grid or flow). The frame offset is kept while that cell is unchanged,
 and cleared automatically when it changes, whatever caused it. That is
 Decision 1, A.
@@ -467,7 +517,7 @@ offers Undo.
 | A turn added, removed or moved (turns take no cell) | kept | kept | kept |
 | Start a New Page set or cleared at or before it on its page, or where the shift reaches it | kept | kept | **cleared** |
 | Start a New Page on a later step | kept | kept | kept |
-| Columns or rows | kept | kept | **cleared** (the cell changed shape) |
+| Columns or rows (grid), steps per page (flow) | kept | kept | **cleared** (the cell changed shape) |
 | Grid ↔ flow | kept | kept | **cleared** |
 | First page Left/Right; a page added or removed after its page | kept | kept | kept (stored along the row, it follows a row that flips) |
 | Paper size, orientation, margin, title, page numbers | kept | kept | kept (anything now off the paper is flagged) |
@@ -634,9 +684,9 @@ Every new string goes in all 9 catalogs, through `i18n:extract`, then
 
 ## Decisions for Zach
 
-Numbered so picks can be pasted back. All PENDING.
+All DECIDED: A (Zach, 2026-10-07: "in this case i agree with all the decision for the diagram page - you can go ahead and start building once the plan is up to date").
 
-**1. When does a dragged step frame go back to its cell? PENDING.** (You
+**1. When does a dragged step frame go back to its cell? DECIDED: A.** (You
 flagged this one to talk through.)
 - **A.** Whenever the step lands in a different cell, for any reason:
   - its own move;
@@ -669,7 +719,7 @@ flagged this one to talk through.)
   - Its cost: an insert early in a run of full pages sends every moved frame
     after it home, up to the next page break. The toast says how many.
 
-**2. When one picture's scale is pinned, do the other steps react? PENDING.**
+**2. When one picture's scale is pinned, do the other steps react? DECIDED: A.**
 - **A.** No. They size exactly as if it were still computed, so pinning and
   clearing touch only that picture.
 - **B.** Yes. The pinned picture leaves Fit each's runs, and the rest re-run
@@ -684,7 +734,7 @@ flagged this one to talk through.)
     6"). A later "Use this size for its run" verb could make it one click.
 
 **3. A pin bigger than the room its cell gives it: honour it, or hold it to
-the room? PENDING.**
+the room? DECIDED: A.**
 - **A.** Honour it. The picture is drawn at the pin, and its text moves down
   under it and keeps every line. Whatever it then runs into is outlined amber
   and listed at export, with a one-click page break offered. An enlarged
@@ -701,7 +751,7 @@ the room? PENDING.**
     the two rules agree. Fill is unchanged.
 
 **4. What does a pin hold when the picture changes (re-posed, recaptured, its
-frame edited)? PENDING.**
+frame edited)? DECIDED: A.**
 - **A.** The paper's scale: mm per pattern unit for a picture that knows its
   paper, the frame's mm for a fitted one. The pane shows it as printed mm.
 - **B.** The printed size: the frame's longer side in mm, whatever the
@@ -716,7 +766,7 @@ frame edited)? PENDING.**
     back.
 
 **5. Is a moved number, picture or text a nudge from its computed place, or a
-fixed spot in the frame? PENDING.**
+fixed spot in the frame? DECIDED: A.**
 - **A.** A nudge. Text moved 3 mm right still sits under its picture when the
   picture grows.
 - **B.** A fixed spot in the frame, whatever the picture does.
@@ -728,7 +778,7 @@ fixed spot in the frame? PENDING.**
   - B is truer to "I put it there", but an edit elsewhere could bury this
     step's text under its own picture without this step being touched.
 
-**6. Where does it land? PENDING.**
+**6. Where does it land? DECIDED: A.**
 - **A.** Phase 1 (the model, the file and the clearing, with no UI) goes into
   #436 before it merges. The layout and the UI come in a PR of their own on
   main after #436 merges, as you chose for the simulator work.
@@ -891,13 +941,13 @@ Vitest runs in the web workspace under Node 22.
 
 ### Phase 0: decisions
 
-- [ ] A throwaway prototype, `artifacts/page-overrides/page-overrides.html`,
+- [x] ~~A throwaway prototype,~~ Not needed: Zach decided without it. It would have been `artifacts/page-overrides/page-overrides.html`,
   gitignored. It shows one flow spread at print size, where Zach can:
   - drag frames and watch the ribbon follow live across the spine;
   - pin a scale and see the neighbours hold (2A) or re-run (2B);
   - pin past the room (3A against 3B);
   - insert a step to see frames go home under 1A, 1B and 1C.
-- [ ] Zach answers Decisions 1–6; record each here with his words.
+- [x] Zach answers Decisions 1–6; record each here with his words. All A: "in this case i agree with all the decision for the diagram page".
 
 ### Phase 1: model, file and clearing, no UI (into #436 under 6A, after 16g lands)
 
@@ -918,6 +968,20 @@ Vitest runs in the web workspace under Node 22.
 - [ ] `diagramLayoutSteps` copies `place` onto `LayoutStep`. The layout
   ignores it until Phase 2.
 - [ ] Gate: lint, typecheck, `test:web`. No UI, so no browser shots.
+
+### Phase 1b: flow steps per page (into #436, after Phase 1)
+
+- [ ] `stepsPerPage` on `DiagramPageSetup`: clamped, default 9, reader and
+  writer (flow only; a flow file without it reads `columns × rows`), tests.
+- [ ] `flowShape` with tests: A4 and Letter, portrait and landscape, 2–24
+  steps, ties, the default.
+- [ ] The flow layout and `cellSlots` take the derived shape; every existing
+  flow fixture composes identically where its old shape was the squarest.
+- [ ] Page pane: Steps per page for flow, Columns and Rows for grid; i18n in
+  all 9 catalogs; the `steps_per_page` setting in analytics.
+- [ ] Browser: before/after of the crane and the heart in flow at 6, 9 and 12
+  steps, on a spread with First page Left and Right; light and dark; 375 px.
+- [ ] Gate: lint, typecheck, `test:web`, `i18n:check`.
 
 ### Phase 2: the layout (its own PR on main under 6A)
 
