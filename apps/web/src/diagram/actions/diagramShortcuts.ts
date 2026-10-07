@@ -1,5 +1,13 @@
 import type { DiagramAnnotateShortcutId, DiagramPathShortcutId, DiagramShortcutId } from '../../keyboard/shortcuts';
-import { EDIT_PATH, LINE_TOOL, isLineTool, lineTypeForShortcut, toolForShortcut, type AnnotateTool } from '../annotate/annotateTools';
+import {
+  EDIT_PATH,
+  LINE_TOOL,
+  isEnlargeTool,
+  isLineTool,
+  lineTypeForShortcut,
+  toolForShortcut,
+  type AnnotateTool,
+} from '../annotate/annotateTools';
 import type { DiagramLineType } from '../annotate/lineTypes';
 import { NUDGE_STEP } from '../annotate/annotationActions';
 
@@ -22,6 +30,11 @@ export interface DiagramKeyState {
    */
   browserOpen?: boolean;
   /**
+   * An enlarge area's or an enlarged step's anchor is being picked on the
+   * canvas (Revision 2): Escape leaves the pick mode first.
+   */
+  anchorPick?: boolean;
+  /**
    * The detail is in Annotate: its tool, its selected annotation, whether
    * that offers Flip arc, and the node Edit Path has selected on it.
    */
@@ -32,6 +45,8 @@ export interface DiagramKeyState {
     selectedAnnotationId: string | null;
     canFlipArc: boolean;
     selectedPathNode?: number | null;
+    /** The step is enlarged: the Enlarge tools draw nothing on it (Revision 2). */
+    enlarged?: boolean;
   } | null;
 }
 
@@ -57,6 +72,8 @@ export interface DiagramKeyActions {
   flipArc?: () => void;
   /** Drop the drag the canvas has in hand, if it has one; whether it had. */
   cancelGesture?: () => boolean;
+  /** Leave the anchor's pick mode (Revision 2). */
+  endAnchorPick?: () => void;
 }
 
 /**
@@ -142,6 +159,8 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolAngleBisector': true,
   'diagram.toolDivisions': true,
   'diagram.toolCloseUp': true,
+  'diagram.toolEnlarge': true,
+  'diagram.toolEnlargeFrame': true,
   'diagram.flipArc': true,
 };
 
@@ -221,27 +240,35 @@ export function runDiagramAnnotateShortcut(
   }
   const tool = toolForShortcut(id);
   if (tool === undefined || !actions.setTool) return false;
+  // Claimed, and nothing picked: an enlarged step is not enlarged again yet, as the rail's held tool says.
+  if (isEnlargeTool(tool) && annotate.enlarged && annotate.tool !== tool) return true;
   actions.setTool(annotate.tool === tool ? null : tool);
   return true;
 }
 
 /**
  * Escape in the Diagram: one ladder, each press undoing the innermost thing
- * (D12) — close the References browser, drop the drag in progress; in Edit
+ * (D12) — close the References browser, leave an anchor's pick mode
+ * (Revision 2), drop the drag in progress; in Edit
  * Path deselect the node, then put Edit Path down, back to Select with the
  * arrow still selected; deselect the annotation, put the tool down, leave the
  * step detail, deselect the step — and then it declines, so Escape reaches
  * whatever is beneath.
  */
 export function runDiagramCancel(
-  state: Pick<DiagramKeyState, 'selectedStepId' | 'detailOpen' | 'annotate' | 'browserOpen'>,
+  state: Pick<DiagramKeyState, 'selectedStepId' | 'detailOpen' | 'annotate' | 'browserOpen' | 'anchorPick'>,
   actions: Pick<
     DiagramKeyActions,
-    'select' | 'close' | 'cancelGesture' | 'selectAnnotation' | 'selectPathNode' | 'setTool' | 'closeBrowser'
+    'select' | 'close' | 'cancelGesture' | 'selectAnnotation' | 'selectPathNode' | 'setTool' | 'closeBrowser' | 'endAnchorPick'
   >
 ): boolean {
   if (state.browserOpen && actions.closeBrowser) {
     actions.closeBrowser();
+    return true;
+  }
+  // The anchor's pick mode, wherever the focus is: in the Layers pane's Pick, or on the canvas.
+  if (state.anchorPick && actions.endAnchorPick) {
+    actions.endAnchorPick();
     return true;
   }
   if (state.annotate) {

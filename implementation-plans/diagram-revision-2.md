@@ -398,7 +398,7 @@ and depth spreads, and within 0.01% with none.
    with the area selected; its anchor face, the body's back layer, is
    outlined in the selection ink. Layers shows its row, **Enlarge area**, "No
    step is enlarged from it": Shape Circle · Size empty (placeholder "Fill") ·
-   Edge Cut · Anchor "Backmost outside the frame (auto)" · Update Enlarged
+   Edge Cut · Anchor "Auto" (its tooltip "The backmost face outside the frame") · Update Enlarged
    Steps (disabled) · Delete.
 5. Make 56. At the end of the diagram, 55's card menu › **Duplicate Step**
    (the copy has the same link, picture and pose, and 55's marks, the area
@@ -477,8 +477,10 @@ The gesture is E, one drag, Duplicate Step, Enlarged.
 - **Edge** [Cut | Whole]. Cut is disabled, with the hint "This picture has no
   paper outline to cut along", when the step's picture has none (uploads,
   fixed SVGs, raster captures). Such steps always draw Whole.
-- **Anchor**, on an area and on a frame: "Backmost outside the frame (auto)"
-  or "Picked". **Pick** arms the pick mode: on the canvas the face drawn on top
+- **Anchor**, on an area and on a frame: "Auto" or "Picked", on one line in
+  both states, each saying what it is in its tooltip ("The backmost face
+  outside the frame"; review of 16e: the long rule wrapped and moved the rows
+  below on every pick). **Pick** arms the pick mode: on the canvas the face drawn on top
   under the pointer is highlighted (on 56 the picture round the frame shows
   while its row is selected, so faces outside the frame can be picked), and a
   click anchors to it, one undo step. Escape, or Pick again, leaves the mode.
@@ -571,10 +573,16 @@ own: only the toggle and Update Enlarged Steps take a frame from another step.
   (the same picture key), so the faces are that picture's. Otherwise —
   stale, missing, no pattern open, or drawn differently by this build — it
   has none until refreshed: a capture from it or onto it copies the frame in
-  picture units, and the Step pane says "Refresh step 55 to anchor the frame
-  to its paper", naming whichever step lacks them. Refresh is offered on a
-  current flat step with no faces (`facesMissing` in `diagramActions.ts`),
-  so that notice never names a disabled verb.
+  picture units, and the Step pane says "Refresh step 55, then Update
+  Enlarged Steps on step 55's area, to anchor the frame to its paper" (or
+  "…then turn Enlarged off and on" once the area is gone), naming whichever
+  step lacks them. A Refresh alone does not place a frame captured as a copy
+  again, so the notice is worked out from the frame itself: while the frame
+  has no imprint on a step whose paper could anchor it, and both steps have
+  their faces, it says "Update Enlarged Steps on step 55's area to anchor
+  the frame to its paper" (review of 16e, 2026-10-06). Refresh is offered on
+  a current flat step with no faces (`facesMissing` in
+  `diagramActions.ts`), so that notice never names a disabled verb.
 
 **S6, print.** Defaults: A4 portrait, 12 mm margins, 3×3 grid; each cell 62 ×
 84.67 mm. Every diagram fits each, no longer a choice since the One scale
@@ -638,9 +646,12 @@ D22's (Z3).
   `DiagramAnnotateShortcutId`, the `diagramShortcut` definitions,
   `ANNOTATE_SHORTCUT_IDS` (`diagram/actions/diagramShortcuts.ts`) and
   `i18n/shortcutLabels.ts`. The tools are disabled, with a reason, on a step
-  with no picture; on an enlarged step ("Enlarging an enlarged step comes
-  later"); on a locked step; on a read-only diagram. No pre-draw option is
-  added: Line Type stays the rail's only one.
+  with no picture; on an enlarged step ("This step is already enlarged —
+  draw the area on a step that shows the whole model", which a paste that
+  leaves an area out says too; there, an Enlarge tool in hand from another
+  step is Select, and the rail shows Select); on a locked step; on a
+  read-only diagram. No pre-draw option is added: Line Type stays the rail's
+  only one.
 - **Annotate canvas, a step with areas.** Each area is a mark with grips.
   Selected, its anchor face is outlined in the selection ink, where the step
   has faces.
@@ -689,7 +700,8 @@ D22's (Z3).
   view shows the outline ghosted over the camera.
 - **Step pane** (fields only): **DiagramStepZoomStatus**, with its own CSS
   module, mounted by one line in `DiagramStepPanel` after Pose. A read-only
-  row, "Enlarged · from step 55's area · prints ×4.4", the step number a link;
+  section "Enlarged" with the rows From ("Step 55's area", a link) and Size
+  ("Fill · prints ×4.4"), an amber read-out as a notice;
   and the notices: the frame holds no paper; the anchor is not on this step's
   paper; a capture older than `paperFaces` (refresh to anchor); prints soft.
   Each names the verb that fixes it; the pane has no buttons.
@@ -872,6 +884,20 @@ Pure modules in `diagram/zoom/`:
   and `annotatedPictureKey` is set to null, so D8's out-of-step notice shows
   (the step's marks were in window units). `writeStep` adds `zoom` when set,
   each optional field only when set.
+- **An enlarged step's marks reach as far as its whole picture's**
+  (`zoomModel.windowReach`; review of 16e, 2026-10-06, **for Zach to
+  confirm**). They are in the window's units, so reach's four frames would
+  be four *windows*: a mark across the model from a small frame (the crane's
+  long valley line beside a head area of radius 0.05 lies some eight windows
+  out) could not be carried into the window and back, and S1.6 carried no
+  mark at all. So on a step with a frame, a mark's point is this build's
+  within the bounding box of reach's four windows about the window and the
+  whole picture's ±`ANNOTATION_REACH` frames taken into the window's units;
+  the reader reads the frame first and checks the marks against that box,
+  edits clean within it, and carries between units clamp to the box of the
+  units they go to. A change of units is then a pure scale and shift, exact
+  there and back; a mark past even that box (a newer build's) still keeps
+  every mark where it was, out of step.
 - **`readPaperFaces`.** A string that parses to an object with `points`,
   `rings` and `levels`: each point four finite numbers; one ring and one
   whole level ≥ 0 per face, each ring empty (a face the kernel could not
@@ -1151,11 +1177,10 @@ PDF: cards never draw across cards, so they show the chip.
 - Undo and redo restore marks, frames and imprints together, one entry per
   verb.
 - On a phone the fields go in the Step drawer and grips are at least
-  `--touch-target`. The toggle stays on Pose's toolbar, unlike Spread Layers,
-  which a phone's toolbar leaves to the Step drawer because the toolbar would
-  wrap (`DiagramStepDetail.tsx:179-181`). 16e checks the toolbar at 375 px
-  with Enlarged showing; if it wraps, the toggle follows Spread Layers into
-  the drawer. The pick mode is a tap.
+  `--touch-target`. A phone's Pose toolbar wraps at 375 px (three rows
+  before 16e), so the toggle follows Spread Layers into the Step drawer: an
+  Enlarged switch in the Step pane's Pose section, off the phone's toolbar.
+  The pick mode is a tap.
 - Analytics opted out: every event is a no-op, and behaviour is unchanged.
 
 #### Analytics
@@ -1203,7 +1228,7 @@ is two keys, one step and a range, not a plural.
 | --- | --- |
 | `tools:diagram` | `toolEnlarge`, `toolEnlargeFrame` |
 | `panels:diagram.annotate` | `enlargeHelp`, `enlargeFrameHelp`, the modifier lines, the disabled reasons, the pick mode's hint |
-| `panels:diagram.annotations` | Row and field labels (Enlarge area, Enlarged frame, the two subtitles each way, Shape, Circle, Rounded rectangle, Size, Fill, Edge, Cut, Whole, Anchor, "Backmost outside the frame (auto)", Picked, Pick, Reset); the read-outs, normal and reduced; the verbs (Update Enlarged Steps and its tooltip, Go to Step {{n}}, Go to Area on Step {{n}}); the frame's note; badges and hints (Outside the enlarged frame, the Cut-unavailable hint) |
+| `panels:diagram.annotations` | Row and field labels (Enlarge area, Enlarged frame, the two subtitles each way, Shape, Circle, Rounded rectangle, Size, Fill, Edge, Cut, Whole, Anchor, Auto and its tooltip, Picked, Pick, Reset); the read-outs, normal and reduced; the verbs (Update Enlarged Steps and its tooltip, Go to Step {{n}}, Go to Area on Step {{n}}); the frame's note; badges and hints (Outside the enlarged frame, the Cut-unavailable hint) |
 | `panels:diagram.pose` | `enlarged`, its tooltip with and without "remove this step's own enlarge area", its disabled reason |
 | Step pane | The read-out row and four notices |
 | Card | The chip, with and without a step number |
@@ -3483,6 +3508,12 @@ fitted picture of its window until 16f's 'zoom' kind.
   3D and other fitted pictures and change their printed size (S6: enlarged
   steps never enter `scaleRuns`). The toggle that makes one reaches no user
   until 16f lands.
+- [ ] Not shipped before 16g: re-posing, refreshing or relinking an enlarged
+  step garbles its marks and leaves its frame. `withCarriedAnnotations` is
+  not frame-aware until 16g wires `reposeFrame` and `relandFrame` into it:
+  it carries the window-unit marks as if they were the whole picture's, and
+  the frame stays where it was in picture units while the picture turns
+  (review of 16e, 2026-10-06). 16g lands in the same release as 16e.
 - [ ] The Anchor row and the pick mode (`useAnchorPick`): Pick, the hover
   highlight, a click anchoring, Escape through the shortcut runtime, Reset;
   hidden with no faces and on a crease pattern. Tests: a pick stores the
@@ -3527,6 +3558,14 @@ fitted picture of its window until 16f's 'zoom' kind.
 
 ### 16g Enlarged steps: moves, deletes and changing pictures
 
+- [ ] Seeding through one funnel for every way a step is made after an
+  enlarged one: Add Step and Insert Step After (16e seeds these two), and an
+  upload of several pictures, a References pull and a References fill of an
+  empty enlarged step (`pullReferencesDiagramSteps`), which 16e neither
+  seeds nor lands (`landSeededFrame`). Decide which `via` an empty step
+  turned Enlarged counts: today `trackCaptured` drops a capture with
+  `placed: null`, and its first picture counts it as `seeded` (review of
+  16e, 2026-10-06).
 - [ ] Seeding on insert and duplicate; the carries on enlarging and
   un-enlarging; the frame re-landed on its own step's refresh, relink and
   re-pose, marks with it, a spread turned on, off or changed among the

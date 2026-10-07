@@ -7,7 +7,10 @@ import {
   placeCpLineSegmentsAt,
 } from '../../../lib/creasePatternClipboard';
 import type { Selection, TreeProject } from '../../../lib/sampleProject';
-import { EDIT_PATH } from '../../../diagram/annotate/annotateTools';
+import { toast } from 'sonner';
+import i18n from '../../../i18n';
+import { EDIT_PATH, enlargedStepTakesNoArea } from '../../../diagram/annotate/annotateTools';
+import { stepById } from '../../../diagram/document/diagramDocument';
 import { annotationActionEdit } from '../../../diagram/annotate/annotationActions';
 import { annotationClipboard, pastedAnnotations, pastedOnto } from '../../../diagram/annotate/annotationClipboard';
 import { applyAnnotationEdit } from '../../../diagram/annotate/applyAnnotationEdit';
@@ -148,7 +151,12 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
       const clipboard = get().clipboard;
       const stepId = get().diagramSelectedStepId;
       if (clipboard?.kind !== 'diagram-annotations' || stepId === null || !canPasteDiagramAnnotations(get())) return;
-      const pasted = pastedAnnotations(clipboard, stepId);
+      // A step is enlarged or holds areas, not both (Revision 2): an area pasted on an enlarged step is left out.
+      const target = get().diagram ? stepById(get().diagram!, stepId) : undefined;
+      const copies = pastedAnnotations(clipboard, stepId);
+      const pasted = target?.zoom ? copies.filter((annotation) => annotation.kind !== 'zoom') : copies;
+      if (pasted.length < copies.length) toast.message(enlargedStepTakesNoArea(i18n.t));
+      if (pasted.length === 0) return;
       const label = pasted.length === 1 ? 'Paste annotation' : 'Paste annotations';
       const changed = get().editDiagramAnnotations(stepId, label, (list) => [...list, ...pasted], {
         select: pasted[0]?.id ?? null,

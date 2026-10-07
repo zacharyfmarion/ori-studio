@@ -1955,6 +1955,21 @@ export interface DiagramSliceState {
    * where what it adds goes, which list it shows, and which pattern.
    */
   diagramReferencesBrowser: DiagramReferencesBrowserState | null;
+  /**
+   * An anchor being picked on the Annotate canvas (Revision 2, the Anchor
+   * row's Pick): the step, and the enlarge area's id there or the step's own
+   * frame (`ZOOM_FRAME_ID`). Read through `activeAnchorPick`, which takes it
+   * for none once the step is not open in Annotate or the area or frame is
+   * not selected. Not saved.
+   */
+  diagramAnchorPick: DiagramAnchorPick | null;
+}
+
+/** What an anchor is being picked for: an enlarge area on a step, or the step's own frame. */
+export interface DiagramAnchorPick {
+  stepId: string;
+  /** The area's id, or `ZOOM_FRAME_ID` for the step's frame. */
+  target: string;
 }
 
 /** The References browser's state (D20). Not saved. */
@@ -2173,6 +2188,43 @@ export interface DiagramSliceActions {
   ) => { stepIds: string[]; turnIds: string[] } | null;
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;
+  /**
+   * Pose's Enlarged turned on (Revision 2, Z2): a frame captured from the
+   * nearest earlier step with an area or a frame, the step's own areas gone
+   * and its marks carried into the window — one undo step, which first gives
+   * either step its faces when it is a flat capture made before they were
+   * kept and its pattern can fold it again. Resolves whether it changed.
+   */
+  enlargeDiagramStep: (stepId: string) => Promise<boolean>;
+  /** Enlarged turned off: the frame dropped, the marks carried back to the whole picture, as one undo step. */
+  unenlargeDiagramStep: (stepId: string) => boolean;
+  /**
+   * Update Enlarged Steps (Z7): every step captured from the area captured
+   * again from it as it is now, as one undo step. Resolves how many it placed.
+   */
+  updateEnlargedDiagramSteps: (areaId: string) => Promise<number>;
+  /**
+   * Any other edit of an enlarged step's frame — moved, resized, reshaped,
+   * its Size, Edge or anchor — as one undo step called `label`: `edit` gets
+   * the diagram and returns it as it should be (`zoomFrames.ts`). Whether it
+   * changed. `loadId` drops an edit that outlived its diagram.
+   */
+  editDiagramStepZoom: (
+    stepId: string,
+    label: string,
+    edit: (document: DiagramDocument) => DiagramDocument,
+    options?: { loadId?: number }
+  ) => boolean;
+  /**
+   * A step just made an enlarge source — an area drawn on it — given its faces
+   * on the paper when it is a flat capture made before they were kept and its
+   * pattern can fold it again (Z11): folded into the newest undo step, the
+   * area's, while it is still the newest; nothing otherwise, as a capture from
+   * it gives them later. Resolves whether it did.
+   */
+  giveDiagramStepPaperFaces: (stepId: string) => Promise<boolean>;
+  /** Arm the anchor's pick mode for an area or a frame, or leave it (null). View state. */
+  setDiagramAnchorPick: (pick: DiagramAnchorPick | null) => void;
 }
 
 export type DiagramSlice = DiagramSliceState & DiagramSliceActions;

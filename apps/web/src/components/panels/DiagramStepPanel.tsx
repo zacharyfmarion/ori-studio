@@ -19,6 +19,7 @@ import { DiagramStepHeader } from '../diagram/DiagramStepHeader';
 import { DiagramStepPicture } from '../diagram/DiagramStepPicture';
 import { DiagramStepPose } from '../diagram/DiagramStepPose';
 import { DiagramStepShowAs } from '../diagram/DiagramStepShowAs';
+import { DiagramStepZoomStatus } from '../diagram/DiagramStepZoomStatus';
 import { DiagramTurnPane } from '../diagram/DiagramTurnPane';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { TextAreaRow } from '../ui/fieldRows';
@@ -148,6 +149,7 @@ export function DiagramStepPanel() {
         )}
         {!locked && <DiagramStepShowAs actions={actions} side={side} />}
         {detailOpen && !annotating && <DiagramStepPose step={step} actions={poseActions} />}
+        {!locked && <DiagramStepZoomStatus step={step} />}
         {!locked && (
           <CollapsibleSection title={t('panels:diagram.stepPane.picture', 'Picture')}>
             <DiagramStepPicture

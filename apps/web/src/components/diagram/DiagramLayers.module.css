@@ -64,6 +64,21 @@
   white-space: nowrap;
 }
 
+/* A row's name, and under it what it says of itself: an area's enlarged steps, a frame's area (Revision 2). */
+.rowText {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rowNote {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (pointer: coarse) {
   .row {
     min-height: var(--touch-target);

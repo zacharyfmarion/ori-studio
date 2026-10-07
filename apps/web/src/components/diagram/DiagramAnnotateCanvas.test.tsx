@@ -27,8 +27,15 @@ import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { ZOOM_SURROUND_DIM } from '../../diagram/zoom/paintZoomed';
 import { ZOOM_FRAME_ID } from '../../diagram/zoom/zoomModel';
+import { craneStep, imprintCase } from '../../diagram/zoom/zoom.fixtures';
+import { paperFacesOf, toPicture } from '../../diagram/zoom/zoomImprint';
+import { createDiagram, insertSteps } from '../../diagram/document/diagramDocument';
 
-const tracked = vi.hoisted(() => ({ trackDiagramAnnotationAdded: vi.fn(), trackDiagramArrowShaped: vi.fn() }));
+const tracked = vi.hoisted(() => ({
+  trackDiagramAnnotationAdded: vi.fn(),
+  trackDiagramArrowShaped: vi.fn(),
+  trackDiagramEnlargementChanged: vi.fn(),
+}));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
   ...tracked,
@@ -2119,5 +2126,332 @@ describe('DiagramAnnotateCanvas on an enlarged step (Revision 2)', () => {
     const [ix, iy, iw, ih] = ['x', 'y', 'width', 'height'].map((name) => Number(image.getAttribute(name)));
     expect(ix! + iw!).toBeGreaterThan(1540);
     expect([x, y, right, bottom]).toEqual([Math.min(0, ix!), Math.min(0, iy!), Math.max(1540, ix! + iw!), Math.max(1540, iy! + ih!)]);
+  });
+});
+
+describe('the Enlarge tools and the enlarged frame (Revision 2, 16e)', () => {
+  beforeEach(() => tracked.trackDiagramEnlargementChanged.mockClear());
+  const areas = () => annotations().filter((annotation) => annotation.kind === 'zoom');
+  const handles = () =>
+    [...overlay().querySelectorAll('[data-zoom-selection] [data-handle]')].map((dot) => dot.getAttribute('data-handle'));
+
+  /** The step with these marks on it, Select in hand, nothing selected. */
+  function drawn(list: KnownDiagramAnnotation[]) {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => list);
+      state().selectDiagramAnnotation(null);
+      state().setDiagramAnnotateTool(null);
+    });
+    rerender();
+    return stepId;
+  }
+
+  it('drags a circle out from its middle with Enlarge: the area alone, as one undo step, selected and counted', () => {
+    mount();
+    tool('enlarge');
+    const steps = state().diagram!.steps.length;
+    const past = state().diagramHistory.past.length;
+    drag(at(0.5, 0.4), at(0.7, 0.4));
+    expect(areas()).toHaveLength(1);
+    const [area] = areas();
+    expect(area!.from[0]).toBeCloseTo(0.5, 6);
+    expect(area!.radius).toBeCloseTo(0.2, 6);
+    expect(area!.size).toBeUndefined();
+    // Drawing it changes nothing else: no step made, one undo step, named for it (Z1).
+    expect(state().diagram!.steps).toHaveLength(steps);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)!.label).toBe('Enlarge area');
+    expect(state().diagramSelectedAnnotationId).toBe(area!.id);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['enlarge', 'none']]);
+    // The tool stays in hand: a second area goes on the same step (several may sit on one).
+    pointer('pointerdown', at(0.2, 0.2));
+    pointer('pointerup', at(0.2, 0.2));
+    expect(areas()).toHaveLength(2);
+    expect(areas()[1]!.radius).toBe(0.15);
+  });
+
+  it('drags a rounded rectangle corner to corner with Enlarge in Frame: Shift square, Alt from its middle, a click a standard size', () => {
+    mount();
+    tool('enlarge-frame');
+    drag(at(0.2, 0.2), at(0.6, 0.3));
+    expect(areas()[0]).toMatchObject({ size: [expect.closeTo(0.4, 6), expect.closeTo(0.1, 6)] });
+    expect(areas()[0]!.from[0]).toBeCloseTo(0.4, 6);
+    expect(areas()[0]!.from[1]).toBeCloseTo(0.25, 6);
+    drag(at(0.2, 0.2), at(0.6, 0.3), 1, 'mouse', overlay(), { shiftKey: true });
+    expect(areas()[1]!.size).toEqual([expect.closeTo(0.4, 6), expect.closeTo(0.4, 6)]);
+    drag(at(0.5, 0.4), at(0.6, 0.45), 1, 'mouse', overlay(), { altKey: true });
+    expect(areas()[2]!.from).toEqual([expect.closeTo(0.5, 6), expect.closeTo(0.4, 6)]);
+    expect(areas()[2]!.size).toEqual([expect.closeTo(0.2, 6), expect.closeTo(0.1, 6)]);
+    pointer('pointerdown', at(0.3, 0.3));
+    pointer('pointerup', at(0.3, 0.3));
+    expect(areas()[3]!.size).toEqual([0.3, 0.3]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls.map(([kind]) => kind)).toEqual([
+      'enlarge_frame',
+      'enlarge_frame',
+      'enlarge_frame',
+      'enlarge_frame',
+    ]);
+  });
+
+  it('takes an area by its outline only, under the marks inside it, which stay pressable', () => {
+    const area: KnownDiagramAnnotation = { id: 'area', kind: 'zoom', from: [0.5, 0.4], to: [0.5, 0.4], radius: 0.2 };
+    const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.4, 0.4], to: [0.6, 0.4] };
+    drawn([area, line]);
+    const press = (point: [number, number]) => {
+      pointer('pointerdown', point);
+      pointer('pointerup', point);
+      rerender();
+    };
+    press(at(0.5, 0.4));
+    expect(state().diagramSelectedAnnotationId).toBe('line');
+    press(at(0.45, 0.3));
+    expect(state().diagramSelectedAnnotationId).toBeNull();
+    press(at(0.7, 0.4));
+    expect(state().diagramSelectedAnnotationId).toBe('area');
+  });
+
+  it('moves a selected circle by its centre and resizes it by its rim, each one undo step on its step only', () => {
+    const area: KnownDiagramAnnotation = { id: 'area', kind: 'zoom', from: [0.5, 0.4], to: [0.5, 0.4], radius: 0.2 };
+    drawn([area]);
+    act(() => state().selectDiagramAnnotation('area'));
+    rerender();
+    expect(handles()).toEqual(['zoom-centre', 'zoom-rim']);
+    const past = state().diagramHistory.past.length;
+    drag(at(0.5, 0.4), at(0.55, 0.45));
+    expect(areas()[0]!.from).toEqual([expect.closeTo(0.55, 6), expect.closeTo(0.45, 6)]);
+    rerender();
+    drag(at(0.75, 0.45), at(0.85, 0.45));
+    expect(areas()[0]!.radius).toBeCloseTo(0.3, 6);
+    expect(state().diagramHistory.past).toHaveLength(past + 2);
+    expect(state().diagramHistory.past.at(-1)!.label).toBe('Change enlarge area');
+    expect(tracked.trackDiagramEnlargementChanged.mock.calls).toEqual([
+      ['area', 'moved'],
+      ['area', 'moved'],
+    ]);
+  });
+
+  it('resizes a selected rounded rectangle by a corner, the opposite one held, or about its centre with Alt, and by an edge', () => {
+    const area: KnownDiagramAnnotation = { id: 'area', kind: 'zoom', from: [0.5, 0.4], to: [0.5, 0.4], size: [0.4, 0.2] };
+    drawn([area]);
+    act(() => state().selectDiagramAnnotation('area'));
+    rerender();
+    expect(handles()).toEqual([
+      'zoom-centre',
+      'zoom-corner-0',
+      'zoom-corner-1',
+      'zoom-corner-2',
+      'zoom-corner-3',
+      'zoom-edge-0',
+      'zoom-edge-1',
+      'zoom-edge-2',
+      'zoom-edge-3',
+    ]);
+    // The bottom-right corner out by 0.1 each way: the top-left one stays.
+    drag(at(0.7, 0.5), at(0.8, 0.6));
+    expect(areas()[0]!.size).toEqual([expect.closeTo(0.5, 6), expect.closeTo(0.3, 6)]);
+    expect(areas()[0]!.from).toEqual([expect.closeTo(0.55, 6), expect.closeTo(0.45, 6)]);
+    rerender();
+    // With Alt, about its centre.
+    drag(at(0.8, 0.6), at(0.9, 0.6), 1, 'mouse', overlay(), { altKey: true });
+    expect(areas()[0]!.size).toEqual([expect.closeTo(0.7, 6), expect.closeTo(0.3, 6)]);
+    expect(areas()[0]!.from).toEqual([expect.closeTo(0.55, 6), expect.closeTo(0.45, 6)]);
+    rerender();
+    // The left edge in by 0.1: its height kept.
+    drag(at(0.2, 0.45), at(0.3, 0.45));
+    expect(areas()[0]!.size).toEqual([expect.closeTo(0.6, 6), expect.closeTo(0.3, 6)]);
+  });
+
+  it('draws nothing with the Enlarge tools on an enlarged step', () => {
+    const stepId = mount();
+    act(() =>
+      useWorkspaceStore.setState({
+        diagram: {
+          ...state().diagram!,
+          steps: stepsIn(state().diagram!).map((step) =>
+            step.id === stepId
+              ? { ...step, zoom: { from: 'area-1', shape: 'circle' as const, frame: { centre: [0.5, 0.375] as [number, number], radius: 0.2 } } }
+              : step
+          ),
+        },
+      })
+    );
+    rerender();
+    tool('enlarge');
+    drag(at(0.3, 0.3), at(0.5, 0.3));
+    expect(areas()).toHaveLength(0);
+  });
+
+  describe('an enlarged step’s frame', () => {
+    /** The step enlarged on its picture's circle of radius 0.2 about [0.5, 0.375], a mark on its window. */
+    function enlarged() {
+      const stepId = mount();
+      const mark: KnownDiagramAnnotation = { id: 'mark', kind: 'valley-line', from: [0.2, 0.5], to: [0.8, 0.5] };
+      act(() =>
+        useWorkspaceStore.setState({
+          diagram: {
+            ...state().diagram!,
+            steps: stepsIn(state().diagram!).map((step) =>
+              step.id === stepId
+                ? {
+                    ...step,
+                    annotations: [mark],
+                    annotatedPictureKey: step.picture!.key,
+                    zoom: { from: 'area-1', shape: 'circle' as const, frame: { centre: [0.5, 0.375] as [number, number], radius: 0.2 } },
+                  }
+                : step
+            ),
+          },
+        })
+      );
+      act(() => state().setDiagramAnnotateTool(null));
+      rerender();
+      return stepId;
+    }
+    const step = () => stepsIn(state().diagram!)[0]!;
+    /** A point in the window's units, on the picture. */
+    const onPicture = ([u, v]: readonly [number, number]): [number, number] => {
+      const { centre, radius } = step().zoom!.frame!;
+      return [centre[0] - radius! + u * 2 * radius!, centre[1] - radius! + v * 2 * radius!];
+    };
+
+    it('is selected by a click on its boundary, under every mark, its grips shown', () => {
+      enlarged();
+      pointer('pointerdown', at(1, 0.5));
+      pointer('pointerup', at(1, 0.5));
+      rerender();
+      expect(state().diagramSelectedAnnotationId).toBe(ZOOM_FRAME_ID);
+      expect(host.querySelector('[data-zoom-selection="frame"]')).not.toBeNull();
+      expect(handles()).toEqual(['zoom-centre', 'zoom-rim']);
+      // A mark inside it is still the mark's.
+      pointer('pointerdown', at(0.3, 0.5));
+      pointer('pointerup', at(0.3, 0.5));
+      expect(state().diagramSelectedAnnotationId).toBe('mark');
+    });
+
+    it('is selected by a click on its boundary with an Enlarge tool in hand from another step: Select is in hand here', () => {
+      enlarged();
+      tool('enlarge-frame');
+      expect(view().dataset.tool).not.toBe('enlarge-frame');
+      pointer('pointerdown', at(1, 0.5));
+      pointer('pointerup', at(1, 0.5));
+      rerender();
+      expect(state().diagramSelectedAnnotationId).toBe(ZOOM_FRAME_ID);
+      // The tool is still the one picked, for the next step that can take an area.
+      expect(state().diagramAnnotateTool).toBe('enlarge-frame');
+    });
+
+    it('moves by a drag, one undo step: its imprint made again and the marks kept on the same paper', () => {
+      const stepId = enlarged();
+      const before = onPicture(annotations()[0]!.from);
+      const past = state().diagramHistory.past.length;
+      drag(at(1, 0.5), at(1.1, 0.5));
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      expect(state().diagramHistory.past.at(-1)!.label).toBe('Move enlarged frame');
+      expect(stepsIn(state().diagram!).find((each) => each.id === stepId)!.zoom!.frame!.centre).toEqual([
+        expect.closeTo(0.54, 6),
+        expect.closeTo(0.375, 6),
+      ]);
+      const after = onPicture(annotations()[0]!.from);
+      expect(after[0]).toBeCloseTo(before[0], 9);
+      expect(after[1]).toBeCloseTo(before[1], 9);
+      expect(tracked.trackDiagramEnlargementChanged.mock.calls).toEqual([['frame', 'moved']]);
+    });
+
+    it('resizes by its rim once selected, drawing only an outline until it lands', () => {
+      enlarged();
+      act(() => state().selectDiagramAnnotation(ZOOM_FRAME_ID));
+      rerender();
+      const surround = host.querySelector('[data-zoom-surround] image')!.getAttribute('href');
+      pointer('pointerdown', at(1, 0.5));
+      pointer('pointermove', at(1.1, 0.5), 1, 'mouse', overlay(), { buttons: 1 });
+      pointer('pointermove', at(1.25, 0.5), 1, 'mouse', overlay(), { buttons: 1 });
+      // Mid-drag: the outline follows the pointer over the same picture, nothing painted again.
+      expect(host.querySelector('[data-zoom-surround] image')!.getAttribute('href')).toBe(surround);
+      const outline = host.querySelector('[data-zoom-selection="frame"] polygon')!.getAttribute('points')!;
+      const xs = outline.split(' ').map((pair) => Number(pair.split(',')[0]));
+      expect(Math.max(...xs)).toBeCloseTo(at(1.25, 0.5)[0], 3);
+      const before = onPicture(annotations()[0]!.to);
+      pointer('pointerup', at(1.25, 0.5));
+      // A quarter of the window, 0.4 of the picture across, further out: 0.1 more radius.
+      expect(step().zoom!.frame!.radius).toBeCloseTo(0.3, 6);
+      expect(state().diagramHistory.past.at(-1)!.label).toBe('Resize enlarged frame');
+      // The marks on the same paper, in the larger window's units.
+      const after = onPicture(annotations()[0]!.to);
+      expect(after[0]).toBeCloseTo(before[0], 9);
+      expect(after[1]).toBeCloseTo(before[1], 9);
+    });
+
+    it('holds still on a diagram that cannot change, and still selects', () => {
+      enlarged();
+      rerender(true);
+      drag(at(1, 0.5), at(1.1, 0.5));
+      expect(state().diagramSelectedAnnotationId).toBe(ZOOM_FRAME_ID);
+      expect(step().zoom!.frame!.centre).toEqual([0.5, 0.375]);
+    });
+  });
+});
+
+describe('the anchor’s pick mode (Revision 2, 16e)', () => {
+  beforeEach(() => tracked.trackDiagramEnlargementChanged.mockClear());
+
+  /** Zach's crane, step 22, with 16.0's area round the head, open in Annotate, the area selected. */
+  function crane() {
+    const s = craneStep('S.none');
+    const { centre, radius } = toPicture(paperFacesOf(s)!, imprintCase('C.none').frame);
+    const area: KnownDiagramAnnotation = { id: 'area-head', kind: 'zoom', from: centre, to: centre, radius };
+    const step = { ...s, annotations: [area], annotatedPictureKey: s.picture!.key };
+    act(() => {
+      useWorkspaceStore.setState({ diagram: insertSteps(createDiagram({ title: 'Crane' }), [step], 0) });
+      state().openDiagramStep(step.id, 'annotate');
+      state().selectDiagramAnnotation('area-head');
+    });
+    rerender();
+    return { stepId: step.id, centre };
+  }
+  const area = () => annotations()[0]!;
+
+  it('outlines the anchor face a screen px or so wide at any zoom, as the grips are sized', () => {
+    crane();
+    const zoomed = () => Number(host.querySelector('[data-viewport-zoom]')!.textContent!.replace('%', '')) / 100;
+    const width = () => Number(overlay().querySelector('[data-face-ring]')!.getAttribute('stroke-width')) * zoomed();
+    expect(width()).toBeCloseTo(1.25, 6);
+    act(() => {
+      view().dispatchEvent(new WheelEvent('wheel', { deltaY: 400, ctrlKey: true, bubbles: true, cancelable: true }));
+    });
+    rerender();
+    expect(width()).toBeCloseTo(1.25, 6);
+  });
+
+  it('outlines the selected area’s anchor face, and shows the face a click would anchor to', () => {
+    const { stepId, centre } = crane();
+    expect(overlay().querySelectorAll('[data-face-ring]')).toHaveLength(1);
+    act(() => state().setDiagramAnchorPick({ stepId, target: 'area-head' }));
+    rerender();
+    expect(view().dataset.picking).toBe('true');
+    pointer('pointermove', at(...centre));
+    expect(overlay().querySelectorAll('[data-face-ring]')).toHaveLength(2);
+  });
+
+  it('anchors where it is clicked, one undo step that leaves the area where it is, and leaves the mode', () => {
+    const { stepId, centre } = crane();
+    act(() => state().setDiagramAnchorPick({ stepId, target: 'area-head' }));
+    rerender();
+    const past = state().diagramHistory.past.length;
+    pointer('pointerdown', at(...centre));
+    pointer('pointerup', at(...centre));
+    expect(area().anchor).toBeDefined();
+    expect(area().from).toEqual(centre);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramAnchorPick).toBeNull();
+    expect(tracked.trackDiagramEnlargementChanged.mock.calls).toEqual([['area', 'anchor', 'picked']]);
+  });
+
+  it('is put down by selecting anything else, with nothing to clear', () => {
+    const { stepId } = crane();
+    act(() => state().setDiagramAnchorPick({ stepId, target: 'area-head' }));
+    act(() => state().selectDiagramAnnotation(null));
+    rerender();
+    expect(view().dataset.picking).toBeUndefined();
   });
 });

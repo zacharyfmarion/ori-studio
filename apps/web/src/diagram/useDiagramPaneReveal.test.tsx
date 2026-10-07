@@ -5,7 +5,11 @@ import { useLayoutStore } from '../store/layoutStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { resetDiagramPaneRevealForTests, useDiagramPaneReveal } from './useDiagramPaneReveal';
 
-vi.mock('../lib/pointerGesture', () => ({ runAfterPointerGesture: (run: () => void) => run() }));
+/** Runs after the gesture at once, or, while `held` is a list, once the test lets the gesture end. */
+const gesture = vi.hoisted(() => ({ held: null as (() => void)[] | null }));
+vi.mock('../lib/pointerGesture', () => ({
+  runAfterPointerGesture: (run: () => void) => (gesture.held ? gesture.held.push(run) : run()),
+}));
 const pointer = vi.hoisted(() => ({ coarse: false }));
 vi.mock('../platform/pointerSurface', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../platform/pointerSurface')>()),
@@ -61,6 +65,7 @@ function Probe() {
 let host: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
+  gesture.held = null;
   shown = 'diagram-step';
   listeners.clear();
   activatePanel.mockClear();
@@ -166,6 +171,48 @@ describe('useDiagramPaneReveal', () => {
       show('diagram-page');
       act(() => state().selectDiagramAnnotation(null));
       expect(shown).toBe('diagram-page');
+    });
+
+    it('comes forward for an enlarged step’s frame, a layer of its step though no mark (Revision 2)', () => {
+      const stepId = annotating();
+      act(() =>
+        useWorkspaceStore.setState({
+          diagram: {
+            ...state().diagram!,
+            steps: state().diagram!.steps.map((entry) =>
+              entry.id === stepId && !('kind' in entry)
+                ? { ...entry, zoom: { from: 'area', shape: 'circle' as const, frame: { centre: [0.5, 0.4] as [number, number], radius: 0.2 } } }
+                : entry
+            ),
+          },
+        })
+      );
+      act(() => state().selectDiagramAnnotation(null));
+      show('diagram-step');
+      act(() => state().selectDiagramAnnotation('zoom-frame'));
+      expect(state().diagramSelectedAnnotationId).toBe('zoom-frame');
+      expect(shown).toBe('diagram-layers');
+      act(() => state().selectDiagramAnnotation(null));
+      expect(shown).toBe('diagram-step');
+    });
+
+    it('stays forward when one gesture selects another step and a mark on it: a Go to verb in Layers (Revision 2)', () => {
+      const stepId = annotating();
+      const other = state().addDiagramStep()!;
+      act(() => state().openDiagramStep(other, 'annotate'));
+      act(() => state().selectDiagramAnnotation(null));
+      show('diagram-layers');
+      // One press: the step, then the mark on it, and the gesture's deferred work after both.
+      gesture.held = [];
+      act(() => {
+        state().selectDiagramStep(stepId);
+        state().selectDiagramAnnotation('a-1');
+      });
+      const deferred = gesture.held;
+      gesture.held = null;
+      act(() => deferred.forEach((run) => run()));
+      expect(state().diagramSelectedAnnotationId).toBe('a-1');
+      expect(shown).toBe('diagram-layers');
     });
 
     it('comes forward for a mark that is its subject only: one selected out of Annotate is not', () => {

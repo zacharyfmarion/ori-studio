@@ -163,13 +163,32 @@
 /* The kind, and a linked step's pattern beside it. */
 .kind {
   display: inline-flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+}
+
+/* An enlarged step's chip (Revision 2), in the header beside its kind: it gives way first on a narrow card. */
+.enlarged {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+.enlarged > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* A linked step's pattern, small: on the canvas's ground, where the theme's crease inks read. */
 .pattern {
+  flex: none;
   width: 18px;
   height: 18px;
   padding: 1px;
@@ -204,6 +223,7 @@
 .chip[data-tone='progress'] {
   color: var(--text-secondary);
 }
+
 
 .stop {
   padding: 0;

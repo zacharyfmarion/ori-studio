@@ -447,6 +447,26 @@ describe('DiagramStepsGrid', () => {
     expect([...options()[2].querySelectorAll('button')].map((button) => button.title)).toEqual(['Delete Step']);
   });
 
+  it('chips an enlarged step with the step its area is on, named in the card’s own name, and alone once the area is gone (Revision 2)', () => {
+    const areaStep: DiagramStep = {
+      ...createStep(() => 'step-area'),
+      annotations: [{ id: 'area', kind: 'zoom', from: [0.5, 0.5], to: [0.5, 0.5], radius: 0.1 }],
+    };
+    const enlarged: DiagramStep = { ...createStep(() => 'step-big'), zoom: { from: 'area', shape: 'circle' } };
+    render(null, vi.fn(), { steps: [areaStep, enlarged] });
+    const chip = () => options()[1]!.querySelector('[data-enlarged-chip]');
+    expect(chip()?.textContent).toBe('Enlarged · 1');
+    expect(options()[0]!.querySelector('[data-enlarged-chip]')).toBeNull();
+    // In the header beside the step's number and kind, where it covers none of the picture.
+    const header = options()[1]!.querySelector('[id$="-number"]')!.parentElement!;
+    expect(header.contains(chip())).toBe(true);
+    // Named with it: a screen reader hears it as part of the card.
+    const labelled = options()[1]!.getAttribute('aria-labelledby')!.split(' ');
+    expect(labelled.some((id) => host!.querySelector(`[id="${id}"]`)?.textContent === 'Enlarged · 1')).toBe(true);
+    render(null, vi.fn(), { steps: [{ ...areaStep, annotations: [] }, enlarged] });
+    expect(chip()?.textContent).toBe('Enlarged');
+  });
+
   it('shows where a dragged picture would land', () => {
     render(null, vi.fn(), { dropTarget: 'step-b' });
     expect(options().map((option) => option.hasAttribute('data-drop-target'))).toEqual([false, true, false]);

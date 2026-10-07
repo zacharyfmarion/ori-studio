@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { DiagramAnnotateShortcutId } from '../../keyboard/shortcuts';
-import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
+import type { DiagramAnnotationKind, DiagramZoomShape, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { canBeShaped, isPointKind, isSolidArrow, SOLID_ARROW_LOOK, type WhiteArrowLook } from './annotationModel';
 import { DEFAULT_DIAGRAM_LINE_TYPE, lineKindOf, type DiagramLineKind, type DiagramLineType } from './lineTypes';
 import type { PickProgress, ToolNotice } from './pickProgress';
@@ -40,6 +40,15 @@ export const ANGLE_BISECTOR = 'angle-bisector';
 export const SOLID_ARROW = 'solid-arrow';
 
 /**
+ * Enlarge and Enlarge in Frame (Revision 2, Z1): an enlarge area laid on the
+ * step, a circle dragged out from its middle or a rounded rectangle dragged
+ * corner to corner, marking what a later step shows larger. Drawing one
+ * changes no other step.
+ */
+export const ENLARGE = 'enlarge';
+export const ENLARGE_FRAME = 'enlarge-frame';
+
+/**
  * The signs no tool draws (Zach, 2026-10-05): turning the model over or round
  * is a step between steps (D22), not a sign on a picture. One already drawn
  * is kept, drawn, moved and deleted as any annotation is.
@@ -58,7 +67,9 @@ export type DrawingTool =
   | Exclude<DiagramAnnotationKind, DiagramLineKind | TurnSignKind | 'zoom'>
   | typeof LINE_TOOL
   | typeof ANGLE_BISECTOR
-  | typeof SOLID_ARROW;
+  | typeof SOLID_ARROW
+  | typeof ENLARGE
+  | typeof ENLARGE_FRAME;
 
 /** A tool that draws, Edit Path, or Select. */
 export type AnnotateTool = DrawingTool | typeof EDIT_PATH | null;
@@ -76,12 +87,50 @@ export function isDrawingTool(tool: AnnotateTool): tool is DrawingTool {
 export function drawingKind(tool: AnnotateTool, lineType: DiagramLineType): DiagramAnnotationKind | null {
   if (!isDrawingTool(tool) || isPickTool(tool)) return null;
   if (tool === SOLID_ARROW) return 'white-arrow';
+  if (isEnlargeTool(tool)) return 'zoom';
   return tool === LINE_TOOL ? lineKindOf(lineType) : tool;
 }
 
-/** The look a tool lays what it draws in, over its kind's own: the Solid Arrow's; nothing for any other tool. */
-export function drawingLook(tool: AnnotateTool): WhiteArrowLook {
-  return tool === SOLID_ARROW ? SOLID_ARROW_LOOK : {};
+/**
+ * The look a tool lays what it draws in, over its kind's own: the Solid
+ * Arrow's (15d), or the shape an enlarge area is drawn in (Revision 2) — a
+ * circle with Enlarge, a rounded rectangle with Enlarge in Frame.
+ */
+export type DrawingLook = WhiteArrowLook & { shape?: DiagramZoomShape };
+
+/** The look a tool lays what it draws in ({@link DrawingLook}); nothing for any other tool. */
+export function drawingLook(tool: AnnotateTool): DrawingLook {
+  if (tool === SOLID_ARROW) return SOLID_ARROW_LOOK;
+  if (tool === ENLARGE) return { shape: 'circle' };
+  if (tool === ENLARGE_FRAME) return { shape: 'rounded' };
+  return {};
+}
+
+/** Whether a tool lays an enlarge area: Enlarge or Enlarge in Frame. */
+export function isEnlargeTool(tool: AnnotateTool): tool is typeof ENLARGE | typeof ENLARGE_FRAME {
+  return tool === ENLARGE || tool === ENLARGE_FRAME;
+}
+
+/**
+ * Why an enlarge area goes on no enlarged step: a step is enlarged or holds
+ * areas, not both (Revision 2). What the held Enlarge tools say, and a paste
+ * that leaves an area out.
+ */
+export function enlargedStepTakesNoArea(t: TFunction): string {
+  return t(
+    'panels:diagram.annotate.enlargeOnEnlarged',
+    'This step is already enlarged — draw the area on a step that shows the whole model'
+  );
+}
+
+/**
+ * Why a tool cannot draw on a step, or null when it can: an enlarge area is
+ * not drawn on an enlarged step ({@link enlargedStepTakesNoArea}). A diagram
+ * that cannot change, a newer build's step and a step with no picture hold
+ * every tool, and say so where Annotate is entered.
+ */
+export function annotateToolBlocker(t: TFunction, tool: AnnotateTool, { enlarged }: { enlarged: boolean }): string | null {
+  return enlarged && isEnlargeTool(tool) ? enlargedStepTakesNoArea(t) : null;
 }
 
 /** Whether a tool draws in the line type: the Line tool and the Angle Bisector. */
@@ -122,6 +171,8 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   'angle-mark': 'marks',
   divisions: 'marks',
   'close-up': 'marks',
+  [ENLARGE]: 'marks',
+  [ENLARGE_FRAME]: 'marks',
   callout: 'text',
 };
 
@@ -157,6 +208,8 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   'angle-mark': null,
   divisions: 'diagram.toolDivisions',
   'close-up': 'diagram.toolCloseUp',
+  [ENLARGE]: 'diagram.toolEnlarge',
+  [ENLARGE_FRAME]: 'diagram.toolEnlargeFrame',
   callout: 'diagram.toolCallout',
 };
 
@@ -261,6 +314,8 @@ export function annotateToolLabel(t: TFunction, tool: AnnotateTool): string {
   if (tool === LINE_TOOL) return t('tools:diagram.toolLine', 'Line');
   if (tool === ANGLE_BISECTOR) return t('tools:diagram.toolAngleBisector', 'Angle Bisector');
   if (tool === SOLID_ARROW) return t('tools:diagram.toolSolidArrow', 'Solid Arrow');
+  if (tool === ENLARGE) return t('tools:diagram.toolEnlarge', 'Enlarge');
+  if (tool === ENLARGE_FRAME) return t('tools:diagram.toolEnlargeFrame', 'Enlarge in Frame');
   return annotationKindLabel(t, tool);
 }
 
@@ -328,6 +383,16 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       return t(
         'panels:diagram.annotate.calloutHelp',
         'Drag from a point to where the box goes, or click the point, then type its words in the Layers pane.'
+      );
+    case ENLARGE:
+      return t(
+        'panels:diagram.annotate.enlargeHelp',
+        'Drag out from the middle of an area to mark it for an enlarged step. Click for a standard size.'
+      );
+    case ENLARGE_FRAME:
+      return t(
+        'panels:diagram.annotate.enlargeFrameHelp',
+        'Drag from corner to corner round an area to mark it for an enlarged step. Click for a standard size.'
       );
   }
 }
@@ -559,6 +624,13 @@ function annotateToolModifiers(
       ];
     case 'close-up':
       return [t('panels:diagram.annotate.closeUpShiftKey', 'Shift-drag the close-up’s ring to scale it by halves.')];
+    case ENLARGE_FRAME:
+      return [
+        t('panels:diagram.annotate.enlargeFrameShiftKey', 'Shift-drag to make it square.'),
+        t('panels:diagram.annotate.enlargeFrameAltKey', '{{modifier}}-drag to draw it out from its middle.', {
+          modifier: alt,
+        }),
+      ];
     case 'callout':
       return [
         t('panels:diagram.annotate.pointFreeKey', 'Hold {{modifier}} to put its point down anywhere, without snapping.', {
@@ -573,6 +645,7 @@ function annotateToolModifiers(
     case 'white-arrow':
     case SOLID_ARROW:
     case 'label':
+    case ENLARGE:
       return [];
   }
 }

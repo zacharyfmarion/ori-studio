@@ -30,7 +30,8 @@ import type { BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
-import { cleanAnnotation, MAX_STEP_ANNOTATIONS } from '../annotate/annotationModel';
+import { cleanAnnotation, MAX_STEP_ANNOTATIONS, withAnnotationReach } from '../annotate/annotationModel';
+import { stepReach } from '../zoom/zoomModel';
 
 /** The version of this document's own shape, inside the project file. */
 export const DIAGRAM_FORMAT_VERSION = 1;
@@ -1568,8 +1569,8 @@ export function editStepAnnotations(
   return updateStep(document, stepId, (step) => {
     if (step.picture === null) return step;
     const known = step.annotations.filter(isKnownAnnotation);
-    // As this build writes them, whoever made them: within reach, a label's text clean.
-    const edited = edit(known).map(cleanAnnotation);
+    // As this build writes them, whoever made them: within the step's reach, a label's text clean.
+    const edited = withAnnotationReach(stepReach(step), () => edit(known).map(cleanAnnotation));
     if (sameAnnotations(edited, known)) return step;
     // A step holds no more than a file keeps.
     if (edited.length + (step.annotations.length - known.length) > MAX_STEP_ANNOTATIONS) return step;

@@ -153,6 +153,10 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.toolDivisions', 'Equal Divisions');
     case 'diagram.toolCloseUp':
       return t('tools:diagram.toolCloseUp', 'Close-Up');
+    case 'diagram.toolEnlarge':
+      return t('tools:diagram.toolEnlarge', 'Enlarge');
+    case 'diagram.toolEnlargeFrame':
+      return t('tools:diagram.toolEnlargeFrame', 'Enlarge in Frame');
     case 'diagram.flipArc':
       return t('tools:diagram.flipArc', 'Flip Arc');
     case 'diagram.nudgeNodeLeft':

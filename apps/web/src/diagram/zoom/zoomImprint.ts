@@ -475,8 +475,8 @@ export function ontoSpread(faces: StepFaces, point: Pt): Pt {
  * undone there, lands where that face is on top unspread. Where none does, it
  * lies in a strip the spread opened, where a lower layer shows: the face drawn
  * on top there is used, and onto the spread takes the point back to the layer
- * above, at most the strip's width away. A point on no face goes by the
- * nearest face's move at the nearest point of its drawn ring. The point
+ * above, at most the strip's width away. A point on no face goes back to
+ * where onto the spread took it from ({@link offPaper}), exactly. The point
  * itself with no spread.
  */
 export function offSpread(faces: StepFaces, point: Pt): Pt {
@@ -493,7 +493,31 @@ export function offSpread(faces: StepFaces, point: Pt): Pt {
   const nearest = nearestOnRings(faces.drawn, point);
   if (!nearest) return point;
   const back = unspreadOn(faces, nearest.face, nearest.at);
-  return [point[0] + back[0] - nearest.at[0], point[1] + back[1] - nearest.at[1]];
+  return offPaper(faces, point, [point[0] + back[0] - nearest.at[0], point[1] + back[1] - nearest.at[1]]);
+}
+
+/**
+ * A drawn point on no face off the spread: the unspread point onto the
+ * spread takes to it, by the same nearest-face rule, solved from `start` (the
+ * nearest drawn ring's move undone) — so a frame's centre dropped beside the
+ * paper lands again where it was dropped, rather than walk with every drop.
+ * Onto the spread moves such a point by the move at the nearest point of the
+ * unspread rings, which changes slowly with it, so stepping by what is left
+ * converges; where it does not, the nearest found.
+ */
+function offPaper(faces: StepFaces, drawn: Pt, start: Pt): Pt {
+  const span = unitOf(faces.bounds) || 1;
+  let point = start;
+  let best = { point: start, miss: Infinity };
+  for (let step = 0; step < 32; step += 1) {
+    const at = ontoSpread(faces, point);
+    const left: Pt = [drawn[0] - at[0], drawn[1] - at[1]];
+    const miss = Math.hypot(left[0], left[1]);
+    if (miss < best.miss) best = { point, miss };
+    if (miss <= 1e-12 * span) break;
+    point = [point[0] + left[0], point[1] + left[1]];
+  }
+  return best.point;
 }
 
 /** The nearest point of any of `rings` to `point`, and whose ring it is on. */

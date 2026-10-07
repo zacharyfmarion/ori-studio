@@ -202,6 +202,33 @@ describe('off and onto the spread', () => {
     expect(distance(moved, far)).toBeLessThanOrEqual(most + 1e-9);
     expect(distance(offSpread(stepFaces, moved), far)).toBeLessThan(1e-6);
   });
+
+  it('are inverse beside the paper too, on no face, where the nearest drawn and unspread rings differ', () => {
+    for (const key of ['S.affine', 'S.depth', 'C.affine', 'C.depth']) {
+      const stepFaces = faces(key);
+      let checked = 0;
+      // Just outside every side of the unspread faces: beside the flaps, in the notches between them.
+      stepFaces.unspread.forEach((ring) => {
+        ring.forEach((a, index) => {
+          const b = ring[(index + 1) % ring.length]!;
+          const length = distance(a, b) || 1;
+          for (const away of [2, 6, 12]) {
+            const point: PicturePoint = [
+              (a[0] + b[0]) / 2 + (away * (b[1] - a[1])) / length,
+              (a[1] + b[1]) / 2 - (away * (b[0] - a[0])) / length,
+            ];
+            if (topUnspread(stepFaces, point) !== null) continue;
+            const drawn = ontoSpread(stepFaces, point);
+            if (stepFaces.drawn.some((each) => each.length >= 3 && holds(each, drawn, stepFaces.epsilon))) continue;
+            // Taken off the spread and back, it lands where it was: a centre dropped there stays.
+            expect(distance(ontoSpread(stepFaces, offSpread(stepFaces, drawn)), drawn), key).toBeLessThan(1e-9);
+            checked += 1;
+          }
+        });
+      });
+      expect(checked, key).toBeGreaterThan(50);
+    }
+  });
 });
 
 describe('imprinting a frame and landing it', () => {

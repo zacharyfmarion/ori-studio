@@ -314,11 +314,48 @@ export const RIGHT_ANGLE_DIAGONAL = 0.02;
  */
 const CORNER_NUDGE = 1e-3;
 
-const clampReach = (value: number) => Math.min(ANNOTATION_REACH, Math.max(-ANNOTATION_REACH, value));
+/**
+ * Where a step's marks may lie, in their own units, and the file reader still
+ * take them as this build's: a box, `min` to `max` along each axis.
+ */
+export interface AnnotationReach {
+  min: PicturePoint;
+  max: PicturePoint;
+}
 
-/** A point kept within {@link ANNOTATION_REACH}, where the file reader takes it as this build's. */
-export function withinReach([x, y]: PicturePoint): PicturePoint {
-  return [clampReach(x), clampReach(y)];
+/** A step's reach when it shows its whole picture: {@link ANNOTATION_REACH} frames about its frame, each way. */
+export const PICTURE_REACH: AnnotationReach = {
+  min: [-ANNOTATION_REACH, -ANNOTATION_REACH],
+  max: [ANNOTATION_REACH, ANNOTATION_REACH],
+};
+
+/** The reach marks are cleaned and carried within: a picture's, but while {@link withAnnotationReach} runs. */
+let activeReach: AnnotationReach = PICTURE_REACH;
+
+/**
+ * `run`, with every mark it cleans or carries kept within `reach` rather than
+ * a whole picture's: an enlarged step's marks are in its window's units, and
+ * may lie as far off as the whole picture's (`zoomModel.windowReach`), kept
+ * where they are though not drawn.
+ */
+export function withAnnotationReach<T>(reach: AnnotationReach, run: () => T): T {
+  const was = activeReach;
+  activeReach = reach;
+  try {
+    return run();
+  } finally {
+    activeReach = was;
+  }
+}
+
+/** Whether a point lies within `reach`: where the file reader takes it as this build's. */
+export function isWithinReach([x, y]: PicturePoint, reach: AnnotationReach = PICTURE_REACH): boolean {
+  return x >= reach.min[0] && x <= reach.max[0] && y >= reach.min[1] && y <= reach.max[1];
+}
+
+/** A point kept within reach — a whole picture's, or the step's being edited — where the file reader takes it as this build's. */
+export function withinReach([x, y]: PicturePoint, reach: AnnotationReach = activeReach): PicturePoint {
+  return [Math.min(reach.max[0], Math.max(reach.min[0], x)), Math.min(reach.max[1], Math.max(reach.min[1], y))];
 }
 
 /**
@@ -721,12 +758,13 @@ function sameHandle(a: PicturePoint | undefined, b: PicturePoint | undefined): b
  * toward its node, which is within reach, to where it meets reach's edge.
  */
 export function handleWithinReach(at: PicturePoint, handle: PicturePoint): PicturePoint {
-  if (Math.abs(handle[0]) <= ANNOTATION_REACH && Math.abs(handle[1]) <= ANNOTATION_REACH) return handle;
+  const reach = activeReach;
+  if (isWithinReach(handle, reach)) return handle;
   let share = 1;
   for (const axis of [0, 1] as const) {
     const run = handle[axis] - at[axis];
-    if (handle[axis] > ANNOTATION_REACH) share = Math.min(share, (ANNOTATION_REACH - at[axis]) / run);
-    if (handle[axis] < -ANNOTATION_REACH) share = Math.min(share, (-ANNOTATION_REACH - at[axis]) / run);
+    if (handle[axis] > reach.max[axis]) share = Math.min(share, (reach.max[axis] - at[axis]) / run);
+    if (handle[axis] < reach.min[axis]) share = Math.min(share, (reach.min[axis] - at[axis]) / run);
   }
   share = Math.max(0, share);
   return withinReach([at[0] + (handle[0] - at[0]) * share, at[1] + (handle[1] - at[1]) * share]);
@@ -1369,7 +1407,9 @@ export function zoomSideWithin(side: number): number {
 export function rectangleAngle(degrees: number): number {
   if (!Number.isFinite(degrees)) return 0;
   const turned = degrees % 180;
-  return turned < 0 ? turned + 180 : turned;
+  // A hair under no turn, -1e-14, rounds to 180 itself once a half turn is added: that is no turn too.
+  const within = turned < 0 ? turned + 180 : turned;
+  return within >= 180 ? 0 : within;
 }
 
 /**
@@ -1469,7 +1509,7 @@ function deltaWithinReach(points: readonly PicturePoint[], delta: PicturePoint):
       low = Math.min(low, point[axis]);
       high = Math.max(high, point[axis]);
     }
-    return Math.min(ANNOTATION_REACH - high, Math.max(-ANNOTATION_REACH - low, delta[axis]));
+    return Math.min(activeReach.max[axis] - high, Math.max(activeReach.min[axis] - low, delta[axis]));
   };
   return [limit(0), limit(1)];
 }

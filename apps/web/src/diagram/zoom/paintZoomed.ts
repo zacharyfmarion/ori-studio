@@ -306,6 +306,97 @@ export function zoomedCardPicture(
   return annotatedPicture(painted, marks, style, 1, layers, (scale) => paintZoomedPicture(zoomed, style, { scale }));
 }
 
+/**
+ * How far round an enlarged step's window its canvas paints the picture
+ * when the frame is selected (Revision 2, Controls), in surround cells — a
+ * cell the window's longer side at the scale painted — each way: as far as
+ * the canvas steps back to reach the frame's grips, and some, never the
+ * whole model at the window's scale, which for a small window is many
+ * frames across.
+ */
+export const ZOOM_SURROUND_REACH = 2;
+
+/** Steps per doubling the surround's scale is held to: within 19% of the window's, so a resize repaints rarely. */
+const SURROUND_SCALE_STEPS = 4;
+
+/**
+ * The most cells a surround reaches across that takes in more than the
+ * window (`alsoShow`): past it, what it takes in is cut off at this many
+ * rather than painted larger than a few cards.
+ */
+export const ZOOM_SURROUND_MOST_CELLS = 24;
+
+/**
+ * What the canvas paints round a selected frame (Revision 2): the step's
+ * picture at a scale held to quarter octaves of the one that puts its window
+ * at a card's 50 mm, and the box in picture units it is cut to — the window
+ * grown by {@link ZOOM_SURROUND_REACH} cells each way, and `alsoShow` (the
+ * frame's anchor face, which its selection outlines) as far as
+ * {@link ZOOM_SURROUND_MOST_CELLS} allow, snapped out to a grid of cells — so
+ * a frame moved or resized a little paints nothing new. Null for a picture
+ * that does not paint.
+ */
+export function zoomSurroundRegion(
+  zoomed: ZoomedSource,
+  alsoShow: PictureBox | null = null
+): { scale: number; region: PictureBox } | null {
+  const atOne = paintedFrameLongerPx(zoomed.source);
+  const { window } = zoomed.view;
+  const longer = Math.max(window.width, window.height);
+  if (!atOne || !(longer > 0)) return null;
+  const exact = CARD_FRAME_PX / longer / atOne;
+  const scale = 2 ** (Math.round(Math.log2(exact) * SURROUND_SCALE_STEPS) / SURROUND_SCALE_STEPS);
+  // A cell: the window's longer side at the scale held to, in picture units.
+  const cell = CARD_FRAME_PX / scale / atOne;
+  const reach = ZOOM_SURROUND_REACH * cell;
+  let [x, y] = [window.x - reach, window.y - reach];
+  let [right, bottom] = [window.x + window.width + reach, window.y + window.height + reach];
+  if (alsoShow) {
+    // As far as the most cells allow from the window's middle, each way.
+    const most = (ZOOM_SURROUND_MOST_CELLS / 2) * cell;
+    const [mx, my] = [window.x + window.width / 2, window.y + window.height / 2];
+    x = Math.min(x, Math.max(mx - most, alsoShow.x));
+    y = Math.min(y, Math.max(my - most, alsoShow.y));
+    right = Math.max(right, Math.min(mx + most, alsoShow.x + alsoShow.width));
+    bottom = Math.max(bottom, Math.min(my + most, alsoShow.y + alsoShow.height));
+  }
+  [x, y] = [Math.floor(x / cell) * cell, Math.floor(y / cell) * cell];
+  [right, bottom] = [Math.ceil(right / cell) * cell, Math.ceil(bottom / cell) * cell];
+  return { scale, region: { x, y, width: right - x, height: bottom - y } };
+}
+
+/**
+ * The step's picture painted at `scale`, only what lies over `region`
+ * (picture units), and cut to it: a document no larger than the region at
+ * that scale, its frame — the whole picture's, where it would lie — placed
+ * as a painted picture's is, so a surface lays it as it lays the whole.
+ */
+export function paintZoomSurround(
+  source: StepPictureSource,
+  style: DiagramStyle,
+  scale: number,
+  region: PictureBox
+): PaintedPicture | null {
+  const painted = paintSource(source, style, undefined, scale, region);
+  if (!painted) return null;
+  const unit = Math.max(painted.frame.width, painted.frame.height);
+  const box = {
+    x: painted.frame.x + region.x * unit,
+    y: painted.frame.y + region.y * unit,
+    width: region.width * unit,
+    height: region.height * unit,
+  };
+  const body = painted.svg.replace(/^\s*<\?xml[^>]*\?>\s*/, '');
+  return {
+    svg:
+      `<svg xmlns="${SVG_NS}" width="${num(box.width)}" height="${num(box.height)}" ` +
+      `viewBox="${num(box.x)} ${num(box.y)} ${num(box.width)} ${num(box.height)}">${body}</svg>`,
+    widthPx: box.width,
+    heightPx: box.height,
+    frame: { ...painted.frame, x: painted.frame.x - box.x, y: painted.frame.y - box.y },
+  };
+}
+
 /** A painted picture nested whole, its frame on `frame`, every id it declares under `idPrefix`. */
 export function nestedOn(painted: PaintedPicture, frame: PictureBox, idPrefix: string): string | null {
   const longer = Math.max(painted.frame.width, painted.frame.height);

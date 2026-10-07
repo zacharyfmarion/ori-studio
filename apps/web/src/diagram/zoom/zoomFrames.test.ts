@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { ANNOTATION_REACH, type PicturePoint } from '../annotate/annotationModel';
+import { ANNOTATION_REACH, ZOOM_RADIUS, ZOOM_SIDE, type PicturePoint } from '../annotate/annotationModel';
 import { sceneTurnMove } from '../annotate/annotationCarry';
 import { sceneBoundsOf } from '../capture/captureGeometry';
 import { turnClockwise } from '../../lib/geometry';
 import type { PaperItem, PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import {
   createDiagram,
+  createStep,
+  editStepAnnotations,
   insertSteps,
   stepById,
   type DiagramDocument,
@@ -19,10 +21,17 @@ import { craneStep, imprintCase } from './zoom.fixtures';
 import { frameProblems, marksInPicture, marksMoved } from './zoomInvariant.fixtures';
 import {
   enlargeStep,
+  landSeededFrame,
+  outlineFromBox,
+  outlineIntoBox,
   relandFrame,
   reposeFrame,
+  seedStepZoom,
   setFrameAnchor,
+  setFrameEdge,
   setFrameOutline,
+  setFrameScale,
+  setFrameShape,
   stepWindow,
   unenlargeStep,
   unitsMove,
@@ -104,28 +113,65 @@ describe('Enlarged turned on, and off', () => {
     );
   });
 
-  it('keeps every mark where it is, out of step, when one lies too far from the frame to be carried into its window and back', () => {
-    // A small area round the head.
+  it('carries every mark, a long one across the model from a small frame too, into the window and back exactly (S1.6)', () => {
+    // The crane's S1: a small area round the head; a long valley line along the bottom, and a circle at the tail's tip.
     const small = crane();
     const s = small.steps[0] as DiagramStep;
-    const area = { ...(s.annotations[0] as KnownDiagramAnnotation), radius: 0.04 };
+    const area = { ...(s.annotations[0] as KnownDiagramAnnotation), radius: 0.05 };
     const document = { ...small, steps: small.steps.map((entry) => (entry.id === s.id ? { ...s, annotations: [area] } : entry)) };
     const n = step(document);
-    // A circle at the tail's tip, across the model from the head: more than reach's four windows from the frame.
+    const long: KnownDiagramAnnotation = { id: 'mark-long', kind: 'valley-line', from: [0, 0.95], to: [1, 0.95] };
     const far: KnownDiagramAnnotation = { id: 'mark-far', kind: 'circle', from: [0.07, 0.97], to: [0.07, 0.97] };
-    const marked = { ...n, annotations: [...n.annotations, far] };
+    const marked = { ...n, annotations: [...n.annotations, long, far] };
     const doc = { ...document, steps: document.steps.map((entry) => (entry.id === 'step-n' ? marked : entry)) };
-    const enlarged = step(enlargeStep(doc, 'step-n', NO_ASSETS).document);
-    const window = stepWindow(enlarged)!;
-    const [x, y] = [(0.07 - window.x) / Math.max(window.width, window.height), (0.97 - window.y) / Math.max(window.width, window.height)];
-    expect(Math.max(Math.abs(x), Math.abs(y))).toBeGreaterThan(4);
-    // Not held at reach's edge, and none of the others carried without it.
-    expect(enlarged.annotations).toBe(marked.annotations);
-    expect(enlarged.annotatedPictureKey).toBeNull();
-    // Turned off, every mark is where it was drawn on the whole picture.
-    const off = step(unenlargeStep({ ...doc, steps: doc.steps.map((entry) => (entry.id === 'step-n' ? enlarged : entry)) }, 'step-n', NO_ASSETS));
+    const enlargedDoc = enlargeStep(doc, 'step-n', NO_ASSETS).document;
+    const enlarged = step(enlargedDoc);
+    // Every mark carried, in step: the far ones lie past reach's four windows, as far as the whole picture's reach.
+    expect(enlarged.annotatedPictureKey).toBe(enlarged.picture!.key);
+    expect(marksMoved(marked, enlarged)).toEqual([]);
+    const carriedFar = enlarged.annotations.find((mark) => mark.id === 'mark-far') as KnownDiagramAnnotation;
+    expect(Math.max(...carriedFar.from.map(Math.abs))).toBeGreaterThan(ANNOTATION_REACH);
+    // Written and read back as this build's: nothing locked, every mark known and where it was.
+    const read = readDiagram(JSON.parse(JSON.stringify(writeDiagram(enlargedDoc))))!.document;
+    const back = step(read);
+    expect(back.unknown).toBeUndefined();
+    expect(back.annotations).toEqual(enlarged.annotations);
+    // A mark drawn on the step leaves the far ones where they are: an edit cleans within the step's reach.
+    const added: KnownDiagramAnnotation = { id: 'mark-new', kind: 'mountain-line', from: [0.2, 0.2], to: [0.8, 0.2] };
+    const edited = step(editStepAnnotations(enlargedDoc, 'step-n', (list) => [...list, added]));
+    expect(edited.annotations.slice(0, enlarged.annotations.length)).toEqual(enlarged.annotations);
+    // The frame moved by hand carries them all, still in step.
+    const frame = enlarged.zoom!.frame!;
+    const moved = step(setFrameOutline(enlargedDoc, 'step-n', { ...frame, centre: [frame.centre[0] + 0.02, frame.centre[1]] }, NO_ASSETS));
+    expect(moved.annotatedPictureKey).toBe(moved.picture!.key);
+    expect(marksMoved(enlarged, moved)).toEqual([]);
+    // Turned off, every mark is where it was drawn on the whole picture, still in step.
+    const off = step(unenlargeStep(enlargedDoc, 'step-n', NO_ASSETS));
     expect(off.zoom).toBeUndefined();
+    expect(off.annotatedPictureKey).toBe(off.picture!.key);
     expect(marksMoved(marked, off)).toEqual([]);
+    expect(off.annotations.map((mark) => (mark as KnownDiagramAnnotation).from)).toEqual(
+      marked.annotations.map((mark) => (mark as KnownDiagramAnnotation).from).map(([x, y]) => [expect.closeTo(x, 12), expect.closeTo(y, 12)])
+    );
+  });
+
+  it('keeps every mark where it is, out of step, when one could not come back to the whole picture within its reach', () => {
+    const enlargedDoc = enlargeStep(crane(), 'step-n', NO_ASSETS).document;
+    const enlarged = step(enlargedDoc);
+    // Past the whole picture's reach, as only a newer build's window reaches: it cannot go back there.
+    const window = stepWindow(enlarged)!;
+    const unit = Math.max(window.width, window.height);
+    const beyond: KnownDiagramAnnotation = {
+      id: 'mark-beyond',
+      kind: 'circle',
+      from: [(-ANNOTATION_REACH - 1 - window.x) / unit, 0.5],
+      to: [(-ANNOTATION_REACH - 1 - window.x) / unit, 0.5],
+    };
+    const withBeyond = { ...enlarged, annotations: [...enlarged.annotations, beyond] };
+    const doc = { ...enlargedDoc, steps: enlargedDoc.steps.map((entry) => (entry.id === 'step-n' ? withBeyond : entry)) };
+    const off = step(unenlargeStep(doc, 'step-n', NO_ASSETS));
+    expect(off.annotations).toBe(withBeyond.annotations);
+    expect(off.annotatedPictureKey).toBeNull();
   });
 
   it('keeps marks it cannot carry where they are, out of step, rather than leave one behind', () => {
@@ -206,6 +252,45 @@ describe('a frame moved, resized or reshaped by hand', () => {
       const after = step(setFrameOutline(document, 'step-n', { ...frame, radius: frame.radius! * 1.25 }, NO_ASSETS));
       expect(distance(after.zoom!.frame!.centre, frame.centre), spread).toBeLessThan(1e-12);
     }
+  });
+
+  it('resized again and again by its rim, keeps a centre that lies off the paper where it was, spread or not', () => {
+    for (const spread of ['affine', 'depth'] as const) {
+      const document = enlargeStep(crane(spread), 'step-n', NO_ASSETS).document;
+      const n = step(document);
+      const faces = paperFacesOf(n)!;
+      // Beside a flap, on no face: a point just outside a face unspread, where the spread takes it.
+      let beside: PicturePoint | null = null;
+      for (const ring of faces.unspread) {
+        for (let index = 0; index < ring.length && !beside; index += 1) {
+          const [a, b] = [ring[index]!, ring[(index + 1) % ring.length]!];
+          const length = distance(a, b) || 1;
+          const point: PicturePoint = [(a[0] + b[0]) / 2 + (6 * (b[1] - a[1])) / length, (a[1] + b[1]) / 2 - (6 * (b[0] - a[0])) / length];
+          const drawn = ontoSpread(faces, point);
+          if (topUnspread(faces, point) === null && topDrawn(faces, drawn) === null) beside = drawn;
+        }
+      }
+      expect(beside, spread).not.toBeNull();
+      const centre = toPicture(faces, { centre: beside!, radius: 1 }).centre;
+      let doc = setFrameOutline(document, 'step-n', { ...n.zoom!.frame!, centre }, NO_ASSETS);
+      expect(distance(step(doc).zoom!.frame!.centre, centre), spread).toBeLessThan(1e-9);
+      for (const grow of [1.1, 0.9, 1.2]) {
+        const frame = step(doc).zoom!.frame!;
+        doc = setFrameOutline(doc, 'step-n', { ...frame, radius: frame.radius! * grow }, NO_ASSETS);
+        expect(distance(step(doc).zoom!.frame!.centre, centre), spread).toBeLessThan(1e-9);
+      }
+    }
+  });
+
+  it('resized by hand, is held no smaller than an area may be drawn, its marks still in step', () => {
+    const document = enlargeStep(crane('affine'), 'step-n', NO_ASSETS).document;
+    const frame = step(document).zoom!.frame!;
+    const point = step(setFrameOutline(document, 'step-n', { ...frame, radius: 1e-6 }, NO_ASSETS));
+    expect(point.zoom!.frame!.radius).toBeCloseTo(ZOOM_RADIUS.min, 12);
+    expect(point.annotatedPictureKey).toBe(point.picture!.key);
+    const rounded = outlineAsShape(frame, 'rounded');
+    const sliver = step(setFrameOutline(document, 'step-n', { ...rounded, size: [rounded.size![0], 1e-6] }, NO_ASSETS));
+    expect(sliver.zoom!.frame!.size).toEqual([expect.closeTo(rounded.size![0], 12), expect.closeTo(ZOOM_SIDE.min, 12)]);
   });
 
   it('reshaped, takes the new shape about the same centre', () => {
@@ -359,3 +444,68 @@ function turnedCapture(step: DiagramStep, degrees: number): DiagramStep {
     picture: { ...step.picture, sceneJson: storedSceneJson(turned)!, key: `${step.picture.key}-turned`, ...(paperFaces ? { paperFaces } : {}) },
   };
 }
+
+describe('a frame’s Shape, Size and Edge, and a new step’s start (16e)', () => {
+  it('reshapes the frame about its centre, its marks by the window’s move and its imprint made again', () => {
+    const enlarged = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
+    const before = step(enlarged);
+    const reshaped = setFrameShape(enlarged, 'step-n', 'rounded', NO_ASSETS);
+    const after = step(reshaped);
+    expect(after.zoom).toMatchObject({ shape: 'rounded', frame: { size: [expect.any(Number), expect.any(Number)] } });
+    expect(after.zoom!.frame!.centre[0]).toBeCloseTo(before.zoom!.frame!.centre[0], 9);
+    expect(frameProblems(reshaped)).toEqual([]);
+    expect(marksMoved(before, after)).toEqual([]);
+    // Already that shape: the diagram as it was.
+    expect(setFrameShape(reshaped, 'step-n', 'rounded', NO_ASSETS)).toBe(reshaped);
+  });
+
+  it('sets the frame’s Size, held to its range, and back to Fill; its Edge, and back to its shape’s', () => {
+    const enlarged = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
+    expect(step(setFrameScale(enlarged, 'step-n', 9)).zoom!.scale).toBe(6);
+    expect(step(setFrameScale(setFrameScale(enlarged, 'step-n', 2), 'step-n', null)).zoom!.scale).toBeUndefined();
+    expect(setFrameScale(enlarged, 'step-n', null)).toBe(enlarged);
+    expect(step(setFrameEdge(enlarged, 'step-n', 'whole')).zoom!.edge).toBe('whole');
+    expect(step(setFrameEdge(setFrameEdge(enlarged, 'step-n', 'whole'), 'step-n', null)).zoom!.edge).toBeUndefined();
+  });
+
+  it('starts a step added after an enlarged one enlarged, and lands its frame on its first picture', () => {
+    const enlarged = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
+    const empty = { ...createStep(() => 'step-new'), id: 'step-new' };
+    const seeded = seedStepZoom(insertSteps(enlarged, [empty], enlarged.steps.length), 'step-new');
+    const fresh = step(seeded, 'step-new');
+    // Captured from step N's frame, its default anchor worked out afresh there; the provenance its area's.
+    expect(fresh.zoom).toMatchObject({ from: 'area-head', shape: 'circle', imprint: { on: [expect.any(Number), expect.any(Number)] } });
+    expect(fresh.zoom!.frame).toEqual(step(enlarged).zoom!.frame);
+    // After a step that is not enlarged: nothing.
+    const plain = insertSteps(crane('none'), [empty], 1);
+    expect(seedStepZoom(plain, 'step-new')).toBe(plain);
+    // Its first picture: the imprint lands through the face that holds its paper point.
+    const picture = craneStep('C.none').picture!;
+    const linked = { ...seeded, steps: seeded.steps.map((entry) => (entry.id === 'step-new' ? { ...craneStep('C.none'), id: 'step-new', zoom: fresh.zoom } : entry)) };
+    const landed = landSeededFrame(seeded, linked, 'step-new');
+    expect(landed.placed).toBe('face');
+    // The same picture as N's: the frame lands where N's is.
+    const [was, now] = [step(enlarged).zoom!.frame!, step(landed.document, 'step-new').zoom!.frame!];
+    expect(Math.hypot(now.centre[0] - was.centre[0], now.centre[1] - was.centre[1])).toBeLessThan(1e-9);
+    expect(now.radius).toBeCloseTo(was.radius!, 9);
+    expect(step(landed.document, 'step-new').picture).toBe(step(linked, 'step-new').picture);
+    expect(picture.kind).toBe('scene');
+    // A step that had a picture already: nothing lands.
+    expect(landSeededFrame(linked, linked, 'step-new')).toEqual({ document: linked, placed: null });
+  });
+
+  it('turns an outline into a window’s units and back', () => {
+    const box = { x: 0.3, y: 0.2, width: 0.4, height: 0.2 };
+    const outline = { centre: [0.5, 0.3] as [number, number], size: [0.4, 0.2] as [number, number], angle: 30 };
+    const into = outlineIntoBox(box, outline);
+    expect(into).toEqual({ centre: [expect.closeTo(0.5, 9), expect.closeTo(0.25, 9)], size: [1, 0.5], angle: 30 });
+    const back = outlineFromBox(box, into);
+    expect(back.centre).toEqual([expect.closeTo(0.5, 9), expect.closeTo(0.3, 9)]);
+    expect(back.size).toEqual([expect.closeTo(0.4, 9), expect.closeTo(0.2, 9)]);
+  });
+
+  it('names the steps Update placed, for what counts them', () => {
+    const enlarged = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
+    expect(updateEnlargedSteps(enlarged, 'area-head', NO_ASSETS).stepIds).toEqual(['step-n']);
+  });
+});

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlipHorizontal2, FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type LucideIcon } from 'lucide-react';
 import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
@@ -18,6 +19,11 @@ import {
 import { useFieldFocusRequest } from '../../diagram/annotate/useFieldFocusRequest';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
 import type { DiagramStep, KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
+import { marksInWindow, viewOfStep } from '../../diagram/zoom/stepView';
+import { useAreaSubtitle } from '../../diagram/zoom/useZoomControls';
+import { frameSubtitle, areaStepOf } from '../../diagram/zoom/zoomActions';
+import { ZOOM_FRAME_ID, zoomShapeOf } from '../../diagram/zoom/zoomModel';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import { shortcutLabelForAction } from '../../keyboard/shortcuts';
 import { useShortcutResolution } from '../../store/shortcutStore';
 import { Button } from '../ui/Button';
@@ -25,13 +31,15 @@ import { IconButton } from '../ui/IconButton';
 import { FieldRow, NumberRow, SegmentedRow, TextAreaRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
 import { SegmentedControl } from '../ui/SegmentedControl';
-import { DiagramAnnotationGlyph, SolidArrowGlyph } from './DiagramAnnotateToolGlyph';
+import { Badge } from '../ui/Badge';
+import { DiagramAnnotationGlyph, EnlargeGlyph, SolidArrowGlyph } from './DiagramAnnotateToolGlyph';
 import { DiagramBehindControls } from './DiagramBehindControls';
 import { DiagramDivisionsControls } from './DiagramDivisionsControls';
 import { DiagramLineTypeMark } from './DiagramLineTypeMark';
 import { DiagramPathNodeControls } from './DiagramPathNodeControls';
 import { DiagramTicksRow } from './DiagramTicksRow';
 import { DiagramWhiteArrowControls } from './DiagramWhiteArrowControls';
+import { DiagramZoomControls } from './DiagramZoomControls';
 import styles from './DiagramLayers.module.css';
 
 /** The icon of each of the catalog's verbs the annotation row shows (`annotationActions.ts`). */
@@ -55,11 +63,26 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * (Flip Arc, Reset, Turn 90°, Delete), and in Edit Path a fold or white
  * arrow's node verbs. The Snap switch and the notice that the picture changed
  * stay in the Step pane, with the step (`DiagramStepAnnotations`).
+ *
+ * An enlarged step's frame is its first row (Revision 2): selected, its
+ * controls (`DiagramZoomControls`); a mark it keeps but no longer draws,
+ * lying far outside its window, is badged so. An enlarge area's row says
+ * which steps were enlarged from it.
  */
 export function DiagramLayers({ step }: { step: DiagramStep }) {
   const { t } = useTranslation();
   const annotations = useStepAnnotations(step);
   const { known, selected, editable } = annotations;
+  const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
+  const view = useMemo(() => viewOfStep(step), [step]);
+  const frame = view.zoom;
+  // The marks an enlarged step keeps but neither draws nor measures: far outside its window.
+  const outside = useMemo(() => {
+    if (!view.window) return null;
+    const drawn = new Set(marksInWindow(view.window, step.annotations).map((mark) => mark.id));
+    return new Set(step.annotations.filter((mark) => !drawn.has(mark.id)).map((mark) => mark.id));
+  }, [view.window, step.annotations]);
+  const frameSelected = frame !== null && selectedId === ZOOM_FRAME_ID;
 
   return (
     <div className={styles.layers}>
@@ -73,10 +96,15 @@ export function DiagramLayers({ step }: { step: DiagramStep }) {
           </Notice>
         </div>
       )}
-      {known.length === 0 ? (
+      {known.length === 0 && !frame ? (
         <p className={styles.empty}>{t('panels:diagram.annotations.empty', 'Nothing drawn yet.')}</p>
       ) : (
         <ul className={styles.list} aria-label={t('panels:diagram.layers.list', 'Layers')}>
+          {frame && (
+            <li>
+              <FrameRow step={step} shape={frame.zoom.shape} selected={frameSelected} onSelect={annotations.select} />
+            </li>
+          )}
           {known.map((annotation) => (
             <li key={annotation.id}>
               <button
@@ -85,18 +113,79 @@ export function DiagramLayers({ step }: { step: DiagramStep }) {
                 aria-pressed={annotation.id === selected?.id}
                 onClick={() => annotations.select(annotation.id === selected?.id ? null : annotation.id)}
               >
-                {isSolidArrow(annotation) ? <SolidArrowGlyph /> : <DiagramAnnotationGlyph kind={annotation.kind} />}
-                <span className={styles.rowName}>
-                  {carriesText(annotation.kind) && annotation.text ? annotation.text : annotationLabel(t, annotation)}
+                {isSolidArrow(annotation) ? (
+                  <SolidArrowGlyph />
+                ) : annotation.kind === 'zoom' ? (
+                  <EnlargeGlyph shape={zoomShapeOf(annotation)} />
+                ) : (
+                  <DiagramAnnotationGlyph kind={annotation.kind} />
+                )}
+                <span className={styles.rowText}>
+                  <span className={styles.rowName}>
+                    {carriesText(annotation.kind) && annotation.text ? annotation.text : annotationLabel(t, annotation)}
+                  </span>
+                  {annotation.kind === 'zoom' && <AreaSubtitle area={annotation} />}
                 </span>
+                {outside?.has(annotation.id) && (
+                  <Badge tone="neutral">{t('panels:diagram.annotations.outsideFrame', 'Outside the enlarged frame')}</Badge>
+                )}
               </button>
             </li>
           ))}
         </ul>
       )}
+      {frameSelected && (
+        <div className={styles.selected}>
+          <DiagramZoomControls step={step} target={FRAME_TARGET} />
+        </div>
+      )}
       {selected && <SelectedAnnotation step={step} annotation={selected} editable={editable} annotations={annotations} />}
     </div>
   );
+}
+
+const FRAME_TARGET = { kind: 'frame' } as const;
+
+/**
+ * An enlarged step's frame, as the first row of its list (Revision 2, Z10):
+ * "Enlarged frame", and where it came from. Pressed, it selects the frame, as
+ * a click on its boundary on the canvas does.
+ */
+function FrameRow({
+  step,
+  shape,
+  selected,
+  onSelect,
+}: {
+  step: DiagramStep;
+  shape: 'circle' | 'rounded';
+  selected: boolean;
+  onSelect: (id: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  const diagram = useWorkspaceStore((state) => state.diagram);
+  const areaStep = useMemo(() => (diagram ? areaStepOf(diagram, step.id) : null), [diagram, step.id]);
+  return (
+    <button
+      type="button"
+      className={styles.row}
+      aria-pressed={selected}
+      data-zoom-frame-row=""
+      onClick={() => onSelect(selected ? null : ZOOM_FRAME_ID)}
+    >
+      <EnlargeGlyph shape={shape} />
+      <span className={styles.rowText}>
+        <span className={styles.rowName}>{t('panels:diagram.annotations.enlargedFrame', 'Enlarged frame')}</span>
+        <span className={styles.rowNote}>{frameSubtitle(t, areaStep)}</span>
+      </span>
+    </button>
+  );
+}
+
+/** Which steps an area was enlarged on, under its row's name. */
+function AreaSubtitle({ area }: { area: KnownDiagramAnnotation }) {
+  const subtitle = useAreaSubtitle(area);
+  return subtitle ? <span className={styles.rowNote}>{subtitle}</span> : null;
 }
 
 /** The selected annotation's own controls, by its kind, and Delete. */
@@ -244,6 +333,7 @@ function SelectedAnnotation({
           onChange={(look) => annotations.setWhiteArrowLook(id, look)}
         />
       )}
+      {annotation.kind === 'zoom' && <DiagramZoomControls step={step} target={{ kind: 'area', area: annotation }} />}
       <DiagramBehindControls
         annotation={annotation}
         editable={editable}

@@ -15,16 +15,19 @@
  * Pure: no DOM, no store, no React.
  */
 import {
+  PICTURE_REACH,
   ZOOM_CLICK,
   ZOOM_SCALE,
   rectangleAngle,
   withinReach,
   zoomRadiusWithin,
   zoomSideWithin,
+  type AnnotationReach,
   type PicturePoint,
 } from '../annotate/annotationModel';
 import type {
   DiagramIdFactory,
+  DiagramStep,
   DiagramZoomEdge,
   DiagramZoomOutline,
   DiagramZoomShape,
@@ -298,6 +301,29 @@ export function frameWindow(outline: DiagramZoomOutline): PictureBox {
     width: maxX - minX + 2 * radius,
     height: maxY - minY + 2 * radius,
   };
+}
+
+/**
+ * Where an enlarged step's marks may lie, in its window's units: reach's
+ * four windows about the window, or as far as a whole picture's marks may —
+ * whichever is further. So a mark across the model from a small window is
+ * kept where it is on the paper, not drawn (Edge cases), and comes back
+ * exactly when Enlarged is turned off.
+ */
+export function windowReach(frame: DiagramZoomOutline): AnnotationReach {
+  const window = frameWindow(frame);
+  const unit = Math.max(window.width, window.height);
+  const into = (value: number, axis: 0 | 1) => (value - (axis === 0 ? window.x : window.y)) / unit;
+  const { min, max } = PICTURE_REACH;
+  return {
+    min: [Math.min(min[0], into(min[0], 0)), Math.min(min[1], into(min[1], 1))],
+    max: [Math.max(max[0], into(max[0], 0)), Math.max(max[1], into(max[1], 1))],
+  };
+}
+
+/** Where a step's marks may lie, in their units: its window's reach when it is enlarged, else a whole picture's. */
+export function stepReach(step: Pick<DiagramStep, 'zoom' | 'picture'>): AnnotationReach {
+  return step.zoom?.frame && step.picture ? windowReach(step.zoom.frame) : PICTURE_REACH;
 }
 
 /** Where a point of a convex polygon (or a point) is nearest `point`, and how far. */

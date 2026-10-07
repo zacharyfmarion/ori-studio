@@ -44,7 +44,7 @@ import { readPaperScene } from '../../lib/paper/paperSceneValidate';
 import { normalizePaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import {
-  ANNOTATION_REACH,
+  PICTURE_REACH,
   angleMarkArms,
   arrowShape,
   behindEnds,
@@ -62,7 +62,10 @@ import {
   MIN_CLOSE_UP_RADIUS,
   ZOOM_SIDE,
   isPointKind,
+  isWithinReach,
+  type AnnotationReach,
 } from '../annotate/annotationModel';
+import { windowReach } from '../zoom/zoomModel';
 import {
   EMBEDDED_RASTER_MAX_SIDE,
   SVG_STORED_MAX_BYTES,
@@ -528,19 +531,21 @@ function readStep(
   if (!isRecord(value)) return null;
   const id = value.id;
   if (typeof id !== 'string' || id.length === 0) return null;
+  const zoom = value.zoom === undefined ? undefined : readStepZoom(value.zoom);
+  // An enlarged step's marks are in its window's units, and reach as far as its window's reach.
+  const reach = zoom && zoom !== NEWER && zoom.frame ? windowReach(zoom.frame) : PICTURE_REACH;
   const base: DiagramStep = {
     id,
     revision: wholeNumber(value.revision) ?? 0,
     source: null,
     picture: null,
     // More than a step holds is a newer build's step (below), carried whole and never parsed.
-    annotations: tooManyAnnotations(value.annotations) ? [] : readAnnotations(value.annotations),
+    annotations: tooManyAnnotations(value.annotations) ? [] : readAnnotations(value.annotations, reach),
     annotatedPictureKey:
       typeof value.annotatedPictureKey === 'string' ? value.annotatedPictureKey : null,
     text: typeof value.text === 'string' ? xmlText(value.text) : '',
     breakBefore: value.breakBefore === true,
   };
-  const zoom = value.zoom === undefined ? undefined : readStepZoom(value.zoom);
   const paperFaces =
     isRecord(value.picture) && value.picture.kind === 'scene' && value.picture.paperFaces !== undefined
       ? readPaperFaces(value.picture.paperFaces)
@@ -1037,13 +1042,13 @@ function tooManyAnnotations(value: unknown): boolean {
  * build's, and is carried verbatim. A second annotation with an id already
  * read is dropped.
  */
-function readAnnotations(value: unknown): DiagramAnnotation[] {
+function readAnnotations(value: unknown, reach: AnnotationReach): DiagramAnnotation[] {
   if (!Array.isArray(value)) return [];
   const out: DiagramAnnotation[] = [];
   const ids = new Set<string>();
   for (const entry of value) {
     if (!isRecord(entry) || typeof entry.id !== 'string' || entry.id.length === 0 || ids.has(entry.id)) continue;
-    const annotation = readAnnotation(entry.id, entry);
+    const annotation = readAnnotation(entry.id, entry, reach);
     if (annotation === NEWER) out.push({ id: entry.id, unknown: entry });
     else if (annotation) out.push(annotation);
     else continue;
@@ -1054,16 +1059,17 @@ function readAnnotations(value: unknown): DiagramAnnotation[] {
 
 function readAnnotation(
   id: string,
-  entry: Record<string, unknown>
+  entry: Record<string, unknown>,
+  reach: AnnotationReach
 ): KnownDiagramAnnotation | typeof NEWER | null {
   if (typeof entry.kind !== 'string') return null;
   if (!Object.hasOwn(ANNOTATION_FIELDS, entry.kind)) return NEWER;
   const kind = entry.kind as DiagramAnnotationKind;
   const fields = ANNOTATION_FIELDS[kind];
   if (Object.keys(entry).some((key) => !fields.has(key))) return NEWER;
-  const from = readAnnotationPoint(entry.from);
+  const from = readAnnotationPoint(entry.from, reach);
   // A sign's, a label's or an enlarge area's one place is `from`; `to` is written as it again.
-  const to = isPointKind(kind) || kind === 'zoom' ? from : readAnnotationPoint(entry.to);
+  const to = isPointKind(kind) || kind === 'zoom' ? from : readAnnotationPoint(entry.to, reach);
   if (from === null || to === null) return null;
   if (from === NEWER || to === NEWER) return NEWER;
   // The ends behind a flap, for a kind that has them: news before damage, as for the rest.
@@ -1078,7 +1084,7 @@ function readAnnotation(
       if (entry.path !== undefined) {
         // An arc and a path both: no build of this one writes that.
         if (entry.bend !== undefined) return NEWER;
-        const path = readPath(entry.path);
+        const path = readPath(entry.path, reach);
         if (path === null || path === NEWER) return path;
         const first = path[0]!.at;
         const last = path[path.length - 1]!.at;
@@ -1086,7 +1092,7 @@ function readAnnotation(
         if (first[0] !== from[0] || first[1] !== from[1] || last[0] !== to[0] || last[1] !== to[1]) return null;
         if (entry.back === undefined) return { ...annotation, path };
         // A fold-and-unfold arrow's return shaped by hand: a path from the tip.
-        const back = readPath(entry.back);
+        const back = readPath(entry.back, reach);
         if (back === null || back === NEWER) return back;
         const start = back[0]!.at;
         if (start[0] !== to[0] || start[1] !== to[1]) return null;
@@ -1104,7 +1110,7 @@ function readAnnotation(
     case 'white-arrow': {
       // Always a path, with its two presets: a value either preset does not
       // know is news, told before any damage, as for a whole annotation.
-      const path = entry.path === undefined ? null : readPath(entry.path);
+      const path = entry.path === undefined ? null : readPath(entry.path, reach);
       const width = readPreset(entry.width, WHITE_ARROW_WIDTHS, DEFAULT_WHITE_ARROW.width);
       const tail = readPreset(entry.tail, WHITE_ARROW_TAILS, DEFAULT_WHITE_ARROW.tail);
       const fill = readFill(entry.fill);
@@ -1136,7 +1142,7 @@ function readAnnotation(
       return from[0] === to[0] && from[1] === to[1] ? null : annotation;
     case 'angle-mark': {
       // Its second arm, and its ticks; a count past three is news, told before damage.
-      const other = readAnnotationPoint(entry.other);
+      const other = readAnnotationPoint(entry.other, reach);
       const ticks = readTicks(entry.ticks);
       if (other === NEWER || ticks === NEWER) return NEWER;
       if (other === null || ticks === null) return null;
@@ -1206,7 +1212,7 @@ const PATH_NODE_FIELDS: ReadonlySet<string> = new Set(['at', 'in', 'out', 'type'
  * reach. News is told before damage, as for a whole annotation. Whether a
  * smooth node's handles are in line is never asked: that is editing's rule.
  */
-function readPath(value: unknown): DiagramPathNode[] | typeof NEWER | null {
+function readPath(value: unknown, reach: AnnotationReach): DiagramPathNode[] | typeof NEWER | null {
   if (!Array.isArray(value) || value.length < 2) return null;
   if (value.length > MAX_PATH_NODES) return NEWER;
   if (!value.every(isRecord)) return null;
@@ -1223,9 +1229,9 @@ function readPath(value: unknown): DiagramPathNode[] | typeof NEWER | null {
   let past = false;
   for (const entry of value) {
     if (entry.type !== undefined && entry.type !== 'corner') return null;
-    const at = readAnnotationPoint(entry.at);
+    const at = readAnnotationPoint(entry.at, reach);
     const handles = (['in', 'out'] as const).map((side) =>
-      entry[side] === undefined ? undefined : readAnnotationPoint(entry[side])
+      entry[side] === undefined ? undefined : readAnnotationPoint(entry[side], reach)
     );
     if (at === null || handles.includes(null)) return null;
     if (at === NEWER || handles.includes(NEWER)) {
@@ -1612,12 +1618,16 @@ function readTurn(id: string, entry: Record<string, unknown>): DiagramTurn | typ
   return axis === null || axis === NEWER ? axis : { id, kind, axis };
 }
 
-/** A point in picture units; a newer build's when it reaches past where this build lets one go. */
-function readAnnotationPoint(value: unknown): [number, number] | typeof NEWER | null {
+/**
+ * A point in its step's units — its picture's, or an enlarged step's
+ * window's — a newer build's when it reaches past where this build lets one
+ * go there (`reach`).
+ */
+function readAnnotationPoint(value: unknown, reach: AnnotationReach = PICTURE_REACH): [number, number] | typeof NEWER | null {
   if (!Array.isArray(value) || value.length !== 2) return null;
   const [x, y] = value;
   if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return null;
-  return Math.abs(x) > ANNOTATION_REACH || Math.abs(y) > ANNOTATION_REACH ? NEWER : [x, y];
+  return isWithinReach([x, y], reach) ? [x, y] : NEWER;
 }
 
 /**

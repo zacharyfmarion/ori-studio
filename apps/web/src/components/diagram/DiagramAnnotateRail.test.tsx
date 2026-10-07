@@ -38,6 +38,35 @@ describe('DiagramAnnotateRail', () => {
     const marks = [...container.querySelectorAll('#diagram-annotate-group-marks button[aria-label]')].map((button) =>
       button.getAttribute('aria-label')
     );
-    expect(marks).toEqual(['Circle', 'Right Angle', 'Equal Angles', 'Equal Divisions', 'Close-Up']);
+    expect(marks).toEqual([
+      'Circle',
+      'Right Angle',
+      'Equal Angles',
+      'Equal Divisions',
+      'Close-Up',
+      'Enlarge',
+      'Enlarge in Frame',
+    ]);
+  });
+
+  it('holds the Enlarge tools on an enlarged step, and only them (Revision 2)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const onTool = vi.fn();
+    act(() =>
+      root!.render(
+        <TooltipProvider>
+          <DiagramAnnotateRail tool={null} readOnly={false} enlarged onTool={onTool} />
+        </TooltipProvider>
+      )
+    );
+    const held = [...container.querySelectorAll('[aria-disabled="true"][aria-label]')].map((button) =>
+      button.getAttribute('aria-label')
+    );
+    expect(held).toEqual(['Enlarge', 'Enlarge in Frame']);
+    act(() => (container!.querySelector('[aria-label="Enlarge"]') as HTMLButtonElement).click());
+    expect(onTool).not.toHaveBeenCalled();
   });
 });

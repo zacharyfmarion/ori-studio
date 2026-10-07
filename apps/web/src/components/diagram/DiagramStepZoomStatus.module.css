@@ -1,0 +1,5 @@
+/* The Step pane's word on an enlarged step (DiagramStepZoomStatus.tsx): its rows, and its notices under them. */
+.status {
+  display: grid;
+  gap: var(--space-2);
+}

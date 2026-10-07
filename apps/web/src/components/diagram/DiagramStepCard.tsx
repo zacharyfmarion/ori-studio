@@ -10,6 +10,7 @@ import {
   Rotate3d,
   RotateCcwSquare,
   RotateCw,
+  ScanSearch,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -83,6 +84,11 @@ export const DiagramStepCard = forwardRef<
     link: DiagramLinkStatus | null;
     /** The pages cut the step's instruction with "…". */
     textCut: boolean;
+    /**
+     * An enlarged step (Revision 2): the number of the step its area is on,
+     * or null once the area is gone; undefined for a step that is not enlarged.
+     */
+    enlargedFrom?: number | null;
     /** The step's capture while one runs, and whether its fold can be stopped. */
     capture: { stoppable: boolean } | null;
     /** A crease pattern is open to link an empty step to. */
@@ -116,6 +122,7 @@ export const DiagramStepCard = forwardRef<
     onUpload,
     link,
     textCut,
+    enlargedFrom,
     capture,
     patternOpen,
     onLink,
@@ -173,7 +180,7 @@ export const DiagramStepCard = forwardRef<
       role="option"
       aria-selected={selected}
       tabIndex={tabStop ? 0 : -1}
-      aria-labelledby={`${labelId}-number ${labelId}-kind${chip ? ` ${labelId}-chip` : ''} ${labelId}-text`}
+      aria-labelledby={`${labelId}-number ${labelId}-kind${chip ? ` ${labelId}-chip` : ''}${enlargedFrom !== undefined ? ` ${labelId}-enlarged` : ''} ${labelId}-text`}
       className={styles.card}
       data-selected={selected || undefined}
       data-drop-target={dropTarget || undefined}
@@ -186,6 +193,18 @@ export const DiagramStepCard = forwardRef<
           {t('panels:diagram.card.number', 'Step {{number}}', { number })}
         </span>
         <span className={styles.kind}>
+          {enlargedFrom !== undefined && !locked && (
+            // Enlarged, and from which step's area (Revision 2): cards never draw across cards, so a chip, not
+            // the arrow — in the header, beside the kind, where it covers none of the picture.
+            <span className={styles.enlarged} data-enlarged-chip="">
+              <ScanSearch size={11} aria-hidden="true" />
+              <span id={`${labelId}-enlarged`}>
+                {enlargedFrom === null
+                  ? t('panels:diagram.card.enlarged', 'Enlarged')
+                  : t('panels:diagram.card.enlargedFrom', 'Enlarged · {{number}}', { number: enlargedFrom })}
+              </span>
+            </span>
+          )}
           {linked && (
             <span className={styles.pattern}>
               <DiagramSheetThumbnail thumbnail={linked.thumbnail} />

@@ -30,7 +30,8 @@
 }
 
 /* A tool in hand that draws (`drawingKind`): Select and Edit Path draw nothing. */
-.view[data-draws] .stage {
+.view[data-draws] .stage,
+.view[data-picking] .stage {
   cursor: crosshair;
 }
 
@@ -254,5 +255,32 @@
   stroke: #ffffff;
   stroke-width: 1.5px;
   vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/*
+ * An enlarged step's frame, selected (Revision 2): a dashed hairline along it
+ * over the picture round it, which a wash would hide, under its grips. Its
+ * width and dashes are the canvas's, in the world, over its zoom.
+ */
+.frameLine {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+/* A selected area's or frame's anchor face: outlined in the selection's ink, as Pose outlines a frame. */
+.anchorFace {
+  fill: none;
+  stroke: var(--annotate-selection);
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* The face a click would anchor to, in the pick mode: filled lightly in the selection's ink. */
+.pickFace {
+  fill: color-mix(in srgb, var(--annotate-selection) 22%, transparent);
+  stroke: var(--annotate-selection);
+  stroke-linejoin: round;
   pointer-events: none;
 }

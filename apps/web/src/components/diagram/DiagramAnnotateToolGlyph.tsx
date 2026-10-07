@@ -1,9 +1,17 @@
 import type { ReactElement } from 'react';
 import { MousePointer2, RotateCw, SplinePointer, Type } from 'lucide-react';
 import { TURN_OVER_BOX, TURN_OVER_HEAD_PATH, TURN_OVER_PATH } from '../../cp-workspace/references/stepDiagramGeometry';
-import { ANGLE_BISECTOR, EDIT_PATH, LINE_TOOL, SOLID_ARROW, type AnnotateTool } from '../../diagram/annotate/annotateTools';
+import {
+  ANGLE_BISECTOR,
+  EDIT_PATH,
+  ENLARGE,
+  ENLARGE_FRAME,
+  LINE_TOOL,
+  SOLID_ARROW,
+  type AnnotateTool,
+} from '../../diagram/annotate/annotateTools';
 import { lineKindOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
-import type { DiagramAnnotationKind } from '../../diagram/document/diagramDocument';
+import type { DiagramAnnotationKind, DiagramZoomShape } from '../../diagram/document/diagramDocument';
 
 const SIZE = 20;
 
@@ -61,7 +69,24 @@ export function DiagramAnnotateToolGlyph({
     );
   }
   if (tool === SOLID_ARROW) return <SolidArrowGlyph />;
+  if (tool === ENLARGE) return <EnlargeGlyph shape="circle" />;
+  if (tool === ENLARGE_FRAME) return <EnlargeGlyph shape="rounded" />;
   return <DiagramAnnotationGlyph kind={tool === LINE_TOOL ? lineKindOf(lineType) : tool} />;
+}
+
+/**
+ * An enlarge area's icon (Revision 2), in the shape it is drawn: a circle —
+ * Enlarge's — or a rounded rectangle — Enlarge in Frame's, and the list's for
+ * any area — its corners pushed outward: what a later step shows larger. Not
+ * a ring with an arrow off it, which reads as ♂, nor Close-Up's two rings.
+ */
+export function EnlargeGlyph({ shape }: { shape: DiagramZoomShape }): ReactElement {
+  return (
+    <Glyph>
+      {shape === 'circle' ? <circle cx={10} cy={10} r={5.2} /> : <rect x={5.5} y={5.5} width={9} height={9} rx={2} />}
+      <path d="M4.2 4.2 L2 2 M15.8 4.2 L18 2 M15.8 15.8 L18 18 M4.2 15.8 L2 18" />
+    </Glyph>
+  );
 }
 
 /**
@@ -231,13 +256,6 @@ export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }
         </Glyph>
       );
     case 'zoom':
-      // An area framed, its corners pushed outward: what a later step shows larger. Not a ring with an
-      // arrow off it, which reads as ♂, nor Close-Up's two rings.
-      return (
-        <Glyph>
-          <rect x={5.5} y={5.5} width={9} height={9} rx={2} />
-          <path d="M4.2 4.2 L2 2 M15.8 4.2 L18 2 M15.8 15.8 L18 18 M4.2 15.8 L2 18" />
-        </Glyph>
-      );
+      return <EnlargeGlyph shape="rounded" />;
   }
 }

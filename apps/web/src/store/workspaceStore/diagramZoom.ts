@@ -1,0 +1,216 @@
+/**
+ * Enlarged steps' captures against the store (Revision 2, Z2, Z7): Pose's
+ * Enlarged and Update Enlarged Steps, each one undo step.
+ *
+ * A flat step captured before steps kept their faces on the paper has none,
+ * and a frame anchors nothing on it. So a capture whose source or enlarged
+ * step is such a step first gives it its faces, folded again from its pattern
+ * while its link is current and the fold draws its stored picture
+ * (`stepWithPaperFaces`, Z11) — in the same undo step as the capture. A step
+ * it cannot give them to keeps its picture as it is; its frame is copied in
+ * picture units, and the Step pane says Refresh (`DiagramStepZoomStatus`).
+ */
+import {
+  trackDiagramPicturePosed,
+  trackDiagramStepEnlarged,
+  type DiagramPictureKind,
+} from '../../analytics';
+import { cpAuxLinesKey, NO_AUX_LINES_KEY } from '../../cp-workspace/folded/foldedAuxSource';
+import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
+import { abandonOnEngineLoss } from '../../diagram/capture/engineLoss';
+import { lacksPaperFaces, stepWithPaperFaces } from '../../diagram/capture/stepPaperFaces';
+import {
+  DEFAULT_DIAGRAM_STYLE,
+  isLockedStep,
+  isTurn,
+  stepAsset,
+  stepById,
+  type DiagramDocument,
+  type DiagramStep,
+} from '../../diagram/document/diagramDocument';
+import { areaSource, captureSource, stepsFrom, type ZoomCaptured, type ZoomPlaced } from '../../diagram/zoom/zoomCapture';
+import { enlargeStep, unenlargeStep, updateEnlargedSteps } from '../../diagram/zoom/zoomFrames';
+import { FOLD_RUN_NONE } from '../../lib/foldCancellation';
+import { createCpCaptureRuntime } from './cpFoldRuntimeBindings';
+import type { DiagramCommit, DiagramCaptureStore } from './diagramCapture';
+
+/** The faces of older flat steps, folded again from their pattern: each step with its faces, by id, where it could be given them. */
+export type PaperFacesBackfill = (steps: readonly DiagramStep[]) => Promise<ReadonlyMap<string, DiagramStep>>;
+
+/**
+ * The backfill against the store's crease pattern: nothing for a step that
+ * has its faces or can have none, nor with no pattern open; a fold that
+ * fails, is refused or draws another picture leaves that step to Refresh.
+ */
+export function storePaperFacesBackfill(store: DiagramCaptureStore): PaperFacesBackfill {
+  return async (steps) => {
+    const faced = new Map<string, DiagramStep>();
+    const wanting = steps.filter(lacksPaperFaces);
+    const cp = store.get().oristudioCpDocument;
+    if (wanting.length === 0 || !cp) return faced;
+    const style = store.get().diagram?.style ?? DEFAULT_DIAGRAM_STYLE;
+    try {
+      const segmentation = await abandonOnEngineLoss(ensureCpSegmentationArtifacts(cp.document));
+      // A flat fold's faces: no 3D figure's aux lines are asked for, but the handle is the capture's own.
+      const runtime = createCpCaptureRuntime(
+        FOLD_RUN_NONE,
+        cpAuxLinesKey(cp.geometry) === NO_AUX_LINES_KEY ? null : cp.handle
+      );
+      for (const step of wanting) {
+        const got = await abandonOnEngineLoss(
+          stepWithPaperFaces(runtime, { step, document: cp.document, segmentation, style })
+        );
+        if (got.status === 'faces') faced.set(step.id, got.step);
+      }
+    } catch {
+      // Left without: the frame is copied in picture units, and the Step pane says Refresh.
+    }
+    return faced;
+  };
+}
+
+/**
+ * The faces a backfill found put on their steps — each only while its step
+ * is as it was folded (its revision and picture key) and still has none.
+ */
+export function withPaperFaces(document: DiagramDocument, faced: ReadonlyMap<string, DiagramStep>): DiagramDocument {
+  if (faced.size === 0) return document;
+  let steps: DiagramDocument['steps'] | null = null;
+  document.steps.forEach((entry, index) => {
+    const got = faced.get(entry.id);
+    if (!got || isTurn(entry) || !lacksPaperFaces(entry)) return;
+    if (entry.revision !== got.revision || entry.picture?.kind !== 'scene' || got.picture?.kind !== 'scene') return;
+    if (entry.picture.key !== got.picture.key || got.picture.paperFaces === undefined) return;
+    steps ??= document.steps.slice();
+    steps[index] = { ...entry, picture: { ...entry.picture, paperFaces: got.picture.paperFaces } };
+  });
+  return steps ? { ...document, steps } : document;
+}
+
+/** A step's picture, as the analytics events name it. */
+export function enlargedPictureKind(document: DiagramDocument, step: DiagramStep): DiagramPictureKind | null {
+  if (step.source?.kind === 'references-step') return 'references';
+  if (step.source?.kind === 'cp') {
+    switch (step.source.render.mode) {
+      case 'crease-pattern':
+        return 'crease_pattern';
+      case 'folded-flat':
+        return 'flat';
+      case 'folded-3d':
+        return '3d';
+      case 'simulated':
+        return 'simulated';
+    }
+  }
+  return stepAsset(document, step)?.kind ?? null;
+}
+
+/** A capture that placed a frame, counted (`diagram step enlarged`): none for one that placed nothing yet. */
+export function trackCaptured(
+  document: DiagramDocument,
+  stepId: string,
+  captured: Pick<ZoomCaptured, 'placed' | 'anchor'> & { shape: ZoomCaptured['zoom']['shape'] },
+  via: 'toggle' | 'seeded' | 'update'
+): void {
+  const step = stepById(document, stepId);
+  const picture = step ? enlargedPictureKind(document, step) : null;
+  if (!captured.placed || !picture) return;
+  trackDiagramStepEnlarged(via, captured.placed, captured.anchor, captured.shape, picture);
+}
+
+/** A seeded step's first picture that landed its frame, counted as `seeded`: nothing when it placed none. */
+export function trackSeeded(document: DiagramDocument, stepId: string, placed: ZoomPlaced): void {
+  const zoom = stepById(document, stepId)?.zoom;
+  if (!zoom || !placed) return;
+  const anchor = placed === 'picture' ? 'none' : zoom.imprint?.picked ? 'picked' : 'auto';
+  trackCaptured(document, stepId, { placed, anchor, shape: zoom.shape }, 'seeded');
+}
+
+/** Steps being enlarged or updated: a second press while the faces are folded starts nothing more. */
+const inFlight = new Set<string>();
+
+/**
+ * Enlarged turned on, as one undo step: the source's and the step's faces
+ * first, where a fold can give them, then the capture (`enlargeStep`). False
+ * when nothing changed: a read-only diagram, a newer build's step, one
+ * enlarged already or with nothing to capture from, or a diagram replaced
+ * while the faces were folded.
+ */
+export async function enlargeInStore(
+  store: DiagramCaptureStore,
+  commit: DiagramCommit,
+  backfill: PaperFacesBackfill,
+  stepId: string
+): Promise<boolean> {
+  const { diagram, diagramReadOnly, diagramLoadId } = store.get();
+  const step = diagram && !diagramReadOnly ? stepById(diagram, stepId) : null;
+  const source = diagram && step ? captureSource(diagram, stepId) : null;
+  if (!step || isLockedStep(step) || step.zoom || !source || inFlight.has(stepId)) return false;
+  inFlight.add(stepId);
+  try {
+    const faced = await backfill([source.step, step]);
+    if (store.get().diagramLoadId !== diagramLoadId) return false;
+    let captured: ZoomCaptured | null = null;
+    const next = commit('Enlarge step', (document) => {
+      if (stepById(document, stepId)?.zoom) return document;
+      const result = enlargeStep(withPaperFaces(document, faced), stepId, document.assets);
+      captured = result.captured;
+      return captured ? result.document : document;
+    });
+    if (!next || !captured) return false;
+    const made = captured as ZoomCaptured;
+    trackCaptured(next, stepId, { ...made, shape: made.zoom.shape }, 'toggle');
+    return true;
+  } finally {
+    inFlight.delete(stepId);
+  }
+}
+
+/** Enlarged turned off, as one undo step: the frame dropped, the marks carried to the whole picture. */
+export function unenlargeInStore(store: DiagramCaptureStore, commit: DiagramCommit, stepId: string): boolean {
+  const next = commit('Show whole step', (document) => unenlargeStep(document, stepId, document.assets));
+  if (!next) return false;
+  const step = stepById(next, stepId);
+  const picture = step ? enlargedPictureKind(next, step) : null;
+  if (picture) trackDiagramPicturePosed('enlarge_off', picture);
+  return true;
+}
+
+/**
+ * Update Enlarged Steps, as one undo step: the area's step's faces and every
+ * enlarged step's first, where a fold can give them, then each captured
+ * again from the area as it is now. How many steps it placed.
+ */
+export async function updateInStore(
+  store: DiagramCaptureStore,
+  commit: DiagramCommit,
+  backfill: PaperFacesBackfill,
+  areaId: string
+): Promise<number> {
+  const { diagram, diagramReadOnly, diagramLoadId } = store.get();
+  const source = diagram && !diagramReadOnly ? areaSource(diagram, areaId) : null;
+  const targets = diagram ? stepsFrom(diagram, areaId) : [];
+  if (!diagram || !source || targets.length === 0 || inFlight.has(areaId)) return 0;
+  inFlight.add(areaId);
+  try {
+    const steps = targets.flatMap((id) => stepById(diagram, id) ?? []);
+    const faced = await backfill([source.step, ...steps]);
+    if (store.get().diagramLoadId !== diagramLoadId) return 0;
+    let placed: ZoomCaptured[] = [];
+    let ids: string[] = [];
+    const next = commit('Update enlarged steps', (document) => {
+      const result = updateEnlargedSteps(withPaperFaces(document, faced), areaId, document.assets);
+      placed = result.captured;
+      ids = result.stepIds;
+      return result.document;
+    });
+    if (!next) return 0;
+    placed.forEach((captured, index) => {
+      const id = ids[index];
+      if (id) trackCaptured(next, id, { ...captured, shape: captured.zoom.shape }, 'update');
+    });
+    return placed.length;
+  } finally {
+    inFlight.delete(areaId);
+  }
+}

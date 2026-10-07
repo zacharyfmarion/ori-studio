@@ -153,6 +153,18 @@ describe('Annotate’s keys', () => {
     return { claimed, ...actions };
   };
 
+  it('picks Enlarge with E and Enlarge in Frame with Shift+E, and neither on an enlarged step (Revision 2)', () => {
+    expect(press('diagram.toolEnlarge', annotate()).setTool).toHaveBeenCalledWith('enlarge');
+    expect(press('diagram.toolEnlargeFrame', annotate()).setTool).toHaveBeenCalledWith('enlarge-frame');
+    const enlarged = { annotate: { ...annotate().annotate, enlarged: true } };
+    const held = press('diagram.toolEnlarge', enlarged);
+    // Claimed, so the letter does nothing else, and nothing picked.
+    expect(held.claimed).toBe(true);
+    expect(held.setTool).not.toHaveBeenCalled();
+    // One already in hand from another step still goes down with its letter.
+    expect(press('diagram.toolEnlarge', { annotate: { ...enlarged.annotate, tool: 'enlarge' as never } }).setTool).toHaveBeenCalledWith(null);
+  });
+
   it('picks a tool by its letter, and puts it down with the same letter', () => {
     expect(press('diagram.toolValleyArrow', annotate()).setTool).toHaveBeenCalledWith('valley-arrow');
     expect(press('diagram.toolValleyArrow', annotate('valley-arrow')).setTool).toHaveBeenCalledWith(null);
@@ -270,6 +282,22 @@ describe('Annotate’s keys', () => {
 });
 
 describe('Annotate’s Escape rungs', () => {
+  it('leaves the anchor’s pick mode first, wherever the focus is (Revision 2)', () => {
+    const actions = { select: vi.fn(), close: vi.fn(), selectAnnotation: vi.fn(), setTool: vi.fn(), endAnchorPick: vi.fn() };
+    const state = {
+      selectedStepId: 'a',
+      detailOpen: true,
+      anchorPick: true,
+      annotate: { tool: null, selectedAnnotationId: 'area', canFlipArc: false },
+    };
+    expect(runDiagramCancel(state, actions)).toBe(true);
+    expect(actions.endAnchorPick).toHaveBeenCalledOnce();
+    expect(actions.selectAnnotation).not.toHaveBeenCalled();
+    // Then the area, as any selection.
+    runDiagramCancel({ ...state, anchorPick: false }, actions);
+    expect(actions.selectAnnotation).toHaveBeenCalledWith(null);
+  });
+
   it('drops a drag, then the annotation, then the tool, then leaves the detail', () => {
     const actions = {
       select: vi.fn(),

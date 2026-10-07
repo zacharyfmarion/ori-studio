@@ -135,6 +135,46 @@ export type DiagramShapedArrowHalf = 'out' | 'return';
  */
 export type DiagramBehindEnds = 'tail' | 'tip' | 'both' | 'whole';
 
+/**
+ * How an enlarged step got its frame (Revision 2): Pose's Enlarged turned on,
+ * a new step after an enlarged one whose first picture lands the frame it
+ * was seeded with, or Update Enlarged Steps on the area it came from.
+ */
+export type DiagramStepEnlargedVia = 'toggle' | 'seeded' | 'update';
+
+/**
+ * Where a capture put an enlarged step's frame: through an anchor face, through
+ * a crease pattern's sheet, or copied in picture units (a step with no faces).
+ */
+export type DiagramStepEnlargedPlaced = 'face' | 'sheet' | 'picture';
+
+/** The anchor a frame was placed by: the default rule's, a picked one, or none (copied in picture units). */
+export type DiagramStepEnlargedAnchor = 'auto' | 'picked' | 'none';
+
+/** An enlarge area's, or an enlarged step's frame's, shape. */
+export type DiagramEnlargeShape = 'circle' | 'rounded';
+
+/** What an enlargement edit was made on: an enlarge area, or an enlarged step's frame. */
+export type DiagramEnlargementOn = 'area' | 'frame';
+
+/** Which of an enlargement's settings changed: moved or resized by hand, its Shape, Size, Edge or Anchor, or the area deleted. */
+export type DiagramEnlargementSetting = 'moved' | 'shape' | 'size' | 'edge' | 'anchor' | 'deleted';
+
+/** What the setting became: the shape, Fill or a fixed Size, Cut or Whole, the anchor's rule. */
+export type DiagramEnlargementValue =
+  | 'circle'
+  | 'rounded'
+  | 'fill'
+  | 'fixed'
+  | 'cut'
+  | 'whole'
+  | 'auto'
+  | 'picked'
+  | 'none';
+
+/** A fixed Size, bucketed: never the value. */
+export const DIAGRAM_ENLARGE_SIZE_BUCKETS = [1.5, 2, 3, 6] as const;
+
 /** How many layers lie over an end put behind a flap: one, two, or three and more. */
 export type DiagramBehindLayers = '1' | '2' | '3+';
 
@@ -164,6 +204,8 @@ export type DiagramPoseAction =
   | 'rotate_right'
   | 'flip'
   | 'reset'
+  // Pose's Enlarged turned off (Revision 2): turning it on is `diagram step enlarged`.
+  | 'enlarge_off'
   | 'show_crease_pattern'
   | 'show_folded'
   | 'turn_over'
@@ -1405,6 +1447,10 @@ export const ANALYTICS_EVENTS = {
   diagramAnnotationBehind: 'diagram annotation behind',
   /** A mark flipped horizontally or vertically from the Layers pane: its kind, which way. */
   diagramAnnotationFlipped: 'diagram annotation flipped',
+  /** A frame placed on an enlarged step by a capture (Revision 2): how, through what, by which anchor. One per step placed. */
+  diagramStepEnlarged: 'diagram step enlarged',
+  /** An enlarge area or an enlarged step's frame changed: moved, its Shape, Size, Edge or Anchor, or an area deleted. */
+  diagramEnlargementChanged: 'diagram enlargement changed',
   /** Annotate's Snap switch flipped in the Step pane. */
   diagramAnnotateSnapChanged: 'diagram annotate snap changed',
   /**

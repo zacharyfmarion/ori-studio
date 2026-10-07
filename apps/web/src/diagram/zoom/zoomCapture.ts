@@ -8,7 +8,7 @@
  *
  * Pure: no store. The verbs that store a capture are in `zoomFrames.ts`.
  */
-import { withinReach, type PicturePoint } from '../annotate/annotationModel';
+import { PICTURE_REACH, withinReach, type PicturePoint } from '../annotate/annotationModel';
 import {
   isKnownAnnotation,
   isLockedStep,
@@ -194,7 +194,7 @@ export type ZoomPlaced = 'face' | 'sheet' | 'picture' | null;
  * anchor far from what it frames, is held at reach's edge as an area is.
  */
 export function heldFrame(frame: DiagramZoomOutline): DiagramZoomOutline {
-  const centre = withinReach(frame.centre);
+  const centre = withinReach(frame.centre, PICTURE_REACH);
   return centre[0] === frame.centre[0] && centre[1] === frame.centre[1] ? frame : { ...frame, centre };
 }
 

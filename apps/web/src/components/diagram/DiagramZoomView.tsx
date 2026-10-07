@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { CARD_FRAME_PX } from '../../diagram/annotate/canvasInk';
 import type { AnnotateLayout } from '../../diagram/annotate/useAnnotateCanvas';
 import type { DiagramStyle } from '../../diagram/document/diagramDocument';
-import { paintedFrameLongerPx } from '../../diagram/pictures/pictureFrame';
-import { closeUpPictureUrl, zoomedPictureUrl, type CloseUpPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
+import { zoomedPictureUrl, zoomSurroundUrl, type CloseUpPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
 import {
   ZOOM_SURROUND_DIM,
   zoomBoundary,
@@ -26,9 +25,12 @@ import styles from './DiagramZoomView.module.css';
  * canvas's frame, so the marks drawn over it are in their own units. Its
  * image is no larger than the window, however small the window is.
  *
- * With `surround` — the frame selected — the whole picture shows instead,
- * painted at the window's scale, the picture round the frame dimmed by the
- * page's white so what lies outside it can be seen, and the boundary over it.
+ * With `surround` — the frame selected — the picture round it shows instead,
+ * painted at about the window's scale but only near the window
+ * (`zoomSurroundUrl`) — and as far as its anchor face, which the selection
+ * outlines (`surroundAlso`) — the picture round the frame dimmed by the page's white
+ * so what lies outside it can be seen, and the boundary over it. A drag of
+ * the frame draws its outline over this and paints nothing new.
  *
  * In the canvas's world px, under its marks; it takes no press.
  */
@@ -37,13 +39,16 @@ export function DiagramZoomView({
   layout,
   style,
   surround = false,
+  surroundAlso = null,
 }: {
   zoomed: ZoomedSource;
   layout: AnnotateLayout;
   style: DiagramStyle;
   surround?: boolean;
+  /** What the surround takes in besides the window, in picture units: the anchor face it outlines. */
+  surroundAlso?: PictureBox | null;
 }) {
-  const { view, source, pictureFrame, silhouette } = zoomed;
+  const { view, pictureFrame, silhouette } = zoomed;
   const placement = useMemo(() => zoomPlacement(view, pictureFrame, layout.frame), [view, pictureFrame, layout.frame]);
   // The window as its card has it, 50 mm across: one picture per frame, cached.
   const windowImage = useMemo(() => {
@@ -51,14 +56,11 @@ export function DiagramZoomView({
     const painted = zoomedPictureUrl(zoomed, style, 1);
     return painted && imageOn(painted, layout.frame);
   }, [surround, zoomed, style, layout.frame]);
-  // The whole picture at the scale its window is painted at, for the surround.
-  const windowLonger = Math.max(view.window.width, view.window.height);
+  // The picture round the window, at about the scale its window is painted at, for the surround.
   const wholeImage = useMemo(() => {
-    const atOne = surround ? paintedFrameLongerPx(source) : null;
-    if (!atOne || !(windowLonger > 0)) return null;
-    const painted = closeUpPictureUrl(source, style, CARD_FRAME_PX / windowLonger / atOne);
+    const painted = surround ? zoomSurroundUrl(zoomed, style, surroundAlso) : null;
     return painted && imageOn(painted, placement.pictureFrame);
-  }, [surround, source, style, windowLonger, placement.pictureFrame]);
+  }, [surround, zoomed, style, surroundAlso, placement.pictureFrame]);
   // The boundary as a card draws it, at its 50 mm: the canvas is a card's view, larger.
   const paths = useMemo(
     () => (wholeImage ? zoomEdgePaths(placement.outline, zoomBoundary(view, silhouette, DEFAULT_PAPER_SIZE_MM)) : []),

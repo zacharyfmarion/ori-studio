@@ -72,6 +72,7 @@ import {
 import { nearestPathPoint, pathNodesOf, visiblePathHandles } from './annotationPath';
 import { ANNOTATION_INK_MM } from './canvasInk';
 import { perAnnotation } from './perAnnotation';
+import { zoomGripAt, type ZoomGrip } from '../zoom/zoomGrips';
 import { distanceToRim, zoomOutlineOf } from '../zoom/zoomModel';
 
 /**
@@ -83,7 +84,8 @@ import { distanceToRim, zoomOutlineOf } from '../zoom/zoomModel';
  * ({@link rightAngleGrips}); and one of a close-up's two circles, taken
  * anywhere inside to move it, or by its ring to resize it (15f); and the
  * handle at the middle of equal divisions' line, which sets how far off the
- * line they measure it stands, as a drag of the mark does (Revision 2).
+ * line they measure it stands, as a drag of the mark does (Revision 2); and
+ * a selected enlarge area's centre, rim, corners or edges (`zoomGrips.ts`).
  */
 export type AnnotationGripPart =
   | { part: 'body' }
@@ -97,7 +99,8 @@ export type AnnotationGripPart =
   | { part: 'direction' }
   | { part: 'circle'; end: 'from' | 'to' }
   | { part: 'ring'; end: 'from' | 'to' }
-  | { part: 'offset' };
+  | { part: 'offset' }
+  | { part: 'zoom'; zoom: ZoomGrip };
 
 /** What a press took hold of: the annotation, and which part of it. */
 export type AnnotationGrip = { annotationId: string } & AnnotationGripPart;
@@ -766,6 +769,10 @@ export function hitAnnotation(
     // A ring resizes what it is round, a centre's dot moves its circle.
     const grip = closeUpGripAt(selected, point, sizes.tolerance);
     if (grip) return { annotationId: selected.id, ...grip };
+  } else if (selected?.kind === 'zoom') {
+    // An enlarge area's grips (Revision 2): its centre's dot moves it; a circle's rim, a rectangle's corners and edges resize it.
+    const grip = zoomGripAt(zoomOutlineOf(selected), point, sizes.tolerance);
+    if (grip) return { annotationId: selected.id, part: 'zoom', zoom: grip };
   } else if (selected && isCornerKind(selected.kind)) {
     // A right angle's corner, and the way it opens: no ends.
     const grips = rightAngleGrips(selected, sizes.ink);

@@ -23,6 +23,7 @@ import { useCloseUpInsides } from '../../diagram/annotate/useCloseUpInsides';
 import type { SnapTarget } from '../../diagram/annotate/pictureSnap';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import {
+  ANNOTATE_CAMERA_SCALE,
   calloutPenUnits,
   CIRCLE_RADIUS,
   GLYPH_REACH,
@@ -46,6 +47,7 @@ import {
   type DiagramAsset,
   type DiagramStep,
   type DiagramStyle,
+  type DiagramZoomOutline,
   type KnownDiagramAnnotation,
 } from '../../diagram/document/diagramDocument';
 import { VIEWPORT_PINCH_ZOOM, VIEWPORT_WHEEL_ZOOM } from '../../hooks/useViewportSurface';
@@ -54,7 +56,8 @@ import { DiagramAnnotateToolWindow } from './DiagramAnnotateToolWindow';
 import { DiagramAnnotationLayer } from './DiagramAnnotationLayer';
 import { DiagramCloseUpInsides } from './DiagramCloseUpInsides';
 import { markGeometry } from '../../diagram/zoom/stepView';
-import { ZOOM_FRAME_ID, zoomOutlineOf, zoomOutlinePoints } from '../../diagram/zoom/zoomModel';
+import { zoomGrips } from '../../diagram/zoom/zoomGrips';
+import { zoomOutlineOf, zoomOutlinePoints } from '../../diagram/zoom/zoomModel';
 import { DiagramZoomView } from './DiagramZoomView';
 import styles from './DiagramAnnotateCanvas.module.css';
 
@@ -67,6 +70,15 @@ const NODE_PX = { fine: 4.5, coarse: 7 } as const;
 const PATH_HANDLE_PX = { fine: 3.5, coarse: 5.5 } as const;
 /** A right angle's tie to its vertex (RA6), in screen px: a hairline. */
 const TIE_PX = 1;
+/**
+ * A selected frame's line and its dashes, and an anchor face's outline and
+ * the face a pick would take (Revision 2), in screen px: drawn in the world,
+ * so divided by the camera's zoom as the grips are, or a canvas stepped back
+ * to reach a far anchor face loses them.
+ */
+const FRAME_LINE_PX = { width: 1.5, dash: 6, gap: 4 } as const;
+const ANCHOR_FACE_PX = 1.25;
+const PICK_FACE_PX = 1;
 
 /**
  * The Annotate canvas (D8): the step's picture alone, with its annotations
@@ -136,6 +148,7 @@ export function DiagramAnnotateCanvas({
         data-space-pan={spacePressed || undefined}
         data-tool={tool ?? 'select'}
         data-draws={isDrawingTool(tool) || undefined}
+        data-picking={canvas.pickingAnchor || undefined}
         tabIndex={-1}
         onPointerDownCapture={onPointerDownCapture}
         {...handlers}
@@ -143,8 +156,8 @@ export function DiagramAnnotateCanvas({
         <TransformWrapper
           ref={transformRef}
           initialScale={1}
-          minScale={0.1}
-          maxScale={12}
+          minScale={ANNOTATE_CAMERA_SCALE.min}
+          maxScale={ANNOTATE_CAMERA_SCALE.max}
           limitToBounds={false}
           wheel={VIEWPORT_WHEEL_ZOOM}
           panning={{
@@ -173,7 +186,8 @@ export function DiagramAnnotateCanvas({
                     zoomed={canvas.zoomed}
                     layout={layout}
                     style={style}
-                    surround={selectedId === ZOOM_FRAME_ID}
+                    surround={canvas.frameSelected}
+                    surroundAlso={canvas.surroundAlso}
                   />
                 ) : (
                   <div className={styles.paper} style={box(layout.picture)}>
@@ -224,6 +238,25 @@ export function DiagramAnnotateCanvas({
                         calloutPen={calloutPenUnits(style)}
                       />
                     ))}
+                  {canvas.anchorRing && (
+                    <FaceRing
+                      ring={canvas.anchorRing}
+                      layout={layout}
+                      className={styles.anchorFace}
+                      strokeWidth={ANCHOR_FACE_PX / zoom}
+                    />
+                  )}
+                  {canvas.pickHighlight && (
+                    <FaceRing
+                      ring={canvas.pickHighlight}
+                      layout={layout}
+                      className={styles.pickFace}
+                      strokeWidth={PICK_FACE_PX / zoom}
+                    />
+                  )}
+                  {canvas.frameOutline && canvas.frameSelected && (
+                    <ZoomOutlineSelection outline={canvas.frameOutline} layout={layout} zoom={zoom} movable={!readOnly} frame />
+                  )}
                   <PickMarks preview={canvas.pickPreview} layout={layout} zoom={zoom} />
                   <SnapTargets targets={canvas.snapTargets} layout={layout} zoom={zoom} />
                   {canvas.rightAnglePreview && <RightAngleGhost preview={canvas.rightAnglePreview} layout={layout} zoom={zoom} />}
@@ -347,12 +380,9 @@ function Selection({
       return <DivisionsSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
     case 'close-up':
       return <CloseUpSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
-    case 'zoom': {
-      // Along its outline, all the way round: what a press takes hold of.
-      const outline = zoomOutlinePoints(zoomOutlineOf(annotation));
-      path = [...outline, outline[0]!];
-      break;
-    }
+    case 'zoom':
+      // Along its outline, all the way round, with its grips (Revision 2).
+      return <ZoomOutlineSelection outline={zoomOutlineOf(annotation)} layout={layout} zoom={zoom} movable={movable} />;
   }
   const points = path.map(at);
   const corner = box && at([box.x, box.y]);
@@ -474,6 +504,72 @@ function CloseUpSelection({
         })}
     </g>
   );
+}
+
+/**
+ * A selected enlarge area, or an enlarged step's frame (Revision 2): washed
+ * along its outline, with its grips — its centre's dot, which moves it, and
+ * a circle's dot on its rim, or a rectangle's corners and edges' middles,
+ * which resize it. A frame's own wash is a hairline: it is drawn over the
+ * picture round it, where a wash would hide what it lies on.
+ */
+function ZoomOutlineSelection({
+  outline,
+  layout,
+  zoom,
+  movable,
+  frame = false,
+}: {
+  outline: DiagramZoomOutline;
+  layout: AnnotateLayout;
+  zoom: number;
+  movable: boolean;
+  frame?: boolean;
+}) {
+  const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit] as const;
+  const points = zoomOutlinePoints(outline).map(at);
+  const handle = HANDLE_PX / zoom;
+  return (
+    <g data-selection="" data-zoom-selection={frame ? 'frame' : 'area'}>
+      {frame ? (
+        <polygon
+          className={styles.frameLine}
+          points={polylinePoints(points)}
+          strokeWidth={FRAME_LINE_PX.width / zoom}
+          strokeDasharray={`${FRAME_LINE_PX.dash / zoom} ${FRAME_LINE_PX.gap / zoom}`}
+        />
+      ) : (
+        <polygon className={styles.selection} points={polylinePoints(points)} />
+      )}
+      {movable &&
+        zoomGrips(outline).map(({ grip, at: point }) => {
+          const [x, y] = at(point);
+          const name = grip.part === 'corner' ? `corner-${grip.corner}` : grip.part === 'edge' ? `edge-${grip.edge}` : grip.part;
+          return <circle key={name} className={styles.handle} cx={x} cy={y} r={handle} data-handle={`zoom-${name}`} />;
+        })}
+    </g>
+  );
+}
+
+/**
+ * A face's ring as the picture draws it, over the marks (Revision 2): the
+ * selected area's or frame's anchor face, outlined in the selection's ink,
+ * or the face a click would anchor to in the pick mode, filled lightly.
+ */
+function FaceRing({
+  ring,
+  layout,
+  className,
+  strokeWidth,
+}: {
+  ring: readonly (readonly [number, number])[];
+  layout: AnnotateLayout;
+  className: string | undefined;
+  /** In the world's px: its screen px over the camera's zoom. */
+  strokeWidth: number;
+}) {
+  const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit] as const;
+  return <polygon className={className} points={polylinePoints(ring.map(at))} strokeWidth={strokeWidth} data-face-ring="" />;
 }
 
 function polylinePoints(points: readonly (readonly number[])[]): string {

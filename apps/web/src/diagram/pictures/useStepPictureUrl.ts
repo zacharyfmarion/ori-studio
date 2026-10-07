@@ -11,10 +11,12 @@ import type { PictureLayers } from '../annotate/pictureGeometry';
 import { viewGeometry, viewOfStep } from '../zoom/stepView';
 import {
   paintZoomedPicture,
+  paintZoomSurround,
   posedZoomPicture,
   zoomedCardPicture,
   zoomedKey,
   zoomedSource,
+  zoomSurroundRegion,
   type ZoomedSource,
 } from '../zoom/paintZoomed';
 import { diagramStyleKey } from './diagramPaperStyle';
@@ -131,6 +133,43 @@ export function zoomedPictureUrl(zoomed: ZoomedSource, style: DiagramStyle, scal
 
 /** How many windows' sizes are kept: a canvas's close-ups, a few times over. */
 const ZOOMED_SIZES_KEPT = 64;
+
+/**
+ * The picture round an enlarged step's selected frame on the canvas
+ * (Revision 2): the step's picture at about its window's scale, cut to a
+ * region round the window (`zoomSurroundRegion`) — never the whole model at
+ * that scale. Both are held to steps, so moving or resizing the frame a
+ * little paints nothing new; through the cache, keyed by the picture, the
+ * style, the scale and the region. An upload or a fixed picture is its own
+ * picture, drawn larger whole, as a close-up's inside is.
+ */
+export function zoomSurroundUrl(
+  zoomed: ZoomedSource,
+  style: DiagramStyle,
+  alsoShow: PictureBox | null = null
+): CloseUpPictureUrl | null {
+  const { source } = zoomed;
+  const held = zoomSurroundRegion(zoomed, alsoShow);
+  if (!held) return null;
+  if (source.kind === 'asset' || source.kind === 'fixed') return closeUpPictureUrl(source, style, held.scale);
+  const { scale, region } = held;
+  const key = `zoom-surround|${sourceKey(source)}|${diagramStyleKey(style)}|${scale}|${region.x}|${region.y}|${region.width}|${region.height}`;
+  const paint = () => paintZoomSurround(source, style, scale, region);
+  let size = zoomedSizes.get(key);
+  let painted: ReturnType<typeof paint> = null;
+  if (!size) {
+    painted = paint();
+    if (!painted) return null;
+    size = { widthPx: painted.widthPx, heightPx: painted.heightPx, frame: painted.frame };
+    zoomedSizes.set(key, size);
+    if (zoomedSizes.size > ZOOMED_SIZES_KEPT) zoomedSizes.delete(zoomedSizes.keys().next().value!);
+  }
+  const url = cachedPictureUrl(key, () => {
+    const svg = (painted ?? paint())?.svg;
+    return svg ? svgDataUrl(svg) : null;
+  });
+  return url ? { url, ...size } : null;
+}
 
 /**
  * A step's picture with its annotations drawn on it (D8), through the cache:

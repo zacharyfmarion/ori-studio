@@ -1,4 +1,4 @@
-import { EDIT_PATH } from '../../diagram/annotate/annotateTools';
+import { EDIT_PATH, isEnlargeTool, type AnnotateTool } from '../../diagram/annotate/annotateTools';
 import { pathNodesOf } from '../../diagram/annotate/annotationPath';
 import {
   isKnownAnnotation,
@@ -8,8 +8,10 @@ import {
   type KnownDiagramAnnotation,
 } from '../../diagram/document/diagramDocument';
 import { stepCanBeAnnotated } from '../../diagram/pictures/pictureFrame';
+import { showsFrame } from '../../diagram/zoom/zoomActions';
+import { ZOOM_FRAME_ID } from '../../diagram/zoom/zoomModel';
 import { emptySnapshotHistory, type SnapshotHistory } from './snapshotHistory';
-import type { WorkspaceState } from './types';
+import type { DiagramAnchorPick, WorkspaceState } from './types';
 
 /**
  * The keys whose values belong to *the project's diagram*, and must all be
@@ -41,6 +43,7 @@ export const DIAGRAM_SCOPED_KEYS = [
   'diagramPatternPicker',
   'diagramRefreshAll',
   'diagramReferencesBrowser',
+  'diagramAnchorPick',
 ] as const;
 
 /**
@@ -65,6 +68,38 @@ export function isDiagramAnnotating(
   if (diagramDetail !== 'annotate' || !diagram || diagramSelectedStepId === null) return false;
   const step = stepById(diagram, diagramSelectedStepId);
   return step !== null && stepCanBeAnnotated(step, diagram.assets);
+}
+
+/**
+ * The Annotate tool in hand on the step open there: the one picked, but
+ * Select in place of an Enlarge tool on an enlarged step, where no area is
+ * drawn (Revision 2) — so the canvas selects there, as its rail shows, and
+ * the tool is in hand again on the next step that can take it.
+ */
+export function annotateToolInHand(
+  state: Pick<WorkspaceState, 'diagram' | 'diagramSelectedStepId' | 'diagramAnnotateTool'>
+): AnnotateTool {
+  const { diagram, diagramSelectedStepId: stepId, diagramAnnotateTool: tool } = state;
+  if (!isEnlargeTool(tool) || !diagram || stepId === null) return tool;
+  return stepById(diagram, stepId)?.zoom ? null : tool;
+}
+
+/**
+ * The anchor being picked on the canvas (Revision 2), while it can be: its
+ * step open in Annotate, with the area or the frame it is for selected there
+ * — the row whose Pick armed it. Null otherwise. Selecting anything else,
+ * another step or leaving Annotate also puts it down in the store, so it does
+ * not come back when the area or frame is selected again.
+ */
+export function activeAnchorPick(
+  state: Pick<
+    WorkspaceState,
+    'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId' | 'diagramAnchorPick'
+  >
+): DiagramAnchorPick | null {
+  const pick = state.diagramAnchorPick;
+  if (!pick || pick.stepId !== state.diagramSelectedStepId || pick.target !== state.diagramSelectedAnnotationId) return null;
+  return isDiagramAnnotating(state) ? pick : null;
 }
 
 /**
@@ -104,6 +139,23 @@ export function annotatingSelectionId(
   state: Pick<WorkspaceState, 'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId'>
 ): string | null {
   return isDiagramAnnotating(state) ? (selectedDiagramAnnotation(state)?.id ?? null) : null;
+}
+
+/**
+ * What the Layers pane shows selected on the step open in Annotate: an
+ * annotation's id, or an enlarged step's frame (`ZOOM_FRAME_ID`, Revision 2),
+ * a layer of the step though no mark; null otherwise. What brings Layers
+ * forward. Copy and Delete ask `annotatingSelectionId`, which takes no frame.
+ */
+export function layersSelectionId(
+  state: Pick<WorkspaceState, 'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId'>
+): string | null {
+  const annotation = annotatingSelectionId(state);
+  if (annotation !== null) return annotation;
+  const { diagram, diagramSelectedStepId: stepId, diagramSelectedAnnotationId: id } = state;
+  return id === ZOOM_FRAME_ID && diagram && stepId !== null && isDiagramAnnotating(state) && showsFrame(diagram, stepId)
+    ? id
+    : null;
 }
 
 /** The selected annotation, when it is one this build reads, on the selected step. */
@@ -183,6 +235,7 @@ export function discardDiagramState(): DiagramScopedState {
     diagramPatternPicker: null,
     diagramRefreshAll: null,
     diagramReferencesBrowser: null,
+    diagramAnchorPick: null,
   };
 }
 

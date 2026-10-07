@@ -1,4 +1,4 @@
-import { trackDiagramAnnotationFlipped, trackDiagramArrowShaped } from '../../analytics';
+import { trackDiagramAnnotationFlipped, trackDiagramArrowShaped, trackDiagramEnlargementChanged } from '../../analytics';
 import type { DiagramShapedArrowKind } from '../../analytics/events';
 import type { WorkspaceState } from '../../store/workspaceStore/types';
 import {
@@ -20,8 +20,9 @@ import { shapedHalf } from './annotationPath';
  * counts an arrow shaped for the first time (`diagram arrow shaped`): once,
  * when the edit makes an arc a path, or a white arrow no longer straight
  * (`isShapedArrow`), never for the edits after — for a fold-and-unfold arrow,
- * which writes both its halves then, with the half the edit touched; and each
- * flip (`diagram annotation flipped`). Whether anything changed.
+ * which writes both its halves then, with the half the edit touched; each
+ * flip (`diagram annotation flipped`); and an enlarge area deleted (Revision
+ * 2, `diagram enlargement changed`). Whether anything changed.
  */
 export function applyAnnotationEdit(
   workspace: Pick<WorkspaceState, 'diagram' | 'editDiagramAnnotations'>,
@@ -31,6 +32,8 @@ export function applyAnnotationEdit(
 ): boolean {
   const before = shapes ? annotationIn(workspace.diagram, stepId, shapes.annotationId) : null;
   const flipped = flips ? annotationIn(workspace.diagram, stepId, flips.annotationId) : null;
+  const known = annotationsIn(workspace.diagram, stepId);
+  const areas = known.filter((annotation) => annotation.kind === 'zoom').length;
   const changed = workspace.editDiagramAnnotations(stepId, label, edit, {
     ...(select !== undefined ? { select } : {}),
     ...(selectPathNode !== undefined ? { selectPathNode } : {}),
@@ -47,7 +50,16 @@ export function applyAnnotationEdit(
     }
   }
   if (changed && flips && flipped) trackDiagramAnnotationFlipped(annotationEventKind(flipped), flips.axis);
+  if (changed && areas > 0) {
+    // The edit is pure: an area it took away was deleted.
+    const left = edit(known).filter((annotation) => annotation.kind === 'zoom').length;
+    for (let gone = left; gone < areas; gone += 1) trackDiagramEnlargementChanged('area', 'deleted');
+  }
   return changed;
+}
+
+function annotationsIn(diagram: DiagramDocument | null, stepId: string): readonly KnownDiagramAnnotation[] {
+  return diagram ? (stepById(diagram, stepId)?.annotations.filter(isKnownAnnotation) ?? []) : [];
 }
 
 function annotationIn(

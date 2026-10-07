@@ -32,11 +32,13 @@ import { storedScene } from '../../diagram/pictures/pictureFrame';
 import { annotatedStepUrl, posedZoomUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { zoomedSource } from '../../diagram/zoom/paintZoomed';
 import { viewOfStep } from '../../diagram/zoom/stepView';
+import { useStepZoom } from '../../diagram/zoom/useStepZoom';
 import type { AnnotateTool } from '../../diagram/annotate/annotateTools';
 import type { DiagramDetailMode } from '../../store/workspaceStore/types';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { knownCreasesOf } from '../../diagram/capture/captureCreases';
 import type { DiagramLinkedPose } from '../../diagram/capture/useDiagramLinkedPose';
+import type { DiagramLinkedPoseAction } from '../../diagram/actions/diagramLinkedPoseActions';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
@@ -62,6 +64,9 @@ const POSE_ICONS: Record<DiagramPoseActionId, LucideIcon> = {
   'turn-over': RotateCcwSquare,
   reset: Undo2,
 };
+
+/** An upload's or a References step's Pose has no linked verbs: only Enlarged, after its own. */
+const NO_LINKED_ACTIONS: readonly DiagramLinkedPoseAction[] = [];
 
 /** How much of an annotation shows in Pose: a ghost of where it is (D8). */
 const POSE_ANNOTATION_OPACITY = 0.3;
@@ -179,6 +184,10 @@ export function DiagramStepDetail({
     return scene ? { annotations: marks, bounds: scene.bounds, zoom } : null;
   }, [step, annotations]);
   const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
+  // Pose's Enlarged (Revision 2), on both paths: a linked step's verbs, and an upload's or a References step's.
+  // A phone's toolbar wraps already: the Step drawer's Pose section has it, as it has Spread Layers.
+  const { enlarged: toggle } = useStepZoom(locked ? null : step);
+  const enlarged = phone ? null : toggle;
   const picture = url && <img className={styles.picture} src={url} alt="" draggable={false} />;
   const title = t('panels:diagram.detail.title', 'Step {{number}} of {{total}}', { number, total: count });
   // The bar under the picture: a linked step's verbs, with `transport` (the
@@ -190,6 +199,7 @@ export function DiagramStepDetail({
           // A phone's Step drawer has Spread Layers with its amount; the toolbar would wrap a row for it.
           actions={phone ? linkedPose.actions.filter((action) => action.id !== 'spread-layers') : linkedPose.actions}
           layerOrder={linkedPose.layerOrder?.label ?? null}
+          enlarged={enlarged}
           keep={keepPoseFocus}
         >
           {transport}
@@ -212,6 +222,7 @@ export function DiagramStepDetail({
               </IconButton>
             );
           })}
+          <DiagramLinkedPoseControls actions={NO_LINKED_ACTIONS} enlarged={enlarged} keep={keepPoseFocus} />
         </>
       )}
     </Toolbar>
@@ -283,7 +294,12 @@ export function DiagramStepDetail({
           </div>
         ) : (
           <div className={styles.annotate}>
-            <DiagramAnnotateRail tool={annotateTool} readOnly={readOnly} onTool={onAnnotateTool} />
+            <DiagramAnnotateRail
+              tool={annotateTool}
+              readOnly={readOnly}
+              enlarged={step.zoom !== undefined}
+              onTool={onAnnotateTool}
+            />
             <DiagramAnnotateCanvas step={step} assets={assets} style={style} readOnly={readOnly} />
           </div>
         )

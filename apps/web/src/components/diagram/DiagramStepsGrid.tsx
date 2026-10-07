@@ -12,6 +12,7 @@ import {
 import { GRID_DROP_TARGET } from '../../diagram/upload/useStepPictureDrop';
 import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
 import type { DiagramCardLinks } from '../../diagram/capture/useCardLinks';
+import { enlargedChips } from '../../diagram/zoom/zoomActions';
 import { DiagramStepCard, DiagramTurnCard } from './DiagramStepCard';
 import styles from './DiagramStepsGrid.module.css';
 
@@ -119,6 +120,8 @@ export function DiagramStepsGrid({
 
   const tabStop = selectedStepId ?? entries[0]?.id ?? null;
   const slots = useMemo(() => slotsOf(entries), [entries]);
+  // An enlarged step's chip names the step its area is on (Revision 2).
+  const enlarged = useMemo(() => enlargedChips(entries), [entries]);
   const keep = (id: string) => (element: HTMLDivElement | null) => {
     if (element) cards.current.set(id, element);
     else cards.current.delete(id);
@@ -184,6 +187,7 @@ export function DiagramStepsGrid({
               onUpload={onUpload}
               link={links.statuses.get(slot.entry.id) ?? null}
               textCut={textCut.has(slot.entry.id)}
+              enlargedFrom={enlarged.get(slot.entry.id)}
               capture={links.captures[slot.entry.id] ?? null}
               patternOpen={patternOpen}
               onLink={onLink}

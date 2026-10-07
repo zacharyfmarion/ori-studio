@@ -22,7 +22,16 @@
  *
  * Pure: no store.
  */
-import { carryAnnotation, type PictureMove, type PicturePoint } from '../annotate/annotationModel';
+import {
+  PICTURE_REACH,
+  ZOOM_RADIUS,
+  ZOOM_SIDE,
+  carryAnnotation,
+  withAnnotationReach,
+  type AnnotationReach,
+  type PictureMove,
+  type PicturePoint,
+} from '../annotate/annotationModel';
 import {
   isKnownAnnotation,
   isLockedStep,
@@ -32,7 +41,9 @@ import {
   type DiagramDocument,
   type DiagramStep,
   type DiagramStepZoom,
+  type DiagramZoomEdge,
   type DiagramZoomOutline,
+  type DiagramZoomShape,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { stepPictureFrame } from '../pictures/pictureFrame';
@@ -42,12 +53,13 @@ import {
   capture,
   heldFrame,
   placeOn,
+  seededZoom,
   stepsFrom,
   type ZoomCaptured,
   type ZoomImprint,
 } from './zoomCapture';
 import { faceAt, imprintFrame, offSpread, ontoSpread, paperFacesOf, toPicture, toScene } from './zoomImprint';
-import { frameWindow, zoomShapeOf, type PictureBox } from './zoomModel';
+import { ZOOM_SCALE, frameWindow, outlineAsShape, stepReach, zoomShapeOf, type PictureBox } from './zoomModel';
 
 type Assets = Readonly<Record<string, DiagramAsset>>;
 
@@ -77,6 +89,25 @@ export function fromBox(box: PictureBox, [u, v]: PicturePoint): PicturePoint {
 export function intoBox(box: PictureBox, [x, y]: PicturePoint): PicturePoint {
   const unit = unitOf(box);
   return [(x - box.x) / unit, (y - box.y) / unit];
+}
+
+/** An outline in picture units, in a box's units: an enlarged step's frame as its canvas, its window's, draws it. */
+export function outlineIntoBox(box: PictureBox, outline: DiagramZoomOutline): DiagramZoomOutline {
+  return outlineBetween(outline, intoBox(box, outline.centre), 1 / unitOf(box));
+}
+
+/** An outline in a box's units, in picture units: a frame dragged on its canvas, as its step stores it. */
+export function outlineFromBox(box: PictureBox, outline: DiagramZoomOutline): DiagramZoomOutline {
+  return outlineBetween(outline, fromBox(box, outline.centre), unitOf(box));
+}
+
+function outlineBetween(outline: DiagramZoomOutline, centre: PicturePoint, by: number): DiagramZoomOutline {
+  return {
+    centre,
+    ...(outline.radius !== undefined ? { radius: outline.radius * by } : {}),
+    ...(outline.size !== undefined ? { size: [outline.size[0] * by, outline.size[1] * by] as [number, number] } : {}),
+    ...(outline.angle ? { angle: outline.angle } : {}),
+  };
 }
 
 /**
@@ -116,25 +147,33 @@ export function unitsMove(from: PictureBox, to: PictureBox, move?: PictureMove):
  * they were drawn on — `was`, the step before the move — and all read; then
  * in step with the step's picture now. Ones drawn on another picture stay as
  * they were. A step with a mark this build cannot read keeps them all, out of
- * step: the move would leave that one behind. So does one with a mark the
- * move cannot take where it goes, which `back`, the move undone, shows: a
- * mark more than reach's four windows from a small frame, say, which the
- * carry would hold at reach's edge and a carry back would leave there.
+ * step: the move would leave that one behind. Each mark is kept within
+ * `reach`, the reach of the units it goes to: an enlarged step's window's
+ * reaches as far as its whole picture's, so a mark across the model from a
+ * small frame goes there and back exactly. One the move cannot take where it
+ * goes even so — which `back`, the move undone, shows — keeps them all where
+ * they were, out of step, rather than be held at reach's edge.
  */
 function carryMarks(
   step: DiagramStep,
   move: PictureMove | null,
-  was: DiagramStep = step,
-  back?: PictureMove
+  {
+    was = step,
+    reach = PICTURE_REACH,
+    back,
+  }: { was?: DiagramStep; reach?: AnnotationReach; back?: { move: PictureMove; reach: AnnotationReach } } = {}
 ): DiagramStep {
   if (!move || step.annotations.length === 0) return step;
   if (!step.annotations.every(isKnownAnnotation)) return { ...step, annotatedPictureKey: null };
   if (!was.picture || was.annotatedPictureKey !== was.picture.key) return step;
   const marks = step.annotations as KnownDiagramAnnotation[];
-  const carried = marks.map((mark) => carryAnnotation(mark, move));
-  if (back && carried.some((mark, index) => !sameMark(carryAnnotation(mark, back), marks[index]!))) {
-    return { ...step, annotatedPictureKey: null };
-  }
+  const carried = withAnnotationReach(reach, () => marks.map((mark) => carryAnnotation(mark, move)));
+  const lost =
+    back !== undefined &&
+    withAnnotationReach(back.reach, () =>
+      carried.some((mark, index) => !sameMark(carryAnnotation(mark, back.move), marks[index]!))
+    );
+  if (lost) return { ...step, annotatedPictureKey: null };
   return { ...step, annotations: carried, annotatedPictureKey: step.picture?.key ?? null };
 }
 
@@ -152,14 +191,27 @@ function sameMark(a: unknown, b: unknown): boolean {
   return a === b;
 }
 
+/** A set of units a step's marks are in — its window, or its whole picture — and how far they may reach there. */
+interface MarkUnits {
+  box: PictureBox;
+  reach: AnnotationReach;
+}
+
 /** The marks' units: the window, or the whole picture. */
-function marksBox(step: DiagramStep, assets: Assets): PictureBox | null {
-  return stepWindow(step) ?? wholeBox(step, assets);
+function marksUnits(step: DiagramStep, assets: Assets): MarkUnits | null {
+  const window = stepWindow(step);
+  if (window) return { box: window, reach: stepReach(step) };
+  const whole = wholeBox(step, assets);
+  return whole && { box: whole, reach: PICTURE_REACH };
 }
 
 /** A step's marks moved from one set of units to another, when both are known, and each can go there and back. */
-function carryBetween(step: DiagramStep, from: PictureBox | null, to: PictureBox | null): DiagramStep {
-  return from && to ? carryMarks(step, unitsMove(from, to), step, unitsMove(to, from)) : step;
+function carryBetween(step: DiagramStep, from: MarkUnits | null, to: MarkUnits | null): DiagramStep {
+  if (!from || !to) return step;
+  return carryMarks(step, unitsMove(from.box, to.box), {
+    reach: to.reach,
+    back: { move: unitsMove(to.box, from.box), reach: from.reach },
+  });
 }
 
 /** `edit` applied to one step, when it is one and not locked. */
@@ -180,10 +232,10 @@ function withStep(
 
 /** A step with `zoom` as its frame — or none — and its marks carried from the units they were in to the new ones. */
 function withZoom(step: DiagramStep, zoom: DiagramStepZoom | undefined, assets: Assets): DiagramStep {
-  const before = marksBox(step, assets);
+  const before = marksUnits(step, assets);
   const { zoom: _was, ...rest } = step;
   const next: DiagramStep = zoom ? { ...rest, zoom } : rest;
-  return carryBetween(next, before, marksBox(next, assets));
+  return carryBetween(next, before, marksUnits(next, assets));
 }
 
 /**
@@ -227,24 +279,28 @@ export function unenlargeStep(document: DiagramDocument, stepId: string, assets:
  * wherever it sits now — before the area's step too, or after another area —
  * captured again from the area itself, as it is now, over any hand move, as
  * one edit; so each keeps its provenance. Nothing when the area is gone. The
- * captures, in order, for what counts them.
+ * captures, in order, and the steps they placed, for what counts them.
  */
 export function updateEnlargedSteps(
   document: DiagramDocument,
   areaId: string,
   assets: Assets
-): { document: DiagramDocument; captured: ZoomCaptured[] } {
+): { document: DiagramDocument; captured: ZoomCaptured[]; stepIds: string[] } {
   const source = areaSource(document, areaId);
-  if (!source) return { document, captured: [] };
+  if (!source) return { document, captured: [], stepIds: [] };
   let next = document;
   const captured: ZoomCaptured[] = [];
+  const stepIds: string[] = [];
   for (const stepId of stepsFrom(document, areaId)) {
     // Only the steps it enlarged change, so the area's step, and the area, stay as they were.
     const step = enlargeWith(next, stepId, capture(next, stepId, source), assets);
     next = step.document;
-    if (step.captured) captured.push(step.captured);
+    if (step.captured) {
+      captured.push(step.captured);
+      stepIds.push(stepId);
+    }
   }
-  return { document: next, captured };
+  return { document: next, captured, stepIds };
 }
 
 /**
@@ -264,8 +320,9 @@ export function relandFrame(step: DiagramStep): DiagramStep {
 }
 
 /**
- * The frame moved, resized or reshaped by hand (Z10): as set, but for a
- * centre dropped in a strip the spread opened, which settles on the layer
+ * The frame moved, resized or reshaped by hand (Z10): as set, no smaller
+ * than an area may be drawn, but for a centre dropped in a strip the spread
+ * opened, which settles on the layer
  * above; its imprint made again on the same face, so later captures from it
  * land where it was left. On a step with no faces the frame as set is all
  * there is: the imprint it was captured with is dropped, so neither a later
@@ -282,7 +339,7 @@ export function setFrameOutline(
     const { zoom } = step;
     if (!zoom || !step.picture) return step;
     const faces = paperFacesOf(step);
-    let frame = heldFrame(outline);
+    let frame = heldFrame(sizedByHand(outline));
     let imprint = faces ? zoom.imprint : undefined;
     if (faces) {
       const drawn = toScene(faces, frame);
@@ -314,6 +371,20 @@ export function setFrameOutline(
     };
     return withZoom(step, next, assets);
   });
+}
+
+/**
+ * A frame set by hand no smaller than an area may be drawn: a rim dragged to
+ * its centre leaves the smallest frame, not a point a window paints at
+ * thousands of times its size.
+ */
+function sizedByHand(outline: DiagramZoomOutline): DiagramZoomOutline {
+  if (outline.radius !== undefined) {
+    return outline.radius >= ZOOM_RADIUS.min ? outline : { ...outline, radius: ZOOM_RADIUS.min };
+  }
+  const [width, height] = outline.size!;
+  if (width >= ZOOM_SIDE.min && height >= ZOOM_SIDE.min) return outline;
+  return { ...outline, size: [Math.max(ZOOM_SIDE.min, width), Math.max(ZOOM_SIDE.min, height)] };
 }
 
 /**
@@ -365,9 +436,104 @@ export function reposeFrame(
   const frame = landed ?? (zoom.frame && (move ? carriedOutline(zoom.frame, move) : zoom.frame));
   if (!frame) return after;
   const next: DiagramStep = { ...after, zoom: { ...zoom, frame } };
-  const [from, to] = [marksBox(before, assets), marksBox(next, assets)];
+  const [from, to] = [marksUnits(before, assets), marksUnits(next, assets)];
   if (!move || !from || !to) return next;
-  return carryMarks(next, unitsMove(from, to, move), before);
+  return carryMarks(next, unitsMove(from.box, to.box, move), { was: before, reach: to.reach });
+}
+
+/**
+ * The frame made the other shape (Shape, on a frame): about the same centre,
+ * as an area's is (`outlineAsShape`), its imprint made again on the same
+ * face and its marks carried by the window's move ({@link setFrameOutline}).
+ * An Edge left unsaid follows the new shape by itself.
+ */
+export function setFrameShape(
+  document: DiagramDocument,
+  stepId: string,
+  shape: DiagramZoomShape,
+  assets: Assets
+): DiagramDocument {
+  const frame = frameOf(document, stepId);
+  if (!frame || zoomShapeOf(frame) === shape) return document;
+  return setFrameOutline(document, stepId, outlineAsShape(frame, shape), assets);
+}
+
+/** The frame's Size (Z4): that many times its area as it prints, held to its range; Fill for null. */
+export function setFrameScale(document: DiagramDocument, stepId: string, scale: number | null): DiagramDocument {
+  return withStep(document, stepId, (step) => {
+    if (!step.zoom) return step;
+    const { scale: was, ...rest } = step.zoom;
+    if (scale === null || !Number.isFinite(scale)) return was === undefined ? step : { ...step, zoom: rest };
+    const held = Math.min(ZOOM_SCALE.max, Math.max(ZOOM_SCALE.min, scale));
+    return held === was ? step : { ...step, zoom: { ...rest, scale: held } };
+  });
+}
+
+/** How the frame draws its edge: Cut or Whole; its shape's own for null. */
+export function setFrameEdge(document: DiagramDocument, stepId: string, edge: DiagramZoomEdge | null): DiagramDocument {
+  return withStep(document, stepId, (step) => {
+    if (!step.zoom || (step.zoom.edge ?? null) === edge) return step;
+    const { edge: _was, ...rest } = step.zoom;
+    return { ...step, zoom: edge === null ? rest : { ...rest, edge } };
+  });
+}
+
+/**
+ * A new step's start (Z2, "yeah sounds right"): enlarged when the step before
+ * it, turns passed, is — captured at creation from that step's frame, its
+ * imprint kept for its first picture to land ({@link landFirstFrame}). The
+ * diagram as it was for any other step.
+ */
+export function seedStepZoom(document: DiagramDocument, stepId: string): DiagramDocument {
+  return withStep(document, stepId, (step) => {
+    if (step.zoom || step.picture) return step;
+    const zoom = seededZoom(document, stepId);
+    return zoom ? { ...step, zoom } : step;
+  });
+}
+
+/**
+ * An enlarged step's first picture landing the frame it was seeded with — its
+ * stored imprint, through the face that holds its paper point, then onto its
+ * spread; copied in picture units where it cannot ({@link relandFrame}). The
+ * frame now placed, and how, or null when the step has none to place.
+ */
+export function landFirstFrame(
+  document: DiagramDocument,
+  stepId: string
+): { document: DiagramDocument; placed: ZoomCaptured['placed'] } | null {
+  const index = stepIndex(document, stepId);
+  const entry = document.steps[index];
+  if (!entry || isTurn(entry) || isLockedStep(entry) || !entry.zoom || !entry.picture) return null;
+  const placed = placeOn(entry, entry.zoom.imprint, entry.zoom.frame);
+  if (!placed.frame) return null;
+  const next = relandFrame(entry);
+  if (next === entry) return { document, placed: placed.placed };
+  const steps = document.steps.slice();
+  steps[index] = next;
+  return { document: { ...document, steps }, placed: placed.placed };
+}
+
+/**
+ * A step given its first picture — `after` the diagram with it, `before`
+ * without — landing the frame it was seeded with ({@link landFirstFrame}):
+ * the diagram, and how the frame was placed; `after` as it is, and null, for
+ * a step that had a picture already or is not enlarged.
+ */
+export function landSeededFrame(
+  before: DiagramDocument,
+  after: DiagramDocument,
+  stepId: string
+): { document: DiagramDocument; placed: ZoomCaptured['placed'] } {
+  const was = before.steps[stepIndex(before, stepId)];
+  if (!was || isTurn(was) || was.picture) return { document: after, placed: null };
+  return landFirstFrame(after, stepId) ?? { document: after, placed: null };
+}
+
+/** A step's frame, in its picture units; null for a step that is not enlarged or shows no window. */
+function frameOf(document: DiagramDocument, stepId: string): DiagramZoomOutline | null {
+  const entry = document.steps[stepIndex(document, stepId)];
+  return entry && !isTurn(entry) && entry.picture && entry.zoom?.frame ? entry.zoom.frame : null;
 }
 
 /** An outline carried by a picture's move, as an area is: its centre, its size with the move, a rectangle's turn. */

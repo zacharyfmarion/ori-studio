@@ -11,6 +11,7 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { openDiagramStep } from './useDiagramActions';
 import type { WorkspaceState } from '../store/workspaceStore/types';
 import {
+  activeAnchorPick,
   isDiagramAnnotating,
   selectedDiagramAnnotation,
   selectedDiagramPathNode,
@@ -18,7 +19,7 @@ import {
 import { annotationActionEdit, nudgePathNodeEdit, offersAnnotationAction } from './annotate/annotationActions';
 import { flipChangesArc } from './annotate/annotationModel';
 import { applyAnnotationEdit } from './annotate/applyAnnotationEdit';
-import { indexForStepNumber, stepsOf, type KnownDiagramAnnotation } from './document/diagramDocument';
+import { indexForStepNumber, stepById, stepsOf, type KnownDiagramAnnotation } from './document/diagramDocument';
 import {
   focusLeavesEnterToSteps,
   focusOwnsArrowKeys,
@@ -40,6 +41,7 @@ function keyState(state: WorkspaceState): DiagramKeyState {
     readOnly: state.diagramReadOnly,
     detailOpen: state.diagramDetail !== null,
     browserOpen: state.diagramReferencesBrowser !== null,
+    anchorPick: activeAnchorPick(state) !== null,
     annotate:
       isDiagramAnnotating(state)
         ? {
@@ -48,6 +50,9 @@ function keyState(state: WorkspaceState): DiagramKeyState {
             selectedAnnotationId: state.diagramSelectedAnnotationId,
             canFlipArc: offersFlipArc(selectedDiagramAnnotation(state)),
             selectedPathNode: selectedDiagramPathNode(state),
+            enlarged: state.diagram && state.diagramSelectedStepId !== null
+              ? stepById(state.diagram, state.diagramSelectedStepId)?.zoom !== undefined
+              : false,
           }
         : null,
   };
@@ -99,6 +104,7 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
       applyAnnotationEdit(state, stepId, nudgePathNodeEdit(id, node, delta));
     },
     cancelGesture: () => gestureCancel?.() ?? false,
+    endAnchorPick: () => state.setDiagramAnchorPick(null),
   };
 }
 

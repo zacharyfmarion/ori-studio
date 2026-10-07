@@ -1,0 +1,39 @@
+/* An enlargement's rows in the Layers pane (DiagramZoomControls.tsx): its fields, the Anchor row, a read-out and its verbs. */
+.controls {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* The anchor's rule and its verbs, on one line whichever rule it is. */
+.anchor {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.anchorRule {
+  color: var(--text-secondary);
+}
+
+/* What Size means, and what places a frame again: a line under the rows, at their inset. */
+.note {
+  margin: 0;
+  padding: 0 var(--space-3);
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+/* A read-out that needs a hand: the room, or the area, holds the enlargement back. */
+.note[data-tone='warning'] {
+  color: var(--status-warning);
+}
+
+.verbs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+}

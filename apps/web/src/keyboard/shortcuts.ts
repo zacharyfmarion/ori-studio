@@ -121,6 +121,8 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolAngleBisector'
   | 'diagram.toolDivisions'
   | 'diagram.toolCloseUp'
+  | 'diagram.toolEnlarge'
+  | 'diagram.toolEnlargeFrame'
   | 'diagram.flipArc';
 
 /** Nudging the node Edit Path has selected: live only while it has one (`diagram-path`). */
@@ -634,6 +636,10 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolDivisions', 'Equal Divisions', { key: 'd' }),
   // I for the inset a close-up draws (15f).
   diagramShortcut('diagram.toolCloseUp', 'Close-Up', { key: 'i' }),
+  // E for enlarge, as Sturm and Lang name it (Revision 2, Z1): Edit's Extend
+  // Line is in the crease pattern's scope, never live with this one.
+  diagramShortcut('diagram.toolEnlarge', 'Enlarge', { key: 'e' }),
+  diagramShortcut('diagram.toolEnlargeFrame', 'Enlarge in Frame', { shift: true, key: 'e' }),
   diagramShortcut('diagram.flipArc', 'Flip Arc', { key: 'f' }),
   // Edit Path's nudges (decision 6), on the step keys' own arrows: in a scope
   // of their own ahead of `diagram`, whose executor claims them only while

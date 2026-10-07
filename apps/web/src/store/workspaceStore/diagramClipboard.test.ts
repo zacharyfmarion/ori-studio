@@ -90,6 +90,36 @@ describe('copying and pasting annotations', () => {
     expect(marks(first)).toEqual([movedBy(arrow, 0)]);
   });
 
+  it('leaves an enlarge area out of a paste, or a cut’s paste, on an enlarged step: it is enlarged or holds areas (Revision 2)', () => {
+    const [first, second] = twoSteps();
+    const area: KnownDiagramAnnotation = { id: 'area', kind: 'zoom', from: [0.5, 0.4], to: [0.5, 0.4], radius: 0.2 };
+    state().editDiagramAnnotations(first, 'Enlarge area', () => [arrow, area]);
+    state().selectDiagramAnnotation('area');
+    const enlarge = { from: 'area', shape: 'circle' as const, frame: { centre: [0.5, 0.375] as [number, number], radius: 0.2 } };
+    useWorkspaceStore.setState({
+      diagram: {
+        ...state().diagram!,
+        steps: state().diagram!.steps.map((entry) => (entry.id === second ? { ...entry, zoom: enlarge } : entry)),
+      },
+    });
+    state().copySelection();
+    state().openDiagramStep(second, 'annotate');
+    const past = state().diagramHistory.past.length;
+    void state().pasteClipboard();
+    expect(marks(second)).toEqual([]);
+    expect(state().diagramHistory.past).toHaveLength(past);
+    // Cut from its step, it cannot land on the enlarged one either; its own step takes it back.
+    state().openDiagramStep(first, 'annotate');
+    state().selectDiagramAnnotation('area');
+    void state().cutSelection();
+    state().openDiagramStep(second, 'annotate');
+    void state().pasteClipboard();
+    expect(marks(second)).toEqual([]);
+    state().openDiagramStep(first, 'annotate');
+    void state().pasteClipboard();
+    expect(marks(first).map((mark) => mark.kind)).toEqual(['valley-arrow', 'zoom']);
+  });
+
   it('copies from a diagram that cannot change, and pastes and cuts on none', () => {
     const [first] = twoSteps();
     useWorkspaceStore.setState({ diagramReadOnly: true });

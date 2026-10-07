@@ -206,3 +206,13 @@ describe('an outline’s geometry', () => {
     expect(Math.max(...points.map(([x]) => x))).toBeCloseTo(box.x + box.width, 5);
   });
 });
+
+describe('a rectangle’s turn', () => {
+  it('is within [0, 180), a hair under no turn being no turn, not 180 (16e, seen on the crane)', async () => {
+    const { rectangleAngle } = await import('../annotate/annotationModel');
+    expect(rectangleAngle(-1e-14)).toBe(0);
+    expect(rectangleAngle(180)).toBe(0);
+    expect(rectangleAngle(-90)).toBe(90);
+    expect(rectangleAngle(359.5)).toBeCloseTo(179.5, 9);
+  });
+});

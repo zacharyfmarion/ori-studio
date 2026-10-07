@@ -1,7 +1,15 @@
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
-import { trackDiagramAnnotationAdded } from '../../analytics';
+import { trackDiagramAnnotationAdded, trackDiagramEnlargementChanged } from '../../analytics';
 import {
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_ROTATE_INK,
@@ -14,23 +22,38 @@ import { isPrimaryModifier } from '../../lib/platform';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
+import { annotateToolInHand, selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
 import {
   isKnownAnnotation,
   stepById,
   type DiagramAnnotation,
+  type DiagramIdFactory,
   type DiagramAnnotationKind,
   type DiagramAsset,
   type DiagramStep,
   type DiagramStyle,
+  type DiagramZoomOutline,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { paintSource, stepPictureSource, type PictureBox } from '../pictures/paintDiagramStep';
+import { stepPictureFrame } from '../pictures/pictureFrame';
 import { stepPictureUrl } from '../pictures/useStepPictureUrl';
 import { ZOOM_CARD_MARGIN, zoomedSource, type ZoomedSource } from '../zoom/paintZoomed';
 import { marksInWindow } from '../zoom/stepView';
+import { useAnchorPick } from '../zoom/useAnchorPick';
+import { anchorFaceRing } from '../zoom/zoomAnchor';
+import { intoBox, outlineFromBox, outlineIntoBox, setFrameOutline } from '../zoom/zoomFrames';
+import { draggedOutline, sameOutline, zoomGripAt, type ZoomGrip } from '../zoom/zoomGrips';
+import {
+  distanceToRim,
+  frameWindow,
+  withZoomOutline,
+  zoomAreaFromCorners,
+  zoomOutlineOf,
+  ZOOM_FRAME_ID,
+} from '../zoom/zoomModel';
 import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useDiagramShortcuts';
-import { EDIT_PATH, drawingKind, drawingLook, isPickTool } from './annotateTools';
+import { EDIT_PATH, drawingKind, drawingLook, isPickTool, type DrawingLook } from './annotateTools';
 import { placePoint, snapOutcome, snapsEnd, snapsWhenPlaced, type PlacedPoint } from './annotateSnap';
 import { annotationActionEdit, editAnnotation } from './annotationActions';
 import { annotationEventKind } from './annotationEventKind';
@@ -66,7 +89,6 @@ import {
   withWhiteArrowLook,
   type PictureFrame,
   type PicturePoint,
-  type WhiteArrowLook,
 } from './annotationModel';
 import { cancelFieldFocus, pendingFieldFocus, requestFieldFocus } from './fieldFocus';
 import { draggedDivisions } from './divisionsPlacement';
@@ -108,6 +130,21 @@ const REACH_PX = { fine: 8, coarse: 18 } as const;
 const DOUBLE_PRESS = { ms: 500, px: { fine: 6, touch: 16 } } as const;
 
 const DRAFT_ID = 'annotation-draft';
+
+/** How far the canvas zooms in and out: the camera's bounds. */
+export const ANNOTATE_CAMERA_SCALE = { min: 0.1, max: 12 } as const;
+const [CANVAS_MIN_SCALE, CANVAS_MAX_SCALE] = [ANNOTATE_CAMERA_SCALE.min, ANNOTATE_CAMERA_SCALE.max];
+
+/**
+ * How far round an enlarged step's frame the canvas shows once the frame is
+ * selected, in frame lengths each way: room to see the picture round it and
+ * to drag its grips out (Revision 2).
+ */
+const FRAME_SELECTED_REACH = 0.35;
+
+function sameBox(a: PictureBox, b: PictureBox): boolean {
+  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+}
 
 /**
  * A sign's reach from its centre, in picture units, as a card and the canvas
@@ -158,8 +195,8 @@ type Gesture =
   | (Press & {
       mode: 'draw';
       kind: DiagramAnnotationKind;
-      /** The look the tool lays it in, over its kind's own: the Solid Arrow's (15d). */
-      look: WhiteArrowLook;
+      /** The look the tool lays it in, over its kind's own: the Solid Arrow's (15d), an enlarge area's shape (Revision 2). */
+      look: DrawingLook;
       start: PicturePoint;
       startTarget: SnapTarget | null;
       free: boolean;
@@ -169,6 +206,8 @@ type Gesture =
       pressed: PicturePoint;
     })
   | (Press & { mode: 'move'; grip: AnnotationGrip; original: KnownDiagramAnnotation; start: PicturePoint })
+  /** An enlarged step's frame taken hold of (Revision 2): moved by its centre or rim, resized by a grip, in the canvas's units. */
+  | (Press & { mode: 'frame'; grip: ZoomGrip; original: DiagramZoomOutline; start: PicturePoint })
   | (Press & {
       mode: 'path';
       grip: PathGripPart;
@@ -320,7 +359,8 @@ export function useAnnotateCanvas({
   // theirs, printed as they read them, like anything typed (D8).
   const calloutText = t('panels:diagram.annotations.repeatBehind', 'Repeat behind');
   const coarse = useIsCoarsePointerSurface();
-  const tool = useWorkspaceStore((state) => state.diagramAnnotateTool);
+  // Select in place of an Enlarge tool on an enlarged step, which takes no area (Revision 2).
+  const tool = useWorkspaceStore(annotateToolInHand);
   // The line the Line tool draws (15a).
   const lineType = useSettingsStore((state) => state.diagramAnnotateLineType);
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
@@ -349,6 +389,13 @@ export function useAnnotateCanvas({
     () => (zoomWindow ? marksInWindow(zoomWindow, step.annotations) : step.annotations),
     [zoomWindow, step.annotations]
   );
+  // An enlarged step's frame in the canvas's units, its window's (Revision 2): a layer of the step,
+  // selected by its boundary, and moved and resized by its grips.
+  const frameOutline = useMemo(() => (zoomed ? outlineIntoBox(zoomed.view.window, zoomed.view.frame) : null), [zoomed]);
+  /** The frame as a drag of it shows it, before it lands: an outline over the picture, nothing repainted. */
+  const [frameDraft, setFrameDraft] = useState<DiagramZoomOutline | null>(null);
+  // The Anchor row's pick mode, while it is armed for this step.
+  const anchorPick = useAnchorPick({ step, window: zoomWindow });
   // An enlarged step's picture is drawn under its frame's clip (`DiagramZoomView`), not as an image of the whole.
   const url = useMemo(() => (source && !zoomed ? stepPictureUrl(source, style) : null), [source, zoomed, style]);
   const layout = useMemo(() => (painted ? layoutFor(painted) : null), [painted]);
@@ -410,6 +457,7 @@ export function useAnnotateCanvas({
     if (!gesture.current) return false;
     gesture.current = null;
     setDraft(null);
+    setFrameDraft(null);
     return true;
   }, [showSnap, showRightAngle, showLineHover]);
   // A tool picked, another step or another picture: whatever was in hand is
@@ -520,6 +568,91 @@ export function useAnnotateCanvas({
     [step.annotations]
   );
 
+  // The selected area's anchor face, or the selected frame's, outlined in the selection's ink, in the canvas's units.
+  const anchorRingPicture = useMemo(() => {
+    const area = selectedId === null || selectedId === ZOOM_FRAME_ID ? undefined : known(selectedId);
+    const target =
+      selectedId === ZOOM_FRAME_ID && zoomWindow
+        ? ({ kind: 'frame' } as const)
+        : area?.kind === 'zoom'
+          ? ({ kind: 'area', area } as const)
+          : null;
+    return target ? anchorFaceRing(step, target) : null;
+  }, [selectedId, known, step, zoomWindow]);
+  const anchorRing = useMemo(
+    () => (anchorRingPicture && zoomWindow ? anchorRingPicture.map((point) => intoBox(zoomWindow, point)) : anchorRingPicture),
+    [anchorRingPicture, zoomWindow]
+  );
+  // What the picture round a selected frame takes in besides the window (picture units): its anchor face,
+  // outlined over it — or, while the pick mode asks for a face, the whole picture, so faces outside can be picked.
+  const surroundAlso = useMemo((): PictureBox | null => {
+    if (!zoomWindow || selectedId !== ZOOM_FRAME_ID) return null;
+    if (anchorPick.picking === ZOOM_FRAME_ID) {
+      const whole = stepPictureFrame(step, assets);
+      return whole && { x: 0, y: 0, width: whole.width, height: whole.height };
+    }
+    return anchorRingPicture && boxOf(anchorRingPicture);
+  }, [zoomWindow, selectedId, anchorPick.picking, step, assets, anchorRingPicture]);
+
+  // The frame selected: the canvas steps back far enough to show the picture round it and reach its grips —
+  // once, as it is selected, and not under a drag that selected it, which steps back when it lets go.
+  const frameSelected = selectedId === ZOOM_FRAME_ID && frameOutline !== null;
+  const { bringIntoView } = camera;
+  const revealFrame = useCallback(() => {
+    if (!layout) return;
+    const { frame } = layout;
+    const grow = FRAME_SELECTED_REACH * Math.max(frame.width, frame.height);
+    bringIntoView({ x: frame.x - grow, y: frame.y - grow, width: frame.width + 2 * grow, height: frame.height + 2 * grow });
+  }, [layout, bringIntoView]);
+  useEffect(() => {
+    if (frameSelected && !gesture.current) revealFrame();
+    // Once, as it is selected: not again for every move of the frame while it stays selected.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameSelected]);
+  // The pick mode armed for the frame: the canvas steps back to its anchor face too, which may lie far off.
+  const pickingFrame = anchorPick.picking === ZOOM_FRAME_ID;
+  useEffect(() => {
+    if (!pickingFrame || !layout || !anchorRing) return;
+    const { frame, unit } = layout;
+    const grow = FRAME_SELECTED_REACH * Math.max(frame.width, frame.height);
+    const ring = boxOf(anchorRing);
+    const x = Math.min(frame.x - grow, frame.x + ring.x * unit);
+    const y = Math.min(frame.y - grow, frame.y + ring.y * unit);
+    const right = Math.max(frame.x + frame.width + grow, frame.x + (ring.x + ring.width) * unit);
+    const bottom = Math.max(frame.y + frame.height + grow, frame.y + (ring.y + ring.height) * unit);
+    bringIntoView({ x, y, width: right - x, height: bottom - y });
+    // Once, as the mode is armed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickingFrame]);
+
+  /**
+   * A frame dropped somewhere else: the camera kept so the picture stays
+   * where it was on the screen — the canvas's frame is the window, so the
+   * new window would otherwise draw the picture moved and resized under a
+   * frame that seemed not to move. Set as the drop commits, applied once the
+   * canvas is laid out on the new window.
+   */
+  const holdCamera = useRef<{ from: PictureBox; to: PictureBox } | null>(null);
+  useLayoutEffect(() => {
+    const held = holdCamera.current;
+    const api = transformRef.current;
+    if (!held || !zoomWindow || !layout || !api) return;
+    holdCamera.current = null;
+    if (!sameBox(held.to, zoomWindow)) return;
+    const { positionX, positionY, scale } = api.instance.transformState;
+    const [from, to] = [Math.max(held.from.width, held.from.height), Math.max(zoomWindow.width, zoomWindow.height)];
+    const next = Math.min(CANVAS_MAX_SCALE, Math.max(CANVAS_MIN_SCALE, (scale * to) / from));
+    // A picture point p lands at s·(F + (p − W)·unit/|W|) + t on screen: the same for every p, before and after.
+    const per = (scale * layout.unit) / from;
+    const shift = (f: number, was: number, now: number, position: number) => position + f * (scale - next) + per * (now - was);
+    api.setTransform(
+      shift(layout.frame.x, held.from.x, zoomWindow.x, positionX),
+      shift(layout.frame.y, held.from.y, zoomWindow.y, positionY),
+      next,
+      0
+    );
+  }, [zoomWindow, layout, transformRef]);
+
   /**
    * Where the pointer at `at` puts what is in hand, snapped as the mark it is
    * (decision 9): a drawing's end — a circle's centre — or a line's end, or
@@ -579,6 +712,7 @@ export function useAnnotateCanvas({
           };
         }
         case 'path':
+        case 'frame':
           return loose;
       }
     },
@@ -667,6 +801,12 @@ export function useAnnotateCanvas({
         loadId: store.diagramLoadId,
         moved: false,
       };
+      if (anchorPick.picking !== null) {
+        // The Anchor row's pick mode, whatever tool is in hand: a click anchors (Revision 2).
+        anchorPick.press(at);
+        event.preventDefault();
+        return;
+      }
       if (isPickTool(tool)) {
         // A pick, on the press: the Angle Bisector's, or the equal-angle mark's (15b).
         if (picker.press(at, isPrimaryModifier(event))) event.preventDefault();
@@ -674,7 +814,8 @@ export function useAnnotateCanvas({
       }
       const kind = drawingKind(tool, lineType);
       if (kind !== null) {
-        if (readOnly) return;
+        // An enlarged step is not enlarged again (yet): the Enlarge tools draw nothing on it.
+        if (readOnly || (kind === 'zoom' && step.zoom)) return;
         const free = isPrimaryModifier(event);
         // A right angle's corner, and the way a click opens it when the press is in a right angle.
         const start = isCornerKind(kind)
@@ -700,19 +841,30 @@ export function useAnnotateCanvas({
         if (!started) return;
         gesture.current = started;
       } else {
+        const reach = hitSizes().tolerance;
+        // An enlarged step's frame, selected (Revision 2): its grips before anything drawn over it.
+        const frameGrip =
+          selectedId === ZOOM_FRAME_ID && frameOutline && !readOnly ? zoomGripAt(frameOutline, at, reach) : null;
         // Selecting is not an edit: a diagram that cannot change still selects.
-        const grip = hitAnnotation(viewed, at, hitSizes(), selectedId);
+        const grip = frameGrip ? null : hitAnnotation(viewed, at, hitSizes(), selectedId);
+        // Under every mark, the frame's boundary: it selects the frame, and moves it.
+        const onFrame = frameGrip !== null || (!grip && frameOutline !== null && distanceToRim(frameOutline, at) <= reach);
         const original = grip ? known(grip.annotationId) : undefined;
-        store.selectDiagramAnnotation(grip?.annotationId ?? null);
-        if (readOnly || !grip || !original) return;
-        if (count.count >= 2 && canBeShaped(original.kind)) {
-          // A double-click on a fold arrow: Edit Path, to shape it. Spent: the
-          // click after it is Edit Path's first, which picks a node.
-          store.setDiagramAnnotateTool(EDIT_PATH);
-          lastPress.current = null;
-          return;
+        store.selectDiagramAnnotation(onFrame ? ZOOM_FRAME_ID : (grip?.annotationId ?? null));
+        if (onFrame && frameOutline) {
+          if (readOnly) return;
+          gesture.current = { mode: 'frame', grip: frameGrip ?? { part: 'centre' }, original: frameOutline, start: at, ...press };
+        } else {
+          if (readOnly || !grip || !original) return;
+          if (count.count >= 2 && canBeShaped(original.kind)) {
+            // A double-click on a fold arrow: Edit Path, to shape it. Spent: the
+            // click after it is Edit Path's first, which picks a node.
+            store.setDiagramAnnotateTool(EDIT_PATH);
+            lastPress.current = null;
+            return;
+          }
+          gesture.current = { mode: 'move', grip, original, start: at, ...press };
         }
-        gesture.current = { mode: 'move', grip, original, start: at, ...press };
       }
       // Held by the stage, not the view: a browser shows the cursor of the
       // element holding a pointer, and the tool's crosshair is the stage's.
@@ -741,22 +893,27 @@ export function useAnnotateCanvas({
       showRightAngle,
       showLineHover,
       clickPreview,
+      anchorPick,
+      step.zoom,
+      frameOutline,
     ]
   );
 
   /**
    * The annotation a move makes of `annotation`, the press placed at `at`
    * ({@link placeInHand}). A circle whose centre snapped is put on its target
-   * exactly, not moved by a difference that rounds. `halves`, Shift held,
-   * holds a close-up's scale to halves.
+   * exactly, not moved by a difference that rounds. Shift held holds a
+   * close-up's scale to halves, and keeps an enlarge area's aspect; Alt
+   * resizes an area about its centre.
    */
   const moved = (
     current: Extract<Gesture, { mode: 'move' }>,
     annotation: KnownDiagramAnnotation,
     { at, target, opens }: PlacedInHand,
-    halves: boolean
+    keys: { shift: boolean; alt: boolean }
   ) => {
     const { grip } = current;
+    const halves = keys.shift;
     switch (grip.part) {
       case 'body':
         // Equal divisions belong to their line: a drag of the mark sets how far off it they stand (ED2).
@@ -801,6 +958,9 @@ export function useAnnotateCanvas({
       case 'offset':
         // The handle at the middle of equal divisions' line: as a drag of the mark.
         return draggedDivisions(annotation, current.start, at, { halves });
+      case 'zoom':
+        // An enlarge area's grip (Revision 2): its centre moves it, its rim, corners and edges resize it.
+        return withZoomOutline(annotation, draggedOutline(zoomOutlineOf(annotation), grip.zoom, current.start, at, keys));
     }
   };
 
@@ -812,6 +972,13 @@ export function useAnnotateCanvas({
    */
   const hover = useCallback(
     (input: PointerInput) => {
+      if (anchorPick.picking !== null) {
+        // The face a click would anchor to, under the pointer (Revision 2).
+        const over = !spacePressed && !pinching.current && input.buttons === 0 && onStage(input.target);
+        anchorPick.hover(over ? toPicture(input.clientX, input.clientY) : null);
+        showSnap([]);
+        return;
+      }
       if (isPickTool(tool)) {
         const over = !readOnly && !spacePressed && !pinching.current && input.buttons === 0 && onStage(input.target);
         picker.hover(over ? toPicture(input.clientX, input.clientY) : null, isPrimaryModifier(input));
@@ -852,6 +1019,7 @@ export function useAnnotateCanvas({
       assets,
       style,
       hitSizes,
+      anchorPick,
     ]
   );
 
@@ -872,6 +1040,13 @@ export function useAnnotateCanvas({
       current.moved = true;
       // The drag draws the mark itself now.
       showRightAngle(null);
+      if (current.mode === 'frame') {
+        // An outline over the picture as it is: nothing is painted again until it lands.
+        setFrameDraft(
+          draggedOutline(current.original, current.grip, current.start, pointer, { shift: event.shiftKey, alt: event.altKey })
+        );
+        return;
+      }
       if (current.mode === 'path') {
         // An undo or another edit made the arrow something else under the drag: let it go.
         if (!sameRepresentation(current.representation, pathRepresentationOf(liveAnnotation(step.id, current)))) {
@@ -887,15 +1062,21 @@ export function useAnnotateCanvas({
         const point = isPointKind(current.kind);
         const start = point ? placed.at : current.start;
         setDraft(
-          withWhiteArrowLook(
-            createAnnotation(current.kind, start, placed.at, layout.pictureFrame, () => DRAFT_ID, calloutText),
-            current.look
+          laid(
+            current.kind,
+            current.look,
+            start,
+            placed.at,
+            layout.pictureFrame,
+            { shift: event.shiftKey, alt: event.altKey },
+            () => DRAFT_ID,
+            calloutText
           )
         );
         showSnap([point ? null : current.startTarget, placed.target]);
         return;
       }
-      setDraft(moved(current, current.original, placed, event.shiftKey));
+      setDraft(moved(current, current.original, placed, { shift: event.shiftKey, alt: event.altKey }));
       showSnap([placed.target]);
     },
     [layout, toPicture, cancel, step.id, hover, placeInHand, showSnap, showRightAngle, calloutText]
@@ -1040,6 +1221,48 @@ export function useAnnotateCanvas({
     [layout, placeInHand, toPicture, step, assets, style, hitSizes, snap.enabled]
   );
 
+  /**
+   * An enlarged step's frame landing (Revision 2, Z10), as one undo step: the
+   * frame where it was dropped on the step's picture, its imprint made again
+   * on the same face, and the marks carried by the window's move, so they
+   * stay on the same paper (`setFrameOutline`). The camera is kept so the
+   * picture stays where it was on the screen.
+   */
+  const landFrame = useCallback(
+    (current: Extract<Gesture, { mode: 'frame' }>, event: ReactPointerEvent<HTMLElement>) => {
+      // A click on the boundary selected it: the picture round it shown.
+      if (!current.moved) {
+        revealFrame();
+        return;
+      }
+      const window = zoomed?.view.window;
+      const pointer = toPicture(event.clientX, event.clientY);
+      if (!window || !pointer) return;
+      const dropped = draggedOutline(current.original, current.grip, current.start, pointer, {
+        shift: event.shiftKey,
+        alt: event.altKey,
+      });
+      if (sameOutline(dropped, current.original)) return;
+      const store = useWorkspaceStore.getState();
+      let to: PictureBox | null = null;
+      const changed = store.editDiagramStepZoom(
+        step.id,
+        current.grip.part === 'centre' ? 'Move enlarged frame' : 'Resize enlarged frame',
+        (document) => {
+          const next = setFrameOutline(document, step.id, outlineFromBox(window, dropped), document.assets);
+          const frame = stepById(next, step.id)?.zoom?.frame;
+          to = frame ? frameWindow(frame) : null;
+          return next;
+        },
+        { loadId: current.loadId }
+      );
+      if (!changed) return;
+      if (to) holdCamera.current = { from: window, to };
+      trackDiagramEnlargementChanged('frame', 'moved');
+    },
+    [zoomed, toPicture, step.id, revealFrame]
+  );
+
   const onPointerUp = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
       release(event.pointerId);
@@ -1047,12 +1270,17 @@ export function useAnnotateCanvas({
       if (!current || current.pointerId !== event.pointerId) return;
       gesture.current = null;
       setDraft(null);
+      setFrameDraft(null);
       showSnap([]);
       showRightAngle(null);
       if (!layout) return;
       const store = useWorkspaceStore.getState();
       const { loadId } = current;
       const free = isPrimaryModifier(event);
+      if (current.mode === 'frame') {
+        landFrame(current, event);
+        return;
+      }
       if (current.mode === 'draw' && current.kind === 'divisions') {
         layDivisions(current, event);
         return;
@@ -1072,16 +1300,27 @@ export function useAnnotateCanvas({
           !current.moved && !isCornerKind(current.kind)
             ? { at: current.start, target: current.startTarget }
             : placeInHand(current, toPicture(event.clientX, event.clientY) ?? current.start, free, event.shiftKey);
-        const annotation = withWhiteArrowLook(
-          createAnnotation(current.kind, point ? at : current.start, at, layout.pictureFrame, undefined, calloutText),
-          current.look
+        const annotation = laid(
+          current.kind,
+          current.look,
+          point ? at : current.start,
+          at,
+          layout.pictureFrame,
+          { shift: event.shiftKey, alt: event.altKey },
+          undefined,
+          calloutText
         );
         if (isDegenerate(annotation, MIN_ANNOTATION_LENGTH)) return;
-        const added = store.editDiagramAnnotations(step.id, 'Add annotation', (list) => [...list, annotation], {
-          select: annotation.id,
-          loadId,
-        });
+        const area = annotation.kind === 'zoom';
+        const added = store.editDiagramAnnotations(
+          step.id,
+          area ? 'Enlarge area' : 'Add annotation',
+          (list) => [...list, annotation],
+          { select: annotation.id, loadId }
+        );
         if (!added) return;
+        // The step is an enlarge source now: an older flat capture gets its faces, in the same undo step (Revision 2).
+        if (area) void store.giveDiagramStepPaperFaces(step.id);
         // Put beside the picture, a close-up may be out of view: it is brought into it (15f).
         if (annotation.kind === 'close-up') camera.bringIntoView(closeUpRings(annotation, layout));
         const snapped = target !== null || (!point && current.startTarget !== null);
@@ -1105,21 +1344,37 @@ export function useAnnotateCanvas({
       const pointer = toPicture(event.clientX, event.clientY);
       if (!pointer) return;
       const placed = placeInHand(current, pointer, free, event.shiftKey);
+      const area = current.original.kind === 'zoom';
       // Applied to the annotation as it is now: an edit that landed during the
       // drag — its text, its arc — is kept, not overwritten by the press's copy.
-      store.editDiagramAnnotations(
+      const changed = store.editDiagramAnnotations(
         step.id,
-        'Move annotation',
+        area ? 'Change enlarge area' : 'Move annotation',
         (list) =>
           list.map((annotation) => {
             if (annotation.id !== current.original.id) return annotation;
-            const next = moved(current, annotation, placed, event.shiftKey);
+            const next = moved(current, annotation, placed, { shift: event.shiftKey, alt: event.altKey });
             return current.grip.part !== 'body' && isDegenerate(next, MIN_ANNOTATION_LENGTH) ? annotation : next;
           }),
         { loadId }
       );
+      if (changed && area) trackDiagramEnlargementChanged('area', 'moved');
     },
-    [layout, toPicture, step.id, release, landPath, showSnap, showRightAngle, placeInHand, snap.enabled, calloutText, camera, layDivisions]
+    [
+      layout,
+      toPicture,
+      step.id,
+      release,
+      landPath,
+      landFrame,
+      showSnap,
+      showRightAngle,
+      placeInHand,
+      snap.enabled,
+      calloutText,
+      camera,
+      layDivisions,
+    ]
   );
 
   const onPointerGone = useCallback(
@@ -1138,6 +1393,18 @@ export function useAnnotateCanvas({
     source,
     /** An enlarged step's window, and what it is painted from (Revision 2); null for a whole picture. */
     zoomed,
+    /** An enlarged step's frame in the canvas's units — as a drag of it shows it — or null for a whole picture. */
+    frameOutline: frameDraft ?? frameOutline,
+    /** The frame is selected: the picture round it shows, dimmed, with its grips. */
+    frameSelected,
+    /** The selected area's or frame's anchor face, outlined, in the canvas's units; null for none. */
+    anchorRing,
+    /** What the picture round a selected frame takes in besides the window, in picture units; null for nothing more. */
+    surroundAlso,
+    /** The face a click would anchor to in the pick mode, in the canvas's units; null for none. */
+    pickHighlight: anchorPick.highlight,
+    /** The Anchor row's pick mode is armed: the canvas asks for a face. */
+    pickingAnchor: anchorPick.picking !== null,
     layout,
     shown,
     tool,
@@ -1182,6 +1449,28 @@ function opening(mark: KnownDiagramAnnotation, opens: PicturePoint | undefined):
 function sameLine(a: PickedLine | null, b: PickedLine | null): boolean {
   if (a === null || b === null) return a === b;
   return a.a[0] === b.a[0] && a.a[1] === b.a[1] && a.b[0] === b.b[0] && a.b[1] === b.b[1];
+}
+
+/**
+ * What a drawing tool lays from `start` to `end`: an enlarge area in its
+ * tool's shape — a rounded rectangle dragged corner to corner, square with
+ * Shift and from its middle with Alt (Revision 2) — or its kind, in its look.
+ */
+function laid(
+  kind: DiagramAnnotationKind,
+  look: DrawingLook,
+  start: PicturePoint,
+  end: PicturePoint,
+  frame: PictureFrame,
+  keys: { shift: boolean; alt: boolean },
+  newId?: DiagramIdFactory,
+  calloutText?: string
+): KnownDiagramAnnotation {
+  const { shape, ...arrowLook } = look;
+  if (kind === 'zoom' && shape === 'rounded') {
+    return zoomAreaFromCorners(start, end, { square: keys.shift, fromMiddle: keys.alt }, newId);
+  }
+  return withWhiteArrowLook(createAnnotation(kind, start, end, frame, newId, calloutText), arrowLook);
 }
 
 /** A point {@link RIGHT_ANGLE_DIAGONAL} from `corner` the way `opens` goes: what a right angle's `to` is made from. */
@@ -1243,4 +1532,12 @@ function pathDragged(
   modifiers: PathModifiers
 ): KnownDiagramAnnotation {
   return dragPath(annotation, current.grip, current.anchor, [at[0] - current.start[0], at[1] - current.start[1]], modifiers);
+}
+
+/** The upright box round a ring's points. */
+function boxOf(ring: readonly PicturePoint[]): PictureBox {
+  const xs = ring.map(([x]) => x);
+  const ys = ring.map(([, y]) => y);
+  const [x, y] = [Math.min(...xs), Math.min(...ys)];
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
 }

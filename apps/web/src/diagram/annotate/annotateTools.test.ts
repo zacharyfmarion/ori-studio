@@ -5,6 +5,7 @@ import i18n from '../../i18n';
 import { SHORTCUT_DEFINITIONS } from '../../keyboard/shortcuts';
 import {
   ANNOTATE_TOOL_GROUPS,
+  annotateToolBlocker,
   annotateToolHint,
   annotationLabel,
   drawingKind,
@@ -25,14 +26,18 @@ describe('the rail', () => {
     const t = i18n.getFixedT('en');
     expect(drawingKind('solid-arrow', 'valley')).toBe('white-arrow');
     expect(drawingLook('solid-arrow')).toEqual(SOLID_ARROW_LOOK);
-    // Every other tool lays its kind as it is.
+    // Every other tool lays its kind as it is — but the Enlarge tools, each an area in a shape of its own (Revision 2).
     expect(drawingLook('white-arrow')).toEqual({});
+    expect(drawingKind('enlarge', 'valley')).toBe('zoom');
+    expect(drawingKind('enlarge-frame', 'valley')).toBe('zoom');
+    expect(drawingLook('enlarge')).toEqual({ shape: 'circle' });
+    expect(drawingLook('enlarge-frame')).toEqual({ shape: 'rounded' });
     expect(isClickTool('solid-arrow')).toBe(false);
     expect(annotationLabel(t, { kind: 'white-arrow', fill: 'black' })).toBe('Solid Arrow');
     expect(annotationLabel(t, { kind: 'white-arrow' })).toBe('White Arrow');
   });
 
-  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a), the pleat and solid arrows among the arrows (15c, 15d), equal divisions and the close-up among the marks (Revision 2, 15f)', () => {
+  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a), the pleat and solid arrows among the arrows (15c, 15d), equal divisions, the close-up and the two Enlarge tools among the marks (Revision 2, 15f)', () => {
     expect(ANNOTATE_TOOL_GROUPS).toEqual([
       { id: 'select', tools: [null, 'edit-path'] },
       {
@@ -49,19 +54,20 @@ describe('the rail', () => {
       },
       { id: 'lines', tools: ['line', 'angle-bisector'] },
       // The two equality marks side by side (ED8).
-      { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark', 'divisions', 'close-up'] },
+      // Enlarge and Enlarge in Frame after Close-Up (Z1).
+      { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark', 'divisions', 'close-up', 'enlarge', 'enlarge-frame'] },
       { id: 'text', tools: ['label', 'callout'] },
     ]);
     // Every kind is drawn by a tool: each its own, the lines by Line in each
     // type, the angle mark by its picks (alone, or with a bisector's line) —
     // but the turn signs, which none draws: turning the model over or round is
-    // a step between steps (D22; Zach, 2026-10-05) — and the enlarge area,
-    // which is laid in a shape by tools of its own (Revision 2).
+    // a step between steps (D22; Zach, 2026-10-05). The enlarge area is
+    // laid by two tools of its own, one for each shape (Revision 2).
     const drawn = ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).flatMap((tool) =>
       isPickTool(tool) ? ['angle-mark' as const] : DIAGRAM_LINE_TYPES.map((type) => drawingKind(tool, type))
     );
     expect([...new Set(drawn.filter((kind) => kind !== null))].sort()).toEqual(
-      ANNOTATION_KINDS.filter((kind) => kind !== 'turn-over' && kind !== 'rotate' && kind !== 'zoom').sort()
+      ANNOTATION_KINDS.filter((kind) => kind !== 'turn-over' && kind !== 'rotate').sort()
     );
     // Nor has either a key: plain T and R, theirs, pick nothing in the Diagram.
     const plain = SHORTCUT_DEFINITIONS.filter((definition) => definition.scope === 'diagram')
@@ -70,9 +76,12 @@ describe('the rail', () => {
       .map((chord) => chord.key);
     expect(plain).not.toContain('t');
     expect(plain).not.toContain('r');
-    // D divides (ED8), and picks Equal Divisions.
+    // D divides (ED8), and picks Equal Divisions; E enlarges, Shift+E in a frame (Z1).
     expect(plain).toContain('d');
     expect(toolForShortcut('diagram.toolDivisions')).toBe('divisions');
+    expect(plain).toContain('e');
+    expect(toolForShortcut('diagram.toolEnlarge')).toBe('enlarge');
+    expect(toolForShortcut('diagram.toolEnlargeFrame')).toBe('enlarge-frame');
     expect(DIAGRAM_LINE_TYPES.map((type) => drawingKind('line', type))).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
     expect(ANNOTATION_KINDS.filter(isLineKind)).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
   });
@@ -194,7 +203,30 @@ describe('the tool window', () => {
           'Drag out from the middle of the area to show larger, or click it. With Select, drag either circle to move it, or its ring to resize it.',
         modifiers: ['Shift-drag the close-up’s ring to scale it by halves.'],
       },
+      // A circle from its middle, never snapped, as a close-up's area (Revision 2, S1).
+      enlarge: {
+        title: 'Enlarge',
+        instructions: 'Drag out from the middle of an area to mark it for an enlarged step. Click for a standard size.',
+        modifiers: [],
+      },
+      // Corner to corner: Shift makes it square, Alt draws it from its middle (S2).
+      'enlarge-frame': {
+        title: 'Enlarge in Frame',
+        instructions:
+          'Drag from corner to corner round an area to mark it for an enlarged step. Click for a standard size.',
+        modifiers: ['Shift-drag to make it square.', 'Option-drag to draw it out from its middle.'],
+      },
     });
+  });
+
+  it('holds the Enlarge tools on an enlarged step, saying why, and no other (Revision 2)', () => {
+    for (const tool of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools)) {
+      const enlargeTool = tool === 'enlarge' || tool === 'enlarge-frame';
+      expect(annotateToolBlocker(t, tool, { enlarged: true })).toBe(
+        enlargeTool ? 'This step is already enlarged — draw the area on a step that shows the whole model' : null
+      );
+      expect(annotateToolBlocker(t, tool, { enlarged: false })).toBeNull();
+    }
   });
 
   it('says what a pick tool’s next press is for, and why its last drew nothing (15b)', () => {

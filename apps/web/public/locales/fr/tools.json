@@ -254,6 +254,8 @@
     "toolCloseUp": "Vue agrandie",
     "toolDivisions": "Divisions égales",
     "toolEditPath": "Modifier le tracé",
+    "toolEnlarge": "Agrandir",
+    "toolEnlargeFrame": "Agrandir dans un cadre",
     "toolFoldUnfoldArrow": "Flèche plier-déplier",
     "toolHiddenLine": "Ligne cachée",
     "toolLabel": "Étiquette",

@@ -43,6 +43,19 @@ import { requestConfirmation } from '../../commandDialogStore';
 import { commitStepCapture, runDiagramCapture, stopDiagramCapture } from '../diagramCapture';
 import { discardDiagramState, selectedDiagramAnnotation, trimDiagramHistory } from '../diagramState';
 import { pathNodesOf } from '../../../diagram/annotate/annotationPath';
+import { showsFrame } from '../../../diagram/zoom/zoomActions';
+import { landSeededFrame, seedStepZoom } from '../../../diagram/zoom/zoomFrames';
+import { ZOOM_FRAME_ID } from '../../../diagram/zoom/zoomModel';
+import type { ZoomPlaced } from '../../../diagram/zoom/zoomCapture';
+import {
+  enlargeInStore,
+  storePaperFacesBackfill,
+  trackSeeded,
+  unenlargeInStore,
+  updateInStore,
+  withPaperFaces,
+} from '../diagramZoom';
+import { lacksPaperFaces } from '../../../diagram/capture/stepPaperFaces';
 import {
   emptySnapshotHistory,
   recordSnapshot,
@@ -71,9 +84,13 @@ function deletedNeighbour(entries: readonly DiagramEntry[], firstIndex: number, 
   return entries.slice(firstIndex).find(isStep) ?? entries.slice(0, firstIndex).filter(isStep).at(-1);
 }
 
-/** Whether the step has the annotation. */
+/**
+ * Whether the step has the annotation — or, for `ZOOM_FRAME_ID`, shows an
+ * enlarged step's frame, which is selected beside its marks (Revision 2).
+ */
 function hasAnnotation(document: DiagramDocument | null, stepId: string | null, annotationId: string): boolean {
   if (!document || stepId === null) return false;
+  if (annotationId === ZOOM_FRAME_ID) return showsFrame(document, stepId);
   const step = stepById(document, stepId);
   return step?.annotations.some((annotation) => annotation.id === annotationId) ?? false;
 }
@@ -149,13 +166,25 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
   };
 
   /**
+   * The anchor's pick mode put down (Revision 2) unless it is still for the
+   * area or frame `annotationId` names, selected on its step open in Annotate:
+   * once what armed it is not, it stays down, and does not come back when that
+   * is selected again. What every change of the selection passes through.
+   */
+  const pickPutDown = (annotationId: string | null = null, detail = get().diagramDetail) => {
+    const pick = get().diagramAnchorPick;
+    const held = pick !== null && pick.target === annotationId && pick.stepId === get().diagramSelectedStepId && detail === 'annotate';
+    return pick === null || held ? {} : { diagramAnchorPick: null };
+  };
+
+  /**
    * The selection to set, and the detail with it: a detail is open on the
    * selected step, so nothing selected closes it.
    */
   const selection = (stepId: string | null) => ({
     diagramSelectedStepId: stepId,
     // An annotation is selected on its step: another step, or none, selects none.
-    ...(stepId !== get().diagramSelectedStepId ? { diagramSelectedAnnotationId: null } : {}),
+    ...(stepId !== get().diagramSelectedStepId ? { diagramSelectedAnnotationId: null, ...pickPutDown() } : {}),
     // A detail is open on the selected step, and a picker chooses for one:
     // nothing selected — or a turn, which has no detail (D22) — closes the
     // detail, and another step the picker.
@@ -207,7 +236,11 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     entry: DiagramEntry = createStep(),
     label = 'Add step'
   ): string | null => {
-    const next = commit(label, (document) => insertSteps(document, [entry], index(document)));
+    // A step added after an enlarged step starts enlarged (Revision 2, Z2), captured as it is made.
+    const next = commit(label, (document) => {
+      const inserted = insertSteps(document, [entry], index(document));
+      return isStep(entry) ? seedStepZoom(inserted, entry.id) : inserted;
+    });
     if (!next) return null;
     set(selection(entry.id));
     return entry.id;
@@ -219,6 +252,16 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     if (index < 0) return document.steps.length;
     return at.where === 'before' ? index : index + 1;
   };
+
+  /** The selected annotation kept while it is still selectable, after an edit that may have taken it away. */
+  const keepSelectable = (document: DiagramDocument) => {
+    const selected = get().diagramSelectedAnnotationId;
+    if (selected !== null && !hasAnnotation(document, get().diagramSelectedStepId, selected)) {
+      set({ diagramSelectedAnnotationId: null, ...pickPutDown() });
+    }
+  };
+
+  const paperFacesBackfill = storePaperFacesBackfill({ get, set });
 
   return {
     ...discardDiagramState(),
@@ -368,10 +411,8 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       if (!next) return false;
       remember();
       const selected = select !== undefined ? select : get().diagramSelectedAnnotationId;
-      set({
-        diagramSelectedAnnotationId:
-          selected !== null && hasAnnotation(next, get().diagramSelectedStepId, selected) ? selected : null,
-      });
+      const kept = selected !== null && hasAnnotation(next, get().diagramSelectedStepId, selected) ? selected : null;
+      set({ diagramSelectedAnnotationId: kept, ...pickPutDown(kept) });
       if (selectPathNode !== undefined) get().selectDiagramPathNode(selectPathNode);
       return true;
     },
@@ -404,7 +445,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     selectDiagramAnnotation: (annotationId) => {
       const { diagram, diagramSelectedStepId } = get();
       const next = annotationId !== null && hasAnnotation(diagram, diagramSelectedStepId, annotationId) ? annotationId : null;
-      if (next !== get().diagramSelectedAnnotationId) set({ diagramSelectedAnnotationId: next });
+      if (next !== get().diagramSelectedAnnotationId) set({ diagramSelectedAnnotationId: next, ...pickPutDown(next) });
     },
 
     addDiagramPictures: (assets, { loadId, anchorStepId } = {}) => {
@@ -415,7 +456,14 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       const target = current && selected !== null ? stepById(current, selected) : undefined;
       // One picture onto a selected step that has none fills it (D2).
       if (assets.length === 1 && target && !isLockedStep(target) && !stepHasPicture(target)) {
-        const filled = commit('Add picture', (document) => setStepPicture(document, target.id, assets[0]));
+        // A step seeded enlarged lands its frame on its first picture (Revision 2).
+        let seeded: ZoomPlaced = null;
+        const filled = commit('Add picture', (document) => {
+          const landed = landSeededFrame(document, setStepPicture(document, target.id, assets[0]), target.id);
+          seeded = landed.placed;
+          return landed.document;
+        });
+        if (filled) trackSeeded(filled, target.id, seeded);
         return filled ? { stepIds: [target.id], filled: true } : null;
       }
       let stepIds: string[] = [];
@@ -432,7 +480,14 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
 
     setDiagramStepPicture: (stepId, asset, { loadId } = {}) => {
       if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
-      return commit('Replace picture', (document) => setStepPicture(document, stepId, asset)) !== null;
+      let seeded: ZoomPlaced = null;
+      const next = commit('Replace picture', (document) => {
+        const landed = landSeededFrame(document, setStepPicture(document, stepId, asset), stepId);
+        seeded = landed.placed;
+        return landed.document;
+      });
+      if (next) trackSeeded(next, stepId, seeded);
+      return next !== null;
     },
 
     removeDiagramStepPicture: (stepId) =>
@@ -547,6 +602,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       // between Pose and Annotate keeps the tool, as walking the steps does.
       const opening = get().diagramDetail === null;
       set({
+        ...pickPutDown(get().diagramSelectedAnnotationId, mode),
         ...selection(stepId),
         diagramDetail: mode,
         diagramReferencesBrowser: null,
@@ -556,7 +612,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     },
 
     closeDiagramStep: () => {
-      if (get().diagramDetail !== null) set({ diagramDetail: null, diagramSelectedAnnotationId: null });
+      if (get().diagramDetail !== null) set({ diagramDetail: null, diagramSelectedAnnotationId: null, ...pickPutDown() });
     },
 
     setDiagramStepPose: (stepId, pose) =>
@@ -576,5 +632,48 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
 
     undoDiagram: () => travel('undo'),
     redoDiagram: () => travel('redo'),
+
+    enlargeDiagramStep: async (stepId) => {
+      const changed = await enlargeInStore({ get, set }, commit, paperFacesBackfill, stepId);
+      // Its own areas went with it: one selected there is no longer.
+      if (changed && get().diagram) keepSelectable(get().diagram!);
+      return changed;
+    },
+
+    unenlargeDiagramStep: (stepId) => {
+      const changed = unenlargeInStore({ get, set }, commit, stepId);
+      if (changed && get().diagram) keepSelectable(get().diagram!);
+      return changed;
+    },
+
+    updateEnlargedDiagramSteps: (areaId) => updateInStore({ get, set }, commit, paperFacesBackfill, areaId),
+
+    editDiagramStepZoom: (stepId, label, edit, { loadId } = {}) => {
+      if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
+      const next = commit(label, (document) => (stepById(document, stepId) ? edit(document) : document));
+      if (!next) return false;
+      keepSelectable(next);
+      return true;
+    },
+
+    giveDiagramStepPaperFaces: async (stepId) => {
+      const { diagram, diagramReadOnly, diagramLoadId, diagramHistory } = get();
+      const step = diagram && !diagramReadOnly ? stepById(diagram, stepId) : null;
+      if (!step || !lacksPaperFaces(step)) return false;
+      const newest = diagramHistory.past.at(-1);
+      const faced = await paperFacesBackfill([step]);
+      const now = get();
+      // Only into the edit that made it a source: anything recorded since keeps its own undo step.
+      if (faced.size === 0 || now.diagramLoadId !== diagramLoadId || newest === undefined || now.diagramHistory.past.at(-1) !== newest) {
+        return false;
+      }
+      return commit('Enlarge area', (document) => withPaperFaces(document, faced), true) !== null;
+    },
+
+    setDiagramAnchorPick: (pick) => {
+      const current = get().diagramAnchorPick;
+      const same = current === pick || (current && pick && current.stepId === pick.stepId && current.target === pick.target);
+      if (!same) set({ diagramAnchorPick: pick });
+    },
   };
 };
