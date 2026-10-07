@@ -53,9 +53,11 @@ export interface SimulatorToolState<Scope> {
  * - `pull-kept`: a pull was let go and kept, so the paper holds a pose.
  * - `spring-back`: a Spring back the tools asked for was done.
  * - `pose-ended`: the fold target moving, or a reset, took a kept pose back.
+ *   Not a Spring back, said when it was done, nor a restore, which is the
+ *   host's own doing.
  */
 export type SimulatorHandChange =
   | { kind: 'pins'; faces: PinSet }
   | { kind: 'pull-kept' }
   | { kind: 'spring-back' }
-  | { kind: 'pose-ended'; why: Exclude<SimulatorPoseEnd, 'request'> };
+  | { kind: 'pose-ended'; why: Extract<SimulatorPoseEnd, 'fold' | 'reset'> };
