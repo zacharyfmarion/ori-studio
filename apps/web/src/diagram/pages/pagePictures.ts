@@ -15,10 +15,12 @@
  *   at their pt widths. A References step is built at its sheet's size on the
  *   page, so its marks keep their pt size. Anything else is nested as itself.
  *
- * An enlarged step (Revision 2) is its window: its frame's box, fitted as a
- * picture with no paper is, its own picture drawn larger under a clip in the
- * frame's shape, its boundary over it, and its marks — in the window's units
- * — on the window, as on any frame.
+ * An enlarged step (Revision 2) is its window: its frame's box, laid out by
+ * what of it prints — all of it, or for a cut frame the paper inside it and
+ * the boundary's pieces (`zoomContentBox`) — at the size the layout gives
+ * enlarged steps, its own picture drawn larger under a clip in the frame's
+ * shape, its boundary over it, and its marks — in the window's units — on the
+ * window, as on any frame.
  *
  * Everything a picture names by id is renamed under the cell's prefix, so two
  * cells drawn from one asset never share an id on a page. An upload's text is
@@ -69,6 +71,7 @@ import {
   type ZoomedSource,
 } from '../zoom/paintZoomed';
 import type { PictureBox } from '../zoom/zoomModel';
+import { zoomContentBox } from '../zoom/zoomContent';
 import { storedScene } from '../pictures/pictureFrame';
 import { prefixIds } from '../pictures/prefixIds';
 import { fontFaceId } from '../fonts/diagramFontFaces';
@@ -103,6 +106,12 @@ export interface CellPicture {
   markup: string;
   /** What it draws, in pt: the drawing's own box, which a step's file is cropped to. */
   boundsPt: { x: number; y: number; width: number; height: number };
+  /**
+   * Where its frame (D8) landed, in pt, as placed in its room: the box its
+   * marks are drawn on — an enlarged step's window. Where a mark on it
+   * prints: an enlarge area's centre, which the arrow after it is lifted to.
+   */
+  framePt: { x: number; y: number; width: number; height: number };
   /** The characters each face sets in the picture, by face id (`latin-700`). */
   text: { face: string; characters: string }[];
 }
@@ -110,10 +119,12 @@ export interface CellPicture {
 /**
  * A picture drawn, where its frame (D8) landed, in pt, and whether it was
  * fitted to its box rather than drawn at a scale the layout found for it.
+ * `paperPt`, where it is not its frame, is what of it is kept in its room:
+ * an enlarged step's content, the window's empty part aside.
  */
 interface DrawnPicture extends CellPicture {
-  framePt: { x: number; y: number; width: number; height: number };
   fitted: boolean;
+  paperPt?: Rect;
 }
 
 /**
@@ -138,6 +149,17 @@ function sentSheetUnits(step: DiagramStep): number | null {
   if (step.source?.kind !== 'references-step') return null;
   const units = longerSide(step.source.region.bounds);
   return units > 0 && Number.isFinite(units) ? units : null;
+}
+
+/**
+ * How many pattern units a step's whole picture is across its longer side,
+ * for one that knows its paper, or null for one only ever fitted (or none):
+ * how large an enlarged step's frame would print among its neighbours.
+ */
+export function wholeUnitsAcross(step: DiagramStep, assets: Readonly<Record<string, DiagramAsset>>): number | null {
+  const source = stepPictureSource(step, assets);
+  const units = source ? unitsAcross(source, step) : null;
+  return units !== null && units > 0 && Number.isFinite(units) ? units : null;
 }
 
 /**
@@ -341,15 +363,21 @@ export function layoutPicture(
   /**
    * The picture measured by `at(frameMm)`, which gives the frame and what it
    * reaches with its marks, in px, its frame `frameMm` across its longer
-   * side: at the size it prints, a little smaller, and at a vast size.
+   * side: at the size it prints, a little smaller, and at a vast size. An
+   * enlarged step's (`window`): its frame its content, `window` of its units
+   * across, at its window `frameMm` across.
    */
-  const measured = (units: number | null, at: (frameMm: number) => { frame: Rect; reached: Rect } | null) => {
+  const measured = (
+    units: number | null,
+    at: (frameMm: number) => { frame: Rect; reached: Rect } | null,
+    window?: number
+  ) => {
     const printed = at(frameMm(units));
     const near = at(frameMm(units) * (1 - MEASURE_NEAR));
     const vast = at(GROWN_MM);
     if (!printed || !near || !vast) return UNSIZED;
     const paper = units !== null && units > 0 && Number.isFinite(units);
-    const unitsAcross = paper ? units : 1;
+    const unitsAcross = window ?? (paper ? units : 1);
     const across = longerOf(printed.frame);
     const nearAcross = longerOf(near.frame);
     const mmPerPx = 1 / mmToCssPx(1);
@@ -383,7 +411,7 @@ export function layoutPicture(
       return { grows: grows * unitsAcross, beyond: (at - grows * across) * mmPerPx };
     };
     return {
-      kind: paper ? ('paper' as const) : ('fit' as const),
+      kind: window !== undefined ? ('zoom' as const) : paper ? ('paper' as const) : ('fit' as const),
       width: wide.grows * unitsAcross,
       height: tall.grows * unitsAcross,
       frame: { width: (printed.frame.width / across) * unitsAcross, height: (printed.frame.height / across) * unitsAcross },
@@ -410,9 +438,35 @@ export function layoutPicture(
       return { frame, reached: annotated ? reachedWith(step, frame, inked, style, layers) : inked };
     });
   };
-  // An enlarged step is its window, fitted: nothing of its picture reaches past
-  // its frame but its boundary's pen (Revision 2).
-  if (view.window) return framed(null, view.window.width, view.window.height, zoomEdgePen(style, 1).width / 2);
+  // An enlarged step is its window (Revision 2), laid out by what of it
+  // prints: its content box, the boundary's pen half past it, its marks on
+  // the window. Measured at one content box, the overshoot's at its printed
+  // size, which is all that changes it.
+  const zoomed = view.zoom ? zoomedSource(step, assets) : null;
+  if (zoomed) {
+    const window = frameOf(zoomed.view.window.width, zoomed.view.window.height);
+    if (!window) return UNSIZED;
+    const content = zoomContentBox(zoomed.view, zoomed.silhouette, frameMm(null));
+    const contentShare = Math.max(content.width, content.height);
+    if (!(contentShare > 0)) return UNSIZED;
+    const pen = zoomEdgePen(style, 1).width / 2;
+    return measured(
+      null,
+      (mm) => {
+        const unitPx = mmToCssPx(mm);
+        const frame = { x: 0, y: 0, width: window.width * unitPx, height: window.height * unitPx };
+        const paper = {
+          x: content.x * unitPx,
+          y: content.y * unitPx,
+          width: content.width * unitPx,
+          height: content.height * unitPx,
+        };
+        const inked = grown(paper, pen);
+        return { frame: paper, reached: annotated ? reachedWith(step, frame, inked, style, layers) : inked };
+      },
+      contentShare
+    );
+  }
   switch (source.kind) {
     case 'scene': {
       const scene = storedScene(source.picture);
@@ -511,15 +565,18 @@ export function cellPicture(
   const { drawn, reached } = placed;
   // A References step's letters are its drawing's own, so a sheet with no
   // annotations settles too: its letters may reach out, never its sheet.
-  const dx = settle(reached.x, reached.width, box.x, box.width, drawn.framePt.x, drawn.framePt.width);
-  const dy = settle(reached.y, reached.height, box.y, box.height, drawn.framePt.y, drawn.framePt.height);
+  const paper = drawn.paperPt ?? drawn.framePt;
+  const dx = settle(reached.x, reached.width, box.x, box.width, paper.x, paper.width);
+  const dy = settle(reached.y, reached.height, box.y, box.height, paper.y, paper.height);
   const shift = (markup: string) => (dx === 0 && dy === 0 ? markup : `<g transform="translate(${num(dx)} ${num(dy)})">${markup}</g>`);
+  const framePt = { ...drawn.framePt, x: drawn.framePt.x + dx, y: drawn.framePt.y + dy };
   if (!placed.marks) {
-    const { framePt: _frame, fitted: _fitted, ...plain } = drawn;
+    const { fitted: _fitted, paperPt: _paper, ...plain } = drawn;
     return {
       ...plain,
       markup: prefixIds(shift(plain.markup), idPrefix),
       boundsPt: { ...plain.boundsPt, x: plain.boundsPt.x + dx, y: plain.boundsPt.y + dy },
+      framePt,
     };
   }
   // The marks drawn where the picture settled, as the page prints them: a
@@ -544,6 +601,7 @@ export function cellPicture(
   return {
     markup: prefixIds(shift(`${drawn.markup}\n${marks?.markup ?? ''}`), idPrefix),
     boundsPt: { ...reached, x: reached.x + dx, y: reached.y + dy },
+    framePt,
     text: [...usage].map(([face, characters]) => ({ face, characters })),
   };
 }
@@ -699,11 +757,14 @@ function draw(
 }
 
 /**
- * An enlarged step's window drawn into `box`, centred (Revision 2): its
- * longer side `framePt` across when given, else fitted to the box; the step's
- * own picture drawn under it larger by its own painter — only what lies near
- * the window — and moved so its frame is where the window puts it, clipped to
- * the frame, the boundary over it. Its frame is the window.
+ * An enlarged step's window drawn into `box` (Revision 2): what of it prints
+ * — its content box, all of a whole frame's window or a cut frame's paper and
+ * boundary pieces (`zoomContentBox`) — centred in the box, the window's
+ * longer side `framePt` across when given, else what fits the content to the
+ * box; the step's own picture drawn under it larger by its own painter —
+ * only what lies near the window — and moved so its frame is where the window
+ * puts it, clipped to the frame, the boundary over it. Its frame is the
+ * window; what it draws, and keeps in its room, its content.
  */
 function drawZoomed(
   zoomed: ZoomedSource,
@@ -716,10 +777,25 @@ function drawZoomed(
   const { view, source, pictureFrame, silhouette } = zoomed;
   const shape = frameOf(view.window.width, view.window.height);
   if (!shape) return null;
-  const longer = framePt ?? fitScale(box, shape.width, shape.height, null);
+  /** The content at a window `longer` pt across, in the window's units. */
+  const contentAt = (longer: number) => zoomContentBox(view, silhouette, longer / PT_PER_MM);
+  let longer = framePt ?? fitScale(box, shape.width, shape.height, null);
+  if (framePt === null) {
+    // Fitted by its content, which a cut frame's overshoot, at its printed size, makes: twice is near enough.
+    for (let pass = 0; pass < 2; pass += 1) {
+      const content = contentAt(longer);
+      longer = fitScale(box, content.width, content.height, null);
+    }
+  }
   if (!(longer > 0) || !Number.isFinite(longer)) return null;
-  const [width, height] = [shape.width * longer, shape.height * longer];
-  const placed = windowBox(shape, longer, box.x + (box.width - width) / 2, box.y + (box.height - height) / 2);
+  const content = contentAt(longer);
+  // The content's middle on the box's: the window wherever that puts it.
+  const placed = windowBox(
+    shape,
+    longer,
+    box.x + box.width / 2 - (content.x + content.width / 2) * longer,
+    box.y + box.height / 2 - (content.y + content.height / 2) * longer
+  );
   const placement = zoomPlacement(view, pictureFrame, placed);
   const printedMm = longer / PT_PER_MM;
   const target = placement.pictureFrame;
@@ -736,10 +812,19 @@ function drawZoomed(
     printedMm,
     idPrefix: '',
   });
+  const paperPt = {
+    x: placed.x + content.x * longer,
+    y: placed.y + content.y * longer,
+    width: content.width * longer,
+    height: content.height * longer,
+  };
+  // What it draws: its content, and the boundary's pen half past it.
+  const half = (painted.bounds.width - placed.width) / 2;
   return {
     markup: painted.markup,
-    boundsPt: painted.bounds,
+    boundsPt: grown(paperPt, half),
     framePt: placed,
+    paperPt,
     fitted: framePt === null,
     text: inside?.text ?? [],
   };

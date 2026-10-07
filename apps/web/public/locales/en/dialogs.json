@@ -137,6 +137,7 @@
     "uploadPictureTitle": "Upload picture"
   },
   "diagramExport": {
+    "arrowsLeftOut": "Enlarge arrows print only on the pages; the step files leave them out.",
     "bleedNote": "with {{bleed}} mm bleed",
     "confirmPdf": "Export PDF",
     "confirmSvg": "Export SVG",
@@ -212,6 +213,7 @@
     "textHelp": "Leave it off to set the text in your own layout app.",
     "title": "Export diagram",
     "transparent": "Transparent background",
+    "turnsAndArrowsLeftOut": "Turns and enlarge arrows print only on the pages; the step files leave them out.",
     "turnsLeftOut_one": "The turn between steps prints on the pages; the step files leave it out.",
     "turnsLeftOut_other": "The {{count}} turns between steps print on the pages; the step files leave them out.",
     "width": "Width",

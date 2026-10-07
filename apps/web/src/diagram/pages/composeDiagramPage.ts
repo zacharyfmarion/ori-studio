@@ -5,8 +5,10 @@
  * from the same path and pen, so a colour pick repaints only the band.)
  *
  * From back to front: the flow band, the title tab and its rule, each cell's
- * picture, number and instruction, the turns between steps (D22) in the
- * gutters, and the page number. An empty step keeps
+ * picture, number and instruction, the turns between steps (D22) and the
+ * enlarge arrows (Revision 2) in the gutters, and the page number. An arrow
+ * alone beside the area it leaves is lifted to the area's height
+ * (`zoomArrows.ts`). An empty step keeps
  * its number and its text and leaves its picture box blank; the placeholder,
  * the margin guide and the selection ring are the Pages view's overlay, never
  * in the file.
@@ -38,7 +40,9 @@ import {
 import { paintTurnGlyph, TURN_FRAME_MM } from '../annotate/turnGlyph';
 import type { Lane } from './flowLane';
 import { setUploadText } from '../upload/uploadText';
-import { cellPicture } from './pagePictures';
+import { paintEnlargeArrow } from '../zoom/enlargeArrow';
+import { cellPicture, type CellPicture } from './pagePictures';
+import { placedZoomArrows } from './zoomArrows';
 
 /** The page's own inks: the mockup's, whatever the paper style. The band's is the page setup's (`layout.bandInk`). */
 const INK = '#16191c';
@@ -117,12 +121,14 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
     );
   }
 
+  const pictures: (CellPicture | null)[] = [];
   page.cells.forEach((cell, index) => {
     const step = input.steps.get(cell.stepId);
     const parts: string[] = [];
     const picture = step
       ? cellPicture(step, input.assets, input.style, cell, `c${index}-`, { hanStyle: input.hanStyle, runs: setter.runs })
       : null;
+    pictures.push(picture);
     if (picture) {
       parts.push(picture.markup);
       for (const { face, characters } of picture.text) use(face, characters);
@@ -142,6 +148,17 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
     // A rotation's fraction is set as a label's is: in the diagram's fonts, which embed its digits.
     if (glyph) body.push(setUploadText(glyph.markup, input.hanStyle, setter.runs, use));
   }
+
+  // An enlarge arrow, as a turn's glyph prints: at its own ink size, its box
+  // centred on its place — lifted to its area's height where it stands alone
+  // beside it — pointing the way its row is read.
+  placedZoomArrows(page, input.steps, (index) => pictures[index] ?? null).forEach(({ at, rightToLeft }, index) => {
+    const arrow = paintEnlargeArrow({ x: at.x * PT_PER_MM, y: at.y * PT_PER_MM }, PT_PER_MM, input.style, {
+      rightToLeft,
+      id: `enlarge-arrow-${index}`,
+    });
+    if (arrow) body.push(arrow.markup);
+  });
 
   if (page.pageNumberAt) {
     const line = setter.line(String(page.number), PAGE_NUMBER_SIZE_MM, 700);

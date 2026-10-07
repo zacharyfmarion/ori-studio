@@ -4,9 +4,9 @@ import { createDiagram, insertSteps, type DiagramAsset, type DiagramStep } from 
 import { sceneStep, uploadStep } from '../annotate/pictureSnap.fixtures';
 import type { LayoutCell } from './diagramPageLayout';
 import type { PreparedDiagramPages } from './diagramPages';
-import { printedFrames } from './printedFrames';
+import { printedFrames, printedZooms } from './printedFrames';
 
-type Cell = Pick<LayoutCell, 'stepId' | 'mmPerUnit' | 'frameMm'> & Partial<Pick<LayoutCell, 'pictureMm' | 'drawMm'>>;
+type Cell = Pick<LayoutCell, 'stepId' | 'mmPerUnit' | 'frameMm'> & Partial<Pick<LayoutCell, 'pictureMm' | 'drawMm' | 'zoom'>>;
 
 /** Pages laid out with these cells, as far as the printed frames read them. */
 const laidOut = (cells: Cell[]) => ({ layout: { pages: [{ cells }] } }) as unknown as PreparedDiagramPages;
@@ -89,6 +89,17 @@ describe('printedFrames (Revision 2)', () => {
     // Given its frame by its run: that.
     const run = printedFrames(laidOut([{ stepId: 'enlarged', mmPerUnit: null, frameMm: 32, ...room(40, 45, 40) }]), withEnlarged);
     expect(run.get('enlarged')).toBe(32);
+  });
+
+  it('reads each enlarged step’s size against its area as the pages lay it out, and none for another step (Revision 2)', () => {
+    const zooms = printedZooms(
+      laidOut([
+        { stepId: 'pattern', mmPerUnit: 0.4, frameMm: null },
+        { stepId: 'enlarged', mmPerUnit: null, frameMm: 64, zoom: { asked: null, printed: 4.4, reduced: false } },
+      ])
+    );
+    expect(Object.fromEntries(zooms)).toEqual({ enlarged: { asked: null, printed: 4.4, reduced: false } });
+    expect(printedZooms(null).size).toBe(0);
   });
 
   it('knows none before the pages are laid out, nor for a step that is gone', () => {

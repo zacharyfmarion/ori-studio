@@ -64,9 +64,11 @@ export type DiagramPictureUploadOutcome =
 
 /**
  * How a step was opened in detail: Enter, a double-click on its card, one of
- * the card's own buttons, or a step verb (its context menu or the Step pane).
+ * the card's own buttons, a step verb (its context menu or the Step pane), or
+ * a double-click on an enlarge arrow in the Pages view, which opens the step
+ * its area is on (Revision 2).
  */
-export type DiagramStepOpenedVia = 'keyboard' | 'double_click' | 'card' | 'command' | 'pose_again';
+export type DiagramStepOpenedVia = 'keyboard' | 'double_click' | 'card' | 'command' | 'pose_again' | 'enlarge_arrow';
 
 /** Which half of the detail a step opened in. */
 export type DiagramStepOpenedMode = 'pose' | 'annotate';

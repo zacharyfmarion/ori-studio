@@ -4147,7 +4147,11 @@
     "panels:simulator.tools.pull.pinFaces": "b46541212bf6",
     "tools:simulator.springBack": "d280d4647aff",
     "tools:simulator.toolPull": "d861319d3aca",
-    "toasts:simulatorPull.failed": "b74f410df6c3"
+    "toasts:simulatorPull.failed": "b74f410df6c3",
+    "panels:diagram.pages.zoomSplitStep": "54260a7cfce7",
+    "panels:diagram.pages.zoomSplitSteps": "1fb7a95d0962",
+    "dialogs:diagramExport.arrowsLeftOut": "2c44f6e1eea4",
+    "dialogs:diagramExport.turnsAndArrowsLeftOut": "4cc361650dce"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8297,7 +8301,11 @@
     "panels:simulator.tools.pull.pinFaces": "b46541212bf6",
     "tools:simulator.springBack": "d280d4647aff",
     "tools:simulator.toolPull": "d861319d3aca",
-    "toasts:simulatorPull.failed": "b74f410df6c3"
+    "toasts:simulatorPull.failed": "b74f410df6c3",
+    "panels:diagram.pages.zoomSplitStep": "54260a7cfce7",
+    "panels:diagram.pages.zoomSplitSteps": "1fb7a95d0962",
+    "dialogs:diagramExport.arrowsLeftOut": "2c44f6e1eea4",
+    "dialogs:diagramExport.turnsAndArrowsLeftOut": "4cc361650dce"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12449,7 +12457,11 @@
     "panels:simulator.tools.pull.pinFaces": "b46541212bf6",
     "tools:simulator.springBack": "d280d4647aff",
     "tools:simulator.toolPull": "d861319d3aca",
-    "toasts:simulatorPull.failed": "b74f410df6c3"
+    "toasts:simulatorPull.failed": "b74f410df6c3",
+    "panels:diagram.pages.zoomSplitStep": "54260a7cfce7",
+    "panels:diagram.pages.zoomSplitSteps": "1fb7a95d0962",
+    "dialogs:diagramExport.arrowsLeftOut": "2c44f6e1eea4",
+    "dialogs:diagramExport.turnsAndArrowsLeftOut": "4cc361650dce"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -16512,7 +16524,11 @@
     "panels:simulator.tools.pull.pinFaces": "b46541212bf6",
     "tools:simulator.springBack": "d280d4647aff",
     "tools:simulator.toolPull": "d861319d3aca",
-    "toasts:simulatorPull.failed": "b74f410df6c3"
+    "toasts:simulatorPull.failed": "b74f410df6c3",
+    "panels:diagram.pages.zoomSplitStep": "54260a7cfce7",
+    "panels:diagram.pages.zoomSplitSteps": "1fb7a95d0962",
+    "dialogs:diagramExport.arrowsLeftOut": "2c44f6e1eea4",
+    "dialogs:diagramExport.turnsAndArrowsLeftOut": "4cc361650dce"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -20575,7 +20591,11 @@
     "panels:simulator.tools.pull.pinFaces": "b46541212bf6",
     "tools:simulator.springBack": "d280d4647aff",
     "tools:simulator.toolPull": "d861319d3aca",
-    "toasts:simulatorPull.failed": "b74f410df6c3"
+    "toasts:simulatorPull.failed": "b74f410df6c3",
+    "panels:diagram.pages.zoomSplitStep": "54260a7cfce7",
+    "panels:diagram.pages.zoomSplitSteps": "1fb7a95d0962",
+    "dialogs:diagramExport.arrowsLeftOut": "2c44f6e1eea4",
+    "dialogs:diagramExport.turnsAndArrowsLeftOut": "4cc361650dce"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -24725,7 +24745,11 @@
     "panels:simulator.tools.pull.pinFaces": "b46541212bf6",
     "tools:simulator.springBack": "d280d4647aff",
     "tools:simulator.toolPull": "d861319d3aca",
-    "toasts:simulatorPull.failed": "b74f410df6c3"
+    "toasts:simulatorPull.failed": "b74f410df6c3",
+    "panels:diagram.pages.zoomSplitStep": "54260a7cfce7",
+    "panels:diagram.pages.zoomSplitSteps": "1fb7a95d0962",
+    "dialogs:diagramExport.arrowsLeftOut": "2c44f6e1eea4",
+    "dialogs:diagramExport.turnsAndArrowsLeftOut": "4cc361650dce"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -28875,7 +28899,11 @@
     "panels:simulator.tools.pull.pinFaces": "b46541212bf6",
     "tools:simulator.springBack": "d280d4647aff",
     "tools:simulator.toolPull": "d861319d3aca",
-    "toasts:simulatorPull.failed": "b74f410df6c3"
+    "toasts:simulatorPull.failed": "b74f410df6c3",
+    "panels:diagram.pages.zoomSplitStep": "54260a7cfce7",
+    "panels:diagram.pages.zoomSplitSteps": "1fb7a95d0962",
+    "dialogs:diagramExport.arrowsLeftOut": "2c44f6e1eea4",
+    "dialogs:diagramExport.turnsAndArrowsLeftOut": "4cc361650dce"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -32938,6 +32966,10 @@
     "panels:simulator.tools.pull.pinFaces": "b46541212bf6",
     "tools:simulator.springBack": "d280d4647aff",
     "tools:simulator.toolPull": "d861319d3aca",
-    "toasts:simulatorPull.failed": "b74f410df6c3"
+    "toasts:simulatorPull.failed": "b74f410df6c3",
+    "panels:diagram.pages.zoomSplitStep": "54260a7cfce7",
+    "panels:diagram.pages.zoomSplitSteps": "1fb7a95d0962",
+    "dialogs:diagramExport.arrowsLeftOut": "2c44f6e1eea4",
+    "dialogs:diagramExport.turnsAndArrowsLeftOut": "4cc361650dce"
   }
 }

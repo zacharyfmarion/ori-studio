@@ -135,6 +135,7 @@
     "uploadPictureTitle": "図をアップロード"
   },
   "diagramExport": {
+    "arrowsLeftOut": "拡大の矢印はページにだけ印刷され、ステップごとのファイルには含まれません。",
     "bleedNote": "裁ち落とし {{bleed}} mm 付き",
     "confirmPdf": "PDF を書き出す",
     "confirmSvg": "SVG を書き出す",
@@ -206,6 +207,7 @@
     "textHelp": "レイアウトアプリで文字を組む場合はオフのままにします。",
     "title": "折り図を書き出す",
     "transparent": "背景を透明に",
+    "turnsAndArrowsLeftOut": "裏返し・回転と拡大の矢印はページにだけ印刷され、ステップごとのファイルには含まれません。",
     "turnsLeftOut_other": "ステップ間の{{count}}件の裏返し・回転はページに印刷されますが、ステップごとのファイルには含まれません。",
     "width": "幅",
     "writingPdf": "PDF を作成中…"

@@ -187,10 +187,12 @@ describe('an enlarged step on a page', () => {
     const picture = cellPicture(enlarged(), {}, style, cell, 'c3-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
     expect(picture.markup).toContain('<clipPath id="c3-zoom-clip">');
     expect(picture.markup).toContain('clip-path="url(#c3-zoom-clip)"');
-    // A circle's window is square, fitted to the 60 mm box with the boundary's pen, all it draws past it.
+    // Fitted by what it prints (16f): a cut circle's paper and boundary, the larger side filling the
+    // 60 mm box with the boundary's pen, all it draws past it; its frame the circle's square window.
     const pt = 72 / 25.4;
-    expect(picture.boundsPt.width).toBeCloseTo(60 * pt, 2);
-    expect(picture.boundsPt.height).toBeCloseTo(picture.boundsPt.width, 6);
+    expect(Math.max(picture.boundsPt.width, picture.boundsPt.height)).toBeCloseTo(60 * pt, 2);
+    expect(picture.framePt.width).toBeCloseTo(picture.framePt.height, 6);
+    expect(picture.boundsPt.width).toBeLessThanOrEqual(picture.framePt.width + 0.5);
     expect(faces(picture.markup)).toBeLessThan(8);
   });
 });

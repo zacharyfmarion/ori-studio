@@ -2,7 +2,14 @@ import { unzipSync } from 'fflate';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDiagram, createStep, insertSteps, type DiagramDocument } from '../../diagram/document/diagramDocument';
+import {
+  createDiagram,
+  createStep,
+  insertSteps,
+  type DiagramDocument,
+  type DiagramStep,
+  type KnownDiagramAnnotation,
+} from '../../diagram/document/diagramDocument';
 import { cpStep } from '../../diagram/document/diagramSteps.fixtures';
 import { DEFAULT_DIAGRAM_EXPORT_SETTINGS } from '../../diagram/export/diagramExportSettings';
 import type { PdfWriter } from '../../diagram/export/diagramPdf';
@@ -158,6 +165,7 @@ describe('DiagramExportDialog', () => {
       file_count_bucket: '<=1',
       step_count_bucket: '<=5',
       empty_step_bucket: '<=1',
+      enlarged_step_bucket: '<=0',
     });
   });
 
@@ -222,6 +230,7 @@ describe('DiagramExportDialog', () => {
       file_count_bucket: '<=2',
       step_count_bucket: '<=20',
       empty_step_bucket: '<=0',
+      enlarged_step_bucket: '<=0',
     });
     expect(useSettingsStore.getState().diagramExport.kind).toBe('svg');
   });
@@ -241,6 +250,39 @@ describe('DiagramExportDialog', () => {
     expect(host.querySelectorAll('img')).toHaveLength(1);
     await click(host.querySelector<HTMLButtonElement>('button[aria-label="Next spread"]')!);
     expect(host.textContent).toContain('Page 2 · 2 of 2');
+  });
+
+  it('says which enlarged step prints on the page after its area, and that step files leave its arrow out (Revision 2)', async () => {
+    // Nine steps to a page: step 9 holds the area, step 10 is enlarged from it on page 2.
+    const area: KnownDiagramAnnotation = { id: 'area-1', kind: 'zoom', from: [0.5, 0.4], to: [0.5, 0.4], radius: 0.2 };
+    const steps = Array.from({ length: 10 }, (_, index): DiagramStep => {
+      const step = cpStep(`step-${index}`);
+      if (index === 8) return { ...step, annotations: [area] };
+      if (index === 9) return { ...step, zoom: { from: 'area-1', shape: 'circle', frame: { centre: [0.5, 0.4], radius: 0.2 } } };
+      return step;
+    });
+    await open(insertSteps(createDiagram({ title: 'Crane' }), steps, 0));
+    expect(notice()).toContain(
+      'Step 10 is on the page after the area it enlarges, on step 9. Start a New Page Here on step 9 keeps them together.'
+    );
+    await click(exportButton());
+    expect(track).toHaveBeenCalledWith('diagram exported', expect.objectContaining({ format: 'pdf', enlarged_step_bucket: '<=1' }));
+    await open(insertSteps(createDiagram({ title: 'Crane' }), steps, 0));
+    await click(radio('Step files (ZIP)'));
+    expect(notice()).toContain('Enlarge arrows print only on the pages; the step files leave them out.');
+    expect(notice()).not.toContain('page after');
+  });
+
+  it('counts only the enlarge arrows the pages print: none before a step seeded with no picture yet (Revision 2)', async () => {
+    const area: KnownDiagramAnnotation = { id: 'area-1', kind: 'zoom', from: [0.5, 0.4], to: [0.5, 0.4], radius: 0.2 };
+    const seeded: DiagramStep = {
+      ...createStep(() => 'step-seeded'),
+      zoom: { from: 'area-1', shape: 'circle', frame: { centre: [0.5, 0.4], radius: 0.2 } },
+    };
+    await open(insertSteps(createDiagram({ title: 'Crane' }), [{ ...cpStep('step-area'), annotations: [area] }, seeded], 0));
+    await click(radio('Step files (ZIP)'));
+    expect(notice()).not.toContain('Enlarge arrows');
+    expect(notice()).not.toContain('enlarge arrows');
   });
 
   it('refuses a PDF with a character the fonts lack, and lets the step files draw a box for it', async () => {

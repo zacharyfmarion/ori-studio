@@ -41,8 +41,9 @@ import { browserFontSource } from '../fonts/browserFontSource';
 import { browserFontSubsetter } from '../fonts/browserFontSubsetter';
 import { loadDiagramFonts, type DiagramFonts } from '../fonts/diagramFonts';
 import type { FontSubsetter } from '../fonts/fontSubset';
-import { diagramFontTexts, preparedPages, type PreparedDiagramPages } from '../pages/diagramPages';
+import { diagramFontTexts, enlargeArrowCount, preparedPages, type PreparedDiagramPages } from '../pages/diagramPages';
 import { composedPageUrl } from '../pages/useDiagramPages';
+import { zoomSplits, type ZoomSplit } from '../pages/zoomArrows';
 import { stepPictureSource } from '../pictures/paintDiagramStep';
 import { svgDataUrl } from '../pictures/stepPictureCache';
 import { browserPdfWriter, DiagramPdfError } from './browserPdfWriter';
@@ -88,6 +89,10 @@ export interface DiagramExportBinding {
   cut: number[];
   /** How many turns between steps the diagram has (D22): the pages print them, step files leave them out. */
   turns: number;
+  /** How many enlarge arrows print between steps (Revision 2): on the pages, as turns are, never in step files. */
+  enlargeArrows: number;
+  /** The enlarged steps the PDF and the SVG print on the page after the area they enlarge (Revision 2). */
+  splits: ZoomSplit[];
   /** Characters no font has: the PDF refuses them; a file draws them as boxes. */
   missing: string[];
   /**
@@ -264,6 +269,9 @@ export function useDiagramExport(
     [pages, files]
   );
   const missing = pages?.missing ?? files?.missing ?? [];
+  // Counted by the layout's own rule, so the notice says what the pages print.
+  const enlargeArrows = useMemo(() => enlargeArrowCount(document), [document]);
+  const splits = useMemo(() => (pages ? zoomSplits(pages.layout, stepsOf(document)) : []), [pages, document]);
 
   const png = !printed && draft.format === 'png';
   const limit = isAppleMobilePlatform() ? APPLE_MOBILE_PNG_CANVAS_LIMIT : DESKTOP_PNG_CANVAS_LIMIT;
@@ -370,7 +378,12 @@ export function useDiagramExport(
                 sameSize: draft.sameSize,
                 transparent: draft.transparent,
               },
-        { files: count, steps: stepsOf(document).length, empty: empty.length }
+        {
+          files: count,
+          steps: stepsOf(document).length,
+          empty: empty.length,
+          enlarged: stepsOf(document).filter((step) => step.zoom !== undefined).length,
+        }
       );
       toast.success(t('toasts:diagramExport.saved', 'Exported {{name}}', { name }));
       close();
@@ -411,6 +424,8 @@ export function useDiagramExport(
     empty,
     cut,
     turns: document.steps.length - stepsOf(document).length,
+    enlargeArrows,
+    splits,
     missing,
     unavailable: (ready?.fonts.unavailable.length ?? 0) > 0,
     retry,

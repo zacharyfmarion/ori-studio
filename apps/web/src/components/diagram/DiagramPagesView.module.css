@@ -99,6 +99,18 @@
   box-shadow: inset 0 0 0 2px var(--accent-primary);
 }
 
+/* An enlarge arrow (Revision 2): a target over it, for the pointer, which selects the step it leads to. */
+.arrow {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.arrow:hover {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
 /* An empty step's picture box: where its picture will go. */
 .placeholder {
   position: absolute;

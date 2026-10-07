@@ -1020,7 +1020,9 @@
       "previousPage": "Vorherige Seite",
       "step": "Schritt {{number}}",
       "stepCut": "Schritt {{number}}, Text passt nicht",
-      "textCut": "Text passt nicht"
+      "textCut": "Text passt nicht",
+      "zoomSplitStep": "Schritt {{step}} steht auf der Seite nach dem Bereich, den er vergrößert, auf Schritt {{area}}. „Hier eine neue Seite beginnen“ auf Schritt {{area}} hält beide zusammen.",
+      "zoomSplitSteps": "Die Schritte {{steps}} stehen jeweils auf der Seite nach dem Bereich, den sie vergrößern. „Hier eine neue Seite beginnen“ auf den Schritten {{areas}} hält sie zusammen."
     },
     "picker": {
       "cancel": "Abbrechen",

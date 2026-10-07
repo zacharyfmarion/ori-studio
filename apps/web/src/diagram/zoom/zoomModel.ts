@@ -47,9 +47,10 @@ export const ZOOM_CORNER = 0.22;
 
 /**
  * Fill (Z4): an enlarged step prints as large as its room allows, and never
- * smaller than its area as it prints nor more than six times it.
+ * smaller than its area as it prints nor more than six times it. The pages'
+ * own rule, kept where they lay steps out, which import nothing that paints.
  */
-export const ZOOM_FILL = { min: 1, max: 6 } as const;
+export { ZOOM_FILL } from '../pages/diagramPageLayout';
 
 /**
  * How far a cut frame's arc runs past where it leaves the paper: a share of

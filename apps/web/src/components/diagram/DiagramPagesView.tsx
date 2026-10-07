@@ -27,6 +27,7 @@ const CUT_OUTLINE_MM = 1;
 /**
  * The target over a turn's glyph on a page reaches this far past the glyph, mm:
  * half the clear space between two stacked turns, so neighbours never overlap.
+ * An enlarge arrow's too, which stands in the same stacks.
  */
 const TURN_TARGET_PAD_MM = TURN_STACK_CLEAR_MM / 2;
 
@@ -43,7 +44,10 @@ const TURN_TARGET_PAD_MM = TURN_STACK_CLEAR_MM / 2;
  * selection, Enter opens the step and the selected one is the tab stop. A
  * press on a step selects it, a double press opens it, a press elsewhere on a
  * page is a question about the page, which brings the Page tab forward; a
- * press that ends a pan is none of these. The camera and the rest of the
+ * press that ends a pan is none of these. An enlarge arrow (Revision 2) is a
+ * target for the pointer only, over where the page prints it: a press selects
+ * the enlarged step it leads to, a double press opens the area it leaves —
+ * the keyboard reaches both by their steps. The camera and the rest of the
  * behaviour are `usePagesView`'s.
  */
 export function DiagramPagesView({
@@ -55,6 +59,7 @@ export function DiagramPagesView({
   fitKey,
   onSelect,
   onOpen,
+  onOpenArea,
   onPageClick,
 }: {
   pages: PreparedDiagramPages | null;
@@ -67,6 +72,8 @@ export function DiagramPagesView({
   fitKey: string;
   onSelect: (stepId: string) => void;
   onOpen: (stepId: string) => void;
+  /** An enlarge arrow's double press: open the step its area is on, the area selected. */
+  onOpenArea: (stepId: string, areaId: string) => void;
   onPageClick: () => void;
 }) {
   const { t } = useTranslation();
@@ -283,6 +290,27 @@ export function DiagramPagesView({
                     {page.turns
                       .filter((turn) => turn.beforeStepId === null)
                       .map((turn) => turnTarget(turn, { before: page.cells.at(-1)?.number ?? null, after: null }))}
+                    {/* The enlarge arrows where the page prints them, lifted to their areas. */}
+                    {isNear(index) &&
+                      pages.zoomArrows(index).map((arrow) => (
+                        <div
+                          key={`arrow-${arrow.beforeStepId}`}
+                          aria-hidden="true"
+                          data-zoom-arrow={arrow.beforeStepId}
+                          className={styles.arrow}
+                          style={{
+                            left: mm(arrow.at.x - arrow.box.w / 2 - TURN_TARGET_PAD_MM),
+                            top: mm(arrow.at.y - arrow.box.h / 2 - TURN_TARGET_PAD_MM),
+                            width: mm(arrow.box.w + 2 * TURN_TARGET_PAD_MM),
+                            height: mm(arrow.box.h + 2 * TURN_TARGET_PAD_MM),
+                          }}
+                          onClick={(event) => onCellClick(event, arrow.beforeStepId)}
+                          onDoubleClick={(event) => {
+                            event.stopPropagation();
+                            if (!pressWasPan()) onOpenArea(arrow.areaStepId, arrow.areaId);
+                          }}
+                        />
+                      ))}
                   </div>
                   <div
                     className={styles.caption}

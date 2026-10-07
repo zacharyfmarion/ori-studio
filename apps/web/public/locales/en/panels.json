@@ -1020,7 +1020,9 @@
       "previousPage": "Previous Page",
       "step": "Step {{number}}",
       "stepCut": "Step {{number}}, text doesn’t fit",
-      "textCut": "Text doesn’t fit"
+      "textCut": "Text doesn’t fit",
+      "zoomSplitStep": "Step {{step}} is on the page after the area it enlarges, on step {{area}}. Start a New Page Here on step {{area}} keeps them together.",
+      "zoomSplitSteps": "Steps {{steps}} are each on the page after the area they enlarge. Start a New Page Here on steps {{areas}} keeps them together."
     },
     "picker": {
       "cancel": "Cancel",

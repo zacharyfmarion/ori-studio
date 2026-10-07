@@ -7,7 +7,15 @@
  * the subsetter are kept by their modules, so a new call costs the layout and
  * the pages it composes, not a download.
  */
-import { isLockedTurn, isTurn, stepAsset, stepsOf, type DiagramDocument, type DiagramStep } from '../document/diagramDocument';
+import {
+  isLockedTurn,
+  isTurn,
+  stepAsset,
+  stepsOf,
+  type DiagramDocument,
+  type DiagramStep,
+  type DiagramZoomOutline,
+} from '../document/diagramDocument';
 import type { DiagramFontFace } from '../fonts/diagramFontFaces';
 import { loadDiagramFonts, type DiagramFontSource, type DiagramFontText, type DiagramFonts } from '../fonts/diagramFonts';
 import { embeddedFontFaces } from '../fonts/fontEmbedding';
@@ -21,13 +29,20 @@ import {
   type DiagramPagesLayout,
   type LayoutStep,
   type LayoutTurn,
+  type LayoutZoom,
   type TextSetter,
 } from './diagramPageLayout';
 import { fontTextSetter } from './fontTextSetter';
 import { uploadTextRuns, type UploadTextRun } from '../upload/uploadText';
-import { layoutPicture, type PictureMeasure } from './pagePictures';
+import { layoutPicture, wholeUnitsAcross, type PictureMeasure } from './pagePictures';
 import { annotationTextRuns } from '../annotate/annotationPrimitives';
 import { hasDrawnAnnotations } from '../annotate/paintAnnotations';
+import { viewOfStep } from '../zoom/stepView';
+import { zoomAreas } from '../zoom/zoomCapture';
+import { enlargeArrowMm } from '../zoom/enlargeArrow';
+import { zoomIndex, type ZoomIndex } from '../zoom/zoomIndex';
+import { zoomOutlineOf, zoomShapeOf } from '../zoom/zoomModel';
+import { liftedZoomArrows, type PlacedZoomArrow } from './zoomArrows';
 
 export interface DiagramPagesDependencies {
   fontSource: DiagramFontSource;
@@ -44,6 +59,12 @@ export interface PreparedDiagramPages {
   unavailableFonts: DiagramFontFace[];
   /** Page `index` (from 0) as an SVG document; `band: false` leaves the flow band out, for the Pages view. */
   compose: (index: number, options?: { band?: boolean }) => ComposedPage;
+  /**
+   * The enlarge arrows on page `index` where it prints them (Revision 2),
+   * lifted to their areas as the page lifts them: what the Pages view puts
+   * their hit targets over. Worked out once a page.
+   */
+  zoomArrows: (index: number) => PlacedZoomArrow[];
 }
 
 /** A step's picture as the layout measures it at `measure` (`layoutPicture`). */
@@ -61,6 +82,7 @@ export function diagramLayoutSteps(
   pictureOf: PictureOf = (step, measure) => layoutPicture(step, document.assets, document.style, measure)
 ): LayoutStep[] {
   const steps: LayoutStep[] = [];
+  const index = zoomIndex(document);
   let turns: LayoutTurn[] = [];
   for (const entry of document.steps) {
     if (isTurn(entry)) {
@@ -70,6 +92,7 @@ export function diagramLayoutSteps(
       turns.push({ id, turn });
       continue;
     }
+    const zoom = layoutZoom(entry, document, index);
     steps.push({
       id: entry.id,
       text: entry.text,
@@ -77,12 +100,64 @@ export function diagramLayoutSteps(
       picture: pictureOf(entry, measureOf(entry.id)),
       turnsBefore: turns,
       turnsAfter: [],
+      // Enlarged, with no window yet: in no run of enlarged steps, and parting none.
+      ...(zoom ? { zoom } : entry.zoom ? { zoomPending: true as const } : {}),
     });
     turns = [];
   }
   const last = steps.at(-1);
   if (last && turns.length > 0) steps[steps.length - 1] = { ...last, turnsAfter: turns };
   return steps;
+}
+
+/** An outline's longer side: a circle's diameter, a rounded rectangle's longer side. */
+function outlineLonger(outline: DiagramZoomOutline): number {
+  return zoomShapeOf(outline) === 'circle' ? 2 * outline.radius! : Math.max(outline.size![0], outline.size![1]);
+}
+
+/**
+ * The area the enlarge arrow before `step` leaves where the pages print one
+ * (Revision 2): read from the order as it is (`zoomIndex`), and only before a
+ * step that shows its window — none before one seeded with no picture yet.
+ */
+function arrowArea(step: DiagramStep, document: DiagramDocument, index: ZoomIndex) {
+  const from = viewOfStep(step).zoom ? (index.arrowFrom.get(step.id) ?? null) : null;
+  const areaStep = from ? stepsOf(document).find((each) => each.id === from.stepId) : undefined;
+  const area = areaStep ? zoomAreas(areaStep).find((each) => each.id === from!.areaId) : undefined;
+  return from && area ? { from, area } : null;
+}
+
+/**
+ * How many enlarge arrows the diagram's pages print (Revision 2), by the
+ * layout's own rule ({@link arrowArea}): what the export dialog says step
+ * files leave out.
+ */
+export function enlargeArrowCount(document: DiagramDocument): number {
+  const index = zoomIndex(document);
+  return stepsOf(document).filter((step) => arrowArea(step, document, index) !== null).length;
+}
+
+/**
+ * What the layout needs of an enlarged step that shows its window (Revision
+ * 2): the area the arrow before it leaves ({@link arrowArea}) and the box the
+ * arrow prints in, in the diagram's style; its frame and window against its
+ * whole picture; and its Size. Undefined for a step that shows its whole
+ * picture, or none yet.
+ */
+function layoutZoom(step: DiagramStep, document: DiagramDocument, index: ZoomIndex): LayoutZoom | undefined {
+  const view = viewOfStep(step).zoom;
+  if (!view) return undefined;
+  const arrow = arrowArea(step, document, index);
+  const units = wholeUnitsAcross(step, document.assets);
+  return {
+    arrowFrom: arrow
+      ? { ...arrow.from, share: outlineLonger(zoomOutlineOf(arrow.area)), box: enlargeArrowMm(document.style) }
+      : null,
+    frameShare: outlineLonger(view.frame),
+    windowShare: Math.max(view.window.width, view.window.height),
+    whole: units !== null ? { kind: 'paper', units } : { kind: 'fit' },
+    scale: step.zoom?.scale ?? null,
+  };
 }
 
 /** A scale this close to the one a picture was measured at is the one it was measured at. */
@@ -201,8 +276,9 @@ export function leastOverrunHeld(measureAt: (scale: number | null) => RoomMeasur
  */
 export function layoutDiagram(document: DiagramDocument, setter: TextSetter): DiagramPagesLayout {
   const layout = (steps: LayoutStep[]) => layoutDiagramPages(steps, document.page, document.title, setter);
+  // An enlarged step's cut frame runs on past the paper by a length set in mm, as a mark's head is.
   const reaching = stepsOf(document).some(
-    (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
+    (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations) || viewOfStep(step).zoom !== null
   );
   if (!reaching) return layout(diagramLayoutSteps(document));
   // Each picture measured once at each scale, however often the search, the
@@ -337,11 +413,22 @@ export function preparedPages(
     setter.runs(text, face);
   }
   const steps = new Map(stepsOf(document).map((step) => [step.id, step]));
+  const arrows = new Map<number, PlacedZoomArrow[]>();
   return {
     layout,
     setter,
     missing: [...setter.missing],
     unavailableFonts: fonts.unavailable,
+    zoomArrows(index) {
+      const page = layout.pages[index];
+      if (!page) return [];
+      let placed = arrows.get(index);
+      if (!placed) {
+        placed = liftedZoomArrows(page, steps, document.assets, document.style, { hanStyle: document.hanStyle, runs: setter.runs });
+        arrows.set(index, placed);
+      }
+      return placed;
+    },
     compose(index, options) {
       const page = layout.pages[index];
       if (!page) throw new RangeError(`No page ${index}`);

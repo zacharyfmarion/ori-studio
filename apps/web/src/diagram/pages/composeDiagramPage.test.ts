@@ -292,7 +292,28 @@ describe('composeDiagramPage', () => {
     };
     const pushed = unscaled('step-5', [{ id: 'p', kind: 'push-arrow', from: [-0.5, 0.5], to: [0.2, 0.5] }]);
     const over = unscaled('step-6', [{ id: 'f', kind: 'fold-unfold-arrow', from: [0.1, 0.02], to: [0.9, 0.02], bend: 0.134 }]);
-    const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [cpStep('step-1'), lettered, arrowed, long, pushed, over], 0);
+    // Enlarged steps (Revision 2), each its window: a circle cut at the sheet's edge, its marks on it, after
+    // the step with its area; a rounded rectangle turned in its window, drawn whole.
+    const area = { ...cpStep('step-7'), annotations: [{ id: 'area', kind: 'zoom' as const, from: [1, 0.5] as [number, number], to: [1, 0.5] as [number, number], radius: 0.3 }] };
+    const cut: DiagramStep = {
+      ...cpStep('step-8'),
+      zoom: { from: 'area', shape: 'circle', frame: { centre: [1, 0.5], radius: 0.3 } },
+      annotations: [
+        { id: 'v', kind: 'valley-line', from: [0.1, 0.5], to: [0.9, 0.5] },
+        { id: 'l', kind: 'label', from: [0.3, 0.2], to: [0.3, 0.2], text: 'A' },
+      ],
+      text: 'Fold the corner down.',
+    };
+    const turned: DiagramStep = {
+      ...cpStep('step-9'),
+      zoom: { from: 'area', shape: 'rounded', frame: { centre: [0.5, 0.5], size: [0.5, 0.3], angle: 30 } },
+    };
+    const made = insertSteps(
+      createDiagram({ title: 'Crane', hanStyle: 'sc' }),
+      [cpStep('step-1'), lettered, arrowed, long, pushed, over, area, cut, turned],
+      0
+    );
+    let enlarged = 0;
     let floored = 0;
     let framed = 0;
     for (const setup of SETUPS) {
@@ -309,6 +330,7 @@ describe('composeDiagramPage', () => {
         if (at === null) continue;
         const needs = layoutPicture(step, document.assets, document.style, cell.mmPerUnit === null ? { frameMm: at } : { mmPerUnit: at })!;
         if (cell.mmPerUnit === null) framed += 1;
+        if (needs.kind === 'zoom') enlarged += 1;
         const fits =
           needs.width * at + needs.marks.width <= cell.drawMm.w * (1 + 1e-3) &&
           needs.height * at + needs.marks.height <= cell.drawMm.h * (1 + 1e-3);
@@ -335,6 +357,8 @@ describe('composeDiagramPage', () => {
     expect(floored).toBeGreaterThan(0);
     // Fit each drew the captures with no paper at frames of its own.
     expect(framed).toBeGreaterThanOrEqual(2 * SETUPS.length);
+    // And every enlarged step its window, by what it prints.
+    expect(enlarged).toBe(2 * SETUPS.length);
   });
 
   /** How far laying the pages out again, each step measured at the scale it is drawn at, moves a step's scale. */

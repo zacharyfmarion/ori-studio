@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAGE_SETUP, type DiagramPageSetup } from '../document/diagramDocument';
+import { DEFAULT_DIAGRAM_STYLE, DEFAULT_PAGE_SETUP, type DiagramPageSetup } from '../document/diagramDocument';
 import {
   FIT_RUN_BREAK,
   FIT_SAME,
@@ -23,7 +23,10 @@ import {
   type LayoutPage,
   type LayoutStep,
   type LayoutTurn,
+  type LayoutZoom,
 } from './diagramPageLayout';
+import { enlargeArrowMm } from '../zoom/enlargeArrow';
+import { zoomSplits } from './zoomArrows';
 import { readFontMetrics, type FontMetrics } from '../fonts/fontMetrics';
 import { curvePoint, curveStart, type Lane } from './flowLane';
 import { estimateTextSetter } from './estimateTextSetter';
@@ -954,5 +957,295 @@ describe('turns between steps on the page (D22)', () => {
   it('prints none on a diagram without turns, and keeps its pictures their size', () => {
     const result = layout(steps(3));
     expect(result.pages[0]!.turns).toEqual([]);
+  });
+});
+
+describe('enlarged steps on the page (Revision 2)', () => {
+  const ARROW = enlargeArrowMm(DEFAULT_DIAGRAM_STYLE);
+  /** A window `width` × `height` of its own units, its marks reaching `marks` mm past it. */
+  const window = (width = 1, height = 1, marks = NO_MARKS): LayoutStep['picture'] => ({
+    kind: 'zoom',
+    width,
+    height,
+    frame: { width, height },
+    marks,
+  });
+  /** An area on step `stepId`, 0.3 of its picture's frame across. */
+  const from = (stepId: string, share = 0.3) => ({ stepId, areaId: `area-${stepId}`, share, box: ARROW });
+  /** An enlarged step: its window, a frame 0.3 of its 400-unit picture across, Fill unless it says. */
+  const enlarged = (zoom: Partial<LayoutZoom> = {}, picture = window()): Partial<LayoutStep> => ({
+    picture,
+    zoom: { arrowFrom: null, frameShare: 0.3, windowShare: 0.3, whole: { kind: 'paper', units: 400 }, scale: null, ...zoom },
+  });
+  const over = (id: string): LayoutTurn => ({ id, turn: { kind: 'turn-over', axis: 'vertical' } });
+  const cellsOf = (result: ReturnType<typeof layout>) => result.pages.flatMap((page) => page.cells);
+  const byId = (result: ReturnType<typeof layout>) => new Map(cellsOf(result).map((cell) => [cell.stepId, cell]));
+
+  it('keeps the other steps’ scales as they were: an enlarged step joins no Fit each run, paper or fitted', () => {
+    // A tall upload and a short one, which share one run; and an enlarged step whose room is smaller than
+    // either, which as a fitted picture would have taken their run down with it.
+    const reaching = window(1, 1, { width: 20, height: 0 });
+    const plain = steps(5, (index) =>
+      index === 0 || index === 4 ? { picture: upload(300, 400) } : index === 3 ? { turnsAfter: [over('turn-end')] } : {}
+    );
+    const withZoom = [
+      ...plain.slice(0, 3),
+      step(9, enlarged({ arrowFrom: from('step-2') }, reaching)),
+      ...plain.slice(3),
+    ];
+    const [before, after] = [byId(layout(plain)), byId(layout(withZoom))];
+    for (const id of ['step-0', 'step-1', 'step-2', 'step-3', 'step-4']) {
+      expect(after.get(id)!.mmPerUnit, id).toBe(before.get(id)!.mmPerUnit);
+      expect(after.get(id)!.frameMm, id).toBe(before.get(id)!.frameMm);
+    }
+    // Only the enlarged step is drawn by its window, at a size of its own.
+    const zoomed = after.get('step-9')!;
+    expect(zoomed.mmPerUnit).toBeNull();
+    expect(zoomed.frameMm).toBeGreaterThan(0);
+    expect(zoomed.frameMm).not.toBe(after.get('step-0')!.frameMm);
+  });
+
+  it('fills its room under Fill, at most six times the area as it prints, and says how many times it prints', () => {
+    const list = steps(3, (index) => (index === 1 ? enlarged({ arrowFrom: from('step-0') }) : {}));
+    const result = layout(list);
+    const [area, zoomed] = cellsOf(result);
+    // The area: 0.3 of the 400-unit frame, at the area's step's scale.
+    const areaMm = 0.3 * 400 * area!.mmPerUnit!;
+    // Its window fills its room's width (the room is as wide as the gutter leaves).
+    expect(zoomed!.frameMm).toBeCloseTo(zoomed!.drawMm.w, 6);
+    expect(zoomed!.zoom).toEqual({ asked: null, printed: expect.closeTo(zoomed!.frameMm! / areaMm, 9), reduced: false });
+    // A tiny area: six times it, no more.
+    const tiny = cellsOf(layout(steps(3, (index) => (index === 1 ? enlarged({ arrowFrom: from('step-0', 0.02) }) : {}))));
+    expect(tiny[1]!.frameMm).toBeCloseTo(6 * 0.02 * 400 * tiny[0]!.mmPerUnit!, 6);
+    expect(tiny[1]!.zoom!.printed).toBeCloseTo(6, 9);
+    // An area larger than the room: Fill asks for it whole, the room holds less, and the read-out says so.
+    const huge = cellsOf(layout(steps(3, (index) => (index === 1 ? enlarged({ arrowFrom: from('step-0', 1.5) }) : {}))));
+    const hugeMm = 1.5 * 400 * huge[0]!.mmPerUnit!;
+    expect(huge[1]!.frameMm).toBeCloseTo(huge[1]!.drawMm.w, 6);
+    expect(huge[1]!.zoom).toEqual({ asked: null, printed: expect.closeTo(huge[1]!.drawMm.w / hugeMm, 9), reduced: true });
+    expect(huge[1]!.zoom!.printed).toBeLessThan(1);
+  });
+
+  it('prints a run of enlarged steps at one size, the run’s least room, and a long caption makes only its own step smaller', () => {
+    const narrow = window(1, 1, { width: 16, height: 0 });
+    const list = steps(5, (index) =>
+      index === 1
+        ? enlarged({ arrowFrom: from('step-0') })
+        : index === 2
+          ? enlarged({}, narrow)
+          : index === 3
+            ? { ...enlarged(), text: `${LONG} ${LONG} ${LONG}` }
+            : {}
+    );
+    const cells = byId(layout(list));
+    const [first, second, third] = ['step-1', 'step-2', 'step-3'].map((id) => cells.get(id)!);
+    // The narrow one's room sets the run's size.
+    expect(first!.frameMm).toBeCloseTo(second!.frameMm!, 9);
+    expect(second!.frameMm).toBeCloseTo(second!.drawMm.w - 16, 6);
+    expect(first!.zoom!.reduced).toBe(false);
+    // The long caption took its picture's room: it alone is drawn smaller, and says so.
+    expect(third!.frameMm).toBeLessThan(first!.frameMm!);
+    expect(third!.zoom!.reduced).toBe(true);
+    expect(third!.scaleReduced).toBe(true);
+    // The step after the run is back at its own scale.
+    expect(cells.get('step-4')!.mmPerUnit).toBe(cells.get('step-0')!.mmPerUnit);
+  });
+
+  it('prints at a typed Size times the area, held to its room, and a new arrow or Size starts a run of its own', () => {
+    const list = steps(4, (index) =>
+      index === 1 ? enlarged({ arrowFrom: from('step-0'), scale: 2 }) : index === 2 ? enlarged({ scale: 2 }) : index === 3 ? enlarged({ scale: 6 }) : {}
+    );
+    const cells = cellsOf(layout(list));
+    const areaMm = 0.3 * 400 * cells[0]!.mmPerUnit!;
+    expect(cells[1]!.frameMm).toBeCloseTo(2 * areaMm, 9);
+    expect(cells[1]!.zoom).toEqual({ asked: 2, printed: expect.closeTo(2, 9), reduced: false });
+    // The same Size after it: the same run, the same size.
+    expect(cells[2]!.frameMm).toBeCloseTo(2 * areaMm, 9);
+    // Six times its run's own measure is more than its room holds: as large as it does, and reduced.
+    expect(cells[3]!.zoom!.asked).toBe(6);
+    expect(cells[3]!.zoom!.reduced).toBe(true);
+    expect(cells[3]!.frameMm).toBeCloseTo(cells[3]!.drawMm.w, 6);
+  });
+
+  it('measures a run with no arrow by its frame as its whole picture would print among its neighbours', () => {
+    const list = steps(3, (index) => (index === 1 ? enlarged({ scale: 2 }) : {}));
+    const cells = cellsOf(layout(list));
+    // Its 0.3 of a 400-unit picture, at the paper scale beside it, twice.
+    expect(cells[1]!.frameMm).toBeCloseTo(2 * 0.3 * 400 * cells[0]!.mmPerUnit!, 9);
+  });
+
+  it('lets an enlarged step with no window yet join no run and part none', () => {
+    // Seeded by Insert Step After between two steps of one Size, before its first picture: the run
+    // goes on past it, the last step measured by the first's area, not by its own frame.
+    const list = steps(4, (index) =>
+      index === 1
+        ? enlarged({ arrowFrom: from('step-0'), scale: 2 })
+        : index === 2
+          ? { picture: null, zoomPending: true }
+          : index === 3
+            ? enlarged({ scale: 2, frameShare: 0.15, windowShare: 0.15 })
+            : {}
+    );
+    const cells = byId(layout(list));
+    const areaMm = 0.3 * 400 * cells.get('step-0')!.mmPerUnit!;
+    expect(cells.get('step-1')!.frameMm).toBeCloseTo(2 * areaMm, 9);
+    expect(cells.get('step-3')!.frameMm).toBeCloseTo(2 * areaMm, 9);
+    expect(cells.get('step-3')!.zoom).toEqual({ asked: 2, printed: expect.closeTo(2, 9), reduced: false });
+    expect(cells.get('step-2')!.zoom).toBeUndefined();
+    // A step that is not enlarged still ends the run: the step after it measures by its own frame.
+    const parted = byId(layout(steps(4, (index) => (index === 2 ? { picture: null } : list[index]!))));
+    expect(parted.get('step-3')!.frameMm).toBeCloseTo(2 * 0.15 * 400 * parted.get('step-0')!.mmPerUnit!, 9);
+  });
+
+  it('measures a turned frame by its own side, not its window’s', () => {
+    // A rectangle turned in a window 1.25 times its longer side.
+    const list = steps(2, (index) => (index === 1 ? enlarged({ arrowFrom: from('step-0'), scale: 2, frameShare: 0.3, windowShare: 0.375 }) : {}));
+    const cells = cellsOf(layout(list));
+    const areaMm = 0.3 * 400 * cells[0]!.mmPerUnit!;
+    // The frame prints at twice the area: its window, 1.25 times that.
+    expect(cells[1]!.frameMm).toBeCloseTo(1.25 * 2 * areaMm, 9);
+    expect(cells[1]!.zoom!.printed).toBeCloseTo(2, 9);
+  });
+
+  describe('the enlarge arrow', () => {
+    const arrowed = (count: number, areaAt: number, extra: (index: number) => Partial<LayoutStep> = () => ({})) =>
+      steps(count, (index) => ({
+        ...(index === areaAt + 1 ? enlarged({ arrowFrom: from(`step-${areaAt}`) }) : {}),
+        ...extra(index),
+      }));
+
+    it('keeps a turn’s gutter between all the pictures, and prints none where no arrow leads', () => {
+      const setup = { orientation: 'landscape', columns: 5, rows: 2 } as const;
+      const plain = layout(steps(4, (index) => (index === 2 ? enlarged() : {})), setup);
+      const arrowedLayout = layout(arrowed(4, 1), setup);
+      expect(plain.pages[0]!.zoomArrows).toEqual([]);
+      expect(arrowedLayout.pages[0]!.cells[0]!.pictureMm.size).toBeCloseTo(
+        plain.pages[0]!.cells[0]!.pictureMm.size - (TURN_GUTTER_MM - 6),
+        6
+      );
+    });
+
+    it('stands midway between two pictures on a row, at their height, alone there and so liftable', () => {
+      const result = layout(arrowed(3, 0));
+      const [a, b] = result.pages[0]!.cells;
+      const [arrow] = result.pages[0]!.zoomArrows;
+      expect(arrow).toMatchObject({ beforeStepId: 'step-1', areaStepId: 'step-0', areaId: 'area-step-0', rightToLeft: false, liftable: true });
+      expect(arrow!.box).toEqual(ARROW);
+      expect(arrow!.at.x).toBeCloseTo((a!.pictureMm.x + a!.pictureMm.size + b!.pictureMm.x) / 2, 6);
+      expect(arrow!.at.y).toBeCloseTo((a!.drawMm.y + a!.drawMm.h / 2 + b!.drawMm.y + b!.drawMm.h / 2) / 2, 6);
+    });
+
+    it('reads a flow row right to left: between the two pictures, mirrored', () => {
+      const result = layout(arrowed(4, 2), { layout: 'flow', columns: 2, rows: 3 });
+      const [, , third, fourth] = result.pages[0]!.cells;
+      const [arrow] = result.pages[0]!.zoomArrows;
+      expect(third!.pictureMm.x).toBeGreaterThan(fourth!.pictureMm.x);
+      expect(arrow!.rightToLeft).toBe(true);
+      expect(arrow!.liftable).toBe(true);
+      expect(arrow!.at.x).toBeCloseTo((fourth!.pictureMm.x + fourth!.pictureMm.size + third!.pictureMm.x) / 2, 6);
+    });
+
+    it('prints across a flow row’s end in the lane’s bend, where a turn would, clear of the words above and the number below', () => {
+      const result = layout(arrowed(6, 2), { layout: 'flow', columns: 3, rows: 3 });
+      const page = result.pages[0]!;
+      const [arrow] = page.zoomArrows;
+      expect(laneDistance(page.band!, arrow!.at)).toBeLessThan(0.05);
+      const [above, below] = [page.cells[2]!, page.cells[3]!];
+      const textFoot =
+        above.text.lines.length > 0
+          ? above.text.firstBaseline + (above.text.lines.length - 1) * STEP_TEXT_LEADING_MM + 0.3 * STEP_TEXT_SIZE_MM
+          : above.drawMm.y + above.drawMm.h;
+      expect(arrow!.at.y - arrow!.box.h / 2).toBeGreaterThan(textFoot);
+      expect(arrow!.at.y + arrow!.box.h / 2).toBeLessThan(below.numberAt.y - 0.75 * STEP_NUMBER_SIZE_MM);
+      expect(arrow!.liftable).toBe(false);
+      // Where a turn there prints.
+      const turned = layout(steps(6, (index) => (index === 3 ? { turnsBefore: [over('turn-a')] } : {})), { layout: 'flow', columns: 3, rows: 3 });
+      expect(arrow!.at.x).toBeCloseTo(turned.pages[0]!.turns[0]!.at.x, 1);
+    });
+
+    it('prints across a grid’s row at the next picture’s leading edge', () => {
+      const result = layout(arrowed(4, 2), { columns: 3, rows: 3 });
+      const fourth = result.pages[0]!.cells[3]!;
+      const [arrow] = result.pages[0]!.zoomArrows;
+      expect(arrow!.at.x).toBeCloseTo(fourth.pictureMm.x - (fourth.cellMm.w - fourth.pictureMm.size) / 2, 6);
+      expect(arrow!.at.y).toBeCloseTo(fourth.drawMm.y + fourth.drawMm.h / 2, 6);
+      expect(arrow!.liftable).toBe(false);
+    });
+
+    it('prints across a page at the next picture’s leading edge, and the split is said', () => {
+      const result = layout(arrowed(10, 8), { columns: 3, rows: 3 });
+      expect(result.pages[0]!.zoomArrows).toEqual([]);
+      const first = result.pages[1]!.cells[0]!;
+      const [arrow] = result.pages[1]!.zoomArrows;
+      expect(arrow).toMatchObject({ beforeStepId: 'step-9', areaStepId: 'step-8', liftable: false });
+      expect(arrow!.at.x).toBeCloseTo(first.pictureMm.x - (first.cellMm.w - first.pictureMm.size) / 2, 6);
+      expect(zoomSplits(result, arrowed(10, 8))).toEqual([{ step: 10, area: 9 }]);
+      // On one page, none.
+      expect(zoomSplits(layout(arrowed(4, 1)), arrowed(4, 1))).toEqual([]);
+    });
+
+    it('says only the splits Start a New Page Here on the area’s step would mend', () => {
+      const grid = { columns: 3, rows: 3 } as const;
+      // The enlarged step starts its page by its own Start a New Page Here: the break asked for.
+      const asked = arrowed(5, 2, (index) => (index === 3 ? { breakBefore: true } : {}));
+      const askedLayout = layout(asked, grid);
+      expect(askedLayout.pages[1]!.zoomArrows).toHaveLength(1);
+      expect(zoomSplits(askedLayout, asked)).toEqual([]);
+      // The area's step starts its page already, one step to a page: no break brings them together.
+      const single = arrowed(3, 1);
+      const singleLayout = layout(single, { columns: 1, rows: 1 });
+      expect(singleLayout.pages[2]!.zoomArrows).toHaveLength(1);
+      expect(zoomSplits(singleLayout, single)).toEqual([]);
+      // Nine to a page, the area on its last cell: a break before it mends it, so it is said.
+      const full = arrowed(10, 8);
+      expect(zoomSplits(layout(full, grid), full)).toEqual([{ step: 10, area: 9 }]);
+    });
+
+    it('stands after the turns before its step, each clear of the next, and then is not lifted', () => {
+      const result = layout(arrowed(3, 0, (index) => (index === 1 ? { turnsBefore: [over('turn-a')] } : {})));
+      const [turn] = result.pages[0]!.turns;
+      const [arrow] = result.pages[0]!.zoomArrows;
+      expect(turn!.at.x).toBeCloseTo(arrow!.at.x, 9);
+      expect(arrow!.at.y - arrow!.box.h / 2 - (turn!.at.y + turn!.box.h / 2)).toBeCloseTo(TURN_STACK_CLEAR_MM, 6);
+      expect(arrow!.liftable).toBe(false);
+      // The stack centred where one glyph alone would be.
+      const alone = layout(arrowed(3, 0)).pages[0]!.zoomArrows[0]!;
+      expect((turn!.at.y - turn!.box.h / 2 + arrow!.at.y + arrow!.box.h / 2) / 2).toBeCloseTo(alone.at.y, 6);
+    });
+
+    it('keeps its room at a flow row’s end, as turns there keep theirs', () => {
+      const list = arrowed(6, 2, (index) => (index === 2 ? { text: `${LONG} ${LONG} ${LONG}` } : {}));
+      const page = layout(list, { layout: 'flow', columns: 3, rows: 3 }).pages[0]!;
+      const above = page.cells[2]!;
+      const [arrow] = page.zoomArrows;
+      const textFoot = above.text.firstBaseline + (above.text.lines.length - 1) * STEP_TEXT_LEADING_MM + 0.3 * STEP_TEXT_SIZE_MM;
+      expect(arrow!.at.y - arrow!.box.h / 2).toBeGreaterThanOrEqual(textFoot + TURN_STACK_CLEAR_MM - 1e-6);
+    });
+
+    it('keeps off every picture and on the paper, whatever the margin, grid or flow', () => {
+      const shapes = [paper(400), paper(150, 600), paper(700, 200)];
+      const list = steps(9, (index) => ({
+        picture: shapes[index % shapes.length]!,
+        ...(index === 1 || index === 3 || index === 7 ? enlarged({ arrowFrom: from(`step-${index - 1}`) }) : {}),
+      }));
+      const clash = (box: { x: number; y: number; w: number; h: number }, picture: { x: number; y: number; w: number; h: number }) =>
+        box.x < picture.x + picture.w && picture.x < box.x + box.w && box.y < picture.y + picture.h && picture.y < box.y + box.h;
+      for (const pageLayout of ['grid', 'flow'] as const) {
+        for (const marginMm of [0, 5, 12, 30]) {
+          const result = layout(list, { layout: pageLayout, marginMm });
+          const page = result.pages[0]!;
+          expect(page.zoomArrows, `${pageLayout} ${marginMm}`).toHaveLength(3);
+          for (const arrow of page.zoomArrows) {
+            const box = { x: arrow.at.x - arrow.box.w / 2, y: arrow.at.y - arrow.box.h / 2, w: arrow.box.w, h: arrow.box.h };
+            expect(box.x).toBeGreaterThanOrEqual(0);
+            expect(box.x + box.w).toBeLessThanOrEqual(result.paper.widthMm);
+            for (const cell of page.cells) {
+              const picture = list.find((each) => each.id === cell.stepId)!.picture;
+              expect(clash(box, drawnOf(cell, picture)!), `${pageLayout} ${marginMm} ${arrow.beforeStepId} over ${cell.number}`).toBe(false);
+            }
+          }
+        }
+      }
+    });
   });
 });

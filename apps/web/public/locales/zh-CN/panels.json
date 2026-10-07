@@ -984,7 +984,9 @@
       "previousPage": "上一页",
       "step": "第 {{number}} 步",
       "stepCut": "第 {{number}} 步，文字放不下",
-      "textCut": "文字放不下"
+      "textCut": "文字放不下",
+      "zoomSplitStep": "第 {{step}} 步在它所放大的区域（第 {{area}} 步）的下一页。在第 {{area}} 步上选择“从这里开始新的一页”可让两者在同一页。",
+      "zoomSplitSteps": "第 {{steps}} 步各自在所放大区域的下一页。在第 {{areas}} 步上选择“从这里开始新的一页”可让它们在同一页。"
     },
     "picker": {
       "cancel": "取消",

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -10,6 +10,7 @@ import type { DiagramFonts } from '../fonts/diagramFonts';
 import { readFontMetrics } from '../fonts/fontMetrics';
 import { createFontSubsetter, type FontSubsetter } from '../fonts/fontSubset';
 import { diagramPdfInput, PRINT_SHOP_BLEED_MM, PRINT_SHOP_SLUG_MM, type PdfWriter } from './diagramPdf';
+import { craneStep } from '../zoom/zoom.fixtures';
 
 /**
  * A diagram through the real writer (`crates/oristudio-pdf-wasm`), in node.
@@ -143,6 +144,33 @@ describe.skipIf(!available)('a diagram as one PDF', () => {
     const text = new TextDecoder('latin1').decode(pdf);
     expect(text).toContain('NotoSans-Regular');
     expect(text).toMatch(/NotoSansSC-Regular/);
+  });
+
+  it('prints enlarged steps through their clips — a turned rounded frame, a cut circle — and the arrow between (Revision 2)', async () => {
+    const crane = craneStep('S.none');
+    const key = crane.picture!.key;
+    const area = { id: 'area-1', kind: 'zoom' as const, from: [0.37, 0.13] as [number, number], to: [0.37, 0.13] as [number, number], radius: 0.13 };
+    const steps = [
+      { ...crane, id: 'step-area', annotations: [area], annotatedPictureKey: key, text: 'Fold the head down.' },
+      { ...crane, id: 'step-cut', zoom: { from: 'area-1', shape: 'circle' as const, frame: { centre: [0.37, 0.13] as [number, number], radius: 0.13 } }, annotatedPictureKey: key },
+      {
+        ...crane,
+        id: 'step-turned',
+        zoom: { from: 'area-1', shape: 'rounded' as const, frame: { centre: [0.37, 0.52] as [number, number], size: [0.3, 0.18] as [number, number], angle: 30 } },
+        annotatedPictureKey: key,
+      },
+    ];
+    const document = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), steps, 0);
+    const input = diagramPdfInput(document, FONTS, subsetter, 'home');
+    const [page] = input.pages;
+    // The page as composed: two clips, one a rect turned by its frame's angle; the cut circle's arcs; the arrow.
+    expect(page!.match(/<clipPath id="[^"]*zoom-clip">/g)).toHaveLength(2);
+    expect(page).toMatch(/<clipPath id="[^"]*zoom-clip"><rect [^>]*transform="rotate\(30 /);
+    expect(page).toMatch(/<path d="M [-\d.]+ [-\d.]+ A [-\d.]+ [-\d.]+ 0 [01] [01] /);
+    // The writer takes the page whole: its clips and arcs are SVG it already prints (15f's close-ups).
+    const pdf = await write(input.pages, input.fonts, input.options);
+    expect(boxes(pdf, '/MediaBox')).toHaveLength(1);
+    if (process.env.ZOOM_PDF_OUT) writeFileSync(process.env.ZOOM_PDF_OUT, pdf);
   });
 
   it('refuses a diagram with a character no font has, rather than print a box', async () => {

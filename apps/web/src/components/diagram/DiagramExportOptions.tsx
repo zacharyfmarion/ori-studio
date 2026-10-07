@@ -7,24 +7,13 @@ import { STEP_FILE_MM_RANGE } from '../../diagram/export/stepFiles';
 import type { DiagramExportBinding } from '../../diagram/export/useDiagramExport';
 import type { DiagramPageSetup } from '../../diagram/document/diagramDocument';
 import { pageSetupSummary, pageSideLabel } from '../../diagram/pages/pageSetupLabels';
+import { zoomSplitSentence } from '../../diagram/pages/zoomSplitLabels';
+import { formatStepNumbers } from '../../diagram/stepNumberList';
 import { Button } from '../ui/Button';
 import { NumberRow, SegmentedRow, ToggleRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
 import { OptionCards } from '../ui/OptionCard';
 import styles from './DiagramExportOptions.module.css';
-
-/** At most this many step numbers are named in a sentence; the rest are counted. */
-const NAMED_STEPS = 8;
-
-/** "4, 5 and 9", or "4, 5, 6, … and 12 more": the steps a Notice sentence is about. */
-export function formatStepNumbers(numbers: readonly number[], language: string, t: TFunction): string {
-  const named = numbers.slice(0, NAMED_STEPS).map(String);
-  const more = numbers.length - named.length;
-  if (more > 0) {
-    named.push(t('dialogs:diagramExport.moreSteps', '{{count}} more', { count: more, defaultValue_one: '{{count}} more' }));
-  }
-  return new Intl.ListFormat(language, { type: 'conjunction' }).format(named);
-}
 
 /**
  * The export dialog's options (D11): a PDF of the pages, to print at home or
@@ -208,7 +197,8 @@ export function DiagramExportOptions({
         binding.cut.length > 0 ||
         binding.missing.length > 0 ||
         binding.unavailable ||
-        (!printed && binding.turns > 0)) && (
+        (printed && binding.splits.length > 0) ||
+        (!printed && (binding.turns > 0 || binding.enlargeArrows > 0))) && (
         <Notice tone={(pdf && binding.missing.length > 0) || binding.unavailable ? 'warning' : 'info'}>
           <ul className={styles.notes}>
             {binding.unavailable && (
@@ -251,7 +241,21 @@ export function DiagramExportOptions({
             {binding.cut.length > 0 && (
               <li>{cutSentence(t, steps(binding.cut), binding.cut.length)}</li>
             )}
-            {!printed && binding.turns > 0 && (
+            {printed && binding.splits.length > 0 && <li>{zoomSplitSentence(binding.splits, t, i18n.language)}</li>}
+            {!printed && binding.enlargeArrows > 0 && (
+              <li>
+                {binding.turns > 0
+                  ? t(
+                      'dialogs:diagramExport.turnsAndArrowsLeftOut',
+                      'Turns and enlarge arrows print only on the pages; the step files leave them out.'
+                    )
+                  : t(
+                      'dialogs:diagramExport.arrowsLeftOut',
+                      'Enlarge arrows print only on the pages; the step files leave them out.'
+                    )}
+              </li>
+            )}
+            {!printed && binding.turns > 0 && binding.enlargeArrows === 0 && (
               <li>
                 {t('dialogs:diagramExport.turnsLeftOut', {
                   count: binding.turns,

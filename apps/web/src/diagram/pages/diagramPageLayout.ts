@@ -38,6 +38,13 @@
  * so its one paper scale stays one scale; a step before a flow row's end with
  * turns after it keeps their room under its text, and only it gives way.
  *
+ * An enlarged step (Revision 2) is laid out as its window — what its frame
+ * takes in, of its content where its frame is cut — in runs of its own, never
+ * the Fit each runs: as large as its room allows, at most six times the area
+ * it enlarges as that prints, or at its Size times that ({@link zoomScales}).
+ * The enlarge arrow before one, when the step before it shows an area, takes
+ * a turn's places and gutter, after any turns standing there.
+ *
  * Measurement is injected ({@link TextSetter}): the composer sets text from
  * the font's own advances, tests with an estimate.
  *
@@ -68,7 +75,7 @@ const STEP_NUMBER_INSET_MM = 1.5;
 /** The top of the step number below the cell's top: its figures stand under three quarters of its size. */
 const STEP_NUMBER_TOP_MM = STEP_NUMBER_BASELINE_MM - 0.75 * STEP_NUMBER_SIZE_MM;
 /** The picture box's top below the cell's top: under the number. */
-const PICTURE_TOP_MM = 8;
+export const PICTURE_TOP_MM = 8;
 /** The instruction's first baseline below the picture box. */
 const TEXT_GAP_MM = 5;
 /** Room kept under the last baseline, for descenders. */
@@ -141,6 +148,12 @@ const TURN_OVER_GLYPH_MM = { long: 11.6, short: 5.6 } as const;
 const ROTATE_GLYPH_MM = 8.8;
 /** The clear space between two turns standing in one gutter, one above another. */
 export const TURN_STACK_CLEAR_MM = 1.5;
+/**
+ * Fill (Revision 2, Z4): an enlarged step prints as large as its room allows,
+ * never smaller than the area it enlarges as that prints, nor more than six
+ * times it; a Size is held the same.
+ */
+export const ZOOM_FILL = { min: 1, max: 6 } as const;
 
 /** The box a turn's glyph prints in, in mm, centred on its place. */
 export function turnGlyphMm(turn: DiagramTurnKind): { w: number; h: number } {
@@ -149,9 +162,28 @@ export function turnGlyphMm(turn: DiagramTurnKind): { w: number; h: number } {
   return turn.axis === 'horizontal' ? { w: short, h: long } : { w: long, h: short };
 }
 
-/** How tall turns standing in one place are, one above another, each clear of the next. */
-function stackHeight(turns: readonly LayoutTurn[]): number {
-  return turns.reduce((sum, turn) => sum + turnGlyphMm(turn.turn).h, 0) + (turns.length - 1) * TURN_STACK_CLEAR_MM;
+/**
+ * What stands in the gutter before a step: the turns between it and the step
+ * before (D22), in order, then the enlarge arrow when one prints there
+ * (Revision 2).
+ */
+type BetweenGlyph = ({ kind: 'turn' } & LayoutTurn) | { kind: 'enlarge'; arrowFrom: LayoutZoomArea };
+
+/** The glyphs before a step, turns first. */
+function glyphsBefore(step: LayoutStep): BetweenGlyph[] {
+  const turns = step.turnsBefore.map((turn): BetweenGlyph => ({ kind: 'turn', ...turn }));
+  const arrowFrom = step.zoom?.arrowFrom;
+  return arrowFrom ? [...turns, { kind: 'enlarge', arrowFrom }] : turns;
+}
+
+/** The box a glyph prints in, in mm, centred on its place. */
+function glyphMm(glyph: BetweenGlyph): { w: number; h: number } {
+  return glyph.kind === 'turn' ? turnGlyphMm(glyph.turn) : glyph.arrowFrom.box;
+}
+
+/** How tall glyphs standing in one place are, one above another, each clear of the next. */
+function stackHeight(glyphs: readonly BetweenGlyph[]): number {
+  return glyphs.reduce((sum, glyph) => sum + glyphMm(glyph).h, 0) + (glyphs.length - 1) * TURN_STACK_CLEAR_MM;
 }
 
 /** One run of a set line: a font and its text, placed from the line's start. */
@@ -206,9 +238,14 @@ export interface LayoutStep {
    * the same two parts (`sides`; across, `width` is the frame's and the left
    * and right sides' growth together, `marks` their pt parts) — absent, its
    * marks are taken as even on both sides. Null for a step with no picture.
+   *
+   * An enlarged step's picture is its window (`zoom`): its frame the
+   * content box — the window, or for a cut frame the paper inside it and the
+   * boundary's pieces — in the window's units, its longer side one, its marks
+   * as any picture's; drawn at the window's printed longer side, in mm.
    */
   picture: {
-    kind: 'paper' | 'fit';
+    kind: 'paper' | 'fit' | 'zoom';
     width: number;
     height: number;
     frame: { width: number; height: number };
@@ -231,6 +268,53 @@ export interface LayoutStep {
   turnsBefore: readonly LayoutTurn[];
   /** The turns after the last step; empty on every other. */
   turnsAfter: readonly LayoutTurn[];
+  /** What sizes an enlarged step (Revision 2); absent on every other. */
+  zoom?: LayoutZoom;
+  /**
+   * An enlarged step with no window to show yet — seeded by Insert Step
+   * After, before its first picture lands its frame (Revision 2): it joins no
+   * run of enlarged steps and parts none ({@link zoomScales}), and no arrow
+   * prints before it. Absent on every other.
+   */
+  zoomPending?: true;
+}
+
+/**
+ * The enlarge area an arrow leaves: on which step, which area there, and its
+ * longer side in that step's picture units; and the box the arrow prints in,
+ * mm, as its outline paints it (`enlargeArrowMm`), which this module, laying
+ * out and never painting, is handed.
+ */
+export interface LayoutZoomArea {
+  stepId: string;
+  areaId: string;
+  share: number;
+  box: { w: number; h: number };
+}
+
+/**
+ * What the layout needs of an enlarged step (Revision 2) to size it against
+ * the area it enlarges, all derived from the document and never stored.
+ */
+export interface LayoutZoom {
+  /**
+   * The area the enlarge arrow before it leaves, when the step before it
+   * shows one (`zoomIndex`); null where no arrow prints. What its size is
+   * measured against.
+   */
+  arrowFrom: LayoutZoomArea | null;
+  /** Its frame's longer side, in its whole picture's units. */
+  frameShare: number;
+  /** Its window's longer side, in its whole picture's units: one of the units it is laid out in. */
+  windowShare: number;
+  /**
+   * Its whole picture, as the steps round it print theirs: by its pattern
+   * units across its longer side when it knows its paper, else fitted. How
+   * large its frame would print among them, with no arrow before it.
+   */
+  whole: { kind: 'paper'; units: number } | { kind: 'fit' };
+  /** Its Size: so many times the area as it prints; null for Fill. */
+  scale: number | null;
 }
 
 /**
@@ -273,12 +357,20 @@ export interface LayoutCell {
   mmPerUnit: number | null;
   /**
    * The longer side a picture with no paper is drawn at, in mm, as its run
-   * keeps it ({@link scaleRuns}). Null for a paper picture, and for a step
-   * with no picture.
+   * keeps it ({@link scaleRuns}) — an enlarged step's window's
+   * ({@link zoomScales}). Null for a paper picture, and for a step with no
+   * picture.
    */
   frameMm: number | null;
   /** The picture drawn smaller than its scale's run: its box gave room to text, or it reached too far. */
   scaleReduced: boolean;
+  /**
+   * An enlarged step's size against the area it enlarges (Revision 2): the
+   * Size asked for (null for Fill), how many times the area it prints at, and
+   * whether its room made it smaller than its run asked. Absent on a step that
+   * is not enlarged, or one whose area's size is not known.
+   */
+  zoom?: { asked: number | null; printed: number; reduced: boolean };
   numberAt: { x: number; y: number };
   text: { x: number; firstBaseline: number; widthMm: number; lines: SetLine[] };
   /** The instruction did not fit even with the picture at its floor: it ends in "…". */
@@ -305,7 +397,26 @@ export interface LayoutPage {
     beforeStepId: string | null;
     rightToLeft: boolean;
   })[];
+  /**
+   * The enlarge arrows on the page (Revision 2), in order: each placed as a
+   * turn's glyph would be before its enlarged step, after any turns there;
+   * the area it leaves; whether it reads right to left; and whether it
+   * stands alone in the gutter of a row it shares with the area's step, where
+   * the page lifts it to the area's height (`composeDiagramPage`).
+   */
+  zoomArrows: LayoutZoomArrow[];
   pageNumberAt: { x: number; y: number; anchor: 'start' | 'end' } | null;
+}
+
+/** An enlarge arrow as the layout places it ({@link LayoutPage.zoomArrows}). */
+export interface LayoutZoomArrow {
+  at: { x: number; y: number };
+  box: { w: number; h: number };
+  beforeStepId: string;
+  areaStepId: string;
+  areaId: string;
+  rightToLeft: boolean;
+  liftable: boolean;
 }
 
 export interface DiagramPagesLayout {
@@ -807,7 +918,10 @@ export function layoutDiagramPages(
   const headH = showTitle ? HEADER_MM : 0;
   const { w: cellW, h: cellH } = pageCellMm(setup, title);
   const bandWidthMm = pathWidthMm(setup, { w: cellW, h: cellH });
-  const turning = steps.some((step) => step.turnsBefore.length > 0 || step.turnsAfter.length > 0);
+  // An enlarge arrow stands where a turn would, and keeps the gutter a turn keeps.
+  const turning = steps.some(
+    (step) => step.turnsBefore.length > 0 || step.turnsAfter.length > 0 || Boolean(step.zoom?.arrowFrom)
+  );
   // A turn at a row's end prints in the half gutter outside the outer picture,
   // which a narrow margin cannot give: the boxes give up what it lacks.
   const outerShortfall = turning ? Math.max(0, TURN_GUTTER_MM / 2 - m) : 0;
@@ -862,10 +976,11 @@ export function layoutDiagramPages(
   const slotBottom = (entries: readonly { step: LayoutStep }[], k: number, plan: FlowPagePlan) => {
     const own = cellFoot(plan, k);
     const after = plan.up ? k : k + 1;
-    const turns = after > 0 ? (entries[after]?.step.turnsBefore ?? []) : [];
-    if (!flow || turns.length === 0 || after % setup.columns !== 0) return own;
+    const next = after > 0 ? entries[after]?.step : undefined;
+    const glyphs = next ? glyphsBefore(next) : [];
+    if (!flow || glyphs.length === 0 || after % setup.columns !== 0) return own;
     const under = plan.up ? after - 1 : after;
-    const room = stackHeight(turns) + 2 * TURN_STACK_CLEAR_MM;
+    const room = stackHeight(glyphs) + 2 * TURN_STACK_CLEAR_MM;
     return Math.min(own, cellAt(plan, under).y + STEP_NUMBER_TOP_MM - room - TEXT_DESCENT_MM);
   };
   const firstBaselineOf = (cellTop: number, box: number) => cellTop + PICTURE_TOP_MM + box + TEXT_GAP_MM;
@@ -924,7 +1039,9 @@ export function layoutDiagramPages(
   const scales = new Map<Placed, { mmPerUnit: number | null; frameMm: number | null; reduced: boolean }>();
   const all = placedPages.flat();
   // The paper in runs, by the mm per document unit; pictures with no paper
-  // the same way by their frames, a run of their own.
+  // the same way by their frames, a run of their own. An enlarged step's
+  // window is neither: no run takes it, or a lone enlargement would join its
+  // neighbours' run and change their size.
   for (const kind of ['paper', 'fit'] as const) {
     const pictures = all.flatMap((placed) => {
       const fit = placed.step.picture?.kind === kind ? fitOf(placed) : null;
@@ -938,6 +1055,8 @@ export function layoutDiagramPages(
       });
     });
   }
+  // Then the enlarged steps, every other scale known: an area's step may be on an earlier page, or after.
+  const zoomed = zoomScales(all, fitOf, scales, fullBox);
 
   const cellPages: LayoutCell[][] = placedPages.map((placed) =>
     placed.map((entry) => {
@@ -958,6 +1077,7 @@ export function layoutDiagramPages(
         mmPerUnit: scale?.mmPerUnit ?? null,
         frameMm: scale?.frameMm ?? null,
         scaleReduced: scale?.reduced ?? false,
+        ...(zoomed.has(entry) ? { zoom: zoomed.get(entry)! } : {}),
         numberAt: { x: x + STEP_NUMBER_INSET_MM, y: y + STEP_NUMBER_BASELINE_MM },
         text: {
           x: x + cellW * 0.1,
@@ -1014,7 +1134,15 @@ export function layoutDiagramPages(
           })
         : null;
     const band = setup.showPath ? (lane?.lane ?? null) : null;
-    const turns = placeTurns(placed.map(({ step }) => step), cells, setup.columns, flow ? plan : null, lane, W, bandWidthMm / 2);
+    const { turns, zoomArrows } = placeTurns(
+      placed.map(({ step }) => step),
+      cells,
+      setup.columns,
+      flow ? plan : null,
+      lane,
+      W,
+      bandWidthMm / 2
+    );
     const right = plan.side === 'right';
     return {
       number,
@@ -1022,6 +1150,7 @@ export function layoutDiagramPages(
       cells,
       band,
       turns,
+      zoomArrows,
       pageNumberAt: setup.pageNumbers.enabled
         ? { x: right ? W - m : m, y: H - m - PAGE_NUMBER_RAISE_MM, anchor: right ? 'end' : 'start' }
         : null,
@@ -1053,6 +1182,116 @@ export function layoutDiagramPages(
   };
 }
 
+/**
+ * The size each enlarged step prints at (Revision 2, Z4), every other
+ * picture's scale known (`scales`, which this adds the enlarged steps to):
+ * in runs of their own — an enlarged step and those directly after it, up to
+ * one that is not enlarged, one with an arrow before it, or one asking for
+ * another Size, passing over one with no window yet — each run measured
+ * against the area it enlarges as that prints (`areaMm`): the area's longer
+ * side at its step's printed frame when
+ * an arrow leaves it, else the run's first frame as its whole picture would
+ * print among the steps round it.
+ *
+ * - **Fill**: the run's frames print at one size, the largest every one of
+ *   them fits its room at, held to 1–6 times the area.
+ * - **Size**: that many times the area, held the same.
+ *
+ * A step its room cannot hold at its run's size — a long instruction took
+ * it — is drawn smaller, alone, and says so. A frame that is turned is
+ * smaller than its window, which is what the step is laid out in. What each
+ * prints at against its area is the read-out, by step; a run whose area's
+ * size is not known fills its room, and has none.
+ */
+function zoomScales<T extends { step: LayoutStep }>(
+  all: readonly T[],
+  fitOf: (item: T) => ScaleFit | null,
+  scales: Map<T, { mmPerUnit: number | null; frameMm: number | null; reduced: boolean }>,
+  boxMm: number
+): Map<T, NonNullable<LayoutCell['zoom']>> {
+  const read = new Map<T, NonNullable<LayoutCell['zoom']>>();
+  const byId = new Map(all.map((item) => [item.step.id, item]));
+  /** The longer side `item`'s picture frame prints at, mm, at the scale it was given: an enlarged step's, its window's. */
+  const printedFrame = (item: T): number | null => {
+    const scale = scales.get(item);
+    const picture = item.step.picture;
+    if (!scale || !picture) return null;
+    return scale.mmPerUnit !== null ? scale.mmPerUnit * Math.max(picture.frame.width, picture.frame.height) : scale.frameMm;
+  };
+  /**
+   * How large `at`'s frame would print with no area to measure it by: its
+   * share of its whole picture, at the scale the nearest step of its whole
+   * picture's kind prints at — before it, else after — or, with none, its
+   * whole picture filling the square box.
+   */
+  const amongNeighbours = (at: number): number => {
+    const zoom = all[at]!.step.zoom!;
+    const { kind } = zoom.whole;
+    const nearest = (from: number, by: number): number | null => {
+      for (let index = from; index >= 0 && index < all.length; index += by) {
+        const other = all[index]!;
+        if (other.step.zoom || other.step.picture?.kind !== kind) continue;
+        const scale = scales.get(other);
+        const value = kind === 'paper' ? scale?.mmPerUnit : scale?.frameMm;
+        if (value !== null && value !== undefined && value > 0) return value;
+      }
+      return null;
+    };
+    const neighbour = nearest(at - 1, -1) ?? nearest(at + 1, 1);
+    const whole = neighbour === null ? boxMm : zoom.whole.kind === 'paper' ? neighbour * zoom.whole.units : neighbour;
+    return zoom.frameShare * whole;
+  };
+  /** A step's frame's longer side as a share of its window's: one but for a turned rectangle. */
+  const frameInWindow = (item: T) => {
+    const { frameShare, windowShare } = item.step.zoom!;
+    return windowShare > 0 && frameShare > 0 ? frameShare / windowShare : 1;
+  };
+
+  const runs: number[][] = [];
+  let current: number[] | null = null;
+  all.forEach(({ step }, at) => {
+    // An enlarged step with no window yet, or no picture, is in no run, and parts none.
+    if (step.zoomPending) return;
+    if (!step.zoom) {
+      current = null;
+      return;
+    }
+    if (step.picture?.kind !== 'zoom') return;
+    const first = current ? all[current[0]!]!.step.zoom : undefined;
+    if (current && first && !step.zoom.arrowFrom && first.scale === step.zoom.scale) current.push(at);
+    else runs.push((current = [at]));
+  });
+
+  for (const run of runs) {
+    const first = all[run[0]!]!;
+    const zoom = first.step.zoom!;
+    const area = zoom.arrowFrom ? byId.get(zoom.arrowFrom.stepId) : undefined;
+    const areaFrame = area ? printedFrame(area) : null;
+    const areaMm = zoom.arrowFrom && areaFrame !== null ? zoom.arrowFrom.share * areaFrame : amongNeighbours(run[0]!);
+    const known = Number.isFinite(areaMm) && areaMm > 0;
+    const fits = run.map((at) => fitOf(all[at]!));
+    const [least, most] = [ZOOM_FILL.min * areaMm, ZOOM_FILL.max * areaMm];
+    const held = (mm: number) => (known ? Math.min(most, Math.max(least, mm)) : mm);
+    // The printed frame the run asks for: its Size times the area, or the most every one of its frames' rooms holds.
+    const frameMm =
+      zoom.scale !== null && known
+        ? held(zoom.scale * areaMm)
+        : held(Math.min(...run.map((at, n) => (fits[n] ? fits[n]!.shared * frameInWindow(all[at]!) : Infinity))));
+    if (!(frameMm > 0) || !Number.isFinite(frameMm)) continue;
+    run.forEach((at, n) => {
+      const item = all[at]!;
+      const fit = fits[n];
+      if (!fit) return;
+      const window = frameMm / frameInWindow(item);
+      const drawn = Math.min(window, fit.own);
+      const reduced = drawn < window * (1 - 1e-9);
+      scales.set(item, { mmPerUnit: null, frameMm: drawn, reduced });
+      if (known) read.set(item, { asked: item.step.zoom!.scale, printed: (drawn * frameInWindow(item)) / areaMm, reduced });
+    });
+  }
+  return read;
+}
+
 /** The middle of a picture as drawn, which a tall one has lower than its box's: where the lane passes behind it. */
 function laneCentre(cell: LayoutCell): { x: number; y: number } {
   return { x: cell.pictureMm.x + cell.pictureMm.size / 2, y: cell.drawMm.y + cell.drawMm.h / 2 };
@@ -1069,6 +1308,11 @@ function laneCentre(cell: LayoutCell): { x: number; y: number } {
  * side; after the last picture, at its trailing edge. Several in one place
  * stand one above another, each glyph clear of the next, the stack centred on
  * the place. Kept on the paper.
+ *
+ * An enlarge arrow (Revision 2) takes the same places, standing after the
+ * turns before its step: a turn's places are the arrow's, so the two agree
+ * however D22 places them. Alone in a row's gutter, beside the area's step,
+ * it is `liftable`.
  */
 function placeTurns(
   steps: readonly LayoutStep[],
@@ -1078,8 +1322,9 @@ function placeTurns(
   lane: ReturnType<typeof flowLane>,
   pageWidth: number,
   halfWidth: number
-): LayoutPage['turns'] {
+): Pick<LayoutPage, 'turns' | 'zoomArrows'> {
   const placed: LayoutPage['turns'] = [];
+  const zoomArrows: LayoutZoomArrow[] = [];
   const rowOf = (k: number) => Math.floor(k / columns);
   const backwards = (k: number) => plan !== null && rowRightToLeft(plan, rowOf(k));
   const centre = laneCentre;
@@ -1096,40 +1341,68 @@ function placeTurns(
     const x = left ? cell.pictureMm.x - gutter / 2 : cell.pictureMm.x + cell.pictureMm.size + gutter / 2;
     return { x, y: centre(cell).y };
   };
-  /** `turns` stood at `at`, in the row of the `k`th picture, which they go the way of. */
-  const stack = (turns: readonly LayoutTurn[], at: { x: number; y: number }, k: number, beforeStepId: string | null) => {
+  /** `glyphs` stood at `at`, in the row of the `k`th picture, which they go the way of. */
+  const stack = (
+    glyphs: readonly BetweenGlyph[],
+    at: { x: number; y: number },
+    k: number,
+    beforeStepId: string | null,
+    shared = false
+  ) => {
     const x = Math.min(pageWidth - TURN_GUTTER_MM / 2, Math.max(TURN_GUTTER_MM / 2, at.x));
-    const boxes = turns.map((turn) => turnGlyphMm(turn.turn));
-    let top = at.y - stackHeight(turns) / 2;
-    turns.forEach((turn, n) => {
-      const box = boxes[n]!;
-      placed.push({ ...turn, at: { x, y: top + box.h / 2 }, box, beforeStepId, rightToLeft: backwards(k) });
+    let top = at.y - stackHeight(glyphs) / 2;
+    for (const glyph of glyphs) {
+      const box = glyphMm(glyph);
+      const middle = { x, y: top + box.h / 2 };
+      if (glyph.kind === 'turn') {
+        const { kind: _kind, ...turn } = glyph;
+        placed.push({ ...turn, at: middle, box, beforeStepId, rightToLeft: backwards(k) });
+      } else if (beforeStepId !== null) {
+        zoomArrows.push({
+          at: middle,
+          box,
+          beforeStepId,
+          areaStepId: glyph.arrowFrom.stepId,
+          areaId: glyph.arrowFrom.areaId,
+          rightToLeft: backwards(k),
+          // Alone between the area's step and its own on one row: the page lifts it to the area.
+          liftable: shared && glyphs.length === 1 && cells[k - 1]?.stepId === glyph.arrowFrom.stepId,
+        });
+      }
       top += box.h + TURN_STACK_CLEAR_MM;
-    });
+    }
   };
   steps.forEach((step, k) => {
-    if (step.turnsBefore.length > 0) {
+    const before = glyphsBefore(step);
+    if (before.length > 0) {
       if (k > 0 && rowOf(k - 1) === rowOf(k)) {
         const a = centre(cells[k - 1]!);
         const b = centre(cells[k]!);
         const facing = (edge(k - 1, false).x + edge(k, true).x) / 2;
-        stack(step.turnsBefore, { x: facing, y: (a.y + b.y) / 2 }, k, step.id);
+        stack(before, { x: facing, y: (a.y + b.y) / 2 }, k, step.id, true);
       } else if (k > 0 && plan) {
         // In the gap between the two rows, under the upper step's words and
         // over the lower one's number, where the lane crosses it.
-        const [before, next] = [cells[k - 1]!, cells[k]!];
-        const [upper, lower] = before.cellMm.y < next.cellMm.y ? [before, next] : [next, before];
+        const [previous, next] = [cells[k - 1]!, cells[k]!];
+        const [upper, lower] = previous.cellMm.y < next.cellMm.y ? [previous, next] : [next, previous];
         const y = (foot(upper) + lower.cellMm.y + STEP_NUMBER_TOP_MM) / 2;
         const bend = lane?.bends.get(k);
         const onLane = lane && bend !== undefined ? bendXAt(lane.lane, bend, y) : null;
-        const reach = bendReach(before.cellMm.w, Math.abs(centre(next).y - centre(before).y) / 2, halfWidth);
-        const x = onLane ?? centre(before).x + (backwards(k - 1) ? -1 : 1) * reach;
-        stack(step.turnsBefore, { x, y }, k, step.id);
+        const reach = bendReach(previous.cellMm.w, Math.abs(centre(next).y - centre(previous).y) / 2, halfWidth);
+        const x = onLane ?? centre(previous).x + (backwards(k - 1) ? -1 : 1) * reach;
+        stack(before, { x, y }, k, step.id);
       } else {
-        stack(step.turnsBefore, edge(k, true), k, step.id);
+        stack(before, edge(k, true), k, step.id);
       }
     }
-    if (step.turnsAfter.length > 0) stack(step.turnsAfter, edge(k, false), k, null);
+    if (step.turnsAfter.length > 0) {
+      stack(
+        step.turnsAfter.map((turn): BetweenGlyph => ({ kind: 'turn', ...turn })),
+        edge(k, false),
+        k,
+        null
+      );
+    }
   });
-  return placed;
+  return { turns: placed, zoomArrows };
 }

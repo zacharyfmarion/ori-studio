@@ -135,6 +135,7 @@
     "uploadPictureTitle": "그림 업로드"
   },
   "diagramExport": {
+    "arrowsLeftOut": "확대 화살표는 페이지에만 인쇄되며 단계별 파일에는 들어가지 않습니다.",
     "bleedNote": "재단 여백 {{bleed}}mm 포함",
     "confirmPdf": "PDF 내보내기",
     "confirmSvg": "SVG 내보내기",
@@ -206,6 +207,7 @@
     "textHelp": "직접 쓰는 레이아웃 앱에서 글을 앉히려면 끈 채로 두세요.",
     "title": "도해 내보내기",
     "transparent": "투명 배경",
+    "turnsAndArrowsLeftOut": "뒤집기·회전과 확대 화살표는 페이지에만 인쇄되며 단계별 파일에는 들어가지 않습니다.",
     "turnsLeftOut_other": "단계 사이의 뒤집기·회전 {{count}}개는 페이지에 인쇄되지만 단계별 파일에는 들어가지 않습니다.",
     "width": "너비",
     "writingPdf": "PDF 만드는 중…"

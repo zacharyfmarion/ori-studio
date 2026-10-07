@@ -42,6 +42,8 @@ import { DiagramHeader } from '../diagram/DiagramHeader';
 import { DiagramPagesView } from '../diagram/DiagramPagesView';
 import { useReferencesStepWays } from '../../diagram/references/useReferencesStepWays';
 import { usePublishPrintedFrames } from '../../diagram/pages/printedFrames';
+import { useZoomSplitNotice } from '../../diagram/pages/useZoomSplitNotice';
+import { openEnlargeArea } from '../../diagram/zoom/openEnlargeArea';
 import { DiagramStepDetail } from '../diagram/DiagramStepDetail';
 import { DiagramStepsGrid } from '../diagram/DiagramStepsGrid';
 import { ContextMenu } from '../ui/ContextMenu';
@@ -62,6 +64,7 @@ function cutStepIds(pages: PreparedDiagramPages | null): ReadonlySet<string> {
 const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 const openOnDoubleClick = (stepId: string) => void openDiagramStep(stepId, 'double_click');
+const openAreaOnDoubleClick = (stepId: string, areaId: string) => void openEnlargeArea(stepId, areaId);
 const openFromCard = (stepId: string, mode: 'pose' | 'annotate') => void openDiagramStep(stepId, 'card', mode);
 /** With no crease pattern open, the way to one: Edit, to open or draw it (D12). */
 const goToEdit = () => void handleMenuAction('view.edit');
@@ -151,6 +154,8 @@ export function DiagramPanel() {
   const textCut = useMemo(() => cutStepIds(pages.pages), [pages.pages]);
   // And the size each step prints at, for the Layers pane's warnings (Revision 2).
   usePublishPrintedFrames(pages.pages, pages.of);
+  // An enlarged step on the page after its area, said over the pages (Revision 2).
+  const zoomSplitNotice = useZoomSplitNotice(view === 'pages' ? pages.pages : null, pages.of);
 
   const detailIndex =
     detail !== null && selectedStepId !== null
@@ -245,6 +250,11 @@ export function DiagramPanel() {
           </Notice>
         </div>
       )}
+      {zoomSplitNotice && steps.length > 0 && (
+        <div className={styles.notice}>
+          <Notice>{zoomSplitNotice}</Notice>
+        </div>
+      )}
       <div className="panel-body" onContextMenu={entries.length > 0 ? menu.onContextMenu : undefined}>
         {steps.length > 0 && view === 'pages' ? (
           <DiagramPagesView
@@ -256,6 +266,7 @@ export function DiagramPanel() {
             fitKey={`${diagram?.id ?? ''}:${page.size}:${page.orientation}`}
             onSelect={selectStep}
             onOpen={openOnDoubleClick}
+            onOpenArea={openAreaOnDoubleClick}
             onPageClick={revealPagePane}
           />
         ) : entries.length === 0 ? (

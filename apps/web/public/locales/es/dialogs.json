@@ -139,6 +139,7 @@
     "uploadPictureTitle": "Subir imagen"
   },
   "diagramExport": {
+    "arrowsLeftOut": "Las flechas de ampliación solo se imprimen en las páginas; los archivos de pasos las omiten.",
     "bleedNote": "con {{bleed}} mm de sangrado",
     "confirmPdf": "Exportar PDF",
     "confirmSvg": "Exportar SVG",
@@ -218,6 +219,7 @@
     "textHelp": "Déjalo desactivado para componer el texto en tu propia app de maquetación.",
     "title": "Exportar el diagrama",
     "transparent": "Fondo transparente",
+    "turnsAndArrowsLeftOut": "Las vueltas y las flechas de ampliación solo se imprimen en las páginas; los archivos de pasos las omiten.",
     "turnsLeftOut_one": "La vuelta entre pasos se imprime en las páginas; los archivos de pasos la omiten.",
     "turnsLeftOut_many": "Las {{count}} vueltas entre pasos se imprimen en las páginas; los archivos de pasos las omiten.",
     "turnsLeftOut_other": "Las {{count}} vueltas entre pasos se imprimen en las páginas; los archivos de pasos las omiten.",

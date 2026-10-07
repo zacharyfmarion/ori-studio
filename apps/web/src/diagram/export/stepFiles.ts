@@ -16,6 +16,12 @@
  * A step with no picture has no file. Each file embeds the faces it sets, cut
  * to what it sets, so it opens anywhere as it looks here.
  *
+ * An enlarged step (Revision 2) is its window, framed alone: as large as its
+ * file's box holds, at most six times the area it enlarges as that area's
+ * file draws it, or its Size times that — never smaller than the area, but
+ * where the box cannot hold even that. No enlarge arrow: files are steps,
+ * not the gutters between them.
+ *
  * Pure: no DOM, no store.
  */
 import { PT_PER_MM, type PaperSvgResult } from '../../lib/paper/paperSvg';
@@ -25,7 +31,15 @@ import { embeddedFontFaces } from '../fonts/fontEmbedding';
 import type { FontSubsetter } from '../fonts/fontSubset';
 import { stepPictureSource } from '../pictures/paintDiagramStep';
 import { stepNumberElement, stepTextElement, svgDocument } from '../pages/composeDiagramPage';
-import { STEP_NUMBER_SIZE_MM, STEP_TEXT_LEADING_MM, STEP_TEXT_SIZE_MM, pictureFit, type SetLine } from '../pages/diagramPageLayout';
+import {
+  STEP_NUMBER_SIZE_MM,
+  STEP_TEXT_LEADING_MM,
+  STEP_TEXT_SIZE_MM,
+  ZOOM_FILL,
+  pictureFit,
+  type LayoutStep,
+  type SetLine,
+} from '../pages/diagramPageLayout';
 import {
   diagramLabelTexts,
   diagramLayoutSteps,
@@ -34,7 +48,7 @@ import {
   MEASURE_SETTLED,
 } from '../pages/diagramPages';
 import { fontTextSetter } from '../pages/fontTextSetter';
-import { cellPicture, layoutPicture } from '../pages/pagePictures';
+import { cellPicture, layoutPicture, printedFrameMm } from '../pages/pagePictures';
 import {
   ASCENT_EM,
   CROPPED_TEXT_MIN_WIDTH_MM,
@@ -48,7 +62,7 @@ import {
   textSlotMm,
   type StepFileOptions,
 } from './stepFileGeometry';
-import { stepsOf } from '../document/diagramDocument';
+import { stepsOf, type DiagramStep } from '../document/diagramDocument';
 
 export { STEP_FILE_MM_RANGE, STEP_FILE_TEXT_LINES, stepFileMinHeightMm, type StepFileOptions } from './stepFileGeometry';
 
@@ -131,6 +145,49 @@ function sharedScale(
   return scale;
 }
 
+/**
+ * The longer side, mm, an enlarged step's window is drawn at in its file:
+ * the largest its box holds its content and marks at, held to 1–6 times the
+ * area it enlarges as the area's own file draws it (the arrow's area, or with
+ * none its frame as its whole picture would draw), or its Size times that,
+ * no larger than the box holds. Null for a step that is not enlarged.
+ */
+export function zoomFileFrameMm(
+  document: DiagramDocument,
+  laidOut: LayoutStep,
+  step: DiagramStep,
+  box: { x: number; y: number; size: number },
+  mmPerUnit: number | null,
+  layoutSteps: readonly LayoutStep[]
+): number | null {
+  const { zoom } = laidOut;
+  if (!zoom || laidOut.picture?.kind !== 'zoom') return null;
+  const measured = (scale: number | null) =>
+    layoutPicture(step, document.assets, document.style, scale === null ? null : { frameMm: scale });
+  const fit = largestHeld((scale) => pictureFit(measured(scale), box.size, box.size));
+  if (fit === null || !(fit > 0)) return null;
+  // The area as its file draws it: its share of its step's frame there.
+  const areaStep = zoom.arrowFrom ? stepsOf(document).find((each) => each.id === zoom.arrowFrom!.stepId) : undefined;
+  const areaPaper = layoutSteps.find((each) => each.id === areaStep?.id)?.picture?.kind === 'paper';
+  const areaFrame = areaStep
+    ? printedFrameMm(areaStep, document.assets, document.style, {
+        pictureMm: box,
+        mmPerUnit: areaPaper ? mmPerUnit : null,
+        frameMm: null,
+      })
+    : null;
+  const areaMm =
+    zoom.arrowFrom && areaFrame !== null
+      ? zoom.arrowFrom.share * areaFrame
+      : zoom.frameShare * (zoom.whole.kind === 'paper' && mmPerUnit !== null ? zoom.whole.units * mmPerUnit : box.size);
+  if (!(areaMm > 0) || !Number.isFinite(areaMm)) return fit;
+  // A turned frame is smaller than its window, which is what the file draws.
+  const inWindow = zoom.windowShare > 0 && zoom.frameShare > 0 ? zoom.frameShare / zoom.windowShare : 1;
+  const held = (mm: number) => Math.min(ZOOM_FILL.max * areaMm, Math.max(ZOOM_FILL.min * areaMm, mm));
+  const frame = zoom.scale !== null ? held(zoom.scale * areaMm) : held(fit * inWindow);
+  return Math.min(frame / inWindow, fit);
+}
+
 export function prepareStepFiles(
   document: DiagramDocument,
   fonts: DiagramFonts,
@@ -203,12 +260,14 @@ export function prepareStepFiles(
         for (const character of text) characters.add(character);
         usage.set(face, characters);
       };
-      const paper = layoutSteps[file.index]?.picture?.kind === 'paper';
+      const laidOut = layoutSteps[file.index];
+      const paper = laidOut?.picture?.kind === 'paper';
+      const zoomFrame = laidOut ? zoomFileFrameMm(document, laidOut, step, box, scale, layoutSteps) : null;
       const picture = cellPicture(
         step,
         document.assets,
         document.style,
-        { pictureMm: box, mmPerUnit: paper ? scale : null, frameMm: null },
+        { pictureMm: box, mmPerUnit: paper ? scale : null, frameMm: zoomFrame },
         's-',
         { hanStyle: document.hanStyle, runs: setter.runs }
       );

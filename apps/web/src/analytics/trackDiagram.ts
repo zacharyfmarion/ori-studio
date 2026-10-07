@@ -257,13 +257,14 @@ export interface DiagramStepFilesExported {
  * The diagram written out: a PDF for home or a print shop, the pages as one
  * SVG (no options: `how` is null), or a ZIP of its steps' files and how they
  * were made. `files` is the PDF's or the SVG's pages or the ZIP's files,
- * `steps` the diagram's steps and `empty` those with no picture, all
- * bucketed. Enums and buckets only: never the title, a step or a size.
+ * `steps` the diagram's steps, `empty` those with no picture and `enlarged`
+ * those enlarged (Revision 2), all bucketed. Enums and buckets only: never
+ * the title, a step or a size.
  */
 export function trackDiagramExported(
   format: DiagramExportFormat,
   how: { preset: DiagramPdfPreset } | DiagramStepFilesExported | null,
-  counts: { files: number; steps: number; empty: number }
+  counts: { files: number; steps: number; empty: number; enlarged: number }
 ): void {
   const shown = (value: boolean) => (value ? 'shown' : 'hidden');
   track(ANALYTICS_EVENTS.diagramExported, {
@@ -283,5 +284,7 @@ export function trackDiagramExported(
     file_count_bucket: bucketCount(counts.files, DIAGRAM_PAGE_COUNT_BUCKETS),
     step_count_bucket: bucketCount(counts.steps, COUNT_BUCKETS),
     empty_step_bucket: bucketCount(counts.empty, DIAGRAM_EMPTY_STEP_BUCKETS),
+    // The same ladder: none, one, a few, many.
+    enlarged_step_bucket: bucketCount(counts.enlarged, DIAGRAM_EMPTY_STEP_BUCKETS),
   });
 }

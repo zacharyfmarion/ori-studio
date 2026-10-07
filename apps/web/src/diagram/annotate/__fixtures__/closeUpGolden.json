@@ -9,6 +9,12 @@
         "width": 170.07874015748038,
         "height": 110.05483235966474
       },
+      "framePt": {
+        "x": 28.721456692913378,
+        "y": 87.07986728473458,
+        "width": 109.30483235966474,
+        "height": 109.30483235966474
+      },
       "text": []
     },
     "canvas": "<g><g data-close-up-insides=\"\"><g data-close-up-inside=\"zoom\"><clipPath id=\"close-up-_R_1_-0\"><circle cx=\"255.1181102362205\" cy=\"94.48818897637796\" r=\"37.795275590551185\"></circle></clipPath><g clip-path=\"url(#close-up-_R_1_-0)\"><circle cx=\"255.1181102362205\" cy=\"94.48818897637796\" r=\"37.795275590551185\" fill=\"#ffffff\"></circle><image href=\"data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyODkuMTNwdCIgaGVpZ2h0PSIyODkuMTNwdCIgdmlld0JveD0iMCAwIDI4OS4xMyAyODkuMTMiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0iRm9sZGVkIHBhcGVyIj4KICA8ZyBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICA8cGF0aCBkPSJNMi44MywyLjgzTDI4Ni4zMCwyLjgzTDI4Ni4zMCwyODYuMzBMMi44MywyODYuMzBaIiBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMC40MCIvPgogIDxsaW5lIHgxPSI0LjI1IiB5MT0iMTQ0LjU3IiB4Mj0iMjg0Ljg4IiB5Mj0iMTQ0LjU3IiBzdHJva2U9IiMyMzFmMjAiIHN0cm9rZS13aWR0aD0iMC4yNSIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiLz4KICA8L2c+Cjwvc3ZnPg==\" x=\"62.36220472440947\" y=\"-98.26771653543307\" width=\"385.5118110236221\" height=\"385.5118110236221\" preserveAspectRatio=\"none\"></image><g transform=\"translate(66.14173228346459 -94.48818897637796)\"><g stroke-linejoin=\"round\"></g></g></g></g></g><g stroke-linejoin=\"round\"><g data-annotation-id=\"zoom\"><g><circle cx=\"94.488\" cy=\"94.488\" r=\"18.898\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></circle><line x1=\"113.386\" y1=\"94.488\" x2=\"217.323\" y2=\"94.488\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" stroke-linecap=\"round\"></line><circle cx=\"255.118\" cy=\"94.488\" r=\"37.795\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></circle></g></g></g></g>"
@@ -22,6 +28,12 @@
         "y": 56.69126700009717,
         "width": 170.08203292893953,
         "height": 170.0820329289395
+      },
+      "framePt": {
+        "x": 28.7198103071838,
+        "y": 57.06626700009717,
+        "width": 169.33203292893953,
+        "height": 169.33203292893953
       },
       "text": []
     },
@@ -37,6 +49,12 @@
         "width": 119.25199311023627,
         "height": 170.07874015748035
       },
+      "framePt": {
+        "x": 56.91166338582676,
+        "y": 113.44832677165354,
+        "width": 112.94832677165357,
+        "height": 112.94832677165357
+      },
       "text": []
     },
     "canvas": "<g><g data-close-up-insides=\"\"><g data-close-up-inside=\"zoom\"><clipPath id=\"close-up-_R_1_-0\"><circle cx=\"160.62992125984252\" cy=\"-56.69291338582677\" r=\"37.795275590551185\"></circle></clipPath><g clip-path=\"url(#close-up-_R_1_-0)\"><circle cx=\"160.62992125984252\" cy=\"-56.69291338582677\" r=\"37.795275590551185\" fill=\"#ffffff\"></circle><image href=\"data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1NzIuNjBwdCIgaGVpZ2h0PSI1NzIuNjBwdCIgdmlld0JveD0iMCAwIDU3Mi42MCA1NzIuNjAiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0iRm9sZGVkIHBhcGVyIj4KICA8ZyBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICA8cGF0aCBkPSJNMi44MywyLjgzTDU2OS43NiwyLjgzTDU2OS43Niw1NjkuNzZMMi44Myw1NjkuNzZaIiBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMC40MCIvPgogIDxsaW5lIHgxPSI1LjY3IiB5MT0iMjg2LjMwIiB4Mj0iNTY2LjkzIiB5Mj0iMjg2LjMwIiBzdHJva2U9IiMyMzFmMjAiIHN0cm9rZS13aWR0aD0iMC4yNSIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiLz4KICA8L2c+Cjwvc3ZnPg==\" x=\"-485.66929133858264\" y=\"-438.42519685039366\" width=\"763.4645669291339\" height=\"763.4645669291339\" preserveAspectRatio=\"none\"></image><g transform=\"translate(-481.8897637795275 -434.64566929133855)\"><g stroke-linejoin=\"round\"></g></g></g></g></g><g stroke-linejoin=\"round\"><g data-annotation-id=\"zoom\"><g><circle cx=\"160.63\" cy=\"94.488\" r=\"9.449\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></circle><line x1=\"160.63\" y1=\"85.039\" x2=\"160.63\" y2=\"-18.898\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" stroke-linecap=\"round\"></line><circle cx=\"160.63\" cy=\"-56.693\" r=\"37.795\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></circle></g></g></g></g>"
@@ -50,6 +68,12 @@
         "y": 92.95085770528684,
         "width": 170.0787401574803,
         "height": 97.5628515185602
+      },
+      "framePt": {
+        "x": 28.72145669291342,
+        "y": 93.32585770528684,
+        "width": 96.8128515185602,
+        "height": 96.8128515185602
       },
       "text": []
     },

@@ -4,7 +4,14 @@ import { resolve } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDiagram, createStep, createTurn, insertSteps, type DiagramDocument } from '../../diagram/document/diagramDocument';
+import {
+  createDiagram,
+  createStep,
+  createTurn,
+  insertSteps,
+  type DiagramDocument,
+  type KnownDiagramAnnotation,
+} from '../../diagram/document/diagramDocument';
 import { cpStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from '../../diagram/fonts/diagramFontFaces';
 import type { DiagramFonts } from '../../diagram/fonts/diagramFonts';
@@ -69,11 +76,11 @@ afterEach(() => {
 
 function render(
   pages: PreparedDiagramPages,
-  handlers: Partial<Record<'onSelect' | 'onOpen' | 'onPageClick', () => void>> = {},
-  pathColor = pages.layout.bandInk
+  handlers: Partial<Record<'onSelect' | 'onOpen' | 'onOpenArea' | 'onPageClick', () => void>> = {},
+  pathColor = pages.layout.bandInk,
+  document = diagram()
 ) {
-  const document = diagram();
-  const props = { onSelect: vi.fn(), onOpen: vi.fn(), onPageClick: vi.fn(), ...handlers };
+  const props = { onSelect: vi.fn(), onOpen: vi.fn(), onOpenArea: vi.fn(), onPageClick: vi.fn(), ...handlers };
   act(() =>
     root.render(
       <TooltipProvider>
@@ -203,6 +210,37 @@ describe('DiagramPagesView', () => {
     const svg = pages.compose(0).svg;
     expect(svg).not.toContain('No picture yet');
     expect(svg).not.toContain('doesn’t fit');
+  });
+
+  it('puts a target over an enlarge arrow where the page prints it: a press selects the enlarged step, a double press opens the area (Revision 2)', () => {
+    const area: KnownDiagramAnnotation = { id: 'area-1', kind: 'zoom', from: [0.5, 0.4], to: [0.5, 0.4], radius: 0.2 };
+    const document = insertSteps(
+      createDiagram({ title: 'Crane' }),
+      [
+        { ...cpStep('step-area'), annotations: [area] },
+        { ...cpStep('step-enlarged'), zoom: { from: 'area-1', shape: 'circle', frame: { centre: [0.5, 0.4], radius: 0.2 } } },
+      ],
+      0
+    );
+    const pages = preparedPages(document, FONTS, subsetter);
+    const props = render(pages, {}, pages.layout.bandInk, document);
+    // The arrow is no option of the listbox: the keyboard reaches its steps.
+    expect(cells().map((cell) => cell.getAttribute('aria-label'))).toEqual(['Step 1', 'Step 2']);
+    const target = host.querySelector<HTMLElement>('[data-zoom-arrow="step-enlarged"]')!;
+    expect(target.getAttribute('aria-hidden')).toBe('true');
+    const [arrow] = pages.zoomArrows(0);
+    // Over the arrow where it prints, lifted to the area: its own box and the pad round it.
+    const mm = 96 / 25.4;
+    expect(parseFloat(target.style.top)).toBeCloseTo((arrow!.at.y - arrow!.box.h / 2 - 0.75) * mm, 3);
+    expect(parseFloat(target.style.width)).toBeCloseTo((arrow!.box.w + 1.5) * mm, 3);
+    act(() => target.click());
+    expect(props.onSelect).toHaveBeenCalledWith('step-enlarged');
+    act(() => {
+      target.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    });
+    expect(props.onOpenArea).toHaveBeenCalledWith('step-area', 'area-1');
+    expect(props.onOpen).not.toHaveBeenCalled();
+    expect(props.onPageClick).not.toHaveBeenCalled();
   });
 
   it('selects a step on a press, opens it on a double press, and asks about the page elsewhere', () => {

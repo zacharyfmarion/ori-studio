@@ -1056,7 +1056,9 @@
       "previousPage": "Page précédente",
       "step": "Étape {{number}}",
       "stepCut": "Étape {{number}}, le texte ne tient pas",
-      "textCut": "Le texte ne tient pas"
+      "textCut": "Le texte ne tient pas",
+      "zoomSplitStep": "L’étape {{step}} est sur la page qui suit la zone qu’elle agrandit, à l’étape {{area}}. « Commencer une nouvelle page ici » sur l’étape {{area}} les garde ensemble.",
+      "zoomSplitSteps": "Les étapes {{steps}} sont chacune sur la page qui suit la zone qu’elles agrandissent. « Commencer une nouvelle page ici » sur les étapes {{areas}} les garde ensemble."
     },
     "picker": {
       "cancel": "Annuler",

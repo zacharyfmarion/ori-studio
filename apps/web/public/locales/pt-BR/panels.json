@@ -1056,7 +1056,9 @@
       "previousPage": "Página anterior",
       "step": "Passo {{number}}",
       "stepCut": "Passo {{number}}, o texto não cabe",
-      "textCut": "O texto não cabe"
+      "textCut": "O texto não cabe",
+      "zoomSplitStep": "O passo {{step}} está na página seguinte à da área que amplia, no passo {{area}}. “Começar uma nova página aqui” no passo {{area}} mantém os dois juntos.",
+      "zoomSplitSteps": "Os passos {{steps}} estão cada um na página seguinte à da área que ampliam. “Começar uma nova página aqui” nos passos {{areas}} os mantém juntos."
     },
     "picker": {
       "cancel": "Cancelar",

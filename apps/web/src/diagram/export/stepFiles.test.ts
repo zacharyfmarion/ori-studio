@@ -1,16 +1,27 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PT_PER_MM } from '../../lib/paper/paperSvg';
 import { DEFAULT_PAPER_STYLE, PEN_WIDTH_RANGE } from '../../lib/paper/paperStyle';
-import { createDiagram, createStep, createTurn, insertSteps, type DiagramDocument, type DiagramStep } from '../document/diagramDocument';
+import {
+  createDiagram,
+  createStep,
+  createTurn,
+  DEFAULT_DIAGRAM_STYLE,
+  insertSteps,
+  stepsOf,
+  type DiagramDocument,
+  type DiagramStep,
+} from '../document/diagramDocument';
 import { cpStep, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
 import { FIXTURE_FONTS, fixtureSubsetter } from '../fonts/diagramFonts.fixtures';
 import type { FontSubsetter } from '../fonts/fontSubset';
 import { pictureExtent } from '../pages/diagramPageLayout';
-import { cellPicture, layoutPicture } from '../pages/pagePictures';
+import { cellPicture, layoutPicture, printedFrameMm } from '../pages/pagePictures';
+import { diagramLayoutSteps } from '../pages/diagramPages';
+import { paintEnlargeArrow } from '../zoom/enlargeArrow';
 import { estimateTextSetter } from '../pages/estimateTextSetter';
 import { PAD_MM, pictureBoxOf } from './stepFileGeometry';
 import { craneStep } from '../zoom/zoom.fixtures';
-import { prepareStepFiles, stepFileMinHeightMm, STEP_FILE_TEXT_LINES, type StepFileOptions } from './stepFiles';
+import { prepareStepFiles, stepFileMinHeightMm, STEP_FILE_TEXT_LINES, zoomFileFrameMm, type StepFileOptions } from './stepFiles';
 
 let subsetter: FontSubsetter;
 beforeAll(async () => {
@@ -271,5 +282,49 @@ describe('an enlarged step’s file (Revision 2)', () => {
     // Only the paper near the window is drawn into it.
     const faces = (svg: string) => (svg.match(/<path d="M[^"]*Z" fill=/g) ?? []).length;
     expect(faces(window)).toBeLessThan(faces(whole));
+  });
+
+  /** The crane with an area round its head, `share` of its frame across, and the step enlarged from it after it. */
+  function enlargedAfterArea(radius: number, scale?: number) {
+    const crane = craneStep('S.none');
+    const area = { id: 'area-1', kind: 'zoom' as const, from: [0.37, 0.13] as [number, number], to: [0.37, 0.13] as [number, number], radius };
+    const zoom = { from: 'area-1', shape: 'circle' as const, frame: { centre: [0.37, 0.13] as [number, number], radius }, ...(scale ? { scale } : {}) };
+    const key = crane.picture!.key;
+    const document = insertSteps(
+      createDiagram({ title: 'Crane', hanStyle: 'sc' }),
+      [
+        { ...crane, id: 'step-area', annotations: [area], annotatedPictureKey: key },
+        { ...crane, id: 'step-enlarged', zoom, annotatedPictureKey: key },
+      ],
+      0
+    );
+    const files = prepareStepFiles(document, FIXTURE_FONTS, subsetter, SAME);
+    const box = pictureBoxOf(SAME);
+    const [areaStep, enlarged] = stepsOf(document);
+    const layoutSteps = diagramLayoutSteps(document);
+    const areaMm = 2 * radius * printedFrameMm(areaStep!, {}, document.style, { pictureMm: box, mmPerUnit: files.mmPerUnit, frameMm: null })!;
+    const frameMm = zoomFileFrameMm(document, layoutSteps[1]!, enlarged!, box, files.mmPerUnit, layoutSteps)!;
+    return { files, areaMm, frameMm, box };
+  }
+
+  it('fills its file’s box under Fill, at most six times the area as the area’s file draws it, and prints no arrow', () => {
+    // A small area: six times it is less than the box holds.
+    const small = enlargedAfterArea(0.02);
+    expect(small.frameMm).toBeCloseTo(6 * small.areaMm, 6);
+    // A larger one: the box is what holds it, the cut circle's content filling it.
+    const large = enlargedAfterArea(0.13);
+    expect(large.frameMm).toBeLessThan(6 * large.areaMm);
+    expect(large.frameMm).toBeGreaterThan(large.box.size * 0.95);
+    // Files are steps: no arrow between them.
+    const arrow = paintEnlargeArrow({ x: 0, y: 0 }, 1, DEFAULT_DIAGRAM_STYLE)!.markup.match(/<path d="M ([-\d.]+ [-\d.]+)/)![1]!;
+    expect(large.files.compose(1).svg).not.toContain(arrow);
+  });
+
+  it('prints at its Size times the area, no larger than its box', () => {
+    const twice = enlargedAfterArea(0.05, 2);
+    expect(twice.frameMm).toBeCloseTo(2 * twice.areaMm, 6);
+    const six = enlargedAfterArea(0.13, 6);
+    expect(six.frameMm).toBeLessThan(6 * six.areaMm);
+    expect(six.frameMm).toBeLessThanOrEqual(six.box.size * 1.1);
   });
 });
