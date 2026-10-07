@@ -148,6 +148,20 @@ describe('SimulationClock convergence', () => {
     expect(clock.converged).toBe(false);
     expect(clock.runFrame(backend).steps).toBeGreaterThan(0);
   });
+
+  it('steps nothing once told the model is settled, until invalidated', () => {
+    // A restored shape: put back as it was kept, at rest, whatever its velocity reads.
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => 1 });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 1, convergenceTicks: 3, now });
+
+    clock.markSettled();
+    expect(clock.converged).toBe(true);
+    expect(clock.runFrame(backend).steps).toBe(0);
+    expect(clock.runToConvergence(backend).steps).toBe(0);
+
+    clock.invalidate();
+    expect(clock.runFrame(backend).steps).toBeGreaterThan(0);
+  });
 });
 
 describe('SimulationClock blow-up guard', () => {

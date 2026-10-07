@@ -16,11 +16,14 @@ import { createServer, type ViteDevServer } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { POSE_REST_LENGTH_TOLERANCE } from '../src/pull.js';
 
 const HARNESS_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'gpuParityHarness');
 const TIER_C = 1e-3;
 const FOLD_PERCENT = 60;
 const STEP_COUNTS = [1, 10, 100];
+/** How far a restored settled shape may move in 400 steps: the reference's own bound, in `tests/shape.test.ts`. */
+const SHAPE_STILL = 1e-4;
 
 interface GpuParityRow {
   fixture: string;
@@ -42,6 +45,22 @@ interface PullParityRow {
   maxAbs: number;
   heldDrift: number;
   movedCreases?: { reference: number; gpu: number };
+  error?: string;
+}
+
+interface ShapeCheckRow {
+  fixture: string;
+  integrator: 'euler' | 'verlet';
+  vertices: number;
+  creases: number;
+  roundTrip: boolean;
+  positionsMatch: boolean;
+  heldStill?: { free: number; kept: number };
+  sidesKept?: boolean;
+  stretch?: number;
+  readShapeMs: number;
+  writeShapeMs: number;
+  readPositionsMs: number;
   error?: string;
 }
 
@@ -170,6 +189,42 @@ describe('GPU solver parity', () => {
         const label = `${row.fixture} ${row.integrator} ${row.phase}`;
         expect(row.maxAbs, `${label} diverged`).toBeLessThan(TIER_C);
         expect(row.heldDrift, `${label} moved a fixed node`).toBe(0);
+      }
+
+      // Reading the paper's shape and putting it back: exact, still, and
+      // cheap enough to read on every capture.
+      const shapeRows = (await page.evaluate(() =>
+        (window as unknown as { runShapeChecks: () => ShapeCheckRow[] }).runShapeChecks()
+      )) as ShapeCheckRow[];
+      const shapeLines = shapeRows.map(
+        (row) =>
+          `${row.fixture.padEnd(12)} ${row.integrator.padEnd(6)} v=${String(row.vertices).padStart(5)} c=${String(row.creases).padStart(5)} | ` +
+          (row.error
+            ? `ERROR: ${row.error}`
+            : `round trip ${row.roundTrip ? 'exact' : 'DIFFERS'}  positions ${row.positionsMatch ? 'exact' : 'DIFFER'}  ` +
+              (row.heldStill
+                ? `still ${row.heldStill.free.toExponential(1)}/${row.heldStill.kept.toExponential(1)} ` +
+                  `(stretch ${((row.stretch ?? 0) * 100).toFixed(1)}%) sides ${row.sidesKept ? 'kept' : 'FLIPPED'}  `
+                : '') +
+              `readShape ${row.readShapeMs.toFixed(3)} ms  writeShape ${row.writeShapeMs.toFixed(3)} ms  ` +
+              `(readPositions ${row.readPositionsMs.toFixed(3)} ms)`)
+      );
+      process.stdout.write(`shape read and restore:\n${shapeLines.join('\n')}\n\n`);
+      const shaped = shapeRows.filter((row) => !row.error);
+      expect(shaped.length, 'no shape ran on the GPU').toBeGreaterThan(0);
+      for (const row of shaped) {
+        const label = `${row.fixture} ${row.integrator}`;
+        expect(row.roundTrip, `${label} shape did not round-trip`).toBe(true);
+        expect(row.positionsMatch, `${label} restored positions differ`).toBe(true);
+        if (row.heldStill) {
+          expect(row.heldStill.free, `${label} restored shape crept`).toBeLessThan(SHAPE_STILL);
+          // A pose keeps lengths within its tolerance of the sheet's: past it,
+          // keeping settles by the difference, a restore or a pull alike.
+          if ((row.stretch ?? Infinity) < POSE_REST_LENGTH_TOLERANCE) {
+            expect(row.heldStill.kept, `${label} restored pose crept`).toBeLessThan(SHAPE_STILL);
+          }
+          expect(row.sidesKept, `${label} a crease changed side`).toBe(true);
+        }
       }
     } finally {
       await browser?.close();
