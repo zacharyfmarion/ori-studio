@@ -1,7 +1,8 @@
 # Diagram: placing things on the page by hand
 
-**Status: Phase 1 built 2026-10-07 (the model, the file and the clearing, no UI; as-built notes under Phase 1). Phase 1b is next. Decisions 1–6 are DECIDED: all A** (Zach, 2026-10-07: "in this case i agree with all the decision for the diagram page - you can go ahead and start building once the plan is up to date"). The same day he asked for flow pages to take a number of steps instead of rows and columns; that is Phase 1b.
+**Status: Phase 1 built 2026-10-07 (the model, the file and the clearing, no UI; as-built notes under Phase 1). Phase 1b built and gated the same day (flow pages take Steps per page; as-built notes under Phase 1b). Decisions 1–6 are DECIDED: all A** (Zach, 2026-10-07: "in this case i agree with all the decision for the diagram page - you can go ahead and start building once the plan is up to date"). The same day he asked for flow pages to take a number of steps instead of rows and columns; that is Phase 1b. **Decisions 7 and 8 are OPEN**, from Phase 1b's review: the rule that picks a flow page's columns (built as 7A, which gives his 3·3·1), and page 1 starting at its top right.
 Phase 1's review amended four things here, each marked *(amended in Phase 1)*: what a cell is (a page keeps its number or its first step), the frame's vertical part (stored across the rows in reading order), what a flow page's shape reads (Phase 1b), and step files laying out an unplaced diagram.
+Phase 1b's review amended three, each marked *(amended in Phase 1b's review)*: the shape rule (the largest picture, not the squarest cell), when the steps per page are written, and their range (2–30).
 This builds on D10 (pages come from one pure layout; Fit each), D11 (export),
 D22 (turn glyphs) and the flow lane in `implementation-plans/diagram-workspace.md`,
 and on Revision 2's enlarged steps (16f, `implementation-plans/diagram-revision-2.md`).
@@ -511,22 +512,33 @@ offers Undo. A small hook reads `diagramPlacesSettled` to show it.
 
 A flow page takes a number of steps, and the layout chooses its rows. Grid
 pages keep Columns and Rows.
-- **Model.** `DiagramPageSetup` gains `stepsPerPage` (2–24), used by flow
+- **Model.** `DiagramPageSetup` gains `stepsPerPage` (2–30), used by flow
   only. The Page pane shows "Steps per page" in place of Columns and Rows
-  while the layout is flow.
-- **Shape.** A pure `flowShape(stepsPerPage, printable area)` picks the column
-  count whose cells come closest to square on the page's printable area, with
-  `rows = ceil(steps / columns)`: it minimises `|ln(cellWidth / cellHeight)|`,
-  ties going to fewer columns. On A4 portrait, 9 steps give 3×3, 6 give 2×3
-  and 12 give 3×4. Orientation and paper size feed it, so landscape gets
-  wider rows.
+  while the layout is flow. The most is 30 *(amended in Phase 1b's review;
+  planned as 24)*: a flow page's own columns and rows reached 5 × 6, so every
+  existing flow page keeps its count.
+- **Shape** *(amended in Phase 1b's review; Decision 7, open)*. A pure
+  `flowShape(stepsPerPage, printable area)` picks the column count that prints
+  the largest pictures, with `rows = ceil(steps / columns)`: it maximises the
+  picture box as the layout sizes it, `min(cellWidth − TURN_GUTTER_MM,
+  0.64 × cellHeight)`, ties going to fewer columns. On A4 portrait, 7 steps
+  give 3 · 3 · 1, 9 give 3×3, 6 give 2×3, 12 give 3×4 and 16 give 4×4.
+  Orientation and paper size feed it, so landscape gets wider rows.
+  - The plan first said the squarest cell, `|ln(cellWidth / cellHeight)|`.
+    The build proved it wrong: a cell holds its text under the picture, so the
+    squarest cell is not the one with the biggest picture. On A4 upright it
+    made 7 steps 2 · 2 · 2 · 1, not the decided 3·3·1, at 41 mm pictures where
+    9 steps print at 48, and 16 steps 3 · 3 · 3 · 3 · 3 · 1 at 27 mm where 17
+    print at 32.5.
+  - Always the turn gutter, whether or not the diagram has turns, so adding or
+    removing a turn never re-cuts a page. Measured that way, a page of more
+    steps never gets a larger picture box than one of fewer.
   - The printable area is the paper inside its margins, *not* less the
     title's header and the page-number footer *(decided in Phase 1)*. Typing
     a title or turning page numbers on then never re-cuts a page, moves steps
     between pages or sends frames home. It also lets `pageGrid(setup)` keep
     reading the setup alone, with no title, for every caller (the layout,
-    `cellSlots`, `useDiagramPageSetup` and `DiagramPanel`'s page counts). The
-    A4 shapes above are the same either way.
+    `cellSlots`, `useDiagramPageSetup` and `DiagramPanel`'s page counts).
   - **The seam is built** (Phase 1): every count of a page's cells reads
     `pageGrid(setup)` and `cellsPerPage(setup)` in `diagramPageLayout.ts`.
     That covers `pageCellMm`, `layoutDiagramPages` (`perPage`, `cellAt`,
@@ -542,12 +554,21 @@ pages keep Columns and Rows.
   steps are 3·3·1, not a balanced 3·2·2. DECIDED (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch").
 - **Winding.** Unchanged: `flowPagePlan` takes the derived row count, rows
   alternate direction, the lane turns at row ends and runs across a spread's
-  spine.
-- **Files.** `stepsPerPage` is written for flow only. A flow file without it
-  reads as `columns × rows`, so every existing flow page keeps its count. Its
-  shape then follows the rule, which matches the old one wherever the old
-  one was the squarest; a wide shape (4 columns × 2 rows on A4 portrait)
-  becomes 2 × 4. Grid files are unchanged.
+  spine. So a left page with an even number of rows still starts at its top
+  right, its bottom row ending at the spine (D10). The layout now picks the
+  rows, so on A4 upright that is page 1 at 3–4, 10–12, 16, 21–24 and 29–30
+  steps.
+  Whether to change that is Decision 8, open.
+- **Files** *(amended in Phase 1b's review)*. `stepsPerPage` is written only
+  where it differs from `columns × rows` (`unsaidStepsPerPage`), on either
+  layout. A file without it reads as `columns × rows`, so every existing flow
+  page keeps its count, and a diagram that never chose one saves byte for
+  byte as before, so the build before opens it editable. One that did choose
+  writes it, and the build before opens that read-only, as it does any page
+  key it does not know. A grid keeps a chosen count for when it turns back to
+  flow. The shape then follows the rule, which matches the old one wherever
+  the old one already printed the largest pictures; a wide shape (4 columns ×
+  2 rows on A4 portrait) becomes 3 · 3 · 2. Grid files are unchanged.
 - **Cells.** `cellSlots` reads the derived shape, and a change of steps per
   page sends moved frames home like a change of columns or rows (below). So
   does a change of paper size, orientation or margin that changes a flow
@@ -778,7 +799,7 @@ Every new string goes in all 9 catalogs, through `i18n:extract`, then
 
 ## Decisions for Zach
 
-All DECIDED: A (Zach, 2026-10-07: "in this case i agree with all the decision for the diagram page - you can go ahead and start building once the plan is up to date").
+1–6 DECIDED: A (Zach, 2026-10-07: "in this case i agree with all the decision for the diagram page - you can go ahead and start building once the plan is up to date"). 7 and 8 are OPEN, from Phase 1b's review; the build takes 7A.
 
 **1. When does a dragged step frame go back to its cell? DECIDED: A.** (You
 flagged this one to talk through.)
@@ -889,6 +910,60 @@ fixed spot in the frame? DECIDED: A.**
   - B holds #436 for the biggest new surface since Annotate.
   - Either way, Phase 1 waits for 16g, which is editing `diagramFile.ts` and
     `diagramSlice.ts` now.
+
+**7. How does a flow page choose its columns? OPEN (Phase 1b's review).**
+The plan said the squarest cell. Built that way, it did not give your
+3·3·1 for 7 steps on A4, and it drew smaller pictures for fewer steps. So
+the build now takes A; it needs your yes. Picture boxes are the crane's on A4
+upright, with its title, page numbers and turns
+(`artifacts/page-overrides/po1b/fix/verify.json`):
+
+| Steps per page | A: largest picture (built) | B: squarest cell (planned) |
+| --- | --- | --- |
+| 6 | 2 × 3, 54 mm | 2 × 3, 54 mm |
+| 7 | 3 · 3 · 1, 48 mm | 2 · 2 · 2 · 1, 41 mm |
+| 8 | 3 · 3 · 2, 48 mm | 2 × 4, 41 mm |
+| 9 | 3 × 3, 48 mm | 3 × 3, 48 mm |
+| 12 | 3 × 4, 41 mm | 3 × 4, 41 mm |
+| 16 | 4 × 4, 32.5 mm | 3 · 3 · 3 · 3 · 3 · 1, 27 mm |
+| 4, A4 on its side | 2 × 2, 53 mm | 3 · 1, 53 mm, two cells empty |
+
+- **A.** The column count whose picture box is largest, the box sized as the
+  layout sizes it: `min(cell width − TURN_GUTTER_MM, 0.64 × cell height)`,
+  on the paper inside its margins. Ties go to fewer columns.
+- **B.** The column count whose cell is closest to square,
+  `|ln(width / height)|`, as first planned.
+- **Recommendation: A.**
+  - Of the two, only A gives your 7 = 3·3·1 on A4.
+  - Under B, 7 and 8 a page print smaller than 9, and 16 smaller than 17.
+    The heart at 16 a page put step 16 alone on a sixth row, and two steps'
+    instructions did not fit. Under A it is a clean 4 × 4 and every
+    instruction fits.
+  - Both read the setup alone, so a title or a turn never re-cuts a page.
+  - The cost: A uses the turn gutter for every diagram. A diagram with no
+    turns prints with a narrower gutter, so for it a count can now and then
+    print larger than one fewer. On A4 upright, 16 a page prints at 40.5 mm
+    where 15 print at 32.5.
+
+**8. Page 1 starting at its top right. OPEN (Phase 1b's review).**
+A left page that hands over at the spine starts at its top right when it has
+an even number of rows, so that its bottom row ends at the spine (D10). The
+layout now picks the rows, so page 1 of a diagram starts at its top right at
+3–4, 10–12, 16, 21–24 and 29–30 a page on A4 upright, and at 4–10 and 19–28
+on A4 on its side (`artifacts/page-overrides/po1b/verify/shapes.json`). With
+First page Right, or an odd row count, it starts at the top left.
+- **A.** Leave it. The winding stays as D10 has it, as you asked ("roughly
+  keeping the same winding behavior").
+- **B.** Prefer an odd row count where its pictures are nearly as large.
+  On A4 upright this rarely applies: for 10–12 the nearest odd shape, 4 × 3,
+  prints a fifth smaller.
+- **C.** Exempt the first page: it always starts at its top left. With an
+  even number of rows its bottom row then ends at the outer edge, so the lane
+  cannot hand over at the spine to page 2.
+- **Recommendation: A.** B buys little at a real cost in picture size, and C
+  breaks the handover across the spread. A Steps per page that gives an odd
+  row count (5–9, 13–15, 17–20 or 25–28 on A4 upright) avoids it for anyone
+  who minds.
 
 ### Small calls made here
 
@@ -1151,19 +1226,131 @@ Vitest runs in the web workspace under Node 22.
 
 ### Phase 1b: flow steps per page (into #436, after Phase 1)
 
-- [ ] `stepsPerPage` on `DiagramPageSetup`: clamped, default 9, reader and
-  writer (flow only; a flow file without it reads `columns × rows`), tests.
-- [ ] `pageGrid` and `cellsPerPage` (the seam Phase 1 built) take the flow
+- [x] `stepsPerPage` on `DiagramPageSetup`: clamped, default 9, reader and
+  writer (written only where it differs from `columns × rows`, which a file
+  without it reads), tests.
+- [x] `pageGrid` and `cellsPerPage` (the seam Phase 1 built) take the flow
   shape and the steps per page; nothing that calls them changes.
-- [ ] `flowShape` with tests: A4 and Letter, portrait and landscape, 2–24
+- [x] `flowShape` with tests: every paper, portrait and landscape, 2–30
   steps, ties, the default.
-- [ ] The flow layout and `cellSlots` take the derived shape; every existing
-  flow fixture composes identically where its old shape was the squarest.
-- [ ] Page pane: Steps per page for flow, Columns and Rows for grid; i18n in
+- [x] The flow layout and `cellSlots` take the derived shape; every existing
+  flow fixture composes identically where its old shape is the one derived.
+- [x] Review fixes: the largest-picture rule (Decision 7, open), the
+  steps per page written only where they differ, the range to 30, the export
+  dialog's setup line.
+- [x] Page pane: Steps per page for flow, Columns and Rows for grid; i18n in
   all 9 catalogs; the `steps_per_page` setting in analytics.
-- [ ] Browser: before/after of the crane and the heart in flow at 6, 9 and 12
+- [x] Browser: before/after of the crane and the heart in flow at 6, 9 and 12
   steps, on a spread with First page Left and Right; light and dark; 375 px.
-- [ ] Gate: lint, typecheck, `test:web`, `i18n:check`.
+- [x] Gate: lint, typecheck, `test:web`, `i18n:check` (Node 22, on exactly
+  what was committed: eslint and tsc clean, `i18n:check` passed, vitest 876
+  files and 11,748 tests passed, 2 files and 13 tests skipped).
+
+**As built (Phase 1b).** Where it differs from the plan above, or adds to it:
+- **`flowShape(steps, area)`** in `diagramPageLayout.ts`, beside `pageGrid`:
+  the column count from 1 to the steps whose picture box,
+  `min(area.w / columns − TURN_GUTTER_MM, PICTURE_HEIGHT_SHARE × area.h /
+  rows)`, is largest, a tie (to 1e-9) keeping the fewer, and `ceil(steps /
+  columns)` rows. `PICTURE_HEIGHT_SHARE` (0.64) is the constant the layout's
+  own picture box reads, so the two cannot drift. `pageGrid` hands it the
+  paper inside its margins. `cellsPerPage` is `stepsPerPage` for the flow.
+  Nothing that calls either changed.
+  - *(amended in Phase 1b's review)* It was first built as planned, the
+    squarest cell. That gave 7 steps on A4 upright as 2 · 2 · 2 · 1, not the
+    decided 3·3·1, and smaller pictures for fewer steps (7–8 at 40.6 mm
+    where 9 print at 48; 16 at 27.1 where 17 print at 32.5). Decision 7 has
+    the comparison and is open.
+- **What the rule gives** (12 mm margins; `artifacts/page-overrides/po1b/fix/verify.json`,
+  composed in the app). On A4 upright: 2 → 1 × 2, 3–4 → 2 × 2,
+  5–6 → 2 × 3, 7–9 → 3 × 3, 10–12 → 3 × 4, 13–15 → 3 × 5, 16 → 4 × 4,
+  17–20 → 4 × 5, 21–24 → 4 × 6, 25–28 → 4 × 7, 29–30 → 5 × 6. On Letter
+  upright, 13–16 are 4 × 4 and 25 is 5 × 5. On A4 on its side: 2 → 2 × 1,
+  3 → 3 × 1, 4 → 2 × 2, 5–6 → 3 × 2, 7–8 → 4 × 2, 9–10 → 5 × 2,
+  11–12 → 4 × 3, 13–15 → 5 × 3, 16–18 → 6 × 3, 19–20 → 5 × 4,
+  21–24 → 6 × 4, 25–28 → 7 × 4, 29–30 → 6 × 5.
+  - The short row stays at the end, as decided: 7 steps are 3 · 3 · 1.
+  - For the crane, which has turns, a page of more steps never prints larger
+    pictures than one of fewer, on A4 and Letter upright and A4 on its side.
+    The heart's long instructions squeeze its pictures in the shortest cells
+    (7 rows on A4, 6 on Letter), so for it 29 a page print larger than 28
+    on A4, and 25 than 24 on Letter. That is the text, which the rule does
+    not read.
+- **The lane's empty-cell stops on a spine page run to the full grid**
+  (`columns × rows`), not to the steps per page. That is what today's layout
+  does for a page a page break ends early, and it keeps the two the same:
+  a full page of 7 on a 3 × 3 shape lays out, band and all, exactly as 9 a
+  page with a page break after the seventh (`flowLane.test.ts`; a stop run to
+  the steps per page fails it and the golden). So the lane meets the facing
+  page at the spine end of the bottom row, as it always did.
+- **`cellSlots` carries `perPage`**, and `sameCell` compares it: a new steps
+  per page sends frames home even where it derives the same shape (7 and 8
+  are both 3 × 3 on A4), as the clearing table's row says. A paper,
+  orientation or margin sends them home only where it changes the derived
+  shape (9 a page: A4 → Letter, or a 25 mm margin, keep 3 × 3 and keep the
+  frames; landscape makes it 5 × 2 and clears them).
+- **Files** *(amended in Phase 1b's review)*. `stepsPerPage` is written only
+  where it differs from `unsaidStepsPerPage(page)`, `columns × rows` clamped
+  to the range, on either layout. So the crane and the heart save as HEAD
+  saves them, byte for byte, and HEAD opens those saves editable; at 7 a page
+  they write `"stepsPerPage": 7`, and HEAD opens them read-only, as it does
+  any page key it does not know. A grid keeps a chosen count through a save,
+  for when it turns back to flow.
+- **The range is 2–30** *(amended in Phase 1b's review; planned as 2–24)*, so
+  a flow file at 5 × 5 or 5 × 6 keeps its 25 or 30 a page. At 30 a page the
+  crane and the heart print byte for byte as HEAD printed them at 5 × 6. At
+  25 the rule makes the page 4 × 7 on A4, not 5 × 5.
+- **The Page pane** shows Steps per page (2–30) in place of Columns and Rows
+  for the flow. Its readout drops "N steps per page" there, since the row
+  says it, and keeps the page count. It does not show the derived shape.
+  The export dialog's setup line says "A4 Portrait · Flow, 9 steps per page"
+  for the flow (`dialogs:diagramExport.pageSetupSummaryFlow`, plural). Where
+  that line and Edit page setup do not fit side by side, Edit drops under it
+  (`DiagramExportOptions.module.css`, `flex-wrap`). Before, the summary
+  wrapped a word onto a line of its own, and in Russian it was squeezed into
+  a column of five lines.
+- **Fixtures and the golden.** The flow fixtures take their steps per page.
+  The enlarged-steps fixture's 3 × 2 is 6 a page, 2 × 3 now, so its two
+  digests changed. A fixture of 7 a page on Letter (3 · 3 · 1, across a
+  spread and a page turn) is new, with three digests. The other 14 of HEAD's
+  16 digests are unchanged. Tests that set a flow page's columns and rows now
+  set its steps per page; those that needed a shape no count derives (squat
+  rooms, a one-row flow) use the grid or the landscape page that derives it.
+  The lane's setups name the shape each derives and cover one column (1 × 2),
+  six and seven columns, and seven rows.
+
+**Verified (Phase 1b)** through the running app on :5291, HEAD's copies of the
+eight changed modules routed into one browser and this build in another. The
+composite is `artifacts/page-overrides/po1b/po1b-evidence.png`; its scripts and
+data are under `po1b/verify/`.
+- The crane and the heart at their own setup (3 × 3 before, 9 a page now)
+  compose byte for byte as HEAD composes them, every page, band-free view and
+  zoom arrows included (`verify/pages.json`). So do 6 = 2 × 3, 12 = 3 × 4 and
+  landscape 6 = 3 × 2, both diagrams, First page Left and Right; and 16 = 4 × 4
+  and 30 = 5 × 6 (`fix/identity.json`).
+- Shapes that change: HEAD's 3 × 2 and 4 × 3 become 2 × 3 and 3 × 4 (pictures
+  48 → 54.2 mm and 32.5 → 40.6 mm); 7 a page is 3 · 3 · 1 at 48 mm, the size
+  of 9; landscape 9 is 5 × 2 (35.6 → 40.6 mm) and landscape 7 is 4 · 3.
+- Spreads at 7 a page: with First page Left, page 1's bottom row runs out to
+  the spine past its one step and page 2 takes the lane up there; with Right,
+  page 1 stands alone and pages 2 | 3 face. The winding is HEAD's.
+- Saves through the app's Save (`verify/saves.json`): with nothing changed the
+  crane and the heart save exactly as HEAD saves them, and HEAD opens them
+  editable. At 7 a page the save is that plus the one line
+  `"stepsPerPage": 7`, and HEAD opens it read-only. Saved as a grid and
+  reopened, the 7 is kept.
+- Exported PDFs, through the Export dialog's Export PDF and rasterised with
+  pdftoppm: at their own setup the crane's three pages and the heart's two
+  are byte-identical rasters to HEAD's. At 7 a page the dialog reads "A4
+  Portrait · Flow, 7 steps per page" and the PDF has 4 pages (`verify/pdf/`).
+- The Page pane, HEAD and this build, light and dark, at 1440 px and in the
+  375 px Settings sheet, the field set to 7 by typing into it: one undo step,
+  4 pages, the readout only the page count; scroll width 375 at 375 px; no
+  page or console errors (`verify/pane.json`).
+- The export dialog's setup line in English, German and Russian, light and
+  dark, at 1440 and 375 px, before and after the `flex-wrap`:
+  `fix/shots/dialog-{before,after}-*.png`.
+- Every count's shape on A4 and Letter, both orientations, from the app's own
+  `pageGrid`: `verify/shapes.json`.
 
 ### Phase 2: the layout (its own PR on main under 6A)
 
