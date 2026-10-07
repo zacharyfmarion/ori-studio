@@ -126,6 +126,7 @@ export {
   trackDiagramAnnotationAdded,
   trackDiagramAnnotationBehind,
   trackDiagramAnnotationFlipped,
+  trackDiagramAnnotationRecolored,
   trackDiagramArrowShaped,
   trackDiagramPicturePosed,
   trackDiagramPictureRemoved,

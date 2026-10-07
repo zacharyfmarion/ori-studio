@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDiagram } from '../../diagram/document/diagramDocument';
+import { createDiagram, type KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { cpStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { ANNOTATE_TOOL_GROUPS, annotateToolHelp } from '../../diagram/annotate/annotateTools';
 import { angleMarkAt } from '../../diagram/annotate/annotationModel';
@@ -10,10 +10,11 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramLayersPanel } from './DiagramLayersPanel';
 
-const tracked = vi.hoisted(() => ({ trackDiagramAnnotationBehind: vi.fn() }));
+const tracked = vi.hoisted(() => ({ trackDiagramAnnotationBehind: vi.fn(), trackDiagramAnnotationRecolored: vi.fn() }));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
   trackDiagramAnnotationBehind: tracked.trackDiagramAnnotationBehind,
+  trackDiagramAnnotationRecolored: tracked.trackDiagramAnnotationRecolored,
 }));
 
 /**
@@ -142,6 +143,121 @@ describe('DiagramLayersPanel', () => {
     // Not a line: no Type.
     act(() => row('Valley Fold Arrow').click());
     expect(host!.querySelector('[role="group"][aria-label="Type"]')).toBeNull();
+  });
+
+  it('recolours a selected solid line with Color, one undo step and one count a pick, and a type change drops it (17a)', () => {
+    // What Radix's select asks of the DOM, which jsdom does not have.
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => undefined;
+    Element.prototype.scrollIntoView ??= () => undefined;
+    tracked.trackDiagramAnnotationRecolored.mockClear();
+    const stepId = annotatedStep();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 's-1', kind: 'solid-line', from: [0.1, 0.6], to: [0.7, 0.6], color: '#1971c2' },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+    });
+    act(() => row('Solid Line').click());
+    const color = () => host!.querySelector<HTMLButtonElement>('button[aria-label="Color"]')!;
+    const solid = () => stepsIn(state().diagram!)[0]!.annotations.find((annotation) => annotation.id === 's-1') as KnownDiagramAnnotation;
+    expect(color().textContent).toBe('Blue');
+    const choose = (name: string) => {
+      act(() => color().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+      const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((each) => each.textContent === name)!;
+      act(() => option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    };
+    const past = state().diagramHistory.past.length;
+    choose('Red');
+    expect(solid().color).toBe('#e03131');
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change color');
+    expect(tracked.trackDiagramAnnotationRecolored.mock.calls).toEqual([['solid_line', 'red']]);
+    // Custom…: the engine's picker, every colour it moves through one step and one count.
+    const picker = host!.querySelector<HTMLInputElement>('input[type="color"]')!;
+    picker.showPicker = () => undefined;
+    choose('Custom…');
+    act(() => vi.advanceTimersByTime(50));
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    for (const value of ['#102030', '#405060']) {
+      act(() => {
+        setter.call(picker, value);
+        picker.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    }
+    expect(solid().color).toBe('#405060');
+    expect(state().diagramHistory.past).toHaveLength(past + 2);
+    expect(tracked.trackDiagramAnnotationRecolored.mock.calls).toEqual([
+      ['solid_line', 'red'],
+      ['solid_line', 'custom'],
+    ]);
+    expect(color().textContent).toBe('#405060');
+    choose('Ink');
+    expect(solid()).not.toHaveProperty('color');
+    choose('Purple');
+    // Made a valley line, it loses its colour; and a valley line has no Color.
+    const type = host!.querySelector('[role="group"][aria-label="Type"]')!;
+    act(() => [...type.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.getAttribute('aria-label') === 'Valley')!.click());
+    expect(solid()).toEqual({ id: 's-1', kind: 'valley-line', from: [0.1, 0.6], to: [0.7, 0.6] });
+    expect(host!.querySelector('button[aria-label="Color"]')).toBeNull();
+  });
+
+  it('draws each solid line’s row in its colour, one with none in the icon’s ink (17a)', () => {
+    const stepId = annotatedStep();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 's-a', kind: 'solid-line', from: [0.1, 0.6], to: [0.7, 0.6], color: '#e8590c' },
+        { id: 's-b', kind: 'solid-line', from: [0.1, 0.8], to: [0.7, 0.8] },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+    });
+    const strokes = [...host!.querySelectorAll<HTMLButtonElement>('ul button')]
+      .filter((each) => each.textContent === 'Solid Line')
+      .map((each) => each.querySelector('svg')!.getAttribute('stroke'));
+    expect(strokes).toEqual(['#e8590c', 'currentColor']);
+  });
+
+  it('ends a pick with its line: a picker still up when another line is selected recolours neither it nor the undo step (17a)', () => {
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => undefined;
+    Element.prototype.scrollIntoView ??= () => undefined;
+    const stepId = annotatedStep();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 's-a', kind: 'solid-line', from: [0.1, 0.6], to: [0.7, 0.6], color: '#1971c2' },
+        { id: 's-b', kind: 'solid-line', from: [0.1, 0.8], to: [0.7, 0.8], color: '#e03131' },
+      ]);
+      state().openDiagramStep(stepId, 'annotate');
+      state().selectDiagramAnnotation('s-a');
+    });
+    const colorOf = (id: string) =>
+      (stepsIn(state().diagram!)[0]!.annotations.find((annotation) => annotation.id === id) as KnownDiagramAnnotation).color;
+    const color = () => host!.querySelector<HTMLButtonElement>('button[aria-label="Color"]')!;
+    act(() => color().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    const custom = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((each) => each.textContent === 'Custom…')!;
+    const picker = host!.querySelector<HTMLInputElement>('input[type="color"]')!;
+    picker.showPicker = () => undefined;
+    act(() => custom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    act(() => vi.advanceTimersByTime(50));
+    const move = (value: string) =>
+      act(() => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(picker, value);
+        picker.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    const past = state().diagramHistory.past.length;
+    move('#102030');
+    expect(colorOf('s-a')).toBe('#102030');
+    // Another line selected while the picker is up: the old select goes, and its picker with its input.
+    act(() => state().selectDiagramAnnotation('s-b'));
+    expect(picker.isConnected).toBe(false);
+    move('#405060');
+    expect(colorOf('s-b')).toBe('#e03131');
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    act(() => state().undoDiagram());
+    expect([colorOf('s-a'), colorOf('s-b')]).toEqual(['#1971c2', '#e03131']);
   });
 
   it('gives an equal-angle mark more ticks with Ticks, one when it says none, as one undo step (15b)', () => {

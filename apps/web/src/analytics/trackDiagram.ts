@@ -11,6 +11,7 @@ import {
   bucketCount,
 } from './events';
 import type {
+  DiagramAnnotationColor,
   DiagramAnnotationSnap,
   DiagramAnnotationTool,
   DiagramDivisionsPlaced,
@@ -90,19 +91,36 @@ export function trackDiagramStepOpened(via: DiagramStepOpenedVia, mode: DiagramS
   track(ANALYTICS_EVENTS.diagramStepOpened, { via, mode });
 }
 
+/** What `diagram annotation added` says about some marks alone: how equal divisions were laid, a solid line's colour. */
+export interface DiagramAnnotationAddedDetail {
+  placed?: DiagramDivisionsPlaced;
+  color?: DiagramAnnotationColor;
+}
+
 /**
  * An annotation drawn on a step's picture, by its tool, and how it was put
  * down: snapped, freely, or neither — and equal divisions, whether they were
- * dragged or put on a line with a click (`placed`). Which marks a diagram is
+ * dragged or put on a line with a click (`placed`), and a solid line, the
+ * colour it was drawn in, by name (`color`, 17a). Which marks a diagram is
  * drawn with, whether Annotate is used at all, and whether snapping helps.
- * Never where it is, nor a label's words.
+ * Never where it is, nor a label's words, nor a colour's value.
  */
 export function trackDiagramAnnotationAdded(
   tool: DiagramAnnotationTool,
   snap: DiagramAnnotationSnap,
-  placed?: DiagramDivisionsPlaced
+  detail: DiagramAnnotationAddedDetail = {}
 ): void {
-  track(ANALYTICS_EVENTS.diagramAnnotationAdded, placed === undefined ? { tool, snap } : { tool, snap, placed });
+  track(ANALYTICS_EVENTS.diagramAnnotationAdded, { tool, snap, ...detail });
+}
+
+/**
+ * A solid line's colour changed in the Layers pane (17a): its kind and the
+ * colour, by name — whether a line's colour is changed after it is drawn,
+ * and to what. Once per pick: a custom colour dragged about in the picker is
+ * one. Never the colour itself.
+ */
+export function trackDiagramAnnotationRecolored(kind: DiagramAnnotationTool, color: DiagramAnnotationColor): void {
+  track(ANALYTICS_EVENTS.diagramAnnotationRecolored, { kind, color });
 }
 
 /**

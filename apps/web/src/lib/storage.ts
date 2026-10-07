@@ -73,11 +73,16 @@ export const STORAGE_KEYS = {
    */
   diagramAnnotateSnap: 'diagram-annotate-snap',
   /**
-   * The line Annotate's Line tool and Angle Bisector draw: valley, mountain
-   * or hidden (`diagram/annotate/lineTypes.ts`). Absent, or anything else,
+   * The line Annotate's Line tool and Angle Bisector draw: valley, mountain,
+   * hidden or solid (`diagram/annotate/lineTypes.ts`). Absent, or anything else,
    * means valley.
    */
   diagramAnnotateLineType: 'diagram-annotate-line-type',
+  /**
+   * The colour Annotate's next solid line is drawn in (17a): a `#rrggbb`
+   * string. Absent, or anything else, means the style's arrow ink.
+   */
+  diagramAnnotateLineColor: 'diagram-annotate-line-color',
   /** Whether Annotate's tool window is collapsed to its header (`ToolHintWindow`). */
   diagramToolHintCollapsed: 'diagram-tool-hint-collapsed',
   /** Play a step's fold on arriving at its card in the References workspace. */

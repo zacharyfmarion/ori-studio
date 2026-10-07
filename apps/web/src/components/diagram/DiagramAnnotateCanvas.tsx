@@ -211,6 +211,7 @@ export function DiagramAnnotateCanvas({
                   role="img"
                   aria-label={t('panels:diagram.annotate.canvasLabel', 'Annotations on the step’s picture')}
                 >
+                  {selected && <SelectionUnder annotation={selected} layout={layout} />}
                   {drawing && (
                     <g
                       transform={`translate(${layout.frame.x} ${layout.frame.y}) scale(${layout.unit / CARD_FRAME_PX})`}
@@ -287,10 +288,10 @@ function box({ x, y, width, height }: { x: number; y: number; width: number; hei
 }
 
 /**
- * Where the selected annotation is, over everything: a wash along it, and a
- * dot at each end of a line or an arrow to take hold of (`annotationEnds`) —
- * a callout's at its point; its box is taken where it is drawn. Sized for
- * the screen at any zoom.
+ * Where the selected annotation is, over everything: a wash along it — a
+ * solid line's is under it (`SelectionUnder`) — and a dot at each end of a
+ * line or an arrow to take hold of (`annotationEnds`) — a callout's at its
+ * point; its box is taken where it is drawn. Sized for the screen at any zoom.
  */
 function Selection({
   annotation,
@@ -357,6 +358,10 @@ function Selection({
     case 'hidden-line':
       path = [annotation.from, annotation.to];
       break;
+    case 'solid-line':
+      // Washed under its stroke (`SelectionUnder`): over it, the wash would tint the colour it is drawn in.
+      path = [];
+      break;
     case 'pleat-arrow': {
       // Along its bolt, tail to tip.
       const shape = pleatArrowInPicture(annotation, INK_UNITS);
@@ -407,6 +412,21 @@ function Selection({
       })}
     </g>
   );
+}
+
+/**
+ * The wash along a selected solid line (17a), painted under the drawing rather
+ * than over it as every other mark's is: a line is drawn in a colour of its
+ * own, and the wash laid over it tints that colour — an orange line read as
+ * mauve until it was let go. Under it, the line shows as it prints, in a wash
+ * either side. Its ends' dots stay over everything (`Selection`).
+ */
+function SelectionUnder({ annotation, layout }: { annotation: KnownDiagramAnnotation; layout: AnnotateLayout }) {
+  if (annotation.kind !== 'solid-line') return null;
+  const points = [annotation.from, annotation.to].map(
+    ([u, v]) => `${layout.frame.x + u * layout.unit},${layout.frame.y + v * layout.unit}`
+  );
+  return <polyline className={styles.selection} points={points.join(' ')} data-selection-under="" />;
 }
 
 /**

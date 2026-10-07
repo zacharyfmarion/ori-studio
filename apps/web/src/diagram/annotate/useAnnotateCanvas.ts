@@ -56,7 +56,7 @@ import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useD
 import { EDIT_PATH, drawingKind, drawingLook, isPickTool, type DrawingLook } from './annotateTools';
 import { placePoint, snapOutcome, snapsEnd, snapsWhenPlaced, type PlacedPoint } from './annotateSnap';
 import { annotationActionEdit, editAnnotation } from './annotationActions';
-import { annotationEventKind } from './annotationEventKind';
+import { annotationEventColor, annotationEventKind } from './annotationEventKind';
 import {
   circleRadius,
   hitAnnotation,
@@ -86,6 +86,7 @@ import {
   rightAngleAt,
   rightAngleDiagonal,
   withCloseUpRing,
+  withColor,
   withWhiteArrowLook,
   type PictureFrame,
   type PicturePoint,
@@ -380,6 +381,8 @@ export function useAnnotateCanvas({
   const tool = useWorkspaceStore(annotateToolInHand);
   // The line the Line tool draws (15a).
   const lineType = useSettingsStore((state) => state.diagramAnnotateLineType);
+  // The colour it draws a solid line in (17a).
+  const lineColor = useSettingsStore((state) => state.diagramAnnotateLineColor);
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
   const selectedNode = useWorkspaceStore(selectedDiagramPathNode);
   // The picture, from what it is made of: a text or an annotation edit keeps
@@ -550,6 +553,7 @@ export function useAnnotateCanvas({
     style,
     tool,
     lineType,
+    lineColor,
     readOnly,
     snapContext,
     showSnap,
@@ -840,7 +844,7 @@ export function useAnnotateCanvas({
         gesture.current = {
           mode: 'draw',
           kind,
-          look: drawingLook(tool),
+          look: drawingLook(tool, { type: lineType, color: lineColor }),
           start: start.at,
           startTarget: start.target,
           free,
@@ -897,6 +901,7 @@ export function useAnnotateCanvas({
       toPicture,
       tool,
       lineType,
+      lineColor,
       picker,
       viewed,
       hitSizes,
@@ -1229,7 +1234,7 @@ export function useAnnotateCanvas({
       trackDiagramAnnotationAdded(
         'divisions',
         placedBy === 'line' ? 'none' : snapOutcome('divisions', { enabled: snap.enabled, free: free || current.free, snapped }),
-        placedBy
+        { placed: placedBy }
       );
       // Its count comes next: typed into the Parts field, then Enter.
       requestFieldFocus(annotation.id, 'parts');
@@ -1340,10 +1345,12 @@ export function useAnnotateCanvas({
         // Put beside the picture, a close-up may be out of view: it is brought into it (15f).
         if (annotation.kind === 'close-up') camera.bringIntoView(closeUpRings(annotation, layout));
         const snapped = target !== null || (!point && current.startTarget !== null);
-        trackDiagramAnnotationAdded(
-          annotationEventKind(annotation),
-          snapOutcome(annotation.kind, { enabled: snap.enabled, free: free || current.free, snapped })
-        );
+        const eventKind = annotationEventKind(annotation);
+        const how = snapOutcome(annotation.kind, { enabled: snap.enabled, free: free || current.free, snapped });
+        // A solid line's colour, by name (17a); no other mark sends one.
+        const color = annotationEventColor(annotation);
+        if (color) trackDiagramAnnotationAdded(eventKind, how, { color });
+        else trackDiagramAnnotationAdded(eventKind, how);
         if (carriesText(annotation.kind)) {
           // A label or a callout is written, not drawn again: Select comes
           // back to hand, and its field takes the keys.
@@ -1482,11 +1489,12 @@ function laid(
   newId?: DiagramIdFactory,
   calloutText?: string
 ): KnownDiagramAnnotation {
-  const { shape, ...arrowLook } = look;
+  const { shape, color, ...arrowLook } = look;
   if (kind === 'zoom' && shape === 'rounded') {
     return zoomAreaFromCorners(start, end, { square: keys.shift, fromMiddle: keys.alt }, newId);
   }
-  return withWhiteArrowLook(createAnnotation(kind, start, end, frame, newId, calloutText), arrowLook);
+  // A solid line in the colour chosen beside the rail's Line Type (17a).
+  return withColor(withWhiteArrowLook(createAnnotation(kind, start, end, frame, newId, calloutText), arrowLook), color ?? null);
 }
 
 /** A point {@link RIGHT_ANGLE_DIAGONAL} from `corner` the way `opens` goes: what a right angle's `to` is made from. */

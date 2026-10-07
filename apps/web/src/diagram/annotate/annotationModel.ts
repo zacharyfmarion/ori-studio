@@ -13,6 +13,7 @@ import { flattenPath, type Cubic } from '../../lib/cubicBezier';
 import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
 import { needsNoGlyph, scriptFonts, textCjkKey } from '../fonts/fontScripts';
+import { isAnnotationColor } from './annotationColors';
 import { cjkRunAdvance, labelAdvance } from './labelAdvances';
 import type { DiagramWhiteArrowFill, DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
@@ -90,6 +91,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'valley-line': 'line',
   'mountain-line': 'line',
   'hidden-line': 'line',
+  'solid-line': 'line',
   label: 'point',
   circle: 'point',
   'right-angle': 'corner',
@@ -180,8 +182,9 @@ export const MAX_BEHIND_LAYERS = 9;
 
 /**
  * The ends of a mark of `kind` that can be behind a flap (15e): a fold or
- * pleat arrow's tail and tip, a valley or mountain line's two ends, and a
- * circle's centre. None for a hidden line, dotted already, nor in v1 for a
+ * pleat arrow's tail and tip, a valley, mountain or solid line's two ends
+ * (a solid line's dotted in its own pen and colour, 17a), and a circle's
+ * centre. None for a hidden line, dotted already, nor in v1 for a
  * push, white or solid arrow, a sign, a label, a callout, or a mark in a
  * corner or an angle. A switch, so a new kind has to say.
  */
@@ -193,6 +196,7 @@ export function behindEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to'
     case 'pleat-arrow':
     case 'valley-line':
     case 'mountain-line':
+    case 'solid-line':
       return ['from', 'to'];
     case 'circle':
       return ['from'];
@@ -366,7 +370,13 @@ export function withinReach([x, y]: PicturePoint, reach: AnnotationReach = activ
  * object when it already is.
  */
 export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
-  return cleanBehind(cleanShape(annotation));
+  return cleanColor(cleanBehind(cleanShape(annotation)));
+}
+
+/** A mark's colour kept only where its kind has one, and one a mark can store: the same mark when it already is. */
+function cleanColor(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  if (annotation.color === undefined) return annotation;
+  return carriesColor(annotation.kind) && isAnnotationColor(annotation.color) ? annotation : withColor(annotation, null);
 }
 
 function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
@@ -828,6 +838,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'solid-line':
     case 'label':
     case 'circle':
     case 'right-angle':
@@ -880,6 +891,7 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'solid-line':
     case 'circle':
     case 'right-angle':
     case 'angle-mark':
@@ -888,6 +900,48 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'zoom':
       return false;
   }
+}
+
+/**
+ * Whether an annotation of `kind` has a colour of its own (17a, RM3): a solid
+ * line. Every other mark is drawn in the style's inks, as Annotate's decision
+ * 7 has it. A switch, so a new kind has to say.
+ */
+export function carriesColor(kind: DiagramAnnotationKind): boolean {
+  switch (kind) {
+    case 'solid-line':
+      return true;
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+    case 'pleat-arrow':
+    case 'push-arrow':
+    case 'white-arrow':
+    case 'turn-over':
+    case 'rotate':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+    case 'label':
+    case 'circle':
+    case 'right-angle':
+    case 'callout':
+    case 'angle-mark':
+    case 'divisions':
+    case 'close-up':
+    case 'zoom':
+      return false;
+  }
+}
+
+/**
+ * A mark in `color`, or in the style's ink for null: written only where its
+ * kind has a colour ({@link carriesColor}), and dropped from any other —
+ * a solid line made another type of line loses it.
+ */
+export function withColor(annotation: KnownDiagramAnnotation, color: string | null): KnownDiagramAnnotation {
+  const { color: _was, ...rest } = annotation;
+  return color !== null && carriesColor(annotation.kind) ? { ...rest, color } : rest;
 }
 
 /**
@@ -909,6 +963,7 @@ export function annotationEnds(kind: DiagramAnnotationKind): readonly ('from' | 
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'solid-line':
     case 'divisions':
       return ['to', 'from'];
     case 'callout':
@@ -1647,6 +1702,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'solid-line':
     case 'label':
     case 'circle':
     case 'right-angle':
@@ -2000,6 +2056,7 @@ export function flipsOver(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'solid-line':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':

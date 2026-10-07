@@ -23,7 +23,7 @@
  *
  * Pure: no DOM, no store.
  */
-import { markReach } from '../../cp-workspace/references/diagram/markReach';
+import { isDiagramMark, markReach } from '../../cp-workspace/references/diagram/markReach';
 import { mmToCssPx } from '../../lib/paper/paperSvg';
 import { arcToPath } from '../annotate/annotationPath';
 import { annotationDrawing } from '../annotate/annotationPrimitives';
@@ -163,7 +163,9 @@ function measure(style: DiagramStyle): ArrowReach {
     maxY = Math.max(maxY, y + pad);
     points.push([x * mm - size / 2, y * mm - size / 2, pad * mm]);
   };
-  for (const primitive of drawing.primitives) markReach(primitive, drawing.context.project, drawing.context.marks, take);
+  for (const primitive of drawing.primitives) {
+    if (isDiagramMark(primitive)) markReach(primitive, drawing.context.project, drawing.context.marks, take);
+  }
   const box: ArrowReach =
     minX <= maxX && minY <= maxY
       ? {

@@ -98,8 +98,8 @@ let frames: ReturnType<typeof watchFrames> | null = null;
 beforeEach(() => {
   useWorkspaceStore.setState(initialState, true);
   frames = watchFrames(useWorkspaceStore.subscribe);
-  // The Line tool draws a valley line unless a test picks another type.
-  useSettingsStore.setState({ diagramAnnotateLineType: 'valley' });
+  // The Line tool draws a valley line unless a test picks another type, a solid one in the style's ink.
+  useSettingsStore.setState({ diagramAnnotateLineType: 'valley', diagramAnnotateLineColor: null });
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -368,6 +368,60 @@ describe('DiagramAnnotateCanvas', () => {
       'hidden_line',
     ]);
     expect(state().diagramAnnotateTool).toBe('line');
+  });
+
+  it('draws a solid line in the colour beside the rail’s Line Type, counted by its name, never its value (17a)', () => {
+    mount();
+    tool('line');
+    act(() => useSettingsStore.getState().setDiagramAnnotateLineType('solid'));
+    drag(at(0.2, 0.3), at(0.6, 0.3));
+    act(() => useSettingsStore.getState().setDiagramAnnotateLineColor('#2f9e44'));
+    drag(at(0.2, 0.5), at(0.6, 0.5));
+    act(() => useSettingsStore.getState().setDiagramAnnotateLineColor('#abcdef'));
+    drag(at(0.2, 0.7), at(0.6, 0.7));
+    expect(annotations().map(({ kind, color }) => [kind, color])).toEqual([
+      ['solid-line', undefined],
+      ['solid-line', '#2f9e44'],
+      ['solid-line', '#abcdef'],
+    ]);
+    expect(Object.hasOwn(annotations()[0]!, 'color')).toBe(false);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([
+      ['solid_line', 'nothing_near', { color: 'ink' }],
+      ['solid_line', 'nothing_near', { color: 'green' }],
+      ['solid_line', 'nothing_near', { color: 'custom' }],
+    ]);
+    // Another type of line takes no colour, whatever the select says.
+    act(() => useSettingsStore.getState().setDiagramAnnotateLineType('valley'));
+    drag(at(0.2, 0.9), at(0.6, 0.9));
+    expect(Object.hasOwn(annotations()[3]!, 'color')).toBe(false);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls.at(-1)).toEqual(['valley_line', 'nothing_near']);
+  });
+
+  it('washes a selected solid line under its stroke, so the colour it is drawn in shows as it is (17a)', () => {
+    mount();
+    tool('line');
+    act(() => {
+      useSettingsStore.getState().setDiagramAnnotateLineType('solid');
+      useSettingsStore.getState().setDiagramAnnotateLineColor('#e8590c');
+    });
+    drag(at(0.2, 0.3), at(0.6, 0.3));
+    const [line] = annotations();
+    expect(state().diagramSelectedAnnotationId).toBe(line!.id);
+    rerender();
+    const wash = overlay().querySelector('[data-selection-under]')!;
+    const drawnLine = overlay().querySelector(`[data-annotation-id="${line!.id}"]`)!;
+    expect(wash).not.toBeNull();
+    // Painted before the line, so under it; nothing of the selection is laid over its stroke but its ends' dots.
+    expect(wash.compareDocumentPosition(drawnLine) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(overlay().querySelectorAll('[data-selection] polyline')).toHaveLength(0);
+    const dots = [...overlay().querySelectorAll('[data-selection] [data-handle]')].map((dot) => dot.getAttribute('data-handle'));
+    expect(dots.sort()).toEqual(['from', 'to']);
+    // A valley line's wash is still over it: it is drawn in the diagram's pen, not a colour of its own.
+    act(() => useSettingsStore.getState().setDiagramAnnotateLineType('valley'));
+    drag(at(0.2, 0.6), at(0.6, 0.6));
+    rerender();
+    expect(overlay().querySelector('[data-selection-under]')).toBeNull();
+    expect(overlay().querySelectorAll('[data-selection] polyline')).toHaveLength(1);
   });
 
   it('puts a circle down with a click, keeps the tool for the next, and washes its ring when selected', () => {
@@ -1738,6 +1792,15 @@ describe('the Angle Bisector and the equal-angle mark (15b)', () => {
     expect(kinds()).toEqual(['mountain-line', 'angle-mark']);
   });
 
+  it('draws a solid line in the rail’s colour (17a)', () => {
+    useSettingsStore.setState({ diagramAnnotateLineType: 'solid', diagramAnnotateLineColor: '#7048e8' });
+    drawn([], 'angle-bisector');
+    for (const point of [at(0.1, 0.5), at(0.5, 0.9), at(0.5, 0.1), at(0.35, 0.3)]) click(point);
+    expect(kinds()).toEqual(['solid-line', 'angle-mark']);
+    expect(annotations()[0]!.color).toBe('#7048e8');
+    expect(Object.hasOwn(annotations()[1]!, 'color')).toBe(false);
+  });
+
   it('takes back the last pick with Escape, and goes on to the ladder once none is left', () => {
     drawn([], 'angle-bisector');
     click(at(0.1, 0.5));
@@ -1915,7 +1978,7 @@ describe('DiagramAnnotateCanvas equal divisions (Revision 2)', () => {
     // Below the frame's middle, so its line below the measured one: to the right of the way it was drawn, unsaid.
     expect(last().mirrored).toBeUndefined();
     expect(state().diagramHistory.past).toHaveLength(past + 1);
-    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['divisions', 'snapped', 'drag']]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['divisions', 'snapped', { placed: 'drag' }]]);
     expect(state().diagramAnnotateTool).toBe('divisions');
     expect(state().diagramSelectedAnnotationId).toBe(last().id);
     expect(pendingFieldFocus()).toEqual({ annotationId: last().id, field: 'parts' });
@@ -1926,7 +1989,7 @@ describe('DiagramAnnotateCanvas equal divisions (Revision 2)', () => {
     // On the line, a hair from a circle on it: a click takes the line, never the point.
     click(at(0.405, 0.503));
     expect(last()).toMatchObject({ kind: 'divisions', from: [0.2, 0.5], to: [0.6, 0.5], parts: 4, offset: 2.5 });
-    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['divisions', 'none', 'line']]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['divisions', 'none', { placed: 'line' }]]);
     // A drag past the slop but shorter than a slip is a click too.
     drag(at(0.3, 0.502), at(0.306, 0.502));
     expect(annotations().filter((each) => each.kind === 'divisions')).toHaveLength(2);

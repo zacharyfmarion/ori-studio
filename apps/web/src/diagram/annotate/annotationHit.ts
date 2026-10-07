@@ -725,6 +725,7 @@ function bodyDistance(
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'solid-line':
       return distanceToSegment(point, annotation.from, annotation.to);
     case 'circle':
       return Math.abs(Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - circleRadius(sizes.ink));
@@ -756,6 +757,13 @@ function bodyDistance(
  */
 /** The marks filled with the page inside their outline: they hide what was drawn under them. */
 const HOLLOW_KINDS: ReadonlySet<DiagramAnnotationKind> = new Set(['push-arrow', 'white-arrow']);
+
+/**
+ * The lines drawn in the diagram's pens, under every mark. A solid line is a
+ * line to every other question, but it is drawn in References' pen among the
+ * marks, in the order they were added (17a), so it is pressed there too.
+ */
+const underMarks = (kind: DiagramAnnotationKind) => LINE_KINDS.has(kind) && kind !== 'solid-line';
 
 export function hitAnnotation(
   annotations: readonly DiagramAnnotation[],
@@ -796,8 +804,9 @@ export function hitAnnotation(
   }
   // An arrow that lands in a circle is drawn stopped on its ring: its head is pressed there.
   const marks = known.filter((annotation) => annotation.kind === 'circle').map(({ from }) => from);
-  // Topmost first, as they are drawn: labels over callouts over marks over
-  // lines over close-ups, whose insides are painted under everything, over
+  // Topmost first, as they are drawn: labels over callouts over marks — a
+  // solid line among them — over the pens' lines over close-ups, whose
+  // insides are painted under everything, over
   // enlarge areas — and
   // a circle over the other marks, its ring the one place to take it, where
   // an arrow that lands on it has the rest of its length; but not where a
@@ -808,9 +817,9 @@ export function hitAnnotation(
     // An enlarge area under everything, as a close-up's insides are: it marks an area, and what is inside it stays pressable.
     ...known.filter((annotation) => annotation.kind === 'zoom'),
     ...known.filter((annotation) => annotation.kind === 'close-up'),
-    ...known.filter((annotation) => LINE_KINDS.has(annotation.kind)),
+    ...known.filter((annotation) => underMarks(annotation.kind)),
     ...known.filter(
-      (annotation) => !LINE_KINDS.has(annotation.kind) && !last.has(annotation.kind) && !under.has(annotation.kind)
+      (annotation) => !underMarks(annotation.kind) && !last.has(annotation.kind) && !under.has(annotation.kind)
     ),
     ...known.filter((annotation) => annotation.kind === 'circle'),
     ...known.filter((annotation) => annotation.kind === 'callout'),

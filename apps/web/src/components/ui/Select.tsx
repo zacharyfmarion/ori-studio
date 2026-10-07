@@ -27,12 +27,21 @@ SelectTrigger.displayName = 'SelectTrigger';
 
 export const SelectContent = forwardRef<
   HTMLDivElement,
-  Omit<ComponentPropsWithoutRef<typeof RadixSelect.Content>, 'className'>
->(({ children, ...props }, ref) => (
+  Omit<ComponentPropsWithoutRef<typeof RadixSelect.Content>, 'className'> & {
+    /**
+     * How tall the list may grow: `capped`, the default, scrolls past 220px;
+     * `available` takes the room the window has beside the trigger, for a
+     * short list whose last option must be seen without a scroll — a colour
+     * list ending in Custom… (`DiagramColorSelect`).
+     */
+    fit?: 'capped' | 'available';
+  }
+>(({ children, fit = 'capped', ...props }, ref) => (
   <RadixSelect.Portal>
     <RadixSelect.Content
       ref={ref}
       className={styles.content}
+      data-fit={fit}
       position="popper"
       sideOffset={4}
       {...props}

@@ -136,7 +136,7 @@ describe('the step keys while the References browser is open', () => {
 });
 
 describe('Annotate’s keys', () => {
-  const annotate = (tool: string | null = null, canFlipArc = false, lineType: 'valley' | 'mountain' | 'hidden' = 'valley') => ({
+  const annotate = (tool: string | null = null, canFlipArc = false, lineType: 'valley' | 'mountain' | 'hidden' | 'solid' = 'valley') => ({
     annotate: { tool: tool as never, lineType, selectedAnnotationId: canFlipArc ? 'a' : null, canFlipArc },
   });
   const press = (id: Parameters<typeof runDiagramShortcut>[0], state: Partial<DiagramKeyState>) => {
@@ -188,6 +188,22 @@ describe('Annotate’s keys', () => {
     expect(again.setLineType).not.toHaveBeenCalled();
     // Outside Annotate it declines: the keys are a crease-pattern tool's too.
     expect(press('diagram.toolValleyLine', {}).claimed).toBe(false);
+  });
+
+  it('picks Solid with Shift+L, a chord no other Diagram key or the view’s has, as Shift+V and Shift+M pick theirs (17a)', () => {
+    const solid = SHORTCUT_DEFINITIONS.find((shortcut) => shortcut.id === 'diagram.toolSolidLine');
+    expect(solid).toMatchObject({ scope: 'diagram', defaultChord: { shift: true, key: 'l' } });
+    const others = SHORTCUT_DEFINITIONS.filter(
+      (shortcut) =>
+        shortcut.id !== 'diagram.toolSolidLine' &&
+        ['diagram', 'diagram-path', 'viewport', 'global'].includes(shortcut.scope) &&
+        shortcut.defaultChords.some((chord) => chord.key === 'l' && chord.shift && !chord.primary && !chord.alt)
+    );
+    expect(others).toEqual([]);
+    const picked = press('diagram.toolSolidLine', annotate('valley-arrow'));
+    expect(picked.setLineType).toHaveBeenCalledWith('solid');
+    expect(picked.setTool).toHaveBeenCalledWith('line');
+    expect(press('diagram.toolSolidLine', annotate('line', false, 'solid')).setTool).toHaveBeenCalledWith(null);
   });
 
   it('binds the circle to O, a letter no other Diagram key or the view’s has', () => {

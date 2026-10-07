@@ -40,6 +40,7 @@ import {
   ringPieces,
   rotateGlyphDrawn,
   sheetCorners,
+  strokePieces,
   turnOverDrawn,
   whiteArrowDrawn,
   WHITE_ARROW_MITER_LIMIT,
@@ -563,20 +564,52 @@ function diagramPrimitiveShape(
       // is laid along it, and every span of one line shares that ruler.
       const dashOffset = primitive.dashPhase ? primitive.dashPhase * project.scale : undefined;
       const stroke = strokeAttributes(primitive.style, project.ink, project.dashScale, project.pens);
-      const draw = (inks: DiagramRenderContext) => (
-        <line
-          key={index}
-          x1={from.x}
-          y1={from.y}
-          x2={to.x}
-          y2={to.y}
-          strokeDashoffset={dashOffset}
-          {...stroke}
-          {...inked(inks, `step-diagram__line step-diagram__line--${primitive.style}`, (ink) =>
-            strokeInk(ink.lines[primitive.style], stroke.strokeOpacity)
-          )}
-        />
-      );
+      // A colour of its own over its style's — a Diagram solid line's (17a),
+      // never References' own: an attribute in a file, and over the class's
+      // colour on screen, where a class would win over an attribute.
+      const own = primitive.ink;
+      const lineInk = (inks: DiagramRenderContext) => ({
+        ...inked(inks, `step-diagram__line step-diagram__line--${primitive.style}`, (ink) =>
+          strokeInk(own === undefined ? ink.lines[primitive.style] : { ...ink.lines[primitive.style], color: own }, stroke.strokeOpacity)
+        ),
+        ...(own !== undefined && !inks.inline ? { style: { stroke: own } } : {}),
+      });
+      // Behind a flap (15e), a Diagram solid line's stretches there dotted
+      // in its own pen and colour, as an arrow's are.
+      const pieces = primitive.hidden?.length ? strokePieces(0, 1, primitive.hidden) : null;
+      const length = Math.hypot(to.x - from.x, to.y - from.y);
+      const along = (share: number) => ({ x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share });
+      const draw = (inks: DiagramRenderContext) =>
+        pieces ? (
+          <g key={index}>
+            {pieces.map((piece, part) => {
+              const [a, b] = [along(piece.start), along(piece.end)];
+              return (
+                <line
+                  key={part}
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  {...stroke}
+                  {...(piece.hidden ? hiddenDots(stroke.strokeWidth, length * (piece.end - piece.start)) : {})}
+                  {...lineInk(inks)}
+                />
+              );
+            })}
+          </g>
+        ) : (
+          <line
+            key={index}
+            x1={from.x}
+            y1={from.y}
+            x2={to.x}
+            y2={to.y}
+            strokeDashoffset={dashOffset}
+            {...stroke}
+            {...lineInk(inks)}
+          />
+        );
       return canLeavePaper(primitive) ? onAndOffPaper(context, index, draw) : draw(context);
     }
     case 'arc': {

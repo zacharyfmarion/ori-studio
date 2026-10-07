@@ -65,6 +65,7 @@ import {
   isWithinReach,
   type AnnotationReach,
 } from '../annotate/annotationModel';
+import { isAnnotationColor } from '../annotate/annotationColors';
 import { windowReach } from '../zoom/zoomModel';
 import { NEWER_PAPER_FACES, SCENE_JSON_MAX_BYTES, readPaperFaces } from './paperFacesFile';
 import {
@@ -358,6 +359,7 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     width,
     tail,
     fill,
+    color,
     text,
     rotate,
     axis,
@@ -391,6 +393,7 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(width !== undefined ? { width } : {}),
     ...(tail !== undefined ? { tail } : {}),
     ...(fill !== undefined ? { fill } : {}),
+    ...(color !== undefined ? { color } : {}),
     ...(text !== undefined ? { text } : {}),
     ...(rotate !== undefined ? { rotate } : {}),
     ...(axis !== undefined ? { axis } : {}),
@@ -1031,6 +1034,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'valley-line': fields('behind'),
     'mountain-line': fields('behind'),
     'hidden-line': fields(),
+    'solid-line': fields('color', 'behind'),
     label: fields('text'),
     circle: fields('behind'),
     'right-angle': fields(),
@@ -1204,6 +1208,12 @@ function readAnnotation(
     }
     case 'zoom':
       return readZoomArea(annotation, entry);
+    case 'solid-line': {
+      // Its colour (17a); unsaid, the style's arrow ink.
+      const color = readColor(entry.color);
+      if (color === NEWER || color === null) return color;
+      return color !== undefined ? { ...annotation, color } : annotation;
+    }
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
     case 'push-arrow':
@@ -1269,6 +1279,17 @@ function readTicks(value: unknown): DiagramTicks | undefined | typeof NEWER | nu
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) return null;
   return value <= 3 ? (value as DiagramTicks) : NEWER;
+}
+
+/**
+ * A solid line's colour (17a): unsaid, the style's arrow ink; a `#rrggbb`
+ * string, that colour; any other string, a newer build's — a named colour, a
+ * theme's — and anything else, damage. Read as a white arrow's fill is.
+ */
+function readColor(value: unknown): string | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return null;
+  return isAnnotationColor(value) ? value : NEWER;
 }
 
 /** A white arrow's fill: unsaid, the page's white; `black`, a solid arrow (15d); another word, a newer build's; anything else, damage. */

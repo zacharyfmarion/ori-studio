@@ -152,6 +152,7 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolValleyLine': true,
   'diagram.toolMountainLine': true,
   'diagram.toolHiddenLine': true,
+  'diagram.toolSolidLine': true,
   'diagram.toolLabel': true,
   'diagram.toolCircle': true,
   'diagram.toolRightAngle': true,
@@ -208,7 +209,7 @@ export function runDiagramPathShortcut(
  * Annotate's keys: a tool's letter picks it — pressed again, back to Select;
  * A is Edit Path's —
  * and F flips the selected annotation's arc, when it offers Flip arc
- * (`annotationActions.ts`). A line type's key (Shift+V, Shift+M, H) picks
+ * (`annotationActions.ts`). A line type's key (Shift+V, Shift+M, H, Shift+L) picks
  * that type, and the Line tool with it unless a tool that draws in the type
  * (Line, the Angle Bisector) is in hand — and with Line in hand on its own
  * type, back to Select, as a tool's letter is. Outside Annotate, and on a diagram

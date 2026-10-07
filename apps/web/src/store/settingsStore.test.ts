@@ -139,6 +139,28 @@ describe('settingsStore', () => {
     expect((await freshSettingsStore()).getState().referencesShowAuxCreases).toBeNull();
   });
 
+  it('draws a solid line in the style’s ink until a colour is chosen, and remembers one (17a)', async () => {
+    const key = storageKey(STORAGE_KEYS.diagramAnnotateLineColor);
+    localStorage.removeItem(key);
+    expect((await freshSettingsStore()).getState().diagramAnnotateLineColor).toBeNull();
+    useSettingsStore.getState().setDiagramAnnotateLineColor('#e8590c');
+    expect(localStorage.getItem(key)).toBe('#e8590c');
+    expect((await freshSettingsStore()).getState().diagramAnnotateLineColor).toBe('#e8590c');
+    // Back to the ink forgets the choice; what is no colour is never taken.
+    useSettingsStore.getState().setDiagramAnnotateLineColor('orange');
+    expect(useSettingsStore.getState().diagramAnnotateLineColor).toBe('#e8590c');
+    useSettingsStore.getState().setDiagramAnnotateLineColor(null);
+    expect(localStorage.getItem(key)).toBeNull();
+    // A hand-edited key reads as the ink.
+    localStorage.setItem(key, 'orange');
+    expect((await freshSettingsStore()).getState().diagramAnnotateLineColor).toBeNull();
+  });
+
+  it('remembers Solid as the line type (17a)', async () => {
+    useSettingsStore.getState().setDiagramAnnotateLineType('solid');
+    expect((await freshSettingsStore()).getState().diagramAnnotateLineType).toBe('solid');
+  });
+
   it('defaults the crease-pattern canvas to scroll-zooms and persists a change', () => {
     expect(useSettingsStore.getState().cpWheelGesture).toBe('zoom');
 

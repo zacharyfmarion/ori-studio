@@ -4223,7 +4223,19 @@
     "panels:diagram.stepPane.enlargedRefreshUpdate": "e130537dbf89",
     "panels:diagram.stepPane.enlargedSizePrints": "89e26c29f5f3",
     "panels:diagram.stepPane.enlargedUnanchoredToggle": "7311359af990",
-    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c"
+    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c",
+    "panels:diagram.annotate.lineColor": "beb9c733ba93",
+    "panels:diagram.annotate.lineTypeSolid": "b8b311b0f273",
+    "panels:diagram.annotations.color": "6b73191a0a4b",
+    "panels:diagram.annotations.colorBlue": "ec7d56a01607",
+    "panels:diagram.annotations.colorCustom": "c4e69d543a44",
+    "panels:diagram.annotations.colorGreen": "d486dfbd5fb5",
+    "panels:diagram.annotations.colorInk": "f089d6229593",
+    "panels:diagram.annotations.colorOrange": "78e7771b8b46",
+    "panels:diagram.annotations.colorPurple": "7d465fb9b931",
+    "panels:diagram.annotations.colorRed": "ba19e9c3d5f4",
+    "panels:diagram.annotations.colorReference": "71bf90935fc2",
+    "tools:diagram.toolSolidLine": "dbfbff89ad70"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8449,7 +8461,19 @@
     "panels:diagram.stepPane.enlargedRefreshUpdate": "e130537dbf89",
     "panels:diagram.stepPane.enlargedSizePrints": "89e26c29f5f3",
     "panels:diagram.stepPane.enlargedUnanchoredToggle": "7311359af990",
-    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c"
+    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c",
+    "panels:diagram.annotate.lineColor": "beb9c733ba93",
+    "panels:diagram.annotate.lineTypeSolid": "b8b311b0f273",
+    "panels:diagram.annotations.color": "6b73191a0a4b",
+    "panels:diagram.annotations.colorBlue": "ec7d56a01607",
+    "panels:diagram.annotations.colorCustom": "c4e69d543a44",
+    "panels:diagram.annotations.colorGreen": "d486dfbd5fb5",
+    "panels:diagram.annotations.colorInk": "f089d6229593",
+    "panels:diagram.annotations.colorOrange": "78e7771b8b46",
+    "panels:diagram.annotations.colorPurple": "7d465fb9b931",
+    "panels:diagram.annotations.colorRed": "ba19e9c3d5f4",
+    "panels:diagram.annotations.colorReference": "71bf90935fc2",
+    "tools:diagram.toolSolidLine": "dbfbff89ad70"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12677,7 +12701,19 @@
     "panels:diagram.stepPane.enlargedRefreshUpdate": "e130537dbf89",
     "panels:diagram.stepPane.enlargedSizePrints": "89e26c29f5f3",
     "panels:diagram.stepPane.enlargedUnanchoredToggle": "7311359af990",
-    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c"
+    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c",
+    "panels:diagram.annotate.lineColor": "beb9c733ba93",
+    "panels:diagram.annotate.lineTypeSolid": "b8b311b0f273",
+    "panels:diagram.annotations.color": "6b73191a0a4b",
+    "panels:diagram.annotations.colorBlue": "ec7d56a01607",
+    "panels:diagram.annotations.colorCustom": "c4e69d543a44",
+    "panels:diagram.annotations.colorGreen": "d486dfbd5fb5",
+    "panels:diagram.annotations.colorInk": "f089d6229593",
+    "panels:diagram.annotations.colorOrange": "78e7771b8b46",
+    "panels:diagram.annotations.colorPurple": "7d465fb9b931",
+    "panels:diagram.annotations.colorRed": "ba19e9c3d5f4",
+    "panels:diagram.annotations.colorReference": "71bf90935fc2",
+    "tools:diagram.toolSolidLine": "dbfbff89ad70"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -16816,7 +16852,19 @@
     "panels:diagram.stepPane.enlargedRefreshUpdate": "e130537dbf89",
     "panels:diagram.stepPane.enlargedSizePrints": "89e26c29f5f3",
     "panels:diagram.stepPane.enlargedUnanchoredToggle": "7311359af990",
-    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c"
+    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c",
+    "panels:diagram.annotate.lineColor": "beb9c733ba93",
+    "panels:diagram.annotate.lineTypeSolid": "b8b311b0f273",
+    "panels:diagram.annotations.color": "6b73191a0a4b",
+    "panels:diagram.annotations.colorBlue": "ec7d56a01607",
+    "panels:diagram.annotations.colorCustom": "c4e69d543a44",
+    "panels:diagram.annotations.colorGreen": "d486dfbd5fb5",
+    "panels:diagram.annotations.colorInk": "f089d6229593",
+    "panels:diagram.annotations.colorOrange": "78e7771b8b46",
+    "panels:diagram.annotations.colorPurple": "7d465fb9b931",
+    "panels:diagram.annotations.colorRed": "ba19e9c3d5f4",
+    "panels:diagram.annotations.colorReference": "71bf90935fc2",
+    "tools:diagram.toolSolidLine": "dbfbff89ad70"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -20955,7 +21003,19 @@
     "panels:diagram.stepPane.enlargedRefreshUpdate": "e130537dbf89",
     "panels:diagram.stepPane.enlargedSizePrints": "89e26c29f5f3",
     "panels:diagram.stepPane.enlargedUnanchoredToggle": "7311359af990",
-    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c"
+    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c",
+    "panels:diagram.annotate.lineColor": "beb9c733ba93",
+    "panels:diagram.annotate.lineTypeSolid": "b8b311b0f273",
+    "panels:diagram.annotations.color": "6b73191a0a4b",
+    "panels:diagram.annotations.colorBlue": "ec7d56a01607",
+    "panels:diagram.annotations.colorCustom": "c4e69d543a44",
+    "panels:diagram.annotations.colorGreen": "d486dfbd5fb5",
+    "panels:diagram.annotations.colorInk": "f089d6229593",
+    "panels:diagram.annotations.colorOrange": "78e7771b8b46",
+    "panels:diagram.annotations.colorPurple": "7d465fb9b931",
+    "panels:diagram.annotations.colorRed": "ba19e9c3d5f4",
+    "panels:diagram.annotations.colorReference": "71bf90935fc2",
+    "tools:diagram.toolSolidLine": "dbfbff89ad70"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -25181,7 +25241,19 @@
     "panels:diagram.stepPane.enlargedRefreshUpdate": "e130537dbf89",
     "panels:diagram.stepPane.enlargedSizePrints": "89e26c29f5f3",
     "panels:diagram.stepPane.enlargedUnanchoredToggle": "7311359af990",
-    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c"
+    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c",
+    "panels:diagram.annotate.lineColor": "beb9c733ba93",
+    "panels:diagram.annotate.lineTypeSolid": "b8b311b0f273",
+    "panels:diagram.annotations.color": "6b73191a0a4b",
+    "panels:diagram.annotations.colorBlue": "ec7d56a01607",
+    "panels:diagram.annotations.colorCustom": "c4e69d543a44",
+    "panels:diagram.annotations.colorGreen": "d486dfbd5fb5",
+    "panels:diagram.annotations.colorInk": "f089d6229593",
+    "panels:diagram.annotations.colorOrange": "78e7771b8b46",
+    "panels:diagram.annotations.colorPurple": "7d465fb9b931",
+    "panels:diagram.annotations.colorRed": "ba19e9c3d5f4",
+    "panels:diagram.annotations.colorReference": "71bf90935fc2",
+    "tools:diagram.toolSolidLine": "dbfbff89ad70"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -29407,7 +29479,19 @@
     "panels:diagram.stepPane.enlargedRefreshUpdate": "e130537dbf89",
     "panels:diagram.stepPane.enlargedSizePrints": "89e26c29f5f3",
     "panels:diagram.stepPane.enlargedUnanchoredToggle": "7311359af990",
-    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c"
+    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c",
+    "panels:diagram.annotate.lineColor": "beb9c733ba93",
+    "panels:diagram.annotate.lineTypeSolid": "b8b311b0f273",
+    "panels:diagram.annotations.color": "6b73191a0a4b",
+    "panels:diagram.annotations.colorBlue": "ec7d56a01607",
+    "panels:diagram.annotations.colorCustom": "c4e69d543a44",
+    "panels:diagram.annotations.colorGreen": "d486dfbd5fb5",
+    "panels:diagram.annotations.colorInk": "f089d6229593",
+    "panels:diagram.annotations.colorOrange": "78e7771b8b46",
+    "panels:diagram.annotations.colorPurple": "7d465fb9b931",
+    "panels:diagram.annotations.colorRed": "ba19e9c3d5f4",
+    "panels:diagram.annotations.colorReference": "71bf90935fc2",
+    "tools:diagram.toolSolidLine": "dbfbff89ad70"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -33546,6 +33630,18 @@
     "panels:diagram.stepPane.enlargedRefreshUpdate": "e130537dbf89",
     "panels:diagram.stepPane.enlargedSizePrints": "89e26c29f5f3",
     "panels:diagram.stepPane.enlargedUnanchoredToggle": "7311359af990",
-    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c"
+    "panels:diagram.stepPane.enlargedUnanchoredUpdate": "3f40383caf7c",
+    "panels:diagram.annotate.lineColor": "beb9c733ba93",
+    "panels:diagram.annotate.lineTypeSolid": "b8b311b0f273",
+    "panels:diagram.annotations.color": "6b73191a0a4b",
+    "panels:diagram.annotations.colorBlue": "ec7d56a01607",
+    "panels:diagram.annotations.colorCustom": "c4e69d543a44",
+    "panels:diagram.annotations.colorGreen": "d486dfbd5fb5",
+    "panels:diagram.annotations.colorInk": "f089d6229593",
+    "panels:diagram.annotations.colorOrange": "78e7771b8b46",
+    "panels:diagram.annotations.colorPurple": "7d465fb9b931",
+    "panels:diagram.annotations.colorRed": "ba19e9c3d5f4",
+    "panels:diagram.annotations.colorReference": "71bf90935fc2",
+    "tools:diagram.toolSolidLine": "dbfbff89ad70"
   }
 }

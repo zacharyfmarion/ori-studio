@@ -6,6 +6,10 @@
  * - A valley, mountain or hidden line is a paper line in the role
  *   `diagram-valley`, `diagram-mountain` or `diagram-hidden`, drawn in the
  *   style's pens as a step's own lines are.
+ * - A solid line (17a) is References' own `line` in its `highlight` pen —
+ *   the pen a step's reference lines are drawn in, the arrow's weight with a
+ *   round cap — in its own colour (`ink`), or, with none, the style's arrow
+ *   ink. It cannot be a paper line: a role carries the style's fixed colours.
  * - A fold arrow, a push, a white arrow, the turn-over and rotate glyphs are
  *   step-diagram primitives drawn by `diagramShapes`, in the style's arrow
  *   ink, with no paper to clip to: an annotation is the author's own mark,
@@ -58,8 +62,10 @@ import {
   INLINE_LABEL_FONT,
   createDiagramRenderContext,
   diagramShapes,
+  strokeAttributes,
   type DiagramRenderContext,
 } from '../../cp-workspace/references/diagram/DiagramPrimitives';
+import type { StepDiagramPrimitive } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
 import { diagramInlineInk, type DiagramInlineInk } from '../../cp-workspace/references/diagram/diagramColors';
 import { markRingWidth } from '../../cp-workspace/references/diagram/labelLayout';
 import { markReach, type DiagramMarkPrimitive } from '../../cp-workspace/references/diagram/markReach';
@@ -229,8 +235,11 @@ export interface AnnotationLine {
   part?: number;
 }
 
-/** The marks an annotation can be: the References primitives it compiles to. */
-export type AnnotationPrimitive = DiagramMarkPrimitive;
+/** A References line, as a solid line compiles to one (17a). */
+type LinePrimitive = Extract<StepDiagramPrimitive, { kind: 'line' }>;
+
+/** The marks an annotation can be: the References primitives it compiles to, and a solid line's `line`. */
+export type AnnotationPrimitive = DiagramMarkPrimitive | LinePrimitive;
 
 /**
  * One annotation compiled for drawing, in picture units — a mark in the
@@ -270,6 +279,11 @@ function seenStyle(style: DiagramStyle): PaperStyle {
   return applyPaperStylePolicy(diagramPaperStyle(style), PAPER_STYLE_POLICIES.references);
 }
 
+/** The style's arrow ink: what a solid line with no colour of its own is drawn in (17a). */
+export function annotationInkColor(style: DiagramStyle): string {
+  return seenStyle(style).arrows.color;
+}
+
 /**
  * A callout's outline's pen, in CSS px whatever the frame: the style's arrow
  * pen at its pt width, as a References step's page draws an arrow.
@@ -283,7 +297,9 @@ const PAGE_GROUND = '#ffffff';
 
 /**
  * The marks' colours as attributes: the style's arrow ink, one ink on and off
- * the paper, so nothing is clipped (`oneInk`) — a circle's ring too, which
+ * the paper, so nothing is clipped (`oneInk`) — a solid line with no colour
+ * of its own, which References draws in its reference ink, and a circle's
+ * ring too, which
  * References draws in the paper's edge ink: here it is the author's mark,
  * as the arrows are (decision 7). A hollow push is the page's white inside,
  * not the paper's face: there is no paper under an annotation to match, and
@@ -297,6 +313,8 @@ function annotationInk(seen: PaperStyle): DiagramInlineInk {
   });
   return {
     ...ink,
+    // A solid line with no colour of its own is in the arrows' ink (17a).
+    lines: { ...ink.lines, highlight: ink.lines.arrow },
     mark: ink.arrowhead,
     sheet: { ...ink.sheet, front: PAGE_GROUND, back: PAGE_GROUND },
     ground: { arrow: ink.arrowhead, mark: ink.arrowhead },
@@ -327,6 +345,18 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
       return { kind: 'line', role: 'diagram-mountain', from, to };
     case 'hidden-line':
       return { kind: 'line', role: 'diagram-hidden', from, to };
+    case 'solid-line':
+      // References' reference-line pen, in its own colour or, with none, the style's arrow ink (`annotationInk`).
+      return {
+        kind: 'mark',
+        primitive: {
+          kind: 'line',
+          from: up(from),
+          to: up(to),
+          style: 'highlight',
+          ...(annotation.color !== undefined ? { ink: annotation.color } : {}),
+        },
+      };
     case 'label': {
       const text = annotation.text ?? '';
       return text.trim() === '' ? null : { kind: 'label', at: from, runs: labelRuns(text) };
@@ -498,6 +528,7 @@ function withHidden(primitive: AnnotationPrimitive, hidden: HiddenStretches): An
     case 'path-arrow':
     case 'pleat-arrow':
     case 'point':
+    case 'line':
       return { ...primitive, hidden };
     default:
       return primitive;
@@ -523,10 +554,13 @@ export function annotationDrawing(
   // The existing creases' pen, at its pt width: what equal divisions' line is drawn in (ED9).
   const aux = { pen: seen.auxCreases.pen, css: seen.auxCreases.pen.width * PT_TO_CSS_PX };
   const pens = canvasDiagramPens(STEP_DIAGRAM_LINE_WIDTH, arrowCss, aux);
-  // The arrow is the style's pen, at its pt width, as on a References step's page.
+  // The arrow is the style's pen, at its pt width, as on a References step's
+  // page; and a solid line (17a), References' reference line, the arrow's
+  // weight with no floor, as the baked scene draws it (`diagramToPaperScene`).
   const project = createOverlayProjector({ origin: [0, 0], ex: [framePx, 0], ey: [0, -framePx] }, ink, {
     ...pens,
     arrow: penInk(seen.arrows, arrowCss / ink),
+    highlight: { ...pens.highlight, width: arrowCss / ink },
   });
   // The pens the lines are painted in, as `paintAnnotations` and the canvas paint them.
   const surface = diagramSurfaceStyle(style);
@@ -712,8 +746,20 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
     take(line.a[0], line.a[1], Math.max(2 * ink, line.halfWidth));
     take(line.b[0], line.b[1], Math.max(2 * ink, line.halfWidth));
   }
-  // Its marks as drawn: as far as their ink, and no further (`markReach`).
-  for (const primitive of drawing.primitives) markReach(primitive, project, drawing.context.marks, take);
+  // Its marks as drawn: as far as their ink, and no further (`markReach`); a
+  // solid line (17a) its pen's half-width round each end, as far as its round
+  // cap reaches, and its sides.
+  for (const primitive of drawing.primitives) {
+    if (primitive.kind === 'line') {
+      const half = strokeAttributes(primitive.style, ink, project.dashScale, project.pens).strokeWidth / 2;
+      for (const end of [primitive.from, primitive.to]) {
+        const { x, y } = project(end);
+        take(x, y, half);
+      }
+    } else {
+      markReach(primitive, project, drawing.context.marks, take);
+    }
+  }
   // A callout, exactly: its box and half its outline's pen round it — a
   // rectangle's mitred corner reaches no further — and its line's round ends.
   // Its words are inside its box (`CALLOUT_PAD_EMS`, `CALLOUT_HALF_HEIGHT_EMS`).

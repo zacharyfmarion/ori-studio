@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { trackDiagramAnnotationBehind } from '../../analytics';
+import { trackDiagramAnnotationBehind, trackDiagramAnnotationRecolored } from '../../analytics';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating, selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
@@ -18,12 +18,13 @@ import {
 } from '../document/diagramDocument';
 import { EDIT_PATH } from './annotateTools';
 import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
-import { annotationEventKind } from './annotationEventKind';
+import { annotationEventColor, annotationEventKind } from './annotationEventKind';
 import {
   hasTicks,
   withBehind,
   withBehindLayers,
   withCloseUpScale,
+  withColor,
   withDivisionsOffset,
   withNumbered,
   withParts,
@@ -47,6 +48,9 @@ function trackBehind(annotation: KnownDiagramAnnotation): void {
 }
 
 const NO_ANNOTATIONS: readonly KnownDiagramAnnotation[] = [];
+
+/** The colour pick last counted (17a): every move of one pick is one recolouring. Picks are numbered app-wide (`DiagramColorSelect`). */
+let countedPick: number | null = null;
 const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 /**
@@ -150,11 +154,29 @@ export function useStepAnnotations(step: DiagramStep | null) {
       /** How many times larger a close-up draws its area (15f), held to its range, as one undo step. */
       setCloseUpScale: (id: string, scale: number) =>
         change(id, 'Change close-up', (annotation) => withCloseUpScale(annotation, scale)),
-      /** A line made another type (15a): the same line, its ends and id kept, as one undo step. */
+      /**
+       * A line made another type (15a): the same line, its ends and id kept,
+       * as one undo step. A solid line made another type loses its colour (17a).
+       */
       setLineType: (id: string, type: DiagramLineType) =>
         change(id, 'Change line type', (annotation) =>
-          isLineKind(annotation.kind) ? { ...annotation, kind: lineKindOf(type) } : annotation
+          isLineKind(annotation.kind) ? withColor({ ...annotation, kind: lineKindOf(type) }, annotation.color ?? null) : annotation
         ),
+      /**
+       * A solid line's colour (17a), null for the style's ink, as one undo
+       * step — every move of one pick in the colour picker (`pick`) the same
+       * step — and counted once per pick.
+       */
+      setColor: (id: string, color: string | null, pick?: number) => {
+        const before = current(id);
+        change(id, 'Change color', (annotation) => withColor(annotation, color), pick);
+        const after = current(id);
+        if (!before || !after || before.color === after.color) return;
+        if (pick !== undefined && countedPick === pick) return;
+        countedPick = pick ?? null;
+        const name = annotationEventColor(after);
+        if (name) trackDiagramAnnotationRecolored(annotationEventKind(after), name);
+      },
       /**
        * One end of a mark put behind a flap or brought back in front (15e), as
        * one undo step: behind as deep as an end already is, else one layer

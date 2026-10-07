@@ -52,6 +52,7 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'solid-line':
     case 'circle':
     case 'right-angle':
     case 'callout':

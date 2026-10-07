@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramAnnotateRail } from './DiagramAnnotateRail';
 
@@ -68,5 +69,38 @@ describe('DiagramAnnotateRail', () => {
     expect(held).toEqual(['Enlarge', 'Enlarge in Frame']);
     act(() => (container!.querySelector('[aria-label="Enlarge"]') as HTMLButtonElement).click());
     expect(onTool).not.toHaveBeenCalled();
+  });
+
+  it('offers Solid among the line types, and while it is the type, the colour the next solid line is drawn in (17a)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    // What Radix's select asks of the DOM, which jsdom does not have.
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => undefined;
+    Element.prototype.scrollIntoView ??= () => undefined;
+    useSettingsStore.setState({ diagramAnnotateLineType: 'valley', diagramAnnotateLineColor: null });
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    act(() =>
+      root!.render(
+        <TooltipProvider>
+          <DiagramAnnotateRail tool={null} readOnly={false} onTool={() => undefined} />
+        </TooltipProvider>
+      )
+    );
+    const types = [...container.querySelectorAll('[role="group"][aria-label="Line Type"] button')].map((button) =>
+      button.getAttribute('aria-label')
+    );
+    expect(types).toEqual(['Valley', 'Mountain', 'Hidden', 'Solid']);
+    const color = () => container!.querySelector<HTMLButtonElement>('button[aria-label="Line Color"]');
+    expect(color()).toBeNull();
+    act(() => container!.querySelector<HTMLButtonElement>('[role="group"][aria-label="Line Type"] button[aria-label="Solid"]')!.click());
+    expect(useSettingsStore.getState().diagramAnnotateLineType).toBe('solid');
+    expect(color()!.textContent).toBe('Ink');
+    act(() => color()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    const reference = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((each) => each.textContent === 'Reference')!;
+    act(() => reference.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    expect(useSettingsStore.getState().diagramAnnotateLineColor).toBe('#c91d87');
+    expect(color()!.textContent).toBe('Reference');
   });
 });

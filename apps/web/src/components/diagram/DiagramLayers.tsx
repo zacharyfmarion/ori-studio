@@ -4,7 +4,9 @@ import { FlipHorizontal2, FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type
 import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
 import { annotationLabel, lineTypeLabel } from '../../diagram/annotate/annotateTools';
 import { DIAGRAM_LINE_TYPES, lineTypeOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
+import { annotationInkColor } from '../../diagram/annotate/annotationPrimitives';
 import {
+  carriesColor,
   carriesText,
   CLOSE_UP_SCALE,
   CLOSE_UP_SCALE_STEP,
@@ -18,7 +20,7 @@ import {
 } from '../../diagram/annotate/annotationModel';
 import { useFieldFocusRequest } from '../../diagram/annotate/useFieldFocusRequest';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
-import type { DiagramStep, KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
+import { DEFAULT_DIAGRAM_STYLE, type DiagramStep, type KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { marksTouchingWindow, viewOfStep } from '../../diagram/zoom/stepView';
 import { useAreaSubtitle } from '../../diagram/zoom/useZoomControls';
 import { frameSubtitle, areaStepOf } from '../../diagram/zoom/zoomActions';
@@ -34,6 +36,7 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 import { Badge } from '../ui/Badge';
 import { DiagramAnnotationGlyph, EnlargeGlyph, SolidArrowGlyph } from './DiagramAnnotateToolGlyph';
 import { DiagramBehindControls } from './DiagramBehindControls';
+import { DiagramColorSelect } from './DiagramColorSelect';
 import { DiagramDivisionsControls } from './DiagramDivisionsControls';
 import { DiagramLineTypeMark } from './DiagramLineTypeMark';
 import { DiagramPathNodeControls } from './DiagramPathNodeControls';
@@ -57,7 +60,7 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * Annotate, and the selected one's own controls — a notice when some were made
  * by a newer Ori Studio, which the list leaves out; the list, in the order they
  * were drawn, a press selecting one as a press on the canvas does; and under
- * it the selected one's text, turn, type, ticks, equal divisions' parts,
+ * it the selected one's text, turn, type, a solid line's colour (17a), ticks, equal divisions' parts,
  * offset, ticks and count, kinks, scale, white arrow look, place in the
  * folds, axis, Flip Horizontal and Vertical, its verbs
  * (Flip Arc, Reset, Turn 90°, Delete), and in Edit Path a fold or white
@@ -118,7 +121,7 @@ export function DiagramLayers({ step }: { step: DiagramStep }) {
                 ) : annotation.kind === 'zoom' ? (
                   <EnlargeGlyph shape={zoomShapeOf(annotation)} />
                 ) : (
-                  <DiagramAnnotationGlyph kind={annotation.kind} />
+                  <DiagramAnnotationGlyph kind={annotation.kind} color={annotation.color} />
                 )}
                 <span className={styles.rowText}>
                   <span className={styles.rowName}>
@@ -217,6 +220,8 @@ function SelectedAnnotation({
   const flipActions = annotations.actions.filter((action) => action.group === 'flip');
   const lineType = lineTypeOf(annotation.kind);
   const typeName = t('panels:diagram.annotations.lineType', 'Type');
+  const colorName = t('panels:diagram.annotations.color', 'Color');
+  const style = useWorkspaceStore((state) => state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE);
 
   return (
     <div className={styles.selected}>
@@ -286,6 +291,21 @@ function SelectedAnnotation({
               icon: <DiagramLineTypeMark type={type} />,
             }))}
             onChange={(type) => annotations.setLineType(id, type)}
+          />
+        </FieldRow>
+      )}
+      {carriesColor(annotation.kind) && (
+        // A solid line's colour (17a): the rail's select, on the mark.
+        <FieldRow label={colorName} kind="select" disabled={!editable}>
+          <DiagramColorSelect
+            // One per mark: a pick still under way when another is selected ends with the select, its picker closing with its input, rather than going on to recolour the next one in the same undo step.
+            key={id}
+            variant="row"
+            label={colorName}
+            value={annotation.color ?? null}
+            ink={annotationInkColor(style)}
+            disabled={!editable}
+            onChange={(color, pick) => annotations.setColor(id, color, pick)}
           />
         </FieldRow>
       )}

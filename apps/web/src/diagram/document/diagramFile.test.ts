@@ -637,6 +637,42 @@ describe('annotations in the file', () => {
     expect(withAnnotations([newer])).toEqual([{ id: 'n-8', unknown: newer }]);
   });
 
+  describe('a solid line (17a)', () => {
+    const solid = (more: Record<string, unknown> = {}) => ({ id: 's-1', kind: 'solid-line', from: [0.1, 0.5], to: [0.7, 0.5], ...more });
+
+    it('round-trips its colour and its ends behind a flap, and one with no colour, written with none', () => {
+      const every = [
+        solid({ color: '#c91d87' }),
+        solid({ id: 's-2', color: '#1971C2', behind: { from: 1, to: 2 } }),
+        solid({ id: 's-3' }),
+      ];
+      expect(withAnnotations(every)).toEqual(every);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: withAnnotations(every) }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual(every);
+    });
+
+    it('carries a colour it cannot draw as a newer build’s, and drops one that is not a word', () => {
+      for (const color of ['magenta', 'theme:accent', '#c91d87ff', 'rgb(1, 2, 3)']) {
+        const newer = solid({ id: `n-${color}`, color });
+        expect(withAnnotations([newer]), color).toEqual([{ id: newer.id, unknown: newer }]);
+      }
+      expect(withAnnotations([solid({ id: 'd-number', color: 7 }), solid({ id: 'd-null', color: null })])).toEqual([]);
+      // A colour is a solid line's alone: on a valley line it is a field this build has no name for.
+      const valley = { id: 'v-color', kind: 'valley-line', from: [0, 0], to: [1, 1], color: '#e03131' };
+      expect(withAnnotations([valley])).toEqual([{ id: 'v-color', unknown: valley }]);
+    });
+
+    it('is kept, verbatim and undrawn, by a build before solid lines: as any kind it has no name for', () => {
+      // A build before 17a names no `solid-line`; `spiral-line` stands for it here.
+      const older = solid({ kind: 'spiral-line', color: '#e03131' });
+      expect(withAnnotations([older])).toEqual([{ id: 's-1', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual([older]);
+    });
+  });
+
   describe('a right angle', () => {
     const mark = (more: Record<string, unknown> = {}) => ({
       id: 'r-1',

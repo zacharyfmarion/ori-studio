@@ -1026,9 +1026,18 @@ describe('a solid arrow (15d)', () => {
 describe('a mark behind a flap (15e)', () => {
   const arrow: KnownDiagramAnnotation = { id: 'a-1', kind: 'valley-arrow', from: [0.25, 0.5], to: [0.75, 0.5], bend: 0.125 };
 
-  it('can be behind at a fold or pleat arrow’s ends, a valley or mountain line’s, and a circle’s centre alone', () => {
+  it('can be behind at a fold or pleat arrow’s ends, a valley, mountain or solid line’s, and a circle’s centre alone', () => {
     const behind = ANNOTATION_KINDS.filter((kind) => behindEnds(kind).length > 0);
-    expect(behind).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'valley-line', 'mountain-line', 'circle']);
+    expect(behind).toEqual([
+      'valley-arrow',
+      'mountain-arrow',
+      'fold-unfold-arrow',
+      'pleat-arrow',
+      'valley-line',
+      'mountain-line',
+      'solid-line',
+      'circle',
+    ]);
     expect(behindEnds('circle')).toEqual(['from']);
     expect(behindEnds('hidden-line')).toEqual([]);
   });

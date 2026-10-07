@@ -14,6 +14,11 @@
   box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
 }
 
+/* A short list shown whole, as far as the window allows (`fit="available"`). */
+.content[data-fit='available'] {
+  max-height: var(--radix-select-content-available-height);
+}
+
 .viewport {
   padding: 4px;
 }

@@ -580,7 +580,9 @@ export type DiagramPicture =
 /**
  * What an annotation draws (D8): a fold arrow — kept (valley, mountain) or
  * made and unfolded — a push, a white arrow, the turn-over and rotate glyphs,
- * a crease line in the diagram's pens, a label, a circle round a point, as
+ * a crease line in the diagram's pens, a solid line in a colour of its own,
+ * as References draws the lines a step lines up against (17a), a label, a
+ * circle round a point, as
  * References rings one, a right angle marked in a corner, and a callout: a
  * line from a point to a box of words, as diagrams say "repeat behind" — an
  * angle marked halved, as a bisector's equal angles are (15b), a pleat
@@ -605,6 +607,7 @@ export type DiagramAnnotationKind =
   | 'valley-line'
   | 'mountain-line'
   | 'hidden-line'
+  | 'solid-line'
   | 'label'
   | 'circle'
   | 'right-angle'
@@ -811,7 +814,7 @@ export interface KnownDiagramAnnotation {
   /** Equal divisions that print their count beside their line; unsaid, they do not. Only ever written true. */
   numbered?: true;
   /**
-   * The ends of a fold or pleat arrow, a valley or mountain line, or a
+   * The ends of a fold or pleat arrow, a valley, mountain or solid line, or a
    * circle that lie behind a flap (15e): drawn dotted from each until they
    * come out from under it, on a flat fold, the one picture that knows its
    * layers. Unsaid, in front, as every mark was before.
@@ -874,6 +877,11 @@ export interface KnownDiagramAnnotation {
   edge?: DiagramZoomEdge;
   /** An enlarge area's picked anchor: a point on the paper, in paper coordinates; unsaid, the default rule (Revision 2). */
   anchor?: [number, number];
+  /**
+   * A solid line's colour (17a): a `#rrggbb` string, printed as given in any
+   * style. Unsaid, the style's arrow ink, so a change of style recolours it.
+   */
+  color?: string;
   /** A label's or a callout's text. */
   text?: string;
   rotate?: DiagramRotation;

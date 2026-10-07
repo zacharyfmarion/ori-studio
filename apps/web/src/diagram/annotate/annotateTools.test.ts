@@ -37,7 +37,7 @@ describe('the rail', () => {
     expect(annotationLabel(t, { kind: 'white-arrow' })).toBe('White Arrow');
   });
 
-  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a), the pleat and solid arrows among the arrows (15c, 15d), equal divisions, the close-up and the two Enlarge tools among the marks (Revision 2, 15f)', () => {
+  it('groups every tool once, after Select and Edit Path: one Line tool for the four lines (15a, 17a), the pleat and solid arrows among the arrows (15c, 15d), equal divisions, the close-up and the two Enlarge tools among the marks (Revision 2, 15f)', () => {
     expect(ANNOTATE_TOOL_GROUPS).toEqual([
       { id: 'select', tools: [null, 'edit-path'] },
       {
@@ -82,18 +82,20 @@ describe('the rail', () => {
     expect(plain).toContain('e');
     expect(toolForShortcut('diagram.toolEnlarge')).toBe('enlarge');
     expect(toolForShortcut('diagram.toolEnlargeFrame')).toBe('enlarge-frame');
-    expect(DIAGRAM_LINE_TYPES.map((type) => drawingKind('line', type))).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
-    expect(ANNOTATION_KINDS.filter(isLineKind)).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
+    const lines = ['valley-line', 'mountain-line', 'hidden-line', 'solid-line'];
+    expect(DIAGRAM_LINE_TYPES.map((type) => drawingKind('line', type))).toEqual(lines);
+    expect(ANNOTATION_KINDS.filter(isLineKind)).toEqual(lines);
   });
 
-  it('keeps today’s three line keys, each picking a line type rather than a tool', () => {
+  it('keeps the three first line keys and Solid’s (17a), each picking a line type rather than a tool', () => {
     expect(LINE_TYPE_SHORTCUTS).toEqual({
       valley: 'diagram.toolValleyLine',
       mountain: 'diagram.toolMountainLine',
       hidden: 'diagram.toolHiddenLine',
+      solid: 'diagram.toolSolidLine',
     });
     expect(DIAGRAM_LINE_TYPES.map((type) => lineTypeForShortcut(LINE_TYPE_SHORTCUTS[type]))).toEqual(DIAGRAM_LINE_TYPES);
-    expect(DIAGRAM_LINE_TYPES.map((type) => toolForShortcut(LINE_TYPE_SHORTCUTS[type]))).toEqual([undefined, undefined, undefined]);
+    expect(DIAGRAM_LINE_TYPES.map((type) => toolForShortcut(LINE_TYPE_SHORTCUTS[type]))).toEqual([undefined, undefined, undefined, undefined]);
     expect(lineTypeForShortcut('diagram.toolValleyArrow')).toBeUndefined();
   });
 });

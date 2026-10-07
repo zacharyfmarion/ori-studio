@@ -87,6 +87,7 @@ export type DiagramAnnotationTool =
   | 'valley_line'
   | 'mountain_line'
   | 'hidden_line'
+  | 'solid_line'
   | 'label'
   | 'circle'
   | 'right_angle'
@@ -113,6 +114,13 @@ export type DiagramAnnotationSnap = 'snapped' | 'free' | 'off' | 'nothing_near' 
  * click, which divides it whole.
  */
 export type DiagramDivisionsPlaced = 'drag' | 'line';
+
+/**
+ * A mark's colour, by name (17a): the style's ink (none stored), References'
+ * magenta, one of the five print colours, or one picked by hand. Never the
+ * colour itself.
+ */
+export type DiagramAnnotationColor = 'ink' | 'reference' | 'red' | 'orange' | 'green' | 'blue' | 'purple' | 'custom';
 
 /** A fold arrow or a white arrow, which Edit Path shapes: its kind, in the event's own spelling. */
 export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';
@@ -1446,6 +1454,8 @@ export const ANALYTICS_EVENTS = {
   diagramAnnotationBehind: 'diagram annotation behind',
   /** A mark flipped horizontally or vertically from the Layers pane: its kind, which way. */
   diagramAnnotationFlipped: 'diagram annotation flipped',
+  /** A solid line's colour changed in the Layers pane (17a): its kind, the colour by name. Once per pick. */
+  diagramAnnotationRecolored: 'diagram annotation recolored',
   /** A frame placed on an enlarged step by a capture (Revision 2): how, through what, by which anchor. One per step placed. */
   diagramStepEnlarged: 'diagram step enlarged',
   /** An enlarge area or an enlarged step's frame changed: moved, its Shape, Size, Edge or Anchor, or an area deleted. */

@@ -135,6 +135,7 @@ export function annotationSnapPoints(
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'solid-line':
       return [annotation.from, annotation.to];
     case 'circle':
     case 'right-angle':
@@ -177,7 +178,8 @@ export function drawnLines(annotations: readonly KnownDiagramAnnotation[]): Inde
     switch (annotation.kind) {
       case 'valley-line':
       case 'mountain-line':
-      case 'hidden-line': {
+      case 'hidden-line':
+      case 'solid-line': {
         const [ax, ay] = annotation.from;
         const [bx, by] = annotation.to;
         lines.push({ id: lines.length, a: { x: ax, y: ay }, b: { x: bx, y: by } });

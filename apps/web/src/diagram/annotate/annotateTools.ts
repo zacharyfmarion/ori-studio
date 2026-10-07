@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import type { DiagramAnnotateShortcutId } from '../../keyboard/shortcuts';
 import type { DiagramAnnotationKind, DiagramZoomShape, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { canBeShaped, isPointKind, isSolidArrow, SOLID_ARROW_LOOK, type WhiteArrowLook } from './annotationModel';
+import type { AnnotationPaletteName } from './annotationColors';
 import { DEFAULT_DIAGRAM_LINE_TYPE, lineKindOf, type DiagramLineKind, type DiagramLineType } from './lineTypes';
 import type { PickProgress, ToolNotice } from './pickProgress';
 
@@ -21,7 +22,7 @@ export const EDIT_PATH = 'edit-path';
 
 /**
  * The Line tool (15a): a line in the type the rail's Line Type says — a
- * valley, a mountain or a hidden line, each a kind of its own.
+ * valley, a mountain, a hidden or a solid line (17a), each a kind of its own.
  */
 export const LINE_TOOL = 'line';
 
@@ -56,7 +57,7 @@ export const ENLARGE_FRAME = 'enlarge-frame';
 type TurnSignKind = 'turn-over' | 'rotate';
 
 /**
- * A tool that draws: the kind it draws, for every kind but the three lines,
+ * A tool that draws: the kind it draws, for every kind but the four lines,
  * which the Line tool draws in the type chosen, the turn signs, which none
  * does, and the enlarge area, which tools of its own lay in a shape each
  * (Revision 2); the Angle Bisector, which draws a line and a mark; and the
@@ -93,16 +94,24 @@ export function drawingKind(tool: AnnotateTool, lineType: DiagramLineType): Diag
 
 /**
  * The look a tool lays what it draws in, over its kind's own: the Solid
- * Arrow's (15d), or the shape an enlarge area is drawn in (Revision 2) — a
- * circle with Enlarge, a rounded rectangle with Enlarge in Frame.
+ * Arrow's (15d), the shape an enlarge area is drawn in (Revision 2) — a
+ * circle with Enlarge, a rounded rectangle with Enlarge in Frame — or the
+ * colour the Line tool draws a solid line in (17a).
  */
-export type DrawingLook = WhiteArrowLook & { shape?: DiagramZoomShape };
+export type DrawingLook = WhiteArrowLook & { shape?: DiagramZoomShape; color?: string };
+
+/** The line the Line tool draws: its type, and the colour a solid one is drawn in, null for the style's ink. */
+export interface LineChoice {
+  type: DiagramLineType;
+  color: string | null;
+}
 
 /** The look a tool lays what it draws in ({@link DrawingLook}); nothing for any other tool. */
-export function drawingLook(tool: AnnotateTool): DrawingLook {
+export function drawingLook(tool: AnnotateTool, line?: LineChoice): DrawingLook {
   if (tool === SOLID_ARROW) return SOLID_ARROW_LOOK;
   if (tool === ENLARGE) return { shape: 'circle' };
   if (tool === ENLARGE_FRAME) return { shape: 'rounded' };
+  if (tool === LINE_TOOL && line?.type === 'solid' && line.color !== null) return { color: line.color };
   return {};
 }
 
@@ -214,14 +223,16 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
 };
 
 /**
- * The key that picks each line type — the keys today's three line tools had,
- * so a rebinding carries over. Each picks the Line tool too, unless a tool
+ * The key that picks each line type — the keys the three first line tools
+ * had, so a rebinding carries over, and Shift+L for Solid (17a), as Shift+V
+ * and Shift+M pick theirs. Each picks the Line tool too, unless a tool
  * that draws in the type is already in hand (`runDiagramAnnotateShortcut`).
  */
 export const LINE_TYPE_SHORTCUTS: Readonly<Record<DiagramLineType, DiagramAnnotateShortcutId>> = {
   valley: 'diagram.toolValleyLine',
   mountain: 'diagram.toolMountainLine',
   hidden: 'diagram.toolHiddenLine',
+  solid: 'diagram.toolSolidLine',
 };
 
 /** Edit Path's key. */
@@ -253,6 +264,28 @@ export function lineTypeLabel(t: TFunction, type: DiagramLineType): string {
       return t('panels:diagram.annotate.lineTypeMountain', 'Mountain');
     case 'hidden':
       return t('panels:diagram.annotate.lineTypeHidden', 'Hidden');
+    case 'solid':
+      return t('panels:diagram.annotate.lineTypeSolid', 'Solid');
+  }
+}
+
+/** A colour of the palette's name (17a), for the colour select. */
+export function annotationColorLabel(t: TFunction, name: AnnotationPaletteName): string {
+  switch (name) {
+    case 'ink':
+      return t('panels:diagram.annotations.colorInk', 'Ink');
+    case 'reference':
+      return t('panels:diagram.annotations.colorReference', 'Reference');
+    case 'red':
+      return t('panels:diagram.annotations.colorRed', 'Red');
+    case 'orange':
+      return t('panels:diagram.annotations.colorOrange', 'Orange');
+    case 'green':
+      return t('panels:diagram.annotations.colorGreen', 'Green');
+    case 'blue':
+      return t('panels:diagram.annotations.colorBlue', 'Blue');
+    case 'purple':
+      return t('panels:diagram.annotations.colorPurple', 'Purple');
   }
 }
 
@@ -281,6 +314,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolMountainLine', 'Mountain Line');
     case 'hidden-line':
       return t('tools:diagram.toolHiddenLine', 'Hidden Line');
+    case 'solid-line':
+      return t('tools:diagram.toolSolidLine', 'Solid Line');
     case 'label':
       return t('tools:diagram.toolLabel', 'Label');
     case 'circle':
