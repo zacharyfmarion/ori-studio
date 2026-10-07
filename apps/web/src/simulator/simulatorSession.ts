@@ -280,6 +280,11 @@ interface Session {
   backend: SolverBackend;
   backendId: SimulatorBackendId;
   clock: SimulationClock;
+  /**
+   * The solver options in force: the load's, and every material push since.
+   * The fold target is {@link foldPercent}, which other calls move too.
+   */
+  solver: SimulatorOptions;
   positionScratch: Float32Array;
   colorScratch: Float32Array;
   foldPercent: number;
@@ -974,6 +979,19 @@ function createBackend(
 }
 
 /**
+ * Whether a material push would change what the session's solver holds. The
+ * fold target is compared with the session's own, since `setFoldPercent` and
+ * `reset` move it too. A fold profile is an object, so one always counts.
+ */
+function changesSolver(active: Session, options: Partial<SimulatorOptions>): boolean {
+  return (Object.keys(options) as Array<keyof SimulatorOptions>).some((key) => {
+    if (key === 'foldProfile') return true;
+    const held = key === 'foldPercent' ? active.foldPercent : active.solver[key];
+    return !Object.is(held, options[key]);
+  });
+}
+
+/**
  * Reuse the caller's returned buffer when it is the right size, otherwise
  * allocate. Steady state performs zero allocation; a resize costs one.
  */
@@ -1207,6 +1225,7 @@ const api = {
       backend,
       backendId,
       clock,
+      solver: { ...options.solver },
       faceGroups,
       positionScratch: new Float32Array(prepared.vertexCount * 3),
       colorScratch: new Float32Array(prepared.vertexCount * 3),
@@ -1458,9 +1477,19 @@ const api = {
     active.clock.invalidate();
   },
 
+  /**
+   * Change what the solver is made of. A push that changes nothing does
+   * nothing, the clock included: Simulate pushes the material it loaded with
+   * again once the model is ready, after the opening settle, and un-settling
+   * the clock for it ran the flat sheet on for a few hundred steps or for
+   * none, depending on whether the runtime's loop saw the push or the settle's
+   * reply last. Those steps decide which way a bistable fold goes.
+   */
   setMaterial(options: Partial<SimulatorOptions>, token?: SimulatorSessionToken): void {
     const active = sessionFor(token);
     if (!active) return;
+    if (!changesSolver(active, options)) return;
+    active.solver = { ...active.solver, ...options };
     active.backend.setMaterial(options);
     if (options.foldPercent !== undefined) active.foldPercent = options.foldPercent;
     active.clock.invalidate();

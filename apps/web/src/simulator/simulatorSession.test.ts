@@ -11,6 +11,7 @@ import {
 import { simulatorExportTarget } from './simulatorExportTarget';
 import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
 import golden from './__fixtures__/simulatorExportGolden.json';
+import cranePattern10 from './__fixtures__/cranePattern10.fold.json';
 import { DEFAULT_PAPER_PAGE, type PaperPage } from '../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX, type PaperStyle } from '../lib/paper/paperStyle';
 import {
@@ -20,6 +21,8 @@ import {
 } from '../lib/paper/paperStyleResolve';
 import { PT_PER_MM, paperSceneToSvg, type PaperSvgResult } from '../lib/paper/paperSvg';
 import { DEFAULT_PAPER_EXPORT_SETTINGS } from '../lib/paperExportSettings';
+import { simulatorRunConfig } from '../lib/simulatorRunConfig';
+import { DEFAULT_SIMULATOR_SETTINGS, simulatorMaterialOptions } from '../lib/simulatorSettings';
 import { paperPresetRows } from '../lib/paperPresetRows';
 import {
   createPaperExportSession,
@@ -289,6 +292,84 @@ describe('simulator session', () => {
     const afterTick = new Float32Array(positionsOf(await frame(session.tick({}))));
 
     expect(maxAbsDelta(flat, afterTick)).toBeLessThan(1e-5);
+    session.dispose();
+  });
+});
+
+describe('a material push', () => {
+  // What Simulate sends: the load carries the run profile and the user's
+  // material, and once the model is ready the panel pushes the same material
+  // again. It reaches the worker after the load's opening settle, and whether
+  // the runtime's loop then ticks depends on when the settle's reply lands.
+  const loaded = { ...simulatorRunConfig().solverOptions, ...simulatorMaterialOptions(DEFAULT_SIMULATOR_SETTINGS) };
+  const pushed = simulatorMaterialOptions(DEFAULT_SIMULATOR_SETTINGS);
+
+  it('that changes nothing leaves a settled model settled', async () => {
+    const session = createSimulatorSession();
+    session.load(miura(8, 8), { solver: loaded });
+    const settled = await frame(session.settle(2000, {}));
+    expect(settled.converged).toBe(true);
+
+    session.setMaterial(pushed);
+    const next = await frame(session.tick({}));
+
+    expect(next.stepsThisTick).toBe(0);
+    expect(next.step).toBe(settled.step);
+    expect(next.converged).toBe(true);
+    session.dispose();
+  });
+
+  it('that changes nothing folds the crane the same whether the loop ticks after it or not', async () => {
+    // Pattern 10 of a crane's diagram, as Simulate builds it. Bistable at 60%:
+    // 24 flat steps before the fold and it goes one way, 48 and it goes the
+    // other, so one tick of flat sheet more or less shows.
+    const crane = cranePattern10 as unknown as FoldDocument;
+    async function foldAt60(loopTicks: boolean) {
+      const session = createSimulatorSession();
+      // No time budget: one 8-step chunk per tick, the same on any machine.
+      session.load(crane, { solver: loaded, budgetMs: 0 });
+      await frame(session.settle(2000, {}));
+      session.setMaterial(pushed);
+      if (loopTicks) {
+        // The runtime's loop when a frame comes between the push and the
+        // settle's reply: tick until the worker says it is settled.
+        for (let i = 0; i < 100; i += 1) {
+          if ((await frame(session.tick({}))).converged) break;
+        }
+      }
+      session.setFoldPercent(60);
+      const folded = await frame(session.settle(40_000, {}));
+      session.dispose();
+      return { step: folded.step, positions: new Float32Array(positionsOf(folded)) };
+    }
+
+    const idle = await foldAt60(false);
+    const ticked = await foldAt60(true);
+
+    expect(ticked.step).toBe(idle.step);
+    expect(maxAbsDelta(ticked.positions, idle.positions)).toBe(0);
+  }, 30_000);
+
+  it('that changes the material moves a settled model on', async () => {
+    const session = createSimulatorSession();
+    session.load(miura(8, 8), { solver: loaded });
+    expect((await frame(session.settle(2000, {}))).converged).toBe(true);
+
+    session.setMaterial({ ...pushed, creaseStiffness: (pushed.creaseStiffness ?? 1) * 4 });
+
+    expect((await frame(session.tick({}))).stepsThisTick).toBeGreaterThan(0);
+    session.dispose();
+  });
+
+  it('compares a fold target with the one the session holds, not the one it loaded with', () => {
+    const session = createSimulatorSession();
+    session.load(miura(8, 8), { solver: { ...loaded, foldPercent: 0 } });
+    session.setFoldPercent(60);
+
+    // The load said 0 too, but the session holds 60 now, so this is a change.
+    session.setMaterial({ ...pushed, foldPercent: 0 });
+
+    expect(session.exportGeometry().foldPercent).toBe(0);
     session.dispose();
   });
 });
