@@ -16,11 +16,13 @@
  * A step with no picture has no file. Each file embeds the faces it sets, cut
  * to what it sets, so it opens anywhere as it looks here.
  *
- * An enlarged step (Revision 2) is its window, framed alone: as large as its
- * file's box holds, at most six times the area it enlarges as that area's
- * file draws it, or its Size times that — never smaller than the area, but
- * where the box cannot hold even that. No enlarge arrow: files are steps,
- * not the gutters between them.
+ * An enlarged step (Revision 2) is its window, framed alone, at the size the
+ * pages print it — the page's enlargement of the area it enlarges, as the
+ * page prints that (Zach, 2026-10-07) — no larger than its file's box holds.
+ * Its area's own file is drawn at the files' one scale, which can be far
+ * smaller than its page's: measured against that, the crane's step 22 printed
+ * half its page size. No enlarge arrow: files are steps, not the gutters
+ * between them.
  *
  * Pure: no DOM, no store.
  */
@@ -35,7 +37,6 @@ import {
   STEP_NUMBER_SIZE_MM,
   STEP_TEXT_LEADING_MM,
   STEP_TEXT_SIZE_MM,
-  ZOOM_FILL,
   pictureFit,
   type LayoutStep,
   type SetLine,
@@ -45,10 +46,11 @@ import {
   diagramLayoutSteps,
   diagramUploadTexts,
   largestHeld,
+  layoutDiagram,
   MEASURE_SETTLED,
 } from '../pages/diagramPages';
 import { fontTextSetter } from '../pages/fontTextSetter';
-import { cellPicture, layoutPicture, printedFrameMm } from '../pages/pagePictures';
+import { cellPicture, layoutPicture } from '../pages/pagePictures';
 import {
   ASCENT_EM,
   CROPPED_TEXT_MIN_WIDTH_MM,
@@ -146,46 +148,25 @@ function sharedScale(
 }
 
 /**
- * The longer side, mm, an enlarged step's window is drawn at in its file:
- * the largest its box holds its content and marks at, held to 1–6 times the
- * area it enlarges as the area's own file draws it (the arrow's area, or with
- * none its frame as its whole picture would draw), or its Size times that,
- * no larger than the box holds. Null for a step that is not enlarged.
+ * The longer side, mm, an enlarged step's window is drawn at in its file: as
+ * the pages print it (`pageFrameMm`, its cell's window), so the file shows
+ * the step enlarged as the page does, no larger than the box holds its
+ * content and marks at; the largest the box holds where the pages give no
+ * size. Null for a step that is not enlarged.
  */
 export function zoomFileFrameMm(
   document: DiagramDocument,
   laidOut: LayoutStep,
   step: DiagramStep,
   box: { x: number; y: number; size: number },
-  mmPerUnit: number | null,
-  layoutSteps: readonly LayoutStep[]
+  pageFrameMm: number | null
 ): number | null {
-  const { zoom } = laidOut;
-  if (!zoom || laidOut.picture?.kind !== 'zoom') return null;
+  if (!laidOut.zoom || laidOut.picture?.kind !== 'zoom') return null;
   const measured = (scale: number | null) =>
     layoutPicture(step, document.assets, document.style, scale === null ? null : { frameMm: scale });
   const fit = largestHeld((scale) => pictureFit(measured(scale), box.size, box.size));
   if (fit === null || !(fit > 0)) return null;
-  // The area as its file draws it: its share of its step's frame there.
-  const areaStep = zoom.arrowFrom ? stepsOf(document).find((each) => each.id === zoom.arrowFrom!.stepId) : undefined;
-  const areaPaper = layoutSteps.find((each) => each.id === areaStep?.id)?.picture?.kind === 'paper';
-  const areaFrame = areaStep
-    ? printedFrameMm(areaStep, document.assets, document.style, {
-        pictureMm: box,
-        mmPerUnit: areaPaper ? mmPerUnit : null,
-        frameMm: null,
-      })
-    : null;
-  const areaMm =
-    zoom.arrowFrom && areaFrame !== null
-      ? zoom.arrowFrom.share * areaFrame
-      : zoom.frameShare * (zoom.whole.kind === 'paper' && mmPerUnit !== null ? zoom.whole.units * mmPerUnit : box.size);
-  if (!(areaMm > 0) || !Number.isFinite(areaMm)) return fit;
-  // A turned frame is smaller than its window, which is what the file draws.
-  const inWindow = zoom.windowShare > 0 && zoom.frameShare > 0 ? zoom.frameShare / zoom.windowShare : 1;
-  const held = (mm: number) => Math.min(ZOOM_FILL.max * areaMm, Math.max(ZOOM_FILL.min * areaMm, mm));
-  const frame = zoom.scale !== null ? held(zoom.scale * areaMm) : held(fit * inWindow);
-  return Math.min(frame / inWindow, fit);
+  return pageFrameMm !== null && pageFrameMm > 0 && Number.isFinite(pageFrameMm) ? Math.min(pageFrameMm, fit) : fit;
 }
 
 export function prepareStepFiles(
@@ -208,6 +189,23 @@ export function prepareStepFiles(
   // there, as the pages find theirs (`layoutDiagram`).
   const layoutSteps = diagramLayoutSteps(document);
   const scale = sharedScale(document, box.size, canvas);
+  /**
+   * The window each enlarged step's page cell prints, mm: what its file is
+   * drawn at. The pages laid out once, on the first enlarged step's file, by
+   * a setter of their own, so what their title sets is not counted here.
+   */
+  let pageFrames: Map<string, number> | null = null;
+  const pageFrameOf = (stepId: string): number | null => {
+    if (!pageFrames) {
+      const pageSetter = fontTextSetter((key, weight) => fonts.font(key, weight)?.metrics ?? null, document.hanStyle);
+      const enlarged = new Set(layoutSteps.filter((each) => each.picture?.kind === 'zoom').map((each) => each.id));
+      pageFrames = new Map();
+      for (const cell of layoutDiagram(document, pageSetter).pages.flatMap((page) => page.cells)) {
+        if (enlarged.has(cell.stepId) && cell.frameMm !== null) pageFrames.set(cell.stepId, cell.frameMm);
+      }
+    }
+    return pageFrames.get(stepId) ?? null;
+  };
 
   const digits = String(steps.length).length;
   const title = document.title.trim() || 'Diagram';
@@ -262,7 +260,8 @@ export function prepareStepFiles(
       };
       const laidOut = layoutSteps[file.index];
       const paper = laidOut?.picture?.kind === 'paper';
-      const zoomFrame = laidOut ? zoomFileFrameMm(document, laidOut, step, box, scale, layoutSteps) : null;
+      const zoomFrame =
+        laidOut?.picture?.kind === 'zoom' ? zoomFileFrameMm(document, laidOut, step, box, pageFrameOf(step.id)) : null;
       const picture = cellPicture(
         step,
         document.assets,

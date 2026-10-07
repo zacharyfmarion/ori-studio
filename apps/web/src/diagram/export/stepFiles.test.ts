@@ -16,7 +16,7 @@ import { FIXTURE_FONTS, fixtureSubsetter } from '../fonts/diagramFonts.fixtures'
 import type { FontSubsetter } from '../fonts/fontSubset';
 import { pictureExtent } from '../pages/diagramPageLayout';
 import { cellPicture, layoutPicture, printedFrameMm } from '../pages/pagePictures';
-import { diagramLayoutSteps } from '../pages/diagramPages';
+import { diagramLayoutSteps, preparedPages } from '../pages/diagramPages';
 import { paintEnlargeArrow } from '../zoom/enlargeArrow';
 import { estimateTextSetter } from '../pages/estimateTextSetter';
 import { PAD_MM, pictureBoxOf } from './stepFileGeometry';
@@ -284,8 +284,11 @@ describe('an enlarged step’s file (Revision 2)', () => {
     expect(faces(window)).toBeLessThan(faces(whole));
   });
 
-  /** The crane with an area round its head, `share` of its frame across, and the step enlarged from it after it. */
-  function enlargedAfterArea(radius: number, scale?: number) {
+  /**
+   * The crane with an area round its head, `radius` of its frame, and the step enlarged from it after it, its
+   * files `options`: the window the enlarged step's file draws, and the one its page cell prints.
+   */
+  function enlargedAfterArea(radius: number, scale?: number, options: StepFileOptions = SAME) {
     const crane = craneStep('S.none');
     const area = { id: 'area-1', kind: 'zoom' as const, from: [0.37, 0.13] as [number, number], to: [0.37, 0.13] as [number, number], radius };
     const zoom = { from: 'area-1', shape: 'circle' as const, frame: { centre: [0.37, 0.13] as [number, number], radius }, ...(scale ? { scale } : {}) };
@@ -298,33 +301,49 @@ describe('an enlarged step’s file (Revision 2)', () => {
       ],
       0
     );
-    const files = prepareStepFiles(document, FIXTURE_FONTS, subsetter, SAME);
-    const box = pictureBoxOf(SAME);
+    const files = prepareStepFiles(document, FIXTURE_FONTS, subsetter, options);
+    const box = pictureBoxOf(options);
     const [areaStep, enlarged] = stepsOf(document);
     const layoutSteps = diagramLayoutSteps(document);
-    const areaMm = 2 * radius * printedFrameMm(areaStep!, {}, document.style, { pictureMm: box, mmPerUnit: files.mmPerUnit, frameMm: null })!;
-    const frameMm = zoomFileFrameMm(document, layoutSteps[1]!, enlarged!, box, files.mmPerUnit, layoutSteps)!;
-    return { files, areaMm, frameMm, box };
+    // The file's window: its circle's clip, which is its frame, as wide as the window it fills.
+    const clip = /<clipPath id="[^"]*zoom-clip"><circle [^>]*\br="([\d.]+)"/.exec(files.compose(1).svg)!;
+    const frameMm = (2 * Number(clip[1])) / PT_PER_MM;
+    const pages = preparedPages(document, FIXTURE_FONTS, subsetter).layout.pages.flatMap((page) => page.cells);
+    const [areaCell, cell] = [pages.find((each) => each.stepId === 'step-area')!, pages.find((each) => each.stepId === 'step-enlarged')!];
+    // The area as the area's own file draws it, and as its page cell prints it.
+    const fileAreaMm = 2 * radius * printedFrameMm(areaStep!, {}, document.style, { pictureMm: box, mmPerUnit: files.mmPerUnit, frameMm: null })!;
+    const pageAreaMm = 2 * radius * printedFrameMm(areaStep!, {}, document.style, areaCell)!;
+    const fit = zoomFileFrameMm(document, layoutSteps[1]!, enlarged!, box, null)!;
+    return { files, frameMm, pageFrameMm: cell.frameMm!, printed: cell.zoom!.printed, fileAreaMm, pageAreaMm, fit, box };
   }
 
-  it('fills its file’s box under Fill, at most six times the area as the area’s file draws it, and prints no arrow', () => {
-    // A small area: six times it is less than the box holds.
-    const small = enlargedAfterArea(0.02);
-    expect(small.frameMm).toBeCloseTo(6 * small.areaMm, 6);
-    // A larger one: the box is what holds it, the cut circle's content filling it.
+  it('draws its window as large as its page prints it — the page’s enlargement — and prints no arrow', () => {
+    // Zach, 2026-10-07: the page's enlargement, not six times the area as the area's own file draws it.
+    // Large files draw the area larger than the page does: six times that is not what the page prints.
+    const small = enlargedAfterArea(0.02, undefined, { ...SAME, widthMm: 160, heightMm: 200 });
+    expect(small.fileAreaMm).toBeGreaterThan(1.5 * small.pageAreaMm);
+    expect(small.printed).toBeCloseTo(6, 6);
+    expect(small.frameMm).toBeCloseTo(small.pageFrameMm, 2);
+    expect(small.frameMm / small.pageAreaMm).toBeCloseTo(small.printed, 2);
+    expect(Math.min(6 * small.fileAreaMm, small.fit) - small.frameMm).toBeGreaterThan(5);
+    // A larger area: Fill fills the page's room, and the file draws it that size too, short of its own box.
     const large = enlargedAfterArea(0.13);
-    expect(large.frameMm).toBeLessThan(6 * large.areaMm);
-    expect(large.frameMm).toBeGreaterThan(large.box.size * 0.95);
+    expect(large.frameMm).toBeCloseTo(large.pageFrameMm, 2);
+    expect(large.frameMm).toBeLessThan(large.fit);
     // Files are steps: no arrow between them.
     const arrow = paintEnlargeArrow({ x: 0, y: 0 }, 1, DEFAULT_DIAGRAM_STYLE)!.markup.match(/<path d="M ([-\d.]+ [-\d.]+)/)![1]!;
     expect(large.files.compose(1).svg).not.toContain(arrow);
   });
 
-  it('prints at its Size times the area, no larger than its box', () => {
+  it('prints its Size as its page does, and no larger than its file’s box holds', () => {
     const twice = enlargedAfterArea(0.05, 2);
-    expect(twice.frameMm).toBeCloseTo(2 * twice.areaMm, 6);
-    const six = enlargedAfterArea(0.13, 6);
-    expect(six.frameMm).toBeLessThan(6 * six.areaMm);
-    expect(six.frameMm).toBeLessThanOrEqual(six.box.size * 1.1);
+    expect(twice.printed).toBeCloseTo(2, 6);
+    expect(twice.frameMm).toBeCloseTo(twice.pageFrameMm, 2);
+    expect(twice.frameMm / twice.pageAreaMm).toBeCloseTo(2, 2);
+    // A small file: its box holds less than the page prints, and draws as large as it holds.
+    const small = { ...SAME, widthMm: 40, heightMm: 70 };
+    const held = enlargedAfterArea(0.13, undefined, small);
+    expect(held.pageFrameMm).toBeGreaterThan(held.fit);
+    expect(held.frameMm).toBeCloseTo(held.fit, 2);
   });
 });
