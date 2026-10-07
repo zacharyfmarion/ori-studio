@@ -1,6 +1,6 @@
 # Diagram: a References step's marks as annotations
 
-**Status: planned 2026-10-07; 17a and 17b built the same day. Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
+**Status: planned 2026-10-07; 17a, 17b and 17c built the same day. Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
 
 **Revised 2026-10-07: there is no `letter` kind.** A pulled letter is a Text annotation (`label`), and Text gains the options it needs (§4). Zach: "why is letter different from text annotation in diagram references? Id rather just extend text to have color / any other options we need". RM1 and RM3 now speak of Text options, RM12 is superseded, and Reset Position is dropped.
 
@@ -1349,12 +1349,91 @@ Open, Zach's call (built as §4 says until he says otherwise):
 
 ### 17c: Turn over renames folds
 
-- [ ] `otherSide` on the References `PictureMove`; `carryAnnotation` swaps per
+- [x] `otherSide` on the References `PictureMove`; `carryAnnotation` swaps per
   RM7.
-- [ ] Tests: hand-drawn lines and arrows turned over; a crease-pattern step's
+- [x] Tests: hand-drawn lines and arrows turned over; a crease-pattern step's
   Front | Back unchanged.
-- [ ] Browser: before/after of a hand-drawn valley line on a References step
+- [x] Browser: before/after of a hand-drawn valley line on a References step
   turned over.
+
+**17c as built** (2026-10-07, commit `2563c5c9f`):
+- **Model.** `PictureMove.otherSide?: true` (`annotationModel.ts`).
+  `carryAnnotation` is a wrapper: `carriedOnPicture` moves every point as
+  before, then under `otherSide` the kind goes through `kindFromOtherSide`,
+  an exhaustive switch (`valley-line` ↔ `mountain-line`, `valley-arrow` ↔
+  `mountain-arrow`, every other kind kept). One rename after every branch,
+  so a shaped arrow (the early `path` branch) is renamed too.
+- **Carry.** `pictureMove`'s References branch (`annotationCarry.ts`)
+  returns `mirrorMove(frame)` with `otherSide`. `mirrorMove` stays the plain
+  mirror, so Flip, an upload's mirror and a linked picture's turn rename
+  nothing, and a crease pattern's Front | Back is still the
+  `recolouredOnly` path, which carries nothing.
+- **Enlarged steps.** Their marks are carried through `unitsMove`
+  (`reposeFrame`), which now forwards `otherSide`; a units change with no
+  move (enlarge, unenlarge, a paste between windows) sets none. Without the
+  forwarding a turned enlarged step kept its names; its test fails without
+  it.
+- **Where the plan was wrong.** "A shaped arrow's `fold`" is not a stored
+  field: the `path-arrow` primitive's `fold` is compiled from the kind
+  (`PATH_FOLD`), so renaming the kind renames it. A test compiles a turned
+  shaped arrow and reads `valley`.
+- **Tests.** `annotationModel.test.ts` (the rename, a shaped arrow, every
+  kind that keeps its name, the involution, a plain mirror and Flip naming
+  nothing); `annotationCarry.test.ts` (every kind drawn on a References step
+  turned over and back with `behind`, `color` and `offsetPt` kept; an
+  upload flipped and a crease pattern's Front | Back naming nothing);
+  `zoomFrames.test.ts` (an enlarged References step turned over and back).
+- **No strings, no events.** Turn over is one undo entry and is already
+  counted (`diagram picture posed`). `diagram-workspace.md` D8 and its
+  carry note are amended.
+- **Browser** (`artifacts/references-marks/17c/`, Chromium, crane.osf
+  through the project reader). `turn.mjs before|after light|dark`: on the
+  front References step a valley, mountain and solid line and a valley,
+  mountain and fold-and-unfold arrow drawn by the rail's keys and real
+  drags, plus a shaped valley arrow through the store; Turn Over clicked in
+  the Pose toolbar twice; crane's crease-pattern step put on Back in the
+  Pose pane. At `ccb837d05` the back kept every name (a dashed valley over
+  the card's dash-dot creases), in light and dark. With 17c the lines and
+  the three fold arrows are renamed, the solid line and the
+  fold-and-unfold arrow are not, and the second Turn Over gives back every
+  name and place; the crease pattern's three valley arrows stay valley
+  arrows in both builds. Composite: `17c-evidence.png` (four rows: before
+  and after, light and dark). `enlarged.mjs` repeats it on a card pulled
+  into crane by the UI, which lands enlarged: the drawn marks are renamed
+  and mirrored inside the window, beside the card's own crease turned
+  dashed to dash-dot (`enlarged/enlarged-evidence.png`). No page errors in
+  any run.
+- **Gate** (Node 22, the tree as committed): `npm run lint:web` clean;
+  `npx tsc --noEmit` exit 0; `npm run i18n:check` passed; `npx vitest run`,
+  all of it, 880 files passed and 2 skipped, 11816 tests passed and 15
+  skipped. The `pretest` hook's simulator and wasm rebuild was not run: 17c
+  changes no Rust and no simulator code.
+- **Claims and confidence.**
+  - High: a References Turn over renames valley ↔ mountain lines and arrows,
+    a shaped arrow's head and drawn marks included (tests that fail without
+    the change; the browser before and after, light and dark).
+  - High: turning over twice gives back every name and place (the
+    involution test; `after.json`, `enlarged.json`).
+  - High: fold-and-unfold arrows, solid lines and Text only move (tests over
+    every kind; in the browser the fold-and-unfold arrow and the solid line,
+    Text not drawn there).
+  - High: a crease-pattern step's Front | Back renames nothing (a test; the
+    browser before and after).
+  - High: an enlarged References step renames the same way (a test that
+    fails without the forwarding; `enlarged.json` and its shots).
+  - Medium: Flip and an upload's mirror rename nothing (tests only; neither
+    path changed).
+- **Not done.** A mark pasted from a card's front step onto a step showing
+  its back keeps the name it was copied with, as it keeps its place: a paste
+  is not a turn-over. A step saved before 17c with drawn valley or mountain
+  marks renames them on its next Turn over, as Risks expects; the reader
+  rewrites nothing.
+- **Found in review, not 17c.** A References card pulled after an enlarged
+  run lands enlarged, through 16g's rule that a run made after an enlarged
+  step keeps its imprint, so crane's head circle frames a square card at
+  coordinates that mean nothing on it. Whether a pull (or an upload, or a
+  link to another pattern) starts unenlarged is Zach's call; it bears on
+  17d's pulls into enlarged steps.
 
 ### 17d: The split at import
 
@@ -1385,6 +1464,7 @@ Open, Zach's call (built as §4 says until he says otherwise):
 
 ### 17f: Close-out
 
-- [ ] As-built notes here, and D25 with Phase 17 in `diagram-workspace.md`.
+- [ ] As-built notes here, and D25 with Phase 17 in `diagram-workspace.md`
+  (D8 already amended for 17c's renaming).
 - [ ] Full gate: lint, typecheck, `test:web`, `i18n:check`, `build:web`.
 - [ ] PR notes with any skipped checks and why.
