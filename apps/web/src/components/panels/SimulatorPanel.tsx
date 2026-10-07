@@ -53,7 +53,11 @@ import { useWorkspaceStore } from "../../store/workspaceStore";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
 import { NextDocumentAction } from "./NextDocumentAction";
-import { useSimulatorTools } from "../../simulator/useSimulatorTools";
+import {
+  simulatorToolsRuntime,
+  useSimulatorTools,
+  useViewportToolHooks,
+} from "../../simulator/useSimulatorTools";
 import { useSimulatorToolActions } from "../../simulator/useSimulatorToolActions";
 import { simulatorCanvasLabels } from "../../simulator/tools/actions";
 import { SimulatorToolRail } from "../../simulator/SimulatorToolRail";
@@ -239,23 +243,13 @@ export function SimulatorPanel() {
 
   const exportView = useSimulatorExport(runtime.beginExport, { surface: "simulator" });
 
+  const viewportTools = useViewportToolHooks(viewportRef);
   const tools = useSimulatorTools({
-    runtime: {
-      model: runtimeModel,
-      gpuActive,
-      pickFaces: runtime.pickFaces,
-      setPinnedFaces: runtime.setPinnedFaces,
-      beginPull: runtime.beginPull,
-      movePull: runtime.movePull,
-      endPull: runtime.endPull,
-      releasePose: runtime.releasePose,
-    },
+    runtime: simulatorToolsRuntime(runtime),
     ready: loadState === "ready",
     revision: foldArtifactRevision,
     sourceKey: simulationSourceKey,
-    pickDrawn: (query) => viewportRef.current?.pickDrawnFaces(query) ?? null,
-    drawnCamera: () => viewportRef.current?.drawnCamera() ?? null,
-    cancelGesture: () => viewportRef.current?.cancelToolGesture() ?? false,
+    ...viewportTools,
   });
   const toolActions = useSimulatorToolActions(tools);
   const canvasLabels = simulatorCanvasLabels(t, tools.tool.id);
@@ -603,7 +597,11 @@ export function SimulatorPanel() {
               */}
               {/* The rail's tools on a phone, left of the Settings pill. */}
               {phoneLayout && (
-                <SimulatorToolsTrigger buttons={toolActions.picker} disabled={!tools.enabled} />
+                <SimulatorToolsTrigger
+                  buttons={toolActions.picker}
+                  disabled={!tools.enabled}
+                  surface="simulate"
+                />
               )}
               <div className="panel-toolbar__pills" ref={setViewDrawerSlot} />
             </div>

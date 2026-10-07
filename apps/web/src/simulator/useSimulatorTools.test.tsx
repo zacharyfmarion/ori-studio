@@ -495,7 +495,7 @@ describe('useSimulatorTools analytics', () => {
     act(() => tools().verbs.selectTool('orbit', 'rail'));
 
     expect(tracked).toEqual([
-      { event: 'simulator tool selected', properties: { tool: 'orbit', source: 'picker' } },
+      { event: 'simulator tool selected', properties: { surface: 'simulate', tool: 'orbit', source: 'picker' } },
     ]);
   });
 
@@ -514,11 +514,11 @@ describe('useSimulatorTools analytics', () => {
     expect(tracked).toEqual([
       {
         event: 'simulator pins edited',
-        properties: { gesture: 'box', mode: 'replace', depth: 'all-layers', outcome: 'changed', pinned_count_bucket: '<=5' },
+        properties: { surface: 'simulate', gesture: 'box', mode: 'replace', depth: 'all-layers', outcome: 'changed', pinned_count_bucket: '<=5' },
       },
       {
         event: 'simulator pins edited',
-        properties: { gesture: 'click', mode: 'replace', depth: 'front', outcome: 'empty', pinned_count_bucket: '<=0' },
+        properties: { surface: 'simulate', gesture: 'click', mode: 'replace', depth: 'front', outcome: 'empty', pinned_count_bucket: '<=0' },
       },
     ]);
   });
@@ -534,10 +534,10 @@ describe('useSimulatorTools analytics', () => {
     act(() => tools().verbs.setOption('pinThroughLayers', false, 'tool-window'));
 
     expect(tracked).toEqual([
-      { event: 'simulator pins cleared', properties: { source: 'context-menu', pinned_count_bucket: '<=5' } },
+      { event: 'simulator pins cleared', properties: { surface: 'simulate', source: 'context-menu', pinned_count_bucket: '<=5' } },
       {
         event: 'simulator tool option changed',
-        properties: { tool: 'pin', option: 'through-layers', value: 'off', source: 'tool-window' },
+        properties: { surface: 'simulate', tool: 'pin', option: 'through-layers', value: 'off', source: 'tool-window' },
       },
     ]);
   });
@@ -553,7 +553,7 @@ describe('useSimulatorTools analytics', () => {
     act(() => tools().observeFrame(frame({ foldPercent: 40 })));
 
     expect(tracked).toEqual([
-      { event: 'simulator pinned fold moved', properties: { direction: 'unfold', pinned_count_bucket: '<=1' } },
+      { event: 'simulator pinned fold moved', properties: { surface: 'simulate', direction: 'unfold', pinned_count_bucket: '<=1' } },
     ]);
   });
 
@@ -565,8 +565,8 @@ describe('useSimulatorTools analytics', () => {
     act(() => tools().observeFrame(frame({ recovered: 'reset' })));
 
     expect(tracked).toEqual([
-      { event: 'simulator solver recovered', properties: { action: 'arrest', pinned: 'no' } },
-      { event: 'simulator solver recovered', properties: { action: 'reset', pinned: 'no' } },
+      { event: 'simulator solver recovered', properties: { surface: 'simulate', action: 'arrest', pinned: 'no' } },
+      { event: 'simulator solver recovered', properties: { surface: 'simulate', action: 'reset', pinned: 'no' } },
     ]);
   });
 });
@@ -599,7 +599,7 @@ describe('pulling', () => {
 
     expect(runtime.beginPull).not.toHaveBeenCalled();
     expect(runtime.endPull).not.toHaveBeenCalled();
-    expect(tracked).toEqual([{ event: 'simulator pull refused', properties: { reason: 'no-pins' } }]);
+    expect(tracked).toEqual([{ event: 'simulator pull refused', properties: { surface: 'simulate', reason: 'no-pins' } }]);
   });
 
   it('grips, draws and keeps through the runtime, on the model on screen', async () => {
@@ -621,7 +621,7 @@ describe('pulling', () => {
     expect(tracked).toEqual([
       {
         event: 'simulator model pulled',
-        properties: { outcome: 'kept', input: 'pointer', pinned_count_bucket: '<=5', moved_creases_bucket: '<=5' },
+        properties: { surface: 'simulate', outcome: 'kept', input: 'pointer', pinned_count_bucket: '<=5', moved_creases_bucket: '<=5' },
       },
     ]);
   });
@@ -683,7 +683,7 @@ describe('pulling', () => {
     await settle();
 
     expect(runtime.endPull).not.toHaveBeenCalled();
-    expect(tracked).toEqual([{ event: 'simulator pull refused', properties: { reason: 'pinned-face' } }]);
+    expect(tracked).toEqual([{ event: 'simulator pull refused', properties: { surface: 'simulate', reason: 'pinned-face' } }]);
   });
 
   it('waits for a slow press before letting go', async () => {
@@ -734,7 +734,7 @@ describe('pulling', () => {
     await settle();
 
     expect(runtime.releasePose).toHaveBeenCalledTimes(1);
-    expect(tracked).toEqual([{ event: 'simulator pose released', properties: { source: 'context-menu' } }]);
+    expect(tracked).toEqual([{ event: 'simulator pose released', properties: { surface: 'simulate', source: 'context-menu' } }]);
   });
 
   it('reports a pose the fold control or a restart took back, and not one it was asked to drop', () => {
@@ -748,8 +748,8 @@ describe('pulling', () => {
 
     expect(tools().view.posed).toBe(false);
     expect(tracked).toEqual([
-      { event: 'simulator pose released', properties: { source: 'fold-control' } },
-      { event: 'simulator pose released', properties: { source: 'restart' } },
+      { event: 'simulator pose released', properties: { surface: 'simulate', source: 'fold-control' } },
+      { event: 'simulator pose released', properties: { surface: 'simulate', source: 'restart' } },
     ]);
   });
 

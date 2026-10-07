@@ -999,14 +999,18 @@ export const ANALYTICS_EVENTS = {
    */
   simulatorPatternOpened: 'simulator pattern opened',
   /**
-   * The Simulate canvas's tool changed. `tool` is the catalogue's id and
-   * `source` where it was picked; a press on the tool already in hand changes
-   * nothing and sends nothing. Escape is a source of its own, because it is how
-   * people leave Pin, and how often they do says whether they want to.
+   * The simulator's tool changed. `tool` is the catalogue's id and `source`
+   * where it was picked; a press on the tool already in hand changes nothing
+   * and sends nothing. Escape is a source of its own, because it is how people
+   * leave Pin, and how often they do says whether they want to.
+   *
+   * This and the nine tool events after it carry `surface`, the host the tools
+   * ran in (`SimulatorToolSurface`): the Simulate workspace, or a Diagram
+   * step's Pose. Events from before it existed have none, and were Simulate's.
    */
   simulatorToolSelected: 'simulator tool selected',
   /**
-   * The phone layout's Simulate tool sheet was opened: whether people find the
+   * The phone layout's simulator tool sheet was opened: whether people find the
    * Tools pill that stands in for the rail. Kept apart from Edit's
    * `cp tool picker opened`, which dashboards compare across releases.
    */
