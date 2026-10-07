@@ -1,6 +1,6 @@
 # Diagram: a References step's marks as annotations
 
-**Status: planned 2026-10-07; 17a, 17b and 17c built the same day. Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
+**Status: planned 2026-10-07; 17a, 17b, 17c and 17d built the same day. Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
 
 **Revised 2026-10-07: there is no `letter` kind.** A pulled letter is a Text annotation (`label`), and Text gains the options it needs (§4). Zach: "why is letter different from text annotation in diagram references? Id rather just extend text to have color / any other options we need". RM1 and RM3 now speak of Text options, RM12 is superseded, and Reset Position is dropped.
 
@@ -446,6 +446,25 @@ cuts it at the window's edge. So a lifted line or arrow that crosses the edge
 draws past it. Lines and solid lines are cut to the window at the lift; other
 marks are kept whole and the difference is accepted. A fixture covers it.
 
+*Revised in 17d's review (2026-10-07).* "Kept whole" proved wrong on a real
+page: crane's last step, enlarged round the head and filled with Card 2, drew
+the card's fold-and-unfold arrow whole, two arcs across the steps beside it and
+off the page, and Card 1 pulled after it printed folds that lie wholly outside
+its window under the next step's text — where the baked card is cut at the
+frame. Now a step never draws more of its card than the baked picture showed:
+at the lift into a window (Fill, Replace and Way through `marksIntoUnits`, and
+a card pulled after an enlarged step through `seedNewSteps`), a line is cut at
+the frame and dropped when it misses it, and any other mark is pulled only
+when every point it is drawn through — an arrow's ends and the top of its arc,
+a ring's centre, the point a letter hangs from — is in the frame, or no
+further past its rim than a cut line runs (`liesInFrame`). One the frame cuts
+is not pulled at all: a mark cannot be cut as a picture is, and half an arrow
+says nothing. Enlarging a pulled step by hand later is the author's edit and
+keeps every mark, as it keeps the author's own. This was the 16g open
+question's visible consequence; the other way out — a References pull never
+keeping or seeding an enlarged frame — stays open for Zach, and would lose the
+frame a seeded empty step was made with.
+
 **Cap.** If a card's marks would take a step past `MAX_STEP_ANNOTATIONS`
 (500), that card is pulled baked, as today, and a toast says so. A grid step
 of 64ths is the likely case.
@@ -502,8 +521,12 @@ draw the marks twice.
   `followOwnPicture`, and enlarge and unenlarge.
 - **Duplicate Step** keeps it: the copy shows the same card.
 - **Paste** keeps it only onto a step showing the same card (same key, less
-  `-back`), as the clipboard records. Anywhere else a pasted mark becomes the
-  author's. Cut and paste in place therefore keeps it.
+  `-back`), as the clipboard records, and only as the one copy there: where
+  no copy of it lies yet (the clipboard's `pastes`). Anywhere else a pasted
+  mark becomes the author's. Cut and paste in place therefore keeps it; a
+  copy pasted beside the original, or a second paste, is a mark the author
+  made — a second P placed by hand — which a Replace must not take unsaid
+  (refined in 17d's review).
 - **The picture stops being the card** (Remove Picture, a capture or an upload
   in its place). `releaseCardMarks` drops every tag, and the marks become the
   author's, under the notice. Readers ignore a tag on a step whose source is
@@ -566,9 +589,17 @@ and `setReferencesWay`.
   letters back.
 - If the swap would pass the cap, the new card is pulled baked, with the toast
   from §5.
+- **The notice.** Editing only the card's marks never puts the author's back
+  in step: `editStepAnnotations` moves `annotatedPictureKey` only when the
+  author's marks are touched, or none were out of step (17d review: nudging
+  the new card's arrow cleared the notice on marks the author never looked
+  at).
 
 **An old baked step.** Replace and Way pull the new card lifted. The author's
-marks stay, under the notice, as today.
+marks stay, under the notice, as today — unless the card is the one the step
+showed, from the same side: its sheet has not moved under them, so marks in
+step with the baked picture stay in step with the lifted one, as Make
+Editable keeps them (§9; 17d review).
 
 **Open in References** does not change. It opens the plan's card as References
 draws it.
@@ -628,8 +659,10 @@ rewrites a file.
 
 ### 11. Analytics
 
-In `analytics/trackDiagram.ts`, `analytics/events.ts`, `docs/analytics.md` and
-`implementation-plans/posthog-analytics.md`:
+In `analytics/trackDiagram.ts`, `analytics/events.ts` and `docs/analytics.md`
+— the one place the Diagram's events are documented, as every Diagram phase's
+are; `implementation-plans/posthog-analytics.md`'s table holds the original
+rollout's domain events and has no Diagram rows (amended in 17d's review):
 - **`diagram steps pulled from references`** gains `letters: shown|hidden`
   and `reference_lines: shown|hidden`, as `paper exported` reports them
   (`paperExport/savePaperExport.ts:125-154`), and `marks: lifted|baked` for
@@ -833,7 +866,11 @@ decision 7), which nobody asked for. A callout keeps the arrow ink for now
 - Where:
   - **(rec)** A Show ▾ menu in the browser's bar, the previews following it.
   - Checkboxes in the footer beside "With the turn-over before it".
-- Remembered: **(rec)** yes, or no.
+- Remembered: **(rec)** yes, or no. *As built:* a switch remembers the one
+  mark switched, over the remembered choice — a Replace opens on its step's
+  own choice, which is the step's and not to be remembered for later pulls
+  (17d review). The trigger says "Show · 1 hidden" while any mark is hidden,
+  so a choice remembered from another day is no surprise.
 - A hidden mark:
   - **(rec)** Not pulled.
   - Pulled but hidden. That needs a per-mark visibility switch, a feature of
@@ -1437,22 +1474,137 @@ Open, Zach's call (built as §4 says until he says otherwise):
 
 ### 17d: The split at import
 
-- [ ] `liftCardMarks` and its tests, with the letter placement exported from
+- [x] `liftCardMarks` and its tests, with the letter placement exported from
   `diagramToPaperScene`.
-- [ ] The `-marks` key; `keyOf` strips it.
-- [ ] The tag: set at the lift, kept by carries and Duplicate, changed in
+- [x] The `-marks` key; `keyOf` strips it.
+- [x] The tag: set at the lift, kept by carries and Duplicate, changed in
   `editStepAnnotations`, paste by card key, `releaseCardMarks`.
-- [ ] Tagged marks never out of step: `annotationsOutOfStep`,
+- [x] Tagged marks never out of step: `annotationsOutOfStep`,
   `withCarriedAnnotations`, `followOwnPicture`.
-- [ ] `pullReferencesSteps` with annotations and `annotatedPictureKey`;
+- [x] `pullReferencesSteps` with annotations and `annotatedPictureKey`;
   enlarged steps through `unitsMove`; the cap and its toast.
-- [ ] The Show menu, its preference, the previews and `source.marks`.
-- [ ] `swapCardMarks` for Replace and Way, with the toast.
-- [ ] Analytics (`steps pulled` properties, `imported mark edited`) and i18n.
-- [ ] The equivalence and page tests; the pixel probe and its images.
-- [ ] Performance on a 30-step diagram, before and after.
-- [ ] Browser: Zach's screenshot's step pulled, edited and turned over;
+- [x] The Show menu, its preference, the previews and `source.marks`.
+- [x] `swapCardMarks` for Replace and Way, with the toast.
+- [x] Analytics (`steps pulled` properties, `imported mark edited`) and i18n.
+- [x] The equivalence and page tests; the pixel probe and its images.
+- [x] Performance on a 30-step diagram, before and after.
+- [x] Browser: Zach's screenshot's step pulled, edited and turned over;
   Replace and Way with an edited mark; the toggles.
+
+**17d as built** (2026-10-07, commit `a100c7dd3`; the review's fixes folded in):
+- **The lift.** `diagram/references/referencesCardMarks.ts`:
+  `liftCardMarks(model, mirrored, marks, style, newId?)` returns `{sheet,
+  annotations}`, or null past the cap; `liftedCardPicture` keys the sheet
+  `steps-<card>-marks[-back]` and reads it back through
+  `storedStepDiagramModel`; `shownCardPicture` is the browser's preview.
+  The signature gained `style`: a ring's rim is three quarters of the
+  style's arrow pen, so where `placeLabels` puts a letter depends on it.
+  Letters are laid out once, at 50 mm, in the diagram's style at the pull.
+  The sheet leaves out every mark the Show menu can hide whether shown or
+  not (a reference line drawn as an arc, which nothing draws today,
+  included), so one `-marks` key is one sheet.
+- **One letter layout.** `diagramToPaperScene.ts` exports
+  `diagramLetterPlacements` through one `sceneDrawing`;
+  `paintStepDiagram.ts`'s `stepSceneOptions` feeds both
+  `stepDiagramScene` and `stepDiagramLetters`, so baked and lifted letters
+  cannot drift. Baked painting is byte-identical to before.
+- **Storage and the tag.** `imported` on every kind: a state the reader does
+  not know is a newer build's, kept verbatim and told before damage; one
+  that is not a word is damage and drops the mark, as any field's does.
+  `source.marks` is dropped alone when it does not read. The predicates and
+  the tag's moves are in `diagram/document/cardMarks.ts` (`showsCard`,
+  `isTagged`, `isCardMark`, `authorMarksOf`, `authorMarksChanged`,
+  `untagged`, `releaseCardMarks`, `withEditTags`, `cardMarkEdits`,
+  `editedCardMarksGone`); `stepDiagramCardKey`, `liftedStepDiagramKey`,
+  `swapCardMarks` and `sameSheetInStep` in `diagramDocument.ts`; one
+  field-for-field comparator, `sameAnnotation`, in `annotationModel.ts`.
+  Tags drop on Remove Picture, an upload and a capture. Paste keeps one
+  only onto the same card and only as the one copy there.
+- **The notice and the carries.** Card marks are never out of step and go
+  with every carry (`withCarriedAnnotations`, `carryMarks`); the author's
+  go only when in step. `editStepAnnotations` moves `annotatedPictureKey`
+  only when the author's marks changed or none were out of step, paste and
+  cut included.
+- **Pull, Replace, Way.** `SentReferencesStep.lifted`; `pullReferencesSteps`
+  returns `baked` and `replaced`. Replace and Way swap every tagged mark,
+  the new card's first, and keep the author's; a same-card Replace or Way
+  from the same side keeps in-step author marks in step. Past the cap
+  beside the author's marks a card is pulled baked with a toast, for the
+  Way chooser too (`chooseReferencesWay`, its React-free action in
+  `referencesPulledSteps.ts`). A Replace that took edited marks shows one
+  toast, "Replaced step N's card" with "Replaced N marks you had edited"
+  and Undo; a Way, "Replaced N marks you had edited" with Undo. Undo acts
+  only while that edit is the newest.
+- **Enlarged steps** (§5 revised). `marksIntoUnits` (Fill, Replace, Way) and
+  `seedNewSteps` (`withCardMarksInFrame`) pull only marks that lie in the
+  frame (`liesInFrame`): lines cut at it or dropped, other marks only when
+  every point they are drawn through is inside. A page test holds every
+  painted mark inside its cell.
+- **Show menu.** `DiagramReferencesShowMenu` (its own module) between
+  Sequence | Find and Open References; `diagramReferencesMarks` in the
+  settings store (`diagram-references-marks`); `toggleReferencesMark`
+  remembers only the mark switched; the trigger reads "Show · N hidden";
+  `MenuCheckboxItem` gained `multiline`. The previews follow it, and a
+  Replace opens on its step's `source.marks`. The card's "Shown now" / "In
+  diagram" flag moved off the picture into its foot.
+- **Small calls.** A circle's centre snaps as a picture point. A press on a
+  label's halo or margin, not its words, goes to a mark under it in reach,
+  so a pulled ring is taken anywhere on its rim. The menu's hint is full
+  ink on the highlighted row.
+- **Analytics and i18n.** `steps pulled` gains `letters`,
+  `reference_lines` and `marks`; `diagram imported mark edited` sends
+  `{kind, edit}`; both in `docs/analytics.md` (§11 amended). All 9
+  catalogs.
+- **Gate** (Node 22, the tree as committed): `npm run lint:web` clean;
+  `npx tsc --noEmit` exit 0; `npm run i18n:check` passed; `npx vitest run`,
+  all of it, 884 files passed and 2 skipped, 11968 tests passed and 15
+  skipped.
+- **Evidence** (`artifacts/references-marks/17d/`, composite
+  `17d-evidence.png`; the verify run's scripts and data under `verify/`):
+  - Looks the same. The equivalence test (7 fixtures and a pieces card,
+    front and back, three styles, 50 and 100 mm: 96 cases) and the page
+    test pass. `verify/` painted 72 pairs (crane's two References steps both
+    sides, every card of crane's and chipmunk's plans; Diagram preset,
+    Default, a coloured paper) with HEAD's own painter and this build's:
+    HEAD's baked markup is byte-identical to this build's. Against the
+    lifted step, the Diagram preset differs on at most 20 pixels by at most
+    2 of 255 levels (antialiasing; the plan's 0 was not met), 9 of 24
+    identical. Default and coloured paper differ by up to 217 levels on at
+    most 40 pixels, all within 1 pt of the sheet's edge: a lifted fold's
+    end drawn over the edge outline (§2). No ring colour differs. No real
+    card had pieces to merge.
+  - Browser, Chromium light and dark and WebKit at iPad size (touch, Layers
+    behind Settings), on chipmunk's planned Card 3: the Show menu, a pull
+    with Letters hidden and one with Reference lines hidden (no labels, or
+    no solid lines, and a bare sheet either way); a reference line
+    recoloured Blue, P dragged by its words and a circle drawn; Replace
+    (one toast, Undo restores both edits) and Way 2 (its toast, the circle
+    kept under the notice). The three runs give the same store states, with
+    no page or console errors. WebKit under vite dev needs the isolation
+    headers added (`verify/webkit-probe.mjs`) for the planner's worker.
+  - Performance, 30 steps, Chromium, 40 rounds, medians: the pull 0.4 to
+    2.8 ms; the Pages layout 24.7 to 31.4 ms; composing every page 8.8 to
+    14.5 ms. The Pages view is 37% slower lifted, about 0.4 ms a step. In
+    Node, HEAD's baked pages time as this build's do (43.2 and 44.7 ms).
+    The implementer's "23% faster" came from a bimodal baked series and is
+    withdrawn.
+- **Open, Zach's call.**
+  - §13 says to cache `annotationDrawing` past 10% slower. Not added:
+    compiling is about a third of painting a step's marks, and `cellPicture`
+    paints them at least twice, so the cache would win back a few of the
+    12 ms per 30 steps.
+  - The enlarged spill took option (b); option (a), a pull never keeping or
+    seeding a frame, stays open. A pull after an enlarged run starts
+    enlarged (16g's seeding, kept).
+  - A Replace or Way restores a pulled mark the author deleted without
+    saying so: telling needs a record of what was pulled, which §6
+    rejected.
+  - A card pulled baked past the cap shows its whole card; the Show menu
+    does not apply to it. Choosing the way an old baked step already shows
+    changes nothing; Make Editable is 17e.
+  - A pulled letter dragged across the sheet's edge keeps 17b's halo, the
+    colour of the face its point stands on, so a grey patch reaches past
+    the edge. A press exactly on a ring's named point takes the letter.
 
 ### 17e: Existing steps
 
