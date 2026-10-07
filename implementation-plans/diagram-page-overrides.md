@@ -1,6 +1,7 @@
 # Diagram: placing things on the page by hand
 
 **Status: Phase 1 built 2026-10-07 (the model, the file and the clearing, no UI; as-built notes under Phase 1). Phase 1b built and gated the same day (flow pages take Steps per page; as-built notes under Phase 1b). Decisions 1–6 are DECIDED: all A** (Zach, 2026-10-07: "in this case i agree with all the decision for the diagram page - you can go ahead and start building once the plan is up to date"). The same day he asked for flow pages to take a number of steps instead of rows and columns; that is Phase 1b. **Decisions 7 and 8 are OPEN**, from Phase 1b's review: the rule that picks a flow page's columns (built as 7A, which gives his 3·3·1), and page 1 starting at its top right.
+Zach's answers, 2026-10-07: a page keeps its identity by its number or its first step (kept); "down" on a moved frame means down the page (the Phase 1 amendment overruled); step 1 always starts at the top left (Decision 8); no shape readout in the Page pane ("it doesn't always need to be a grid (that's just how it starts) omit that"). Decision 7, the shape rule, is open while he looks at more examples.
 Phase 1's review amended four things here, each marked *(amended in Phase 1)*: what a cell is (a page keeps its number or its first step), the frame's vertical part (stored across the rows in reading order), what a flow page's shape reads (Phase 1b), and step files laying out an unplaced diagram.
 Phase 1b's review amended three, each marked *(amended in Phase 1b's review)*: the shape rule (the largest picture, not the squarest cell), when the steps per page are written, and their range (2–30).
 This builds on D10 (pages come from one pure layout; Fit each), D11 (export),
@@ -124,7 +125,12 @@ interface DiagramStepPlace {
 - **Parts in page axes.** A cell is laid out the same way in every row (the
   number top left, the text under the picture), so a part's offset is never
   mirrored.
-- **The frame in the page's reading terms** *(amended in Phase 1)*. A frame
+- **Zach, 2026-10-07, on the vertical part:** "down on the page should always
+  mean down on the page. they can manually drag it up if that's what they
+  want." So the vertical part goes back to being stored down the page, as
+  first planned; Phase 2 makes that change. The paragraph below is the
+  amendment he overruled, kept for the record.
+- **The frame in the page's reading terms** *(amended in Phase 1; its vertical part overruled by Zach)*. A frame
   offset is usually about the step's neighbours: room for a glyph between two
   steps or at a row break, a big picture beside it. Those flip sides when the
   page's reading order flips, so both parts are stored in reading terms:
@@ -586,7 +592,7 @@ while that cell is unchanged, and cleared automatically when it changes,
 whatever caused it. That is Decision 1, A.
 
 A page is the same page while it keeps its number **or** the step it starts
-with *(amended in Phase 1)*:
+with *(amended in Phase 1; Zach, 2026-10-07: "3a sounds right")*:
 - **Its first step.** A step inserted earlier can add a page, renumbering
   every later page while a page break keeps their contents exactly as they
   were. By number alone, all of those would clear; by first step, none do.
@@ -945,7 +951,7 @@ upright, with its title, page numbers and turns
     print larger than one fewer. On A4 upright, 16 a page prints at 40.5 mm
     where 15 print at 32.5.
 
-**8. Page 1 starting at its top right. OPEN (Phase 1b's review).**
+**8. Page 1 starting at its top right. DECIDED: never** (Zach, 2026-10-07: "no - first step always needs to start top left. so that should restrict how the flow works"). Step 1 is always at the top left, so a flow page that hands over at the spine takes an odd number of rows, and the shape rule (Decision 7) picks among odd row counts only. Still to confirm with Zach: whether a right-hand page, which today starts at the spine at its foot and reads upward, must also start at its top left.
 A left page that hands over at the spine starts at its top right when it has
 an even number of rows, so that its bottom row ends at the spine (D10). The
 layout now picks the rows, so page 1 of a diagram starts at its top right at
