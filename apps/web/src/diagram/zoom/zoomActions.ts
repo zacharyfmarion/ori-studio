@@ -370,10 +370,11 @@ export function enlargedChips(entries: readonly DiagramEntry[]): ReadonlyMap<str
 /**
  * What an enlarged step prints at against its area, as the pages lay it out
  * (Z4, `LayoutCell.zoom`), as its read-outs say it: how many times the area
- * it prints, one decimal; amber (`warn`) when a fixed Size asked more than
- * its room holds, or Fill comes out under a change of size that reads as an
- * enlargement ({@link FIT_ZOOM}) — the area takes in too much. Null before
- * the pages are laid out.
+ * it prints — a fixed Size as it was typed, to two decimals (×1.25, not
+ * ×1.3), and what Fill or a room makes of it to one; amber (`warn`) when a
+ * fixed Size asked more than its room holds, or Fill comes out under a change
+ * of size that reads as an enlargement ({@link FIT_ZOOM}) — the area takes in
+ * too much. Null before the pages are laid out.
  */
 export interface ZoomReadout {
   kind: 'prints' | 'room' | 'barely';
@@ -385,19 +386,30 @@ export interface ZoomReadout {
 
 export function zoomReadout(zoom: LayoutCell['zoom'] | null): ZoomReadout | null {
   if (!zoom) return null;
-  const printed = Math.round(zoom.printed * 10) / 10;
-  if (zoom.asked !== null && zoom.reduced) return { kind: 'room', asked: zoom.asked, printed, warn: true };
-  if (zoom.asked === null && zoom.printed < FIT_ZOOM) return { kind: 'barely', asked: null, printed, warn: true };
-  return { kind: 'prints', asked: zoom.asked, printed, warn: false };
+  const tenths = Math.round(zoom.printed * 10) / 10;
+  const asked = zoom.asked === null ? null : Math.round(zoom.asked * 100) / 100;
+  if (asked !== null && zoom.reduced) return { kind: 'room', asked, printed: tenths, warn: true };
+  if (asked === null && zoom.printed < FIT_ZOOM) return { kind: 'barely', asked: null, printed: tenths, warn: true };
+  // A fixed Size its room holds prints as typed.
+  return { kind: 'prints', asked, printed: asked ?? tenths, warn: false };
 }
 
-/** A read-out in words: "Prints ×4.4", "Asked ×3 · prints ×2.4 — the room is too small", "Prints only ×1.1 — draw a smaller area". */
-export function zoomReadoutText(t: TFunction, readout: ZoomReadout): string {
-  const { printed } = readout;
+/** A Size or a read-out's number as `language` writes it, to two decimals at most: 1.25, or 1,25 in German. */
+export function zoomNumber(value: number, language: string): string {
+  return new Intl.NumberFormat(language, { maximumFractionDigits: 2 }).format(value);
+}
+
+/**
+ * A read-out in words, its numbers as `language` writes them: "Prints ×4.4",
+ * "Asked ×3 · prints ×2.4 — the room is too small", "Prints only ×1.1 — draw
+ * a smaller area".
+ */
+export function zoomReadoutText(t: TFunction, readout: ZoomReadout, language: string): string {
+  const printed = zoomNumber(readout.printed, language);
   switch (readout.kind) {
     case 'room':
       return t('panels:diagram.annotations.enlargePrintsRoom', 'Asked ×{{asked}} · prints ×{{printed}} — the room is too small', {
-        asked: readout.asked,
+        asked: readout.asked === null ? '' : zoomNumber(readout.asked, language),
         printed,
       });
     case 'barely':

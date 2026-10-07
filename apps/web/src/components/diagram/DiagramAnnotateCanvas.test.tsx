@@ -28,6 +28,7 @@ import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { ZOOM_SURROUND_DIM } from '../../diagram/zoom/paintZoomed';
 import { ZOOM_FRAME_ID } from '../../diagram/zoom/zoomModel';
 import { craneStep, imprintCase } from '../../diagram/zoom/zoom.fixtures';
+import { watchFrames } from '../../diagram/zoom/zoomInvariant.fixtures';
 import { paperFacesOf, toPicture } from '../../diagram/zoom/zoomImprint';
 import { createDiagram, insertSteps } from '../../diagram/document/diagramDocument';
 
@@ -91,8 +92,12 @@ const identity = {
   },
 };
 
+// Every enlarged step's frame where its imprint lands, after every verb the canvas runs (Revision 2).
+let frames: ReturnType<typeof watchFrames> | null = null;
+
 beforeEach(() => {
   useWorkspaceStore.setState(initialState, true);
+  frames = watchFrames(useWorkspaceStore.subscribe);
   // The Line tool draws a valley line unless a test picks another type.
   useSettingsStore.setState({ diagramAnnotateLineType: 'valley' });
   vi.stubGlobal(
@@ -126,6 +131,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  frames?.stop();
+  expect(frames?.problems).toEqual([]);
   act(() => root.unmount());
   host.remove();
   vi.unstubAllGlobals();

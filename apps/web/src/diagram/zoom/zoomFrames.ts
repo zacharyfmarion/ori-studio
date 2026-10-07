@@ -13,12 +13,18 @@
  * | What changed | Frame | Marks |
  * | --- | --- | --- |
  * | Enlarged turned on; Update | captured and landed ({@link enlargeStep}, {@link updateEnlargedSteps}) | whole picture or old window → new window |
+ * | A step made after an enlarged one | captured at creation ({@link seedNewSteps}) | none yet |
  * | A seeded step's first picture; a refresh or relink | landed from its imprint ({@link relandFrame}) | unchanged |
  * | Enlarged turned off | dropped ({@link unenlargeStep}) | window → whole picture |
  * | Moved, resized or reshaped by hand | as set, its imprint made again ({@link setFrameOutline}) | by the window's move |
  * | Its anchor picked or reset | unchanged, its imprint made again ({@link setFrameAnchor}) | unchanged |
  * | The step re-posed | landed on the re-posed picture ({@link reposeFrame}) | the pose's move, window to window |
+ * | Its picture given its faces, as it was (another step's capture) | unchanged, its imprint made again ({@link anchorInPlace}) | unchanged |
  * | The area or its step edited, moved or deleted | unchanged | unchanged |
+ *
+ * Every edit of a step's own picture — a re-pose, a refresh, a relink —
+ * reaches the frame through one path, `withCarriedAnnotations`, which hands an
+ * enlarged step to {@link followOwnPicture}.
  *
  * Pure: no store.
  */
@@ -52,8 +58,9 @@ import {
   areaSource,
   capture,
   heldFrame,
+  imprintOn,
   placeOn,
-  seededZoom,
+  seededCapture,
   stepsFrom,
   type ZoomCaptured,
   type ZoomImprint,
@@ -320,6 +327,33 @@ export function relandFrame(step: DiagramStep): DiagramStep {
 }
 
 /**
+ * An enlarged step whose own picture was just given its faces — the same
+ * picture, folded again for them (`withPaperFaces`), most often while another
+ * step is enlarged from it or Updated — left as it shows: a step does not
+ * change because of another step (D8). Its frame, copied in picture units
+ * while it had no faces, stays where it is, and its imprint is made again
+ * from it on the faces, as a capture from it makes one (`imprintOn`), a
+ * picked anchor kept: the frame is then its imprint landed, and a later
+ * re-pose carries it from where it shows. A centre in a strip the spread
+ * opened settles on the layer above, as a frame set there by hand does
+ * ({@link setFrameOutline}), its marks staying on their paper. A frame its
+ * paper cannot anchor keeps no imprint: a copy in picture units, which the
+ * Step pane says to anchor (`stepZoomStatus`). The step itself when it is
+ * not enlarged, has no faces, or its frame no imprint to make again.
+ */
+export function anchorInPlace(step: DiagramStep, assets: Assets): DiagramStep {
+  const { zoom } = step;
+  if (!zoom?.frame || !zoom.imprint || !step.picture || !paperFacesOf(step)) return step;
+  const { imprint: was, ...rest } = zoom;
+  const imprint = imprintOn(step, zoom.frame, was.picked ? was.on : undefined);
+  if (!imprint) return { ...step, zoom: rest };
+  const anchored: DiagramStepZoom = { ...rest, imprint };
+  const { frame } = placeOn(step, imprint, zoom.frame);
+  if (!frame || nearOutline(frame, zoom.frame)) return { ...step, zoom: anchored };
+  return withZoom(step, { ...anchored, frame }, assets);
+}
+
+/**
  * The frame moved, resized or reshaped by hand (Z10): as set, no smaller
  * than an area may be drawn, but for a centre dropped in a strip the spread
  * opened, which settles on the layer
@@ -442,6 +476,57 @@ export function reposeFrame(
 }
 
 /**
+ * How an enlarged step's own picture changed, as the app can say it: moved by
+ * a pose it applied (turned, flipped, spread otherwise — the move its marks
+ * are carried by, `annotationCarry.ts`), only recoloured (a crease pattern's
+ * paper on the other side's colour, which moves nothing), or anything else —
+ * a Refresh, a relink, a turn-over, Show as, a camera (null).
+ */
+export type OwnPictureChange = PictureMove | 'recoloured' | null;
+
+/**
+ * An enlarged step whose own picture changed, `before` to `after` (Revision
+ * 2, D8 amended): every picture edit's one path for a frame, through
+ * `withCarriedAnnotations`. The frame stays on its paper — its imprint landed
+ * on the new picture through the face that holds its paper point, then onto
+ * its spread — and the marks, in the window's units, go with it:
+ *
+ * - **re-posed** (`change` a move): {@link reposeFrame} — the frame landed,
+ *   or carried by the move where the step has no faces; the marks by the
+ *   pose's own move, window to window, still in step;
+ * - **recoloured**: nothing moved, so the frame lands where it was and the
+ *   marks stay in step with the new picture;
+ * - **anything else**, a first picture included: {@link relandFrame} — the
+ *   marks unchanged in the window's units, so they go with the frame, and out
+ *   of step with a picture that changed, as any refresh leaves them (D8);
+ *   out of step too when the picture's key is the same but the frame moved —
+ *   a Refresh that gave an older capture its faces, landing a frame that was
+ *   only copied — since the window shows other paper under them now.
+ *
+ * `after` as it is for a step that is not enlarged, or has no picture now.
+ */
+export function followOwnPicture(
+  before: DiagramStep,
+  after: DiagramStep,
+  change: OwnPictureChange,
+  assets: Assets
+): DiagramStep {
+  if (!after.zoom || !after.picture) return after;
+  if (!before.zoom || !before.picture || change === null) {
+    const landed = relandFrame(after);
+    const stillInStep = landed !== after && landed.annotations.length > 0 && landed.annotatedPictureKey === after.picture.key;
+    return stillInStep ? { ...landed, annotatedPictureKey: null } : landed;
+  }
+  if (change !== 'recoloured') return reposeFrame(before, after, change, assets);
+  const landed = relandFrame(after);
+  const inStep =
+    before.annotations === after.annotations &&
+    before.annotatedPictureKey !== null &&
+    before.annotatedPictureKey === before.picture.key;
+  return inStep ? { ...landed, annotatedPictureKey: after.picture.key } : landed;
+}
+
+/**
  * The frame made the other shape (Shape, on a frame): about the same centre,
  * as an area's is (`outlineAsShape`), its imprint made again on the same
  * face and its marks carried by the window's move ({@link setFrameOutline}).
@@ -478,18 +563,41 @@ export function setFrameEdge(document: DiagramDocument, stepId: string, edge: Di
   });
 }
 
+/** A step a new step's seed enlarged, and its capture: how its frame was placed, or null until its first picture. */
+export interface SeededStep {
+  stepId: string;
+  captured: ZoomCaptured;
+}
+
 /**
- * A new step's start (Z2, "yeah sounds right"): enlarged when the step before
- * it, turns passed, is — captured at creation from that step's frame, its
- * imprint kept for its first picture to land ({@link landFirstFrame}). The
- * diagram as it was for any other step.
+ * Steps just made — Add Step, Insert Step After, an upload of one picture or
+ * several, cards pulled from References — each starting enlarged when the step
+ * before it, turns passed, is (Z2, "yeah sounds right"): captured at creation
+ * from that step's frame. The one way every new step is seeded. In the
+ * diagram's order, so a run of new steps after an enlarged one is enlarged
+ * through, each from the one before it. A step made with its picture has its
+ * frame landed at once; an empty one keeps its imprint for its first picture
+ * ({@link landSeededFrame}). A step enlarged already — a duplicate keeps its
+ * original's frame — is left as it is, as is one after a step that is not
+ * enlarged. The diagram, and the steps seeded with their captures, for what
+ * counts them.
  */
-export function seedStepZoom(document: DiagramDocument, stepId: string): DiagramDocument {
-  return withStep(document, stepId, (step) => {
-    if (step.zoom || step.picture) return step;
-    const zoom = seededZoom(document, stepId);
-    return zoom ? { ...step, zoom } : step;
-  });
+export function seedNewSteps(
+  document: DiagramDocument,
+  stepIds: readonly string[],
+  assets: Assets
+): { document: DiagramDocument; seeded: SeededStep[] } {
+  const made = new Set(stepIds);
+  let next = document;
+  const seeded: SeededStep[] = [];
+  for (const entry of document.steps) {
+    if (!made.has(entry.id) || isTurn(entry) || entry.zoom) continue;
+    const result = enlargeWith(next, entry.id, seededCapture(next, entry.id), assets);
+    if (!result.captured || result.document === next) continue;
+    next = result.document;
+    seeded.push({ stepId: entry.id, captured: result.captured });
+  }
+  return { document: next, seeded };
 }
 
 /**
@@ -514,20 +622,26 @@ export function landFirstFrame(
   return { document: { ...document, steps }, placed: placed.placed };
 }
 
+/** A step's first picture, landing the frame it was enlarged with while it had none. */
+export interface LandedFirstFrame {
+  document: DiagramDocument;
+  /** How the frame was placed; null for a step that had a picture already, or is not enlarged. */
+  placed: ZoomCaptured['placed'];
+  /** The frame the step held before its picture, as it was enlarged with it: what says how it was enlarged. */
+  enlargedWith?: DiagramStepZoom;
+}
+
 /**
  * A step given its first picture — `after` the diagram with it, `before`
  * without — landing the frame it was seeded with ({@link landFirstFrame}):
  * the diagram, and how the frame was placed; `after` as it is, and null, for
  * a step that had a picture already or is not enlarged.
  */
-export function landSeededFrame(
-  before: DiagramDocument,
-  after: DiagramDocument,
-  stepId: string
-): { document: DiagramDocument; placed: ZoomCaptured['placed'] } {
+export function landSeededFrame(before: DiagramDocument, after: DiagramDocument, stepId: string): LandedFirstFrame {
   const was = before.steps[stepIndex(before, stepId)];
   if (!was || isTurn(was) || was.picture) return { document: after, placed: null };
-  return landFirstFrame(after, stepId) ?? { document: after, placed: null };
+  const landed = landFirstFrame(after, stepId);
+  return landed ? { ...landed, ...(was.zoom ? { enlargedWith: was.zoom } : {}) } : { document: after, placed: null };
 }
 
 /** A step's frame, in its picture units; null for a step that is not enlarged or shows no window. */
@@ -560,4 +674,18 @@ function carriedOutline(outline: DiagramZoomOutline, move: PictureMove): Diagram
 
 function sameOutline(a: DiagramZoomOutline, b: DiagramZoomOutline | undefined): boolean {
   return b !== undefined && JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Whether two outlines are one, but for float noise: a frame imprinted and landed again where it was. */
+function nearOutline(a: DiagramZoomOutline, b: DiagramZoomOutline): boolean {
+  const near = (x: number | undefined, y: number | undefined) =>
+    x === y || (x !== undefined && y !== undefined && Math.abs(x - y) <= 1e-9);
+  return (
+    near(a.centre[0], b.centre[0]) &&
+    near(a.centre[1], b.centre[1]) &&
+    near(a.radius, b.radius) &&
+    near(a.size?.[0], b.size?.[0]) &&
+    near(a.size?.[1], b.size?.[1]) &&
+    near(a.angle ?? 0, b.angle ?? 0)
+  );
 }

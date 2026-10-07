@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { registerArmedMode } from '../keyboard/shortcutRuntime';
 
 /**
  * The real view-controls panes read the workspace store, which pulls in workers
@@ -349,6 +350,24 @@ describe('the workspace View drawer', () => {
 
     expect(dialog()).not.toBeNull();
     wrapper.remove();
+  });
+
+  it('leaves Escape to a mode armed in the workspace, which the runtime puts down first', () => {
+    // The Diagram's anchor pick is armed from the Layers pane — inside this
+    // sheet on an iPad. One Escape must put the pick down and leave the sheet
+    // open; the runtime ends the mode, wherever the focus is (Revision 2).
+    let armed = true;
+    const unregister = registerArmedMode(() => armed);
+    render();
+    press(trigger());
+
+    pressEscape();
+    expect(dialog()).not.toBeNull();
+
+    armed = false;
+    pressEscape();
+    expect(dialog()).toBeNull();
+    unregister();
   });
 
   it('closes on Escape while a layer is open somewhere else', () => {

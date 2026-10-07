@@ -79,6 +79,13 @@
   white-space: nowrap;
 }
 
+/* A badge on a row, under its name as a note is: as wide as its words, never the row's. */
+.rowBadge {
+  justify-self: start;
+  max-width: 100%;
+  line-height: 1;
+}
+
 @media (pointer: coarse) {
   .row {
     min-height: var(--touch-target);

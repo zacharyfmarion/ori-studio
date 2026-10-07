@@ -271,15 +271,22 @@ export function stepsFrom(document: DiagramDocument, areaId: string): string[] {
 
 /**
  * What a new step starts with (Z2, "yeah sounds right"): enlarged, captured
- * at creation, when the step before it — turns passed — is enlarged; its
- * imprint kept for its first picture to land, and the frame copied in
- * picture units for a first picture with no faces. Null otherwise.
+ * at creation, when the step before it — turns passed — is enlarged. A step
+ * made with its picture — an upload, a References card — has its frame
+ * landed at once; an empty one keeps the imprint for its first picture to
+ * land, and the frame copied in picture units for a first picture with no
+ * faces (`placed` null until then). Null otherwise.
  */
-export function seededZoom(document: DiagramDocument, stepId: string): DiagramStepZoom | null {
+export function seededCapture(document: DiagramDocument, stepId: string): ZoomCaptured | null {
   for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
     const entry = document.steps[index]!;
     if (isTurn(entry)) continue;
-    return entry.zoom ? (capture(document, stepId)?.zoom ?? null) : null;
+    return entry.zoom ? capture(document, stepId) : null;
   }
   return null;
+}
+
+/** What a new step starts with: {@link seededCapture}'s frame. */
+export function seededZoom(document: DiagramDocument, stepId: string): DiagramStepZoom | null {
+  return seededCapture(document, stepId)?.zoom ?? null;
 }

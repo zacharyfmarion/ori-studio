@@ -55,7 +55,8 @@ import {
   type DiagramSimulatedView,
   type DiagramStyle,
 } from '../document/diagramDocument';
-import { storedCpSource, storedPaperFaces, storedSceneJson } from '../document/diagramFile';
+import { storedCpSource, storedSceneJson } from '../document/diagramFile';
+import { storedPaperFaces } from '../document/paperFacesFile';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
 import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
 import type { PaperStyle } from '../../lib/paper/paperStyle';

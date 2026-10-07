@@ -1,6 +1,16 @@
-import type { DiagramCpRender, DiagramLayerSpread, DiagramScenePicture, DiagramStep } from '../document/diagramDocument';
+import type {
+  DiagramCpRender,
+  DiagramLayerSpread,
+  DiagramPaperFaces,
+  DiagramScenePicture,
+  DiagramStep,
+} from '../document/diagramDocument';
+import { storedSceneJson } from '../document/diagramFile';
 import { cpStep } from '../document/diagramSteps.fixtures';
-import { CAPTURE_PX_PER_UNIT } from '../capture/captureGeometry';
+import { CAPTURE_PX_PER_UNIT, sceneBoundsOf } from '../capture/captureGeometry';
+import { storedScene } from '../pictures/pictureFrame';
+import { turnClockwise } from '../../lib/geometry';
+import type { PaperItem, PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import type { PicturePoint } from '../annotate/annotationModel';
 import imprints from './__fixtures__/zoomImprint.json';
 
@@ -69,4 +79,31 @@ export function imprintCase(label: string): ImprintCase {
   const found = IMPRINT_CASES.find((each) => each.label === label);
   if (!found) throw new Error(`no case ${label}`);
   return found;
+}
+
+/** A capture turned by `degrees` about the scene's origin, as a pose turns it: its scene and its unspread places. */
+export function turnedCapture(step: DiagramStep, degrees: number): DiagramStep {
+  if (step.picture?.kind !== 'scene' || step.source?.kind !== 'cp') throw new Error('a linked scene');
+  const turn = turnClockwise(degrees);
+  const at = ([x, y]: ScenePoint): ScenePoint => {
+    const p = turn({ x, y });
+    return [p.x, p.y];
+  };
+  const scene = storedScene(step.picture)!;
+  const items = scene.items.map((item): PaperItem => {
+    if (item.kind === 'face') return { ...item, rings: item.rings.map((ring) => ring.map(at)) };
+    if (item.kind === 'line') {
+      return { ...item, a: at(item.a), b: at(item.b), ...(item.whole ? { whole: { ...item.whole, a: at(item.whole.a), b: at(item.whole.b) } } : {}) };
+    }
+    return item;
+  });
+  const turned: PaperScene = { ...scene, items, bounds: sceneBoundsOf(items) };
+  const faces = step.picture.paperFaces ? (JSON.parse(step.picture.paperFaces) as DiagramPaperFaces) : null;
+  const paperFaces = faces && JSON.stringify({ ...faces, points: faces.points.map(([px, py, u, v]) => [px, py, ...at([u, v])]) });
+  const render = step.source.render.mode === 'folded-flat' ? { ...step.source.render, rotationDeg: (step.source.render.rotationDeg + degrees) % 360 } : step.source.render;
+  return {
+    ...step,
+    source: { ...step.source, render },
+    picture: { ...step.picture, sceneJson: storedSceneJson(turned)!, key: `${step.picture.key}-turned`, ...(paperFaces ? { paperFaces } : {}) },
+  };
 }

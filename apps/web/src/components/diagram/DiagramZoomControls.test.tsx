@@ -9,6 +9,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../../diagram/document/diagramDocument';
 import { craneStep, imprintCase } from '../../diagram/zoom/zoom.fixtures';
+import { watchFrames } from '../../diagram/zoom/zoomInvariant.fixtures';
 import { paperFacesOf, toPicture } from '../../diagram/zoom/zoomImprint';
 import { ZOOM_FRAME_ID } from '../../diagram/zoom/zoomModel';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -37,10 +38,13 @@ vi.mock('../../analytics', async (importOriginal) => ({
 let root: Root | null = null;
 let host: HTMLDivElement | null = null;
 const state = () => useWorkspaceStore.getState();
+let frames: ReturnType<typeof watchFrames> | null = null;
 
 beforeEach(() => {
   printed.zoom = null;
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+  // Every enlarged step's frame where its imprint lands, after every verb a control runs (Revision 2).
+  frames = watchFrames(useWorkspaceStore.subscribe);
   Object.values(tracked).forEach((spy) => spy.mockClear());
   vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   host = document.createElement('div');
@@ -56,6 +60,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  frames?.stop();
+  expect(frames?.problems).toEqual([]);
   act(() => root?.unmount());
   root = null;
   host?.remove();

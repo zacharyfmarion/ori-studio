@@ -9,10 +9,43 @@
  * drafting stacks dimension lines (ED12). Cut takes the original away, so its
  * first paste goes back where it was.
  *
+ * Copied marks remember the view they were drawn in (Revision 2): their
+ * units — an enlarged step's window, or the whole picture — and, while they
+ * are in step with it, their picture, by its key. Pasted onto a step in other
+ * units they go through the picture: onto the same picture — one enlarged
+ * step to another of it, an enlarged step to its whole picture, or back —
+ * they land on the same paper; onto another, at the same place on its
+ * picture, as a paste between two whole pictures always has. Only between
+ * two windows of different pictures do they keep their place in the window:
+ * each frames the paper its area framed. Everything a paste does, its offset
+ * too, is held within the reach of the units they go to.
+ *
  * Pure: no DOM, no store.
  */
-import { randomDiagramId, type DiagramIdFactory, type KnownDiagramAnnotation } from '../document/diagramDocument';
-import { DIVISIONS_OFFSET_MM, divisionsOffsetOf, moveAnnotation } from './annotationModel';
+import {
+  randomDiagramId,
+  type DiagramIdFactory,
+  type DiagramStep,
+  type KnownDiagramAnnotation,
+} from '../document/diagramDocument';
+import { stepWindow, unitsMove } from '../zoom/zoomFrames';
+import { stepReach, type PictureBox } from '../zoom/zoomModel';
+import {
+  DIVISIONS_OFFSET_MM,
+  PICTURE_REACH,
+  carryAnnotation,
+  divisionsOffsetOf,
+  moveAnnotation,
+  withAnnotationReach,
+} from './annotationModel';
+
+/** The view a step's marks are drawn in. */
+export interface DiagramAnnotationView {
+  /** The picture they are in step with, by its key; null while they are out of step with their step's. */
+  pictureKey: string | null;
+  /** Their units: the step's window when it is enlarged, else null, its whole picture. */
+  window: PictureBox | null;
+}
 
 /** Annotations copied from a step, as the clipboard holds them. */
 export interface DiagramAnnotationClipboardPayload {
@@ -24,6 +57,20 @@ export interface DiagramAnnotationClipboardPayload {
    * there — and on the step they were copied from, the originals.
    */
   pastes: Readonly<Record<string, number>>;
+  /** The view they were copied from; absent from a step with no picture. */
+  view?: DiagramAnnotationView;
+}
+
+/** The view a step's marks are drawn on now: its picture's and its units; null for a step with no picture. */
+export function annotationView(step: DiagramStep): DiagramAnnotationView | null {
+  return step.picture ? { pictureKey: step.picture.key, window: stepWindow(step) } : null;
+}
+
+/** The view copied marks were drawn in: a step's units, and its picture while its marks are in step with it. */
+export function copiedView(step: DiagramStep): DiagramAnnotationView | undefined {
+  const view = annotationView(step);
+  if (!view) return undefined;
+  return step.annotatedPictureKey === view.pictureKey ? view : { ...view, pictureKey: null };
 }
 
 /** How far down and right a paste is put from the one before it on a step, in picture units. */
@@ -39,9 +86,37 @@ export const PASTE_DIVISIONS_OFFSET_MM = 2.5;
 export function annotationClipboard(
   annotations: readonly KnownDiagramAnnotation[],
   stepId: string,
-  { cut = false }: { cut?: boolean } = {}
+  { cut = false, view }: { cut?: boolean; view?: DiagramAnnotationView } = {}
 ): DiagramAnnotationClipboardPayload {
-  return { kind: 'diagram-annotations', annotations: [...annotations], pastes: cut ? {} : { [stepId]: 1 } };
+  return {
+    kind: 'diagram-annotations',
+    annotations: [...annotations],
+    pastes: cut ? {} : { [stepId]: 1 },
+    ...(view ? { view } : {}),
+  };
+}
+
+/** The whole picture's units as a box: its longer side one, from its corner. */
+const WHOLE: PictureBox = { x: 0, y: 0, width: 1, height: 1 };
+
+/**
+ * Marks copied in `from` as they lie in `onto`'s units: through the picture —
+ * the same paper, on the same picture; the same place on the picture, on
+ * another — but between windows of two pictures, where they keep their place
+ * in the window. Run within the reach of `onto`'s units.
+ */
+function intoView(
+  annotations: readonly KnownDiagramAnnotation[],
+  from: DiagramAnnotationView | undefined,
+  onto: DiagramAnnotationView | null
+): readonly KnownDiagramAnnotation[] {
+  if (!from || !onto) return annotations;
+  const samePicture = from.pictureKey !== null && from.pictureKey === onto.pictureKey;
+  if (from.window && onto.window && !samePicture) return annotations;
+  const [a, b] = [from.window ?? WHOLE, onto.window ?? WHOLE];
+  if (a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height) return annotations;
+  const move = unitsMove(a, b);
+  return annotations.map((annotation) => carryAnnotation(annotation, move));
 }
 
 /**
@@ -49,25 +124,32 @@ export function annotationClipboard(
  * down and right by {@link PASTE_OFFSET} for each that already lies there
  * ({@link DiagramAnnotationClipboardPayload.pastes}) — equal divisions left on
  * their line, standing {@link PASTE_DIVISIONS_OFFSET_MM} further out for
- * each, up to the furthest a line may stand. Kept within reach, as a move is.
+ * each, up to the furthest a line may stand. `onto`, the step: they are first
+ * put in its units ({@link DiagramAnnotationView}), and everything is kept
+ * within its reach, as a move is — an enlarged step's window's, which reaches
+ * as far as its whole picture's, so a mark across the model from a small
+ * frame lands where it was copied rather than at four windows out.
  */
 export function pastedAnnotations(
   clipboard: DiagramAnnotationClipboardPayload,
   stepId: string,
-  newId: DiagramIdFactory = randomDiagramId
+  newId: DiagramIdFactory = randomDiagramId,
+  onto?: DiagramStep
 ): KnownDiagramAnnotation[] {
   const earlier = clipboard.pastes[stepId] ?? 0;
   const offset = PASTE_OFFSET * earlier;
-  return clipboard.annotations.map((annotation) => {
-    const copy =
-      annotation.kind === 'divisions'
-        ? {
-            ...annotation,
-            offset: Math.min(DIVISIONS_OFFSET_MM.max, divisionsOffsetOf(annotation) + PASTE_DIVISIONS_OFFSET_MM * earlier),
-          }
-        : moveAnnotation(annotation, [offset, offset]);
-    return { ...copy, id: newId('annotation') };
-  });
+  return withAnnotationReach(onto ? stepReach(onto) : PICTURE_REACH, () =>
+    intoView(clipboard.annotations, clipboard.view, onto ? annotationView(onto) : null).map((annotation) => {
+      const copy =
+        annotation.kind === 'divisions'
+          ? {
+              ...annotation,
+              offset: Math.min(DIVISIONS_OFFSET_MM.max, divisionsOffsetOf(annotation) + PASTE_DIVISIONS_OFFSET_MM * earlier),
+            }
+          : moveAnnotation(annotation, [offset, offset]);
+      return { ...copy, id: newId('annotation') };
+    })
+  );
 }
 
 /** The clipboard once its annotations have been pasted on `stepId` again. */

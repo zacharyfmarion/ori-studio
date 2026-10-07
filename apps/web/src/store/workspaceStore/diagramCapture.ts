@@ -48,8 +48,7 @@ import type { PaperPage } from '../../lib/paper/paperPage';
 import { pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import { buildSegmentSimulationFold, type CpSegment } from '../../lib/creasePatternSegmentation';
 import { createCpCaptureRuntime } from './cpFoldRuntimeBindings';
-import { landSeededFrame } from '../../diagram/zoom/zoomFrames';
-import type { ZoomPlaced } from '../../diagram/zoom/zoomCapture';
+import { landSeededFrame, type LandedFirstFrame } from '../../diagram/zoom/zoomFrames';
 import { trackSeeded } from './diagramZoom';
 import { releaseSimulatorClient, retainSimulatorClient } from './simulatorRuntime';
 import { stopFoldRun, withFoldInFlight } from './foldRuns';
@@ -218,22 +217,17 @@ export async function commitStepCapture(
   const current = now.diagram ? stepById(now.diagram, stepId) : null;
   if (now.diagramLoadId !== loadId || !current || current.revision !== revision) return null;
   const join = joinEntry !== undefined && now.diagramHistory.past.at(-1) === joinEntry;
-  // A step seeded enlarged lands its frame on its first picture, in the same undo step (Revision 2).
-  let seeded: ZoomPlaced = null;
+  // A step enlarged before it had a picture lands its frame on its first, in the same undo step (Revision 2).
+  let landed = null as LandedFirstFrame | null;
   const next = commit(
     label,
     (diagram) => {
-      const landed = landSeededFrame(
-        diagram,
-        setLinkedPicture(diagram, stepId, { source: captured.source, ...kept }),
-        stepId
-      );
-      seeded = landed.placed;
+      landed = landSeededFrame(diagram, setLinkedPicture(diagram, stepId, { source: captured.source, ...kept }), stepId);
       return landed.document;
     },
     join
   );
-  if (next) trackSeeded(next, stepId, seeded);
+  if (next && landed) trackSeeded(next, stepId, landed);
   return { changed: next !== null, tooDetailed: kept.asset !== undefined };
 }
 

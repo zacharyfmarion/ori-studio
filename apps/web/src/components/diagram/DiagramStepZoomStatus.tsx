@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { DiagramStep } from '../../diagram/document/diagramDocument';
 import { useStepZoom } from '../../diagram/zoom/useStepZoom';
-import { zoomReadoutText, type StepZoomNotice, type ZoomRecapture } from '../../diagram/zoom/zoomActions';
+import { zoomNumber, zoomReadoutText, type StepZoomNotice, type ZoomRecapture } from '../../diagram/zoom/zoomActions';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { FieldRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
@@ -21,14 +21,14 @@ type T = ReturnType<typeof useTranslation>['t'];
  * not enlarged.
  */
 export function DiagramStepZoomStatus({ step }: { step: DiagramStep }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { status, readout, goToArea } = useStepZoom(step);
   if (!status) return null;
   const { areaStep, scale, notices } = status;
   const size =
     scale === null
       ? t('panels:diagram.annotations.enlargeFill', 'Fill')
-      : t('panels:diagram.annotations.enlargeTimes', '×{{size}}', { size: scale });
+      : t('panels:diagram.annotations.enlargeTimes', '×{{size}}', { size: zoomNumber(scale, i18n.language) });
   return (
     <CollapsibleSection title={t('panels:diagram.stepPane.enlarged', 'Enlarged')}>
       <div className={styles.status} data-step-zoom-status="">
@@ -42,12 +42,12 @@ export function DiagramStepZoomStatus({ step }: { step: DiagramStep }) {
             {readout && !readout.warn
               ? t('panels:diagram.stepPane.enlargedSizePrints', '{{size}} · prints ×{{printed}}', {
                   size,
-                  printed: readout.printed,
+                  printed: zoomNumber(readout.printed, i18n.language),
                 })
               : size}
           </FieldRow>
         </div>
-        {readout?.warn && <Notice tone="warning">{zoomReadoutText(t, readout)}</Notice>}
+        {readout?.warn && <Notice tone="warning">{zoomReadoutText(t, readout, i18n.language)}</Notice>}
         {notices.map((notice) => (
           <Notice key={noticeKey(notice)} tone="warning">
             {noticeText(t, notice)}

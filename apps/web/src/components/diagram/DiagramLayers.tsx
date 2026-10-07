@@ -125,10 +125,13 @@ export function DiagramLayers({ step }: { step: DiagramStep }) {
                     {carriesText(annotation.kind) && annotation.text ? annotation.text : annotationLabel(t, annotation)}
                   </span>
                   {annotation.kind === 'zoom' && <AreaSubtitle area={annotation} />}
+                  {/* Under its name, as a subtitle is: beside it, the badge took the row's width and cut the name off. */}
+                  {outside?.has(annotation.id) && (
+                    <span className={styles.rowBadge}>
+                      <Badge tone="neutral">{t('panels:diagram.annotations.outsideFrame', 'Outside the enlarged frame')}</Badge>
+                    </span>
+                  )}
                 </span>
-                {outside?.has(annotation.id) && (
-                  <Badge tone="neutral">{t('panels:diagram.annotations.outsideFrame', 'Outside the enlarged frame')}</Badge>
-                )}
               </button>
             </li>
           ))}

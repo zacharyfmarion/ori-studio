@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { handleMenuAction } from '../../commands/menuActions';
 import { EDIT_PATH } from '../../diagram/annotate/annotateTools';
 import { PASTE_OFFSET } from '../../diagram/annotate/annotationClipboard';
 import type { KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
+import { watchFrames } from '../../diagram/zoom/zoomInvariant.fixtures';
 import { useWorkspaceStore } from '../workspaceStore';
 import { selectWorkspaceCapabilities } from './capabilities';
 
@@ -36,8 +37,15 @@ const movedBy = (annotation: KnownDiagramAnnotation, offset: number) => ({
   to: [expect.closeTo(annotation.to[0] + offset, 12), expect.closeTo(annotation.to[1] + offset, 12)],
 });
 
+// Enlarged steps' frames where their imprints land, after every verb (Revision 2).
+let frames: ReturnType<typeof watchFrames> | null = null;
 beforeEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+  frames = watchFrames(useWorkspaceStore.subscribe);
+});
+afterEach(() => {
+  frames!.stop();
+  expect(frames!.problems).toEqual([]);
 });
 
 describe('copying and pasting annotations', () => {
@@ -118,6 +126,94 @@ describe('copying and pasting annotations', () => {
     state().openDiagramStep(first, 'annotate');
     void state().pasteClipboard();
     expect(marks(first).map((mark) => mark.kind)).toEqual(['valley-arrow', 'zoom']);
+  });
+
+  it('pastes marks copied on an enlarged step onto the same picture whole on the same paper (Revision 2)', () => {
+    const [first] = twoSteps();
+    const copy = state().duplicateDiagramStep(first)!;
+    // Enlarged by hand below, its arrow read in the window's units: the test's own setup, not a verb.
+    frames!.allowMarksMoved(copy);
+    const enlarge = { from: 'area', shape: 'circle' as const, frame: { centre: [0.5, 0.375] as [number, number], radius: 0.2 } };
+    useWorkspaceStore.setState({
+      diagram: {
+        ...state().diagram!,
+        steps: state().diagram!.steps.map((entry) => (entry.id === copy ? { ...entry, zoom: enlarge } : entry)),
+      },
+    });
+    state().openDiagramStep(copy, 'annotate');
+    state().selectDiagramAnnotation(marks(copy)[0]!.id);
+    state().copySelection();
+    state().openDiagramStep(first, 'annotate');
+    void state().pasteClipboard();
+    // In the copy's window, 0.4 of the picture across from (0.3, 0.175): the arrow on the same paper, whole.
+    const pasted = marks(first)[1]!;
+    expect(pasted.from).toEqual([expect.closeTo(0.3 + arrow.from[0] * 0.4, 12), expect.closeTo(0.175 + arrow.from[1] * 0.4, 12)]);
+    expect(pasted.to).toEqual([expect.closeTo(0.3 + arrow.to[0] * 0.4, 12), expect.closeTo(0.175 + arrow.to[1] * 0.4, 12)]);
+  });
+
+  describe('a mark across the model and a small frame (review of 16g)', () => {
+    // Some ten windows long beside a frame a twelfth of the picture wide: past the four windows a whole picture's reach holds.
+    const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.1, 0.4], to: [0.95, 0.45] };
+    const frame = { centre: [0.4, 0.35] as [number, number], radius: 0.04 };
+    /** Back on the picture from the frame's window: x 0.36 to 0.44, y 0.31 to 0.39, its unit 0.08. */
+    const onPicture = ([u, v]: readonly number[]) => [0.36 + u! * 0.08, 0.31 + v! * 0.08];
+    const enlarge = (stepId: string) =>
+      useWorkspaceStore.setState({
+        diagram: {
+          ...state().diagram!,
+          steps: state().diagram!.steps.map((entry) =>
+            entry.id === stepId ? { ...entry, zoom: { from: 'area', shape: 'circle' as const, frame }, annotations: [] } : entry
+          ),
+        },
+      });
+    const lineOn = (stepId: string) => {
+      state().openDiagramStep(stepId, 'annotate');
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => [line]);
+      state().selectDiagramAnnotation('line');
+    };
+    const exactly = (a: readonly number[], b: readonly number[]) => a.forEach((value, index) => expect(value).toBeCloseTo(b[index]!, 9));
+
+    it('copied whole and pasted on its enlarged duplicate lands on the same paper, and a paste there a paste’s step on in the window', () => {
+      const [first] = twoSteps();
+      lineOn(first);
+      const copy = state().duplicateDiagramStep(first)!;
+      enlarge(copy);
+      state().openDiagramStep(first, 'annotate');
+      state().selectDiagramAnnotation('line');
+      state().copySelection();
+      state().openDiagramStep(copy, 'annotate');
+      void state().pasteClipboard();
+      const [pasted] = marks(copy);
+      exactly(onPicture(pasted!.from), line.from);
+      exactly(onPicture(pasted!.to), line.to);
+      // Copied there and pasted again on the same step: beside it, not pulled in to four windows out.
+      state().selectDiagramAnnotation(pasted!.id);
+      state().copySelection();
+      void state().pasteClipboard();
+      const beside = marks(copy)[1]!;
+      exactly(beside.from, [pasted!.from[0] + PASTE_OFFSET, pasted!.from[1] + PASTE_OFFSET]);
+      exactly(beside.to, [pasted!.to[0] + PASTE_OFFSET, pasted!.to[1] + PASTE_OFFSET]);
+    });
+
+    it('copied on the area’s step and pasted on an enlarged step of another picture lands at the same place on the picture, and back', () => {
+      const [first, second] = twoSteps();
+      lineOn(first);
+      enlarge(second);
+      state().copySelection();
+      state().openDiagramStep(second, 'annotate');
+      void state().pasteClipboard();
+      const [pasted] = marks(second);
+      exactly(onPicture(pasted!.from), line.from);
+      exactly(onPicture(pasted!.to), line.to);
+      // And back from the window to the whole picture of the other.
+      state().selectDiagramAnnotation(pasted!.id);
+      state().copySelection();
+      state().openDiagramStep(first, 'annotate');
+      void state().pasteClipboard();
+      const back = marks(first)[1]!;
+      exactly(back.from, line.from);
+      exactly(back.to, line.to);
+    });
   });
 
   it('copies from a diagram that cannot change, and pastes and cuts on none', () => {

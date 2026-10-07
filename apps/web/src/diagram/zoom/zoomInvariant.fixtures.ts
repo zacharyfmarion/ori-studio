@@ -74,3 +74,58 @@ export function marksMoved(before: DiagramStep, after: DiagramStep): string[] {
   }
   return moved;
 }
+
+/**
+ * The marks that moved on the paper from `was` to `now` where no verb meant
+ * to move them: on each step enlarged before or after whose picture is the
+ * one it was — its key and its source — every mark in both stays where it
+ * was on that picture. Not checked: steps in `allowed`, the ones the verbs
+ * under test move marks on; a step whose own picture the verb changed, which
+ * carries its marks itself; and one the change left out of step with its
+ * picture, which its notice says (D8). One line per step.
+ */
+export function marksProblems(was: DiagramDocument, now: DiagramDocument, allowed: ReadonlySet<string> = new Set()): string[] {
+  const before = new Map(was.steps.filter((entry): entry is DiagramStep => !isTurn(entry)).map((entry) => [entry.id, entry]));
+  const inStep = (step: DiagramStep) => step.annotatedPictureKey === step.picture?.key;
+  const problems: string[] = [];
+  for (const entry of now.steps) {
+    const old = isTurn(entry) ? undefined : before.get(entry.id);
+    if (isTurn(entry) || !old || old === entry || allowed.has(entry.id) || (!old.zoom && !entry.zoom)) continue;
+    const samePicture = old.picture?.key === entry.picture?.key && JSON.stringify(old.source) === JSON.stringify(entry.source);
+    if (!old.picture || !samePicture || (inStep(old) && !inStep(entry))) continue;
+    const kept = marksInPicture(entry);
+    const moved = marksMoved(old, entry).filter((id) => kept.has(id));
+    if (moved.length > 0) problems.push(`${entry.id}: marks moved on the paper (${moved.join(', ')})`);
+  }
+  return problems;
+}
+
+/** The invariant, watched over a store: what broke it, and the steps a test lets its verbs move marks on. */
+export interface FrameWatch {
+  /** One line for each break: a frame off its imprint ({@link frameProblems}), or marks moved ({@link marksProblems}). */
+  problems: string[];
+  /** The steps the verbs under test move marks on by design — a mark dragged, a test's own setup — from now on. */
+  allowMarksMoved: (...stepIds: string[]) => void;
+  stop: () => void;
+}
+
+/**
+ * The invariant after every store verb, for the slice tests: each diagram a
+ * store comes to hold is checked as it lands — every enlarged step's frame by
+ * {@link frameProblems}, and against the diagram before it, the marks of
+ * steps the verb did not mean to move by {@link marksProblems} — and what
+ * broke it is kept for the test to assert empty. A diagram opened in place of
+ * another is checked for its frames alone. `subscribe` is the store's own.
+ */
+export function watchFrames<State extends { diagram: DiagramDocument | null; diagramLoadId?: number }>(
+  subscribe: (listener: (now: State, was: State) => void) => () => void
+): FrameWatch {
+  const problems: string[] = [];
+  const allowed = new Set<string>();
+  const stop = subscribe((now, was) => {
+    if (!now.diagram || now.diagram === was.diagram) return;
+    problems.push(...frameProblems(now.diagram));
+    if (was.diagram && now.diagramLoadId === was.diagramLoadId) problems.push(...marksProblems(was.diagram, now.diagram, allowed));
+  });
+  return { problems, allowMarksMoved: (...stepIds) => stepIds.forEach((id) => allowed.add(id)), stop };
+}

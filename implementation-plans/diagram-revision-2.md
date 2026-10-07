@@ -3710,12 +3710,16 @@ not ship before 16g (below).
   until 16f lands.
   *Retired by 16f* (46c5de201), which landed first: an enlarged step is laid
   out as its own 'zoom' kind and shares no Fit each run.
-- [ ] Not shipped before 16g: re-posing, refreshing or relinking an enlarged
+- [x] Not shipped before 16g: re-posing, refreshing or relinking an enlarged
   step garbles its marks and leaves its frame. `withCarriedAnnotations` is
   not frame-aware until 16g wires `reposeFrame` and `relandFrame` into it:
   it carries the window-unit marks as if they were the whole picture's, and
   the frame stays where it was in picture units while the picture turns
   (review of 16e, 2026-10-06). 16g lands in the same release as 16e.
+  *Retired by 16g*: `withCarriedAnnotations` hands an enlarged step to
+  `zoomFrames.followOwnPicture`, which every edit of a step's own picture
+  reaches (Pose's commits and its spread preview, Refresh, Link, a
+  References step's side and way, an upload's pose).
 - [x] The Anchor row and the pick mode (`useAnchorPick`): Pick, the hover
   highlight, a click anchoring, Escape through the shortcut runtime, Reset;
   hidden with no faces and on a crease pattern. Tests: a pick stores the
@@ -3787,16 +3791,21 @@ not ship before 16g (below).
   clean; 871 test files and 11,581 tests passed, 2 files and 13 tests
   skipped. The committed patch was checked byte for byte against the gated
   one.
-- [ ] Left open by the verify (2026-10-07), small; the larger questions,
+- [x] Left open by the verify (2026-10-07), small; the larger questions,
   "Open with Zach" 3, 5 and 6, are decided (Decided with Zach, at the top).
   On an iPad the panes are a sheet, so the first Escape closes it and only
   the second puts Pick down. The badge "Outside the enlarged frame" wraps to
   two lines and cuts off the mark's name. A fixed Size of 1.25 reads "Prints
-  ×1.3". After a large shrink the cropped surround's edge can still show at
-  a very low zoom. The anchor
+  ×1.3". `DiagramEnlargementValue` holds 'none', which is never sent.
+  *Done in 16g*: the sheet leaves Escape to an armed pick
+  (`shortcutRuntime.registerArmedMode`, claimed only while the Diagram has
+  the keys, `diagramState.escapePutsPickDown`); the badge on its own line
+  under the row's name; a fixed Size reads as typed, in the language's own
+  numbers (`zoomNumber`); 'none' gone.
+- [ ] Still open from 16e's verify, carried forward: after a large shrink
+  the cropped surround's edge can still show at a very low zoom; the anchor
   face's outline is often off screen with the frame selected (arming Pick
-  zooms out to it; selecting does not). `DiagramEnlargementValue` holds
-  'none', which is never sent.
+  zooms out to it; selecting does not).
 
 ### 16f Enlarged steps: pages and export
 

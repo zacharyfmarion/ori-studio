@@ -10,9 +10,14 @@ import type { Selection, TreeProject } from '../../../lib/sampleProject';
 import { toast } from 'sonner';
 import i18n from '../../../i18n';
 import { EDIT_PATH, enlargedStepTakesNoArea } from '../../../diagram/annotate/annotateTools';
-import { stepById } from '../../../diagram/document/diagramDocument';
+import { stepById, type DiagramDocument } from '../../../diagram/document/diagramDocument';
 import { annotationActionEdit } from '../../../diagram/annotate/annotationActions';
-import { annotationClipboard, pastedAnnotations, pastedOnto } from '../../../diagram/annotate/annotationClipboard';
+import {
+  annotationClipboard,
+  copiedView,
+  pastedAnnotations,
+  pastedOnto,
+} from '../../../diagram/annotate/annotationClipboard';
 import { applyAnnotationEdit } from '../../../diagram/annotate/applyAnnotationEdit';
 import { canCopyDiagramAnnotation, canPasteDiagramAnnotations, selectedDiagramAnnotation } from '../diagramState';
 import { selectedEdgeIds, selectedNodeIds } from '../../../lib/selection';
@@ -75,6 +80,12 @@ function buildClipboardPayload(
   return nodes.length > 0 || edges.length > 0 ? { kind: 'tree', nodes, edges } : null;
 }
 
+/** The view a step's marks are drawn in, while they are in step with its picture (Revision 2): what a copy remembers. */
+function copiedViewOf(diagram: DiagramDocument | null, stepId: string) {
+  const step = diagram ? stepById(diagram, stepId) : null;
+  return step ? copiedView(step) : undefined;
+}
+
 export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set, get) => ({
   clipboard: null,
   clipboardPasteCount: 0,
@@ -84,7 +95,9 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
     if (get().activeEditingContext === 'diagram') {
       const annotation = canCopyDiagramAnnotation(get()) ? selectedDiagramAnnotation(get()) : null;
       const stepId = get().diagramSelectedStepId;
-      if (annotation && stepId !== null) set({ clipboard: annotationClipboard([annotation], stepId), clipboardPasteCount: 0 });
+      if (annotation && stepId !== null) {
+        set({ clipboard: annotationClipboard([annotation], stepId, { view: copiedViewOf(get().diagram, stepId) }), clipboardPasteCount: 0 });
+      }
       return;
     }
     if (get().activeEditingContext === 'crease-pattern') {
@@ -126,8 +139,10 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
       const annotation = canCopyDiagramAnnotation(get()) ? selectedDiagramAnnotation(get()) : null;
       const stepId = get().diagramSelectedStepId;
       if (!annotation || stepId === null || !canPasteDiagramAnnotations(get())) return;
+      // The view it was drawn in, as it was before it was taken out.
+      const view = copiedViewOf(get().diagram, stepId);
       const cut = applyAnnotationEdit(get(), stepId, { ...annotationActionEdit('delete', annotation.id), label: 'Cut annotation' });
-      if (cut) set({ clipboard: annotationClipboard([annotation], stepId, { cut: true }), clipboardPasteCount: 0 });
+      if (cut) set({ clipboard: annotationClipboard([annotation], stepId, { cut: true, view }), clipboardPasteCount: 0 });
       return;
     }
     if (get().activeEditingContext === 'crease-pattern') {
@@ -153,7 +168,8 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
       if (clipboard?.kind !== 'diagram-annotations' || stepId === null || !canPasteDiagramAnnotations(get())) return;
       // A step is enlarged or holds areas, not both (Revision 2): an area pasted on an enlarged step is left out.
       const target = get().diagram ? stepById(get().diagram!, stepId) : undefined;
-      const copies = pastedAnnotations(clipboard, stepId);
+      // On the picture they came from, on the same paper: an enlarged step's window or its whole picture.
+      const copies = pastedAnnotations(clipboard, stepId, undefined, target ?? undefined);
       const pasted = target?.zoom ? copies.filter((annotation) => annotation.kind !== 'zoom') : copies;
       if (pasted.length < copies.length) toast.message(enlargedStepTakesNoArea(i18n.t));
       if (pasted.length === 0) return;

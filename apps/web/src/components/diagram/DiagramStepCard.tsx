@@ -210,7 +210,7 @@ export const DiagramStepCard = forwardRef<
               <DiagramSheetThumbnail thumbnail={linked.thumbnail} />
             </span>
           )}
-          <span id={`${labelId}-kind`}>
+          <span id={`${labelId}-kind`} className={styles.kindBadge}>
             <Badge tone="neutral">
               {locked ? t('panels:diagram.card.badgeNewer', 'Newer') : stepKindLabel(step, picture, t)}
             </Badge>
@@ -456,7 +456,7 @@ export const DiagramTurnCard = forwardRef<
         <span className={styles.number}>{title}</span>
         <span className={styles.kind}>
           {/* Wrapped as a step's badge is, so the two headers are one height. */}
-          <span>
+          <span className={styles.kindBadge}>
             <Badge tone="neutral">{t('panels:diagram.card.badgeNoNumber', 'No number')}</Badge>
           </span>
         </span>

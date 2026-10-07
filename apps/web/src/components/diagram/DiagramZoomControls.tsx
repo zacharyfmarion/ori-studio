@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { ZOOM_SCALE } from '../../diagram/annotate/annotationModel';
 import type { DiagramStep, DiagramZoomEdge, DiagramZoomShape } from '../../diagram/document/diagramDocument';
 import { useZoomControls, type ZoomControlsTarget } from '../../diagram/zoom/useZoomControls';
-import { zoomReadoutText, type ZoomAction } from '../../diagram/zoom/zoomActions';
+import { zoomNumber, zoomReadoutText, type ZoomAction } from '../../diagram/zoom/zoomActions';
 import { Button } from '../ui/Button';
 import { FieldRow, NumberRow, SegmentedRow } from '../ui/fieldRows';
 import { SegmentedControl } from '../ui/SegmentedControl';
@@ -24,7 +24,7 @@ const SIZE_STEP = 0.25;
  * one undo step (`useZoomControls`).
  */
 export function DiagramZoomControls({ step, target }: { step: DiagramStep; target: ZoomControlsTarget }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const controls = useZoomControls(step, target);
   const { editable, shape, edge, scale } = controls;
   const shapeLabel = t('panels:diagram.annotations.enlargeShape', 'Shape');
@@ -125,10 +125,12 @@ export function DiagramZoomControls({ step, target }: { step: DiagramStep; targe
       )}
       <p className={styles.note} data-readout={controls.readout?.kind ?? 'size'} data-tone={controls.readout?.warn ? 'warning' : undefined}>
         {controls.readout
-          ? zoomReadoutText(t, controls.readout)
+          ? zoomReadoutText(t, controls.readout, i18n.language)
           : scale === null
             ? t('panels:diagram.annotations.enlargeReadoutFill', 'Prints as large as its room allows, up to ×6 the area.')
-            : t('panels:diagram.annotations.enlargeReadoutFixed', 'Prints at {{size}} × the area’s printed size.', { size: scale })}
+            : t('panels:diagram.annotations.enlargeReadoutFixed', 'Prints at {{size}} × the area’s printed size.', {
+                size: zoomNumber(scale, i18n.language),
+              })}
       </p>
       {controls.on === 'frame' && (
         <p className={styles.note}>

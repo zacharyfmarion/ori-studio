@@ -36,7 +36,7 @@ import { turnClockwise } from '../../lib/geometry';
 import { rectangleAngle, type PicturePoint } from '../annotate/annotationModel';
 import { CAPTURE_PX_PER_UNIT, storedSceneStep } from '../capture/captureGeometry';
 import type { DiagramScenePicture, DiagramStep, DiagramZoomOutline } from '../document/diagramDocument';
-import { readPaperFaces } from '../document/diagramFile';
+import { readPaperFaces } from '../document/paperFacesFile';
 import { storedScene } from '../pictures/pictureFrame';
 import { distanceOutside, distanceToSegment, zoomCore, zoomShapeOf } from './zoomModel';
 

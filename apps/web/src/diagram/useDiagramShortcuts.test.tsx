@@ -11,7 +11,10 @@ import { useDiagramShortcuts } from './useDiagramShortcuts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const runtime = vi.hoisted(() => ({ diagram: null as ((id: DiagramShortcutId) => boolean) | null }));
+const runtime = vi.hoisted(() => ({
+  diagram: null as ((id: DiagramShortcutId) => boolean) | null,
+  armed: null as (() => boolean) | null,
+}));
 vi.mock('../keyboard/shortcutRuntime', () => ({
   registerDiagramShortcutExecutor: (executor: (id: DiagramShortcutId) => boolean) => {
     runtime.diagram = executor;
@@ -20,6 +23,12 @@ vi.mock('../keyboard/shortcutRuntime', () => ({
     };
   },
   registerViewportShortcutExecutor: () => () => {},
+  registerArmedMode: (armed: () => boolean) => {
+    runtime.armed = armed;
+    return () => {
+      runtime.armed = null;
+    };
+  },
   setActiveShortcutViewportSurface: () => {},
   releaseShortcutViewportSurface: () => {},
 }));
@@ -82,6 +91,25 @@ describe('moving a step with Alt+arrows past a turn (D22)', () => {
     state().selectDiagramStep(first);
     runtime.diagram!('diagram.moveStepLater');
     expect(order()).toEqual([turn, first, second]);
+  });
+});
+
+describe('the anchor’s pick mode and the touch View sheet’s Escape (review of 16g)', () => {
+  it('claims Escape while a pick is armed in the Diagram, and not once another workspace has the keys', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"/>';
+    state().addDiagramPictures([{ id: 'asset-1', kind: 'svg', svg, widthPx: 400, heightPx: 300, bytes: svg.length }]);
+    const stepId = state().diagramSelectedStepId!;
+    useWorkspaceStore.setState({ activePanelId: 'diagram' });
+    state().openDiagramStep(stepId, 'annotate');
+    state().editDiagramAnnotations(stepId, 'Enlarge area', () => [{ id: 'area', kind: 'zoom', from: [0.5, 0.4], to: [0.5, 0.4], radius: 0.2 }]);
+    state().selectDiagramAnnotation('area');
+    expect(runtime.armed!()).toBe(false);
+    state().setDiagramAnchorPick({ stepId, target: 'area' });
+    expect(runtime.armed!()).toBe(true);
+    // The Diagram tab stays mounted out of sight, its pick armed: the crease pattern's sheet must still close on Escape.
+    useWorkspaceStore.setState({ activePanelId: 'crease-pattern' });
+    expect(state().activeEditingContext).toBe('crease-pattern');
+    expect(runtime.armed!()).toBe(false);
   });
 });
 

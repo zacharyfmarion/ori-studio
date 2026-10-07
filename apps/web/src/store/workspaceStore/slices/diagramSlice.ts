@@ -37,6 +37,7 @@ import {
   turnById,
   type DiagramEntry,
   setReferencesWay,
+  anchorTakesCard,
 } from '../../../diagram/document/diagramDocument';
 import i18n from '../../../i18n';
 import { requestConfirmation } from '../../commandDialogStore';
@@ -44,13 +45,18 @@ import { commitStepCapture, runDiagramCapture, stopDiagramCapture } from '../dia
 import { discardDiagramState, selectedDiagramAnnotation, trimDiagramHistory } from '../diagramState';
 import { pathNodesOf } from '../../../diagram/annotate/annotationPath';
 import { showsFrame } from '../../../diagram/zoom/zoomActions';
-import { landSeededFrame, seedStepZoom } from '../../../diagram/zoom/zoomFrames';
+import {
+  landSeededFrame,
+  seedNewSteps,
+  type LandedFirstFrame,
+  type SeededStep,
+} from '../../../diagram/zoom/zoomFrames';
 import { ZOOM_FRAME_ID } from '../../../diagram/zoom/zoomModel';
-import type { ZoomPlaced } from '../../../diagram/zoom/zoomCapture';
 import {
   enlargeInStore,
   storePaperFacesBackfill,
   trackSeeded,
+  trackSeededSteps,
   unenlargeInStore,
   updateInStore,
   withPaperFaces,
@@ -237,13 +243,51 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     label = 'Add step'
   ): string | null => {
     // A step added after an enlarged step starts enlarged (Revision 2, Z2), captured as it is made.
+    let seeded: SeededStep[] = [];
     const next = commit(label, (document) => {
       const inserted = insertSteps(document, [entry], index(document));
-      return isStep(entry) ? seedStepZoom(inserted, entry.id) : inserted;
+      const seeding = seedNewSteps(inserted, [entry.id], inserted.assets);
+      seeded = seeding.seeded;
+      return seeding.document;
     });
     if (!next) return null;
+    // Empty, it places its frame on its first picture, which counts it.
+    trackSeededSteps(next, seeded);
     set(selection(entry.id));
     return entry.id;
+  };
+
+  /**
+   * One edit that makes steps — an upload, a References pull — as one undo
+   * step, each new step starting enlarged after an enlarged one (Revision 2,
+   * Z2), and a step given its first picture landing the frame it was enlarged
+   * with; each counted as its frame is placed. `edit` returns the diagram and
+   * the steps it made and filled; null when the edit changed nothing.
+   */
+  const commitMade = (
+    label: string,
+    edit: (document: DiagramDocument) => { document: DiagramDocument; made: readonly string[]; filled?: string }
+  ): DiagramDocument | null => {
+    let seeded: SeededStep[] = [];
+    let landed = null as (LandedFirstFrame & { stepId: string }) | null;
+    const next = commit(label, (document) => {
+      const result = edit(document);
+      if (result.document === document) return document;
+      let edited = result.document;
+      if (result.filled !== undefined) {
+        // Filled first, so the steps made after it are seeded from the frame it lands.
+        const first = landSeededFrame(document, edited, result.filled);
+        landed = { ...first, stepId: result.filled };
+        edited = first.document;
+      }
+      const seeding = seedNewSteps(edited, result.made, edited.assets);
+      seeded = seeding.seeded;
+      return seeding.document;
+    });
+    if (!next) return null;
+    if (landed) trackSeeded(next, landed.stepId, landed);
+    trackSeededSteps(next, seeded);
+    return next;
   };
   /** Where an add beside an entry lands, or where an add lands at all (after the selection, or at the end). */
   const besideOrSelection = (at?: { stepId: string; where: 'before' | 'after' }) => (document: DiagramDocument) => {
@@ -456,21 +500,20 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       const target = current && selected !== null ? stepById(current, selected) : undefined;
       // One picture onto a selected step that has none fills it (D2).
       if (assets.length === 1 && target && !isLockedStep(target) && !stepHasPicture(target)) {
-        // A step seeded enlarged lands its frame on its first picture (Revision 2).
-        let seeded: ZoomPlaced = null;
-        const filled = commit('Add picture', (document) => {
-          const landed = landSeededFrame(document, setStepPicture(document, target.id, assets[0]), target.id);
-          seeded = landed.placed;
-          return landed.document;
-        });
-        if (filled) trackSeeded(filled, target.id, seeded);
+        // A step enlarged before it had a picture lands its frame on its first (Revision 2).
+        const filled = commitMade('Add picture', (document) => ({
+          document: setStepPicture(document, target.id, assets[0]),
+          made: [],
+          filled: target.id,
+        }));
         return filled ? { stepIds: [target.id], filled: true } : null;
       }
       let stepIds: string[] = [];
-      const next = commit(assets.length === 1 ? 'Add picture' : 'Add pictures', (document) => {
+      // Each new step after an enlarged one starts enlarged, the run through (Revision 2, Z2).
+      const next = commitMade(assets.length === 1 ? 'Add picture' : 'Add pictures', (document) => {
         const result = insertPictureSteps(document, assets, insertionIndex(document, selected));
         stepIds = result.stepIds;
-        return result.document;
+        return { document: result.document, made: result.stepIds };
       });
       if (!next) return null;
       // The last of them, so the next add goes on after the batch.
@@ -480,13 +523,11 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
 
     setDiagramStepPicture: (stepId, asset, { loadId } = {}) => {
       if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
-      let seeded: ZoomPlaced = null;
-      const next = commit('Replace picture', (document) => {
-        const landed = landSeededFrame(document, setStepPicture(document, stepId, asset), stepId);
-        seeded = landed.placed;
-        return landed.document;
-      });
-      if (next) trackSeeded(next, stepId, seeded);
+      const next = commitMade('Replace picture', (document) => ({
+        document: setStepPicture(document, stepId, asset),
+        made: [],
+        filled: stepId,
+      }));
       return next !== null;
     },
 
@@ -583,10 +624,17 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       // Pressed in a browser that has closed since: it adds nothing, and closes nothing.
       if (opening !== undefined && get().diagramReferencesBrowser?.opening !== opening) return null;
       let pulled: { stepIds: string[]; turnIds: string[] } = { stepIds: [], turnIds: [] };
-      const next = commit(label, (document) => {
+      // A filled step lands the frame it was enlarged with, and each card made a step after an enlarged one starts enlarged (Revision 2).
+      const next = commitMade(label, (document) => {
+        // The step a card fills or replaces is not a new one; a filled one gets its first picture.
+        const taking = anchor.kind !== 'end' && anchorTakesCard(document, anchor) ? anchor.stepId : undefined;
         const { document: pulledInto, ...ids } = pullReferencesSteps(document, sent, anchor);
         pulled = ids;
-        return pulledInto;
+        return {
+          document: pulledInto,
+          made: ids.stepIds.filter((id) => id !== taking),
+          ...(taking !== undefined && ids.stepIds.includes(taking) ? { filled: taking } : {}),
+        };
       });
       const last = pulled.stepIds.at(-1) ?? pulled.turnIds.at(-1);
       if (!next || last === undefined) return null;

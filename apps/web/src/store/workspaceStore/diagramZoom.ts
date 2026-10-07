@@ -27,9 +27,17 @@ import {
   stepById,
   type DiagramDocument,
   type DiagramStep,
+  type DiagramStepZoom,
 } from '../../diagram/document/diagramDocument';
-import { areaSource, captureSource, stepsFrom, type ZoomCaptured, type ZoomPlaced } from '../../diagram/zoom/zoomCapture';
-import { enlargeStep, unenlargeStep, updateEnlargedSteps } from '../../diagram/zoom/zoomFrames';
+import { areaSource, captureSource, stepsFrom, type ZoomCaptured } from '../../diagram/zoom/zoomCapture';
+import {
+  anchorInPlace,
+  enlargeStep,
+  unenlargeStep,
+  updateEnlargedSteps,
+  type LandedFirstFrame,
+  type SeededStep,
+} from '../../diagram/zoom/zoomFrames';
 import { FOLD_RUN_NONE } from '../../lib/foldCancellation';
 import { createCpCaptureRuntime } from './cpFoldRuntimeBindings';
 import type { DiagramCommit, DiagramCaptureStore } from './diagramCapture';
@@ -71,7 +79,12 @@ export function storePaperFacesBackfill(store: DiagramCaptureStore): PaperFacesB
 
 /**
  * The faces a backfill found put on their steps — each only while its step
- * is as it was folded (its revision and picture key) and still has none.
+ * is as it was folded (its revision and picture key) and still has none. The
+ * backfill runs inside another step's verb — Enlarged turned on for the step
+ * after, Update Enlarged Steps — and its picture is the one it showed, so an
+ * enlarged step among them shows as it did: its frame stays where it was
+ * copied in picture units, its imprint made again from it on the faces
+ * (`anchorInPlace`), and its marks stay on the paper they were on.
  */
 export function withPaperFaces(document: DiagramDocument, faced: ReadonlyMap<string, DiagramStep>): DiagramDocument {
   if (faced.size === 0) return document;
@@ -82,7 +95,7 @@ export function withPaperFaces(document: DiagramDocument, faced: ReadonlyMap<str
     if (entry.revision !== got.revision || entry.picture?.kind !== 'scene' || got.picture?.kind !== 'scene') return;
     if (entry.picture.key !== got.picture.key || got.picture.paperFaces === undefined) return;
     steps ??= document.steps.slice();
-    steps[index] = { ...entry, picture: { ...entry.picture, paperFaces: got.picture.paperFaces } };
+    steps[index] = anchorInPlace({ ...entry, picture: { ...entry.picture, paperFaces: got.picture.paperFaces } }, document.assets);
   });
   return steps ? { ...document, steps } : document;
 }
@@ -118,12 +131,56 @@ export function trackCaptured(
   trackDiagramStepEnlarged(via, captured.placed, captured.anchor, captured.shape, picture);
 }
 
-/** A seeded step's first picture that landed its frame, counted as `seeded`: nothing when it placed none. */
-export function trackSeeded(document: DiagramDocument, stepId: string, placed: ZoomPlaced): void {
+/**
+ * The frames that placed nothing yet — their steps have no picture — and
+ * whose first picture is the capture's to count (`trackSeeded`), with how
+ * they were captured: Pose's Enlarged turned on for a step with no picture
+ * yet, a linked step not captured yet (`toggle`), or a step made empty after
+ * an enlarged one, by Add Step or Insert Step After (`seeded`). Each
+ * enlarging is counted once, by `diagram step enlarged`: the entry is the
+ * step's own, so a duplicate sharing its frame counts nothing, and it is
+ * dropped when its first picture counts it, so a picture removed and given
+ * back counts nothing again. Held by the frame itself, which undo and redo
+ * give back as it was; for the session only, so a step saved and opened
+ * again before its first picture counts nothing when it gets one.
+ */
+const awaitingPicture = new WeakMap<DiagramStepZoom, { stepId: string; via: 'toggle' | 'seeded' }>();
+
+/** A step's frame, as `document` holds it, waiting for its first picture to count it as `via`. */
+function awaitFirstPicture(document: DiagramDocument, stepId: string, via: 'toggle' | 'seeded'): void {
   const zoom = stepById(document, stepId)?.zoom;
-  if (!zoom || !placed) return;
+  if (zoom) awaitingPicture.set(zoom, { stepId, via });
+}
+
+/**
+ * A step's first picture that landed the frame it was enlarged with, counted
+ * — as `toggle` or `seeded`, as it was enlarged — when that frame was
+ * waiting for it ({@link awaitingPicture}). Nothing when it placed none.
+ */
+export function trackSeeded(
+  document: DiagramDocument,
+  stepId: string,
+  landed: Pick<LandedFirstFrame, 'placed' | 'enlargedWith'>
+): void {
+  const zoom = stepById(document, stepId)?.zoom;
+  const { placed, enlargedWith } = landed;
+  const waiting = enlargedWith ? awaitingPicture.get(enlargedWith) : undefined;
+  if (!zoom || !placed || !enlargedWith || waiting?.stepId !== stepId) return;
+  awaitingPicture.delete(enlargedWith);
   const anchor = placed === 'picture' ? 'none' : zoom.imprint?.picked ? 'picked' : 'auto';
-  trackCaptured(document, stepId, { placed, anchor, shape: zoom.shape }, 'seeded');
+  trackCaptured(document, stepId, { placed, anchor, shape: zoom.shape }, waiting.via);
+}
+
+/**
+ * New steps seeded enlarged as they were made, counted: each made with its
+ * picture now, as its frame is placed; an empty one when its first picture
+ * lands its frame ({@link trackSeeded}).
+ */
+export function trackSeededSteps(document: DiagramDocument, seeded: readonly SeededStep[]): void {
+  for (const { stepId, captured } of seeded) {
+    if (captured.placed === null) awaitFirstPicture(document, stepId, 'seeded');
+    else trackCaptured(document, stepId, { ...captured, shape: captured.zoom.shape }, 'seeded');
+  }
 }
 
 /** Steps being enlarged or updated: a second press while the faces are folded starts nothing more. */
@@ -159,7 +216,9 @@ export async function enlargeInStore(
     });
     if (!next || !captured) return false;
     const made = captured as ZoomCaptured;
-    trackCaptured(next, stepId, { ...made, shape: made.zoom.shape }, 'toggle');
+    // A step with no picture yet places nothing: its first picture counts the toggle (`trackSeeded`).
+    if (made.placed === null) awaitFirstPicture(next, stepId, 'toggle');
+    else trackCaptured(next, stepId, { ...made, shape: made.zoom.shape }, 'toggle');
     return true;
   } finally {
     inFlight.delete(stepId);

@@ -71,6 +71,20 @@ export function isDiagramAnnotating(
 }
 
 /**
+ * Whether the next Escape puts the anchor's pick down: one is armed
+ * ({@link activeAnchorPick}) in the Diagram while it is the workspace the keys
+ * go to — the runtime's cancel reaches it nowhere else
+ * (`shortcutScopeStackForContext`). What the touch View sheet, which also
+ * closes on Escape, leaves the key for (`registerArmedMode`); a pick left
+ * armed in a Diagram tab out of sight holds it for nothing.
+ */
+export function escapePutsPickDown(
+  state: Pick<WorkspaceState, 'activeEditingContext'> & Parameters<typeof activeAnchorPick>[0]
+): boolean {
+  return state.activeEditingContext === 'diagram' && activeAnchorPick(state) !== null;
+}
+
+/**
  * The Annotate tool in hand on the step open there: the one picked, but
  * Select in place of an Enlarge tool on an enlarged step, where no area is
  * drawn (Revision 2) — so the canvas selects there, as its rail shows, and

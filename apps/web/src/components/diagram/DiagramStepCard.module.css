@@ -58,12 +58,11 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+/* The step's number, or a turn's name: always whole — beside an enlarged step's chip, the chip gives way. */
 .number {
-  min-width: 0;
-  overflow: hidden;
+  flex: none;
   font-size: 0.76rem;
   font-weight: 650;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -167,6 +166,11 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+/* The kind's badge, on one line: the chip beside it gives way, not it. */
+.kindBadge {
+  flex: none;
 }
 
 /* An enlarged step's chip (Revision 2), in the header beside its kind: it gives way first on a narrow card. */

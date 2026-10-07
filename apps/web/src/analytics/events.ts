@@ -169,8 +169,7 @@ export type DiagramEnlargementValue =
   | 'cut'
   | 'whole'
   | 'auto'
-  | 'picked'
-  | 'none';
+  | 'picked';
 
 /** A fixed Size, bucketed: never the value. */
 export const DIAGRAM_ENLARGE_SIZE_BUCKETS = [1.5, 2, 3, 6] as const;

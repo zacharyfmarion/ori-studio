@@ -28,6 +28,7 @@ import {
   type QuarterTurns,
 } from '../document/diagramDocument';
 import { stepPictureFrame, storedScene } from '../pictures/pictureFrame';
+import { followOwnPicture, type OwnPictureChange } from '../zoom/zoomFrames';
 import { carryAnnotation, mirrorMove, type PictureMove, type PicturePoint } from './annotationModel';
 
 interface Pose {
@@ -413,12 +414,19 @@ function insideRing(ring: readonly ScenePoint[], point: { x: number; y: number }
  * step with it. An annotation this build cannot read cannot be moved, so a
  * step carrying one keeps all of them where they were, and says the picture
  * changed.
+ *
+ * Every edit of a step's own picture comes through here — a re-pose, a
+ * Refresh, a relink, a References step's side or way, an upload's pose, and
+ * Pose's preview of a spread — so this is also where an enlarged step's frame
+ * follows its picture (Revision 2): it stays on its paper, and its marks,
+ * which are in its window's units, go with it (`followOwnPicture`).
  */
 export function withCarriedAnnotations(
   before: DiagramStep,
   after: DiagramStep,
   assets: Readonly<Record<string, DiagramAsset>>
 ): DiagramStep {
+  if (after.zoom) return followOwnPicture(before, after, ownPictureChange(before, after, assets), assets);
   if (after.annotations.length === 0 || after.annotations !== before.annotations) return after;
   const inStep = before.annotatedPictureKey !== null && before.annotatedPictureKey === (before.picture?.key ?? null);
   if (!inStep) return after;
@@ -432,4 +440,14 @@ export function withCarriedAnnotations(
     annotations: (before.annotations as KnownDiagramAnnotation[]).map((annotation) => carryAnnotation(annotation, move)),
     annotatedPictureKey: after.picture?.key ?? null,
   };
+}
+
+/** How a step's own picture changed, `before` to `after`: what an enlarged step's frame follows. */
+function ownPictureChange(
+  before: DiagramStep,
+  after: DiagramStep,
+  assets: Readonly<Record<string, DiagramAsset>>
+): OwnPictureChange {
+  if (!before.picture || !after.picture) return null;
+  return recolouredOnly(before, after) ? 'recoloured' : pictureMove(before, after, assets);
 }

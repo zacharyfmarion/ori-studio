@@ -187,6 +187,30 @@ export function registerDiagramShortcutExecutor(executor: DiagramExecutor): () =
   };
 }
 
+/**
+ * Modes a workspace has armed that Escape puts down before anything else —
+ * the Diagram's anchor pick (Revision 2) — each asked whether it is armed
+ * now. The mode itself ends through its scope's own cancel; this only tells
+ * a layer that also closes on Escape, the touch View sheet
+ * (`useWorkspaceViewDrawer`), to leave the key to the runtime, so one Escape
+ * leaves the mode and the sheet stays open.
+ */
+const armedModes = new Set<() => boolean>();
+
+/** Claim Escape for a mode while `armed` says it is armed. Returns an unregister; call it on unmount. */
+export function registerArmedMode(armed: () => boolean): () => void {
+  armedModes.add(armed);
+  return () => {
+    armedModes.delete(armed);
+  };
+}
+
+/** Whether a mode is armed that the next Escape puts down, through the runtime. */
+export function escapeEndsArmedMode(): boolean {
+  for (const armed of armedModes) if (armed()) return true;
+  return false;
+}
+
 export function registerCpActionShortcutExecutor(executor: CpActionExecutor): () => void {
   cpActionExecutor = executor;
   return () => {

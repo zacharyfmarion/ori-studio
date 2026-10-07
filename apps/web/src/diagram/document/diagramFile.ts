@@ -66,6 +66,7 @@ import {
   type AnnotationReach,
 } from '../annotate/annotationModel';
 import { windowReach } from '../zoom/zoomModel';
+import { NEWER_PAPER_FACES, SCENE_JSON_MAX_BYTES, readPaperFaces } from './paperFacesFile';
 import {
   EMBEDDED_RASTER_MAX_SIDE,
   SVG_STORED_MAX_BYTES,
@@ -447,9 +448,6 @@ const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<str
   simulated: new Set(['mode', 'foldPercent', 'view']),
 };
 
-/** The most a stored scene may be, as JSON: D2's per-step budget, with room. */
-const SCENE_JSON_MAX_BYTES = 4 * 1024 * 1024;
-
 /**
  * One entry in the order: a turn when it says what kind (D22) — a step never
  * does — and a step otherwise. A turn of a kind, or with a field or value,
@@ -554,7 +552,7 @@ function readStep(
     hasNewerKey(value, STEP_KEYS) ||
     isNewerScenePicture(value.picture) ||
     zoom === NEWER ||
-    paperFaces === NEWER ||
+    paperFaces === NEWER_PAPER_FACES ||
     isNewerKind(value.source, SOURCE_KINDS) ||
     isNewerKind(value.picture, PICTURE_KINDS) ||
     isNewerCpSource(value.source) ||
@@ -1449,53 +1447,6 @@ function writeStepZoom(zoom: DiagramStepZoom): Record<string, unknown> {
     ...(zoom.scale !== undefined ? { scale: zoom.scale } : {}),
     ...(zoom.edge !== undefined ? { edge: zoom.edge } : {}),
   };
-}
-
-/** The fields a stored `paperFaces` is written with; any other makes its step a newer build's. */
-const PAPER_FACES_KEYS: ReadonlySet<string> = new Set(['points', 'rings', 'levels']);
-
-/**
- * A flat capture's `paperFaces` (Revision 2): a string of JSON holding each
- * point's place on the paper and on the unspread picture, and each face's
- * ring of points and level. A field this build has no name for is a newer
- * build's. Damage — a string that is not that, counts that disagree, an index
- * past the points, a ring of one or two — drops it, and the step anchors
- * nothing until it is refreshed. Kept as this build writes it: compact, its
- * three fields in order.
- */
-export function readPaperFaces(value: unknown): { json: string; faces: DiagramPaperFaces } | typeof NEWER | null {
-  if (typeof value !== 'string' || value.length > SCENE_JSON_MAX_BYTES) return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(value);
-  } catch {
-    return null;
-  }
-  if (!isRecord(parsed)) return null;
-  if (hasNewerKey(parsed, PAPER_FACES_KEYS)) return NEWER;
-  const { points, rings, levels } = parsed;
-  if (!Array.isArray(points) || !Array.isArray(rings) || !Array.isArray(levels)) return null;
-  if (rings.length !== levels.length) return null;
-  const isPoint = (point: unknown) =>
-    Array.isArray(point) && point.length === 4 && point.every((value) => typeof value === 'number' && Number.isFinite(value));
-  if (!points.every(isPoint)) return null;
-  const isRing = (ring: unknown) =>
-    Array.isArray(ring) &&
-    (ring.length === 0 || ring.length >= 3) &&
-    ring.every((index) => Number.isInteger(index) && index >= 0 && index < points.length);
-  if (!rings.every(isRing) || !levels.every((level) => Number.isInteger(level) && level >= 0)) return null;
-  const faces = { points, rings, levels } as DiagramPaperFaces;
-  return { json: JSON.stringify(faces), faces };
-}
-
-/**
- * A flat capture's faces as a step stores them: through the file's own
- * reader, so what a capture writes is byte for byte what a load reads back.
- * Null for faces the reader refuses, or that would be past what it reads.
- */
-export function storedPaperFaces(faces: DiagramPaperFaces): string | null {
-  const read = readPaperFaces(JSON.stringify(faces));
-  return read && read !== NEWER ? read.json : null;
 }
 
 /**

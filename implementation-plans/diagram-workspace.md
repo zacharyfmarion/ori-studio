@@ -381,6 +381,15 @@ established:
   - A single add onto a selected *empty* step fills that step.
   - A cross-workspace add shows a toast, "Added as step N", with **Open
     diagram**, and never switches workspace by itself.
+- *Amended, enlarged steps (Revision 2, 2026-10-07;
+  `diagram-revision-2.md`).* Unchanged in spirit: an enlarged step owns its
+  picture, and its frame is a view of it — a window of its own picture,
+  stored on the step (`DiagramStep.zoom`), captured at one moment from an
+  earlier step's area or frame and never read through another step after.
+  A step made after an enlarged one — Add Step, Insert Step After, each
+  picture of an upload, each card pulled from References — starts enlarged,
+  captured as it is made (`seedNewSteps`); a duplicate keeps its original's
+  frame.
 
 **D3. A pattern source is linked geometrically, in kernel space.**
 - **One segmentation.** The picker, capture and link status all use
@@ -713,6 +722,23 @@ vocabulary at paint time.**
   - **Anything else** leaves annotations in place: a refold, Refresh, a camera
     or fold-% change, a fold's turn-over (a different side), or a replace. Annotate then shows "The picture
     changed since these annotations were drawn" until they are touched.
+- *Amended, enlarged steps (Revision 2, 2026-10-07; `diagram-revision-2.md`).*
+  An enlarged step's canvas frame is its **window** — its frame's upright
+  box, longer side one unit — and its marks are in the window's units. Its
+  frame follows its **own** picture through a re-pose, a Refresh or a relink
+  by its imprint on the paper (landed through the face that holds its paper
+  point, then onto the spread), and its marks go with the frame: a pose the
+  app applied carries them by its move, window to window, still in step;
+  anything else leaves them where they are in the window, out of step as
+  above. Every edit of a step's own picture reaches this through
+  `withCarriedAnnotations`. Nothing follows another step's changes: moving,
+  editing or deleting the area, or its step, changes no enlarged step, and a
+  step whose faces are fetched while another is enlarged shows as it did.
+  Copied marks remember the view they came from (their units, and their
+  picture while in step with it): pasted in other units they go through the
+  picture — onto the same picture, on the same paper; onto another, at the
+  same place on it — but between two pictures' windows they keep their place
+  in the window.
 
 **D9. One paper style for the whole diagram.**
 - **The surface.** A new `PaperSurface 'diagram-workspace'` with its own policy
@@ -932,6 +958,11 @@ shows the composed page.**
   rectangles from the layout sit over it: click selects, double-click opens
   Pose, and a click outside any cell reveals the Page tab. A "Page N" caption
   sits under each page.
+- *Amended, enlarged steps (Revision 2, 2026-10-06; `diagram-revision-2.md`,
+  "Page layout and scale").* A stated exception to Fit each: enlarged steps
+  stay out of its runs. They are laid out as their own kind (`'zoom'`), in
+  runs of their own, at Fill — as large as the run's room allows, at most six
+  times the area as it prints — or at a fixed Size times the area.
 
 **D11. Export: step files, and a PDF through krilla (route C, decided after Phase 0).**
 - **The dialog.** `DiagramExportModal` in `ExportModalFrame`, with a preview and
@@ -1495,6 +1526,12 @@ card.")*
   step with words asks first, since a turn has none.
 - **On a page**, unchanged: the glyph in the gutter between two pictures, no
   number, no card.
+- *Amended, enlarged steps (Revision 2, 2026-10-06; `diagram-revision-2.md`,
+  "The enlarge arrow").* An enlarge arrow is a between-step glyph too: it
+  prints before an enlarged step whose step before it, turns passed, holds an
+  area, computed from the order and never stored. It reserves the gutter as a
+  turn does and takes a turn's places, stacked after any turns there, and on
+  a shared row is lifted to the area's printed height.
 - **Delete from the card.** Every card — step or turn — has a Delete over its
   well's corner beside Adjust Pose and Annotate, shown as those are (pointed
   at, focused, selected; always under a finger). It deletes as the menu's
@@ -3627,10 +3664,21 @@ Plan, for discussion: `implementation-plans/diagram-annotate.md`.
 Plan: `implementation-plans/diagram-annotate-second-pass.md` — decided and
 built as 15a–15f, each phase's as-built under its checklist there.
 
+### Phase 16: Revision 2 (Zach's Diagramming note, 2026-10-05)
+
+1. Equal divisions: a line in parts, marked off the line it measures.
+2. A right-angle mark with legs of its own, set into the angle.
+3. Enlarged steps: an area on one step, and later steps showing a window of
+   their own picture, with the genie arrow between on the pages — the
+   "per-step zoom (enlarge from here)" this plan had under Later.
+
+Plan: `implementation-plans/diagram-revision-2.md` — decided (Z1–Z11,
+ED1–ED13, RA0–RA8) and built as 16a–16g, each phase's as-built under its
+checklist there. It amends D2, D8, D10 and D22 above.
+
 ### Later (written up, not built)
 
 - 2-D drag reorder and multi-select.
-- A per-step zoom ("enlarge from here").
 - Multi-cell steps, a front-matter block, and a first step number for diagrams
   split across files.
 - Repeat symbols (zoom is Phase 15's close-up).

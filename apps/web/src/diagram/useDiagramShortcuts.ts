@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import {
+  registerArmedMode,
   registerDiagramShortcutExecutor,
   registerViewportShortcutExecutor,
   releaseShortcutViewportSurface,
@@ -12,6 +13,7 @@ import { openDiagramStep } from './useDiagramActions';
 import type { WorkspaceState } from '../store/workspaceStore/types';
 import {
   activeAnchorPick,
+  escapePutsPickDown,
   isDiagramAnnotating,
   selectedDiagramAnnotation,
   selectedDiagramPathNode,
@@ -190,9 +192,12 @@ export function useDiagramShortcuts(handlers: {
           return viewCamera?.(id) ?? false;
       }
     });
+    // The anchor's pick mode is put down by the first Escape, wherever the focus is: a touch sheet holding it leaves the key here.
+    const offArmed = registerArmedMode(() => escapePutsPickDown(useWorkspaceStore.getState()));
     return () => {
       offScope();
       offViewport();
+      offArmed();
       releaseShortcutViewportSurface('diagram');
     };
   }, []);
