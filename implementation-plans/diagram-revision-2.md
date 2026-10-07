@@ -1,17 +1,19 @@
 # Diagram, Revision 2: equal divisions, a right-angle mark, enlarged steps
 
-**Status: planned 2026-10-05. The right-angle mark (16a) and equal divisions
-(16b) are built (2026-10-06), and so are enlarged steps' model, file and
-imprint (16c), the writer of a flat step's faces with them since Zach's
-answer on its size budget (Z11), their drawing on every surface (16d),
-their pages and export (16f, 2026-10-06) and their authoring (16e,
-2026-10-07). Their moves, deletes and changing pictures (16g) are in
-progress, and 16e does not ship without them. Zach settled every decision
+**Status: planned 2026-10-05; 16a–16g built. The right-angle mark (16a)
+and equal divisions (16b) are built (2026-10-06), and so are enlarged steps'
+model, file and imprint (16c), the writer of a flat step's faces with them
+since Zach's answer on its size budget (Z11), their drawing on every surface
+(16d), their pages and export (16f, 2026-10-06), their authoring (16e,
+2026-10-07) and their changing pictures, new steps, moves and deletes (16g,
+2026-10-07), without which 16e does not ship. Zach settled every decision
 on 2026-10-06: the enlarged steps' Z1–Z11, and the equal-divisions
 (ED1–ED13) and right-angle (RA0–RA8) decisions as recommended. Each is
-recorded in its part. What building 16e and 16f raised since, Zach settled
-on 2026-10-07 as recommended: "Decided with Zach (2026-10-07)" below, four
-of them built since ("Follow-ups to 16e and 16f").** Phase 16 of
+recorded in its part. What building 16e–16g raised since, Zach settled on
+2026-10-07: "Decided with Zach (2026-10-07)" and "Decided with Zach, after
+16g" below, their follow-ups built ("Follow-ups to 16e and 16f",
+"Follow-ups to 16g"). Left: what "Open with Zach" lists, and the Final
+gate.** Phase 16 of
 `implementation-plans/diagram-workspace.md`, after Phase 15
 (`implementation-plans/diagram-annotate-second-pass.md`), whose kinds, tools,
 painter and close-ups this builds on. Built by hand, phase by phase, as Phase
@@ -76,11 +78,74 @@ what 16e built.
    and file format"): the file rule lets a mark on an enlarged step sit as
    far from the small window as a whole picture's marks may from its frame,
    so Enlarged carries the crane's long valley line there and back exactly.
-   *Confirmed* as 16e built it.
+   *Confirmed* as 16e built it. Amended by 8 below: a line crossing the
+   frame is trimmed on its way in, and comes back trimmed.
 6. **A frame dropped in a gap Spread Layers opens** settles on the layer
    above, the plan's rule: 61 px at 43% zoom on crane step 21 (0.028 picture
    units); every other drop landed where it was dropped. *Confirmed* as 16e
    built it.
+
+**Decided with Zach, after 16g (2026-10-07).** Raised by 16g's review and
+verify, each as recommended. Zach: "use your recs and include the enlarged
+steps follow ups in the branch". 8, 10, 11 and 12 are built ("Follow-ups to
+16g", after 16g); 7 and 9 confirm what 16g built.
+
+7. **Paste between a whole step and an enlarged one.** 16g's fixer read "otherwise
+   they land in identical units" as picture units, and built: marks go
+   window → picture → window, so they land at the same place on the
+   picture; between windows of two pictures not proven the same, they keep
+   their window coordinates (`annotationClipboard.intoView`). On the crane,
+   22 → 23 lands outside 23's window, and 23 → 22 lands on the head, in the
+   area. *Decided: as built*, "at the same place on the picture".
+8. **A copied line crossing an enlarged frame** ran on across the page: with
+   86ebf9e12 marks outside the frame stopped sizing it, and on the crane the
+   copied centre valley line, magnified about ×6, ran down page 3 through
+   steps 23 and 26. *Decided: trimmed as it enters the window*, ending just
+   past the frame by a fold line's overshoot past the paper's edge on a whole
+   picture; stored, in the verb's one undo step, and dragged longer by hand.
+   Arrows, labels, circles and other marks, and marks wholly outside the
+   window, are left alone (the latter keep their badge, 3). This amends 5: a
+   trimmed line comes back trimmed when Enlarged is turned off.
+9. **Marks through a Relink, Refresh or Turn Over** stay unturned in the
+   window (D8), and a spread change carries off-paper mark ends by the
+   nearest face, which the window magnifies about 2.2×. *Decided: accepted*,
+   both as consistent with whole steps.
+10. **A step seeded enlarged** and then linked started at no turn, not the
+    previous step's 158°, so on the crane its head pointed another way (16g
+    finding 14). A whole step's first link starts at no turn too; only its
+    spread comes from earlier steps. *Decided: an enlarged step's first link
+    starts in its source's turn* (rotation, which holds an Upright, and a
+    flat fold's side).
+11. **A run of uploads after an enlarged step**: the second was seeded from
+    the first, an upload with no faces, and so had no imprint. *Decided:
+    every step of the run is seeded from the run's source frame and
+    imprint.*
+12. **Show as Crease Pattern on an enlarged folded step** landed the frame on
+    its anchor face's paper, 288 sheet units from the crane's head (Z8 as
+    decided). *Decided: on a flat crease pattern, the frame lands on the top
+    face at its centre, the paper its window showed*; Z8 amended there.
+
+**Open with Zach (2026-10-07).** Raised by building 11 and 8.
+
+- **A step made after an upload.** 11 keeps every upload of a run anchored,
+  but a capture from a step with no faces still takes its frame and not the
+  imprint it keeps (Where faces are missing; `zoomCapture.test.ts`, "not an
+  imprint it keeps from its own capture"). So a step inserted after an
+  upload, one or a run, then linked to a folded pattern lands its frame in
+  picture units, not through the paper: on the crane, 314 sheet units from
+  24's paper, before 11 and after it. Its first link also starts at no turn
+  (10 reads the turn of the step its frame came from, the upload).
+  *Recommended:* a seeded step takes a faceless enlarged step's stored
+  imprint with its frame, and its first link the turn of the run's linked
+  source; Enlarged turned on keeps the rule as decided.
+- **A whole step's line pasted onto an enlarged one** (7) is not trimmed, as
+  8 trims a carried one, so a long line pasted there runs across the page as
+  8 found. *Recommended:* trim a pasted line as a carried one.
+- **The overshoot's length.** No fold line in the app has a set overshoot:
+  most of Zach's lines on the crane end on the paper's edge; the few he ran
+  past it end 0.007–0.045 of the picture past. 8 uses 0.04 of the window
+  (`ZOOM_LINE_OVERSHOOT`), about 1.9 mm on the crane's window at Fill. A
+  number to tune by eye.
 
 ## Goal
 
@@ -987,12 +1052,13 @@ frame's upright box. The rules are pure functions in
 
 | What changed | Frame | Marks |
 | --- | --- | --- |
-| Enlarged turned on; a seeded step's first picture; Update Enlarged Steps | Captured from the source and landed; Update overwrites a hand move | Carried from the whole picture, or the old window, into the new window |
+| Enlarged turned on; a seeded step's first picture; Update Enlarged Steps | Captured from the source and landed; Update overwrites a hand move; every step of a run made in one edit from the run's source (after 16g, 11) | Carried from the whole picture, or the old window, into the new window; from the whole picture, a line crossing the frame trimmed just past it (after 16g, 8) |
 | Enlarged turned off | Dropped | Carried from the window to the whole picture |
 | The frame moved or resized by hand, or its Shape changed | As set, but for a centre dropped in a strip the spread opened, which settles on the layer above (Capturing a frame); its centre taken off the spread and the imprint made again on the same face | Carried by the window's move (a scale and a shift), so they stay on the same paper |
 | The frame's anchor picked or reset | Unchanged; the imprint made again on the new face | Unchanged |
 | This step re-posed (the `withCarriedAnnotations` call sites: `diagramDocument.ts:1176/1311/1339/1394`, `useDiagramLinkedPose.ts:209`) | Its imprint landed on the re-posed picture; with no faces, carried by the pose's move | The pose's own move, composed through old window → picture → new window |
 | This step refreshed or relinked | Its imprint landed on the new picture; kept in picture units when it has no faces or the paper point is off the paper | Unchanged in window units, so they go with the frame; D8 out of step as for any refresh |
+| This folded step shown as its crease pattern, and folded again (Z8 amended) | On the sheet, on the paper its window showed, imprinted there; folded again, landed where it was and anchored again by Z9's rule. A picked anchor lands by its pick | Unchanged in window units; D8 out of step |
 | The source area edited, re-posed, refreshed or deleted; its step deleted; steps moved | Unchanged | Unchanged |
 
 "Landed" is steps 4–6 of a capture: on the unspread picture, then onto the
@@ -1001,8 +1067,10 @@ enlarged step whose picture has faces has a frame equal to its imprint landed
 on that picture, to the stored step (or carries the off-paper notice), and no
 mark moved on the paper unless the verb moved it. Copy and paste remember
 their source view (picture key and window): pasted onto a step with the same
-picture key, marks map by the window's move; otherwise they land in identical
-units, as today (`annotationClipboard.ts:48`).
+picture key, marks map by the window's move; otherwise they land at the same
+place on the picture, window → picture → window, but between windows of two
+pictures not proven the same, which keep their window coordinates (Decided
+with Zach, after 16g, 7; `annotationClipboard.intoView`).
 
 #### Rendering on every surface
 
@@ -1426,6 +1494,17 @@ and Back mirrored; 3D, simulated, References and uploaded steps keep the
 frame in picture units. Under a spread it lands in two stages, unspread and
 then onto the spread by its centre: Zach's answer to 16.0's failure, recorded
 there ("For Zach", 2026-10-06).
+**Amended 2026-10-07, onto a flat crease pattern** (Zach: "use your recs and
+include the enlarged steps follow ups in the branch"; Decided with Zach,
+after 16g, 12). Show as Crease Pattern, or Duplicate As › Crease Pattern, on
+an enlarged folded step lands its frame on the top face at the frame's
+centre, the paper its window showed, imprinted afresh there and kept, so the
+frame stays on that paper as the sheet turns. The anchor face (Z9) is for a
+re-posed picture, whose faces move apart; it lies under the paper the window
+showed, so on the unfolded sheet it put the frame 288 sheet units from the
+crane's head. Shown folded again, the frame lands where it was and is
+anchored again by Z9's rule, so every re-pose of a folded picture follows
+the anchor face as before. A picked anchor still lands by its pick.
 
 **Z9. The anchor face. DECIDED: selectable, by default the backmost face
 outside the frame.** Zach: "it should be selectable, lets try defaulting to
@@ -4103,9 +4182,20 @@ enlarged steps), shots in its `shots/`. The batch's gate is the caller's.
 - [x] 5 and 6 recorded as confirmed: the marks' reach (`windowReach`) and the
   frame dropped in a spread's strip settling on the layer above.
 
-### 16g Enlarged steps: moves, deletes and changing pictures
+### 16g Enlarged steps: changing pictures, new steps, moves and deletes
 
-- [ ] Seeding through one funnel for every way a step is made after an
+**Built 2026-10-07** (commit d19e80be9, 39 files), after a review, a fix
+pass and a verify. It retires 16e's "Not shipped before 16g". Every edit of
+an enlarged step's own picture moves its frame and marks through one funnel;
+every way a step is made after an enlarged one seeds it; moves and deletes
+change no frame; copy and paste remember their units. Verified on Zach's
+crane at :5291 by `artifacts/revision-2/16g/final/` (`runAll.sh`; composite
+`artifacts/revision-2/16g/16g-before-after.png`, `composite.py`), each
+command run against HEAD's sources routed in (`headBuild.mjs`) and against
+16g. What its review and verify left for Zach is decided ("Decided with
+Zach, after 16g", at the top) and built ("Follow-ups to 16g", below).
+
+- [x] Seeding through one funnel for every way a step is made after an
   enlarged one: Add Step and Insert Step After (16e seeds these two), and an
   upload of several pictures, a References pull and a References fill of an
   empty enlarged step (`pullReferencesDiagramSteps`), which 16e neither
@@ -4113,7 +4203,24 @@ enlarged steps), shots in its `shots/`. The batch's gate is the caller's.
   turned Enlarged counts: today `trackCaptured` drops a capture with
   `placed: null`, and its first picture counts it as `seeded` (review of
   16e, 2026-10-06).
-- [ ] Seeding on insert and duplicate; the carries on enlarging and
+  *As built:* `zoomCapture.seededCapture` returns the whole `ZoomCaptured`
+  (`seededZoom` wraps it); `zoomFrames.seedNewSteps(document, stepIds,
+  assets)` walks the diagram's order, turns passed and steps with a frame
+  left, so a run of new steps is enlarged through; `landSeededFrame` returns
+  `LandedFirstFrame`. The slice's `addAt` seeds; its new `commitMade` lands a
+  filled step first, then seeds the steps made after it, for
+  `addDiagramPictures` (fill and insert), `setDiagramStepPicture` and
+  `pullReferencesDiagramSteps`. Duplicate keeps the frame, the imprint and
+  the provenance. Uploads and References cards have no faces: a first
+  picture's frame is copied at the same place on its picture. Counting: an
+  empty step turned Enlarged counts `via: toggle` when its first picture
+  lands the frame; an empty step's first picture counts once, on that step,
+  in the session it was made or toggled in (`awaitingPicture`); a
+  duplicate, a picture put back, or a reload first counts nothing
+  (`docs/analytics.md`). Crane: uploads and a References pull give 3 of 3
+  enlarged, were 0 of 3; Insert Step After then Link lands within 0.85
+  sheet units of 24's paper; each route one undo step (`c/p4-seeding.mjs`).
+- [x] Seeding on insert and duplicate; the carries on enlarging and
   un-enlarging; the frame re-landed on its own step's refresh, relink and
   re-pose, marks with it, a spread turned on, off or changed among the
   re-poses (the frame moves with the layer under its centre, its size and
@@ -4122,15 +4229,134 @@ enlarged steps), shots in its `shots/`. The batch's gate is the caller's.
   (picture key and window), with `annotationClipboard.test.ts` cases for a
   paste between two enlarged steps of one picture and from an enlarged step
   to a whole one.
-- [ ] The area's own carries (a re-pose at any angle by `carryZoom`; a
+  *As built:* `annotationCarry.withCarriedAnnotations` hands an enlarged
+  step to `zoomFrames.followOwnPicture(before, after, OwnPictureChange)`:
+  a move the app made (Pose's turn, flip, spread) → `reposeFrame`, the
+  frame landed from its imprint (carried by the move with no faces) and the
+  marks by the pose's move, window to window, in step; recoloured only → the
+  frame landed where it was, the marks in step; anything else (Refresh,
+  relink, Show as, Turn Over, a camera, a first picture) → `relandFrame`,
+  the marks unchanged in window units and out of step (D8), out of step too
+  when the frame moved under the same picture key. Its callers:
+  `setLinkedPicture` (Refresh, Link, Pose's commits), `setReferencesSide`,
+  `setReferencesWay`, `setUploadPose`, Pose's spread preview. Upload and
+  References fills bypass it and land in `commitMade`. Calling `zoomFrames`
+  from `annotationCarry` made an import cycle that crashed the app at load,
+  so `readPaperFaces`, `storedPaperFaces` and `SCENE_JSON_MAX_BYTES` moved
+  to `document/paperFacesFile.ts`. Clipboard: `DiagramAnnotationView`
+  {pictureKey, window}, `copiedView` (the units always, the key only while
+  the marks are in step), `intoView` (Decided after 16g, 7) and
+  `pastedAnnotations` inside the target step's reach. The watcher
+  `zoomInvariant.fixtures.watchFrames` checks `frameProblems` and, through
+  `marksProblems`, that marks on enlarged steps whose picture did not change
+  stay on their paper, after every store change, in the zoom, clipboard,
+  controls, step and canvas tests. Crane: Rotate Right on 23 moves the
+  paper the frame shows 0.28 sheet units, was 14.8; frame centre 0.016,
+  marks 0.0039, in step, 0 invariant problems, was 1; Spread off 2e-13; a
+  relink and a Refresh of an enlarged tail copy to Pattern 21 keep it within
+  5.1, was 242, marks within 3.5, was 164, with D8's notice; pastes 22 → 23
+  and 23 → 22 0 picture units off, were 0.60 and 0.58 (`c/p1`–`c/p3`). The
+  same in Chromium dark and iPad WebKit.
+- [x] The area's own carries (a re-pose at any angle by `carryZoom`; a
   Refresh by D8); the References, upload, 3D and simulated paths in picture
   units; a capture older than `paperFaces` and its notice; every notice, on
   cards, the Step pane, Layers and Export.
-- [ ] `diagram-workspace.md` amended: D2, D8, D10, D22, the Later list, Phase
+  *As built:* faceless pictures carry their frame by the pose's move
+  (uploads, a References side) or keep it (a 3D camera); the area's own step
+  carries its area at any angle and leaves enlarged steps alone. A step
+  given its faces inside another step's verb (`diagramZoom.withPaperFaces`)
+  goes through the new `zoomFrames.anchorInPlace`: its frame and marks stay
+  as they show, its imprint made again from the frame (a picked anchor
+  kept); a frame in a spread's strip settles on the layer above, its marks
+  on their paper; one its paper cannot anchor drops its imprint, and the
+  Step pane says to anchor it. 16e's and 16f's tests cover every notice; the
+  browser saw D8's, "Out of date: the pattern changed" and Refresh Picture.
+  Also from 16e's verify: one Escape on the iPad puts Pick down and keeps
+  the sheet open (`registerArmedMode`); the badge on its own line; a fixed
+  Size reads as typed, in the language's numbers (`zoomNumber`); card
+  headers keep the step number whole (`.number`, `.kindBadge`, en, de, fr at
+  1440–390 px).
+- [x] `diagram-workspace.md` amended: D2, D8, D10, D22, the Later list, Phase
   16.
-- [ ] Browser: S3–S5 by hand on the crane; before and after beside the two
+  *As built:* D8 states the funnel, the backfill and the paste rule; "per-step
+  zoom" leaves Later; Phase 16 is added.
+- [x] Browser: S3–S5 by hand on the crane; before and after beside the two
   examples; light and dark; Chromium and iPad-sized WebKit; a PDF through
   `pdftoppm`.
+  *As built:* six runs (Chromium light and dark at 1440 × 900, iPad-sized
+  WebKit at 1024 × 1366 by touch), each before and after, no app console
+  errors; the PDF's page 3 shows 23 re-posed; the crane, heart, chipmunk and
+  Reference Diagrams load with 0 locked and 0 unknown and write back
+  byte-identical (Reference Diagrams differs only by its retired `scale`).
+  Refresh was set up by pointing a link at another stage's sheet, not by
+  editing the pattern; Refresh Picture itself was clicked.
+- [x] Gate (added as built): in a copy-on-write clone of c716ce3f4 with
+  exactly the phase's 39 files, lint, tsc and the i18n check clean; 872 test
+  files and 11,627 tests passed, 2 files and 13 tests skipped. Not run:
+  `npm run build:web` (the Final gate's).
+
+### Follow-ups to 16g (Zach, 2026-10-07)
+
+**Built 2026-10-07**, to "Decided with Zach, after 16g" 8, 10, 11 and 12
+(Zach: "use your recs and include the enlarged steps follow ups in the
+branch"). One commit each. Verified on Zach's crane at :5291 by the scripts
+in `artifacts/revision-2/16h-followups/`, each run against HEAD's file routed
+in and against the fix, shots in its `shots/`. Tests near each, failing
+before; tsc and eslint on the changed files. The batch's gate is the
+caller's.
+
+- [x] 8. A copied line crossing an enlarged frame is trimmed just past it
+  (0737ee197). `zoomFrames.trimmedAtFrame`: a valley, mountain or hidden
+  line crossing the frame (`zoomModel.stretchInside`, its stretch in the
+  convex outline) ends `ZOOM_LINE_OVERSHOOT` (0.04 of the window) past the
+  rim at each end that lay farther out, along itself, never longer. Applied
+  by `withZoom` when marks go from the whole picture into a window (Enlarged
+  on, a duplicate's included; a seed bringing a picture's marks in), after
+  the there-and-back check (`carryMarks`' `finish`). `marksProblems` accepts
+  a line trimmed along itself, and its undo. Tests, failing before:
+  `zoomFrames.test.ts` (across, out of and off-centre through the frame
+  trimmed on the same line; inside, outside, an arrow and a label as they
+  were; turned off, still trimmed; a seed trims; never lengthened),
+  `zoomModel.test.ts` (`stretchInside`), `diagramZoom.test.ts` (S1 with the
+  line through the head: one undo step, trimmed, kept so). Crane, 16e's S1:
+  the copied valley line ends 0.54 of the window from its centre at both
+  ends, one end was 5.09 down the page (`trim.mjs`,
+  `shots/trim-page-before-after.png`).
+- [x] 10. An enlarged step's first link starts in its source's turn
+  (e2058fc94). A whole step's first link starts at no turn, its spread from
+  earlier steps, so this is new for enlarged steps only:
+  `zoomCapture.firstLinkPose` gives `linkDiagramStep` the capture source's
+  rotation, which holds an Upright, and a flat fold's side, with the new
+  flat pose's spread; Show as mirrors a back side's turn onto a crease
+  pattern. A relink keeps the step's own pose. Tests, failing before:
+  `stepCaptureActions.test.ts` (158° folded and as a crease pattern; a back
+  side; a whole step at 0°; a relink). Crane: Insert Step After on 24, Link…
+  › Folded › Pattern 24 links at 158°, was 0°, its frame within 1e-4
+  picture units of 24's (`rotation.mjs`, `shots/rotation-before-after.png`).
+- [x] 11. Every step of a run made after an enlarged step keeps its imprint
+  (1bb4ed75e). `seedNewSteps` captures each step of a run from the run's
+  source (`zoomCapture.seedSource`); a step the same edit fills starts the
+  run as it was before its picture, which `commitMade` passes. Tests,
+  failing before: `zoomFrames.test.ts` (three uploads, each the source's
+  imprint; after a filled step), `diagramZoom.test.ts` (uploads; a
+  References fill and the card after it). Crane: two uploads after 24, the
+  second's imprint false before, true after (`uploads.mjs`). A step inserted
+  after the run still lands in picture units: "Open with Zach".
+- [x] 12. Show as Crease Pattern lands an enlarged frame on the paper its
+  window showed (067c73dda; Z8 amended). `zoomFrames.landedOnSheet`: a folded
+  step shown as its crease pattern imprints its frame afresh through the
+  face on top at its centre and lands it on the sheet, the imprint kept;
+  `anchoredOffSheet`: shown folded again, the frame lands from it and is
+  anchored again by Z9's rule. A picked anchor, a picture with no faces, or
+  paper off the sheet keeps the old landing. Tests, failing before:
+  `zoomFrames.test.ts` (on the sheet, the paper the folded window showed at
+  its centre, was 281 sheet units off; folded again, where it was, its
+  imprint the default anchor's, no invariant problem; a picked anchor by
+  its pick). Crane, step 23 by Pose's toolbar: the frame's centre on the
+  head's paper (6e-14 sheet units), was 311; the mean paper the window
+  shows 11.3 from the folded one's, was 288, the sheet showing paper the fold
+  hid; Folded again 0 from the start; one undo step each, no invariant
+  problems (`showas.mjs`, `shots/showas-before-after.png`).
 
 ### Final gate
 
