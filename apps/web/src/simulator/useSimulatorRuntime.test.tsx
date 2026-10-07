@@ -9,7 +9,10 @@ import type {
   SimulatorExportSceneOptions,
   SimulatorExportSnapshotOptions,
   SimulatorFramePayload,
+  SimulatorShapeRead,
+  SimulatorShapeRestore,
 } from './simulatorSession';
+import type { SimulatorShape } from './simulatorShape';
 import type { SimulatorExportSnapshot } from './useSimulatorRuntime';
 
 /**
@@ -143,6 +146,13 @@ const client = {
     })
   ),
   releasePose: vi.fn(async (_token?: number): Promise<boolean | null> => true),
+  readShape: vi.fn(async (_token?: number): Promise<SimulatorShapeRead | null> => 'ambiguous'),
+  restoreShape: vi.fn(
+    async (
+      _request: { foldPercent: number; shape: SimulatorShape | null },
+      _token?: number
+    ): Promise<SimulatorShapeRestore | null> => ({ pins: [2], posed: true })
+  ),
 };
 
 vi.mock('../store/workspaceStore/simulatorRuntime', () => ({
@@ -1172,5 +1182,84 @@ describe('pulls', () => {
     expect(ended).toEqual({ movedCreases: 3 });
     expect(client.releasePose).toHaveBeenCalledWith(1);
     expect(released).toBe(true);
+  });
+});
+
+describe('shapes', () => {
+  let live: ReturnType<typeof useSimulatorRuntime> | null = null;
+  const SHAPE: SimulatorShape = { sheet: 'sk1:0', pins: [[0.5, 0, 0.5]], posed: true, state: new Float32Array(3) };
+
+  function ShapeProbe({ fold, initialShape = null }: { fold: FoldDocument | null; initialShape?: SimulatorShape | null }) {
+    const runtime = useSimulatorRuntime({
+      fold,
+      solverOptions: { foldPercent: 40 },
+      triangulate: false,
+      canvas: null,
+      paused: true,
+      initialShape,
+    });
+    useEffect(() => {
+      live = runtime;
+    });
+    return null;
+  }
+
+  function loadOptions(call: number): Record<string, unknown> | undefined {
+    const calls = client.load.mock.calls as unknown as Array<[unknown, Record<string, unknown>]>;
+    return calls[call]?.[1];
+  }
+
+  beforeEach(() => {
+    live = null;
+    client.readShape.mockClear();
+    client.restoreShape.mockClear();
+  });
+
+  it('opens on the shape given, read at load, and says what the load did with it', async () => {
+    client.load.mockImplementationOnce(async () => ({ ...(await defaultLoad()), restored: 'mismatch' as const }));
+    await act(async () => root?.render(<ShapeProbe fold={FOLD} initialShape={SHAPE} />));
+    await settleLoads();
+
+    expect(loadOptions(0)?.shape).toBe(SHAPE);
+    expect(loadOptions(0)?.solver).toMatchObject({ foldPercent: 40 });
+    expect(live?.model?.restored).toBe('mismatch');
+    await act(async () => root?.unmount());
+  });
+
+  it('opens with no shape when given none', async () => {
+    await act(async () => root?.render(<ShapeProbe fold={FOLD} />));
+    await settleLoads();
+
+    expect(loadOptions(0)).not.toHaveProperty('shape');
+    expect(live?.model?.restored).toBeNull();
+    await act(async () => root?.unmount());
+  });
+
+  it('reads and restores a shape, quoting the session', async () => {
+    await act(async () => root?.render(<ShapeProbe fold={FOLD} />));
+    await settleLoads();
+
+    let read: unknown;
+    let restored: unknown;
+    await act(async () => {
+      read = await live!.readShape();
+      restored = await live!.restoreShape(40, SHAPE);
+    });
+    expect(client.readShape).toHaveBeenCalledWith(1);
+    expect(read).toBe('ambiguous');
+    expect(client.restoreShape).toHaveBeenCalledWith({ foldPercent: 40, shape: SHAPE }, 1);
+    expect(restored).toEqual({ pins: [2], posed: true });
+    await act(async () => root?.unmount());
+  });
+
+  it('asks nothing with no session', async () => {
+    await act(async () => root?.render(<ShapeProbe fold={null} />));
+    let restored: unknown = 'unset';
+    await act(async () => {
+      restored = await live!.restoreShape(0, null);
+    });
+    expect(restored).toBeNull();
+    expect(client.restoreShape).not.toHaveBeenCalled();
+    await act(async () => root?.unmount());
   });
 });

@@ -31,7 +31,10 @@ import type {
   SimulatorExportSceneOptions,
   SimulatorPoseEnd,
   SimulatorPullEndResult,
+  SimulatorShapeRead,
+  SimulatorShapeRestore,
 } from './simulatorSession';
+import type { SimulatorShape } from './simulatorShape';
 import type { SimulatorPickQuery, SimulatorPullStart, SimulatorScreenPoint } from './pickQuery';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
@@ -140,6 +143,8 @@ export interface SimulatorModelView extends SimulatorRenderModel {
   creaseCount: number;
   diagnostics: SimulatorDiagnostics;
   backend: 'webgl2' | 'reference';
+  /** What the load's `initialShape` did; null when there was none. */
+  restored: SimulatorShapeRestore | null;
 }
 
 export interface UseSimulatorRuntimeOptions {
@@ -181,6 +186,13 @@ export interface UseSimulatorRuntimeOptions {
    * with the next model rather than reloading this one.
    */
   framing?: SimulatorFraming;
+  /**
+   * A shape to open the paper in, at `solverOptions.foldPercent`, before the
+   * first frame. Read at load, as the fold percent is: a reload after the
+   * worker evicted this session opens on the shape given last. What it did is
+   * the model's `restored`.
+   */
+  initialShape?: SimulatorShape | null;
   /** Called on the main thread whenever a new frame is available. */
   onFrame?: (frame: SimulatorFrameView) => void;
 }
@@ -251,6 +263,17 @@ export interface SimulatorRuntime {
   /** Let a pose spring back to the fold. */
   releasePose: () => Promise<boolean | null>;
   /**
+   * The paper's shape now, keyed by its flat sheet, or why there is none;
+   * null when the session is gone.
+   */
+  readShape: () => Promise<SimulatorShapeRead | null>;
+  /**
+   * Put the paper in `shape` at `foldPercent`, or with null let it fold there
+   * freely, in one worker call (`restoreShape`); the next frame shows it. Null
+   * when the session is gone.
+   */
+  restoreShape: (foldPercent: number, shape: SimulatorShape | null) => Promise<SimulatorShapeRestore | null>;
+  /**
    * Freeze the current view for the export dialog, or null when this runtime
    * holds no model.
    *
@@ -277,6 +300,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     bitmapOutput = null,
     paused = false,
     framing,
+    initialShape = null,
     onFrame,
   } = options;
 
@@ -373,6 +397,10 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   useEffect(() => {
     framingRef.current = framing;
   }, [framing]);
+  const initialShapeRef = useRef(initialShape);
+  useEffect(() => {
+    initialShapeRef.current = initialShape;
+  }, [initialShape]);
 
   /** Hand a model back to the worker, if there is one. Safe to call with none. */
   const releaseToken = useCallback((token: number | undefined) => {
@@ -509,6 +537,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
           // Left out rather than sent as undefined when the host has no say, so
           // Simulate's load is the message it always was.
           ...(framingRef.current ? { framing: framingRef.current } : {}),
+          ...(initialShapeRef.current ? { shape: initialShapeRef.current } : {}),
         });
         // A load that has been cancelled or superseded still *made* a session in
         // the worker — `load` registers it before it returns. Abandoning the
@@ -565,6 +594,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
           creaseCount: info.creaseCount,
           diagnostics: info.diagnostics,
           backend: info.backend,
+          restored: info.restored ?? null,
         };
         modelRef.current = loaded;
         setModel(loaded);
@@ -939,6 +969,28 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     return client.releasePose(tokenRef.current);
   }, []);
 
+  const readShape = useCallback(async (): Promise<SimulatorShapeRead | null> => {
+    const client = clientRef.current;
+    if (!client || tokenRef.current === undefined) return null;
+    return client.readShape(tokenRef.current);
+  }, []);
+
+  const restoreShape = useCallback(
+    async (foldPercent: number, shape: SimulatorShape | null): Promise<SimulatorShapeRestore | null> => {
+      const client = clientRef.current;
+      if (!client || tokenRef.current === undefined) return null;
+      const restored = await client.restoreShape({ foldPercent, shape }, tokenRef.current);
+      // Wake the loop for a frame of it. A restored shape steps nothing, so
+      // that frame is the only one; the free path folds on from flat.
+      if (restored !== null && restored !== 'mismatch') {
+        convergedRef.current = false;
+        framedRef.current = false;
+      }
+      return restored;
+    },
+    []
+  );
+
   const beginExport = useCallback(async (): Promise<SimulatorExportSnapshot | null> => {
     const client = clientRef.current;
     if (!client || tokenRef.current === undefined) return null;
@@ -991,6 +1043,8 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     movePull,
     endPull,
     releasePose,
+    readShape,
+    restoreShape,
     beginExport,
   };
 }
