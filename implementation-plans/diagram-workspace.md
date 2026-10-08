@@ -3749,6 +3749,19 @@ there. 17a is Solid lines, 17b Text's options, 17c Turn over renaming folds,
 17d the split at a pull, 17e Make Marks Editable and 17f the close-out. It
 amends D8 (17c's renaming).
 
+### Phase 18: Revision 3 (Zach's Diagramming note, 2026-10-08)
+
+1. Equal divisions: every stroke in the aux crease's width, the count not
+   bold, and a per-mark Short Dividers switch.
+2. Stars, filled or outlined; the eye; ovals and rectangles; a transform
+   box that scales and turns them.
+3. X-ray: a window that shows the picture without its top N layers (a PR of
+   its own, after a spike).
+
+Plan: `implementation-plans/diagram-revision-3.md`, phases 18.0 and 18a to
+18f, each phase's as-built under its checklist there. 18a (equal
+divisions) is built; it revises Revision 2's ED4 and ED9.
+
 ### Later (written up, not built)
 
 - 2-D drag reorder and multi-select.

@@ -1,12 +1,16 @@
 # Diagram, Revision 3: stars, shapes, short divisions, an eye, X-ray
 
 **Status: planned 2026-10-08, with Zach's first answers the same day.
-Nothing is built.** His answers, each recorded under its decision:
+18a (equal divisions) built and gated 2026-10-08, committed, not yet
+pushed; nothing else is built.** His answers, each recorded under its
+decision:
 
 - **R3-1 A, R3-2 A** (short dividers: one switch on each mark, 1.65 mm
   either side of the line): "should just be all interior ones, not per
   mark", "yep"; asked to confirm one switch on each mark that shortens all
   its interior dividers, "a".
+- **R3-3 B** (the count's weight), on "the division count's number stays
+  bold": "no, should not be bold".
 - **R3-4 C, R3-5 A** (one Star tool with a Fill control; an outlined star
   white inside): "yep, for now".
 - **The transform box** (The transform box, below): "for shapes, i want to
@@ -24,7 +28,7 @@ Nothing is built.** His answers, each recorded under its decision:
 - **R3-26 A** (the pens): "yeah sounds right".
 - **The prototype**: "Yes skip prototype, build directly".
 
-**Still PENDING:** R3-3, R3-8, R3-10b, R3-11a, R3-11b, R3-11d, R3-16a,
+**Still PENDING:** R3-8, R3-10b, R3-11a, R3-11b, R3-11d, R3-16a,
 R3-16c, R3-17 to R3-24, and the transform box's R3-28 to R3-33, which
 these answers raised.
 
@@ -265,8 +269,8 @@ with a count and a link to the steps it repeats is its own feature.
 - **Before 18a**: Zach's answers. The prototype is skipped ("Yes skip
   prototype, build directly").
 - **18a, equal divisions.** The aux-pen commit needs no decision. Short
-  Dividers needs only R3-3, the count's weight, which is not a stroke and
-  can follow.
+  Dividers needed only R3-3, the count's weight: regular, not bold (R3-3
+  B).
 - **18b, stars**, then **18c, the eye**: both glyphs on the same path, the
   star first. 18b's first commits build the transform box, which the eye
   and shapes then use.
@@ -528,7 +532,12 @@ What changes, and nothing else:
   warns exactly where it does today. The hit-test twin
   (`annotationHit.ts:599`) measures it that way already; only its table
   lookup goes.
-- **The count** stays as it is unless R3-3 says otherwise.
+- **The count** is set in the regular weight, not bold (R3-3 B): its
+  `fontWeight` is 400 where it was 700, written as such, so a page reads it
+  as Noto Sans Regular and embeds that face's digits (`setUploadText` reads
+  the weight off the markup). Its size (2.4 mm), its place and its box do
+  not change: Noto Sans's digits are 0.572 em in either weight, under the
+  0.62 em the box is measured by.
 - **Comments** that name ED9's pens are rewritten: `diagramInk.ts:157-159`,
   `stepDiagramGeometry.ts:2849-2857`, `annotationPrimitives.tsx:642`,
   `DiagramPrimitives.tsx:976-978`, `markReach.ts:210-212`.
@@ -613,12 +622,15 @@ shortens all its interior dividers: "a".
   the switch then draws the symbol ED4 draws at no offset. B is easily
   read as a fourth tick. C reads as a ruler's graduations.
 
-**R3-3. The count's weight. PENDING.**
-- A. As now: bold, 2.4 mm. It is lettering, not a stroke.
+**R3-3. The count's weight. DECIDED: B.** Zach, 2026-10-08, on "R3-3: the
+division count's number stays bold": "no, should not be bold".
+- A. As before: bold, 2.4 mm. It is lettering, not a stroke.
 - B. Regular weight, to sit with the thinner strokes.
-- **Recommended: A**, judged in 18a's before and after in the browser.
-  "Too thick" is about the strokes. Thin regular digits beside 0.25 pt
-  strokes are faint on a grey paper side.
+- Recommended was A: "too thick" was read as about the strokes, and thin
+  regular digits beside 0.25 pt strokes were thought faint on a grey paper
+  side. Zach took B. 18a's before and after shows the regular count on the
+  Diagram preset's grey back (`artifacts/revision-3/18a/18a-evidence.png`,
+  and `18a-before-after.png`, A1 to A3).
 
 ### 2. Stars
 
@@ -1670,36 +1682,148 @@ after in the browser, beside the note's pictures.
 - [ ] Zach answers R3-1 to R3-33. His answers are recorded under each
   decision, and every passage written for an option he did not take is
   rewritten. The first answers are in (2026-10-08, Status at the top).
-  Open: R3-3, R3-8, R3-10b, R3-11a, R3-11b, R3-11d, R3-16a, R3-16c, R3-17
-  to R3-24, and R3-28 to R3-33.
+  R3-3 answered B the same day ("no, should not be bold"). Open: R3-8,
+  R3-10b, R3-11a, R3-11b, R3-11d, R3-16a, R3-16c, R3-17 to R3-24, and
+  R3-28 to R3-33.
 
 ### 18a Equal divisions
 
-- [ ] **The aux pen**, a commit of its own: one pen (`auxMarkPen`), one
+- [x] **The aux pen**, a commit of its own: one pen (`auxMarkPen`), one
   path, `DivisionsPen` gone, the floors in ring pens (`markRingWidth` read
   directly), the comments. Tests:
   every stroke at the aux width in both presets; the line's width
   unchanged; the floor and the crowding warning unchanged at 32 parts on
   25 mm; reach.
-- [ ] Goldens re-recorded and checked by eye beside the note's screenshot.
-- [ ] Browser, before and after: the note's case rebuilt (a diagonal in
+- [x] Goldens re-recorded and checked by eye beside the note's screenshot.
+- [x] Browser, before and after: the note's case rebuilt (a diagonal in
   three parts, the line set into the paper, a valley from the first third),
   on every surface in "Every phase", in both presets; the crane's pages
   compared for reflow, and a ZIP step file's crop.
-- [ ] **Short Dividers** (R3-1 A and R3-2 A; the count as R3-3 says): the
-  field, its reader and
+- [x] **Short Dividers** (R3-1 A and R3-2 A; the count regular, R3-3 B):
+  the field, its reader and
   writer, `cleanDivisions`, the primitive, `divisionsShape`, the hit-test
   twin, the Layers switch, `setShortDividers`. Tests: interior dividers
   straddle the line at 2.5 and 10 mm; the end dividers reach the measured
   line; nothing changes at 1 mm; snapping to the division points
   unchanged; a same-step paste keeps the flag; an older build keeps the
   mark verbatim.
-- [ ] `diagram mark styled`: the event, `trackDiagram.ts`, its row in
+- [x] `diagram mark styled`: the event, `trackDiagram.ts`, its row in
   `docs/analytics.md`.
-- [ ] Browser, before and after: the note's case with Short Dividers on,
+- [x] Browser, before and after: the note's case with Short Dividers on,
   the valley line clear, on every surface.
-- [ ] `diagram-revision-2.md`: ED4 and ED9 marked "Revised by Revision 3".
-- [ ] Gate and push.
+- [x] `diagram-revision-2.md`: ED4 and ED9 marked "Revised by Revision 3".
+- [x] Gate, on exactly what was committed: lint, typecheck, the i18n check
+  and the whole vitest suite (Node 22): 889 test files and 12,016 tests
+  pass (2 files and 15 tests skipped).
+- [ ] Push.
+
+**As built (2026-10-08).** Two commits, as planned: the aux pen alone
+(`5b82674f1`: the count still bold, the golden's seven old cases), then
+Short Dividers with the regular count, the event and the catalogs
+(`8a0add3bd`). Nearby tests pass at each; at the first, tsc, eslint on its
+11 files, and the diagram, References, panels and analytics suites (290
+files, 4,041 tests).
+
+- **The aux pen.** `rightAnglePen` is `auxMarkPen`
+  (`stepDiagramGeometry.ts`), drawn by the right angle and equal divisions.
+  `DIAGRAM_DIVISIONS_INK` lost `pens` and is `as const`; `DivisionsPen` is
+  gone. `DivisionsDrawn.pens` is `pen`; `divisionsPathData` returns one
+  `d` in `divisionsStrokes`' order (the line, the dividers, the ticks),
+  drawn as one `<path>`; `markReach` pads every stroke end by half the one
+  pen. The spacing floor reads `markRingWidth(project)` in `divisionsDrawn`
+  and the table's ring pen in the hit twin (`divisionsInPicture`), so a
+  part crowds where it did. The ink is still `ink.mark`.
+- **The count** (R3-3 B): `fontWeight` 700 to 400 on the count's `<text>`,
+  nothing else of it moved. The page reads the weight off the markup
+  (`setUploadText`), so the PDF and the SVG embed Noto Sans Regular's digits
+  for it; `loadDiagramFonts` always loads Latin 400 and 700, so there is no
+  new fetch. In the theme-styled (non-inline) drawing the count carries
+  only its class and was never bold.
+- **Short Dividers.** `shortDividers?: true`, read with `readFlag` (as Bold
+  and halo are), in `ANNOTATION_FIELDS.divisions`, written only when true;
+  `withShortDividers`, `cleanDivisions`; `shortDividers: boolean` on the
+  References primitive and `DivisionsLook`, passed by the compile and the
+  hit twin (its `Pick` is now `DivisionsFields`). In `divisionsShape` the
+  dividers between the ends start at `offset − overshoot` instead of
+  `min(0, offset − overshoot)`, the same at 1.65 mm or less. The canvas's
+  selection wash uses the hit twin, so it follows them too.
+  `divisionsFootprint` is untouched.
+- **Layers.** A Short Dividers `ToggleRow` under Number in
+  `DiagramDivisionsControls`, with its help; `setShortDividers` in
+  `useStepAnnotations`, one undo step ("Change equal divisions"), sending
+  `diagram mark styled` (`kind`, `option: short_dividers`, `value`) only
+  when the mark changes. i18n: `panels:diagram.annotations.shortDividers`
+  and `shortDividersHelp` in all nine catalogs.
+- **Tests**, each new one failing without its change (checked by reverting
+  the weight, the inner start, the file field and the hit twin's flag one
+  at a time): `stepDiagramGeometry.test.ts` (the one pen, the floor at 32
+  parts on 25 mm, short dividers at 2.5 and 10 mm, unchanged at 0, 1 and
+  1.65 mm), `paintAnnotations.test.ts` (one path at the aux width in both
+  presets, the count at 400, reach), `diagramFile.test.ts` (round trip,
+  unsaid when off, damage, an older build keeps it verbatim),
+  `annotationModel.test.ts` (carry, mirror, flip, F, clean),
+  `annotationHit.test.ts`, `annotationClipboard.test.ts` (same-step and
+  other-step paste), `pictureSnap.test.ts` (division points unchanged),
+  `DiagramLayersPanel.test.tsx` (the switch, undo, the event),
+  `DiagramAnnotateCanvas.test.tsx` (the selection wash's interior dividers
+  start 1.65 mm short of the line, the end ones reach it),
+  `trackDiagramMarkStyled.test.ts`, `referenceFinderStepInModel.test.ts`,
+  `diagramInk.test.ts`.
+- **Goldens.** `divisionsGolden.json` re-recorded, with `diagonal-short`,
+  `note-short` and `offset-1-short` added. For the seven old cases on the
+  card, the page and the canvas (`artifacts/revision-3/18a/goldenDiff.txt`)
+  every stroke end is identical; two paths are one, at the old line's
+  width; the count is in the same place at 400; the reach is smaller only
+  where a divider's or tick's end was the extreme (0.44 px on the card,
+  0.21 pt on the page). `offset-1-short` is byte-identical to `offset-1`.
+- **Weights in the PDF** (`artifacts/revision-3/18a/18a-evidence.png`,
+  scripts in `18a/verify/`). The note's case, rasterised by pdftoppm at
+  2400 dpi, each stroke measured beside the step's aux crease. Diagram
+  preset: the crease 0.260 pt; the line, dividers and ticks 0.254 to 0.255
+  (the dividers 0.568 before). Default: the crease 0.504; the mark 0.504 to
+  0.509 (0.795 before). The content stream sets one path of 8 strokes at
+  0.25 pt (0.5 in the Default), where before it set the line at 0.25 (0.5)
+  and the other seven at 0.5625 (0.7875). The count is NotoSans-Regular 9 pt
+  where it was NotoSans-Bold, in the same place. With Short Dividers the
+  interior dividers are 3.31 mm and the end ones 13.65 mm, and the valley
+  line is clear.
+- **Browser** (`18a-evidence.png`, `18a-before-after.png`). The note's case
+  on the crane's step 2, and a mark inside step 23's enlarged window. Before
+  (HEAD db3eeae59's source), after and with Short Dividers: Chromium light
+  and dark, the canvas and the card; in light, both presets, also the
+  enlarged step's card, Pose's ghost (the card at Pose's opacity), the page
+  cell, the PDF at 96 and 288 dpi, the one-sheet SVG and a cropped ZIP step
+  file. iPad-sized WebKit, after only, by touch: the switch tapped on and
+  off in the Settings sheet's Layers, one undo step each. The crane's 29
+  page cells are identical before and after in both presets; step 2's
+  picture moves 0.078 pt in its cell, its reach 0.156 pt smaller each way,
+  at the same scale, and the cropped step file shrinks by the same. Every
+  test diagram reads with nothing locked or unknown and writes back
+  identical (Reference Diagrams' retired `page.scale` differs as it did
+  before 18a).
+- **Not shown in the browser:** Pose's live 3D and simulated ghosts (step 2
+  is a References step with no live view; the ghost markup is the same
+  `annotationMarks`), the print dialog (the same composed pages as the
+  PDF), and a before in WebKit.
+- **Review fixes.** `fr/panels.json` keeps its no-break spaces literal, as
+  in HEAD, so its diff is the two new keys like every other catalog's;
+  `divisions.test.ts`'s header names the aux pen, the regular count and
+  Short Dividers; the selection-wash test above.
+
+**For Zach, not decided by this plan** (from the review; nothing changed):
+- At an offset of 1.65 mm or less, Short Dividers changes nothing, as R3-2 A
+  says, and at 2.5 mm, where a new mark is laid, an interior divider still
+  starts 0.85 mm off the measured line, so a fold crossing there is still
+  drawn over until the line is dragged further out. The switch still turns
+  on, and nothing says why the drawing does not change. Should the help say
+  the switch shows only once the line stands more than 1.65 mm off?
+- In the note's case the count sits on the square's other diagonal crease,
+  where it always did. Regular weight (R3-3 B) makes it harder to read over
+  that crease at print size than the bold was
+  (`artifacts/revision-3/18a/review/36-count-600dpi-before-after.png`,
+  `37-print-size-96dpi-before-after-x3.png`, and `18a-evidence.png`'s
+  600 dpi counts). A halo like a label's, or a different place for the
+  count, would be a decision of its own.
 
 ### 18b Stars
 

@@ -1919,6 +1919,12 @@ pending.**
   (0.65 mm at 1 mm, 1.65 mm at 0), and at 0 the line overdraws the edge. The
   prototype shows 2.5, 1 and 0 mm on white paper. B and C read as an
   engineering drawing rather than the sketch.
+- **Revised by Revision 3** (`diagram-revision-3.md`, R3-1 A, R3-2 A; built in
+  18a, 2026-10-08): A stays every mark's default, and C is now a switch on
+  each mark, Short Dividers, off unless turned on. With it, the dividers
+  between the ends run 1.65 mm either side of the line wherever it lies, and
+  the two end dividers still reach the measured line. Zach's note: a divider
+  run down to the measured line can draw over the fold it locates.
 
 **ED5. How many parts, and how is the count set? DECIDED: A.**
 - A. 2 to 32, laid at 4. The Parts field takes the focus as a new label's Text
@@ -1974,6 +1980,17 @@ pending.**
   edge, and the end dividers continue the sheet's sides by 4.15 mm, so A
   draws a closed band in the edges' ink. C adds a second ink to a preset that
   has one.
+- **Revised by Revision 3** (`diagram-revision-3.md`, "The aux pen"; built
+  in 18a, 2026-10-08): every stroke, the line, the dividers and the ticks, is
+  drawn as one path in the aux lines' pen (`auxMarkPen`, as the right angle,
+  RA5), 0.25 pt in the Diagram preset and 0.5 pt in the Default. Zach's note:
+  "everything should be drawn in the width of the aux crease, its too thick
+  rn". The line's width does not change; the dividers and ticks go from the
+  ring pen (0.5625 pt, 0.7875 pt in the Default) to the aux pen. The ink
+  stays the marks' (`ink.mark`), and ED10's floor stays two ring pens, so a
+  part crowds where it did. The count is set in the regular weight, not bold
+  (R3-3, Zach: "no, should not be bold"). `DivisionsPen` and the table's
+  `pens` are gone.
 
 **ED10. Ticks on crowded parts. DECIDED: B.** (Raised by the review.)
 - A. Shrink freely, with no lower limit.
@@ -2309,8 +2326,9 @@ DECIDED: A.**
 - **Revised 2026-10-06, on seeing 16a built: the aux lines' pen.** Zach: the
   mark "should be the thickness of aux lines (right now it looks like arrow
   thickness)". Still one path, now drawn in the paper style's aux pen
-  (`rightAnglePen`: `project.pens.aux`, an existing crease's pen — 0.25 pt in
-  the Diagram preset, 0.5 pt in the Default) instead of the ring's (0.5625 pt
+  (`rightAnglePen`, named `auxMarkPen` since Revision 3: `project.pens.aux`,
+  an existing crease's pen — 0.25 pt in the Diagram preset, 0.5 pt in the
+  Default) instead of the ring's (0.5625 pt
   in the Diagram preset), and still in the ring's ink, `ink.mark`: the
   Diagram preset's aux pen is the same #231f20, and the Default's grey would
   make the mark read as a crease. `markReach` measures it in the same pen.
