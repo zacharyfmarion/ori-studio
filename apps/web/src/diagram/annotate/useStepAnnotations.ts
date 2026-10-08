@@ -36,6 +36,8 @@ import { pathNodesOf } from './annotationPath';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
 import { isLineKind, lineKindOf, type DiagramLineType } from './lineTypes';
 import { markGeometry, viewFrame, viewOfStep } from '../zoom/stepView';
+import { makeStepMarksEditable } from '../references/makeMarksEditable';
+import { editableCardMarks } from '../references/referencesCardMarks';
 
 /**
  * A mark first put behind a flap, counted (15e): which of its ends — a
@@ -59,7 +61,8 @@ const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 /**
  * A step's annotations (D13), for the Step pane (the Snap switch, the notice
- * that the picture changed) and the Layers pane (the list and the selected
+ * that the picture changed, the notice that a References step's card's marks
+ * are part of its picture, with Make Editable) and the Layers pane (the list and the selected
  * one's controls): what the selected step carries, which
  * one is selected, and the verbs on the selected one — its
  * text, its turn, its axis, a white arrow's look, a line's type, and the catalog's (`annotationActions.ts`: Flip
@@ -123,6 +126,10 @@ export function useStepAnnotations(step: DiagramStep | null) {
       },
       keep: () => {
         if (stepId !== null) store().keepDiagramAnnotations(stepId);
+      },
+      /** Annotate's notice's Make Editable (17e), in the Step pane or the Layers pane: the card's marks lifted out of the picture. */
+      makeMarksEditable: (via: 'annotate_notice' | 'layers_notice') => {
+        if (stepId !== null) makeStepMarksEditable(stepId, via);
       },
       setText: (id: string, text: string, session: number) =>
         change(id, 'Edit label', (annotation) => ({ ...annotation, text }), session),
@@ -216,6 +223,9 @@ export function useStepAnnotations(step: DiagramStep | null) {
     };
   }, [stepId, loadId]);
 
+  // A References step whose card's marks are part of its picture (17e, RM8): Annotate says so, and offers to lift them.
+  const cardMarks = useMemo(() => (step && style ? editableCardMarks(step, style) : null), [step, style]);
+
   // Only a flat fold knows its layers, and so its flaps (15e).
   const knowsFlaps = useMemo(() => step !== null && markGeometry(step, assets, style).kind === 'flat-fold', [step, assets, style]);
 
@@ -240,6 +250,11 @@ export function useStepAnnotations(step: DiagramStep | null) {
     unknownCount: step ? step.annotations.length - known.length : 0,
     /** They were drawn on another picture (D8): Annotate says so until they are touched. */
     outOfStep: step !== null && step.picture !== null && annotationsOutOfStep(step),
+    /**
+     * What Make Editable would lift from a References step's card whose marks
+     * are part of its picture (17e), and whether they fit; null for any other step.
+     */
+    cardMarks,
     selected,
     editable,
     actions,

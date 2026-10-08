@@ -34,7 +34,7 @@ export interface PaperExportSettings extends PaperPage {
 
 /**
  * A mark a step's diagram can be exported without: its letters — the names of
- * the points a step refers to — and its line highlights, the accent over the
+ * the points a step refers to — and its reference lines, the accent over the
  * lines a step lines up. Both help a reader on screen; a page going into a
  * diagram of one's own may want neither.
  */

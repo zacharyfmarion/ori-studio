@@ -3,7 +3,9 @@
  * `implementation-plans/diagram-references-annotations.md`): tagged at the
  * lift, kept by carries and Duplicate, `edited` once the author changes one,
  * released when the picture stops being the card, never out of step, and
- * swapped whole — edited ones too — by Replace and another way.
+ * swapped whole — edited ones too — by Replace and another way. A step made
+ * before marks were lifted keeps them in its picture until Make Marks
+ * Editable lifts them, as a fresh pull would (17e).
  */
 import { describe, expect, it } from 'vitest';
 import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
@@ -20,6 +22,7 @@ import {
   editStepAnnotations,
   insertSteps,
   liftedStepDiagramKey,
+  makeCardMarksEditable,
   pullReferencesSteps,
   removeStepPicture,
   setReferencesSide,
@@ -416,6 +419,87 @@ describe('Replace and another way (RM6)', () => {
     const ring = known(step).find((mark) => mark.kind === 'circle')!;
     expect(ring.from[0]).toBeCloseTo((0.5 - 0.3) / 0.4, 9);
     expect(ring.from[1]).toBeCloseTo((0.45 - 0.3) / 0.4, 9);
+  });
+});
+
+describe('Make Marks Editable (17e)', () => {
+  /** A step made before marks were lifted: its card whole in its picture, with `mine` drawn over it. */
+  const old = (patch: Partial<DiagramStep> = {}, mirrored = false): DiagramStep => ({
+    ...createStep(() => 'step-old'),
+    source: referencesSource({ way: 'way-1', side: mirrored ? 'back' : 'front' }),
+    picture: baked('steps-a', mirrored),
+    annotations: [],
+    annotatedPictureKey: baked('steps-a', mirrored).key,
+    ...patch,
+  });
+  const make = (step: DiagramStep, card = lifted('steps-a', step.picture?.kind === 'step-diagram' && step.picture.mirrored)) =>
+    makeCardMarksEditable(diagram(step), step.id, card);
+
+  it('shows an old step as a fresh pull of its card shows it: its paper, every mark lifted and tagged, in step', () => {
+    const step = stepOf(make(old()), 'step-old');
+    const fresh = stepOf(pulled().document, pulled().stepId);
+    expect(step.picture).toEqual(fresh.picture);
+    expect(step.annotations).toEqual(fresh.annotations);
+    expect(step.annotatedPictureKey).toBe('steps-a-marks');
+    expect(known(step).every((mark) => isCardMark(step, mark) && mark.imported === 'untouched')).toBe(true);
+    expect(annotationsOutOfStep(step)).toBe(false);
+    // The source says nothing new, the step is the same step.
+    expect(step.source).toEqual(old().source);
+    expect(step.revision).toBe(old().revision + 1);
+  });
+
+  it('from the back, its folds named from the back, as a pull from there would', () => {
+    const step = stepOf(make(old({}, true)), 'step-old');
+    expect(step.picture).toMatchObject({ key: 'steps-a-marks-back', mirrored: true });
+    expect(known(step).map((mark) => mark.kind)).toEqual(['mountain-line', 'solid-line', 'circle', 'fold-unfold-arrow', 'label']);
+    expect(annotationsOutOfStep(step)).toBe(false);
+  });
+
+  it('keeps the author’s marks over the card’s, in step with the sheet when they were with the card', () => {
+    const step = stepOf(make(old({ annotations: [circle('annotation-mine')] })), 'step-old');
+    expect(known(step).map((mark) => mark.id)).toEqual([...lifted().annotations.map((mark) => mark.id), 'annotation-mine']);
+    expect(known(step).at(-1)).toEqual(circle('annotation-mine'));
+    expect(authorMarksOf(step)).toEqual([circle('annotation-mine')]);
+    expect(step.annotatedPictureKey).toBe('steps-a-marks');
+    expect(annotationsOutOfStep(step)).toBe(false);
+  });
+
+  it('never clears a “picture changed” notice the author’s marks had', () => {
+    const step = stepOf(make(old({ annotations: [circle('annotation-mine')], annotatedPictureKey: 'another' })), 'step-old');
+    expect(step.picture?.key).toBe('steps-a-marks');
+    expect(step.annotatedPictureKey).toBe('another');
+    expect(annotationsOutOfStep(step)).toBe(true);
+  });
+
+  it('records every mark shown on a step that recorded which it was pulled with', () => {
+    const pulledWith = old({ source: referencesSource({ way: 'way-1', marks: { letters: false, highlights: true } }) });
+    const step = stepOf(make(pulledWith), 'step-old');
+    expect(step.source).toMatchObject({ marks: { letters: true, highlights: true } });
+    expect(known(step).some((mark) => mark.kind === 'label')).toBe(true);
+  });
+
+  it('puts the marks into an enlarged step’s window, none its frame leaves out', () => {
+    const zoom = { from: 'area-1', shape: 'circle' as const, frame: { centre: [0.5, 0.5] as [number, number], radius: 0.2 } };
+    const framed = old({ zoom, picture: baked('steps-a', false, framedCard()) });
+    const step = stepOf(make(framed, lifted('steps-a', false, framedCard())), 'step-old');
+    expect(step.zoom).toEqual(zoom);
+    expect(known(step).map((mark) => mark.kind)).toEqual(['valley-line', 'circle', 'label', 'fold-unfold-arrow']);
+    const ring = known(step).find((mark) => mark.kind === 'circle')!;
+    expect(ring.from[0]).toBeCloseTo((0.5 - 0.3) / 0.4, 9);
+    expect(ring.from[1]).toBeCloseTo((0.45 - 0.3) / 0.4, 9);
+  });
+
+  it('changes nothing for another card, the other side, a step lifted already, or more than a step holds', () => {
+    const document = diagram(old());
+    expect(makeCardMarksEditable(document, 'step-old', lifted('steps-b'))).toBe(document);
+    expect(makeCardMarksEditable(document, 'step-old', lifted('steps-a', true))).toBe(document);
+    const { document: pulledDocument, stepId } = pulled();
+    expect(makeCardMarksEditable(pulledDocument, stepId, lifted())).toBe(pulledDocument);
+    // The card's five beside the author's would be one more than a step holds.
+    const full = diagram(
+      old({ annotations: Array.from({ length: MAX_STEP_ANNOTATIONS - 4 }, (_, i) => circle(`annotation-mine-${i}`)) })
+    );
+    expect(makeCardMarksEditable(full, 'step-old', lifted())).toBe(full);
   });
 });
 

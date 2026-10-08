@@ -1636,6 +1636,38 @@ export function swapCardMarks(
 }
 
 /**
+ * Make Marks Editable (17e, RM8 and §9 of
+ * `implementation-plans/diagram-references-annotations.md`): a References
+ * step whose card's marks are still in its picture — every step pulled
+ * before marks were lifted, and one pulled whole past what a step held —
+ * shown as a fresh pull shows the card: `lifted`, the same card from the same
+ * side split, its sheet the picture and every mark an annotation, tagged,
+ * whatever the Show menu said. The author's marks stay, over the card's; in
+ * step with the sheet if they were with the card, whose paper has not moved
+ * under them, and under the notice still if they were not (`swapCardMarks`).
+ * An enlarged step's marks go into its window. A step that records which
+ * marks it was pulled with records them all now. The document itself when
+ * `lifted` is not the step's card, brings nothing, or does not fit beside
+ * the author's marks.
+ */
+export function makeCardMarksEditable(document: DiagramDocument, stepId: string, lifted: LiftedCard): DiagramDocument {
+  return updateStep(document, stepId, (step) => {
+    const { picture, source } = step;
+    if (source?.kind !== 'references-step' || picture?.kind !== 'step-diagram') return step;
+    const card = lifted.picture;
+    const same = card.mirrored === picture.mirrored && stepDiagramCardKey(card.key) === stepDiagramCardKey(picture.key);
+    if (!same || card.key === picture.key || lifted.annotations.length === 0 || !fits(step, lifted)) return step;
+    const next: DiagramStep = {
+      ...step,
+      source: source.marks ? { ...source, marks: { letters: true, highlights: true } } : source,
+      picture: card,
+      revision: step.revision + 1,
+    };
+    return swapCardMarks(step, next, lifted.annotations, document.assets);
+  });
+}
+
+/**
  * Whether a References step's author's marks were in step with the card it
  * showed, `was`, and `next` shows the same card from the same side: one
  * sheet, its marks in the picture or lifted from it, so the paper under them

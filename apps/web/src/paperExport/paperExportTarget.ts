@@ -122,7 +122,7 @@ export interface PaperExportTarget {
   hint?: string | null;
   /**
    * The marks the picture can be exported without, which the dialog offers
-   * as options: a References step's letters and line highlights. Absent for a
+   * as options: a References step's letters and reference lines. Absent for a
    * picture that has none — it is drawn whole whatever the options say.
    */
   marks?: readonly PaperExportMark[];

@@ -21,6 +21,10 @@
  * by, so a lifted mark lands where the card drew it. The marks the Show menu
  * leaves out (RM4) are not pulled at all; rings stay, as in export.
  *
+ * A step already in a diagram keeps its card's marks in its picture until
+ * Make Marks Editable lifts them, every one, as a fresh pull would (17e,
+ * RM8): `editableCardMarks` says what that would lift.
+ *
  * Pure: no store, no DOM.
  */
 import { seenFromTheBack } from '../../cp-workspace/references/diagram/diagramModel';
@@ -29,15 +33,18 @@ import { referencesStepDiagramMarks } from '../../cp-workspace/references/refere
 import { arcExtent, type DiagramArc } from '../../cp-workspace/references/stepDiagramGeometry';
 import { DEFAULT_PAPER_SIZE_MM } from '../../lib/paper/paperPage';
 import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
-import type { PaperExportMarks } from '../../lib/paperExportSettings';
+import { DEFAULT_PAPER_EXPORT_MARKS, type PaperExportMarks } from '../../lib/paperExportSettings';
 import { REFERENCE_LINE_COLOR } from '../annotate/annotationColors';
 import { cleanAnnotation, MAX_STEP_ANNOTATIONS, textEms, type PicturePoint } from '../annotate/annotationModel';
 import { LABEL_BASELINE } from '../annotate/annotationPrimitives';
+import { authorMarksOf, showsCard } from '../document/cardMarks';
 import {
+  isLockedStep,
   liftedStepDiagramKey,
   randomDiagramId,
   type DiagramAnnotationKind,
   type DiagramIdFactory,
+  type DiagramStep,
   type DiagramStepDiagramPicture,
   type DiagramStyle,
   type KnownDiagramAnnotation,
@@ -45,6 +52,7 @@ import {
 } from '../document/diagramDocument';
 import { storedAnnotations } from '../document/diagramFile';
 import { storedStepDiagramModel } from '../document/stepDiagramModelFile';
+import { diagramStyleKey } from '../pictures/diagramPaperStyle';
 import { stepDiagramLetters, stepDiagramToPicture } from '../pictures/paintStepDiagram';
 
 /** A card split: its sheet — the paper as it stands, in the card's own frame — and its marks, in picture units. */
@@ -88,16 +96,17 @@ interface LinePiece {
  * and its marks (17d): only the marks `marks` shows, the letters laid out as
  * the diagram's `style` draws its pages at 50 mm (the ring's rim is the
  * style's arrow pen's). Each mark is already in the form a file reads back and
- * an edit would leave it in. Null when the marks are more than a step holds
- * (`MAX_STEP_ANNOTATIONS`): the card is then pulled with its marks in its
- * picture, as before.
+ * an edit would leave it in. Null when the marks are more than `cap`, what a
+ * step holds (`MAX_STEP_ANNOTATIONS`): the card is then pulled with its marks
+ * in its picture, as before.
  */
 export function liftCardMarks(
   model: StepDiagramModel,
   mirrored: boolean,
   marks: PaperExportMarks,
   style: DiagramStyle,
-  newId: DiagramIdFactory = randomDiagramId
+  newId: DiagramIdFactory = randomDiagramId,
+  cap: number = MAX_STEP_ANNOTATIONS
 ): LiftedCardMarks | null {
   // What the Show menu leaves out is not pulled, nor left in the picture.
   const card = referencesStepDiagramMarks(model, marks);
@@ -176,7 +185,7 @@ export function liftCardMarks(
     })),
     ...others,
   ].sort((a, b) => a.index - b.index);
-  if (ordered.length > MAX_STEP_ANNOTATIONS) return null;
+  if (ordered.length > cap) return null;
   const annotations = storedAnnotations(
     ordered.map(({ mark }) => cleanAnnotation({ ...mark, id: newId('annotation'), imported: 'untouched' }))
   );
@@ -215,6 +224,54 @@ export function liftedCardPicture(
     annotations: split.annotations,
   };
 }
+
+/**
+ * What Make Marks Editable would do to a step (17e, §9): how many marks it
+ * would lift from the step's card — every one, the Show menu's choice aside —
+ * and how many the step would then hold, the author's own beside them; and
+ * whether that is no more than a step holds. Null for a step it has nothing
+ * to lift on: one that does not show a card, a newer build's, and one whose
+ * card's marks are lifted already — its sheet holds none — which is how an
+ * old step is told from a lifted one, with no flag (§6).
+ */
+export interface EditableCardMarks {
+  lifted: number;
+  total: number;
+  fits: boolean;
+}
+
+export function editableCardMarks(step: DiagramStep, style: DiagramStyle): EditableCardMarks | null {
+  if (isLockedStep(step) || !showsCard(step) || step.picture?.kind !== 'step-diagram') return null;
+  const lifted = liftableMarkCount(step.picture, style);
+  if (lifted === 0) return null;
+  const total = lifted + authorMarksOf(step).length;
+  return { lifted, total, fits: total <= MAX_STEP_ANNOTATIONS };
+}
+
+/**
+ * How many marks lift from a card's picture, every one shown, however many:
+ * worked out once per picture and style, as the Step pane and Annotate's
+ * notice ask on every render, and a grid step can hold hundreds.
+ */
+function liftableMarkCount(picture: DiagramStepDiagramPicture, style: DiagramStyle): number {
+  const key = diagramStyleKey(style);
+  let byStyle = liftableCounts.get(picture);
+  if (!byStyle) {
+    byStyle = new Map();
+    liftableCounts.set(picture, byStyle);
+  }
+  let count = byStyle.get(key);
+  if (count === undefined) {
+    let ids = 0;
+    const split = liftCardMarks(picture.model, picture.mirrored, DEFAULT_PAPER_EXPORT_MARKS, style, () => `count-${(ids += 1)}`, Infinity);
+    count = split?.annotations.length ?? 0;
+    byStyle.set(key, count);
+  }
+  return count;
+}
+
+/** {@link liftableMarkCount}'s, by picture — never changed in place — and style key. */
+const liftableCounts = new WeakMap<DiagramStepDiagramPicture, Map<string, number>>();
 
 /**
  * A card's picture as the browser shows it under the Show menu (17d): the

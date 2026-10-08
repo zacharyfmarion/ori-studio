@@ -6,11 +6,12 @@ import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { mmToCssPx } from '../../lib/paper/paperSvg';
 import { cleanAnnotation, MAX_STEP_ANNOTATIONS, textEms } from '../annotate/annotationModel';
 import { annotationDrawing, compiledAnnotation, LABEL_BASELINE } from '../annotate/annotationPrimitives';
-import { DEFAULT_DIAGRAM_STYLE, type KnownDiagramAnnotation } from '../document/diagramDocument';
+import { createStep, DEFAULT_DIAGRAM_STYLE, type DiagramStep, type KnownDiagramAnnotation } from '../document/diagramDocument';
 import { storedAnnotations } from '../document/diagramFile';
+import { referencesSource } from '../document/diagramSteps.fixtures';
 import { stepDiagramLetters, stepDiagramToPicture } from '../pictures/paintStepDiagram';
-import { findCard, linesCard, piecesCard, pinchCard, pointsCard } from './referencesCardMarks.fixtures';
-import { LIFT_SHEET_MM, liftCardMarks, liftedCardPicture, shownCardPicture } from './referencesCardMarks';
+import { findCard, finishedCard, linesCard, piecesCard, pinchCard, pointsCard } from './referencesCardMarks.fixtures';
+import { editableCardMarks, LIFT_SHEET_MM, liftCardMarks, liftedCardPicture, shownCardPicture } from './referencesCardMarks';
 
 const ALL = { letters: true, highlights: true } as const;
 const STYLE = DEFAULT_DIAGRAM_STYLE;
@@ -256,6 +257,64 @@ describe('liftedCardPicture', () => {
     // The sheet does not change with the Show menu: one card has one lifted sheet.
     const hidden = liftedCardPicture({ kind: 'step-diagram', model, mirrored: false, key: 'steps-abc' }, { letters: false, highlights: false }, STYLE)!;
     expect(hidden.picture.model).toEqual(front.picture.model);
+  });
+});
+
+describe('editableCardMarks (17e)', () => {
+  /** A References step showing `picture`, `own` marks of the author's over it. */
+  const sent = (picture: DiagramStep['picture'], own = 0): DiagramStep => ({
+    ...createStep(() => 'step-1'),
+    source: referencesSource(),
+    picture,
+    annotations: Array.from({ length: own }, (_, i): KnownDiagramAnnotation => ({
+      id: `annotation-mine-${i}`,
+      kind: 'circle',
+      from: [0.5, 0.5],
+      to: [0.5, 0.5],
+    })),
+  });
+  const baked = (model: StepDiagramModel, mirrored = false) => ({ kind: 'step-diagram' as const, model, mirrored, key: mirrored ? 'steps-p-back' : 'steps-p' });
+
+  it('counts the marks a step made before marks were lifted would lift, every one, and the author’s beside them', () => {
+    const every = lift(pointsCard()).annotations.length;
+    expect(editableCardMarks(sent(baked(pointsCard())), STYLE)).toEqual({ lifted: every, total: every, fits: true });
+    expect(editableCardMarks(sent(baked(pointsCard(), true), 2), STYLE)).toEqual({ lifted: every, total: every + 2, fits: true });
+    // Whatever the step was pulled with: Make Editable lifts them all.
+    const shown = sent(baked(pointsCard()));
+    const hiding = { ...shown, source: referencesSource({ marks: { letters: false, highlights: false } }) };
+    expect(editableCardMarks(hiding, STYLE)?.lifted).toBe(every);
+  });
+
+  it('has nothing to lift on a lifted step, a card with no marks, any other picture, or a newer build’s step', () => {
+    const split = liftedCardPicture(baked(pointsCard()), { letters: false, highlights: false }, STYLE)!;
+    expect(editableCardMarks(sent(split.picture), STYLE)).toBeNull();
+    expect(editableCardMarks(sent(liftedCardPicture(baked(pointsCard()), ALL, STYLE)!.picture), STYLE)).toBeNull();
+    expect(editableCardMarks(sent(baked(finishedCard())), STYLE)).toBeNull();
+    const upload = { ...sent(baked(pointsCard())), source: null };
+    expect(editableCardMarks(upload, STYLE)).toBeNull();
+    expect(editableCardMarks({ ...sent(baked(pointsCard())), unknown: {} }, STYLE)).toBeNull();
+  });
+
+  it('says a card’s marks and the author’s do not fit when they are more than a step holds', () => {
+    const crowded: StepDiagramModel = {
+      sheet: { width: 1, height: 1, centre: [0.5, 0.5] },
+      primitives: [
+        SHEET,
+        ...Array.from({ length: MAX_STEP_ANNOTATIONS + 1 }, (_, i): StepDiagramPrimitive => {
+          const x = (i + 0.5) / (MAX_STEP_ANNOTATIONS + 1);
+          return { kind: 'line', from: [x, 0], to: [x, 1], style: i % 2 ? 'mountain' : 'valley' };
+        }),
+      ],
+    };
+    expect(editableCardMarks(sent(baked(crowded)), STYLE)).toEqual({
+      lifted: MAX_STEP_ANNOTATIONS + 1,
+      total: MAX_STEP_ANNOTATIONS + 1,
+      fits: false,
+    });
+    const every = lift(pointsCard()).annotations.length;
+    const full = editableCardMarks(sent(baked(pointsCard()), MAX_STEP_ANNOTATIONS - every + 1), STYLE);
+    expect(full).toEqual({ lifted: every, total: MAX_STEP_ANNOTATIONS + 1, fits: false });
+    expect(editableCardMarks(sent(baked(pointsCard()), MAX_STEP_ANNOTATIONS - every), STYLE)?.fits).toBe(true);
   });
 });
 

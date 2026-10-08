@@ -38,6 +38,7 @@ import {
   type DiagramEntry,
   setReferencesWay,
   anchorTakesCard,
+  makeCardMarksEditable,
 } from '../../../diagram/document/diagramDocument';
 import i18n from '../../../i18n';
 import { trackDiagramImportedMarkEdited } from '../../../analytics';
@@ -607,6 +608,11 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
 
     setDiagramReferencesWay: (stepId, way) =>
       commit('Choose way', (document) => setReferencesWay(document, stepId, way)) !== null,
+
+    makeDiagramStepMarksEditable: (stepId, lifted, { loadId } = {}) => {
+      if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
+      return commit('Make marks editable', (document) => makeCardMarksEditable(document, stepId, lifted)) !== null;
+    },
 
     setDiagramReferencesSide: (stepId, mirrored) =>
       commit('Adjust pose', (document) => setReferencesSide(document, stepId, mirrored)) !== null,

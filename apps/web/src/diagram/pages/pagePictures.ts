@@ -60,7 +60,7 @@ import {
   type StepPictureSource,
 } from '../pictures/paintDiagramStep';
 import { stepDiagramPaintStyle, stepDiagramScene, stepDiagramSheetBox } from '../pictures/paintStepDiagram';
-import { hasDrawnAnnotations, paintAnnotations, type CloseUpPicture } from '../annotate/paintAnnotations';
+import { hasDrawnAnnotations, placeAnnotations, type CloseUpPicture } from '../annotate/paintAnnotations';
 import { annotationDrawing, annotationReach } from '../annotate/annotationPrimitives';
 import { frameOf } from '../annotate/annotationModel';
 import type { PictureLayers } from '../annotate/pictureGeometry';
@@ -532,7 +532,11 @@ export function cellPicture(
   const box: Rect = { x: area.x * PT_PER_MM, y: area.y * PT_PER_MM, width: area.w * PT_PER_MM, height: area.h * PT_PER_MM };
   // An enlarged step keeps in its room what lies inside its window, as it was measured: its marks past it overflow.
   const touching = zoomed ? marksTouchingWindow(zoomed.view.window, step.annotations) : step.annotations;
-  /** The picture drawn into `inner`, `k` of its room, and its annotations on its frame. */
+  /**
+   * The picture drawn into `inner`, `k` of its room, and its annotations
+   * placed on its frame: compiled once, measured here and drawn from the same
+   * compile where the picture settles.
+   */
   const place = (inner: Rect, k = 1) => {
     // A scale the layout found shrinks with the room it is drawn into.
     const frame = cell.frameMm === null ? null : cell.frameMm * PT_PER_MM * k;
@@ -540,11 +544,11 @@ export function cellPicture(
     const drawn = drawPicture(inner, mmPerUnit, frame);
     if (!drawn) return null;
     const framePx = longerOf(drawn.framePt) / PT_PER_CSS_PX;
-    const marks = paintAnnotations(step.annotations, drawn.framePt, framePx, style, layers, { paper: textPaper });
+    const marks = placeAnnotations(step.annotations, drawn.framePt, framePx, style, layers, textPaper);
     if (!marks) return { drawn, marks, reached: drawn.boundsPt };
     if (!zoomed) return { drawn, marks, reached: union(drawn.boundsPt, marks.bounds) };
     const counted =
-      touching === step.annotations ? marks : paintAnnotations(touching, drawn.framePt, framePx, style, layers, { paper: textPaper });
+      touching === step.annotations ? marks : placeAnnotations(touching, drawn.framePt, framePx, style, layers, textPaper);
     const inside = counted ? intersection(counted.bounds, drawn.framePt) : null;
     return { drawn, marks, reached: inside ? union(drawn.boundsPt, inside) : drawn.boundsPt };
   };
@@ -615,10 +619,10 @@ export function cellPicture(
     return prefixIds(inPlace ? inside.markup : `<g transform="translate(${num(x)} ${num(y)})">${inside.markup}</g>`, prefix);
   };
   const setText = (markup: string) => setUploadText(markup, text.hanStyle, text.runs, count);
-  const framePx = longerOf(drawn.framePt) / PT_PER_CSS_PX;
-  const marks = paintAnnotations(step.annotations, drawn.framePt, framePx, style, layers, { closeUpPicture, setText, paper: textPaper });
+  // Drawn from the compile its room was measured by: the frame it was placed on is the one it settled with.
+  const marks = placed.marks.markup({ closeUpPicture, setText });
   return {
-    markup: prefixIds(shift(`${drawn.markup}\n${marks?.markup ?? ''}`), idPrefix),
+    markup: prefixIds(shift(`${drawn.markup}\n${marks}`), idPrefix),
     boundsPt: { ...reached, x: reached.x + dx, y: reached.y + dy },
     framePt,
     text: [...usage].map(([face, characters]) => ({ face, characters })),

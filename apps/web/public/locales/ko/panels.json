@@ -675,6 +675,7 @@
       "linkPattern": "패턴 연결…",
       "lockedEditHint": "최신 Ori Studio에서 만든 단계입니다. 이동하거나 삭제할 수는 있지만 변경할 수는 없습니다",
       "lockedHint": "최신 Ori Studio에서 만든 단계입니다. 이동하거나 삭제할 수는 있지만 복제할 수는 없습니다",
+      "makeMarksEditable": "표시를 편집 가능하게 만들기",
       "makeRotate": "회전으로 바꾸기",
       "makeTurnOver": "뒤집기로 바꾸기",
       "missingHint": "패턴이 사라졌습니다: 다른 패턴에 다시 연결하세요",
@@ -697,6 +698,8 @@
       "replacePicture": "그림 바꾸기…",
       "showAs": "표시 방법",
       "startPage": "여기서 새 페이지 시작",
+      "tooManyMarksHint_other": "표시 {{count}}개: 한 단계에는 {{max}}개까지 담을 수 있습니다",
+      "tooManyMarksWithYoursHint_other": "내 표시를 포함해 {{count}}개: 한 단계에는 {{max}}개까지 담을 수 있습니다",
       "uploadPicture": "그림 업로드…"
     },
     "annotate": {
@@ -855,6 +858,8 @@
       "lineEnd": "끝점",
       "lineStart": "시작점",
       "lineType": "종류",
+      "makeEditable": "편집 가능하게 만들기",
+      "marksInPicture": "이 단계의 표시는 그림의 일부입니다.",
       "newer": "이 단계의 주석 일부는 더 새로운 Ori Studio에서 만들어졌습니다. 보존되지만 여기에는 표시되지 않습니다.",
       "nextNode": "다음 노드",
       "node": "노드",
@@ -862,6 +867,7 @@
       "nodeOf": "노드 {{number}}/{{total}}",
       "nodeType": "유형",
       "none": "주석 없음",
+      "noneMarksInPicture": "표시가 그림의 일부입니다",
       "number": "숫자",
       "numberHelp": "선 옆에 등분 수를 인쇄합니다.",
       "offset": "간격",

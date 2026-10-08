@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDiagram, type KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
-import { cpStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
+import { cpStep, referencesStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { ANNOTATE_TOOL_GROUPS, annotateToolHelp } from '../../diagram/annotate/annotateTools';
 import { angleMarkAt } from '../../diagram/annotate/annotationModel';
 import i18n from '../../i18n';
@@ -14,12 +14,14 @@ const tracked = vi.hoisted(() => ({
   trackDiagramAnnotationBehind: vi.fn(),
   trackDiagramAnnotationRecolored: vi.fn(),
   trackDiagramTextStyled: vi.fn(),
+  trackDiagramReferencesMarksLifted: vi.fn(),
 }));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
   trackDiagramAnnotationBehind: tracked.trackDiagramAnnotationBehind,
   trackDiagramAnnotationRecolored: tracked.trackDiagramAnnotationRecolored,
   trackDiagramTextStyled: tracked.trackDiagramTextStyled,
+  trackDiagramReferencesMarksLifted: tracked.trackDiagramReferencesMarksLifted,
 }));
 
 /**
@@ -101,6 +103,22 @@ describe('DiagramLayersPanel', () => {
     expect(host?.textContent).toBe('Nothing drawn yet.');
     act(() => state().closeDiagramStep());
     expect(host?.textContent).toBe('Open a step in Annotate to see its layers.');
+  });
+
+  it('says over the list when a References step’s marks are part of its picture, and makes them editable on a press (17e)', () => {
+    act(() => {
+      useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [referencesStep('step-r')] } });
+      state().openDiagramStep('step-r', 'annotate');
+    });
+    // The list cannot show what the picture holds: the notice says it is there.
+    expect(host?.textContent).toContain('This step’s marks are part of its picture.');
+    expect(host?.textContent).toContain('Nothing drawn yet.');
+    const past = state().diagramHistory.past.length;
+    act(() => buttonNamed('Make Editable').click());
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(tracked.trackDiagramReferencesMarksLifted).toHaveBeenCalledExactlyOnceWith('layers_notice', 3);
+    expect(host?.textContent).not.toContain('part of its picture');
+    expect(host?.querySelectorAll('ul[aria-label="Layers"] li')).toHaveLength(3);
   });
 
   it('lists them, selects one with a press, and offers its own controls', () => {

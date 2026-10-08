@@ -675,6 +675,7 @@
       "linkPattern": "链接图样…",
       "lockedEditHint": "由更新版本的 Ori Studio 创建：可以移动或删除，但不能修改",
       "lockedHint": "由更新版本的 Ori Studio 创建：可以移动或删除，但不能复制",
+      "makeMarksEditable": "使标记可编辑",
       "makeRotate": "改为旋转",
       "makeTurnOver": "改为翻面",
       "missingHint": "其图样已不存在：请重新链接到其他图样",
@@ -697,6 +698,8 @@
       "replacePicture": "替换图片…",
       "showAs": "显示为",
       "startPage": "从这里开始新的一页",
+      "tooManyMarksHint_other": "{{count}} 个标记：一个步骤最多容纳 {{max}} 个",
+      "tooManyMarksWithYoursHint_other": "连同你的共 {{count}} 个标记：一个步骤最多容纳 {{max}} 个",
       "uploadPicture": "上传图片…"
     },
     "annotate": {
@@ -855,6 +858,8 @@
       "lineEnd": "终点",
       "lineStart": "起点",
       "lineType": "线型",
+      "makeEditable": "设为可编辑",
+      "marksInPicture": "这一步的标记是图片的一部分。",
       "newer": "此步骤的部分标注由更新版本的 Ori Studio 创建。它们会被保留，但不在这里显示。",
       "nextNode": "下一个节点",
       "node": "节点",
@@ -862,6 +867,7 @@
       "nodeOf": "第 {{number}} 个节点，共 {{total}} 个",
       "nodeType": "类型",
       "none": "没有标注",
+      "noneMarksInPicture": "标记是图片的一部分",
       "number": "数字",
       "numberHelp": "在线旁印出份数。",
       "offset": "偏移",

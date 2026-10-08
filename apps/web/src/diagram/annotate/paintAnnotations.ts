@@ -85,27 +85,62 @@ export function paintAnnotations(
   layers: PictureLayers | null = null,
   paint: AnnotationPaint = {}
 ): PaintedAnnotations | null {
+  const placed = placeAnnotations(annotations, box, framePx, style, layers, paint.paper ?? null);
+  return placed && { markup: placed.markup(paint), bounds: placed.bounds };
+}
+
+/**
+ * Annotations compiled and placed on a picture's frame, their markup not yet
+ * made: what they reach, and the markup made from that one compile when a
+ * surface draws them. A page measures a step's marks for its room and then
+ * draws the same marks where the picture settled (`cellPicture`): one
+ * compile serves both, where painting twice compiled and drew them twice.
+ */
+export interface PlacedAnnotations {
+  /** What they reach, in the target's units: past the frame where an arrow starts off it. */
+  bounds: PictureBox;
+  /**
+   * Their markup, as {@link paintAnnotations} makes it with `paint`'s
+   * close-up insides and text setting, from the compile `bounds` measured.
+   */
+  markup: (paint?: Omit<AnnotationPaint, 'paper'>) => string;
+}
+
+/**
+ * {@link paintAnnotations}' marks compiled on `box`, a label's halo filled
+ * by `paper`, and measured, their markup left to make when it is asked for.
+ * Null when they draw nothing.
+ */
+export function placeAnnotations(
+  annotations: readonly DiagramAnnotation[],
+  box: PictureBox,
+  framePx: number,
+  style: DiagramStyle,
+  layers: PictureLayers | null = null,
+  paper: AnnotationPaper | null = null
+): PlacedAnnotations | null {
   const frame = frameOf(box.width, box.height);
   if (!frame || !(framePx > 0)) return null;
-  const paper = paint.paper ?? null;
   const drawing = annotationDrawing(annotations, frame, framePx, style, layers, paper);
   const scene = annotationScene(drawing);
   if (!scene) return null;
   // Target units per drawing px: the frame's size there over its size here.
   const k = Math.max(box.width, box.height) / framePx;
-  const setText = paint.setText ?? ((markup: string) => markup);
-  const body = paperSceneSvgBody(scene, diagramSurfaceStyle(style), {
-    project: ([x, y]) => [box.x + x * k, box.y + y * k],
-    unitsPerPt: k * PT_TO_CSS_PX,
-    keepHiddenFaces: true,
-  });
-  const insides = paint.closeUpPicture
-    ? closeUpInsides(drawing, annotations, { box, framePx, k }, style, layers, paint.closeUpPicture, setText, paper)
-    : '';
   const reach = annotationReach(drawing);
   return {
-    markup: `<g stroke-linejoin="round">\n${insides}${setText(body)}\n</g>`,
     bounds: { x: box.x + reach.x * k, y: box.y + reach.y * k, width: reach.width * k, height: reach.height * k },
+    markup: (paint = {}) => {
+      const setText = paint.setText ?? ((markup: string) => markup);
+      const body = paperSceneSvgBody(scene, diagramSurfaceStyle(style), {
+        project: ([x, y]) => [box.x + x * k, box.y + y * k],
+        unitsPerPt: k * PT_TO_CSS_PX,
+        keepHiddenFaces: true,
+      });
+      const insides = paint.closeUpPicture
+        ? closeUpInsides(drawing, annotations, { box, framePx, k }, style, layers, paint.closeUpPicture, setText, paper)
+        : '';
+      return `<g stroke-linejoin="round">\n${insides}${setText(body)}\n</g>`;
+    },
   };
 }
 

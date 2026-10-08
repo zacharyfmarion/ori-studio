@@ -2207,6 +2207,14 @@ export interface DiagramSliceActions {
     stepId: string,
     way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string; lifted?: LiftedCard | null }
   ) => boolean;
+  /**
+   * Make Marks Editable (17e): a References step whose card's marks are in
+   * its picture shown as a fresh pull shows the card — `lifted`, its sheet
+   * and every mark — the author's marks kept, as one undo step
+   * (`makeCardMarksEditable`). `loadId` drops an edit that outlived its
+   * diagram. Whether it changed.
+   */
+  makeDiagramStepMarksEditable: (stepId: string, lifted: LiftedCard, options?: { loadId?: number }) => boolean;
   pullReferencesDiagramSteps: (
     sent: readonly SentReferencesEntry[],
     anchor: DiagramPullAnchor,

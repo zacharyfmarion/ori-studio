@@ -40,6 +40,7 @@ import type {
   DiagramPulledMarks,
   DiagramPulledMode,
   DiagramImportedMarkEdit,
+  DiagramMarksLiftedVia,
   PaperExportMarkShown,
   DiagramSourceWorkspace,
   DiagramShowAsName,
@@ -277,6 +278,16 @@ export function trackDiagramStepsPulledFromReferences(
  */
 export function trackDiagramImportedMarkEdited(kind: DiagramAnnotationTool, edit: DiagramImportedMarkEdit): void {
   track(ANALYTICS_EVENTS.diagramImportedMarkEdited, { kind, edit });
+}
+
+/**
+ * An old References step's card's marks made annotations by Make Marks
+ * Editable (17e): where it was pressed, and how many of its card's marks the
+ * step holds now — on an enlarged step, those its frame holds — bucketed.
+ * Never a mark.
+ */
+export function trackDiagramReferencesMarksLifted(via: DiagramMarksLiftedVia, count: number): void {
+  track(ANALYTICS_EVENTS.diagramReferencesMarksLifted, { via, count_bucket: bucketCount(count, COUNT_BUCKETS) });
 }
 
 /** The Diagram's view switched, by the tabs or a verb that shows the pages. */

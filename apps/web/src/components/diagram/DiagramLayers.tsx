@@ -37,6 +37,7 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 import { Badge } from '../ui/Badge';
 import { DiagramAnnotationGlyph, EnlargeGlyph, SolidArrowGlyph } from './DiagramAnnotateToolGlyph';
 import { DiagramBehindControls } from './DiagramBehindControls';
+import { DiagramCardMarksNotice } from './DiagramCardMarksNotice';
 import { DiagramColorSelect } from './DiagramColorSelect';
 import { DiagramDivisionsControls } from './DiagramDivisionsControls';
 import { DiagramLineTypeMark } from './DiagramLineTypeMark';
@@ -59,7 +60,9 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
 
 /**
  * The Layers pane's body (Zach, 2026-10-05): what is drawn on the step open in
- * Annotate, and the selected one's own controls — a notice when some were made
+ * Annotate, and the selected one's own controls — on a References step whose
+ * card's marks are still part of its picture, which the list cannot show,
+ * Annotate's notice that says so, with Make Editable (17e); a notice when some were made
  * by a newer Ori Studio, which the list leaves out; the list, in the order they
  * were drawn, a press selecting one as a press on the canvas does; and under
  * it the selected one's text, turn, type, a solid line's or a label's colour (17a, 17b), a label's
@@ -92,6 +95,15 @@ export function DiagramLayers({ step }: { step: DiagramStep }) {
 
   return (
     <div className={styles.layers}>
+      {annotations.cardMarks && (
+        <div className={styles.notice}>
+          <DiagramCardMarksNotice
+            cardMarks={annotations.cardMarks}
+            disabled={!editable}
+            onMakeEditable={() => annotations.makeMarksEditable('layers_notice')}
+          />
+        </div>
+      )}
       {annotations.unknownCount > 0 && (
         <div className={styles.notice}>
           <Notice>

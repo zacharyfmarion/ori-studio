@@ -356,6 +356,13 @@ export type DiagramPulledMarks = 'lifted' | 'baked';
 /** What an edit did to a mark a References card brought (17d): changed for the first time, or taken away. */
 export type DiagramImportedMarkEdit = 'changed' | 'deleted';
 
+/**
+ * Where Make Marks Editable was pressed (17e): the notice Annotate shows on a
+ * step whose card's marks are in its picture — in the Step pane, or over the
+ * Layers pane's list — the Step pane's Picture section, or the step card's menu.
+ */
+export type DiagramMarksLiftedVia = 'annotate_notice' | 'layers_notice' | 'step_pane' | 'card_menu';
+
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
 
@@ -725,7 +732,7 @@ export type CreasePatternFoldedFigure = 'none' | PaperExportStyleName;
 /** Which of a surface's pages an export wrote: the one on show, or every one as a ZIP. */
 export type PaperExportScope = 'this' | 'all';
 
-/** Whether a page carried one of a diagram's optional marks — a References step's letters or line highlights. */
+/** Whether a page carried one of a diagram's optional marks — a References step's letters or reference lines. */
 export type PaperExportMarkShown = 'shown' | 'hidden';
 
 /** Where a foldability check was run from. */
@@ -1313,7 +1320,7 @@ export const ANALYTICS_EVENTS = {
    * PNG. `surface` says which, `format` which file, `hidden_faces` whether the
    * buried faces were kept — the default, and the setting D4 exists for;
    * `letters` and `highlights`, for References alone, whether the step's
-   * letters and line highlights were on the page. The file service's
+   * letters and reference lines were on the page. The file service's
    * `file exported` fires too; this one carries what that chokepoint cannot
    * see.
    */
@@ -1485,6 +1492,12 @@ export const ANALYTICS_EVENTS = {
    * taken away: its kind, and which. Whether people edit what they pull.
    */
   diagramImportedMarkEdited: 'diagram imported mark edited',
+  /**
+   * An old References step's card's marks lifted into annotations by Make
+   * Marks Editable (17e): where it was pressed, and how many the step holds
+   * now (bucketed). Whether steps made before marks were lifted are converted.
+   */
+  diagramReferencesMarksLifted: 'diagram references marks lifted',
   /** A frame placed on an enlarged step by a capture (Revision 2): how, through what, by which anchor. One per step placed. */
   diagramStepEnlarged: 'diagram step enlarged',
   /** An enlarge area or an enlarged step's frame changed: moved, its Shape, Size, Edge or Anchor, or an area deleted. */

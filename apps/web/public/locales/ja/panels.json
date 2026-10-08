@@ -675,6 +675,7 @@
       "linkPattern": "パターンをリンク…",
       "lockedEditHint": "新しい Ori Studio で作成されたステップです。移動と削除はできますが、変更はできません",
       "lockedHint": "新しい Ori Studio で作成されたステップです。移動と削除はできますが、複製はできません",
+      "makeMarksEditable": "記号を編集可能にする",
       "makeRotate": "回転にする",
       "makeTurnOver": "裏返しにする",
       "missingHint": "パターンがなくなりました：別のパターンにリンクし直してください",
@@ -697,6 +698,8 @@
       "replacePicture": "図を差し替え…",
       "showAs": "表示方法",
       "startPage": "ここで新しいページを始める",
+      "tooManyMarksHint_other": "{{count}} 個の記号：1つのステップに入るのは {{max}} 個まで",
+      "tooManyMarksWithYoursHint_other": "あなたの記号を含めて {{count}} 個：1つのステップに入るのは {{max}} 個まで",
       "uploadPicture": "図をアップロード…"
     },
     "annotate": {
@@ -855,6 +858,8 @@
       "lineEnd": "終点",
       "lineStart": "始点",
       "lineType": "線種",
+      "makeEditable": "編集可能にする",
+      "marksInPicture": "このステップの記号は図の一部です。",
       "newer": "このステップの注記の一部は、新しい Ori Studio で作られています。保持されますが、ここには表示されません。",
       "nextNode": "次のノード",
       "node": "ノード",
@@ -862,6 +867,7 @@
       "nodeOf": "ノード {{number}}/{{total}}",
       "nodeType": "種類",
       "none": "注記なし",
+      "noneMarksInPicture": "記号は図の一部です",
       "number": "数字",
       "numberHelp": "線の横に分割数を印刷します。",
       "offset": "オフセット",

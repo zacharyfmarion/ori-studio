@@ -305,9 +305,39 @@ export interface AnnotationDrawing {
   labels: AnnotationLabel[];
 }
 
-/** The style an annotation's marks are drawn in: the diagram's, as References applies it. */
+/**
+ * The style an annotation's marks are drawn in: the diagram's, as References
+ * applies it. Worked out once per style, as the inks made of it are: every
+ * compile asks — a page's layout compiles a step's marks at every size it
+ * measures it at — and a diagram's style is replaced, never edited.
+ */
 function seenStyle(style: DiagramStyle): PaperStyle {
-  return applyPaperStylePolicy(diagramPaperStyle(style), PAPER_STYLE_POLICIES.references);
+  let seen = seenStyles.get(style);
+  if (seen === undefined) {
+    seen = applyPaperStylePolicy(diagramPaperStyle(style), PAPER_STYLE_POLICIES.references);
+    seenStyles.set(style, seen);
+  }
+  return seen;
+}
+
+const seenStyles = new WeakMap<DiagramStyle, PaperStyle>();
+
+/**
+ * `make(seen)`, made once per seen style ({@link seenStyle}'s, one per
+ * diagram style): the inks are worked out from its colours — the faint
+ * crease's alpha by a search over the paper's lightness — which costs more
+ * than compiling a step's marks.
+ */
+function perSeenStyle<T>(make: (seen: PaperStyle) => T): (seen: PaperStyle) => T {
+  const made = new WeakMap<PaperStyle, T>();
+  return (seen) => {
+    let value = made.get(seen);
+    if (value === undefined) {
+      value = make(seen);
+      made.set(seen, value);
+    }
+    return value;
+  };
 }
 
 /** The style's arrow ink: what a solid line with no colour of its own is drawn in (17a). */
@@ -327,13 +357,14 @@ export function calloutPen(style: DiagramStyle): number {
 const PAGE_GROUND = '#ffffff';
 
 /** The marks' colours as a References step's are given them in a file, before an annotation's own are made of them. */
-function seenInk(seen: PaperStyle): DiagramInlineInk {
-  return diagramInlineInk({
-    ...referencesPaperTokens(seen),
-    '--cp-reference-input': REFERENCE_COLORS.light.input,
-    '--bg-primary': PAGE_GROUND,
-  });
-}
+const seenInk = perSeenStyle(
+  (seen): DiagramInlineInk =>
+    diagramInlineInk({
+      ...referencesPaperTokens(seen),
+      '--cp-reference-input': REFERENCE_COLORS.light.input,
+      '--bg-primary': PAGE_GROUND,
+    })
+);
 
 /**
  * The marks' colours as attributes: the style's arrow ink, one ink on and off
@@ -345,7 +376,7 @@ function seenInk(seen: PaperStyle): DiagramInlineInk {
  * not the paper's face: there is no paper under an annotation to match, and
  * it may lie on a photo, on either face, or off the picture.
  */
-function annotationInk(seen: PaperStyle): DiagramInlineInk {
+const annotationInk = perSeenStyle((seen): DiagramInlineInk => {
   const ink = seenInk(seen);
   return {
     ...ink,
@@ -355,7 +386,7 @@ function annotationInk(seen: PaperStyle): DiagramInlineInk {
     sheet: { ...ink.sheet, front: PAGE_GROUND, back: PAGE_GROUND },
     ground: { arrow: ink.arrowhead, mark: ink.arrowhead },
   };
-}
+});
 
 /** The head a shaped fold arrow carries, by its kind. */
 const PATH_FOLD = {

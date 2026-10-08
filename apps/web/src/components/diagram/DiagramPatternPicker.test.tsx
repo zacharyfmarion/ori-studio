@@ -115,6 +115,7 @@ describe('the picker in the Picture section', () => {
         actions={actions}
         link={null}
         detailOpen={false}
+        annotating={false}
         patternOpen
         capture={null}
         picker={

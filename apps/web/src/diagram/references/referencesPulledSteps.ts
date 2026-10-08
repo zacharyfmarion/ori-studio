@@ -47,6 +47,7 @@ import { digest } from '../pictures/pictureKey';
 import { chooseStepCreases } from '../capture/captureCreases';
 import { creasesThumbnail } from '../capture/captureThumbnail';
 import { abandonOnEngineLoss } from '../capture/engineLoss';
+import { replacedEdited, undoNewest } from './cardMarksToast';
 import { liftedCardPicture } from './referencesCardMarks';
 import type { ReferencesStepWay } from './referencesStepWays';
 
@@ -288,30 +289,6 @@ function sayBaked(stepIds: readonly string[]): void {
           defaultValue_other: '{{count}} steps’ marks stay part of their pictures: there are more than a step holds.',
         })
   );
-}
-
-/** That a Replace or another way took `count` marks the author had edited (17d, RM6). */
-function replacedEdited(count: number): string {
-  return i18n.t('toasts:diagram.references.replacedEdited', {
-    count,
-    defaultValue_one: 'Replaced a mark you had edited',
-    defaultValue_other: 'Replaced {{count}} marks you had edited',
-  });
-}
-
-/**
- * Undo for a toast that says the edit just made took the author's work:
- * while that edit is still the newest, Undo takes it back, and nothing else.
- */
-function undoNewest(): { label: string; onClick: () => void } {
-  const entry = useWorkspaceStore.getState().diagramHistory.past.at(-1);
-  return {
-    label: i18n.t('toasts:diagram.references.undoReplaced', 'Undo'),
-    onClick: () => {
-      const now = useWorkspaceStore.getState();
-      if (entry !== undefined && now.diagramHistory.past.at(-1) === entry) now.undoDiagram();
-    },
-  };
 }
 
 /**
