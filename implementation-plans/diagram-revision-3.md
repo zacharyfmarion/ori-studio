@@ -1,0 +1,1426 @@
+# Diagram, Revision 3: stars, shapes, short divisions, an eye, X-ray
+
+**Status: planned 2026-10-08. Nothing is built. Every decision (R3-1 to
+R3-27, some split into lettered parts so that each is one choice) is
+PENDING.** Phase 18 of `implementation-plans/diagram-workspace.md`, after
+Phase 17 (`implementation-plans/diagram-references-annotations.md`). It is
+built on `claude/diagram-revision-3`, stacked on #436
+(`claude/diagram-workspace-plan-ceb4f2`), cut at 568e02a60, which already
+has #442 (References marks) merged. Whether X-ray comes in this PR or in a
+second one stacked on it is R3-27. It is built by hand, phase by phase, as
+Revision 2 was. Paths are under `apps/web/src/` unless they say otherwise.
+Line numbers are at 568e02a60.
+
+**Files outside the repository.**
+
+- **Zach's crane** is `~/Documents/open source/origami-designer/test_files/diagrams/crane.osf`,
+  the copy Revision 2's scripts open (`artifacts/revision-2/spike/common.mjs:14`).
+  Zach still edits it: it was 2.49 MB at 16c and is 2.81 MB now. 18.0 copies
+  it into `artifacts/revision-3/crane.osf`, and every comparison in this plan
+  ("the crane") is against that copy. His heart, chipmunk and Reference
+  Diagrams sit in the same folder.
+- **Artifacts** are gitignored. This plan's go in `artifacts/revision-3/` of
+  this worktree (`.claude/worktrees/diagram-revision-3/`). Revision 2's,
+  whose scripts 18.0 reuses (`spike/common.mjs`, `16c/paperFacesBudget.mjs`),
+  are in #436's worktree,
+  `.claude/worktrees/diagram-workspace-plan-ceb4f2/artifacts/revision-2/`;
+  this worktree has no copy.
+
+The decisions, as things to try (built in "Before 18a"):
+
+- `artifacts/revision-3/revision-3-marks.html`: every mark's options at
+  print size, on white, on grey and on the samples' paper, beside the note's
+  pictures. A "Copy picks" text names each decision by its number and
+  letter, one pick to a line.
+- `artifacts/revision-3/xray-spike/`: the X-ray spike's renders (18.0) of
+  Zach's crane, which the prototype shows.
+
+**How the text reads.** As in Revision 2. The parts are written as they
+would be built under the recommended options. Where the text depends on a
+decision, it names it, as "(R3-4 C)", and that decision says what another
+option would change.
+
+## Goal
+
+Zach's Diagramming note (`Oristudio/Diagramming.md` in his notes), section
+"Revison 3", read on 2026-10-08. Quoted as written, with the pictures
+between the lines left out:
+
+> I want to be able to draw stars, either outlines or filled in
+>
+> * I want the ability to create arbitrary shapes (rectangle, circle). Example of a diagram using ovals:
+>
+> * For equal lengths, there should be an option to not draw lines for the interior segments that show the divisons, and just have them be dashes instead of being drawn all the way down the the source line. Somtimes having them drawn interfers with actually showing the crease, as in this case:
+>
+> * Also for equal lengths, everything should be drawn in the width of the aux crease, its too thick rn
+>
+> * I want to be able to add an X-ray view, which allows for showing layers underneath the top layer. You specify the number of layers you want to drill into and it shows the result.
+>
+> I want to be able to draw a stylized eye
+
+His pictures, measured:
+
+- **Star** (`Diagramming-1791483020299`, step 12 of a Japanese-style
+  diagram). A small solid five-pointed star sits on a crease, where the
+  crease from the top corner passes through its centre. A dashed line runs
+  right from it. It has no ring and no halo, and it covers the crease under
+  it. It is about the size of an arrowhead.
+- **Ovals** (`Diagramming-1791481514199`, "Turtle" step 41, captioned
+  "Repeat 36-40 on the other five areas."). Five upright ellipses, about
+  0.75 wide to 1 high, ring the five areas still to fold. They are black
+  outlines with nothing inside, about the edges' weight, and lie over the
+  creases with no knockout. The area already folded is not ringed.
+- **Equal divisions** (`Diagramming-1791481939064`, Zach's own canvas, the
+  mark selected). A diagonal in three parts, its dimension line set well
+  off it into the paper. The first interior divider runs from the diagonal
+  along the dashed valley line it locates, and draws over it. The dividers
+  and ticks are visibly heavier than the dimension line.
+- **X-ray** (`Diagramming-1791483201873`, a folded model). The caption is
+  cut off, but a fragment shows, "...and closed sinks can be indicated by",
+  so this is a convention for a closed sink. A circle is cut into the front
+  flap. Inside it the front layer is gone, and a strip of the paper's other
+  colour shows, with the sunk layers' lines in an M down it and a line down
+  its middle. At this size those lines could be edges or creases. The rim
+  is the edges' weight or a little more. Nothing removed is drawn dotted.
+- **Eye** (`Diagramming-1791483257858`). A profile eye: two straight lids
+  meeting at a point on the right, a cornea arc closing the open left side,
+  a small iris arc inside it. Thin lines, outline only. It looks left.
+
+So:
+
+1. **Equal divisions** (a fix and an option). Every stroke in the aux
+   crease's width. And a switch that draws the interior dividers as short
+   strokes across the dimension line, not down to the measured line.
+2. **Stars**, filled or outlined, on a point.
+3. **The eye**, placed and turned to say where the next view is from.
+4. **Shapes**: ovals and rectangles round an area (R3-10a: no other shape
+   yet).
+5. **X-ray**: a window that shows the picture without its top N layers.
+
+Revision 2's "Before merging" and "Sidelined" sections are not part of
+this plan. Neither is the "Repeat symbols" item in the workspace plan's
+Later list. The turtle's ovals are a use of a plain shape; a repeat symbol
+with a count and a link to the steps it repeats is its own feature.
+
+## Approach
+
+### Common ground
+
+- **Pens.** The Diagram preset (`lib/paper/paperPresets.ts:49-59`) draws
+  edges at 0.5 pt, aux creases at 0.25 pt and arrows at 0.75 pt, all in
+  #231f20. The ring pen (`markRingWidth`, `labelLayout.ts:130`) is ¾ of the
+  arrow pen, 0.5625 pt. It draws a Circle, a close-up's ring, an enlarge
+  area's outline and a callout's line. The edges' pen draws an enlarged
+  step's cut (`zoomEdgePen`, `zoom/paintZoomed.ts:131`). The Default preset
+  has 0.5 pt grey aux creases, 1.05 pt arrows and a 0.7875 pt ring
+  (`lib/paper/paperStyle.ts:177-181`). Since Zach's ink review of 16a
+  (2026-10-06), the right angle draws in the aux pen's width and the marks'
+  ink (`rightAnglePen`,
+  `cp-workspace/references/stepDiagramGeometry.ts:2601`). 1 ink is
+  0.331 mm (`ANNOTATION_INK_MM`). Which pen each new mark takes is one
+  rule, R3-26.
+- **Kinds.** Five new kinds: `star`, `eye`, `oval`, `rectangle` and
+  `x-ray`, and three new shape classes in `ANNOTATION_SHAPES`
+  (`diagram/annotate/annotationModel.ts:91`): `sight` (the eye), `area`
+  (oval and rectangle) and `x-ray`. A star is a `point`. Each kind is a
+  compile error at every exhaustive switch until it says what it does: the
+  kind union (`diagram/document/diagramDocument.ts:607`),
+  `ANNOTATION_SHAPES`, `ANNOTATION_FIELDS`
+  (`diagram/document/diagramFile.ts:1062`), the writer, `flipsOver`,
+  `kindFromOtherSide`, the rail's records (`annotateTools.ts:170`, `:208`)
+  and the analytics record (`annotationEventKind.ts`).
+- **Kinds the compiler does not check.** These places test the kind by
+  hand, so a new kind falls through them silently. Each gets a test that
+  fails before its change:
+  - `markExtent` (`diagram/zoom/stepView.ts:166`) decides which marks an
+    enlarged step's window holds and which are badged. It knows a
+    close-up's rings, an enlarge area's outline and a `radius`; anything
+    else is its points. A shape or an x-ray has `from` and `to` on its
+    centre, so one reaching into a window from outside could be dropped or
+    badged wrongly. Shapes and x-rays give it their outline's box.
+  - `readAnnotationOfKind` (`diagramFile.ts:1156`):
+    `isPointKind(kind) || kind === 'zoom'` decides whether `to` is read
+    from the file or set to `from`. A star is a point kind. Shapes and
+    x-rays join `zoom` here.
+  - `placedByClick` (`annotationModel.ts:1293`) puts a standard size down
+    on a click for `shape === 'zoom'` only. `area` and `x-ray` join it.
+  - `applyAnnotationEdit` (`diagram/annotate/applyAnnotationEdit.ts:36`,
+    `:55`) counts deleted enlarge areas, by `kind === 'zoom'`, for
+    `diagram enlargement changed`. It stays `zoom` only: deleting a shape or
+    an x-ray is not an enlargement event.
+  - The anchor's plumbing is `zoom` only: `useAnchorPick.ts:58` and `:66`,
+    and the canvas's area drag (`useAnnotateCanvas.ts:1380-1394`), with its
+    undo label "Change enlarge area" and its event. X-ray, Layers, says what
+    changes.
+  - The hit order (`annotationHit.ts:839-845`): its `under` set and its
+    `drawn` list are filtered by kind.
+  - The grips' moves. The `corner` grip's move runs the right angle's
+    `opening()` (`useAnnotateCanvas.ts:971-974`), and the `direction`
+    grip's placement searches for a right angle's openings when the kind
+    snaps (`:717-720`). The eye uses neither (The eye, Selected).
+- **Glyphs and areas.** A star and an eye are fixed-size glyphs. They
+  become shared References primitives (a `mark`), as the right angle and
+  equal divisions are: the type in `referenceFinderDiagramToPrimitives.ts`,
+  the drawing in `diagram/DiagramPrimitives.tsx`, the reach in
+  `diagram/markReach.ts` (whose `never` default forces it),
+  `fold/foldSymbolFade.ts` and `referenceFinderStepInModel.ts`, all under
+  `cp-workspace/references/`. References never emits them, so its parity is
+  untouched. Both are drawn as paths, never as a ★ character, so a PDF does
+  not depend on a font having the glyph. Ovals, rectangles and x-ray
+  windows are areas. They are kept in lists of their own in
+  `AnnotationDrawing` (`annotationPrimitives.tsx:659`): shapes painted where
+  R3-11d puts them, an x-ray's rim with the enlarge areas' outlines. They
+  reuse the enlarge area's grips (`diagram/zoom/zoomGrips.ts`), its
+  corner-to-corner drag (`zoomAreaFromCorners`, `zoomModel.ts:180`) and its
+  carry (`carryZoom`, `annotationModel.ts:1714`). They do not reuse the
+  `zoom` kind or `DiagramZoomShape`: Enlarge's Shape row offers that union
+  (`components/diagram/DiagramZoomControls.tsx:44`).
+- **The file.** New kinds and fields follow the newer-build rule
+  (`diagramFile.ts:1062-1086`, `:1153`). A build before Revision 3 keeps
+  them verbatim and does not draw them. A divisions mark with the new field
+  becomes, whole, a newer build's mark there. `DIAGRAM_FORMAT_VERSION`
+  stays 1; the Diagram is unreleased (#436 is open). After every phase, the
+  crane loads with every mark known and saves back byte-identical.
+- **Every surface.** Marks are painted through `annotationMarks`
+  (`annotationPrimitives.tsx:1055`) and `paintAnnotations.ts`, so they reach
+  every surface that draws a step's marks:
+  - the Annotate canvas;
+  - the step cards (`annotatedStepUrl`,
+    `pictures/useStepPictureUrl.ts:198-213`), and an enlarged step's card
+    (`zoomedCardPicture`, `zoom/paintZoomed.ts:300`);
+  - Pose's ghost of the marks: the card at `POSE_ANNOTATION_OPACITY`
+    (`components/diagram/DiagramStepDetail.tsx:171-172`; under an opacity
+    below 1 nothing is painted inside a close-up, only its ring), and the
+    live 3D and simulated ghosts (`poseGhostMarkup`,
+    `zoom/paintZoomed.ts:503`, in `DiagramPose3dView.tsx:130` and
+    `DiagramPoseSimulatedView.tsx:82`);
+  - the pages, through `cellPicture` (`pages/pagePictures.ts:511`) inside
+    `composeDiagramPage`: the page view, print, the PDF
+    (`export/diagramPdf.ts`) and the one-sheet SVG
+    (`export/diagramSheet.ts`);
+  - the ZIP's step files (`export/stepFiles.ts`), through `cellPicture`,
+    cropped by `annotationReach`.
+
+  A star, an eye or a shape is on all of them by being a mark. An x-ray's
+  inside is painted by each surface's own painter, as a close-up's is
+  (X-ray, Surfaces). `annotationReach` (`annotationPrimitives.tsx:849`) is
+  what Fit each and step files crop by. The compiler does not check it for a
+  list of its own, so shapes and x-rays each get a reach test.
+- **Analytics.** `diagram annotation added` gains the tools `star`, `eye`,
+  `oval`, `rectangle` and `x_ray` (`analytics/events.ts:77`,
+  `docs/analytics.md:347`). A star also sends `fill`. One new event,
+  `diagram mark styled` (`kind`, `option`, `value`), counts the new
+  per-mark options changed in Layers: Short Dividers, a star's Fill, an
+  x-ray's Depth and Anchor. Enums and buckets only, never a place or a size.
+  An x-ray's edits never send `diagram enlargement changed`.
+- **i18n.** Tool names in `tools:diagram.*`, help in
+  `panels:diagram.annotate.*`, rows in `panels:diagram.annotations.*`.
+  English is extracted, eight locales translated, stamped and checked. A
+  count in a sentence is a `{{count}}` plural key: `_one` and `_other`, and
+  Russian's `_few` and `_many`, in all nine catalogs.
+- **Decisions** are numbered R3-1 to R3-27 and grouped by part, the shared
+  ones last. A decision that held several choices is split into lettered
+  parts (R3-11a to R3-11d), so each pick is one line in "Copy picks". All
+  are PENDING.
+
+### Order
+
+- **18.0, the X-ray spike** (nothing merges). It runs first, or alongside
+  18a, so Zach decides X-ray on renders of his own crane.
+- **Before 18a**: the prototype, and Zach's answers.
+- **18a, equal divisions.** The aux-pen commit needs no decision and may
+  land before Zach answers. Short Dividers waits for R3-1 to R3-3.
+- **18b, stars**, then **18c, the eye**: both fixed-size glyphs on the same
+  path, the star first.
+- **18d, shapes**: new outline geometry on the enlarge area's machinery.
+- **18e, X-ray: model, canvas, tool and Layers**, then **18f, X-ray on every
+  other surface**: last, and only if 18.0 passes. If it fails, X-ray leaves
+  this plan for one of its own, and the rest lands without it. Under
+  R3-27 B they are a second PR, stacked on this one.
+
+The phases share `annotateTools.ts`, `annotationHit.ts`,
+`annotationPrimitives.tsx`, `DiagramAnnotateCanvas.tsx`,
+`DiagramAnnotateToolGlyph.tsx`, `diagramFile.ts` and the catalogs, so they
+land one at a time, each rebased on the last.
+
+### 1. Equal divisions: the aux pen and short dividers
+
+#### The aux pen (the fix)
+
+The note settles this one: "everything should be drawn in the width of the
+aux crease". Today the dimension line is in the aux pen already. The
+dividers and ticks are in the ring pen
+(`DIAGRAM_DIVISIONS_INK.pens = { line: 'crease', marks: 'ring' }`,
+`cp-workspace/references/diagram/diagramInk.ts:180`, ED9 B), and
+Annotate's projector loads the style's aux pen as `crease`
+(`annotationPrimitives.tsx:642-644`). So in the Diagram preset the dividers
+and ticks are 0.5625 pt beside a 0.25 pt line. In the Default preset they
+are 0.7875 pt beside 0.5 pt.
+
+What changes, and nothing else:
+
+- **Every stroke in the aux pen's width**: the line, the dividers and the
+  ticks. `rightAnglePen`, which reads `project.pens.aux`, is renamed
+  `auxMarkPen` and drawn by both marks. The line is drawn in `pens.crease`
+  today. The two are one pen wherever a style gives an aux pen
+  (`canvasDiagramPens`, `diagramInk.ts:392-409`) and in the table (0.75 ink
+  each), so the line does not change in either preset. Dividers and ticks
+  go from 0.5625 to 0.25 pt in the Diagram preset, and from 0.7875 to
+  0.5 pt in the Default.
+- **The ink stays the marks'** (`ink.mark`). This follows Zach's 16a ink
+  review, which put the right angle in the aux pen's width and kept the
+  marks' ink, because the Default preset's grey aux would make the mark read
+  as a crease (`diagram-revision-2.md`, RA5, revised 2026-10-06). It is the
+  same call for the other mark the note puts in the aux pen. If divisions
+  should take the aux ink instead, that is a word from Zach.
+- **One pen, so one path.** `DivisionsPen` (`diagramInk.ts:184`) and the
+  table's `pens` go. `DivisionsDrawn.pens` becomes `pen`
+  (`stepDiagramGeometry.ts:2843-2880`). `divisionsPathData` returns one
+  `d`. `DiagramPrimitives.tsx:975` draws one `<path>`. `markReach.ts:209`
+  pads every stroke end by half the one pen.
+- **The crowding floors keep their printed size.** `spacingFloor` stays
+  two ring pens. `divisionsDrawn` takes it from `pens.marks` today
+  (`stepDiagramGeometry.ts:2874`); with `pens` gone it reads
+  `markRingWidth(project)` directly. So "Too many parts to print clearly"
+  warns exactly where it does today. The hit-test twin
+  (`annotationHit.ts:599`) measures it that way already; only its table
+  lookup goes.
+- **The count** stays as it is unless R3-3 says otherwise.
+- **Comments** that name ED9's pens are rewritten: `diagramInk.ts:157-159`,
+  `stepDiagramGeometry.ts:2849-2857`, `annotationPrimitives.tsx:642`,
+  `DiagramPrimitives.tsx:976-978`, `markReach.ts:210-212`.
+- **Existing diagrams.** Every divisions mark reprints lighter, which is the
+  point. Its reach shrinks by a few hundredths of a millimetre at each
+  stroke end. A step whose Fit-each scale its divisions set can print a
+  hair larger, so pages are compared for reflow.
+- **Goldens** re-recorded and checked by eye:
+  `diagram/annotate/__fixtures__/divisionsGolden.json` with
+  `divisions.test.ts`; `diagramInk.test.ts`, `stepDiagramGeometry.test.ts`,
+  `paintAnnotations.test.ts`.
+- `diagram-revision-2.md`, ED9: marked "Revised by Revision 3".
+
+#### Short dividers
+
+ED4 A runs every divider from the measured line to 1.65 mm past the
+dimension line. Its option C, short interior dividers, was not taken. The
+note's screenshot shows why it is wanted now: when the mark sits on the
+same side as the fold it locates, an interior divider draws over that fold.
+
+- **Model.** `shortDividers?: true`, only ever written true. Unsaid, the
+  dividers are full, as every mark's are now (R3-1 A).
+- **Geometry.** `DivisionsLook` gains `shortDividers`. In `divisionsShape`
+  (`stepDiagramGeometry.ts:2793`), dividers 1 to parts − 1 run from
+  `offset − overshoot` to `offset + overshoot`: 1.65 mm either side of the
+  line (R3-2 A). The two end dividers run to the measured line as today, so
+  the mark stays tied to its line. At an offset of 1.65 mm or less, every
+  divider already straddles the line this way, so the switch changes
+  nothing there.
+- **Snapping does not change.** The division points on the measured line
+  stay snap targets, so a Line still lands on the first third, though no
+  divider reaches it.
+- **File.** `ANNOTATION_FIELDS.divisions` gains the field. It is read as
+  `numbered` is (`diagramFile.ts:1271`): unsaid or false is off, true is
+  on, anything else is damage.
+- **Model code.** `cleanDivisions` (`annotationModel.ts:642`) keeps it only
+  when true. `divisionsFootprint` (`:687`) is untouched: no flip changes
+  it. The primitive gains the field
+  (`referenceFinderDiagramToPrimitives.ts:222-231`). The compile
+  (`annotationPrimitives.tsx:525`) and the hit-test twin
+  (`annotationHit.ts:593`) pass it on.
+- **Layers.** A Short Dividers switch under Number in
+  `DiagramDivisionsControls`, with the help "Draw the dividers between the
+  ends as short strokes across the line." It is one undo step through
+  `useStepAnnotations` (`setShortDividers`, beside `setNumbered`).
+- **Carry, flip, Flip (F), paste and enlarged steps** do not change. The
+  flag goes wherever the mark goes; a same-step paste still stacks 2.5 mm
+  further out (ED12).
+- **Analytics.** `diagram mark styled` with `kind: divisions`,
+  `option: short_dividers`, `value: on | off`. This is the event's first use.
+- **i18n.** The row's label and help.
+
+#### Decisions: equal divisions (all PENDING)
+
+**R3-1. How is Short Dividers offered? PENDING.**
+- A. A switch on each mark in Layers, off for every mark, new ones
+  included. Unsaid in the file means off, so every diagram draws as it does
+  now.
+- B. The same switch, on for new marks: Equal Divisions lays short dividers
+  from now on, and old marks keep full ones.
+- C. Always short, with no switch. ED4 A's full dividers go.
+- **Recommended: A.** The note asks for "an option". ED4 chose full
+  dividers because Revision 2's sketch draws them, and a divider that
+  reaches the line says which point of it it marks. That still holds
+  wherever nothing runs under the divider. B changes what the tool lays
+  without being asked; C removes the sketch's look.
+
+**R3-2. How long is a short divider? PENDING.**
+- A. 1.65 mm either side of the dimension line: the end dividers' overshoot
+  past it, so every divider's outer end lines up. It is the template's
+  |\|\| symbol, which any offset under 1.65 mm already draws.
+- B. A tick's length, 1 mm either side, square to the line.
+- C. Only past the line, 0 to 1.65 mm out, away from the measured line.
+- Not offered: the full divider drawn dashed. "Dashes" could be read that
+  way, but a dashed stroke running into the paper reads as a valley line,
+  the very kind of line the switch is there to keep clear. The prototype
+  shows it beside the others so the reading is seen and set aside.
+- **Recommended: A.** One length for the outer half of every divider, and
+  the switch then draws the symbol ED4 draws at no offset. B is easily
+  read as a fourth tick. C reads as a ruler's graduations.
+
+**R3-3. The count's weight. PENDING.**
+- A. As now: bold, 2.4 mm. It is lettering, not a stroke.
+- B. Regular weight, to sit with the thinner strokes.
+- **Recommended: A**, judged on the prototype. "Too thick" is about the
+  strokes. Thin regular digits beside 0.25 pt strokes are faint on a grey
+  paper side.
+
+### 2. Stars
+
+A star names a point. Japanese diagrams use a solid ★ and an outlined ☆
+as a pair, as in "bring ★ to ☆", or to carry the same point across steps.
+That usage is from general knowledge and Zach's sample; no source on it was
+checked. Lang labels points with letters instead. His "Origami Diagramming
+Conventions" (langorigami.com) was checked on 2026-10-08 through a fetch
+that summarizes the page, not read in full: Part I's example is "fold flap
+A to point C", and no part mentions a star.
+
+- **Model.** Kind `star`, a point kind (`ANNOTATION_SHAPES` `point`,
+  `POINT_KINDS`): `from` is its centre, and `to` is written as it again.
+  `fill?: 'black'` is the white arrow's field with the same meaning
+  (`diagramDocument.ts:864`): `'black'` is filled with ink, and unsaid is an
+  outline whose inside is the page's white (R3-5 A).
+- **File.** `ANNOTATION_FIELDS.star` = `fill`, read by `readFill`
+  (`diagramFile.ts:1415`). Any other fill value is a newer build's.
+- **Drawing.** A primitive `{kind: 'star', at, fill}`, its `fill` `white`
+  or `black` as a white arrow's primitive has it
+  (`annotationPrimitives.tsx:476-490`). `starDrawn(at, project)` in
+  `stepDiagramGeometry.ts` gives a regular five-pointed star, one point up,
+  its inner radius 0.382 of its outer. `DIAGRAM_STAR_INK` in
+  `diagramInk.ts` sets the outer radius at 4.5 ink, 3 mm across (R3-6a A).
+  It stands upright on the page however the picture turns or mirrors
+  (R3-6b A). Filled, it is a filled path in `ink.mark`. Outlined, its
+  inside is the page's white and its outline is in the ring pen (R3-26 A),
+  with mitred tips. It is drawn on and off the paper (`onAndOffPaper`).
+- **Tool.** Star, in Marks after Circle, key K (R3-25 A). Click a point. It
+  snaps as a Circle does, ⌘ puts it down anywhere, and the Snap switch
+  turns snapping off (R3-24 A). While Star is in hand, a Fill control sits
+  under the Marks group, as Text Style sits under Text for the Label tool
+  (R3-4 C): Filled or Outline, drawn as small stars, remembered as Line
+  Type is (`diagramAnnotateStarFill` in `store/settingsStore.ts`). It starts
+  at Filled. The tool stays in hand. Help: "Click a point to mark it with a
+  star." The ⌘ line reuses `circleFreeKey`.
+- **Selected**, it shows a ring round it, as a Circle does
+  (`DiagramAnnotateCanvas.tsx:331`), and is dragged whole, snapping as when
+  it was put down.
+- **Snap target.** Its centre is a `point` target, as a Circle's is
+  (`pictureSnap.ts:130-160`), so the sample's dashed line starts on it.
+- **Hit.** Inside its outer radius, plus half a pen.
+- **Layers.** The row's glyph is a star in its own fill. Selected, a Fill
+  row (Filled | Outline, drawn as stars), in a new `DiagramStarControls`
+  on the white arrow's pattern (`DiagramWhiteArrowControls.tsx:12`).
+- **Carry.** The centre moves with the face under it; the glyph stays
+  upright. No Flip row (`flipsOver` false, as for a Circle). Turn Over keeps
+  it as it is. A paste lands `PASTE_OFFSET` down and right. On an enlarged
+  step it keeps its print size, and a copy into the window lands at the
+  same place on the picture (Revision 2, decision 7).
+- **Pages.** It is a `mark` primitive, so every surface draws it, and
+  `markReach` takes its tips, mitred, as far as their ink reaches.
+- **Analytics.** `tool: star` with `snap`, and `fill` (`filled` |
+  `outline`). A Fill change sends `diagram mark styled`.
+- **i18n.** Tool name, help, the Fill row and its two options, the rail
+  control's label.
+
+#### Decisions: stars (all PENDING)
+
+**R3-4. How is filled or outlined chosen? PENDING.**
+- A. One Star tool that lays a filled star, as the sample's is, and a Fill
+  row in Layers to make it an outline.
+- B. Two tools, Star and Outline Star, as the Solid Arrow pairs with the
+  White Arrow.
+- C. One Star tool with a Fill control (Filled | Outline) on the rail while
+  it is in hand, remembered as Line Type is, and the same Fill row in Layers.
+- **Recommended: C.** ★ and ☆ are used as a pair, so both often go on one
+  step. C lays each with one click and no trip to Layers, for one rail slot.
+  A doubles the work for every outline star. B costs two slots and two keys.
+  C departs from the code's own precedent: a fill is chosen today by tool,
+  the Solid Arrow being a second tool that lays a white arrow with
+  `fill: 'black'` (`SOLID_ARROW`, `annotateTools.ts:37-42`; `drawingKind`,
+  `:91`). C also adds a saved setting, `diagramAnnotateStarFill`. If C is
+  taken, White Arrow and Solid Arrow could later become one tool with the
+  same control; that is not in this revision.
+
+**R3-5. What is inside an outlined star? PENDING.**
+- A. The page's white, as a white arrow's and a hollow push's insides are.
+  Lines under it stop at its outline.
+- B. Nothing: the lines under it show through.
+- **Recommended: A.** A star usually sits on a crossing. Under B the
+  crossing's lines run through it and it stops reading as a star. On a
+  References step's coloured face it is still white, as a white arrow is.
+
+**R3-6a. A star's size. PENDING.**
+- A. One print size, about 3 mm across.
+- B. Three sizes (Small, Medium, Large), as a white arrow has widths.
+- **Recommended: A**, judged on the prototype beside the sample. Every
+  point mark is one print size.
+
+**R3-6b. Does a star turn with the picture? PENDING.**
+- A. No: it stands upright on the page however the picture turns or
+  mirrors, as the ticks' lean does. It is notation.
+- B. Yes: it turns and mirrors with the picture, as the paper under it does.
+- **Recommended: A.** Turned with a quarter-turned picture a star lies on
+  its side, and turned half way it stands on a point; neither is how ★ is
+  printed.
+
+### 3. The eye
+
+Lang's "next view from here" is in Part VI of his conventions (checked as
+in Stars, through a summary): "a stylized eye" placed where the observer
+stands. The text, as summarized, does not say which way it faces or whether
+an arrow goes with it, and its figure (Figure 42) was not seen. The note's
+eye is described above; its open side faces the way it looks. The Origami
+House template (`~/Documents/art/origami/misc/origami_house_template.svg`,
+Zach's own reference) draws it with curved lids, a white fill, a solid
+crescent iris and a short solid arrow, 4.5 × 5.2 mm at 0.75 pt. Montroll's
+form was not checked.
+
+- **Model.** Kind `eye`, in a new shape class, `sight`. `from` is the eye's
+  centre. `to` is a point along the way it looks, only its direction read,
+  as a right angle's `to` is (`diagramDocument.ts:792-800`). `to` is kept
+  `EYE_REACH` from `from`, as `RIGHT_ANGLE_DIAGONAL` is
+  (`annotationModel.ts:323`), so a carry never sends it out of reach. It has
+  no other field. It is not `corner`: `isCornerKind` would run the right
+  angle's corner search on a click (`createAnnotation`, `:1333`).
+- **File.** No fields past the base ones. A `to` on `from` is damage.
+- **Drawing.** A primitive `{kind: 'eye', at, toward}`. `eyeDrawn(at,
+  toward, project)` draws the lids, the cornea arc and the iris arc as one
+  path (R3-7 A), turned so its open side faces `toward`. The glyph is
+  symmetric about the way it looks, so it is never mirrored as a glyph. Its
+  direction is measured after projecting, so a mirrored picture turns it
+  with the paper. `DIAGRAM_EYE_INK` sets it about 5 mm long (R3-9a A), in
+  the aux pen (R3-26 A), in `ink.mark`, with no fill.
+- **Tool (R3-8 A).** Eye, in Marks after Equal Divisions, key Y (R3-25 A).
+  Drag from where the viewer stands toward what they look at. Shift holds
+  the direction to 15° steps, as a handle's turn. A click lays it looking
+  toward the picture's middle. It is put down freely, as a sign is
+  (R3-24 A). Help: "Drag from where the viewer stands toward what they look
+  at, or click to look at the middle."
+- **Selected**, a press on the glyph drags it whole (`body`), and a dot
+  ahead of it turns it: a new grip part, `look`, placed by a new
+  `eyeGrips`. Its move sets `to` back to `EYE_REACH` and takes Shift's 15°.
+  It is not the right angle's `corner` or `direction` (Common ground, Kinds
+  the compiler does not check): `corner`'s move would square the mark into
+  a right angle's opening, and `direction` would keep `to` wherever the
+  pointer let go.
+- **Hit.** By the glyph's reach, the turn-over's pattern
+  (`annotationHit.ts:735`).
+- **Layers.** The row, and the Flip row (Horizontal, Vertical) about its
+  centre (R3-9b A): `flipsOver` true, `flipCentre` its `from`. No rows of
+  its own.
+- **Carry.** The generic branch turns it with the picture, and a mirror
+  reflects the way it looks; `to` is set back to `EYE_REACH` after. Turn
+  Over mirrors its direction with the paper. A paste is offset. On an
+  enlarged step it keeps its print size.
+- **Analytics.** `tool: eye`, `snap: none`.
+- **i18n.** Tool name, help, the Shift line.
+
+#### Decisions: the eye (all PENDING)
+
+**R3-7. Which eye? PENDING.**
+- A. The note's: straight lids meeting at a point behind, a cornea arc
+  across the open side and a small iris inside it. Outline only, no arrow.
+- B. The template's: curved lids crossing behind, a white fill, a solid
+  crescent iris, and a short solid arrow the way it looks, about 9.8 mm in
+  all.
+- C. A, with an Arrow switch in Layers, off by default, that adds B's arrow.
+- **Recommended: A.** It is the eye the note draws, and its open side
+  already says which way it looks. C can follow if a step needs the arrow.
+
+**R3-8. How is it placed and turned? PENDING.**
+- A. Drag from the viewer toward what they look at, at any angle, Shift for
+  15° steps. A click looks toward the picture's middle. Selected, it is
+  dragged by its glyph, and a dot ahead of it turns it.
+- B. A click lays it looking left; Layers offers eight directions.
+- **Recommended: A.** A view direction is set by eye, and B's eight
+  directions miss an isometric view's 30° and 60°.
+
+**R3-9a. The eye's size. PENDING.**
+- A. One print size, about 5 mm long. The template's eye alone is
+  4.5 × 5.2 mm.
+- B. Three sizes (Small, Medium, Large).
+- **Recommended: A**, judged on the prototype beside the note's eye. Every
+  glyph mark is one print size.
+
+**R3-9b. Does the eye have a Flip row? PENDING.**
+- A. Yes, Horizontal and Vertical about its centre, and Flip (F): one
+  click turns a left-looking eye to look right.
+- B. No: it is turned only by its dot. The glyph is symmetric about the
+  way it looks, so a flip is only ever a turn.
+- **Recommended: A.** Looking the other way is the common change, and F
+  already does it for every mark that has a way it points.
+
+### 4. Shapes: ovals and rectangles
+
+The turtle's ovals say where a repeat applies. They are marks sized to an
+area. A Circle (`circle`, key O) is a fixed ring about 2 mm across round a
+point; an enlarge area marks what a later step shows enlarged. Neither is
+this.
+
+- **Model.** Two kinds, `oval` and `rectangle` (R3-10a A, R3-10b A), in the
+  new shape class `area`. `from` is the centre, and `to` is written as it
+  again. `size: [w, h]` in picture units, always written, so a shape rings
+  the same part of the picture at any print size. `angle?` in degrees
+  clockwise is written only by a carry that turns it, as an enlarge area's
+  is (R3-11c A: no turn handle).
+- **File.** `ANNOTATION_FIELDS.oval` and `.rectangle` = `size`, `angle`,
+  read as the enlarge area's are in `readAnnotationOfKind`'s `zoom` case;
+  `to` is set to `from`, as for `zoom` (`diagramFile.ts:1156`).
+- **Geometry.** A new pure module, `diagram/annotate/areaOutline.ts`: an
+  ellipse's and a square-cornered rectangle's outline points and rim
+  distance, turned by `angle`. An ellipse's rim distance has no closed
+  form; a few Newton steps find it. The circle and rounded rectangle stay
+  in `zoomModel.ts`.
+- **Drawing.** A list, `areas`, drawn as `<ellipse>` or `<rect>` turned by
+  `angle`. The ring pen (R3-26 A) and `ink.mark`, no fill (R3-11a A) and no
+  casing, since the sample's ovals lie over the creases. They are painted
+  under every line and mark drawn on the step (R3-11d B): before
+  `drawing.lines` in `DiagramAnnotationLayer.tsx:61-67`, and first among
+  `paintAnnotations.ts`'s items. `annotationReach` takes each outline's
+  extent plus half its pen, and a test fails if the list is left out.
+  `markExtent` takes the outline's box.
+- **Tool.** Oval and Rectangle, in a new Shapes group after Marks, keys
+  Shift+O and R (R3-25 A). Drag from corner to corner; Shift makes a circle
+  or a square; Alt draws from the middle, as Enlarge in Frame does. A
+  click puts down a standard size, as an enlarge area's click does
+  (`placedByClick`). Shapes are put down freely (R3-24 A). The tool stays
+  in hand. Help: "Drag from corner to corner round an area to ring it." The
+  Shift and Alt lines reuse Enlarge in Frame's.
+- **Selected**, it has a rounded rectangle's grips from `zoomGrips`: the
+  centre's dot moves it, and four corners and four edges resize it, Shift
+  keeping its aspect and Alt about its centre. An oval is held by its
+  box's. A press on the outline away from a grip moves it.
+- **Hit.** The rim only, pressed in the `under` order beside close-ups and
+  enlarge areas (`annotationHit.ts:840`), so the marks inside stay
+  pressable. A press inside an oval selects what is under the press.
+- **Layers.** The row, with a glyph by kind. No rows of its own under the
+  recommendations.
+- **Carry.** `carryZoom`'s math, pulled out as `carryArea` and shared: the
+  centre goes with the face under it, the size by the move's scale, the
+  angle by its turn, and a mirror negates the angle. No Flip row, as for an
+  enlarge area: an upright oval or rectangle flips onto itself. Turn Over
+  carries it the same way. A paste is offset. Copied into an enlarged
+  step's window it grows with the window, so it rings the same part of the
+  picture. On an enlarged step a shape reaching out of the frame is drawn
+  whole, and badged only when it lies wholly outside.
+- **Analytics.** `tool: oval | rectangle`, `snap: none`. A deleted shape is
+  not counted as an enlargement (`applyAnnotationEdit`).
+- **i18n.** Two tool names, the Shapes group's name, the help.
+
+#### Decisions: shapes (all PENDING)
+
+**R3-10a. Which shapes? PENDING.** The note asks for "arbitrary shapes
+(rectangle, circle)".
+- A. Ovals (a circle with Shift) and rectangles, any size and proportion.
+- B. A, and a polygon, clicked corner by corner.
+- C. A, and a freeform shape drawn as a path and shaped with Edit Path.
+- **Recommended: A.** The note names a rectangle and a circle, and its
+  sample uses ovals. This reads "arbitrary" as any size and proportion, not
+  any outline; Zach should confirm that reading. B and C can follow if a
+  step needs them.
+
+**R3-10b. Which tools, and their names. PENDING.**
+- A. Two tools, **Oval** and **Rectangle**, each dragged corner to corner,
+  Shift for a circle or a square. Circle (O) stays the ring round a point.
+- B. One **Shape** tool with Oval | Rectangle on the rail while it is in
+  hand, and a Shape row in Layers to change a drawn one.
+- C. The oval folded into Circle: a click puts down today's ring, a drag
+  draws an oval. Rectangle is a tool of its own.
+- D. Circle renamed Ring, and the new tool called Circle.
+- **Recommended: A.** These are the tools Affinity and Illustrator have,
+  each with a key. No existing name, tool or file changes, and Circle and
+  Oval do different jobs. B hides one shape behind the other. C makes a
+  short drag ambiguous. D renames a tool people already use.
+
+**R3-11a. A shape's fill. PENDING.**
+- A. None.
+- B. A Fill row, None | White.
+- **Recommended: A.** The sample's ovals have none and lie over the
+  creases. A white fill hides the part of the picture the shape is there to
+  point at.
+
+**R3-11b. A rectangle's corners. PENDING.**
+- A. Square only.
+- B. A Rounded switch, using the enlarge area's 0.22.
+- **Recommended: A.** A rounded rectangle is Enlarge in Frame's look, and
+  could be taken for one.
+
+**R3-11c. Does a shape turn? PENDING.**
+- A. Upright, turned only when the picture turns.
+- B. A turn handle.
+- **Recommended: A.** The sample has no turned shape. B can follow.
+
+**R3-11d. Where a shape is painted. PENDING.** `annotationMarks` paints
+the primitives, then enlarge areas' outlines and close-ups' rings over
+them; the step's lines (Valley, Mountain, Hidden, Solid) are painted before
+all of it (`DiagramAnnotationLayer.tsx:61-67`).
+- A. Over the lines, under the marks: first in `annotationMarks`.
+- B. Under every line and mark drawn on the step: before the lines.
+- C. Over the marks, with the enlarge areas' outlines.
+- **Recommended: B.** With no fill the order shows only where strokes
+  cross, and there a ring round an area should be the one that gives way.
+  A would draw an oval over a Valley Line, and C over arrows and labels. B
+  also matches the hit order, where a shape is pressed last (`under`).
+
+### 5. X-ray
+
+The note's picture is a cut-away, there showing a closed sink (its
+caption's fragment). Lang's Part III ("More on mountain folds; Unfolding;
+X-ray lines; Manipulations", checked as in Stars, through a summary) has
+two conventions for what is hidden: x-ray lines, a dotted line for hidden
+edges or creases; and cut-away views, "a heavy circle (or arc of a circle)"
+with the hidden layers drawn inside it (his Figure 16, not seen). His Part V
+marks a closed sink with a filled sink arrow, not a cut-away. Randlett's
+dotted x-ray line is already here as the Hidden Line, and a mark behind a
+flap dots itself (15e).
+
+Zach chose to store every flat step's faces (Z11, 2026-10-06) with this in
+mind: "being able to hide specific faces and show the faces underneath".
+
+**What a step stores, and what it could.** At 568e02a60:
+
+- A flat step's stored scene keeps whole faces, painted back to front, but
+  only those that show somewhere: `flatPicture` marks the rest hidden when
+  there is no spread (`diagram/capture/captureFolded.ts:234`), and
+  `storableScene` drops them (`captureGeometry.ts:73`). With a spread,
+  every face is kept.
+- `paperFaces` (`diagramDocument.ts:533-556`, since 16c) keeps every face:
+  its ring on the paper and on the unspread picture, and its `level`, the
+  longest chain of faces over it (`layerLevels`,
+  `cp-workspace/folded/foldedLayerSpread.ts:394-424`). Sorting the faces
+  under a point by level gives that point's stack, top first; woven pairs
+  are the exception (`foldedLayerSpread.ts:409`).
+- The kernel's paper scene, which capture already reads
+  (`folded_figure_paper_scene`, `engine/oristudioCpTypes.ts:529-586`), has
+  more: each face's side (`front_up`), its edges' kinds (`border`, `fold`),
+  each overlap cell's stack top to bottom with the cell's polygon
+  (`subfaces[].faces_top_to_bottom`), and each face's own aux creases
+  (`aux_lines`, each naming its `face`). `capturePaperFaces`
+  (`capture/capturePaperFaces.ts:80-93`) keeps none of them: only the
+  points, the rings and the levels.
+- So a face's side can be stored, about one character a face, or worked out
+  by comparing the turn of its ring on the paper and on the picture,
+  calibrated on a face whose scene item names its `side` (untested; 18.0
+  tests it). Which one is R3-16a; creases and stacks are R3-16b and R3-16c.
+- **What storing costs (Z11).** The budget is the whole file's: with every
+  flat step refreshed, the `.osf` grows by at most 1% for its faces.
+  Measured at 16c (`artifacts/revision-2/16c/paperFacesBudget.json`): the
+  crane +0.84% (21.0 kB of faces on 2.49 MB, about 3.9 kB short of 1%),
+  the heart +0.67%, the chipmunk +0.18%, Reference Diagrams +0.26%. Past the
+  cap, "the numbers go to Zach" (`diagram-revision-2.md`, The budget). A
+  face costs about 50 bytes today (16.0's crane captures: 44 to 52 faces in
+  2.0 to 2.7 kB), so the crane's 18 flat steps hold about 420 faces, and a
+  side each, as a string of 0s and 1s, is under 1 kB. An aux crease is four
+  numbers and a face, about 30 to 40 bytes; about 100 of them would use the
+  crane's whole margin. Overlap cells carry polygons of their own and
+  would cost far more. 18.0 measures each.
+- **A new key in `paperFaces` is a newer build's.** An older build locks the
+  step (`NEWER_PAPER_FACES`, `document/paperFacesFile.ts:44`). The Diagram
+  is unreleased (#436 is open), so that falls only on Zach's own builds of
+  #436 from before Revision 3, not on users.
+- **Old steps.** A flat step captured before Revision 2 has no
+  `paperFaces`, and `stepWithPaperFaces` (`capture/stepPaperFaces.ts:72`)
+  fetches them while the link is current. It returns at once for a step
+  that has `paperFaces` (`:79`), so a step stored before a new key would
+  never get it. It must also fetch when the key is missing, or such a step
+  needs a Refresh.
+
+**Under the recommendations:**
+
+- **Model (R3-14 A).** Kind `x-ray`, in its own shape class, `x-ray`. A
+  circle (R3-15a A): `from` is the centre, and `to` again; `radius` in
+  picture units. `anchor?`, a point on the paper as an enlarge area's is;
+  unsaid, the window's centre. `depth`, a whole number from 1, always
+  written.
+- **File.** Those fields. A depth under 1 or not whole is damage. There is
+  no upper limit: the Depth stepper stops at the stack under the anchor,
+  and a depth past the stack draws at the deepest layer, so a larger number
+  means nothing new.
+- **What capture stores (R3-16a B).** `paperFaces` gains `sides`: a string,
+  one `0` or `1` per face in the kernel's face order, `1` where `front_up`.
+  `capturePaperFaces` writes it, `readPaperFaces` knows the key, and
+  `stepWithPaperFaces` fetches faces for a flat step that lacks it.
+- **What it removes (R3-13 A).** The top `depth` faces at the anchor, and
+  every face over those, across the whole window: 15e's rule
+  (`behindFlaps.ts:65` `facesAt`, `:135` `facesOver`), on stacks built from
+  `paperFaces`' levels (R3-16c A), not from `PictureLayers.covers`, which
+  lack buried faces.
+- **What it draws (R3-12 A).** A new pure module,
+  `diagram/xray/xrayScene.ts`, turns the faces, the window, the anchor and
+  the depth into a `PaperScene` of the faces left, back to front by level,
+  each filled with its stored side's colour and outlined in the edge pen,
+  with no creases (R3-16b A). Its places come from `paperFaces` with no
+  spread and from the stored scene's face items with one. Each surface
+  clips to the window (`zoomClipShape`, `zoom/paintZoomed.ts:118`), lays the
+  page's white, paints that scene through `paperSceneSvgBody`, then draws
+  the rim at 1.5 × the edges' pen (R3-15b (ii)). The step's marks are drawn
+  over it. A mark behind a flap stays dotted (R3-17 B).
+- **Surfaces.** Each painter gets a hook shaped like the close-up's. 18e:
+  the canvas (as `annotate/useCloseUpInsides.ts`). 18f: the card
+  (`pictures/useStepPictureUrl.ts:212`); the page's `cellPicture`
+  (`pages/pagePictures.ts:611`), which print, the PDF, the one-sheet SVG and
+  the ZIP's step files all go through; and an enlarged step's card and page
+  (`zoom/paintZoomed.ts:307`). Pose's ghosts draw the rim only (R3-19 A). A
+  close-up over a window paints the picture plain inside it (R3-20 B).
+  Until 18f lands, no surface but the canvas draws an x-ray, rim included,
+  so nothing prints a window that shows nothing. A parity test is copied
+  from `closeUps.surfaces.tsx`. A PDF prints a clip path already, through
+  close-ups.
+- **Tool.** X-Ray, in Marks after Enlarge in Frame, key X (R3-25 A). Drag
+  out from the middle of an area, as Enlarge does; a click puts down a
+  standard size (`placedByClick`). Then the Depth field takes the focus, as
+  equal divisions' Parts does (ED5 A): type 2, press Enter. On a picture
+  with no layers the tool is held, saying why (R3-18a A,
+  `annotateToolBlocker`).
+- **Selected**, it has the enlarge area's circle grips from `zoomGrips`: the
+  centre's dot moves it, and the rim resizes it.
+- **Hit.** The rim only, pressed in the `under` order with enlarge areas and
+  shapes (`annotationHit.ts:839-845`), so the marks inside stay pressable.
+- **Snapping (R3-22 B).** Inside each window the removed faces' corners and
+  edges stop being snap targets, and the revealed faces' corners and edges
+  become targets, read from the same `xrayScene` (`pictureSnap.ts`).
+- **Layers.** `DiagramXRayControls`: Depth (a stepper from 1 to the layers
+  at its anchor less one) and Anchor. The Anchor row moves out of
+  `DiagramZoomControls` into a component of its own, `DiagramAnchorRow`,
+  used by both, with `useAnchorPick`. The move needs, each tested:
+  - **Its styles.** `.anchor` and `.anchorRule` move from
+    `DiagramZoomControls.module.css` (lines 7-19) into
+    `DiagramAnchorRow.module.css`, as a commit of their own that changes
+    nothing on screen: the row's computed styles compared before and after.
+  - **The pick by kind.** `useAnchorPick` edits an area only when
+    `kind === 'zoom'` (`:58`), and always sends `diagram enlargement
+    changed` with `on: area` (`:66`). It takes `x-ray` too and sends by
+    kind: an x-ray's pick sends `diagram mark styled` (`kind: x_ray`,
+    `option: anchor`, `value: picked | auto`), and its undo step is
+    "Change X-ray".
+  - **The drag by kind.** The canvas's area drag
+    (`useAnnotateCanvas.ts:1380-1394`) labels a drag "Change enlarge area"
+    and sends the enlargement event when `kind === 'zoom'`. An x-ray's drag
+    is "Change X-ray" and sends nothing, as a mark's move does.
+  - **Its own Auto wording.** The frame's rule reads "The backmost face
+    outside the frame" (`anchorAutoHint`, with `anchorResetHint`). An
+    x-ray's Auto is "The window's centre", and its reset "Anchor to the
+    window's centre again".
+- **Carry.** As an enlarge area (`carryZoom`, with its anchor); the depth is
+  kept. After a Refresh or a refold the stack at its anchor can change: a
+  depth past it is drawn at the deepest, with a notice on the Depth row
+  ("Only {{count}} layers here", a plural key). Turn Over carries the
+  window with its face, depth kept, and it then looks through the other
+  side's stack from its new top (R3-21 A). No Flip row. A paste lands as an
+  enlarge area's does. On an enlarged step it uses that step's own scene
+  and faces.
+- **A step that loses its layers (R3-18b A).** Show As Crease Pattern, 3D or
+  Simulated; Duplicate As one of those; Replace with an upload; a Refresh
+  into a fold with no layer order (a see-through development); or a step
+  whose faces `stepWithPaperFaces` answers with `refresh`. The x-ray is
+  kept in the step, as every mark is, and listed in Layers, but no surface
+  draws it until the step has layers again. Selected from Layers it shows
+  its grips on the canvas. Its Depth row is disabled with the reason: "This
+  picture has no layers to x-ray", or "Refresh step {{n}} to x-ray it".
+  Shown back as a flat fold, it draws as before.
+- **Analytics.** `tool: x_ray`. Depth (`1` | `2` | `3+`) and Anchor changes
+  send `diagram mark styled`.
+- **i18n.** Tool name, help, the held reasons, Depth, the notice, the
+  disabled reasons, "Refresh step {{n}} to x-ray it", the Auto and reset
+  wording.
+
+**Risks.**
+
+- Buried faces exist only in `paperFaces` (and the kernel's scene). An
+  X-ray built from the stored scene or `PictureLayers` alone shows page
+  white where they are.
+- With a spread, `paperFaces`' places are unspread and the picture is
+  spread. The window must draw the scene's face items there, or it shows
+  faces in the wrong place.
+- A side worked out from ring turns (R3-16a A) may flip on a sliver face,
+  whose paper coordinates are rounded to a fixed step. A stored side cannot.
+- Woven regions: levels leave out the pairs the paint order broke
+  (`foldedLayerSpread.ts:409`), so a window there can reveal the wrong
+  layer. 15e has the same caveat.
+- A face the kernel could not name has an empty ring
+  (`capture/capturePaperFaces.ts:92`) and cannot be drawn.
+- Several painters must agree. 18f's parity test holds them together.
+
+#### Decisions: X-ray (all PENDING)
+
+**R3-12. What does an X-ray show? PENDING.**
+- A. A cut-away window, as the note's picture and Lang's cut-away view:
+  inside a rim the picture is drawn without its top N layers, the layers
+  beneath in their own side's colour with their edges; outside, nothing
+  changes.
+- B. X-ray lines: no window, and the edges of the N layers under the top
+  one drawn dotted over it.
+- C. Both, with a Look row on the mark.
+- **Recommended: A.** It is the note's picture. Single dotted edges are
+  already drawn by hand with the Hidden Line.
+
+**R3-13. What do N layers remove? PENDING.**
+- A. The flap at a point: the top N layers at the window's anchor, its
+  centre unless picked, and every layer over those, removed across the
+  whole window. 15e's "behind N layers" rule.
+- B. A true drill: at every point in the window, the top N layers there.
+- C. By level: every face with fewer than N faces stacked over it anywhere.
+- D. Faces picked by hand.
+- **Recommended: A**, on what it shows. It sees through the flap the window
+  sits on and leaves the layers beside it alone, as the note's picture
+  does: inside the circle the front flap is gone, and nothing else is.
+  Under B a window that crosses a flap's edge drills into the flap beside
+  it too, so the inside changes depth across that edge. A is exact at the
+  anchor and draws whole faces back to front. B's cost is not the reason:
+  its cells do not depend on the window (the kernel already computes them,
+  `subfaces`), so they could be worked out once a step and kept, leaving
+  only the clip to the window on each frame. 18.0 measures that rather than
+  this plan asserting it. C can remove nothing at a spot whose top face lies
+  deeper elsewhere. D can come later as an override.
+
+**R3-14. Where does it live? PENDING.**
+- A. A mark in Annotate, drawn with an X-Ray tool: several per step, with
+  no recapture, and on enlarged steps too.
+- B. A Pose setting, as Spread is: refolded through the kernel and exact
+  everywhere, but every change needs a current link and a refold.
+- C. A Depth row on a close-up or an enlarge area.
+- **Recommended: A.** A window is placed by eye, as every area is, and A
+  works from what the step stores. C could follow, so a close-up can show
+  its area x-rayed.
+
+**R3-15a. The window's shape. PENDING.**
+- A. A circle only.
+- B. A circle or a rounded rectangle, the enlarge area's two, with a Shape
+  row reusing Enlarge's strings.
+- **Recommended: A.** The note and Lang show only a circle. B can follow;
+  it adds `size`, a Shape row and that row's analytics.
+
+**R3-15b. The rim. PENDING.**
+- (i) The edges' pen, as an enlarged step's frame draws its cut
+  (`zoomEdgePen`).
+- (ii) Heavier: 1.5 × the edges' pen, 0.75 pt in the Diagram preset.
+- (iii) The ring pen, as a close-up's ring.
+- **Recommended: (ii)**, judged against (i) on the prototype. Lang asks for
+  "a heavy circle", and the note's rim is the edges' weight or a little
+  more. (i) matches the enlarged frame's cut, which is the case for it.
+
+**R3-16a. Where an X-ray gets each face's side. PENDING.**
+- A. Worked out from how each face's ring turns on the paper and on the
+  picture, calibrated on a face whose scene item names its side. Nothing
+  new is stored.
+- B. Stored: capture keeps the kernel's `front_up` in `paperFaces` as
+  `sides`, about one character a face (under 1 kB on the crane, inside its
+  3.9 kB margin). Older builds of #436 lock such a step; a step stored
+  before it gets the key through `stepWithPaperFaces`, extended to fetch
+  when it is missing, or by Refresh.
+- **Recommended: B**, if 18.0's size check passes. It is exact, cheap, and
+  what Z11 stores faces for. A is untested and can flip on a sliver. If B
+  breaks the budget on any of the four diagrams, the numbers go to Zach.
+
+**R3-16b. Whether the revealed layers carry creases. PENDING.** A step's
+stored scene has the creases of the faces that show, cut where they are
+covered, and nothing of the faces wholly buried.
+- A. No: faces in their side's colour with their edges, and no creases
+  inside the window. A crease there is drawn by hand with a Line.
+- B. Yes: each face's own aux creases (the kernel's `aux_lines`, with their
+  face) stored in `paperFaces` and drawn inside the window. About 30 to 40
+  bytes a crease; 18.0 counts them.
+- **Recommended: A** now; B if 18.0 finds that revealed faces carry creases
+  that matter and their size fits the budget. The note's own case is a
+  closed sink: its M of lines could be the sunk layers' edges, which A
+  draws, or creases, which A leaves to a Line.
+
+**R3-16c. Where an X-ray gets each point's stack. PENDING.**
+- A. From `paperFaces`' levels: the faces under the anchor, sorted by
+  level. Woven pairs are the exception, as in 15e.
+- B. Stored: the kernel's overlap cells (`subfaces`), each a polygon and
+  its stack. Exact everywhere, and what R3-13 B would draw from; far larger
+  than the faces.
+- **Recommended: A**, if 18.0's stack check passes outside woven patches.
+  B only if it fails, with its measured size.
+
+**R3-17. A mark behind a flap the window removes. PENDING.**
+- A. Drawn solid inside the window, since nothing covers it there.
+- B. Left dotted, as set.
+- **Recommended: B** in this revision. A compares every mark's behind count
+  with the window's depth along it, which is a piece of work of its own.
+
+**R3-18a. The X-Ray tool on pictures with no layers. PENDING.** A crease
+pattern, a 3D or simulated capture, an upload, a see-through development
+and a References step.
+- A. The tool is held there, saying "X-ray works on flat folds", as Enlarge
+  is held on an enlarged step. A flat step from before Revision 2 (or,
+  under R3-16a B, from before `sides`) gets its faces while its link is
+  current; otherwise the tool says "Refresh step N to x-ray it".
+- B. Allowed, drawing only a rim, to annotate by hand.
+- **Recommended: A.** B draws a cut that shows nothing.
+
+**R3-18b. An X-ray on a step that loses its layers. PENDING.** Show As
+Crease Pattern, 3D or Simulated; Duplicate As one of those; Replace with an
+upload; a Refresh into a fold with no layer order; faces in the `refresh`
+state.
+- A. Kept and listed in Layers, drawn on no surface until the step has
+  layers again, its Depth row disabled with the reason.
+- B. Kept and drawn as its rim only, on every surface, the picture plain
+  inside.
+- C. Removed by the change, which says so in its undo label.
+- **Recommended: A.** B prints a cut that shows nothing, for R3-18a's
+  reason. Show As is often a trip there and back, and under A the window
+  comes back as it was.
+
+**R3-19. An X-ray in Pose. PENDING.** Pose ghosts the step's marks over
+the live fold at 0.3 opacity, and a close-up there shows only its ring.
+- A. Its rim only.
+- B. Nothing.
+- **Recommended: A.** Its inside is the stored picture's, which a live pose
+  is not, and A treats it as a close-up is treated there.
+
+**R3-20. A close-up whose area takes in a window. PENDING.**
+- A. Its inside is x-rayed too: the picture as the step draws it, window
+  and all. That is X-ray in three more painters (the card's, the page's and
+  the canvas's close-up insides).
+- B. Its inside shows the picture plain in this revision, the flap the
+  window removed included; A later.
+- **Recommended: B.** A close-up over a window is rare, and A triples the
+  painter work before anyone has used an X-ray.
+
+**R3-21. An X-ray after Turn Over. PENDING.**
+- A. Carried with its face, depth kept: it then looks through the other
+  side's stack from its new top.
+- B. Carried, its depth set to show the same face it showed, now from
+  behind, where the stack allows.
+- C. Dropped from the turned picture.
+- **Recommended: A.** A window is placed for the view it is in, and A is
+  what an enlarge area does. B guesses at intent; C loses work.
+
+**R3-22. Snapping inside a window. PENDING.**
+- A. Unchanged: the picture's own targets, the removed faces' edges
+  included; nothing revealed snaps.
+- B. Inside each window, the removed faces' corners and edges stop
+  snapping, and the revealed faces' corners and edges snap, from the same
+  `xrayScene`.
+- **Recommended: B**, if 18.0's spread check passes. Under R3-16b A a
+  revealed crease is drawn with a Line, which needs the revealed corners to
+  land on. A would snap that Line to an edge nobody can see.
+
+### Decisions: all the new marks (all PENDING)
+
+**R3-23. Do the new marks take a colour? PENDING.**
+- A. No. They are drawn in the arrows' ink, as every mark but a solid line
+  and Text is (RM3; Annotate's decision 7).
+- B. Stars, ovals and rectangles get the Color row a solid line has: the
+  palette plus Custom (`annotationColors.ts:28-35`, `DiagramColorSelect`).
+  The eye and the x-ray stay in ink.
+- **Recommended: A.** Nothing asks for colour, and the samples are black. B
+  is one `carriesColor` case and the existing row each, if a coloured ring
+  is wanted later.
+
+**R3-24. What snaps? PENDING.**
+- A. A star snaps where it is put, to the picture's corners, vertices,
+  crossings and other marks' points, as a Circle does, and lines and arrows
+  snap to its centre. Ovals, rectangles, the eye and x-ray windows are put
+  down freely, as enlarge areas and signs are.
+- B. Nothing new snaps.
+- C. As A, and an oval's or rectangle's corners snap as they are dragged.
+- **Recommended: A.** A star names a point, and the sample's dashed line
+  starts on it. An area's outline is judged by eye, and C would pull it to
+  vertices that have nothing to do with it.
+
+**R3-25. Rail groups and keys. PENDING.**
+- A. Marks: Circle, Star, Right Angle, Equal Angles, Equal Divisions, Eye,
+  Close-Up, Enlarge, Enlarge in Frame, X-Ray. A new Shapes group after
+  Marks: Oval, Rectangle. Keys: Star K, Eye Y, Oval Shift+O (paired with
+  Circle's O, as Shift+E pairs with E), Rectangle R, X-Ray X. Each is free
+  in the Diagram's scope (`keyboard/shortcuts.ts:612-645`). Elsewhere R is
+  only the simulator's and ⌘R, and X only ⌘X.
+- B. All five in Marks.
+- C. As A, with no key for the Eye and X-Ray, as Equal Angles has none.
+- **Recommended: A**, checked at phone width and on an iPad. Marks grows
+  from 7 tools to 10; B would make it 12. The two drawing tools in a group
+  of their own read as Affinity's rail does.
+
+**R3-26. The new marks' pens, as one rule. PENDING.** Today the ring pen
+(0.5625 pt in the Diagram preset) draws rings round something (a Circle, a
+close-up, an enlarge area); the aux pen (0.25 pt) draws the right angle, by
+Zach's 16a review, and equal divisions after 18a; the edges' pen (0.5 pt)
+draws an enlarged step's cut. In the Diagram preset:
+- A. By what the stroke does: strokes that point or measure (the right
+  angle, equal divisions, the eye) in the aux pen; outlines round something
+  (a Circle, an outlined star, an oval, a rectangle) in the ring pen. Star
+  outline 0.5625, eye 0.25, shapes 0.5625.
+- B. By size: small glyphs (an outlined star, the eye) in the aux pen;
+  outlines round an area (an oval, a rectangle) in the ring pen. Star
+  outline 0.25, eye 0.25, shapes 0.5625.
+- C. Every new mark in the aux pen: 0.25 each.
+- D. Each mark on its own, from the prototype, which also shows the eye at
+  the template's 0.75 pt and shapes in the edges' pen.
+
+The x-ray's rim is a cut, not a mark, and is R3-15b's.
+- **Recommended: A**, judged on the prototype. It is the rule the shipped
+  marks already follow, so nothing drawn today changes, and both of Zach's
+  asks for the aux pen (the right angle, then equal divisions) were for
+  strokes that measure the lines beside them. Under B and C a 0.25 pt
+  outline round a white 3 mm star reads as a hole in the picture more than
+  a mark on it. Under A an oval is about the edges' weight, as the sample's
+  are.
+
+**R3-27. X-ray's PR. PENDING.** Zach works one PR per feature.
+- A. One PR: 18a to 18f on `claude/diagram-revision-3`.
+- B. Two: 18a to 18d on `claude/diagram-revision-3`; X-ray (18e, 18f) on
+  `claude/diagram-xray`, stacked on it and opened after 18.0 passes.
+- **Recommended: B.** X-ray is the one part with a spike gate, a file
+  question (R3-16) and two phases. The four marks need not wait for it, and
+  its review is easier alone.
+
+### Small calls made here
+
+1. **Two shape kinds, not one with a field.** A tool draws its kind, and
+   the analytics tool is the kind, so nothing needs telling apart.
+2. **Stars and the eye are paths**, never text glyphs.
+3. **Shapes share only the enlarge area's math**, not its kind or
+   `DiagramZoomShape`.
+4. **Equal divisions' floors keep their printed size** (two ring pens), so
+   the crowding warning does not move.
+5. **Equal divisions keep the marks' ink**, on the right angle's precedent
+   from Zach's 16a ink review (The aux pen, above).
+6. **One new analytics event**, `diagram mark styled`, rather than one per
+   option, and an x-ray's edits never count as enlargement events.
+
+### Not in this revision
+
+Behind-flap dotting for the new marks. Filled, dashed, coloured, rounded or
+turnable shapes, polygons and freeform shapes (unless R3-10a, R3-11a to
+R3-11c or R3-23 says otherwise). A repeat symbol. X-ray on pictures with no
+layers, a per-point drill, a rounded window, a Depth on close-ups, and a
+close-up showing a window x-rayed (unless R3-13, R3-14, R3-15a, R3-18a or
+R3-20 says otherwise).
+
+### Found while planning (not this plan's)
+
+15e's "behind N layers" counts only the faces that show somewhere:
+`sceneGeometry` builds `PictureLayers.covers` from the stored scene
+(`annotate/pictureGeometry.ts:196-206`), which has no buried faces. Where a
+wholly buried face lies between, it can name a different Nth layer than
+the paper has. X-ray's stacks from `paperFaces` would fix it too. Left for
+a follow-up.
+
+## Affected Areas
+
+**Equal divisions.** `cp-workspace/references/diagram/diagramInk.ts`
+(`DIAGRAM_DIVISIONS_INK.pens` and `DivisionsPen` gone),
+`cp-workspace/references/stepDiagramGeometry.ts` (`divisionsShape`,
+`divisionsDrawn`, `divisionsPathData`; `rightAnglePen` renamed
+`auxMarkPen`), `cp-workspace/references/diagram/DiagramPrimitives.tsx`,
+`cp-workspace/references/diagram/markReach.ts`,
+`cp-workspace/references/referenceFinderDiagramToPrimitives.ts`;
+`diagram/document/diagramDocument.ts`, `diagramFile.ts`;
+`diagram/annotate/annotationModel.ts`, `annotationPrimitives.tsx`,
+`annotationHit.ts`, `useStepAnnotations.ts`;
+`components/diagram/DiagramDivisionsControls.tsx`; goldens
+`diagram/annotate/__fixtures__/divisionsGolden.json` with
+`divisions.cases.ts` and `divisions.test.ts`, and `diagramInk.test.ts`,
+`stepDiagramGeometry.test.ts`, `paintAnnotations.test.ts`.
+
+**Stars and the eye.** The shared primitive's five References modules
+named in "Common ground"; `stepDiagramGeometry.ts` (`starDrawn`,
+`eyeDrawn`), `diagramInk.ts` (`DIAGRAM_STAR_INK`, `DIAGRAM_EYE_INK`);
+`diagram/annotate/annotationModel.ts` (shapes, `POINT_KINDS`,
+`createAnnotation`, carry, `flipsOver`, `EYE_REACH`),
+`annotationPrimitives.tsx`, `annotationHit.ts` (`eyeGrips`, the `look`
+grip part), `annotateSnap.ts`, `pictureSnap.ts`, `annotateTools.ts`,
+`useAnnotateCanvas.ts` (the `look` move), `annotationEventKind.ts`,
+`useStepAnnotations.ts`; `store/settingsStore.ts`
+(`diagramAnnotateStarFill`); `components/diagram/DiagramAnnotateCanvas.tsx`,
+`DiagramAnnotateRail.tsx`, `DiagramAnnotateToolGlyph.tsx`,
+`DiagramLayers.tsx`, new `DiagramStarControls.tsx`; new goldens
+`stars.cases.ts` and `eyes.cases.ts` with their fixtures.
+
+**Shapes.** New `diagram/annotate/areaOutline.ts`;
+`annotationModel.ts` (`carryArea` out of `carryZoom`, `placedByClick`),
+`annotationPrimitives.tsx` (`areas`, reach), `paintAnnotations.ts` and
+`components/diagram/DiagramAnnotationLayer.tsx` (the paint order),
+`annotationHit.ts`, `useAnnotateCanvas.ts`, `applyAnnotationEdit.ts`
+(tested, not changed); `diagram/zoom/stepView.ts` (`markExtent`);
+`diagramFile.ts` (`to`); `diagram/zoom/zoomGrips.ts` (read, and widened to
+an area's outline if needed); `components/diagram/DiagramAnnotateCanvas.tsx`;
+new golden `areas.cases.ts`.
+
+**X-ray.** New `diagram/xray/xrayScene.ts`, `useXRayInsides.ts`,
+`xray.surfaces.tsx`, golden `xray.cases.ts`;
+`capture/capturePaperFaces.ts`, `document/paperFacesFile.ts`,
+`document/diagramDocument.ts` (`DiagramPaperFaces.sides`) and
+`capture/stepPaperFaces.ts` (R3-16a B); `diagram/annotate/paintAnnotations.ts`,
+`pictures/useStepPictureUrl.ts`, `pages/pagePictures.ts`,
+`zoom/paintZoomed.ts` (`zoomedCardPicture`, `poseGhostMarkup`),
+`export/stepFiles.ts` (read); `annotate/pictureSnap.ts` (R3-22 B);
+`annotateTools.ts` (the held reasons); `diagram/zoom/useAnchorPick.ts`,
+`useAnnotateCanvas.ts` (the area drag by kind), `diagram/zoom/stepView.ts`;
+`components/diagram/DiagramZoomControls.tsx` and
+`DiagramZoomControls.module.css` (the Anchor row out), new
+`DiagramAnchorRow.tsx` with `DiagramAnchorRow.module.css`, and
+`DiagramXRayControls.tsx` with its module if it needs styles. No kernel
+change: the kernel's scene already carries everything R3-16 could store.
+
+**All.** `keyboard/shortcuts.ts`, `diagram/actions/diagramShortcuts.ts`,
+`i18n/shortcutLabels.ts`; `analytics/events.ts`, `analytics/trackDiagram.ts`,
+`docs/analytics.md`; `public/locales/*` (nine catalogs);
+`implementation-plans/diagram-workspace.md` (Phase 18) and
+`implementation-plans/diagram-revision-2.md` (ED4 and ED9 revised).
+
+## Checklist
+
+**Every phase.** Reader and writer, with round trips and "an older build
+keeps it verbatim"; `cleanAnnotation`; carry, flip, Turn Over and paste;
+hit and grips; the canvas; the Layers pane; the tool window, the rail, keys
+and shortcut labels; analytics with `docs/analytics.md`; i18n in all nine
+catalogs. A test for each place in "Kinds the compiler does not check" the
+phase's kinds touch. Tests that fail before their change, and a golden for
+each new mark on card, page and canvas. New components styled by their own
+CSS modules, and no rule added to a shared block. Before and after in the
+browser, beside the note's picture it answers, on every surface the change
+reaches: the canvas, a step card, an enlarged step's card, Pose's ghost
+(the card, and the live 3D or simulated view), the page, print, the PDF at
+print size and ×3, the one-sheet SVG and a ZIP step file; light and dark,
+desktop Chromium and iPad-sized WebKit; each fix shown on its own with its
+confidence and evidence. The crane loading with every mark known and
+saving back byte-identical. A review of the phase. Nearby tests on each
+commit, and the full gate at the end of each phase before its push: lint,
+typecheck, the i18n check and the whole vitest suite (Node 22, run in the
+web workspace). The builder owns every gate, the browser's included, and
+shares the proof with Zach. What was built is written under each phase's
+checklist.
+
+### 18.0 The X-ray spike (nothing merges)
+
+Whether R3-13 A can be drawn from what a step stores, and what storing more
+would cost, measured on Zach's diagrams before anything is built. Output in
+`artifacts/revision-3/xray-spike/`.
+
+- [ ] **The crane copied** into `artifacts/revision-3/crane.osf`.
+- [ ] **Depth 0.** The window's inside built from `paperFaces` with nothing
+  removed (sides, places, outline roles, back to front by level), against
+  the stored picture's own render in the same window, on every flat step of
+  the crane, with and without a spread. Pass: pixel for pixel. This one
+  check holds the sides, the spread's places and the outlines together.
+- [ ] **Stacks at an anchor.** On three flat crane steps, four anchors each,
+  depth 1 to 3: the faces A removes, against the kernel's
+  `faces_top_to_bottom` at the anchor, read from the linked pattern's
+  paper scene (`engine/oristudioCpTypes.ts:529-586`). Pass: identical
+  everywhere outside a woven patch (R3-16c).
+- [ ] **Across the window.** The share of each window where A's top face
+  differs from a true drill's (R3-13 B). Evidence for R3-13; no pass mark.
+- [ ] **Sides.** Every face's side worked out from its rings (R3-16a A),
+  against the kernel's `front_up`, on every flat step of Zach's four
+  diagrams: the crane, the heart, the chipmunk and Reference Diagrams.
+  Pass: all agree. Slivers listed. (Not box_90:
+  `tests/fixtures/fold-angle-3d/box_90.osf` holds no diagram, so it has no
+  flat steps.)
+- [ ] **Spread.** With an affine spread on, the inside drawn from the
+  scene's face items lines up with the picture round it within 0.1 px.
+- [ ] **Speed.** On every frame of a window's drag on the crane's busiest
+  step, in Chromium: A's inside rebuilt; and B's, its cells worked out once
+  for the step and only clipped to the window per frame. Pass for A: under
+  4 ms a frame. B's number is evidence for R3-13.
+- [ ] **Creases.** How many revealed faces carry `aux_lines` in the
+  kernel's scene, and what storing them would weigh (R3-16b).
+- [ ] **Size (Z11).** Every key 18.0 would store (`sides` under R3-16a B;
+  aux creases or cells if R3-16b or R3-16c turns to B), weighed on the four
+  diagrams with every flat step refreshed and written as the app writes a
+  file: Revision 2's `artifacts/revision-2/16c/paperFacesBudget.mjs` (in
+  #436's worktree), copied here and extended to write the key. Pass: each
+  file within 1% with the key. Otherwise the numbers go to Zach.
+- [ ] **Old steps.** A flat step from before Revision 2 gets its faces
+  through `stepWithPaperFaces` while linked, and, with `sides`, a step
+  stored before the key gets it the same way.
+- [ ] **Renders.** The crane's windows at depth 1 to 3, at print size,
+  beside the note's picture, for the prototype.
+
+Result: a pass builds 18e and 18f as planned. If the sides check fails,
+R3-16a B is the only way. If a size check fails, the numbers go to Zach. If
+the stacks fail, R3-16c B is put to Zach with its measured size, or X-ray
+leaves this plan for one of its own.
+
+### Before 18a: the prototype and the decisions (nothing merges)
+
+- [ ] `artifacts/revision-3/revision-3-marks.html` shows what each decision
+  names, at print size on white, grey and the samples' paper:
+  - divisions: HEAD's pens against the aux pen in the Diagram and Default
+    presets; full against short dividers at 1, 2.5 and 10 mm, all three
+    lengths, and the full divider dashed as the reading set aside (R3-1,
+    R3-2); the count bold and regular (R3-3); the note's screenshot
+    rebuilt;
+  - stars: filled and outlined, white and clear insides, at 2.5, 3 and
+    4 mm, upright and turned with a quarter-turned picture, on a crossing
+    beside the sample; the rail's Fill control (R3-4 to R3-6b);
+  - the eye: A, B and C at 4, 5 and 6 mm, turned to 0°, 30° and 217°, and
+    flipped; its grips (R3-7 to R3-9b);
+  - shapes: an oval and a rectangle over the turtle's grid, filled and not,
+    rounded, turned, in each paint order under a Valley Line and an arrow;
+    the rail with a Shapes group at phone width (R3-10a to R3-11d, R3-25);
+  - X-ray: 18.0's renders; the three looks; the rim in its three pens; a
+    depth past the stack; a window after Turn Over; a step shown as a crease
+    pattern; a close-up over a window both ways; Pose's rim; snapping in a
+    window both ways (R3-12 to R3-22);
+  - pens: every new mark under each of R3-26's rules, beside the samples
+    (R3-26);
+  - colour on a star and an oval (R3-23); snapping (R3-24);
+  - a "Copy picks" text naming each decision by number and letter, one line
+    each, R3-1 to R3-27.
+- [ ] The prototype and this plan agree on every decision's options and
+  recommendation.
+- [ ] Zach answers R3-1 to R3-27. His answers are recorded under each
+  decision, and every passage written for an option he did not take is
+  rewritten.
+
+### 18a Equal divisions
+
+- [ ] **The aux pen**, a commit of its own, before the decisions if they
+  are not in: one pen (`auxMarkPen`), one path, `DivisionsPen` gone, the
+  floors in ring pens (`markRingWidth` read directly), the comments. Tests:
+  every stroke at the aux width in both presets; the line's width
+  unchanged; the floor and the crowding warning unchanged at 32 parts on
+  25 mm; reach.
+- [ ] Goldens re-recorded and checked by eye beside the note's screenshot.
+- [ ] Browser, before and after: the note's case rebuilt (a diagonal in
+  three parts, the line set into the paper, a valley from the first third),
+  on every surface in "Every phase", in both presets; the crane's pages
+  compared for reflow, and a ZIP step file's crop.
+- [ ] **Short Dividers** (after R3-1 to R3-3): the field, its reader and
+  writer, `cleanDivisions`, the primitive, `divisionsShape`, the hit-test
+  twin, the Layers switch, `setShortDividers`. Tests: interior dividers
+  straddle the line at 2.5 and 10 mm; the end dividers reach the measured
+  line; nothing changes at 1 mm; snapping to the division points
+  unchanged; a same-step paste keeps the flag; an older build keeps the
+  mark verbatim.
+- [ ] `diagram mark styled`: the event, `trackDiagram.ts`, its row in
+  `docs/analytics.md`.
+- [ ] Browser, before and after: the note's case with Short Dividers on,
+  the valley line clear, on every surface.
+- [ ] `diagram-revision-2.md`: ED4 and ED9 marked "Revised by Revision 3".
+- [ ] Gate and push.
+
+### 18b Stars
+
+- [ ] Geometry: `starDrawn`, `DIAGRAM_STAR_INK`. Tests: ten points, one up,
+  upright under a turned and a mirrored projector; reach with mitred tips.
+- [ ] The primitive through the five References modules; drawing, filled
+  and outlined, on and off the paper.
+- [ ] Model and file: the kind, `fill`, `cleanAnnotation`, the switches.
+  Tests: round trip; `to` read as `from`; an unknown fill is a newer
+  build's.
+- [ ] Tool: the click, snapping and ⌘, the rail's Fill control and its
+  setting, the key, help. Tests: placed on a crossing; a Line snaps to it.
+- [ ] Hit, selection ring, drag; Layers row and Fill row; carry, Turn Over,
+  paste and the enlarged window, with `markExtent` keeping a star at a
+  window's edge.
+- [ ] Analytics (`star`, `fill`, `diagram mark styled`) and i18n.
+- [ ] Golden `stars.cases.ts`: filled and outlined, on white, on a
+  References face, off the paper.
+- [ ] Browser, before and after: a filled and an outlined star on a crane
+  crossing beside the sample, a dashed line from one, on every surface; the
+  rail at phone width.
+- [ ] Gate and push.
+
+### 18c The eye
+
+- [ ] Geometry: `eyeDrawn`, `DIAGRAM_EYE_INK`. Tests: its open side faces
+  `toward` at 0°, 90° and 217°; a mirrored projector.
+- [ ] The primitive through the five References modules; drawing.
+- [ ] Model and file: the kind, the `sight` class, `EYE_REACH`. Tests:
+  round trip; `to` on `from` is damage.
+- [ ] Tool: drag, click, Shift's 15°, the key, help. `eyeGrips`, the body
+  drag and the `look` dot. Tests: move, turn, Shift; `to` back at
+  `EYE_REACH` after a turn; the `corner` and `direction` grips never offered
+  on an eye.
+- [ ] Hit, Flip row, carry through a mirror and a quarter turn, Turn Over,
+  paste.
+- [ ] Analytics and i18n.
+- [ ] Golden `eyes.cases.ts`.
+- [ ] Browser, before and after: an eye on the crane beside the note's
+  picture and the template's, at print size, on every surface.
+- [ ] Gate and push.
+
+### 18d Shapes
+
+- [ ] `areaOutline.ts`: an ellipse's and a rectangle's outline and rim
+  distance, turned. Tests: rim distance against sampled points; turned.
+- [ ] Model and file: two kinds, `size`, `angle`. Tests: round trip; `to`
+  read as `from`; a missing `size` is damage.
+- [ ] Drawing: the `areas` list, its paint order and its reach. Tests:
+  reach, failing if the list is left out of `annotationReach`; a shape
+  under a Valley Line and an arrow; `markExtent` keeping a shape that
+  reaches into an enlarged window from outside, unbadged.
+- [ ] Tool: corner to corner, Shift, Alt, a click's standard size
+  (`placedByClick`); the Shapes group, keys, help.
+- [ ] Grips; hit by the rim in the `under` order. Tests: a line inside an
+  oval is selected by a press inside it; deleting a shape sends no
+  enlargement event.
+- [ ] Carry (`carryArea`) through a spread and a mirror; paste into an
+  enlarged window grows with it.
+- [ ] Analytics and i18n.
+- [ ] Golden `areas.cases.ts`.
+- [ ] Browser, before and after: the turtle's five ovals redrawn on a
+  60° grid capture beside the sample; a rectangle round a flap; on every
+  surface; the rail at phone width and on an iPad.
+- [ ] Gate and push.
+
+### 18e X-ray: model, canvas, tool and Layers
+
+Only after 18.0 passes and R3-12 to R3-22 are answered. Under R3-27 B, on
+`claude/diagram-xray`.
+
+- [ ] Capture (R3-16a B): `sides` written, read, budget-checked, and fetched
+  for a step that lacks it. Tests: round trip; an older reader locks the
+  step; `stepWithPaperFaces` fetches when only `sides` is missing.
+- [ ] `xrayScene.ts` and its stacks, with tests: depth 1 to 3 at an anchor;
+  every face over a removed one removed; the spread path; an empty ring
+  skipped; a depth past the stack drawn at the deepest.
+- [ ] Model and file: the kind, its class, `radius`, `anchor`, `depth`.
+  Tests: round trip; `to` read as `from`; 0 and 1.5 are damage.
+- [ ] The canvas's inside hook; the rim; no other surface draws an x-ray
+  yet.
+- [ ] Tool: the drag, the click (`placedByClick`), Depth taking the focus,
+  the held reasons, the key, help.
+- [ ] Grips (the circle's centre and rim) and hit (the rim, `under`);
+  snapping inside a window (R3-22).
+- [ ] Layers: Depth, the notice (a plural key), Anchor. The Anchor row:
+  its CSS move as a commit of its own with computed styles compared;
+  `DiagramAnchorRow`; `useAnchorPick` by kind; the drag by kind; "Change
+  X-ray"; the Auto and reset wording. Tests: an x-ray's pick and drag never
+  send `diagram enlargement changed`; an enlarge area's still do; the
+  frame's Auto wording unchanged.
+- [ ] Carry, Turn Over, paste, enlarged steps (`markExtent`); a Refresh that
+  leaves too few layers; a step that loses its layers (R3-18b), each case:
+  drawn nowhere, the Layers reason, and drawn again on the way back.
+- [ ] Analytics and i18n.
+- [ ] Browser, before and after: crane windows at depth 1, 2 and 3 beside
+  the note's picture, on the canvas; with a spread; on an enlarged step; the
+  held tool on a crease pattern; a step shown as a crease pattern and back.
+- [ ] Gate and push.
+
+### 18f X-ray on every other surface
+
+- [ ] The card, the enlarged step's card and page, the page's `cellPicture`
+  (print, the PDF, the one-sheet SVG, the ZIP's step files), and Pose's
+  ghosts, rim only (R3-19). A close-up over a window as R3-20 says.
+- [ ] The parity test across every painter, copied from
+  `closeUps.surfaces.tsx`; a ZIP step file cropped round a window by its
+  rim.
+- [ ] Golden `xray.cases.ts`.
+- [ ] Browser, before and after: crane windows on every surface in "Every
+  phase", the PDF at print size and ×3.
+- [ ] Gate and push.
+
+### Final gate
+
+- [ ] The crane loads with every mark known and saves back byte-identical;
+  its pages and PDF compared before and after the whole branch.
+- [ ] `diagram-workspace.md`: Phase 18, "Revision 3", pointing here, with
+  the decisions as Zach answered them.
+- [ ] Draft PR from `claude/diagram-revision-3` onto
+  `claude/diagram-workspace-plan-ceb4f2` (#436), its body carrying each
+  phase's before and after; under R3-27 B, a second from
+  `claude/diagram-xray` onto it.
