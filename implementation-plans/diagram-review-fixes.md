@@ -365,14 +365,152 @@ Paths under `apps/web/src/` unless rooted.
 
 ### 3. New steps after an enlarged one
 
-- [ ] The picker's default for an unlinked step: the previous linked step's picture type
-- [ ] A first picture of another type than the run drops the seeded zoom, in the capture's undo step
-- [ ] Uploads and References cards start unenlarged; `withCardMarksInFrame` callers settled
-- [ ] Show as on an already-enlarged step unchanged; the toggle turns it off in one click
-- [ ] Tests near each change
-- [ ] i18n if any string changes, all 9 catalogs
-- [ ] `docs/analytics.md` (`seeded` scope); Z2 amended in `diagram-revision-2.md`
-- [ ] Review; before/after screenshots (Folded run, then a new step linked)
+- [x] The picker's default for an unlinked step: the previous linked step's picture type
+  - `nearestEarlierShowAs(document, stepId)` in `diagramDocument.ts` walks
+    back like `nearestEarlierSpread`, passing over turns, uploads,
+    References steps and a newer build's steps. `pickerShowAs(document,
+    step)` offers a relink the way the step is shown, a new link the nearest
+    linked step's way, and the session's `lastLinkedAs` only when no step
+    before it is linked. `useStepLink` reads it through a store selector, so
+    the offer follows the diagram while the picker is open. D19 amended in
+    `diagram-workspace.md`.
+  - `linkDiagramStep` called with no `way` still links an unlinked step as a
+    Crease Pattern. Every caller passes the picker's way; `lastLinkedAs`
+    there would make the tests depend on their order.
+- [x] A first picture of another type than the run drops the seeded zoom, in the capture's undo step
+  - **The run.** `runOrigin` (private, `zoomCapture.ts`) follows a step's
+    `captureSource` back past enlarged steps with no picture. It ends at an
+    enlarged step with a picture, whose run the step continues, or at an
+    area, where a run starts. `runSource` is that enlarged step, and null
+    for a step that starts a run. `runShowAs` is the run source's
+    `showAsOf(render)`, and null for an upload, a References step, or no run.
+  - **Kept or dropped at the first link.** `landSeededFrame` (only from
+    `commitStepCapture`) asks `keepsRunFrame` (private, `zoomFrames.ts`). The
+    frame is kept and landed when the step was linked already (a file's
+    linked step with no picture, given one by Refresh or Pose), when it
+    starts a run (as before rf3, however it is linked), or when the linked
+    picture's `showAsOf` equals `runShowAs` of the diagram before the
+    capture. An upload's run (null) matches nothing. Otherwise the step
+    starts whole (`startsWhole`) in the capture's `commit`: one undo step,
+    and Undo gives back the empty seeded step. A step that had a picture
+    returns early, so Show as, Refresh, relink and Pose are unchanged.
+  - **16h's turn follows the rule.** `firstLinkPose(document, stepId, way,
+    spread)` reads `runOrigin`. A step continuing a run starts in the run
+    source's turn when linked the run's way (158° on the crane) and at no
+    turn otherwise, since it starts whole. A step starting a run takes the
+    turn of the step its area is on, whichever way it is linked, converted by
+    `renderToShowAs`, as 16h did before rf3. A step after another empty
+    seeded step now starts in the run source's turn; before, at no turn.
+  - `startsWhole(was, next, assets)` in `zoomFrames.ts` is the one rule for
+    "a first picture starts whole". It drops the frame of a step that had no
+    picture through `withZoom`, the path Enlarged turned off takes, so marks
+    kept from a picture since removed go from the window to the whole
+    picture.
+- [x] Uploads and References cards start unenlarged; `withCardMarksInFrame` callers settled
+  - `commitMade` is gone: `addDiagramPictures`, `setDiagramStepPicture` and
+    `pullReferencesDiagramSteps` call `commit`. Uploads and cards are never
+    seeded.
+  - **Deviation: the fill drops the frame where the picture lands, not in
+    `commitMade`.** A card filling an empty seeded step must start whole too,
+    and its marks are laid out inside `pullReferencesSteps` (`swapCardMarks`
+    → `marksIntoUnits`); dropping the frame afterwards would leave its lines
+    cut at the frame and lose the marks the frame left out. So `startsWhole`
+    runs in `setStepPicture` (upload fill, Replace Picture on an empty step)
+    and in `pullReferencesSteps`' fill branch, before the card's marks
+    arrive. A step that has a picture keeps its frame through Replace Picture
+    and a References Replace.
+  - `withCardMarksInFrame` is removed (its only caller seeded new cards).
+    `liesInFrame` and `marksIntoUnits` stay, for Replace, Way and Make
+    Editable on a References step enlarged later.
+  - `seedNewSteps(document, stepIds, assets)` is called only from `addAt`
+    (Add Step, Insert Step After; Insert Turn's turn is passed over). It lost
+    `filled` and the run tracking that only uploads made in one edit needed:
+    an empty seeded step passes on the imprint it copied. It skips a step
+    after an enlarged upload or References step (`runSource` set,
+    `runShowAs` null), since no first picture could keep that frame; the
+    empty card would say "Enlarged · N" for nothing. An exception to Z2,
+    recorded there.
+  - `trackSeededSteps` only waits for each seeded step's first picture.
+  - The model cannot tell a seeded empty step from one enlarged by hand
+    before its picture, or from an enlarged step whose picture was removed.
+    All follow these rules (see the open calls).
+- [x] Show as on an already-enlarged step unchanged; the toggle turns it off in one click
+  - A store test shows Crease Pattern on step 2's enlarged folded crane
+    keeping its frame, and the switch turning it off in one undo step.
+- [x] Tests near each change
+  - `diagramZoom.test.ts`: uploads and cards after a run, or filling an
+    empty seeded step, start whole and count nothing (Undo gives the seed
+    back); Replace Picture keeps a pictured step enlarged; Insert Step After
+    an enlarged upload starts whole; a seeded step linked as a Crease Pattern
+    after a Folded run starts whole in the link's undo step, and undone and
+    linked Folded lands and counts `seeded`; a run start relinked after its
+    picture is removed keeps its frame; Show as keeps the frame.
+  - `zoomFrames.test.ts` (`landSeededFrame` keeps, drops, leaves a pictured
+    step; `startsWhole`; no seed after an enlarged upload or References step;
+    a run of empty steps passes on the imprint), `zoomCapture.test.ts`
+    (`runSource`, `runShowAs`, no run from an area), `stepCaptureActions.test.ts`
+    (the first link's turn by way, after an empty step, and for a run
+    start), `useStepLink.test.tsx` (the offer), `diagramDocument.test.ts`
+    (`nearestEarlierShowAs`; `setStepPicture` on an empty enlarged step, a
+    mark carried to the whole picture), `cardMarks.test.ts`,
+    `referencesPulledSteps.test.ts`, `referencesCardMarks.pages.test.ts`
+    (whole cards).
+  - Each new test failed before its change: 11 before the implementation,
+    8 more before the review fixes.
+- [x] i18n if any string changes, all 9 catalogs
+  - No string changed; `i18n:check` passes.
+- [x] `docs/analytics.md` (`seeded` scope); Z2 amended in `diagram-revision-2.md`
+  - `diagram step enlarged`: from 2026-10-08 uploads and cards count
+    nothing, and `seeded` counts only an empty step's first link that keeps
+    the frame. A dropped seed has no event, and leaves `awaitingPicture`'s
+    entry, so a link of the run's type after Undo still counts once.
+    `DiagramStepEnlargedVia`'s comment says the same; events and values are
+    unchanged.
+  - `diagram-revision-2.md`: Z2 amended (with the run-start and upload
+    exceptions), decided item 11 superseded, the 2026-10-07 open question
+    "A step made after an upload" moot. 17d's frame trim for new cards
+    amended in `diagram-references-annotations.md`, D19's picker default in
+    `diagram-workspace.md`.
+- [x] Review; before/after screenshots (Folded run, then a new step linked)
+  - Review: 8 minor findings. Fixed: the type rule had bound run starts and
+    linked steps with no picture (finding 1); seeds after an enlarged upload
+    or References step (2 and 5, option (a)); dead seeding code (4); stale
+    Revision 2 entries (3). Left for Zach (6) or pre-existing (7, 8), below.
+  - Gate (rf3 commit): `lint:web`, `tsc --noEmit`, `i18n:check` clean;
+    whole vitest suite 888 files / 12035 tests passed (2 files, 15 tests
+    skipped).
+  - Evidence: `artifacts/review-fixes/3/rf3-evidence.png`, from
+    `final/verify.mjs` (facts in `final/<before|after>-<light|dark>.json`)
+    and `final/composite.py`; "before" ran with HEAD ec2461f3c's nine
+    sources put back, restored byte-identical. On the crane, light and dark,
+    Insert Step After step 24 (the Folded run is steps 23–25):
+    - Before: the picker offers Crease Pattern; linked, step 25 is a
+      crease-pattern corner at 158°, enlarged (Zach's report). An upload
+      after step 25 is enlarged, and References Card 2 after it is enlarged
+      with 1 of its 6 marks.
+    - After: the picker offers Folded; linked, step 25 is the folded head at
+      158°, enlarged like step 24. Undone and linked as a Crease Pattern, it
+      is whole at 0°. The upload is whole, and Card 2 is whole with all 6
+      marks.
+    - No console errors. Earlier runs: `verify.mjs`
+      (`rf3-evidence-implementer.png`, steps 25–26), `review-fix/` (a run
+      start relinked; Insert Step After an enlarged upload), `review/` (the
+      reviewer's walk).
+  - Open calls for Zach:
+    - Remove Picture then Upload, or Link as another type, on an enlarged
+      step that continues a run drops its frame and carries its marks to the
+      whole picture, where they mark nothing; Replace Picture keeps it
+      enlarged. Keeping the frame there needs the seed marked when it is
+      made (a transient flag the file need not keep) and `startsWhole`
+      applied only to it.
+    - Confirm that a new empty step after an enlarged upload or References
+      step starts whole, which makes the 2026-10-07 question moot.
+  - Seen in review, pre-existing: Show as Simulated on an enlarged step
+    keeps it enlarged, but the window shows no paper (the frame keeps the
+    Crease Pattern landing's picture-unit place, off the simulated sheet).
+    On the crane, step 25 (Pattern 24) frames only a small wedge, and a step
+    continuing its run copies that faithfully; it may belong with item 4's
+    Update.
 
 ### 4. "Area out of date" notices
 
