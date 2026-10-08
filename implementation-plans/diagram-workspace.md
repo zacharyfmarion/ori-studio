@@ -1560,6 +1560,58 @@ to fold it" — both readings.)*
   as well as Next, m counting what has been found so far ("5+" while more may
   exist) — rather than Next alone.
 
+**D25. A References step's marks are annotations.**
+*(Zach, 2026-10-07: "for imported reference steps, I want all the annotations
+to be imported and editable as annotations … add support for solid lines
+where you can choose the color … the option to show / hide the letters and
+reference lines on import, like in export". Plan and as-built:
+`diagram-references-annotations.md`, RM1–RM13; built as Phase 17.)*
+
+- **The split.** A pulled card's paper is the step's picture: the sheet, the
+  creases already made, the pattern's aux lines and the band wash. What the
+  step asks the folder to do is lifted into annotations tagged `imported`:
+  its folds, reference lines, rings, letters and arrows. In the Diagram
+  preset it paints as the baked card did, letters' typeface on screen
+  aside. A card with more marks than a step holds (500) is pulled baked,
+  with a toast.
+- **No letter kind.** A letter is Text (`label`). Text gains a colour, Bold,
+  a halo, a print size and an offset from its point, for any text; hung text
+  is dragged by its words.
+- **Solid lines.** A fourth Line Type, Solid (Shift+L), in a palette or
+  custom colour, for any step. A reference line lifts as one.
+- **Show.** The browser's Show menu picks Letters and Reference lines, as
+  the export dialog's Marks do (renamed "Reference lines"). It is
+  remembered, and each step records its choice (`source.marks`).
+- **The card's marks follow the card.** Replace from References and the Way
+  chooser swap every tagged mark, edited or not, and keep the author's; a
+  toast with Undo says when edited ones went. Turn over renames a step's
+  folds, valley and mountain, as the picture's side used to.
+- **Old steps** paint as they did, and the reader rewrites nothing. Make
+  Marks Editable converts one, as one undo step: in Annotate's notice, the
+  Step pane and the card menu.
+- **Open in References** opens on the step's own card, found by its line and
+  number (17f).
+
+Where its parts live (under `apps/web/src/`):
+- The lift and its verbs, in `diagram/references/`: `referencesCardMarks.ts`
+  (`liftCardMarks`, `liftedCardPicture`, `editableCardMarks`),
+  `referencesPulledSteps.ts` (the pull, `chooseReferencesWay`),
+  `makeMarksEditable.ts` and `cardMarksToast.ts`.
+- The tag, in `diagram/document/`: `cardMarks.ts` (its predicates and
+  moves), and `swapCardMarks` and `makeCardMarksEditable` in
+  `diagramDocument.ts`.
+- The marks, in `diagram/annotate/`: `annotationModel.ts` (`solid-line`,
+  Text's options), `annotationCarry.ts` (`otherSide`), `annotationColors.ts`
+  (the palette) and `labelAdvances.ts` (Bold's advances).
+- The controls, in `components/diagram/`: `DiagramColorSelect`,
+  `DiagramLineTypeControl`, `DiagramTextStyleControl`,
+  `DiagramTextStyleRows`, `DiagramReferencesShowMenu` and
+  `DiagramCardMarksNotice`; and `SelectSwatch` in `components/ui/Select`.
+- Open in References: `diagram/capture/referencesStepActions.ts` asks; the
+  store's `referencesCardRequest` holds the card; `locateStepCard`
+  (`cp-workspace/references/referencesReaderState.ts`) finds it, and
+  `useReferencesBreakdown` opens on it.
+
 ### Contracts
 
 A React-free leaf module, `apps/web/src/diagram/document/diagramDocument.ts`,
@@ -3683,6 +3735,19 @@ built as 15a–15f, each phase's as-built under its checklist there.
 Plan: `implementation-plans/diagram-revision-2.md` — decided (Z1–Z11,
 ED1–ED13, RA0–RA8) and built as 16a–16g, each phase's as-built under its
 checklist there. It amends D2, D8, D10 and D22 above.
+
+### Phase 17: a References step's marks as annotations (D25; Zach, 2026-10-07)
+
+1. A pulled card's arrows, lines, rings and letters arrive as editable
+   annotations; a letter is Text.
+2. Solid lines with a colour, for any step.
+3. Show or hide Letters and Reference lines on a pull, as export does.
+
+Plan: `implementation-plans/diagram-references-annotations.md` — decided
+(RM1–RM13) and built as 17a–17f, each phase's as-built under its checklist
+there. 17a is Solid lines, 17b Text's options, 17c Turn over renaming folds,
+17d the split at a pull, 17e Make Marks Editable and 17f the close-out. It
+amends D8 (17c's renaming).
 
 ### Later (written up, not built)
 

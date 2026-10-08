@@ -1,6 +1,6 @@
 # Diagram: a References step's marks as annotations
 
-**Status: planned 2026-10-07; 17a, 17b, 17c, 17d and 17e built the same day. Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
+**Status: planned 2026-10-07; 17a–17f built the same day (17f's close-out at the end). Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
 
 **Revised 2026-10-07: there is no `letter` kind.** A pulled letter is a Text annotation (`label`), and Text gains the options it needs (§4). Zach: "why is letter different from text annotation in diagram references? Id rather just extend text to have color / any other options we need". RM1 and RM3 now speak of Text options, RM12 is superseded, and Reset Position is dropped.
 
@@ -1786,11 +1786,106 @@ Open, Zach's call (built as §4 says until he says otherwise):
 - **Open in References** (found in review, not 17e): from a Diagram step it
   opens on the Finished card, not the step's card, so Export step… is
   disabled there. `openDiagramStepInReferences` passes no `card`, whereas §8
-  says it opens the plan's card.
+  says it opens the plan's card. Fixed in 17f.
 
 ### 17f: Close-out
 
-- [ ] As-built notes here, and D25 with Phase 17 in `diagram-workspace.md`
+- [x] As-built notes here, and D25 with Phase 17 in `diagram-workspace.md`
   (D8 already amended for 17c's renaming).
-- [ ] Full gate: lint, typecheck, `test:web`, `i18n:check`, `build:web`.
-- [ ] PR notes with any skipped checks and why.
+- [x] Full gate: lint, typecheck, `test:web`, `i18n:check`, `build:web`.
+- [x] PR notes with any skipped checks and why.
+
+**17f as built** (2026-10-07):
+- **Open in References opens on the step's own card** (§8; found in 17e's
+  review, commit `098d701a1`). `openDiagramStepInReferences` asked for the
+  sheet and the mode only, so the plan opened where it would have anyway.
+  On crane.osf that was the Finished card its file was saved on, where
+  Export step… has nothing to export.
+  - A sequence step's request now carries its card: the number printed on
+    it and the line it folds (`ReferencesSheetRequest.card`). A Find step
+    carries none.
+  - Once the sheet is open, the request hook latches the card in the store
+    (`referencesCardRequest`). A switch to another sheet, or another open,
+    drops it.
+  - `useReferencesBreakdown` opens on it as the plan lands, over a reopened
+    file's saved card, or at once when the sheet's plan is already on
+    screen. Nothing is planned again.
+  - `locateStepCard` (`referencesReaderState.ts`) finds it. Of the cards
+    folding its line, it takes the one with its number: a press shares its
+    fold's line, and turn-overs shift a card's place, so the number alone
+    or the place alone can name another card. A step that names neither is
+    the ending. When its line is gone, the first card.
+  - References shows its own choice of way, as §8 says.
+  - **Tests:** 8 new tests and 2 extended, in `referencesReaderState`,
+    `useReferencesBreakdown.restore`, `useReferencesSheetRequest`,
+    `referencesStepActions` and `referencesSlice`. All 10 fail with the
+    source change reversed alone.
+  - **Browser** (`artifacts/references-marks/17f/open/`, Chromium 1280,
+    crane.osf, the Step pane's Open in References clicked):
+
+    | | step 1 (card 1) | step 2 (card 2, back) |
+    | --- | --- | --- |
+    | before | Finished, Export step… disabled | Finished, disabled |
+    | after | Card 1, enabled | Card 2, enabled |
+
+    Step 1's plan lands from the cache, over the saved Finished card; step
+    2's is already on screen. WebKit gives the same on the iPad and the
+    phone below. Confidence: high.
+- **Wording** (`a4d8bcdbb`). The last "line highlights", in two comments
+  and a test title, say "reference lines".
+- **WebKit at iPad size and phone width** (`17f/webkit/ipad.mjs`,
+  `phone.mjs`; crane.osf; the isolation headers 17d's script adds; taps for
+  everything under test, the store to navigate and read):
+  - **iPad**, 1024×1366, touch, light and dark. Every check passed, with no
+    page or console errors:
+    - Annotate's notice (behind Settings), Make Editable and its toast;
+    - the lifted step's Layers rows, and a letter's Color, Bold, Halo and
+      Size rows, recoloured Blue;
+    - the Solid segment, the Line Color list, and a blue solid line drawn;
+    - Text Style under the Label tool;
+    - the Step pane's Make Marks Editable and its toast;
+    - Open in References, on Card 1, Export step… enabled;
+    - the Show menu, Letters off ("Show · 1 hidden") and on again;
+    - Replace, with its toast and Undo; Way 2 in Pose, with its toast.
+  - **Phone**, 375 px (iPhone X), light: the Step pane's Make Marks
+    Editable, Open in References, the Show menu, and Replace and Way with
+    their toasts all pass. A phone has no Annotate (as since Phase 10). So
+    the rail's controls and the Layers rows are checked on the iPad only,
+    and the letter edited before Replace is edited through the store.
+  - **Fixed** (`f33a84796`): at 375 px with a mark hidden, "Show · 1
+    hidden" pushed Open References 46 px past the browser's edge (measured,
+    `phone-bar.mjs`). The tools row wraps now, so Open References takes a
+    second row there. At 1280 px the bar is one row, as before.
+  - **Cosmetic, and older than this feature:**
+    - On a phone, Replace from References… in the Settings sheet opens the
+      browser under the sheet; closing the sheet shows it. The same at
+      `31e1d6d84` on #436's own dev server (`phone-drawer-base.mjs`).
+    - On a phone, a step's header wraps onto three rows. This branch does
+      not touch it.
+    - On a phone, the Step pane's Annotate button and the Layers tab lead
+      to "Annotate on a larger screen" and "Open a step in Annotate to see
+      its layers".
+  - Crane's References steps came from an older plan key, so the browser
+    marks none of their cards "Shown now". That is §8's rule, not a fault.
+- **Gate**, on what is committed (Node 22): `npm run lint:web` clean;
+  `npx tsc --noEmit` exit 0; `npm run i18n:check` passed; `npx vitest run`,
+  all of it: 888 files passed and 2 skipped, 12,000 tests passed and 15
+  skipped. `npm run build:web` passed: its pre-hooks rebuilt the five wasm
+  bridges, vite built, and the prerender wrote 37 pages, a 36-URL sitemap
+  and a robots.txt that disallows crawlers, as off production it should.
+  Its only warning is vite's chunk-size one.
+- **Evidence:** `artifacts/references-marks/17f/17f-evidence.png`.
+
+**Open with Zach** (from 17b–17e; each built as recommended until he says
+otherwise):
+- A References pull, upload or link after an enlarged run starts enlarged
+  (16g's seeding). Recommended: start unenlarged.
+- A halo straddling a sheet's edge takes one colour. Recommended: paint it
+  in two clipped parts, the face's colour inside and white outside.
+- Halos on folded steps are white. Recommended: leave them white.
+- Replace and Way quietly restore a pulled mark the author deleted.
+  Recommended: accept.
+- Converting an old enlarged References step drops the marks its frame cuts.
+  Recommended: keep, with its count in the toast and Undo.
+- Pasting across sides keeps the fold names a mark was copied with.
+  Recommended: keep.
