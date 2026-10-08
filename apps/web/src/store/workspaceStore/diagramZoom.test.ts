@@ -36,7 +36,7 @@ vi.mock('../../analytics', async (importOriginal) => ({
 }));
 
 /**
- * Enlarged steps through the store (Revision 2, 16e): Pose's Enlarged, Update
+ * Enlarged steps through the store (Revision 2, 16e): the Enlarged toggle, Update
  * Enlarged Steps, a step added after an enlarged one, the frame selected as a
  * layer, and the anchor's pick mode — each edit one undo step.
  */
@@ -88,7 +88,7 @@ afterEach(() => {
   expect(frames!.problems).toEqual([]);
 });
 
-describe('Pose’s Enlarged (Z2)', () => {
+describe('the Enlarged toggle (Z2)', () => {
   it('turned on captures a frame as one undo step, its marks carried into the window on the same paper, and is counted', async () => {
     install();
     const before = marksInPicture(step('step-2'));

@@ -16,7 +16,7 @@ import { zoomIndex } from './zoomIndex';
 
 /**
  * Enlarged steps' verbs (Revision 2, Controls), for every surface that offers
- * them: Pose's Enlarged toggle, an area's Update Enlarged Steps, Pick and
+ * them: the Enlarged toggle (Annotate's Step pane), an area's Update Enlarged Steps, Pick and
  * Reset in the Anchor row, and the Go to verbs between an area and the steps
  * enlarged from it. React-free and store-free, as `foldedFigureActions.ts`
  * is: plain descriptors over plain state, a verb's gate and its words here
@@ -32,12 +32,12 @@ export interface ZoomAction {
   disabled: boolean;
   /** A toggle's state: Enlarged on, or Pick armed. */
   pressed?: boolean;
-  /** Refused while a capture of the step runs: it keeps the focus, as Pose's other verbs do. */
+  /** Refused while a capture of the step runs: it keeps the focus, as Pose's verbs do. */
   waiting?: boolean;
   run: () => void;
 }
 
-/** What Pose's Enlarged reads of a step and the steps before it (Z2). */
+/** What the Enlarged toggle reads of a step and the steps before it (Z2). */
 export interface EnlargedState {
   /** The step is enlarged now. */
   on: boolean;
@@ -53,7 +53,7 @@ export interface EnlargedState {
   busy: boolean;
 }
 
-/** Pose's Enlarged for a step, from the diagram as it is; null for a turn, a newer build's step or none. */
+/** The Enlarged toggle for a step, from the diagram as it is; null for a turn, a newer build's step or none. */
 export function enlargedState(
   document: DiagramDocument,
   stepId: string,
@@ -76,7 +76,8 @@ const READ_ONLY = (t: TFunction) =>
   t('panels:diagram.actions.readOnlyHint', 'This diagram was made with a newer Ori Studio and opens read-only');
 
 /**
- * Pose's Enlarged (Z2): a pressed toggle, as Spread Layers is. Turned on it
+ * Enlarged (Z2), a switch in Annotate's Step pane (Pose's until Zach's
+ * review of #436, 2026-10-08): a pressed toggle, as Spread Layers is. Turned on it
  * captures a frame from the step it names; turned off the step shows its
  * whole picture again. Held, saying why, when no earlier step has an area or
  * a frame to capture from.
@@ -235,16 +236,18 @@ export function buildFrameActions(
 /**
  * The Anchor row's verbs (Z9): Pick, which arms the pick mode on the canvas —
  * pressed while it is — and Reset, back to the default rule, while an anchor
- * is picked. Neither moves the frame on its own step.
+ * is picked. Neither moves the frame on its own step. Pick only where there
+ * is a canvas to pick on (`canvas`): a phone's Annotate has none.
  */
 export function buildAnchorActions(
-  state: { picked: boolean; picking: boolean; readOnly: boolean },
+  state: { picked: boolean; picking: boolean; readOnly: boolean; canvas: boolean },
   deps: { t: TFunction; pick: () => void; reset: () => void }
 ): ZoomAction[] {
   const { t } = deps;
   const readOnly = state.readOnly ? READ_ONLY(t) : null;
-  const actions: ZoomAction[] = [
-    {
+  const actions: ZoomAction[] = [];
+  if (state.canvas) {
+    actions.push({
       id: 'pick-anchor',
       label: t('panels:diagram.annotations.anchorPick', 'Pick'),
       hint:
@@ -257,8 +260,8 @@ export function buildAnchorActions(
       run: () => {
         if (readOnly === null) deps.pick();
       },
-    },
-  ];
+    });
+  }
   if (state.picked) {
     actions.push({
       id: 'reset-anchor',

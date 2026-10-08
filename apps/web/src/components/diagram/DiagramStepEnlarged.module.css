@@ -1,0 +1,19 @@
+/* Annotate's Enlarged section in the Step pane (DiagramStepEnlarged.tsx): the switch, the frame's rows, a read-out and the notices. */
+.enlarged {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* The read-out and the notices under the rows, with room under them before the section's rule. */
+.end {
+  display: grid;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+/* The notices at the rows' inset, as the pane's other notices are. */
+.notices {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+}

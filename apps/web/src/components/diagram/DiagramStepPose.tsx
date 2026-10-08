@@ -8,12 +8,10 @@ import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { useReferencesStepWays } from '../../diagram/references/useReferencesStepWays';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { useStepZoom } from '../../diagram/zoom/useStepZoom';
-import type { ZoomAction } from '../../diagram/zoom/zoomActions';
 import { DiagramSpreadRows } from './DiagramSpreadRows';
 import { DiagramWayRow } from './DiagramWayChooser';
 import { IconButton } from '../ui/IconButton';
-import { FieldRow, NumberRow, SegmentedRow, ToggleRow } from '../ui/fieldRows';
+import { FieldRow, NumberRow, SegmentedRow } from '../ui/fieldRows';
 import styles from './DiagramStepPose.module.css';
 
 /** A side to show, and the verb that turns the picture over to the other one. */
@@ -37,8 +35,10 @@ interface SideChoice {
  *   by depth or affine and how. Its verbs are the open step's own pose controller's
  *   (`useOpenLinkedPose`): one capture session per step, whichever surface
  *   asks. How it is shown is Show as, at the top of the pane (D19).
- * - **Every step:** Enlarged (Revision 2), last, as Spread Layers is a row:
- *   on a phone the toolbar leaves both to this section, the drawer.
+ *
+ * Enlarged is not Pose's (Zach's review of #436, 2026-10-08): Pose draws an
+ * enlarged step's frame, and Annotate's Step pane turns it on and sets it
+ * (`DiagramStepEnlarged`).
  *
  * In a section of its own, or nothing for a step with nothing to say here.
  */
@@ -55,14 +55,10 @@ export function DiagramStepPose({
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   // A References step's ways to fold its card (D23).
   const ways = useReferencesStepWays(step);
-  const { enlarged } = useStepZoom(isLockedStep(step) ? null : step);
   if (isLockedStep(step)) return null;
   const section = (body: ReactNode) => (
     <CollapsibleSection title={t('panels:diagram.stepPane.pose', 'Pose')}>
-      <div className={styles.pose}>
-        {body}
-        {enlarged && <EnlargedRow action={enlarged} />}
-      </div>
+      <div className={styles.pose}>{body}</div>
     </CollapsibleSection>
   );
   const sideRow = ({ side, turnOver }: SideChoice) => (
@@ -110,7 +106,7 @@ export function DiagramStepPose({
     );
   }
 
-  if (source?.kind !== 'cp' || !linkedPose) return enlarged && step.picture ? section(null) : null;
+  if (source?.kind !== 'cp' || !linkedPose) return null;
   const { render } = source;
   const linked = linkedPose.actions;
   const turn = render.mode === 'crease-pattern' || render.mode === 'folded-flat' ? render.rotationDeg : null;
@@ -118,7 +114,7 @@ export function DiagramStepPose({
   const waiting = linked.some((action) => action.waiting);
   const turnOver = linked.find((action) => action.id === 'turn-over');
   const side = render.mode === 'folded-flat' || render.mode === 'folded-3d' ? render.side : null;
-  if (turn === null && side === null) return enlarged ? section(null) : null;
+  if (turn === null && side === null) return null;
   return section(
     <>
       {turn !== null && (
@@ -174,19 +170,5 @@ function layerVerb(action: DiagramLinkedPoseAction | undefined, Icon: LucideIcon
     >
       <Icon size={14} />
     </IconButton>
-  );
-}
-
-/** Pose's Enlarged as a row (Revision 2): a switch, refused with its reason, as the toolbar's toggle is. */
-function EnlargedRow({ action }: { action: ZoomAction }) {
-  return (
-    <ToggleRow
-      label={action.label}
-      checked={action.pressed ?? false}
-      disabled={action.disabled}
-      title={action.hint}
-      // Waiting for its capture, the switch refuses, as the verb does.
-      onChange={() => action.run()}
-    />
   );
 }

@@ -1,6 +1,7 @@
 /**
- * Enlarged steps' captures against the store (Revision 2, Z2, Z7): Pose's
- * Enlarged and Update Enlarged Steps, each one undo step.
+ * Enlarged steps' captures against the store (Revision 2, Z2, Z7): the
+ * Enlarged switch (Annotate's Step pane) and Update Enlarged Steps, each one
+ * undo step.
  *
  * A flat step captured before steps kept their faces on the paper has none,
  * and a frame anchors nothing on it. So a capture whose source or enlarged
@@ -134,8 +135,10 @@ export function trackCaptured(
 /**
  * The frames that placed nothing yet — their steps have no picture — and
  * whose first picture is the capture's to count (`trackSeeded`), with how
- * they were captured: Pose's Enlarged turned on for a step with no picture
- * yet, a linked step not captured yet (`toggle`), or a step made empty after
+ * they were captured: the Enlarged toggle turned on for a step with no
+ * picture yet, a linked step not captured yet (`toggle`: Pose offered it
+ * there until 2026-10-08; Annotate's Step pane, which has it now, needs a
+ * picture), or a step made empty after
  * an enlarged one, by Add Step or Insert Step After (`seeded`). Each
  * enlarging is counted once, by `diagram step enlarged`: the entry is the
  * step's own, so a duplicate sharing its frame counts nothing, and it is

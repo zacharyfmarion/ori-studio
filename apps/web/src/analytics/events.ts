@@ -156,7 +156,8 @@ export type DiagramShapedArrowHalf = 'out' | 'return';
 export type DiagramBehindEnds = 'tail' | 'tip' | 'both' | 'whole';
 
 /**
- * How an enlarged step got its frame (Revision 2): Pose's Enlarged turned on,
+ * How an enlarged step got its frame (Revision 2): the Enlarged toggle turned
+ * on (in Annotate's Step pane since 2026-10-08; Pose's before),
  * a new step after an enlarged one whose first picture lands the frame it
  * was seeded with, or Update Enlarged Steps on the area it came from.
  */
@@ -223,7 +224,8 @@ export type DiagramPoseAction =
   | 'rotate_right'
   | 'flip'
   | 'reset'
-  // Pose's Enlarged turned off (Revision 2): turning it on is `diagram step enlarged`.
+  // The Enlarged toggle turned off (Revision 2; in Annotate's Step pane since 2026-10-08, Pose's before):
+  // turning it on is `diagram step enlarged`.
   | 'enlarge_off'
   | 'show_crease_pattern'
   | 'show_folded'

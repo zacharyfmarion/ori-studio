@@ -49,7 +49,7 @@ function crane(): DiagramDocument {
   return diagramOf(withArea(s, headArea(s)), named(craneStep('C.none'), 'step-2'), named(craneStep('C.none'), 'step-3'));
 }
 
-describe('Pose’s Enlarged (Z2)', () => {
+describe('the Enlarged toggle (Z2)', () => {
   it('names the step it would capture from, and whether that holds an area or a frame', () => {
     const document = crane();
     const state = enlargedState(document, 'step-2', { readOnly: false })!;
@@ -149,16 +149,24 @@ describe('an area’s and a frame’s rows (Z7)', () => {
   it('offer Pick, pressed while it picks, and Reset while an anchor is picked', () => {
     const pick = vi.fn();
     const reset = vi.fn();
-    expect(buildAnchorActions({ picked: false, picking: false, readOnly: false }, { t, pick, reset }).map((each) => each.id)).toEqual([
-      'pick-anchor',
-    ]);
-    const [picking, resetting] = buildAnchorActions({ picked: true, picking: true, readOnly: false }, { t, pick, reset });
+    const canvas = true;
+    expect(
+      buildAnchorActions({ picked: false, picking: false, readOnly: false, canvas }, { t, pick, reset }).map((each) => each.id)
+    ).toEqual(['pick-anchor']);
+    const [picking, resetting] = buildAnchorActions({ picked: true, picking: true, readOnly: false, canvas }, { t, pick, reset });
     expect(picking).toMatchObject({ pressed: true, label: 'Pick' });
     expect(resetting).toMatchObject({ id: 'reset-anchor', label: 'Reset' });
-    const held = buildAnchorActions({ picked: true, picking: false, readOnly: true }, { t, pick, reset });
+    const held = buildAnchorActions({ picked: true, picking: false, readOnly: true, canvas }, { t, pick, reset });
     held.forEach((action) => action.run());
     expect(pick).not.toHaveBeenCalled();
     expect(reset).not.toHaveBeenCalled();
+  });
+
+  it('offer no Pick with no canvas to pick on, as on a phone, and still Reset (review of #436)', () => {
+    const deps = { t, pick: vi.fn(), reset: vi.fn() };
+    expect(buildAnchorActions({ picked: false, picking: false, readOnly: false, canvas: false }, deps)).toEqual([]);
+    const ids = buildAnchorActions({ picked: true, picking: false, readOnly: false, canvas: false }, deps).map((each) => each.id);
+    expect(ids).toEqual(['reset-anchor']);
   });
 });
 

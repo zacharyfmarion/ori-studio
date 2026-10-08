@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { trackDiagramEnlargementChanged } from '../../analytics';
+import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { activeAnchorPick } from '../../store/workspaceStore/diagramState';
 import {
@@ -43,11 +44,13 @@ export type ZoomControlsTarget = { kind: 'area'; area: KnownDiagramAnnotation } 
 const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 /**
- * An enlargement's controls in the Layers pane (Revision 2, Controls), bound
- * to the store: an area's or a frame's Shape, Size and Edge, its Anchor row
- * and its verbs, each change one undo step — an area's through its step's
- * marks, a frame's through `zoomFrames.ts` — and what its row says of it. A
- * change is counted (`diagram enlargement changed`).
+ * An enlargement's controls (Revision 2, Controls), bound to the store: an
+ * area's or a frame's Shape, Size and Edge, its Anchor row and its verbs,
+ * each change one undo step — an area's through its step's marks, a frame's
+ * through `zoomFrames.ts` — and what its row says of it. A change is counted
+ * (`diagram enlargement changed`). The Layers pane binds an area or a frame
+ * with it; Annotate's Step pane binds the step's frame with it too, for its
+ * Size and Anchor (`DiagramStepEnlarged`), so the two panes cannot drift.
  */
 export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
   const { t } = useTranslation();
@@ -61,6 +64,8 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
     return pick?.stepId === step.id && pick.target === targetId;
   });
   const editable = !readOnly && !isLockedStep(step) && step.picture !== null;
+  // A phone's Annotate shows no canvas (`DiagramStepDetail`), so there is nothing to Pick on.
+  const canvas = !useIsPhoneLayout();
   const on = target.kind;
   const stepId = step.id;
   const area = target.kind === 'area' ? target.area : null;
@@ -111,7 +116,17 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
             : changeFrame('Change enlarged frame', (document) => setFrameEdge(document, stepId, next));
         if (changed && next !== null) trackDiagramEnlargementChanged(on, 'edge', next);
       },
-      pick: () => store().setDiagramAnchorPick(picking ? null : { stepId, target: targetId }),
+      pick: () => {
+        if (picking) {
+          store().setDiagramAnchorPick(null);
+          return;
+        }
+        // The canvas picks round the area or frame selected (`activeAnchorPick`): Layers' row is, and
+        // Annotate's Step pane, which has the frame's Pick with no row, selects it here. Armed first, so
+        // the selection arrives with its pick, which keeps it (`pickPutDown`) and keeps Layers back.
+        store().setDiagramAnchorPick({ stepId, target: targetId });
+        store().selectDiagramAnnotation(targetId);
+      },
       resetAnchor: () => {
         store().setDiagramAnchorPick(null);
         const changed =
@@ -145,8 +160,8 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
     [on, enlargedOn, areaStep, readOnly, updating, t, verbs]
   );
   const anchorActions = useMemo(
-    () => buildAnchorActions({ picked, picking, readOnly: !editable }, { t, pick: verbs.pick, reset: verbs.resetAnchor }),
-    [picked, picking, editable, t, verbs]
+    () => buildAnchorActions({ picked, picking, readOnly: !editable, canvas }, { t, pick: verbs.pick, reset: verbs.resetAnchor }),
+    [picked, picking, editable, canvas, t, verbs]
   );
 
   return {
@@ -172,6 +187,9 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
     ...verbs,
   };
 }
+
+/** An enlargement's controls, bound: what the rows that draw them read (`DiagramZoomRows`). */
+export type ZoomControls = ReturnType<typeof useZoomControls>;
 
 /** The subtitle of an area's row in the list, from the diagram as it is. */
 export function useAreaSubtitle(area: KnownDiagramAnnotation | null): string | null {

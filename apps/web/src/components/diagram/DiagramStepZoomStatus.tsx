@@ -10,15 +10,17 @@ import styles from './DiagramStepZoomStatus.module.css';
 type T = ReturnType<typeof useTranslation>['t'];
 
 /**
- * The Step pane's word on an enlarged step (Revision 2, Controls): where its
- * frame came from — the area's step a row that goes to it — its Size and,
- * once the pages are laid out, what it prints at; and the notices that need
- * a hand: it prints smaller than asked, or barely enlarged; the frame holds
- * no paper here; its anchor is not on this step's paper; a frame copied in
- * picture units that its steps' faces would anchor, after a Refresh of the
- * steps captured before steps kept them. Each names the verb that fixes it;
- * the pane has no buttons of its own for them. Nothing for a step that is
- * not enlarged.
+ * The Step pane's word on an enlarged step (Revision 2, Controls), out of the
+ * step detail: where its frame came from — the area's step a row that goes
+ * to it — its Size and, once the pages are laid out, what it prints at; and
+ * the notices that need a hand: it prints smaller than asked, or barely
+ * enlarged; the frame holds no paper here; its anchor is not on this step's
+ * paper; a frame copied in picture units that its steps' faces would anchor,
+ * after a Refresh of the steps captured before steps kept them. Each names
+ * the verb that fixes it; the pane has no buttons of its own for them.
+ * Nothing for a step that is not enlarged. In Annotate the Step pane has
+ * the section you can edit instead (`DiagramStepEnlarged`), and in Pose none
+ * — but this, on a step Annotate cannot open, which has no picture yet.
  */
 export function DiagramStepZoomStatus({ step }: { step: DiagramStep }) {
   const { t, i18n } = useTranslation();
@@ -33,11 +35,7 @@ export function DiagramStepZoomStatus({ step }: { step: DiagramStep }) {
     <CollapsibleSection title={t('panels:diagram.stepPane.enlarged', 'Enlarged')}>
       <div className={styles.status} data-step-zoom-status="">
         <div>
-          <FieldRow label={t('panels:diagram.stepPane.enlargedFrom', 'From')} kind="static" onClick={areaStep ? goToArea : undefined}>
-            {areaStep
-              ? t('panels:diagram.stepPane.enlargedFromArea', 'Step {{number}}’s area', { number: areaStep.number })
-              : t('panels:diagram.stepPane.enlargedFromGone', 'An area no longer in the diagram')}
-          </FieldRow>
+          <EnlargedFromRow areaStep={areaStep} onGo={goToArea} />
           <FieldRow label={t('panels:diagram.annotations.enlargeSize', 'Size')} kind="static" divider={false}>
             {readout && !readout.warn
               ? t('panels:diagram.stepPane.enlargedSizePrints', '{{size}} · prints ×{{printed}}', {
@@ -48,14 +46,36 @@ export function DiagramStepZoomStatus({ step }: { step: DiagramStep }) {
           </FieldRow>
         </div>
         {readout?.warn && <Notice tone="warning">{zoomReadoutText(t, readout, i18n.language)}</Notice>}
-        {notices.map((notice) => (
-          <Notice key={noticeKey(notice)} tone="warning">
-            {noticeText(t, notice)}
-          </Notice>
-        ))}
+        <StepZoomNotices notices={notices} />
       </div>
     </CollapsibleSection>
   );
+}
+
+/**
+ * Where an enlarged step's frame came from: the area's step, a row that goes
+ * there (`onGo`), or an area no longer in the diagram. The Step pane's, read
+ * only or in Annotate.
+ */
+export function EnlargedFromRow({ areaStep, onGo }: { areaStep: { number: number } | null; onGo: (() => void) | undefined }) {
+  const { t } = useTranslation();
+  return (
+    <FieldRow label={t('panels:diagram.stepPane.enlargedFrom', 'From')} kind="static" onClick={areaStep ? onGo : undefined}>
+      {areaStep
+        ? t('panels:diagram.stepPane.enlargedFromArea', 'Step {{number}}’s area', { number: areaStep.number })
+        : t('panels:diagram.stepPane.enlargedFromGone', 'An area no longer in the diagram')}
+    </FieldRow>
+  );
+}
+
+/** An enlarged step's notices (`stepZoomStatus`), each naming the verb that fixes it. */
+export function StepZoomNotices({ notices }: { notices: readonly StepZoomNotice[] }) {
+  const { t } = useTranslation();
+  return notices.map((notice) => (
+    <Notice key={noticeKey(notice)} tone="warning">
+      {noticeText(t, notice)}
+    </Notice>
+  ));
 }
 
 function noticeKey(notice: StepZoomNotice): string {

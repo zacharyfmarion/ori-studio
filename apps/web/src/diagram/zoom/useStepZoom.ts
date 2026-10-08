@@ -14,11 +14,12 @@ import {
 } from './zoomActions';
 
 /**
- * An enlarged step's bindings for Pose and the Step pane (Revision 2): Pose's
- * Enlarged toggle (`zoomActions.ts`), bound to the store's verbs — each one
- * undo step — and what the Step pane says of the step: where its frame came
- * from, what it prints at, and its notices. The toggle waits, refusing, while its capture folds
- * the faces it needs.
+ * An enlarged step's bindings for the Step pane (Revision 2): the Enlarged
+ * toggle (`zoomActions.ts`), in Annotate's Enlarged section since Zach's
+ * review of #436 (2026-10-08), bound to the store's verbs — each one undo
+ * step — and what the pane says of the step: where its frame came from, what
+ * it prints at, and its notices. The toggle waits, refusing, while its
+ * capture folds the faces it needs.
  */
 export function useStepZoom(step: DiagramStep | null): {
   enlarged: ZoomAction | null;

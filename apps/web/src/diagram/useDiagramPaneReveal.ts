@@ -4,7 +4,7 @@ import { isCoarsePointerSurface } from '../platform/pointerSurface';
 import { useLayoutStore } from '../store/layoutStore';
 import { selectionPaneReveal } from '../store/sidePaneReveal';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { layersSelectionId } from '../store/workspaceStore/diagramState';
+import { activeAnchorPick, layersSelectionId } from '../store/workspaceStore/diagramState';
 
 export const DIAGRAM_STEP_PANE_ID = 'diagram-step';
 export const DIAGRAM_PAGE_PANE_ID = 'diagram-page';
@@ -30,7 +30,7 @@ export function revealDiagramPane(id: DiagramPaneId, wanted: () => boolean = () 
   });
 }
 
-/** Whether a mark or a frame is selected on the step open in Annotate: what Layers is brought forward for. */
+/** Whether a mark or a frame is selected on the step open in Annotate, which keeps Step back when its step is selected with it. */
 const layerSelected = () => layersSelectionId(useWorkspaceStore.getState()) !== null;
 
 /**
@@ -44,11 +44,23 @@ export function showDiagramPane(id: DiagramPaneId): void {
 }
 
 /**
+ * What Layers is brought forward for: a layer selected, unless it was
+ * selected to pick its anchor on the canvas — the Step pane's Pick selects
+ * the frame to arm the pick there (Zach's review of #436), and the pane whose
+ * Pick was pressed stays on top with it pressed. Layers' own Pick is pressed
+ * with Layers on top.
+ */
+const layerToReveal = () => {
+  const state = useWorkspaceStore.getState();
+  return layersSelectionId(state) !== null && activeAnchorPick(state) === null;
+};
+
+/**
  * Layers, brought forward by a mark selected — or an enlarged step's frame
  * (Revision 2) — and giving its tab back when it is let go, as Edit's
  * Properties is.
  */
-const layers = selectionPaneReveal(DIAGRAM_LAYERS_PANE_ID, layerSelected);
+const layers = selectionPaneReveal(DIAGRAM_LAYERS_PANE_ID, layerToReveal);
 
 /**
  * The reveal rules, on transitions only, so a tab the user picks stays until

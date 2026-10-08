@@ -219,7 +219,7 @@ describe('an enlarged step’s frame in Layers', () => {
     expect(state().diagramSelectedAnnotationId).toBe(ZOOM_FRAME_ID);
     expect(host!.querySelector('[data-zoom-controls="frame"]')).not.toBeNull();
     expect(host!.textContent).toContain('Update Enlarged Steps on its area, or turning Enlarged off and on, places this frame again.');
-    // No Delete for a frame: Pose's Enlarged turns it off.
+    // No Delete for a frame: the Enlarged switch, in Annotate's Step pane, turns it off.
     expect(buttonNamed('Delete')).toBeUndefined();
     act(() => zoomAction('go-to-area')!.click());
     expect(state().diagramSelectedStepId).toBe(areaStep);

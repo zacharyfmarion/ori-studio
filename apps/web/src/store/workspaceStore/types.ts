@@ -2236,7 +2236,7 @@ export interface DiagramSliceActions {
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;
   /**
-   * Pose's Enlarged turned on (Revision 2, Z2): a frame captured from the
+   * The Enlarged toggle turned on (Revision 2, Z2): a frame captured from the
    * nearest earlier step with an area or a frame, the step's own areas gone
    * and its marks carried into the window — one undo step, which first gives
    * either step its faces when it is a flat capture made before they were

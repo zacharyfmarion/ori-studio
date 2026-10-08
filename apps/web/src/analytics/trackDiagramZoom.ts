@@ -13,7 +13,7 @@ import { track } from './runtime';
 
 /**
  * A frame placed on an enlarged step by a capture (Revision 2): one event per
- * step placed — Pose's Enlarged turned on (`toggle`), a seeded step's first
+ * step placed — the Enlarged toggle turned on (`toggle`), a seeded step's first
  * picture landing its frame (`seeded`), or each step Update Enlarged Steps
  * places (`update`) — with how the frame was placed (through an anchor face,
  * through a crease pattern's sheet, or copied in picture units), by which
