@@ -537,6 +537,7 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
           mirrored: annotation.mirrored === true,
           ticks: annotation.ticks ?? 1,
           numbered: annotation.numbered === true,
+          shortDividers: annotation.shortDividers === true,
         },
       };
     case 'close-up':

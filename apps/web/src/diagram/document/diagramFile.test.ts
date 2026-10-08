@@ -949,6 +949,31 @@ describe('annotations in the file', () => {
       expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual([divisions(), full, odd]);
     });
 
+    it('round-trip short dividers (Revision 3), written only when on', () => {
+      const short = divisions({ id: 'e-20', parts: 3, offset: 10, numbered: true, shortDividers: true });
+      const read = withAnnotations([short, divisions({ id: 'e-21', shortDividers: false })]);
+      expect(read).toEqual([short, divisions({ id: 'e-21' })]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      const written = stepsIn(throughJson(writeDiagram(document)))[0].annotations;
+      expect(written).toEqual([short, divisions({ id: 'e-21' })]);
+      expect(Object.keys(written[1]).sort()).toEqual(['from', 'id', 'kind', 'offset', 'parts', 'to']);
+    });
+
+    it('drop those whose short dividers are not a yes or a no', () => {
+      expect(withAnnotations([divisions({ shortDividers: 'yes' }), divisions({ id: 'e-22', shortDividers: 1 })])).toEqual([]);
+    });
+
+    it('are kept, verbatim and undrawn, with short dividers by a build before Revision 3: as a field it has no name for', () => {
+      // A build before 18a names no `shortDividers`; `stubDividers` stands for it here.
+      const older = divisions({ id: 'e-23', stubDividers: true });
+      expect(withAnnotations([older])).toEqual([{ id: 'e-23', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      const again = throughJson(writeDiagram(readDiagram(written)!.document));
+      expect(again.steps[0].annotations).toEqual([older]);
+    });
+
     it('read a side, a count or ticks said as their defaults, and write nothing for them', () => {
       const read = withAnnotations([divisions({ mirrored: false, numbered: false })]);
       expect(read).toEqual([divisions()]);

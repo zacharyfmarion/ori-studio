@@ -4269,7 +4269,9 @@
     "panels:diagram.annotations.noneMarksInPicture": "675794ac1fce",
     "toasts:diagram.references.marksOutsideFrame_one": "e0f219a08674",
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
-    "toasts:diagram.references.noMarksInFrame": "165eb743392f"
+    "toasts:diagram.references.noMarksInFrame": "165eb743392f",
+    "panels:diagram.annotations.shortDividers": "37171e05ef65",
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8541,7 +8543,9 @@
     "panels:diagram.annotations.noneMarksInPicture": "675794ac1fce",
     "toasts:diagram.references.marksOutsideFrame_one": "e0f219a08674",
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
-    "toasts:diagram.references.noMarksInFrame": "165eb743392f"
+    "toasts:diagram.references.noMarksInFrame": "165eb743392f",
+    "panels:diagram.annotations.shortDividers": "37171e05ef65",
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12815,7 +12819,9 @@
     "panels:diagram.annotations.noneMarksInPicture": "675794ac1fce",
     "toasts:diagram.references.marksOutsideFrame_one": "e0f219a08674",
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
-    "toasts:diagram.references.noMarksInFrame": "165eb743392f"
+    "toasts:diagram.references.noMarksInFrame": "165eb743392f",
+    "panels:diagram.annotations.shortDividers": "37171e05ef65",
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -16993,7 +16999,9 @@
     "panels:diagram.actions.tooManyMarksWithYoursHint_other": "abb39c431341",
     "panels:diagram.annotations.noneMarksInPicture": "675794ac1fce",
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
-    "toasts:diagram.references.noMarksInFrame": "165eb743392f"
+    "toasts:diagram.references.noMarksInFrame": "165eb743392f",
+    "panels:diagram.annotations.shortDividers": "37171e05ef65",
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -21171,7 +21179,9 @@
     "panels:diagram.actions.tooManyMarksWithYoursHint_other": "abb39c431341",
     "panels:diagram.annotations.noneMarksInPicture": "675794ac1fce",
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
-    "toasts:diagram.references.noMarksInFrame": "165eb743392f"
+    "toasts:diagram.references.noMarksInFrame": "165eb743392f",
+    "panels:diagram.annotations.shortDividers": "37171e05ef65",
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -25443,7 +25453,9 @@
     "panels:diagram.annotations.noneMarksInPicture": "675794ac1fce",
     "toasts:diagram.references.marksOutsideFrame_one": "e0f219a08674",
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
-    "toasts:diagram.references.noMarksInFrame": "165eb743392f"
+    "toasts:diagram.references.noMarksInFrame": "165eb743392f",
+    "panels:diagram.annotations.shortDividers": "37171e05ef65",
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -29715,7 +29727,9 @@
     "panels:diagram.annotations.noneMarksInPicture": "675794ac1fce",
     "toasts:diagram.references.marksOutsideFrame_one": "e0f219a08674",
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
-    "toasts:diagram.references.noMarksInFrame": "165eb743392f"
+    "toasts:diagram.references.noMarksInFrame": "165eb743392f",
+    "panels:diagram.annotations.shortDividers": "37171e05ef65",
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -33893,6 +33907,8 @@
     "panels:diagram.actions.tooManyMarksWithYoursHint_other": "abb39c431341",
     "panels:diagram.annotations.noneMarksInPicture": "675794ac1fce",
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
-    "toasts:diagram.references.noMarksInFrame": "165eb743392f"
+    "toasts:diagram.references.noMarksInFrame": "165eb743392f",
+    "panels:diagram.annotations.shortDividers": "37171e05ef65",
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
   }
 }

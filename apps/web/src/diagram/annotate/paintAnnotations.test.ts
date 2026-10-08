@@ -297,13 +297,17 @@ describe('equal divisions (Revision 2)', () => {
         mirrored: true,
         ticks: 2,
         numbered: true,
+        shortDividers: false,
       },
     ]);
     // An ink is 0.331 mm wherever it prints: 2.5 mm is about 7.6 ink.
     expect(ANNOTATION_INK_MM).toBeCloseTo(0.3307, 4);
+    // Short dividers (Revision 3) compile as said.
+    const short = annotationDrawing([{ ...top, shortDividers: true }], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
+    expect(short.primitives[0]).toMatchObject({ kind: 'divisions', shortDividers: true });
   });
 
-  it('draw every stroke as one path in the aux creases’ pen, in either preset, the count set as a page sets the rotate glyph’s fraction (Revision 3)', () => {
+  it('draw every stroke as one path in the aux creases’ pen, in either preset, the count in the regular weight as a page sets it (Revision 3, R3-3)', () => {
     for (const [style, auxPt] of [
       [DEFAULT_DIAGRAM_STYLE, 0.25],
       [{ preset: 'default' } as const, 0.5],
@@ -315,7 +319,8 @@ describe('equal divisions (Revision 2)', () => {
       expect(Number(paths[0]![2])).toBeCloseTo(auxPt * PT_TO_CSS_PX, 3);
       // The line, eight dividers and seven ticks.
       expect(paths[0]![1].match(/M/g)).toHaveLength(1 + 8 + 7);
-      expect(markup).toContain(`font-family="'Noto Sans', sans-serif" font-weight="700">7</text>`);
+      expect(markup).toContain(`font-family="'Noto Sans', sans-serif" font-weight="400">7</text>`);
+      expect(markup).not.toContain('font-weight="700"');
       expect(markup).not.toContain('Inter');
       // Above the edge: 2.5 mm, then 1.65 mm of dividers past it.
       const divider = [...paths[0]![1].matchAll(/M ([\d.]+) (-?[\d.]+) L ([\d.]+) (-?[\d.]+)/g)][1]!;
@@ -324,12 +329,19 @@ describe('equal divisions (Revision 2)', () => {
     }
   });
 
+  it('set their count’s digits in Noto Sans Regular for the page to embed, not Bold (R3-3)', () => {
+    const scene = annotationScene(annotationDrawing([{ ...top, parts: 12, numbered: true }], FRAME, 400, DEFAULT_DIAGRAM_STYLE))!;
+    const svg = scene.items.find((item) => item.kind === 'markup')!;
+    expect(svg.kind === 'markup' && svg.svg).toContain('font-weight="400">12</text>');
+  });
+
   it('reach each stroke’s ink and the count’s box and no further, at either style’s pens and any size', () => {
     const heavy = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: PEN_WIDTH_RANGE.max } } };
     const marks = [
       { ...top, numbered: true as const },
       a('d-slant', 'divisions', { from: [0.95, 0.2], to: [1.05, 0.9], parts: 32, offset: 0, ticks: 3 }),
       a('d-left', 'divisions', { from: [0, 0.9], to: [0, 0.1], parts: 12, offset: 15, numbered: true }),
+      a('d-short', 'divisions', { from: [0, 0.9], to: [0, 0.1], parts: 12, offset: 15, shortDividers: true }),
     ];
     for (const style of [DEFAULT_DIAGRAM_STYLE, heavy]) {
       for (const framePx of [300, 1000]) {

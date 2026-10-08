@@ -131,6 +131,10 @@ describe('pictureSnapTarget on annotations', () => {
       [0, 0],
       [1, 0],
     ]);
+    // Short dividers (Revision 3) reach none of the points between the ends, which are snapped to all the same.
+    const short = { ...divisions, offset: 10, shortDividers: true as const };
+    expect(annotationSnapPoints(short)).toEqual(annotationSnapPoints(divisions));
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.26, 0.02], 0.05, { annotations: [short] })).toEqual({ at: [0.25, 0], kind: 'annotation' });
   });
 
   it('never snaps to a white arrow’s tail, its tip or a point along its path', () => {

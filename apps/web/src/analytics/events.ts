@@ -134,6 +134,15 @@ export type DiagramTextSize = 'picture' | '7' | '9' | '12' | '16' | 'other';
 /** Which of a label's options the Layers pane changed (17b). */
 export type DiagramTextStyleOption = 'bold' | 'halo' | 'size';
 
+/**
+ * Which of a mark's own options the Layers pane changed (Revision 3): equal
+ * divisions' Short Dividers. The later marks' options join it.
+ */
+export type DiagramMarkStyleOption = 'short_dividers';
+
+/** What a mark's option became (Revision 3): a switch on or off. */
+export type DiagramMarkStyleValue = 'on' | 'off';
+
 /** A fold arrow or a white arrow, which Edit Path shapes: its kind, in the event's own spelling. */
 export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';
 
@@ -1487,6 +1496,8 @@ export const ANALYTICS_EVENTS = {
   diagramAnnotationRecolored: 'diagram annotation recolored',
   /** A label's Bold, Halo or Size changed in the Layers pane (17b): which, and to what. */
   diagramTextStyled: 'diagram text styled',
+  /** One of a mark's own options changed in the Layers pane (Revision 3): the mark's kind, which option, and to what. */
+  diagramMarkStyled: 'diagram mark styled',
   /**
    * A mark a References card brought (17d) edited for the first time, or
    * taken away: its kind, and which. Whether people edit what they pull.

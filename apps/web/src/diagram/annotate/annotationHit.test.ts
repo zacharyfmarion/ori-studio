@@ -604,4 +604,19 @@ describe('equal divisions (Revision 2)', () => {
     // Unselected, the handle is only their body.
     expect(hitAnnotation([divisions], grip, tight, null)).toEqual({ annotationId: 'd', part: 'body' });
   });
+
+  it('are taken on a short divider where it is drawn, across their line, and not where a full one would run (Revision 3)', () => {
+    const far = { ...divisions, offset: 10, numbered: undefined };
+    const out = (10 / ANNOTATION_INK_MM) * SIZES.ink;
+    // An interior divider, 3 mm off the line it measures: a full one runs there, a short one does not.
+    const low: [number, number] = [0.35, 0.5 + (3 / ANNOTATION_INK_MM) * SIZES.ink];
+    expect(hitAnnotation([far], low, tight, null)?.annotationId).toBe('d');
+    expect(hitAnnotation([{ ...far, shortDividers: true }], low, tight, null)).toBeNull();
+    // Across the line, 2 ink short of it: both.
+    const across: [number, number] = [0.35, 0.5 + out - 2 * SIZES.ink];
+    expect(hitAnnotation([{ ...far, shortDividers: true }], across, tight, null)?.annotationId).toBe('d');
+    // The end dividers still run to the line they measure.
+    expect(hitAnnotation([{ ...far, shortDividers: true }], [0.2, low[1]], tight, null)?.annotationId).toBe('d');
+    expect(divisionsInPicture({ ...far, shortDividers: true }, SIZES.ink)!.dividers[1]![0].y).toBeCloseTo(0.5 + out - 5 * SIZES.ink, 12);
+  });
 });

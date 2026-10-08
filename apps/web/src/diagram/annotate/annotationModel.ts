@@ -633,11 +633,21 @@ export function withNumbered(annotation: KnownDiagramAnnotation, numbered: boole
 }
 
 /**
+ * Equal divisions whose dividers between their ends are short strokes across
+ * their line, or run to the line they measure: `shortDividers` written only
+ * when true (Revision 3, R3-1 A).
+ */
+export function withShortDividers(annotation: KnownDiagramAnnotation, short: boolean): KnownDiagramAnnotation {
+  const { shortDividers: _was, ...rest } = annotation;
+  return short ? { ...rest, shortDividers: true } : rest;
+}
+
+/**
  * Equal divisions as this build writes them: their ends within reach, their
  * parts whole and in range, their offset in range — never rounded, so a value
  * the reader takes is written back as it was — their ticks one of three, and
- * `mirrored` and `numbered` only when true. The same object when they
- * already are.
+ * `mirrored`, `numbered` and `shortDividers` only when true. The same object
+ * when they already are.
  */
 function cleanDivisions(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   const from = withinReach(annotation.from);
@@ -653,9 +663,10 @@ function cleanDivisions(annotation: KnownDiagramAnnotation): KnownDiagramAnnotat
     offset === annotation.offset &&
     ticks === annotation.ticks &&
     (annotation.mirrored === undefined || annotation.mirrored === true) &&
-    (annotation.numbered === undefined || annotation.numbered === true);
+    (annotation.numbered === undefined || annotation.numbered === true) &&
+    (annotation.shortDividers === undefined || annotation.shortDividers === true);
   if (written) return annotation;
-  const { ticks: _ticks, mirrored, numbered, ...rest } = annotation;
+  const { ticks: _ticks, mirrored, numbered, shortDividers, ...rest } = annotation;
   return {
     ...rest,
     from,
@@ -665,6 +676,7 @@ function cleanDivisions(annotation: KnownDiagramAnnotation): KnownDiagramAnnotat
     ...(ticks !== undefined ? { ticks } : {}),
     ...(mirrored === true ? { mirrored: true as const } : {}),
     ...(numbered === true ? { numbered: true as const } : {}),
+    ...(shortDividers === true ? { shortDividers: true as const } : {}),
   };
 }
 

@@ -5,7 +5,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { calloutShape, closeUpShape, NEW_CALLOUT_TEXT, pathCubics } from '../../diagram/annotate/annotationModel';
 import { pendingFieldFocus } from '../../diagram/annotate/fieldFocus';
-import { ANNOTATE_SELECTION_INK, mmInPictureUnits, ptInPictureUnits } from '../../diagram/annotate/canvasInk';
+import { ANNOTATE_SELECTION_INK, ANNOTATION_INK_MM, mmInPictureUnits, ptInPictureUnits } from '../../diagram/annotate/canvasInk';
+import { DIAGRAM_DIVISIONS_INK } from '../../cp-workspace/references/diagram/diagramInk';
 import { setToolNotice, toolNotice } from '../../diagram/annotate/pickProgress';
 import i18n from '../../i18n';
 import { preloadLocale } from '../../test/preloadLocale';
@@ -2068,6 +2069,38 @@ describe('DiagramAnnotateCanvas equal divisions (Revision 2)', () => {
     expect(overlay().querySelector('[data-measured-line]')).not.toBeNull();
     drag(at(0.6, 0.5), at(0.695, 0.405));
     expect(annotations().find((each) => each.id === 'd')).toMatchObject({ from: [0.2, 0.5], to: [0.7, 0.4], offset: 2.5 });
+  });
+
+  it('washes short dividers as drawn: those between the ends 1.65 mm either side of the line, the end ones to the measured line (R3-1 A, R3-2 A)', () => {
+    const divisions: KnownDiagramAnnotation = {
+      id: 'd',
+      kind: 'divisions',
+      from: [0.2, 0.5],
+      to: [0.6, 0.5],
+      parts: 4,
+      offset: 10,
+      shortDividers: true,
+    };
+    drawn([divisions]);
+    act(() => state().selectDiagramAnnotation('d'));
+    rerender();
+    const measured = Number(overlay().querySelector('[data-measured-line]')!.getAttribute('y1'));
+    // How far each washed stroke's ends stand off the measured line, the line's 10 mm giving the scale.
+    const [line, ...rest] = [...overlay().querySelectorAll('[data-divisions-selection] polyline')].map((polyline) =>
+      polyline
+        .getAttribute('points')!
+        .split(' ')
+        .map((point) => Number(point.split(',')[1]) - measured)
+    );
+    const mm = line![0]! / 10;
+    const overshoot = DIAGRAM_DIVISIONS_INK.overshoot * ANNOTATION_INK_MM;
+    expect(overshoot).toBeCloseTo(1.65, 2);
+    const dividers = rest.slice(0, 5).map((ends) => ends.map((each) => each / mm));
+    expect(dividers).toHaveLength(5);
+    for (const [index, [start, end]] of dividers.entries()) {
+      expect(start).toBeCloseTo(index === 0 || index === 4 ? 0 : 10 - overshoot, 6);
+      expect(end).toBeCloseTo(10 + overshoot, 6);
+    }
   });
 });
 

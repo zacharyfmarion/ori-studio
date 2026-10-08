@@ -945,6 +945,8 @@
       "repeatBehind": "Repetir detrás",
       "resetShape": "Restablecer forma",
       "scale": "Ampliación",
+      "shortDividers": "Divisores cortos",
+      "shortDividersHelp": "Dibuja los divisores entre los extremos como trazos cortos que cruzan la línea.",
       "sideToSide": "De lado a lado",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "Con la imagen",

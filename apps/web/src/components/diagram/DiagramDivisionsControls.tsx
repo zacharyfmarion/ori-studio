@@ -20,8 +20,10 @@ import styles from './DiagramDivisionsControls.module.css';
  * takes the focus for a mark just laid, so its count is typed and Enter gives
  * the canvas its keys back (ED5) — with a warning when its parts are too short
  * for their ticks at the size the step prints (ED10); Offset, in mm as it
- * prints (ED3); Ticks (ED7); and Number, whether the count prints beside the
- * line (ED6). Each change is one undo step.
+ * prints (ED3); Ticks (ED7); Number, whether the count prints beside the
+ * line (ED6); and Short Dividers, whether the dividers between the ends are
+ * short strokes across the line (Revision 3, R3-1 A). Each change is one
+ * undo step.
  */
 export function DiagramDivisionsControls({
   step,
@@ -31,6 +33,7 @@ export function DiagramDivisionsControls({
   onOffset,
   onTicks,
   onNumbered,
+  onShortDividers,
 }: {
   step: DiagramStep;
   annotation: KnownDiagramAnnotation;
@@ -39,6 +42,7 @@ export function DiagramDivisionsControls({
   onOffset: (offset: number) => void;
   onTicks: (ticks: DiagramTicks) => void;
   onNumbered: (numbered: boolean) => void;
+  onShortDividers: (short: boolean) => void;
 }) {
   const { t } = useTranslation();
   const parts = useFieldFocusRequest<HTMLInputElement>(annotation.id, 'parts');
@@ -80,6 +84,13 @@ export function DiagramDivisionsControls({
         checked={annotation.numbered === true}
         disabled={!editable}
         onChange={onNumbered}
+      />
+      <ToggleRow
+        label={t('panels:diagram.annotations.shortDividers', 'Short Dividers')}
+        help={t('panels:diagram.annotations.shortDividersHelp', 'Draw the dividers between the ends as short strokes across the line.')}
+        checked={annotation.shortDividers === true}
+        disabled={!editable}
+        onChange={onShortDividers}
       />
     </>
   );

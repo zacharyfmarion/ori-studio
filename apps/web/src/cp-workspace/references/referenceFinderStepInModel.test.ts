@@ -147,19 +147,18 @@ describe('diagramInModel', () => {
     ]);
   });
 
-  it('carries equal divisions’ ends through the frame, and turns their side with a frame that flips, their offset a print size (Revision 2)', () => {
+  it('carries equal divisions’ ends through the frame, and turns their side with a frame that flips, their offset a print size and their short dividers kept (Revisions 2 and 3)', () => {
+    const look = { parts: 4, offset: 7.5, ticks: 2 as const, numbered: true, shortDividers: true };
     const divided: StepDiagramModel = {
       ...diagram,
-      primitives: [
-        { kind: 'divisions', from: [0.1, 0.5], to: [0.9, 0.5], parts: 4, offset: 7.5, mirrored: false, ticks: 2, numbered: true },
-      ],
+      primitives: [{ kind: 'divisions', from: [0.1, 0.5], to: [0.9, 0.5], mirrored: false, ...look }],
     };
     expect(diagramInModel(divided, FLIPPED).primitives).toEqual([
-      { kind: 'divisions', from: [10, 50], to: [90, 50], parts: 4, offset: 7.5, mirrored: true, ticks: 2, numbered: true },
+      { kind: 'divisions', from: [10, 50], to: [90, 50], mirrored: true, ...look },
     ]);
     const upright: PrecreaseFrame = { ...FLIPPED, origin: [0, 0], y_axis: [0, 1] };
     expect(diagramInModel(divided, upright).primitives).toEqual([
-      { kind: 'divisions', from: [10, 50], to: [90, 50], parts: 4, offset: 7.5, mirrored: false, ticks: 2, numbered: true },
+      { kind: 'divisions', from: [10, 50], to: [90, 50], mirrored: false, ...look },
     ]);
   });
 

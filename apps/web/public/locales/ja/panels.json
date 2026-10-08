@@ -879,6 +879,8 @@
       "repeatBehind": "裏側も同様に",
       "resetShape": "形をリセット",
       "scale": "倍率",
+      "shortDividers": "短い区切り線",
+      "shortDividersHelp": "両端の間の区切り線を、線を横切る短い線で描きます。",
       "sideToSide": "左右",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "図に合わせる",

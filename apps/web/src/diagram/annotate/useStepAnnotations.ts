@@ -1,6 +1,11 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { trackDiagramAnnotationBehind, trackDiagramAnnotationRecolored, trackDiagramTextStyled } from '../../analytics';
+import {
+  trackDiagramAnnotationBehind,
+  trackDiagramAnnotationRecolored,
+  trackDiagramMarkStyled,
+  trackDiagramTextStyled,
+} from '../../analytics';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating, selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
@@ -28,6 +33,7 @@ import {
   withDivisionsOffset,
   withNumbered,
   withParts,
+  withShortDividers,
   withTextStyle,
   withWhiteArrowLook,
   type WhiteArrowLook,
@@ -159,6 +165,20 @@ export function useStepAnnotations(step: DiagramStep | null) {
         change(id, 'Change equal divisions', (annotation) =>
           annotation.kind === 'divisions' ? withNumbered(annotation, numbered) : annotation
         ),
+      /**
+       * Whether equal divisions' dividers between their ends are short
+       * strokes across their line (Revision 3, R3-1 A), as one undo step,
+       * counted when it changes them.
+       */
+      setShortDividers: (id: string, short: boolean) => {
+        const before = current(id);
+        change(id, 'Change equal divisions', (annotation) =>
+          annotation.kind === 'divisions' ? withShortDividers(annotation, short) : annotation
+        );
+        const after = current(id);
+        if (!before || !after || before.shortDividers === after.shortDividers) return;
+        trackDiagramMarkStyled(annotationEventKind(after), 'short_dividers', after.shortDividers ? 'on' : 'off');
+      },
       /** A pleat arrow's Zs (15c), as one undo step. */
       setKinks: (id: string, kinks: DiagramPleatKinks) =>
         change(id, 'Change pleat arrow', (annotation) => ({ ...annotation, kinks })),

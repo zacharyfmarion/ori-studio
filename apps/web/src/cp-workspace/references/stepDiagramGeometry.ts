@@ -2729,13 +2729,18 @@ export interface DivisionsSize {
   gap: number;
 }
 
-/** What equal divisions say: how many parts, how many ticks on each, the side their line is on, and whether they print the count. */
+/**
+ * What equal divisions say: how many parts, how many ticks on each, the side
+ * their line is on, whether they print the count, and whether the dividers
+ * between their ends are short strokes across the line (Revision 3).
+ */
 export interface DivisionsLook {
   parts: number;
   ticks: number;
   /** The line to the left of the way from `from` to `to` runs, as a y-down drawing shows it; else to the right. */
   mirrored: boolean;
   numbered: boolean;
+  shortDividers: boolean;
 }
 
 /** Equal divisions as drawn (Revision 2), in one space's units. */
@@ -2758,9 +2763,10 @@ export interface DivisionsShape {
 }
 
 /**
- * A digit's advance, in ems, as the count is set (Inter and Noto Sans Bold
- * both under it): what its box is measured by, as an SVG `<text>` cannot be
- * before it is drawn.
+ * A digit's advance, in ems, as the count is set (Inter and Noto Sans, in
+ * the Regular the count is set in since R3-3 and the Bold it was, all under
+ * it: Noto Sans's are 0.572 in both): what its box is measured by, as an SVG
+ * `<text>` cannot be before it is drawn.
  */
 export const DIVISIONS_DIGIT_EMS = 0.62;
 /** Half a digit's height about the middle it is centred on, in ems: a figure's middle on the centre. */
@@ -2785,7 +2791,10 @@ function tickDirection(along: SvgPoint, lean: number): SvgPoint {
  * says; `parts + 1` dividers square to it, each from the measured line to
  * `overshoot` past the line — or, where the line is nearer the measured line
  * than that, straddling the line evenly, as the template's |\|\| symbol does
- * at no offset; `ticks` ticks across the line at each part's middle, leaning
+ * at no offset; with `shortDividers`, those between the ends straddle the
+ * line `overshoot` either side wherever it lies, so none runs over the fold
+ * it locates, and the two at the ends still reach the measured line (R3-2
+ * A); `ticks` ticks across the line at each part's middle, leaning
  * on the page ({@link tickDirection}), drawn smaller on a part shorter than
  * twice their span, down to their floors and no further (`crowded` past
  * them); and the count upright beside the line's middle, `gap` past the
@@ -2804,8 +2813,10 @@ export function divisionsShape(from: SvgPoint, to: SvgPoint, look: DivisionsLook
   const offset = Math.max(0, size.offset);
   const start = Math.min(0, offset - size.overshoot);
   const end = offset + size.overshoot;
+  // Within the overshoot of the measured line this is `start`: short or full, the dividers are the same there.
+  const inner = look.shortDividers ? offset - size.overshoot : start;
   const dividers: [SvgPoint, SvgPoint][] = [];
-  for (let i = 0; i <= parts; i += 1) dividers.push([at(i / parts, start), at(i / parts, end)]);
+  for (let i = 0; i <= parts; i += 1) dividers.push([at(i / parts, i === 0 || i === parts ? start : inner), at(i / parts, end)]);
   // The ticks on each part: as large as the sketch's on a part twice their
   // span, smaller on a shorter one, down to their floors.
   const count = Math.max(1, Math.round(look.ticks));

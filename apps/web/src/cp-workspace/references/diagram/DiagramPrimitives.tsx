@@ -976,7 +976,8 @@ function diagramPrimitiveShape(
       // A line set off the line it measures, and the dividers and ticks
       // across it: one path in the aux lines' pen (Revision 3), solid and cut
       // square, in a ring's ink; the count upright beside it, set as the
-      // rotate glyph's fraction is, so a page embeds its digits.
+      // rotate glyph's fraction is, so a page embeds its digits, but in the
+      // regular weight (R3-3).
       const shape = divisionsDrawn(primitive.from, primitive.to, primitive, project);
       if (!shape) return null;
       const d = divisionsPathData(shape);
@@ -998,7 +999,7 @@ function diagramPrimitiveShape(
                 {...inked(inks, 'step-diagram__arrowhead step-diagram__divisions-number', (each) => ({
                   fill: each.mark,
                   fontFamily: INLINE_LABEL_FONT,
-                  fontWeight: 700,
+                  fontWeight: 400,
                 }))}
               >
                 {number.text}

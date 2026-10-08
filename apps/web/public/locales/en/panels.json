@@ -912,6 +912,8 @@
       "repeatBehind": "Repeat behind",
       "resetShape": "Reset Shape",
       "scale": "Scale",
+      "shortDividers": "Short Dividers",
+      "shortDividersHelp": "Draw the dividers between the ends as short strokes across the line.",
       "sideToSide": "Side to Side",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "With the picture",

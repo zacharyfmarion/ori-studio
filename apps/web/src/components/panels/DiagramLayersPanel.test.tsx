@@ -14,6 +14,7 @@ const tracked = vi.hoisted(() => ({
   trackDiagramAnnotationBehind: vi.fn(),
   trackDiagramAnnotationRecolored: vi.fn(),
   trackDiagramTextStyled: vi.fn(),
+  trackDiagramMarkStyled: vi.fn(),
   trackDiagramReferencesMarksLifted: vi.fn(),
 }));
 vi.mock('../../analytics', async (importOriginal) => ({
@@ -21,6 +22,7 @@ vi.mock('../../analytics', async (importOriginal) => ({
   trackDiagramAnnotationBehind: tracked.trackDiagramAnnotationBehind,
   trackDiagramAnnotationRecolored: tracked.trackDiagramAnnotationRecolored,
   trackDiagramTextStyled: tracked.trackDiagramTextStyled,
+  trackDiagramMarkStyled: tracked.trackDiagramMarkStyled,
   trackDiagramReferencesMarksLifted: tracked.trackDiagramReferencesMarksLifted,
 }));
 
@@ -423,6 +425,7 @@ describe('DiagramLayersPanel', () => {
     const divisions = () => annotations().find((annotation) => annotation.id === 'd-1') as Record<string, unknown>;
     const input = (name: string) => host!.querySelector<HTMLInputElement>(`input[aria-label="${name}"]`)!;
     const number = () => host!.querySelector<HTMLButtonElement>('[role="switch"][aria-label="Number"]')!;
+    const shortDividers = () => host!.querySelector<HTMLButtonElement>('[role="switch"][aria-label="Short Dividers"]');
     const ticks = () => [...host!.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Ticks"] button')];
     const last = () => state().diagramHistory.past.at(-1)?.label;
 
@@ -472,6 +475,28 @@ describe('DiagramLayersPanel', () => {
       expect('mirrored' in divisions()).toBe(false);
       act(() => buttonNamed('Flip').click());
       expect(divisions().mirrored).toBe(true);
+    });
+
+    it('sets Short Dividers under Number, one undo step each, counted when it changes them (Revision 3, R3-1 A)', () => {
+      divided();
+      act(() => row('Equal Divisions').click());
+      tracked.trackDiagramMarkStyled.mockClear();
+      const toggle = shortDividers()!;
+      expect(toggle).not.toBeNull();
+      expect(number().compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(toggle.getAttribute('aria-checked')).toBe('false');
+      expect(host!.querySelector('button[data-field-help][aria-label="Draw the dividers between the ends as short strokes across the line."]')).not.toBeNull();
+      const past = state().diagramHistory.past.length;
+      act(() => toggle.click());
+      expect(divisions().shortDividers).toBe(true);
+      expect(last()).toBe('Change equal divisions');
+      expect(shortDividers()!.getAttribute('aria-checked')).toBe('true');
+      expect(tracked.trackDiagramMarkStyled).toHaveBeenLastCalledWith('divisions', 'short_dividers', 'on');
+      act(() => shortDividers()!.click());
+      expect('shortDividers' in divisions()).toBe(false);
+      expect(tracked.trackDiagramMarkStyled).toHaveBeenLastCalledWith('divisions', 'short_dividers', 'off');
+      expect(tracked.trackDiagramMarkStyled).toHaveBeenCalledTimes(2);
+      expect(state().diagramHistory.past).toHaveLength(past + 2);
     });
 
     it('gives new divisions’ Parts the focus, its count selected to be typed over, and Enter gives the canvas its keys back (ED5)', async () => {

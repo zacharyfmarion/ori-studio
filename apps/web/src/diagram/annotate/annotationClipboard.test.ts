@@ -52,6 +52,13 @@ describe('annotations on the clipboard', () => {
     expect(pastedAnnotations(clipboard, 'step-2', () => 'annotation-4')[0]).toEqual({ ...divisions, id: 'annotation-4' });
   });
 
+  it('keeps equal divisions’ short dividers on a paste, on their own step and on another (Revision 3)', () => {
+    const short: KnownDiagramAnnotation = { id: 'd', kind: 'divisions', from: [0, 0], to: [1, 0], parts: 3, offset: 10, shortDividers: true };
+    const clipboard = annotationClipboard([short], 'step-1');
+    expect(pastedAnnotations(clipboard, 'step-1', () => 'annotation-1')[0]).toEqual({ ...short, id: 'annotation-1', offset: 12.5 });
+    expect(pastedAnnotations(clipboard, 'step-2', () => 'annotation-2')[0]).toEqual({ ...short, id: 'annotation-2' });
+  });
+
   // 17d: a mark lifted from a card is the card's on a step that shows that card, the author's anywhere else.
   it('keeps a pulled mark the card’s only on a step showing the same card, front or back', () => {
     const ring: KnownDiagramAnnotation = { id: 'r', kind: 'circle', from: [0, 1], to: [0, 1], imported: 'edited' };

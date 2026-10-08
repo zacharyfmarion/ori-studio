@@ -583,6 +583,9 @@ function angleMarkDistance(annotation: KnownDiagramAnnotation, point: PicturePoi
   return Math.min(distanceToPolyline(point, arc), ...ticks);
 }
 
+/** What of equal divisions says where they are drawn: their line, and how they look. */
+type DivisionsFields = Pick<KnownDiagramAnnotation, 'from' | 'to' | 'parts' | 'offset' | 'mirrored' | 'ticks' | 'numbered' | 'shortDividers'>;
+
 /**
  * Equal divisions as the canvas draws them, in picture units, at the ink a
  * press is measured in (`divisionsShape`, sized as `divisionsDrawn` sizes
@@ -590,10 +593,7 @@ function angleMarkDistance(annotation: KnownDiagramAnnotation, point: PicturePoi
  * spacing held to two of a ring's pens at the table's arrow pen, near enough
  * for a press. Null for a line whose ends meet.
  */
-export function divisionsInPicture(
-  annotation: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'parts' | 'offset' | 'mirrored' | 'ticks' | 'numbered'>,
-  ink: number
-): DivisionsShape | null {
+export function divisionsInPicture(annotation: DivisionsFields, ink: number): DivisionsShape | null {
   const point = ([x, y]: readonly [number, number]) => ({ x, y });
   const sizes = DIAGRAM_DIVISIONS_INK;
   const ringPen = DIAGRAM_MARK_INK.ofArrow * DIAGRAM_LINE_INK.arrow.width * ink;
@@ -605,6 +605,7 @@ export function divisionsInPicture(
       ticks: annotation.ticks ?? 1,
       mirrored: annotation.mirrored === true,
       numbered: annotation.numbered === true,
+      shortDividers: annotation.shortDividers === true,
     },
     {
       offset: (divisionsOffsetOf(annotation) / ANNOTATION_INK_MM) * ink,
@@ -621,10 +622,7 @@ export function divisionsInPicture(
 }
 
 /** Where the selected equal divisions' line is taken hold of to set its offset: its middle. */
-export function divisionsOffsetGrip(
-  annotation: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'parts' | 'offset' | 'mirrored' | 'ticks' | 'numbered'>,
-  ink: number
-): PicturePoint {
+export function divisionsOffsetGrip(annotation: DivisionsFields, ink: number): PicturePoint {
   const shape = divisionsInPicture(annotation, ink);
   if (!shape) return [annotation.from[0], annotation.from[1]];
   const [a, b] = shape.line;

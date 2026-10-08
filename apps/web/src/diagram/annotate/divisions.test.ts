@@ -13,7 +13,9 @@ import { CARD_FRAME_PX, paintAnnotations } from './paintAnnotations';
  * set off the line it measures and the dividers and ticks across it, every
  * stroke one path in the aux lines' pen, the ticks leaning as a backslash on
  * the page and crowding to their floor on a short edge; the count upright
- * beside the line in the page's face.
+ * beside the line in the page's face, in the regular weight (R3-3); and, with
+ * Short Dividers, the dividers between the ends 1.65 mm either side of the
+ * line, the end ones still reaching the measured line (R3-1 A, R3-2 A).
  */
 describe('equal divisions', () => {
   it.each(DIVISIONS_CASES.map((annotation) => [annotation.id, annotation] as const))(

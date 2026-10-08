@@ -13,6 +13,8 @@ import {
 import type {
   DiagramAnnotationColor,
   DiagramAnnotationSnap,
+  DiagramMarkStyleOption,
+  DiagramMarkStyleValue,
   DiagramTextSize,
   DiagramTextStyleOption,
   DiagramTextToggle,
@@ -135,6 +137,16 @@ export function trackDiagramAnnotationAdded(
  */
 export function trackDiagramTextStyled(option: DiagramTextStyleOption, value: DiagramTextToggle | DiagramTextSize): void {
   track(ANALYTICS_EVENTS.diagramTextStyled, { option, value });
+}
+
+/**
+ * One of a mark's own options changed in the Layers pane (Revision 3): its
+ * kind, which option, and what it became — equal divisions' Short Dividers
+ * on or off — whether the options the marks gained are used. Never where the
+ * mark is, nor its size.
+ */
+export function trackDiagramMarkStyled(kind: DiagramAnnotationTool, option: DiagramMarkStyleOption, value: DiagramMarkStyleValue): void {
+  track(ANALYTICS_EVENTS.diagramMarkStyled, { kind, option, value });
 }
 
 /**

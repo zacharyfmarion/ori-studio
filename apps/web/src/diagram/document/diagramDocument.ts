@@ -824,6 +824,13 @@ export interface KnownDiagramAnnotation {
   /** Equal divisions that print their count beside their line; unsaid, they do not. Only ever written true. */
   numbered?: true;
   /**
+   * Equal divisions whose dividers between their ends are short strokes
+   * across their line, 1.65 mm either side, rather than run to the line they
+   * measure, where they would draw over the fold they locate (Revision 3,
+   * R3-1 A, R3-2 A); unsaid, every divider runs there. Only ever written true.
+   */
+  shortDividers?: true;
+  /**
    * The ends of a fold or pleat arrow, a valley, mountain or solid line, or a
    * circle that lie behind a flap (15e): drawn dotted from each until they
    * come out from under it, on a flat fold, the one picture that knows its

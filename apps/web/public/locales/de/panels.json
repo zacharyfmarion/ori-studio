@@ -912,6 +912,8 @@
       "repeatBehind": "Hinten wiederholen",
       "resetShape": "Form zurücksetzen",
       "scale": "Vergrößerung",
+      "shortDividers": "Kurze Trennlinien",
+      "shortDividersHelp": "Zeichnet die Trennlinien zwischen den Enden als kurze Striche quer über die Linie.",
       "sideToSide": "Seitlich",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "Mit dem Bild",

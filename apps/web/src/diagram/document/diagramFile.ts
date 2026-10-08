@@ -376,6 +376,7 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     parts,
     offset,
     numbered,
+    shortDividers,
     behind,
     radius,
     scale,
@@ -416,6 +417,7 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(parts !== undefined ? { parts } : {}),
     ...(offset !== undefined ? { offset } : {}),
     ...(numbered ? { numbered } : {}),
+    ...(shortDividers ? { shortDividers } : {}),
     ...(radius !== undefined ? { radius } : {}),
     ...(scale !== undefined ? { scale } : {}),
     ...(size !== undefined ? { size } : {}),
@@ -1081,7 +1083,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'right-angle': fields(),
     callout: fields('text'),
     'angle-mark': fields('other', 'ticks'),
-    divisions: fields('parts', 'offset', 'mirrored', 'ticks', 'numbered'),
+    divisions: fields('parts', 'offset', 'mirrored', 'ticks', 'numbered', 'shortDividers'),
     'close-up': fields('radius', 'scale'),
     zoom: fields('radius', 'size', 'angle', 'scale', 'edge', 'anchor'),
   };
@@ -1261,16 +1263,20 @@ function readAnnotationOfKind(
       return { ...annotation, ...(kinks !== undefined ? { kinks } : {}), ...(mirrored ? { mirrored: true } : {}) };
     }
     case 'divisions': {
-      // Its parts and its offset, which it must have, its ticks, its side and
-      // whether it prints its count; a value past the ranges this build draws
-      // is news, told before damage.
+      // Its parts and its offset, which it must have, its ticks, its side,
+      // whether it prints its count and whether its dividers between its ends
+      // are short (Revision 3); a value past the ranges this build draws is
+      // news, told before damage.
       const parts = readDivisionsParts(entry.parts);
       const offset = readDivisionsOffset(entry.offset);
       const ticks = readTicks(entry.ticks);
       const mirrored = readMirrored(entry.mirrored);
       const numbered = readNumbered(entry.numbered);
+      const shortDividers = readFlag(entry.shortDividers);
       if (parts === NEWER || offset === NEWER || ticks === NEWER) return NEWER;
-      if (parts === null || offset === null || ticks === null || mirrored === null || numbered === null) return null;
+      if (parts === null || offset === null || ticks === null || mirrored === null || numbered === null || shortDividers === null) {
+        return null;
+      }
       return {
         ...annotation,
         parts,
@@ -1278,6 +1284,7 @@ function readAnnotationOfKind(
         ...(ticks !== undefined ? { ticks } : {}),
         ...(mirrored ? { mirrored: true } : {}),
         ...(numbered ? { numbered: true } : {}),
+        ...(shortDividers ? { shortDividers: true } : {}),
       };
     }
     case 'close-up': {
@@ -1371,7 +1378,7 @@ function readLabelText(value: unknown): string | typeof NEWER | null {
   return text.length > LABEL_MAX_LENGTH ? NEWER : text;
 }
 
-/** A label's Bold or halo (17b), read as `numbered` is: unsaid or false, no; true, yes; anything else, damage. */
+/** A label's Bold or halo (17b), or equal divisions' short dividers (Revision 3), read as `numbered` is: unsaid or false, no; true, yes; anything else, damage. */
 function readFlag(value: unknown): boolean | null {
   if (value === undefined) return false;
   return typeof value === 'boolean' ? value : null;

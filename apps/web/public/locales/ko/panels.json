@@ -879,6 +879,8 @@
       "repeatBehind": "뒷면도 똑같이",
       "resetShape": "모양 재설정",
       "scale": "배율",
+      "shortDividers": "짧은 구분선",
+      "shortDividersHelp": "양 끝 사이의 구분선을 선을 가로지르는 짧은 선으로 그립니다.",
       "sideToSide": "좌우",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "그림에 맞춤",

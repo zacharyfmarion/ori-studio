@@ -1548,7 +1548,7 @@ describe('equal divisions (Revision 2)', () => {
     number: DIAGRAM_DIVISIONS_INK.number,
     gap: DIAGRAM_DIVISIONS_INK.gap,
   });
-  const look = { parts: 4, ticks: 1, mirrored: false, numbered: false };
+  const look = { parts: 4, ticks: 1, mirrored: false, numbered: false, shortDividers: false };
   const from = { x: 0, y: 0 };
   const to = { x: 100, y: 0 };
   /** A segment as a sorted key, whichever end it is drawn from. */
@@ -1687,4 +1687,34 @@ describe('equal divisions (Revision 2)', () => {
     expect(divisionsDrawn([0, -0.5], [sheet(25), -0.5], { ...look, parts: 32, offset: 7.5 }, project)!.crowded).toBe(false);
   });
 
+  describe('short dividers (Revision 3, R3-1 A, R3-2 A)', () => {
+    const ends = (offset: number, shortDividers: boolean) =>
+      divisionsShape(from, to, { ...look, shortDividers }, size(mm(offset)))!.dividers.map(([a, b]) =>
+        [a.y, b.y].map((y) => Number((y * INK_MM).toFixed(2)) + 0)
+      );
+
+    it('draws the dividers between the ends 1.65 mm either side of the line, at 2.5 mm and at 10 mm', () => {
+      for (const offset of [2.5, 10]) {
+        const drawn = ends(offset, true);
+        for (const inner of drawn.slice(1, -1)) expect(inner).toEqual([Number((offset - 1.65).toFixed(2)), Number((offset + 1.65).toFixed(2))]);
+        // The two at the ends still run from the line they measure.
+        expect(drawn[0]).toEqual([0, Number((offset + 1.65).toFixed(2))]);
+        expect(drawn.at(-1)).toEqual([0, Number((offset + 1.65).toFixed(2))]);
+        // Every divider's outer end lines up, as with full dividers.
+        expect(new Set(drawn.map(([, outer]) => outer)).size).toBe(1);
+      }
+      expect(ends(10, false).every(([inner]) => inner === 0)).toBe(true);
+    });
+
+    it('changes nothing where the line lies within 1.65 mm of the line it measures', () => {
+      for (const offset of [0, 1, 1.65]) expect(ends(offset, true)).toEqual(ends(offset, false));
+    });
+
+    it('changes nothing but the dividers: the line, the ticks, the count and the crowding', () => {
+      const full = divisionsShape(from, to, { ...look, parts: 3, ticks: 2, numbered: true }, size(mm(10)))!;
+      const short = divisionsShape(from, to, { ...look, parts: 3, ticks: 2, numbered: true, shortDividers: true }, size(mm(10)))!;
+      expect({ ...short, dividers: [] }).toEqual({ ...full, dividers: [] });
+      expect(short.dividers.map(([, outer]) => outer)).toEqual(full.dividers.map(([, outer]) => outer));
+    });
+  });
 });

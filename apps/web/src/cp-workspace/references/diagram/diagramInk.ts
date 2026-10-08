@@ -152,8 +152,9 @@ export const DIAGRAM_ANGLE_MARK_INK = { radius: 15, tick: 1.8, spacing: 1.8 } as
  *   level line;
  * - the floors a crowded part's ticks shrink to and no further (ED10):
  *   `tickFloor`, a half-tick in ink, and `spacingFloor`, the spacing in pens;
- * - `number`: the count's size, the rotate glyph's fraction (2.4 mm), and
- *   `gap`, how far past the dividers' ends its box stands.
+ * - `number`: the count's size, the rotate glyph's fraction (2.4 mm), though
+ *   set in the regular weight, not the fraction's bold (Revision 3, R3-3),
+ *   and `gap`, how far past the dividers' ends its box stands.
  * Every stroke — the line, the dividers and the ticks — is drawn in the aux
  * lines' pen (`auxMarkPen`, 0.25 pt in the Diagram preset), as a right angle
  * is: Zach's note for Revision 3, "everything should be drawn in the width

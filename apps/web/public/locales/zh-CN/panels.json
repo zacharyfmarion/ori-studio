@@ -879,6 +879,8 @@
       "repeatBehind": "背面重复",
       "resetShape": "重置形状",
       "scale": "放大倍数",
+      "shortDividers": "短分隔线",
+      "shortDividersHelp": "将两端之间的分隔线画成横跨该线的短线。",
       "sideToSide": "左右",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "随图缩放",

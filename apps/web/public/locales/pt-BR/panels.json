@@ -945,6 +945,8 @@
       "repeatBehind": "Repita atrás",
       "resetShape": "Redefinir forma",
       "scale": "Ampliação",
+      "shortDividers": "Divisores curtos",
+      "shortDividersHelp": "Desenha os divisores entre as extremidades como riscos curtos atravessando a linha.",
       "sideToSide": "De lado a lado",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "Com a imagem",

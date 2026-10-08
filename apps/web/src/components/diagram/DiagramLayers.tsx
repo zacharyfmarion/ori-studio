@@ -342,6 +342,7 @@ function SelectedAnnotation({
           onOffset={(offset) => annotations.setDivisionsOffset(id, offset)}
           onTicks={(ticks) => annotations.setTicks(id, ticks)}
           onNumbered={(numbered) => annotations.setNumbered(id, numbered)}
+          onShortDividers={(short) => annotations.setShortDividers(id, short)}
         />
       )}
       {annotation.kind === 'pleat-arrow' && (

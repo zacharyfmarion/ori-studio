@@ -81,6 +81,7 @@ import {
   withDivisionsOffset,
   withNumbered,
   withParts,
+  withShortDividers,
   type PictureMove,
   type PicturePoint,
 } from './annotationModel';
@@ -1205,8 +1206,17 @@ describe('equal divisions (Revision 2)', () => {
     // Always written: one with none is given the laid ones.
     const { parts: _p, offset: _o, ...bare } = top;
     expect(cleanAnnotation(bare)).toMatchObject({ parts: 4, offset: 2.5 });
-    const loose = cleanAnnotation({ ...top, mirrored: false as unknown as true, numbered: false as unknown as true, ticks: 7 as 1 });
-    expect(['mirrored', 'numbered', 'ticks'].filter((key) => Object.hasOwn(loose, key))).toEqual([]);
+    const loose = cleanAnnotation({
+      ...top,
+      mirrored: false as unknown as true,
+      numbered: false as unknown as true,
+      shortDividers: false as unknown as true,
+      ticks: 7 as 1,
+    });
+    expect(['mirrored', 'numbered', 'shortDividers', 'ticks'].filter((key) => Object.hasOwn(loose, key))).toEqual([]);
+    // Short dividers (Revision 3) kept as written, only when true.
+    const short = { ...top, shortDividers: true as const };
+    expect(cleanAnnotation(short)).toBe(short);
     expect(cleanAnnotation({ ...top, from: [9, 0] }).from).toEqual([ANNOTATION_REACH, 0]);
   });
 
@@ -1224,6 +1234,20 @@ describe('equal divisions (Revision 2)', () => {
     expect(withDivisionsOffset(top, 3, { mirrored: false })).toEqual({ id: 'd-1', kind: 'divisions', from: [0, 0], to: [1, 0], parts: 4, offset: 3 });
     expect(withNumbered(top, true)).toEqual({ ...top, numbered: true });
     expect(Object.hasOwn(withNumbered({ ...top, numbered: true }, false), 'numbered')).toBe(false);
+  });
+
+  it('takes short dividers as a switch, written only when on, and keeps them through a move, a flip and F (Revision 3, R3-1 A)', () => {
+    expect(withShortDividers(top, true)).toEqual({ ...top, shortDividers: true });
+    expect(Object.hasOwn(withShortDividers({ ...top, shortDividers: true }, false), 'shortDividers')).toBe(false);
+    const short = { ...top, shortDividers: true as const };
+    const grown: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
+    expect(carryAnnotation(short, grown).shortDividers).toBe(true);
+    expect(carryAnnotation(short, mirrorMove(SQUARE)).shortDividers).toBe(true);
+    expect(flipAnnotation(short, 'vertical').shortDividers).toBe(true);
+    expect(flipAnnotationArc(short).shortDividers).toBe(true);
+    // On its line they draw as full ones do: F and the flips are held there as before.
+    expect(flipChangesArc({ ...short, offset: 0 })).toBe(false);
+    expect(flipChangesMark({ ...short, offset: 0 }, 'vertical')).toBe(false);
   });
 
   it('keeps its line on its side of the paper through a mirror, its offset and its count through any move', () => {
