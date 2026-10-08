@@ -11,7 +11,8 @@ import type { ReferencesModeSource } from './useReferencesMode';
 /**
  * Open on the sheet asked for from outside — a diagram step's Open in
  * References (D6) — once the panel knows its sheets: the one whose rim is
- * the step's, in the mode it was sent from.
+ * the step's, in the mode it was sent from, and on the step's own card once
+ * the sheet's plan is on screen (`referencesCardRequest`).
  *
  * Taken, not watched: the request is latched in the store because the panel
  * is not mounted when it is made, and taking it once is what keeps a remount
@@ -27,6 +28,7 @@ export function useReferencesSheetRequest(
 ): void {
   const { t } = useTranslation();
   const pending = useWorkspaceStore((state) => state.referencesSheetRequest !== null);
+  const requestCard = useWorkspaceStore((state) => state.requestReferencesCard);
   useEffect(() => {
     if (!pending || !frames) return;
     const request = useWorkspaceStore.getState().takeReferencesSheetRequest();
@@ -39,7 +41,9 @@ export function useReferencesSheetRequest(
     // A sheet switch puts the workspace back in Find, so the mode comes after it.
     showSheet(sheet.id);
     setMode(request.mode, 'diagram');
-  }, [pending, frames, showSheet, setMode, t]);
+    // After the switch, which drops any card asked for on another sheet.
+    if (request.card) requestCard(sheet.id, request.card);
+  }, [pending, frames, showSheet, setMode, requestCard, t]);
 }
 
 /** The sheet whose rim is `boundary`, or undefined when none is. */

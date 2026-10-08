@@ -105,6 +105,7 @@ import type { UserCamera } from '../../cp-workspace/renderer/camera';
 import type {
   ReferencesCardLocator,
   ReferencesRestore,
+  ReferencesStepCard,
 } from '../../cp-workspace/references/referencesReaderState';
 import type {
   AddInlineSimulationResult,
@@ -1768,12 +1769,20 @@ export interface ReferencesSliceState {
    * for the same reason as {@link referencesAnalysisRequest}.
    */
   referencesSheetRequest: ReferencesSheetRequest | null;
+  /**
+   * The card a sheet request asked for, once its sheet is open: taken when
+   * that sheet's plan is on screen — as it lands, or at once if it is there
+   * already. A switch to another sheet drops it.
+   */
+  referencesCardRequest: { sheet: number; card: ReferencesStepCard } | null;
 }
 
 /** Open References on the sheet with this rim, in this mode. */
 export interface ReferencesSheetRequest {
   boundary: Point[][];
   mode: ReferencesMode;
+  /** The card of the sequence to open on: a sequence step's own. Absent in Find. */
+  card?: ReferencesStepCard;
 }
 
 export interface ReferencesSliceActions {
@@ -1826,6 +1835,10 @@ export interface ReferencesSliceActions {
   openReferencesWorkspace: (sheet?: ReferencesSheetRequest) => void;
   /** Take the pending sheet request, if there is one: see {@link consumeReferencesAnalysisRequest}. */
   takeReferencesSheetRequest: () => ReferencesSheetRequest | null;
+  /** Open `sheet`'s plan on `card` once it is on screen (see {@link ReferencesSliceState.referencesCardRequest}). */
+  requestReferencesCard: (sheet: number, card: ReferencesStepCard) => void;
+  /** Take the card asked for on `sheet`, if there is one. */
+  takeReferencesCardRequest: (sheet: number) => ReferencesStepCard | null;
 }
 
 /**
