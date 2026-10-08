@@ -7,12 +7,13 @@ import { DIVISIONS_CASES } from './divisions.cases';
 import { CARD_FRAME_PX, paintAnnotations } from './paintAnnotations';
 
 /**
- * Equal divisions (Revision 2) as each surface draws them — a card, a page
- * and the canvas — recorded when the mark was made and checked by eye beside
- * Zach's sketch: a line set off the line it measures in the existing creases'
- * pen, dividers and ticks across it in a ring's, the ticks leaning as a
- * backslash on the page and crowding to their floor on a short edge, the
- * count upright beside the line in the page's face.
+ * Equal divisions as each surface draws them — a card, a page and the
+ * canvas — recorded when the mark was made (Revision 2), re-recorded for
+ * Revision 3, and checked by eye beside Zach's sketch and his note: a line
+ * set off the line it measures and the dividers and ticks across it, every
+ * stroke one path in the aux lines' pen, the ticks leaning as a backslash on
+ * the page and crowding to their floor on a short edge; the count upright
+ * beside the line in the page's face.
  */
 describe('equal divisions', () => {
   it.each(DIVISIONS_CASES.map((annotation) => [annotation.id, annotation] as const))(

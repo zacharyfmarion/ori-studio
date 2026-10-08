@@ -16,6 +16,7 @@ import {
   arrowheadPath,
   angleMarkDrawn,
   angleMarkPathData,
+  auxMarkPen,
   cubicPathData,
   divisionsDrawn,
   divisionsPathData,
@@ -35,7 +36,6 @@ import {
   pushArrowDrawn,
   rightAngleDrawn,
   rightAnglePathData,
-  rightAnglePen,
   reversedStretches,
   ringPieces,
   rotateGlyphDrawn,
@@ -943,7 +943,7 @@ function diagramPrimitiveShape(
         <path
           key={index}
           d={d}
-          strokeWidth={rightAnglePen(project)}
+          strokeWidth={auxMarkPen(project)}
           strokeLinecap="butt"
           strokeLinejoin="miter"
           {...inked(inks, 'step-diagram__point step-diagram__right-angle', (ink) => ({
@@ -973,10 +973,10 @@ function diagramPrimitiveShape(
       ));
     }
     case 'divisions': {
-      // A line set off the line it measures, in the existing creases' pen,
-      // and the dividers and ticks across it in a ring's (Revision 2, ED9),
-      // solid and cut square, in a ring's ink; the count upright beside it,
-      // set as the rotate glyph's fraction is, so a page embeds its digits.
+      // A line set off the line it measures, and the dividers and ticks
+      // across it: one path in the aux lines' pen (Revision 3), solid and cut
+      // square, in a ring's ink; the count upright beside it, set as the
+      // rotate glyph's fraction is, so a page embeds its digits.
       const shape = divisionsDrawn(primitive.from, primitive.to, primitive, project);
       if (!shape) return null;
       const d = divisionsPathData(shape);
@@ -988,8 +988,7 @@ function diagramPrimitiveShape(
         }));
         return (
           <g key={index}>
-            <path d={d.line} strokeWidth={round(shape.pens.line)} strokeLinecap="butt" {...ink} />
-            <path d={d.marks} strokeWidth={round(shape.pens.marks)} strokeLinecap="butt" {...ink} />
+            <path d={d} strokeWidth={round(shape.pen)} strokeLinecap="butt" {...ink} />
             {number && (
               <text
                 x={round(number.at.x)}

@@ -136,9 +136,10 @@ describe('the diagram’s pen', () => {
   // Equal divisions are the sketch's sizes at an annotation's ink (Revision 2,
   // ED4, ED10, ED11): dividers 1.65 mm past the line, ticks 1 mm either side
   // of it leaning 20°, 0.66 mm apart, and the count at the rotate glyph's size.
+  // No pens of their own since Revision 3: every stroke is the aux lines'.
   it('draws equal divisions at the sketch’s print sizes', () => {
     const mm = (ink: number) => (ink * canvasDiagramInk(1) * PT_PER_CSS_PX) / PT_PER_MM;
-    expect(DIAGRAM_DIVISIONS_INK).toMatchObject({
+    expect(DIAGRAM_DIVISIONS_INK).toEqual({
       overshoot: 5,
       tick: 3,
       spacing: 2,
@@ -147,7 +148,6 @@ describe('the diagram’s pen', () => {
       spacingFloor: 2,
       number: 7.2,
       gap: 2,
-      pens: { line: 'crease', marks: 'ring' },
     });
     expect(mm(DIAGRAM_DIVISIONS_INK.overshoot)).toBeCloseTo(1.65, 2);
     expect(mm(DIAGRAM_DIVISIONS_INK.tick)).toBeCloseTo(1, 1);

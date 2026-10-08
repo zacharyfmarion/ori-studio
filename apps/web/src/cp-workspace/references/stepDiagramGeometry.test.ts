@@ -9,7 +9,6 @@ import {
   DIAGRAM_PLEAT_INK,
   DIAGRAM_RIGHT_ANGLE_INK,
   REFERENCES_VIEW_MARKS,
-  type DivisionsPen,
 } from './diagram/diagramInk';
 import {
   angleMarkArcPoints,
@@ -36,6 +35,7 @@ import {
   arrowheadPath,
   arrowheadReach,
   arrowheadSize,
+  auxMarkPen,
   createDiagramProjector,
   createOverlayProjector,
   dashRulerAlong,
@@ -69,7 +69,6 @@ import {
   pushArrowOutline,
   rightAngleDrawn,
   rightAnglePathData,
-  rightAnglePen,
   rightAngleReach,
   rightAngleShape,
   rotateGlyph,
@@ -1203,7 +1202,7 @@ describe('a right-angle mark (Revision 2)', () => {
   it('is drawn in the aux lines’ pen, whatever the arrow’s, not a ring’s (Zach, 2026-10-06)', () => {
     const pens = { ...DIAGRAM_LINE_INK, aux: { ...DIAGRAM_LINE_INK.aux, width: 0.3 }, arrow: { ...DIAGRAM_LINE_INK.arrow, width: 2 } };
     const project = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2, pens);
-    expect(rightAnglePen(project)).toBeCloseTo(0.6, 12);
+    expect(auxMarkPen(project)).toBeCloseTo(0.6, 12);
     expect(markRingWidth(project)).toBeCloseTo(3, 12);
   });
 });
@@ -1654,30 +1653,38 @@ describe('equal divisions (Revision 2)', () => {
     expect(divisionsShape(from, to, look, size(offset))!.number).toBeNull();
   });
 
-  it('is drawn at its ink, its line in the existing creases’ pen and its marks in a ring’s, its offset taken in ink', () => {
+  it('is drawn at its ink, every stroke one path in the aux lines’ pen, its offset taken in ink (Revision 3)', () => {
     const overlay = createOverlayProjector({ origin: [0, 0], ex: [400, 0], ey: [0, -400] }, 2);
     const drawn = divisionsDrawn([0.1, -0.5], [0.9, -0.5], { ...look, offset: 7.5 }, overlay)!;
-    expect(drawn.pens).toEqual({ line: DIAGRAM_LINE_INK.crease.width * 2, marks: markRingWidth(overlay) });
+    expect(drawn.pen).toBe(auxMarkPen(overlay));
+    expect(drawn.pen).toBeCloseTo(DIAGRAM_LINE_INK.aux.width * 2, 12);
     expect(drawn.line[0].y - 200).toBeCloseTo(15, 9);
     expect(drawn.dividers[0]![1].y - 200).toBeCloseTo(15 + DIAGRAM_DIVISIONS_INK.overshoot * 2, 9);
-    // Two paths: the line, and the dividers and ticks.
+    // One path: the line, then the dividers, then the ticks.
     const d = divisionsPathData(drawn);
-    expect(d.line.match(/M/g)).toHaveLength(1);
-    expect(d.marks.match(/M/g)).toHaveLength(5 + 4);
+    expect(d.match(/M/g)).toHaveLength(1 + 5 + 4);
+    expect(d.startsWith(`M ${drawn.line[0].x} ${drawn.line[0].y} L`)).toBe(true);
     expect(divisionsStrokes(drawn)).toHaveLength(1 + 5 + 4);
   });
 
-  it('draws each stroke in the pen its table names', () => {
-    const overlay = createOverlayProjector({ origin: [0, 0], ex: [400, 0], ey: [0, -400] }, 2);
-    const pens = DIAGRAM_DIVISIONS_INK.pens as { line: DivisionsPen; marks: DivisionsPen };
-    const was = { ...pens };
-    try {
-      // The table swapped: the drawing follows it, not a choice of its own.
-      Object.assign(pens, { line: 'ring', marks: 'crease' });
-      const drawn = divisionsDrawn([0.1, -0.5], [0.9, -0.5], { ...look, offset: 7.5 }, overlay)!;
-      expect(drawn.pens).toEqual({ line: markRingWidth(overlay), marks: DIAGRAM_LINE_INK.crease.width * 2 });
-    } finally {
-      Object.assign(pens, was);
-    }
+  it('draws every stroke in the aux lines’ pen, whatever the arrow’s, and crowds where two of a ring’s pens no longer fit (Revision 3)', () => {
+    // The Diagram preset's pens: aux 0.25 pt, the arrow 0.75 pt — so a ring 0.5625 pt.
+    const pens = { ...DIAGRAM_LINE_INK, aux: { ...DIAGRAM_LINE_INK.aux, width: 0.25 }, arrow: { ...DIAGRAM_LINE_INK.arrow, width: 0.75 } };
+    const project = createOverlayProjector({ origin: [0, 0], ex: [400, 0], ey: [0, -400] }, 2, pens);
+    const drawn = divisionsDrawn([0.1, -0.5], [0.9, -0.5], { ...look, offset: 7.5 }, project)!;
+    expect(drawn.pen).toBeCloseTo(0.25 * 2, 12);
+    expect(markRingWidth(project)).toBeCloseTo(0.5625 * 2, 12);
+    // A heavier arrow changes no stroke of theirs.
+    const heavy = createOverlayProjector({ origin: [0, 0], ex: [400, 0], ey: [0, -400] }, 2, { ...pens, arrow: { ...pens.arrow, width: 3 } });
+    expect(divisionsDrawn([0.1, -0.5], [0.9, -0.5], { ...look, offset: 7.5 }, heavy)!.pen).toBeCloseTo(0.25 * 2, 12);
+    // The floor is two of a ring's pens, as it was: 32 parts with three ticks on a 25 mm edge crowd, spaced at it.
+    const ink = 2;
+    const sheet = (mm: number) => mm / INK_MM / 400 * ink;
+    const crowded = divisionsDrawn([0, -0.5], [sheet(25), -0.5], { ...look, parts: 32, ticks: 3, offset: 7.5 }, project)!;
+    expect(crowded.crowded).toBe(true);
+    const group = crowded.ticks.slice(0, 3).map(([a, b]) => (a.x + b.x) / 2);
+    expect(group[1]! - group[0]!).toBeCloseTo(2 * markRingWidth(project), 9);
+    expect(divisionsDrawn([0, -0.5], [sheet(25), -0.5], { ...look, parts: 32, offset: 7.5 }, project)!.crowded).toBe(false);
   });
+
 });

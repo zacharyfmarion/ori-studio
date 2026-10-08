@@ -303,25 +303,25 @@ describe('equal divisions (Revision 2)', () => {
     expect(ANNOTATION_INK_MM).toBeCloseTo(0.3307, 4);
   });
 
-  it('draw their line in the existing creases’ pen, their dividers and ticks in a ring’s, the count set as a page sets the rotate glyph’s fraction', () => {
-    const { markup } = paintAnnotations(
-      [{ ...top, parts: 7, numbered: true }],
-      { x: 0, y: 0, width: 400, height: 300 },
-      400,
-      DEFAULT_DIAGRAM_STYLE
-    )!;
-    const widths = [...markup.matchAll(/<path d="M[^"]*" stroke-width="([\d.]+)" stroke-linecap="butt" fill="none" stroke="([^"]+)"/g)];
-    expect(widths).toHaveLength(2);
-    // The Diagram preset's aux creases are 0.25 pt; its arrows 0.75 pt, a ring three quarters of that.
-    expect(Number(widths[0]![1])).toBeCloseTo(0.25 * PT_TO_CSS_PX, 3);
-    expect(Number(widths[1]![1])).toBeCloseTo(0.75 * 0.75 * PT_TO_CSS_PX, 3);
-    expect(widths[0]![2]).toBe(widths[1]![2]);
-    expect(markup).toContain(`font-family="'Noto Sans', sans-serif" font-weight="700">7</text>`);
-    expect(markup).not.toContain('Inter');
-    // Above the edge: 2.5 mm, then 1.65 mm of dividers past it.
-    const divider = /M ([\d.]+) (-?[\d.]+) L ([\d.]+) (-?[\d.]+)/.exec(widths[1]![0])!;
-    expect(Number(divider[2])).toBeCloseTo(0, 6);
-    expect(Number(divider[4])).toBeCloseTo(-(2.5 / ANNOTATION_INK_MM + 5) * ink, 2);
+  it('draw every stroke as one path in the aux creases’ pen, in either preset, the count set as a page sets the rotate glyph’s fraction (Revision 3)', () => {
+    for (const [style, auxPt] of [
+      [DEFAULT_DIAGRAM_STYLE, 0.25],
+      [{ preset: 'default' } as const, 0.5],
+    ] as const) {
+      const { markup } = paintAnnotations([{ ...top, parts: 7, numbered: true }], { x: 0, y: 0, width: 400, height: 300 }, 400, style)!;
+      const paths = [...markup.matchAll(/<path d="(M[^"]*)" stroke-width="([\d.]+)" stroke-linecap="butt" fill="none" stroke="([^"]+)"/g)];
+      expect(paths).toHaveLength(1);
+      // The Diagram preset's aux creases are 0.25 pt, the Default's 0.5 pt: the line's pen, as it was, and now the dividers' and ticks'.
+      expect(Number(paths[0]![2])).toBeCloseTo(auxPt * PT_TO_CSS_PX, 3);
+      // The line, eight dividers and seven ticks.
+      expect(paths[0]![1].match(/M/g)).toHaveLength(1 + 8 + 7);
+      expect(markup).toContain(`font-family="'Noto Sans', sans-serif" font-weight="700">7</text>`);
+      expect(markup).not.toContain('Inter');
+      // Above the edge: 2.5 mm, then 1.65 mm of dividers past it.
+      const divider = [...paths[0]![1].matchAll(/M ([\d.]+) (-?[\d.]+) L ([\d.]+) (-?[\d.]+)/g)][1]!;
+      expect(Number(divider[2])).toBeCloseTo(0, 6);
+      expect(Number(divider[4])).toBeCloseTo(-(2.5 / ANNOTATION_INK_MM + 5) * ink, 2);
+    }
   });
 
   it('reach each stroke’s ink and the count’s box and no further, at either style’s pens and any size', () => {
@@ -343,11 +343,8 @@ describe('equal divisions (Revision 2)', () => {
             [minX, minY, maxX, maxY] = [Math.min(minX, x - pad), Math.min(minY, y - pad), Math.max(maxX, x + pad), Math.max(maxY, y + pad)];
           };
           // A butt end reaches half its pen to each side of it, and no further along.
-          for (const [stroke, pen] of [
-            [shape.line, shape.pens.line],
-            ...[...shape.dividers, ...shape.ticks].map((each) => [each, shape.pens.marks] as const),
-          ] as const) {
-            for (const end of stroke) take(end.x, end.y, pen / 2);
+          for (const stroke of [shape.line, ...shape.dividers, ...shape.ticks]) {
+            for (const end of stroke) take(end.x, end.y, shape.pen / 2);
           }
           if (shape.number) {
             const { at, halfWidth, halfHeight } = shape.number;

@@ -40,7 +40,6 @@ import {
   type DiagramMarks,
   type DiagramPens,
   type DiagramWhiteArrowWidth,
-  type DivisionsPen,
 } from './diagram/diagramInk';
 import { markRingWidth } from './diagram/labelLayout';
 
@@ -2594,11 +2593,13 @@ export function rightAngleDrawn(
 }
 
 /**
- * A right-angle mark's stroke, in the projector's units: the aux lines' pen
- * — an existing crease's, 0.25 pt in the Diagram preset — not a ring's, which
- * beside the lines it marks read as heavy as an arrow (Zach, 2026-10-06).
+ * The stroke of a mark that measures the lines beside it — a right angle,
+ * equal divisions — in the projector's units: the aux lines' pen — an
+ * existing crease's, 0.25 pt in the Diagram preset — not a ring's, which
+ * beside the lines it marks read as heavy as an arrow (Zach, 2026-10-06, for
+ * the right angle; his Revision 3 note, for equal divisions).
  */
-export function rightAnglePen(project: DiagramProjector): number {
+export function auxMarkPen(project: DiagramProjector): number {
   return project.pens.aux.width * project.ink;
 }
 
@@ -2840,9 +2841,9 @@ export function divisionsShape(from: SvgPoint, to: SvgPoint, look: DivisionsLook
   return { line: [at(0, offset), at(1, offset)], dividers, ticks, side, number, crowded };
 }
 
-/** Equal divisions as a picture draws them: their shape, and the pens the line and the marks across it are drawn in. */
+/** Equal divisions as a picture draws them: their shape, and the one pen every stroke of it is drawn in. */
 export interface DivisionsDrawn extends DivisionsShape {
-  pens: { line: number; marks: number };
+  pen: number;
 }
 
 /**
@@ -2851,9 +2852,10 @@ export interface DivisionsDrawn extends DivisionsShape {
  * ({@link divisionsShape}) in the projector's units, sized by their ink
  * (`DIAGRAM_DIVISIONS_INK`), the side measured after projecting so a
  * projection of the paper's back keeps the line on the paper's same side, as
- * a pleat arrow's Zs; each stroke in the pen the table names (ED9: the line
- * in the existing creases', the dividers and ticks in a ring's). The one
- * place their drawn shape is decided. Null when the ends meet.
+ * a pleat arrow's Zs; every stroke in the aux lines' pen ({@link auxMarkPen},
+ * Revision 3), and a crowded part's ticks spaced no closer than two of a
+ * ring's pens, as they were when the ticks were drawn in one. The one place
+ * their drawn shape is decided. Null when the ends meet.
  */
 export function divisionsDrawn(
   from: readonly [number, number],
@@ -2863,26 +2865,25 @@ export function divisionsDrawn(
 ): DivisionsDrawn | null {
   const ink = project.ink;
   const sizes = DIAGRAM_DIVISIONS_INK;
-  const pen = (name: DivisionsPen) => (name === 'crease' ? project.pens.crease.width * ink : markRingWidth(project));
-  const pens = { line: pen(sizes.pens.line), marks: pen(sizes.pens.marks) };
   const shape = divisionsShape(project(from), project(to), { ...look, mirrored: look.mirrored !== project.mirrored }, {
     offset: look.offset * ink,
     overshoot: sizes.overshoot * ink,
     tick: sizes.tick * ink,
     spacing: sizes.spacing * ink,
     tickFloor: sizes.tickFloor * ink,
-    spacingFloor: sizes.spacingFloor * pens.marks,
+    spacingFloor: sizes.spacingFloor * markRingWidth(project),
     lean: (sizes.leanDeg * Math.PI) / 180,
     number: sizes.number * ink,
     gap: sizes.gap * ink,
   });
-  return shape && { ...shape, pens };
+  return shape && { ...shape, pen: auxMarkPen(project) };
 }
 
-/** Equal divisions as SVG path data: the line on its own, in its pen, and the dividers and ticks, in theirs. */
-export function divisionsPathData(shape: DivisionsShape): { line: string; marks: string } {
-  const segment = ([a, b]: readonly [SvgPoint, SvgPoint]) => `M ${pointText(a)} L ${pointText(b)}`;
-  return { line: segment(shape.line), marks: [...shape.dividers, ...shape.ticks].map(segment).join(' ') };
+/** Equal divisions as SVG path data, one path in their one pen: the line, then the dividers and the ticks. */
+export function divisionsPathData(shape: DivisionsShape): string {
+  return divisionsStrokes(shape)
+    .map(([a, b]) => `M ${pointText(a)} L ${pointText(b)}`)
+    .join(' ');
 }
 
 /** Every stroke's ends of equal divisions, the line's first: their reach, and a press along them. */

@@ -125,7 +125,7 @@ export const DIAGRAM_MARK_INK = { radius: 3.07, ofArrow: 0.75 } as const;
  *   along its line.
  * Half the size it was first built at (inset 4, side 7, leg 11), in the same
  * proportions: Zach found that "twice as big as it should be" (2026-10-06).
- * Its stroke is the aux lines' pen (`rightAnglePen`), for the same review.
+ * Its stroke is the aux lines' pen (`auxMarkPen`), for the same review.
  */
 export const DIAGRAM_RIGHT_ANGLE_INK = { inset: 2, side: 3.5, leg: 5.5 } as const;
 
@@ -154,21 +154,14 @@ export const DIAGRAM_ANGLE_MARK_INK = { radius: 15, tick: 1.8, spacing: 1.8 } as
  *   `tickFloor`, a half-tick in ink, and `spacingFloor`, the spacing in pens;
  * - `number`: the count's size, the rotate glyph's fraction (2.4 mm), and
  *   `gap`, how far past the dividers' ends its box stands.
- * Its pens (ED9), which `divisionsDrawn` draws each stroke in: the line in
- * the existing creases' (`crease`, 0.25 pt in the Diagram preset), the
- * dividers and ticks — one path, `marks` — in a ring's (`markRingWidth`).
+ * Every stroke — the line, the dividers and the ticks — is drawn in the aux
+ * lines' pen (`auxMarkPen`, 0.25 pt in the Diagram preset), as a right angle
+ * is: Zach's note for Revision 3, "everything should be drawn in the width
+ * of the aux crease". Until then the dividers and ticks were a ring's (ED9).
+ * `spacingFloor` is still in a ring's pens (`markRingWidth`), so a part
+ * crowds at the printed size it always did.
  */
-export const DIAGRAM_DIVISIONS_INK: {
-  readonly overshoot: 5;
-  readonly tick: 3;
-  readonly spacing: 2;
-  readonly leanDeg: 20;
-  readonly tickFloor: 1.5;
-  readonly spacingFloor: 2;
-  readonly number: 7.2;
-  readonly gap: 2;
-  readonly pens: { readonly line: DivisionsPen; readonly marks: DivisionsPen };
-} = {
+export const DIAGRAM_DIVISIONS_INK = {
   overshoot: 5,
   tick: 3,
   spacing: 2,
@@ -177,11 +170,7 @@ export const DIAGRAM_DIVISIONS_INK: {
   spacingFloor: 2,
   number: 7.2,
   gap: 2,
-  pens: { line: 'crease', marks: 'ring' },
-};
-
-/** A pen equal divisions draw a stroke in: the existing creases', or a ring's. */
-export type DivisionsPen = 'crease' | 'ring';
+} as const;
 
 /**
  * An arrowhead: its length, tip to barbs, and the cap for a short arrow as a

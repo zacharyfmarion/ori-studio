@@ -12,7 +12,9 @@ import {
   angleMarkArcPoints,
   angleMarkDrawn,
   arcExtremes,
+  auxMarkPen,
   divisionsDrawn,
+  divisionsStrokes,
   foldArrowDrawn,
   halfArrowheadCorners,
   oneWayArrowDrawn,
@@ -21,7 +23,6 @@ import {
   polylineMitres,
   pushArrowDrawn,
   rightAngleDrawn,
-  rightAnglePen,
   rightAngleReach,
   rotateGlyphDrawn,
   strokedOutlinePoints,
@@ -188,7 +189,7 @@ export function markReach(
       // mitred: all six points, in the aux lines' pen.
       const shape = rightAngleDrawn(primitive.at, primitive.toward, project);
       if (!shape) break;
-      const reach = rightAngleReach(rightAnglePen(project));
+      const reach = rightAngleReach(auxMarkPen(project));
       for (const part of ['legs', 'square'] as const) {
         shape[part].forEach(({ x, y }, index) => take(x, y, reach[part][index]));
       }
@@ -207,15 +208,13 @@ export function markReach(
       break;
     }
     case 'divisions': {
-      // Every stroke's ends, cut square, half its pen round them — the line
-      // in its own pen, the dividers and ticks in a ring's — and the count's
-      // box, upright.
+      // Every stroke's ends — the line, the dividers and the ticks — cut
+      // square, half their one pen round them, and the count's box, upright.
       const shape = divisionsDrawn(primitive.from, primitive.to, primitive, project);
       if (!shape) break;
-      for (const end of shape.line) take(end.x, end.y, shape.pens.line / 2);
-      for (const [a, b] of [...shape.dividers, ...shape.ticks]) {
-        take(a.x, a.y, shape.pens.marks / 2);
-        take(b.x, b.y, shape.pens.marks / 2);
+      for (const [a, b] of divisionsStrokes(shape)) {
+        take(a.x, a.y, shape.pen / 2);
+        take(b.x, b.y, shape.pen / 2);
       }
       if (shape.number) {
         const { at, halfWidth, halfHeight } = shape.number;

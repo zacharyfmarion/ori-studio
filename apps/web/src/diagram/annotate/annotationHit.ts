@@ -587,7 +587,7 @@ function angleMarkDistance(annotation: KnownDiagramAnnotation, point: PicturePoi
  * Equal divisions as the canvas draws them, in picture units, at the ink a
  * press is measured in (`divisionsShape`, sized as `divisionsDrawn` sizes
  * it): their offset, a print length in mm, in that ink; a crowded part's
- * spacing held to two of their marks' pens at the table's pens, near enough
+ * spacing held to two of a ring's pens at the table's arrow pen, near enough
  * for a press. Null for a line whose ends meet.
  */
 export function divisionsInPicture(
@@ -596,8 +596,7 @@ export function divisionsInPicture(
 ): DivisionsShape | null {
   const point = ([x, y]: readonly [number, number]) => ({ x, y });
   const sizes = DIAGRAM_DIVISIONS_INK;
-  const marksPen =
-    (sizes.pens.marks === 'ring' ? DIAGRAM_MARK_INK.ofArrow * DIAGRAM_LINE_INK.arrow.width : DIAGRAM_LINE_INK.crease.width) * ink;
+  const ringPen = DIAGRAM_MARK_INK.ofArrow * DIAGRAM_LINE_INK.arrow.width * ink;
   return divisionsShape(
     point(annotation.from),
     point(annotation.to),
@@ -613,7 +612,7 @@ export function divisionsInPicture(
       tick: sizes.tick * ink,
       spacing: sizes.spacing * ink,
       tickFloor: sizes.tickFloor * ink,
-      spacingFloor: sizes.spacingFloor * marksPen,
+      spacingFloor: sizes.spacingFloor * ringPen,
       lean: (sizes.leanDeg * Math.PI) / 180,
       number: sizes.number * ink,
       gap: sizes.gap * ink,

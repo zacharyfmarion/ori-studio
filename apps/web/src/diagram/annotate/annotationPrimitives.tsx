@@ -639,7 +639,7 @@ export function annotationDrawing(
   const haloGround = haloGroundOf(seen, paper, framePx);
   const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
   const arrowCss = seen.arrows.width * PT_TO_CSS_PX;
-  // The existing creases' pen, at its pt width: what equal divisions' line is drawn in (ED9).
+  // The aux creases' pen, at its pt width: what the marks that measure — a right angle, equal divisions — are drawn in (`auxMarkPen`).
   const aux = { pen: seen.auxCreases.pen, css: seen.auxCreases.pen.width * PT_TO_CSS_PX };
   const pens = canvasDiagramPens(STEP_DIAGRAM_LINE_WIDTH, arrowCss, aux);
   // The arrow is the style's pen, at its pt width, as on a References step's
