@@ -158,8 +158,10 @@ export type DiagramBehindEnds = 'tail' | 'tip' | 'both' | 'whole';
 /**
  * How an enlarged step got its frame (Revision 2): the Enlarged toggle turned
  * on (in Annotate's Step pane since 2026-10-08; Pose's before),
- * a new step after an enlarged one whose first picture lands the frame it
- * was seeded with, or Update Enlarged Steps on the area it came from.
+ * a new empty step after an enlarged one whose first picture lands the frame
+ * it was seeded with (since 2026-10-08, a first link that keeps it:
+ * `landSeededFrame`),
+ * or Update Enlarged Steps on the area it came from.
  */
 export type DiagramStepEnlargedVia = 'toggle' | 'seeded' | 'update';
 

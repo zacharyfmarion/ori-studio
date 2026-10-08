@@ -26,7 +26,6 @@ import { referencesSource } from '../document/diagramSteps.fixtures';
 import { layoutDiagram } from '../pages/diagramPages';
 import { estimateTextSetter } from '../pages/estimateTextSetter';
 import { cellPicture } from '../pages/pagePictures';
-import { seedNewSteps } from '../zoom/zoomFrames';
 import { markPaper, stepAsDrawn } from '../zoom/stepView';
 import { framedCard, liftFixtures, piecesCard } from './referencesCardMarks.fixtures';
 import { liftedCardPicture } from './referencesCardMarks';
@@ -60,7 +59,9 @@ function diagram(style: DiagramStyle, lifted: boolean, layout: 'grid' | 'flow'):
 describe('a card pulled into an enlarged step, on its page', () => {
   // 17d review: crane's last step, enlarged, filled with a card — and a card pulled after it, enlarged with its frame —
   // drew the card's arrows whole across the steps beside them and off the page, where the baked card is cut at the frame.
-  it('paints none of the card’s marks outside its cell, filled into the step or pulled after it', () => {
+  // Since review fix 3 a card filling an empty enlarged step, or pulled after one, starts whole; a References step
+  // enlarged since still takes a new card into its window (Replace).
+  it('paints none of the card’s marks outside its cell, replaced into the enlarged step or pulled after it whole', () => {
     const style: DiagramStyle = { preset: 'diagram' };
     const card = (key: string): SentReferencesStep => {
       const picture: DiagramStepDiagramPicture = { kind: 'step-diagram', model: framedCard(), mirrored: false, key };
@@ -77,14 +78,16 @@ describe('a card pulled into an enlarged step, on its page', () => {
     const empty: DiagramStep = { ...createStep(() => 'step-filled'), zoom };
     const start = insertSteps({ ...createDiagram({ title: 'Head', newId: () => 'diagram-head' }), style }, [empty], 0);
     const filled = pullReferencesSteps(start, [card('steps-f')], { kind: 'fill', stepId: 'step-filled' }, { newId }).document;
-    const added = pullReferencesSteps(filled, [card('steps-g')], { kind: 'end' }, { newId });
-    const document = seedNewSteps(added.document, added.stepIds, added.document.assets).document;
+    expect(stepById(filled, 'step-filled')!.zoom).toBeUndefined();
+    // Enlarged again, then given another card: its marks in the frame pulled into the window.
+    const enlarged = { ...filled, steps: filled.steps.map((entry) => (entry.id === 'step-filled' ? { ...entry, zoom } : entry)) };
+    const replaced = pullReferencesSteps(enlarged, [card('steps-g')], { kind: 'replace', stepId: 'step-filled' }, { newId }).document;
+    const document = pullReferencesSteps(replaced, [card('steps-h')], { kind: 'end' }, { newId }).document;
     const cells = layoutDiagram(document, estimateTextSetter).pages.flatMap((page) => page.cells);
     expect(cells).toHaveLength(2);
     for (const cell of cells) {
       const step = stepById(document, cell.stepId)!;
-      // Enlarged, the card's marks in its frame pulled with it.
-      expect(step.zoom?.frame).toEqual(zoom.frame);
+      expect(step.zoom?.frame).toEqual(cell.stepId === 'step-filled' ? zoom.frame : undefined);
       expect(step.annotations.length).toBeGreaterThan(0);
       const placed = cellPicture(step, document.assets, style, cell, 'c-', { hanStyle: 'sc', runs: estimateTextSetter.runs })!;
       const framePx = Math.max(placed.framePt.width, placed.framePt.height) / PT_PER_CSS_PX;

@@ -31,7 +31,7 @@ import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
 import { cleanAnnotation, MAX_STEP_ANNOTATIONS, sameAnnotation, withAnnotationReach } from '../annotate/annotationModel';
-import { marksIntoUnits } from '../zoom/zoomFrames';
+import { marksIntoUnits, startsWhole } from '../zoom/zoomFrames';
 import { stepReach } from '../zoom/zoomModel';
 import { authorMarksChanged, authorMarksOf, editedCardMarksGone, isCardMark, releaseCardMarks, withEditTags } from './cardMarks';
 
@@ -250,6 +250,22 @@ export function nearestEarlierSpread(
     if (render.mode === 'folded-flat' && render.spread && (kind === undefined || render.spread.kind === kind)) {
       return render.spread;
     }
+  }
+  return null;
+}
+
+/**
+ * The way the nearest linked step before `stepId` shows its pattern (D19),
+ * turns, uploads, References steps and a newer build's steps passed over:
+ * what the pattern picker offers a step with no link (review fix 3), so a
+ * step after a folded run links folded. Null when no step before it is
+ * linked.
+ */
+export function nearestEarlierShowAs(document: DiagramDocument, stepId: string): DiagramShowAs | null {
+  for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
+    const entry = document.steps[index]!;
+    if (isTurn(entry) || isLockedStep(entry) || entry.source?.kind !== 'cp') continue;
+    return showAsOf(entry.source.render);
   }
   return null;
 }
@@ -1398,7 +1414,9 @@ export function insertPictureSteps(
 /**
  * Give a step a picture: it becomes an upload of `asset`, in its upright pose,
  * and keeps its instruction and annotations. Annotations drawn on another
- * picture stay where they were, and Annotate says the picture changed.
+ * picture stay where they were, and Annotate says the picture changed. An
+ * upload never continues an enlarged run: a step given its first picture
+ * starts whole (`startsWhole`), and one that had a picture keeps its frame.
  */
 export function setStepPicture(
   document: DiagramDocument,
@@ -1407,13 +1425,18 @@ export function setStepPicture(
 ): DiagramDocument {
   const step = stepById(document, stepId);
   if (!step || isLockedStep(step)) return document;
+  const withAsset = withAssets(document, [asset]);
   // A card's marks are the author's once its picture is not the card (17d).
-  return updateStep(withAssets(document, [asset]), stepId, (step) =>
-    releaseCardMarks({
-      ...step,
-      ...uploadStepParts(asset),
-      revision: step.revision + 1,
-    })
+  return updateStep(withAsset, stepId, (step) =>
+    startsWhole(
+      step,
+      releaseCardMarks({
+        ...step,
+        ...uploadStepParts(asset),
+        revision: step.revision + 1,
+      }),
+      withAsset.assets
+    )
   );
 }
 
@@ -1584,13 +1607,18 @@ export function pullReferencesSteps(
   const taken = updateStep(document, target.id, (step) => {
     const lifted = fits(step, first.lifted) ? first.lifted : null;
     if (!lifted && first.lifted !== undefined) baked.push(step.id);
-    const next: DiagramStep = {
-      ...step,
-      source: first.source,
-      picture: lifted?.picture ?? first.picture,
-      text: words(step),
-      revision: step.revision + 1,
-    };
+    // A card never continues an enlarged run: an empty step it fills starts whole, before its marks arrive (review fix 3).
+    const next = startsWhole(
+      step,
+      {
+        ...step,
+        source: first.source,
+        picture: lifted?.picture ?? first.picture,
+        text: words(step),
+        revision: step.revision + 1,
+      },
+      document.assets
+    );
     const swapped = swapCardMarks(step, next, lifted?.annotations ?? [], document.assets);
     replaced = editedCardMarksGone(step, swapped);
     return swapped;

@@ -21,7 +21,7 @@ import {
 } from '../document/diagramDocument';
 import { cpStep } from '../document/diagramSteps.fixtures';
 import { craneStep, imprintCase } from './zoom.fixtures';
-import { anchorOf, capture, captureSource, seededZoom, stepsFrom } from './zoomCapture';
+import { anchorOf, capture, captureSource, runShowAs, runSource, seededZoom, stepsFrom } from './zoomCapture';
 import { enlargeStep, relandFrame, reposeFrame, setFrameOutline, unenlargeStep, updateEnlargedSteps } from './zoomFrames';
 import { anchorPoint, defaultAnchor, facePlacement, paperFacesOf, toPicture, toScene } from './zoomImprint';
 import { zoomOutlineOf } from './zoomModel';
@@ -153,6 +153,45 @@ describe('capturing a frame', () => {
     expect(seeded).toMatchObject({ from: 'area-head', shape: 'circle' });
     expect(seeded.imprint).toBeDefined();
     expect(seeded.frame).toEqual(zoomOf(enlarged, 'step-n')!.frame);
+  });
+
+  it('names the run’s picture type: its source’s, past empty steps seeded before it; none from an upload, or with no source (review fix 3)', () => {
+    const s = withArea(craneStep('S.none'), headArea(craneStep('S.none'), 'none'));
+    const empty = (id: string): DiagramStep => ({ ...cpStep(id), picture: null, source: null });
+    let document = enlargeStep(diagramOf(s, renamed(craneStep('C.none'), 'step-n')), 'step-n', NO_ASSETS).document;
+    document = insertSteps(document, [empty('step-e1'), empty('step-e2')], 2);
+    document = enlargeStep(enlargeStep(document, 'step-e1', NO_ASSETS).document, 'step-e2', NO_ASSETS).document;
+    expect(runSource(document, 'step-e2')?.id).toBe('step-n');
+    expect(runShowAs(document, 'step-e2')).toBe('folded');
+    // Enlarged from the area itself: it starts a run, and continues none.
+    expect(runSource(document, 'step-n')).toBeNull();
+    expect(runShowAs(document, 'step-n')).toBeNull();
+    // A crease pattern's run.
+    const asPattern = (entry: DiagramEntry): DiagramEntry =>
+      entry.id === 'step-n' && 'source' in entry && entry.source?.kind === 'cp'
+        ? { ...entry, source: { ...entry.source, render: { mode: 'crease-pattern', rotationDeg: 0 } } }
+        : entry;
+    expect(runShowAs({ ...document, steps: document.steps.map(asPattern) }, 'step-e2')).toBe('crease-pattern');
+    // An upload's run, and a step with nothing before it to be enlarged from.
+    const asUpload = (entry: DiagramEntry): DiagramEntry =>
+      entry.id === 'step-n'
+        ? { ...(entry as DiagramStep), source: { kind: 'upload', assetId: 'asset-u', rotationQuarterTurns: 0, mirrored: false } }
+        : entry;
+    expect(runShowAs({ ...document, steps: document.steps.map(asUpload) }, 'step-e2')).toBeNull();
+    expect(runShowAs(document, s.id)).toBeNull();
+  });
+
+  it('names no run for a step whose run starts with no picture yet: past empty steps back to the area', () => {
+    const s = withArea(craneStep('S.none'), headArea(craneStep('S.none'), 'none'));
+    const empty = (id: string): DiagramStep => ({ ...cpStep(id), picture: null, source: null });
+    // Step N enlarged from the area, then its picture removed; an empty step enlarged after it.
+    let document = enlargeStep(diagramOf(s, renamed(craneStep('C.none'), 'step-n')), 'step-n', NO_ASSETS).document;
+    const removed = (entry: DiagramEntry): DiagramEntry => (entry.id === 'step-n' ? { ...(entry as DiagramStep), source: null, picture: null } : entry);
+    document = { ...document, steps: document.steps.map(removed) };
+    document = enlargeStep(insertSteps(document, [empty('step-e1')], 2), 'step-e1', NO_ASSETS).document;
+    expect(zoomOf(document, 'step-e1')).toBeDefined();
+    expect(runSource(document, 'step-e1')).toBeNull();
+    expect(runShowAs(document, 'step-e1')).toBeNull();
   });
 
   it('copies the frame in picture units where either step has no faces', () => {

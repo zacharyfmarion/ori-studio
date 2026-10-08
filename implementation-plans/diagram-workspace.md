@@ -1333,7 +1333,12 @@ peers: switching between them is a choice of view, never a new link.
      card's progress row and Stop.
   2. **The pattern picker.** Its header carries the same **Show as**,
      defaulting to the last one used in the session: picking a pattern links
-     it and shows it that way in one move.
+     it and shows it that way in one move. *Amended 2026-10-08
+     (`diagram-review-fixes.md`, item 3):* for a step with no link, the
+     default is the way the nearest linked step before it is shown, passing
+     over turns, uploads and References steps. The session's last way is the
+     default only when no step before it is linked. A relink still offers the
+     way the step is shown.
   3. **The card.** Its badge says how (Crease pattern, Folded, Folded · 3D,
      Simulated 40%). The context menu gains **Show as ▸** with the three. The
      card's own Adjust pose and Annotate buttons (built) open the step.

@@ -20,12 +20,14 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramCaptureOutcome } from '../../store/workspaceStore/diagramCapture';
 import {
   isLockedStep,
+  nearestEarlierShowAs,
   renderToShowAs,
   showAsOf,
   DEFAULT_LAYER_SPREAD,
   spreadStartsFor,
   type DiagramLayerSpread,
   type DiagramCpRender,
+  type DiagramDocument,
   type DiagramShowAs,
   type DiagramStep,
   stepById,
@@ -51,13 +53,20 @@ export function openDiagramPatternPicker(stepId: string): void {
 
 /**
  * The way the pattern picker last linked a pattern, this session: what it
- * offers the next new link (D19). A relink offers the way the step is shown.
+ * offers a new link with no linked step before it (D19).
  */
 let lastLinkedAs: DiagramShowAs = 'crease-pattern';
 
-/** What the picker offers a step to be shown as, until the reader picks another way. */
-export function pickerShowAs(step: DiagramStep | null): DiagramShowAs {
-  return step?.source?.kind === 'cp' ? showAsOf(step.source.render) : lastLinkedAs;
+/**
+ * What the picker offers a step to be shown as, until the reader picks
+ * another way: a relink, the way the step is shown; a new link, the way the
+ * nearest linked step before it is (review fix 3, amending D19), so a step
+ * after a folded run links folded and stays in the run; with none before it,
+ * the way the picker last linked.
+ */
+export function pickerShowAs(document: DiagramDocument | null, step: DiagramStep | null): DiagramShowAs {
+  if (step?.source?.kind === 'cp') return showAsOf(step.source.render);
+  return (document && step && nearestEarlierShowAs(document, step.id)) ?? lastLinkedAs;
 }
 
 /**
@@ -65,7 +74,8 @@ export function pickerShowAs(step: DiagramStep | null): DiagramShowAs {
  * `way`, and capture its picture (D19): the picker links and chooses the way
  * in one pick. A relink in the way the step is shown keeps its pose, except a
  * Simulated fold %, which starts again at 0%. A first link starts at no turn,
- * but an enlarged step's in its frame's source's turn (`firstLinkPose`).
+ * but an enlarged step's shown as its run is in its run source's turn
+ * (`firstLinkPose`); shown another way, it starts whole (`landSeededFrame`).
  * Whether it was linked.
  */
 export async function linkDiagramStep(stepId: string, segment: CpSegment, way?: DiagramShowAs): Promise<boolean> {
@@ -76,7 +86,7 @@ export async function linkDiagramStep(stepId: string, segment: CpSegment, way?: 
   const showAs = way ?? (linked ? showAsOf(linked.render) : 'crease-pattern');
   const spread = startingSpread(stepId);
   const asked = renderToShowAs(
-    linked ?? { render: firstLinkPose(store.diagram, stepId, spread) ?? { mode: 'crease-pattern', rotationDeg: 0 } },
+    linked ?? { render: firstLinkPose(store.diagram, stepId, showAs, spread) ?? { mode: 'crease-pattern', rotationDeg: 0 } },
     showAs,
     spread
   );

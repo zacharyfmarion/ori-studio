@@ -512,6 +512,19 @@ describe('a card filled into a seeded step', () => {
     expect(known(step).map((mark) => mark.imported)).toEqual(['untouched', 'untouched', 'untouched', 'untouched', 'untouched', undefined]);
     expect(annotationsOutOfStep(step)).toBe(true);
   });
+
+  it('starts an empty step seeded enlarged whole: every mark of the card where it lies on its sheet (review fix 3)', () => {
+    const zoom = { from: 'area-1', shape: 'circle' as const, frame: { centre: [0.5, 0.5] as [number, number], radius: 0.2 } };
+    const fill = (step: DiagramStep) =>
+      stepOf(pullReferencesSteps(diagram(step), [sent('steps-b', framedCard())], { kind: 'fill', stepId: 'step-e' }).document, 'step-e');
+    const seeded = fill({ ...createStep(() => 'step-e'), zoom });
+    const whole = fill(createStep(() => 'step-e'));
+    expect(seeded.zoom).toBeUndefined();
+    // As a step that was never enlarged takes it: no line cut at the frame, no mark it would cut left out.
+    expect(seeded.annotations).toEqual(whole.annotations);
+    expect(known(seeded).map((mark) => mark.kind)).toEqual(known(whole).map((mark) => mark.kind));
+    expect(seeded.annotatedPictureKey).toBe(seeded.picture!.key);
+  });
 });
 
 describe('a real card', () => {

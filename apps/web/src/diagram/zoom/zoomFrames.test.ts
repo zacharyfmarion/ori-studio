@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ANNOTATION_REACH, ZOOM_RADIUS, ZOOM_SIDE, type PicturePoint } from '../annotate/annotationModel';
 import { poseMove, sceneTurnMove } from '../annotate/annotationCarry';
 import {
+  DEFAULT_SIMULATED_VIEW,
   createDiagram,
   createStep,
   createTurn,
@@ -39,6 +40,7 @@ import {
   setFrameOutline,
   setFrameScale,
   setFrameShape,
+  startsWhole,
   stepWindow,
   trimmedAtFrame,
   unenlargeStep,
@@ -735,41 +737,19 @@ describe('a new step after an enlarged one, however it is made (16g)', () => {
     expect(distance(step(document, 'step-a').zoom!.frame!.centre, step(enlarged).zoom!.frame!.centre)).toBeLessThan(1e-9);
   });
 
-  it('a run of uploads: every one from the run’s source, so each keeps its imprint for a picture with faces (16h)', () => {
+  it('a run of empty steps: each passes on the imprint it was seeded with, for its first picture to land (16h)', () => {
     const enlarged = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"/>';
-    const assets = Object.fromEntries(['u1', 'u2', 'u3'].map((id) => [id, { id, kind: 'svg' as const, svg, widthPx: 400, heightPx: 300, bytes: svg.length }]));
-    const upload = (id: string): DiagramStep => ({
-      ...createStep(() => `step-${id}`),
-      source: { kind: 'upload', assetId: id, rotationQuarterTurns: 0, mirrored: false },
-      picture: { kind: 'asset', assetId: id, paperScale: null, key: `asset:${id}` },
-    });
-    const made = [upload('u1'), upload('u2'), upload('u3')];
-    const withUploads = { ...insertSteps(enlarged, made, enlarged.steps.length), assets };
-    const { document, seeded } = seedNewSteps(withUploads, made.map((each) => each.id), assets);
+    const made = ['step-e1', 'step-e2'].map((id) => ({ ...createStep(() => id), id }));
+    const { document, seeded } = seedNewSteps(insertSteps(enlarged, made, enlarged.steps.length), ['step-e1', 'step-e2'], NO_ASSETS);
     expect(seeded.map((each) => [each.stepId, each.captured.placed])).toEqual([
-      ['step-u1', 'picture'],
-      ['step-u2', 'picture'],
-      ['step-u3', 'picture'],
+      ['step-e1', null],
+      ['step-e2', null],
     ]);
     const source = imprintOn(step(enlarged), step(enlarged).zoom!.frame!);
     for (const each of made) {
       expect(step(document, each.id).zoom!.imprint, each.id).toEqual(source);
       expect(step(document, each.id).zoom!.frame).toEqual(step(enlarged).zoom!.frame);
     }
-    // A step the same edit filled starts the run as it was before its picture: its imprint too.
-    const empty = { ...createStep(() => 'step-empty'), id: 'step-empty' };
-    const before = seedNewSteps(insertSteps(enlarged, [empty], enlarged.steps.length), ['step-empty'], NO_ASSETS).document;
-    const was = step(before, 'step-empty');
-    const filled = { ...was, source: upload('u1').source, picture: upload('u1').picture };
-    const afterFill = {
-      ...insertSteps({ ...before, steps: before.steps.map((entry) => (entry.id === 'step-empty' ? filled : entry)) }, [upload('u2')], before.steps.length),
-      assets,
-    };
-    const run = seedNewSteps(afterFill, ['step-u2'], assets, was).document;
-    expect(step(run, 'step-u2').zoom!.imprint).toEqual(was.zoom!.imprint);
-    // Without it, from the filled step as it shows: its frame alone.
-    expect(step(seedNewSteps(afterFill, ['step-u2'], assets).document, 'step-u2').zoom!.imprint).toBeUndefined();
   });
 
   it('leaves a step that is enlarged already — a duplicate — as it is, and one after a whole step whole', () => {
@@ -779,6 +759,121 @@ describe('a new step after an enlarged one, however it is made (16g)', () => {
     expect(seedNewSteps(withCopy, ['step-copy'], NO_ASSETS)).toEqual({ document: withCopy, seeded: [] });
     const plain = insertSteps(crane('none'), [{ ...craneStep('C.none'), id: 'step-whole' }], 1);
     expect(seedNewSteps(plain, ['step-whole'], NO_ASSETS)).toEqual({ document: plain, seeded: [] });
+  });
+});
+
+describe('a seeded step’s first picture (review fix 3)', () => {
+  /** Step N, the crane folded, enlarged; then an empty step seeded after it, as Insert Step After makes one. */
+  function seededAfter(n: DiagramStep = step(crane('none'))): DiagramDocument {
+    const s = craneStep('S.none');
+    const area = { ...s, annotations: [headArea(s, 'none')], annotatedPictureKey: s.picture!.key };
+    const enlarged = enlargeStep(insertSteps(createDiagram({ title: 'Crane' }), [area, n], 0), n.id, NO_ASSETS).document;
+    const empty = { ...createStep(() => 'step-new'), id: 'step-new' };
+    return seedNewSteps(insertSteps(enlarged, [empty], enlarged.steps.length), ['step-new'], NO_ASSETS).document;
+  }
+  /** The crane linked to the seeded step (or another), shown as `render` says. */
+  function linkedAs(document: DiagramDocument, render?: DiagramCpRender, stepId = 'step-new'): DiagramDocument {
+    const crane = craneStep('C.none');
+    const source = crane.source as DiagramCpSource;
+    return setLinkedPicture(document, stepId, { source: { ...source, render: render ?? source.render }, picture: crane.picture });
+  }
+  /** A diagram with the steps `edits` names changed so. */
+  const edited = (document: DiagramDocument, edits: Record<string, (step: DiagramStep) => DiagramStep>): DiagramDocument => ({
+    ...document,
+    steps: document.steps.map((entry) => (edits[entry.id] ? edits[entry.id]!(entry as DiagramStep) : entry)),
+  });
+  /** A linked step shown as its crease pattern, its picture as it was: all a run's picture type reads. */
+  const asPattern = (each: DiagramStep): DiagramStep => ({
+    ...each,
+    source: { ...(each.source as DiagramCpSource), render: { mode: 'crease-pattern', rotationDeg: 0 } },
+  });
+  const unlinked = (each: DiagramStep): DiagramStep => ({ ...each, source: null, picture: null });
+
+  it('shown as its run shows its pattern, keeps the frame it was seeded with and lands it', () => {
+    const before = seededAfter();
+    expect(step(before, 'step-new').zoom).toBeDefined();
+    const landed = landSeededFrame(before, linkedAs(before), 'step-new');
+    expect(landed.placed).toBe('face');
+    expect(landed.enlargedWith).toBe(step(before, 'step-new').zoom);
+    expect(step(landed.document, 'step-new').zoom?.frame).toBeDefined();
+    expect(frameProblems(landed.document)).toEqual([]);
+  });
+
+  it('shown another way, starts whole in the same edit, and places nothing', () => {
+    const before = seededAfter();
+    const ways: DiagramCpRender[] = [
+      { mode: 'crease-pattern', rotationDeg: 0 },
+      { mode: 'simulated', foldPercent: 0, view: DEFAULT_SIMULATED_VIEW },
+    ];
+    for (const render of ways) {
+      const after = linkedAs(before, render);
+      const landed = landSeededFrame(before, after, 'step-new');
+      expect(landed.placed, render.mode).toBeNull();
+      expect(landed.enlargedWith).toBeUndefined();
+      expect(step(landed.document, 'step-new').zoom, render.mode).toBeUndefined();
+      expect(step(landed.document, 'step-new').picture).toBe(step(after, 'step-new').picture);
+    }
+  });
+
+  const upload: DiagramStep = {
+    ...step(crane('none')),
+    source: { kind: 'upload', assetId: 'asset-u', rotationQuarterTurns: 0, mirrored: false },
+    picture: { kind: 'asset', assetId: 'asset-u', paperScale: null, key: 'asset:asset-u' },
+  };
+
+  it('is not seeded after an enlarged upload or References step, whose run no first picture continues', () => {
+    for (const n of [upload, referencesStep('step-n')]) {
+      const before = seededAfter(n);
+      expect(step(before).zoom, n.source!.kind).toBeDefined();
+      expect(step(before, 'step-new').zoom, n.source!.kind).toBeUndefined();
+    }
+  });
+
+  it('enlarged after an upload’s run all the same — by hand, or in a file — starts whole however it is shown', () => {
+    const before = enlargeStep(seededAfter(upload), 'step-new', NO_ASSETS).document;
+    expect(step(before, 'step-new').zoom).toBeDefined();
+    expect(step(landSeededFrame(before, linkedAs(before), 'step-new').document, 'step-new').zoom).toBeUndefined();
+  });
+
+  it('starting a run — enlarged from an area, its picture since removed — keeps its frame however the area’s step is shown', () => {
+    // Step S shown as its crease pattern; N, enlarged from S's area while folded, its picture removed, linked folded again.
+    const enlarged = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
+    const before = edited(enlarged, { 'step-S.none': asPattern, 'step-n': unlinked });
+    const landed = landSeededFrame(before, linkedAs(before, undefined, 'step-n'), 'step-n');
+    expect(landed.placed).toBe('face');
+    expect(landed.enlargedWith).toBe(step(before).zoom);
+    expect(step(landed.document).zoom?.frame).toBeDefined();
+  });
+
+  it('linked already, given its first picture by a Refresh or Pose — a file’s linked step with no picture yet — keeps its frame', () => {
+    // The run shown as its crease pattern; the step after it linked folded, not captured yet.
+    const seeded = seededAfter();
+    const before = edited(seeded, { 'step-n': asPattern, 'step-new': (each) => ({ ...each, source: craneStep('C.none').source }) });
+    const landed = landSeededFrame(before, linkedAs(before), 'step-new');
+    expect(landed.placed).toBe('face');
+    expect(step(landed.document, 'step-new').zoom?.frame).toBeDefined();
+  });
+
+  it('keeps the frame of a step that had a picture, whatever way it is shown now (Show as)', () => {
+    const enlarged = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
+    const n = step(enlarged);
+    const shown = setLinkedPicture(enlarged, 'step-n', {
+      source: { ...(n.source as DiagramCpSource), render: { mode: 'crease-pattern', rotationDeg: 0 } },
+      picture: n.picture,
+    });
+    expect(landSeededFrame(enlarged, shown, 'step-n')).toEqual({ document: shown, placed: null });
+    expect(step(shown).zoom).toBeDefined();
+  });
+
+  it('starts whole an empty step given an upload or a card, its marks from a picture since removed carried to the whole picture', () => {
+    const enlarged = enlargeStep(crane('none'), 'step-n', NO_ASSETS).document;
+    const was = { ...step(enlarged), source: null, picture: null };
+    const whole = startsWhole(was, step(enlarged), NO_ASSETS);
+    expect(whole.zoom).toBeUndefined();
+    expect(whole).toEqual(step(unenlargeStep(enlarged, 'step-n', NO_ASSETS)));
+    // A step that had a picture, or has no frame: as it is.
+    expect(startsWhole(step(enlarged), step(enlarged), NO_ASSETS)).toBe(step(enlarged));
+    expect(startsWhole(was, whole, NO_ASSETS)).toBe(whole);
   });
 });
 

@@ -1578,6 +1578,12 @@ Open, Zach's call (built as §4 says until he says otherwise):
   frame (`liesInFrame`): lines cut at it or dropped, other marks only when
   every point they are drawn through is inside. A page test holds every
   painted mark inside its cell.
+  *Amended 2026-10-08 (`diagram-review-fixes.md`, item 3).* A card never
+  continues an enlarged run: one pulled after an enlarged step, or filling an
+  empty step seeded enlarged, starts whole with all its marks.
+  `withCardMarksInFrame` is removed. `marksIntoUnits` still takes a new card
+  into the window of a References step enlarged since, through Replace, Way
+  and Make Editable.
 - **Show menu.** `DiagramReferencesShowMenu` (its own module) between
   Sequence | Find and Open References; `diagramReferencesMarks` in the
   settings store (`diagram-references-marks`); `toggleReferencesMark`

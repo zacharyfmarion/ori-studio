@@ -119,7 +119,9 @@ steps follow ups in the branch". 8, 10, 11 and 12 are built ("Follow-ups to
 11. **A run of uploads after an enlarged step**: the second was seeded from
     the first, an upload with no faces, and so had no imprint. *Decided:
     every step of the run is seeded from the run's source frame and
-    imprint.*
+    imprint.* *Superseded 2026-10-08 (`diagram-review-fixes.md`, item 3):*
+    uploads are not seeded at all, and a new empty step after an enlarged
+    upload starts whole.
 12. **Show as Crease Pattern on an enlarged folded step** landed the frame on
     its anchor face's paper, 288 sheet units from the crane's head (Z8 as
     decided). *Decided: on a flat crease pattern, the frame lands on the top
@@ -138,6 +140,11 @@ steps follow ups in the branch". 8, 10, 11 and 12 are built ("Follow-ups to
   *Recommended:* a seeded step takes a faceless enlarged step's stored
   imprint with its frame, and its first link the turn of the run's linked
   source; Enlarged turned on keeps the rule as decided.
+  *Moot since 2026-10-08 (`diagram-review-fixes.md`, item 3):* an upload's
+  run shows no picture type, so no step continues it. A step made after an
+  enlarged upload is not seeded and starts whole, and one enlarged after it
+  by hand starts whole at its first link. Listed for Zach to confirm in
+  item 3's open calls.
 - **A whole step's line pasted onto an enlarged one** (7) is not trimmed, as
   8 trims a carried one, so a long line pasted there runs across the page as
   8 found. *Recommended:* trim a pasted line as a carried one.
@@ -1446,6 +1453,23 @@ again from whatever is before it now. New steps added after an enlarged step
 start enlarged, captured at creation (Zach: "yeah sounds right"). Not taken:
 Enlarge and Whole cards in the Steps grid; the 2026-10-05 recommendation, in
 which each window was derived from the area and followed its edits.
+**Amended 2026-10-08 (`diagram-review-fixes.md`, item 3; Zach: "that sounds
+good").** A run continues only with its picture type. An empty step made after
+an enlarged one (Add Step, Insert Step After) still starts enlarged. Its first
+picture keeps the frame only if it is linked the way the run's source shows
+its pattern: Crease Pattern, Folded or Simulated. Linked another way, the step
+starts whole in the link's undo step. Uploads and References cards never
+continue a run. Made after an enlarged step, or filling an empty step seeded
+enlarged, they start whole. This also amends 16g ("every way a step is made")
+and 16h (a run of uploads). The pattern picker now offers a step with no link
+the previous linked step's way (D19 amended). Switching Show as on a step that
+is already enlarged keeps it enlarged. As reviewed: the rule binds a step's
+first link only where it continues a run, whose source is an enlarged step
+with a picture. A step that starts a run (enlarged from an area, directly or
+past empty steps) keeps its frame however it is linked, and so does a linked
+step given its first picture by a Refresh or Pose. An empty step made after an
+enlarged upload or References step is not seeded, since no first picture
+could keep that frame.
 
 **Z3. Where the arrow prints. DECIDED: A, in the gutter, lifted to the area's
 height.** "all those defaults look good" (Zach, 2026-10-06). D22's place for a

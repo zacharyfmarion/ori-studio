@@ -428,31 +428,74 @@ describe('an enlarged step’s own picture changed through the store (16g)', () 
   });
 });
 
-describe('every way a step is made after an enlarged one (16g)', () => {
-  it('pictures uploaded after it start enlarged, the run through, each counted as its frame lands', async () => {
+describe('every way a step is made after an enlarged one (16g; review fix 3)', () => {
+  /** Zach's crane linked as a step's picture: folded, as step 2's run shows it, or as its crease pattern. */
+  const linkCrane = (stepId: string, way: 'folded' | 'crease-pattern' = 'folded') => {
+    const crane = craneStep('C.none');
+    const source = crane.source as DiagramCpSource;
+    const render: DiagramCpSource['render'] = way === 'folded' ? source.render : { mode: 'crease-pattern', rotationDeg: 0 };
+    return commitCapture(stepId, { ...crane, id: stepId, source: { ...source, render } }, 'Link pattern');
+  };
+
+  it('pictures uploaded after it start whole and count nothing; one filling an empty step seeded enlarged starts whole too', async () => {
     install();
     await state().enlargeDiagramStep('step-2');
+    const empty = state().insertDiagramStep('step-2', 'after')!;
+    expect(step(empty).zoom).toBeDefined();
     tracked.trackDiagramStepEnlarged.mockClear();
-    const was = past();
     const added = state().addDiagramPictures([svgAsset('a'), svgAsset('b')], { anchorStepId: 'step-2' })!;
+    expect(added.filled).toBe(false);
+    for (const id of added.stepIds) expect(step(id).zoom, id).toBeUndefined();
+    // Into the empty step: its seed dropped in the upload's one undo step, and back with Undo.
+    const was = past();
+    expect(state().addDiagramPictures([svgAsset('c')], { anchorStepId: empty })).toEqual({ stepIds: [empty], filled: true });
     expect(past()).toBe(was + 1);
-    for (const id of added.stepIds) {
-      expect(step(id).zoom).toMatchObject({ from: 'area-head', shape: 'circle', frame: { centre: expect.any(Array) } });
-      // Every one of the run keeps the source's imprint, for a picture with faces to land (16h).
-      expect(step(id).zoom!.imprint, id).toEqual(step(added.stepIds[0]!).zoom!.imprint);
-      expect(step(id).zoom!.imprint).toBeDefined();
-    }
-    expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([
-      ['seeded', 'picture', 'none', 'circle', 'svg'],
-      ['seeded', 'picture', 'none', 'circle', 'svg'],
-    ]);
-    // One picture after a step that has one: a new step, enlarged too.
-    const one = state().addDiagramPictures([svgAsset('c')], { anchorStepId: added.stepIds[1]! })!;
-    expect(one.filled).toBe(false);
-    expect(step(one.stepIds[0]!).zoom?.from).toBe('area-head');
+    expect(step(empty).zoom).toBeUndefined();
+    expect(tracked.trackDiagramStepEnlarged).not.toHaveBeenCalled();
+    state().undoDiagram();
+    expect(step(empty).picture).toBeNull();
+    expect(step(empty).zoom).toBeDefined();
+    // Replace Picture on an empty step gives it its first, and starts it whole as well.
+    expect(state().setDiagramStepPicture(empty, svgAsset('d'))).toBe(true);
+    expect(step(empty).zoom).toBeUndefined();
   });
 
-  it('cards pulled from References after it start enlarged; one filling an empty enlarged step lands its frame', async () => {
+  it('keeps a step that has a picture enlarged when its picture is replaced', async () => {
+    install();
+    await state().enlargeDiagramStep('step-2');
+    const zoom = step('step-2').zoom;
+    expect(state().setDiagramStepPicture('step-2', svgAsset('a'))).toBe(true);
+    expect(step('step-2').zoom).toEqual(zoom);
+  });
+
+  it('an empty step added after an enlarged upload starts whole: no first picture could keep a frame from it', async () => {
+    install();
+    await state().enlargeDiagramStep('step-2');
+    expect(state().setDiagramStepPicture('step-2', svgAsset('a'))).toBe(true);
+    expect(step('step-2').zoom).toBeDefined();
+    const empty = state().insertDiagramStep('step-2', 'after')!;
+    expect(step(empty).zoom).toBeUndefined();
+  });
+
+  it('a step that starts a run keeps its frame when linked again after its picture is removed, however the area’s step is shown', async () => {
+    install();
+    await state().enlargeDiagramStep('step-2');
+    // Step 1, which holds the area, shown as its crease pattern: all a run's picture type reads.
+    const diagram = state().diagram!;
+    const asPattern = (each: DiagramStep): DiagramStep => ({
+      ...each,
+      source: { ...(each.source as DiagramCpSource), render: { mode: 'crease-pattern', rotationDeg: 0 } },
+    });
+    useWorkspaceStore.setState({
+      diagram: { ...diagram, steps: diagram.steps.map((entry) => (entry.id === 'step-S.none' ? asPattern(entry as DiagramStep) : entry)) },
+    });
+    expect(state().removeDiagramStepPicture('step-2')).toBe(true);
+    expect(step('step-2').zoom).toBeDefined();
+    await linkCrane('step-2');
+    expect(step('step-2').zoom).toMatchObject({ from: 'area-head', frame: { centre: expect.any(Array) } });
+  });
+
+  it('cards pulled from References after it, or filling an empty step seeded enlarged, start whole', async () => {
     install();
     await state().enlargeDiagramStep('step-2');
     const empty = state().insertDiagramStep('step-2', 'after')!;
@@ -462,17 +505,43 @@ describe('every way a step is made after an enlarged one (16g)', () => {
     const sent = [{ source: card.source as DiagramReferencesSource, picture: card.picture as DiagramStepDiagramPicture, text: card.text }];
     const filled = state().pullReferencesDiagramSteps([...sent, ...sent], { kind: 'fill', stepId: empty }, { loadId: state().diagramLoadId, label: 'Add from References' })!;
     expect(filled.stepIds[0]).toBe(empty);
-    for (const id of filled.stepIds) {
-      expect(step(id).zoom).toMatchObject({ from: 'area-head', frame: { centre: expect.any(Array) } });
-      // The card made after the filled step keeps the imprint it was seeded with too (16h).
-      expect(step(id).zoom!.imprint, id).toBeDefined();
-    }
-    expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([
-      ['seeded', 'picture', 'none', 'circle', 'references'],
-      ['seeded', 'picture', 'none', 'circle', 'references'],
-    ]);
-    const after = state().pullReferencesDiagramSteps(sent, { kind: 'after', stepId: filled.stepIds[1]! }, { loadId: state().diagramLoadId, label: 'Add from References' })!;
-    expect(step(after.stepIds[0]!).zoom?.from).toBe('area-head');
+    for (const id of filled.stepIds) expect(step(id).zoom, id).toBeUndefined();
+    const after = state().pullReferencesDiagramSteps(sent, { kind: 'after', stepId: 'step-2' }, { loadId: state().diagramLoadId, label: 'Add from References' })!;
+    expect(step(after.stepIds[0]!).zoom).toBeUndefined();
+    expect(tracked.trackDiagramStepEnlarged).not.toHaveBeenCalled();
+  });
+
+  it('an empty step seeded after it lands its frame linked as the run shows its pattern; linked another way, it starts whole in the link’s undo step', async () => {
+    install();
+    await state().enlargeDiagramStep('step-2');
+    const empty = state().insertDiagramStep('step-2', 'after')!;
+    tracked.trackDiagramStepEnlarged.mockClear();
+    const was = past();
+    // Linked as its crease pattern after a folded run: whole, in the link's one undo step, and nothing counted.
+    expect(await linkCrane(empty, 'crease-pattern')).toEqual({ changed: true, tooDetailed: false });
+    expect(past()).toBe(was + 1);
+    expect(step(empty).picture).not.toBeNull();
+    expect(step(empty).zoom).toBeUndefined();
+    expect(tracked.trackDiagramStepEnlarged).not.toHaveBeenCalled();
+    // Undone: empty and seeded again. Linked folded, as the run is: its frame lands, and the seed counts.
+    state().undoDiagram();
+    expect(step(empty).picture).toBeNull();
+    expect(step(empty).zoom).toBeDefined();
+    await linkCrane(empty);
+    expect(past()).toBe(was + 1);
+    expect(step(empty).zoom).toMatchObject({ from: 'area-head', frame: { centre: expect.any(Array) } });
+    expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([['seeded', 'face', 'auto', 'circle', 'flat']]);
+  });
+
+  it('keeps a step enlarged when it is shown another way, and the switch turns it off in one undo step', async () => {
+    install();
+    await state().enlargeDiagramStep('step-2');
+    await linkCrane('step-2', 'crease-pattern');
+    expect(step('step-2').zoom?.frame).toBeDefined();
+    const was = past();
+    expect(state().unenlargeDiagramStep('step-2')).toBe(true);
+    expect(past()).toBe(was + 1);
+    expect(step('step-2').zoom).toBeUndefined();
   });
 
   it('an empty step turned Enlarged counts the toggle when its first picture lands the frame', async () => {
@@ -480,8 +549,8 @@ describe('every way a step is made after an enlarged one (16g)', () => {
     install([{ ...s, annotations: [headArea(s)], annotatedPictureKey: s.picture!.key }, { ...createStep(() => 'step-empty'), id: 'step-empty' }]);
     expect(await state().enlargeDiagramStep('step-empty')).toBe(true);
     expect(tracked.trackDiagramStepEnlarged).not.toHaveBeenCalled();
-    expect(state().setDiagramStepPicture('step-empty', svgAsset('a'))).toBe(true);
-    expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([['toggle', 'picture', 'none', 'circle', 'svg']]);
+    await linkCrane('step-empty');
+    expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([['toggle', 'face', 'auto', 'circle', 'flat']]);
   });
 
   it('counts an empty step’s enlarging once, on its first picture: not on a duplicate’s, nor a picture given back (review of 16g)', async () => {
@@ -490,21 +559,22 @@ describe('every way a step is made after an enlarged one (16g)', () => {
     // Turned on with no picture: the toggle's.
     expect(await state().enlargeDiagramStep('step-empty')).toBe(true);
     const twin = state().duplicateDiagramStep('step-empty')!;
-    expect(state().setDiagramStepPicture(twin, svgAsset('a'))).toBe(true);
+    await linkCrane(twin);
+    expect(step(twin).zoom?.frame).toBeDefined();
     expect(tracked.trackDiagramStepEnlarged).not.toHaveBeenCalled();
-    expect(state().setDiagramStepPicture('step-empty', svgAsset('b'))).toBe(true);
-    expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([['toggle', 'picture', 'none', 'circle', 'svg']]);
+    await linkCrane('step-empty');
+    expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([['toggle', 'face', 'auto', 'circle', 'flat']]);
     expect(state().removeDiagramStepPicture('step-empty')).toBe(true);
-    expect(state().setDiagramStepPicture('step-empty', svgAsset('c'))).toBe(true);
+    await linkCrane('step-empty');
     expect(tracked.trackDiagramStepEnlarged).toHaveBeenCalledTimes(1);
     // Made empty after an enlarged step: the seed's, on its own first picture alone.
     tracked.trackDiagramStepEnlarged.mockClear();
     const empty = state().insertDiagramStep('step-empty', 'after')!;
     const copy = state().duplicateDiagramStep(empty)!;
-    expect(state().setDiagramStepPicture(copy, svgAsset('d'))).toBe(true);
+    await linkCrane(copy);
     expect(tracked.trackDiagramStepEnlarged).not.toHaveBeenCalled();
-    expect(state().setDiagramStepPicture(empty, svgAsset('e'))).toBe(true);
-    expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([['seeded', 'picture', 'none', 'circle', 'svg']]);
+    await linkCrane(empty);
+    expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([['seeded', 'face', 'auto', 'circle', 'flat']]);
   });
 
   it('a duplicate of an enlarged step keeps its frame, imprint and provenance, and Update places both', async () => {

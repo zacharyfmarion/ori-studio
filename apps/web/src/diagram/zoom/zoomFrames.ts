@@ -13,8 +13,9 @@
  * | What changed | Frame | Marks |
  * | --- | --- | --- |
  * | Enlarged turned on; Update | captured and landed ({@link enlargeStep}, {@link updateEnlargedSteps}) | whole picture or old window → new window; from the whole picture, lines trimmed at the frame ({@link trimmedAtFrame}) |
- * | A step made after an enlarged one | captured at creation ({@link seedNewSteps}) | none yet; a References card's, carried into the window, those outside the frame dropped |
- * | A seeded step's first picture; a refresh or relink | landed from its imprint ({@link relandFrame}) | unchanged |
+ * | A step made empty after an enlarged one (Add Step, Insert Step After), but for an enlarged upload or References step | captured at creation ({@link seedNewSteps}) | none yet |
+ * | A seeded step's first picture, linked as its run shows its pattern; a first link of a step that starts a run; a refresh or relink | landed from its imprint ({@link relandFrame}, {@link landSeededFrame}) | unchanged |
+ * | An empty step's first link of another type than the run it continues; an upload or a References card filling an empty step (review fix 3) | dropped ({@link startsWhole}) | window → whole picture |
  * | A folded step shown as its crease pattern, and back | on the paper its window showed, imprinted there ({@link landedOnSheet}); back, anchored again ({@link anchoredOffSheet}) | unchanged |
  * | Enlarged turned off | dropped ({@link unenlargeStep}) | window → whole picture |
  * | Moved, resized or reshaped by hand | as set, its imprint made again ({@link setFrameOutline}) | by the window's move |
@@ -48,6 +49,8 @@ import {
   isKnownAnnotation,
   isLockedStep,
   isTurn,
+  showAsOf,
+  stepById,
   stepIndex,
   type DiagramAnnotation,
   type DiagramAsset,
@@ -67,11 +70,12 @@ import {
   heldFrame,
   imprintOn,
   placeOn,
+  runShowAs,
+  runSource,
   seedSource,
   stepsFrom,
   type ZoomCaptured,
   type ZoomImprint,
-  type ZoomSource,
 } from './zoomCapture';
 import { faceAt, imprintFrame, offSpread, ontoSpread, paperFacesOf, toPicture, toScene, topUnspread } from './zoomImprint';
 import {
@@ -293,22 +297,6 @@ function liesInFrame(mark: KnownDiagramAnnotation, frame: DiagramZoomOutline): b
   for (const node of [...(mark.path ?? []), ...(mark.back ?? [])]) points.push(node.at);
   if (isArrowKind(mark.kind) && !mark.path) points.push(arrowApex(mark.from, mark.to, mark.bend ?? ARROW_BEND));
   return points.every(near);
-}
-
-/**
- * A step just made from a References card and enlarged as it was made — a
- * card pulled after an enlarged step, its marks carried into the window it
- * was seeded with — without the card's marks that lie outside its frame
- * ({@link liesInFrame}), as a card pulled into an enlarged step arrives
- * ({@link marksIntoUnits}). The step itself when none does, or it is not
- * enlarged.
- */
-function withCardMarksInFrame(step: DiagramStep): DiagramStep {
-  const window = stepWindow(step);
-  if (!window || !step.zoom?.frame) return step;
-  const frame = outlineIntoBox(window, step.zoom.frame);
-  const kept = step.annotations.filter((mark) => !isCardMark(step, mark) || liesInFrame(mark, frame));
-  return kept.length === step.annotations.length ? step : { ...step, annotations: kept };
 }
 
 /** Whether two marks are one, but for float noise in their numbers. */
@@ -753,54 +741,39 @@ export function setFrameEdge(document: DiagramDocument, stepId: string, edge: Di
   });
 }
 
-/** A step a new step's seed enlarged, and its capture: how its frame was placed, or null until its first picture. */
+/** A step a new step's seed enlarged, and its capture: for an empty step, placed nowhere until its first picture. */
 export interface SeededStep {
   stepId: string;
   captured: ZoomCaptured;
 }
 
 /**
- * Steps just made — Add Step, Insert Step After, an upload of one picture or
- * several, cards pulled from References — each starting enlarged when the step
- * before it, turns passed, is (Z2, "yeah sounds right"): captured at creation
- * from that step's frame. The one way every new step is seeded. In the
- * diagram's order, so a run of new steps after an enlarged one is enlarged
- * through, every step of the run from the run's source — the step its first
- * is captured from — so each keeps the source's imprint: one captured from
- * the step before it, an upload with no faces, would have only its frame
- * (16h). A step `filled` in the same edit starts the run as it was before its
- * picture, its frame and imprint as it was seeded with them. A step made with
- * its picture has its frame landed at once; an empty one keeps its imprint for
- * its first picture ({@link landSeededFrame}). A step enlarged already — a
- * duplicate keeps its original's frame — is left as it is, as is one after a
- * step that is not enlarged. The diagram, and the steps seeded with their
- * captures, for what counts them.
+ * A step just made empty — Add Step and Insert Step After make one at a time
+ * — starting enlarged when the step before it, turns passed, is (Z2, "yeah
+ * sounds right"): captured at creation from that step's frame, its imprint
+ * kept for its first picture ({@link landSeededFrame}), which keeps the frame
+ * only if it shows the run's picture type. Not after an enlarged upload or
+ * References step: no first picture continues their run, so the step starts
+ * whole. Uploads and References cards are never seeded either (review fix 3,
+ * amending Z2 and 16g). A step enlarged already — a duplicate keeps its
+ * original's frame — is left as it is, as is one after a step that is not
+ * enlarged. The diagram, and the steps seeded with their captures.
  */
 export function seedNewSteps(
   document: DiagramDocument,
   stepIds: readonly string[],
-  assets: Assets,
-  filled?: DiagramStep
+  assets: Assets
 ): { document: DiagramDocument; seeded: SeededStep[] } {
   const made = new Set(stepIds);
   let next = document;
   const seeded: SeededStep[] = [];
-  let run: ZoomSource | null = null;
   for (const entry of document.steps) {
-    if (isTurn(entry)) continue;
-    if (!made.has(entry.id) || entry.zoom) {
-      run = entry.id === filled?.id && filled.zoom ? { step: filled, zoom: filled.zoom } : null;
-      continue;
-    }
-    const source: ZoomSource | null = run ?? seedSource(next, entry.id);
+    if (isTurn(entry) || !made.has(entry.id) || entry.zoom) continue;
+    if (runSource(next, entry.id) && runShowAs(next, entry.id) === null) continue;
+    const source = seedSource(next, entry.id);
     const result = enlargeWith(next, entry.id, source && capture(next, entry.id, source), assets);
-    if (!result.captured || result.document === next) {
-      run = null;
-      continue;
-    }
-    run = source;
-    // A card pulled after an enlarged step keeps of its marks only those in the frame it starts with (17d).
-    next = withStep(result.document, entry.id, withCardMarksInFrame);
+    if (!result.captured || result.document === next) continue;
+    next = result.document;
     seeded.push({ stepId: entry.id, captured: result.captured });
   }
   return { document: next, seeded };
@@ -838,16 +811,53 @@ export interface LandedFirstFrame {
 }
 
 /**
- * A step given its first picture — `after` the diagram with it, `before`
- * without — landing the frame it was seeded with ({@link landFirstFrame}):
- * the diagram, and how the frame was placed; `after` as it is, and null, for
- * a step that had a picture already or is not enlarged.
+ * A step given its first picture by a capture — `after` the diagram with it,
+ * `before` without — keeping the frame it was enlarged with unless its first
+ * link continues a run another way ({@link keepsRunFrame}; review fix 3,
+ * amending Z2). Kept, the frame lands ({@link landFirstFrame}): the diagram,
+ * and how it was placed. Otherwise the step starts whole ({@link startsWhole})
+ * in the same edit, and nothing is placed. `after` as it is, and null, for a
+ * step that had a picture already — Show as keeps a step enlarged — or is not
+ * enlarged.
  */
 export function landSeededFrame(before: DiagramDocument, after: DiagramDocument, stepId: string): LandedFirstFrame {
   const was = before.steps[stepIndex(before, stepId)];
   if (!was || isTurn(was) || was.picture) return { document: after, placed: null };
+  if (was.zoom && !keepsRunFrame(before, after, was)) {
+    return { document: withStep(after, stepId, (step) => startsWhole(was, step, after.assets)), placed: null };
+  }
   const landed = landFirstFrame(after, stepId);
   return landed ? { ...landed, ...(was.zoom ? { enlargedWith: was.zoom } : {}) } : { document: after, placed: null };
+}
+
+/**
+ * Whether an enlarged step with no picture, `was` in `before`, keeps its
+ * frame with its first picture in `after` (review fix 3). A first link that
+ * continues a run ({@link runSource}) keeps it only shown the way the run
+ * shows its pattern ({@link runShowAs}): Crease Pattern, Folded or Simulated.
+ * A step that starts a run — enlarged from an area, directly or past empty
+ * steps, so the run shows no picture yet — keeps it however it is linked, as
+ * does a step linked already: a file's linked step with no picture yet, given
+ * one by a Refresh or Pose.
+ */
+function keepsRunFrame(before: DiagramDocument, after: DiagramDocument, was: DiagramStep): boolean {
+  if (was.source?.kind === 'cp' || !runSource(before, was.id)) return true;
+  const source = stepById(after, was.id)?.source;
+  return source?.kind === 'cp' && showAsOf(source.render) === runShowAs(before, was.id);
+}
+
+/**
+ * A step that had no picture, `was`, given its first, `next`, starting whole
+ * (review fix 3, amending Z2): the frame it was enlarged with before it had a
+ * picture — seeded after an enlarged step, most often — dropped, and marks it
+ * kept in that window from a picture since removed carried to the whole
+ * picture, as Enlarged turned off carries them. What an upload or a
+ * References card filling an empty step does, and a first link of another
+ * picture type than the run it continues ({@link landSeededFrame}). `next`
+ * as it is for a step that had a picture, or has no frame.
+ */
+export function startsWhole(was: DiagramStep, next: DiagramStep, assets: Assets): DiagramStep {
+  return was.picture || !next.zoom ? next : withZoom(next, undefined, assets);
 }
 
 /** A step's frame, in its picture units; null for a step that is not enlarged or shows no window. */

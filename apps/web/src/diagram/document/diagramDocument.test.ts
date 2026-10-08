@@ -62,6 +62,7 @@ import {
   DEFAULT_DEPTH_SPREAD,
   DEFAULT_LAYER_SPREAD,
   DEFAULT_SPREAD_STARTS,
+  nearestEarlierShowAs,
   nearestEarlierSpread,
   sameSpread,
   SPREAD_AMOUNT_RANGE,
@@ -309,6 +310,26 @@ describe('pictures', () => {
     // The edit itself keeps the old asset; the store prunes it as the edit lands.
     expect(Object.keys(second.assets)).toEqual(['a', 'b']);
     expect(Object.keys(withReferencedAssets(second).assets)).toEqual(['b']);
+  });
+
+  it('starts an empty step enlarged before its picture whole, and keeps one that has a picture enlarged (review fix 3)', () => {
+    const zoom = { from: 'area-1', shape: 'circle' as const, frame: { centre: [0.25, 0.5] as [number, number], radius: 0.1 } };
+    const { diagram } = diagramWith(1);
+    const stepId = stepsIn(diagram)[0].id;
+    const enlarged = (document: DiagramDocument) => ({ ...document, steps: [{ ...stepsIn(document)[0], zoom }] });
+    expect(stepsIn(setStepPicture(enlarged(diagram), stepId, svgAsset('a')))[0].zoom).toBeUndefined();
+    const pictured = enlarged(setStepPicture(diagram, stepId, svgAsset('a')));
+    expect(stepsIn(setStepPicture(pictured, stepId, svgAsset('b')))[0].zoom).toEqual(zoom);
+    // A mark drawn in the window of the picture it had, given back: in step, so carried to the whole picture.
+    const label = { id: 'mark', kind: 'label' as const, from: [0.5, 0.5] as [number, number], to: [0.5, 0.5] as [number, number], text: 'A' };
+    const removed = {
+      ...diagram,
+      steps: [{ ...stepsIn(diagram)[0], zoom, annotations: [label], annotatedPictureKey: uploadPictureKey('a') }],
+    };
+    const given = stepsIn(setStepPicture(removed, stepId, svgAsset('a')))[0];
+    expect(given.zoom).toBeUndefined();
+    expect(given.annotations).toEqual([{ ...label, from: [0.25, 0.5], to: [0.25, 0.5] }]);
+    expect(given.annotatedPictureKey).toBe(uploadPictureKey('a'));
   });
 
   it('removes a picture and its source, keeping the words, and is a no-op without one', () => {
@@ -751,6 +772,21 @@ describe('a flat fold’s spread (Phase 13)', () => {
       affine: DEFAULT_AFFINE_SPREAD,
     });
     expect(spreadStartsFor(document, 'step-a')).toEqual(DEFAULT_SPREAD_STARTS);
+  });
+
+  it('names the way the nearest linked step before shows its pattern, past turns, uploads, References steps and newer steps (review fix 3)', () => {
+    const document = spreadDiagram();
+    const upload: DiagramStep = {
+      ...createStep(() => 'step-u'),
+      source: { kind: 'upload', assetId: 'u', rotationQuarterTurns: 0, mirrored: false },
+      picture: { kind: 'asset', assetId: 'u', paperScale: null, key: uploadPictureKey('u') },
+    };
+    const after = insertSteps(document, [upload, referencesStep('step-r'), createStep(() => 'step-new')], document.steps.length);
+    expect(nearestEarlierShowAs(after, 'step-new')).toBe('folded');
+    expect(nearestEarlierShowAs(after, 'step-g')).toBe('crease-pattern');
+    expect(nearestEarlierShowAs(after, 'step-b')).toBe('folded');
+    expect(nearestEarlierShowAs(after, 'step-a')).toBeNull();
+    expect(nearestEarlierShowAs(after, 'step-gone')).toBeNull();
   });
 
   it('defaults to affine, at the playground’s bird base; and depth to 2.5%, deeper layers down (Zach, 2026-10-05)', () => {

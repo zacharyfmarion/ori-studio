@@ -158,7 +158,10 @@ function awaitFirstPicture(document: DiagramDocument, stepId: string, via: 'togg
 /**
  * A step's first picture that landed the frame it was enlarged with, counted
  * — as `toggle` or `seeded`, as it was enlarged — when that frame was
- * waiting for it ({@link awaitingPicture}). Nothing when it placed none.
+ * waiting for it ({@link awaitingPicture}). Nothing when it placed none, or
+ * the step started whole, its first picture of another type than its run
+ * (review fix 3): dropping the frame is not the user's action. The entry
+ * stays, so a link of the run's type after an Undo still counts it once.
  */
 export function trackSeeded(
   document: DiagramDocument,
@@ -175,15 +178,12 @@ export function trackSeeded(
 }
 
 /**
- * New steps seeded enlarged as they were made, counted: each made with its
- * picture now, as its frame is placed; an empty one when its first picture
- * lands its frame ({@link trackSeeded}).
+ * New steps seeded enlarged as they were made, each empty — Add Step, Insert
+ * Step After; uploads and References cards are not seeded since review fix 3
+ * — counted when its first picture lands its frame ({@link trackSeeded}).
  */
 export function trackSeededSteps(document: DiagramDocument, seeded: readonly SeededStep[]): void {
-  for (const { stepId, captured } of seeded) {
-    if (captured.placed === null) awaitFirstPicture(document, stepId, 'seeded');
-    else trackCaptured(document, stepId, { ...captured, shape: captured.zoom.shape }, 'seeded');
-  }
+  for (const { stepId } of seeded) awaitFirstPicture(document, stepId, 'seeded');
 }
 
 /** Steps being enlarged or updated: a second press while the faces are folded starts nothing more. */
