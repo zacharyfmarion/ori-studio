@@ -1188,6 +1188,56 @@ describe('an enlarged step in the file (Revision 2)', () => {
     expect(step.picture).not.toBeNull();
   });
 
+  describe('the area it was captured from, as it was (review fix 4)', () => {
+    const AREA_WAS = { stepId: 'step-area', outline: { centre: [0.25, 0.75], radius: 0.1 } };
+
+    it('round-trips the area’s step, its outline — a circle’s or a turned rectangle’s — a picked anchor, Size and Edge, each only when said', () => {
+      for (const areaWas of [
+        AREA_WAS,
+        { stepId: 'step-area', outline: { centre: [0.5, 0.5], size: [0.3, 0.2], angle: 15 }, anchor: [40.25, 60.5] },
+        // The Size and Edge the capture copied (review of review fix 4).
+        { ...AREA_WAS, scale: 2.5, edge: 'whole' },
+      ]) {
+        const value = zoom({ areaWas });
+        const { written, read, step } = withZoom(JSON.parse(JSON.stringify(value)));
+        expect(step.unknown).toBeUndefined();
+        expect(step.zoom!.areaWas).toEqual(areaWas);
+        expect(JSON.stringify(throughJson(writeDiagram(read.document)))).toBe(JSON.stringify(written));
+      }
+    });
+
+    it('is unsaid in a file from before it, and written so: the step is not known to be out of date until its area is edited', () => {
+      const { written, step } = withZoom(zoom());
+      expect(step.zoom!.areaWas).toBeUndefined();
+      expect(JSON.stringify(throughJson(writeDiagram(readDiagram(written)!.document)))).not.toContain('areaWas');
+    });
+
+    it.each([
+      ['no step', { ...AREA_WAS, stepId: '' }],
+      ['an outline that does not read', { ...AREA_WAS, outline: { centre: [0.5, 0.5] } }],
+      ['an anchor that is no point', { ...AREA_WAS, anchor: ['a', 2] }],
+      ['a Size that is no number', { ...AREA_WAS, scale: 'big' }],
+      ['an Edge that is no word', { ...AREA_WAS, edge: 3 }],
+      ['a record that is no record', 'moved'],
+    ])('drops a record with %s alone, keeping the frame: the step is not known to be out of date', (_label, areaWas) => {
+      const { step } = withZoom(zoom({ areaWas }));
+      expect(step.unknown).toBeUndefined();
+      expect(step.zoom).toEqual(zoom());
+      expect(step.annotatedPictureKey).not.toBeNull();
+    });
+
+    it.each([
+      ['a field it has no name for', { ...AREA_WAS, size: 2 }],
+      ['an outline past reach', { ...AREA_WAS, outline: { centre: [5, 0.5], radius: 0.1 } }],
+      ['a Size past reach', { ...AREA_WAS, scale: 40 }],
+      ['an Edge it has no name for', { ...AREA_WAS, edge: 'dashed' }],
+    ])('locks a step whose record has %s, as its zoom’s own fields do, and writes it back byte for byte', (_label, areaWas) => {
+      const { written, read, step } = withZoom(zoom({ areaWas }));
+      expect(step.unknown).toBeDefined();
+      expect(JSON.stringify(writeDiagram(read.document))).toBe(JSON.stringify(written));
+    });
+  });
+
   it('is kept, locked and verbatim, by a build that reads no zoom: as any step field it has no name for', () => {
     // A build before enlarged steps knows no `zoom` key (`STEP_KEYS`): `hologram` stands for it here.
     const { written, read, step } = withZoom(undefined);

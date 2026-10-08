@@ -23,6 +23,8 @@ function deps(): DiagramStepActionDeps {
     uploadPicture: vi.fn(),
     linkPattern: vi.fn(),
     refreshPicture: vi.fn(),
+    updateEnlarged: vi.fn(),
+    updateAllEnlarged: vi.fn(),
     openInEdit: vi.fn(),
     openInReferences: vi.fn(),
     replaceFromReferences: vi.fn(),
@@ -58,6 +60,8 @@ function build(state: Partial<DiagramStepActionState>, bound = deps()) {
       showAs: null,
       poseAgain: false,
       cardMarks: null,
+      enlargedArea: null,
+      heldAreas: null,
       ...state,
     } as DiagramStepActionState,
     bound
@@ -300,6 +304,58 @@ describe('the diagram step verbs', () => {
       diagramStepCommand(build({ hasSource: true, poseAgain: true, ...state }), 'refresh-picture');
     expect(refresh({ link: 'stale' })).toMatchObject({ label: 'Pose Again', disabled: false });
     expect(refresh({ link: 'current' })).toMatchObject({ label: 'Pose Again', disabled: true });
+  });
+
+  it('updates an enlarged step from its area, beside Refresh Picture, only while the area is there (review fix 4)', () => {
+    const bound = deps();
+    const stale = { number: 22, outOfDate: true, updating: false };
+    expect(diagramStepCommand(build({ hasSource: true, hasPicture: true }), 'update-enlarged')).toBeNull();
+    const enlarged = build({ link: 'current', hasSource: true, hasPicture: true, enlargedArea: stale }, bound);
+    const ids = enlarged.map((action) => action.id);
+    expect(ids.indexOf('update-enlarged')).toBe(ids.indexOf('open-in-edit') + 1);
+    const update = diagramStepCommand(enlarged, 'update-enlarged')!;
+    // Its tooltip names the area it updates from, as the card's menu shows it (review of review fix 4).
+    expect(update).toMatchObject({
+      label: 'Update',
+      disabled: false,
+      hint: 'Place the frame again from step {{number}}’s area as it is now',
+    });
+    update.run();
+    expect(bound.updateEnlarged).toHaveBeenCalledOnce();
+    // An upload is enlarged too: the verb follows the frame, not a link.
+    expect(diagramStepCommand(build({ hasSource: true, hasPicture: true, enlargedArea: stale }), 'update-enlarged')).not.toBeNull();
+    const held = (state: Partial<DiagramStepActionState>) =>
+      diagramStepCommand(build({ hasSource: true, enlargedArea: { ...stale, number: 2 }, ...state }), 'update-enlarged');
+    expect(held({ capturing: true })).toMatchObject({ disabled: true, hint: 'Its picture is being captured' });
+    expect(held({ readOnly: true })?.disabled).toBe(true);
+  });
+
+  it('holds Update on a step up to date with its area, as Refresh Picture is held, and waits while it runs (review of review fix 4)', () => {
+    const bound = deps();
+    const current = diagramStepCommand(
+      build({ hasSource: true, hasPicture: true, enlargedArea: { number: 22, outOfDate: false, updating: false } }, bound),
+      'update-enlarged'
+    )!;
+    expect(current).toMatchObject({ disabled: true, hint: 'Up to date with step {{number}}’s area' });
+    const running = diagramStepCommand(
+      build({ hasSource: true, hasPicture: true, enlargedArea: { number: 22, outOfDate: true, updating: true } }, bound),
+      'update-enlarged'
+    )!;
+    expect(running).toMatchObject({ disabled: false, waiting: true, hint: 'Its picture is being captured' });
+    running.run();
+    expect(bound.updateEnlarged).not.toHaveBeenCalled();
+  });
+
+  it('offers Update All on the step that holds the area, held while none is out of date (review of review fix 4)', () => {
+    const bound = deps();
+    expect(diagramStepCommand(build({ hasSource: true, hasPicture: true }), 'update-all-enlarged')).toBeNull();
+    const held = diagramStepCommand(build({ hasSource: true, hasPicture: true, heldAreas: { outOfDate: 0 } }), 'update-all-enlarged');
+    expect(held).toMatchObject({ label: 'Update All', disabled: true, hint: 'Every step enlarged from this area is up to date' });
+    const offered = diagramStepCommand(build({ hasSource: true, hasPicture: true, heldAreas: { outOfDate: 2 } }, bound), 'update-all-enlarged')!;
+    expect(offered).toMatchObject({ disabled: false });
+    expect(offered.hint).toMatch(/^Place the frame again on each step enlarged from this area/);
+    offered.run();
+    expect(bound.updateAllEnlarged).toHaveBeenCalledOnce();
   });
 
   it('shows a linked step’s pattern in Edit, even on a read-only diagram, while one is open', () => {

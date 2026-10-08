@@ -14,6 +14,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { usePrintedZoom } from '../pages/printedFrames';
+import { areaStatus, stepsToUpdate } from './areaStatus';
 import { anchorPickable } from './zoomAnchor';
 import {
   areaStepOf,
@@ -138,7 +139,7 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
       update: () => {
         setUpdating(true);
         void store()
-          .updateEnlargedDiagramSteps(targetId)
+          .updateEnlargedDiagramSteps([targetId])
           .finally(() => setUpdating(false));
       },
       goTo: (id: string) => store().selectDiagramStep(id),
@@ -150,14 +151,17 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
   }, [on, stepId, targetId, loadId, picking, zoom]);
 
   const enlargedOn = useMemo(() => (diagram && area ? stepsEnlargedFrom(diagram, area.id) : []), [diagram, area]);
+  // What Update All places again (review fix 4): the steps enlarged from the area that are out of date.
+  const outOfDate = useMemo(() => (diagram && area ? stepsToUpdate(diagram, [area.id]).length : 0), [diagram, area]);
   const areaStep = useMemo(() => (diagram && on === 'frame' ? areaStepOf(diagram, stepId) : null), [diagram, on, stepId]);
+  const fromArea = useMemo(() => (diagram && on === 'frame' ? areaStatus(diagram, stepId) : null), [diagram, on, stepId]);
 
   const actions: ZoomAction[] = useMemo(
     () =>
       on === 'area'
-        ? buildAreaActions({ steps: enlargedOn, readOnly, updating }, { t, update: verbs.update, goTo: verbs.goTo })
+        ? buildAreaActions({ steps: enlargedOn, outOfDate, readOnly, updating }, { t, update: verbs.update, goTo: verbs.goTo })
         : buildFrameActions({ areaStep }, { t, goTo: verbs.goToArea }),
-    [on, enlargedOn, areaStep, readOnly, updating, t, verbs]
+    [on, enlargedOn, outOfDate, areaStep, readOnly, updating, t, verbs]
   );
   const anchorActions = useMemo(
     () => buildAnchorActions({ picked, picking, readOnly: !editable, canvas }, { t, pick: verbs.pick, reset: verbs.resetAnchor }),
@@ -183,7 +187,7 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
     anchorActions,
     actions,
     /** The row's subtitle: where an area was enlarged, or where a frame came from. */
-    subtitle: on === 'area' ? areaSubtitle(t, enlargedOn) : frameSubtitle(t, areaStep),
+    subtitle: on === 'area' ? areaSubtitle(t, enlargedOn) : frameSubtitle(t, fromArea),
     ...verbs,
   };
 }

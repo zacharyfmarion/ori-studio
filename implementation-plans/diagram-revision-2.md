@@ -1508,6 +1508,25 @@ anything. The area's Layers row offers Update Enlarged Steps, which captures
 again every step with that provenance, as one undo step. Deleting the area or
 its step leaves the enlarged steps as they are, with nothing to update from.
 
+**Amended 2026-10-08 (`diagram-review-fixes.md`, item 4; Zach: "sounds
+good").** Each capture also records the area as it was then (`areaWas`: its
+step, outline and picked anchor), still never read to draw. Once the area is
+moved, resized, reshaped or re-anchored by hand, every step captured from it
+says "Out of date: Step N's area changed", with Update on that step (its
+Step pane and its card's menu); a carry of the area by its own step's picture
+moves the records with it and says nothing. Update Enlarged Steps became
+Update All, on the area's Layers row and its step's Enlarged section in
+Annotate: it places only the steps out of date (and a file's steps from
+before records), so a frame moved by hand on a current step stays. A deleted
+area's steps keep their frames and say "Step N's area was deleted".
+After rf4's review (for Zach to confirm): the record also holds the Size and
+Edge the capture copied, so the area's Size or Edge changed says so to a step
+that took it, and Update keeps a Size or Edge set on the step; a file's step
+from before records is recorded at the first hand edit of its area, and is
+out of date from then, not placed by Update All before; Update and Update
+All are offered only while a step is out of date — Update All also in the
+area step's read-only Step pane and its card's menu.
+
 **Z8. Which part of the model the frame follows. DECIDED: an imprint on a face
 of the paper.** Zach: "imagine imprinting the frame onto the face and seeing
 where it lands on the paper. Then using that every time to draw the frame on

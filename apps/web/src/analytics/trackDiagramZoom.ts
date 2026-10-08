@@ -14,8 +14,9 @@ import { track } from './runtime';
 /**
  * A frame placed on an enlarged step by a capture (Revision 2): one event per
  * step placed — the Enlarged toggle turned on (`toggle`), a seeded step's first
- * picture landing its frame (`seeded`), or each step Update Enlarged Steps
- * places (`update`) — with how the frame was placed (through an anchor face,
+ * picture landing its frame (`seeded`), each step Update All — Update
+ * Enlarged Steps until 2026-10-08 — places (`update`), or Update on one step
+ * (`update_step`) — with how the frame was placed (through an anchor face,
  * through a crease pattern's sheet, or copied in picture units), by which
  * anchor, its shape, and what the step's picture is. Whether enlarged steps
  * are made, how often their frames anchor to the paper, and whether a picked

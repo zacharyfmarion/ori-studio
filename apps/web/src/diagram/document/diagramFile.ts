@@ -130,6 +130,7 @@ import {
   type DiagramStepPlace,
   type DiagramStepZoom,
   type DiagramZoomEdge,
+  type DiagramZoomAreaWas,
   type DiagramZoomOutline,
   type DiagramZoomShape,
   type QuarterTurns,
@@ -1514,10 +1515,12 @@ function readPaperPoint(value: unknown): [number, number] | null {
 }
 
 /** The fields an enlarged step's `zoom` is written with; any other makes the step a newer build's. */
-const STEP_ZOOM_KEYS: ReadonlySet<string> = new Set(['from', 'shape', 'frame', 'imprint', 'scale', 'edge']);
+const STEP_ZOOM_KEYS: ReadonlySet<string> = new Set(['from', 'shape', 'frame', 'imprint', 'scale', 'edge', 'areaWas']);
 /** The fields an outline is written with; an imprint's add its paper point and whether it was picked. */
 const OUTLINE_KEYS: ReadonlySet<string> = new Set(['centre', 'radius', 'size', 'angle']);
 const IMPRINT_KEYS: ReadonlySet<string> = new Set([...OUTLINE_KEYS, 'on', 'picked']);
+/** The fields the area a step was captured from is recorded with (review fix 4). */
+const AREA_WAS_KEYS: ReadonlySet<string> = new Set(['stepId', 'outline', 'anchor', 'scale', 'edge']);
 
 /**
  * An enlarged step's `zoom` (Revision 2). A field, a shape or an edge this
@@ -1534,7 +1537,10 @@ function readStepZoom(value: unknown): DiagramStepZoom | typeof NEWER | null {
   const scale = readCloseUpScale(value.scale);
   const frame = value.frame === undefined ? undefined : readZoomOutline(value.frame, OUTLINE_KEYS, true);
   const imprint = value.imprint === undefined ? undefined : readZoomOutline(value.imprint, IMPRINT_KEYS, false);
-  if (shape === NEWER || edge === NEWER || scale === NEWER || frame === NEWER || imprint === NEWER) return NEWER;
+  const areaWas = readAreaWas(value.areaWas);
+  if (shape === NEWER || edge === NEWER || scale === NEWER || frame === NEWER || imprint === NEWER || areaWas === NEWER) {
+    return NEWER;
+  }
   if (typeof value.from !== 'string' || value.from.length === 0) return null;
   if (shape === null || edge === null || scale === null || frame === null || imprint === null) return null;
   const outlines = [frame, imprint].filter((outline) => outline !== undefined) as DiagramZoomOutline[];
@@ -1552,6 +1558,36 @@ function readStepZoom(value: unknown): DiagramStepZoom | typeof NEWER | null {
     shape,
     ...(frame !== undefined ? { frame } : {}),
     ...(readImprint !== undefined ? { imprint: readImprint } : {}),
+    ...(scale !== undefined ? { scale } : {}),
+    ...(edge !== undefined ? { edge } : {}),
+    ...(areaWas !== undefined ? { areaWas } : {}),
+  };
+}
+
+/**
+ * The area an enlarged step was captured from, as it was then (review fix
+ * 4): its step's id, its outline in that step's picture units, a picked
+ * anchor on the paper, and the Size and Edge the capture copied, each
+ * unsaid by default as on the area. A field this build has no name for, or
+ * a value past what it reads, is a newer build's, as the zoom's own are.
+ * Unsaid — a file from before it — or damaged, there is none, and the step
+ * is not known to be out of date until its area is edited: the record alone
+ * is dropped, never the frame.
+ */
+function readAreaWas(value: unknown): DiagramZoomAreaWas | undefined | typeof NEWER {
+  if (value === undefined || !isRecord(value)) return undefined;
+  if (hasNewerKey(value, AREA_WAS_KEYS)) return NEWER;
+  const outline = readZoomOutline(value.outline, OUTLINE_KEYS, true);
+  const scale = readCloseUpScale(value.scale);
+  const edge = value.edge === undefined ? undefined : readPreset(value.edge, ZOOM_EDGES, 'cut');
+  if (outline === NEWER || scale === NEWER || edge === NEWER) return NEWER;
+  const anchor = value.anchor === undefined ? undefined : readPaperPoint(value.anchor);
+  if (typeof value.stepId !== 'string' || value.stepId.length === 0 || outline === null || anchor === null) return undefined;
+  if (scale === null || edge === null) return undefined;
+  return {
+    stepId: value.stepId,
+    outline,
+    ...(anchor !== undefined ? { anchor } : {}),
     ...(scale !== undefined ? { scale } : {}),
     ...(edge !== undefined ? { edge } : {}),
   };
@@ -1604,6 +1640,17 @@ function writeStepZoom(zoom: DiagramStepZoom): Record<string, unknown> {
       : {}),
     ...(zoom.scale !== undefined ? { scale: zoom.scale } : {}),
     ...(zoom.edge !== undefined ? { edge: zoom.edge } : {}),
+    ...(zoom.areaWas
+      ? {
+          areaWas: {
+            stepId: zoom.areaWas.stepId,
+            outline: outline(zoom.areaWas.outline),
+            ...(zoom.areaWas.anchor ? { anchor: zoom.areaWas.anchor } : {}),
+            ...(zoom.areaWas.scale !== undefined ? { scale: zoom.areaWas.scale } : {}),
+            ...(zoom.areaWas.edge !== undefined ? { edge: zoom.areaWas.edge } : {}),
+          },
+        }
+      : {}),
   };
 }
 

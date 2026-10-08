@@ -671,7 +671,9 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       return changed;
     },
 
-    updateEnlargedDiagramSteps: (areaId) => updateInStore({ get, set }, commit, paperFacesBackfill, areaId),
+    updateEnlargedDiagramStep: (stepId) => updateInStore({ get, set }, commit, paperFacesBackfill, { stepId }),
+
+    updateEnlargedDiagramSteps: (areaIds) => updateInStore({ get, set }, commit, paperFacesBackfill, { areaIds }),
 
     editDiagramStepZoom: (stepId, label, edit, { loadId } = {}) => {
       if (loadId !== undefined && loadId !== get().diagramLoadId) return false;

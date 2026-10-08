@@ -18,12 +18,13 @@ import { referencesStep, stepsIn } from '../../diagram/document/diagramSteps.fix
 import { craneStep, imprintCase, turnedCapture } from '../../diagram/zoom/zoom.fixtures';
 import { paperFacesOf, toPicture } from '../../diagram/zoom/zoomImprint';
 import { frameProblems, marksInPicture, marksMoved, marksProblems, watchFrames } from '../../diagram/zoom/zoomInvariant.fixtures';
-import { ZOOM_FRAME_ID, ZOOM_LINE_OVERSHOOT } from '../../diagram/zoom/zoomModel';
+import { ZOOM_FRAME_ID, ZOOM_LINE_OVERSHOOT, withZoomEdge, withZoomScale } from '../../diagram/zoom/zoomModel';
 import { useWorkspaceStore } from '../workspaceStore';
 import { activeAnchorPick } from './diagramState';
 import type { DiagramCommit } from './diagramCapture';
 import { enlargeInStore, withPaperFaces } from './diagramZoom';
-import { enlargeStep, relandFrame, setFrameOutline } from '../../diagram/zoom/zoomFrames';
+import { enlargeStep, relandFrame, setFrameOutline, setFrameScale } from '../../diagram/zoom/zoomFrames';
+import { areaStatus } from '../../diagram/zoom/areaStatus';
 
 const tracked = vi.hoisted(() => ({
   trackDiagramStepEnlarged: vi.fn(),
@@ -226,8 +227,16 @@ describe('the Enlarged toggle (Z2)', () => {
   });
 });
 
-describe('Update Enlarged Steps (Z7)', () => {
-  it('places every step with the area’s provenance again, over a hand move, as one undo step', async () => {
+describe('Update and Update All (Z7; review fix 4)', () => {
+  /** The head's area moved by hand on step 1, as a drag in Annotate moves it: one undo step. */
+  function moveArea() {
+    const areaStep = stepsIn(state().diagram!)[0]!.id;
+    state().editDiagramAnnotations(areaStep, 'Move annotation', (list) =>
+      list.map((mark) => (mark.kind === 'zoom' ? { ...mark, from: [mark.from[0] + 0.03, mark.from[1]], to: [mark.from[0] + 0.03, mark.from[1]] } : mark))
+    );
+  }
+
+  it('Update places the step again from its moved area, over a hand move of its frame, as one undo step counted update_step', async () => {
     install();
     await state().enlargeDiagramStep('step-2');
     const placed = step('step-2').zoom!.frame!;
@@ -235,13 +244,128 @@ describe('Update Enlarged Steps (Z7)', () => {
       setFrameOutline(document, 'step-2', { ...placed, centre: [placed.centre[0] + 0.05, placed.centre[1]] }, document.assets)
     );
     expect(step('step-2').zoom!.frame!.centre[0]).not.toBeCloseTo(placed.centre[0], 3);
+    // Only its frame moved, by hand on the step: the area is as captured, so neither Update nor Update All
+    // has anything to place, and neither records an undo step that changes nothing (review of review fix 4).
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('current');
+    const held = past();
+    expect(await state().updateEnlargedDiagramSteps(['area-head'])).toBe(0);
+    expect(await state().updateEnlargedDiagramStep('step-2')).toBe(0);
+    expect(past()).toBe(held);
+    moveArea();
     const was = past();
     tracked.trackDiagramStepEnlarged.mockClear();
-    expect(await state().updateEnlargedDiagramSteps('area-head')).toBe(1);
+    expect(await state().updateEnlargedDiagramStep('step-2')).toBe(1);
+    expect(past()).toBe(was + 1);
+    expect(state().diagramHistory.past.at(-1)!.label).toBe('Update enlarged step');
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('current');
+    expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([['update_step', 'face', 'auto', 'circle', 'flat']]);
+  });
+
+  it('the area’s Size and Edge changed in Layers say the step is out of date, and Update All gives them to it (review of review fix 4)', async () => {
+    install();
+    await state().enlargeDiagramStep('step-2');
+    const areaStep = stepsIn(state().diagram!)[0]!.id;
+    state().editDiagramAnnotations(areaStep, 'Change enlarge area', (list) =>
+      list.map((each) => (each.kind === 'zoom' ? withZoomEdge(withZoomScale(each, 2), 'whole') : each))
+    );
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('changed');
+    const was = past();
+    expect(await state().updateEnlargedDiagramSteps(['area-head'])).toBe(1);
+    expect(past()).toBe(was + 1);
+    expect(step('step-2').zoom).toMatchObject({ scale: 2, edge: 'whole' });
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('current');
+  });
+
+  it('keeps a Size set on the step through Update, its frame placed again from the moved area (review of review fix 4)', async () => {
+    install();
+    await state().enlargeDiagramStep('step-2');
+    state().editDiagramStepZoom('step-2', 'Change enlarged frame', (document) => setFrameScale(document, 'step-2', 1.5));
+    const frame = step('step-2').zoom!.frame!;
+    moveArea();
+    expect(await state().updateEnlargedDiagramStep('step-2')).toBe(1);
+    expect(step('step-2').zoom!.scale).toBe(1.5);
+    expect(step('step-2').zoom!.frame!.centre[0]).not.toBeCloseTo(frame.centre[0], 3);
+  });
+
+  it('refuses an Update and an Update All of one area at once: no step is placed twice (review of review fix 4)', async () => {
+    install();
+    await state().enlargeDiagramStep('step-2');
+    moveArea();
+    const was = past();
+    tracked.trackDiagramStepEnlarged.mockClear();
+    const placed = await Promise.all([state().updateEnlargedDiagramStep('step-2'), state().updateEnlargedDiagramSteps(['area-head'])]);
+    expect(placed).toEqual([1, 0]);
+    expect(past()).toBe(was + 1);
+    expect(tracked.trackDiagramStepEnlarged).toHaveBeenCalledOnce();
+    // The other way round.
+    state().undoDiagram();
+    const again = await Promise.all([state().updateEnlargedDiagramSteps(['area-head']), state().updateEnlargedDiagramStep('step-2')]);
+    expect(again).toEqual([1, 0]);
+    expect(past()).toBe(was + 1);
+  });
+
+  it('a file’s step from before records says it is out of date once its area is moved by hand, in the move’s undo step', async () => {
+    install();
+    await state().enlargeDiagramStep('step-2');
+    // As a file written before records reads it.
+    const document = state().diagram!;
+    const { areaWas: _was, ...zoom } = step('step-2').zoom!;
+    state().installDiagram({
+      document: { ...document, steps: document.steps.map((entry) => (entry.id === 'step-2' ? { ...entry, zoom } : entry)) },
+      readOnly: false,
+      raw: null,
+    } as never);
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('unknown');
+    expect(await state().updateEnlargedDiagramSteps(['area-head'])).toBe(0);
+    const was = past();
+    moveArea();
+    expect(past()).toBe(was + 1);
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('changed');
+    state().undoDiagram();
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('unknown');
+    state().redoDiagram();
+    expect(await state().updateEnlargedDiagramSteps(['area-head'])).toBe(1);
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('current');
+  });
+
+  it('says the step is out of date once its area is moved by hand, back with Undo, and Update brings it up to date', async () => {
+    install();
+    await state().enlargeDiagramStep('step-2');
+    const frame = step('step-2').zoom!.frame!;
+    moveArea();
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('changed');
+    // Moving the area changes no frame (Z2, point-in-time): it says so instead.
+    expect(step('step-2').zoom!.frame).toBe(frame);
+    state().undoDiagram();
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('current');
+    state().redoDiagram();
+    expect(await state().updateEnlargedDiagramStep('step-2')).toBe(1);
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('current');
+    expect(step('step-2').zoom!.frame!.centre[0]).not.toBeCloseTo(frame.centre[0], 3);
+    // Undone, out of date again.
+    state().undoDiagram();
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('changed');
+  });
+
+  it('Update All places every step out of date from the area as one undo step, counted update, and leaves a current one', async () => {
+    install();
+    await state().enlargeDiagramStep('step-2');
+    const copy = state().duplicateDiagramStep('step-2')!;
+    moveArea();
+    // The copy is brought up to date on its own first; Update All then places the one left.
+    expect(await state().updateEnlargedDiagramStep(copy)).toBe(1);
+    const current = step(copy);
+    const was = past();
+    tracked.trackDiagramStepEnlarged.mockClear();
+    expect(await state().updateEnlargedDiagramSteps(['area-head'])).toBe(1);
     expect(past()).toBe(was + 1);
     expect(state().diagramHistory.past.at(-1)!.label).toBe('Update enlarged steps');
-    expect(step('step-2').zoom!.frame!.centre[0]).toBeCloseTo(placed.centre[0], 9);
+    expect(step(copy)).toBe(current);
+    expect(areaStatus(state().diagram!, 'step-2')!.kind).toBe('current');
     expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([['update', 'face', 'auto', 'circle', 'flat']]);
+    // Nothing out of date: no undo step.
+    expect(await state().updateEnlargedDiagramSteps(['area-head'])).toBe(0);
+    expect(past()).toBe(was + 1);
   });
 });
 
@@ -577,13 +701,17 @@ describe('every way a step is made after an enlarged one (16g; review fix 3)', (
     expect(tracked.trackDiagramStepEnlarged.mock.calls).toEqual([['seeded', 'face', 'auto', 'circle', 'flat']]);
   });
 
-  it('a duplicate of an enlarged step keeps its frame, imprint and provenance, and Update places both', async () => {
+  it('a duplicate of an enlarged step keeps its frame, imprint and provenance, and Update All places both once the area moves', async () => {
     install();
     await state().enlargeDiagramStep('step-2');
     const copy = state().duplicateDiagramStep('step-2')!;
     expect(step(copy).zoom).toBe(step('step-2').zoom);
+    const areaStep = stepsIn(state().diagram!)[0]!.id;
+    state().editDiagramAnnotations(areaStep, 'Move annotation', (list) =>
+      list.map((mark) => (mark.kind === 'zoom' ? { ...mark, from: [mark.from[0] + 0.03, mark.from[1]], to: [mark.from[0] + 0.03, mark.from[1]] } : mark))
+    );
     tracked.trackDiagramStepEnlarged.mockClear();
-    expect(await state().updateEnlargedDiagramSteps('area-head')).toBe(2);
+    expect(await state().updateEnlargedDiagramSteps(['area-head'])).toBe(2);
     expect(tracked.trackDiagramStepEnlarged).toHaveBeenCalledTimes(2);
   });
 });
@@ -598,7 +726,8 @@ describe('steps moved or deleted change no frame (Z2, point-in-time)', () => {
     expect(step('step-2')).toBe(enlarged);
     state().editDiagramAnnotations(areaStep, 'Delete annotation', (list) => list.filter((mark) => mark.kind !== 'zoom'));
     expect(step('step-2')).toBe(enlarged);
-    expect(await state().updateEnlargedDiagramSteps('area-head')).toBe(0);
+    expect(await state().updateEnlargedDiagramSteps(['area-head'])).toBe(0);
+    expect(await state().updateEnlargedDiagramStep('step-2')).toBe(0);
     expect(state().deleteDiagramSteps([areaStep])).toBe(true);
     expect(step('step-2')).toBe(enlarged);
     // Turned off, and on again: nothing before it now has an area or a frame to capture from.

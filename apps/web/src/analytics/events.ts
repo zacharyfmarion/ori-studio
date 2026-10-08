@@ -161,9 +161,12 @@ export type DiagramBehindEnds = 'tail' | 'tip' | 'both' | 'whole';
  * a new empty step after an enlarged one whose first picture lands the frame
  * it was seeded with (since 2026-10-08, a first link that keeps it:
  * `landSeededFrame`),
- * or Update Enlarged Steps on the area it came from.
+ * Update Enlarged Steps on the area it came from — Update All since
+ * 2026-10-08, which places only the steps out of date (`update`) — or Update
+ * on the step itself, once its area changed (`update_step`, since
+ * 2026-10-08).
  */
-export type DiagramStepEnlargedVia = 'toggle' | 'seeded' | 'update';
+export type DiagramStepEnlargedVia = 'toggle' | 'seeded' | 'update' | 'update_step';
 
 /**
  * Where a capture put an enlarged step's frame: through an anchor face, through

@@ -61,7 +61,7 @@ import {
   topUnspread,
   unspreadOn,
 } from './zoomImprint';
-import { ZOOM_LINE_OVERSHOOT, frameWindow, outlineAsShape } from './zoomModel';
+import { ZOOM_LINE_OVERSHOOT, frameWindow, outlineAsShape, zoomOutlineOf } from './zoomModel';
 
 const NO_ASSETS = {};
 
@@ -944,7 +944,13 @@ describe('the area’s own step re-posed or refreshed (16g)', () => {
     const move = sceneTurnMove(storedScene(s.picture as never)!.bounds, storedScene(turned.picture as never)!.bounds, 37)!;
     expect(distance(carried.from, move.point(area.from))).toBeLessThan(1e-9);
     expect(step(posed, s.id).annotatedPictureKey).toBe(turned.picture!.key);
-    expect(step(posed)).toBe(step(document));
+    // The enlarged step's frame, imprint and marks are as they were: only its record of the area goes with
+    // the area, so a carry says nothing is out of date (review fix 4).
+    const { areaWas, ...frame } = step(posed).zoom!;
+    const { areaWas: _was, ...before } = step(document).zoom!;
+    expect(frame).toEqual(before);
+    expect(step(posed).annotations).toBe(step(document).annotations);
+    expect(areaWas!.outline).toEqual(zoomOutlineOf(carried));
     const source = { ...(s.source as DiagramCpSource), fingerprint: 'fp-refolded' };
     const refreshed = setLinkedPicture(document, s.id, { source, picture: craneStep('C.none').picture });
     expect(step(refreshed, s.id).annotations).toBe(s.annotations);

@@ -31,6 +31,7 @@ import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
 import { cleanAnnotation, MAX_STEP_ANNOTATIONS, sameAnnotation, withAnnotationReach } from '../annotate/annotationModel';
+import { followAreaRecords, recordAreaBeforeEdit } from '../zoom/areaRecord';
 import { marksIntoUnits, startsWhole } from '../zoom/zoomFrames';
 import { stepReach } from '../zoom/zoomModel';
 import { authorMarksChanged, authorMarksOf, editedCardMarksGone, isCardMark, releaseCardMarks, withEditTags } from './cardMarks';
@@ -696,6 +697,29 @@ export interface DiagramStepZoom {
   /** As an area's: that many times the area as it prints, 1.25–6; unsaid, Fill. */
   scale?: number;
   /** As an area's: unsaid, the shape's own. */
+  edge?: DiagramZoomEdge;
+  /**
+   * The area as it was when this step's frame was captured from it (review
+   * fix 4): what says the step is out of date once the area is moved,
+   * resized, reshaped, re-anchored, or given another Size or Edge by hand
+   * (`zoom/areaStatus.ts`). Unsaid in a file written before it: such a step
+   * is given one at the first hand edit of its area (`zoom/areaRecord.ts`).
+   */
+  areaWas?: DiagramZoomAreaWas;
+}
+
+/**
+ * An enlarge area as an enlarged step captured it (review fix 4): the step
+ * it was on — which names it once it is deleted — its outline there, in that
+ * step's picture units, a picked anchor, on the paper, and its Size and Edge,
+ * which the capture copied: a step whose own differ set them itself, and
+ * Update keeps them. Unsaid, as on the area: Fill, and the shape's own.
+ */
+export interface DiagramZoomAreaWas {
+  stepId: string;
+  outline: DiagramZoomOutline;
+  anchor?: [number, number];
+  scale?: number;
   edge?: DiagramZoomEdge;
 }
 
@@ -1470,7 +1494,7 @@ export function setLinkedPicture(
     return document;
   }
   const withAsset = withAssets(document, link.asset ? [link.asset] : []);
-  return updateStep(withAsset, stepId, (current) =>
+  return updatePicture(withAsset, stepId, (current) =>
     // A card's marks are the author's once its picture is a capture (17d).
     releaseCardMarks(
       withCarriedAnnotations(
@@ -1766,7 +1790,7 @@ export function liftedStepDiagramKey(cardKey: string, mirrored: boolean): string
  * from.
  */
 export function setReferencesSide(document: DiagramDocument, stepId: string, mirrored: boolean): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  return updatePicture(document, stepId, (step) => {
     if (step.source?.kind !== 'references-step' || step.picture?.kind !== 'step-diagram') return step;
     if (step.picture.mirrored === mirrored) return step;
     const turned: DiagramStep = {
@@ -1790,7 +1814,7 @@ export function setReferencesWay(
   stepId: string,
   way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string; lifted?: LiftedCard | null }
 ): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  return updatePicture(document, stepId, (step) => {
     if (step.source?.kind !== 'references-step' || step.picture?.kind !== 'step-diagram') return step;
     // The way it shows, baked or lifted: the same card.
     if (step.source.way === way.signature && stepDiagramCardKey(step.picture.key) === stepDiagramCardKey(way.picture.key)) {
@@ -1854,7 +1878,7 @@ export function setUploadPose(
   stepId: string,
   pose: UploadPose
 ): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  return updatePicture(document, stepId, (step) => {
     if (poseBlocker(step) !== null || step.source?.kind !== 'upload') return step;
     const { rotationQuarterTurns, mirrored } = step.source;
     if (rotationQuarterTurns === pose.rotationQuarterTurns && mirrored === pose.mirrored) return step;
@@ -1880,7 +1904,8 @@ export function editStepAnnotations(
   stepId: string,
   edit: (annotations: readonly KnownDiagramAnnotation[]) => readonly KnownDiagramAnnotation[]
 ): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  // A hand edit of an area tells a step enlarged from it with no record that it changed (review fix 4).
+  const edited = updateStep(document, stepId, (step) => {
     if (step.picture === null) return step;
     const known = step.annotations.filter(isKnownAnnotation);
     // As this build writes them, whoever made them: within the step's reach, a label's text clean;
@@ -1895,6 +1920,7 @@ export function editStepAnnotations(
     const touched = !annotationsOutOfStep(step) || authorMarksChanged(step, next);
     return touched ? { ...next, annotatedPictureKey: step.picture.key } : next;
   });
+  return recordAreaBeforeEdit(document, edited, stepId);
 }
 
 /**
@@ -2098,6 +2124,21 @@ export function setTurn(document: DiagramDocument, turnId: string, kind: Diagram
 function sameTurn(a: DiagramTurnKind, b: DiagramTurnKind): boolean {
   if (a.kind === 'turn-over') return b.kind === 'turn-over' && a.axis === b.axis;
   return b.kind === 'rotate' && a.rotate.amount === b.rotate.amount && a.rotate.direction === b.rotate.direction;
+}
+
+/**
+ * Edit one step's own picture — a capture, a relink, a re-pose, a References
+ * step's side or way — as {@link updateStep} does, its marks carried with it
+ * (`withCarriedAnnotations`): the records of the steps enlarged from an area
+ * on it go with an area the picture carried, so a carry says no enlarged step
+ * is out of date (review fix 4, `followAreaRecords`).
+ */
+function updatePicture(
+  document: DiagramDocument,
+  stepId: string,
+  edit: (step: DiagramStep) => DiagramStep
+): DiagramDocument {
+  return followAreaRecords(document, updateStep(document, stepId, edit), stepId);
 }
 
 /** Edit one step; a turn, an unknown id or a newer build's step is left as it is. */

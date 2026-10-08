@@ -14,7 +14,7 @@ import styles from './DiagramZoomControls.module.css';
  * faces can be picked, a read-out — what a frame prints at once the pages
  * are laid out, amber when its room or its area holds it back; else what Size
  * means — and the verbs: an
- * area's Update Enlarged Steps and Go to its first enlarged step, a frame's
+ * area's Update All and Go to its first enlarged step, a frame's
  * Go to its area, with a note on what places the frame again. Each change is
  * one undo step (`useZoomControls`). Size, the Anchor row and the read-out
  * are the rows Annotate's Step pane draws for the step's frame too
@@ -75,14 +75,8 @@ export function DiagramZoomControls({ step, target }: { step: DiagramStep; targe
       <ZoomAnchorRow controls={controls} />
       <ZoomReadout controls={controls} />
       {controls.on === 'frame' && (
-        <ZoomNote>
-          {controls.actions.length > 0
-            ? t(
-                'panels:diagram.annotations.frameNote',
-                'Update Enlarged Steps on its area, or turning Enlarged off and on, places this frame again.'
-              )
-            : t('panels:diagram.annotations.frameNoteGone', 'Turning Enlarged off and on places this frame again.')}
-        </ZoomNote>
+        // Update is offered only while the step is out of date (review of review fix 4), which the row's subtitle says.
+        <ZoomNote>{t('panels:diagram.annotations.frameNoteGone', 'Turning Enlarged off and on places this frame again.')}</ZoomNote>
       )}
       {controls.actions.length > 0 && (
         <span className={styles.verbs}>

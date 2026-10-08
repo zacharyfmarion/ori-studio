@@ -4,6 +4,11 @@
   gap: var(--space-1);
 }
 
+/* The switch on the section's heading, which carries its tooltip: a box no taller than the switch. */
+.switch {
+  display: inline-flex;
+}
+
 /* The read-out and the notices under the rows, with room under them before the section's rule. */
 .end {
   display: grid;

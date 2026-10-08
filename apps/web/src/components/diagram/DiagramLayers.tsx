@@ -24,7 +24,8 @@ import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramStep, type KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { marksTouchingWindow, viewOfStep } from '../../diagram/zoom/stepView';
 import { useAreaSubtitle } from '../../diagram/zoom/useZoomControls';
-import { frameSubtitle, areaStepOf } from '../../diagram/zoom/zoomActions';
+import { areaStatus } from '../../diagram/zoom/areaStatus';
+import { frameSubtitle } from '../../diagram/zoom/zoomActions';
 import { ZOOM_FRAME_ID, zoomShapeOf } from '../../diagram/zoom/zoomModel';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { shortcutLabelForAction } from '../../keyboard/shortcuts';
@@ -185,7 +186,8 @@ function FrameRow({
 }) {
   const { t } = useTranslation();
   const diagram = useWorkspaceStore((state) => state.diagram);
-  const areaStep = useMemo(() => (diagram ? areaStepOf(diagram, step.id) : null), [diagram, step.id]);
+  // In the Step pane's words: the area changed, or was deleted (review fix 4).
+  const area = useMemo(() => (diagram ? areaStatus(diagram, step.id) : null), [diagram, step.id]);
   return (
     <button
       type="button"
@@ -197,7 +199,7 @@ function FrameRow({
       <EnlargeGlyph shape={shape} />
       <span className={styles.rowText}>
         <span className={styles.rowName}>{t('panels:diagram.annotations.enlargedFrame', 'Enlarged frame')}</span>
-        <span className={styles.rowNote}>{frameSubtitle(t, areaStep)}</span>
+        <span className={styles.rowNote}>{frameSubtitle(t, area)}</span>
       </span>
     </button>
   );

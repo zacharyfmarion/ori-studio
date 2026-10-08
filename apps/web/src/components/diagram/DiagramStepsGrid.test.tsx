@@ -467,6 +467,28 @@ describe('DiagramStepsGrid', () => {
     expect(chip()?.textContent).toBe('Enlarged');
   });
 
+  it('says an enlarged step’s area changed, after its picture’s own out of date, and not for one with no record (review fix 4)', () => {
+    const area = { id: 'area', kind: 'zoom' as const, from: [0.5, 0.5] as [number, number], to: [0.5, 0.5] as [number, number], radius: 0.1 };
+    const areaStep: DiagramStep = { ...cpStep('step-area'), annotations: [area] };
+    const areaWas = { stepId: 'step-area', outline: { centre: [0.5, 0.5] as [number, number], radius: 0.1 } };
+    const enlarged = (id: string, record = true): DiagramStep => ({
+      ...cpStep(id),
+      zoom: { from: 'area', shape: 'circle', ...(record ? { areaWas } : {}) },
+    });
+    const moved: DiagramStep = { ...areaStep, annotations: [{ ...area, from: [0.6, 0.5], to: [0.6, 0.5] }] };
+    const chip = (card: HTMLElement) => card.querySelector('[data-tone]')?.textContent ?? null;
+    render(null, vi.fn(), { steps: [areaStep, enlarged('step-big')], links: { statuses: new Map([['step-big', 'current']]) } });
+    expect(chip(options()[1]!)).toBeNull();
+    render(null, vi.fn(), {
+      steps: [moved, enlarged('step-big'), enlarged('step-stale'), enlarged('step-old', false)],
+      links: { statuses: new Map([['step-big', 'current'], ['step-stale', 'stale'], ['step-old', 'current']]) },
+    });
+    expect(options().map(chip)).toEqual([null, 'Area changed', 'Out of date', null]);
+    // Named with it, as its picture's chip is.
+    const labelled = options()[1]!.getAttribute('aria-labelledby')!.split(' ');
+    expect(labelled.some((id) => host!.querySelector(`[id="${id}"]`)?.textContent === 'Area changed')).toBe(true);
+  });
+
   it('shows where a dragged picture would land', () => {
     render(null, vi.fn(), { dropTarget: 'step-b' });
     expect(options().map((option) => option.hasAttribute('data-drop-target'))).toEqual([false, true, false]);

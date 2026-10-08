@@ -89,6 +89,12 @@ export const DiagramStepCard = forwardRef<
      * or null once the area is gone; undefined for a step that is not enlarged.
      */
     enlargedFrom?: number | null;
+    /**
+     * An enlarged step whose area was edited by hand since its frame was
+     * captured from it (review fix 4): "Area changed", after the picture's
+     * own out of date.
+     */
+    areaChanged?: boolean;
     /** The step's capture while one runs, and whether its fold can be stopped. */
     capture: { stoppable: boolean } | null;
     /** A crease pattern is open to link an empty step to. */
@@ -123,6 +129,7 @@ export const DiagramStepCard = forwardRef<
     link,
     textCut,
     enlargedFrom,
+    areaChanged = false,
     capture,
     patternOpen,
     onLink,
@@ -164,7 +171,10 @@ export const DiagramStepCard = forwardRef<
           : t('panels:diagram.card.stale', 'Out of date')
       : link === 'missing'
         ? t('panels:diagram.card.missing', 'Pattern missing')
-        : restyled === 'light'
+        : areaChanged && !locked
+          ? // Its area was moved, resized or re-anchored by hand: the Step pane's Update places it again (review fix 4).
+            t('panels:diagram.card.areaChanged', 'Area changed')
+          : restyled === 'light'
           ? t('panels:diagram.card.lightingChanged', 'Lighting changed')
           : restyled === 'style'
             ? t('panels:diagram.card.styleChanged', 'Style changed')

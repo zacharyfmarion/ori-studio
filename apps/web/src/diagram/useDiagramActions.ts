@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import {
@@ -66,6 +66,8 @@ import { needsPose } from './capture/linkStatus';
 import { simulatedRestNow } from './capture/openLinkedPose';
 import { lightingChanged } from './pictures/lighting';
 import { lacksPaperFaces } from './capture/stepPaperFaces';
+import { outOfDate } from './zoom/areaStatus';
+import { areaStepOf, stepAreas } from './zoom/zoomActions';
 
 /**
  * Add an empty step after the selected one (or at the end) and select it: the
@@ -192,10 +194,32 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       showAs: showAsOfStep(step),
       poseAgain: needsPose(step),
       cardMarks: cardMarksGate(step, diagram.style),
+      enlargedArea: enlargedAreaGate(areaStepOf(diagram, stepId)?.number ?? null, outOfDate(diagram, stepId), false),
+      heldAreas: heldAreasGate(heldOutOfDate(diagram, stepId)),
     },
     t,
     'card'
   );
+}
+
+/**
+ * Update's gate (review fix 4): the number of the step an enlarged step's
+ * area is on, while the area is there; whether the step is out of date; and
+ * whether its Update is running.
+ */
+function enlargedAreaGate(number: number | null, stale: boolean, updating: boolean): DiagramStepActionState['enlargedArea'] {
+  return number === null ? null : { number, outOfDate: stale, updating };
+}
+
+/** How many steps enlarged from a step's areas are out of date; null for a step from whose areas none is enlarged. */
+function heldOutOfDate(diagram: DiagramDocument, stepId: string): number | null {
+  const held = stepAreas(diagram, stepId);
+  return held && held.steps.length > 0 ? held.outOfDate.length : null;
+}
+
+/** Update All's gate on the area's step (review fix 4). */
+function heldAreasGate(stale: number | null): DiagramStepActionState['heldAreas'] {
+  return stale === null ? null : { outOfDate: stale };
 }
 
 /** Make Marks Editable's gate (17e): what lifting the step's card's marks would leave it holding; null where it has none to lift. */
@@ -232,7 +256,9 @@ function bindStepActions(
   gate: DiagramStepActionState,
   t: TFunction,
   /** The surface the verbs are offered on: the card's menu, or the Step pane. */
-  via: 'card' | 'pane'
+  via: 'card' | 'pane',
+  /** Told of an Update while it runs, for a surface that shows it waiting. */
+  onUpdate?: (running: Promise<unknown>) => void
 ): DiagramStepAction[] {
   const store = useWorkspaceStore.getState;
   return buildDiagramStepActions(
@@ -278,6 +304,16 @@ function bindStepActions(
         } else {
           void refreshDiagramStep(stepId);
         }
+      },
+      updateEnlarged: () => {
+        const running = store().updateEnlargedDiagramStep(stepId);
+        if (onUpdate) onUpdate(running);
+        else void running;
+      },
+      updateAllEnlarged: () => {
+        const diagram = store().diagram;
+        const held = diagram ? stepAreas(diagram, stepId) : null;
+        if (held) void store().updateEnlargedDiagramSteps(held.areaIds);
       },
       openInEdit: () => openDiagramStepInEdit(stepId),
       openInReferences: () => openDiagramStepInReferences(stepId),
@@ -354,6 +390,22 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
   const facesMissing = step ? lacksPaperFaces(step) : false;
   const style = useWorkspaceStore((state) => state.diagram?.style);
   const cardMarks = useMemo(() => (step && style ? cardMarksGate(step, style) : null), [step, style]);
+  const areaNumber = useWorkspaceStore((state) =>
+    state.diagram && stepId !== null ? (areaStepOf(state.diagram, stepId)?.number ?? null) : null
+  );
+  const stale = useWorkspaceStore((state) => (state.diagram && stepId !== null ? outOfDate(state.diagram, stepId) : false));
+  const heldStale = useWorkspaceStore((state) => (state.diagram && stepId !== null ? heldOutOfDate(state.diagram, stepId) : null));
+  // The step whose Update is running: it folds the faces older steps lack first, and waits, visibly, until then.
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const updating = stepId !== null && updatingId === stepId;
+  const onUpdate = useCallback(
+    (running: Promise<unknown>) => {
+      if (stepId === null) return;
+      setUpdatingId(stepId);
+      void running.finally(() => setUpdatingId((current) => (current === stepId ? null : current)));
+    },
+    [stepId]
+  );
 
   return useMemo(
     () =>
@@ -379,9 +431,12 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
               showAs: showAsOfStep(step),
               poseAgain: step ? needsPose(step) : false,
               cardMarks,
+              enlargedArea: enlargedAreaGate(areaNumber, stale, updating),
+              heldAreas: heldAreasGate(heldStale),
             },
             t,
-            'pane'
+            'pane',
+            onUpdate
           ),
     [
       step,
@@ -401,6 +456,11 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
       capturing,
       patternOpen,
       cardMarks,
+      areaNumber,
+      stale,
+      heldStale,
+      updating,
+      onUpdate,
       t,
     ]
   );

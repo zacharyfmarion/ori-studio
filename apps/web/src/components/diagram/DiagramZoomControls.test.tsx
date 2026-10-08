@@ -98,6 +98,15 @@ const labelled = (label: string) => host?.querySelector<HTMLButtonElement>(`butt
 const zoomAction = (id: string) => host?.querySelector<HTMLButtonElement>(`[data-zoom-action="${id}"]`) ?? null;
 const past = () => state().diagramHistory.past.length;
 
+/** The area moved by hand on its step, as a drag in Annotate moves it. */
+function moveArea(stepId: string) {
+  act(() => {
+    state().editDiagramAnnotations(stepId, 'Move annotation', (list) =>
+      list.map((mark) => (mark.kind === 'zoom' ? { ...mark, from: [mark.from[0] + 0.03, mark.from[1]], to: [mark.from[0] + 0.03, mark.from[1]] } : mark))
+    );
+  });
+}
+
 describe('an enlarge area’s row and controls', () => {
   it('names the area and the steps enlarged from it, and offers its Shape, Size, Edge and Anchor', () => {
     crane();
@@ -111,9 +120,10 @@ describe('an enlarge area’s row and controls', () => {
     expect(labelled('Rounded rectangle')).not.toBeNull();
     expect(text).toContain('Auto');
     expect(host!.querySelector('[title="The backmost face outside the frame"]')!.textContent).toBe('Auto');
-    // Update, held, saying why.
-    expect(zoomAction('update-enlarged-steps')!.getAttribute('aria-disabled')).toBe('true');
-    expect(zoomAction('update-enlarged-steps')!.title).toBe('No step is enlarged from this area');
+    // Update All, held, saying why.
+    expect(zoomAction('update-all')!.textContent).toBe('Update All');
+    expect(zoomAction('update-all')!.getAttribute('aria-disabled')).toBe('true');
+    expect(zoomAction('update-all')!.title).toBe('No step is enlarged from this area');
   });
 
   it('reshapes, sizes and edges the area, each one undo step, counted', () => {
@@ -154,42 +164,70 @@ describe('an enlarge area’s row and controls', () => {
     expect(past()).toBe(was + 1);
   });
 
-  it('offers Update once a step is enlarged from it, and Go to that step', async () => {
+  it('offers Update All once a step enlarged from it is out of date, and Go to that step (review fix 4)', async () => {
     const stepId = crane();
     await act(async () => {
       await state().enlargeDiagramStep('step-2');
     });
     expect(rows()[0]!.textContent).toBe('Enlarge AreaEnlarged on step 2');
-    expect(zoomAction('update-enlarged-steps')!.getAttribute('aria-disabled')).toBeNull();
+    expect(zoomAction('update-all')!.getAttribute('aria-disabled')).toBe('true');
+    expect(zoomAction('update-all')!.title).toBe('Every step enlarged from this area is up to date');
+    moveArea(stepId);
+    expect(zoomAction('update-all')!.getAttribute('aria-disabled')).toBeNull();
     const was = past();
     await act(async () => {
-      zoomAction('update-enlarged-steps')!.click();
-      await Promise.resolve();
+      zoomAction('update-all')!.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(past()).toBe(was + 1);
+    expect(zoomAction('update-all')!.getAttribute('aria-disabled')).toBe('true');
     act(() => zoomAction('go-to-enlarged-step')!.click());
     expect(state().diagramSelectedStepId).toBe('step-2');
     expect(stepId).not.toBe('step-2');
   });
 
-  it('waits, visibly, while Update folds the faces it needs, and takes no second press', async () => {
-    crane();
+  it('holds Update All for a file’s steps from before records, as the area’s Step pane does, until the area is moved by hand (review of review fix 4)', async () => {
+    const stepId = crane();
     await act(async () => {
       await state().enlargeDiagramStep('step-2');
     });
+    act(() => {
+      const document = state().diagram!;
+      const entry = stepById(document, 'step-2')!;
+      const { areaWas: _was, ...zoom } = entry.zoom!;
+      state().installDiagram({
+        document: { ...document, steps: document.steps.map((each) => (each.id === 'step-2' ? { ...entry, zoom } : each)) },
+        readOnly: false,
+        raw: null,
+      } as never);
+      state().openDiagramStep(stepId, 'annotate');
+      state().selectDiagramAnnotation('area-head');
+    });
+    expect(zoomAction('update-all')!.getAttribute('aria-disabled')).toBe('true');
+    moveArea(stepId);
+    expect(zoomAction('update-all')!.getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('waits, visibly, while Update All folds the faces it needs, and takes no second press', async () => {
+    const stepId = crane();
+    await act(async () => {
+      await state().enlargeDiagramStep('step-2');
+    });
+    moveArea(stepId);
     let finish: (placed: number) => void = () => {};
     const update = vi.fn(() => new Promise<number>((resolve) => (finish = resolve)));
     act(() => useWorkspaceStore.setState({ updateEnlargedDiagramSteps: update }));
-    act(() => zoomAction('update-enlarged-steps')!.click());
-    expect(zoomAction('update-enlarged-steps')!.getAttribute('aria-busy')).toBe('true');
-    expect(zoomAction('update-enlarged-steps')!.title).toBe('Its picture is being captured');
-    act(() => zoomAction('update-enlarged-steps')!.click());
+    act(() => zoomAction('update-all')!.click());
+    expect(zoomAction('update-all')!.getAttribute('aria-busy')).toBe('true');
+    expect(zoomAction('update-all')!.title).toBe('Its picture is being captured');
+    act(() => zoomAction('update-all')!.click());
     expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith(['area-head']);
     await act(async () => {
       finish(1);
       await Promise.resolve();
     });
-    expect(zoomAction('update-enlarged-steps')!.getAttribute('aria-busy')).toBeNull();
+    expect(zoomAction('update-all')!.getAttribute('aria-busy')).toBeNull();
   });
 
   it('holds every control on a diagram that cannot change', () => {
@@ -218,12 +256,21 @@ describe('an enlarged step’s frame in Layers', () => {
     act(() => frame!.click());
     expect(state().diagramSelectedAnnotationId).toBe(ZOOM_FRAME_ID);
     expect(host!.querySelector('[data-zoom-controls="frame"]')).not.toBeNull();
-    expect(host!.textContent).toContain('Update Enlarged Steps on its area, or turning Enlarged off and on, places this frame again.');
+    // Update is offered only while the step is out of date, which the row's subtitle then says (review of review fix 4).
+    expect(host!.textContent).toContain('Turning Enlarged off and on places this frame again.');
     // No Delete for a frame: the Enlarged switch, in Annotate's Step pane, turns it off.
     expect(buttonNamed('Delete')).toBeUndefined();
     act(() => zoomAction('go-to-area')!.click());
     expect(state().diagramSelectedStepId).toBe(areaStep);
     expect(state().diagramSelectedAnnotationId).toBe('area-head');
+  });
+
+  it('says its area changed, or was deleted, in the Step pane’s words (review of review fix 4)', async () => {
+    const areaStep = await enlarged();
+    moveArea(areaStep);
+    expect(rows()[0]!.textContent).toBe('Enlarged frameOut of date: Step 1’s area changed');
+    act(() => state().editDiagramAnnotations(areaStep, 'Delete annotation', (list) => list.filter((mark) => mark.kind !== 'zoom')));
+    expect(rows()[0]!.textContent).toBe('Enlarged frameStep 1’s area was deleted');
   });
 
   it('reads out what the frame prints at once the pages are laid out, amber where its room holds it back (Z4)', async () => {

@@ -160,8 +160,8 @@ export function DiagramStepPanel() {
         )}
         {!locked && <DiagramStepShowAs actions={actions} side={side} />}
         {detailOpen && !annotating && <DiagramStepPose step={step} actions={poseActions} />}
-        {!locked && annotating && <DiagramStepEnlarged step={step} />}
-        {!locked && !annotating && (!detailOpen || !annotatable) && <DiagramStepZoomStatus step={step} />}
+        {!locked && annotating && <DiagramStepEnlarged step={step} actions={actions} />}
+        {!locked && !annotating && (!detailOpen || !annotatable) && <DiagramStepZoomStatus step={step} actions={actions} />}
         {!locked && (
           <CollapsibleSection title={t('panels:diagram.stepPane.picture', 'Picture')}>
             <DiagramStepPicture

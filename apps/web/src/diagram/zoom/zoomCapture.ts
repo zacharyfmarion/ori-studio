@@ -4,7 +4,8 @@
  * that owns it from then on. Nothing here is a live link: a capture reads the
  * diagram as it is and returns what the step would store, and the step's
  * provenance — the area's id — is only ever read to say where it came from
- * and which steps Update Enlarged Steps captures again.
+ * and which steps Update and Update All capture again — and the area as it was
+ * then (`areaWas`, review fix 4), which says when the area has changed.
  *
  * Pure: no store. The verbs that store a capture are in `zoomFrames.ts`.
  */
@@ -22,6 +23,7 @@ import {
   type DiagramShowAs,
   type DiagramStep,
   type DiagramStepZoom,
+  type DiagramZoomAreaWas,
   type DiagramZoomEdge,
   type DiagramZoomOutline,
   type DiagramZoomShape,
@@ -74,8 +76,8 @@ export function captureSource(document: DiagramDocument, stepId: string): ZoomSo
 }
 
 /**
- * The area with this id and the step it is on: what Update Enlarged Steps
- * captures from (Z7), wherever the steps it enlarged now sit. Null when the
+ * The area with this id and the step it is on: what Update and Update All
+ * capture from (Z7, review fix 4), wherever the steps it enlarged now sit. Null when the
  * area is gone, or is on a newer build's locked step.
  */
 export function areaSource(document: DiagramDocument, areaId: string): ZoomSource | null {
@@ -99,6 +101,24 @@ interface SourceFrame {
   picked?: PicturePoint;
   /** An enlarged step's stored imprint, for one with no picture to imprint from. */
   imprint?: ZoomImprint;
+  /** The area as the frame was captured from it (review fix 4). */
+  areaWas?: DiagramZoomAreaWas;
+}
+
+/**
+ * An area as a capture from it records it (review fix 4): its step, its
+ * outline there, a picked anchor, and the Size and Edge the capture copies —
+ * what a later hand edit of the area is told by (`areaStatus.ts`), and what
+ * tells a Size or Edge set on the step from one it took (`areaRecord.ts`).
+ */
+export function areaWasOf(stepId: string, area: KnownDiagramAnnotation): DiagramZoomAreaWas {
+  return {
+    stepId,
+    outline: zoomOutlineOf(area),
+    ...(area.anchor !== undefined ? { anchor: [area.anchor[0], area.anchor[1]] as [number, number] } : {}),
+    ...(area.scale !== undefined ? { scale: area.scale } : {}),
+    ...(area.edge !== undefined ? { edge: area.edge } : {}),
+  };
 }
 
 function sourceFrame(source: ZoomSource): SourceFrame {
@@ -112,8 +132,11 @@ function sourceFrame(source: ZoomSource): SourceFrame {
       ...(area.scale !== undefined ? { scale: area.scale } : {}),
       ...(area.edge !== undefined ? { edge: area.edge } : {}),
       ...(area.anchor !== undefined ? { picked: area.anchor } : {}),
+      areaWas: areaWasOf(source.step.id, area),
     };
   }
+  // Through an enlarged step, the area as that step's frame was captured from it: a step after it is as
+  // out of date as it is. One with no record — a file's from before it — passes none on.
   const { zoom } = source;
   return {
     from: zoom.from,
@@ -123,6 +146,7 @@ function sourceFrame(source: ZoomSource): SourceFrame {
     ...(zoom.edge !== undefined ? { edge: zoom.edge } : {}),
     ...(zoom.imprint?.picked ? { picked: zoom.imprint.on } : {}),
     ...(zoom.imprint ? { imprint: zoom.imprint } : {}),
+    ...(zoom.areaWas ? { areaWas: zoom.areaWas } : {}),
   };
 }
 
@@ -260,13 +284,15 @@ export function capture(
     ...(imprint ? { imprint } : {}),
     ...(taken.scale !== undefined ? { scale: taken.scale } : {}),
     ...(taken.edge !== undefined ? { edge: taken.edge } : {}),
+    ...(taken.areaWas ? { areaWas: taken.areaWas } : {}),
   };
   const anchor = placed === 'face' || placed === 'sheet' ? (imprint?.picked ? 'picked' : 'auto') : 'none';
   return { zoom, placed, anchor };
 }
 
 /**
- * The steps Update Enlarged Steps captures again for an area (Z7): every step
+ * The steps enlarged from an area, which Update and Update All capture again
+ * (Z7, review fix 4): every step
  * with its provenance, wherever it sits now, in the diagram's order.
  */
 export function stepsFrom(document: DiagramDocument, areaId: string): string[] {

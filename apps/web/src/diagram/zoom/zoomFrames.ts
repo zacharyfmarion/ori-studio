@@ -7,12 +7,14 @@
  * frame's upright box, its longer side one unit, as a picture's frame is — so
  * whatever moves the window moves them with it, and they stay on the same
  * paper. A frame belongs to its step: nothing another step does changes it,
- * and only Enlarged turned on and Update Enlarged Steps take one from
- * another step (`zoomCapture.ts`).
+ * and only Enlarged turned on, Update and Update All take one from another
+ * step (`zoomCapture.ts`). Each capture records the area as it was then
+ * (review fix 4), which says the step is out of date once the area is edited
+ * by hand (`areaStatus.ts`).
  *
  * | What changed | Frame | Marks |
  * | --- | --- | --- |
- * | Enlarged turned on; Update | captured and landed ({@link enlargeStep}, {@link updateEnlargedSteps}) | whole picture or old window → new window; from the whole picture, lines trimmed at the frame ({@link trimmedAtFrame}) |
+ * | Enlarged turned on; Update, Update All | captured and landed ({@link enlargeStep}, {@link updateEnlargedSteps}) | whole picture or old window → new window; from the whole picture, lines trimmed at the frame ({@link trimmedAtFrame}) |
  * | A step made empty after an enlarged one (Add Step, Insert Step After), but for an enlarged upload or References step | captured at creation ({@link seedNewSteps}) | none yet |
  * | A seeded step's first picture, linked as its run shows its pattern; a first link of a step that starts a run; a refresh or relink | landed from its imprint ({@link relandFrame}, {@link landSeededFrame}) | unchanged |
  * | An empty step's first link of another type than the run it continues; an upload or a References card filling an empty step (review fix 3) | dropped ({@link startsWhole}) | window → whole picture |
@@ -22,7 +24,7 @@
  * | Its anchor picked or reset | unchanged, its imprint made again ({@link setFrameAnchor}) | unchanged |
  * | The step re-posed | landed on the re-posed picture ({@link reposeFrame}) | the pose's move, window to window |
  * | Its picture given its faces, as it was (another step's capture) | unchanged, its imprint made again ({@link anchorInPlace}) | unchanged |
- * | The area or its step edited, moved or deleted | unchanged | unchanged |
+ * | The area or its step edited, moved or deleted | unchanged, and out of date while the area was edited by hand (`areaStatus.ts`) | unchanged |
  *
  * Every edit of a step's own picture — a re-pose, a refresh, a relink —
  * reaches the frame through one path, `withCarriedAnnotations`, which hands an
@@ -63,6 +65,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { stepPictureFrame } from '../pictures/pictureFrame';
+import { withOwnPrint } from './areaRecord';
 import {
   anchorOf,
   areaSource,
@@ -412,25 +415,34 @@ export function unenlargeStep(document: DiagramDocument, stepId: string, assets:
 }
 
 /**
- * Update Enlarged Steps (Z7): every step with this area's provenance,
- * wherever it sits now — before the area's step too, or after another area —
- * captured again from the area itself, as it is now, over any hand move, as
- * one edit; so each keeps its provenance. Nothing when the area is gone. The
- * captures, in order, and the steps they placed, for what counts them.
+ * Steps enlarged from an area placed again (Z7; review fix 4: Update on one
+ * step, Update All on the area's step): each step with this area's
+ * provenance — those of `only`, when it is given — wherever it sits now,
+ * before the area's step too, or after another area, captured again from the
+ * area itself, as it is now, over any hand move, as one edit; so each keeps
+ * its provenance, and records the area as it is now. A Size or Edge set on
+ * the step is kept, one it took from the area follows it (`withOwnPrint`).
+ * Nothing when the area is gone. The captures, in order, and the steps they placed, for what counts
+ * them.
  */
 export function updateEnlargedSteps(
   document: DiagramDocument,
   areaId: string,
-  assets: Assets
+  assets: Assets,
+  only?: readonly string[]
 ): { document: DiagramDocument; captured: ZoomCaptured[]; stepIds: string[] } {
   const source = areaSource(document, areaId);
   if (!source) return { document, captured: [], stepIds: [] };
   let next = document;
   const captured: ZoomCaptured[] = [];
   const stepIds: string[] = [];
-  for (const stepId of stepsFrom(document, areaId)) {
-    // Only the steps it enlarged change, so the area's step, and the area, stay as they were.
-    const step = enlargeWith(next, stepId, capture(next, stepId, source), assets);
+  const targets = stepsFrom(document, areaId).filter((stepId) => !only || only.includes(stepId));
+  for (const stepId of targets) {
+    // Only the steps it enlarged change, so the area's step, and the area, stay as they were. A Size or
+    // Edge set on the step is its own, kept (review of review fix 4).
+    const taken = capture(next, stepId, source);
+    const was = stepById(next, stepId)?.zoom;
+    const step = enlargeWith(next, stepId, taken && { ...taken, zoom: withOwnPrint(was, taken.zoom) }, assets);
     next = step.document;
     if (step.captured) {
       captured.push(step.captured);
