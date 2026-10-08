@@ -71,11 +71,11 @@ export interface DiagramPageSetup {
   /** Flow layout only: the band that joins one step to the next. */
   showPath: boolean;
   /**
-   * The band's printed width, mm ({@link PATH_WIDTH_MM_RANGE}); null, as in
-   * every file before it could be chosen, draws it in proportion to the steps
-   * (`pathWidthMm` in `diagramPageLayout.ts`). Written only when set.
+   * The band's printed width, mm ({@link PATH_WIDTH_MM_RANGE}); written only
+   * when not {@link DEFAULT_PATH_WIDTH_MM}, which a file that does not say
+   * reads as.
    */
-  pathWidthMm: number | null;
+  pathWidthMm: number;
   /** The band's colour, `#rrggbb`; written only when not {@link DEFAULT_PATH_COLOR}. */
   pathColor: string;
   /** The side the first page prints on ({@link DiagramPageSide}); written to the file only when `right`. */
@@ -1094,12 +1094,15 @@ export const PAGE_MARGIN_MM_RANGE = { min: 0, max: 30 } as const;
 export const PAGE_COLUMNS_RANGE = { min: 2, max: 5 } as const;
 export const PAGE_ROWS_RANGE = { min: 1, max: 6 } as const;
 export const FIRST_PAGE_NUMBER_RANGE = { min: 1, max: 9999 } as const;
-/**
- * The flow band's width, mm: from a thin line to more than twice the 26 mm an
- * A4 page of 3 × 3 steps draws it by itself — as wide as the widest it draws
- * by itself, two steps to a landscape page.
- */
+/** The flow band's width, mm: from a thin line to three times the default. */
 export const PATH_WIDTH_MM_RANGE = { min: 4, max: 60 } as const;
+/**
+ * The flow band's width where nothing else is chosen, mm: a new diagram's,
+ * and a file's that does not say — every diagram saved before the width
+ * could be chosen, which drew the band in proportion to its steps until
+ * 2026-10-08 (`implementation-plans/diagram-review-fixes.md`, item 1).
+ */
+export const DEFAULT_PATH_WIDTH_MM = 20;
 /** The flow band's colour: the mockup's light warm grey. */
 export const DEFAULT_PATH_COLOR = '#ecece8';
 
@@ -1115,7 +1118,7 @@ export const DEFAULT_PAGE_SETUP: DiagramPageSetup = {
   columns: 3,
   rows: 3,
   showPath: true,
-  pathWidthMm: null,
+  pathWidthMm: DEFAULT_PATH_WIDTH_MM,
   pathColor: DEFAULT_PATH_COLOR,
   firstPageSide: 'left',
   showTitle: true,
@@ -2117,11 +2120,7 @@ export function normalizePageSetup(value: unknown): DiagramPageSetup {
     columns: clampWhole(source.columns, PAGE_COLUMNS_RANGE, DEFAULT_PAGE_SETUP.columns),
     rows: clampWhole(source.rows, PAGE_ROWS_RANGE, DEFAULT_PAGE_SETUP.rows),
     showPath: typeof source.showPath === 'boolean' ? source.showPath : DEFAULT_PAGE_SETUP.showPath,
-    // Unsaid, or damaged: in proportion to the steps, as before there was a choice.
-    pathWidthMm:
-      typeof source.pathWidthMm === 'number' && Number.isFinite(source.pathWidthMm)
-        ? clampNumber(source.pathWidthMm, PATH_WIDTH_MM_RANGE, PATH_WIDTH_MM_RANGE.min)
-        : null,
+    pathWidthMm: clampNumber(source.pathWidthMm, PATH_WIDTH_MM_RANGE, DEFAULT_PAGE_SETUP.pathWidthMm),
     pathColor: readHexColor(source.pathColor) ?? DEFAULT_PATH_COLOR,
     // Unsaid, as in every file before there was a choice: the left.
     firstPageSide: source.firstPageSide === 'right' ? 'right' : DEFAULT_PAGE_SETUP.firstPageSide,

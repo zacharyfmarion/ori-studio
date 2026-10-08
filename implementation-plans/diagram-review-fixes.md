@@ -254,15 +254,20 @@ Paths under `apps/web/src/` unless rooted.
 
 ### 1. Path width defaults to 20 mm
 
-- [ ] `DEFAULT_PATH_WIDTH_MM = 20`; `pathWidthMm: number`; unsaid or damaged reads as 20
-- [ ] Proportional mode removed (`AUTO_PATH_WIDTH_SHARE`, `pathWidthMm()`)
-- [ ] Written only when not 20, the same as `pathColor`
-- [ ] Page pane: shows the stored width; Reset only when not 20, back to 20
-- [ ] Tests: file round-trip, flow lane, step places, Page pane; page golden re-taken with the reason
-- [ ] Plan note in `diagram-workspace.md`; analytics unchanged (`path_width` still means set or reset)
-- [ ] No new strings (i18n unchanged)
-- [ ] Nearby tests, `tsc --noEmit`, eslint on changed files
-- [ ] Browser: crane flow page, Page pane at 20 and the ribbon (`artifacts/review-fixes/1/`)
+- [x] `DEFAULT_PATH_WIDTH_MM = 20`; `pathWidthMm: number`; unsaid or damaged reads as 20
+- [x] Proportional mode removed (`AUTO_PATH_WIDTH_SHARE`, `pathWidthMm()`)
+- [x] Written only when not 20, the same as `pathColor`
+- [x] Page pane: shows the stored width; Reset only when not 20, back to 20
+- [x] Tests: file round-trip, flow lane, step places, Page pane; page golden re-taken with the reason
+- [x] Plan note in `diagram-workspace.md`; analytics unchanged (`path_width` still means set or reset)
+- [x] No new strings (i18n unchanged)
+- [x] Nearby tests, `tsc --noEmit`, eslint on changed files (and the whole vitest suite: 12000 passed)
+- [x] Browser: crane flow page, Page pane at 20 and the ribbon (`artifacts/review-fixes/1/`)
+  - The crane says 25 mm. Reset showed, and pressing it set 20: the field
+    read 20, Reset went away, and the band laid out at 20 mm, with no
+    console errors.
+  - Screenshot: `crane-flow-page-path-20mm.png`. Script: `shot.mjs`.
+    Results: `shot.json`.
 
 ### 2. Enlarged settings move to Annotate
 

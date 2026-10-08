@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAGE_SETUP, type DiagramPageSetup, type DiagramPageSide } from '../document/diagramDocument';
+import {
+  DEFAULT_PAGE_SETUP,
+  DEFAULT_PATH_WIDTH_MM,
+  type DiagramPageSetup,
+  type DiagramPageSide,
+} from '../document/diagramDocument';
 import {
   layoutDiagramPages,
   STEP_NUMBER_SIZE_MM,
@@ -197,22 +202,21 @@ describe('the flow lane', () => {
 });
 
 describe('the band’s width and colour (Zach, 2026-10-06: "an option for how wide the flow ribbon is, and for what color it is")', () => {
-  it('draws the band at the width the setup says, and without one as wide as before: 0.42 of a cell’s smaller side', () => {
+  it('draws the band at the width the setup says, 20 mm by default whatever the size of the steps (Zach, 2026-10-08)', () => {
+    expect(DEFAULT_PATH_WIDTH_MM).toBe(20);
     for (const setup of SETUPS) {
-      const auto = flow(steps(12), setup);
-      expect(auto.bandWidthMm).toBeCloseTo(0.42 * Math.min(auto.cellMm.w, auto.cellMm.h), 9);
-      expect(auto.bandInk).toBe('#ecece8');
+      const plain = flow(steps(12), setup);
+      expect(plain.bandWidthMm).toBe(DEFAULT_PATH_WIDTH_MM);
+      expect(plain.bandInk).toBe('#ecece8');
       const chosen = flow(steps(12), { ...setup, pathWidthMm: 18, pathColor: '#d6e8f5' });
       expect(chosen.bandWidthMm).toBe(18);
       expect(chosen.bandInk).toBe('#d6e8f5');
     }
-    // The heart's page, A4 3 × 3: 26 mm by itself.
-    expect(flow(steps(16), { columns: 3, rows: 3 }).bandWidthMm).toBeCloseTo(26.04, 2);
   });
 
   it('keeps every bend no tighter than the band is half wide, at any width the steps leave room for', () => {
     for (const setup of SETUPS) {
-      for (const pathWidthMm of [null, 8, 26, 40, 60]) {
+      for (const pathWidthMm of [8, DEFAULT_PATH_WIDTH_MM, 26, 40, 60]) {
         const result = flow(steps(23), { ...setup, pathWidthMm });
         // A band wider than a step's cell has no room to turn in.
         if (result.bandWidthMm > result.cellMm.w) continue;
@@ -230,13 +234,13 @@ describe('the band’s width and colour (Zach, 2026-10-06: "an option for how wi
   });
 
   it('moves a bend out only as far as a wider band needs: the heart’s stay where they were', () => {
-    const apexes = (pathWidthMm: number | null) =>
+    const apexes = (pathWidthMm: number) =>
       flow(steps(16), { columns: 3, rows: 3, pathWidthMm }).pages.flatMap((page) =>
         bendHalves(page.band!).flatMap(({ from, curve }) => (Math.abs(curve.c2.x - curve.to.x) < 1e-9 ? [{ from, to: curve.to }] : []))
       );
     const cellW = flow(steps(16), { columns: 3, rows: 3 }).cellMm.w;
-    // Its own width and a narrower one: FLOW_BEND of a cell past the row's last picture, as before there was a choice.
-    for (const width of [null, 8, 26]) {
+    // The default, a narrower one and the 26 mm it drew by itself before there was one: FLOW_BEND of a cell past the row's last picture.
+    for (const width of [8, DEFAULT_PATH_WIDTH_MM, 26]) {
       for (const { from, to } of apexes(width)) expect(Math.abs(to.x - from.x)).toBeCloseTo(FLOW_BEND * cellW, 9);
     }
     // Wider than its bends allow: out past that.
@@ -382,7 +386,7 @@ describe('a turn across a flow row break, on the lane', () => {
   it('sits on the lane in its bend, on a page read down and on one read up, however wide the band', () => {
     // Turns into steps 4 and 7 (page 1, read down) and 13 and 16 (page 2, read up).
     const list = steps(16, (index) => ([3, 6, 12, 15].includes(index) ? { turnsBefore: [over(`turn-${index}`)] } : {}));
-    for (const [showPath, pathWidthMm] of [[true, null], [false, null], [true, 50], [false, 50]] as const) {
+    for (const [showPath, pathWidthMm] of [[true, DEFAULT_PATH_WIDTH_MM], [false, DEFAULT_PATH_WIDTH_MM], [true, 50], [false, 50]] as const) {
       const result = flow(list, { columns: 3, rows: 3, showPath, pathWidthMm });
       const lanes = flow(list, { columns: 3, rows: 3, pathWidthMm }).pages.map((page) => page.band!);
       result.pages.forEach((page, pageIndex) => {

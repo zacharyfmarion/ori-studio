@@ -91,6 +91,7 @@ import {
   isKnownAsset,
   normalizePageSetup,
   DEFAULT_PATH_COLOR,
+  DEFAULT_PATH_WIDTH_MM,
   readHexColor,
   randomDiagramId,
   withReferencedAssets,
@@ -296,10 +297,10 @@ export function writeDiagram(
 
 /**
  * The page setup as written: every field, but the first page's side only when
- * it is the right, and the flow band's width and colour only when chosen — so
- * a diagram that never chose, as every one before the choices, opens in a
- * build that does not know them (an unknown page key opens read-only:
- * `unknownDocumentField`).
+ * it is the right, and the flow band's width and colour only when not their
+ * defaults — so a diagram that never chose, as every one before the choices,
+ * opens in a build that does not know them (an unknown page key opens
+ * read-only: `unknownDocumentField`).
  *
  * The layout is always written. One that is not said reads as the grid
  * (`UNSAID_PAGE_LAYOUT`), the layout of every diagram saved before the flow
@@ -309,7 +310,7 @@ function writePageSetup(page: DiagramPageSetup): Record<string, unknown> {
   const { firstPageSide, pathWidthMm, pathColor, ...rest } = page;
   return {
     ...rest,
-    ...(pathWidthMm !== null ? { pathWidthMm } : {}),
+    ...(pathWidthMm !== DEFAULT_PATH_WIDTH_MM ? { pathWidthMm } : {}),
     ...(pathColor !== DEFAULT_PATH_COLOR ? { pathColor } : {}),
     ...(firstPageSide === 'right' ? { firstPageSide } : {}),
   };
