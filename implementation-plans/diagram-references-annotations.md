@@ -1,6 +1,6 @@
 # Diagram: a References step's marks as annotations
 
-**Status: planned 2026-10-07; 17a, 17b, 17c and 17d built the same day. Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
+**Status: planned 2026-10-07; 17a, 17b, 17c, 17d and 17e built the same day. Decisions RM1–RM13 are DECIDED** — his own answers are quoted under RM3, RM4, RM6, RM8 and RM9, RM12 is superseded by his Text request, and the rest take the recommendation (Zach, 2026-10-07: "use your recs and include the enlarged steps follow ups in the branch"). It lands in a PR of its own, stacked on #436 (the same answer).
 
 **Revised 2026-10-07: there is no `letter` kind.** A pulled letter is a Text annotation (`label`), and Text gains the options it needs (§4). Zach: "why is letter different from text annotation in diagram references? Id rather just extend text to have color / any other options we need". RM1 and RM3 now speak of Text options, RM12 is superseded, and Reset Position is dropped.
 
@@ -623,6 +623,40 @@ rewrites a file.
 - When the lift would pass the cap, the verb is disabled with the reason
   ("612 marks: more than a step holds"), not offered and then refused.
 
+*As built, after 17e's review (2026-10-07):*
+- **An enlarged step does not look the same after.** §5's rule for a lift
+  into a window applies, as this section says: a line is cut at the frame
+  and runs `ZOOM_LINE_OVERSHOOT` past it, any other mark is lifted only when
+  it lies in the frame, and one the frame cuts is not lifted at all. So
+  where the baked picture showed an arrow cut at the frame, the converted
+  step shows none; a letter whose point is just inside the rim draws whole
+  past it. This is the one place a converted step does not look as it did,
+  and §5 and §9 together say it should. Nothing is lost silently: the toast
+  counts the marks the step holds now and says how many the frame left out,
+  with Undo ("Step 2’s 4 marks are editable now · 6 marks outside the
+  enlarged frame were left out"). Whether to keep that, or instead leave the
+  marks the frame cuts baked in the sheet so the picture is unchanged (a
+  partly lifted sheet: a new key form, a frame-aware notice, and a second
+  Make Editable after Unenlarge that adds rather than swaps), or hold the
+  verb on an enlarged step, is open for Zach (17e as built, "Open for
+  Zach").
+- **The cap counts the whole card**, as a pull's does (`fits`, §5): on an
+  enlarged step it is the card's marks beside the author's, not only those
+  the window would take. The reason names the limit, and the author's marks
+  when there are any: "612 marks: a step holds 500", "501 marks with yours:
+  a step holds 500".
+- **Marks the author had edited that go.** A copy of an edited mark of the
+  card, pasted onto the old step, keeps its tag (the clipboard), so the swap
+  takes it with the rest (RM6); the toast says so with Undo, as Replace and
+  another way do.
+- **Where it is offered.** Annotate's notice shows in the Step pane and over
+  the Layers pane's list (whose "Nothing drawn yet." said nothing of the
+  marks the picture holds). The Step pane's Picture section leaves the verb
+  out while Annotate's notice offers it, as it leaves out Adjust Pose in
+  Pose. Out of Annotate the Annotations summary of such a step with no marks
+  of its own reads "Its marks are part of its picture", not "No
+  annotations".
+
 ### 10. File format (`diagram/document/diagramFile.ts`)
 
 - `ANNOTATION_FIELDS` (`diagramFile.ts:1004`) gains:
@@ -680,7 +714,11 @@ rollout's domain events and has no Diagram rows (amended in 17d's review):
   on|off|picture|7|9|12|16|other}`: a label's Bold, Halo or Size changed in
   Layers. It answers whether people style text beyond what they pull.
 - **New `diagram references marks lifted`** `{via: annotate_notice|step_pane,
-  count_bucket}`.
+  count_bucket}`. *As built (17e):* `via` also `card_menu`, as the Step
+  pane's verb is the step catalog's, which the card's menu shares, and
+  `layers_notice`, Annotate's notice over the Layers pane's list (17e's
+  review). `count_bucket` is the marks the step holds from its card after,
+  not the card's whole lift: fewer on an enlarged step (§9).
 - **New `diagram imported mark edited`** `{kind, edit: changed|deleted}`. It
   fires from the store action when a tag goes from `untouched` to `edited` or
   a tagged mark is deleted. It answers whether people edit what they pull. It
@@ -1608,11 +1646,147 @@ Open, Zach's call (built as §4 says until he says otherwise):
 
 ### 17e: Existing steps
 
-- [ ] Make Marks Editable in Annotate's notice and the Step pane, with the
+- [x] Make Marks Editable in Annotate's notice and the Step pane, with the
   disabled reason past the cap.
-- [ ] `diagram references marks lifted`; i18n.
-- [ ] The export rename, if RM5 says so.
-- [ ] Browser: an old diagram opened unchanged, then a step made editable.
+- [x] `diagram references marks lifted`; i18n.
+- [x] The export rename, if RM5 says so.
+- [x] Browser: an old diagram opened unchanged, then a step made editable.
+- [x] The Pages view's regression from 17d (37% slower lifted): measured,
+  fixed, measured again.
+
+**17e as built** (2026-10-07: built, reviewed, fixed and verified; commit
+`28a7cb97e`):
+- **Model.** `makeCardMarksEditable(document, stepId, lifted)`
+  (`diagramDocument.ts`) gives an old step its own card from the same side,
+  split as a fresh pull splits it (`liftedCardPicture`, every mark shown),
+  through 17d's `swapCardMarks`. The card's marks go first and the author's
+  over them. `annotatedPictureKey` moves only when the author's marks were in
+  step (or there are none). An enlarged step's marks go into its window.
+  `revision` is bumped, and a `source.marks` that recorded a Show menu choice
+  records both marks now. It refuses another card, the other side, a lifted
+  step, an empty lift and a lift that would not fit. The store's
+  `makeDiagramStepMarksEditable` is one undo step ("Make marks editable").
+- **Gate.** `editableCardMarks(step, style)` (`referencesCardMarks.ts`)
+  returns `{lifted, total, fits}`. It returns null unless the step's sheet
+  still holds liftable pieces. That is how an old step is told from a lifted
+  one, by its model and with no flag (§6). The count is the lift run uncapped
+  (`liftCardMarks` gained a `cap`), cached per picture and style key. The cap
+  counts the whole card, as a pull's does, an enlarged step included.
+- **Action.** `makeStepMarksEditable(stepId, via)`
+  (`diagram/references/makeMarksEditable.ts`) lifts, then counts from the
+  committed step:
+  - the card's marks the step holds now, used for the toast's title and for
+    `count_bucket`;
+  - the marks an enlarged step's frame left out;
+  - the edited card marks the swap replaced. An edited mark pasted onto the
+    old step keeps its tag, so the swap takes it with the rest.
+  Either of the last two adds a note to the toast, with Undo, e.g. "Step 2’s
+  4 marks are editable now · 6 marks outside the enlarged frame were left
+  out", or "Replaced a mark you had edited". The toast helpers that Replace
+  and Way share moved to `cardMarksToast.ts`.
+- **Where it is offered.**
+  - Annotate's notice (`DiagramCardMarksNotice`, with its own CSS module), in
+    the Step pane (`via: annotate_notice`) and over the Layers list
+    (`layers_notice`).
+  - The step catalog's `make-marks-editable`, in the Step pane's Picture
+    section (`step_pane`) and in the card's menu, which shares the catalog
+    (`card_menu`). The Picture section leaves the verb out while Annotate's
+    notice offers it.
+  - The plan named neither the card menu nor the Layers notice, so those two
+    `via`s are new (§11).
+  - Past the cap the verb is disabled, with the reason as its title, and the
+    notice shows the reason inline: "612 marks: a step holds 500", or "501
+    marks with yours: a step holds 500".
+  - Out of Annotate, such a step's summary reads "Its marks are part of its
+    picture" instead of "No annotations".
+- **RM5.** The export dialog's row is "Reference lines", hinted "The lines a
+  step lines up against." (`paperExport.referenceLines(Hint)`).
+- **Performance.** A CPU profile showed that the double paint was not most of
+  17d's cost. Each compile of a step's marks re-derived the style's inks,
+  including `referencesPaperTokens`' 40-step colour bisection. That was about
+  three quarters of each compile, and the layout compiles a step at every
+  size it measures. Two fixes:
+  - The inks and the seen style are worked out once per style object
+    (`perSeenStyle`, `annotationPrimitives.tsx`).
+  - `cellPicture` compiles a step's marks once, where it used to paint them
+    twice. `placeAnnotations` returns the bounds and a function that makes
+    the markup.
+
+  The plan's per-step drawing cache was not added: performance is under the
+  bar without it, and a cold layout measures steps at sizes it has not
+  compiled at.
+- **Tests that fail before the change:**
+  - `pagePictures.compile.test.ts` and `annotationInk.test.ts`: at
+    `115e15fd2`, 2 compiles and 8 colour searches.
+  - `makeMarksEditable.test.ts`: an enlarged step's count, toast and Undo,
+    and a pasted edited mark's toast and Undo.
+  - The Step pane tests (no second verb in Annotate; the summary), the Layers
+    test (the notice), and the catalog test (the reason's two wordings).
+
+  Also new or extended: `cardMarks.test.ts`, `referencesCardMarks.test.ts`
+  and the event's test.
+- **Verify** (`artifacts/references-marks/17e/verify/` and
+  `17e-evidence.png`; Chromium, crane.osf, dev server :5310):
+  - **The look.** Step 1 was converted from Annotate's notice and step 2 from
+    the Step pane, both by real clicks. Pixels that differ by more than 64
+    levels:
+    - the composed first page: 2 of 3.6M (max 70);
+    - the Steps-view cards: 228 and 136, all at the letters;
+    - the Annotate canvas: 1,149 and 679. The on-screen letters are set in a
+      slightly wider face and sit a few px over (§4).
+
+    Light and dark give the same counts. No page or console errors.
+  - **Performance against the pre-17d code.** `perf-versions.mjs` loads
+    `68efa59fc`, `115e15fd2` and the working tree into one page (the old
+    trees were extracted beside `src` with `git archive`, then removed). It
+    times 30 steps of 17d's fixture over 80 rounds. 25th percentile, ms:
+
+    | | pre-17d baked | 17d lifted | 17e lifted | 17e baked |
+    | --- | --- | --- | --- | --- |
+    | Layout | 31.6 | 36.4 (+15%) | 26.2 (−17%) | 30.7 |
+    | Compose | 9.2 | 16.6 (+80%) | 8.0 (−13%) | 7.0 |
+
+    By minimum and median, 17e lifted compose is −14% and −10%. At every
+    version, pre-17d included, a baked layout runs at two speeds about 2x
+    apart, in about half the rounds, so its median misleads.
+
+    At 50 steps (one run), 17e lifted is −15% (layout) and −5% (compose) at
+    p25, and −13% and −3% at the minimum. Its compose median is +37%, because
+    more of its rounds landed in its slow speed, whose times match pre-17d's.
+  - **The export dialog** shows "Reference lines" and its hint in both
+    themes, and "Line highlights" nowhere.
+  - **From the implementer's and fixer's runs** (`17e/editable.mjs`,
+    `fix/fixes.mjs`, `fix/crowded.mjs`, light and dark):
+    - crane.osf writes back identical to the file;
+    - Cmd/Ctrl+Z restores the baked picture and the notice, and Shift+Z
+      lifts again;
+    - an author's circle stays last and in step;
+    - past the cap, both places show the verb disabled.
+  - **Gate**, on exactly what was committed: lint, typecheck and i18n:check
+    pass; the whole vitest suite passes (888 files; 11,992 tests, 15
+    skipped). Not run here, and left for 17f: WebKit and phone width, and
+    `build:web`.
+
+**Open for Zach** (17e):
+- **An old enlarged step's conversion** changes its picture (§9 as built).
+  §5's rule drops the marks the frame cuts, and the toast now announces them
+  with Undo. The alternatives:
+  - (a) Leave those marks baked in the sheet, so the picture does not change.
+    That needs a partly lifted sheet with a key of its own, a notice that
+    knows the frame, and a second Make Editable after Unenlarge that adds
+    rather than swaps.
+  - (c) Disable the verb on an enlarged step. But converting and then
+    enlarging by hand keeps every mark whole past the frame (17d's spill).
+- **Composing alone, against 17e's own baked step.** Against the pre-17d
+  code (§13's bar) both layout and compose are faster. A lifted step still
+  composes about 14% slower than a baked one does in 17e, because 17e also
+  made baked composing about 24% faster. If that comparison matters, the fix
+  is a cache of each placed step's final markup, so recomposing skips
+  `renderToStaticMarkup`.
+- **Open in References** (found in review, not 17e): from a Diagram step it
+  opens on the Finished card, not the step's card, so Export step… is
+  disabled there. `openDiagramStepInReferences` passes no `card`, whereas §8
+  says it opens the plan's card.
 
 ### 17f: Close-out
 
