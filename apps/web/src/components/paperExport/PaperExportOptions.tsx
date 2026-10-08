@@ -155,10 +155,11 @@ export function PaperExportOptions({
             t('dialogs:paperExport.letters', 'Letters'),
             t('dialogs:paperExport.lettersHint', 'The names of the points a step refers to.')
           )}
+          {/* The name the Diagram's References browser gives the same marks (RM5). */}
           {markRow(
             'highlights',
-            t('dialogs:paperExport.highlights', 'Line highlights'),
-            t('dialogs:paperExport.highlightsHint', 'The accent over the lines a step lines up.')
+            t('dialogs:paperExport.referenceLines', 'Reference lines'),
+            t('dialogs:paperExport.referenceLinesHint', 'The lines a step lines up against.')
           )}
         </section>
       )}

@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramAnnotateRail } from './DiagramAnnotateRail';
 
@@ -15,6 +16,7 @@ afterEach(() => {
   container?.remove();
   container = null;
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('DiagramAnnotateRail', () => {
@@ -68,5 +70,114 @@ describe('DiagramAnnotateRail', () => {
     expect(held).toEqual(['Enlarge', 'Enlarge in Frame']);
     act(() => (container!.querySelector('[aria-label="Enlarge"]') as HTMLButtonElement).click());
     expect(onTool).not.toHaveBeenCalled();
+  });
+
+  it('offers Solid among the line types, and while it is the type, the colour the next solid line is drawn in (17a)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    // What Radix's select asks of the DOM, which jsdom does not have.
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => undefined;
+    Element.prototype.scrollIntoView ??= () => undefined;
+    useSettingsStore.setState({ diagramAnnotateLineType: 'valley', diagramAnnotateLineColor: null });
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    act(() =>
+      root!.render(
+        <TooltipProvider>
+          <DiagramAnnotateRail tool={null} readOnly={false} onTool={() => undefined} />
+        </TooltipProvider>
+      )
+    );
+    const types = [...container.querySelectorAll('[role="group"][aria-label="Line Type"] button')].map((button) =>
+      button.getAttribute('aria-label')
+    );
+    expect(types).toEqual(['Valley', 'Mountain', 'Hidden', 'Solid']);
+    const color = () => container!.querySelector<HTMLButtonElement>('button[aria-label="Line Color"]');
+    expect(color()).toBeNull();
+    act(() => container!.querySelector<HTMLButtonElement>('[role="group"][aria-label="Line Type"] button[aria-label="Solid"]')!.click());
+    expect(useSettingsStore.getState().diagramAnnotateLineType).toBe('solid');
+    expect(color()!.textContent).toBe('Ink');
+    act(() => color()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    const reference = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((each) => each.textContent === 'Reference')!;
+    act(() => reference.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    expect(useSettingsStore.getState().diagramAnnotateLineColor).toBe('#c91d87');
+    expect(color()!.textContent).toBe('Reference');
+  });
+
+  it('shows the Text Style under Text while the Label tool is in hand, and keeps what it sets for the next label (17b)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => undefined;
+    Element.prototype.scrollIntoView ??= () => undefined;
+    useSettingsStore.setState({ diagramAnnotateTextStyle: { color: null, bold: false, halo: false, sizePt: null } });
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const render = (tool: 'label' | null) =>
+      act(() =>
+        root!.render(
+          <TooltipProvider>
+            <DiagramAnnotateRail tool={tool} readOnly={false} onTool={() => undefined} />
+          </TooltipProvider>
+        )
+      );
+    const group = () => container!.querySelector('section[aria-label="Text Style"]');
+    render(null);
+    expect(group()).toBeNull();
+    render('label');
+    // Right under the Text group.
+    const sections = [...container.querySelectorAll('section')].map((each) => each.getAttribute('aria-label'));
+    expect(sections.slice(-2)).toEqual(['Text', 'Text Style']);
+    const color = () => group()!.querySelector<HTMLButtonElement>('button[aria-label="Text Color"]')!;
+    const size = () => group()!.querySelector<HTMLButtonElement>('button[aria-label="Size"]')!;
+    const bold = () => group()!.querySelector<HTMLButtonElement>('button[aria-label="Bold"]')!;
+    const halo = () => group()!.querySelector<HTMLButtonElement>('button[aria-label="Halo"]')!;
+    // Today's look until one is chosen.
+    expect([color().textContent, size().textContent]).toEqual(['Ink', 'With the picture']);
+    expect([bold().getAttribute('aria-pressed'), halo().getAttribute('aria-pressed')]).toEqual(['false', 'false']);
+    const choose = (select: HTMLButtonElement, name: string) => {
+      act(() => select.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+      const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((each) => each.textContent === name)!;
+      act(() => option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    };
+    choose(color(), 'Reference');
+    act(() => bold().click());
+    act(() => halo().click());
+    choose(size(), '9 pt');
+    expect(useSettingsStore.getState().diagramAnnotateTextStyle).toEqual({ color: '#c91d87', bold: true, halo: true, sizePt: 9 });
+    expect([bold().getAttribute('aria-pressed'), halo().getAttribute('aria-pressed')]).toEqual(['true', 'true']);
+    expect(size().textContent).toBe('9 pt');
+    // Size says what it sets by its glyph, as the colour select says its colour by its swatch.
+    expect(size().querySelector('[data-glyph="text-size"]')).not.toBeNull();
+  });
+
+  it('brings the Text Style into the rail’s view when the Label tool is taken, on a screen too short to show it (17b)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    // An iPad on its side: the rail's column ends at 700 px; the group comes in at 680–868.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const rect = (top: number, bottom: number) => ({ top, bottom, left: 0, right: 180, x: 0, y: top, width: 180, height: bottom - top }) as DOMRect;
+      if (this.dataset.railPart === 'groups') return rect(0, 700);
+      if (this.getAttribute('aria-label') === 'Text Style') return rect(680, 868);
+      return rect(0, 0);
+    });
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const render = (tool: 'label' | null) =>
+      act(() =>
+        root!.render(
+          <TooltipProvider>
+            <DiagramAnnotateRail tool={tool} readOnly={false} onTool={() => undefined} />
+          </TooltipProvider>
+        )
+      );
+    render(null);
+    const column = container.querySelector<HTMLDivElement>('[data-rail-part="groups"]')!;
+    Object.defineProperty(column, 'clientHeight', { configurable: true, value: 700 });
+    let scrolled = 0;
+    Object.defineProperty(column, 'scrollTop', { configurable: true, get: () => scrolled, set: (value: number) => (scrolled = value) });
+    render('label');
+    expect(scrolled).toBe(168);
   });
 });

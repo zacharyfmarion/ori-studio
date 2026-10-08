@@ -6,6 +6,8 @@
  * card, the one it shows now marked).
  */
 import { trackDiagramReferencesBrowserOpened } from '../../analytics';
+import type { PaperExportMark } from '../../lib/paperExportSettings';
+import { useSettingsStore } from '../../store/settingsStore';
 import { stepSheetNow } from '../capture/stepSheetNow';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramReferencesBrowserState } from '../../store/workspaceStore/types';
@@ -50,8 +52,29 @@ export function replaceStepFromReferences(stepId: string): void {
       shown: { plan: plan ?? null, card, line: line ? { n: [line.n[0], line.n[1]], d: line.d } : null },
       // Its plan may have been made again since: then it opens on its sheet's.
       sheet: stepSheetNow(step.source)?.boundary ?? step.source.region.boundary,
+      // The marks it pulled, as the Show menu opens (17d).
+      ...(step.source.marks ? { marks: { ...step.source.marks } } : {}),
     }
   );
+}
+
+/**
+ * The Show menu's switch for one mark (17d, RM4): shown or hidden for the
+ * pull the open browser makes, and remembered for later pulls — that mark
+ * alone, over the choice remembered. A Replace opens on its step's own
+ * choice, which is the step's, not the author's choice for later pulls: a
+ * step pulled without letters, replaced with only its reference lines
+ * switched, leaves later pulls their letters.
+ */
+export function toggleReferencesMark(mark: PaperExportMark): void {
+  const browser = useWorkspaceStore.getState().diagramReferencesBrowser;
+  if (!browser) return;
+  const settings = useSettingsStore.getState();
+  const remembered = settings.diagramReferencesMarks;
+  const shown = browser.marks ?? remembered;
+  const next = { letters: shown.letters, highlights: shown.highlights, [mark]: !shown[mark] };
+  settings.setDiagramReferencesMarks({ ...remembered, [mark]: next[mark] });
+  useWorkspaceStore.getState().setDiagramReferencesBrowser({ marks: next });
 }
 
 function open(

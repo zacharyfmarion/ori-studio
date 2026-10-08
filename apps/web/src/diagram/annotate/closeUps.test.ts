@@ -75,7 +75,7 @@ describe('a new close-up (15f)', () => {
   });
 
   it('is two circles, not ends: nothing to shape, flip, write in or put behind', () => {
-    expect(annotationEnds('close-up')).toEqual([]);
+    expect(annotationEnds({ kind: 'close-up' })).toEqual([]);
     expect(behindEnds('close-up')).toEqual([]);
     expect(canBeShaped('close-up')).toBe(false);
     expect(flipsArc('close-up')).toBe(false);

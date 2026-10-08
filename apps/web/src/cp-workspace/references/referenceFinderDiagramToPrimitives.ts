@@ -78,6 +78,18 @@ export type StepDiagramPrimitive =
        * a line drawn whole.
        */
       dashPhase?: number;
+      /**
+       * Its own colour, over its style's: a Diagram solid line's (17a of
+       * `diagram-references-annotations.md`). References never sets it, so a
+       * card and its goldens draw as they did; a stored card never carries it.
+       */
+      ink?: string;
+      /**
+       * Its stretches behind a flap, as shares of its length from `from`,
+       * dotted in its own pen and colour as an arrow's are (15e): a Diagram
+       * solid line's. References never sets it.
+       */
+      hidden?: HiddenStretches;
     }
   | {
       kind: 'arc';

@@ -65,6 +65,8 @@ import {
   isWithinReach,
   type AnnotationReach,
 } from '../annotate/annotationModel';
+import { isAnnotationColor } from '../annotate/annotationColors';
+import { TEXT_OFFSET_PT_MAX, TEXT_SIZE_PT } from '../annotate/textStyle';
 import { windowReach } from '../zoom/zoomModel';
 import { NEWER_PAPER_FACES, SCENE_JSON_MAX_BYTES, readPaperFaces } from './paperFacesFile';
 import {
@@ -97,6 +99,7 @@ import {
   type DiagramAnnotation,
   type DiagramAnnotationKind,
   type DiagramBehind,
+  type DiagramImportedMark,
   type DiagramPathNode,
   type DiagramPleatKinks,
   type DiagramRotation,
@@ -358,7 +361,12 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     width,
     tail,
     fill,
+    color,
     text,
+    bold,
+    halo,
+    sizePt,
+    offsetPt,
     rotate,
     axis,
     other,
@@ -375,6 +383,7 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     angle,
     edge,
     anchor,
+    imported,
     unknown: _known,
     ...unwritten
   } = annotation;
@@ -391,7 +400,13 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(width !== undefined ? { width } : {}),
     ...(tail !== undefined ? { tail } : {}),
     ...(fill !== undefined ? { fill } : {}),
+    ...(color !== undefined ? { color } : {}),
     ...(text !== undefined ? { text } : {}),
+    // Text's options (17b), each only as it is set: a plain label is written as every label was before them.
+    ...(bold ? { bold } : {}),
+    ...(halo ? { halo } : {}),
+    ...(sizePt !== undefined ? { sizePt } : {}),
+    ...(offsetPt !== undefined ? { offsetPt: [offsetPt[0], offsetPt[1]] } : {}),
     ...(rotate !== undefined ? { rotate } : {}),
     ...(axis !== undefined ? { axis } : {}),
     ...(other !== undefined ? { other } : {}),
@@ -407,6 +422,8 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(angle !== undefined ? { angle } : {}),
     ...(edge !== undefined ? { edge } : {}),
     ...(anchor !== undefined ? { anchor } : {}),
+    // A mark lifted from a References card (17d); the author's own are written as every mark was.
+    ...(imported !== undefined ? { imported } : {}),
     // From end to end, as a reader expects it.
     ...(behind !== undefined
       ? { behind: { ...(behind.from !== undefined ? { from: behind.from } : {}), ...(behind.to !== undefined ? { to: behind.to } : {}) } }
@@ -740,6 +757,20 @@ export function storedReferencesSource(source: DiagramReferencesSource): Diagram
   return readReferencesSource(JSON.parse(JSON.stringify(source)) as Record<string, unknown>);
 }
 
+/**
+ * Marks as a step stores them (17d): written and read back through the
+ * file's own reader, as {@link storedReferencesSource} is, so the marks lifted
+ * from a card are field for field what a load gives — the same shapes, in
+ * the same order. One the reader would not take as this build's is left out.
+ */
+export function storedAnnotations(
+  annotations: readonly KnownDiagramAnnotation[],
+  reach: AnnotationReach = PICTURE_REACH
+): KnownDiagramAnnotation[] {
+  const written = JSON.parse(JSON.stringify(annotations.map(writeAnnotation))) as unknown;
+  return readAnnotations(written, reach).filter(isKnownAnnotation);
+}
+
 /** A References source, every field checked; null when any does not read. */
 function readReferencesSource(value: Record<string, unknown>): DiagramReferencesSource | null {
   const region = readRegionReference(value.region);
@@ -760,6 +791,7 @@ function readReferencesSource(value: Record<string, unknown>): DiagramReferences
   const plan = typeof value.plan === 'string' && value.plan.length > 0 ? value.plan : undefined;
   const way = typeof value.way === 'string' && value.way.length > 0 ? value.way : undefined;
   const sentence = typeof value.sentence === 'string' ? xmlText(value.sentence) : undefined;
+  const marks = readPulledMarks(value.marks);
   return {
     kind: 'references-step',
     region,
@@ -773,7 +805,18 @@ function readReferencesSource(value: Record<string, unknown>): DiagramReferences
     ...(plan !== undefined ? { plan } : {}),
     ...(way !== undefined ? { way } : {}),
     ...(sentence !== undefined ? { sentence } : {}),
+    ...(marks !== undefined ? { marks } : {}),
   };
+}
+
+/**
+ * Which of a card's marks a step pulled (17d): letters and reference lines,
+ * each a boolean. One that does not read is dropped alone, as a plan or a
+ * way is: the step pulls every mark again, as one sent before the choice.
+ */
+function readPulledMarks(value: unknown): DiagramReferencesSource['marks'] {
+  if (!isRecord(value) || typeof value.letters !== 'boolean' || typeof value.highlights !== 'boolean') return undefined;
+  return { letters: value.letters, highlights: value.highlights };
 }
 
 /** The four planner settings, each a boolean; undefined when they do not read. */
@@ -1017,7 +1060,8 @@ function hasKnownAsset(assets: Record<string, DiagramAsset>, id: string): boolea
 
 /** The fields each kind is written with; any other makes the annotation a newer build's. */
 const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<string>>> = (() => {
-  const base = ['id', 'kind', 'from', 'to'];
+  // Every kind can be a mark lifted from a References card (17d).
+  const base = ['id', 'kind', 'from', 'to', 'imported'];
   const fields = (...more: string[]) => new Set([...base, ...more]);
   return {
     'valley-arrow': fields('bend', 'path', 'behind'),
@@ -1031,7 +1075,8 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'valley-line': fields('behind'),
     'mountain-line': fields('behind'),
     'hidden-line': fields(),
-    label: fields('text'),
+    'solid-line': fields('color', 'behind'),
+    label: fields('text', 'color', 'bold', 'halo', 'sizePt', 'offsetPt'),
     circle: fields('behind'),
     'right-angle': fields(),
     callout: fields('text'),
@@ -1072,7 +1117,31 @@ function readAnnotations(value: unknown, reach: AnnotationReach): DiagramAnnotat
   return out;
 }
 
+/**
+ * One annotation: its kind's fields, then the tag a mark lifted from a
+ * References card carries (17d) — a state this build does not know is news,
+ * told before any damage, as for the rest.
+ */
 function readAnnotation(
+  id: string,
+  entry: Record<string, unknown>,
+  reach: AnnotationReach
+): KnownDiagramAnnotation | typeof NEWER | null {
+  const imported = readImported(entry.imported);
+  if (imported === NEWER) return NEWER;
+  const read = readAnnotationOfKind(id, entry, reach);
+  if (read === null || read === NEWER || imported === undefined) return read;
+  return imported === null ? null : { ...read, imported };
+}
+
+/** A lifted mark's tag (17d): unsaid, the author's; `untouched` or `edited`; another word, a newer build's; anything else, damage. */
+function readImported(value: unknown): DiagramImportedMark | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return null;
+  return value === 'untouched' || value === 'edited' ? value : NEWER;
+}
+
+function readAnnotationOfKind(
   id: string,
   entry: Record<string, unknown>,
   reach: AnnotationReach
@@ -1137,12 +1206,30 @@ function readAnnotation(
       if (first[0] !== from[0] || first[1] !== from[1] || last[0] !== to[0] || last[1] !== to[1]) return null;
       return { ...annotation, path, width, tail, ...(fill !== undefined ? { fill } : {}) };
     }
+    case 'label': {
+      // Its words, then its options (17b): news before damage, as for the rest.
+      const text = readLabelText(entry.text);
+      const color = readColor(entry.color);
+      const bold = readFlag(entry.bold);
+      const halo = readFlag(entry.halo);
+      const sizePt = readTextSize(entry.sizePt);
+      const offsetPt = readTextOffset(entry.offsetPt);
+      if (text === NEWER || color === NEWER || sizePt === NEWER || offsetPt === NEWER) return NEWER;
+      if (text === null || color === null || bold === null || halo === null || sizePt === null || offsetPt === null) return null;
+      return {
+        ...annotation,
+        text,
+        ...(color !== undefined ? { color } : {}),
+        ...(bold ? { bold: true } : {}),
+        ...(halo ? { halo: true } : {}),
+        ...(sizePt !== undefined ? { sizePt } : {}),
+        ...(offsetPt !== undefined ? { offsetPt } : {}),
+      };
+    }
     // A callout's words are read as a label's: one line, as long as a label may be.
-    case 'label':
     case 'callout': {
-      if (typeof entry.text !== 'string') return null;
-      const text = xmlText(entry.text);
-      return text.length > LABEL_MAX_LENGTH ? NEWER : { ...annotation, text };
+      const text = readLabelText(entry.text);
+      return text === null || text === NEWER ? text : { ...annotation, text };
     }
     case 'rotate': {
       const rotate = readRotation(entry.rotate);
@@ -1204,6 +1291,12 @@ function readAnnotation(
     }
     case 'zoom':
       return readZoomArea(annotation, entry);
+    case 'solid-line': {
+      // Its colour (17a); unsaid, the style's arrow ink.
+      const color = readColor(entry.color);
+      if (color === NEWER || color === null) return color;
+      return color !== undefined ? { ...annotation, color } : annotation;
+    }
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
     case 'push-arrow':
@@ -1269,6 +1362,53 @@ function readTicks(value: unknown): DiagramTicks | undefined | typeof NEWER | nu
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) return null;
   return value <= 3 ? (value as DiagramTicks) : NEWER;
+}
+
+/** A label's or a callout's words: one line, as long as a label may be; longer, a newer build's; not a string, damage. */
+function readLabelText(value: unknown): string | typeof NEWER | null {
+  if (typeof value !== 'string') return null;
+  const text = xmlText(value);
+  return text.length > LABEL_MAX_LENGTH ? NEWER : text;
+}
+
+/** A label's Bold or halo (17b), read as `numbered` is: unsaid or false, no; true, yes; anything else, damage. */
+function readFlag(value: unknown): boolean | null {
+  if (value === undefined) return false;
+  return typeof value === 'boolean' ? value : null;
+}
+
+/**
+ * A label's size in pt (17b): unsaid, with the picture; a finite number from
+ * 4 to 48, that size; a larger one, a newer build's; anything else, damage.
+ */
+function readTextSize(value: unknown): number | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < TEXT_SIZE_PT.min) return null;
+  return value <= TEXT_SIZE_PT.max ? value : NEWER;
+}
+
+/**
+ * How far a label's words hang off its anchor, in pt (17b): unsaid, centred
+ * on it; two finite numbers each within ±200 pt, that offset; one further, a
+ * newer build's; anything else, damage.
+ */
+function readTextOffset(value: unknown): [number, number] | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const [dx, dy] = value as unknown[];
+  if (typeof dx !== 'number' || typeof dy !== 'number' || !Number.isFinite(dx) || !Number.isFinite(dy)) return null;
+  return Math.abs(dx) <= TEXT_OFFSET_PT_MAX && Math.abs(dy) <= TEXT_OFFSET_PT_MAX ? [dx, dy] : NEWER;
+}
+
+/**
+ * A solid line's colour (17a), or a label's (17b): unsaid, the style's arrow ink; a `#rrggbb`
+ * string, that colour; any other string, a newer build's — a named colour, a
+ * theme's — and anything else, damage. Read as a white arrow's fill is.
+ */
+function readColor(value: unknown): string | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return null;
+  return isAnnotationColor(value) ? value : NEWER;
 }
 
 /** A white arrow's fill: unsaid, the page's white; `black`, a solid arrow (15d); another word, a newer build's; anything else, damage. */

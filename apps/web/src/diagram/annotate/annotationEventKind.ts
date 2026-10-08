@@ -1,6 +1,8 @@
-import type { DiagramAnnotationTool } from '../../analytics/events';
+import type { DiagramAnnotationColor, DiagramAnnotationTool, DiagramTextSize, DiagramTextToggle } from '../../analytics/events';
 import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
-import { isSolidArrow } from './annotationModel';
+import { annotationColorName } from './annotationColors';
+import { carriesColor, carriesTextStyle, isSolidArrow } from './annotationModel';
+import { TEXT_SIZES_PT } from './textStyle';
 
 /** Each kind in the analytics events' spelling: a new kind is a type error until it has one. */
 const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationTool>> = {
@@ -15,6 +17,7 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'valley-line': 'valley_line',
   'mountain-line': 'mountain_line',
   'hidden-line': 'hidden_line',
+  'solid-line': 'solid_line',
   label: 'label',
   circle: 'circle',
   'right-angle': 'right_angle',
@@ -38,4 +41,42 @@ export function annotationEventKind(
   if (isSolidArrow(annotation)) return 'solid_arrow';
   if (annotation.kind === 'zoom' && annotation.radius === undefined && annotation.size !== undefined) return 'enlarge_frame';
   return ANNOTATION_TOOL[annotation.kind];
+}
+
+/**
+ * A mark's colour as the analytics events name it (17a): by the palette's
+ * name, or `custom` — never its value — for a kind that has a colour; none
+ * for any other.
+ */
+export function annotationEventColor(annotation: Pick<KnownDiagramAnnotation, 'kind' | 'color'>): DiagramAnnotationColor | undefined {
+  return carriesColor(annotation.kind) ? annotationColorName(annotation.color) : undefined;
+}
+
+/** A label's size as the analytics events name it (17b): with the picture, one Size offers, or `other` — never its value. */
+export function textSizeName(sizePt: number | null | undefined): DiagramTextSize {
+  if (sizePt === null || sizePt === undefined) return 'picture';
+  return TEXT_SIZES_PT.includes(sizePt) ? (String(sizePt) as DiagramTextSize) : 'other';
+}
+
+/** On or off, as the analytics events name a label's Bold and halo (17b). */
+export function textToggleName(on: boolean | undefined): DiagramTextToggle {
+  return on ? 'on' : 'off';
+}
+
+/**
+ * What `diagram annotation added` says of a mark beyond its kind (17a, 17b):
+ * a solid line's colour by name, and a label's colour, Bold, halo and size;
+ * nothing for any other mark.
+ */
+export function annotationEventDetail(
+  annotation: Pick<KnownDiagramAnnotation, 'kind' | 'color' | 'bold' | 'halo' | 'sizePt'>
+): { color?: DiagramAnnotationColor; bold?: DiagramTextToggle; halo?: DiagramTextToggle; size?: DiagramTextSize } {
+  const color = annotationEventColor(annotation);
+  if (!carriesTextStyle(annotation.kind)) return color ? { color } : {};
+  return {
+    ...(color ? { color } : {}),
+    bold: textToggleName(annotation.bold),
+    halo: textToggleName(annotation.halo),
+    size: textSizeName(annotation.sizePt),
+  };
 }

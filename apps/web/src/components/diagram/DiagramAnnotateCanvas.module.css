@@ -86,6 +86,15 @@
   pointer-events: none;
 }
 
+/*
+ * A solid line's wash, under its stroke (`SelectionUnder`): the line's pen is
+ * nearly as wide as the wash, so the wash is widened by about one more pen to
+ * show either side of it.
+ */
+.selection[data-selection-under] {
+  stroke-width: 12px;
+}
+
 .handle {
   fill: #ffffff;
   stroke: var(--annotate-selection);

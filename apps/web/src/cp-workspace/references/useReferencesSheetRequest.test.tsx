@@ -63,6 +63,18 @@ describe('useReferencesSheetRequest', () => {
     expect(state().referencesSheetRequest).toBeNull();
   });
 
+  it('asks for the step’s card on the sheet it opened, after the switch', () => {
+    const card = { number: 2, line: { n: [1, 0] as [number, number], d: 0.5 } };
+    state().setReferencesSelectedSheet(5);
+    useWorkspaceStore.setState({ referencesSheetRequest: { boundary: SHEET_TWO, mode: 'sequence', card } });
+    act(() => root!.render(<Harness frames={FRAMES} />));
+    expect(state().referencesSelectedSheet).toBe(2);
+    expect(state().referencesCardRequest).toEqual({ sheet: 2, card });
+    // Another sheet chosen before the plan lands drops it.
+    act(() => state().setReferencesSelectedSheet(5));
+    expect(state().referencesCardRequest).toBeNull();
+  });
+
   it('switches nothing, and counts nothing, when the sheet is already open in that mode', () => {
     state().setReferencesSelectedSheet(2);
     state().setReferencesView({ mode: 'sequence' });

@@ -23,6 +23,7 @@
 import { ANNOTATE_SELECTION_INK, CARD_FRAME_PX } from '../annotate/canvasInk';
 import { frameOf, type PictureFrame } from '../annotate/annotationModel';
 import { annotatedPicture, hasDrawnAnnotations, paintAnnotations } from '../annotate/paintAnnotations';
+import type { AnnotationPaper } from '../annotate/annotationPrimitives';
 import type { PictureCover, PictureLayers } from '../annotate/pictureGeometry';
 import type {
   DiagramAnnotation,
@@ -45,7 +46,7 @@ import {
 import { paintedFrameLongerPx, stepPictureFrame } from '../pictures/pictureFrame';
 import { prefixIds } from '../pictures/prefixIds';
 import { SVG_NS } from '../upload/svgSanitize';
-import { marksInWindow, viewOfStep, type StepZoomView } from './stepView';
+import { marksInWindow, sourcePaper, viewOfStep, type StepZoomView } from './stepView';
 import { paperSilhouette, zoomEdgeDrawn, zoomEdgePaths, zoomOvershootMm, type ZoomEdgeDrawn } from './zoomEdge';
 import { zoomCornerRadius, zoomEdgeOf, zoomShapeOf, type PictureBox } from './zoomModel';
 
@@ -303,7 +304,15 @@ export function zoomedCardPicture(
   if (!painted) return null;
   const marks = marksInWindow(zoomed.view.window, annotations);
   if (!hasDrawnAnnotations(marks)) return painted.svg;
-  return annotatedPicture(painted, marks, style, 1, layers, (scale) => paintZoomedPicture(zoomed, style, { scale }));
+  return annotatedPicture(
+    painted,
+    marks,
+    style,
+    1,
+    layers,
+    (scale) => paintZoomedPicture(zoomed, style, { scale }),
+    sourcePaper(zoomed.source, zoomed.view.window)
+  );
 }
 
 /**
@@ -452,7 +461,8 @@ export function posedZoomPicture(
   annotations: readonly DiagramAnnotation[],
   style: DiagramStyle,
   opacity: number,
-  layers: PictureLayers | null = null
+  layers: PictureLayers | null = null,
+  paper: AnnotationPaper | null = null
 ): string {
   const longer = Math.max(painted.frame.width, painted.frame.height);
   const k = longer / Math.max(pictureFrame.width, pictureFrame.height);
@@ -463,7 +473,7 @@ export function posedZoomPicture(
     height: view.window.height * k,
   };
   const placement = zoomPlacement(view, pictureFrame, window);
-  const marks = paintAnnotations(annotations, window, CARD_FRAME_PX, style, layers);
+  const marks = paintAnnotations(annotations, window, CARD_FRAME_PX, style, layers, { paper });
   // The picture, its marks, and its frame's outline, which may reach past the picture: an area round the model's edge.
   const reach = ZOOM_GHOST_PEN.picture / 2;
   const boxes = [

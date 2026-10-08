@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { trackDiagramAnnotationBehind } from '../../analytics';
+import { trackDiagramAnnotationBehind, trackDiagramAnnotationRecolored, trackDiagramTextStyled } from '../../analytics';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating, selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
@@ -18,15 +18,17 @@ import {
 } from '../document/diagramDocument';
 import { EDIT_PATH } from './annotateTools';
 import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
-import { annotationEventKind } from './annotationEventKind';
+import { annotationEventColor, annotationEventKind, textSizeName, textToggleName } from './annotationEventKind';
 import {
   hasTicks,
   withBehind,
   withBehindLayers,
   withCloseUpScale,
+  withColor,
   withDivisionsOffset,
   withNumbered,
   withParts,
+  withTextStyle,
   withWhiteArrowLook,
   type WhiteArrowLook,
 } from './annotationModel';
@@ -34,6 +36,8 @@ import { pathNodesOf } from './annotationPath';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
 import { isLineKind, lineKindOf, type DiagramLineType } from './lineTypes';
 import { markGeometry, viewFrame, viewOfStep } from '../zoom/stepView';
+import { makeStepMarksEditable } from '../references/makeMarksEditable';
+import { editableCardMarks } from '../references/referencesCardMarks';
 
 /**
  * A mark first put behind a flap, counted (15e): which of its ends — a
@@ -47,11 +51,18 @@ function trackBehind(annotation: KnownDiagramAnnotation): void {
 }
 
 const NO_ANNOTATIONS: readonly KnownDiagramAnnotation[] = [];
+
+/** One of a label's options, as the Layers pane sets it (17b): Bold or a halo on or off, or its size in pt — null for With the picture. */
+export type TextStyleOption = { option: 'bold' | 'halo'; value: boolean } | { option: 'size'; value: number | null };
+
+/** The colour pick last counted (17a): every move of one pick is one recolouring. Picks are numbered app-wide (`DiagramColorSelect`). */
+let countedPick: number | null = null;
 const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 /**
  * A step's annotations (D13), for the Step pane (the Snap switch, the notice
- * that the picture changed) and the Layers pane (the list and the selected
+ * that the picture changed, the notice that a References step's card's marks
+ * are part of its picture, with Make Editable) and the Layers pane (the list and the selected
  * one's controls): what the selected step carries, which
  * one is selected, and the verbs on the selected one — its
  * text, its turn, its axis, a white arrow's look, a line's type, and the catalog's (`annotationActions.ts`: Flip
@@ -116,6 +127,10 @@ export function useStepAnnotations(step: DiagramStep | null) {
       keep: () => {
         if (stepId !== null) store().keepDiagramAnnotations(stepId);
       },
+      /** Annotate's notice's Make Editable (17e), in the Step pane or the Layers pane: the card's marks lifted out of the picture. */
+      makeMarksEditable: (via: 'annotate_notice' | 'layers_notice') => {
+        if (stepId !== null) makeStepMarksEditable(stepId, via);
+      },
       setText: (id: string, text: string, session: number) =>
         change(id, 'Edit label', (annotation) => ({ ...annotation, text }), session),
       setRotation: (id: string, rotate: DiagramRotation) => change(id, 'Change rotation', (annotation) => ({ ...annotation, rotate })),
@@ -150,11 +165,44 @@ export function useStepAnnotations(step: DiagramStep | null) {
       /** How many times larger a close-up draws its area (15f), held to its range, as one undo step. */
       setCloseUpScale: (id: string, scale: number) =>
         change(id, 'Change close-up', (annotation) => withCloseUpScale(annotation, scale)),
-      /** A line made another type (15a): the same line, its ends and id kept, as one undo step. */
+      /**
+       * A line made another type (15a): the same line, its ends and id kept,
+       * as one undo step. A solid line made another type loses its colour (17a).
+       */
       setLineType: (id: string, type: DiagramLineType) =>
         change(id, 'Change line type', (annotation) =>
-          isLineKind(annotation.kind) ? { ...annotation, kind: lineKindOf(type) } : annotation
+          isLineKind(annotation.kind) ? withColor({ ...annotation, kind: lineKindOf(type) }, annotation.color ?? null) : annotation
         ),
+      /**
+       * A solid line's colour (17a), null for the style's ink, as one undo
+       * step — every move of one pick in the colour picker (`pick`) the same
+       * step — and counted once per pick.
+       */
+      setColor: (id: string, color: string | null, pick?: number) => {
+        const before = current(id);
+        change(id, 'Change color', (annotation) => withColor(annotation, color), pick);
+        const after = current(id);
+        if (!before || !after || before.color === after.color) return;
+        if (pick !== undefined && countedPick === pick) return;
+        countedPick = pick ?? null;
+        const name = annotationEventColor(after);
+        if (name) trackDiagramAnnotationRecolored(annotationEventKind(after), name);
+      },
+      /**
+       * A label's Bold, halo or size (17b), as one undo step, counted when it
+       * changes what the label is: `size` in pt, or null for With the picture.
+       */
+      setTextStyle: (id: string, option: TextStyleOption) => {
+        const before = current(id);
+        const label = option.option === 'size' ? 'Change text size' : option.option === 'bold' ? 'Change bold' : 'Change halo';
+        const style = option.option === 'size' ? { sizePt: option.value } : { [option.option]: option.value };
+        change(id, label, (annotation) => withTextStyle(annotation, style));
+        const after = current(id);
+        // Counted once it changed what the label is, not for a choice it already had.
+        if (!before || !after || before === after) return;
+        if (option.option === 'size') trackDiagramTextStyled('size', textSizeName(after.sizePt));
+        else trackDiagramTextStyled(option.option, textToggleName(after[option.option]));
+      },
       /**
        * One end of a mark put behind a flap or brought back in front (15e), as
        * one undo step: behind as deep as an end already is, else one layer
@@ -174,6 +222,9 @@ export function useStepAnnotations(step: DiagramStep | null) {
       setSnap: (value: boolean) => useSettingsStore.getState().setDiagramAnnotateSnap(value),
     };
   }, [stepId, loadId]);
+
+  // A References step whose card's marks are part of its picture (17e, RM8): Annotate says so, and offers to lift them.
+  const cardMarks = useMemo(() => (step && style ? editableCardMarks(step, style) : null), [step, style]);
 
   // Only a flat fold knows its layers, and so its flaps (15e).
   const knowsFlaps = useMemo(() => step !== null && markGeometry(step, assets, style).kind === 'flat-fold', [step, assets, style]);
@@ -199,6 +250,11 @@ export function useStepAnnotations(step: DiagramStep | null) {
     unknownCount: step ? step.annotations.length - known.length : 0,
     /** They were drawn on another picture (D8): Annotate says so until they are touched. */
     outOfStep: step !== null && step.picture !== null && annotationsOutOfStep(step),
+    /**
+     * What Make Editable would lift from a References step's card whose marks
+     * are part of its picture (17e), and whether they fit; null for any other step.
+     */
+    cardMarks,
     selected,
     editable,
     actions,

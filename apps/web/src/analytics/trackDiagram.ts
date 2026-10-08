@@ -11,7 +11,11 @@ import {
   bucketCount,
 } from './events';
 import type {
+  DiagramAnnotationColor,
   DiagramAnnotationSnap,
+  DiagramTextSize,
+  DiagramTextStyleOption,
+  DiagramTextToggle,
   DiagramAnnotationTool,
   DiagramDivisionsPlaced,
   DiagramBehindEnds,
@@ -33,7 +37,11 @@ import type {
   DiagramPictureUploadOutcome,
   DiagramPoseAction,
   DiagramPulledInto,
+  DiagramPulledMarks,
   DiagramPulledMode,
+  DiagramImportedMarkEdit,
+  DiagramMarksLiftedVia,
+  PaperExportMarkShown,
   DiagramSourceWorkspace,
   DiagramShowAsName,
   DiagramShowAsVia,
@@ -91,18 +99,52 @@ export function trackDiagramStepOpened(via: DiagramStepOpenedVia, mode: DiagramS
 }
 
 /**
+ * What `diagram annotation added` says about some marks alone: how equal
+ * divisions were laid, a solid line's or a label's colour, and a label's
+ * Bold, halo and size (17b).
+ */
+export interface DiagramAnnotationAddedDetail {
+  placed?: DiagramDivisionsPlaced;
+  color?: DiagramAnnotationColor;
+  bold?: DiagramTextToggle;
+  halo?: DiagramTextToggle;
+  size?: DiagramTextSize;
+}
+
+/**
  * An annotation drawn on a step's picture, by its tool, and how it was put
  * down: snapped, freely, or neither — and equal divisions, whether they were
- * dragged or put on a line with a click (`placed`). Which marks a diagram is
+ * dragged or put on a line with a click (`placed`), a solid line, the
+ * colour it was drawn in, by name (`color`, 17a), and a label, its colour,
+ * Bold, halo and size, as the rail's Text Style set them (17b). Which marks a diagram is
  * drawn with, whether Annotate is used at all, and whether snapping helps.
- * Never where it is, nor a label's words.
+ * Never where it is, nor a label's words, nor a colour's value.
  */
 export function trackDiagramAnnotationAdded(
   tool: DiagramAnnotationTool,
   snap: DiagramAnnotationSnap,
-  placed?: DiagramDivisionsPlaced
+  detail: DiagramAnnotationAddedDetail = {}
 ): void {
-  track(ANALYTICS_EVENTS.diagramAnnotationAdded, placed === undefined ? { tool, snap } : { tool, snap, placed });
+  track(ANALYTICS_EVENTS.diagramAnnotationAdded, { tool, snap, ...detail });
+}
+
+/**
+ * A label's Bold, Halo or Size changed in the Layers pane (17b): which, and
+ * what to — whether people style text beyond what they pull from References.
+ * Never the text, nor a size but by name.
+ */
+export function trackDiagramTextStyled(option: DiagramTextStyleOption, value: DiagramTextToggle | DiagramTextSize): void {
+  track(ANALYTICS_EVENTS.diagramTextStyled, { option, value });
+}
+
+/**
+ * A solid line's colour changed in the Layers pane (17a), or a label's (17b): its kind and the
+ * colour, by name — whether a line's colour is changed after it is drawn,
+ * and to what. Once per pick: a custom colour dragged about in the picker is
+ * one. Never the colour itself.
+ */
+export function trackDiagramAnnotationRecolored(kind: DiagramAnnotationTool, color: DiagramAnnotationColor): void {
+  track(ANALYTICS_EVENTS.diagramAnnotationRecolored, { kind, color });
 }
 
 /**
@@ -217,13 +259,35 @@ export function trackDiagramReferencesBrowserOpened(into: DiagramPulledInto): vo
 export function trackDiagramStepsPulledFromReferences(
   mode: DiagramPulledMode,
   into: DiagramPulledInto,
-  count: number
+  count: number,
+  shown: { letters: PaperExportMarkShown; reference_lines: PaperExportMarkShown; marks: DiagramPulledMarks }
 ): void {
   track(ANALYTICS_EVENTS.diagramStepsPulledFromReferences, {
     mode,
     into,
     count_bucket: bucketCount(count, COUNT_BUCKETS),
+    ...shown,
   });
+}
+
+/**
+ * A mark a References card brought edited for the first time, or taken
+ * away (17d): its kind — a pulled letter is a `label` — and which. Fired by
+ * the edit, so after an undo a fresh edit counts again: a rough count of
+ * whether people edit what they pull. Never the mark.
+ */
+export function trackDiagramImportedMarkEdited(kind: DiagramAnnotationTool, edit: DiagramImportedMarkEdit): void {
+  track(ANALYTICS_EVENTS.diagramImportedMarkEdited, { kind, edit });
+}
+
+/**
+ * An old References step's card's marks made annotations by Make Marks
+ * Editable (17e): where it was pressed, and how many of its card's marks the
+ * step holds now — on an enlarged step, those its frame holds — bucketed.
+ * Never a mark.
+ */
+export function trackDiagramReferencesMarksLifted(via: DiagramMarksLiftedVia, count: number): void {
+  track(ANALYTICS_EVENTS.diagramReferencesMarksLifted, { via, count_bucket: bucketCount(count, COUNT_BUCKETS) });
 }
 
 /** The Diagram's view switched, by the tabs or a verb that shows the pages. */

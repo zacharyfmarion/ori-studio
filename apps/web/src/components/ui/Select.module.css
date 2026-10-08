@@ -14,6 +14,11 @@
   box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
 }
 
+/* A short list shown whole, as far as the window allows (`fit="available"`). */
+.content[data-fit='available'] {
+  max-height: var(--radix-select-content-available-height);
+}
+
 .viewport {
   padding: 4px;
 }
@@ -47,6 +52,18 @@
   align-items: center;
   justify-content: center;
   width: 16px;
+}
+
+/* A colour an option names, drawn as a dot before its label (`SelectSwatch`):
+   in the list and, the option chosen, in the trigger. */
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 7px;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  vertical-align: -1px;
 }
 
 @media (pointer: coarse) {

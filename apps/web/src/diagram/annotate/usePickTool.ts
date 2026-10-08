@@ -16,7 +16,7 @@ import {
 } from './angleBisector';
 import { ANGLE_BISECTOR, isPickTool, type AnnotateTool } from './annotateTools';
 import { placePoint, snapOutcome, type SnapContext } from './annotateSnap';
-import { angleMarkAt, cleanAnnotation, isDegenerate, MIN_ANNOTATION_LENGTH, type PicturePoint } from './annotationModel';
+import { angleMarkAt, cleanAnnotation, isDegenerate, MIN_ANNOTATION_LENGTH, withColor, type PicturePoint } from './annotationModel';
 import { lineKindOf, type DiagramLineType } from './lineTypes';
 import { setPickProgress, type AngleMarkStep } from './pickProgress';
 import { nearestLine } from './nearestLine';
@@ -82,6 +82,7 @@ export function usePickTool({
   style,
   tool,
   lineType,
+  lineColor,
   readOnly,
   snapContext,
   showSnap,
@@ -92,6 +93,8 @@ export function usePickTool({
   style: DiagramStyle;
   tool: AnnotateTool;
   lineType: DiagramLineType;
+  /** The colour a solid line is drawn in (17a); null for the style's ink. */
+  lineColor: string | null;
   readOnly: boolean;
   snapContext: () => SnapContext;
   showSnap: (targets: readonly (SnapTarget | null)[]) => void;
@@ -178,7 +181,9 @@ export function usePickTool({
       const store = useWorkspaceStore.getState();
       const made: KnownDiagramAnnotation[] = [];
       if (drawn) {
-        const line = cleanAnnotation({ id: randomDiagramId('annotation'), kind: lineKindOf(lineType), ...drawn.line });
+        const line = cleanAnnotation(
+          withColor({ id: randomDiagramId('annotation'), kind: lineKindOf(lineType), ...drawn.line }, lineColor)
+        );
         if (!isDegenerate(line, MIN_ANNOTATION_LENGTH)) made.push(line);
       }
       const angle = drawn ? drawn.angle : mark;
@@ -199,7 +204,7 @@ export function usePickTool({
           : snapOutcome('angle-mark', { enabled: snapContext().enabled, free, snapped: vertex });
       trackDiagramAnnotationAdded(drawn ? 'angle_bisector' : 'angle_mark', snap);
     },
-    [lineType, step.id, snapContext]
+    [lineType, lineColor, step.id, snapContext]
   );
 
   /** A press: the next pick, and — the last — what it draws. Whether it was taken. */
@@ -260,11 +265,11 @@ export function usePickTool({
         setDrafts((current) => (current.length === 0 ? current : []));
         return;
       }
-      const line: KnownDiagramAnnotation = { id: 'annotation-pick-line', kind: lineKindOf(lineType), ...drawn.line };
+      const line = withColor({ id: 'annotation-pick-line', kind: lineKindOf(lineType), ...drawn.line }, lineColor);
       const placed = drawn.angle ? angleMarkAt(drawn.angle.vertex, drawn.angle.arms[0], drawn.angle.arms[1]) : null;
       setDrafts(placed ? [line, { id: 'annotation-pick-mark', kind: 'angle-mark', ...placed }] : [line]);
     },
-    [tool, readOnly, pressAt, showSnap, lineType]
+    [tool, readOnly, pressAt, showSnap, lineType, lineColor]
   );
 
   /** Escape: the last pick taken back. Whether there was one. */

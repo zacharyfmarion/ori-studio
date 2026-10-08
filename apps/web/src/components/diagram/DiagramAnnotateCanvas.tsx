@@ -7,6 +7,7 @@ import {
   arrowPolyline,
   divisionsInPicture,
   divisionsOffsetGrip,
+  labelBox,
   pleatArrowInPicture,
   rightAngleGrips,
   rightAngleInPicture,
@@ -39,7 +40,6 @@ import {
   calloutShape,
   canBeShaped,
   closeUpShape,
-  labelHalfWidth,
   LABEL_SIZE,
 } from '../../diagram/annotate/annotationModel';
 import {
@@ -55,7 +55,7 @@ import { ViewportToolbar } from '../panels/ViewportToolbar';
 import { DiagramAnnotateToolWindow } from './DiagramAnnotateToolWindow';
 import { DiagramAnnotationLayer } from './DiagramAnnotationLayer';
 import { DiagramCloseUpInsides } from './DiagramCloseUpInsides';
-import { markGeometry } from '../../diagram/zoom/stepView';
+import { markGeometry, markPaper } from '../../diagram/zoom/stepView';
 import { zoomGrips } from '../../diagram/zoom/zoomGrips';
 import { zoomOutlineOf, zoomOutlinePoints } from '../../diagram/zoom/zoomModel';
 import { DiagramZoomView } from './DiagramZoomView';
@@ -110,9 +110,11 @@ export function DiagramAnnotateCanvas({
     camera;
   // A flat fold's layers, in the marks' units: a mark behind a flap is dotted under it as it is drawn (15e).
   const layers = useMemo(() => markGeometry(step, assets, style).layers, [step, assets, style]);
+  // A References picture's sheet, in the marks' units: a label's halo is filled with the face it stands on (17b).
+  const paper = useMemo(() => markPaper(step, assets), [step, assets]);
   const drawing = useMemo(
-    () => (layout ? annotationDrawing(shown, layout.pictureFrame, CARD_FRAME_PX, style, layers) : null),
-    [layout, shown, style, layers]
+    () => (layout ? annotationDrawing(shown, layout.pictureFrame, CARD_FRAME_PX, style, layers, paper) : null),
+    [layout, shown, style, layers, paper]
   );
   // Each close-up's inside, under the marks: the picture painted again, larger (15f).
   const insides = useCloseUpInsides({
@@ -123,6 +125,7 @@ export function DiagramAnnotateCanvas({
     zoomed: canvas.zoomed,
     style,
     layers,
+    paper,
     pictureFrame: layout?.pictureFrame ?? null,
     framePx: CARD_FRAME_PX,
   });
@@ -211,6 +214,7 @@ export function DiagramAnnotateCanvas({
                   role="img"
                   aria-label={t('panels:diagram.annotate.canvasLabel', 'Annotations on the step’s picture')}
                 >
+                  {selected && <SelectionUnder annotation={selected} layout={layout} />}
                   {drawing && (
                     <g
                       transform={`translate(${layout.frame.x} ${layout.frame.y}) scale(${layout.unit / CARD_FRAME_PX})`}
@@ -287,10 +291,10 @@ function box({ x, y, width, height }: { x: number; y: number; width: number; hei
 }
 
 /**
- * Where the selected annotation is, over everything: a wash along it, and a
- * dot at each end of a line or an arrow to take hold of (`annotationEnds`) —
- * a callout's at its point; its box is taken where it is drawn. Sized for
- * the screen at any zoom.
+ * Where the selected annotation is, over everything: a wash along it — a
+ * solid line's is under it (`SelectionUnder`) — and a dot at each end of a
+ * line or an arrow to take hold of (`annotationEnds`) — a callout's at its
+ * point; its box is taken where it is drawn. Sized for the screen at any zoom.
  */
 function Selection({
   annotation,
@@ -320,7 +324,7 @@ function Selection({
   let box: ReturnType<typeof calloutShape>['box'] | null = null;
   switch (annotation.kind) {
     case 'label':
-      return ring(labelHalfWidth(annotation.text ?? '') + 0.1 * LABEL_SIZE);
+      return <LabelSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
     case 'turn-over':
     case 'rotate':
       return ring(GLYPH_REACH);
@@ -356,6 +360,10 @@ function Selection({
     case 'mountain-line':
     case 'hidden-line':
       path = [annotation.from, annotation.to];
+      break;
+    case 'solid-line':
+      // Washed under its stroke (`SelectionUnder`): over it, the wash would tint the colour it is drawn in.
+      path = [];
       break;
     case 'pleat-arrow': {
       // Along its bolt, tail to tip.
@@ -401,12 +409,66 @@ function Selection({
           data-callout-box=""
         />
       )}
-      {movable && annotationEnds(annotation.kind).map((end) => {
+      {movable && annotationEnds(annotation).map((end) => {
         const [x, y] = at(annotation[end]);
         return <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />;
       })}
     </g>
   );
+}
+
+/**
+ * A selected label: washed round its words, at its size and weight (17b) —
+ * hung text's where they hang — and, for hung text, a dot at its anchor,
+ * which moves it whole and snaps as a callout's point does, tied to its words
+ * by a hairline, as a right angle's corner is tied to its vertex.
+ */
+function LabelSelection({
+  annotation,
+  layout,
+  zoom,
+  movable,
+}: {
+  annotation: KnownDiagramAnnotation;
+  layout: AnnotateLayout;
+  zoom: number;
+  movable: boolean;
+}) {
+  const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit] as const;
+  const { centre, halfWidth, size } = labelBox(annotation, LABEL_SIZE);
+  const radius = halfWidth + 0.1 * size;
+  const [cx, cy] = at(centre);
+  const ends = annotationEnds(annotation);
+  const [ax, ay] = at(annotation.from);
+  // From the anchor to the ring round the words, along the way between them; none where the anchor is inside it.
+  const apart = Math.hypot(centre[0] - annotation.from[0], centre[1] - annotation.from[1]);
+  const rim = apart > radius ? at([centre[0] + ((annotation.from[0] - centre[0]) * radius) / apart, centre[1] + ((annotation.from[1] - centre[1]) * radius) / apart]) : null;
+  return (
+    <g data-selection="">
+      <circle className={styles.selection} cx={cx} cy={cy} r={radius * layout.unit} />
+      {ends.length > 0 && rim && <CornerTie tie={{ x1: ax, y1: ay, x2: rim[0], y2: rim[1] }} zoom={zoom} />}
+      {movable &&
+        ends.map((end) => {
+          const [x, y] = at(annotation[end]);
+          return <circle key={end} className={styles.handle} cx={x} cy={y} r={HANDLE_PX / zoom} data-handle={end} />;
+        })}
+    </g>
+  );
+}
+
+/**
+ * The wash along a selected solid line (17a), painted under the drawing rather
+ * than over it as every other mark's is: a line is drawn in a colour of its
+ * own, and the wash laid over it tints that colour — an orange line read as
+ * mauve until it was let go. Under it, the line shows as it prints, in a wash
+ * either side. Its ends' dots stay over everything (`Selection`).
+ */
+function SelectionUnder({ annotation, layout }: { annotation: KnownDiagramAnnotation; layout: AnnotateLayout }) {
+  if (annotation.kind !== 'solid-line') return null;
+  const points = [annotation.from, annotation.to].map(
+    ([u, v]) => `${layout.frame.x + u * layout.unit},${layout.frame.y + v * layout.unit}`
+  );
+  return <polyline className={styles.selection} points={points.join(' ')} data-selection-under="" />;
 }
 
 /**
@@ -453,7 +515,7 @@ function DivisionsSelection({
       )}
       <line className={styles.measuredLine} x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth={TIE_PX / zoom} data-measured-line="" />
       {movable &&
-        annotationEnds(annotation.kind).map((end) => {
+        annotationEnds(annotation).map((end) => {
           const [x, y] = at(annotation[end]);
           return <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />;
         })}

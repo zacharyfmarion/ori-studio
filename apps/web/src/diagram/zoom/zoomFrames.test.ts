@@ -689,9 +689,12 @@ describe('an enlarged step’s own picture changed, by any edit of it (16g)', ()
     }
   });
 
-  it('a References step turned over, with no faces, mirrors its frame and its marks with the card', () => {
+  it('a References step turned over, with no faces, mirrors its frame and its marks with the card, its folds named from the back', () => {
     const card = { ...referencesStep('step-n'), zoom: { from: 'area-gone', shape: 'circle' as const, frame: { centre: [0.3, 0.4] as PicturePoint, radius: 0.1 } } };
-    const marks: KnownDiagramAnnotation[] = [{ id: 'mark', kind: 'valley-line', from: [0.1, 0.2], to: [0.9, 0.6] }];
+    const marks: KnownDiagramAnnotation[] = [
+      { id: 'mark', kind: 'valley-line', from: [0.1, 0.2], to: [0.9, 0.6] },
+      { id: 'arrow', kind: 'mountain-arrow', from: [0.25, 0.35], to: [0.35, 0.45] },
+    ];
     const document = insertSteps(createDiagram({ title: 'Card' }), [{ ...card, annotations: marks, annotatedPictureKey: card.picture!.key }], 0);
     const turned = step(setReferencesSide(document, 'step-n', true));
     expect(turned.zoom!.frame!.centre).toEqual([expect.closeTo(0.7, 12), expect.closeTo(0.4, 12)]);
@@ -699,6 +702,19 @@ describe('an enlarged step’s own picture changed, by any edit of it (16g)', ()
     // On the unit sheet, mirrored left to right.
     const [was, now] = [marksInPicture(step(document)).get('mark')!, marksInPicture(turned).get('mark')!];
     was.forEach(([x, y], index) => expect(distance(now[index]!, [1 - x, y])).toBeLessThan(1e-9));
+    // Kept in the window's units, each fold is named from the other side as on a whole step (RM7: 17c).
+    expect((turned.annotations as KnownDiagramAnnotation[]).map((mark) => mark.kind)).toEqual(['mountain-line', 'valley-arrow']);
+    const back = step(setReferencesSide({ ...document, steps: [turned] }, 'step-n', false));
+    expect((back.annotations as KnownDiagramAnnotation[]).map((mark) => mark.kind)).toEqual(['valley-line', 'mountain-arrow']);
+  });
+
+  it('enlarged and turned whole again, names nothing: a change of units is the same side', () => {
+    const card = { ...referencesStep('step-n'), zoom: { from: 'area-gone', shape: 'circle' as const, frame: { centre: [0.3, 0.4] as PicturePoint, radius: 0.1 } } };
+    const marks: KnownDiagramAnnotation[] = [{ id: 'mark', kind: 'valley-line', from: [0.1, 0.2], to: [0.9, 0.6] }];
+    const document = insertSteps(createDiagram({ title: 'Card' }), [{ ...card, annotations: marks, annotatedPictureKey: card.picture!.key }], 0);
+    const whole = step(unenlargeStep(document, 'step-n', NO_ASSETS));
+    expect(whole.zoom).toBeUndefined();
+    expect((whole.annotations as KnownDiagramAnnotation[]).map((mark) => mark.kind)).toEqual(['valley-line']);
   });
 });
 

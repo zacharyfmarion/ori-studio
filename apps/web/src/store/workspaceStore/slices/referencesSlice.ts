@@ -50,7 +50,8 @@ export function restoredReferencesState(
   loadSerial: number,
   settings: ReferencesSettings
 ): Partial<ReferencesSliceState> {
-  if (!saved) return { referencesRestore: null };
+  // A card asked for names a sheet of the document before this one.
+  if (!saved) return { referencesRestore: null, referencesCardRequest: null };
   const next = { ...settings, ...saved.settings };
   return {
     referencesSettings: { ...next, candidateCount: clampCandidateCount(next.candidateCount) },
@@ -65,6 +66,7 @@ export function restoredReferencesState(
     referencesPlan: null,
     referencesRun: { status: 'idle' },
     referencesRestore: { loadSerial, sheet: saved.sheet, card: saved.activeCard },
+    referencesCardRequest: null,
   };
 }
 
@@ -86,6 +88,7 @@ export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (se
   referencesRestore: null,
   referencesAnalysisRequest: 0,
   referencesSheetRequest: null,
+  referencesCardRequest: null,
 
   setReferencesTarget: (target) => set({ referencesTarget: target }),
   setReferencesPlan: (plan) => set({ referencesPlan: plan }),
@@ -101,7 +104,7 @@ export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (se
   //
   // A choice of sheet is also the end of whatever an open restored and had not
   // placed yet: the sheet it named is no longer wanted, and the card it named
-  // is that sheet's.
+  // is that sheet's. So is a card asked for from a diagram step.
   setReferencesSelectedSheet: (component) => {
     if (get().referencesSelectedSheet === component) return;
     const restore = get().referencesRestore;
@@ -113,6 +116,7 @@ export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (se
       referencesRun: { status: 'idle' },
       referencesView: DEFAULT_REFERENCES_VIEW,
       referencesRestore: restore ? { ...restore, sheet: null, card: null } : null,
+      referencesCardRequest: null,
     });
   },
   setReferencesView: (view) => set({ referencesView: { ...get().referencesView, ...view } }),
@@ -176,5 +180,14 @@ export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (se
     const request = get().referencesSheetRequest;
     if (request) set({ referencesSheetRequest: null });
     return request;
+  },
+
+  requestReferencesCard: (sheet, card) => set({ referencesCardRequest: { sheet, card } }),
+
+  takeReferencesCardRequest: (sheet) => {
+    const request = get().referencesCardRequest;
+    if (request?.sheet !== sheet) return null;
+    set({ referencesCardRequest: null });
+    return request.card;
   },
 });

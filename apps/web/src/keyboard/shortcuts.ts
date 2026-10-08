@@ -114,6 +114,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolValleyLine'
   | 'diagram.toolMountainLine'
   | 'diagram.toolHiddenLine'
+  | 'diagram.toolSolidLine'
   | 'diagram.toolLabel'
   | 'diagram.toolCircle'
   | 'diagram.toolRightAngle'
@@ -622,6 +623,10 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolValleyLine', 'Valley Line', { shift: true, key: 'v' }),
   diagramShortcut('diagram.toolMountainLine', 'Mountain Line', { shift: true, key: 'm' }),
   diagramShortcut('diagram.toolHiddenLine', 'Hidden Line', { key: 'h' }),
+  // Shift+L for the solid line (17a), as Shift+V and Shift+M pick theirs: L
+  // alone is the label's. References' scope has a Shift+L of its own, and the
+  // two scopes are never live together.
+  diagramShortcut('diagram.toolSolidLine', 'Solid Line', { shift: true, key: 'l' }),
   diagramShortcut('diagram.toolLabel', 'Label', { key: 'l' }),
   // O for the ring it draws.
   diagramShortcut('diagram.toolCircle', 'Circle', { key: 'o' }),

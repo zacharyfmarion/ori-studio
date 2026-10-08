@@ -66,7 +66,7 @@ export interface PaperExportedEvent {
   /** How many pages the ZIP holds; read only for every page. */
   pageCount: number;
   /**
-   * Whether the page carried the step's letters and its line highlights; set
+   * Whether the page carried the step's letters and its reference lines; set
    * only for a surface that offers them (References), and sent only then.
    */
   letters?: PaperExportMarkShown;

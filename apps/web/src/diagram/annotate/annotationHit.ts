@@ -64,7 +64,9 @@ import {
   divisionsPartsOf,
   isCornerKind,
   rightAngleDiagonal,
+  labelCentre,
   labelHalfWidth,
+  labelSize,
   pathCubics,
   pathLength,
   type PicturePoint,
@@ -72,6 +74,7 @@ import {
 import { nearestPathPoint, pathNodesOf, visiblePathHandles } from './annotationPath';
 import { ANNOTATION_INK_MM } from './canvasInk';
 import { perAnnotation } from './perAnnotation';
+import { TEXT_HALO_EMS } from './textStyle';
 import { zoomGripAt, type ZoomGrip } from '../zoom/zoomGrips';
 import { distanceToRim, zoomOutlineOf } from '../zoom/zoomModel';
 
@@ -114,7 +117,7 @@ export interface HitSizes {
   tolerance: number;
   /** A glyph's reach from its centre: the turn-over and rotate signs. */
   glyph: number;
-  /** A label's letters' size. */
+  /** A label's letters' size, where it has none of its own in pt (17b). */
   label: number;
   /** One ink, as the canvas draws it: what a head's length and a push's width are measured in. */
   ink: number;
@@ -689,6 +692,26 @@ function closeUpGripAt(
 }
 
 /**
+ * Where a label's words are on the canvas, in picture units (17b): their
+ * centre — hung text's off its anchor — and half their box, at the label's
+ * size (`plain` when it has none in pt) and weight, a halo's half width past
+ * its letters. The one box a press, the selection's ring and the reach agree on.
+ */
+export function labelBox(
+  annotation: Pick<KnownDiagramAnnotation, 'from' | 'offsetPt' | 'text' | 'bold' | 'halo' | 'sizePt'>,
+  plain: number
+): { centre: PicturePoint; halfWidth: number; halfHeight: number; size: number } {
+  const size = annotation.sizePt !== undefined ? labelSize(annotation) : plain;
+  const halo = annotation.halo ? (TEXT_HALO_EMS * size) / 2 : 0;
+  return {
+    centre: labelCentre(annotation),
+    halfWidth: labelHalfWidth(annotation.text ?? '', { bold: annotation.bold === true, size }) + halo,
+    halfHeight: size * 0.6 + halo,
+    size,
+  };
+}
+
+/**
  * How far a press is from an annotation's body, as it is drawn; 0 inside a
  * glyph, a label, a push, a white arrow or a callout's box. A circle is its
  * ring, not its inside: an arrow drawn into it ends inside it, and a press
@@ -703,10 +726,10 @@ function bodyDistance(
 ): number {
   switch (annotation.kind) {
     case 'label': {
-      const halfWidth = labelHalfWidth(annotation.text ?? '');
-      const halfHeight = sizes.label * 0.6;
-      const dx = Math.max(0, Math.abs(point[0] - annotation.from[0]) - halfWidth);
-      const dy = Math.max(0, Math.abs(point[1] - annotation.from[1]) - halfHeight);
+      // Round its words' centre, at its size and weight, its halo too (17b): hung text's words, not its anchor.
+      const { halfWidth, halfHeight, centre } = labelBox(annotation, sizes.label);
+      const dx = Math.max(0, Math.abs(point[0] - centre[0]) - halfWidth);
+      const dy = Math.max(0, Math.abs(point[1] - centre[1]) - halfHeight);
       return Math.hypot(dx, dy);
     }
     case 'turn-over':
@@ -725,6 +748,7 @@ function bodyDistance(
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'solid-line':
       return distanceToSegment(point, annotation.from, annotation.to);
     case 'circle':
       return Math.abs(Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - circleRadius(sizes.ink));
@@ -752,10 +776,19 @@ function bodyDistance(
  * What a press at `point` takes hold of: an end of the selected annotation
  * first — the dots it shows (`annotationEnds`) — then the topmost annotation
  * whose body is within reach: a callout by its box, which moves alone, or
- * its line, which moves the whole. Null for empty paper.
+ * its line, which moves the whole; a label by its words, and by its halo or
+ * the margin round them only where nothing under it is within reach. Null
+ * for empty paper.
  */
 /** The marks filled with the page inside their outline: they hide what was drawn under them. */
 const HOLLOW_KINDS: ReadonlySet<DiagramAnnotationKind> = new Set(['push-arrow', 'white-arrow']);
+
+/**
+ * The lines drawn in the diagram's pens, under every mark. A solid line is a
+ * line to every other question, but it is drawn in References' pen among the
+ * marks, in the order they were added (17a), so it is pressed there too.
+ */
+const underMarks = (kind: DiagramAnnotationKind) => LINE_KINDS.has(kind) && kind !== 'solid-line';
 
 export function hitAnnotation(
   annotations: readonly DiagramAnnotation[],
@@ -785,7 +818,7 @@ export function hitAnnotation(
     // The ends it shows, and equal divisions' handle at the middle of their line.
     const handle = selected.kind === 'divisions' ? divisionsOffsetGrip(selected, sizes.ink) : null;
     const grips: { part: 'from' | 'to' | 'offset'; at: PicturePoint }[] = [
-      ...annotationEnds(selected.kind).map((part) => ({ part, at: selected[part] })),
+      ...annotationEnds(selected).map((part) => ({ part, at: selected[part] })),
       ...(handle ? [{ part: 'offset' as const, at: handle }] : []),
     ];
     const near = grips
@@ -796,8 +829,9 @@ export function hitAnnotation(
   }
   // An arrow that lands in a circle is drawn stopped on its ring: its head is pressed there.
   const marks = known.filter((annotation) => annotation.kind === 'circle').map(({ from }) => from);
-  // Topmost first, as they are drawn: labels over callouts over marks over
-  // lines over close-ups, whose insides are painted under everything, over
+  // Topmost first, as they are drawn: labels over callouts over marks — a
+  // solid line among them — over the pens' lines over close-ups, whose
+  // insides are painted under everything, over
   // enlarge areas — and
   // a circle over the other marks, its ring the one place to take it, where
   // an arrow that lands on it has the rest of its length; but not where a
@@ -808,17 +842,24 @@ export function hitAnnotation(
     // An enlarge area under everything, as a close-up's insides are: it marks an area, and what is inside it stays pressable.
     ...known.filter((annotation) => annotation.kind === 'zoom'),
     ...known.filter((annotation) => annotation.kind === 'close-up'),
-    ...known.filter((annotation) => LINE_KINDS.has(annotation.kind)),
+    ...known.filter((annotation) => underMarks(annotation.kind)),
     ...known.filter(
-      (annotation) => !LINE_KINDS.has(annotation.kind) && !last.has(annotation.kind) && !under.has(annotation.kind)
+      (annotation) => !underMarks(annotation.kind) && !last.has(annotation.kind) && !under.has(annotation.kind)
     ),
     ...known.filter((annotation) => annotation.kind === 'circle'),
     ...known.filter((annotation) => annotation.kind === 'callout'),
     ...known.filter((annotation) => annotation.kind === 'label'),
   ];
+  // A label pressed on its halo or the margin round it, not its words: taken only when nothing under it is (17d
+  // review). A pulled letter hangs beside its ring, its halo over the ring's near rim, which is the ring's to take.
+  let margin: AnnotationGrip | null = null;
   for (let index = drawn.length - 1; index >= 0; index -= 1) {
     const annotation = drawn[index]!;
     if (bodyDistance(annotation, point, sizes, marks) > sizes.tolerance) continue;
+    if (annotation.kind === 'label' && annotation.id !== selectedId && bodyDistance({ ...annotation, halo: undefined }, point, sizes, marks) > 0) {
+      margin ??= { annotationId: annotation.id, part: 'body' };
+      continue;
+    }
     if (annotation.kind === 'circle' && annotation.id !== selectedId) {
       // A hollow arrow drawn after a circle is filled with the page over it:
       // where it covers the press, the circle is hidden, and the press goes
@@ -842,7 +883,7 @@ export function hitAnnotation(
     const onBox = annotation.kind === 'callout' && calloutDistances(annotation, point, sizes.calloutPen).box <= sizes.tolerance;
     return { annotationId: annotation.id, part: onBox ? 'box' : 'body' };
   }
-  return null;
+  return margin;
 }
 
 /**

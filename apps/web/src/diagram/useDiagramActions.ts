@@ -56,6 +56,8 @@ import {
 } from './capture/stepCaptureActions';
 import { openDiagramStepInReferences } from './capture/referencesStepActions';
 import { fillStepFromReferences, replaceStepFromReferences } from './references/referencesBrowserActions';
+import { makeStepMarksEditable } from './references/makeMarksEditable';
+import { editableCardMarks } from './references/referencesCardMarks';
 import { linkStatusNow, useDiagramLinkStatuses } from './capture/useLinkStatus';
 import { stepPictureSource } from './pictures/paintDiagramStep';
 import { exportStepPicture } from './pictures/exportStepPicture';
@@ -189,10 +191,17 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       patternOpen: oristudioCpDocument !== null,
       showAs: showAsOfStep(step),
       poseAgain: needsPose(step),
+      cardMarks: cardMarksGate(step, diagram.style),
     },
     t,
     'card'
   );
+}
+
+/** Make Marks Editable's gate (17e): what lifting the step's card's marks would leave it holding; null where it has none to lift. */
+function cardMarksGate(step: DiagramStep, style: DiagramDocument['style']): DiagramStepActionState['cardMarks'] {
+  const marks = editableCardMarks(step, style);
+  return marks && { lifted: marks.lifted, total: marks.total, fits: marks.fits };
 }
 
 /** How a step linked to the pattern shows it, for Show as; null for any other step. */
@@ -274,6 +283,9 @@ function bindStepActions(
       openInReferences: () => openDiagramStepInReferences(stepId),
       fromReferences: () => fillStepFromReferences(stepId),
       replaceFromReferences: () => replaceStepFromReferences(stepId),
+      makeMarksEditable: () => {
+        makeStepMarksEditable(stepId, via === 'card' ? 'card_menu' : 'step_pane');
+      },
       showAs: (way) => {
         void showLinkedStepAs(stepId, way, via);
       },
@@ -340,6 +352,8 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
     step && state.diagram ? lightingChanged(step, state.diagram.style) : false
   );
   const facesMissing = step ? lacksPaperFaces(step) : false;
+  const style = useWorkspaceStore((state) => state.diagram?.style);
+  const cardMarks = useMemo(() => (step && style ? cardMarksGate(step, style) : null), [step, style]);
 
   return useMemo(
     () =>
@@ -364,6 +378,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
               patternOpen,
               showAs: showAsOfStep(step),
               poseAgain: step ? needsPose(step) : false,
+              cardMarks,
             },
             t,
             'pane'
@@ -385,6 +400,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
       facesMissing,
       capturing,
       patternOpen,
+      cardMarks,
       t,
     ]
   );

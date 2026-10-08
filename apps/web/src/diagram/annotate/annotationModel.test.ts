@@ -3,7 +3,13 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { cubicPoint } from '../../lib/cubicBezier';
 import { readFontMetrics } from '../fonts/fontMetrics';
-import { CJK_RUN_ADVANCE_RUNS, LABEL_ADVANCE_RUNS, labelAdvance } from './labelAdvances';
+import {
+  CJK_RUN_ADVANCE_RUNS,
+  CJK_RUN_BOLD_ADVANCE_RUNS,
+  LABEL_ADVANCE_RUNS,
+  LABEL_BOLD_ADVANCE_RUNS,
+  labelAdvance,
+} from './labelAdvances';
 import { scriptFonts, textCjkKey } from '../fonts/fontScripts';
 import { graphemesOf } from '../../lib/paper/textWrap';
 import type { DiagramPathNode, KnownDiagramAnnotation } from '../document/diagramDocument';
@@ -42,6 +48,7 @@ import {
   carryAnnotation,
   cleanAnnotation,
   createAnnotation,
+  kindFromOtherSide,
   defaultBend,
   flipAnnotationArc,
   frameOf,
@@ -189,6 +196,65 @@ describe('carrying one through its picture’s move', () => {
   });
 });
 
+describe('carrying one onto the paper’s other side (RM7: 17c)', () => {
+  const SIDE = { width: 1, height: 1 };
+  /** A References step turned over: mirrored, and seen from the other side. */
+  const turnOver = { ...mirrorMove(SIDE), otherSide: true as const };
+  const at = (kind: KnownDiagramAnnotation['kind']): KnownDiagramAnnotation => ({ id: kind, kind, from: [0.1, 0.2], to: [0.4, 0.3] });
+
+  it('names a valley line or arrow a mountain, and a mountain a valley', () => {
+    expect(carryAnnotation(at('valley-line'), turnOver)).toEqual({ ...at('valley-line'), kind: 'mountain-line', from: [0.9, 0.2], to: [0.6, 0.3] });
+    expect(carryAnnotation(at('mountain-line'), turnOver).kind).toBe('valley-line');
+    const valley = { ...at('valley-arrow'), bend: 0.1 };
+    expect(carryAnnotation(valley, turnOver)).toEqual({ ...valley, kind: 'mountain-arrow', from: [0.9, 0.2], to: [0.6, 0.3], bend: -0.1 });
+    expect(carryAnnotation(at('mountain-arrow'), turnOver)).toMatchObject({ kind: 'valley-arrow', bend: -ARROW_BEND });
+  });
+
+  it('names a shaped arrow’s fold from there too, every node and handle mirrored with it', () => {
+    const shaped: KnownDiagramAnnotation = {
+      id: 's',
+      kind: 'mountain-arrow',
+      from: [0.2, 0.5],
+      to: [0.6, 0.5],
+      path: [
+        { at: [0.2, 0.5], out: [0.3, 0.2] },
+        { at: [0.6, 0.5], in: [0.5, 0.2] },
+      ],
+    };
+    const turned = carryAnnotation(shaped, turnOver);
+    expect(turned.kind).toBe('valley-arrow');
+    expect(turned.path).toEqual([
+      { at: [0.8, 0.5], out: [0.7, 0.2] },
+      { at: [0.4, 0.5], in: [0.5, 0.2] },
+    ]);
+  });
+
+  it('moves every mark that says no way to fold, and keeps its kind', () => {
+    const folds = new Set(['valley-line', 'mountain-line', 'valley-arrow', 'mountain-arrow']);
+    for (const kind of ANNOTATION_KINDS) {
+      if (folds.has(kind)) expect(kindFromOtherSide(kind), kind).not.toBe(kind);
+      else expect(kindFromOtherSide(kind), kind).toBe(kind);
+    }
+    for (const kind of ['fold-unfold-arrow', 'hidden-line', 'solid-line', 'pleat-arrow', 'push-arrow', 'circle'] as const) {
+      const turned = carryAnnotation(at(kind), turnOver);
+      expect(turned.kind, kind).toBe(kind);
+      expect(turned.from, kind).toEqual([0.9, 0.2]);
+    }
+    const label: KnownDiagramAnnotation = { id: 'l', kind: 'label', from: [0.1, 0.2], to: [0.1, 0.2], text: 'P' };
+    expect(carryAnnotation(label, turnOver)).toEqual({ ...label, from: [0.9, 0.2], to: [0.9, 0.2] });
+  });
+
+  it('names each fold back on the way back, and only on a move onto the other side', () => {
+    for (const kind of ANNOTATION_KINDS) expect(kindFromOtherSide(kindFromOtherSide(kind)), kind).toBe(kind);
+    const valley = at('valley-line');
+    const near = (point: readonly number[]) => point.map((value) => expect.closeTo(value, 12));
+    expect(carryAnnotation(carryAnnotation(valley, turnOver), turnOver)).toEqual({ ...valley, from: near(valley.from), to: near(valley.to) });
+    // A mirror on the same side — an upload flipped, a mark flipped in place — names nothing.
+    expect(carryAnnotation(valley, mirrorMove(SIDE)).kind).toBe('valley-line');
+    expect(flipAnnotation(at('valley-arrow'), 'horizontal').kind).toBe('valley-arrow');
+  });
+});
+
 describe('keeping within reach', () => {
   it('stops an end, a new annotation and a carried point at the reach the file reads', () => {
     const line: KnownDiagramAnnotation = { id: 'l', kind: 'valley-line', from: [0.1, 0.5], to: [0.9, 0.5] };
@@ -240,10 +306,13 @@ describe('a label’s width', () => {
     for (const [text, half] of ink) expect(labelHalfWidth(text) / LABEL_SIZE, text).toBeGreaterThanOrEqual(half);
   });
 
-  it('sets its Latin as the bundled Noto Sans does, glyph for glyph, every glyph it has', () => {
-    const font = readFontMetrics(readFileSync(resolve(__dirname, '../fonts/NotoSans-Regular.ttf')));
+  it.each([
+    ['Regular', LABEL_ADVANCE_RUNS, false],
+    ['Bold', LABEL_BOLD_ADVANCE_RUNS, true],
+  ] as const)('sets its Latin as the bundled Noto Sans %s does, glyph for glyph, every glyph it has (Bold: 17b)', (weight, runs, bold) => {
+    const font = readFontMetrics(readFileSync(resolve(__dirname, `../fonts/NotoSans-${weight}.ttf`)));
     expect(font.unitsPerEm).toBe(1000);
-    for (const run of LABEL_ADVANCE_RUNS) {
+    for (const run of runs) {
       run.advances.forEach((advance, index) => {
         const codePoint = run.from + index;
         expect(advance, codePoint.toString(16)).toBe(font.has(codePoint) ? font.advance(codePoint) : -1);
@@ -251,7 +320,7 @@ describe('a label’s width', () => {
     }
     // All of its map: no block it sets is left out of the table (review: its punctuation and Vietnamese were).
     for (const codePoint of font.codePoints()) {
-      if (codePoint >= 0x20) expect(labelAdvance(codePoint), codePoint.toString(16)).toBe(font.advance(codePoint));
+      if (codePoint >= 0x20) expect(labelAdvance(codePoint, bold), codePoint.toString(16)).toBe(font.advance(codePoint));
     }
   });
 
@@ -272,6 +341,17 @@ describe('a label’s width', () => {
   // The CJK fonts are a build output: checked against them where they are built.
   const built = resolve(__dirname, '../../../public/fonts/diagram');
   const cjkFonts = existsSync(built) ? readdirSync(built).filter((name) => /^NotoSans(SC|TC|JP|KR)-Regular\.full\./.test(name)) : [];
+  const cjkBoldFonts = existsSync(built) ? readdirSync(built).filter((name) => /^NotoSans(SC|TC|JP|KR)-Bold\.full\./.test(name)) : [];
+  it.runIf(cjkBoldFonts.length === 4)('holds the widest the four CJK fonts’ Bold set each, for a bold label (17b)', () => {
+    const fonts = cjkBoldFonts.map((name) => readFontMetrics(readFileSync(resolve(built, name))));
+    for (const run of CJK_RUN_BOLD_ADVANCE_RUNS) {
+      run.advances.forEach((advance, index) => {
+        const codePoint = run.from + index;
+        const widest = Math.max(-1, ...fonts.filter((font) => font.has(codePoint)).map((font) => Math.round((font.advance(codePoint) * 1000) / font.unitsPerEm)));
+        expect(advance, codePoint.toString(16)).toBe(widest);
+      });
+    }
+  });
   it.runIf(cjkFonts.length === 4)('holds the widest the four CJK fonts set each, and a label as wide as any of them sets it', () => {
     const fonts = cjkFonts.map((name) => readFontMetrics(readFileSync(resolve(built, name))));
     for (const run of CJK_RUN_ADVANCE_RUNS) {
@@ -583,7 +663,7 @@ describe('an angle mark (15b)', () => {
     expect(moved.other![1]).toBeCloseTo(mark.other![1] - 0.2, 12);
     expect(isDegenerate(mark, MIN_ANNOTATION_LENGTH)).toBe(false);
     expect(isDegenerate({ ...mark, other: mark.to }, MIN_ANNOTATION_LENGTH)).toBe(true);
-    expect(annotationEnds('angle-mark')).toEqual([]);
+    expect(annotationEnds({ kind: 'angle-mark' })).toEqual([]);
   });
 
   it('is carried by a mirror and a turn, its arms with the picture', () => {
@@ -875,9 +955,9 @@ describe('a callout', () => {
 
   it('carries words, as a label does, and offers its point to take hold of, its box being taken where it is drawn', () => {
     expect(ANNOTATION_KINDS.filter(carriesText).sort()).toEqual(['callout', 'label']);
-    expect(annotationEnds('callout')).toEqual(['from']);
-    expect(annotationEnds('valley-arrow')).toEqual(['to', 'from']);
-    expect(annotationEnds('circle')).toEqual([]);
+    expect(annotationEnds({ kind: 'callout' })).toEqual(['from']);
+    expect(annotationEnds({ kind: 'valley-arrow' })).toEqual(['to', 'from']);
+    expect(annotationEnds({ kind: 'circle' })).toEqual([]);
   });
 
   it('moves whole by its line, and its box or its point alone', () => {
@@ -959,7 +1039,7 @@ describe('a pleat arrow (15c)', () => {
     expect(DEFAULT_PLEAT_KINKS).toBe(1);
     expect(canBeShaped('pleat-arrow')).toBe(false);
     expect(carriesText('pleat-arrow')).toBe(false);
-    expect(annotationEnds('pleat-arrow')).toEqual(['to', 'from']);
+    expect(annotationEnds({ kind: 'pleat-arrow' })).toEqual(['to', 'from']);
   });
 
   it('steps its Zs to the other side with Flip, and back, writing `mirrored` only when true', () => {
@@ -1026,9 +1106,18 @@ describe('a solid arrow (15d)', () => {
 describe('a mark behind a flap (15e)', () => {
   const arrow: KnownDiagramAnnotation = { id: 'a-1', kind: 'valley-arrow', from: [0.25, 0.5], to: [0.75, 0.5], bend: 0.125 };
 
-  it('can be behind at a fold or pleat arrow’s ends, a valley or mountain line’s, and a circle’s centre alone', () => {
+  it('can be behind at a fold or pleat arrow’s ends, a valley, mountain or solid line’s, and a circle’s centre alone', () => {
     const behind = ANNOTATION_KINDS.filter((kind) => behindEnds(kind).length > 0);
-    expect(behind).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'valley-line', 'mountain-line', 'circle']);
+    expect(behind).toEqual([
+      'valley-arrow',
+      'mountain-arrow',
+      'fold-unfold-arrow',
+      'pleat-arrow',
+      'valley-line',
+      'mountain-line',
+      'solid-line',
+      'circle',
+    ]);
     expect(behindEnds('circle')).toEqual(['from']);
     expect(behindEnds('hidden-line')).toEqual([]);
   });
@@ -1096,7 +1185,7 @@ describe('equal divisions (Revision 2)', () => {
     expect(canBeShaped('divisions')).toBe(false);
     expect(carriesText('divisions')).toBe(false);
     expect(behindEnds('divisions')).toEqual([]);
-    expect(annotationEnds('divisions')).toEqual(['to', 'from']);
+    expect(annotationEnds({ kind: 'divisions' })).toEqual(['to', 'from']);
     expect(placedByClick('divisions')).toBe(false);
     expect(ANNOTATION_KINDS.filter(hasTicks)).toEqual(['angle-mark', 'divisions']);
     expect(ANNOTATION_KINDS.indexOf('divisions')).toBe(ANNOTATION_KINDS.indexOf('angle-mark') + 1);

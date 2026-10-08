@@ -53,11 +53,16 @@ export function MenuItem(props: Unstyled<ComponentProps<typeof DropdownMenu.Item
   return <DropdownMenu.Item className={styles.item} {...props} />;
 }
 
-/** A row that is on or off. Its check is the caller's to draw, in `MenuItemIcon`. */
-export function MenuCheckboxItem(
-  props: Unstyled<ComponentProps<typeof DropdownMenu.CheckboxItem>>
-) {
-  return <DropdownMenu.CheckboxItem className={styles.item} {...props} />;
+/**
+ * A row that is on or off. Its check is the caller's to draw, in `MenuItemIcon`.
+ * `multiline` for a row whose label runs to more than one line — a name and a
+ * hint under it: its check then sits beside the first line, not the middle.
+ */
+export function MenuCheckboxItem({
+  multiline,
+  ...props
+}: Unstyled<ComponentProps<typeof DropdownMenu.CheckboxItem>> & { multiline?: boolean }) {
+  return <DropdownMenu.CheckboxItem className={styles.item} data-multiline={multiline || undefined} {...props} />;
 }
 
 /** A row that opens a submenu, with the chevron that says so. */

@@ -15,25 +15,26 @@ import type { DiagramAnnotationKind, DiagramZoomShape } from '../../diagram/docu
 
 const SIZE = 20;
 
-/** Each line type's dash in a glyph, as its line glyph draws it. */
-const LINE_DASH: Readonly<Record<DiagramLineType, string>> = {
+/** Each line type's dash in a glyph, as its line glyph draws it: none for a solid line. */
+const LINE_DASH: Readonly<Record<DiagramLineType, string | undefined>> = {
   valley: '3.2 2.2',
   mountain: '4 1.6 0.8 1.6',
   hidden: '0.9 1.9',
+  solid: undefined,
 };
 
 /** The shaft every fold arrow's icon shares: a 60° arc, left to right. */
 const ARC = 'M3 14 A10.5 10.5 0 0 1 15.2 8.4';
 
-/** One stroke, in the rail's ink, for an icon drawn here. */
-function Glyph({ children }: { children: React.ReactNode }) {
+/** One stroke, in the rail's ink or a colour of its own, for an icon drawn here. */
+function Glyph({ children, color }: { children: React.ReactNode; color?: string }) {
   return (
     <svg
       width={SIZE}
       height={SIZE}
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       fill="none"
-      stroke="currentColor"
+      stroke={color ?? 'currentColor'}
       strokeWidth={1.5}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -109,8 +110,11 @@ export function SolidArrowGlyph(): ReactElement {
  * template's |\|\| symbol; the callout its line and box; Rotate and Label are the app's own icons for those verbs. Every kind
  * has one: the return type makes a kind left out a compile error, not a
  * blank button.
+ *
+ * `color` is a mark's own colour: a solid line's glyph is drawn in it — a label's too (17b) — so the
+ * Layers list tells one line from the next (17a). None is the icon's ink.
  */
-export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }): ReactElement {
+export function DiagramAnnotationGlyph({ kind, color }: { kind: DiagramAnnotationKind; color?: string }): ReactElement {
   switch (kind) {
     case 'valley-arrow':
       return (
@@ -192,8 +196,16 @@ export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }
           <path d="M3 17 L17 3" strokeDasharray="0.9 1.9" strokeLinecap="butt" />
         </Glyph>
       );
+    case 'solid-line':
+      // A plain stroke, round at its ends as the line is (17a), in the line's colour when it has one.
+      return (
+        <Glyph color={color}>
+          <path d="M3 17 L17 3" />
+        </Glyph>
+      );
     case 'label':
-      return <Type size={17} aria-hidden="true" />;
+      // In the label's colour when it has one (17b), as a solid line's glyph is.
+      return <Type size={17} color={color} aria-hidden="true" />;
     case 'circle':
       // The ring, round the point it marks.
       return (

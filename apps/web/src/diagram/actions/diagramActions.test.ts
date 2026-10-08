@@ -26,6 +26,7 @@ function deps(): DiagramStepActionDeps {
     openInEdit: vi.fn(),
     openInReferences: vi.fn(),
     replaceFromReferences: vi.fn(),
+    makeMarksEditable: vi.fn(),
     fromReferences: vi.fn(),
     showAs: vi.fn(),
     duplicateAs: vi.fn(),
@@ -56,6 +57,7 @@ function build(state: Partial<DiagramStepActionState>, bound = deps()) {
       patternOpen: true,
       showAs: null,
       poseAgain: false,
+      cardMarks: null,
       ...state,
     } as DiagramStepActionState,
     bound
@@ -342,6 +344,40 @@ describe('the diagram step verbs', () => {
       expect(diagramStepCommand(sent({ locked: true }), 'replace-from-references')?.disabled).toBe(true);
       // Only a References step has a card to replace.
       expect(diagramStepCommand(build({ link: 'current', linkKind: 'cp', hasSource: true }), 'replace-from-references')).toBeNull();
+    });
+
+    it('offers Make Marks Editable where its card’s marks are part of its picture, between Replace and Open (17e)', () => {
+      const bound = deps();
+      // Lifted already, or nothing to lift: no verb at all.
+      expect(diagramStepCommand(sent(), 'make-marks-editable')).toBeNull();
+      const actions = sent({ cardMarks: { lifted: 12, total: 12, fits: true } }, bound);
+      const make = diagramStepCommand(actions, 'make-marks-editable');
+      expect(make).toMatchObject({ label: 'Make Marks Editable', disabled: false });
+      make?.run();
+      expect(bound.makeMarksEditable).toHaveBeenCalledOnce();
+      const ids = actions.map((action) => action.id);
+      expect(ids.indexOf('make-marks-editable')).toBe(ids.indexOf('replace-from-references') + 1);
+      expect(ids.indexOf('open-in-references')).toBe(ids.indexOf('make-marks-editable') + 1);
+      // It splits the card the step already has: no pattern need be open.
+      expect(diagramStepCommand(sent({ cardMarks: { lifted: 12, total: 12, fits: true }, patternOpen: false }), 'make-marks-editable')?.disabled).toBe(
+        false
+      );
+      expect(diagramStepCommand(sent({ cardMarks: { lifted: 12, total: 12, fits: true }, readOnly: true }), 'make-marks-editable')?.disabled).toBe(true);
+    });
+
+    it('shows Make Marks Editable disabled, with how many marks the step would hold, past what a step holds (17e)', () => {
+      // A t that sets the count, as i18next does.
+      const counting = ((_key: string, fallback: string, options?: { count?: number; max?: number }) =>
+        fallback.replace('{{count}}', String(options?.count)).replace('{{max}}', String(options?.max))) as unknown as TFunction;
+      const make = diagramStepCommand(sent({ cardMarks: { lifted: 612, total: 612, fits: false } }, { ...deps(), t: counting }), 'make-marks-editable');
+      expect(make).toMatchObject({ disabled: true, hint: '612 marks: a step holds 500' });
+      // The author's own among them: says so, as deleting some would make room.
+      const crowded = diagramStepCommand(sent({ cardMarks: { lifted: 10, total: 501, fits: false } }, { ...deps(), t: counting }), 'make-marks-editable');
+      expect(crowded).toMatchObject({ disabled: true, hint: '501 marks with yours: a step holds 500' });
+      expect(diagramStepCommand(sent({ cardMarks: { lifted: 12, total: 12, fits: true }, locked: true }), 'make-marks-editable')).toMatchObject({
+        disabled: true,
+        hint: 'Made with a newer Ori Studio: it can be moved or deleted, not changed',
+      });
     });
 
     it('opens its sheet on a read-only diagram too, while the pattern is open', () => {

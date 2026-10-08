@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { ShortcutActionId } from '../../keyboard/shortcuts';
+import { MAX_STEP_ANNOTATIONS } from '../annotate/annotationModel';
 import type { DiagramLinkStatus } from '../capture/linkStatus';
 import { DIAGRAM_SHOW_AS, type DiagramShowAs } from '../document/diagramDocument';
 import type { DiagramTurnActionId } from './diagramTurnActions';
@@ -33,6 +34,7 @@ export type DiagramStepActionId =
   | 'open-in-edit'
   | 'open-in-references'
   | 'replace-from-references'
+  | 'make-marks-editable'
   | 'adjust-pose'
   | 'annotate'
   | 'export-picture'
@@ -131,6 +133,13 @@ export interface DiagramStepActionState {
    * "Pose Again" and opens it (D19).
    */
   poseAgain: boolean;
+  /**
+   * A References step whose card's marks are part of its picture (17e): how
+   * many marks it would lift, how many the step would hold with them, the
+   * author's own beside them, and whether that fits — Make Marks Editable's
+   * gate. Null for any other step, the verb then not offered.
+   */
+  cardMarks: CardMarksGate | null;
 }
 
 export interface DiagramStepActionDeps {
@@ -161,6 +170,8 @@ export interface DiagramStepActionDeps {
   fromReferences: () => void;
   /** Replace a References step's card from the References browser, its own card marked. */
   replaceFromReferences: () => void;
+  /** Lift a References step's card's marks out of its picture into annotations (17e). */
+  makeMarksEditable: () => void;
   /** Show a linked step's pattern another way (D19). */
   showAs: (way: DiagramShowAs) => void;
   /** A copy of a linked step after it, shown another way (D19). */
@@ -420,6 +431,18 @@ export function buildDiagramStepActions(
                 ? t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
                 : capturingHint
           ),
+          // A step made before marks were lifted keeps them in its picture until asked (17e, RM8).
+          ...(state.cardMarks === null
+            ? []
+            : [
+                command(
+                  'make-marks-editable',
+                  t('panels:diagram.actions.makeMarksEditable', 'Make Marks Editable'),
+                  deps.makeMarksEditable,
+                  state.locked || !state.cardMarks.fits,
+                  state.locked ? lockedEditHint : tooManyMarksHint(state.cardMarks, t)
+                ),
+              ]),
           command(
             'open-in-references',
             t('panels:diagram.actions.openInReferences', 'Open in References'),
@@ -479,6 +502,34 @@ export function buildDiagramStepActions(
       true
     ),
   ];
+}
+
+/** Make Marks Editable's gate (17e): the marks it would lift, the step's total with them, and whether that fits. */
+export interface CardMarksGate {
+  lifted: number;
+  total: number;
+  fits: boolean;
+}
+
+/**
+ * Why Make Marks Editable cannot lift a step's card's marks (17e): with them,
+ * the step would hold `total` marks — the author's among them, when it has
+ * any, which deleting would make room for — and a step holds no more than
+ * `MAX_STEP_ANNOTATIONS`.
+ */
+export function tooManyMarksHint({ lifted, total }: CardMarksGate, t: TFunction): string {
+  const max = MAX_STEP_ANNOTATIONS;
+  return total > lifted
+    ? t('panels:diagram.actions.tooManyMarksWithYoursHint', '{{count}} marks with yours: a step holds {{max}}', {
+        count: total,
+        max,
+        defaultValue_one: '{{count}} mark with yours: a step holds {{max}}',
+      })
+    : t('panels:diagram.actions.tooManyMarksHint', '{{count}} marks: a step holds {{max}}', {
+        count: total,
+        max,
+        defaultValue_one: '{{count}} mark: a step holds {{max}}',
+      });
 }
 
 /**

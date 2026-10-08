@@ -8,6 +8,7 @@ import {
   cardLocatorAt,
   locateCard,
   locateSheet,
+  locateStepCard,
   planStrip,
   referencesReaderStateFor,
   revisionIsOfLoad,
@@ -146,6 +147,43 @@ describe('the card locator', () => {
     // A lineless card whose place now holds a fold is not found either.
     const fold = strip.viewSteps.findIndex((view) => view.kind === 'fold');
     expect(locateCard(strip.variants, strip.viewSteps, { index: fold, line: null })).toBe(0);
+  });
+});
+
+// A diagram step names its card by the number printed on it and its line
+// (Open in References): not by its place, which counts the turn-overs.
+describe('a diagram step’s card', () => {
+  // The first fold seen from the back, so the strip opens on a turn-over and
+  // turns back after it; cards 2 and 4 fold one line.
+  const sequence = plannerSequenceFixture();
+  const shared = sequence.steps[1].line;
+  const turned = {
+    ...sequence,
+    steps: sequence.steps.map((step, index) =>
+      index === 0 ? { ...step, side: 'back' as const } : index === 3 ? { ...step, line: shared } : step
+    ),
+  };
+  const strip = planStrip(record(turned), VIEW);
+  const placeOf = (step: number) =>
+    strip.viewSteps.findIndex((view) => view.kind === 'fold' && view.step === step);
+
+  it('finds the card with its number among the cards on its line', () => {
+    // Card 4 is the strip's sixth: the place its number would hint at holds card 2.
+    expect(placeOf(3)).toBe(5);
+    expect(locateCard(strip.variants, strip.viewSteps, { index: 3, line: shared })).toBe(placeOf(1));
+    expect(locateStepCard(strip.variants, strip.viewSteps, { number: 4, line: shared })).toBe(placeOf(3));
+    expect(locateStepCard(strip.variants, strip.viewSteps, { number: 2, line: shared })).toBe(placeOf(1));
+  });
+
+  it('opens the ending for a step that names neither', () => {
+    const done = strip.viewSteps.length - 1;
+    expect(strip.viewSteps[done].kind).toBe('done');
+    expect(locateStepCard(strip.variants, strip.viewSteps, { number: null, line: null })).toBe(done);
+  });
+
+  it('takes the nearest card on its line when its number is gone, and the first card when its line is', () => {
+    expect(locateStepCard(strip.variants, strip.viewSteps, { number: 9, line: sequence.steps[4].line })).toBe(placeOf(4));
+    expect(locateStepCard(strip.variants, strip.viewSteps, { number: 4, line: { n: [0.6, 0.8], d: 0.123 } })).toBe(0);
   });
 });
 

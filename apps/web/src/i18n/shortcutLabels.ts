@@ -139,6 +139,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.toolMountainLine', 'Mountain Line');
     case 'diagram.toolHiddenLine':
       return t('tools:diagram.toolHiddenLine', 'Hidden Line');
+    case 'diagram.toolSolidLine':
+      return t('tools:diagram.toolSolidLine', 'Solid Line');
     case 'diagram.toolLabel':
       return t('tools:diagram.toolLabel', 'Label');
     case 'diagram.toolCircle':

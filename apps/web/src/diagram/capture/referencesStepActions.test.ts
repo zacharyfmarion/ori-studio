@@ -21,7 +21,11 @@ beforeEach(() => {
   useWorkspaceStore.setState(initialState, true);
   const diagram = insertSteps(
     createDiagram({ title: 'Sent' }),
-    [referencesStep('step-find', { mode: 'find', settings: null }), createStep(() => 'step-empty')],
+    [
+      referencesStep('step-find', { mode: 'find', settings: null }),
+      createStep(() => 'step-empty'),
+      referencesStep('step-card', { card: 3, line: { n: [1, 0], d: 0.25 } }),
+    ],
     0
   );
   useWorkspaceStore.setState({ diagram });
@@ -39,6 +43,16 @@ describe('Open in References', () => {
     // Taken once.
     expect(state().takeReferencesSheetRequest()).not.toBeNull();
     expect(state().takeReferencesSheetRequest()).toBeNull();
+  });
+
+  // Not the card the reader last had open there (crane.osf's Finished card,
+  // where Export step… has nothing to export).
+  it('asks for a sequence step’s own card, by its number and line', () => {
+    openDiagramStepInReferences('step-card');
+    expect(state().referencesSheetRequest).toMatchObject({
+      mode: 'sequence',
+      card: { number: 3, line: { n: [1, 0], d: 0.25 } },
+    });
   });
 
   it('does nothing for a step not sent from References', () => {

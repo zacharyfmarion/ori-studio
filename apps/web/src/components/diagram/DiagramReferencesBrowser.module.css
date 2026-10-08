@@ -55,9 +55,13 @@
   min-width: 0;
 }
 
-/* Sequence | Find and Open References: on a phone, a row of their own under the title and the close button. */
+/*
+ * Sequence | Find, Show and Open References: on a phone, a row of their own under the title and the close button.
+ * They wrap rather than run past the edge: at 375 px "Show · 1 hidden" pushed Open References off the dialog.
+ */
 .tools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }

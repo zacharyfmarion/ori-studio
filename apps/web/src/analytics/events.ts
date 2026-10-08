@@ -87,6 +87,7 @@ export type DiagramAnnotationTool =
   | 'valley_line'
   | 'mountain_line'
   | 'hidden_line'
+  | 'solid_line'
   | 'label'
   | 'circle'
   | 'right_angle'
@@ -113,6 +114,25 @@ export type DiagramAnnotationSnap = 'snapped' | 'free' | 'off' | 'nothing_near' 
  * click, which divides it whole.
  */
 export type DiagramDivisionsPlaced = 'drag' | 'line';
+
+/**
+ * A mark's colour, by name (17a): the style's ink (none stored), References'
+ * magenta, one of the five print colours, or one picked by hand. Never the
+ * colour itself.
+ */
+export type DiagramAnnotationColor = 'ink' | 'reference' | 'red' | 'orange' | 'green' | 'blue' | 'purple' | 'custom';
+
+/** One of a label's options on or off (17b): Bold, a halo. */
+export type DiagramTextToggle = 'on' | 'off';
+
+/**
+ * A label's size, by name (17b): with the picture (none in pt), one of the
+ * four Size offers, or another a file brought. Never the size itself.
+ */
+export type DiagramTextSize = 'picture' | '7' | '9' | '12' | '16' | 'other';
+
+/** Which of a label's options the Layers pane changed (17b). */
+export type DiagramTextStyleOption = 'bold' | 'halo' | 'size';
 
 /** A fold arrow or a white arrow, which Edit Path shapes: its kind, in the event's own spelling. */
 export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';
@@ -325,6 +345,23 @@ export type DiagramPulledMode = 'sequence' | 'find';
  * at the end, into an empty step, or in place of a References step's card.
  */
 export type DiagramPulledInto = 'after' | 'end' | 'fill' | 'replace';
+
+/**
+ * Whether a pull's marks were lifted into annotations (17d) or left in the
+ * picture, as every card was before: `baked` when any card's marks were more
+ * than a step holds.
+ */
+export type DiagramPulledMarks = 'lifted' | 'baked';
+
+/** What an edit did to a mark a References card brought (17d): changed for the first time, or taken away. */
+export type DiagramImportedMarkEdit = 'changed' | 'deleted';
+
+/**
+ * Where Make Marks Editable was pressed (17e): the notice Annotate shows on a
+ * step whose card's marks are in its picture — in the Step pane, or over the
+ * Layers pane's list — the Step pane's Picture section, or the step card's menu.
+ */
+export type DiagramMarksLiftedVia = 'annotate_notice' | 'layers_notice' | 'step_pane' | 'card_menu';
 
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
@@ -695,7 +732,7 @@ export type CreasePatternFoldedFigure = 'none' | PaperExportStyleName;
 /** Which of a surface's pages an export wrote: the one on show, or every one as a ZIP. */
 export type PaperExportScope = 'this' | 'all';
 
-/** Whether a page carried one of a diagram's optional marks — a References step's letters or line highlights. */
+/** Whether a page carried one of a diagram's optional marks — a References step's letters or reference lines. */
 export type PaperExportMarkShown = 'shown' | 'hidden';
 
 /** Where a foldability check was run from. */
@@ -1283,7 +1320,7 @@ export const ANALYTICS_EVENTS = {
    * PNG. `surface` says which, `format` which file, `hidden_faces` whether the
    * buried faces were kept — the default, and the setting D4 exists for;
    * `letters` and `highlights`, for References alone, whether the step's
-   * letters and line highlights were on the page. The file service's
+   * letters and reference lines were on the page. The file service's
    * `file exported` fires too; this one carries what that chokepoint cannot
    * see.
    */
@@ -1446,6 +1483,21 @@ export const ANALYTICS_EVENTS = {
   diagramAnnotationBehind: 'diagram annotation behind',
   /** A mark flipped horizontally or vertically from the Layers pane: its kind, which way. */
   diagramAnnotationFlipped: 'diagram annotation flipped',
+  /** A solid line's or a label's colour changed in the Layers pane (17a, 17b): its kind, the colour by name. Once per pick. */
+  diagramAnnotationRecolored: 'diagram annotation recolored',
+  /** A label's Bold, Halo or Size changed in the Layers pane (17b): which, and to what. */
+  diagramTextStyled: 'diagram text styled',
+  /**
+   * A mark a References card brought (17d) edited for the first time, or
+   * taken away: its kind, and which. Whether people edit what they pull.
+   */
+  diagramImportedMarkEdited: 'diagram imported mark edited',
+  /**
+   * An old References step's card's marks lifted into annotations by Make
+   * Marks Editable (17e): where it was pressed, and how many the step holds
+   * now (bucketed). Whether steps made before marks were lifted are converted.
+   */
+  diagramReferencesMarksLifted: 'diagram references marks lifted',
   /** A frame placed on an enlarged step by a capture (Revision 2): how, through what, by which anchor. One per step placed. */
   diagramStepEnlarged: 'diagram step enlarged',
   /** An enlarge area or an enlarged step's frame changed: moved, its Shape, Size, Edge or Anchor, or an area deleted. */

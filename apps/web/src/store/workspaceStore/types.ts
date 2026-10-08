@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { PaperExportStyleChoice } from '../../lib/paperExportSettings';
+import type { PaperExportMarks, PaperExportStyleChoice } from '../../lib/paperExportSettings';
 import type {
   ConditionKind,
   FoldArtifacts,
@@ -57,6 +57,8 @@ import type {
   DiagramPullAnchor,
   DiagramTurnKind,
   DiagramStepDiagramPicture,
+  LiftedCard,
+  PulledMarks,
   SentReferencesEntry,
   DiagramDocument,
   DiagramHanStyle,
@@ -103,6 +105,7 @@ import type { UserCamera } from '../../cp-workspace/renderer/camera';
 import type {
   ReferencesCardLocator,
   ReferencesRestore,
+  ReferencesStepCard,
 } from '../../cp-workspace/references/referencesReaderState';
 import type {
   AddInlineSimulationResult,
@@ -1766,12 +1769,20 @@ export interface ReferencesSliceState {
    * for the same reason as {@link referencesAnalysisRequest}.
    */
   referencesSheetRequest: ReferencesSheetRequest | null;
+  /**
+   * The card a sheet request asked for, once its sheet is open: taken when
+   * that sheet's plan is on screen — as it lands, or at once if it is there
+   * already. A switch to another sheet drops it.
+   */
+  referencesCardRequest: { sheet: number; card: ReferencesStepCard } | null;
 }
 
 /** Open References on the sheet with this rim, in this mode. */
 export interface ReferencesSheetRequest {
   boundary: Point[][];
   mode: ReferencesMode;
+  /** The card of the sequence to open on: a sequence step's own. Absent in Find. */
+  card?: ReferencesStepCard;
 }
 
 export interface ReferencesSliceActions {
@@ -1824,6 +1835,10 @@ export interface ReferencesSliceActions {
   openReferencesWorkspace: (sheet?: ReferencesSheetRequest) => void;
   /** Take the pending sheet request, if there is one: see {@link consumeReferencesAnalysisRequest}. */
   takeReferencesSheetRequest: () => ReferencesSheetRequest | null;
+  /** Open `sheet`'s plan on `card` once it is on screen (see {@link ReferencesSliceState.referencesCardRequest}). */
+  requestReferencesCard: (sheet: number, card: ReferencesStepCard) => void;
+  /** Take the card asked for on `sheet`, if there is one. */
+  takeReferencesCardRequest: (sheet: number) => ReferencesStepCard | null;
 }
 
 /**
@@ -2009,6 +2024,13 @@ export interface DiagramReferencesBrowserState {
    * came from is no longer listed (planned again since), not on another.
    */
   sheet?: Point[][] | null;
+  /**
+   * Which of a card's marks a pull brings (17d), as the Show menu shows them:
+   * for Replace, the step's own choice as it opens; once the menu is used,
+   * its choice. Absent, the menu's remembered choice
+   * (`diagramReferencesMarks`).
+   */
+  marks?: PaperExportMarks;
 }
 
 export interface DiagramSliceActions {
@@ -2189,16 +2211,28 @@ export interface DiagramSliceActions {
    * that browser's: once it has closed the pull adds nothing. The steps the
    * cards became, or null.
    */
-  /** Fold a References step's card another way (D23): one undo step. Whether it changed. */
+  /**
+   * Fold a References step's card another way (D23): one undo step, the
+   * card's marks swapped for the way's (`lifted`, 17d) when they fit beside
+   * the author's. Whether it changed.
+   */
   setDiagramReferencesWay: (
     stepId: string,
-    way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string }
+    way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string; lifted?: LiftedCard | null }
   ) => boolean;
+  /**
+   * Make Marks Editable (17e): a References step whose card's marks are in
+   * its picture shown as a fresh pull shows the card — `lifted`, its sheet
+   * and every mark — the author's marks kept, as one undo step
+   * (`makeCardMarksEditable`). `loadId` drops an edit that outlived its
+   * diagram. Whether it changed.
+   */
+  makeDiagramStepMarksEditable: (stepId: string, lifted: LiftedCard, options?: { loadId?: number }) => boolean;
   pullReferencesDiagramSteps: (
     sent: readonly SentReferencesEntry[],
     anchor: DiagramPullAnchor,
     options: { loadId: number; label: string; opening?: number }
-  ) => { stepIds: string[]; turnIds: string[] } | null;
+  ) => ({ stepIds: string[]; turnIds: string[] } & PulledMarks) | null;
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;
   /**

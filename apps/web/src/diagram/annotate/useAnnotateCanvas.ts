@@ -54,9 +54,9 @@ import {
 } from '../zoom/zoomModel';
 import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useDiagramShortcuts';
 import { EDIT_PATH, drawingKind, drawingLook, isPickTool, type DrawingLook } from './annotateTools';
-import { placePoint, snapOutcome, snapsEnd, snapsWhenPlaced, type PlacedPoint } from './annotateSnap';
+import { placePoint, snapOutcome, snapsAnchor, snapsEnd, snapsWhenPlaced, type PlacedPoint } from './annotateSnap';
 import { annotationActionEdit, editAnnotation } from './annotationActions';
-import { annotationEventKind } from './annotationEventKind';
+import { annotationEventDetail, annotationEventKind } from './annotationEventKind';
 import {
   circleRadius,
   hitAnnotation,
@@ -79,13 +79,17 @@ import {
   frameOf,
   isCornerKind,
   isDegenerate,
+  isHungText,
   isPointKind,
   moveAnnotation,
   moveAnnotationEnd,
+  moveLabelWords,
   placedByClick,
   rightAngleAt,
   rightAngleDiagonal,
   withCloseUpRing,
+  withColor,
+  withTextStyle,
   withWhiteArrowLook,
   type PictureFrame,
   type PicturePoint,
@@ -380,6 +384,10 @@ export function useAnnotateCanvas({
   const tool = useWorkspaceStore(annotateToolInHand);
   // The line the Line tool draws (15a).
   const lineType = useSettingsStore((state) => state.diagramAnnotateLineType);
+  // The colour it draws a solid line in (17a).
+  const lineColor = useSettingsStore((state) => state.diagramAnnotateLineColor);
+  // The style the Label tool sets its text in (17b).
+  const textStyle = useSettingsStore((state) => state.diagramAnnotateTextStyle);
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
   const selectedNode = useWorkspaceStore(selectedDiagramPathNode);
   // The picture, from what it is made of: a text or an annotation edit keeps
@@ -550,6 +558,7 @@ export function useAnnotateCanvas({
     style,
     tool,
     lineType,
+    lineColor,
     readOnly,
     snapContext,
     showSnap,
@@ -702,7 +711,9 @@ export function useAnnotateCanvas({
             : loose;
         case 'move': {
           const { grip, original } = current;
-          if (!snapsWhenPlaced(original.kind)) return loose;
+          // Hung text's anchor (17b) snaps, as a callout's point does; its words, as any text, never.
+          const anchor = (grip.part === 'from' || grip.part === 'to') && snapsAnchor(original, grip.part);
+          if (!snapsWhenPlaced(original.kind) && !anchor) return loose;
           if (grip.part === 'direction') {
             // The way a right angle opens, turned toward the pointer: a point along it, or where it was.
             const opens = draggedOpening(snapContext(), original.from, at, { free, shift });
@@ -713,7 +724,7 @@ export function useAnnotateCanvas({
             isCornerKind(original.kind) && landed.target
               ? squaredOpening(snapContext(), landed.at, rightAngleDiagonal(original), { free: false })
               : undefined;
-          if (grip.part === 'corner' || ((grip.part === 'from' || grip.part === 'to') && snapsEnd(original.kind, grip.part))) {
+          if (grip.part === 'corner' || anchor || ((grip.part === 'from' || grip.part === 'to') && snapsEnd(original.kind, grip.part))) {
             const landed = placePoint(snapContext(), at, { free, ignore: original.id });
             return { ...landed, opens: squared(landed) };
           }
@@ -840,7 +851,7 @@ export function useAnnotateCanvas({
         gesture.current = {
           mode: 'draw',
           kind,
-          look: drawingLook(tool),
+          look: drawingLook(tool, { type: lineType, color: lineColor }, textStyle),
           start: start.at,
           startTarget: start.target,
           free,
@@ -897,6 +908,8 @@ export function useAnnotateCanvas({
       toPicture,
       tool,
       lineType,
+      lineColor,
+      textStyle,
       picker,
       viewed,
       hitSizes,
@@ -934,6 +947,8 @@ export function useAnnotateCanvas({
       case 'body':
         // Equal divisions belong to their line: a drag of the mark sets how far off it they stand (ED2).
         if (annotation.kind === 'divisions') return draggedDivisions(annotation, current.start, at, { halves });
+        // Hung text taken by its words (17b): they go by the pointer's travel, its anchor left where it is.
+        if (isHungText(annotation)) return moveLabelWords(annotation, [at[0] - current.start[0], at[1] - current.start[1]]);
         if (target && isPointKind(annotation.kind)) return moveAnnotationEnd(annotation, 'from', target.at);
         if (target && isCornerKind(annotation.kind)) return opening(moveAnnotationEnd(annotation, 'from', target.at), opens);
         return moveAnnotation(annotation, [at[0] - current.start[0], at[1] - current.start[1]]);
@@ -1229,7 +1244,7 @@ export function useAnnotateCanvas({
       trackDiagramAnnotationAdded(
         'divisions',
         placedBy === 'line' ? 'none' : snapOutcome('divisions', { enabled: snap.enabled, free: free || current.free, snapped }),
-        placedBy
+        { placed: placedBy }
       );
       // Its count comes next: typed into the Parts field, then Enter.
       requestFieldFocus(annotation.id, 'parts');
@@ -1340,10 +1355,12 @@ export function useAnnotateCanvas({
         // Put beside the picture, a close-up may be out of view: it is brought into it (15f).
         if (annotation.kind === 'close-up') camera.bringIntoView(closeUpRings(annotation, layout));
         const snapped = target !== null || (!point && current.startTarget !== null);
-        trackDiagramAnnotationAdded(
-          annotationEventKind(annotation),
-          snapOutcome(annotation.kind, { enabled: snap.enabled, free: free || current.free, snapped })
-        );
+        const eventKind = annotationEventKind(annotation);
+        const how = snapOutcome(annotation.kind, { enabled: snap.enabled, free: free || current.free, snapped });
+        // A solid line's colour, by name (17a), and a label's options (17b); no other mark sends any.
+        const detail = annotationEventDetail(annotation);
+        if (Object.keys(detail).length > 0) trackDiagramAnnotationAdded(eventKind, how, detail);
+        else trackDiagramAnnotationAdded(eventKind, how);
         if (carriesText(annotation.kind)) {
           // A label or a callout is written, not drawn again: Select comes
           // back to hand, and its field takes the keys.
@@ -1482,11 +1499,14 @@ function laid(
   newId?: DiagramIdFactory,
   calloutText?: string
 ): KnownDiagramAnnotation {
-  const { shape, ...arrowLook } = look;
+  const { shape, color, text, ...arrowLook } = look;
   if (kind === 'zoom' && shape === 'rounded') {
     return zoomAreaFromCorners(start, end, { square: keys.shift, fromMiddle: keys.alt }, newId);
   }
-  return withWhiteArrowLook(createAnnotation(kind, start, end, frame, newId, calloutText), arrowLook);
+  // A solid line in the colour chosen beside the rail's Line Type (17a).
+  const made = withColor(withWhiteArrowLook(createAnnotation(kind, start, end, frame, newId, calloutText), arrowLook), color ?? null);
+  // A label in the rail's Text Style (17b).
+  return text ? withTextStyle(made, text) : made;
 }
 
 /** A point {@link RIGHT_ANGLE_DIAGONAL} from `corner` the way `opens` goes: what a right angle's `to` is made from. */

@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, type RefObject, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { readJson, writeJson } from '../../lib/storage';
 import { Tooltip, TooltipContent, TooltipTrigger } from './Tooltip';
@@ -16,6 +16,13 @@ export interface ToolRailTool {
   active: boolean;
   /** False keeps it focusable, so its tooltip can say why, but a click does nothing. */
   available: boolean;
+  /**
+   * Switched on and off rather than taken in hand (a style's Bold, say):
+   * `active` is whether it is on, said as `aria-pressed`.
+   */
+  toggle?: boolean;
+  /** Where its tooltip opens; beside the rail unless that would cover the tool a hand moves to next. */
+  tooltipSide?: 'top' | 'right' | 'bottom' | 'left';
   onSelect: () => void;
 }
 
@@ -26,6 +33,12 @@ export interface ToolRailGroup {
   /** The short header the rail shows, which toggles the group. */
   railLabel: string;
   collapsedByDefault?: boolean;
+  /**
+   * Scrolled into the rail's view as it appears: a group a tool brings with
+   * it, which on a short screen would otherwise come in below the fold and
+   * show nothing for the press that brought it.
+   */
+  reveal?: boolean;
   /**
    * Its content: tool buttons in the rail's grid, or one control across the
    * grid's width (a segmented control whose options are the group's tools).
@@ -53,6 +66,7 @@ interface ToolRailProps {
  * has no rail; the surface that hosts one gives it a tool sheet instead.
  */
 export function ToolRail({ 'aria-label': ariaLabel, idPrefix, groups, header, storageKey }: ToolRailProps) {
+  const scroller = useRef<HTMLDivElement>(null);
   return (
     <aside className={styles.rail} aria-label={ariaLabel} data-header={header ? '' : undefined}>
       {/*
@@ -64,9 +78,9 @@ export function ToolRail({ 'aria-label': ariaLabel, idPrefix, groups, header, st
           {header}
         </div>
       )}
-      <div className={styles.groups} data-rail-part="groups">
+      <div ref={scroller} className={styles.groups} data-rail-part="groups">
         {groups.map((group) => (
-          <ToolRailSection key={group.id} group={group} idPrefix={idPrefix} storageKey={storageKey} />
+          <ToolRailSection key={group.id} group={group} idPrefix={idPrefix} storageKey={storageKey} scroller={scroller} />
         ))}
       </div>
     </aside>
@@ -81,19 +95,42 @@ function readOpenState(storageKey: string | undefined): Record<string, boolean> 
   return stored as Record<string, boolean>;
 }
 
+/**
+ * How far a column scrolled to `view` must move to show `item` (both by their
+ * top and bottom on the screen): nothing when it shows it whole, else the
+ * least that does — or that shows its top, when it is taller than the column.
+ */
+export function revealScroll(item: { top: number; bottom: number }, view: { top: number; bottom: number }): number {
+  if (item.top >= view.top && item.bottom <= view.bottom) return 0;
+  if (item.top < view.top || item.bottom - item.top > view.bottom - view.top) return item.top - view.top;
+  return item.bottom - view.bottom;
+}
+
 function ToolRailSection({
   group,
   idPrefix,
   storageKey,
+  scroller,
 }: {
   group: ToolRailGroup;
   idPrefix: string;
   storageKey: string | undefined;
+  scroller: RefObject<HTMLDivElement | null>;
 }) {
   const [open, setOpen] = useState(
     () => readOpenState(storageKey)[group.id] ?? group.collapsedByDefault !== true
   );
   const buttonsId = `${idPrefix}-${group.id}`;
+  const section = useRef<HTMLElement>(null);
+  const reveal = group.reveal === true;
+  // Before it paints, so it never shows the column first without it. The rail's own column scrolls, and nothing round it.
+  useLayoutEffect(() => {
+    const [column, shown] = [scroller.current, section.current];
+    if (!reveal || !column || !shown) return;
+    const box = column.getBoundingClientRect();
+    const by = revealScroll(shown.getBoundingClientRect(), { top: box.top, bottom: box.top + column.clientHeight });
+    if (by !== 0) column.scrollTop += by;
+  }, [reveal, scroller]);
 
   const toggle = () => {
     const next = !open;
@@ -102,7 +139,7 @@ function ToolRailSection({
   };
 
   return (
-    <section className={styles.group} aria-label={group.label} data-open={open || undefined}>
+    <section ref={section} className={styles.group} aria-label={group.label} data-open={open || undefined}>
       <button
         type="button"
         className={styles.groupToggle}
@@ -129,6 +166,20 @@ function ToolRailSection({
   );
 }
 
+/**
+ * Rail tools inside a group's own control — toggles beside a select, say: the
+ * rail's grid and its buttons, so they look and size as every tool above them.
+ */
+export function ToolRailButtons({ tools }: { tools: readonly ToolRailTool[] }) {
+  return (
+    <div className={styles.buttons}>
+      {tools.map((tool) => (
+        <ToolRailButton key={tool.id} tool={tool} />
+      ))}
+    </div>
+  );
+}
+
 function ToolRailButton({ tool }: { tool: ToolRailTool }) {
   // The rail does not use `IconButton`, so it wires the hold itself: a rail is
   // a column of icons whose only label is a tooltip, which Radix gives no touch
@@ -141,6 +192,7 @@ function ToolRailButton({ tool }: { tool: ToolRailTool }) {
       className={styles.button}
       aria-label={tool.label}
       aria-disabled={!tool.available}
+      aria-pressed={tool.toggle ? tool.active : undefined}
       data-active={tool.active || undefined}
       {...hold.handlers}
       onClick={() => {
@@ -157,7 +209,7 @@ function ToolRailButton({ tool }: { tool: ToolRailTool }) {
   return (
     <Tooltip open={hold.open}>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right">{tool.tooltip}</TooltipContent>
+      <TooltipContent side={tool.tooltipSide ?? 'right'}>{tool.tooltip}</TooltipContent>
     </Tooltip>
   );
 }

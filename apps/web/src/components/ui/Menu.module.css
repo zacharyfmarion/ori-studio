@@ -90,6 +90,18 @@ a.item {
   color: currentcolor;
 }
 
+/* A row of more than one line (`multiline`): a name, and a hint under it. Its
+   icon sits beside the first line, as tall as that line, not beside the
+   middle of the row. */
+.item[data-multiline] {
+  align-items: flex-start;
+  line-height: 16px;
+}
+
+.item[data-multiline] .icon {
+  height: 16px;
+}
+
 .label {
   flex: 1;
 }

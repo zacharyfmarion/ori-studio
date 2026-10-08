@@ -6,24 +6,24 @@ import {
   annotateGroupLabel,
   annotateToolHelp,
   annotateToolLabel,
-  LINE_TYPE_SHORTCUTS,
-  lineTypeLabel,
   type AnnotateTool,
 } from '../../diagram/annotate/annotateTools';
-import { DIAGRAM_LINE_TYPES, type DiagramLineType } from '../../diagram/annotate/lineTypes';
 import { shortcutLabelForAction } from '../../keyboard/shortcuts';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useShortcutResolution } from '../../store/shortcutStore';
-import { SegmentedControl } from '../ui/SegmentedControl';
 import { ToolRail, type ToolRailGroup } from '../ui/ToolRail';
 import { DiagramAnnotateToolGlyph } from './DiagramAnnotateToolGlyph';
-import { DiagramLineTypeMark } from './DiagramLineTypeMark';
+import { DiagramLineTypeControl } from './DiagramLineTypeControl';
+import { DiagramTextStyleControl } from './DiagramTextStyleControl';
 
 /**
  * Annotate's tools down the left of the canvas (D8): the Edit rail's
  * `ToolRail`, in groups — Line Type first, the one control across the rail,
- * at the top as Edit's line types are (Zach, 2026-10-05); then Select and Edit
- * Path; Arrows; Lines; Marks; Text. Each names its key in its tooltip,
+ * at the top as Edit's line types are (Zach, 2026-10-05), with a solid line's
+ * colour under it while Solid is the type (17a); then Select and Edit
+ * Path; Arrows; Lines; Marks; Text — and under Text, while the Label tool is
+ * in hand, its Text Style (17b), one control across the rail as Line Type
+ * is. Each names its key in its tooltip,
  * resolved against the reader's own layout. The line type is a preference,
  * kept as it was left: the Line tool and the Angle Bisector draw in it. On
  * an enlarged step the Enlarge tools are held, saying why (Revision 2).
@@ -43,7 +43,6 @@ export function DiagramAnnotateRail({
   const { t } = useTranslation();
   const resolution = useShortcutResolution();
   const lineType = useSettingsStore((state) => state.diagramAnnotateLineType);
-  const setLineType = useSettingsStore((state) => state.setDiagramAnnotateLineType);
   const tools: ToolRailGroup[] = ANNOTATE_TOOL_GROUPS.map((group) => ({
     id: group.id,
     label: annotateGroupLabel(t, group.id),
@@ -71,37 +70,28 @@ export function DiagramAnnotateRail({
     id: 'line-type',
     label: typeLabel,
     railLabel: typeLabel,
-    content: {
-      // One control with one answer, as Edit's line types are.
-      control: (
-        <SegmentedControl<DiagramLineType>
-          size="lg"
-          fill
-          iconsOnly
-          tooltipSide="right"
-          aria-label={typeLabel}
-          value={lineType}
-          disabled={readOnly}
-          options={DIAGRAM_LINE_TYPES.map((type) => {
-            const label = lineTypeLabel(t, type);
-            const key = shortcutLabelForAction(LINE_TYPE_SHORTCUTS[type], resolution);
-            return {
-              value: type,
-              label,
-              icon: <DiagramLineTypeMark type={type} />,
-              tooltip: `${key ? `${label} (${key})` : label} - ${t('panels:diagram.annotate.lineTypeHelp', 'The line the Line tool and the Angle Bisector draw.')}`,
-            };
-          })}
-          onChange={setLineType}
-        />
-      ),
-    },
+    // One control with one answer, as Edit's line types are, and a solid line's colour under it (17a).
+    content: { control: <DiagramLineTypeControl label={typeLabel} disabled={readOnly} /> },
   };
+  const styleLabel = t('panels:diagram.annotate.textStyle', 'Text Style');
+  // The next label's colour, Bold, Halo and Size (17b): under the Text group while the Label tool is in hand.
+  const textStyle: ToolRailGroup | null =
+    tool === 'label'
+      ? {
+          id: 'text-style',
+          label: styleLabel,
+          railLabel: styleLabel,
+          // Taking the tool brings it in under Text, at the foot of the rail: in view, or a short screen shows nothing new.
+          reveal: true,
+          content: { control: <DiagramTextStyleControl disabled={readOnly} /> },
+        }
+      : null;
+  const groups = tools.flatMap((group) => (group.id === 'text' && textStyle ? [group, textStyle] : [group]));
   return (
     <ToolRail
       aria-label={t('panels:diagram.annotate.toolsLabel', 'Annotate tools')}
       idPrefix="diagram-annotate-group"
-      groups={[lineTypes, ...tools]}
+      groups={[lineTypes, ...groups]}
     />
   );
 }

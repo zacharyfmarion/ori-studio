@@ -19,9 +19,19 @@
  * Pure: no DOM, no store.
  */
 import { canvasDiagramInk, canvasDiagramPens } from '../../cp-workspace/references/diagram/diagramInk';
-import { diagramToPaperScene } from '../../cp-workspace/references/diagramToPaperScene';
+import type { LabelPlacement } from '../../cp-workspace/references/diagram/labelLayout';
+import {
+  diagramLetterPlacements,
+  diagramToPaperScene,
+  type DiagramToPaperSceneOptions,
+} from '../../cp-workspace/references/diagramToPaperScene';
 import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
-import { createOverlayProjector, sheetCorners, sheetFrame } from '../../cp-workspace/references/stepDiagramGeometry';
+import {
+  createOverlayProjector,
+  sheetCorners,
+  sheetFrame,
+  type DiagramProjector,
+} from '../../cp-workspace/references/stepDiagramGeometry';
 import { STEP_DIAGRAM_LINE_WIDTH } from '../annotate/canvasInk';
 import type { PaperPage } from '../../lib/paper/paperPage';
 import type { PaperScene } from '../../lib/paper/paperScene';
@@ -96,6 +106,16 @@ export function stepDiagramScene(
   style: DiagramStyle,
   sheetMm: number
 ): PaperScene {
+  return diagramToPaperScene(model, stepSceneOptions(model, mirrored, style, sheetMm));
+}
+
+/** What a step's scene is built with, its sheet `sheetMm` across: the one projector its scene and its letters share. */
+function stepSceneOptions(
+  model: StepDiagramModel,
+  mirrored: boolean,
+  style: DiagramStyle,
+  sheetMm: number
+): DiagramToPaperSceneOptions {
   const drawn = diagramPaperStyle(style);
   const project = createOverlayProjector(
     sheetToScene(model, mirrored, sheetMm),
@@ -104,7 +124,23 @@ export function stepDiagramScene(
   );
   // No ground: a diagram is printed, and a letter off the sheet stands on paper.
   // Its bounds hold its marks too: the arrow's pen is the author's, and the sheet may be small.
-  return diagramToPaperScene(model, { style: drawn, project, mirrored, marksInBounds: true });
+  return { style: drawn, project, mirrored, marksInBounds: true };
+}
+
+/**
+ * Where the step's letters are drawn in its scene ({@link stepDiagramScene})
+ * with the sheet `sheetMm` across, in scene px, by each one's index in the
+ * model, and the projector that placed them: the layout a letter lifted from
+ * a References card is laid out by, once, at the size cards and the canvas
+ * draw (17d).
+ */
+export function stepDiagramLetters(
+  model: StepDiagramModel,
+  mirrored: boolean,
+  style: DiagramStyle,
+  sheetMm: number
+): { placements: ReadonlyMap<number, LabelPlacement>; project: DiagramProjector } {
+  return diagramLetterPlacements(model, stepSceneOptions(model, mirrored, style, sheetMm));
 }
 
 /**

@@ -10,6 +10,8 @@ import {
   type DiagramExportSettings,
 } from '../diagram/export/diagramExportSettings';
 import { DEFAULT_DIAGRAM_LINE_TYPE, isDiagramLineType, type DiagramLineType } from '../diagram/annotate/lineTypes';
+import { isAnnotationColor } from '../diagram/annotate/annotationColors';
+import { PLAIN_TEXT_STYLE, readTextStyle, sameTextStyle, type TextStyle } from '../diagram/annotate/textStyle';
 import {
   hasCoarsePointer,
   resolveCpSnapRadius,
@@ -44,6 +46,8 @@ import {
   type PaperStyleValue,
 } from '../lib/paper/paperStyle';
 import {
+  DEFAULT_PAPER_EXPORT_MARKS,
+  normalizePaperExportMarks,
   normalizePaperExportMemory,
   normalizePaperExportSettings,
   PAPER_EXPORT_STYLE_SLOT,
@@ -51,6 +55,7 @@ import {
   paperExportMemoryOf,
   persistedPaperExport,
   type PaperExportKind,
+  type PaperExportMarks,
   type PaperExportMemory,
   type PaperExportSettings,
   type PaperExportStyleChoice,
@@ -68,6 +73,7 @@ import {
   readNumber,
   readOptionalBoolean,
   readString,
+  removeKey,
   storageKey,
   STORAGE_KEYS,
   writeBoolean,
@@ -94,6 +100,9 @@ const CP_FOLDED_FIGURE_KEY = storageKey(STORAGE_KEYS.creasePatternFoldedFigure);
 const DIAGRAM_EXPORT_KEY = storageKey(STORAGE_KEYS.diagramExport);
 const DIAGRAM_ANNOTATE_SNAP_KEY = storageKey(STORAGE_KEYS.diagramAnnotateSnap);
 const DIAGRAM_ANNOTATE_LINE_TYPE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineType);
+const DIAGRAM_ANNOTATE_LINE_COLOR_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineColor);
+const DIAGRAM_ANNOTATE_TEXT_STYLE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateTextStyle);
+const DIAGRAM_REFERENCES_MARKS_KEY = storageKey(STORAGE_KEYS.diagramReferencesMarks);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
@@ -111,6 +120,12 @@ function readCpWheelGesture(): WheelGesturePreference {
 function readDiagramAnnotateLineType(): DiagramLineType {
   const stored = readString(DIAGRAM_ANNOTATE_LINE_TYPE_KEY);
   return isDiagramLineType(stored) ? stored : DEFAULT_DIAGRAM_LINE_TYPE;
+}
+
+/** The colour Annotate last drew a solid line in (17a); the style's ink — null — when none was chosen, or the key reads as no colour. */
+function readDiagramAnnotateLineColor(): string | null {
+  const stored = readString(DIAGRAM_ANNOTATE_LINE_COLOR_KEY);
+  return isAnnotationColor(stored) ? stored : null;
 }
 
 /**
@@ -322,6 +337,25 @@ interface SettingsState {
    * Line Type, and the keys that pick it. Kept as you left it, as Edit's is.
    */
   diagramAnnotateLineType: DiagramLineType;
+  /**
+   * The colour a new solid line is drawn in (17a): the colour select beside
+   * the rail's Line Type while Solid is the type. Null is the style's arrow
+   * ink. Kept as you left it, as the type is.
+   */
+  diagramAnnotateLineColor: string | null;
+  /**
+   * The style a new label is set in (17b): the rail's Text Style while the
+   * Label tool is in hand — a colour, Bold, a halo and a size. Today's look
+   * until one is chosen; kept as you left it, as the line's colour is.
+   */
+  diagramAnnotateTextStyle: TextStyle;
+  /**
+   * Which of a References card's marks the Diagram's References browser
+   * pulls (17d, RM4): its letters and its reference lines, as its Show menu
+   * left them — both until one is hidden, as in export. A hidden mark is not
+   * pulled. Kept as you left it.
+   */
+  diagramReferencesMarks: PaperExportMarks;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -335,6 +369,11 @@ interface SettingsState {
   setReferencesAutoPlayFolds: (value: boolean) => void;
   setDiagramAnnotateSnap: (value: boolean) => void;
   setDiagramAnnotateLineType: (value: DiagramLineType) => void;
+  /** Null for the style's ink. */
+  setDiagramAnnotateLineColor: (value: string | null) => void;
+  /** One option or more of the next label's style, the rest as they were. */
+  setDiagramAnnotateTextStyle: (value: Partial<TextStyle>) => void;
+  setDiagramReferencesMarks: (value: PaperExportMarks) => void;
   /** `null` hands the choice back to the paper style. */
   setReferencesShowAuxCreases: (value: boolean | null) => void;
   /** Write one field of a slot's style. Editing export while it follows display detaches it. */
@@ -401,6 +440,9 @@ export const useSettingsStore = create<SettingsState>()(
       diagramExport: normalizeDiagramExportSettings(readJson<unknown>(DIAGRAM_EXPORT_KEY, null)),
       diagramAnnotateSnap: readBoolean(DIAGRAM_ANNOTATE_SNAP_KEY, true),
       diagramAnnotateLineType: readDiagramAnnotateLineType(),
+      diagramAnnotateLineColor: readDiagramAnnotateLineColor(),
+      diagramAnnotateTextStyle: readTextStyle(readJson<unknown>(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY, null)),
+      diagramReferencesMarks: normalizePaperExportMarks(readJson<unknown>(DIAGRAM_REFERENCES_MARKS_KEY, null)),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -468,6 +510,34 @@ export const useSettingsStore = create<SettingsState>()(
         // No event: the type is part of choosing a tool, which is not counted;
         // the lines drawn in each type are (`diagram annotation added`).
         set({ diagramAnnotateLineType: value });
+      },
+      setDiagramAnnotateLineColor: (value) => {
+        if (get().diagramAnnotateLineColor === value || (value !== null && !isAnnotationColor(value))) return;
+        if (value === null) removeKey(DIAGRAM_ANNOTATE_LINE_COLOR_KEY);
+        else writeString(DIAGRAM_ANNOTATE_LINE_COLOR_KEY, value);
+        // No event, as for the type: the lines drawn in each colour are
+        // counted (`diagram annotation added`'s `color`).
+        set({ diagramAnnotateLineColor: value });
+      },
+      setDiagramAnnotateTextStyle: (value) => {
+        // Each option read as a stored one is: a colour or a size that is not one is never taken.
+        const next = readTextStyle({ ...get().diagramAnnotateTextStyle, ...value });
+        if (sameTextStyle(next, get().diagramAnnotateTextStyle)) return;
+        if (sameTextStyle(next, PLAIN_TEXT_STYLE)) removeKey(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY);
+        else writeJson(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY, next);
+        // No event, as for the line's colour: the labels set in each style are
+        // counted (`diagram annotation added`'s `color`, `bold`, `halo`, `size`).
+        set({ diagramAnnotateTextStyle: next });
+      },
+      setDiagramReferencesMarks: (value) => {
+        const next = normalizePaperExportMarks(value);
+        const was = get().diagramReferencesMarks;
+        if (next.letters === was.letters && next.highlights === was.highlights) return;
+        if (next.letters === DEFAULT_PAPER_EXPORT_MARKS.letters && next.highlights === DEFAULT_PAPER_EXPORT_MARKS.highlights) {
+          removeKey(DIAGRAM_REFERENCES_MARKS_KEY);
+        } else writeJson(DIAGRAM_REFERENCES_MARKS_KEY, next);
+        // No event: what is pulled under it is counted (`diagram steps pulled from references`' `letters` and `reference_lines`).
+        set({ diagramReferencesMarks: next });
       },
       setReferencesShowAuxCreases: (value) => {
         if (get().referencesShowAuxCreases === value) return;

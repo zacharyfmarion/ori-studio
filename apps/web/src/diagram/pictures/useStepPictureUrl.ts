@@ -8,7 +8,7 @@ import type {
 } from '../document/diagramDocument';
 import { annotatedPicture, hasDrawnAnnotations } from '../annotate/paintAnnotations';
 import type { PictureLayers } from '../annotate/pictureGeometry';
-import { viewGeometry, viewOfStep } from '../zoom/stepView';
+import { sourcePaper, viewGeometry, viewOfStep } from '../zoom/stepView';
 import {
   paintZoomedPicture,
   paintZoomSurround,
@@ -99,7 +99,18 @@ export function posedZoomUrl(
   return throughCache(key, kept, () => {
     const painted = paintSource(zoomed.source, style);
     return painted
-      ? svgDataUrl(posedZoomPicture(painted, zoomed.view, zoomed.pictureFrame, annotations, style, opacity))
+      ? svgDataUrl(
+          posedZoomPicture(
+            painted,
+            zoomed.view,
+            zoomed.pictureFrame,
+            annotations,
+            style,
+            opacity,
+            null,
+            sourcePaper(zoomed.source, zoomed.view.window)
+          )
+        )
       : null;
   });
 }
@@ -197,7 +208,8 @@ export function annotatedStepUrl(
   return throughCache(key, kept, () => {
     const painted = paintSource(source, style);
     const paintAt = opacity < 1 ? null : (scale: number) => paintSource(source, style, undefined, scale);
-    return painted ? svgDataUrl(annotatedPicture(painted, annotations, style, opacity, layers, paintAt)) : null;
+    // A References picture's sheet: a label's halo is filled with the face it stands on (17b).
+    return painted ? svgDataUrl(annotatedPicture(painted, annotations, style, opacity, layers, paintAt, sourcePaper(source))) : null;
   });
 }
 

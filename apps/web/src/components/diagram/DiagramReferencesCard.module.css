@@ -100,7 +100,6 @@
 
 /* Square, whatever the column width, so a row of cards lines up. */
 .well {
-  position: relative;
   display: grid;
   aspect-ratio: 1;
   place-items: center;
@@ -127,12 +126,10 @@
   font-size: 0.72rem;
 }
 
-/* What a step already does with the card, over the picture's corner. */
+/* What a step already does with the card, at the foot's end: off the picture, whose letters reach its corners. */
 .flag {
-  position: absolute;
-  bottom: 6px;
-  left: 6px;
-  max-width: calc(100% - 12px);
+  min-width: 0;
+  margin-left: auto;
   padding: 2px 7px;
   overflow: hidden;
   border-radius: var(--radius-sm);
@@ -168,9 +165,18 @@
   -webkit-line-clamp: 3;
 }
 
-.ways {
-  margin: 0;
+/* The card's foot: how many ways it folds, and what a step already does with it. */
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   padding: 0 var(--space-2) var(--space-2);
+}
+
+.ways {
+  flex: none;
+  margin: 0;
   color: var(--text-muted);
   font-size: 0.68rem;
 }

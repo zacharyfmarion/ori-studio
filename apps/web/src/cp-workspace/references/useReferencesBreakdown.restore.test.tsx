@@ -288,3 +288,37 @@ describe('opening the sequence on a reopened project', () => {
     expect(client.plannerCreate).toHaveBeenCalledTimes(1);
   });
 });
+
+// A diagram step's Open in References asks for its own card: by its number
+// and its line, over the card the reader had open when the file was saved.
+describe('opening the sequence on a diagram step’s card', () => {
+  const steps = plannerSequenceFixture().steps;
+  const store = () => useWorkspaceStore.getState();
+
+  async function showCachedPlan() {
+    await cacheWith(referencesPlanCacheKey(input, SHEET, SETTINGS));
+    act(() => controller?.open());
+    await settle();
+  }
+
+  it('opens on the step’s card as the plan lands, not on the card the file was saved on', async () => {
+    const done = { index: steps.length, line: null };
+    useWorkspaceStore.setState({ referencesRestore: { loadSerial: LOAD, sheet: null, card: done } });
+    store().requestReferencesCard(4, { number: 2, line: steps[1].line });
+    await showCachedPlan();
+    expect(controller?.activeStep).toBe(1);
+    expect(store().referencesCardRequest).toBeNull();
+    expect(store().referencesRestore?.card).toBeNull();
+  });
+
+  it('moves to the step’s card when the sheet’s plan is on screen already', async () => {
+    await showCachedPlan();
+    expect(controller?.activeStep).toBe(0);
+    // Another sheet's card is not this one's.
+    act(() => store().requestReferencesCard(7, { number: 4, line: steps[3].line }));
+    expect(controller?.activeStep).toBe(0);
+    act(() => store().requestReferencesCard(4, { number: 4, line: steps[3].line }));
+    expect(controller?.activeStep).toBe(3);
+    expect(store().referencesCardRequest).toBeNull();
+  });
+});

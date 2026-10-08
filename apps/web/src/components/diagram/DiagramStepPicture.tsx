@@ -12,6 +12,7 @@ import {
   Rotate3d,
   RotateCcwSquare,
   RotateCw,
+  Ungroup,
   Upload,
   type LucideIcon,
 } from 'lucide-react';
@@ -45,6 +46,8 @@ const PATTERN_VERBS: readonly { id: DiagramStepActionId; icon: LucideIcon }[] = 
   { id: 'from-references', icon: Compass },
   { id: 'open-in-edit', icon: PenTool },
   { id: 'replace-from-references', icon: Replace },
+  // A step made before marks were lifted: its card's marks out of its picture (17e).
+  { id: 'make-marks-editable', icon: Ungroup },
   { id: 'open-in-references', icon: Compass },
 ];
 const FILE_VERBS: readonly { id: DiagramStepActionId; icon: LucideIcon }[] = [
@@ -72,7 +75,8 @@ const TURN_INSTEAD: readonly { id: DiagramStepActionId; icon: LucideIcon }[] = [
  * pattern, then those about the picture itself; an empty step's are the ways
  * to give it one, and to make it a turn instead (D24). A verb that cannot do anything for this step is left
  * out rather than shown dead — Refresh while the pattern row says it is up to
- * date, Adjust Pose in Pose. The pattern picker, when the step's pattern is
+ * date, Adjust Pose in Pose — and one the pane already offers, Make Marks
+ * Editable, in Annotate's notice. The pattern picker, when the step's pattern is
  * being chosen, sits under them.
  */
 export function DiagramStepPicture({
@@ -85,6 +89,7 @@ export function DiagramStepPicture({
   capture,
   picker,
   detailOpen,
+  annotating,
 }: {
   step: DiagramStep;
   /** The upload the step shows, or null for a step without one. */
@@ -102,6 +107,8 @@ export function DiagramStepPicture({
   picker: ReactNode;
   /** The step is open in its detail, where Adjust pose would lead nowhere new. */
   detailOpen: boolean;
+  /** The step is open in Annotate, whose notice offers Make Editable itself, right above (17e). */
+  annotating: boolean;
 }) {
   const { t } = useTranslation();
   const source = step.source?.kind === 'cp' || step.source?.kind === 'references-step' ? step.source : null;
@@ -115,6 +122,7 @@ export function DiagramStepPicture({
       const command = diagramStepCommand(actions, id);
       if (!command) return [];
       if (id === 'adjust-pose' && detailOpen) return [];
+      if (id === 'make-marks-editable' && annotating) return [];
       if (id === 'refresh-picture' && command.disabled) return [];
       return [
         {

@@ -14,8 +14,9 @@ import type {
   DiagramAsset,
   DiagramStep,
   DiagramStyle,
+  KnownDiagramAnnotation,
 } from '../document/diagramDocument';
-import type { PicturePoint } from './annotationModel';
+import { isHungText, type PicturePoint } from './annotationModel';
 import { pictureSnapTarget, type SnapTarget } from './pictureSnap';
 
 /**
@@ -52,6 +53,7 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'solid-line':
     case 'circle':
     case 'right-angle':
     case 'callout':
@@ -80,6 +82,16 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
  */
 export function snapsEnd(kind: DiagramAnnotationKind, end: 'from' | 'to'): boolean {
   return snapsWhenPlaced(kind) && (end === 'from' || kind !== 'callout');
+}
+
+/**
+ * Whether an end of `annotation`, taken hold of and moved, snaps where it
+ * lands: as {@link snapsEnd} says for its kind — and hung text's anchor (17b),
+ * which is on what the text names, as a callout's point is, though its words,
+ * as every label's, are put beside it and never snap.
+ */
+export function snapsAnchor(annotation: Pick<KnownDiagramAnnotation, 'kind' | 'offsetPt'>, end: 'from' | 'to'): boolean {
+  return snapsEnd(annotation.kind, end) || (end === 'from' && isHungText(annotation));
 }
 
 /** What the canvas snaps against now: the step, its annotations as the store has them, the switch and the reach. */

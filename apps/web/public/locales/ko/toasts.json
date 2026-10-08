@@ -37,9 +37,16 @@
     "references": {
       "addedSteps": "{{first}}–{{last}}단계로 추가했습니다",
       "addedTurnOvers_other": "뒤집기 {{count}}개를 추가했습니다",
+      "bakedStep": "{{number}}단계의 표시는 그림의 일부로 남습니다: 한 단계에 담을 수 있는 수보다 많습니다.",
+      "bakedSteps_other": "{{count}}개 단계의 표시는 그림의 일부로 남습니다: 한 단계에 담을 수 있는 수보다 많습니다.",
       "filledStep": "{{number}}단계를 채웠습니다",
+      "marksEditable_other": "{{number}}단계의 표시 {{count}}개를 이제 편집할 수 있습니다",
+      "marksOutsideFrame_other": "확대 틀 바깥의 표시 {{count}}개는 빠졌습니다",
+      "noMarksInFrame": "{{number}}단계의 표시가 확대 틀 안에 하나도 없습니다",
+      "replacedEdited_other": "편집한 표시 {{count}}개를 바꿨습니다",
       "replacedStep": "{{number}}단계 카드를 바꿨습니다",
-      "tooLarge": "이 단계는 너무 세밀해서 도해에 보관할 수 없습니다."
+      "tooLarge": "이 단계는 너무 세밀해서 도해에 보관할 수 없습니다.",
+      "undoReplaced": "실행 취소"
     },
     "refreshedAll_other": "{{count}}개 단계를 새로 고쳤습니다",
     "uploadFailed_other": "그림 {{count}}개를 추가하지 못했습니다",

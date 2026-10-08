@@ -718,7 +718,15 @@ vocabulary at paint time.**
   - **A pose delta the app applied** is carried onto every annotation, and
     `annotatedPictureKey` is updated. Such a delta is a rotation about the
     centre, a quarter turn or a mirror, including a References step's Turn
-    over, which only toggles `mirrored` about the sheet's middle.
+    over, which toggles `mirrored` about the sheet's middle.
+    *Amended, Phase 17c (2026-10-07; RM7 in
+    `diagram-references-annotations.md`).* A References Turn over also
+    renames the folds on the step, drawn by hand or not: valley and mountain
+    lines swap, and so do valley and mountain arrows, a shaped arrow's head
+    with them; turning back restores every name. Nothing else renames: a
+    crease-pattern step's Front | Back only recolours the face and carries
+    nothing (Zach, 2026-10-06), and Flip, an upload's mirror and a linked
+    picture's turn keep every name.
   - **Anything else** leaves annotations in place: a refold, Refresh, a camera
     or fold-% change, a fold's turn-over (a different side), or a replace. Annotate then shows "The picture
     changed since these annotations were drawn" until they are touched.
@@ -1551,6 +1559,58 @@ to fold it" — both readings.)*
 - **A linked step shown Folded** (flat) gets ‹ Layer order n of m › — Previous
   as well as Next, m counting what has been found so far ("5+" while more may
   exist) — rather than Next alone.
+
+**D25. A References step's marks are annotations.**
+*(Zach, 2026-10-07: "for imported reference steps, I want all the annotations
+to be imported and editable as annotations … add support for solid lines
+where you can choose the color … the option to show / hide the letters and
+reference lines on import, like in export". Plan and as-built:
+`diagram-references-annotations.md`, RM1–RM13; built as Phase 17.)*
+
+- **The split.** A pulled card's paper is the step's picture: the sheet, the
+  creases already made, the pattern's aux lines and the band wash. What the
+  step asks the folder to do is lifted into annotations tagged `imported`:
+  its folds, reference lines, rings, letters and arrows. In the Diagram
+  preset it paints as the baked card did, letters' typeface on screen
+  aside. A card with more marks than a step holds (500) is pulled baked,
+  with a toast.
+- **No letter kind.** A letter is Text (`label`). Text gains a colour, Bold,
+  a halo, a print size and an offset from its point, for any text; hung text
+  is dragged by its words.
+- **Solid lines.** A fourth Line Type, Solid (Shift+L), in a palette or
+  custom colour, for any step. A reference line lifts as one.
+- **Show.** The browser's Show menu picks Letters and Reference lines, as
+  the export dialog's Marks do (renamed "Reference lines"). It is
+  remembered, and each step records its choice (`source.marks`).
+- **The card's marks follow the card.** Replace from References and the Way
+  chooser swap every tagged mark, edited or not, and keep the author's; a
+  toast with Undo says when edited ones went. Turn over renames a step's
+  folds, valley and mountain, as the picture's side used to.
+- **Old steps** paint as they did, and the reader rewrites nothing. Make
+  Marks Editable converts one, as one undo step: in Annotate's notice, the
+  Step pane and the card menu.
+- **Open in References** opens on the step's own card, found by its line and
+  number (17f).
+
+Where its parts live (under `apps/web/src/`):
+- The lift and its verbs, in `diagram/references/`: `referencesCardMarks.ts`
+  (`liftCardMarks`, `liftedCardPicture`, `editableCardMarks`),
+  `referencesPulledSteps.ts` (the pull, `chooseReferencesWay`),
+  `makeMarksEditable.ts` and `cardMarksToast.ts`.
+- The tag, in `diagram/document/`: `cardMarks.ts` (its predicates and
+  moves), and `swapCardMarks` and `makeCardMarksEditable` in
+  `diagramDocument.ts`.
+- The marks, in `diagram/annotate/`: `annotationModel.ts` (`solid-line`,
+  Text's options), `annotationCarry.ts` (`otherSide`), `annotationColors.ts`
+  (the palette) and `labelAdvances.ts` (Bold's advances).
+- The controls, in `components/diagram/`: `DiagramColorSelect`,
+  `DiagramLineTypeControl`, `DiagramTextStyleControl`,
+  `DiagramTextStyleRows`, `DiagramReferencesShowMenu` and
+  `DiagramCardMarksNotice`; and `SelectSwatch` in `components/ui/Select`.
+- Open in References: `diagram/capture/referencesStepActions.ts` asks; the
+  store's `referencesCardRequest` holds the card; `locateStepCard`
+  (`cp-workspace/references/referencesReaderState.ts`) finds it, and
+  `useReferencesBreakdown` opens on it.
 
 ### Contracts
 
@@ -2789,7 +2849,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - **As built.**
     - **Model and file.** `KnownDiagramAnnotation` is D8's shape, in picture units; `bend` is the arc's sagitta as a share of its chord, positive to the left of travel as the page shows it, ±`1 − cos 30°` for References' 60° arc. The reader (`diagramFile.ts`) drops what does not read — a wrong type, a zero bend, a second annotation with an id already read — and carries verbatim, as a newer build's, a kind, a field, an enumerated value or a well-formed value past this build's ranges (a bend over 0.5, a point more than four frames out, a label over 80 characters). A step keeps at most 500. A sign or a label is put where `from` is, whatever `to` says.
     - **Frames.** Every painted picture reports its frame (`PaintedPicture.frame`): an upload's posed box, a scene's bounds, a fixed picture whole, a References step's sheet (`stepDiagramSheetBox`); a page cell finds the same box (`DrawnPicture.framePt`). `pictures/pictureFrame.ts` gives the frame in picture units without painting, for the carry, and holds the one parsed-scene cache (`storedScene`), which `pagePictures` now shares.
-    - **Carry (`annotationCarry.ts`).** `withCarriedAnnotations(before, after, assets)` runs at the end of `setUploadPose`, `setReferencesSide` and `setLinkedPicture`. It carries an upload's re-pose exactly (asset coordinates through both poses), a References step's turn-over as a mirror about its sheet, and a linked picture's turn — crease pattern, or flat with the same side and layer order, the same scope and fingerprint, both pictures scenes — as a rotation about the scene's origin, where both captures turn their pattern. A mirror turns a bend and a rotation's sense over; an odd number of quarter turns turns a turn-over's axis. Anything else, or a step carrying an annotation this build cannot read, leaves them where they were, out of step with the picture.
+    - **Carry (`annotationCarry.ts`).** `withCarriedAnnotations(before, after, assets)` runs at the end of `setUploadPose`, `setReferencesSide` and `setLinkedPicture`. It carries an upload's re-pose exactly (asset coordinates through both poses), a References step's turn-over as a mirror about its sheet (since Phase 17c also renaming its folds; see D8), and a linked picture's turn — crease pattern, or flat with the same side and layer order, the same scope and fingerprint, both pictures scenes — as a rotation about the scene's origin, where both captures turn their pattern. A mirror turns a bend and a rotation's sense over; an odd number of quarter turns turns a turn-over's axis. Anything else, or a step carrying an annotation this build cannot read, leaves them where they were, out of step with the picture.
     - **Drawing (`annotationPrimitives.tsx`, `paintAnnotations.ts`).** Compiled per paint in CSS px with the frame's top-left at the origin, through References' own projector, ink and pens (`STEP_DIAGRAM_LINE_WIDTH`, the style's arrow pen through the References policy), in a y-up primitive space as References' unit frame is, so every arc and head is References' code path. Marks have one ink on and off the paper (no clip pair). A card draws them as if the frame were the size every picture opens at (`CARD_FRAME_PX`, 50 mm); a page and a step file at the size the frame prints. A label is a `<text>` of runs in the upload-text format (`labelRuns`), so a page sets and counts it with `setUploadText`, its Han in the diagram's style; the rotate glyph's fraction is set in Noto Sans Bold the same way. A step file is cropped to reach an arrow that starts off the picture (`annotationReach`).
     - **Surfaces.** Cards and the detail show `annotatedStepUrl` (the picture with its annotations, cached by the picture and the annotations' list); Pose ghosts them at 30%. The Annotate canvas (`useAnnotateCanvas`) shows the picture alone, its frame 1000 world px with a quarter-frame margin, the annotations live over it as React (`DiagramAnnotationLayer`, the painter's pens), a drag previewed and committed once on release; Space, the middle button or two fingers pan (one finger's `touchstart` is kept from the camera natively; `panning.excluded` is not used, since it also blocks the middle button and the pinch — and the library matches each entry as a tag or a class, so an attribute selector throws). A press reaches 8 px (18 on touch) and takes the keyboard.
     - **Store.** `diagramAnnotateTool`, `diagramSelectedAnnotationId` (scoped, never history), `editDiagramAnnotations` (one undo entry, or a label field's session extending it; the slice's text session generalised to a keyed one), `keepDiagramAnnotations`. The selected annotation goes with its step, the detail, or an undo that removes it.
@@ -3675,6 +3735,19 @@ built as 15a–15f, each phase's as-built under its checklist there.
 Plan: `implementation-plans/diagram-revision-2.md` — decided (Z1–Z11,
 ED1–ED13, RA0–RA8) and built as 16a–16g, each phase's as-built under its
 checklist there. It amends D2, D8, D10 and D22 above.
+
+### Phase 17: a References step's marks as annotations (D25; Zach, 2026-10-07)
+
+1. A pulled card's arrows, lines, rings and letters arrive as editable
+   annotations; a letter is Text.
+2. Solid lines with a colour, for any step.
+3. Show or hide Letters and Reference lines on a pull, as export does.
+
+Plan: `implementation-plans/diagram-references-annotations.md` — decided
+(RM1–RM13) and built as 17a–17f, each phase's as-built under its checklist
+there. 17a is Solid lines, 17b Text's options, 17c Turn over renaming folds,
+17d the split at a pull, 17e Make Marks Editable and 17f the close-out. It
+amends D8 (17c's renaming).
 
 ### Later (written up, not built)
 

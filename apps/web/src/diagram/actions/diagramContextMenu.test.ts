@@ -22,6 +22,7 @@ const BASE: DiagramStepActionState = {
   patternOpen: true,
   showAs: null,
   poseAgain: false,
+  cardMarks: null,
 };
 
 function actions(state: Partial<DiagramStepActionState> = {}) {
@@ -38,6 +39,7 @@ function actions(state: Partial<DiagramStepActionState> = {}) {
     refreshPicture: vi.fn(),
     openInEdit: vi.fn(),
     openInReferences: vi.fn(),
+    makeMarksEditable: vi.fn(),
     replaceFromReferences: vi.fn(),
     fromReferences: vi.fn(),
     showAs: vi.fn(),

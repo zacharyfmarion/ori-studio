@@ -64,7 +64,7 @@ export interface DiagramSceneOptions {
 }
 
 /** A line to pack, and the ink it is drawn in when that is not its style's. */
-type DiagramLine = Extract<StepDiagramPrimitive, { kind: 'line' }> & { ink?: Rgba };
+type DiagramLine = Omit<Extract<StepDiagramPrimitive, { kind: 'line' }>, 'ink' | 'hidden'> & { ink?: Rgba };
 
 /**
  * Split a step's primitives, and pack the lines for upload.
@@ -93,9 +93,12 @@ export function diagramToScene(
   const creases = options.creases ?? DEFAULT_DIAGRAM_CREASES;
   const symbols: StepDiagramPrimitive[] = [];
   const lines: DiagramLine[] = [];
-  for (const primitive of primitives) {
-    if (primitive.kind === 'line') {
-      if (canLeavePaper(primitive) && options.paper) lines.push(...splitAtPaper(primitive, options.paper));
+  for (const each of primitives) {
+    if (each.kind === 'line') {
+      // A colour of its own and stretches behind a flap are a Diagram solid
+      // line's (17a), which never reaches this canvas: References sets neither.
+      const { ink: _own, hidden: _behind, ...primitive } = each;
+      if (canLeavePaper(each) && options.paper) lines.push(...splitAtPaper(primitive, options.paper));
       else if (primitive.style !== 'crease' && primitive.style !== 'aux') lines.push(primitive);
       else if (primitive.style === 'crease' || creases.showAux) {
         const ends = options.sheet
@@ -106,7 +109,7 @@ export function diagramToScene(
     }
     // The canvas has the document's own border creases under everything, so a
     // sheet rectangle over them would be a second paper.
-    else if (primitive.kind !== 'sheet') symbols.push(primitive);
+    else if (each.kind !== 'sheet') symbols.push(each);
   }
   return { strokes: pack(lines, colors, inkCss, pens), symbols };
 }

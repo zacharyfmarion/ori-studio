@@ -637,6 +637,140 @@ describe('annotations in the file', () => {
     expect(withAnnotations([newer])).toEqual([{ id: 'n-8', unknown: newer }]);
   });
 
+  describe('a solid line (17a)', () => {
+    const solid = (more: Record<string, unknown> = {}) => ({ id: 's-1', kind: 'solid-line', from: [0.1, 0.5], to: [0.7, 0.5], ...more });
+
+    it('round-trips its colour and its ends behind a flap, and one with no colour, written with none', () => {
+      const every = [
+        solid({ color: '#c91d87' }),
+        solid({ id: 's-2', color: '#1971C2', behind: { from: 1, to: 2 } }),
+        solid({ id: 's-3' }),
+      ];
+      expect(withAnnotations(every)).toEqual(every);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: withAnnotations(every) }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual(every);
+    });
+
+    it('carries a colour it cannot draw as a newer build’s, and drops one that is not a word', () => {
+      for (const color of ['magenta', 'theme:accent', '#c91d87ff', 'rgb(1, 2, 3)']) {
+        const newer = solid({ id: `n-${color}`, color });
+        expect(withAnnotations([newer]), color).toEqual([{ id: newer.id, unknown: newer }]);
+      }
+      expect(withAnnotations([solid({ id: 'd-number', color: 7 }), solid({ id: 'd-null', color: null })])).toEqual([]);
+      // A colour is a solid line's alone: on a valley line it is a field this build has no name for.
+      const valley = { id: 'v-color', kind: 'valley-line', from: [0, 0], to: [1, 1], color: '#e03131' };
+      expect(withAnnotations([valley])).toEqual([{ id: 'v-color', unknown: valley }]);
+    });
+
+    it('is kept, verbatim and undrawn, by a build before solid lines: as any kind it has no name for', () => {
+      // A build before 17a names no `solid-line`; `spiral-line` stands for it here.
+      const older = solid({ kind: 'spiral-line', color: '#e03131' });
+      expect(withAnnotations([older])).toEqual([{ id: 's-1', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual([older]);
+    });
+  });
+
+  describe('a label’s options (17b)', () => {
+    const label = (more: Record<string, unknown> = {}) => ({ id: 't-1', kind: 'label', from: [0.2, 0.3], to: [0.2, 0.3], text: 'P', ...more });
+
+    it('round-trips every option, each written only as it is set, and a plain label as it was', () => {
+      const every = [
+        label({ color: '#c91d87', bold: true, halo: true, sizePt: 9, offsetPt: [-6.5, 4.25] }),
+        label({ id: 't-2', bold: true }),
+        label({ id: 't-3', sizePt: 4 }),
+        label({ id: 't-4', sizePt: 48, offsetPt: [200, -200] }),
+        label({ id: 't-5' }),
+      ];
+      expect(withAnnotations(every)).toEqual(every);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: withAnnotations(every) }, stepsIn(document)[1]!];
+      const written = throughJson(writeDiagram(document)).steps[0].annotations;
+      expect(written).toEqual(every);
+      // A plain label is written with the fields every label was written with before them.
+      expect(Object.keys(written[4])).toEqual(['id', 'kind', 'from', 'to', 'text']);
+      // Bold and the halo read false as unsaid, and are never written false.
+      expect(withAnnotations([label({ id: 't-6', bold: false, halo: false })])).toEqual([label({ id: 't-6' })]);
+    });
+
+    it('carries a colour, a size or an offset past what it draws as a newer build’s', () => {
+      const newer = [
+        label({ id: 'n-color', color: 'magenta' }),
+        label({ id: 'n-size', sizePt: 72 }),
+        label({ id: 'n-offset', offsetPt: [0, 240] }),
+      ];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    });
+
+    it('drops one whose options are damaged', () => {
+      const damaged = [
+        label({ id: 'd-bold', bold: 'yes' }),
+        label({ id: 'd-halo', halo: 1 }),
+        label({ id: 'd-size', sizePt: 2 }),
+        label({ id: 'd-size-nan', sizePt: 'large' }),
+        label({ id: 'd-offset', offsetPt: [1] }),
+        label({ id: 'd-offset-word', offsetPt: ['1', 2] }),
+        label({ id: 'd-color', color: 7 }),
+      ];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+
+    it('is kept, verbatim and undrawn, by a build before them, as a field it has no name for is; a callout never had them', () => {
+      // A build before 17b names `text` alone on a label: any option is a field it has no name for.
+      const styled = label({ bold: true, offsetPt: [3, 4], underline: true });
+      expect(withAnnotations([styled])).toEqual([{ id: 't-1', unknown: styled }]);
+      const callout = { id: 'c-bold', kind: 'callout', from: [0.1, 0.1], to: [0.3, 0.3], text: 'Repeat', bold: true };
+      expect(withAnnotations([callout])).toEqual([{ id: 'c-bold', unknown: callout }]);
+    });
+  });
+
+  describe('a mark lifted from a References card (17d)', () => {
+    const lifted = [
+      { id: 'i-1', kind: 'valley-line', from: [0, 0.5], to: [1, 0.5], imported: 'untouched' },
+      { id: 'i-2', kind: 'solid-line', from: [0, 0], to: [1, 0], color: '#c91d87', imported: 'edited' },
+      { id: 'i-3', kind: 'circle', from: [0, 1], to: [0, 1], imported: 'untouched' },
+      { id: 'i-4', kind: 'fold-unfold-arrow', from: [0.1, 0.4], to: [0.5, 0.4], bend: -0.134, imported: 'untouched' },
+      {
+        id: 'i-5',
+        kind: 'label',
+        from: [0, 1],
+        to: [0, 1],
+        text: 'P',
+        color: '#c91d87',
+        bold: true,
+        halo: true,
+        sizePt: 9,
+        offsetPt: [-6.02, 7.73],
+        imported: 'untouched',
+      },
+    ];
+
+    it('round-trips its tag on every kind, and a mark of the author’s with none', () => {
+      expect(withAnnotations(lifted)).toEqual(lifted);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: withAnnotations(lifted) }, stepsIn(document)[1]!];
+      expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual(lifted);
+      expect(Object.keys(stepsIn(throughJson(writeDiagram(sampleDiagram())))[0].annotations[0] ?? {})).not.toContain('imported');
+    });
+
+    it('carries a state it does not know as a newer build’s, told before damage, and drops a tag that is not a word', () => {
+      const newer = { id: 'n-1', kind: 'circle', from: [0, 1], to: [0, 1], imported: 'linked' };
+      expect(withAnnotations([newer])).toEqual([{ id: 'n-1', unknown: newer }]);
+      // News before damage: a newer tag on a mark whose bend does not read is still a newer build's.
+      const both = { id: 'n-2', kind: 'valley-arrow', from: [0, 0], to: [1, 0], bend: 'wide', imported: 'linked' };
+      expect(withAnnotations([both])).toEqual([{ id: 'n-2', unknown: both }]);
+      expect(withAnnotations([{ ...lifted[0], imported: 3 }, { ...lifted[2], imported: null }])).toEqual([]);
+    });
+
+    it('is kept, verbatim and undrawn, by a build before 17d, as a field it has no name for is', () => {
+      // A build before 17d names no `imported`; `borrowed` stands for it here.
+      const older = { id: 'o-1', kind: 'circle', from: [0, 1], to: [0, 1], borrowed: 'untouched' };
+      expect(withAnnotations([older])).toEqual([{ id: 'o-1', unknown: older }]);
+    });
+  });
+
   describe('a right angle', () => {
     const mark = (more: Record<string, unknown> = {}) => ({
       id: 'r-1',
@@ -1769,6 +1903,7 @@ function sentDiagram() {
     referencesStep('step-find', { mode: 'find', settings: null, line: null, card: 1, side: 'back' }),
     referencesStep('step-turn', { card: null, line: null, fingerprint: null }),
     referencesStep('step-pulled', { plan: '{"planner":"p"}', way: 'O1:c0,c1:0', sentence: 'Fold P onto Q &amp; R.' }),
+    referencesStep('step-shown', { plan: '{"planner":"p"}', marks: { letters: false, highlights: true } }),
   ];
   return insertSteps(createDiagram({ title: 'Crane', newId: sequentialIds() }), steps, 0);
 }
@@ -1791,6 +1926,19 @@ describe('steps sent from References in the file', () => {
     expect(step.source).not.toHaveProperty('plan');
     expect(step.source).not.toHaveProperty('way');
     expect(step.source).not.toHaveProperty('sentence');
+  });
+
+  it('keeps the marks a step pulled (17d), and drops a choice that does not read alone', () => {
+    const read = stepsIn(readDiagram(throughJson(writeDiagram(sentDiagram())))!.document);
+    expect(read[4]!.source).toMatchObject({ marks: { letters: false, highlights: true } });
+    expect(read[0]!.source).not.toHaveProperty('marks');
+    for (const marks of [{ letters: 'no', highlights: true }, { letters: false }, 'none', null]) {
+      const written = throughJson(writeDiagram(sentDiagram()));
+      written.steps[4].source.marks = marks;
+      const step = stepsIn(readDiagram(written)!.document)[4]!;
+      expect(step.source).toMatchObject({ kind: 'references-step', plan: '{"planner":"p"}' });
+      expect(step.source).not.toHaveProperty('marks');
+    }
   });
 
   it('reads a card’s recorded sentence as a step’s text is read: XML-clean', () => {
