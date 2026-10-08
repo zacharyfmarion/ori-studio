@@ -74,9 +74,9 @@ The design:
   Out of both Pose and Annotate, it stays as it is, read-only.
 - **Layers is unchanged.** Its frame and area rows keep their controls. They
   belong to the selected mark, while the Step pane's belong to the step.
-  Both use one binding. *Open for review:* whether the frame row should
-  point to the Step pane instead of repeating Size and Anchor. The
-  recommendation is to keep them.
+  Both use one binding. *Decided (Zach, 2026-10-08):* the frame row keeps
+  Size and Anchor. Layers is where the frame is selected, and the Step pane
+  is where the step's settings live.
 - **Strings and analytics.** The toggle's strings may keep their
   `panels:diagram.pose.enlarge*` keys. Renaming them means moving all eight
   translations too. Help text that names Pose for Enlarged is reworded. The
@@ -169,11 +169,17 @@ The design:
     and a new store action, `updateEnlargedDiagramStep(stepId)`, built on
     `updateInStore` with one target. It is one undo step.
 - **Update all.** The area's own step gets Update all, which replaces today's
-  Update Enlarged Steps (`buildAreaActions`, the Layers area row, and Item 2's
-  Step pane on the area's step). It updates the out-of-date steps from that
-  area as one undo step. Notices that name "Update Enlarged Steps"
-  (`enlargedNoPaper`, `enlargedUnanchoredUpdate`, `enlargedRefreshUpdate`)
-  are reworded.
+  Update Enlarged Steps (`buildAreaActions` and the Layers area row). It
+  updates the out-of-date steps from that area as one undo step. Notices that
+  name "Update Enlarged Steps" (`enlargedNoPaper`, `enlargedUnanchoredUpdate`,
+  `enlargedRefreshUpdate`) are reworded.
+  - *Item 2 built nothing for the area's own step.* Annotate's Enlarged
+    section (`DiagramStepEnlarged`) there is only the switch, held, and its
+    reason ("No earlier step has an area to enlarge: draw one with Enlarge")
+    says to draw an area the step already has. Item 4 adds Update all to that
+    section, and that case needs its own words (all 9 catalogs): for example
+    "Enlarged on steps 23–25" (`areaSubtitle`). Ask Zach which before
+    building it.
 - **Deleted.** If the area is deleted, the enlarged steps keep their frames
   and say "Step N's area was deleted", with no Update. If the area's step is
   gone too, today's "An area no longer in the diagram" stays.
@@ -271,13 +277,91 @@ Paths under `apps/web/src/` unless rooted.
 
 ### 2. Enlarged settings move to Annotate
 
-- [ ] Annotate's Step pane: an Enlarged section with the toggle, From, Size with Fill, Anchor Pick/Reset, read-out, notices
-- [ ] Toggle off Pose's toolbar and out of Pose's Step pane section; read-only section hidden in Pose
-- [ ] Phone: the section works in the drawer
-- [ ] Tests near each change
-- [ ] i18n in all 9 catalogs (`i18n:extract`, translate, `i18n:stamp`, `i18n:check`)
-- [ ] `docs/analytics.md` wording; no new event
-- [ ] Review; before/after screenshots (Pose and Annotate, desktop and phone)
+- [x] Annotate's Step pane: an Enlarged section with the toggle, From, Size with Fill, Anchor Pick/Reset, read-out, notices
+  - `components/diagram/DiagramStepEnlarged.tsx`, composed by
+    `DiagramStepPanel` only while annotating. It binds `useStepZoom` (the
+    switch, status, notices) and, on an enlarged step,
+    `useZoomControls(step, { kind: 'frame' })` (Size, Anchor, read-out, and
+    the frame's Go to Area for From).
+  - The rows both panes draw are one file, `DiagramZoomRows.tsx`
+    (`ZoomSizeRows`, `ZoomAnchorRow`, `ZoomReadout`, `ZoomNote`, `ZoomVerb`),
+    taken out of `DiagramZoomControls` with their CSS, module to module. The
+    Layers frame controls' computed styles and boxes are unchanged
+    (`layers-styles.mjs`). `DiagramStepZoomStatus` exports `EnlargedFromRow`
+    and `StepZoomNotices`, so both sections say them with one set of strings.
+  - **Pick selects the frame.** The canvas picks only round the selected
+    area or frame (`activeAnchorPick`). So `pick` in `useZoomControls` arms
+    the pick, then selects its target; in Layers that is a no-op.
+  - **Pick keeps the Step pane forward.** Layers' reveal passes over a layer
+    selected to pick its anchor (`layerToReveal` in `useDiagramPaneReveal`).
+    Arming before selecting makes this hold for a key press too. The Step
+    pane stays, with Pick pressed and focused; Escape puts the pick down, a
+    second lets the frame go, and the side column never moves. Layers' own
+    Pick is unchanged.
+  - **From goes to the area** (the frame's Go to Area), which brings Layers
+    forward with the area selected, like any Go to that lands on a mark.
+- [x] Toggle off Pose's toolbar and out of Pose's Step pane section; read-only section hidden in Pose
+  - `enlarged` left `DiagramLinkedPoseControls` and `EnlargedRow` left
+    `DiagramStepPose`; `DiagramStepDetail` lost `useStepZoom`. No shortcut,
+    menu item, command or context menu named the toggle.
+  - One exception to "hidden in Pose": a step with no picture made enlarged
+    by Add Step or Insert Step After. Annotate cannot open on it, so the
+    detail shows Pose, and there the read-only section shows rather than
+    nothing (`!annotating && (!detailOpen || !annotatable)`, through
+    `stepCanBeAnnotated`).
+  - A step with no picture can no longer be turned enlarged, or off, from
+    the UI, since Annotate needs a picture. The store's path for it stays for
+    seeded steps.
+- [x] Phone: the section works in the drawer
+  - Phone and iPad drawers render `DiagramStepPanel`, so the section is the
+    same there. A phone's Annotate has no canvas, so Pick is not offered
+    there, in the Step pane or Layers (`buildAnchorActions` takes `canvas`,
+    from `!useIsPhoneLayout()`); Reset still is.
+- [x] Tests near each change
+  - `DiagramStepZoom.test.tsx` (Pose has no switch, linked or not, phone or
+    not; Annotate's section: switch on and off, each one undo step, held with
+    its reason, From, Size, Pick then Reset, read-out, notices, read-only
+    diagram; the empty seeded step; no Pick on a phone),
+    `useDiagramPaneReveal.test.tsx` (Step pane's Pick by click and by key;
+    Layers' own Pick), `zoomActions.test.ts` (no Pick without a canvas). Each
+    fails before its change.
+- [x] i18n in all 9 catalogs (`i18n:extract`, translate, `i18n:stamp`, `i18n:check`)
+  - No new or changed strings: every row reuses its keys and defaults, and no
+    English string named Pose for Enlarged. `i18n:check` passes.
+  - `i18n:extract` re-serialises `fr/panels.json` (no-break spaces become
+    ` `, same values). That churn is not this change's and was put back.
+- [x] `docs/analytics.md` wording; no new event
+  - `enlarge_off`, `diagram step enlarged` (`toggle`) and `diagram
+    enlargement changed` say where the switch and rows are since 2026-10-08.
+    Events and values are unchanged.
+- [x] Review; before/after screenshots (Pose and Annotate, desktop and phone)
+  - Two reviewers; the fixer took the major (Pick switched the side column
+    to Layers) and three minors (empty seeded step, Pick on a phone, stale
+    comments).
+  - Gate (rf2 commit): `lint:web`, `tsc --noEmit`, `i18n:check` clean;
+    whole vitest suite 888 files / 12013 tests passed (2 files, 15 tests
+    skipped).
+  - Evidence: `artifacts/review-fixes/2/rf2-evidence.png`, from
+    `verify.mjs` (results `verify/verify.json`) and the implementer's
+    `before-*` captures at HEAD 1e207458d. Crane step 23, desktop and iPad,
+    light and dark: no Enlarged in Pose; in Annotate, Fixed, the switch off,
+    and a picked anchor and its Reset are each one undo step and undone by
+    Cmd+Z (Edit > Undo on the iPad). No console errors. Earlier runs:
+    `shot.mjs`, `drive.mjs`, `fixes.mjs`.
+  - Open for Zach (not changed):
+    - The section reads "Enlarged" over a switch called "Enlarged". Options:
+      the switch on the header row, another label (9 catalogs), or no
+      section before any step has an area.
+    - On the area's own step the section is only the held switch, with the
+      wrong reason (item 4 now carries this).
+    - On a phone, the switch is reached only through Annotate's drawer.
+    - An empty step that starts enlarged cannot be turned off until it has a
+      picture.
+    - Turning Enlarged off leaves the step's marks where they sat on the
+      enlarged picture (already so; may belong with item 4).
+    - Already so, out of scope: the iPad's pick view cuts the crane off at
+      the left; FieldRow and SegmentedRow targets in the drawer are under
+      44 px; Reset leaves focus on the page once it removes itself.
 
 ### 3. New steps after an enlarged one
 
@@ -296,6 +380,7 @@ Paths under `apps/web/src/` unless rooted.
 - [ ] Status function: current, changed, deleted, unknown; a carry by the area step's own picture does not flag
 - [ ] Step pane notice with Update; card chip; catalog verb; `updateEnlargedDiagramStep`
 - [ ] Update all replaces Update Enlarged Steps; notices reworded
+- [ ] The area's step: Update all in Annotate's Enlarged section (`DiagramStepEnlarged`), and the held switch's words for a step that holds the area (Zach to choose)
 - [ ] Deleted area: "Step N's area was deleted", no Update
 - [ ] Tests near each change, and a file round-trip
 - [ ] i18n in all 9 catalogs
