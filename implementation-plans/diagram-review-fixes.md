@@ -149,7 +149,8 @@ The design:
   named. The new optional field on `DiagramStepZoom` is, say,
   `areaWas: { stepId, outline, anchor? }`. It is read and written in
   `readStepZoom` / `writeStepZoom` (`diagramFile.ts`) and is unsaid when
-  absent. A file without it is never flagged.
+  absent. A file without it is never flagged. *(Amended after review: such a
+  step is recorded at the first hand edit of its area, below.)*
 - **Compare it with the area now.** A pure function in `diagram/zoom/`
   compares the recorded state with the area now (`from`): current, changed,
   deleted or unknown (no record). This sits beside the link status
@@ -178,14 +179,44 @@ The design:
     reason ("No earlier step has an area to enlarge: draw one with Enlarge")
     says to draw an area the step already has. Item 4 adds Update all to that
     section, and that case needs its own words (all 9 catalogs): for example
-    "Enlarged on steps 23–25" (`areaSubtitle`). Ask Zach which before
-    building it.
+    "Enlarged on steps 23–25" (`areaSubtitle`). Built with that line and a
+    tooltip of its own on the held switch (see the checklist); Zach to
+    confirm.
 - **Deleted.** If the area is deleted, the enlarged steps keep their frames
   and say "Step N's area was deleted", with no Update. If the area's step is
   gone too, today's "An area no longer in the diagram" stays.
 - **Analytics.** Update on one step is a new action. `diagram step enlarged`
   gains `via: 'update_step'` beside `update`, documented in
   `docs/analytics.md`. Update all stays `update`.
+- **Amended after rf4's review (my picks, for Zach to confirm).** The code
+  proved the decided record too narrow in two places:
+  - *Size and Edge are recorded too.* A capture copies the area's Size and
+    Edge (Revision 2: "on an area, Size is what later captures copy"), so
+    with only outline and anchor recorded, a Size or Edge changed on the area
+    said nothing and Update All refused it, while a single Update pushed it
+    and threw away a Size set on the step. Now `areaWas` records them; a step
+    whose own Size or Edge equals what it recorded *takes* the area's, one
+    that differs set its own. The area's Size or Edge changed says "Area
+    changed" to the steps that take it, and Update places the frame from the
+    area and keeps a Size or Edge set on the step (`withOwnPrint`). An Edge
+    is told by how it draws (Cut said on a circle is the circle's own).
+  - *Older files are recorded at the first hand edit of their area.*
+    Enlarged steps never shipped, so every diagram Zach has (the crane among
+    them) is an "older file", and "never flagged" meant the feature did
+    nothing on them. A hand edit of an area now records the area as it was
+    just before the edit on each step from it with no record
+    (`recordAreaBeforeEdit`, in `editStepAnnotations`, the same undo step),
+    so the edit flags them as it flags any step. Nothing is recorded at open,
+    and a carry by the area's picture records nothing. Not chosen: recording
+    every step at open (a document change on load, and a file whose area was
+    moved before saving reads as current).
+  - *One predicate.* `outOfDate` (`areaStatus.ts`) is the one question for
+    the Step pane's Update, Update All everywhere and what they place; the
+    card's chip says the narrower "the area changed". A step with no record,
+    a frame needing a Refresh first, and a frame moved or sized by hand on
+    itself are not out of date. Update is held ("Up to date with step N's
+    area") otherwise, as Refresh Picture is, and the store refuses it, so no
+    undo step changes nothing.
 
 ## Affected Areas
 
@@ -514,16 +545,201 @@ Paths under `apps/web/src/` unless rooted.
 
 ### 4. "Area out of date" notices
 
-- [ ] `DiagramStepZoom` records the area's state at capture; file read/write; old files never flagged
-- [ ] Status function: current, changed, deleted, unknown; a carry by the area step's own picture does not flag
-- [ ] Step pane notice with Update; card chip; catalog verb; `updateEnlargedDiagramStep`
-- [ ] Update all replaces Update Enlarged Steps; notices reworded
-- [ ] The area's step: Update all in Annotate's Enlarged section (`DiagramStepEnlarged`), and the held switch's words for a step that holds the area (Zach to choose)
-- [ ] Deleted area: "Step N's area was deleted", no Update
-- [ ] Tests near each change, and a file round-trip
-- [ ] i18n in all 9 catalogs
-- [ ] Analytics: `via: 'update_step'`, documented
-- [ ] Review; before/after screenshots (move an area, then Update and Update all)
+- [x] `DiagramStepZoom` records the area's state at capture; file read/write; old files never flagged
+  - `DiagramStepZoom.areaWas?: DiagramZoomAreaWas` (`{ stepId, outline,
+    anchor?, scale?, edge? }`): the area's step, its outline in that step's
+    picture units, a picked anchor on the paper, and the Size and Edge the
+    capture copied. `areaWasOf` (`zoomCapture.ts`) makes it and `capture()`
+    writes it, so the switch, a seed, Update and Update All all record. A
+    step captured through an enlarged step takes that step's record (none if
+    it has none).
+  - File: `areaWas` in `zoom`, written only when set. A damaged record (no
+    step, an outline, anchor, Size or Edge that does not read) is dropped on
+    its own, never the frame. A field with no name here, an outline or Size
+    past reach, or an unknown Edge word makes the step a newer build's, as
+    the zoom's own fields do. `zoom` is on no release, so only unreleased
+    branches lock such a step.
+  - **Deviation, for Zach: an older file is recorded at the first hand edit
+    of its area, not "never flagged".** Enlarged steps never shipped, so
+    every diagram with them, the crane included, has no records, and the
+    decided rule made the feature do nothing on all of them.
+    `recordAreaBeforeEdit` (`areaRecord.ts`), at the end of
+    `editStepAnnotations`, gives each step from an edited area that has no
+    record the area as it was just before the edit, in the same undo step,
+    so that edit flags it. Nothing is recorded when a file opens or by a
+    carry. Not chosen: recording at open, which changes the document on load
+    and calls a file current whose area was moved before it was saved.
+- [x] Status function: current, changed, deleted, unknown; a carry by the area step's own picture does not flag
+  - `areaStatus(document, stepId)` (`zoom/areaStatus.ts`): `current`,
+    `changed`, `deleted` (naming the area's step while it is there) or
+    `unknown` (no record, or one naming a newer build's step). Derived, so
+    Undo gives it back.
+  - `areaChangedFor(zoom, now)` (`zoom/areaRecord.ts`) is "changed": the
+    place differs (centre, radius or size, a rectangle's turn, the picked
+    anchor; to 1e-9 relative), or the step takes its Size or Edge from the
+    area and that changed. A step takes it when its own equals what it
+    recorded; one that differs was set on the step. An Edge is compared by
+    how it draws, so Cut said on a circle equals the area leaving it unsaid
+    (the crane's steps).
+  - **Deviation, for Zach: Size and Edge are recorded and compared.** The
+    decided record was outline and anchor. A capture copies the area's Size
+    and Edge, so without them a Size or Edge changed on the area said
+    nothing and Update All refused it, while one step's Update pushed it
+    over a Size set on the step.
+  - The carry: `followAreaRecords(before, after, stepId)` moves the outline
+    and anchor of every record that matched an area before an edit of that
+    area's step's own picture. `updatePicture` in `diagramDocument.ts` runs
+    it for `setLinkedPicture` (capture, Refresh, relink, linked re-pose),
+    `setUploadPose`, `setReferencesSide` and `setReferencesWay`, every path
+    through `withCarriedAnnotations`. A record that no longer matched (the
+    area moved by hand first) stays out of date. Refresh leaves an area
+    where it was (D8), so nothing moves.
+  - `outOfDate(document, stepId)` is the one question for Update and Update
+    All: changed, or a frame copied in picture units that a capture now
+    anchors (`updateAnchors`: its step and the area's have faces). A step
+    with no record, one needing a Refresh first, and a frame moved or sized
+    by hand on its own step are not out of date. `stepsToUpdate` lists them.
+    The card's chip is the narrower "the area changed" (`enlargedChips`).
+- [x] Step pane notice with Update; card chip; catalog verb; `updateEnlargedDiagramStep`
+  - `EnlargedAreaUpdate` (`DiagramStepZoomStatus.tsx`), under From in both
+    the read-only and Annotate Enlarged sections: a warning Notice "Out of
+    date: Step N's area changed", and Update as an ActionList row
+    (RefreshCw), shown only while the step is out of date or its Update
+    runs, as Refresh Picture is.
+  - Catalog verb `update-enlarged` ("Update"), after Refresh Picture and
+    Open in Edit, so the card's menu has it. Gate `enlargedArea: { number,
+    outOfDate, updating }`: held "Up to date with step N's area" while the
+    step is not out of date, and while locked or capturing; enabled, its
+    tooltip is "Place the frame again from step N's area as it is now";
+    `waiting` ("Its picture is being captured") while it folds faces,
+    refusing a second press.
+  - Card: "Area changed" in the well's chip, after the picture's Out of date
+    and Pattern missing, before Lighting or Style changed; only on a step
+    with a picture (`enlargedChips` gives `{ from, changed }`).
+  - Store: `updateEnlargedDiagramStep(stepId)` and
+    `updateEnlargedDiagramSteps(areaIds)`, both `updateInStore` with an
+    `EnlargedUpdate`. They place only steps out of date, faces folded first,
+    as one undo step ("Update enlarged step" / "Update enlarged steps"), and
+    none when nothing is out of date. In flight they are keyed by step and
+    area, so an Update and an Update All of one area refuse each other.
+    `updateEnlargedSteps(..., only)` keeps a Size or Edge set on the step
+    (`withOwnPrint`).
+- [x] Update all replaces Update Enlarged Steps; notices reworded
+  - `buildUpdateAllAction` ("Update All", `update-all`) is shared by Layers'
+    area row and the area step's sections, and the area step's card menu
+    has it too (`update-all-enlarged`). Held "Every step enlarged from this
+    area is up to date" when none is out of date.
+  - Reworded: `enlargedNoPaper`, `enlargedUnanchoredUpdate` and
+    `enlargedRefreshUpdate` ("…Update from step N's area…"). Layers' frame
+    note is only "Turning Enlarged off and on places this frame again."
+    (`frameNote` removed), and its frame row says the Step pane's "Out of
+    date: Step N's area changed" or "Step N's area was deleted"
+    (`frameSubtitle(t, areaStatus)`). `updateEnlargedSteps`, `updateOne` and
+    `updateRange` are gone.
+- [x] The area's step: Update all in Annotate's Enlarged section (`DiagramStepEnlarged`), and the held switch's words for a step that holds the area (Zach to choose)
+  - `HeldAreas` (`DiagramStepZoomStatus.tsx`): "Enlarged on steps 23–25"
+    (`areaSubtitle`); while a step is out of date, "Out of date: step 25" or
+    "Out of date: steps 23–25 and 27" (`outOfDateLine`: runs as ranges,
+    listed by `Intl.ListFormat`) and Update All. Annotate's section always
+    shows the first line; the read-only pane shows the section only while a
+    step is out of date.
+  - My pick, for Zach to confirm: the held switch's tooltip on a step that
+    holds an area is "This step holds the enlarge area: turn Enlarged on in
+    a later step to enlarge it" (`enlargeHoldsArea`).
+- [x] The Enlarged switch on the section's heading (item 2's open call; my recommendation, not objected to)
+  - `CollapsibleSection`'s `action`: a `Toggle` named "Enlarged" in a
+    `.switch` span carrying the tooltip (a disabled switch shows none) and
+    `data-enlarged-switch`. Like every section action it shows only while
+    the section is open. The body (`data-step-enlarged`) is empty until the
+    step is enlarged or holds an area. Module CSS only: `.switch`, and
+    `.area`, `.notice`, `.areas` in `DiagramStepZoomStatus.module.css`.
+- [x] Deleted area: "Step N's area was deleted", no Update
+  - From says it (`enlargedFromDeleted`) and is no link; no Update; Layers'
+    frame row says the same. No card chip, since only turning Enlarged off
+    changes anything; the header chip reads "Enlarged" as for any area
+    gone. With the area's step gone too: "An area no longer in the diagram".
+- [x] Tests near each change, and a file round-trip
+  - `areaStatus.test.ts` (16: the record; current and changed by move,
+    resize, shape and anchor; deleted; Size and Edge taken or set on the
+    step, Edge by how it draws, kept by Update; older files recorded at the
+    first hand edit; one predicate; the carry by a linked re-pose and an
+    upload's pose, Refresh, a hand move or Size before a re-pose; Update and
+    Update All). `diagramZoom.test.ts` (store: Update's gate and undo step,
+    `update_step`; Update All only out-of-date steps; overlapping requests;
+    Layers' Size and Edge then Update All; a Size set on the step survives;
+    an older file's move and its Undo). `diagramFile.test.ts` (round-trip,
+    unsaid, damaged, newer, Size and Edge). `zoomActions.test.ts`,
+    `diagramActions.test.ts`, `diagramContextMenu.test.ts`,
+    `zoomFrames.test.ts`, `DiagramStepZoom.test.tsx`,
+    `DiagramStepsGrid.test.tsx`, `DiagramZoomControls.test.tsx`.
+  - Failing before: the two carry tests with the follow taken out; the
+    review fixes' store and file tests with each change reverted. The
+    component and catalog tests cover rows and verbs HEAD does not have.
+- [x] i18n in all 9 catalogs
+  - 13 new keys, 3 reworded, 4 removed (`updateEnlargedSteps`, `updateOne`,
+    `updateRange`, `frameNote`). `i18n:extract`, the 8 locales by
+    `artifacts/review-fixes/4/translate.py` and `review-fix/translate.py`
+    (which keep fr's no-break spaces unescaped), `i18n:stamp`;
+    `i18n:check` passes.
+- [x] Analytics: `via: 'update_step'`, documented
+  - `DiagramStepEnlargedVia` gains `update_step` (one per Update); Update
+    All stays `update`, one per step placed. `docs/analytics.md` says what
+    counts as out of date and where both verbs are. Z7 amended in
+    `diagram-revision-2.md`.
+- [x] Review; before/after screenshots (move an area, then Update and Update all)
+  - Review (two reviewers): 3 majors, 12 minors. Fixed: Size and Edge
+    (both majors' halves), older files never flagged, two `wantsUpdate`
+    predicates, Update enabled on a current step and its bare label (a
+    tooltip now), Update and Update All at once, Update showing no wait,
+    Layers' frame row wording, no Update All on the area's step in the
+    grid, no line saying which steps, a chip on an empty card. Declined: a
+    re-pose that leaves the area behind (the crane's D8 marks, a known gap
+    below); Update leaving the step's marks in the window's units (old,
+    a later item).
+  - Gate (rf4 commit): `lint:web`, `tsc --noEmit`, `i18n:check` clean; the
+    whole vitest suite 889 files / 12089 tests passed (2 files, 15 tests
+    skipped). One earlier run under memory pressure failed a CP fold test
+    in `store.test.ts` (a `frameModelBounds` call); it passed alone three
+    times and in the clean run.
+  - Evidence: `artifacts/review-fixes/4/rf4-evidence.png` from
+    `final/final.mjs` (facts in `final/<light|dark>.json`) and
+    `final/composite.py`. "Before" is `before.mjs` on HEAD 03a57d182's
+    sources, put back and restored byte-identical. On the crane, light and
+    dark, step 22's area moved by hand:
+    - Before: no chip, no notice, no Update; Annotate's section has a row
+      "Enlarged" under the heading "Enlarged"; Layers offers Update Enlarged
+      Steps.
+    - After: the move is one undo step and records steps 23–25 (no records
+      in the file). Cards 23–25 say "Area changed"; step 23 says "Out of
+      date: Step 22's area changed" with Update, read-only and in Annotate,
+      where the switch is on the heading; step 22 says "Out of date: steps
+      23–25" with Update All; Layers' frame row says the same as step 23.
+      Update clicked in step 23's pane: one undo step, 23 current. Card 24's
+      menu: Update enabled with its tooltip. Step 22 then says "steps
+      24–25"; Update All clicked there: one undo step, all current, card
+      24's Update held "Up to date with step 22's area". Step 22 re-posed
+      (Rotate Right, its marks kept in step first): the area turned with
+      the picture, nothing flagged. The area deleted: "Step 22's area was
+      deleted", no Update. No console errors.
+    - Refresh Picture is held on the crane's step 22 (its picture is
+      current), so the Refresh carry is shown by `areaStatus.test.ts` only.
+    - Earlier walks: `verify.mjs`, `touch.mjs` (phone and iPad drawers,
+      before the review fixes; `rf4-evidence-implementer.png`),
+      `review-fix/verify.mjs` (Size and Edge, overlapping requests, an
+      empty step after a stale run), `review/`, `review-adv/`.
+  - For Zach to confirm: Size and Edge in the record and kept by Update;
+    an older file recorded at the first hand edit of its area; Update held
+    on an up-to-date step (a frame moved by hand on its own step is then
+    reset only by turning Enlarged off and on); the held switch's tooltip
+    and the line "Enlarged on steps 23–25"; the menu label "Update" (a
+    reviewer suggested "Update from Area").
+  - Known gaps: on the crane as opened, step 22's marks are out of step
+    with its picture, so a re-pose leaves the area behind (D8) and the
+    enlarged steps still read current though the area frames other paper.
+    A new step captured from an out-of-date step inherits its record and is
+    out of date at once. Update moves the frame but leaves the step's own
+    marks where they were in the window. Step pane action rows are 28 px
+    tall, under the 44 px touch target in the phone drawers (pre-existing).
 
 ### Finish
 
