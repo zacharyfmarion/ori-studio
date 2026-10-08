@@ -62,7 +62,7 @@ describe('trackPaperExported', () => {
     expect(Object.values(properties)).not.toContain(12);
   });
 
-  it('reports a step’s letters and line highlights only when the event carries them', () => {
+  it('reports a step’s letters and reference lines only when the event carries them', () => {
     trackPaperExported({ ...SVG, letters: 'hidden', highlights: 'shown' });
     expect(runtime.track.mock.calls[0]?.[1]).toMatchObject({ letters: 'hidden', highlights: 'shown' });
     trackPaperExported({ ...SVG, surface: 'folded-3d' });
