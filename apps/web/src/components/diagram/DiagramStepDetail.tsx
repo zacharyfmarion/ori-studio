@@ -54,6 +54,7 @@ import type { DiagramPoseAnnotations } from './DiagramPoseStage';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { DiagramAnnotateRail } from './DiagramAnnotateRail';
 import { useXRayStanding } from '../../diagram/xray/useXRayStanding';
+import { xraySurfaceOf } from '../../diagram/xray/xrayPaint';
 import { useAnnotateToolInHand } from '../../diagram/annotate/useAnnotateToolInHand';
 import styles from './DiagramStepDetail.module.css';
 
@@ -165,12 +166,19 @@ export function DiagramStepDetail({
   const kept = posed === step;
   // An enlarged step shows its whole picture in Pose, its frame outlined and the rest dimmed (Revision 2).
   const zoomed = useMemo(() => zoomedSource(posed, assets), [posed, assets]);
+  // An x-ray in Pose is its rim alone, on a picture with layers (Revision 3, R3-19 A): its inside is the stored
+  // picture's. A spread's preview is captured without faces, and a rim needs none: whether the step has layers is the
+  // stored step's to say, so the rims stay while a spread is dragged (review of 18f).
+  const xRayRims = useMemo(
+    () => xraySurfaceOf(posed, 'rim') ?? (posed === step ? null : xraySurfaceOf(step, 'rim')),
+    [posed, step]
+  );
   const url = useMemo(() => {
     if (!source) return null;
     return zoomed
-      ? posedZoomUrl(zoomed, annotations, style, POSE_ANNOTATION_OPACITY, kept)
-      : annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY, kept);
-  }, [source, zoomed, annotations, style, kept]);
+      ? posedZoomUrl(zoomed, annotations, style, POSE_ANNOTATION_OPACITY, kept, xRayRims)
+      : annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY, kept, null, xRayRims);
+  }, [source, zoomed, annotations, style, kept, xRayRims]);
   // Annotate needs a picture to draw on.
   const annotating = mode === 'annotate' && source !== null && !locked;
   // Whether its picture has layers to x-ray, or needs a Refresh first: the rail holds the X-Ray tool, saying why (Revision 3).

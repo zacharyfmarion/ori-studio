@@ -58,6 +58,7 @@ export function DiagramXRayControls({ step, annotation }: { step: DiagramStep; a
       )}
       {controls.anchorShown && (
         <DiagramAnchorRow
+          label={t('panels:diagram.annotations.xRayAnchor', 'Point')}
           picked={controls.picked}
           actions={controls.anchorActions}
           editable={controls.editable}

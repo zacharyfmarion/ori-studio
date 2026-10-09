@@ -10,15 +10,19 @@ import styles from './DiagramAnchorRow.module.css';
  * the rule it is anchored by, Picked or Auto, and its verbs, Pick and, while
  * picked, Reset. One line in both states, so picking or resetting moves no
  * row below it: the rule's words are its tooltip, each target's own
- * (`autoHint`, `pickedHint`).
+ * (`autoHint`, `pickedHint`), as its name is (`label`): an enlargement is
+ * anchored to a face, an x-ray's layers counted at a point.
  */
 export function DiagramAnchorRow({
+  label,
   picked,
   actions,
   editable,
   autoHint,
   pickedHint,
 }: {
+  /** The row's name: Enlarge's "Anchor", a face; an x-ray's "Point" (18f). */
+  label: string;
   picked: boolean;
   /** Pick, and Reset while picked (`buildAnchorActions`). */
   actions: readonly ZoomAction[];
@@ -30,7 +34,7 @@ export function DiagramAnchorRow({
 }) {
   const { t } = useTranslation();
   return (
-    <FieldRow label={t('panels:diagram.annotations.enlargeAnchor', 'Anchor')} kind="text" disabled={!editable}>
+    <FieldRow label={label} kind="text" disabled={!editable}>
       <span className={styles.anchor}>
         <span className={styles.anchorRule} title={picked ? pickedHint : autoHint}>
           {picked ? t('panels:diagram.annotations.anchorPicked', 'Picked') : t('panels:diagram.annotations.anchorAuto', 'Auto')}

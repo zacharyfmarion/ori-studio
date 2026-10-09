@@ -53,6 +53,7 @@ import {
 } from '../../diagram/document/diagramDocument';
 import { VIEWPORT_PINCH_ZOOM, VIEWPORT_WHEEL_ZOOM } from '../../hooks/useViewportSurface';
 import { ViewportToolbar } from '../panels/ViewportToolbar';
+import { DiagramAnchorPickBar } from './DiagramAnchorPickBar';
 import { DiagramAnnotateToolWindow } from './DiagramAnnotateToolWindow';
 import { DiagramAnnotationLayer } from './DiagramAnnotationLayer';
 import { DiagramCloseUpInsides } from './DiagramCloseUpInsides';
@@ -294,6 +295,7 @@ export function DiagramAnnotateCanvas({
           groups={[]}
           tone="raised"
         />
+        {!readOnly && <DiagramAnchorPickBar step={step} />}
       </div>
       {/* Outside the view in the React tree: see the component. */}
       {!readOnly && <DiagramAnnotateToolWindow container={view} step={step} />}

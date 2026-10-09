@@ -36,7 +36,8 @@
  * the ones taken away, is what R3-13 A draws, not a gap.
  *
  * One function draws a window for every surface (`xrayWindowMarkup`): the
- * canvas now, and the card, the page and the files after it (18f).
+ * canvas, the cards, the pages and the files, each through `xrayPaint.ts`
+ * with its own placement (18f).
  *
  * Pure but for one memo per picture's faces.
  */
@@ -335,10 +336,26 @@ export function xrayRemoval(xray: XRayFaces, at: Pt | null, depth: number): XRay
  * small part of the picture.
  */
 export function xrayInsideScene(xray: XRayFaces, removed: ReadonlySet<number>, cull: PictureBox | null = null): PaperScene {
+  return facesScene(xray, (face) => !removed.has(face), cull);
+}
+
+/**
+ * The paper a window takes away, as a scene: the `removed` faces where the
+ * picture draws them, which the window covers in the page's white before it
+ * paints the faces left — so its white lies only where there was paper, and
+ * off the paper the page shows through, as it does round the window (review
+ * of 18f).
+ */
+export function xrayGroundScene(xray: XRayFaces, removed: ReadonlySet<number>, cull: PictureBox | null = null): PaperScene {
+  return facesScene(xray, (face) => removed.has(face), cull);
+}
+
+/** The faces `kept` keeps, back to front, as a scene in the stored scene's frame, culled to `cull`. */
+function facesScene(xray: XRayFaces, kept: (face: number) => boolean, cull: PictureBox | null): PaperScene {
   const items: PaperFaceItem[] = [];
   for (const face of xray.paint) {
     const item = xray.items[face];
-    if (item && !removed.has(face)) items.push(item);
+    if (item && kept(face)) items.push(item);
   }
   return sceneCulledTo({ ...xray.frame, items }, cull);
 }
@@ -351,10 +368,13 @@ export interface XRayRequest {
   anchor?: readonly [number, number];
 }
 
-/** An x-ray's inside, worked out: what it takes away and the scene of what is left, round its window. */
+/** An x-ray's inside, worked out round its window: what it takes away, and the scenes it is painted from. */
 export interface XRayInside {
   removal: XRayRemoval;
+  /** The faces left ({@link xrayInsideScene}). */
   scene: PaperScene;
+  /** The faces taken away, where the picture draws them ({@link xrayGroundScene}): what the page's white covers. */
+  ground: PaperScene;
 }
 
 /** The inside of `request`'s window on a step's faces: what it takes away, and the faces left round the window. */
@@ -363,7 +383,11 @@ export function xrayInside(xray: XRayFaces, request: XRayRequest): XRayInside {
   const removal = xrayRemoval(xray, at, request.depth);
   const { centre, radius } = request;
   const cull = { x: centre[0] - radius, y: centre[1] - radius, width: 2 * radius, height: 2 * radius };
-  return { removal, scene: xrayInsideScene(xray, removal.removed, cull) };
+  return {
+    removal,
+    scene: xrayInsideScene(xray, removal.removed, cull),
+    ground: xrayGroundScene(xray, removal.removed, cull),
+  };
 }
 
 /** Where a surface paints a window, in its own units. */
@@ -382,21 +406,32 @@ export interface XRayWindowPaint {
   rim: { width: number; color: string };
   /** A polygon the inside is also held to, in the surface's units: an enlarged step's frame. */
   bound?: readonly ScenePoint[] | null;
-  /** What the inside is filled with under the faces: the page's white. */
+  /** What the paper taken away is covered with: the page's white. */
   ground?: string;
 }
 
 const round = (value: number) => Number(value.toFixed(3));
 
+/** A coordinate as the picture's faces are written (`paperSvg.ts`): two decimals, so the white lies on them exactly. */
+const coordinate = (value: number) => (Number.isFinite(value) ? value.toFixed(2) : '0');
+
 /**
  * One x-ray window as SVG markup, in a surface's units — the one drawing every
  * surface paints (R3-12 A): clipped to the window (and to `bound`, where
- * given), the page's white, the faces left (`inside`) in `style`'s pens with
- * no creases (R3-16b A), then the rim, 1.5 × the edges' pen (R3-15b (ii)).
- * Every id it declares starts with `idPrefix`. The step's marks go over it.
+ * given), the page's white over the paper it takes away (`inside.ground`),
+ * the faces left (`inside.scene`) in `style`'s pens with no creases (R3-16b
+ * A), then the rim, 1.5 × the edges' pen (R3-15b (ii)). Every id it declares
+ * starts with `idPrefix`. The step's marks go over it.
+ *
+ * The white covers the faces taken away where the picture draws them, their
+ * outlines too, and nothing else: off the paper a window paints nothing, so
+ * what is under the picture — a page's band, a selected cell's tint, a
+ * transparent step file — shows through it as it does round it (review of
+ * 18f). Where a window takes every layer away at a point, the page's white is
+ * what shows there (18.0 results, 5).
  */
 export function xrayWindowMarkup(
-  inside: PaperScene,
+  inside: Pick<XRayInside, 'scene' | 'ground'>,
   paint: XRayWindowPaint,
   style: PaperStyle,
   target: XRayTarget,
@@ -407,14 +442,43 @@ export function xrayWindowMarkup(
   const clip = `${idPrefix}clip`;
   const held = bound && bound.length >= 3 ? `${idPrefix}bound` : null;
   // The inside holds faces alone, each outlined in the edges' pen: a window shows the layers, not the creases on them.
-  const body = paperSceneSvgBody(inside, style, { project: target.project, unitsPerPt: target.unitsPerPt, keepHiddenFaces: false });
+  const body = paperSceneSvgBody(inside.scene, style, { project: target.project, unitsPerPt: target.unitsPerPt, keepHiddenFaces: false });
   const defs =
     `<clipPath id="${clip}"><circle ${circle}/></clipPath>` +
     (held ? `<clipPath id="${held}"><polygon points="${bound!.map(([x, y]) => `${round(x)},${round(y)}`).join(' ')}"/></clipPath>` : '');
-  const filled = `<circle ${circle} fill="${ground}"/><g stroke-linejoin="round">${body}</g>`;
+  const filled = `${groundMarkup(inside.ground, ground, style.edges.width * target.unitsPerPt, target.project)}<g stroke-linejoin="round">${body}</g>`;
   const clipped = held ? `<g clip-path="url(#${held})"><g clip-path="url(#${clip})">${filled}</g></g>` : `<g clip-path="url(#${clip})">${filled}</g>`;
-  return (
-    `<defs>${defs}</defs>${clipped}` +
-    `<circle ${circle} fill="none" stroke="${rim.color}" stroke-width="${round(rim.width)}"/>`
-  );
+  return `<defs>${defs}</defs>${clipped}${xrayRimMarkup(window, rim)}`;
+}
+
+/**
+ * The paper a window takes away, covered in `color`: each face of `ground`
+ * filled, and stroked `width` wide so its outline in the picture goes with
+ * it. One group, its paths plain, so nothing reads it as a face left. Empty
+ * where the window takes nothing away.
+ */
+function groundMarkup(ground: PaperScene, color: string, width: number, project: XRayTarget['project']): string {
+  const paths: string[] = [];
+  for (const item of ground.items) {
+    if (item.kind !== 'face') continue;
+    const rings = item.rings.filter((ring) => ring.length >= 3);
+    if (rings.length === 0) continue;
+    const d = rings
+      .map((ring) => `M${ring.map((point) => project(point).map(coordinate).join(',')).join('L')}Z`)
+      .join('');
+    // Several rings are one even-odd set, as the picture fills them.
+    paths.push(`<path d="${d}"${rings.length > 1 ? ' fill-rule="evenodd"' : ''}/>`);
+  }
+  if (paths.length === 0) return '';
+  return `<g data-x-ray-ground="" fill="${color}" stroke="${color}" stroke-width="${round(width)}" stroke-linejoin="round">${paths.join('')}</g>`;
+}
+
+/**
+ * An x-ray's rim alone, in a surface's units: what {@link xrayWindowMarkup}
+ * draws over the inside, and all Pose draws of a window (R3-19 A) — its
+ * inside is the stored picture's, which a live pose is not.
+ */
+export function xrayRimMarkup(window: XRayWindowPaint['window'], rim: XRayWindowPaint['rim']): string {
+  const circle = `cx="${round(window.x)}" cy="${round(window.y)}" r="${round(window.r)}"`;
+  return `<circle ${circle} fill="none" stroke="${rim.color}" stroke-width="${round(rim.width)}"/>`;
 }

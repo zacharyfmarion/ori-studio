@@ -225,25 +225,44 @@ describe('an x-ray’s faces (Revision 3, 18e)', () => {
     expect(xrayAnchorDrawn(faces(affine), [1e6, 1e6])).toBeNull();
   });
 
-  it('paints one window for every surface: clipped to it, on the page’s white, the faces left, then its rim', () => {
+  it('paints one window for every surface: clipped to it, the page’s white over the paper it takes away, the faces left, then its rim', () => {
     const xray = faces(none);
     const { at } = deepest(xray);
     const inside = xrayInside(xray, { centre: at, radius: 0.1, depth: 1 });
     const markup = xrayWindowMarkup(
-      inside.scene,
+      inside,
       { window: { x: 10, y: 20, r: 5 }, rim: { width: 0.75 * PT_TO_CSS_PX, color: '#231f20' } },
       diagramScenePaintStyle(DEFAULT_DIAGRAM_STYLE, false),
       { project: ([x, y]) => [x, y], unitsPerPt: PT_TO_CSS_PX },
       'w-'
     );
     expect(markup).toMatch(/^<defs><clipPath id="w-clip"><circle cx="10" cy="20" r="5"\/><\/clipPath><\/defs>/);
-    expect(markup).toContain('<g clip-path="url(#w-clip)"><circle cx="10" cy="20" r="5" fill="#ffffff"/>');
+    // The white lies on the faces taken away, as the picture draws them, their outlines in the edges' pen too — never
+    // across the whole window, which would cover whatever lies under the picture off the paper (review of 18f).
+    expect(markup).not.toContain('r="5" fill="#ffffff"');
+    expect(markup).toContain('<g clip-path="url(#w-clip)"><g data-x-ray-ground="" fill="#ffffff" stroke="#ffffff" stroke-width="0.667" stroke-linejoin="round"><path d="M');
+    const ground = markup.slice(markup.indexOf('data-x-ray-ground'), markup.indexOf('</g>'));
+    expect(inside.ground.items.length).toBeGreaterThan(0);
+    expect(ground.match(/<path /g)).toHaveLength(inside.ground.items.length);
+    for (const item of inside.ground.items) expect(inside.removal.removed.has((item as PaperFaceItem).face)).toBe(true);
     expect(markup).toMatch(/<circle cx="10" cy="20" r="5" fill="none" stroke="#231f20" stroke-width="1"\/>$/);
     // Faces only: no crease is drawn in a window (R3-16b A).
     expect(inside.scene.items.every((item) => item.kind === 'face')).toBe(true);
+    // A window that takes nothing away lays no white at all: the picture's own faces, through its clip.
+    const nothing = xrayInside(xray, { centre: at, radius: 0.1, depth: 0 });
+    expect(nothing.ground.items).toEqual([]);
+    const plain = xrayWindowMarkup(
+      nothing,
+      { window: { x: 10, y: 20, r: 5 }, rim: { width: 1, color: '#000' } },
+      diagramScenePaintStyle(DEFAULT_DIAGRAM_STYLE, false),
+      { project: ([x, y]) => [x, y], unitsPerPt: 1 },
+      'n-'
+    );
+    expect(plain).toContain('<g clip-path="url(#n-clip)"><g stroke-linejoin="round">');
+    expect(plain).not.toContain('data-x-ray-ground');
     // Held to a bound as well, where one is given: an enlarged step's frame.
     const bounded = xrayWindowMarkup(
-      inside.scene,
+      inside,
       { window: { x: 10, y: 20, r: 5 }, rim: { width: 1, color: '#000' }, bound: [[0, 0], [30, 0], [30, 30]] },
       diagramScenePaintStyle(DEFAULT_DIAGRAM_STYLE, false),
       { project: ([x, y]) => [x, y], unitsPerPt: 1 },

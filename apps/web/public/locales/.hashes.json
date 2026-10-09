@@ -4300,7 +4300,7 @@
     "panels:diagram.annotations.xRayAnchorAutoHint": "b03419462caa",
     "panels:diagram.annotations.xRayAnchorPickedHint": "a7da41a5b1a3",
     "panels:diagram.annotations.xRayAnchorPickHint": "71fbeb42705a",
-    "panels:diagram.annotations.xRayAnchorResetHint": "c5fae36ff5ed",
+    "panels:diagram.annotations.xRayAnchorResetHint": "1b8491d4c25d",
     "panels:diagram.annotations.xRayDepth": "f1dbc33978a9",
     "panels:diagram.annotations.xRayFewer_one": "a9748a1f9f36",
     "panels:diagram.annotations.xRayFewer_other": "b8a41cc75087",
@@ -4308,7 +4308,12 @@
     "tools:diagram.toolXRay": "6fe357156ae9",
     "panels:diagram.annotate.xRayHelpTouch": "442d0b483237",
     "panels:diagram.annotate.xRayNoPaper": "72ca2544c39c",
-    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3"
+    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3",
+    "panels:diagram.annotations.xRayAnchor": "2fc0c524431a",
+    "panels:diagram.annotations.xRayAnchorPicking": "28930e1d831f",
+    "panels:diagram.annotations.anchorPickBar": "652da815c123",
+    "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
+    "panels:diagram.annotations.xRayAnchorTap": "179d48c0da38"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8611,7 +8616,7 @@
     "panels:diagram.annotations.xRayAnchorAutoHint": "b03419462caa",
     "panels:diagram.annotations.xRayAnchorPickedHint": "a7da41a5b1a3",
     "panels:diagram.annotations.xRayAnchorPickHint": "71fbeb42705a",
-    "panels:diagram.annotations.xRayAnchorResetHint": "c5fae36ff5ed",
+    "panels:diagram.annotations.xRayAnchorResetHint": "1b8491d4c25d",
     "panels:diagram.annotations.xRayDepth": "f1dbc33978a9",
     "panels:diagram.annotations.xRayFewer_one": "a9748a1f9f36",
     "panels:diagram.annotations.xRayFewer_other": "b8a41cc75087",
@@ -8619,7 +8624,12 @@
     "tools:diagram.toolXRay": "6fe357156ae9",
     "panels:diagram.annotate.xRayHelpTouch": "442d0b483237",
     "panels:diagram.annotate.xRayNoPaper": "72ca2544c39c",
-    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3"
+    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3",
+    "panels:diagram.annotations.xRayAnchor": "2fc0c524431a",
+    "panels:diagram.annotations.xRayAnchorPicking": "28930e1d831f",
+    "panels:diagram.annotations.anchorPickBar": "652da815c123",
+    "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
+    "panels:diagram.annotations.xRayAnchorTap": "179d48c0da38"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12924,7 +12934,7 @@
     "panels:diagram.annotations.xRayAnchorAutoHint": "b03419462caa",
     "panels:diagram.annotations.xRayAnchorPickedHint": "a7da41a5b1a3",
     "panels:diagram.annotations.xRayAnchorPickHint": "71fbeb42705a",
-    "panels:diagram.annotations.xRayAnchorResetHint": "c5fae36ff5ed",
+    "panels:diagram.annotations.xRayAnchorResetHint": "1b8491d4c25d",
     "panels:diagram.annotations.xRayDepth": "f1dbc33978a9",
     "panels:diagram.annotations.xRayFewer_one": "a9748a1f9f36",
     "panels:diagram.annotations.xRayFewer_other": "b8a41cc75087",
@@ -12932,7 +12942,12 @@
     "tools:diagram.toolXRay": "6fe357156ae9",
     "panels:diagram.annotate.xRayHelpTouch": "442d0b483237",
     "panels:diagram.annotate.xRayNoPaper": "72ca2544c39c",
-    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3"
+    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3",
+    "panels:diagram.annotations.xRayAnchor": "2fc0c524431a",
+    "panels:diagram.annotations.xRayAnchorPicking": "28930e1d831f",
+    "panels:diagram.annotations.anchorPickBar": "652da815c123",
+    "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
+    "panels:diagram.annotations.xRayAnchorTap": "179d48c0da38"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -17141,14 +17156,19 @@
     "panels:diagram.annotations.xRayAnchorAutoHint": "b03419462caa",
     "panels:diagram.annotations.xRayAnchorPickedHint": "a7da41a5b1a3",
     "panels:diagram.annotations.xRayAnchorPickHint": "71fbeb42705a",
-    "panels:diagram.annotations.xRayAnchorResetHint": "c5fae36ff5ed",
+    "panels:diagram.annotations.xRayAnchorResetHint": "1b8491d4c25d",
     "panels:diagram.annotations.xRayDepth": "f1dbc33978a9",
     "panels:diagram.annotations.xRayFewer_other": "b8a41cc75087",
     "panels:diagram.annotations.xRayNoLayers": "0137e3735325",
     "tools:diagram.toolXRay": "6fe357156ae9",
     "panels:diagram.annotate.xRayHelpTouch": "442d0b483237",
     "panels:diagram.annotate.xRayNoPaper": "72ca2544c39c",
-    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3"
+    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3",
+    "panels:diagram.annotations.xRayAnchor": "2fc0c524431a",
+    "panels:diagram.annotations.xRayAnchorPicking": "28930e1d831f",
+    "panels:diagram.annotations.anchorPickBar": "652da815c123",
+    "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
+    "panels:diagram.annotations.xRayAnchorTap": "179d48c0da38"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -21357,14 +21377,19 @@
     "panels:diagram.annotations.xRayAnchorAutoHint": "b03419462caa",
     "panels:diagram.annotations.xRayAnchorPickedHint": "a7da41a5b1a3",
     "panels:diagram.annotations.xRayAnchorPickHint": "71fbeb42705a",
-    "panels:diagram.annotations.xRayAnchorResetHint": "c5fae36ff5ed",
+    "panels:diagram.annotations.xRayAnchorResetHint": "1b8491d4c25d",
     "panels:diagram.annotations.xRayDepth": "f1dbc33978a9",
     "panels:diagram.annotations.xRayFewer_other": "b8a41cc75087",
     "panels:diagram.annotations.xRayNoLayers": "0137e3735325",
     "tools:diagram.toolXRay": "6fe357156ae9",
     "panels:diagram.annotate.xRayHelpTouch": "442d0b483237",
     "panels:diagram.annotate.xRayNoPaper": "72ca2544c39c",
-    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3"
+    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3",
+    "panels:diagram.annotations.xRayAnchor": "2fc0c524431a",
+    "panels:diagram.annotations.xRayAnchorPicking": "28930e1d831f",
+    "panels:diagram.annotations.anchorPickBar": "652da815c123",
+    "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
+    "panels:diagram.annotations.xRayAnchorTap": "179d48c0da38"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -25667,7 +25692,7 @@
     "panels:diagram.annotations.xRayAnchorAutoHint": "b03419462caa",
     "panels:diagram.annotations.xRayAnchorPickedHint": "a7da41a5b1a3",
     "panels:diagram.annotations.xRayAnchorPickHint": "71fbeb42705a",
-    "panels:diagram.annotations.xRayAnchorResetHint": "c5fae36ff5ed",
+    "panels:diagram.annotations.xRayAnchorResetHint": "1b8491d4c25d",
     "panels:diagram.annotations.xRayDepth": "f1dbc33978a9",
     "panels:diagram.annotations.xRayFewer_one": "a9748a1f9f36",
     "panels:diagram.annotations.xRayFewer_other": "b8a41cc75087",
@@ -25675,7 +25700,12 @@
     "tools:diagram.toolXRay": "6fe357156ae9",
     "panels:diagram.annotate.xRayHelpTouch": "442d0b483237",
     "panels:diagram.annotate.xRayNoPaper": "72ca2544c39c",
-    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3"
+    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3",
+    "panels:diagram.annotations.xRayAnchor": "2fc0c524431a",
+    "panels:diagram.annotations.xRayAnchorPicking": "28930e1d831f",
+    "panels:diagram.annotations.anchorPickBar": "652da815c123",
+    "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
+    "panels:diagram.annotations.xRayAnchorTap": "179d48c0da38"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -29978,7 +30008,7 @@
     "panels:diagram.annotations.xRayAnchorAutoHint": "b03419462caa",
     "panels:diagram.annotations.xRayAnchorPickedHint": "a7da41a5b1a3",
     "panels:diagram.annotations.xRayAnchorPickHint": "71fbeb42705a",
-    "panels:diagram.annotations.xRayAnchorResetHint": "c5fae36ff5ed",
+    "panels:diagram.annotations.xRayAnchorResetHint": "1b8491d4c25d",
     "panels:diagram.annotations.xRayDepth": "f1dbc33978a9",
     "panels:diagram.annotations.xRayFewer_one": "a9748a1f9f36",
     "panels:diagram.annotations.xRayFewer_other": "b8a41cc75087",
@@ -29986,7 +30016,12 @@
     "tools:diagram.toolXRay": "6fe357156ae9",
     "panels:diagram.annotate.xRayHelpTouch": "442d0b483237",
     "panels:diagram.annotate.xRayNoPaper": "72ca2544c39c",
-    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3"
+    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3",
+    "panels:diagram.annotations.xRayAnchor": "2fc0c524431a",
+    "panels:diagram.annotations.xRayAnchorPicking": "28930e1d831f",
+    "panels:diagram.annotations.anchorPickBar": "652da815c123",
+    "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
+    "panels:diagram.annotations.xRayAnchorTap": "179d48c0da38"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -34195,13 +34230,18 @@
     "panels:diagram.annotations.xRayAnchorAutoHint": "b03419462caa",
     "panels:diagram.annotations.xRayAnchorPickedHint": "a7da41a5b1a3",
     "panels:diagram.annotations.xRayAnchorPickHint": "71fbeb42705a",
-    "panels:diagram.annotations.xRayAnchorResetHint": "c5fae36ff5ed",
+    "panels:diagram.annotations.xRayAnchorResetHint": "1b8491d4c25d",
     "panels:diagram.annotations.xRayDepth": "f1dbc33978a9",
     "panels:diagram.annotations.xRayFewer_other": "b8a41cc75087",
     "panels:diagram.annotations.xRayNoLayers": "0137e3735325",
     "tools:diagram.toolXRay": "6fe357156ae9",
     "panels:diagram.annotate.xRayHelpTouch": "442d0b483237",
     "panels:diagram.annotate.xRayNoPaper": "72ca2544c39c",
-    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3"
+    "panels:diagram.annotations.xRayOffPaper": "e23c7d8bf2b3",
+    "panels:diagram.annotations.xRayAnchor": "2fc0c524431a",
+    "panels:diagram.annotations.xRayAnchorPicking": "28930e1d831f",
+    "panels:diagram.annotations.anchorPickBar": "652da815c123",
+    "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
+    "panels:diagram.annotations.xRayAnchorTap": "179d48c0da38"
   }
 }

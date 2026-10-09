@@ -443,7 +443,7 @@ describe('an x-ray (Revision 3, 18e)', () => {
     }
   });
 
-  it('is drawn on no surface that does not paint its inside, rim included: nothing prints a window that shows nothing (18e)', () => {
+  it('is drawn on no surface that does not paint it, rim included: nothing prints a window that shows nothing (R3-18b A)', () => {
     const drawing = annotationDrawing([xray], FRAME, 400, DEFAULT_DIAGRAM_STYLE);
     expect(drawing.areas).toEqual([]);
     expect(drawing.zoomAreas).toEqual([]);
@@ -452,14 +452,14 @@ describe('an x-ray (Revision 3, 18e)', () => {
     expect(paintAnnotations([xray], box, 400, DEFAULT_DIAGRAM_STYLE)).toBeNull();
   });
 
-  it('reaches past the frame as far as its rim and half its pen, only on a surface that draws it: no card’s or page’s bounds grow for it (review of 18e)', () => {
+  it('reaches past the frame as far as its rim and half its pen, only on a surface that draws it: no other surface’s bounds grow for it (review of 18e)', () => {
     const rim = 1.5 * 0.5 * PT_TO_CSS_PX;
     const drawing = annotationDrawing([xray], FRAME, 400, DEFAULT_DIAGRAM_STYLE);
     // The canvas, on a step with layers.
     const drawn = annotationReach(drawing, { xRays: true });
     expect(drawn.x + drawn.width).toBeCloseTo(380 + 40 + rim / 2, 6);
     expect(drawn.x).toBe(0);
-    // Every other surface, until 18f draws it there.
+    // A surface that does not draw it: a picture with no layers (18f's cards and pages hand in a painter where it has them).
     const card = annotationReach(drawing);
     expect(card.x + card.width).toBe(400);
     expect(paintAnnotations([xray, a('l', 'valley-line', { from: [0.1, 0.1], to: [0.2, 0.1] })], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.width).toBeLessThanOrEqual(400);

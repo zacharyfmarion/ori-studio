@@ -1197,7 +1197,16 @@ describe('an x-ray’s rows (Revision 3, 18e)', () => {
     crane();
     const rule = [...host!.querySelectorAll<HTMLElement>('[title]')].find((each) => each.textContent === 'Auto')!;
     expect(rule.title).toBe('The window’s centre');
-    expect(host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!.title).toBe('Choose the point on the canvas where the layers are counted');
+    // Its row is named for a point, not Enlarge's "Anchor" — in Japanese, Chinese and Korean "anchor face" (18f).
+    expect(rule.closest('[data-field-row]')!.querySelector('[data-field-label]')!.textContent).toBe('Point');
+    const pick = host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!;
+    expect(pick.title).toBe('Choose the point on the canvas where the layers are counted');
+    // While picking, it asks for a point, not a face.
+    act(() => pick.click());
+    expect(host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!.title).toBe(
+      'Click the point on the canvas where the layers are counted; Escape to stop'
+    );
+    act(() => state().setDiagramAnchorPick(null));
     // Picked: Reset, back to the window's centre, one undo step, counted.
     act(() => {
       state().editDiagramAnnotations(state().diagramSelectedStepId!, 'Change X-ray', (list) =>
@@ -1205,7 +1214,7 @@ describe('an x-ray’s rows (Revision 3, 18e)', () => {
       );
     });
     const reset = host!.querySelector<HTMLElement>('[data-zoom-action="reset-anchor"]')!;
-    expect(reset.title).toBe('Anchor to the window’s centre again');
+    expect(reset.title).toBe('Count the layers at the window’s centre again');
     act(() => reset.click());
     expect(marks()[0]!.anchor).toBeUndefined();
     expect(state().diagramHistory.past.at(-1)?.label).toBe('Change X-ray');
@@ -1216,7 +1225,14 @@ describe('an x-ray’s rows (Revision 3, 18e)', () => {
     crane([{ id: 'area', kind: 'zoom', from: [0.45, 0.6], to: [0.45, 0.6], radius: 0.1 }]);
     const rule = [...host!.querySelectorAll<HTMLElement>('[title]')].find((each) => each.textContent === 'Auto')!;
     expect(rule.title).toBe('The backmost face outside the frame');
-    expect(host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!.title).toBe('Choose the face the frame is anchored to on the canvas');
+    expect(rule.closest('[data-field-row]')!.querySelector('[data-field-label]')!.textContent).toBe('Anchor');
+    const pick = host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!;
+    expect(pick.title).toBe('Choose the face the frame is anchored to on the canvas');
+    act(() => pick.click());
+    expect(host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!.title).toBe(
+      'Click a face on the canvas to anchor to it; Escape to stop'
+    );
+    act(() => state().setDiagramAnchorPick(null));
   });
 
   it('holds its rows on a picture with no layers to x-ray, or one that needs a Refresh first, saying why (R3-18b A)', () => {

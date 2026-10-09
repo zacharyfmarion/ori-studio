@@ -7,6 +7,7 @@ import type { FontSubsetter } from '../fonts/fontSubset';
 import { preparedPages } from '../pages/diagramPages';
 import { prefixIds } from '../pictures/prefixIds';
 import { composeEveryPage, diagramPdfInput } from './diagramPdf';
+import { xrayCase } from '../xray/xray.cases';
 import { diagramSheetFile, diagramSheetLayout, diagramSheetSvg, sheetPagePrefix, SPREAD_GAP_MM } from './diagramSheet';
 
 let subsetter: FontSubsetter;
@@ -129,6 +130,24 @@ describe('diagramSheetSvg', () => {
       expect(references.length).toBeGreaterThan(0);
       for (const reference of references) {
         expect(reference.startsWith(sheetPagePrefix(index))).toBe(true);
+        expect(page).toContain(`id="${reference}"`);
+      }
+    });
+  });
+
+  it('draws x-ray windows on the sheet, each clip its page’s own (Revision 3, 18f)', () => {
+    // A page of x-rayed crane steps, over and over: windows on many cells and on more than one page.
+    const steps = Array.from({ length: 14 }, (_, index) => ({ ...xrayCase(index % 2 ? 'crane-marks' : 'crane-enlarged'), id: `step-${index}` }));
+    const document = insertSteps(createDiagram({ title: 'Crane' }), steps, 0);
+    const prepared = preparedPages(document, FIXTURE_FONTS, subsetter);
+    expect(prepared.layout.pages.length).toBeGreaterThan(1);
+    const { svg } = diagramSheetFile(document, prepared, FIXTURE_FONTS, subsetter);
+    expect(svg.match(/<g data-x-ray-window="">/g)).toHaveLength(7 * 2 + 7);
+    const ids = [...svg.matchAll(/\sid="([^"]*)"/g)].map((match) => match[1]!);
+    expect(new Set(ids).size).toBe(ids.length);
+    svg.split(/<g id="page-\d+">/).slice(1).forEach((page, index) => {
+      for (const [, reference] of page.matchAll(/url\(#([^)]*x-ray[^)]*)\)/g)) {
+        expect(reference!.startsWith(sheetPagePrefix(index))).toBe(true);
         expect(page).toContain(`id="${reference}"`);
       }
     });

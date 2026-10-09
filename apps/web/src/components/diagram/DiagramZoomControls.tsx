@@ -104,6 +104,7 @@ export function DiagramZoomControls({ step, target }: { step: DiagramStep; targe
       </FieldRow>
       {controls.anchorShown && (
         <DiagramAnchorRow
+          label={t('panels:diagram.annotations.enlargeAnchor', 'Anchor')}
           picked={controls.picked}
           actions={controls.anchorActions}
           editable={editable}

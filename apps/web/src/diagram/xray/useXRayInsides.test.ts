@@ -33,7 +33,7 @@ function asPattern(step: DiagramStep): DiagramStep {
 }
 
 describe('an x-ray’s window on the Annotate canvas (Revision 3, 18e)', () => {
-  it('is painted as every surface paints one: its clip, the page’s white, the faces left and its rim, in the drawing’s px', () => {
+  it('is painted as every surface paints one: its clip, the page’s white over what it takes away, the faces left and its rim, in the drawing’s px', () => {
     const [inside, ...more] = insides(craneStep('S.none'));
     expect(more).toEqual([]);
     expect(inside!.id).toBe('xray');
@@ -42,7 +42,7 @@ describe('an x-ray’s window on the Annotate canvas (Revision 3, 18e)', () => {
     expect(inside!.markup).toMatch(/^<defs><clipPath id="x-0-clip"><circle /);
     // The window where the drawing has it: picture units times the frame's px.
     expect(inside!.markup).toContain(`cx="${Number((0.45 * CARD_FRAME_PX).toFixed(3))}"`);
-    expect(inside!.markup).toContain('fill="#ffffff"');
+    expect(inside!.markup).toContain('<g data-x-ray-ground="" fill="#ffffff"');
     expect(inside!.markup).toMatch(/<path [^>]*fill=/);
     expect(inside!.markup).toMatch(/stroke-width="[\d.]+"\/>$/);
     // With a spread the same window, in the spread picture's places.

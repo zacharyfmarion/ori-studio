@@ -253,7 +253,9 @@ export function buildAnchorActions(
       hint:
         readOnly ??
         (state.picking
-          ? t('panels:diagram.annotations.anchorPicking', 'Click a face on the canvas to anchor to it; Escape to stop')
+          ? xray
+            ? t('panels:diagram.annotations.xRayAnchorPicking', 'Click the point on the canvas where the layers are counted; Escape to stop')
+            : t('panels:diagram.annotations.anchorPicking', 'Click a face on the canvas to anchor to it; Escape to stop')
           : xray
             ? t('panels:diagram.annotations.xRayAnchorPickHint', 'Choose the point on the canvas where the layers are counted')
             : t('panels:diagram.annotations.anchorPickHint', 'Choose the face the frame is anchored to on the canvas')),
@@ -271,7 +273,7 @@ export function buildAnchorActions(
       hint:
         readOnly ??
         (xray
-          ? t('panels:diagram.annotations.xRayAnchorResetHint', 'Anchor to the window’s centre again')
+          ? t('panels:diagram.annotations.xRayAnchorResetHint', 'Count the layers at the window’s centre again')
           : t('panels:diagram.annotations.anchorResetHint', 'Anchor to the backmost face outside the frame again')),
       disabled: readOnly !== null,
       run: () => {

@@ -126,6 +126,21 @@ export function activeAnchorPick(
 }
 
 /**
+ * Whether the anchor's pick `pick`, now ended, ended where it was made: the
+ * Diagram still where the keys go, its step open in Annotate with the area
+ * or frame it was for selected — anchored, or put down — rather than left for
+ * Pose, the step list, another step or another mark. What the touch View
+ * sheet, stepped aside while the pick was made under it, asks before it comes
+ * back (review of 18f).
+ */
+export function anchorPickEndedInPlace(
+  state: Pick<WorkspaceState, 'activeEditingContext'> & Parameters<typeof activeAnchorPick>[0],
+  pick: DiagramAnchorPick
+): boolean {
+  return state.activeEditingContext === 'diagram' && activeAnchorPick({ ...state, diagramAnchorPick: pick }) !== null;
+}
+
+/**
  * What Delete removes in the Diagram: the node Edit Path has selected, else
  * the selected annotation while annotating, else the selected step — the one
  * answer the menu's reason and every surface that names the key read.

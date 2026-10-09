@@ -62,8 +62,10 @@
  *   has the picture's faces, so each paints the inside under the marks, and
  *   the rim with it (`xray/xrayScene.ts`); here it is the window, in a list
  *   of its own (`xRays`), and the rim's pen, 1.5 × the edges' (R3-15b (ii)),
- *   which its reach takes in. Nothing here draws it: a surface that does not
- *   paint the inside draws no rim either (R3-18).
+ *   which its reach takes in. Nothing here draws it: each surface hands its
+ *   painter to `paintAnnotations` (`xray/xrayPaint.ts`), and one that does
+ *   not paint the inside draws no rim either (R3-18), but Pose, its rim
+ *   alone (R3-19 A).
  *
  * The drawing is in CSS px, the frame's top-left at the origin, its longer
  * side `framePx` across — the size it prints at — so its marks have the
@@ -939,9 +941,8 @@ export function closeUpMarks(annotations: readonly DiagramAnnotation[]): Diagram
  * is paper taken from the picture for nothing. Measured as a page draws the
  * marks (`paintAnnotations`), every join of a stroke round unless the mark
  * mitres its own. An x-ray's window only with `xRays`, on a surface that
- * draws it: in 18e the canvas alone, on a step with layers (R3-18b A); a
- * card's or a page's room does not grow for a rim it does not print (review
- * of 18e) until 18f draws one there.
+ * draws it — every surface, on a step with layers (R3-18b A): no room grows
+ * for a rim it does not print (review of 18e).
  */
 export function annotationReach(
   drawing: AnnotationDrawing,
