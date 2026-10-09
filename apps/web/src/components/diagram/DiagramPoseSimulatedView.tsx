@@ -14,18 +14,17 @@ import type {
 } from '../../diagram/document/diagramDocument';
 import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import { diagramPaperStyle } from '../../diagram/pictures/diagramPaperStyle';
+import { poseCreaseReferenceEdge } from '../../diagram/pictures/poseLineWeight';
 import { simulatedCaptureFrame } from '../../diagram/pictures/simulatedCaptureFrame';
 import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { SimulatorViewport } from '../../simulator/SimulatorViewport';
+import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
 import { SIMULATED_FRAME_PX } from '../../store/workspaceStore/diagramCapture';
 import { IconButton } from '../ui/IconButton';
 import { Slider } from '../ui/Slider';
 import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
 import styles from './DiagramPoseSimulatedView.module.css';
-
-/** Frame edge, in device pixels, the crease width is calibrated for: an inline window's. */
-const CREASE_REFERENCE_EDGE = 512;
 
 /** Nothing here needs the canvas element itself: the drag and the wheel are the viewport's. */
 const ignoreCanvas = () => {};
@@ -127,8 +126,10 @@ export function DiagramPoseSimulatedView({
               gpuActive={pose.runtime.gpuActive}
               bitmapPresent
               transparentBackground
-              creaseWidthReferenceEdge={CREASE_REFERENCE_EDGE}
+              // Its lines grow with the stage as the step's picture does when Pose shows it there.
+              creaseWidthReferenceEdge={poseCreaseReferenceEdge(simulatorDevicePixelRatio())}
               creaseWidthShrinkExponent={1}
+              creaseWidthGrows
               viewSettings={DEFAULT_SIMULATOR_SETTINGS}
               paperStyle={paperStyle}
               viewCube

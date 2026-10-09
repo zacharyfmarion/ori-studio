@@ -243,6 +243,8 @@ export interface ResolvePaperStyleOptions {
   creaseWidthReferenceEdge?: number;
   /** See `RenderSettings.creaseWidthShrinkExponent`. */
   creaseWidthShrinkExponent?: number;
+  /** See `RenderSettings.creaseWidthGrows`. */
+  creaseWidthGrows?: boolean;
 }
 
 /**
@@ -302,6 +304,7 @@ export function resolvePaperStyle(
     valleyWidthPx: penWidthDevicePx(valley, dpr),
     creaseWidthReferenceEdge: options.creaseWidthReferenceEdge,
     creaseWidthShrinkExponent: options.creaseWidthShrinkExponent,
+    creaseWidthGrows: options.creaseWidthGrows,
     faceAlpha: options.faceAlpha,
     colorMode: options.colorMode,
     strainClip: options.strainClip,

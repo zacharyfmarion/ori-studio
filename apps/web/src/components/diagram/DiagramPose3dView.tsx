@@ -15,14 +15,13 @@ import { diagramPaperStyle } from '../../diagram/pictures/diagramPaperStyle';
 import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { folded3dCaptureFrame } from '../../diagram/pictures/folded3dCaptureFrame';
+import { poseCreaseReferenceEdge } from '../../diagram/pictures/poseLineWeight';
 import { withRollAbsorbed } from '../../lib/simulatorOrbit';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { SimulatorViewport, type SimulatorViewportHandle } from '../../simulator/SimulatorViewport';
+import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
 import { sameCamera } from '../../diagram/capture/poseController';
 import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
-
-/** Frame edge, in device pixels, the crease width is calibrated for: Edit's window's. */
-const CREASE_REFERENCE_EDGE = 512;
 
 
 /**
@@ -147,8 +146,10 @@ export function DiagramPose3dView({
           gpuActive
           bitmapPresent
           transparentBackground
-          creaseWidthReferenceEdge={CREASE_REFERENCE_EDGE}
+          // Its lines grow with the stage as the step's picture does when Pose shows it there.
+          creaseWidthReferenceEdge={poseCreaseReferenceEdge(simulatorDevicePixelRatio())}
           creaseWidthShrinkExponent={1}
+          creaseWidthGrows
           viewSettings={DEFAULT_SIMULATOR_SETTINGS}
           paperStyle={paperStyle}
           renderSettings={renderSettings}

@@ -153,21 +153,40 @@ describe('paintStepPicture', () => {
     expect(plain.svg).not.toBe(painted.svg);
   });
 
-  it('tells a crease pattern, measured by its sheet, from a folded model, measured by the figure', () => {
+  it('tells a crease pattern, measured by its sheet, from a folded model or a simulation, measured by the figure', () => {
     const flat = cpStep('step-1', { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 });
-    expect(stepPictureSource(cpStep('step-1'), {})).toMatchObject({ kind: 'scene', pattern: true });
-    expect(stepPictureSource(flat, {})).toMatchObject({ kind: 'scene', pattern: false });
-    expect(sceneMeasure(true)).toBe('sheet');
-    expect(sceneMeasure(false)).toBe('figure');
+    const spatial = cpStep('step-1', { mode: 'folded-3d', camera: { yaw: 0, pitch: 0, zoom: 1 }, side: 'front' });
+    const simulated = cpStep('step-1', { mode: 'simulated', foldPercent: 50, view: { yaw: 0, pitch: 0, zoom: 1 } });
+    expect(stepPictureSource(cpStep('step-1'), {})).toMatchObject({ kind: 'scene', drawn: 'pattern' });
+    expect(stepPictureSource(flat, {})).toMatchObject({ kind: 'scene', drawn: 'folded' });
+    expect(stepPictureSource(spatial, {})).toMatchObject({ kind: 'scene', drawn: 'folded' });
+    expect(stepPictureSource(simulated, {})).toMatchObject({ kind: 'scene', drawn: 'simulated' });
+    expect(sceneMeasure('pattern')).toBe('sheet');
+    expect(sceneMeasure('folded')).toBe('figure');
+    expect(sceneMeasure('simulated')).toBe('figure');
+  });
+
+  it('draws a folded model’s folds in the edge pen, as a flat capture names them, and a simulation’s in the fold pens', () => {
+    // A 3D capture names its folds mountain and valley (`paperScene.ts`): in the Diagram's style
+    // the fold pens are half the edge pen, and a 3D step printed at half a flat one's weight.
+    const picture = { ...scenePicture(), sceneJson: storedSceneJson(sheetWithCrease('mountain'))! };
+    const edges = { width: 0.5, color: '#ff0000' as const, dash: null, cap: 'butt' as const };
+    const folds = { width: 0.25, color: '#0000ff' as const, dash: null, cap: 'butt' as const };
+    const pens = { style: { ...DEFAULT_PAPER_STYLE, edges, mountainFolds: folds, valleyFolds: folds } };
+    const folded = paintScene({ kind: 'scene', picture, drawn: 'folded' }, pens)!.svg;
+    expect(folded).not.toContain('#0000ff');
+    expect(folded).toContain('#ff0000');
+    expect(paintScene({ kind: 'scene', picture, drawn: 'simulated' }, pens)!.svg).toContain('#0000ff');
+    expect(paintScene({ kind: 'scene', picture, drawn: 'pattern' }, pens)!.svg).toContain('#0000ff');
   });
 
   it('draws a crease pattern’s aux lines, the paper’s existing creases, whatever the style’s switch says', () => {
     const picture = { ...scenePicture(), sceneJson: storedSceneJson(sheetWithCrease('aux'))! };
     const auxPen = { width: 0.25, color: '#00ff00' as const, dash: null, cap: 'butt' as const };
     const hidden = { style: { ...DEFAULT_PAPER_STYLE, auxCreases: { visible: false, pen: auxPen } } };
-    expect(paintScene({ kind: 'scene', picture, pattern: true }, hidden)!.svg).toContain('#00ff00');
+    expect(paintScene({ kind: 'scene', picture, drawn: 'pattern' }, hidden)!.svg).toContain('#00ff00');
     // A folded model's are the style's to show or hide.
-    expect(paintScene({ kind: 'scene', picture, pattern: false }, hidden)!.svg).not.toContain('#00ff00');
+    expect(paintScene({ kind: 'scene', picture, drawn: 'folded' }, hidden)!.svg).not.toContain('#00ff00');
   });
 
   it('draws a fixed picture as it is stored', () => {

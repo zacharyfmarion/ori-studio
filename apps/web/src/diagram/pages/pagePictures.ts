@@ -497,7 +497,7 @@ export function layoutPicture(
       const scene = storedScene(source.picture);
       if (!scene) return UNSIZED;
       const { minX, minY, maxX, maxY } = scene.bounds;
-      return framed(unitsAcross(source, step), maxX - minX, maxY - minY, inkPt(diagramScenePaintStyle(style, source.pattern)) / PT_PER_CSS_PX);
+      return framed(unitsAcross(source, step), maxX - minX, maxY - minY, inkPt(diagramScenePaintStyle(style, source.drawn)) / PT_PER_CSS_PX);
     }
     case 'asset': {
       const posed = poseTransform(source.asset.widthPx, source.asset.heightPx, source.pose);
@@ -733,11 +733,11 @@ function draw(
           : longerSide(scene.bounds) > 0
             ? fitScale(box, maxX - minX, maxY - minY, framePt)
             : PT_PER_CSS_PX;
-      const placed = placedScene(sceneCulledTo(scene, cull), diagramScenePaintStyle(style, source.pattern), box, ptPerPx);
+      const placed = placedScene(sceneCulledTo(scene, cull), diagramScenePaintStyle(style, source.drawn), box, ptPerPx);
       // A scene's frame is its bounds; its ink reaches past them.
       return {
         ...placed,
-        boundsPt: grown(placed.boundsPt, inkPt(diagramScenePaintStyle(style, source.pattern))),
+        boundsPt: grown(placed.boundsPt, inkPt(diagramScenePaintStyle(style, source.drawn))),
         framePt: placed.boundsPt,
         text: [],
         fitted: !(mmPerUnit !== null && scale) && framePt === null,

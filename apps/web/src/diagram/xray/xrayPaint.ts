@@ -110,7 +110,7 @@ export function xrayWindowOn(
   const markup = xrayWindowMarkup(
     inside,
     { window: placedWindow(drawn, box, k), rim: placedRim(drawn, k), bound },
-    diagramScenePaintStyle(style, false),
+    diagramScenePaintStyle(style, 'folded'),
     { project: sceneOnSurface(faces, window, box, longer), unitsPerPt: PT_TO_CSS_PX * k },
     idPrefix
   );

@@ -88,7 +88,7 @@ export function paintedFrameLongerPx(source: StepPictureSource): number | null {
       const scene = storedScene(source.picture);
       if (!scene) return null;
       const { minX, minY, maxX, maxY } = scene.bounds;
-      const ptPerPx = pagePtPerPx(scene, stepScenePage(STEP_CARD_PADDING_MM), sceneMeasure(source.pattern));
+      const ptPerPx = pagePtPerPx(scene, stepScenePage(STEP_CARD_PADDING_MM), sceneMeasure(source.drawn));
       return (Math.max(maxX - minX, maxY - minY) * ptPerPx) / PT_PER_CSS_PX;
     }
     case 'step-diagram':
