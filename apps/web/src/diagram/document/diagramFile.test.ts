@@ -1965,6 +1965,23 @@ describe('uploaded pictures in the file', () => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a file read back, damaged on purpose
 type WrittenSource = Record<string, any>;
 
+/**
+ * A written link with its thumbnail inline, as files before the table held
+ * it (decision 4), so a patch to it changes that link alone and not every
+ * step that shares the sheet's entry.
+ */
+function withOwnThumbnail(written: WrittenSource, source: WrittenSource): WrittenSource {
+  source.thumbnail = JSON.parse(written.thumbnails[source.thumbnail]);
+  return source;
+}
+
+/** Change a written References card's model, which the file holds as one string. */
+function patchModel(picture: WrittenSource, patch: (model: WrittenSource) => unknown): void {
+  const model = JSON.parse(picture.model);
+  patch(model);
+  picture.model = JSON.stringify(model);
+}
+
 /** A flat fold with its layers spread (Phase 13). */
 const SPREAD_FLAT = {
   mode: 'folded-flat' as const,
@@ -2028,6 +2045,101 @@ function linkedDiagram() {
   const diagram = createDiagram({ title: 'Crane', newId: ids });
   return insertSteps(diagram, steps, 0);
 }
+
+// Decision 4 of the launch review: what fifty steps on one sheet cost.
+describe('thumbnails and References cards in the file', () => {
+  /** A written diagram in the layout before the table: each link's thumbnail inline, each card's model a record. */
+  function beforeTheTable(written: WrittenSource): WrittenSource {
+    const old = throughJson(written);
+    for (const step of old.steps) {
+      if (typeof step.source?.thumbnail === 'string') step.source.thumbnail = JSON.parse(old.thumbnails[step.source.thumbnail]);
+      if (typeof step.picture?.model === 'string') step.picture.model = JSON.parse(step.picture.model);
+    }
+    delete old.thumbnails;
+    return old;
+  }
+
+  it('stores a sheet’s thumbnail once, however many links show it, under a key from what it draws', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    const keys = Object.keys(written.thumbnails);
+    expect(keys).toHaveLength(1);
+    expect(keys[0]).toMatch(/^thumb-[0-9a-z]+$/);
+    expect(typeof written.thumbnails[keys[0]!]).toBe('string');
+    const links = stepsIn(written).filter((step: WrittenSource) => step.source?.kind === 'cp');
+    expect(links.length).toBeGreaterThan(5);
+    expect(links.every((step: WrittenSource) => step.source.thumbnail === keys[0])).toBe(true);
+    // A References step's sheet is a thumbnail like any other.
+    const sent = throughJson(writeDiagram(sentDiagram()));
+    expect(stepsIn(sent).every((step: WrittenSource) => typeof step.source.thumbnail === 'string')).toBe(true);
+  });
+
+  it('writes a References card’s model as one string', () => {
+    const written = throughJson(writeDiagram(sentDiagram()));
+    const pictures = stepsIn(written).map((step: WrittenSource) => step.picture).filter(Boolean);
+    expect(pictures.length).toBeGreaterThan(0);
+    expect(pictures.every((picture: WrittenSource) => typeof picture.model === 'string')).toBe(true);
+  });
+
+  it('reads a file from before the table as it was, and writes the table', () => {
+    for (const document of [linkedDiagram(), sentDiagram()]) {
+      const written = throughJson(writeDiagram(document));
+      const old = beforeTheTable(written);
+      expect(old.thumbnails).toBeUndefined();
+      const read = readDiagram(old)!;
+      expect(stepsIn(read.document).every((step) => step.unknown === undefined)).toBe(true);
+      expect(read.document).toEqual(readDiagram(written)!.document);
+      expect(throughJson(writeDiagram(read.document))).toEqual(written);
+    }
+  });
+
+  it('gives two thumbnails that differ two entries, and leaves out one no link shows', () => {
+    const document = linkedDiagram();
+    const steps = stepsIn(document);
+    const other = steps[1]!.source as DiagramCpSource;
+    const changed = {
+      ...other,
+      thumbnail: { ...other.thumbnail, strokes: [...other.thumbnail.strokes, { x1: 0, y1: 0, x2: 1, y2: 1, role: 'valley' as const }] },
+    };
+    const two = { ...document, steps: document.steps.map((entry) => (entry.id === steps[1]!.id ? { ...entry, source: changed } : entry)) };
+    expect(Object.keys(throughJson(writeDiagram(two)).thumbnails)).toHaveLength(2);
+    const none = { ...document, steps: document.steps.filter((entry) => stepsIn({ steps: [entry] })[0]?.source?.kind !== 'cp') };
+    expect(throughJson(writeDiagram(none)).thumbnails).toBeUndefined();
+  });
+
+  it('drops a link whose thumbnail the table does not hold, or holds as no thumbnail, and keeps the words', () => {
+    for (const damage of [
+      (written: WrittenSource) => (written.steps[1].source.thumbnail = 'thumb-nowhere'),
+      (written: WrittenSource) => (written.thumbnails[written.steps[1].source.thumbnail] = '{not json'),
+    ]) {
+      const written = throughJson(writeDiagram(linkedDiagram()));
+      written.steps[1].text = 'Fold it.';
+      damage(written);
+      const step = stepsIn(readDiagram(written)!.document)[1];
+      expect(step).toMatchObject({ source: null, picture: null, text: 'Fold it.' });
+      expect(step.unknown).toBeUndefined();
+    }
+  });
+
+  it('keeps the entry a newer build’s step names, while that step is in the diagram', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    // A newer build's step, its thumbnail of its own in the table.
+    written.thumbnails['thumb-newer'] = JSON.stringify({ viewBox: '0 0 100 100', strokes: [], depth: 2 });
+    written.steps[1] = { ...written.steps[1], source: { ...written.steps[1].source, thumbnail: 'thumb-newer' }, layers: [1] };
+    const read = readDiagram(written)!;
+    expect(stepsIn(read.document)[1].unknown).toEqual(written.steps[1]);
+    expect(throughJson(writeDiagram(read.document))).toEqual(written);
+    // Deleted, the step takes its entry with it.
+    const without = { ...read.document, steps: read.document.steps.filter((entry) => entry.id !== written.steps[1].id) };
+    expect(throughJson(writeDiagram(without)).thumbnails['thumb-newer']).toBeUndefined();
+  });
+
+  it('reads a card’s model that is a string but no JSON as no card, and keeps the link', () => {
+    const written = throughJson(writeDiagram(sentDiagram()));
+    written.steps[0].picture.model = '{nope';
+    const step = stepsIn(readDiagram(written)!.document)[0];
+    expect(step).toMatchObject({ source: { kind: 'references-step' }, picture: null });
+  });
+});
 
 describe('linked steps in the file', () => {
   it('round-trips every render mode and captured picture unchanged', () => {
@@ -2149,7 +2261,7 @@ describe('linked steps in the file', () => {
     }],
   ])('carries, locked and as it came, a link with %s', (_label, index, patch) => {
     const written = throughJson(writeDiagram(linkedDiagram()));
-    patch(written.steps[index].source);
+    patch(withOwnThumbnail(written, written.steps[index].source));
     const read = readDiagram(written)!;
     expect(read.readOnly).toBe(false);
     const steps = stepsIn(read.document);
@@ -2487,7 +2599,7 @@ describe('steps sent from References in the file', () => {
 
   it('keeps a card drawn with a primitive this build does not draw, locked and verbatim', () => {
     const written = throughJson(writeDiagram(sentDiagram()));
-    written.steps[0].picture.model.primitives.push({ kind: 'hinge', at: [0.5, 0.5] });
+    patchModel(written.steps[0].picture, (model) => model.primitives.push({ kind: 'hinge', at: [0.5, 0.5] }));
     const read = readDiagram(written)!;
     expect(stepsIn(read.document)[0].unknown).toEqual(written.steps[0]);
     expect(stepsIn(throughJson(writeDiagram(read.document)))[0]).toEqual(written.steps[0]);
@@ -2495,7 +2607,7 @@ describe('steps sent from References in the file', () => {
 
   it('drops a card whose drawing does not read, and keeps the link and the words', () => {
     const written = throughJson(writeDiagram(sentDiagram()));
-    written.steps[0].picture.model.primitives[1].to = [1, 'a'];
+    patchModel(written.steps[0].picture, (model) => (model.primitives[1].to = [1, 'a']));
     const step = stepsIn(readDiagram(written)!.document)[0];
     expect(step).toMatchObject({ source: { kind: 'references-step' }, picture: null });
     expect(step.text).toBe('Fold the bottom edge to the top.');
@@ -2530,7 +2642,7 @@ describe('steps sent from References in the file', () => {
     ['a thumbnail line of a role it has no name for', (source: WrittenSource) => (source.thumbnail.strokes[0].role = 'cut')],
   ])('carries, locked and as it came, a source with %s', (_label, patch) => {
     const written = throughJson(writeDiagram(sentDiagram()));
-    patch(written.steps[0].source);
+    patch(withOwnThumbnail(written, written.steps[0].source));
     const read = readDiagram(written)!;
     expect(stepsIn(read.document)[0].unknown).toEqual(written.steps[0]);
     expect(throughJson(writeDiagram(read.document))).toEqual(written);

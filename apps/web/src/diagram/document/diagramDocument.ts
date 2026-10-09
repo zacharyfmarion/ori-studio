@@ -1199,6 +1199,11 @@ export interface DiagramNewerFields {
    * under its key.
    */
   page?: Readonly<Record<string, unknown>>;
+  /**
+   * The entries of the file's thumbnails table that a newer build's steps
+   * name, as they came: written back while one of those steps is here.
+   */
+  thumbnails?: Readonly<Record<string, unknown>>;
 }
 
 export type DiagramIdFactory = (prefix: 'diagram' | 'step' | 'turn' | 'annotation' | 'asset') => string;

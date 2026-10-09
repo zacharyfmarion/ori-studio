@@ -45,7 +45,7 @@ import {
 import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import { readRegionReference } from '../../cp-workspace/regions/regionReference';
-import { isNewerSheetThumbnail, readSheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
+import { isNewerSheetThumbnail, readSheetThumbnail, type SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import { isBuiltInPaperPresetId } from '../../lib/paper/paperPresets';
 import { isNewerPaperScene, readPaperScene } from '../../lib/paper/paperSceneValidate';
 import { normalizePaperStyle } from '../../lib/paper/paperStyle';
@@ -78,6 +78,7 @@ import {
 import { isAnnotationColor } from '../annotate/annotationColors';
 import { TEXT_OFFSET_PT_MAX, TEXT_SIZE_PT } from '../annotate/textStyle';
 import { windowReach } from '../zoom/zoomModel';
+import { digest } from '../pictures/pictureKey';
 import { NEWER_PAPER_FACES, SCENE_JSON_MAX_BYTES, readPaperFaces } from './paperFacesFile';
 import {
   EMBEDDED_RASTER_MAX_SIDE,
@@ -103,6 +104,7 @@ import {
   SPREAD_SKEW_RANGE,
   isTurn,
   showAsOf,
+  stepsOf,
   isKnownAsset,
   normalizePageSetup,
   DEFAULT_PATH_COLOR,
@@ -187,10 +189,11 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
   let sanitizeEnv = options.sanitizeEnv;
   const env = () => (sanitizeEnv ??= browserSanitizeEnv());
   const assets = readAssets(value.assets, env);
+  const thumbnails = thumbnailTable(value.thumbnails);
   const steps: DiagramEntry[] = [];
   const seen = new Set<string>();
   for (const entry of Array.isArray(value.steps) ? value.steps : []) {
-    const step = readEntry(entry, assets, env);
+    const step = readEntry(entry, assets, env, thumbnails.resolve);
     // Two steps with one id would make every edit by id ambiguous; the first
     // one wins and the copy is malformed.
     if (step && !seen.has(step.id)) {
@@ -198,7 +201,7 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
       steps.push(step);
     }
   }
-  const newer = readNewerFields(value);
+  const newer = readNewerFields(value, thumbnails.carriedBy(steps));
   const document: DiagramDocument = {
     formatVersion: DIAGRAM_FORMAT_VERSION,
     id: typeof value.id === 'string' && value.id.length > 0 ? value.id : newId('diagram'),
@@ -222,6 +225,7 @@ const DOCUMENT_KEYS = new Set([
   'page',
   'steps',
   'assets',
+  'thumbnails',
 ]);
 const PAGE_KEYS = new Set([
   'size',
@@ -267,11 +271,15 @@ const STYLE_KEYS: ReadonlySet<string> = new Set(['preset', 'style']);
  * — and is written back as it came until it is changed here. A value of the
  * wrong type is damage rather than news, and is replaced as before.
  */
-function readNewerFields(value: Record<string, unknown>): DiagramNewerFields | undefined {
+function readNewerFields(
+  value: Record<string, unknown>,
+  thumbnails: Record<string, unknown> | undefined
+): DiagramNewerFields | undefined {
   const fields = Object.fromEntries(Object.entries(value).filter(([key]) => !DOCUMENT_KEYS.has(key)));
   const page = readNewerPage(value.page);
   const newer: DiagramNewerFields = {
     ...(Object.keys(fields).length > 0 ? { fields } : {}),
+    ...(thumbnails ? { thumbnails } : {}),
     ...(typeof value.hanStyle === 'string' && !HAN_STYLES.includes(value.hanStyle) ? { hanStyle: value.hanStyle } : {}),
     ...(isRecord(value.style) && isNewerStyle(value.style) ? { style: value.style } : {}),
     ...(page ? { page } : {}),
@@ -341,6 +349,8 @@ export function writeDiagram(
   const document = withReferencedAssets(current);
   // What a newer build wrote that this one cannot read goes back in its place, as it came.
   const { newer } = document;
+  const thumbnails = new ThumbnailWriter(document, newer?.thumbnails);
+  const steps = document.steps.map((step) => writeStep(step, thumbnails));
   return {
     formatVersion: DIAGRAM_FORMAT_VERSION,
     id: document.id,
@@ -348,12 +358,56 @@ export function writeDiagram(
     hanStyle: newer?.hanStyle ?? document.hanStyle,
     style: newer?.style ?? document.style,
     page: { ...writePageSetup(document.page), ...newer?.page },
-    steps: document.steps.map(writeStep),
+    steps,
     assets: Object.fromEntries(
       Object.entries(document.assets).map(([id, asset]) => [id, writeAsset(asset)])
     ),
+    ...thumbnails.table(),
     ...newer?.fields,
   };
+}
+
+/**
+ * The thumbnails table as it is written (decision 4 of the launch review):
+ * every thumbnail the steps' links show, once, under a key from its content,
+ * as one string — so fifty steps linked to one sheet store its thumbnail
+ * once, and the file is not a line per coordinate. A source names its
+ * thumbnail by that key. The entries a newer build's steps name are written
+ * back as they came, while one of those steps is still in the diagram.
+ */
+class ThumbnailWriter {
+  private readonly entries = new Map<string, unknown>();
+  private readonly keys = new Map<string, string>();
+
+  constructor(document: DiagramDocument, carried: Readonly<Record<string, unknown>> | undefined) {
+    if (!carried) return;
+    const locked = stepsOf(document)
+      .filter((step) => step.unknown)
+      .map((step) => JSON.stringify(step.unknown))
+      .join('\n');
+    for (const [key, entry] of Object.entries(carried)) {
+      if (locked.includes(JSON.stringify(key))) this.entries.set(key, entry);
+    }
+  }
+
+  /** The key a thumbnail is written under: one per content, never another's. */
+  keyOf(thumbnail: SheetThumbnail): string {
+    const json = JSON.stringify(thumbnail);
+    const known = this.keys.get(json);
+    if (known !== undefined) return known;
+    const base = `thumb-${digest(json)}`;
+    let key = base;
+    for (let suffix = 2; this.entries.has(key) && this.entries.get(key) !== json; suffix += 1) key = `${base}-${suffix}`;
+    this.entries.set(key, json);
+    this.keys.set(json, key);
+    return key;
+  }
+
+  /** The table, sorted by key so a save writes it one way; none when no step names one. */
+  table(): { thumbnails?: Record<string, unknown> } {
+    if (this.entries.size === 0) return {};
+    return { thumbnails: Object.fromEntries([...this.entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) };
+  }
 }
 
 /**
@@ -376,7 +430,7 @@ function writePageSetup(page: DiagramPageSetup): Record<string, unknown> {
   };
 }
 
-function writeStep(step: DiagramEntry): Record<string, unknown> {
+function writeStep(step: DiagramEntry, thumbnails: ThumbnailWriter): Record<string, unknown> {
   if (isTurn(step)) {
     if (step.unknown) return step.unknown;
     return step.kind === 'rotate'
@@ -387,8 +441,8 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
   return {
     id: step.id,
     revision: step.revision,
-    source: step.source,
-    picture: step.picture,
+    source: writeSource(step.source, thumbnails),
+    picture: writePicture(step.picture),
     annotations: step.annotations.map(writeAnnotation),
     annotatedPictureKey: step.annotatedPictureKey,
     text: step.text,
@@ -396,6 +450,17 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
     ...(step.zoom ? { zoom: writeStepZoom(step.zoom) } : {}),
     ...writeStepPlace(step),
   };
+}
+
+/** A source as written: a link's thumbnail by its key in the table. */
+function writeSource(source: DiagramStepSource | null, thumbnails: ThumbnailWriter): unknown {
+  if (source?.kind !== 'cp' && source?.kind !== 'references-step') return source;
+  return { ...source, thumbnail: thumbnails.keyOf(source.thumbnail) };
+}
+
+/** A picture as written: a References card's model as one string, so the file is not a line per coordinate. */
+function writePicture(picture: DiagramPicture | null): unknown {
+  return picture?.kind === 'step-diagram' ? { ...picture, model: JSON.stringify(picture.model) } : picture;
 }
 
 /**
@@ -613,9 +678,10 @@ interface StepPartRead<T> {
 function readEntry(
   value: unknown,
   assets: Record<string, DiagramAsset>,
-  env: () => SanitizeEnv
+  env: () => SanitizeEnv,
+  thumbnail: ThumbnailResolver
 ): DiagramEntry | null {
-  if (!isRecord(value) || !Object.hasOwn(value, 'kind')) return readStep(value, assets, env);
+  if (!isRecord(value) || !Object.hasOwn(value, 'kind')) return readStep(value, assets, env, thumbnail);
   const id = value.id;
   if (typeof id !== 'string' || id.length === 0) return null;
   const turn = readTurn(id, value);
@@ -674,7 +740,8 @@ function isNewerWord(value: unknown, known: readonly string[]): boolean {
 function readStep(
   value: unknown,
   assets: Record<string, DiagramAsset>,
-  env: () => SanitizeEnv
+  env: () => SanitizeEnv,
+  thumbnail: ThumbnailResolver
 ): DiagramStep | null {
   if (!isRecord(value)) return null;
   const id = value.id;
@@ -698,7 +765,7 @@ function readStep(
     isRecord(value.picture) && value.picture.kind === 'scene' && value.picture.paperFaces !== undefined
       ? readPaperFaces(value.picture.paperFaces)
       : undefined;
-  const sourceRead = readSource(value.source, assets);
+  const sourceRead = readSource(value.source, assets, thumbnail);
   const pictureRead = readPicture(value.picture, assets, env);
   // Marks are drawn in their step's frame: a newer build's step whose frame
   // or marks this build cannot read shows nothing.
@@ -864,13 +931,60 @@ function namesUnknownAsset(value: Record<string, unknown>, assets: Record<string
   return asset !== undefined && !isKnownAsset(asset);
 }
 
+/** The thumbnail a link names by its key: undefined for a key the table does not hold. */
+type ThumbnailResolver = (key: string) => unknown;
+
+/**
+ * The thumbnails table as read (decision 4): each entry parsed when a link
+ * first names it, and once. An entry is a thumbnail's JSON as one string; a
+ * record is taken as the thumbnail itself. And the entries the steps a newer
+ * build wrote name, which go back with those steps as they came.
+ */
+function thumbnailTable(value: unknown): {
+  resolve: ThumbnailResolver;
+  carriedBy: (steps: readonly DiagramEntry[]) => Record<string, unknown> | undefined;
+} {
+  const table = isRecord(value) ? value : {};
+  const parsed = new Map<string, unknown>();
+  const resolve = (key: string): unknown => {
+    if (!Object.hasOwn(table, key)) return undefined;
+    if (parsed.has(key)) return parsed.get(key);
+    const entry = table[key];
+    let thumbnail: unknown = isRecord(entry) ? entry : undefined;
+    if (typeof entry === 'string') {
+      try {
+        thumbnail = JSON.parse(entry);
+      } catch {
+        thumbnail = undefined;
+      }
+    }
+    parsed.set(key, thumbnail);
+    return thumbnail;
+  };
+  const carriedBy = (steps: readonly DiagramEntry[]) => {
+    const locked = steps
+      .filter((step) => step.unknown)
+      .map((step) => JSON.stringify(step.unknown))
+      .join('\n');
+    const carried = Object.entries(table).filter(([key]) => locked.includes(JSON.stringify(key)));
+    return carried.length > 0 ? Object.fromEntries(carried) : undefined;
+  };
+  return { resolve, carriedBy };
+}
+
 /**
  * A step's source, by its kind: what reads of it, and whether a newer build
  * wrote it ({@link StepPartRead}). A kind this build has no name for is a
  * newer build's; anything that is not a source at all is none.
  */
-function readSource(value: unknown, assets: Record<string, DiagramAsset>): StepPartRead<DiagramStepSource> {
-  if (!isRecord(value)) return { read: null, newer: false };
+function readSource(
+  raw: unknown,
+  assets: Record<string, DiagramAsset>,
+  thumbnail: ThumbnailResolver
+): StepPartRead<DiagramStepSource> {
+  if (!isRecord(raw)) return { read: null, newer: false };
+  // A link names its thumbnail by its key in the table; one from before the table holds it.
+  const value = typeof raw.thumbnail === 'string' ? { ...raw, thumbnail: thumbnail(raw.thumbnail) } : raw;
   switch (value.kind) {
     case 'upload':
       return { read: readUploadSource(value, assets), newer: isNewerUploadSource(value, assets) };
@@ -1193,12 +1307,25 @@ function readPictureOfKind(
     case 'fixed':
       return readFixedPicture(value, key, env());
     case 'step-diagram': {
-      const read = validateStepDiagramModel(value.model);
+      const read = validateStepDiagramModel(readModelJson(value.model));
       if (read.status === 'unknown') return NEWER;
       return read.status === 'ok'
         ? { kind: 'step-diagram', model: read.model, mirrored: value.mirrored === true, key }
         : null;
     }
+  }
+}
+
+/**
+ * A References card's model as stored: one string of JSON (decision 4), or
+ * the record a file from before held. A string that is not JSON is no model.
+ */
+function readModelJson(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
   }
 }
 
