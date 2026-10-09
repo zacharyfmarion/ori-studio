@@ -39,15 +39,15 @@ const spread = craneStep('S.affine');
  *   among the stored ones.
  * - `crane-spread`: the same with the default affine spread, every face
  *   drawn from the stored scene, spread places and all.
- * - `crane-anchor`: a window one deep, its layers counted at a point picked
- *   off its centre.
+ * - `crane-anchor`: a window one deep, its peel started at a point picked
+ *   off its centre (18g).
  * - `crane-marks`: two windows, and over them a valley line, a circle and a
  *   close-up whose area takes one in: the marks over every window, the
  *   close-up's inside the picture plain (R3-20 B).
  * - `crane-enlarged`: an enlarged step, its window crossing its frame's
  *   edge: its own picture's faces in the window's units, held to the frame.
- * - `crane-off-paper`: a window whose middle is on no paper, which takes
- *   nothing away: the picture's own faces through its clip.
+ * - `crane-off-paper`: a window whose middle is on no paper, two deep: it
+ *   peels the paper inside it (18g), and paints nothing off it.
  * - `crane-edge`: a window on the edge of a flap, a third of it off the
  *   paper, one deep: the white over the faces it takes away and nothing
  *   off the paper (review of 18f).

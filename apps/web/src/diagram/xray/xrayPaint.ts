@@ -65,9 +65,9 @@ export interface XRayWindowDrawn {
    * faces left and the rim (`xrayWindowMarkup`), in the surface's units.
    */
   markup: string;
-  /** How many layers it takes away at its anchor, and how many there are. */
+  /** How many steps of its window's peel it takes away, and how many there are. */
   deep: number;
-  stack: number;
+  steps: number;
 }
 
 /**
@@ -114,7 +114,7 @@ export function xrayWindowOn(
     { project: sceneOnSurface(faces, window, box, longer), unitsPerPt: PT_TO_CSS_PX * k },
     idPrefix
   );
-  return { markup, deep: inside.removal.deep, stack: inside.removal.stack.length };
+  return { markup, deep: inside.removal.deep, steps: inside.removal.steps };
 }
 
 /** A window's centre and radius on a surface, `k` of its units to a drawing px. */

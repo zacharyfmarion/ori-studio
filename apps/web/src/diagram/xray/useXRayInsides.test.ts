@@ -38,7 +38,7 @@ describe('an x-ray’s window on the Annotate canvas (Revision 3, 18e)', () => {
     expect(more).toEqual([]);
     expect(inside!.id).toBe('xray');
     expect(inside!.deep).toBe(2);
-    expect(inside!.stack).toBeGreaterThan(2);
+    expect(inside!.steps).toBeGreaterThan(2);
     expect(inside!.markup).toMatch(/^<defs><clipPath id="x-0-clip"><circle /);
     // The window where the drawing has it: picture units times the frame's px.
     expect(inside!.markup).toContain(`cx="${Number((0.45 * CARD_FRAME_PX).toFixed(3))}"`);

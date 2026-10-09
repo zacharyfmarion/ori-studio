@@ -717,7 +717,7 @@ export function useAnnotateCanvas({
           : null;
     return target ? anchorFaceRing(step, target) : null;
   }, [selectedId, known, step, zoomWindow]);
-  // The selected x-ray's picked point, where its layers are counted, in the canvas's units (review of 18e).
+  // The selected x-ray's picked point, where its peeling starts, in the canvas's units (review of 18e, 18g).
   const anchorPoint = useMemo(() => {
     const selected = selectedId === null ? undefined : known(selectedId);
     const faces = selected?.kind === 'x-ray' && selected.anchor ? xrayFacesOf(step) : null;

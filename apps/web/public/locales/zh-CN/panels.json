@@ -792,7 +792,7 @@
       "xRayFlatOnly": "透视仅适用于平折图",
       "xRayHelp": "从一个区域的中心向外拖动，透过其最上层往下看；单击则放置标准大小。然后输入要去掉几层。",
       "xRayHelpTouch": "从一个区域的中心向外拖动，透过其最上层往下看；单击则放置标准大小。然后在“{{sheet}}”的“{{tab}}”中设置要去掉几层。",
-      "xRayNoPaper": "请从纸上开始：窗口去掉的是其中心下方的层。",
+      "xRayNoPaper": "请从纸上开始：窗口会逐层揭去其中的层。",
       "xRayRefresh": "刷新步骤 {{number}} 后才能透视"
     },
     "annotations": {
@@ -935,14 +935,14 @@
       "xRayAnchor": "基准点",
       "xRayAnchorAutoHint": "窗口的中心",
       "xRayAnchorPickedHint": "在画布上选取的点",
-      "xRayAnchorPickHint": "在画布上选取计算层数的点",
-      "xRayAnchorPicking": "在画布上单击计算层数的点；按 Escape 结束",
-      "xRayAnchorResetHint": "重新在窗口的中心计算层数",
-      "xRayAnchorTap": "轻点计算层数的点",
+      "xRayAnchorPickHint": "在画布上选取开始揭层的点",
+      "xRayAnchorPicking": "在画布上单击开始揭层的点；按 Escape 结束",
+      "xRayAnchorResetHint": "重新从窗口的中心开始揭层",
+      "xRayAnchorTap": "轻点开始揭层的点",
       "xRayDepth": "深度",
-      "xRayFewer_other": "此处只有 {{count}} 层",
+      "xRayFewer_other": "此处只能去掉 {{count}} 层",
       "xRayNoLayers": "此图没有可透视的层",
-      "xRayOffPaper": "中心下方没有纸：它什么也不去掉"
+      "xRayNothing": "此窗口中没有可去掉的层"
     },
     "card": {
       "badgeCreasePattern": "折痕图",

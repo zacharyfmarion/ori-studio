@@ -792,7 +792,7 @@
       "xRayFlatOnly": "透視は平らに折った図でのみ使えます",
       "xRayHelp": "範囲の中心から外へドラッグして一番上の層を透かして見せるか、クリックして標準の大きさにします。続けて取り除く層の数を入力します。",
       "xRayHelpTouch": "範囲の中心から外へドラッグして一番上の層を透かして見せるか、クリックして標準の大きさにします。続けて{{sheet}}の{{tab}}で取り除く層の数を設定します。",
-      "xRayNoPaper": "紙の上から始めてください。窓は中心の下にある層を取り除きます。",
+      "xRayNoPaper": "紙の上から始めてください。窓はその中の層を順にはがします。",
       "xRayRefresh": "透視するにはステップ {{number}} を更新してください"
     },
     "annotations": {
@@ -935,14 +935,14 @@
       "xRayAnchor": "基準点",
       "xRayAnchorAutoHint": "窓の中心",
       "xRayAnchorPickedHint": "キャンバスで選んだ点",
-      "xRayAnchorPickHint": "層を数える点をキャンバス上で選びます",
-      "xRayAnchorPicking": "層を数える点をキャンバス上でクリックします。Escapeで終了",
-      "xRayAnchorResetHint": "窓の中心で層を数え直します",
-      "xRayAnchorTap": "層を数える点をタップします",
+      "xRayAnchorPickHint": "はがし始める点をキャンバス上で選びます",
+      "xRayAnchorPicking": "はがし始める点をキャンバス上でクリックします。Escapeで終了",
+      "xRayAnchorResetHint": "はがし始める点を窓の中心に戻します",
+      "xRayAnchorTap": "はがし始める点をタップします",
       "xRayDepth": "深さ",
-      "xRayFewer_other": "ここには {{count}} 層しかありません",
+      "xRayFewer_other": "ここで取り除ける層は {{count}} 層だけです",
       "xRayNoLayers": "この図には透視できる層がありません",
-      "xRayOffPaper": "中心の下に紙がありません。何も取り除きません"
+      "xRayNothing": "この窓には取り除くものがありません"
     },
     "card": {
       "badgeCreasePattern": "展開図",

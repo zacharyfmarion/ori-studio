@@ -102,7 +102,7 @@ export function triangulate(ring: readonly Pt[]): Pt[][] {
 }
 
 /** A ring as convex pieces: itself when it is convex, else its triangles. */
-function convexPieces(ring: readonly Pt[]): readonly (readonly Pt[])[] {
+export function convexPieces(ring: readonly Pt[]): readonly (readonly Pt[])[] {
   return isConvexRing(ring) ? [ring] : triangulate(ring);
 }
 
@@ -141,24 +141,54 @@ function perimeter(ring: readonly Pt[]): number {
 }
 
 /**
+ * What two rings share, as convex pieces with an inside: each convex piece of
+ * one clipped to each of the other's. None for rings that only meet along a
+ * side or a corner.
+ */
+export function sharedPieces(a: readonly Pt[], b: readonly Pt[]): Pt[][] {
+  return piecesShared(convexPieces(a), convexPieces(b));
+}
+
+/** {@link sharedPieces} of two rings already cut into convex pieces ({@link convexPieces}). */
+export function piecesShared(a: readonly (readonly Pt[])[], b: readonly (readonly Pt[])[]): Pt[][] {
+  const pieces: Pt[][] = [];
+  for (const pa of a) {
+    for (const pb of b) {
+      const part = clipToConvex(pa, pb);
+      if (part.length >= 3 && Math.abs(twiceArea(part)) > 0) pieces.push(part);
+    }
+  }
+  return pieces;
+}
+
+/** Convex pieces clipped to the convex ring `clip`: the parts of them inside it. */
+export function piecesWithin(pieces: readonly (readonly Pt[])[], clip: readonly Pt[]): Pt[][] {
+  const within: Pt[][] = [];
+  for (const piece of pieces) {
+    const part = clipToConvex(piece, clip);
+    if (part.length >= 3 && Math.abs(twiceArea(part)) > 0) within.push(part);
+  }
+  return within;
+}
+
+/** Convex pieces' area, and their mean width: their area over half their perimeter (see the module's note). */
+export function piecesPart(pieces: readonly (readonly Pt[])[]): { area: number; width: number } {
+  let area = 0;
+  let around = 0;
+  for (const piece of pieces) {
+    area += Math.abs(twiceArea(piece)) / 2;
+    around += perimeter(piece);
+  }
+  return { area, width: around > 0 ? (2 * area) / around : 0 };
+}
+
+/**
  * What two rings share: its area, and its mean width — its area over half
  * its perimeter, measured piece by piece where a ring is not convex (see the
  * module's note). Nothing for rings that only meet along a side or a corner.
  */
 export function sharedPart(a: readonly Pt[], b: readonly Pt[]): { area: number; width: number } {
-  let area = 0;
-  let around = 0;
-  for (const pa of convexPieces(a)) {
-    for (const pb of convexPieces(b)) {
-      const part = clipToConvex(pa, pb);
-      if (part.length < 3) continue;
-      const each = Math.abs(twiceArea(part)) / 2;
-      if (!(each > 0)) continue;
-      area += each;
-      around += perimeter(part);
-    }
-  }
-  return { area, width: around > 0 ? (2 * area) / around : 0 };
+  return piecesPart(sharedPieces(a, b));
 }
 
 /** Whether two rings overlap by a part wider than `minWidth`: a box apart first, as the cheap answer. */

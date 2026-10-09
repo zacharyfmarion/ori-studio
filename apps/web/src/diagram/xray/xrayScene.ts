@@ -1,18 +1,24 @@
 /**
  * An x-ray's inside (Revision 3, `implementation-plans/diagram-revision-3.md`,
- * "5. X-ray" and "18.0 results"): a flat fold's picture without its top
- * layers at one point, as a scene a surface paints inside the window.
+ * "5. X-ray" and "18.0 results"): a flat fold's picture without the layers
+ * its window peels away, as a scene a surface paints inside the window.
  *
- * What it takes away (R3-13 A): the top `depth` faces at the window's anchor
- * — its picked point on the paper, or unsaid its centre — and every face over
- * those, across the whole window; a depth past the stack draws at the
- * deepest, leaving its bottom face. Read as 18.0 found it must be:
+ * What it takes away (R3-34 A, `implementation-plans/diagram-xray-peel.md`,
+ * which replaced R3-13 A after Zach's report on #447): the window is peeled,
+ * read inside it alone. Each step of its depth takes away one face on top in
+ * the window — nothing left over it there, something left under it there —
+ * the window's whole top layer before anything under it, and in each layer
+ * the face nearest its Point first, its centre unless picked (R3-35 A). A
+ * face whose part in the window is a sliver goes with the next step (R3-36
+ * A). The bottom layer never goes, so a depth past the steps draws at the
+ * deepest. Read as 18.0 found it must be:
  *
- * 1. **On the paper.** The anchor is a point of the paper, and the stack and
- *    "every face over" are read on the faces' unspread places (`paperFaces`),
- *    never on the drawn ones, where a spread pushes flaps into one another.
- *    The window's centre goes back there through the face seen on top at it.
- * 2. **"Over" with a tolerance** (`faceOverlap.ts`, `facesOverWithin`): two
+ * 1. **Stacked on the paper.** Which faces lie over which is read on the
+ *    faces' unspread places (`paperFaces`) and their levels, never on the
+ *    drawn ones, where a spread pushes flaps into one another. Where in the
+ *    window one lies over another is read on the drawn picture, which the
+ *    window clips.
+ * 2. **"Over" with a tolerance** (`faceOverlap.ts`, `overlapsWider`): two
  *    faces meeting along a fold, their stored corners crossing by a hair, are
  *    not over one another.
  * 3. **The stored order.** What is left is drawn in the stored scene's own
@@ -45,27 +51,35 @@ import type { PaperFaceItem, PaperScene, PaperSide, ScenePoint } from '../../lib
 import { paperSceneSvgBody } from '../../lib/paper/paperSvg';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import type { PicturePoint } from '../annotate/annotationModel';
-import { facesAt, facesOverWithin } from '../annotate/behindFlaps';
-import { overlapsWider } from '../annotate/faceOverlap';
+import { convexPieces, OVER_MIN_WIDTH, overlapsWider, piecesPart, piecesShared, piecesWithin } from '../annotate/faceOverlap';
 import type { PictureCover, PictureLayers } from '../annotate/pictureGeometry';
 import type { DiagramStep } from '../document/diagramDocument';
 import { sceneCulledTo, type PictureBox } from '../pictures/paintDiagramStep';
 import { storedScene } from '../pictures/pictureFrame';
-import {
-  faceAt,
-  facePlacement,
-  faceSpreadMove,
-  paperFacesOf,
-  ringArea,
-  topDrawn,
-  unspreadOn,
-  type StepFaces,
-} from '../zoom/zoomImprint';
+import { faceAt, facePlacement, faceSpreadMove, paperFacesOf, ringArea, type StepFaces } from '../zoom/zoomImprint';
 
 type Pt = PicturePoint;
+type Box = readonly [number, number, number, number];
 
-/** A face's cover on the unspread picture, in picture units, its order its level reversed: what a stack is read from. */
+/** A face's cover, in picture units, its order its level reversed: on the unspread picture, or as drawn. */
 export type XRayCover = PictureCover & { face: number };
+
+/** A face as drawn (18g): its cover, and its ring as convex pieces, what a window is clipped against. */
+export type XRayDrawn = XRayCover & { pieces: readonly (readonly Pt[])[] };
+
+/**
+ * Two faces stacked on the paper (18g): their unspread rings share a part
+ * wider than "over"'s tolerance, at different levels. With the part their
+ * drawn rings share, as convex pieces in picture units, and its box: where a
+ * window sees the one over the other.
+ */
+export interface XRayStacked {
+  /** The face on top: the lower level. */
+  upper: number;
+  lower: number;
+  shared: readonly (readonly Pt[])[];
+  box: Box;
+}
 
 /** A step's faces as an x-ray reads them: worked out once per picture. */
 export interface XRayFaces {
@@ -77,8 +91,10 @@ export interface XRayFaces {
   items: readonly (PaperFaceItem | null)[];
   /** Every face with a ring, back to front: the stored order, a face it dropped placed among them by level. */
   paint: readonly number[];
-  /** The faces as stacks are read: on the unspread picture, in picture units. */
+  /** The faces on the unspread picture, in picture units: where they are stacked. */
   layers: Omit<PictureLayers, 'covers'> & { covers: readonly XRayCover[] };
+  /** Per face, its ring as its item paints it, in picture units — what a window clips; null for a face with no ring. */
+  drawn: readonly (XRayDrawn | null)[];
 }
 
 const memo = new WeakMap<StepFaces, XRayFaces | null>();
@@ -115,18 +131,13 @@ export function readXRayFaces(faces: StepFaces, scene: PaperScene): XRayFaces | 
     stored.set(item.face, item);
     order.push(item.face);
   }
+  const coverIn = (face: number, ring: readonly Pt[]): XRayCover => {
+    const points = ring.map(toPicture);
+    return { face, ring: points, order: -faces.levels[face]!, box: boxOf(points) };
+  };
   const covers: XRayCover[] = [];
   faces.unspread.forEach((ring, face) => {
-    if (ring.length < 3) return;
-    const points = ring.map(toPicture);
-    const xs = points.map(([x]) => x);
-    const ys = points.map(([, y]) => y);
-    covers.push({
-      face,
-      ring: points,
-      order: -faces.levels[face]!,
-      box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)],
-    });
+    if (ring.length >= 3) covers.push(coverIn(face, ring));
   });
   const coverOf = new Map(covers.map((cover) => [cover.face, cover]));
   const sides = facesSides(faces, stored);
@@ -141,13 +152,65 @@ export function readXRayFaces(faces: StepFaces, scene: PaperScene): XRayFaces | 
     const at = drawn && drawn.length === ring.length ? drawn : ring;
     return { kind: 'face', face, side: sides[face] ?? 'front', rings: [at.map(([x, y]): ScenePoint => [x, y])], outline: 'edge', shade: 1, hidden: false };
   });
+  // Each face where its item paints it — spread, where the picture is — by its item's largest ring.
+  const drawn = faces.unspread.map((ring, face): XRayDrawn | null => {
+    const item = items[face];
+    if (!item || ring.length < 3) return null;
+    const own = item.rings.filter((each) => each.length >= 3) as Pt[][];
+    const largest = own.reduce<Pt[] | null>((best, each) => (!best || Math.abs(ringArea(each)) > Math.abs(ringArea(best)) ? each : best), null);
+    const cover = coverIn(face, largest ?? ring);
+    return { ...cover, pieces: convexPieces(cover.ring) };
+  });
   return {
     faces,
     frame: { bounds: scene.bounds, sheet: scene.sheet },
     items,
     paint: paintOrder(order, covers, coverOf, faces.levels),
     layers: { orders: [], covers },
+    drawn,
   };
+}
+
+function boxOf(ring: readonly Pt[]): Box {
+  const xs = ring.map(([x]) => x);
+  const ys = ring.map(([, y]) => y);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+
+const boxesMeet = (a: Box, b: Box) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+
+const stackedMemo = new WeakMap<XRayFaces, readonly XRayStacked[]>();
+
+/**
+ * Every two faces stacked on the paper, the upper first (18g): sharing a part
+ * wider than "over"'s tolerance on the unspread picture, at different levels
+ * — a woven pair, at one level, is neither's — with the part they share as
+ * drawn. A pair whose drawn rings share nothing, a spread having drawn them
+ * apart, never lies one over the other in a window, and is left out. Worked
+ * out once per picture, when a window first peels it.
+ */
+export function xrayStacked(xray: XRayFaces): readonly XRayStacked[] {
+  const known = stackedMemo.get(xray);
+  if (known) return known;
+  const { covers } = xray.layers;
+  const levels = xray.faces.levels;
+  const unspread = new Map(covers.map((cover) => [cover.face, convexPieces(cover.ring)]));
+  const pairs: XRayStacked[] = [];
+  for (let i = 0; i < covers.length; i += 1) {
+    for (let j = i + 1; j < covers.length; j += 1) {
+      const [a, b] = [covers[i]!, covers[j]!];
+      if (levels[a.face] === levels[b.face] || !boxesMeet(a.box, b.box)) continue;
+      // "Over"'s test (`overlapsWider`), on pieces cut once.
+      if (piecesPart(piecesShared(unspread.get(a.face)!, unspread.get(b.face)!)).width <= OVER_MIN_WIDTH) continue;
+      const [upper, lower] = levels[a.face]! < levels[b.face]! ? [a.face, b.face] : [b.face, a.face];
+      const [over, under] = [xray.drawn[upper], xray.drawn[lower]];
+      if (!over || !under || !boxesMeet(over.box, under.box)) continue;
+      const shared = piecesShared(over.pieces, under.pieces);
+      if (shared.length > 0) pairs.push({ upper, lower, shared, box: boxOf(shared.flat()) });
+    }
+  }
+  stackedMemo.set(xray, pairs);
+  return pairs;
 }
 
 /**
@@ -251,38 +314,11 @@ function paintOrder(
   return order;
 }
 
-/** A point of the picture, in picture units, in the stored scene's px. */
-function toScene(xray: XRayFaces, [u, v]: Pt): Pt {
-  const { minX, minY, maxX, maxY } = xray.frame.bounds;
-  const unit = Math.max(maxX - minX, maxY - minY);
-  return [minX + u * unit, minY + v * unit];
-}
-
 /** A point in the stored scene's px, in picture units. */
 function toPicture(xray: XRayFaces, [x, y]: Pt): Pt {
   const { minX, minY, maxX, maxY } = xray.frame.bounds;
   const unit = Math.max(maxX - minX, maxY - minY);
   return [(x - minX) / unit, (y - minY) / unit];
-}
-
-/**
- * Where an x-ray's layers are counted, on the unspread picture, in picture
- * units (18.0 results, 1): its picked `anchor` — a point on the paper, placed
- * through the face that holds it — or, unsaid or on none of the step's faces,
- * its window's `centre` (picture units, as drawn) taken back through the face
- * drawn on top there. Null where the centre is on no face: nothing is there
- * to take away.
- */
-export function xrayAnchorPoint(xray: XRayFaces, centre: Pt, anchor?: readonly [number, number]): Pt | null {
-  const { faces } = xray;
-  if (anchor) {
-    const face = faceAt(faces, [anchor[0], anchor[1]]);
-    const placement = face === null ? null : facePlacement(faces, face);
-    if (placement) return toPicture(xray, placement.apply([anchor[0], anchor[1]]));
-  }
-  const drawn = toScene(xray, centre);
-  const top = topDrawn(faces, drawn);
-  return top === null ? null : toPicture(xray, unspreadOn(faces, top, drawn));
 }
 
 /**
@@ -299,34 +335,168 @@ export function xrayAnchorDrawn(xray: XRayFaces, anchor: readonly [number, numbe
   return toPicture(xray, faceSpreadMove(faces, face, placement.apply([anchor[0], anchor[1]])));
 }
 
-/** What a window takes away (R3-13 A). */
-export interface XRayRemoval {
-  /** The faces at the anchor, top first. */
-  stack: readonly number[];
-  /** How many of them it takes away: its depth, or one fewer than the stack where that is less. */
-  deep: number;
-  /** Those, and every face over them. */
-  removed: ReadonlySet<number>;
+/**
+ * Where a window's peel starts (R3-35 A), as drawn, in picture units: its
+ * picked `anchor` where the picture draws it, or — unsaid, or on none of the
+ * step's faces — its window's `centre`. In each layer the face nearest it
+ * goes first.
+ */
+export function xrayPeelPoint(xray: XRayFaces, centre: Pt, anchor?: readonly [number, number]): Pt {
+  return (anchor && xrayAnchorDrawn(xray, anchor)) || centre;
 }
 
-/** The faces at a point of the unspread picture (picture units), top first: by level, as the kernel stacks them. */
-export function xrayStackAt(xray: XRayFaces, at: Pt): number[] {
-  return (facesAt(xray.layers, at) as XRayCover[]).map((cover) => cover.face);
+/** A window as it is peeled: its centre and radius, in picture units, as drawn. */
+export interface XRayWindow {
+  centre: Pt;
+  radius: number;
 }
 
 /**
- * What an x-ray `depth` deep takes away at `at` (unspread, picture units):
- * the top `depth` faces there — never the bottom one, so a depth past the
- * stack draws at the deepest — and every face over them, read with "over"'s
- * tolerance (`facesOverWithin`). Nothing off the paper.
+ * Below this share of its window's radius, a face's part in the window — its
+ * mean width there — is a sliver (R3-36 A), which gets no step of its own: a
+ * step that took it alone would change nothing to see.
  */
-export function xrayRemoval(xray: XRayFaces, at: Pt | null, depth: number): XRayRemoval {
-  if (!at) return { stack: [], deep: 0, removed: new Set() };
-  const covers = facesAt(xray.layers, at) as XRayCover[];
-  const deep = Math.max(0, Math.min(Math.floor(depth), covers.length - 1));
-  const top = covers.slice(0, deep);
-  const removed = new Set((top.length > 0 ? (facesOverWithin(xray.layers, top) as XRayCover[]) : []).map((cover) => cover.face));
-  return { stack: covers.map((cover) => cover.face), deep, removed };
+export const XRAY_SLIVER = 0.02;
+
+/** The sides of the ring a window's circle is clipped by: within a tenth of a percent of its radius. */
+const DISC_SIDES = 64;
+
+/** One x-ray window's steps, kept for the last few windows of each picture: a drag asks for each frame's once. */
+const peels = new WeakMap<XRayFaces, Map<string, readonly (readonly number[])[]>>();
+const PEELS_KEPT = 32;
+
+/**
+ * A window's steps (R3-34 A), in the order its depth takes them, each the
+ * faces one step takes away — read inside the window alone:
+ *
+ * - **In the window**, a face whose drawn ring the window reaches into by
+ *   more than "over"'s tolerance.
+ * - **Over, in the window**, two faces stacked on the paper
+ *   ({@link XRayStacked}) whose drawn rings' shared part the window reaches
+ *   into by more than the tolerance: two faces stacked only outside it do not
+ *   hold each other up inside it.
+ * - **Layer by layer.** A layer is every face left with nothing left over it
+ *   in the window and something left under it there; the next is read once it
+ *   is gone. A face with nothing under it in the window is the bottom there,
+ *   and is never taken away.
+ * - **A face a step**, in each layer the face nearest `point` first (its part
+ *   in the window holding it, nearest of all), then the higher, then by its
+ *   number. A sliver (R3-36 A) goes with the next step of its layer, or the
+ *   one before where it is the layer's last.
+ *
+ * By level, "over" cannot go round in a ring, so a window always peels to
+ * its bottom. A woven pair, at one level, is neither over the other, and both
+ * can go in one layer — 15e's caveat.
+ */
+export function xrayPeel(xray: XRayFaces, window: XRayWindow, point: Pt): readonly (readonly number[])[] {
+  const { centre, radius } = window;
+  if (!(radius > 0)) return [];
+  const key = `${centre[0]},${centre[1]},${radius},${point[0]},${point[1]}`;
+  let kept = peels.get(xray);
+  const known = kept?.get(key);
+  if (known) return known;
+  const steps = peelOf(xray, centre, radius, point);
+  if (!kept) peels.set(xray, (kept = new Map()));
+  if (kept.size >= PEELS_KEPT) kept.delete(kept.keys().next().value!);
+  kept.set(key, steps);
+  return steps;
+}
+
+function peelOf(xray: XRayFaces, centre: Pt, radius: number, point: Pt): number[][] {
+  const disc = Array.from({ length: DISC_SIDES }, (_, i): Pt => {
+    const angle = (2 * Math.PI * i) / DISC_SIDES;
+    return [centre[0] + radius * Math.cos(angle), centre[1] + radius * Math.sin(angle)];
+  });
+  const reach: Box = [centre[0] - radius, centre[1] - radius, centre[0] + radius, centre[1] + radius];
+  // Reaching into a part by more than the tolerance: its nearest point that far inside the circle.
+  const reachesInto = (pieces: readonly (readonly Pt[])[]) => distanceTo(pieces, centre) < radius - OVER_MIN_WIDTH;
+  const levels = xray.faces.levels;
+  // Each face in the window, by its part there.
+  const parts = new Map<number, { pieces: Pt[][]; width: number }>();
+  for (const cover of xray.drawn) {
+    if (!cover || !boxesMeet(cover.box, reach) || !reachesInto(cover.pieces)) continue;
+    const pieces = piecesWithin(cover.pieces, disc);
+    parts.set(cover.face, { pieces, width: piecesPart(pieces).width });
+  }
+  // Which lie over which inside it.
+  const over = new Map<number, number[]>();
+  const under = new Map<number, number[]>();
+  for (const { upper, lower, shared, box } of xrayStacked(xray)) {
+    if (!parts.has(upper) || !parts.has(lower) || !boxesMeet(box, reach) || !reachesInto(shared)) continue;
+    over.set(lower, [...(over.get(lower) ?? []), upper]);
+    under.set(upper, [...(under.get(upper) ?? []), lower]);
+  }
+  const taken = new Set<number>();
+  const steps: number[][] = [];
+  for (;;) {
+    const layer = [...parts.keys()].filter(
+      (face) =>
+        !taken.has(face) &&
+        (over.get(face) ?? []).every((each) => taken.has(each)) &&
+        (under.get(face) ?? []).some((each) => !taken.has(each))
+    );
+    if (layer.length === 0) break;
+    const nearness = new Map(layer.map((face) => [face, distanceTo(parts.get(face)!.pieces, point)]));
+    layer.sort((a, b) => nearness.get(a)! - nearness.get(b)! || levels[a]! - levels[b]! || a - b);
+    let carried: number[] = [];
+    const first = steps.length;
+    for (const face of layer) {
+      carried.push(face);
+      if (parts.get(face)!.width >= XRAY_SLIVER * radius) {
+        steps.push(carried);
+        carried = [];
+      }
+    }
+    if (carried.length > 0) {
+      if (steps.length > first) steps[steps.length - 1]!.push(...carried);
+      else steps.push(carried);
+    }
+    for (const face of layer) taken.add(face);
+  }
+  return steps;
+}
+
+/** How far `point` is from convex pieces: none inside one, else the nearest of their sides. */
+function distanceTo(pieces: readonly (readonly Pt[])[], [x, y]: Pt): number {
+  let nearest = Infinity;
+  for (const piece of pieces) {
+    let sign = 0;
+    let inside = true;
+    for (let i = 0; i < piece.length; i += 1) {
+      const [ax, ay] = piece[i]!;
+      const [bx, by] = piece[(i + 1) % piece.length]!;
+      const turn = Math.sign((bx - ax) * (y - ay) - (by - ay) * (x - ax));
+      if (turn !== 0 && sign !== 0 && turn !== sign) inside = false;
+      if (turn !== 0) sign = turn;
+      const dx = bx - ax;
+      const dy = by - ay;
+      const length2 = dx * dx + dy * dy;
+      const t = length2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / length2)) : 0;
+      nearest = Math.min(nearest, Math.hypot(x - (ax + t * dx), y - (ay + t * dy)));
+    }
+    if (inside) return 0;
+  }
+  return nearest;
+}
+
+/** What a window takes away (R3-34 A). */
+export interface XRayRemoval {
+  /** How many steps its window has: the most its depth can take. */
+  steps: number;
+  /** How many of them it takes: its depth, or all of them where that is fewer. */
+  deep: number;
+  /** The faces those steps take away. */
+  removed: ReadonlySet<number>;
+}
+
+/**
+ * What an x-ray `depth` deep takes away of a window's `steps`
+ * ({@link xrayPeel}): the first `depth` — all of them where it asks for more,
+ * which draws at the deepest, the bottom layer left.
+ */
+export function xrayRemoval(steps: readonly (readonly number[])[], depth: number): XRayRemoval {
+  const deep = Math.max(0, Math.min(Math.floor(depth), steps.length));
+  return { steps: steps.length, deep, removed: new Set(steps.slice(0, deep).flat()) };
 }
 
 /**
@@ -379,9 +549,9 @@ export interface XRayInside {
 
 /** The inside of `request`'s window on a step's faces: what it takes away, and the faces left round the window. */
 export function xrayInside(xray: XRayFaces, request: XRayRequest): XRayInside {
-  const at = xrayAnchorPoint(xray, request.centre, request.anchor);
-  const removal = xrayRemoval(xray, at, request.depth);
   const { centre, radius } = request;
+  const steps = xrayPeel(xray, { centre, radius }, xrayPeelPoint(xray, centre, request.anchor));
+  const removal = xrayRemoval(steps, request.depth);
   const cull = { x: centre[0] - radius, y: centre[1] - radius, width: 2 * radius, height: 2 * radius };
   return {
     removal,

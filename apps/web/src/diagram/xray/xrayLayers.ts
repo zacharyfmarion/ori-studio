@@ -1,5 +1,5 @@
 /**
- * How many layers an x-ray's anchor has under it (Revision 3): what its Depth
+ * How many steps an x-ray's window peels (Revision 3, 18g): what its Depth
  * stepper counts to and its notice says, worked out as its window draws it
  * (`xrayScene.ts`) — on an enlarged step, its marks in the window's units.
  *
@@ -10,33 +10,32 @@ import { facesAt } from '../annotate/behindFlaps';
 import type { DiagramAsset, DiagramStep, DiagramStyle, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { markGeometry, viewOfStep } from '../zoom/stepView';
 import { fromBox } from '../zoom/zoomFrames';
-import { xrayAnchorPoint, xrayFacesOf, xrayStackAt } from './xrayScene';
+import { xrayFacesOf, xrayPeel, xrayPeelPoint } from './xrayScene';
 
-/** The layers at an x-ray's anchor, the top first; null on a step whose picture has no layers to x-ray. */
-export function xrayLayersUnder(step: DiagramStep, xray: Pick<KnownDiagramAnnotation, 'from' | 'anchor'>): number | null {
+/** The steps an x-ray's window peels (R3-34 A); null on a step whose picture has no layers to x-ray. */
+export function xrayStepsIn(step: DiagramStep, xray: Pick<KnownDiagramAnnotation, 'from' | 'radius' | 'anchor'>): number | null {
   const faces = xrayFacesOf(step);
   if (!faces) return null;
   const { window } = viewOfStep(step);
   const centre = window ? fromBox(window, xray.from) : xray.from;
-  const at = xrayAnchorPoint(faces, centre, xray.anchor);
-  return at ? xrayStackAt(faces, at).length : 0;
+  const radius = (xray.radius ?? 0) * (window ? Math.max(window.width, window.height) : 1);
+  return xrayPeel(faces, { centre, radius }, xrayPeelPoint(faces, centre, xray.anchor)).length;
 }
 
 /**
- * The deepest an x-ray's Depth goes where its anchor has `layers` under it:
- * one fewer, as the bottom layer is never taken away — and never under one,
- * which off the paper takes nothing away.
+ * The deepest an x-ray's Depth goes where its window has `steps`: all of
+ * them, as the bottom layer is never among them — and never under one, which
+ * a window with nothing to take away has.
  */
-export function xrayDepthMax(layers: number): number {
-  return Math.max(1, layers - 1);
+export function xrayDepthMax(steps: number): number {
+  return Math.max(1, steps);
 }
 
 /**
  * Whether a window centred at `centre` (the marks' units) has the paper under
- * its middle as the step draws it — off the paper it would take nothing away,
- * so none is laid there (review of 18e). Read on the picture as drawn, which a
- * step whose faces are still to be fetched has too. True where the picture
- * keeps no layers to tell by.
+ * its middle as the step draws it — one laid off the paper is refused (review
+ * of 18e). Read on the picture as drawn, which a step whose faces are still
+ * to be fetched has too. True where the picture keeps no layers to tell by.
  */
 export function xrayCentreOnPaper(
   step: DiagramStep,

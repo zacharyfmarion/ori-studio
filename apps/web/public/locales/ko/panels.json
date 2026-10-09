@@ -792,7 +792,7 @@
       "xRayFlatOnly": "투시는 평평하게 접힌 그림에서만 됩니다",
       "xRayHelp": "영역의 가운데에서 바깥으로 드래그해 맨 위 층 너머를 보거나, 클릭해 기본 크기로 놓습니다. 그다음 걷어 낼 층 수를 입력합니다.",
       "xRayHelpTouch": "영역의 가운데에서 바깥으로 드래그해 맨 위 층 너머를 보거나, 클릭해 기본 크기로 놓습니다. 그다음 {{sheet}}의 {{tab}} 탭에서 걷어 낼 층 수를 정하세요.",
-      "xRayNoPaper": "종이 위에서 시작하세요. 창은 가운데 아래에 있는 층을 걷어 냅니다.",
+      "xRayNoPaper": "종이 위에서 시작하세요. 창은 그 안의 층을 차례로 걷어 냅니다.",
       "xRayRefresh": "투시하려면 단계 {{number}}을(를) 새로 고치세요"
     },
     "annotations": {
@@ -935,14 +935,14 @@
       "xRayAnchor": "기준점",
       "xRayAnchorAutoHint": "창의 가운데",
       "xRayAnchorPickedHint": "캔버스에서 고른 점",
-      "xRayAnchorPickHint": "층을 세는 점을 캔버스에서 고릅니다",
-      "xRayAnchorPicking": "층을 세는 점을 캔버스에서 클릭합니다. Escape로 그만둡니다",
-      "xRayAnchorResetHint": "창의 가운데에서 층을 다시 셉니다",
-      "xRayAnchorTap": "층을 세는 점을 탭합니다",
+      "xRayAnchorPickHint": "걷어 내기 시작할 점을 캔버스에서 고릅니다",
+      "xRayAnchorPicking": "걷어 내기 시작할 점을 캔버스에서 클릭합니다. Escape로 그만둡니다",
+      "xRayAnchorResetHint": "창의 가운데에서 다시 걷어 내기 시작합니다",
+      "xRayAnchorTap": "걷어 내기 시작할 점을 탭합니다",
       "xRayDepth": "깊이",
-      "xRayFewer_other": "여기에는 {{count}}개 층만 있습니다",
+      "xRayFewer_other": "여기서는 {{count}}개 층만 걷어 낼 수 있습니다",
       "xRayNoLayers": "이 그림에는 투시할 층이 없습니다",
-      "xRayOffPaper": "가운데 아래에 종이가 없습니다. 아무것도 걷어 내지 않습니다"
+      "xRayNothing": "이 창에는 걷어 낼 것이 없습니다"
     },
     "card": {
       "badgeCreasePattern": "전개도",

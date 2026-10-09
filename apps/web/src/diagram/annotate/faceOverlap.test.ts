@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PicturePoint } from './annotationModel';
-import { facesOver, facesOverWithin } from './behindFlaps';
-import { isConvexRing, OVER_MIN_WIDTH, overlapsWider, sharedPart, triangulate } from './faceOverlap';
+import { facesOver } from './behindFlaps';
+import { isConvexRing, OVER_MIN_WIDTH, overlapsWider, piecesPart, piecesWithin, sharedPart, sharedPieces, triangulate } from './faceOverlap';
 import type { PictureCover } from './pictureGeometry';
 import heart from './__fixtures__/heartFacePairs.json';
 
@@ -34,15 +34,12 @@ describe('what two faces share (Revision 3, 18.0 results, 2)', () => {
     // What they share is a sliver along the fold, a few millionths of the picture wide.
     expect(sharedPart(a!.ring, b!.ring).width).toBeLessThan(1e-5);
     expect(overlapsWider(a!, b!)).toBe(false);
-    expect(facesOverWithin({ orders: [], covers: [a!, b!] }, [low])).toEqual([low]);
   });
 
   it('takes the heart’s narrowest true overlap as one, some hundreds of times the tolerance', () => {
     const [a, b] = covers(truePair);
-    const [low, high] = a!.order < b!.order ? [a!, b!] : [b!, a!];
     expect(sharedPart(a!.ring, b!.ring).width).toBeGreaterThan(100 * OVER_MIN_WIDTH);
     expect(overlapsWider(a!, b!)).toBe(true);
-    expect(facesOverWithin({ orders: [], covers: [a!, b!] }, [low])).toEqual([low, high]);
   });
 
   it('measures a convex overlap exactly: two unit squares a half apart share a half by one, its mean width two thirds', () => {
@@ -92,5 +89,21 @@ describe('what two faces share (Revision 3, 18.0 results, 2)', () => {
     expect(sharedPart(l, across).area).toBeCloseTo(0.75, 12);
     expect(sharedPart(across, l).area).toBeCloseTo(0.75, 12);
     expect(sharedPart(across, l).width).toBeGreaterThan(OVER_MIN_WIDTH);
+  });
+
+  it('holds what two rings share to a third, as a window holds it (18g)', () => {
+    const square = (x0: number, y0: number, size: number): Ring => [
+      [x0, y0],
+      [x0 + size, y0],
+      [x0 + size, y0 + size],
+      [x0, y0 + size],
+    ];
+    // Two unit squares a half apart share a half by one; a window over its right half holds a quarter of it.
+    const shared = sharedPieces(square(0, 0, 1), square(0.5, 0, 1));
+    expect(piecesPart(shared).area).toBeCloseTo(0.5, 12);
+    expect(piecesPart(piecesWithin(shared, square(0.75, -1, 3))).area).toBeCloseTo(0.25, 12);
+    // A window clear of it holds nothing, and nothing has no width.
+    expect(piecesWithin(shared, square(2, 2, 1))).toEqual([]);
+    expect(piecesPart([])).toEqual({ area: 0, width: 0 });
   });
 });

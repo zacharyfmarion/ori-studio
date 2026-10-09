@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDiagram, insertSteps, type DiagramStep, type KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { craneStep } from '../../diagram/zoom/zoom.fixtures';
-import { xrayLayersUnder } from '../../diagram/xray/xrayLayers';
+import { xrayStepsIn } from '../../diagram/xray/xrayLayers';
 import { cpDocument } from '../../diagram/capture/capture.fixtures';
 import { requestFieldFocus } from '../../diagram/annotate/fieldFocus';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
@@ -1149,12 +1149,12 @@ describe('an x-ray’s rows (Revision 3, 18e)', () => {
   const depth = () => host!.querySelector<HTMLInputElement>('input[aria-label="Depth"]')!;
   const marks = () => stepsIn(state().diagram!)[0]!.annotations as KnownDiagramAnnotation[];
 
-  it('sets its Depth, from one to the layers at its anchor less one, as one undo step “Change X-ray”, counted by bucket', () => {
+  it('sets its Depth, from one to the steps its window peels (18g), as one undo step “Change X-ray”, counted by bucket', () => {
     const step = crane();
-    const layers = xrayLayersUnder(step, xray)!;
-    expect(layers).toBeGreaterThan(3);
+    const steps = xrayStepsIn(step, xray)!;
+    expect(steps).toBeGreaterThan(3);
     expect(depth().value).toBe('2');
-    expect(depth().getAttribute('aria-valuemax') ?? depth().max).toBe(String(layers - 1));
+    expect(depth().getAttribute('aria-valuemax') ?? depth().max).toBe(String(steps));
     const past = state().diagramHistory.past.length;
     act(() => button('Increase Depth')!.click());
     expect(marks()[0]!.depth).toBe(3);
@@ -1169,42 +1169,44 @@ describe('an x-ray’s rows (Revision 3, 18e)', () => {
     expect(host!.querySelector('[data-x-ray-fewer]')).toBeNull();
   });
 
-  it('says when its anchor has fewer layers than it asks for: a Refresh or a refold left fewer, and it draws at the deepest', () => {
+  it('says when its window has fewer steps than it asks for: a Refresh, a refold or a move left fewer, and it draws at the deepest', () => {
     const step = craneStep('S.none');
-    const layers = xrayLayersUnder(step, xray)!;
-    crane([{ ...xray, depth: layers + 3 }], step);
-    expect(host!.querySelector('[data-x-ray-fewer]')!.textContent).toBe(`Only ${layers} layers here`);
+    const steps = xrayStepsIn(step, xray)!;
+    crane([{ ...xray, depth: steps + 3 }], step);
+    expect(host!.querySelector('[data-x-ray-fewer]')!.textContent).toBe(`Only ${steps} layers to take away here`);
     // Its Depth visited and left as it stands rewrites nothing: the depth asked for is kept, and its notice (review of 18e).
     const past = state().diagramHistory.past.length;
     tracked.trackDiagramMarkStyled.mockClear();
     act(() => depth().focus());
     act(() => depth().blur());
-    expect(marks()[0]!.depth).toBe(layers + 3);
+    expect(marks()[0]!.depth).toBe(steps + 3);
     expect(state().diagramHistory.past).toHaveLength(past);
     expect(host!.querySelector('[data-x-ray-fewer]')).not.toBeNull();
     expect(tracked.trackDiagramMarkStyled).not.toHaveBeenCalledWith('x_ray', 'depth', expect.anything());
   });
 
-  it('says when its middle is off the paper, where it takes nothing away (review of 18e)', () => {
-    crane([{ ...xray, from: [0.02, 0.02], to: [0.02, 0.02] }]);
-    expect(host!.querySelector('[data-x-ray-off-paper]')!.textContent).toBe('No paper under its middle: it takes nothing away');
+  it('says when its window has nothing to take away: no layer in it lies over another (review of 18e, 18g)', () => {
+    const off: KnownDiagramAnnotation = { ...xray, from: [0.02, 0.02], to: [0.02, 0.02], radius: 0.01 };
+    expect(xrayStepsIn(craneStep('S.none'), off)).toBe(0);
+    crane([off]);
+    expect(host!.querySelector('[data-x-ray-empty]')!.textContent).toBe('Nothing to take away in this window');
     expect(host!.querySelector('[data-x-ray-fewer]')).toBeNull();
     crane();
-    expect(host!.querySelector('[data-x-ray-off-paper]')).toBeNull();
+    expect(host!.querySelector('[data-x-ray-empty]')).toBeNull();
   });
 
-  it('offers its Anchor row in its own words: Auto, the window’s centre; Pick, the point its layers are counted at', () => {
+  it('offers its Point row in its own words: Auto, the window’s centre; Pick, the point its peeling starts at (18g)', () => {
     crane();
     const rule = [...host!.querySelectorAll<HTMLElement>('[title]')].find((each) => each.textContent === 'Auto')!;
     expect(rule.title).toBe('The window’s centre');
     // Its row is named for a point, not Enlarge's "Anchor" — in Japanese, Chinese and Korean "anchor face" (18f).
     expect(rule.closest('[data-field-row]')!.querySelector('[data-field-label]')!.textContent).toBe('Point');
     const pick = host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!;
-    expect(pick.title).toBe('Choose the point on the canvas where the layers are counted');
+    expect(pick.title).toBe('Choose the point on the canvas where peeling starts');
     // While picking, it asks for a point, not a face.
     act(() => pick.click());
     expect(host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!.title).toBe(
-      'Click the point on the canvas where the layers are counted; Escape to stop'
+      'Click the point on the canvas where peeling starts; Escape to stop'
     );
     act(() => state().setDiagramAnchorPick(null));
     // Picked: Reset, back to the window's centre, one undo step, counted.
@@ -1214,7 +1216,7 @@ describe('an x-ray’s rows (Revision 3, 18e)', () => {
       );
     });
     const reset = host!.querySelector<HTMLElement>('[data-zoom-action="reset-anchor"]')!;
-    expect(reset.title).toBe('Count the layers at the window’s centre again');
+    expect(reset.title).toBe('Start peeling at the window’s centre again');
     act(() => reset.click());
     expect(marks()[0]!.anchor).toBeUndefined();
     expect(state().diagramHistory.past.at(-1)?.label).toBe('Change X-ray');

@@ -706,7 +706,7 @@ function noticeHelp(t: TFunction, notice: ToolNotice): string {
     case 'no-line':
       return t('panels:diagram.annotate.divisionsNoLine', 'Click on a line to divide it whole, or drag from one end to the other.');
     case 'no-paper':
-      return t('panels:diagram.annotate.xRayNoPaper', 'Start on the paper: a window takes away the layers under its middle.');
+      return t('panels:diagram.annotate.xRayNoPaper', 'Start on the paper: a window peels away the layers inside it.');
   }
 }
 

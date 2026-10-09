@@ -738,7 +738,7 @@ function FaceRing({
 /**
  * A selected x-ray's picked point (Revision 3): a small ring with a dot, in
  * the selection's ink, at a size on screen whatever the zoom — where its
- * layers are counted, as an enlarge area's anchor face is outlined.
+ * peeling starts (18g), as an enlarge area's anchor face is outlined.
  */
 function AnchorPoint({ at: [u, v], layout, zoom }: { at: readonly [number, number]; layout: AnnotateLayout; zoom: number }) {
   const [cx, cy] = [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit];

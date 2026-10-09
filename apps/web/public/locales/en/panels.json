@@ -823,7 +823,7 @@
       "xRayFlatOnly": "X-ray works on flat folds",
       "xRayHelp": "Drag out from the middle of an area to see through its top layer, or click for a standard size; then type how many layers to take away.",
       "xRayHelpTouch": "Drag out from the middle of an area to see through its top layer, or click for a standard size; then set how many layers to take away in {{sheet}}, under {{tab}}.",
-      "xRayNoPaper": "Start on the paper: a window takes away the layers under its middle.",
+      "xRayNoPaper": "Start on the paper: a window peels away the layers inside it.",
       "xRayRefresh": "Refresh step {{number}} to x-ray it"
     },
     "annotations": {
@@ -968,15 +968,15 @@
       "xRayAnchor": "Point",
       "xRayAnchorAutoHint": "The window’s centre",
       "xRayAnchorPickedHint": "The point picked on the canvas",
-      "xRayAnchorPickHint": "Choose the point on the canvas where the layers are counted",
-      "xRayAnchorPicking": "Click the point on the canvas where the layers are counted; Escape to stop",
-      "xRayAnchorResetHint": "Count the layers at the window’s centre again",
-      "xRayAnchorTap": "Tap the point where the layers are counted",
+      "xRayAnchorPickHint": "Choose the point on the canvas where peeling starts",
+      "xRayAnchorPicking": "Click the point on the canvas where peeling starts; Escape to stop",
+      "xRayAnchorResetHint": "Start peeling at the window’s centre again",
+      "xRayAnchorTap": "Tap the point where peeling starts",
       "xRayDepth": "Depth",
-      "xRayFewer_one": "Only {{count}} layer here",
-      "xRayFewer_other": "Only {{count}} layers here",
+      "xRayFewer_one": "Only {{count}} layer to take away here",
+      "xRayFewer_other": "Only {{count}} layers to take away here",
       "xRayNoLayers": "This picture has no layers to x-ray",
-      "xRayOffPaper": "No paper under its middle: it takes nothing away"
+      "xRayNothing": "Nothing to take away in this window"
     },
     "card": {
       "badgeCreasePattern": "Crease pattern",

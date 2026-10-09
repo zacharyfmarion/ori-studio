@@ -52,7 +52,7 @@ export function stackedStep(): DiagramStep {
 }
 
 /** A rectangle from (`x0`, `y0`) to (`x1`, `y1`), corner for corner the way a ring turns on the page. */
-const rect = (x0: number, y0: number, x1: number, y1: number): ScenePoint[] => [
+export const rect = (x0: number, y0: number, x1: number, y1: number): ScenePoint[] => [
   [x0, y0],
   [x1, y0],
   [x1, y1],
@@ -106,4 +106,61 @@ export function knotStep(): DiagramStep {
     key: 'scene-knot',
     paperFaces: JSON.stringify(faces),
   });
+}
+
+/** A face of a hand-built flat fold: its ring in the fixture sheet's px, its level, and whether the stored scene draws it. */
+export interface HandFace {
+  ring: ScenePoint[];
+  level: number;
+  /** Drawn by the stored scene, which with no spread keeps only the faces that show; dropped when false. */
+  shows?: boolean;
+}
+
+/**
+ * A hand-built flat fold with no spread, its stored scene in the fixture
+ * sheet's 100 px: `faces` by number, the stored scene drawing those that show
+ * in the order given, back to front, each the paper's front; each face on the
+ * paper its ring on the picture a hundredth the size.
+ */
+export function handFold(key: string, faces: readonly HandFace[]): DiagramStep {
+  const scene = sceneOf(
+    faces.flatMap(({ ring, shows = true }, index) => (shows ? [face([ring], { face: index, side: 'front', outline: 'edge' })] : []))
+  );
+  const points: [number, number, number, number][] = [];
+  const rings = faces.map(({ ring }) =>
+    ring.map(([x, y]) => {
+      points.push([x / 100, y / 100, x, y]);
+      return points.length - 1;
+    })
+  );
+  const sceneJson = storedSceneJson(scene);
+  if (sceneJson === null) throw new Error('a scene the file refuses');
+  return cpStep(`step-${key}`, FLAT, {
+    kind: 'scene',
+    sceneJson,
+    paperScale: 1,
+    styleKey: null,
+    key: `scene-${key}`,
+    paperFaces: JSON.stringify({ points, rings, levels: faces.map(({ level }) => level) } satisfies DiagramPaperFaces),
+  });
+}
+
+/**
+ * Zach's report on #447 (18g): two flaps side by side, edge to edge at
+ * x = 50, each two layers — a top face (`L1`, `R1`, level 0) over a face of
+ * its own, which the stored scene drops (`L2`, `R2`, level 1) — both on one
+ * base (level 2). A window across their edge, read at one point as R3-13 A
+ * read it, took only the flap at its centre, then the layer under that flap,
+ * and never the other flap.
+ */
+export const FLAPS = { base: 0, L1: 1, R1: 2, L2: 3, R2: 4 } as const;
+
+export function flapsStep(): DiagramStep {
+  return handFold('flaps', [
+    { ring: rect(0, 0, 100, 100), level: 2 },
+    { ring: rect(10, 20, 50, 80), level: 0 },
+    { ring: rect(50, 20, 90, 80), level: 0 },
+    { ring: rect(15, 25, 50, 75), level: 1, shows: false },
+    { ring: rect(50, 25, 85, 75), level: 1, shows: false },
+  ]);
 }

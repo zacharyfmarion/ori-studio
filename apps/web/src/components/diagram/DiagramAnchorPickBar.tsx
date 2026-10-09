@@ -29,7 +29,7 @@ export function DiagramAnchorPickBar({ step }: { step: DiagramStep }) {
     <CanvasContextBar aria-label={t('panels:diagram.annotations.anchorPickBar', 'Anchor pick')} data-anchor-pick-bar="">
       <CanvasContextBarLabel>
         {xray
-          ? t('panels:diagram.annotations.xRayAnchorTap', 'Tap the point where the layers are counted')
+          ? t('panels:diagram.annotations.xRayAnchorTap', 'Tap the point where peeling starts')
           : t('panels:diagram.annotations.anchorTap', 'Tap a face to anchor to it')}
       </CanvasContextBarLabel>
       <Button size="sm" onClick={() => setAnchorPick(null)}>

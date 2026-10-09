@@ -11,7 +11,7 @@ import styles from './DiagramAnchorRow.module.css';
  * picked, Reset. One line in both states, so picking or resetting moves no
  * row below it: the rule's words are its tooltip, each target's own
  * (`autoHint`, `pickedHint`), as its name is (`label`): an enlargement is
- * anchored to a face, an x-ray's layers counted at a point.
+ * anchored to a face, an x-ray's peeling started at a point.
  */
 export function DiagramAnchorRow({
   label,

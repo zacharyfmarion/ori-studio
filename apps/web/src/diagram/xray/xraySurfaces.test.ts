@@ -197,7 +197,7 @@ describe('an x-ray on every surface (Revision 3, 18f)', () => {
     }
   });
 
-  it('shows the picture itself through a window that takes nothing away, face for face, on a card and a page (18.0 results, 6)', () => {
+  it('shows the picture’s own faces through a window, less those it takes away, face for face, on a card and a page (18.0 results, 6; 18g)', () => {
     const step = xrayCase('crane-off-paper');
     const { card, page } = xraySurfaces(step);
     // The page draws the picture in pt, as the window is drawn: its own face paths, before the marks.
@@ -215,14 +215,28 @@ describe('an x-ray on every surface (Revision 3, 18f)', () => {
       const window = readWindow(surface.windows[0]!, surface);
       const own = readWindow(`${picture}<circle cx="0" cy="0" r="0" fill="none" stroke="#000" stroke-width="0"/>`, surface).faces;
       const box = { x0: window.clip.x - window.clip.r, x1: window.clip.x + window.clip.r, y0: window.clip.y - window.clip.r, y1: window.clip.y + window.clip.r };
-      // Every face of the picture that reaches into the window's box, in its order, its pen and its places.
+      // Every face of the picture that reaches into the window's box, in its order, its pen and its places — but those
+      // it takes away, which lie under its white where the picture draws them. A spread picture draws every face, so a
+      // window shows no face the picture does not.
+      const taken = (face: WindowRead['faces'][number]) =>
+        (window.ground?.rings ?? []).some(
+          (rings) =>
+            rings.length === face.rings.length &&
+            rings.every(
+              (ring, r) =>
+                ring.length === face.rings[r]!.length &&
+                ring.every(([x, y], p) => Math.abs(x - face.rings[r]![p]![0]) < 1e-4 && Math.abs(y - face.rings[r]![p]![1]) < 1e-4)
+            )
+        );
       const reaching = own.filter((face) => {
         const points = face.rings.flat();
         const [xs, ys] = [points.map(([x]) => x), points.map(([, y]) => y)];
         return Math.max(...xs) >= box.x0 && Math.min(...xs) <= box.x1 && Math.max(...ys) >= box.y0 && Math.min(...ys) <= box.y1;
       });
+      expect(window.ground).not.toBeNull();
+      expect(reaching.filter(taken).length).toBe(window.ground!.rings.length);
       expect(window.faces.length).toBeGreaterThan(3);
-      expectSameWindow(window, { ...window, faces: reaching }, surface === page ? 'page' : 'card');
+      expectSameWindow(window, { ...window, faces: reaching.filter((face) => !taken(face)) }, surface === page ? 'page' : 'card');
     }
   });
 
@@ -484,7 +498,7 @@ describe('an x-ray off the paper (review of 18f)', () => {
     // On the flap's edge the window takes the top layer away: the white lies on it, and the faces left over it.
     const [edge] = xrayWindowsIn(xraySurfaces(xrayCase('crane-edge')).page.markup);
     expect(edge).toMatch(/<g clip-path="url\(#[^"]*clip\)"><g data-x-ray-ground="" fill="#ffffff" stroke="#ffffff" stroke-width="0\.5" stroke-linejoin="round"><path d="M/);
-    // Where it takes nothing away it lays no white at all: the picture's own faces, through its clip.
-    for (const id of ['stacked-edge', 'crane-off-paper']) expect(xrayWindowsIn(xraySurfaces(xrayCase(id)).page.markup)[0]).not.toContain('data-x-ray-ground');
+    // Where it takes nothing away — one layer in it — it lays no white at all: the picture's own faces, through its clip.
+    expect(xrayWindowsIn(xraySurfaces(xrayCase('stacked-edge')).page.markup)[0]).not.toContain('data-x-ray-ground');
   });
 });

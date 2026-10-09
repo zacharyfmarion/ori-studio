@@ -823,7 +823,7 @@
       "xRayFlatOnly": "Röntgen funktioniert nur bei flach gefalteten Bildern",
       "xRayHelp": "Ziehen Sie von der Mitte eines Bereichs nach außen, um durch seine oberste Lage zu sehen, oder klicken Sie für eine Standardgröße; geben Sie dann ein, wie viele Lagen entfernt werden.",
       "xRayHelpTouch": "Ziehen Sie von der Mitte eines Bereichs nach außen, um durch seine oberste Lage zu sehen, oder klicken Sie für eine Standardgröße; legen Sie dann unter {{sheet}} › {{tab}} fest, wie viele Lagen entfernt werden.",
-      "xRayNoPaper": "Beginnen Sie auf dem Papier: Ein Fenster entfernt die Lagen unter seiner Mitte.",
+      "xRayNoPaper": "Beginnen Sie auf dem Papier: Ein Fenster trägt die Lagen in seinem Inneren ab.",
       "xRayRefresh": "Aktualisieren Sie Schritt {{number}}, um ihn zu durchleuchten"
     },
     "annotations": {
@@ -968,15 +968,15 @@
       "xRayAnchor": "Punkt",
       "xRayAnchorAutoHint": "Die Mitte des Fensters",
       "xRayAnchorPickedHint": "Der auf der Arbeitsfläche gewählte Punkt",
-      "xRayAnchorPickHint": "Den Punkt wählen, an dem die Lagen gezählt werden, auf der Arbeitsfläche",
-      "xRayAnchorPicking": "Klicken Sie auf der Arbeitsfläche auf den Punkt, an dem die Lagen gezählt werden; Escape zum Beenden",
-      "xRayAnchorResetHint": "Die Lagen wieder in der Mitte des Fensters zählen",
-      "xRayAnchorTap": "Tippen Sie auf den Punkt, an dem die Lagen gezählt werden",
+      "xRayAnchorPickHint": "Den Punkt wählen, an dem das Abtragen beginnt, auf der Arbeitsfläche",
+      "xRayAnchorPicking": "Klicken Sie auf der Arbeitsfläche auf den Punkt, an dem das Abtragen beginnt; Escape zum Beenden",
+      "xRayAnchorResetHint": "Das Abtragen wieder in der Mitte des Fensters beginnen",
+      "xRayAnchorTap": "Tippen Sie auf den Punkt, an dem das Abtragen beginnt",
       "xRayDepth": "Tiefe",
-      "xRayFewer_one": "Hier liegt nur {{count}} Lage",
-      "xRayFewer_other": "Hier liegen nur {{count}} Lagen",
+      "xRayFewer_one": "Hier ist nur {{count}} Lage abzutragen",
+      "xRayFewer_other": "Hier sind nur {{count}} Lagen abzutragen",
       "xRayNoLayers": "Dieses Bild hat keine Lagen zum Durchleuchten",
-      "xRayOffPaper": "Unter seiner Mitte liegt kein Papier: Es entfernt nichts"
+      "xRayNothing": "In diesem Fenster ist nichts abzutragen"
     },
     "card": {
       "badgeCreasePattern": "Faltmuster",

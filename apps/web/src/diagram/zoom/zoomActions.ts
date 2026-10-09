@@ -236,7 +236,7 @@ export function buildFrameActions(
  * The Anchor row's verbs (Z9): Pick, which arms the pick mode on the canvas —
  * pressed while it is — and Reset, back to the default rule, while an anchor
  * is picked. Neither moves the frame on its own step. An x-ray's (Revision 3,
- * `on: 'x-ray'`) say what its anchor is: the point its layers are counted at,
+ * `on: 'x-ray'`) say what its anchor is: the point its peeling starts at (18g),
  * the window's centre unless picked.
  */
 export function buildAnchorActions(
@@ -254,10 +254,10 @@ export function buildAnchorActions(
         readOnly ??
         (state.picking
           ? xray
-            ? t('panels:diagram.annotations.xRayAnchorPicking', 'Click the point on the canvas where the layers are counted; Escape to stop')
+            ? t('panels:diagram.annotations.xRayAnchorPicking', 'Click the point on the canvas where peeling starts; Escape to stop')
             : t('panels:diagram.annotations.anchorPicking', 'Click a face on the canvas to anchor to it; Escape to stop')
           : xray
-            ? t('panels:diagram.annotations.xRayAnchorPickHint', 'Choose the point on the canvas where the layers are counted')
+            ? t('panels:diagram.annotations.xRayAnchorPickHint', 'Choose the point on the canvas where peeling starts')
             : t('panels:diagram.annotations.anchorPickHint', 'Choose the face the frame is anchored to on the canvas')),
       disabled: readOnly !== null,
       pressed: state.picking,
@@ -273,7 +273,7 @@ export function buildAnchorActions(
       hint:
         readOnly ??
         (xray
-          ? t('panels:diagram.annotations.xRayAnchorResetHint', 'Count the layers at the window’s centre again')
+          ? t('panels:diagram.annotations.xRayAnchorResetHint', 'Start peeling at the window’s centre again')
           : t('panels:diagram.annotations.anchorResetHint', 'Anchor to the backmost face outside the frame again')),
       disabled: readOnly !== null,
       run: () => {

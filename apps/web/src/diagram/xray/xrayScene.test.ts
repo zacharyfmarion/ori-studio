@@ -2,23 +2,28 @@ import { describe, expect, it } from 'vitest';
 import type { PaperFaceItem } from '../../lib/paper/paperScene';
 import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import type { PicturePoint } from '../annotate/annotationModel';
-import { overlapsWider } from '../annotate/faceOverlap';
+import { facesAt } from '../annotate/behindFlaps';
+import { overlapsWider, piecesPart, piecesWithin } from '../annotate/faceOverlap';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramStep } from '../document/diagramDocument';
 import { diagramScenePaintStyle } from '../pictures/diagramPaperStyle';
 import { storedScene } from '../pictures/pictureFrame';
 import { craneStep } from '../zoom/zoom.fixtures';
-import { knotStep } from './xray.fixtures';
+import { FLAPS, flapsStep, handFold, knotStep, rect } from './xray.fixtures';
 import { pickedAnchor } from '../zoom/zoomAnchor';
 import {
+  XRAY_SLIVER,
   xrayAnchorDrawn,
-  xrayAnchorPoint,
   xrayFacesOf,
   xrayInside,
   xrayInsideScene,
+  xrayPeel,
+  xrayPeelPoint,
   xrayRemoval,
-  xrayStackAt,
+  xrayStacked,
   xrayWindowMarkup,
+  type XRayCover,
   type XRayFaces,
+  type XRayWindow,
 } from './xrayScene';
 
 /**
@@ -70,10 +75,22 @@ function deepest(xray: XRayFaces): { at: PicturePoint; stack: number[] } {
   let best: { at: PicturePoint; stack: number[] } | null = null;
   for (const { face } of xray.layers.covers) {
     const at = insidePoint(xray, face);
-    const stack = xrayStackAt(xray, at);
+    const stack = (facesAt(xray.layers, at) as XRayCover[]).map((cover) => cover.face);
     if (!best || stack.length > best.stack.length) best = { at, stack };
   }
   return best!;
+}
+
+/** A point of a hand-built fold's sheet (px), in picture units. */
+function inPicture(xray: XRayFaces, [x, y]: PicturePoint): PicturePoint {
+  const { minX, minY, maxX, maxY } = xray.frame.bounds;
+  const unit = Math.max(maxX - minX, maxY - minY);
+  return [(x - minX) / unit, (y - minY) / unit];
+}
+
+/** A window's steps, its peel starting at `point`, its centre unless given. */
+function peel(xray: XRayFaces, window: XRayWindow, point: PicturePoint = window.centre): readonly (readonly number[])[] {
+  return xrayPeel(xray, window, point);
 }
 
 describe('an x-ray’s faces (Revision 3, 18e)', () => {
@@ -124,54 +141,13 @@ describe('an x-ray’s faces (Revision 3, 18e)', () => {
     // The faces that overlap keep the stored order among themselves.
     expect(xray.paint.indexOf(back)).toBeLessThan(xray.paint.indexOf(cover));
     // A window over the cover, one deep: the buried face shows, over the back, not under it.
-    const { minX, minY, maxX, maxY } = xray.frame.bounds;
-    const unit = Math.max(maxX - minX, maxY - minY);
-    const at: PicturePoint = [(30 - minX) / unit, (20 - minY) / unit];
-    const removal = xrayRemoval(xray, at, 1);
-    expect(removal.stack).toEqual([cover, buried, back]);
+    const at = inPicture(xray, [30, 20]);
+    const steps = peel(xray, { centre: at, radius: inPicture(xray, [3, 0])[0] - inPicture(xray, [0, 0])[0] });
+    expect(steps).toEqual([[cover], [buried]]);
+    const removal = xrayRemoval(steps, 1);
     expect([...removal.removed]).toEqual([cover]);
     const inside = xrayInsideScene(xray, removal.removed).items.map((item) => (item as PaperFaceItem).face);
     expect(inside.indexOf(back)).toBeLessThan(inside.indexOf(buried));
-  });
-
-  it('takes away the top layers at its anchor, one to three deep, and every face over them; the bottom never', () => {
-    const xray = faces(none);
-    const { at, stack } = deepest(xray);
-    expect(stack.length).toBeGreaterThanOrEqual(4);
-    // The stack is by level, the top first.
-    const levels = stack.map((face) => xray.faces.levels[face]!);
-    expect(levels).toEqual([...levels].sort((a, b) => a - b));
-    const cover = new Map(xray.layers.covers.map((each) => [each.face, each]));
-    let before = new Set<number>();
-    for (const depth of [1, 2, 3]) {
-      const { removed, deep } = xrayRemoval(xray, at, depth);
-      expect(deep).toBe(depth);
-      for (const face of stack.slice(0, depth)) expect(removed.has(face)).toBe(true);
-      expect(removed.has(stack[depth]!)).toBe(false);
-      // Every face over one taken away goes with it: a lower level, sharing a part wider than the tolerance.
-      for (const face of removed) {
-        for (const other of xray.layers.covers) {
-          if (xray.faces.levels[other.face]! < xray.faces.levels[face]! && overlapsWider(cover.get(face)!, other)) {
-            expect(removed.has(other.face)).toBe(true);
-          }
-        }
-      }
-      // Deeper takes away all the shallower one did.
-      for (const face of before) expect(removed.has(face)).toBe(true);
-      before = new Set(removed);
-    }
-  });
-
-  it('draws a depth past the stack at the deepest, leaving its bottom face', () => {
-    const xray = faces(none);
-    const { at, stack } = deepest(xray);
-    const past = xrayRemoval(xray, at, 99);
-    const deepestOne = xrayRemoval(xray, at, stack.length - 1);
-    expect(past.deep).toBe(stack.length - 1);
-    expect([...past.removed].sort()).toEqual([...deepestOne.removed].sort());
-    expect(past.removed.has(stack.at(-1)!)).toBe(false);
-    // Off the paper, nothing is taken away.
-    expect(xrayRemoval(xray, null, 2)).toEqual({ stack: [], deep: 0, removed: new Set() });
   });
 
   it('skips a face the kernel could not name, which has no ring', () => {
@@ -185,30 +161,6 @@ describe('an x-ray’s faces (Revision 3, 18e)', () => {
     expect(xray.paint).not.toContain(dropped);
     expect(xray.layers.covers.map((each) => each.face)).not.toContain(dropped);
     expect(xrayInsideScene(xray, new Set()).items.map((item) => (item as PaperFaceItem).face)).not.toContain(dropped);
-  });
-
-  it('with a spread, reads its stack on the paper and draws what is left where the spread picture has it', () => {
-    const flat = faces(none);
-    const spread = faces(affine);
-    const { at } = deepest(flat);
-    // The same point of the paper on each, through the face on top there: the same layers taken away.
-    const paperPoint = pickedAnchor(none, at)!;
-    expect(paperPoint).not.toBeNull();
-    const centre: PicturePoint = [0, 0];
-    const a = xrayRemoval(flat, xrayAnchorPoint(flat, centre, paperPoint), 2);
-    const b = xrayRemoval(spread, xrayAnchorPoint(spread, centre, paperPoint), 2);
-    expect(b.stack).toEqual(a.stack);
-    expect([...b.removed].sort()).toEqual([...a.removed].sort());
-    // Its window's centre, unanchored, goes back to the paper through the face drawn on top there: picked there, the same.
-    const drawnCentre: PicturePoint = [0.45, 0.6];
-    const onPaper = pickedAnchor(affine, drawnCentre);
-    if (onPaper) {
-      expect(xrayStackAt(spread, xrayAnchorPoint(spread, drawnCentre)!)).toEqual(xrayStackAt(spread, xrayAnchorPoint(spread, [9, 9], onPaper)!));
-    }
-    // What is left, where the spread picture draws it: every kept face its stored item, spread rings and all.
-    const inside = xrayInsideScene(spread, b.removed);
-    const stored = new Map(storedFaces(affine).map((item) => [item.face, item]));
-    for (const item of inside.items as PaperFaceItem[]) expect(item.rings).toEqual(stored.get(item.face)!.rings);
   });
 
   it('places a picked anchor where the picture draws it, through the face that holds it, spread and all (review of 18e)', () => {
@@ -270,5 +222,170 @@ describe('an x-ray’s faces (Revision 3, 18e)', () => {
     );
     expect(bounded).toContain('<clipPath id="b-bound"><polygon points="0,0 30,0 30,30"/></clipPath>');
     expect(bounded).toContain('<g clip-path="url(#b-bound)"><g clip-path="url(#b-clip)">');
+  });
+});
+
+describe('a window peeled (18g)', () => {
+  /** A disc's ring, `scale` of its radius: what the checks below read a window's inside by, apart from the module. */
+  const discOf = ({ centre: [x, y], radius }: XRayWindow, scale: number): PicturePoint[] =>
+    Array.from({ length: 96 }, (_, i): PicturePoint => [x + scale * radius * Math.cos((2 * Math.PI * i) / 96), y + scale * radius * Math.sin((2 * Math.PI * i) / 96)]);
+
+  it('peels two flaps side by side a flap a step, the one at its Point first, the whole top layer before the one under it (Zach’s report on #447)', () => {
+    const xray = faces(flapsStep());
+    const { base, L1, R1, L2, R2 } = FLAPS;
+    // Across the flaps' edge, its centre on the right flap.
+    const window = { centre: inPicture(xray, [53, 50]), radius: 0.12 };
+    expect(peel(xray, window)).toEqual([[R1], [L1], [R2], [L2]]);
+    const inside = (depth: number) => xrayInside(xray, { ...window, depth });
+    const shown = (depth: number) => inside(depth).scene.items.map((item) => (item as PaperFaceItem).face);
+    // One deep, the right flap goes and the left stays on top; two deep, both; then the layer under each.
+    expect([...inside(1).removal.removed]).toEqual([R1]);
+    expect(shown(1)).toEqual(expect.arrayContaining([L1, R2]));
+    expect(shown(2)).not.toContain(L1);
+    expect(shown(2)).toEqual(expect.arrayContaining([L2, R2]));
+    expect([...inside(4).removal.removed].sort()).toEqual([L1, R1, L2, R2].sort());
+    expect(inside(4).removal).toMatchObject({ steps: 4, deep: 4 });
+    // The base, the bottom layer, never goes: a depth past the steps draws at the deepest.
+    expect(inside(9).removal).toEqual(inside(4).removal);
+    expect(shown(9)).toEqual([base]);
+  });
+
+  it('starts at its Point: picked on the left flap, the left flap goes first, and the layer under it before the right’s', () => {
+    const step = flapsStep();
+    const xray = faces(step);
+    const { L1, R1, L2, R2 } = FLAPS;
+    const centre = inPicture(xray, [53, 50]);
+    const anchor = pickedAnchor(step, inPicture(xray, [40, 50]))!;
+    expect(anchor).not.toBeNull();
+    const point = xrayPeelPoint(xray, centre, anchor);
+    expect(point[0]).toBeCloseTo(0.4, 6);
+    expect(peel(xray, { centre, radius: 0.12 }, point)).toEqual([[L1], [R1], [L2], [R2]]);
+    expect([...xrayInside(xray, { centre, radius: 0.12, depth: 1, anchor }).removal.removed]).toEqual([L1]);
+    // A Point on none of the step's faces starts at the centre.
+    expect(xrayPeelPoint(xray, centre, [1e6, 1e6])).toEqual(centre);
+  });
+
+  it('peels the faces either side of an edge, then what lies under both, and keeps the back', () => {
+    const xray = faces(knotStep());
+    const [beside, , , cover, buried] = [0, 1, 2, 3, 4];
+    // Across the edge between the cover and the face beside it, a hair onto the cover.
+    const window = { centre: inPicture(xray, [41, 20]), radius: 0.1 };
+    expect(peel(xray, window)).toEqual([[cover], [beside], [buried]]);
+  });
+
+  it('does not hold up two faces stacked only outside the window: each peels as it shows inside it', () => {
+    // An L on top whose arm lies over a block beside it, the arm clear of the window; both over a base.
+    const xray = faces(
+      handFold('outside', [
+        { ring: rect(0, 0, 100, 100), level: 2 },
+        {
+          ring: [
+            [10, 45],
+            [48, 45],
+            [48, 80],
+            [90, 80],
+            [90, 90],
+            [10, 90],
+          ],
+          level: 0,
+        },
+        { ring: rect(52, 45, 90, 90), level: 1 },
+      ])
+    );
+    const [l, block] = [1, 2];
+    expect(xrayStacked(xray).some((pair) => pair.upper === l && pair.lower === block)).toBe(true);
+    // Its centre nearer the block: the block goes first, though the L lies over it outside the window.
+    expect(peel(xray, { centre: inPicture(xray, [51, 60]), radius: 0.12 })).toEqual([[block], [l]]);
+  });
+
+  it('waits for the face over a face tucked under it, though the tucked face shows on top elsewhere in the window', () => {
+    const xray = faces(
+      handFold('tucked', [
+        { ring: rect(0, 0, 100, 100), level: 2 },
+        { ring: rect(20, 40, 80, 60), level: 1 },
+        { ring: rect(20, 30, 50, 70), level: 0 },
+      ])
+    );
+    const [strip, cover] = [1, 2];
+    // Its Point on the strip, where nothing is over it: the face over its other end still goes first.
+    expect(peel(xray, { centre: inPicture(xray, [55, 50]), radius: 0.15 })).toEqual([[cover], [strip]]);
+  });
+
+  it('puts a face that is a sliver in the window with the next step of its layer, or the one before when it is the last (R3-36 A)', () => {
+    // A square on top, and a strip on top beside it that the window only grazes; both over a base.
+    const xray = faces(
+      handFold('sliver', [
+        { ring: rect(0, 0, 100, 100), level: 1 },
+        { ring: rect(30, 30, 60, 70), level: 0 },
+        { ring: rect(64.8, 48, 90, 52), level: 0 },
+      ])
+    );
+    const [square, strip] = [1, 2];
+    const window = { centre: inPicture(xray, [50, 50]), radius: 0.15 };
+    const part = piecesPart(piecesWithin([xray.drawn[strip]!.ring], discOf(window, 1)));
+    expect(part.width).toBeGreaterThan(0);
+    expect(part.width).toBeLessThan(XRAY_SLIVER * window.radius);
+    // The square first, the strip last in its layer: with the square.
+    expect(peel(xray, window)).toEqual([[square, strip]]);
+    // The strip first, its Point beside it: with the step after it.
+    expect(peel(xray, window, inPicture(xray, [64, 50]))).toEqual([[strip, square]]);
+  });
+
+  it('peels the crane whole faces at a time: deeper takes all the shallower did, never a face with one left over it in the window, never the last', () => {
+    for (const step of [none, affine]) {
+      const xray = faces(step);
+      const stacked = xrayStacked(xray);
+      for (const window of [
+        { centre: [0.45, 0.6], radius: 0.08 },
+        { centre: [0.35, 0.3], radius: 0.06 },
+        { centre: [0.5, 0.5], radius: 0.2 },
+      ] satisfies XRayWindow[]) {
+        const steps = peel(xray, window);
+        expect(steps.length).toBeGreaterThan(2);
+        // Each face is taken once.
+        expect(new Set(steps.flat()).size).toBe(steps.flat().length);
+        // Read apart from the module, a little inside the window: a pair one over the other there.
+        const within = discOf(window, 0.95);
+        const overInside = stacked.filter((pair) => piecesPart(piecesWithin(pair.shared, within)).width > 1e-3);
+        // And a little outside it: a face taken has something under it there.
+        const around = discOf(window, 1.05);
+        let before = new Set<number>();
+        for (let depth = 1; depth <= steps.length; depth += 1) {
+          const { removed } = xrayRemoval(steps, depth);
+          for (const face of before) expect(removed.has(face)).toBe(true);
+          for (const { upper, lower } of overInside) {
+            if (removed.has(lower)) expect(removed.has(upper), `${upper} over ${lower}, taken first`).toBe(true);
+          }
+          before = new Set(removed);
+        }
+        for (const face of steps.flat()) {
+          const under = stacked.filter((pair) => pair.upper === face && piecesPart(piecesWithin(pair.shared, around)).width > 0);
+          expect(under.length, `${face} has a face under it`).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it('with a spread, peels by the paper’s stacking, and draws what is left where the spread picture has it', () => {
+    // The same pairs stacked, spread or not: read on the paper.
+    const key = (pair: { upper: number; lower: number }) => `${pair.upper}>${pair.lower}`;
+    expect(new Set(xrayStacked(faces(affine)).map(key))).toEqual(new Set(xrayStacked(faces(none)).map(key)));
+    // What is left, where the spread picture draws it: every kept face its stored item, spread rings and all.
+    const spread = faces(affine);
+    const inside = xrayInside(spread, { centre: [0.45, 0.6], radius: 0.08, depth: 2 });
+    expect(inside.removal.removed.size).toBeGreaterThan(0);
+    const stored = new Map(storedFaces(affine).map((item) => [item.face, item]));
+    for (const item of inside.scene.items as PaperFaceItem[]) expect(item.rings).toEqual(stored.get(item.face)!.rings);
+  });
+
+  it('takes nothing away where its window has nothing to peel, and past its steps draws at the deepest', () => {
+    const xray = faces(none);
+    expect(peel(xray, { centre: [3, 3], radius: 0.1 })).toEqual([]);
+    expect(xrayRemoval([], 2)).toEqual({ steps: 0, deep: 0, removed: new Set() });
+    expect(peel(xray, { centre: [0.45, 0.6], radius: 0 })).toEqual([]);
+    const steps = peel(xray, { centre: [0.45, 0.6], radius: 0.08 });
+    expect(xrayRemoval(steps, 99)).toEqual(xrayRemoval(steps, steps.length));
+    // A depth changed alone peels nothing again: the same steps.
+    expect(peel(xray, { centre: [0.45, 0.6], radius: 0.08 })).toBe(steps);
   });
 });

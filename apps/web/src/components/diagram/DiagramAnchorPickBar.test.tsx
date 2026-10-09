@@ -67,7 +67,7 @@ describe('the anchor pick’s bar on a touch screen (review of 18f)', () => {
     act(() => store().setDiagramAnchorPick({ stepId, target: 'xray' }));
     render();
     expect(bar()!.getAttribute('role')).toBe('group');
-    expect(bar()!.textContent).toContain('Tap the point where the layers are counted');
+    expect(bar()!.textContent).toContain('Tap the point where peeling starts');
     const cancel = [...bar()!.querySelectorAll('button')].find((button) => button.textContent === 'Cancel')!;
     act(() => cancel.click());
     expect(store().diagramAnchorPick).toBeNull();

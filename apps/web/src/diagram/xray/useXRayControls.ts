@@ -15,16 +15,17 @@ import {
 import { buildAnchorActions } from '../zoom/zoomActions';
 import { anchorPickable } from '../zoom/zoomAnchor';
 import { withZoomAnchor } from '../zoom/zoomModel';
-import { xrayDepthMax, xrayLayersUnder } from './xrayLayers';
+import { xrayDepthMax, xrayStepsIn } from './xrayLayers';
 import { useXRayStanding } from './useXRayStanding';
 
 /**
  * An x-ray's rows in the Layers pane (Revision 3), bound to the store: its
- * Depth — from one to the layers at its anchor less one, with a notice when
- * a Refresh or a refold left fewer than it asks for — and its Anchor row,
- * each change one undo step, "Change X-ray", counted as the mark's own option
- * (`diagram mark styled`), never an enlargement's. On a picture with no layers
- * the rows are held, saying why (R3-18b A).
+ * Depth — from one to the steps its window peels (18g), with a notice when it
+ * asks for more, as a Refresh, a refold or a moved window can leave it — and
+ * its Point row, where peeling starts, each change one undo step, "Change
+ * X-ray", counted as the mark's own option (`diagram mark styled`), never an
+ * enlargement's. On a picture with no layers the rows are held, saying why
+ * (R3-18b A).
  */
 export function useXRayControls(step: DiagramStep, xray: KnownDiagramAnnotation) {
   const { t } = useTranslation();
@@ -40,9 +41,9 @@ export function useXRayControls(step: DiagramStep, xray: KnownDiagramAnnotation)
   const fetching = useWorkspaceStore((state) => Object.hasOwn(state.diagramPaperFacesFetching, step.id));
   const { id } = xray;
   const stepId = step.id;
-  // The layers at its anchor as its window draws them: none to count on a picture without them.
-  const layers = useMemo(() => xrayLayersUnder(step, xray), [step, xray]);
-  const ready = standing.kind === 'ready' && layers !== null;
+  // The steps its window peels as it draws them: none to count on a picture without layers.
+  const steps = useMemo(() => xrayStepsIn(step, xray), [step, xray]);
+  const ready = standing.kind === 'ready' && steps !== null;
   const editable = !readOnly && !isLockedStep(step) && step.picture !== null;
   const depth = xrayDepthOf(xray);
   const picked = xray.anchor !== undefined;
@@ -91,15 +92,15 @@ export function useXRayControls(step: DiagramStep, xray: KnownDiagramAnnotation)
     editable: editable && ready,
     depth,
     /**
-     * The deepest the stepper goes: the layers at the anchor less one — or the depth asked for, where that is deeper,
-     * kept as it was asked (it draws at the deepest, and takes more again where the window moves to more layers), so
-     * the field left as it stands never rewrites it.
+     * The deepest the stepper goes: the steps its window peels — or the depth asked for, where that is deeper, kept as
+     * it was asked (it draws at the deepest, and takes more again where the window moves to more layers), so the field
+     * left as it stands never rewrites it.
      */
-    max: ready && layers !== null ? Math.max(xrayDepthMax(layers), depth) : Math.max(1, depth),
-    /** Its anchor is on no paper — a window moved off it — so it takes nothing away: what its notice says (review of 18e). */
-    offPaper: ready && layers === 0,
-    /** The layers at its anchor when it asks for more than can be taken away: what its notice says; null when it does not. */
-    fewer: ready && layers !== null && layers > 0 && depth > layers - 1 ? layers : null,
+    max: ready && steps !== null ? Math.max(xrayDepthMax(steps), depth) : Math.max(1, depth),
+    /** Its window has nothing to take away — one layer in it, or no paper: what its notice says (review of 18e, 18g). */
+    empty: ready && steps === 0,
+    /** The steps its window peels when it asks for more: what its notice says; null when it does not. */
+    fewer: ready && steps !== null && steps > 0 && depth > steps ? steps : null,
     held,
     /** The Anchor row: on a flat fold with its faces, whose points can be picked. */
     anchorShown: anchorPickable(step),

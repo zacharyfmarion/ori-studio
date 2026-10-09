@@ -320,7 +320,7 @@ describe('the tool window', () => {
   it('says what an x-ray laid off the paper could not do, until the next press (review of 18e)', () => {
     const notice = { tool: 'x-ray', notice: 'no-paper' } as const;
     expect(annotateToolHint(t, 'x-ray', null, mac, null, notice)!.instructions).toBe(
-      'Start on the paper: a window takes away the layers under its middle.'
+      'Start on the paper: a window peels away the layers inside it.'
     );
     expect(annotateToolHint(t, 'divisions', null, mac, null, notice)!.instructions).toBe(annotateToolHint(t, 'divisions', null, mac)!.instructions);
   });
