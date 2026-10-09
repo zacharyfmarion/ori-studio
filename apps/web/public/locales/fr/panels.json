@@ -850,7 +850,12 @@
       "textStyle": "Style du texte",
       "toolsLabel": "Outils d’annotation",
       "toolWindowLabel": "Instructions de l’outil d’annotation",
-      "whiteArrowHelp": "Faites glisser depuis l’endroit où part le papier jusqu’à celui où il va. Façonnez-la avec Modifier le tracé."
+      "whiteArrowHelp": "Faites glisser depuis l’endroit où part le papier jusqu’à celui où il va. Façonnez-la avec Modifier le tracé.",
+      "xRayFlatOnly": "Les rayons X ne fonctionnent que sur les pliages à plat",
+      "xRayHelp": "Faites glisser depuis le centre d’une zone vers l’extérieur pour voir à travers sa couche du dessus, ou cliquez pour une taille standard\u00a0; puis tapez combien de couches retirer.",
+      "xRayHelpTouch": "Faites glisser depuis le centre d’une zone vers l’extérieur pour voir à travers sa couche du dessus, ou cliquez pour une taille standard\u00a0; puis indiquez combien de couches retirer dans {{sheet}}, sous {{tab}}.",
+      "xRayNoPaper": "Commencez sur le papier\u00a0: une fenêtre retire les couches qui se trouvent sous son centre.",
+      "xRayRefresh": "Actualisez l’étape {{number}} pour la voir aux rayons X"
     },
     "annotations": {
       "addNode": "Ajouter un nœud",
@@ -990,7 +995,17 @@
       "width": "Largeur",
       "widthNarrow": "Étroite",
       "widthRegular": "Normale",
-      "widthWide": "Large"
+      "widthWide": "Large",
+      "xRayAnchorAutoHint": "Le centre de la fenêtre",
+      "xRayAnchorPickedHint": "Le point choisi sur le canevas",
+      "xRayAnchorPickHint": "Choisissez sur le canevas le point où les couches sont comptées",
+      "xRayAnchorResetHint": "Ancrer de nouveau au centre de la fenêtre",
+      "xRayDepth": "Profondeur",
+      "xRayFewer_one": "Seulement {{count}} couche ici",
+      "xRayFewer_many": "Seulement {{count}} couches ici",
+      "xRayFewer_other": "Seulement {{count}} couches ici",
+      "xRayNoLayers": "Cette image n’a pas de couches à voir aux rayons X",
+      "xRayOffPaper": "Pas de papier sous son centre\u00a0: elle ne retire rien"
     },
     "card": {
       "badgeCreasePattern": "Patron de plis",

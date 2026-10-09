@@ -19,6 +19,8 @@ import {
   selectedDiagramPathNode,
 } from '../store/workspaceStore/diagramState';
 import { flipKeyEdit, nudgePathNodeEdit } from './annotate/annotationActions';
+import { xrayStandingNow } from './xray/useXRayStanding';
+import { xrayToolHeld } from './annotate/annotateTools';
 import { applyAnnotationEdit } from './annotate/applyAnnotationEdit';
 import { indexForStepNumber, stepById, stepsOf, type KnownDiagramAnnotation } from './document/diagramDocument';
 import {
@@ -54,9 +56,16 @@ function keyState(state: WorkspaceState): DiagramKeyState {
             enlarged: state.diagram && state.diagramSelectedStepId !== null
               ? stepById(state.diagram, state.diagramSelectedStepId)?.zoom !== undefined
               : false,
+            xrayHeld: xrayHeldOn(state),
           }
         : null,
   };
+}
+
+/** Whether the X-Ray tool is held on the step open in Annotate (Revision 3, R3-18a A): its picture has no layers, or needs a Refresh. */
+function xrayHeldOn(state: WorkspaceState): boolean {
+  const step = state.diagram && state.diagramSelectedStepId !== null ? stepById(state.diagram, state.diagramSelectedStepId) : null;
+  return step !== null && xrayToolHeld(xrayStandingNow(step));
 }
 
 /** Whether F flips the selected annotation: one with F's verb, which would change it (a straight arrow's key falls through). */

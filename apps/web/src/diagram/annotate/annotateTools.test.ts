@@ -54,8 +54,12 @@ describe('the rail', () => {
       },
       { id: 'lines', tools: ['line', 'angle-bisector'] },
       // The two equality marks side by side (ED8).
-      // Enlarge and Enlarge in Frame after Close-Up (Z1). The star after the circle, the eye after equal divisions (Revision 3, R3-25 A).
-      { id: 'marks', tools: ['circle', 'star', 'right-angle', 'angle-mark', 'divisions', 'eye', 'close-up', 'enlarge', 'enlarge-frame'] },
+      // Enlarge and Enlarge in Frame after Close-Up (Z1). The star after the circle, the eye after equal divisions, X-Ray
+      // after Enlarge in Frame (Revision 3, R3-25 A).
+      {
+        id: 'marks',
+        tools: ['circle', 'star', 'right-angle', 'angle-mark', 'divisions', 'eye', 'close-up', 'enlarge', 'enlarge-frame', 'x-ray'],
+      },
       // The two drawing tools in a group of their own after Marks, as Affinity's rail has them (Revision 3, R3-25 A).
       { id: 'shapes', tools: ['oval', 'rectangle'] },
       { id: 'text', tools: ['label', 'callout'] },
@@ -246,6 +250,13 @@ describe('the tool window', () => {
           'Drag from corner to corner round an area to mark it for an enlarged step. Click for a standard size.',
         modifiers: ['Shift-drag to make it square.', 'Option-drag to draw it out from its middle.'],
       },
+      // Enlarge's circle, from its middle, never snapped; then its Depth is typed (Revision 3, R3-12 A, R3-14 A).
+      'x-ray': {
+        title: 'X-Ray',
+        instructions:
+          'Drag out from the middle of an area to see through its top layer, or click for a standard size; then type how many layers to take away.',
+        modifiers: [],
+      },
       // Laid as Enlarge in Frame's area is, a click its standard size, put down freely (R3-24 A); its box resized by
       // R3-29c A's keys, with Select or with its tool still in hand (Revision 3; 18d review).
       oval: {
@@ -306,6 +317,14 @@ describe('the tool window', () => {
     );
   });
 
+  it('says what an x-ray laid off the paper could not do, until the next press (review of 18e)', () => {
+    const notice = { tool: 'x-ray', notice: 'no-paper' } as const;
+    expect(annotateToolHint(t, 'x-ray', null, mac, null, notice)!.instructions).toBe(
+      'Start on the paper: a window takes away the layers under its middle.'
+    );
+    expect(annotateToolHint(t, 'divisions', null, mac, null, notice)!.instructions).toBe(annotateToolHint(t, 'divisions', null, mac)!.instructions);
+  });
+
   it('names the keys as this platform does', () => {
     const other: AnnotateToolHost = { coarse: false, primary: 'Ctrl', alt: 'Alt' };
     expect(annotateToolHint(t, 'circle', null, other)!.modifiers).toEqual([
@@ -321,8 +340,9 @@ describe('the tool window', () => {
     for (const tool of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null)) {
       const hint = annotateToolHint(t, tool, null, finger)!;
       expect(hint.modifiers).toEqual([]);
-      // A label's and a callout's words, and equal divisions' count, are typed in the Settings sheet's Layers tab there (review).
-      if (tool === 'label' || tool === 'callout' || tool === 'divisions') {
+      // A label's and a callout's words, equal divisions' count and an x-ray's depth (review of 18e) are typed in the
+      // Settings sheet's Layers tab there (review).
+      if (tool === 'label' || tool === 'callout' || tool === 'divisions' || tool === 'x-ray') {
         expect(hint.instructions).toMatch(/ in Settings, under Layers\.$/);
       } else expect(hint.instructions).toBe(annotateToolHint(t, tool, null, mac)!.instructions);
     }

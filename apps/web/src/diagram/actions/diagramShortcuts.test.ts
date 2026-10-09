@@ -165,6 +165,14 @@ describe('Annotate’s keys', () => {
     expect(press('diagram.toolEnlarge', { annotate: { ...enlarged.annotate, tool: 'enlarge' as never } }).setTool).toHaveBeenCalledWith(null);
   });
 
+  it('picks X-Ray with X, and not on a picture with no layers to x-ray (Revision 3, R3-25 A, R3-18a A)', () => {
+    expect(press('diagram.toolXRay', annotate()).setTool).toHaveBeenCalledWith('x-ray');
+    const held = press('diagram.toolXRay', { annotate: { ...annotate().annotate, xrayHeld: true } });
+    expect(held.claimed).toBe(true);
+    expect(held.setTool).not.toHaveBeenCalled();
+    expect(press('diagram.toolXRay', annotate('x-ray' as never)).setTool).toHaveBeenCalledWith(null);
+  });
+
   it('picks a tool by its letter, and puts it down with the same letter', () => {
     expect(press('diagram.toolValleyArrow', annotate()).setTool).toHaveBeenCalledWith('valley-arrow');
     expect(press('diagram.toolValleyArrow', annotate('valley-arrow')).setTool).toHaveBeenCalledWith(null);

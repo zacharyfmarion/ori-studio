@@ -819,7 +819,12 @@
       "textStyle": "Textstil",
       "toolsLabel": "Annotationswerkzeuge",
       "toolWindowLabel": "Anweisungen zum Annotationswerkzeug",
-      "whiteArrowHelp": "Ziehe von dort, wo das Papier startet, bis dorthin, wo es hingeht. Forme ihn mit „Pfad bearbeiten“."
+      "whiteArrowHelp": "Ziehe von dort, wo das Papier startet, bis dorthin, wo es hingeht. Forme ihn mit „Pfad bearbeiten“.",
+      "xRayFlatOnly": "Röntgen funktioniert nur bei flach gefalteten Bildern",
+      "xRayHelp": "Ziehen Sie von der Mitte eines Bereichs nach außen, um durch seine oberste Lage zu sehen, oder klicken Sie für eine Standardgröße; geben Sie dann ein, wie viele Lagen entfernt werden.",
+      "xRayHelpTouch": "Ziehen Sie von der Mitte eines Bereichs nach außen, um durch seine oberste Lage zu sehen, oder klicken Sie für eine Standardgröße; legen Sie dann unter {{sheet}} › {{tab}} fest, wie viele Lagen entfernt werden.",
+      "xRayNoPaper": "Beginnen Sie auf dem Papier: Ein Fenster entfernt die Lagen unter seiner Mitte.",
+      "xRayRefresh": "Aktualisieren Sie Schritt {{number}}, um ihn zu durchleuchten"
     },
     "annotations": {
       "addNode": "Knoten hinzufügen",
@@ -957,7 +962,16 @@
       "width": "Breite",
       "widthNarrow": "Schmal",
       "widthRegular": "Normal",
-      "widthWide": "Breit"
+      "widthWide": "Breit",
+      "xRayAnchorAutoHint": "Die Mitte des Fensters",
+      "xRayAnchorPickedHint": "Der auf der Arbeitsfläche gewählte Punkt",
+      "xRayAnchorPickHint": "Den Punkt wählen, an dem die Lagen gezählt werden, auf der Arbeitsfläche",
+      "xRayAnchorResetHint": "Wieder an der Mitte des Fensters verankern",
+      "xRayDepth": "Tiefe",
+      "xRayFewer_one": "Hier liegt nur {{count}} Lage",
+      "xRayFewer_other": "Hier liegen nur {{count}} Lagen",
+      "xRayNoLayers": "Dieses Bild hat keine Lagen zum Durchleuchten",
+      "xRayOffPaper": "Unter seiner Mitte liegt kein Papier: Es entfernt nichts"
     },
     "card": {
       "badgeCreasePattern": "Faltmuster",

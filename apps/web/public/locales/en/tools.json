@@ -267,7 +267,8 @@
     "toolTurnOver": "Turn Over",
     "toolValleyArrow": "Valley Fold Arrow",
     "toolValleyLine": "Valley Line",
-    "toolWhiteArrow": "White Arrow"
+    "toolWhiteArrow": "White Arrow",
+    "toolXRay": "X-Ray"
   },
   "divideMode": {
     "count": "Count",

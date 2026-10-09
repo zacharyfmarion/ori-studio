@@ -142,8 +142,8 @@ export function SolidArrowGlyph(): ReactElement {
  * list both show it. The fold, push and white arrows are the arrows
  * themselves; the lines are their dash; the circle its ring; the right angle
  * its ∟ and square inside the two lines it marks; equal divisions the
- * template's |\|\| symbol; the callout its line and box; the star, the eye, the oval and
- * the rectangle the marks they draw; Rotate and Label are the app's own icons for those verbs. Every kind
+ * template's |\|\| symbol; the callout its line and box; the star, the eye, the oval,
+ * the rectangle and the x-ray the marks they draw; Rotate and Label are the app's own icons for those verbs. Every kind
  * has one: the return type makes a kind left out a compile error, not a
  * blank button.
  *
@@ -330,6 +330,15 @@ export function DiagramAnnotationGlyph({
       return (
         <Glyph>
           <rect x={3} y={5} width={14} height={10} strokeLinejoin="miter" />
+        </Glyph>
+      );
+    case 'x-ray':
+      // A heavy rim cut into a flap (Revision 3, R3-15b (ii)), and inside it the M of the layers beneath, as the
+      // note's closed sink shows them: not a bar across a ring, which reads as "no".
+      return (
+        <Glyph>
+          <path d="M6.4 13.4 L8.2 7.2 L10 11.2 L11.8 7.2 L13.6 13.4" strokeWidth={1.1} data-glyph-part="layers" />
+          <circle cx={10} cy={10} r={7.2} strokeWidth={2} data-glyph-part="rim" />
         </Glyph>
       );
   }

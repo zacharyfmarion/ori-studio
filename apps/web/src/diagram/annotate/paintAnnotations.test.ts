@@ -429,6 +429,43 @@ describe('an oval and a rectangle (Revision 3)', () => {
   });
 });
 
+describe('an x-ray (Revision 3, 18e)', () => {
+  const xray = a('x', 'x-ray', { from: [0.95, 0.4], to: [0.95, 0.4], radius: 0.1, depth: 2 });
+  const box = { x: 0, y: 0, width: 400, height: 300 };
+
+  it('is its window and its rim, 1.5 × the edges’ pen in their ink, for a surface to paint (R3-15b (ii))', () => {
+    for (const [style, edgesPt] of [
+      [DEFAULT_DIAGRAM_STYLE, 0.5],
+      [{ style: DEFAULT_PAPER_STYLE }, DEFAULT_PAPER_STYLE.edges.width],
+    ] as const) {
+      const drawing = annotationDrawing([xray], FRAME, 400, style);
+      expect(drawing.xRays).toEqual([{ id: 'x', window: { x: 380, y: 160, r: expect.closeTo(40, 9) }, rim: { width: expect.closeTo(1.5 * edgesPt * PT_TO_CSS_PX, 9), color: expect.any(String) } }]);
+    }
+  });
+
+  it('is drawn on no surface that does not paint its inside, rim included: nothing prints a window that shows nothing (18e)', () => {
+    const drawing = annotationDrawing([xray], FRAME, 400, DEFAULT_DIAGRAM_STYLE);
+    expect(drawing.areas).toEqual([]);
+    expect(drawing.zoomAreas).toEqual([]);
+    expect(drawing.primitives).toEqual([]);
+    expect(annotationScene(drawing)).toBeNull();
+    expect(paintAnnotations([xray], box, 400, DEFAULT_DIAGRAM_STYLE)).toBeNull();
+  });
+
+  it('reaches past the frame as far as its rim and half its pen, only on a surface that draws it: no card’s or page’s bounds grow for it (review of 18e)', () => {
+    const rim = 1.5 * 0.5 * PT_TO_CSS_PX;
+    const drawing = annotationDrawing([xray], FRAME, 400, DEFAULT_DIAGRAM_STYLE);
+    // The canvas, on a step with layers.
+    const drawn = annotationReach(drawing, { xRays: true });
+    expect(drawn.x + drawn.width).toBeCloseTo(380 + 40 + rim / 2, 6);
+    expect(drawn.x).toBe(0);
+    // Every other surface, until 18f draws it there.
+    const card = annotationReach(drawing);
+    expect(card.x + card.width).toBe(400);
+    expect(paintAnnotations([xray, a('l', 'valley-line', { from: [0.1, 0.1], to: [0.2, 0.1] })], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.width).toBeLessThanOrEqual(400);
+  });
+});
+
 describe('a right angle (Revision 2)', () => {
   const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
   // At the vertex (0.5, 0.5), opening down and to the right.

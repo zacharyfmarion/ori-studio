@@ -1,0 +1,4 @@
+/* An x-ray's rows in the Layers pane (DiagramXRayControls.tsx): the notices under Depth, at the rows' inset. */
+.notice {
+  padding: 0 var(--space-3);
+}

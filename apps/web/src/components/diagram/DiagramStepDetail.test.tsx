@@ -65,7 +65,6 @@ function show(
           readOnly={false}
           mode={mode}
           onMode={() => {}}
-          annotateTool={null}
           onAnnotateTool={() => {}}
           poseActions={[]}
           linkedPose={linkedPose(preview, actions)}

@@ -17,6 +17,7 @@
  * Pure: no DOM, no store. In picture units.
  */
 import type { PicturePoint } from './annotationModel';
+import { OVER_MIN_WIDTH, overlapsWider } from './faceOverlap';
 import { PICTURE_POINT_EPSILON, type PictureCover, type PictureLayers } from './pictureGeometry';
 
 /** A stretch of a mark behind a flap: where it starts and ends, as shares of the mark's length from its start. */
@@ -139,6 +140,31 @@ export function facesOver(layers: PictureLayers, faces: readonly PictureCover[])
     const face = waiting.pop()!;
     for (const cover of layers.covers) {
       if (cover.order <= face.order || found.has(cover) || !overlaps(face, cover)) continue;
+      found.add(cover);
+      waiting.push(cover);
+    }
+  }
+  return [...found];
+}
+
+/**
+ * {@link facesOver}, with "overlapping" read as sharing a part wider than
+ * `minWidth` picture units (`faceOverlap.ts`): what an x-ray takes away with
+ * the top layers at its anchor (Revision 3, 18.0 results, 2). Two faces that
+ * meet along a fold, whose stored corners cross there by a hair, are not over
+ * one another, as 15e's own test can take them to be.
+ */
+export function facesOverWithin(
+  layers: PictureLayers,
+  faces: readonly PictureCover[],
+  minWidth: number = OVER_MIN_WIDTH
+): PictureCover[] {
+  const found = new Set<PictureCover>(faces);
+  const waiting = [...faces];
+  while (waiting.length > 0) {
+    const face = waiting.pop()!;
+    for (const cover of layers.covers) {
+      if (cover.order <= face.order || found.has(cover) || !overlapsWider(face, cover, minWidth)) continue;
       found.add(cover);
       waiting.push(cover);
     }

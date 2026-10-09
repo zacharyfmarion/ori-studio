@@ -788,7 +788,12 @@
       "textStyle": "文字样式",
       "toolsLabel": "标注工具",
       "toolWindowLabel": "标注工具说明",
-      "whiteArrowHelp": "从纸开始移动的位置拖到它移向的位置。用“编辑路径”调整形状。"
+      "whiteArrowHelp": "从纸开始移动的位置拖到它移向的位置。用“编辑路径”调整形状。",
+      "xRayFlatOnly": "透视仅适用于平折图",
+      "xRayHelp": "从一个区域的中心向外拖动，透过其最上层往下看；单击则放置标准大小。然后输入要去掉几层。",
+      "xRayHelpTouch": "从一个区域的中心向外拖动，透过其最上层往下看；单击则放置标准大小。然后在“{{sheet}}”的“{{tab}}”中设置要去掉几层。",
+      "xRayNoPaper": "请从纸上开始：窗口去掉的是其中心下方的层。",
+      "xRayRefresh": "刷新步骤 {{number}} 后才能透视"
     },
     "annotations": {
       "addNode": "添加节点",
@@ -924,7 +929,15 @@
       "width": "宽度",
       "widthNarrow": "窄",
       "widthRegular": "标准",
-      "widthWide": "宽"
+      "widthWide": "宽",
+      "xRayAnchorAutoHint": "窗口的中心",
+      "xRayAnchorPickedHint": "在画布上选取的点",
+      "xRayAnchorPickHint": "在画布上选取计算层数的点",
+      "xRayAnchorResetHint": "重新固定到窗口的中心",
+      "xRayDepth": "深度",
+      "xRayFewer_other": "此处只有 {{count}} 层",
+      "xRayNoLayers": "此图没有可透视的层",
+      "xRayOffPaper": "中心下方没有纸：它什么也不去掉"
     },
     "card": {
       "badgeCreasePattern": "折痕图",

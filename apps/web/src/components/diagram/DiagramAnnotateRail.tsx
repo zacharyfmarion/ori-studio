@@ -7,6 +7,7 @@ import {
   annotateToolHelp,
   annotateToolLabel,
   type AnnotateTool,
+  type XRayStanding,
 } from '../../diagram/annotate/annotateTools';
 import { shortcutLabelForAction } from '../../keyboard/shortcuts';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -28,18 +29,23 @@ import { DiagramTextStyleControl } from './DiagramTextStyleControl';
  * C). Each names its key in its tooltip,
  * resolved against the reader's own layout. The line type is a preference,
  * kept as it was left: the Line tool and the Angle Bisector draw in it. On
- * an enlarged step the Enlarge tools are held, saying why (Revision 2).
+ * an enlarged step the Enlarge tools are held, saying why (Revision 2), and
+ * the X-Ray tool on a picture with no layers to x-ray, or one that needs a
+ * Refresh first (Revision 3, R3-18a A).
  */
 export function DiagramAnnotateRail({
   tool,
   readOnly,
   enlarged = false,
+  xray,
   onTool,
 }: {
   tool: AnnotateTool;
   readOnly: boolean;
   /** The step is enlarged: an area is not drawn on it. */
   enlarged?: boolean;
+  /** Whether the step's picture can be x-rayed (Revision 3); unsaid, it can. */
+  xray?: XRayStanding;
   onTool: (tool: AnnotateTool) => void;
 }) {
   const { t } = useTranslation();
@@ -55,7 +61,7 @@ export function DiagramAnnotateRail({
         const label = annotateToolLabel(t, each);
         const shortcut = annotateToolShortcut(each);
         const key = shortcut === undefined ? undefined : shortcutLabelForAction(shortcut, resolution);
-        const blocked = annotateToolBlocker(t, each, { enlarged });
+        const blocked = annotateToolBlocker(t, each, { enlarged, xray });
         return {
           id: each ?? 'select',
           label,

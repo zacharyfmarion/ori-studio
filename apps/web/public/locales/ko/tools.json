@@ -259,7 +259,8 @@
     "toolTurnOver": "뒤집기",
     "toolValleyArrow": "골접기 화살표",
     "toolValleyLine": "골접기 선",
-    "toolWhiteArrow": "흰 화살표"
+    "toolWhiteArrow": "흰 화살표",
+    "toolXRay": "투시"
   },
   "divideMode": {
     "count": "개수",

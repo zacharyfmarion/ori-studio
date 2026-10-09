@@ -6,6 +6,8 @@ import { referencesStep, stepDiagramPicture } from '../document/diagramSteps.fix
 import { pictureGeometry } from './pictureGeometry';
 import { annotationSnapPoints, pictureSnapTarget } from './pictureSnap';
 import { annotation, FLAT, IN_3D, NO_ASSETS, sceneStep, uploadStep } from './pictureSnap.fixtures';
+import type { KnownDiagramAnnotation } from '../document/diagramDocument';
+import { stackedStep } from '../xray/xray.fixtures';
 
 const crease = (a: ScenePoint, b: ScenePoint) => line('diagram-valley', a, b);
 
@@ -333,5 +335,47 @@ describe('pictureGeometry', () => {
     expect(pictureGeometry(sceneStep(DIAGONAL), NO_ASSETS).trueAngles).toBe(true);
     expect(pictureGeometry(sceneStep(DIAGONAL, FLAT), NO_ASSETS).trueAngles).toBe(true);
     expect(pictureGeometry(sceneStep(DIAGONAL, IN_3D), NO_ASSETS).trueAngles).toBe(false);
+  });
+});
+
+describe('snapping inside an x-ray’s window (Revision 3, R3-22 B)', () => {
+  // Three layers (`xray.fixtures.ts`): the paper's square, a small square buried under a larger one on top.
+  const step = stackedStep();
+  const xray: KnownDiagramAnnotation = { id: 'xray', kind: 'x-ray', from: [0.4, 0.4], to: [0.4, 0.4], radius: 0.3, depth: 1 };
+
+  it('stops snapping to the corners of the face it takes away, and snaps to the corners of the face it shows beneath', () => {
+    // The top face's corner, inside the window: the picture's, until the window takes the face away.
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.2, 0.2], 0.02)).toMatchObject({ at: [0.2, 0.2] });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.2, 0.2], 0.02, { annotations: [xray] })).toBeNull();
+    // The buried face's corner: none of the picture's, a target in the window.
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.3, 0.3], 0.02)).toBeNull();
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.3, 0.3], 0.02, { annotations: [xray] })).toEqual({ at: [0.3, 0.3], kind: 'vertex' });
+  });
+
+  it('snaps a line drawn across the window to the edges of the faces it shows there, and to none of the faces it takes away (review of 18e)', () => {
+    // A valley line across the buried face, inside the window: it crosses that face's left edge at (0.3, 0.4).
+    const across: KnownDiagramAnnotation = { id: 'across', kind: 'valley-line', from: [0.25, 0.4], to: [0.55, 0.4] };
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.305, 0.405], 0.02, { annotations: [across] })).toBeNull();
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.305, 0.405], 0.02, { annotations: [across, xray] })).toEqual({
+      at: [expect.closeTo(0.3, 9), expect.closeTo(0.4, 9)],
+      kind: 'crossing',
+    });
+    // Where it crosses the face the window takes away, nothing: that edge is not drawn there.
+    const top: KnownDiagramAnnotation = { id: 'top', kind: 'valley-line', from: [0.15, 0.4], to: [0.25, 0.4] };
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.2, 0.4], 0.02, { annotations: [top] })).toMatchObject({ kind: 'crossing' });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.2, 0.4], 0.02, { annotations: [top, xray] })).toBeNull();
+  });
+
+  it('snaps to a point of the picture outside the window though a nearer one inside it is taken away (review of 18e)', () => {
+    // The top face's corner (0.2, 0.2) is nearer, inside the window and taken away; the paper's corner is outside it.
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.12, 0.12], 0.2)).toMatchObject({ at: [0.2, 0.2] });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.12, 0.12], 0.2, { annotations: [xray] })).toMatchObject({ at: [0, 0] });
+  });
+
+  it('leaves the picture’s targets outside every window as they were', () => {
+    const small: KnownDiagramAnnotation = { ...xray, radius: 0.05 };
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.2, 0.2], 0.02, { annotations: [small] })).toEqual(
+      pictureSnapTarget(step, NO_ASSETS, [0.2, 0.2], 0.02)
+    );
   });
 });

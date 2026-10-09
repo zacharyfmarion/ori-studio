@@ -57,6 +57,13 @@
  *   ovals do. It is painted under every line and mark drawn on the step
  *   (R3-11d B), in a list of its own (`areas`), so a ring round an area is
  *   the stroke that gives way where it crosses a fold or an arrow.
+ * - An x-ray (Revision 3) is a window cut into a flat fold's picture: inside
+ *   its rim the picture without its top layers at one point. Only a surface
+ *   has the picture's faces, so each paints the inside under the marks, and
+ *   the rim with it (`xray/xrayScene.ts`); here it is the window, in a list
+ *   of its own (`xRays`), and the rim's pen, 1.5 × the edges' (R3-15b (ii)),
+ *   which its reach takes in. Nothing here draws it: a surface that does not
+ *   paint the inside draws no rim either (R3-18).
  *
  * The drawing is in CSS px, the frame's top-left at the origin, its longer
  * side `framePx` across — the size it prints at — so its marks have the
@@ -257,6 +264,18 @@ export interface AnnotationArea {
   ink: string;
 }
 
+/** An x-ray's window as drawn, in CSS px (Revision 3): where a surface paints its inside, and its rim. */
+export interface AnnotationXRay {
+  id: string;
+  /** The window, in the drawing's px: its centre, and its radius to the middle of its rim. */
+  window: { x: number; y: number; r: number };
+  /** The rim's pen, in the drawing's px, and its ink: 1.5 × the edges' (R3-15b (ii)). */
+  rim: { width: number; color: string };
+}
+
+/** How much heavier an x-ray's rim is than the paper's edges (R3-15b (ii)): Lang's "heavy circle". */
+export const XRAY_RIM_EDGES = 1.5;
+
 /**
  * How far an enlarge area's casing reaches past its pen on each side, in ink
  * (Z5): 0.15 mm, a hairline knock-out. It was 1.5 ink (0.5 mm), which Zach
@@ -297,6 +316,7 @@ export type CompiledAnnotation =
   | { kind: 'close-up'; shape: CloseUpShape }
   | { kind: 'zoom'; outline: DiagramZoomOutline }
   | { kind: 'area'; outline: AreaOutline }
+  | { kind: 'x-ray'; outline: DiagramZoomOutline }
   | { kind: 'mark'; primitive: AnnotationPrimitive };
 
 /** A label's options as it is compiled (17b): each only as it is set. */
@@ -324,6 +344,8 @@ export interface AnnotationDrawing {
   zoomAreas: AnnotationZoomArea[];
   /** Over the marks: a close-up's rings and line. */
   closeUps: AnnotationCloseUp[];
+  /** Under the marks, each painted by its surface: an x-ray's window and rim (Revision 3). */
+  xRays: AnnotationXRay[];
   /** Over the marks: a callout's box hides what lies under it. */
   callouts: AnnotationCallout[];
   labels: AnnotationLabel[];
@@ -591,6 +613,9 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
     case 'rectangle':
       // An outline round an area, sized in picture units and turned by its angle (Revision 3).
       return { kind: 'area', outline: areaOutlineOf(annotation) };
+    // A window cut into the picture (Revision 3): a circle, as Enlarge's is.
+    case 'x-ray':
+      return { kind: 'x-ray', outline: zoomOutlineOf(annotation) };
   }
 }
 
@@ -705,6 +730,9 @@ export function annotationDrawing(
   const closeUps: AnnotationCloseUp[] = [];
   const zoomAreas: AnnotationZoomArea[] = [];
   const areas: AnnotationArea[] = [];
+  const xRays: AnnotationXRay[] = [];
+  // An x-ray's rim (R3-15b (ii)): 1.5 × the edges' pen, in its ink.
+  const rim = { width: XRAY_RIM_EDGES * surface.edges.width * PT_TO_CSS_PX, color: surface.edges.color };
   const callouts: AnnotationCallout[] = [];
   const labels: AnnotationLabel[] = [];
   const at = ([u, v]: PicturePoint): [number, number] => [u * framePx, v * framePx];
@@ -826,6 +854,11 @@ export function annotationDrawing(
         });
         break;
       }
+      case 'x-ray': {
+        const { centre, radius } = compiled.outline;
+        xRays.push({ id: annotation.id, window: { x: centre[0] * framePx, y: centre[1] * framePx, r: (radius ?? 0) * framePx }, rim });
+        break;
+      }
       case 'mark':
         primitives.push(hidden?.length ? withHidden(compiled.primitive, hidden) : compiled.primitive);
         primitiveIds.push(annotation.id);
@@ -850,6 +883,7 @@ export function annotationDrawing(
     context,
     zoomAreas,
     closeUps,
+    xRays,
     callouts,
     labels,
   };
@@ -904,9 +938,15 @@ export function closeUpMarks(annotations: readonly DiagramAnnotation[]): Diagram
  * file is cropped to, so a mark cut there is lost and a reach past its ink
  * is paper taken from the picture for nothing. Measured as a page draws the
  * marks (`paintAnnotations`), every join of a stroke round unless the mark
- * mitres its own.
+ * mitres its own. An x-ray's window only with `xRays`, on a surface that
+ * draws it: in 18e the canvas alone, on a step with layers (R3-18b A); a
+ * card's or a page's room does not grow for a rim it does not print (review
+ * of 18e) until 18f draws one there.
  */
-export function annotationReach(drawing: AnnotationDrawing): { x: number; y: number; width: number; height: number } {
+export function annotationReach(
+  drawing: AnnotationDrawing,
+  { xRays = false }: { xRays?: boolean } = {}
+): { x: number; y: number; width: number; height: number } {
   const { project } = drawing.context;
   const ink = project.ink;
   let minX = 0;
@@ -965,6 +1005,8 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
     take(box.x, box.y, half);
     take(box.x + box.width, box.y + box.height, half);
   }
+  // An x-ray's window, its rim and half its pen round it (Revision 3), where it is drawn.
+  if (xRays) for (const { window, rim } of drawing.xRays) take(window.x, window.y, window.r + rim.width / 2);
   // A close-up, its two rings and half their pen round them: its line runs
   // between their rims, and its inside is drawn within the outer one.
   for (const { area, inset, pen } of drawing.closeUps) {

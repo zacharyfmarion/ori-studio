@@ -850,7 +850,12 @@
       "textStyle": "Estilo de texto",
       "toolsLabel": "Herramientas de anotación",
       "toolWindowLabel": "Instrucciones de la herramienta de anotación",
-      "whiteArrowHelp": "Arrastra desde donde empieza el papel hasta donde va. Dale forma con Editar trazado."
+      "whiteArrowHelp": "Arrastra desde donde empieza el papel hasta donde va. Dale forma con Editar trazado.",
+      "xRayFlatOnly": "Los rayos X solo funcionan en figuras plegadas planas",
+      "xRayHelp": "Arrastra desde el centro de un área hacia fuera para ver a través de su capa superior, o haz clic para un tamaño estándar; luego escribe cuántas capas quitar.",
+      "xRayHelpTouch": "Arrastra desde el centro de un área hacia fuera para ver a través de su capa superior, o haz clic para un tamaño estándar; luego indica cuántas capas quitar en {{sheet}}, en {{tab}}.",
+      "xRayNoPaper": "Empieza sobre el papel: una ventana quita las capas que hay bajo su centro.",
+      "xRayRefresh": "Actualiza el paso {{number}} para verlo con rayos X"
     },
     "annotations": {
       "addNode": "Añadir nodo",
@@ -990,7 +995,17 @@
       "width": "Ancho",
       "widthNarrow": "Estrecha",
       "widthRegular": "Normal",
-      "widthWide": "Ancha"
+      "widthWide": "Ancha",
+      "xRayAnchorAutoHint": "El centro de la ventana",
+      "xRayAnchorPickedHint": "El punto elegido en el lienzo",
+      "xRayAnchorPickHint": "Elige en el lienzo el punto donde se cuentan las capas",
+      "xRayAnchorResetHint": "Anclar de nuevo al centro de la ventana",
+      "xRayDepth": "Profundidad",
+      "xRayFewer_one": "Aquí solo hay {{count}} capa",
+      "xRayFewer_many": "Aquí solo hay {{count}} capas",
+      "xRayFewer_other": "Aquí solo hay {{count}} capas",
+      "xRayNoLayers": "Esta imagen no tiene capas que ver con rayos X",
+      "xRayOffPaper": "No hay papel bajo su centro: no quita nada"
     },
     "card": {
       "badgeCreasePattern": "Patrón de pliegues",

@@ -78,6 +78,7 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'eye':
     case 'oval':
     case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }

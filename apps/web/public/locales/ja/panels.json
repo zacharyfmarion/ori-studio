@@ -788,7 +788,12 @@
       "textStyle": "文字のスタイル",
       "toolsLabel": "注記ツール",
       "toolWindowLabel": "注記ツールの手順",
-      "whiteArrowHelp": "紙が動き始める位置から、動いていく先までドラッグします。形は「パスを編集」で整えます。"
+      "whiteArrowHelp": "紙が動き始める位置から、動いていく先までドラッグします。形は「パスを編集」で整えます。",
+      "xRayFlatOnly": "透視は平らに折った図でのみ使えます",
+      "xRayHelp": "範囲の中心から外へドラッグして一番上の層を透かして見せるか、クリックして標準の大きさにします。続けて取り除く層の数を入力します。",
+      "xRayHelpTouch": "範囲の中心から外へドラッグして一番上の層を透かして見せるか、クリックして標準の大きさにします。続けて{{sheet}}の{{tab}}で取り除く層の数を設定します。",
+      "xRayNoPaper": "紙の上から始めてください。窓は中心の下にある層を取り除きます。",
+      "xRayRefresh": "透視するにはステップ {{number}} を更新してください"
     },
     "annotations": {
       "addNode": "ノードを追加",
@@ -924,7 +929,15 @@
       "width": "太さ",
       "widthNarrow": "細い",
       "widthRegular": "標準",
-      "widthWide": "太い"
+      "widthWide": "太い",
+      "xRayAnchorAutoHint": "窓の中心",
+      "xRayAnchorPickedHint": "キャンバスで選んだ点",
+      "xRayAnchorPickHint": "層を数える点をキャンバス上で選びます",
+      "xRayAnchorResetHint": "窓の中心に固定し直します",
+      "xRayDepth": "深さ",
+      "xRayFewer_other": "ここには {{count}} 層しかありません",
+      "xRayNoLayers": "この図には透視できる層がありません",
+      "xRayOffPaper": "中心の下に紙がありません。何も取り除きません"
     },
     "card": {
       "badgeCreasePattern": "展開図",

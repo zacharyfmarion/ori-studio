@@ -259,7 +259,8 @@
     "toolTurnOver": "翻面",
     "toolValleyArrow": "谷折箭头",
     "toolValleyLine": "谷折线",
-    "toolWhiteArrow": "空心箭头"
+    "toolWhiteArrow": "空心箭头",
+    "toolXRay": "透视"
   },
   "divideMode": {
     "count": "数量",

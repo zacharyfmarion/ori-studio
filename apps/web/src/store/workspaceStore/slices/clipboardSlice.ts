@@ -187,6 +187,11 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
         diagramPasted: { stepId, ids: pasted.map(({ id }) => id), nonce: (diagramPastes += 1) },
       });
       if (get().diagramAnnotateTool !== EDIT_PATH) get().setDiagramAnnotateTool(null);
+      // An enlarge area or an x-ray pasted on a flat step captured before its faces were kept gets them, in the paste's
+      // undo step, as one laid there does (Revision 2; Revision 3, review of 18e).
+      if (pasted.some((annotation) => annotation.kind === 'zoom' || annotation.kind === 'x-ray')) {
+        void get().giveDiagramStepPaperFaces(stepId);
+      }
       return;
     }
     if (get().activeEditingContext === 'crease-pattern') {

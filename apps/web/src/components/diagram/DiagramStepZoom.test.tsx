@@ -114,7 +114,6 @@ function detail(linked: boolean) {
           readOnly={false}
           mode="pose"
           onMode={() => {}}
-          annotateTool={null}
           onAnnotateTool={() => {}}
           poseActions={[]}
           linkedPose={linked ? linkedPose() : null}

@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
+import type { XRayStanding } from '../../diagram/annotate/annotateTools';
 import { DiagramAnnotateRail } from './DiagramAnnotateRail';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -45,7 +46,7 @@ describe('DiagramAnnotateRail', () => {
     const marks = [...container.querySelectorAll('#diagram-annotate-group-marks button[aria-label]')].map((button) =>
       button.getAttribute('aria-label')
     );
-    // The star after the circle, the eye after equal divisions (Revision 3, R3-25 A).
+    // The star after the circle, the eye after equal divisions, X-Ray after Enlarge in Frame (Revision 3, R3-25 A).
     expect(marks).toEqual([
       'Circle',
       'Star',
@@ -56,6 +57,7 @@ describe('DiagramAnnotateRail', () => {
       'Close-Up',
       'Enlarge',
       'Enlarge in Frame',
+      'X-Ray',
     ]);
   });
 
@@ -113,6 +115,35 @@ describe('DiagramAnnotateRail', () => {
     expect(held).toEqual(['Enlarge', 'Enlarge in Frame']);
     act(() => (container!.querySelector('[aria-label="Enlarge"]') as HTMLButtonElement).click());
     expect(onTool).not.toHaveBeenCalled();
+  });
+
+  it('holds the X-Ray tool on a picture with no layers, or one that needs a Refresh, saying why, and only it (Revision 3, R3-18a A)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const onTool = vi.fn();
+    const render = (xray: XRayStanding) =>
+      act(() =>
+        root!.render(
+          <TooltipProvider>
+            <DiagramAnnotateRail tool={null} readOnly={false} xray={xray} onTool={onTool} />
+          </TooltipProvider>
+        )
+      );
+    const held = () =>
+      [...container!.querySelectorAll('[aria-disabled="true"][aria-label]')].map((button) => button.getAttribute('aria-label'));
+    render({ kind: 'none' });
+    expect(held()).toEqual(['X-Ray']);
+    act(() => (container!.querySelector('[aria-label="X-Ray"]') as HTMLButtonElement).click());
+    expect(onTool).not.toHaveBeenCalled();
+    render({ kind: 'refresh', number: 15 });
+    expect(held()).toEqual(['X-Ray']);
+    // A flat fold with its faces, or one whose faces are fetched as an x-ray is laid: the tool is free.
+    render({ kind: 'fetch' });
+    expect(held()).toEqual([]);
+    render({ kind: 'ready' });
+    expect(held()).toEqual([]);
   });
 
   it('offers Solid among the line types, and while it is the type, the colour the next solid line is drawn in (17a)', () => {

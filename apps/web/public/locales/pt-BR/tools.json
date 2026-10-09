@@ -275,7 +275,8 @@
     "toolTurnOver": "Virar",
     "toolValleyArrow": "Seta de vale",
     "toolValleyLine": "Linha de vale",
-    "toolWhiteArrow": "Seta branca"
+    "toolWhiteArrow": "Seta branca",
+    "toolXRay": "Raio X"
   },
   "divideMode": {
     "count": "Quantidade",

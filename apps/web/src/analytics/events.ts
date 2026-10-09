@@ -101,7 +101,8 @@ export type DiagramAnnotationTool =
   | 'divisions'
   | 'close_up'
   | 'enlarge'
-  | 'enlarge_frame';
+  | 'enlarge_frame'
+  | 'x_ray';
 
 /** A star's fill, by name (Revision 3): filled with ink, or an outline, white inside. */
 export type DiagramStarFillName = 'filled' | 'outline';
@@ -143,18 +144,31 @@ export type DiagramTextStyleOption = 'bold' | 'halo' | 'size';
 
 /**
  * Which of a mark's own options changed (Revision 3): equal divisions' Short
- * Dividers; a star's Fill; and a star's, an eye's, an oval's or a
- * rectangle's size or turn — by its transform box on the canvas, or its turn
- * typed in the Layers pane's Rotation row. The later marks' options join it.
+ * Dividers; a star's Fill; a star's, an eye's, an oval's or a rectangle's
+ * size or turn — by its transform box on the canvas, or its turn typed in
+ * the Layers pane's Rotation row; and an x-ray's Depth and Anchor.
  */
-export type DiagramMarkStyleOption = 'short_dividers' | 'fill' | 'size' | 'rotation';
+export type DiagramMarkStyleOption = 'short_dividers' | 'fill' | 'size' | 'rotation' | 'depth' | 'anchor';
+
+/** An x-ray's depth, bucketed (Revision 3): one layer, two, or three and more. Never the count itself past that. */
+export type DiagramXRayDepthBucket = '1' | '2' | '3+';
 
 /**
  * What a mark's option became, or how it was changed (Revision 3): a switch
  * on or off; a star filled or an outline; a size or a turn set by the
- * transform box's handles (`handle`) or typed in its row (`field`).
+ * transform box's handles (`handle`) or typed in its row (`field`); an
+ * x-ray's depth, bucketed, and its anchor picked on the canvas or put back
+ * to the window's centre (`auto`).
  */
-export type DiagramMarkStyleValue = 'on' | 'off' | DiagramStarFillName | 'handle' | 'field';
+export type DiagramMarkStyleValue =
+  | 'on'
+  | 'off'
+  | DiagramStarFillName
+  | 'handle'
+  | 'field'
+  | DiagramXRayDepthBucket
+  | 'picked'
+  | 'auto';
 
 /** A fold arrow or a white arrow, which Edit Path shapes: its kind, in the event's own spelling. */
 export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';

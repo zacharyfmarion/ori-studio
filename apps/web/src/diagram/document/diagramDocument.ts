@@ -604,8 +604,11 @@ export type DiagramPicture =
  * what a later step may show enlarged (Revision 2), a star, filled or
  * outlined, naming a point, an eye, in profile, saying where the next view
  * is from, and an oval or a rectangle, an outline round an area of any size
- * and proportion, as a diagram rings the places a repeat applies to
- * (Revision 3) — drawing one changes no other step.
+ * and proportion, as a diagram rings the places a repeat applies to, and an
+ * x-ray: a circular window cut into a flat fold's picture, inside which its
+ * top layers at one point are taken away and the faces beneath drawn in
+ * their side's colour with their edges (Revision 3) — drawing one changes no
+ * other step.
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
@@ -631,7 +634,8 @@ export type DiagramAnnotationKind =
   | 'star'
   | 'eye'
   | 'oval'
-  | 'rectangle';
+  | 'rectangle'
+  | 'x-ray';
 
 /**
  * How an enlarged step draws its frame (Revision 2): only where it crosses
@@ -880,8 +884,16 @@ export interface KnownDiagramAnnotation {
    * A close-up's area (15f): the radius of the ring round it, in picture
    * units. Its centre is `from`; the close-up's is `to`. An enlarge area's,
    * when it is a circle (Revision 2): its centre is `from`, and `to` again.
+   * An x-ray's window, a circle about `from`, and `to` again (Revision 3).
    */
   radius?: number;
+  /**
+   * How many layers an x-ray takes away (Revision 3, R3-13 A): the top
+   * `depth` at its anchor, and every layer over those, across the whole
+   * window. A whole number from 1, always written; one past the layers at
+   * the anchor is drawn at the deepest.
+   */
+  depth?: number;
   /**
    * How many times larger a close-up draws its area (15f): its ring is
    * `radius` times this. Two when unsaid. An enlarge area's Size, which the
@@ -907,7 +919,12 @@ export interface KnownDiagramAnnotation {
   angle?: number;
   /** How the steps enlarged from an area draw their frame; unsaid, its shape's own (Revision 2). */
   edge?: DiagramZoomEdge;
-  /** An enlarge area's picked anchor: a point on the paper, in paper coordinates; unsaid, the default rule (Revision 2). */
+  /**
+   * An enlarge area's picked anchor: a point on the paper, in paper
+   * coordinates; unsaid, the default rule (Revision 2). An x-ray's: the point
+   * on the paper its layers are counted at; unsaid, the window's centre
+   * (Revision 3).
+   */
   anchor?: [number, number];
   /**
    * A solid line's colour (17a), or a label's (17b): a `#rrggbb` string,

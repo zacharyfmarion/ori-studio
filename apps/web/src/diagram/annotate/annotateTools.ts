@@ -150,13 +150,58 @@ export function enlargedStepTakesNoArea(t: TFunction): string {
 }
 
 /**
- * Why a tool cannot draw on a step, or null when it can: an enlarge area is
- * not drawn on an enlarged step ({@link enlargedStepTakesNoArea}). A diagram
- * that cannot change, a newer build's step and a step with no picture hold
- * every tool, and say so where Annotate is entered.
+ * Whether a step's picture can be x-rayed (Revision 3, R3-18a A): `ready`, a
+ * flat fold with its faces on the paper; `fetch`, a flat fold captured before
+ * they were kept, whose faces are folded again from its pattern as an x-ray is
+ * laid; `refresh`, such a fold whose faces cannot be had without a Refresh —
+ * its link is not current, or no pattern is open — numbered for the words that
+ * say so; `none`, a picture with no layers: a crease pattern, a 3D or
+ * simulated capture, an upload, a see-through development, a References step.
  */
-export function annotateToolBlocker(t: TFunction, tool: AnnotateTool, { enlarged }: { enlarged: boolean }): string | null {
-  return enlarged && isEnlargeTool(tool) ? enlargedStepTakesNoArea(t) : null;
+export type XRayStanding =
+  | { kind: 'ready' }
+  | { kind: 'fetch' }
+  | { kind: 'refresh'; number: number }
+  | { kind: 'none' };
+
+/**
+ * Whether the X-Ray tool is held on a step (R3-18a A): its picture has no
+ * layers, or its faces need a Refresh. The one answer the rail, the X key and
+ * the tool in hand ask (`annotateToolInHand`), so the canvas never lays a
+ * window the rail shows held.
+ */
+export function xrayToolHeld(standing: XRayStanding): boolean {
+  return standing.kind === 'none' || standing.kind === 'refresh';
+}
+
+/** What an x-ray says it needs on a step that is not ready: the tool's held reason, and its Depth row's (R3-18). */
+export function xrayHeldReason(t: TFunction, standing: XRayStanding): string | null {
+  switch (standing.kind) {
+    case 'ready':
+    case 'fetch':
+      return null;
+    case 'refresh':
+      return t('panels:diagram.annotate.xRayRefresh', 'Refresh step {{number}} to x-ray it', { number: standing.number });
+    case 'none':
+      return t('panels:diagram.annotate.xRayFlatOnly', 'X-ray works on flat folds');
+  }
+}
+
+/**
+ * Why a tool cannot draw on a step, or null when it can: an enlarge area is
+ * not drawn on an enlarged step ({@link enlargedStepTakesNoArea}), and an
+ * x-ray only on a flat fold whose faces are known or can be fetched
+ * ({@link xrayHeldReason}). A diagram that cannot change, a newer build's
+ * step and a step with no picture hold every tool, and say so where Annotate
+ * is entered.
+ */
+export function annotateToolBlocker(
+  t: TFunction,
+  tool: AnnotateTool,
+  { enlarged, xray = { kind: 'ready' } }: { enlarged: boolean; xray?: XRayStanding }
+): string | null {
+  if (enlarged && isEnlargeTool(tool)) return enlargedStepTakesNoArea(t);
+  return tool === 'x-ray' ? xrayHeldReason(t, xray) : null;
 }
 
 /** Whether a tool draws in the line type: the Line tool and the Angle Bisector. */
@@ -202,6 +247,7 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   'close-up': 'marks',
   [ENLARGE]: 'marks',
   [ENLARGE_FRAME]: 'marks',
+  'x-ray': 'marks',
   oval: 'shapes',
   rectangle: 'shapes',
   callout: 'text',
@@ -243,6 +289,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   'close-up': 'diagram.toolCloseUp',
   [ENLARGE]: 'diagram.toolEnlarge',
   [ENLARGE_FRAME]: 'diagram.toolEnlargeFrame',
+  'x-ray': 'diagram.toolXRay',
   oval: 'diagram.toolOval',
   rectangle: 'diagram.toolRectangle',
   callout: 'diagram.toolCallout',
@@ -394,6 +441,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolOval', 'Oval');
     case 'rectangle':
       return t('tools:diagram.toolRectangle', 'Rectangle');
+    case 'x-ray':
+      return t('tools:diagram.toolXRay', 'X-Ray');
   }
 }
 
@@ -504,6 +553,11 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
         'panels:diagram.annotate.shapeHelp',
         'Drag from corner to corner round an area to ring it. Click for a standard size.'
       );
+    case 'x-ray':
+      return t(
+        'panels:diagram.annotate.xRayHelp',
+        'Drag out from the middle of an area to see through its top layer, or click for a standard size; then type how many layers to take away.'
+      );
   }
 }
 
@@ -588,7 +642,9 @@ export function annotateToolHint(
   if (tool === EDIT_PATH) instructions = editPathHelp(t, selected);
   else if (isPickTool(tool) && progress) instructions = pickHelp(t, progress);
   else if (notice !== null && notice.tool === tool) instructions = noticeHelp(t, notice);
-  else if (host.coarse && (tool === 'label' || tool === 'callout' || tool === 'divisions')) instructions = textHelpOnTouch(t, tool);
+  else if (host.coarse && (tool === 'label' || tool === 'callout' || tool === 'divisions' || tool === 'x-ray')) {
+    instructions = textHelpOnTouch(t, tool);
+  }
   else instructions = annotateToolHelp(t, tool);
   return {
     title: annotateToolLabel(t, tool),
@@ -641,21 +697,26 @@ function pickHelp(t: TFunction, { step, refusal }: PickProgress): string {
   return `${why} ${next}`;
 }
 
-/** What a drawing tool's last press could not do, and what to do instead: equal divisions clicked on no line. */
+/**
+ * What a drawing tool's last press could not do, and what to do instead:
+ * equal divisions clicked on no line; an x-ray laid off the paper.
+ */
 function noticeHelp(t: TFunction, notice: ToolNotice): string {
   switch (notice.notice) {
     case 'no-line':
       return t('panels:diagram.annotate.divisionsNoLine', 'Click on a line to divide it whole, or drag from one end to the other.');
+    case 'no-paper':
+      return t('panels:diagram.annotate.xRayNoPaper', 'Start on the paper: a window takes away the layers under its middle.');
   }
 }
 
 /**
- * A label's, a callout's and equal divisions' help on a touch screen, which
- * keeps the Layers pane as a tab of the sheet behind its Settings pill: the
- * field their words or their count are typed in named where that surface
- * shows it, in its own words.
+ * A label's, a callout's, equal divisions' and an x-ray's help on a touch
+ * screen, which keeps the Layers pane as a tab of the sheet behind its
+ * Settings pill: the field their words, their count or its depth are typed in
+ * named where that surface shows it, in its own words.
  */
-function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions'): string {
+function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions' | 'x-ray'): string {
   const where = { sheet: t('common:viewDrawer.openSettings', 'Settings'), tab: t('panels:sidePane.layers', 'Layers') };
   switch (tool) {
     case 'label':
@@ -670,6 +731,12 @@ function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions'):
       return t(
         'panels:diagram.annotate.divisionsHelpTouch',
         'Drag along a line from one end to the other, or click it, to divide it; then type how many parts in {{sheet}}, under {{tab}}.',
+        where
+      );
+    case 'x-ray':
+      return t(
+        'panels:diagram.annotate.xRayHelpTouch',
+        'Drag out from the middle of an area to see through its top layer, or click for a standard size; then set how many layers to take away in {{sheet}}, under {{tab}}.',
         where
       );
   }
@@ -793,6 +860,7 @@ function annotateToolModifiers(
     case SOLID_ARROW:
     case 'label':
     case ENLARGE:
+    case 'x-ray':
       return [];
   }
 }

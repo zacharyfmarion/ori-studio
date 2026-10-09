@@ -850,7 +850,12 @@
       "textStyle": "Estilo do texto",
       "toolsLabel": "Ferramentas de anotação",
       "toolWindowLabel": "Instruções da ferramenta de anotação",
-      "whiteArrowHelp": "Arraste de onde o papel começa até para onde ele vai. Dê forma a ela com Editar traçado."
+      "whiteArrowHelp": "Arraste de onde o papel começa até para onde ele vai. Dê forma a ela com Editar traçado.",
+      "xRayFlatOnly": "O raio X só funciona em dobras planas",
+      "xRayHelp": "Arraste do centro de uma área para fora para ver através da camada de cima, ou clique para um tamanho padrão; depois digite quantas camadas tirar.",
+      "xRayHelpTouch": "Arraste do centro de uma área para fora para ver através da camada de cima, ou clique para um tamanho padrão; depois defina quantas camadas tirar em {{sheet}}, na aba {{tab}}.",
+      "xRayNoPaper": "Comece sobre o papel: uma janela tira as camadas que estão sob o seu centro.",
+      "xRayRefresh": "Atualize o passo {{number}} para vê-lo em raio X"
     },
     "annotations": {
       "addNode": "Adicionar nó",
@@ -990,7 +995,17 @@
       "width": "Largura",
       "widthNarrow": "Estreita",
       "widthRegular": "Normal",
-      "widthWide": "Larga"
+      "widthWide": "Larga",
+      "xRayAnchorAutoHint": "O centro da janela",
+      "xRayAnchorPickedHint": "O ponto escolhido na tela",
+      "xRayAnchorPickHint": "Escolha na tela o ponto onde as camadas são contadas",
+      "xRayAnchorResetHint": "Ancorar de novo no centro da janela",
+      "xRayDepth": "Profundidade",
+      "xRayFewer_one": "Só há {{count}} camada aqui",
+      "xRayFewer_many": "Só há {{count}} camadas aqui",
+      "xRayFewer_other": "Só há {{count}} camadas aqui",
+      "xRayNoLayers": "Esta imagem não tem camadas para ver em raio X",
+      "xRayOffPaper": "Não há papel sob o centro: não tira nada"
     },
     "card": {
       "badgeCreasePattern": "Padrão de vincos",

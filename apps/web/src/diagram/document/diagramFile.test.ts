@@ -1309,6 +1309,73 @@ describe('an enlarge area in the file (Revision 2)', () => {
   });
 });
 
+describe('an x-ray in the file (Revision 3, 18e)', () => {
+  const xray = (more: Record<string, unknown> = {}) => ({
+    id: 'x-1',
+    kind: 'x-ray',
+    from: [0.4, 0.3],
+    to: [0.4, 0.3],
+    radius: 0.15,
+    depth: 2,
+    ...more,
+  });
+  function withAnnotations(annotations: unknown[]) {
+    const written = throughJson(writeDiagram(sampleDiagram()));
+    written.steps[0].annotations = annotations;
+    return stepsIn(readDiagram(written)!.document)[0]!.annotations;
+  }
+  const writtenBack = (annotations: unknown[]) => {
+    const document = { ...sampleDiagram() };
+    document.steps = [{ ...stepsIn(document)[0]!, annotations: withAnnotations(annotations) }, stepsIn(document)[1]!];
+    return stepsIn(throughJson(writeDiagram(document)))[0].annotations;
+  };
+
+  it('round-trips its window, its depth — always written, with no upper bound — and a picked anchor on the paper', () => {
+    const all = [xray(), xray({ id: 'x-2', depth: 1, anchor: [12.5, -40.125] }), xray({ id: 'x-3', depth: 40, radius: 1 })];
+    expect(withAnnotations(all)).toEqual(all);
+    expect(writtenBack(all)).toEqual(all);
+    expect(Object.keys(writtenBack([xray()])[0]).sort()).toEqual(['depth', 'from', 'id', 'kind', 'radius', 'to']);
+  });
+
+  it('reads its `to` as its centre, whatever is written there', () => {
+    expect(withAnnotations([xray({ to: [0.9, 0.1] })])).toEqual([xray()]);
+  });
+
+  it('drops one with no depth, a depth under one or not whole, or a window with no radius', () => {
+    const { depth: _unsaid, ...undeep } = xray();
+    const damaged = [
+      undeep,
+      xray({ id: 'd-2', depth: 0 }),
+      xray({ id: 'd-3', depth: 1.5 }),
+      xray({ id: 'd-4', depth: '2' }),
+      xray({ id: 'd-5', radius: undefined }),
+      xray({ id: 'd-6', radius: 0 }),
+    ];
+    expect(withAnnotations(damaged)).toEqual([]);
+  });
+
+  it('drops alone an anchor that does not read, and keeps the x-ray counted at its centre', () => {
+    expect(withAnnotations([xray({ anchor: [1] }), xray({ id: 'x-4', anchor: ['a', 2] })])).toEqual([xray(), xray({ id: 'x-4' })]);
+  });
+
+  it('carries what a newer build might write: a window past this build’s range, a shape, a field it has no name for', () => {
+    const newer = [
+      xray({ id: 'n-1', radius: 1.5 }),
+      xray({ id: 'n-2', size: [0.3, 0.2] }),
+      xray({ id: 'n-3', creases: true }),
+      xray({ id: 'n-4', from: [4.5, 0.3] }),
+    ];
+    expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    expect(writtenBack(newer)).toEqual(newer);
+  });
+
+  it('is kept, verbatim and undrawn, by a build that knows none: as any kind it has no name for', () => {
+    const older = xray({ kind: 'spiral-arrow', anchor: [1, 2] });
+    expect(withAnnotations([older])).toEqual([{ id: 'x-1', unknown: older }]);
+    expect(writtenBack([older])).toEqual([older]);
+  });
+});
+
 describe('an enlarged step in the file (Revision 2)', () => {
   const zoom = (more: Record<string, unknown> = {}) => ({
     from: 'annotation-9',

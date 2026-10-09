@@ -53,6 +53,8 @@ import { DiagramPoseSimulatedView } from './DiagramPoseSimulatedView';
 import type { DiagramPoseAnnotations } from './DiagramPoseStage';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { DiagramAnnotateRail } from './DiagramAnnotateRail';
+import { useXRayStanding } from '../../diagram/xray/useXRayStanding';
+import { useAnnotateToolInHand } from '../../diagram/annotate/useAnnotateToolInHand';
 import styles from './DiagramStepDetail.module.css';
 
 const POSE_ICONS: Record<DiagramPoseActionId, LucideIcon> = {
@@ -94,7 +96,6 @@ export function DiagramStepDetail({
   readOnly,
   mode,
   onMode,
-  annotateTool,
   onAnnotateTool,
   poseActions,
   linkedPose,
@@ -120,7 +121,6 @@ export function DiagramStepDetail({
   /** Pose or Annotate. */
   mode: DiagramDetailMode;
   onMode: (mode: DiagramDetailMode) => void;
-  annotateTool: AnnotateTool;
   onAnnotateTool: (tool: AnnotateTool) => void;
   poseActions: readonly DiagramPoseAction[];
   /** A linked step's Pose: its verbs, and its live 3D view once folded. Null for any other step. */
@@ -173,6 +173,10 @@ export function DiagramStepDetail({
   }, [source, zoomed, annotations, style, kept]);
   // Annotate needs a picture to draw on.
   const annotating = mode === 'annotate' && source !== null && !locked;
+  // Whether its picture has layers to x-ray, or needs a Refresh first: the rail holds the X-Ray tool, saying why (Revision 3).
+  const xray = useXRayStanding(step);
+  // The tool in hand, as the canvas presses with it: Select where the step holds the one picked.
+  const annotateTool = useAnnotateToolInHand(step);
   // Over a live view (3D or simulated), the annotations drawn on its capture, while they are.
   // An enlarged step's frame is outlined over it, whatever its marks (Revision 2).
   const ghost = useMemo((): DiagramPoseAnnotations | null => {
@@ -298,6 +302,7 @@ export function DiagramStepDetail({
               tool={annotateTool}
               readOnly={readOnly}
               enlarged={step.zoom !== undefined}
+              xray={xray}
               onTool={onAnnotateTool}
             />
             <DiagramAnnotateCanvas step={step} assets={assets} style={style} readOnly={readOnly} />

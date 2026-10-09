@@ -98,6 +98,10 @@ import {
   areaFromCorners,
   withAreaAngle,
   withAreaBox,
+  withXRayDepth,
+  xrayDepthOf,
+  XRAY_DEPTH,
+  ZOOM_CLICK,
   type PictureMove,
   type PicturePoint,
 } from './annotationModel';
@@ -1592,5 +1596,74 @@ describe('an oval and a rectangle (Revision 3)', () => {
     // Grown with the picture, as into an enlarged step's window: it rings the same part of the picture.
     const grown: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
     expect(carryAnnotation(turned, grown)).toEqual(shape('oval', { from: [0.8, 1], to: [0.8, 1], size: [0.8, 0.4], angle: 30 }));
+  });
+});
+
+describe('an x-ray (Revision 3, 18e)', () => {
+  const xray = (more: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnotation => ({
+    id: 'x-1',
+    kind: 'x-ray',
+    from: [0.4, 0.5],
+    to: [0.4, 0.5],
+    radius: 0.2,
+    depth: 2,
+    ...more,
+  });
+  const near = (actual: readonly number[], expected: readonly number[]) =>
+    actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, 9));
+
+  it('is dragged out from its middle as Enlarge’s circle is, taking away one layer until its Depth is typed; a click a standard size', () => {
+    expect(createAnnotation('x-ray', [0.4, 0.5], [0.6, 0.5], SQUARE, id)).toEqual({
+      id: 'annotation-1',
+      kind: 'x-ray',
+      from: [0.4, 0.5],
+      to: [0.4, 0.5],
+      radius: expect.closeTo(0.2, 12),
+      depth: 1,
+    });
+    expect(createAnnotation('x-ray', [0.3, 0.3], [0.3, 0.3], SQUARE, id)).toMatchObject({ radius: ZOOM_CLICK.radius, depth: XRAY_DEPTH.laid });
+    expect(placedByClick('x-ray')).toBe(true);
+    expect(isDegenerate(xray(), MIN_ANNOTATION_LENGTH)).toBe(false);
+  });
+
+  it('is cleaned as the file reads it: its centre within reach and `to` on it, its radius held, its depth a whole number from one', () => {
+    const clean = xray({ anchor: [3, -4] });
+    expect(cleanAnnotation(clean)).toBe(clean);
+    expect(cleanAnnotation(xray({ to: [0.9, 0.9], radius: 3, depth: 2.6 }))).toEqual(xray({ radius: 1, depth: 3 }));
+    const { depth: _none, ...undeep } = xray();
+    expect(cleanAnnotation(undeep)).toEqual(xray({ depth: 1 }));
+    expect(cleanAnnotation(xray({ depth: 0, anchor: [Number.NaN, 1] }))).toEqual(xray({ depth: 1 }));
+    expect(withXRayDepth(xray(), 7)).toEqual(xray({ depth: 7 }));
+    expect(withXRayDepth(xray(), -3)).toEqual(xray({ depth: 1 }));
+    expect(xrayDepthOf({})).toBe(1);
+  });
+
+  it('has no ends, no path, no text, no colour, nothing behind a flap and no Flip: its grips are a circle’s', () => {
+    expect(annotationEnds(xray())).toEqual([]);
+    expect(canBeShaped('x-ray')).toBe(false);
+    expect(carriesText('x-ray')).toBe(false);
+    expect(carriesColor('x-ray')).toBe(false);
+    expect(behindEnds('x-ray')).toEqual([]);
+    expect(flipsOver('x-ray')).toBe(false);
+    expect(flipsArc('x-ray')).toBe(false);
+    expect(kindFromOtherSide('x-ray')).toBe('x-ray');
+  });
+
+  it('is carried as an enlarge area is: its centre with the face, its radius by the move’s scale, its depth and its anchor on the paper kept (R3-21 A)', () => {
+    const anchored = xray({ anchor: [12.5, -3] });
+    const quarter: PictureMove = {
+      point: ([x, y]) => [0.5 + 1.5 * (0.5 - y), 0.5 + 1.5 * (x - 0.5)],
+      mirrors: false,
+      turnDeg: 90,
+    };
+    const carried = carryAnnotation(anchored, quarter);
+    near(carried.from, [0.5, 0.35]);
+    expect(carried.to).toEqual(carried.from);
+    expect(carried.radius).toBeCloseTo(0.3, 9);
+    expect(carried).toMatchObject({ kind: 'x-ray', depth: 2, anchor: [12.5, -3] });
+    // Turn Over: carried with its face onto the other side, its depth kept — it then looks through that side's stack.
+    expect(carryAnnotation(anchored, { ...mirrorMove(SQUARE), otherSide: true })).toEqual(
+      xray({ from: [0.6, 0.5], to: [0.6, 0.5], radius: expect.closeTo(0.2, 12), anchor: [12.5, -3] })
+    );
   });
 });

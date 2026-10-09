@@ -833,3 +833,39 @@ describe('an oval and a rectangle (Revision 3)', () => {
     expect(transformBoxOf(rectangle)!.rotation).toBeCloseTo(Math.PI / 6, 12);
   });
 });
+
+describe('an x-ray (Revision 3, 18e)', () => {
+  const xray: KnownDiagramAnnotation = { id: 'xray', kind: 'x-ray', from: [0.5, 0.5], to: [0.5, 0.5], radius: 0.2, depth: 1 };
+  // A Valley Line across the window's inside, drawn before it and after it.
+  const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.4, 0.5], to: [0.6, 0.5] };
+
+  it('is pressed by its rim alone, under the marks drawn over its inside, which stay pressable, whichever was drawn first', () => {
+    expect(hitAnnotation([xray], [0.7, 0.5], SIZES, null)).toEqual({ annotationId: 'xray', part: 'body' });
+    expect(hitAnnotation([xray], [0.5, 0.5], SIZES, null)).toBeNull();
+    for (const list of [
+      [xray, line],
+      [line, xray],
+    ]) {
+      expect(hitAnnotation(list, [0.5, 0.5], SIZES, null)).toEqual({ annotationId: 'line', part: 'body' });
+    }
+    // A line drawn across its rim is taken there before it, as over an enlarge area's.
+    const across: KnownDiagramAnnotation = { id: 'across', kind: 'valley-line', from: [0.7, 0.3], to: [0.7, 0.7] };
+    expect(hitAnnotation([across, xray], [0.7, 0.5], SIZES, null)).toEqual({ annotationId: 'across', part: 'body' });
+  });
+
+  it('selected, offers a circle’s grips: its centre moves it and its rim resizes it, before anything drawn there', () => {
+    expect(hitAnnotation([xray, line], [0.5, 0.5], SIZES, 'xray')).toEqual({ annotationId: 'xray', part: 'zoom', zoom: { part: 'centre' } });
+    expect(hitAnnotation([xray], [0.7, 0.5], SIZES, 'xray')).toEqual({ annotationId: 'xray', part: 'zoom', zoom: { part: 'rim' } });
+  });
+
+  it('is not pressed where it is drawn nowhere — a picture with no layers (R3-18b A) — but selected there, still offers its grips (review of 18e)', () => {
+    const drawnNowhere = { xRays: false };
+    expect(hitAnnotation([xray], [0.7, 0.5], SIZES, null, drawnNowhere)).toBeNull();
+    expect(hitAnnotation([line, xray], [0.7, 0.5], SIZES, null, drawnNowhere)).toBeNull();
+    // Selected from Layers, its grips show, and take their press.
+    expect(hitAnnotation([xray], [0.7, 0.5], SIZES, 'xray', drawnNowhere)).toEqual({ annotationId: 'xray', part: 'zoom', zoom: { part: 'rim' } });
+    // An enlarge area is pressed as ever.
+    const area: KnownDiagramAnnotation = { ...xray, id: 'area', kind: 'zoom' };
+    expect(hitAnnotation([area], [0.7, 0.5], SIZES, null, drawnNowhere)).toEqual({ annotationId: 'area', part: 'body' });
+  });
+});

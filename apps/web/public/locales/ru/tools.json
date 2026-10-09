@@ -283,7 +283,8 @@
     "toolTurnOver": "Перевернуть",
     "toolValleyArrow": "Стрелка долинного сгиба",
     "toolValleyLine": "Долинная линия",
-    "toolWhiteArrow": "Белая стрелка"
+    "toolWhiteArrow": "Белая стрелка",
+    "toolXRay": "Рентген"
   },
   "divideMode": {
     "count": "Количество",

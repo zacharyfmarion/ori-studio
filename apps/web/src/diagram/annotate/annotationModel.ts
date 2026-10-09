@@ -87,7 +87,12 @@ export interface PictureFrame {
  * - `area`: an oval or a rectangle round an area of the picture, its centre
  *   `from` and `to` alike, its `size` in picture units and its `angle` its
  *   turn — dragged corner to corner as Enlarge in Frame's area is, or put
- *   down a standard size with a click (Revision 3).
+ *   down a standard size with a click (Revision 3);
+ * - `x-ray`: a circular window cut into a flat fold's picture, its centre
+ *   `from` and `to` alike, its `radius` in picture units, how many layers it
+ *   takes away its `depth`, and where they are counted its `anchor`, on the
+ *   paper — dragged out from its middle as Enlarge's circle is, or put down a
+ *   standard size with a click (Revision 3, R3-14 A).
  */
 type AnnotationShape =
   | 'arc'
@@ -102,7 +107,8 @@ type AnnotationShape =
   | 'close-up'
   | 'zoom'
   | 'sight'
-  | 'area';
+  | 'area'
+  | 'x-ray';
 
 const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
   'valley-arrow': 'arc',
@@ -129,6 +135,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   eye: 'sight',
   oval: 'area',
   rectangle: 'area',
+  'x-ray': 'x-ray',
 };
 
 /** Every kind, in the order the rail offers them. */
@@ -255,6 +262,7 @@ export function behindEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to'
     case 'zoom':
     case 'oval':
     case 'rectangle':
+    case 'x-ray':
     case 'star':
     case 'eye':
       return [];
@@ -573,6 +581,7 @@ function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation 
   if (annotation.kind === 'zoom') return cleanZoom(annotation);
   if (annotation.kind === 'star' || annotation.kind === 'eye') return cleanGlyph(annotation);
   if (isAreaKind(annotation.kind)) return cleanArea(annotation);
+  if (annotation.kind === 'x-ray') return cleanXRay(annotation);
   const from = withinReach(annotation.from);
   const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
   const text = annotation.text === undefined ? undefined : cleanLabelText(annotation.text);
@@ -1039,6 +1048,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'zoom':
     case 'oval':
     case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }
@@ -1094,6 +1104,7 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'zoom':
     case 'oval':
     case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }
@@ -1131,6 +1142,7 @@ export function carriesColor(kind: DiagramAnnotationKind): boolean {
     case 'zoom':
     case 'oval':
     case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }
@@ -1179,6 +1191,7 @@ export function carriesTextStyle(kind: DiagramAnnotationKind): boolean {
     case 'zoom':
     case 'oval':
     case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }
@@ -1340,6 +1353,7 @@ export function annotationEnds(annotation: Pick<KnownDiagramAnnotation, 'kind' |
     case 'zoom':
     case 'oval':
     case 'rectangle':
+    case 'x-ray':
       return [];
   }
 }
@@ -1466,7 +1480,8 @@ export function isCornerKind(kind: DiagramAnnotationKind): boolean {
  * point, a right angle's in the corner it is in, a callout's beside its
  * point, a close-up's area round it, an enlarge area a standard size round
  * it, an eye looking at the picture's middle, an oval or a rectangle a
- * standard size round it (Revision 3). A drag draws the rest.
+ * standard size round it, an x-ray's window a standard size round it
+ * (Revision 3). A drag draws the rest.
  */
 export function placedByClick(kind: DiagramAnnotationKind): boolean {
   const shape = ANNOTATION_SHAPES[kind];
@@ -1477,7 +1492,8 @@ export function placedByClick(kind: DiagramAnnotationKind): boolean {
     shape === 'close-up' ||
     shape === 'zoom' ||
     shape === 'sight' ||
-    shape === 'area'
+    shape === 'area' ||
+    shape === 'x-ray'
   );
 }
 
@@ -1554,14 +1570,16 @@ export function createAnnotation(
   if (isAreaKind(kind)) return areaFromCorners(kind, start, end, {}, () => id);
   const from = withinReach(start);
   const to = withinReach(end);
-  if (kind === 'zoom') {
+  if (kind === 'zoom' || kind === 'x-ray') {
     // A circle, dragged from its middle out to its rim, unsnapped as a
     // close-up's area is; a click, or a drag shorter than a slip, puts down
     // a standard size. A rounded rectangle is drawn corner to corner
-    // (`zoomAreaFromCorners`).
+    // (`zoomAreaFromCorners`). An x-ray's window is Enlarge's circle, taking
+    // away its top layer until its Depth is typed (Revision 3).
     const drag = Math.hypot(to[0] - from[0], to[1] - from[1]);
     const radius = drag < MIN_ZOOM_SIDE ? ZOOM_CLICK.radius : zoomRadiusWithin(drag);
-    return { id, kind, from: [from[0], from[1]], to: [from[0], from[1]], radius };
+    const circle: KnownDiagramAnnotation = { id, kind, from: [from[0], from[1]], to: [from[0], from[1]], radius };
+    return kind === 'x-ray' ? { ...circle, depth: XRAY_DEPTH.laid } : circle;
   }
   if (kind === 'close-up') {
     // Dragged from its area's centre out to its ring; a click, or a drag
@@ -2059,6 +2077,53 @@ function cleanArea(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
 }
 
 /**
+ * How many layers an x-ray takes away (Revision 3): from one, with no upper
+ * bound — a depth past the layers at its anchor draws at the deepest, so a
+ * larger number means nothing new — and one as it is laid, until its Depth
+ * is typed (R3-18a A).
+ */
+export const XRAY_DEPTH = { min: 1, laid: 1 } as const;
+
+/** An x-ray's depth as drawn: its own, or one for a mark that has none. */
+export function xrayDepthOf({ depth }: Pick<KnownDiagramAnnotation, 'depth'>): number {
+  return depth !== undefined && Number.isInteger(depth) && depth >= XRAY_DEPTH.min ? depth : XRAY_DEPTH.laid;
+}
+
+/** A depth an x-ray can store: a whole number from one, `value` rounded; one for a value that is no number. */
+export function xrayDepthWithin(value: number): number {
+  if (!Number.isFinite(value)) return XRAY_DEPTH.laid;
+  return Math.max(XRAY_DEPTH.min, Math.round(value));
+}
+
+/** An x-ray taking away `depth` layers, held to what it can store. */
+export function withXRayDepth(annotation: KnownDiagramAnnotation, depth: number): KnownDiagramAnnotation {
+  return { ...annotation, depth: xrayDepthWithin(depth) };
+}
+
+/**
+ * An x-ray as this build writes it (Revision 3): its centre within reach and
+ * `to` on it; its window's radius in Enlarge's circle's range; its depth a
+ * whole number from one, always written; an anchor only as two numbers. The
+ * same object when it already is.
+ */
+function cleanXRay(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const from = withinReach(annotation.from);
+  const { radius: wasRadius, depth: wasDepth, anchor: wasAnchor, ...rest } = annotation;
+  const radius = zoomRadiusWithin(wasRadius ?? ZOOM_CLICK.radius);
+  const depth = wasDepth === undefined ? XRAY_DEPTH.laid : xrayDepthWithin(wasDepth);
+  const anchor =
+    wasAnchor !== undefined && Number.isFinite(wasAnchor[0]) && Number.isFinite(wasAnchor[1]) ? wasAnchor : undefined;
+  const same =
+    samePoint(from, annotation.from) &&
+    samePoint(from, annotation.to) &&
+    radius === wasRadius &&
+    depth === wasDepth &&
+    anchor === wasAnchor;
+  if (same) return annotation;
+  return { ...rest, from, to: [from[0], from[1]], radius, depth, ...(anchor !== undefined ? { anchor } : {}) };
+}
+
+/**
  * `delta`, cut short so that every one of `points` moved by it stays within
  * reach: what keeps a shape whole when it is moved against reach's edge.
  */
@@ -2221,6 +2286,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'zoom':
     case 'oval':
     case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }
@@ -2304,7 +2370,8 @@ export function isDegenerate(annotation: KnownDiagramAnnotation, minLength: numb
     shape === 'close-up' ||
     shape === 'zoom' ||
     shape === 'sight' ||
-    shape === 'area'
+    shape === 'area' ||
+    shape === 'x-ray'
   ) {
     return false;
   }
@@ -2416,6 +2483,7 @@ export function kindFromOtherSide(kind: DiagramAnnotationKind): DiagramAnnotatio
     case 'zoom':
     case 'oval':
     case 'rectangle':
+    case 'x-ray':
       return kind;
   }
 }
@@ -2444,7 +2512,9 @@ function carriedOnPicture(annotation: KnownDiagramAnnotation, move: PictureMove)
   if (annotation.kind === 'callout') return carryCallout(annotation, move);
   if (isHungText(annotation)) return carryHungText(annotation, move);
   if (annotation.kind === 'close-up') return carryCloseUp(annotation, move);
-  if (annotation.kind === 'zoom') return carryZoom(annotation, move);
+  // An x-ray's window is Enlarge's circle, carried with the face under its centre; its anchor is on the
+  // paper, which no move of the picture moves, and its depth is kept (Revision 3, R3-21 A).
+  if (annotation.kind === 'zoom' || annotation.kind === 'x-ray') return carryZoom(annotation, move);
   if (annotation.kind === 'eye') return carryEye(annotation, move);
   if (isAreaKind(annotation.kind)) return carryArea(annotation, move);
   if (annotation.path) {
@@ -2716,6 +2786,7 @@ export function flipsOver(kind: DiagramAnnotationKind): boolean {
     case 'zoom':
     case 'oval':
     case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }

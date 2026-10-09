@@ -325,6 +325,18 @@
   pointer-events: none;
 }
 
+/* A selected x-ray's picked point (Revision 3): a ring round a dot, in the selection's ink. */
+.anchorPoint {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+.anchorPointDot {
+  fill: var(--annotate-selection);
+  stroke: none;
+}
+
 /* The face a click would anchor to, in the pick mode: filled lightly in the selection's ink. */
 .pickFace {
   fill: color-mix(in srgb, var(--annotate-selection) 22%, transparent);

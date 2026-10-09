@@ -2525,6 +2525,185 @@ describe('the Enlarge tools and the enlarged frame (Revision 2, 16e)', () => {
   });
 });
 
+describe('the X-Ray tool and its windows (Revision 3, 18e)', () => {
+  beforeEach(() => {
+    tracked.trackDiagramEnlargementChanged.mockClear();
+    tracked.trackDiagramMarkStyled.mockClear();
+  });
+
+  /** Zach's crane, step 22 (`zoom.fixtures.ts`), its faces on the paper kept, open in Annotate with `marks`. */
+  function crane(marks: KnownDiagramAnnotation[] = [], step = craneStep('S.none')) {
+    const opened = { ...step, annotations: marks, annotatedPictureKey: step.picture!.key };
+    act(() => {
+      useWorkspaceStore.setState({ diagram: insertSteps(createDiagram({ title: 'Crane' }), [opened], 0) });
+      state().openDiagramStep(opened.id, 'annotate');
+      state().selectDiagramAnnotation(null);
+      state().setDiagramAnnotateTool(null);
+    });
+    rerender();
+    return opened.id;
+  }
+  const xrays = () => annotations().filter((annotation) => annotation.kind === 'x-ray');
+  const windows = () => [...overlay().querySelectorAll('[data-x-ray-inside]')];
+  const xray: KnownDiagramAnnotation = { id: 'xray', kind: 'x-ray', from: [0.45, 0.6], to: [0.45, 0.6], radius: 0.08, depth: 2 };
+
+  it('drags a window out from its middle, one layer deep, as one undo step, selected and counted — and asks for its Depth', () => {
+    crane();
+    act(() => state().setDiagramAnnotateTool('x-ray'));
+    const past = state().diagramHistory.past.length;
+    drag(at(0.45, 0.6), at(0.55, 0.6));
+    expect(xrays()).toHaveLength(1);
+    const [laid] = xrays();
+    expect(laid).toMatchObject({ from: [expect.closeTo(0.45, 6), expect.closeTo(0.6, 6)], depth: 1 });
+    expect(laid!.radius).toBeCloseTo(0.1, 6);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)!.label).toBe('Add annotation');
+    expect(state().diagramSelectedAnnotationId).toBe(laid!.id);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['x_ray', 'none']]);
+    expect(pendingFieldFocus()).toEqual({ annotationId: laid!.id, field: 'depth' });
+    // Drawn on the canvas: its window, under the marks, with its rim.
+    rerender();
+    expect(windows()).toHaveLength(1);
+    expect(windows()[0]!.querySelector('clipPath circle')).not.toBeNull();
+    // A click puts down a standard size.
+    pointer('pointerdown', at(0.3, 0.3));
+    pointer('pointerup', at(0.3, 0.3));
+    expect(xrays()[1]!.radius).toBe(0.15);
+  });
+
+  it('draws nothing on a picture with no layers to x-ray, as the rail’s held tool says: Select is in hand there', () => {
+    mount();
+    act(() => state().setDiagramAnnotateTool('x-ray'));
+    rerender();
+    expect(view().dataset.tool).toBe('select');
+    drag(at(0.3, 0.3), at(0.4, 0.3));
+    expect(xrays()).toHaveLength(0);
+    // The tool picked is kept: on the next step that can take it, it is in hand again.
+    expect(state().diagramAnnotateTool).toBe('x-ray');
+  });
+
+  it('lays nothing off the paper, where a window would take nothing away: the press deselects, and the tool says why (review of 18e)', () => {
+    crane([xray]);
+    act(() => {
+      state().selectDiagramAnnotation('xray');
+      state().setDiagramAnnotateTool('x-ray');
+    });
+    rerender();
+    tracked.trackDiagramAnnotationAdded.mockClear();
+    // The frame's top left corner: no paper there.
+    pointer('pointerdown', at(0.02, 0.02));
+    pointer('pointerup', at(0.02, 0.02));
+    drag(at(0.02, 0.02), at(0.12, 0.02));
+    expect(xrays()).toHaveLength(1);
+    expect(state().diagramSelectedAnnotationId).toBeNull();
+    expect(toolNotice()).toEqual({ tool: 'x-ray', notice: 'no-paper' });
+    expect(tracked.trackDiagramAnnotationAdded).not.toHaveBeenCalled();
+    // On the paper, as ever: and the notice goes with the press.
+    drag(at(0.45, 0.6), at(0.55, 0.6));
+    expect(xrays()).toHaveLength(2);
+    expect(toolNotice()).toBeNull();
+  });
+
+  it('is held, as the rail holds it, on a flat step whose faces need a Refresh: Select is in hand there, and a press lays nothing (review of 18e)', () => {
+    crane();
+    act(() => state().setDiagramAnnotateTool('x-ray'));
+    rerender();
+    expect(view().dataset.tool).toBe('x-ray');
+    // Its faces never kept, and no pattern open to fold them from: "Refresh step 1 to x-ray it".
+    crane([], craneStep('S.none', { faces: false }));
+    act(() => state().setDiagramAnnotateTool('x-ray'));
+    rerender();
+    expect(view().dataset.tool).toBe('select');
+    tracked.trackDiagramAnnotationAdded.mockClear();
+    drag(at(0.45, 0.6), at(0.55, 0.6));
+    pointer('pointerdown', at(0.45, 0.6));
+    pointer('pointerup', at(0.45, 0.6));
+    expect(xrays()).toHaveLength(0);
+    expect(tracked.trackDiagramAnnotationAdded).not.toHaveBeenCalled();
+    expect(state().diagramAnnotateTool).toBe('x-ray');
+  });
+
+  it('is pressed by its rim, under the marks over its inside; moved and resized by a circle’s grips as “Change X-ray”, never an enlargement', () => {
+    const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.4, 0.6], to: [0.5, 0.6] };
+    crane([xray, line]);
+    pointer('pointerdown', at(0.45, 0.6));
+    pointer('pointerup', at(0.45, 0.6));
+    expect(state().diagramSelectedAnnotationId).toBe('line');
+    pointer('pointerdown', at(0.53, 0.6));
+    pointer('pointerup', at(0.53, 0.6));
+    expect(state().diagramSelectedAnnotationId).toBe('xray');
+    rerender();
+    expect([...overlay().querySelectorAll('[data-zoom-selection] [data-handle]')].map((dot) => dot.getAttribute('data-handle'))).toEqual([
+      'zoom-centre',
+      'zoom-rim',
+    ]);
+    drag(at(0.45, 0.6), at(0.47, 0.62));
+    expect(xrays()[0]!.from).toEqual([expect.closeTo(0.47, 6), expect.closeTo(0.62, 6)]);
+    expect(xrays()[0]).toMatchObject({ depth: 2 });
+    rerender();
+    drag(at(0.55, 0.62), at(0.6, 0.62));
+    expect(xrays()[0]!.radius).toBeCloseTo(0.13, 6);
+    expect(state().diagramHistory.past.at(-1)!.label).toBe('Change X-ray');
+    expect(tracked.trackDiagramEnlargementChanged).not.toHaveBeenCalled();
+  });
+
+  it('anchors where it is clicked in the pick mode, as “Change X-ray”, counted as its own option, never an enlargement', () => {
+    const stepId = crane([xray]);
+    act(() => {
+      state().selectDiagramAnnotation('xray');
+      state().setDiagramAnchorPick({ stepId, target: 'xray' });
+    });
+    rerender();
+    pointer('pointerdown', at(0.45, 0.6));
+    pointer('pointerup', at(0.45, 0.6));
+    expect(xrays()[0]!.anchor).toBeDefined();
+    expect(xrays()[0]!.from).toEqual([0.45, 0.6]);
+    expect(state().diagramHistory.past.at(-1)!.label).toBe('Change X-ray');
+    expect(state().diagramAnchorPick).toBeNull();
+    expect(tracked.trackDiagramMarkStyled.mock.calls).toEqual([['x_ray', 'anchor', 'picked']]);
+    expect(tracked.trackDiagramEnlargementChanged).not.toHaveBeenCalled();
+    // Selected, its picked point is marked where it was picked, in the selection's ink (review of 18e).
+    rerender();
+    const mark = overlay().querySelector('[data-x-ray-anchor]')!;
+    expect(mark).not.toBeNull();
+    const [x, y] = at(0.45, 0.6);
+    expect(Number(mark.getAttribute('cx'))).toBeCloseTo(x, 3);
+    expect(Number(mark.getAttribute('cy'))).toBeCloseTo(y, 3);
+    // Not while anything else is selected.
+    act(() => state().selectDiagramAnnotation(null));
+    rerender();
+    expect(overlay().querySelector('[data-x-ray-anchor]')).toBeNull();
+  });
+
+  it('is kept, but drawn nowhere, while its step shows its crease pattern; drawn again as a flat fold (R3-18b A)', () => {
+    const stepId = crane([xray]);
+    expect(windows()).toHaveLength(1);
+    const showAs = (render: object) =>
+      act(() =>
+        useWorkspaceStore.setState({
+          diagram: {
+            ...state().diagram!,
+            steps: stepsIn(state().diagram!).map((step) =>
+              step.id === stepId && step.source?.kind === 'cp' ? { ...step, source: { ...step.source, render: render as never } } : step
+            ),
+          },
+        })
+      );
+    const flat = craneStep('S.none').source!;
+    showAs({ mode: 'crease-pattern', side: 'front', rotationDeg: 0 });
+    rerender();
+    expect(windows()).toHaveLength(0);
+    expect(xrays()).toHaveLength(1);
+    // Drawn nowhere, so not pressed by its rim there either (review of 18e).
+    pointer('pointerdown', at(0.53, 0.6));
+    pointer('pointerup', at(0.53, 0.6));
+    expect(state().diagramSelectedAnnotationId).toBeNull();
+    showAs(flat.kind === 'cp' ? flat.render : {});
+    rerender();
+    expect(windows()).toHaveLength(1);
+  });
+});
+
 describe('the anchor’s pick mode (Revision 2, 16e)', () => {
   beforeEach(() => tracked.trackDiagramEnlargementChanged.mockClear());
 

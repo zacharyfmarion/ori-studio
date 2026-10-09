@@ -26,9 +26,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function Parts({ id }: { id: string }) {
+function Parts({ id, disabled = false }: { id: string; disabled?: boolean }) {
   const field = useFieldFocusRequest<HTMLInputElement>(id, 'parts');
-  return <input ref={field} aria-label="Parts" defaultValue="4" />;
+  return <input ref={field} aria-label="Parts" defaultValue="4" disabled={disabled} />;
 }
 
 /** A sheet that focuses itself as it opens, as `WorkspaceViewDrawer` does: after its content's effects. */
@@ -81,5 +81,17 @@ describe('useFieldFocusRequest (Revision 2)', () => {
     act(() => frames.splice(0).forEach((run) => run(0)));
     expect(document.activeElement).toBe(other);
     other.remove();
+  });
+
+  it('leaves the request waiting while the field is disabled, and takes it as the field is enabled (review of 18e)', async () => {
+    // An x-ray laid on a step whose faces are still being fetched: its Depth is held until they land.
+    requestFieldFocus('d-1', 'parts');
+    act(() => root.render(<Parts id="d-1" disabled />));
+    expect(document.activeElement).not.toBe(parts());
+    expect(pendingFieldFocus()).toEqual({ annotationId: 'd-1', field: 'parts' });
+    // Heard as its attribute changes, after the render.
+    await act(async () => root.render(<Parts id="d-1" />));
+    expect(document.activeElement).toBe(parts());
+    expect(pendingFieldFocus()).toBeNull();
   });
 });

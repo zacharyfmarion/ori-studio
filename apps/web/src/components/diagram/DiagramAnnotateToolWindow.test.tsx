@@ -106,7 +106,8 @@ const tool = (kind: Parameters<ReturnType<typeof state>['setDiagramAnnotateTool'
 describe('DiagramAnnotateToolWindow', () => {
   it('names every tool and says how to use it, over the canvas rather than in it, on its side of the seam (review 4)', () => {
     mount();
-    for (const each of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null)) {
+    // X-Ray aside: an upload has no layers to x-ray, and Select is in hand there in its place (R3-18a A), with no window.
+    for (const each of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null && each !== 'x-ray')) {
       tool(each);
       expect(title()).toContain(annotateToolLabel(i18n.t.bind(i18n), each));
       expect(intro()).toBeTruthy();
@@ -116,6 +117,8 @@ describe('DiagramAnnotateToolWindow', () => {
     const left = Number.parseFloat(windowEl()!.style.left);
     const width = Number.parseFloat(windowEl()!.style.width);
     expect(left + width).toBe(764 - 12);
+    tool('x-ray');
+    expect(windowEl()).toBeNull();
   });
 
   it('says what a drawing tool does and the key that puts it down anywhere', () => {

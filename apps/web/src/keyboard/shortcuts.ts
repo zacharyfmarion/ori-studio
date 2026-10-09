@@ -128,6 +128,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolEnlargeFrame'
   | 'diagram.toolOval'
   | 'diagram.toolRectangle'
+  | 'diagram.toolXRay'
   | 'diagram.flipArc';
 
 /** Nudging the node Edit Path has selected: live only while it has one (`diagram-path`). */
@@ -661,6 +662,9 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   // pass before merge.
   diagramShortcut('diagram.toolOval', 'Oval', { shift: true, key: 'o' }),
   diagramShortcut('diagram.toolRectangle', 'Rectangle', { key: 'r' }),
+  // X for the x-ray (Revision 3, R3-25 A): free in this scope, where X is
+  // otherwise only ⌘X. Zach plans a shortcut pass before merge.
+  diagramShortcut('diagram.toolXRay', 'X-Ray', { key: 'x' }),
   diagramShortcut('diagram.flipArc', 'Flip Arc', { key: 'f' }),
   // Edit Path's nudges (decision 6), on the step keys' own arrows: in a scope
   // of their own ahead of `diagram`, whose executor claims them only while

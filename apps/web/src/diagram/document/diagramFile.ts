@@ -382,6 +382,7 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     shortDividers,
     behind,
     radius,
+    depth,
     scale,
     size,
     angle,
@@ -427,6 +428,7 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(angle !== undefined ? { angle } : {}),
     ...(edge !== undefined ? { edge } : {}),
     ...(anchor !== undefined ? { anchor } : {}),
+    ...(depth !== undefined ? { depth } : {}),
     // A mark lifted from a References card (17d); the author's own are written as every mark was.
     ...(imported !== undefined ? { imported } : {}),
     // From end to end, as a reader expects it.
@@ -1093,6 +1095,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     eye: fields('angle', 'scale'),
     oval: fields('size', 'angle'),
     rectangle: fields('size', 'angle'),
+    'x-ray': fields('radius', 'anchor', 'depth'),
   };
 })();
 
@@ -1161,8 +1164,11 @@ function readAnnotationOfKind(
   const fields = ANNOTATION_FIELDS[kind];
   if (Object.keys(entry).some((key) => !fields.has(key))) return NEWER;
   const from = readAnnotationPoint(entry.from, reach);
-  // A sign's, a label's, an enlarge area's, an eye's or a shape's one place is `from`; `to` is written as it again.
-  const to = isPointKind(kind) || kind === 'zoom' || kind === 'eye' || isAreaKind(kind) ? from : readAnnotationPoint(entry.to, reach);
+  // A sign's, a label's, an enlarge area's, an eye's, a shape's or an x-ray's one place is `from`; `to` is written as it again.
+  const to =
+    isPointKind(kind) || kind === 'zoom' || kind === 'eye' || isAreaKind(kind) || kind === 'x-ray'
+      ? from
+      : readAnnotationPoint(entry.to, reach);
   if (from === null || to === null) return null;
   if (from === NEWER || to === NEWER) return NEWER;
   // The ends behind a flap, for a kind that has them: news before damage, as for the rest.
@@ -1353,6 +1359,19 @@ function readAnnotationOfKind(
       const angle = finiteNumber(entry.angle);
       return { ...annotation, size, ...(angle !== null ? { angle: rectangleAngle(angle) } : {}) };
     }
+    case 'x-ray': {
+      // Its window's radius, as an enlarge circle's is read, and its depth,
+      // which it must have — a whole number from one, with no upper bound
+      // (Revision 3); a radius past the range this build draws is news, told
+      // before damage. Its anchor, a point on the paper, dropped alone when it
+      // does not read, and the window counted at its centre.
+      const radius = readCloseUpRadius(entry.radius);
+      const depth = readXRayDepth(entry.depth);
+      if (radius === NEWER) return NEWER;
+      if (radius === null || depth === null) return null;
+      const anchor = readPaperPoint(entry.anchor);
+      return { ...annotation, radius, depth, ...(anchor !== null ? { anchor } : {}) };
+    }
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
     case 'push-arrow':
@@ -1411,6 +1430,11 @@ function readPath(value: unknown, reach: AnnotationReach): DiagramPathNode[] | t
     });
   }
   return past ? NEWER : nodes;
+}
+
+/** An x-ray's depth (Revision 3): a whole number from one, always written; anything else — unsaid too — damage. */
+function readXRayDepth(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 ? value : null;
 }
 
 /** An angle mark's ticks, or equal divisions': unsaid, one; a whole count past three, a newer build's; anything else, damage. */

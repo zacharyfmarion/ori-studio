@@ -102,6 +102,7 @@ function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null 
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'x-ray':
       return null;
   }
 }
