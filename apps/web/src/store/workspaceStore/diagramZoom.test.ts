@@ -130,6 +130,31 @@ describe('the Enlarged toggle (Z2)', () => {
     expect(tracked.trackDiagramPicturePosed.mock.calls).toEqual([['enlarge_off', 'flat']]);
   });
 
+  it('turned off and on, carries marks drawn on another picture to the same place on this one, one undo step each (review fix 5)', async () => {
+    const s = craneStep('S.none');
+    const area = { ...s, annotations: [headArea(s)], annotatedPictureKey: s.picture!.key };
+    const whole: DiagramStep = { ...craneStep('C.none'), id: 'step-2', annotations: [mark], annotatedPictureKey: craneStep('C.none').picture!.key };
+    const document = enlargeStep(insertSteps(createDiagram({ title: 'Crane' }), [area, whole], 0), 'step-2', {}).document;
+    // As the crane's steps 23 and 24 open: enlarged, their marks out of step since the picture changed (D8).
+    const enlarged: DiagramStep = { ...stepById(document, 'step-2')!, annotatedPictureKey: 'scene-older' };
+    install([area, enlarged]);
+    const was = past();
+    expect(state().unenlargeDiagramStep('step-2')).toBe(true);
+    expect(past()).toBe(was + 1);
+    // Where the window showed it, on the whole picture: not spread over the model in the window's numbers.
+    expect(step('step-2').zoom).toBeUndefined();
+    expect(step('step-2').annotations).not.toEqual(enlarged.annotations);
+    expect(marksMoved(enlarged, step('step-2'))).toEqual([]);
+    expect(step('step-2').annotatedPictureKey).toBe('scene-older');
+    expect(await state().enlargeDiagramStep('step-2')).toBe(true);
+    expect(past()).toBe(was + 2);
+    expect(marksMoved(enlarged, step('step-2'))).toEqual([]);
+    expect(step('step-2').annotatedPictureKey).toBe('scene-older');
+    state().undoDiagram();
+    state().undoDiagram();
+    expect(step('step-2').annotations).toEqual(enlarged.annotations);
+  });
+
   it('removes a duplicate’s own copied area in the same undo step', async () => {
     const s = craneStep('S.none');
     const area = headArea(s);

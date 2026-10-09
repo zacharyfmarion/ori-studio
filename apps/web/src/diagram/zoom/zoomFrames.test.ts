@@ -166,6 +166,39 @@ describe('Enlarged turned on, and off', () => {
     );
   });
 
+  it('turned off and on again, carries marks drawn on another picture too, to the same place on this one, still out of step (review fix 5)', () => {
+    // As the crane's steps 23 and 24 open: their marks out of step with the picture since it changed (D8).
+    const drawnBefore = (document: DiagramDocument): DiagramDocument => ({
+      ...document,
+      steps: document.steps.map((entry) => (entry.id === 'step-n' ? { ...(entry as DiagramStep), annotatedPictureKey: 'scene-older' } : entry)),
+    });
+    const enlargedDoc = drawnBefore(enlargeStep(crane(), 'step-n', NO_ASSETS).document);
+    const enlarged = step(enlargedDoc);
+    // Off: in the whole picture's units, where the window showed them, not over the whole model.
+    const offDoc = unenlargeStep(enlargedDoc, 'step-n', NO_ASSETS);
+    const off = step(offDoc);
+    expect(off.zoom).toBeUndefined();
+    expect(off.annotations).not.toEqual(enlarged.annotations);
+    expect(marksMoved(enlarged, off)).toEqual([]);
+    expect(off.annotatedPictureKey).toBe('scene-older');
+    // On again: into the window, where they were.
+    const on = step(enlargeStep(offDoc, 'step-n', NO_ASSETS).document);
+    expect(marksMoved(off, on)).toEqual([]);
+    expect(marksMoved(enlarged, on)).toEqual([]);
+    expect(on.annotatedPictureKey).toBe('scene-older');
+    // The frame moved by hand: they stay on the same paper too.
+    const frame = enlarged.zoom!.frame!;
+    const moved = step(setFrameOutline(enlargedDoc, 'step-n', { ...frame, centre: [frame.centre[0] + 0.02, frame.centre[1]] }, NO_ASSETS));
+    expect(marksMoved(enlarged, moved)).toEqual([]);
+    expect(moved.annotatedPictureKey).toBe('scene-older');
+    // Placed again by Update: the same paper again (review fix 4's known gap).
+    const movedDoc = setFrameOutline(enlargedDoc, 'step-n', { ...frame, centre: [frame.centre[0] + 0.02, frame.centre[1]] }, NO_ASSETS);
+    const updated = step(updateEnlargedSteps(movedDoc, 'area-head', NO_ASSETS).document);
+    expect(updated.zoom!.frame).toEqual(enlarged.zoom!.frame);
+    expect(marksMoved(enlarged, updated)).toEqual([]);
+    expect(updated.annotatedPictureKey).toBe('scene-older');
+  });
+
   it('keeps every mark where it is, out of step, when one could not come back to the whole picture within its reach', () => {
     const enlargedDoc = enlargeStep(crane(), 'step-n', NO_ASSETS).document;
     const enlarged = step(enlargedDoc);

@@ -143,8 +143,9 @@ steps follow ups in the branch". 8, 10, 11 and 12 are built ("Follow-ups to
   *Moot since 2026-10-08 (`diagram-review-fixes.md`, item 3):* an upload's
   run shows no picture type, so no step continues it. A step made after an
   enlarged upload is not seeded and starts whole, and one enlarged after it
-  by hand starts whole at its first link. Listed for Zach to confirm in
-  item 3's open calls.
+  by hand starts whole at its first link. Decided 2026-10-08
+  (`diagram-review-fixes.md`, item 3's open calls): such a step is not
+  seeded.
 - **A whole step's line pasted onto an enlarged one** (7) is not trimmed, as
   8 trims a carried one, so a long line pasted there runs across the page as
   8 found. *Recommended:* trim a pasted line as a carried one.
@@ -1060,7 +1061,7 @@ frame's upright box. The rules are pure functions in
 | What changed | Frame | Marks |
 | --- | --- | --- |
 | Enlarged turned on; a seeded step's first picture; Update Enlarged Steps | Captured from the source and landed; Update overwrites a hand move; every step of a run made in one edit from the run's source (after 16g, 11) | Carried from the whole picture, or the old window, into the new window; from the whole picture, a line crossing the frame trimmed just past it (after 16g, 8) |
-| Enlarged turned off | Dropped | Carried from the window to the whole picture |
+| Enlarged turned off | Dropped | Carried from the window to the whole picture; every mark, out of step with the picture or not, which stays as it was (`diagram-review-fixes.md`, item 5) |
 | The frame moved or resized by hand, or its Shape changed | As set, but for a centre dropped in a strip the spread opened, which settles on the layer above (Capturing a frame); its centre taken off the spread and the imprint made again on the same face | Carried by the window's move (a scale and a shift), so they stay on the same paper |
 | The frame's anchor picked or reset | Unchanged; the imprint made again on the new face | Unchanged |
 | This step re-posed (the `withCarriedAnnotations` call sites: `diagramDocument.ts:1176/1311/1339/1394`, `useDiagramLinkedPose.ts:209`) | Its imprint landed on the re-posed picture; with no faces, carried by the pose's move | The pose's own move, composed through old window → picture → new window |

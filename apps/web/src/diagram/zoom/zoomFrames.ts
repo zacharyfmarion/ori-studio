@@ -6,20 +6,21 @@
  * An enlarged step's marks are in its window's units — the window is its
  * frame's upright box, its longer side one unit, as a picture's frame is — so
  * whatever moves the window moves them with it, and they stay on the same
- * paper. A frame belongs to its step: nothing another step does changes it,
- * and only Enlarged turned on, Update and Update All take one from another
- * step (`zoomCapture.ts`). Each capture records the area as it was then
- * (review fix 4), which says the step is out of date once the area is edited
- * by hand (`areaStatus.ts`).
+ * paper: every mark, drawn on this picture or an older one (review fix 5), so
+ * Enlarged turned off puts them where the window showed them. A frame belongs
+ * to its step: nothing another step does changes it, and only Enlarged turned
+ * on, Update and Update All take one from another step (`zoomCapture.ts`).
+ * Each capture records the area as it was then (review fix 4), which says the
+ * step is out of date once the area is edited by hand (`areaStatus.ts`).
  *
  * | What changed | Frame | Marks |
  * | --- | --- | --- |
  * | Enlarged turned on; Update, Update All | captured and landed ({@link enlargeStep}, {@link updateEnlargedSteps}) | whole picture or old window → new window; from the whole picture, lines trimmed at the frame ({@link trimmedAtFrame}) |
  * | A step made empty after an enlarged one (Add Step, Insert Step After), but for an enlarged upload or References step | captured at creation ({@link seedNewSteps}) | none yet |
  * | A seeded step's first picture, linked as its run shows its pattern; a first link of a step that starts a run; a refresh or relink | landed from its imprint ({@link relandFrame}, {@link landSeededFrame}) | unchanged |
- * | An empty step's first link of another type than the run it continues; an upload or a References card filling an empty step (review fix 3) | dropped ({@link startsWhole}) | window → whole picture |
+ * | An empty step's first link of another type than the run it continues; an upload or a References card filling an empty step (review fix 3) | dropped ({@link startsWhole}) | window → whole picture, out of step or not: most often another picture, where they mark nothing (review fix 5) |
  * | A folded step shown as its crease pattern, and back | on the paper its window showed, imprinted there ({@link landedOnSheet}); back, anchored again ({@link anchoredOffSheet}) | unchanged |
- * | Enlarged turned off | dropped ({@link unenlargeStep}) | window → whole picture |
+ * | Enlarged turned off | dropped ({@link unenlargeStep}) | window → whole picture, out of step or not (review fix 5) |
  * | Moved, resized or reshaped by hand | as set, its imprint made again ({@link setFrameOutline}) | by the window's move |
  * | Its anchor picked or reset | unchanged, its imprint made again ({@link setFrameAnchor}) | unchanged |
  * | The step re-posed | landed on the re-posed picture ({@link reposeFrame}) | the pose's move, window to window |
@@ -181,16 +182,29 @@ export function unitsMove(from: PictureBox, to: PictureBox, move?: PictureMove):
  * A step's marks carried by `move`, when they are in step with the picture
  * they were drawn on — `was`, the step before the move — and all read; then
  * in step with the step's picture now. Ones drawn on another picture stay as
- * they were. A step with a mark this build cannot read keeps the author's
- * all, out of step: the move would leave that one behind. The marks its
- * References card brought (17d, `isCardMark`) are never out of step, and go
- * with every move whatever the author's do. Each mark is kept within
+ * they were, but for a change of units (`unitsOnly`, below). A step with a
+ * mark this build cannot read keeps the author's all, out of step: the move
+ * would leave that one behind. The marks its References card brought (17d,
+ * `isCardMark`) are never out of step, and go with every move whatever the
+ * author's do. Each mark is kept within
  * `reach`, the reach of the units it goes to: an enlarged step's window's
  * reaches as far as its whole picture's, so a mark across the model from a
  * small frame goes there and back exactly. One the move cannot take where it
  * goes even so — which `back`, the move undone, shows — keeps them all where
  * they were, out of step, rather than be held at reach's edge. Carried, each
  * is then `finished`, where it went.
+ *
+ * `unitsOnly`: the move changes only the units the marks are in on the
+ * picture the step shows — a window placed on it, moved or dropped — so the
+ * author's go whether or not they are in step with that picture, each staying
+ * where it shows on it, and the step stays in or out of step as it was
+ * (review fix 5). Kept in the window's numbers, marks drawn on an older
+ * picture spread over the whole model when Enlarged was turned off. One
+ * caller is most often a change of picture instead: {@link startsWhole}, a
+ * window dropped as a step that had no picture takes one, which is seldom
+ * the one it was enlarged on. Marks from another picture mark nothing there
+ * either way; they are carried to the whole picture, as item 3 accepted, and
+ * stay out of step with it.
  */
 function carryMarks(
   step: DiagramStep,
@@ -200,16 +214,19 @@ function carryMarks(
     reach = PICTURE_REACH,
     back,
     finish,
+    unitsOnly = false,
   }: {
     was?: DiagramStep;
     reach?: AnnotationReach;
     back?: { move: PictureMove; reach: AnnotationReach };
     finish?: (mark: KnownDiagramAnnotation) => KnownDiagramAnnotation;
+    unitsOnly?: boolean;
   } = {}
 ): DiagramStep {
   if (!move || step.annotations.length === 0) return step;
   const readable = step.annotations.every(isKnownAnnotation);
-  const authorsGo = readable && was.picture !== null && was.annotatedPictureKey === was.picture.key;
+  const inStep = was.picture !== null && was.annotatedPictureKey === was.picture.key;
+  const authorsGo = readable && (unitsOnly || inStep);
   const goes = (mark: DiagramAnnotation): mark is KnownDiagramAnnotation =>
     isKnownAnnotation(mark) && (authorsGo || isCardMark(was, mark));
   const marks = step.annotations.filter(goes);
@@ -225,8 +242,8 @@ function carryMarks(
   return {
     ...step,
     annotations: step.annotations.map((mark) => went.get(mark.id) ?? mark),
-    // In step now if the author's went; else as they were, out of step — or, beside a mark this build cannot read, out of step whatever.
-    annotatedPictureKey: authorsGo ? (step.picture?.key ?? null) : readable ? step.annotatedPictureKey : null,
+    // In step now if the author's went with the picture; else as they were — or, beside a mark this build cannot read, out of step whatever.
+    annotatedPictureKey: authorsGo && !unitsOnly ? (step.picture?.key ?? null) : readable ? step.annotatedPictureKey : null,
   };
 }
 
@@ -331,8 +348,11 @@ function marksUnits(step: DiagramStep, assets: Assets): MarkUnits | null {
 }
 
 /**
- * A step's marks moved from one set of units to another, when both are known,
- * and each can go there and back; each then `finished` where it went.
+ * A step's marks moved from one set of units to another on the picture it
+ * shows, when both are known, and each can go there and back: every mark, in
+ * step with the picture or not ({@link carryMarks}' `unitsOnly`), so each
+ * stays where it shows; each then `finished` where it went. For
+ * {@link startsWhole} the window was most often on another picture.
  */
 function carryBetween(
   step: DiagramStep,
@@ -344,6 +364,7 @@ function carryBetween(
   return carryMarks(step, unitsMove(from.box, to.box), {
     reach: to.reach,
     back: { move: unitsMove(to.box, from.box), reach: from.reach },
+    unitsOnly: true,
     ...(finish ? { finish } : {}),
   });
 }
@@ -863,7 +884,10 @@ function keepsRunFrame(before: DiagramDocument, after: DiagramDocument, was: Dia
  * (review fix 3, amending Z2): the frame it was enlarged with before it had a
  * picture — seeded after an enlarged step, most often — dropped, and marks it
  * kept in that window from a picture since removed carried to the whole
- * picture, as Enlarged turned off carries them. What an upload or a
+ * picture, as Enlarged turned off carries them, in or out of step as they
+ * were. Most often a change of picture, where they mark nothing either way
+ * and stay out of step: item 3's accepted carry, which review fix 5 gave
+ * every mark, not only those in step with the new picture. What an upload or a
  * References card filling an empty step does, and a first link of another
  * picture type than the run it continues ({@link landSeededFrame}). `next`
  * as it is for a step that had a picture, or has no frame.
