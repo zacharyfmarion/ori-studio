@@ -2710,7 +2710,12 @@ export function eyeShape(centre: SvgPoint, look: SvgPoint, ink: number): EyeShap
 
 /** An eye as a picture draws it: its shape, and the pen it is stroked in. */
 export interface EyeDrawn extends EyeShape {
-  /** The aux lines' pen (R3-26 A): its strokes point the way it looks, as a right angle's measure. */
+  /**
+   * A ring's pen, 0.5625 pt in the Diagram preset, as an outlined star's: the
+   * weight of the eye in Zach's sketch, which the aux lines' 0.25 pt drew as a
+   * hairline beside the creases (R3-26 A as applied to the eye, amended
+   * 2026-10-08 after 18c).
+   */
   pen: number;
 }
 
@@ -2727,7 +2732,7 @@ export interface EyeDrawn extends EyeShape {
 export function eyeDrawn(at: readonly [number, number], angle: number, scale: number, project: DiagramProjector): EyeDrawn {
   const radians = (angle * Math.PI) / 180;
   const look = through(project, { x: Math.cos(radians), y: -Math.sin(radians) });
-  return { ...eyeShape(project(at), look, scale * project.ink), pen: auxMarkPen(project) };
+  return { ...eyeShape(project(at), look, scale * project.ink), pen: markRingWidth(project) };
 }
 
 /** An eye's back corner is mitred, never bevelled: its lids' 35° mitres 3.3 pens out, under SVG's own limit. */

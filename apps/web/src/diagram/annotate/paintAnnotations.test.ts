@@ -309,15 +309,16 @@ describe('an eye (Revision 3)', () => {
     ]);
   });
 
-  it('is one outline in the aux lines’ pen and the arrows’ ink, in either preset, its back corner mitred, its ends cut square, nothing filled', () => {
-    for (const [style, auxPt] of [
-      [DEFAULT_DIAGRAM_STYLE, 0.25],
-      [{ preset: 'default' } as const, 0.5],
+  it('is one outline in a ring’s pen and the arrows’ ink, in either preset, its back corner mitred, its ends cut square, nothing filled', () => {
+    // A ring's pen, as an outlined star's: ¾ of the arrows' (R3-26 A, amended for the eye after 18c).
+    for (const [style, ringPt] of [
+      [DEFAULT_DIAGRAM_STYLE, 0.5625],
+      [{ preset: 'default' } as const, 0.7875],
     ] as const) {
       const { markup } = paintAnnotations([eye(), arrow], box, 400, style)!;
       const mark = eyePath.exec(markup);
-      expect(mark, String(auxPt)).not.toBeNull();
-      expect(Number(mark![2])).toBeCloseTo(auxPt * PT_TO_CSS_PX, 3);
+      expect(mark, String(ringPt)).not.toBeNull();
+      expect(Number(mark![2])).toBeCloseTo(ringPt * PT_TO_CSS_PX, 3);
       const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
       expect(mark![3]).toBe(head);
       // Its lids from the front, to the back corner 7.5 ink behind its point (200, 200), looking right, and on to the other front.
@@ -335,7 +336,7 @@ describe('an eye (Revision 3)', () => {
     // Off the frame's top edge (y −40 px).
     const top = (more: Partial<KnownDiagramAnnotation>) =>
       paintAnnotations([eye({ from: [0.5, -0.1], to: [0.5, -0.1], ...more })], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.y;
-    const pen = 0.25 * PT_TO_CSS_PX;
+    const pen = 0.5625 * PT_TO_CSS_PX;
     // Looking up: its lids' fronts 7.5 ink above its point, half a pen round their square ends.
     expect(top({ angle: 270 })).toBeCloseTo(-40 - 7.5 * ink - pen / 2, 3);
     expect(top({ angle: 270, scale: 2 })).toBeCloseTo(-40 - 15 * ink - pen / 2, 3);

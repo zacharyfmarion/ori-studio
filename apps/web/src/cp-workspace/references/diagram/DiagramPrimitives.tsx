@@ -1053,8 +1053,9 @@ function diagramPrimitiveShape(
     }
     case 'eye': {
       // An eye in profile (Revision 3, R3-7 A): its lids, cornea and iris as
-      // one path, outline only, in the aux lines' pen and the marks' ink, its
-      // free ends cut square and its back corner mitred.
+      // one path, outline only, in the ring pen (a star outline's, R3-26 as
+      // amended in 18d) and the marks' ink, its free ends cut square and its
+      // back corner mitred.
       const eye = eyeDrawn(primitive.at, primitive.angle, primitive.scale, project);
       return onAndOffPaper(context, index, (inks) => (
         <path

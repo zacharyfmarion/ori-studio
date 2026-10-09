@@ -2051,9 +2051,9 @@ export function pathLength(path: readonly DiagramPathNode[]): number {
  * Whether Flip arc turns `kind` over: a fold arrow's bulge, or a white
  * arrow's, mirrored across its chord as a shaped fold arrow is — and a pleat
  * arrow's Zs, stepping to the other side of it (15c), and equal divisions'
- * line, over to the other side of the line it measures (Revision 2) — and an
- * eye, looking the other way (Revision 3, R3-9b A: "one click turns a
- * left-looking eye to look right"). Asked by every surface that offers it
+ * line, over to the other side of the line it measures (Revision 2). Not an
+ * eye: F on an eye is its Flip row's Horizontal (R3-9b A, amended 2026-10-08;
+ * `flipKeyAction`). Asked by every surface that offers it
  * (`annotationActions.ts`), and a switch, so a new kind has to answer.
  */
 export function flipsArc(kind: DiagramAnnotationKind): boolean {
@@ -2064,7 +2064,6 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'white-arrow':
     case 'pleat-arrow':
     case 'divisions':
-    case 'eye':
       return true;
     case 'push-arrow':
     case 'turn-over':
@@ -2076,6 +2075,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'label':
     case 'circle':
     case 'star':
+    case 'eye':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
@@ -2093,8 +2093,8 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
  */
 export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
   if (!flipsArc(annotation.kind)) return false;
-  // A pleat arrow's Zs change sides, whichever way it points; an eye looks the other way, whichever way it looks.
-  if (annotation.kind === 'pleat-arrow' || annotation.kind === 'eye') return true;
+  // A pleat arrow's Zs change sides, whichever way it points.
+  if (annotation.kind === 'pleat-arrow') return true;
   // Equal divisions' line goes over, unless they are alike either way.
   if (annotation.kind === 'divisions') return !divisionsAlikeEitherSide(annotation);
   const shape = arrowShape(annotation);
@@ -2111,8 +2111,7 @@ export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
 
 /**
  * A fold arrow bulging the other way; a pleat arrow's Zs or equal divisions'
- * line on the other side; an eye looking the other way, its angle half a turn
- * on; anything else as it was. A shaped
+ * line on the other side; anything else as it was. A shaped
  * arrow is mirrored across its chord, every node and handle — a return shaped
  * by hand with it — which is what flipping an arc is; one whose ends meet has
  * no chord, and stays.
@@ -2120,10 +2119,6 @@ export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
 export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   if (!flipsArc(annotation.kind)) return annotation;
   if (annotation.kind === 'pleat-arrow' || annotation.kind === 'divisions') return withSide(annotation, annotation.mirrored !== true);
-  // An eye looks the other way (R3-9b A): turned over about its middle, across the way it looks.
-  if (annotation.kind === 'eye') {
-    return withGlyphAngle(annotation, keptTo(glyphAngle(glyphAngleOf(annotation) + 180), GLYPH_ANGLE_PRECISION));
-  }
   const shape = arrowShape(annotation);
   if (shape.kind === 'arc') return { ...annotation, bend: -shape.bend };
   const { from, to } = annotation;

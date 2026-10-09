@@ -1322,10 +1322,10 @@ describe('an eye (Revision 3)', () => {
     expect(iris.radius).toBeCloseTo(DIAGRAM_EYE_INK.iris * 2 * 1.5, 9);
   });
 
-  it('is sized by its scale, and stroked in the aux lines’ pen', () => {
+  it('is sized by its scale, and stroked in a ring’s pen, as an outlined star is (R3-26 A, amended for the eye)', () => {
     const big = eyeDrawn(at, 0, 2, overlay);
     expect(big.lids[1]).toEqual({ x: 50 - 7.5 * 2 * 2, y: -50 });
-    expect(big.pen).toBeCloseTo(auxMarkPen(overlay), 12);
+    expect(big.pen).toBeCloseTo(markRingWidth(overlay), 12);
     expect(eyeDrawn(at, 0, 1, overlay).pen).toBe(big.pen);
   });
 

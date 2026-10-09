@@ -11,7 +11,8 @@ import { CARD_FRAME_PX, paintAnnotations } from './paintAnnotations';
  * recorded when the mark was made (Revision 3, 18c) and checked by eye
  * beside Zach's note (`artifacts/revision-3/18c/`): two straight lids meeting
  * at a mitred point behind, a cornea arc across them and a small iris inside
- * it, outline only, in the aux lines' pen and the marks' ink; looking its own
+ * it, outline only, in a ring's pen (since 2026-10-08; recorded first in the
+ * aux lines') and the marks' ink; looking its own
  * way and sized by its own scale; drawn as it is off the paper, and on a
  * References step's grey face.
  */

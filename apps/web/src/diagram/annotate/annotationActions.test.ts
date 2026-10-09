@@ -6,6 +6,7 @@ import {
   annotationActionEdit,
   buildAnnotationActions,
   deleteKeyEdit,
+  flipKeyEdit,
   nudgePathNodeEdit,
   offersAnnotationAction,
   steppedNode,
@@ -28,35 +29,41 @@ const of = (id: string, kind: DiagramAnnotationKind, extra: Partial<KnownDiagram
 });
 
 describe('the annotation verbs', () => {
-  it('offer Flip Arc on the three fold arrows, the pleat arrow, the white arrow, equal divisions and the eye alone, and Delete on every kind', () => {
+  it('offer Flip Arc on the three fold arrows, the pleat arrow, the white arrow and equal divisions alone, and Delete on every kind', () => {
     const flips = ANNOTATION_KINDS.filter((kind) => offersAnnotationAction('flip-arc', of('a', kind)));
-    expect(flips).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'white-arrow', 'divisions', 'eye']);
+    expect(flips).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'white-arrow', 'divisions']);
     expect(ANNOTATION_KINDS.every((kind) => offersAnnotationAction('delete', of('a', kind)))).toBe(true);
   });
 
-  it('name Flip on an eye, which has no arc, and have it look the other way and back; and its Flip Horizontal and Vertical about its centre (Revision 3, R3-9b A)', () => {
+  it('give an eye its Flip row, F naming its Horizontal: mirrored across, it looks the other way and stays as upright (Revision 3, R3-9b A, F amended 2026-10-08)', () => {
     const edits: AnnotationEdit[] = [];
-    const eye = of('e', 'eye', { from: [0.3, 0.4], to: [0.3, 0.4], angle: 180 });
+    // Looking down and to the right.
+    const eye = of('e', 'eye', { from: [0.3, 0.4], to: [0.3, 0.4], angle: 30 });
     const actions = buildAnnotationActions(eye, { editable: true }, { t, apply: (edit) => edits.push(edit) });
-    expect(actions.map((action) => [action.id, action.label])).toEqual([
-      ['flip-horizontal', 'Flip Horizontal'],
-      ['flip-vertical', 'Flip Vertical'],
-      ['flip-arc', 'Flip'],
-      ['delete', 'Delete'],
+    // No Flip of its own beside the row's Horizontal, which F runs.
+    expect(actions.map((action) => [action.id, action.label, action.shortcutId])).toEqual([
+      ['flip-horizontal', 'Flip Horizontal', 'diagram.flipArc'],
+      ['flip-vertical', 'Flip Vertical', undefined],
+      ['delete', 'Delete', 'edit.delete'],
     ]);
-    const flip = actions.find((action) => action.id === 'flip-arc')!;
-    expect(flip).toMatchObject({ shortcutId: 'diagram.flipArc', disabled: false });
-    flip.run();
-    // Looking left, one press has it look right: its angle unsaid.
-    const once = edits[0]!.edit([eye]);
-    const { angle: _left, ...right } = eye;
-    expect(once).toEqual([right]);
-    expect(edits[0]!.edit(once)).toEqual([eye]);
-    // Looking left, Horizontal is the same turn; Vertical changes nothing, so it is held.
+    // F: down and to the left, not up and to the left as a half turn would have it.
+    const key = flipKeyEdit(eye)!;
+    expect(key.label).toBe('Flip horizontal');
+    expect(key.edit([eye])).toEqual([{ ...eye, angle: 150 }]);
+    expect(key.flips).toEqual({ annotationId: 'e', axis: 'horizontal' });
     actions.find((action) => action.id === 'flip-horizontal')!.run();
-    expect(edits[1]!.edit([eye])).toEqual([right]);
-    expect(edits[1]!.flips).toEqual({ annotationId: 'e', axis: 'horizontal' });
-    expect(actions.find((action) => action.id === 'flip-vertical')!.disabled).toBe(true);
+    expect(edits[0]!.edit([eye])).toEqual(key.edit([eye]));
+    // Looking left, F has it look right, its angle unsaid; looking straight down, F changes nothing and falls through.
+    const { angle: _left, ...right } = { ...eye, angle: 180 };
+    expect(flipKeyEdit({ ...eye, angle: 180 })!.edit([{ ...eye, angle: 180 }])).toEqual([right]);
+    expect(flipKeyEdit({ ...eye, angle: 90 })).toBeNull();
+  });
+
+  it('run Flip Arc with F where an arc flips and would change, and nothing on a mark with neither (Revision 3)', () => {
+    expect(flipKeyEdit(of('v', 'valley-arrow', { bend: ARROW_BEND }))!.label).toBe('Flip arc');
+    expect(flipKeyEdit(of('v', 'valley-arrow', { bend: 0 }))).toBeNull();
+    expect(flipKeyEdit(of('l', 'valley-line'))).toBeNull();
+    expect(flipKeyEdit(of('s', 'star', { to: [0.2, 0.3] }))).toBeNull();
   });
 
   it('name Flip on a pleat arrow, which has no arc, and step its Zs to the other side and back (15c)', () => {

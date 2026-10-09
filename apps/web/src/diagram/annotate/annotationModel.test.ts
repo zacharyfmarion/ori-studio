@@ -1461,11 +1461,11 @@ describe('an eye (Revision 3)', () => {
     expect(flipAnnotation(eye({ angle: 90 }), 'vertical')).toEqual(eye({ angle: 270 }));
   });
 
-  it('looks the other way with Flip (F): one press turns a left-looking eye to look right (R3-9b A)', () => {
-    expect(flipsArc('eye')).toBe(true);
-    expect(flipAnnotationArc(eye({ angle: 180 }))).toEqual(eye());
-    expect(flipAnnotationArc(eye({ angle: 30, scale: 2 }))).toEqual(eye({ angle: 210, scale: 2 }));
-    expect(flipChangesArc(eye())).toBe(true);
+  it('has no arc to flip: F on an eye is its Flip row’s Horizontal, not a half turn (R3-9b A, F amended 2026-10-08)', () => {
+    expect(flipsArc('eye')).toBe(false);
+    const looking = eye({ angle: 30, scale: 2 });
+    expect(flipAnnotationArc(looking)).toBe(looking);
+    expect(flipChangesArc(looking)).toBe(false);
   });
 
   it('turns with the picture through a carry, a mirror reflecting the way it looks; its scale a print size', () => {

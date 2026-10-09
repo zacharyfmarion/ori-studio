@@ -195,4 +195,19 @@ describe('F, Flip Arc (review)', () => {
     expect(runtime.diagram!('diagram.flipArc')).toBe(true);
     expect(arrow().path![0]!.out![1]).toBeCloseTo(0.7, 12);
   });
+
+  it('is Flip Horizontal on an eye: it looks the other way and stays as upright, and is no key of one looking straight down (Revision 3, R3-9b A)', () => {
+    const stepId = selected(undefined);
+    state().editDiagramAnnotations(stepId, 'Eye', () => [{ id: 'w', kind: 'eye', from: [0.4, 0.5], to: [0.4, 0.5], angle: 30 }]);
+    state().selectDiagramAnnotation('w');
+    expect(runtime.diagram!('diagram.flipArc')).toBe(true);
+    // Down and to the left, not a half turn's up and to the left.
+    expect(arrow().angle).toBe(150);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Flip horizontal');
+    state().editDiagramAnnotations(stepId, 'Eye', () => [{ ...arrow(), angle: 90 }]);
+    state().selectDiagramAnnotation('w');
+    const past = state().diagramHistory.past.length;
+    expect(runtime.diagram!('diagram.flipArc')).toBe(false);
+    expect(state().diagramHistory.past).toHaveLength(past);
+  });
 });
