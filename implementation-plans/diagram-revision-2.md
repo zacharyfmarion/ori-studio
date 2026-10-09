@@ -938,6 +938,13 @@ other picture has faces.
   raise it: the numbers go to Zach. The lever then is to write `paperFaces`
   only on steps that hold an area or a frame; not coarser rounding, which
   would give up exactness.
+  **Raised (2026-10-09).** Zach: "i don't care about this budget, please
+  raise it or remove it. nobody should hit it on even a large diagram, 1%
+  seems random. Like idk limit to 100mb or something". The 1% is gone: the
+  only ceiling on what a diagram stores is the whole `.osf` under 100 MB,
+  which no diagram comes near (the crane is 2.49 MB). Nothing enforces it in
+  code, as nothing enforced the 1%; the per-picture limits that guard the
+  reader (`SCENE_JSON_MAX_BYTES`, `SVG_STORED_MAX_BYTES`) are unchanged.
 
 Pure modules in `diagram/zoom/`:
 
@@ -1528,6 +1535,8 @@ of 16c's budget item: the per-step cap (a step's faces at most 0.3 of its
 scene) is dropped and the whole-file one (the `.osf` grows by at most 1%)
 kept; a step captured before faces were kept gets them when they are needed,
 from its pattern while its link is current, else by Refresh (S5).
+**Raised (2026-10-09):** the 1% went; a whole file under 100 MB is the
+budget now (The budget, above).
 
 #### Alternatives considered
 

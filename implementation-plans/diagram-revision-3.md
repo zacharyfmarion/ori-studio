@@ -1075,7 +1075,9 @@ mind: "being able to hide specific faces and show the faces underneath".
   side each, as a string of 0s and 1s, is under 1 kB. An aux crease is four
   numbers and a face, about 30 to 40 bytes; about 100 of them would use the
   crane's whole margin. Overlap cells carry polygons of their own and
-  would cost far more. 18.0 measures each.
+  would cost far more. 18.0 measures each. (**Raised 2026-10-09:** the
+  budget is a whole file under 100 MB now, not 1%; `diagram-revision-2.md`,
+  The budget.)
 - **A new key in `paperFaces` is a newer build's.** An older build locks the
   step (`NEWER_PAPER_FACES`, `document/paperFacesFile.ts:44`). The Diagram
   is unreleased (#436 is open), so that falls only on Zach's own builds of
@@ -1989,6 +1991,12 @@ large fork.
   otherwise (**amended, see R3-16a:** decided A under his standing
   instruction, nothing stored, for the 223 bytes); R3-16a A, which stores nothing, agreed on all 834 faces, and a
   hex digit for four faces would cost a quarter.
+  **Answered (2026-10-09):** "i don't care about this budget, please raise
+  it or remove it … limit to 100mb or something". Z11 is a whole file under
+  100 MB now, so no flat step breaks it. A stays: it is exact and stores
+  nothing. Where R3-16b and R3-16c turned down storing aux creases or cells
+  as over Z11, that reason has gone; they stand on their other grounds
+  until one is reopened.
 - **Creases inside a window.** Under R3-16b A a window draws no crease, even
   on a face it keeps, so a crease that runs into a window stops at its rim.
   The stored scene already holds the creases of every face that shows;
