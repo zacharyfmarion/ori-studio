@@ -4,7 +4,9 @@
 18a (equal divisions) built and gated 2026-10-08, committed and pushed
 (PR #446). 18b (stars, the transform box, and 18a's follow-up hint)
 built, gated and committed 2026-10-08, not yet pushed (18b, As
-built).** His answers, each recorded under its decision:
+built). 18c (the eye) built, reviewed, gated and committed 2026-10-08,
+not yet pushed (18c, As built).** His answers, each recorded under its
+decision:
 
 - **R3-1 A, R3-2 A** (short dividers: one switch on each mark, 1.65 mm
   either side of the line): "should just be all interior ones, not per
@@ -37,8 +39,12 @@ built).** His answers, each recorded under its decision:
   R3-33 A (a Rotation row in Layers); and 18a's two follow-ups (18a, For
   Zach): a hint that Short Dividers shows only once the line is more than
   1.65 mm out, and the count kept in the regular weight.
+- **Everything 18c uses** (2026-10-08), under the same instruction: R3-8 A
+  (the eye laid by a drag from the viewer toward what they look at, Shift
+  for 15° steps, a click looking at the picture's middle), recorded
+  DECIDED under it.
 
-**Still PENDING:** R3-8, R3-10b, R3-11a, R3-11b, R3-11d, R3-16a,
+**Still PENDING:** R3-10b, R3-11a, R3-11b, R3-11d, R3-16a,
 R3-16c, R3-17 to R3-22, R3-29c, R3-30b and R3-31. Under the same
 instruction (2026-10-08) each will be built as recommended when its phase
 comes, unless it is a large fork in the design.
@@ -818,7 +824,7 @@ form was not checked.
 - **Recommended: A.** It is the eye the note draws, and its open side
   already says which way it looks. C can follow if a step needs the arrow.
 
-**R3-8. How is it put down? PENDING.** Once selected, the transform box
+**R3-8. How is it put down? DECIDED: A.** Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise". Built in 18c. Once selected, the transform box
 turns it whatever is picked here (Zach, 2026-10-08); this is only how the
 tool lays it. Revised for the box: option A no longer has a dot that turns
 it, and B no longer offers eight directions in Layers.
@@ -1698,8 +1704,9 @@ after in the browser, beside the note's pictures.
   rewritten. The first answers are in (2026-10-08, Status at the top).
   R3-3 answered B the same day ("no, should not be bold"). Everything
   18b uses decided the same day as recommended ("go with your recs ...",
-  Status at the top). Open: R3-8, R3-10b, R3-11a, R3-11b, R3-11d, R3-16a,
-  R3-16c, R3-17 to R3-22, R3-29c, R3-30b and R3-31.
+  Status at the top). R3-8 decided the same way for 18c. Open: R3-10b,
+  R3-11a, R3-11b, R3-11d, R3-16a, R3-16c, R3-17 to R3-22, R3-29c, R3-30b
+  and R3-31.
 
 ### 18a Equal divisions
 
@@ -2043,25 +2050,151 @@ weight (R3-3 B), no halo and no new place.
 
 ### 18c The eye
 
-- [ ] Geometry: `eyeDrawn`, `DIAGRAM_EYE_INK`. Tests: its open side faces
+- [x] Geometry: `eyeDrawn`, `DIAGRAM_EYE_INK`. Tests: its open side faces
   its angle at 0°, 90° and 217°; scaled; a mirrored projector.
-- [ ] The primitive through the five References modules; drawing.
-- [ ] Model and file: the kind, the `sight` class, `angle`, `scale`; `to`
+- [x] The primitive through the five References modules; drawing.
+- [x] Model and file: the kind, the `sight` class, `angle`, `scale`; `to`
   read as `from`. Tests: round trip; a scale past R3-30a's range is a newer
   build's and kept verbatim.
-- [ ] Tool: the drag setting its angle, the click, Shift's 15°, the key,
+- [x] Tool: the drag setting its angle, the click, Shift's 15°, the key,
   help. The box: corners only, scaling about its centre, and turning it.
   Tests: move, scale, turn, Shift; the `corner` and `direction` grips never
   offered on an eye.
-- [ ] Hit inside its turned box; the Flip row (Horizontal to 180° less its
+- [x] Hit inside its turned box; the Flip row (Horizontal to 180° less its
   angle, Vertical to its negative) and F; the Rotation row; carry through a
   mirror and a quarter turn, Turn Over, paste.
-- [ ] Analytics and i18n.
-- [ ] Golden `eyes.cases.ts`, turned and scaled.
-- [ ] Browser, before and after: an eye on the crane beside the note's
+- [x] Analytics and i18n.
+- [x] Golden `eyes.cases.ts`, turned and scaled.
+- [x] Browser, before and after: an eye on the crane beside the note's
   picture and the template's, at print size, scaled and turned by its box,
   on every surface.
-- [ ] Gate and push.
+- [x] Gate, on exactly what was committed: lint, typecheck, the i18n check
+  and the whole vitest suite (Node 22): 893 test files and 12,147 tests
+  pass (2 files and 15 tests skipped).
+- [ ] Push.
+
+**As built (2026-10-08).** One commit, `1a66a3cc9` ("Diagram: the eye"),
+which includes the review's fixes. R3-8 A, the one decision 18c still
+needed, is recorded DECIDED above. Evidence:
+`artifacts/revision-3/18c/18c-evidence.png` (`composite.py`).
+
+- **Drawing.** `DIAGRAM_EYE_INK = { length: 15, spread: 4.8, cornea: 13.5,
+  bulge: 0.5, iris: 1.2 }` (`diagramInk.ts`), measured off the note's
+  picture: lids 4.96 mm long meeting at 35.5° behind and running half a
+  millimetre past the cornea, and a half-circle iris about 0.8 mm across on
+  the cornea's middle. `eyeShape(centre, look, ink)`
+  (`stepDiagramGeometry.ts`) is the one place the shape is decided; the
+  drawing, its reach and the rail's icon all take it. `eyePathData` is one
+  path: the lids as one run mitred at the back (`EYE_MITER_LIMIT` 4), the
+  cornea arc, and the iris as two quarter arcs, so no renderer has to guess
+  a half circle's sweep. Aux pen (R3-26 A), `ink.mark`, butt ends, no fill,
+  on and off the paper.
+- **The primitive** `{ kind: 'eye', at, angle, scale }` through the five
+  References modules. **Where the plan was loose:** it did not say which
+  space `angle` is in. It is the sheet's y-up direction (cos, −sin), and
+  unlike a star's turn it is projected: `eyeDrawn` takes the look direction
+  through the projector's basis and `diagramInModel` through the frame, so
+  a turned or mirrored picture turns the eye with the paper. The glyph is
+  symmetric, so it is never mirrored as a glyph. `markReach` takes the lid
+  ends and the back corner's mitre.
+- **Model and file.** Kind `eye`, new shape class `sight` (not `point`, not
+  `corner`), with `angle?` (degrees clockwise from looking right, in
+  [0, 360)) and `scale?` (`GLYPH_SCALE`, shared with the star). `cleanStar`
+  became `cleanGlyph`, which never keeps a fill on an eye.
+  `ANNOTATION_FIELDS.eye` = `angle`, `scale`; `to` is read as `from`; a
+  scale past the range is a newer build's, kept verbatim; one that is no
+  positive number is damage; an angle that does not read is dropped alone.
+  The turn and scale precision moved from `transformGrips.ts` to the model
+  (`keptTo`, `GLYPH_ANGLE_PRECISION`, `GLYPH_SCALE_PRECISION`), so a laid
+  or carried eye is kept to 0.01° as a dragged one is.
+- **Tool (R3-8 A).** Eye in Marks after Equal Divisions, key Y
+  (`diagram.toolEye`, bound nowhere else). `eyeLooking` lays it at the
+  drag's start looking toward its end, Shift holding 15° steps; a click, or
+  a drag shorter than a slip, looks at the frame's middle (at the middle
+  itself it looks right, no angle written). One undo step; the tool stays
+  in hand. Its centre is no snap target, since the viewer often stands off
+  the paper. The Shift line reads "Shift-drag to set the way it looks in
+  15° steps." The box line has a key of its own (`eyeBoxShiftKey`), because
+  the star's translations name the star or agree with it in five
+  languages.
+- **The box.** `boxedEye` and `boxedStar` both go through `boxedGlyph`: the
+  lids' length along the look by their spread across, corners only, scaled
+  about the centre within 0.5–4, its turn handles turning the look.
+  **Where the code proved the plan's floor too narrow:** `drawnTransformBox`
+  assumed a square glyph. It now grows a box about its centre in its own
+  proportions until its shorter side is 24 px (R3-30c B); a star's is
+  unchanged. `hitAnnotation` asks the box first for a selected eye, so the
+  `corner` and `direction` grips are never offered. Its body is its turned
+  box plus a press's reach (`boxDistanceModel`) and, while selected, the
+  box as drawn.
+- **Flip and Layers (R3-9b A, R3-33 A).** The Flip row turns it about its
+  centre: Horizontal to 180° less its angle, Vertical to its negative,
+  through `carryEye`. Flip (F) has it look the other way, half a turn on;
+  it is named "Flip" and drawn with a two-way arrow (`ArrowLeftRight`)
+  rather than Flip Vertical's mirror. The Rotation row goes through
+  `setMarkAngle`; the row's glyph, `EyeGlyph`, looks left as the note's
+  does. A carry through a quarter turn turns it a quarter, a mirror and
+  Turn Over reflect it, and a paste moves it.
+- **Analytics and i18n.** `tool: eye` (`snap: none`); `diagram mark styled`
+  with `kind: eye` for size and rotation; `docs/analytics.md`. Four strings
+  (`toolEye`, `eyeHelp`, `eyeShiftKey`, `eyeBoxShiftKey`) in all nine
+  catalogs, stamped.
+- **Tests**, beside each change: geometry (0°, 90°, 217°, scale, pen,
+  turned and mirrored projectors, the path), paint, file, model (lay,
+  Shift, click, clean, Flip, F, carry), grips (box, proportional floor,
+  scale, turn), hit, actions, clipboard, snap, `markExtent`, References,
+  the rail, the canvas and Layers, and the golden `eyes.cases.ts` /
+  `eyesGolden.json` (right, left, 217°, down at ×2, half at 300°, off the
+  paper, on a References face; its recorder is
+  `18c/eyes.record.test.ts.txt`).
+- **Browser**, re-run on the committed code (`run.mjs` light and dark,
+  `ipad-touch.mjs`, `review-fixes.mjs`). Chromium on the crane's step 1: Y;
+  a drag (30.76°), a Shift-drag (210°) and a click (looking down at the
+  middle); the move, pointer and grab cursors; a corner drawn out to ×1.5
+  about the centre; a Shift turn to 75°; Flip H 105°, Flip V 255°, F 75°,
+  Rotation −30 to 330°, each one undo step; the card, the page cell, the
+  PDF (pdftoppm, 96 and 288 dpi), the one-sheet SVG, three ZIP step files,
+  an enlarged step's card and Pose's ghosts; the round trip identical;
+  light and dark alike; no console errors. At 15% a press 17 px out (past
+  the eye's own box and reach, inside the drawn box) moves it. iPad-sized
+  WebKit by finger: laid by a drag (37.15°) and a tap (270°), scaled ×1.5,
+  turned 60°, moved. The note's eye, ours and the Origami House template's
+  side by side, magnified and at 288 dpi: `18c/note-vs-ours.png`; before
+  and after: `18c/before-after.png`. Not shown: the rail at phone width
+  (Annotate is not offered there) and the print dialog (the PDF's pages).
+
+**Review (2026-10-08), fixed in the commit.** A press inside a selected
+eye's or star's box drawn at its 24 px floor, but past the glyph's own
+box, took nothing and let the mark go (the two "24 px floor" cases in
+`annotationHit.test.ts` fail without the fix). The turned box's distance
+had been copied into `annotationHit.ts`; it is now `boxDistanceModel` in
+`lib/transformBox.ts`, which `boxContainsModelPoint` asks. F on an eye
+wore Flip Vertical's icon. The Shift line said "turn it" while laying.
+
+**Left for a change of its own** (since 18b or older, not the eye's):
+- With a mark's tool still in hand, the new mark's box is drawn, but a
+  drag on its handles lays another mark (a star with K does the same).
+  Either the handles take the press before a draw (`transformGripAt` in
+  `useAnnotateCanvas`), or the box is drawn without handles while a tool
+  is in hand.
+- An eye or a star pasted from a whole step onto an enlarged step of
+  another picture lands outside the window, selected but not drawn
+  (`annotationClipboard.ts`); eyes, often off the paper, will meet it
+  most. A pasted mark outside the window could be brought into view as a
+  close-up's `bringIntoView` does.
+
+**For Zach, not decided by this plan.**
+- **The eye's pen.** In the aux pen (R3-26 A: 0.25 pt in the Diagram
+  preset) the eye reads as a hairline beside the creases and arrows on the
+  card, the page cell and the PDF, much lighter than the note's sketch or
+  the template's 0.75 pt eye (`18c/note-vs-ours.png`, `note-vs-pdf288.png`).
+  The ring pen (0.5625 pt, a star outline's) would be closer. It is a
+  one-line change, but it changes R3-26.
+- **What F does to an eye.** Built as a half turn, so it looks the other
+  way (30° to 210°); Flip Horizontal gives 150° and Flip Vertical 330°.
+  R3-9b A asks only that one click turn a left-looking eye to look right,
+  which a half turn and Flip Horizontal both do. F as Flip Horizontal would
+  repeat the Flip row.
 
 ### 18d Shapes
 
