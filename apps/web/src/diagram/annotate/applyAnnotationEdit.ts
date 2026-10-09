@@ -94,6 +94,8 @@ function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null 
     case 'circle':
     case 'star':
     case 'eye':
+    case 'oval':
+    case 'rectangle':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':

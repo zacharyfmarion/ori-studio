@@ -54,6 +54,7 @@ import {
 import { flattenPath } from '../../lib/cubicBezier';
 import {
   DEFAULT_PLEAT_KINKS,
+  AREA_KINDS,
   DEFAULT_WHITE_ARROW,
   LINE_KINDS,
   annotationEnds,
@@ -66,6 +67,7 @@ import {
   divisionsPartsOf,
   glyphAngleOf,
   glyphScaleOf,
+  isAreaKind,
   isCornerKind,
   rightAngleDiagonal,
   labelCentre,
@@ -76,6 +78,7 @@ import {
   type PicturePoint,
 } from './annotationModel';
 import { nearestPathPoint, pathNodesOf, visiblePathHandles } from './annotationPath';
+import { areaOutlineOf, areaRimDistance } from './areaOutline';
 import { ANNOTATION_INK_MM } from './canvasInk';
 import { perAnnotation } from './perAnnotation';
 import { TEXT_HALO_EMS } from './textStyle';
@@ -95,7 +98,7 @@ import { distanceToRim, zoomOutlineOf } from '../zoom/zoomModel';
  * handle at the middle of equal divisions' line, which sets how far off the
  * line they measure it stands, as a drag of the mark does (Revision 2); and
  * a selected enlarge area's centre, rim, corners or edges (`zoomGrips.ts`);
- * and a selected star's or eye's transform box, a scale square or a turn
+ * and a selected star's, eye's or shape's transform box, a scale square or a turn
  * handle (Revision 3, `transformGrips.ts`).
  */
 export type AnnotationGripPart =
@@ -817,6 +820,10 @@ function bodyDistance(
     case 'zoom':
       // Its outline, not its inside: the marks drawn inside it are pressed there.
       return distanceToRim(zoomOutlineOf(annotation), point);
+    case 'oval':
+    case 'rectangle':
+      // Its rim, not its inside, as an enlarge area's (Revision 3): the marks drawn inside it are pressed there.
+      return areaRimDistance(areaOutlineOf(annotation), point);
   }
 }
 
@@ -857,7 +864,7 @@ export function hitAnnotation(
   const known = annotations.filter(isKnownAnnotation);
   const selected = known.find((annotation) => annotation.id === selectedId);
   if (selected && hasTransformBox(selected)) {
-    // A star's or an eye's transform box (Revision 3): a scale square or a turn handle, before anything drawn under it.
+    // A star's, an eye's or a shape's transform box (Revision 3): a scale square or a turn handle, before anything drawn under it.
     const handle = transformGripAt(selected, point, { px: sizes.px, reach: sizes.tolerance });
     if (handle) return { annotationId: selected.id, part: 'transform', handle };
   } else if (selected?.kind === 'close-up') {
@@ -894,14 +901,17 @@ export function hitAnnotation(
   // Topmost first, as they are drawn: labels over callouts over marks — a
   // solid line among them — over the pens' lines over close-ups, whose
   // insides are painted under everything, over
-  // enlarge areas — and
+  // enlarge areas over ovals and rectangles — and
   // a circle over the other marks, its ring the one place to take it, where
   // an arrow that lands on it has the rest of its length; but not where a
   // hollow arrow drawn after it hides it.
   const last = new Set(['circle', 'callout', 'label']);
-  const under = new Set<DiagramAnnotationKind>(['zoom', 'close-up']);
+  const under = new Set<DiagramAnnotationKind>(['zoom', 'close-up', ...AREA_KINDS]);
   const drawn = [
-    // An enlarge area under everything, as a close-up's insides are: it marks an area, and what is inside it stays pressable.
+    // An oval or a rectangle under everything, as it is painted (Revision 3, R3-11d B): pressed on its rim, and
+    // — selected — anywhere in its box, but a mark or a line under the press is taken first (R3-31 A).
+    ...known.filter((annotation) => isAreaKind(annotation.kind)),
+    // An enlarge area under everything else, as a close-up's insides are: it marks an area, and what is inside it stays pressable.
     ...known.filter((annotation) => annotation.kind === 'zoom'),
     ...known.filter((annotation) => annotation.kind === 'close-up'),
     ...known.filter((annotation) => underMarks(annotation.kind)),
@@ -915,12 +925,15 @@ export function hitAnnotation(
   // A label pressed on its halo or the margin round it, not its words: taken only when nothing under it is (17d
   // review). A pulled letter hangs beside its ring, its halo over the ring's near rim, which is the ring's to take.
   let margin: AnnotationGrip | null = null;
-  // A selected star's or eye's box as the canvas draws it, at least 24 px across (R3-30c B): a press anywhere in it
-  // that is not on a handle moves the mark (`transformGripAt`), as the move cursor there says.
+  // A selected star's or eye's box as the canvas draws it, at least 24 px across (R3-30c B), or a shape's: a press
+  // anywhere in it that is not on a handle moves the mark (`transformGripAt`), as the move cursor there says — a
+  // shape's taken last, under every mark (R3-31 A).
   const selectedBox = selected && hasTransformBox(selected) ? drawnTransformBox(selected, sizes.px) : null;
+  // A shape's box lies behind everything, its own rim and other shapes' too: tried once nothing drawn takes the press.
+  const boxBehind = selected !== undefined && isAreaKind(selected.kind) ? selectedBox : null;
   const reachOf = (annotation: KnownDiagramAnnotation) => {
     const body = bodyDistance(annotation, point, sizes, marks);
-    return annotation === selected && selectedBox ? Math.min(body, turnedBoxDistance(point, selectedBox)) : body;
+    return annotation === selected && selectedBox && !boxBehind ? Math.min(body, turnedBoxDistance(point, selectedBox)) : body;
   };
   for (let index = drawn.length - 1; index >= 0; index -= 1) {
     const annotation = drawn[index]!;
@@ -950,7 +963,10 @@ export function hitAnnotation(
     const onBox = annotation.kind === 'callout' && calloutDistances(annotation, point, sizes.calloutPen).box <= sizes.tolerance;
     return { annotationId: annotation.id, part: onBox ? 'box' : 'body' };
   }
-  return margin;
+  if (margin) return margin;
+  // Inside a selected shape's box, where nothing drawn takes the press: the shape, moved by it (R3-31 A).
+  if (selected && boxBehind && turnedBoxDistance(point, boxBehind) <= sizes.tolerance) return { annotationId: selected.id, part: 'body' };
+  return null;
 }
 
 /**

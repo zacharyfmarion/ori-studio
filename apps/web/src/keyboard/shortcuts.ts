@@ -126,6 +126,8 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolCloseUp'
   | 'diagram.toolEnlarge'
   | 'diagram.toolEnlargeFrame'
+  | 'diagram.toolOval'
+  | 'diagram.toolRectangle'
   | 'diagram.flipArc';
 
 /** Nudging the node Edit Path has selected: live only while it has one (`diagram-path`). */
@@ -653,6 +655,12 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   // Line is in the crease pattern's scope, never live with this one.
   diagramShortcut('diagram.toolEnlarge', 'Enlarge', { key: 'e' }),
   diagramShortcut('diagram.toolEnlargeFrame', 'Enlarge in Frame', { shift: true, key: 'e' }),
+  // Shift+O for the oval, paired with the Circle's O as Shift+E pairs with E,
+  // and R for the rectangle (Revision 3, R3-25 A): both free in this scope,
+  // where R is otherwise only the simulator's and ⌘R. Zach plans a shortcut
+  // pass before merge.
+  diagramShortcut('diagram.toolOval', 'Oval', { shift: true, key: 'o' }),
+  diagramShortcut('diagram.toolRectangle', 'Rectangle', { key: 'r' }),
   diagramShortcut('diagram.flipArc', 'Flip Arc', { key: 'f' }),
   // Edit Path's nudges (decision 6), on the step keys' own arrows: in a scope
   // of their own ahead of `diagram`, whose executor claims them only while

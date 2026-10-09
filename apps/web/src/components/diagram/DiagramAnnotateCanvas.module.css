@@ -36,10 +36,11 @@
 }
 
 /*
- * With Select over a selected star's or eye's transform box (Revision 3): the Edit
- * canvas's cursors for its box — move on the body, pointer on a scale square,
- * grab on a turn handle. Before Space's grab, which wins as an armed pan does
- * there.
+ * Over a selected star's, eye's or shape's transform box (Revision 3): the Edit
+ * canvas's cursors for its box — with Select, move on the body, pointer on a
+ * scale square, grab on a turn handle; with the mark's own tool still in hand
+ * (18d), the square's and the turn handle's alone, which take a press before
+ * the tool draws. Before Space's grab, which wins as an armed pan does there.
  */
 .view[data-transform-hover='body'] .stage {
   cursor: move;
@@ -122,7 +123,7 @@
 }
 
 /*
- * A selected star's or eye's transform box (Revision 3): its outline, as the Edit
+ * A selected star's, eye's or shape's transform box (Revision 3): its outline, as the Edit
  * canvas's image selection draws one — solid, in the selection's ink — and
  * its squares and turn handles, white as the grips are. Each stroke is 1.5
  * screen px, set on the element divided by the camera's zoom

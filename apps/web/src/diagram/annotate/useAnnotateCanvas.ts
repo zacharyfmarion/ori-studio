@@ -76,8 +76,10 @@ import {
   carriesText,
   closeUpShape,
   createAnnotation,
+  areaFromCorners,
   eyeLooking,
   frameOf,
+  isAreaKind,
   isCornerKind,
   isDegenerate,
   isHungText,
@@ -251,7 +253,7 @@ export interface RightAnglePreview {
 }
 
 /**
- * What a press with Select would take of a selected star's or eye's transform box
+ * What a press with Select would take of a selected star's, eye's or shape's transform box
  * (Revision 3): its body, which moves it; a scale square; or a turn handle.
  * The view's cursor says which, as the Edit canvas's box does: `move`,
  * `pointer` and `grab`.
@@ -500,7 +502,7 @@ export function useAnnotateCanvas({
   );
 
   /**
-   * What a press with Select would take of the selected star's or eye's transform box
+   * What a press with Select would take of the selected star's, eye's or shape's transform box
    * under the pointer (Revision 3): its body, a scale square or a turn handle
    * — the cursor the view shows there, as the Edit canvas's box shows its own.
    */
@@ -634,7 +636,7 @@ export function useAnnotateCanvas({
   );
 
   /**
-   * What a press at `at` with Select would take of the selected star's or eye's box:
+   * What a press at `at` with Select would take of the selected star's, eye's or shape's box:
    * a scale square, a turn handle or its body; null off it, and with no box
    * selected.
    */
@@ -652,10 +654,11 @@ export function useAnnotateCanvas({
 
   /**
    * Whether the tool in hand lays `kind`, the selected mark's own kind — a
-   * star's with the Star, an eye's with the Eye — so its box's handles take
-   * a press before the tool draws (18d). Under any other tool that draws,
-   * the press draws that tool's mark, even on the box, where an arrow or a
-   * line is often started.
+   * star's with the Star, an eye's with the Eye, an oval's with the Oval, a
+   * rectangle's with the Rectangle — so its box's handles take a press
+   * before the tool draws (18d). Under any other tool that draws, the press
+   * draws that tool's mark, even on the box: the squares sit on a shape's
+   * corners and edges, where an arrow or a line is often started.
    */
   const handlesInHand = useCallback(
     (kind: DiagramAnnotationKind | null): boolean => {
@@ -669,9 +672,9 @@ export function useAnnotateCanvas({
    * The selected mark's transform handle a press at `at` is on — a scale
    * square or a turn handle, as Select would take it, never the box's body —
    * and the mark. What a press with the mark's own tool still in hand takes
-   * before it draws (`handlesInHand`): the box a star or an eye just laid
-   * shows scales and turns it rather than laying another under the press
-   * (18d). Null off its handles, and with no box selected.
+   * before it draws (`handlesInHand`): the box a star, an eye or a shape
+   * just laid shows scales and turns it rather than laying another under the
+   * press (18d). Null off its handles, and with no box selected.
    */
   const handleGripAt = useCallback(
     (at: PicturePoint): { grip: AnnotationGrip; original: KnownDiagramAnnotation } | null => {
@@ -1103,8 +1106,10 @@ export function useAnnotateCanvas({
         // An enlarge area's grip (Revision 2): its centre moves it, its rim, corners and edges resize it.
         return withZoomOutline(annotation, draggedOutline(zoomOutlineOf(annotation), grip.zoom, current.start, at, keys));
       case 'transform':
-        // A star's or an eye's transform box (Revision 3): a square scales it about its centre, a turn handle turns it, Shift by 15°.
-        return transformDragged(annotation, grip.handle, current.start, at, { px: current.px, shift: keys.shift });
+        // A star's, an eye's or a shape's transform box (Revision 3): a square resizes it as its kind does with the
+        // keys held — a glyph about its centre, a shape freely, Shift its proportions, Alt its centre — and a turn
+        // handle turns it, Shift by 15°.
+        return transformDragged(annotation, grip.handle, current.start, at, { px: current.px, shift: keys.shift, alt: keys.alt });
     }
   };
 
@@ -1129,8 +1134,8 @@ export function useAnnotateCanvas({
         return;
       }
       const kind = drawingKind(tool, lineType);
-      // Over the selected star's or eye's box, what a press there would take of it: with Select, any of it; with the
-      // mark's own tool in hand, only a handle, which takes the press before a draw (18d) — its body is drawn on; with
+      // Over the selected star's, eye's or shape's box, what a press there would take of it: with Select, any of it; with
+      // the mark's own tool in hand, only a handle, which takes the press before a draw (18d) — its body is drawn on; with
       // any other tool, none of it.
       const inHand = handlesInHand(kind);
       const boxed = (tool === null || inHand) && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
@@ -1519,7 +1524,7 @@ export function useAnnotateCanvas({
       if (!pointer) return;
       const placed = placeInHand(current, pointer, free, event.shiftKey);
       const area = current.original.kind === 'zoom';
-      // A star's or an eye's box (Revision 3): resized or turned, the Edit canvas's own words for each.
+      // A star's, an eye's or a shape's box (Revision 3): resized or turned, the Edit canvas's own words for each.
       const transform = current.grip.part === 'transform' ? current.grip.handle : null;
       const label = area
         ? 'Change enlarge area'
@@ -1603,7 +1608,7 @@ export function useAnnotateCanvas({
     snapTargets: snap.targets,
     /** The right angle a click would put down where the pointer is: shown over the marks, never in them. */
     rightAnglePreview: rightAngle,
-    /** What a press with Select would take of the selected star's or eye's box under the pointer: the view's cursor. */
+    /** What a press with Select would take of the selected star's, eye's or shape's box under the pointer: the view's cursor. */
     transformHover,
     /**
      * A pick tool's picks, and what a press would pick: shown over the marks
@@ -1643,8 +1648,9 @@ function sameLine(a: PickedLine | null, b: PickedLine | null): boolean {
  * What a drawing tool lays from `start` to `end`: an enlarge area in its
  * tool's shape — a rounded rectangle dragged corner to corner, square with
  * Shift and from its middle with Alt (Revision 2) — an eye at `start`
- * looking toward `end`, in 15° steps with Shift (Revision 3, R3-8 A) — or
- * its kind, in its look.
+ * looking toward `end`, in 15° steps with Shift (Revision 3, R3-8 A), an
+ * oval or a rectangle corner to corner as that area is, a circle or a square
+ * with Shift (Revision 3) — or its kind, in its look.
  */
 function laid(
   kind: DiagramAnnotationKind,
@@ -1661,6 +1667,7 @@ function laid(
     return zoomAreaFromCorners(start, end, { square: keys.shift, fromMiddle: keys.alt }, newId);
   }
   if (kind === 'eye') return eyeLooking(start, end, frame, { steps: keys.shift }, newId);
+  if (isAreaKind(kind)) return areaFromCorners(kind, start, end, { square: keys.shift, fromMiddle: keys.alt }, newId);
   // A solid line in the colour chosen beside the rail's Line Type (17a).
   const made = withColor(withWhiteArrowLook(createAnnotation(kind, start, end, frame, newId, calloutText), arrowLook), color ?? null);
   // A label in the rail's Text Style (17b).

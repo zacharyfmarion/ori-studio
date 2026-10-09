@@ -35,7 +35,12 @@ describe('DiagramAnnotateRail', () => {
     const groups = [...container.querySelectorAll('[id^="diagram-annotate-group-"]')].map((group) =>
       group.id.replace('diagram-annotate-group-', '')
     );
-    expect(groups).toEqual(['line-type', 'select', 'arrows', 'lines', 'marks', 'text']);
+    // Shapes after Marks (Revision 3, R3-25 A).
+    expect(groups).toEqual(['line-type', 'select', 'arrows', 'lines', 'marks', 'shapes', 'text']);
+    const shapes = [...container.querySelectorAll('#diagram-annotate-group-shapes button[aria-label]')].map((button) =>
+      button.getAttribute('aria-label')
+    );
+    expect(shapes).toEqual(['Oval', 'Rectangle']);
     // The two equality marks side by side, Equal Divisions on D (Revision 2, ED8).
     const marks = [...container.querySelectorAll('#diagram-annotate-group-marks button[aria-label]')].map((button) =>
       button.getAttribute('aria-label')

@@ -348,6 +348,87 @@ describe('an eye (Revision 3)', () => {
   });
 });
 
+describe('an oval and a rectangle (Revision 3)', () => {
+  const box = { x: 0, y: 0, width: 400, height: 300 };
+  const oval = a('o', 'oval', { from: [0.5, 0.4], to: [0.5, 0.4], size: [0.3, 0.4] });
+  const rectangle = a('r', 'rectangle', { from: [0.3, 0.3], to: [0.3, 0.3], size: [0.2, 0.1], angle: 30 });
+  const valley = a('v', 'valley-line', { from: [0.1, 0.4], to: [0.9, 0.4] });
+  const arrow = a('w', 'valley-arrow', { from: [0.1, 0.2], to: [0.4, 0.2], bend: ARROW_BEND });
+  /** One element of `markup` by its tag, and its attributes. */
+  const element = (markup: string, tag: string) => {
+    const found = new RegExp(`<${tag} [^>]*>`).exec(markup);
+    if (!found) return null;
+    const attributes = Object.fromEntries([...found[0].matchAll(/([a-z-]+)="([^"]*)"/g)].map(([, name, value]) => [name, value]));
+    return { at: found.index, attributes };
+  };
+
+  it('compiles to an area of its own, in the drawing’s px: an ellipse or a rectangle, sized and turned, never a References mark', () => {
+    const drawing = annotationDrawing([valley, oval, rectangle, arrow], FRAME, 400, DEFAULT_DIAGRAM_STYLE);
+    expect(drawing.areas.map(({ id, outline }) => ({ id, outline }))).toEqual([
+      { id: 'o', outline: { kind: 'oval', centre: [200, 160], size: [120, 160], angle: 0 } },
+      { id: 'r', outline: { kind: 'rectangle', centre: [120, 120], size: [80, 40], angle: 30 } },
+    ]);
+    expect(drawing.primitiveIds).toEqual(['w']);
+    expect(drawing.lines.map((line) => line.id)).toEqual(['v']);
+  });
+
+  it('is painted under every line and mark drawn on the step, drawn after them or not (R3-11d B), in a ring’s pen and the arrows’ ink, nothing filled', () => {
+    for (const [style, ringPt] of [
+      [DEFAULT_DIAGRAM_STYLE, 0.5625],
+      [{ preset: 'default' } as const, 0.7875],
+    ] as const) {
+      const { markup } = paintAnnotations([valley, arrow, oval, rectangle], box, 400, style)!;
+      const ellipse = element(markup, 'ellipse')!;
+      const rect = element(markup, 'rect')!;
+      const line = element(markup, 'line')!;
+      const arrowhead = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
+      const head = arrowhead[1]!;
+      // Under the Valley Line and the arrow, though drawn after both.
+      expect(ellipse.at).toBeLessThan(line.at);
+      expect(rect.at).toBeLessThan(line.at);
+      expect(line.at).toBeLessThan(arrowhead.index);
+      expect(ellipse.attributes).toMatchObject({ cx: '200', cy: '160', rx: '60', ry: '80', fill: 'none', stroke: head });
+      expect(Number(ellipse.attributes['stroke-width'])).toBeCloseTo(ringPt * PT_TO_CSS_PX, 3);
+      expect(ellipse.attributes.transform).toBeUndefined();
+      // Square corners, mitred whatever join the marks are wrapped in, turned about its centre (R3-11b A).
+      expect(rect.attributes).toMatchObject({ x: '80', y: '100', width: '80', height: '40', fill: 'none', stroke: head });
+      expect(rect.attributes['stroke-linejoin']).toBe('miter');
+      expect(rect.attributes.transform).toBe('rotate(30 120 120)');
+      expect(Number(rect.attributes['stroke-width'])).toBeCloseTo(ringPt * PT_TO_CSS_PX, 3);
+    }
+  });
+
+  it('reaches past the frame as far as its outline and half its pen, an ellipse’s turned extents, a mitred rectangle’s corners', () => {
+    const pen = 0.5625 * PT_TO_CSS_PX;
+    // Past the right edge: an upright oval 120 px wide about x 380.
+    const right = annotationReach(
+      annotationDrawing([a('o', 'oval', { from: [0.95, 0.4], to: [0.95, 0.4], size: [0.3, 0.2] })], FRAME, 400, DEFAULT_DIAGRAM_STYLE)
+    );
+    expect(right.x + right.width).toBeCloseTo(380 + 60 + pen / 2, 6);
+    // Past the top edge: a square turned 45° about y 8, its mitred corner up the diagonal.
+    const diamond = annotationReach(
+      annotationDrawing([a('r', 'rectangle', { from: [0.5, 0.02], to: [0.5, 0.02], size: [0.2, 0.2], angle: 45 })], FRAME, 400, DEFAULT_DIAGRAM_STYLE)
+    );
+    expect(diamond.y).toBeCloseTo(8 - (40 + pen / 2) * Math.SQRT2, 6);
+    // An oval turned a quarter, its height now across.
+    const turned = annotationReach(
+      annotationDrawing([a('o', 'oval', { from: [0.95, 0.4], to: [0.95, 0.4], size: [0.3, 0.2], angle: 90 })], FRAME, 400, DEFAULT_DIAGRAM_STYLE)
+    );
+    expect(turned.x + turned.width).toBeCloseTo(380 + 40 + pen / 2, 6);
+    // And a page's room for it: the painted bounds reach as far.
+    expect(paintAnnotations([a('o', 'oval', { from: [0.95, 0.4], to: [0.95, 0.4], size: [0.3, 0.2] })], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.x +
+      paintAnnotations([a('o', 'oval', { from: [0.95, 0.4], to: [0.95, 0.4], size: [0.3, 0.2] })], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.width).toBeCloseTo(380 + 60 + pen / 2, 6);
+  });
+
+  it('is painted as a scene item of its own, first, under the lines', () => {
+    const scene = annotationScene(annotationDrawing([valley, oval], FRAME, 400, DEFAULT_DIAGRAM_STYLE))!;
+    expect(scene.items.map((item) => item.kind)).toEqual(['markup', 'line']);
+    expect(scene.items[0]!.kind === 'markup' && scene.items[0]!.svg).toMatch(/^<ellipse /);
+    // Alone, it is still drawn.
+    expect(annotationScene(annotationDrawing([oval], FRAME, 400, DEFAULT_DIAGRAM_STYLE))!.items).toHaveLength(1);
+  });
+});
+
 describe('a right angle (Revision 2)', () => {
   const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
   // At the vertex (0.5, 0.5), opening down and to the right.

@@ -142,8 +142,8 @@ export function SolidArrowGlyph(): ReactElement {
  * list both show it. The fold, push and white arrows are the arrows
  * themselves; the lines are their dash; the circle its ring; the right angle
  * its ∟ and square inside the two lines it marks; equal divisions the
- * template's |\|\| symbol; the callout its line and box; the star and the eye the
- * marks they draw; Rotate and Label are the app's own icons for those verbs. Every kind
+ * template's |\|\| symbol; the callout its line and box; the star, the eye, the oval and
+ * the rectangle the marks they draw; Rotate and Label are the app's own icons for those verbs. Every kind
  * has one: the return type makes a kind left out a compile error, not a
  * blank button.
  *
@@ -318,6 +318,20 @@ export function DiagramAnnotationGlyph({
       return <StarGlyph fill={fill ?? 'white'} />;
     case 'eye':
       return <EyeGlyph />;
+    case 'oval':
+      // Upright, about three quarters as wide as it is high, as the turtle's ovals are (Revision 3).
+      return (
+        <Glyph>
+          <ellipse cx={10} cy={10} rx={5.6} ry={7.6} />
+        </Glyph>
+      );
+    case 'rectangle':
+      // Its corners square, as the mark's are (R3-11b A): not Enlarge in Frame's rounded ones.
+      return (
+        <Glyph>
+          <rect x={3} y={5} width={14} height={10} strokeLinejoin="miter" />
+        </Glyph>
+      );
   }
 }
 

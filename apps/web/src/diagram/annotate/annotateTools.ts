@@ -173,7 +173,8 @@ export function isPickTool(tool: AnnotateTool): tool is typeof ANGLE_BISECTOR | 
   return tool === ANGLE_BISECTOR || tool === 'angle-mark';
 }
 
-export type AnnotateToolGroupId = 'select' | 'arrows' | 'lines' | 'marks' | 'text';
+/** The rail's groups: Shapes, after Marks, holds the Oval and the Rectangle (Revision 3, R3-25 A). */
+export type AnnotateToolGroupId = 'select' | 'arrows' | 'lines' | 'marks' | 'shapes' | 'text';
 
 export interface AnnotateToolGroup {
   id: AnnotateToolGroupId;
@@ -201,16 +202,18 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   'close-up': 'marks',
   [ENLARGE]: 'marks',
   [ENLARGE_FRAME]: 'marks',
+  oval: 'shapes',
+  rectangle: 'shapes',
   callout: 'text',
 };
 
 /** The drawing tools in the order the rail offers them, each in its group. */
 export const DRAWING_TOOLS = Object.keys(TOOL_GROUP) as readonly DrawingTool[];
 
-/** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Marks; Text — each tool in its group. */
+/** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Marks; Shapes; Text — each tool in its group. */
 export const ANNOTATE_TOOL_GROUPS: readonly AnnotateToolGroup[] = [
   { id: 'select', tools: [null, EDIT_PATH] },
-  ...(['arrows', 'lines', 'marks', 'text'] as const).map((id) => ({
+  ...(['arrows', 'lines', 'marks', 'shapes', 'text'] as const).map((id) => ({
     id,
     tools: DRAWING_TOOLS.filter((tool) => TOOL_GROUP[tool] === id),
   })),
@@ -240,6 +243,8 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   'close-up': 'diagram.toolCloseUp',
   [ENLARGE]: 'diagram.toolEnlarge',
   [ENLARGE_FRAME]: 'diagram.toolEnlargeFrame',
+  oval: 'diagram.toolOval',
+  rectangle: 'diagram.toolRectangle',
   callout: 'diagram.toolCallout',
 };
 
@@ -385,6 +390,10 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolStar', 'Star');
     case 'eye':
       return t('tools:diagram.toolEye', 'Eye');
+    case 'oval':
+      return t('tools:diagram.toolOval', 'Oval');
+    case 'rectangle':
+      return t('tools:diagram.toolRectangle', 'Rectangle');
   }
 }
 
@@ -489,6 +498,12 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
         'panels:diagram.annotate.enlargeFrameHelp',
         'Drag from corner to corner round an area to mark it for an enlarged step. Click for a standard size.'
       );
+    case 'oval':
+    case 'rectangle':
+      return t(
+        'panels:diagram.annotate.shapeHelp',
+        'Drag from corner to corner round an area to ring it. Click for a standard size.'
+      );
   }
 }
 
@@ -502,6 +517,8 @@ export function annotateGroupLabel(t: TFunction, group: AnnotateToolGroupId): st
       return t('panels:diagram.annotate.groupLines', 'Lines');
     case 'marks':
       return t('panels:diagram.annotate.groupMarks', 'Marks');
+    case 'shapes':
+      return t('panels:diagram.annotate.groupShapes', 'Shapes');
     case 'text':
       return t('panels:diagram.annotate.groupText', 'Text');
   }
@@ -707,14 +724,15 @@ function annotateToolModifiers(
         t('panels:diagram.annotate.circleFreeKey', 'Hold {{modifier}} to put it down anywhere, without snapping.', {
           modifier: primary,
         }),
-        t('panels:diagram.annotate.starShiftKey', 'With Select, Shift-drag a round handle at a corner to turn it in 15° steps.'),
+        // With Select, or the Star still in hand (18d): no "With Select" to send the author to it.
+        t('panels:diagram.annotate.starShiftKey', 'Shift-drag a round handle at a corner to turn it in 15° steps.'),
       ];
     case 'eye':
       // Put down freely (R3-24 A): no ⌘ line. Its drag sets the way it looks, as its box's turn handles turn it.
       return [
         t('panels:diagram.annotate.eyeShiftKey', 'Shift-drag to set the way it looks in 15° steps.'),
         // The star's words, a key of their own: several languages name the star, or agree with it.
-        t('panels:diagram.annotate.eyeBoxShiftKey', 'With Select, Shift-drag a round handle at a corner to turn it in 15° steps.'),
+        t('panels:diagram.annotate.eyeBoxShiftKey', 'Shift-drag a round handle at a corner to turn it in 15° steps.'),
       ];
     case 'right-angle':
       return [
@@ -738,6 +756,25 @@ function annotateToolModifiers(
       return [
         t('panels:diagram.annotate.enlargeFrameShiftKey', 'Shift-drag to make it square.'),
         t('panels:diagram.annotate.enlargeFrameAltKey', '{{modifier}}-drag to draw it out from its middle.', {
+          modifier: alt,
+        }),
+      ];
+    case 'oval':
+    case 'rectangle':
+      // Put down freely (R3-24 A): no ⌘ line. Laid as Enlarge in Frame's area is, in its words — keys of their own,
+      // as the eye's are: several languages' "it" agrees with the area they name — and its box resized by R3-29c's keys.
+      return [
+        tool === 'oval'
+          ? t('panels:diagram.annotate.ovalShiftKey', 'Shift-drag to make it a circle.')
+          : t('panels:diagram.annotate.rectangleShiftKey', 'Shift-drag to make it square.'),
+        t('panels:diagram.annotate.shapeAltKey', '{{modifier}}-drag to draw it out from its middle.', {
+          modifier: alt,
+        }),
+        t(
+          'panels:diagram.annotate.shapeBoxShiftKey',
+          'Shift-drag a square to keep its proportions, or a round handle to turn it in 15° steps.'
+        ),
+        t('panels:diagram.annotate.shapeBoxAltKey', '{{modifier}}-drag a square to resize it about its middle.', {
           modifier: alt,
         }),
       ];

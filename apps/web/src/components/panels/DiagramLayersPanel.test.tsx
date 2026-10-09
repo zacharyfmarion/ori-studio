@@ -935,6 +935,51 @@ describe('DiagramLayersPanel', () => {
     });
   });
 
+  describe('an oval and a rectangle (Revision 3)', () => {
+    function shaped(kind: 'oval' | 'rectangle', more: Partial<KnownDiagramAnnotation> = {}) {
+      const stepId = annotatedStep();
+      act(() => {
+        state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+          ...list,
+          { id: 's-1', kind, from: [0.4, 0.6], to: [0.4, 0.6], size: [0.3, 0.2], ...more },
+        ]);
+        state().openDiagramStep(stepId, 'annotate');
+      });
+      act(() => row(kind === 'oval' ? 'Oval' : 'Rectangle').click());
+      return stepId;
+    }
+    const shape = () => annotations().find((annotation) => annotation.id === 's-1') as Record<string, unknown>;
+    const last = () => state().diagramHistory.past.at(-1)?.label;
+
+    it('lists each by its kind, drawn as itself, and offers no Flip row: a flip of one is only a turn', () => {
+      shaped('oval');
+      expect(row('Oval').querySelector('svg ellipse')).not.toBeNull();
+      expect(button('Flip Horizontal')).toBeNull();
+      expect(button('Flip Vertical')).toBeNull();
+      act(() => state().selectDiagramAnnotation(null));
+    });
+
+    it('sets its turn in its Rotation row within [0, 180), one undo step, counted as typed (R3-33 A)', () => {
+      shaped('rectangle', { angle: 30 });
+      expect(row('Rectangle').querySelector('svg rect')).not.toBeNull();
+      tracked.trackDiagramMarkStyled.mockClear();
+      const rotation = host!.querySelector<HTMLInputElement>('input[aria-label="Rotation"]')!;
+      expect(rotation.value).toBe('30');
+      act(() => rotation.focus());
+      setField(rotation, '200');
+      act(() => rotation.blur());
+      // A half turn draws it the same: 200° is 20°.
+      expect(shape().angle).toBe(20);
+      expect(shape().size).toEqual([0.3, 0.2]);
+      expect(last()).toBe('Rotate annotation');
+      expect(tracked.trackDiagramMarkStyled.mock.calls).toEqual([['rectangle', 'rotation', 'field']]);
+      act(() => rotation.focus());
+      setField(rotation, '180');
+      act(() => rotation.blur());
+      expect('angle' in shape()).toBe(false);
+    });
+  });
+
   it('edits a label’s text in one line, and focuses it for a label just put down', async () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));

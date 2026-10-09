@@ -15,9 +15,11 @@ import { LineHitIndex, type IndexedSegment } from '../../cp-workspace/picking/li
 import { labelBox } from '../annotate/annotationHit';
 import { transformBoxOf } from '../annotate/transformGrips';
 import { boxCornersModel } from '../../lib/transformBox';
+import { areaBox, areaOutlineOf } from '../annotate/areaOutline';
 import {
   closeUpShape,
   frameOf,
+  isAreaKind,
   isHungText,
   LABEL_SIZE,
   type PictureFrame,
@@ -161,8 +163,9 @@ function marksNear(window: PictureBox, annotations: readonly DiagramAnnotation[]
 }
 
 /**
- * What a mark's points span, its rings' radii round them, an area's outline,
- * a star's or an eye's turned box at its scale (Revision 3) and hung text's words where
+ * What a mark's points span, its rings' radii round them, an area's outline
+ * — an enlarge area's, an oval's or a rectangle's — a star's or an eye's
+ * turned box at its scale (Revision 3) and hung text's words where
  * they hang (17b): near enough to tell one far off a window.
  */
 function markExtent(mark: KnownDiagramAnnotation): [number, number, number, number] {
@@ -194,6 +197,12 @@ function markExtent(mark: KnownDiagramAnnotation): [number, number, number, numb
     // A star or an eye (Revision 3): its turned box at its scale, the print size it keeps in any window.
     const box = transformBoxOf(mark);
     for (const { x, y } of box ? boxCornersModel(box) : []) take([x, y]);
+  } else if (isAreaKind(mark.kind)) {
+    // An oval or a rectangle (Revision 3): its outline's upright box, turned with it — one reaching into a window
+    // from outside it is held by it, and drawn whole.
+    const { x, y, width, height } = areaBox(areaOutlineOf(mark));
+    take([x, y]);
+    take([x + width, y + height]);
   } else if (mark.radius !== undefined) take(mark.from, mark.radius);
   else if (isHungText(mark)) {
     // Its words can hang a window or more off its anchor, and they are what is drawn.

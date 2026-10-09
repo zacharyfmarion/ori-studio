@@ -184,6 +184,20 @@ describe('the marks an enlarged step draws', () => {
     expect(marksTouchingWindow(window, [{ ...left, scale: undefined }])).toEqual([]);
   });
 
+  it('holds an oval or a rectangle reaching into the window from outside by its outline, turned, and badges one wholly outside it (Revision 3)', () => {
+    // Centred right of the frame (1 × 0.5), 0.3 wide: its left side 0.05 inside the window.
+    const oval: KnownDiagramAnnotation = { id: 'oval', kind: 'oval', from: [1.1, 0.25], to: [1.1, 0.25], size: [0.3, 0.1] };
+    expect(marksTouchingWindow(window, [oval])).toEqual([oval]);
+    // Turned a quarter, its 0.1 across: wholly outside, badged — but near enough to be drawn.
+    const turned = { ...oval, angle: 90 };
+    expect(marksTouchingWindow(window, [turned])).toEqual([]);
+    expect(marksInWindow(window, [turned])).toEqual([turned]);
+    // A large rectangle round the whole window, its centre far off it: drawn whole, and holds it.
+    const round: KnownDiagramAnnotation = { id: 'round', kind: 'rectangle', from: [1.9, 0.25], to: [1.9, 0.25], size: [4, 1] };
+    expect(marksTouchingWindow(window, [round])).toEqual([round]);
+    expect(marksTouchingWindow(window, [{ ...round, size: [0.2, 0.2] }])).toEqual([]);
+  });
+
   it('reaches hung text’s words where they hang, however far off its anchor is (17b)', () => {
     // Its anchor past a window right of the frame; its words hung 200 pt back left, inside it.
     const hung: KnownDiagramAnnotation = { id: 'hung', kind: 'label', from: [2.05, 0.25], to: [2.05, 0.25], text: 'P', sizePt: 9, offsetPt: [-200, 0] };

@@ -602,8 +602,10 @@ export type DiagramPicture =
  * by strokes across it, each part ticked, as a draftsman's dimension is
  * (Revision 2), and an enlarge area: a circle or a rounded rectangle marking
  * what a later step may show enlarged (Revision 2), a star, filled or
- * outlined, naming a point, and an eye, in profile, saying where the next
- * view is from (Revision 3) — drawing one changes no other step.
+ * outlined, naming a point, an eye, in profile, saying where the next view
+ * is from, and an oval or a rectangle, an outline round an area of any size
+ * and proportion, as a diagram rings the places a repeat applies to
+ * (Revision 3) — drawing one changes no other step.
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
@@ -627,7 +629,9 @@ export type DiagramAnnotationKind =
   | 'close-up'
   | 'zoom'
   | 'star'
-  | 'eye';
+  | 'eye'
+  | 'oval'
+  | 'rectangle';
 
 /**
  * How an enlarged step draws its frame (Revision 2): only where it crosses
@@ -889,14 +893,16 @@ export interface KnownDiagramAnnotation {
   /**
    * An enlarge area that is a rounded rectangle: its width and height in
    * picture units, about its centre `from`. Exactly one of this and `radius`
-   * (Revision 2).
+   * (Revision 2). An oval's or a rectangle's, always written, so it rings the
+   * same part of the picture at any print size (Revision 3).
    */
   size?: [number, number];
   /**
    * An enlarge area's turn, in degrees clockwise, from a pose that carried it;
    * unsaid, 0 (Revision 2). A star's turn on the page, one point up at 0, and
    * the way an eye looks, clockwise from looking right, each within
-   * [0, 360); unsaid, 0 (Revision 3).
+   * [0, 360); an oval's or a rectangle's turn, by its handles or a pose that
+   * carried it, within [0, 180); unsaid, 0 (Revision 3).
    */
   angle?: number;
   /** How the steps enlarged from an area draw their frame; unsaid, its shape's own (Revision 2). */
