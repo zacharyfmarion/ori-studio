@@ -10,6 +10,11 @@ He approved the design below for all four items ("sounds good"). This is a
 small PR stacked on #436 (branch `claude/diagram-review-fixes`). Each item is
 its own commit, or its own small run of commits.
 
+Item 5 came out of items 2 and 3's reviews. Zach said "yes" to (a), fixing
+the marks that float over the whole model when Enlarged is turned off. (b)
+follows his decided rule in item 3: switching Show as keeps a step enlarged,
+so its frame must land properly for every Show as.
+
 ## Approach
 
 ### 1. The path width defaults to 20 mm
@@ -218,6 +223,182 @@ The design:
     area") otherwise, as Refresh Picture is, and the store refuses it, so no
     undo step changes nothing.
 
+### 5. Enlarged turned off, and Show as Simulated
+
+#### (a) Turning Enlarged off maps the marks back onto the same paper
+
+Today:
+
+- **Marks are in the window's units.** An enlarged step keeps its marks in
+  its window's units (16e). Turning Enlarged off carries them from the window
+  to the whole picture: `unenlargeStep` → `withZoom` → `carryBetween` →
+  `carryMarks`. Turning it on carries them the other way, and lines across
+  the frame are trimmed (16h).
+- **The bug.** `carryMarks` moves the author's marks only while they are in
+  step with the picture (`annotatedPictureKey` is the picture's key). Marks
+  drawn on an older picture keep the window's numbers. On the whole picture,
+  those numbers spread the marks over the model.
+- **On the crane.** Steps 23 and 24 open out of step: their marks were drawn
+  before the picture last changed (D8). Turned off, each mark moved 0.63
+  picture units, from the head to the middle of the model.
+
+The design:
+
+- **A change of units carries every mark.** This applies when a window is
+  placed on the picture the step shows, moved on it or dropped. Every mark
+  the build can read goes, in step with the picture or not, so each stays
+  where it shows on the picture. The step stays in or out of step as it was:
+  `carryMarks` gains `unitsOnly`, and `carryBetween` sets it. That is
+  `withZoom`'s one carry.
+- **Off and on.** Turned off, the marks land where the window showed them.
+  Turned on again, they go back into the window. Each is one undo step, as
+  before. Lines trimmed at the frame stay trimmed (16h's accepted change),
+  and trimming them again on the way in changes nothing.
+- **The same rule wherever `withZoom` carries.** Besides off and on, that is:
+  - the frame moved, resized or reshaped by hand;
+  - Update and Update All (rf4's known gap: "Update leaves the step's own
+    marks where they were in the window");
+  - faces given to a picture in place (`anchorInPlace`).
+
+  Each is a change of units on one picture, so a mark there would otherwise
+  move on the paper.
+- **`startsWhole` is a change of picture, and carries too.** It is the one
+  other `withZoom` carry: a step that had no picture takes one (an upload,
+  a References card, or a first link of another type than its run) and
+  drops its frame. Its marks were drawn in a window on another picture,
+  most often, so they mark nothing on the new one either way. Item 3
+  accepted carrying them to the whole picture ("carries its marks to the
+  whole picture, where they mark nothing"). Before rf5 only marks in step
+  with the new picture went, which happens only when the same picture is
+  given back; the rest kept the window's numbers. Now every mark this
+  build can read goes, and stays out of step with the new picture, so item
+  3's accepted rule now holds. On the crane's step 24, Remove Picture then
+  an SVG upload puts the marks small at the upload's upper right, where
+  the frame sat in picture units (the review's probe,
+  `artifacts/review-fixes/5/startswhole/3-uploaded.png`).
+- **Unchanged.** A step with a mark this build cannot read still keeps them
+  all where they were, out of step. So does a step with a mark that could not
+  come back within reach. A re-pose, a Refresh and a relink change the
+  picture, not only the units, and carry as before (D8).
+
+#### (b) Show as Simulated on an enlarged step
+
+Planned: the frame lands on the simulated picture's paper, so every Show as
+lands properly:
+
+- Crease Pattern through the Z8 amendment's top-face landing;
+- Folded and Simulated through the imprint.
+
+*As found (not built; Zach to choose).* The imprint cannot land on a
+simulated picture today, because a simulated picture has no faces on the
+paper. Z8 decided this: "3D, simulated, References and uploaded steps keep
+the frame in picture units", and `paperFacesOf` returns null for them.
+
+Show as Simulated always captures at 0%, which is the flat sheet seen
+through the step's camera (`renderToShowAs`, `flatScene`). The frame keeps
+the place it had in picture units, so it shows other paper. On the crane,
+by the Step pane's Show as buttons (the implementer's
+`probe-showas-<23|24>-strip.png`; the reviewer's
+`review/b-light-24-strip.png` and `review/b-dark-23-strip.png`, under
+`artifacts/review-fixes/5/`):
+
+- **From Folded,** the frame shows a slice of the tilted sheet, not the
+  head.
+- **From Crease Pattern,** it frames the corner of the picture's box, where
+  the diamond-shaped sheet leaves only white, the marks floating there.
+- **The same step lands on different paper by the path it took.** The
+  imprint survives Simulated, so Folded is landed right again. But
+  Folded → Simulated → Crease Pattern lands through the anchor face's
+  imprint, not the top face's (`landedOnSheet` needs the picture before to
+  be a folded one with faces): step 23's frame goes to (0.19, 0.92), the
+  bottom-left of the sheet, where Folded → Crease Pattern puts it on the
+  head's corner at (0.965, 0.984). That is the miss the Z8 amendment fixed.
+  Crease Pattern → Simulated → Crease Pattern is fine, and every Undo gives
+  the step back as it was.
+
+*Corrected after review.* The first write-up said nothing in a stored
+simulated picture says where the paper lies in it, so landing needs new data
+at capture. That went too far. The step keeps its camera (`render.view`), and
+a 0% picture is a fixed function of the region's simulator fold and that
+camera:
+
+- `flatScene` scales the fold (`foldScaledForSolver`), takes its flat
+  positions, frames them (`framingOf`), and projects them through
+  `cameraUniforms(view, centre, radius, 512, 512)` (`SIMULATED_FRAME_PX`)
+  with perspective (`stillFrame`);
+- `meshToPaperScene` paints each mesh triangle straight between its
+  projected corners (`projectVertices`, the CPU mirror of the shader), so
+  the map from the paper to the picture is affine on each triangle.
+
+The main thread already builds that fold (`storeSimulationFold`) before
+handing it to the worker. What is missing is the map itself, not anything
+it is made from. *Checked on the crane* (`option-1b/probe-1b.mjs`, steps 23
+and 24): the main thread ran the worker's own steps on the fold it sent, and
+every corner the stored scene paints (328) lies on the projected mesh within
+0.006 px, the scene's 0.01 px storage step; the two bounds agree to 0.005
+px. The fold's sheet lies at (x, 0, z), x from −200 to 200 and z from
+−5700 to −5300, so its paper coordinates need a shift, and perhaps a flip,
+that this did not check.
+
+Options. Each says what it does to the path-dependent landing above.
+
+1. **A 0% simulated picture keeps its faces on the paper**: each mesh
+   triangle's place on the paper and in the picture, stored as
+   `paperFaces` as a flat fold's are, not in the picture's key. Then:
+   - `paperFacesOf` reads them as an unfolded sheet, and `landedOnSheet` and
+     `anchoredOffSheet` treat any unfolded sheet (a crease pattern or a 0%
+     simulated picture) alike. That fixes the path dependence too.
+   - The file reader keeps `paperFaces` on a 0% simulated picture (today
+     only on a flat fold's, `diagramFile.ts`, with a fit check like
+     `paperFacesFitScene`). The field exists; an older build drops them, as
+     it reads any picture without faces.
+   - Simulated steps captured before have none until refreshed. Pose's
+     captures above 0% are the solver's positions, which only the worker
+     has, so they stay in picture units.
+   - **At a tilt the window shows the same paper at its centre, but not the
+     same shape of it.** A triangle's map is affine, while the imprint fits
+     each face's placement as a similarity (`zoomImprint.ts`). Under the
+     crane's simulated camera (pitch −0.955, yaw 45°), the square sheet is
+     a diamond 598 px wide and 369 px tall in the stored scene, about 0.6
+     as tall as wide. A circle in the window then covers an ellipse on the
+     paper, and a similarity fitted to a large triangle (the crane's mesh
+     has 70) misplaces the centre. The placement for this kind of face
+     should be the triangle's own affine map (a change in `zoomImprint`
+     for it); untested.
+   - It amends Z8, and it is a phase of its own: capture, the file,
+     `zoomImprint` and tests.
+
+   Where the faces are made is an implementation choice, not a product one:
+   - **1a. In the worker**: `flatScene` returns them beside the scene. The
+     worker prepares that mesh already; one more return value from it.
+   - **1b. On the main thread** (the review's option): from the fold it
+     already builds and the step's camera, with the worker's own pure
+     functions (`framingOf`, `cameraUniforms`, `projectVertices`;
+     `foldScaledForSolver` moved out of the worker's module so the two
+     share it). No change to the worker's API, and the probe above shows it
+     exact on the crane; but the main thread prepares the mesh a second
+     time per capture (`prepareFoldModel`), unmeasured on a dense model.
+     Kept only in memory rather than in the file, a reopened file's
+     simulated steps have none until refreshed; rebuilding them later needs
+     the pattern as it was at capture.
+2. **Show as Simulated turns Enlarged off,** in Show as's undo step, as a
+   first link of another type does since rf3. A plain trade-off: it
+   reverses item 3's decided rule ("switching Show as keeps the step
+   enlarged") for Simulated only, while Crease Pattern, the other view of
+   the unfolded sheet, stays enlarged through its top-face landing. It is
+   small. The path dependence goes, since a Simulated step is no longer
+   enlarged.
+3. **Keep Z8, and fix only the round trip.** Folded → Simulated imprints
+   afresh through the top face, as the Z8 amendment does onto a crease
+   pattern, so a later Crease Pattern lands on the head. It is small, and
+   fixes the path dependence, but the simulated window still shows other
+   paper. It is also the first step of option 1.
+
+*Recommended,* if Show as Simulated stays enlarged: option 1, made in the
+worker (1a), since the worker prepares the mesh already; 1b if the worker's
+API should stay as it is. Option 3 alone keeps the step enlarged on a
+window that shows other paper, which is what (b) set out to fix.
+
 ## Affected Areas
 
 Paths under `apps/web/src/` unless rooted.
@@ -286,6 +467,22 @@ Paths under `apps/web/src/` unless rooted.
   - i18n: `public/locales/*/panels.json`.
   - Tests: beside each module, plus a file round-trip in
     `diagramFile.test.ts`.
+- **5. Enlarged turned off, and Show as Simulated.**
+  - (a): `diagram/zoom/zoomFrames.ts` (`carryMarks`, `carryBetween`,
+    `startsWhole`'s comment; the module's table). Tests:
+    `zoomFrames.test.ts`, `diagramZoom.test.ts`, `diagramDocument.test.ts`
+    (Remove Picture then Upload). Docs:
+    `implementation-plans/diagram-revision-2.md` (the table's "Enlarged
+    turned off" row).
+  - (b), if option 1 is chosen: `diagram/capture/captureFolded.ts`
+    (`captureSimulated`, `SimulateFlat`),
+    `store/workspaceStore/diagramCapture.ts` (`storeSimulateFlat`),
+    `diagram/zoom/zoomImprint.ts` (`paperFacesOf`, a triangle's affine
+    placement), `diagram/zoom/zoomFrames.ts` (`landedOnSheet`,
+    `anchoredOffSheet`), `diagram/document/diagramFile.ts` (`paperFaces` on
+    a 0% simulated picture). 1a adds `simulator/simulatorSession.ts`
+    (`flatScene`); 1b moves `foldScaledForSolver` out of it into a module
+    the main thread shares.
 
 ## Checklist
 
@@ -389,7 +586,8 @@ Paths under `apps/web/src/` unless rooted.
     - An empty step that starts enlarged cannot be turned off until it has a
       picture.
     - Turning Enlarged off leaves the step's marks where they sat on the
-      enlarged picture (already so; may belong with item 4).
+      enlarged picture (already so; may belong with item 4). *Item 5 (a):*
+      the marks were out of step with the picture.
     - Already so, out of scope: the iPad's pick view cuts the crane off at
       the left; FieldRow and SegmentedRow targets in the drawer are under
       44 px; Reset leaves focus on the page once it removes itself.
@@ -527,21 +725,24 @@ Paths under `apps/web/src/` unless rooted.
       (`rf3-evidence-implementer.png`, steps 25–26), `review-fix/` (a run
       start relinked; Insert Step After an enlarged upload), `review/` (the
       reviewer's walk).
-  - Open calls for Zach:
+  - Open calls, decided 2026-10-08:
     - Remove Picture then Upload, or Link as another type, on an enlarged
       step that continues a run drops its frame and carries its marks to the
       whole picture, where they mark nothing; Replace Picture keeps it
       enlarged. Keeping the frame there needs the seed marked when it is
       made (a transient flag the file need not keep) and `startsWhole`
-      applied only to it.
+      applied only to it. *Decided: dropping the frame there is accepted for
+      now.*
     - Confirm that a new empty step after an enlarged upload or References
       step starts whole, which makes the 2026-10-07 question moot.
+      *Decided: such a step is not seeded.*
   - Seen in review, pre-existing: Show as Simulated on an enlarged step
     keeps it enlarged, but the window shows no paper (the frame keeps the
     Crease Pattern landing's picture-unit place, off the simulated sheet).
-    On the crane, step 25 (Pattern 24) frames only a small wedge, and a step
-    continuing its run copies that faithfully; it may belong with item 4's
-    Update.
+    *Item 5 (b).* Separately, on the crane, step 25 (Pattern 24) frames
+    only a small wedge, and a step continuing its run copies that
+    faithfully. Not Simulated, and no 5 (b) option touches it: *item 5's
+    open items* (a Folded step whose anchor face the fold moves).
 
 ### 4. "Area out of date" notices
 
@@ -740,6 +941,126 @@ Paths under `apps/web/src/` unless rooted.
     out of date at once. Update moves the frame but leaves the step's own
     marks where they were in the window. Step pane action rows are 28 px
     tall, under the 44 px touch target in the phone drawers (pre-existing).
+
+### 5. Enlarged turned off, and Show as Simulated
+
+- [x] (a) Every `withZoom` carry moves every readable mark, in step with the picture or not
+  - Marks are carried by `carryMarks(..., { unitsOnly })` in
+    `zoomFrames.ts`, which `carryBetween`, `withZoom`'s one carry, sets.
+    The author's marks go whenever this build can read them all, whatever
+    `annotatedPictureKey` says, and the step stays in or out of step as it
+    was.
+  - On the step's own picture that is a change of units: Enlarged off and
+    on, a hand move, resize or reshape, Update and Update All, and
+    `anchorInPlace`. Each mark stays where it shows, so Enlarged turned off
+    puts the crane's out-of-step marks on the head, not over the model.
+  - `startsWhole` is a change of picture: a step that had no picture takes
+    one and drops its frame. Its marks are carried to the new whole picture
+    and stay out of step with it, which is item 3's accepted rule ("carries
+    its marks to the whole picture, where they mark nothing"). Before rf5,
+    only marks already in step with the new picture went.
+  - Unchanged: a mark this build cannot read, or one that cannot come back
+    within reach, keeps every mark where it was, out of step. A re-pose
+    (`reposeFrame`), Refresh and relink (`withCarriedAnnotations`) change
+    the picture and carry as before (D8). Lines trimmed at the frame stay
+    trimmed. Off is "Show whole step" and on is "Enlarge step", one undo
+    step each.
+  - Documented in `carryMarks`', `carryBetween`'s and `startsWhole`'s
+    comments, the module's table and revision-2's "Enlarged turned off"
+    row.
+- [x] (a) Tests that fail before the change, all three failing on HEAD af01028ae's `zoomFrames.ts`
+  - `zoomFrames.test.ts`, an enlarged crane step whose marks are out of
+    step: turned off, every mark stays where it showed, still out of step;
+    on again, the marks go back into the window, where they were; moved by
+    hand, then placed again by Update, they stay on the same paper (rf4's
+    known gap).
+  - `diagramZoom.test.ts` (store): off and on are one undo step each, the
+    marks stay on the paper and out of step, and two Undos give the step
+    back. On HEAD the store's invariant watcher (`marksProblems`) also
+    reported "step-2: marks moved on the paper (mark)".
+  - `diagramDocument.test.ts`: Remove Picture, then Upload, on an enlarged
+    linked step. The frame goes and the marks are carried to the upload's
+    whole picture, out of step with it. On HEAD they kept the window's
+    numbers. The rf3 test beside it gives the same upload back, so its
+    marks are in step and it passes either way.
+- [x] (a) Gate on the committed tree (the worktree held only this phase's changes)
+  - `npm run lint:web`, `tsc --noEmit` and `i18n:check` clean;
+    `git diff --check` clean.
+  - The whole vitest suite (Node 22): 889 files and 12092 tests passed;
+    2 files and 15 tests skipped.
+- [x] (a) Browser: the crane's steps 23 and 24, light and dark (`artifacts/review-fixes/5/`)
+  - `verify-a.mjs` clicks the Enlarged switch on Annotate's section heading
+    off, then on, on each step, then Undo three times.
+  - Before (HEAD af01028ae's `zoomFrames.ts`, put back and restored
+    byte-identical): turned off, the marks moved 0.63 picture units, from
+    the head to the middle of the model.
+  - After: turned off, they moved 0 on the picture and sit on the head,
+    still out of step; turned on, under 1e-16. Undo gives each step back as
+    it opened. No console errors.
+  - The verifier re-ran it on the committed code (`verify-<light|dark>*`):
+    the same numbers, and cards pixel-identical to the implementer's
+    `after-*` captures.
+  - Evidence: `rf5-evidence.png` from `composite-rf5.py`: (a) as opened,
+    off before and off after, light and dark; (b)'s current behaviour from
+    the reviewer's walk. Facts are in `<before|verify>-<light|dark>.json`.
+- [ ] (b) Show as Simulated lands the frame on the simulated picture's paper: **not built, needs Zach's choice; open in the PR notes**
+  - The planned mechanism, landing through the imprint, needs a simulated
+    picture to have faces on the paper. Z8 kept those from it, so the
+    imprint has nothing to land on. The Approach has the facts and options
+    1–3. Recommended, if Show as Simulated stays enlarged: option 1, its
+    faces made in the worker (1a).
+  - Until then the window shows other paper, and the same step lands on
+    different paper by its path: Folded → Simulated → Crease Pattern puts
+    step 23's frame at the sheet's bottom-left, while Folded → Crease
+    Pattern puts it on the head. Options 1 and 3 fix that; option 2
+    removes it.
+  - Probes: `probe-showas.mjs` (`probe-showas-<23|24>-strip.png`) and the
+    reviewer's walk by real Show as clicks, `review/walk-b.mjs`
+    (`review/b-<light-24|dark-23>-strip.png` and `.json`).
+  - Option 1b's first question, exactness, is answered on the crane:
+    `option-1b/probe-1b.mjs` runs the worker's pure steps on the main
+    thread over the fold and camera it sent, and every painted corner of
+    the stored scene (328) lies on the projected mesh within 0.006 px
+    (`option-1b/step-<23|24>.json`). Not checked: the fold's paper
+    coordinates (its sheet is at z −5700 to −5300), a dense model's
+    main-thread cost, and the placement at a tilt.
+- [x] Item 3's two open calls recorded as decided (2026-10-08)
+  - Dropping the frame of a mid-run enlarged step on Remove Picture, then
+    Upload or Link as another type, is accepted for now.
+  - An empty step after an enlarged upload or References step is not
+    seeded. The 2026-10-07 question in `diagram-revision-2.md` says so.
+- [x] i18n and analytics: no string, event or property changed.
+- [x] Review: 9 findings (3 major, 6 minor)
+  - The three majors are (b) unbuilt and the path-dependent landing it
+    leaves. Their fix is Zach's choice, so (b) stays open above, with the
+    review's main-thread option added as 1b.
+  - Fixed: the plan overstated what a simulated picture lacks; option 2
+    misread item 3 (now a plain trade-off: it reverses the decided Show as
+    rule for Simulated only, while Crease Pattern stays enlarged);
+    `startsWhole` was called a change of units and had no test of its real
+    case; the step 25 note was filed under (b).
+  - Noted, out of scope: the card header's truncation (below).
+- Open items found in rf5's review, pre-existing, not part of (b), for Zach:
+  - **Step 25 frames a sliver.** The crane's step 25 (Folded, 158°,
+    enlarged from step 22's area) shows only a sliver of the head at the
+    bottom of its window, so its card looks almost blank in Steps and on
+    page 3 (`review/crop-s25-selected.png`, `review/s25-annotate.png`,
+    `review/e-light-pages-23-24-off.png`). Turned off and on again it
+    captures the same frame, (0.6761, 0.1218) r 0.2165
+    (`review/s25b.mjs`), and whole it shows the head pointing right at the
+    bottom of where the frame sits (`review/s25-off.png`). So it is the
+    landing, not stale file data: most likely a Folded step whose anchor
+    face (Z9) is moved by the fold being diagrammed, here an inside
+    reverse fold, lands its frame off that paper. Not Simulated, and no
+    5 (b) option touches it.
+  - **The card header cuts "Enlarged · 22".** With the type badge
+    SIMULATED · 0% or CREASE PATTERN, the header reads "Enlar…" or
+    "Enla…", light and dark (`review/crop-b-light-24-1-simulated-card.png`,
+    `review/b-light-24-strip.png`, `review/b-dark-23-strip.png`). Item 3
+    keeps steps enlarged across Show as, so the provenance number is lost
+    on every such step. A fix for the card header, for example letting the
+    badge shrink first, or keeping the icon and step number without the
+    word.
 
 ### Finish
 
