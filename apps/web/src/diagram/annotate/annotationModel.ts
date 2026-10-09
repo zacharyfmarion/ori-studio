@@ -58,8 +58,8 @@ export interface PictureFrame {
  * - `path`: a white arrow, dragged straight from tail to tip, and always a
  *   path, shaped from there;
  * - `line`: a crease line, dragged, drawn in the diagram's pens;
- * - `point`: a sign, a label or a circle, put down with a click at one point
- *   (`to` is `from`);
+ * - `point`: a sign, a label, a circle or a star (Revision 3), put down with
+ *   a click at one point (`to` is `from`);
  * - `corner`: a right-angle mark, put down in a corner — with a click on a
  *   right angle, or a drag from its corner into the angle — `to` saying only
  *   which way it opens ({@link RIGHT_ANGLE_DIAGONAL});
@@ -107,6 +107,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'solid-line': 'line',
   label: 'point',
   circle: 'point',
+  star: 'point',
   'right-angle': 'corner',
   callout: 'callout',
   'angle-mark': 'angle',
@@ -229,6 +230,7 @@ export function behindEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to'
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'star':
       return [];
   }
 }
@@ -305,6 +307,82 @@ export function withWhiteArrowLook(annotation: KnownDiagramAnnotation, look: Whi
   if (fill === undefined) return changed;
   const { fill: _was, ...unfilled } = changed;
   return fill === 'black' ? { ...unfilled, fill } : unfilled;
+}
+
+/**
+ * How far a star's `scale` goes, times its print size (Revision 3, R3-30a
+ * A): half to four times, a star 1.5 to 12 mm across. Its transform box
+ * holds a resize to it, and a file's past it is a newer build's. The eye
+ * (18c) shares it.
+ */
+export const GLYPH_SCALE = { min: 0.5, max: 4 } as const;
+
+/** A star's size as drawn, times its print size: unsaid, 1. */
+export function glyphScaleOf({ scale }: Pick<KnownDiagramAnnotation, 'scale'>): number {
+  return scale ?? 1;
+}
+
+/** A star's turn as drawn, in degrees clockwise on the page, one point up at 0: unsaid, 0. */
+export function glyphAngleOf({ angle }: Pick<KnownDiagramAnnotation, 'angle'>): number {
+  return angle ?? 0;
+}
+
+/** A scale held to {@link GLYPH_SCALE}; 1 for one that is no number. */
+export function glyphScaleWithin(scale: number): number {
+  return Number.isFinite(scale) ? Math.min(GLYPH_SCALE.max, Math.max(GLYPH_SCALE.min, scale)) : 1;
+}
+
+/** Degrees clockwise turned into [0, 360), as the file reads a star's turn; 0 for no number. */
+export function glyphAngle(degrees: number): number {
+  if (!Number.isFinite(degrees)) return 0;
+  const turned = degrees % 360;
+  const within = turned < 0 ? turned + 360 : turned;
+  // A turn a hair short of a whole one is upright again, not 359.9999999.
+  return Math.abs(within - 360) < 1e-9 || Math.abs(within) < 1e-9 ? 0 : within;
+}
+
+/** A star at `scale` times its print size, held to its range: written only when it is not 1. */
+export function withGlyphScale(annotation: KnownDiagramAnnotation, scale: number): KnownDiagramAnnotation {
+  const next = glyphScaleWithin(scale);
+  const { scale: _was, ...rest } = annotation;
+  return next === 1 ? rest : { ...rest, scale: next };
+}
+
+/** A star turned to `degrees` clockwise, within [0, 360): written only when it is turned. */
+export function withGlyphAngle(annotation: KnownDiagramAnnotation, degrees: number): KnownDiagramAnnotation {
+  const next = glyphAngle(degrees);
+  const { angle: _was, ...rest } = annotation;
+  return next === 0 ? rest : { ...rest, angle: next };
+}
+
+/** A star filled with ink or an outline (R3-4 C, R3-5 A): its fill written only when it is filled, as a white arrow's is. */
+export function withStarFill(annotation: KnownDiagramAnnotation, fill: DiagramWhiteArrowFill): KnownDiagramAnnotation {
+  return withWhiteArrowLook(annotation, { fill });
+}
+
+/**
+ * A star as this build writes it: its centre within reach and `to` on it; a
+ * fill only when it is filled; its turn within [0, 360) and its scale within
+ * {@link GLYPH_SCALE}, each dropped when it is no number. The same object
+ * when it already is.
+ */
+function cleanStar(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const from = withinReach(annotation.from);
+  const { fill: wasFill, angle: wasAngle, scale: wasScale, ...rest } = annotation;
+  const fill = wasFill === 'black' ? wasFill : undefined;
+  const angle = wasAngle !== undefined && Number.isFinite(wasAngle) ? glyphAngle(wasAngle) : undefined;
+  const scale = wasScale !== undefined && Number.isFinite(wasScale) ? glyphScaleWithin(wasScale) : undefined;
+  const same =
+    samePoint(from, annotation.from) && samePoint(from, annotation.to) && fill === wasFill && angle === wasAngle && scale === wasScale;
+  if (same) return annotation;
+  return {
+    ...rest,
+    from,
+    to: [from[0], from[1]],
+    ...(fill !== undefined ? { fill } : {}),
+    ...(angle !== undefined ? { angle } : {}),
+    ...(scale !== undefined ? { scale } : {}),
+  };
 }
 
 /** How far past the frame an annotation may reach, in frame lengths: an arrow may start off the picture. */
@@ -449,6 +527,7 @@ function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation 
   if (annotation.kind === 'divisions') return cleanDivisions(annotation);
   if (annotation.kind === 'close-up') return cleanCloseUp(annotation);
   if (annotation.kind === 'zoom') return cleanZoom(annotation);
+  if (annotation.kind === 'star') return cleanStar(annotation);
   const from = withinReach(annotation.from);
   const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
   const text = annotation.text === undefined ? undefined : cleanLabelText(annotation.text);
@@ -905,6 +984,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'solid-line':
     case 'label':
     case 'circle':
+    case 'star':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
@@ -957,6 +1037,7 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'solid-line':
     case 'circle':
+    case 'star':
     case 'right-angle':
     case 'angle-mark':
     case 'divisions':
@@ -989,6 +1070,7 @@ export function carriesColor(kind: DiagramAnnotationKind): boolean {
     case 'mountain-line':
     case 'hidden-line':
     case 'circle':
+    case 'star':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
@@ -1033,6 +1115,7 @@ export function carriesTextStyle(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'solid-line':
     case 'circle':
+    case 'star':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
@@ -1192,6 +1275,7 @@ export function annotationEnds(annotation: Pick<KnownDiagramAnnotation, 'kind' |
     case 'turn-over':
     case 'rotate':
     case 'circle':
+    case 'star':
     case 'right-angle':
     case 'angle-mark':
     case 'close-up':
@@ -1926,6 +2010,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'solid-line':
     case 'label':
     case 'circle':
+    case 'star':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
@@ -2114,6 +2199,7 @@ export function kindFromOtherSide(kind: DiagramAnnotationKind): DiagramAnnotatio
     case 'solid-line':
     case 'label':
     case 'circle':
+    case 'star':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
@@ -2385,6 +2471,7 @@ export function flipsOver(kind: DiagramAnnotationKind): boolean {
     case 'turn-over':
     case 'label':
     case 'circle':
+    case 'star':
     case 'zoom':
       return false;
   }

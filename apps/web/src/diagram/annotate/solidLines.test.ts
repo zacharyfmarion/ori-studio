@@ -148,14 +148,14 @@ describe('a solid line, edited (17a)', () => {
   });
 
   it('is pressed along its length, as every line is', () => {
-    const sizes = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066, calloutPen: 0.0025 };
+    const sizes = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066, calloutPen: 0.0025, px: 0.0025 };
     expect(hitAnnotation([blue], [0.3, 0.33], sizes, null)).toEqual({ annotationId: 'solid', part: 'body' });
     expect(hitAnnotation([blue], [0.3, 0.4], sizes, null)).toBeNull();
     expect(hitAnnotation([blue], [0.5, 0.325], sizes, 'solid')).toEqual({ annotationId: 'solid', part: 'to' });
   });
 
   it('is pressed where it is drawn: among the marks, in the order they were added, over the pens’ lines', () => {
-    const sizes = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066, calloutPen: 0.0025 };
+    const sizes = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066, calloutPen: 0.0025, px: 0.0025 };
     const push: KnownDiagramAnnotation = { id: 'push', kind: 'push-arrow', from: [0.1, 0.32], to: [0.5, 0.32] };
     // Drawn after the arrow, over it: the press is the line's; drawn before, under it, the arrow's.
     expect(hitAnnotation([push, blue], [0.3, 0.32], sizes, null)?.annotationId).toBe('solid');

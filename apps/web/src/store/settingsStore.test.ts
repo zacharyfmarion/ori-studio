@@ -191,6 +191,21 @@ describe('settingsStore', () => {
     expect((await freshSettingsStore()).getState().diagramAnnotateTextStyle).toEqual({ ...plain, halo: true });
   });
 
+  it('lays a filled star until Outline is chosen, remembers it, and reads anything else as filled (Revision 3, R3-4 C)', async () => {
+    const key = storageKey(STORAGE_KEYS.diagramAnnotateStarFill);
+    localStorage.removeItem(key);
+    expect((await freshSettingsStore()).getState().diagramAnnotateStarFill).toBe('black');
+    useSettingsStore.getState().setDiagramAnnotateStarFill('white');
+    expect(localStorage.getItem(key)).toBe('white');
+    expect((await freshSettingsStore()).getState().diagramAnnotateStarFill).toBe('white');
+    // Back to Filled forgets the key; a hand-edited one is filled.
+    useSettingsStore.getState().setDiagramAnnotateStarFill('black');
+    expect(localStorage.getItem(key)).toBeNull();
+    localStorage.setItem(key, 'grey');
+    expect((await freshSettingsStore()).getState().diagramAnnotateStarFill).toBe('black');
+    localStorage.removeItem(key);
+  });
+
   it('remembers Solid as the line type (17a)', async () => {
     useSettingsStore.getState().setDiagramAnnotateLineType('solid');
     expect((await freshSettingsStore()).getState().diagramAnnotateLineType).toBe('solid');

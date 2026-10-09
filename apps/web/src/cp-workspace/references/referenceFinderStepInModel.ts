@@ -162,6 +162,10 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
           mirrored: primitive.mirrored !== reverses,
         });
         break;
+      case 'star':
+        // Its place moves; its turn and size are its own, on the page.
+        primitives.push({ ...primitive, at: map(primitive.at) });
+        break;
       case 'region':
         primitives.push({ kind: 'region', corners: primitive.corners.map(map) });
         break;

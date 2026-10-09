@@ -229,6 +229,71 @@ describe('a circle', () => {
   });
 });
 
+describe('a star (Revision 3)', () => {
+  const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
+  const box = { x: 0, y: 0, width: 400, height: 300 };
+  const filled = a('s', 'star', { from: [0.5, 0.5], to: [0.5, 0.5], fill: 'black' });
+  const outline = a('s', 'star', { from: [0.5, 0.5], to: [0.5, 0.5] });
+  const arrow = a('v', 'valley-arrow', { from: [0.1, 0.2], to: [0.4, 0.2], bend: ARROW_BEND });
+  const corners = (d: string) => [...d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map(([, x, y]) => [Number(x), Number(y)] as const);
+
+  it('compiles to a star on its point, filled as a white arrow is — unsaid, an outline — at its turn and its scale', () => {
+    const drawing = annotationDrawing(
+      [filled, outline, a('t', 'star', { from: [0.2, 0.4], to: [0.2, 0.4], angle: 30, scale: 2 })],
+      FRAME,
+      CARD_FRAME_PX,
+      DEFAULT_DIAGRAM_STYLE
+    );
+    // y up, as References' unit frame is.
+    expect(drawing.primitives).toEqual([
+      { kind: 'star', at: [0.5, -0.5], fill: 'black', angle: 0, scale: 1 },
+      { kind: 'star', at: [0.5, -0.5], fill: 'white', angle: 0, scale: 1 },
+      { kind: 'star', at: [0.2, -0.4], fill: 'white', angle: 30, scale: 2 },
+    ]);
+  });
+
+  it('is filled with the marks’ ink and not stroked, its first tip straight up, 4.5 ink out', () => {
+    const { markup } = paintAnnotations([filled, arrow], box, 400, DEFAULT_DIAGRAM_STYLE)!;
+    const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
+    const star = /<path d="(M [^"]*Z)" stroke="none" fill="([^"]+)"/.exec(markup)!;
+    expect(star).not.toBeNull();
+    expect(star[2]).toBe(head);
+    const points = corners(star[1]!);
+    expect(points).toHaveLength(10);
+    expect(points[0]![0]).toBeCloseTo(200, 2);
+    expect(points[0]![1]).toBeCloseTo(200 - 4.5 * ink, 2);
+  });
+
+  it('is outlined in a ring’s pen and the marks’ ink, mitred, over the page’s white', () => {
+    const { markup } = paintAnnotations([outline, arrow], box, 400, DEFAULT_DIAGRAM_STYLE)!;
+    const white = /<path d="(M [^"]*Z)" stroke="none" fill="#ffffff"/.exec(markup);
+    expect(white).not.toBeNull();
+    const stroke = /<path d="M [^"]*Z" stroke-width="([\d.]+)" stroke-linejoin="miter" stroke-miterlimit="4" fill="none" stroke="([^"]+)"/.exec(
+      markup
+    );
+    expect(stroke).not.toBeNull();
+    const [, shaft] = /<path d="M [^"]*A [^"]*" stroke-width="([\d.]+)"/.exec(markup)!;
+    const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
+    // A ring's pen (R3-26 A): three quarters of the arrow's, 0.5625 pt in the Diagram preset.
+    expect(Number(stroke![1])).toBeCloseTo(0.75 * Number(shaft), 3);
+    expect(Number(stroke![1])).toBeCloseTo(0.5625 * PT_TO_CSS_PX, 3);
+    expect(stroke![2]).toBe(head);
+  });
+
+  it('reaches past the frame as far as its tips: a filled one’s own, an outline’s mitre, turned and scaled', () => {
+    // Off the frame's top edge, one tip up.
+    const up = (more: Partial<KnownDiagramAnnotation>) => a('s', 'star', { from: [0.5, -0.1], to: [0.5, -0.1], ...more });
+    const top = (more: Partial<KnownDiagramAnnotation>) => paintAnnotations([up(more)], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.y;
+    expect(top({ fill: 'black' })).toBeCloseTo(-40 - 4.5 * ink, 3);
+    expect(top({ fill: 'black', scale: 2 })).toBeCloseTo(-40 - 9 * ink, 3);
+    // Turned a tenth of a turn: an inner corner straight up, the tips beside it lower.
+    expect(top({ fill: 'black', angle: 36 })).toBeCloseTo(-40 - 4.5 * ink * Math.cos(Math.PI / 5), 3);
+    // An outline's tip mitred half its pen over sin 18° past the corner.
+    const pen = 0.5625 * PT_TO_CSS_PX;
+    expect(top({})).toBeCloseTo(-40 - 4.5 * ink - pen / 2 / Math.sin(Math.PI / 10), 3);
+  });
+});
+
 describe('a right angle (Revision 2)', () => {
   const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
   // At the vertex (0.5, 0.5), opening down and to the right.

@@ -13,6 +13,8 @@
  */
 import { LineHitIndex, type IndexedSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { labelBox } from '../annotate/annotationHit';
+import { transformBoxOf } from '../annotate/transformGrips';
+import { boxCornersModel } from '../../lib/transformBox';
 import {
   closeUpShape,
   frameOf,
@@ -159,9 +161,9 @@ function marksNear(window: PictureBox, annotations: readonly DiagramAnnotation[]
 }
 
 /**
- * What a mark's points span, its rings' radii round them, an area's outline
- * and hung text's words where they hang (17b): near enough to tell one far
- * off a window.
+ * What a mark's points span, its rings' radii round them, an area's outline,
+ * a star's turned box at its scale (Revision 3) and hung text's words where
+ * they hang (17b): near enough to tell one far off a window.
  */
 function markExtent(mark: KnownDiagramAnnotation): [number, number, number, number] {
   const points: PicturePoint[] = [mark.from, mark.to];
@@ -188,6 +190,10 @@ function markExtent(mark: KnownDiagramAnnotation): [number, number, number, numb
     const { x, y, width, height } = frameWindow(zoomOutlineOf(mark));
     take([x, y]);
     take([x + width, y + height]);
+  } else if (mark.kind === 'star') {
+    // A star (Revision 3): its turned box at its scale, the print size it keeps in any window.
+    const box = transformBoxOf(mark);
+    for (const { x, y } of box ? boxCornersModel(box) : []) take([x, y]);
   } else if (mark.radius !== undefined) take(mark.from, mark.radius);
   else if (isHungText(mark)) {
     // Its words can hang a window or more off its anchor, and they are what is drawn.

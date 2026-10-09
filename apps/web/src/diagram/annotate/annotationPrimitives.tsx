@@ -122,6 +122,8 @@ import {
   divisionsOffsetOf,
   divisionsPartsOf,
   DEFAULT_WHITE_ARROW,
+  glyphAngleOf,
+  glyphScaleOf,
   isArrowKind,
   LABEL_SIZE,
   labelHalfWidth,
@@ -506,6 +508,18 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
     case 'circle':
       // No letter (decision 8): a label names it, if anything does.
       return { kind: 'mark', primitive: { kind: 'point', at: up(from), style: 'highlight' } };
+    case 'star':
+      // Its fill as a white arrow's; its turn and size its own, on the page (Revision 3).
+      return {
+        kind: 'mark',
+        primitive: {
+          kind: 'star',
+          at: up(from),
+          fill: annotation.fill ?? 'white',
+          angle: glyphAngleOf(annotation),
+          scale: glyphScaleOf(annotation),
+        },
+      };
     case 'right-angle':
       // `to` says only which way it opens: the drawing sizes it.
       return { kind: 'mark', primitive: { kind: 'right-angle', at: up(from), toward: up(to) } };

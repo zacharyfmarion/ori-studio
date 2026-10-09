@@ -35,6 +35,24 @@
   cursor: crosshair;
 }
 
+/*
+ * With Select over a selected star's transform box (Revision 3): the Edit
+ * canvas's cursors for its box — move on the body, pointer on a scale square,
+ * grab on a turn handle. Before Space's grab, which wins as an armed pan does
+ * there.
+ */
+.view[data-transform-hover='body'] .stage {
+  cursor: move;
+}
+
+.view[data-transform-hover='scale'] .stage {
+  cursor: pointer;
+}
+
+.view[data-transform-hover='rotate'] .stage {
+  cursor: grab;
+}
+
 .view[data-space-pan] .stage {
   cursor: grab;
 }
@@ -100,6 +118,26 @@
   stroke: var(--annotate-selection);
   stroke-width: 1.5px;
   vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/*
+ * A selected star's transform box (Revision 3): its outline, as the Edit
+ * canvas's image selection draws one — solid, in the selection's ink — and
+ * its squares and turn handles, white as the grips are. Each stroke is 1.5
+ * screen px, set on the element divided by the camera's zoom
+ * (`TransformBoxSelection`): `non-scaling-stroke` does not see the camera's
+ * CSS transform, so a width here would grow and shrink with the zoom.
+ */
+.transformBox {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+.transformHandle {
+  fill: #ffffff;
+  stroke: var(--annotate-selection);
   pointer-events: none;
 }
 

@@ -180,7 +180,7 @@ describe('moving and carrying a close-up (15f)', () => {
 });
 
 describe('pressing a close-up (15f)', () => {
-  const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066, calloutPen: 0.0025 };
+  const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066, calloutPen: 0.0025, px: 0.0025 };
 
   it('takes either circle by its inside, alone, and the whole by its line', () => {
     expect(hitAnnotation([closeUp()], [1.25, 0.35], SIZES, null)).toEqual({ annotationId: 'zoom', part: 'circle', end: 'to' });

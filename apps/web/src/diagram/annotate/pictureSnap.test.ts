@@ -162,6 +162,12 @@ describe('pictureSnapTarget on annotations', () => {
     expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [circle], ignore: circle.id })).toBeNull();
   });
 
+  it('snaps to a star’s centre, as a point the picture marks, as a circle’s (Revision 3, R3-24 A)', () => {
+    const star = annotation({ kind: 'star', from: [0.45, 0.35], to: [0.45, 0.35], fill: 'black', angle: 20, scale: 2 });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [star] })).toEqual({ at: [0.45, 0.35], kind: 'point' });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [star], ignore: star.id })).toBeNull();
+  });
+
   it('snaps to the corner a right angle marks, not to the way it opens', () => {
     const square = annotation({ kind: 'right-angle', from: [0.45, 0.35], to: [0.47, 0.35] });
     expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [square] })).toEqual({

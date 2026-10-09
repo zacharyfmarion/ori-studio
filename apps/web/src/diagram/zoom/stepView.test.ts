@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { pictureGeometry } from '../annotate/pictureGeometry';
+import { INK_UNITS } from '../annotate/canvasInk';
 import {
   createDiagram,
   insertSteps,
@@ -157,6 +158,18 @@ describe('the marks an enlarged step draws', () => {
       ...(mark.path ? { path: mark.path.map((node) => ({ at: [node.at[0] + 1, node.at[1]] as [number, number], ...(node.in ? { in: [node.in[0] + 1, node.in[1]] as [number, number] } : {}) })) } : {}),
     }));
     expect(marksInWindow(window, away)).toEqual([]);
+  });
+
+  it('reaches a star’s turned box at its scale: one beside the window’s edge touches it as far as its tips reach (Revision 3)', () => {
+    // Four times its print size, centred just right of the frame (1 × 0.5): its box's half side, 4.5 × 4 ink.
+    const half = 4.5 * 4 * INK_UNITS;
+    const star: KnownDiagramAnnotation = { id: 'star', kind: 'star', from: [1 + 1.2 * half, 0.25], to: [1 + 1.2 * half, 0.25], scale: 4 };
+    // Upright, its box stops short of the frame; turned 45°, its corner reaches back over it.
+    expect(marksTouchingWindow(window, [star])).toEqual([]);
+    const turned = { ...star, angle: 45 };
+    expect(marksTouchingWindow(window, [turned])).toEqual([turned]);
+    // At its print size, turned or not, it is off the frame.
+    expect(marksTouchingWindow(window, [{ ...turned, scale: undefined }])).toEqual([]);
   });
 
   it('reaches hung text’s words where they hang, however far off its anchor is (17b)', () => {

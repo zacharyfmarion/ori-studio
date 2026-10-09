@@ -40,8 +40,10 @@ describe('DiagramAnnotateRail', () => {
     const marks = [...container.querySelectorAll('#diagram-annotate-group-marks button[aria-label]')].map((button) =>
       button.getAttribute('aria-label')
     );
+    // The star after the circle (Revision 3, R3-25 A).
     expect(marks).toEqual([
       'Circle',
+      'Star',
       'Right Angle',
       'Equal Angles',
       'Equal Divisions',
@@ -49,6 +51,41 @@ describe('DiagramAnnotateRail', () => {
       'Enlarge',
       'Enlarge in Frame',
     ]);
+  });
+
+  it('shows the Star Fill under Marks while the Star tool is in hand, keeps it for the next star, and draws the tool as the star it lays (Revision 3, R3-4 C)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    useSettingsStore.setState({ diagramAnnotateStarFill: 'black' });
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const render = (tool: 'star' | 'circle' | null) =>
+      act(() =>
+        root!.render(
+          <TooltipProvider>
+            <DiagramAnnotateRail tool={tool} readOnly={false} onTool={() => undefined} />
+          </TooltipProvider>
+        )
+      );
+    const group = () => container!.querySelector('section[aria-label="Star Fill"]');
+    const toolFill = () => container!.querySelector('#diagram-annotate-group-marks button[aria-label="Star"] [data-glyph-fill]')!.getAttribute('data-glyph-fill');
+    render(null);
+    expect(group()).toBeNull();
+    expect(toolFill()).toBe('black');
+    render('circle');
+    expect(group()).toBeNull();
+    render('star');
+    // Right under the Marks group.
+    const sections = [...container.querySelectorAll('section')].map((each) => each.getAttribute('aria-label'));
+    expect(sections.slice(sections.indexOf('Marks'), sections.indexOf('Marks') + 2)).toEqual(['Marks', 'Star Fill']);
+    const options = () => [...group()!.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Star Fill"] button')];
+    // Filled, then Outline, each a small star; Filled until one is chosen.
+    expect(options().map((each) => each.getAttribute('aria-label'))).toEqual(['Filled', 'Outline']);
+    expect(options().map((each) => each.querySelector('[data-glyph-fill]')!.getAttribute('data-glyph-fill'))).toEqual(['black', 'white']);
+    expect(options().map((each) => each.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
+    act(() => options()[1]!.click());
+    expect(useSettingsStore.getState().diagramAnnotateStarFill).toBe('white');
+    expect(toolFill()).toBe('white');
   });
 
   it('holds the Enlarge tools on an enlarged step, and only them (Revision 2)', () => {

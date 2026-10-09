@@ -92,6 +92,7 @@ function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null 
     case 'solid-line':
     case 'label':
     case 'circle':
+    case 'star':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':

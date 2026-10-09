@@ -54,8 +54,8 @@ describe('the rail', () => {
       },
       { id: 'lines', tools: ['line', 'angle-bisector'] },
       // The two equality marks side by side (ED8).
-      // Enlarge and Enlarge in Frame after Close-Up (Z1).
-      { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark', 'divisions', 'close-up', 'enlarge', 'enlarge-frame'] },
+      // Enlarge and Enlarge in Frame after Close-Up (Z1). The star after the circle (Revision 3, R3-25 A).
+      { id: 'marks', tools: ['circle', 'star', 'right-angle', 'angle-mark', 'divisions', 'close-up', 'enlarge', 'enlarge-frame'] },
       { id: 'text', tools: ['label', 'callout'] },
     ]);
     // Every kind is drawn by a tool: each its own, the lines by Line in each
@@ -160,6 +160,15 @@ describe('the tool window', () => {
         title: 'Circle',
         instructions: 'Click a point to circle it.',
         modifiers: ['Hold Cmd to put it down anywhere, without snapping.'],
+      },
+      // Put down as a circle is; turned in 15° steps with Select (Revision 3, R3-24 A, R3-28 A).
+      star: {
+        title: 'Star',
+        instructions: 'Click a point to mark it with a star.',
+        modifiers: [
+          'Hold Cmd to put it down anywhere, without snapping.',
+          'With Select, Shift-drag a round handle at a corner to turn it in 15° steps.',
+        ],
       },
       'right-angle': {
         title: 'Right Angle',

@@ -57,6 +57,8 @@ import { DiagramAnnotationLayer } from './DiagramAnnotationLayer';
 import { DiagramCloseUpInsides } from './DiagramCloseUpInsides';
 import { markGeometry, markPaper } from '../../diagram/zoom/stepView';
 import { zoomGrips } from '../../diagram/zoom/zoomGrips';
+import { transformBoxHandles } from '../../diagram/annotate/transformGrips';
+import { TRANSFORM_HANDLE_SIZE_PX, TRANSFORM_ROTATE_HANDLE_RADIUS_PX, TRANSFORM_STROKE_PX } from '../../lib/transformBox';
 import { zoomOutlineOf, zoomOutlinePoints } from '../../diagram/zoom/zoomModel';
 import { DiagramZoomView } from './DiagramZoomView';
 import styles from './DiagramAnnotateCanvas.module.css';
@@ -152,6 +154,7 @@ export function DiagramAnnotateCanvas({
         data-tool={tool ?? 'select'}
         data-draws={isDrawingTool(tool) || undefined}
         data-picking={canvas.pickingAnchor || undefined}
+        data-transform-hover={canvas.transformHover ?? undefined}
         tabIndex={-1}
         onPointerDownCapture={onPointerDownCapture}
         {...handlers}
@@ -391,6 +394,9 @@ function Selection({
     case 'zoom':
       // Along its outline, all the way round, with its grips (Revision 2).
       return <ZoomOutlineSelection outline={zoomOutlineOf(annotation)} layout={layout} zoom={zoom} movable={movable} />;
+    case 'star':
+      // Its transform box, as an image's on the Edit canvas (Revision 3).
+      return <TransformBoxSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
   }
   const points = path.map(at);
   const corner = box && at([box.x, box.y]);
@@ -608,6 +614,74 @@ function ZoomOutlineSelection({
           const [x, y] = at(point);
           const name = grip.part === 'corner' ? `corner-${grip.corner}` : grip.part === 'edge' ? `edge-${grip.edge}` : grip.part;
           return <circle key={name} className={styles.handle} cx={x} cy={y} r={handle} data-handle={`zoom-${name}`} />;
+        })}
+    </g>
+  );
+}
+
+/**
+ * A selected star's transform box (Revision 3): the Edit canvas's image
+ * selection, from the same layout (`transformHandles`) — its outline at
+ * 1.5 screen px, a square at each corner that scales it about its centre, and
+ * a round handle 18 screen px out from each corner that turns it — in the
+ * selection's ink, the squares and handles white as the Diagram's grips are,
+ * sized for the screen at any zoom — their strokes too, divided by the
+ * camera's zoom as the frame line's are: the world is drawn under the
+ * camera's CSS transform, which `non-scaling-stroke` does not see (18b
+ * review). Round a small star the box is drawn at least 24 screen px across
+ * (R3-30c B). No handles on a diagram that cannot change.
+ */
+function TransformBoxSelection({
+  annotation,
+  layout,
+  zoom,
+  movable,
+}: {
+  annotation: KnownDiagramAnnotation;
+  layout: AnnotateLayout;
+  zoom: number;
+  movable: boolean;
+}) {
+  // One screen px, in picture units: what the handles are laid out and pressed at.
+  const drawn = transformBoxHandles(annotation, 1 / (zoom * layout.unit));
+  if (!drawn) return null;
+  const at = ({ x, y }: { x: number; y: number }) => [layout.frame.x + x * layout.unit, layout.frame.y + y * layout.unit] as const;
+  const corners = drawn.corners.map(([x, y]) => at({ x, y }));
+  const side = TRANSFORM_HANDLE_SIZE_PX / zoom;
+  const stroke = TRANSFORM_STROKE_PX / zoom;
+  return (
+    <g data-selection="" data-transform-box="">
+      <polygon className={styles.transformBox} points={polylinePoints(corners)} strokeWidth={stroke} />
+      {movable &&
+        drawn.handles.rotate.map(({ corner, at: point }) => {
+          const [x, y] = at(point);
+          return (
+            <circle
+              key={`rotate-${corner}`}
+              className={styles.transformHandle}
+              cx={x}
+              cy={y}
+              r={TRANSFORM_ROTATE_HANDLE_RADIUS_PX / zoom}
+              strokeWidth={stroke}
+              data-handle={`rotate-${corner}`}
+            />
+          );
+        })}
+      {movable &&
+        drawn.handles.scale.map(({ handle, at: point }) => {
+          const [x, y] = at(point);
+          return (
+            <rect
+              key={handle}
+              className={styles.transformHandle}
+              x={x - side / 2}
+              y={y - side / 2}
+              width={side}
+              height={side}
+              strokeWidth={stroke}
+              data-handle={`scale-${handle}`}
+            />
+          );
         })}
     </g>
   );

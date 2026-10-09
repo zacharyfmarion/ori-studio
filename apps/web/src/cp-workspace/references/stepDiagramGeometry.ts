@@ -35,6 +35,7 @@ import {
   DIAGRAM_PUSH_INK,
   DIAGRAM_RIGHT_ANGLE_INK,
   DIAGRAM_ROTATE_INK,
+  DIAGRAM_STAR_INK,
   DIAGRAM_TURN_OVER_INK,
   DIAGRAM_WHITE_ARROW_INK,
   type DiagramMarks,
@@ -2602,6 +2603,46 @@ export function rightAngleDrawn(
 export function auxMarkPen(project: DiagramProjector): number {
   return project.pens.aux.width * project.ink;
 }
+
+/**
+ * A regular five-pointed star's corners about `centre`, tip, inner corner,
+ * tip and on round — ten of them — `radius` to each tip and `inner` of that
+ * to each inner corner, its first tip `angle` degrees clockwise from straight
+ * up on a y-down page: one point up at 0.
+ */
+export function starPoints(centre: SvgPoint, radius: number, angle: number, inner: number = DIAGRAM_STAR_INK.inner): SvgPoint[] {
+  const turn = (angle * Math.PI) / 180;
+  return Array.from({ length: 10 }, (_, index) => {
+    const reach = index % 2 === 0 ? radius : radius * inner;
+    const at = turn + (index * Math.PI) / 5;
+    return { x: centre.x + reach * Math.sin(at), y: centre.y - reach * Math.cos(at) };
+  });
+}
+
+/** A star as a picture draws it: its ten corners, and the pen an outlined one is stroked in. */
+export interface StarDrawn {
+  points: SvgPoint[];
+  /** A ring's pen (R3-26 A): what an outlined star is stroked in, mitred at its tips. */
+  pen: number;
+}
+
+/**
+ * A star (Revision 3) centred on `at`, in sheet units, as a picture draws it:
+ * `DIAGRAM_STAR_INK`'s star at `scale` times its print size, turned `angle`
+ * degrees clockwise on the page. The projector places it and sizes it, but
+ * never turns or mirrors it: its turn is its own, as a tick's lean is, so a
+ * star upright on the page stays upright in a turned or mirrored picture.
+ * The one place its drawn shape is decided.
+ */
+export function starDrawn(at: readonly [number, number], angle: number, scale: number, project: DiagramProjector): StarDrawn {
+  return {
+    points: starPoints(project(at), DIAGRAM_STAR_INK.radius * scale * project.ink, angle),
+    pen: markRingWidth(project),
+  };
+}
+
+/** An outlined star's tips are mitred, never bevelled: a regular star's 36° tip mitres 3.24 pens out, under SVG's own limit. */
+export const STAR_MITER_LIMIT = 4;
 
 /** A right-angle mark as one path: its ∟, then its square's two sides — so where they overlap, the ink is never doubled. */
 export function rightAnglePathData({ legs, square }: RightAngleShape): string {

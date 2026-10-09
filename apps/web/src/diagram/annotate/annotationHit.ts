@@ -23,6 +23,7 @@ import {
   DIAGRAM_PLEAT_INK,
   DIAGRAM_PUSH_INK,
   DIAGRAM_RIGHT_ANGLE_INK,
+  DIAGRAM_STAR_INK,
   DIAGRAM_WHITE_ARROW_INK,
 } from '../../cp-workspace/references/diagram/diagramInk';
 import {
@@ -42,6 +43,7 @@ import {
   pushArrowOutline,
   returnStroke,
   rightAngleShape,
+  starPoints,
   whiteArrowOutline,
   type AngleMarkShape,
   type DivisionsShape,
@@ -62,6 +64,8 @@ import {
   closeUpShape,
   divisionsOffsetOf,
   divisionsPartsOf,
+  glyphAngleOf,
+  glyphScaleOf,
   isCornerKind,
   rightAngleDiagonal,
   labelCentre,
@@ -75,6 +79,7 @@ import { nearestPathPoint, pathNodesOf, visiblePathHandles } from './annotationP
 import { ANNOTATION_INK_MM } from './canvasInk';
 import { perAnnotation } from './perAnnotation';
 import { TEXT_HALO_EMS } from './textStyle';
+import { hasTransformBox, transformGripAt, type TransformHandle } from './transformGrips';
 import { zoomGripAt, type ZoomGrip } from '../zoom/zoomGrips';
 import { distanceToRim, zoomOutlineOf } from '../zoom/zoomModel';
 
@@ -88,7 +93,9 @@ import { distanceToRim, zoomOutlineOf } from '../zoom/zoomModel';
  * anywhere inside to move it, or by its ring to resize it (15f); and the
  * handle at the middle of equal divisions' line, which sets how far off the
  * line they measure it stands, as a drag of the mark does (Revision 2); and
- * a selected enlarge area's centre, rim, corners or edges (`zoomGrips.ts`).
+ * a selected enlarge area's centre, rim, corners or edges (`zoomGrips.ts`);
+ * and a selected star's transform box, a scale square or a turn handle
+ * (Revision 3, `transformGrips.ts`).
  */
 export type AnnotationGripPart =
   | { part: 'body' }
@@ -103,7 +110,8 @@ export type AnnotationGripPart =
   | { part: 'circle'; end: 'from' | 'to' }
   | { part: 'ring'; end: 'from' | 'to' }
   | { part: 'offset' }
-  | { part: 'zoom'; zoom: ZoomGrip };
+  | { part: 'zoom'; zoom: ZoomGrip }
+  | { part: 'transform'; handle: TransformHandle };
 
 /** What a press took hold of: the annotation, and which part of it. */
 export type AnnotationGrip = { annotationId: string } & AnnotationGripPart;
@@ -123,6 +131,11 @@ export interface HitSizes {
   ink: number;
   /** A callout's outline's pen, as the canvas draws it: outside its box, and all of it taken. */
   calloutPen: number;
+  /**
+   * One screen px, in picture units at the zoom the press is made at: what a
+   * transform box's handles are drawn and pressed at (Revision 3).
+   */
+  px: number;
 }
 
 /** How many straight pieces an arrow's arc is measured and washed along. */
@@ -474,6 +487,27 @@ export function circleRadius(ink: number): number {
   return DIAGRAM_MARK_INK.radius * ink;
 }
 
+/**
+ * How far a star reaches from its centre in picture units, at the ink a press
+ * is measured in: its tips at its scale (`DIAGRAM_STAR_INK`), and half an ink
+ * for an outline's pen (Revision 3).
+ */
+export function starRadius(annotation: Pick<KnownDiagramAnnotation, 'scale'>, ink: number): number {
+  return (DIAGRAM_STAR_INK.radius * glyphScaleOf(annotation) + 0.5) * ink;
+}
+
+/**
+ * Whether a star covers `point` as it is drawn, at the ink a press is
+ * measured in: inside its ten corners at its scale and turn — ink, or an
+ * outline's page white — but not in the gaps between its arms, where what is
+ * under it shows.
+ */
+function starCovers(annotation: KnownDiagramAnnotation, point: PicturePoint, ink: number): boolean {
+  const [x, y] = annotation.from;
+  const corners = starPoints({ x, y }, DIAGRAM_STAR_INK.radius * glyphScaleOf(annotation) * ink, glyphAngleOf(annotation));
+  return insidePolygon(point, corners.map(({ x: u, y: v }): PicturePoint => [u, v]));
+}
+
 /** How far a press is from a box, in picture units: 0 inside it. */
 function boxDistance([x, y]: PicturePoint, box: { x: number; y: number; width: number; height: number }): number {
   const dx = Math.max(box.x - x, 0, x - (box.x + box.width));
@@ -749,6 +783,9 @@ function bodyDistance(
       return distanceToSegment(point, annotation.from, annotation.to);
     case 'circle':
       return Math.abs(Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - circleRadius(sizes.ink));
+    case 'star':
+      // Anywhere inside its tips' reach, at its scale: a small mark, taken whole.
+      return Math.max(0, Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - starRadius(annotation, sizes.ink));
     case 'right-angle':
       return rightAngleDistance(annotation, point, sizes.ink);
     case 'angle-mark':
@@ -781,6 +818,16 @@ function bodyDistance(
 const HOLLOW_KINDS: ReadonlySet<DiagramAnnotationKind> = new Set(['push-arrow', 'white-arrow']);
 
 /**
+ * Whether a mark drawn after a circle hides its ring at `point`: a hollow
+ * arrow inside its outline, and a star, filled or not, where its arms are
+ * (Revision 3, 18b review) — a circle's ring lies within a star's tips.
+ */
+function coversCircle(other: KnownDiagramAnnotation, point: PicturePoint, sizes: HitSizes, marks: readonly PicturePoint[]): boolean {
+  if (other.kind === 'star') return starCovers(other, point, sizes.ink);
+  return HOLLOW_KINDS.has(other.kind) && bodyDistance(other, point, sizes, marks) === 0;
+}
+
+/**
  * The lines drawn in the diagram's pens, under every mark. A solid line is a
  * line to every other question, but it is drawn in References' pen among the
  * marks, in the order they were added (17a), so it is pressed there too.
@@ -795,7 +842,11 @@ export function hitAnnotation(
 ): AnnotationGrip | null {
   const known = annotations.filter(isKnownAnnotation);
   const selected = known.find((annotation) => annotation.id === selectedId);
-  if (selected?.kind === 'close-up') {
+  if (selected && hasTransformBox(selected)) {
+    // A star's transform box (Revision 3): a scale square or a turn handle, before anything drawn under it.
+    const handle = transformGripAt(selected, point, { px: sizes.px, reach: sizes.tolerance });
+    if (handle) return { annotationId: selected.id, part: 'transform', handle };
+  } else if (selected?.kind === 'close-up') {
     // A ring resizes what it is round, a centre's dot moves its circle.
     const grip = closeUpGripAt(selected, point, sizes.tolerance);
     if (grip) return { annotationId: selected.id, ...grip };
@@ -858,14 +909,12 @@ export function hitAnnotation(
       continue;
     }
     if (annotation.kind === 'circle' && annotation.id !== selectedId) {
-      // A hollow arrow drawn after a circle is filled with the page over it:
+      // A hollow arrow or a star drawn after a circle is drawn over it:
       // where it covers the press, the circle is hidden, and the press goes
-      // on to what is drawn there — the arrow, or a mark over it. Not once
-      // it is selected: its ring is then drawn over everything, the grip
-      // that moves it out from under.
-      const hidden = known
-        .slice(known.indexOf(annotation) + 1)
-        .some((other) => HOLLOW_KINDS.has(other.kind) && bodyDistance(other, point, sizes, marks) === 0);
+      // on to what is drawn there — the arrow or the star, or a mark over
+      // it. Not once it is selected: its ring is then drawn over everything,
+      // the grip that moves it out from under.
+      const hidden = known.slice(known.indexOf(annotation) + 1).some((other) => coversCircle(other, point, sizes, marks));
       if (hidden) continue;
     }
     if (annotation.kind === 'close-up') {

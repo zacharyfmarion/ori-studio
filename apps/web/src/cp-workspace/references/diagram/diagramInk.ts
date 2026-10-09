@@ -226,9 +226,20 @@ export type DiagramWhiteArrowWidth = 'narrow' | 'regular' | 'wide';
 /**
  * What a white arrow is filled with: the page's white, or the arrow's own ink
  * — a solid arrow, as diagrams draw a push to flatten or a block to slide
- * (15d). The same outline either way, in the same pen.
+ * (15d). The same outline either way, in the same pen. A star's fill too
+ * (Revision 3): an outline, white inside, or filled with the marks' ink.
  */
 export type DiagramWhiteArrowFill = 'white' | 'black';
+
+/**
+ * A star naming a point (Revision 3), in ink at `scale` 1: five points, one
+ * up, `radius` from its centre to each tip — 4.5 ink, about 3 mm across, the
+ * size of an arrowhead, as the star in Zach's sample is — and its inner
+ * corners `inner` of that out, a regular star's (1 / φ², 0.382), whose sides
+ * run on in straight lines through the tips beside them. An outlined star is
+ * stroked in a ring's pen, mitred at its tips; a filled one is not stroked.
+ */
+export const DIAGRAM_STAR_INK = { radius: 4.5, inner: 0.382 } as const;
 
 /**
  * A white arrow's three widths, in ink: its shaft's width at the head (the

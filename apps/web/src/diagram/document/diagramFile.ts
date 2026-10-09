@@ -53,6 +53,7 @@ import {
   DEFAULT_WHITE_ARROW,
   DIVISIONS_OFFSET_MM,
   DIVISIONS_PARTS,
+  GLYPH_SCALE,
   LABEL_MAX_LENGTH,
   MAX_BEHIND_LAYERS,
   MAX_BEND,
@@ -1086,6 +1087,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     divisions: fields('parts', 'offset', 'mirrored', 'ticks', 'numbered', 'shortDividers'),
     'close-up': fields('radius', 'scale'),
     zoom: fields('radius', 'size', 'angle', 'scale', 'edge', 'anchor'),
+    star: fields('fill', 'angle', 'scale'),
   };
 })();
 
@@ -1304,6 +1306,23 @@ function readAnnotationOfKind(
       if (color === NEWER || color === null) return color;
       return color !== undefined ? { ...annotation, color } : annotation;
     }
+    case 'star': {
+      // Its fill, as a white arrow's; its scale, as a close-up's, past its
+      // range a newer build's — news before damage, as for the rest. Its turn
+      // is any number, read within [0, 360); one that does not read is
+      // dropped alone, and the star kept upright.
+      const fill = readFill(entry.fill);
+      const scale = readGlyphScale(entry.scale);
+      if (fill === NEWER || scale === NEWER) return NEWER;
+      if (fill === null || scale === null) return null;
+      const angle = finiteNumber(entry.angle);
+      return {
+        ...annotation,
+        ...(fill !== undefined ? { fill } : {}),
+        ...(angle !== null ? { angle: normalizeDegrees(angle) } : {}),
+        ...(scale !== undefined ? { scale } : {}),
+      };
+    }
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
     case 'push-arrow':
@@ -1461,6 +1480,17 @@ function readCloseUpScale(value: unknown): number | undefined | typeof NEWER | n
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
   return value < CLOSE_UP_SCALE.min || value > CLOSE_UP_SCALE.max ? NEWER : value;
+}
+
+/**
+ * A star's scale (Revision 3): unsaid, its print size; a positive number,
+ * as a close-up's is read, past {@link GLYPH_SCALE} a newer build's; anything
+ * else, damage.
+ */
+function readGlyphScale(value: unknown): number | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  return value < GLYPH_SCALE.min || value > GLYPH_SCALE.max ? NEWER : value;
 }
 
 /**

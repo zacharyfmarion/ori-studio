@@ -803,6 +803,87 @@ describe('DiagramLayersPanel', () => {
     expect(row('White Arrow')).toBeDefined();
   });
 
+  describe('a star (Revision 3)', () => {
+    function starred(more: Partial<KnownDiagramAnnotation> = {}) {
+      const stepId = annotatedStep();
+      act(() => {
+        state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+          ...list,
+          { id: 's-1', kind: 'star', from: [0.4, 0.6], to: [0.4, 0.6], ...more },
+        ]);
+        state().openDiagramStep(stepId, 'annotate');
+      });
+      act(() => row('Star').click());
+      return stepId;
+    }
+    const star = () => annotations().find((annotation) => annotation.id === 's-1') as Record<string, unknown>;
+    const fill = (name: string) =>
+      [...host!.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Fill"] button')].find(
+        (option) => option.getAttribute('aria-label') === name
+      )!;
+    const last = () => state().diagramHistory.past.at(-1)?.label;
+
+    it('lists it as a star in its own fill, and fills it or empties it with Fill, each one undo step, counted', () => {
+      starred();
+      tracked.trackDiagramMarkStyled.mockClear();
+      // Its glyph in its own fill: an outline, for one that says none.
+      const glyph = () => row('Star').querySelector('[data-glyph-fill]')!.getAttribute('data-glyph-fill');
+      expect(glyph()).toBe('white');
+      expect(fill('Outline').getAttribute('aria-pressed')).toBe('true');
+      expect([...host!.querySelectorAll('[role="group"][aria-label="Fill"] button')].map((each) => each.getAttribute('aria-label'))).toEqual([
+        'Filled',
+        'Outline',
+      ]);
+      const past = state().diagramHistory.past.length;
+      act(() => fill('Filled').click());
+      expect(star().fill).toBe('black');
+      expect(last()).toBe('Change star');
+      expect(glyph()).toBe('black');
+      expect(tracked.trackDiagramMarkStyled).toHaveBeenLastCalledWith('star', 'fill', 'filled');
+      act(() => fill('Outline').click());
+      expect('fill' in star()).toBe(false);
+      expect(tracked.trackDiagramMarkStyled).toHaveBeenLastCalledWith('star', 'fill', 'outline');
+      expect(state().diagramHistory.past).toHaveLength(past + 2);
+      // Pressed on what it is: nothing changes, nothing counted.
+      act(() => fill('Outline').click());
+      expect(tracked.trackDiagramMarkStyled).toHaveBeenCalledTimes(2);
+      // No Flip row: its turn is its own (a circle has none either).
+      expect(buttonNamed('Flip')).toBeUndefined();
+    });
+
+    it('sets its turn in its Rotation row, in degrees wrapped as an image’s, one undo step, counted as typed (R3-33 A)', () => {
+      starred({ angle: 300 });
+      tracked.trackDiagramMarkStyled.mockClear();
+      const rotation = host!.querySelector<HTMLInputElement>('input[aria-label="Rotation"]')!;
+      // 300° clockwise reads as −60°, as an image's Rotation reads.
+      expect(rotation.value).toBe('-60');
+      act(() => rotation.focus());
+      setField(rotation, '45');
+      act(() => rotation.blur());
+      expect(star().angle).toBe(45);
+      expect(last()).toBe('Rotate annotation');
+      expect(tracked.trackDiagramMarkStyled.mock.calls).toEqual([['star', 'rotation', 'field']]);
+      act(() => rotation.focus());
+      setField(rotation, '-90');
+      act(() => rotation.blur());
+      expect(star().angle).toBe(270);
+      // Back to upright: no turn written.
+      act(() => rotation.focus());
+      setField(rotation, '360');
+      act(() => rotation.blur());
+      expect('angle' in star()).toBe(false);
+      // Kept to a hundredth, as a drag's is: not the wrap's 12.345000000000027 (18b review).
+      act(() => rotation.focus());
+      setField(rotation, '12.345');
+      act(() => rotation.blur());
+      expect(star().angle).toBe(12.35);
+      act(() => rotation.focus());
+      setField(rotation, '-12.345');
+      act(() => rotation.blur());
+      expect(star().angle).toBe(347.66);
+    });
+  });
+
   it('edits a label’s text in one line, and focuses it for a label just put down', async () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));

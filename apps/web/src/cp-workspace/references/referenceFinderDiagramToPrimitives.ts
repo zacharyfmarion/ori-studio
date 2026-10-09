@@ -233,6 +233,21 @@ export type StepDiagramPrimitive =
       shortDividers: boolean;
     }
   /**
+   * A star naming the point `at` (Revision 3): five points, filled with the
+   * marks' ink or — `white` — an outline in a ring's pen, the page's white
+   * inside, as a hollow white arrow is. Its size is the drawing's times
+   * `scale`, and it is turned `angle` degrees clockwise on the page, one
+   * point up at 0: a turned or mirrored projection moves it, but never
+   * turns it. Only an annotation draws one; References never emits it.
+   */
+  | {
+      kind: 'star';
+      at: readonly [number, number];
+      fill: DiagramWhiteArrowFill;
+      angle: number;
+      scale: number;
+    }
+  /**
    * A stretch of the paper a step works in, as a light fill under the lines:
    * the band a grid step's lines are made in, between the bounds the folder
    * sights them from. A convex polygon, in sheet units.

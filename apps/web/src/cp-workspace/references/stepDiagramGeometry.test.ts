@@ -8,6 +8,7 @@ import {
   DIAGRAM_MARKS,
   DIAGRAM_PLEAT_INK,
   DIAGRAM_RIGHT_ANGLE_INK,
+  DIAGRAM_STAR_INK,
   REFERENCES_VIEW_MARKS,
 } from './diagram/diagramInk';
 import {
@@ -68,6 +69,8 @@ import {
   strokePieces,
   pushArrowOutline,
   rightAngleDrawn,
+  starDrawn,
+  STAR_MITER_LIMIT,
   rightAnglePathData,
   rightAngleReach,
   rightAngleShape,
@@ -1204,6 +1207,58 @@ describe('a right-angle mark (Revision 2)', () => {
     const project = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2, pens);
     expect(auxMarkPen(project)).toBeCloseTo(0.6, 12);
     expect(markRingWidth(project)).toBeCloseTo(3, 12);
+  });
+});
+
+describe('a star (Revision 3)', () => {
+  const overlay = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2);
+  const at = [0.5, 0.5] as const;
+  const centre = { x: 50, y: -50 };
+  const distance = (p: SvgPoint) => Math.hypot(p.x - centre.x, p.y - centre.y);
+  // Clockwise on the y-down page from straight up, in degrees.
+  const bearing = (p: SvgPoint) => (((Math.atan2(p.x - centre.x, -(p.y - centre.y)) * 180) / Math.PI) % 360 + 360) % 360;
+
+  it('is ten corners, a tip then an inner corner, one tip straight up at angle 0, 3 mm across at its ink', () => {
+    const { points } = starDrawn(at, 0, 1, overlay);
+    expect(points).toHaveLength(10);
+    points.forEach((point, index) => {
+      expect(distance(point)).toBeCloseTo(index % 2 === 0 ? 4.5 * 2 : 4.5 * 2 * 0.382, 9);
+      expect(bearing(point)).toBeCloseTo((index * 36) % 360, 6);
+    });
+    // Its first tip straight above its centre.
+    expect(points[0]!.x).toBeCloseTo(50, 9);
+    expect(points[0]!.y).toBeCloseTo(-50 - 9, 9);
+    expect(DIAGRAM_STAR_INK).toEqual({ radius: 4.5, inner: 0.382 });
+    // 9 ink across at an annotation's 0.331 mm.
+    expect(2 * DIAGRAM_STAR_INK.radius * 0.331).toBeCloseTo(2.98, 2);
+  });
+
+  it('is turned clockwise by its angle and sized by its scale', () => {
+    const { points } = starDrawn(at, 30, 2, overlay);
+    expect(distance(points[0]!)).toBeCloseTo(4.5 * 2 * 2, 9);
+    expect(bearing(points[0]!)).toBeCloseTo(30, 6);
+    expect(bearing(points[2]!)).toBeCloseTo(102, 6);
+  });
+
+  it('is never turned or mirrored by its projector: a turned or mirrored picture moves it, upright', () => {
+    const turned = (degrees: number, mirrored: boolean) => {
+      const [c, s] = [Math.cos((degrees * Math.PI) / 180), Math.sin((degrees * Math.PI) / 180)];
+      return createOverlayProjector({ origin: [40, 70], ex: [100 * c, 100 * s], ey: mirrored ? [100 * s, -100 * c] : [-100 * s, 100 * c] }, 2);
+    };
+    for (const project of [turned(90, false), turned(33, false), turned(-120, true)]) {
+      const { points } = starDrawn(at, 0, 1, project);
+      const middle = project(at);
+      // Its first tip still straight up the page above wherever it now is.
+      expect(points[0]!.x).toBeCloseTo(middle.x, 9);
+      expect(points[0]!.y).toBeCloseTo(middle.y - 9, 9);
+    }
+  });
+
+  it('is outlined in a ring’s pen, mitred at its tips under SVG’s own limit', () => {
+    const { pen } = starDrawn(at, 0, 1, overlay);
+    expect(pen).toBeCloseTo(markRingWidth(overlay), 12);
+    // A regular star's tip is 36°: its mitre is 1 / sin 18° of the pen, 3.24, inside the limit, so never bevelled.
+    expect(1 / Math.sin(Math.PI / 10)).toBeLessThan(STAR_MITER_LIMIT);
   });
 });
 

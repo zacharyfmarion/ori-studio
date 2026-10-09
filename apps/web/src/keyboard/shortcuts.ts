@@ -117,6 +117,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolSolidLine'
   | 'diagram.toolLabel'
   | 'diagram.toolCircle'
+  | 'diagram.toolStar'
   | 'diagram.toolRightAngle'
   | 'diagram.toolCallout'
   | 'diagram.toolAngleBisector'
@@ -630,6 +631,9 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolLabel', 'Label', { key: 'l' }),
   // O for the ring it draws.
   diagramShortcut('diagram.toolCircle', 'Circle', { key: 'o' }),
+  // K for the star (Revision 3, R3-25 A): S is the solid arrow's, and K is
+  // free in this scope. Zach plans a shortcut pass before merge.
+  diagramShortcut('diagram.toolStar', 'Star', { key: 'k' }),
   // Q for the square it draws in a corner.
   diagramShortcut('diagram.toolRightAngle', 'Right Angle', { key: 'q' }),
   // C for the callout: a line to a box of words.

@@ -83,6 +83,13 @@ import {
   withParts,
   withShortDividers,
   shortDividersShow,
+  carriesColor,
+  GLYPH_SCALE,
+  glyphAngleOf,
+  glyphScaleOf,
+  withGlyphAngle,
+  withGlyphScale,
+  withStarFill,
   type PictureMove,
   type PicturePoint,
 } from './annotationModel';
@@ -1316,5 +1323,63 @@ describe('equal divisions (Revision 2)', () => {
     const slant = { ...top, to: [1, 0.5] as PicturePoint, offset: 0 };
     expect(flipChangesMark(slant, 'vertical')).toBe(true);
     expect(flipChangesMark(slant, 'horizontal')).toBe(true);
+  });
+});
+
+describe('a star (Revision 3)', () => {
+  const star = (more: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnotation => ({
+    id: 's-1',
+    kind: 'star',
+    from: [0.3, 0.4],
+    to: [0.3, 0.4],
+    ...more,
+  });
+
+  it('is put down at one point with a click, snapping as a circle does, an outline until its fill says otherwise', () => {
+    expect(createAnnotation('star', [0.3, 0.4], [0.9, 0.9], SQUARE, id)).toEqual({ id: 'annotation-1', kind: 'star', from: [0.3, 0.4], to: [0.3, 0.4] });
+    expect(placedByClick('star')).toBe(true);
+    expect(isDegenerate(star(), MIN_ANNOTATION_LENGTH)).toBe(false);
+    // Laid filled by the rail's Star Fill, as the Solid Arrow lays a white arrow filled.
+    expect(withStarFill(star(), 'black')).toEqual(star({ fill: 'black' }));
+    expect(Object.hasOwn(withStarFill(star({ fill: 'black' }), 'white'), 'fill')).toBe(false);
+    // No ends to drag, no path, no text, no colour, nothing behind a flap: its box moves, scales and turns it.
+    expect(annotationEnds(star())).toEqual([]);
+    expect([canBeShaped('star'), carriesText('star'), carriesColor('star'), behindEnds('star').length]).toEqual([false, false, false, 0]);
+    expect(kindFromOtherSide('star')).toBe('star');
+  });
+
+  it('takes a turn within [0, 360) and a scale within half to four times, writing neither at upright and its print size', () => {
+    expect(withGlyphAngle(star(), 370)).toEqual(star({ angle: 10 }));
+    expect(withGlyphAngle(star(), -15)).toEqual(star({ angle: 345 }));
+    expect(Object.hasOwn(withGlyphAngle(star({ angle: 30 }), 360), 'angle')).toBe(false);
+    expect(withGlyphScale(star(), 9)).toEqual(star({ scale: GLYPH_SCALE.max }));
+    expect(withGlyphScale(star(), 0.1)).toEqual(star({ scale: GLYPH_SCALE.min }));
+    expect(Object.hasOwn(withGlyphScale(star({ scale: 2 }), 1), 'scale')).toBe(false);
+    expect([glyphAngleOf(star()), glyphScaleOf(star())]).toEqual([0, 1]);
+  });
+
+  it('is cleaned as the file reads it: its point within reach and `to` on it, a fill only when filled, its turn and scale held', () => {
+    const clean = star({ fill: 'black', angle: 30, scale: 2 });
+    expect(cleanAnnotation(clean)).toBe(clean);
+    // A fill this build does not write — as a hand-edited file might hold — is dropped.
+    const white = { ...star({ to: [0.9, 0.9], angle: 400, scale: 7 }), fill: 'white' } as unknown as KnownDiagramAnnotation;
+    expect(cleanAnnotation(white)).toEqual(star({ angle: 40, scale: GLYPH_SCALE.max }));
+    expect(cleanAnnotation(star({ angle: Number.NaN, scale: Number.POSITIVE_INFINITY }))).toEqual(star());
+    expect(cleanAnnotation(star({ from: [9, 9], to: [9, 9] })).from).toEqual([ANNOTATION_REACH, ANNOTATION_REACH]);
+  });
+
+  it('keeps its turn and its scale through a carry: only its centre goes with the picture (R3-32 A)', () => {
+    const turned = star({ angle: 20, scale: 1.5 });
+    const quarter: PictureMove = { point: ([x, y]) => [1 - y, x], mirrors: false, turnDeg: 90 };
+    expect(carryAnnotation(turned, quarter)).toEqual({ ...turned, from: [0.6, 0.3], to: [0.6, 0.3] });
+    const mirrored = carryAnnotation(turned, mirrorMove(SQUARE));
+    expect(mirrored).toEqual({ ...turned, from: [0.7, 0.4], to: [0.7, 0.4] });
+    // Onto the paper's other side (Turn Over) it is still a star, as it was.
+    expect(carryAnnotation(turned, { ...mirrorMove(SQUARE), otherSide: true })).toEqual(mirrored);
+    // Grown with the picture, as into an enlarged step's window: its print size kept.
+    const grown: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
+    expect(carryAnnotation(turned, grown).scale).toBe(1.5);
+    // Moved, as a paste moves it.
+    expect(moveAnnotation(turned, [0.25, 0.25])).toEqual({ ...turned, from: [0.55, 0.65], to: [0.55, 0.65] });
   });
 });

@@ -25,9 +25,11 @@ import {
   rightAngleDrawn,
   rightAngleReach,
   rotateGlyphDrawn,
+  starDrawn,
   strokedOutlinePoints,
   turnOverDrawn,
   whiteArrowDrawn,
+  STAR_MITER_LIMIT,
   WHITE_ARROW_MITER_LIMIT,
   type Arrowhead,
   type DiagramArc,
@@ -52,6 +54,7 @@ export type DiagramMarkPrimitive = Extract<
       | 'right-angle'
       | 'angle-mark'
       | 'divisions'
+      | 'star'
       | 'pleat-arrow';
   }
 >;
@@ -68,6 +71,7 @@ const MARK_KINDS: ReadonlySet<StepDiagramPrimitive['kind']> = new Set<DiagramMar
   'right-angle',
   'angle-mark',
   'divisions',
+  'star',
   'pleat-arrow',
 ]);
 
@@ -221,6 +225,14 @@ export function markReach(
         take(at.x - halfWidth, at.y - halfHeight, 0);
         take(at.x + halfWidth, at.y + halfHeight, 0);
       }
+      break;
+    }
+    case 'star': {
+      // Its tips, turned and scaled: a filled star's own, an outlined one's
+      // stroke mitred round them, as it is drawn.
+      const star = starDrawn(primitive.at, primitive.angle, primitive.scale, project);
+      const points = primitive.fill === 'black' ? star.points : strokedOutlinePoints(star.points, star.pen, STAR_MITER_LIMIT);
+      for (const { x, y } of points) take(x, y, 0);
       break;
     }
     default: {

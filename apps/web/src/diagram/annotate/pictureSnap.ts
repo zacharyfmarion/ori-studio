@@ -82,8 +82,8 @@ export function pictureSnapTarget(
   for (const annotation of annotations) {
     // A circle's centre is a point the picture marks, as References' ring is
     // (17d): a ring lifted from a card snaps as the card's point did, and so
-    // does one drawn by hand.
-    const kind: SnapTargetKind = annotation.kind === 'circle' ? 'point' : 'annotation';
+    // does one drawn by hand. A star's names a point as a ring does (Revision 3).
+    const kind: SnapTargetKind = annotation.kind === 'circle' || annotation.kind === 'star' ? 'point' : 'annotation';
     for (const at of annotationSnapPoints(annotation, { divisionPoints })) candidates.push({ at, kind });
   }
   for (const at of crossingsNear(geometry, drawnLines(annotations), point, radius)) {
@@ -116,7 +116,7 @@ export function annotationsOf(step: DiagramStep, { annotations, ignore }: SnapOp
 
 /**
  * The points of an annotation another snaps to (Q9): a line's two ends, where
- * a line meets another, a circle's centre, the corner a right angle marks,
+ * a line meets another, a circle's or a star's centre, the corner a right angle marks,
  * the point a callout marks (its box is no point), and the ends of the line
  * equal divisions measure and — with `divisionPoints`, on a picture whose
  * equal parts are the paper's — each point dividing it, so a line drawn from
@@ -142,6 +142,7 @@ export function annotationSnapPoints(
     case 'solid-line':
       return [annotation.from, annotation.to];
     case 'circle':
+    case 'star':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':

@@ -40,9 +40,11 @@ import {
   ringPieces,
   rotateGlyphDrawn,
   sheetCorners,
+  starDrawn,
   strokePieces,
   turnOverDrawn,
   whiteArrowDrawn,
+  STAR_MITER_LIMIT,
   WHITE_ARROW_MITER_LIMIT,
 } from '../stepDiagramGeometry';
 import type {
@@ -309,6 +311,7 @@ export function canLeavePaper(primitive: StepDiagramPrimitive): boolean {
     case 'right-angle':
     case 'angle-mark':
     case 'divisions':
+    case 'star':
     case 'point':
       return true;
     case 'line':
@@ -1008,6 +1011,41 @@ function diagramPrimitiveShape(
           </g>
         );
       });
+    }
+    case 'star': {
+      // A star naming a point (Revision 3): filled with the marks' ink, no
+      // stroke; or an outline in a ring's pen, mitred at its tips, filled
+      // with the face a hollow white arrow is — on an annotation, the page's
+      // white — so the lines under it stop at its outline.
+      const star = starDrawn(primitive.at, primitive.angle, primitive.scale, project);
+      const d = polygonPathData(star.points);
+      return onAndOffPaper(context, index, (inks) =>
+        primitive.fill === 'black' ? (
+          <path
+            key={index}
+            d={d}
+            stroke="none"
+            {...inked(inks, 'step-diagram__arrowhead step-diagram__star', (ink) => ({ fill: ink.mark }))}
+          />
+        ) : (
+          <g key={index} {...inked(inks, 'step-diagram__star', () => ({}))}>
+            <path
+              d={d}
+              stroke="none"
+              {...inked(inks, back ? 'step-diagram__sheet step-diagram__sheet--back' : 'step-diagram__sheet', (sheet) => ({
+                fill: back ? sheet.sheet.back : sheet.sheet.front,
+              }))}
+            />
+            <path
+              d={d}
+              strokeWidth={round(star.pen)}
+              strokeLinejoin="miter"
+              strokeMiterlimit={STAR_MITER_LIMIT}
+              {...inked(inks, 'step-diagram__point step-diagram__star-outline', (ink) => ({ fill: 'none', stroke: ink.mark }))}
+            />
+          </g>
+        )
+      );
     }
     case 'point': {
       const at = project(primitive.at);

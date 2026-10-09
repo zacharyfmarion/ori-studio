@@ -601,8 +601,8 @@ export type DiagramPicture =
  * divisions: a line set off from a line of the picture, cut into equal parts
  * by strokes across it, each part ticked, as a draftsman's dimension is
  * (Revision 2), and an enlarge area: a circle or a rounded rectangle marking
- * what a later step may show enlarged (Revision 2) — drawing one changes no
- * other step.
+ * what a later step may show enlarged (Revision 2), and a star, filled or
+ * outlined, naming a point (Revision 3) — drawing one changes no other step.
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
@@ -624,7 +624,8 @@ export type DiagramAnnotationKind =
   | 'angle-mark'
   | 'divisions'
   | 'close-up'
-  | 'zoom';
+  | 'zoom'
+  | 'star';
 
 /**
  * How an enlarged step draws its frame (Revision 2): only where it crosses

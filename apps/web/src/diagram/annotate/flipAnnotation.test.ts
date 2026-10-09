@@ -117,8 +117,11 @@ describe('flipping a mark over', () => {
     expect(flipAnnotation(level, 'vertical')).toEqual({ ...level, from: near([0.2, 0.3]), to: near([0.6, 0.3]), mirrored: true });
   });
 
-  it('leaves a circle, a label and a turn-over as they are, their point the same either way over; and offers an enlarge area no Flip', () => {
-    expect(ANNOTATION_KINDS.filter((kind) => !flipsOver(kind))).toEqual(['turn-over', 'label', 'circle', 'zoom']);
+  it('leaves a circle, a label and a turn-over as they are, their point the same either way over; and offers an enlarge area and a star no Flip', () => {
+    expect(ANNOTATION_KINDS.filter((kind) => !flipsOver(kind))).toEqual(['turn-over', 'label', 'circle', 'star', 'zoom']);
+    // A star keeps its own turn (Revision 3): no Flip, as a circle, and its box turns it.
+    const star: KnownDiagramAnnotation = { id: 's', kind: 'star', from: [0.5, 0.5], to: [0.5, 0.5], angle: 20 };
+    expect(flipAnnotation(star, 'horizontal')).toBe(star);
     const label: KnownDiagramAnnotation = { id: 'l', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'A' };
     expect(flipAnnotation(label, 'horizontal')).toBe(label);
     expect(flipChangesMark(label, 'vertical')).toBe(false);

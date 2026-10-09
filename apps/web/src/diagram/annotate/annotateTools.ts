@@ -6,6 +6,7 @@ import type { AnnotationPaletteName } from './annotationColors';
 import { isTextSizePt, TEXT_SIZES_PT, type TextStyle } from './textStyle';
 import { DEFAULT_DIAGRAM_LINE_TYPE, lineKindOf, type DiagramLineKind, type DiagramLineType } from './lineTypes';
 import type { PickProgress, ToolNotice } from './pickProgress';
+import type { DiagramStarFill } from './starFill';
 
 /**
  * Annotate's tools (D8), for every surface that offers them: the rail beside
@@ -111,15 +112,24 @@ export interface LineChoice {
 /**
  * The look a tool lays what it draws in ({@link DrawingLook}): `line` the
  * Line tool's choice, `text` the rail's Text Style for the Label tool's
- * (17b); nothing for any other tool.
+ * (17b), `starFill` the rail's Fill for the Star tool's (Revision 3, R3-4 C);
+ * nothing for any other tool.
  */
-export function drawingLook(tool: AnnotateTool, line?: LineChoice, text?: TextStyle): DrawingLook {
+export function drawingLook(tool: AnnotateTool, line?: LineChoice, text?: TextStyle, starFill?: DiagramStarFill): DrawingLook {
   if (tool === SOLID_ARROW) return SOLID_ARROW_LOOK;
   if (tool === ENLARGE) return { shape: 'circle' };
   if (tool === ENLARGE_FRAME) return { shape: 'rounded' };
   if (tool === LINE_TOOL && line?.type === 'solid' && line.color !== null) return { color: line.color };
   if (tool === 'label' && text) return { text };
+  if (tool === 'star' && starFill) return { fill: starFill };
   return {};
+}
+
+/** A star fill's name, for the rail's control and the Layers row. */
+export function starFillLabel(t: TFunction, fill: DiagramStarFill): string {
+  return fill === 'black'
+    ? t('panels:diagram.annotations.starFilled', 'Filled')
+    : t('panels:diagram.annotations.starOutline', 'Outline');
 }
 
 /** Whether a tool lays an enlarge area: Enlarge or Enlarge in Frame. */
@@ -183,6 +193,7 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   [ANGLE_BISECTOR]: 'lines',
   label: 'text',
   circle: 'marks',
+  star: 'marks',
   'right-angle': 'marks',
   'angle-mark': 'marks',
   divisions: 'marks',
@@ -220,6 +231,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   [ANGLE_BISECTOR]: 'diagram.toolAngleBisector',
   label: 'diagram.toolLabel',
   circle: 'diagram.toolCircle',
+  star: 'diagram.toolStar',
   'right-angle': 'diagram.toolRightAngle',
   'angle-mark': null,
   divisions: 'diagram.toolDivisions',
@@ -367,6 +379,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolCloseUp', 'Close-Up');
     case 'zoom':
       return t('panels:diagram.annotations.enlargeArea', 'Enlarge Area');
+    case 'star':
+      return t('tools:diagram.toolStar', 'Star');
   }
 }
 
@@ -439,6 +453,8 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it in the Layers pane.');
     case 'circle':
       return t('panels:diagram.annotate.circleHelp', 'Click a point to circle it.');
+    case 'star':
+      return t('panels:diagram.annotate.starHelp', 'Click a point to mark it with a star.');
     case 'right-angle':
       return t(
         'panels:diagram.annotate.rightAngleHelp',
@@ -675,6 +691,13 @@ function annotateToolModifiers(
         t('panels:diagram.annotate.circleFreeKey', 'Hold {{modifier}} to put it down anywhere, without snapping.', {
           modifier: primary,
         }),
+      ];
+    case 'star':
+      return [
+        t('panels:diagram.annotate.circleFreeKey', 'Hold {{modifier}} to put it down anywhere, without snapping.', {
+          modifier: primary,
+        }),
+        t('panels:diagram.annotate.starShiftKey', 'With Select, Shift-drag a round handle at a corner to turn it in 15° steps.'),
       ];
     case 'right-angle':
       return [

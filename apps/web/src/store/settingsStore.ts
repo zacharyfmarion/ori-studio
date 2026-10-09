@@ -12,6 +12,7 @@ import {
 import { DEFAULT_DIAGRAM_LINE_TYPE, isDiagramLineType, type DiagramLineType } from '../diagram/annotate/lineTypes';
 import { isAnnotationColor } from '../diagram/annotate/annotationColors';
 import { PLAIN_TEXT_STYLE, readTextStyle, sameTextStyle, type TextStyle } from '../diagram/annotate/textStyle';
+import { isStarFill, type DiagramStarFill } from '../diagram/annotate/starFill';
 import {
   hasCoarsePointer,
   resolveCpSnapRadius,
@@ -102,6 +103,7 @@ const DIAGRAM_ANNOTATE_SNAP_KEY = storageKey(STORAGE_KEYS.diagramAnnotateSnap);
 const DIAGRAM_ANNOTATE_LINE_TYPE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineType);
 const DIAGRAM_ANNOTATE_LINE_COLOR_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineColor);
 const DIAGRAM_ANNOTATE_TEXT_STYLE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateTextStyle);
+const DIAGRAM_ANNOTATE_STAR_FILL_KEY = storageKey(STORAGE_KEYS.diagramAnnotateStarFill);
 const DIAGRAM_REFERENCES_MARKS_KEY = storageKey(STORAGE_KEYS.diagramReferencesMarks);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
@@ -120,6 +122,12 @@ function readCpWheelGesture(): WheelGesturePreference {
 function readDiagramAnnotateLineType(): DiagramLineType {
   const stored = readString(DIAGRAM_ANNOTATE_LINE_TYPE_KEY);
   return isDiagramLineType(stored) ? stored : DEFAULT_DIAGRAM_LINE_TYPE;
+}
+
+/** The fill Annotate's Star tool last laid (Revision 3); filled when none was chosen, or the key reads as no fill. */
+function readDiagramAnnotateStarFill(): DiagramStarFill {
+  const stored = readString(DIAGRAM_ANNOTATE_STAR_FILL_KEY);
+  return isStarFill(stored) ? stored : 'black';
 }
 
 /** The colour Annotate last drew a solid line in (17a); the style's ink — null — when none was chosen, or the key reads as no colour. */
@@ -350,6 +358,12 @@ interface SettingsState {
    */
   diagramAnnotateTextStyle: TextStyle;
   /**
+   * The fill a new star is laid with (Revision 3, R3-4 C): the rail's Fill
+   * while the Star tool is in hand, Filled or Outline. Filled until one is
+   * chosen; kept as you left it, as the line's type is.
+   */
+  diagramAnnotateStarFill: DiagramStarFill;
+  /**
    * Which of a References card's marks the Diagram's References browser
    * pulls (17d, RM4): its letters and its reference lines, as its Show menu
    * left them — both until one is hidden, as in export. A hidden mark is not
@@ -373,6 +387,7 @@ interface SettingsState {
   setDiagramAnnotateLineColor: (value: string | null) => void;
   /** One option or more of the next label's style, the rest as they were. */
   setDiagramAnnotateTextStyle: (value: Partial<TextStyle>) => void;
+  setDiagramAnnotateStarFill: (value: DiagramStarFill) => void;
   setDiagramReferencesMarks: (value: PaperExportMarks) => void;
   /** `null` hands the choice back to the paper style. */
   setReferencesShowAuxCreases: (value: boolean | null) => void;
@@ -442,6 +457,7 @@ export const useSettingsStore = create<SettingsState>()(
       diagramAnnotateLineType: readDiagramAnnotateLineType(),
       diagramAnnotateLineColor: readDiagramAnnotateLineColor(),
       diagramAnnotateTextStyle: readTextStyle(readJson<unknown>(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY, null)),
+      diagramAnnotateStarFill: readDiagramAnnotateStarFill(),
       diagramReferencesMarks: normalizePaperExportMarks(readJson<unknown>(DIAGRAM_REFERENCES_MARKS_KEY, null)),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
@@ -528,6 +544,14 @@ export const useSettingsStore = create<SettingsState>()(
         // No event, as for the line's colour: the labels set in each style are
         // counted (`diagram annotation added`'s `color`, `bold`, `halo`, `size`).
         set({ diagramAnnotateTextStyle: next });
+      },
+      setDiagramAnnotateStarFill: (value) => {
+        if (get().diagramAnnotateStarFill === value || !isStarFill(value)) return;
+        if (value === 'black') removeKey(DIAGRAM_ANNOTATE_STAR_FILL_KEY);
+        else writeString(DIAGRAM_ANNOTATE_STAR_FILL_KEY, value);
+        // No event, as for the line's type: the stars laid in each fill are
+        // counted (`diagram annotation added`'s `fill`).
+        set({ diagramAnnotateStarFill: value });
       },
       setDiagramReferencesMarks: (value) => {
         const next = normalizePaperExportMarks(value);

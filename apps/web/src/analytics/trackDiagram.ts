@@ -15,6 +15,7 @@ import type {
   DiagramAnnotationSnap,
   DiagramMarkStyleOption,
   DiagramMarkStyleValue,
+  DiagramStarFillName,
   DiagramTextSize,
   DiagramTextStyleOption,
   DiagramTextToggle,
@@ -111,6 +112,8 @@ export interface DiagramAnnotationAddedDetail {
   bold?: DiagramTextToggle;
   halo?: DiagramTextToggle;
   size?: DiagramTextSize;
+  /** A star's fill, as the rail's Fill laid it (Revision 3). */
+  fill?: DiagramStarFillName;
 }
 
 /**
@@ -140,10 +143,11 @@ export function trackDiagramTextStyled(option: DiagramTextStyleOption, value: Di
 }
 
 /**
- * One of a mark's own options changed in the Layers pane (Revision 3): its
- * kind, which option, and what it became — equal divisions' Short Dividers
- * on or off — whether the options the marks gained are used. Never where the
- * mark is, nor its size.
+ * One of a mark's own options changed (Revision 3): its kind, which option,
+ * and what it became — equal divisions' Short Dividers on or off, a star's
+ * Fill — or how: a star resized or turned by its transform box (`handle`),
+ * or its Rotation typed in the Layers pane (`field`). Whether the options
+ * the marks gained are used. Never where the mark is, its size or its angle.
  */
 export function trackDiagramMarkStyled(kind: DiagramAnnotationTool, option: DiagramMarkStyleOption, value: DiagramMarkStyleValue): void {
   track(ANALYTICS_EVENTS.diagramMarkStyled, { kind, option, value });

@@ -40,8 +40,9 @@ export function snapRadiusUnits(setting: number, screenPerUnit: number): number 
 
 /**
  * Whether a mark of `kind` snaps where it is put (decision 9): a circle, a
- * right angle's corner, each end of a line, the point a callout marks, and
- * each end of the line equal divisions measure (Revision 2).
+ * star (Revision 3, R3-24 A), a right angle's corner, each end of a line,
+ * the point a callout marks, and each end of the line equal divisions
+ * measure (Revision 2).
  * An arrow is drawn where it is drawn (Zach, 2026-10-05): its ends are rarely
  * on a corner — a fold arrow starts on the flap and lands on the paper past
  * the crease — so a snap there would only pull it off. A sign or a label is
@@ -55,6 +56,7 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'solid-line':
     case 'circle':
+    case 'star':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':

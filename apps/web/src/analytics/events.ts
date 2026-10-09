@@ -90,6 +90,7 @@ export type DiagramAnnotationTool =
   | 'solid_line'
   | 'label'
   | 'circle'
+  | 'star'
   | 'right_angle'
   | 'callout'
   | 'angle_mark'
@@ -98,6 +99,9 @@ export type DiagramAnnotationTool =
   | 'close_up'
   | 'enlarge'
   | 'enlarge_frame';
+
+/** A star's fill, by name (Revision 3): filled with ink, or an outline, white inside. */
+export type DiagramStarFillName = 'filled' | 'outline';
 
 /**
  * How a new annotation was put down (decision 9): snapped to a point of the
@@ -135,13 +139,19 @@ export type DiagramTextSize = 'picture' | '7' | '9' | '12' | '16' | 'other';
 export type DiagramTextStyleOption = 'bold' | 'halo' | 'size';
 
 /**
- * Which of a mark's own options the Layers pane changed (Revision 3): equal
- * divisions' Short Dividers. The later marks' options join it.
+ * Which of a mark's own options changed (Revision 3): equal divisions' Short
+ * Dividers; a star's Fill; and a star's size or turn — by its transform box
+ * on the canvas, or its turn typed in the Layers pane's Rotation row. The
+ * later marks' options join it.
  */
-export type DiagramMarkStyleOption = 'short_dividers';
+export type DiagramMarkStyleOption = 'short_dividers' | 'fill' | 'size' | 'rotation';
 
-/** What a mark's option became (Revision 3): a switch on or off. */
-export type DiagramMarkStyleValue = 'on' | 'off';
+/**
+ * What a mark's option became, or how it was changed (Revision 3): a switch
+ * on or off; a star filled or an outline; a size or a turn set by the
+ * transform box's handles (`handle`) or typed in its row (`field`).
+ */
+export type DiagramMarkStyleValue = 'on' | 'off' | DiagramStarFillName | 'handle' | 'field';
 
 /** A fold arrow or a white arrow, which Edit Path shapes: its kind, in the event's own spelling. */
 export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';

@@ -20,6 +20,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
 import { TooltipProvider } from '../ui/Tooltip';
 import { CIRCLE_RADIUS, INK_UNITS } from '../../diagram/annotate/useAnnotateCanvas';
+import { transformBoxHandles } from '../../diagram/annotate/transformGrips';
 import { pleatArrowInPicture, rightAngleGrips, rightAngleInPicture } from '../../diagram/annotate/annotationHit';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
@@ -38,6 +39,7 @@ const tracked = vi.hoisted(() => ({
   trackDiagramAnnotationAdded: vi.fn(),
   trackDiagramArrowShaped: vi.fn(),
   trackDiagramEnlargementChanged: vi.fn(),
+  trackDiagramMarkStyled: vi.fn(),
 }));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
@@ -2669,5 +2671,207 @@ describe('DiagramAnnotateCanvas hung text (17b)', () => {
     expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([
       ['label', 'none', { color: 'reference', bold: 'on', halo: 'on', size: '9' }],
     ]);
+  });
+});
+
+describe('DiagramAnnotateCanvas stars (Revision 3)', () => {
+  const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.2, 0.5], to: [0.6, 0.5] };
+  const star: KnownDiagramAnnotation = { id: 'star', kind: 'star', from: [0.5, 0.3], to: [0.5, 0.3] };
+
+  beforeEach(() => {
+    useSettingsStore.setState({ diagramAnnotateSnap: true, cpSnapRadius: 10, diagramAnnotateStarFill: 'black' });
+    tracked.trackDiagramMarkStyled.mockClear();
+  });
+
+  /** The step with these annotations, a tool in hand, and one selected. */
+  function drawn(list: KnownDiagramAnnotation[], toolInHand: Parameters<typeof tool>[0] = null, selected: string | null = null, readOnly = false) {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => list);
+      state().selectDiagramAnnotation(selected);
+      state().setDiagramAnnotateTool(toolInHand);
+    });
+    rerender(readOnly);
+    return stepId;
+  }
+  const click = (point: [number, number], init: PressInit = {}) => {
+    pointer('pointerdown', point, 1, 'mouse', overlay(), init);
+    pointer('pointerup', point, 1, 'mouse', overlay(), init);
+    rerender();
+  };
+  /** A handle's middle on the client: a square's or a turn handle's, by its name. */
+  const handleAt = (name: string): [number, number] => {
+    const handle = overlay().querySelector(`[data-handle="${name}"]`)!;
+    if (handle.tagName.toLowerCase() === 'circle') return [Number(handle.getAttribute('cx')), Number(handle.getAttribute('cy'))];
+    const side = Number(handle.getAttribute('width'));
+    return [Number(handle.getAttribute('x')) + side / 2, Number(handle.getAttribute('y')) + side / 2];
+  };
+  const theStar = () => annotations().find((each) => each.kind === 'star')!;
+  const label = () => state().diagramHistory.past.at(-1)?.label;
+
+  it('puts a star down with a click, snapped as a circle is, in the rail’s fill, counted with it; the tool stays in hand', () => {
+    drawn([line], 'star');
+    click(at(0.605, 0.497));
+    expect(theStar()).toEqual({ id: theStar().id, kind: 'star', from: [0.6, 0.5], to: [0.6, 0.5], fill: 'black' });
+    expect(state().diagramAnnotateTool).toBe('star');
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['star', 'snapped', { fill: 'filled' }]]);
+    // Outline, laid as one: no fill written.
+    act(() => useSettingsStore.getState().setDiagramAnnotateStarFill('white'));
+    click(at(0.3, 0.2));
+    const outline = annotations().at(-1)!;
+    expect(outline).toMatchObject({ kind: 'star', from: [0.3, 0.2] });
+    expect(outline).not.toHaveProperty('fill');
+    // With ⌘ held, where the pointer is.
+    click(at(0.205, 0.497), { free: true });
+    expect(annotations().at(-1)!.from[0]).toBeCloseTo(0.205, 6);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls.slice(1)).toEqual([
+      ['star', 'nothing_near', { fill: 'outline' }],
+      ['star', 'free', { fill: 'outline' }],
+    ]);
+  });
+
+  it('lets a line drawn after it snap to its centre, as the sample’s dashed line starts on its star', () => {
+    drawn([star], 'line');
+    drag(at(0.505, 0.296), at(0.8, 0.3));
+    expect(annotations().at(-1)).toMatchObject({ kind: 'valley-line', from: [0.5, 0.3] });
+  });
+
+  it('shows a selected star’s transform box: its outline, a square at each corner and a turn handle out from each — none on a diagram that cannot change', () => {
+    drawn([star], null, 'star');
+    expect(overlay().querySelector('[data-transform-box] polygon')).not.toBeNull();
+    const names = [...overlay().querySelectorAll('[data-transform-box] [data-handle]')].map((each) => each.getAttribute('data-handle'));
+    expect(names).toEqual(['rotate-nw', 'rotate-ne', 'rotate-se', 'rotate-sw', 'scale-nw', 'scale-ne', 'scale-se', 'scale-sw']);
+    // 8 px squares and 5 px turn handles, 18 px out from each corner (a world px is a screen px here).
+    const square = overlay().querySelector('[data-handle="scale-ne"]')!;
+    expect(Number(square.getAttribute('width'))).toBeCloseTo(8, 9);
+    expect(Number(overlay().querySelector('[data-handle="rotate-ne"]')!.getAttribute('r'))).toBeCloseTo(5, 9);
+    const [cx, cy] = handleAt('scale-ne');
+    const [rx, ry] = handleAt('rotate-ne');
+    expect(Math.hypot(rx - cx, ry - cy)).toBeCloseTo(18, 6);
+    // The corner where the star's box is: its tips' square, 4.5 ink out each way.
+    const [sx, sy] = at(0.5, 0.3);
+    expect(cx - sx).toBeCloseTo(4.5 * INK_UNITS * 1000, 6);
+    expect(sy - cy).toBeCloseTo(4.5 * INK_UNITS * 1000, 6);
+    rerender(true);
+    expect(overlay().querySelector('[data-transform-box] polygon')).not.toBeNull();
+    expect(overlay().querySelectorAll('[data-transform-box] [data-handle]')).toHaveLength(0);
+  });
+
+  it('scales a star about its centre by a corner square, one undo step, counted by its handle; a click records nothing', () => {
+    drawn([star], null, 'star');
+    const past = state().diagramHistory.past.length;
+    const corner = handleAt('scale-se');
+    const [sx, sy] = at(0.5, 0.3);
+    // Drawn out to twice as far from the middle.
+    drag(corner, [sx + 2 * (corner[0] - sx), sy + 2 * (corner[1] - sy)]);
+    expect(theStar().from).toEqual([0.5, 0.3]);
+    expect(theStar().scale).toBeCloseTo(2, 3);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(label()).toBe('Resize annotation');
+    expect(tracked.trackDiagramMarkStyled.mock.calls).toEqual([['star', 'size', 'handle']]);
+    // Still selected, its box grown with it; a click on a square changes nothing.
+    rerender();
+    click(handleAt('scale-nw'));
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramSelectedAnnotationId).toBe('star');
+  });
+
+  it('turns it by a turn handle about its centre, freely, and with Shift in 15° steps', () => {
+    drawn([star], null, 'star');
+    const [sx, sy] = at(0.5, 0.3);
+    const about = ([x, y]: [number, number], degrees: number): [number, number] => {
+      const a = (degrees * Math.PI) / 180;
+      return [sx + (x - sx) * Math.cos(a) - (y - sy) * Math.sin(a), sy + (x - sx) * Math.sin(a) + (y - sy) * Math.cos(a)];
+    };
+    const turn = handleAt('rotate-ne');
+    drag(turn, about(turn, 22));
+    expect(theStar().angle).toBeCloseTo(22, 1);
+    expect(theStar().from).toEqual([0.5, 0.3]);
+    expect(label()).toBe('Rotate annotation');
+    expect(tracked.trackDiagramMarkStyled.mock.calls).toEqual([['star', 'rotation', 'handle']]);
+    rerender();
+    const again = handleAt('rotate-ne');
+    drag(again, about(again, 20), 1, 'mouse', overlay(), { shiftKey: true });
+    // 42° held to the nearest 15°.
+    expect(theStar().angle).toBe(45);
+  });
+
+  it('moves it whole by its body, snapping where it lands as when it was put down', () => {
+    drawn([line, star], null, 'star');
+    drag(at(0.5, 0.3), at(0.597, 0.503));
+    expect(theStar().from).toEqual([0.6, 0.5]);
+    expect(label()).toBe('Move annotation');
+  });
+
+  it('draws its box’s outline and its handles’ strokes 1.5 screen px wide at any zoom, as its squares are drawn 8 (18b review)', () => {
+    drawn([star], null, 'star');
+    const strokes = [...overlay().querySelectorAll('[data-transform-box] polygon, [data-transform-box] [data-handle]')];
+    expect(strokes).toHaveLength(9);
+    // A world px is a screen px here: the stroke is divided by the zoom as the squares' side is.
+    const side = Number(overlay().querySelector('[data-handle="scale-ne"]')!.getAttribute('width'));
+    for (const each of strokes) expect(Number(each.getAttribute('stroke-width')) / side, each.getAttribute('data-handle') ?? 'outline').toBeCloseTo(1.5 / 8, 9);
+  });
+
+  /**
+   * By a finger (18b review): its 18 px reach is more than a corner's 17 px
+   * from the middle of a box at its 24 px floor, so a drag meant to move a
+   * selected star scaled it. The overlay's screen matrix says the zoom; a
+   * client point is still a world point.
+   */
+  describe('by a finger', () => {
+    function fingerAt(zoom: number) {
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(pointer: coarse)', addEventListener() {}, removeEventListener() {} }));
+      const scaled = { ...identity, a: zoom, d: zoom, inverse: () => scaled };
+      (SVGElement.prototype as unknown as { getScreenCTM: () => typeof scaled }).getScreenCTM = () => scaled;
+    }
+    /** A point most of the way out along the star's arm `degrees` clockwise from its top tip, on the client. */
+    const arm = (degrees: number): [number, number] => {
+      const a = (degrees * Math.PI) / 180;
+      const reach = 0.85 * 4.5 * INK_UNITS;
+      const [u, v] = theStar().from;
+      return at(u + reach * Math.sin(a), v - reach * Math.cos(a));
+    };
+    const cases = [
+      ['at an iPad’s fit, the star 31 px across', 31.3],
+      ['at the box’s 24 px floor, the star 6 px across', 6],
+    ] as const;
+    for (const [name, across] of cases) {
+      it(`moves a selected star by a finger on its middle or an arm ${name}; a square still scales it`, () => {
+        const zoom = across / (9 * INK_UNITS * 1000);
+        fingerAt(zoom);
+        drawn([star], null, 'star');
+        for (const press of [() => at(...theStar().from), () => arm(144), () => arm(216)]) {
+          const was = theStar().from;
+          const from = press();
+          drag(from, [from[0] + 40, from[1]], 1, 'touch');
+          expect(label()).toBe('Move annotation');
+          expect(theStar().from[0]).toBeCloseTo(was[0] + 0.04, 6);
+          expect('scale' in theStar()).toBe(false);
+          rerender();
+        }
+        // On a square as it is drawn: a screen px is 1 / (zoom × 1000) of the frame.
+        const corner = transformBoxHandles(theStar(), 1 / (zoom * 1000))!.handles.scale.find((each) => each.handle === 'se')!.at;
+        const square = at(corner.x, corner.y);
+        drag(square, [square[0] + 10, square[1] + 10], 1, 'touch');
+        expect(label()).toBe('Resize annotation');
+        expect(theStar().scale).toBeGreaterThan(1);
+      });
+    }
+  });
+
+  it('shows the Edit canvas’s cursors over its box with Select: move on its body, pointer on a square, grab on a turn handle', () => {
+    drawn([star], null, 'star');
+    const hover = (point: [number, number]) => {
+      pointer('pointermove', point);
+      return view().getAttribute('data-transform-hover');
+    };
+    expect(hover(at(0.5, 0.3))).toBe('body');
+    expect(hover(handleAt('scale-sw'))).toBe('scale');
+    expect(hover(handleAt('rotate-sw'))).toBe('rotate');
+    expect(hover(at(0.8, 0.8))).toBeNull();
+    // Nothing selected: no box to say anything of.
+    act(() => state().selectDiagramAnnotation(null));
+    rerender();
+    expect(hover(at(0.5, 0.3))).toBeNull();
   });
 });

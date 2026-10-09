@@ -45,6 +45,9 @@ import { DiagramPathNodeControls } from './DiagramPathNodeControls';
 import { DiagramTextStyleRows } from './DiagramTextStyleRows';
 import { DiagramTicksRow } from './DiagramTicksRow';
 import { DiagramWhiteArrowControls } from './DiagramWhiteArrowControls';
+import { DiagramStarControls } from './DiagramStarControls';
+import { DiagramRotationRow } from './DiagramRotationRow';
+import { boxedMarkOf } from '../../diagram/annotate/transformGrips';
 import { DiagramZoomControls } from './DiagramZoomControls';
 import styles from './DiagramLayers.module.css';
 
@@ -136,7 +139,7 @@ export function DiagramLayers({ step }: { step: DiagramStep }) {
                 ) : annotation.kind === 'zoom' ? (
                   <EnlargeGlyph shape={zoomShapeOf(annotation)} />
                 ) : (
-                  <DiagramAnnotationGlyph kind={annotation.kind} color={annotation.color} />
+                  <DiagramAnnotationGlyph kind={annotation.kind} color={annotation.color} fill={annotation.fill} />
                 )}
                 <span className={styles.rowText}>
                   <span className={styles.rowName}>
@@ -233,6 +236,8 @@ function SelectedAnnotation({
   };
   const nodeActions = annotations.actions.filter((action) => action.group === 'node');
   const flipActions = annotations.actions.filter((action) => action.group === 'flip');
+  // A star's turn, and its Rotation row: a mark with a transform box (Revision 3).
+  const boxed = boxedMarkOf(annotation);
   const lineType = lineTypeOf(annotation.kind);
   const typeName = t('panels:diagram.annotations.lineType', 'Type');
   const colorName = t('panels:diagram.annotations.color', 'Color');
@@ -377,6 +382,12 @@ function SelectedAnnotation({
         />
       )}
       {annotation.kind === 'zoom' && <DiagramZoomControls step={step} target={{ kind: 'area', area: annotation }} />}
+      {annotation.kind === 'star' && (
+        <DiagramStarControls annotation={annotation} editable={editable} onFill={(fill) => annotations.setStarFill(id, fill)} />
+      )}
+      {boxed && (
+        <DiagramRotationRow degrees={boxed.degrees} editable={editable} onCommit={(degrees) => annotations.setMarkAngle(id, degrees)} />
+      )}
       <DiagramBehindControls
         annotation={annotation}
         editable={editable}

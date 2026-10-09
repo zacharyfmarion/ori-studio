@@ -1,4 +1,10 @@
-import type { DiagramAnnotationColor, DiagramAnnotationTool, DiagramTextSize, DiagramTextToggle } from '../../analytics/events';
+import type {
+  DiagramAnnotationColor,
+  DiagramAnnotationTool,
+  DiagramStarFillName,
+  DiagramTextSize,
+  DiagramTextToggle,
+} from '../../analytics/events';
 import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { annotationColorName } from './annotationColors';
 import { carriesColor, carriesTextStyle, isSolidArrow } from './annotationModel';
@@ -20,6 +26,7 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'solid-line': 'solid_line',
   label: 'label',
   circle: 'circle',
+  star: 'star',
   'right-angle': 'right_angle',
   callout: 'callout',
   'angle-mark': 'angle_mark',
@@ -63,14 +70,24 @@ export function textToggleName(on: boolean | undefined): DiagramTextToggle {
   return on ? 'on' : 'off';
 }
 
+/** A star's fill as the analytics events name it (Revision 3): `filled` with ink, or an `outline`. */
+export function starFillName(annotation: Pick<KnownDiagramAnnotation, 'fill'>): DiagramStarFillName {
+  return annotation.fill === 'black' ? 'filled' : 'outline';
+}
+
 /**
  * What `diagram annotation added` says of a mark beyond its kind (17a, 17b):
- * a solid line's colour by name, and a label's colour, Bold, halo and size;
- * nothing for any other mark.
+ * a solid line's colour by name, a label's colour, Bold, halo and size, and
+ * a star's fill (Revision 3); nothing for any other mark.
  */
-export function annotationEventDetail(
-  annotation: Pick<KnownDiagramAnnotation, 'kind' | 'color' | 'bold' | 'halo' | 'sizePt'>
-): { color?: DiagramAnnotationColor; bold?: DiagramTextToggle; halo?: DiagramTextToggle; size?: DiagramTextSize } {
+export function annotationEventDetail(annotation: Pick<KnownDiagramAnnotation, 'kind' | 'color' | 'bold' | 'halo' | 'sizePt' | 'fill'>): {
+  color?: DiagramAnnotationColor;
+  bold?: DiagramTextToggle;
+  halo?: DiagramTextToggle;
+  size?: DiagramTextSize;
+  fill?: DiagramStarFillName;
+} {
+  if (annotation.kind === 'star') return { fill: starFillName(annotation) };
   const color = annotationEventColor(annotation);
   if (!carriesTextStyle(annotation.kind)) return color ? { color } : {};
   return {
