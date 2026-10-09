@@ -36,6 +36,7 @@ import { useLayoutStore } from '../store/layoutStore';
 import { requestSidePane } from '../store/sidePaneRequests';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { WorkspaceViewDrawer } from './WorkspaceViewDrawer';
+import { topmostModalDialog } from './ui/useModalDialog';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -92,9 +93,10 @@ function seatSlot(): HTMLDivElement {
 }
 const seated = () => document.querySelector<HTMLButtonElement>('.test-slot .view-drawer__trigger');
 /**
- * `document`, not `container`. The sheet is portaled to `document.body` because
- * the pill lane it renders inside is `pointer-events: none` and a stacking
- * context — see the comment at the `createPortal` call.
+ * `document`, not `container`. The sheet is portaled out of the pill lane it
+ * renders inside, which is `pointer-events: none` and a stacking context — see
+ * the comment at the `SheetPortal` — into the sheet layer, or with none
+ * registered, as here, `document.body`.
  */
 const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
 const sheet = () => document.querySelector<HTMLElement>('.view-drawer__sheet');
@@ -383,6 +385,37 @@ describe('the workspace View drawer', () => {
 
     expect(dialog()).toBeNull();
     tooltip.remove();
+  });
+
+  it('opens in the sheet layer, under a dialog it opens, and leaves Escape to that dialog (rf6)', () => {
+    // As App lays the document out: the sheet layer, then the modals. On a
+    // phone, Replace from References… in the Settings sheet opened the
+    // References browser under the sheet: the sheet came last in the document.
+    const layer = document.body.appendChild(document.createElement('div'));
+    const modals = document.body.appendChild(document.createElement('div'));
+    act(() => useLayoutStore.setState({ sheetLayer: layer }));
+    try {
+      render();
+      press(trigger());
+      expect(layer.contains(dialog())).toBe(true);
+
+      // The References browser, where App renders it: the dialog on top, so it holds focus and keys.
+      const browser = modals.appendChild(document.createElement('div'));
+      browser.setAttribute('role', 'dialog');
+      browser.setAttribute('aria-modal', 'true');
+      expect(topmostModalDialog()).toBe(browser);
+
+      // Its Escape closes it, not the sheet under it.
+      pressEscape(browser);
+      expect(sheet()).not.toBeNull();
+
+      browser.remove();
+      pressEscape();
+      expect(sheet()).toBeNull();
+    } finally {
+      layer.remove();
+      modals.remove();
+    }
   });
 
   it('closes on a backdrop press but not on a press inside the sheet', () => {

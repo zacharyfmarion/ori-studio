@@ -15,6 +15,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { PaperExportModal } from './components/paperExport/PaperExportModal';
 import { DiagramExportModal } from './components/diagram/DiagramExportModal';
 import { DiagramReferencesModal } from './components/diagram/DiagramReferencesBrowser';
+import { SheetLayer } from './components/SheetLayer';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
@@ -166,10 +167,15 @@ export default function App() {
 
   return (
     <TooltipProvider>
-      {/* First: modals share a z-index, so the later in the document is on top.
-          The References browser opens only from the Diagram under every other
-          modal, but the native menu can open one over it — Export, Settings,
-          About — and that one has to come later to be on top. */}
+      {/* First the touch layout's sheets, then every modal: they share a
+          z-index, so the later in the document is on top, and a dialog opened
+          from a sheet — Replace from References… in the Settings sheet — has
+          to be over it (`SheetLayer`). */}
+      <SheetLayer />
+      {/* Then the modals, the References browser first. It opens only from
+          the Diagram under every other modal, but the native menu can open one
+          over it — Export, Settings, About — and that one has to come later to
+          be on top. */}
       <OverlayErrorBoundary id="diagram-references">
         <DiagramReferencesModal />
       </OverlayErrorBoundary>

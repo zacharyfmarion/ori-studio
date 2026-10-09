@@ -86,7 +86,7 @@ function render() {
 }
 
 const trigger = () => container?.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]');
-/** Portaled to `document.body`, out of the pill lane — see `CpToolsTrigger`. */
+/** Portaled out of the pill lane into the sheet layer, or with none registered, `document.body` — see `CpToolsTrigger`. */
 const sheet = () => document.querySelector<HTMLElement>('[role="dialog"]');
 
 afterEach(() => {
@@ -228,5 +228,37 @@ describe('CpToolsTrigger sheet', () => {
 
     expect(sheet()).toBeNull();
     expect(document.activeElement).toBe(trigger());
+  });
+
+  it('opens in the sheet layer, under a dialog opened over it, and leaves Escape to that dialog (rf6)', () => {
+    // As App lays the document out: the sheet layer, then the modals.
+    const layer = document.body.appendChild(document.createElement('div'));
+    const modals = document.body.appendChild(document.createElement('div'));
+    act(() => useLayoutStore.setState({ sheetLayer: layer }));
+    try {
+      open();
+      const inLayer = () => layer.querySelector('[role="dialog"]');
+      expect(inLayer()).not.toBeNull();
+      expect(inLayer()).toBe(sheet());
+
+      // A dialog a shortcut opened while the sheet was up (Settings, ⌘,): on top, and Escape is its own.
+      const dialog = modals.appendChild(document.createElement('div'));
+      dialog.setAttribute('role', 'dialog');
+      dialog.setAttribute('aria-modal', 'true');
+      act(() => {
+        dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      });
+      expect(inLayer()).not.toBeNull();
+
+      dialog.remove();
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      });
+      expect(inLayer()).toBeNull();
+    } finally {
+      useLayoutStore.setState({ sheetLayer: null });
+      layer.remove();
+      modals.remove();
+    }
   });
 });

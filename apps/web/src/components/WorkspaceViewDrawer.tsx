@@ -18,6 +18,7 @@ import { DiagramStepPanel } from './panels/DiagramStepPanel';
 import { ReferencesViewControlsPanel } from './panels/ReferencesViewControlsPanel';
 import { SimulatorViewControlsPanel } from './panels/SimulatorViewControlsPanel';
 import { Button } from './ui/Button';
+import { SheetPortal } from './SheetLayer';
 import { IconButton } from './ui/IconButton';
 import { SegmentedControl } from './ui/SegmentedControl';
 
@@ -122,10 +123,12 @@ export function WorkspaceViewDrawer() {
         so the dock keeps every tap that is not on a pill. A sheet rendered there
         inherits it — backdrop and controls alike transparent to touch. The lane
         is also a stacking context at `--z-canvas-overlay`, which would cap a
-        `--z-modal` sheet at 900 rather than 9999.
+        `--z-modal` sheet at 900 rather than 9999. Into the sheet layer, which
+        comes before every modal in the document, so a dialog the pane opens —
+        Replace from References…, Delete Step's question — is over the sheet.
       */}
-      {open &&
-        createPortal(
+      {open && (
+        <SheetPortal>
           <div
             id={drawerId}
             role="dialog"
@@ -190,9 +193,9 @@ export function WorkspaceViewDrawer() {
                 </ErrorBoundary>
               </div>
             </div>
-          </div>,
-          document.body
-        )}
+          </div>
+        </SheetPortal>
+      )}
     </>
   );
 }

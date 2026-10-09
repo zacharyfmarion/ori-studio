@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { ANALYTICS_EVENTS, track } from '../analytics';
-import { isOpenLayerTarget, isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
-import { escapeEndsArmedMode } from '../keyboard/shortcutRuntime';
+import { useSheetEscape } from '../components/ui/useSheetEscape';
 import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
 import {
   reconcileSidePanes,
@@ -170,44 +169,10 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
     track(ANALYTICS_EVENTS.viewDrawerOpened, { workspace: activeWorkspace, pane: pane.id });
   }, [pendingPane, panes, activeWorkspace]);
 
-  // Escape, the way both existing modals do it (`HelpModal`, `SettingsModal`): a
-  // capture-phase listener on `window`, so it works wherever focus happens to be
-  // inside the sheet.
-  //
-  // With three additions, each a case where something else owns Escape and a
-  // capture listener on `window` would otherwise beat it to the key.
-  //
-  // The drawer's body is the view-controls pane, which is full of `NumberField`s
-  // whose own Escape reverts the half-typed draft before blurring — a React
-  // bubble handler. Without the bail, Escape in a mid-edit grid size would commit
-  // the number and close the drawer. `isShortcutEditingTarget` is the repo's one
-  // answer to "does this target own its keystrokes", and reusing it is why there
-  // is no private copy.
-  //
-  // The pane also has `Select`s, and Radix portals an open dropdown *outside* the
-  // sheet, so a listener scoped to the sheet would never see it — but the
-  // dropdown holds focus while it is open, so the keystroke's target is inside
-  // it, and `isOpenLayerTarget` is the repo's one answer to "is a layer holding
-  // this key". Without the bail, Escape aimed at a dropdown closed the whole
-  // drawer — one keystroke discarding the wrong thing.
-  //
-  // And a mode armed in the workspace that Escape puts down first — the
-  // Diagram's anchor pick, armed from the Layers pane inside this very sheet
-  // (Revision 2) — is the runtime's to end (`escapeEndsArmedMode`). Without
-  // the bail, the first Escape on an iPad closed the sheet and only a second
-  // put the pick down.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (isShortcutEditingTarget(event.target) || isOpenLayerTarget(event.target) || escapeEndsArmedMode()) return;
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [open, close]);
+  // Escape: the one listener every touch sheet shares, and the cases in which
+  // the key is another's — a field's, an open Select's, an armed pick's, a
+  // dialog's over the sheet (`useSheetEscape`).
+  useSheetEscape(open, drawerId, close);
 
   const activePane =
     panes.find((candidate) => candidate.id === activePaneId) ?? panes[0] ?? null;

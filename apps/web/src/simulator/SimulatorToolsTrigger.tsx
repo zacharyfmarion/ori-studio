@@ -1,6 +1,6 @@
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { trackSimulatorToolPickerOpened } from '../analytics';
+import { SheetPortal } from '../components/SheetLayer';
 import { ToolPickerList } from '../components/ui/tools/ToolPickerGroup';
 import { ToolPickerRow } from '../components/ui/tools/ToolPickerRow';
 import { ToolPickerSheet } from '../components/ui/tools/ToolPickerSheet';
@@ -50,9 +50,10 @@ export function SimulatorToolsTrigger({
         triggerRef={triggerRef}
       />
       {/* Portaled for the reason Edit's is: the sheet is a page-level dialog,
-          and nothing in the toolbar should cap its stacking or its taps. */}
-      {open &&
-        createPortal(
+          and nothing in the toolbar should cap its stacking or its taps. Into
+          the sheet layer, before every modal, as every sheet is. */}
+      {open && (
+        <SheetPortal>
           <ToolPickerSheet
             pickerId={pickerId}
             title={t('panels:simulator.tools.picker.title', 'Tools')}
@@ -79,9 +80,9 @@ export function SimulatorToolsTrigger({
                 );
               })}
             </ToolPickerList>
-          </ToolPickerSheet>,
-          document.body
-        )}
+          </ToolPickerSheet>
+        </SheetPortal>
+      )}
     </>
   );
 }
