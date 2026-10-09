@@ -9,6 +9,7 @@ import {
 } from '../document/diagramDocument';
 import { lacksPaperFaces } from '../capture/stepPaperFaces';
 import { FIT_ZOOM, type LayoutCell } from '../pages/diagramPageLayout';
+import { formatStepRuns } from '../stepNumberList';
 import { areaChangedFor } from './areaRecord';
 import { areaStatus, frameUnanchored, outOfDate, stepsToUpdate, type EnlargedAreaStatus } from './areaStatus';
 import { anchorOnPaper, frameHoldsPaper } from './zoomAnchor';
@@ -199,16 +200,9 @@ export function outOfDateLine(t: TFunction, steps: readonly { number: number }[]
   const numbers = [...new Set(steps.map((step) => step.number))].sort((a, b) => a - b);
   if (numbers.length === 0) return null;
   if (numbers.length === 1) return t('panels:diagram.stepPane.areaStepOutOfDate', 'Out of date: step {{number}}', { number: numbers[0] });
-  const runs: string[] = [];
-  let start = numbers[0]!;
-  numbers.forEach((number, index) => {
-    const next = numbers[index + 1];
-    if (next === number + 1) return;
-    runs.push(start === number ? `${number}` : `${start}–${number}`);
-    if (next !== undefined) start = next;
+  return t('panels:diagram.stepPane.areaStepsOutOfDate', 'Out of date: steps {{numbers}}', {
+    numbers: formatStepRuns(numbers, language),
   });
-  const list = new Intl.ListFormat(language, { type: 'conjunction' }).format(runs);
-  return t('panels:diagram.stepPane.areaStepsOutOfDate', 'Out of date: steps {{numbers}}', { numbers: list });
 }
 
 /** What Update All reads of an area, or of the areas on a step: the steps enlarged from it, and how many are out of date. */
@@ -283,14 +277,17 @@ export function buildFrameActions(
  * The Anchor row's verbs (Z9): Pick, which arms the pick mode on the canvas —
  * pressed while it is — and Reset, back to the default rule, while an anchor
  * is picked. Neither moves the frame on its own step. Pick only where there
- * is a canvas to pick on (`canvas`): a phone's Annotate has none.
+ * is a canvas to pick on (`canvas`): a phone's Annotate has none. An x-ray's
+ * (Revision 3, `on: 'x-ray'`) say what its anchor is: the point its peeling
+ * starts at (18g), the window's centre unless picked.
  */
 export function buildAnchorActions(
-  state: { picked: boolean; picking: boolean; readOnly: boolean; canvas: boolean },
+  state: { picked: boolean; picking: boolean; readOnly: boolean; canvas: boolean; on?: 'enlargement' | 'x-ray' },
   deps: { t: TFunction; pick: () => void; reset: () => void }
 ): ZoomAction[] {
   const { t } = deps;
   const readOnly = state.readOnly ? READ_ONLY(t) : null;
+  const xray = state.on === 'x-ray';
   const actions: ZoomAction[] = [];
   if (state.canvas) {
     actions.push({
@@ -299,8 +296,12 @@ export function buildAnchorActions(
       hint:
         readOnly ??
         (state.picking
-          ? t('panels:diagram.annotations.anchorPicking', 'Click a face on the canvas to anchor to it; Escape to stop')
-          : t('panels:diagram.annotations.anchorPickHint', 'Choose the face the frame is anchored to on the canvas')),
+          ? xray
+            ? t('panels:diagram.annotations.xRayAnchorPicking', 'Click the point on the canvas where peeling starts; Escape to stop')
+            : t('panels:diagram.annotations.anchorPicking', 'Click a face on the canvas to anchor to it; Escape to stop')
+          : xray
+            ? t('panels:diagram.annotations.xRayAnchorPickHint', 'Choose the point on the canvas where peeling starts')
+            : t('panels:diagram.annotations.anchorPickHint', 'Choose the face the frame is anchored to on the canvas')),
       disabled: readOnly !== null,
       pressed: state.picking,
       run: () => {
@@ -312,7 +313,11 @@ export function buildAnchorActions(
     actions.push({
       id: 'reset-anchor',
       label: t('panels:diagram.annotations.anchorReset', 'Reset'),
-      hint: readOnly ?? t('panels:diagram.annotations.anchorResetHint', 'Anchor to the backmost face outside the frame again'),
+      hint:
+        readOnly ??
+        (xray
+          ? t('panels:diagram.annotations.xRayAnchorResetHint', 'Start peeling at the window’s centre again')
+          : t('panels:diagram.annotations.anchorResetHint', 'Anchor to the backmost face outside the frame again')),
       disabled: readOnly !== null,
       run: () => {
         if (readOnly === null) deps.reset();

@@ -28,6 +28,7 @@ import {
   type ZoomAction,
 } from './zoomActions';
 import { paperSilhouette } from './zoomEdge';
+import { runEnlargedUpdate } from './updateEnlargedToast';
 import { setFrameAnchor, setFrameEdge, setFrameScale, setFrameShape } from './zoomFrames';
 import {
   withZoomAnchor,
@@ -138,9 +139,8 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
       },
       update: () => {
         setUpdating(true);
-        void store()
-          .updateEnlargedDiagramSteps([targetId])
-          .finally(() => setUpdating(false));
+        // Update All over this area: it says what it placed (`runEnlargedUpdate`).
+        void runEnlargedUpdate({ areaIds: [targetId] }, t).finally(() => setUpdating(false));
       },
       goTo: (id: string) => store().selectDiagramStep(id),
       goToArea: (id: string) => {
@@ -148,7 +148,7 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
         if (zoom) store().selectDiagramAnnotation(zoom.from);
       },
     };
-  }, [on, stepId, targetId, loadId, picking, zoom]);
+  }, [on, stepId, targetId, loadId, picking, zoom, t]);
 
   const enlargedOn = useMemo(() => (diagram && area ? stepsEnlargedFrom(diagram, area.id) : []), [diagram, area]);
   // What Update All places again (review fix 4): the steps enlarged from the area that are out of date.

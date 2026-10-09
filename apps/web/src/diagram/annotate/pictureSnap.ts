@@ -27,6 +27,7 @@ import {
   type PicturePointKind,
 } from './pictureGeometry';
 import { markGeometry } from '../zoom/stepView';
+import { insideXRay, xraySnap } from '../xray/xraySnap';
 
 /** What a snap landed on, for its preview to show. */
 export type SnapTargetKind = PicturePointKind | 'crossing' | 'annotation';
@@ -74,19 +75,40 @@ export function pictureSnapTarget(
   const geometry = markGeometry(step, assets, options.style);
   const annotations = annotationsOf(step, options);
   const candidates: SnapTarget[] = [];
-  const vertex = geometry.points[geometry.pointIndex.query(point[0], point[1], radius)];
-  if (vertex) candidates.push(vertex);
+  // Inside an x-ray's window, the picture as the window shows it (Revision 3, R3-22 B): the corners and edges of the
+  // faces it shows, not the points and lines of those it takes away.
+  const xray = xraySnap(step, annotations);
+  const inWindow = (at: PicturePoint) => xray !== null && insideXRay(xray, at);
+  if (xray === null) {
+    const vertex = geometry.points[geometry.pointIndex.query(point[0], point[1], radius)];
+    if (vertex) candidates.push(vertex);
+  } else {
+    // Every point of the picture in reach outside the windows: the nearest may be one a window takes away.
+    for (const { id } of geometry.pointIndex.segmentsNear(point[0], point[1], radius)) {
+      const vertex = geometry.points[id];
+      if (vertex && !inWindow(vertex.at)) candidates.push(vertex);
+    }
+    for (const at of xray.corners) {
+      if (Math.hypot(at[0] - point[0], at[1] - point[1]) <= radius) candidates.push({ at, kind: 'vertex' });
+    }
+  }
   // Equal parts on the page are equal on the paper only where the picture
   // has no perspective: a camera's picture offers no division points.
   const divisionPoints = geometry.kind !== 'projected';
   for (const annotation of annotations) {
     // A circle's centre is a point the picture marks, as References' ring is
     // (17d): a ring lifted from a card snaps as the card's point did, and so
-    // does one drawn by hand.
-    const kind: SnapTargetKind = annotation.kind === 'circle' ? 'point' : 'annotation';
+    // does one drawn by hand. A star's names a point as a ring does (Revision 3).
+    const kind: SnapTargetKind = annotation.kind === 'circle' || annotation.kind === 'star' ? 'point' : 'annotation';
     for (const at of annotationSnapPoints(annotation, { divisionPoints })) candidates.push({ at, kind });
   }
-  for (const at of crossingsNear(geometry, drawnLines(annotations), point, radius)) {
+  // In a window, the drawn lines' crossings with each other and with the edges it shows: the picture's own lines there
+  // are the faces taken away.
+  const crossings = crossingsNear(geometry, drawnLines(annotations), point, radius, {
+    pictureLines: !inWindow(point),
+    shownLines: xray?.edges ?? [],
+  });
+  for (const at of crossings) {
     candidates.push({ at, kind: 'crossing' });
   }
 
@@ -116,7 +138,7 @@ export function annotationsOf(step: DiagramStep, { annotations, ignore }: SnapOp
 
 /**
  * The points of an annotation another snaps to (Q9): a line's two ends, where
- * a line meets another, a circle's centre, the corner a right angle marks,
+ * a line meets another, a circle's or a star's centre, the corner a right angle marks,
  * the point a callout marks (its box is no point), and the ends of the line
  * equal divisions measure and — with `divisionPoints`, on a picture whose
  * equal parts are the paper's — each point dividing it, so a line drawn from
@@ -142,6 +164,7 @@ export function annotationSnapPoints(
     case 'solid-line':
       return [annotation.from, annotation.to];
     case 'circle':
+    case 'star':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
@@ -160,9 +183,18 @@ export function annotationSnapPoints(
     case 'label':
       return [];
     // A close-up's rings are round an area and beside the picture, on no
-    // point; so is an enlarge area's outline.
+    // point; so is an enlarge area's outline, and an x-ray's window (Revision 3).
     case 'close-up':
     case 'zoom':
+    case 'x-ray':
+      return [];
+    // An eye stands where the viewer does, off the paper as often as on it,
+    // put down freely (Revision 3, R3-24 A): its centre is no point of the picture.
+    case 'eye':
+      return [];
+    // An oval or a rectangle rings an area, on no point of it (Revision 3, R3-24 A).
+    case 'oval':
+    case 'rectangle':
       return [];
     default: {
       // Every kind says what it offers: a new one is a compile error here.

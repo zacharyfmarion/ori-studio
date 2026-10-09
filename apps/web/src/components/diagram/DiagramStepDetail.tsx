@@ -51,6 +51,9 @@ import { DiagramPoseSimulatedView } from './DiagramPoseSimulatedView';
 import type { DiagramPoseAnnotations } from './DiagramPoseStage';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { DiagramAnnotateRail } from './DiagramAnnotateRail';
+import { useXRayStanding } from '../../diagram/xray/useXRayStanding';
+import { xraySurfaceOf } from '../../diagram/xray/xrayPaint';
+import { useAnnotateToolInHand } from '../../diagram/annotate/useAnnotateToolInHand';
 import styles from './DiagramStepDetail.module.css';
 
 const POSE_ICONS: Record<DiagramPoseActionId, LucideIcon> = {
@@ -90,7 +93,6 @@ export function DiagramStepDetail({
   readOnly,
   mode,
   onMode,
-  annotateTool,
   onAnnotateTool,
   poseActions,
   linkedPose,
@@ -116,7 +118,6 @@ export function DiagramStepDetail({
   /** Pose or Annotate. */
   mode: DiagramDetailMode;
   onMode: (mode: DiagramDetailMode) => void;
-  annotateTool: AnnotateTool;
   onAnnotateTool: (tool: AnnotateTool) => void;
   poseActions: readonly DiagramPoseAction[];
   /** A linked step's Pose: its verbs, and its live 3D view once folded. Null for any other step. */
@@ -161,14 +162,25 @@ export function DiagramStepDetail({
   const kept = posed === step;
   // An enlarged step shows its whole picture in Pose, its frame outlined and the rest dimmed (Revision 2).
   const zoomed = useMemo(() => zoomedSource(posed, assets), [posed, assets]);
+  // An x-ray in Pose is its rim alone, on a picture with layers (Revision 3, R3-19 A): its inside is the stored
+  // picture's. A spread's preview is captured without faces, and a rim needs none: whether the step has layers is the
+  // stored step's to say, so the rims stay while a spread is dragged (review of 18f).
+  const xRayRims = useMemo(
+    () => xraySurfaceOf(posed, 'rim') ?? (posed === step ? null : xraySurfaceOf(step, 'rim')),
+    [posed, step]
+  );
   const url = useMemo(() => {
     if (!source) return null;
     return zoomed
-      ? posedZoomUrl(zoomed, annotations, style, POSE_ANNOTATION_OPACITY, kept)
-      : annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY, kept);
-  }, [source, zoomed, annotations, style, kept]);
+      ? posedZoomUrl(zoomed, annotations, style, POSE_ANNOTATION_OPACITY, kept, xRayRims)
+      : annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY, kept, null, xRayRims);
+  }, [source, zoomed, annotations, style, kept, xRayRims]);
   // Annotate needs a picture to draw on.
   const annotating = mode === 'annotate' && source !== null && !locked;
+  // Whether its picture has layers to x-ray, or needs a Refresh first: the rail holds the X-Ray tool, saying why (Revision 3).
+  const xray = useXRayStanding(step);
+  // The tool in hand, as the canvas presses with it: Select where the step holds the one picked.
+  const annotateTool = useAnnotateToolInHand(step);
   // Over a live view (3D or simulated), the annotations drawn on its capture, while they are.
   // An enlarged step's frame is outlined over it, whatever its marks (Revision 2).
   const ghost = useMemo((): DiagramPoseAnnotations | null => {
@@ -296,6 +308,7 @@ export function DiagramStepDetail({
               tool={annotateTool}
               readOnly={readOnly}
               enlarged={step.zoom !== undefined}
+              xray={xray}
               onTool={onAnnotateTool}
             />
             <DiagramAnnotateCanvas step={step} assets={assets} style={style} readOnly={readOnly} />
@@ -329,6 +342,7 @@ export function DiagramStepDetail({
             annotations={ghost}
             onRest={linkedPose.simulate}
             wantsRest={linkedPose.wantsRest}
+            registerLiveView={linkedPose.registerLiveView}
             fallback={picture}
             toolbar={poseToolbar}
           />
@@ -340,6 +354,7 @@ export function DiagramStepDetail({
                 camera={linked.render.camera}
                 style={style}
                 onCamera={linkedPose.onCamera}
+                registerLiveView={linkedPose.registerLiveView}
                 ghost={ghost}
                 fallback={url && picture}
               />

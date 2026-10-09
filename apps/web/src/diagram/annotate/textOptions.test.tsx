@@ -401,7 +401,7 @@ describe('Text’s options, drawn', () => {
 });
 
 describe('Text’s options, pressed', () => {
-  const SIZES = { tolerance: 0.004, glyph: 0.05, label: LABEL_SIZE, ink: 0.0066, calloutPen: 0.0025 };
+  const SIZES = { tolerance: 0.004, glyph: 0.05, label: LABEL_SIZE, ink: 0.0066, calloutPen: 0.0025, px: 0.0005 };
 
   it('takes hung text by its words where they hang, and selected, by its anchor', () => {
     const hung = label({ from: [0.3, 0.3], to: [0.3, 0.3], offsetPt: [20, 0] });

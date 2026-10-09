@@ -81,9 +81,36 @@ import {
   withDivisionsOffset,
   withNumbered,
   withParts,
+  withShortDividers,
+  shortDividersShow,
+  carriesColor,
+  GLYPH_SCALE,
+  glyphAngle,
+  glyphAngleOf,
+  glyphScaleOf,
+  withGlyphAngle,
+  withGlyphScale,
+  withStarFill,
+  eyeLooking,
+  flipCentre,
+  flipsOver,
+  keptTo,
+  keptTurn,
+  rectangleAngle,
+  AREA_SIDE,
+  areaFromCorners,
+  withAreaAngle,
+  withAreaBox,
+  withXRayDepth,
+  xrayDepthOf,
+  XRAY_DEPTH,
+  ZOOM_CLICK,
   type PictureMove,
   type PicturePoint,
 } from './annotationModel';
+import { divisionsShape } from '../../cp-workspace/references/stepDiagramGeometry';
+import { DIAGRAM_DIVISIONS_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import { ANNOTATION_INK_MM } from './canvasInk';
 
 const SQUARE = { width: 1, height: 1 };
 const id = () => 'annotation-1';
@@ -1205,8 +1232,17 @@ describe('equal divisions (Revision 2)', () => {
     // Always written: one with none is given the laid ones.
     const { parts: _p, offset: _o, ...bare } = top;
     expect(cleanAnnotation(bare)).toMatchObject({ parts: 4, offset: 2.5 });
-    const loose = cleanAnnotation({ ...top, mirrored: false as unknown as true, numbered: false as unknown as true, ticks: 7 as 1 });
-    expect(['mirrored', 'numbered', 'ticks'].filter((key) => Object.hasOwn(loose, key))).toEqual([]);
+    const loose = cleanAnnotation({
+      ...top,
+      mirrored: false as unknown as true,
+      numbered: false as unknown as true,
+      shortDividers: false as unknown as true,
+      ticks: 7 as 1,
+    });
+    expect(['mirrored', 'numbered', 'shortDividers', 'ticks'].filter((key) => Object.hasOwn(loose, key))).toEqual([]);
+    // Short dividers (Revision 3) kept as written, only when true.
+    const short = { ...top, shortDividers: true as const };
+    expect(cleanAnnotation(short)).toBe(short);
     expect(cleanAnnotation({ ...top, from: [9, 0] }).from).toEqual([ANNOTATION_REACH, 0]);
   });
 
@@ -1224,6 +1260,40 @@ describe('equal divisions (Revision 2)', () => {
     expect(withDivisionsOffset(top, 3, { mirrored: false })).toEqual({ id: 'd-1', kind: 'divisions', from: [0, 0], to: [1, 0], parts: 4, offset: 3 });
     expect(withNumbered(top, true)).toEqual({ ...top, numbered: true });
     expect(Object.hasOwn(withNumbered({ ...top, numbered: true }, false), 'numbered')).toBe(false);
+  });
+
+  it('takes short dividers as a switch, written only when on, and keeps them through a move, a flip and F (Revision 3, R3-1 A)', () => {
+    expect(withShortDividers(top, true)).toEqual({ ...top, shortDividers: true });
+    expect(Object.hasOwn(withShortDividers({ ...top, shortDividers: true }, false), 'shortDividers')).toBe(false);
+    const short = { ...top, shortDividers: true as const };
+    const grown: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
+    expect(carryAnnotation(short, grown).shortDividers).toBe(true);
+    expect(carryAnnotation(short, mirrorMove(SQUARE)).shortDividers).toBe(true);
+    expect(flipAnnotation(short, 'vertical').shortDividers).toBe(true);
+    expect(flipAnnotationArc(short).shortDividers).toBe(true);
+    // On its line they draw as full ones do: F and the flips are held there as before.
+    expect(flipChangesArc({ ...short, offset: 0 })).toBe(false);
+    expect(flipChangesMark({ ...short, offset: 0 }, 'vertical')).toBe(false);
+  });
+
+  it('says short dividers show only where they change the drawing: the line more than 1.65 mm out (the 18a follow-up)', () => {
+    // As the drawing has it, in ink: the dividers between the ends, short and full.
+    const drawn = (mm: number, shortDividers: boolean) =>
+      divisionsShape({ x: 0, y: 0 }, { x: 100, y: 0 }, { parts: 3, ticks: 1, mirrored: false, numbered: false, shortDividers }, {
+        offset: mm / ANNOTATION_INK_MM,
+        overshoot: DIAGRAM_DIVISIONS_INK.overshoot,
+        tick: 3,
+        spacing: 2,
+        tickFloor: 1.5,
+        spacingFloor: 1,
+        lean: 0,
+        number: 7.2,
+        gap: 2,
+      })!.dividers;
+    for (const mm of [0, 1, 1.6, 1.7, 2.5, 10]) {
+      expect(shortDividersShow(mm)).toBe(JSON.stringify(drawn(mm, true)) !== JSON.stringify(drawn(mm, false)));
+    }
+    expect([1.6, 1.65, 1.7, DIVISIONS_OFFSET_MM.laid].map(shortDividersShow)).toEqual([false, false, true, true]);
   });
 
   it('keeps its line on its side of the paper through a mirror, its offset and its count through any move', () => {
@@ -1268,5 +1338,351 @@ describe('equal divisions (Revision 2)', () => {
     const slant = { ...top, to: [1, 0.5] as PicturePoint, offset: 0 };
     expect(flipChangesMark(slant, 'vertical')).toBe(true);
     expect(flipChangesMark(slant, 'horizontal')).toBe(true);
+  });
+});
+
+describe('a star (Revision 3)', () => {
+  const star = (more: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnotation => ({
+    id: 's-1',
+    kind: 'star',
+    from: [0.3, 0.4],
+    to: [0.3, 0.4],
+    ...more,
+  });
+
+  it('is put down at one point with a click, snapping as a circle does, an outline until its fill says otherwise', () => {
+    expect(createAnnotation('star', [0.3, 0.4], [0.9, 0.9], SQUARE, id)).toEqual({ id: 'annotation-1', kind: 'star', from: [0.3, 0.4], to: [0.3, 0.4] });
+    expect(placedByClick('star')).toBe(true);
+    expect(isDegenerate(star(), MIN_ANNOTATION_LENGTH)).toBe(false);
+    // Laid filled by the rail's Star Fill, as the Solid Arrow lays a white arrow filled.
+    expect(withStarFill(star(), 'black')).toEqual(star({ fill: 'black' }));
+    expect(Object.hasOwn(withStarFill(star({ fill: 'black' }), 'white'), 'fill')).toBe(false);
+    // No ends to drag, no path, no text, no colour, nothing behind a flap: its box moves, scales and turns it.
+    expect(annotationEnds(star())).toEqual([]);
+    expect([canBeShaped('star'), carriesText('star'), carriesColor('star'), behindEnds('star').length]).toEqual([false, false, false, 0]);
+    expect(kindFromOtherSide('star')).toBe('star');
+  });
+
+  it('takes a turn within [0, 360) and a scale within half to four times, writing neither at upright and its print size', () => {
+    expect(withGlyphAngle(star(), 370)).toEqual(star({ angle: 10 }));
+    expect(withGlyphAngle(star(), -15)).toEqual(star({ angle: 345 }));
+    expect(Object.hasOwn(withGlyphAngle(star({ angle: 30 }), 360), 'angle')).toBe(false);
+    expect(withGlyphScale(star(), 9)).toEqual(star({ scale: GLYPH_SCALE.max }));
+    expect(withGlyphScale(star(), 0.1)).toEqual(star({ scale: GLYPH_SCALE.min }));
+    expect(Object.hasOwn(withGlyphScale(star({ scale: 2 }), 1), 'scale')).toBe(false);
+    expect([glyphAngleOf(star()), glyphScaleOf(star())]).toEqual([0, 1]);
+  });
+
+  it('is cleaned as the file reads it: its point within reach and `to` on it, a fill only when filled, its turn and scale held', () => {
+    const clean = star({ fill: 'black', angle: 30, scale: 2 });
+    expect(cleanAnnotation(clean)).toBe(clean);
+    // A fill this build does not write — as a hand-edited file might hold — is dropped.
+    const white = { ...star({ to: [0.9, 0.9], angle: 400, scale: 7 }), fill: 'white' } as unknown as KnownDiagramAnnotation;
+    expect(cleanAnnotation(white)).toEqual(star({ angle: 40, scale: GLYPH_SCALE.max }));
+    expect(cleanAnnotation(star({ angle: Number.NaN, scale: Number.POSITIVE_INFINITY }))).toEqual(star());
+    expect(cleanAnnotation(star({ from: [9, 9], to: [9, 9] })).from).toEqual([ANNOTATION_REACH, ANNOTATION_REACH]);
+  });
+
+  it('keeps its turn and its scale through a carry: only its centre goes with the picture (R3-32 A)', () => {
+    const turned = star({ angle: 20, scale: 1.5 });
+    const quarter: PictureMove = { point: ([x, y]) => [1 - y, x], mirrors: false, turnDeg: 90 };
+    expect(carryAnnotation(turned, quarter)).toEqual({ ...turned, from: [0.6, 0.3], to: [0.6, 0.3] });
+    const mirrored = carryAnnotation(turned, mirrorMove(SQUARE));
+    expect(mirrored).toEqual({ ...turned, from: [0.7, 0.4], to: [0.7, 0.4] });
+    // Onto the paper's other side (Turn Over) it is still a star, as it was.
+    expect(carryAnnotation(turned, { ...mirrorMove(SQUARE), otherSide: true })).toEqual(mirrored);
+    // Grown with the picture, as into an enlarged step's window: its print size kept.
+    const grown: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
+    expect(carryAnnotation(turned, grown).scale).toBe(1.5);
+    // Moved, as a paste moves it.
+    expect(moveAnnotation(turned, [0.25, 0.25])).toEqual({ ...turned, from: [0.55, 0.65], to: [0.55, 0.65] });
+  });
+});
+
+describe('an eye (Revision 3)', () => {
+  const eye = (more: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnotation => ({
+    id: 'e-1',
+    kind: 'eye',
+    from: [0.3, 0.4],
+    to: [0.3, 0.4],
+    ...more,
+  });
+  const WIDE = { width: 1, height: 0.5 };
+
+  it('is put down where a drag starts, looking toward where it ends, at any angle (R3-8 A)', () => {
+    // Down and to the right, 45° clockwise from looking right.
+    expect(createAnnotation('eye', [0.3, 0.4], [0.5, 0.6], SQUARE, id)).toEqual({
+      id: 'annotation-1',
+      kind: 'eye',
+      from: [0.3, 0.4],
+      to: [0.3, 0.4],
+      angle: 45,
+    });
+    // Straight right: looking right, its angle unsaid.
+    expect(createAnnotation('eye', [0.3, 0.4], [0.8, 0.4], SQUARE, id)).toEqual({ id: 'annotation-1', kind: 'eye', from: [0.3, 0.4], to: [0.3, 0.4] });
+    // Up and to the left at a free angle, kept to a hundredth of a degree.
+    const free = createAnnotation('eye', [0.3, 0.4], [0.1, 0.33], SQUARE, id);
+    expect(free.angle).toBe(keptTo(((Math.atan2(-0.07, -0.2) * 180) / Math.PI + 360) % 360, 0.01));
+    expect(free.angle).toBeCloseTo(199.29, 2);
+  });
+
+  it('is held to 15° steps with Shift (R3-28 A)', () => {
+    expect(eyeLooking([0.3, 0.4], [0.1, 0.33], SQUARE, { steps: true }, id).angle).toBe(195);
+    expect(eyeLooking([0.3, 0.4], [0.5, 0.41], SQUARE, { steps: true }, id).angle).toBeUndefined();
+    expect(eyeLooking([0.3, 0.4], [0.3, 0.1], SQUARE, { steps: true }, id).angle).toBe(270);
+  });
+
+  it('looks at the picture’s middle when it is clicked, or dragged shorter than a slip, and right from the middle itself', () => {
+    // From the top left of a wide frame, toward (0.5, 0.25): down and to the right.
+    const clicked = createAnnotation('eye', [0.1, 0.05], [0.1, 0.05], WIDE, id);
+    expect(clicked.angle).toBe(keptTo((Math.atan2(0.2, 0.4) * 180) / Math.PI, 0.01));
+    const short = createAnnotation('eye', [0.9, 0.25], [0.9 + MIN_ANNOTATION_LENGTH / 2, 0.25], WIDE, id);
+    expect(short.angle).toBe(180);
+    expect(createAnnotation('eye', [0.5, 0.25], [0.5, 0.25], WIDE, id).angle).toBeUndefined();
+    expect(placedByClick('eye')).toBe(true);
+    expect(isDegenerate(clicked, MIN_ANNOTATION_LENGTH)).toBe(false);
+  });
+
+  it('has no ends, path, text, colour or anything behind a flap: its box moves, scales and turns it', () => {
+    expect(annotationEnds(eye())).toEqual([]);
+    expect([canBeShaped('eye'), carriesText('eye'), carriesColor('eye'), behindEnds('eye').length]).toEqual([false, false, false, 0]);
+    expect(kindFromOtherSide('eye')).toBe('eye');
+    expect(withGlyphAngle(eye(), -90)).toEqual(eye({ angle: 270 }));
+    expect(withGlyphScale(eye(), 6)).toEqual(eye({ scale: GLYPH_SCALE.max }));
+  });
+
+  it('is cleaned as the file reads it: its centre within reach and `to` on it, never filled, its turn and scale held', () => {
+    const clean = eye({ angle: 200, scale: 2 });
+    expect(cleanAnnotation(clean)).toBe(clean);
+    const loose = { ...eye({ to: [0.9, 0.9], angle: 450, scale: 0.1 }), fill: 'black' } as KnownDiagramAnnotation;
+    expect(cleanAnnotation(loose)).toEqual(eye({ angle: 90, scale: GLYPH_SCALE.min }));
+    expect(cleanAnnotation(eye({ angle: Number.NaN }))).toEqual(eye());
+  });
+
+  it('flips about its centre: Horizontal to 180° less the way it looks, Vertical to its negative (R3-9b A)', () => {
+    expect(flipsOver('eye')).toBe(true);
+    const looking = eye({ angle: 30, scale: 1.5 });
+    expect(flipCentre(looking)).toEqual([0.3, 0.4]);
+    expect(flipAnnotation(looking, 'horizontal')).toEqual(eye({ angle: 150, scale: 1.5 }));
+    expect(flipAnnotation(looking, 'vertical')).toEqual(eye({ angle: 330, scale: 1.5 }));
+    // Looking left, a horizontal flip has it look right: its angle unsaid again.
+    expect(flipAnnotation(eye({ angle: 180 }), 'horizontal')).toEqual(eye());
+    // Looking straight down, Horizontal changes nothing; Vertical has it look up.
+    expect(flipChangesMark(eye({ angle: 90 }), 'horizontal')).toBe(false);
+    expect(flipAnnotation(eye({ angle: 90 }), 'vertical')).toEqual(eye({ angle: 270 }));
+  });
+
+  it('has no arc to flip: F on an eye is its Flip row’s Horizontal, not a half turn (R3-9b A, F amended 2026-10-08)', () => {
+    expect(flipsArc('eye')).toBe(false);
+    const looking = eye({ angle: 30, scale: 2 });
+    expect(flipAnnotationArc(looking)).toBe(looking);
+    expect(flipChangesArc(looking)).toBe(false);
+  });
+
+  it('turns with the picture through a carry, a mirror reflecting the way it looks; its scale a print size', () => {
+    const looking = eye({ angle: 30, scale: 1.5 });
+    // A quarter turn clockwise: its centre with the paper, and the way it looks a quarter on.
+    const quarter: PictureMove = { point: ([x, y]) => [1 - y, x], mirrors: false, turnDeg: 90 };
+    expect(carryAnnotation(looking, quarter)).toEqual(eye({ from: [0.6, 0.3], to: [0.6, 0.3], angle: 120, scale: 1.5 }));
+    // Mirrored left to right: 180° less it.
+    const mirrored = carryAnnotation(looking, mirrorMove(SQUARE));
+    expect(mirrored).toEqual(eye({ from: [0.7, 0.4], to: [0.7, 0.4], angle: 150, scale: 1.5 }));
+    // Turn Over: mirrored with the paper, and still an eye.
+    expect(carryAnnotation(looking, { ...mirrorMove(SQUARE), otherSide: true })).toEqual(mirrored);
+    // A spread's own turn there, by `vector`: a quarter turn back.
+    const spread: PictureMove = { point: ([x, y]) => [x + 0.1, y], vector: ([x, y]) => [y, -x], mirrors: false, turnDeg: -90 };
+    expect(carryAnnotation(looking, spread)).toEqual(eye({ from: [0.4, 0.4], to: [0.4, 0.4], angle: 300, scale: 1.5 }));
+    // Grown with the picture, as into an enlarged step's window: its print size kept, the way it looks too.
+    const grown: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
+    expect(carryAnnotation(looking, grown)).toEqual(eye({ from: [0.6, 0.8], to: [0.6, 0.8], angle: 30, scale: 1.5 }));
+    // Moved, as a paste moves it.
+    expect(moveAnnotation(looking, [0.25, 0.25])).toEqual({ ...looking, from: [0.55, 0.65], to: [0.55, 0.65] });
+  });
+});
+
+describe('an oval and a rectangle (Revision 3)', () => {
+  const shape = (kind: 'oval' | 'rectangle', more: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnotation => ({
+    id: 's-1',
+    kind,
+    from: [0.4, 0.5],
+    to: [0.4, 0.5],
+    size: [0.4, 0.2],
+    ...more,
+  });
+  const near = (actual: readonly number[], expected: readonly number[]) =>
+    actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, 9));
+
+  it('is dragged corner to corner as Enlarge in Frame’s area is, free of any snap: Shift a circle or a square, Alt from its middle (R3-10b A)', () => {
+    expect(areaFromCorners('oval', [0.1, 0.2], [0.5, 0.4], {}, id)).toEqual({
+      id: 'annotation-1',
+      kind: 'oval',
+      from: [0.30000000000000004, 0.30000000000000004],
+      to: [0.30000000000000004, 0.30000000000000004],
+      size: [0.4, 0.2],
+    });
+    // Dragged up and to the left, the same box.
+    expect(areaFromCorners('rectangle', [0.5, 0.4], [0.1, 0.2], {}, id).size).toEqual([0.4, 0.2]);
+    expect(areaFromCorners('oval', [0.1, 0.2], [0.5, 0.4], { square: true }, id).size).toEqual([0.4, 0.4]);
+    expect(areaFromCorners('rectangle', [0.5, 0.5], [0.6, 0.55], { fromMiddle: true }, id)).toMatchObject({ from: [0.5, 0.5] });
+    near(areaFromCorners('rectangle', [0.5, 0.5], [0.6, 0.55], { fromMiddle: true }, id).size!, [0.2, 0.1]);
+    // As the tool lays one, and a click a standard size round where it was clicked.
+    expect(createAnnotation('rectangle', [0.1, 0.2], [0.5, 0.4], SQUARE, id)).toEqual(areaFromCorners('rectangle', [0.1, 0.2], [0.5, 0.4], {}, id));
+    expect(createAnnotation('oval', [0.3, 0.3], [0.3, 0.3], SQUARE, id)).toMatchObject({ from: [0.3, 0.3], size: [0.3, 0.3] });
+    expect(placedByClick('oval')).toBe(true);
+    expect(placedByClick('rectangle')).toBe(true);
+    expect(isDegenerate(shape('oval'), MIN_ANNOTATION_LENGTH)).toBe(false);
+  });
+
+  it('is held to an enlarge area’s sides’ range, from a slip to twice the frame (R3-30b A)', () => {
+    expect(AREA_SIDE).toEqual({ min: MIN_ANNOTATION_LENGTH, max: 2 });
+    expect(areaFromCorners('oval', [-1, -1], [3, 0.4], {}, id).size).toEqual([2, 1.4]);
+    expect(withAreaBox(shape('rectangle'), [0.5, 0.5], [5, 0.001]).size).toEqual([2, MIN_ANNOTATION_LENGTH]);
+  });
+
+  it('is cleaned as the file reads it: its centre within reach and `to` on it, its size held, its turn within [0, 180)', () => {
+    const clean = shape('oval', { angle: 30 });
+    expect(cleanAnnotation(clean)).toBe(clean);
+    expect(cleanAnnotation(shape('rectangle', { to: [0.9, 0.9], size: [3, 0.1], angle: 210 }))).toEqual(
+      shape('rectangle', { size: [2, 0.1], angle: 30 })
+    );
+    const { size: _none, ...unsized } = shape('oval');
+    expect(cleanAnnotation(unsized)).toEqual(shape('oval', { size: [0.3, 0.3] }));
+    expect(cleanAnnotation(shape('oval', { angle: Number.NaN }))).toEqual(shape('oval'));
+  });
+
+  it('is turned within [0, 180), a hundredth of a degree at a time, and written only when it is turned', () => {
+    expect(withAreaAngle(shape('oval'), 37.123)).toEqual(shape('oval', { angle: 37.12 }));
+    expect(withAreaAngle(shape('oval'), -30)).toEqual(shape('oval', { angle: 150 }));
+    expect(withAreaAngle(shape('rectangle', { angle: 40 }), 180)).toEqual(shape('rectangle'));
+    expect(withAreaAngle(shape('rectangle'), 179.996)).toEqual(shape('rectangle'));
+    // Past a half turn, rounded only once it is within [0, 180), so the wrap's float error is not written (18d
+    // follow-up): a typed 192.35 was 12.349999999999994, 200.01 was 20.00999999999999, 185.67 was 5.6699999999999875.
+    expect(withAreaAngle(shape('oval'), 192.35)).toEqual(shape('oval', { angle: 12.35 }));
+    expect(withAreaAngle(shape('oval'), 200.01)).toEqual(shape('oval', { angle: 20.01 }));
+    expect(withAreaAngle(shape('rectangle'), 185.67)).toEqual(shape('rectangle', { angle: 5.67 }));
+    expect(withAreaAngle(shape('rectangle'), 359.996)).toEqual(shape('rectangle'));
+  });
+
+  it('keeps every turn as one rule, wrapped, rounded and wrapped again: no wrap’s float error, never the whole turn (18d follow-up)', () => {
+    expect(keptTurn(192.35, rectangleAngle)).toBe(12.35);
+    expect(keptTurn(179.996, rectangleAngle)).toBe(0);
+    expect(keptTurn(372.35, glyphAngle)).toBe(12.35);
+    expect(keptTurn(359.996, glyphAngle)).toBe(0);
+    expect(keptTurn(-0.004, glyphAngle)).toBe(0);
+    expect(keptTurn(-12.35, glyphAngle)).toBe(347.65);
+    expect(Object.is(keptTurn(-0.001, glyphAngle), -0)).toBe(false);
+  });
+
+  it('has no ends, no path, no text, no colour, nothing behind a flap and no Flip: its box scales and turns it', () => {
+    for (const kind of ['oval', 'rectangle'] as const) {
+      expect(annotationEnds(shape(kind))).toEqual([]);
+      expect(canBeShaped(kind)).toBe(false);
+      expect(carriesText(kind)).toBe(false);
+      expect(carriesColor(kind)).toBe(false);
+      expect(behindEnds(kind)).toEqual([]);
+      expect(flipsOver(kind)).toBe(false);
+      expect(flipsArc(kind)).toBe(false);
+      expect(kindFromOtherSide(kind)).toBe(kind);
+    }
+  });
+
+  it('is carried with the paper as an enlarge area is (`carryArea`): its centre with the face, its size by the move’s scale, its turn by its turn, a mirror negating it', () => {
+    const turned = shape('oval', { angle: 30 });
+    // A quarter turn clockwise about the middle, the picture grown half again.
+    const quarter: PictureMove = {
+      point: ([x, y]) => [0.5 + 1.5 * (0.5 - y), 0.5 + 1.5 * (x - 0.5)],
+      mirrors: false,
+      turnDeg: 90,
+    };
+    const carried = carryAnnotation(turned, quarter);
+    near(carried.from, [0.5, 0.35]);
+    expect(carried.to).toEqual(carried.from);
+    near(carried.size!, [0.6, 0.3]);
+    expect(carried.angle).toBeCloseTo(120, 9);
+    // Mirrored left to right, and Turn Over: its angle negated, its centre with the paper.
+    const mirrored = carryAnnotation(turned, mirrorMove(SQUARE));
+    expect(mirrored).toEqual(shape('oval', { from: [0.6, 0.5], to: [0.6, 0.5], angle: 150 }));
+    expect(carryAnnotation(turned, { ...mirrorMove(SQUARE), otherSide: true })).toEqual(mirrored);
+    expect(carryAnnotation(mirrored, mirrorMove(SQUARE)).angle).toBeCloseTo(30, 9);
+    // An upright rectangle mirrored is upright still: no angle written.
+    expect('angle' in carryAnnotation(shape('rectangle'), mirrorMove(SQUARE))).toBe(false);
+    // A spread's own turn there, by `vector`: never stretched with the face under its rim.
+    const spread: PictureMove = { point: ([x, y]) => [x + 0.1, y * 3], vector: ([x, y]) => [y, -x], mirrors: false, turnDeg: -90 };
+    const spreadOut = carryAnnotation(turned, spread);
+    near(spreadOut.from, [0.5, 1.5]);
+    near(spreadOut.size!, [0.4, 0.2]);
+    expect(spreadOut.angle).toBeCloseTo(120, 9);
+    // Grown with the picture, as into an enlarged step's window: it rings the same part of the picture.
+    const grown: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
+    expect(carryAnnotation(turned, grown)).toEqual(shape('oval', { from: [0.8, 1], to: [0.8, 1], size: [0.8, 0.4], angle: 30 }));
+  });
+});
+
+describe('an x-ray (Revision 3, 18e)', () => {
+  const xray = (more: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnotation => ({
+    id: 'x-1',
+    kind: 'x-ray',
+    from: [0.4, 0.5],
+    to: [0.4, 0.5],
+    radius: 0.2,
+    depth: 2,
+    ...more,
+  });
+  const near = (actual: readonly number[], expected: readonly number[]) =>
+    actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, 9));
+
+  it('is dragged out from its middle as Enlarge’s circle is, taking away one layer until its Depth is typed; a click a standard size', () => {
+    expect(createAnnotation('x-ray', [0.4, 0.5], [0.6, 0.5], SQUARE, id)).toEqual({
+      id: 'annotation-1',
+      kind: 'x-ray',
+      from: [0.4, 0.5],
+      to: [0.4, 0.5],
+      radius: expect.closeTo(0.2, 12),
+      depth: 1,
+    });
+    expect(createAnnotation('x-ray', [0.3, 0.3], [0.3, 0.3], SQUARE, id)).toMatchObject({ radius: ZOOM_CLICK.radius, depth: XRAY_DEPTH.laid });
+    expect(placedByClick('x-ray')).toBe(true);
+    expect(isDegenerate(xray(), MIN_ANNOTATION_LENGTH)).toBe(false);
+  });
+
+  it('is cleaned as the file reads it: its centre within reach and `to` on it, its radius held, its depth a whole number from one', () => {
+    const clean = xray({ anchor: [3, -4] });
+    expect(cleanAnnotation(clean)).toBe(clean);
+    expect(cleanAnnotation(xray({ to: [0.9, 0.9], radius: 3, depth: 2.6 }))).toEqual(xray({ radius: 1, depth: 3 }));
+    const { depth: _none, ...undeep } = xray();
+    expect(cleanAnnotation(undeep)).toEqual(xray({ depth: 1 }));
+    expect(cleanAnnotation(xray({ depth: 0, anchor: [Number.NaN, 1] }))).toEqual(xray({ depth: 1 }));
+    expect(withXRayDepth(xray(), 7)).toEqual(xray({ depth: 7 }));
+    expect(withXRayDepth(xray(), -3)).toEqual(xray({ depth: 1 }));
+    expect(xrayDepthOf({})).toBe(1);
+  });
+
+  it('has no ends, no path, no text, no colour, nothing behind a flap and no Flip: its grips are a circle’s', () => {
+    expect(annotationEnds(xray())).toEqual([]);
+    expect(canBeShaped('x-ray')).toBe(false);
+    expect(carriesText('x-ray')).toBe(false);
+    expect(carriesColor('x-ray')).toBe(false);
+    expect(behindEnds('x-ray')).toEqual([]);
+    expect(flipsOver('x-ray')).toBe(false);
+    expect(flipsArc('x-ray')).toBe(false);
+    expect(kindFromOtherSide('x-ray')).toBe('x-ray');
+  });
+
+  it('is carried as an enlarge area is: its centre with the face, its radius by the move’s scale, its depth and its anchor on the paper kept (R3-21 A)', () => {
+    const anchored = xray({ anchor: [12.5, -3] });
+    const quarter: PictureMove = {
+      point: ([x, y]) => [0.5 + 1.5 * (0.5 - y), 0.5 + 1.5 * (x - 0.5)],
+      mirrors: false,
+      turnDeg: 90,
+    };
+    const carried = carryAnnotation(anchored, quarter);
+    near(carried.from, [0.5, 0.35]);
+    expect(carried.to).toEqual(carried.from);
+    expect(carried.radius).toBeCloseTo(0.3, 9);
+    expect(carried).toMatchObject({ kind: 'x-ray', depth: 2, anchor: [12.5, -3] });
+    // Turn Over: carried with its face onto the other side, its depth kept — it then looks through that side's stack.
+    expect(carryAnnotation(anchored, { ...mirrorMove(SQUARE), otherSide: true })).toEqual(
+      xray({ from: [0.6, 0.5], to: [0.6, 0.5], radius: expect.closeTo(0.2, 12), anchor: [12.5, -3] })
+    );
   });
 });

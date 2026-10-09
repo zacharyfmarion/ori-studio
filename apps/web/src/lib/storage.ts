@@ -90,6 +90,11 @@ export const STORAGE_KEYS = {
    */
   diagramAnnotateTextStyle: 'diagram-annotate-text-style',
   /**
+   * The fill Annotate's Star tool lays (Revision 3): `black`, filled, or
+   * `white`, an outline. Absent, or anything else, means filled.
+   */
+  diagramAnnotateStarFill: 'diagram-annotate-star-fill',
+  /**
    * Which of a References card's marks the Diagram's References browser pulls
    * (17d, its Show menu): `{ letters, highlights }` as JSON, read as export's
    * marks are (`normalizePaperExportMarks`). Absent, both.

@@ -241,6 +241,14 @@ describe('an area’s and a frame’s rows (Z7)', () => {
     const ids = buildAnchorActions({ picked: true, picking: false, readOnly: false, canvas: false }, deps).map((each) => each.id);
     expect(ids).toEqual(['reset-anchor']);
   });
+
+  it('offer an x-ray no Pick with no canvas either, and its Reset in its own words (review of #436, Revision 3)', () => {
+    const deps = { t, pick: vi.fn(), reset: vi.fn() };
+    expect(buildAnchorActions({ picked: false, picking: false, readOnly: false, canvas: false, on: 'x-ray' }, deps)).toEqual([]);
+    const actions = buildAnchorActions({ picked: true, picking: false, readOnly: false, canvas: false, on: 'x-ray' }, deps);
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toMatchObject({ id: 'reset-anchor', hint: 'Start peeling at the window’s centre again' });
+  });
 });
 
 describe('an enlarged step’s chip and status', () => {

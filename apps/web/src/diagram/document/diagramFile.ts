@@ -53,6 +53,7 @@ import {
   DEFAULT_WHITE_ARROW,
   DIVISIONS_OFFSET_MM,
   DIVISIONS_PARTS,
+  GLYPH_SCALE,
   LABEL_MAX_LENGTH,
   MAX_BEHIND_LAYERS,
   MAX_BEND,
@@ -61,8 +62,10 @@ import {
   MAX_STEP_ANNOTATIONS,
   MIN_CLOSE_UP_RADIUS,
   ZOOM_SIDE,
+  isAreaKind,
   isPointKind,
   isWithinReach,
+  rectangleAngle,
   type AnnotationReach,
 } from '../annotate/annotationModel';
 import { isAnnotationColor } from '../annotate/annotationColors';
@@ -378,8 +381,10 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     parts,
     offset,
     numbered,
+    shortDividers,
     behind,
     radius,
+    depth,
     scale,
     size,
     angle,
@@ -418,12 +423,14 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(parts !== undefined ? { parts } : {}),
     ...(offset !== undefined ? { offset } : {}),
     ...(numbered ? { numbered } : {}),
+    ...(shortDividers ? { shortDividers } : {}),
     ...(radius !== undefined ? { radius } : {}),
     ...(scale !== undefined ? { scale } : {}),
     ...(size !== undefined ? { size } : {}),
     ...(angle !== undefined ? { angle } : {}),
     ...(edge !== undefined ? { edge } : {}),
     ...(anchor !== undefined ? { anchor } : {}),
+    ...(depth !== undefined ? { depth } : {}),
     // A mark lifted from a References card (17d); the author's own are written as every mark was.
     ...(imported !== undefined ? { imported } : {}),
     // From end to end, as a reader expects it.
@@ -1083,9 +1090,14 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'right-angle': fields(),
     callout: fields('text'),
     'angle-mark': fields('other', 'ticks'),
-    divisions: fields('parts', 'offset', 'mirrored', 'ticks', 'numbered'),
+    divisions: fields('parts', 'offset', 'mirrored', 'ticks', 'numbered', 'shortDividers'),
     'close-up': fields('radius', 'scale'),
     zoom: fields('radius', 'size', 'angle', 'scale', 'edge', 'anchor'),
+    star: fields('fill', 'angle', 'scale'),
+    eye: fields('angle', 'scale'),
+    oval: fields('size', 'angle'),
+    rectangle: fields('size', 'angle'),
+    'x-ray': fields('radius', 'anchor', 'depth'),
   };
 })();
 
@@ -1154,8 +1166,11 @@ function readAnnotationOfKind(
   const fields = ANNOTATION_FIELDS[kind];
   if (Object.keys(entry).some((key) => !fields.has(key))) return NEWER;
   const from = readAnnotationPoint(entry.from, reach);
-  // A sign's, a label's or an enlarge area's one place is `from`; `to` is written as it again.
-  const to = isPointKind(kind) || kind === 'zoom' ? from : readAnnotationPoint(entry.to, reach);
+  // A sign's, a label's, an enlarge area's, an eye's, a shape's or an x-ray's one place is `from`; `to` is written as it again.
+  const to =
+    isPointKind(kind) || kind === 'zoom' || kind === 'eye' || isAreaKind(kind) || kind === 'x-ray'
+      ? from
+      : readAnnotationPoint(entry.to, reach);
   if (from === null || to === null) return null;
   if (from === NEWER || to === NEWER) return NEWER;
   // The ends behind a flap, for a kind that has them: news before damage, as for the rest.
@@ -1263,16 +1278,20 @@ function readAnnotationOfKind(
       return { ...annotation, ...(kinks !== undefined ? { kinks } : {}), ...(mirrored ? { mirrored: true } : {}) };
     }
     case 'divisions': {
-      // Its parts and its offset, which it must have, its ticks, its side and
-      // whether it prints its count; a value past the ranges this build draws
-      // is news, told before damage.
+      // Its parts and its offset, which it must have, its ticks, its side,
+      // whether it prints its count and whether its dividers between its ends
+      // are short (Revision 3); a value past the ranges this build draws is
+      // news, told before damage.
       const parts = readDivisionsParts(entry.parts);
       const offset = readDivisionsOffset(entry.offset);
       const ticks = readTicks(entry.ticks);
       const mirrored = readMirrored(entry.mirrored);
       const numbered = readNumbered(entry.numbered);
+      const shortDividers = readFlag(entry.shortDividers);
       if (parts === NEWER || offset === NEWER || ticks === NEWER) return NEWER;
-      if (parts === null || offset === null || ticks === null || mirrored === null || numbered === null) return null;
+      if (parts === null || offset === null || ticks === null || mirrored === null || numbered === null || shortDividers === null) {
+        return null;
+      }
       return {
         ...annotation,
         parts,
@@ -1280,6 +1299,7 @@ function readAnnotationOfKind(
         ...(ticks !== undefined ? { ticks } : {}),
         ...(mirrored ? { mirrored: true } : {}),
         ...(numbered ? { numbered: true } : {}),
+        ...(shortDividers ? { shortDividers: true } : {}),
       };
     }
     case 'close-up': {
@@ -1298,6 +1318,61 @@ function readAnnotationOfKind(
       const color = readColor(entry.color);
       if (color === NEWER || color === null) return color;
       return color !== undefined ? { ...annotation, color } : annotation;
+    }
+    case 'star': {
+      // Its fill, as a white arrow's; its scale, as a close-up's, past its
+      // range a newer build's — news before damage, as for the rest. Its turn
+      // is any number, read within [0, 360); one that does not read is
+      // dropped alone, and the star kept upright.
+      const fill = readFill(entry.fill);
+      const scale = readGlyphScale(entry.scale);
+      if (fill === NEWER || scale === NEWER) return NEWER;
+      if (fill === null || scale === null) return null;
+      const angle = finiteNumber(entry.angle);
+      return {
+        ...annotation,
+        ...(fill !== undefined ? { fill } : {}),
+        ...(angle !== null ? { angle: normalizeDegrees(angle) } : {}),
+        ...(scale !== undefined ? { scale } : {}),
+      };
+    }
+    case 'eye': {
+      // Its scale as a star's, past its range a newer build's; the way it
+      // looks any number, read within [0, 360), one that does not read
+      // dropped alone, and the eye kept looking right (Revision 3).
+      const scale = readGlyphScale(entry.scale);
+      if (scale === NEWER || scale === null) return scale;
+      const angle = finiteNumber(entry.angle);
+      return {
+        ...annotation,
+        ...(angle !== null ? { angle: normalizeDegrees(angle) } : {}),
+        ...(scale !== undefined ? { scale } : {}),
+      };
+    }
+    case 'oval':
+    case 'rectangle': {
+      // Its size, as an enlarge area's rounded rectangle's: always written —
+      // without one it does not read — and past R3-30b's range a newer
+      // build's, news before damage. Its turn any number, read within
+      // [0, 180) as a half turn draws it the same; one that does not read
+      // dropped alone, and the shape kept upright (Revision 3).
+      const size = readZoomSize(entry.size);
+      if (size === NEWER || size === null) return size;
+      const angle = finiteNumber(entry.angle);
+      return { ...annotation, size, ...(angle !== null ? { angle: rectangleAngle(angle) } : {}) };
+    }
+    case 'x-ray': {
+      // Its window's radius, as an enlarge circle's is read, and its depth,
+      // which it must have — a whole number from one, with no upper bound
+      // (Revision 3); a radius past the range this build draws is news, told
+      // before damage. Its anchor, a point on the paper, dropped alone when it
+      // does not read, and the window counted at its centre.
+      const radius = readCloseUpRadius(entry.radius);
+      const depth = readXRayDepth(entry.depth);
+      if (radius === NEWER) return NEWER;
+      if (radius === null || depth === null) return null;
+      const anchor = readPaperPoint(entry.anchor);
+      return { ...annotation, radius, depth, ...(anchor !== null ? { anchor } : {}) };
     }
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
@@ -1359,6 +1434,11 @@ function readPath(value: unknown, reach: AnnotationReach): DiagramPathNode[] | t
   return past ? NEWER : nodes;
 }
 
+/** An x-ray's depth (Revision 3): a whole number from one, always written; anything else — unsaid too — damage. */
+function readXRayDepth(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 ? value : null;
+}
+
 /** An angle mark's ticks, or equal divisions': unsaid, one; a whole count past three, a newer build's; anything else, damage. */
 function readTicks(value: unknown): DiagramTicks | undefined | typeof NEWER | null {
   if (value === undefined) return undefined;
@@ -1373,7 +1453,7 @@ function readLabelText(value: unknown): string | typeof NEWER | null {
   return text.length > LABEL_MAX_LENGTH ? NEWER : text;
 }
 
-/** A label's Bold or halo (17b), read as `numbered` is: unsaid or false, no; true, yes; anything else, damage. */
+/** A label's Bold or halo (17b), or equal divisions' short dividers (Revision 3), read as `numbered` is: unsaid or false, no; true, yes; anything else, damage. */
 function readFlag(value: unknown): boolean | null {
   if (value === undefined) return false;
   return typeof value === 'boolean' ? value : null;
@@ -1456,6 +1536,17 @@ function readCloseUpScale(value: unknown): number | undefined | typeof NEWER | n
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
   return value < CLOSE_UP_SCALE.min || value > CLOSE_UP_SCALE.max ? NEWER : value;
+}
+
+/**
+ * A star's or an eye's scale (Revision 3): unsaid, its print size; a positive number,
+ * as a close-up's is read, past {@link GLYPH_SCALE} a newer build's; anything
+ * else, damage.
+ */
+function readGlyphScale(value: unknown): number | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  return value < GLYPH_SCALE.min || value > GLYPH_SCALE.max ? NEWER : value;
 }
 
 /**

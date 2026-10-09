@@ -618,7 +618,13 @@ export type DiagramPicture =
  * divisions: a line set off from a line of the picture, cut into equal parts
  * by strokes across it, each part ticked, as a draftsman's dimension is
  * (Revision 2), and an enlarge area: a circle or a rounded rectangle marking
- * what a later step may show enlarged (Revision 2) — drawing one changes no
+ * what a later step may show enlarged (Revision 2), a star, filled or
+ * outlined, naming a point, an eye, in profile, saying where the next view
+ * is from, and an oval or a rectangle, an outline round an area of any size
+ * and proportion, as a diagram rings the places a repeat applies to, and an
+ * x-ray: a circular window cut into a flat fold's picture, inside which its
+ * top layers at one point are taken away and the faces beneath drawn in
+ * their side's colour with their edges (Revision 3) — drawing one changes no
  * other step.
  */
 export type DiagramAnnotationKind =
@@ -641,7 +647,12 @@ export type DiagramAnnotationKind =
   | 'angle-mark'
   | 'divisions'
   | 'close-up'
-  | 'zoom';
+  | 'zoom'
+  | 'star'
+  | 'eye'
+  | 'oval'
+  | 'rectangle'
+  | 'x-ray';
 
 /**
  * How an enlarged step draws its frame (Revision 2): only where it crosses
@@ -864,6 +875,13 @@ export interface KnownDiagramAnnotation {
   /** Equal divisions that print their count beside their line; unsaid, they do not. Only ever written true. */
   numbered?: true;
   /**
+   * Equal divisions whose dividers between their ends are short strokes
+   * across their line, 1.65 mm either side, rather than run to the line they
+   * measure, where they would draw over the fold they locate (Revision 3,
+   * R3-1 A, R3-2 A); unsaid, every divider runs there. Only ever written true.
+   */
+  shortDividers?: true;
+  /**
    * The ends of a fold or pleat arrow, a valley, mountain or solid line, or a
    * circle that lie behind a flap (15e): drawn dotted from each until they
    * come out from under it, on a flat fold, the one picture that knows its
@@ -906,26 +924,47 @@ export interface KnownDiagramAnnotation {
    * A close-up's area (15f): the radius of the ring round it, in picture
    * units. Its centre is `from`; the close-up's is `to`. An enlarge area's,
    * when it is a circle (Revision 2): its centre is `from`, and `to` again.
+   * An x-ray's window, a circle about `from`, and `to` again (Revision 3).
    */
   radius?: number;
+  /**
+   * How many layers an x-ray takes away (Revision 3, R3-13 A): the top
+   * `depth` at its anchor, and every layer over those, across the whole
+   * window. A whole number from 1, always written; one past the layers at
+   * the anchor is drawn at the deepest.
+   */
+  depth?: number;
   /**
    * How many times larger a close-up draws its area (15f): its ring is
    * `radius` times this. Two when unsaid. An enlarge area's Size, which the
    * steps enlarged from it copy: that many times the area as it prints,
-   * 1.25–6; unsaid, Fill (Revision 2).
+   * 1.25–6; unsaid, Fill (Revision 2). A star's or an eye's size, times its
+   * print size, 0.5–4; unsaid, 1 (Revision 3).
    */
   scale?: number;
   /**
    * An enlarge area that is a rounded rectangle: its width and height in
    * picture units, about its centre `from`. Exactly one of this and `radius`
-   * (Revision 2).
+   * (Revision 2). An oval's or a rectangle's, always written, so it rings the
+   * same part of the picture at any print size (Revision 3).
    */
   size?: [number, number];
-  /** An enlarge area's turn, in degrees clockwise, from a pose that carried it; unsaid, 0 (Revision 2). */
+  /**
+   * An enlarge area's turn, in degrees clockwise, from a pose that carried it;
+   * unsaid, 0 (Revision 2). A star's turn on the page, one point up at 0, and
+   * the way an eye looks, clockwise from looking right, each within
+   * [0, 360); an oval's or a rectangle's turn, by its handles or a pose that
+   * carried it, within [0, 180); unsaid, 0 (Revision 3).
+   */
   angle?: number;
   /** How the steps enlarged from an area draw their frame; unsaid, its shape's own (Revision 2). */
   edge?: DiagramZoomEdge;
-  /** An enlarge area's picked anchor: a point on the paper, in paper coordinates; unsaid, the default rule (Revision 2). */
+  /**
+   * An enlarge area's picked anchor: a point on the paper, in paper
+   * coordinates; unsaid, the default rule (Revision 2). An x-ray's: the point
+   * on the paper its layers are counted at; unsaid, the window's centre
+   * (Revision 3).
+   */
   anchor?: [number, number];
   /**
    * A solid line's colour (17a), or a label's (17b): a `#rrggbb` string,

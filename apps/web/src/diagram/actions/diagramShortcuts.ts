@@ -47,6 +47,8 @@ export interface DiagramKeyState {
     selectedPathNode?: number | null;
     /** The step is enlarged: the Enlarge tools draw nothing on it (Revision 2). */
     enlarged?: boolean;
+    /** The X-Ray tool is held on the step: its picture has no layers, or needs a Refresh first (Revision 3, R3-18a A). */
+    xrayHeld?: boolean;
   } | null;
 }
 
@@ -155,6 +157,10 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolSolidLine': true,
   'diagram.toolLabel': true,
   'diagram.toolCircle': true,
+  'diagram.toolStar': true,
+  'diagram.toolEye': true,
+  'diagram.toolOval': true,
+  'diagram.toolRectangle': true,
   'diagram.toolRightAngle': true,
   'diagram.toolCallout': true,
   'diagram.toolAngleBisector': true,
@@ -162,6 +168,7 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolCloseUp': true,
   'diagram.toolEnlarge': true,
   'diagram.toolEnlargeFrame': true,
+  'diagram.toolXRay': true,
   'diagram.flipArc': true,
 };
 
@@ -243,6 +250,8 @@ export function runDiagramAnnotateShortcut(
   if (tool === undefined || !actions.setTool) return false;
   // Claimed, and nothing picked: an enlarged step is not enlarged again yet, as the rail's held tool says.
   if (isEnlargeTool(tool) && annotate.enlarged && annotate.tool !== tool) return true;
+  // Claimed, and nothing picked: an x-ray draws nothing on a picture with no layers, as the rail's held tool says.
+  if (tool === 'x-ray' && annotate.xrayHeld && annotate.tool !== tool) return true;
   actions.setTool(annotate.tool === tool ? null : tool);
   return true;
 }

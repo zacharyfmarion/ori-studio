@@ -76,7 +76,15 @@
     "uploadRejected": "não é um SVG que o Ori Studio consiga ler com segurança",
     "uploadTooLarge": "é grande demais",
     "uploadUnreadable": "não foi possível ler a imagem",
-    "uploadUnsupported": "não é uma imagem"
+    "uploadUnsupported": "não é uma imagem",
+    "zoom": {
+      "updatedList": "Passos ampliados {{numbers}} atualizados",
+      "updatedOne": "Passo ampliado {{number}} atualizado",
+      "updatedRange": "Passos ampliados {{first}}–{{last}} atualizados",
+      "updatedSome": "{{placed}} de {{total}} passos ampliados atualizados",
+      "updatedSomeDetail": "Os demais não puderam receber uma moldura desta área.",
+      "updateFailed": "Não foi possível atualizar os passos ampliados"
+    }
   },
   "diagramExport": {
     "saved": "{{name}} exportado"

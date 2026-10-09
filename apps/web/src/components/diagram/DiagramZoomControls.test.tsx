@@ -23,6 +23,8 @@ vi.mock('../../diagram/pages/printedFrames', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../diagram/pages/printedFrames')>()),
   usePrintedZoom: (stepId: string | null) => (stepId === null ? null : printed.zoom),
 }));
+const toasts = vi.hoisted(() => ({ success: vi.fn(), warning: vi.fn(), error: vi.fn() }));
+vi.mock('sonner', () => ({ toast: toasts }));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
   ...tracked,
@@ -46,6 +48,7 @@ beforeEach(() => {
   // Every enlarged step's frame where its imprint lands, after every verb a control runs (Revision 2).
   frames = watchFrames(useWorkspaceStore.subscribe);
   Object.values(tracked).forEach((spy) => spy.mockClear());
+  Object.values(toasts).forEach((spy) => spy.mockClear());
   vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   host = document.createElement('div');
   document.body.append(host);
@@ -181,6 +184,7 @@ describe('an enlarge area’s row and controls', () => {
     });
     expect(past()).toBe(was + 1);
     expect(zoomAction('update-all')!.getAttribute('aria-disabled')).toBe('true');
+    expect(toasts.success).toHaveBeenCalledWith('Updated enlarged step 2');
     act(() => zoomAction('go-to-enlarged-step')!.click());
     expect(state().diagramSelectedStepId).toBe('step-2');
     expect(stepId).not.toBe('step-2');
@@ -228,6 +232,30 @@ describe('an enlarge area’s row and controls', () => {
       await Promise.resolve();
     });
     expect(zoomAction('update-all')!.getAttribute('aria-busy')).toBeNull();
+    expect(toasts.success).toHaveBeenCalledWith('Updated enlarged step 2');
+  });
+
+  it('says so when Update All places nothing, or stops on an error', async () => {
+    const stepId = crane();
+    await act(async () => {
+      await state().enlargeDiagramStep('step-2');
+    });
+    // Update All is held while every step is up to date: the area moved by hand puts step 2 out of date.
+    moveArea(stepId);
+    act(() => useWorkspaceStore.setState({ updateEnlargedDiagramSteps: vi.fn(async () => 0) }));
+    await act(async () => {
+      zoomAction('update-all')!.click();
+      await Promise.resolve();
+    });
+    expect(toasts.error).toHaveBeenLastCalledWith('The enlarged steps couldn’t be updated', undefined);
+    act(() => useWorkspaceStore.setState({ updateEnlargedDiagramSteps: vi.fn(async () => Promise.reject(new Error('folded badly'))) }));
+    await act(async () => {
+      zoomAction('update-all')!.click();
+      await Promise.resolve();
+    });
+    expect(toasts.error).toHaveBeenLastCalledWith('The enlarged steps couldn’t be updated', { description: 'folded badly' });
+    expect(zoomAction('update-all')!.getAttribute('aria-busy')).toBeNull();
+    expect(toasts.success).not.toHaveBeenCalled();
   });
 
   it('holds every control on a diagram that cannot change', () => {

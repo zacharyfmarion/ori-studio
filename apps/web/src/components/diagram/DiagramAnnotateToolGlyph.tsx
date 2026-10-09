@@ -1,6 +1,14 @@
 import type { ReactElement } from 'react';
 import { MousePointer2, RotateCw, SplinePointer, Type } from 'lucide-react';
-import { TURN_OVER_BOX, TURN_OVER_HEAD_PATH, TURN_OVER_PATH } from '../../cp-workspace/references/stepDiagramGeometry';
+import {
+  TURN_OVER_BOX,
+  TURN_OVER_HEAD_PATH,
+  TURN_OVER_PATH,
+  eyePathData,
+  eyeShape,
+  polygonPathData,
+  starPoints,
+} from '../../cp-workspace/references/stepDiagramGeometry';
 import {
   ANGLE_BISECTOR,
   EDIT_PATH,
@@ -11,6 +19,7 @@ import {
   type AnnotateTool,
 } from '../../diagram/annotate/annotateTools';
 import { lineKindOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
+import type { DiagramStarFill } from '../../diagram/annotate/starFill';
 import type { DiagramAnnotationKind, DiagramZoomShape } from '../../diagram/document/diagramDocument';
 
 const SIZE = 20;
@@ -53,10 +62,13 @@ function Glyph({ children, color }: { children: React.ReactNode; color?: string 
 export function DiagramAnnotateToolGlyph({
   tool,
   lineType,
+  starFill = 'black',
 }: {
   tool: AnnotateTool;
   /** The type the Line tool draws in. */
   lineType: DiagramLineType;
+  /** The fill the Star tool lays (Revision 3): its icon is the star it lays, as the Line tool's is its line. */
+  starFill?: DiagramStarFill;
 }): ReactElement {
   if (tool === null) return <MousePointer2 size={17} aria-hidden="true" />;
   if (tool === EDIT_PATH) return <SplinePointer size={17} aria-hidden="true" />;
@@ -72,7 +84,30 @@ export function DiagramAnnotateToolGlyph({
   if (tool === SOLID_ARROW) return <SolidArrowGlyph />;
   if (tool === ENLARGE) return <EnlargeGlyph shape="circle" />;
   if (tool === ENLARGE_FRAME) return <EnlargeGlyph shape="rounded" />;
+  if (tool === 'star') return <StarGlyph fill={starFill} />;
   return <DiagramAnnotationGlyph kind={tool === LINE_TOOL ? lineKindOf(lineType) : tool} />;
+}
+
+/** A star's corners in a glyph, one point up: the regular star the mark draws (`starPoints`). */
+const STAR_GLYPH_PATH = polygonPathData(starPoints({ x: 10, y: 10.6 }, 8.4, 0));
+
+/**
+ * A star's icon (Revision 3): filled, or an outline — the Star tool's in the
+ * fill it lays, the rail's Fill's two options, and the list's for a star in
+ * its own fill. Mitred, as the mark's outline is.
+ */
+export function StarGlyph({ fill }: { fill: DiagramStarFill }): ReactElement {
+  return (
+    <Glyph>
+      <path
+        d={STAR_GLYPH_PATH}
+        fill={fill === 'black' ? 'currentColor' : 'none'}
+        strokeWidth={fill === 'black' ? 1 : 1.25}
+        strokeLinejoin="miter"
+        data-glyph-fill={fill}
+      />
+    </Glyph>
+  );
 }
 
 /**
@@ -107,14 +142,24 @@ export function SolidArrowGlyph(): ReactElement {
  * list both show it. The fold, push and white arrows are the arrows
  * themselves; the lines are their dash; the circle its ring; the right angle
  * its ∟ and square inside the two lines it marks; equal divisions the
- * template's |\|\| symbol; the callout its line and box; Rotate and Label are the app's own icons for those verbs. Every kind
+ * template's |\|\| symbol; the callout its line and box; the star, the eye, the oval,
+ * the rectangle and the x-ray the marks they draw; Rotate and Label are the app's own icons for those verbs. Every kind
  * has one: the return type makes a kind left out a compile error, not a
  * blank button.
  *
  * `color` is a mark's own colour: a solid line's glyph is drawn in it — a label's too (17b) — so the
  * Layers list tells one line from the next (17a). None is the icon's ink.
  */
-export function DiagramAnnotationGlyph({ kind, color }: { kind: DiagramAnnotationKind; color?: string }): ReactElement {
+export function DiagramAnnotationGlyph({
+  kind,
+  color,
+  fill,
+}: {
+  kind: DiagramAnnotationKind;
+  color?: string;
+  /** A star's own fill (Revision 3); unsaid, an outline, as a star with none is. */
+  fill?: DiagramStarFill;
+}): ReactElement {
   switch (kind) {
     case 'valley-arrow':
       return (
@@ -269,5 +314,50 @@ export function DiagramAnnotationGlyph({ kind, color }: { kind: DiagramAnnotatio
       );
     case 'zoom':
       return <EnlargeGlyph shape="rounded" />;
+    case 'star':
+      return <StarGlyph fill={fill ?? 'white'} />;
+    case 'eye':
+      return <EyeGlyph />;
+    case 'oval':
+      // Upright, about three quarters as wide as it is high, as the turtle's ovals are (Revision 3).
+      return (
+        <Glyph>
+          <ellipse cx={10} cy={10} rx={5.6} ry={7.6} />
+        </Glyph>
+      );
+    case 'rectangle':
+      // Its corners square, as the mark's are (R3-11b A): not Enlarge in Frame's rounded ones.
+      return (
+        <Glyph>
+          <rect x={3} y={5} width={14} height={10} strokeLinejoin="miter" />
+        </Glyph>
+      );
+    case 'x-ray':
+      // A heavy rim cut into a flap (Revision 3, R3-15b (ii)), and inside it a few short dashes in two staggered rows,
+      // hidden lines beneath seen through it: not a bar across a ring, which reads as "no", nor an M, which reads as
+      // the Mountain tool (18f, after 18e). Each dash longer than the Hidden Line's dots, which at the rail's size
+      // read as a grille (review of 18f).
+      return (
+        <Glyph>
+          <path
+            d="M5.4 8.2 L7.4 8.2 M9 8.2 L11 8.2 M12.6 8.2 L14.6 8.2 M7.2 11.8 L9.2 11.8 M10.8 11.8 L12.8 11.8"
+            strokeLinecap="butt"
+            data-glyph-part="dashes"
+          />
+          <circle cx={10} cy={10} r={7.2} strokeWidth={2} data-glyph-part="rim" />
+        </Glyph>
+      );
   }
+}
+
+/** An eye's lids, cornea and iris in a glyph, as the mark draws them (`eyeShape`): looking left, as the eye in Zach's note does. */
+const EYE_GLYPH_PATH = eyePathData(eyeShape({ x: 10, y: 10 }, { x: -1, y: 0 }, 17 / 15));
+
+/** The eye's icon (Revision 3): the Eye tool's and the list's, an outline, its back corner mitred as the mark's is. */
+export function EyeGlyph(): ReactElement {
+  return (
+    <Glyph>
+      <path d={EYE_GLYPH_PATH} strokeWidth={1.1} strokeLinecap="butt" strokeLinejoin="miter" />
+    </Glyph>
+  );
 }

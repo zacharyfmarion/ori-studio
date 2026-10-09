@@ -955,6 +955,31 @@ describe('annotations in the file', () => {
       expect(stepsIn(throughJson(writeDiagram(document)))[0].annotations).toEqual([divisions(), full, odd]);
     });
 
+    it('round-trip short dividers (Revision 3), written only when on', () => {
+      const short = divisions({ id: 'e-20', parts: 3, offset: 10, numbered: true, shortDividers: true });
+      const read = withAnnotations([short, divisions({ id: 'e-21', shortDividers: false })]);
+      expect(read).toEqual([short, divisions({ id: 'e-21' })]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      const written = stepsIn(throughJson(writeDiagram(document)))[0].annotations;
+      expect(written).toEqual([short, divisions({ id: 'e-21' })]);
+      expect(Object.keys(written[1]).sort()).toEqual(['from', 'id', 'kind', 'offset', 'parts', 'to']);
+    });
+
+    it('drop those whose short dividers are not a yes or a no', () => {
+      expect(withAnnotations([divisions({ shortDividers: 'yes' }), divisions({ id: 'e-22', shortDividers: 1 })])).toEqual([]);
+    });
+
+    it('are kept, verbatim and undrawn, with short dividers by a build before Revision 3: as a field it has no name for', () => {
+      // A build before 18a names no `shortDividers`; `stubDividers` stands for it here.
+      const older = divisions({ id: 'e-23', stubDividers: true });
+      expect(withAnnotations([older])).toEqual([{ id: 'e-23', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      const again = throughJson(writeDiagram(readDiagram(written)!.document));
+      expect(again.steps[0].annotations).toEqual([older]);
+    });
+
     it('read a side, a count or ticks said as their defaults, and write nothing for them', () => {
       const read = withAnnotations([divisions({ mirrored: false, numbered: false })]);
       expect(read).toEqual([divisions()]);
@@ -997,6 +1022,178 @@ describe('annotations in the file', () => {
       written.steps[0].annotations = [older];
       const again = throughJson(writeDiagram(readDiagram(written)!.document));
       expect(again.steps[0].annotations).toEqual([older]);
+    });
+  });
+
+  describe('a star (Revision 3)', () => {
+    const star = (more: Record<string, unknown> = {}) => ({ id: 's-1', kind: 'star', from: [0.4, 0.6], to: [0.4, 0.6], ...more });
+
+    it('round-trips its point, its fill, its turn and its scale — an outline, upright, at its print size when unsaid', () => {
+      const full = star({ id: 's-2', fill: 'black', angle: 37.5, scale: 2.25 });
+      const read = withAnnotations([star(), full]);
+      expect(read).toEqual([star(), full]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      const written = stepsIn(throughJson(writeDiagram(document)))[0].annotations;
+      expect(written).toEqual([star(), full]);
+      expect(Object.keys(written[0]).sort()).toEqual(['from', 'id', 'kind', 'to']);
+    });
+
+    it('reads its `to` as its point, whatever is written there', () => {
+      expect(withAnnotations([star({ to: [0.9, 0.1] })])).toEqual([star()]);
+    });
+
+    it('reads its turn within [0, 360), and drops a turn that is no number alone, keeping the star', () => {
+      expect(withAnnotations([star({ angle: -90 }), star({ id: 's-3', angle: 725 })])).toEqual([
+        star({ angle: 270 }),
+        star({ id: 's-3', angle: 5 }),
+      ]);
+      expect(withAnnotations([star({ angle: '30' }), star({ id: 's-4', angle: null })])).toEqual([star(), star({ id: 's-4' })]);
+    });
+
+    it('carries what a newer build might write: a fill it does not know, a scale past half to four times, a field it has no name for', () => {
+      const newer = [
+        star({ id: 's-5', fill: 'grey' }),
+        star({ id: 's-6', scale: 4.5 }),
+        star({ id: 's-7', scale: 0.25 }),
+        star({ id: 's-8', halo: true }),
+        star({ id: 's-9', behind: { from: 1 } }),
+      ];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+      // Written back as it came.
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = newer;
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual(newer);
+    });
+
+    it('drops one whose scale is no positive number, or whose fill is no word', () => {
+      const damaged = [star({ scale: 0 }), star({ id: 's-10', scale: -1 }), star({ id: 's-11', scale: '2' }), star({ id: 's-12', fill: 1 })];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+
+    it('is kept, verbatim and undrawn, by a build that knows none: as any kind it has no name for', () => {
+      // What a build before Revision 3 does: its reader names no such kind (`spiral-arrow` stands for it).
+      const older = star({ kind: 'spiral-arrow', fill: 'black', angle: 20, scale: 2 });
+      expect(withAnnotations([older])).toEqual([{ id: 's-1', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual([older]);
+    });
+  });
+
+  describe('an eye (Revision 3)', () => {
+    const eye = (more: Record<string, unknown> = {}) => ({ id: 'e-1', kind: 'eye', from: [0.4, 0.6], to: [0.4, 0.6], ...more });
+
+    it('round-trips its centre, the way it looks and its scale — looking right, at its print size, when unsaid', () => {
+      const full = eye({ id: 'e-2', angle: 217.25, scale: 1.75 });
+      const read = withAnnotations([eye(), full]);
+      expect(read).toEqual([eye(), full]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      const written = stepsIn(throughJson(writeDiagram(document)))[0].annotations;
+      expect(written).toEqual([eye(), full]);
+      expect(Object.keys(written[0]).sort()).toEqual(['from', 'id', 'kind', 'to']);
+    });
+
+    it('reads its `to` as its centre, whatever is written there: the way it looks is its angle', () => {
+      expect(withAnnotations([eye({ to: [0.9, 0.1] })])).toEqual([eye()]);
+    });
+
+    it('reads the way it looks within [0, 360), and drops one that is no number alone, keeping the eye', () => {
+      expect(withAnnotations([eye({ angle: -90 }), eye({ id: 'e-3', angle: 540 })])).toEqual([eye({ angle: 270 }), eye({ id: 'e-3', angle: 180 })]);
+      expect(withAnnotations([eye({ angle: 'left' }), eye({ id: 'e-4', angle: null })])).toEqual([eye(), eye({ id: 'e-4' })]);
+    });
+
+    it('carries what a newer build might write: a scale past half to four times, a fill or a field it has no name for', () => {
+      const newer = [eye({ id: 'e-5', scale: 4.5 }), eye({ id: 'e-6', scale: 0.25 }), eye({ id: 'e-7', fill: 'black' }), eye({ id: 'e-8', arrow: true })];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = newer;
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual(newer);
+    });
+
+    it('drops one whose scale is no positive number, or whose centre does not read', () => {
+      const damaged = [eye({ scale: 0 }), eye({ id: 'e-9', scale: -2 }), eye({ id: 'e-10', scale: '2' }), eye({ id: 'e-11', from: [0.4] })];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+
+    it('is kept, verbatim and undrawn, by a build that knows none: as any kind it has no name for', () => {
+      // What a build before Revision 3 does: its reader names no such kind (`spiral-arrow` stands for it).
+      const older = eye({ kind: 'spiral-arrow', angle: 180, scale: 2 });
+      expect(withAnnotations([older])).toEqual([{ id: 'e-1', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual([older]);
+    });
+  });
+
+  describe('an oval and a rectangle (Revision 3)', () => {
+    const shape = (kind: 'oval' | 'rectangle', more: Record<string, unknown> = {}) => ({
+      id: `${kind}-1`,
+      kind,
+      from: [0.4, 0.6],
+      to: [0.4, 0.6],
+      size: [0.3, 0.45],
+      ...more,
+    });
+
+    it('round-trips its centre, its size and its turn — upright when unsaid — each kind its own', () => {
+      const shapes = [shape('oval'), shape('rectangle', { id: 'r-2', angle: 37.5 }), shape('oval', { id: 'o-3', size: [2, 0.015] })];
+      const read = withAnnotations(shapes);
+      expect(read).toEqual(shapes);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      const written = stepsIn(throughJson(writeDiagram(document)))[0].annotations;
+      expect(written).toEqual(shapes);
+      expect(Object.keys(written[0]).sort()).toEqual(['from', 'id', 'kind', 'size', 'to']);
+    });
+
+    it('reads its `to` as its centre, whatever is written there', () => {
+      expect(withAnnotations([shape('rectangle', { to: [0.9, 0.1] })])).toEqual([shape('rectangle')]);
+    });
+
+    it('reads its turn within [0, 180), a half turn drawing it the same, and drops one that is no number alone', () => {
+      expect(withAnnotations([shape('oval', { angle: -30 }), shape('rectangle', { id: 'r-4', angle: 200 })])).toEqual([
+        shape('oval', { angle: 150 }),
+        shape('rectangle', { id: 'r-4', angle: 20 }),
+      ]);
+      expect(withAnnotations([shape('oval', { angle: 'level' }), shape('rectangle', { angle: null })])).toEqual([
+        shape('oval'),
+        shape('rectangle'),
+      ]);
+    });
+
+    it('drops one with no size, or a size that is not two positive numbers, or whose centre does not read', () => {
+      const { size: _none, ...unsized } = shape('oval');
+      const damaged = [
+        unsized,
+        shape('rectangle', { size: [0.3] }),
+        shape('oval', { id: 'o-5', size: [0.3, -0.1] }),
+        shape('rectangle', { id: 'r-6', size: '0.3' }),
+        shape('oval', { id: 'o-7', from: [0.4] }),
+      ];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+
+    it('carries what a newer build might write: a side past a slip to twice the frame, a fill, a field it has no name for', () => {
+      const newer = [
+        shape('oval', { id: 'o-8', size: [2.5, 0.3] }),
+        shape('rectangle', { id: 'r-9', size: [0.3, 0.01] }),
+        shape('rectangle', { id: 'r-10', fill: 'white' }),
+        shape('oval', { id: 'o-11', radius: 0.2 }),
+      ];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = newer;
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual(newer);
+    });
+
+    it('is kept, verbatim and undrawn, by a build that knows neither: as any kind it has no name for', () => {
+      const older = shape('oval', { kind: 'spiral-arrow', angle: 30 });
+      expect(withAnnotations([older])).toEqual([{ id: 'oval-1', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual([older]);
     });
   });
 
@@ -1114,6 +1311,73 @@ describe('an enlarge area in the file (Revision 2)', () => {
   it('is kept, verbatim and undrawn, by a build that knows none: as any kind it has no name for', () => {
     const older = rounded({ kind: 'spiral-arrow', angle: 12, edge: 'cut', anchor: [1, 2] });
     expect(withAnnotations([older])).toEqual([{ id: 'z-2', unknown: older }]);
+    expect(writtenBack([older])).toEqual([older]);
+  });
+});
+
+describe('an x-ray in the file (Revision 3, 18e)', () => {
+  const xray = (more: Record<string, unknown> = {}) => ({
+    id: 'x-1',
+    kind: 'x-ray',
+    from: [0.4, 0.3],
+    to: [0.4, 0.3],
+    radius: 0.15,
+    depth: 2,
+    ...more,
+  });
+  function withAnnotations(annotations: unknown[]) {
+    const written = throughJson(writeDiagram(sampleDiagram()));
+    written.steps[0].annotations = annotations;
+    return stepsIn(readDiagram(written)!.document)[0]!.annotations;
+  }
+  const writtenBack = (annotations: unknown[]) => {
+    const document = { ...sampleDiagram() };
+    document.steps = [{ ...stepsIn(document)[0]!, annotations: withAnnotations(annotations) }, stepsIn(document)[1]!];
+    return stepsIn(throughJson(writeDiagram(document)))[0].annotations;
+  };
+
+  it('round-trips its window, its depth — always written, with no upper bound — and a picked anchor on the paper', () => {
+    const all = [xray(), xray({ id: 'x-2', depth: 1, anchor: [12.5, -40.125] }), xray({ id: 'x-3', depth: 40, radius: 1 })];
+    expect(withAnnotations(all)).toEqual(all);
+    expect(writtenBack(all)).toEqual(all);
+    expect(Object.keys(writtenBack([xray()])[0]).sort()).toEqual(['depth', 'from', 'id', 'kind', 'radius', 'to']);
+  });
+
+  it('reads its `to` as its centre, whatever is written there', () => {
+    expect(withAnnotations([xray({ to: [0.9, 0.1] })])).toEqual([xray()]);
+  });
+
+  it('drops one with no depth, a depth under one or not whole, or a window with no radius', () => {
+    const { depth: _unsaid, ...undeep } = xray();
+    const damaged = [
+      undeep,
+      xray({ id: 'd-2', depth: 0 }),
+      xray({ id: 'd-3', depth: 1.5 }),
+      xray({ id: 'd-4', depth: '2' }),
+      xray({ id: 'd-5', radius: undefined }),
+      xray({ id: 'd-6', radius: 0 }),
+    ];
+    expect(withAnnotations(damaged)).toEqual([]);
+  });
+
+  it('drops alone an anchor that does not read, and keeps the x-ray counted at its centre', () => {
+    expect(withAnnotations([xray({ anchor: [1] }), xray({ id: 'x-4', anchor: ['a', 2] })])).toEqual([xray(), xray({ id: 'x-4' })]);
+  });
+
+  it('carries what a newer build might write: a window past this build’s range, a shape, a field it has no name for', () => {
+    const newer = [
+      xray({ id: 'n-1', radius: 1.5 }),
+      xray({ id: 'n-2', size: [0.3, 0.2] }),
+      xray({ id: 'n-3', creases: true }),
+      xray({ id: 'n-4', from: [4.5, 0.3] }),
+    ];
+    expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+    expect(writtenBack(newer)).toEqual(newer);
+  });
+
+  it('is kept, verbatim and undrawn, by a build that knows none: as any kind it has no name for', () => {
+    const older = xray({ kind: 'spiral-arrow', anchor: [1, 2] });
+    expect(withAnnotations([older])).toEqual([{ id: 'x-1', unknown: older }]);
     expect(writtenBack([older])).toEqual([older]);
   });
 });

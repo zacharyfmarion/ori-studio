@@ -13,7 +13,7 @@ import type { DiagramLayerSpread } from '../document/diagramDocument';
 const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
   fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name]))) as unknown as TFunction;
 
-function build(state: Partial<DiagramLinkedPoseState>, pose = vi.fn()) {
+function build(state: Partial<DiagramLinkedPoseState>, pose = vi.fn(), setUpright?: () => void) {
   return buildDiagramLinkedPoseActions(
     {
       render: { mode: 'crease-pattern', rotationDeg: 0 },
@@ -22,7 +22,7 @@ function build(state: Partial<DiagramLinkedPoseState>, pose = vi.fn()) {
       solutions: null,
       ...state,
     },
-    { t, pose }
+    { t, pose, ...(setUpright ? { setUpright } : {}) }
   );
 }
 
@@ -57,12 +57,40 @@ describe('the linked pose verbs', () => {
     ]);
     expect(
       ids({ render: { mode: 'folded-3d', camera: DEFAULT_FOLDED_3D_CAMERA, side: 'front' } })
-    ).toEqual([...modes, 'turn-over', 'view-top', 'view-front', 'view-iso', 'spread-layers', 'reset']);
-    // A simulation is posed in its own viewport (Pose's transport); here, only how it is shown.
+    ).toEqual([...modes, 'turn-over', 'view-top', 'set-upright', 'spread-layers', 'reset']);
+    // A simulation is posed in its own viewport (Pose's transport); here, how it is shown and which way is up.
     expect(ids({ render: { mode: 'simulated', foldPercent: 0, view: { yaw: 0, pitch: 0, zoom: 1 } } })).toEqual([
       ...modes,
+      'set-upright',
       'reset',
     ]);
+  });
+
+  it('sets a 3D or Simulated step upright in its live view, never as a pose, and holds it, saying why, with none', () => {
+    const renders = [
+      { mode: 'folded-3d' as const, camera: DEFAULT_FOLDED_3D_CAMERA, side: 'front' as const },
+      { mode: 'simulated' as const, foldPercent: 60, view: { yaw: 0.3, pitch: -0.4, zoom: 1 } },
+    ];
+    for (const render of renders) {
+      const pose = vi.fn();
+      const setUpright = vi.fn();
+      const live = build({ render, liveView: true }, pose, setUpright).find((action) => action.id === 'set-upright')!;
+      expect(live).toMatchObject({ label: 'Set Upright', disabled: false, waiting: false });
+      live.run();
+      expect(setUpright).toHaveBeenCalledTimes(1);
+      expect(pose).not.toHaveBeenCalled();
+      // The picture alone, as with no WebGL2 there or the simulator still loading: nothing to take an up from.
+      const still = build({ render }, pose, setUpright).find((action) => action.id === 'set-upright')!;
+      expect(still).toMatchObject({
+        disabled: true,
+        hint: 'Its live view isn’t showing, so there is no up to set',
+      });
+      still.run();
+      // Waits for a capture as every verb does.
+      build({ render, liveView: true, busy: true }, pose, setUpright).find((action) => action.id === 'set-upright')!.run();
+      expect(setUpright).toHaveBeenCalledTimes(1);
+      expect(pose).not.toHaveBeenCalled();
+    }
   });
 
   it('stands a flat fold upright while its mirror axes are unknown or found, and holds it, saying why, for a fold with none', () => {

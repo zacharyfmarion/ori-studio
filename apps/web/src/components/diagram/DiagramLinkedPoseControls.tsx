@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowDownToDot,
   ArrowUpToLine,
-  Box,
-  Eye,
+  Axis3d,
   ChevronLeft,
   ChevronRight,
   Layers,
@@ -35,8 +34,8 @@ const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> 
   'previous-solution': ChevronLeft,
   'next-solution': ChevronRight,
   'view-top': ArrowDownToDot,
-  'view-front': Eye,
-  'view-iso': Box,
+  // As Edit's 3D window and Simulate set it (`foldedFigureActionIcons`).
+  'set-upright': Axis3d,
   'spread-layers': Layers,
   reset: Undo2,
 };

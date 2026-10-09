@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DiagramStep, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { cpStep, referencesStep, scenePicture, stepDiagramPicture } from '../document/diagramSteps.fixtures';
+import { marksTouchingWindow } from '../zoom/stepView';
 import { fromBox, stepWindow } from '../zoom/zoomFrames';
 import {
   PASTE_DIVISIONS_OFFSET_MM,
@@ -10,7 +11,7 @@ import {
   pastedAnnotations,
   pastedOnto,
 } from './annotationClipboard';
-import { ANNOTATION_REACH } from './annotationModel';
+import { ANNOTATION_REACH, AREA_SIDE } from './annotationModel';
 
 const white: KnownDiagramAnnotation = {
   id: 'w',
@@ -50,6 +51,21 @@ describe('annotations on the clipboard', () => {
     expect(pastedAnnotations(clipboard, 'step-1', () => 'annotation-3')[0]!.offset).toBe(15);
     // In place, as it was, on another step.
     expect(pastedAnnotations(clipboard, 'step-2', () => 'annotation-4')[0]).toEqual({ ...divisions, id: 'annotation-4' });
+  });
+
+  it('keeps equal divisions’ short dividers on a paste, on their own step and on another (Revision 3)', () => {
+    const short: KnownDiagramAnnotation = { id: 'd', kind: 'divisions', from: [0, 0], to: [1, 0], parts: 3, offset: 10, shortDividers: true };
+    const clipboard = annotationClipboard([short], 'step-1');
+    expect(pastedAnnotations(clipboard, 'step-1', () => 'annotation-1')[0]).toEqual({ ...short, id: 'annotation-1', offset: 12.5 });
+    expect(pastedAnnotations(clipboard, 'step-2', () => 'annotation-2')[0]).toEqual({ ...short, id: 'annotation-2' });
+  });
+
+  it('pastes an eye beside its original on its own step, looking the way it did at its scale, and in place anywhere else (Revision 3)', () => {
+    const eye: KnownDiagramAnnotation = { id: 'e', kind: 'eye', from: [0.3, 0.4], to: [0.3, 0.4], angle: 135, scale: 1.5 };
+    const clipboard = annotationClipboard([eye], 'step-1');
+    const beside: [number, number] = [0.3 + PASTE_OFFSET, 0.4 + PASTE_OFFSET];
+    expect(pastedAnnotations(clipboard, 'step-1', () => 'annotation-1')[0]).toEqual({ ...eye, id: 'annotation-1', from: beside, to: beside });
+    expect(pastedAnnotations(clipboard, 'step-2', () => 'annotation-2')[0]).toEqual({ ...eye, id: 'annotation-2' });
   });
 
   // 17d: a mark lifted from a card is the card's on a step that shows that card, the author's anywhere else.
@@ -155,6 +171,81 @@ describe('marks pasted on the picture they were copied from (Revision 2)', () =>
     const back = pastedAnnotations(annotationClipboard([line], whole.id, { view: copiedView(whole) }), a.id, () => 'annotation-3', a)[0]!;
     near(onPaper(a, back.from), line.from);
     near(onPaper(a, back.to), line.to);
+  });
+
+  it('from a whole picture onto another picture’s window, keeps each mark the window would draw nowhere at its place in the window (18d)', () => {
+    const a = showing('step-a', { centre: [0.4, 0.4], radius: 0.1 });
+    const other: DiagramStep = { ...showing('step-o'), picture: scenePicture('scene-other'), annotatedPictureKey: 'scene-other' };
+    // Off the window's corner of the picture: a star, and an eye standing off the paper as eyes often do.
+    const star: KnownDiagramAnnotation = { id: 's', kind: 'star', from: [0.85, 0.2], to: [0.85, 0.2], angle: 20 };
+    const eye: KnownDiagramAnnotation = { id: 'e', kind: 'eye', from: [0.1, 0.9], to: [0.1, 0.9], angle: 30, scale: 2 };
+    let next = 0;
+    const ids = () => `annotation-${(next += 1)}`;
+    const pasted = pastedAnnotations(annotationClipboard([star, eye], other.id, { view: copiedView(other) }), a.id, ids, a);
+    expect(pasted).toEqual([
+      { ...star, id: 'annotation-1' },
+      { ...eye, id: 'annotation-2' },
+    ]);
+    expect(marksTouchingWindow(stepWindow(a)!, pasted)).toEqual(pasted);
+    // Pasted with a mark that reaches the window, each is asked on its own (18d review): the line goes through the
+    // picture, and the star, which the window would draw nowhere there, keeps its place in the window.
+    const [crossing, offWindow] = pastedAnnotations(annotationClipboard([line, star], other.id, { view: copiedView(other) }), a.id, ids, a);
+    near(onPaper(a, crossing!.from), line.from);
+    expect(offWindow).toEqual({ ...star, id: 'annotation-4' });
+    expect(marksTouchingWindow(stepWindow(a)!, [offWindow!])).toEqual([offWindow]);
+    // One the window would draw, though it lies beside it, goes through the picture too: drawn where it is (16g).
+    const beside: KnownDiagramAnnotation = { ...star, from: [0.55, 0.4], to: [0.55, 0.4] };
+    const [near1] = pastedAnnotations(annotationClipboard([beside], other.id, { view: copiedView(other) }), a.id, ids, a);
+    near(onPaper(a, near1!.from), beside.from);
+    expect(marksTouchingWindow(stepWindow(a)!, [near1!])).toEqual([]);
+    // From the same picture's whole step it lands on the same paper, outside the window as the picture has it.
+    const same = pastedAnnotations(annotationClipboard([star], 'step-w', { view: copiedView(showing('step-w')) }), a.id, ids, a)[0]!;
+    near(onPaper(a, same.from), star.from);
+    expect(marksTouchingWindow(stepWindow(a)!, [same])).toEqual([]);
+  });
+
+  it('pastes an oval or a rectangle into an enlarged step’s window grown with it, so it rings the same part of the picture (Revision 3)', () => {
+    const a = showing('step-a', { centre: [0.4, 0.4], radius: 0.1 });
+    const whole = showing('step-w');
+    const oval: KnownDiagramAnnotation = { id: 'o', kind: 'oval', from: [0.42, 0.38], to: [0.42, 0.38], size: [0.1, 0.05], angle: 20 };
+    const [pasted] = pastedAnnotations(annotationClipboard([oval], whole.id, { view: copiedView(whole) }), a.id, () => 'annotation-1', a);
+    near(onPaper(a, pasted!.from), oval.from);
+    expect(pasted!.to).toEqual(pasted!.from);
+    // The window is a fifth of the picture across: five times the size in its units, its turn as it was.
+    near(pasted!.size!, [0.5, 0.25]);
+    expect(pasted!.angle).toBeCloseTo(20, 9);
+    // Back out onto the whole picture, the size it was.
+    const back = pastedAnnotations(annotationClipboard([pasted!], a.id, { view: copiedView(a) }), whole.id, () => 'annotation-2', whole)[0]!;
+    near(back.size!, oval.size!);
+    near(back.from, oval.from);
+  });
+
+  it('pastes an x-ray into an enlarged step’s window as an enlarge area is: grown with it, its depth and its anchor on the paper kept (Revision 3, 18e)', () => {
+    const a = showing('step-a', { centre: [0.4, 0.4], radius: 0.1 });
+    const whole = showing('step-w');
+    const xray: KnownDiagramAnnotation = { id: 'x', kind: 'x-ray', from: [0.42, 0.38], to: [0.42, 0.38], radius: 0.04, depth: 3, anchor: [12.5, -4] };
+    const [pasted] = pastedAnnotations(annotationClipboard([xray], whole.id, { view: copiedView(whole) }), a.id, () => 'annotation-1', a);
+    near(onPaper(a, pasted!.from), xray.from);
+    expect(pasted!.to).toEqual(pasted!.from);
+    // The window is a fifth of the picture across: five times the size in its units.
+    expect(pasted!.radius).toBeCloseTo(0.2, 9);
+    expect(pasted).toMatchObject({ kind: 'x-ray', depth: 3, anchor: [12.5, -4] });
+    const back = pastedAnnotations(annotationClipboard([pasted!], a.id, { view: copiedView(a) }), whole.id, () => 'annotation-2', whole)[0]!;
+    expect(back.radius).toBeCloseTo(0.04, 9);
+    near(back.from, xray.from);
+  });
+
+  it('holds a shape grown past R3-30b’s range by a small window to its largest side, and does not grow it back (18d review)', () => {
+    const a = showing('step-a', { centre: [0.4, 0.4], radius: 0.1 });
+    const whole = showing('step-w');
+    // Half the picture across: two and a half windows, past the two a side may be.
+    const wide: KnownDiagramAnnotation = { id: 'w', kind: 'oval', from: [0.4, 0.4], to: [0.4, 0.4], size: [0.5, 0.1] };
+    const [pasted] = pastedAnnotations(annotationClipboard([wide], whole.id, { view: copiedView(whole) }), a.id, () => 'annotation-1', a);
+    near(onPaper(a, pasted!.from), wide.from);
+    near(pasted!.size!, [AREA_SIDE.max, 0.5]);
+    // Pasted back out, it rings what the window held of it: 0.4 across, not 0.5.
+    const back = pastedAnnotations(annotationClipboard([pasted!], a.id, { view: copiedView(a) }), whole.id, () => 'annotation-2', whole)[0]!;
+    near(back.size!, [0.4, 0.1]);
   });
 
   it('copied out of step with its picture, remembers its units but not its picture', () => {

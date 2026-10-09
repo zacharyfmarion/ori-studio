@@ -1,20 +1,27 @@
 import { useCallback, useState } from 'react';
-import { trackDiagramEnlargementChanged } from '../../analytics';
+import { trackDiagramEnlargementChanged, trackDiagramMarkStyled } from '../../analytics';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { activeAnchorPick } from '../../store/workspaceStore/diagramState';
 import type { PicturePoint } from '../annotate/annotationModel';
-import { isKnownAnnotation, type DiagramStep } from '../document/diagramDocument';
+import { isKnownAnnotation, type DiagramStep, type KnownDiagramAnnotation } from '../document/diagramDocument';
 import { faceUnder, pickedAnchor } from './zoomAnchor';
 import { fromBox, intoBox, setFrameAnchor } from './zoomFrames';
 import { withZoomAnchor, ZOOM_FRAME_ID, type PictureBox } from './zoomModel';
 
+/** The marks an Anchor row is for: an enlarge area (Revision 2), and an x-ray (Revision 3). */
+export function anchorsBy(annotation: KnownDiagramAnnotation): boolean {
+  return annotation.kind === 'zoom' || annotation.kind === 'x-ray';
+}
+
 /**
  * The anchor's pick mode on the Annotate canvas (Revision 2, Controls): armed
- * by the Anchor row's Pick, for the area or the frame selected. While it is,
- * the face drawn on top under the pointer is shown, and a click anchors to it
- * at the point clicked — one undo step, which never moves the frame on its
- * own step — and leaves the mode. Escape leaves it through the shortcut
- * runtime (`runDiagramCancel`), never a listener here.
+ * by the Anchor row's Pick, for the area, the frame or the x-ray selected.
+ * While it is, the face drawn on top under the pointer is shown, and a click
+ * anchors to it at the point clicked — one undo step, which never moves the
+ * frame on its own step — and leaves the mode. Escape leaves it through the
+ * shortcut runtime (`runDiagramCancel`), never a listener here. An x-ray's
+ * pick is an x-ray's change ("Change X-ray"), counted as its option, never an
+ * enlargement's (Revision 3).
  *
  * Points come and go in the canvas's units: an enlarged step's window's
  * (`window`), else the picture's.
@@ -47,15 +54,17 @@ export function useAnchorPick({ step, window }: { step: DiagramStep; window: Pic
       // Off the paper: nothing to anchor to, and the mode stays for another try.
       if (!on) return true;
       const loadId = store.diagramLoadId;
+      const target = step.annotations.find((annotation) => annotation.id === pick);
+      const xray = target !== undefined && isKnownAnnotation(target) && target.kind === 'x-ray';
       const changed =
         pick === ZOOM_FRAME_ID
           ? store.editDiagramStepZoom(step.id, 'Pick anchor', (document) => setFrameAnchor(document, step.id, on), { loadId })
           : store.editDiagramAnnotations(
               step.id,
-              'Pick anchor',
+              xray ? 'Change X-ray' : 'Pick anchor',
               (list) =>
                 list.map((annotation) =>
-                  annotation.id === pick && isKnownAnnotation(annotation) && annotation.kind === 'zoom'
+                  annotation.id === pick && isKnownAnnotation(annotation) && anchorsBy(annotation)
                     ? withZoomAnchor(annotation, on)
                     : annotation
                 ),
@@ -63,7 +72,8 @@ export function useAnchorPick({ step, window }: { step: DiagramStep; window: Pic
             );
       store.setDiagramAnchorPick(null);
       setHovered(null);
-      if (changed) trackDiagramEnlargementChanged(pick === ZOOM_FRAME_ID ? 'frame' : 'area', 'anchor', 'picked');
+      if (changed && xray) trackDiagramMarkStyled('x_ray', 'anchor', 'picked');
+      else if (changed) trackDiagramEnlargementChanged(pick === ZOOM_FRAME_ID ? 'frame' : 'area', 'anchor', 'picked');
       return true;
     },
     [pick, step, toPicture]

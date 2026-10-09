@@ -8,8 +8,8 @@
  * forward (`useFieldFocusRequest`).
  */
 
-/** Which of an annotation's fields: a label's or a callout's text, or equal divisions' parts. */
-export type FocusField = 'text' | 'parts';
+/** Which of an annotation's fields: a label's or a callout's text, equal divisions' parts, or an x-ray's depth (Revision 3). */
+export type FocusField = 'text' | 'parts' | 'depth';
 
 /** A field asked for: the annotation's, and which. */
 export interface FieldFocusRequest {

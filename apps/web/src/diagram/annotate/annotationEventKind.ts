@@ -1,4 +1,11 @@
-import type { DiagramAnnotationColor, DiagramAnnotationTool, DiagramTextSize, DiagramTextToggle } from '../../analytics/events';
+import type {
+  DiagramAnnotationColor,
+  DiagramAnnotationTool,
+  DiagramStarFillName,
+  DiagramTextSize,
+  DiagramTextToggle,
+  DiagramXRayDepthBucket,
+} from '../../analytics/events';
 import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { annotationColorName } from './annotationColors';
 import { carriesColor, carriesTextStyle, isSolidArrow } from './annotationModel';
@@ -20,6 +27,10 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'solid-line': 'solid_line',
   label: 'label',
   circle: 'circle',
+  star: 'star',
+  eye: 'eye',
+  oval: 'oval',
+  rectangle: 'rectangle',
   'right-angle': 'right_angle',
   callout: 'callout',
   'angle-mark': 'angle_mark',
@@ -27,6 +38,7 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'close-up': 'close_up',
   // A circle; a rounded rectangle is the Enlarge in Frame tool's (`annotationEventKind`).
   zoom: 'enlarge',
+  'x-ray': 'x_ray',
 };
 
 /**
@@ -63,14 +75,29 @@ export function textToggleName(on: boolean | undefined): DiagramTextToggle {
   return on ? 'on' : 'off';
 }
 
+/** An x-ray's depth as the analytics events bucket it (Revision 3): one, two, or three and more — never the count past that. */
+export function xrayDepthBucket(depth: number): DiagramXRayDepthBucket {
+  return depth <= 1 ? '1' : depth === 2 ? '2' : '3+';
+}
+
+/** A star's fill as the analytics events name it (Revision 3): `filled` with ink, or an `outline`. */
+export function starFillName(annotation: Pick<KnownDiagramAnnotation, 'fill'>): DiagramStarFillName {
+  return annotation.fill === 'black' ? 'filled' : 'outline';
+}
+
 /**
  * What `diagram annotation added` says of a mark beyond its kind (17a, 17b):
- * a solid line's colour by name, and a label's colour, Bold, halo and size;
- * nothing for any other mark.
+ * a solid line's colour by name, a label's colour, Bold, halo and size, and
+ * a star's fill (Revision 3); nothing for any other mark.
  */
-export function annotationEventDetail(
-  annotation: Pick<KnownDiagramAnnotation, 'kind' | 'color' | 'bold' | 'halo' | 'sizePt'>
-): { color?: DiagramAnnotationColor; bold?: DiagramTextToggle; halo?: DiagramTextToggle; size?: DiagramTextSize } {
+export function annotationEventDetail(annotation: Pick<KnownDiagramAnnotation, 'kind' | 'color' | 'bold' | 'halo' | 'sizePt' | 'fill'>): {
+  color?: DiagramAnnotationColor;
+  bold?: DiagramTextToggle;
+  halo?: DiagramTextToggle;
+  size?: DiagramTextSize;
+  fill?: DiagramStarFillName;
+} {
+  if (annotation.kind === 'star') return { fill: starFillName(annotation) };
   const color = annotationEventColor(annotation);
   if (!carriesTextStyle(annotation.kind)) return color ? { color } : {};
   return {

@@ -27,6 +27,7 @@ import {
   DIAGRAM_ANGLE_MARK_INK,
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_DIVISIONS_INK,
+  DIAGRAM_EYE_INK,
   DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_INK_PER_SHEET,
   DIAGRAM_LINE_INK,
@@ -35,12 +36,12 @@ import {
   DIAGRAM_PUSH_INK,
   DIAGRAM_RIGHT_ANGLE_INK,
   DIAGRAM_ROTATE_INK,
+  DIAGRAM_STAR_INK,
   DIAGRAM_TURN_OVER_INK,
   DIAGRAM_WHITE_ARROW_INK,
   type DiagramMarks,
   type DiagramPens,
   type DiagramWhiteArrowWidth,
-  type DivisionsPen,
 } from './diagram/diagramInk';
 import { markRingWidth } from './diagram/labelLayout';
 
@@ -2594,12 +2595,156 @@ export function rightAngleDrawn(
 }
 
 /**
- * A right-angle mark's stroke, in the projector's units: the aux lines' pen
- * — an existing crease's, 0.25 pt in the Diagram preset — not a ring's, which
- * beside the lines it marks read as heavy as an arrow (Zach, 2026-10-06).
+ * The stroke of a mark that measures the lines beside it — a right angle,
+ * equal divisions — in the projector's units: the aux lines' pen — an
+ * existing crease's, 0.25 pt in the Diagram preset — not a ring's, which
+ * beside the lines it marks read as heavy as an arrow (Zach, 2026-10-06, for
+ * the right angle; his Revision 3 note, for equal divisions).
  */
-export function rightAnglePen(project: DiagramProjector): number {
+export function auxMarkPen(project: DiagramProjector): number {
   return project.pens.aux.width * project.ink;
+}
+
+/**
+ * A regular five-pointed star's corners about `centre`, tip, inner corner,
+ * tip and on round — ten of them — `radius` to each tip and `inner` of that
+ * to each inner corner, its first tip `angle` degrees clockwise from straight
+ * up on a y-down page: one point up at 0.
+ */
+export function starPoints(centre: SvgPoint, radius: number, angle: number, inner: number = DIAGRAM_STAR_INK.inner): SvgPoint[] {
+  const turn = (angle * Math.PI) / 180;
+  return Array.from({ length: 10 }, (_, index) => {
+    const reach = index % 2 === 0 ? radius : radius * inner;
+    const at = turn + (index * Math.PI) / 5;
+    return { x: centre.x + reach * Math.sin(at), y: centre.y - reach * Math.cos(at) };
+  });
+}
+
+/** A star as a picture draws it: its ten corners, and the pen an outlined one is stroked in. */
+export interface StarDrawn {
+  points: SvgPoint[];
+  /** A ring's pen (R3-26 A): what an outlined star is stroked in, mitred at its tips. */
+  pen: number;
+}
+
+/**
+ * A star (Revision 3) centred on `at`, in sheet units, as a picture draws it:
+ * `DIAGRAM_STAR_INK`'s star at `scale` times its print size, turned `angle`
+ * degrees clockwise on the page. The projector places it and sizes it, but
+ * never turns or mirrors it: its turn is its own, as a tick's lean is, so a
+ * star upright on the page stays upright in a turned or mirrored picture.
+ * The one place its drawn shape is decided.
+ */
+export function starDrawn(at: readonly [number, number], angle: number, scale: number, project: DiagramProjector): StarDrawn {
+  return {
+    points: starPoints(project(at), DIAGRAM_STAR_INK.radius * scale * project.ink, angle),
+    pen: markRingWidth(project),
+  };
+}
+
+/** An outlined star's tips are mitred, never bevelled: a regular star's 36° tip mitres 3.24 pens out, under SVG's own limit. */
+export const STAR_MITER_LIMIT = 4;
+
+/**
+ * An eye in profile (Revision 3, R3-7 A) in one space's units: its lids, from
+ * the front of the one, to the corner where they meet at the back, to the
+ * front of the other; its cornea, an arc across the lids bulging the way it
+ * looks; and its iris, a half circle on the cornea's middle bulging back into
+ * the eye, as two quarter arcs through `via`, so no half circle's sweep is
+ * left for a renderer to guess. Each arc's sweep is SVG's, in the space's own
+ * axes.
+ */
+export interface EyeShape {
+  lids: readonly [SvgPoint, SvgPoint, SvgPoint];
+  cornea: { from: SvgPoint; to: SvgPoint; radius: number; sweep: 0 | 1; apex: SvgPoint };
+  iris: { from: SvgPoint; via: SvgPoint; to: SvgPoint; radius: number; sweep: 0 | 1 };
+}
+
+/**
+ * {@link EyeShape} centred on `centre` — the middle of its length, the middle
+ * of its box — looking along the unit direction `look`, `ink` units to one ink
+ * of `DIAGRAM_EYE_INK`. Symmetric about the way it looks, so it has no side to
+ * mirror. The one place its shape is decided: the drawing, its reach, the hit
+ * and the rail's icon all take it from here.
+ */
+export function eyeShape(centre: SvgPoint, look: SvgPoint, ink: number): EyeShape {
+  const { length, spread, cornea, bulge, iris } = DIAGRAM_EYE_INK;
+  const across = { x: -look.y, y: look.x };
+  // A point `along` ink from the back and `side` ink across the way it looks.
+  const at = (along: number, side: number): SvgPoint => ({
+    x: centre.x + (along - length / 2) * ink * look.x + side * ink * across.x,
+    y: centre.y + (along - length / 2) * ink * look.y + side * ink * across.y,
+  });
+  // The cornea's circle: through the lids `cornea` from the back, bulging `bulge` past them.
+  const half = (spread * cornea) / length;
+  const radius = (half * half + bulge * bulge) / (2 * bulge);
+  const middle = cornea + bulge - radius;
+  // The iris's ends, on the cornea's circle `iris` either side of the way it looks.
+  const onCornea = middle + Math.sqrt(radius * radius - iris * iris);
+  const sweep = (from: SvgPoint, to: SvgPoint, about: SvgPoint): 0 | 1 =>
+    (from.x - about.x) * (to.y - about.y) - (from.y - about.y) * (to.x - about.x) > 0 ? 1 : 0;
+  const circle = at(middle, 0);
+  const corneaFrom = at(cornea, half);
+  const corneaTo = at(cornea, -half);
+  const irisFrom = at(onCornea, iris);
+  const irisVia = at(onCornea - iris, 0);
+  return {
+    lids: [at(length, spread), at(0, 0), at(length, -spread)],
+    cornea: {
+      from: corneaFrom,
+      to: corneaTo,
+      radius: radius * ink,
+      // The short way round, through its apex.
+      sweep: sweep(corneaFrom, corneaTo, circle),
+      apex: at(cornea + bulge, 0),
+    },
+    iris: {
+      from: irisFrom,
+      via: irisVia,
+      to: at(onCornea, -iris),
+      radius: iris * ink,
+      sweep: sweep(irisFrom, irisVia, at(onCornea, 0)),
+    },
+  };
+}
+
+/** An eye as a picture draws it: its shape, and the pen it is stroked in. */
+export interface EyeDrawn extends EyeShape {
+  /**
+   * A ring's pen, 0.5625 pt in the Diagram preset, as an outlined star's: the
+   * weight of the eye in Zach's sketch, which the aux lines' 0.25 pt drew as a
+   * hairline beside the creases (R3-26 A as applied to the eye, amended
+   * 2026-10-08 after 18c).
+   */
+  pen: number;
+}
+
+/**
+ * An eye (Revision 3) centred on `at`, in sheet units, as a picture draws it:
+ * `DIAGRAM_EYE_INK`'s eye at `scale` times its print size, looking `angle`
+ * degrees clockwise from looking right, as the sheet is seen — the direction
+ * (cos, −sin) in the sheet's y-up units, which the annotation's own y-down
+ * angle is. Unlike a star's turn, which is the page's own, the way it looks is
+ * the paper's: it is projected, so a turned or mirrored picture turns it with
+ * the paper. The glyph is symmetric about it, so a mirror never mirrors the
+ * glyph itself.
+ */
+export function eyeDrawn(at: readonly [number, number], angle: number, scale: number, project: DiagramProjector): EyeDrawn {
+  const radians = (angle * Math.PI) / 180;
+  const look = through(project, { x: Math.cos(radians), y: -Math.sin(radians) });
+  return { ...eyeShape(project(at), look, scale * project.ink), pen: markRingWidth(project) };
+}
+
+/** An eye's back corner is mitred, never bevelled: its lids' 35° mitres 3.3 pens out, under SVG's own limit. */
+export const EYE_MITER_LIMIT = 4;
+
+/** An eye as one path: its lids, its cornea's arc and its iris's two quarters. */
+export function eyePathData({ lids, cornea, iris }: EyeShape): string {
+  const lidRun = `M ${pointText(lids[0])} L ${pointText(lids[1])} L ${pointText(lids[2])}`;
+  const corneaArc = `M ${pointText(cornea.from)} A ${fmt(cornea.radius)} ${fmt(cornea.radius)} 0 0 ${cornea.sweep} ${pointText(cornea.to)}`;
+  const quarter = `A ${fmt(iris.radius)} ${fmt(iris.radius)} 0 0 ${iris.sweep}`;
+  const irisArc = `M ${pointText(iris.from)} ${quarter} ${pointText(iris.via)} ${quarter} ${pointText(iris.to)}`;
+  return `${lidRun} ${corneaArc} ${irisArc}`;
 }
 
 /** A right-angle mark as one path: its ∟, then its square's two sides — so where they overlap, the ink is never doubled. */
@@ -2728,13 +2873,18 @@ export interface DivisionsSize {
   gap: number;
 }
 
-/** What equal divisions say: how many parts, how many ticks on each, the side their line is on, and whether they print the count. */
+/**
+ * What equal divisions say: how many parts, how many ticks on each, the side
+ * their line is on, whether they print the count, and whether the dividers
+ * between their ends are short strokes across the line (Revision 3).
+ */
 export interface DivisionsLook {
   parts: number;
   ticks: number;
   /** The line to the left of the way from `from` to `to` runs, as a y-down drawing shows it; else to the right. */
   mirrored: boolean;
   numbered: boolean;
+  shortDividers: boolean;
 }
 
 /** Equal divisions as drawn (Revision 2), in one space's units. */
@@ -2757,9 +2907,10 @@ export interface DivisionsShape {
 }
 
 /**
- * A digit's advance, in ems, as the count is set (Inter and Noto Sans Bold
- * both under it): what its box is measured by, as an SVG `<text>` cannot be
- * before it is drawn.
+ * A digit's advance, in ems, as the count is set (Inter and Noto Sans, in
+ * the Regular the count is set in since R3-3 and the Bold it was, all under
+ * it: Noto Sans's are 0.572 in both): what its box is measured by, as an SVG
+ * `<text>` cannot be before it is drawn.
  */
 export const DIVISIONS_DIGIT_EMS = 0.62;
 /** Half a digit's height about the middle it is centred on, in ems: a figure's middle on the centre. */
@@ -2784,7 +2935,10 @@ function tickDirection(along: SvgPoint, lean: number): SvgPoint {
  * says; `parts + 1` dividers square to it, each from the measured line to
  * `overshoot` past the line — or, where the line is nearer the measured line
  * than that, straddling the line evenly, as the template's |\|\| symbol does
- * at no offset; `ticks` ticks across the line at each part's middle, leaning
+ * at no offset; with `shortDividers`, those between the ends straddle the
+ * line `overshoot` either side wherever it lies, so none runs over the fold
+ * it locates, and the two at the ends still reach the measured line (R3-2
+ * A); `ticks` ticks across the line at each part's middle, leaning
  * on the page ({@link tickDirection}), drawn smaller on a part shorter than
  * twice their span, down to their floors and no further (`crowded` past
  * them); and the count upright beside the line's middle, `gap` past the
@@ -2803,8 +2957,10 @@ export function divisionsShape(from: SvgPoint, to: SvgPoint, look: DivisionsLook
   const offset = Math.max(0, size.offset);
   const start = Math.min(0, offset - size.overshoot);
   const end = offset + size.overshoot;
+  // Within the overshoot of the measured line this is `start`: short or full, the dividers are the same there.
+  const inner = look.shortDividers ? offset - size.overshoot : start;
   const dividers: [SvgPoint, SvgPoint][] = [];
-  for (let i = 0; i <= parts; i += 1) dividers.push([at(i / parts, start), at(i / parts, end)]);
+  for (let i = 0; i <= parts; i += 1) dividers.push([at(i / parts, i === 0 || i === parts ? start : inner), at(i / parts, end)]);
   // The ticks on each part: as large as the sketch's on a part twice their
   // span, smaller on a shorter one, down to their floors.
   const count = Math.max(1, Math.round(look.ticks));
@@ -2840,9 +2996,9 @@ export function divisionsShape(from: SvgPoint, to: SvgPoint, look: DivisionsLook
   return { line: [at(0, offset), at(1, offset)], dividers, ticks, side, number, crowded };
 }
 
-/** Equal divisions as a picture draws them: their shape, and the pens the line and the marks across it are drawn in. */
+/** Equal divisions as a picture draws them: their shape, and the one pen every stroke of it is drawn in. */
 export interface DivisionsDrawn extends DivisionsShape {
-  pens: { line: number; marks: number };
+  pen: number;
 }
 
 /**
@@ -2851,9 +3007,10 @@ export interface DivisionsDrawn extends DivisionsShape {
  * ({@link divisionsShape}) in the projector's units, sized by their ink
  * (`DIAGRAM_DIVISIONS_INK`), the side measured after projecting so a
  * projection of the paper's back keeps the line on the paper's same side, as
- * a pleat arrow's Zs; each stroke in the pen the table names (ED9: the line
- * in the existing creases', the dividers and ticks in a ring's). The one
- * place their drawn shape is decided. Null when the ends meet.
+ * a pleat arrow's Zs; every stroke in the aux lines' pen ({@link auxMarkPen},
+ * Revision 3), and a crowded part's ticks spaced no closer than two of a
+ * ring's pens, as they were when the ticks were drawn in one. The one place
+ * their drawn shape is decided. Null when the ends meet.
  */
 export function divisionsDrawn(
   from: readonly [number, number],
@@ -2863,26 +3020,25 @@ export function divisionsDrawn(
 ): DivisionsDrawn | null {
   const ink = project.ink;
   const sizes = DIAGRAM_DIVISIONS_INK;
-  const pen = (name: DivisionsPen) => (name === 'crease' ? project.pens.crease.width * ink : markRingWidth(project));
-  const pens = { line: pen(sizes.pens.line), marks: pen(sizes.pens.marks) };
   const shape = divisionsShape(project(from), project(to), { ...look, mirrored: look.mirrored !== project.mirrored }, {
     offset: look.offset * ink,
     overshoot: sizes.overshoot * ink,
     tick: sizes.tick * ink,
     spacing: sizes.spacing * ink,
     tickFloor: sizes.tickFloor * ink,
-    spacingFloor: sizes.spacingFloor * pens.marks,
+    spacingFloor: sizes.spacingFloor * markRingWidth(project),
     lean: (sizes.leanDeg * Math.PI) / 180,
     number: sizes.number * ink,
     gap: sizes.gap * ink,
   });
-  return shape && { ...shape, pens };
+  return shape && { ...shape, pen: auxMarkPen(project) };
 }
 
-/** Equal divisions as SVG path data: the line on its own, in its pen, and the dividers and ticks, in theirs. */
-export function divisionsPathData(shape: DivisionsShape): { line: string; marks: string } {
-  const segment = ([a, b]: readonly [SvgPoint, SvgPoint]) => `M ${pointText(a)} L ${pointText(b)}`;
-  return { line: segment(shape.line), marks: [...shape.dividers, ...shape.ticks].map(segment).join(' ') };
+/** Equal divisions as SVG path data, one path in their one pen: the line, then the dividers and the ticks. */
+export function divisionsPathData(shape: DivisionsShape): string {
+  return divisionsStrokes(shape)
+    .map(([a, b]) => `M ${pointText(a)} L ${pointText(b)}`)
+    .join(' ');
 }
 
 /** Every stroke's ends of equal divisions, the line's first: their reach, and a press along them. */

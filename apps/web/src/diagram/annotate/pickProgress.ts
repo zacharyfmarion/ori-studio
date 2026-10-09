@@ -3,7 +3,7 @@
  * how far a pick tool's sequence has come (15b) — the step the next press is
  * for, and why the last finished nothing, if it did not — and a drawing
  * tool's notice of a press that put nothing down (equal divisions clicked on
- * no line, Revision 2). What the canvas knows and the tool window says. One
+ * no line, Revision 2; an x-ray laid off the paper, Revision 3). What the canvas knows and the tool window says. One
  * of each is ever current: the canvas open in Annotate writes them, and
  * clears them when its tool or step goes — a notice on the next press too.
  */
@@ -18,11 +18,12 @@ export interface PickProgress {
   refusal: BisectorRefusal | null;
 }
 
-/** A drawing tool's word on a press that put nothing down, and the tool it is about. */
-export interface ToolNotice {
-  tool: 'divisions';
-  notice: 'no-line';
-}
+/**
+ * A drawing tool's word on a press that put nothing down, and the tool it is
+ * about: equal divisions clicked on no line; an x-ray laid off the paper,
+ * where it would take nothing away (Revision 3, review of 18e).
+ */
+export type ToolNotice = { tool: 'divisions'; notice: 'no-line' } | { tool: 'x-ray'; notice: 'no-paper' };
 
 let current: PickProgress | null = null;
 let notice: ToolNotice | null = null;

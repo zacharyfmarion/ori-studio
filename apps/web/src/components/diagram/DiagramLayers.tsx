@@ -46,7 +46,11 @@ import { DiagramPathNodeControls } from './DiagramPathNodeControls';
 import { DiagramTextStyleRows } from './DiagramTextStyleRows';
 import { DiagramTicksRow } from './DiagramTicksRow';
 import { DiagramWhiteArrowControls } from './DiagramWhiteArrowControls';
+import { DiagramStarControls } from './DiagramStarControls';
+import { DiagramRotationRow } from './DiagramRotationRow';
+import { boxedMarkOf } from '../../diagram/annotate/transformGrips';
 import { DiagramZoomControls } from './DiagramZoomControls';
+import { DiagramXRayControls } from './DiagramXRayControls';
 import styles from './DiagramLayers.module.css';
 
 /** The icon of each of the catalog's verbs the annotation row shows (`annotationActions.ts`). */
@@ -75,7 +79,8 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * stay in the Step pane, with the step (`DiagramStepAnnotations`).
  *
  * An enlarged step's frame is its first row (Revision 2): selected, its
- * controls (`DiagramZoomControls`); a mark lying wholly outside its window,
+ * controls (`DiagramZoomControls`); an x-ray's, its Depth and Anchor
+ * (`DiagramXRayControls`, Revision 3); a mark lying wholly outside its window,
  * which it keeps but sizes nothing by — and far off it, no longer draws — is
  * badged so. An enlarge area's row says which steps were enlarged from it.
  */
@@ -137,7 +142,7 @@ export function DiagramLayers({ step }: { step: DiagramStep }) {
                 ) : annotation.kind === 'zoom' ? (
                   <EnlargeGlyph shape={zoomShapeOf(annotation)} />
                 ) : (
-                  <DiagramAnnotationGlyph kind={annotation.kind} color={annotation.color} />
+                  <DiagramAnnotationGlyph kind={annotation.kind} color={annotation.color} fill={annotation.fill} />
                 )}
                 <span className={styles.rowText}>
                   <span className={styles.rowName}>
@@ -235,6 +240,8 @@ function SelectedAnnotation({
   };
   const nodeActions = annotations.actions.filter((action) => action.group === 'node');
   const flipActions = annotations.actions.filter((action) => action.group === 'flip');
+  // A star's turn, and its Rotation row: a mark with a transform box (Revision 3).
+  const boxed = boxedMarkOf(annotation);
   const lineType = lineTypeOf(annotation.kind);
   const typeName = t('panels:diagram.annotations.lineType', 'Type');
   const colorName = t('panels:diagram.annotations.color', 'Color');
@@ -344,6 +351,7 @@ function SelectedAnnotation({
           onOffset={(offset) => annotations.setDivisionsOffset(id, offset)}
           onTicks={(ticks) => annotations.setTicks(id, ticks)}
           onNumbered={(numbered) => annotations.setNumbered(id, numbered)}
+          onShortDividers={(short) => annotations.setShortDividers(id, short)}
         />
       )}
       {annotation.kind === 'pleat-arrow' && (
@@ -378,6 +386,16 @@ function SelectedAnnotation({
         />
       )}
       {annotation.kind === 'zoom' && <DiagramZoomControls step={step} target={{ kind: 'area', area: annotation }} />}
+      {annotation.kind === 'x-ray' && (
+        // One set of rows per x-ray: the next one's Depth, asked for as it is laid, shows its own count when it takes the focus.
+        <DiagramXRayControls key={id} step={step} annotation={annotation} />
+      )}
+      {annotation.kind === 'star' && (
+        <DiagramStarControls annotation={annotation} editable={editable} onFill={(fill) => annotations.setStarFill(id, fill)} />
+      )}
+      {boxed && (
+        <DiagramRotationRow degrees={boxed.degrees} editable={editable} onCommit={(degrees) => annotations.setMarkAngle(id, degrees)} />
+      )}
       <DiagramBehindControls
         annotation={annotation}
         editable={editable}

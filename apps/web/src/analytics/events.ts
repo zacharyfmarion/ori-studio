@@ -90,6 +90,10 @@ export type DiagramAnnotationTool =
   | 'solid_line'
   | 'label'
   | 'circle'
+  | 'star'
+  | 'eye'
+  | 'oval'
+  | 'rectangle'
   | 'right_angle'
   | 'callout'
   | 'angle_mark'
@@ -97,7 +101,11 @@ export type DiagramAnnotationTool =
   | 'divisions'
   | 'close_up'
   | 'enlarge'
-  | 'enlarge_frame';
+  | 'enlarge_frame'
+  | 'x_ray';
+
+/** A star's fill, by name (Revision 3): filled with ink, or an outline, white inside. */
+export type DiagramStarFillName = 'filled' | 'outline';
 
 /**
  * How a new annotation was put down (decision 9): snapped to a point of the
@@ -133,6 +141,34 @@ export type DiagramTextSize = 'picture' | '7' | '9' | '12' | '16' | 'other';
 
 /** Which of a label's options the Layers pane changed (17b). */
 export type DiagramTextStyleOption = 'bold' | 'halo' | 'size';
+
+/**
+ * Which of a mark's own options changed (Revision 3): equal divisions' Short
+ * Dividers; a star's Fill; a star's, an eye's, an oval's or a rectangle's
+ * size or turn — by its transform box on the canvas, or its turn typed in
+ * the Layers pane's Rotation row; and an x-ray's Depth and Anchor.
+ */
+export type DiagramMarkStyleOption = 'short_dividers' | 'fill' | 'size' | 'rotation' | 'depth' | 'anchor';
+
+/** An x-ray's depth, bucketed (Revision 3): one layer, two, or three and more. Never the count itself past that. */
+export type DiagramXRayDepthBucket = '1' | '2' | '3+';
+
+/**
+ * What a mark's option became, or how it was changed (Revision 3): a switch
+ * on or off; a star filled or an outline; a size or a turn set by the
+ * transform box's handles (`handle`) or typed in its row (`field`); an
+ * x-ray's depth, bucketed, and its anchor picked on the canvas or put back
+ * to the window's centre (`auto`).
+ */
+export type DiagramMarkStyleValue =
+  | 'on'
+  | 'off'
+  | DiagramStarFillName
+  | 'handle'
+  | 'field'
+  | DiagramXRayDepthBucket
+  | 'picked'
+  | 'auto';
 
 /** A fold arrow or a white arrow, which Edit Path shapes: its kind, in the event's own spelling. */
 export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';
@@ -239,8 +275,6 @@ export type DiagramPoseAction =
   | 'previous_solution'
   | 'choose_way'
   | 'view_top'
-  | 'view_front'
-  | 'view_iso'
   | 'orbit'
   | 'rotate_to'
   | 'upright'
@@ -1498,6 +1532,8 @@ export const ANALYTICS_EVENTS = {
   diagramAnnotationRecolored: 'diagram annotation recolored',
   /** A label's Bold, Halo or Size changed in the Layers pane (17b): which, and to what. */
   diagramTextStyled: 'diagram text styled',
+  /** One of a mark's own options changed in the Layers pane (Revision 3): the mark's kind, which option, and to what. */
+  diagramMarkStyled: 'diagram mark styled',
   /**
    * A mark a References card brought (17d) edited for the first time, or
    * taken away: its kind, and which. Whether people edit what they pull.

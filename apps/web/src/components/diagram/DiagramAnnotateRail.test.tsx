@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
+import type { XRayStanding } from '../../diagram/annotate/annotateTools';
 import { DiagramAnnotateRail } from './DiagramAnnotateRail';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -35,20 +36,64 @@ describe('DiagramAnnotateRail', () => {
     const groups = [...container.querySelectorAll('[id^="diagram-annotate-group-"]')].map((group) =>
       group.id.replace('diagram-annotate-group-', '')
     );
-    expect(groups).toEqual(['line-type', 'select', 'arrows', 'lines', 'marks', 'text']);
+    // Shapes after Marks (Revision 3, R3-25 A).
+    expect(groups).toEqual(['line-type', 'select', 'arrows', 'lines', 'marks', 'shapes', 'text']);
+    const shapes = [...container.querySelectorAll('#diagram-annotate-group-shapes button[aria-label]')].map((button) =>
+      button.getAttribute('aria-label')
+    );
+    expect(shapes).toEqual(['Oval', 'Rectangle']);
     // The two equality marks side by side, Equal Divisions on D (Revision 2, ED8).
     const marks = [...container.querySelectorAll('#diagram-annotate-group-marks button[aria-label]')].map((button) =>
       button.getAttribute('aria-label')
     );
+    // The star after the circle, the eye after equal divisions, X-Ray after Enlarge in Frame (Revision 3, R3-25 A).
     expect(marks).toEqual([
       'Circle',
+      'Star',
       'Right Angle',
       'Equal Angles',
       'Equal Divisions',
+      'Eye',
       'Close-Up',
       'Enlarge',
       'Enlarge in Frame',
+      'X-Ray',
     ]);
+  });
+
+  it('shows the Star Fill under Marks while the Star tool is in hand, keeps it for the next star, and draws the tool as the star it lays (Revision 3, R3-4 C)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    useSettingsStore.setState({ diagramAnnotateStarFill: 'black' });
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const render = (tool: 'star' | 'circle' | null) =>
+      act(() =>
+        root!.render(
+          <TooltipProvider>
+            <DiagramAnnotateRail tool={tool} readOnly={false} onTool={() => undefined} />
+          </TooltipProvider>
+        )
+      );
+    const group = () => container!.querySelector('section[aria-label="Star Fill"]');
+    const toolFill = () => container!.querySelector('#diagram-annotate-group-marks button[aria-label="Star"] [data-glyph-fill]')!.getAttribute('data-glyph-fill');
+    render(null);
+    expect(group()).toBeNull();
+    expect(toolFill()).toBe('black');
+    render('circle');
+    expect(group()).toBeNull();
+    render('star');
+    // Right under the Marks group.
+    const sections = [...container.querySelectorAll('section')].map((each) => each.getAttribute('aria-label'));
+    expect(sections.slice(sections.indexOf('Marks'), sections.indexOf('Marks') + 2)).toEqual(['Marks', 'Star Fill']);
+    const options = () => [...group()!.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Star Fill"] button')];
+    // Filled, then Outline, each a small star; Filled until one is chosen.
+    expect(options().map((each) => each.getAttribute('aria-label'))).toEqual(['Filled', 'Outline']);
+    expect(options().map((each) => each.querySelector('[data-glyph-fill]')!.getAttribute('data-glyph-fill'))).toEqual(['black', 'white']);
+    expect(options().map((each) => each.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
+    act(() => options()[1]!.click());
+    expect(useSettingsStore.getState().diagramAnnotateStarFill).toBe('white');
+    expect(toolFill()).toBe('white');
   });
 
   it('holds the Enlarge tools on an enlarged step, and only them (Revision 2)', () => {
@@ -70,6 +115,35 @@ describe('DiagramAnnotateRail', () => {
     expect(held).toEqual(['Enlarge', 'Enlarge in Frame']);
     act(() => (container!.querySelector('[aria-label="Enlarge"]') as HTMLButtonElement).click());
     expect(onTool).not.toHaveBeenCalled();
+  });
+
+  it('holds the X-Ray tool on a picture with no layers, or one that needs a Refresh, saying why, and only it (Revision 3, R3-18a A)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const onTool = vi.fn();
+    const render = (xray: XRayStanding) =>
+      act(() =>
+        root!.render(
+          <TooltipProvider>
+            <DiagramAnnotateRail tool={null} readOnly={false} xray={xray} onTool={onTool} />
+          </TooltipProvider>
+        )
+      );
+    const held = () =>
+      [...container!.querySelectorAll('[aria-disabled="true"][aria-label]')].map((button) => button.getAttribute('aria-label'));
+    render({ kind: 'none' });
+    expect(held()).toEqual(['X-Ray']);
+    act(() => (container!.querySelector('[aria-label="X-Ray"]') as HTMLButtonElement).click());
+    expect(onTool).not.toHaveBeenCalled();
+    render({ kind: 'refresh', number: 15 });
+    expect(held()).toEqual(['X-Ray']);
+    // A flat fold with its faces, or one whose faces are fetched as an x-ray is laid: the tool is free.
+    render({ kind: 'fetch' });
+    expect(held()).toEqual([]);
+    render({ kind: 'ready' });
+    expect(held()).toEqual([]);
   });
 
   it('offers Solid among the line types, and while it is the type, the colour the next solid line is drawn in (17a)', () => {

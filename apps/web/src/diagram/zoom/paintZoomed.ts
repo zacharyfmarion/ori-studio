@@ -22,7 +22,7 @@
  */
 import { ANNOTATE_SELECTION_INK, CARD_FRAME_PX } from '../annotate/canvasInk';
 import { frameOf, type PictureFrame } from '../annotate/annotationModel';
-import { annotatedPicture, hasDrawnAnnotations, paintAnnotations } from '../annotate/paintAnnotations';
+import { annotatedPicture, hasDrawnAnnotations, paintAnnotations, type XRayPainter } from '../annotate/paintAnnotations';
 import type { AnnotationPaper } from '../annotate/annotationPrimitives';
 import type { PictureCover, PictureLayers } from '../annotate/pictureGeometry';
 import type {
@@ -292,13 +292,15 @@ function windowDocument(
  * An enlarged step as its card shows it: its window ({@link paintZoomedPicture})
  * with its marks drawn on it at a card's size — those near it (`marksInWindow`) — a mark behind a flap dotted
  * where the window's `layers` say, a close-up's inside the window painted
- * larger. One SVG document; null when the picture does not paint.
+ * larger, an x-ray's window by `xRays`, on a picture with layers (Revision
+ * 3). One SVG document; null when the picture does not paint.
  */
 export function zoomedCardPicture(
   zoomed: ZoomedSource,
   annotations: readonly DiagramAnnotation[],
   style: DiagramStyle,
-  layers: PictureLayers | null = null
+  layers: PictureLayers | null = null,
+  xRays: XRayPainter | null = null
 ): string | null {
   const painted = paintZoomedPicture(zoomed, style);
   if (!painted) return null;
@@ -311,7 +313,7 @@ export function zoomedCardPicture(
     1,
     layers,
     (scale) => paintZoomedPicture(zoomed, style, { scale }),
-    sourcePaper(zoomed.source, zoomed.view.window)
+    { paper: sourcePaper(zoomed.source, zoomed.view.window), xRays }
   );
 }
 
@@ -450,9 +452,10 @@ export function zoomFrameGhost(outline: DiagramZoomOutline, box: PictureBox, pen
  * An enlarged step in Pose (Revision 2, Controls): its whole picture, the
  * frame outlined dashed in the selection's ink and everything outside it
  * dimmed, and its marks — in the window's units — ghosted where they lie,
- * at `opacity`. The picture with its marks, as one SVG document, the box
- * grown to whatever they and the frame's outline reach past it — all of the
- * outline, marks or none, as an area round the model's edge reaches.
+ * at `opacity`, an x-ray's window as `xRays` draws it — its rim alone
+ * (Revision 3, R3-19 A). The picture with its marks, as one SVG document,
+ * the box grown to whatever they and the frame's outline reach past it — all
+ * of the outline, marks or none, as an area round the model's edge reaches.
  */
 export function posedZoomPicture(
   painted: PaintedPicture,
@@ -462,7 +465,7 @@ export function posedZoomPicture(
   style: DiagramStyle,
   opacity: number,
   layers: PictureLayers | null = null,
-  paper: AnnotationPaper | null = null
+  { paper = null, xRays = null }: { paper?: AnnotationPaper | null; xRays?: XRayPainter | null } = {}
 ): string {
   const longer = Math.max(painted.frame.width, painted.frame.height);
   const k = longer / Math.max(pictureFrame.width, pictureFrame.height);
@@ -473,7 +476,7 @@ export function posedZoomPicture(
     height: view.window.height * k,
   };
   const placement = zoomPlacement(view, pictureFrame, window);
-  const marks = paintAnnotations(annotations, window, CARD_FRAME_PX, style, layers, { paper });
+  const marks = paintAnnotations(annotations, window, CARD_FRAME_PX, style, layers, { paper, xRays });
   // The picture, its marks, and its frame's outline, which may reach past the picture: an area round the model's edge.
   const reach = ZOOM_GHOST_PEN.picture / 2;
   const boxes = [
@@ -498,7 +501,8 @@ export function posedZoomPicture(
  * A step's marks as a live view in Pose ghosts them (D8), over the picture's
  * frame `frame` in the view's px: on the frame, or — an enlarged step's
  * marks being in its window's units — on its window, with its frame
- * outlined over the camera, undimmed. Null when nothing draws.
+ * outlined over the camera, undimmed. Null when nothing draws. No x-ray is
+ * drawn: a live view is 3D or simulated, a picture with no layers (R3-18b A).
  */
 export function poseGhostMarkup(
   annotations: readonly DiagramAnnotation[],

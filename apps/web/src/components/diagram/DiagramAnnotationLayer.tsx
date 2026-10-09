@@ -1,5 +1,5 @@
 import { memo, useId, type ReactNode } from 'react';
-import { annotationMarks, type AnnotationDrawing, type AnnotationLine } from '../../diagram/annotate/annotationPrimitives';
+import { annotationAreas, annotationMarks, type AnnotationDrawing, type AnnotationLine } from '../../diagram/annotate/annotationPrimitives';
 import type { DiagramStyle } from '../../diagram/document/diagramDocument';
 import { diagramSurfaceStyle } from '../../diagram/pictures/diagramPaperStyle';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
@@ -32,8 +32,9 @@ function AnnotationLineShape({ line, style }: { line: AnnotationLine; style: Pap
 
 /**
  * Annotations drawn live, as React, exactly as a picture is painted with them
- * (`paintAnnotations`): the lines in the style's pens, then the marks and
- * labels. In the drawing's px; the canvas places it on the picture's frame.
+ * (`paintAnnotations`): the ovals and rectangles (Revision 3), the lines in
+ * the style's pens, then the marks and labels. In the drawing's px; the
+ * canvas places it on the picture's frame.
  * Each annotation is a group named by its id — but not drawn again inside a
  * close-up (`named` false), where they are only what the close-up shows.
  *
@@ -64,6 +65,7 @@ export const DiagramAnnotationLayer = memo(function DiagramAnnotationLayer({
   );
   return (
     <g strokeLinejoin="round">
+      {annotationAreas(drawing, wrap)}
       {drawing.lines.map((line) => (
         // A line behind a flap is drawn in pieces: one group each, all named by the line.
         <g key={`${line.id}:${line.part ?? 0}`} data-annotation-id={named ? line.id : undefined}>

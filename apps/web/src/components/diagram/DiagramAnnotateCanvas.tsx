@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { isDrawingTool } from '../../diagram/annotate/annotateTools';
@@ -21,6 +21,7 @@ import {
 import { pathNodesOf, pathNodesPolyline, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { useCloseUpInsides } from '../../diagram/annotate/useCloseUpInsides';
+import { useXRayInsides } from '../../diagram/xray/useXRayInsides';
 import type { SnapTarget } from '../../diagram/annotate/pictureSnap';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import {
@@ -52,11 +53,15 @@ import {
 } from '../../diagram/document/diagramDocument';
 import { VIEWPORT_PINCH_ZOOM, VIEWPORT_WHEEL_ZOOM } from '../../hooks/useViewportSurface';
 import { ViewportToolbar } from '../panels/ViewportToolbar';
+import { DiagramAnchorPickBar } from './DiagramAnchorPickBar';
 import { DiagramAnnotateToolWindow } from './DiagramAnnotateToolWindow';
 import { DiagramAnnotationLayer } from './DiagramAnnotationLayer';
 import { DiagramCloseUpInsides } from './DiagramCloseUpInsides';
-import { markGeometry, markPaper } from '../../diagram/zoom/stepView';
+import { DiagramXRayInsides } from './DiagramXRayInsides';
+import { markGeometry, markPaper, viewOfStep } from '../../diagram/zoom/stepView';
 import { zoomGrips } from '../../diagram/zoom/zoomGrips';
+import { transformBoxHandles } from '../../diagram/annotate/transformGrips';
+import { TRANSFORM_STROKE_PX, transformHandleSizes } from '../../lib/transformBox';
 import { zoomOutlineOf, zoomOutlinePoints } from '../../diagram/zoom/zoomModel';
 import { DiagramZoomView } from './DiagramZoomView';
 import styles from './DiagramAnnotateCanvas.module.css';
@@ -78,6 +83,9 @@ const TIE_PX = 1;
  */
 const FRAME_LINE_PX = { width: 1.5, dash: 6, gap: 4 } as const;
 const ANCHOR_FACE_PX = 1.25;
+/** A selected x-ray's picked point: its ring's radius and its dot's on screen (Revision 3). */
+const ANCHOR_POINT_PX = 5;
+const ANCHOR_DOT_PX = 1.5;
 const PICK_FACE_PX = 1;
 
 /**
@@ -129,6 +137,10 @@ export function DiagramAnnotateCanvas({
     pictureFrame: layout?.pictureFrame ?? null,
     framePx: CARD_FRAME_PX,
   });
+  // Each x-ray's window, under the close-ups' insides and the marks: the step's own picture without its top layers (Revision 3).
+  const xrayIds = `x-ray-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
+  const zoomView = useMemo(() => viewOfStep(step).zoom, [step]);
+  const windows = useXRayInsides({ step, drawing, shown, zoom: zoomView, style, framePx: CARD_FRAME_PX, idPrefix: xrayIds });
   const selected = shown.find(
     (annotation): annotation is KnownDiagramAnnotation => annotation.id === selectedId && isKnownAnnotation(annotation)
   );
@@ -152,6 +164,7 @@ export function DiagramAnnotateCanvas({
         data-tool={tool ?? 'select'}
         data-draws={isDrawingTool(tool) || undefined}
         data-picking={canvas.pickingAnchor || undefined}
+        data-transform-hover={canvas.transformHover ?? undefined}
         tabIndex={-1}
         onPointerDownCapture={onPointerDownCapture}
         {...handlers}
@@ -219,6 +232,7 @@ export function DiagramAnnotateCanvas({
                     <g
                       transform={`translate(${layout.frame.x} ${layout.frame.y}) scale(${layout.unit / CARD_FRAME_PX})`}
                     >
+                      <DiagramXRayInsides insides={windows} />
                       <DiagramCloseUpInsides insides={insides} style={style} />
                       <DiagramAnnotationLayer drawing={drawing} style={style} />
                     </g>
@@ -240,6 +254,7 @@ export function DiagramAnnotateCanvas({
                         zoom={zoom}
                         movable={!readOnly && !canvas.editingPath}
                         calloutPen={calloutPenUnits(style)}
+                        coarse={canvas.coarse}
                       />
                     ))}
                   {canvas.anchorRing && (
@@ -250,6 +265,7 @@ export function DiagramAnnotateCanvas({
                       strokeWidth={ANCHOR_FACE_PX / zoom}
                     />
                   )}
+                  {canvas.anchorPoint && <AnchorPoint at={canvas.anchorPoint} layout={layout} zoom={zoom} />}
                   {canvas.pickHighlight && (
                     <FaceRing
                       ring={canvas.pickHighlight}
@@ -279,6 +295,7 @@ export function DiagramAnnotateCanvas({
           groups={[]}
           tone="raised"
         />
+        {!readOnly && <DiagramAnchorPickBar step={step} />}
       </div>
       {/* Outside the view in the React tree: see the component. */}
       {!readOnly && <DiagramAnnotateToolWindow container={view} step={step} />}
@@ -302,6 +319,7 @@ function Selection({
   zoom,
   movable,
   calloutPen,
+  coarse,
 }: {
   annotation: KnownDiagramAnnotation;
   layout: AnnotateLayout;
@@ -310,6 +328,8 @@ function Selection({
   movable: boolean;
   /** A callout's outline's pen, in picture units: its box is washed where it is stroked. */
   calloutPen: number;
+  /** The pointer is a finger: a transform box's handles are drawn for one. */
+  coarse: boolean;
 }) {
   const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit];
   const handle = HANDLE_PX / zoom;
@@ -389,8 +409,15 @@ function Selection({
     case 'close-up':
       return <CloseUpSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
     case 'zoom':
-      // Along its outline, all the way round, with its grips (Revision 2).
+    case 'x-ray':
+      // Along its outline, all the way round, with its grips (Revision 2): an x-ray's window a circle's (Revision 3).
       return <ZoomOutlineSelection outline={zoomOutlineOf(annotation)} layout={layout} zoom={zoom} movable={movable} />;
+    case 'star':
+    case 'eye':
+    case 'oval':
+    case 'rectangle':
+      // Its transform box, as an image's on the Edit canvas (Revision 3).
+      return <TransformBoxSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} coarse={coarse} />;
   }
   const points = path.map(at);
   const corner = box && at([box.x, box.y]);
@@ -614,6 +641,80 @@ function ZoomOutlineSelection({
 }
 
 /**
+ * A selected star's, eye's or shape's transform box (Revision 3): the Edit
+ * canvas's image selection, from the same layout (`transformHandles`) — its
+ * outline at 1.5 screen px, a square at each corner that scales a glyph about
+ * its centre, or at each corner and each edge's middle that resizes an oval or
+ * a rectangle, and a round handle 18 screen px out from each corner that
+ * turns it — for a finger larger, and a touch target out (18d follow-up),
+ * as `transformHandleSizes` says — in the
+ * selection's ink, the squares and handles white as the Diagram's grips are,
+ * sized for the screen at any zoom — their strokes too, divided by the
+ * camera's zoom as the frame line's are: the world is drawn under the
+ * camera's CSS transform, which `non-scaling-stroke` does not see (18b
+ * review). Round a small star or eye the box is drawn at least 24 screen px
+ * across (R3-30c B). No handles on a diagram that cannot change.
+ */
+function TransformBoxSelection({
+  annotation,
+  layout,
+  zoom,
+  movable,
+  coarse,
+}: {
+  annotation: KnownDiagramAnnotation;
+  layout: AnnotateLayout;
+  zoom: number;
+  movable: boolean;
+  coarse: boolean;
+}) {
+  const sizes = transformHandleSizes(coarse);
+  // One screen px, in picture units: what the handles are laid out and pressed at.
+  const drawn = transformBoxHandles(annotation, 1 / (zoom * layout.unit), sizes);
+  if (!drawn) return null;
+  const at = ({ x, y }: { x: number; y: number }) => [layout.frame.x + x * layout.unit, layout.frame.y + y * layout.unit] as const;
+  const corners = drawn.corners.map(([x, y]) => at({ x, y }));
+  const side = sizes.square / zoom;
+  const stroke = TRANSFORM_STROKE_PX / zoom;
+  return (
+    <g data-selection="" data-transform-box="">
+      <polygon className={styles.transformBox} points={polylinePoints(corners)} strokeWidth={stroke} />
+      {movable &&
+        drawn.handles.rotate.map(({ corner, at: point }) => {
+          const [x, y] = at(point);
+          return (
+            <circle
+              key={`rotate-${corner}`}
+              className={styles.transformHandle}
+              cx={x}
+              cy={y}
+              r={sizes.turnRadius / zoom}
+              strokeWidth={stroke}
+              data-handle={`rotate-${corner}`}
+            />
+          );
+        })}
+      {movable &&
+        drawn.handles.scale.map(({ handle, at: point }) => {
+          const [x, y] = at(point);
+          return (
+            <rect
+              key={handle}
+              className={styles.transformHandle}
+              x={x - side / 2}
+              y={y - side / 2}
+              width={side}
+              height={side}
+              strokeWidth={stroke}
+              data-handle={`scale-${handle}`}
+            />
+          );
+        })}
+    </g>
+  );
+}
+
+/**
  * A face's ring as the picture draws it, over the marks (Revision 2): the
  * selected area's or frame's anchor face, outlined in the selection's ink,
  * or the face a click would anchor to in the pick mode, filled lightly.
@@ -632,6 +733,21 @@ function FaceRing({
 }) {
   const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit] as const;
   return <polygon className={className} points={polylinePoints(ring.map(at))} strokeWidth={strokeWidth} data-face-ring="" />;
+}
+
+/**
+ * A selected x-ray's picked point (Revision 3): a small ring with a dot, in
+ * the selection's ink, at a size on screen whatever the zoom — where its
+ * peeling starts (18g), as an enlarge area's anchor face is outlined.
+ */
+function AnchorPoint({ at: [u, v], layout, zoom }: { at: readonly [number, number]; layout: AnnotateLayout; zoom: number }) {
+  const [cx, cy] = [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit];
+  return (
+    <g className={styles.anchorPoint} strokeWidth={ANCHOR_FACE_PX / zoom}>
+      <circle cx={cx} cy={cy} r={ANCHOR_POINT_PX / zoom} data-x-ray-anchor="" />
+      <circle cx={cx} cy={cy} r={ANCHOR_DOT_PX / zoom} className={styles.anchorPointDot} />
+    </g>
+  );
 }
 
 function polylinePoints(points: readonly (readonly number[])[]): string {

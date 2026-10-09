@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { pictureGeometry } from '../annotate/pictureGeometry';
+import { INK_UNITS } from '../annotate/canvasInk';
 import {
   createDiagram,
   insertSteps,
@@ -157,6 +158,54 @@ describe('the marks an enlarged step draws', () => {
       ...(mark.path ? { path: mark.path.map((node) => ({ at: [node.at[0] + 1, node.at[1]] as [number, number], ...(node.in ? { in: [node.in[0] + 1, node.in[1]] as [number, number] } : {}) })) } : {}),
     }));
     expect(marksInWindow(window, away)).toEqual([]);
+  });
+
+  it('reaches a star’s turned box at its scale: one beside the window’s edge touches it as far as its tips reach (Revision 3)', () => {
+    // Four times its print size, centred just right of the frame (1 × 0.5): its box's half side, 4.5 × 4 ink.
+    const half = 4.5 * 4 * INK_UNITS;
+    const star: KnownDiagramAnnotation = { id: 'star', kind: 'star', from: [1 + 1.2 * half, 0.25], to: [1 + 1.2 * half, 0.25], scale: 4 };
+    // Upright, its box stops short of the frame; turned 45°, its corner reaches back over it.
+    expect(marksTouchingWindow(window, [star])).toEqual([]);
+    const turned = { ...star, angle: 45 };
+    expect(marksTouchingWindow(window, [turned])).toEqual([turned]);
+    // At its print size, turned or not, it is off the frame.
+    expect(marksTouchingWindow(window, [{ ...turned, scale: undefined }])).toEqual([]);
+  });
+
+  it('reaches an eye’s turned box at its scale: one looking along the window’s edge touches it only when turned toward it (Revision 3)', () => {
+    // Four times its print size, centred just right of the frame (1 × 0.5), looking down: its box's half width across, 4.8 × 4 ink.
+    const across = 4.8 * 4 * INK_UNITS;
+    const eye: KnownDiagramAnnotation = { id: 'eye', kind: 'eye', from: [1 + 1.2 * across, 0.25], to: [1 + 1.2 * across, 0.25], angle: 90, scale: 4 };
+    expect(marksTouchingWindow(window, [eye])).toEqual([]);
+    // Looking left, its length — 7.5 × 4 ink either side — reaches back over the frame.
+    const left = { ...eye, angle: 180 };
+    expect(marksTouchingWindow(window, [left])).toEqual([left]);
+    // At its print size it does not.
+    expect(marksTouchingWindow(window, [{ ...left, scale: undefined }])).toEqual([]);
+  });
+
+  it('holds an oval or a rectangle reaching into the window from outside by its outline, turned, and badges one wholly outside it (Revision 3)', () => {
+    // Centred right of the frame (1 × 0.5), 0.3 wide: its left side 0.05 inside the window.
+    const oval: KnownDiagramAnnotation = { id: 'oval', kind: 'oval', from: [1.1, 0.25], to: [1.1, 0.25], size: [0.3, 0.1] };
+    expect(marksTouchingWindow(window, [oval])).toEqual([oval]);
+    // Turned a quarter, its 0.1 across: wholly outside, badged — but near enough to be drawn.
+    const turned = { ...oval, angle: 90 };
+    expect(marksTouchingWindow(window, [turned])).toEqual([]);
+    expect(marksInWindow(window, [turned])).toEqual([turned]);
+    // A large rectangle round the whole window, its centre far off it: drawn whole, and holds it.
+    const round: KnownDiagramAnnotation = { id: 'round', kind: 'rectangle', from: [1.9, 0.25], to: [1.9, 0.25], size: [4, 1] };
+    expect(marksTouchingWindow(window, [round])).toEqual([round]);
+    expect(marksTouchingWindow(window, [{ ...round, size: [0.2, 0.2] }])).toEqual([]);
+  });
+
+  it('holds an x-ray’s window reaching into the window from outside by its rim, and badges one wholly outside it (Revision 3, 18e)', () => {
+    // Centred right of the frame (1 × 0.5), its radius 0.15: its left rim 0.05 inside the window.
+    const xray: KnownDiagramAnnotation = { id: 'xray', kind: 'x-ray', from: [1.1, 0.25], to: [1.1, 0.25], radius: 0.15, depth: 1 };
+    expect(marksTouchingWindow(window, [xray])).toEqual([xray]);
+    // Smaller, wholly outside: badged — but near enough to be kept drawn.
+    const small = { ...xray, radius: 0.05 };
+    expect(marksTouchingWindow(window, [small])).toEqual([]);
+    expect(marksInWindow(window, [small])).toEqual([small]);
   });
 
   it('reaches hung text’s words where they hang, however far off its anchor is (17b)', () => {

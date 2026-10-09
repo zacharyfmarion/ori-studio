@@ -352,6 +352,8 @@ id, the sheet key and any pins. *(Estimated from mesh counts, not measured.)*
   - If a diagram breaks the 1%, the budget is not raised: the numbers go to
     Zach. The lever then is lossless (deflate before base64), never fewer bits,
     which would give up the exact mesh this is for.
+  - **Raised (2026-10-09):** Z11 is a whole file under 100 MB now, not 1%
+    (`diagram-revision-2.md`, The budget). The writer's 1 MB a step stands.
 
 **File format.** `CP_RENDER_FIELDS.simulated` (`diagramFile.ts` l.444, HEAD),
 `readCpRender`'s validation and the writer all change together. An older build
@@ -1008,8 +1010,8 @@ Vitest runs in the web workspace under Node 22.
     - a refusal over 1 MB.
 - [ ] The budget: a test beside `zoom/paperFacesBudget.test.ts` that a shape
   adds only its compact string to a file written as the app writes one; then
-  every simulated step recaptured on Zach's diagrams, weighed against the 1%.
-  A breach goes to Zach.
+  every simulated step recaptured on Zach's diagrams, weighed against the
+  whole file's 100 MB (Z11, raised 2026-10-09 from 1%).
 - [ ] Reset keeps a fresh flat shape; `isDefaultRender` asks for no pins and no
   pose; Show as and back, and Duplicate as Simulated, capture their own; a
   plain duplicate copies its shape. Tests.

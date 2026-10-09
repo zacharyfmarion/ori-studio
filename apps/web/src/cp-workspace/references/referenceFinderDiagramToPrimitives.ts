@@ -214,10 +214,12 @@ export type StepDiagramPrimitive =
    * Equal divisions of the line from `from` to `to` (Revision 2): a line
    * `offset` ink off it — on the right of the way it runs on the paper or,
    * `mirrored`, the left — cut into `parts` equal parts by dividers square to
-   * it, `ticks` across each part, and — `numbered` — the count beside it. The
-   * line it measures is the picture's, never drawn here. Its sizes are the
-   * drawing's, as an angle mark's are; measured after projecting, so the line
-   * stays on the paper's side through a mirror.
+   * it, `ticks` across each part, and — `numbered` — the count beside it;
+   * `shortDividers`, the dividers between its ends short strokes across its
+   * line, not run to the line it measures (Revision 3). The line it measures
+   * is the picture's, never drawn here. Its sizes are the drawing's, as an
+   * angle mark's are; measured after projecting, so the line stays on the
+   * paper's side through a mirror.
    */
   | {
       kind: 'divisions';
@@ -228,6 +230,37 @@ export type StepDiagramPrimitive =
       mirrored: boolean;
       ticks: 1 | 2 | 3;
       numbered: boolean;
+      shortDividers: boolean;
+    }
+  /**
+   * A star naming the point `at` (Revision 3): five points, filled with the
+   * marks' ink or — `white` — an outline in a ring's pen, the page's white
+   * inside, as a hollow white arrow is. Its size is the drawing's times
+   * `scale`, and it is turned `angle` degrees clockwise on the page, one
+   * point up at 0: a turned or mirrored projection moves it, but never
+   * turns it. Only an annotation draws one; References never emits it.
+   */
+  | {
+      kind: 'star';
+      at: readonly [number, number];
+      fill: DiagramWhiteArrowFill;
+      angle: number;
+      scale: number;
+    }
+  /**
+   * An eye in profile centred on `at`, saying where the next view is from
+   * (Revision 3): two lids, a cornea and an iris, outline only, in the aux
+   * lines' pen. It looks `angle` degrees clockwise from looking right, as the
+   * sheet is seen — the sheet's direction (cos, −sin) — and that direction is
+   * the paper's: a turned or mirrored projection turns it, unlike a star's
+   * turn. Its size is the drawing's times `scale`. Only an annotation draws
+   * one; References never emits it.
+   */
+  | {
+      kind: 'eye';
+      at: readonly [number, number];
+      angle: number;
+      scale: number;
     }
   /**
    * A stretch of the paper a step works in, as a light fill under the lines:

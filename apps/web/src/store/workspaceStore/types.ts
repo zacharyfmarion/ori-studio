@@ -1981,6 +1981,13 @@ export interface DiagramSliceState {
    */
   diagramAnchorPick: DiagramAnchorPick | null;
   /**
+   * The steps whose faces on the paper are being fetched
+   * (`giveDiagramStepPaperFaces`), by id: an x-ray laid or pasted on a flat
+   * step captured before they were kept waits for them, its Depth held and
+   * saying nothing until they land (Revision 3). Not saved.
+   */
+  diagramPaperFacesFetching: Readonly<Record<string, true>>;
+  /**
    * The newest edit that sent frames moved by hand back to their cells
    * (`settlePlaces`, inside that edit's undo step): how many; a `nonce` that
    * is new with every such edit, so what tells the user — a toast with
@@ -1991,6 +1998,15 @@ export interface DiagramSliceState {
    * Undo and redo leave it as it is. Not saved.
    */
   diagramPlacesSettled: { count: number; nonce: number; entry: SnapshotEntry<DiagramDocument | null> | null } | null;
+  /**
+   * The newest paste of annotations (18d review): the step it landed on, the
+   * ids of the marks it put there, and a `nonce` that is new with every
+   * paste. A paste lands where its marks were copied, which can be out of
+   * view — on another picture's enlarged step, beside its window (Revision
+   * 2, decision 7) — so the step's canvas steps back to show it, once. Undo
+   * and redo leave it as it is. Not saved.
+   */
+  diagramPasted: { stepId: string; ids: readonly string[]; nonce: number } | null;
 }
 
 /** What an anchor is being picked for: an enlarge area on a step, or the step's own frame. */
@@ -2271,11 +2287,13 @@ export interface DiagramSliceActions {
     options?: { loadId?: number }
   ) => boolean;
   /**
-   * A step just made an enlarge source — an area drawn on it — given its faces
-   * on the paper when it is a flat capture made before they were kept and its
-   * pattern can fold it again (Z11): folded into the newest undo step, the
-   * area's, while it is still the newest; nothing otherwise, as a capture from
-   * it gives them later. Resolves whether it did.
+   * A step just made an enlarge source — an area drawn on it — or x-rayed — an
+   * x-ray laid on it (Revision 3, R3-18a A) — given its faces on the paper when
+   * it is a flat capture made before they were kept and its pattern can fold
+   * it again (Z11): folded into the newest undo step, the area's or the
+   * x-ray's, while it is still the newest; nothing otherwise — a capture from
+   * it gives them later, and an x-ray is drawn once a Refresh has. Resolves
+   * whether it did.
    */
   giveDiagramStepPaperFaces: (stepId: string) => Promise<boolean>;
   /** Arm the anchor's pick mode for an area or a frame, or leave it (null). View state. */

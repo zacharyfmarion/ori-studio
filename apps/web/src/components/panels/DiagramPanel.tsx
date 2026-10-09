@@ -36,7 +36,6 @@ import { useDiagramStepMenu } from '../../diagram/useDiagramStepMenu';
 import { useDiagramPrintUiStore } from '../../store/diagramPrintUiStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { annotateToolInHand } from '../../store/workspaceStore/diagramState';
 import type { DiagramViewMode } from '../../store/workspaceStore/types';
 import { DiagramEmptyState } from '../diagram/DiagramEmptyState';
 import { DiagramHeader } from '../diagram/DiagramHeader';
@@ -129,7 +128,6 @@ export function DiagramPanel() {
   const detail = useWorkspaceStore((state) => state.diagramDetail);
   const closeStep = useWorkspaceStore((state) => state.closeDiagramStep);
   const openStepIn = useWorkspaceStore((state) => state.openDiagramStep);
-  const annotateTool = useWorkspaceStore(annotateToolInHand);
   const setAnnotateTool = useWorkspaceStore((state) => state.setDiagramAnnotateTool);
   const poseActions = useDiagramPoseActions(detail !== null ? selectedStepId : null);
   const setTitle = useWorkspaceStore((state) => state.setDiagramTitle);
@@ -187,7 +185,6 @@ export function DiagramPanel() {
           readOnly={readOnly}
           mode={detail ?? 'pose'}
           onMode={(mode) => openStepIn(step.id, mode)}
-          annotateTool={annotateTool}
           onAnnotateTool={setAnnotateTool}
           poseActions={poseActions}
           linkedPose={linkedPose}

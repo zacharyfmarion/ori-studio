@@ -54,8 +54,14 @@ describe('the rail', () => {
       },
       { id: 'lines', tools: ['line', 'angle-bisector'] },
       // The two equality marks side by side (ED8).
-      // Enlarge and Enlarge in Frame after Close-Up (Z1).
-      { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark', 'divisions', 'close-up', 'enlarge', 'enlarge-frame'] },
+      // Enlarge and Enlarge in Frame after Close-Up (Z1). The star after the circle, the eye after equal divisions, X-Ray
+      // after Enlarge in Frame (Revision 3, R3-25 A).
+      {
+        id: 'marks',
+        tools: ['circle', 'star', 'right-angle', 'angle-mark', 'divisions', 'eye', 'close-up', 'enlarge', 'enlarge-frame', 'x-ray'],
+      },
+      // The two drawing tools in a group of their own after Marks, as Affinity's rail has them (Revision 3, R3-25 A).
+      { id: 'shapes', tools: ['oval', 'rectangle'] },
       { id: 'text', tools: ['label', 'callout'] },
     ]);
     // Every kind is drawn by a tool: each its own, the lines by Line in each
@@ -69,19 +75,25 @@ describe('the rail', () => {
     expect([...new Set(drawn.filter((kind) => kind !== null))].sort()).toEqual(
       ANNOTATION_KINDS.filter((kind) => kind !== 'turn-over' && kind !== 'rotate').sort()
     );
-    // Nor has either a key: plain T and R, theirs, pick nothing in the Diagram.
+    // Nor has either a key: plain T, Turn Over's, picks nothing in the Diagram; R, Rotate's, picks the Rectangle
+    // now, and Shift+O the Oval, the Circle's O paired (Revision 3, R3-25 A).
     const plain = SHORTCUT_DEFINITIONS.filter((definition) => definition.scope === 'diagram')
       .flatMap((definition) => definition.defaultChords)
       .filter((chord) => !chord.primary && !chord.ctrl && !chord.meta && !chord.alt && !chord.shift)
       .map((chord) => chord.key);
     expect(plain).not.toContain('t');
-    expect(plain).not.toContain('r');
+    expect(plain.filter((key) => key === 'r')).toEqual(['r']);
+    expect(toolForShortcut('diagram.toolRectangle')).toBe('rectangle');
+    expect(toolForShortcut('diagram.toolOval')).toBe('oval');
     // D divides (ED8), and picks Equal Divisions; E enlarges, Shift+E in a frame (Z1).
     expect(plain).toContain('d');
     expect(toolForShortcut('diagram.toolDivisions')).toBe('divisions');
     expect(plain).toContain('e');
     expect(toolForShortcut('diagram.toolEnlarge')).toBe('enlarge');
     expect(toolForShortcut('diagram.toolEnlargeFrame')).toBe('enlarge-frame');
+    // Y for the eye (Revision 3, R3-25 A), free in the Diagram's scope and the global one.
+    expect(plain.filter((key) => key === 'y')).toEqual(['y']);
+    expect(toolForShortcut('diagram.toolEye')).toBe('eye');
     const lines = ['valley-line', 'mountain-line', 'hidden-line', 'solid-line'];
     expect(DIAGRAM_LINE_TYPES.map((type) => drawingKind('line', type))).toEqual(lines);
     expect(ANNOTATION_KINDS.filter(isLineKind)).toEqual(lines);
@@ -161,6 +173,26 @@ describe('the tool window', () => {
         instructions: 'Click a point to circle it.',
         modifiers: ['Hold Cmd to put it down anywhere, without snapping.'],
       },
+      // Put down as a circle is; turned in 15° steps with Select, or with the Star still in hand (Revision 3, R3-24 A,
+      // R3-28 A; 18d).
+      star: {
+        title: 'Star',
+        instructions: 'Click a point to mark it with a star.',
+        modifiers: [
+          'Hold Cmd to put it down anywhere, without snapping.',
+          'Shift-drag a round handle at a corner to turn it in 15° steps.',
+        ],
+      },
+      // Put down freely, a drag setting the way it looks and Shift holding that to 15° steps, as its box's handles do (Revision 3,
+      // R3-8 A, R3-28 A): laying it turns nothing (18c review).
+      eye: {
+        title: 'Eye',
+        instructions: 'Drag from where the viewer stands toward what they look at, or click to look at the middle.',
+        modifiers: [
+          'Shift-drag to set the way it looks in 15° steps.',
+          'Shift-drag a round handle at a corner to turn it in 15° steps.',
+        ],
+      },
       'right-angle': {
         title: 'Right Angle',
         instructions: 'Click inside a right angle to mark it, or drag from a corner into the angle.',
@@ -218,6 +250,35 @@ describe('the tool window', () => {
           'Drag from corner to corner round an area to mark it for an enlarged step. Click for a standard size.',
         modifiers: ['Shift-drag to make it square.', 'Option-drag to draw it out from its middle.'],
       },
+      // Enlarge's circle, from its middle, never snapped; then its Depth is typed (Revision 3, R3-12 A, R3-14 A).
+      'x-ray': {
+        title: 'X-Ray',
+        instructions:
+          'Drag out from the middle of an area to see through its top layer, or click for a standard size; then type how many layers to take away.',
+        modifiers: [],
+      },
+      // Laid as Enlarge in Frame's area is, a click its standard size, put down freely (R3-24 A); its box resized by
+      // R3-29c A's keys, with Select or with its tool still in hand (Revision 3; 18d review).
+      oval: {
+        title: 'Oval',
+        instructions: 'Drag from corner to corner round an area to ring it. Click for a standard size.',
+        modifiers: [
+          'Shift-drag to make it a circle.',
+          'Option-drag to draw it out from its middle.',
+          'Shift-drag a square to keep its proportions, or a round handle to turn it in 15° steps.',
+          'Option-drag a square to resize it about its middle.',
+        ],
+      },
+      rectangle: {
+        title: 'Rectangle',
+        instructions: 'Drag from corner to corner round an area to ring it. Click for a standard size.',
+        modifiers: [
+          'Shift-drag to make it square.',
+          'Option-drag to draw it out from its middle.',
+          'Shift-drag a square to keep its proportions, or a round handle to turn it in 15° steps.',
+          'Option-drag a square to resize it about its middle.',
+        ],
+      },
     });
   });
 
@@ -256,6 +317,14 @@ describe('the tool window', () => {
     );
   });
 
+  it('says what an x-ray laid off the paper could not do, until the next press (review of 18e)', () => {
+    const notice = { tool: 'x-ray', notice: 'no-paper' } as const;
+    expect(annotateToolHint(t, 'x-ray', null, mac, null, notice)!.instructions).toBe(
+      'Start on the paper: a window peels away the layers inside it.'
+    );
+    expect(annotateToolHint(t, 'divisions', null, mac, null, notice)!.instructions).toBe(annotateToolHint(t, 'divisions', null, mac)!.instructions);
+  });
+
   it('names the keys as this platform does', () => {
     const other: AnnotateToolHost = { coarse: false, primary: 'Ctrl', alt: 'Alt' };
     expect(annotateToolHint(t, 'circle', null, other)!.modifiers).toEqual([
@@ -271,8 +340,9 @@ describe('the tool window', () => {
     for (const tool of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null)) {
       const hint = annotateToolHint(t, tool, null, finger)!;
       expect(hint.modifiers).toEqual([]);
-      // A label's and a callout's words, and equal divisions' count, are typed in the Settings sheet's Layers tab there (review).
-      if (tool === 'label' || tool === 'callout' || tool === 'divisions') {
+      // A label's and a callout's words, equal divisions' count and an x-ray's depth (review of 18e) are typed in the
+      // Settings sheet's Layers tab there (review).
+      if (tool === 'label' || tool === 'callout' || tool === 'divisions' || tool === 'x-ray') {
         expect(hint.instructions).toMatch(/ in Settings, under Layers\.$/);
       } else expect(hint.instructions).toBe(annotateToolHint(t, tool, null, mac)!.instructions);
     }

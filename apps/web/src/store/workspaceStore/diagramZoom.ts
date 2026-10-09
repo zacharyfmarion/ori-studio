@@ -31,7 +31,7 @@ import {
   type DiagramStep,
   type DiagramStepZoom,
 } from '../../diagram/document/diagramDocument';
-import { outOfDate, stepsToUpdate } from '../../diagram/zoom/areaStatus';
+import { updateTargets, type EnlargedUpdate } from '../../diagram/zoom/areaStatus';
 import { areaSource, captureSource, type ZoomCaptured } from '../../diagram/zoom/zoomCapture';
 import {
   anchorInPlace,
@@ -243,30 +243,6 @@ export function unenlargeInStore(store: DiagramCaptureStore, commit: DiagramComm
   const picture = step ? enlargedPictureKind(next, step) : null;
   if (picture) trackDiagramPicturePosed('enlarge_off', picture);
   return true;
-}
-
-/**
- * What an update places again (review fix 4): one enlarged step, from its
- * area (Update: in the Step pane beside "Step N's area changed", and the
- * card's menu), or the steps enlarged from these areas that are out of date
- * (Update All, on the area's step and its row in Layers; `stepsToUpdate`).
- */
-export type EnlargedUpdate = { stepId: string } | { areaIds: readonly string[] };
-
-/**
- * The areas an update captures from, and the steps it places, from the
- * diagram as it is: only steps out of date (`outOfDate`), so an Update of a
- * step that is not records no undo step that changes nothing.
- */
-function updateTargets(document: DiagramDocument, request: EnlargedUpdate): { areaIds: string[]; stepIds: string[] } {
-  if ('stepId' in request) {
-    const from = stepById(document, request.stepId)?.zoom?.from;
-    return from !== undefined && outOfDate(document, request.stepId)
-      ? { areaIds: [from], stepIds: [request.stepId] }
-      : { areaIds: [], stepIds: [] };
-  }
-  const areaIds = request.areaIds.filter((areaId) => areaSource(document, areaId) !== null);
-  return { areaIds, stepIds: stepsToUpdate(document, areaIds) };
 }
 
 /**

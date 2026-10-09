@@ -119,6 +119,7 @@ function linkedPose(): DiagramLinkedPose {
     layerOrder: null,
     spatial: null,
     onCamera: () => {},
+    registerLiveView: () => () => {},
     rotateTo: () => {},
     showAs: async () => true,
     setSide: async () => true,
@@ -142,7 +143,6 @@ function detail(linked: boolean) {
           readOnly={false}
           mode="pose"
           onMode={() => {}}
-          annotateTool={null}
           onAnnotateTool={() => {}}
           poseActions={[]}
           linkedPose={linked ? linkedPose() : null}

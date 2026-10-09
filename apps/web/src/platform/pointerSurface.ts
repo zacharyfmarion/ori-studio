@@ -17,6 +17,15 @@ import { useSyncExternalStore } from 'react';
  */
 export const COARSE_POINTER_QUERY = '(pointer: coarse)';
 
+/**
+ * Apple's minimum pick target, 44pt, in CSS px: the stylesheet's
+ * `--touch-target` (`styles/theme.css`), which sizes every control on a
+ * coarse pointer. Named here for what is laid out in script rather than CSS —
+ * a transform box's handles (`lib/transformBox.ts`) — and held to the token by
+ * a test, so the two cannot drift.
+ */
+export const TOUCH_TARGET_PX = 44;
+
 /** A host that can answer media queries. */
 export type MediaHost = Pick<Window, 'matchMedia'>;
 

@@ -199,6 +199,49 @@ describe('Enlarged turned on, and off', () => {
     expect(updated.annotatedPictureKey).toBe('scene-older');
   });
 
+  it('carries Revision 3’s marks with the rest, into the window and back, each on the same paper and its own size (review fix 5)', () => {
+    // A star, an eye, an oval, a rectangle and an x-ray, beside the marks every carry already moved.
+    const extra: KnownDiagramAnnotation[] = [
+      { id: 'mark-star', kind: 'star', from: [0.4, 0.3], to: [0.4, 0.3], angle: 20, scale: 1.5 },
+      { id: 'mark-eye', kind: 'eye', from: [0.5, 0.28], to: [0.5, 0.28], angle: 45 },
+      { id: 'mark-oval', kind: 'oval', from: [0.42, 0.26], to: [0.42, 0.26], size: [0.08, 0.05], angle: 30 },
+      { id: 'mark-rectangle', kind: 'rectangle', from: [0.48, 0.3], to: [0.48, 0.3], size: [0.06, 0.04] },
+      { id: 'mark-xray', kind: 'x-ray', from: [0.45, 0.27], to: [0.45, 0.27], radius: 0.04, depth: 1 },
+    ];
+    const plain = crane();
+    const document: DiagramDocument = {
+      ...plain,
+      steps: plain.steps.map((entry) =>
+        entry.id === 'step-n' ? { ...(entry as DiagramStep), annotations: [...(entry as DiagramStep).annotations, ...extra] } : entry
+      ),
+    };
+    const before = step(document);
+    const onDoc = enlargeStep(document, 'step-n', NO_ASSETS).document;
+    const on = step(onDoc);
+    expect(on.zoom?.frame).toBeDefined();
+    expect(marksMoved(before, on)).toEqual([]);
+    // In the window's units, a size in picture units grows with the window as the paper under it does.
+    const window = stepWindow(on)!;
+    const oval = on.annotations.find((each) => each.id === 'mark-oval') as KnownDiagramAnnotation;
+    expect(oval.size![0]).toBeCloseTo(0.08 / window.width, 9);
+    const off = step(unenlargeStep(onDoc, 'step-n', NO_ASSETS));
+    expect(marksMoved(on, off)).toEqual([]);
+    // Back on the whole picture: each new mark as it was drawn, its size and turn too.
+    for (const mark of extra) {
+      const back = off.annotations.find((each) => each.id === mark.id) as KnownDiagramAnnotation;
+      expect(back.kind).toBe(mark.kind);
+      expect(back.from[0]).toBeCloseTo(mark.from[0], 9);
+      expect(back.from[1]).toBeCloseTo(mark.from[1], 9);
+      if (mark.size) {
+        expect(back.size![0]).toBeCloseTo(mark.size[0], 9);
+        expect(back.size![1]).toBeCloseTo(mark.size[1], 9);
+      }
+      if (mark.radius !== undefined) expect(back.radius).toBeCloseTo(mark.radius, 9);
+      expect(back.angle ?? 0).toBeCloseTo(mark.angle ?? 0, 9);
+      if (mark.kind === 'star') expect(back.scale).toBe(1.5);
+    }
+  });
+
   it('keeps every mark where it is, out of step, when one could not come back to the whole picture within its reach', () => {
     const enlargedDoc = enlargeStep(crane(), 'step-n', NO_ASSETS).document;
     const enlarged = step(enlargedDoc);

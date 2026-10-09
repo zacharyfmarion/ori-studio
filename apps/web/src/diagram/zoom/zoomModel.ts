@@ -18,6 +18,7 @@ import {
   PICTURE_REACH,
   ZOOM_CLICK,
   ZOOM_SCALE,
+  areaFromCorners,
   rectangleAngle,
   withinReach,
   zoomRadiusWithin,
@@ -175,31 +176,15 @@ export function withZoomAnchor(area: KnownDiagramAnnotation, anchor: PicturePoin
  * A new rounded-rectangle area, dragged corner to corner (Enlarge in Frame):
  * `square` makes it square on its longer side, `fromMiddle` drags it from its
  * centre. A drag shorter than a slip either way puts down a click's square
- * at `start`.
+ * at `start`. The drag an oval's or a rectangle's is too (`areaFromCorners`).
  */
 export function zoomAreaFromCorners(
   start: PicturePoint,
   end: PicturePoint,
-  { square = false, fromMiddle = false }: { square?: boolean; fromMiddle?: boolean } = {},
+  keys: { square?: boolean; fromMiddle?: boolean } = {},
   newId: DiagramIdFactory = randomDiagramId
 ): KnownDiagramAnnotation {
-  const id = newId('annotation');
-  let dx = end[0] - start[0];
-  let dy = end[1] - start[1];
-  if (square) {
-    const side = Math.max(Math.abs(dx), Math.abs(dy));
-    dx = Math.sign(dx || 1) * side;
-    dy = Math.sign(dy || 1) * side;
-  }
-  const scale = fromMiddle ? 2 : 1;
-  const [width, height] = [Math.abs(dx) * scale, Math.abs(dy) * scale];
-  const centre: PicturePoint = fromMiddle ? start : [start[0] + dx / 2, start[1] + dy / 2];
-  const clicked = Math.min(width, height) < ZOOM_CLICK.size[0] / 20;
-  const size: [number, number] = clicked
-    ? [ZOOM_CLICK.size[0], ZOOM_CLICK.size[1]]
-    : [zoomSideWithin(width), zoomSideWithin(height)];
-  const at = withinReach(clicked ? start : centre);
-  return { id, kind: 'zoom', from: at, to: [at[0], at[1]], size };
+  return areaFromCorners('zoom', start, end, keys, newId);
 }
 
 /** An outline's corner radius: a circle's own radius; a rounded rectangle's {@link ZOOM_CORNER} of its shorter side. */
@@ -283,6 +268,19 @@ export function distanceToRim(outline: DiagramZoomOutline, point: PicturePoint):
   const inside = core.length === 1 ? 0 : insideConvex(core, point) ? -depthInConvex(core, point) : 0;
   const away = inside < 0 ? inside : distanceToConvex(core, point);
   return Math.abs(away - radius);
+}
+
+/**
+ * The outline drawn in by `by` all round, never past nothing: a circle's
+ * radius less it, a rectangle's sides less twice it — its corners rounded as
+ * its kind rounds them, a hair off a true inset, which nothing measures. What
+ * stops a fill short of the cut drawn along the outline (an x-ray's window on
+ * an enlarged step, Revision 3).
+ */
+export function zoomOutlineInset(outline: DiagramZoomOutline, by: number): DiagramZoomOutline {
+  if (zoomShapeOf(outline) === 'circle') return { ...outline, radius: Math.max(0, outline.radius! - by) };
+  const [width, height] = outline.size!;
+  return { ...outline, size: [Math.max(0, width - 2 * by), Math.max(0, height - 2 * by)] };
 }
 
 /**

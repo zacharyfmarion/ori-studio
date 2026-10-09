@@ -95,12 +95,19 @@ const NODE_ACTIONS: ReadonlySet<AnnotationActionId> = new Set([
 /**
  * The key that runs a verb, where one does. Delete is one key for two verbs:
  * the selected node's while there is one, else the annotation's — named on
- * whichever it would run, as `deleteKeyEdit` decides.
+ * whichever it would run, as `deleteKeyEdit` decides. F is Flip Arc's, and on
+ * an eye its Flip row's Horizontal ({@link flipKeyAction}).
  */
-function annotationActionShortcut(id: AnnotationActionId, node: number | null): ShortcutActionId | undefined {
+function annotationActionShortcut(
+  id: AnnotationActionId,
+  node: number | null,
+  annotation: KnownDiagramAnnotation
+): ShortcutActionId | undefined {
   switch (id) {
     case 'flip-arc':
       return 'diagram.flipArc';
+    case 'flip-horizontal':
+      return flipKeyAction(annotation) === id ? 'diagram.flipArc' : undefined;
     case 'delete-node':
       return node !== null ? 'edit.delete' : undefined;
     case 'delete':
@@ -320,6 +327,35 @@ export function deleteKeyEdit(annotationId: string, node: number | null): Annota
   return node === null ? annotationActionEdit('delete', annotationId) : annotationActionEdit('delete-node', annotationId, { node });
 }
 
+/**
+ * The verb F (`diagram.flipArc`) runs on `annotation`: Flip Arc on a mark
+ * whose arc flips (`flipsArc`); on an eye, its Flip row's Horizontal — the
+ * eye mirrored across, so it looks the other way and stays as upright as it
+ * was (R3-9b A, as Zach's F was settled after 18c, 2026-10-08), rather than a
+ * half turn, which would stand a level eye on its head; none on the rest.
+ */
+export function flipKeyAction(annotation: KnownDiagramAnnotation): 'flip-arc' | 'flip-horizontal' | null {
+  if (flipsArc(annotation.kind)) return 'flip-arc';
+  return annotation.kind === 'eye' ? 'flip-horizontal' : null;
+}
+
+/**
+ * What F does to the selected `annotation`, as one undo step: its verb's own
+ * edit ({@link flipKeyAction}), counted as that verb is; null where it has
+ * none or would change nothing — a straight arrow's, or an eye looking
+ * straight up or down — so the key falls through.
+ */
+export function flipKeyEdit(annotation: KnownDiagramAnnotation): AnnotationEdit | null {
+  switch (flipKeyAction(annotation)) {
+    case 'flip-arc':
+      return flipChangesArc(annotation) ? annotationActionEdit('flip-arc', annotation.id) : null;
+    case 'flip-horizontal':
+      return flipChangesMark(annotation, 'horizontal') ? annotationActionEdit('flip-horizontal', annotation.id) : null;
+    case null:
+      return null;
+  }
+}
+
 /** How far an arrow key nudges a node, in picture units: a thousandth of the frame, or a hundredth with Shift. */
 export const NUDGE_STEP = { small: 0.001, large: 0.01 } as const;
 
@@ -401,7 +437,7 @@ export function buildAnnotationActions(
   const typed = node !== null && hasNodeType(annotation, node);
   const context: AnnotationEditContext = { node, nodes: count, frame: state.frame };
   return ANNOTATION_ACTION_ORDER.filter((id) => offersAnnotationAction(id, annotation, state)).map((id) => {
-    const shortcutId = annotationActionShortcut(id, node);
+    const shortcutId = annotationActionShortcut(id, node, annotation);
     const base = {
       id,
       group: actionGroup(id),

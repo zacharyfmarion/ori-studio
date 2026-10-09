@@ -56,7 +56,15 @@
     "uploadRejected": "Ori Studio가 안전하게 읽을 수 있는 SVG가 아닙니다",
     "uploadTooLarge": "파일이 너무 큽니다",
     "uploadUnreadable": "그림을 읽을 수 없습니다",
-    "uploadUnsupported": "그림 파일이 아닙니다"
+    "uploadUnsupported": "그림 파일이 아닙니다",
+    "zoom": {
+      "updatedList": "확대한 단계 {{numbers}}을(를) 업데이트했습니다",
+      "updatedOne": "확대한 단계 {{number}}을(를) 업데이트했습니다",
+      "updatedRange": "확대한 단계 {{first}}–{{last}}을(를) 업데이트했습니다",
+      "updatedSome": "확대한 단계 {{total}}개 중 {{placed}}개를 업데이트했습니다",
+      "updatedSomeDetail": "나머지 단계는 이 영역에서 틀을 가져올 수 없었습니다.",
+      "updateFailed": "확대한 단계를 업데이트할 수 없습니다"
+    }
   },
   "diagramExport": {
     "saved": "{{name}}을(를) 내보냈습니다"

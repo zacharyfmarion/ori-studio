@@ -86,7 +86,15 @@
     "uploadRejected": "это не SVG, который Ori Studio может безопасно прочитать",
     "uploadTooLarge": "файл слишком большой",
     "uploadUnreadable": "не удалось прочитать изображение",
-    "uploadUnsupported": "это не изображение"
+    "uploadUnsupported": "это не изображение",
+    "zoom": {
+      "updatedList": "Увеличенные шаги {{numbers}} обновлены",
+      "updatedOne": "Увеличенный шаг {{number}} обновлён",
+      "updatedRange": "Увеличенные шаги {{first}}–{{last}} обновлены",
+      "updatedSome": "Обновлено увеличенных шагов: {{placed}} из {{total}}",
+      "updatedSomeDetail": "Остальные не смогли взять рамку из этой области.",
+      "updateFailed": "Не удалось обновить увеличенные шаги"
+    }
   },
   "diagramExport": {
     "saved": "Экспортировано: {{name}}"

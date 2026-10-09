@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramStep } from '../document/diagramDocument';
 import { usePrintedZoom } from '../pages/printedFrames';
+import { runEnlargedUpdate } from './updateEnlargedToast';
 import {
   areaSubtitle,
   buildEnlargedAction,
@@ -89,10 +90,7 @@ export function useStepZoom(step: DiagramStep | null): {
     if (!held) return null;
     const update = () => {
       setUpdating(true);
-      void useWorkspaceStore
-        .getState()
-        .updateEnlargedDiagramSteps(held.areaIds)
-        .finally(() => setUpdating(false));
+      void runEnlargedUpdate({ areaIds: held.areaIds }, t).finally(() => setUpdating(false));
     };
     const updateAll = buildUpdateAllAction({ steps: held.steps, outOfDate: held.outOfDate.length, readOnly, updating }, { t, update });
     return {

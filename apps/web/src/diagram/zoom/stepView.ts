@@ -13,9 +13,13 @@
  */
 import { LineHitIndex, type IndexedSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { labelBox } from '../annotate/annotationHit';
+import { transformBoxOf } from '../annotate/transformGrips';
+import { boxCornersModel } from '../../lib/transformBox';
+import { areaBox, areaOutlineOf } from '../annotate/areaOutline';
 import {
   closeUpShape,
   frameOf,
+  isAreaKind,
   isHungText,
   LABEL_SIZE,
   type PictureFrame,
@@ -160,8 +164,9 @@ function marksNear(window: PictureBox, annotations: readonly DiagramAnnotation[]
 
 /**
  * What a mark's points span, its rings' radii round them, an area's outline
- * and hung text's words where they hang (17b): near enough to tell one far
- * off a window.
+ * — an enlarge area's, an oval's or a rectangle's — a star's or an eye's
+ * turned box at its scale (Revision 3) and hung text's words where
+ * they hang (17b): near enough to tell one far off a window.
  */
 function markExtent(mark: KnownDiagramAnnotation): [number, number, number, number] {
   const points: PicturePoint[] = [mark.from, mark.to];
@@ -188,6 +193,16 @@ function markExtent(mark: KnownDiagramAnnotation): [number, number, number, numb
     const { x, y, width, height } = frameWindow(zoomOutlineOf(mark));
     take([x, y]);
     take([x + width, y + height]);
+  } else if (mark.kind === 'star' || mark.kind === 'eye') {
+    // A star or an eye (Revision 3): its turned box at its scale, the print size it keeps in any window.
+    const box = transformBoxOf(mark);
+    for (const { x, y } of box ? boxCornersModel(box) : []) take([x, y]);
+  } else if (isAreaKind(mark.kind)) {
+    // An oval or a rectangle (Revision 3): its outline's upright box, turned with it — one reaching into a window
+    // from outside it is held by it, and drawn whole.
+    const { x, y, width, height } = areaBox(areaOutlineOf(mark));
+    take([x, y]);
+    take([x + width, y + height]);
   } else if (mark.radius !== undefined) take(mark.from, mark.radius);
   else if (isHungText(mark)) {
     // Its words can hang a window or more off its anchor, and they are what is drawn.
@@ -196,6 +211,21 @@ function markExtent(mark: KnownDiagramAnnotation): [number, number, number, numb
     take([centre[0] + halfWidth, centre[1] + halfHeight]);
   }
   return [minX, minY, maxX, maxY];
+}
+
+/**
+ * What `marks` span together, in their own units, as near as
+ * {@link marksInWindow} tells one far off a window: enough to bring them into
+ * view (18d review). Null when none of them is a mark this build knows.
+ */
+export function marksBox(marks: readonly DiagramAnnotation[]): PictureBox | null {
+  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const mark of marks) {
+    if (!isKnownAnnotation(mark)) continue;
+    const [x0, y0, x1, y1] = markExtent(mark);
+    [minX, minY, maxX, maxY] = [Math.min(minX, x0), Math.min(minY, y0), Math.max(maxX, x1), Math.max(maxY, y1)];
+  }
+  return minX <= maxX && minY <= maxY ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY } : null;
 }
 
 /** A step as it is drawn: an enlarged step without the marks it keeps but does not draw ({@link marksInWindow}). */

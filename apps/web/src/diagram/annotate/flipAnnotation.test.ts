@@ -117,8 +117,24 @@ describe('flipping a mark over', () => {
     expect(flipAnnotation(level, 'vertical')).toEqual({ ...level, from: near([0.2, 0.3]), to: near([0.6, 0.3]), mirrored: true });
   });
 
-  it('leaves a circle, a label and a turn-over as they are, their point the same either way over; and offers an enlarge area no Flip', () => {
-    expect(ANNOTATION_KINDS.filter((kind) => !flipsOver(kind))).toEqual(['turn-over', 'label', 'circle', 'zoom']);
+  it('leaves a circle, a label and a turn-over as they are, their point the same either way over; and offers an enlarge area, a star and a shape no Flip', () => {
+    expect(ANNOTATION_KINDS.filter((kind) => !flipsOver(kind))).toEqual([
+      'turn-over',
+      'label',
+      'circle',
+      'star',
+      'zoom',
+      'oval',
+      'rectangle',
+      // An x-ray's window is a circle: no side to turn over (Revision 3).
+      'x-ray',
+    ]);
+    // An oval or a rectangle (Revision 3): a flip of one is only a turn, which its box's handles make.
+    const oval: KnownDiagramAnnotation = { id: 'o', kind: 'oval', from: [0.5, 0.5], to: [0.5, 0.5], size: [0.3, 0.1], angle: 30 };
+    expect(flipAnnotation(oval, 'horizontal')).toBe(oval);
+    // A star keeps its own turn (Revision 3): no Flip, as a circle, and its box turns it.
+    const star: KnownDiagramAnnotation = { id: 's', kind: 'star', from: [0.5, 0.5], to: [0.5, 0.5], angle: 20 };
+    expect(flipAnnotation(star, 'horizontal')).toBe(star);
     const label: KnownDiagramAnnotation = { id: 'l', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'A' };
     expect(flipAnnotation(label, 'horizontal')).toBe(label);
     expect(flipChangesMark(label, 'vertical')).toBe(false);

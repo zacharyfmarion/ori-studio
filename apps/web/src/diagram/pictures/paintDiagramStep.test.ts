@@ -155,10 +155,29 @@ describe('paintStepPicture', () => {
 
   it('tells a crease pattern, measured by its sheet, from a folded model, measured by the figure', () => {
     const flat = cpStep('step-1', { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 });
+    const spatial = cpStep('step-1', { mode: 'folded-3d', camera: { yaw: 0, pitch: 0, zoom: 1 }, side: 'front' });
+    const simulated = cpStep('step-1', { mode: 'simulated', foldPercent: 50, view: { yaw: 0, pitch: 0, zoom: 1 } });
     expect(stepPictureSource(cpStep('step-1'), {})).toMatchObject({ kind: 'scene', pattern: true });
-    expect(stepPictureSource(flat, {})).toMatchObject({ kind: 'scene', pattern: false });
+    for (const folded of [flat, spatial, simulated]) {
+      expect(stepPictureSource(folded, {})).toMatchObject({ kind: 'scene', pattern: false });
+    }
     expect(sceneMeasure(true)).toBe('sheet');
     expect(sceneMeasure(false)).toBe('figure');
+  });
+
+  it('draws a folded model’s mountain and valley folds in the edge pen, and a crease pattern’s in the fold pens', () => {
+    // A 3D or simulated capture names its folds mountain and valley (`paperScene.ts`): in the Diagram's
+    // style the fold pens are half the edge pen, and such a step printed at half a flat one's weight.
+    const edges = { width: 0.5, color: '#ff0000' as const, dash: null, cap: 'butt' as const };
+    const folds = { width: 0.25, color: '#0000ff' as const, dash: null, cap: 'butt' as const };
+    const pens = { style: { ...DEFAULT_PAPER_STYLE, edges, mountainFolds: folds, valleyFolds: folds } };
+    for (const role of ['mountain', 'valley'] as const) {
+      const picture = { ...scenePicture(), sceneJson: storedSceneJson(sheetWithCrease(role))! };
+      const folded = paintScene({ kind: 'scene', picture, pattern: false }, pens)!.svg;
+      expect(folded).not.toContain('#0000ff');
+      expect(folded).toContain('#ff0000');
+      expect(paintScene({ kind: 'scene', picture, pattern: true }, pens)!.svg).toContain('#0000ff');
+    }
   });
 
   it('draws a crease pattern’s aux lines, the paper’s existing creases, whatever the style’s switch says', () => {

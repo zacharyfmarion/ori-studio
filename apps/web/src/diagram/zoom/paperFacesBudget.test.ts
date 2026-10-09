@@ -8,12 +8,13 @@ import { craneStep } from './zoom.fixtures';
  * What a flat capture's faces cost in the file (Revision 2, "The budget").
  *
  * Zach's decision (2026-10-06): every flat step keeps its faces, and the
- * budget is the whole file's — with every flat step refreshed, the `.osf`
- * grows by at most 1% — in place of a cap per step. The whole file is weighed
- * on his diagrams by `artifacts/revision-2/16c/paperFacesBudget.mjs`, which
- * refolds every flat step in the app and writes the file as the app does:
- * crane +0.84%, heart +0.67%, chipmunk +0.18%, Reference Diagrams +0.26%.
- * Those diagrams are not committed, so no test here can open them.
+ * budget is the whole file's in place of a cap per step — raised on
+ * 2026-10-09 from "the `.osf` grows by at most 1%" to a whole file under
+ * 100 MB, which no diagram comes near. The whole file was weighed on his
+ * diagrams by `artifacts/revision-2/16c/paperFacesBudget.mjs`, which refolds
+ * every flat step in the app and writes the file as the app does: crane
+ * +0.84%, heart +0.67%, chipmunk +0.18%, Reference Diagrams +0.26%. Those
+ * diagrams are not committed, so no test here can open them.
  *
  * What this holds, over 16.0's captures of the crane, is what that budget
  * rests on: a step's faces add to the file their compact string and nothing

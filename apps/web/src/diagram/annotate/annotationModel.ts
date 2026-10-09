@@ -10,11 +10,12 @@
  * Pure: no DOM, no store, no React.
  */
 import { flattenPath, type Cubic } from '../../lib/cubicBezier';
+import { snapAngle, TRANSFORM_ROTATION_SNAP_RADIANS } from '../../lib/transformBox';
 import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
 import { needsNoGlyph, scriptFonts, textCjkKey } from '../fonts/fontScripts';
 import { isAnnotationColor } from './annotationColors';
-import { ptInPictureUnits } from './canvasInk';
+import { ANNOTATION_INK_MM, ptInPictureUnits } from './canvasInk';
 import {
   isTextSizePt,
   PLAIN_TEXT_STYLE,
@@ -24,7 +25,11 @@ import {
   type TextStyle,
 } from './textStyle';
 import { cjkRunAdvance, labelAdvance } from './labelAdvances';
-import type { DiagramWhiteArrowFill, DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
+import {
+  DIAGRAM_DIVISIONS_INK,
+  type DiagramWhiteArrowFill,
+  type DiagramWhiteArrowWidth,
+} from '../../cp-workspace/references/diagram/diagramInk';
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import {
   randomDiagramId,
@@ -54,8 +59,8 @@ export interface PictureFrame {
  * - `path`: a white arrow, dragged straight from tail to tip, and always a
  *   path, shaped from there;
  * - `line`: a crease line, dragged, drawn in the diagram's pens;
- * - `point`: a sign, a label or a circle, put down with a click at one point
- *   (`to` is `from`);
+ * - `point`: a sign, a label, a circle or a star (Revision 3), put down with
+ *   a click at one point (`to` is `from`);
  * - `corner`: a right-angle mark, put down in a corner — with a click on a
  *   right angle, or a drag from its corner into the angle — `to` saying only
  *   which way it opens ({@link RIGHT_ANGLE_DIAGONAL});
@@ -73,7 +78,21 @@ export interface PictureFrame {
  *   click (15f);
  * - `zoom`: an enlarge area, a circle or a rounded rectangle round what a
  *   later step may show enlarged, its centre `from` and `to` alike, put down
- *   with a drag or a click (Revision 2).
+ *   with a drag or a click (Revision 2);
+ * - `sight`: an eye, its centre `from` and `to` alike, the way it looks its
+ *   `angle` — put down with a drag from the viewer toward what they look at,
+ *   or a click that looks at the picture's middle (Revision 3). Not a point
+ *   kind, which a click alone puts down, nor a corner, whose click would look
+ *   for a right angle;
+ * - `area`: an oval or a rectangle round an area of the picture, its centre
+ *   `from` and `to` alike, its `size` in picture units and its `angle` its
+ *   turn — dragged corner to corner as Enlarge in Frame's area is, or put
+ *   down a standard size with a click (Revision 3);
+ * - `x-ray`: a circular window cut into a flat fold's picture, its centre
+ *   `from` and `to` alike, its `radius` in picture units, how many layers it
+ *   takes away its `depth`, and where they are counted its `anchor`, on the
+ *   paper — dragged out from its middle as Enlarge's circle is, or put down a
+ *   standard size with a click (Revision 3, R3-14 A).
  */
 type AnnotationShape =
   | 'arc'
@@ -86,7 +105,10 @@ type AnnotationShape =
   | 'angle'
   | 'divisions'
   | 'close-up'
-  | 'zoom';
+  | 'zoom'
+  | 'sight'
+  | 'area'
+  | 'x-ray';
 
 const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
   'valley-arrow': 'arc',
@@ -103,12 +125,17 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'solid-line': 'line',
   label: 'point',
   circle: 'point',
+  star: 'point',
   'right-angle': 'corner',
   callout: 'callout',
   'angle-mark': 'angle',
   divisions: 'divisions',
   'close-up': 'close-up',
   zoom: 'zoom',
+  eye: 'sight',
+  oval: 'area',
+  rectangle: 'area',
+  'x-ray': 'x-ray',
 };
 
 /** Every kind, in the order the rail offers them. */
@@ -125,6 +152,14 @@ export const POINT_KINDS = kindsShaped('point');
 
 /** The crease lines, drawn in the diagram's pens. */
 export const LINE_KINDS = kindsShaped('line');
+
+/** The shapes (Revision 3): an oval or a rectangle round an area, with a transform box. */
+export const AREA_KINDS = kindsShaped('area');
+
+/** Whether `kind` is a shape: an oval or a rectangle (Revision 3). */
+export function isAreaKind(kind: DiagramAnnotationKind): kind is 'oval' | 'rectangle' {
+  return AREA_KINDS.has(kind);
+}
 
 /** The marks put down in a corner, opening along its diagonal: the right angle. */
 export const CORNER_KINDS = kindsShaped('corner');
@@ -225,6 +260,11 @@ export function behindEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to'
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
+    case 'x-ray':
+    case 'star':
+    case 'eye':
       return [];
   }
 }
@@ -301,6 +341,114 @@ export function withWhiteArrowLook(annotation: KnownDiagramAnnotation, look: Whi
   if (fill === undefined) return changed;
   const { fill: _was, ...unfilled } = changed;
   return fill === 'black' ? { ...unfilled, fill } : unfilled;
+}
+
+/**
+ * How far a star's or an eye's `scale` goes, times its print size (Revision
+ * 3, R3-30a A): half to four times, a star 1.5 to 12 mm across, an eye 2.5
+ * to 20 mm long. Its transform box holds a resize to it, and a file's past
+ * it is a newer build's.
+ */
+export const GLYPH_SCALE = { min: 0.5, max: 4 } as const;
+
+/** A star's or an eye's size as drawn, times its print size: unsaid, 1. */
+export function glyphScaleOf({ scale }: Pick<KnownDiagramAnnotation, 'scale'>): number {
+  return scale ?? 1;
+}
+
+/**
+ * A star's turn as drawn, in degrees clockwise on the page, one point up at
+ * 0; the way an eye looks, in degrees clockwise from looking right: unsaid, 0.
+ */
+export function glyphAngleOf({ angle }: Pick<KnownDiagramAnnotation, 'angle'>): number {
+  return angle ?? 0;
+}
+
+/**
+ * What a turn and a scale are kept to, dragged, laid or typed (18b): a
+ * hundredth of a degree, as the Rotation row reads it, and a thousandth of
+ * the print size — a micron on a 1.5 mm star — so a file is not written to
+ * seventeen places (a typed 12.345 comes wrapped as 12.345000000000027), and
+ * a drag back to where it began writes what was there.
+ */
+export const GLYPH_ANGLE_PRECISION = 0.01;
+export const GLYPH_SCALE_PRECISION = 0.001;
+
+/** `value` to the nearest `step`, written to the step's places, and never as −0. */
+export function keptTo(value: number, step: number): number {
+  return Number((Math.round(value / step) * step).toFixed(6)) + 0;
+}
+
+/** A scale held to {@link GLYPH_SCALE}; 1 for one that is no number. */
+export function glyphScaleWithin(scale: number): number {
+  return Number.isFinite(scale) ? Math.min(GLYPH_SCALE.max, Math.max(GLYPH_SCALE.min, scale)) : 1;
+}
+
+/** Degrees clockwise turned into [0, 360), as the file reads a star's turn; 0 for no number. */
+export function glyphAngle(degrees: number): number {
+  if (!Number.isFinite(degrees)) return 0;
+  const turned = degrees % 360;
+  const within = turned < 0 ? turned + 360 : turned;
+  // A turn a hair short of a whole one is upright again, not 359.9999999.
+  return Math.abs(within - 360) < 1e-9 || Math.abs(within) < 1e-9 ? 0 : within;
+}
+
+/**
+ * A turn as a drag, a typed Rotation, a laid eye or a carry writes it: to a
+ * hundredth of a degree ({@link GLYPH_ANGLE_PRECISION}) within the range
+ * `within` turns it into — a star's or an eye's [0, 360) ({@link glyphAngle}),
+ * a shape's [0, 180) ({@link rectangleAngle}). Wrapped, rounded, and wrapped
+ * again (18d follow-up): rounded only once it is in range, since the wrap's
+ * own float error survives a rounding before it (a shape's typed 192.35 was
+ * written 12.349999999999994); and wrapped after, so a turn rounded up to a
+ * whole one is upright (359.996 is 0, never 360).
+ */
+export function keptTurn(degrees: number, within: (degrees: number) => number): number {
+  return within(keptTo(within(degrees), GLYPH_ANGLE_PRECISION));
+}
+
+/** A star or an eye at `scale` times its print size, held to its range: written only when it is not 1. */
+export function withGlyphScale(annotation: KnownDiagramAnnotation, scale: number): KnownDiagramAnnotation {
+  const next = glyphScaleWithin(scale);
+  const { scale: _was, ...rest } = annotation;
+  return next === 1 ? rest : { ...rest, scale: next };
+}
+
+/** A star or an eye turned to `degrees` clockwise, within [0, 360): written only when it is turned. */
+export function withGlyphAngle(annotation: KnownDiagramAnnotation, degrees: number): KnownDiagramAnnotation {
+  const next = glyphAngle(degrees);
+  const { angle: _was, ...rest } = annotation;
+  return next === 0 ? rest : { ...rest, angle: next };
+}
+
+/** A star filled with ink or an outline (R3-4 C, R3-5 A): its fill written only when it is filled, as a white arrow's is. */
+export function withStarFill(annotation: KnownDiagramAnnotation, fill: DiagramWhiteArrowFill): KnownDiagramAnnotation {
+  return withWhiteArrowLook(annotation, { fill });
+}
+
+/**
+ * A star or an eye as this build writes it: its centre within reach and `to`
+ * on it; a star's fill only when it is filled, and an eye never filled; its
+ * turn within [0, 360) and its scale within {@link GLYPH_SCALE}, each dropped
+ * when it is no number. The same object when it already is.
+ */
+function cleanGlyph(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const from = withinReach(annotation.from);
+  const { fill: wasFill, angle: wasAngle, scale: wasScale, ...rest } = annotation;
+  const fill = annotation.kind === 'star' && wasFill === 'black' ? wasFill : undefined;
+  const angle = wasAngle !== undefined && Number.isFinite(wasAngle) ? glyphAngle(wasAngle) : undefined;
+  const scale = wasScale !== undefined && Number.isFinite(wasScale) ? glyphScaleWithin(wasScale) : undefined;
+  const same =
+    samePoint(from, annotation.from) && samePoint(from, annotation.to) && fill === wasFill && angle === wasAngle && scale === wasScale;
+  if (same) return annotation;
+  return {
+    ...rest,
+    from,
+    to: [from[0], from[1]],
+    ...(fill !== undefined ? { fill } : {}),
+    ...(angle !== undefined ? { angle } : {}),
+    ...(scale !== undefined ? { scale } : {}),
+  };
 }
 
 /** How far past the frame an annotation may reach, in frame lengths: an arrow may start off the picture. */
@@ -445,6 +593,9 @@ function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation 
   if (annotation.kind === 'divisions') return cleanDivisions(annotation);
   if (annotation.kind === 'close-up') return cleanCloseUp(annotation);
   if (annotation.kind === 'zoom') return cleanZoom(annotation);
+  if (annotation.kind === 'star' || annotation.kind === 'eye') return cleanGlyph(annotation);
+  if (isAreaKind(annotation.kind)) return cleanArea(annotation);
+  if (annotation.kind === 'x-ray') return cleanXRay(annotation);
   const from = withinReach(annotation.from);
   const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
   const text = annotation.text === undefined ? undefined : cleanLabelText(annotation.text);
@@ -592,6 +743,24 @@ export function divisionsOffsetOf({ offset }: Pick<KnownDiagramAnnotation, 'offs
 }
 
 /**
+ * How far out equal divisions' line must stand, in mm as it prints, for
+ * Short Dividers to change how they are drawn (R3-2 A): a divider's
+ * overshoot past the line, about 1.65 mm. The note under the switch says
+ * this number, so it cannot drift from the rule.
+ */
+export const SHORT_DIVIDERS_FROM_MM = DIAGRAM_DIVISIONS_INK.overshoot * ANNOTATION_INK_MM;
+
+/**
+ * Whether Short Dividers changes how equal divisions `offset` mm off their
+ * line are drawn (R3-2 A): only once the line stands further out than
+ * {@link SHORT_DIVIDERS_FROM_MM}. Nearer, every divider already straddles
+ * the line that far either side, short or not (`divisionsShape`).
+ */
+export function shortDividersShow(offset: number): boolean {
+  return offset > SHORT_DIVIDERS_FROM_MM;
+}
+
+/**
  * Whether new equal divisions measuring the line from `from` to `to` lie to
  * its left (`mirrored`): on the side away from the frame's middle — off the
  * paper when the line is an edge — as a callout's box goes; to the right of
@@ -633,11 +802,21 @@ export function withNumbered(annotation: KnownDiagramAnnotation, numbered: boole
 }
 
 /**
+ * Equal divisions whose dividers between their ends are short strokes across
+ * their line, or run to the line they measure: `shortDividers` written only
+ * when true (Revision 3, R3-1 A).
+ */
+export function withShortDividers(annotation: KnownDiagramAnnotation, short: boolean): KnownDiagramAnnotation {
+  const { shortDividers: _was, ...rest } = annotation;
+  return short ? { ...rest, shortDividers: true } : rest;
+}
+
+/**
  * Equal divisions as this build writes them: their ends within reach, their
  * parts whole and in range, their offset in range — never rounded, so a value
  * the reader takes is written back as it was — their ticks one of three, and
- * `mirrored` and `numbered` only when true. The same object when they
- * already are.
+ * `mirrored`, `numbered` and `shortDividers` only when true. The same object
+ * when they already are.
  */
 function cleanDivisions(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   const from = withinReach(annotation.from);
@@ -653,9 +832,10 @@ function cleanDivisions(annotation: KnownDiagramAnnotation): KnownDiagramAnnotat
     offset === annotation.offset &&
     ticks === annotation.ticks &&
     (annotation.mirrored === undefined || annotation.mirrored === true) &&
-    (annotation.numbered === undefined || annotation.numbered === true);
+    (annotation.numbered === undefined || annotation.numbered === true) &&
+    (annotation.shortDividers === undefined || annotation.shortDividers === true);
   if (written) return annotation;
-  const { ticks: _ticks, mirrored, numbered, ...rest } = annotation;
+  const { ticks: _ticks, mirrored, numbered, shortDividers, ...rest } = annotation;
   return {
     ...rest,
     from,
@@ -665,6 +845,7 @@ function cleanDivisions(annotation: KnownDiagramAnnotation): KnownDiagramAnnotat
     ...(ticks !== undefined ? { ticks } : {}),
     ...(mirrored === true ? { mirrored: true as const } : {}),
     ...(numbered === true ? { numbered: true as const } : {}),
+    ...(shortDividers === true ? { shortDividers: true as const } : {}),
   };
 }
 
@@ -871,12 +1052,17 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'solid-line':
     case 'label':
     case 'circle':
+    case 'star':
+    case 'eye':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }
@@ -923,11 +1109,16 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'solid-line':
     case 'circle':
+    case 'star':
+    case 'eye':
     case 'right-angle':
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }
@@ -955,12 +1146,17 @@ export function carriesColor(kind: DiagramAnnotationKind): boolean {
     case 'mountain-line':
     case 'hidden-line':
     case 'circle':
+    case 'star':
+    case 'eye':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }
@@ -999,12 +1195,17 @@ export function carriesTextStyle(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'solid-line':
     case 'circle':
+    case 'star':
+    case 'eye':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }
@@ -1158,10 +1359,15 @@ export function annotationEnds(annotation: Pick<KnownDiagramAnnotation, 'kind' |
     case 'turn-over':
     case 'rotate':
     case 'circle':
+    case 'star':
+    case 'eye':
     case 'right-angle':
     case 'angle-mark':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
+    case 'x-ray':
       return [];
   }
 }
@@ -1287,11 +1493,49 @@ export function isCornerKind(kind: DiagramAnnotationKind): boolean {
  * Whether a click puts an annotation of `kind` down: a point kind's at its
  * point, a right angle's in the corner it is in, a callout's beside its
  * point, a close-up's area round it, an enlarge area a standard size round
- * it. A drag draws the rest.
+ * it, an eye looking at the picture's middle, an oval or a rectangle a
+ * standard size round it, an x-ray's window a standard size round it
+ * (Revision 3). A drag draws the rest.
  */
 export function placedByClick(kind: DiagramAnnotationKind): boolean {
   const shape = ANNOTATION_SHAPES[kind];
-  return isPointKind(kind) || isCornerKind(kind) || shape === 'callout' || shape === 'close-up' || shape === 'zoom';
+  return (
+    isPointKind(kind) ||
+    isCornerKind(kind) ||
+    shape === 'callout' ||
+    shape === 'close-up' ||
+    shape === 'zoom' ||
+    shape === 'sight' ||
+    shape === 'area' ||
+    shape === 'x-ray'
+  );
+}
+
+/**
+ * A new eye (Revision 3, R3-8 A), put down freely (R3-24 A) at `start`,
+ * where the viewer stands, looking toward `end`, what they look at — at any
+ * angle, or with `steps` (Shift) held to 15° steps (R3-28 A). A click, or a
+ * drag shorter than a slip, looks toward the picture's middle; at the middle
+ * itself, right, the way an eye with no `angle` looks. Its turn kept to a
+ * hundredth of a degree, written only when it is turned.
+ */
+export function eyeLooking(
+  start: PicturePoint,
+  end: PicturePoint,
+  frame: PictureFrame,
+  { steps = false }: { steps?: boolean } = {},
+  newId: DiagramIdFactory = randomDiagramId
+): KnownDiagramAnnotation {
+  const id = newId('annotation');
+  const from = withinReach(start);
+  const dragged = Math.hypot(end[0] - from[0], end[1] - from[1]) >= MIN_ANNOTATION_LENGTH;
+  const toward: PicturePoint = dragged ? end : [frame.width / 2, frame.height / 2];
+  const [dx, dy] = [toward[0] - from[0], toward[1] - from[1]];
+  const eye: KnownDiagramAnnotation = { id, kind: 'eye', from: [from[0], from[1]], to: [from[0], from[1]] };
+  if (!(Math.hypot(dx, dy) > 1e-9)) return eye;
+  const radians = Math.atan2(dy, dx);
+  const turned = steps ? snapAngle(radians, TRANSFORM_ROTATION_SNAP_RADIANS) : radians;
+  return withGlyphAngle(eye, keptTurn((turned * 180) / Math.PI, glyphAngle));
 }
 
 /**
@@ -1335,16 +1579,21 @@ export function createAnnotation(
     // the way a click on a right angle found; the default way for neither.
     return { id, kind, ...rightAngleAt(start, [end[0] - start[0], end[1] - start[1]]) };
   }
+  if (kind === 'eye') return eyeLooking(start, end, frame, {}, () => id);
+  // An oval or a rectangle, corner to corner as Enlarge in Frame's area is; a click's standard size (Revision 3).
+  if (isAreaKind(kind)) return areaFromCorners(kind, start, end, {}, () => id);
   const from = withinReach(start);
   const to = withinReach(end);
-  if (kind === 'zoom') {
+  if (kind === 'zoom' || kind === 'x-ray') {
     // A circle, dragged from its middle out to its rim, unsnapped as a
     // close-up's area is; a click, or a drag shorter than a slip, puts down
     // a standard size. A rounded rectangle is drawn corner to corner
-    // (`zoomAreaFromCorners`).
+    // (`zoomAreaFromCorners`). An x-ray's window is Enlarge's circle, taking
+    // away its top layer until its Depth is typed (Revision 3).
     const drag = Math.hypot(to[0] - from[0], to[1] - from[1]);
     const radius = drag < MIN_ZOOM_SIDE ? ZOOM_CLICK.radius : zoomRadiusWithin(drag);
-    return { id, kind, from: [from[0], from[1]], to: [from[0], from[1]], radius };
+    const circle: KnownDiagramAnnotation = { id, kind, from: [from[0], from[1]], to: [from[0], from[1]], radius };
+    return kind === 'x-ray' ? { ...circle, depth: XRAY_DEPTH.laid } : circle;
   }
   if (kind === 'close-up') {
     // Dragged from its area's centre out to its ring; a click, or a drag
@@ -1712,31 +1961,181 @@ function cleanZoom(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
  * of the picture moves.
  */
 function carryZoom(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
-  const { from } = annotation;
+  if (annotation.size !== undefined && annotation.radius === undefined) return carryArea(annotation, move);
+  const carried = withinReach(move.point(annotation.from));
+  const [rx, ry] = carriedVector(annotation.from, move, [closeUpRadius(annotation), 0]);
+  return { ...annotation, from: carried, to: [carried[0], carried[1]], radius: zoomRadiusWithin(Math.hypot(rx, ry)) };
+}
+
+/**
+ * An area with a `size` carried with the paper: an enlarge area's rounded
+ * rectangle (Revision 2), and an oval or a rectangle (Revision 3, its math
+ * shared). Its centre goes with the face under it; its size by the move's
+ * scale as a whole — never stretched with whatever face a spread moves under
+ * its rim — each side held to its range; and its turn with the move's, at
+ * any angle: its long side goes where the move takes the way it ran, which a
+ * mirror turns over with the side, its angle negated. Within [0, 180), as a
+ * half turn draws it the same, and written only when it is turned.
+ */
+function carryArea(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  const { from, size } = annotation;
   const carried = withinReach(move.point(from));
-  const turned = (vector: PicturePoint): PicturePoint => {
-    if (move.vector) return move.vector(vector);
-    const [x0, y0] = move.point(from);
-    const [x1, y1] = move.point([from[0] + vector[0], from[1] + vector[1]]);
-    return [x1 - x0, y1 - y0];
-  };
-  const at = { from: carried, to: [carried[0], carried[1]] as [number, number] };
-  if (annotation.size === undefined || annotation.radius !== undefined) {
-    const [rx, ry] = turned([closeUpRadius(annotation), 0]);
-    return { ...annotation, ...at, radius: zoomRadiusWithin(Math.hypot(rx, ry)) };
-  }
   const radians = ((annotation.angle ?? 0) * Math.PI) / 180;
-  const [ux, uy] = turned([Math.cos(radians), Math.sin(radians)]);
+  const [ux, uy] = carriedVector(from, move, [Math.cos(radians), Math.sin(radians)]);
   const stretch = Math.hypot(ux, uy);
+  const [width, height] = size ?? [ZOOM_CLICK.size[0], ZOOM_CLICK.size[1]];
   const { angle: _was, ...rest } = annotation;
   // To a billionth of a degree: a quarter turn is 90, not 90.00000000000001.
   const angle = rectangleAngle(Number(((Math.atan2(uy, ux) * 180) / Math.PI).toFixed(9)));
   return {
     ...rest,
-    ...at,
-    size: [zoomSideWithin(annotation.size[0] * stretch), zoomSideWithin(annotation.size[1] * stretch)],
+    from: carried,
+    to: [carried[0], carried[1]],
+    size: [zoomSideWithin(width * stretch), zoomSideWithin(height * stretch)],
     ...(angle !== 0 ? { angle } : {}),
   };
+}
+
+/** `vector` at `from` as a move carries it: its own `vector`, or where it takes a step along it. */
+function carriedVector(from: PicturePoint, move: PictureMove, vector: PicturePoint): PicturePoint {
+  if (move.vector) return move.vector(vector);
+  const [x0, y0] = move.point(from);
+  const [x1, y1] = move.point([from[0] + vector[0], from[1] + vector[1]]);
+  return [x1 - x0, y1 - y0];
+}
+
+/**
+ * How far an oval's or a rectangle's sides go, in picture units (Revision 3,
+ * R3-30b A): an enlarge area's, from a slip to twice the picture's frame,
+ * about any centre — held as a drag goes ({@link zoomSideWithin}), and past
+ * it in a file a newer build's. One rule for both kinds of area.
+ */
+export const AREA_SIDE = ZOOM_SIDE;
+
+/**
+ * A new area dragged corner to corner: an enlarge area's rounded rectangle
+ * (Revision 2, Enlarge in Frame), or an oval or a rectangle (Revision 3) —
+ * `square` making it square on its longer side, an oval a circle, and
+ * `fromMiddle` drawing it out from its centre. A drag shorter than a
+ * twentieth of a click's either way puts down a click's square at `start`.
+ * Put down where the pointer is: nothing snaps (R3-24 A).
+ */
+export function areaFromCorners(
+  kind: 'zoom' | 'oval' | 'rectangle',
+  start: PicturePoint,
+  end: PicturePoint,
+  { square = false, fromMiddle = false }: { square?: boolean; fromMiddle?: boolean } = {},
+  newId: DiagramIdFactory = randomDiagramId
+): KnownDiagramAnnotation {
+  const id = newId('annotation');
+  let dx = end[0] - start[0];
+  let dy = end[1] - start[1];
+  if (square) {
+    const side = Math.max(Math.abs(dx), Math.abs(dy));
+    dx = Math.sign(dx || 1) * side;
+    dy = Math.sign(dy || 1) * side;
+  }
+  const scale = fromMiddle ? 2 : 1;
+  const [width, height] = [Math.abs(dx) * scale, Math.abs(dy) * scale];
+  const centre: PicturePoint = fromMiddle ? start : [start[0] + dx / 2, start[1] + dy / 2];
+  const clicked = Math.min(width, height) < ZOOM_CLICK.size[0] / 20;
+  const size: [number, number] = clicked
+    ? [ZOOM_CLICK.size[0], ZOOM_CLICK.size[1]]
+    : [zoomSideWithin(width), zoomSideWithin(height)];
+  const at = withinReach(clicked ? start : centre);
+  return { id, kind, from: at, to: [at[0], at[1]], size };
+}
+
+/**
+ * An oval or a rectangle set to a box (Revision 3): centred on `centre`
+ * within reach, its sides `size` held to {@link AREA_SIDE}, its turn as it
+ * was. What its transform box's squares write.
+ */
+export function withAreaBox(annotation: KnownDiagramAnnotation, centre: PicturePoint, size: readonly [number, number]): KnownDiagramAnnotation {
+  const at = withinReach(centre);
+  return { ...annotation, from: at, to: [at[0], at[1]], size: [zoomSideWithin(size[0]), zoomSideWithin(size[1])] };
+}
+
+/**
+ * An oval or a rectangle turned to `degrees` clockwise (Revision 3), kept
+ * within [0, 180) to a hundredth of a degree as a glyph's turn is
+ * ({@link keptTurn}): a half turn draws it the same. Written only when it is
+ * turned.
+ */
+export function withAreaAngle(annotation: KnownDiagramAnnotation, degrees: number): KnownDiagramAnnotation {
+  const next = keptTurn(degrees, rectangleAngle);
+  const { angle: _was, ...rest } = annotation;
+  return next === 0 ? rest : { ...rest, angle: next };
+}
+
+/**
+ * An oval or a rectangle as this build writes it (Revision 3): its centre
+ * within reach and `to` on it; its size, each side within {@link AREA_SIDE}
+ * — a click's square where it has none; a turn only as a number, within
+ * [0, 180). The same object when it already is.
+ */
+function cleanArea(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const from = withinReach(annotation.from);
+  const { size: wasSize, angle: wasAngle, ...rest } = annotation;
+  const size: [number, number] = wasSize
+    ? [zoomSideWithin(wasSize[0]), zoomSideWithin(wasSize[1])]
+    : [ZOOM_CLICK.size[0], ZOOM_CLICK.size[1]];
+  const angle = wasAngle !== undefined && Number.isFinite(wasAngle) ? rectangleAngle(wasAngle) : undefined;
+  const same =
+    samePoint(from, annotation.from) &&
+    samePoint(from, annotation.to) &&
+    wasSize !== undefined &&
+    samePoint(size, wasSize) &&
+    angle === wasAngle;
+  if (same) return annotation;
+  return { ...rest, from, to: [from[0], from[1]], size, ...(angle !== undefined ? { angle } : {}) };
+}
+
+/**
+ * How many layers an x-ray takes away (Revision 3): from one, with no upper
+ * bound — a depth past the layers at its anchor draws at the deepest, so a
+ * larger number means nothing new — and one as it is laid, until its Depth
+ * is typed (R3-18a A).
+ */
+export const XRAY_DEPTH = { min: 1, laid: 1 } as const;
+
+/** An x-ray's depth as drawn: its own, or one for a mark that has none. */
+export function xrayDepthOf({ depth }: Pick<KnownDiagramAnnotation, 'depth'>): number {
+  return depth !== undefined && Number.isInteger(depth) && depth >= XRAY_DEPTH.min ? depth : XRAY_DEPTH.laid;
+}
+
+/** A depth an x-ray can store: a whole number from one, `value` rounded; one for a value that is no number. */
+export function xrayDepthWithin(value: number): number {
+  if (!Number.isFinite(value)) return XRAY_DEPTH.laid;
+  return Math.max(XRAY_DEPTH.min, Math.round(value));
+}
+
+/** An x-ray taking away `depth` layers, held to what it can store. */
+export function withXRayDepth(annotation: KnownDiagramAnnotation, depth: number): KnownDiagramAnnotation {
+  return { ...annotation, depth: xrayDepthWithin(depth) };
+}
+
+/**
+ * An x-ray as this build writes it (Revision 3): its centre within reach and
+ * `to` on it; its window's radius in Enlarge's circle's range; its depth a
+ * whole number from one, always written; an anchor only as two numbers. The
+ * same object when it already is.
+ */
+function cleanXRay(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const from = withinReach(annotation.from);
+  const { radius: wasRadius, depth: wasDepth, anchor: wasAnchor, ...rest } = annotation;
+  const radius = zoomRadiusWithin(wasRadius ?? ZOOM_CLICK.radius);
+  const depth = wasDepth === undefined ? XRAY_DEPTH.laid : xrayDepthWithin(wasDepth);
+  const anchor =
+    wasAnchor !== undefined && Number.isFinite(wasAnchor[0]) && Number.isFinite(wasAnchor[1]) ? wasAnchor : undefined;
+  const same =
+    samePoint(from, annotation.from) &&
+    samePoint(from, annotation.to) &&
+    radius === wasRadius &&
+    depth === wasDepth &&
+    anchor === wasAnchor;
+  if (same) return annotation;
+  return { ...rest, from, to: [from[0], from[1]], radius, depth, ...(anchor !== undefined ? { anchor } : {}) };
 }
 
 /**
@@ -1870,9 +2269,10 @@ export function pathLength(path: readonly DiagramPathNode[]): number {
  * Whether Flip arc turns `kind` over: a fold arrow's bulge, or a white
  * arrow's, mirrored across its chord as a shaped fold arrow is — and a pleat
  * arrow's Zs, stepping to the other side of it (15c), and equal divisions'
- * line, over to the other side of the line it measures (Revision 2). Asked by every surface
- * that offers it (`annotationActions.ts`), and a switch, so a new kind has to
- * answer.
+ * line, over to the other side of the line it measures (Revision 2). Not an
+ * eye: F on an eye is its Flip row's Horizontal (R3-9b A, amended 2026-10-08;
+ * `flipKeyAction`). Asked by every surface that offers it
+ * (`annotationActions.ts`), and a switch, so a new kind has to answer.
  */
 export function flipsArc(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
@@ -1892,11 +2292,16 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'solid-line':
     case 'label':
     case 'circle':
+    case 'star':
+    case 'eye':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }
@@ -1970,15 +2375,18 @@ export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiag
 export function isDegenerate(annotation: KnownDiagramAnnotation, minLength: number): boolean {
   // A right angle has a corner and a way to open, not a length; a callout's
   // box is drawn wherever it sits, its point under it or not.
-  // A close-up or an enlarge area has an area, never less than a slip's
-  // (`closeUpRadiusWithin`, `zoomSideWithin`), not a length.
+  // A close-up, an enlarge area or a shape has an area, never less than a
+  // slip's (`closeUpRadiusWithin`, `zoomSideWithin`), not a length.
   const shape = ANNOTATION_SHAPES[annotation.kind];
   if (
     isPointKind(annotation.kind) ||
     isCornerKind(annotation.kind) ||
     shape === 'callout' ||
     shape === 'close-up' ||
-    shape === 'zoom'
+    shape === 'zoom' ||
+    shape === 'sight' ||
+    shape === 'area' ||
+    shape === 'x-ray'
   ) {
     return false;
   }
@@ -2080,12 +2488,17 @@ export function kindFromOtherSide(kind: DiagramAnnotationKind): DiagramAnnotatio
     case 'solid-line':
     case 'label':
     case 'circle':
+    case 'star':
+    case 'eye':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
+    case 'x-ray':
       return kind;
   }
 }
@@ -2114,7 +2527,11 @@ function carriedOnPicture(annotation: KnownDiagramAnnotation, move: PictureMove)
   if (annotation.kind === 'callout') return carryCallout(annotation, move);
   if (isHungText(annotation)) return carryHungText(annotation, move);
   if (annotation.kind === 'close-up') return carryCloseUp(annotation, move);
-  if (annotation.kind === 'zoom') return carryZoom(annotation, move);
+  // An x-ray's window is Enlarge's circle, carried with the face under its centre; its anchor is on the
+  // paper, which no move of the picture moves, and its depth is kept (Revision 3, R3-21 A).
+  if (annotation.kind === 'zoom' || annotation.kind === 'x-ray') return carryZoom(annotation, move);
+  if (annotation.kind === 'eye') return carryEye(annotation, move);
+  if (isAreaKind(annotation.kind)) return carryArea(annotation, move);
   if (annotation.path) {
     const carry = (nodes: readonly DiagramPathNode[]) => {
       const carried = nodes.map((node) => ({
@@ -2317,12 +2734,40 @@ function carryCloseUp(annotation: KnownDiagramAnnotation, move: PictureMove): Kn
   };
 }
 
+/**
+ * An eye carried with the paper (Revision 3): its centre with the face under
+ * it, as a point is, and the way it looks turned as the picture turns there —
+ * by `move.vector`, or where the move takes a step along it — as an enlarge
+ * area's turn is ({@link carryZoom}): a turn turns it, and a mirror reflects
+ * it, so Turn Over has it look across the paper as it did. Its scale is a
+ * print size, which no move changes. Its turn kept to a hundredth of a
+ * degree, as a drag of it writes one.
+ */
+function carryEye(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  const { from } = annotation;
+  const carried = withinReach(move.point(from));
+  const radians = (glyphAngleOf(annotation) * Math.PI) / 180;
+  const look: PicturePoint = [Math.cos(radians), Math.sin(radians)];
+  let turned: PicturePoint;
+  if (move.vector) turned = move.vector(look);
+  else {
+    const [x0, y0] = move.point(from);
+    const [x1, y1] = move.point([from[0] + look[0], from[1] + look[1]]);
+    turned = [x1 - x0, y1 - y0];
+  }
+  const moved: KnownDiagramAnnotation = { ...annotation, from: carried, to: [carried[0], carried[1]] };
+  if (!(Math.hypot(turned[0], turned[1]) > 0)) return moved;
+  return withGlyphAngle(moved, keptTurn((Math.atan2(turned[1], turned[0]) * 180) / Math.PI, glyphAngle));
+}
+
 /** Which way Flip turns a mark over: left to right, or top to bottom. */
 export type FlipAxis = 'horizontal' | 'vertical';
 
 /**
  * Whether Flip can turn a mark of `kind` over (Zach, 2026-10-05): every mark
- * with a side to it. A circle, a label and a turn-over are their point, drawn
+ * with a side to it, and an eye, which looks one way (R3-9b A): about its
+ * centre, Horizontal takes its angle to 180° less it, Vertical to its
+ * negative. A circle, a label, a turn-over and a star are their point, drawn
  * the same either way over. An enlarge area is not offered it: Revision 2
  * gives an area no Flip, and a turned rounded rectangle, which one would draw
  * at another angle, takes its turn only from its paper (`carryZoom`). A
@@ -2346,12 +2791,17 @@ export function flipsOver(kind: DiagramAnnotationKind): boolean {
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
+    case 'eye':
       return true;
     // An enlarge area: not offered, though a turned rounded rectangle has a side (see above).
     case 'turn-over':
     case 'label':
     case 'circle':
+    case 'star':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
+    case 'x-ray':
       return false;
   }
 }

@@ -1,6 +1,11 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { trackDiagramAnnotationBehind, trackDiagramAnnotationRecolored, trackDiagramTextStyled } from '../../analytics';
+import {
+  trackDiagramAnnotationBehind,
+  trackDiagramAnnotationRecolored,
+  trackDiagramMarkStyled,
+  trackDiagramTextStyled,
+} from '../../analytics';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating, selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
@@ -18,7 +23,7 @@ import {
 } from '../document/diagramDocument';
 import { EDIT_PATH } from './annotateTools';
 import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
-import { annotationEventColor, annotationEventKind, textSizeName, textToggleName } from './annotationEventKind';
+import { annotationEventColor, annotationEventKind, starFillName, textSizeName, textToggleName } from './annotationEventKind';
 import {
   hasTicks,
   withBehind,
@@ -28,6 +33,8 @@ import {
   withDivisionsOffset,
   withNumbered,
   withParts,
+  withShortDividers,
+  withStarFill,
   withTextStyle,
   withWhiteArrowLook,
   type WhiteArrowLook,
@@ -35,6 +42,8 @@ import {
 import { pathNodesOf } from './annotationPath';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
 import { isLineKind, lineKindOf, type DiagramLineType } from './lineTypes';
+import type { DiagramStarFill } from './starFill';
+import { boxedMarkOf } from './transformGrips';
 import { markGeometry, viewFrame, viewOfStep } from '../zoom/stepView';
 import { makeStepMarksEditable } from '../references/makeMarksEditable';
 import { editableCardMarks } from '../references/referencesCardMarks';
@@ -159,6 +168,41 @@ export function useStepAnnotations(step: DiagramStep | null) {
         change(id, 'Change equal divisions', (annotation) =>
           annotation.kind === 'divisions' ? withNumbered(annotation, numbered) : annotation
         ),
+      /**
+       * Whether equal divisions' dividers between their ends are short
+       * strokes across their line (Revision 3, R3-1 A), as one undo step,
+       * counted when it changes them.
+       */
+      setShortDividers: (id: string, short: boolean) => {
+        const before = current(id);
+        change(id, 'Change equal divisions', (annotation) =>
+          annotation.kind === 'divisions' ? withShortDividers(annotation, short) : annotation
+        );
+        const after = current(id);
+        if (!before || !after || before.shortDividers === after.shortDividers) return;
+        trackDiagramMarkStyled(annotationEventKind(after), 'short_dividers', after.shortDividers ? 'on' : 'off');
+      },
+      /** A star filled or an outline (Revision 3, R3-4 C), as one undo step, counted when it changes it. */
+      setStarFill: (id: string, fill: DiagramStarFill) => {
+        const before = current(id);
+        change(id, 'Change star', (annotation) => (annotation.kind === 'star' ? withStarFill(annotation, fill) : annotation));
+        const after = current(id);
+        if (!before || !after || before.fill === after.fill) return;
+        trackDiagramMarkStyled(annotationEventKind(after), 'fill', starFillName(after));
+      },
+      /**
+       * A boxed mark's turn typed in its Rotation row (Revision 3, R3-33 A),
+       * in degrees clockwise, written as its kind writes a turn
+       * (`boxedMarkOf`), as one undo step — the transform box's own label —
+       * counted when it turns it.
+       */
+      setMarkAngle: (id: string, degrees: number) => {
+        const before = current(id);
+        change(id, 'Rotate annotation', (annotation) => boxedMarkOf(annotation)?.turned(degrees) ?? annotation);
+        const after = current(id);
+        if (!before || !after || before.angle === after.angle) return;
+        trackDiagramMarkStyled(annotationEventKind(after), 'rotation', 'field');
+      },
       /** A pleat arrow's Zs (15c), as one undo step. */
       setKinks: (id: string, kinks: DiagramPleatKinks) =>
         change(id, 'Change pleat arrow', (annotation) => ({ ...annotation, kinks })),

@@ -120,3 +120,29 @@ export function stepsToUpdate(document: DiagramDocument, areaIds: readonly strin
     .filter((entry) => !isTurn(entry) && from.has(entry.id) && outOfDate(document, entry.id))
     .map((entry) => entry.id);
 }
+
+/**
+ * What an update places again (review fix 4): one enlarged step, from its
+ * area (Update: in the Step pane beside "Step N's area changed", and the
+ * card's menu), or the steps enlarged from these areas that are out of date
+ * (Update All, on the area's step and its row in Layers; `stepsToUpdate`).
+ */
+export type EnlargedUpdate = { stepId: string } | { areaIds: readonly string[] };
+
+/**
+ * The areas an update captures from, and the steps it places, from the
+ * diagram as it is: only steps out of date (`outOfDate`), so an Update of a
+ * step that is not records no undo step that changes nothing. What the store
+ * places (`updateInStore`) and what its toast says it placed
+ * (`updateEnlargedToast.ts`) read it alike.
+ */
+export function updateTargets(document: DiagramDocument, request: EnlargedUpdate): { areaIds: string[]; stepIds: string[] } {
+  if ('stepId' in request) {
+    const from = stepById(document, request.stepId)?.zoom?.from;
+    return from !== undefined && outOfDate(document, request.stepId)
+      ? { areaIds: [from], stepIds: [request.stepId] }
+      : { areaIds: [], stepIds: [] };
+  }
+  const areaIds = request.areaIds.filter((areaId) => areaSource(document, areaId) !== null);
+  return { areaIds, stepIds: stepsToUpdate(document, areaIds) };
+}

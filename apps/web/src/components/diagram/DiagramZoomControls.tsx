@@ -3,7 +3,8 @@ import type { DiagramStep, DiagramZoomEdge, DiagramZoomShape } from '../../diagr
 import { useZoomControls, type ZoomControlsTarget } from '../../diagram/zoom/useZoomControls';
 import { FieldRow } from '../ui/fieldRows';
 import { SegmentedControl } from '../ui/SegmentedControl';
-import { ZoomAnchorRow, ZoomNote, ZoomReadout, ZoomSizeRows, ZoomVerb } from './DiagramZoomRows';
+import { ZoomAnchorRow, ZoomNote, ZoomReadout, ZoomSizeRows } from './DiagramZoomRows';
+import { DiagramZoomVerb } from './DiagramZoomVerb';
 import styles from './DiagramZoomControls.module.css';
 
 /**
@@ -81,7 +82,7 @@ export function DiagramZoomControls({ step, target }: { step: DiagramStep; targe
       {controls.actions.length > 0 && (
         <span className={styles.verbs}>
           {controls.actions.map((action) => (
-            <ZoomVerb key={action.id} action={action} />
+            <DiagramZoomVerb key={action.id} action={action} />
           ))}
         </span>
       )}

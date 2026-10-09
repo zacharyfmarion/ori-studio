@@ -56,7 +56,15 @@
     "uploadRejected": "不是 Ori Studio 能安全读取的 SVG",
     "uploadTooLarge": "文件过大",
     "uploadUnreadable": "无法读取图片",
-    "uploadUnsupported": "不是图片文件"
+    "uploadUnsupported": "不是图片文件",
+    "zoom": {
+      "updatedList": "已更新放大步骤 {{numbers}}",
+      "updatedOne": "已更新放大步骤 {{number}}",
+      "updatedRange": "已更新放大步骤 {{first}}–{{last}}",
+      "updatedSome": "已更新 {{total}} 个放大步骤中的 {{placed}} 个",
+      "updatedSomeDetail": "其余步骤无法从此区域获取框。",
+      "updateFailed": "无法更新放大步骤"
+    }
   },
   "diagramExport": {
     "saved": "已导出 {{name}}"

@@ -12,7 +12,13 @@ import {
 import { subscribeSidePaneRequests } from '../store/sidePaneRequests';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { selectedCanvasObjectIdOf } from '../cp-workspace/canvasObjects/canvasObjectKinds';
-import { annotatingSelectionId } from '../store/workspaceStore/diagramState';
+import {
+  activeAnchorPick,
+  anchorPickEndedInPlace,
+  annotatingSelectionId,
+  escapePutsPickDown,
+} from '../store/workspaceStore/diagramState';
+import type { DiagramAnchorPick } from '../store/workspaceStore/types';
 import { useTranslation } from 'react-i18next';
 
 const NO_PANES: readonly SidePaneSpec[] = [];
@@ -129,6 +135,16 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
   useEffect(() => {
     openRef.current = open;
   }, [open]);
+  /**
+   * The pick the sheet is closed for while it is made on the canvas under it
+   * — its step and the area or frame it anchors — to come back when it ends
+   * there; null when the sheet is not stepped aside. Opened again meanwhile,
+   * by hand or by a request, the sheet is the user's, and so is closing it.
+   */
+  const steppedAside = useRef<DiagramAnchorPick | null>(null);
+  useEffect(() => {
+    if (open) steppedAside.current = null;
+  }, [open]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -151,9 +167,31 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
   // to re-run: this effect fires on a change of *subject*, and putting `open` in
   // its deps would make every open re-close the drawer immediately.
   useEffect(() => {
+    steppedAside.current = null;
     if (!openRef.current) return;
     close();
   }, [coarsePointer, activeWorkspace, close]);
+
+  // A pick armed from the sheet is made on the canvas the sheet covers: the
+  // Diagram's anchor pick, armed from the Layers pane (Revision 2), whose next
+  // tap landed on the sheet, not the face under it (an iPad, 18e). The sheet
+  // steps aside while it is armed and comes back, on the same pane, when it
+  // ends where it was made — anchored, or put down — and not when it ends
+  // because the user went somewhere else: Pose, the step list, another step,
+  // another mark (review of 18f), or another workspace (the effect above, run
+  // first). A sheet opened while one is armed stays: the runtime leaves Escape
+  // to the pick, then to it (below).
+  const picking = useWorkspaceStore(escapePutsPickDown);
+  useEffect(() => {
+    if (picking && openRef.current) {
+      steppedAside.current = activeAnchorPick(useWorkspaceStore.getState());
+      setOpen(false);
+    } else if (!picking && steppedAside.current) {
+      const armed = steppedAside.current;
+      steppedAside.current = null;
+      if (anchorPickEndedInPlace(useWorkspaceStore.getState(), armed)) setOpen(true);
+    }
+  }, [picking]);
 
   useEffect(() => subscribeSidePaneRequests(setPendingPane), []);
 

@@ -704,7 +704,7 @@ describe('posing a 3D fold', () => {
     const refusal = { code: 'self_intersection' } as never;
     const runtime = fakeCaptureRuntime({ fold3d: vi.fn(async () => ({ status: 'refused' as const, refusal })) });
     const { session } = sessionWith(runtime);
-    expect(await pose(session, THREE_D, { verb: 'view-iso' }, partial())).toEqual({ status: 'refused', refusal });
+    expect(await pose(session, THREE_D, { verb: 'view-top' }, partial())).toEqual({ status: 'refused', refusal });
   });
 });
 

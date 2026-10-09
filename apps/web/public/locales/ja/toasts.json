@@ -56,7 +56,15 @@
     "uploadRejected": "Ori Studio が安全に読み込める SVG ではありません",
     "uploadTooLarge": "サイズが大きすぎます",
     "uploadUnreadable": "図を読み込めませんでした",
-    "uploadUnsupported": "図のファイルではありません"
+    "uploadUnsupported": "図のファイルではありません",
+    "zoom": {
+      "updatedList": "拡大したステップ {{numbers}} を更新しました",
+      "updatedOne": "拡大したステップ {{number}} を更新しました",
+      "updatedRange": "拡大したステップ {{first}}–{{last}} を更新しました",
+      "updatedSome": "拡大したステップ {{total}} 件のうち {{placed}} 件を更新しました",
+      "updatedSomeDetail": "残りのステップには、この範囲から枠を取り込めませんでした。",
+      "updateFailed": "拡大したステップを更新できませんでした"
+    }
   },
   "diagramExport": {
     "saved": "{{name}} を書き出しました"

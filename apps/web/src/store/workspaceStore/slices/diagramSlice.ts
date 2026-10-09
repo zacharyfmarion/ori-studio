@@ -688,13 +688,23 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       const step = diagram && !diagramReadOnly ? stepById(diagram, stepId) : null;
       if (!step || !lacksPaperFaces(step)) return false;
       const newest = diagramHistory.past.at(-1);
-      const faced = await paperFacesBackfill([step]);
-      const now = get();
-      // Only into the edit that made it a source: anything recorded since keeps its own undo step.
-      if (faced.size === 0 || now.diagramLoadId !== diagramLoadId || newest === undefined || now.diagramHistory.past.at(-1) !== newest) {
-        return false;
+      // Told while it runs: an x-ray on the step waits for its faces, and says nothing of a Refresh meanwhile (Revision 3).
+      set({ diagramPaperFacesFetching: { ...get().diagramPaperFacesFetching, [stepId]: true } });
+      try {
+        const faced = await paperFacesBackfill([step]);
+        const now = get();
+        // Only into the edit that made it a source: anything recorded since keeps its own undo step.
+        if (faced.size === 0 || now.diagramLoadId !== diagramLoadId || newest === undefined || now.diagramHistory.past.at(-1) !== newest) {
+          return false;
+        }
+        return commit('Enlarge area', (document) => withPaperFaces(document, faced), true) !== null;
+      } finally {
+        // After the faces, if they came: never a moment with neither.
+        if (get().diagramLoadId === diagramLoadId && Object.hasOwn(get().diagramPaperFacesFetching, stepId)) {
+          const { [stepId]: _done, ...rest } = get().diagramPaperFacesFetching;
+          set({ diagramPaperFacesFetching: rest });
+        }
       }
-      return commit('Enlarge area', (document) => withPaperFaces(document, faced), true) !== null;
     },
 
     setDiagramAnchorPick: (pick) => {

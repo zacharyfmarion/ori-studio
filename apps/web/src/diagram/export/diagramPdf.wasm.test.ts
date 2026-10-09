@@ -11,6 +11,7 @@ import { readFontMetrics } from '../fonts/fontMetrics';
 import { createFontSubsetter, type FontSubsetter } from '../fonts/fontSubset';
 import { diagramPdfInput, PRINT_SHOP_BLEED_MM, PRINT_SHOP_SLUG_MM, type PdfWriter } from './diagramPdf';
 import { craneStep } from '../zoom/zoom.fixtures';
+import { xrayCase } from '../xray/xray.cases';
 
 /**
  * A diagram through the real writer (`crates/oristudio-pdf-wasm`), in node.
@@ -171,6 +172,22 @@ describe.skipIf(!available)('a diagram as one PDF', () => {
     const pdf = await write(input.pages, input.fonts, input.options);
     expect(boxes(pdf, '/MediaBox')).toHaveLength(1);
     if (process.env.ZOOM_PDF_OUT) writeFileSync(process.env.ZOOM_PDF_OUT, pdf);
+  });
+
+  it('prints x-ray windows through their clips — on a step, and held to an enlarged step’s frame (Revision 3, 18f)', async () => {
+    const steps = ['crane-spread', 'crane-marks', 'crane-enlarged'].map((id) => ({ ...xrayCase(id), id: `step-${id}` }));
+    const document = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), steps, 0);
+    const input = diagramPdfInput(document, FONTS, subsetter, 'home');
+    const pages = input.pages.join('');
+    // Four windows, each its own clip on the page; the enlarged step's held to its frame too.
+    const clips = pages.match(/<clipPath id="[^"]*annotation-x-ray-\d-clip">/g)!;
+    expect(clips).toHaveLength(4);
+    expect(new Set(clips).size).toBe(4);
+    expect(pages.match(/<clipPath id="[^"]*annotation-x-ray-\d-bound"><polygon /g)).toHaveLength(1);
+    // The writer takes the page whole: its clips are SVG it already prints (15f's close-ups).
+    const pdf = await write(input.pages, input.fonts, input.options);
+    expect(boxes(pdf, '/MediaBox').length).toBe(input.pages.length);
+    if (process.env.XRAY_PDF_OUT) writeFileSync(process.env.XRAY_PDF_OUT, pdf);
   });
 
   it('refuses a diagram with a character no font has, rather than print a box', async () => {

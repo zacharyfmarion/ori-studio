@@ -2,9 +2,9 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ZOOM_SCALE } from '../../diagram/annotate/annotationModel';
 import type { ZoomControls } from '../../diagram/zoom/useZoomControls';
-import { zoomNumber, zoomReadoutText, type ZoomAction } from '../../diagram/zoom/zoomActions';
-import { Button } from '../ui/Button';
-import { FieldRow, NumberRow, SegmentedRow } from '../ui/fieldRows';
+import { zoomNumber, zoomReadoutText } from '../../diagram/zoom/zoomActions';
+import { NumberRow, SegmentedRow } from '../ui/fieldRows';
+import { DiagramAnchorRow } from './DiagramAnchorRow';
 import styles from './DiagramZoomRows.module.css';
 
 /** A fixed Size's step in the field, as a close-up's scale steps. */
@@ -55,32 +55,22 @@ export function ZoomSizeRows({ controls }: { controls: ZoomControls }) {
 
 /**
  * The Anchor row, on a step whose faces can be picked: the rule it follows,
- * Auto or Picked, and its verbs, Pick and Reset. Nothing on any other step.
+ * Auto or Picked, and its verbs, Pick and Reset. Drawn by the row an x-ray's
+ * Point shares (`DiagramAnchorRow`), in an enlargement's words. Nothing on
+ * any other step.
  */
 export function ZoomAnchorRow({ controls }: { controls: ZoomControls }) {
   const { t } = useTranslation();
   if (!controls.anchorShown) return null;
   return (
-    <FieldRow label={t('panels:diagram.annotations.enlargeAnchor', 'Anchor')} kind="text" disabled={!controls.editable}>
-      {/* One line in both states, so picking or resetting moves no row below it: the rule's words are its tooltip. */}
-      <span className={styles.anchor}>
-        <span
-          className={styles.anchorRule}
-          title={
-            controls.picked
-              ? t('panels:diagram.annotations.anchorPickedHint', 'The face picked on the canvas')
-              : t('panels:diagram.annotations.anchorAutoHint', 'The backmost face outside the frame')
-          }
-        >
-          {controls.picked
-            ? t('panels:diagram.annotations.anchorPicked', 'Picked')
-            : t('panels:diagram.annotations.anchorAuto', 'Auto')}
-        </span>
-        {controls.anchorActions.map((action) => (
-          <ZoomVerb key={action.id} action={action} />
-        ))}
-      </span>
-    </FieldRow>
+    <DiagramAnchorRow
+      label={t('panels:diagram.annotations.enlargeAnchor', 'Anchor')}
+      picked={controls.picked}
+      actions={controls.anchorActions}
+      editable={controls.editable}
+      autoHint={t('panels:diagram.annotations.anchorAutoHint', 'The backmost face outside the frame')}
+      pickedHint={t('panels:diagram.annotations.anchorPickedHint', 'The face picked on the canvas')}
+    />
   );
 }
 
@@ -110,32 +100,5 @@ export function ZoomNote({ readout, warn = false, children }: { readout?: string
     <p className={styles.note} data-readout={readout} data-tone={warn ? 'warning' : undefined}>
       {children}
     </p>
-  );
-}
-
-/**
- * One of an enlargement's verbs: a button that refuses, keeping the focus,
- * when it cannot act or is waiting on its own work (Update folding faces),
- * and says why.
- */
-export function ZoomVerb({ action }: { action: ZoomAction }) {
-  const held = action.disabled || action.waiting === true;
-  return (
-    <Button
-      size="sm"
-      // A toggle that is on (Pick, while the canvas asks for a face) wears the pressed look.
-      variant={action.pressed ? 'secondary' : 'ghost'}
-      isActive={action.pressed}
-      title={action.hint}
-      aria-disabled={held || undefined}
-      aria-busy={action.waiting || undefined}
-      aria-pressed={action.pressed}
-      data-zoom-action={action.id}
-      onClick={() => {
-        if (!held) action.run();
-      }}
-    >
-      {action.label}
-    </Button>
   );
 }

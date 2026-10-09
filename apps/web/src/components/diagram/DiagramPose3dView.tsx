@@ -15,14 +15,14 @@ import { diagramPaperStyle } from '../../diagram/pictures/diagramPaperStyle';
 import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { folded3dCaptureFrame } from '../../diagram/pictures/folded3dCaptureFrame';
+import { poseCreaseReferenceEdge } from '../../diagram/pictures/poseLineWeight';
 import { withRollAbsorbed } from '../../lib/simulatorOrbit';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { SimulatorViewport, type SimulatorViewportHandle } from '../../simulator/SimulatorViewport';
+import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
+import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
 import { sameCamera } from '../../diagram/capture/poseController';
 import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
-
-/** Frame edge, in device pixels, the crease width is calibrated for: Edit's window's. */
-const CREASE_REFERENCE_EDGE = 512;
 
 
 /**
@@ -39,12 +39,15 @@ const CREASE_REFERENCE_EDGE = 512;
  *
  * Where the worker cannot draw — no WebGL2 there — `fallback` (the captured
  * picture) is shown instead, and the toolbar's named views still turn it.
+ * While the view is up it is registered (`registerLiveView`) for the
+ * toolbar's Set Upright, which only a live view can take its up from.
  */
 export function DiagramPose3dView({
   view,
   camera,
   style,
   onCamera,
+  registerLiveView,
   ghost,
   fallback,
 }: {
@@ -52,6 +55,7 @@ export function DiagramPose3dView({
   camera: FoldedFigureCamera;
   style: DiagramStyle;
   onCamera: (camera: FoldedFigureCamera) => void;
+  registerLiveView?: (view: SimulatorViewHandle) => () => void;
   /** The annotations to ghost, when they are in step with the stored picture; null otherwise. */
   ghost: DiagramPoseAnnotations | null;
   fallback: ReactNode;
@@ -130,7 +134,13 @@ export function DiagramPose3dView({
     return frame ? poseGhostMarkup(ghost.annotations, frame, style, ghost.zoom) : null;
   }, [ghost, size, frameRadius, style]);
 
-  if (!mesh || status === 'error') return <>{fallback}</>;
+  const live = mesh !== null && status !== 'error';
+  useEffect(
+    () => (live && registerLiveView ? registerLiveView({ setUpright: () => viewportRef.current?.setUpright() }) : undefined),
+    [live, registerLiveView]
+  );
+
+  if (!live) return <>{fallback}</>;
   return (
     <DiagramPoseStage
       status={status}
@@ -147,8 +157,10 @@ export function DiagramPose3dView({
           gpuActive
           bitmapPresent
           transparentBackground
-          creaseWidthReferenceEdge={CREASE_REFERENCE_EDGE}
+          // Its lines grow with the stage as the step's picture does when Pose shows it there.
+          creaseWidthReferenceEdge={poseCreaseReferenceEdge(simulatorDevicePixelRatio())}
           creaseWidthShrinkExponent={1}
+          creaseWidthGrows
           viewSettings={DEFAULT_SIMULATOR_SETTINGS}
           paperStyle={paperStyle}
           renderSettings={renderSettings}

@@ -16,6 +16,7 @@ import {
   arrowheadPath,
   angleMarkDrawn,
   angleMarkPathData,
+  auxMarkPen,
   cubicPathData,
   divisionsDrawn,
   divisionsPathData,
@@ -35,14 +36,18 @@ import {
   pushArrowDrawn,
   rightAngleDrawn,
   rightAnglePathData,
-  rightAnglePen,
   reversedStretches,
   ringPieces,
   rotateGlyphDrawn,
   sheetCorners,
+  starDrawn,
+  eyeDrawn,
+  eyePathData,
   strokePieces,
   turnOverDrawn,
   whiteArrowDrawn,
+  STAR_MITER_LIMIT,
+  EYE_MITER_LIMIT,
   WHITE_ARROW_MITER_LIMIT,
 } from '../stepDiagramGeometry';
 import type {
@@ -310,6 +315,8 @@ export function canLeavePaper(primitive: StepDiagramPrimitive): boolean {
     case 'right-angle':
     case 'angle-mark':
     case 'divisions':
+    case 'star':
+    case 'eye':
     case 'point':
       return true;
     case 'line':
@@ -966,7 +973,7 @@ function diagramPrimitiveShape(
         <path
           key={index}
           d={d}
-          strokeWidth={rightAnglePen(project)}
+          strokeWidth={auxMarkPen(project)}
           strokeLinecap="butt"
           strokeLinejoin="miter"
           {...inked(inks, 'step-diagram__point step-diagram__right-angle', (ink) => ({
@@ -996,10 +1003,11 @@ function diagramPrimitiveShape(
       ));
     }
     case 'divisions': {
-      // A line set off the line it measures, in the existing creases' pen,
-      // and the dividers and ticks across it in a ring's (Revision 2, ED9),
-      // solid and cut square, in a ring's ink; the count upright beside it,
-      // set as the rotate glyph's fraction is, so a page embeds its digits.
+      // A line set off the line it measures, and the dividers and ticks
+      // across it: one path in the aux lines' pen (Revision 3), solid and cut
+      // square, in a ring's ink; the count upright beside it, set as the
+      // rotate glyph's fraction is, so a page embeds its digits, but in the
+      // regular weight (R3-3).
       const shape = divisionsDrawn(primitive.from, primitive.to, primitive, project);
       if (!shape) return null;
       const d = divisionsPathData(shape);
@@ -1011,8 +1019,7 @@ function diagramPrimitiveShape(
         }));
         return (
           <g key={index}>
-            <path d={d.line} strokeWidth={round(shape.pens.line)} strokeLinecap="butt" {...ink} />
-            <path d={d.marks} strokeWidth={round(shape.pens.marks)} strokeLinecap="butt" {...ink} />
+            <path d={d} strokeWidth={round(shape.pen)} strokeLinecap="butt" {...ink} />
             {number && (
               <text
                 x={round(number.at.x)}
@@ -1022,7 +1029,7 @@ function diagramPrimitiveShape(
                 {...inked(inks, 'step-diagram__arrowhead step-diagram__divisions-number', (each) => ({
                   fill: each.mark,
                   fontFamily: INLINE_LABEL_FONT,
-                  fontWeight: 700,
+                  fontWeight: 400,
                 }))}
               >
                 {number.text}
@@ -1031,6 +1038,59 @@ function diagramPrimitiveShape(
           </g>
         );
       });
+    }
+    case 'star': {
+      // A star naming a point (Revision 3): filled with the marks' ink, no
+      // stroke; or an outline in a ring's pen, mitred at its tips, filled
+      // with the face a hollow white arrow is — on an annotation, the page's
+      // white — so the lines under it stop at its outline.
+      const star = starDrawn(primitive.at, primitive.angle, primitive.scale, project);
+      const d = polygonPathData(star.points);
+      return onAndOffPaper(context, index, (inks) =>
+        primitive.fill === 'black' ? (
+          <path
+            key={index}
+            d={d}
+            stroke="none"
+            {...inked(inks, 'step-diagram__arrowhead step-diagram__star', (ink) => ({ fill: ink.mark }))}
+          />
+        ) : (
+          <g key={index} {...inked(inks, 'step-diagram__star', () => ({}))}>
+            <path
+              d={d}
+              stroke="none"
+              {...inked(inks, back ? 'step-diagram__sheet step-diagram__sheet--back' : 'step-diagram__sheet', (sheet) => ({
+                fill: back ? sheet.sheet.back : sheet.sheet.front,
+              }))}
+            />
+            <path
+              d={d}
+              strokeWidth={round(star.pen)}
+              strokeLinejoin="miter"
+              strokeMiterlimit={STAR_MITER_LIMIT}
+              {...inked(inks, 'step-diagram__point step-diagram__star-outline', (ink) => ({ fill: 'none', stroke: ink.mark }))}
+            />
+          </g>
+        )
+      );
+    }
+    case 'eye': {
+      // An eye in profile (Revision 3, R3-7 A): its lids, cornea and iris as
+      // one path, outline only, in the ring pen (a star outline's, R3-26 as
+      // amended in 18d) and the marks' ink, its free ends cut square and its
+      // back corner mitred.
+      const eye = eyeDrawn(primitive.at, primitive.angle, primitive.scale, project);
+      return onAndOffPaper(context, index, (inks) => (
+        <path
+          key={index}
+          d={eyePathData(eye)}
+          strokeWidth={round(eye.pen)}
+          strokeLinecap="butt"
+          strokeLinejoin="miter"
+          strokeMiterlimit={EYE_MITER_LIMIT}
+          {...inked(inks, 'step-diagram__point step-diagram__eye', (ink) => ({ fill: 'none', stroke: ink.mark }))}
+        />
+      ));
     }
     case 'point': {
       const at = project(primitive.at);

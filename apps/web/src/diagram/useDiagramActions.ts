@@ -67,6 +67,7 @@ import { simulatedRestNow } from './capture/openLinkedPose';
 import { lightingChanged } from './pictures/lighting';
 import { lacksPaperFaces } from './capture/stepPaperFaces';
 import { outOfDate } from './zoom/areaStatus';
+import { runEnlargedUpdate } from './zoom/updateEnlargedToast';
 import { areaStepOf, stepAreas } from './zoom/zoomActions';
 
 /**
@@ -305,15 +306,16 @@ function bindStepActions(
           void refreshDiagramStep(stepId);
         }
       },
+      // Each says what it placed (`runEnlargedUpdate`), as Update All on the area's row does.
       updateEnlarged: () => {
-        const running = store().updateEnlargedDiagramStep(stepId);
+        const running = runEnlargedUpdate({ stepId }, t);
         if (onUpdate) onUpdate(running);
         else void running;
       },
       updateAllEnlarged: () => {
         const diagram = store().diagram;
         const held = diagram ? stepAreas(diagram, stepId) : null;
-        if (held) void store().updateEnlargedDiagramSteps(held.areaIds);
+        if (held) void runEnlargedUpdate({ areaIds: held.areaIds }, t);
       },
       openInEdit: () => openDiagramStepInEdit(stepId),
       openInReferences: () => openDiagramStepInReferences(stepId),

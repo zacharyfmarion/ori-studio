@@ -1,18 +1,4 @@
-/* An enlargement's shared rows (DiagramZoomRows.tsx): the Anchor row's rule and verbs, and the line under the rows. */
-
-/* The anchor's rule and its verbs, on one line whichever rule it is. */
-.anchor {
-  display: inline-flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-1);
-  white-space: nowrap;
-}
-
-.anchorRule {
-  color: var(--text-secondary);
-}
+/* An enlargement's shared rows (DiagramZoomRows.tsx): the line under the rows. The Anchor row is DiagramAnchorRow's. */
 
 /* What Size means, and what places a frame again: a line under the rows, at their inset. */
 .note {

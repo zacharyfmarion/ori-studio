@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleMenuAction } from '../../commands/menuActions';
 import { EDIT_PATH } from '../../diagram/annotate/annotateTools';
 import { PASTE_OFFSET } from '../../diagram/annotate/annotationClipboard';
-import type { KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
+import { createDiagram, insertSteps, type KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
+import { craneStep } from '../../diagram/zoom/zoom.fixtures';
 import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { watchFrames } from '../../diagram/zoom/zoomInvariant.fixtures';
 import { useWorkspaceStore } from '../workspaceStore';
@@ -70,6 +71,23 @@ describe('copying and pasting annotations', () => {
     expect(marks(second)).toHaveLength(1);
   });
 
+  it('tells the step’s canvas what each paste put there, with a nonce of its own, for it to bring into view (18d review)', () => {
+    const [, second] = twoSteps();
+    state().copySelection();
+    expect(state().diagramPasted).toBeNull();
+    state().openDiagramStep(second, 'annotate');
+    void state().pasteClipboard();
+    const first = state().diagramPasted!;
+    expect(first).toEqual({ stepId: second, ids: [marks(second)[0]!.id], nonce: expect.any(Number) });
+    void state().pasteClipboard();
+    expect(state().diagramPasted).toEqual({ stepId: second, ids: [marks(second)[1]!.id], nonce: expect.any(Number) });
+    expect(state().diagramPasted!.nonce).not.toBe(first.nonce);
+    // Undo leaves it as it is: nothing new to show.
+    const last = state().diagramPasted;
+    void state().undo();
+    expect(state().diagramPasted).toBe(last);
+  });
+
   it('pastes on the step a copy came from down and right of its original, each further paste a step on', () => {
     const [first] = twoSteps();
     state().copySelection();
@@ -126,6 +144,33 @@ describe('copying and pasting annotations', () => {
     state().openDiagramStep(first, 'annotate');
     void state().pasteClipboard();
     expect(marks(first).map((mark) => mark.kind)).toEqual(['valley-arrow', 'zoom']);
+  });
+
+  it('fetches the faces of a flat step captured before they were kept when an x-ray is pasted on it, as laying one does (review of 18e)', async () => {
+    const faced = craneStep('S.none');
+    const older = { ...craneStep('S.none', { faces: false }), id: 'older' };
+    const xray: KnownDiagramAnnotation = { id: 'xray', kind: 'x-ray', from: [0.45, 0.6], to: [0.45, 0.6], radius: 0.08, depth: 2 };
+    useWorkspaceStore.setState({
+      diagram: insertSteps(createDiagram({ title: 'Crane' }), [{ ...faced, annotations: [xray, arrow] }, older], 0),
+      activePanelId: 'diagram',
+    });
+    state().openDiagramStep(faced.id, 'annotate');
+    // An arrow pasted there fetches nothing: it needs no faces.
+    state().selectDiagramAnnotation('arrow');
+    state().copySelection();
+    state().openDiagramStep('older', 'annotate');
+    void state().pasteClipboard();
+    expect(state().diagramPaperFacesFetching).toEqual({});
+    // An x-ray does, in the paste's own undo step, saying nothing of a Refresh while they come.
+    state().openDiagramStep(faced.id, 'annotate');
+    state().selectDiagramAnnotation('xray');
+    state().copySelection();
+    state().openDiagramStep('older', 'annotate');
+    void state().pasteClipboard();
+    expect(marks('older').map((mark) => mark.kind)).toEqual(['valley-arrow', 'x-ray']);
+    expect(state().diagramPaperFacesFetching).toEqual({ older: true });
+    // No pattern open here to fold them from: it ends without them, and is told as over.
+    await vi.waitFor(() => expect(state().diagramPaperFacesFetching).toEqual({}));
   });
 
   it('pastes marks copied on an enlarged step onto the same picture whole on the same paper (Revision 2)', () => {
