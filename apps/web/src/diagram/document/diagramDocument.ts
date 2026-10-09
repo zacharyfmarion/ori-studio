@@ -152,7 +152,18 @@ export type DiagramCpRender =
       /** 0 to 100: 0 is the flat sheet, captured without Pose. */
       foldPercent: number;
       view: DiagramSimulatedView;
+      /**
+       * The mesh the picture was captured from, pins and all, as a build with
+       * Pose's tools stores it (`implementation-plans/diagram-pose-simulator-tools.md`,
+       * What a step stores). This build has no tools that read it: it is
+       * carried as it came while the render stands, and a capture here, which
+       * makes a new render, leaves it behind with the picture it was for.
+       */
+      shape?: DiagramSimulatedShape;
     };
+
+/** Pose's stored mesh: opaque to this build, which only carries it (see the simulated render). */
+export type DiagramSimulatedShape = Readonly<Record<string, unknown>>;
 
 /**
  * A flat fold's layers spread apart (`foldedLayerSpread.ts`), one of two

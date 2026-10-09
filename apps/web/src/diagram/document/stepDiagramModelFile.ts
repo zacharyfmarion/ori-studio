@@ -9,10 +9,12 @@
  * the fields read, never passed through, so what is kept is only what was
  * checked and is written back in one key order.
  *
- * A primitive kind or style this build does not know is a newer build's
- * drawing, not a broken one: the read says `unknown`, and the step that holds
- * it is kept verbatim (diagramFile.ts). Only a malformed primitive of a known
- * kind fails the model.
+ * A primitive kind, style or field this build does not know is a newer
+ * build's drawing, not a broken one, and so is a model past what this build
+ * draws — more primitives, labels, arrows or points, or a longer label: the
+ * read says `unknown`, and the step that holds it is kept verbatim
+ * (diagramFile.ts). Only a malformed primitive of a known kind fails the
+ * model.
  *
  * React-free and store-free.
  */
@@ -96,32 +98,43 @@ export type StepDiagramModelRead =
  */
 export function validateStepDiagramModel(value: unknown): StepDiagramModelRead {
   if (!isRecord(value) || !Array.isArray(value.primitives)) return MALFORMED;
+  const raw = value.primitives;
+  // Unknown wins over malformed: a newer build's model is kept whole, even
+  // where a primitive of a kind this build knows looks wrong to it. Past the
+  // caps is a newer build's too, told before any primitive is looked at.
+  if (raw.length > STEP_DIAGRAM_MAX_PRIMITIVES || isNewerModel(value, raw)) return UNKNOWN;
   const sheet = readSheet(value.sheet);
   if (!sheet) return MALFORMED;
-  const raw = value.primitives;
-  if (raw.length > STEP_DIAGRAM_MAX_PRIMITIVES) return MALFORMED;
-  // Unknown wins over malformed: a newer build's model is kept whole, even
-  // where a primitive of a kind this build knows looks wrong to it.
-  if (raw.some(isNewerPrimitive)) return { status: 'unknown' };
   const primitives: StepDiagramPrimitive[] = [];
-  const counts = { label: 0, arrow: 0, point: 0 };
   for (const entry of raw) {
     const primitive = readPrimitive(entry);
     if (!primitive) return MALFORMED;
-    if (primitive.kind === 'label' || primitive.kind === 'point') counts[primitive.kind] += 1;
-    // Every arrow and glyph is drawn by its shapes: one cap for them all.
-    else if (ARROW_KINDS.has(primitive.kind)) counts.arrow += 1;
     primitives.push(primitive);
   }
-  if (
+  return { status: 'ok', model: { sheet, primitives } };
+}
+
+/**
+ * A model a newer build drew: a field of the model or its sheet, or a
+ * primitive's kind, style, enumerated value or field, this build has no name
+ * for; or more labels, arrows or points than it places, or a longer label.
+ */
+function isNewerModel(value: Record<string, unknown>, raw: readonly unknown[]): boolean {
+  if (hasOtherKey(value, MODEL_KEYS) || isNewerSheet(value.sheet)) return true;
+  const counts = { label: 0, arrow: 0, point: 0 };
+  for (const entry of raw) {
+    if (isNewerPrimitive(entry)) return true;
+    if (!isRecord(entry)) continue;
+    if (entry.kind === 'label' || entry.kind === 'point') counts[entry.kind] += 1;
+    // Every arrow and glyph is drawn by its shapes: one cap for them all.
+    else if (typeof entry.kind === 'string' && ARROW_KINDS.has(entry.kind)) counts.arrow += 1;
+  }
+  return (
     counts.label > STEP_DIAGRAM_MAX_LABELS ||
     counts.arrow > STEP_DIAGRAM_MAX_ARROWS ||
     counts.point > STEP_DIAGRAM_MAX_POINTS ||
-    counts.label * primitives.length > STEP_DIAGRAM_MAX_LABEL_WORK
-  ) {
-    return MALFORMED;
-  }
-  return { status: 'ok', model: { sheet, primitives } };
+    counts.label * raw.length > STEP_DIAGRAM_MAX_LABEL_WORK
+  );
 }
 
 /** A model as the file stores it, or null when the reader would refuse it. */
@@ -131,13 +144,49 @@ export function storedStepDiagramModel(model: StepDiagramModel): StepDiagramMode
 }
 
 const MALFORMED: StepDiagramModelRead = { status: 'malformed' };
+const UNKNOWN: StepDiagramModelRead = { status: 'unknown' };
+
+/** The fields a model, its sheet, an arc and each kind of primitive are written with. */
+const MODEL_KEYS: ReadonlySet<string> = new Set(['sheet', 'primitives']);
+const SHEET_KEYS: ReadonlySet<string> = new Set(['width', 'height', 'centre', 'axes']);
+const AXES_KEYS: ReadonlySet<string> = new Set(['x', 'y']);
+const ARC_KEYS: ReadonlySet<string> = new Set(['center', 'radius', 'from', 'to', 'ccw']);
+const PRIMITIVE_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
+  sheet: new Set(['kind', 'width', 'height']),
+  line: new Set(['kind', 'from', 'to', 'style', 'dashPhase']),
+  arc: new Set(['kind', ...ARC_KEYS, 'style']),
+  'fold-arrow': new Set(['kind', 'out']),
+  'one-way-arrow': new Set(['kind', 'out', 'fold']),
+  'push-arrow': new Set(['kind', 'from', 'to']),
+  rotate: new Set(['kind', 'at', 'amount', 'direction']),
+  'turn-over': new Set(['kind', 'at', 'axis']),
+  region: new Set(['kind', 'corners']),
+  point: new Set(['kind', 'at', 'style']),
+  label: new Set(['kind', 'at', 'text', 'style']),
+};
+
+function isNewerSheet(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return hasOtherKey(value, SHEET_KEYS) || (isRecord(value.axes) && hasOtherKey(value.axes, AXES_KEYS));
+}
+
+function hasOtherKey(value: Record<string, unknown>, known: ReadonlySet<string>): boolean {
+  return Object.keys(value).some((key) => !known.has(key));
+}
 
 const ARROW_KINDS: ReadonlySet<string> = new Set(['fold-arrow', 'one-way-arrow', 'push-arrow', 'rotate']);
 
-/** A primitive whose `kind`, or whose `style` for a kind that has one, this build does not know. */
+/**
+ * A primitive whose `kind`, field, enumerated value, or `style` for a kind
+ * that has one, this build does not know; or a label longer than it draws.
+ */
 function isNewerPrimitive(value: unknown): boolean {
   if (!isRecord(value) || typeof value.kind !== 'string') return false;
   if (!PRIMITIVE_KINDS.has(value.kind)) return true;
+  if (hasOtherKey(value, PRIMITIVE_KEYS[value.kind])) return true;
+  const arc = value.kind === 'fold-arrow' || value.kind === 'one-way-arrow' ? value.out : null;
+  if (isRecord(arc) && hasOtherKey(arc, ARC_KEYS)) return true;
+  if (value.kind === 'label' && typeof value.text === 'string' && value.text.length > STEP_DIAGRAM_MAX_LABEL) return true;
   const enums = PRIMITIVE_ENUMS[value.kind];
   if (enums) {
     for (const [field, values] of Object.entries(enums)) {

@@ -18,6 +18,8 @@ import {
 } from './diagramDocument';
 import { readDiagram, storedSceneJson, writeDiagram } from './diagramFile';
 import { SVG_STORED_MAX_BYTES, sanitizeSvg } from '../upload/svgSanitize';
+import { SCENE_JSON_MAX_BYTES } from './paperFacesFile';
+import { MAX_STORED_STROKES } from '../../cp-workspace/sheets/sheetThumbnail';
 import { insertPictureSteps, setStepText as setText, type KnownDiagramAsset } from './diagramDocument';
 import {
   cpStep,
@@ -242,7 +244,7 @@ describe('a newer build’s work', () => {
   });
 
   it('reads every step a build writes with nothing locked, and writes it back byte for byte', () => {
-    for (const document of [sampleDiagram(), linkedDiagram(), uploadDiagram().document]) {
+    for (const document of [sampleDiagram(), linkedDiagram(), uploadDiagram().document, sentDiagram()]) {
       const written = throughJson(writeDiagram(document));
       const read = readDiagram(written)!;
       expect(stepsIn(read.document).every((step) => step.unknown === undefined)).toBe(true);
@@ -1764,9 +1766,7 @@ describe('uploaded pictures in the file', () => {
 
   it.each([
     ['a size that disagrees with its header', { widthPx: 65 }],
-    ['a format other than PNG or JPEG', { src: pngDataUrl(64, 48).replace('image/png', 'image/gif') }],
     ['bytes that are not the format named', { src: 'data:image/png;base64,AAAA' }],
-    ['more than 2048 px a side', { src: pngDataUrl(4096, 48), widthPx: 4096 }],
     ['a link rather than data', { src: 'https://example.com/a.png' }],
   ])('drops a bitmap with %s', (_label, patch) => {
     const { document } = uploadDiagram();
@@ -1775,6 +1775,35 @@ describe('uploaded pictures in the file', () => {
     const read = readDiagram(written)!.document;
     expect(read.assets['asset-b']).toBeUndefined();
     expect(stepsIn(read)[1].picture).toBeNull();
+  });
+
+  it.each([
+    ['in a format other than PNG or JPEG', { src: pngDataUrl(64, 48).replace('image/png', 'image/gif') }],
+    ['with more than 2048 px a side', { src: pngDataUrl(4096, 48), widthPx: 4096 }],
+    ['with a field it has no name for', { colourSpace: 'p3' }],
+  ])('carries a bitmap %s as a newer build’s, and locks the step that shows it', (_label, patch) => {
+    const { document } = uploadDiagram();
+    const written = throughJson(writeDiagram(document));
+    Object.assign(written.assets['asset-b'], patch);
+    const read = readDiagram(written)!;
+    expect(read.readOnly).toBe(false);
+    expect(read.document.assets['asset-b']).toEqual({ id: 'asset-b', unknown: written.assets['asset-b'] });
+    expect(stepsIn(read.document)[1].unknown).toEqual(written.steps[1]);
+    expect(stepsIn(read.document)[0].unknown).toBeUndefined();
+    const again = throughJson(writeDiagram(read.document));
+    expect(again.assets['asset-b']).toEqual(written.assets['asset-b']);
+    expect(again.steps).toEqual(written.steps);
+  });
+
+  it('carries an SVG longer than it keeps, or with a field it has no name for, as a newer build’s', () => {
+    for (const patch of [{ svg: `<svg xmlns="http://www.w3.org/2000/svg">${' '.repeat(SVG_STORED_MAX_BYTES)}</svg>` }, { layers: 2 }]) {
+      const { document } = uploadDiagram();
+      const written = throughJson(writeDiagram(document));
+      Object.assign(written.assets['asset-a'], patch);
+      const read = readDiagram(written)!.document;
+      expect(read.assets['asset-a']).toEqual({ id: 'asset-a', unknown: written.assets['asset-a'] });
+      expect(stepsIn(read)[0].unknown).toEqual(written.steps[0]);
+    }
   });
 
   it('carries an asset of a kind it does not know, and writes it back as it came', () => {
@@ -1818,12 +1847,23 @@ describe('uploaded pictures in the file', () => {
   it('reads a pose it does not understand as upright', () => {
     const { document } = uploadDiagram();
     const written = throughJson(writeDiagram(document));
-    written.steps[0].source.rotationQuarterTurns = 5;
+    written.steps[0].source.rotationQuarterTurns = 'half';
     written.steps[0].source.mirrored = 'yes';
     expect(stepsIn(readDiagram(written)!.document)[0].source).toMatchObject({
       rotationQuarterTurns: 0,
       mirrored: false,
     });
+  });
+
+  it('carries, locked, an upload turned past the four quarter turns it draws, or with a source field it has no name for', () => {
+    for (const patch of [{ rotationQuarterTurns: 5 }, { rotationQuarterTurns: 0.5 }, { cropped: [0, 0, 1, 1] }]) {
+      const { document } = uploadDiagram();
+      const written = throughJson(writeDiagram(document));
+      Object.assign(written.steps[0].source, patch);
+      const read = readDiagram(written)!.document;
+      expect(stepsIn(read)[0].unknown).toEqual(written.steps[0]);
+      expect(stepsIn(throughJson(writeDiagram(read)))[0]).toEqual(written.steps[0]);
+    }
   });
 
   it('leaves out an asset nothing refers to', () => {
@@ -1950,9 +1990,10 @@ describe('linked steps in the file', () => {
   });
 
   // Prefixing every id lengthens a picture as it is sanitized. One that only
-  // fits before then would load once, be saved longer, and be dropped by the
-  // next load: so the cap is held to what is kept.
-  it('drops a fixed picture that sanitizing makes too long to load again', () => {
+  // fits before then would be saved longer than the cap: so the cap is held
+  // to what is kept, and a picture past it — which this build never saves —
+  // is a newer build's, carried with its step rather than dropped.
+  it('carries, locked, a fixed picture that sanitizing makes too long to keep', () => {
     // A long key prefixes every id with itself: a few thousand ids are enough.
     const key = `fixed-${'k'.repeat(500)}`;
     const rects = Array.from({ length: 5_000 }, (_, index) => `<rect id="r${index}"/>`).join('');
@@ -1961,7 +2002,8 @@ describe('linked steps in the file', () => {
     expect(svg.length + 5_000 * key.length).toBeGreaterThan(SVG_STORED_MAX_BYTES);
     const written = throughJson(writeDiagram(linkedDiagram()));
     Object.assign(written.steps[3].picture, { svg, key });
-    expect(stepsIn(readDiagram(written)!.document)[3].picture).toBeNull();
+    const step = stepsIn(readDiagram(written)!.document)[3];
+    expect(step.unknown).toEqual(written.steps[3]);
   });
 
   it.each([
@@ -1984,7 +2026,6 @@ describe('linked steps in the file', () => {
   it.each([
     ['a scope with no rim', (source: WrittenSource) => (source.scope.region.boundary = [])],
     ['no fingerprint', (source: WrittenSource) => (source.fingerprint = '')],
-    ['a thumbnail of an unknown role', (source: WrittenSource) => (source.thumbnail.strokes[0].role = 'cut')],
     ['a fold case of zero', (source: WrittenSource) => (source.render.foldCase = 0)],
     ['no side', (source: WrittenSource) => delete source.render.side],
   ])('drops a link with %s, and the picture with it; the words stay', (_label, damage) => {
@@ -1994,6 +2035,95 @@ describe('linked steps in the file', () => {
     const step = stepsIn(readDiagram(written)!.document)[1];
     expect(step).toMatchObject({ source: null, picture: null, text: 'Fold it.' });
     expect(step.unknown).toBeUndefined();
+  });
+
+  // Decision 1 of the launch review: what a newer build adds is carried and
+  // locked, never dropped on save — at any depth of a link.
+  it.each([
+    ['a field of the source', 1, (source: WrittenSource) => (source.followsSheet = true)],
+    ['a scope of a kind it has no name for', 1, (source: WrittenSource) => (source.scope = { kind: 'faces', faces: [1] })],
+    ['a field of the scope', 1, (source: WrittenSource) => (source.scope.depth = 2)],
+    ['a field of the region', 1, (source: WrittenSource) => (source.scope.region.layer = 2)],
+    ['a thumbnail line of a role it has no name for', 1, (source: WrittenSource) => (source.thumbnail.strokes[0].role = 'cut')],
+    ['a field of the thumbnail', 1, (source: WrittenSource) => (source.thumbnail.background = '#fff')],
+    ['a field of a thumbnail line', 1, (source: WrittenSource) => (source.thumbnail.strokes[0].dashed = true)],
+    ['more thumbnail lines than it keeps', 1, (source: WrittenSource) => {
+      source.thumbnail.strokes = Array.from({ length: MAX_STORED_STROKES + 1 }, () => source.thumbnail.strokes[0]);
+    }],
+    ['a field of the render', 1, (source: WrittenSource) => (source.render.lighting = 'warm')],
+    ['a side of a flat fold it has no name for', 1, (source: WrittenSource) => (source.render.side = 'both')],
+    ['a field of a 3D camera', 2, (source: WrittenSource) => (source.render.camera.fov = 30)],
+    ['a side of a 3D fold it has no name for', 2, (source: WrittenSource) => (source.render.side = 'edge')],
+    ['a field of the simulated camera', 5, (source: WrittenSource) => (source.render.view.roll = 0.2)],
+    ['a fold past the whole of one', 5, (source: WrittenSource) => (source.render.foldPercent = 120)],
+    ['a remembered render with a field it has no name for', 1, (source: WrittenSource) => {
+      source.remembered['crease-pattern'].mirror = true;
+    }],
+  ])('carries, locked and as it came, a link with %s', (_label, index, patch) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    patch(written.steps[index].source);
+    const read = readDiagram(written)!;
+    expect(read.readOnly).toBe(false);
+    const steps = stepsIn(read.document);
+    expect(steps[index].unknown).toEqual(written.steps[index]);
+    expect(steps.filter((step) => step.unknown !== undefined)).toHaveLength(1);
+    expect(throughJson(writeDiagram(read.document))).toEqual(written);
+  });
+
+  it.each([
+    ['a field of the picture', 3, (picture: WrittenSource) => (picture.opacity = 0.5)],
+    ['a scene longer than it keeps', 0, (picture: WrittenSource) => (picture.sceneJson = ' '.repeat(SCENE_JSON_MAX_BYTES + 1))],
+    ['a scene item of a kind it has no name for', 0, (picture: WrittenSource) => {
+      const scene = JSON.parse(picture.sceneJson);
+      scene.items.push({ kind: 'gradient', stops: [] });
+      picture.sceneJson = JSON.stringify(scene);
+    }],
+    ['a scene line of a role it has no name for', 0, (picture: WrittenSource) => {
+      const scene = JSON.parse(picture.sceneJson);
+      scene.items.find((item: { kind: string }) => item.kind === 'line').role = 'pleat';
+      picture.sceneJson = JSON.stringify(scene);
+    }],
+    ['a field of a scene item', 0, (picture: WrittenSource) => {
+      const scene = JSON.parse(picture.sceneJson);
+      scene.items[0].opacity = 0.5;
+      picture.sceneJson = JSON.stringify(scene);
+    }],
+    ['a field of the scene', 0, (picture: WrittenSource) => {
+      const scene = JSON.parse(picture.sceneJson);
+      scene.lights = [];
+      picture.sceneJson = JSON.stringify(scene);
+    }],
+    ['an SVG longer than it keeps', 3, (picture: WrittenSource) => (picture.svg = `<svg>${' '.repeat(SVG_STORED_MAX_BYTES)}</svg>`)],
+    ['a picture of a kind it has no name for', 0, (picture: WrittenSource) => (picture.kind = 'hologram')],
+  ])('carries, locked and as it came, a picture with %s', (_label, index, patch) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    patch(written.steps[index].picture);
+    const read = readDiagram(written)!;
+    expect(stepsIn(read.document)[index].unknown).toEqual(written.steps[index]);
+    expect(throughJson(writeDiagram(read.document))).toEqual(written);
+  });
+
+  describe('a simulated step’s shape, as a build with Pose’s tools stores it (decision 5)', () => {
+    const shape = { id: 'shape-1', sheet: 'sheet-abc', pins: [[0.25, 0.5]], posed: true, state: 'v1:AAAA' };
+
+    it('is carried as it came, and the step stays editable', () => {
+      const written = throughJson(writeDiagram(linkedDiagram()));
+      written.steps[6].source.render.shape = shape;
+      const read = readDiagram(written)!;
+      const step = stepsIn(read.document)[6];
+      expect(step.unknown).toBeUndefined();
+      expect(step.source).toMatchObject({ render: { mode: 'simulated', foldPercent: 40.5, shape } });
+      expect(throughJson(writeDiagram(read.document))).toEqual(written);
+    });
+
+    it('is dropped alone when it is no record, and the link stays', () => {
+      const written = throughJson(writeDiagram(linkedDiagram()));
+      written.steps[6].source.render.shape = 'a shape';
+      const step = stepsIn(readDiagram(written)!.document)[6];
+      expect(step.unknown).toBeUndefined();
+      expect(step.source).toMatchObject({ render: { mode: 'simulated', foldPercent: 40.5 } });
+      expect((step.source as DiagramCpSource).render).not.toHaveProperty('shape');
+    });
   });
 
   it('drops a 3D camera that is not one, and the link with it', () => {
@@ -2286,7 +2416,7 @@ describe('steps sent from References in the file', () => {
   it.each([
     ['no rim', (source: WrittenSource) => (source.region.boundary = [])],
     ['an empty fingerprint', (source: WrittenSource) => (source.fingerprint = '')],
-    ['a mode it does not know', (source: WrittenSource) => (source.mode = 'guess')],
+    ['a mode that is not a word', (source: WrittenSource) => (source.mode = 3)],
     ['a setting that is not a switch', (source: WrittenSource) => (source.settings.precreaseGrid = 'yes')],
     ['a card numbered zero', (source: WrittenSource) => (source.card = 0)],
     ['a line whose normal is not a unit', (source: WrittenSource) => (source.line.n = [3, 4])],
@@ -2296,6 +2426,26 @@ describe('steps sent from References in the file', () => {
     damage(written.steps[0].source);
     const step = stepsIn(readDiagram(written)!.document)[0];
     expect(step).toMatchObject({ source: null, picture: null, text: 'Fold the bottom edge to the top.' });
+    expect(step.unknown).toBeUndefined();
+  });
+
+  // Decision 1 of the launch review: what a newer build adds is carried and
+  // locked, never dropped on save.
+  it.each([
+    ['a mode it has no name for', (source: WrittenSource) => (source.mode = 'guess')],
+    ['a side it has no name for', (source: WrittenSource) => (source.side = 'both')],
+    ['a field of the source', (source: WrittenSource) => (source.difficulty = 'easy')],
+    ['a field of the region', (source: WrittenSource) => (source.region.layer = 2)],
+    ['a planner setting it has no name for', (source: WrittenSource) => (source.settings.allowPleats = true)],
+    ['a field of the line', (source: WrittenSource) => (source.line.through = [0, 0])],
+    ['a field of the marks it pulled', (source: WrittenSource) => (source.marks = { letters: true, highlights: true, arrows: false })],
+    ['a thumbnail line of a role it has no name for', (source: WrittenSource) => (source.thumbnail.strokes[0].role = 'cut')],
+  ])('carries, locked and as it came, a source with %s', (_label, patch) => {
+    const written = throughJson(writeDiagram(sentDiagram()));
+    patch(written.steps[0].source);
+    const read = readDiagram(written)!;
+    expect(stepsIn(read.document)[0].unknown).toEqual(written.steps[0]);
+    expect(throughJson(writeDiagram(read.document))).toEqual(written);
   });
 
   it('keeps a card only as a References step’s picture, and a step diagram only there', () => {
