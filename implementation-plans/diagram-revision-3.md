@@ -13,7 +13,8 @@ finger's handles on the transform box, and the turn's rounding) the same day (Fo
 `claude/diagram-xray`, reviewed, its findings fixed, gated and committed 2026-10-09 (18e, As
 built). 18f (X-ray on every other surface, and three of 18e's follow-ups) built 2026-10-09 on
 `claude/diagram-xray`, reviewed, its findings fixed, gated and committed the same day, not yet pushed (18f, As
-built).** His answers, each recorded under its decision:
+built). 18g (X-ray peels the window: R3-34 A replaces R3-13 A) built and gated 2026-10-09 on
+`claude/diagram-xray` (`implementation-plans/diagram-xray-peel.md`).** His answers, each recorded under its decision:
 
 - **R3-1 A, R3-2 A** (short dividers: one switch on each mark, 1.65 mm
   either side of the line): "should just be all interior ones, not per
@@ -1237,6 +1238,10 @@ mind: "being able to hide specific faces and show the faces underneath".
   already drawn by hand with the Hidden Line.
 
 **R3-13. What do N layers remove? DECIDED: A.** Zach, 2026-10-08: "sounds good".
+(**Superseded by R3-34 A, 2026-10-09**, after Zach's report on #447 that a
+window across two flaps x-rayed only one of them: a window is now peeled,
+read inside it, a face a step and the whole top layer first. See
+`implementation-plans/diagram-xray-peel.md`, 18g.)
 - A. The flap at a point: the top N layers at the window's anchor, its
   centre unless picked, and every layer over those, removed across the
   whole window. 15e's "behind N layers" rule.

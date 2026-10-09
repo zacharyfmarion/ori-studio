@@ -1,12 +1,13 @@
 # Diagram X-ray: peel the window, not the point
 
 Follow-up to Revision 3's X-ray (`implementation-plans/diagram-revision-3.md`,
-"5. X-ray", 18e and 18f; PR #447 on `claude/diagram-xray`). If R3-34 below is
-chosen, it replaces R3-13 A. The work is phase **18g** and lands on
-`claude/diagram-xray`.
+"5. X-ray", 18e and 18f; PR #447 on `claude/diagram-xray`). R3-34 A replaces
+R3-13 A. The work is phase **18g** and lands on `claude/diagram-xray`.
 
-**Status: planned 2026-10-09. R3-34 is for Zach. R3-35 and R3-36 are built as
-recommended until Zach says otherwise.**
+**Status: planned 2026-10-09. Zach the same day: "can you please implement
+there instead", so R3-34, R3-35 and R3-36 are built as recommended (A each).
+18g built and gated 2026-10-09 (As built, below). Zach's four diagrams were
+not rerun here (18g.5): Zach is checking by hand.**
 
 ## Goal
 
@@ -186,8 +187,8 @@ This is the list Zach asked for: each case, and what the rule does with it.
 
 ### Decisions
 
-**R3-34. What does one step of Depth take away? For Zach.** This reverses
-R3-13 A, so it is a large fork, not one to build on a standing instruction.
+**R3-34. What does one step of Depth take away? DECIDED: A.** Zach,
+2026-10-09, asked to implement the plan as recommended. It reverses R3-13 A.
 
 - A. One face, round by round, the face nearest the Point first (The rule,
   above). This is what Zach described: "first the right one goes, then the
@@ -201,8 +202,8 @@ R3-13 A, so it is a large fork, not one to build on a standing instruction.
   fine on Zach's diagrams (18g.5 measures them), B is the fallback, and it
   needs only step 4 of the rule changed.
 
-**R3-35. The Point under the new rule. Built as recommended until Zach says
-otherwise.**
+**R3-35. The Point under the new rule. DECIDED: A**, built as recommended
+until Zach says otherwise.
 
 - A. Keep the Point. It decides which face of a round goes first, which is how
   to x-ray the left flap before the right without moving the window. Its hints
@@ -211,7 +212,8 @@ otherwise.**
   file still reads `anchor` and ignores it.
 - **Recommended: A.**
 
-**R3-36. Slivers. Built as recommended until Zach says otherwise.**
+**R3-36. Slivers. DECIDED: A**, built as recommended until Zach says
+otherwise.
 
 - A. A face whose part in the window is a sliver does not get a step of its
   own: it goes with the next step of its round, or the previous step when it is
@@ -225,7 +227,9 @@ otherwise.**
 
 - The Point's hints (`xRayAnchor*`: auto, picked, pick, picking, reset, tap)
   say where peeling starts, not "where the layers are counted".
-- `xRayOffPaper` and `xRayNoPaper` stop saying "under its middle".
+- `xRayOffPaper` and `xRayNoPaper` stop saying "under its middle". (As
+  built: `xRayOffPaper` became `xRayNothing`, "Nothing to take away in this
+  window".)
 - `xRayFewer_*` reads as the most that can be taken away in this window.
 - `xRayHelp` and `xRayHelpTouch` ("how many layers to take away") still read
   right.
@@ -255,33 +259,71 @@ otherwise.**
 
 ## Checklist
 
-- [ ] Zach answers R3-34 (A or B).
-- [ ] 18g.1 Failing tests first, in `xrayScene.test.ts`, with `flapsStep`:
-  - [ ] depths 1 to 4 take away R1; then L1; then R2; then L2; the base never;
-  - [ ] the Point on the left flap takes L1 first;
-  - [ ] `knotStep` across the edge peels cover, beside, buried, and keeps back;
-  - [ ] faces stacked only outside the window peel on their own;
-  - [ ] a tucked face waits for the face over it;
-  - [ ] a sliver goes with its neighbour's step;
-  - [ ] the steps are the same spread and unspread;
-  - [ ] a depth past the steps draws at the deepest.
-- [ ] 18g.2 The peel in `xrayScene.ts`: per-picture pairs, `xrayPeel` and the
+- [x] Zach answers R3-34: A (2026-10-09, "please implement").
+- [x] 18g.1 Tests, in `xrayScene.test.ts`, with `flapsStep` and `handFold`:
+  - [x] depths 1 to 4 take away R1; then L1; then R2; then L2; the base never;
+  - [x] the Point on the left flap takes L1 first;
+  - [x] `knotStep` across the edge peels cover, beside, buried, and keeps back;
+  - [x] faces stacked only outside the window peel on their own;
+  - [x] a tucked face waits for the face over it;
+  - [x] a sliver goes with its neighbour's step;
+  - [x] spread or not, the same pairs are stacked (As built: windows on the two
+    pictures are not the same paper, so their steps are not compared);
+  - [x] a depth past the steps draws at the deepest;
+  - [x] on the crane, spread and not: deeper takes all the shallower did, never
+    a face with one left over it in the window, never one with nothing under
+    it.
+- [x] 18g.2 The peel in `xrayScene.ts`: per-picture pairs, `xrayPeel` and the
   new `xrayRemoval`; `xrayAnchorPoint`, `xrayStackAt` and `facesOverWithin`
   removed.
-- [ ] 18g.3 Layers: the step count, the stepper's maximum and the notices;
+- [x] 18g.3 Layers: the step count, the stepper's maximum and the notices;
   `DiagramLayersPanel.test.tsx` updated.
-- [ ] 18g.4 Wording: the Point's hints and the notices in all nine catalogs;
+- [x] 18g.4 Wording: the Point's hints and the notices in all nine catalogs;
   `i18n:check`.
-- [ ] 18g.5 Zach's four diagrams, rerunning 18.0's harness (evidence
-  gitignored under `artifacts/revision-3/18g/`):
+- [ ] 18g.5 Zach's four diagrams, rerunning 18.0's harness. Not run: the
+  diagrams are gitignored and not in the container this was built in. Zach is
+  checking by hand. Still open:
   - [ ] depth 0 is still the picture (138 of 138);
   - [ ] steps per window, and how many are slivers, to set R3-36's threshold;
-  - [ ] the drag cost on the densest step, under 1 ms;
+  - [ ] the drag cost on the densest step, under 1 ms (the crane's is, below);
   - [ ] the x-rays already in the files, before and after;
-  - [ ] a render of the reported spot (Zach to name the step).
-- [ ] 18g.6 The golden regenerated and checked (only depths of 1 and up
-  change). The gate: lint, typecheck, `i18n:check` and the web vitest suite.
-  In the browser: the reported case, Depth stepped from 1 to N, and the Point
-  moved from one flap to the other.
-- [ ] Recorded in `diagram-revision-3.md`: R3-13 superseded by R3-34, and 18g
-  as built.
+  - [ ] a render of the reported spot.
+- [x] 18g.6 The golden re-recorded after looking at each changed window before
+  and after (As built). The gate: lint, typecheck, `i18n:check` and the web
+  vitest suite. No browser run here; Zach is checking in the app.
+- [x] Recorded in `diagram-revision-3.md`: R3-13 superseded by R3-34.
+
+## As built (18g, 2026-10-09)
+
+- **The rule is as planned**, in `xray/xrayScene.ts` (`xrayPeel`,
+  `xrayRemoval`, `xrayPeelPoint`), with three changes in how it is read:
+  - **"Reaches into" instead of a clipped width.** A face is in the window,
+    and two stacked faces lie one over the other inside it, when the window
+    reaches into the face (or their shared part) by more than "over"'s
+    tolerance: its nearest point is that far inside the circle. Clipping every
+    pair's shared part to the window cost 2.5 to 3.3 ms a peel on the crane.
+    Read this way it costs 0.2 to 0.84 ms (measured in vitest on the crane
+    fixture, 44 faces, 546 stacked pairs), and the steps came out the same on
+    every window tried. Only the faces in the window are clipped, for the
+    sliver width (R3-36) and "nearest the Point".
+  - **The stacked pairs are worked out lazily** (`xrayStacked`), once per
+    picture, on its first peel: 1.4 to 3 ms on the crane. `readXRayFaces`
+    runs whenever a step opens in Annotate, x-ray or not, and with the pairs
+    in it, it doubled there. Each face's convex pieces are cut once, so a
+    pair's overlap is not triangulated again.
+  - **A face as drawn** is its item's largest ring: the stored scene's own,
+    spread and all, or its unspread ring for a face the scene dropped.
+- **A window centred off the paper peels the paper inside it.** Under R3-13 A
+  it took nothing away. The rule for laying one (`xrayCentreOnPaper`) is
+  kept. `crane-off-paper` now peels, so 18f's parity test ("a window that
+  takes nothing away is the picture itself") became stronger: on a spread
+  picture, which draws every face, the faces a window leaves are the
+  picture's own, face for face, less exactly those under its white.
+- **The golden**: the four hand-built cases did not change. The seven crane
+  cases were re-recorded after rendering each window before and after. Most
+  are nearly the same. `crane-off-paper` now peels; `crane-edge` takes a
+  different first face (the one nearest its centre); and `crane-enlarged`,
+  two deep, now shows face 22 across the whole window. That face shows the
+  paper's front, white in the Diagram preset, so it reads as a hole: #447's
+  open item about a tint for revealed front faces.
+- **Not done here:** 18g.5, on Zach's own diagrams, and a run in the browser.
