@@ -23,6 +23,12 @@ the halo in two parts, and the two phone issues fixed on #436. (a) and (b)
 are built; (c)'s premise was wrong (the card header does not wrap), and the
 header that does is left for Zach with a recommendation.
 
+Item 7 builds the two recommendations item 6 left open, each its own commit,
+decided under the same standing instruction (2026-10-08): "go with your recs
+from now on unless there is a large fork in the design to be figured out,
+until i say otherwise". Neither is a large fork: (a) is 6(c)'s recommended
+layout, (b) the follow-up 6(a) recommended.
+
 ## Approach
 
 ### 1. The path width defaults to 20 mm
@@ -471,9 +477,9 @@ As built:
   - Make Marks Editable now visibly changes such a letter, so 17d's rule
     that a pulled step paints as its baked card no longer holds for it.
 
-  Recommended follow-up, his call: give baked letters the same pattern halo
-  in `DiagramPrimitives`, which makes pulling a visual no-op again and
-  restores 17d's rule.
+  Recommended follow-up: give baked letters the same pattern halo in
+  `DiagramPrimitives`, which makes pulling a visual no-op again and
+  restores 17d's rule. Built in item 7(b).
 - **Known.** poppler (`pdftoppm`) draws a 6/255 lighter hairline round the
   pattern's part at 600 dpi. CoreGraphics (Preview, QuickLook), Chromium
   and WebKit draw none.
@@ -539,7 +545,7 @@ chips truncating as on the desktop.
   alone need about 380 px together, against 359 px across a phone. So it is
   not invented here.
 
-*Recommended, for Zach to answer (not built; mock in
+*Recommended, and built in item 7(a) (mock in
 `artifacts/review-fixes/6/mock-c.png`, from `mock-c.mjs`, which edits the
 live page's DOM):*
 
@@ -558,6 +564,76 @@ live page's DOM):*
   on a phone. That is two rows at 375 px but still three at 320 px, and the
   pill is the shared View or Settings trigger every workspace seats
   (`.view-drawer__trigger`).
+
+### 7. Item 6's two open recommendations
+
+Decided under Zach's standing instruction (2026-10-08): "go with your recs
+from now on unless there is a large fork in the design to be figured out,
+until i say otherwise".
+
+#### (a) A phone's open step has no Pose | Annotate switch
+
+6(c)'s recommendation, as built:
+
+- **The switch.** `DiagramStepDetail` leaves `SegmentedControl` (Mode) out
+  when `useIsPhoneLayout()` holds: a coarse pointer on a phone-sized
+  viewport, the app's one phone predicate. On a phone, Annotate is only the
+  note "Annotate on a larger screen", so the switch offered a dead end, as
+  Spread Layers would have in the pose toolbar.
+- **Two rows.** The header is "← Steps ‹ Step N of M ›", then
+  "↶ ↷ Done Settings", at 375 px and 320 px (WebKit, iPhone X and SE).
+  Before, three at both.
+- **Nothing stranded.** The Step pane's Annotate button still opens the
+  note, which now has a Pose button (the existing `diagram.detail.pose`
+  string, so no new string).
+- **CSS.** None changed: the switch is not rendered, and the note's grid
+  (`.message`) already stacks a button under its sentence. No shared block
+  is touched.
+- **iPad and desktop.** Unchanged: WebKit iPad (1024 px, touch) and Chromium
+  at 1280 px, every header control's box and computed style, and the
+  header's pixels, are identical before and after.
+
+#### (b) References' own letters' halo follows the sheet's edge
+
+6(a)'s follow-up, as built:
+
+- **Which letters.** A References letter in a picture that leaves the app:
+  the Diagram's card, page and PDF (the baked scene, `diagramToPaperScene`),
+  and References' own exports. They took one colour by their box's middle
+  (`labelOnPaper`). Now, as Text does since rf6, a letter wholly on the
+  sheet takes the face, wholly off it the ground, and across the edge one
+  stroke painted by a pattern of the sheet.
+- **One piece of code.** The decision (`boxOnSheet`), the tile and its id,
+  and the pattern (`haloPatternElement`) move out of `annotationPrimitives`
+  into `cp-workspace/references/diagram/sheetHalo.tsx` (`sheetHalo`), the
+  lower of the two layers. Text's halo calls it with its own reach
+  (`labelReach`); a References letter with its box and half its halo round
+  it (`letterHalo` in `DiagramPrimitives`).
+- **Byte for byte where nothing crosses.** `sheetHalo` returns the very
+  face and ground strings as before. The 17d fixtures' 144 baked scenes
+  (each fixture, both faces, three styles, three sizes) compared with HEAD:
+  15 changed, each in one letter, across the edge; the rest identical
+  (`artifacts/review-fixes/7/baked/`). References' goldens are unchanged.
+- **The pattern's id names its ground.** It is made from what it paints, and
+  a References picture's ground is the page's, not always white. So a Text
+  label across the edge has a new id value; its markup is otherwise the same.
+- **17d's rule holds again.** `referencesCardMarks.equivalence.test.ts`
+  checks a pulled letter against its baked one:
+  - both across: the same sheet, face and ground;
+  - one colour both: the same colour;
+  - pulled across, baked one colour: the baked colour is the pattern's on
+    the side the baked letter reaches.
+
+  The last happens because Text measures its words in Noto Sans with room
+  round them, a References letter by its box, the tighter of the two; the
+  reverse never happens. A count checks the fixtures meet letters across the
+  edge baked as well as pulled.
+- **On screen, unchanged.** The References workspace's card and the big
+  view colour a letter's halo by class from the theme
+  (`.step-diagram__label--on-paper`, `theme.css`). A pattern there would need
+  new rules in that global block, which the CSS rules do not allow in a fix.
+  Moving it is its own PR, and Zach's call; until then a letter across the
+  edge on screen takes one colour, as before.
 
 ## Affected Areas
 
@@ -660,6 +736,15 @@ Paths under `apps/web/src/` unless rooted.
     `CpToolsTrigger.test.tsx`, `SimulatorToolsTrigger.test.tsx` (new),
     `DesignPaneSwitcher.test.tsx` (new).
   - (c): none (a mock only).
+- **7. Item 6's two open recommendations.**
+  - (a): `components/diagram/DiagramStepDetail.tsx`. Tests:
+    `DiagramStepDetail.test.tsx`.
+  - (b): `cp-workspace/references/diagram/sheetHalo.tsx` (new),
+    `cp-workspace/references/diagram/DiagramPrimitives.tsx` (`letterHalo`, the
+    label's shape), `diagram/annotate/annotationPrimitives.tsx` (`haloPaint`
+    calls `sheetHalo`; `boxOnSheet`, `haloPatternElement` and
+    `AnnotationHaloAcross` moved). Tests: `diagramToPaperScene.test.ts`,
+    `referencesCardMarks.equivalence.test.ts`.
 
 ## Checklist
 
@@ -1300,7 +1385,7 @@ Paths under `apps/web/src/` unless rooted.
     Settings opened over it by ⌘,. One Escape closes Settings alone, a
     second the sheet. Before (`escape-webkit-before/`, the old listeners put
     back), one Escape closed both for every sheet but the Settings sheet.
-- [ ] (c) Not built: the card header does not wrap on a phone; the three rows are the open step's header, a layout choice for Zach (Approach, with a recommendation and `mock-c.png`)
+- [x] (c) Not built here: the card header does not wrap on a phone; the three rows are the open step's header (Approach, with a recommendation and `mock-c.png`). Built in 7(a)
 - [x] i18n and analytics: no string, event or property changed; `i18n:check` passes
 - [x] Review findings addressed: one Escape listener for every sheet; a
   layer test per sheet; the 17d count no longer depends on test order;
@@ -1343,6 +1428,54 @@ Paths under `apps/web/src/` unless rooted.
     header is three rows, and the recommendation for Zach is to leave out
     Pose | Annotate on a phone (two rows at 375 and 320 px).
 
+### 7. Item 6's two open recommendations
+
+- [x] (a) No Pose | Annotate on a phone; the note offers Pose
+- [x] (a) Test (`DiagramStepDetail.test.tsx`): the switch on a larger
+  screen in Pose and Annotate; none on a phone; the note's Pose button
+  returns to Pose. Fails on HEAD 6df930d17's component.
+- [x] (a) Browser (`artifacts/review-fixes/7/header.mjs`, crane's step 24)
+  - WebKit, iPhone X (375 px) and iPhone SE (320 px): three rows before,
+    two after; Annotate's note has its Pose button, which returns to Pose.
+  - WebKit iPad (1024 px) and Chromium (1280 px): every header control's box
+    and computed style, and the header's pixels, identical before and after
+    (`compare-header.py`, `header-compare.json`).
+  - No page or console errors. Evidence: `rf7-header-evidence.png`.
+- [x] (b) A References letter across the sheet's edge, in a file, is haloed by
+  a pattern of the sheet, through `sheetHalo`, which Text's halo now calls too
+- [x] (b) Tests; the new ones fail on HEAD 66af96242's `DiagramPrimitives`
+  - `diagramToPaperScene.test.ts`: on the front and the back, a letter
+    wholly on takes the face, wholly off the ground, across the edge a
+    pattern in the same markup (the ground under the sheet in its face, the
+    sheet's corners from the tile's corner, the tile past the letter), each
+    letter set once. A white face is one colour; on screen, classes as
+    before.
+  - `referencesCardMarks.equivalence.test.ts`: amended as the Approach says,
+    and the fixtures meet letters across the edge baked and pulled.
+- [x] (b) Byte for byte: 144 baked scenes against HEAD, only the 15 letters
+  across the edge changed (`baked/compare-baked.py`); References' goldens
+  pass unchanged
+- [x] (b) Browser (`verify-edge.mjs`, `pdf-edge.py`; `crane-edge.osf` from
+  `edge-fixture.mjs`: crane with a point R on step 2's grey back, its letter
+  across the edge)
+  - Before: the card's R a grey halo spilling onto the page; the page's and
+    the PDF's a white one cutting into the sheet. After: grey on the sheet,
+    white off it, the edge line knocked out, on the canvas, the card, the
+    page (Chromium), and the PDF (poppler, CoreGraphics).
+  - `pdftotext` reads P, Q and R as often after as before (twice each, steps
+    0 and 2).
+  - poppler draws the faint hairline round the pattern's part that 6(a)
+    noted; CoreGraphics none.
+  - No page or console errors. Evidence: `rf7-edge-evidence.png`.
+- [x] i18n and analytics: no string, event or property changed
+- [x] The commits, each its own: (a) `66af96242`, (b) `37a872f09`
+
 ### Finish
 
-- [ ] Full gate: `npm run lint:web`, `npm run typecheck:web`, `npm run i18n:check`, the whole vitest suite
+- [x] Full gate, on the committed tree at `37a872f09` (Node 22), PR-wide
+  - `npm run lint:web` from the root, and `tsc --noEmit` and `i18n:check` in
+    `apps/web`: clean.
+  - The whole vitest suite: 893 files and 12109 tests passed; 2 files and 15
+    tests skipped.
+  - `npm run build:web` from the root: built, and the landing prerendered.
+  - `git diff --check`: clean.
