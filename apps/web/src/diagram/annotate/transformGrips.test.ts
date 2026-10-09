@@ -3,6 +3,7 @@ import { DIAGRAM_EYE_INK, DIAGRAM_STAR_INK } from '../../cp-workspace/references
 import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { ANNOTATION_KINDS, GLYPH_SCALE, type PicturePoint } from './annotationModel';
 import { INK_UNITS } from './canvasInk';
+import { TRANSFORM_HANDLE_SIZES } from '../../lib/transformBox';
 import {
   MIN_GLYPH_BOX_PX,
   boxedMarkOf,
@@ -113,6 +114,30 @@ describe('what a press takes of a selected star’s box', () => {
     // Nearer the turn handle than the square.
     const between: PicturePoint = [se.x + 0.7 * (turn.x - se.x), se.y + 0.7 * (turn.y - se.y)];
     expect(transformGripAt(star(), between, { px, reach: REACH.coarse * px })).toEqual({ kind: 'rotate', corner: 'se' });
+  });
+
+  it('lays a finger’s turn handles a touch target out and takes a press 14 px wide of a corner as its square (18d follow-up)', () => {
+    const px = pxAt(1);
+    const finger = { px, reach: REACH.coarse * px, sizes: TRANSFORM_HANDLE_SIZES.coarse };
+    const { handles } = transformBoxHandles(star(), px, TRANSFORM_HANDLE_SIZES.coarse)!;
+    const se = handles.scale.find((each) => each.handle === 'se')!.at;
+    const turn = handles.rotate.find((each) => each.corner === 'se')!.at;
+    expect(Math.hypot(turn.x - se.x, turn.y - se.y) / px).toBeCloseTo(44, 6);
+    // 14 px out from the corner, along the line from the middle: the turn handle's for a mouse (18 px out), the square's for a finger.
+    const out = Math.hypot(se.x - 0.4, se.y - 0.5);
+    const wide: PicturePoint = [se.x + ((se.x - 0.4) / out) * 14 * px, se.y + ((se.y - 0.5) / out) * 14 * px];
+    expect(transformGripAt(star(), wide, { px, reach: REACH.coarse * px })).toEqual({ kind: 'rotate', corner: 'se' });
+    expect(transformGripAt(star(), wide, finger)).toEqual({ kind: 'scale', handle: 'se' });
+    // 21 px straight below the square, outside the box: within a finger's target, past its old 18 px reach.
+    expect(transformGripAt(star(), [se.x, se.y + 21 * px], finger)).toEqual({ kind: 'scale', handle: 'se' });
+    // Inside the box only the 12 px square as drawn: 5 px in, it; 8 px in, the star's body.
+    expect(transformGripAt(star(), [se.x - 5 * px, se.y - 5 * px], finger)).toEqual({ kind: 'scale', handle: 'se' });
+    expect(transformGripAt(star(), [se.x - 8 * px, se.y - 8 * px], finger)).toBeNull();
+  });
+
+  it('keeps a mouse’s layout where no sizes are said: the Diagram’s, unchanged', () => {
+    const px = pxAt(1);
+    expect(transformBoxHandles(star(), px)).toEqual(transformBoxHandles(star(), px, TRANSFORM_HANDLE_SIZES.fine));
   });
 
   /**
@@ -247,6 +272,11 @@ describe('what a box writes, by kind (18b review)', () => {
     expect(boxed.turned(370).angle).toBe(10);
     // A hair short of a whole turn is upright: nothing written.
     expect('angle' in boxed.turned(359.999)).toBe(false);
+    // Rounded up to a whole turn: upright, never 360 (18d follow-up).
+    for (const turn of [359.996, 359.995, -0.004, 719.996, -360.004]) expect('angle' in boxed.turned(turn), `${turn}`).toBe(false);
+    // Past a whole turn, rounded only once it is within [0, 360): no wrap's float error (372.35 - 360 is 12.350000000000023).
+    expect(boxed.turned(372.35).angle).toBe(12.35);
+    expect(boxed.turned(-347.65).angle).toBe(12.35);
     expect(boxedMarkOf(star({ angle: 30 }))!.degrees).toBe(30);
     expect(boxedMarkOf(star())!.degrees).toBe(0);
   });

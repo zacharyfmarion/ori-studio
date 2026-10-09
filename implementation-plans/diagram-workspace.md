@@ -1612,6 +1612,64 @@ Where its parts live (under `apps/web/src/`):
   (`cp-workspace/references/referencesReaderState.ts`) finds it, and
   `useReferencesBreakdown` opens on it.
 
+**D26. Stars, the eye and shapes, turned and scaled by a transform box.**
+*(Zach's Diagramming note, 2026-10-08, and on the box: "for shapes, i want
+to be able to rotate and scale them. This goes for stars too (not lines /
+arrows / stuff that is path based). ui should be like the UI when you
+select an image in the edit canvas." Plan and as-built:
+`diagram-revision-3.md`, R3-1 to R3-34; built as Phase 18.)*
+
+- **Equal divisions** (18a). Every stroke in the aux crease's pen, the
+  count in the regular weight (R3-3 B), and a Short Dividers switch on
+  each mark that cuts its interior dividers to 1.65 mm either side of the
+  line (R3-1 A, R3-2 A). Revises Revision 2's ED4 and ED9.
+- **Stars** (18b). One Star tool (K) with a Fill, filled or outlined
+  (R3-4 C, R3-5 A). It snaps as a Circle does (R3-24 A), has no colour
+  (R3-23 A), and a carry moves only its centre (R3-32 A).
+- **The eye** (18c). The Eye (Y) is laid by a drag from the viewer toward
+  what they look at, with Shift for 15° steps (R3-8 A). It draws in the
+  ring pen (R3-26, amended), and F flips it horizontally (R3-9b, amended).
+- **Ovals and rectangles** (18d). Oval (Shift+O) and Rectangle (R), in a
+  Shapes group (R3-10b A). Each is an outline only, with square corners
+  (R3-11a A, R3-11b A), painted under every line and mark (R3-11d B). A
+  press inside a selected shape moves it unless a mark is under it
+  (R3-31 A).
+- **The transform box** (18b–18d). A selected star, eye or shape is
+  scaled and turned by the Edit canvas's image box, from the same code. A
+  star or an eye keeps its proportions, by its corners, about its centre
+  (R3-29a A, R3-29b A), from 0.5× to 4× (R3-30a A), its box never under
+  24 screen px (R3-30c B). A shape's eight squares resize it freely, with
+  Shift keeping its proportions and Alt its centre (R3-29c A), its sides
+  in the enlarge area's range (R3-30b A). A turn is free, with Shift for
+  15° (R3-28 A), and Layers has a Rotation row (R3-33 A). For a finger the
+  handles are larger, a touch target (44 px) apart, each with a 22 px
+  target, on both canvases (18d's follow-up).
+- **X-ray** (18e–18f, R3-12 to R3-22): a window that shows the picture
+  without its top layers. It comes in a PR of its own, stacked on
+  Revision 3's.
+
+Where its parts live (under `apps/web/src/`):
+- The box: `lib/transformBox.ts` holds its math, its handles' layout and
+  sizes for each pointer, and `transformHandleAt`, which decides which
+  handle a press takes. The Edit canvas's
+  `cp-workspace/CanvasObjectOverlay.tsx` draws from it. The Diagram's side
+  is `diagram/annotate/transformGrips.ts` (`boxedMarkOf`,
+  `transformGripAt`, `transformDragged`), drawn by `TransformBoxSelection`
+  in `components/diagram/DiagramAnnotateCanvas.tsx`.
+- The marks, in `diagram/annotate/`: `annotationModel.ts` (the kinds,
+  `keptTurn`, `eyeLooking`, `areaFromCorners`, `withAreaBox` and the
+  carries), `areaOutline.ts` (an ellipse's and a rectangle's outline and
+  rim), `annotationPrimitives.tsx` (`annotationAreas`) and `starFill.ts`.
+  In `cp-workspace/references/`: `stepDiagramGeometry.ts` (`auxMarkPen`,
+  `starPoints`, `starDrawn`, `eyeDrawn`) and `diagram/diagramInk.ts`
+  (`DIAGRAM_STAR_INK`, `DIAGRAM_EYE_INK`).
+- The controls, in `components/diagram/`: `DiagramStarFillControl`,
+  `DiagramStarControls`, `DiagramRotationRow` and
+  `DiagramDivisionsControls` (Short Dividers).
+- A paste onto another picture's enlarged step:
+  `diagram/annotate/annotationClipboard.ts` (`intoView`) and
+  `diagram/zoom/stepView.ts` (`marksInWindow`, `marksBox`).
+
 ### Contracts
 
 A React-free leaf module, `apps/web/src/diagram/document/diagramDocument.ts`,
@@ -3759,8 +3817,11 @@ amends D8 (17c's renaming).
    its own, after a spike).
 
 Plan: `implementation-plans/diagram-revision-3.md`, phases 18.0 and 18a to
-18f, each phase's as-built under its checklist there. 18a (equal
-divisions) is built; it revises Revision 2's ED4 and ED9.
+18f, each phase's as-built under its checklist there (D26). Built in PR
+#446: 18a equal divisions, 18b stars and the transform box, 18c the eye,
+18d ovals and rectangles, and two follow-ups to 18d (a finger's handles,
+and the rule that keeps a turn). 18.0 and 18e–18f, X-ray, come in a PR of
+their own stacked on #446. It revises Revision 2's ED4 and ED9.
 
 ### Later (written up, not built)
 

@@ -83,7 +83,7 @@ import { ANNOTATION_INK_MM } from './canvasInk';
 import { perAnnotation } from './perAnnotation';
 import { TEXT_HALO_EMS } from './textStyle';
 import { drawnTransformBox, hasTransformBox, transformBoxOf, transformGripAt, type TransformHandle } from './transformGrips';
-import { boxDistanceModel, type TransformBox } from '../../lib/transformBox';
+import { boxDistanceModel, type TransformBox, type TransformHandleSizes } from '../../lib/transformBox';
 import { zoomGripAt, type ZoomGrip } from '../zoom/zoomGrips';
 import { distanceToRim, zoomOutlineOf } from '../zoom/zoomModel';
 
@@ -140,6 +140,8 @@ export interface HitSizes {
    * transform box's handles are drawn and pressed at (Revision 3).
    */
   px: number;
+  /** A transform box's handles as the pointer in hand needs them (18d follow-up): a mouse's where unsaid. */
+  handles?: TransformHandleSizes;
 }
 
 /** How many straight pieces an arrow's arc is measured and washed along. */
@@ -877,7 +879,7 @@ export function hitAnnotation(
   const selected = known.find((annotation) => annotation.id === selectedId);
   if (selected && hasTransformBox(selected)) {
     // A star's, an eye's or a shape's transform box (Revision 3): a scale square or a turn handle, before anything drawn under it.
-    const handle = transformGripAt(selected, point, { px: sizes.px, reach: sizes.tolerance });
+    const handle = transformGripAt(selected, point, { px: sizes.px, reach: sizes.tolerance, sizes: sizes.handles });
     if (handle) return { annotationId: selected.id, part: 'transform', handle };
   } else if (selected?.kind === 'close-up') {
     // A ring resizes what it is round, a centre's dot moves its circle.

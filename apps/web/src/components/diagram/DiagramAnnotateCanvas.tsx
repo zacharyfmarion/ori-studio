@@ -60,7 +60,7 @@ import { DiagramXRayInsides } from './DiagramXRayInsides';
 import { markGeometry, markPaper, viewOfStep } from '../../diagram/zoom/stepView';
 import { zoomGrips } from '../../diagram/zoom/zoomGrips';
 import { transformBoxHandles } from '../../diagram/annotate/transformGrips';
-import { TRANSFORM_HANDLE_SIZE_PX, TRANSFORM_ROTATE_HANDLE_RADIUS_PX, TRANSFORM_STROKE_PX } from '../../lib/transformBox';
+import { TRANSFORM_STROKE_PX, transformHandleSizes } from '../../lib/transformBox';
 import { zoomOutlineOf, zoomOutlinePoints } from '../../diagram/zoom/zoomModel';
 import { DiagramZoomView } from './DiagramZoomView';
 import styles from './DiagramAnnotateCanvas.module.css';
@@ -253,6 +253,7 @@ export function DiagramAnnotateCanvas({
                         zoom={zoom}
                         movable={!readOnly && !canvas.editingPath}
                         calloutPen={calloutPenUnits(style)}
+                        coarse={canvas.coarse}
                       />
                     ))}
                   {canvas.anchorRing && (
@@ -316,6 +317,7 @@ function Selection({
   zoom,
   movable,
   calloutPen,
+  coarse,
 }: {
   annotation: KnownDiagramAnnotation;
   layout: AnnotateLayout;
@@ -324,6 +326,8 @@ function Selection({
   movable: boolean;
   /** A callout's outline's pen, in picture units: its box is washed where it is stroked. */
   calloutPen: number;
+  /** The pointer is a finger: a transform box's handles are drawn for one. */
+  coarse: boolean;
 }) {
   const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit];
   const handle = HANDLE_PX / zoom;
@@ -411,7 +415,7 @@ function Selection({
     case 'oval':
     case 'rectangle':
       // Its transform box, as an image's on the Edit canvas (Revision 3).
-      return <TransformBoxSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
+      return <TransformBoxSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} coarse={coarse} />;
   }
   const points = path.map(at);
   const corner = box && at([box.x, box.y]);
@@ -640,7 +644,8 @@ function ZoomOutlineSelection({
  * outline at 1.5 screen px, a square at each corner that scales a glyph about
  * its centre, or at each corner and each edge's middle that resizes an oval or
  * a rectangle, and a round handle 18 screen px out from each corner that
- * turns it — in the
+ * turns it — for a finger larger, and a touch target out (18d follow-up),
+ * as `transformHandleSizes` says — in the
  * selection's ink, the squares and handles white as the Diagram's grips are,
  * sized for the screen at any zoom — their strokes too, divided by the
  * camera's zoom as the frame line's are: the world is drawn under the
@@ -653,18 +658,21 @@ function TransformBoxSelection({
   layout,
   zoom,
   movable,
+  coarse,
 }: {
   annotation: KnownDiagramAnnotation;
   layout: AnnotateLayout;
   zoom: number;
   movable: boolean;
+  coarse: boolean;
 }) {
+  const sizes = transformHandleSizes(coarse);
   // One screen px, in picture units: what the handles are laid out and pressed at.
-  const drawn = transformBoxHandles(annotation, 1 / (zoom * layout.unit));
+  const drawn = transformBoxHandles(annotation, 1 / (zoom * layout.unit), sizes);
   if (!drawn) return null;
   const at = ({ x, y }: { x: number; y: number }) => [layout.frame.x + x * layout.unit, layout.frame.y + y * layout.unit] as const;
   const corners = drawn.corners.map(([x, y]) => at({ x, y }));
-  const side = TRANSFORM_HANDLE_SIZE_PX / zoom;
+  const side = sizes.square / zoom;
   const stroke = TRANSFORM_STROKE_PX / zoom;
   return (
     <g data-selection="" data-transform-box="">
@@ -678,7 +686,7 @@ function TransformBoxSelection({
               className={styles.transformHandle}
               cx={x}
               cy={y}
-              r={TRANSFORM_ROTATE_HANDLE_RADIUS_PX / zoom}
+              r={sizes.turnRadius / zoom}
               strokeWidth={stroke}
               data-handle={`rotate-${corner}`}
             />

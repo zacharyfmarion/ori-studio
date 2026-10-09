@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { COARSE_POINTER_QUERY, isCoarsePointerSurface, type MediaHost } from './pointerSurface';
+import { COARSE_POINTER_QUERY, TOUCH_TARGET_PX, isCoarsePointerSurface, type MediaHost } from './pointerSurface';
 
 /** A host that answers one query and records what it was asked. */
 function host(matches: boolean, asked: string[] = []): MediaHost {
@@ -44,5 +46,14 @@ describe('the coarse-pointer surface', () => {
     expect(matchMedia).toHaveBeenCalledWith(COARSE_POINTER_QUERY);
 
     vi.unstubAllGlobals();
+  });
+});
+
+describe('the touch target', () => {
+  it('is the stylesheet’s `--touch-target`, which sizes every control on a coarse pointer', () => {
+    // Vitest's root is `apps/web` (as `styles/globalStylesheets.test.ts` reads it).
+    const theme = readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf8');
+    expect(theme.match(/--touch-target:\s*(\d+)px;/)?.[1]).toBe(String(TOUCH_TARGET_PX));
+    expect(TOUCH_TARGET_PX).toBe(44);
   });
 });

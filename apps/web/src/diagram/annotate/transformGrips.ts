@@ -17,31 +17,30 @@
 import { DIAGRAM_EYE_INK, DIAGRAM_STAR_INK } from '../../cp-workspace/references/diagram/diagramInk';
 import type { KnownDiagramAnnotation } from '../document/diagramDocument';
 import {
-  TRANSFORM_HANDLE_SIZE_PX,
-  TRANSFORM_ROTATE_HANDLE_RADIUS_PX,
-  TRANSFORM_ROTATE_OFFSET_PX,
+  TRANSFORM_HANDLE_SIZES,
   TRANSFORM_ROTATION_SNAP_RADIANS,
   boxContainsModelPoint,
   boxCornersModel,
   resizeAnnotationBox,
   resizeAspectLock,
   snapAngle,
+  transformHandleAt,
   transformHandles,
   type TransformBox,
-  type TransformCorner,
+  type TransformHandleHit,
+  type TransformHandleSizes,
   type TransformHandles,
-  type TransformResizeHandle,
   type TransformResizeResult,
 } from '../../lib/transformBox';
 import {
   AREA_SIDE,
-  GLYPH_ANGLE_PRECISION,
   GLYPH_SCALE_PRECISION,
   ZOOM_CLICK,
   glyphAngle,
   glyphAngleOf,
   glyphScaleOf,
   keptTo,
+  keptTurn,
   withAreaAngle,
   withAreaBox,
   withGlyphAngle,
@@ -51,9 +50,7 @@ import {
 import { INK_UNITS } from './canvasInk';
 
 /** A transform box's handle a press took hold of: a scale square, or a corner's turn handle. */
-export type TransformHandle =
-  | { kind: 'scale'; handle: TransformResizeHandle }
-  | { kind: 'rotate'; corner: TransformCorner };
+export type TransformHandle = TransformHandleHit;
 
 /**
  * The smallest a glyph's box is drawn, in screen px (R3-30c B): a 3 mm star
@@ -170,8 +167,8 @@ function boxedGlyph(annotation: KnownDiagramAnnotation, width: number, height: n
     // In its proportions and about its centre, whatever is held: it names the point it sits on (R3-29a A, R3-29b A).
     resizing: () => ({ aspectLock: true, aboutCentre: true }),
     resized: (drawn, next) => withGlyphScale(annotation, keptTo(scale * (next.width / drawn.width), GLYPH_SCALE_PRECISION)),
-    // Into [0, 360) before it is kept, so a turn past upright is not written with a wrap's rounding in it.
-    turned: (to) => withGlyphAngle(annotation, keptTo(glyphAngle(to), GLYPH_ANGLE_PRECISION)),
+    // Kept within [0, 360) as `keptTurn` keeps it: no wrap's float error, and never 360.
+    turned: (to) => withGlyphAngle(annotation, keptTurn(to, glyphAngle)),
   };
 }
 
@@ -231,57 +228,48 @@ export function drawnTransformBox(annotation: KnownDiagramAnnotation, px: number
 
 /**
  * Where a selected mark's handles are drawn, in picture units, with `px`
- * picture units to one screen px: the box's corners, its scale squares —
- * corners only where it keeps its proportions — and its turn handles
- * {@link TRANSFORM_ROTATE_OFFSET_PX} out from each corner. The layout the
- * Edit canvas draws, from the same code (`transformHandles`).
+ * picture units to one screen px and `sizes` the pointer's handles (a
+ * mouse's where unsaid): the box's corners, its scale squares — corners only
+ * where it keeps its proportions — and its turn handles `sizes.rotateOffset`
+ * out from each corner, 18 screen px for a mouse and a touch target for a
+ * finger (18d follow-up). The layout the Edit canvas draws, from the same
+ * code (`transformHandles`).
  */
 export function transformBoxHandles(
   annotation: KnownDiagramAnnotation,
-  px: number
+  px: number,
+  sizes: TransformHandleSizes = TRANSFORM_HANDLE_SIZES.fine
 ): { box: TransformBox; corners: [PicturePoint, PicturePoint, PicturePoint, PicturePoint]; handles: TransformHandles } | null {
   const boxed = boxedMarkOf(annotation);
   const box = drawnTransformBox(annotation, px);
   if (!boxed || !box) return null;
   const corners = boxCornersModel(box);
-  const handles = transformHandles(corners, { cornersOnly: boxed.keepsProportions, rotateOffset: TRANSFORM_ROTATE_OFFSET_PX * px });
+  const handles = transformHandles(corners, { cornersOnly: boxed.keepsProportions, rotateOffset: sizes.rotateOffset * px });
   return { box, corners: corners.map(({ x, y }): PicturePoint => [x, y]) as [PicturePoint, PicturePoint, PicturePoint, PicturePoint], handles };
 }
 
 /**
  * Which of a selected mark's handles a press at `point` takes, with `px`
- * picture units to one screen px and `reach` how near a press must be, in
- * picture units (a mouse's or a finger's): the nearest square or turn handle
- * the press is on as it is drawn, or, out from the box, within `reach` of; a
- * square where the two are as near. Inside the box only a handle as drawn
- * takes a press: the glyph is there, and a press on it moves it — a finger's
- * 18 px reach is more than a corner's 17 px from the middle of a box at its
- * 24 px floor, and a mouse's took a star's lower tips (18b review). Null off
- * them, and for a mark with no box.
+ * picture units to one screen px, `reach` how near a press must be, in
+ * picture units (a mouse's or a finger's), and `sizes` the pointer's handles
+ * (a mouse's where unsaid): `transformHandleAt`'s rule, which the Edit
+ * canvas's touch targets press by too — the nearest square or turn handle the
+ * press is on as it is drawn, or, out from the box, within `reach` or a
+ * finger's touch target of; a square where the two are as near. Inside the
+ * box only a handle as drawn takes a press: the glyph is there, and a press
+ * on it moves it — a finger's 18 px reach is more than a corner's 17 px from
+ * the middle of a box at its 24 px floor, and a mouse's took a star's lower
+ * tips (18b review). Null off them, and for a mark with no box.
  */
 export function transformGripAt(
   annotation: KnownDiagramAnnotation,
   point: PicturePoint,
-  { px, reach }: { px: number; reach: number }
+  { px, reach, sizes = TRANSFORM_HANDLE_SIZES.fine }: { px: number; reach: number; sizes?: TransformHandleSizes }
 ): TransformHandle | null {
-  const drawn = transformBoxHandles(annotation, px);
+  const drawn = transformBoxHandles(annotation, px, sizes);
   if (!drawn) return null;
-  const outside = !boxContainsModelPoint(drawn.box, { x: point[0], y: point[1] });
-  let best: { grip: TransformHandle; distance: number } | null = null;
-  const consider = (grip: TransformHandle, at: { x: number; y: number }, onIt: boolean) => {
-    const distance = Math.hypot(point[0] - at.x, point[1] - at.y);
-    if (!onIt && !(outside && distance <= reach)) return;
-    if (best === null || distance < best.distance) best = { grip, distance };
-  };
-  // A square as it is drawn, upright on the screen; a turn handle, round.
-  const half = (TRANSFORM_HANDLE_SIZE_PX / 2) * px;
-  for (const { handle, at } of drawn.handles.scale) {
-    consider({ kind: 'scale', handle }, at, Math.max(Math.abs(point[0] - at.x), Math.abs(point[1] - at.y)) <= half);
-  }
-  for (const { corner, at } of drawn.handles.rotate) {
-    consider({ kind: 'rotate', corner }, at, Math.hypot(point[0] - at.x, point[1] - at.y) <= TRANSFORM_ROTATE_HANDLE_RADIUS_PX * px);
-  }
-  return best === null ? null : (best as { grip: TransformHandle }).grip;
+  const at = { x: point[0], y: point[1] };
+  return transformHandleAt(drawn.handles, at, { sizes, inside: boxContainsModelPoint(drawn.box, at), px, reach });
 }
 
 /** The angle a point makes about a centre, in radians, clockwise on the y-down page. */

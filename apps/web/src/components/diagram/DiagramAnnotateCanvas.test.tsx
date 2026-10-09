@@ -3058,6 +3058,25 @@ describe('DiagramAnnotateCanvas stars (Revision 3)', () => {
         expect(theStar().scale).toBeGreaterThan(1);
       });
     }
+
+    it('draws a finger’s handles larger and a touch target apart, and takes a press 14 px wide of a corner as its square, not its turn handle (18d follow-up)', () => {
+      fingerAt(1);
+      drawn([star], null, 'star');
+      // 12 px squares and 7 px turn handles, each turn handle 44 px (`--touch-target`) out from its corner.
+      expect(Number(overlay().querySelector('[data-handle="scale-se"]')!.getAttribute('width'))).toBeCloseTo(12, 9);
+      expect(Number(overlay().querySelector('[data-handle="rotate-se"]')!.getAttribute('r'))).toBeCloseTo(7, 9);
+      const corner = handleAt('scale-se');
+      const turn = handleAt('rotate-se');
+      expect(Math.hypot(turn[0] - corner[0], turn[1] - corner[1])).toBeCloseTo(44, 6);
+      // Out along the line from the middle, where a finger aiming at the corner lands a little wide: 18 px apart, the turn handle took it.
+      const [sx, sy] = at(0.5, 0.3);
+      const out = Math.hypot(corner[0] - sx, corner[1] - sy);
+      const press: [number, number] = [corner[0] + ((corner[0] - sx) / out) * 14, corner[1] + ((corner[1] - sy) / out) * 14];
+      drag(press, [press[0], press[1] + 40], 1, 'touch');
+      expect(label()).toBe('Resize annotation');
+      expect(theStar().scale).toBeGreaterThan(1);
+      expect('angle' in theStar()).toBe(false);
+    });
   });
 
   it('takes a drag on a just-laid star’s square with K still in hand: it scales that star, and lays no other; its body is drawn on (18d)', () => {

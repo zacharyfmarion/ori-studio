@@ -12,6 +12,7 @@
  *
  * Kept DOM-free so it is unit-testable.
  */
+import { TOUCH_TARGET_PX } from '../platform/pointerSurface';
 
 export interface Vec2 {
   x: number;
@@ -60,6 +61,49 @@ export const TRANSFORM_ROTATE_OFFSET_PX = 18;
 export const TRANSFORM_STROKE_PX = 1.5;
 /** The step Shift holds a turn to: 15°. */
 export const TRANSFORM_ROTATION_SNAP_RADIANS = Math.PI / 12;
+
+/** A box's handles as one kind of pointer needs them, in screen px. */
+export interface TransformHandleSizes {
+  /** A scale square's side. */
+  square: number;
+  /** A turn handle's radius. */
+  turnRadius: number;
+  /** How far out from each corner its turn handle sits, along the line from the box's middle. */
+  rotateOffset: number;
+  /**
+   * The radius of the round target round each handle, out from the box, where
+   * a press takes the handle though it misses it as drawn; 0 where only the
+   * handle as drawn does. Never inside the box: the object is there, and a
+   * press on it moves it.
+   */
+  target: number;
+}
+
+/**
+ * The handles for a mouse and for a finger (Diagram Revision 3, 18d
+ * follow-up). A mouse's are the Edit canvas's from before the box was
+ * shared, unchanged. A finger's are sized by the app's touch target
+ * ({@link TOUCH_TARGET_PX}, `--touch-target`), as every control is on a
+ * coarse pointer: each handle takes a press within half a target of it, and
+ * a turn handle sits a whole target out from its corner, so the two targets
+ * meet and never overlap — a finger a little wide of a corner takes the
+ * square, where 18 px apart it took the turn. Drawn half as large again, as
+ * Edit Path's nodes are for a finger.
+ */
+export const TRANSFORM_HANDLE_SIZES: { readonly fine: TransformHandleSizes; readonly coarse: TransformHandleSizes } = {
+  fine: {
+    square: TRANSFORM_HANDLE_SIZE_PX,
+    turnRadius: TRANSFORM_ROTATE_HANDLE_RADIUS_PX,
+    rotateOffset: TRANSFORM_ROTATE_OFFSET_PX,
+    target: 0,
+  },
+  coarse: { square: 12, turnRadius: 12 / 2 + 1, rotateOffset: TOUCH_TARGET_PX, target: TOUCH_TARGET_PX / 2 },
+};
+
+/** The handles for the pointer in hand: a finger's on a coarse pointer, else a mouse's. */
+export function transformHandleSizes(coarse: boolean): TransformHandleSizes {
+  return coarse ? TRANSFORM_HANDLE_SIZES.coarse : TRANSFORM_HANDLE_SIZES.fine;
+}
 
 export interface TransformResizeResult {
   center: Vec2;
@@ -286,4 +330,41 @@ export function transformHandles(
     { corner: 'sw', at: outward(bl) },
   ];
   return { scale, rotate };
+}
+
+/** A box's handle a press took hold of: a scale square, or a corner's turn handle. */
+export type TransformHandleHit = { kind: 'scale'; handle: TransformResizeHandle } | { kind: 'rotate'; corner: TransformCorner };
+
+/**
+ * Which of a box's handles, laid out at `handles` and drawn at `sizes`, a
+ * press at `at` takes — in the space the handles are laid out in, with `px`
+ * of it to one screen px: the nearest one the press is on as drawn (a square
+ * upright on the screen, a turn handle round), or, with the press outside the
+ * box, the nearest within its target ({@link TransformHandleSizes.target}) or
+ * the pointer's `reach`, whichever is further; a square where a square and a
+ * turn handle are as near. Inside the box only a handle as drawn takes a
+ * press: the object is there. Null off them all. The one rule both canvases
+ * press by: the Diagram's `transformGripAt`, and the Edit canvas's touch
+ * targets.
+ */
+export function transformHandleAt(
+  handles: TransformHandles,
+  at: Vec2,
+  { sizes, inside, px = 1, reach = 0 }: { sizes: TransformHandleSizes; inside: boolean; px?: number; reach?: number }
+): TransformHandleHit | null {
+  const outward = Math.max(reach, sizes.target * px);
+  let best: { hit: TransformHandleHit; distance: number } | null = null;
+  const consider = (hit: TransformHandleHit, centre: Vec2, onIt: boolean) => {
+    const distance = Math.hypot(at.x - centre.x, at.y - centre.y);
+    if (!onIt && (inside || distance > outward)) return;
+    if (best === null || distance < best.distance) best = { hit, distance };
+  };
+  const half = (sizes.square / 2) * px;
+  for (const { handle, at: centre } of handles.scale) {
+    consider({ kind: 'scale', handle }, centre, Math.max(Math.abs(at.x - centre.x), Math.abs(at.y - centre.y)) <= half);
+  }
+  for (const { corner, at: centre } of handles.rotate) {
+    consider({ kind: 'rotate', corner }, centre, Math.hypot(at.x - centre.x, at.y - centre.y) <= sizes.turnRadius * px);
+  }
+  return best === null ? null : (best as { hit: TransformHandleHit }).hit;
 }

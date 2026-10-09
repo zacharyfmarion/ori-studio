@@ -5,15 +5,19 @@ import {
   TRANSFORM_ROTATE_HANDLE_RADIUS_PX,
   TRANSFORM_ROTATE_OFFSET_PX,
   TRANSFORM_ROTATION_SNAP_RADIANS,
+  TRANSFORM_HANDLE_SIZES,
   boxCornersModel,
   boxContainsModelPoint,
   boxDistanceModel,
   resizeAnnotationBox,
   resizeAspectLock,
   snapAngle,
+  transformHandleAt,
+  transformHandleSizes,
   transformHandles,
   type TransformBox,
 } from './transformBox';
+import { TOUCH_TARGET_PX } from '../platform/pointerSurface';
 
 function box(overrides: Partial<TransformBox> = {}): TransformBox {
   return { center: { x: 0, y: 0 }, width: 4, height: 2, rotation: 0, ...overrides };
@@ -287,5 +291,61 @@ describe('transformHandles', () => {
     const { scale, rotate } = transformHandles(flipped, { cornersOnly: false, rotateOffset: 10 });
     expect(scale[1]!.at).toEqual({ x: 0, y: 10 });
     expect(rotate[0]!.at.y).toBeGreaterThan(10);
+  });
+});
+
+describe('the handles for a mouse and for a finger (18d follow-up)', () => {
+  // A 40 × 40 box about the origin: its se corner at (20, 20), the line from the middle along the diagonal.
+  const corners = boxCornersModel(box({ width: 40, height: 40 }));
+  const handlesFor = (coarse: boolean) =>
+    transformHandles(corners, { cornersOnly: true, rotateOffset: transformHandleSizes(coarse).rotateOffset });
+  /** `by` px out from the se corner, along the line from the middle. */
+  const outFromSe = (by: number) => ({ x: 20 + by / Math.SQRT2, y: 20 + by / Math.SQRT2 });
+
+  it('keeps a mouse’s exactly as the Edit canvas drew them: 8 px squares, 5 px turn handles 18 px out, no target', () => {
+    expect(transformHandleSizes(false)).toBe(TRANSFORM_HANDLE_SIZES.fine);
+    expect(TRANSFORM_HANDLE_SIZES.fine).toEqual({
+      square: TRANSFORM_HANDLE_SIZE_PX,
+      turnRadius: TRANSFORM_ROTATE_HANDLE_RADIUS_PX,
+      rotateOffset: TRANSFORM_ROTATE_OFFSET_PX,
+      target: 0,
+    });
+    expect(TRANSFORM_HANDLE_SIZES.fine).toEqual({ square: 8, turnRadius: 5, rotateOffset: 18, target: 0 });
+  });
+
+  it('sizes a finger’s by the touch target: each takes a press half a target round it, and a turn handle sits a whole one out', () => {
+    expect(transformHandleSizes(true)).toBe(TRANSFORM_HANDLE_SIZES.coarse);
+    expect(TRANSFORM_HANDLE_SIZES.coarse).toEqual({ square: 12, turnRadius: 7, rotateOffset: TOUCH_TARGET_PX, target: TOUCH_TARGET_PX / 2 });
+    // A corner's target and its turn handle's meet, and never overlap.
+    const { rotateOffset, target } = TRANSFORM_HANDLE_SIZES.coarse;
+    expect(rotateOffset).toBeGreaterThanOrEqual(2 * target);
+  });
+
+  it('gives a press 14 px wide of a corner to the turn handle 18 px out for a mouse, and to the square for a finger', () => {
+    const fine = transformHandleSizes(false);
+    const coarse = transformHandleSizes(true);
+    expect(transformHandleAt(handlesFor(false), outFromSe(14), { sizes: fine, inside: false })).toEqual({ kind: 'rotate', corner: 'se' });
+    expect(transformHandleAt(handlesFor(true), outFromSe(14), { sizes: coarse, inside: false })).toEqual({ kind: 'scale', handle: 'se' });
+    // Past halfway out, the turn handle; past its target, nothing.
+    expect(transformHandleAt(handlesFor(true), outFromSe(30), { sizes: coarse, inside: false })).toEqual({ kind: 'rotate', corner: 'se' });
+    expect(transformHandleAt(handlesFor(true), outFromSe(67), { sizes: coarse, inside: false })).toBeNull();
+  });
+
+  it('takes only a handle as drawn inside the box, a finger’s target or not: the object is there', () => {
+    const coarse = transformHandleSizes(true);
+    // 8 px in from the corner: on nothing drawn (a 12 px square reaches 6 px in), though within the target.
+    expect(transformHandleAt(handlesFor(true), { x: 12, y: 12 }, { sizes: coarse, inside: true })).toBeNull();
+    // 5 px in, on the square as drawn.
+    expect(transformHandleAt(handlesFor(true), { x: 15, y: 15 }, { sizes: coarse, inside: true })).toEqual({ kind: 'scale', handle: 'se' });
+  });
+
+  it('reaches as far as the pointer does where that is further than the target, a mouse’s 8 px on the Diagram', () => {
+    const fine = transformHandleSizes(false);
+    const beside = { x: 27, y: 20 };
+    expect(transformHandleAt(handlesFor(false), beside, { sizes: fine, inside: false })).toBeNull();
+    expect(transformHandleAt(handlesFor(false), beside, { sizes: fine, inside: false, reach: 8 })).toEqual({ kind: 'scale', handle: 'se' });
+    // In another space: two units to the screen px, so a 7 px press is 14 units off.
+    const doubled = transformHandles(corners.map(({ x, y }) => ({ x: 2 * x, y: 2 * y })), { cornersOnly: true, rotateOffset: 2 * fine.rotateOffset });
+    expect(transformHandleAt(doubled, { x: 54, y: 40 }, { sizes: fine, inside: false, px: 2, reach: 16 })).toEqual({ kind: 'scale', handle: 'se' });
   });
 });
