@@ -3263,6 +3263,48 @@ row). (3) The icon: `review-fixes/icon-variants-2x.png` has the first build
 is built, D two and two).
 
 
+### Review follow-ups (2026-10-09)
+
+Zach's review of the branch after 18g, five asks, each small and none a
+fork:
+
+- [x] **Update Enlarged Steps says what it did.** A toast: "Updated
+  enlarged step 23", or "steps 23–30"; a warning when some of the area's
+  steps took no frame ("Updated 1 of 2 enlarged steps"); an error when none
+  did or the update threw, with the reason. Nothing for a diagram replaced
+  while the faces were folded: the press went with it.
+- [x] **Set Upright in Pose, on a step in 3D or Simulated.** In the bar
+  under the picture, in place of View From the Front and View From the
+  Corner, which go. It is the live view's own verb, as in Edit's 3D window
+  and Simulate (`setUprightView`, the toast `announceUprightSet` says, the
+  `Axis3d` icon): the picture does not move, and the view's next rest is
+  captured with the camera's new up, one undo step, as a drag's is. Reset
+  Pose takes it off. Held, saying why, while no live view shows (no
+  WebGL2, the simulator loading).
+- [x] **A 3D step's lines at the flat steps' weight.** Two causes. On the
+  cards, pages and the PDF, a 3D capture names its folds mountain and
+  valley, which the Diagram's painter drew in the fold pens, half the edge
+  pen in the Diagram style; a flat capture names its folds edges. A folded
+  model's folds are edges (D6), so the painter now draws them so
+  (`diagramScenePaintStyle(style, 'folded')`), steps saved before this too.
+  In Pose, the live 3D and simulated views drew a constant ~0.7 px while
+  the flat picture beside them is scaled up to fill the stage, its pens
+  with it; their creases now grow with the frame from the size a picture
+  opens at (`RenderSettings.creaseWidthGrows`, `poseLineWeight.ts`). A
+  simulation keeps its folds in the mountain and valley pens, as it always
+  has (Phase 9).
+- [x] **Pose's hint in a dark theme.** "Drag to turn · Double-click to
+  reset" was the theme's muted text on a pill that the white stage under it
+  makes mid-grey; it is in the readout's and the bar's ink now, with their
+  shadow.
+- [x] **The 1% budget (Z11) raised** to a whole file under 100 MB:
+  `diagram-revision-2.md`, The budget.
+
+**For Zach.** A simulated step's folds stay in the mountain and valley
+pens, a quarter point in the Diagram style, so a simulated model folded all
+the way still draws its silhouette lighter than a flat or 3D one. Drawing
+a simulation's folds as edges is one line beside the 3D one, if wanted.
+
 ### Final gate
 
 - [ ] The crane loads with every mark known and saves back byte-identical;
