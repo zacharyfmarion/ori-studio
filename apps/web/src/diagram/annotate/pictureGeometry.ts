@@ -136,7 +136,7 @@ export function pictureGeometry(
     case 'scene': {
       const kind = sceneKind(step, source.picture);
       // A crease pattern always shows its aux lines; a fold, as the style says (`paintScene`).
-      const aux = !style || diagramScenePaintStyle(style, source.drawn).auxCreases.visible;
+      const aux = !style || diagramScenePaintStyle(style, source.pattern).auxCreases.visible;
       const cached = scenes.get(source.picture);
       // One picture is shown one way; asked another, it is read again rather than misread.
       if (cached?.geometry.kind === kind && cached.aux === aux) return cached.geometry;

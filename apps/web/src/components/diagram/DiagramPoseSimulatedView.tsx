@@ -13,7 +13,7 @@ import type {
   DiagramStyle,
 } from '../../diagram/document/diagramDocument';
 import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
-import { diagramPaperStyle } from '../../diagram/pictures/diagramPaperStyle';
+import { diagramPaperStyle, foldedModelPens } from '../../diagram/pictures/diagramPaperStyle';
 import { poseCreaseReferenceEdge } from '../../diagram/pictures/poseLineWeight';
 import { simulatedCaptureFrame } from '../../diagram/pictures/simulatedCaptureFrame';
 import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
@@ -73,7 +73,8 @@ export function DiagramPoseSimulatedView({
 }) {
   const { t } = useTranslation();
   const pose = useDiagramSimulatedPose({ stepId, scope, known, render, onRest, wantsRest });
-  const paperStyle = useMemo(() => diagramPaperStyle(style), [style]);
+  // Its folds in the edge pen, as the step's picture paints them.
+  const paperStyle = useMemo(() => foldedModelPens(diagramPaperStyle(style)), [style]);
   // The view opens where the step is; later poses come through `setView`.
   const [opening] = useState(render.view);
   const degrees = cameraDegrees(pose.view ?? render.view);

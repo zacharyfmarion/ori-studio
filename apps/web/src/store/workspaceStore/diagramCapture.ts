@@ -32,7 +32,7 @@ import {
   type KnownDiagramAsset,
   stepById,
 } from '../../diagram/document/diagramDocument';
-import { diagramScenePaintStyle, diagramStyleKey, sceneDrawnOf } from '../../diagram/pictures/diagramPaperStyle';
+import { diagramScenePaintStyle, diagramStyleKey } from '../../diagram/pictures/diagramPaperStyle';
 import { sceneMeasure } from '../../diagram/pictures/paintDiagramStep';
 import { digest } from '../../diagram/pictures/pictureKey';
 import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
@@ -374,9 +374,9 @@ export async function keptPicture(
     background: null,
     keepHiddenFaces: false,
   };
-  const drawn = sceneDrawnOf(render);
-  const measure = sceneMeasure(drawn);
-  const page = paperSceneToSvg(captured.scene, diagramScenePaintStyle(style, drawn), pagePaper, measure);
+  const pattern = render.mode === 'crease-pattern';
+  const measure = sceneMeasure(pattern);
+  const page = paperSceneToSvg(captured.scene, diagramScenePaintStyle(style, pattern), pagePaper, measure);
   const png = await paperSvgToPng(page, CAPTURE_RASTER_DPI);
   const { width, height } = paperPngSize(page, CAPTURE_RASTER_DPI);
   const src = `data:image/png;base64,${bytesToBase64(png)}`;

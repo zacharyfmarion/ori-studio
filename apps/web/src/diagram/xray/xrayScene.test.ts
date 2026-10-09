@@ -184,7 +184,7 @@ describe('an x-ray’s faces (Revision 3, 18e)', () => {
     const markup = xrayWindowMarkup(
       inside,
       { window: { x: 10, y: 20, r: 5 }, rim: { width: 0.75 * PT_TO_CSS_PX, color: '#231f20' } },
-      diagramScenePaintStyle(DEFAULT_DIAGRAM_STYLE, 'folded'),
+      diagramScenePaintStyle(DEFAULT_DIAGRAM_STYLE, false),
       { project: ([x, y]) => [x, y], unitsPerPt: PT_TO_CSS_PX },
       'w-'
     );
@@ -206,7 +206,7 @@ describe('an x-ray’s faces (Revision 3, 18e)', () => {
     const plain = xrayWindowMarkup(
       nothing,
       { window: { x: 10, y: 20, r: 5 }, rim: { width: 1, color: '#000' } },
-      diagramScenePaintStyle(DEFAULT_DIAGRAM_STYLE, 'folded'),
+      diagramScenePaintStyle(DEFAULT_DIAGRAM_STYLE, false),
       { project: ([x, y]) => [x, y], unitsPerPt: 1 },
       'n-'
     );
@@ -216,7 +216,7 @@ describe('an x-ray’s faces (Revision 3, 18e)', () => {
     const bounded = xrayWindowMarkup(
       inside,
       { window: { x: 10, y: 20, r: 5 }, rim: { width: 1, color: '#000' }, bound: [[0, 0], [30, 0], [30, 30]] },
-      diagramScenePaintStyle(DEFAULT_DIAGRAM_STYLE, 'folded'),
+      diagramScenePaintStyle(DEFAULT_DIAGRAM_STYLE, false),
       { project: ([x, y]) => [x, y], unitsPerPt: 1 },
       'b-'
     );

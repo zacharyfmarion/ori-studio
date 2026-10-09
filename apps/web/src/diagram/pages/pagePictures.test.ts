@@ -25,7 +25,7 @@ import { cellPicture, layoutPicture, type PictureText } from './pagePictures';
 const style = DEFAULT_DIAGRAM_STYLE;
 /** How far a crease pattern's ink reaches past its lines, in mm: the margin the painter's own page leaves it. */
 const patternInkMm = (drawn: DiagramStyle) =>
-  pageMarginPt(diagramScenePaintStyle(drawn, 'pattern'), { ...DEFAULT_PAPER_PAGE, paddingMm: 0 }) / PT_PER_MM;
+  pageMarginPt(diagramScenePaintStyle(drawn, true), { ...DEFAULT_PAPER_PAGE, paddingMm: 0 }) / PT_PER_MM;
 const BITMAP: KnownDiagramAsset = {
   id: 'asset-raster',
   kind: 'raster',

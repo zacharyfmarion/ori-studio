@@ -33,7 +33,7 @@ import {
   type QuarterTurns,
 } from '../document/diagramDocument';
 import { SVG_NS } from '../upload/svgSanitize';
-import { diagramScenePaintStyle, sceneDrawnOf, type DiagramSceneDrawn } from './diagramPaperStyle';
+import { diagramScenePaintStyle } from './diagramPaperStyle';
 import { paintStepDiagram } from './paintStepDiagram';
 
 /** A box in a painted picture, in its CSS px. */
@@ -113,20 +113,19 @@ export function paintAsset(asset: KnownDiagramAsset, pose: PicturePose = UPRIGHT
 }
 
 /**
- * A captured scene, and what it draws: a crease pattern — measured by its
- * sheet, its aux lines the paper's existing creases — or a folded model or a
- * simulation, measured by the figure itself, its sheet nowhere in it, each
- * in its own pens (`diagramScenePaintStyle`).
+ * A captured scene, and whether it is a crease pattern — measured by its
+ * sheet, its aux lines the paper's existing creases — or a folded model,
+ * measured by the figure itself, its sheet nowhere in it.
  */
 export interface SceneSource {
   kind: 'scene';
   picture: DiagramScenePicture;
-  drawn: DiagramSceneDrawn;
+  pattern: boolean;
 }
 
 /** What a scene's page size measures: a crease pattern's sheet, a folded model's figure. */
-export function sceneMeasure(drawn: DiagramSceneDrawn): PaperSizeMeasure {
-  return drawn === 'pattern' ? 'sheet' : 'figure';
+export function sceneMeasure(pattern: boolean): PaperSizeMeasure {
+  return pattern ? 'sheet' : 'figure';
 }
 
 /**
@@ -158,7 +157,7 @@ export function stepPictureSource(
       };
     }
     case 'scene':
-      return { kind: 'scene', picture, drawn: sceneDrawnOf(source?.kind === 'cp' ? source.render : null) };
+      return { kind: 'scene', picture, pattern: !(source?.kind === 'cp' && source.render.mode !== 'crease-pattern') };
     case 'fixed':
       return { kind: 'fixed', picture };
     case 'step-diagram':
@@ -228,13 +227,13 @@ function itemExtent(item: PaperScene['items'][number]): { minX: number; minY: nu
  * this is a guard, not a path.
  */
 export function paintScene(
-  { picture, drawn }: SceneSource,
+  { picture, pattern }: SceneSource,
   style: DiagramStyle,
   paddingMm: number = STEP_CARD_PADDING_MM,
   scale = 1,
   cull: PictureBox | null = null
 ): PaintedPicture | null {
-  const measure = sceneMeasure(drawn);
+  const measure = sceneMeasure(pattern);
   let raw: unknown;
   try {
     raw = JSON.parse(picture.sceneJson);
@@ -244,7 +243,7 @@ export function paintScene(
   const read = readPaperScene(raw);
   if (!read) return null;
   const scene = sceneCulledTo(read, cull);
-  const surface = diagramScenePaintStyle(style, drawn);
+  const surface = diagramScenePaintStyle(style, pattern);
   const page = stepScenePage(paddingMm, scale);
   const painted = paperSceneToSvg(scene, surface, page, measure);
   // The frame is the scene's bounds, which the painter puts at the margin.

@@ -3286,13 +3286,19 @@ fork:
   valley, which the Diagram's painter drew in the fold pens, half the edge
   pen in the Diagram style; a flat capture names its folds edges. A folded
   model's folds are edges (D6), so the painter now draws them so
-  (`diagramScenePaintStyle(style, 'folded')`), steps saved before this too.
-  In Pose, the live 3D and simulated views drew a constant ~0.7 px while
-  the flat picture beside them is scaled up to fill the stage, its pens
-  with it; their creases now grow with the frame from the size a picture
-  opens at (`RenderSettings.creaseWidthGrows`, `poseLineWeight.ts`). A
-  simulation keeps its folds in the mountain and valley pens, as it always
-  has (Phase 9).
+  (`foldedModelPens`), steps saved before this too. In Pose, the live 3D
+  and simulated views drew a constant ~0.7 px while the flat picture beside
+  them is scaled up to fill the stage, its pens with it; their creases now
+  grow with the frame from the size a picture opens at
+  (`RenderSettings.creaseWidthGrows`, `poseLineWeight.ts`).
+- [x] **A simulated step at the same weight** (Zach, 2026-10-09, shown the
+  three side by side: "i want simulated to match"). A simulation names its
+  folds mountain and valley too, and the Diagram drew them in the fold
+  pens; its cards, pages and Pose's live simulator now draw them in the
+  edge pen as well (`foldedModelPens`). A crease not yet folded on a step
+  simulated part way is drawn so too: the capture names a crease by its
+  assignment, not its angle. Simulate and Edit's inline simulations keep
+  their mountain and valley pens (Phase 9); this is the Diagram's alone.
 - [x] **Pose's hint in a dark theme.** "Drag to turn · Double-click to
   reset" was the theme's muted text on a pill that the white stage under it
   makes mid-grey; it is in the readout's and the bar's ink now, with their
@@ -3300,10 +3306,6 @@ fork:
 - [x] **The 1% budget (Z11) raised** to a whole file under 100 MB:
   `diagram-revision-2.md`, The budget.
 
-**For Zach.** A simulated step's folds stay in the mountain and valley
-pens, a quarter point in the Diagram style, so a simulated model folded all
-the way still draws its silhouette lighter than a flat or 3D one. Drawing
-a simulation's folds as edges is one line beside the 3D one, if wanted.
 
 ### Final gate
 

@@ -83,7 +83,7 @@ describe('captureStep, a crease pattern', () => {
     const picture = result.captured.picture;
     if (picture.kind !== 'scene') throw new Error('a scene');
     expect(picture.sceneJson).toContain('"joined"');
-    const painted = paintScene({ kind: 'scene', picture, drawn: 'pattern' }, DEFAULT_DIAGRAM_STYLE)!;
+    const painted = paintScene({ kind: 'scene', picture, pattern: true }, DEFAULT_DIAGRAM_STYLE)!;
     // Round joins at the shared ends, where the diagram's butt-capped pens would notch.
     expect(painted.svg).toMatch(/stroke-linecap="round"/);
   });

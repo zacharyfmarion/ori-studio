@@ -246,7 +246,7 @@ function sourceKey(source: StepPictureSource): string {
     case 'asset':
       return `asset|${objectSerial(source.asset)}|${source.pose.rotationQuarterTurns}|${source.pose.mirrored ? 'm' : ''}`;
     case 'scene':
-      return `scene|${objectSerial(source.picture)}|${source.drawn}`;
+      return `scene|${objectSerial(source.picture)}|${source.pattern ? 'pattern' : 'figure'}`;
     case 'fixed':
       return `fixed|${objectSerial(source.picture)}`;
     case 'step-diagram':

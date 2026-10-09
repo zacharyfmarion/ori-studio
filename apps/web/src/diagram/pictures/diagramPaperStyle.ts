@@ -1,7 +1,7 @@
 import { builtInPaperPreset } from '../../lib/paper/paperPresets';
 import { PAPER_STYLE_FIELDS, getPaperStyleField, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
-import type { DiagramCpRender, DiagramStyle } from '../document/diagramDocument';
+import type { DiagramStyle } from '../document/diagramDocument';
 import { digest } from './pictureKey';
 
 /** The Diagram's style policy (D9): one style for every step. */
@@ -22,47 +22,29 @@ export function diagramSurfaceStyle(style: DiagramStyle): PaperStyle {
 }
 
 /**
- * What a captured scene draws, for the pens it is painted in: a crease
- * pattern, a folded model — flat or in 3D — or a simulation.
+ * A folded model's pens: its mountain and valley folds in the edge pen. A
+ * fold that has happened is an edge of the paper, not an instruction (D6).
+ * A flat capture names its folds edges already; a 3D or a simulated one
+ * names them mountain and valley, which in the Diagram style's fold pens
+ * drew them at half a flat step's weight. Every folded picture a diagram
+ * shows — a card, a page, Pose's live simulator — is drawn in these, so a
+ * step reads the same however it was folded (Zach, 2026-10-09).
  */
-export type DiagramSceneDrawn = 'pattern' | 'folded' | 'simulated';
-
-/** What a linked step's render captures: a scene with no render to say is a crease pattern's. */
-export function sceneDrawnOf(render: DiagramCpRender | null | undefined): DiagramSceneDrawn {
-  switch (render?.mode) {
-    case 'folded-flat':
-    case 'folded-3d':
-      return 'folded';
-    case 'simulated':
-      return 'simulated';
-    default:
-      return 'pattern';
-  }
+export function foldedModelPens(style: PaperStyle): PaperStyle {
+  return { ...style, mountainFolds: style.edges, valleyFolds: style.edges };
 }
 
 /**
  * The style a captured scene is painted with: {@link diagramSurfaceStyle};
- * for a crease pattern, its aux switch on; for a folded model, its folds in
- * the edge pen. A crease pattern's aux lines are the creases already in the
- * paper — drawn whatever the switch says, as References draws the creases
- * earlier steps made — where a folded model's are the style's to show or
- * hide. A fold that has happened is an edge of the paper, not an instruction
- * (D6): a flat capture names its folds edges already; a 3D one names them
- * mountain and valley, which Edit's 3D window and Pose's draw in the edge pen,
- * so here too — or a 3D step would print at the fold pens' weight, half the
- * flat steps' in the Diagram style. A simulation draws mountain and valley
- * unless the style says `foldsAsEdges`.
+ * for a crease pattern, its aux switch on; for a folded model, flat, in 3D
+ * or simulated, {@link foldedModelPens}. A crease pattern's aux lines are the
+ * creases already in the paper — drawn whatever the switch says, as
+ * References draws the creases earlier steps made — where a folded model's
+ * are the style's to show or hide.
  */
-export function diagramScenePaintStyle(style: DiagramStyle, drawn: DiagramSceneDrawn): PaperStyle {
+export function diagramScenePaintStyle(style: DiagramStyle, pattern: boolean): PaperStyle {
   const painted = diagramSurfaceStyle(style);
-  switch (drawn) {
-    case 'pattern':
-      return { ...painted, auxCreases: { ...painted.auxCreases, visible: true } };
-    case 'folded':
-      return { ...painted, mountainFolds: painted.edges, valleyFolds: painted.edges };
-    case 'simulated':
-      return painted;
-  }
+  return pattern ? { ...painted, auxCreases: { ...painted.auxCreases, visible: true } } : foldedModelPens(painted);
 }
 
 /**
