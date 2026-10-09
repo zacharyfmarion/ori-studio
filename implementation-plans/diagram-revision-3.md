@@ -11,6 +11,8 @@ finger's handles on the transform box, and the turn's rounding) the same day (Fo
 18.0 (the X-ray spike) run 2026-10-08 on `claude/diagram-xray`: go, with three changes to what
 18e builds (18.0 results). 18e (X-ray: model, canvas, tool and Layers) built 2026-10-08 on
 `claude/diagram-xray`, reviewed, its findings fixed, gated and committed 2026-10-09 (18e, As
+built). 18f (X-ray on every other surface, and three of 18e's follow-ups) built 2026-10-09 on
+`claude/diagram-xray`, reviewed, its findings fixed, gated and committed the same day, not yet pushed (18f, As
 built).** His answers, each recorded under its decision:
 
 - **R3-1 A, R3-2 A** (short dividers: one switch on each mark, 1.65 mm
@@ -70,6 +72,18 @@ built).** His answers, each recorded under its decision:
   R3-22 B, each recorded DECIDED under it; and R3-16a amended to A after
   18.0, on its evidence: each face's side is worked out from its outline,
   not stored (R3-16a, with the numbers).
+- **18e's follow-ups** (2026-10-09), under the same instruction, built in
+  18f: the X-Ray tool's icon a ring with rows of the Hidden Line's short
+  dashes inside (the ring round an M read as the Mountain tool); the
+  x-ray's Anchor row named "Point" in its own key (Enlarge's "Anchor" is
+  "anchor face" in Japanese, Chinese and Korean), with its own picking
+  hint; and on a touch device the Settings sheet steps aside while a pick
+  armed from it is made on the canvas, and comes back when it ends —
+  Enlarge's pick too. Recorded under 18e's For Zach, (3) to (5). 18f's
+  review, the same way: the sheet comes back only when the pick ends where
+  it was made; a bar on the canvas says what a touch pick waits for, with
+  Cancel; the icon's dashes longer and staggered; the reset hint "Count the
+  layers at the window's centre again" (18f, As built).
 
 **Still PENDING:** R3-34 (where a paste
 from another picture's whole step lands on an enlarged step), raised by
@@ -1109,7 +1123,14 @@ mind: "being able to hide specific faces and show the faces underneath".
   clips to the window (`zoomClipShape`, `zoom/paintZoomed.ts:118`), lays the
   page's white, paints that scene through `paperSceneSvgBody`, then draws
   the rim at 1.5 × the edges' pen (R3-15b (ii)). The step's marks are drawn
-  over it. A mark behind a flap stays dotted (R3-17 B).
+  over it. A mark behind a flap stays dotted (R3-17 B). (**Amended by 18f's
+  review:** "the page's white" is laid only where there was paper — over the
+  faces the window takes away, as the picture draws them, their outlines
+  too — and nothing off the paper, so a page's band, a selected cell's tint
+  or a transparent step file shows through the window there as it does round
+  it. Laid across the whole circle, it printed a white disc wherever a window
+  crossed the paper's edge. On the canvas, whose page is white, nothing
+  changes.)
 - **Surfaces.** Each painter gets a hook shaped like the close-up's. 18e:
   the canvas (as `annotate/useCloseUpInsides.ts`). 18f: the card
   (`pictures/useStepPictureUrl.ts:212`); the page's `cellPicture`
@@ -1120,7 +1141,10 @@ mind: "being able to hide specific faces and show the faces underneath".
   Until 18f lands, no surface but the canvas draws an x-ray, rim included,
   so nothing prints a window that shows nothing. A parity test is copied
   from `closeUps.surfaces.tsx`. A PDF prints a clip path already, through
-  close-ups.
+  close-ups. (**As built in 18f:** not a hook per surface but one pure
+  painter, `xray/xrayPaint.ts`, which each surface hands `paintAnnotations`
+  as a callback; importing it there would make an import cycle through
+  `paintZoomed`. 18f, As built.)
 - **Tool.** X-Ray, in Marks after Enlarge in Frame, key X (R3-25 A). Drag
   out from the middle of an area, as Enlarge does; a click puts down a
   standard size (`placedByClick`). Then the Depth field takes the focus, as
@@ -1341,7 +1365,11 @@ state.
   comes back as it was.
 
 **R3-19. An X-ray in Pose. DECIDED: A**, under the standing instruction
-(2026-10-08); built in 18f. Pose ghosts the step's marks over
+(2026-10-08); built in 18f (on Pose's card and an enlarged step's, and kept
+while a spread is dragged, whose preview is captured without faces; a live
+3D or simulated view mounts only for a 3D or simulated capture, which has
+no layers, so there R3-18b draws nothing, and since 18f's review its ghost
+is given no x-ray painter at all). Pose ghosts the step's marks over
 the live fold at 0.3 opacity, and a close-up there shows only its ring.
 - A. Its rim only.
 - B. Nothing.
@@ -1937,7 +1965,9 @@ large fork.
 4. Places from the stored scene's whole face items with a spread, from
    `paperFaces` with none.
 5. The page's white inside a window, where A removes every layer at a
-   point, is A's, not a gap; the tests expect it.
+   point, is A's, not a gap; the tests expect it. (18f's review: on the
+   paper only. Off it a window lays nothing, and what is under the picture
+   shows through.)
 6. Pixel tests compare a window with the stored scene's own items through
    the same clip, never with the bare picture.
 7. With no spread, a revealed face's outline is drawn twice where it lies on
@@ -3046,28 +3076,179 @@ whose layers share outlines depth 1 and 2 can look like a hole and like
 nothing (the heart's windows at depth 2 are plain white): a tint for the
 revealed front, or a two-colour style where x-rays are used. (3) The glyph,
 a heavy ring round an M, may read as "mountain" (the M key's tool): a ring
-with a few hidden-line dashes inside is the alternative. (4) The Anchor
-row's label stays Enlarge's "Anchor" (in Japanese, Chinese and Korean
-"anchor face"), where an x-ray's anchor is a point; a key of its own if
-the shared word reads wrong. (5) On an iPad, Pick in the Settings sheet
+with a few hidden-line dashes inside is the alternative. **DECIDED** (Zach's
+standing instruction, 2026-10-08): the ring with dashes, built in 18f. (4)
+The Anchor row's label stays Enlarge's "Anchor" (in Japanese, Chinese and
+Korean "anchor face"), where an x-ray's anchor is a point; a key of its own
+if the shared word reads wrong. **DECIDED**, the same way: "Point"
+(`xRayAnchor`), built in 18f. (5) On an iPad, Pick in the Settings sheet
 leaves the sheet over the canvas, so the next tap does not land until it is
-closed — Enlarge's row and sheet too, not new in 18e. (6) Untested: a woven
+closed — Enlarge's row and sheet too, not new in 18e. **DECIDED**, the same
+way: the sheet steps aside while the pick is armed, Enlarge's too, built in
+18f. (6) Untested: a woven
 patch (no step in his four diagrams has one), and his two no-spread
 chipmunk steps in the browser (they have no stored faces; the no-spread
 path is tested on the crane's capture and a hand-built fold).
 
 ### 18f X-ray on every other surface
 
-- [ ] The card, the enlarged step's card and page, the page's `cellPicture`
+- [x] The card, the enlarged step's card and page, the page's `cellPicture`
   (print, the PDF, the one-sheet SVG, the ZIP's step files), and Pose's
   ghosts, rim only (R3-19). A close-up over a window as R3-20 says.
-- [ ] The parity test across every painter, copied from
+- [x] The parity test across every painter, copied from
   `closeUps.surfaces.tsx`; a ZIP step file cropped round a window by its
   rim.
-- [ ] Golden `xray.cases.ts`.
-- [ ] Browser, before and after: crane windows on every surface in "Every
+- [x] Golden `xray.cases.ts`.
+- [x] Browser, before and after: crane windows on every surface in "Every
   phase", the PDF at print size and ×3.
-- [ ] Gate and push.
+- [x] 18e's follow-ups: the icon, the Point row, the sheet that steps aside
+  for a pick (18e, For Zach, (3) to (5)).
+- [x] Review: two reviews, ten findings, all fixed but one carried from 18e
+  (Not changed, below), each behaviour fix with a test that fails before it
+  (folded into As built).
+- [x] Gate, on exactly what was committed: lint (`npm run lint:web`),
+  typecheck, the i18n check and the whole vitest suite (Node 22): 902 test
+  files and 12,351 tests pass (2 files and 15 tests skipped).
+- [ ] Push.
+
+**As built (2026-10-09).** One code commit, `d14d34b92` ("Diagram: X-ray
+windows on every surface"), the review's fixes in it. Every decision used is
+recorded DECIDED above (Status; R3-18b, R3-19, R3-20; 18e, For Zach (3) to
+(5)). Evidence: `artifacts/revision-3/18f/18f-evidence.png`
+(`verify/composite.py`), every shot taken on the committed code, no console
+errors: one window cut out of every surface at the same size — the canvas,
+a card, the Pages view, the PDF through pdftoppm, the one-sheet SVG, a
+transparent step file and Pose — on the crane's index 20, the enlarged
+index 27 and the review's step 10 (`verify/windows.mjs`, Chromium, light and
+dark); the surfaces in context (`verify/surfaces.mjs`); the icon
+(`verify/icon.mjs`); the iPad pick (`verify/ipad.mjs`, iPad-sized WebKit by
+finger, light and dark). The implementer's before-and-after runs
+(`surfaces.mjs`, `ipad.mjs`, `roundTrip.mjs`) and the review's
+(`review-fixes/`) are beside it.
+
+- **One painter, every surface.** `xray/xrayPaint.ts`: `xrayWindowOn` draws
+  one window on any surface from where that surface lays the step's drawing
+  (`DrawingPlace`: its frame's box in its units, and the drawing's px across
+  it); the projection, the units per pt, the window, the rim and an
+  enlarged step's bound follow from it, drawn through 18e's
+  `xrayWindowMarkup`. The canvas's `useXRayInsides` calls it with its frame
+  at the origin. `xraySurfaceOf(step, look)` is null on a picture with no
+  layers (R3-18b A). `xrayPainter` makes the `XRayPainter` a surface hands
+  `paintAnnotations` (`AnnotationPaint.xRays`): each window in a
+  `data-x-ray-window` group under the close-ups' insides and the marks, its
+  ids `annotation-x-ray-<n>-`; with `look: 'rim'`, the rim alone
+  (`xrayRimMarkup`). A callback rather than the hook part 5 planned:
+  `paintAnnotations` importing `xray/` would make a cycle through
+  `paintZoomed`. `placeAnnotations` measures a window by its rim only where
+  a painter is given (`annotationReach`'s `xRays`) and draws one on a step
+  with no other mark; it, `annotatedPicture` and `posedZoomPicture` take
+  `{ paper, xRays }` where they took `paper`.
+- **The page's white, on the paper only** (the review's major; part 5's
+  "lays the page's white" amended). `xrayInside` also returns `ground`, the
+  faces the window takes away where the picture draws them
+  (`xrayGroundScene`). `xrayWindowMarkup` fills those with the white,
+  stroked the edges' pen wide so their outlines go too, as plain paths in
+  `<g data-x-ray-ground>` so nothing reads them as faces left. Off the paper
+  a window lays nothing, and a page's band, a selected cell's tint or a
+  transparent step file shows through it as it does round it; a window that
+  takes nothing away lays no white. Laid over the whole circle, as 18e did
+  on the canvas's white page, it printed a white disc wherever a window
+  crossed the paper's edge. On the paper nothing looks different, but the
+  canvas's markup is no longer 18e's byte for byte.
+- **The surfaces.** A step card (`useStepPictureUrl` → `annotatedStepUrl`,
+  `zoomedStepUrl` → `zoomedCardPicture`; cached by the faces' object and
+  the look). The pages' `cellPicture`, measured by `layoutPicture`
+  (`reachedWith`'s `xRays`), which the Pages view, print, the PDF, the
+  one-sheet SVG and the ZIP's step files all draw through. Pose
+  (`DiagramStepDetail`): its card at 0.3 and `posedZoomUrl`, rims only
+  (R3-19 A); while a spread is dragged the preview is captured without
+  faces, so the rims take the stored step's standing and stay. The live 3D
+  and simulated views are given no painter: they mount only for 3D or
+  simulated captures, which have no layers (R3-18b). No surface hands its
+  close-ups' insides a painter, so a close-up over a window shows the
+  picture plain (R3-20 B). `hitAnnotation` is the canvas's alone, from 18e.
+- **The follow-ups** (18e, For Zach (3) to (5)). The icon
+  (`DiagramAnnotateToolGlyph`): the heavy rim round five short dashes in
+  two staggered rows, drawn as segments; the Hidden Line's own dash, built
+  first, read as a grille at the rail's size
+  (`review-fixes/icon-variants-2x.png`). The row: `DiagramAnchorRow` takes
+  its `label`, "Point" for an x-ray (`xRayAnchor`), with its own picking
+  hint (`xRayAnchorPicking`) and the reset hint "Count the layers at the
+  window's centre again". The sheet (`useWorkspaceViewDrawer`): while a
+  pick armed from it is live (`escapePutsPickDown`) it closes and records
+  the pick, and it comes back on the same pane, with no second `view drawer
+  opened`, only when that pick ended where it was made, anchored or put
+  down (`anchorPickEndedInPlace`, beside `activeAnchorPick`). Leaving for
+  Pose, the step list, another step, another mark, another workspace or
+  pointer keeps it closed, and a sheet opened meanwhile is the user's. The
+  bar (`DiagramAnchorPickBar`): the shared `CanvasContextBar`, inside the
+  Annotate canvas's view and off its stage, on a coarse pointer while a pick
+  is armed, saying "Tap the point where the layers are counted" or "Tap a
+  face to anchor to it", with Cancel, which puts the pick down as Escape
+  does. The phone does not annotate, so it never shows there. Five new
+  strings and the reworded reset hint, in all nine catalogs.
+- **Tests.** `xray/xray.cases.ts`, eleven cases: the hand-built three-layer
+  fold at depth 1, 2 and past its stack, and past the frame's edge; the
+  crane with no spread and with one, a picked anchor, two windows under a
+  valley line, a circle and a close-up over one, an enlarged step whose
+  window crosses its frame, a window whose middle is off the paper, and one
+  a third off a flap (`crane-edge`). `xray.surfaces.tsx` paints each
+  surface as its own code does. `xrayGolden.test.ts`
+  (`__fixtures__/xrayGolden.json`, 86 kB, `XRAY_GOLDEN_WRITE=1`).
+  `xraySurfaces.test.ts`, the parity test: every surface's window read back
+  in its frame's units and pt is the canvas's — clip, white, rim (0.75 pt),
+  faces in order with fill, pen (0.5 pt) and place, and Pose's rim's place —
+  within each surface's rounding; a window that takes nothing away is the
+  picture's own faces through the clip (18.0 results, 6); nothing painted
+  inside a window and off the paper, on a page cell and in a transparent
+  step file; an enlarged step's inside held half its cut's pen inside the
+  frame; under the marks; R3-20 B; ids unique; drawn and measured nowhere
+  without layers (R3-18b A); a page's room grown by the rim; a cropped step
+  file cut round the rim. Also the PDF through the real writer, the
+  one-sheet SVG, Pose's rims (a faceless preview included), the icon, the
+  Point row and its hints, the sheet stepping aside and every way out
+  (`WorkspaceViewDrawer.test.tsx`), and the bar and its Cancel. Each
+  review fix's test failed with the old code put back.
+- **Browser.** One window cut out of every surface at the same size is the
+  same faces in the same order; off the paper the canvas's and card's white,
+  the band in the Pages view, the PDF and the sheet, and the checkerboard in
+  the step file show through (index 27's window). Before and after
+  (implementer, `surfaces.mjs`): every surface but the canvas ignored the
+  x-ray before; after, the cards, Pose (rims only), the Pages view, the PDF
+  at 96 and 288 dpi, Print (the app's print layer printed by Chromium), the
+  one-sheet SVG and the step files, same size and cropped. The review's
+  off-paper run (`review-fixes/offpaper.mjs`): only the window crossing the
+  paper's edge changed, (255,255,255) on the band before and the band's
+  (236,236,232) after. iPad-sized WebKit by finger, light and dark: armed
+  from the sheet, the sheet goes and the bar shows; Cancel and an anchoring
+  tap ("Change X-ray") bring it back on Layers; Pose, Steps and Next Step
+  leave it shut; Enlarge's frame pick shows its own wording.
+- **The round trip** (`roundTrip.mjs`): the crane (the copy, and Zach's own)
+  reads with nothing locked and no unknown mark and writes back identical;
+  with three windows (one anchored), written, read and written again,
+  identical. His chipmunk, heart and Stanford logo too; Reference Diagrams
+  writes back all but its page's retired `scale: "fit"` (let go
+  2026-10-06, not this phase's).
+- **Analytics.** Nothing new: the surfaces draw what the canvas draws, the
+  anchor's pick and its row send what 18e sends, and putting a pick down,
+  which Cancel is one way of doing, was never counted.
+
+**Not changed (carried from 18e).** The Diagram preset's white front makes
+a depth-1 window on the crane's flaps read as a punched hole, and a depth-2
+window whose revealed layer matches the picture as nothing (18e, For Zach
+(2)); 18f puts both on paper (`review/finding-white-disc-step24.png`,
+`review/pages-10-19.png`). A window crossing an enlarged step's frame draws
+its rim whole outside the frame while its inside stops at the frame (18e's
+choice), now in print and the PDF too.
+
+**For Zach.** (1) Where a window takes every layer away at a point inside
+the paper's outline, it shows the page's white (18.0 results, 5), even on a
+page with the band, where off the paper the band now shows: white there, or
+the band? (2) The pick bar is new on-canvas UI (`18f-evidence.png`, iPad
+row). (3) The icon: `review-fixes/icon-variants-2x.png` has the first build
+(A, the Hidden Line's dash) and three others (B aligned, C staggered, which
+is built, D two and two).
+
 
 ### Final gate
 
