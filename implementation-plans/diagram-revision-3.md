@@ -1,9 +1,10 @@
 # Diagram, Revision 3: stars, shapes, short divisions, an eye, X-ray
 
 **Status: planned 2026-10-08, with Zach's first answers the same day.
-18a (equal divisions) built and gated 2026-10-08, committed, not yet
-pushed; nothing else is built.** His answers, each recorded under its
-decision:
+18a (equal divisions) built and gated 2026-10-08, committed and pushed
+(PR #446). 18b (stars, the transform box, and 18a's follow-up hint)
+built, gated and committed 2026-10-08, not yet pushed (18b, As
+built).** His answers, each recorded under its decision:
 
 - **R3-1 A, R3-2 A** (short dividers: one switch on each mark, 1.65 mm
   either side of the line): "should just be all interior ones, not per
@@ -27,10 +28,20 @@ decision:
   shortcut pass before merge, those are fine for now".
 - **R3-26 A** (the pens): "yeah sounds right".
 - **The prototype**: "Yes skip prototype, build directly".
+- **Everything 18b uses** (2026-10-08): "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise". Built as recommended,
+  each recorded DECIDED under its decision: R3-23 A (no colour on the new
+  marks), R3-24 A (a star snaps as a Circle does), R3-28 A (a free turn,
+  Shift for 15°), R3-29a A (proportions always kept, corners only),
+  R3-29b A (scaled about the centre), R3-30a A (0.5× to 4×), R3-30c B (the
+  box at least 24 screen px), R3-32 A (a carry keeps a star's angle) and
+  R3-33 A (a Rotation row in Layers); and 18a's two follow-ups (18a, For
+  Zach): a hint that Short Dividers shows only once the line is more than
+  1.65 mm out, and the count kept in the regular weight.
 
 **Still PENDING:** R3-8, R3-10b, R3-11a, R3-11b, R3-11d, R3-16a,
-R3-16c, R3-17 to R3-24, and the transform box's R3-28 to R3-33, which
-these answers raised.
+R3-16c, R3-17 to R3-22, R3-29c, R3-30b and R3-31. Under the same
+instruction (2026-10-08) each will be built as recommended when its phase
+comes, unless it is a large fork in the design.
 
 Phase 18 of `implementation-plans/diagram-workspace.md`, after Phase 17
 (`implementation-plans/diagram-references-annotations.md`). It is built on
@@ -402,7 +413,8 @@ need is pure:
   (R3-29b A, R3-29c A).
 - **The handle layout**, new in the same module: `transformHandles(box,
   aspectLock, rotateOffset)` gives each scale handle's and each turn
-  handle's place. It is the layout `SelectionHandles` works out inline
+  handle's place. (As built it takes the box's four corners as a canvas
+  draws them and `{ cornersOnly, rotateOffset }`: 18b, As built, says why.) It is the layout `SelectionHandles` works out inline
   today (`CanvasObjectOverlay.tsx:877-909`), and `SelectionHandles` draws
   from it in the same commit, so the two canvases cannot drift. The sizes
   move with it as named constants (8 px squares, 18 px out) with the 15°
@@ -1290,7 +1302,7 @@ the live fold at 0.3 opacity, and a close-up there shows only its ring.
 
 ### Decisions: all the new marks
 
-**R3-23. Do the new marks take a colour? PENDING.**
+**R3-23. Do the new marks take a colour? DECIDED: A.** Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise".
 - A. No. They are drawn in the arrows' ink, as every mark but a solid line
   and Text is (RM3; Annotate's decision 7).
 - B. Stars, ovals and rectangles get the Color row a solid line has: the
@@ -1300,7 +1312,7 @@ the live fold at 0.3 opacity, and a close-up there shows only its ring.
   is one `carriesColor` case and the existing row each, if a coloured ring
   is wanted later.
 
-**R3-24. What snaps? PENDING.**
+**R3-24. What snaps? DECIDED: A.** Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise".
 - A. A star snaps where it is put, to the picture's corners, vertices,
   crossings and other marks' points, as a Circle does, and lines and arrows
   snap to its centre. Ovals, rectangles, the eye and x-ray windows are put
@@ -1361,12 +1373,12 @@ works one PR per feature.
   question (R3-16) and two phases. The four marks need not wait for it, and
   its review is easier alone.
 
-### Decisions: the transform box (all PENDING)
+### Decisions: the transform box
 
 Raised by Zach's ask for the transform box (2026-10-08). Each is for stars
 (18b), the eye (18c) and shapes (18d) unless it names fewer.
 
-**R3-28. The turn's snap. PENDING.**
+**R3-28. The turn's snap. DECIDED: A.** Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise".
 - A. Free; Shift holds it to 15° steps, as an image's turn on the Edit
   canvas (`IMAGE_ROTATION_SNAP_RADIANS`, `cp-workspace/images/cpImage.ts:40`)
   and a handle's in Edit Path (`annotationPath.ts:166`).
@@ -1376,7 +1388,7 @@ Raised by Zach's ask for the transform box (2026-10-08). Each is for stars
   the Diagram's own Shift on a turn. An oval laid along a 22.5° flap needs
   the free turn, so the steps are the ones that cost a key.
 
-**R3-29a. Does a star or an eye keep its proportions? PENDING.** (18b, 18c)
+**R3-29a. Does a star or an eye keep its proportions? DECIDED: A.** (18b, 18c) Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise".
 - A. Always: one `scale`, and four corner squares only, as a folded figure
   on the Edit canvas (`aspectLock: 'always'`, `transformableObject.ts:151`;
   `CanvasObjectOverlay.tsx:891-897`).
@@ -1385,7 +1397,7 @@ Raised by Zach's ask for the transform box (2026-10-08). Each is for stars
 - **Recommended: A.** A squashed star or eye is not a symbol diagrams use,
   and A keeps one number in the file.
 
-**R3-29b. What a star or an eye scales about. PENDING.** (18b, 18c)
+**R3-29b. What a star or an eye scales about. DECIDED: A.** (18b, 18c) Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise".
 - A. Its centre: a corner square moves every corner, so a star stays on
   the point it names.
 - B. The opposite corner, held, as on the Edit canvas
@@ -1407,8 +1419,8 @@ Raised by Zach's ask for the transform box (2026-10-08). Each is for stars
   drag uses. Nothing on the Edit canvas's handles uses Alt, so A adds to
   its rule without changing it.
 
-**R3-30a. How small and how large a star or an eye goes. PENDING.** (18b,
-18c) `scale` is times the print size: at 1 a star is 3 mm across and an
+**R3-30a. How small and how large a star or an eye goes. DECIDED: A.**
+(18b, 18c) Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise". `scale` is times the print size: at 1 a star is 3 mm across and an
 eye about 5 mm long.
 - A. 0.5 to 4: a star 1.5 to 12 mm across, an eye 2.5 to 20 mm long.
 - B. 0.5 to 2.
@@ -1430,8 +1442,10 @@ eye about 5 mm long.
   nothing in it, and one range for both kinds of area keeps one rule in the
   reader.
 
-**R3-30c. A star or an eye smaller on screen than its handles. PENDING.**
-(18b, 18c) At a zoom where a 3 mm star is under about 24 screen px across,
+**R3-30c. A star or an eye smaller on screen than its handles. DECIDED:
+B.** (18b, 18c) Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise". Measured in 18b: a 3 mm
+star is 34 screen px across at the canvas's fit of the crane (57%), so A
+and B draw the same there; below about 40% B's floor shows. At a zoom where a 3 mm star is under about 24 screen px across,
 its four 8 px corner squares cover most of it, and a press on the star
 takes a handle instead.
 - A. As the Edit canvas: the box is the glyph's, however small; zoom in to
@@ -1457,7 +1471,7 @@ inside its box.
   oval; under C every mark inside a selected oval is out of reach until it
   is let go.
 
-**R3-32. Does a carry turn a star? PENDING.** (18b) A carry turns and
+**R3-32. Does a carry turn a star? DECIDED: A.** (18b) Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise". A carry turns and
 mirrors a mark with the picture under it. A shape and the eye turn with it
 in this plan: they ring an area of the paper, or look along it.
 - A. No: a star keeps the angle it was given. Only its centre is carried.
@@ -1467,7 +1481,7 @@ in this plan: they ring an area of the paper, or look along it.
   (90° is 72°, a fifth of a turn that changes nothing, and 18° more)
   without anyone turning it.
 
-**R3-33. A Rotation row in Layers. PENDING.**
+**R3-33. A Rotation row in Layers. DECIDED: A.** Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise".
 - A. Yes, for stars, the eye and shapes: degrees, wrapped, as an image's
   Rotation in the Edit canvas's Properties
   (`cp-workspace/images/imageProperties.ts:56-67`).
@@ -1682,9 +1696,10 @@ after in the browser, beside the note's pictures.
 - [ ] Zach answers R3-1 to R3-33. His answers are recorded under each
   decision, and every passage written for an option he did not take is
   rewritten. The first answers are in (2026-10-08, Status at the top).
-  R3-3 answered B the same day ("no, should not be bold"). Open: R3-8,
-  R3-10b, R3-11a, R3-11b, R3-11d, R3-16a, R3-16c, R3-17 to R3-24, and
-  R3-28 to R3-33.
+  R3-3 answered B the same day ("no, should not be bold"). Everything
+  18b uses decided the same day as recommended ("go with your recs ...",
+  Status at the top). Open: R3-8, R3-10b, R3-11a, R3-11b, R3-11d, R3-16a,
+  R3-16c, R3-17 to R3-22, R3-29c, R3-30b and R3-31.
 
 ### 18a Equal divisions
 
@@ -1810,7 +1825,10 @@ files, 4,041 tests).
   `divisions.test.ts`'s header names the aux pen, the regular count and
   Short Dividers; the selection-wash test above.
 
-**For Zach, not decided by this plan** (from the review; nothing changed):
+**For Zach, not decided by this plan** (from the review). Both DECIDED,
+Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise": the first gets a hint, built in 18b
+(18b, As built); the second is left as it is, the count in the regular
+weight (R3-3 B), no halo and no new place.
 - At an offset of 1.65 mm or less, Short Dividers changes nothing, as R3-2 A
   says, and at 2.5 mm, where a new mark is laid, an interior divider still
   starts 0.85 mm off the measured line, so a fold crossing there is still
@@ -1827,7 +1845,7 @@ files, 4,041 tests).
 
 ### 18b Stars
 
-- [ ] **The shared box**, a commit of its own that changes nothing on the
+- [x] **The shared box**, a commit of its own that changes nothing on the
   Edit canvas: `lib/transformBox.ts`, the box math moved out of
   `annotationTransform.ts` (re-exported there) with its tests;
   `transformHandles`, which `SelectionHandles` draws from; the
@@ -1838,7 +1856,7 @@ files, 4,041 tests).
   passes unchanged. Browser: a reference image on the Edit canvas selected,
   resized with and without Shift, and turned with Shift, before and after,
   its handles where they were.
-- [ ] **The Diagram's box**: `diagram/annotate/transformGrips.ts`
+- [x] **The Diagram's box**: `diagram/annotate/transformGrips.ts`
   (`transformBoxOf`, `transformGripAt`, the `transform` grip part and its
   drag), `TransformBoxSelection` and its module's rules, the hover cursors,
   the undo labels, and R3-30c's floor after a 3 mm star is measured on
@@ -1847,33 +1865,181 @@ files, 4,041 tests).
   steps (R3-28 A); a resize stays in its range; one undo step per drag and
   none for a click; the cursors; no handles on a diagram that cannot
   change.
-- [ ] Geometry: `starDrawn`, `DIAGRAM_STAR_INK`. Tests: ten points, one up
+- [x] Geometry: `starDrawn`, `DIAGRAM_STAR_INK`. Tests: ten points, one up
   at angle 0; turned by its angle and scaled by its scale; not turned by a
   turned or a mirrored projector; reach with mitred tips, turned and
   scaled.
-- [ ] The primitive through the five References modules; drawing, filled
+- [x] The primitive through the five References modules; drawing, filled
   and outlined, on and off the paper.
-- [ ] Model and file: the kind, `fill`, `angle`, `scale`,
+- [x] Model and file: the kind, `fill`, `angle`, `scale`,
   `cleanAnnotation`, the switches. Tests: round trip; `to` read as `from`;
   an unknown fill, or a scale past R3-30a's range, is a newer build's and
   kept verbatim; an angle read normalized; a scale that does not read is
   damage.
-- [ ] Tool: the click, snapping and ⌘, the rail's Fill control and its
+- [x] Tool: the click, snapping and ⌘, the rail's Fill control and its
   setting, the key, help. Tests: placed on a crossing; a Line snaps to it.
-- [ ] Hit at its scale; the box, corners only, scaling about its centre (a
+- [x] Hit at its scale; the box, corners only, scaling about its centre (a
   star snapped to a crossing stays on it); the drag; the Layers row, the
   Fill row and the Rotation row; a carry keeping its angle and scale
   (R3-32 A), Turn Over, paste and the enlarged window, with `markExtent`
   keeping a turned, scaled star at a window's edge.
-- [ ] Analytics (`star`, `fill`; `diagram mark styled` for Fill, size and
+- [x] Analytics (`star`, `fill`; `diagram mark styled` for Fill, size and
   rotation) and i18n (the Rotation row, the undo labels).
-- [ ] Golden `stars.cases.ts`: filled and outlined, turned and scaled, on
+- [x] Golden `stars.cases.ts`: filled and outlined, turned and scaled, on
   white, on a References face, off the paper.
-- [ ] Browser, before and after: a filled and an outlined star on a crane
+- [x] Browser, before and after: a filled and an outlined star on a crane
   crossing beside the sample, a dashed line from one, on every surface; a
   star scaled and turned by its box, beside an image's box on the Edit
   canvas; a small star at the canvas's usual zoom; the rail at phone width.
-- [ ] Gate and push.
+- [x] Gate, on exactly what was committed: lint, typecheck, the i18n check
+  and the whole vitest suite (Node 22): 892 test files and 12,093 tests
+  pass (2 files and 15 tests skipped).
+- [ ] Push.
+
+**As built (2026-10-08).** Three commits: 18a's follow-up hint
+(`8b8370e7f`), the shared box, changing nothing on the Edit canvas
+(`fa232db37`), then stars with the box on the Diagram canvas
+(`98725b534`). Every decision used is recorded DECIDED above (Status).
+
+- **18a's hint** (`8b8370e7f`). While Short Dividers is on and the line
+  stands 1.65 mm or less off the line it measures, a note under the switch
+  says "Short dividers show once the line is more than 1.65 mm out. Closer
+  than that, every divider already reaches across the line." A note, not
+  the help: the help is a hover tooltip, and the moment that needs saying
+  is the switch turning on with nothing redrawn. `shortDividersShow`
+  (`annotationModel.ts`) is the one test, `offset >
+  SHORT_DIVIDERS_FROM_MM` (`DIAGRAM_DIVISIONS_INK.overshoot` ×
+  `ANNOTATION_INK_MM`, 1.654 mm), held by a test to what `divisionsShape`
+  draws at 0, 1, 1.6, 1.7, 2.5 and 10 mm. The note puts the number in as
+  `{{mm}}`, formatted for the language (1,65 in French and Russian); a test
+  holds every catalog to `{{mm}}` and no digits. The count stays regular:
+  nothing changed.
+- **The shared box** (`fa232db37`). `lib/transformBox.ts` holds
+  `TransformBox`, the handle names, `HANDLE_SIGNS`,
+  `CORNER_RESIZE_HANDLES`, `MIN_BOX_EXTENT`, `boxCornersModel`,
+  `resizeAnnotationBox` (now with `{ aboutCentre }`), `AspectLockPolicy`,
+  `resizeAspectLock`, `snapAngle`, `boxContainsModelPoint`,
+  `transformHandles`, and the sizes as constants (8 px squares, 5 px turn
+  handles 18 px out, 1.5 px strokes, the 15° step, which
+  `IMAGE_ROTATION_SNAP_RADIANS` now names). `annotationTransform.ts`
+  re-exports it under its old names, so no importer changed; the moved
+  tests are `lib/transformBox.test.ts`. `SelectionHandles` draws from
+  `transformHandles`. **Where the code proved the plan wrong:**
+  `transformHandles` takes the box's four corners as drawn, with
+  `{ cornersOnly, rotateOffset }`, not `(box, aspectLock, rotateOffset)`:
+  the Edit canvas lays its handles out on corners projected through a
+  `CpOverlayView` that can flip or stretch, so a box signature would have
+  moved them under such a camera. The Diagram passes
+  `boxCornersModel(box)`. Proof (`artifacts/revision-3/18b/editbox/`,
+  `capture.mjs`): a reference image on the crane's crease pattern selected,
+  resized by a corner with and without Shift, by an edge, and turned with
+  Shift, light and dark: all twelve screenshots pixel-identical and every
+  handle's attributes byte-identical, before and after, and again on the
+  committed tree (`verify-*`). `CanvasObjectOverlay.test.tsx` passes
+  unchanged.
+- **Model and file** (`98725b534`). Kind `star`, a `point` kind after
+  `circle`: `fill?: 'black'` (unsaid, outline), `angle?` (degrees
+  clockwise in [0, 360), unsaid upright), `scale?` (unsaid 1, held to
+  `GLYPH_SCALE`, 0.5–4, which the eye will share). `ANNOTATION_FIELDS.star`
+  = `fill`, `angle`, `scale`: an unknown fill or a scale past the range is a
+  newer build's, kept verbatim; a scale that is not a positive number is
+  damage; an angle that does not read is dropped alone; `to` is read as
+  `from`. Every exhaustive switch says what a star is: no ends, path, text
+  or colour (R3-23 A), nothing behind a flap, no Flip. A carry moves only
+  its centre (R3-32 A), so Turn Over, a paste and the enlarged window keep
+  its angle and print size; `markExtent` takes its turned box.
+- **Drawing.** `DIAGRAM_STAR_INK = { radius: 4.5, inner: 0.382 }`, about
+  3 mm across; `starPoints` and `starDrawn` (`stepDiagramGeometry.ts`),
+  placed by the projector, never turned or mirrored by it. The primitive
+  through `referenceFinderDiagramToPrimitives`, `DiagramPrimitives`
+  (filled: one `ink.mark` path, no stroke; outlined: the sheet's fill and
+  the ring pen, mitred at `STAR_MITER_LIMIT` 4, 0.5625 pt in the Diagram
+  preset), `markReach`, `foldSymbolFade` and
+  `referenceFinderStepInModel`.
+- **Tool.** Star after Circle in Marks, key K (`diagram.toolStar`, through
+  the registry); it snaps as a Circle does, ⌘ to put it down freely, and
+  its centre is a `point` snap target (R3-24 A). The rail's Star Fill
+  (`DiagramStarFillControl`), Filled | Outline, under Marks while the tool
+  is in hand, kept as `diagramAnnotateStarFill` (type in
+  `diagram/annotate/starFill.ts`, so the settings store does not import
+  the tool records); the tool's icon is the star it lays. The tool window
+  adds "With Select, Shift-drag a round handle at a corner to turn it in
+  15° steps."
+- **The box** (`diagram/annotate/transformGrips.ts`). `boxedMarkOf`, an
+  exhaustive switch, gives each boxed kind's box (a star's: the square of
+  its tips at its scale, turned by its angle), whether it keeps its
+  proportions, its turn, and its `resized` and `turned` writers, so the
+  eye (18c) and shapes (18d: a `size`, a turn in [0, 180)) cannot get a
+  box without saying how they are written; `transformBoxOf` and
+  `hasTransformBox` read it. `drawnTransformBox` never draws it under
+  24 screen px (R3-30c B); `transformBoxHandles` lays out corners only
+  (R3-29a A) from `transformHandles`. `transformGripAt`: inside the box a
+  handle takes only a press on it as drawn (a square's 8 px, a turn
+  handle's 5 px circle); the press's reach (8 px mouse, 18 px finger)
+  extends only outward. `transformDragged`: a square scales about the
+  centre (R3-29b A) as the pointer's travel since the press draws it out,
+  held to 0.5–4; a turn handle turns by the pointer's angle about the
+  centre, Shift to 15° (R3-28 A); turns, typed or dragged, kept to 0.01°
+  and scales to 0.001. `HitSizes` gained `px` (one screen px in picture
+  units); `hitAnnotation` asks the box first for a selected star; a star's
+  body is within its tips' reach plus half an ink, and a star covers an
+  earlier circle inside its outline. `useAnnotateCanvas` makes each drag
+  one undo step ("Resize annotation", "Rotate annotation"; none for a
+  click), sends `diagram mark styled`, and sets `data-transform-hover`,
+  which the module turns into move, pointer and grab cursors, Space's grab
+  winning. `TransformBoxSelection` draws `.transformBox` and
+  `.transformHandle` with strokes of `TRANSFORM_STROKE_PX / zoom`:
+  `non-scaling-stroke` does not see react-zoom-pan-pinch's CSS transform.
+  No handles on a diagram that cannot change. A 3 mm star is 34 px across
+  at the crane's fit (57%), so the floor shows below about 40%.
+- **Layers.** A star's row glyph is in its own fill; `DiagramStarControls`
+  (Fill, "Change star") and `DiagramRotationRow` (degrees, wrapped as an
+  image's, "Rotate annotation"), through `setStarFill` and `setMarkAngle`.
+- **Analytics and i18n.** `diagram annotation added` with `tool: star` and
+  `fill`; `diagram mark styled` with `kind: star` and `fill` | `size` |
+  `rotation`, valued `filled` | `outline` | `handle` | `field`;
+  `docs/analytics.md`. Strings in all nine catalogs, stamped. The undo
+  labels are internal, as all of the Diagram's are.
+- **Tests**, each failing without its change: `lib/transformBox.test.ts`,
+  `transformGrips.test.ts` (including a finger and a mouse on the middle,
+  off it and on both lower arms at an iPad's fit and at the floor; a press
+  off a square's middle not jumping the star), `stepDiagramGeometry`,
+  `paintAnnotations`, `diagramFile`, `annotationModel`, `annotationHit`,
+  `pictureSnap`, `stepView`, `DiagramAnnotateCanvas.test.tsx` (laying,
+  snapping, the box, resize, Shift turn, move, cursors, coarse-pointer
+  moves, strokes per zoom, read-only), `DiagramLayersPanel.test.tsx` (Fill,
+  Rotation, a typed 12.345 stored as 12.35, the 18a note),
+  `DiagramAnnotateRail.test.tsx`, `settingsStore.test.ts`, and the golden
+  `stars.cases.ts` / `starsGolden.json` (filled and outlined, turned and
+  scaled, half size, off the paper, on a References step's grey back).
+- **Review fixes**, from two reviews of the first build: a finger on a
+  selected star scaled it (the 18 px reach was more than a corner's 17 px
+  from the middle of a box at its floor); the box's strokes followed the
+  zoom (0.85 px at the fit, gone below 40%); a scale drag jumped on its
+  first move; a press on a star's arm took a circle drawn under it; the
+  drag wrote a glyph's fields for any boxed kind; a typed Rotation wrote
+  12.345000000000027; and the note's number was written into the words.
+  Each is fixed as described above, with a test that fails without it.
+- **Browser** (`artifacts/revision-3/18b/18b-evidence.png`; scripts in
+  `verify/`, `fixes/`, `editbox/`). On the crane's step 1, Chromium light
+  and dark: K, a filled star snapped to the middle crossing, Star Fill to
+  Outline and an outlined star on the right edge's crease end, a valley
+  line snapped to the star; selected, the cursors; scaled to 2 about its
+  point; turned to 45° with Shift; Layers' Fill and Rotation; at 10% a
+  24 px box round a 6 px star; the 18a note at 1 mm, gone at 2.5 mm; the
+  card, the page cell, the PDF at 288 dpi and the one-sheet SVG (outline
+  mitred); the file round trip identical; no console errors. iPad-sized
+  WebKit by finger: the star tapped on and selected, a square dragged
+  (scale 2, still on the crossing), a turn handle dragged (50°), the body
+  dragged (a move). The box's strokes 1.49–1.5 px on screen from 10% to
+  661% in Chromium and WebKit. An enlarged step's card, Pose's ghosts and
+  two ZIP step files draw turned, scaled stars.
+- **Not shown:** the rail at phone width, where Annotate is not offered
+  ("Annotate on a larger screen"); iPad-sized WebKit stands for it.
+- **Left for a change of its own:** the Diagram's older grips (`.handle`:
+  end dots, zoom grips, right-angle grips) have the stroke fault the box
+  had, from before 18b: about 5 px at 343% and faint below 40%. The fix is
+  the same, `strokeWidth={1.5 / zoom}` and no CSS width.
 
 ### 18c The eye
 
