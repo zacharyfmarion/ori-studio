@@ -32,7 +32,12 @@
   pointer-events: none;
 }
 
-/* How to turn it, in the corner the view cube leaves free; a mouse's only. */
+/*
+ * How to turn it, in the corner the view cube leaves free; a mouse's only. On
+ * the readout's pill and in its ink: the stage under both is white whatever
+ * the theme, so a dark theme's pill is dark, and its muted text all but
+ * vanished on it.
+ */
 .hint {
   position: absolute;
   right: var(--space-3);
@@ -42,7 +47,8 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
   background: var(--domain-overlay-bg);
-  color: var(--text-tertiary);
+  box-shadow: 0 8px 24px var(--shadow-overlay);
+  color: var(--text-secondary);
   font-size: 0.68rem;
   pointer-events: none;
 }
