@@ -384,9 +384,9 @@ describe('Flip Horizontal and Flip Vertical (Zach, 2026-10-05)', () => {
   it('are offered on every mark with a side to it, a row of their own ahead of the rest, with no keys (but an eye’s Horizontal, F’s)', () => {
     const flips = ANNOTATION_KINDS.filter((kind) => offersAnnotationAction('flip-horizontal', of('a', kind)));
     // A star has no Flip, as a circle has none: its turn is its box's; nor has an oval or a rectangle, whose flip
-    // is only a turn its handles make, as an enlarge area has none (Revision 3).
+    // is only a turn its handles make, as an enlarge area has none; nor an x-ray's window, a circle (Revision 3).
     expect(flips).toEqual(
-      ANNOTATION_KINDS.filter((kind) => !['turn-over', 'label', 'circle', 'star', 'zoom', 'oval', 'rectangle'].includes(kind))
+      ANNOTATION_KINDS.filter((kind) => !['turn-over', 'label', 'circle', 'star', 'zoom', 'oval', 'rectangle', 'x-ray'].includes(kind))
     );
     const actions = buildAnnotationActions(of('a', 'valley-arrow'), { editable: true }, { t, apply: vi.fn() });
     expect(actions.map(({ id, group, label, shortcutId, disabled }) => ({ id, group, label, shortcutId, disabled }))).toEqual([

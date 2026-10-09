@@ -4,6 +4,7 @@ import type {
   DiagramStarFillName,
   DiagramTextSize,
   DiagramTextToggle,
+  DiagramXRayDepthBucket,
 } from '../../analytics/events';
 import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { annotationColorName } from './annotationColors';
@@ -37,6 +38,7 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'close-up': 'close_up',
   // A circle; a rounded rectangle is the Enlarge in Frame tool's (`annotationEventKind`).
   zoom: 'enlarge',
+  'x-ray': 'x_ray',
 };
 
 /**
@@ -71,6 +73,11 @@ export function textSizeName(sizePt: number | null | undefined): DiagramTextSize
 /** On or off, as the analytics events name a label's Bold and halo (17b). */
 export function textToggleName(on: boolean | undefined): DiagramTextToggle {
   return on ? 'on' : 'off';
+}
+
+/** An x-ray's depth as the analytics events bucket it (Revision 3): one, two, or three and more — never the count past that. */
+export function xrayDepthBucket(depth: number): DiagramXRayDepthBucket {
+  return depth <= 1 ? '1' : depth === 2 ? '2' : '3+';
 }
 
 /** A star's fill as the analytics events name it (Revision 3): `filled` with ink, or an `outline`. */

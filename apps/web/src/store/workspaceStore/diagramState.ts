@@ -1,4 +1,4 @@
-import { EDIT_PATH, isEnlargeTool, type AnnotateTool } from '../../diagram/annotate/annotateTools';
+import { EDIT_PATH, isEnlargeTool, xrayToolHeld, type AnnotateTool, type XRayStanding } from '../../diagram/annotate/annotateTools';
 import { pathNodesOf } from '../../diagram/annotate/annotationPath';
 import {
   isKnownAnnotation,
@@ -44,6 +44,7 @@ export const DIAGRAM_SCOPED_KEYS = [
   'diagramRefreshAll',
   'diagramReferencesBrowser',
   'diagramAnchorPick',
+  'diagramPaperFacesFetching',
   'diagramPlacesSettled',
   'diagramPasted',
 ] as const;
@@ -89,13 +90,19 @@ export function escapePutsPickDown(
 /**
  * The Annotate tool in hand on the step open there: the one picked, but
  * Select in place of an Enlarge tool on an enlarged step, where no area is
- * drawn (Revision 2) — so the canvas selects there, as its rail shows, and
- * the tool is in hand again on the next step that can take it.
+ * drawn (Revision 2), and of the X-Ray tool where `xray`, the step's x-ray
+ * standing, holds it (Revision 3, R3-18a A: no layers, or its faces need a
+ * Refresh) — so the canvas selects there, as its rail shows, and the tool is
+ * in hand again on the next step that can take it. The standing knows the
+ * step's link, which the store does not: `useAnnotateToolInHand` supplies the
+ * rail's own.
  */
 export function annotateToolInHand(
-  state: Pick<WorkspaceState, 'diagram' | 'diagramSelectedStepId' | 'diagramAnnotateTool'>
+  state: Pick<WorkspaceState, 'diagram' | 'diagramSelectedStepId' | 'diagramAnnotateTool'>,
+  xray: XRayStanding
 ): AnnotateTool {
   const { diagram, diagramSelectedStepId: stepId, diagramAnnotateTool: tool } = state;
+  if (tool === 'x-ray') return xrayToolHeld(xray) ? null : tool;
   if (!isEnlargeTool(tool) || !diagram || stepId === null) return tool;
   return stepById(diagram, stepId)?.zoom ? null : tool;
 }
@@ -116,6 +123,21 @@ export function activeAnchorPick(
   const pick = state.diagramAnchorPick;
   if (!pick || pick.stepId !== state.diagramSelectedStepId || pick.target !== state.diagramSelectedAnnotationId) return null;
   return isDiagramAnnotating(state) ? pick : null;
+}
+
+/**
+ * Whether the anchor's pick `pick`, now ended, ended where it was made: the
+ * Diagram still where the keys go, its step open in Annotate with the area
+ * or frame it was for selected — anchored, or put down — rather than left for
+ * Pose, the step list, another step or another mark. What the touch View
+ * sheet, stepped aside while the pick was made under it, asks before it comes
+ * back (review of 18f).
+ */
+export function anchorPickEndedInPlace(
+  state: Pick<WorkspaceState, 'activeEditingContext'> & Parameters<typeof activeAnchorPick>[0],
+  pick: DiagramAnchorPick
+): boolean {
+  return state.activeEditingContext === 'diagram' && activeAnchorPick({ ...state, diagramAnchorPick: pick }) !== null;
 }
 
 /**
@@ -252,6 +274,7 @@ export function discardDiagramState(): DiagramScopedState {
     diagramRefreshAll: null,
     diagramReferencesBrowser: null,
     diagramAnchorPick: null,
+    diagramPaperFacesFetching: {},
     diagramPlacesSettled: null,
     diagramPasted: null,
   };

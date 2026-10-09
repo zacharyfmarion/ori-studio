@@ -26,6 +26,13 @@ describe('what Annotate’s fit frames on an enlarged step (Zach, 2026-10-07)', 
     const whole = annotateFitRect(layout, copied, style, false);
     expect(whole.height).toBeGreaterThan(5 * layout.picture.height);
   });
+
+  it('takes in an x-ray’s window only where its step draws it: a picture with the layers it cuts into (review of 18e)', () => {
+    const xray: KnownDiagramAnnotation = { id: 'xray', kind: 'x-ray', from: [1.5, 0.5], to: [1.5, 0.5], radius: 0.3, depth: 1 };
+    const bare = annotateFitRect(layout, [], style, false);
+    expect(annotateFitRect(layout, [xray], style, false)).toEqual(bare);
+    expect(annotateFitRect(layout, [xray], style, false, true).width).toBeGreaterThan(bare.width);
+  });
 });
 
 describe('what a paste brings into view (18d review)', () => {

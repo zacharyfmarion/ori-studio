@@ -820,7 +820,8 @@ function bodyDistance(
       return Math.min(area, inset, line);
     }
     case 'zoom':
-      // Its outline, not its inside: the marks drawn inside it are pressed there.
+    case 'x-ray':
+      // Its outline, not its inside: the marks drawn inside it are pressed there. An x-ray's window by its rim alike (Revision 3).
       return distanceToRim(zoomOutlineOf(annotation), point);
     case 'oval':
     case 'rectangle':
@@ -857,11 +858,22 @@ function coversCircle(other: KnownDiagramAnnotation, point: PicturePoint, sizes:
  */
 const underMarks = (kind: DiagramAnnotationKind) => LINE_KINDS.has(kind) && kind !== 'solid-line';
 
+/** What a canvas draws that a press may take. */
+export interface HitOptions {
+  /**
+   * Whether its x-rays' windows are drawn: not on a picture with no layers
+   * (R3-18b A), where a press passes through a rim nobody sees. A selected
+   * one's grips, shown wherever it is, still take their press.
+   */
+  xRays?: boolean;
+}
+
 export function hitAnnotation(
   annotations: readonly DiagramAnnotation[],
   point: PicturePoint,
   sizes: HitSizes,
-  selectedId: string | null
+  selectedId: string | null,
+  { xRays = true }: HitOptions = {}
 ): AnnotationGrip | null {
   const known = annotations.filter(isKnownAnnotation);
   const selected = known.find((annotation) => annotation.id === selectedId);
@@ -873,8 +885,9 @@ export function hitAnnotation(
     // A ring resizes what it is round, a centre's dot moves its circle.
     const grip = closeUpGripAt(selected, point, sizes.tolerance);
     if (grip) return { annotationId: selected.id, ...grip };
-  } else if (selected?.kind === 'zoom') {
-    // An enlarge area's grips (Revision 2): its centre's dot moves it; a circle's rim, a rectangle's corners and edges resize it.
+  } else if (selected?.kind === 'zoom' || selected?.kind === 'x-ray') {
+    // An enlarge area's grips (Revision 2): its centre's dot moves it; a circle's rim, a rectangle's corners and edges
+    // resize it. An x-ray's window takes a circle's (Revision 3).
     const grip = zoomGripAt(zoomOutlineOf(selected), point, sizes.tolerance);
     if (grip) return { annotationId: selected.id, part: 'zoom', zoom: grip };
   } else if (selected && isCornerKind(selected.kind)) {
@@ -903,18 +916,19 @@ export function hitAnnotation(
   // Topmost first, as they are drawn: labels over callouts over marks — a
   // solid line among them — over the pens' lines over close-ups, whose
   // insides are painted under everything, over
-  // enlarge areas over ovals and rectangles — and
+  // enlarge areas and x-ray windows over ovals and rectangles — and
   // a circle over the other marks, its ring the one place to take it, where
   // an arrow that lands on it has the rest of its length; but not where a
   // hollow arrow drawn after it hides it.
   const last = new Set(['circle', 'callout', 'label']);
-  const under = new Set<DiagramAnnotationKind>(['zoom', 'close-up', ...AREA_KINDS]);
+  const under = new Set<DiagramAnnotationKind>(['zoom', 'x-ray', 'close-up', ...AREA_KINDS]);
   const drawn = [
     // An oval or a rectangle under everything, as it is painted (Revision 3, R3-11d B): pressed on its rim, and
     // — selected — anywhere in its box, but a mark or a line under the press is taken first (R3-31 A).
     ...known.filter((annotation) => isAreaKind(annotation.kind)),
-    // An enlarge area under everything else, as a close-up's insides are: it marks an area, and what is inside it stays pressable.
-    ...known.filter((annotation) => annotation.kind === 'zoom'),
+    // An enlarge area under everything else, as a close-up's insides are: it marks an area, and what is inside it stays
+    // pressable. An x-ray's window with them, by its rim (Revision 3): the marks drawn over its inside stay pressable.
+    ...known.filter((annotation) => annotation.kind === 'zoom' || (xRays && annotation.kind === 'x-ray')),
     ...known.filter((annotation) => annotation.kind === 'close-up'),
     ...known.filter((annotation) => underMarks(annotation.kind)),
     ...known.filter(

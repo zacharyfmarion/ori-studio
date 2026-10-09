@@ -9,6 +9,7 @@ import type {
 import { annotatedPicture, hasDrawnAnnotations } from '../annotate/paintAnnotations';
 import type { PictureLayers } from '../annotate/pictureGeometry';
 import { sourcePaper, viewGeometry, viewOfStep } from '../zoom/stepView';
+import { xrayPainter, xraySurfaceOf, type XRaySurface } from '../xray/xrayPaint';
 import {
   paintZoomedPicture,
   paintZoomSurround,
@@ -55,30 +56,36 @@ export function useStepPictureUrl(
   const zoomed = useMemo(() => zoomedSource(step, assets), [step, assets]);
   // A flat fold's layers, in the units the marks are in: a mark behind a flap is dotted under it (15e).
   const layers = useMemo(() => viewGeometry(viewOfStep(step), assets, style).layers, [step, assets, style]);
+  // Its faces, on a picture with layers: each x-ray's window is drawn (Revision 3).
+  const xRays = useMemo(() => xraySurfaceOf(step), [step]);
   const { annotations } = step;
   return useMemo(() => {
     if (!seen || !source) return null;
-    return zoomed ? zoomedStepUrl(zoomed, annotations, style, true, layers) : annotatedStepUrl(source, annotations, style, 1, true, layers);
-  }, [seen, source, zoomed, annotations, style, layers]);
+    return zoomed
+      ? zoomedStepUrl(zoomed, annotations, style, true, layers, xRays)
+      : annotatedStepUrl(source, annotations, style, 1, true, layers, xRays);
+  }, [seen, source, zoomed, annotations, style, layers, xRays]);
 }
 
 /**
  * An enlarged step's window with its marks drawn on it (Revision 2), as a
  * card shows it: the window 50 mm across, its picture clipped to its frame
  * and its boundary, its marks — in the window's units — over it, a
- * close-up's inside the window painted larger. Through the cache, keyed by
- * the picture as {@link annotatedStepUrl} is, and by the frame.
+ * close-up's inside the window painted larger, an x-ray's window its own
+ * picture's (Revision 3). Through the cache, keyed by the picture as
+ * {@link annotatedStepUrl} is, and by the frame.
  */
 export function zoomedStepUrl(
   zoomed: ZoomedSource,
   annotations: readonly DiagramAnnotation[],
   style: DiagramStyle,
   kept = true,
-  layers: PictureLayers | null = null
+  layers: PictureLayers | null = null,
+  xRays: XRaySurface | null = null
 ): string | null {
-  const key = `zoomed|${sourceKey(zoomed.source)}|${zoomedKey(zoomed)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${layers ? 'layers' : ''}`;
+  const key = `zoomed|${sourceKey(zoomed.source)}|${zoomedKey(zoomed)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${layers ? 'layers' : ''}|${xRaysKey(xRays)}`;
   return throughCache(key, kept, () => {
-    const svg = zoomedCardPicture(zoomed, annotations, style, layers);
+    const svg = zoomedCardPicture(zoomed, annotations, style, layers, xRays && xrayPainter(xRays, style));
     return svg ? svgDataUrl(svg) : null;
   });
 }
@@ -86,16 +93,19 @@ export function zoomedStepUrl(
 /**
  * An enlarged step in Pose (Revision 2): its whole picture, the frame
  * outlined dashed and everything outside it dimmed, its marks ghosted at
- * `opacity` where they lie. Through the cache unless only shown for a moment.
+ * `opacity` where they lie, an x-ray's window as `xRays` draws it — its rim
+ * alone (Revision 3, R3-19 A). Through the cache unless only shown for a
+ * moment.
  */
 export function posedZoomUrl(
   zoomed: ZoomedSource,
   annotations: readonly DiagramAnnotation[],
   style: DiagramStyle,
   opacity: number,
-  kept = true
+  kept = true,
+  xRays: XRaySurface | null = null
 ): string | null {
-  const key = `zoom-pose|${sourceKey(zoomed.source)}|${zoomedKey(zoomed)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${opacity}`;
+  const key = `zoom-pose|${sourceKey(zoomed.source)}|${zoomedKey(zoomed)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${opacity}|${xRaysKey(xRays)}`;
   return throughCache(key, kept, () => {
     const painted = paintSource(zoomed.source, style);
     return painted
@@ -108,7 +118,7 @@ export function posedZoomUrl(
             style,
             opacity,
             null,
-            sourcePaper(zoomed.source, zoomed.view.window)
+            { paper: sourcePaper(zoomed.source, zoomed.view.window), xRays: xRays && xrayPainter(xRays, style) }
           )
         )
       : null;
@@ -193,7 +203,8 @@ export function zoomSurroundUrl(
  * close-up's inside is the picture painted again larger (15f) — but not
  * ghosted, as Pose shows the marks over a picture being posed: there a
  * close-up is its rings, as its inside would show the picture before the
- * pose.
+ * pose. `xRays`, the step's on a picture with layers, draws each x-ray's
+ * window (Revision 3) — as Pose ghosts it, its rim alone (R3-19 A).
  */
 export function annotatedStepUrl(
   source: StepPictureSource,
@@ -201,16 +212,27 @@ export function annotatedStepUrl(
   style: DiagramStyle,
   opacity = 1,
   kept = true,
-  layers: PictureLayers | null = null
+  layers: PictureLayers | null = null,
+  xRays: XRaySurface | null = null
 ): string | null {
   if (!hasDrawnAnnotations(annotations)) return stepPictureUrl(source, style, kept);
-  const key = `annotated|${sourceKey(source)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${opacity}|${layers ? 'layers' : ''}`;
+  const key = `annotated|${sourceKey(source)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${opacity}|${layers ? 'layers' : ''}|${xRaysKey(xRays)}`;
   return throughCache(key, kept, () => {
     const painted = paintSource(source, style);
     const paintAt = opacity < 1 ? null : (scale: number) => paintSource(source, style, undefined, scale);
     // A References picture's sheet: a label's halo is filled with the face it stands on (17b).
-    return painted ? svgDataUrl(annotatedPicture(painted, annotations, style, opacity, layers, paintAt, sourcePaper(source))) : null;
+    const paint = { paper: sourcePaper(source), xRays: xRays && xrayPainter(xRays, style) };
+    return painted ? svgDataUrl(annotatedPicture(painted, annotations, style, opacity, layers, paintAt, paint)) : null;
   });
+}
+
+/**
+ * What a picture's x-rays are drawn from, for a key: its faces — read once
+ * per picture, so another picture's are another object — and how they are
+ * drawn; nothing where none is.
+ */
+function xRaysKey(xRays: XRaySurface | null): string {
+  return xRays ? `x-ray|${objectSerial(xRays.faces)}|${xRays.look}` : '';
 }
 
 /** `paint`'s URL, through the cache when it is to be `kept`. */

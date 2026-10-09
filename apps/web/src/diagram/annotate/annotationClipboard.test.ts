@@ -220,6 +220,21 @@ describe('marks pasted on the picture they were copied from (Revision 2)', () =>
     near(back.from, oval.from);
   });
 
+  it('pastes an x-ray into an enlarged step’s window as an enlarge area is: grown with it, its depth and its anchor on the paper kept (Revision 3, 18e)', () => {
+    const a = showing('step-a', { centre: [0.4, 0.4], radius: 0.1 });
+    const whole = showing('step-w');
+    const xray: KnownDiagramAnnotation = { id: 'x', kind: 'x-ray', from: [0.42, 0.38], to: [0.42, 0.38], radius: 0.04, depth: 3, anchor: [12.5, -4] };
+    const [pasted] = pastedAnnotations(annotationClipboard([xray], whole.id, { view: copiedView(whole) }), a.id, () => 'annotation-1', a);
+    near(onPaper(a, pasted!.from), xray.from);
+    expect(pasted!.to).toEqual(pasted!.from);
+    // The window is a fifth of the picture across: five times the size in its units.
+    expect(pasted!.radius).toBeCloseTo(0.2, 9);
+    expect(pasted).toMatchObject({ kind: 'x-ray', depth: 3, anchor: [12.5, -4] });
+    const back = pastedAnnotations(annotationClipboard([pasted!], a.id, { view: copiedView(a) }), whole.id, () => 'annotation-2', whole)[0]!;
+    expect(back.radius).toBeCloseTo(0.04, 9);
+    near(back.from, xray.from);
+  });
+
   it('holds a shape grown past R3-30b’s range by a small window to its largest side, and does not grow it back (18d review)', () => {
     const a = showing('step-a', { centre: [0.4, 0.4], radius: 0.1 });
     const whole = showing('step-w');

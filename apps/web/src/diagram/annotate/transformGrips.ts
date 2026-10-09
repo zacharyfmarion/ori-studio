@@ -123,6 +123,7 @@ export function boxedMarkOf(annotation: KnownDiagramAnnotation, ink: number = IN
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'x-ray':
       return null;
   }
 }

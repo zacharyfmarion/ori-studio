@@ -142,8 +142,8 @@ export function SolidArrowGlyph(): ReactElement {
  * list both show it. The fold, push and white arrows are the arrows
  * themselves; the lines are their dash; the circle its ring; the right angle
  * its ∟ and square inside the two lines it marks; equal divisions the
- * template's |\|\| symbol; the callout its line and box; the star, the eye, the oval and
- * the rectangle the marks they draw; Rotate and Label are the app's own icons for those verbs. Every kind
+ * template's |\|\| symbol; the callout its line and box; the star, the eye, the oval,
+ * the rectangle and the x-ray the marks they draw; Rotate and Label are the app's own icons for those verbs. Every kind
  * has one: the return type makes a kind left out a compile error, not a
  * blank button.
  *
@@ -330,6 +330,21 @@ export function DiagramAnnotationGlyph({
       return (
         <Glyph>
           <rect x={3} y={5} width={14} height={10} strokeLinejoin="miter" />
+        </Glyph>
+      );
+    case 'x-ray':
+      // A heavy rim cut into a flap (Revision 3, R3-15b (ii)), and inside it a few short dashes in two staggered rows,
+      // hidden lines beneath seen through it: not a bar across a ring, which reads as "no", nor an M, which reads as
+      // the Mountain tool (18f, after 18e). Each dash longer than the Hidden Line's dots, which at the rail's size
+      // read as a grille (review of 18f).
+      return (
+        <Glyph>
+          <path
+            d="M5.4 8.2 L7.4 8.2 M9 8.2 L11 8.2 M12.6 8.2 L14.6 8.2 M7.2 11.8 L9.2 11.8 M10.8 11.8 L12.8 11.8"
+            strokeLinecap="butt"
+            data-glyph-part="dashes"
+          />
+          <circle cx={10} cy={10} r={7.2} strokeWidth={2} data-glyph-part="rim" />
         </Glyph>
       );
   }

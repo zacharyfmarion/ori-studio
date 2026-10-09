@@ -271,6 +271,19 @@ export function distanceToRim(outline: DiagramZoomOutline, point: PicturePoint):
 }
 
 /**
+ * The outline drawn in by `by` all round, never past nothing: a circle's
+ * radius less it, a rectangle's sides less twice it — its corners rounded as
+ * its kind rounds them, a hair off a true inset, which nothing measures. What
+ * stops a fill short of the cut drawn along the outline (an x-ray's window on
+ * an enlarged step, Revision 3).
+ */
+export function zoomOutlineInset(outline: DiagramZoomOutline, by: number): DiagramZoomOutline {
+  if (zoomShapeOf(outline) === 'circle') return { ...outline, radius: Math.max(0, outline.radius! - by) };
+  const [width, height] = outline.size!;
+  return { ...outline, size: [Math.max(0, width - 2 * by), Math.max(0, height - 2 * by)] };
+}
+
+/**
  * The outline traced as a closed ring of points: a circle at `sides` points
  * (96, the ring a cut is measured on), a rounded rectangle along its four
  * sides exactly and `perCorner` points round each corner, turned with it.

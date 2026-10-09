@@ -5,12 +5,16 @@
 (PR #446). 18b (stars, the transform box, and 18a's follow-up hint)
 built, gated and committed 2026-10-08, not yet pushed (18b, As
 built). 18c (the eye) built, reviewed, gated and committed 2026-10-08,
-not yet pushed (18c, As built). 18a–18c pushed (PR #446, `3ea485fa5`).
-18d (shapes, and 18c's follow-ups) built, reviewed, gated and committed
-2026-10-08 as four commits, and pushed (PR #446, `7cdbd6f89`). 18d's two
-follow-ups (a finger's handles on the transform box, and the turn's
-rounding) built and gated the same day (Follow-ups to 18d).** His
-answers, each recorded under its decision:
+not yet pushed (18c, As built). 18a–18d pushed (PR #446). 18d (shapes, and 18c's follow-ups)
+built, reviewed, gated and committed 2026-10-08 (18d, As built), and its two follow-ups (a
+finger's handles on the transform box, and the turn's rounding) the same day (Follow-ups to 18d).
+18.0 (the X-ray spike) run 2026-10-08 on `claude/diagram-xray`: go, with three changes to what
+18e builds (18.0 results). 18e (X-ray: model, canvas, tool and Layers) built 2026-10-08 on
+`claude/diagram-xray`, reviewed, its findings fixed, gated and committed 2026-10-09 (18e, As
+built). 18f (X-ray on every other surface, and three of 18e's follow-ups) built 2026-10-09 on
+`claude/diagram-xray`, reviewed, its findings fixed, gated and committed the same day, not yet pushed (18f, As
+built). 18g (X-ray peels the window: R3-34 A replaces R3-13 A) built and gated 2026-10-09 on
+`claude/diagram-xray` (`implementation-plans/diagram-xray-peel.md`).** His answers, each recorded under its decision:
 
 - **R3-1 A, R3-2 A** (short dividers: one switch on each mark, 1.65 mm
   either side of the line): "should just be all interior ones, not per
@@ -64,9 +68,25 @@ answers, each recorded under its decision:
   both canvases; and one rule for keeping a turn. Recorded under
   Follow-ups to 18d.
 
-**Still PENDING:** R3-16a, R3-16c and R3-17 to R3-22 (X-ray). Under the
-same instruction (2026-10-08) each will be built as recommended when its
-phase comes, unless it is a large fork in the design. R3-34 (where a paste
+- **Everything 18e uses** (2026-10-08), under the same instruction:
+  R3-16c A, R3-17 B, R3-18a A, R3-18b A, R3-19 A, R3-20 B, R3-21 A and
+  R3-22 B, each recorded DECIDED under it; and R3-16a amended to A after
+  18.0, on its evidence: each face's side is worked out from its outline,
+  not stored (R3-16a, with the numbers).
+- **18e's follow-ups** (2026-10-09), under the same instruction, built in
+  18f: the X-Ray tool's icon a ring with rows of the Hidden Line's short
+  dashes inside (the ring round an M read as the Mountain tool); the
+  x-ray's Anchor row named "Point" in its own key (Enlarge's "Anchor" is
+  "anchor face" in Japanese, Chinese and Korean), with its own picking
+  hint; and on a touch device the Settings sheet steps aside while a pick
+  armed from it is made on the canvas, and comes back when it ends —
+  Enlarge's pick too. Recorded under 18e's For Zach, (3) to (5). 18f's
+  review, the same way: the sheet comes back only when the pick ends where
+  it was made; a bar on the canvas says what a touch pick waits for, with
+  Cancel; the icon's dashes longer and staggered; the reset hint "Count the
+  layers at the window's centre again" (18f, As built).
+
+**Still PENDING:** R3-34 (where a paste
 from another picture's whole step lands on an enlarged step), raised by
 18d's review: built as recommended, A, which leaves Revision 2's decision 7
 as Zach confirmed it; B or C would change that decision, so they wait for
@@ -1065,7 +1085,10 @@ mind: "being able to hide specific faces and show the faces underneath".
   fetches them while the link is current. It returns at once for a step
   that has `paperFaces` (`:79`), so a step stored before a new key would
   never get it. It must also fetch when the key is missing, or such a step
-  needs a Refresh.
+  needs a Refresh. (Under R3-16a A, as amended after 18.0, there is no new
+  key: only a step with no `paperFaces` at all is fetched for, as it is
+  today — 14 of the crane's 21 flat steps, and every flat step of the
+  heart and Reference Diagrams.)
 
 **Under the recommendations:**
 
@@ -1078,10 +1101,15 @@ mind: "being able to hide specific faces and show the faces underneath".
   no upper limit: the Depth stepper stops at the stack under the anchor,
   and a depth past the stack draws at the deepest layer, so a larger number
   means nothing new.
-- **What capture stores (R3-16a B).** `paperFaces` gains `sides`: a string,
-  one `0` or `1` per face in the kernel's face order, `1` where `front_up`.
-  `capturePaperFaces` writes it, `readPaperFaces` knows the key, and
-  `stepWithPaperFaces` fetches faces for a flat step that lacks it.
+- **What capture stores (R3-16a A, amended after 18.0).** Nothing new: a
+  face the stored scene draws keeps its own side, and a face it dropped is
+  given its side by how its ring turns on the paper and on the picture,
+  calibrated on a face the scene names (agreed with the kernel on all 834
+  faces of Zach's four diagrams). `paperFaces` is unchanged, so no older
+  build of #436 locks a step for it. A flat step captured before faces were
+  kept gets them through `stepWithPaperFaces` as an x-ray is laid on it, in
+  the same undo step, as an enlarge area's step does
+  (`giveDiagramStepPaperFaces`).
 - **What it removes (R3-13 A).** The top `depth` faces at the anchor, and
   every face over those, across the whole window: 15e's rule
   (`behindFlaps.ts:65` `facesAt`, `:135` `facesOver`), on stacks built from
@@ -1096,7 +1124,14 @@ mind: "being able to hide specific faces and show the faces underneath".
   clips to the window (`zoomClipShape`, `zoom/paintZoomed.ts:118`), lays the
   page's white, paints that scene through `paperSceneSvgBody`, then draws
   the rim at 1.5 × the edges' pen (R3-15b (ii)). The step's marks are drawn
-  over it. A mark behind a flap stays dotted (R3-17 B).
+  over it. A mark behind a flap stays dotted (R3-17 B). (**Amended by 18f's
+  review:** "the page's white" is laid only where there was paper — over the
+  faces the window takes away, as the picture draws them, their outlines
+  too — and nothing off the paper, so a page's band, a selected cell's tint
+  or a transparent step file shows through the window there as it does round
+  it. Laid across the whole circle, it printed a white disc wherever a window
+  crossed the paper's edge. On the canvas, whose page is white, nothing
+  changes.)
 - **Surfaces.** Each painter gets a hook shaped like the close-up's. 18e:
   the canvas (as `annotate/useCloseUpInsides.ts`). 18f: the card
   (`pictures/useStepPictureUrl.ts:212`); the page's `cellPicture`
@@ -1107,7 +1142,10 @@ mind: "being able to hide specific faces and show the faces underneath".
   Until 18f lands, no surface but the canvas draws an x-ray, rim included,
   so nothing prints a window that shows nothing. A parity test is copied
   from `closeUps.surfaces.tsx`. A PDF prints a clip path already, through
-  close-ups.
+  close-ups. (**As built in 18f:** not a hook per surface but one pure
+  painter, `xray/xrayPaint.ts`, which each surface hands `paintAnnotations`
+  as a callback; importing it there would make an import cycle through
+  `paintZoomed`. 18f, As built.)
 - **Tool.** X-Ray, in Marks after Enlarge in Frame, key X (R3-25 A). Drag
   out from the middle of an area, as Enlarge does; a click puts down a
   standard size (`placedByClick`). Then the Depth field takes the focus, as
@@ -1148,7 +1186,10 @@ mind: "being able to hide specific faces and show the faces underneath".
   depth past it is drawn at the deepest, with a notice on the Depth row
   ("Only {{count}} layers here", a plural key). Turn Over carries the
   window with its face, depth kept, and it then looks through the other
-  side's stack from its new top (R3-21 A). No Flip row. A paste lands as an
+  side's stack from its new top (R3-21 A). (**Amended by 18e's review:**
+  Turn Over of a linked flat fold carries no mark — it is "the other side
+  of a fold", which `annotationCarry.ts` leaves where it was — so the x-ray
+  stays where it was, as every mark does; see R3-21.) No Flip row. A paste lands as an
   enlarge area's does. On an enlarged step it uses that step's own scene
   and faces.
 - **A step that loses its layers (R3-18b A).** Show As Crease Pattern, 3D or
@@ -1197,6 +1238,10 @@ mind: "being able to hide specific faces and show the faces underneath".
   already drawn by hand with the Hidden Line.
 
 **R3-13. What do N layers remove? DECIDED: A.** Zach, 2026-10-08: "sounds good".
+(**Superseded by R3-34 A, 2026-10-09**, after Zach's report on #447 that a
+window across two flaps x-rayed only one of them: a window is now peeled,
+read inside it, a face a step and the whole top layer first. See
+`implementation-plans/diagram-xray-peel.md`, 18g.)
 - A. The flap at a point: the top N layers at the window's anchor, its
   centre unless picked, and every layer over those, removed across the
   whole window. 15e's "behind N layers" rule.
@@ -1241,7 +1286,18 @@ mind: "being able to hide specific faces and show the faces underneath".
   rim is the edges' weight or a little more. (i) matches the enlarged
   frame's cut, which is the case for it.
 
-**R3-16a. Where an X-ray gets each face's side. PENDING.**
+**R3-16a. Where an X-ray gets each face's side. DECIDED: A**, amended
+after 18.0 under Zach's standing instruction (2026-10-08: "go with your
+recs from now on unless there is a large fork in the design to be figured
+out, until i say otherwise"). 18.0 found A agrees with the kernel's
+`front_up` on all 834 faces of Zach's four diagrams (no sliver, no empty
+ring), and that B leaves the crane 223 bytes under Z11's 1% (0.992%, its
+faces alone 0.958%), so a flat step or two more breaks the budget with
+`sides` where it would not without. A face the stored scene draws keeps the
+side its item names (exact by construction); only a face the scene dropped
+is worked out, calibrated on one the scene names. Nothing is stored, so no
+older build locks a step, and no step needs a Refresh for a key. B stays
+the way if a sliver ever flips.
 - A. Worked out from how each face's ring turns on the paper and on the
   picture, calibrated on a face whose scene item names its side. Nothing
   new is stored.
@@ -1250,9 +1306,10 @@ mind: "being able to hide specific faces and show the faces underneath".
   3.9 kB margin). Older builds of #436 lock such a step; a step stored
   before it gets the key through `stepWithPaperFaces`, extended to fetch
   when it is missing, or by Refresh.
-- **Recommended: B**, if 18.0's size check passes. It is exact, cheap, and
-  what Z11 stores faces for. A is untested and can flip on a sliver. If B
-  breaks the budget on any of the four diagrams, the numbers go to Zach.
+- **Recommended: B**, if 18.0's size check passes (before 18.0). It is
+  exact, cheap, and what Z11 stores faces for. A is untested and can flip
+  on a sliver. If B breaks the budget on any of the four diagrams, the
+  numbers go to Zach. (18.0 then tested A, and found it exact; above.)
 
 **R3-16b. Whether the revealed layers carry creases. DECIDED: A**, for
 now. Zach, 2026-10-08: "sounds good". A step's
@@ -1268,7 +1325,10 @@ covered, and nothing of the faces wholly buried.
   closed sink: its M of lines could be the sunk layers' edges, which A
   draws, or creases, which A leaves to a Line.
 
-**R3-16c. Where an X-ray gets each point's stack. PENDING.**
+**R3-16c. Where an X-ray gets each point's stack. DECIDED: A**, under the
+standing instruction (2026-10-08): 18.0's stack check passed, 597 of 597
+against the kernel's `faces_top_to_bottom`, read on the paper with "over"'s
+tolerance (18.0 results, 1 and 2).
 - A. From `paperFaces`' levels: the faces under the anchor, sorted by
   level. Woven pairs are the exception, as in 15e.
 - B. Stored: the kernel's overlap cells (`subfaces`), each a polygon and
@@ -1277,23 +1337,26 @@ covered, and nothing of the faces wholly buried.
 - **Recommended: A**, if 18.0's stack check passes outside woven patches.
   B only if it fails, with its measured size.
 
-**R3-17. A mark behind a flap the window removes. PENDING.**
+**R3-17. A mark behind a flap the window removes. DECIDED: B**, under the
+standing instruction (2026-10-08).
 - A. Drawn solid inside the window, since nothing covers it there.
 - B. Left dotted, as set.
 - **Recommended: B** in this revision. A compares every mark's behind count
   with the window's depth along it, which is a piece of work of its own.
 
-**R3-18a. The X-Ray tool on pictures with no layers. PENDING.** A crease
+**R3-18a. The X-Ray tool on pictures with no layers. DECIDED: A**, under
+the standing instruction (2026-10-08). A crease
 pattern, a 3D or simulated capture, an upload, a see-through development
 and a References step.
 - A. The tool is held there, saying "X-ray works on flat folds", as Enlarge
-  is held on an enlarged step. A flat step from before Revision 2 (or,
-  under R3-16a B, from before `sides`) gets its faces while its link is
-  current; otherwise the tool says "Refresh step N to x-ray it".
+  is held on an enlarged step. A flat step from before Revision 2 gets its
+  faces while its link is current; otherwise the tool says "Refresh step N
+  to x-ray it".
 - B. Allowed, drawing only a rim, to annotate by hand.
 - **Recommended: A.** B draws a cut that shows nothing.
 
-**R3-18b. An X-ray on a step that loses its layers. PENDING.** Show As
+**R3-18b. An X-ray on a step that loses its layers. DECIDED: A**, under
+the standing instruction (2026-10-08). Show As
 Crease Pattern, 3D or Simulated; Duplicate As one of those; Replace with an
 upload; a Refresh into a fold with no layer order; faces in the `refresh`
 state.
@@ -1306,14 +1369,20 @@ state.
   reason. Show As is often a trip there and back, and under A the window
   comes back as it was.
 
-**R3-19. An X-ray in Pose. PENDING.** Pose ghosts the step's marks over
+**R3-19. An X-ray in Pose. DECIDED: A**, under the standing instruction
+(2026-10-08); built in 18f (on Pose's card and an enlarged step's, and kept
+while a spread is dragged, whose preview is captured without faces; a live
+3D or simulated view mounts only for a 3D or simulated capture, which has
+no layers, so there R3-18b draws nothing, and since 18f's review its ghost
+is given no x-ray painter at all). Pose ghosts the step's marks over
 the live fold at 0.3 opacity, and a close-up there shows only its ring.
 - A. Its rim only.
 - B. Nothing.
 - **Recommended: A.** Its inside is the stored picture's, which a live pose
   is not, and A treats it as a close-up is treated there.
 
-**R3-20. A close-up whose area takes in a window. PENDING.**
+**R3-20. A close-up whose area takes in a window. DECIDED: B**, under the
+standing instruction (2026-10-08).
 - A. Its inside is x-rayed too: the picture as the step draws it, window
   and all. That is X-ray in three more painters (the card's, the page's and
   the canvas's close-up insides).
@@ -1322,7 +1391,8 @@ the live fold at 0.3 opacity, and a close-up there shows only its ring.
 - **Recommended: B.** A close-up over a window is rare, and A triples the
   painter work before anyone has used an X-ray.
 
-**R3-21. An X-ray after Turn Over. PENDING.**
+**R3-21. An X-ray after Turn Over. DECIDED: A**, under the standing
+instruction (2026-10-08).
 - A. Carried with its face, depth kept: it then looks through the other
   side's stack from its new top.
 - B. Carried, its depth set to show the same face it showed, now from
@@ -1330,8 +1400,20 @@ the live fold at 0.3 opacity, and a close-up there shows only its ring.
 - C. Dropped from the turned picture.
 - **Recommended: A.** A window is placed for the view it is in, and A is
   what an enlarge area does. B guesses at intent; C loses work.
+- **As built (18e review, 2026-10-09): the code proves A's premise wrong.**
+  Turn Over of a linked flat fold refolds it: the turned picture is another
+  fold's, and `annotationCarry.ts` leaves every mark where it was on "the
+  other side of a fold", with Annotate's "The picture changed" banner. So an
+  x-ray stays where it was in the picture, as every mark does, its depth
+  kept, and looks at what is there now (the crane's index 22: 2 of 44 faces
+  taken away before, 11 after). `carryZoom`'s x-ray path (depth and anchor
+  kept) runs only for the moves the app applies itself — a quarter turn, an
+  upload's flip, a References turn-over — none of which can hold an x-ray.
+  Carrying marks through a linked fold's Turn Over would be a new carry for
+  every mark, not an x-ray change: **for Zach**, a fork, not built here.
 
-**R3-22. Snapping inside a window. PENDING.**
+**R3-22. Snapping inside a window. DECIDED: B**, under the standing
+instruction (2026-10-08): 18.0's spread check passed.
 - A. Unchanged: the picture's own targets, the removed faces' edges
   included; nothing revealed snaps.
 - B. Inside each window, the removed faces' corners and edges stop
@@ -1610,6 +1692,13 @@ wholly buried face lies between, it can name a different Nth layer than
 the paper has. X-ray's stacks from `paperFaces` would fix it too. Left for
 a follow-up.
 
+18.0 found that 15e's `facesOver` (`behindFlaps.ts`), run on
+`paperFaces`' rings, takes two faces that meet along a fold as overlapping
+where their stored corners cross by about 1e-5 of the picture (heart #14 to
+#16). X-ray reads "over" with a tolerance instead (18.0 results, 2).
+Whether 15e's own marks meet the same on the stored scene was not checked.
+Left for the same follow-up.
+
 ## Affected Areas
 
 **Equal divisions.** `cp-workspace/references/diagram/diagramInk.ts`
@@ -1669,10 +1758,10 @@ named in "Common ground"; `stepDiagramGeometry.ts` (`starDrawn`,
 the transform box.
 
 **X-ray.** New `diagram/xray/xrayScene.ts`, `useXRayInsides.ts`,
-`xray.surfaces.tsx`, golden `xray.cases.ts`;
-`capture/capturePaperFaces.ts`, `document/paperFacesFile.ts`,
-`document/diagramDocument.ts` (`DiagramPaperFaces.sides`) and
-`capture/stepPaperFaces.ts` (R3-16a B); `diagram/annotate/paintAnnotations.ts`,
+`xray.surfaces.tsx`, golden `xray.cases.ts`; a new
+`diagram/annotate/faceOverlap.ts` beside `behindFlaps.ts` (18.0 results,
+2); no change to `paperFaces` (R3-16a A, amended), its faces fetched for an
+older step through `giveDiagramStepPaperFaces`; `diagram/annotate/paintAnnotations.ts`,
 `pictures/useStepPictureUrl.ts`, `pages/pagePictures.ts`,
 `zoom/paintZoomed.ts` (`zoomedCardPicture`, `poseGhostMarkup`),
 `export/stepFiles.ts` (read); `annotate/pictureSnap.ts` (R3-22 B);
@@ -1719,49 +1808,198 @@ Whether R3-13 A can be drawn from what a step stores, and what storing more
 would cost, measured on Zach's diagrams before anything is built. Output in
 `artifacts/revision-3/xray-spike/`.
 
-- [ ] **The crane copied** into `artifacts/revision-3/crane.osf`.
-- [ ] **Depth 0.** The window's inside built from `paperFaces` with nothing
+- [x] **The crane copied** into `artifacts/revision-3/crane.osf`.
+- [x] **Depth 0.** The window's inside built from `paperFaces` with nothing
   removed (sides, places, outline roles, back to front by level), against
   the stored picture's own render in the same window, on every flat step of
   the crane, with and without a spread. Pass: pixel for pixel. This one
   check holds the sides, the spread's places and the outlines together.
-- [ ] **Stacks at an anchor.** On three flat crane steps, four anchors each,
+- [x] **Stacks at an anchor.** On three flat crane steps, four anchors each,
   depth 1 to 3: the faces A removes, against the kernel's
   `faces_top_to_bottom` at the anchor, read from the linked pattern's
   paper scene (`engine/oristudioCpTypes.ts:529-586`). Pass: identical
   everywhere outside a woven patch (R3-16c).
-- [ ] **Across the window.** The share of each window where A's top face
+- [x] **Across the window.** The share of each window where A's top face
   differs from a true drill's (R3-13 B). Evidence for R3-13; no pass mark.
-- [ ] **Sides.** Every face's side worked out from its rings (R3-16a A),
+- [x] **Sides.** Every face's side worked out from its rings (R3-16a A),
   against the kernel's `front_up`, on every flat step of Zach's four
   diagrams: the crane, the heart, the chipmunk and Reference Diagrams.
   Pass: all agree. Slivers listed. (Not box_90:
   `tests/fixtures/fold-angle-3d/box_90.osf` holds no diagram, so it has no
   flat steps.)
-- [ ] **Spread.** With an affine spread on, the inside drawn from the
+- [x] **Spread.** With an affine spread on, the inside drawn from the
   scene's face items lines up with the picture round it within 0.1 px.
-- [ ] **Speed.** On every frame of a window's drag on the crane's busiest
+- [x] **Speed.** On every frame of a window's drag on the crane's busiest
   step, in Chromium: A's inside rebuilt; and B's, its cells worked out once
   for the step and only clipped to the window per frame. Pass for A: under
   4 ms a frame. B's number is evidence for R3-13.
-- [ ] **Creases.** How many revealed faces carry `aux_lines` in the
+- [x] **Creases.** How many revealed faces carry `aux_lines` in the
   kernel's scene, and what storing them would weigh (R3-16b).
-- [ ] **Size (Z11).** Every key 18.0 would store (`sides` under R3-16a B;
+- [x] **Size (Z11).** Every key 18.0 would store (`sides` under R3-16a B;
   aux creases or cells if R3-16b or R3-16c turns to B), weighed on the four
   diagrams with every flat step refreshed and written as the app writes a
   file: Revision 2's `artifacts/revision-2/16c/paperFacesBudget.mjs` (in
   #436's worktree), copied here and extended to write the key. Pass: each
   file within 1% with the key. Otherwise the numbers go to Zach.
-- [ ] **Old steps.** A flat step from before Revision 2 gets its faces
+- [x] **Old steps.** A flat step from before Revision 2 gets its faces
   through `stepWithPaperFaces` while linked, and, with `sides`, a step
   stored before the key gets it the same way.
-- [ ] **Renders.** The crane's windows at depth 1 to 3, at print size,
+- [x] **Renders.** The crane's windows at depth 1 to 3, at print size,
   beside the note's picture, for Zach (the prototype is skipped).
 
 Result: a pass builds 18e and 18f as planned. If the sides check fails,
 R3-16a B is the only way. If a size check fails, the numbers go to Zach. If
 the stacks fail, R3-16c B is put to Zach with its measured size, or X-ray
 leaves this plan for one of its own.
+
+#### 18.0 results
+
+**Run 2026-10-08** on `claude/diagram-xray` (cut from #446 at
+`3ea485fa5`), against its dev server on :5314. Scripts in
+`artifacts/revision-3/18.0/`, output in `artifacts/revision-3/xray-spike/`,
+both in `.claude/worktrees/diagram-xray/` and gitignored; nothing merges.
+Each flat step is folded again as `captureStep` folds it (the store's
+`createCpCaptureRuntime`, `openFold`, `foldToCase`, `readFoldedPicture`)
+and its picture made by the real `flatPicture`. The X-ray is
+`18.0/xraySpike.js`, what `xrayScene.ts` would be, calling the app's
+`facesAt`, `facesOver`, `paperSceneToSvg` and `paperSceneSvgBody`. The four
+diagrams hold 38 flat steps (crane 21, heart 8, chipmunk 8, Reference
+Diagrams 1) and 834 faces. 36 steps have an affine spread; chipmunk #13 and
+#15 have none, and every step was also refolded with none. Every refold
+draws the stored picture but heart #15 (its link is stale) and Reference
+Diagrams #5 (it folds to another picture now), checked on their refreshed
+pictures. No step has a woven component, so the woven caveat is untested.
+
+**Go.** Every check passes. Three pass only with a change to how 18e
+builds A (1 to 3 below); none changes the design, and nothing found is a
+large fork.
+
+- **Depth 0: go.** 138 windows on the 36 spread steps (the whole picture,
+  and three of the click's size, r 0.15, at checked anchors): drawn in the
+  stored scene's order, the inside is pixel for pixel the stored picture's
+  own items through the same clip, 138 of 138, and the whole-picture window
+  is identical to the bare picture, 36 of 36. Drawn by level alone, 32 of
+  138 differ (1,445 px, on 10 crane steps and 7 heart steps), all on
+  strokes, where two faces with no order between them share an edge. Sides,
+  places and outline roles (every stored face item draws its own outline,
+  `outline: edge`) hold. Refolded with no spread, the inside differs on
+  strokes only (144 windows, 0 px off a stroke): a buried face's outline
+  lies on a visible edge and is drawn twice there. Any clip changes stroke
+  edges in Chromium by up to 45/255 away from the rim, which the rim does
+  not hide, so the comparison is against the stored items through the same
+  clip, not the bare picture.
+- **Stacks at an anchor: go.** Every flat step of all four, up to six
+  anchors each, depth 1 to 3: 597 checks. The stack from `paperFaces`'
+  levels is the kernel's `faces_top_to_bottom`, 597 of 597. What A removes
+  matches the kernel's (the top N and every face over them in any cell),
+  597 of 597, once "over" has a tolerance (2 below); with 15e's
+  `facesOver` as it is, 590 (heart #14 to #16, 15 faces too many). On the 36
+  spread steps (576 checks), read on the paper (1 below): 576 of 576; read on
+  the drawn faces: 554 (crane #14, #16, #28, 44 faces too many).
+- **Across the window** (evidence for R3-13). 597 windows of the click's
+  size: A's top face differs from a true drill's (B) over a median 30% of
+  a window (crane 44%), 90th percentile 71%, most 95%; the same in 69. A
+  shows the page's white somewhere in 39 windows, at most 29% of one, where
+  every layer at a point lies over the removed ones; B never does.
+- **Sides: go.** Worked out from the turns of each ring (R3-16a A) against
+  `front_up`: 834 of 834 agree, no sliver (the smallest face is 641 scene
+  px² on the picture), no empty ring. Every stored face item's side is its
+  face's `front_up` (1,019 items). So B is exact by construction, and A
+  would work too.
+- **Spread: go.** On all 36 spread steps every face is in the stored scene
+  whole, corner for corner with its `paperFaces` ring; drawn from those
+  items the inside is the picture's own pixels through the clip (0 px off).
+  Drawn from `paperFaces`' unspread places it would be up to 62 scene px
+  off (28 CSS px on a card).
+- **Speed: go.** Crane #28 (52 faces, 28 cells, stacks to 24) and #20 (44
+  faces, stacks to 36), a 120-frame drag with the click's window, depth 1
+  to 3, A built as 1 to 3 below: a frame's inside, removal and markup
+  (`paperSceneSvgBody`) take a median 0.05 to 0.075 ms, at most 0.47 ms;
+  the step's own set-up once 0.15 to 0.54 ms; setting the markup into the
+  page and laying it out 0.10 to 0.15 ms. At 4× CPU throttling, at most
+  2.2 ms (95th percentile 0.91). B, its cells worked out once, 0.005 to
+  0.01 ms a frame; it was never the cost.
+- **Creases** (R3-16b). Faces nothing shows, which a window can reveal,
+  carry aux creases: crane 41 creases on 41 of 518 such faces (18 of 21
+  steps, 1 to 4 each), heart 120 on 50 of 108, chipmunk 40 on 10 of 18,
+  Reference Diagrams none. Storing every face's aux creases would take the
+  crane to 1.068% and the heart to 1.156%: over Z11. R3-16b A stands.
+- **Size (Z11): go**, the crane with 223 bytes left. Each file with every
+  flat step refreshed, against the same with no faces: crane +0.958% for
+  `paperFaces`, +0.992% with `sides` (945 B for 630 faces); heart +0.669%,
+  +0.691% (279 B); chipmunk +0.355%, +0.367% (162 B); Reference Diagrams
+  +0.258%, +0.274% (18 B). Cells (R3-16c B) would be 2.201%, 1.714%,
+  0.686%, 0.592%: not needed, and over Z11 on two.
+- **Old steps: go.** Each flat step with `paperFaces` taken off, handed to
+  the real `stepWithPaperFaces`: 36 of 38 get them back (crane 21, heart 7,
+  chipmunk 8), byte for byte the stored ones where there were any (15 of
+  15); heart #15 says Refresh (stale), Reference Diagrams #5 Refresh
+  (redrawn). Its early return hands back every step that has faces (15 of
+  15), so 18e extends it to fetch when `sides` is missing, as planned.
+  (**Amended, see R3-16a:** 18e stores no `sides`, so the early return
+  stands and nothing is extended.)
+- **Renders.** `artifacts/revision-3/xray-spike/renders.png`, beside the
+  note's picture, at print size (29 to 52 mm wide, drawn at 216 dpi), each
+  tile's SVG in `xray-spike/svg/`: crane #10, #19, #25 and #28 at depth 1,
+  2 and 3; #19 and #28 again in the note's colours (cream in front, tan
+  behind); heart #14 and #16 in its own colours. Depth 1 takes off 1 to 5
+  faces; depth 3 on #25 takes 34 of 44, its anchor's stack being 4. In the
+  note's colours a window reads as the note's does: the rim, the layers
+  under in the other side's colour, their edges.
+
+**What 18e takes from it.**
+
+1. **Stacks on the paper.** The `anchor` is a point on the paper, as the
+   model says: a window's centre on a spread picture goes back to the paper
+   through the face seen on top there (that face's drawn ring onto its
+   unspread one, corner for corner), and the stack and "every face over"
+   are read on `paperFaces`' unspread places. Never on the drawn faces,
+   where the spread pushes flaps into one another.
+2. **"Over" with a tolerance.** Two faces are over one another when they
+   share a part wider than 1e-4 of the picture (its area over half its
+   perimeter, about three of the stored 0.01 px steps), not by 15e's
+   `facesOver` as it is: its crossing and hair tests take two faces meeting
+   along a fold, whose stored corners cross by about 1e-5, as overlapping
+   (heart #16's pair: 1.1e-5, where a true overlap is 0.086). A pure helper
+   beside `behindFlaps.ts`, tested on the heart's pair. Whether 15e's own
+   behind-flap marks meet the same false overlap on the stored scene is
+   left with "Found while planning".
+3. **The stored order.** The faces left are drawn in the stored scene's
+   order (its whole face items, those with no `group`), and a face it
+   dropped (no spread) by level among them, not by level alone.
+4. Places from the stored scene's whole face items with a spread, from
+   `paperFaces` with none.
+5. The page's white inside a window, where A removes every layer at a
+   point, is A's, not a gap; the tests expect it. (18f's review: on the
+   paper only. Off it a window lays nothing, and what is under the picture
+   shows through.)
+6. Pixel tests compare a window with the stored scene's own items through
+   the same clip, never with the bare picture.
+7. With no spread, a revealed face's outline is drawn twice where it lies on
+   a visible edge (2 of 38 steps have no spread); left as it is.
+
+18f takes 6 for its parity test, and nothing else new.
+
+**For Zach** (none of it a large fork):
+
+- **The crane's budget.** It holds at 0.992%, 223 bytes under the cap. Its
+  faces alone are 0.958% now (21 flat steps; 0.84% at 16c with 18), so a
+  flat step or two more breaks Z11 on the crane with or without `sides`.
+  `sides` costs it 0.034%. Built as recommended (R3-16a B) unless he says
+  otherwise (**amended, see R3-16a:** decided A under his standing
+  instruction, nothing stored, for the 223 bytes); R3-16a A, which stores nothing, agreed on all 834 faces, and a
+  hex digit for four faces would cost a quarter.
+- **Creases inside a window.** Under R3-16b A a window draws no crease, even
+  on a face it keeps, so a crease that runs into a window stops at its rim.
+  The stored scene already holds the creases of every face that shows;
+  carried with their faces, a window that removes nothing is the stored
+  picture exactly (138 of 138), at no cost in the file. Only the creases of
+  faces nothing showed (above) would be missing. A change to R3-16b A if
+  he wants it; 18e does not need it.
+- **White paper.** The Diagram preset's front is white like the page, so on
+  the crane a revealed front-up layer reads as a hole and only its edges
+  tell it apart (renders, rows 1 to 4). In the note's colours (rows 5 and
+  6) it reads as the note does.
 
 ### Before 18a: the decisions (the prototype skipped; nothing merges)
 
@@ -2659,48 +2897,363 @@ rounding rule.
 
 Only after 18.0 passes and R3-16a, R3-16c and R3-17 to R3-22 are answered
 (R3-12 to R3-15b and R3-16b are). On `claude/diagram-xray` (R3-27 B).
+All answered 2026-10-08 (Status at the top).
 
-- [ ] Capture (R3-16a B): `sides` written, read, budget-checked, and fetched
-  for a step that lacks it. Tests: round trip; an older reader locks the
-  step; `stepWithPaperFaces` fetches when only `sides` is missing.
-- [ ] `xrayScene.ts` and its stacks, with tests: depth 1 to 3 at an anchor;
+- [x] Capture (R3-16a A, amended after 18.0): no `sides` key — each face's
+  side from its outline, a stored face item's own where there is one;
+  `paperFaces` unchanged, so nothing locks and nothing is budget-checked. A
+  flat step with no faces gets them as an x-ray is laid on it, in the same
+  undo step (`stepWithPaperFaces` through `giveDiagramStepPaperFaces`, as
+  an enlarge area's step does). Tests: the sides of the 36 faces a no-spread
+  capture drops agree with the spread capture's own (`xrayScene.test.ts`).
+- [x] `xrayScene.ts` and its stacks, with tests: depth 1 to 3 at an anchor;
   every face over a removed one removed; the spread path; an empty ring
   skipped; a depth past the stack drawn at the deepest.
-- [ ] Model and file: the kind, its class, `radius`, `anchor`, `depth`.
+- [x] Model and file: the kind, its class, `radius`, `anchor`, `depth`.
   Tests: round trip; `to` read as `from`; 0 and 1.5 are damage.
-- [ ] The canvas's inside hook; the rim; no other surface draws an x-ray
+- [x] The canvas's inside hook; the rim; no other surface draws an x-ray
   yet.
-- [ ] Tool: the drag, the click (`placedByClick`), Depth taking the focus,
+- [x] Tool: the drag, the click (`placedByClick`), Depth taking the focus,
   the held reasons, the key, help.
-- [ ] Grips (the circle's centre and rim) and hit (the rim, `under`);
+- [x] Grips (the circle's centre and rim) and hit (the rim, `under`);
   snapping inside a window (R3-22).
-- [ ] Layers: Depth, the notice (a plural key), Anchor. The Anchor row:
-  its CSS move as a commit of its own with computed styles compared;
-  `DiagramAnchorRow`; `useAnchorPick` by kind; the drag by kind; "Change
-  X-ray"; the Auto and reset wording. Tests: an x-ray's pick and drag never
-  send `diagram enlargement changed`; an enlarge area's still do; the
-  frame's Auto wording unchanged.
-- [ ] Carry, Turn Over, paste, enlarged steps (`markExtent`); a Refresh that
+- [x] Layers: Depth, the notice (a plural key), Anchor. The Anchor row:
+  its CSS move with computed styles compared, a commit of its own
+  (`6bf0abf5c`); `DiagramAnchorRow`;
+  `useAnchorPick` by kind; the drag by kind; "Change X-ray"; the Auto and
+  reset wording. Tests: an x-ray's pick and drag never send `diagram
+  enlargement changed`; an enlarge area's still do; the frame's Auto
+  wording unchanged.
+- [x] Carry, Turn Over (as built a linked fold's Turn Over leaves the
+  window where it was, as every mark: R3-21, 18e review), paste, enlarged
+  steps (`markExtent`); a Refresh that
   leaves too few layers; a step that loses its layers (R3-18b), each case:
   drawn nowhere, the Layers reason, and drawn again on the way back.
-- [ ] Analytics and i18n.
-- [ ] Browser, before and after: crane windows at depth 1, 2 and 3 beside
+- [x] Analytics and i18n.
+- [x] Browser, before and after: crane windows at depth 1, 2 and 3 beside
   the note's picture, on the canvas; with a spread; on an enlarged step; the
   held tool on a crease pattern; a step shown as a crease pattern and back.
-- [ ] Gate and push.
+- [x] Review: every major finding fixed, each with a test that fails
+  before it, and the minor ones that were cheap and clearly right (folded
+  into As built, below); the rest is Zach's (For Zach).
+- [x] Gate, on exactly what was committed: lint, typecheck, the i18n check
+  and the whole vitest suite (Node 22): 899 test files and 12,281 tests
+  pass (2 files and 15 tests skipped).
+- [ ] Push.
+
+**As built (2026-10-09).** Two code commits: `6bf0abf5c` (the Anchor row and an
+enlargement's verb become components, nothing on screen changed) and
+`534a98062` ("Diagram: X-ray windows in Annotate", with the review's fixes).
+Every decision used is recorded DECIDED above (Status). Evidence:
+`artifacts/revision-3/18e/18e-evidence.png` (`composite.py`), every shot
+taken on the committed code, from `run.mjs` (Chromium, light and dark),
+`heart.mjs`, `drag.mjs`, `ipad.mjs` (iPad-sized WebKit by finger),
+`review-fixes.mjs`, `parity.mjs`, `speed.mjs` and `anchorRowStyles.mjs`,
+all in `artifacts/revision-3/18e/`.
+
+- **Model and file.** Kind `x-ray`, shape class `x-ray`: `from` the
+  window's centre (`to` read as `from`), `radius` in Enlarge's circle's
+  range, `depth` a whole number from 1 (`XRAY_DEPTH`, laid at 1, always
+  written), `anchor` a point on the paper. `cleanXRay`, `withXRayDepth`,
+  `xrayDepthOf`. `ANNOTATION_FIELDS['x-ray'] = radius, anchor, depth`; a
+  radius past the range is a newer build's, kept; a missing, zero,
+  fractional or non-numeric depth is damage; an anchor that does not read
+  is dropped alone. Carried by `carryZoom`'s circle path (depth and anchor
+  kept) for the moves the app applies — a quarter turn, an upload's flip, a
+  References turn-over. A linked flat fold's Turn Over is none of them: the
+  window stays where it was, as every mark does (R3-21, amended). Every
+  exhaustive switch says what an x-ray is: no ends, path, text, colour,
+  behind-flap end, Flip or arc; it never snaps (R3-24 A).
+- **Sides not stored** (R3-16a A, amended after 18.0): `paperFaces`,
+  `capturePaperFaces` and the file are unchanged, so nothing locks and
+  nothing is budget-checked. A face's side is the stored scene item's own,
+  or for a face it dropped, by how its ring turns on the paper and on the
+  picture, calibrated on a face the scene names; the 36 faces a no-spread
+  crane capture drops agree with the spread capture's own
+  (`xrayScene.test.ts`).
+- **"Over" with a tolerance** (18.0 results, 2): `annotate/faceOverlap.ts`
+  (`sharedPart`, Sutherland–Hodgman with a face that is not convex cut into
+  triangles by its ears; `overlapsWider` at `OVER_MIN_WIDTH` = 1e-4 of the
+  picture) and `facesOverWithin` in `behindFlaps.ts`; 15e's `facesOver` is
+  untouched. Tested on the heart's own pair (`heartPair.mjs`,
+  `__fixtures__/heartFacePairs.json`): faces 20 and 29 meet along a fold,
+  their shared part 1.1e-6 wide; the narrowest true overlap 0.032. In the
+  browser on the heart (`heart.mjs`), at index 15 and 16 at depth 3, 15e's
+  test would take away 5 faces where the window takes 3.
+- **`diagram/xray/xrayScene.ts`**, the one pure module every surface draws
+  a window with: `xrayFacesOf(step)` (memoised on `paperFacesOf`'s faces:
+  each face's item, the paint order, the covers on the unspread picture),
+  `xrayAnchorPoint`, `xrayAnchorDrawn`, `xrayStackAt`, `xrayRemoval`,
+  `xrayInsideScene`, `xrayInside` and `xrayWindowMarkup` (the clip, held to
+  a `bound` where given; the page's white; the faces through
+  `paperSceneSvgBody`; the rim at 1.5 × the edges' pen). 18f's painters call
+  `xrayInside` and `xrayWindowMarkup` with their own projection and units
+  per pt, as `useXRayInsides.ts` does. **Paint order** (18.0 results, 3,
+  built as a topological sort): a stored face waits only for the earlier
+  stored faces it overlaps; a dropped face goes after every face it lies
+  over and before every face over it; the earliest free face is taken, and
+  a knot is cut at its backmost face. "Before the first face over it", as
+  planned, painted a face after one under it on the crane's no-spread
+  capture; chaining every stored face to the one before it could knot
+  (`knotStep`, five faces); the crane is checked both ways.
+- **The canvas.** `annotationDrawing` compiles an x-ray into its own list,
+  `xRays` (window and rim); `annotationScene` and `annotationMarks` do not
+  draw it, so no card, page, file or Pose ghost shows one until 18f, rim
+  included (tested). `useXRayInsides` + `DiagramXRayInsides` lay each
+  window under the close-ups' insides and the marks; on an enlarged step in
+  its window's units, held inside the frame's cut by half its pen
+  (`zoomOutlineInset`) so the cut is drawn whole across a window. None on a
+  picture with no layers (R3-18b A), where the rim is neither pressed
+  (`hitAnnotation`'s `xRays`) nor framed (`annotationReach`'s `xRays`, the
+  fit's fifth argument); 18f must pass `{ xRays: true }` wherever it draws
+  windows. While an x-ray is selected its picked anchor is marked, a ring
+  and a dot in the selection's ink. A close-up shows the picture plain
+  (R3-20 B).
+- **Tool and standing.** X-Ray in Marks after Enlarge in Frame, key X
+  (`diagram.toolXRay`), its glyph a heavy rim round the note's M. A drag
+  out from the middle, or a click (0.15); then Depth takes the focus
+  (`FocusField` `depth`), so 2 and Enter set it — once the faces land, where
+  they are fetched (`useFieldFocusRequest` waits on a disabled field).
+  `xray/xrayStanding.ts`: `ready`; `fetch` (a flat step without faces, its
+  pattern open and its link not stale), where laying or pasting an x-ray or
+  an enlarge area fetches them in that undo step
+  (`giveDiagramStepPaperFaces`, which marks the step in the unsaved
+  `diagramPaperFacesFetching` while it runs, so Layers says nothing
+  meanwhile); `refresh` ("Refresh step {{number}} to x-ray it"); `none`
+  ("X-ray works on flat folds"). `xrayToolHeld` is the one predicate: the
+  rail, the X key (`xrayHeld`), and `annotateToolInHand(state, standing)`
+  through `useAnnotateToolInHand(step)`, which the canvas, the tool window
+  and the rail read, so where the rail holds the tool Select is in hand. A
+  press whose middle is on no paper lays nothing and says "Start on the
+  paper…" (`ToolNotice` `no-paper`).
+- **Grips, hit, snapping.** Selected, a circle's grips (`zoomGripAt`);
+  pressed by its rim in the `under` order with enlarge areas and shapes; a
+  move or resize is "Change X-ray" and never an enlargement event. Snapping
+  (R3-22 B, `xray/xraySnap.ts`, used by `pictureSnapTarget`): inside a
+  window the picture's points and crossings stop being targets; the shown
+  faces' corners are points, and their edges, held to the window, cross
+  the lines drawn over them (`crossingsNear`'s `shownLines`); every
+  picture point in reach outside a window is a candidate. Tested on a
+  hand-built three-layer fold (`xray/xray.fixtures.ts`): the crane's layers
+  share their corners, so no crane window changes a target.
+- **Layers.** `DiagramXRayControls` with `useXRayControls` and
+  `xrayLayers.ts`: Depth from 1 to the layers at the anchor less one, its
+  max never below a stored depth past the stack (so visiting the field
+  rewrites nothing); "Only {{count}} layers here" (plural); "No paper under
+  its middle" off the paper; the held reasons; the Anchor row
+  (`DiagramAnchorRow`, `DiagramZoomVerb`, moved out of
+  `DiagramZoomControls` in `6bf0abf5c`: 3,780 computed properties a theme, no
+  difference, `anchorRowStyles.mjs`). `buildAnchorActions` takes `on:
+  'x-ray'` for its own hints; `useAnchorPick` edits an x-ray's anchor as
+  "Change X-ray".
+- **Analytics and i18n.** `diagram annotation added` `tool: x_ray`;
+  `diagram mark styled` `kind: x_ray`, `option: depth` (`1`, `2`, `3+`) or
+  `anchor` (`picked`, `auto`); `docs/analytics.md`. Fifteen strings, in all
+  nine catalogs.
+- **Browser, on the committed code** (Chromium on :5314, light and dark,
+  no console errors). The crane (`run.mjs`): X through the registry; a
+  window on the bird base's front flap (index 20) at depth 1, 2 and 3 typed
+  into the focused Depth field; moved, resized and anchored; Show As crease
+  pattern (kept, drawn nowhere, its rows held with the reason) and back;
+  laid on index 19, its faces fetched in the same undo step; on the
+  enlarged index 27; held on the crease pattern (index 4). The heart
+  (`heart.mjs`), indices 14 to 16 at the deepest stack each has (7): 14 and
+  16 have no faces, which a lay fetches, Depth focused 110 to 160 ms later;
+  15 (stale) holds the tool, an x-ray added there says "Refresh step 14 to
+  x-ray it", and after Refresh it is drawn; each takes away 1, 2 and 3
+  faces at depth 1, 2 and 3. The review's cases (`review-fixes.mjs`): a
+  stale step, a depth past the stack, a lay that fetches, a crease
+  pattern's rim, a paste that fetches, a click off the paper, a picked
+  anchor, index 27's cut. **Parity** (18.0 results, 6, `parity.mjs`): 21 of
+  21 windows that take nothing away identical to the stored picture's own
+  face items through the same clip; at depth 1 to 3 each differs.
+  **Speed**: the per-frame work (`speed.mjs`) median 0.06 to 0.11 ms a frame, at most 3.2 ms (the first frame, the step's set-up), at most 2.0 ms at 4× CPU throttling; a real drag of a
+  window's centre grip, 120 moves (`drag.mjs`), on index 28 (52 faces) and
+  20 (44): frame gaps at 120 Hz as an enlarge area's (Enlarge's circle, the same grips, no inside): p95 at most 10.1 ms, against 9.6; one frame of 25 to 32 ms on the enlarged index 28, against 10.3; at 4× CPU p95 at most 16.0 ms and worst 18.6, against 15.3 and 18.5. The task of about 70 ms (300 ms at 4×) as a drag starts, and of 60 ms after the release, is the same with an enlarge area: the canvas's, not the x-ray's. iPad-sized WebKit by finger (`ipad.mjs`): laid, pressed
+  by its rim, moved.
+
+**For Zach.** (1) **Turn Over** (R3-21): a linked flat fold's Turn Over
+leaves every mark where it was, x-rays included, so a window then looks at
+another part of the fold; carrying marks through it would be a new carry
+for every mark — a fork for him. (2) The Diagram preset's white front, as
+18.0 said, makes a revealed front-up layer read as the page, and on flaps
+whose layers share outlines depth 1 and 2 can look like a hole and like
+nothing (the heart's windows at depth 2 are plain white): a tint for the
+revealed front, or a two-colour style where x-rays are used. (3) The glyph,
+a heavy ring round an M, may read as "mountain" (the M key's tool): a ring
+with a few hidden-line dashes inside is the alternative. **DECIDED** (Zach's
+standing instruction, 2026-10-08): the ring with dashes, built in 18f. (4)
+The Anchor row's label stays Enlarge's "Anchor" (in Japanese, Chinese and
+Korean "anchor face"), where an x-ray's anchor is a point; a key of its own
+if the shared word reads wrong. **DECIDED**, the same way: "Point"
+(`xRayAnchor`), built in 18f. (5) On an iPad, Pick in the Settings sheet
+leaves the sheet over the canvas, so the next tap does not land until it is
+closed — Enlarge's row and sheet too, not new in 18e. **DECIDED**, the same
+way: the sheet steps aside while the pick is armed, Enlarge's too, built in
+18f. (6) Untested: a woven
+patch (no step in his four diagrams has one), and his two no-spread
+chipmunk steps in the browser (they have no stored faces; the no-spread
+path is tested on the crane's capture and a hand-built fold).
 
 ### 18f X-ray on every other surface
 
-- [ ] The card, the enlarged step's card and page, the page's `cellPicture`
+- [x] The card, the enlarged step's card and page, the page's `cellPicture`
   (print, the PDF, the one-sheet SVG, the ZIP's step files), and Pose's
   ghosts, rim only (R3-19). A close-up over a window as R3-20 says.
-- [ ] The parity test across every painter, copied from
+- [x] The parity test across every painter, copied from
   `closeUps.surfaces.tsx`; a ZIP step file cropped round a window by its
   rim.
-- [ ] Golden `xray.cases.ts`.
-- [ ] Browser, before and after: crane windows on every surface in "Every
+- [x] Golden `xray.cases.ts`.
+- [x] Browser, before and after: crane windows on every surface in "Every
   phase", the PDF at print size and ×3.
-- [ ] Gate and push.
+- [x] 18e's follow-ups: the icon, the Point row, the sheet that steps aside
+  for a pick (18e, For Zach, (3) to (5)).
+- [x] Review: two reviews, ten findings, all fixed but one carried from 18e
+  (Not changed, below), each behaviour fix with a test that fails before it
+  (folded into As built).
+- [x] Gate, on exactly what was committed: lint (`npm run lint:web`),
+  typecheck, the i18n check and the whole vitest suite (Node 22): 902 test
+  files and 12,351 tests pass (2 files and 15 tests skipped).
+- [ ] Push.
+
+**As built (2026-10-09).** One code commit, `d14d34b92` ("Diagram: X-ray
+windows on every surface"), the review's fixes in it. Every decision used is
+recorded DECIDED above (Status; R3-18b, R3-19, R3-20; 18e, For Zach (3) to
+(5)). Evidence: `artifacts/revision-3/18f/18f-evidence.png`
+(`verify/composite.py`), every shot taken on the committed code, no console
+errors: one window cut out of every surface at the same size — the canvas,
+a card, the Pages view, the PDF through pdftoppm, the one-sheet SVG, a
+transparent step file and Pose — on the crane's index 20, the enlarged
+index 27 and the review's step 10 (`verify/windows.mjs`, Chromium, light and
+dark); the surfaces in context (`verify/surfaces.mjs`); the icon
+(`verify/icon.mjs`); the iPad pick (`verify/ipad.mjs`, iPad-sized WebKit by
+finger, light and dark). The implementer's before-and-after runs
+(`surfaces.mjs`, `ipad.mjs`, `roundTrip.mjs`) and the review's
+(`review-fixes/`) are beside it.
+
+- **One painter, every surface.** `xray/xrayPaint.ts`: `xrayWindowOn` draws
+  one window on any surface from where that surface lays the step's drawing
+  (`DrawingPlace`: its frame's box in its units, and the drawing's px across
+  it); the projection, the units per pt, the window, the rim and an
+  enlarged step's bound follow from it, drawn through 18e's
+  `xrayWindowMarkup`. The canvas's `useXRayInsides` calls it with its frame
+  at the origin. `xraySurfaceOf(step, look)` is null on a picture with no
+  layers (R3-18b A). `xrayPainter` makes the `XRayPainter` a surface hands
+  `paintAnnotations` (`AnnotationPaint.xRays`): each window in a
+  `data-x-ray-window` group under the close-ups' insides and the marks, its
+  ids `annotation-x-ray-<n>-`; with `look: 'rim'`, the rim alone
+  (`xrayRimMarkup`). A callback rather than the hook part 5 planned:
+  `paintAnnotations` importing `xray/` would make a cycle through
+  `paintZoomed`. `placeAnnotations` measures a window by its rim only where
+  a painter is given (`annotationReach`'s `xRays`) and draws one on a step
+  with no other mark; it, `annotatedPicture` and `posedZoomPicture` take
+  `{ paper, xRays }` where they took `paper`.
+- **The page's white, on the paper only** (the review's major; part 5's
+  "lays the page's white" amended). `xrayInside` also returns `ground`, the
+  faces the window takes away where the picture draws them
+  (`xrayGroundScene`). `xrayWindowMarkup` fills those with the white,
+  stroked the edges' pen wide so their outlines go too, as plain paths in
+  `<g data-x-ray-ground>` so nothing reads them as faces left. Off the paper
+  a window lays nothing, and a page's band, a selected cell's tint or a
+  transparent step file shows through it as it does round it; a window that
+  takes nothing away lays no white. Laid over the whole circle, as 18e did
+  on the canvas's white page, it printed a white disc wherever a window
+  crossed the paper's edge. On the paper nothing looks different, but the
+  canvas's markup is no longer 18e's byte for byte.
+- **The surfaces.** A step card (`useStepPictureUrl` → `annotatedStepUrl`,
+  `zoomedStepUrl` → `zoomedCardPicture`; cached by the faces' object and
+  the look). The pages' `cellPicture`, measured by `layoutPicture`
+  (`reachedWith`'s `xRays`), which the Pages view, print, the PDF, the
+  one-sheet SVG and the ZIP's step files all draw through. Pose
+  (`DiagramStepDetail`): its card at 0.3 and `posedZoomUrl`, rims only
+  (R3-19 A); while a spread is dragged the preview is captured without
+  faces, so the rims take the stored step's standing and stay. The live 3D
+  and simulated views are given no painter: they mount only for 3D or
+  simulated captures, which have no layers (R3-18b). No surface hands its
+  close-ups' insides a painter, so a close-up over a window shows the
+  picture plain (R3-20 B). `hitAnnotation` is the canvas's alone, from 18e.
+- **The follow-ups** (18e, For Zach (3) to (5)). The icon
+  (`DiagramAnnotateToolGlyph`): the heavy rim round five short dashes in
+  two staggered rows, drawn as segments; the Hidden Line's own dash, built
+  first, read as a grille at the rail's size
+  (`review-fixes/icon-variants-2x.png`). The row: `DiagramAnchorRow` takes
+  its `label`, "Point" for an x-ray (`xRayAnchor`), with its own picking
+  hint (`xRayAnchorPicking`) and the reset hint "Count the layers at the
+  window's centre again". The sheet (`useWorkspaceViewDrawer`): while a
+  pick armed from it is live (`escapePutsPickDown`) it closes and records
+  the pick, and it comes back on the same pane, with no second `view drawer
+  opened`, only when that pick ended where it was made, anchored or put
+  down (`anchorPickEndedInPlace`, beside `activeAnchorPick`). Leaving for
+  Pose, the step list, another step, another mark, another workspace or
+  pointer keeps it closed, and a sheet opened meanwhile is the user's. The
+  bar (`DiagramAnchorPickBar`): the shared `CanvasContextBar`, inside the
+  Annotate canvas's view and off its stage, on a coarse pointer while a pick
+  is armed, saying "Tap the point where the layers are counted" or "Tap a
+  face to anchor to it", with Cancel, which puts the pick down as Escape
+  does. The phone does not annotate, so it never shows there. Five new
+  strings and the reworded reset hint, in all nine catalogs.
+- **Tests.** `xray/xray.cases.ts`, eleven cases: the hand-built three-layer
+  fold at depth 1, 2 and past its stack, and past the frame's edge; the
+  crane with no spread and with one, a picked anchor, two windows under a
+  valley line, a circle and a close-up over one, an enlarged step whose
+  window crosses its frame, a window whose middle is off the paper, and one
+  a third off a flap (`crane-edge`). `xray.surfaces.tsx` paints each
+  surface as its own code does. `xrayGolden.test.ts`
+  (`__fixtures__/xrayGolden.json`, 86 kB, `XRAY_GOLDEN_WRITE=1`).
+  `xraySurfaces.test.ts`, the parity test: every surface's window read back
+  in its frame's units and pt is the canvas's — clip, white, rim (0.75 pt),
+  faces in order with fill, pen (0.5 pt) and place, and Pose's rim's place —
+  within each surface's rounding; a window that takes nothing away is the
+  picture's own faces through the clip (18.0 results, 6); nothing painted
+  inside a window and off the paper, on a page cell and in a transparent
+  step file; an enlarged step's inside held half its cut's pen inside the
+  frame; under the marks; R3-20 B; ids unique; drawn and measured nowhere
+  without layers (R3-18b A); a page's room grown by the rim; a cropped step
+  file cut round the rim. Also the PDF through the real writer, the
+  one-sheet SVG, Pose's rims (a faceless preview included), the icon, the
+  Point row and its hints, the sheet stepping aside and every way out
+  (`WorkspaceViewDrawer.test.tsx`), and the bar and its Cancel. Each
+  review fix's test failed with the old code put back.
+- **Browser.** One window cut out of every surface at the same size is the
+  same faces in the same order; off the paper the canvas's and card's white,
+  the band in the Pages view, the PDF and the sheet, and the checkerboard in
+  the step file show through (index 27's window). Before and after
+  (implementer, `surfaces.mjs`): every surface but the canvas ignored the
+  x-ray before; after, the cards, Pose (rims only), the Pages view, the PDF
+  at 96 and 288 dpi, Print (the app's print layer printed by Chromium), the
+  one-sheet SVG and the step files, same size and cropped. The review's
+  off-paper run (`review-fixes/offpaper.mjs`): only the window crossing the
+  paper's edge changed, (255,255,255) on the band before and the band's
+  (236,236,232) after. iPad-sized WebKit by finger, light and dark: armed
+  from the sheet, the sheet goes and the bar shows; Cancel and an anchoring
+  tap ("Change X-ray") bring it back on Layers; Pose, Steps and Next Step
+  leave it shut; Enlarge's frame pick shows its own wording.
+- **The round trip** (`roundTrip.mjs`): the crane (the copy, and Zach's own)
+  reads with nothing locked and no unknown mark and writes back identical;
+  with three windows (one anchored), written, read and written again,
+  identical. His chipmunk, heart and Stanford logo too; Reference Diagrams
+  writes back all but its page's retired `scale: "fit"` (let go
+  2026-10-06, not this phase's).
+- **Analytics.** Nothing new: the surfaces draw what the canvas draws, the
+  anchor's pick and its row send what 18e sends, and putting a pick down,
+  which Cancel is one way of doing, was never counted.
+
+**Not changed (carried from 18e).** The Diagram preset's white front makes
+a depth-1 window on the crane's flaps read as a punched hole, and a depth-2
+window whose revealed layer matches the picture as nothing (18e, For Zach
+(2)); 18f puts both on paper (`review/finding-white-disc-step24.png`,
+`review/pages-10-19.png`). A window crossing an enlarged step's frame draws
+its rim whole outside the frame while its inside stops at the frame (18e's
+choice), now in print and the PDF too.
+
+**For Zach.** (1) Where a window takes every layer away at a point inside
+the paper's outline, it shows the page's white (18.0 results, 5), even on a
+page with the band, where off the paper the band now shows: white there, or
+the band? (2) The pick bar is new on-canvas UI (`18f-evidence.png`, iPad
+row). (3) The icon: `review-fixes/icon-variants-2x.png` has the first build
+(A, the Hidden Line's dash) and three others (B aligned, C staggered, which
+is built, D two and two).
+
 
 ### Final gate
 

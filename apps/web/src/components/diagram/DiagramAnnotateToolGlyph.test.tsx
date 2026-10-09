@@ -57,3 +57,33 @@ describe('equal divisions’ icon (Revision 2)', () => {
     }
   });
 });
+
+describe('the x-ray’s icon (Revision 3, 18f)', () => {
+  it('is a heavy ring with a few short dashes inside it in staggered rows, clear of the rim: not the M of a mountain', () => {
+    const markup = renderToStaticMarkup(<DiagramAnnotationGlyph kind="x-ray" />);
+    const dashes = part(markup, 'dashes');
+    // Each dash drawn as itself, not by a dash pattern: a handful, in two rows.
+    expect(markup).not.toMatch(/stroke-dasharray="[^"]+"[^>]*data-glyph-part="dashes"/);
+    expect(dashes.runs).toBeGreaterThanOrEqual(4);
+    expect(dashes.runs).toBeLessThanOrEqual(6);
+    // Every dash level (no zigzag), a dash and not a dot — longer than the Hidden Line's dots, which read as a grille
+    // at the rail's size (review of 18f) — and inside the ring's inner edge.
+    const hidden = /<path [^>]*stroke-dasharray="([\d.]+)/.exec(renderToStaticMarkup(<DiagramAnnotationGlyph kind="hidden-line" />))![1];
+    const rim = /<circle cx="10" cy="10" r="([\d.]+)" stroke-width="([\d.]+)" data-glyph-part="rim"/.exec(markup)!;
+    const inner = Number(rim[1]) - Number(rim[2]) / 2;
+    const rows = new Map<number, number[]>();
+    for (let run = 0; run < dashes.runs; run += 1) {
+      const [[ax, ay], [bx, by]] = [dashes.points[2 * run]!, dashes.points[2 * run + 1]!];
+      expect(ay).toBe(by);
+      expect(Math.abs(bx - ax)).toBeGreaterThan(2 * Number(hidden));
+      // Its butt ends' corners, half its pen above and below, clear of the rim.
+      for (const x of [ax, bx]) expect(Math.hypot(x - 10, Math.abs(ay - 10) + dashes.width / 2)).toBeLessThan(inner);
+      rows.set(ay, [...(rows.get(ay) ?? []), (ax + bx) / 2]);
+    }
+    // Two rows, staggered: no dash straight under another, so they read as lines and not as a grid.
+    expect(rows.size).toBe(2);
+    const [upper, lower] = [...rows.values()];
+    for (const middle of lower!) for (const above of upper!) expect(Math.abs(middle - above)).toBeGreaterThan(1);
+    expect(markup).not.toContain('data-glyph-part="layers"');
+  });
+});

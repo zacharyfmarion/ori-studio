@@ -1,21 +1,7 @@
-/* An enlargement's rows in the Layers pane (DiagramZoomControls.tsx): its fields, the Anchor row, a read-out and its verbs. */
+/* An enlargement's rows in the Layers pane (DiagramZoomControls.tsx): its fields, a read-out and its verbs. The Anchor row is DiagramAnchorRow's. */
 .controls {
   display: grid;
   gap: var(--space-1);
-}
-
-/* The anchor's rule and its verbs, on one line whichever rule it is. */
-.anchor {
-  display: inline-flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-1);
-  white-space: nowrap;
-}
-
-.anchorRule {
-  color: var(--text-secondary);
 }
 
 /* What Size means, and what places a frame again: a line under the rows, at their inset. */

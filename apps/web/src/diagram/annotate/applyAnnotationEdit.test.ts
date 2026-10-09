@@ -40,14 +40,16 @@ beforeEach(() => {
 });
 
 describe('applyAnnotationEdit', () => {
-  it('counts a deleted enlarge area as an enlargement changed, and never a deleted oval or rectangle (Revision 3)', () => {
+  it('counts a deleted enlarge area as an enlargement changed, and never a deleted oval, rectangle or x-ray (Revision 3)', () => {
     const stepId = stepWith([
       { id: 'o', kind: 'oval', from: [0.5, 0.5], to: [0.5, 0.5], size: [0.3, 0.2] },
       { id: 'r', kind: 'rectangle', from: [0.4, 0.4], to: [0.4, 0.4], size: [0.2, 0.2], angle: 30 },
+      { id: 'x', kind: 'x-ray', from: [0.6, 0.4], to: [0.6, 0.4], radius: 0.1, depth: 2 },
       { id: 'z', kind: 'zoom', from: [0.3, 0.3], to: [0.3, 0.3], size: [0.2, 0.2] },
     ]);
     expect(applyAnnotationEdit(state(), stepId, annotationActionEdit('delete', 'o'))).toBe(true);
     expect(applyAnnotationEdit(state(), stepId, annotationActionEdit('delete', 'r'))).toBe(true);
+    expect(applyAnnotationEdit(state(), stepId, annotationActionEdit('delete', 'x'))).toBe(true);
     expect(tracked.trackDiagramEnlargementChanged).not.toHaveBeenCalled();
     expect(applyAnnotationEdit(state(), stepId, annotationActionEdit('delete', 'z'))).toBe(true);
     expect(tracked.trackDiagramEnlargementChanged.mock.calls).toEqual([['area', 'deleted']]);

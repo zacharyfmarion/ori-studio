@@ -1,7 +1,12 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDiagram, type KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
+import { createDiagram, insertSteps, type DiagramStep, type KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
+import { craneStep } from '../../diagram/zoom/zoom.fixtures';
+import { xrayStepsIn } from '../../diagram/xray/xrayLayers';
+import { cpDocument } from '../../diagram/capture/capture.fixtures';
+import { requestFieldFocus } from '../../diagram/annotate/fieldFocus';
+import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { cpStep, referencesStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { ANNOTATE_TOOL_GROUPS, annotateToolHelp } from '../../diagram/annotate/annotateTools';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -1124,5 +1129,160 @@ describe('DiagramLayersPanel', () => {
       act(() => buttonNamed('Delete').click());
       expect(annotations().map((annotation) => annotation.id)).toEqual(['a-2', 'a-3']);
     });
+  });
+});
+
+describe('an x-ray’s rows (Revision 3, 18e)', () => {
+  const xray: KnownDiagramAnnotation = { id: 'xray', kind: 'x-ray', from: [0.45, 0.6], to: [0.45, 0.6], radius: 0.08, depth: 2 };
+
+  /** Zach's crane, step 22 (`zoom.fixtures.ts`), open in Annotate with `marks`, the first selected. */
+  function crane(marks: KnownDiagramAnnotation[] = [xray], step: DiagramStep = craneStep('S.none')) {
+    act(() => {
+      useWorkspaceStore.setState({
+        diagram: insertSteps(createDiagram({ title: 'Crane' }), [{ ...step, annotations: marks, annotatedPictureKey: step.picture!.key }], 0),
+      });
+      state().openDiagramStep(step.id, 'annotate');
+      state().selectDiagramAnnotation(marks[0]!.id);
+    });
+    return step;
+  }
+  const depth = () => host!.querySelector<HTMLInputElement>('input[aria-label="Depth"]')!;
+  const marks = () => stepsIn(state().diagram!)[0]!.annotations as KnownDiagramAnnotation[];
+
+  it('sets its Depth, from one to the steps its window peels (18g), as one undo step “Change X-ray”, counted by bucket', () => {
+    const step = crane();
+    const steps = xrayStepsIn(step, xray)!;
+    expect(steps).toBeGreaterThan(3);
+    expect(depth().value).toBe('2');
+    expect(depth().getAttribute('aria-valuemax') ?? depth().max).toBe(String(steps));
+    const past = state().diagramHistory.past.length;
+    act(() => button('Increase Depth')!.click());
+    expect(marks()[0]!.depth).toBe(3);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change X-ray');
+    expect(tracked.trackDiagramMarkStyled).toHaveBeenLastCalledWith('x_ray', 'depth', '3+');
+    act(() => depth().focus());
+    setField(depth(), '1');
+    act(() => depth().blur());
+    expect(marks()[0]!.depth).toBe(1);
+    expect(tracked.trackDiagramMarkStyled).toHaveBeenLastCalledWith('x_ray', 'depth', '1');
+    expect(host!.querySelector('[data-x-ray-fewer]')).toBeNull();
+  });
+
+  it('says when its window has fewer steps than it asks for: a Refresh, a refold or a move left fewer, and it draws at the deepest', () => {
+    const step = craneStep('S.none');
+    const steps = xrayStepsIn(step, xray)!;
+    crane([{ ...xray, depth: steps + 3 }], step);
+    expect(host!.querySelector('[data-x-ray-fewer]')!.textContent).toBe(`Only ${steps} layers to take away here`);
+    // Its Depth visited and left as it stands rewrites nothing: the depth asked for is kept, and its notice (review of 18e).
+    const past = state().diagramHistory.past.length;
+    tracked.trackDiagramMarkStyled.mockClear();
+    act(() => depth().focus());
+    act(() => depth().blur());
+    expect(marks()[0]!.depth).toBe(steps + 3);
+    expect(state().diagramHistory.past).toHaveLength(past);
+    expect(host!.querySelector('[data-x-ray-fewer]')).not.toBeNull();
+    expect(tracked.trackDiagramMarkStyled).not.toHaveBeenCalledWith('x_ray', 'depth', expect.anything());
+  });
+
+  it('says when its window has nothing to take away: no layer in it lies over another (review of 18e, 18g)', () => {
+    const off: KnownDiagramAnnotation = { ...xray, from: [0.02, 0.02], to: [0.02, 0.02], radius: 0.01 };
+    expect(xrayStepsIn(craneStep('S.none'), off)).toBe(0);
+    crane([off]);
+    expect(host!.querySelector('[data-x-ray-empty]')!.textContent).toBe('Nothing to take away in this window');
+    expect(host!.querySelector('[data-x-ray-fewer]')).toBeNull();
+    crane();
+    expect(host!.querySelector('[data-x-ray-empty]')).toBeNull();
+  });
+
+  it('offers its Point row in its own words: Auto, the window’s centre; Pick, the point its peeling starts at (18g)', () => {
+    crane();
+    const rule = [...host!.querySelectorAll<HTMLElement>('[title]')].find((each) => each.textContent === 'Auto')!;
+    expect(rule.title).toBe('The window’s centre');
+    // Its row is named for a point, not Enlarge's "Anchor" — in Japanese, Chinese and Korean "anchor face" (18f).
+    expect(rule.closest('[data-field-row]')!.querySelector('[data-field-label]')!.textContent).toBe('Point');
+    const pick = host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!;
+    expect(pick.title).toBe('Choose the point on the canvas where peeling starts');
+    // While picking, it asks for a point, not a face.
+    act(() => pick.click());
+    expect(host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!.title).toBe(
+      'Click the point on the canvas where peeling starts; Escape to stop'
+    );
+    act(() => state().setDiagramAnchorPick(null));
+    // Picked: Reset, back to the window's centre, one undo step, counted.
+    act(() => {
+      state().editDiagramAnnotations(state().diagramSelectedStepId!, 'Change X-ray', (list) =>
+        list.map((each) => (each.id === 'xray' ? { ...each, anchor: [0, 0] as [number, number] } : each))
+      );
+    });
+    const reset = host!.querySelector<HTMLElement>('[data-zoom-action="reset-anchor"]')!;
+    expect(reset.title).toBe('Start peeling at the window’s centre again');
+    act(() => reset.click());
+    expect(marks()[0]!.anchor).toBeUndefined();
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Change X-ray');
+    expect(tracked.trackDiagramMarkStyled).toHaveBeenLastCalledWith('x_ray', 'anchor', 'auto');
+  });
+
+  it('keeps an enlarge area’s Anchor row in its own words: the backmost face outside the frame', () => {
+    crane([{ id: 'area', kind: 'zoom', from: [0.45, 0.6], to: [0.45, 0.6], radius: 0.1 }]);
+    const rule = [...host!.querySelectorAll<HTMLElement>('[title]')].find((each) => each.textContent === 'Auto')!;
+    expect(rule.title).toBe('The backmost face outside the frame');
+    expect(rule.closest('[data-field-row]')!.querySelector('[data-field-label]')!.textContent).toBe('Anchor');
+    const pick = host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!;
+    expect(pick.title).toBe('Choose the face the frame is anchored to on the canvas');
+    act(() => pick.click());
+    expect(host!.querySelector<HTMLElement>('[data-zoom-action="pick-anchor"]')!.title).toBe(
+      'Click a face on the canvas to anchor to it; Escape to stop'
+    );
+    act(() => state().setDiagramAnchorPick(null));
+  });
+
+  it('holds its rows on a picture with no layers to x-ray, or one that needs a Refresh first, saying why (R3-18b A)', () => {
+    const step = craneStep('S.none');
+    if (step.source?.kind !== 'cp') throw new Error('a linked step');
+    crane([xray], { ...step, source: { ...step.source, render: { mode: 'crease-pattern', rotationDeg: 0 } } });
+    expect(depth().disabled).toBe(true);
+    expect(host!.querySelector('[data-x-ray-held]')!.textContent).toBe('This picture has no layers to x-ray');
+    // Its faces never kept, and no pattern open to fold them from: a Refresh.
+    crane([xray], craneStep('S.none', { faces: false }));
+    expect(depth().disabled).toBe(true);
+    expect(host!.querySelector('[data-x-ray-held]')!.textContent).toBe('Refresh step 1 to x-ray it');
+    // Shown as its flat fold again, with its faces: as before.
+    crane([xray]);
+    expect(depth().disabled).toBe(false);
+    expect(host!.querySelector('[data-x-ray-held]')).toBeNull();
+  });
+
+  it('says nothing while its step’s faces are fetched, its Depth held, and takes the focus asked for as they land (review of 18e)', async () => {
+    // A pattern open, the link not known to be out of date: the faces of a step captured before they were kept can be
+    // fetched (`fetch`), as an x-ray laid or pasted on it fetches them.
+    act(() =>
+      useWorkspaceStore.setState({
+        oristudioCpDocument: { handle: 1, document: cpDocument(), geometry: null } as unknown as OristudioCpDocumentState,
+      })
+    );
+    const older = crane([xray], craneStep('S.none', { faces: false }));
+    act(() => useWorkspaceStore.setState({ diagramPaperFacesFetching: { [older.id]: true } }));
+    act(() => requestFieldFocus('xray', 'depth'));
+    expect(depth().disabled).toBe(true);
+    expect(host!.querySelector('[data-x-ray-held]')).toBeNull();
+    expect(document.activeElement).not.toBe(depth());
+    // The faces land, in the x-ray's own undo step: its Depth is free, and takes the focus the canvas asked for.
+    await act(async () => {
+      const faced = craneStep('S.none');
+      useWorkspaceStore.setState({
+        diagram: {
+          ...state().diagram!,
+          steps: stepsIn(state().diagram!).map((step) => (step.id === older.id ? { ...step, picture: faced.picture } : step)),
+        },
+        diagramPaperFacesFetching: {},
+      });
+    });
+    expect(depth().disabled).toBe(false);
+    expect(document.activeElement).toBe(depth());
+    // A fetch that ended without them leaves a Refresh to say.
+    crane([xray], craneStep('S.none', { faces: false }));
+    expect(depth().disabled).toBe(true);
+    expect(host!.querySelector('[data-x-ray-held]')!.textContent).toBe('Refresh step 1 to x-ray it');
   });
 });

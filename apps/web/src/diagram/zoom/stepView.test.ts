@@ -198,6 +198,16 @@ describe('the marks an enlarged step draws', () => {
     expect(marksTouchingWindow(window, [{ ...round, size: [0.2, 0.2] }])).toEqual([]);
   });
 
+  it('holds an x-ray’s window reaching into the window from outside by its rim, and badges one wholly outside it (Revision 3, 18e)', () => {
+    // Centred right of the frame (1 × 0.5), its radius 0.15: its left rim 0.05 inside the window.
+    const xray: KnownDiagramAnnotation = { id: 'xray', kind: 'x-ray', from: [1.1, 0.25], to: [1.1, 0.25], radius: 0.15, depth: 1 };
+    expect(marksTouchingWindow(window, [xray])).toEqual([xray]);
+    // Smaller, wholly outside: badged — but near enough to be kept drawn.
+    const small = { ...xray, radius: 0.05 };
+    expect(marksTouchingWindow(window, [small])).toEqual([]);
+    expect(marksInWindow(window, [small])).toEqual([small]);
+  });
+
   it('reaches hung text’s words where they hang, however far off its anchor is (17b)', () => {
     // Its anchor past a window right of the frame; its words hung 200 pt back left, inside it.
     const hung: KnownDiagramAnnotation = { id: 'hung', kind: 'label', from: [2.05, 0.25], to: [2.05, 0.25], text: 'P', sizePt: 9, offsetPt: [-200, 0] };

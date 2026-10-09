@@ -267,7 +267,8 @@
     "toolTurnOver": "Umdrehen",
     "toolValleyArrow": "Talfaltpfeil",
     "toolValleyLine": "Talfaltlinie",
-    "toolWhiteArrow": "Weißer Pfeil"
+    "toolWhiteArrow": "Weißer Pfeil",
+    "toolXRay": "Röntgen"
   },
   "divideMode": {
     "count": "Anzahl",

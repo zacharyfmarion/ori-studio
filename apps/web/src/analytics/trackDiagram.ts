@@ -145,9 +145,11 @@ export function trackDiagramTextStyled(option: DiagramTextStyleOption, value: Di
 /**
  * One of a mark's own options changed (Revision 3): its kind, which option,
  * and what it became — equal divisions' Short Dividers on or off, a star's
- * Fill — or how: a star, an eye, an oval or a rectangle resized or turned by its transform box (`handle`),
- * or its Rotation typed in the Layers pane (`field`). Whether the options
- * the marks gained are used. Never where the mark is, its size or its angle.
+ * Fill, an x-ray's Depth (bucketed) or Anchor (picked, or Auto again) — or
+ * how: a star, an eye, an oval or a rectangle resized or turned by its
+ * transform box (`handle`), or its Rotation typed in the Layers pane
+ * (`field`). Whether the options the marks gained are used. Never where the
+ * mark is, its size, its angle or how deep it goes past three.
  */
 export function trackDiagramMarkStyled(kind: DiagramAnnotationTool, option: DiagramMarkStyleOption, value: DiagramMarkStyleValue): void {
   track(ANALYTICS_EVENTS.diagramMarkStyled, { kind, option, value });
