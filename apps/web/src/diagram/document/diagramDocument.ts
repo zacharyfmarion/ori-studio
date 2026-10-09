@@ -601,8 +601,9 @@ export type DiagramPicture =
  * divisions: a line set off from a line of the picture, cut into equal parts
  * by strokes across it, each part ticked, as a draftsman's dimension is
  * (Revision 2), and an enlarge area: a circle or a rounded rectangle marking
- * what a later step may show enlarged (Revision 2), and a star, filled or
- * outlined, naming a point (Revision 3) — drawing one changes no other step.
+ * what a later step may show enlarged (Revision 2), a star, filled or
+ * outlined, naming a point, and an eye, in profile, saying where the next
+ * view is from (Revision 3) — drawing one changes no other step.
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
@@ -625,7 +626,8 @@ export type DiagramAnnotationKind =
   | 'divisions'
   | 'close-up'
   | 'zoom'
-  | 'star';
+  | 'star'
+  | 'eye';
 
 /**
  * How an enlarged step draws its frame (Revision 2): only where it crosses
@@ -880,7 +882,8 @@ export interface KnownDiagramAnnotation {
    * How many times larger a close-up draws its area (15f): its ring is
    * `radius` times this. Two when unsaid. An enlarge area's Size, which the
    * steps enlarged from it copy: that many times the area as it prints,
-   * 1.25–6; unsaid, Fill (Revision 2).
+   * 1.25–6; unsaid, Fill (Revision 2). A star's or an eye's size, times its
+   * print size, 0.5–4; unsaid, 1 (Revision 3).
    */
   scale?: number;
   /**
@@ -889,7 +892,12 @@ export interface KnownDiagramAnnotation {
    * (Revision 2).
    */
   size?: [number, number];
-  /** An enlarge area's turn, in degrees clockwise, from a pose that carried it; unsaid, 0 (Revision 2). */
+  /**
+   * An enlarge area's turn, in degrees clockwise, from a pose that carried it;
+   * unsaid, 0 (Revision 2). A star's turn on the page, one point up at 0, and
+   * the way an eye looks, clockwise from looking right, each within
+   * [0, 360); unsaid, 0 (Revision 3).
+   */
   angle?: number;
   /** How the steps enlarged from an area draw their frame; unsaid, its shape's own (Revision 2). */
   edge?: DiagramZoomEdge;

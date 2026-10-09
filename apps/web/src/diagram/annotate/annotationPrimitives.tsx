@@ -520,6 +520,12 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
           scale: glyphScaleOf(annotation),
         },
       };
+    case 'eye':
+      // The way it looks, the picture's — the sheet's as `up` turns it — and its size its own (Revision 3).
+      return {
+        kind: 'mark',
+        primitive: { kind: 'eye', at: up(from), angle: glyphAngleOf(annotation), scale: glyphScaleOf(annotation) },
+      };
     case 'right-angle':
       // `to` says only which way it opens: the drawing sizes it.
       return { kind: 'mark', primitive: { kind: 'right-angle', at: up(from), toward: up(to) } };

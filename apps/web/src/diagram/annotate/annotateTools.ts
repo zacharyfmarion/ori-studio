@@ -197,6 +197,7 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   'right-angle': 'marks',
   'angle-mark': 'marks',
   divisions: 'marks',
+  eye: 'marks',
   'close-up': 'marks',
   [ENLARGE]: 'marks',
   [ENLARGE_FRAME]: 'marks',
@@ -235,6 +236,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   'right-angle': 'diagram.toolRightAngle',
   'angle-mark': null,
   divisions: 'diagram.toolDivisions',
+  eye: 'diagram.toolEye',
   'close-up': 'diagram.toolCloseUp',
   [ENLARGE]: 'diagram.toolEnlarge',
   [ENLARGE_FRAME]: 'diagram.toolEnlargeFrame',
@@ -381,6 +383,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('panels:diagram.annotations.enlargeArea', 'Enlarge Area');
     case 'star':
       return t('tools:diagram.toolStar', 'Star');
+    case 'eye':
+      return t('tools:diagram.toolEye', 'Eye');
   }
 }
 
@@ -455,6 +459,11 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       return t('panels:diagram.annotate.circleHelp', 'Click a point to circle it.');
     case 'star':
       return t('panels:diagram.annotate.starHelp', 'Click a point to mark it with a star.');
+    case 'eye':
+      return t(
+        'panels:diagram.annotate.eyeHelp',
+        'Drag from where the viewer stands toward what they look at, or click to look at the middle.'
+      );
     case 'right-angle':
       return t(
         'panels:diagram.annotate.rightAngleHelp',
@@ -652,7 +661,8 @@ function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions'):
 /**
  * The keys a tool honours, a line each: ⌘ (Ctrl) puts what snaps down
  * anywhere (an arrow snaps nowhere, `snapsWhenPlaced`); Shift holds a right
- * angle to 45° steps, equal divisions' line to half millimetres as Select
+ * angle to 45° steps, an eye to 15° steps as it is laid or turned (Revision
+ * 3), equal divisions' line to half millimetres as Select
  * drags it, and in Edit Path a node to the eight directions and a handle to
  * 15° steps; Alt breaks a smooth node's handles apart. A switch, so a new
  * tool has to say.
@@ -698,6 +708,13 @@ function annotateToolModifiers(
           modifier: primary,
         }),
         t('panels:diagram.annotate.starShiftKey', 'With Select, Shift-drag a round handle at a corner to turn it in 15° steps.'),
+      ];
+    case 'eye':
+      // Put down freely (R3-24 A): no ⌘ line. Its drag sets the way it looks, as its box's turn handles turn it.
+      return [
+        t('panels:diagram.annotate.eyeShiftKey', 'Shift-drag to set the way it looks in 15° steps.'),
+        // The star's words, a key of their own: several languages name the star, or agree with it.
+        t('panels:diagram.annotate.eyeBoxShiftKey', 'With Select, Shift-drag a round handle at a corner to turn it in 15° steps.'),
       ];
     case 'right-angle':
       return [

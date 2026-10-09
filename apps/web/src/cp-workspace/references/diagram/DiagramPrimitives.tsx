@@ -41,10 +41,13 @@ import {
   rotateGlyphDrawn,
   sheetCorners,
   starDrawn,
+  eyeDrawn,
+  eyePathData,
   strokePieces,
   turnOverDrawn,
   whiteArrowDrawn,
   STAR_MITER_LIMIT,
+  EYE_MITER_LIMIT,
   WHITE_ARROW_MITER_LIMIT,
 } from '../stepDiagramGeometry';
 import type {
@@ -312,6 +315,7 @@ export function canLeavePaper(primitive: StepDiagramPrimitive): boolean {
     case 'angle-mark':
     case 'divisions':
     case 'star':
+    case 'eye':
     case 'point':
       return true;
     case 'line':
@@ -1046,6 +1050,23 @@ function diagramPrimitiveShape(
           </g>
         )
       );
+    }
+    case 'eye': {
+      // An eye in profile (Revision 3, R3-7 A): its lids, cornea and iris as
+      // one path, outline only, in the aux lines' pen and the marks' ink, its
+      // free ends cut square and its back corner mitred.
+      const eye = eyeDrawn(primitive.at, primitive.angle, primitive.scale, project);
+      return onAndOffPaper(context, index, (inks) => (
+        <path
+          key={index}
+          d={eyePathData(eye)}
+          strokeWidth={round(eye.pen)}
+          strokeLinecap="butt"
+          strokeLinejoin="miter"
+          strokeMiterlimit={EYE_MITER_LIMIT}
+          {...inked(inks, 'step-diagram__point step-diagram__eye', (ink) => ({ fill: 'none', stroke: ink.mark }))}
+        />
+      ));
     }
     case 'point': {
       const at = project(primitive.at);

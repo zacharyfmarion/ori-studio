@@ -172,6 +172,18 @@ describe('the marks an enlarged step draws', () => {
     expect(marksTouchingWindow(window, [{ ...turned, scale: undefined }])).toEqual([]);
   });
 
+  it('reaches an eye’s turned box at its scale: one looking along the window’s edge touches it only when turned toward it (Revision 3)', () => {
+    // Four times its print size, centred just right of the frame (1 × 0.5), looking down: its box's half width across, 4.8 × 4 ink.
+    const across = 4.8 * 4 * INK_UNITS;
+    const eye: KnownDiagramAnnotation = { id: 'eye', kind: 'eye', from: [1 + 1.2 * across, 0.25], to: [1 + 1.2 * across, 0.25], angle: 90, scale: 4 };
+    expect(marksTouchingWindow(window, [eye])).toEqual([]);
+    // Looking left, its length — 7.5 × 4 ink either side — reaches back over the frame.
+    const left = { ...eye, angle: 180 };
+    expect(marksTouchingWindow(window, [left])).toEqual([left]);
+    // At its print size it does not.
+    expect(marksTouchingWindow(window, [{ ...left, scale: undefined }])).toEqual([]);
+  });
+
   it('reaches hung text’s words where they hang, however far off its anchor is (17b)', () => {
     // Its anchor past a window right of the frame; its words hung 200 pt back left, inside it.
     const hung: KnownDiagramAnnotation = { id: 'hung', kind: 'label', from: [2.05, 0.25], to: [2.05, 0.25], text: 'P', sizePt: 9, offsetPt: [-200, 0] };

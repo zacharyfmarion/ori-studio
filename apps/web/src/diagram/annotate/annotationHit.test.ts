@@ -15,13 +15,13 @@ import {
   rightAngleInPicture,
   starRadius,
 } from './annotationHit';
-import { transformBoxHandles } from './transformGrips';
+import { transformBoxHandles, transformBoxOf } from './transformGrips';
 import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
 import { liftCardMarks } from '../references/referencesCardMarks';
 import { pointsCard } from '../references/referencesCardMarks.fixtures';
 import { CARD_FRAME_PX } from './paintAnnotations';
-import { ANNOTATION_INK_MM } from './canvasInk';
+import { ANNOTATION_INK_MM, INK_UNITS } from './canvasInk';
 import { labelCentre } from './annotationModel';
 
 /** About the canvas's: an ink is about 0.0066 of the frame, a callout's outline at the default 1.05 pt pen 0.0025. */
@@ -682,6 +682,21 @@ describe('a star (Revision 3)', () => {
     expect(hitAnnotation([star], [corner.x, corner.y], finger, 'star')).toMatchObject({ part: 'transform', handle: { kind: 'scale', handle: 'sw' } });
   });
 
+  it('is moved by a mouse anywhere in its box as drawn at its 24 px floor, out past its tips’ reach (18c review)', () => {
+    // Zoomed far out: a screen px is 0.01 of the frame, so its 9-ink box is drawn grown to 24 px, its tips well inside.
+    const px = 0.01;
+    const mouse = { ...SIZES, ink: INK_UNITS, px, tolerance: 8 * px };
+    const { box } = transformBoxHandles(star, px)!;
+    expect(box.width / px).toBeCloseTo(24, 9);
+    const half = box.width / 2;
+    // Inside the drawn box, off its squares and further from the middle than its tips and a mouse reach.
+    const press: [number, number] = [0.5 + 0.96 * half, 0.5 + 0.4 * half];
+    expect(Math.hypot(press[0] - 0.5, press[1] - 0.5)).toBeGreaterThan(starRadius(star, INK_UNITS) + mouse.tolerance);
+    expect(hitAnnotation([star], press, mouse, 'star')).toEqual({ annotationId: 'star', part: 'body' });
+    // Not selected, no box is drawn round it: the press is off it.
+    expect(hitAnnotation([star], press, mouse, null)).toBeNull();
+  });
+
   it('hides a circle drawn before it where its arms cover the ring, filled or not, and leaves it the ring between them (18b review)', () => {
     const circle: KnownDiagramAnnotation = { id: 'circle', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5] };
     const r = circleRadius(SIZES.ink);
@@ -699,6 +714,69 @@ describe('a star (Revision 3)', () => {
       expect(hitAnnotation([over, circle], arm, SIZES, null)?.annotationId).toBe('circle');
       // Selected, its ring is drawn over everything.
       expect(hitAnnotation([circle, over], arm, SIZES, 'circle')?.annotationId).toBe('circle');
+    }
+  });
+});
+
+describe('an eye (Revision 3)', () => {
+  // Looking up and to the left, 3 ink long by 1.92 across at the canvas's ink here.
+  const eye: KnownDiagramAnnotation = { id: 'eye', kind: 'eye', from: [0.5, 0.5], to: [0.5, 0.5], angle: 210 };
+  const half = { along: 7.5 * SIZES.ink, across: 4.8 * SIZES.ink };
+  const at = (along: number, across: number): [number, number] => {
+    const a = (210 * Math.PI) / 180;
+    return [0.5 + along * Math.cos(a) - across * Math.sin(a), 0.5 + along * Math.sin(a) + across * Math.cos(a)];
+  };
+
+  it('is taken anywhere inside its turned box at its scale, and as far out as a press reaches', () => {
+    expect(hitAnnotation([eye], [0.5, 0.5], SIZES, null)).toEqual({ annotationId: 'eye', part: 'body' });
+    // A corner of its box, inside: between its lids' fronts, where no ink is.
+    expect(hitAnnotation([eye], at(half.along * 0.99, half.across * 0.99), SIZES, null)?.annotationId).toBe('eye');
+    // Out along the way it looks, past the box, by less than a press's reach, then more.
+    expect(hitAnnotation([eye], at(half.along + SIZES.tolerance - 1e-6, 0), SIZES, null)?.annotationId).toBe('eye');
+    expect(hitAnnotation([eye], at(half.along + SIZES.tolerance + 1e-3, 0), SIZES, null)).toBeNull();
+    // Across it, its box's own side, not a circle round it: nearer its middle than a press reaches past its ends, and still off it.
+    expect(hitAnnotation([eye], at(0, half.across + SIZES.tolerance - 1e-6), SIZES, null)?.annotationId).toBe('eye');
+    expect(half.across + SIZES.tolerance + 1e-3).toBeLessThan(half.along + SIZES.tolerance);
+    expect(hitAnnotation([eye], at(0, half.across + SIZES.tolerance + 1e-3), SIZES, null)).toBeNull();
+    // Scaled, its box grows with it.
+    expect(hitAnnotation([{ ...eye, scale: 2 }], at(2 * half.along, 0), SIZES, null)?.annotationId).toBe('eye');
+    expect(hitAnnotation([eye], at(2 * half.along, 0), SIZES, null)).toBeNull();
+  });
+
+  it('offers its transform box once selected, and never a corner or a direction grip (the right angle’s), nor ends', () => {
+    const { handles, corners } = transformBoxHandles(eye, SIZES.px)!;
+    const ne = handles.scale.find((each) => each.handle === 'ne')!.at;
+    expect(hitAnnotation([eye], [ne.x, ne.y], SIZES, 'eye')).toEqual({ annotationId: 'eye', part: 'transform', handle: { kind: 'scale', handle: 'ne' } });
+    const turn = handles.rotate.find((each) => each.corner === 'sw')!.at;
+    expect(hitAnnotation([eye], [turn.x, turn.y], SIZES, 'eye')).toEqual({ annotationId: 'eye', part: 'transform', handle: { kind: 'rotate', corner: 'sw' } });
+    // Everywhere round it and on it, selected: its box's handles or its body, nothing else.
+    const parts = new Set<string>();
+    for (const [x, y] of [...corners, [0.5, 0.5], eye.from, eye.to, at(half.along, 0), at(-half.along, 0)] as [number, number][]) {
+      for (const [dx, dy] of [[0, 0], [0.01, 0], [0, -0.01], [-0.01, 0.01]]) {
+        const hit = hitAnnotation([eye], [x + dx!, y + dy!], SIZES, 'eye');
+        if (hit) parts.add(hit.part);
+      }
+    }
+    expect([...parts].sort()).toEqual(['body', 'transform']);
+  });
+
+  it('is moved by a mouse anywhere in its box as drawn at its 24 px floor, past its own box and the mouse’s reach (18c review)', () => {
+    const level: KnownDiagramAnnotation = { ...eye, angle: 0 };
+    // Zoomed far out: a screen px is 0.006 of the frame, so the box is drawn grown, in its proportions, to 24 px across.
+    const px = 0.006;
+    const mouse = { ...SIZES, ink: INK_UNITS, px, tolerance: 8 * px };
+    const own = transformBoxOf(level)!;
+    const { box } = transformBoxHandles(level, px)!;
+    expect(box.height / px).toBeCloseTo(24, 9);
+    // Along the way it looks, between the end of its own box and a mouse's reach, and the end of the box as drawn.
+    const along = (own.width / 2 + mouse.tolerance + box.width / 2) / 2;
+    expect(along).toBeGreaterThan(own.width / 2 + mouse.tolerance);
+    expect(along).toBeLessThan(box.width / 2);
+    for (const side of [1, -1]) {
+      const press: [number, number] = [0.5 + side * along, 0.5];
+      expect(hitAnnotation([level], press, mouse, 'eye'), `${side}`).toEqual({ annotationId: 'eye', part: 'body' });
+      // Not selected, no box is drawn round it: the press is off it.
+      expect(hitAnnotation([level], press, mouse, null), `${side}`).toBeNull();
     }
   });
 });

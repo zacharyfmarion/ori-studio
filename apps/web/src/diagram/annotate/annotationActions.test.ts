@@ -28,10 +28,35 @@ const of = (id: string, kind: DiagramAnnotationKind, extra: Partial<KnownDiagram
 });
 
 describe('the annotation verbs', () => {
-  it('offer Flip Arc on the three fold arrows, the pleat arrow, the white arrow and equal divisions alone, and Delete on every kind', () => {
+  it('offer Flip Arc on the three fold arrows, the pleat arrow, the white arrow, equal divisions and the eye alone, and Delete on every kind', () => {
     const flips = ANNOTATION_KINDS.filter((kind) => offersAnnotationAction('flip-arc', of('a', kind)));
-    expect(flips).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'white-arrow', 'divisions']);
+    expect(flips).toEqual(['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'white-arrow', 'divisions', 'eye']);
     expect(ANNOTATION_KINDS.every((kind) => offersAnnotationAction('delete', of('a', kind)))).toBe(true);
+  });
+
+  it('name Flip on an eye, which has no arc, and have it look the other way and back; and its Flip Horizontal and Vertical about its centre (Revision 3, R3-9b A)', () => {
+    const edits: AnnotationEdit[] = [];
+    const eye = of('e', 'eye', { from: [0.3, 0.4], to: [0.3, 0.4], angle: 180 });
+    const actions = buildAnnotationActions(eye, { editable: true }, { t, apply: (edit) => edits.push(edit) });
+    expect(actions.map((action) => [action.id, action.label])).toEqual([
+      ['flip-horizontal', 'Flip Horizontal'],
+      ['flip-vertical', 'Flip Vertical'],
+      ['flip-arc', 'Flip'],
+      ['delete', 'Delete'],
+    ]);
+    const flip = actions.find((action) => action.id === 'flip-arc')!;
+    expect(flip).toMatchObject({ shortcutId: 'diagram.flipArc', disabled: false });
+    flip.run();
+    // Looking left, one press has it look right: its angle unsaid.
+    const once = edits[0]!.edit([eye]);
+    const { angle: _left, ...right } = eye;
+    expect(once).toEqual([right]);
+    expect(edits[0]!.edit(once)).toEqual([eye]);
+    // Looking left, Horizontal is the same turn; Vertical changes nothing, so it is held.
+    actions.find((action) => action.id === 'flip-horizontal')!.run();
+    expect(edits[1]!.edit([eye])).toEqual([right]);
+    expect(edits[1]!.flips).toEqual({ annotationId: 'e', axis: 'horizontal' });
+    expect(actions.find((action) => action.id === 'flip-vertical')!.disabled).toBe(true);
   });
 
   it('name Flip on a pleat arrow, which has no arc, and step its Zs to the other side and back (15c)', () => {

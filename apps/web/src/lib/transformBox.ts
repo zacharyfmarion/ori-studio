@@ -202,16 +202,24 @@ export function snapAngle(angle: number, step: number): number {
   return Math.round(angle / step) * step;
 }
 
-/** True if `model` lies inside the box's rotated rectangle. */
-export function boxContainsModelPoint(box: TransformBox, model: Vec2): boolean {
+/**
+ * How far `model` lies from the box's rotated rectangle, in model units: 0
+ * on or inside it, else the straight distance to its nearest edge or corner.
+ */
+export function boxDistanceModel(box: TransformBox, model: Vec2): number {
   // Transform the point into the box's local (unrotated, centred) frame.
   const dx = model.x - box.center.x;
   const dy = model.y - box.center.y;
   const cos = Math.cos(box.rotation);
   const sin = Math.sin(box.rotation);
-  const localX = dx * cos + dy * sin;
-  const localY = -dx * sin + dy * cos;
-  return Math.abs(localX) <= box.width / 2 && Math.abs(localY) <= box.height / 2;
+  const outX = Math.max(0, Math.abs(dx * cos + dy * sin) - box.width / 2);
+  const outY = Math.max(0, Math.abs(-dx * sin + dy * cos) - box.height / 2);
+  return Math.hypot(outX, outY);
+}
+
+/** True if `model` lies inside the box's rotated rectangle. */
+export function boxContainsModelPoint(box: TransformBox, model: Vec2): boolean {
+  return boxDistanceModel(box, model) === 0;
 }
 
 /** Where a selected box's handles sit: its scale squares, and a turn handle out from each corner. */

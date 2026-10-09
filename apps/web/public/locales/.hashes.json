@@ -4280,7 +4280,11 @@
     "panels:diagram.annotations.rotation": "57b5e2fc1bba",
     "panels:diagram.annotations.starFilled": "3a1bc53ffcdf",
     "panels:diagram.annotations.starOutline": "eabbf3abaf8d",
-    "tools:diagram.toolStar": "e357d396871d"
+    "tools:diagram.toolStar": "e357d396871d",
+    "panels:diagram.annotate.eyeBoxShiftKey": "8e81de74ddc4",
+    "panels:diagram.annotate.eyeHelp": "67fa5249f417",
+    "panels:diagram.annotate.eyeShiftKey": "d74c3ed9aa5f",
+    "tools:diagram.toolEye": "cee37055a415"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8563,7 +8567,11 @@
     "panels:diagram.annotations.rotation": "57b5e2fc1bba",
     "panels:diagram.annotations.starFilled": "3a1bc53ffcdf",
     "panels:diagram.annotations.starOutline": "eabbf3abaf8d",
-    "tools:diagram.toolStar": "e357d396871d"
+    "tools:diagram.toolStar": "e357d396871d",
+    "panels:diagram.annotate.eyeBoxShiftKey": "8e81de74ddc4",
+    "panels:diagram.annotate.eyeHelp": "67fa5249f417",
+    "panels:diagram.annotate.eyeShiftKey": "d74c3ed9aa5f",
+    "tools:diagram.toolEye": "cee37055a415"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12848,7 +12856,11 @@
     "panels:diagram.annotations.rotation": "57b5e2fc1bba",
     "panels:diagram.annotations.starFilled": "3a1bc53ffcdf",
     "panels:diagram.annotations.starOutline": "eabbf3abaf8d",
-    "tools:diagram.toolStar": "e357d396871d"
+    "tools:diagram.toolStar": "e357d396871d",
+    "panels:diagram.annotate.eyeBoxShiftKey": "8e81de74ddc4",
+    "panels:diagram.annotate.eyeHelp": "67fa5249f417",
+    "panels:diagram.annotate.eyeShiftKey": "d74c3ed9aa5f",
+    "tools:diagram.toolEye": "cee37055a415"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -17037,7 +17049,11 @@
     "panels:diagram.annotations.rotation": "57b5e2fc1bba",
     "panels:diagram.annotations.starFilled": "3a1bc53ffcdf",
     "panels:diagram.annotations.starOutline": "eabbf3abaf8d",
-    "tools:diagram.toolStar": "e357d396871d"
+    "tools:diagram.toolStar": "e357d396871d",
+    "panels:diagram.annotate.eyeBoxShiftKey": "8e81de74ddc4",
+    "panels:diagram.annotate.eyeHelp": "67fa5249f417",
+    "panels:diagram.annotate.eyeShiftKey": "d74c3ed9aa5f",
+    "tools:diagram.toolEye": "cee37055a415"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -21226,7 +21242,11 @@
     "panels:diagram.annotations.rotation": "57b5e2fc1bba",
     "panels:diagram.annotations.starFilled": "3a1bc53ffcdf",
     "panels:diagram.annotations.starOutline": "eabbf3abaf8d",
-    "tools:diagram.toolStar": "e357d396871d"
+    "tools:diagram.toolStar": "e357d396871d",
+    "panels:diagram.annotate.eyeBoxShiftKey": "8e81de74ddc4",
+    "panels:diagram.annotate.eyeHelp": "67fa5249f417",
+    "panels:diagram.annotate.eyeShiftKey": "d74c3ed9aa5f",
+    "tools:diagram.toolEye": "cee37055a415"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -25509,7 +25529,11 @@
     "panels:diagram.annotations.rotation": "57b5e2fc1bba",
     "panels:diagram.annotations.starFilled": "3a1bc53ffcdf",
     "panels:diagram.annotations.starOutline": "eabbf3abaf8d",
-    "tools:diagram.toolStar": "e357d396871d"
+    "tools:diagram.toolStar": "e357d396871d",
+    "panels:diagram.annotate.eyeBoxShiftKey": "8e81de74ddc4",
+    "panels:diagram.annotate.eyeHelp": "67fa5249f417",
+    "panels:diagram.annotate.eyeShiftKey": "d74c3ed9aa5f",
+    "tools:diagram.toolEye": "cee37055a415"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -29792,7 +29816,11 @@
     "panels:diagram.annotations.rotation": "57b5e2fc1bba",
     "panels:diagram.annotations.starFilled": "3a1bc53ffcdf",
     "panels:diagram.annotations.starOutline": "eabbf3abaf8d",
-    "tools:diagram.toolStar": "e357d396871d"
+    "tools:diagram.toolStar": "e357d396871d",
+    "panels:diagram.annotate.eyeBoxShiftKey": "8e81de74ddc4",
+    "panels:diagram.annotate.eyeHelp": "67fa5249f417",
+    "panels:diagram.annotate.eyeShiftKey": "d74c3ed9aa5f",
+    "tools:diagram.toolEye": "cee37055a415"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -33981,6 +34009,10 @@
     "panels:diagram.annotations.rotation": "57b5e2fc1bba",
     "panels:diagram.annotations.starFilled": "3a1bc53ffcdf",
     "panels:diagram.annotations.starOutline": "eabbf3abaf8d",
-    "tools:diagram.toolStar": "e357d396871d"
+    "tools:diagram.toolStar": "e357d396871d",
+    "panels:diagram.annotate.eyeBoxShiftKey": "8e81de74ddc4",
+    "panels:diagram.annotate.eyeHelp": "67fa5249f417",
+    "panels:diagram.annotate.eyeShiftKey": "d74c3ed9aa5f",
+    "tools:diagram.toolEye": "cee37055a415"
   }
 }

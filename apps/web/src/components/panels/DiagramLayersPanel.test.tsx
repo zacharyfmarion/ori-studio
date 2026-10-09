@@ -884,6 +884,66 @@ describe('DiagramLayersPanel', () => {
     });
   });
 
+  describe('an eye (Revision 3)', () => {
+    function eyed(more: Partial<KnownDiagramAnnotation> = {}) {
+      const stepId = annotatedStep();
+      act(() => {
+        state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+          ...list,
+          { id: 'e-1', kind: 'eye', from: [0.4, 0.6], to: [0.4, 0.6], ...more },
+        ]);
+        state().openDiagramStep(stepId, 'annotate');
+      });
+      act(() => row('Eye').click());
+      return stepId;
+    }
+    const eye = () => annotations().find((annotation) => annotation.id === 'e-1') as Record<string, unknown>;
+    const last = () => state().diagramHistory.past.at(-1)?.label;
+
+    it('flips it about its centre from its Flip row — Horizontal to 180° less the way it looks, Vertical to its negative — and Flip has it look the other way (R3-9b A)', () => {
+      eyed({ angle: 30 });
+      // Listed as an eye, drawn as one.
+      expect(row('Eye').querySelector('svg path')).not.toBeNull();
+      const past = state().diagramHistory.past.length;
+      act(() => button('Flip Horizontal')!.click());
+      expect(eye()).toMatchObject({ from: [0.4, 0.6], angle: 150 });
+      expect(last()).toBe('Flip horizontal');
+      act(() => button('Flip Vertical')!.click());
+      expect(eye().angle).toBe(210);
+      expect(last()).toBe('Flip vertical');
+      // Flip (F's verb): the other way, half a turn on.
+      act(() => buttonNamed('Flip').click());
+      expect(eye().angle).toBe(30);
+      expect(last()).toBe('Flip arc');
+      expect(state().diagramHistory.past).toHaveLength(past + 3);
+    });
+
+    it('draws Flip with an icon of its own, not the mirror its Flip row’s Vertical draws just above it (18c review)', () => {
+      eyed({ angle: 30 });
+      const icon = (element: Element) => element.querySelector('svg')!.innerHTML;
+      expect(icon(buttonNamed('Flip'))).not.toBe(icon(button('Flip Vertical')!));
+      expect(icon(buttonNamed('Flip'))).not.toBe(icon(button('Flip Horizontal')!));
+    });
+
+    it('sets the way it looks in its Rotation row, wrapped as an image’s, one undo step, counted as typed (R3-33 A)', () => {
+      eyed({ angle: 180 });
+      tracked.trackDiagramMarkStyled.mockClear();
+      const rotation = host!.querySelector<HTMLInputElement>('input[aria-label="Rotation"]')!;
+      expect(rotation.value).toBe('180');
+      act(() => rotation.focus());
+      setField(rotation, '-45');
+      act(() => rotation.blur());
+      expect(eye().angle).toBe(315);
+      expect(last()).toBe('Rotate annotation');
+      expect(tracked.trackDiagramMarkStyled.mock.calls).toEqual([['eye', 'rotation', 'field']]);
+      // Looking right again: no angle written.
+      act(() => rotation.focus());
+      setField(rotation, '0');
+      act(() => rotation.blur());
+      expect('angle' in eye()).toBe(false);
+    });
+  });
+
   it('edits a label’s text in one line, and focuses it for a label just put down', async () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));

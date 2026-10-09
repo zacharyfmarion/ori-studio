@@ -248,6 +248,21 @@ export type StepDiagramPrimitive =
       scale: number;
     }
   /**
+   * An eye in profile centred on `at`, saying where the next view is from
+   * (Revision 3): two lids, a cornea and an iris, outline only, in the aux
+   * lines' pen. It looks `angle` degrees clockwise from looking right, as the
+   * sheet is seen — the sheet's direction (cos, −sin) — and that direction is
+   * the paper's: a turned or mirrored projection turns it, unlike a star's
+   * turn. Its size is the drawing's times `scale`. Only an annotation draws
+   * one; References never emits it.
+   */
+  | {
+      kind: 'eye';
+      at: readonly [number, number];
+      angle: number;
+      scale: number;
+    }
+  /**
    * A stretch of the paper a step works in, as a light fill under the lines:
    * the band a grid step's lines are made in, between the bounds the folder
    * sights them from. A convex polygon, in sheet units.

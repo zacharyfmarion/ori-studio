@@ -9,6 +9,7 @@ import {
   DIAGRAM_PLEAT_INK,
   DIAGRAM_RIGHT_ANGLE_INK,
   DIAGRAM_STAR_INK,
+  DIAGRAM_EYE_INK,
   REFERENCES_VIEW_MARKS,
 } from './diagram/diagramInk';
 import {
@@ -71,6 +72,9 @@ import {
   rightAngleDrawn,
   starDrawn,
   STAR_MITER_LIMIT,
+  eyeDrawn,
+  eyePathData,
+  EYE_MITER_LIMIT,
   rightAnglePathData,
   rightAngleReach,
   rightAngleShape,
@@ -1259,6 +1263,95 @@ describe('a star (Revision 3)', () => {
     expect(pen).toBeCloseTo(markRingWidth(overlay), 12);
     // A regular star's tip is 36°: its mitre is 1 / sin 18° of the pen, 3.24, inside the limit, so never bevelled.
     expect(1 / Math.sin(Math.PI / 10)).toBeLessThan(STAR_MITER_LIMIT);
+  });
+});
+
+describe('an eye (Revision 3)', () => {
+  const overlay = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2);
+  const at = [0.5, 0.5] as const;
+  const unit = (p: SvgPoint) => {
+    const length = Math.hypot(p.x, p.y);
+    return { x: p.x / length, y: p.y / length };
+  };
+  // The way its open side faces on the page: from the corner where its lids meet to its cornea's apex.
+  const facing = (eye: ReturnType<typeof eyeDrawn>) =>
+    unit({ x: eye.cornea.apex.x - eye.lids[1].x, y: eye.cornea.apex.y - eye.lids[1].y });
+  // Clockwise on the y-down page from looking right, in degrees.
+  const bearing = (p: SvgPoint) => (((Math.atan2(p.y, p.x) * 180) / Math.PI) % 360 + 360) % 360;
+
+  it('opens the way it looks, clockwise from right on the page, at 0°, 90° and 217°', () => {
+    for (const angle of [0, 90, 217]) {
+      const eye = eyeDrawn(at, angle, 1, overlay);
+      expect(bearing(facing(eye)), `${angle}`).toBeCloseTo(angle, 6);
+      // Its lids run forward from the back corner, either side of the way it looks, their fronts ahead of the cornea.
+      const [front, back, other] = eye.lids;
+      const ahead = (p: SvgPoint) => (p.x - back.x) * facing(eye).x + (p.y - back.y) * facing(eye).y;
+      expect(ahead(front)).toBeCloseTo(DIAGRAM_EYE_INK.length * 2, 6);
+      expect(ahead(other)).toBeCloseTo(DIAGRAM_EYE_INK.length * 2, 6);
+      expect(ahead(eye.cornea.apex)).toBeLessThan(ahead(front));
+      // The iris bulges back into the eye from the cornea.
+      expect(ahead(eye.iris.via)).toBeLessThan(ahead(eye.iris.from));
+    }
+  });
+
+  it('is centred on its point, 15 ink long and 9.6 ink across at its ink, about 5 mm long at an annotation’s', () => {
+    const eye = eyeDrawn(at, 0, 1, overlay);
+    const [front, back, other] = eye.lids;
+    // Its middle on its point, (50, −50).
+    expect((back.x + (front.x + other.x) / 2) / 2).toBeCloseTo(50, 9);
+    expect((front.y + other.y) / 2).toBeCloseTo(-50, 9);
+    expect(back).toEqual({ x: 50 - 7.5 * 2, y: -50 });
+    expect(Math.abs(front.y - other.y)).toBeCloseTo(2 * 4.8 * 2, 9);
+    expect(DIAGRAM_EYE_INK.length * 0.331).toBeCloseTo(4.97, 2);
+    // The lids meet at about 35°, mitred under SVG's own limit, never bevelled.
+    const half = Math.atan(DIAGRAM_EYE_INK.spread / DIAGRAM_EYE_INK.length);
+    expect((2 * half * 180) / Math.PI).toBeCloseTo(35.5, 1);
+    expect(1 / Math.sin(half)).toBeLessThan(EYE_MITER_LIMIT);
+  });
+
+  it('puts its cornea’s ends on its lids, bulging forward, and its iris’s on the cornea, a half circle', () => {
+    const eye = eyeDrawn(at, 30, 1.5, overlay);
+    const [front, back] = eye.lids;
+    const cross = (a: SvgPoint, b: SvgPoint, c: SvgPoint) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    // On the lid from the back corner to its front: no area between them.
+    expect(cross(back, front, eye.cornea.from) / Math.hypot(front.x - back.x, front.y - back.y)).toBeCloseTo(0, 9);
+    const iris = eye.iris;
+    const middle = { x: (iris.from.x + iris.to.x) / 2, y: (iris.from.y + iris.to.y) / 2 };
+    expect(Math.hypot(iris.from.x - iris.to.x, iris.from.y - iris.to.y)).toBeCloseTo(2 * iris.radius, 9);
+    expect(Math.hypot(iris.via.x - middle.x, iris.via.y - middle.y)).toBeCloseTo(iris.radius, 9);
+    expect(iris.radius).toBeCloseTo(DIAGRAM_EYE_INK.iris * 2 * 1.5, 9);
+  });
+
+  it('is sized by its scale, and stroked in the aux lines’ pen', () => {
+    const big = eyeDrawn(at, 0, 2, overlay);
+    expect(big.lids[1]).toEqual({ x: 50 - 7.5 * 2 * 2, y: -50 });
+    expect(big.pen).toBeCloseTo(auxMarkPen(overlay), 12);
+    expect(eyeDrawn(at, 0, 1, overlay).pen).toBe(big.pen);
+  });
+
+  it('looks the way the paper does: a turned or mirrored projector turns it with the paper', () => {
+    const projector = (degrees: number, mirrored: boolean) => {
+      const [c, s] = [Math.cos((degrees * Math.PI) / 180), Math.sin((degrees * Math.PI) / 180)];
+      return createOverlayProjector({ origin: [40, 70], ex: [100 * c, 100 * s], ey: mirrored ? [100 * s, -100 * c] : [-100 * s, 100 * c] }, 2);
+    };
+    // Looking along the sheet's +x: on the page, wherever the projector puts +x.
+    for (const [degrees, mirrored] of [[90, false], [33, false], [-120, true]] as const) {
+      const project = projector(degrees, mirrored);
+      expect(bearing(facing(eyeDrawn(at, 0, 1, project))), `${degrees} ${mirrored}`).toBeCloseTo(bearing(project.ex), 6);
+    }
+    // A mirror across the page's vertical: looking right becomes looking left; looking 30° below right, 30° below left.
+    const mirror = createOverlayProjector({ origin: [0, 0], ex: [-100, 0], ey: [0, -100] }, 2);
+    expect(bearing(facing(eyeDrawn(at, 0, 1, mirror)))).toBeCloseTo(180, 6);
+    expect(bearing(facing(eyeDrawn(at, 30, 1, mirror)))).toBeCloseTo(150, 6);
+  });
+
+  it('is one path: its lids as one run, its cornea’s arc and its iris’s two quarters', () => {
+    const d = eyePathData(eyeDrawn(at, 0, 1, overlay));
+    expect(d.match(/M /g)).toHaveLength(3);
+    expect(d.match(/ L /g)).toHaveLength(2);
+    expect(d.match(/ A /g)).toHaveLength(3);
+    // Never the large arc: each is under a half turn.
+    for (const [, flags] of d.matchAll(/A [\d.-]+ [\d.-]+ (0 0 [01])/g)) expect(flags).toMatch(/^0 0 [01]$/);
   });
 });
 

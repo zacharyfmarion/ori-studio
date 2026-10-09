@@ -26,10 +26,12 @@ import {
   rightAngleReach,
   rotateGlyphDrawn,
   starDrawn,
+  eyeDrawn,
   strokedOutlinePoints,
   turnOverDrawn,
   whiteArrowDrawn,
   STAR_MITER_LIMIT,
+  EYE_MITER_LIMIT,
   WHITE_ARROW_MITER_LIMIT,
   type Arrowhead,
   type DiagramArc,
@@ -55,6 +57,7 @@ export type DiagramMarkPrimitive = Extract<
       | 'angle-mark'
       | 'divisions'
       | 'star'
+      | 'eye'
       | 'pleat-arrow';
   }
 >;
@@ -72,6 +75,7 @@ const MARK_KINDS: ReadonlySet<StepDiagramPrimitive['kind']> = new Set<DiagramMar
   'angle-mark',
   'divisions',
   'star',
+  'eye',
   'pleat-arrow',
 ]);
 
@@ -233,6 +237,15 @@ export function markReach(
       const star = starDrawn(primitive.at, primitive.angle, primitive.scale, project);
       const points = primitive.fill === 'black' ? star.points : strokedOutlinePoints(star.points, star.pen, STAR_MITER_LIMIT);
       for (const { x, y } of points) take(x, y, 0);
+      break;
+    }
+    case 'eye': {
+      // Its lids' ends, cut square, and their back corner, half the pen round
+      // each, and that corner's mitre: its cornea and iris lie inside the
+      // lids, so their strokes reach no further.
+      const eye = eyeDrawn(primitive.at, primitive.angle, primitive.scale, project);
+      for (const { x, y } of eye.lids) take(x, y, eye.pen / 2);
+      for (const { x, y } of polylineMitres(eye.lids, eye.pen, EYE_MITER_LIMIT)) take(x, y, 0);
       break;
     }
     default: {

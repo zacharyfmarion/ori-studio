@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DIAGRAM_STAR_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import { DIAGRAM_EYE_INK, DIAGRAM_STAR_INK } from '../../cp-workspace/references/diagram/diagramInk';
 import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { ANNOTATION_KINDS, GLYPH_SCALE, type PicturePoint } from './annotationModel';
 import { INK_UNITS } from './canvasInk';
@@ -41,11 +41,11 @@ function armOf(annotation: KnownDiagramAnnotation, degrees: number): PicturePoin
 }
 
 describe('which marks have a transform box (Revision 3)', () => {
-  it('is a star alone in 18b: every other mark keeps its grips', () => {
+  it('is a star’s and an eye’s in 18c: every other mark keeps its grips', () => {
     const boxed = ANNOTATION_KINDS.filter((kind: DiagramAnnotationKind) =>
       hasTransformBox({ id: 'a', kind, from: [0.5, 0.5], to: [0.6, 0.5], radius: 0.1 })
     );
-    expect(boxed).toEqual(['star']);
+    expect(boxed).toEqual(['star', 'eye']);
   });
 
   it('is the square a star’s tips reach, at its scale, turned by its own angle', () => {
@@ -260,8 +260,90 @@ describe('what a box writes, by kind (18b review)', () => {
     expect('scale' in boxed.resized(box, { center: box.center, width: box.width / 2, height: box.height / 2 })).toBe(false);
   });
 
-  it('is a star’s alone in 18b', () => {
+  it('is a star’s and an eye’s in 18c', () => {
     const boxed = ANNOTATION_KINDS.filter((kind) => boxedMarkOf({ id: 'a', kind, from: [0.5, 0.5], to: [0.6, 0.5], radius: 0.1 }) !== null);
-    expect(boxed).toEqual(['star']);
+    expect(boxed).toEqual(['star', 'eye']);
+  });
+});
+
+describe('an eye’s box (18c)', () => {
+  const eye = (more: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnotation => ({
+    id: 'e-1',
+    kind: 'eye',
+    from: [0.4, 0.5],
+    to: [0.4, 0.5],
+    ...more,
+  });
+  const length = (scale = 1) => DIAGRAM_EYE_INK.length * scale * INK_UNITS;
+  const across = (scale = 1) => 2 * DIAGRAM_EYE_INK.spread * scale * INK_UNITS;
+  const px = pxAt(1);
+  const handle = (annotation: KnownDiagramAnnotation, which: 'nw' | 'ne' | 'se' | 'sw', kind: 'scale' | 'rotate' = 'scale') => {
+    const drawn = transformBoxHandles(annotation, px)!.handles;
+    const at = kind === 'scale' ? drawn.scale.find((each) => each.handle === which)!.at : drawn.rotate.find((each) => each.corner === which)!.at;
+    return [at.x, at.y] as PicturePoint;
+  };
+  const about = (point: PicturePoint, degrees: number): PicturePoint => {
+    const a = (degrees * Math.PI) / 180;
+    const [dx, dy] = [point[0] - 0.4, point[1] - 0.5];
+    return [0.4 + dx * Math.cos(a) - dy * Math.sin(a), 0.5 + dx * Math.sin(a) + dy * Math.cos(a)];
+  };
+
+  it('is its lids’ length along the way it looks and their spread across it, at its scale, turned the way it looks', () => {
+    expect(transformBoxOf(eye())).toEqual({ center: { x: 0.4, y: 0.5 }, width: length(), height: across(), rotation: 0 });
+    const turned = transformBoxOf(eye({ angle: 217, scale: 2 }))!;
+    expect([turned.width, turned.height]).toEqual([expect.closeTo(length(2), 12), expect.closeTo(across(2), 12)]);
+    expect(turned.rotation).toBeCloseTo((217 * Math.PI) / 180, 12);
+    // About 5 mm long at scale 1, at a card's 50 mm frame.
+    expect(length() * 50).toBeCloseTo(4.96, 2);
+  });
+
+  it('keeps its proportions, corners only (R3-29a A), and is drawn no smaller than 24 px across its shorter side, in its own proportions (R3-30c B)', () => {
+    expect(boxedMarkOf(eye())!.keepsProportions).toBe(true);
+    expect(transformBoxHandles(eye({ angle: 40 }), px)!.handles.scale.map((each) => each.handle)).toEqual(['nw', 'ne', 'se', 'sw']);
+    // At zoom 1 an eye is about 99 by 64 px: its own box.
+    expect(drawnTransformBox(eye(), px)).toEqual(transformBoxOf(eye()));
+    // At zoom 0.2 about 20 by 13 px: grown about its centre until its shorter side is 24 px.
+    const small = drawnTransformBox(eye({ angle: 45 }), pxAt(0.2))!;
+    expect(small.height / pxAt(0.2)).toBeCloseTo(MIN_GLYPH_BOX_PX, 9);
+    expect(small.width / small.height).toBeCloseTo(length() / across(), 9);
+    expect(small.center).toEqual({ x: 0.4, y: 0.5 });
+    expect(small.rotation).toBeCloseTo(Math.PI / 4, 12);
+  });
+
+  it('scales about its centre, in one scale, whichever corner is drawn out', () => {
+    for (const which of ['nw', 'ne', 'se', 'sw'] as const) {
+      const start = handle(eye({ angle: 30 }), which);
+      const at: PicturePoint = [0.4 + 1.5 * (start[0] - 0.4), 0.5 + 1.5 * (start[1] - 0.5)];
+      const grown = transformDragged(eye({ angle: 30 }), { kind: 'scale', handle: which }, start, at, { px, shift: false });
+      expect(grown.from, which).toEqual([0.4, 0.5]);
+      expect(grown.scale, which).toBeCloseTo(1.5, 9);
+      expect(grown.angle, which).toBe(30);
+    }
+    const far = handle(eye(), 'se');
+    expect(transformDragged(eye(), { kind: 'scale', handle: 'se' }, far, [0.4 + 20 * (far[0] - 0.4), 0.5 + 20 * (far[1] - 0.5)], { px, shift: false }).scale).toBe(
+      GLYPH_SCALE.max
+    );
+  });
+
+  it('turns the way it looks as far as the pointer turns about its centre; Shift holds it to 15° steps', () => {
+    const start = handle(eye({ angle: 180 }), 'sw', 'rotate');
+    const free = transformDragged(eye({ angle: 180 }), { kind: 'rotate', corner: 'sw' }, start, about(start, 22), { px, shift: false });
+    expect(free.angle).toBeCloseTo(202, 9);
+    expect(free.from).toEqual([0.4, 0.5]);
+    const held = transformDragged(eye({ angle: 180 }), { kind: 'rotate', corner: 'sw' }, start, about(start, 22), { px, shift: true });
+    expect(held.angle).toBe(195);
+    // Turned back to looking right: no angle written.
+    const right = transformDragged(eye({ angle: 10 }), { kind: 'rotate', corner: 'sw' }, start, about(start, -12), { px, shift: true });
+    expect('angle' in right).toBe(false);
+  });
+
+  it('takes a square, a turn handle or nothing, as a star’s does; a press inside it is its body’s', () => {
+    const se = handle(eye(), 'se');
+    expect(transformGripAt(eye(), se, { px, reach: REACH.fine * px })).toEqual({ kind: 'scale', handle: 'se' });
+    const turn = handle(eye(), 'ne', 'rotate');
+    expect(transformGripAt(eye(), turn, { px, reach: REACH.fine * px })).toEqual({ kind: 'rotate', corner: 'ne' });
+    // Its middle, and its cornea's apex well inside its box: no handle, so a press moves it.
+    expect(transformGripAt(eye(), [0.4, 0.5], { px, reach: REACH.coarse * px })).toBeNull();
+    expect(transformGripAt(eye(), [0.4 + 0.4 * length(), 0.5], { px, reach: REACH.coarse * px })).toBeNull();
   });
 });

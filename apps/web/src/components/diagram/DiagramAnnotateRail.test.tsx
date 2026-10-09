@@ -40,13 +40,14 @@ describe('DiagramAnnotateRail', () => {
     const marks = [...container.querySelectorAll('#diagram-annotate-group-marks button[aria-label]')].map((button) =>
       button.getAttribute('aria-label')
     );
-    // The star after the circle (Revision 3, R3-25 A).
+    // The star after the circle, the eye after equal divisions (Revision 3, R3-25 A).
     expect(marks).toEqual([
       'Circle',
       'Star',
       'Right Angle',
       'Equal Angles',
       'Equal Divisions',
+      'Eye',
       'Close-Up',
       'Enlarge',
       'Enlarge in Frame',

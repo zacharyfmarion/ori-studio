@@ -1075,6 +1075,52 @@ describe('annotations in the file', () => {
     });
   });
 
+  describe('an eye (Revision 3)', () => {
+    const eye = (more: Record<string, unknown> = {}) => ({ id: 'e-1', kind: 'eye', from: [0.4, 0.6], to: [0.4, 0.6], ...more });
+
+    it('round-trips its centre, the way it looks and its scale — looking right, at its print size, when unsaid', () => {
+      const full = eye({ id: 'e-2', angle: 217.25, scale: 1.75 });
+      const read = withAnnotations([eye(), full]);
+      expect(read).toEqual([eye(), full]);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      const written = stepsIn(throughJson(writeDiagram(document)))[0].annotations;
+      expect(written).toEqual([eye(), full]);
+      expect(Object.keys(written[0]).sort()).toEqual(['from', 'id', 'kind', 'to']);
+    });
+
+    it('reads its `to` as its centre, whatever is written there: the way it looks is its angle', () => {
+      expect(withAnnotations([eye({ to: [0.9, 0.1] })])).toEqual([eye()]);
+    });
+
+    it('reads the way it looks within [0, 360), and drops one that is no number alone, keeping the eye', () => {
+      expect(withAnnotations([eye({ angle: -90 }), eye({ id: 'e-3', angle: 540 })])).toEqual([eye({ angle: 270 }), eye({ id: 'e-3', angle: 180 })]);
+      expect(withAnnotations([eye({ angle: 'left' }), eye({ id: 'e-4', angle: null })])).toEqual([eye(), eye({ id: 'e-4' })]);
+    });
+
+    it('carries what a newer build might write: a scale past half to four times, a fill or a field it has no name for', () => {
+      const newer = [eye({ id: 'e-5', scale: 4.5 }), eye({ id: 'e-6', scale: 0.25 }), eye({ id: 'e-7', fill: 'black' }), eye({ id: 'e-8', arrow: true })];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = newer;
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual(newer);
+    });
+
+    it('drops one whose scale is no positive number, or whose centre does not read', () => {
+      const damaged = [eye({ scale: 0 }), eye({ id: 'e-9', scale: -2 }), eye({ id: 'e-10', scale: '2' }), eye({ id: 'e-11', from: [0.4] })];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+
+    it('is kept, verbatim and undrawn, by a build that knows none: as any kind it has no name for', () => {
+      // What a build before Revision 3 does: its reader names no such kind (`spiral-arrow` stands for it).
+      const older = eye({ kind: 'spiral-arrow', angle: 180, scale: 2 });
+      expect(withAnnotations([older])).toEqual([{ id: 'e-1', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual([older]);
+    });
+  });
+
   describe('a close-up (15f)', () => {
     const closeUp = (more: Record<string, unknown> = {}) => ({
       id: 'z-1',

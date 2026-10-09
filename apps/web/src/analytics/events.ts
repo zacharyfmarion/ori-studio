@@ -91,6 +91,7 @@ export type DiagramAnnotationTool =
   | 'label'
   | 'circle'
   | 'star'
+  | 'eye'
   | 'right_angle'
   | 'callout'
   | 'angle_mark'
@@ -140,9 +141,9 @@ export type DiagramTextStyleOption = 'bold' | 'halo' | 'size';
 
 /**
  * Which of a mark's own options changed (Revision 3): equal divisions' Short
- * Dividers; a star's Fill; and a star's size or turn — by its transform box
- * on the canvas, or its turn typed in the Layers pane's Rotation row. The
- * later marks' options join it.
+ * Dividers; a star's Fill; and a star's or an eye's size or turn — by its
+ * transform box on the canvas, or its turn typed in the Layers pane's
+ * Rotation row. The later marks' options join it.
  */
 export type DiagramMarkStyleOption = 'short_dividers' | 'fill' | 'size' | 'rotation';
 

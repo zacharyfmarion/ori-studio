@@ -162,6 +162,21 @@ describe('diagramInModel', () => {
     ]);
   });
 
+  it('carries an eye’s centre through the frame, and the way it looks with the paper, turned or flipped, its size its own (Revision 3)', () => {
+    const looking: StepDiagramModel = { ...diagram, primitives: [{ kind: 'eye', at: [0.2, 0.5], angle: 30, scale: 2 }] };
+    const [flipped] = diagramInModel(looking, FLIPPED).primitives;
+    // Its direction, (cos, −sin) of its angle, mirrored top to bottom: 30° the other way.
+    expect(flipped).toMatchObject({ kind: 'eye', at: [20, 50], scale: 2 });
+    expect(flipped!.kind === 'eye' && flipped!.angle).toBeCloseTo(330, 9);
+    const upright: PrecreaseFrame = { ...FLIPPED, origin: [0, 0], y_axis: [0, 1] };
+    const [kept] = diagramInModel(looking, upright).primitives;
+    expect(kept!.kind === 'eye' && kept!.angle).toBeCloseTo(30, 9);
+    // A quarter turn of the paper turns it a quarter too.
+    const turned: PrecreaseFrame = { ...FLIPPED, origin: [100, 0], x_axis: [0, 1], y_axis: [-1, 0] };
+    const [quarter] = diagramInModel(looking, turned).primitives;
+    expect(quarter!.kind === 'eye' && quarter!.angle).toBeCloseTo(300, 9);
+  });
+
   it('measures the sheet in model units and knows where its middle is and which way it lies', () => {
     // Re-pinned for Phase 5's erode: the sheet carries the frame's axes, so a
     // turned paper's edge is found where it is and not on an upright box.

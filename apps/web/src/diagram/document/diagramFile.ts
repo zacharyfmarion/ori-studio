@@ -1088,6 +1088,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'close-up': fields('radius', 'scale'),
     zoom: fields('radius', 'size', 'angle', 'scale', 'edge', 'anchor'),
     star: fields('fill', 'angle', 'scale'),
+    eye: fields('angle', 'scale'),
   };
 })();
 
@@ -1156,8 +1157,8 @@ function readAnnotationOfKind(
   const fields = ANNOTATION_FIELDS[kind];
   if (Object.keys(entry).some((key) => !fields.has(key))) return NEWER;
   const from = readAnnotationPoint(entry.from, reach);
-  // A sign's, a label's or an enlarge area's one place is `from`; `to` is written as it again.
-  const to = isPointKind(kind) || kind === 'zoom' ? from : readAnnotationPoint(entry.to, reach);
+  // A sign's, a label's, an enlarge area's or an eye's one place is `from`; `to` is written as it again.
+  const to = isPointKind(kind) || kind === 'zoom' || kind === 'eye' ? from : readAnnotationPoint(entry.to, reach);
   if (from === null || to === null) return null;
   if (from === NEWER || to === NEWER) return NEWER;
   // The ends behind a flap, for a kind that has them: news before damage, as for the rest.
@@ -1323,6 +1324,19 @@ function readAnnotationOfKind(
         ...(scale !== undefined ? { scale } : {}),
       };
     }
+    case 'eye': {
+      // Its scale as a star's, past its range a newer build's; the way it
+      // looks any number, read within [0, 360), one that does not read
+      // dropped alone, and the eye kept looking right (Revision 3).
+      const scale = readGlyphScale(entry.scale);
+      if (scale === NEWER || scale === null) return scale;
+      const angle = finiteNumber(entry.angle);
+      return {
+        ...annotation,
+        ...(angle !== null ? { angle: normalizeDegrees(angle) } : {}),
+        ...(scale !== undefined ? { scale } : {}),
+      };
+    }
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
     case 'push-arrow':
@@ -1483,7 +1497,7 @@ function readCloseUpScale(value: unknown): number | undefined | typeof NEWER | n
 }
 
 /**
- * A star's scale (Revision 3): unsaid, its print size; a positive number,
+ * A star's or an eye's scale (Revision 3): unsaid, its print size; a positive number,
  * as a close-up's is read, past {@link GLYPH_SCALE} a newer build's; anything
  * else, damage.
  */

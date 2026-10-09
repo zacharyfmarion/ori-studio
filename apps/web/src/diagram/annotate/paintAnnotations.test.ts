@@ -294,6 +294,59 @@ describe('a star (Revision 3)', () => {
   });
 });
 
+describe('an eye (Revision 3)', () => {
+  const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
+  const box = { x: 0, y: 0, width: 400, height: 300 };
+  const arrow = a('v', 'valley-arrow', { from: [0.1, 0.2], to: [0.4, 0.2], bend: ARROW_BEND });
+  const eye = (more: Partial<KnownDiagramAnnotation> = {}) => a('e', 'eye', { from: [0.5, 0.5], to: [0.5, 0.5], ...more });
+  const eyePath = /<path d="(M [^"]* A [^"]*)" stroke-width="([\d.]+)" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" fill="none" stroke="([^"]+)"/;
+
+  it('compiles to an eye on its point, looking its way and at its scale, y up', () => {
+    const drawing = annotationDrawing([eye(), eye({ from: [0.2, 0.4], to: [0.2, 0.4], angle: 217, scale: 2 })], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
+    expect(drawing.primitives).toEqual([
+      { kind: 'eye', at: [0.5, -0.5], angle: 0, scale: 1 },
+      { kind: 'eye', at: [0.2, -0.4], angle: 217, scale: 2 },
+    ]);
+  });
+
+  it('is one outline in the aux lines’ pen and the arrows’ ink, in either preset, its back corner mitred, its ends cut square, nothing filled', () => {
+    for (const [style, auxPt] of [
+      [DEFAULT_DIAGRAM_STYLE, 0.25],
+      [{ preset: 'default' } as const, 0.5],
+    ] as const) {
+      const { markup } = paintAnnotations([eye(), arrow], box, 400, style)!;
+      const mark = eyePath.exec(markup);
+      expect(mark, String(auxPt)).not.toBeNull();
+      expect(Number(mark![2])).toBeCloseTo(auxPt * PT_TO_CSS_PX, 3);
+      const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
+      expect(mark![3]).toBe(head);
+      // Its lids from the front, to the back corner 7.5 ink behind its point (200, 200), looking right, and on to the other front.
+      const [x0, y0, x1, y1, x2, y2] = /^M (-?[\d.]+) (-?[\d.]+) L (-?[\d.]+) (-?[\d.]+) L (-?[\d.]+) (-?[\d.]+)/
+        .exec(mark![1])!
+        .slice(1)
+        .map(Number);
+      expect([x1, y1]).toEqual([expect.closeTo(200 - 7.5 * ink, 2), expect.closeTo(200, 2)]);
+      expect([x0, x2]).toEqual([expect.closeTo(200 + 7.5 * ink, 2), expect.closeTo(200 + 7.5 * ink, 2)]);
+      expect(Math.abs(y0! - y2!)).toBeCloseTo(2 * 4.8 * ink, 2);
+    }
+  });
+
+  it('reaches past the frame as far as its lids’ ends, or its back corner’s mitre, turned and scaled', () => {
+    // Off the frame's top edge (y −40 px).
+    const top = (more: Partial<KnownDiagramAnnotation>) =>
+      paintAnnotations([eye({ from: [0.5, -0.1], to: [0.5, -0.1], ...more })], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.y;
+    const pen = 0.25 * PT_TO_CSS_PX;
+    // Looking up: its lids' fronts 7.5 ink above its point, half a pen round their square ends.
+    expect(top({ angle: 270 })).toBeCloseTo(-40 - 7.5 * ink - pen / 2, 3);
+    expect(top({ angle: 270, scale: 2 })).toBeCloseTo(-40 - 15 * ink - pen / 2, 3);
+    // Looking down: its back corner above, mitred half a pen over the sine of half the lids' angle past it.
+    const half = Math.atan(4.8 / 15);
+    expect(top({ angle: 90 })).toBeCloseTo(-40 - 7.5 * ink - pen / 2 / Math.sin(half), 3);
+    // Looking right: its lids' fronts 4.8 ink either side.
+    expect(top({})).toBeCloseTo(-40 - 4.8 * ink - pen / 2, 3);
+  });
+});
+
 describe('a right angle (Revision 2)', () => {
   const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
   // At the vertex (0.5, 0.5), opening down and to the right.

@@ -47,7 +47,8 @@ export function snapRadiusUnits(setting: number, screenPerUnit: number): number 
  * on a corner — a fold arrow starts on the flap and lands on the paper past
  * the crease — so a snap there would only pull it off. A sign or a label is
  * put beside what it names, never on it; a close-up's area or an enlarge
- * area round what it shows. A switch, so a new kind has to say.
+ * area round what it shows; an eye where the viewer stands (Revision 3,
+ * R3-24 A). A switch, so a new kind has to say.
  */
 export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
@@ -73,6 +74,7 @@ export function snapsWhenPlaced(kind: DiagramAnnotationKind): boolean {
     case 'label':
     case 'close-up':
     case 'zoom':
+    case 'eye':
       return false;
   }
 }

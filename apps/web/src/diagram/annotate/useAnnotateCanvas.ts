@@ -76,6 +76,7 @@ import {
   carriesText,
   closeUpShape,
   createAnnotation,
+  eyeLooking,
   frameOf,
   isCornerKind,
   isDegenerate,
@@ -250,7 +251,7 @@ export interface RightAnglePreview {
 }
 
 /**
- * What a press with Select would take of a selected star's transform box
+ * What a press with Select would take of a selected star's or eye's transform box
  * (Revision 3): its body, which moves it; a scale square; or a turn handle.
  * The view's cursor says which, as the Edit canvas's box does: `move`,
  * `pointer` and `grab`.
@@ -480,7 +481,7 @@ export function useAnnotateCanvas({
   );
 
   /**
-   * What a press with Select would take of the selected star's transform box
+   * What a press with Select would take of the selected star's or eye's transform box
    * under the pointer (Revision 3): its body, a scale square or a turn handle
    * — the cursor the view shows there, as the Edit canvas's box shows its own.
    */
@@ -614,7 +615,7 @@ export function useAnnotateCanvas({
   );
 
   /**
-   * What a press at `at` with Select would take of the selected star's box:
+   * What a press at `at` with Select would take of the selected star's or eye's box:
    * a scale square, a turn handle or its body; null off it, and with no box
    * selected.
    */
@@ -1031,7 +1032,7 @@ export function useAnnotateCanvas({
         // An enlarge area's grip (Revision 2): its centre moves it, its rim, corners and edges resize it.
         return withZoomOutline(annotation, draggedOutline(zoomOutlineOf(annotation), grip.zoom, current.start, at, keys));
       case 'transform':
-        // A star's transform box (Revision 3): a square scales it about its centre, a turn handle turns it, Shift by 15°.
+        // A star's or an eye's transform box (Revision 3): a square scales it about its centre, a turn handle turns it, Shift by 15°.
         return transformDragged(annotation, grip.handle, current.start, at, { px: current.px, shift: keys.shift });
     }
   };
@@ -1057,7 +1058,7 @@ export function useAnnotateCanvas({
         return;
       }
       const kind = drawingKind(tool, lineType);
-      // With Select, over the selected star's box: what a press there would take of it.
+      // With Select, over the selected star's or eye's box: what a press there would take of it.
       const selecting = tool === null && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
       setTransformHover(selecting && onStage(input.target) ? transformHoverAt(toPicture(input.clientX, input.clientY)) : null);
       const looking =
@@ -1434,7 +1435,7 @@ export function useAnnotateCanvas({
       if (!pointer) return;
       const placed = placeInHand(current, pointer, free, event.shiftKey);
       const area = current.original.kind === 'zoom';
-      // A star's box (Revision 3): resized or turned, the Edit canvas's own words for each.
+      // A star's or an eye's box (Revision 3): resized or turned, the Edit canvas's own words for each.
       const transform = current.grip.part === 'transform' ? current.grip.handle : null;
       const label = area
         ? 'Change enlarge area'
@@ -1518,7 +1519,7 @@ export function useAnnotateCanvas({
     snapTargets: snap.targets,
     /** The right angle a click would put down where the pointer is: shown over the marks, never in them. */
     rightAnglePreview: rightAngle,
-    /** What a press with Select would take of the selected star's box under the pointer: the view's cursor. */
+    /** What a press with Select would take of the selected star's or eye's box under the pointer: the view's cursor. */
     transformHover,
     /**
      * A pick tool's picks, and what a press would pick: shown over the marks
@@ -1557,7 +1558,9 @@ function sameLine(a: PickedLine | null, b: PickedLine | null): boolean {
 /**
  * What a drawing tool lays from `start` to `end`: an enlarge area in its
  * tool's shape — a rounded rectangle dragged corner to corner, square with
- * Shift and from its middle with Alt (Revision 2) — or its kind, in its look.
+ * Shift and from its middle with Alt (Revision 2) — an eye at `start`
+ * looking toward `end`, in 15° steps with Shift (Revision 3, R3-8 A) — or
+ * its kind, in its look.
  */
 function laid(
   kind: DiagramAnnotationKind,
@@ -1573,6 +1576,7 @@ function laid(
   if (kind === 'zoom' && shape === 'rounded') {
     return zoomAreaFromCorners(start, end, { square: keys.shift, fromMiddle: keys.alt }, newId);
   }
+  if (kind === 'eye') return eyeLooking(start, end, frame, { steps: keys.shift }, newId);
   // A solid line in the colour chosen beside the rail's Line Type (17a).
   const made = withColor(withWhiteArrowLook(createAnnotation(kind, start, end, frame, newId, calloutText), arrowLook), color ?? null);
   // A label in the rail's Text Style (17b).

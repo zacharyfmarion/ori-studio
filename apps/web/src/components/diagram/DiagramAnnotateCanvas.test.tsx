@@ -2875,3 +2875,116 @@ describe('DiagramAnnotateCanvas stars (Revision 3)', () => {
     expect(hover(at(0.5, 0.3))).toBeNull();
   });
 });
+
+describe('DiagramAnnotateCanvas eyes (Revision 3)', () => {
+  // Looking left, as the eye in Zach's note does.
+  const eye: KnownDiagramAnnotation = { id: 'eye', kind: 'eye', from: [0.5, 0.3], to: [0.5, 0.3], angle: 180 };
+
+  beforeEach(() => {
+    useSettingsStore.setState({ diagramAnnotateSnap: true, cpSnapRadius: 10 });
+    tracked.trackDiagramMarkStyled.mockClear();
+  });
+
+  function drawn(list: KnownDiagramAnnotation[], toolInHand: Parameters<typeof tool>[0] = null, selected: string | null = null) {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => list);
+      state().selectDiagramAnnotation(selected);
+      state().setDiagramAnnotateTool(toolInHand);
+    });
+    rerender();
+    return stepId;
+  }
+  const click = (point: [number, number], init: PressInit = {}) => {
+    pointer('pointerdown', point, 1, 'mouse', overlay(), init);
+    pointer('pointerup', point, 1, 'mouse', overlay(), init);
+    rerender();
+  };
+  const handleAt = (name: string): [number, number] => {
+    const handle = overlay().querySelector(`[data-handle="${name}"]`)!;
+    if (handle.tagName.toLowerCase() === 'circle') return [Number(handle.getAttribute('cx')), Number(handle.getAttribute('cy'))];
+    const side = Number(handle.getAttribute('width'));
+    return [Number(handle.getAttribute('x')) + side / 2, Number(handle.getAttribute('y')) + side / 2];
+  };
+  const theEye = () => annotations().find((each) => each.kind === 'eye')!;
+  const label = () => state().diagramHistory.past.at(-1)?.label;
+  /** A point `length` picture units from `from`, `degrees` clockwise from right. */
+  const toward = (from: [number, number], degrees: number, length = 0.2): [number, number] => {
+    const a = (degrees * Math.PI) / 180;
+    return at(from[0] + length * Math.cos(a), from[1] + length * Math.sin(a));
+  };
+
+  it('lays an eye where a drag starts, looking toward where it ends, freely; counted, one undo step, and the tool stays in hand (R3-8 A)', () => {
+    // A line under the start: an eye is put down freely, never snapped to it (R3-24 A).
+    drawn([{ id: 'line', kind: 'valley-line', from: [0.2, 0.2], to: [0.6, 0.2] }], 'eye');
+    const past = state().diagramHistory.past.length;
+    drag(at(0.205, 0.203), toward([0.205, 0.203], 37));
+    expect(theEye().from[0]).toBeCloseTo(0.205, 6);
+    expect(theEye().from[1]).toBeCloseTo(0.203, 6);
+    expect(theEye().to).toEqual(theEye().from);
+    expect(theEye().angle).toBeCloseTo(37, 2);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(label()).toBe('Add annotation');
+    expect(state().diagramSelectedAnnotationId).toBe(theEye().id);
+    expect(state().diagramAnnotateTool).toBe('eye');
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['eye', 'none']]);
+  });
+
+  it('holds the way a drag lays it to 15° steps with Shift (R3-28 A)', () => {
+    drawn([], 'eye');
+    drag(at(0.3, 0.3), toward([0.3, 0.3], 98), 1, 'mouse', overlay(), { shiftKey: true });
+    expect(theEye().angle).toBe(105);
+  });
+
+  it('looks at the picture’s middle when it is clicked', () => {
+    drawn([], 'eye');
+    // Left of the middle of a 1 × 0.75 frame, level with it: looking right, its angle unsaid.
+    click(at(0.1, 0.375));
+    expect(annotations().at(-1)).toEqual({ id: annotations().at(-1)!.id, kind: 'eye', from: [0.1, 0.375], to: [0.1, 0.375] });
+    // Right of it, looking left; below it, looking up.
+    click(at(0.9, 0.375));
+    expect(annotations().at(-1)!.angle).toBe(180);
+    click(at(0.5, 0.7));
+    expect(annotations().at(-1)!.angle).toBe(270);
+  });
+
+  it('shows a selected eye’s transform box, turned the way it looks: corners only, and no corner or direction grip', () => {
+    drawn([eye], null, 'eye');
+    const names = [...overlay().querySelectorAll('[data-selection] [data-handle]')].map((each) => each.getAttribute('data-handle'));
+    expect(names).toEqual(['rotate-nw', 'rotate-ne', 'rotate-se', 'rotate-sw', 'scale-nw', 'scale-ne', 'scale-se', 'scale-sw']);
+    // Looking left, its box's own north-west is the page's south-east: 7.5 ink right of it and 4.8 below.
+    const [cx, cy] = handleAt('scale-nw');
+    const [ex, ey] = at(0.5, 0.3);
+    expect(cx - ex).toBeCloseTo(7.5 * INK_UNITS * 1000, 6);
+    expect(cy - ey).toBeCloseTo(4.8 * INK_UNITS * 1000, 6);
+  });
+
+  it('scales about its centre by a corner square, turns the way it looks by a turn handle — Shift in 15° steps — and moves by its body, each one undo step', () => {
+    drawn([eye], null, 'eye');
+    const [ex, ey] = at(0.5, 0.3);
+    const corner = handleAt('scale-se');
+    drag(corner, [ex + 1.5 * (corner[0] - ex), ey + 1.5 * (corner[1] - ey)]);
+    expect(theEye()).toMatchObject({ from: [0.5, 0.3], angle: 180 });
+    expect(theEye().scale).toBeCloseTo(1.5, 3);
+    expect(label()).toBe('Resize annotation');
+    rerender();
+    const about = ([x, y]: [number, number], degrees: number): [number, number] => {
+      const a = (degrees * Math.PI) / 180;
+      return [ex + (x - ex) * Math.cos(a) - (y - ey) * Math.sin(a), ey + (x - ex) * Math.sin(a) + (y - ey) * Math.cos(a)];
+    };
+    const turn = handleAt('rotate-ne');
+    drag(turn, about(turn, 38), 1, 'mouse', overlay(), { shiftKey: true });
+    expect(theEye().angle).toBe(225);
+    expect(label()).toBe('Rotate annotation');
+    expect(tracked.trackDiagramMarkStyled.mock.calls).toEqual([
+      ['eye', 'size', 'handle'],
+      ['eye', 'rotation', 'handle'],
+    ]);
+    rerender();
+    drag(at(0.5, 0.3), at(0.6, 0.35));
+    expect(theEye().from[0]).toBeCloseTo(0.6, 6);
+    expect(theEye().from[1]).toBeCloseTo(0.35, 6);
+    expect(theEye().angle).toBe(225);
+    expect(label()).toBe('Move annotation');
+  });
+});

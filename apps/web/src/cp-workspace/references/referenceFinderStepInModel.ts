@@ -166,6 +166,16 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
         // Its place moves; its turn and size are its own, on the page.
         primitives.push({ ...primitive, at: map(primitive.at) });
         break;
+      case 'eye': {
+        // Its place moves, and the way it looks is the paper's: turned, or
+        // mirrored, with the map. Its size is its own, a print size.
+        const radians = (primitive.angle * Math.PI) / 180;
+        const at = map(primitive.at);
+        const ahead = map([primitive.at[0] + Math.cos(radians), primitive.at[1] - Math.sin(radians)]);
+        const degrees = (Math.atan2(-(ahead[1] - at[1]), ahead[0] - at[0]) * 180) / Math.PI;
+        primitives.push({ ...primitive, at, angle: degrees < 0 ? degrees + 360 : degrees });
+        break;
+      }
       case 'region':
         primitives.push({ kind: 'region', corners: primitive.corners.map(map) });
         break;

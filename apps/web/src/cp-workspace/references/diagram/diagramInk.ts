@@ -242,6 +242,20 @@ export type DiagramWhiteArrowFill = 'white' | 'black';
 export const DIAGRAM_STAR_INK = { radius: 4.5, inner: 0.382 } as const;
 
 /**
+ * An eye in profile (Revision 3, R3-7 A), saying where the next view is
+ * from, in ink at `scale` 1, as Zach's note draws it (`Diagramming.md`,
+ * "Revison 3"), measured off its picture: two straight lids from a point at
+ * the back, `length` long — 15 ink, about 5 mm — and `spread` either side of
+ * the way it looks at the front, so they meet at about 35°; a cornea arc
+ * across them `cornea` from the back, bulging `bulge` the way it looks, the
+ * lids running on past it about half a millimetre; and the iris, a half
+ * circle of radius `iris` set on the cornea's middle, bulging back into the
+ * eye. Outline only, in the aux lines' pen (R3-26 A), its back corner
+ * mitred.
+ */
+export const DIAGRAM_EYE_INK = { length: 15, spread: 4.8, cornea: 13.5, bulge: 0.5, iris: 1.2 } as const;
+
+/**
  * A white arrow's three widths, in ink: its shaft's width at the head (the
  * neck), and its head's length and width. A fixed print size, as every mark's
  * is; at an annotation's ink (1.25 CSS px, 0.331 mm) they print as:

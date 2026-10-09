@@ -54,8 +54,8 @@ describe('the rail', () => {
       },
       { id: 'lines', tools: ['line', 'angle-bisector'] },
       // The two equality marks side by side (ED8).
-      // Enlarge and Enlarge in Frame after Close-Up (Z1). The star after the circle (Revision 3, R3-25 A).
-      { id: 'marks', tools: ['circle', 'star', 'right-angle', 'angle-mark', 'divisions', 'close-up', 'enlarge', 'enlarge-frame'] },
+      // Enlarge and Enlarge in Frame after Close-Up (Z1). The star after the circle, the eye after equal divisions (Revision 3, R3-25 A).
+      { id: 'marks', tools: ['circle', 'star', 'right-angle', 'angle-mark', 'divisions', 'eye', 'close-up', 'enlarge', 'enlarge-frame'] },
       { id: 'text', tools: ['label', 'callout'] },
     ]);
     // Every kind is drawn by a tool: each its own, the lines by Line in each
@@ -82,6 +82,9 @@ describe('the rail', () => {
     expect(plain).toContain('e');
     expect(toolForShortcut('diagram.toolEnlarge')).toBe('enlarge');
     expect(toolForShortcut('diagram.toolEnlargeFrame')).toBe('enlarge-frame');
+    // Y for the eye (Revision 3, R3-25 A), free in the Diagram's scope and the global one.
+    expect(plain.filter((key) => key === 'y')).toEqual(['y']);
+    expect(toolForShortcut('diagram.toolEye')).toBe('eye');
     const lines = ['valley-line', 'mountain-line', 'hidden-line', 'solid-line'];
     expect(DIAGRAM_LINE_TYPES.map((type) => drawingKind('line', type))).toEqual(lines);
     expect(ANNOTATION_KINDS.filter(isLineKind)).toEqual(lines);
@@ -167,6 +170,16 @@ describe('the tool window', () => {
         instructions: 'Click a point to mark it with a star.',
         modifiers: [
           'Hold Cmd to put it down anywhere, without snapping.',
+          'With Select, Shift-drag a round handle at a corner to turn it in 15° steps.',
+        ],
+      },
+      // Put down freely, a drag setting the way it looks and Shift holding that to 15° steps, as its box's handles do (Revision 3,
+      // R3-8 A, R3-28 A): laying it turns nothing (18c review).
+      eye: {
+        title: 'Eye',
+        instructions: 'Drag from where the viewer stands toward what they look at, or click to look at the middle.',
+        modifiers: [
+          'Shift-drag to set the way it looks in 15° steps.',
           'With Select, Shift-drag a round handle at a corner to turn it in 15° steps.',
         ],
       },

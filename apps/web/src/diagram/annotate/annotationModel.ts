@@ -10,6 +10,7 @@
  * Pure: no DOM, no store, no React.
  */
 import { flattenPath, type Cubic } from '../../lib/cubicBezier';
+import { snapAngle, TRANSFORM_ROTATION_SNAP_RADIANS } from '../../lib/transformBox';
 import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
 import { needsNoGlyph, scriptFonts, textCjkKey } from '../fonts/fontScripts';
@@ -77,7 +78,12 @@ export interface PictureFrame {
  *   click (15f);
  * - `zoom`: an enlarge area, a circle or a rounded rectangle round what a
  *   later step may show enlarged, its centre `from` and `to` alike, put down
- *   with a drag or a click (Revision 2).
+ *   with a drag or a click (Revision 2);
+ * - `sight`: an eye, its centre `from` and `to` alike, the way it looks its
+ *   `angle` — put down with a drag from the viewer toward what they look at,
+ *   or a click that looks at the picture's middle (Revision 3). Not a point
+ *   kind, which a click alone puts down, nor a corner, whose click would look
+ *   for a right angle.
  */
 type AnnotationShape =
   | 'arc'
@@ -90,7 +96,8 @@ type AnnotationShape =
   | 'angle'
   | 'divisions'
   | 'close-up'
-  | 'zoom';
+  | 'zoom'
+  | 'sight';
 
 const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
   'valley-arrow': 'arc',
@@ -114,6 +121,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   divisions: 'divisions',
   'close-up': 'close-up',
   zoom: 'zoom',
+  eye: 'sight',
 };
 
 /** Every kind, in the order the rail offers them. */
@@ -231,6 +239,7 @@ export function behindEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to'
     case 'close-up':
     case 'zoom':
     case 'star':
+    case 'eye':
       return [];
   }
 }
@@ -310,21 +319,39 @@ export function withWhiteArrowLook(annotation: KnownDiagramAnnotation, look: Whi
 }
 
 /**
- * How far a star's `scale` goes, times its print size (Revision 3, R3-30a
- * A): half to four times, a star 1.5 to 12 mm across. Its transform box
- * holds a resize to it, and a file's past it is a newer build's. The eye
- * (18c) shares it.
+ * How far a star's or an eye's `scale` goes, times its print size (Revision
+ * 3, R3-30a A): half to four times, a star 1.5 to 12 mm across, an eye 2.5
+ * to 20 mm long. Its transform box holds a resize to it, and a file's past
+ * it is a newer build's.
  */
 export const GLYPH_SCALE = { min: 0.5, max: 4 } as const;
 
-/** A star's size as drawn, times its print size: unsaid, 1. */
+/** A star's or an eye's size as drawn, times its print size: unsaid, 1. */
 export function glyphScaleOf({ scale }: Pick<KnownDiagramAnnotation, 'scale'>): number {
   return scale ?? 1;
 }
 
-/** A star's turn as drawn, in degrees clockwise on the page, one point up at 0: unsaid, 0. */
+/**
+ * A star's turn as drawn, in degrees clockwise on the page, one point up at
+ * 0; the way an eye looks, in degrees clockwise from looking right: unsaid, 0.
+ */
 export function glyphAngleOf({ angle }: Pick<KnownDiagramAnnotation, 'angle'>): number {
   return angle ?? 0;
+}
+
+/**
+ * What a turn and a scale are kept to, dragged, laid or typed (18b): a
+ * hundredth of a degree, as the Rotation row reads it, and a thousandth of
+ * the print size — a micron on a 1.5 mm star — so a file is not written to
+ * seventeen places (a typed 12.345 comes wrapped as 12.345000000000027), and
+ * a drag back to where it began writes what was there.
+ */
+export const GLYPH_ANGLE_PRECISION = 0.01;
+export const GLYPH_SCALE_PRECISION = 0.001;
+
+/** `value` to the nearest `step`, written to the step's places, and never as −0. */
+export function keptTo(value: number, step: number): number {
+  return Number((Math.round(value / step) * step).toFixed(6)) + 0;
 }
 
 /** A scale held to {@link GLYPH_SCALE}; 1 for one that is no number. */
@@ -341,14 +368,14 @@ export function glyphAngle(degrees: number): number {
   return Math.abs(within - 360) < 1e-9 || Math.abs(within) < 1e-9 ? 0 : within;
 }
 
-/** A star at `scale` times its print size, held to its range: written only when it is not 1. */
+/** A star or an eye at `scale` times its print size, held to its range: written only when it is not 1. */
 export function withGlyphScale(annotation: KnownDiagramAnnotation, scale: number): KnownDiagramAnnotation {
   const next = glyphScaleWithin(scale);
   const { scale: _was, ...rest } = annotation;
   return next === 1 ? rest : { ...rest, scale: next };
 }
 
-/** A star turned to `degrees` clockwise, within [0, 360): written only when it is turned. */
+/** A star or an eye turned to `degrees` clockwise, within [0, 360): written only when it is turned. */
 export function withGlyphAngle(annotation: KnownDiagramAnnotation, degrees: number): KnownDiagramAnnotation {
   const next = glyphAngle(degrees);
   const { angle: _was, ...rest } = annotation;
@@ -361,15 +388,15 @@ export function withStarFill(annotation: KnownDiagramAnnotation, fill: DiagramWh
 }
 
 /**
- * A star as this build writes it: its centre within reach and `to` on it; a
- * fill only when it is filled; its turn within [0, 360) and its scale within
- * {@link GLYPH_SCALE}, each dropped when it is no number. The same object
- * when it already is.
+ * A star or an eye as this build writes it: its centre within reach and `to`
+ * on it; a star's fill only when it is filled, and an eye never filled; its
+ * turn within [0, 360) and its scale within {@link GLYPH_SCALE}, each dropped
+ * when it is no number. The same object when it already is.
  */
-function cleanStar(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+function cleanGlyph(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   const from = withinReach(annotation.from);
   const { fill: wasFill, angle: wasAngle, scale: wasScale, ...rest } = annotation;
-  const fill = wasFill === 'black' ? wasFill : undefined;
+  const fill = annotation.kind === 'star' && wasFill === 'black' ? wasFill : undefined;
   const angle = wasAngle !== undefined && Number.isFinite(wasAngle) ? glyphAngle(wasAngle) : undefined;
   const scale = wasScale !== undefined && Number.isFinite(wasScale) ? glyphScaleWithin(wasScale) : undefined;
   const same =
@@ -527,7 +554,7 @@ function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation 
   if (annotation.kind === 'divisions') return cleanDivisions(annotation);
   if (annotation.kind === 'close-up') return cleanCloseUp(annotation);
   if (annotation.kind === 'zoom') return cleanZoom(annotation);
-  if (annotation.kind === 'star') return cleanStar(annotation);
+  if (annotation.kind === 'star' || annotation.kind === 'eye') return cleanGlyph(annotation);
   const from = withinReach(annotation.from);
   const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
   const text = annotation.text === undefined ? undefined : cleanLabelText(annotation.text);
@@ -985,6 +1012,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'label':
     case 'circle':
     case 'star':
+    case 'eye':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
@@ -1038,6 +1066,7 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'solid-line':
     case 'circle':
     case 'star':
+    case 'eye':
     case 'right-angle':
     case 'angle-mark':
     case 'divisions':
@@ -1071,6 +1100,7 @@ export function carriesColor(kind: DiagramAnnotationKind): boolean {
     case 'hidden-line':
     case 'circle':
     case 'star':
+    case 'eye':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
@@ -1116,6 +1146,7 @@ export function carriesTextStyle(kind: DiagramAnnotationKind): boolean {
     case 'solid-line':
     case 'circle':
     case 'star':
+    case 'eye':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
@@ -1276,6 +1307,7 @@ export function annotationEnds(annotation: Pick<KnownDiagramAnnotation, 'kind' |
     case 'rotate':
     case 'circle':
     case 'star':
+    case 'eye':
     case 'right-angle':
     case 'angle-mark':
     case 'close-up':
@@ -1405,11 +1437,41 @@ export function isCornerKind(kind: DiagramAnnotationKind): boolean {
  * Whether a click puts an annotation of `kind` down: a point kind's at its
  * point, a right angle's in the corner it is in, a callout's beside its
  * point, a close-up's area round it, an enlarge area a standard size round
- * it. A drag draws the rest.
+ * it, an eye looking at the picture's middle (Revision 3). A drag draws the
+ * rest.
  */
 export function placedByClick(kind: DiagramAnnotationKind): boolean {
   const shape = ANNOTATION_SHAPES[kind];
-  return isPointKind(kind) || isCornerKind(kind) || shape === 'callout' || shape === 'close-up' || shape === 'zoom';
+  return (
+    isPointKind(kind) || isCornerKind(kind) || shape === 'callout' || shape === 'close-up' || shape === 'zoom' || shape === 'sight'
+  );
+}
+
+/**
+ * A new eye (Revision 3, R3-8 A), put down freely (R3-24 A) at `start`,
+ * where the viewer stands, looking toward `end`, what they look at — at any
+ * angle, or with `steps` (Shift) held to 15° steps (R3-28 A). A click, or a
+ * drag shorter than a slip, looks toward the picture's middle; at the middle
+ * itself, right, the way an eye with no `angle` looks. Its turn kept to a
+ * hundredth of a degree, written only when it is turned.
+ */
+export function eyeLooking(
+  start: PicturePoint,
+  end: PicturePoint,
+  frame: PictureFrame,
+  { steps = false }: { steps?: boolean } = {},
+  newId: DiagramIdFactory = randomDiagramId
+): KnownDiagramAnnotation {
+  const id = newId('annotation');
+  const from = withinReach(start);
+  const dragged = Math.hypot(end[0] - from[0], end[1] - from[1]) >= MIN_ANNOTATION_LENGTH;
+  const toward: PicturePoint = dragged ? end : [frame.width / 2, frame.height / 2];
+  const [dx, dy] = [toward[0] - from[0], toward[1] - from[1]];
+  const eye: KnownDiagramAnnotation = { id, kind: 'eye', from: [from[0], from[1]], to: [from[0], from[1]] };
+  if (!(Math.hypot(dx, dy) > 1e-9)) return eye;
+  const radians = Math.atan2(dy, dx);
+  const turned = steps ? snapAngle(radians, TRANSFORM_ROTATION_SNAP_RADIANS) : radians;
+  return withGlyphAngle(eye, keptTo(glyphAngle((turned * 180) / Math.PI), GLYPH_ANGLE_PRECISION));
 }
 
 /**
@@ -1453,6 +1515,7 @@ export function createAnnotation(
     // the way a click on a right angle found; the default way for neither.
     return { id, kind, ...rightAngleAt(start, [end[0] - start[0], end[1] - start[1]]) };
   }
+  if (kind === 'eye') return eyeLooking(start, end, frame, {}, () => id);
   const from = withinReach(start);
   const to = withinReach(end);
   if (kind === 'zoom') {
@@ -1988,9 +2051,10 @@ export function pathLength(path: readonly DiagramPathNode[]): number {
  * Whether Flip arc turns `kind` over: a fold arrow's bulge, or a white
  * arrow's, mirrored across its chord as a shaped fold arrow is — and a pleat
  * arrow's Zs, stepping to the other side of it (15c), and equal divisions'
- * line, over to the other side of the line it measures (Revision 2). Asked by every surface
- * that offers it (`annotationActions.ts`), and a switch, so a new kind has to
- * answer.
+ * line, over to the other side of the line it measures (Revision 2) — and an
+ * eye, looking the other way (Revision 3, R3-9b A: "one click turns a
+ * left-looking eye to look right"). Asked by every surface that offers it
+ * (`annotationActions.ts`), and a switch, so a new kind has to answer.
  */
 export function flipsArc(kind: DiagramAnnotationKind): boolean {
   switch (kind) {
@@ -2000,6 +2064,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'white-arrow':
     case 'pleat-arrow':
     case 'divisions':
+    case 'eye':
       return true;
     case 'push-arrow':
     case 'turn-over':
@@ -2028,8 +2093,8 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
  */
 export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
   if (!flipsArc(annotation.kind)) return false;
-  // A pleat arrow's Zs change sides, whichever way it points.
-  if (annotation.kind === 'pleat-arrow') return true;
+  // A pleat arrow's Zs change sides, whichever way it points; an eye looks the other way, whichever way it looks.
+  if (annotation.kind === 'pleat-arrow' || annotation.kind === 'eye') return true;
   // Equal divisions' line goes over, unless they are alike either way.
   if (annotation.kind === 'divisions') return !divisionsAlikeEitherSide(annotation);
   const shape = arrowShape(annotation);
@@ -2046,7 +2111,8 @@ export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
 
 /**
  * A fold arrow bulging the other way; a pleat arrow's Zs or equal divisions'
- * line on the other side; anything else as it was. A shaped
+ * line on the other side; an eye looking the other way, its angle half a turn
+ * on; anything else as it was. A shaped
  * arrow is mirrored across its chord, every node and handle — a return shaped
  * by hand with it — which is what flipping an arc is; one whose ends meet has
  * no chord, and stays.
@@ -2054,6 +2120,10 @@ export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
 export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   if (!flipsArc(annotation.kind)) return annotation;
   if (annotation.kind === 'pleat-arrow' || annotation.kind === 'divisions') return withSide(annotation, annotation.mirrored !== true);
+  // An eye looks the other way (R3-9b A): turned over about its middle, across the way it looks.
+  if (annotation.kind === 'eye') {
+    return withGlyphAngle(annotation, keptTo(glyphAngle(glyphAngleOf(annotation) + 180), GLYPH_ANGLE_PRECISION));
+  }
   const shape = arrowShape(annotation);
   if (shape.kind === 'arc') return { ...annotation, bend: -shape.bend };
   const { from, to } = annotation;
@@ -2097,7 +2167,8 @@ export function isDegenerate(annotation: KnownDiagramAnnotation, minLength: numb
     isCornerKind(annotation.kind) ||
     shape === 'callout' ||
     shape === 'close-up' ||
-    shape === 'zoom'
+    shape === 'zoom' ||
+    shape === 'sight'
   ) {
     return false;
   }
@@ -2200,6 +2271,7 @@ export function kindFromOtherSide(kind: DiagramAnnotationKind): DiagramAnnotatio
     case 'label':
     case 'circle':
     case 'star':
+    case 'eye':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
@@ -2235,6 +2307,7 @@ function carriedOnPicture(annotation: KnownDiagramAnnotation, move: PictureMove)
   if (isHungText(annotation)) return carryHungText(annotation, move);
   if (annotation.kind === 'close-up') return carryCloseUp(annotation, move);
   if (annotation.kind === 'zoom') return carryZoom(annotation, move);
+  if (annotation.kind === 'eye') return carryEye(annotation, move);
   if (annotation.path) {
     const carry = (nodes: readonly DiagramPathNode[]) => {
       const carried = nodes.map((node) => ({
@@ -2437,12 +2510,40 @@ function carryCloseUp(annotation: KnownDiagramAnnotation, move: PictureMove): Kn
   };
 }
 
+/**
+ * An eye carried with the paper (Revision 3): its centre with the face under
+ * it, as a point is, and the way it looks turned as the picture turns there —
+ * by `move.vector`, or where the move takes a step along it — as an enlarge
+ * area's turn is ({@link carryZoom}): a turn turns it, and a mirror reflects
+ * it, so Turn Over has it look across the paper as it did. Its scale is a
+ * print size, which no move changes. Its turn kept to a hundredth of a
+ * degree, as a drag of it writes one.
+ */
+function carryEye(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  const { from } = annotation;
+  const carried = withinReach(move.point(from));
+  const radians = (glyphAngleOf(annotation) * Math.PI) / 180;
+  const look: PicturePoint = [Math.cos(radians), Math.sin(radians)];
+  let turned: PicturePoint;
+  if (move.vector) turned = move.vector(look);
+  else {
+    const [x0, y0] = move.point(from);
+    const [x1, y1] = move.point([from[0] + look[0], from[1] + look[1]]);
+    turned = [x1 - x0, y1 - y0];
+  }
+  const moved: KnownDiagramAnnotation = { ...annotation, from: carried, to: [carried[0], carried[1]] };
+  if (!(Math.hypot(turned[0], turned[1]) > 0)) return moved;
+  return withGlyphAngle(moved, keptTo(glyphAngle((Math.atan2(turned[1], turned[0]) * 180) / Math.PI), GLYPH_ANGLE_PRECISION));
+}
+
 /** Which way Flip turns a mark over: left to right, or top to bottom. */
 export type FlipAxis = 'horizontal' | 'vertical';
 
 /**
  * Whether Flip can turn a mark of `kind` over (Zach, 2026-10-05): every mark
- * with a side to it. A circle, a label and a turn-over are their point, drawn
+ * with a side to it, and an eye, which looks one way (R3-9b A): about its
+ * centre, Horizontal takes its angle to 180° less it, Vertical to its
+ * negative. A circle, a label, a turn-over and a star are their point, drawn
  * the same either way over. An enlarge area is not offered it: Revision 2
  * gives an area no Flip, and a turned rounded rectangle, which one would draw
  * at another angle, takes its turn only from its paper (`carryZoom`). A
@@ -2466,6 +2567,7 @@ export function flipsOver(kind: DiagramAnnotationKind): boolean {
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
+    case 'eye':
       return true;
     // An enlarge area: not offered, though a turned rounded rectangle has a side (see above).
     case 'turn-over':

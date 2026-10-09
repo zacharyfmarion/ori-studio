@@ -118,6 +118,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolLabel'
   | 'diagram.toolCircle'
   | 'diagram.toolStar'
+  | 'diagram.toolEye'
   | 'diagram.toolRightAngle'
   | 'diagram.toolCallout'
   | 'diagram.toolAngleBisector'
@@ -645,6 +646,9 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolDivisions', 'Equal Divisions', { key: 'd' }),
   // I for the inset a close-up draws (15f).
   diagramShortcut('diagram.toolCloseUp', 'Close-Up', { key: 'i' }),
+  // Y for the eye (Revision 3, R3-25 A): E is Enlarge's, and Y is free in
+  // this scope and the global one. Zach plans a shortcut pass before merge.
+  diagramShortcut('diagram.toolEye', 'Eye', { key: 'y' }),
   // E for enlarge, as Sturm and Lang name it (Revision 2, Z1): Edit's Extend
   // Line is in the crease pattern's scope, never live with this one.
   diagramShortcut('diagram.toolEnlarge', 'Enlarge', { key: 'e' }),

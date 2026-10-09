@@ -165,6 +165,10 @@ export function annotationSnapPoints(
     case 'close-up':
     case 'zoom':
       return [];
+    // An eye stands where the viewer does, off the paper as often as on it,
+    // put down freely (Revision 3, R3-24 A): its centre is no point of the picture.
+    case 'eye':
+      return [];
     default: {
       // Every kind says what it offers: a new one is a compile error here.
       const _unsaid: never = annotation.kind;

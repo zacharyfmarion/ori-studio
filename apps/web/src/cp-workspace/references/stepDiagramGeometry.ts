@@ -27,6 +27,7 @@ import {
   DIAGRAM_ANGLE_MARK_INK,
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_DIVISIONS_INK,
+  DIAGRAM_EYE_INK,
   DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_INK_PER_SHEET,
   DIAGRAM_LINE_INK,
@@ -2643,6 +2644,103 @@ export function starDrawn(at: readonly [number, number], angle: number, scale: n
 
 /** An outlined star's tips are mitred, never bevelled: a regular star's 36° tip mitres 3.24 pens out, under SVG's own limit. */
 export const STAR_MITER_LIMIT = 4;
+
+/**
+ * An eye in profile (Revision 3, R3-7 A) in one space's units: its lids, from
+ * the front of the one, to the corner where they meet at the back, to the
+ * front of the other; its cornea, an arc across the lids bulging the way it
+ * looks; and its iris, a half circle on the cornea's middle bulging back into
+ * the eye, as two quarter arcs through `via`, so no half circle's sweep is
+ * left for a renderer to guess. Each arc's sweep is SVG's, in the space's own
+ * axes.
+ */
+export interface EyeShape {
+  lids: readonly [SvgPoint, SvgPoint, SvgPoint];
+  cornea: { from: SvgPoint; to: SvgPoint; radius: number; sweep: 0 | 1; apex: SvgPoint };
+  iris: { from: SvgPoint; via: SvgPoint; to: SvgPoint; radius: number; sweep: 0 | 1 };
+}
+
+/**
+ * {@link EyeShape} centred on `centre` — the middle of its length, the middle
+ * of its box — looking along the unit direction `look`, `ink` units to one ink
+ * of `DIAGRAM_EYE_INK`. Symmetric about the way it looks, so it has no side to
+ * mirror. The one place its shape is decided: the drawing, its reach, the hit
+ * and the rail's icon all take it from here.
+ */
+export function eyeShape(centre: SvgPoint, look: SvgPoint, ink: number): EyeShape {
+  const { length, spread, cornea, bulge, iris } = DIAGRAM_EYE_INK;
+  const across = { x: -look.y, y: look.x };
+  // A point `along` ink from the back and `side` ink across the way it looks.
+  const at = (along: number, side: number): SvgPoint => ({
+    x: centre.x + (along - length / 2) * ink * look.x + side * ink * across.x,
+    y: centre.y + (along - length / 2) * ink * look.y + side * ink * across.y,
+  });
+  // The cornea's circle: through the lids `cornea` from the back, bulging `bulge` past them.
+  const half = (spread * cornea) / length;
+  const radius = (half * half + bulge * bulge) / (2 * bulge);
+  const middle = cornea + bulge - radius;
+  // The iris's ends, on the cornea's circle `iris` either side of the way it looks.
+  const onCornea = middle + Math.sqrt(radius * radius - iris * iris);
+  const sweep = (from: SvgPoint, to: SvgPoint, about: SvgPoint): 0 | 1 =>
+    (from.x - about.x) * (to.y - about.y) - (from.y - about.y) * (to.x - about.x) > 0 ? 1 : 0;
+  const circle = at(middle, 0);
+  const corneaFrom = at(cornea, half);
+  const corneaTo = at(cornea, -half);
+  const irisFrom = at(onCornea, iris);
+  const irisVia = at(onCornea - iris, 0);
+  return {
+    lids: [at(length, spread), at(0, 0), at(length, -spread)],
+    cornea: {
+      from: corneaFrom,
+      to: corneaTo,
+      radius: radius * ink,
+      // The short way round, through its apex.
+      sweep: sweep(corneaFrom, corneaTo, circle),
+      apex: at(cornea + bulge, 0),
+    },
+    iris: {
+      from: irisFrom,
+      via: irisVia,
+      to: at(onCornea, -iris),
+      radius: iris * ink,
+      sweep: sweep(irisFrom, irisVia, at(onCornea, 0)),
+    },
+  };
+}
+
+/** An eye as a picture draws it: its shape, and the pen it is stroked in. */
+export interface EyeDrawn extends EyeShape {
+  /** The aux lines' pen (R3-26 A): its strokes point the way it looks, as a right angle's measure. */
+  pen: number;
+}
+
+/**
+ * An eye (Revision 3) centred on `at`, in sheet units, as a picture draws it:
+ * `DIAGRAM_EYE_INK`'s eye at `scale` times its print size, looking `angle`
+ * degrees clockwise from looking right, as the sheet is seen — the direction
+ * (cos, −sin) in the sheet's y-up units, which the annotation's own y-down
+ * angle is. Unlike a star's turn, which is the page's own, the way it looks is
+ * the paper's: it is projected, so a turned or mirrored picture turns it with
+ * the paper. The glyph is symmetric about it, so a mirror never mirrors the
+ * glyph itself.
+ */
+export function eyeDrawn(at: readonly [number, number], angle: number, scale: number, project: DiagramProjector): EyeDrawn {
+  const radians = (angle * Math.PI) / 180;
+  const look = through(project, { x: Math.cos(radians), y: -Math.sin(radians) });
+  return { ...eyeShape(project(at), look, scale * project.ink), pen: auxMarkPen(project) };
+}
+
+/** An eye's back corner is mitred, never bevelled: its lids' 35° mitres 3.3 pens out, under SVG's own limit. */
+export const EYE_MITER_LIMIT = 4;
+
+/** An eye as one path: its lids, its cornea's arc and its iris's two quarters. */
+export function eyePathData({ lids, cornea, iris }: EyeShape): string {
+  const lidRun = `M ${pointText(lids[0])} L ${pointText(lids[1])} L ${pointText(lids[2])}`;
+  const corneaArc = `M ${pointText(cornea.from)} A ${fmt(cornea.radius)} ${fmt(cornea.radius)} 0 0 ${cornea.sweep} ${pointText(cornea.to)}`;
+  const quarter = `A ${fmt(iris.radius)} ${fmt(iris.radius)} 0 0 ${iris.sweep}`;
+  const irisArc = `M ${pointText(iris.from)} ${quarter} ${pointText(iris.via)} ${quarter} ${pointText(iris.to)}`;
+  return `${lidRun} ${corneaArc} ${irisArc}`;
+}
 
 /** A right-angle mark as one path: its ∟, then its square's two sides — so where they overlap, the ink is never doubled. */
 export function rightAnglePathData({ legs, square }: RightAngleShape): string {

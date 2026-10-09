@@ -4,6 +4,8 @@ import {
   TURN_OVER_BOX,
   TURN_OVER_HEAD_PATH,
   TURN_OVER_PATH,
+  eyePathData,
+  eyeShape,
   polygonPathData,
   starPoints,
 } from '../../cp-workspace/references/stepDiagramGeometry';
@@ -140,7 +142,8 @@ export function SolidArrowGlyph(): ReactElement {
  * list both show it. The fold, push and white arrows are the arrows
  * themselves; the lines are their dash; the circle its ring; the right angle
  * its ∟ and square inside the two lines it marks; equal divisions the
- * template's |\|\| symbol; the callout its line and box; Rotate and Label are the app's own icons for those verbs. Every kind
+ * template's |\|\| symbol; the callout its line and box; the star and the eye the
+ * marks they draw; Rotate and Label are the app's own icons for those verbs. Every kind
  * has one: the return type makes a kind left out a compile error, not a
  * blank button.
  *
@@ -313,5 +316,19 @@ export function DiagramAnnotationGlyph({
       return <EnlargeGlyph shape="rounded" />;
     case 'star':
       return <StarGlyph fill={fill ?? 'white'} />;
+    case 'eye':
+      return <EyeGlyph />;
   }
+}
+
+/** An eye's lids, cornea and iris in a glyph, as the mark draws them (`eyeShape`): looking left, as the eye in Zach's note does. */
+const EYE_GLYPH_PATH = eyePathData(eyeShape({ x: 10, y: 10 }, { x: -1, y: 0 }, 17 / 15));
+
+/** The eye's icon (Revision 3): the Eye tool's and the list's, an outline, its back corner mitred as the mark's is. */
+export function EyeGlyph(): ReactElement {
+  return (
+    <Glyph>
+      <path d={EYE_GLYPH_PATH} strokeWidth={1.1} strokeLinecap="butt" strokeLinejoin="miter" />
+    </Glyph>
+  );
 }

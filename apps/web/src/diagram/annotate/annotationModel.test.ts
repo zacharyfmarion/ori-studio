@@ -90,6 +90,10 @@ import {
   withGlyphAngle,
   withGlyphScale,
   withStarFill,
+  eyeLooking,
+  flipCentre,
+  flipsOver,
+  keptTo,
   type PictureMove,
   type PicturePoint,
 } from './annotationModel';
@@ -1381,5 +1385,106 @@ describe('a star (Revision 3)', () => {
     expect(carryAnnotation(turned, grown).scale).toBe(1.5);
     // Moved, as a paste moves it.
     expect(moveAnnotation(turned, [0.25, 0.25])).toEqual({ ...turned, from: [0.55, 0.65], to: [0.55, 0.65] });
+  });
+});
+
+describe('an eye (Revision 3)', () => {
+  const eye = (more: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnotation => ({
+    id: 'e-1',
+    kind: 'eye',
+    from: [0.3, 0.4],
+    to: [0.3, 0.4],
+    ...more,
+  });
+  const WIDE = { width: 1, height: 0.5 };
+
+  it('is put down where a drag starts, looking toward where it ends, at any angle (R3-8 A)', () => {
+    // Down and to the right, 45° clockwise from looking right.
+    expect(createAnnotation('eye', [0.3, 0.4], [0.5, 0.6], SQUARE, id)).toEqual({
+      id: 'annotation-1',
+      kind: 'eye',
+      from: [0.3, 0.4],
+      to: [0.3, 0.4],
+      angle: 45,
+    });
+    // Straight right: looking right, its angle unsaid.
+    expect(createAnnotation('eye', [0.3, 0.4], [0.8, 0.4], SQUARE, id)).toEqual({ id: 'annotation-1', kind: 'eye', from: [0.3, 0.4], to: [0.3, 0.4] });
+    // Up and to the left at a free angle, kept to a hundredth of a degree.
+    const free = createAnnotation('eye', [0.3, 0.4], [0.1, 0.33], SQUARE, id);
+    expect(free.angle).toBe(keptTo(((Math.atan2(-0.07, -0.2) * 180) / Math.PI + 360) % 360, 0.01));
+    expect(free.angle).toBeCloseTo(199.29, 2);
+  });
+
+  it('is held to 15° steps with Shift (R3-28 A)', () => {
+    expect(eyeLooking([0.3, 0.4], [0.1, 0.33], SQUARE, { steps: true }, id).angle).toBe(195);
+    expect(eyeLooking([0.3, 0.4], [0.5, 0.41], SQUARE, { steps: true }, id).angle).toBeUndefined();
+    expect(eyeLooking([0.3, 0.4], [0.3, 0.1], SQUARE, { steps: true }, id).angle).toBe(270);
+  });
+
+  it('looks at the picture’s middle when it is clicked, or dragged shorter than a slip, and right from the middle itself', () => {
+    // From the top left of a wide frame, toward (0.5, 0.25): down and to the right.
+    const clicked = createAnnotation('eye', [0.1, 0.05], [0.1, 0.05], WIDE, id);
+    expect(clicked.angle).toBe(keptTo((Math.atan2(0.2, 0.4) * 180) / Math.PI, 0.01));
+    const short = createAnnotation('eye', [0.9, 0.25], [0.9 + MIN_ANNOTATION_LENGTH / 2, 0.25], WIDE, id);
+    expect(short.angle).toBe(180);
+    expect(createAnnotation('eye', [0.5, 0.25], [0.5, 0.25], WIDE, id).angle).toBeUndefined();
+    expect(placedByClick('eye')).toBe(true);
+    expect(isDegenerate(clicked, MIN_ANNOTATION_LENGTH)).toBe(false);
+  });
+
+  it('has no ends, path, text, colour or anything behind a flap: its box moves, scales and turns it', () => {
+    expect(annotationEnds(eye())).toEqual([]);
+    expect([canBeShaped('eye'), carriesText('eye'), carriesColor('eye'), behindEnds('eye').length]).toEqual([false, false, false, 0]);
+    expect(kindFromOtherSide('eye')).toBe('eye');
+    expect(withGlyphAngle(eye(), -90)).toEqual(eye({ angle: 270 }));
+    expect(withGlyphScale(eye(), 6)).toEqual(eye({ scale: GLYPH_SCALE.max }));
+  });
+
+  it('is cleaned as the file reads it: its centre within reach and `to` on it, never filled, its turn and scale held', () => {
+    const clean = eye({ angle: 200, scale: 2 });
+    expect(cleanAnnotation(clean)).toBe(clean);
+    const loose = { ...eye({ to: [0.9, 0.9], angle: 450, scale: 0.1 }), fill: 'black' } as KnownDiagramAnnotation;
+    expect(cleanAnnotation(loose)).toEqual(eye({ angle: 90, scale: GLYPH_SCALE.min }));
+    expect(cleanAnnotation(eye({ angle: Number.NaN }))).toEqual(eye());
+  });
+
+  it('flips about its centre: Horizontal to 180° less the way it looks, Vertical to its negative (R3-9b A)', () => {
+    expect(flipsOver('eye')).toBe(true);
+    const looking = eye({ angle: 30, scale: 1.5 });
+    expect(flipCentre(looking)).toEqual([0.3, 0.4]);
+    expect(flipAnnotation(looking, 'horizontal')).toEqual(eye({ angle: 150, scale: 1.5 }));
+    expect(flipAnnotation(looking, 'vertical')).toEqual(eye({ angle: 330, scale: 1.5 }));
+    // Looking left, a horizontal flip has it look right: its angle unsaid again.
+    expect(flipAnnotation(eye({ angle: 180 }), 'horizontal')).toEqual(eye());
+    // Looking straight down, Horizontal changes nothing; Vertical has it look up.
+    expect(flipChangesMark(eye({ angle: 90 }), 'horizontal')).toBe(false);
+    expect(flipAnnotation(eye({ angle: 90 }), 'vertical')).toEqual(eye({ angle: 270 }));
+  });
+
+  it('looks the other way with Flip (F): one press turns a left-looking eye to look right (R3-9b A)', () => {
+    expect(flipsArc('eye')).toBe(true);
+    expect(flipAnnotationArc(eye({ angle: 180 }))).toEqual(eye());
+    expect(flipAnnotationArc(eye({ angle: 30, scale: 2 }))).toEqual(eye({ angle: 210, scale: 2 }));
+    expect(flipChangesArc(eye())).toBe(true);
+  });
+
+  it('turns with the picture through a carry, a mirror reflecting the way it looks; its scale a print size', () => {
+    const looking = eye({ angle: 30, scale: 1.5 });
+    // A quarter turn clockwise: its centre with the paper, and the way it looks a quarter on.
+    const quarter: PictureMove = { point: ([x, y]) => [1 - y, x], mirrors: false, turnDeg: 90 };
+    expect(carryAnnotation(looking, quarter)).toEqual(eye({ from: [0.6, 0.3], to: [0.6, 0.3], angle: 120, scale: 1.5 }));
+    // Mirrored left to right: 180° less it.
+    const mirrored = carryAnnotation(looking, mirrorMove(SQUARE));
+    expect(mirrored).toEqual(eye({ from: [0.7, 0.4], to: [0.7, 0.4], angle: 150, scale: 1.5 }));
+    // Turn Over: mirrored with the paper, and still an eye.
+    expect(carryAnnotation(looking, { ...mirrorMove(SQUARE), otherSide: true })).toEqual(mirrored);
+    // A spread's own turn there, by `vector`: a quarter turn back.
+    const spread: PictureMove = { point: ([x, y]) => [x + 0.1, y], vector: ([x, y]) => [y, -x], mirrors: false, turnDeg: -90 };
+    expect(carryAnnotation(looking, spread)).toEqual(eye({ from: [0.4, 0.4], to: [0.4, 0.4], angle: 300, scale: 1.5 }));
+    // Grown with the picture, as into an enlarged step's window: its print size kept, the way it looks too.
+    const grown: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
+    expect(carryAnnotation(looking, grown)).toEqual(eye({ from: [0.6, 0.8], to: [0.6, 0.8], angle: 30, scale: 1.5 }));
+    // Moved, as a paste moves it.
+    expect(moveAnnotation(looking, [0.25, 0.25])).toEqual({ ...looking, from: [0.55, 0.65], to: [0.55, 0.65] });
   });
 });

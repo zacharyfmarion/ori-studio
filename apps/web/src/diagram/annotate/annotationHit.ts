@@ -79,7 +79,8 @@ import { nearestPathPoint, pathNodesOf, visiblePathHandles } from './annotationP
 import { ANNOTATION_INK_MM } from './canvasInk';
 import { perAnnotation } from './perAnnotation';
 import { TEXT_HALO_EMS } from './textStyle';
-import { hasTransformBox, transformGripAt, type TransformHandle } from './transformGrips';
+import { drawnTransformBox, hasTransformBox, transformBoxOf, transformGripAt, type TransformHandle } from './transformGrips';
+import { boxDistanceModel, type TransformBox } from '../../lib/transformBox';
 import { zoomGripAt, type ZoomGrip } from '../zoom/zoomGrips';
 import { distanceToRim, zoomOutlineOf } from '../zoom/zoomModel';
 
@@ -94,8 +95,8 @@ import { distanceToRim, zoomOutlineOf } from '../zoom/zoomModel';
  * handle at the middle of equal divisions' line, which sets how far off the
  * line they measure it stands, as a drag of the mark does (Revision 2); and
  * a selected enlarge area's centre, rim, corners or edges (`zoomGrips.ts`);
- * and a selected star's transform box, a scale square or a turn handle
- * (Revision 3, `transformGrips.ts`).
+ * and a selected star's or eye's transform box, a scale square or a turn
+ * handle (Revision 3, `transformGrips.ts`).
  */
 export type AnnotationGripPart =
   | { part: 'body' }
@@ -508,6 +509,16 @@ function starCovers(annotation: KnownDiagramAnnotation, point: PicturePoint, ink
   return insidePolygon(point, corners.map(({ x: u, y: v }): PicturePoint => [u, v]));
 }
 
+/**
+ * How far a press is from a turned box, in picture units: 0 inside it, and
+ * never near a mark with no box. What an eye is pressed by (Revision 3): its
+ * box at its scale, turned the way it looks — its lids' outline and the gap
+ * between them, taken whole as a star is.
+ */
+function turnedBoxDistance([x, y]: PicturePoint, box: TransformBox | null): number {
+  return box ? boxDistanceModel(box, { x, y }) : Infinity;
+}
+
 /** How far a press is from a box, in picture units: 0 inside it. */
 function boxDistance([x, y]: PicturePoint, box: { x: number; y: number; width: number; height: number }): number {
   const dx = Math.max(box.x - x, 0, x - (box.x + box.width));
@@ -786,6 +797,9 @@ function bodyDistance(
     case 'star':
       // Anywhere inside its tips' reach, at its scale: a small mark, taken whole.
       return Math.max(0, Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - starRadius(annotation, sizes.ink));
+    case 'eye':
+      // Inside its turned box at its scale (Revision 3), as its transform box is drawn round it.
+      return turnedBoxDistance(point, transformBoxOf(annotation, sizes.ink));
     case 'right-angle':
       return rightAngleDistance(annotation, point, sizes.ink);
     case 'angle-mark':
@@ -843,7 +857,7 @@ export function hitAnnotation(
   const known = annotations.filter(isKnownAnnotation);
   const selected = known.find((annotation) => annotation.id === selectedId);
   if (selected && hasTransformBox(selected)) {
-    // A star's transform box (Revision 3): a scale square or a turn handle, before anything drawn under it.
+    // A star's or an eye's transform box (Revision 3): a scale square or a turn handle, before anything drawn under it.
     const handle = transformGripAt(selected, point, { px: sizes.px, reach: sizes.tolerance });
     if (handle) return { annotationId: selected.id, part: 'transform', handle };
   } else if (selected?.kind === 'close-up') {
@@ -901,9 +915,16 @@ export function hitAnnotation(
   // A label pressed on its halo or the margin round it, not its words: taken only when nothing under it is (17d
   // review). A pulled letter hangs beside its ring, its halo over the ring's near rim, which is the ring's to take.
   let margin: AnnotationGrip | null = null;
+  // A selected star's or eye's box as the canvas draws it, at least 24 px across (R3-30c B): a press anywhere in it
+  // that is not on a handle moves the mark (`transformGripAt`), as the move cursor there says.
+  const selectedBox = selected && hasTransformBox(selected) ? drawnTransformBox(selected, sizes.px) : null;
+  const reachOf = (annotation: KnownDiagramAnnotation) => {
+    const body = bodyDistance(annotation, point, sizes, marks);
+    return annotation === selected && selectedBox ? Math.min(body, turnedBoxDistance(point, selectedBox)) : body;
+  };
   for (let index = drawn.length - 1; index >= 0; index -= 1) {
     const annotation = drawn[index]!;
-    if (bodyDistance(annotation, point, sizes, marks) > sizes.tolerance) continue;
+    if (reachOf(annotation) > sizes.tolerance) continue;
     if (annotation.kind === 'label' && annotation.id !== selectedId && bodyDistance({ ...annotation, halo: undefined }, point, sizes, marks) > 0) {
       margin ??= { annotationId: annotation.id, part: 'body' };
       continue;

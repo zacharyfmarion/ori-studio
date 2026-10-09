@@ -168,6 +168,11 @@ describe('pictureSnapTarget on annotations', () => {
     expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [star], ignore: star.id })).toBeNull();
   });
 
+  it('never snaps to an eye: it stands where the viewer does, put down freely (Revision 3, R3-24 A)', () => {
+    const eye = annotation({ kind: 'eye', from: [0.45, 0.35], to: [0.45, 0.35], angle: 180 });
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [eye] })).toBeNull();
+  });
+
   it('snaps to the corner a right angle marks, not to the way it opens', () => {
     const square = annotation({ kind: 'right-angle', from: [0.45, 0.35], to: [0.47, 0.35] });
     expect(pictureSnapTarget(step, NO_ASSETS, [0.46, 0.34], 0.05, { annotations: [square] })).toEqual({

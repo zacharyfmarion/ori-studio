@@ -7,6 +7,7 @@ import {
   TRANSFORM_ROTATION_SNAP_RADIANS,
   boxCornersModel,
   boxContainsModelPoint,
+  boxDistanceModel,
   resizeAnnotationBox,
   resizeAspectLock,
   snapAngle,
@@ -50,6 +51,35 @@ describe('boxContainsModelPoint', () => {
     expect(boxContainsModelPoint(b, { x: 0, y: 1.9 })).toBe(true);
     expect(boxContainsModelPoint(b, { x: 0, y: 2.1 })).toBe(false);
     expect(boxContainsModelPoint(b, { x: 0.6, y: 0 })).toBe(false);
+  });
+});
+
+describe('boxDistanceModel', () => {
+  it('is 0 on and inside the box, and the straight distance to its nearest edge or corner outside it', () => {
+    const b = box({ center: { x: 5, y: 5 } });
+    expect(boxDistanceModel(b, { x: 5, y: 5 })).toBe(0);
+    expect(boxDistanceModel(b, { x: 7, y: 6 })).toBe(0);
+    // Past an edge: how far past it.
+    expect(boxDistanceModel(b, { x: 7.5, y: 5.5 })).toBeCloseTo(0.5, 12);
+    expect(boxDistanceModel(b, { x: 5, y: 3 })).toBeCloseTo(1, 12);
+    // Past a corner: to the corner, not to either edge's line.
+    expect(boxDistanceModel(b, { x: 10, y: 10 })).toBeCloseTo(Math.hypot(3, 4), 12);
+  });
+
+  it('respects rotation, and is what boxContainsModelPoint asks', () => {
+    // Turned 30°, 4 along its turn by 1 across.
+    const b = box({ width: 4, height: 1, rotation: Math.PI / 6 });
+    const at = (along: number, across: number) => ({
+      x: along * Math.cos(Math.PI / 6) - across * Math.sin(Math.PI / 6),
+      y: along * Math.sin(Math.PI / 6) + across * Math.cos(Math.PI / 6),
+    });
+    expect(boxDistanceModel(b, at(1.9, 0.4))).toBe(0);
+    expect(boxDistanceModel(b, at(2.75, 0))).toBeCloseTo(0.75, 12);
+    expect(boxDistanceModel(b, at(0, -1.5))).toBeCloseTo(1, 12);
+    expect(boxDistanceModel(b, at(3, 1.5))).toBeCloseTo(Math.hypot(1, 1), 12);
+    for (const [along, across] of [[1.9, 0.4], [2.1, 0], [0, 0.6], [-1.99, -0.49]]) {
+      expect(boxContainsModelPoint(b, at(along!, across!)), `${along} ${across}`).toBe(boxDistanceModel(b, at(along!, across!)) === 0);
+    }
   });
 });
 

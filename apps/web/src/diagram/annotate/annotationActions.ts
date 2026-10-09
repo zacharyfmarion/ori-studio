@@ -350,7 +350,7 @@ export function steppedNode(node: number | null, count: number, direction: -1 | 
   return Math.min(count - 1, Math.max(0, node + direction));
 }
 
-/** A verb's name on an annotation of `kind`: Flip arc, on a pleat arrow or equal divisions, only flips — neither has an arc. */
+/** A verb's name on an annotation of `kind`: Flip arc, on a pleat arrow, equal divisions or an eye, only flips — none has an arc. */
 function annotationActionLabel(t: TFunction, id: AnnotationActionId, kind: DiagramAnnotationKind): string {
   switch (id) {
     case 'previous-node':
@@ -370,7 +370,7 @@ function annotationActionLabel(t: TFunction, id: AnnotationActionId, kind: Diagr
     case 'flip-vertical':
       return t('panels:diagram.annotations.flipVertical', 'Flip Vertical');
     case 'flip-arc':
-      return kind === 'pleat-arrow' || kind === 'divisions'
+      return kind === 'pleat-arrow' || kind === 'divisions' || kind === 'eye'
         ? t('panels:diagram.annotations.flip', 'Flip')
         : t('tools:diagram.flipArc', 'Flip Arc');
     case 'reset-path':

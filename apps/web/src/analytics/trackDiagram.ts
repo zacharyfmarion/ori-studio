@@ -145,7 +145,7 @@ export function trackDiagramTextStyled(option: DiagramTextStyleOption, value: Di
 /**
  * One of a mark's own options changed (Revision 3): its kind, which option,
  * and what it became — equal divisions' Short Dividers on or off, a star's
- * Fill — or how: a star resized or turned by its transform box (`handle`),
+ * Fill — or how: a star or an eye resized or turned by its transform box (`handle`),
  * or its Rotation typed in the Layers pane (`field`). Whether the options
  * the marks gained are used. Never where the mark is, its size or its angle.
  */

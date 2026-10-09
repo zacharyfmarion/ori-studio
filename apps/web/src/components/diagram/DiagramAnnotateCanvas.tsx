@@ -395,6 +395,7 @@ function Selection({
       // Along its outline, all the way round, with its grips (Revision 2).
       return <ZoomOutlineSelection outline={zoomOutlineOf(annotation)} layout={layout} zoom={zoom} movable={movable} />;
     case 'star':
+    case 'eye':
       // Its transform box, as an image's on the Edit canvas (Revision 3).
       return <TransformBoxSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
   }
@@ -620,7 +621,7 @@ function ZoomOutlineSelection({
 }
 
 /**
- * A selected star's transform box (Revision 3): the Edit canvas's image
+ * A selected star's or eye's transform box (Revision 3): the Edit canvas's image
  * selection, from the same layout (`transformHandles`) — its outline at
  * 1.5 screen px, a square at each corner that scales it about its centre, and
  * a round handle 18 screen px out from each corner that turns it — in the
@@ -628,8 +629,8 @@ function ZoomOutlineSelection({
  * sized for the screen at any zoom — their strokes too, divided by the
  * camera's zoom as the frame line's are: the world is drawn under the
  * camera's CSS transform, which `non-scaling-stroke` does not see (18b
- * review). Round a small star the box is drawn at least 24 screen px across
- * (R3-30c B). No handles on a diagram that cannot change.
+ * review). Round a small star or eye the box is drawn at least 24 screen px
+ * across (R3-30c B). No handles on a diagram that cannot change.
  */
 function TransformBoxSelection({
   annotation,

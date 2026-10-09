@@ -59,6 +59,14 @@ describe('annotations on the clipboard', () => {
     expect(pastedAnnotations(clipboard, 'step-2', () => 'annotation-2')[0]).toEqual({ ...short, id: 'annotation-2' });
   });
 
+  it('pastes an eye beside its original on its own step, looking the way it did at its scale, and in place anywhere else (Revision 3)', () => {
+    const eye: KnownDiagramAnnotation = { id: 'e', kind: 'eye', from: [0.3, 0.4], to: [0.3, 0.4], angle: 135, scale: 1.5 };
+    const clipboard = annotationClipboard([eye], 'step-1');
+    const beside: [number, number] = [0.3 + PASTE_OFFSET, 0.4 + PASTE_OFFSET];
+    expect(pastedAnnotations(clipboard, 'step-1', () => 'annotation-1')[0]).toEqual({ ...eye, id: 'annotation-1', from: beside, to: beside });
+    expect(pastedAnnotations(clipboard, 'step-2', () => 'annotation-2')[0]).toEqual({ ...eye, id: 'annotation-2' });
+  });
+
   // 17d: a mark lifted from a card is the card's on a step that shows that card, the author's anywhere else.
   it('keeps a pulled mark the card’s only on a step showing the same card, front or back', () => {
     const ring: KnownDiagramAnnotation = { id: 'r', kind: 'circle', from: [0, 1], to: [0, 1], imported: 'edited' };
