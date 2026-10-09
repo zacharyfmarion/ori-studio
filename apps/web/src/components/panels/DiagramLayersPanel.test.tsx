@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDiagram, type KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { cpStep, referencesStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { ANNOTATE_TOOL_GROUPS, annotateToolHelp } from '../../diagram/annotate/annotateTools';
-import { angleMarkAt } from '../../diagram/annotate/annotationModel';
+import { readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { SHORT_DIVIDERS_FROM_MM, angleMarkAt } from '../../diagram/annotate/annotationModel';
 import i18n from '../../i18n';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -497,6 +499,47 @@ describe('DiagramLayersPanel', () => {
       expect(tracked.trackDiagramMarkStyled).toHaveBeenLastCalledWith('divisions', 'short_dividers', 'off');
       expect(tracked.trackDiagramMarkStyled).toHaveBeenCalledTimes(2);
       expect(state().diagramHistory.past).toHaveLength(past + 2);
+    });
+
+    it('says, while Short Dividers is on and the line within 1.65 mm, that they show only further out (the 18a follow-up)', () => {
+      divided({ offset: 1 });
+      act(() => row('Equal Divisions').click());
+      // The rule's own number, not one written into the words (18b review).
+      expect(SHORT_DIVIDERS_FROM_MM).toBeCloseTo(1.654, 3);
+      const inert = () =>
+        [...host!.querySelectorAll('[role="status"]')].find((notice) =>
+          notice.textContent?.includes(
+            'Short dividers show once the line is more than 1.65 mm out. Closer than that, every divider already reaches across the line.'
+          )
+        ) ?? null;
+      // Off: nothing to say.
+      expect(inert()).toBeNull();
+      act(() => shortDividers()!.click());
+      expect(divisions().shortDividers).toBe(true);
+      expect(inert()).not.toBeNull();
+      // Under the switch.
+      expect(shortDividers()!.compareDocumentPosition(inert()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // Out past 1.65 mm they show, and the note goes.
+      const offset = input('Offset');
+      act(() => offset.focus());
+      setField(offset, '1.7');
+      act(() => offset.blur());
+      expect(divisions().offset).toBe(1.7);
+      expect(inert()).toBeNull();
+      act(() => offset.focus());
+      setField(offset, '1.6');
+      act(() => offset.blur());
+      expect(inert()).not.toBeNull();
+      // Every language has the number put in, as its own numbers are written, never a number of its own.
+      const locales = resolve(__dirname, '../../../public/locales');
+      for (const locale of readdirSync(locales).filter((name) => !name.startsWith('.'))) {
+        const panels = JSON.parse(readFileSync(resolve(locales, locale, 'panels.json'), 'utf8'));
+        const note: string = panels.diagram.annotations.shortDividersInert;
+        expect(note, locale).toContain('{{mm}}');
+        expect(note, locale).not.toMatch(/\d/);
+      }
+      act(() => shortDividers()!.click());
+      expect(inert()).toBeNull();
     });
 
     it('gives new divisions’ Parts the focus, its count selected to be typed over, and Enter gives the canvas its keys back (ED5)', async () => {

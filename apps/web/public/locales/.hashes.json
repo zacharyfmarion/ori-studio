@@ -4271,7 +4271,8 @@
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
     "toasts:diagram.references.noMarksInFrame": "165eb743392f",
     "panels:diagram.annotations.shortDividers": "37171e05ef65",
-    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187",
+    "panels:diagram.annotations.shortDividersInert": "40e31edc12b9"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8545,7 +8546,8 @@
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
     "toasts:diagram.references.noMarksInFrame": "165eb743392f",
     "panels:diagram.annotations.shortDividers": "37171e05ef65",
-    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187",
+    "panels:diagram.annotations.shortDividersInert": "40e31edc12b9"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12821,7 +12823,8 @@
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
     "toasts:diagram.references.noMarksInFrame": "165eb743392f",
     "panels:diagram.annotations.shortDividers": "37171e05ef65",
-    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187",
+    "panels:diagram.annotations.shortDividersInert": "40e31edc12b9"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -17001,7 +17004,8 @@
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
     "toasts:diagram.references.noMarksInFrame": "165eb743392f",
     "panels:diagram.annotations.shortDividers": "37171e05ef65",
-    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187",
+    "panels:diagram.annotations.shortDividersInert": "40e31edc12b9"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -21181,7 +21185,8 @@
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
     "toasts:diagram.references.noMarksInFrame": "165eb743392f",
     "panels:diagram.annotations.shortDividers": "37171e05ef65",
-    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187",
+    "panels:diagram.annotations.shortDividersInert": "40e31edc12b9"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -25455,7 +25460,8 @@
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
     "toasts:diagram.references.noMarksInFrame": "165eb743392f",
     "panels:diagram.annotations.shortDividers": "37171e05ef65",
-    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187",
+    "panels:diagram.annotations.shortDividersInert": "40e31edc12b9"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -29729,7 +29735,8 @@
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
     "toasts:diagram.references.noMarksInFrame": "165eb743392f",
     "panels:diagram.annotations.shortDividers": "37171e05ef65",
-    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187",
+    "panels:diagram.annotations.shortDividersInert": "40e31edc12b9"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -33909,6 +33916,7 @@
     "toasts:diagram.references.marksOutsideFrame_other": "27efb5e11792",
     "toasts:diagram.references.noMarksInFrame": "165eb743392f",
     "panels:diagram.annotations.shortDividers": "37171e05ef65",
-    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187"
+    "panels:diagram.annotations.shortDividersHelp": "85888e3ed187",
+    "panels:diagram.annotations.shortDividersInert": "40e31edc12b9"
   }
 }

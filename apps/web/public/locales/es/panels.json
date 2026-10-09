@@ -947,6 +947,7 @@
       "scale": "Ampliación",
       "shortDividers": "Divisores cortos",
       "shortDividersHelp": "Dibuja los divisores entre los extremos como trazos cortos que cruzan la línea.",
+      "shortDividersInert": "Los divisores cortos se ven una vez que la línea está a más de {{mm}} mm. Más cerca, todos los divisores ya cruzan la línea.",
       "sideToSide": "De lado a lado",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "Con la imagen",

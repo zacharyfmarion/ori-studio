@@ -881,6 +881,7 @@
       "scale": "放大倍数",
       "shortDividers": "短分隔线",
       "shortDividersHelp": "将两端之间的分隔线画成横跨该线的短线。",
+      "shortDividersInert": "线离开超过 {{mm}} 毫米后才会显示短分隔线。更近时，每条分隔线本来就已横跨该线。",
       "sideToSide": "左右",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "随图缩放",

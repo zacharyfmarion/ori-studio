@@ -6,6 +6,8 @@ import {
   divisionsOffsetWithin,
   divisionsParts,
   divisionsPartsOf,
+  SHORT_DIVIDERS_FROM_MM,
+  shortDividersShow,
 } from '../../diagram/annotate/annotationModel';
 import { useDivisionsCrowded } from '../../diagram/annotate/useDivisionsCrowded';
 import { useFieldFocusRequest } from '../../diagram/annotate/useFieldFocusRequest';
@@ -22,8 +24,9 @@ import styles from './DiagramDivisionsControls.module.css';
  * for their ticks at the size the step prints (ED10); Offset, in mm as it
  * prints (ED3); Ticks (ED7); Number, whether the count prints beside the
  * line (ED6); and Short Dividers, whether the dividers between the ends are
- * short strokes across the line (Revision 3, R3-1 A). Each change is one
- * undo step.
+ * short strokes across the line (Revision 3, R3-1 A), with a note while it
+ * is on and the line is too near the measured line for it to show. Each
+ * change is one undo step.
  */
 export function DiagramDivisionsControls({
   step,
@@ -44,7 +47,7 @@ export function DiagramDivisionsControls({
   onNumbered: (numbered: boolean) => void;
   onShortDividers: (short: boolean) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const parts = useFieldFocusRequest<HTMLInputElement>(annotation.id, 'parts');
   const crowded = useDivisionsCrowded(step, annotation);
   return (
@@ -92,6 +95,17 @@ export function DiagramDivisionsControls({
         disabled={!editable}
         onChange={onShortDividers}
       />
+      {annotation.shortDividers === true && !shortDividersShow(divisionsOffsetOf(annotation)) && (
+        <div className={styles.notice}>
+          <Notice>
+            {t(
+              'panels:diagram.annotations.shortDividersInert',
+              'Short dividers show once the line is more than {{mm}} mm out. Closer than that, every divider already reaches across the line.',
+              { mm: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(SHORT_DIVIDERS_FROM_MM) }
+            )}
+          </Notice>
+        </div>
+      )}
     </>
   );
 }

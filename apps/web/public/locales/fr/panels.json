@@ -947,6 +947,7 @@
       "scale": "Agrandissement",
       "shortDividers": "Séparateurs courts",
       "shortDividersHelp": "Dessine les séparateurs entre les extrémités en traits courts en travers de la ligne.",
+      "shortDividersInert": "Les séparateurs courts apparaissent une fois la ligne à plus de {{mm}} mm. Plus près, chaque séparateur traverse déjà la ligne.",
       "sideToSide": "De gauche à droite",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "Avec l’image",

@@ -881,6 +881,7 @@
       "scale": "倍率",
       "shortDividers": "短い区切り線",
       "shortDividersHelp": "両端の間の区切り線を、線を横切る短い線で描きます。",
+      "shortDividersInert": "短い区切り線は、線が {{mm}} mm より外に出てから表示されます。それより近いと、どの区切り線もすでに線をまたいでいます。",
       "sideToSide": "左右",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "図に合わせる",

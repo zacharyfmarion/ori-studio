@@ -14,7 +14,7 @@ import { graphemesOf } from '../../lib/paper/textWrap';
 import { xmlText } from '../../lib/xmlEscape';
 import { needsNoGlyph, scriptFonts, textCjkKey } from '../fonts/fontScripts';
 import { isAnnotationColor } from './annotationColors';
-import { ptInPictureUnits } from './canvasInk';
+import { ANNOTATION_INK_MM, ptInPictureUnits } from './canvasInk';
 import {
   isTextSizePt,
   PLAIN_TEXT_STYLE,
@@ -24,7 +24,11 @@ import {
   type TextStyle,
 } from './textStyle';
 import { cjkRunAdvance, labelAdvance } from './labelAdvances';
-import type { DiagramWhiteArrowFill, DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
+import {
+  DIAGRAM_DIVISIONS_INK,
+  type DiagramWhiteArrowFill,
+  type DiagramWhiteArrowWidth,
+} from '../../cp-workspace/references/diagram/diagramInk';
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import {
   randomDiagramId,
@@ -589,6 +593,24 @@ export function divisionsPartsOf({ parts }: Pick<KnownDiagramAnnotation, 'parts'
 /** Equal divisions' offset as drawn, in mm: a file's always says; a guard puts down the laid one. */
 export function divisionsOffsetOf({ offset }: Pick<KnownDiagramAnnotation, 'offset'>): number {
   return offset ?? DIVISIONS_OFFSET_MM.laid;
+}
+
+/**
+ * How far out equal divisions' line must stand, in mm as it prints, for
+ * Short Dividers to change how they are drawn (R3-2 A): a divider's
+ * overshoot past the line, about 1.65 mm. The note under the switch says
+ * this number, so it cannot drift from the rule.
+ */
+export const SHORT_DIVIDERS_FROM_MM = DIAGRAM_DIVISIONS_INK.overshoot * ANNOTATION_INK_MM;
+
+/**
+ * Whether Short Dividers changes how equal divisions `offset` mm off their
+ * line are drawn (R3-2 A): only once the line stands further out than
+ * {@link SHORT_DIVIDERS_FROM_MM}. Nearer, every divider already straddles
+ * the line that far either side, short or not (`divisionsShape`).
+ */
+export function shortDividersShow(offset: number): boolean {
+  return offset > SHORT_DIVIDERS_FROM_MM;
 }
 
 /**

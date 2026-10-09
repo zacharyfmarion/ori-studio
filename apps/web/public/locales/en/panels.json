@@ -914,6 +914,7 @@
       "scale": "Scale",
       "shortDividers": "Short Dividers",
       "shortDividersHelp": "Draw the dividers between the ends as short strokes across the line.",
+      "shortDividersInert": "Short dividers show once the line is more than {{mm}} mm out. Closer than that, every divider already reaches across the line.",
       "sideToSide": "Side to Side",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "With the picture",

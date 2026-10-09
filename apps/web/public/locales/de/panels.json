@@ -914,6 +914,7 @@
       "scale": "Vergrößerung",
       "shortDividers": "Kurze Trennlinien",
       "shortDividersHelp": "Zeichnet die Trennlinien zwischen den Enden als kurze Striche quer über die Linie.",
+      "shortDividersInert": "Kurze Trennlinien zeigen sich erst, wenn die Linie mehr als {{mm}} mm entfernt liegt. Näher daran reicht jede Trennlinie ohnehin über die Linie.",
       "sideToSide": "Seitlich",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "Mit dem Bild",

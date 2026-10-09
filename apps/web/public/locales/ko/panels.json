@@ -881,6 +881,7 @@
       "scale": "배율",
       "shortDividers": "짧은 구분선",
       "shortDividersHelp": "양 끝 사이의 구분선을 선을 가로지르는 짧은 선으로 그립니다.",
+      "shortDividersInert": "짧은 구분선은 선이 {{mm}}mm보다 멀리 있을 때 보입니다. 그보다 가까우면 모든 구분선이 이미 선을 가로지릅니다.",
       "sideToSide": "좌우",
       "sizePt": "{{size}} pt",
       "sizeWithPicture": "그림에 맞춤",

@@ -82,9 +82,13 @@ import {
   withNumbered,
   withParts,
   withShortDividers,
+  shortDividersShow,
   type PictureMove,
   type PicturePoint,
 } from './annotationModel';
+import { divisionsShape } from '../../cp-workspace/references/stepDiagramGeometry';
+import { DIAGRAM_DIVISIONS_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import { ANNOTATION_INK_MM } from './canvasInk';
 
 const SQUARE = { width: 1, height: 1 };
 const id = () => 'annotation-1';
@@ -1248,6 +1252,26 @@ describe('equal divisions (Revision 2)', () => {
     // On its line they draw as full ones do: F and the flips are held there as before.
     expect(flipChangesArc({ ...short, offset: 0 })).toBe(false);
     expect(flipChangesMark({ ...short, offset: 0 }, 'vertical')).toBe(false);
+  });
+
+  it('says short dividers show only where they change the drawing: the line more than 1.65 mm out (the 18a follow-up)', () => {
+    // As the drawing has it, in ink: the dividers between the ends, short and full.
+    const drawn = (mm: number, shortDividers: boolean) =>
+      divisionsShape({ x: 0, y: 0 }, { x: 100, y: 0 }, { parts: 3, ticks: 1, mirrored: false, numbered: false, shortDividers }, {
+        offset: mm / ANNOTATION_INK_MM,
+        overshoot: DIAGRAM_DIVISIONS_INK.overshoot,
+        tick: 3,
+        spacing: 2,
+        tickFloor: 1.5,
+        spacingFloor: 1,
+        lean: 0,
+        number: 7.2,
+        gap: 2,
+      })!.dividers;
+    for (const mm of [0, 1, 1.6, 1.7, 2.5, 10]) {
+      expect(shortDividersShow(mm)).toBe(JSON.stringify(drawn(mm, true)) !== JSON.stringify(drawn(mm, false)));
+    }
+    expect([1.6, 1.65, 1.7, DIVISIONS_OFFSET_MM.laid].map(shortDividersShow)).toEqual([false, false, true, true]);
   });
 
   it('keeps its line on its side of the paper through a mirror, its offset and its count through any move', () => {
