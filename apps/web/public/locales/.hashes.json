@@ -4313,7 +4313,12 @@
     "panels:diagram.annotations.anchorPickBar": "652da815c123",
     "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
     "panels:diagram.annotations.xRayAnchorTap": "21b90a533ffe",
-    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee"
+    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee",
+    "toasts:diagram.zoom.updatedOne": "6a6b809d8079",
+    "toasts:diagram.zoom.updatedRange": "66ceb8ec8e9c",
+    "toasts:diagram.zoom.updatedSome": "fa8d1741ca8d",
+    "toasts:diagram.zoom.updatedSomeDetail": "caa05131e225",
+    "toasts:diagram.zoom.updateFailed": "e6dc63e88e39"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8629,7 +8634,12 @@
     "panels:diagram.annotations.anchorPickBar": "652da815c123",
     "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
     "panels:diagram.annotations.xRayAnchorTap": "21b90a533ffe",
-    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee"
+    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee",
+    "toasts:diagram.zoom.updatedOne": "6a6b809d8079",
+    "toasts:diagram.zoom.updatedRange": "66ceb8ec8e9c",
+    "toasts:diagram.zoom.updatedSome": "fa8d1741ca8d",
+    "toasts:diagram.zoom.updatedSomeDetail": "caa05131e225",
+    "toasts:diagram.zoom.updateFailed": "e6dc63e88e39"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -12947,7 +12957,12 @@
     "panels:diagram.annotations.anchorPickBar": "652da815c123",
     "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
     "panels:diagram.annotations.xRayAnchorTap": "21b90a533ffe",
-    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee"
+    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee",
+    "toasts:diagram.zoom.updatedOne": "6a6b809d8079",
+    "toasts:diagram.zoom.updatedRange": "66ceb8ec8e9c",
+    "toasts:diagram.zoom.updatedSome": "fa8d1741ca8d",
+    "toasts:diagram.zoom.updatedSomeDetail": "caa05131e225",
+    "toasts:diagram.zoom.updateFailed": "e6dc63e88e39"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -17168,7 +17183,12 @@
     "panels:diagram.annotations.anchorPickBar": "652da815c123",
     "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
     "panels:diagram.annotations.xRayAnchorTap": "21b90a533ffe",
-    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee"
+    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee",
+    "toasts:diagram.zoom.updatedOne": "6a6b809d8079",
+    "toasts:diagram.zoom.updatedRange": "66ceb8ec8e9c",
+    "toasts:diagram.zoom.updatedSome": "fa8d1741ca8d",
+    "toasts:diagram.zoom.updatedSomeDetail": "caa05131e225",
+    "toasts:diagram.zoom.updateFailed": "e6dc63e88e39"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -21389,7 +21409,12 @@
     "panels:diagram.annotations.anchorPickBar": "652da815c123",
     "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
     "panels:diagram.annotations.xRayAnchorTap": "21b90a533ffe",
-    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee"
+    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee",
+    "toasts:diagram.zoom.updatedOne": "6a6b809d8079",
+    "toasts:diagram.zoom.updatedRange": "66ceb8ec8e9c",
+    "toasts:diagram.zoom.updatedSome": "fa8d1741ca8d",
+    "toasts:diagram.zoom.updatedSomeDetail": "caa05131e225",
+    "toasts:diagram.zoom.updateFailed": "e6dc63e88e39"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -25705,7 +25730,12 @@
     "panels:diagram.annotations.anchorPickBar": "652da815c123",
     "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
     "panels:diagram.annotations.xRayAnchorTap": "21b90a533ffe",
-    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee"
+    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee",
+    "toasts:diagram.zoom.updatedOne": "6a6b809d8079",
+    "toasts:diagram.zoom.updatedRange": "66ceb8ec8e9c",
+    "toasts:diagram.zoom.updatedSome": "fa8d1741ca8d",
+    "toasts:diagram.zoom.updatedSomeDetail": "caa05131e225",
+    "toasts:diagram.zoom.updateFailed": "e6dc63e88e39"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -30021,7 +30051,12 @@
     "panels:diagram.annotations.anchorPickBar": "652da815c123",
     "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
     "panels:diagram.annotations.xRayAnchorTap": "21b90a533ffe",
-    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee"
+    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee",
+    "toasts:diagram.zoom.updatedOne": "6a6b809d8079",
+    "toasts:diagram.zoom.updatedRange": "66ceb8ec8e9c",
+    "toasts:diagram.zoom.updatedSome": "fa8d1741ca8d",
+    "toasts:diagram.zoom.updatedSomeDetail": "caa05131e225",
+    "toasts:diagram.zoom.updateFailed": "e6dc63e88e39"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -34242,6 +34277,11 @@
     "panels:diagram.annotations.anchorPickBar": "652da815c123",
     "panels:diagram.annotations.anchorTap": "95e1ee9dae8a",
     "panels:diagram.annotations.xRayAnchorTap": "21b90a533ffe",
-    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee"
+    "panels:diagram.annotations.xRayNothing": "4c7999b6eaee",
+    "toasts:diagram.zoom.updatedOne": "6a6b809d8079",
+    "toasts:diagram.zoom.updatedRange": "66ceb8ec8e9c",
+    "toasts:diagram.zoom.updatedSome": "fa8d1741ca8d",
+    "toasts:diagram.zoom.updatedSomeDetail": "caa05131e225",
+    "toasts:diagram.zoom.updateFailed": "e6dc63e88e39"
   }
 }

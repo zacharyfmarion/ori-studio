@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { trackDiagramEnlargementChanged } from '../../analytics';
+import { reportError } from '../../monitoring';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { activeAnchorPick } from '../../store/workspaceStore/diagramState';
 import {
@@ -26,6 +27,7 @@ import {
   type ZoomAction,
 } from './zoomActions';
 import { paperSilhouette } from './zoomEdge';
+import { failedToast, showUpdateEnlargedToast, updatedToast } from './updateEnlargedToast';
 import { setFrameAnchor, setFrameEdge, setFrameScale, setFrameShape } from './zoomFrames';
 import {
   withZoomAnchor,
@@ -124,6 +126,18 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
         setUpdating(true);
         void store()
           .updateEnlargedDiagramSteps(targetId)
+          .then(
+            (placed) => {
+              // A diagram replaced while the faces were folded took the press with it: nothing to say.
+              const { diagram: now, diagramLoadId } = store();
+              if (!now || diagramLoadId !== loadId) return;
+              showUpdateEnlargedToast(updatedToast(t, stepsEnlargedFrom(now, targetId), placed));
+            },
+            (error: unknown) => {
+              reportError(error, { surface: 'diagram:update-enlarged-steps' });
+              showUpdateEnlargedToast(failedToast(t, error));
+            }
+          )
           .finally(() => setUpdating(false));
       },
       goTo: (id: string) => store().selectDiagramStep(id),
@@ -132,7 +146,7 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
         if (zoom) store().selectDiagramAnnotation(zoom.from);
       },
     };
-  }, [on, stepId, targetId, loadId, picking, zoom]);
+  }, [on, stepId, targetId, loadId, picking, zoom, t]);
 
   const enlargedOn = useMemo(() => (diagram && area ? stepsEnlargedFrom(diagram, area.id) : []), [diagram, area]);
   const areaStep = useMemo(() => (diagram && on === 'frame' ? areaStepOf(diagram, stepId) : null), [diagram, on, stepId]);

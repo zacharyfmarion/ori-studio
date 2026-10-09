@@ -66,7 +66,14 @@
     "uploadRejected": "it is not an SVG Ori Studio can read safely",
     "uploadTooLarge": "it is too large",
     "uploadUnreadable": "the picture could not be read",
-    "uploadUnsupported": "it is not a picture"
+    "uploadUnsupported": "it is not a picture",
+    "zoom": {
+      "updatedOne": "Updated enlarged step {{number}}",
+      "updatedRange": "Updated enlarged steps {{first}}–{{last}}",
+      "updatedSome": "Updated {{placed}} of {{total}} enlarged steps",
+      "updatedSomeDetail": "The others couldn’t take a frame from this area.",
+      "updateFailed": "The enlarged steps couldn’t be updated"
+    }
   },
   "diagramExport": {
     "saved": "Exported {{name}}"

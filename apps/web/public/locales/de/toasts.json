@@ -66,7 +66,14 @@
     "uploadRejected": "es ist kein SVG, das Ori Studio sicher lesen kann",
     "uploadTooLarge": "es ist zu groß",
     "uploadUnreadable": "das Bild konnte nicht gelesen werden",
-    "uploadUnsupported": "es ist kein Bild"
+    "uploadUnsupported": "es ist kein Bild",
+    "zoom": {
+      "updatedOne": "Vergrößerter Schritt {{number}} aktualisiert",
+      "updatedRange": "Vergrößerte Schritte {{first}}–{{last}} aktualisiert",
+      "updatedSome": "{{placed}} von {{total}} vergrößerten Schritten aktualisiert",
+      "updatedSomeDetail": "Die übrigen konnten keinen Rahmen aus diesem Bereich übernehmen.",
+      "updateFailed": "Die vergrößerten Schritte konnten nicht aktualisiert werden"
+    }
   },
   "diagramExport": {
     "saved": "{{name}} exportiert"
