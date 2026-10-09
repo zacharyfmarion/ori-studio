@@ -1174,6 +1174,31 @@ export interface DiagramDocument {
   steps: DiagramEntry[];
   /** Uploaded art, shared by id between steps, duplicates and undo snapshots. */
   assets: Record<string, DiagramAsset>;
+  /** What a newer build wrote here that this build cannot read, written back as it came. */
+  newer?: DiagramNewerFields;
+}
+
+/**
+ * What a newer build wrote at the document's level that this build cannot
+ * read, each part as it came (decision 2 of the launch review). The document
+ * shows this build's own fallback in its place, and the file is written with
+ * what came until it is changed here: setting a field here lets go of the
+ * newer value that stood for it.
+ */
+export interface DiagramNewerFields {
+  /** Fields of the document this build has no name for. */
+  fields?: Readonly<Record<string, unknown>>;
+  /** A Han style this build has no name for. */
+  hanStyle?: string;
+  /** The whole style, when its preset, or a field of it, is one this build has no name for. */
+  style?: Readonly<Record<string, unknown>>;
+  /**
+   * Page fields this build has no name for, or whose value it does not read
+   * — a word it does not know, a colour in another notation, a number past
+   * the range it reads, page numbers with a field it has no name for — each
+   * under its key.
+   */
+  page?: Readonly<Record<string, unknown>>;
 }
 
 export type DiagramIdFactory = (prefix: 'diagram' | 'step' | 'turn' | 'annotation' | 'asset') => string;
@@ -2109,20 +2134,44 @@ export function setDiagramTitle(document: DiagramDocument, title: string): Diagr
 }
 
 export function setHanStyle(document: DiagramDocument, hanStyle: DiagramHanStyle): DiagramDocument {
-  return document.hanStyle === hanStyle ? document : { ...document, hanStyle };
+  if (document.hanStyle === hanStyle && document.newer?.hanStyle === undefined) return document;
+  return withNewer({ ...document, hanStyle }, { ...document.newer, hanStyle: undefined });
 }
 
 export function setDiagramStyle(document: DiagramDocument, style: DiagramStyle): DiagramDocument {
-  return diagramStyleEquals(document.style, style) ? document : { ...document, style };
+  if (diagramStyleEquals(document.style, style) && document.newer?.style === undefined) return document;
+  return withNewer({ ...document, style }, { ...document.newer, style: undefined });
 }
 
-/** Apply a partial page setup, clamped to the legal ranges. */
+/**
+ * Apply a partial page setup, clamped to the legal ranges. A field it sets
+ * lets go of a newer build's value for it, even one shown as this value.
+ */
 export function setPageSetup(
   document: DiagramDocument,
   patch: Partial<DiagramPageSetup>
 ): DiagramDocument {
   const next = normalizePageSetup({ ...document.page, ...patch });
-  return pageSetupEquals(document.page, next) ? document : { ...document, page: next };
+  const newerPage = withoutKeys(document.newer?.page, Object.keys(patch));
+  if (pageSetupEquals(document.page, next) && newerPage === document.newer?.page) return document;
+  return withNewer({ ...document, page: next }, { ...document.newer, page: newerPage });
+}
+
+/** A document with the newer build's values that still stand, and no `newer` at all when none does. */
+function withNewer(document: DiagramDocument, newer: DiagramNewerFields): DiagramDocument {
+  const { newer: _was, ...rest } = document;
+  const standing = Object.fromEntries(Object.entries(newer).filter(([, value]) => value !== undefined));
+  return Object.keys(standing).length > 0 ? { ...rest, newer: standing } : rest;
+}
+
+/** `record` without `keys`: the same record when it has none of them, and none when nothing is left. */
+function withoutKeys(
+  record: Readonly<Record<string, unknown>> | undefined,
+  keys: readonly string[]
+): Readonly<Record<string, unknown>> | undefined {
+  if (!record || !keys.some((key) => Object.hasOwn(record, key))) return record;
+  const rest = Object.fromEntries(Object.entries(record).filter(([key]) => !keys.includes(key)));
+  return Object.keys(rest).length > 0 ? rest : undefined;
 }
 
 /**

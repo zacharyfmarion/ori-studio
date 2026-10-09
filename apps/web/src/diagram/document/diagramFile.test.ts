@@ -6,6 +6,8 @@ import {
   createStep,
   duplicateStep,
   insertSteps,
+  setDiagramStyle,
+  setHanStyle,
   setPageSetup,
   setStepText,
   createTurn,
@@ -69,9 +71,12 @@ describe('writeDiagram / readDiagram', () => {
     const read = readDiagram(right)!;
     expect(read.readOnly).toBe(false);
     expect(read.document).toEqual(onTheRight);
-    // Damage reads as the left; a side this build has no name for is a newer build's.
+    // Damage reads as the left; a side this build has no name for is a newer build's, shown as the left and kept.
     expect(readDiagram({ ...right, page: { ...right.page, firstPageSide: 3 } })!.document.page.firstPageSide).toBe('left');
-    expect(readDiagram({ ...right, page: { ...right.page, firstPageSide: 'both' } })!.readOnly).toBe(true);
+    const both = readDiagram({ ...right, page: { ...right.page, firstPageSide: 'both' } })!;
+    expect(both.readOnly).toBe(false);
+    expect(both.document.page.firstPageSide).toBe('left');
+    expect(throughJson(writeDiagram(both.document)).page.firstPageSide).toBe('both');
   });
 
   it('writes the flow band’s width and colour only when not the defaults, and reads a file without them as the defaults', () => {
@@ -94,19 +99,21 @@ describe('writeDiagram / readDiagram', () => {
     const said = readDiagram({ ...written, page: { ...written.page, pathWidthMm: 20 } })!;
     expect(said.document.page.pathWidthMm).toBe(20);
     expect('pathWidthMm' in throughJson(writeDiagram(said.document)).page).toBe(false);
-    // A width past the range is clamped, as the margin is; damage reads as the default.
+    // A width past the range is shown clamped, as the margin is, and written back as it came; damage reads as the default.
     const page = (patch: Record<string, unknown>) => readDiagram({ ...written, page: { ...written.page, ...patch } })!;
     expect(page({ pathWidthMm: 400 }).document.page.pathWidthMm).toBe(60);
+    expect(throughJson(writeDiagram(page({ pathWidthMm: 400 }).document)).page.pathWidthMm).toBe(400);
     expect(page({ pathWidthMm: 1 }).document.page.pathWidthMm).toBe(4);
     expect(page({ pathWidthMm: '18' }).document.page.pathWidthMm).toBe(20);
     expect(page({ pathWidthMm: null }).document.page.pathWidthMm).toBe(20);
     expect(page({ pathColor: 7 }).document.page.pathColor).toBe('#ecece8');
     expect(page({ pathColor: 7 }).readOnly).toBe(false);
-    // A colour in a notation this build cannot read is a newer build's: kept, read-only.
+    // A colour in a notation this build cannot read is a newer build's: shown as the default, kept as it came.
     for (const pathColor of ['oklch(0.9 0.02 90)', '#d6e8f580', 'teal']) {
       const newer = page({ pathColor });
-      expect(newer.readOnly, pathColor).toBe(true);
-      expect(writeDiagram(newer.document, newer.raw)).toBe(newer.raw);
+      expect(newer.readOnly, pathColor).toBe(false);
+      expect(newer.document.page.pathColor, pathColor).toBe('#ecece8');
+      expect(throughJson(writeDiagram(newer.document)).page.pathColor, pathColor).toBe(pathColor);
     }
   });
 
@@ -300,18 +307,65 @@ describe('a newer build’s work', () => {
     expect(again.assets).toEqual({ 'asset-1': asset });
   });
 
+  // Decision 2 of the launch review: what a newer build wrote at the
+  // document's level falls back alone, and the diagram stays editable.
   it.each([
-    ['a document key it does not know', { fonts: { han: 'sc' } }],
-    ['a Han style it does not know', { hanStyle: 'vi' }],
-    ['a preset it does not know', { style: { preset: 'future' } }],
-    ['a page size it does not know', { page: { size: 'a3' } }],
-    ['a page key it does not know', { page: { bleedMm: 3 } }],
-  ])('opens read-only, and writes back unchanged, a diagram with %s', (_label, patch) => {
-    const written = { ...throughJson(writeDiagram(sampleDiagram())), ...patch };
-    if ('page' in patch) written.page = { ...throughJson(writeDiagram(sampleDiagram())).page, ...patch.page };
+    ['a document key it does not know', { fonts: { han: 'sc' } }, {}],
+    ['a Han style it does not know', { hanStyle: 'vi' }, { hanStyle: 'sc' }],
+    ['a preset it does not know', { style: { preset: 'future' } }, { style: { preset: 'diagram' } }],
+    ['a style field it does not know', { style: { preset: 'diagram', ink: 'riso' } }, { style: { preset: 'diagram' } }],
+    [
+      'a paper style it does not read whole',
+      { style: { style: { ...DEFAULT_PAPER_STYLE, grain: 'washi' } } },
+      { style: { style: DEFAULT_PAPER_STYLE } },
+    ],
+    ['a page size it does not know', { page: { size: 'a3' } }, { page: { size: 'a4' } }],
+    ['a page key it does not know', { page: { bleedMm: 3 } }, {}],
+    ['a margin past what it reads', { page: { marginMm: 45 } }, { page: { marginMm: 30 } }],
+    ['more columns than it lays out', { page: { columns: 8 } }, { page: { columns: 5 } }],
+    ['page numbers with a field it does not know', { page: { pageNumbers: { enabled: true, first: 3, at: 'top' } } }, {}],
+    ['a first page number past what it reads', { page: { pageNumbers: { enabled: true, first: 20_000 } } }, {}],
+  ])('falls back alone, stays editable and writes back as it came, a diagram with %s', (_label, patch, shown) => {
+    const base = throughJson(writeDiagram(sampleDiagram()));
+    const written = { ...base, ...patch };
+    if ('page' in patch) written.page = { ...base.page, ...patch.page };
     const read = readDiagram(written)!;
-    expect(read.readOnly).toBe(true);
-    expect(writeDiagram(read.document, read.raw)).toBe(written);
+    expect(read.readOnly).toBe(false);
+    expect(read.document.newer).toBeDefined();
+    expect(read.document).toMatchObject(shown);
+    // Steps read as ever.
+    expect(stepsIn(read.document)).toHaveLength(2);
+    expect(throughJson(writeDiagram(read.document))).toEqual(written);
+    // And an edit elsewhere keeps it.
+    const edited = setStepText(read.document, stepsIn(read.document)[0].id, 'Fold in half.');
+    const again = throughJson(writeDiagram(edited));
+    expect({ ...again, steps: written.steps }).toEqual(written);
+  });
+
+  it('lets go of a newer value when the field is set here, and keeps the rest', () => {
+    const base = throughJson(writeDiagram(sampleDiagram()));
+    const written = {
+      ...base,
+      hanStyle: 'vi',
+      style: { preset: 'future' },
+      page: { ...base.page, size: 'a3', bleedMm: 3 },
+    };
+    const read = readDiagram(written)!.document;
+    // Set to the value shown in its place: still a choice made here.
+    const sized = setPageSetup(read, { size: 'a4' });
+    expect(throughJson(writeDiagram(sized)).page).toMatchObject({ size: 'a4', bleedMm: 3 });
+    const styled = setDiagramStyle(sized, { preset: 'diagram' });
+    expect(throughJson(writeDiagram(styled)).style).toEqual({ preset: 'diagram' });
+    const han = setHanStyle(styled, 'sc');
+    expect(throughJson(writeDiagram(han)).hanStyle).toBe('sc');
+    expect(han.newer).toEqual({ page: { bleedMm: 3 } });
+    expect(setPageSetup(han, { bleedMm: 1 } as never).newer).toBeUndefined();
+  });
+
+  it('reads a diagram this build wrote with nothing newer', () => {
+    for (const document of [sampleDiagram(), setDiagramStyle(sampleDiagram(), { style: DEFAULT_PAPER_STYLE })]) {
+      expect(readDiagram(throughJson(writeDiagram(document)))!.document.newer).toBeUndefined();
+    }
   });
 
   it('gives a duplicated step’s carried annotations ids of their own in the file', () => {

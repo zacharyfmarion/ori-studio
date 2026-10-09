@@ -19,7 +19,9 @@
  *   review, 2026-10-09).
  * - **A newer document opens read-only.** When `formatVersion` is above this
  *   build's, the whole raw value is kept and written back unchanged; what is
- *   shown is a best-effort reading of it.
+ *   shown is a best-effort reading of it. Nothing else does: a document-level
+ *   field or value a newer build wrote falls back alone, and is written back
+ *   as it came (`DiagramNewerFields`, decision 2 of the launch review).
  *
  * Every string a user typed passes through `xmlText` on the way in, so what is
  * stored can always be written into an SVG page. Every uploaded SVG is
@@ -90,7 +92,12 @@ import {
   DIAGRAM_FORMAT_VERSION,
   DIAGRAM_PAGE_SIDES,
   DIAGRAM_SHOW_AS,
+  FIRST_PAGE_NUMBER_RANGE,
+  PAGE_COLUMNS_RANGE,
+  PAGE_MARGIN_MM_RANGE,
+  PAGE_ROWS_RANGE,
   PAPER_SIZES,
+  PATH_WIDTH_MM_RANGE,
   SPREAD_AMOUNT_RANGE,
   SPREAD_AXIS_RANGE,
   SPREAD_SKEW_RANGE,
@@ -104,6 +111,7 @@ import {
   randomDiagramId,
   withReferencedAssets,
   isKnownAnnotation,
+  type DiagramNewerFields,
   type DiagramTicks,
   type DiagramAnnotation,
   type DiagramAnnotationKind,
@@ -190,6 +198,7 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
       steps.push(step);
     }
   }
+  const newer = readNewerFields(value);
   const document: DiagramDocument = {
     formatVersion: DIAGRAM_FORMAT_VERSION,
     id: typeof value.id === 'string' && value.id.length > 0 ? value.id : newId('diagram'),
@@ -199,9 +208,9 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
     page: normalizePageSetup(value.page),
     steps,
     assets,
+    ...(newer ? { newer } : {}),
   };
-  const newer = formatVersion > DIAGRAM_FORMAT_VERSION || unknownDocumentField(value) !== null;
-  return { document, readOnly: newer, raw: value };
+  return { document, readOnly: formatVersion > DIAGRAM_FORMAT_VERSION, raw: value };
 }
 
 const DOCUMENT_KEYS = new Set([
@@ -239,42 +248,81 @@ const PAGE_ENUMS: Record<string, readonly string[]> = {
   firstPageSide: DIAGRAM_PAGE_SIDES,
 };
 
+/** The ranges a page's numbers are read within: past one, a number is a newer build's. */
+const PAGE_RANGES: Readonly<Record<string, { readonly min: number; readonly max: number }>> = {
+  marginMm: PAGE_MARGIN_MM_RANGE,
+  columns: PAGE_COLUMNS_RANGE,
+  rows: PAGE_ROWS_RANGE,
+  pathWidthMm: PATH_WIDTH_MM_RANGE,
+};
+const PAGE_NUMBERS_KEYS: ReadonlySet<string> = new Set(['enabled', 'first']);
+const STYLE_KEYS: ReadonlySet<string> = new Set(['preset', 'style']);
+
 /**
- * The first document-level field a newer build wrote that this one cannot
- * keep, or `null`.
- *
- * Steps, annotations and assets of an unknown kind are carried one by one and
- * the rest of the diagram stays editable. A field of the document itself
- * cannot be carried that way: this build would write its own reading of it —
- * an unknown page size as A4 — and the next edit would build on that. So a key
- * it does not know, or a value it does not know for one of its enums, opens
- * the diagram read-only, as a newer `formatVersion` does, and the file is
- * written back as it came. A value of the wrong type is damage rather than
- * news, and is replaced as before.
+ * What a newer build wrote at the document's level that this build cannot
+ * read, each part as it came (decision 2 of the launch review): a field it
+ * has no name for, a Han style or a style it does not read, a page field it
+ * has no name for or whose value it does not read. Each falls back alone —
+ * shown as this build's default or nearest, the rest of the diagram editable
+ * — and is written back as it came until it is changed here. A value of the
+ * wrong type is damage rather than news, and is replaced as before.
  */
-export function unknownDocumentField(value: Record<string, unknown>): string | null {
-  for (const key of Object.keys(value)) if (!DOCUMENT_KEYS.has(key)) return key;
-  if (typeof value.hanStyle === 'string' && !HAN_STYLES.includes(value.hanStyle)) return 'hanStyle';
-  if (isRecord(value.style)) {
-    for (const key of Object.keys(value.style)) if (key !== 'preset' && key !== 'style') return `style.${key}`;
-    if (typeof value.style.preset === 'string' && !isBuiltInPaperPresetId(value.style.preset)) {
-      return 'style.preset';
-    }
+function readNewerFields(value: Record<string, unknown>): DiagramNewerFields | undefined {
+  const fields = Object.fromEntries(Object.entries(value).filter(([key]) => !DOCUMENT_KEYS.has(key)));
+  const page = readNewerPage(value.page);
+  const newer: DiagramNewerFields = {
+    ...(Object.keys(fields).length > 0 ? { fields } : {}),
+    ...(typeof value.hanStyle === 'string' && !HAN_STYLES.includes(value.hanStyle) ? { hanStyle: value.hanStyle } : {}),
+    ...(isRecord(value.style) && isNewerStyle(value.style) ? { style: value.style } : {}),
+    ...(page ? { page } : {}),
+  };
+  return Object.keys(newer).length > 0 ? newer : undefined;
+}
+
+/**
+ * A style a newer build wrote: with a field this build has no name for, a
+ * preset it does not have, or a paper style it would write back other than
+ * it came — a field, a pen or a light it does not read.
+ */
+function isNewerStyle(value: Record<string, unknown>): boolean {
+  if (hasNewerKey(value, STYLE_KEYS)) return true;
+  if (typeof value.preset === 'string') return !isBuiltInPaperPresetId(value.preset);
+  if (!isRecord(value.style)) return false;
+  return !sameJson(JSON.parse(JSON.stringify(normalizePaperStyle(value.style))), value.style);
+}
+
+/** The page fields of {@link readNewerFields}, under their keys; none when every one reads. */
+function readNewerPage(value: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(value)) return undefined;
+  const page: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (!PAGE_KEYS.has(key)) page[key] = entry;
+    else if (Object.hasOwn(PAGE_ENUMS, key) && isNewerWord(entry, PAGE_ENUMS[key]!)) page[key] = entry;
+    else if (Object.hasOwn(PAGE_RANGES, key) && isPastRange(entry, PAGE_RANGES[key]!)) page[key] = entry;
   }
-  if (isRecord(value.page)) {
-    for (const key of Object.keys(value.page)) if (!PAGE_KEYS.has(key)) return `page.${key}`;
-    for (const [key, known] of Object.entries(PAGE_ENUMS)) {
-      const entry = value.page[key];
-      if (typeof entry === 'string' && !known.includes(entry)) return `page.${key}`;
-    }
-    // A colour this build cannot read — another notation, a colour with alpha — is a newer build's.
-    if (typeof value.page.pathColor === 'string' && readHexColor(value.page.pathColor) === null) return 'page.pathColor';
-    const numbers = value.page.pageNumbers;
-    if (isRecord(numbers)) {
-      for (const key of Object.keys(numbers)) if (key !== 'enabled' && key !== 'first') return `page.pageNumbers.${key}`;
-    }
+  // A colour this build cannot read — another notation, a colour with alpha — is a newer build's.
+  if (typeof value.pathColor === 'string' && readHexColor(value.pathColor) === null) page.pathColor = value.pathColor;
+  const numbers = value.pageNumbers;
+  if (isRecord(numbers) && (hasNewerKey(numbers, PAGE_NUMBERS_KEYS) || isPastRange(numbers.first, FIRST_PAGE_NUMBER_RANGE))) {
+    page.pageNumbers = numbers;
   }
-  return null;
+  return Object.keys(page).length > 0 ? page : undefined;
+}
+
+/** A finite number outside `range`: a newer build's, which reads further. */
+function isPastRange(value: unknown, range: { readonly min: number; readonly max: number }): boolean {
+  return typeof value === 'number' && Number.isFinite(value) && (value < range.min || value > range.max);
+}
+
+/** Two JSON values alike, whatever the order of their keys. */
+function sameJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((entry, index) => sameJson(entry, b[index]));
+  }
+  if (!isRecord(a) || !isRecord(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && sameJson(a[key], b[key]));
 }
 
 const HAN_STYLES: readonly string[] = ['sc', 'tc', 'jp', 'kr'];
@@ -291,17 +339,20 @@ export function writeDiagram(
 ): Record<string, unknown> {
   if (readOnlyRaw) return readOnlyRaw;
   const document = withReferencedAssets(current);
+  // What a newer build wrote that this one cannot read goes back in its place, as it came.
+  const { newer } = document;
   return {
     formatVersion: DIAGRAM_FORMAT_VERSION,
     id: document.id,
     title: document.title,
-    hanStyle: document.hanStyle,
-    style: document.style,
-    page: writePageSetup(document.page),
+    hanStyle: newer?.hanStyle ?? document.hanStyle,
+    style: newer?.style ?? document.style,
+    page: { ...writePageSetup(document.page), ...newer?.page },
     steps: document.steps.map(writeStep),
     assets: Object.fromEntries(
       Object.entries(document.assets).map(([id, asset]) => [id, writeAsset(asset)])
     ),
+    ...newer?.fields,
   };
 }
 
@@ -309,8 +360,7 @@ export function writeDiagram(
  * The page setup as written: every field, but the first page's side only when
  * it is the right, and the flow band's width and colour only when not their
  * defaults — so a diagram that never chose, as every one before the choices,
- * opens in a build that does not know them (an unknown page key opens
- * read-only: `unknownDocumentField`).
+ * opens in a build that does not know them as it was made.
  *
  * The layout is always written. One that is not said reads as the grid
  * (`UNSAID_PAGE_LAYOUT`), the layout of every diagram saved before the flow
