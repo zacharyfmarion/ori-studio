@@ -3,7 +3,10 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLayoutStore } from '../store/layoutStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { stepById } from './document/diagramDocument';
 import { resetDiagramPaneRevealForTests, useDiagramPaneReveal } from './useDiagramPaneReveal';
+import { useZoomControls } from './zoom/useZoomControls';
+import { ZOOM_FRAME_ID } from './zoom/zoomModel';
 
 /** Runs after the gesture at once, or, while `held` is a list, once the test lets the gesture end. */
 const gesture = vi.hoisted(() => ({ held: null as (() => void)[] | null }));
@@ -62,6 +65,13 @@ function Probe() {
   return null;
 }
 
+/** The frame's Pick on step `stepId`, bound as Annotate's Step pane and Layers' frame row bind it. */
+function FramePick({ stepId }: { stepId: string }) {
+  const step = useWorkspaceStore((state) => stepById(state.diagram!, stepId)!);
+  const { pick } = useZoomControls(step, { kind: 'frame' });
+  return <button type="button" data-frame-pick="" onClick={pick} />;
+}
+
 let host: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
@@ -102,6 +112,38 @@ function annotating() {
   });
   activatePanel.mockClear();
   return stepId;
+}
+
+/** Step `stepId` enlarged, its frame drawn, and nothing selected on it. */
+function enlarged(stepId: string) {
+  act(() =>
+    useWorkspaceStore.setState({
+      diagram: {
+        ...state().diagram!,
+        steps: state().diagram!.steps.map((entry) =>
+          entry.id === stepId && !('kind' in entry)
+            ? { ...entry, zoom: { from: 'area', shape: 'circle' as const, frame: { centre: [0.5, 0.4] as [number, number], radius: 0.2 } } }
+            : entry
+        ),
+      },
+    })
+  );
+  act(() => state().selectDiagramAnnotation(null));
+  return stepId;
+}
+
+/** A press on the frame's Pick: a click, whose deferred work runs once the pointer is up, or a key, which defers nothing here. */
+function pressPick(by: 'click' | 'key') {
+  const press = () => act(() => host.querySelector<HTMLButtonElement>('[data-frame-pick]')!.click());
+  if (by === 'key') {
+    press();
+    return;
+  }
+  gesture.held = [];
+  press();
+  const deferred = gesture.held;
+  gesture.held = null;
+  act(() => deferred.forEach((run) => run()));
 }
 
 describe('useDiagramPaneReveal', () => {
@@ -174,20 +216,7 @@ describe('useDiagramPaneReveal', () => {
     });
 
     it('comes forward for an enlarged step’s frame, a layer of its step though no mark (Revision 2)', () => {
-      const stepId = annotating();
-      act(() =>
-        useWorkspaceStore.setState({
-          diagram: {
-            ...state().diagram!,
-            steps: state().diagram!.steps.map((entry) =>
-              entry.id === stepId && !('kind' in entry)
-                ? { ...entry, zoom: { from: 'area', shape: 'circle' as const, frame: { centre: [0.5, 0.4] as [number, number], radius: 0.2 } } }
-                : entry
-            ),
-          },
-        })
-      );
-      act(() => state().selectDiagramAnnotation(null));
+      enlarged(annotating());
       show('diagram-step');
       act(() => state().selectDiagramAnnotation('zoom-frame'));
       expect(state().diagramSelectedAnnotationId).toBe('zoom-frame');
@@ -213,6 +242,40 @@ describe('useDiagramPaneReveal', () => {
       act(() => deferred.forEach((run) => run()));
       expect(state().diagramSelectedAnnotationId).toBe('a-1');
       expect(shown).toBe('diagram-layers');
+    });
+
+    it.each(['click', 'key'] as const)(
+      'stays back for the frame the Step pane’s Pick selects, by %s: the pick is the canvas’s, and the Step pane keeps its Pick (review of #436)',
+      (by) => {
+        const stepId = enlarged(annotating());
+        act(() => root.render(<><Probe /><FramePick stepId={stepId} /></>));
+        show('diagram-step');
+        activatePanel.mockClear();
+        pressPick(by);
+        expect(state().diagramAnchorPick).toEqual({ stepId, target: ZOOM_FRAME_ID });
+        expect(state().diagramSelectedAnnotationId).toBe(ZOOM_FRAME_ID);
+        expect(shown).toBe('diagram-step');
+        // The pick put down (Escape, or a face picked), then the frame let go: the Step pane all through.
+        act(() => state().setDiagramAnchorPick(null));
+        act(() => state().selectDiagramAnnotation(null));
+        expect(shown).toBe('diagram-step');
+        expect(activatePanel).not.toHaveBeenCalled();
+      }
+    );
+
+    it('gives Step back after Layers’ own Pick, as for any frame it came forward for', () => {
+      const stepId = enlarged(annotating());
+      act(() => root.render(<><Probe /><FramePick stepId={stepId} /></>));
+      show('diagram-step');
+      // The frame selected on the canvas brings Layers; its row's Pick is pressed there.
+      act(() => state().selectDiagramAnnotation(ZOOM_FRAME_ID));
+      expect(shown).toBe('diagram-layers');
+      pressPick('click');
+      expect(state().diagramAnchorPick).toEqual({ stepId, target: ZOOM_FRAME_ID });
+      expect(shown).toBe('diagram-layers');
+      act(() => state().setDiagramAnchorPick(null));
+      act(() => state().selectDiagramAnnotation(null));
+      expect(shown).toBe('diagram-step');
     });
 
     it('comes forward for a mark that is its subject only: one selected out of Annotate is not', () => {

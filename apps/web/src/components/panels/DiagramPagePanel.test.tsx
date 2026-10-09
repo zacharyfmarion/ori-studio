@@ -98,19 +98,22 @@ describe('DiagramPagePanel', () => {
     expect(host?.textContent).toContain('Show path');
   });
 
-  it('sets the flow path’s width, one undo step and one count, and goes back to the steps’ own', () => {
+  it('sets the flow path’s width, one undo step and one count, and resets it to 20 mm', () => {
     const field = () => host!.querySelector<HTMLInputElement>('input[aria-label="Path width (mm)"]')!;
-    // A4, 3 × 3, a title: the 26 mm the path draws by itself.
-    expect(field().value).toBe('26');
-    expect(host?.querySelector('[aria-label="Reset Path width (mm) to default"]')).toBeNull();
+    const reset = () => host!.querySelector<HTMLButtonElement>('[aria-label="Reset Path width (mm) to default"]');
+    // The default, whatever the size of the steps; nothing to reset.
+    expect(field().value).toBe('20');
+    expect(reset()).toBeNull();
     const past = state().diagramHistory.past.length;
     act(() => host!.querySelector<HTMLButtonElement>('button[aria-label="Increase Path width (mm)"]')!.click());
-    expect(state().diagram?.page.pathWidthMm).toBe(27);
+    expect(state().diagram?.page.pathWidthMm).toBe(21);
     expect(state().diagramHistory.past).toHaveLength(past + 1);
     expect(analytics.trackDiagramPageSetupChanged).toHaveBeenCalledWith('path_width');
-    act(() => host!.querySelector<HTMLButtonElement>('[aria-label="Reset Path width (mm) to default"]')!.click());
-    expect(state().diagram?.page.pathWidthMm).toBeNull();
-    expect(field().value).toBe('26');
+    act(() => reset()!.click());
+    expect(state().diagram?.page.pathWidthMm).toBe(20);
+    expect(state().diagramHistory.past).toHaveLength(past + 2);
+    expect(field().value).toBe('20');
+    expect(reset()).toBeNull();
   });
 
   it('shows the path’s colour as it is picked and writes it once: one store change, one undo step, one count', () => {

@@ -31,7 +31,8 @@ import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
 import { cleanAnnotation, MAX_STEP_ANNOTATIONS, sameAnnotation, withAnnotationReach } from '../annotate/annotationModel';
-import { marksIntoUnits } from '../zoom/zoomFrames';
+import { followAreaRecords, recordAreaBeforeEdit } from '../zoom/areaRecord';
+import { marksIntoUnits, startsWhole } from '../zoom/zoomFrames';
 import { stepReach } from '../zoom/zoomModel';
 import { authorMarksChanged, authorMarksOf, editedCardMarksGone, isCardMark, releaseCardMarks, withEditTags } from './cardMarks';
 
@@ -71,11 +72,11 @@ export interface DiagramPageSetup {
   /** Flow layout only: the band that joins one step to the next. */
   showPath: boolean;
   /**
-   * The band's printed width, mm ({@link PATH_WIDTH_MM_RANGE}); null, as in
-   * every file before it could be chosen, draws it in proportion to the steps
-   * (`pathWidthMm` in `diagramPageLayout.ts`). Written only when set.
+   * The band's printed width, mm ({@link PATH_WIDTH_MM_RANGE}); written only
+   * when not {@link DEFAULT_PATH_WIDTH_MM}, which a file that does not say
+   * reads as.
    */
-  pathWidthMm: number | null;
+  pathWidthMm: number;
   /** The band's colour, `#rrggbb`; written only when not {@link DEFAULT_PATH_COLOR}. */
   pathColor: string;
   /** The side the first page prints on ({@link DiagramPageSide}); written to the file only when `right`. */
@@ -250,6 +251,22 @@ export function nearestEarlierSpread(
     if (render.mode === 'folded-flat' && render.spread && (kind === undefined || render.spread.kind === kind)) {
       return render.spread;
     }
+  }
+  return null;
+}
+
+/**
+ * The way the nearest linked step before `stepId` shows its pattern (D19),
+ * turns, uploads, References steps and a newer build's steps passed over:
+ * what the pattern picker offers a step with no link (review fix 3), so a
+ * step after a folded run links folded. Null when no step before it is
+ * linked.
+ */
+export function nearestEarlierShowAs(document: DiagramDocument, stepId: string): DiagramShowAs | null {
+  for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
+    const entry = document.steps[index]!;
+    if (isTurn(entry) || isLockedStep(entry) || entry.source?.kind !== 'cp') continue;
+    return showAsOf(entry.source.render);
   }
   return null;
 }
@@ -681,6 +698,29 @@ export interface DiagramStepZoom {
   scale?: number;
   /** As an area's: unsaid, the shape's own. */
   edge?: DiagramZoomEdge;
+  /**
+   * The area as it was when this step's frame was captured from it (review
+   * fix 4): what says the step is out of date once the area is moved,
+   * resized, reshaped, re-anchored, or given another Size or Edge by hand
+   * (`zoom/areaStatus.ts`). Unsaid in a file written before it: such a step
+   * is given one at the first hand edit of its area (`zoom/areaRecord.ts`).
+   */
+  areaWas?: DiagramZoomAreaWas;
+}
+
+/**
+ * An enlarge area as an enlarged step captured it (review fix 4): the step
+ * it was on — which names it once it is deleted — its outline there, in that
+ * step's picture units, a picked anchor, on the paper, and its Size and Edge,
+ * which the capture copied: a step whose own differ set them itself, and
+ * Update keeps them. Unsaid, as on the area: Fill, and the shape's own.
+ */
+export interface DiagramZoomAreaWas {
+  stepId: string;
+  outline: DiagramZoomOutline;
+  anchor?: [number, number];
+  scale?: number;
+  edge?: DiagramZoomEdge;
 }
 
 /**
@@ -1094,12 +1134,15 @@ export const PAGE_MARGIN_MM_RANGE = { min: 0, max: 30 } as const;
 export const PAGE_COLUMNS_RANGE = { min: 2, max: 5 } as const;
 export const PAGE_ROWS_RANGE = { min: 1, max: 6 } as const;
 export const FIRST_PAGE_NUMBER_RANGE = { min: 1, max: 9999 } as const;
-/**
- * The flow band's width, mm: from a thin line to more than twice the 26 mm an
- * A4 page of 3 × 3 steps draws it by itself — as wide as the widest it draws
- * by itself, two steps to a landscape page.
- */
+/** The flow band's width, mm: from a thin line to three times the default. */
 export const PATH_WIDTH_MM_RANGE = { min: 4, max: 60 } as const;
+/**
+ * The flow band's width where nothing else is chosen, mm: a new diagram's,
+ * and a file's that does not say — every diagram saved before the width
+ * could be chosen, which drew the band in proportion to its steps until
+ * 2026-10-08 (`implementation-plans/diagram-review-fixes.md`, item 1).
+ */
+export const DEFAULT_PATH_WIDTH_MM = 20;
 /** The flow band's colour: the mockup's light warm grey. */
 export const DEFAULT_PATH_COLOR = '#ecece8';
 
@@ -1115,7 +1158,7 @@ export const DEFAULT_PAGE_SETUP: DiagramPageSetup = {
   columns: 3,
   rows: 3,
   showPath: true,
-  pathWidthMm: null,
+  pathWidthMm: DEFAULT_PATH_WIDTH_MM,
   pathColor: DEFAULT_PATH_COLOR,
   firstPageSide: 'left',
   showTitle: true,
@@ -1395,7 +1438,9 @@ export function insertPictureSteps(
 /**
  * Give a step a picture: it becomes an upload of `asset`, in its upright pose,
  * and keeps its instruction and annotations. Annotations drawn on another
- * picture stay where they were, and Annotate says the picture changed.
+ * picture stay where they were, and Annotate says the picture changed. An
+ * upload never continues an enlarged run: a step given its first picture
+ * starts whole (`startsWhole`), and one that had a picture keeps its frame.
  */
 export function setStepPicture(
   document: DiagramDocument,
@@ -1404,13 +1449,18 @@ export function setStepPicture(
 ): DiagramDocument {
   const step = stepById(document, stepId);
   if (!step || isLockedStep(step)) return document;
+  const withAsset = withAssets(document, [asset]);
   // A card's marks are the author's once its picture is not the card (17d).
-  return updateStep(withAssets(document, [asset]), stepId, (step) =>
-    releaseCardMarks({
-      ...step,
-      ...uploadStepParts(asset),
-      revision: step.revision + 1,
-    })
+  return updateStep(withAsset, stepId, (step) =>
+    startsWhole(
+      step,
+      releaseCardMarks({
+        ...step,
+        ...uploadStepParts(asset),
+        revision: step.revision + 1,
+      }),
+      withAsset.assets
+    )
   );
 }
 
@@ -1444,7 +1494,7 @@ export function setLinkedPicture(
     return document;
   }
   const withAsset = withAssets(document, link.asset ? [link.asset] : []);
-  return updateStep(withAsset, stepId, (current) =>
+  return updatePicture(withAsset, stepId, (current) =>
     // A card's marks are the author's once its picture is a capture (17d).
     releaseCardMarks(
       withCarriedAnnotations(
@@ -1581,13 +1631,18 @@ export function pullReferencesSteps(
   const taken = updateStep(document, target.id, (step) => {
     const lifted = fits(step, first.lifted) ? first.lifted : null;
     if (!lifted && first.lifted !== undefined) baked.push(step.id);
-    const next: DiagramStep = {
-      ...step,
-      source: first.source,
-      picture: lifted?.picture ?? first.picture,
-      text: words(step),
-      revision: step.revision + 1,
-    };
+    // A card never continues an enlarged run: an empty step it fills starts whole, before its marks arrive (review fix 3).
+    const next = startsWhole(
+      step,
+      {
+        ...step,
+        source: first.source,
+        picture: lifted?.picture ?? first.picture,
+        text: words(step),
+        revision: step.revision + 1,
+      },
+      document.assets
+    );
     const swapped = swapCardMarks(step, next, lifted?.annotations ?? [], document.assets);
     replaced = editedCardMarksGone(step, swapped);
     return swapped;
@@ -1735,7 +1790,7 @@ export function liftedStepDiagramKey(cardKey: string, mirrored: boolean): string
  * from.
  */
 export function setReferencesSide(document: DiagramDocument, stepId: string, mirrored: boolean): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  return updatePicture(document, stepId, (step) => {
     if (step.source?.kind !== 'references-step' || step.picture?.kind !== 'step-diagram') return step;
     if (step.picture.mirrored === mirrored) return step;
     const turned: DiagramStep = {
@@ -1759,7 +1814,7 @@ export function setReferencesWay(
   stepId: string,
   way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string; lifted?: LiftedCard | null }
 ): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  return updatePicture(document, stepId, (step) => {
     if (step.source?.kind !== 'references-step' || step.picture?.kind !== 'step-diagram') return step;
     // The way it shows, baked or lifted: the same card.
     if (step.source.way === way.signature && stepDiagramCardKey(step.picture.key) === stepDiagramCardKey(way.picture.key)) {
@@ -1823,7 +1878,7 @@ export function setUploadPose(
   stepId: string,
   pose: UploadPose
 ): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  return updatePicture(document, stepId, (step) => {
     if (poseBlocker(step) !== null || step.source?.kind !== 'upload') return step;
     const { rotationQuarterTurns, mirrored } = step.source;
     if (rotationQuarterTurns === pose.rotationQuarterTurns && mirrored === pose.mirrored) return step;
@@ -1849,7 +1904,8 @@ export function editStepAnnotations(
   stepId: string,
   edit: (annotations: readonly KnownDiagramAnnotation[]) => readonly KnownDiagramAnnotation[]
 ): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  // A hand edit of an area tells a step enlarged from it with no record that it changed (review fix 4).
+  const edited = updateStep(document, stepId, (step) => {
     if (step.picture === null) return step;
     const known = step.annotations.filter(isKnownAnnotation);
     // As this build writes them, whoever made them: within the step's reach, a label's text clean;
@@ -1864,6 +1920,7 @@ export function editStepAnnotations(
     const touched = !annotationsOutOfStep(step) || authorMarksChanged(step, next);
     return touched ? { ...next, annotatedPictureKey: step.picture.key } : next;
   });
+  return recordAreaBeforeEdit(document, edited, stepId);
 }
 
 /**
@@ -2069,6 +2126,21 @@ function sameTurn(a: DiagramTurnKind, b: DiagramTurnKind): boolean {
   return b.kind === 'rotate' && a.rotate.amount === b.rotate.amount && a.rotate.direction === b.rotate.direction;
 }
 
+/**
+ * Edit one step's own picture — a capture, a relink, a re-pose, a References
+ * step's side or way — as {@link updateStep} does, its marks carried with it
+ * (`withCarriedAnnotations`): the records of the steps enlarged from an area
+ * on it go with an area the picture carried, so a carry says no enlarged step
+ * is out of date (review fix 4, `followAreaRecords`).
+ */
+function updatePicture(
+  document: DiagramDocument,
+  stepId: string,
+  edit: (step: DiagramStep) => DiagramStep
+): DiagramDocument {
+  return followAreaRecords(document, updateStep(document, stepId, edit), stepId);
+}
+
 /** Edit one step; a turn, an unknown id or a newer build's step is left as it is. */
 function updateStep(
   document: DiagramDocument,
@@ -2117,11 +2189,7 @@ export function normalizePageSetup(value: unknown): DiagramPageSetup {
     columns: clampWhole(source.columns, PAGE_COLUMNS_RANGE, DEFAULT_PAGE_SETUP.columns),
     rows: clampWhole(source.rows, PAGE_ROWS_RANGE, DEFAULT_PAGE_SETUP.rows),
     showPath: typeof source.showPath === 'boolean' ? source.showPath : DEFAULT_PAGE_SETUP.showPath,
-    // Unsaid, or damaged: in proportion to the steps, as before there was a choice.
-    pathWidthMm:
-      typeof source.pathWidthMm === 'number' && Number.isFinite(source.pathWidthMm)
-        ? clampNumber(source.pathWidthMm, PATH_WIDTH_MM_RANGE, PATH_WIDTH_MM_RANGE.min)
-        : null,
+    pathWidthMm: clampNumber(source.pathWidthMm, PATH_WIDTH_MM_RANGE, DEFAULT_PAGE_SETUP.pathWidthMm),
     pathColor: readHexColor(source.pathColor) ?? DEFAULT_PATH_COLOR,
     // Unsaid, as in every file before there was a choice: the left.
     firstPageSide: source.firstPageSide === 'right' ? 'right' : DEFAULT_PAGE_SETUP.firstPageSide,

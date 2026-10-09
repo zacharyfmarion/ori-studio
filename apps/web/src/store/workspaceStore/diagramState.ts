@@ -160,7 +160,8 @@ export function annotatingSelectionId(
  * What the Layers pane shows selected on the step open in Annotate: an
  * annotation's id, or an enlarged step's frame (`ZOOM_FRAME_ID`, Revision 2),
  * a layer of the step though no mark; null otherwise. What brings Layers
- * forward. Copy and Delete ask `annotatingSelectionId`, which takes no frame.
+ * forward, unless it was selected to pick its anchor (`useDiagramPaneReveal`).
+ * Copy and Delete ask `annotatingSelectionId`, which takes no frame.
  */
 export function layersSelectionId(
   state: Pick<WorkspaceState, 'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId'>

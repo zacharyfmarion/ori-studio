@@ -253,10 +253,112 @@ describe('Text’s options, drawn', () => {
     expect(TEXT_HALO_EMS * 12).toBe(3.75);
     // The Diagram preset's back is grey.
     expect(halo(haloed, { outline: sheet, back: true }).stroke).toBe('#b3b3b3');
-    // Off the sheet — its centre, hung out past the edge — the page's white.
-    expect(halo(label({ halo: true, from: [0.99, 0.5], to: [0.99, 0.5], offsetPt: [12, 0] }), { outline: sheet, back: true }).stroke).toBe('#ffffff');
+    // Off the sheet — hung out past the edge, its words and halo clear of it — the page's white.
+    expect(halo(label({ halo: true, sizePt: 9, from: [0.99, 0.5], to: [0.99, 0.5], offsetPt: [24, 0] }), { outline: sheet, back: true }).stroke).toBe('#ffffff');
     // No paper given (an upload, a capture): the page's white.
     expect(halo(haloed, null).stroke).toBe('#ffffff');
+  });
+
+  describe('a halo across the sheet’s edge (rf6)', () => {
+    const sheet: PicturePoint[] = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    const back = { outline: sheet, back: true };
+    /** 'A' at 9 pt on the sheet's right edge at 1000 px: its words and its halo reach either side of it. */
+    const across = label({ halo: true, sizePt: 9, from: [1, 0.5], to: [1, 0.5] });
+    const parsed = (drawing: ReturnType<typeof annotationDrawing>, scope?: string) =>
+      new DOMParser().parseFromString(
+        renderToStaticMarkup(<svg xmlns="http://www.w3.org/2000/svg">{annotationMarks(drawing, undefined, scope)}</svg>),
+        'image/svg+xml'
+      );
+
+    it('is the one stroke under its letters, painted the face on the sheet and the page’s white off it', () => {
+      const drawing = annotationDrawing([across], SQUARE, 1000, style, null, back);
+      const halo = drawing.labels[0]!.halo!;
+      expect({ ...halo, across: undefined }).toEqual({ color: '#ffffff', width: 3.75, across: undefined });
+      expect(halo.across!.id).toMatch(/^annotation-halo-[0-9a-f]{16}$/);
+      expect(halo.across!.face).toBe('#b3b3b3');
+      // The tile: the words and the halo, 12 px each way at 9 pt, and an em past them.
+      const half = labelHalfWidth('A', { size: 12 }) + 3.75 / 2;
+      const { box } = halo.across!;
+      expect(box.x).toBeCloseTo(1000 - half - 12, 6);
+      expect(box.width).toBeCloseTo(2 * half + 24, 6);
+      expect(box.y).toBeCloseTo(500 - 12 - 3.75 / 2 - 12, 6);
+      expect(box.height).toBeCloseTo(2 * (12 + 3.75 / 2) + 24, 6);
+
+      const svg = parsed(drawing);
+      // One text, as a halo on one side of the edge is: its stroke under its letters, through the pattern.
+      const texts = [...svg.querySelectorAll('text')];
+      expect(texts).toHaveLength(1);
+      const text = texts[0]!;
+      expect(
+        ['fill', 'stroke', 'stroke-width', 'stroke-linejoin', 'paint-order', 'x', 'y', 'font-size'].map((name) => text.getAttribute(name))
+      ).toEqual(['#231f20', `url(#${halo.across!.id})`, '3.75', 'round', 'stroke', '1000', '504.32', '12']);
+      // The pattern: the page's white over the tile, the sheet over it in the face, drawn from the tile's corner.
+      const pattern = svg.querySelector('pattern')!;
+      expect(pattern.id).toBe(halo.across!.id);
+      expect(['patternUnits', 'x', 'y', 'width', 'height'].map((name) => Number(pattern.getAttribute(name)) || pattern.getAttribute(name))).toEqual([
+        'userSpaceOnUse',
+        Number(box.x.toFixed(3)),
+        Number(box.y.toFixed(3)),
+        Number(box.width.toFixed(3)),
+        Number(box.height.toFixed(3)),
+      ]);
+      const [ground, face] = [...pattern.children];
+      expect([ground!.tagName, ground!.getAttribute('fill'), ground!.getAttribute('x'), Number(ground!.getAttribute('width'))]).toEqual([
+        'rect',
+        '#ffffff',
+        null,
+        Number(box.width.toFixed(3)),
+      ]);
+      expect([face!.tagName, face!.getAttribute('fill')]).toEqual(['polygon', '#b3b3b3']);
+      const corners = face!.getAttribute('points')!.split(' ').map((pair) => pair.split(',').map(Number));
+      [[0, 0], [1000, 0], [1000, 1000], [0, 1000]].forEach(([x, y], index) => {
+        expect(corners[index]![0]).toBeCloseTo(x! - box.x, 3);
+        expect(corners[index]![1]).toBeCloseTo(y! - box.y, 3);
+      });
+    });
+
+    it('is one colour, as before, wholly on the sheet, wholly off it, and on a face that is the page’s white', () => {
+      const one = (annotation: KnownDiagramAnnotation, paper: AnnotationPaper) => {
+        const drawing = annotationDrawing([annotation], SQUARE, 1000, style, null, paper);
+        const svg = parsed(drawing);
+        return {
+          across: drawing.labels[0]!.halo?.across,
+          patterns: svg.querySelectorAll('pattern').length,
+          strokes: [...svg.querySelectorAll('text')].map((text) => text.getAttribute('stroke')),
+        };
+      };
+      // Its words and halo, 8.1 px each side of its centre, end short of the edge: on it.
+      expect(one(label({ halo: true, sizePt: 9, from: [0.985, 0.5], to: [0.985, 0.5] }), back)).toEqual({ across: undefined, patterns: 0, strokes: ['#b3b3b3'] });
+      // And start past it: off it.
+      expect(one(label({ halo: true, sizePt: 9, from: [1.015, 0.5], to: [1.015, 0.5] }), back)).toEqual({ across: undefined, patterns: 0, strokes: ['#ffffff'] });
+      // The front's white face: white either side, so one colour.
+      expect(one(across, { outline: sheet, back: false })).toEqual({ across: undefined, patterns: 0, strokes: ['#ffffff'] });
+    });
+
+    it('follows the sheet whichever way its outline is wound, and an enlarged step’s sheet in the window’s units', () => {
+      const halo = (annotation: KnownDiagramAnnotation, outline: PicturePoint[]) =>
+        annotationDrawing([annotation], SQUARE, 1000, style, null, { outline, back: true }).labels[0]!.halo;
+      const reversed = [...sheet].reverse();
+      expect(halo(across, reversed)?.across?.face).toBe('#b3b3b3');
+      expect(halo(label({ halo: true, sizePt: 9, from: [0.5, 0.5], to: [0.5, 0.5] }), reversed)).toEqual({ color: '#b3b3b3', width: 3.75 });
+      // The middle half of the sheet enlarged: the sheet reaches half a window past the window each way.
+      const window: PicturePoint[] = [[-0.5, -0.5], [1.5, -0.5], [1.5, 1.5], [-0.5, 1.5]];
+      expect(halo(across, window)).toEqual({ color: '#b3b3b3', width: 3.75 });
+      expect(halo(label({ halo: true, sizePt: 9, from: [0.5, 1.5], to: [0.5, 1.5] }), window)?.across?.face).toBe('#b3b3b3');
+    });
+
+    it('names its pattern for what it paints, and a surface sharing a document scopes the name', () => {
+      const id = (annotation: KnownDiagramAnnotation, framePx: number) =>
+        annotationDrawing([annotation], SQUARE, framePx, style, null, back).labels[0]!.halo?.across?.id;
+      expect(id(across, 1000)).toBe(id(across, 1000));
+      expect(id(across, 1000)).not.toBe(id(across, 500));
+      expect(id(across, 1000)).not.toBe(id({ ...across, from: [1, 0.4], to: [1, 0.4] }, 1000));
+      const drawing = annotationDrawing([across], SQUARE, 1000, style, null, back);
+      const svg = parsed(drawing, '-canvas');
+      const scoped = `${drawing.labels[0]!.halo!.across!.id}-canvas`;
+      expect(svg.querySelector('pattern')!.id).toBe(scoped);
+      expect(svg.querySelector('text')!.getAttribute('stroke')).toBe(`url(#${scoped})`);
+    });
   });
 
   it('reaches as far as its words at their size and weight, and its halo, so a file never cuts them', () => {

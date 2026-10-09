@@ -75,6 +75,9 @@ describe('pages as they printed before placement came', () => {
   it('are held to their digests: the page, the Pages view’s page and its arrows, page by page', () => {
     // Taken from the layout at 6f7792459 (Phase 1 changes no page). A change here
     // is a change to what every diagram prints: say why when updating them.
+    // 2026-10-08: the flow band is 20 mm wide by default, no longer in proportion
+    // to the steps (`diagram-review-fixes.md`, item 1). Every flow page's print
+    // changed by its band alone; the Pages view's page and its arrows did not.
     const digests = Object.fromEntries(
       pageLayoutFixtures().flatMap(({ name, document }) =>
         printed(document).pages.map((page, index) => [
@@ -87,15 +90,15 @@ describe('pages as they printed before placement came', () => {
       {
         "a newer build’s steps and turns · page 1": "f803ef9681c5a607 f803ef9681c5a607 4f53cda18c2baa0c",
         "a newer build’s steps and turns · page 2": "85e09522e6de28d1 85e09522e6de28d1 4f53cda18c2baa0c",
-        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 1": "7f6c48df8defbd61 9535b811db5c0aa3 876e59c41d97d596",
-        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 2": "be8d762f97e72ba9 0ac2f144a218ed83 4f53cda18c2baa0c",
-        "flow from the right, across spreads, rows read upward · page 1": "3a6e4305e285fe94 b79c120d0613ba75 4f53cda18c2baa0c",
-        "flow from the right, across spreads, rows read upward · page 2": "3ef69e5a3f333367 2d8632e2032a1725 4f53cda18c2baa0c",
-        "flow from the right, across spreads, rows read upward · page 3": "fbd4486130f49007 0eaca7a42f75118c 4f53cda18c2baa0c",
-        "flow landscape, an odd row count · page 1": "32c3414a1848f0b9 47ecc2eaebbda346 4f53cda18c2baa0c",
-        "flow landscape, an odd row count · page 2": "96a2c93f2fa952c0 71e2d0cdd67f4ff4 4f53cda18c2baa0c",
-        "flow, a page break and turns at a row’s end · page 1": "33991adafc828a8c 6fce8802ca15174f 4f53cda18c2baa0c",
-        "flow, a page break and turns at a row’s end · page 2": "41a3253410e92e8c 14fb417aa7d3eeb1 4f53cda18c2baa0c",
+        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 1": "e8f20fac72ba7924 9535b811db5c0aa3 876e59c41d97d596",
+        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 2": "edddada8b6e5ec85 0ac2f144a218ed83 4f53cda18c2baa0c",
+        "flow from the right, across spreads, rows read upward · page 1": "b4d02825be98eb5c b79c120d0613ba75 4f53cda18c2baa0c",
+        "flow from the right, across spreads, rows read upward · page 2": "7f13373bf36cba0f 2d8632e2032a1725 4f53cda18c2baa0c",
+        "flow from the right, across spreads, rows read upward · page 3": "4affe07f2776c149 0eaca7a42f75118c 4f53cda18c2baa0c",
+        "flow landscape, an odd row count · page 1": "494e1369a8e2288a 47ecc2eaebbda346 4f53cda18c2baa0c",
+        "flow landscape, an odd row count · page 2": "7641d21b3e12459a 71e2d0cdd67f4ff4 4f53cda18c2baa0c",
+        "flow, a page break and turns at a row’s end · page 1": "d01c924bf15a637c 6fce8802ca15174f 4f53cda18c2baa0c",
+        "flow, a page break and turns at a row’s end · page 2": "528f3dba58935f77 14fb417aa7d3eeb1 4f53cda18c2baa0c",
         "grid, a page break, turns and an upload · page 1": "762034dc73a12f50 762034dc73a12f50 4f53cda18c2baa0c",
         "grid, a page break, turns and an upload · page 2": "8254deff8fc82487 8254deff8fc82487 4f53cda18c2baa0c",
         "grid, two pages · page 1": "55238bffde0a38d1 55238bffde0a38d1 4f53cda18c2baa0c",

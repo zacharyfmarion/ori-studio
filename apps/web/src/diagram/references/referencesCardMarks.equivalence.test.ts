@@ -4,6 +4,14 @@
  * front and back, in the Diagram preset, Default and a coloured paper, the
  * baked scene against the sheet's scene plus the marks' — at the 50 mm the
  * cards and the canvas draw, and at twice it.
+ *
+ * A letter across the sheet's edge included: its halo is the face on the
+ * sheet and the page's white off it, a pattern of the sheet, pulled (rf6) and
+ * baked (rf7) alike. A Text label and a References letter each measure what
+ * they reach their own way — the label by its words in Noto Sans with room
+ * round them, the letter by its box — so a letter near the edge can be one
+ * colour baked and a pattern pulled; that pattern paints the baked colour
+ * wherever the baked letter reaches. The reverse never happens.
  */
 import { describe, expect, it } from 'vitest';
 import type { PaperLineItem, PaperScene, ScenePoint } from '../../lib/paper/paperScene';
@@ -63,6 +71,21 @@ function sameElement(a: Element, b: Element): boolean {
 
 const markups = (scene: PaperScene | null) =>
   (scene?.items ?? []).flatMap((item) => (item.kind === 'markup' ? [item.svg] : [])).join('');
+/** Markup without the patterns halos across the sheet's edge are painted with (rf6, rf7), which the letters' own check compares. */
+const withoutHaloPatterns = (svg: string) => svg.replace(/<defs><pattern id="(?:annotation|step-diagram)-halo-[^"]*"[^>]*>.*?<\/pattern><\/defs>/g, '');
+
+/** A baked letter's halo pattern, by its id: the ground under it, the sheet's face and its corners in the scene's px. */
+function bakedPattern(svg: string, id: string) {
+  const match = new RegExp(`<pattern id="${id}"[^>]*>.*?</pattern>`).exec(svg);
+  expect(match).not.toBeNull();
+  const [pattern, ground, sheet] = elements(match![0]);
+  const [x, y] = [Number(pattern!.attrs.x), Number(pattern!.attrs.y)];
+  const corners = sheet!.attrs.points!.split(' ').map((point) => {
+    const [px, py] = point.split(',').map(Number);
+    return [px! + x, py! + y] as ScenePoint;
+  });
+  return { ground: ground!.attrs.fill, face: sheet!.attrs.fill, corners };
+}
 const lineItems = (scene: PaperScene | null) => (scene?.items ?? []).filter((item): item is PaperLineItem => item.kind === 'line');
 const near = (a: ScenePoint, b: ScenePoint) => Math.hypot(a[0] - b[0], a[1] - b[1]) <= 1e-6;
 
@@ -120,8 +143,8 @@ describe('a pulled step paints as its baked card', () => {
             expect(unmatched).toEqual([]);
 
             // Every other drawn element, the same, in the same order.
-            const before = elements(markups(baked)).filter((element) => element.tag !== 'text');
-            const after = [...elements(markups(sheet)), ...elements(markups(notes))].filter((element) => element.tag !== 'text');
+            const before = elements(withoutHaloPatterns(markups(baked))).filter((element) => element.tag !== 'text');
+            const after = [...elements(markups(sheet)), ...elements(withoutHaloPatterns(markups(notes)))].filter((element) => element.tag !== 'text');
             expect(after.length).toBe(before.length);
             before.forEach((element, index) => {
               if (!sameElement(element, after[index]!)) {
@@ -132,7 +155,8 @@ describe('a pulled step paints as its baked card', () => {
             // The letters: as a page sets them, each starts at the same x on the same baseline,
             // at the same size and weight, in the same ink, haloed alike — on the back too. At
             // twice the size, where the baked card lays them out again, each keeps its offset.
-            const letters = elements(markups(baked)).filter((element) => element.tag === 'text');
+            const bakedSvg = markups(baked);
+            const letters = elements(bakedSvg).filter((element) => element.tag === 'text');
             const texts = lifted.annotations.filter((mark) => mark.kind === 'label');
             const named = model.primitives.flatMap((primitive) => (primitive.kind === 'label' ? [primitive.at] : []));
             expect(marks.labels).toHaveLength(letters.length);
@@ -150,7 +174,27 @@ describe('a pulled step paints as its baked card', () => {
                 expect(letter.attrs['font-weight']).toBe('700');
                 expect(label.bold).toBe(true);
                 expect(label.fill).toBe(letter.attrs.fill);
-                expect(label.halo?.color).toBe(letter.attrs.stroke);
+                const bakedId = /^url\(#(.*)\)$/.exec(letter.attrs.stroke!)?.[1];
+                const across = label.halo?.across;
+                if (bakedId !== undefined) {
+                  // Both across the sheet's edge (rf7): the same sheet, in the same face, over the same ground.
+                  expect(across).toBeDefined();
+                  const pattern = bakedPattern(bakedSvg, bakedId);
+                  expect(pattern.ground).toBe(label.halo!.color);
+                  expect(pattern.face).toBe(across!.face);
+                  expect(pattern.corners).toHaveLength(across!.outline.length);
+                  // The same corners, whichever corner each ring starts from.
+                  for (const corner of across!.outline) {
+                    const at = shift([corner.x, corner.y]);
+                    expect(pattern.corners.some((other) => Math.hypot(other[0] - at[0], other[1] - at[1]) <= 2e-3)).toBe(true);
+                  }
+                } else if (across) {
+                  // Pulled across, baked one colour: the baked letter reaches the one side, whose colour the pattern paints there.
+                  expect(label.halo!.color).toBe('#ffffff');
+                  expect([across.face, label.halo!.color]).toContain(letter.attrs.stroke);
+                } else {
+                  expect(label.halo?.color).toBe(letter.attrs.stroke);
+                }
                 expect(label.halo?.width).toBeCloseTo(Number(letter.attrs['stroke-width']), 6);
               } else {
                 const [u, v] = stepDiagramToPicture(model, mirrored)(named[k]!);
@@ -164,4 +208,22 @@ describe('a pulled step paints as its baked card', () => {
       }
     }
   }
+
+  it('meets letters whose halo is across the sheet’s edge among them, baked and pulled, so those cases are checked too', () => {
+    // At the size where each letter is checked against its baked one, counted here
+    // rather than by the cases above, so this holds run alone or in any order.
+    let pulled = 0;
+    let baked = 0;
+    for (const { model } of [...liftFixtures(), { name: 'pieces', model: piecesCard() }]) {
+      for (const mirrored of [false, true]) {
+        for (const [, style] of STYLES) {
+          const drawing = drawn(model, mirrored, style, LIFT_SHEET_MM);
+          pulled += drawing.marks.labels.filter((label) => label.halo?.across).length;
+          baked += elements(markups(drawing.baked)).filter((element) => element.tag === 'text' && element.attrs.stroke?.startsWith('url(#')).length;
+        }
+      }
+    }
+    expect(pulled).toBeGreaterThan(0);
+    expect(baked).toBeGreaterThan(0);
+  });
 });

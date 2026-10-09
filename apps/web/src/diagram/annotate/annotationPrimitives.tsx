@@ -31,7 +31,9 @@
  *   — the weight written on the text and its runs, so a page sets and embeds
  *   Noto Sans Bold — a halo, References' look, a stroke under the letters in
  *   what the text stands on (`paper`), a size in pt, and an offset in pt from
- *   its anchor. A label with none is drawn exactly as before them.
+ *   its anchor. A label with none is drawn exactly as before them. A halo
+ *   across a References sheet's edge (rf6) is painted with the sheet's face
+ *   on the sheet and the page's white off it, so it follows the edge.
  * - A callout is a line from a point to a box of words: the line in the
  *   annotation pen, the box filled with the page's white and outlined in the
  *   arrow pen, its words set as a label's are. Its shape is decided in
@@ -66,7 +68,6 @@ import {
   INLINE_LABEL_FONT,
   createDiagramRenderContext,
   diagramShapes,
-  labelOnPaper,
   strokeAttributes,
   type DiagramRenderContext,
 } from '../../cp-workspace/references/diagram/DiagramPrimitives';
@@ -74,6 +75,12 @@ import type { StepDiagramPrimitive } from '../../cp-workspace/references/referen
 import { diagramInlineInk, type DiagramInlineInk } from '../../cp-workspace/references/diagram/diagramColors';
 import { markRingWidth } from '../../cp-workspace/references/diagram/labelLayout';
 import { markReach, type DiagramMarkPrimitive } from '../../cp-workspace/references/diagram/markReach';
+import {
+  haloPatternElement,
+  sheetHalo,
+  type ReachBox,
+  type SheetHaloAcross,
+} from '../../cp-workspace/references/diagram/sheetHalo';
 import {
   canvasDiagramInk,
   canvasDiagramPens,
@@ -154,8 +161,14 @@ export interface AnnotationLabel {
   runs: { family: string; text: string }[];
   /** Set in Noto Sans Bold (17b); absent, Regular. */
   bold?: true;
-  /** A stroke under its letters, in what it stands on (17b): its colour and its width, in the drawing's px. */
-  halo?: { color: string; width: number };
+  /**
+   * A stroke under its letters, in what it stands on (17b): its colour and its
+   * width, in the drawing's px. Across a References sheet's edge (rf6) it is
+   * painted by `across`, a pattern of the sheet (`sheetHalo`, which
+   * References' own letters are haloed by too): the sheet's face on the
+   * sheet, `color` — the page's white — off it, to the edge.
+   */
+  halo?: { color: string; width: number; across?: SheetHaloAcross };
 }
 
 /**
@@ -624,7 +637,9 @@ function withHidden(primitive: AnnotationPrimitive, hidden: HiddenStretches): An
  * what it is. Given its picture's `layers` — a flat fold's — a mark behind a
  * flap is dotted where it is under it (15e); without, it is drawn in front.
  * Given its `paper` — a References picture's (17b) — a label's halo is
- * filled with the face it stands on; without, with the page's white.
+ * filled with the face it stands on, and across the sheet's edge with the
+ * face on it and the page's white off it (rf6); without, with the page's
+ * white.
  */
 export function annotationDrawing(
   annotations: readonly DiagramAnnotation[],
@@ -635,8 +650,8 @@ export function annotationDrawing(
   paper: AnnotationPaper | null = null
 ): AnnotationDrawing {
   const seen = seenStyle(style);
-  // What a halo is filled with where a label's centre stands, in the drawing's px (17b).
-  const haloGround = haloGroundOf(seen, paper, framePx);
+  // What a halo is filled with, by where the label lies on the paper, in the drawing's px (17b, rf6).
+  const haloOf = haloPaint(seen, paper, framePx);
   const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
   const arrowCss = seen.arrows.width * PT_TO_CSS_PX;
   // The existing creases' pen, at its pt width: what equal divisions' line is drawn in (ED9).
@@ -701,16 +716,8 @@ export function annotationDrawing(
         const x = offsetPt ? ax + offsetPt[0] * PT_TO_CSS_PX : ax;
         const y = offsetPt ? ay + offsetPt[1] * PT_TO_CSS_PX : ay;
         const size = sizePt !== undefined ? sizePt * PT_TO_CSS_PX : LABEL_SIZE * framePx;
-        labels.push({
-          id: annotation.id,
-          x,
-          y,
-          size,
-          fill: color ?? seen.arrows.color,
-          runs,
-          ...(bold ? { bold } : {}),
-          ...(halo ? { halo: { color: haloGround(x, y), width: TEXT_HALO_EMS * size } } : {}),
-        });
+        const drawn: AnnotationLabel = { id: annotation.id, x, y, size, fill: color ?? seen.arrows.color, runs, ...(bold ? { bold } : {}) };
+        labels.push(halo ? { ...drawn, halo: haloOf(drawn, TEXT_HALO_EMS * size) } : drawn);
         break;
       }
       case 'callout': {
@@ -795,20 +802,39 @@ export function annotationDrawing(
   };
 }
 
+/** A label's halo, `width` wide in the drawing's px (17b, rf6). */
+type HaloPaint = (label: AnnotationLabel, width: number) => NonNullable<AnnotationLabel['halo']>;
+
 /**
- * What a halo is filled with where a label's centre is, at (`x`, `y`) in a
- * drawing `framePx` across (17b): the paper's face the picture shows — read
- * from the style's inks before an annotation's whiten them, the test a baked
- * letter makes (`labelOnPaper`) — where it stands on a References picture's
- * sheet; the page's white off it, and on every other picture.
+ * What a halo is filled with on a drawing `framePx` across, by where its
+ * label reaches ({@link labelReach}) on a References picture's sheet: wholly
+ * on it, the paper's face the picture shows — read from the style's inks
+ * before an annotation's whiten them (17b); wholly off it, the page's white;
+ * across its edge (rf6), the face on the sheet and the page's white off it
+ * (`sheetHalo`), so the halo follows the edge exactly. On every other
+ * picture, the page's white. A face that is the page's white is one colour
+ * wherever it lies.
  */
-function haloGroundOf(seen: PaperStyle, paper: AnnotationPaper | null, framePx: number): (x: number, y: number) => string {
-  if (!paper || paper.outline.length < 3) return () => PAGE_GROUND;
+function haloPaint(seen: PaperStyle, paper: AnnotationPaper | null, framePx: number): HaloPaint {
+  if (!paper || paper.outline.length < 3) return (_, width) => ({ color: PAGE_GROUND, width });
   const { sheet } = seenInk(seen);
   const face = paper.back ? sheet.back : sheet.front;
-  const outline = paper.outline.map(([x, y]) => ({ x, y }));
-  // The text's centre as a box with no size: the baked letter's own test, by its box's middle.
-  return (x, y) => (labelOnPaper({ x: x / framePx, y: y / framePx, width: 0, height: 0 }, outline) ? face : PAGE_GROUND);
+  if (face.toLowerCase() === PAGE_GROUND) return (_, width) => ({ color: PAGE_GROUND, width });
+  const outline = paper.outline.map(([x, y]) => ({ x: x * framePx, y: y * framePx }));
+  const paint = sheetHalo(outline, face, PAGE_GROUND, 'annotation-halo-');
+  return (label, width) => ({ ...paint(labelReach(label, width), label.size), width });
+}
+
+/**
+ * What a label reaches, in its drawing's px: its words at their size and
+ * weight, and a halo `haloWidth` wide half that past them (17b). The box a
+ * file is cropped to ({@link annotationReach}), so a halo never reaches past
+ * it: wholly inside the sheet, it is wholly on it.
+ */
+function labelReach(label: AnnotationLabel, haloWidth: number): ReachBox {
+  const halo = haloWidth / 2;
+  const half = labelHalfWidth(label.runs.map((run) => run.text).join(''), { bold: label.bold, size: label.size }) + halo;
+  return { minX: label.x - half, maxX: label.x + half, minY: label.y - label.size - halo, maxY: label.y + label.size + halo };
 }
 
 /**
@@ -906,12 +932,11 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
   }
   // A label at its size and weight, and its halo half its width past its letters (17b).
   for (const label of drawing.labels) {
-    const halo = label.halo ? label.halo.width / 2 : 0;
-    const half = labelHalfWidth(label.runs.map((run) => run.text).join(''), { bold: label.bold, size: label.size }) + halo;
-    minX = Math.min(minX, label.x - half);
-    maxX = Math.max(maxX, label.x + half);
-    minY = Math.min(minY, label.y - label.size - halo);
-    maxY = Math.max(maxY, label.y + label.size + halo);
+    const reach = labelReach(label, label.halo?.width ?? 0);
+    minX = Math.min(minX, reach.minX);
+    maxX = Math.max(maxX, reach.maxX);
+    minY = Math.min(minY, reach.minY);
+    maxY = Math.max(maxY, reach.maxY);
   }
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
@@ -924,19 +949,24 @@ const round = (value: number) => Number(value.toFixed(3));
  * reads off the markup to set and embed it (`setUploadText`); a halo is a
  * stroke painted under the fill, round at its joins, as References draws its
  * letters'. A label with neither is the markup it always was.
+ *
+ * A halo across the sheet's edge (rf6) is the same one stroke, painted with
+ * its pattern (`haloPatternElement`, which says why one stroke), which goes
+ * in the document with it, its id under `scope` when one is given.
  */
-function labelElement(label: AnnotationLabel): ReactNode {
+function labelElement(label: AnnotationLabel, scope = ''): ReactNode {
   const { halo } = label;
-  return (
+  const across = halo?.across;
+  const text = (
     <text
-      key={label.id}
+      key={across ? undefined : label.id}
       x={round(label.x)}
       y={round(label.y + LABEL_BASELINE * label.size)}
       fontSize={round(label.size)}
       textAnchor="middle"
       fill={label.fill}
       fontWeight={label.bold ? 700 : undefined}
-      stroke={halo?.color}
+      stroke={across ? `url(#${across.id}${scope})` : halo?.color}
       strokeWidth={halo ? round(halo.width) : undefined}
       strokeLinejoin={halo ? 'round' : undefined}
       paintOrder={halo ? 'stroke' : undefined}
@@ -947,6 +977,13 @@ function labelElement(label: AnnotationLabel): ReactNode {
         </tspan>
       ))}
     </text>
+  );
+  if (!halo || !across) return text;
+  return (
+    <g key={label.id}>
+      {haloPatternElement(across, halo.color, scope)}
+      {text}
+    </g>
   );
 }
 
@@ -1050,11 +1087,16 @@ export function zoomAreaElement(area: AnnotationZoomArea): ReactNode {
  * The marks, enlarge areas, close-ups, callouts and labels, as React: the
  * shapes `diagramShapes` draws, the enlarge areas and the close-ups' rings
  * over them, the callouts over those, then the labels over everything. `wrap` puts each in a group of the
- * caller's, by its annotation's id.
+ * caller's, by its annotation's id. A halo's pattern across the sheet's edge
+ * (rf6) goes with its label, as References' clips go with its marks
+ * (`diagramShapes`): a `url(#…)` the document does not hold paints nothing.
+ * `scope` follows each of their ids, for a surface that shares one document
+ * with others: the canvas.
  */
 export function annotationMarks(
   drawing: AnnotationDrawing,
-  wrap?: (shape: ReactNode, annotationId: string) => ReactNode
+  wrap?: (shape: ReactNode, annotationId: string) => ReactNode,
+  scope = ''
 ): ReactNode {
   const shapes = diagramShapes(drawing.primitives, drawing.context, {
     wrap: wrap ? (shape, index) => wrap(shape, drawing.primitiveIds[index]!) : undefined,
@@ -1065,7 +1107,7 @@ export function annotationMarks(
       {drawing.zoomAreas.map((area) => (wrap ? wrap(zoomAreaElement(area), area.id) : zoomAreaElement(area)))}
       {drawing.closeUps.map((closeUp) => (wrap ? wrap(closeUpElement(closeUp), closeUp.id) : closeUpElement(closeUp)))}
       {drawing.callouts.map((callout) => (wrap ? wrap(calloutElement(callout), callout.id) : calloutElement(callout)))}
-      {drawing.labels.map((label) => (wrap ? wrap(labelElement(label), label.id) : labelElement(label)))}
+      {drawing.labels.map((label) => (wrap ? wrap(labelElement(label, scope), label.id) : labelElement(label, scope)))}
     </>
   );
 }

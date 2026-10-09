@@ -119,7 +119,9 @@ steps follow ups in the branch". 8, 10, 11 and 12 are built ("Follow-ups to
 11. **A run of uploads after an enlarged step**: the second was seeded from
     the first, an upload with no faces, and so had no imprint. *Decided:
     every step of the run is seeded from the run's source frame and
-    imprint.*
+    imprint.* *Superseded 2026-10-08 (`diagram-review-fixes.md`, item 3):*
+    uploads are not seeded at all, and a new empty step after an enlarged
+    upload starts whole.
 12. **Show as Crease Pattern on an enlarged folded step** landed the frame on
     its anchor face's paper, 288 sheet units from the crane's head (Z8 as
     decided). *Decided: on a flat crease pattern, the frame lands on the top
@@ -138,6 +140,12 @@ steps follow ups in the branch". 8, 10, 11 and 12 are built ("Follow-ups to
   *Recommended:* a seeded step takes a faceless enlarged step's stored
   imprint with its frame, and its first link the turn of the run's linked
   source; Enlarged turned on keeps the rule as decided.
+  *Moot since 2026-10-08 (`diagram-review-fixes.md`, item 3):* an upload's
+  run shows no picture type, so no step continues it. A step made after an
+  enlarged upload is not seeded and starts whole, and one enlarged after it
+  by hand starts whole at its first link. Decided 2026-10-08
+  (`diagram-review-fixes.md`, item 3's open calls): such a step is not
+  seeded.
 - **A whole step's line pasted onto an enlarged one** (7) is not trimmed, as
   8 trims a carried one, so a long line pasted there runs across the page as
   8 found. *Recommended:* trim a pasted line as a carried one.
@@ -1053,7 +1061,7 @@ frame's upright box. The rules are pure functions in
 | What changed | Frame | Marks |
 | --- | --- | --- |
 | Enlarged turned on; a seeded step's first picture; Update Enlarged Steps | Captured from the source and landed; Update overwrites a hand move; every step of a run made in one edit from the run's source (after 16g, 11) | Carried from the whole picture, or the old window, into the new window; from the whole picture, a line crossing the frame trimmed just past it (after 16g, 8) |
-| Enlarged turned off | Dropped | Carried from the window to the whole picture |
+| Enlarged turned off | Dropped | Carried from the window to the whole picture; every mark, out of step with the picture or not, which stays as it was (`diagram-review-fixes.md`, item 5) |
 | The frame moved or resized by hand, or its Shape changed | As set, but for a centre dropped in a strip the spread opened, which settles on the layer above (Capturing a frame); its centre taken off the spread and the imprint made again on the same face | Carried by the window's move (a scale and a shift), so they stay on the same paper |
 | The frame's anchor picked or reset | Unchanged; the imprint made again on the new face | Unchanged |
 | This step re-posed (the `withCarriedAnnotations` call sites: `diagramDocument.ts:1176/1311/1339/1394`, `useDiagramLinkedPose.ts:209`) | Its imprint landed on the re-posed picture; with no faces, carried by the pose's move | The pose's own move, composed through old window → picture → new window |
@@ -1446,6 +1454,23 @@ again from whatever is before it now. New steps added after an enlarged step
 start enlarged, captured at creation (Zach: "yeah sounds right"). Not taken:
 Enlarge and Whole cards in the Steps grid; the 2026-10-05 recommendation, in
 which each window was derived from the area and followed its edits.
+**Amended 2026-10-08 (`diagram-review-fixes.md`, item 3; Zach: "that sounds
+good").** A run continues only with its picture type. An empty step made after
+an enlarged one (Add Step, Insert Step After) still starts enlarged. Its first
+picture keeps the frame only if it is linked the way the run's source shows
+its pattern: Crease Pattern, Folded or Simulated. Linked another way, the step
+starts whole in the link's undo step. Uploads and References cards never
+continue a run. Made after an enlarged step, or filling an empty step seeded
+enlarged, they start whole. This also amends 16g ("every way a step is made")
+and 16h (a run of uploads). The pattern picker now offers a step with no link
+the previous linked step's way (D19 amended). Switching Show as on a step that
+is already enlarged keeps it enlarged. As reviewed: the rule binds a step's
+first link only where it continues a run, whose source is an enlarged step
+with a picture. A step that starts a run (enlarged from an area, directly or
+past empty steps) keeps its frame however it is linked, and so does a linked
+step given its first picture by a Refresh or Pose. An empty step made after an
+enlarged upload or References step is not seeded, since no first picture
+could keep that frame.
 
 **Z3. Where the arrow prints. DECIDED: A, in the gutter, lifted to the area's
 height.** "all those defaults look good" (Zach, 2026-10-06). D22's place for a
@@ -1483,6 +1508,25 @@ was captured from: provenance only, never a live link, never read to derive
 anything. The area's Layers row offers Update Enlarged Steps, which captures
 again every step with that provenance, as one undo step. Deleting the area or
 its step leaves the enlarged steps as they are, with nothing to update from.
+
+**Amended 2026-10-08 (`diagram-review-fixes.md`, item 4; Zach: "sounds
+good").** Each capture also records the area as it was then (`areaWas`: its
+step, outline and picked anchor), still never read to draw. Once the area is
+moved, resized, reshaped or re-anchored by hand, every step captured from it
+says "Out of date: Step N's area changed", with Update on that step (its
+Step pane and its card's menu); a carry of the area by its own step's picture
+moves the records with it and says nothing. Update Enlarged Steps became
+Update All, on the area's Layers row and its step's Enlarged section in
+Annotate: it places only the steps out of date (and a file's steps from
+before records), so a frame moved by hand on a current step stays. A deleted
+area's steps keep their frames and say "Step N's area was deleted".
+After rf4's review (for Zach to confirm): the record also holds the Size and
+Edge the capture copied, so the area's Size or Edge changed says so to a step
+that took it, and Update keeps a Size or Edge set on the step; a file's step
+from before records is recorded at the first hand edit of its area, and is
+out of date from then, not placed by Update All before; Update and Update
+All are offered only while a step is out of date — Update All also in the
+area step's read-only Step pane and its card's menu.
 
 **Z8. Which part of the model the frame follows. DECIDED: an imprint on a face
 of the paper.** Zach: "imagine imprinting the frame onto the face and seeing

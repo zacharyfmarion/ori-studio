@@ -846,6 +846,10 @@ shows the composed page.**
       side (`AUTO_PATH_WIDTH_SHARE`; 26 mm on an A4 page of 3 × 3); the pane
       shows that width, to the mm, and a set one has a reset back to it.
       Written only when set; out of range clamps, as the margin does.
+      *Revised 2026-10-08* (Zach's review of #436: "can you default the path
+      width to 20"): 20 mm is the default and null is gone — a file that
+      does not say reads as 20, the field is written only when not 20, and
+      the reset goes back to 20 (`diagram-review-fixes.md`, item 1).
     - **Colour** (`page.pathColor`, `#rrggbb`, default `#ecece8`). The page
       setup owns it, not the paper style: the page's own inks (the title tab,
       the numbers, the text) are the mockup's whatever the style, and a style
@@ -1329,7 +1333,12 @@ peers: switching between them is a choice of view, never a new link.
      card's progress row and Stop.
   2. **The pattern picker.** Its header carries the same **Show as**,
      defaulting to the last one used in the session: picking a pattern links
-     it and shows it that way in one move.
+     it and shows it that way in one move. *Amended 2026-10-08
+     (`diagram-review-fixes.md`, item 3):* for a step with no link, the
+     default is the way the nearest linked step before it is shown, passing
+     over turns, uploads and References steps. The session's last way is the
+     default only when no step before it is linked. A relink still offers the
+     way the step is shown.
   3. **The card.** Its badge says how (Crease pattern, Folded, Folded · 3D,
      Simulated 40%). The context menu gains **Show as ▸** with the three. The
      card's own Adjust pose and Annotate buttons (built) open the step.

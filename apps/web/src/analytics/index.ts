@@ -51,6 +51,7 @@ export type {
   DiagramStepAddedVia,
   DiagramTurnAddedVia,
   DiagramStepOpenedMode,
+  DiagramStepEnlargedVia,
   DiagramShowAsName,
   DiagramSpreadDirection,
   DiagramSpreadTracking,

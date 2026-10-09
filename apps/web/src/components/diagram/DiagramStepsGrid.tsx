@@ -120,7 +120,7 @@ export function DiagramStepsGrid({
 
   const tabStop = selectedStepId ?? entries[0]?.id ?? null;
   const slots = useMemo(() => slotsOf(entries), [entries]);
-  // An enlarged step's chip names the step its area is on (Revision 2).
+  // An enlarged step's chip names the step its area is on (Revision 2), and its well's whether it changed (review fix 4).
   const enlarged = useMemo(() => enlargedChips(entries), [entries]);
   const keep = (id: string) => (element: HTMLDivElement | null) => {
     if (element) cards.current.set(id, element);
@@ -187,7 +187,8 @@ export function DiagramStepsGrid({
               onUpload={onUpload}
               link={links.statuses.get(slot.entry.id) ?? null}
               textCut={textCut.has(slot.entry.id)}
-              enlargedFrom={enlarged.get(slot.entry.id)}
+              enlargedFrom={enlarged.get(slot.entry.id)?.from}
+              areaChanged={enlarged.get(slot.entry.id)?.changed === true}
               capture={links.captures[slot.entry.id] ?? null}
               patternOpen={patternOpen}
               onLink={onLink}

@@ -19,8 +19,8 @@
  * is unconditional (`layoutStore` maps edit → cp-view-controls under a coarse
  * pointer), so today it costs nothing.
  */
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { SheetPortal } from '../../components/SheetLayer';
 import { ToolsTriggerButton } from '../../components/ui/tools/ToolsTriggerButton';
 import { activeCpToolGlyph } from './activeCpTool';
 import { CpToolGlyph } from './cpToolGlyph';
@@ -63,11 +63,11 @@ export function CpToolsTrigger() {
         stacking context at `--z-canvas-overlay`, which would cap a `--z-modal`
         sheet at 900 rather than 9999.
 
-        `document.body` and not a sibling of the lane, which is what the View
-        drawer does: this one has no component above it to be a sibling *of*.
+        Into the sheet layer, before every modal, as every sheet is
+        (`SheetLayer`): a dialog that opens while it is up is over it.
       */}
-      {open &&
-        createPortal(
+      {open && (
+        <SheetPortal>
           <CpToolPickerSheet
             pickerId={pickerId}
             close={close}
@@ -75,9 +75,9 @@ export function CpToolsTrigger() {
             activeOperationId={surface.activeOperationId}
             activeLineColor={surface.activeLineColor}
             onSelectAction={surface.onSelectAction}
-          />,
-          document.body
-        )}
+          />
+        </SheetPortal>
+      )}
     </>
   );
 }

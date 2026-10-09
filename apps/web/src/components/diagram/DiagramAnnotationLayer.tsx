@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from 'react';
+import { memo, useId, type ReactNode } from 'react';
 import { annotationMarks, type AnnotationDrawing, type AnnotationLine } from '../../diagram/annotate/annotationPrimitives';
 import type { DiagramStyle } from '../../diagram/document/diagramDocument';
 import { diagramSurfaceStyle } from '../../diagram/pictures/diagramPaperStyle';
@@ -40,6 +40,11 @@ function AnnotationLineShape({ line, style }: { line: AnnotationLine; style: Pap
  * Drawn again only for a new drawing: the canvas's zoom, its selection and
  * whatever it shows over the marks for a moment re-render the canvas, not
  * the marks.
+ *
+ * A halo's pattern across a sheet's edge (rf6) is named for this layer too,
+ * as the close-ups' clips are (`DiagramCloseUpInsides`): the canvas shares
+ * one document with every other surface, and a `url(#…)` takes the first
+ * element of its id there.
  */
 export const DiagramAnnotationLayer = memo(function DiagramAnnotationLayer({
   drawing,
@@ -51,6 +56,7 @@ export const DiagramAnnotationLayer = memo(function DiagramAnnotationLayer({
   named?: boolean;
 }) {
   const surface = diagramSurfaceStyle(style);
+  const scope = `-${useId().replace(/[^\w-]/g, '')}`;
   const wrap = (shape: ReactNode, id: string) => (
     <g key={id} data-annotation-id={named ? id : undefined}>
       {shape}
@@ -64,7 +70,7 @@ export const DiagramAnnotationLayer = memo(function DiagramAnnotationLayer({
           <AnnotationLineShape line={line} style={surface} />
         </g>
       ))}
-      {annotationMarks(drawing, wrap)}
+      {annotationMarks(drawing, wrap, scope)}
     </g>
   );
 });

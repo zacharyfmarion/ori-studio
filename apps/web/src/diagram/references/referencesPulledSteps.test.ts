@@ -268,27 +268,26 @@ describe('pulling cards from References', () => {
     });
   });
 
-  it('pulls a card after an enlarged step into the window the step starts enlarged with, its lines cut at the frame', async () => {
+  it('pulls a card after an enlarged step whole, every mark where it lies on the card (review fix 3)', async () => {
     await pull();
     const [first] = steps();
-    // The step before is enlarged: a card pulled after it starts so (16g), its marks put in the window's units.
+    // The step before is enlarged. A card pulled after it starts whole, as after a whole step: its fold
+    // uncut, and its arrow and letter, which a frame there would have left out (17d), pulled with it.
     const zoom = { from: 'area-x', shape: 'circle' as const, frame: { centre: [0.5, 0.5] as [number, number], radius: 0.2 } };
     useWorkspaceStore.setState({
       diagram: { ...state().diagram!, steps: state().diagram!.steps.map((entry) => (entry.id === first!.id ? { ...entry, zoom } : entry)) },
     });
     await pull({ cards: [card(2)] });
     const [, second] = steps();
-    expect(second!.zoom?.frame).toEqual(zoom.frame);
+    expect(second!.zoom).toBeUndefined();
     expect(second!.annotatedPictureKey).toBe(second!.picture!.key);
-    const fold = second!.annotations.find((mark) => 'kind' in mark && mark.kind === 'valley-line') as KnownDiagramAnnotation;
-    // The fold across the sheet's middle, in the window's units (its box 0.3 to 0.7), cut just past the frame's rim.
-    expect(fold.from[1]).toBeCloseTo(0.5, 9);
-    expect(fold.from[0]).toBeGreaterThan(-0.2);
-    expect(fold.from[0]).toBeLessThan(0);
-    expect(fold.to[0]).toBeGreaterThan(1);
-    expect(fold.to[0]).toBeLessThan(1.2);
-    // 17d review: the card's arrow and its letter lie outside the frame, which cut them from its picture: not pulled.
-    expect(second!.annotations.map((mark) => ('kind' in mark ? mark.kind : null))).toEqual(['valley-line']);
+    const placed = (step: typeof first) =>
+      step!.annotations.map((mark) => {
+        const { kind, from, to } = mark as KnownDiagramAnnotation;
+        return { kind, from, to };
+      });
+    expect(placed(second)).toEqual(placed(first));
+    expect(placed(second).map((mark) => mark.kind)).toEqual(['valley-line', 'fold-unfold-arrow', 'label']);
   });
 
   it('keeps no plan or way for a Find answer', async () => {

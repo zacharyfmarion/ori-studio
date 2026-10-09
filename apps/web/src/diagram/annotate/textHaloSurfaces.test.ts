@@ -19,9 +19,11 @@ import { zoomedSource } from '../zoom/paintZoomed';
 /**
  * A haloed label's halo on every surface that draws a References step (17b):
  * the face it stands on — the grey back here — on the sheet, the page's white
- * off it. Each surface hands the drawing the step's paper itself, and an
- * enlarged step hands it in its window's units, so these hold the wiring the
- * drawing's own tests take as given.
+ * off it, and across the sheet's edge both, by a pattern of the sheet (rf6).
+ * Each surface hands the drawing the step's paper itself, and an enlarged
+ * step hands it in its window's units, so these hold the wiring the drawing's
+ * own tests take as given — the pattern among it, which a page and a step
+ * file rename with the cell it is in (`prefixIds`).
  */
 
 let subsetter: FontSubsetter;
@@ -32,10 +34,16 @@ beforeAll(async () => {
 const GREY = '#b3b3b3';
 const WHITE = '#ffffff';
 
-/** In the middle of the sheet, and past its right edge: in an enlarged step's window, 1.4 across is 0.95 of the sheet. */
+/**
+ * In the middle of the sheet, past its right edge, on that edge, and further
+ * out. In an enlarged step's window (`MIDDLE`), 1.25 across is 0.875 of the
+ * sheet, 1 is 0.75, and the sheet's edge is at 1.5.
+ */
 const LABELS: KnownDiagramAnnotation[] = [
   { id: 'mid', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'MID', halo: true, bold: true, sizePt: 9 },
-  { id: 'edge', kind: 'label', from: [1.4, 0.5], to: [1.4, 0.5], text: 'EDGE', halo: true, sizePt: 9 },
+  { id: 'edge', kind: 'label', from: [1.25, 0.5], to: [1.25, 0.5], text: 'EDGE', halo: true, sizePt: 9 },
+  { id: 'across', kind: 'label', from: [1, 0.25], to: [1, 0.25], text: 'ACROSS', halo: true, sizePt: 9 },
+  { id: 'rim', kind: 'label', from: [1.5, 0.75], to: [1.5, 0.75], text: 'RIM', halo: true, sizePt: 9 },
 ];
 
 /** The middle half of the sheet, enlarged: its window x 0.25 to 0.75. */
@@ -48,13 +56,27 @@ function backStep(zoom: DiagramStepZoom | null): DiagramDocument {
   return insertSteps(createDiagram({ title: 'Halo' }), [step], 0);
 }
 
-/** Each label's halo in `svg`, by its text: the stroke on its `<text>`, or none. A page's own text is not a label. */
+/**
+ * Each label's halo in `svg`, by its text: the stroke on its `<text>`, or
+ * none — across the sheet's edge (rf6), the pattern it is painted with, read
+ * from the same document: its face on the sheet and its ground off it. A
+ * page's own text is not a label.
+ */
 function halos(svg: string): Record<string, string[]> {
   const found: Record<string, string[]> = {};
+  const patterns = new Map(
+    [...svg.matchAll(/<pattern id="([^"]*)"[^>]*>(.*?)<\/pattern>/g)].map(([, id, inside]) => {
+      const ground = /<rect[^>]* fill="([^"]*)"/.exec(inside!)?.[1];
+      const face = /<polygon[^>]* fill="([^"]*)"/.exec(inside!)?.[1];
+      return [id!, `${face} on ${ground}`];
+    })
+  );
   for (const [element] of svg.matchAll(/<text[^>]*>(?:<tspan[^>]*>[^<]*<\/tspan>)+<\/text>/g)) {
     const name = /<tspan[^>]*>([^<]*)<\/tspan>/.exec(element)![1]!;
     if (!LABELS.some((label) => label.text === name)) continue;
-    (found[name] ??= []).push(/ stroke="([^"]*)"/.exec(element)?.[1] ?? 'none');
+    const stroke = / stroke="([^"]*)"/.exec(element)?.[1] ?? 'none';
+    const pattern = /^url\(#(.*)\)$/.exec(stroke)?.[1];
+    (found[name] ??= []).push(pattern === undefined ? stroke : (patterns.get(pattern) ?? `missing ${pattern}`));
   }
   return found;
 }
@@ -84,16 +106,19 @@ function surfaces(document: DiagramDocument) {
   };
 }
 
+/** A halo across the sheet's edge (rf6): the grey back on the sheet, the page's white off it. */
+const ACROSS = [`${GREY} on ${WHITE}`];
+
 describe('a label’s halo on a References step’s back, as each surface draws it', () => {
-  it('is the grey back on the sheet and the page’s white off it, on the page, the step file and the card', () => {
+  it('is the grey back on the sheet, the page’s white off it, and both across its edge, on the page, the step file and the card', () => {
     const drawn = surfaces(backStep(null));
-    const expected = { MID: [GREY], EDGE: [WHITE] };
+    const expected = { MID: [GREY], EDGE: [WHITE], ACROSS, RIM: [WHITE] };
     expect(drawn).toEqual({ page: expected, file: expected, card: expected });
   });
 
-  it('reads an enlarged step’s labels in its window: a label past the window’s edge is still on the sheet', () => {
+  it('reads an enlarged step’s labels in its window: past the window’s edge is still on the sheet, and the sheet’s own edge is in it', () => {
     const drawn = surfaces(backStep(MIDDLE));
-    const expected = { MID: [GREY], EDGE: [GREY] };
+    const expected = { MID: [GREY], EDGE: [GREY], ACROSS: [GREY], RIM: ACROSS };
     expect(drawn).toEqual({ page: expected, file: expected, card: expected });
   });
 });

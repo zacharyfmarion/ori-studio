@@ -49,7 +49,8 @@ function show(
   step: DiagramStep,
   preview: DiagramStep | null,
   mode: 'pose' | 'annotate' = 'pose',
-  actions: DiagramLinkedPoseAction[] = []
+  actions: DiagramLinkedPoseAction[] = [],
+  onMode: (mode: 'pose' | 'annotate') => void = () => {}
 ) {
   host ??= document.body.appendChild(document.createElement('div'));
   root ??= createRoot(host);
@@ -64,7 +65,7 @@ function show(
           count={1}
           readOnly={false}
           mode={mode}
-          onMode={() => {}}
+          onMode={onMode}
           annotateTool={null}
           onAnnotateTool={() => {}}
           poseActions={[]}
@@ -193,5 +194,32 @@ describe('DiagramStepDetail in Annotate', () => {
     expect(host!.textContent).toContain('Annotate on a larger screen');
     expect(toolWindow()).toBeNull();
     act(() => useWorkspaceStore.getState().setDiagramAnnotateTool(null));
+  });
+
+  it('leaves Pose | Annotate out of a phone’s header, where Annotate is only a note, which offers the way back to Pose', () => {
+    const step = cpStep('step-1', FLAT);
+    const modeSwitch = () => host!.querySelector('[role="group"][aria-label="Mode"]');
+    const poseButton = () => [...host!.querySelectorAll('button')].find((button) => button.textContent === 'Pose');
+    const reshow = (phone: boolean, mode: 'pose' | 'annotate', onMode?: (mode: 'pose' | 'annotate') => void) => {
+      act(() => root?.unmount());
+      root = null;
+      layout(phone);
+      show(step, null, mode, [], onMode);
+    };
+    // A larger screen keeps the switch, in Pose and in Annotate.
+    reshow(false, 'pose');
+    expect(modeSwitch()).not.toBeNull();
+    reshow(false, 'annotate');
+    expect(modeSwitch()).not.toBeNull();
+    // A phone's header has none: the step opens in Pose, and Annotate there is a note.
+    reshow(true, 'pose');
+    expect(modeSwitch()).toBeNull();
+    expect(poseButton()).toBeUndefined();
+    const modes: string[] = [];
+    reshow(true, 'annotate', (mode) => modes.push(mode));
+    expect(modeSwitch()).toBeNull();
+    expect(host!.textContent).toContain('Annotate on a larger screen');
+    act(() => poseButton()!.click());
+    expect(modes).toEqual(['pose']);
   });
 });

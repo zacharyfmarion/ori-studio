@@ -10,7 +10,7 @@ import {
   type DiagramStep,
   stepsOf,
 } from '../document/diagramDocument';
-import { cellsPerPage, pageCellMm, pathWidthMm, splitIntoPages } from './diagramPageLayout';
+import { cellsPerPage, splitIntoPages } from './diagramPageLayout';
 import type { DiagramStyleChoice } from './diagramStyleChoices';
 
 const NO_STEPS: readonly DiagramStep[] = [];
@@ -25,7 +25,6 @@ const NO_STEPS: readonly DiagramStep[] = [];
  */
 export function useDiagramPageSetup() {
   const page = useWorkspaceStore((state) => state.diagram?.page ?? DEFAULT_PAGE_SETUP);
-  const title = useWorkspaceStore((state) => state.diagram?.title ?? '');
   const style = useWorkspaceStore((state) => state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE);
   // A diagram not made yet takes the author's language's, as its first edit will.
   const hanStyle = useWorkspaceStore(
@@ -49,13 +48,6 @@ export function useDiagramPageSetup() {
     if (useWorkspaceStore.getState().setDiagramHanStyle(next)) trackDiagramPageSetupChanged('han_style');
   }, []);
 
-  // The path's width as it prints: the one chosen, or the one the steps give it, to the mm.
-  const pathWidth = useMemo(
-    () => ({ mm: Math.round(pathWidthMm(page, pageCellMm(page, title))), chosen: page.pathWidthMm !== null }),
-    [page, title]
-  );
-  const setPathWidth = useCallback((mm: number | null) => setPage({ pathWidthMm: mm }, 'path_width'), [setPage]);
-
   return {
     page,
     style,
@@ -64,10 +56,8 @@ export function useDiagramPageSetup() {
     stepCount: steps.length,
     perPage,
     pageCount,
-    pathWidth,
     setPage,
     setStyle,
     setHanStyle,
-    setPathWidth,
   };
 }

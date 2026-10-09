@@ -101,12 +101,6 @@ const PAGE_NUMBER_RAISE_MM = 1.5;
 const OFF_PAGE_MM = 10;
 /** Flow: every other cell of a row steps down by this share of the cell, and the text gives up as much. */
 const FLOW_STEP = 0.06;
-/**
- * The flow band's width where the page setup does not say, as a share of the
- * smaller side of a cell: the width every flow diagram had before it could be
- * chosen (`DiagramPageSetup.pathWidthMm`).
- */
-export const AUTO_PATH_WIDTH_SHARE = 0.42;
 /** The room beside a picture box in its cell, together: the gutter between two pictures. */
 const PICTURE_SIDE_ROOM_MM = 6;
 /**
@@ -460,7 +454,7 @@ export interface DiagramPagesLayout {
     line: SetLine;
     rule: { x1: number; x2: number; y: number };
   } | null;
-  /** The band's width, for the flow layout's path ({@link pathWidthMm}). */
+  /** The band's width, for the flow layout's path: the page setup's (`DiagramPageSetup.pathWidthMm`). */
   bandWidthMm: number;
   /** The band's ink: the page setup's path colour. */
   bandInk: string;
@@ -490,16 +484,6 @@ export function pageCellMm(setup: DiagramPageSetup, title: string): { w: number;
   const footH = setup.pageNumbers.enabled ? FOOTER_MM : 0;
   const { columns, rows } = pageGrid(setup);
   return { w: (W - 2 * m) / columns, h: (H - 2 * m - headH - footH) / rows };
-}
-
-/**
- * The flow band's printed width, mm: the page setup's when it says, otherwise
- * {@link AUTO_PATH_WIDTH_SHARE} of the smaller side of a cell — so a diagram
- * that never chose one keeps the band it always had, in proportion to its
- * steps.
- */
-export function pathWidthMm(setup: DiagramPageSetup, cell: { w: number; h: number }): number {
-  return setup.pathWidthMm ?? Math.min(cell.w, cell.h) * AUTO_PATH_WIDTH_SHARE;
 }
 
 /**
@@ -965,7 +949,7 @@ export function layoutDiagramPages(
   const showTitle = setup.showTitle && title.trim() !== '';
   const headH = showTitle ? HEADER_MM : 0;
   const { w: cellW, h: cellH } = pageCellMm(setup, title);
-  const bandWidthMm = pathWidthMm(setup, { w: cellW, h: cellH });
+  const bandWidthMm = setup.pathWidthMm;
   // An enlarge arrow stands where a turn would, and keeps the gutter a turn keeps.
   const turning = steps.some(
     (step) => step.turnsBefore.length > 0 || step.turnsAfter.length > 0 || Boolean(step.zoom?.arrowFrom)

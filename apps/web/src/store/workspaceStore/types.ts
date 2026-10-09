@@ -2236,7 +2236,7 @@ export interface DiagramSliceActions {
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;
   /**
-   * Pose's Enlarged turned on (Revision 2, Z2): a frame captured from the
+   * The Enlarged toggle turned on (Revision 2, Z2): a frame captured from the
    * nearest earlier step with an area or a frame, the step's own areas gone
    * and its marks carried into the window — one undo step, which first gives
    * either step its faces when it is a flat capture made before they were
@@ -2246,10 +2246,18 @@ export interface DiagramSliceActions {
   /** Enlarged turned off: the frame dropped, the marks carried back to the whole picture, as one undo step. */
   unenlargeDiagramStep: (stepId: string) => boolean;
   /**
-   * Update Enlarged Steps (Z7): every step captured from the area captured
-   * again from it as it is now, as one undo step. Resolves how many it placed.
+   * Update (review fix 4): an enlarged step that is out of date captured
+   * again from its area as it is now, as one undo step — what "Step N's area
+   * changed" asks for. Resolves how many it placed: one, or none with the
+   * area gone, the step up to date, or an update of its area running.
    */
-  updateEnlargedDiagramSteps: (areaId: string) => Promise<number>;
+  updateEnlargedDiagramStep: (stepId: string) => Promise<number>;
+  /**
+   * Update All (Z7; review fix 4): every step enlarged from these areas that
+   * is out of date (`stepsToUpdate`) captured again from its area as it is
+   * now, as one undo step. Resolves how many it placed.
+   */
+  updateEnlargedDiagramSteps: (areaIds: readonly string[]) => Promise<number>;
   /**
    * Any other edit of an enlarged step's frame — moved, resized, reshaped,
    * its Size, Edge or anchor — as one undo step called `label`: `edit` gets

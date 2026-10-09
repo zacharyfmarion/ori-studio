@@ -256,7 +256,7 @@ describe('settlePlaces: a frame goes home when its step lands in another cell (D
     ['margin', { marginMm: 25 }],
     ['title shown', { showTitle: false }],
     ['page numbers', { pageNumbers: { enabled: false, first: 4 } }],
-    ['path width', { pathWidthMm: 20 }],
+    ['path width', { pathWidthMm: 30 }],
     ['path colour', { pathColor: '#d6e8f5' }],
     ['path shown', { showPath: false }],
   ] as const)('keeps every frame through the %s', (_label, patch) => {
