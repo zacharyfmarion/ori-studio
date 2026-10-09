@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { VIEWPORT_PINCH_ZOOM, VIEWPORT_WHEEL_ZOOM } from '../../hooks/useViewportSurface';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
-import { stepHasPicture, type DiagramStep } from '../../diagram/document/diagramDocument';
+import { isLockedStep, stepHasPicture, type DiagramStep } from '../../diagram/document/diagramDocument';
 import {
   STEP_TEXT_LEADING_MM,
   STEP_TEXT_SIZE_MM,
@@ -233,7 +233,10 @@ export function DiagramPagesView({
                                 height: mm(cell.pictureMm.size),
                               }}
                             >
-                              {t('panels:diagram.pages.noPicture', 'No picture yet')}
+                              {/* A newer build's step this build cannot draw says why, as its card does. */}
+                              {step && isLockedStep(step)
+                                ? t('panels:diagram.card.locked', 'Made with a newer Ori Studio')
+                                : t('panels:diagram.pages.noPicture', 'No picture yet')}
                             </div>
                           )}
                           {cell.textOverflow && (
