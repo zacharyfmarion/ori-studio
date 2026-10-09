@@ -19,6 +19,7 @@ import { useViewportSurface } from '../../hooks/useViewportSurface';
 import { readHeldModifiers, subscribeHeldModifiers } from '../../keyboard/heldModifiers';
 import { unionPlotRect, type PlotRect } from '../../lib/geometry';
 import { isPrimaryModifier } from '../../lib/platform';
+import { transformHandleSizes } from '../../lib/transformBox';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -590,7 +591,15 @@ export function useAnnotateCanvas({
     const screenPerWorld = overlay.current?.getScreenCTM()?.a ?? 1;
     const px = 1 / (screenPerWorld * (layout?.unit ?? 1));
     const reach = (coarse ? REACH_PX.coarse : REACH_PX.fine) * px;
-    return { tolerance: reach, glyph: GLYPH_REACH, label: LABEL_SIZE, ink: INK_UNITS, calloutPen: calloutPenUnits(style), px };
+    return {
+      tolerance: reach,
+      glyph: GLYPH_REACH,
+      label: LABEL_SIZE,
+      ink: INK_UNITS,
+      calloutPen: calloutPenUnits(style),
+      px,
+      handles: transformHandleSizes(coarse),
+    };
   }, [coarse, layout, style]);
 
   /** The Angle Bisector's and the equal-angle mark's picks (15b), while one of them is in hand. */
