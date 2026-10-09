@@ -4,6 +4,10 @@
  * front and back, in the Diagram preset, Default and a coloured paper, the
  * baked scene against the sheet's scene plus the marks' — at the 50 mm the
  * cards and the canvas draw, and at twice it.
+ *
+ * But for one change, decided after (rf6): a letter whose halo reaches across
+ * the sheet's edge is haloed in the face on the sheet and the page's white
+ * off it, where the baked letter takes one of the two by its centre.
  */
 import { describe, expect, it } from 'vitest';
 import type { PaperLineItem, PaperScene, ScenePoint } from '../../lib/paper/paperScene';
@@ -63,6 +67,8 @@ function sameElement(a: Element, b: Element): boolean {
 
 const markups = (scene: PaperScene | null) =>
   (scene?.items ?? []).flatMap((item) => (item.kind === 'markup' ? [item.svg] : [])).join('');
+/** The marks' markup without the pattern a halo across the sheet's edge is painted with (rf6), which a baked letter has no use for. */
+const withoutHaloPatterns = (svg: string) => svg.replace(/<defs><pattern id="annotation-halo-[^"]*"[^>]*>.*?<\/pattern><\/defs>/g, '');
 const lineItems = (scene: PaperScene | null) => (scene?.items ?? []).filter((item): item is PaperLineItem => item.kind === 'line');
 const near = (a: ScenePoint, b: ScenePoint) => Math.hypot(a[0] - b[0], a[1] - b[1]) <= 1e-6;
 
@@ -121,7 +127,7 @@ describe('a pulled step paints as its baked card', () => {
 
             // Every other drawn element, the same, in the same order.
             const before = elements(markups(baked)).filter((element) => element.tag !== 'text');
-            const after = [...elements(markups(sheet)), ...elements(markups(notes))].filter((element) => element.tag !== 'text');
+            const after = [...elements(markups(sheet)), ...elements(withoutHaloPatterns(markups(notes)))].filter((element) => element.tag !== 'text');
             expect(after.length).toBe(before.length);
             before.forEach((element, index) => {
               if (!sameElement(element, after[index]!)) {
@@ -150,7 +156,13 @@ describe('a pulled step paints as its baked card', () => {
                 expect(letter.attrs['font-weight']).toBe('700');
                 expect(label.bold).toBe(true);
                 expect(label.fill).toBe(letter.attrs.fill);
-                expect(label.halo?.color).toBe(letter.attrs.stroke);
+                if (label.halo?.across) {
+                  // Across the sheet's edge (rf6): the face on it and the page's white off it, one of which the baked letter took.
+                  expect(label.halo.color).toBe('#ffffff');
+                  expect([label.halo.across.face, label.halo.color]).toContain(letter.attrs.stroke);
+                } else {
+                  expect(label.halo?.color).toBe(letter.attrs.stroke);
+                }
                 expect(label.halo?.width).toBeCloseTo(Number(letter.attrs['stroke-width']), 6);
               } else {
                 const [u, v] = stepDiagramToPicture(model, mirrored)(named[k]!);
@@ -164,4 +176,18 @@ describe('a pulled step paints as its baked card', () => {
       }
     }
   }
+
+  it('meets letters whose halo is across the sheet’s edge among them, so that case is checked too', () => {
+    // At the size where each letter is checked against its baked one, counted here
+    // rather than by the cases above, so this holds run alone or in any order.
+    let across = 0;
+    for (const { model } of [...liftFixtures(), { name: 'pieces', model: piecesCard() }]) {
+      for (const mirrored of [false, true]) {
+        for (const [, style] of STYLES) {
+          across += drawn(model, mirrored, style, LIFT_SHEET_MM).marks.labels.filter((label) => label.halo?.across).length;
+        }
+      }
+    }
+    expect(across).toBeGreaterThan(0);
+  });
 });
