@@ -564,8 +564,12 @@ export function buildDiagramStepActions(
       'remove-picture',
       t('panels:diagram.actions.removePicture', 'Remove Picture'),
       deps.removePicture,
-      !state.hasSource || state.capturing,
-      state.capturing ? capturingHint : t('panels:diagram.actions.noPictureHint', 'This step has no picture yet')
+      state.locked || !state.hasSource || state.capturing,
+      state.locked
+        ? lockedEditHint
+        : state.capturing
+          ? capturingHint
+          : t('panels:diagram.actions.noPictureHint', 'This step has no picture yet')
     ),
     { kind: 'separator', id: 'after-picture' },
     command(

@@ -317,7 +317,8 @@ export function seedSource(document: DiagramDocument, stepId: string): ZoomSourc
   for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
     const entry = document.steps[index]!;
     if (isTurn(entry)) continue;
-    return entry.zoom ? captureSource(document, stepId) : null;
+    // A newer build's step shows its frame, but is no run this build continues.
+    return entry.zoom && !isLockedStep(entry) ? captureSource(document, stepId) : null;
   }
   return null;
 }

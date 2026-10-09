@@ -155,7 +155,8 @@ export function stepsEnlargedFrom(document: DiagramDocument, areaId: string): { 
 /** The step an enlarged step's area is on, while it is in the diagram: its id and number. */
 export function areaStepOf(document: DiagramDocument, stepId: string): { id: string; number: number } | null {
   const step = stepById(document, stepId);
-  const source = step?.zoom ? areaSource(document, step.zoom.from) : null;
+  // A newer build's step is drawn with its frame, and never placed again here.
+  const source = step?.zoom && !isLockedStep(step) ? areaSource(document, step.zoom.from) : null;
   const number = source ? stepNumber(document, source.step.id) : null;
   return source && number !== null ? { id: source.step.id, number } : null;
 }

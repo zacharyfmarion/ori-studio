@@ -650,30 +650,42 @@ function readStep(
       : undefined;
   const sourceRead = readSource(value.source, assets);
   const pictureRead = readPicture(value.picture, assets, env);
-  if (
-    hasNewerKey(value, STEP_KEYS) ||
-    zoom === NEWER ||
-    paperFaces === NEWER_PAPER_FACES ||
-    sourceRead.newer ||
-    pictureRead.newer ||
-    tooManyAnnotations(value.annotations)
-  ) {
-    return { ...base, unknown: value };
+  // Marks are drawn in their step's frame: a newer build's step whose frame
+  // or marks this build cannot read shows nothing.
+  if (zoom === NEWER || tooManyAnnotations(value.annotations)) return { ...base, unknown: value };
+  const framed = withZoom(base, zoom);
+  // A newer build's step shows what this build reads of it (decision 2 of the
+  // launch review): its picture, as its link and its frame say, and its marks
+  // — never its hand placement, which this build would lay it out by.
+  if (hasNewerKey(value, STEP_KEYS) || paperFaces === NEWER_PAPER_FACES || sourceRead.newer || pictureRead.newer) {
+    return { ...withPicture(framed, sourceRead.read, pictureRead.read, paperFaces), unknown: value };
   }
-  // An enlarged step keeps its frame; one that does not read is dropped, and
-  // the marks drawn in its window are out of step with the whole picture.
-  const enlarged: DiagramStep = {
-    ...(zoom === undefined ? base : zoom === null ? { ...base, annotatedPictureKey: null } : { ...base, zoom }),
-    ...readStepPlace(value.place),
-  };
-  const source = sourceRead.read;
-  const picture = pictureRead.read;
+  return withPicture({ ...framed, ...readStepPlace(value.place) }, sourceRead.read, pictureRead.read, paperFaces);
+}
+
+/**
+ * A step with its frame, when it is enlarged. One that does not read is
+ * dropped, and the marks drawn in its window are out of step with the whole
+ * picture.
+ */
+function withZoom(step: DiagramStep, zoom: DiagramStepZoom | null | undefined): DiagramStep {
+  if (zoom === undefined) return step;
+  return zoom === null ? { ...step, annotatedPictureKey: null } : { ...step, zoom };
+}
+
+/** A step with its source, and the picture that source takes. */
+function withPicture(
+  step: DiagramStep,
+  source: DiagramStepSource | null,
+  picture: DiagramPicture | null,
+  paperFaces: ReturnType<typeof readPaperFaces> | undefined
+): DiagramStep {
   if (source?.kind === 'upload') {
     // An upload is its asset: a source and a picture that disagree about which
     // one are not a picture to show.
     return picture?.kind === 'asset' && picture.assetId === source.assetId
-      ? { ...enlarged, source, picture }
-      : enlarged;
+      ? { ...step, source, picture }
+      : step;
   }
   if (source?.kind === 'cp') {
     // A linked step may have no picture yet ("Pose to capture"); its picture is
@@ -682,17 +694,21 @@ function readStep(
     // agree with it.
     const flat = source.render.mode === 'folded-flat' ? source.render : null;
     const faces =
-      picture?.kind === 'scene' && flat && paperFaces && paperFacesFitScene(paperFaces.faces, picture, flat.spread !== undefined)
+      picture?.kind === 'scene' &&
+      flat &&
+      paperFaces &&
+      paperFaces !== NEWER_PAPER_FACES &&
+      paperFacesFitScene(paperFaces.faces, picture, flat.spread !== undefined)
         ? { ...picture, paperFaces: paperFaces.json }
         : picture;
-    return { ...enlarged, source, picture: faces?.kind === 'step-diagram' ? null : faces };
+    return { ...step, source, picture: faces?.kind === 'step-diagram' ? null : faces };
   }
   if (source?.kind === 'references-step') {
     // A References step's picture is its card's diagram, or none.
-    return { ...enlarged, source, picture: picture?.kind === 'step-diagram' ? picture : null };
+    return { ...step, source, picture: picture?.kind === 'step-diagram' ? picture : null };
   }
   // A picture with no source to say what it is of is left out.
-  return enlarged;
+  return step;
 }
 
 /**

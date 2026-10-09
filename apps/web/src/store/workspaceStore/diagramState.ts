@@ -320,7 +320,11 @@ function heavyParts(document: DiagramDocument | null): object[] {
   if (!document) return [];
   const parts: object[] = [];
   for (const step of stepsOf(document)) {
-    if (step.unknown) parts.push(step.unknown);
+    // A newer build's step is written as it came, its picture inside it.
+    if (step.unknown) {
+      parts.push(step.unknown);
+      continue;
+    }
     const picture = step.picture as unknown;
     if (picture && typeof picture === 'object') parts.push(picture);
   }

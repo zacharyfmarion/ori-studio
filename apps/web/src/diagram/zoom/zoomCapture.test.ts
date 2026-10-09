@@ -153,6 +153,12 @@ describe('capturing a frame', () => {
     expect(seeded).toMatchObject({ from: 'area-head', shape: 'circle' });
     expect(seeded.imprint).toBeDefined();
     expect(seeded.frame).toEqual(zoomOf(enlarged, 'step-n')!.frame);
+    // A newer build's enlarged step is drawn with its frame, but is no run this build continues.
+    const newer = {
+      ...enlarged,
+      steps: enlarged.steps.map((entry) => (entry.id === 'step-n' ? { ...entry, unknown: { id: 'step-n' } } : entry)),
+    };
+    expect(seededZoom(insertSteps(newer, [added], 2), 'step-added')).toBeNull();
   });
 
   it('names the run’s picture type: its source’s, past empty steps seeded before it; none from an upload, or with no source (review fix 3)', () => {

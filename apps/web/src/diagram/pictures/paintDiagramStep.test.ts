@@ -137,7 +137,18 @@ describe('paintStepPicture', () => {
     expect(paintStepPicture(upload, assets, style)?.svg).toContain('rotate(180)');
     expect(paintStepPicture(step({}), assets, style)).toBeNull();
     expect(paintStepPicture(upload, {}, style)).toBeNull();
-    expect(paintStepPicture({ ...upload, unknown: { id: 'step-1' } }, assets, style)).toBeNull();
+  });
+
+  it('paints a newer build’s step as far as it reads it, as any other (decision 2)', () => {
+    const assets = { 'asset-a': svg };
+    const upload = step({
+      source: { kind: 'upload', assetId: 'asset-a', rotationQuarterTurns: 2, mirrored: false },
+      picture: { kind: 'asset', assetId: 'asset-a', paperScale: null, key: 'asset:asset-a' },
+    });
+    const style = DEFAULT_DIAGRAM_STYLE;
+    expect(paintStepPicture({ ...upload, unknown: { id: 'step-1' } }, assets, style)?.svg).toContain('rotate(180)');
+    // One it does not read has no picture to paint.
+    expect(paintStepPicture(step({ unknown: { id: 'step-1' } }), assets, style)).toBeNull();
   });
 
   it('paints a captured scene in the diagram’s pens', () => {

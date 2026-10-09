@@ -23,6 +23,11 @@ describe('capturedStyleChange', () => {
     expect(capturedStyleChange(step(scenePicture()), RELIT)).toBeNull();
   });
 
+  it('says nothing of a newer build’s step, which is never captured again here', () => {
+    const lit = step({ ...scenePicture(), styleKey: folded3dSceneStyleKey(style) });
+    expect(capturedStyleChange({ ...lit, unknown: { id: 'step-1' } }, RELIT)).toBeNull();
+  });
+
   it('compares a simulated scene with the simulator’s light, not the folded figure’s', () => {
     const simulated: DiagramStep = {
       ...step({ ...scenePicture(), styleKey: simulatorSceneStyleKey(style) }),

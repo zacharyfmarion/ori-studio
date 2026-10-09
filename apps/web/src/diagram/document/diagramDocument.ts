@@ -2038,9 +2038,12 @@ export function removeStepPicture(document: DiagramDocument, stepId: string): Di
   );
 }
 
-/** The asset a step's picture is drawn from, when it is one this build can draw. */
+/**
+ * The asset a step's picture is drawn from, when it is one this build can
+ * draw — a newer build's step's too, which is drawn as far as it reads.
+ */
 export function stepAsset(document: DiagramDocument, step: DiagramStep): KnownDiagramAsset | null {
-  if (isLockedStep(step) || step.picture?.kind !== 'asset') return null;
+  if (step.picture?.kind !== 'asset') return null;
   const asset = document.assets[step.picture.assetId];
   return asset && isKnownAsset(asset) ? asset : null;
 }

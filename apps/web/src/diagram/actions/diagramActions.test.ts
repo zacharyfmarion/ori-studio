@@ -194,6 +194,13 @@ describe('the diagram step verbs', () => {
     expect(diagramStepCommand(pictured, 'remove-picture')?.disabled).toBe(false);
     // A newer build's step is only carried: it gets no picture from this one.
     expect(diagramStepCommand(build({ locked: true }), 'upload-picture')?.disabled).toBe(true);
+    // Drawn as far as this build reads it, its picture can be exported, never removed (decision 2).
+    const locked = build({ locked: true, hasPicture: true, hasSource: true });
+    expect(diagramStepCommand(locked, 'export-picture')?.disabled).toBe(false);
+    expect(diagramStepCommand(locked, 'remove-picture')).toMatchObject({
+      disabled: true,
+      hint: 'Made with a newer Ori Studio: it can be moved or deleted, not changed',
+    });
   });
 
   it('annotates only a step with a picture this build can change', () => {

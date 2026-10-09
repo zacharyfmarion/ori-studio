@@ -243,6 +243,40 @@ describe('a newer build’s work', () => {
     expect(JSON.stringify(writeDiagram(read.document))).toBe(JSON.stringify(written));
   });
 
+  // Decision 2 of the launch review: drawn rather than blank, and still locked.
+  it('shows a newer build’s step as far as it reads it — its link, picture and marks — never its placement', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[1].place = { frame: [3.5, -2] };
+    written.steps[1].annotations = [{ id: 'ann-1', kind: 'valley-arrow', from: [0, 0], to: [0.5, 0.5] }];
+    const ours = stepsIn(readDiagram(written)!.document)[1];
+    const newer = { ...written.steps[1], layers: [1, 2] };
+    written.steps[1] = newer;
+    const read = readDiagram(written)!;
+    const step = stepsIn(read.document)[1];
+    expect(step.unknown).toEqual(newer);
+    expect(step.source).toEqual(ours.source);
+    expect(step.picture).toEqual(ours.picture);
+    expect(step.annotations).toEqual(ours.annotations);
+    expect(step.place).toBeUndefined();
+    // Written back as it came, whatever was read of it.
+    expect(throughJson(writeDiagram(read.document))).toEqual(written);
+  });
+
+  it('shows nothing of a newer build’s step whose frame, marks or picture it cannot read', () => {
+    const cases: [string, (step: Record<string, unknown>) => Record<string, unknown>][] = [
+      ['a frame', (step) => ({ ...step, zoom: { from: 'ann-1', shape: 'hexagon' } })],
+      ['more marks than a step holds', (step) => ({ ...step, annotations: Array.from({ length: 501 }, (_, i) => ({ id: `a${i}` })) })],
+      ['a picture', (step) => ({ ...step, picture: { ...(step.picture as object), kind: 'hologram' } })],
+    ];
+    for (const [label, patch] of cases) {
+      const written = throughJson(writeDiagram(linkedDiagram()));
+      written.steps[1] = patch(written.steps[1]);
+      const step = stepsIn(readDiagram(written)!.document)[1];
+      expect(step.unknown, label).toEqual(written.steps[1]);
+      expect(step.picture, label).toBeNull();
+    }
+  });
+
   it('reads every step a build writes with nothing locked, and writes it back byte for byte', () => {
     for (const document of [sampleDiagram(), linkedDiagram(), uploadDiagram().document, sentDiagram()]) {
       const written = throughJson(writeDiagram(document));

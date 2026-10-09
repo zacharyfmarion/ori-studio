@@ -227,14 +227,15 @@ export const DiagramStepCard = forwardRef<
           </span>
         </span>
       </div>
-      <div className={styles.well} data-picture={(picture !== null && !locked) || undefined}>
-        {locked ? (
+      <div className={styles.well} data-picture={picture !== null || undefined}>
+        {picture ? (
+          // A newer build's step shows its picture as far as this build reads it (decision 2), badged Newer.
+          url && <img className={styles.picture} src={url} alt="" draggable={false} decoding="async" />
+        ) : locked ? (
           <span className={styles.placeholder}>
             <Lock size={18} aria-hidden="true" />
             {t('panels:diagram.card.locked', 'Made with a newer Ori Studio')}
           </span>
-        ) : picture ? (
-          url && <img className={styles.picture} src={url} alt="" draggable={false} decoding="async" />
         ) : linked ? (
           <span className={styles.placeholder}>{t('panels:diagram.card.notCaptured', 'Not captured yet')}</span>
         ) : (

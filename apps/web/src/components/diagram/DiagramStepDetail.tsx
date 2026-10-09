@@ -317,10 +317,13 @@ export function DiagramStepDetail({
       ) : (
       <div
         className={styles.stage}
-        data-picture={(url !== null && !locked) || undefined}
+        data-picture={url !== null || undefined}
         data-drop-target={dropping || undefined}
       >
-        {locked ? (
+        {locked && picture ? (
+          // A newer build's step, drawn as far as this build reads it (decision 2): nothing to pose or annotate.
+          picture
+        ) : locked ? (
           <div className={styles.message}>
             <Lock size={22} aria-hidden="true" />
             <p>

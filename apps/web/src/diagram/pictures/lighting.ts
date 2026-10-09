@@ -13,7 +13,7 @@
  */
 import { folded3dSceneStyleKey } from '../../cp-workspace/folded/folded3dScene';
 import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
-import type { DiagramStep, DiagramStyle } from '../document/diagramDocument';
+import { isLockedStep, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
 import { diagramPaperStyle, diagramStyleKey } from './diagramPaperStyle';
 
 const keys = new WeakMap<DiagramStyle, { folded3d: string; simulated: string }>();
@@ -34,6 +34,8 @@ function lightKey(style: DiagramStyle, simulated: boolean): string {
  * (a 3D scene), its whole `style` (a bitmap), or null when it shows it all.
  */
 export function capturedStyleChange(step: DiagramStep, style: DiagramStyle): 'light' | 'style' | null {
+  // A newer build's step is never captured again here, so there is no Refresh to ask for.
+  if (isLockedStep(step)) return null;
   const picture = step.picture;
   if (picture?.kind === 'scene') {
     const simulated = step.source?.kind === 'cp' && step.source.render.mode === 'simulated';
