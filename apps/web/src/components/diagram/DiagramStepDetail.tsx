@@ -72,9 +72,10 @@ const POSE_ANNOTATION_OPACITY = 0.3;
  * The top bar leads back to the list, walks the steps and switches between
  * Pose and Annotate. In Pose the picture fills what is left, its annotations
  * ghosted, posed by the toolbar under it; in Annotate it is the canvas,
- * Annotate's tools down its left (on a phone, a note to use a larger
- * screen). A step with no picture says so and offers the ways to give it
- * one; a newer build's step says it cannot be shown here.
+ * Annotate's tools down its left. A phone's bar has no switch: Annotate
+ * there is only a note to use a larger screen, with the way back to Pose. A
+ * step with no picture says so and offers the ways to give it one; a newer
+ * build's step says it cannot be shown here.
  *
  * Takes focus when it opens, so the keys that follow — Escape back to the
  * list, the arrows and `[` / `]` to the next step — have somewhere to start,
@@ -244,29 +245,32 @@ export function DiagramStepDetail({
             <ChevronRight size={15} />
           </IconButton>
         </div>
-        <SegmentedControl<DiagramDetailMode>
-          size="sm"
-          aria-label={t('panels:diagram.detail.mode', 'Mode')}
-          value={annotating ? 'annotate' : 'pose'}
-          options={[
-            { value: 'pose', label: t('panels:diagram.detail.pose', 'Pose') },
-            {
-              value: 'annotate',
-              label: t('panels:diagram.detail.annotate', 'Annotate'),
-              disabled: source === null || locked,
-              // Why, as the step's own verb says it: a newer build's step is not changed here.
-              tooltip: locked
-                ? t(
-                    'panels:diagram.actions.lockedEditHint',
-                    'Made with a newer Ori Studio: it can be moved or deleted, not changed'
-                  )
-                : source === null
-                  ? t('panels:diagram.detail.annotateNeedsPicture', 'Give the step a picture to annotate')
-                  : undefined,
-            },
-          ]}
-          onChange={onMode}
-        />
+        {/* Not on a phone, where Annotate is only a note and the switch would take a row of its own (rf7). */}
+        {!phone && (
+          <SegmentedControl<DiagramDetailMode>
+            size="sm"
+            aria-label={t('panels:diagram.detail.mode', 'Mode')}
+            value={annotating ? 'annotate' : 'pose'}
+            options={[
+              { value: 'pose', label: t('panels:diagram.detail.pose', 'Pose') },
+              {
+                value: 'annotate',
+                label: t('panels:diagram.detail.annotate', 'Annotate'),
+                disabled: source === null || locked,
+                // Why, as the step's own verb says it: a newer build's step is not changed here.
+                tooltip: locked
+                  ? t(
+                      'panels:diagram.actions.lockedEditHint',
+                      'Made with a newer Ori Studio: it can be moved or deleted, not changed'
+                    )
+                  : source === null
+                    ? t('panels:diagram.detail.annotateNeedsPicture', 'Give the step a picture to annotate')
+                    : undefined,
+              },
+            ]}
+            onChange={onMode}
+          />
+        )}
         <div className="panel-toolbar__group">
           <DiagramHistoryButtons />
           <Button size="sm" variant="primary" onClick={onBack}>
@@ -280,6 +284,10 @@ export function DiagramStepDetail({
           <div className={styles.stage}>
             <div className={styles.message}>
               <p>{t('panels:diagram.annotate.largerScreen', 'Annotate on a larger screen: a tablet or a computer.')}</p>
+              {/* The phone's bar has no Pose | Annotate (rf7): the way back is here. */}
+              <Button size="sm" variant="secondary" onClick={() => onMode('pose')}>
+                {t('panels:diagram.detail.pose', 'Pose')}
+              </Button>
             </div>
           </div>
         ) : (
