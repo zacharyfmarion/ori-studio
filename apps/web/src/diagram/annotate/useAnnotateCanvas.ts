@@ -631,6 +631,39 @@ export function useAnnotateCanvas({
     [selectedId, known, viewed, hitSizes]
   );
 
+  /**
+   * Whether the tool in hand lays `kind`, the selected mark's own kind — a
+   * star's with the Star, an eye's with the Eye — so its box's handles take
+   * a press before the tool draws (18d). Under any other tool that draws,
+   * the press draws that tool's mark, even on the box, where an arrow or a
+   * line is often started.
+   */
+  const handlesInHand = useCallback(
+    (kind: DiagramAnnotationKind | null): boolean => {
+      const selected = kind === null || selectedId === null ? undefined : known(selectedId);
+      return selected?.kind === kind;
+    },
+    [selectedId, known]
+  );
+
+  /**
+   * The selected mark's transform handle a press at `at` is on — a scale
+   * square or a turn handle, as Select would take it, never the box's body —
+   * and the mark. What a press with the mark's own tool still in hand takes
+   * before it draws (`handlesInHand`): the box a star or an eye just laid
+   * shows scales and turns it rather than laying another under the press
+   * (18d). Null off its handles, and with no box selected.
+   */
+  const handleGripAt = useCallback(
+    (at: PicturePoint): { grip: AnnotationGrip; original: KnownDiagramAnnotation } | null => {
+      const selected = selectedId === null ? undefined : known(selectedId);
+      if (!selected || !hasTransformBox(selected)) return null;
+      const grip = hitAnnotation(viewed, at, hitSizes(), selectedId);
+      return grip?.annotationId === selected.id && grip.part === 'transform' ? { grip, original: selected } : null;
+    },
+    [selectedId, known, viewed, hitSizes]
+  );
+
   // The selected area's anchor face, or the selected frame's, outlined in the selection's ink, in the canvas's units.
   const anchorRingPicture = useMemo(() => {
     const area = selectedId === null || selectedId === ZOOM_FRAME_ID ? undefined : known(selectedId);
@@ -878,7 +911,11 @@ export function useAnnotateCanvas({
         return;
       }
       const kind = drawingKind(tool, lineType);
-      if (kind !== null) {
+      // The selected mark's box, a handle pressed with that mark's own tool in hand: the handle's (18d).
+      const handle = handlesInHand(kind) && !readOnly ? handleGripAt(at) : null;
+      if (handle) {
+        gesture.current = { mode: 'move', grip: handle.grip, original: handle.original, start: at, px: hitSizes().px, ...press };
+      } else if (kind !== null) {
         // An enlarged step is not enlarged again (yet): the Enlarge tools draw nothing on it.
         if (readOnly || (kind === 'zoom' && step.zoom)) return;
         const free = isPrimaryModifier(event);
@@ -954,6 +991,8 @@ export function useAnnotateCanvas({
       hitSizes,
       selectedId,
       known,
+      handlesInHand,
+      handleGripAt,
       pressPath,
       transformRef,
       snapContext,
@@ -1058,9 +1097,21 @@ export function useAnnotateCanvas({
         return;
       }
       const kind = drawingKind(tool, lineType);
-      // With Select, over the selected star's or eye's box: what a press there would take of it.
-      const selecting = tool === null && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
-      setTransformHover(selecting && onStage(input.target) ? transformHoverAt(toPicture(input.clientX, input.clientY)) : null);
+      // Over the selected star's or eye's box, what a press there would take of it: with Select, any of it; with the
+      // mark's own tool in hand, only a handle, which takes the press before a draw (18d) — its body is drawn on; with
+      // any other tool, none of it.
+      const inHand = handlesInHand(kind);
+      const boxed = (tool === null || inHand) && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
+      const overBox = boxed && onStage(input.target) ? transformHoverAt(toPicture(input.clientX, input.clientY)) : null;
+      const onHandle = inHand && overBox !== null && overBox !== 'body';
+      setTransformHover(tool === null || onHandle ? overBox : null);
+      if (onHandle) {
+        // Nothing would be drawn: no snap, line or right angle is shown for it.
+        showLineHover(null);
+        showSnap([]);
+        showRightAngle(null);
+        return;
+      }
       const looking =
         kind !== null && snapsWhenPlaced(kind) && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
       const at = looking && onStage(input.target) ? toPicture(input.clientX, input.clientY) : null;
@@ -1097,6 +1148,7 @@ export function useAnnotateCanvas({
       hitSizes,
       anchorPick,
       transformHoverAt,
+      handlesInHand,
     ]
   );
 

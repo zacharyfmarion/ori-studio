@@ -2859,6 +2859,47 @@ describe('DiagramAnnotateCanvas stars (Revision 3)', () => {
     }
   });
 
+  it('takes a drag on a just-laid star’s square with K still in hand: it scales that star, and lays no other; its body is drawn on (18d)', () => {
+    drawn([], 'star');
+    click(at(0.5, 0.3));
+    const laid = theStar();
+    expect(state().diagramSelectedAnnotationId).toBe(laid.id);
+    expect(state().diagramAnnotateTool).toBe('star');
+    const past = state().diagramHistory.past.length;
+    // The square's cursor, as with Select; over its body, the tool's own.
+    const hover = (point: [number, number]) => {
+      pointer('pointermove', point);
+      return view().getAttribute('data-transform-hover');
+    };
+    expect(hover(handleAt('scale-se'))).toBe('scale');
+    expect(hover(handleAt('rotate-se'))).toBe('rotate');
+    expect(hover(at(0.5, 0.3))).toBeNull();
+    const [sx, sy] = at(0.5, 0.3);
+    const corner = handleAt('scale-se');
+    drag(corner, [sx + 2 * (corner[0] - sx), sy + 2 * (corner[1] - sy)]);
+    expect(annotations()).toHaveLength(1);
+    expect(theStar()).toMatchObject({ id: laid.id, from: [0.5, 0.3] });
+    expect(theStar().scale).toBeCloseTo(2, 3);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(label()).toBe('Resize annotation');
+    expect(state().diagramAnnotateTool).toBe('star');
+    // A click away from its handles lays the next star, as the tool in hand does.
+    rerender();
+    click(at(0.2, 0.6));
+    expect(annotations()).toHaveLength(2);
+  });
+
+  it('lets another tool draw from a selected star’s square: only the Star takes its handles (18d review)', () => {
+    drawn([star], 'valley-arrow', 'star');
+    const corner = handleAt('scale-se');
+    pointer('pointermove', corner);
+    expect(view().getAttribute('data-transform-hover')).toBeNull();
+    drag(corner, [corner[0] + 120, corner[1] + 60]);
+    expect(annotations().filter((each) => each.kind === 'valley-arrow')).toHaveLength(1);
+    expect(theStar()).toEqual(star);
+    expect(label()).toBe('Add annotation');
+  });
+
   it('shows the Edit canvas’s cursors over its box with Select: move on its body, pointer on a square, grab on a turn handle', () => {
     drawn([star], null, 'star');
     const hover = (point: [number, number]) => {
@@ -2986,5 +3027,20 @@ describe('DiagramAnnotateCanvas eyes (Revision 3)', () => {
     expect(theEye().from[1]).toBeCloseTo(0.35, 6);
     expect(theEye().angle).toBe(225);
     expect(label()).toBe('Move annotation');
+  });
+
+  it('takes a drag on a just-laid eye’s turn handle with Y still in hand: it turns that eye, and lays no other (18d)', () => {
+    drawn([], 'eye');
+    drag(at(0.5, 0.3), toward([0.5, 0.3], 180));
+    expect(theEye().angle).toBe(180);
+    expect(state().diagramAnnotateTool).toBe('eye');
+    rerender();
+    const [ex, ey] = at(0.5, 0.3);
+    const turn = handleAt('rotate-ne');
+    const a = (40 * Math.PI) / 180;
+    drag(turn, [ex + (turn[0] - ex) * Math.cos(a) - (turn[1] - ey) * Math.sin(a), ey + (turn[0] - ex) * Math.sin(a) + (turn[1] - ey) * Math.cos(a)]);
+    expect(annotations().filter((each) => each.kind === 'eye')).toHaveLength(1);
+    expect(theEye().angle).toBeCloseTo(220, 1);
+    expect(label()).toBe('Rotate annotation');
   });
 });
