@@ -1414,7 +1414,12 @@ Open, Zach's call (built as §4 says until he says otherwise):
   back's edge paints grey over the page's white (or a white notch into the
   grey just off it), and a white halo off the sheet shows on a page's grey
   flow band. Painting it twice, clipped inside the sheet in its face and
-  outside in white, would follow the edge.
+  outside in white, would follow the edge. *Built in review fix 6
+  (`diagram-review-fixes.md`): the face inside, white outside, as one
+  stroke painted by a pattern of the sheet. For Text labels and pulled
+  letters only: References' baked letters still take one colour, so
+  pulling a letter across the edge changes how it looks (a follow-up for
+  Zach there).*
 - **A halo on any other picture is white**, a folded step's grey faces
   included; the hint says so. Giving scene and folded pictures a `paper` of
   their faces would fill it with the face under the text instead.
@@ -1866,8 +1871,11 @@ Open, Zach's call (built as §4 says until he says otherwise):
     - On a phone, Replace from References… in the Settings sheet opens the
       browser under the sheet; closing the sheet shows it. The same at
       `31e1d6d84` on #436's own dev server (`phone-drawer-base.mjs`).
+      *Fixed in review fix 6: sheets come before dialogs in the document.*
     - On a phone, a step's header wraps onto three rows. This branch does
-      not touch it.
+      not touch it. *Review fix 6: it is the open step's header, not a
+      card's; left for Zach, with a recommendation (leave out Pose |
+      Annotate on a phone) in `diagram-review-fixes.md`.*
     - On a phone, the Step pane's Annotate button and the Layers tab lead
       to "Annotate on a larger screen" and "Open a step in Annotate to see
       its layers".
@@ -1887,7 +1895,9 @@ otherwise):
 - A References pull, upload or link after an enlarged run starts enlarged
   (16g's seeding). Recommended: start unenlarged.
 - A halo straddling a sheet's edge takes one colour. Recommended: paint it
-  in two clipped parts, the face's colour inside and white outside.
+  in two clipped parts, the face's colour inside and white outside. *Built
+  in review fix 6, as one stroke painted by a pattern of the sheet, for
+  Text labels and pulled letters; baked letters are unchanged.*
 - Halos on folded steps are white. Recommended: leave them white.
 - Replace and Way quietly restore a pulled mark the author deleted.
   Recommended: accept.

@@ -15,6 +15,14 @@ the marks that float over the whole model when Enlarged is turned off. (b)
 follows his decided rule in item 3: switching Show as keeps a step enlarged,
 so its frame must land properly for every Show as.
 
+Item 6 is three small fixes found while reviewing #436 and #442 (17b, 17f),
+each its own commit. Under Zach's standing instruction (2026-10-08), "go with
+your recs from now on unless there is a large fork in the design to be
+figured out, until i say otherwise", these are the recommendations given:
+the halo in two parts, and the two phone issues fixed on #436. (a) and (b)
+are built; (c)'s premise was wrong (the card header does not wrap), and the
+header that does is left for Zach with a recommendation.
+
 ## Approach
 
 ### 1. The path width defaults to 20 mm
@@ -399,6 +407,158 @@ worker (1a), since the worker prepares the mesh already; 1b if the worker's
 API should stay as it is. Option 3 alone keeps the step enlarged on a
 window that shows other paper, which is what (b) set out to fix.
 
+### 6. A halo along the sheet's edge, and two phone fixes
+
+#### (a) A Text halo follows the sheet's edge
+
+Today:
+
+- **One colour, by the centre.** A haloed label on a References picture
+  takes one colour from where its centre is (17b, `labelOnPaper`): the
+  face it stands on, or the page's white off the sheet.
+- **The bug.** A label across the sheet's edge spills that colour past it.
+  A pulled letter half off a grey back paints grey onto the white page, and
+  one whose centre is just off it cuts a white notch into the grey.
+
+The design (decided):
+
+- **Two parts.** The halo is the face inside the sheet's outline and the
+  page's white outside it, so it follows the edge exactly.
+- **Other pictures.** Halos on folded and simulated pictures stay page
+  white.
+
+As built:
+
+- **Which labels.** The label's reach (`labelReach`, the box
+  `annotationReach` crops a file to) is tested against the sheet's outline
+  (`boxOnSheet`; a sheet's outline is convex). Wholly on it, the halo is
+  the face, as before. Wholly off, it is the page's white. Across the edge,
+  it is both. A face that is the page's white, as the Diagram preset's
+  front is, is one colour anywhere. Labels that do not cross the edge keep
+  their markup byte for byte.
+- **How the two parts are painted** (*deviation in mechanism, not in
+  look*). The one halo stroke is painted with an SVG pattern
+  (`AnnotationHaloAcross`, `haloPatternElement`). Its tile covers the
+  label's reach and an em more, and holds the page's white with the sheet
+  over it in the face. Two copies of the stroke, clipped inside and outside
+  the sheet, were not used, because:
+  - Two clips that meet on the edge each soften it, so a hairline of the
+    sheet's edge line shows through the halo.
+  - The white laid whole under a clipped face was tried first. It leaves a
+    light rim round the grey part, where the two strokes' softened rims
+    stack. This was seen on the canvas.
+  - krilla (the PDF writer) sets a stroke-only `<text>` as text, so the
+    copies would set the words three times in the PDF. With one stroke,
+    `pdftotext` reads each word once.
+- **Pattern ids.** A pattern's id is made from what it paints
+  (`keyDigest`). A page cell renames it (`prefixIds`). The Annotate canvas
+  names it for its layer (`useId`, through `annotationMarks`' `scope`), as
+  close-ups name their clips.
+- **Off the sheet the halo is still white.** So a halo past the sheet still
+  shows on a page's flow band, as decided.
+- **Pulled letters.** A pulled letter across the edge no longer matches
+  its baked card's one-colour halo. The 17d equivalence test says so for
+  that case alone, and counts in a test of its own that the fixtures meet
+  that case.
+- **Baked letters are unchanged** (*for Zach*). Only Text labels follow the
+  edge, pulled letters included. References' own letters, before Make
+  Marks Editable, still take one colour by the box's centre (`labelOnPaper`
+  in `cp-workspace/references/diagram/DiagramPrimitives.tsx`). That is the
+  default state of every References step in the Diagram (card, page, PDF),
+  and the References workspace itself. So:
+  - a letter across the edge on an unpulled step still spills its colour,
+    as before rf6;
+  - Make Marks Editable now visibly changes such a letter, so 17d's rule
+    that a pulled step paints as its baked card no longer holds for it.
+
+  Recommended follow-up, his call: give baked letters the same pattern halo
+  in `DiagramPrimitives`, which makes pulling a visual no-op again and
+  restores 17d's rule.
+- **Known.** poppler (`pdftoppm`) draws a 6/255 lighter hairline round the
+  pattern's part at 600 dpi. CoreGraphics (Preview, QuickLook), Chromium
+  and WebKit draw none.
+- **Known, not rf6.** The sheet's edge line shows through the hole of a
+  letter on the edge (a small tick inside the Q), on the canvas, in WebKit
+  and in the PDF. A halo is a stroke a fixed width round each outline, so
+  it does not reach into a hole. Filling the holes in the halo's colour
+  would change References' baked letters too, so it is left unless Zach
+  finds it distracting.
+
+#### (b) Dialogs opened from the Settings sheet open over it
+
+Today:
+
+- **Where each is in the document.** Every touch sheet portals itself to
+  the end of `<body>`: the View or Settings sheet, Edit's and Simulate's
+  tool sheets, and Design's pane list. `App`'s modals are inside `#root`.
+- **Why the sheet wins.** Both are on the modal tier, where the later in
+  the document is on top. `topmostModalDialog` also takes the last one as
+  the dialog that owns the keys.
+- **The bug.** Every dialog a sheet opens is under it. Checked on a phone:
+  Replace from References… and Delete Step's question. One Escape closed
+  both the dialog and the sheet.
+
+The fix, at its cause, with no z-index changed:
+
+- **A sheet layer before the modals.** `App` renders a sheet layer
+  (`SheetLayer`) ahead of every modal and registers it in `layoutStore`
+  (`sheetLayer`). Every sheet portals into it (`SheetPortal`), or into
+  `<body>` before it is there.
+- **Order matches stacking again.** A dialog opened from a sheet comes
+  later in the document, so it is drawn on top and holds focus and keys.
+- **Escape.** A sheet's Escape stands down while a dialog is over it
+  (`isTopmostDialog`), as `useModalDialog`'s does. A shortcut can open a
+  dialog over any sheet (sheets are not shortcut barriers), so this is
+  every sheet's, not only the View sheet's. All four now close on Escape
+  through one hook, `useSheetEscape` (`components/ui/`), whose predicate
+  `sheetOwnsEscape` holds every case in which the key is another's: a
+  field's, an open layer's, an armed mode's, a dialog's over the sheet.
+  Before review, the tool sheets and the pane list each had their own
+  listener, with fewer guards than the View sheet's, and one Escape closed
+  both a Settings dialog (⌘,) and the sheet under it.
+
+#### (c) A step's header on a phone
+
+Planned: the Steps grid card header wraps onto three rows on a phone
+("Step 24 · Enlarged… · CREASE PATTERN"). Keep it on one row, with the
+chips truncating as on the desktop.
+
+*As found (not built; Zach to choose).*
+
+- **The card header does not wrap.** At 375 px in WebKit (iPhone X) it is
+  one 33 px row, light and dark, with Folded, Crease Pattern and
+  Simulated · 0% badges (`probe-c.mjs`). Its CSS cannot wrap: `.header` is
+  a flex row without `flex-wrap`, and the chip already gives way first.
+- **The three rows are the open step's header** (Pose or Annotate), which
+  17f photographed:
+  - ← Steps, then ‹ Step 24 of 25 ›;
+  - Pose | Annotate;
+  - Undo, Redo, Done and Settings (`probe-c-open.mjs`).
+- **That header has no chips to truncate.** Fitting it on fewer rows is a
+  layout choice: which of nine 44 px controls give way. Its last two rows
+  alone need about 380 px together, against 359 px across a phone. So it is
+  not invented here.
+
+*Recommended, for Zach to answer (not built; mock in
+`artifacts/review-fixes/6/mock-c.png`, from `mock-c.mjs`, which edits the
+live page's DOM):*
+
+- **Leave out the Pose | Annotate switch on a phone.** On a phone, Annotate
+  is only the note "Annotate on a larger screen", so the switch offers a
+  dead end. The phone already leaves Spread Layers out of the pose toolbar
+  for the same reason (it would wrap a row).
+- **Two rows at 375 px and at 320 px:** "← Steps ‹ Step 24 of 25 ›", then
+  "↶ ↷ Done Settings". Today it is three at both.
+- **Nothing is stranded.** The Step pane's Annotate button is the one other
+  way into Annotate on a phone. The note it leads to would get a Pose
+  button.
+- **One component.** It is `DiagramStepDetail`, which already knows it is
+  on a phone. No shared block changes.
+- **Alternative:** keep every control and make the Settings pill icon-only
+  on a phone. That is two rows at 375 px but still three at 320 px, and the
+  pill is the shared View or Settings trigger every workspace seats
+  (`.view-drawer__trigger`).
+
 ## Affected Areas
 
 Paths under `apps/web/src/` unless rooted.
@@ -483,6 +643,23 @@ Paths under `apps/web/src/` unless rooted.
     a 0% simulated picture). 1a adds `simulator/simulatorSession.ts`
     (`flatScene`); 1b moves `foldScaledForSolver` out of it into a module
     the main thread shares.
+- **6. A halo along the sheet's edge, and two phone fixes.**
+  - (a): `diagram/annotate/annotationPrimitives.tsx` (`haloPaint`,
+    `labelReach`, `boxOnSheet`, `labelElement`, `haloPatternElement`,
+    `annotationMarks`' `scope`), `components/diagram/DiagramAnnotationLayer.tsx`.
+    Tests: `textOptions.test.tsx`, `textHaloSurfaces.test.ts`,
+    `referencesCardMarks.equivalence.test.ts`, `DiagramAnnotationLayer.test.tsx`.
+  - (b): `components/SheetLayer.tsx` (new), `store/layoutStore.ts`
+    (`sheetLayer`), `App.tsx`, `components/WorkspaceViewDrawer.tsx`,
+    `hooks/useWorkspaceViewDrawer.ts`, `components/DesignPaneSwitcher.tsx`,
+    `cp-workspace/toolCatalog/CpToolsTrigger.tsx`,
+    `simulator/SimulatorToolsTrigger.tsx`; Escape through
+    `components/ui/useSheetEscape.ts` (new) from `useWorkspaceViewDrawer`,
+    `components/ui/tools/useToolPickerSheet.ts` and `DesignPaneSwitcher`.
+    Tests: `SheetLayer.test.tsx`, `WorkspaceViewDrawer.test.tsx`,
+    `CpToolsTrigger.test.tsx`, `SimulatorToolsTrigger.test.tsx` (new),
+    `DesignPaneSwitcher.test.tsx` (new).
+  - (c): none (a mock only).
 
 ## Checklist
 
@@ -1061,6 +1238,110 @@ Paths under `apps/web/src/` unless rooted.
     on every such step. A fix for the card header, for example letting the
     badge shrink first, or keeping the icon and step number without the
     word.
+
+### 6. A halo along the sheet's edge, and two phone fixes
+
+- [x] (a) A halo across a References sheet's edge is the face on the sheet and the page's white off it
+  - One stroke painted by a pattern of the sheet, for labels whose reach
+    crosses the edge. Labels wholly on or off it, and every label on a
+    white face or another picture, keep their one colour and their markup.
+    The Approach says why it is not two clipped copies.
+- [x] (a) Tests; the new ones fail on HEAD 69fda4d0f's sources
+  - `textOptions.test.tsx`: the one stroke and its pattern (tile, white,
+    the sheet in the face from the tile's corner); one colour wholly on,
+    wholly off and on a white face; either winding, and an enlarged step's
+    sheet in window units; ids by what they paint, and scoped.
+  - `textHaloSurfaces.test.ts`: across the edge on the page, the step file
+    and the card, its pattern in the same document (renamed per cell);
+    enlarged too.
+  - `DiagramAnnotationLayer.test.tsx`: two layers of one drawing in one
+    document, each with its own pattern.
+  - `referencesCardMarks.equivalence.test.ts`: amended. A pulled letter
+    across the edge takes the face or white where its baked letter took
+    one, and the fixtures meet that case.
+- [x] (a) Browser (`artifacts/review-fixes/6/`)
+  - On HEAD's sources and on these, crane step 2 (grey back): its letters
+    made editable, and EDGE and TOP across the edge, IN on it and OUT off
+    it. Shown on the Annotate canvas (light and dark), the card, the
+    composed page and the PDF (`verify-a.mjs`).
+  - After: grey on the sheet, white off it, the sheet's edge line knocked
+    out; IN as before. OUT is clear of the edge on the canvas and the card,
+    and crosses it on the page, where the picture prints smaller. No
+    console errors.
+  - The PDF was drawn by poppler (`pdf-a.py`, its hairline above) and by
+    CoreGraphics through QuickLook (clean). The page was drawn by WebKit
+    (`webkit-page.mjs`, clean). `pdftotext` reads each word once.
+- [x] (b) Sheets portal into a sheet layer `App` renders before its modals; every sheet's Escape stands down under a dialog (`useSheetEscape`)
+- [x] (b) Tests
+  - `WorkspaceViewDrawer.test.tsx`: the sheet in the layer, a dialog after
+    it on top, and its Escape the dialog's. Fails on HEAD's drawer and
+    hook.
+  - `SheetLayer.test.tsx`, for the new module: the layer takes sheets and
+    lets go on unmount, and `App` lays it out before every modal.
+  - `CpToolsTrigger.test.tsx`, `SimulatorToolsTrigger.test.tsx`,
+    `DesignPaneSwitcher.test.tsx` (review): each sheet opens in a registered
+    layer, a dialog after it keeps its Escape, and a second Escape closes
+    the sheet. They fail with a sheet portaled to `<body>`, and with the
+    sheets' own listeners from before the review. The pane list also
+    stands down for an open layer's Escape.
+- [x] (b) Browser: WebKit, phone light and dark, iPad light (`verify-b.mjs`)
+  - Before (`probe-b.mjs before`): the browser and Delete Step's question
+    were under the sheet, and one Escape closed both.
+  - After: Replace from References… opens the browser on top. Its Cancel,
+    tapped, closes it and leaves the sheet. Escape closes it alone, and a
+    second Escape closes the sheet.
+  - Delete Step's question is on top, and Cancel leaves the step.
+  - Edit's tool sheet (`verify-b.mjs`) and Simulate's
+    (`verify-b-sheets.mjs`) open in the layer, on top; Simulate's closes on
+    Escape.
+  - Review (`escape-sheets.mjs`, WebKit iPhone and Chromium at 375 px):
+    Edit's and Simulate's tool sheets, Design's pane list (a new TreeMaker
+    design, four panes) and the Diagram's Settings sheet, each with
+    Settings opened over it by ⌘,. One Escape closes Settings alone, a
+    second the sheet. Before (`escape-webkit-before/`, the old listeners put
+    back), one Escape closed both for every sheet but the Settings sheet.
+- [ ] (c) Not built: the card header does not wrap on a phone; the three rows are the open step's header, a layout choice for Zach (Approach, with a recommendation and `mock-c.png`)
+- [x] i18n and analytics: no string, event or property changed; `i18n:check` passes
+- [x] Review findings addressed: one Escape listener for every sheet; a
+  layer test per sheet; the 17d count no longer depends on test order;
+  `ToolPickerSheet`'s comment; baked letters and the (c) recommendation
+  written up for Zach
+- [x] Gate on the committed tree (the worktree held only this phase's changes)
+  - `npm run lint:web`, `tsc --noEmit`, `i18n:check` and `git diff --check`
+    clean.
+  - The whole vitest suite (Node 22): 893 files and 12106 tests passed;
+    2 files and 15 tests skipped. The first full run failed one test
+    outside rf6, `store.test.ts`'s "offers the vertex the refusal named"
+    (a CP fold refusal's framing call); it passed alone and in the re-run.
+  - The verifier put HEAD 69fda4d0f's sources back (restored
+    byte-identical): all 14 new tests, in 9 files, fail there.
+- [x] The commits, each its own: (a) `9d5ae76e2`, (b) `aedad268f`; (c) has none
+- [x] Verify (`verify-rf6.mjs`, 375 px: Chromium light and dark, WebKit iPhone X light and dark; HEAD's sources and these)
+  - (b) Before, in all four: the Settings sheet was drawn over the
+    References browser, and one Escape closed both. After: the browser is
+    on top, one Escape closes it alone, a second the sheet.
+  - (a) Step 2's card in the Steps grid on a phone: EDGE and TOP are
+    painted by their patterns, IN grey, OUT white. Before, EDGE and TOP
+    were grey.
+  - (c) Steps 22–25's card headers are one 33 px row in all four runs;
+    step 24 open has three rows of controls.
+  - No page or console errors.
+- Evidence: `artifacts/review-fixes/6/rf6-evidence.png`, from
+  `composite-rf6-verify.py`: (a) on the canvas (Chromium light and dark),
+  the page, the PDF (pdftoppm and CoreGraphics) and the phone card; (b)
+  in all four runs, and Escape over Edit's tool sheet; (c) as found, with
+  `mock-c.png`. The implementer's composite is `rf6-evidence-implementer.png`.
+- As built, in short:
+  - (a) A halo across a References sheet's edge is one stroke painted by a
+    pattern of the sheet: the face on it, white off it. Every other halo
+    keeps its colour and markup. References' own (unpulled) letters are
+    unchanged, so pulling a letter across the edge now changes it; making
+    them follow the edge too is Zach's call.
+  - (b) `SheetLayer` comes before `App`'s modals and holds all four touch
+    sheets; their Escape is one hook, `useSheetEscape`. No z-index changed.
+  - (c) Not built: the card header already holds one row. The open step's
+    header is three rows, and the recommendation for Zach is to leave out
+    Pose | Annotate on a phone (two rows at 375 and 320 px).
 
 ### Finish
 
