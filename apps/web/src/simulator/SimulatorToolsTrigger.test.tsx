@@ -44,7 +44,7 @@ beforeEach(() => {
   useLayoutStore.setState({ sheetLayer: layer });
   container = document.body.appendChild(document.createElement('div'));
   root = createRoot(container);
-  act(() => root?.render(<SimulatorToolsTrigger buttons={buttons} disabled={false} />));
+  act(() => root?.render(<SimulatorToolsTrigger buttons={buttons} disabled={false} surface="simulate" />));
 });
 
 afterEach(() => {
