@@ -13,7 +13,13 @@ import { useWheelPassthrough } from '../hooks/useWheelPassthrough';
 import { isOpenLayerTarget, isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
 import { IMAGE_ROTATION_SNAP_RADIANS } from './images/cpImage';
 import {
-  CORNER_RESIZE_HANDLES,
+  TRANSFORM_HANDLE_SIZE_PX,
+  TRANSFORM_ROTATE_HANDLE_RADIUS_PX,
+  TRANSFORM_ROTATE_OFFSET_PX,
+  TRANSFORM_STROKE_PX,
+  transformHandles,
+} from '../lib/transformBox';
+import {
   boxCornersModel,
   overlayCssDeltaToModel,
   overlayCssToModel,
@@ -55,13 +61,10 @@ import { usePanModifierHeld } from './cpCanvasCursor';
  * affine for that object's space — {@link CpOverlayView} for model-space
  * annotations, the user-space affine for folded figures — so chrome matches the
  * object exactly under rotation and non-uniform zoom. The transform math runs in
- * object space (annotationTransform), so it is camera-agnostic.
+ * object space (annotationTransform), so it is camera-agnostic. Where the
+ * handles sit, and their sizes, are `lib/transformBox.ts`'s, which the
+ * Diagram's transform box draws from too.
  */
-
-/** Rotation handle offset (CSS px) outward from each corner. */
-const ROTATE_OFFSET_PX = 18;
-/** Resize handle square size (CSS px). */
-const HANDLE_SIZE_PX = 8;
 
 /** A box update produced by a gesture. Partial: a move only reports a centre. */
 export interface CanvasObjectBoxUpdate {
@@ -768,7 +771,7 @@ export function CanvasObjectOverlay({
             // drags — orbiting a 3D figure, running a simulation. Doubling the
             // outline is the only thing on screen that says so, and without it
             // "press again to focus" is a rule with no feedback.
-            strokeWidth={isSelected ? (bodyInert ? 3 : 1.5) : 0}
+            strokeWidth={isSelected ? (bodyInert ? 2 * TRANSFORM_STROKE_PX : TRANSFORM_STROKE_PX) : 0}
             strokeDasharray={cropping ? '4 3' : undefined}
             style={{
               pointerEvents: interactive && !object.locked && !bodyInert ? 'auto' : 'none',
@@ -874,56 +877,30 @@ function SelectionHandles({
 }) {
   // Crop handles use the warning accent; resize/rotate the primary accent.
   const handleStroke = cropMode ? '#e0a020' : 'var(--accent-primary, #4c9aff)';
-  const [tl, tr, br, bl] = objectCornersCss(object, views);
-  const mid = (a: Vec2, b: Vec2): Vec2 => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-  const center = { x: (tl.x + br.x) / 2, y: (tl.y + br.y) / 2 };
-
-  const allHandles: { handle: AnnotationResizeHandle; at: Vec2 }[] = [
-    { handle: 'nw', at: tl },
-    { handle: 'n', at: mid(tl, tr) },
-    { handle: 'ne', at: tr },
-    { handle: 'e', at: mid(tr, br) },
-    { handle: 'se', at: br },
-    { handle: 's', at: mid(br, bl) },
-    { handle: 'sw', at: bl },
-    { handle: 'w', at: mid(bl, tl) },
-  ];
   // An always-proportional object (a folded figure) gets corners only: eight
   // handles on something that cannot be stretched is misleading chrome. Crop is
-  // per-axis by nature, so cropping always offers all eight.
-  const resizePoints =
-    object.aspectLock === 'always' && !cropMode
-      ? allHandles.filter((point) => CORNER_RESIZE_HANDLES.includes(point.handle))
-      : allHandles;
+  // per-axis by nature, so cropping always offers all eight. Rotation handles
+  // sit just outside each corner (Affinity-style).
+  const handles = transformHandles(objectCornersCss(object, views), {
+    cornersOnly: object.aspectLock === 'always' && !cropMode,
+    rotateOffset: TRANSFORM_ROTATE_OFFSET_PX,
+  });
 
-  // Rotation handles sit just outside each corner (Affinity-style).
-  const outward = (corner: Vec2): Vec2 => {
-    const dx = corner.x - center.x;
-    const dy = corner.y - center.y;
-    const len = Math.hypot(dx, dy) || 1;
-    return {
-      x: corner.x + (dx / len) * ROTATE_OFFSET_PX,
-      y: corner.y + (dy / len) * ROTATE_OFFSET_PX,
-    };
-  };
-  const rotateCorners = [tl, tr, br, bl];
-
-  const half = HANDLE_SIZE_PX / 2;
+  const half = TRANSFORM_HANDLE_SIZE_PX / 2;
   return (
     <g>
       {/* Rotation handles are only meaningful when scaling, not cropping. */}
       {!cropMode &&
-        rotateCorners.map((corner, i) => {
-          const at = outward(corner);
+        handles.rotate.map(({ at }, i) => {
           return (
             <circle
               key={`rot-${i}`}
               cx={at.x}
               cy={at.y}
-              r={HANDLE_SIZE_PX / 2 + 1}
+              r={TRANSFORM_ROTATE_HANDLE_RADIUS_PX}
               fill="var(--bg-primary, #202430)"
               stroke={handleStroke}
-              strokeWidth={1.5}
+              strokeWidth={TRANSFORM_STROKE_PX}
               style={{ pointerEvents: 'auto', cursor: 'grab', vectorEffect: 'non-scaling-stroke' }}
               onPointerDown={(event) => onRotateDown(event, object)}
               onPointerMove={(event) => onPointerMove(event, object)}
@@ -932,16 +909,16 @@ function SelectionHandles({
             />
           );
         })}
-      {resizePoints.map(({ handle, at }) => (
+      {handles.scale.map(({ handle, at }) => (
         <rect
           key={handle}
           x={at.x - half}
           y={at.y - half}
-          width={HANDLE_SIZE_PX}
-          height={HANDLE_SIZE_PX}
+          width={TRANSFORM_HANDLE_SIZE_PX}
+          height={TRANSFORM_HANDLE_SIZE_PX}
           fill="var(--bg-primary, #202430)"
           stroke={handleStroke}
-          strokeWidth={1.5}
+          strokeWidth={TRANSFORM_STROKE_PX}
           style={{
             pointerEvents: 'auto',
             cursor: panArmed ? 'grab' : 'pointer',
