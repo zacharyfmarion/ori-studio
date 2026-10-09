@@ -76,6 +76,12 @@ import { diagramInlineInk, type DiagramInlineInk } from '../../cp-workspace/refe
 import { markRingWidth } from '../../cp-workspace/references/diagram/labelLayout';
 import { markReach, type DiagramMarkPrimitive } from '../../cp-workspace/references/diagram/markReach';
 import {
+  haloPatternElement,
+  sheetHalo,
+  type ReachBox,
+  type SheetHaloAcross,
+} from '../../cp-workspace/references/diagram/sheetHalo';
+import {
   canvasDiagramInk,
   canvasDiagramPens,
   penInk,
@@ -84,7 +90,6 @@ import {
   arcThroughPoints,
   createOverlayProjector,
   divisionsDrawn,
-  paperRingPoints,
   strokePieces,
   type HiddenStretches,
   type PathArrowFold,
@@ -95,7 +100,6 @@ import { mmToCssPx, penForRole } from '../../lib/paper/paperSvg';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
 import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import { graphemesOf } from '../../lib/paper/textWrap';
-import { keyDigest } from '../../lib/keyDigest';
 import { REFERENCE_COLORS } from '../../themes/applyTheme';
 import {
   isKnownAnnotation,
@@ -160,27 +164,11 @@ export interface AnnotationLabel {
   /**
    * A stroke under its letters, in what it stands on (17b): its colour and its
    * width, in the drawing's px. Across a References sheet's edge (rf6) it is
-   * painted by `across`: the sheet's face on the sheet, `color` — the page's
-   * white — off it, to the edge.
+   * painted by `across`, a pattern of the sheet (`sheetHalo`, which
+   * References' own letters are haloed by too): the sheet's face on the
+   * sheet, `color` — the page's white — off it, to the edge.
    */
-  halo?: { color: string; width: number; across?: AnnotationHaloAcross };
-}
-
-/**
- * What a halo across a References sheet's edge is painted with (rf6): a
- * pattern of the page's white with the sheet over it in its face, one tile
- * over the label's words. Its id is made from what it paints, so two drawings
- * that share one share what it paints too, as References' clips are named
- * (`createDiagramRenderContext`).
- */
-export interface AnnotationHaloAcross {
-  id: string;
-  /** The sheet's face, which the halo is on the sheet. */
-  face: string;
-  /** The sheet's outline, in the drawing's px. */
-  outline: readonly { x: number; y: number }[];
-  /** The tile, in the drawing's px: past the label's words and halo, so it never repeats under them. */
-  box: { x: number; y: number; width: number; height: number };
+  halo?: { color: string; width: number; across?: SheetHaloAcross };
 }
 
 /**
@@ -823,9 +811,9 @@ type HaloPaint = (label: AnnotationLabel, width: number) => NonNullable<Annotati
  * on it, the paper's face the picture shows — read from the style's inks
  * before an annotation's whiten them (17b); wholly off it, the page's white;
  * across its edge (rf6), the face on the sheet and the page's white off it
- * ({@link AnnotationHaloAcross}), so the halo follows the edge exactly. On
- * every other picture, the page's white. A face that is the page's white is
- * one colour wherever it lies.
+ * (`sheetHalo`), so the halo follows the edge exactly. On every other
+ * picture, the page's white. A face that is the page's white is one colour
+ * wherever it lies.
  */
 function haloPaint(seen: PaperStyle, paper: AnnotationPaper | null, framePx: number): HaloPaint {
   if (!paper || paper.outline.length < 3) return (_, width) => ({ color: PAGE_GROUND, width });
@@ -833,35 +821,8 @@ function haloPaint(seen: PaperStyle, paper: AnnotationPaper | null, framePx: num
   const face = paper.back ? sheet.back : sheet.front;
   if (face.toLowerCase() === PAGE_GROUND) return (_, width) => ({ color: PAGE_GROUND, width });
   const outline = paper.outline.map(([x, y]) => ({ x: x * framePx, y: y * framePx }));
-  const ring = paperRingPoints(outline);
-  return (label, width) => {
-    const reach = labelReach(label, width);
-    switch (boxOnSheet(reach, outline)) {
-      case 'on':
-        return { color: face, width };
-      case 'off':
-        return { color: PAGE_GROUND, width };
-      case 'across': {
-        // An em past its reach each way: a tile the words never run off, wherever a glyph's ink stands.
-        const box = {
-          x: reach.minX - label.size,
-          y: reach.minY - label.size,
-          width: reach.maxX - reach.minX + 2 * label.size,
-          height: reach.maxY - reach.minY + 2 * label.size,
-        };
-        const id = keyDigest([ring, face, ...[box.x, box.y, box.width, box.height].map(String)], 'annotation-halo-');
-        return { color: PAGE_GROUND, width, across: { id, face, outline, box } };
-      }
-    }
-  };
-}
-
-/** A box, its least and greatest x and y. */
-interface ReachBox {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
+  const paint = sheetHalo(outline, face, PAGE_GROUND, 'annotation-halo-');
+  return (label, width) => ({ ...paint(labelReach(label, width), label.size), width });
 }
 
 /**
@@ -874,43 +835,6 @@ function labelReach(label: AnnotationLabel, haloWidth: number): ReachBox {
   const halo = haloWidth / 2;
   const half = labelHalfWidth(label.runs.map((run) => run.text).join(''), { bold: label.bold, size: label.size }) + halo;
   return { minX: label.x - half, maxX: label.x + half, minY: label.y - label.size - halo, maxY: label.y + label.size + halo };
-}
-
-/**
- * Where a box lies against a sheet's outline (rf6): wholly on it, wholly off
- * it, or across its edge. The outline is convex, a sheet's rectangle (D8), so
- * the box is on it when its corners are, and off it when an edge of either
- * has the other wholly beyond it.
- */
-function boxOnSheet(box: ReachBox, outline: readonly { x: number; y: number }[]): 'on' | 'off' | 'across' {
-  const xs = outline.map((p) => p.x);
-  const ys = outline.map((p) => p.y);
-  if (Math.max(...xs) <= box.minX || Math.min(...xs) >= box.maxX || Math.max(...ys) <= box.minY || Math.min(...ys) >= box.maxY) {
-    return 'off';
-  }
-  // Which way the outline turns, so an edge's inside is the same side whichever way it is wound.
-  let area = 0;
-  outline.forEach((a, index) => {
-    const b = outline[(index + 1) % outline.length]!;
-    area += a.x * b.y - b.x * a.y;
-  });
-  if (area === 0) return 'off';
-  const turn = Math.sign(area);
-  const corners = [
-    { x: box.minX, y: box.minY },
-    { x: box.maxX, y: box.minY },
-    { x: box.maxX, y: box.maxY },
-    { x: box.minX, y: box.maxY },
-  ];
-  let on = true;
-  for (let index = 0; index < outline.length; index += 1) {
-    const a = outline[index]!;
-    const b = outline[(index + 1) % outline.length]!;
-    const sides = corners.map((p) => ((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)) * turn);
-    if (sides.every((side) => side <= 0)) return 'off';
-    if (sides.some((side) => side < 0)) on = false;
-  }
-  return on ? 'on' : 'across';
 }
 
 /**
@@ -1027,12 +951,8 @@ const round = (value: number) => Number(value.toFixed(3));
  * letters'. A label with neither is the markup it always was.
  *
  * A halo across the sheet's edge (rf6) is the same one stroke, painted with
- * its pattern ({@link haloPatternElement}), which goes in the document with
- * it, its id under `scope` when one is given. One stroke rather than two
- * copies of the words clipped either side of the edge: two clips that meet
- * on the edge each soften it, and two strokes laid one over the other each
- * soften their rim, so either way a hairline of what is under them shows; and
- * a page's PDF would set the words two times more.
+ * its pattern (`haloPatternElement`, which says why one stroke), which goes
+ * in the document with it, its id under `scope` when one is given.
  */
 function labelElement(label: AnnotationLabel, scope = ''): ReactNode {
   const { halo } = label;
@@ -1064,32 +984,6 @@ function labelElement(label: AnnotationLabel, scope = ''): ReactNode {
       {haloPatternElement(across, halo.color, scope)}
       {text}
     </g>
-  );
-}
-
-/**
- * A halo's pattern across the sheet's edge (rf6), as `<defs>`: one tile over
- * its words, the page's white with the sheet over it in its face — the edge
- * between them softened once, where the sheet's own is. A tile's content is
- * placed from its corner, so the sheet is drawn from there.
- */
-function haloPatternElement(across: AnnotationHaloAcross, ground: string, scope: string): ReactNode {
-  const { box } = across;
-  const sheet = across.outline.map((p) => ({ x: p.x - box.x, y: p.y - box.y }));
-  return (
-    <defs>
-      <pattern
-        id={`${across.id}${scope}`}
-        patternUnits="userSpaceOnUse"
-        x={round(box.x)}
-        y={round(box.y)}
-        width={round(box.width)}
-        height={round(box.height)}
-      >
-        <rect width={round(box.width)} height={round(box.height)} fill={ground} />
-        <polygon points={paperRingPoints(sheet)} fill={across.face} />
-      </pattern>
-    </defs>
   );
 }
 

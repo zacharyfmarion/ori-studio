@@ -65,6 +65,7 @@ import {
   type LabelLayoutOptions,
   type LabelPlacement,
 } from './labelLayout';
+import { haloPatternElement, sheetHalo, type SheetHaloPaint } from './sheetHalo';
 
 /**
  * One primitive as SVG, in whatever space the projector maps into.
@@ -453,6 +454,28 @@ function onAndOffPaper(
       <g clipPath={`url(#${clip.inside})`}>{draw(context)}</g>
     </g>
   );
+}
+
+/**
+ * A letter's halo in a file (rf7): the face on the sheet and the ground off
+ * it, by what the letter reaches — its box, `size` its em, and half its halo
+ * `haloWidth` round it — as a Text label's halo is decided (`sheetHalo`), so
+ * a letter pulled out of the card (17d) paints as it did in it. A letter
+ * wholly on or off the sheet takes one of the two, as it always did; one
+ * across the edge, a pattern of the sheet.
+ */
+function letterHalo(
+  box: LabelPlacement['box'],
+  size: number,
+  haloWidth: number,
+  paper: readonly SvgPoint[],
+  back: boolean,
+  ink: DiagramInlineInk
+): SheetHaloPaint {
+  const face = back ? ink.sheet.back : ink.sheet.front;
+  const half = haloWidth / 2;
+  const reach = { minX: box.x - half, minY: box.y - half, maxX: box.x + box.width + half, maxY: box.y + box.height + half };
+  return sheetHalo(paper, face, ink.label.halo, 'step-diagram-halo-')(reach, size);
 }
 
 /**
@@ -1040,24 +1063,30 @@ function diagramPrimitiveShape(
       if (!placement) return null;
       // The halo is what the letter stands on: the paper, on the face the
       // picture shows, or the ground round it where a letter was pushed off
-      // the sheet — so it reads as a knock-out, never as a ring.
+      // the sheet — so it reads as a knock-out, never as a ring. On screen
+      // the theme says which, by the letter's middle; in a file a letter
+      // across the sheet's edge stands on both, and its halo follows the edge
+      // (rf7, {@link letterHalo}).
       const onPaper = labelOnPaper(placement.box, context.paper);
       const ground = onPaper
         ? back
           ? ' step-diagram__label--on-back'
           : ' step-diagram__label--on-paper'
         : '';
-      return (
+      const size = project.marks.labelSize * project.ink;
+      const haloWidth = DIAGRAM_LABEL_INK.halo * project.ink;
+      const halo = context.inline ? letterHalo(placement.box, size, haloWidth, context.paper, back, context.inline) : null;
+      const text = (
         <text
-          key={index}
+          key={halo?.across ? undefined : index}
           x={placement.x}
           y={placement.y}
           textAnchor={placement.anchor}
-          fontSize={project.marks.labelSize * project.ink}
-          strokeWidth={DIAGRAM_LABEL_INK.halo * project.ink}
+          fontSize={size}
+          strokeWidth={haloWidth}
           {...inked(context, `step-diagram__label step-diagram__label--${primitive.style}${ground}`, (ink) => ({
             fill: ink.label.fill[primitive.style],
-            stroke: onPaper ? (back ? ink.sheet.back : ink.sheet.front) : ink.label.halo,
+            stroke: halo?.across ? `url(#${halo.across.id})` : halo?.color,
             strokeLinejoin: 'round',
             paintOrder: 'stroke',
             fontFamily: INLINE_LABEL_FONT,
@@ -1066,6 +1095,13 @@ function diagramPrimitiveShape(
         >
           {primitive.text}
         </text>
+      );
+      if (!halo?.across) return text;
+      return (
+        <g key={index}>
+          {haloPatternElement(halo.across, halo.color)}
+          {text}
+        </g>
       );
     }
   }

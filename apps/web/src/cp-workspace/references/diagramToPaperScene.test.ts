@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_PAGE, type PaperPage } from '../../lib/paper/paperPage';
 import type {
@@ -11,7 +13,7 @@ import { PT_PER_CSS_PX, mmToCssPx, pageMarginPt, paperSceneToSvg } from '../../l
 import { REFERENCE_COLORS } from '../../themes/applyTheme';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import { DIAGRAM_INK_PER_SHEET, DIAGRAM_LINE_INK, penInk } from './diagram/diagramInk';
-import { createDiagramRenderContext } from './diagram/DiagramPrimitives';
+import { createDiagramRenderContext, diagramShapes } from './diagram/DiagramPrimitives';
 import { unitFrame } from './diagram/diagramFrames';
 import { plannerStepDiagram } from './diagram/plannerDiagram';
 import { diagramToPaperScene } from './diagramToPaperScene';
@@ -555,6 +557,66 @@ const BEFORE_TWO_INKS = [
   '<path d="M 25.645 4.42 L 21.471 3.504 Q 23.345 3.157 22.632 1.39 Z" fill="#000000"></path>',
   '</g>',
 ].join('');
+
+describe('a letter’s halo across the sheet’s edge (rf7)', () => {
+  // Three letters: A in the middle, wholly on the sheet; B hard by its right
+  // edge, which its letter stands across; C at a corner, pushed off it.
+  const lettered = model(
+    { kind: 'label', at: [0.5, 0.5], text: 'A', style: 'highlight' },
+    { kind: 'label', at: [0.93, 0.3], text: 'B', style: 'highlight' },
+    { kind: 'label', at: [1, 1], text: 'C', style: 'highlight' }
+  );
+  const over = (result: PaperScene) => markups(result).at(-1)!.svg;
+  const letters = (svg: string) => Object.fromEntries([...svg.matchAll(/<text\s([^>]*)>([^<]*)<\/text>/g)].map((m) => [m[2], m[1]]));
+  const stroke = (attributes: string) => /stroke="([^"]*)"/.exec(attributes)![1];
+
+  it('paints the halo of a letter across the edge with the sheet: its face on it, the ground off it', () => {
+    for (const mirrored of [false, true]) {
+      const svg = over(scene(lettered, { mirrored, ground: '#fafafa' }));
+      const face = mirrored ? DEFAULT_PAPER_STYLE.paper.back : DEFAULT_PAPER_STYLE.paper.front;
+      const strokes = Object.fromEntries(Object.entries(letters(svg)).map(([text, attributes]) => [text, stroke(attributes)]));
+      // Wholly on and wholly off: one colour, as before.
+      expect(strokes.A).toBe(face);
+      expect(strokes.C).toBe('#fafafa');
+      // Across: one stroke, painted by a pattern in the same markup, just before it.
+      expect(strokes.B).toMatch(/^url\(#step-diagram-halo-[0-9a-f]{16}\)$/);
+      const id = /^url\(#(.*)\)$/.exec(strokes.B!)![1]!;
+      const [pattern] = elements(svg, 'pattern');
+      expect(pattern).toMatchObject({ id, patternUnits: 'userSpaceOnUse' });
+      expect(svg.indexOf(`id="${id}"`)).toBeLessThan(svg.indexOf(`url(#${id})`));
+      // Its tile: the ground, with the sheet over it in its face, placed from the tile's corner.
+      const [x, y] = [Number(pattern!.x), Number(pattern!.y)];
+      expect(elements(svg, 'rect')[0]).toMatchObject({ width: pattern!.width, height: pattern!.height, fill: '#fafafa' });
+      const [sheet] = elements(svg, 'polygon');
+      expect(sheet!.fill).toBe(face);
+      const corners = sheet!.points!.split(' ').map((point) => {
+        const [px, py] = point.split(',').map(Number);
+        return `${Math.round((px! + x) * 100) / 100},${Math.round((py! + y) * 100) / 100}`;
+      });
+      expect(corners.sort()).toEqual(['10,10', '10,90', '90,10', '90,90']);
+      // The tile is past the letter and its halo, so it never repeats under them: B's box and more.
+      const bx = Number(/(?:^|\s)x="([^"]*)"/.exec(letters(svg).B!)![1]);
+      expect(x).toBeLessThan(bx - 8);
+      expect(x + Number(pattern!.width)).toBeGreaterThan(bx + 8);
+      // Each letter is set once: one stroke under its fill, not copies clipped either side of the edge.
+      expect([...svg.matchAll(/<text\s/g)]).toHaveLength(3);
+    }
+  });
+
+  it('is one colour on a sheet whose face is the ground, and keeps its classes on screen', () => {
+    // A white sheet on a white page: no pattern, whatever the letter stands on.
+    const white = over(scene(lettered, { style: { ...DEFAULT_PAPER_STYLE, paper: { ...DEFAULT_PAPER_STYLE.paper, front: '#FFFFFF' } } }));
+    expect(white).not.toContain('<pattern');
+    expect(stroke(letters(white).B!)).toBe('#ffffff');
+    // On screen the theme colours the halo, by its class: as before.
+    const project = createDiagramProjector(UNIT, SIZE, false);
+    const context = createDiagramRenderContext(lettered.primitives, UNIT, project);
+    const screen = renderToStaticMarkup(createElement('svg', null, diagramShapes(lettered.primitives, context)));
+    expect(screen).not.toContain('<pattern');
+    expect(screen).not.toContain('stroke="');
+    expect(screen.match(/class="[^"]*step-diagram__label[^"]*"/g)).toHaveLength(3);
+  });
+});
 
 describe('a mark off the sheet, on the page', () => {
   // X11: an arrow that arcs off the sheet, the turn-over glyph beside it and a
