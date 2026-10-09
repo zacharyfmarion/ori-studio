@@ -305,12 +305,18 @@ established:
 ### Decisions
 
 **D1. The diagram is a project-level document.**
-- **File.** A typed field `workspace.diagram: DiagramDocument | null`, typed
-  from `diagram/document/diagramDocument.ts` (see Contracts).
+- **File.** A list, `workspace.diagrams`, each entry a document typed from
+  `diagram/document/diagramDocument.ts` (see Contracts). **Decided 2026-10-09:**
+  a list from launch, with a one-diagram UI. This build shows the first and
+  carries the rest verbatim (`diagramOthers`), so a later build can keep
+  several diagrams in a project without the launch build deleting all but one.
   - Both writers emit it (`createNativeProjectFile`,
-    `createNativeCreasePatternProjectFile`).
-  - `validateV8` names it, and `migrateLegacyToV8` defaults it to `null`.
-  - Decision 3 sets the reader version.
+    `createNativeCreasePatternProjectFile`), and leave it out when empty.
+  - `validateV8` names it, and `migrateLegacyToV8` defaults it to `[]`.
+  - A file from before the list holds one diagram under `workspace.diagram`
+    (reader 9). It reads as a list of one and is written back as the list on
+    its next save.
+  - Decision 3 sets the reader version: 10 for the list.
 - **Store.** A new `slices/diagramSlice.ts` holds:
   - `diagram: DiagramDocument | null`;
   - `diagramHistory: SnapshotHistory<DiagramDocument>`;
@@ -330,7 +336,7 @@ established:
   - BP create, open and `loadOristudioBpExample` (unless `preserveEditCanvas`);
   - the **first** `set` of `loadNativeProject`, beside `nativeProjectExtensions`.
 
-  `loadNativeProject` then installs `workspace.diagram` (null included) **in
+  `loadNativeProject` then installs the first of `workspace.diagrams` (none included) **in
   every branch**: design, the CP-only early return, and the new diagram-only
   branch (D16). It is **not** spread at `clearOristudioCpDocument` or at
   self-provisioning. `initEngine`'s early-return guard gains
@@ -2112,7 +2118,8 @@ framing is kept below for the record; the outcomes are in "Phase 0 results".
    Older builds then refuse such files with "update Ori Studio", and diagram-free
    files are untouched. **Decided 2026-10-02:** Zach is fine with a schema
    bump; the reader-version split is the bump that touches only files with a
-   diagram.
+   diagram. **Decided 2026-10-09:** the list (D1) asks for reader 10; files
+   from before it asked for 9, and are read and rewritten as the list.
 4. ~~When the flag comes off.~~ **Decided 2026-10-02:** there is no flag. The
    branch is built complete and merged once (D15).
 5. **Persisting References plans. Decided: yes, as a separate change that

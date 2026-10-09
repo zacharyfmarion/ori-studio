@@ -1305,7 +1305,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     source: { filename: string; path?: string | null }
   ) => {
     const nativeProject = parseNativeProjectFile(text);
-    const diagram = readDiagram(nativeProject.workspace.diagram);
+    // The first diagram is shown; the rest are carried as they came (`diagramOthers`).
+    const [shown, ...others] = nativeProject.workspace.diagrams ?? [];
+    const diagram = readDiagram(shown);
 
     // What the open clears up front, kept so a failure can give it back.
     const kept = {
@@ -1336,11 +1338,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // current, so it gets the new file's diagram rather than none.
       const replaced =
         get().currentFileName !== identity.name || get().currentFilePath !== identity.path;
-      if (replaced) get().installDiagram(diagram);
+      if (replaced) get().installDiagram(diagram, others);
       else set(kept);
       throw error;
     }
-    get().installDiagram(diagram);
+    get().installDiagram(diagram, others);
   };
 
   /** Everything {@link loadNativeProject} installs besides the diagram. */
@@ -1575,10 +1577,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   ): T =>
     source ? ({ ...source, path: filesystemPathOrNull(source.path) } as T) : source;
 
-  /** The diagram as the file stores it, or `null` for a project without one. */
-  const currentDiagramFileValue = () => {
-    const { diagram, diagramReadOnly, diagramRaw } = get();
-    return diagram ? writeDiagram(diagram, diagramReadOnly ? diagramRaw : null) : null;
+  /**
+   * The diagrams as the file stores them: the one shown, then the project's
+   * others as they came; none for a project without one.
+   */
+  const currentDiagramsFileValue = () => {
+    const { diagram, diagramReadOnly, diagramRaw, diagramOthers } = get();
+    const shown = diagram ? [writeDiagram(diagram, diagramReadOnly ? diagramRaw : null)] : [];
+    return [...shown, ...diagramOthers];
   };
 
   /**
@@ -1591,7 +1597,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return (
       totalCpImageBytes(get().oristudioCpAnnotations.filter(isImageAnnotation)) +
       // What the file holds: an asset only undo still refers to is not written.
-      diagramDataBytes(diagram && withReferencedAssets(diagram))
+      diagramDataBytes(diagram && withReferencedAssets(diagram)) +
+      // The project's other diagrams are written whole, as they came.
+      get().diagramOthers.reduce((total, other) => total + JSON.stringify(other).length, 0)
     );
   };
 
@@ -1690,7 +1698,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         activeDesignId: designs.some((design) => design.id === activeId) ? activeId : undefined,
         unknownDesigns: get().nativeUnknownDesigns,
         creasePattern: creasePatternCompanion,
-        diagram: currentDiagramFileValue(),
+        diagrams: currentDiagramsFileValue(),
         extensions: get().nativeProjectExtensions,
         appVersion: APP_VERSION,
       })
@@ -1816,7 +1824,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       unknownDesigns: get().nativeUnknownDesigns,
       fileExtensions: get().nativeProjectExtensions,
       extensions: get().oristudioCpDocumentExtensions,
-      diagram: currentDiagramFileValue(),
+      diagrams: currentDiagramsFileValue(),
       appVersion: APP_VERSION,
     };
   };

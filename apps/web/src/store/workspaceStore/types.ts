@@ -1925,6 +1925,12 @@ export interface DiagramSliceState {
   diagramReadOnly: boolean;
   /** The diagram as read, kept for writing a read-only one back unchanged. */
   diagramRaw: Record<string, unknown> | null;
+  /**
+   * The project's other diagrams, after the one shown, as a file stored them:
+   * written back after it, unchanged. This build shows one diagram per
+   * project; a later one may keep several, and a save here keeps the rest.
+   */
+  diagramOthers: readonly Record<string, unknown>[];
   /** View state: not history, never dirty, but scoped to this diagram. */
   diagramView: DiagramViewMode;
   diagramSelectedStepId: string | null;
@@ -2050,8 +2056,11 @@ export interface DiagramReferencesBrowserState {
 }
 
 export interface DiagramSliceActions {
-  /** Install a diagram read from a file (or none), with an empty history. */
-  installDiagram: (read: ReadDiagram | null) => void;
+  /**
+   * Install a diagram read from a file (or none), with an empty history, and
+   * the project's other diagrams (`diagramOthers`), carried as they came.
+   */
+  installDiagram: (read: ReadDiagram | null, others?: readonly Record<string, unknown>[]) => void;
   /**
    * Add an empty step after the selected one (or at the end) and select it.
    * Creates the diagram on first use. The new step's id, or null when the

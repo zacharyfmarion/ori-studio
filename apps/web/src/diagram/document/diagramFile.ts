@@ -1,6 +1,6 @@
 /**
- * The diagram as it is stored in the project file (`workspace.diagram`), read
- * leniently and written back exactly.
+ * A diagram as it is stored in the project file (each of `workspace.diagrams`),
+ * read leniently and written back exactly.
  *
  * Three rules, from implementation-plans/diagram-workspace.md (Contracts):
  *
@@ -162,8 +162,8 @@ export interface ReadDiagramOptions {
 }
 
 /**
- * Read `workspace.diagram`. `null` for an absent diagram or one that is not an
- * object.
+ * Read one of `workspace.diagrams`. `null` for an absent diagram or one that
+ * is not an object.
  */
 export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): ReadDiagram | null {
   if (!isRecord(value)) return null;
@@ -274,7 +274,7 @@ export function unknownDocumentField(value: Record<string, unknown>): string | n
 const HAN_STYLES: readonly string[] = ['sc', 'tc', 'jp', 'kr'];
 
 /**
- * The value written to `workspace.diagram`. A read-only diagram is written as
+ * A diagram's value in `workspace.diagrams`. A read-only diagram is written as
  * it was read; otherwise every field is named here, a locked step, annotation
  * or asset goes back exactly as it came, and an asset nothing refers to any
  * more is left out (`withReferencedAssets`).

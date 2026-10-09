@@ -285,13 +285,14 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
   return {
     ...discardDiagramState(),
 
-    installDiagram: (read) => {
+    installDiagram: (read, others = []) => {
       openSession = null;
       set({
         ...discardDiagramState(),
         diagram: read?.document ?? null,
         diagramReadOnly: read?.readOnly ?? false,
         diagramRaw: read?.readOnly ? read.raw : null,
+        diagramOthers: others,
         diagramHistory: emptySnapshotHistory(),
       });
     },

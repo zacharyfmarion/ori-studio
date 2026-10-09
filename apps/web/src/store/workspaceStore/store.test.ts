@@ -9558,7 +9558,7 @@ describe('the project diagram', () => {
     workspace: {
       designs: unknown[];
       creasePattern: unknown;
-      diagram: { steps: unknown[] } | null;
+      diagrams?: { id: string; title?: string; steps: unknown[] }[];
     };
   }
 
@@ -9741,7 +9741,7 @@ describe('the project diagram', () => {
 
     const fileService = createFileService();
     await state().saveProjectAs(fileService);
-    expect(writtenFile(fileService).file.workspace.diagram).toEqual(raw);
+    expect(writtenFile(fileService).file.workspace.diagrams).toEqual([raw]);
   });
 
   it('saves and reopens a project that holds only a diagram', async () => {
@@ -9754,10 +9754,10 @@ describe('the project diagram', () => {
 
     const { options, file } = writtenFile(fileService);
     expect(options.extensions).toEqual(['osf']);
-    expect(file.minimumReaderSchemaVersion).toBe(9);
+    expect(file.minimumReaderSchemaVersion).toBe(10);
     expect(file.workspace.designs).toEqual([]);
     expect(file.workspace.creasePattern).toBeNull();
-    expect(file.workspace.diagram?.steps).toHaveLength(2);
+    expect(file.workspace.diagrams?.[0]?.steps).toHaveLength(2);
     expect(state().dirty).toBe(false);
 
     resetStores(seedSnapshot());
@@ -9781,6 +9781,62 @@ describe('the project diagram', () => {
       diagramReadOnly: false,
     });
     expect(state().diagramHistory.past).toEqual([]);
+  });
+
+  it('opens the first of a project’s diagrams, and saves the others after it as they came', async () => {
+    authorTwoSteps();
+    const fileService = createFileService();
+    await state().saveProjectAs(fileService);
+    const file = JSON.parse(writtenFile(fileService).options.contents);
+    const shown = file.workspace.diagrams[0];
+    // What a later build that keeps several diagrams in a project would write.
+    const other = { formatVersion: 1, id: 'diagram-frog', title: 'Frog', steps: [], futureField: { kept: true } };
+    file.workspace.diagrams = [shown, other];
+
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+    await state().openProject(
+      createFileService({ text: JSON.stringify(file), name: 'two.osf', path: '/tmp/two.osf' })
+    );
+    expect(state().diagram?.id).toBe(shown.id);
+    expect(state().diagramOthers).toEqual([other]);
+
+    state().setDiagramTitle('Crane, again');
+    const again = createFileService();
+    await state().saveProject(again);
+    const written = writtenFile(again).file.workspace.diagrams;
+    expect(written?.map((diagram) => diagram.id)).toEqual([shown.id, 'diagram-frog']);
+    expect(written?.[0].title).toBe('Crane, again');
+    expect(written?.[1]).toEqual(other);
+  });
+
+  it('opens a project saved with one diagram, before the list, and saves it as the list', async () => {
+    authorTwoSteps();
+    const saved = state().diagram;
+    const fileService = createFileService();
+    await state().saveProjectAs(fileService);
+    const file = JSON.parse(writtenFile(fileService).options.contents);
+    // As builds before the list wrote it.
+    file.workspace.diagram = file.workspace.diagrams[0];
+    delete file.workspace.diagrams;
+    file.minimumReaderSchemaVersion = 9;
+
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+    await state().openProject(
+      createFileService({ text: JSON.stringify(file), name: 'one.osf', path: '/tmp/one.osf' })
+    );
+    expect(state().diagram).toEqual(saved);
+    expect(state().diagramOthers).toEqual([]);
+
+    const again = createFileService();
+    await state().saveProject(again);
+    const written = writtenFile(again).file;
+    expect(written.minimumReaderSchemaVersion).toBe(10);
+    expect(written.workspace.diagrams).toHaveLength(1);
+    expect('diagram' in written.workspace).toBe(false);
   });
 
   it('opening a diagram-only project replaces the crease pattern that was open', async () => {
@@ -9821,7 +9877,7 @@ describe('the project diagram', () => {
 
     await state().saveProjectAs(fileService);
     const { options, file } = writtenFile(fileService);
-    expect(file.minimumReaderSchemaVersion).toBe(9);
+    expect(file.minimumReaderSchemaVersion).toBe(10);
     expect(file.workspace.creasePattern).not.toBeNull();
 
     resetStores(seedSnapshot());
@@ -9853,7 +9909,7 @@ describe('the project diagram', () => {
     const { options, file } = writtenFile(fileService);
     // Never over the `.ori`: a native target is asked for.
     expect(options).toMatchObject({ extensions: ['osf'], path: null });
-    expect(file.workspace.diagram?.steps).toHaveLength(2);
+    expect(file.workspace.diagrams?.[0]?.steps).toHaveLength(2);
   });
 
   describe('typing that has not committed yet', () => {
@@ -9867,7 +9923,7 @@ describe('the project diagram', () => {
 
       await state().saveProject(fileService);
 
-      const steps = writtenFile(fileService).file.workspace.diagram?.steps as { text: string }[];
+      const steps = writtenFile(fileService).file.workspace.diagrams?.[0]?.steps as { text: string }[];
       expect(steps[0].text).toBe('Typed, not committed.');
       expect(state().dirty).toBe(false);
     });
@@ -9903,7 +9959,7 @@ describe('the project diagram', () => {
 
     await state().saveProjectAs(fileService);
 
-    const steps = writtenFile(fileService).file.workspace.diagram?.steps as { text: string }[];
+    const steps = writtenFile(fileService).file.workspace.diagrams?.[0]?.steps as { text: string }[];
     expect(steps[1].text).toBe('Unfold.');
     expect(state().dirty).toBe(true);
   });
@@ -9932,7 +9988,7 @@ describe('the project diagram', () => {
     // So saving again writes the file it came from, diagram and all.
     const again = createFileService();
     await state().saveProject(again);
-    expect(writtenFile(again).file.workspace.diagram?.steps).toHaveLength(2);
+    expect(writtenFile(again).file.workspace.diagrams?.[0]?.steps).toHaveLength(2);
   });
 
   it('keeps the crease pattern when a .bps fails to open over it', async () => {
@@ -9960,7 +10016,7 @@ describe('the project diagram', () => {
         path: null,
         designs: [],
         creasePattern: null,
-        diagram: null,
+        diagrams: [],
         appVersion: 'test',
       })
     );
@@ -10181,7 +10237,7 @@ describe('the project diagram', () => {
       await state().saveProjectAs(fileService);
 
       const { options } = writtenFile(fileService);
-      const written = JSON.parse(options.contents).workspace.diagram;
+      const written = JSON.parse(options.contents).workspace.diagrams?.[0];
       expect(Object.keys(written.assets).sort()).toEqual(['asset-b', 'asset-c']);
 
       resetStores(seedSnapshot());

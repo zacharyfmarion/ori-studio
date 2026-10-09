@@ -2038,14 +2038,15 @@ describe('a crease-pattern-only save', () => {
     expect(file.extensions).toEqual({ futureThing: { a: 1 } });
   });
 
-  it('writes the diagram and asks for reader 9 when there is one', () => {
+  it('writes the diagrams and asks for reader 10 when there are any', () => {
     const diagram = { formatVersion: 1, id: 'diagram-1', steps: [] };
-    const file = createNativeCreasePatternProjectFile(cpInput({ diagram }));
-    expect(file.workspace.diagram).toEqual(diagram);
+    const file = createNativeCreasePatternProjectFile(cpInput({ diagrams: [diagram] }));
+    expect(file.workspace.diagrams).toEqual([diagram]);
     expect(file.schemaVersion).toBe(8);
-    expect(file.minimumReaderSchemaVersion).toBe(9);
-    // Absent rather than null: a file without a diagram is written as before.
-    expect('diagram' in createNativeCreasePatternProjectFile(cpInput()).workspace).toBe(false);
+    expect(file.minimumReaderSchemaVersion).toBe(10);
+    // Absent rather than empty: a file without a diagram is written as before.
+    expect('diagrams' in createNativeCreasePatternProjectFile(cpInput()).workspace).toBe(false);
+    expect('diagrams' in createNativeCreasePatternProjectFile(cpInput({ diagrams: [] })).workspace).toBe(false);
   });
 });
 
@@ -2057,6 +2058,7 @@ describe('a project holding a diagram', () => {
     steps: [{ id: 'step-1', text: 'Fold in half' }],
     futureField: { kept: true },
   };
+  const second = { formatVersion: 1, id: 'diagram-2', title: 'Frog', steps: [] };
 
   const designOnly = (extra: Record<string, unknown> = {}) =>
     createNativeProjectFile({
@@ -2069,41 +2071,77 @@ describe('a project holding a diagram', () => {
       ...extra,
     });
 
-  it('round-trips the diagram verbatim through the design writer and the reader', () => {
-    const parsed = parseNativeProjectFile(serializeNativeProjectFile(designOnly({ diagram })));
-    expect(parsed.workspace.diagram).toEqual(diagram);
-    expect(parsed.minimumReaderSchemaVersion).toBe(9);
+  it('round-trips the diagrams verbatim and in order through the design writer and the reader', () => {
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(designOnly({ diagrams: [diagram, second] })));
+    expect(parsed.workspace.diagrams).toEqual([diagram, second]);
+    expect(parsed.minimumReaderSchemaVersion).toBe(10);
   });
 
   it('writes a project without a diagram exactly as before diagrams existed', () => {
-    expect(serializeNativeProjectFile(designOnly({}))).not.toMatch(/"diagram"/);
-    expect(serializeNativeProjectFile(designOnly({ diagram: null }))).not.toMatch(/"diagram"/);
+    expect(serializeNativeProjectFile(designOnly({}))).not.toMatch(/"diagram/);
+    expect(serializeNativeProjectFile(designOnly({ diagrams: [] }))).not.toMatch(/"diagram/);
   });
 
   it('keeps reader 1 for a file without a diagram', () => {
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(designOnly()));
-    expect(parsed.workspace.diagram).toBeNull();
+    expect(parsed.workspace.diagrams).toEqual([]);
     expect(parsed.minimumReaderSchemaVersion).toBe(1);
   });
 
-  it('reads a diagram that is not an object as no diagram', () => {
-    const file = JSON.parse(serializeNativeProjectFile(designOnly({ diagram })));
-    file.workspace.diagram = ['not', 'a', 'diagram'];
-    expect(parseNativeProjectFile(JSON.stringify(file)).workspace.diagram).toBeNull();
+  it('reads an entry that is not an object as no diagram, and keeps the rest', () => {
+    const file = JSON.parse(serializeNativeProjectFile(designOnly({ diagrams: [diagram] })));
+    file.workspace.diagrams = [['not', 'a', 'diagram'], diagram, null, second];
+    expect(parseNativeProjectFile(JSON.stringify(file)).workspace.diagrams).toEqual([diagram, second]);
+    file.workspace.diagrams = { not: 'a list' };
+    expect(parseNativeProjectFile(JSON.stringify(file)).workspace.diagrams).toEqual([]);
   });
 
-  it('is stamped past every reader that predates diagrams', () => {
-    // Builds before diagrams read schema 8 and refuse a file whose bar is above
-    // their own; that check is theirs and cannot run here, so this states the
-    // stamp it reads.
-    const file = JSON.parse(serializeNativeProjectFile(designOnly({ diagram })));
-    expect(file.minimumReaderSchemaVersion).toBeGreaterThan(NATIVE_PROJECT_SCHEMA_VERSION);
+  describe('saved before the list, with its one diagram under workspace.diagram (reader 9)', () => {
+    const beforeTheList = () => {
+      const file = JSON.parse(serializeNativeProjectFile(designOnly({ diagrams: [diagram] })));
+      delete file.workspace.diagrams;
+      file.workspace.diagram = diagram;
+      file.minimumReaderSchemaVersion = 9;
+      return file;
+    };
+
+    it('reads it as a list of one', () => {
+      expect(parseNativeProjectFile(JSON.stringify(beforeTheList())).workspace.diagrams).toEqual([diagram]);
+    });
+
+    it('is written back as the list, asking for reader 10', () => {
+      const parsed = parseNativeProjectFile(JSON.stringify(beforeTheList()));
+      const written = JSON.parse(serializeNativeProjectFile(designOnly({ diagrams: parsed.workspace.diagrams })));
+      expect(written.workspace.diagrams).toEqual([diagram]);
+      expect('diagram' in written.workspace).toBe(false);
+      expect(written.minimumReaderSchemaVersion).toBe(10);
+    });
+
+    it('reads a diagram that is not an object as no diagram', () => {
+      const file = beforeTheList();
+      file.workspace.diagram = ['not', 'a', 'diagram'];
+      expect(parseNativeProjectFile(JSON.stringify(file)).workspace.diagrams).toEqual([]);
+    });
+
+    it('takes the list when a file holds both', () => {
+      const file = beforeTheList();
+      file.workspace.diagrams = [second];
+      expect(parseNativeProjectFile(JSON.stringify(file)).workspace.diagrams).toEqual([second]);
+    });
+  });
+
+  it('is stamped past every reader that predates the list', () => {
+    // Builds before diagrams read schema 8, and builds with one diagram reader
+    // 9; each refuses a file whose bar is above its own. That check is theirs
+    // and cannot run here, so this states the stamp it reads.
+    const file = JSON.parse(serializeNativeProjectFile(designOnly({ diagrams: [diagram] })));
+    expect(file.minimumReaderSchemaVersion).toBeGreaterThan(9);
   });
 
   it('is refused, with a reason the user can act on, by a reader below its bar', () => {
     // The same refusal an older build makes, run against this build's reader by
     // raising the bar past it.
-    const file = JSON.parse(serializeNativeProjectFile(designOnly({ diagram })));
+    const file = JSON.parse(serializeNativeProjectFile(designOnly({ diagrams: [diagram] })));
     file.minimumReaderSchemaVersion = NATIVE_PROJECT_READER_VERSION + 1;
     let thrown: unknown;
     try {
@@ -2125,6 +2163,6 @@ describe('a project holding a diagram', () => {
       now,
     });
     const legacy = asLegacyFile(JSON.parse(serializeNativeProjectFile(tree)), 7);
-    expect(parseNativeProjectFile(JSON.stringify(legacy)).workspace.diagram).toBeNull();
+    expect(parseNativeProjectFile(JSON.stringify(legacy)).workspace.diagrams).toEqual([]);
   });
 });
