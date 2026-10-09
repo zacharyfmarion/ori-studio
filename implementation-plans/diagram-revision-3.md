@@ -7,7 +7,9 @@ built, gated and committed 2026-10-08, not yet pushed (18b, As
 built). 18c (the eye) built, reviewed, gated and committed 2026-10-08,
 not yet pushed (18c, As built). 18a–18c pushed (PR #446, `3ea485fa5`).
 18d (shapes, and 18c's follow-ups) built, reviewed, gated and committed
-2026-10-08 as four commits, not yet pushed (18d, As built).** His
+2026-10-08 as four commits, and pushed (PR #446, `7cdbd6f89`). 18d's two
+follow-ups (a finger's handles on the transform box, and the turn's
+rounding) built and gated the same day (Follow-ups to 18d).** His
 answers, each recorded under its decision:
 
 - **R3-1 A, R3-2 A** (short dividers: one switch on each mark, 1.65 mm
@@ -57,6 +59,10 @@ answers, each recorded under its decision:
   application, recorded under R3-26 — and F on an eye is Flip Horizontal
   (mirrored across, so it stays as upright as it was and looks the other
   way), not a half turn, recorded under R3-9b.
+- **18d's two follow-ups** (2026-10-08), under the same instruction: a
+  finger's transform-box handles a touch target apart, with targets, on
+  both canvases; and one rule for keeping a turn. Recorded under
+  Follow-ups to 18d.
 
 **Still PENDING:** R3-16a, R3-16c and R3-17 to R3-22 (X-ray). Under the
 same instruction (2026-10-08) each will be built as recommended when its
@@ -1803,7 +1809,7 @@ after in the browser, beside the note's pictures.
 - [x] Gate, on exactly what was committed: lint, typecheck, the i18n check
   and the whole vitest suite (Node 22): 889 test files and 12,016 tests
   pass (2 files and 15 tests skipped).
-- [ ] Push.
+- [x] Push (PR #446).
 
 **As built (2026-10-08).** Two commits, as planned: the aux pen alone
 (`5b82674f1`: the count still bold, the golden's seven old cases), then
@@ -1967,7 +1973,7 @@ weight (R3-3 B), no halo and no new place.
 - [x] Gate, on exactly what was committed: lint, typecheck, the i18n check
   and the whole vitest suite (Node 22): 892 test files and 12,093 tests
   pass (2 files and 15 tests skipped).
-- [ ] Push.
+- [x] Push (PR #446, `3ea485fa5`).
 
 **As built (2026-10-08).** Three commits: 18a's follow-up hint
 (`8b8370e7f`), the shared box, changing nothing on the Edit canvas
@@ -2137,7 +2143,7 @@ weight (R3-3 B), no halo and no new place.
 - [x] Gate, on exactly what was committed: lint, typecheck, the i18n check
   and the whole vitest suite (Node 22): 893 test files and 12,147 tests
   pass (2 files and 15 tests skipped).
-- [ ] Push.
+- [x] Push (PR #446, `3ea485fa5`).
 
 **As built (2026-10-08).** One commit, `1a66a3cc9` ("Diagram: the eye"),
 which includes the review's fixes. R3-8 A, the one decision 18c still
@@ -2307,7 +2313,7 @@ as Flip Horizontal, recorded under R3-9b; built in 18d's first commit).
   and the whole vitest suite (Node 22): 895 test files and 12,218 tests
   pass (2 files and 15 tests skipped). Each of the first three commits,
   exported alone, typechecks and its tests pass.
-- [ ] Push.
+- [x] Push (PR #446, `7cdbd6f89`).
 
 **As built (2026-10-08).** Four commits, each with the review's fixes
 that belong to it: `b18fb0072` (the eye's pen and F), `00d69cf0e` (a new
@@ -2538,10 +2544,116 @@ code; the handles' before is the same script on the old rule):
   can turn rather than resize: the nearer handle already wins
   (`transformGripAt`), so the fix is the shared box's layout on a coarse
   pointer, which the Edit canvas shares (18b's), and wants Zach's eye — a
-  change of its own. The floating tool help covers the paper's lower right
-  at 1440 × 900 (since before 18d) — a change of its own. F's name in the
+  change of its own. (Built since: Follow-ups to 18d.) The floating tool
+  help covers the paper's lower right at 1440 × 900 (since before 18d) —
+  a change of its own. F's name in the
   shortcut registry is still "Flip Arc" though it flips an eye
   horizontally; left for Zach's shortcut pass (R3-25).
+
+### Follow-ups to 18d
+
+Both are decided under Zach's standing instruction of 2026-10-08: "go with
+your recs from now on unless there is a large fork in the design to be
+figured out, until i say otherwise". Neither is a large fork. The first is
+the change 18d's review declined as one of its own. The second is a
+rounding rule.
+
+- [x] **A finger's handles** (`9e8493653`). On a coarse pointer the
+  transform box's handles sit a touch target apart and each has a touch
+  target, on the Diagram and the Edit canvas. A mouse's are unchanged byte
+  for byte. Before and after on iPad-sized WebKit by finger, on a selected
+  star and on an image on the Edit canvas, and on desktop Chromium.
+- [x] **The turn's rounding** (`a4608e3ae`), with a test that fails before
+  it. Built differently from the ask; see As built.
+- [x] `diagram-workspace.md`: D26 and Phase 18 as built through 18d.
+- [x] Gate, on exactly what was committed: lint (`npm run lint:web`),
+  typecheck, the i18n check, the whole vitest suite (Node 22): 895 test
+  files and 12,235 tests pass (2 files and 15 tests skipped), and
+  `npm run build:web` with its prerender.
+- [x] Push.
+
+**As built (2026-10-08).**
+
+- **A finger's handles.** `lib/transformBox.ts` gives each pointer its
+  handles, `TRANSFORM_HANDLE_SIZES`, read through
+  `transformHandleSizes(coarse)`. A mouse's are as they were: 8 px
+  squares, 5 px turn handles 18 px out, and no target. A finger's are sized
+  by the touch target, `--touch-target` (44 px). The same number is now
+  `TOUCH_TARGET_PX` in `platform/pointerSurface.ts`, held to `theme.css` by
+  a test. Its squares are 12 px and its turn handles 7 px, grown for a
+  finger as Edit Path's nodes are. Each turn handle sits 44 px out from its
+  corner, and every handle has a 22 px target round it, so a corner's
+  target and its turn handle's meet and never overlap.
+  - **One rule** decides which handle a press takes, `transformHandleAt`.
+    It is the nearest handle the press is on as drawn. Outside the box it
+    is the nearest within its target or the pointer's reach. Inside the
+    box only a handle as drawn takes a press, since the object is there.
+  - **The Diagram.** `transformBoxHandles` and `transformGripAt` take the
+    pointer's sizes (`HitSizes.handles`, from `useAnnotateCanvas`'s
+    `hitSizes`), and `TransformBoxSelection` draws them.
+  - **The Edit canvas.** On a coarse pointer only, `CanvasObjectOverlay`
+    draws a transparent 22 px disc under each handle (`TouchTargets`,
+    `data-touch-target`). The discs are clipped to outside the box by an
+    even-odd clip path. A press on any disc goes to the handle
+    `transformHandleAt` names, so where two discs overlap, the nearer
+    handle takes it.
+  - **Beyond the ask.** On a coarse pointer the Edit canvas's resize holds
+    the press's offset from its handle's middle (`grab`), as the Diagram's
+    box has since 18b. So a press anywhere in a 22 px target does not jump
+    the box on the first move. A mouse's press still takes the square to
+    the pointer. Applied to a mouse as well, the offset moved 18b's proof
+    by up to 7e-5 px after a drag. That changed antialiased pixels in
+    three of its six shots, so it is kept to the finger.
+  - **Tests**, each failing before its change (checked by reversing the
+    source):
+    - `lib/transformBox.test.ts`: the sizes; a press 14 px wide of a corner
+      takes a mouse's turn handle and a finger's square; inside the box,
+      only as drawn; reach and scale.
+    - `transformGrips.test.ts`: a finger's layout and press.
+    - `DiagramAnnotateCanvas.test.tsx`, by a finger: 12 px squares, 7 px
+      turn handles 44 px out, and a press 14 px wide that resizes.
+    - `CanvasObjectOverlay.test.tsx`: the targets and their clip; the
+      nearer handle, whichever disc is pressed; no turn targets while
+      cropping; a finger's square drawn out without a jump; a mouse's
+      unchanged.
+    - `pointerSurface.test.ts`: the token.
+    - An inline snapshot of every Edit canvas handle's markup, recorded on
+      the code before the change, holds a mouse's layout
+      (`CanvasObjectOverlay.test.tsx`, "draws a mouse's handles exactly as
+      before").
+  - **Browser** (`artifacts/revision-3/18-followups/touch-targets-evidence.png`;
+    scripts `touch.mjs`, `desktop.mjs`, `editbox/capture.mjs` and
+    `composite.py`).
+    - iPad-sized WebKit by finger, a selected star (scale 2) on the crane's
+      step 1: square to turn handle 17.8 px before, 43.6 px after. A finger
+      14 px out from its se corner, dragged 40 px down, turned it 18.1°
+      before; after, it scales it from 2 to 4.
+    - A reference image on the Edit canvas: 18 px before, 44 px after. The
+      same finger turned it from 0.3 to 0.447 rad before; after, it widens
+      it from 154.9 to 197.2. A press 12 px inside its corner still lands
+      on its body, so the clip holds in WebKit.
+    - Desktop Chromium, a mouse: the star's box and handles are
+      byte-identical and its screenshot pixel-identical. 18b's Edit canvas
+      proof, re-run: all six shots pixel-identical, and `record.json`
+      (every handle's attributes, and the image after each drag)
+      byte-identical.
+- **The turn's rounding.** The case raised, a star's or an eye's 359.996°
+  written as 360, did not happen. `boxedGlyph.turned` wrapped and rounded,
+  and then `withGlyphAngle` wrapped again, so 360 became 0. A test of five
+  such turns passes before and after. Rounding first, as asked, would have
+  let the wrap's float error through: 372.35 would be written
+  12.350000000000023. That fault was real in shapes. `withAreaAngle`
+  rounded first, so a typed 192.35 was written 12.349999999999994, and
+  200.01 was written 20.00999999999999.
+  - **Built as one rule for every turn**, `keptTurn(degrees, within)` in
+    `annotationModel.ts`: wrapped, rounded, and wrapped again. A glyph's
+    box and Rotation row, a laid eye (`eyeLooking`), an eye's carry
+    (`carryEye`) and a shape (`withAreaAngle`) all use it.
+  - **Tests.** `annotationModel.test.ts` (a shape's 192.35, 200.01, 185.67
+    and 359.996, and `keptTurn` itself) fails before.
+    `transformGrips.test.ts` pins the glyph cases so the order cannot
+    regress: 359.996, 359.995, −0.004, 719.996 and −360.004 are upright,
+    and 372.35 and −347.65 are 12.35.
 
 ### 18e X-ray: model, canvas, tool and Layers
 
@@ -2594,8 +2706,9 @@ Only after 18.0 passes and R3-16a, R3-16c and R3-17 to R3-22 are answered
 
 - [ ] The crane loads with every mark known and saves back byte-identical;
   its pages and PDF compared before and after the whole branch.
-- [ ] `diagram-workspace.md`: Phase 18, "Revision 3", pointing here, with
-  the decisions as Zach answered them.
+- [x] `diagram-workspace.md`: Phase 18, "Revision 3", pointing here, with
+  the decisions as Zach answered them: D26, and Phase 18 as built through
+  18d and its follow-ups. X-ray's part comes with its PR.
 - [ ] Draft PR from `claude/diagram-revision-3` onto
   `claude/diagram-workspace-plan-ceb4f2` (#436), its body carrying each
   phase's before and after; and a second from `claude/diagram-xray` onto
