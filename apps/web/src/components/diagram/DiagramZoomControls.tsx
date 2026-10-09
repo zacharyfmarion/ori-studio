@@ -2,10 +2,11 @@ import { useTranslation } from 'react-i18next';
 import { ZOOM_SCALE } from '../../diagram/annotate/annotationModel';
 import type { DiagramStep, DiagramZoomEdge, DiagramZoomShape } from '../../diagram/document/diagramDocument';
 import { useZoomControls, type ZoomControlsTarget } from '../../diagram/zoom/useZoomControls';
-import { zoomNumber, zoomReadoutText, type ZoomAction } from '../../diagram/zoom/zoomActions';
-import { Button } from '../ui/Button';
+import { zoomNumber, zoomReadoutText } from '../../diagram/zoom/zoomActions';
 import { FieldRow, NumberRow, SegmentedRow } from '../ui/fieldRows';
 import { SegmentedControl } from '../ui/SegmentedControl';
+import { DiagramAnchorRow } from './DiagramAnchorRow';
+import { DiagramZoomVerb } from './DiagramZoomVerb';
 import styles from './DiagramZoomControls.module.css';
 
 /** A fixed Size's step in the field, as a close-up's scale steps. */
@@ -102,26 +103,13 @@ export function DiagramZoomControls({ step, target }: { step: DiagramStep; targe
         />
       </FieldRow>
       {controls.anchorShown && (
-        <FieldRow label={t('panels:diagram.annotations.enlargeAnchor', 'Anchor')} kind="text" disabled={!editable}>
-          {/* One line in both states, so picking or resetting moves no row below it: the rule's words are its tooltip. */}
-          <span className={styles.anchor}>
-            <span
-              className={styles.anchorRule}
-              title={
-                controls.picked
-                  ? t('panels:diagram.annotations.anchorPickedHint', 'The face picked on the canvas')
-                  : t('panels:diagram.annotations.anchorAutoHint', 'The backmost face outside the frame')
-              }
-            >
-              {controls.picked
-                ? t('panels:diagram.annotations.anchorPicked', 'Picked')
-                : t('panels:diagram.annotations.anchorAuto', 'Auto')}
-            </span>
-            {controls.anchorActions.map((action) => (
-              <ZoomVerb key={action.id} action={action} />
-            ))}
-          </span>
-        </FieldRow>
+        <DiagramAnchorRow
+          picked={controls.picked}
+          actions={controls.anchorActions}
+          editable={editable}
+          autoHint={t('panels:diagram.annotations.anchorAutoHint', 'The backmost face outside the frame')}
+          pickedHint={t('panels:diagram.annotations.anchorPickedHint', 'The face picked on the canvas')}
+        />
       )}
       <p className={styles.note} data-readout={controls.readout?.kind ?? 'size'} data-tone={controls.readout?.warn ? 'warning' : undefined}>
         {controls.readout
@@ -145,7 +133,7 @@ export function DiagramZoomControls({ step, target }: { step: DiagramStep; targe
       {controls.actions.length > 0 && (
         <span className={styles.verbs}>
           {controls.actions.map((action) => (
-            <ZoomVerb key={action.id} action={action} />
+            <DiagramZoomVerb key={action.id} action={action} />
           ))}
         </span>
       )}
@@ -163,32 +151,5 @@ function ShapeMark({ shape }: { shape: DiagramZoomShape }) {
         <rect x={2} y={2.5} width={14} height={9} rx={2} fill="none" stroke="currentColor" strokeWidth={1.4} />
       )}
     </svg>
-  );
-}
-
-/**
- * One of an enlargement's verbs: a button that refuses, keeping the focus,
- * when it cannot act or is waiting on its own work (Update folding faces),
- * and says why.
- */
-function ZoomVerb({ action }: { action: ZoomAction }) {
-  const held = action.disabled || action.waiting === true;
-  return (
-    <Button
-      size="sm"
-      // A toggle that is on (Pick, while the canvas asks for a face) wears the pressed look.
-      variant={action.pressed ? 'secondary' : 'ghost'}
-      isActive={action.pressed}
-      title={action.hint}
-      aria-disabled={held || undefined}
-      aria-busy={action.waiting || undefined}
-      aria-pressed={action.pressed}
-      data-zoom-action={action.id}
-      onClick={() => {
-        if (!held) action.run();
-      }}
-    >
-      {action.label}
-    </Button>
   );
 }

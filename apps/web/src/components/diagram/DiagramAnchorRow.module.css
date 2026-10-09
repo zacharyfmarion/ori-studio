@@ -1,0 +1,15 @@
+/* The Anchor row (DiagramAnchorRow.tsx): an enlargement's. */
+
+/* The anchor's rule and its verbs, on one line whichever rule it is. */
+.anchor {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.anchorRule {
+  color: var(--text-secondary);
+}
