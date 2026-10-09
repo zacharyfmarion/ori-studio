@@ -5,7 +5,9 @@
 (PR #446). 18b (stars, the transform box, and 18a's follow-up hint)
 built, gated and committed 2026-10-08, not yet pushed (18b, As
 built). 18c (the eye) built, reviewed, gated and committed 2026-10-08,
-not yet pushed (18c, As built).** His answers, each recorded under its
+not yet pushed (18c, As built). 18.0 (the X-ray spike) run 2026-10-08
+on `claude/diagram-xray`: go, with three changes to what 18e builds
+(18.0 results).** His answers, each recorded under its
 decision:
 
 - **R3-1 A, R3-2 A** (short dividers: one switch on each mark, 1.65 mm
@@ -1538,6 +1540,13 @@ wholly buried face lies between, it can name a different Nth layer than
 the paper has. X-ray's stacks from `paperFaces` would fix it too. Left for
 a follow-up.
 
+18.0 found that 15e's `facesOver` (`behindFlaps.ts`), run on
+`paperFaces`' rings, takes two faces that meet along a fold as overlapping
+where their stored corners cross by about 1e-5 of the picture (heart #14 to
+#16). X-ray reads "over" with a tolerance instead (18.0 results, 2).
+Whether 15e's own marks meet the same on the stored scene was not checked.
+Left for the same follow-up.
+
 ## Affected Areas
 
 **Equal divisions.** `cp-workspace/references/diagram/diagramInk.ts`
@@ -1647,49 +1656,193 @@ Whether R3-13 A can be drawn from what a step stores, and what storing more
 would cost, measured on Zach's diagrams before anything is built. Output in
 `artifacts/revision-3/xray-spike/`.
 
-- [ ] **The crane copied** into `artifacts/revision-3/crane.osf`.
-- [ ] **Depth 0.** The window's inside built from `paperFaces` with nothing
+- [x] **The crane copied** into `artifacts/revision-3/crane.osf`.
+- [x] **Depth 0.** The window's inside built from `paperFaces` with nothing
   removed (sides, places, outline roles, back to front by level), against
   the stored picture's own render in the same window, on every flat step of
   the crane, with and without a spread. Pass: pixel for pixel. This one
   check holds the sides, the spread's places and the outlines together.
-- [ ] **Stacks at an anchor.** On three flat crane steps, four anchors each,
+- [x] **Stacks at an anchor.** On three flat crane steps, four anchors each,
   depth 1 to 3: the faces A removes, against the kernel's
   `faces_top_to_bottom` at the anchor, read from the linked pattern's
   paper scene (`engine/oristudioCpTypes.ts:529-586`). Pass: identical
   everywhere outside a woven patch (R3-16c).
-- [ ] **Across the window.** The share of each window where A's top face
+- [x] **Across the window.** The share of each window where A's top face
   differs from a true drill's (R3-13 B). Evidence for R3-13; no pass mark.
-- [ ] **Sides.** Every face's side worked out from its rings (R3-16a A),
+- [x] **Sides.** Every face's side worked out from its rings (R3-16a A),
   against the kernel's `front_up`, on every flat step of Zach's four
   diagrams: the crane, the heart, the chipmunk and Reference Diagrams.
   Pass: all agree. Slivers listed. (Not box_90:
   `tests/fixtures/fold-angle-3d/box_90.osf` holds no diagram, so it has no
   flat steps.)
-- [ ] **Spread.** With an affine spread on, the inside drawn from the
+- [x] **Spread.** With an affine spread on, the inside drawn from the
   scene's face items lines up with the picture round it within 0.1 px.
-- [ ] **Speed.** On every frame of a window's drag on the crane's busiest
+- [x] **Speed.** On every frame of a window's drag on the crane's busiest
   step, in Chromium: A's inside rebuilt; and B's, its cells worked out once
   for the step and only clipped to the window per frame. Pass for A: under
   4 ms a frame. B's number is evidence for R3-13.
-- [ ] **Creases.** How many revealed faces carry `aux_lines` in the
+- [x] **Creases.** How many revealed faces carry `aux_lines` in the
   kernel's scene, and what storing them would weigh (R3-16b).
-- [ ] **Size (Z11).** Every key 18.0 would store (`sides` under R3-16a B;
+- [x] **Size (Z11).** Every key 18.0 would store (`sides` under R3-16a B;
   aux creases or cells if R3-16b or R3-16c turns to B), weighed on the four
   diagrams with every flat step refreshed and written as the app writes a
   file: Revision 2's `artifacts/revision-2/16c/paperFacesBudget.mjs` (in
   #436's worktree), copied here and extended to write the key. Pass: each
   file within 1% with the key. Otherwise the numbers go to Zach.
-- [ ] **Old steps.** A flat step from before Revision 2 gets its faces
+- [x] **Old steps.** A flat step from before Revision 2 gets its faces
   through `stepWithPaperFaces` while linked, and, with `sides`, a step
   stored before the key gets it the same way.
-- [ ] **Renders.** The crane's windows at depth 1 to 3, at print size,
+- [x] **Renders.** The crane's windows at depth 1 to 3, at print size,
   beside the note's picture, for Zach (the prototype is skipped).
 
 Result: a pass builds 18e and 18f as planned. If the sides check fails,
 R3-16a B is the only way. If a size check fails, the numbers go to Zach. If
 the stacks fail, R3-16c B is put to Zach with its measured size, or X-ray
 leaves this plan for one of its own.
+
+#### 18.0 results
+
+**Run 2026-10-08** on `claude/diagram-xray` (cut from #446 at
+`3ea485fa5`), against its dev server on :5314. Scripts in
+`artifacts/revision-3/18.0/`, output in `artifacts/revision-3/xray-spike/`,
+both in `.claude/worktrees/diagram-xray/` and gitignored; nothing merges.
+Each flat step is folded again as `captureStep` folds it (the store's
+`createCpCaptureRuntime`, `openFold`, `foldToCase`, `readFoldedPicture`)
+and its picture made by the real `flatPicture`. The X-ray is
+`18.0/xraySpike.js`, what `xrayScene.ts` would be, calling the app's
+`facesAt`, `facesOver`, `paperSceneToSvg` and `paperSceneSvgBody`. The four
+diagrams hold 38 flat steps (crane 21, heart 8, chipmunk 8, Reference
+Diagrams 1) and 834 faces. 36 steps have an affine spread; chipmunk #13 and
+#15 have none, and every step was also refolded with none. Every refold
+draws the stored picture but heart #15 (its link is stale) and Reference
+Diagrams #5 (it folds to another picture now), checked on their refreshed
+pictures. No step has a woven component, so the woven caveat is untested.
+
+**Go.** Every check passes. Three pass only with a change to how 18e
+builds A (1 to 3 below); none changes the design, and nothing found is a
+large fork.
+
+- **Depth 0: go.** 138 windows on the 36 spread steps (the whole picture,
+  and three of the click's size, r 0.15, at checked anchors): drawn in the
+  stored scene's order, the inside is pixel for pixel the stored picture's
+  own items through the same clip, 138 of 138, and the whole-picture window
+  is identical to the bare picture, 36 of 36. Drawn by level alone, 32 of
+  138 differ (1,445 px, on 10 crane steps and 7 heart steps), all on
+  strokes, where two faces with no order between them share an edge. Sides,
+  places and outline roles (every stored face item draws its own outline,
+  `outline: edge`) hold. Refolded with no spread, the inside differs on
+  strokes only (144 windows, 0 px off a stroke): a buried face's outline
+  lies on a visible edge and is drawn twice there. Any clip changes stroke
+  edges in Chromium by up to 45/255 away from the rim, which the rim does
+  not hide, so the comparison is against the stored items through the same
+  clip, not the bare picture.
+- **Stacks at an anchor: go.** Every flat step of all four, up to six
+  anchors each, depth 1 to 3: 597 checks. The stack from `paperFaces`'
+  levels is the kernel's `faces_top_to_bottom`, 597 of 597. What A removes
+  matches the kernel's (the top N and every face over them in any cell),
+  597 of 597, once "over" has a tolerance (2 below); with 15e's
+  `facesOver` as it is, 590 (heart #14 to #16, 15 faces too many). On the 36
+  spread steps (576 checks), read on the paper (1 below): 576 of 576; read on
+  the drawn faces: 554 (crane #14, #16, #28, 44 faces too many).
+- **Across the window** (evidence for R3-13). 597 windows of the click's
+  size: A's top face differs from a true drill's (B) over a median 30% of
+  a window (crane 44%), 90th percentile 71%, most 95%; the same in 69. A
+  shows the page's white somewhere in 39 windows, at most 29% of one, where
+  every layer at a point lies over the removed ones; B never does.
+- **Sides: go.** Worked out from the turns of each ring (R3-16a A) against
+  `front_up`: 834 of 834 agree, no sliver (the smallest face is 641 scene
+  px² on the picture), no empty ring. Every stored face item's side is its
+  face's `front_up` (1,019 items). So B is exact by construction, and A
+  would work too.
+- **Spread: go.** On all 36 spread steps every face is in the stored scene
+  whole, corner for corner with its `paperFaces` ring; drawn from those
+  items the inside is the picture's own pixels through the clip (0 px off).
+  Drawn from `paperFaces`' unspread places it would be up to 62 scene px
+  off (28 CSS px on a card).
+- **Speed: go.** Crane #28 (52 faces, 28 cells, stacks to 24) and #20 (44
+  faces, stacks to 36), a 120-frame drag with the click's window, depth 1
+  to 3, A built as 1 to 3 below: a frame's inside, removal and markup
+  (`paperSceneSvgBody`) take a median 0.05 to 0.075 ms, at most 0.47 ms;
+  the step's own set-up once 0.15 to 0.54 ms; setting the markup into the
+  page and laying it out 0.10 to 0.15 ms. At 4× CPU throttling, at most
+  2.2 ms (95th percentile 0.91). B, its cells worked out once, 0.005 to
+  0.01 ms a frame; it was never the cost.
+- **Creases** (R3-16b). Faces nothing shows, which a window can reveal,
+  carry aux creases: crane 41 creases on 41 of 518 such faces (18 of 21
+  steps, 1 to 4 each), heart 120 on 50 of 108, chipmunk 40 on 10 of 18,
+  Reference Diagrams none. Storing every face's aux creases would take the
+  crane to 1.068% and the heart to 1.156%: over Z11. R3-16b A stands.
+- **Size (Z11): go**, the crane with 223 bytes left. Each file with every
+  flat step refreshed, against the same with no faces: crane +0.958% for
+  `paperFaces`, +0.992% with `sides` (945 B for 630 faces); heart +0.669%,
+  +0.691% (279 B); chipmunk +0.355%, +0.367% (162 B); Reference Diagrams
+  +0.258%, +0.274% (18 B). Cells (R3-16c B) would be 2.201%, 1.714%,
+  0.686%, 0.592%: not needed, and over Z11 on two.
+- **Old steps: go.** Each flat step with `paperFaces` taken off, handed to
+  the real `stepWithPaperFaces`: 36 of 38 get them back (crane 21, heart 7,
+  chipmunk 8), byte for byte the stored ones where there were any (15 of
+  15); heart #15 says Refresh (stale), Reference Diagrams #5 Refresh
+  (redrawn). Its early return hands back every step that has faces (15 of
+  15), so 18e extends it to fetch when `sides` is missing, as planned.
+- **Renders.** `artifacts/revision-3/xray-spike/renders.png`, beside the
+  note's picture, at print size (29 to 52 mm wide, drawn at 216 dpi), each
+  tile's SVG in `xray-spike/svg/`: crane #10, #19, #25 and #28 at depth 1,
+  2 and 3; #19 and #28 again in the note's colours (cream in front, tan
+  behind); heart #14 and #16 in its own colours. Depth 1 takes off 1 to 5
+  faces; depth 3 on #25 takes 34 of 44, its anchor's stack being 4. In the
+  note's colours a window reads as the note's does: the rim, the layers
+  under in the other side's colour, their edges.
+
+**What 18e takes from it.**
+
+1. **Stacks on the paper.** The `anchor` is a point on the paper, as the
+   model says: a window's centre on a spread picture goes back to the paper
+   through the face seen on top there (that face's drawn ring onto its
+   unspread one, corner for corner), and the stack and "every face over"
+   are read on `paperFaces`' unspread places. Never on the drawn faces,
+   where the spread pushes flaps into one another.
+2. **"Over" with a tolerance.** Two faces are over one another when they
+   share a part wider than 1e-4 of the picture (its area over half its
+   perimeter, about three of the stored 0.01 px steps), not by 15e's
+   `facesOver` as it is: its crossing and hair tests take two faces meeting
+   along a fold, whose stored corners cross by about 1e-5, as overlapping
+   (heart #16's pair: 1.1e-5, where a true overlap is 0.086). A pure helper
+   beside `behindFlaps.ts`, tested on the heart's pair. Whether 15e's own
+   behind-flap marks meet the same false overlap on the stored scene is
+   left with "Found while planning".
+3. **The stored order.** The faces left are drawn in the stored scene's
+   order (its whole face items, those with no `group`), and a face it
+   dropped (no spread) by level among them, not by level alone.
+4. Places from the stored scene's whole face items with a spread, from
+   `paperFaces` with none.
+5. The page's white inside a window, where A removes every layer at a
+   point, is A's, not a gap; the tests expect it.
+6. Pixel tests compare a window with the stored scene's own items through
+   the same clip, never with the bare picture.
+7. With no spread, a revealed face's outline is drawn twice where it lies on
+   a visible edge (2 of 38 steps have no spread); left as it is.
+
+18f takes 6 for its parity test, and nothing else new.
+
+**For Zach** (none of it a large fork):
+
+- **The crane's budget.** It holds at 0.992%, 223 bytes under the cap. Its
+  faces alone are 0.958% now (21 flat steps; 0.84% at 16c with 18), so a
+  flat step or two more breaks Z11 on the crane with or without `sides`.
+  `sides` costs it 0.034%. Built as recommended (R3-16a B) unless he says
+  otherwise; R3-16a A, which stores nothing, agreed on all 834 faces, and a
+  hex digit for four faces would cost a quarter.
+- **Creases inside a window.** Under R3-16b A a window draws no crease, even
+  on a face it keeps, so a crease that runs into a window stops at its rim.
+  The stored scene already holds the creases of every face that shows;
+  carried with their faces, a window that removes nothing is the stored
+  picture exactly (138 of 138), at no cost in the file. Only the creases of
+  faces nothing showed (above) would be missing. A change to R3-16b A if
+  he wants it; 18e does not need it.
+- **White paper.** The Diagram preset's front is white like the page, so on
+  the crane a revealed front-up layer reads as a hole and only its edges
+  tell it apart (renders, rows 1 to 4). In the note's colours (rows 5 and
+  6) it reads as the note does.
 
 ### Before 18a: the decisions (the prototype skipped; nothing merges)
 
