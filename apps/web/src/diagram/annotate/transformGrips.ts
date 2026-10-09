@@ -34,13 +34,13 @@ import {
 } from '../../lib/transformBox';
 import {
   AREA_SIDE,
-  GLYPH_ANGLE_PRECISION,
   GLYPH_SCALE_PRECISION,
   ZOOM_CLICK,
   glyphAngle,
   glyphAngleOf,
   glyphScaleOf,
   keptTo,
+  keptTurn,
   withAreaAngle,
   withAreaBox,
   withGlyphAngle,
@@ -166,8 +166,8 @@ function boxedGlyph(annotation: KnownDiagramAnnotation, width: number, height: n
     // In its proportions and about its centre, whatever is held: it names the point it sits on (R3-29a A, R3-29b A).
     resizing: () => ({ aspectLock: true, aboutCentre: true }),
     resized: (drawn, next) => withGlyphScale(annotation, keptTo(scale * (next.width / drawn.width), GLYPH_SCALE_PRECISION)),
-    // Into [0, 360) before it is kept, so a turn past upright is not written with a wrap's rounding in it.
-    turned: (to) => withGlyphAngle(annotation, keptTo(glyphAngle(to), GLYPH_ANGLE_PRECISION)),
+    // Kept within [0, 360) as `keptTurn` keeps it: no wrap's float error, and never 360.
+    turned: (to) => withGlyphAngle(annotation, keptTurn(to, glyphAngle)),
   };
 }
 

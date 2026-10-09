@@ -85,6 +85,7 @@ import {
   shortDividersShow,
   carriesColor,
   GLYPH_SCALE,
+  glyphAngle,
   glyphAngleOf,
   glyphScaleOf,
   withGlyphAngle,
@@ -94,6 +95,8 @@ import {
   flipCentre,
   flipsOver,
   keptTo,
+  keptTurn,
+  rectangleAngle,
   AREA_SIDE,
   areaFromCorners,
   withAreaAngle,
@@ -1548,6 +1551,22 @@ describe('an oval and a rectangle (Revision 3)', () => {
     expect(withAreaAngle(shape('oval'), -30)).toEqual(shape('oval', { angle: 150 }));
     expect(withAreaAngle(shape('rectangle', { angle: 40 }), 180)).toEqual(shape('rectangle'));
     expect(withAreaAngle(shape('rectangle'), 179.996)).toEqual(shape('rectangle'));
+    // Past a half turn, rounded only once it is within [0, 180), so the wrap's float error is not written (18d
+    // follow-up): a typed 192.35 was 12.349999999999994, 200.01 was 20.00999999999999, 185.67 was 5.6699999999999875.
+    expect(withAreaAngle(shape('oval'), 192.35)).toEqual(shape('oval', { angle: 12.35 }));
+    expect(withAreaAngle(shape('oval'), 200.01)).toEqual(shape('oval', { angle: 20.01 }));
+    expect(withAreaAngle(shape('rectangle'), 185.67)).toEqual(shape('rectangle', { angle: 5.67 }));
+    expect(withAreaAngle(shape('rectangle'), 359.996)).toEqual(shape('rectangle'));
+  });
+
+  it('keeps every turn as one rule, wrapped, rounded and wrapped again: no wrap’s float error, never the whole turn (18d follow-up)', () => {
+    expect(keptTurn(192.35, rectangleAngle)).toBe(12.35);
+    expect(keptTurn(179.996, rectangleAngle)).toBe(0);
+    expect(keptTurn(372.35, glyphAngle)).toBe(12.35);
+    expect(keptTurn(359.996, glyphAngle)).toBe(0);
+    expect(keptTurn(-0.004, glyphAngle)).toBe(0);
+    expect(keptTurn(-12.35, glyphAngle)).toBe(347.65);
+    expect(Object.is(keptTurn(-0.001, glyphAngle), -0)).toBe(false);
   });
 
   it('has no ends, no path, no text, no colour, nothing behind a flap and no Flip: its box scales and turns it', () => {

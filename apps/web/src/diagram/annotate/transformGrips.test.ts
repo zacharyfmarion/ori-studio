@@ -272,6 +272,11 @@ describe('what a box writes, by kind (18b review)', () => {
     expect(boxed.turned(370).angle).toBe(10);
     // A hair short of a whole turn is upright: nothing written.
     expect('angle' in boxed.turned(359.999)).toBe(false);
+    // Rounded up to a whole turn: upright, never 360 (18d follow-up).
+    for (const turn of [359.996, 359.995, -0.004, 719.996, -360.004]) expect('angle' in boxed.turned(turn), `${turn}`).toBe(false);
+    // Past a whole turn, rounded only once it is within [0, 360): no wrap's float error (372.35 - 360 is 12.350000000000023).
+    expect(boxed.turned(372.35).angle).toBe(12.35);
+    expect(boxed.turned(-347.65).angle).toBe(12.35);
     expect(boxedMarkOf(star({ angle: 30 }))!.degrees).toBe(30);
     expect(boxedMarkOf(star())!.degrees).toBe(0);
   });

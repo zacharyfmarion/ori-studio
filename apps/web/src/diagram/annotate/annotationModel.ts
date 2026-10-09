@@ -385,6 +385,20 @@ export function glyphAngle(degrees: number): number {
   return Math.abs(within - 360) < 1e-9 || Math.abs(within) < 1e-9 ? 0 : within;
 }
 
+/**
+ * A turn as a drag, a typed Rotation, a laid eye or a carry writes it: to a
+ * hundredth of a degree ({@link GLYPH_ANGLE_PRECISION}) within the range
+ * `within` turns it into — a star's or an eye's [0, 360) ({@link glyphAngle}),
+ * a shape's [0, 180) ({@link rectangleAngle}). Wrapped, rounded, and wrapped
+ * again (18d follow-up): rounded only once it is in range, since the wrap's
+ * own float error survives a rounding before it (a shape's typed 192.35 was
+ * written 12.349999999999994); and wrapped after, so a turn rounded up to a
+ * whole one is upright (359.996 is 0, never 360).
+ */
+export function keptTurn(degrees: number, within: (degrees: number) => number): number {
+  return within(keptTo(within(degrees), GLYPH_ANGLE_PRECISION));
+}
+
 /** A star or an eye at `scale` times its print size, held to its range: written only when it is not 1. */
 export function withGlyphScale(annotation: KnownDiagramAnnotation, scale: number): KnownDiagramAnnotation {
   const next = glyphScaleWithin(scale);
@@ -1505,7 +1519,7 @@ export function eyeLooking(
   if (!(Math.hypot(dx, dy) > 1e-9)) return eye;
   const radians = Math.atan2(dy, dx);
   const turned = steps ? snapAngle(radians, TRANSFORM_ROTATION_SNAP_RADIANS) : radians;
-  return withGlyphAngle(eye, keptTo(glyphAngle((turned * 180) / Math.PI), GLYPH_ANGLE_PRECISION));
+  return withGlyphAngle(eye, keptTurn((turned * 180) / Math.PI, glyphAngle));
 }
 
 /**
@@ -2025,12 +2039,13 @@ export function withAreaBox(annotation: KnownDiagramAnnotation, centre: PictureP
 }
 
 /**
- * An oval or a rectangle turned to `degrees` clockwise (Revision 3), kept to
- * a hundredth of a degree as a glyph's turn is, then within [0, 180): a half
- * turn draws it the same. Written only when it is turned.
+ * An oval or a rectangle turned to `degrees` clockwise (Revision 3), kept
+ * within [0, 180) to a hundredth of a degree as a glyph's turn is
+ * ({@link keptTurn}): a half turn draws it the same. Written only when it is
+ * turned.
  */
 export function withAreaAngle(annotation: KnownDiagramAnnotation, degrees: number): KnownDiagramAnnotation {
-  const next = rectangleAngle(keptTo(degrees, GLYPH_ANGLE_PRECISION));
+  const next = keptTurn(degrees, rectangleAngle);
   const { angle: _was, ...rest } = annotation;
   return next === 0 ? rest : { ...rest, angle: next };
 }
@@ -2672,7 +2687,7 @@ function carryEye(annotation: KnownDiagramAnnotation, move: PictureMove): KnownD
   }
   const moved: KnownDiagramAnnotation = { ...annotation, from: carried, to: [carried[0], carried[1]] };
   if (!(Math.hypot(turned[0], turned[1]) > 0)) return moved;
-  return withGlyphAngle(moved, keptTo(glyphAngle((Math.atan2(turned[1], turned[0]) * 180) / Math.PI), GLYPH_ANGLE_PRECISION));
+  return withGlyphAngle(moved, keptTurn((Math.atan2(turned[1], turned[0]) * 180) / Math.PI, glyphAngle));
 }
 
 /** Which way Flip turns a mark over: left to right, or top to bottom. */
