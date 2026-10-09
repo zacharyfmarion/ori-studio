@@ -160,6 +160,7 @@ describe('showLinkedStepAs', () => {
     layerOrder: null,
     spatial: null,
     onCamera: () => {},
+    registerLiveView: () => () => {},
     rotateTo: () => {},
     showAs: vi.fn(async () => landed),
     setSide: vi.fn(async () => landed),

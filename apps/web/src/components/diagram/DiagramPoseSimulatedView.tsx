@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pause, Play, RotateCcw, StepForward } from 'lucide-react';
 import type { KnownCreases } from '../../diagram/capture/captureCreases';
@@ -20,6 +20,7 @@ import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { SimulatorViewport } from '../../simulator/SimulatorViewport';
 import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
+import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
 import { SIMULATED_FRAME_PX } from '../../store/workspaceStore/diagramCapture';
 import { IconButton } from '../ui/IconButton';
 import { Slider } from '../ui/Slider';
@@ -39,7 +40,8 @@ const ignoreCanvas = () => {};
  * Show switch and its Reset. While the simulator cannot run here — no pattern
  * open, the region gone, no WebGL2 in its worker, a region with no model, a
  * solver that failed — the captured picture (`fallback`) shows with a line
- * saying why, and the bar still shows the step another way.
+ * saying why, and the bar still shows the step another way. While it runs it
+ * is registered (`registerLiveView`) for the bar's Set Upright.
  */
 export function DiagramPoseSimulatedView({
   stepId,
@@ -50,6 +52,7 @@ export function DiagramPoseSimulatedView({
   annotations,
   onRest,
   wantsRest,
+  registerLiveView,
   fallback,
   toolbar,
 }: {
@@ -64,6 +67,7 @@ export function DiagramPoseSimulatedView({
   onRest: (rest: SimulatedRest) => Promise<void>;
   /** Whether a rest at a pose would be captured: asked before its scene is drawn. */
   wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
+  registerLiveView?: (view: SimulatorViewHandle) => () => void;
   fallback: ReactNode;
   toolbar: (transport: ReactNode) => ReactNode;
 }) {
@@ -83,6 +87,13 @@ export function DiagramPoseSimulatedView({
   }, [annotations, size, atStored, style]);
 
   const live = pose.status === 'ready' || pose.status === 'loading';
+  // Set Upright takes the up the view shows: only once it shows one.
+  const ready = pose.status === 'ready';
+  const { viewportRef } = pose;
+  useEffect(
+    () => (ready && registerLiveView ? registerLiveView({ setUpright: () => viewportRef.current?.setUpright() }) : undefined),
+    [ready, registerLiveView, viewportRef]
+  );
   const note = useMemo(() => {
     switch (pose.status) {
       case 'no-gpu':

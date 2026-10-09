@@ -20,6 +20,7 @@ import { withRollAbsorbed } from '../../lib/simulatorOrbit';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { SimulatorViewport, type SimulatorViewportHandle } from '../../simulator/SimulatorViewport';
 import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
+import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
 import { sameCamera } from '../../diagram/capture/poseController';
 import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
 
@@ -38,12 +39,15 @@ import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStag
  *
  * Where the worker cannot draw — no WebGL2 there — `fallback` (the captured
  * picture) is shown instead, and the toolbar's named views still turn it.
+ * While the view is up it is registered (`registerLiveView`) for the
+ * toolbar's Set Upright, which only a live view can take its up from.
  */
 export function DiagramPose3dView({
   view,
   camera,
   style,
   onCamera,
+  registerLiveView,
   ghost,
   fallback,
 }: {
@@ -51,6 +55,7 @@ export function DiagramPose3dView({
   camera: FoldedFigureCamera;
   style: DiagramStyle;
   onCamera: (camera: FoldedFigureCamera) => void;
+  registerLiveView?: (view: SimulatorViewHandle) => () => void;
   /** The annotations to ghost, when they are in step with the stored picture; null otherwise. */
   ghost: DiagramPoseAnnotations | null;
   fallback: ReactNode;
@@ -129,7 +134,13 @@ export function DiagramPose3dView({
     return frame ? poseGhostMarkup(ghost.annotations, frame, style, ghost.zoom) : null;
   }, [ghost, size, frameRadius, style]);
 
-  if (!mesh || status === 'error') return <>{fallback}</>;
+  const live = mesh !== null && status !== 'error';
+  useEffect(
+    () => (live && registerLiveView ? registerLiveView({ setUpright: () => viewportRef.current?.setUpright() }) : undefined),
+    [live, registerLiveView]
+  );
+
+  if (!live) return <>{fallback}</>;
   return (
     <DiagramPoseStage
       status={status}

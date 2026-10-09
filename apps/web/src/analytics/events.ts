@@ -268,8 +268,6 @@ export type DiagramPoseAction =
   | 'previous_solution'
   | 'choose_way'
   | 'view_top'
-  | 'view_front'
-  | 'view_iso'
   | 'orbit'
   | 'rotate_to'
   | 'upright'

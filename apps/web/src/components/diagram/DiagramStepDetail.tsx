@@ -344,6 +344,7 @@ export function DiagramStepDetail({
             annotations={ghost}
             onRest={linkedPose.simulate}
             wantsRest={linkedPose.wantsRest}
+            registerLiveView={linkedPose.registerLiveView}
             fallback={picture}
             toolbar={poseToolbar}
           />
@@ -355,6 +356,7 @@ export function DiagramStepDetail({
                 camera={linked.render.camera}
                 style={style}
                 onCamera={linkedPose.onCamera}
+                registerLiveView={linkedPose.registerLiveView}
                 ghost={ghost}
                 fallback={url && picture}
               />

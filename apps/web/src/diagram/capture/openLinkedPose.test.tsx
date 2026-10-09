@@ -11,6 +11,7 @@ const pose = (): DiagramLinkedPose => ({
   layerOrder: null,
   spatial: null,
   onCamera: () => {},
+  registerLiveView: () => () => {},
   rotateTo: () => {},
   showAs: async () => true,
   setSide: async () => true,
