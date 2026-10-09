@@ -18,8 +18,7 @@ import {
   selectedDiagramAnnotation,
   selectedDiagramPathNode,
 } from '../store/workspaceStore/diagramState';
-import { annotationActionEdit, nudgePathNodeEdit, offersAnnotationAction } from './annotate/annotationActions';
-import { flipChangesArc } from './annotate/annotationModel';
+import { flipKeyEdit, nudgePathNodeEdit } from './annotate/annotationActions';
 import { applyAnnotationEdit } from './annotate/applyAnnotationEdit';
 import { indexForStepNumber, stepById, stepsOf, type KnownDiagramAnnotation } from './document/diagramDocument';
 import {
@@ -60,9 +59,9 @@ function keyState(state: WorkspaceState): DiagramKeyState {
   };
 }
 
-/** Whether F flips the selected annotation: one that flips, and would change (a straight arrow's key falls through). */
+/** Whether F flips the selected annotation: one with F's verb, which would change it (a straight arrow's key falls through). */
 function offersFlipArc(annotation: KnownDiagramAnnotation | null): boolean {
-  return annotation !== null && offersAnnotationAction('flip-arc', annotation) && flipChangesArc(annotation);
+  return annotation !== null && flipKeyEdit(annotation) !== null;
 }
 
 /** The step whose card has focus, if one does. */
@@ -92,10 +91,11 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
     selectPathNode: state.selectDiagramPathNode,
     flipArc: () => {
       const stepId = state.diagramSelectedStepId;
-      const id = state.diagramSelectedAnnotationId;
-      if (stepId === null || id === null) return;
-      // The Step pane's Flip Arc, by the same edit (`annotationActions.ts`).
-      applyAnnotationEdit(state, stepId, annotationActionEdit('flip-arc', id));
+      const annotation = selectedDiagramAnnotation(state);
+      const edit = annotation && flipKeyEdit(annotation);
+      if (stepId === null || !edit) return;
+      // The Layers pane's Flip Arc — on an eye, its Flip Horizontal — by the same edit (`annotationActions.ts`).
+      applyAnnotationEdit(state, stepId, edit);
     },
     nudgePathNode: (delta) => {
       const stepId = state.diagramSelectedStepId;

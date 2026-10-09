@@ -207,6 +207,32 @@ describe('resizeAnnotationBox about the centre (Diagram Revision 3, R3-29b A, R3
   });
 });
 
+describe('resizeAnnotationBox held to a range of sides (Diagram Revision 3, R3-30b A)', () => {
+  const sides = { min: 0.5, max: 6 };
+
+  it('holds each side to it as the drag goes, the opposite corner staying put', () => {
+    // The SE corner dragged far out right and up past the NW corner: 10 wide, the height through zero.
+    const r = resizeAnnotationBox(box(), 'se', { x: 8, y: -1.1 }, false, { sides });
+    expect(r.width).toBe(6);
+    expect(r.height).toBe(0.5);
+    // Its NW corner (-2, -1) where it was: the box's left edge, and — dragged up past it — its bottom.
+    expect(r.center.x - r.width / 2).toBeCloseTo(-2, 12);
+    expect(r.center.y + r.height / 2).toBeCloseTo(-1, 12);
+  });
+
+  it('holds a box kept in its proportions as a whole while one scale can keep both sides in range', () => {
+    const r = resizeAnnotationBox(box(), 'se', { x: 20, y: 20 }, true, { sides });
+    // 4 × 2 can grow to 6 × 3, no further, in proportion.
+    expect(r.width).toBeCloseTo(6, 12);
+    expect(r.height).toBeCloseTo(3, 12);
+  });
+
+  it('changes nothing without it: the Edit canvas never passes it', () => {
+    expect(resizeAnnotationBox(box(), 'se', { x: 8, y: -1.1 }, false)).toEqual(resizeAnnotationBox(box(), 'se', { x: 8, y: -1.1 }, false, {}));
+    expect(resizeAnnotationBox(box(), 'se', { x: 8, y: 3 }, false).width).toBe(10);
+  });
+});
+
 describe('transformHandles', () => {
   const corners = boxCornersModel(box({ width: 40, height: 20 }));
 

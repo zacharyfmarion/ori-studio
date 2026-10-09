@@ -169,6 +169,10 @@ export function annotationSnapPoints(
     // put down freely (Revision 3, R3-24 A): its centre is no point of the picture.
     case 'eye':
       return [];
+    // An oval or a rectangle rings an area, on no point of it (Revision 3, R3-24 A).
+    case 'oval':
+    case 'rectangle':
+      return [];
     default: {
       // Every kind says what it offers: a new one is a compile error here.
       const _unsaid: never = annotation.kind;

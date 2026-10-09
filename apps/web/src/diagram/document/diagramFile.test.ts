@@ -1121,6 +1121,76 @@ describe('annotations in the file', () => {
     });
   });
 
+  describe('an oval and a rectangle (Revision 3)', () => {
+    const shape = (kind: 'oval' | 'rectangle', more: Record<string, unknown> = {}) => ({
+      id: `${kind}-1`,
+      kind,
+      from: [0.4, 0.6],
+      to: [0.4, 0.6],
+      size: [0.3, 0.45],
+      ...more,
+    });
+
+    it('round-trips its centre, its size and its turn — upright when unsaid — each kind its own', () => {
+      const shapes = [shape('oval'), shape('rectangle', { id: 'r-2', angle: 37.5 }), shape('oval', { id: 'o-3', size: [2, 0.015] })];
+      const read = withAnnotations(shapes);
+      expect(read).toEqual(shapes);
+      const document = { ...sampleDiagram() };
+      document.steps = [{ ...stepsIn(document)[0]!, annotations: read }, stepsIn(document)[1]!];
+      const written = stepsIn(throughJson(writeDiagram(document)))[0].annotations;
+      expect(written).toEqual(shapes);
+      expect(Object.keys(written[0]).sort()).toEqual(['from', 'id', 'kind', 'size', 'to']);
+    });
+
+    it('reads its `to` as its centre, whatever is written there', () => {
+      expect(withAnnotations([shape('rectangle', { to: [0.9, 0.1] })])).toEqual([shape('rectangle')]);
+    });
+
+    it('reads its turn within [0, 180), a half turn drawing it the same, and drops one that is no number alone', () => {
+      expect(withAnnotations([shape('oval', { angle: -30 }), shape('rectangle', { id: 'r-4', angle: 200 })])).toEqual([
+        shape('oval', { angle: 150 }),
+        shape('rectangle', { id: 'r-4', angle: 20 }),
+      ]);
+      expect(withAnnotations([shape('oval', { angle: 'level' }), shape('rectangle', { angle: null })])).toEqual([
+        shape('oval'),
+        shape('rectangle'),
+      ]);
+    });
+
+    it('drops one with no size, or a size that is not two positive numbers, or whose centre does not read', () => {
+      const { size: _none, ...unsized } = shape('oval');
+      const damaged = [
+        unsized,
+        shape('rectangle', { size: [0.3] }),
+        shape('oval', { id: 'o-5', size: [0.3, -0.1] }),
+        shape('rectangle', { id: 'r-6', size: '0.3' }),
+        shape('oval', { id: 'o-7', from: [0.4] }),
+      ];
+      expect(withAnnotations(damaged)).toEqual([]);
+    });
+
+    it('carries what a newer build might write: a side past a slip to twice the frame, a fill, a field it has no name for', () => {
+      const newer = [
+        shape('oval', { id: 'o-8', size: [2.5, 0.3] }),
+        shape('rectangle', { id: 'r-9', size: [0.3, 0.01] }),
+        shape('rectangle', { id: 'r-10', fill: 'white' }),
+        shape('oval', { id: 'o-11', radius: 0.2 }),
+      ];
+      expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = newer;
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual(newer);
+    });
+
+    it('is kept, verbatim and undrawn, by a build that knows neither: as any kind it has no name for', () => {
+      const older = shape('oval', { kind: 'spiral-arrow', angle: 30 });
+      expect(withAnnotations([older])).toEqual([{ id: 'oval-1', unknown: older }]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [older];
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual([older]);
+    });
+  });
+
   describe('a close-up (15f)', () => {
     const closeUp = (more: Record<string, unknown> = {}) => ({
       id: 'z-1',

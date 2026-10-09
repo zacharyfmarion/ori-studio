@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeftRight, FlipHorizontal2, FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type LucideIcon } from 'lucide-react';
+import { FlipHorizontal2, FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type LucideIcon } from 'lucide-react';
 import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
 import { annotationLabel, lineTypeLabel } from '../../diagram/annotate/annotateTools';
 import { DIAGRAM_LINE_TYPES, lineTypeOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
@@ -60,15 +60,6 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
   'turn-right-angle': RotateCwSquare,
   delete: Trash2,
 };
-
-/**
- * A verb's icon on a mark of `kind`: an eye's Flip has it look the other way,
- * half a turn (R3-9b A), so it is not drawn as the mirror Flip Vertical is,
- * one row above it (18c review).
- */
-function actionIcon(id: AnnotationActionId, kind: KnownDiagramAnnotation['kind']): LucideIcon | undefined {
-  return id === 'flip-arc' && kind === 'eye' ? ArrowLeftRight : ACTION_ICONS[id];
-}
 
 /**
  * The Layers pane's body (Zach, 2026-10-05): what is drawn on the step open in
@@ -445,7 +436,7 @@ function SelectedAnnotation({
           {annotations.actions
             .filter((action) => action.group === 'annotation')
             .map((action) => {
-              const Icon = actionIcon(action.id, annotation.kind);
+              const Icon = ACTION_ICONS[action.id];
               return (
                 <Button
                   key={action.id}

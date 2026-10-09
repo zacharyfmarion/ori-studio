@@ -39,7 +39,7 @@ import { paintSource, stepPictureSource, type PictureBox } from '../pictures/pai
 import { stepPictureFrame } from '../pictures/pictureFrame';
 import { stepPictureUrl } from '../pictures/useStepPictureUrl';
 import { ZOOM_CARD_MARGIN, zoomedSource, type ZoomedSource } from '../zoom/paintZoomed';
-import { marksInWindow } from '../zoom/stepView';
+import { marksBox, marksInWindow } from '../zoom/stepView';
 import { useAnchorPick } from '../zoom/useAnchorPick';
 import { anchorFaceRing } from '../zoom/zoomAnchor';
 import { intoBox, outlineFromBox, outlineIntoBox, setFrameOutline } from '../zoom/zoomFrames';
@@ -76,8 +76,10 @@ import {
   carriesText,
   closeUpShape,
   createAnnotation,
+  areaFromCorners,
   eyeLooking,
   frameOf,
+  isAreaKind,
   isCornerKind,
   isDegenerate,
   isHungText,
@@ -251,7 +253,7 @@ export interface RightAnglePreview {
 }
 
 /**
- * What a press with Select would take of a selected star's or eye's transform box
+ * What a press with Select would take of a selected star's, eye's or shape's transform box
  * (Revision 3): its body, which moves it; a scale square; or a turn handle.
  * The view's cursor says which, as the Edit canvas's box does: `move`,
  * `pointer` and `grab`.
@@ -315,6 +317,25 @@ function closeUpRings(annotation: KnownDiagramAnnotation, layout: AnnotateLayout
     height: 2 * radius * layout.unit,
   });
   return unionPlotRect(ring(area), ring(inset));
+}
+
+/**
+ * What of a paste — the marks `ids` names — the canvas draws (`drawn`), in
+ * world px: what has to be in view to see it (18d review). Null when it draws
+ * none of it, as an enlarged step keeps a mark far off its window but draws
+ * it nowhere (`marksInWindow`).
+ */
+export function pastedRect(layout: AnnotateLayout, drawn: readonly DiagramAnnotation[], ids: readonly string[]): PlotRect | null {
+  const pasted = new Set(ids);
+  const box = marksBox(drawn.filter(({ id }) => pasted.has(id)));
+  return (
+    box && {
+      x: layout.frame.x + box.x * layout.unit,
+      y: layout.frame.y + box.y * layout.unit,
+      width: box.width * layout.unit,
+      height: box.height * layout.unit,
+    }
+  );
 }
 
 /**
@@ -481,7 +502,7 @@ export function useAnnotateCanvas({
   );
 
   /**
-   * What a press with Select would take of the selected star's or eye's transform box
+   * What a press with Select would take of the selected star's, eye's or shape's transform box
    * under the pointer (Revision 3): its body, a scale square or a turn handle
    * — the cursor the view shows there, as the Edit canvas's box shows its own.
    */
@@ -615,7 +636,7 @@ export function useAnnotateCanvas({
   );
 
   /**
-   * What a press at `at` with Select would take of the selected star's or eye's box:
+   * What a press at `at` with Select would take of the selected star's, eye's or shape's box:
    * a scale square, a turn handle or its body; null off it, and with no box
    * selected.
    */
@@ -627,6 +648,40 @@ export function useAnnotateCanvas({
       if (hit?.annotationId !== selected.id) return null;
       if (hit.part === 'transform') return hit.handle.kind === 'scale' ? 'scale' : 'rotate';
       return hit.part === 'body' ? 'body' : null;
+    },
+    [selectedId, known, viewed, hitSizes]
+  );
+
+  /**
+   * Whether the tool in hand lays `kind`, the selected mark's own kind — a
+   * star's with the Star, an eye's with the Eye, an oval's with the Oval, a
+   * rectangle's with the Rectangle — so its box's handles take a press
+   * before the tool draws (18d). Under any other tool that draws, the press
+   * draws that tool's mark, even on the box: the squares sit on a shape's
+   * corners and edges, where an arrow or a line is often started.
+   */
+  const handlesInHand = useCallback(
+    (kind: DiagramAnnotationKind | null): boolean => {
+      const selected = kind === null || selectedId === null ? undefined : known(selectedId);
+      return selected?.kind === kind;
+    },
+    [selectedId, known]
+  );
+
+  /**
+   * The selected mark's transform handle a press at `at` is on — a scale
+   * square or a turn handle, as Select would take it, never the box's body —
+   * and the mark. What a press with the mark's own tool still in hand takes
+   * before it draws (`handlesInHand`): the box a star, an eye or a shape
+   * just laid shows scales and turns it rather than laying another under the
+   * press (18d). Null off its handles, and with no box selected.
+   */
+  const handleGripAt = useCallback(
+    (at: PicturePoint): { grip: AnnotationGrip; original: KnownDiagramAnnotation } | null => {
+      const selected = selectedId === null ? undefined : known(selectedId);
+      if (!selected || !hasTransformBox(selected)) return null;
+      const grip = hitAnnotation(viewed, at, hitSizes(), selectedId);
+      return grip?.annotationId === selected.id && grip.part === 'transform' ? { grip, original: selected } : null;
     },
     [selectedId, known, viewed, hitSizes]
   );
@@ -672,6 +727,19 @@ export function useAnnotateCanvas({
     // Once, as it is selected: not again for every move of the frame while it stays selected.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameSelected]);
+  // A paste on this step (18d review) lands where its marks were copied: out of view if the canvas is zoomed in
+  // elsewhere, or beside an enlarged step's window when they come from another picture (Revision 2, decision 7).
+  // The canvas steps back to show what of it is drawn, once, as it does for a close-up laid beside the picture (15f),
+  // as soon as the step it is handed holds the paste; a paste made before it opened is not shown again.
+  const pasted = useWorkspaceStore((state) => state.diagramPasted);
+  const pasteSeen = useRef(pasted?.nonce ?? null);
+  useEffect(() => {
+    if (!pasted || pasted.nonce === pasteSeen.current) return;
+    if (pasted.stepId === step.id && (!layout || !step.annotations.some(({ id }) => id === pasted.ids[0]))) return;
+    pasteSeen.current = pasted.nonce;
+    const rect = pasted.stepId === step.id && layout ? pastedRect(layout, viewed, pasted.ids) : null;
+    if (rect) bringIntoView(rect);
+  }, [pasted, step.id, step.annotations, layout, viewed, bringIntoView]);
   // The pick mode armed for the frame: the canvas steps back to its anchor face too, which may lie far off.
   const pickingFrame = anchorPick.picking === ZOOM_FRAME_ID;
   useEffect(() => {
@@ -878,7 +946,11 @@ export function useAnnotateCanvas({
         return;
       }
       const kind = drawingKind(tool, lineType);
-      if (kind !== null) {
+      // The selected mark's box, a handle pressed with that mark's own tool in hand: the handle's (18d).
+      const handle = handlesInHand(kind) && !readOnly ? handleGripAt(at) : null;
+      if (handle) {
+        gesture.current = { mode: 'move', grip: handle.grip, original: handle.original, start: at, px: hitSizes().px, ...press };
+      } else if (kind !== null) {
         // An enlarged step is not enlarged again (yet): the Enlarge tools draw nothing on it.
         if (readOnly || (kind === 'zoom' && step.zoom)) return;
         const free = isPrimaryModifier(event);
@@ -954,6 +1026,8 @@ export function useAnnotateCanvas({
       hitSizes,
       selectedId,
       known,
+      handlesInHand,
+      handleGripAt,
       pressPath,
       transformRef,
       snapContext,
@@ -1032,8 +1106,10 @@ export function useAnnotateCanvas({
         // An enlarge area's grip (Revision 2): its centre moves it, its rim, corners and edges resize it.
         return withZoomOutline(annotation, draggedOutline(zoomOutlineOf(annotation), grip.zoom, current.start, at, keys));
       case 'transform':
-        // A star's or an eye's transform box (Revision 3): a square scales it about its centre, a turn handle turns it, Shift by 15°.
-        return transformDragged(annotation, grip.handle, current.start, at, { px: current.px, shift: keys.shift });
+        // A star's, an eye's or a shape's transform box (Revision 3): a square resizes it as its kind does with the
+        // keys held — a glyph about its centre, a shape freely, Shift its proportions, Alt its centre — and a turn
+        // handle turns it, Shift by 15°.
+        return transformDragged(annotation, grip.handle, current.start, at, { px: current.px, shift: keys.shift, alt: keys.alt });
     }
   };
 
@@ -1058,9 +1134,21 @@ export function useAnnotateCanvas({
         return;
       }
       const kind = drawingKind(tool, lineType);
-      // With Select, over the selected star's or eye's box: what a press there would take of it.
-      const selecting = tool === null && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
-      setTransformHover(selecting && onStage(input.target) ? transformHoverAt(toPicture(input.clientX, input.clientY)) : null);
+      // Over the selected star's, eye's or shape's box, what a press there would take of it: with Select, any of it; with
+      // the mark's own tool in hand, only a handle, which takes the press before a draw (18d) — its body is drawn on; with
+      // any other tool, none of it.
+      const inHand = handlesInHand(kind);
+      const boxed = (tool === null || inHand) && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
+      const overBox = boxed && onStage(input.target) ? transformHoverAt(toPicture(input.clientX, input.clientY)) : null;
+      const onHandle = inHand && overBox !== null && overBox !== 'body';
+      setTransformHover(tool === null || onHandle ? overBox : null);
+      if (onHandle) {
+        // Nothing would be drawn: no snap, line or right angle is shown for it.
+        showLineHover(null);
+        showSnap([]);
+        showRightAngle(null);
+        return;
+      }
       const looking =
         kind !== null && snapsWhenPlaced(kind) && !readOnly && !spacePressed && !pinching.current && input.buttons === 0;
       const at = looking && onStage(input.target) ? toPicture(input.clientX, input.clientY) : null;
@@ -1097,6 +1185,7 @@ export function useAnnotateCanvas({
       hitSizes,
       anchorPick,
       transformHoverAt,
+      handlesInHand,
     ]
   );
 
@@ -1435,7 +1524,7 @@ export function useAnnotateCanvas({
       if (!pointer) return;
       const placed = placeInHand(current, pointer, free, event.shiftKey);
       const area = current.original.kind === 'zoom';
-      // A star's or an eye's box (Revision 3): resized or turned, the Edit canvas's own words for each.
+      // A star's, an eye's or a shape's box (Revision 3): resized or turned, the Edit canvas's own words for each.
       const transform = current.grip.part === 'transform' ? current.grip.handle : null;
       const label = area
         ? 'Change enlarge area'
@@ -1519,7 +1608,7 @@ export function useAnnotateCanvas({
     snapTargets: snap.targets,
     /** The right angle a click would put down where the pointer is: shown over the marks, never in them. */
     rightAnglePreview: rightAngle,
-    /** What a press with Select would take of the selected star's or eye's box under the pointer: the view's cursor. */
+    /** What a press with Select would take of the selected star's, eye's or shape's box under the pointer: the view's cursor. */
     transformHover,
     /**
      * A pick tool's picks, and what a press would pick: shown over the marks
@@ -1559,8 +1648,9 @@ function sameLine(a: PickedLine | null, b: PickedLine | null): boolean {
  * What a drawing tool lays from `start` to `end`: an enlarge area in its
  * tool's shape — a rounded rectangle dragged corner to corner, square with
  * Shift and from its middle with Alt (Revision 2) — an eye at `start`
- * looking toward `end`, in 15° steps with Shift (Revision 3, R3-8 A) — or
- * its kind, in its look.
+ * looking toward `end`, in 15° steps with Shift (Revision 3, R3-8 A), an
+ * oval or a rectangle corner to corner as that area is, a circle or a square
+ * with Shift (Revision 3) — or its kind, in its look.
  */
 function laid(
   kind: DiagramAnnotationKind,
@@ -1577,6 +1667,7 @@ function laid(
     return zoomAreaFromCorners(start, end, { square: keys.shift, fromMiddle: keys.alt }, newId);
   }
   if (kind === 'eye') return eyeLooking(start, end, frame, { steps: keys.shift }, newId);
+  if (isAreaKind(kind)) return areaFromCorners(kind, start, end, { square: keys.shift, fromMiddle: keys.alt }, newId);
   // A solid line in the colour chosen beside the rail's Line Type (17a).
   const made = withColor(withWhiteArrowLook(createAnnotation(kind, start, end, frame, newId, calloutText), arrowLook), color ?? null);
   // A label in the rail's Text Style (17b).

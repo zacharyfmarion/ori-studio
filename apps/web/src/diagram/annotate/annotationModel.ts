@@ -83,7 +83,11 @@ export interface PictureFrame {
  *   `angle` — put down with a drag from the viewer toward what they look at,
  *   or a click that looks at the picture's middle (Revision 3). Not a point
  *   kind, which a click alone puts down, nor a corner, whose click would look
- *   for a right angle.
+ *   for a right angle;
+ * - `area`: an oval or a rectangle round an area of the picture, its centre
+ *   `from` and `to` alike, its `size` in picture units and its `angle` its
+ *   turn — dragged corner to corner as Enlarge in Frame's area is, or put
+ *   down a standard size with a click (Revision 3).
  */
 type AnnotationShape =
   | 'arc'
@@ -97,7 +101,8 @@ type AnnotationShape =
   | 'divisions'
   | 'close-up'
   | 'zoom'
-  | 'sight';
+  | 'sight'
+  | 'area';
 
 const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>> = {
   'valley-arrow': 'arc',
@@ -122,6 +127,8 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'close-up': 'close-up',
   zoom: 'zoom',
   eye: 'sight',
+  oval: 'area',
+  rectangle: 'area',
 };
 
 /** Every kind, in the order the rail offers them. */
@@ -138,6 +145,14 @@ export const POINT_KINDS = kindsShaped('point');
 
 /** The crease lines, drawn in the diagram's pens. */
 export const LINE_KINDS = kindsShaped('line');
+
+/** The shapes (Revision 3): an oval or a rectangle round an area, with a transform box. */
+export const AREA_KINDS = kindsShaped('area');
+
+/** Whether `kind` is a shape: an oval or a rectangle (Revision 3). */
+export function isAreaKind(kind: DiagramAnnotationKind): kind is 'oval' | 'rectangle' {
+  return AREA_KINDS.has(kind);
+}
 
 /** The marks put down in a corner, opening along its diagonal: the right angle. */
 export const CORNER_KINDS = kindsShaped('corner');
@@ -238,6 +253,8 @@ export function behindEnds(kind: DiagramAnnotationKind): readonly ('from' | 'to'
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
     case 'star':
     case 'eye':
       return [];
@@ -555,6 +572,7 @@ function cleanShape(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation 
   if (annotation.kind === 'close-up') return cleanCloseUp(annotation);
   if (annotation.kind === 'zoom') return cleanZoom(annotation);
   if (annotation.kind === 'star' || annotation.kind === 'eye') return cleanGlyph(annotation);
+  if (isAreaKind(annotation.kind)) return cleanArea(annotation);
   const from = withinReach(annotation.from);
   const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
   const text = annotation.text === undefined ? undefined : cleanLabelText(annotation.text);
@@ -1019,6 +1037,8 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
       return false;
   }
 }
@@ -1072,6 +1092,8 @@ export function carriesText(kind: DiagramAnnotationKind): boolean {
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
       return false;
   }
 }
@@ -1107,6 +1129,8 @@ export function carriesColor(kind: DiagramAnnotationKind): boolean {
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
       return false;
   }
 }
@@ -1153,6 +1177,8 @@ export function carriesTextStyle(kind: DiagramAnnotationKind): boolean {
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
       return false;
   }
 }
@@ -1312,6 +1338,8 @@ export function annotationEnds(annotation: Pick<KnownDiagramAnnotation, 'kind' |
     case 'angle-mark':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
       return [];
   }
 }
@@ -1437,13 +1465,19 @@ export function isCornerKind(kind: DiagramAnnotationKind): boolean {
  * Whether a click puts an annotation of `kind` down: a point kind's at its
  * point, a right angle's in the corner it is in, a callout's beside its
  * point, a close-up's area round it, an enlarge area a standard size round
- * it, an eye looking at the picture's middle (Revision 3). A drag draws the
- * rest.
+ * it, an eye looking at the picture's middle, an oval or a rectangle a
+ * standard size round it (Revision 3). A drag draws the rest.
  */
 export function placedByClick(kind: DiagramAnnotationKind): boolean {
   const shape = ANNOTATION_SHAPES[kind];
   return (
-    isPointKind(kind) || isCornerKind(kind) || shape === 'callout' || shape === 'close-up' || shape === 'zoom' || shape === 'sight'
+    isPointKind(kind) ||
+    isCornerKind(kind) ||
+    shape === 'callout' ||
+    shape === 'close-up' ||
+    shape === 'zoom' ||
+    shape === 'sight' ||
+    shape === 'area'
   );
 }
 
@@ -1516,6 +1550,8 @@ export function createAnnotation(
     return { id, kind, ...rightAngleAt(start, [end[0] - start[0], end[1] - start[1]]) };
   }
   if (kind === 'eye') return eyeLooking(start, end, frame, {}, () => id);
+  // An oval or a rectangle, corner to corner as Enlarge in Frame's area is; a click's standard size (Revision 3).
+  if (isAreaKind(kind)) return areaFromCorners(kind, start, end, {}, () => id);
   const from = withinReach(start);
   const to = withinReach(end);
   if (kind === 'zoom') {
@@ -1893,31 +1929,133 @@ function cleanZoom(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
  * of the picture moves.
  */
 function carryZoom(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
-  const { from } = annotation;
+  if (annotation.size !== undefined && annotation.radius === undefined) return carryArea(annotation, move);
+  const carried = withinReach(move.point(annotation.from));
+  const [rx, ry] = carriedVector(annotation.from, move, [closeUpRadius(annotation), 0]);
+  return { ...annotation, from: carried, to: [carried[0], carried[1]], radius: zoomRadiusWithin(Math.hypot(rx, ry)) };
+}
+
+/**
+ * An area with a `size` carried with the paper: an enlarge area's rounded
+ * rectangle (Revision 2), and an oval or a rectangle (Revision 3, its math
+ * shared). Its centre goes with the face under it; its size by the move's
+ * scale as a whole — never stretched with whatever face a spread moves under
+ * its rim — each side held to its range; and its turn with the move's, at
+ * any angle: its long side goes where the move takes the way it ran, which a
+ * mirror turns over with the side, its angle negated. Within [0, 180), as a
+ * half turn draws it the same, and written only when it is turned.
+ */
+function carryArea(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  const { from, size } = annotation;
   const carried = withinReach(move.point(from));
-  const turned = (vector: PicturePoint): PicturePoint => {
-    if (move.vector) return move.vector(vector);
-    const [x0, y0] = move.point(from);
-    const [x1, y1] = move.point([from[0] + vector[0], from[1] + vector[1]]);
-    return [x1 - x0, y1 - y0];
-  };
-  const at = { from: carried, to: [carried[0], carried[1]] as [number, number] };
-  if (annotation.size === undefined || annotation.radius !== undefined) {
-    const [rx, ry] = turned([closeUpRadius(annotation), 0]);
-    return { ...annotation, ...at, radius: zoomRadiusWithin(Math.hypot(rx, ry)) };
-  }
   const radians = ((annotation.angle ?? 0) * Math.PI) / 180;
-  const [ux, uy] = turned([Math.cos(radians), Math.sin(radians)]);
+  const [ux, uy] = carriedVector(from, move, [Math.cos(radians), Math.sin(radians)]);
   const stretch = Math.hypot(ux, uy);
+  const [width, height] = size ?? [ZOOM_CLICK.size[0], ZOOM_CLICK.size[1]];
   const { angle: _was, ...rest } = annotation;
   // To a billionth of a degree: a quarter turn is 90, not 90.00000000000001.
   const angle = rectangleAngle(Number(((Math.atan2(uy, ux) * 180) / Math.PI).toFixed(9)));
   return {
     ...rest,
-    ...at,
-    size: [zoomSideWithin(annotation.size[0] * stretch), zoomSideWithin(annotation.size[1] * stretch)],
+    from: carried,
+    to: [carried[0], carried[1]],
+    size: [zoomSideWithin(width * stretch), zoomSideWithin(height * stretch)],
     ...(angle !== 0 ? { angle } : {}),
   };
+}
+
+/** `vector` at `from` as a move carries it: its own `vector`, or where it takes a step along it. */
+function carriedVector(from: PicturePoint, move: PictureMove, vector: PicturePoint): PicturePoint {
+  if (move.vector) return move.vector(vector);
+  const [x0, y0] = move.point(from);
+  const [x1, y1] = move.point([from[0] + vector[0], from[1] + vector[1]]);
+  return [x1 - x0, y1 - y0];
+}
+
+/**
+ * How far an oval's or a rectangle's sides go, in picture units (Revision 3,
+ * R3-30b A): an enlarge area's, from a slip to twice the picture's frame,
+ * about any centre — held as a drag goes ({@link zoomSideWithin}), and past
+ * it in a file a newer build's. One rule for both kinds of area.
+ */
+export const AREA_SIDE = ZOOM_SIDE;
+
+/**
+ * A new area dragged corner to corner: an enlarge area's rounded rectangle
+ * (Revision 2, Enlarge in Frame), or an oval or a rectangle (Revision 3) —
+ * `square` making it square on its longer side, an oval a circle, and
+ * `fromMiddle` drawing it out from its centre. A drag shorter than a
+ * twentieth of a click's either way puts down a click's square at `start`.
+ * Put down where the pointer is: nothing snaps (R3-24 A).
+ */
+export function areaFromCorners(
+  kind: 'zoom' | 'oval' | 'rectangle',
+  start: PicturePoint,
+  end: PicturePoint,
+  { square = false, fromMiddle = false }: { square?: boolean; fromMiddle?: boolean } = {},
+  newId: DiagramIdFactory = randomDiagramId
+): KnownDiagramAnnotation {
+  const id = newId('annotation');
+  let dx = end[0] - start[0];
+  let dy = end[1] - start[1];
+  if (square) {
+    const side = Math.max(Math.abs(dx), Math.abs(dy));
+    dx = Math.sign(dx || 1) * side;
+    dy = Math.sign(dy || 1) * side;
+  }
+  const scale = fromMiddle ? 2 : 1;
+  const [width, height] = [Math.abs(dx) * scale, Math.abs(dy) * scale];
+  const centre: PicturePoint = fromMiddle ? start : [start[0] + dx / 2, start[1] + dy / 2];
+  const clicked = Math.min(width, height) < ZOOM_CLICK.size[0] / 20;
+  const size: [number, number] = clicked
+    ? [ZOOM_CLICK.size[0], ZOOM_CLICK.size[1]]
+    : [zoomSideWithin(width), zoomSideWithin(height)];
+  const at = withinReach(clicked ? start : centre);
+  return { id, kind, from: at, to: [at[0], at[1]], size };
+}
+
+/**
+ * An oval or a rectangle set to a box (Revision 3): centred on `centre`
+ * within reach, its sides `size` held to {@link AREA_SIDE}, its turn as it
+ * was. What its transform box's squares write.
+ */
+export function withAreaBox(annotation: KnownDiagramAnnotation, centre: PicturePoint, size: readonly [number, number]): KnownDiagramAnnotation {
+  const at = withinReach(centre);
+  return { ...annotation, from: at, to: [at[0], at[1]], size: [zoomSideWithin(size[0]), zoomSideWithin(size[1])] };
+}
+
+/**
+ * An oval or a rectangle turned to `degrees` clockwise (Revision 3), kept to
+ * a hundredth of a degree as a glyph's turn is, then within [0, 180): a half
+ * turn draws it the same. Written only when it is turned.
+ */
+export function withAreaAngle(annotation: KnownDiagramAnnotation, degrees: number): KnownDiagramAnnotation {
+  const next = rectangleAngle(keptTo(degrees, GLYPH_ANGLE_PRECISION));
+  const { angle: _was, ...rest } = annotation;
+  return next === 0 ? rest : { ...rest, angle: next };
+}
+
+/**
+ * An oval or a rectangle as this build writes it (Revision 3): its centre
+ * within reach and `to` on it; its size, each side within {@link AREA_SIDE}
+ * — a click's square where it has none; a turn only as a number, within
+ * [0, 180). The same object when it already is.
+ */
+function cleanArea(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const from = withinReach(annotation.from);
+  const { size: wasSize, angle: wasAngle, ...rest } = annotation;
+  const size: [number, number] = wasSize
+    ? [zoomSideWithin(wasSize[0]), zoomSideWithin(wasSize[1])]
+    : [ZOOM_CLICK.size[0], ZOOM_CLICK.size[1]];
+  const angle = wasAngle !== undefined && Number.isFinite(wasAngle) ? rectangleAngle(wasAngle) : undefined;
+  const same =
+    samePoint(from, annotation.from) &&
+    samePoint(from, annotation.to) &&
+    wasSize !== undefined &&
+    samePoint(size, wasSize) &&
+    angle === wasAngle;
+  if (same) return annotation;
+  return { ...rest, from, to: [from[0], from[1]], size, ...(angle !== undefined ? { angle } : {}) };
 }
 
 /**
@@ -2051,9 +2189,9 @@ export function pathLength(path: readonly DiagramPathNode[]): number {
  * Whether Flip arc turns `kind` over: a fold arrow's bulge, or a white
  * arrow's, mirrored across its chord as a shaped fold arrow is — and a pleat
  * arrow's Zs, stepping to the other side of it (15c), and equal divisions'
- * line, over to the other side of the line it measures (Revision 2) — and an
- * eye, looking the other way (Revision 3, R3-9b A: "one click turns a
- * left-looking eye to look right"). Asked by every surface that offers it
+ * line, over to the other side of the line it measures (Revision 2). Not an
+ * eye: F on an eye is its Flip row's Horizontal (R3-9b A, amended 2026-10-08;
+ * `flipKeyAction`). Asked by every surface that offers it
  * (`annotationActions.ts`), and a switch, so a new kind has to answer.
  */
 export function flipsArc(kind: DiagramAnnotationKind): boolean {
@@ -2064,7 +2202,6 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'white-arrow':
     case 'pleat-arrow':
     case 'divisions':
-    case 'eye':
       return true;
     case 'push-arrow':
     case 'turn-over':
@@ -2076,11 +2213,14 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'label':
     case 'circle':
     case 'star':
+    case 'eye':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
       return false;
   }
 }
@@ -2093,8 +2233,8 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
  */
 export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
   if (!flipsArc(annotation.kind)) return false;
-  // A pleat arrow's Zs change sides, whichever way it points; an eye looks the other way, whichever way it looks.
-  if (annotation.kind === 'pleat-arrow' || annotation.kind === 'eye') return true;
+  // A pleat arrow's Zs change sides, whichever way it points.
+  if (annotation.kind === 'pleat-arrow') return true;
   // Equal divisions' line goes over, unless they are alike either way.
   if (annotation.kind === 'divisions') return !divisionsAlikeEitherSide(annotation);
   const shape = arrowShape(annotation);
@@ -2111,8 +2251,7 @@ export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
 
 /**
  * A fold arrow bulging the other way; a pleat arrow's Zs or equal divisions'
- * line on the other side; an eye looking the other way, its angle half a turn
- * on; anything else as it was. A shaped
+ * line on the other side; anything else as it was. A shaped
  * arrow is mirrored across its chord, every node and handle — a return shaped
  * by hand with it — which is what flipping an arc is; one whose ends meet has
  * no chord, and stays.
@@ -2120,10 +2259,6 @@ export function flipChangesArc(annotation: KnownDiagramAnnotation): boolean {
 export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
   if (!flipsArc(annotation.kind)) return annotation;
   if (annotation.kind === 'pleat-arrow' || annotation.kind === 'divisions') return withSide(annotation, annotation.mirrored !== true);
-  // An eye looks the other way (R3-9b A): turned over about its middle, across the way it looks.
-  if (annotation.kind === 'eye') {
-    return withGlyphAngle(annotation, keptTo(glyphAngle(glyphAngleOf(annotation) + 180), GLYPH_ANGLE_PRECISION));
-  }
   const shape = arrowShape(annotation);
   if (shape.kind === 'arc') return { ...annotation, bend: -shape.bend };
   const { from, to } = annotation;
@@ -2159,8 +2294,8 @@ export function flipAnnotationArc(annotation: KnownDiagramAnnotation): KnownDiag
 export function isDegenerate(annotation: KnownDiagramAnnotation, minLength: number): boolean {
   // A right angle has a corner and a way to open, not a length; a callout's
   // box is drawn wherever it sits, its point under it or not.
-  // A close-up or an enlarge area has an area, never less than a slip's
-  // (`closeUpRadiusWithin`, `zoomSideWithin`), not a length.
+  // A close-up, an enlarge area or a shape has an area, never less than a
+  // slip's (`closeUpRadiusWithin`, `zoomSideWithin`), not a length.
   const shape = ANNOTATION_SHAPES[annotation.kind];
   if (
     isPointKind(annotation.kind) ||
@@ -2168,7 +2303,8 @@ export function isDegenerate(annotation: KnownDiagramAnnotation, minLength: numb
     shape === 'callout' ||
     shape === 'close-up' ||
     shape === 'zoom' ||
-    shape === 'sight'
+    shape === 'sight' ||
+    shape === 'area'
   ) {
     return false;
   }
@@ -2278,6 +2414,8 @@ export function kindFromOtherSide(kind: DiagramAnnotationKind): DiagramAnnotatio
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
       return kind;
   }
 }
@@ -2308,6 +2446,7 @@ function carriedOnPicture(annotation: KnownDiagramAnnotation, move: PictureMove)
   if (annotation.kind === 'close-up') return carryCloseUp(annotation, move);
   if (annotation.kind === 'zoom') return carryZoom(annotation, move);
   if (annotation.kind === 'eye') return carryEye(annotation, move);
+  if (isAreaKind(annotation.kind)) return carryArea(annotation, move);
   if (annotation.path) {
     const carry = (nodes: readonly DiagramPathNode[]) => {
       const carried = nodes.map((node) => ({
@@ -2575,6 +2714,8 @@ export function flipsOver(kind: DiagramAnnotationKind): boolean {
     case 'circle':
     case 'star':
     case 'zoom':
+    case 'oval':
+    case 'rectangle':
       return false;
   }
 }

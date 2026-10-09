@@ -41,11 +41,11 @@ function armOf(annotation: KnownDiagramAnnotation, degrees: number): PicturePoin
 }
 
 describe('which marks have a transform box (Revision 3)', () => {
-  it('is a star’s and an eye’s in 18c: every other mark keeps its grips', () => {
+  it('is a star’s, an eye’s, an oval’s and a rectangle’s (18b–18d): every other mark keeps its grips', () => {
     const boxed = ANNOTATION_KINDS.filter((kind: DiagramAnnotationKind) =>
       hasTransformBox({ id: 'a', kind, from: [0.5, 0.5], to: [0.6, 0.5], radius: 0.1 })
     );
-    expect(boxed).toEqual(['star', 'eye']);
+    expect(boxed).toEqual(['star', 'eye', 'oval', 'rectangle']);
   });
 
   it('is the square a star’s tips reach, at its scale, turned by its own angle', () => {
@@ -260,9 +260,9 @@ describe('what a box writes, by kind (18b review)', () => {
     expect('scale' in boxed.resized(box, { center: box.center, width: box.width / 2, height: box.height / 2 })).toBe(false);
   });
 
-  it('is a star’s and an eye’s in 18c', () => {
+  it('is a star’s, an eye’s, an oval’s and a rectangle’s in 18d', () => {
     const boxed = ANNOTATION_KINDS.filter((kind) => boxedMarkOf({ id: 'a', kind, from: [0.5, 0.5], to: [0.6, 0.5], radius: 0.1 }) !== null);
-    expect(boxed).toEqual(['star', 'eye']);
+    expect(boxed).toEqual(['star', 'eye', 'oval', 'rectangle']);
   });
 });
 
@@ -345,5 +345,97 @@ describe('an eye’s box (18c)', () => {
     // Its middle, and its cornea's apex well inside its box: no handle, so a press moves it.
     expect(transformGripAt(eye(), [0.4, 0.5], { px, reach: REACH.coarse * px })).toBeNull();
     expect(transformGripAt(eye(), [0.4 + 0.4 * length(), 0.5], { px, reach: REACH.coarse * px })).toBeNull();
+  });
+});
+
+describe('an oval’s and a rectangle’s box (18d)', () => {
+  const shape = (kind: 'oval' | 'rectangle', more: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnotation => ({
+    id: 'r-1',
+    kind,
+    from: [0.4, 0.5],
+    to: [0.4, 0.5],
+    size: [0.4, 0.2],
+    ...more,
+  });
+  const px = pxAt(1);
+  const keys = { px, shift: false, alt: false };
+  const square = (annotation: KnownDiagramAnnotation, which: string): PicturePoint => {
+    const at = transformBoxHandles(annotation, px)!.handles.scale.find((each) => each.handle === which)!.at;
+    return [at.x, at.y];
+  };
+  const near = (actual: readonly number[], expected: readonly number[]) =>
+    actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, 9));
+
+  it('is its outline’s own box, turned by its angle, with no floor, and eight squares: it does not keep its proportions (R3-29c A)', () => {
+    for (const kind of ['oval', 'rectangle'] as const) {
+      expect(transformBoxOf(shape(kind, { angle: 30 }))).toEqual({ center: { x: 0.4, y: 0.5 }, width: 0.4, height: 0.2, rotation: Math.PI / 6 });
+      expect(boxedMarkOf(shape(kind))!.keepsProportions).toBe(false);
+      // Small on screen, its box is its own: a shape is sized to an area, not printed at a size.
+      const small = shape(kind, { size: [0.015, 0.015] });
+      expect(drawnTransformBox(small, pxAt(0.2))).toEqual(transformBoxOf(small));
+      expect(transformBoxHandles(shape(kind), px)!.handles.scale.map((each) => each.handle)).toEqual(['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']);
+    }
+  });
+
+  it('resizes freely by a corner, the opposite corner held; Shift keeps its proportions; Alt holds its centre', () => {
+    const se = square(shape('rectangle'), 'se');
+    // Drawn out 0.1 right and 0.05 down: the NW corner (0.2, 0.4) stays put.
+    const free = transformDragged(shape('rectangle'), { kind: 'scale', handle: 'se' }, se, [se[0] + 0.1, se[1] + 0.05], keys);
+    near(free.size!, [0.5, 0.25]);
+    near(free.from, [0.45, 0.525]);
+    expect(free.to).toEqual(free.from);
+    // Out 0.2 right and no further down, with Shift: in its proportions, 2 : 1.
+    const kept = transformDragged(shape('rectangle'), { kind: 'scale', handle: 'se' }, se, [se[0] + 0.2, se[1]], { ...keys, shift: true });
+    near(kept.size!, [0.6, 0.3]);
+    near(kept.from, [0.5, 0.55]);
+    // With Alt, about its centre: as far again the other way.
+    const middle = transformDragged(shape('oval'), { kind: 'scale', handle: 'se' }, se, [se[0] + 0.1, se[1] + 0.05], { ...keys, alt: true });
+    near(middle.size!, [0.6, 0.3]);
+    expect(middle.from).toEqual([0.4, 0.5]);
+  });
+
+  it('resizes one side by an edge, turned with it, the other side held', () => {
+    const turned = shape('oval', { angle: 90 });
+    // Its east edge, turned a quarter, is at the bottom: drawn 0.1 further down.
+    const e = square(turned, 'e');
+    near(e, [0.4, 0.7]);
+    const longer = transformDragged(turned, { kind: 'scale', handle: 'e' }, e, [e[0], e[1] + 0.1], keys);
+    near(longer.size!, [0.5, 0.2]);
+    near(longer.from, [0.4, 0.55]);
+    expect(longer.angle).toBe(90);
+  });
+
+  it('is held to an enlarge area’s sides’ range as the drag goes, its held side staying put (R3-30b A)', () => {
+    const se = square(shape('rectangle'), 'se');
+    const flat = transformDragged(shape('rectangle'), { kind: 'scale', handle: 'se' }, se, [se[0] + 5, se[1] - 0.2], keys);
+    expect(flat.size).toEqual([2, 0.015]);
+    // The NW corner, where it was.
+    near([flat.from[0] - 1, flat.from[1] - 0.0075], [0.2, 0.4]);
+  });
+
+  it('turns as far as the pointer turns about its centre, Shift in 15° steps, within [0, 180) and written only when turned', () => {
+    const turn = (annotation: KnownDiagramAnnotation, degrees: number, shift = false) => {
+      const at = transformBoxHandles(annotation, px)!.handles.rotate.find((each) => each.corner === 'ne')!.at;
+      const a = (degrees * Math.PI) / 180;
+      const [dx, dy] = [at.x - 0.4, at.y - 0.5];
+      const to: PicturePoint = [0.4 + dx * Math.cos(a) - dy * Math.sin(a), 0.5 + dx * Math.sin(a) + dy * Math.cos(a)];
+      return transformDragged(annotation, { kind: 'rotate', corner: 'ne' }, [at.x, at.y], to, { ...keys, shift });
+    };
+    expect(turn(shape('oval'), 22.5).angle).toBeCloseTo(22.5, 9);
+    expect(turn(shape('oval'), 22, true).angle).toBe(15);
+    // Past a half turn it reads as its own turn less one: 170° on 30° is 20°.
+    expect(turn(shape('rectangle', { angle: 30 }), 170).angle).toBeCloseTo(20, 9);
+    expect('angle' in turn(shape('rectangle', { angle: 30 }), 150, true)).toBe(false);
+    expect(turn(shape('rectangle', { angle: 30 }), 10).size).toEqual([0.4, 0.2]);
+  });
+
+  it('takes any of its eight squares, its turn handles, and nothing inside it: a press there is its body’s', () => {
+    for (const which of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const) {
+      expect(transformGripAt(shape('rectangle'), square(shape('rectangle'), which), { px, reach: REACH.fine * px })).toEqual({
+        kind: 'scale',
+        handle: which,
+      });
+    }
+    expect(transformGripAt(shape('oval'), [0.45, 0.52], { px, reach: REACH.coarse * px })).toBeNull();
   });
 });

@@ -396,6 +396,8 @@ function Selection({
       return <ZoomOutlineSelection outline={zoomOutlineOf(annotation)} layout={layout} zoom={zoom} movable={movable} />;
     case 'star':
     case 'eye':
+    case 'oval':
+    case 'rectangle':
       // Its transform box, as an image's on the Edit canvas (Revision 3).
       return <TransformBoxSelection annotation={annotation} layout={layout} zoom={zoom} movable={movable} />;
   }
@@ -621,10 +623,12 @@ function ZoomOutlineSelection({
 }
 
 /**
- * A selected star's or eye's transform box (Revision 3): the Edit canvas's image
- * selection, from the same layout (`transformHandles`) — its outline at
- * 1.5 screen px, a square at each corner that scales it about its centre, and
- * a round handle 18 screen px out from each corner that turns it — in the
+ * A selected star's, eye's or shape's transform box (Revision 3): the Edit
+ * canvas's image selection, from the same layout (`transformHandles`) — its
+ * outline at 1.5 screen px, a square at each corner that scales a glyph about
+ * its centre, or at each corner and each edge's middle that resizes an oval or
+ * a rectangle, and a round handle 18 screen px out from each corner that
+ * turns it — in the
  * selection's ink, the squares and handles white as the Diagram's grips are,
  * sized for the screen at any zoom — their strokes too, divided by the
  * camera's zoom as the frame line's are: the world is drawn under the

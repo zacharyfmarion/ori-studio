@@ -94,6 +94,10 @@ import {
   flipCentre,
   flipsOver,
   keptTo,
+  AREA_SIDE,
+  areaFromCorners,
+  withAreaAngle,
+  withAreaBox,
   type PictureMove,
   type PicturePoint,
 } from './annotationModel';
@@ -1461,11 +1465,11 @@ describe('an eye (Revision 3)', () => {
     expect(flipAnnotation(eye({ angle: 90 }), 'vertical')).toEqual(eye({ angle: 270 }));
   });
 
-  it('looks the other way with Flip (F): one press turns a left-looking eye to look right (R3-9b A)', () => {
-    expect(flipsArc('eye')).toBe(true);
-    expect(flipAnnotationArc(eye({ angle: 180 }))).toEqual(eye());
-    expect(flipAnnotationArc(eye({ angle: 30, scale: 2 }))).toEqual(eye({ angle: 210, scale: 2 }));
-    expect(flipChangesArc(eye())).toBe(true);
+  it('has no arc to flip: F on an eye is its Flip row’s Horizontal, not a half turn (R3-9b A, F amended 2026-10-08)', () => {
+    expect(flipsArc('eye')).toBe(false);
+    const looking = eye({ angle: 30, scale: 2 });
+    expect(flipAnnotationArc(looking)).toBe(looking);
+    expect(flipChangesArc(looking)).toBe(false);
   });
 
   it('turns with the picture through a carry, a mirror reflecting the way it looks; its scale a print size', () => {
@@ -1486,5 +1490,107 @@ describe('an eye (Revision 3)', () => {
     expect(carryAnnotation(looking, grown)).toEqual(eye({ from: [0.6, 0.8], to: [0.6, 0.8], angle: 30, scale: 1.5 }));
     // Moved, as a paste moves it.
     expect(moveAnnotation(looking, [0.25, 0.25])).toEqual({ ...looking, from: [0.55, 0.65], to: [0.55, 0.65] });
+  });
+});
+
+describe('an oval and a rectangle (Revision 3)', () => {
+  const shape = (kind: 'oval' | 'rectangle', more: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnotation => ({
+    id: 's-1',
+    kind,
+    from: [0.4, 0.5],
+    to: [0.4, 0.5],
+    size: [0.4, 0.2],
+    ...more,
+  });
+  const near = (actual: readonly number[], expected: readonly number[]) =>
+    actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, 9));
+
+  it('is dragged corner to corner as Enlarge in Frame’s area is, free of any snap: Shift a circle or a square, Alt from its middle (R3-10b A)', () => {
+    expect(areaFromCorners('oval', [0.1, 0.2], [0.5, 0.4], {}, id)).toEqual({
+      id: 'annotation-1',
+      kind: 'oval',
+      from: [0.30000000000000004, 0.30000000000000004],
+      to: [0.30000000000000004, 0.30000000000000004],
+      size: [0.4, 0.2],
+    });
+    // Dragged up and to the left, the same box.
+    expect(areaFromCorners('rectangle', [0.5, 0.4], [0.1, 0.2], {}, id).size).toEqual([0.4, 0.2]);
+    expect(areaFromCorners('oval', [0.1, 0.2], [0.5, 0.4], { square: true }, id).size).toEqual([0.4, 0.4]);
+    expect(areaFromCorners('rectangle', [0.5, 0.5], [0.6, 0.55], { fromMiddle: true }, id)).toMatchObject({ from: [0.5, 0.5] });
+    near(areaFromCorners('rectangle', [0.5, 0.5], [0.6, 0.55], { fromMiddle: true }, id).size!, [0.2, 0.1]);
+    // As the tool lays one, and a click a standard size round where it was clicked.
+    expect(createAnnotation('rectangle', [0.1, 0.2], [0.5, 0.4], SQUARE, id)).toEqual(areaFromCorners('rectangle', [0.1, 0.2], [0.5, 0.4], {}, id));
+    expect(createAnnotation('oval', [0.3, 0.3], [0.3, 0.3], SQUARE, id)).toMatchObject({ from: [0.3, 0.3], size: [0.3, 0.3] });
+    expect(placedByClick('oval')).toBe(true);
+    expect(placedByClick('rectangle')).toBe(true);
+    expect(isDegenerate(shape('oval'), MIN_ANNOTATION_LENGTH)).toBe(false);
+  });
+
+  it('is held to an enlarge area’s sides’ range, from a slip to twice the frame (R3-30b A)', () => {
+    expect(AREA_SIDE).toEqual({ min: MIN_ANNOTATION_LENGTH, max: 2 });
+    expect(areaFromCorners('oval', [-1, -1], [3, 0.4], {}, id).size).toEqual([2, 1.4]);
+    expect(withAreaBox(shape('rectangle'), [0.5, 0.5], [5, 0.001]).size).toEqual([2, MIN_ANNOTATION_LENGTH]);
+  });
+
+  it('is cleaned as the file reads it: its centre within reach and `to` on it, its size held, its turn within [0, 180)', () => {
+    const clean = shape('oval', { angle: 30 });
+    expect(cleanAnnotation(clean)).toBe(clean);
+    expect(cleanAnnotation(shape('rectangle', { to: [0.9, 0.9], size: [3, 0.1], angle: 210 }))).toEqual(
+      shape('rectangle', { size: [2, 0.1], angle: 30 })
+    );
+    const { size: _none, ...unsized } = shape('oval');
+    expect(cleanAnnotation(unsized)).toEqual(shape('oval', { size: [0.3, 0.3] }));
+    expect(cleanAnnotation(shape('oval', { angle: Number.NaN }))).toEqual(shape('oval'));
+  });
+
+  it('is turned within [0, 180), a hundredth of a degree at a time, and written only when it is turned', () => {
+    expect(withAreaAngle(shape('oval'), 37.123)).toEqual(shape('oval', { angle: 37.12 }));
+    expect(withAreaAngle(shape('oval'), -30)).toEqual(shape('oval', { angle: 150 }));
+    expect(withAreaAngle(shape('rectangle', { angle: 40 }), 180)).toEqual(shape('rectangle'));
+    expect(withAreaAngle(shape('rectangle'), 179.996)).toEqual(shape('rectangle'));
+  });
+
+  it('has no ends, no path, no text, no colour, nothing behind a flap and no Flip: its box scales and turns it', () => {
+    for (const kind of ['oval', 'rectangle'] as const) {
+      expect(annotationEnds(shape(kind))).toEqual([]);
+      expect(canBeShaped(kind)).toBe(false);
+      expect(carriesText(kind)).toBe(false);
+      expect(carriesColor(kind)).toBe(false);
+      expect(behindEnds(kind)).toEqual([]);
+      expect(flipsOver(kind)).toBe(false);
+      expect(flipsArc(kind)).toBe(false);
+      expect(kindFromOtherSide(kind)).toBe(kind);
+    }
+  });
+
+  it('is carried with the paper as an enlarge area is (`carryArea`): its centre with the face, its size by the move’s scale, its turn by its turn, a mirror negating it', () => {
+    const turned = shape('oval', { angle: 30 });
+    // A quarter turn clockwise about the middle, the picture grown half again.
+    const quarter: PictureMove = {
+      point: ([x, y]) => [0.5 + 1.5 * (0.5 - y), 0.5 + 1.5 * (x - 0.5)],
+      mirrors: false,
+      turnDeg: 90,
+    };
+    const carried = carryAnnotation(turned, quarter);
+    near(carried.from, [0.5, 0.35]);
+    expect(carried.to).toEqual(carried.from);
+    near(carried.size!, [0.6, 0.3]);
+    expect(carried.angle).toBeCloseTo(120, 9);
+    // Mirrored left to right, and Turn Over: its angle negated, its centre with the paper.
+    const mirrored = carryAnnotation(turned, mirrorMove(SQUARE));
+    expect(mirrored).toEqual(shape('oval', { from: [0.6, 0.5], to: [0.6, 0.5], angle: 150 }));
+    expect(carryAnnotation(turned, { ...mirrorMove(SQUARE), otherSide: true })).toEqual(mirrored);
+    expect(carryAnnotation(mirrored, mirrorMove(SQUARE)).angle).toBeCloseTo(30, 9);
+    // An upright rectangle mirrored is upright still: no angle written.
+    expect('angle' in carryAnnotation(shape('rectangle'), mirrorMove(SQUARE))).toBe(false);
+    // A spread's own turn there, by `vector`: never stretched with the face under its rim.
+    const spread: PictureMove = { point: ([x, y]) => [x + 0.1, y * 3], vector: ([x, y]) => [y, -x], mirrors: false, turnDeg: -90 };
+    const spreadOut = carryAnnotation(turned, spread);
+    near(spreadOut.from, [0.5, 1.5]);
+    near(spreadOut.size!, [0.4, 0.2]);
+    expect(spreadOut.angle).toBeCloseTo(120, 9);
+    // Grown with the picture, as into an enlarged step's window: it rings the same part of the picture.
+    const grown: PictureMove = { point: ([x, y]) => [2 * x, 2 * y], mirrors: false, turnDeg: 0 };
+    expect(carryAnnotation(turned, grown)).toEqual(shape('oval', { from: [0.8, 1], to: [0.8, 1], size: [0.8, 0.4], angle: 30 }));
   });
 });

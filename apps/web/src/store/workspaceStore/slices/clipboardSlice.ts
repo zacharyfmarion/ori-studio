@@ -86,6 +86,9 @@ function copiedViewOf(diagram: DiagramDocument | null, stepId: string) {
   return step ? copiedView(step) : undefined;
 }
 
+/** The pastes of annotations, counted: `diagramPasted`'s nonce. */
+let diagramPastes = 0;
+
 export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set, get) => ({
   clipboard: null,
   clipboardPasteCount: 0,
@@ -178,7 +181,11 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
         select: pasted[0]?.id ?? null,
       });
       if (!changed) return;
-      set({ clipboard: pastedOnto(clipboard, stepId) });
+      // Told to the step's canvas, which steps back to show it if it lies out of view (18d review).
+      set({
+        clipboard: pastedOnto(clipboard, stepId),
+        diagramPasted: { stepId, ids: pasted.map(({ id }) => id), nonce: (diagramPastes += 1) },
+      });
       if (get().diagramAnnotateTool !== EDIT_PATH) get().setDiagramAnnotateTool(null);
       return;
     }

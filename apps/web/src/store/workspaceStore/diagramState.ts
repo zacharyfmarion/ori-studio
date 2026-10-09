@@ -45,6 +45,7 @@ export const DIAGRAM_SCOPED_KEYS = [
   'diagramReferencesBrowser',
   'diagramAnchorPick',
   'diagramPlacesSettled',
+  'diagramPasted',
 ] as const;
 
 /**
@@ -252,6 +253,7 @@ export function discardDiagramState(): DiagramScopedState {
     diagramReferencesBrowser: null,
     diagramAnchorPick: null,
     diagramPlacesSettled: null,
+    diagramPasted: null,
   };
 }
 

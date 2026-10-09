@@ -9,6 +9,7 @@ import { applyAnnotationEdit } from './applyAnnotationEdit';
 const tracked = vi.hoisted(() => ({
   trackDiagramArrowShaped: vi.fn(),
   trackDiagramAnnotationFlipped: vi.fn(),
+  trackDiagramEnlargementChanged: vi.fn(),
 }));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
@@ -35,9 +36,24 @@ beforeEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
   tracked.trackDiagramArrowShaped.mockClear();
   tracked.trackDiagramAnnotationFlipped.mockClear();
+  tracked.trackDiagramEnlargementChanged.mockClear();
 });
 
 describe('applyAnnotationEdit', () => {
+  it('counts a deleted enlarge area as an enlargement changed, and never a deleted oval or rectangle (Revision 3)', () => {
+    const stepId = stepWith([
+      { id: 'o', kind: 'oval', from: [0.5, 0.5], to: [0.5, 0.5], size: [0.3, 0.2] },
+      { id: 'r', kind: 'rectangle', from: [0.4, 0.4], to: [0.4, 0.4], size: [0.2, 0.2], angle: 30 },
+      { id: 'z', kind: 'zoom', from: [0.3, 0.3], to: [0.3, 0.3], size: [0.2, 0.2] },
+    ]);
+    expect(applyAnnotationEdit(state(), stepId, annotationActionEdit('delete', 'o'))).toBe(true);
+    expect(applyAnnotationEdit(state(), stepId, annotationActionEdit('delete', 'r'))).toBe(true);
+    expect(tracked.trackDiagramEnlargementChanged).not.toHaveBeenCalled();
+    expect(applyAnnotationEdit(state(), stepId, annotationActionEdit('delete', 'z'))).toBe(true);
+    expect(tracked.trackDiagramEnlargementChanged.mock.calls).toEqual([['area', 'deleted']]);
+    expect(annotations()).toEqual([]);
+  });
+
   it('counts each flip that turns a mark over, by its kind as the events spell it and the way it went', () => {
     const stepId = stepWith([
       { id: 's', kind: 'white-arrow', from: [0.2, 0.5], to: [0.6, 0.4], path: [{ at: [0.2, 0.5] }, { at: [0.6, 0.4] }], width: 'narrow', tail: 'square', fill: 'black' },

@@ -1,0 +1,170 @@
+{
+  "oval": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><ellipse cx=\"94.488\" cy=\"75.591\" rx=\"28.346\" ry=\"37.795\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></ellipse></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><ellipse cx=\"141.73\" cy=\"113.384\" rx=\"42.519\" ry=\"56.692\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></ellipse></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g stroke-linejoin=\"round\"><g data-annotation-id=\"oval\"><ellipse cx=\"94.488\" cy=\"75.591\" rx=\"28.346\" ry=\"37.795\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></ellipse></g></g>"
+  },
+  "rectangle": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><rect x=\"56.693\" y=\"51.969\" width=\"75.591\" height=\"47.244\" stroke-linejoin=\"miter\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></rect></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><rect x=\"85.038\" y=\"77.952\" width=\"113.384\" height=\"70.865\" stroke-linejoin=\"miter\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></rect></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g stroke-linejoin=\"round\"><g data-annotation-id=\"rectangle\"><rect x=\"56.693\" y=\"51.969\" width=\"75.591\" height=\"47.244\" stroke-linejoin=\"miter\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></rect></g></g>"
+  },
+  "oval-turned": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><ellipse cx=\"85.039\" cy=\"66.142\" rx=\"47.244\" ry=\"18.898\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(30 85.039 66.142)\"></ellipse></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><ellipse cx=\"127.557\" cy=\"99.211\" rx=\"70.865\" ry=\"28.346\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(30 127.557 99.211)\"></ellipse></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g stroke-linejoin=\"round\"><g data-annotation-id=\"oval-turned\"><ellipse cx=\"85.039\" cy=\"66.142\" rx=\"47.244\" ry=\"18.898\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(30 85.039 66.142)\"></ellipse></g></g>"
+  },
+  "rectangle-turned": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><rect x=\"75.591\" y=\"61.417\" width=\"56.693\" height=\"28.346\" stroke-linejoin=\"miter\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(117.5 103.937 75.591)\"></rect></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><rect x=\"113.384\" y=\"92.124\" width=\"85.038\" height=\"42.519\" stroke-linejoin=\"miter\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(117.5 155.903 113.384)\"></rect></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g stroke-linejoin=\"round\"><g data-annotation-id=\"rectangle-turned\"><rect x=\"75.591\" y=\"61.417\" width=\"56.693\" height=\"28.346\" stroke-linejoin=\"miter\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(117.5 103.937 75.591)\"></rect></g></g>"
+  },
+  "circle": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><ellipse cx=\"56.693\" cy=\"56.693\" rx=\"23.622\" ry=\"23.622\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></ellipse></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><ellipse cx=\"85.038\" cy=\"85.038\" rx=\"35.432\" ry=\"35.432\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></ellipse></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g stroke-linejoin=\"round\"><g data-annotation-id=\"circle\"><ellipse cx=\"56.693\" cy=\"56.693\" rx=\"23.622\" ry=\"23.622\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></ellipse></g></g>"
+  },
+  "under-lines": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><rect x=\"47.244\" y=\"56.693\" width=\"94.488\" height=\"56.693\" stroke-linejoin=\"miter\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(15 94.488 85.039)\"></rect></g>\n  <line x1=\"40.00\" y1=\"160.00\" x2=\"360.00\" y2=\"160.00\" stroke=\"#231f20\" stroke-width=\"2.12\" stroke-linecap=\"butt\" stroke-dasharray=\"8.47 4.23\" stroke-dashoffset=\"9.33\"/>\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><path d=\"M 37.795 103.937 A 94.488 94.488 0 0 1 124.548 99.935\" stroke-width=\"1\" stroke-linecap=\"round\" fill=\"none\" stroke=\"#231f20\"></path><path d=\"M 132.463 103.578 L 121.504 101.974 Q 126.285 100.734 124.118 96.296 Z\" fill=\"#231f20\"></path></g></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><rect x=\"70.865\" y=\"85.038\" width=\"141.73\" height=\"85.038\" stroke-linejoin=\"miter\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(15 141.73 127.557)\"></rect></g>\n  <line x1=\"40.35\" y1=\"143.38\" x2=\"267.11\" y2=\"143.38\" stroke=\"#231f20\" stroke-width=\"1.00\" stroke-linecap=\"butt\" stroke-dasharray=\"4.00 2.00\" stroke-dashoffset=\"2.62\"/>\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><path d=\"M 56.692 155.903 A 141.73 141.73 0 0 1 190.748 151.781\" stroke-width=\"1\" stroke-linecap=\"round\" fill=\"none\" stroke=\"#231f20\"></path><path d=\"M 198.546 155.666 L 187.642 153.726 Q 192.46 152.634 190.429 148.131 Z\" fill=\"#231f20\"></path></g></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g stroke-linejoin=\"round\"><g data-annotation-id=\"under-lines\"><rect x=\"47.244\" y=\"56.693\" width=\"94.488\" height=\"56.693\" stroke-linejoin=\"miter\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(15 94.488 85.039)\"></rect></g><g data-annotation-id=\"valley\"><line x1=\"18.897637795275593\" y1=\"75.59055118110237\" x2=\"170.07874015748033\" y2=\"75.59055118110237\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linecap=\"butt\" stroke-dasharray=\"4 2\" stroke-dashoffset=\"4.40944881889763\"></line></g><g data-annotation-id=\"arrow\"><g><path d=\"M 37.795 103.937 A 94.488 94.488 0 0 1 124.548 99.935\" stroke-width=\"1\" stroke-linecap=\"round\" fill=\"none\" stroke=\"#231f20\"></path><path d=\"M 132.463 103.578 L 121.504 101.974 Q 126.285 100.734 124.118 96.296 Z\" fill=\"#231f20\"></path></g></g></g>"
+  },
+  "off-paper": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><ellipse cx=\"9.449\" cy=\"75.591\" rx=\"28.346\" ry=\"18.898\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></ellipse></g>\n</g>",
+      "bounds": {
+        "x": -40.793749999999996,
+        "y": 0,
+        "width": 440.79375,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><ellipse cx=\"14.173\" cy=\"113.384\" rx=\"42.519\" ry=\"28.346\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></ellipse></g>\n</g>",
+      "bounds": {
+        "x": -16.720999999999997,
+        "y": 30,
+        "width": 312.181,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g stroke-linejoin=\"round\"><g data-annotation-id=\"off-paper\"><ellipse cx=\"9.449\" cy=\"75.591\" rx=\"28.346\" ry=\"18.898\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\"></ellipse></g></g>"
+  },
+  "references-face": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><ellipse cx=\"94.488\" cy=\"75.591\" rx=\"28.346\" ry=\"37.795\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(60 94.488 75.591)\"></ellipse></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><ellipse cx=\"141.73\" cy=\"113.384\" rx=\"42.519\" ry=\"56.692\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(60 141.73 113.384)\"></ellipse></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g stroke-linejoin=\"round\"><g data-annotation-id=\"references-face\"><ellipse cx=\"94.488\" cy=\"75.591\" rx=\"28.346\" ry=\"37.795\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.75\" transform=\"rotate(60 94.488 75.591)\"></ellipse></g></g>"
+  }
+}

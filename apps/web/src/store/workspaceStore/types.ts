@@ -1991,6 +1991,15 @@ export interface DiagramSliceState {
    * Undo and redo leave it as it is. Not saved.
    */
   diagramPlacesSettled: { count: number; nonce: number; entry: SnapshotEntry<DiagramDocument | null> | null } | null;
+  /**
+   * The newest paste of annotations (18d review): the step it landed on, the
+   * ids of the marks it put there, and a `nonce` that is new with every
+   * paste. A paste lands where its marks were copied, which can be out of
+   * view — on another picture's enlarged step, beside its window (Revision
+   * 2, decision 7) — so the step's canvas steps back to show it, once. Undo
+   * and redo leave it as it is. Not saved.
+   */
+  diagramPasted: { stepId: string; ids: readonly string[]; nonce: number } | null;
 }
 
 /** What an anchor is being picked for: an enlarge area on a step, or the step's own frame. */

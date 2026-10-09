@@ -149,6 +149,10 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.toolStar', 'Star');
     case 'diagram.toolEye':
       return t('tools:diagram.toolEye', 'Eye');
+    case 'diagram.toolOval':
+      return t('tools:diagram.toolOval', 'Oval');
+    case 'diagram.toolRectangle':
+      return t('tools:diagram.toolRectangle', 'Rectangle');
     case 'diagram.toolRightAngle':
       return t('tools:diagram.toolRightAngle', 'Right Angle');
     case 'diagram.toolCallout':

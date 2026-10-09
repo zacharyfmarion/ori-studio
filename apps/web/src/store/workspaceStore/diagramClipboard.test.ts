@@ -70,6 +70,23 @@ describe('copying and pasting annotations', () => {
     expect(marks(second)).toHaveLength(1);
   });
 
+  it('tells the step’s canvas what each paste put there, with a nonce of its own, for it to bring into view (18d review)', () => {
+    const [, second] = twoSteps();
+    state().copySelection();
+    expect(state().diagramPasted).toBeNull();
+    state().openDiagramStep(second, 'annotate');
+    void state().pasteClipboard();
+    const first = state().diagramPasted!;
+    expect(first).toEqual({ stepId: second, ids: [marks(second)[0]!.id], nonce: expect.any(Number) });
+    void state().pasteClipboard();
+    expect(state().diagramPasted).toEqual({ stepId: second, ids: [marks(second)[1]!.id], nonce: expect.any(Number) });
+    expect(state().diagramPasted!.nonce).not.toBe(first.nonce);
+    // Undo leaves it as it is: nothing new to show.
+    const last = state().diagramPasted;
+    void state().undo();
+    expect(state().diagramPasted).toBe(last);
+  });
+
   it('pastes on the step a copy came from down and right of its original, each further paste a step on', () => {
     const [first] = twoSteps();
     state().copySelection();

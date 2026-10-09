@@ -5,7 +5,8 @@
 (PR #446). 18b (stars, the transform box, and 18a's follow-up hint)
 built, gated and committed 2026-10-08, not yet pushed (18b, As
 built). 18c (the eye) built, reviewed, gated and committed 2026-10-08,
-not yet pushed (18c, As built). 18.0 (the X-ray spike) run 2026-10-08
+not yet pushed (18c, As built). 18a–18d pushed (PR #446). 18d (shapes, and 18c's follow-ups) built, reviewed, gated and committed
+2026-10-08 (18d, As built). 18.0 (the X-ray spike) run 2026-10-08
 on `claude/diagram-xray`: go, with three changes to what 18e builds
 (18.0 results).** His answers, each recorded under its
 decision:
@@ -45,11 +46,26 @@ decision:
   (the eye laid by a drag from the viewer toward what they look at, Shift
   for 15° steps, a click looking at the picture's middle), recorded
   DECIDED under it.
+- **Everything 18d uses** (2026-10-08), under the same instruction: R3-10b
+  A (separate Oval and Rectangle tools), R3-11a A (no fill), R3-11b A
+  (square corners), R3-11d B (painted under every line and mark), R3-29c A
+  (a free resize, Shift keeping the proportions, Alt about the centre),
+  R3-30b A (the enlarge area's sides' range) and R3-31 A (a press inside a
+  selected shape moves it unless a mark is under it), each recorded DECIDED
+  under it; and 18c's two questions for Zach (18c, For Zach), settled the
+  same way: the eye draws in the ring pen (0.5625 pt in the Diagram preset),
+  not the aux pen, to match his sketch — an amendment to R3-26's
+  application, recorded under R3-26 — and F on an eye is Flip Horizontal
+  (mirrored across, so it stays as upright as it was and looks the other
+  way), not a half turn, recorded under R3-9b.
 
-**Still PENDING:** R3-10b, R3-11a, R3-11b, R3-11d, R3-16a,
-R3-16c, R3-17 to R3-22, R3-29c, R3-30b and R3-31. Under the same
-instruction (2026-10-08) each will be built as recommended when its phase
-comes, unless it is a large fork in the design.
+**Still PENDING:** R3-16a, R3-16c and R3-17 to R3-22 (X-ray). Under the
+same instruction (2026-10-08) each will be built as recommended when its
+phase comes, unless it is a large fork in the design. R3-34 (where a paste
+from another picture's whole step lands on an enlarged step), raised by
+18d's review: built as recommended, A, which leaves Revision 2's decision 7
+as Zach confirmed it; B or C would change that decision, so they wait for
+him.
 
 Phase 18 of `implementation-plans/diagram-workspace.md`, after Phase 17
 (`implementation-plans/diagram-references-annotations.md`). It is built on
@@ -785,8 +801,8 @@ form was not checked.
   `angle`. The glyph is symmetric about the way it looks, so it is never
   mirrored as a glyph. Its direction is measured after projecting, so a
   mirrored picture turns it with the paper. `DIAGRAM_EYE_INK` sets it about
-  5 mm long at `scale` 1, in the aux pen (R3-26 A), in `ink.mark`, with no
-  fill.
+  5 mm long at `scale` 1, in the ring pen (R3-26 A, amended for the eye
+  after 18c: built first in the aux pen), in `ink.mark`, with no fill.
 - **Tool (R3-8 A).** Eye, in Marks after Equal Divisions, key Y (R3-25 A).
   Drag from where the viewer stands toward what they look at: the drag
   sets `angle`, and Shift holds it to 15° steps (R3-28 A). A click lays it
@@ -803,8 +819,9 @@ form was not checked.
   (`boxContainsModelPoint`).
 - **Layers.** The row; the Flip row (Horizontal, Vertical) about its centre
   (R3-9b A), `flipsOver` true and `flipCentre` its `from`, Horizontal
-  setting its angle to 180° less it and Vertical to its negative; and the
-  Rotation row (R3-33 A).
+  setting its angle to 180° less it and Vertical to its negative — F is
+  the row's Horizontal (R3-9b, amended after 18c); and the Rotation row
+  (R3-33 A).
 - **Carry.** Its centre goes with the face under it, and its `angle` turns
   with the picture, as `carryZoom` turns an area's
   (`annotationModel.ts:1714-1740`); a mirror reflects the way it looks. Its
@@ -851,6 +868,16 @@ within R3-30a's range. The options were:
   way it looks, so a flip is only ever a turn.
 - **Recommended: A.** Looking the other way is the common change, and F
   already does it for every mark that has a way it points.
+- **What F does, amended 2026-10-08 after 18c** (18c, For Zach; Zach,
+  2026-10-08: "go with your recs from now on unless there is a large fork
+  in the design to be figured out, until i say otherwise"): F on an eye is
+  its Flip row's Horizontal — mirrored across, so a level eye stays level
+  and an eye looking down and right looks down and left (30° to 150°) — not
+  the half turn 18c built (30° to 210°). It is the row's own verb, so the
+  eye has no Flip of its own beside the row, F's chord names Horizontal,
+  and it is counted as the row's flips are (`diagram annotation flipped`,
+  `horizontal`). Looking straight up or down, F changes nothing and the key
+  falls through.
 
 ### 4. Shapes: ovals and rectangles
 
@@ -887,8 +914,9 @@ this.
   or a square; Alt draws from the middle, as Enlarge in Frame does. A
   click puts down a standard size, as an enlarge area's click does
   (`placedByClick`). Shapes are put down freely (R3-24 A). The tool stays
-  in hand. Help: "Drag from corner to corner round an area to ring it." The
-  Shift and Alt lines reuse Enlarge in Frame's.
+  in hand. Help: "Drag from corner to corner round an area to ring it.
+  Click for a standard size." (the second sentence added in 18d's review).
+  The Shift and Alt lines reuse Enlarge in Frame's.
 - **Selected**, it shows the transform box: eight squares resize it, free,
   Shift keeping its proportions and Alt about its centre (R3-29c A), held
   to R3-30b's range; four turn handles turn it, Shift for 15° steps. An
@@ -907,7 +935,7 @@ this.
   turn handles make. Turn Over
   carries it the same way. A paste is offset. Copied into an enlarged
   step's window it grows with the window, so it rings the same part of the
-  picture. On an enlarged step a shape reaching out of the frame is drawn
+  picture, up to R3-30b's largest side (18d, As built). On an enlarged step a shape reaching out of the frame is drawn
   whole, and badged only when it lies wholly outside.
 - **Analytics.** `tool: oval | rectangle`, `snap: none`. A deleted shape is
   not counted as an enlargement (`applyAnnotationEdit`). A resize or a turn
@@ -927,7 +955,7 @@ later: "yes". The note asks for "arbitrary shapes (rectangle, circle)".
   any outline; Zach should confirm that reading. B and C can follow if a
   step needs them.
 
-**R3-10b. Which tools, and their names. PENDING.**
+**R3-10b. Which tools, and their names. DECIDED: A.** Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise". Built in 18d.
 - A. Two tools, **Oval** and **Rectangle**, each dragged corner to corner,
   Shift for a circle or a square. Circle (O) stays the ring round a point.
 - B. One **Shape** tool with Oval | Rectangle on the rail while it is in
@@ -940,14 +968,14 @@ later: "yes". The note asks for "arbitrary shapes (rectangle, circle)".
   Oval do different jobs. B hides one shape behind the other. C makes a
   short drag ambiguous. D renames a tool people already use.
 
-**R3-11a. A shape's fill. PENDING.**
+**R3-11a. A shape's fill. DECIDED: A.** Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise". Built in 18d.
 - A. None.
 - B. A Fill row, None | White.
 - **Recommended: A.** The sample's ovals have none and lie over the
   creases. A white fill hides the part of the picture the shape is there to
   point at.
 
-**R3-11b. A rectangle's corners. PENDING.**
+**R3-11b. A rectangle's corners. DECIDED: A.** Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise". Built in 18d.
 - A. Square only.
 - B. A Rounded switch, using the enlarge area's 0.22.
 - **Recommended: A.** A rounded rectangle is Enlarge in Frame's look, and
@@ -959,7 +987,7 @@ turn handles, as an image has on the Edit canvas. The options were:
 - A. Upright, turned only when the picture turns.
 - B. A turn handle.
 
-**R3-11d. Where a shape is painted. PENDING.** `annotationMarks` paints
+**R3-11d. Where a shape is painted. DECIDED: B.** Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise". Built in 18d. `annotationMarks` paints
 the primitives, then enlarge areas' outlines and close-ups' rings over
 them; the step's lines (Valley, Mountain, Hidden, Solid) are painted before
 all of it (`DiagramAnnotationLayer.tsx:61-67`).
@@ -1371,6 +1399,15 @@ The x-ray's rim is a cut, not a mark, and is R3-15b's.
   outline round a white 3 mm star reads as a hole in the picture more than
   a mark on it. Under A an oval is about the edges' weight, as the sample's
   are.
+- **Amended for the eye, 2026-10-08, after 18c** (18c, For Zach; Zach,
+  2026-10-08: "go with your recs from now on unless there is a large fork
+  in the design to be figured out, until i say otherwise"): the eye draws
+  in the ring pen, 0.5625 pt in the Diagram preset and 0.7875 pt in the
+  Default, as an outlined star does. In the aux pen (0.25 pt) it read as a
+  hairline beside the creases and arrows, much lighter than the eye in
+  Zach's sketch (`18c/note-vs-ours.png`). Before and after on a page:
+  `artifacts/revision-3/18d/eye/eye-before-after.png`. The right angle and
+  equal divisions keep the aux pen.
 
 **R3-27. X-ray's PR. DECIDED: B.** Zach, 2026-10-08: "sounds good". He
 works one PR per feature.
@@ -1380,6 +1417,34 @@ works one PR per feature.
 - **Recommended: B.** X-ray is the one part with a spike gate, a file
   question (R3-16) and two phases. The four marks need not wait for it, and
   its review is easier alone.
+
+**R3-34. Where a paste from another picture's whole step lands on an
+enlarged step. PENDING** (raised by 18d's review, 2026-10-08; built as A,
+which changes nothing Zach decided). Revision 2's decision 7, which Zach
+confirmed, lands such a paste at the same place on the picture: "On the
+crane, 22 → 23 lands outside 23's window". That serves a paste from the
+step whose area the enlarged step shows, whose picture is framed as the
+next one's is. From any other step the same place on the picture is
+somewhere else on the model, and the paste often lands beside the window:
+of 25 places on the crane's step 1 pasted onto step 24, the review found 4
+inside the window, 16 beside it and 5 so far off that 18d keeps them in
+the window. One beside the window is drawn on the canvas, badged in
+Layers, and not printed until it is moved in. Changing that changes the
+16g review case "a mark across the model and a small frame"
+(`diagramClipboard.test.ts`), which is why it is Zach's call.
+- A. As decision 7, with 18d's two changes: a mark the window would draw
+  nowhere keeps its place in the window, and the canvas steps back to show
+  the paste.
+- B. A paste none of which touches the window (`marksTouchingWindow`)
+  keeps its place in the window, as a paste between two windows does. The
+  16g line, beside a small window, would land across it instead.
+- C. Through the picture only from the step whose area the enlarged step
+  shows, or from its own picture; from any other step, its place in the
+  window. The clipboard would remember the step a copy came from.
+- **Recommended: A.** The paste is now seen where it lands, and moving it
+  in is one drag. B and C each guess which steps' pictures line up; C's
+  guess is the better one, and can follow if pastes from far steps keep
+  landing beside the window in use.
 
 ### Decisions: the transform box
 
@@ -1415,7 +1480,7 @@ Raised by Zach's ask for the transform box (2026-10-08). Each is for stars
   off that point. A is `resizeAnnotationBox`'s about-the-centre option, the
   one R3-29c A gives Alt.
 
-**R3-29c. A shape's resize keys. PENDING.** (18d)
+**R3-29c. A shape's resize keys. DECIDED: A.** (18d) Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise".
 - A. Free; Shift keeps its proportions, as a text box's on the Edit canvas
   (`default-off`); Alt resizes it about its centre, as Enlarge in Frame's
   grips do (`zoomGrips.ts:45-49`).
@@ -1440,7 +1505,7 @@ eye about 5 mm long.
   scale does (`diagramFile.ts:1453`). Under C a drag can leave a glyph
   nobody can find.
 
-**R3-30b. How small and how large a shape goes. PENDING.** (18d)
+**R3-30b. How small and how large a shape goes. DECIDED: A.** (18d) Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise".
 - A. An enlarge area's sides' range: from a slip (`MIN_ANNOTATION_LENGTH`,
   0.015 picture units) to twice the picture's frame (`ZOOM_SIDE`,
   `annotationModel.ts:1630`), held as a drag goes, as `zoomSideWithin`
@@ -1465,7 +1530,7 @@ takes a handle instead.
   measures a 3 mm star on screen at the canvas's usual zoom; if it is well
   over 24 px, A and B draw the same there.
 
-**R3-31. A press inside a selected shape. PENDING.** (18d) Unselected, a
+**R3-31. A press inside a selected shape. DECIDED: A.** (18d) Zach, 2026-10-08: "go with your recs from now on unless there is a large fork in the design to be figured out, until i say otherwise". Unselected, a
 shape is pressed by its outline only, so the marks inside stay pressable
 (Shapes, Hit). On the Edit canvas a selected image is moved from anywhere
 inside its box.
@@ -2324,7 +2389,8 @@ had been copied into `annotationHit.ts`; it is now `boxDistanceModel` in
 `lib/transformBox.ts`, which `boxContainsModelPoint` asks. F on an eye
 wore Flip Vertical's icon. The Shift line said "turn it" while laying.
 
-**Left for a change of its own** (since 18b or older, not the eye's):
+**Left for a change of its own** (since 18b or older, not the eye's; both
+fixed in 18d, each as a commit of its own, 18d As built):
 - With a mark's tool still in hand, the new mark's box is drawn, but a
   drag on its handles lays another mark (a star with K does the same).
   Either the handles take the press before a draw (`transformGripAt` in
@@ -2336,7 +2402,9 @@ wore Flip Vertical's icon. The Shift line said "turn it" while laying.
   most. A pasted mark outside the window could be brought into view as a
   close-up's `bringIntoView` does.
 
-**For Zach, not decided by this plan.**
+**For Zach, not decided by this plan** (settled 2026-10-08 as recommended,
+under Zach's standing instruction: the ring pen, recorded under R3-26, and F
+as Flip Horizontal, recorded under R3-9b; built in 18d's first commit).
 - **The eye's pen.** In the aux pen (R3-26 A: 0.25 pt in the Diagram
   preset) the eye reads as a hairline beside the creases and arrows on the
   card, the page cell and the PDF, much lighter than the note's sketch or
@@ -2351,18 +2419,25 @@ wore Flip Vertical's icon. The Shift line said "turn it" while laying.
 
 ### 18d Shapes
 
-- [ ] `areaOutline.ts`: an ellipse's and a rectangle's outline and rim
+- [x] 18c's follow-ups, first, a commit of their own: the eye in the ring
+  pen (R3-26, amended) and F as Flip Horizontal (R3-9b, amended), with
+  before and after of the eye on a page.
+- [x] 18c's two older faults, each a commit of its own with a test that
+  fails before it: a drag on a just-laid mark's handles with its tool
+  still in hand; a mark pasted onto another picture's enlarged step
+  outside its window.
+- [x] `areaOutline.ts`: an ellipse's and a rectangle's outline and rim
   distance, turned. Tests: rim distance against sampled points; turned.
-- [ ] Model and file: two kinds, `size`, `angle`. Tests: round trip; `to`
+- [x] Model and file: two kinds, `size`, `angle`. Tests: round trip; `to`
   read as `from`; a missing `size` is damage; a size past R3-30b's range is
   a newer build's and kept verbatim; an angle read within [0, 180).
-- [ ] Drawing: the `areas` list, its paint order and its reach. Tests:
+- [x] Drawing: the `areas` list, its paint order and its reach. Tests:
   reach, failing if the list is left out of `annotationReach`; a shape,
   turned too, under a Valley Line and an arrow; `markExtent` keeping a
   shape that reaches into an enlarged window from outside, unbadged.
-- [ ] Tool: corner to corner, Shift, Alt, a click's standard size
+- [x] Tool: corner to corner, Shift, Alt, a click's standard size
   (`placedByClick`); the Shapes group, keys, help.
-- [ ] The box in place of any `zoomGrips`: eight squares with R3-29c's keys
+- [x] The box in place of any `zoomGrips`: eight squares with R3-29c's keys
   and R3-30b's range, the turn handles; hit by the rim in the `under`
   order, and inside a selected shape's box behind every mark (R3-31 A).
   Tests: a corner with the opposite held, with Shift and with Alt; an edge;
@@ -2370,15 +2445,255 @@ wore Flip Vertical's icon. The Shift line said "turn it" while laying.
   empty paper inside it moves the oval; a line inside an unselected oval is
   selected by a press inside it; deleting a shape sends no enlargement
   event.
-- [ ] Carry (`carryArea`) through a spread and a mirror, a turned shape
+- [x] Carry (`carryArea`) through a spread and a mirror, a turned shape
   included; paste into an enlarged window grows with it; the Rotation row.
-- [ ] Analytics and i18n.
-- [ ] Golden `areas.cases.ts`, turned shapes included.
-- [ ] Browser, before and after: the turtle's five ovals redrawn on a
-  60° grid capture beside the sample; a rectangle round a flap; an oval
-  turned and resized by its box, beside an image's box on the Edit canvas;
-  on every surface; the rail at phone width and on an iPad.
-- [ ] Gate and push.
+- [x] Analytics and i18n.
+- [x] Golden `areas.cases.ts`, turned shapes included.
+- [x] Browser, before and after: five upright ovals ringing five areas, as
+  the turtle's do; a rectangle round a flap; a shape turned and resized by
+  its box, beside an image's box on the Edit canvas (18b's); on every
+  surface; the rail on an iPad, and the phone. Not shown: the turtle's
+  sample and a 60° grid capture (neither is on disk here: the crane is
+  22.5°), so the ovals are on the crane's step 7.
+- [x] Gate, on exactly what was committed: lint, typecheck, the i18n check
+  and the whole vitest suite (Node 22): 895 test files and 12,218 tests
+  pass (2 files and 15 tests skipped). Each of the first three commits,
+  exported alone, typechecks and its tests pass.
+- [ ] Push.
+
+**As built (2026-10-08).** Four commits, each with the review's fixes
+that belong to it: `b18fb0072` (the eye's pen and F), `00d69cf0e` (a new
+mark's box answers its own tool), `ff9c7fc45` (a paste onto another
+picture's enlarged step stays in view) and `073db6fe6` ("Diagram: ovals
+and rectangles"). The first three were cut from cumulative patches
+(`artifacts/revision-3/18d/stage-*.patch`); exported alone, each
+typechecks and its related tests pass (7 files and 327 tests, 2 and 139,
+5 and 182), and its new tests fail on the commit before it. The box
+lines' rewording (`starShiftKey`, `eyeBoxShiftKey`) rides in the shapes
+commit with the shapes' strings, since the catalogs are shared. Every
+decision used is recorded DECIDED above (Status), but R3-34. Evidence:
+`artifacts/revision-3/18d/18d-evidence.png` (`composite.py`), every shot
+re-taken on the committed code.
+
+- **The eye's pen and F** (commit 1). `eyeDrawn` strokes in
+  `markRingWidth`, as an outlined star does: 0.5625 pt in the Diagram
+  preset, 0.7875 in the Default (`eyesGolden.json` re-recorded with the
+  18c recorder). F on an eye: `flipsArc('eye')` is false again, and a new
+  `flipKeyAction` / `flipKeyEdit` in `annotationActions.ts` say which verb
+  F runs on a mark — Flip Arc where an arc flips, an eye's Flip
+  Horizontal — and null where it would change nothing (a straight arrow;
+  an eye looking straight up or down), so the key falls through.
+  `useDiagramShortcuts` asks it for the gate and the edit. The Flip row's
+  Horizontal carries F's chord on an eye, the eye's own Flip button and its
+  two-way-arrow icon are gone, and F on an eye is counted as the row's
+  Horizontal (`docs/analytics.md`). Browser: `18d/eye/eye-before-after.png`
+  (the crane's step 1 page cell, the old code restored for the before):
+  the aux pen's hairline eye against the ring pen's; F 30° to 210° before,
+  to 150° after; Layers' Flip buttons before "Flip Horizontal, Flip
+  Vertical, Flip", after the row alone. Exported, the eye's stroke is a
+  Circle ring's, 0.75 px in the one-sheet SVG (0.5625 pt;
+  `18d/verify/eye-pen.mjs`).
+- **Handles before a draw** (commit 2). With the selected mark's own tool
+  in hand — the Star on a star, the Eye on an eye, the Oval on an oval, the
+  Rectangle on a rectangle (`handlesInHand`: `drawingKind` is the mark's
+  kind) — a press on its scale square or turn handle takes the handle
+  (`handleGripAt`, which asks `hitAnnotation` exactly as Select does), and
+  the hover shows its pointer or grab cursor with no snap or right-angle
+  preview; a press on its body still draws. So a star (K), an eye (Y) or a
+  shape just laid is resized and turned without putting the tool down.
+  **Review fix:** as first built, any tool that draws took the handles, so
+  with an oval selected and the Valley Fold Arrow picked up, an arrow
+  started on the oval's corner or edge square resized the oval instead,
+  within 8 px of a square with a mouse and 18 px with a finger, where an
+  arrow wants to start on a crease point. Under any other tool the press
+  draws that tool's mark; the box is still drawn with its squares, as every
+  other selected mark's grips are under a drawing tool, which take no press
+  either (`DiagramAnnotateCanvas.test.tsx`, "lets another tool draw from a
+  selected shape's squares", fails without it).
+- **A paste onto another picture's window** (commit 3). `intoView`: from a
+  whole picture onto another picture's enlarged step, each mark that,
+  carried to the same place on that picture, the window would draw nowhere
+  (`marksInWindow`: beyond a window of it each way, selected but unseen)
+  keeps its place in the window, as one from a window always has. The same
+  picture's paste is unchanged (the same paper, outside the window if it
+  lies there). **Where the code narrowed the ask:** "would land outside
+  the window" read as not touching it (`marksTouchingWindow`) broke a 16g
+  review test (`diagramClipboard.test.ts`, "a mark across the model and a
+  small frame"): a line across the model, pasted onto another picture's
+  small window, lands beside it and is drawn there, at the same place on
+  the picture, by design — Revision 2's decision 7, which Zach confirmed
+  with "On the crane, 22 → 23 lands outside 23's window". So the rule is
+  the fault's own, a mark drawn nowhere; whether decision 7 still stands is
+  R3-34, for Zach. Browser: a star at (0.06, 0.94) on step 1 would have
+  landed at (−1.09, 2.28) in step 24's window units (enlarged from step
+  22's area); it lands at (0.06, 0.94), inside.
+  **Review fixes.** (1) First built per paste, so an eye or a star far off
+  the window, copied with one mark the window draws, still went through the
+  picture with it and was drawn nowhere; each mark is now asked on its own
+  (`annotationClipboard.test.ts`, the 18d case, fails without it). (2) A
+  paste the window draws beside it — most of them, from another picture's
+  whole step: of a 5 × 5 grid of step 1's places the review pasted on the
+  crane's step 24, 16 landed beside the window — was selected but off the
+  canvas's view, its Layers row badged. The canvas now steps back to show
+  a paste, as it does a close-up laid beside the picture (15f), which the
+  18c note
+  proposed: the paste tells the store (`diagramPasted`: the step, the
+  pasted ids and a nonce), and `useAnnotateCanvas` brings what of it is
+  drawn into view once (`pastedRect`, through `marksBox` in `stepView.ts`),
+  nothing when it is already in view, not again on reopening the step
+  (`diagramClipboard.test.ts`, `useAnnotateCanvas.test.ts` and the canvas's
+  "a paste brought into view" fail without it). Where it lands is
+  unchanged, so it is still left off the page until it is moved into the
+  window (decision 7; R3-34).
+- **Model and file** (commit 4). Kinds `oval` and `rectangle`, shape class
+  `area` (`AREA_KINDS`, `isAreaKind`); `size` always written, `angle`
+  within [0, 180) only when turned. `areaFromCorners(kind, …)` is the drag
+  `zoomAreaFromCorners` had, moved into the model (the zoom module imports
+  the model, not the other way) and shared: Shift a circle or a square, Alt
+  from the middle, a drag under a twentieth of a click's side a click's
+  0.3 square. `carryArea` is `carryZoom`'s rounded-rectangle math, pulled
+  out and shared through `carriedVector`. `cleanArea`, `withAreaBox`
+  (sides held to `AREA_SIDE`, which is `ZOOM_SIDE`, R3-30b A) and
+  `withAreaAngle` (kept to 0.01°, then into [0, 180)). Every exhaustive
+  switch says what a shape is: no ends, path, text, colour, behind-flap
+  end, Flip or arc; Turn Over keeps its kind. `ANNOTATION_FIELDS.oval` and
+  `.rectangle` = `size`, `angle`; `to` read as `from`; `size` by
+  `readZoomSize` (missing or malformed, damage; past the range, a newer
+  build's); `angle` any number read by `rectangleAngle`, one that does not
+  read dropped alone. **A consequence of R3-30b, found in review:** a shape
+  carried into a small enlarged window grows with it, and a side that
+  would pass 2 window units is held at 2, since a larger one would read as
+  a newer build's. It then rings less than the same part of the picture,
+  and a paste back out keeps what the window held: in a window a fifth of
+  the picture across, a 0.5-wide oval becomes 2 units, not 2.5, and comes
+  back 0.4 wide, with no notice. Pinned by `annotationClipboard.test.ts`
+  ("holds a shape grown past R3-30b's range"). A ring more than twice a
+  window across rings much more than the window shows, so this is left as
+  R3-30b's range says.
+- **Geometry and drawing.** `diagram/annotate/areaOutline.ts`:
+  `areaOutlineOf`, `areaRimDistance`, `insideArea`, `areaOutlinePoints`,
+  `areaBox` (exact turned extents, `pad` for half a pen). **Where the plan
+  was loose:** the ellipse's nearest point is found by six steps along the
+  evolute (each takes the centre of curvature where the point is and turns
+  it toward the press), not Newton's on the angle, which wanders near the
+  middle; it agrees with a 40,000-point sampled rim to 5e-5. A drawing's
+  `areas` list (`AnnotationArea`): `<ellipse>`, or `<rect>` with
+  `stroke-linejoin="miter"` (the marks are wrapped in round joins), turned
+  by `rotate(angle cx cy)`, the ring pen, the arrows' ink, no fill, no
+  casing. `annotationAreas` paints them; `DiagramAnnotationLayer` draws them
+  before the lines and `annotationScene` makes them the first markup item,
+  so the card, the page, print, the PDF, the one-sheet SVG, the ZIP's step
+  files and Pose's ghosts all paint them under every line and mark
+  (R3-11d B), over a close-up's inside. `annotationReach` takes each
+  outline's turned box half a pen out (exact for an ellipse's offset and a
+  mitred rectangle). `markExtent` takes the outline's turned box.
+- **The box.** `boxedShape`: the outline's own box (no floor), eight
+  squares, its turn in [0, 180). `BoxedMark` gained `resizing(keys)`, so
+  each kind says how a square resizes it: a glyph in proportion about its
+  centre whatever is held; a shape freely, Shift in proportion
+  (`resizeAspectLock('default-off')`), Alt about its centre (R3-29c A).
+  **Beyond the plan:** `resizeAnnotationBox` gained a `sides` option, the
+  range each side is held to as the drag goes, so a side at its limit
+  holds the opposite edge where it was (a clamp after the fact would slide
+  it); the Edit canvas never passes it, and its tests pass unchanged.
+- **Hit (R3-31 A).** A shape is pressed by its rim, under every mark in
+  the hit order. Selected, its box takes a press only once nothing drawn
+  does — another shape's rim inside it included — and a label's margin
+  before it; a press in the box's corner outside an oval is the oval's.
+- **Tool.** Oval (Shift+O) and Rectangle (R) in a new Shapes group after
+  Marks; put down freely; the tool stays in hand. **Departure from the
+  plan:** the tool window's Shift and Alt lines are keys of their own
+  (`ovalShiftKey` "Shift-drag to make it a circle.", `rectangleShiftKey`,
+  `shapeAltKey`), not Enlarge in Frame's: German's "ihn" agrees with
+  Bereich, not Oval or Rechteck, and the eye's lines were split for the same
+  reason in 18c. Two more say R3-29c on the box (`shapeBoxShiftKey`,
+  `shapeBoxAltKey`). The old test that R picked nothing (Rotate's old key)
+  now says R picks the Rectangle. **Review fixes:** the help adds "Click
+  for a standard size.", as Enlarge in Frame's does, since a click lays a
+  0.3 × 0.3 shape, about a third of the picture; and the box's lines in the
+  Star, Eye, Oval and Rectangle windows (`starShiftKey`, `eyeBoxShiftKey`,
+  `shapeBoxShiftKey`, `shapeBoxAltKey`) lose "With Select,", since the box
+  now also answers with the mark's own tool in hand, the only time those
+  windows show. Five strings retranslated in the eight locales and
+  stamped.
+- **Layers, analytics, i18n.** Rows by kind (an upright ellipse, a
+  square-cornered rectangle glyph); the Rotation row through
+  `BoxedMark.turned` (200 typed is 20); no Flip row. `diagram annotation
+  added` with `tool: oval | rectangle`, `snap: none`; `diagram mark styled`
+  with `kind: oval | rectangle` for size and rotation; a deleted shape is
+  no enlargement (`applyAnnotationEdit`, tested). Nine strings in all nine
+  catalogs, stamped (French's escaped no-break spaces kept).
+- **Tests**, each failing without its change: `areaOutline.test.ts`,
+  `annotationModel` (laying, range, clean, turn, the switches, carry through
+  a quarter turn, a mirror, Turn Over, a spread and a window), `diagramFile`
+  (round trip, `to`, turn, damage, newer, older), `paintAnnotations`
+  (compile, paint order under a Valley Line and an arrow in both presets,
+  reach, the scene's first item), `stepView`, `transformBox` (`sides`),
+  `transformGrips` (box, eight squares, free, Shift, Alt, edge, range,
+  turn), `annotationHit`, `applyAnnotationEdit`, `annotationClipboard`,
+  `annotateTools`, the rail, the canvas (lay, Shift, Alt, click, box,
+  resize, turn, move, a line first, an unselected shape, a drag on a new
+  shape's square with its tool in hand), Layers, and the golden
+  `areas.cases.ts` / `areasGolden.json` (upright, turned, a circle, under
+  lines, off the paper, on a References face; canvas through
+  `DiagramAnnotationLayer`; recorder `18d/areas.record.test.ts.txt`).
+- **Browser** (`18d-evidence.png`, part 1: `shapes/run.mjs` light and
+  dark, `shapes/ipad.mjs`, re-run on the committed code). Chromium on the
+  crane's step 7: Shift+O and R through the registry; five upright ovals;
+  a rectangle round the lower left flap, turned with Shift to 135°, a
+  corner freely, an edge, a corner with Shift (proportions kept) and with
+  Alt (centre kept), each one undo step; Rotation 200 → 20; the move,
+  pointer and grab cursors; empty paper inside the selected oval moved it, a
+  Valley Line inside it was taken first; with R in hand a drag on the new
+  rectangle's square resized it (6 shapes before and after), with K in hand
+  a new star's square scaled it to 2; the paste above; the card, the page
+  cell, the PDF at 288 dpi, the one-sheet SVG (6 ellipses, 2 rectangles),
+  two ZIP step files, the enlarged step's card and Pose's ghosts; the round
+  trip identical; no console errors, light or dark. iPad-sized WebKit by
+  finger: the rail's Shapes group, an oval and a rectangle laid, the oval
+  tapped on its rim, an edge drawn out, turned 50°, moved from inside. The
+  phone (390 px) says "Annotate on a larger screen", so its rail is not
+  shown.
+
+**Review (2026-10-08), fixed before the gate**, each fix with a test that
+fails without it; before and after in the browser, `18d-evidence.png`,
+part 3 (`review-fixes/fixes.mjs`, light and dark, re-run on the committed
+code; the handles' before is the same script on the old rule):
+- **Major: the handles took a press under any drawing tool** (Handles
+  before a draw, above). Now only the mark's own tool. Browser, the crane's
+  step 9: an oval laid with Shift+O, then V; over its east square no
+  cursor, and a drag from it lays a Valley Fold Arrow with the oval left at
+  0.20 (before: "Resize annotation", 0.20 → 0.31, no arrow); Shift+O again,
+  the square's pointer, and the drag resizes it.
+- **Blocker, in part: a paste from another picture's whole step lands
+  beside the window, off the canvas.** Where it lands is Revision 2's
+  decision 7, which Zach confirmed, so changing it is R3-34, for him; built
+  as A. What was fixable without that is fixed: the canvas brings the
+  paste into view (A paste onto another picture's window, above). Browser:
+  a star from step 1 at (0.3, 0.5), Cmd+C, Cmd+V on step 24: it lands at
+  (−0.54, 1.27) window units either way; before, its selection sat at
+  x −72, y 986 of a 1440 × 900 window, after, inside the canvas, the zoom
+  70% → 53%. A second paste, already in view, moved nothing. It is still
+  not printed until moved into the window.
+- **Minor, fixed:** each pasted mark asked on its own (above; today's copy
+  takes one mark, so this matters once more than one can be copied); the
+  eye's comment (ring pen), the canvas module's cursor comment and a
+  doubled blank line in `DiagramLayers.tsx`; the shape help's "Click for a
+  standard size." and the box lines without "With Select," (Tool, above);
+  the clamp of a shape grown past R3-30b's range, recorded and pinned
+  (Model and file, above).
+- **Declined, with reasons.** The box is still drawn with its squares
+  under another tool, though they take no press, as every other selected
+  mark's grips are under a drawing tool; hiding them for the box alone
+  would make it the one mark that does. On an iPad a corner square sits
+  about 18 px from its turn handle, so a finger a little outside the corner
+  can turn rather than resize: the nearer handle already wins
+  (`transformGripAt`), so the fix is the shared box's layout on a coarse
+  pointer, which the Edit canvas shares (18b's), and wants Zach's eye — a
+  change of its own. The floating tool help covers the paper's lower right
+  at 1440 × 900 (since before 18d) — a change of its own. F's name in the
+  shortcut registry is still "Flip Arc" though it flips an eye
+  horizontally; left for Zach's shortcut pass (R3-25).
 
 ### 18e X-ray: model, canvas, tool and Layers
 

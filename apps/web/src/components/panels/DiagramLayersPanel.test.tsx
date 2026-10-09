@@ -900,29 +900,20 @@ describe('DiagramLayersPanel', () => {
     const eye = () => annotations().find((annotation) => annotation.id === 'e-1') as Record<string, unknown>;
     const last = () => state().diagramHistory.past.at(-1)?.label;
 
-    it('flips it about its centre from its Flip row — Horizontal to 180° less the way it looks, Vertical to its negative — and Flip has it look the other way (R3-9b A)', () => {
+    it('flips it about its centre from its Flip row — Horizontal to 180° less the way it looks, Vertical to its negative — Horizontal named as F’s (R3-9b A)', () => {
       eyed({ angle: 30 });
       // Listed as an eye, drawn as one.
       expect(row('Eye').querySelector('svg path')).not.toBeNull();
       const past = state().diagramHistory.past.length;
+      // F is Flip Horizontal on an eye (amended 2026-10-08), which names it (`annotationActions.test.ts`): no Flip of its own repeats it.
+      expect(buttonNamed('Flip')).toBeUndefined();
       act(() => button('Flip Horizontal')!.click());
       expect(eye()).toMatchObject({ from: [0.4, 0.6], angle: 150 });
       expect(last()).toBe('Flip horizontal');
       act(() => button('Flip Vertical')!.click());
       expect(eye().angle).toBe(210);
       expect(last()).toBe('Flip vertical');
-      // Flip (F's verb): the other way, half a turn on.
-      act(() => buttonNamed('Flip').click());
-      expect(eye().angle).toBe(30);
-      expect(last()).toBe('Flip arc');
-      expect(state().diagramHistory.past).toHaveLength(past + 3);
-    });
-
-    it('draws Flip with an icon of its own, not the mirror its Flip row’s Vertical draws just above it (18c review)', () => {
-      eyed({ angle: 30 });
-      const icon = (element: Element) => element.querySelector('svg')!.innerHTML;
-      expect(icon(buttonNamed('Flip'))).not.toBe(icon(button('Flip Vertical')!));
-      expect(icon(buttonNamed('Flip'))).not.toBe(icon(button('Flip Horizontal')!));
+      expect(state().diagramHistory.past).toHaveLength(past + 2);
     });
 
     it('sets the way it looks in its Rotation row, wrapped as an image’s, one undo step, counted as typed (R3-33 A)', () => {
@@ -941,6 +932,51 @@ describe('DiagramLayersPanel', () => {
       setField(rotation, '0');
       act(() => rotation.blur());
       expect('angle' in eye()).toBe(false);
+    });
+  });
+
+  describe('an oval and a rectangle (Revision 3)', () => {
+    function shaped(kind: 'oval' | 'rectangle', more: Partial<KnownDiagramAnnotation> = {}) {
+      const stepId = annotatedStep();
+      act(() => {
+        state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+          ...list,
+          { id: 's-1', kind, from: [0.4, 0.6], to: [0.4, 0.6], size: [0.3, 0.2], ...more },
+        ]);
+        state().openDiagramStep(stepId, 'annotate');
+      });
+      act(() => row(kind === 'oval' ? 'Oval' : 'Rectangle').click());
+      return stepId;
+    }
+    const shape = () => annotations().find((annotation) => annotation.id === 's-1') as Record<string, unknown>;
+    const last = () => state().diagramHistory.past.at(-1)?.label;
+
+    it('lists each by its kind, drawn as itself, and offers no Flip row: a flip of one is only a turn', () => {
+      shaped('oval');
+      expect(row('Oval').querySelector('svg ellipse')).not.toBeNull();
+      expect(button('Flip Horizontal')).toBeNull();
+      expect(button('Flip Vertical')).toBeNull();
+      act(() => state().selectDiagramAnnotation(null));
+    });
+
+    it('sets its turn in its Rotation row within [0, 180), one undo step, counted as typed (R3-33 A)', () => {
+      shaped('rectangle', { angle: 30 });
+      expect(row('Rectangle').querySelector('svg rect')).not.toBeNull();
+      tracked.trackDiagramMarkStyled.mockClear();
+      const rotation = host!.querySelector<HTMLInputElement>('input[aria-label="Rotation"]')!;
+      expect(rotation.value).toBe('30');
+      act(() => rotation.focus());
+      setField(rotation, '200');
+      act(() => rotation.blur());
+      // A half turn draws it the same: 200° is 20°.
+      expect(shape().angle).toBe(20);
+      expect(shape().size).toEqual([0.3, 0.2]);
+      expect(last()).toBe('Rotate annotation');
+      expect(tracked.trackDiagramMarkStyled.mock.calls).toEqual([['rectangle', 'rotation', 'field']]);
+      act(() => rotation.focus());
+      setField(rotation, '180');
+      act(() => rotation.blur());
+      expect('angle' in shape()).toBe(false);
     });
   });
 

@@ -250,8 +250,9 @@ export const DIAGRAM_STAR_INK = { radius: 4.5, inner: 0.382 } as const;
  * across them `cornea` from the back, bulging `bulge` the way it looks, the
  * lids running on past it about half a millimetre; and the iris, a half
  * circle of radius `iris` set on the cornea's middle, bulging back into the
- * eye. Outline only, in the aux lines' pen (R3-26 A), its back corner
- * mitred.
+ * eye. Outline only, in a ring's pen, as an outlined star is — the weight of
+ * the note's eye (R3-26 A as applied to the eye, amended 2026-10-08: the aux
+ * lines' pen drew it as a hairline) — its back corner mitred.
  */
 export const DIAGRAM_EYE_INK = { length: 15, spread: 4.8, cornea: 13.5, bulge: 0.5, iris: 1.2 } as const;
 

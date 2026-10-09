@@ -28,6 +28,8 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   circle: 'circle',
   star: 'star',
   eye: 'eye',
+  oval: 'oval',
+  rectangle: 'rectangle',
   'right-angle': 'right_angle',
   callout: 'callout',
   'angle-mark': 'angle_mark',

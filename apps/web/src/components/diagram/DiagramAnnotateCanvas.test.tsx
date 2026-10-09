@@ -72,6 +72,28 @@ vi.mock('../../diagram/annotate/annotationPrimitives', async (importOriginal) =>
   };
 });
 
+/** What the canvas asked its camera to bring into view, in world px: each rect, in turn. */
+const camera = vi.hoisted(() => ({ revealed: [] as { x: number; y: number; width: number; height: number }[] }));
+vi.mock('../../hooks/useViewportSurface', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../hooks/useViewportSurface')>();
+  const { useCallback } = await import('react');
+  return {
+    ...actual,
+    useViewportSurface: (...args: Parameters<typeof actual.useViewportSurface>) => {
+      const surface = actual.useViewportSurface(...args);
+      const { bringIntoView } = surface;
+      const asked = useCallback<typeof bringIntoView>(
+        (rect, animationTime) => {
+          camera.revealed.push(rect);
+          bringIntoView(rect, animationTime);
+        },
+        [bringIntoView]
+      );
+      return { ...surface, bringIntoView: asked };
+    },
+  };
+});
+
 /**
  * The Annotate canvas's presses, through the store: what a drag, a click, a
  * second finger and a cancel each commit, and what they count. The overlay's
@@ -2859,6 +2881,47 @@ describe('DiagramAnnotateCanvas stars (Revision 3)', () => {
     }
   });
 
+  it('takes a drag on a just-laid star’s square with K still in hand: it scales that star, and lays no other; its body is drawn on (18d)', () => {
+    drawn([], 'star');
+    click(at(0.5, 0.3));
+    const laid = theStar();
+    expect(state().diagramSelectedAnnotationId).toBe(laid.id);
+    expect(state().diagramAnnotateTool).toBe('star');
+    const past = state().diagramHistory.past.length;
+    // The square's cursor, as with Select; over its body, the tool's own.
+    const hover = (point: [number, number]) => {
+      pointer('pointermove', point);
+      return view().getAttribute('data-transform-hover');
+    };
+    expect(hover(handleAt('scale-se'))).toBe('scale');
+    expect(hover(handleAt('rotate-se'))).toBe('rotate');
+    expect(hover(at(0.5, 0.3))).toBeNull();
+    const [sx, sy] = at(0.5, 0.3);
+    const corner = handleAt('scale-se');
+    drag(corner, [sx + 2 * (corner[0] - sx), sy + 2 * (corner[1] - sy)]);
+    expect(annotations()).toHaveLength(1);
+    expect(theStar()).toMatchObject({ id: laid.id, from: [0.5, 0.3] });
+    expect(theStar().scale).toBeCloseTo(2, 3);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(label()).toBe('Resize annotation');
+    expect(state().diagramAnnotateTool).toBe('star');
+    // A click away from its handles lays the next star, as the tool in hand does.
+    rerender();
+    click(at(0.2, 0.6));
+    expect(annotations()).toHaveLength(2);
+  });
+
+  it('lets another tool draw from a selected star’s square: only the Star takes its handles (18d review)', () => {
+    drawn([star], 'valley-arrow', 'star');
+    const corner = handleAt('scale-se');
+    pointer('pointermove', corner);
+    expect(view().getAttribute('data-transform-hover')).toBeNull();
+    drag(corner, [corner[0] + 120, corner[1] + 60]);
+    expect(annotations().filter((each) => each.kind === 'valley-arrow')).toHaveLength(1);
+    expect(theStar()).toEqual(star);
+    expect(label()).toBe('Add annotation');
+  });
+
   it('shows the Edit canvas’s cursors over its box with Select: move on its body, pointer on a square, grab on a turn handle', () => {
     drawn([star], null, 'star');
     const hover = (point: [number, number]) => {
@@ -2986,5 +3049,255 @@ describe('DiagramAnnotateCanvas eyes (Revision 3)', () => {
     expect(theEye().from[1]).toBeCloseTo(0.35, 6);
     expect(theEye().angle).toBe(225);
     expect(label()).toBe('Move annotation');
+  });
+
+  it('takes a drag on a just-laid eye’s turn handle with Y still in hand: it turns that eye, and lays no other (18d)', () => {
+    drawn([], 'eye');
+    drag(at(0.5, 0.3), toward([0.5, 0.3], 180));
+    expect(theEye().angle).toBe(180);
+    expect(state().diagramAnnotateTool).toBe('eye');
+    rerender();
+    const [ex, ey] = at(0.5, 0.3);
+    const turn = handleAt('rotate-ne');
+    const a = (40 * Math.PI) / 180;
+    drag(turn, [ex + (turn[0] - ex) * Math.cos(a) - (turn[1] - ey) * Math.sin(a), ey + (turn[0] - ex) * Math.sin(a) + (turn[1] - ey) * Math.cos(a)]);
+    expect(annotations().filter((each) => each.kind === 'eye')).toHaveLength(1);
+    expect(theEye().angle).toBeCloseTo(220, 1);
+    expect(label()).toBe('Rotate annotation');
+  });
+});
+
+describe('a paste brought into view (18d review)', () => {
+  const star: KnownDiagramAnnotation = { id: 'star', kind: 'star', from: [0.9, 0.7], to: [0.9, 0.7] };
+
+  it('asks the camera to show what a paste put on the step, once, and not a paste made before the canvas opened', () => {
+    const stepId = mount();
+    act(() => {
+      useWorkspaceStore.setState({ activePanelId: 'diagram' });
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => [star]);
+      state().selectDiagramAnnotation('star');
+      state().copySelection();
+    });
+    rerender();
+    camera.revealed.length = 0;
+    act(() => void state().pasteClipboard());
+    rerender();
+    // Down and right of its original by a paste's step: its box, in world px, round the copy.
+    const copy = annotations()[1]!;
+    expect(copy.from[0]).toBeCloseTo(0.93, 9);
+    expect(camera.revealed).toHaveLength(1);
+    const [rect] = camera.revealed;
+    const [x, y] = at(...copy.from);
+    expect(rect!.x).toBeLessThan(x);
+    expect(rect!.x + rect!.width).toBeGreaterThan(x);
+    expect(rect!.y).toBeLessThan(y);
+    expect(rect!.y + rect!.height).toBeGreaterThan(y);
+    expect(rect!.width).toBeLessThan(at(0.2, 0)[0] - at(0, 0)[0]);
+    // An edit since asks nothing; nor does the canvas opened again on the step.
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Move annotation', (list) =>
+        list.map((each) => (each.id === 'star' ? { ...each, from: [0.5, 0.5] as [number, number], to: [0.5, 0.5] as [number, number] } : each))
+      );
+    });
+    act(() => root.unmount());
+    root = createRoot(host);
+    rerender();
+    expect(camera.revealed).toHaveLength(1);
+  });
+});
+
+describe('DiagramAnnotateCanvas shapes (Revision 3)', () => {
+  const oval: KnownDiagramAnnotation = { id: 'oval', kind: 'oval', from: [0.5, 0.4], to: [0.5, 0.4], size: [0.4, 0.2] };
+  const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.45, 0.42], to: [0.55, 0.42] };
+
+  beforeEach(() => {
+    useSettingsStore.setState({ diagramAnnotateSnap: true, cpSnapRadius: 10 });
+    tracked.trackDiagramMarkStyled.mockClear();
+    tracked.trackDiagramEnlargementChanged.mockClear();
+  });
+
+  function drawn(list: KnownDiagramAnnotation[], toolInHand: Parameters<typeof tool>[0] = null, selected: string | null = null) {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => list);
+      state().selectDiagramAnnotation(selected);
+      state().setDiagramAnnotateTool(toolInHand);
+    });
+    rerender();
+    return stepId;
+  }
+  const click = (point: [number, number], init: PressInit = {}) => {
+    pointer('pointerdown', point, 1, 'mouse', overlay(), init);
+    pointer('pointerup', point, 1, 'mouse', overlay(), init);
+    rerender();
+  };
+  const handleAt = (name: string): [number, number] => {
+    const handle = overlay().querySelector(`[data-handle="${name}"]`)!;
+    if (handle.tagName.toLowerCase() === 'circle') return [Number(handle.getAttribute('cx')), Number(handle.getAttribute('cy'))];
+    const side = Number(handle.getAttribute('width'));
+    return [Number(handle.getAttribute('x')) + side / 2, Number(handle.getAttribute('y')) + side / 2];
+  };
+  const shape = () => annotations().find((each) => each.kind === 'oval' || each.kind === 'rectangle')!;
+  const label = () => state().diagramHistory.past.at(-1)?.label;
+  const near = (actual: readonly number[], expected: readonly number[], digits = 6) =>
+    actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, digits));
+
+  it('lays an oval corner to corner, put down freely, counted, one undo step, the tool staying in hand (R3-10b A, R3-24 A)', () => {
+    // The drag starts a hair off the line's end: nothing snaps it there.
+    drawn([{ id: 'l', kind: 'valley-line', from: [0.2, 0.2], to: [0.6, 0.2] }], 'oval');
+    const past = state().diagramHistory.past.length;
+    drag(at(0.203, 0.205), at(0.603, 0.405));
+    near(shape().from, [0.403, 0.305]);
+    near(shape().size!, [0.4, 0.2]);
+    expect(shape().to).toEqual(shape().from);
+    expect('angle' in shape()).toBe(false);
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(label()).toBe('Add annotation');
+    expect(state().diagramSelectedAnnotationId).toBe(shape().id);
+    expect(state().diagramAnnotateTool).toBe('oval');
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['oval', 'none']]);
+  });
+
+  it('lays a circle or a square with Shift, from its middle with Alt, and a standard size with a click', () => {
+    drawn([], 'rectangle');
+    drag(at(0.2, 0.2), at(0.5, 0.3), 1, 'mouse', overlay(), { shiftKey: true });
+    near(annotations().at(-1)!.size!, [0.3, 0.3]);
+    expect(annotations().at(-1)!.kind).toBe('rectangle');
+    drag(at(0.5, 0.4), at(0.6, 0.45), 1, 'mouse', overlay(), { altKey: true });
+    near(annotations().at(-1)!.from, [0.5, 0.4]);
+    near(annotations().at(-1)!.size!, [0.2, 0.1]);
+    click(at(0.3, 0.6));
+    expect(annotations().at(-1)).toMatchObject({ kind: 'rectangle', from: [0.3, 0.6], size: [0.3, 0.3] });
+  });
+
+  it('shows a selected shape’s transform box: eight squares and four turn handles, its outline its own', () => {
+    drawn([oval], null, 'oval');
+    const names = [...overlay().querySelectorAll('[data-transform-box] [data-handle]')].map((each) => each.getAttribute('data-handle'));
+    expect(names).toEqual([
+      'rotate-nw',
+      'rotate-ne',
+      'rotate-se',
+      'rotate-sw',
+      'scale-nw',
+      'scale-n',
+      'scale-ne',
+      'scale-e',
+      'scale-se',
+      'scale-s',
+      'scale-sw',
+      'scale-w',
+    ]);
+    const [ox, oy] = at(0.5, 0.4);
+    const [ex, ey] = handleAt('scale-e');
+    expect(ex - ox).toBeCloseTo(200, 6);
+    expect(ey - oy).toBeCloseTo(0, 6);
+  });
+
+  it('resizes by a square freely, Shift in proportion, Alt about its centre; turns by a handle, Shift by 15°; each one undo step, counted by its handle', () => {
+    drawn([oval], null, 'oval');
+    // The east edge drawn 50 px out: 0.05 wider, the west edge held.
+    const e = handleAt('scale-e');
+    drag(e, [e[0] + 50, e[1] + 30]);
+    near(shape().size!, [0.45, 0.2]);
+    near(shape().from, [0.525, 0.4]);
+    expect(label()).toBe('Resize annotation');
+    rerender();
+    // The south-east corner with Alt: about its centre.
+    const se = handleAt('scale-se');
+    drag(se, [se[0] + 20, se[1] + 10], 1, 'mouse', overlay(), { altKey: true });
+    near(shape().from, [0.525, 0.4]);
+    near(shape().size!, [0.49, 0.22]);
+    rerender();
+    // With Shift: in its proportions.
+    const corner = handleAt('scale-se');
+    drag(corner, [corner[0] + 49, corner[1]], 1, 'mouse', overlay(), { shiftKey: true });
+    expect(shape().size![0] / shape().size![1]).toBeCloseTo(0.49 / 0.22, 6);
+    rerender();
+    const [cx, cy] = at(...shape().from);
+    const turn = handleAt('rotate-ne');
+    const a = (38 * Math.PI) / 180;
+    drag(turn, [cx + (turn[0] - cx) * Math.cos(a) - (turn[1] - cy) * Math.sin(a), cy + (turn[0] - cx) * Math.sin(a) + (turn[1] - cy) * Math.cos(a)], 1, 'mouse', overlay(), {
+      shiftKey: true,
+    });
+    expect(shape().angle).toBe(45);
+    expect(label()).toBe('Rotate annotation');
+    expect(tracked.trackDiagramMarkStyled.mock.calls).toEqual([
+      ['oval', 'size', 'handle'],
+      ['oval', 'size', 'handle'],
+      ['oval', 'size', 'handle'],
+      ['oval', 'rotation', 'handle'],
+    ]);
+    expect(tracked.trackDiagramEnlargementChanged).not.toHaveBeenCalled();
+  });
+
+  it('moves by a press anywhere in its box while it is selected, but a line inside it is taken first (R3-31 A)', () => {
+    drawn([oval, line], null, 'oval');
+    const hover = (point: [number, number]) => {
+      pointer('pointermove', point);
+      return view().getAttribute('data-transform-hover');
+    };
+    // Empty paper inside it: the move cursor, and a drag moves it.
+    expect(hover(at(0.4, 0.36))).toBe('body');
+    expect(hover(at(0.5, 0.42))).toBeNull();
+    drag(at(0.4, 0.36), at(0.45, 0.36));
+    near(shape().from, [0.55, 0.4]);
+    expect(label()).toBe('Move annotation');
+    rerender();
+    // The line inside it: selected by a press on it, not moved through.
+    click(at(0.5, 0.42));
+    expect(state().diagramSelectedAnnotationId).toBe('line');
+  });
+
+  it('lets a press inside an unselected shape select what is under it, or nothing', () => {
+    drawn([oval, line]);
+    click(at(0.5, 0.42));
+    expect(state().diagramSelectedAnnotationId).toBe('line');
+    click(at(0.4, 0.36));
+    expect(state().diagramSelectedAnnotationId).toBeNull();
+    // Its rim selects it.
+    click(at(0.7, 0.4));
+    expect(state().diagramSelectedAnnotationId).toBe('oval');
+  });
+
+  it('takes a drag on a just-laid shape’s square with its tool still in hand: it resizes that shape, and lays no other (18d)', () => {
+    drawn([], 'rectangle');
+    drag(at(0.2, 0.2), at(0.5, 0.4));
+    expect(annotations()).toHaveLength(1);
+    rerender();
+    const e = handleAt('scale-e');
+    drag(e, [e[0] + 100, e[1]]);
+    expect(annotations()).toHaveLength(1);
+    near(shape().size!, [0.4, 0.2]);
+    expect(label()).toBe('Resize annotation');
+    expect(state().diagramAnnotateTool).toBe('rectangle');
+  });
+
+  it('lets another tool draw from a selected shape’s squares and turn handles: only the shape’s own tool takes them (18d review)', () => {
+    drawn([], 'oval');
+    drag(at(0.2, 0.2), at(0.5, 0.4));
+    const laid = shape();
+    expect(state().diagramSelectedAnnotationId).toBe(laid.id);
+    // The Valley Fold Arrow picked up: the oval stays selected, its box drawn.
+    tool('valley-arrow');
+    rerender();
+    expect(state().diagramSelectedAnnotationId).toBe(laid.id);
+    const e = handleAt('scale-e');
+    pointer('pointermove', e);
+    expect(view().getAttribute('data-transform-hover')).toBeNull();
+    // A drag from its square draws the arrow, and leaves the oval as it was.
+    drag(e, [e[0] + 100, e[1] + 80]);
+    expect(annotations().filter((each) => each.kind === 'valley-arrow')).toHaveLength(1);
+    expect(annotations().find((each) => each.id === laid.id)).toEqual(laid);
+    expect(label()).toBe('Add annotation');
+    // Another shape's tool, from the oval's turn handle: a rectangle, not a turn.
+    act(() => state().selectDiagramAnnotation(laid.id));
+    tool('rectangle');
+    rerender();
+    const turn = handleAt('rotate-se');
+    pointer('pointermove', turn);
+    expect(view().getAttribute('data-transform-hover')).toBeNull();
+    drag(turn, [turn[0] + 100, turn[1] + 100]);
+    expect(annotations().filter((each) => each.kind === 'rectangle')).toHaveLength(1);
+    expect(annotations().find((each) => each.id === laid.id)).toEqual(laid);
   });
 });

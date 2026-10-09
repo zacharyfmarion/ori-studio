@@ -780,3 +780,56 @@ describe('an eye (Revision 3)', () => {
     }
   });
 });
+
+describe('an oval and a rectangle (Revision 3)', () => {
+  const oval: KnownDiagramAnnotation = { id: 'oval', kind: 'oval', from: [0.5, 0.5], to: [0.5, 0.5], size: [0.6, 0.4] };
+  const rectangle: KnownDiagramAnnotation = { id: 'rect', kind: 'rectangle', from: [0.5, 0.5], to: [0.5, 0.5], size: [0.6, 0.4], angle: 30 };
+  // A Valley Line across the oval's inside, drawn before it and after it.
+  const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.4, 0.55], to: [0.6, 0.55] };
+
+  it('is pressed on its rim, either side of it, turned with it, and not inside it while it is not selected', () => {
+    // Its right end, on the rim and just off it.
+    expect(hitAnnotation([oval], [0.8, 0.5], SIZES, null)).toEqual({ annotationId: 'oval', part: 'body' });
+    expect(hitAnnotation([oval], [0.815, 0.5], SIZES, null)).toEqual({ annotationId: 'oval', part: 'body' });
+    expect(hitAnnotation([oval], [0.5, 0.5], SIZES, null)).toBeNull();
+    // Turned 30°: its end is out along the turn, and where it was is off it.
+    const end: [number, number] = [0.5 + 0.3 * Math.cos(Math.PI / 6), 0.5 + 0.3 * Math.sin(Math.PI / 6)];
+    expect(hitAnnotation([rectangle], end, SIZES, null)).toEqual({ annotationId: 'rect', part: 'body' });
+    expect(hitAnnotation([rectangle], [0.8, 0.3], SIZES, null)).toBeNull();
+  });
+
+  it('lets a line inside it be pressed, selected or not, wherever it was drawn: it is pressed under every mark', () => {
+    for (const list of [
+      [oval, line],
+      [line, oval],
+    ]) {
+      expect(hitAnnotation(list, [0.5, 0.55], SIZES, null)).toEqual({ annotationId: 'line', part: 'body' });
+      expect(hitAnnotation(list, [0.5, 0.55], SIZES, 'oval')).toEqual({ annotationId: 'line', part: 'body' });
+    }
+    // Where the line crosses the rim, the line is taken: the ring gives way, as it is painted.
+    const across: KnownDiagramAnnotation = { ...line, from: [0.1, 0.5], to: [0.9, 0.5] };
+    expect(hitAnnotation([across, oval], [0.8, 0.5], SIZES, null)).toEqual({ annotationId: 'line', part: 'body' });
+  });
+
+  it('takes a press anywhere in its box while it is selected, where nothing drawn is, and moves by it (R3-31 A)', () => {
+    expect(hitAnnotation([oval, line], [0.45, 0.4], SIZES, 'oval')).toEqual({ annotationId: 'oval', part: 'body' });
+    // Its box's corner, outside the oval itself, is in its box.
+    expect(hitAnnotation([oval, line], [0.78, 0.68], SIZES, 'oval')).toEqual({ annotationId: 'oval', part: 'body' });
+    // Another shape's rim inside it is that shape's, though it was drawn first.
+    const inner: KnownDiagramAnnotation = { id: 'inner', kind: 'rectangle', from: [0.5, 0.45], to: [0.5, 0.45], size: [0.1, 0.1] };
+    expect(hitAnnotation([inner, oval], [0.55, 0.45], SIZES, 'oval')).toEqual({ annotationId: 'inner', part: 'body' });
+    // Off its box, nothing.
+    expect(hitAnnotation([oval], [0.5, 0.75], SIZES, 'oval')).toBeNull();
+  });
+
+  it('offers its box’s handles before anything drawn under them, turned with it', () => {
+    const drawn = transformBoxHandles(rectangle, SIZES.px)!;
+    const north = drawn.handles.scale.find((each) => each.handle === 'n')!.at;
+    expect(hitAnnotation([rectangle, line], [north.x, north.y], SIZES, 'rect')).toEqual({
+      annotationId: 'rect',
+      part: 'transform',
+      handle: { kind: 'scale', handle: 'n' },
+    });
+    expect(transformBoxOf(rectangle)!.rotation).toBeCloseTo(Math.PI / 6, 12);
+  });
+});

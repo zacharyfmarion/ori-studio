@@ -157,6 +157,8 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolCircle': true,
   'diagram.toolStar': true,
   'diagram.toolEye': true,
+  'diagram.toolOval': true,
+  'diagram.toolRectangle': true,
   'diagram.toolRightAngle': true,
   'diagram.toolCallout': true,
   'diagram.toolAngleBisector': true,

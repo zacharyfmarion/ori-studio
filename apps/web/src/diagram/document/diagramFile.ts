@@ -62,8 +62,10 @@ import {
   MAX_STEP_ANNOTATIONS,
   MIN_CLOSE_UP_RADIUS,
   ZOOM_SIDE,
+  isAreaKind,
   isPointKind,
   isWithinReach,
+  rectangleAngle,
   type AnnotationReach,
 } from '../annotate/annotationModel';
 import { isAnnotationColor } from '../annotate/annotationColors';
@@ -1089,6 +1091,8 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     zoom: fields('radius', 'size', 'angle', 'scale', 'edge', 'anchor'),
     star: fields('fill', 'angle', 'scale'),
     eye: fields('angle', 'scale'),
+    oval: fields('size', 'angle'),
+    rectangle: fields('size', 'angle'),
   };
 })();
 
@@ -1157,8 +1161,8 @@ function readAnnotationOfKind(
   const fields = ANNOTATION_FIELDS[kind];
   if (Object.keys(entry).some((key) => !fields.has(key))) return NEWER;
   const from = readAnnotationPoint(entry.from, reach);
-  // A sign's, a label's, an enlarge area's or an eye's one place is `from`; `to` is written as it again.
-  const to = isPointKind(kind) || kind === 'zoom' || kind === 'eye' ? from : readAnnotationPoint(entry.to, reach);
+  // A sign's, a label's, an enlarge area's, an eye's or a shape's one place is `from`; `to` is written as it again.
+  const to = isPointKind(kind) || kind === 'zoom' || kind === 'eye' || isAreaKind(kind) ? from : readAnnotationPoint(entry.to, reach);
   if (from === null || to === null) return null;
   if (from === NEWER || to === NEWER) return NEWER;
   // The ends behind a flap, for a kind that has them: news before damage, as for the rest.
@@ -1336,6 +1340,18 @@ function readAnnotationOfKind(
         ...(angle !== null ? { angle: normalizeDegrees(angle) } : {}),
         ...(scale !== undefined ? { scale } : {}),
       };
+    }
+    case 'oval':
+    case 'rectangle': {
+      // Its size, as an enlarge area's rounded rectangle's: always written —
+      // without one it does not read — and past R3-30b's range a newer
+      // build's, news before damage. Its turn any number, read within
+      // [0, 180) as a half turn draws it the same; one that does not read
+      // dropped alone, and the shape kept upright (Revision 3).
+      const size = readZoomSize(entry.size);
+      if (size === NEWER || size === null) return size;
+      const angle = finiteNumber(entry.angle);
+      return { ...annotation, size, ...(angle !== null ? { angle: rectangleAngle(angle) } : {}) };
     }
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.

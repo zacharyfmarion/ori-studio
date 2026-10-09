@@ -92,6 +92,13 @@ export interface ResizeOptions {
    * Alt (R3-29c A). The Edit canvas never passes it.
    */
   aboutCentre?: boolean;
+  /**
+   * The range each side is held to as the drag goes, the held corner or edge
+   * staying put — a box kept in its proportions held as a whole while it can
+   * be — in place of {@link MIN_BOX_EXTENT} alone: a Diagram shape's
+   * (R3-30b A). The Edit canvas never passes it.
+   */
+  sides?: { min: number; max: number };
 }
 
 /**
@@ -109,7 +116,7 @@ export function resizeAnnotationBox(
   handle: TransformResizeHandle,
   pointerModel: Vec2,
   aspectLock = false,
-  { aboutCentre = false }: ResizeOptions = {}
+  { aboutCentre = false, sides }: ResizeOptions = {}
 ): TransformResizeResult {
   const { sx, sy } = HANDLE_SIGNS[handle];
   const cos = Math.cos(box.rotation);
@@ -143,14 +150,21 @@ export function resizeAnnotationBox(
     if (sx !== 0 && box.width > 0) ratios.push(Math.abs(du) / box.width);
     if (sy !== 0 && box.height > 0) ratios.push(Math.abs(dv) / box.height);
     if (ratios.length > 0) {
-      const scale = Math.max(...ratios);
+      let scale = Math.max(...ratios);
+      if (sides && box.width > 0 && box.height > 0) {
+        // Held as a whole, so it keeps its proportions, where its range allows both sides one scale.
+        const least = Math.max(sides.min / box.width, sides.min / box.height);
+        const most = Math.min(sides.max / box.width, sides.max / box.height);
+        if (least <= most) scale = Math.min(most, Math.max(least, scale));
+      }
       width = box.width * scale;
       height = box.height * scale;
     }
   }
 
-  width = Math.max(width, MIN_BOX_EXTENT);
-  height = Math.max(height, MIN_BOX_EXTENT);
+  const [least, most] = sides ? [Math.max(sides.min, MIN_BOX_EXTENT), sides.max] : [MIN_BOX_EXTENT, Infinity];
+  width = Math.min(most, Math.max(width, least));
+  height = Math.min(most, Math.max(height, least));
 
   if (aboutCentre) return { center: { x: box.center.x, y: box.center.y }, width, height };
 
