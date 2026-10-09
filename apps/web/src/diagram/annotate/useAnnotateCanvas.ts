@@ -39,7 +39,7 @@ import { paintSource, stepPictureSource, type PictureBox } from '../pictures/pai
 import { stepPictureFrame } from '../pictures/pictureFrame';
 import { stepPictureUrl } from '../pictures/useStepPictureUrl';
 import { ZOOM_CARD_MARGIN, zoomedSource, type ZoomedSource } from '../zoom/paintZoomed';
-import { marksInWindow } from '../zoom/stepView';
+import { marksBox, marksInWindow } from '../zoom/stepView';
 import { useAnchorPick } from '../zoom/useAnchorPick';
 import { anchorFaceRing } from '../zoom/zoomAnchor';
 import { intoBox, outlineFromBox, outlineIntoBox, setFrameOutline } from '../zoom/zoomFrames';
@@ -315,6 +315,25 @@ function closeUpRings(annotation: KnownDiagramAnnotation, layout: AnnotateLayout
     height: 2 * radius * layout.unit,
   });
   return unionPlotRect(ring(area), ring(inset));
+}
+
+/**
+ * What of a paste — the marks `ids` names — the canvas draws (`drawn`), in
+ * world px: what has to be in view to see it (18d review). Null when it draws
+ * none of it, as an enlarged step keeps a mark far off its window but draws
+ * it nowhere (`marksInWindow`).
+ */
+export function pastedRect(layout: AnnotateLayout, drawn: readonly DiagramAnnotation[], ids: readonly string[]): PlotRect | null {
+  const pasted = new Set(ids);
+  const box = marksBox(drawn.filter(({ id }) => pasted.has(id)));
+  return (
+    box && {
+      x: layout.frame.x + box.x * layout.unit,
+      y: layout.frame.y + box.y * layout.unit,
+      width: box.width * layout.unit,
+      height: box.height * layout.unit,
+    }
+  );
 }
 
 /**
@@ -705,6 +724,19 @@ export function useAnnotateCanvas({
     // Once, as it is selected: not again for every move of the frame while it stays selected.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameSelected]);
+  // A paste on this step (18d review) lands where its marks were copied: out of view if the canvas is zoomed in
+  // elsewhere, or beside an enlarged step's window when they come from another picture (Revision 2, decision 7).
+  // The canvas steps back to show what of it is drawn, once, as it does for a close-up laid beside the picture (15f),
+  // as soon as the step it is handed holds the paste; a paste made before it opened is not shown again.
+  const pasted = useWorkspaceStore((state) => state.diagramPasted);
+  const pasteSeen = useRef(pasted?.nonce ?? null);
+  useEffect(() => {
+    if (!pasted || pasted.nonce === pasteSeen.current) return;
+    if (pasted.stepId === step.id && (!layout || !step.annotations.some(({ id }) => id === pasted.ids[0]))) return;
+    pasteSeen.current = pasted.nonce;
+    const rect = pasted.stepId === step.id && layout ? pastedRect(layout, viewed, pasted.ids) : null;
+    if (rect) bringIntoView(rect);
+  }, [pasted, step.id, step.annotations, layout, viewed, bringIntoView]);
   // The pick mode armed for the frame: the canvas steps back to its anchor face too, which may lie far off.
   const pickingFrame = anchorPick.picking === ZOOM_FRAME_ID;
   useEffect(() => {

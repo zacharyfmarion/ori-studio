@@ -72,6 +72,28 @@ vi.mock('../../diagram/annotate/annotationPrimitives', async (importOriginal) =>
   };
 });
 
+/** What the canvas asked its camera to bring into view, in world px: each rect, in turn. */
+const camera = vi.hoisted(() => ({ revealed: [] as { x: number; y: number; width: number; height: number }[] }));
+vi.mock('../../hooks/useViewportSurface', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../hooks/useViewportSurface')>();
+  const { useCallback } = await import('react');
+  return {
+    ...actual,
+    useViewportSurface: (...args: Parameters<typeof actual.useViewportSurface>) => {
+      const surface = actual.useViewportSurface(...args);
+      const { bringIntoView } = surface;
+      const asked = useCallback<typeof bringIntoView>(
+        (rect, animationTime) => {
+          camera.revealed.push(rect);
+          bringIntoView(rect, animationTime);
+        },
+        [bringIntoView]
+      );
+      return { ...surface, bringIntoView: asked };
+    },
+  };
+});
+
 /**
  * The Annotate canvas's presses, through the store: what a drag, a click, a
  * second finger and a cancel each commit, and what they count. The overlay's
@@ -3042,5 +3064,44 @@ describe('DiagramAnnotateCanvas eyes (Revision 3)', () => {
     expect(annotations().filter((each) => each.kind === 'eye')).toHaveLength(1);
     expect(theEye().angle).toBeCloseTo(220, 1);
     expect(label()).toBe('Rotate annotation');
+  });
+});
+
+describe('a paste brought into view (18d review)', () => {
+  const star: KnownDiagramAnnotation = { id: 'star', kind: 'star', from: [0.9, 0.7], to: [0.9, 0.7] };
+
+  it('asks the camera to show what a paste put on the step, once, and not a paste made before the canvas opened', () => {
+    const stepId = mount();
+    act(() => {
+      useWorkspaceStore.setState({ activePanelId: 'diagram' });
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => [star]);
+      state().selectDiagramAnnotation('star');
+      state().copySelection();
+    });
+    rerender();
+    camera.revealed.length = 0;
+    act(() => void state().pasteClipboard());
+    rerender();
+    // Down and right of its original by a paste's step: its box, in world px, round the copy.
+    const copy = annotations()[1]!;
+    expect(copy.from[0]).toBeCloseTo(0.93, 9);
+    expect(camera.revealed).toHaveLength(1);
+    const [rect] = camera.revealed;
+    const [x, y] = at(...copy.from);
+    expect(rect!.x).toBeLessThan(x);
+    expect(rect!.x + rect!.width).toBeGreaterThan(x);
+    expect(rect!.y).toBeLessThan(y);
+    expect(rect!.y + rect!.height).toBeGreaterThan(y);
+    expect(rect!.width).toBeLessThan(at(0.2, 0)[0] - at(0, 0)[0]);
+    // An edit since asks nothing; nor does the canvas opened again on the step.
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Move annotation', (list) =>
+        list.map((each) => (each.id === 'star' ? { ...each, from: [0.5, 0.5] as [number, number], to: [0.5, 0.5] as [number, number] } : each))
+      );
+    });
+    act(() => root.unmount());
+    root = createRoot(host);
+    rerender();
+    expect(camera.revealed).toHaveLength(1);
   });
 });

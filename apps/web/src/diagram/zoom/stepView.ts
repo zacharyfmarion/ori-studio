@@ -204,6 +204,21 @@ function markExtent(mark: KnownDiagramAnnotation): [number, number, number, numb
   return [minX, minY, maxX, maxY];
 }
 
+/**
+ * What `marks` span together, in their own units, as near as
+ * {@link marksInWindow} tells one far off a window: enough to bring them into
+ * view (18d review). Null when none of them is a mark this build knows.
+ */
+export function marksBox(marks: readonly DiagramAnnotation[]): PictureBox | null {
+  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const mark of marks) {
+    if (!isKnownAnnotation(mark)) continue;
+    const [x0, y0, x1, y1] = markExtent(mark);
+    [minX, minY, maxX, maxY] = [Math.min(minX, x0), Math.min(minY, y0), Math.max(maxX, x1), Math.max(maxY, y1)];
+  }
+  return minX <= maxX && minY <= maxY ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY } : null;
+}
+
 /** A step as it is drawn: an enlarged step without the marks it keeps but does not draw ({@link marksInWindow}). */
 export function stepAsDrawn(step: DiagramStep): DiagramStep {
   const window = stepWindow(step);
