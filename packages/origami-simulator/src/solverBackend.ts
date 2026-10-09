@@ -91,6 +91,25 @@ export interface SolverBackend {
    */
   readPositions(into: Float32Array): number;
 
+  /**
+   * Copy the paper's shape into `into`: what {@link writeShape} puts back, bit
+   * for bit. Reads no velocity, pose or pin: a shape is where the paper is.
+   *
+   * @throws {InvalidSolverShapeError} when `into` is not this model's size.
+   */
+  readShape(into: SolverShape): void;
+
+  /**
+   * Make `shape` the paper's state: every node where the shape has it, with no
+   * motion behind it (velocity and Verlet history zeroed), and every crease at
+   * the shape's angle. A pull in progress ends and a pose is dropped first.
+   * With `keep`, the shape is then kept as a pose, as a pull let go is: nothing
+   * springs back. Fixed nodes stay fixed, holding the positions written.
+   *
+   * @throws {InvalidSolverShapeError} when `shape` is not this model's size.
+   */
+  writeShape(shape: SolverShape, keep: boolean): void;
+
   /** Per-vertex RGB strain colours, same contract as {@link readPositions}. */
   readColors(into: Float32Array): number;
 
@@ -141,6 +160,56 @@ export function copyFixedNodeMask(mask: Uint8Array | null, nodeCount: number): U
   if (mask === null) return null;
   if (mask.length !== nodeCount) throw new InvalidFixedNodeMaskError(nodeCount, mask.length);
   return mask.some((value) => value !== 0) ? mask.slice() : null;
+}
+
+/**
+ * The paper's shape as both backends hold it, in the model's own node and
+ * crease order.
+ *
+ * Not absolute positions. Both solvers integrate each node's displacement from
+ * the flat sheet, and a float32 position less the flat one does not give that
+ * displacement back exactly, so a shape kept as positions would restore close
+ * to the paper rather than to it.
+ */
+export interface SolverShape {
+  /** Each node's displacement from where it lies on the flat sheet, xyz. */
+  readonly offsets: Float32Array;
+  /**
+   * Each crease's dihedral angle in radians, as the solver has tracked it.
+   * Unwrapped against the last value (a jump of more than 5 rad turns the other
+   * way), so a crease folded past ±π reads 3.2 rather than -3.08. Recomputed
+   * from positions it would land on the other side, and the fold target or a
+   * Spring back would then drive it the long way round.
+   */
+  readonly theta: Float32Array;
+}
+
+/** A shape sized for a model: `nodeCount * 3` offsets and `creaseCount` angles. */
+export function createSolverShape(nodeCount: number, creaseCount: number): SolverShape {
+  return { offsets: new Float32Array(nodeCount * 3), theta: new Float32Array(creaseCount) };
+}
+
+/** A shape that does not describe this model's nodes and creases. */
+export class InvalidSolverShapeError extends Error {
+  constructor(
+    readonly expected: { offsets: number; theta: number },
+    readonly received: { offsets: number; theta: number }
+  ) {
+    super(
+      `Shape has ${received.offsets} offsets and ${received.theta} crease angles; ` +
+        `the model needs ${expected.offsets} and ${expected.theta}`
+    );
+    this.name = 'InvalidSolverShapeError';
+  }
+}
+
+/** Throw unless `shape` is sized for `nodeCount` nodes and `creaseCount` creases. */
+export function assertSolverShape(shape: SolverShape, nodeCount: number, creaseCount: number): void {
+  const expected = { offsets: nodeCount * 3, theta: creaseCount };
+  const received = { offsets: shape.offsets.length, theta: shape.theta.length };
+  if (received.offsets !== expected.offsets || received.theta !== expected.theta) {
+    throw new InvalidSolverShapeError(expected, received);
+  }
 }
 
 /** What a backend needs to describe itself to the scheduler and the UI. */

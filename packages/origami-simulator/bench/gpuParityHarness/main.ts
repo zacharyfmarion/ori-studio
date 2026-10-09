@@ -9,6 +9,8 @@ import { WebglSolver } from '../../src/webgl/webglSolver.js';
 import { cameraUniforms, centroid, boundingRadius } from '../../src/webgl/camera.js';
 import type { RenderSettings } from '../../src/webgl/meshRenderer.js';
 import { FIXTURES } from '../fixtures.js';
+import { createSolverShape, type SolverShape } from '../../src/solverBackend.js';
+import { POSE_REST_LENGTH_TOLERANCE } from '../../src/pull.js';
 import type { FoldDocument } from '../../src/types.js';
 
 interface GpuParityRow {
@@ -58,7 +60,36 @@ declare global {
     runGpuParity: (foldPercent: number, stepCounts: number[]) => GpuParityRow[];
     runRenderCheck: () => RenderCheckRow[];
     runPullParity: (foldPercent: number) => PullParityRow[];
+    runShapeChecks: () => ShapeCheckRow[];
   }
+}
+
+/** One fixture's shape read and restore on the GPU; see {@link runShapeChecks}. */
+interface ShapeCheckRow {
+  fixture: string;
+  integrator: 'euler' | 'verlet';
+  vertices: number;
+  creases: number;
+  /** readShape then writeShape onto a fresh solver then readShape: every byte the same. */
+  roundTrip: boolean;
+  /** The positions drawn after the restore are the ones drawn before it, bit for bit. */
+  positionsMatch: boolean;
+  /** Settled fixtures only: how far any node moved in 400 steps after a restore, unposed and kept. */
+  heldStill?: { free: number; kept: number };
+  /** Settled fixtures only: every crease's angle kept its sign through those steps. */
+  sidesKept?: boolean;
+  /**
+   * The shape's largest edge stretch. A pose keeps edge lengths only within
+   * `POSE_REST_LENGTH_TOLERANCE` of the sheet's, so a shape stretched further
+   * settles by the difference when kept, restored or not.
+   */
+  stretch?: number;
+  /** Mean milliseconds over 20 calls. */
+  readShapeMs: number;
+  writeShapeMs: number;
+  /** For scale: the position readback the worker already makes on a pin, pick or pull. */
+  readPositionsMs: number;
+  error?: string;
 }
 
 function compare(a: Float32Array, b: Float32Array): { maxAbs: number; meanAbs: number } {
@@ -648,6 +679,127 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraF
     }
   }
 
+  return rows;
+};
+
+/** Step until the solver's velocity settles, or give up. True once settled. */
+function settleGpu(solver: WebglSolver, maxSteps: number): boolean {
+  for (let done = 0; done < maxSteps; done += 80) {
+    solver.step(80);
+    if (solver.maxVelocity() < 1e-5) return true;
+  }
+  return false;
+}
+
+function shapeBytes(shape: SolverShape): Uint8Array {
+  const out = new Uint8Array(shape.offsets.byteLength + shape.theta.byteLength);
+  out.set(new Uint8Array(shape.offsets.buffer, shape.offsets.byteOffset, shape.offsets.byteLength));
+  out.set(new Uint8Array(shape.theta.buffer, shape.theta.byteOffset, shape.theta.byteLength), shape.offsets.byteLength);
+  return out;
+}
+
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function meanMs(calls: number, run: () => void): number {
+  const started = performance.now();
+  for (let call = 0; call < calls; call += 1) run();
+  return (performance.now() - started) / calls;
+}
+
+/**
+ * A shape read and put back on the GPU (`readShape`, `writeShape`): the round
+ * trip is exact, a restored settled shape holds still with and without a pose,
+ * and no crease changes side. Timed on every size, since a Diagram reads one
+ * on every capture of a simulated step.
+ */
+window.runShapeChecks = () => {
+  const rows: ShapeCheckRow[] = [];
+  const settled = new Set(['bird-base', 'miura-8x8']);
+  const sized = ['bird-base', 'miura-8x8', 'miura-32x32', 'boxpleat-24', 'miura-56x56', 'miura-80x80'];
+  for (const name of sized) {
+    const fixture = FIXTURES.find((candidate) => candidate.name === name);
+    if (!fixture) continue;
+    for (const integrationType of ['euler', 'verlet'] as const) {
+      const solvers: WebglSolver[] = [];
+      const make = (model: OrigamiModel, foldPercent: number) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 2;
+        canvas.height = 2;
+        const solver = new WebglSolver(canvas, model, { foldPercent, integrationType });
+        solvers.push(solver);
+        return solver;
+      };
+      const foldPercent = name === 'bird-base' ? 100 : 60;
+      const fold = fixture.build();
+      const modelOf = () => new OrigamiModel(prepareFoldModel(structuredClone(fold), { triangulate: true }));
+      const model = modelOf();
+      const { vertexCount } = model.prepared;
+      const creases = model.prepared.creaseParams.length;
+      const row: ShapeCheckRow = {
+        fixture: name,
+        integrator: integrationType,
+        vertices: vertexCount,
+        creases,
+        roundTrip: false,
+        positionsMatch: false,
+        readShapeMs: 0,
+        writeShapeMs: 0,
+        readPositionsMs: 0,
+      };
+      try {
+        const folded = make(model, foldPercent);
+        const isSettled = settled.has(name) ? settleGpu(folded, 40_000) : (folded.step(200), false);
+        // As the worker reads: after a tick, whose convergence readback has
+        // already waited for the GPU.
+        folded.maxVelocity();
+        const shape = createSolverShape(vertexCount, creases);
+        row.readShapeMs = meanMs(20, () => folded.readShape(shape));
+        const positions = new Float32Array(vertexCount * 3);
+        row.readPositionsMs = meanMs(20, () => folded.readPositions(positions));
+
+        const restored = make(modelOf(), foldPercent);
+        row.writeShapeMs = meanMs(20, () => restored.writeShape(shape, false));
+        const back = createSolverShape(vertexCount, creases);
+        restored.readShape(back);
+        row.roundTrip = sameBytes(shapeBytes(back), shapeBytes(shape));
+        const drawn = new Float32Array(vertexCount * 3);
+        restored.readPositions(drawn);
+        row.positionsMatch = sameBytes(new Uint8Array(drawn.buffer), new Uint8Array(positions.buffer));
+
+        if (isSettled) {
+          const moved = (solver: WebglSolver) => {
+            const after = new Float32Array(vertexCount * 3);
+            solver.step(400);
+            solver.readPositions(after);
+            return compare(positions, after).maxAbs;
+          };
+          const kept = make(modelOf(), foldPercent);
+          kept.writeShape(shape, true);
+          row.heldStill = { free: moved(restored), kept: moved(kept) };
+          let stretch = 0;
+          model.prepared.edgesVertices.forEach(([a, b], edge) => {
+            const length = Math.hypot(
+              positions[b * 3]! - positions[a * 3]!,
+              positions[b * 3 + 1]! - positions[a * 3 + 1]!,
+              positions[b * 3 + 2]! - positions[a * 3 + 2]!
+            );
+            stretch = Math.max(stretch, Math.abs(length / model.edgeRestLength(edge) - 1));
+          });
+          row.stretch = stretch;
+          const after = createSolverShape(vertexCount, creases);
+          restored.readShape(after);
+          row.sidesKept = shape.theta.every((theta, crease) => Math.sign(after.theta[crease]!) === Math.sign(theta));
+        }
+      } catch (cause) {
+        row.error = cause instanceof Error ? cause.message : String(cause);
+      } finally {
+        for (const solver of solvers) solver.dispose();
+      }
+      rows.push(row);
+    }
+  }
   return rows;
 };
 

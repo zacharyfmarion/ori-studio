@@ -8,6 +8,7 @@ import { ToolsTriggerButton } from '../components/ui/tools/ToolsTriggerButton';
 import { useToolPickerSheet } from '../components/ui/tools/useToolPickerSheet';
 import { SIMULATOR_TOOL_ICONS } from './simulatorToolIcons';
 import type { SimulatorToolButton } from './tools/actions';
+import type { SimulatorToolSurface } from './tools/toolState';
 
 /**
  * The phone layout's Tools pill for the Simulate canvas, and the sheet behind
@@ -26,15 +27,18 @@ import type { SimulatorToolButton } from './tools/actions';
 export function SimulatorToolsTrigger({
   buttons,
   disabled,
+  surface,
 }: {
   buttons: readonly SimulatorToolButton[];
   /** True until the simulation is ready; the rows say so rather than vanish. */
   disabled: boolean;
+  /** Which host the pill is in, as the sheet's analytics event says it. */
+  surface: SimulatorToolSurface;
 }) {
   const { t } = useTranslation();
   const { open, pickerId, openPicker, close, triggerRef } = useToolPickerSheet({
     available: true,
-    onOpened: trackSimulatorToolPickerOpened,
+    onOpened: () => trackSimulatorToolPickerOpened({ surface }),
   });
   const active = buttons.find((button) => button.active);
   const ActiveIcon = active ? SIMULATOR_TOOL_ICONS[active.icon] : null;

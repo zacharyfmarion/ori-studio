@@ -26,6 +26,13 @@ Scope: the Simulate workspace. Inline simulation windows and folded 3D windows
 share `SimulatorViewport` and keep orbit-only input, the same split the view
 cube made (`simulator-view-cube.md`).
 
+*Since (October 2026):* a Diagram step's Pose is getting the same tools, as a
+second host of the one implementation (`diagram-pose-simulator-tools.md` on
+the Diagram workspace branch, #436). The binding now reads and writes its tool
+state through a port (`simulator/tools/toolState.ts`): Simulate's is this
+plan's workspace slice (`simulateToolState.ts`), unchanged; another host keeps
+its own. The tools' events say which host they came from (`surface`).
+
 This is the interaction design that `simulator-options-panel.md` Phase 4b
 ("anchors + gravity — still needs an interaction design (how a vertex gets
 pinned)") was waiting for.
@@ -703,7 +710,8 @@ The canvas aria label and title ("Drag to rotate…") depend on the tool.
 
 - Vertex drag: upstream's `3dUI.js`, and the natural second tool (see "Adding a
   tool").
-- Pins in `.osf`; pins in inline simulation windows.
+- Pins in `.osf`; pins in inline simulation windows. (A Diagram step will
+  store its pins and shape: see `diagram-pose-simulator-tools.md`, #436.)
 - Gravity. `u_externalForces` exists and is all zeros.
 - Hover pre-highlight, live box preview, two-finger orbit on touch.
 - Making `isShortcutEditingTarget` let focused switches own Space. That changes

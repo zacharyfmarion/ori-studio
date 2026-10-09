@@ -26,7 +26,7 @@ const FORCE_SHADER_SAMPLERS = [
   'u_nominalTriangles',
 ] as const;
 
-import { copyFixedNodeMask, type SolverBackend } from '../solverBackend.js';
+import { assertSolverShape, copyFixedNodeMask, type SolverBackend, type SolverShape } from '../solverBackend.js';
 import {
   gripParameters,
   keptRestLength,
@@ -355,10 +355,14 @@ export class WebglSolver implements SolverBackend {
     this.gl.updateTexture('u_lastTheta', thetas);
   }
 
-  /** The edge lengths and face angles of the shape as it is become the paper's rest state. */
-  private keepInPlaneShape(): void {
-    const positions = new Float32Array(this.nodeCount * 3);
-    this.readPositions(positions);
+  /**
+   * The edge lengths and face angles of the shape as it is become the paper's
+   * rest state. `positions` when the caller already has them, as a restore
+   * does; otherwise they are read back.
+   */
+  private keepInPlaneShape(known?: Float32Array): void {
+    const positions = known ?? new Float32Array(this.nodeCount * 3);
+    if (!known) this.readPositions(positions);
     const point = (node: number): [number, number, number] => [
       positions[node * 3]!,
       positions[node * 3 + 1]!,
@@ -450,6 +454,57 @@ export class WebglSolver implements SolverBackend {
       into[i * 3 + 2] = (this.originalPositions[i * 3 + 2] ?? 0) + raw[i * 4 + 2]!;
     }
     return count;
+  }
+
+  readShape(into: SolverShape): void {
+    assertSolverShape(into, this.nodeCount, this.packed.dims.creases);
+    // Two readbacks, one per texture: the displacements the next step
+    // integrates from, and the angles thetaCalc unwraps against.
+    const offsets = this.gl.readTexture('u_lastPosition');
+    for (let node = 0; node < this.nodeCount; node += 1) {
+      into.offsets[node * 3] = offsets[node * 4]!;
+      into.offsets[node * 3 + 1] = offsets[node * 4 + 1]!;
+      into.offsets[node * 3 + 2] = offsets[node * 4 + 2]!;
+    }
+    const thetas = this.gl.readTexture('u_lastTheta');
+    for (let crease = 0; crease < this.packed.dims.creases; crease += 1) into.theta[crease] = thetas[crease * 4]!;
+  }
+
+  writeShape(shape: SolverShape, keep: boolean): void {
+    assertSolverShape(shape, this.nodeCount, this.packed.dims.creases);
+    this.releasePose();
+    const { textureDim } = this.packed.dims;
+    // Every step of history at the shape, as the reference does: equal history
+    // is a node at rest, under either integrator.
+    const offsets = new Float32Array(textureDim * textureDim * 4);
+    const positions = new Float32Array(this.nodeCount * 3);
+    for (let node = 0; node < this.nodeCount; node += 1) {
+      for (let axis = 0; axis < 3; axis += 1) {
+        const offset = shape.offsets[node * 3 + axis]!;
+        offsets[node * 4 + axis] = offset;
+        positions[node * 3 + axis] = (this.originalPositions[node * 3 + axis] ?? 0) + offset;
+      }
+    }
+    this.gl.updateTexture('u_position', offsets);
+    this.gl.updateTexture('u_lastPosition', offsets);
+    this.gl.updateTexture('u_lastLastPosition', offsets);
+    const still = new Float32Array(textureDim * textureDim * 4);
+    this.gl.updateTexture('u_velocity', still);
+    this.gl.updateTexture('u_lastVelocity', still);
+    // Channel 0 is the angle thetaCalc unwraps against, channel 1 a posed
+    // crease's rest angle; 2 and 3 are the crease's faces, kept as packed.
+    const thetas = this.packed.thetaInit.slice();
+    for (let crease = 0; crease < this.packed.dims.creases; crease += 1) {
+      thetas[crease * 4] = shape.theta[crease]!;
+      thetas[crease * 4 + 1] = keep ? shape.theta[crease]! : 0;
+    }
+    this.gl.updateTexture('u_theta', thetas);
+    this.gl.updateTexture('u_lastTheta', thetas);
+    // Normals are recomputed from the positions as the first pass of every
+    // step, so none are kept to write here.
+    if (!keep) return;
+    this.keepInPlaneShape(positions);
+    this.setPose(true);
   }
 
   readColors(into: Float32Array): number {

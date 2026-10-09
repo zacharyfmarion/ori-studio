@@ -21,6 +21,12 @@ pin a crane's body, pull one wing down, look at it, then pull the other.
 Scope: the Simulate workspace, the same scope Pin has. Inline simulation windows
 and folded 3D windows keep orbit-only input.
 
+*Since (October 2026):* a Diagram step's Pose is getting Pull too, through the
+same binding (`diagram-pose-simulator-tools.md` on the Diagram workspace
+branch, #436). Pose frames the shape rather than the pins (the worker's
+`framing: 'shape'` load option); Simulate keeps this plan's framing, which is
+the default (`'anchor'`).
+
 ### Decisions to confirm
 
 | # | Question | Proposal |
@@ -504,7 +510,9 @@ New strings in all eight locales, stamped:
   hover highlight.
 - Undo of single pulls, poses in `.osf`, and poses surviving a session reload
   or segment switch. A pose lives in its worker session; pins, unlike poses,
-  live in the store.
+  live in the store. (Still out of scope for Simulate; a Diagram step will keep
+  its shape, which needs the worker to read and restore one:
+  `diagram-pose-simulator-tools.md`, #436.)
 - Pull in inline simulation windows.
 - Tuning the constants per model, or exposing them as settings.
 
