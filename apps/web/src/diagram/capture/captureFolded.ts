@@ -360,6 +360,17 @@ export type CaptureStepResult =
   | { status: 'unavailable' };
 
 /**
+ * A render as a capture stores it: without Pose's stored mesh, which a newer
+ * build wrote for the picture this capture replaces (Refresh and Refresh All
+ * ask with the step's render as it stands, Relink with it at 0%).
+ */
+function withoutPoseMesh(render: DiagramCpRender): DiagramCpRender {
+  if (render.mode !== 'simulated' || render.shape === undefined) return render;
+  const { shape: _mesh, ...fresh } = render;
+  return fresh;
+}
+
+/**
  * Capture a step's picture once, start to finish: choose its creases, fold
  * them if its render folds, read the picture, free the figure.
  *
@@ -388,7 +399,7 @@ export async function captureStep(
       scope,
       fingerprint: creasesFingerprint(creases, render),
       thumbnail,
-      render,
+      render: withoutPoseMesh(render),
     });
     if (!stored) throw new Error('The capture made a link the file cannot read');
     return stored;

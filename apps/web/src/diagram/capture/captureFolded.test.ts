@@ -143,6 +143,18 @@ describe('captureStep, simulated (D19)', () => {
     });
   });
 
+  // Relink asks again at 0% with the step's render, Pose's mesh and all, and
+  // Refresh with the render as it stands: the mesh was the old picture's.
+  it('leaves Pose’s stored mesh behind with the picture it was for', async () => {
+    const shape = { posed: true, pins: [[0, 1]] };
+    const result = await captureStep(
+      fakeCaptureRuntime(),
+      request({ ...SIMULATED, shape } as DiagramCpRender, { simulateFlat: async () => sheetWithCrease() })
+    );
+    if (result.status !== 'captured') throw new Error('captured');
+    expect(result.source.render).toEqual(SIMULATED);
+  });
+
   it('leaves a fold above 0% to Pose, and says when the region cannot be simulated', async () => {
     const runtime = fakeCaptureRuntime();
     const simulateFlat = vi.fn(async () => sheetWithCrease());
