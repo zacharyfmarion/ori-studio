@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "manifestSha256": "b0e27fb8f05b57f728db99f588a9b4da9f9c7404ace724037593d2671dfb4b61",
+  "fonts": [
+    {
+      "file": "NotoSansSC-Regular.common.bf5c25b38753.ttf",
+      "bytes": 1464784,
+      "sha256": "bf5c25b387539e107b548d4f29112bacc5c44b3782382fa711044a4215725779"
+    },
+    {
+      "file": "NotoSansSC-Regular.full.fd3db655518d.ttf",
+      "bytes": 10678636,
+      "sha256": "fd3db655518daf4922ffcc52c03869ff26b1926833d36d1cd2a4f7c54caf67b5"
+    },
+    {
+      "file": "NotoSansSC-Bold.common.514aa2e31f3e.ttf",
+      "bytes": 1453688,
+      "sha256": "514aa2e31f3ea62af11ba0b9e1ffef58c5264a0f0064816d032bcc3ea7d29f95"
+    },
+    {
+      "file": "NotoSansSC-Bold.full.f3a09497b511.ttf",
+      "bytes": 10613524,
+      "sha256": "f3a09497b5115fa85a43b8db88f64241bece7cc7145ebe197d4981affda9d861"
+    },
+    {
+      "file": "NotoSansTC-Regular.common.41a3b9eb2ff1.ttf",
+      "bytes": 2151548,
+      "sha256": "41a3b9eb2ff1587bb561ec2546e1bfe884d9a629e0f0ab41ba535078b1f4ef5c"
+    },
+    {
+      "file": "NotoSansTC-Regular.full.f556cbee6a10.ttf",
+      "bytes": 7146444,
+      "sha256": "f556cbee6a10ea8dbb0bdb4a745cfeac7ca1b06b3d880687052ad90c404ab5d8"
+    },
+    {
+      "file": "NotoSansTC-Bold.common.4814bc63fece.ttf",
+      "bytes": 2141892,
+      "sha256": "4814bc63fececd38be82098ea9a4718d8b558739e2b10affa6e90c59192d4304"
+    },
+    {
+      "file": "NotoSansTC-Bold.full.02bfba99b030.ttf",
+      "bytes": 7117496,
+      "sha256": "02bfba99b030be186f698fffc07e561c9a62297286e00d6b9f0025daca2b3eba"
+    },
+    {
+      "file": "NotoSansJP-Regular.common.9d527fef5219.ttf",
+      "bytes": 1176104,
+      "sha256": "9d527fef5219dab64f69cf5ed006fb9886da8572f42424b9596783c0a6d72952"
+    },
+    {
+      "file": "NotoSansJP-Regular.full.355cd6978386.ttf",
+      "bytes": 5283704,
+      "sha256": "355cd6978386483d14832b21e2106728f7971b3f966ae5a4b83e02c9874cc366"
+    },
+    {
+      "file": "NotoSansJP-Bold.common.d385291e4a04.ttf",
+      "bytes": 1166120,
+      "sha256": "d385291e4a04940640159b9e0d7fe944af3205bfd8df127351c647f8384c24fe"
+    },
+    {
+      "file": "NotoSansJP-Bold.full.7d8c23c07c02.ttf",
+      "bytes": 5244652,
+      "sha256": "7d8c23c07c023bccf9f7339230ef0da9debb7554bad3c513c47ebcd31b62dfb9"
+    },
+    {
+      "file": "NotoSansKR-Regular.common.dd2adffdc390.ttf",
+      "bytes": 631408,
+      "sha256": "dd2adffdc3902b78ab96826cbe708700171aed18e7790c67bdf07989fce92211"
+    },
+    {
+      "file": "NotoSansKR-Regular.full.998eeb742f98.ttf",
+      "bytes": 5655444,
+      "sha256": "998eeb742f98f4606298807ac67359a5441468eb2d47707df6a93ea1ba15ff17"
+    },
+    {
+      "file": "NotoSansKR-Bold.common.edff713a7f82.ttf",
+      "bytes": 626232,
+      "sha256": "edff713a7f823ddd05094270ab45f4c592a1ab1fdf40178c6f3bbb3001ddee40"
+    },
+    {
+      "file": "NotoSansKR-Bold.full.77466356360c.ttf",
+      "bytes": 5610376,
+      "sha256": "77466356360c25b7820b2ec7318d4d9bbe2dcf69c02bba5523efd9978b9f20a1"
+    }
+  ],
+  "inputs": {
+    "scripts/diagram-fonts/sources.json": "5689c3a110e5954c4126d89ee6ad43a3c6742d9e80ebbd6a7895d3ef1b80b7a1",
+    "scripts/diagram-fonts/requirements.txt": "39553d9699b05eb540b665980edf7bd610221932db5701cd64b8a45afd21ff30",
+    "scripts/diagram-fonts/charsets/common.txt": "23862ff73e9f202015d91950c0687a9eca7061d334d435ba2296b370f9ad2873",
+    "scripts/diagram-fonts/charsets/jp.txt": "6f426bda187093f3bcddf7da9e66926597b19a885f5a837e17b0f23a842fd19f",
+    "scripts/diagram-fonts/charsets/kr.txt": "843437f8c7ba32d52c354c51fc98d116dc79d49f366798e555b57fa85b8c3595",
+    "scripts/diagram-fonts/charsets/latin.txt": "b7a5e5a44f78819dfa190daa34d7bdf44d3c0d71d9fcb6d1417b57a4f5cdb3e5",
+    "scripts/diagram-fonts/charsets/sc.txt": "d106078d6a5c32778a22c3668713174bd54ade1e379a20e338848105efbec200",
+    "scripts/diagram-fonts/charsets/tc.txt": "99a42be2c35ef3b107ded9e68ea140ce3e1506a95bbbf8474ec2e0426fb2c728",
+    "apps/web/src/diagram/fonts/NotoSans-Bold.ttf": "d88c72b936361adaa4a82e91cc616ecfca85d6a4e0aaad8d3c44f5c5d2c901ed",
+    "apps/web/src/diagram/fonts/NotoSans-Regular.ttf": "ab3ff8790fe724a6e7843435d147a5397b7dd48a74ace70c16372fb63c37a8b8"
+  }
+}

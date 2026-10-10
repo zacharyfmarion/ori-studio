@@ -5,14 +5,6 @@ description: >-
   charsets, its pinned sources and its pinned toolchain, and checked against their
   manifest either way.
 
-inputs:
-  warn-renames-against:
-    description: >-
-      The live site's font manifest. When set, the check warns if this build no longer has
-      a full file the site serves, which installed desktop apps read by name.
-    required: false
-    default: ''
-
 runs:
   using: composite
   steps:
@@ -37,17 +29,14 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        python -m pip install --disable-pip-version-check -r scripts/diagram-fonts/requirements.txt
+        python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/diagram-fonts/requirements.txt
         # The Latin bundle is committed; only the CJK files are built here.
         python scripts/diagram-fonts/build_fonts.py --skip-latin --cache "${RUNNER_TEMP}/diagram-font-sources"
 
-    - name: Check the fonts against their manifest
+    - name: Test the font retention guard
       shell: bash
-      env:
-        WARN_RENAMES_AGAINST: ${{ inputs.warn-renames-against }}
-      run: |
-        if [ -n "${WARN_RENAMES_AGAINST}" ]; then
-          python3 scripts/diagram-fonts/check_fonts.py --warn-renames-against "${WARN_RENAMES_AGAINST}"
-        else
-          python3 scripts/diagram-fonts/check_fonts.py
-        fi
+      run: python3 -m unittest discover -s scripts/diagram-fonts -p 'test_*.py'
+
+    - name: Check the fonts against their manifest and frozen v1 set
+      shell: bash
+      run: python3 scripts/diagram-fonts/check_fonts.py

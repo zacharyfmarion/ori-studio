@@ -2,7 +2,7 @@
 
     python scripts/diagram-fonts/build_fonts.py [--cache DIR] [--out DIR]
 
-Needs the pinned toolchain in requirements.txt (pip install -r
+Needs the pinned toolchain in requirements.txt (pip install --require-hashes --only-binary=:all: -r
 scripts/diagram-fonts/requirements.txt): fonttools, brotli, and skia-pathops,
 which removing the variable fonts' overlaps uses. Every source in sources.json
 is downloaded (once, into --cache) and checked against its sha256, then:
