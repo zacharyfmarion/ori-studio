@@ -29,7 +29,7 @@ update the native SVG X-ray glyph.
 - [x] Improve the X-ray glyph.
 - [x] Add equal-angle radius and visibility options.
 - [x] Validate behavior, translations, and browser presentation.
-- [ ] Update the existing PR and hand off the local preview.
+- [x] Update the existing PR and hand off the local preview.
 
 ## Validation
 
@@ -56,3 +56,9 @@ update the native SVG X-ray glyph.
 - Existing circles without a stored radius and equal-angle marks without the
   new options retain their original appearance. Sized circles share their
   actual radius with drawing, picking, arrow landings and label clearance.
+
+## Handoff
+
+Changes are on `claude/diagram-workspace-plan-ceb4f2`, in
+[PR #436](https://github.com/zacharyfmarion/ori-studio/pull/436).
+The worktree’s persistent preview is running at <http://localhost:5291/diagram>.
