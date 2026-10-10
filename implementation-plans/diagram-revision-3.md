@@ -2671,6 +2671,13 @@ re-taken on the committed code.
   ("holds a shape grown past R3-30b's range"). A ring more than twice a
   window across rings much more than the window shows, so this is left as
   R3-30b's range says.
+  **Undone at launch (2026-10-10, `bc89d1681`):** with #444's carry of
+  every mark, the hold refused Enlarged on for a step with such a shape, an
+  x-ray or a close-up, and every mark was left in the old units, so Enlarged
+  off moved them for good. R3-30b's range is the picture's frame's; it is
+  now held to that in the marks' units (`unitsPerFrame`), the reader takes
+  the same range, and a shape goes into a window and back as it was. The
+  test is now "grows a shape past twice a small window with it".
 - **Geometry and drawing.** `diagram/annotate/areaOutline.ts`:
   `areaOutlineOf`, `areaRimDistance`, `insideArea`, `areaOutlinePoints`,
   `areaBox` (exact turned extents, `pad` for half a pen). **Where the plan

@@ -1722,10 +1722,12 @@ on its next save.
 - `assets`, by id: `{ id, kind: 'svg', svg, widthPx, heightPx, bytes }`,
   sanitized again on every load, or `{ id, kind: 'raster', src, widthPx,
   heightPx, bytes }`, a PNG or JPEG data URL whose header must agree with its
-  size, at most 2,048 px a side (D7). One no step names is not written.
+  size, at most 2,048 px a side (D7). One nothing names, no step of this
+  build's and nothing a newer build wrote, is not written.
 - `thumbnails`: `{ "thumb-<digest>": "<a SheetThumbnail as JSON>" }`, every
-  thumbnail a link shows, once, sorted by key (decision 4). A file from before
-  the table holds each thumbnail inline in its source.
+  thumbnail a link shows, once, sorted by key (decision 4), and any entry
+  something a newer build wrote names, as it came. A file from before the
+  table holds each thumbnail inline in its source.
 
 **A step** — `id` (`step-<uuid>`), `revision`, `source`, `picture`,
 `annotations`, `annotatedPictureKey`, `text`, `breakBefore`, and `zoom` and
@@ -1761,6 +1763,10 @@ on its next save.
   mark; equal divisions; close-up; enlarge area (`zoom`); star; eye; oval;
   rectangle; x-ray — and `imported` on a mark lifted from a References card
   (17d). Points are in the picture's units, or an enlarged step's window's.
+  So are sizes: an area's side (up to twice the picture's frame) and a
+  close-up's, an x-ray's or an enlarge circle's radius (up to the frame) are
+  held to the picture's frame, which in a window's units is as many windows
+  as the frame spans (`unitsPerFrame`).
 - `zoom`, an enlarged step's frame (Revision 2): `{ from, shape, frame?,
   imprint?, scale?, edge?, areaWas? }`, `from` the enlarge area's id.
 - `place`, a step placed by hand (`diagram-page-overrides.md`): offsets
@@ -3819,6 +3825,56 @@ Plan: `implementation-plans/diagram-revision-3.md`, phases 18.0 and 18a to
 18d ovals and rectangles, and two follow-ups to 18d (a finger's handles,
 and the rule that keeps a turn). 18.0 and 18e–18f, X-ray, come in a PR of
 their own stacked on #446. It revises Revision 2's ED4 and ED9.
+
+### The launch review: the file, settled for launch (Zach, 2026-10-09)
+
+What a launched build reads and writes is what every installed desktop app
+keeps, so the file was settled before #436 reaches `main`. The v1 spec is
+Contracts › The v1 file.
+
+- [x] A list of diagrams: `workspace.diagrams`, asking for reader 10; a file
+  with `workspace.diagram` opens as a list of one (`f74bc6356`).
+- [x] What a newer build wrote is carried, never dropped: locked, written
+  back as it came (`8a70f32f1`), and drawn as far as this build reads it
+  (`50dc6fc3d`). Pose's `render.shape` is carried, so its tools can come later.
+- [x] Degrade, don't go read-only: a newer document field, page field, style
+  or Han style falls back alone (`a9192f55a`).
+- [x] Smaller files: the thumbnails table and cards' models as strings
+  (`509ee2d4b`): 50 steps on a 2,000-crease sheet, 25 MB to 511 KB.
+- [x] The frozen v1 file and the Contracts rewritten as its spec
+  (`594245439`); the analytics pass (`814939d2a`).
+- [x] Review of the above (one adversarial reviewer, every finding traced
+  and checked with a probe). Confirmed and fixed, each with a test that
+  fails without it:
+  - an asset or thumbnail only a newer build's document field, page field,
+    style, turn, mark or asset named was dropped on save (`34bab315d`);
+  - Refresh, Refresh All and Relink kept Pose's mesh with the new picture
+    (`c5f6f2acf`);
+  - a preset with a style beside it lost the style (`25af1286a`);
+  - a newer field in a region's box or rim was dropped (`f2913c68e`);
+  - a read gave every link its own copy of a shared thumbnail, and a save
+    serialised each again: 50 steps on a 20,000-stroke sheet now save in
+    22 ms, not a second (`7d0b6c3c5`).
+  Left as it is: a PNG or JPEG data URL that does not decode is carried as a
+  newer build's rather than dropped as damage, which loses nothing.
+- [x] Review of the merged branches: #442, main's simulator fixes, #444 and
+  #446 together (one reviewer, every finding probed). Every mark kind is
+  handled wherever kinds are switched on, the enlarged step's merged controls
+  are wired once, and main's simulator changes are additive here. Confirmed
+  and fixed:
+  - Enlarged on, or Update after an area shrank, moved every mark of a step
+    holding a shape, an x-ray or a close-up larger than twice the window,
+    and Enlarged off made it permanent (`bc89d1681`: R3-30b's range is now
+    held in the marks' units);
+  - an Update refused while another of its area ran said it had failed
+    (`5a1d9afae`).
+  Not changed: a cut and pasted enlarge area takes a new id, so the steps
+  enlarged from it say it was deleted (linking by id predates these
+  branches); the x-ray Depth row says "Refresh step N" for the moment an
+  Update folds faces.
+- [ ] Open with Zach: the built-in `diagram` preset stored by id (store its
+  values beside it, or freeze it), the full CJK fonts fetched by name (fail
+  the deploy on a rename), and the shortcut pass (keys change, ids stay).
 
 ### Later (written up, not built)
 
