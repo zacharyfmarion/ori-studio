@@ -95,8 +95,9 @@ export function updateTargetSteps(document: DiagramDocument, request: EnlargedUp
  * Run an Update from the store, and say what it did: Update All over
  * `areaIds`, or one enlarged step's own Update (`stepId`). The steps it was
  * asked to place are read before it runs. A diagram replaced while it ran
- * took the press with it, so nothing is said; an error is reported, and said.
- * How many steps it placed, none on an error.
+ * took the press with it, and one refused while an Update of its area runs
+ * is that one's to say, so nothing is said for either; an error is reported,
+ * and said. How many steps it placed, none on an error or a refusal.
  */
 export function runEnlargedUpdate(request: EnlargedUpdate, t: TFunction): Promise<number> {
   const store = useWorkspaceStore.getState;
@@ -106,6 +107,7 @@ export function runEnlargedUpdate(request: EnlargedUpdate, t: TFunction): Promis
     'stepId' in request ? store().updateEnlargedDiagramStep(request.stepId) : store().updateEnlargedDiagramSteps(request.areaIds);
   return running.then(
     (placed) => {
+      if (placed === null) return 0;
       const now = store();
       if (now.diagram && now.diagramLoadId === diagramLoadId) showUpdateEnlargedToast(updatedToast(t, steps, placed));
       return placed;

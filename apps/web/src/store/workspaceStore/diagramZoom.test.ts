@@ -319,13 +319,14 @@ describe('Update and Update All (Z7; review fix 4)', () => {
     const was = past();
     tracked.trackDiagramStepEnlarged.mockClear();
     const placed = await Promise.all([state().updateEnlargedDiagramStep('step-2'), state().updateEnlargedDiagramSteps(['area-head'])]);
-    expect(placed).toEqual([1, 0]);
+    // The one refused resolves null: the one that ran says what it placed.
+    expect(placed).toEqual([1, null]);
     expect(past()).toBe(was + 1);
     expect(tracked.trackDiagramStepEnlarged).toHaveBeenCalledOnce();
     // The other way round.
     state().undoDiagram();
     const again = await Promise.all([state().updateEnlargedDiagramSteps(['area-head']), state().updateEnlargedDiagramStep('step-2')]);
-    expect(again).toEqual([1, 0]);
+    expect(again).toEqual([1, null]);
     expect(past()).toBe(was + 1);
   });
 

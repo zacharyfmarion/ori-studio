@@ -249,20 +249,22 @@ export function unenlargeInStore(store: DiagramCaptureStore, commit: DiagramComm
  * Update or Update All, as one undo step: the areas' steps' faces and every
  * step's it places first, where a fold can give them, then each captured
  * again from its area as it is now, which it records (review fix 4). How
- * many steps it placed: none on a read-only diagram, with the area gone,
- * with nothing out of date, or while an update of the same area runs.
+ * many steps it placed: none on a read-only diagram, with the area gone, or
+ * with nothing out of date; null, refused, while an update of the same step
+ * or area runs — that one says what it placed.
  */
 export async function updateInStore(
   store: DiagramCaptureStore,
   commit: DiagramCommit,
   backfill: PaperFacesBackfill,
   request: EnlargedUpdate
-): Promise<number> {
+): Promise<number | null> {
   const { diagram, diagramReadOnly, diagramLoadId } = store.get();
   const { areaIds, stepIds: targets } = diagram && !diagramReadOnly ? updateTargets(diagram, request) : { areaIds: [], stepIds: [] };
   // Keyed by its areas too: one Update and one Update All of the same area refuse each other.
   const keys = 'stepId' in request ? [request.stepId, ...areaIds] : areaIds;
-  if (!diagram || targets.length === 0 || keys.some((key) => inFlight.has(key))) return 0;
+  if (!diagram || targets.length === 0) return 0;
+  if (keys.some((key) => inFlight.has(key))) return null;
   keys.forEach((key) => inFlight.add(key));
   try {
     const sources = areaIds.flatMap((areaId) => areaSource(diagram, areaId)?.step ?? []);

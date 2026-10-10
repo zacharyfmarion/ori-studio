@@ -2274,15 +2274,17 @@ export interface DiagramSliceActions {
    * Update (review fix 4): an enlarged step that is out of date captured
    * again from its area as it is now, as one undo step — what "Step N's area
    * changed" asks for. Resolves how many it placed: one, or none with the
-   * area gone, the step up to date, or an update of its area running.
+   * area gone or the step up to date; null, refused, while an update of its
+   * area runs.
    */
-  updateEnlargedDiagramStep: (stepId: string) => Promise<number>;
+  updateEnlargedDiagramStep: (stepId: string) => Promise<number | null>;
   /**
    * Update All (Z7; review fix 4): every step enlarged from these areas that
    * is out of date (`stepsToUpdate`) captured again from its area as it is
-   * now, as one undo step. Resolves how many it placed.
+   * now, as one undo step. Resolves how many it placed; null, refused, while
+   * an update of one of its areas runs.
    */
-  updateEnlargedDiagramSteps: (areaIds: readonly string[]) => Promise<number>;
+  updateEnlargedDiagramSteps: (areaIds: readonly string[]) => Promise<number | null>;
   /**
    * Any other edit of an enlarged step's frame — moved, resized, reshaped,
    * its Size, Edge or anchor — as one undo step called `label`: `edit` gets

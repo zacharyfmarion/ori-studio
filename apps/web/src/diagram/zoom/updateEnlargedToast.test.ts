@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { toast } from 'sonner';
+import { describe, expect, it, vi } from 'vitest';
 import i18n from '../../i18n';
-import { failedToast, updatedToast } from './updateEnlargedToast';
+import { createDiagram } from '../document/diagramDocument';
+import { failedToast, runEnlargedUpdate, updatedToast } from './updateEnlargedToast';
+
+const store = vi.hoisted(() => ({ state: {} as Record<string, unknown> }));
+vi.mock('../../store/workspaceStore', () => ({ useWorkspaceStore: { getState: () => store.state } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn() } }));
 
 const t = i18n.getFixedT('en');
 
@@ -40,5 +46,24 @@ describe('what an Update of enlarged steps says', () => {
       title: 'The enlarged steps couldn’t be updated',
       description: 'The fold was refused',
     });
+  });
+
+  // Update on one step and Update on another of the same area refuse each
+  // other while one runs (review of review fix 4): the one that runs says
+  // what it placed, and the one refused says nothing, rather than that it failed.
+  it('says nothing for an Update refused while another of its area runs', async () => {
+    const placed: { value: number | null } = { value: null };
+    store.state = {
+      diagram: createDiagram({ title: 'Crane' }),
+      diagramLoadId: 1,
+      updateEnlargedDiagramStep: async () => placed.value,
+    };
+    await expect(runEnlargedUpdate({ stepId: 'step-25' }, t)).resolves.toBe(0);
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    // One that ran and placed nothing still says so.
+    placed.value = 0;
+    await runEnlargedUpdate({ stepId: 'step-25' }, t);
+    expect(toast.error).toHaveBeenCalledWith('The enlarged steps couldn’t be updated', undefined);
   });
 });
