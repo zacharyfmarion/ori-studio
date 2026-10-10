@@ -4,6 +4,8 @@ import { PAPER_STYLE_POLICIES, lightVector, surfacePaperStyle } from '../lib/pap
 import type { PaperScene } from '../lib/paper/paperScene';
 import { widestPenCssPx } from '../lib/paper/paperSvg';
 import { PreparedModelCache } from '../lib/preparedModelCache';
+import { foldedObj, validFoldedMesh, type FoldedObjUnavailableReason } from '../lib/foldedExport';
+import { sheetUvs, type SheetUvs } from '../lib/sheetUvs';
 import { MAX_LIVE_FOLDED_MESHES, MAX_LIVE_SIMULATOR_SESSIONS } from './simulatorLimits';
 import {
   FOLDED_3D_REQUIRED_DEPTH_BITS,
@@ -482,6 +484,9 @@ interface SceneFrame {
 /** A frame frozen for an export dialog, with the session it came from. */
 interface ExportSnapshot extends SceneFrame {
   session: Session;
+  triangles: Uint32Array;
+  foldPercent: number;
+  sheetUvs: SheetUvs;
 }
 
 /** A model from a camera, framed in a square: a Diagram step's picture (`stillFrame`, `flatScene`). */
@@ -1751,6 +1756,9 @@ const api = {
     exportSnapshots.set(exportSnapshotId, {
       session: active,
       positions,
+      triangles: prepared.indices.slice(),
+      foldPercent: active.foldPercent,
+      sheetUvs: sheetUvs(active.model.originalPositions),
       topology: meshTopologyFor(prepared),
       camera: cameraUniforms(
         active.view.view,
@@ -1767,6 +1775,21 @@ const api = {
       showEdges: active.view.settings.showEdges,
     });
     return exportSnapshotId;
+  },
+
+  /** Readiness is independent of whether the image preview shows any faces. */
+  exportObjUnavailableReason(snapshotId: number): FoldedObjUnavailableReason | null {
+    const snapshot = exportSnapshots.get(snapshotId);
+    if (!snapshot) return 'expired-snapshot';
+    if (!validFoldedMesh(snapshot)) return 'invalid-mesh';
+    return snapshot.sheetUvs.reason;
+  },
+
+  /** Serialize the captured mesh in the worker, without consulting the live session. */
+  exportObj(snapshotId: number): string | null {
+    const snapshot = exportSnapshots.get(snapshotId);
+    if (!snapshot || !snapshot.sheetUvs.uvs || !validFoldedMesh(snapshot)) return null;
+    return foldedObj(snapshot, 'folded', snapshot.sheetUvs.uvs);
   },
 
   /**

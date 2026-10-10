@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { PaperObjExport } from '../paperExport/paperExportTarget';
 import { transfer } from 'comlink';
 import type {
   FoldDocument as SimulatorFoldDocument,
@@ -64,6 +65,7 @@ interface SimulatorCameraRequest {
  * worker holds the frame; `release` lets it go when the dialog closes.
  */
 export interface SimulatorExportSnapshot {
+  obj: PaperObjExport;
   scene: (options: SimulatorExportSceneOptions) => Promise<PaperScene | null>;
   release: () => void;
 }
@@ -1017,7 +1019,15 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       settings: lastRenderSettingsRef.current ?? undefined,
     });
     if (snapshot === null) return null;
+    let unavailableReason: PaperObjExport['unavailableReason'];
+    try {
+      unavailableReason = await client.exportObjUnavailableReason(snapshot);
+    } catch (cause) {
+      void client.endExportSnapshot(snapshot).catch(() => undefined);
+      throw cause;
+    }
     return {
+      obj: { unavailableReason, build: () => client.exportObj(snapshot) },
       scene: (options) => client.exportScene(snapshot, options),
       // A worker that has gone takes its snapshots with it.
       release: () => void client.endExportSnapshot(snapshot).catch(() => undefined),

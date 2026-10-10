@@ -10,7 +10,7 @@ import type { PaperExportMarkShown } from '../analytics/events';
 import { paperSvgToPng } from '../lib/paper/paperPng';
 import type { PaperSvgResult } from '../lib/paper/paperSvg';
 import type {
-  PaperExportFormat,
+  PaperImageExportFormat,
   PaperExportMark,
   PaperExportSettings,
   PaperExportStyleChoice,
@@ -22,7 +22,7 @@ import { zipPages, type ZipEntry } from './zipPages';
 
 export interface SavePaperExportOptions {
   page: PaperSvgResult;
-  format: PaperExportFormat;
+  format: PaperImageExportFormat;
   /** The density a PNG rasterises at; the page is in points, so this alone sets its pixel size. */
   pngDpi: number;
   /** Base name, before sanitising and before the extension. */
@@ -70,7 +70,7 @@ export async function savePaperExport({
 export interface SavePaperExportZipOptions {
   /** Every page, painted, with its file's stem inside the archive. */
   pages: readonly { page: PaperSvgResult; fileStem: string }[];
-  format: PaperExportFormat;
+  format: PaperImageExportFormat;
   pngDpi: number;
   /** The archive's name, before sanitising and before the extension. */
   zipStem: string;
@@ -138,6 +138,9 @@ export function paperExportedEvent(
     marks: readonly PaperExportMark[];
   }
 ): PaperExportedEvent {
+  if (options.format === 'obj') {
+    return { surface, format: 'obj', optionsChanged: details.changed, scope: 'this' };
+  }
   const shown = (mark: PaperExportMark): PaperExportMarkShown =>
     options.marks[mark] ? 'shown' : 'hidden';
   return {

@@ -31,6 +31,7 @@ const EMPTY = 'This simulation has nothing to export yet';
 /** A frame the worker froze, answering one scene. */
 function frozenFrame() {
   return {
+    obj: { unavailableReason: null, build: vi.fn(async () => 'o captured\n') },
     scene: vi.fn(async (_options: SimulatorExportSceneOptions): Promise<PaperScene | null> => SCENE),
     release: vi.fn(),
   };

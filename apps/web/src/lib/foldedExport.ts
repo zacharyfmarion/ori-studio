@@ -1,5 +1,6 @@
 import type { FoldDocument } from '../engine/types';
 import { dropPerEdgeArrays } from './foldEdgeArrays';
+import type { SheetUvFailure } from './sheetUvs';
 
 /**
  * Serializers for the simulator's folded 3D result.
@@ -20,6 +21,16 @@ export interface FoldedMesh {
   triangles: Uint32Array;
   /** Fold percent the snapshot was taken at, recorded in FOLD metadata. */
   foldPercent: number;
+}
+
+export type FoldedObjUnavailableReason = SheetUvFailure | 'invalid-mesh' | 'expired-snapshot';
+
+/** No truncation or invented zero coordinates in an exported mesh. */
+export function validFoldedMesh(mesh: Pick<FoldedMesh, 'positions' | 'triangles'>): boolean {
+  const { positions, triangles } = mesh;
+  return positions.length >= 9 && positions.length % 3 === 0 &&
+    positions.every(Number.isFinite) && triangles.length >= 3 && triangles.length % 3 === 0 &&
+    triangles.every((index) => index < positions.length / 3);
 }
 
 /** Decimals kept in text formats: plenty for print, and keeps files small. */
@@ -78,7 +89,11 @@ export function foldedFoldDocument(source: FoldDocument, mesh: FoldedMesh): Fold
 }
 
 /** Wavefront OBJ. Indices are 1-based, which is the classic off-by-one here. */
-export function foldedObj(mesh: FoldedMesh, name = 'folded'): string {
+export function foldedObj(mesh: FoldedMesh, name = 'folded', uvs?: Float32Array): string {
+  if (!validFoldedMesh(mesh)) throw new Error('Invalid folded mesh');
+  if (uvs && (uvs.length !== (mesh.positions.length / 3) * 2 || !uvs.every(Number.isFinite))) {
+    throw new Error('Texture coordinates do not match the folded mesh');
+  }
   const lines: string[] = [`# Ori Studio folded form (${Math.round(mesh.foldPercent)}%)`, `o ${name}`];
   const vertexCount = Math.floor(mesh.positions.length / 3);
   for (let i = 0; i < vertexCount; i += 1) {
@@ -88,8 +103,15 @@ export function foldedObj(mesh: FoldedMesh, name = 'folded'): string {
       )}`
     );
   }
+  if (uvs) {
+    for (let i = 0; i < uvs.length; i += 2) {
+      lines.push(`vt ${round(uvs[i]!)} ${round(uvs[i + 1]!)}`);
+    }
+    lines.push('s off');
+  }
+  const corner = (index: number) => uvs ? `${index + 1}/${index + 1}` : String(index + 1);
   for (let i = 0; i + 2 < mesh.triangles.length; i += 3) {
-    lines.push(`f ${mesh.triangles[i]! + 1} ${mesh.triangles[i + 1]! + 1} ${mesh.triangles[i + 2]! + 1}`);
+    lines.push(`f ${corner(mesh.triangles[i]!)} ${corner(mesh.triangles[i + 1]!)} ${corner(mesh.triangles[i + 2]!)}`);
   }
   return `${lines.join('\n')}\n`;
 }

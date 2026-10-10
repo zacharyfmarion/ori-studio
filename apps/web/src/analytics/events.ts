@@ -753,8 +753,9 @@ export type PaperExportSurface =
   | 'folded-flat'
   | 'references';
 
-/** A paper export's image format — the file's kind only, never its name. */
-export type PaperExportFormat = 'svg' | 'png';
+/** A paper export's format — the file's kind only, never its name. */
+export type PaperImageExportFormat = 'svg' | 'png';
+export type PaperExportFormat = PaperImageExportFormat | 'obj';
 
 /** Whether an export kept the faces no pixel of the page shows (D4 in the plan). */
 export type PaperExportHiddenFaces = 'kept' | 'dropped';
