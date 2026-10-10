@@ -1687,128 +1687,109 @@ Where its parts live (under `apps/web/src/`):
 
 ### Contracts
 
-A React-free leaf module, `apps/web/src/diagram/document/diagramDocument.ts`,
-importable by `nativeProjectFile.ts` the way `cpImage.ts` is:
+#### The v1 file (frozen at launch, 2026-10-10)
 
-```ts
-interface DiagramDocument {
-  formatVersion: 1;
-  id: string;                         // 'diagram-<uuid>'
-  title: string;                      // header, page title tab, export filename slug
-  steps: DiagramStep[];               // order IS the step number
-  page: DiagramPageSetup;
-  style: { preset: BuiltInPaperPresetId } | { style: PaperStyle };   // D9
-  assets: Record<string, DiagramAsset>;
-}
+The format a launched build reads and writes. The types are
+`apps/web/src/diagram/document/diagramDocument.ts`, the reader and writer
+`diagram/document/diagramFile.ts`: they are the source of truth, and this is
+their summary. `diagram/document/diagramFileV1.test.ts` holds a frozen v1
+file (`__fixtures__/diagram-v1.json`, every kind of step, picture, render,
+turn and mark) to them: it must open editable, with nothing carried as a
+newer build's, and write back exactly. A change to anything below is a
+format change.
 
-interface DiagramStep {
-  id: string;                         // 'step-<uuid>'
-  revision: number;                   // bumped on source change; async captures check it (D4)
-  source: DiagramStepSource | null;   // null = empty step
-  picture: DiagramPicture | null;     // captured result; null until captured
-  annotations: DiagramAnnotation[];   // picture units (D8)
-  annotatedPictureKey: string | null; // picture key the annotations were drawn on
-  text: string;                       // instruction
-  breakBefore: boolean;               // start a new page here (D10)
-  unknown?: Record<string, unknown>;  // a newer build's step, kept verbatim (validator)
-}
+**Where it lives.** `workspace.diagrams`, a list (D1), which asks for reader
+10. This build shows the first diagram and carries the rest verbatim
+(`diagramOthers`). A file from before the list holds one under
+`workspace.diagram` (reader 9): read as a list of one, rewritten as the list
+on its next save.
 
-interface RegionReference {           // carved out of InlineSimulation's source* fields (D3); no fingerprint
-  boundary: Point[][];
-  bounds: FoldedSourceBounds;
-  segmentIdHint: number | null;
-}
+**A diagram** — `formatVersion: 1`, `id` (`diagram-<uuid>`), `title`,
+`hanStyle` (`sc`/`tc`/`jp`/`kr`), `style`, `page`, `steps`, `assets`,
+`thumbnails`:
+- `style` is `{ preset: 'default' | 'diagram' }`, a built-in by id, or
+  `{ style: PaperStyle }`, a custom or export style stored whole (D9).
+- `page`: `size` (`a4`/`a5`/`b5-jis`/`letter`), `orientation`, `marginMm`
+  (0–30), `layout` (`grid`/`flow`; unsaid reads as the grid), `columns`
+  (2–5), `rows` (1–6), `showPath`, `pathWidthMm` (4–60, written only when
+  not 20), `pathColor` (`#rrggbb`, only when not `#ecece8`), `firstPageSide`
+  (only when `right`), `showTitle`, `pageNumbers` (`{ enabled, first }`,
+  first 1–9999). `scale` is retired (2026-10-06): read and let go.
+- `steps`: the order, steps and the turns between them (D22). A turn is
+  `{ id: 'turn-<uuid>', kind: 'turn-over', axis }` (unsaid: `vertical`) or
+  `{ id, kind: 'rotate', rotate: { amount, direction } }` (unsaid: a quarter
+  clockwise).
+- `assets`, by id: `{ id, kind: 'svg', svg, widthPx, heightPx, bytes }`,
+  sanitized again on every load, or `{ id, kind: 'raster', src, widthPx,
+  heightPx, bytes }`, a PNG or JPEG data URL whose header must agree with its
+  size, at most 2,048 px a side (D7). One no step names is not written.
+- `thumbnails`: `{ "thumb-<digest>": "<a SheetThumbnail as JSON>" }`, every
+  thumbnail a link shows, once, sorted by key (decision 4). A file from before
+  the table holds each thumbnail inline in its source.
 
-type DiagramStepSource =
-  | { kind: 'cp';
-      scope:                          // D3: how the creases are chosen
-        | { kind: 'segment'; region: RegionReference }
-        | { kind: 'figure-bounds'; bounds: FoldedSourceBounds };
-      fingerprint: string;            // foldedSourceFingerprint over exactly the folded line ids
-      thumbnail: SheetThumbnail;      // corner thumbnail, frozen at capture
-      render:
-        | { mode: 'crease-pattern'; rotationDeg: number }
-        | { mode: 'folded-flat'; side: 'front' | 'back'; rotationDeg: number; foldCase: number }
-        | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back' }
-        | { mode: 'simulated'; percent: number; view: SimulatorOrbitView } }
-  | { kind: 'references-step';
-      region: RegionReference;
-      fingerprint: string;            // sourceFingerprintFor(document, region.bounds): per sheet (D6)
-      settings: ReferencesPlanSettings; mode: 'sequence' | 'find';
-      card: number | null; line: { n: [number, number]; d: number } | null }
-  | { kind: 'upload'; assetId: string; rotationQuarterTurns: 0 | 1 | 2 | 3; mirrored: boolean };
+**A step** — `id` (`step-<uuid>`), `revision`, `source`, `picture`,
+`annotations`, `annotatedPictureKey`, `text`, `breakBefore`, and `zoom` and
+`place` only when set:
+- `source`, null for an empty step, or:
+  - `{ kind: 'upload', assetId, rotationQuarterTurns (0–3), mirrored }`;
+  - `{ kind: 'cp', scope: { kind: 'segment', region }, fingerprint,
+    thumbnail, render, remembered? }`, `thumbnail` a key into the table;
+    `render` one of `{ mode: 'crease-pattern', rotationDeg, side?: 'back' }`,
+    `{ mode: 'folded-flat', side, rotationDeg, foldCase, spread? }` (a spread
+    `{ kind: 'depth', amount, toward }` or `{ kind: 'affine', amount, keep,
+    skew, axisDeg }`; one with no kind is by depth), `{ mode: 'folded-3d',
+    camera, side }`, or `{ mode: 'simulated', foldPercent (0–100), view,
+    shape? }` — `shape` is Pose's stored mesh, carried and never read here
+    (decision 5); `remembered`, the renders of the other ways of showing (D19);
+  - `{ kind: 'references-step', region, fingerprint (or null), thumbnail,
+    mode ('sequence'/'find'), settings (the planner's four switches, or
+    null), card (from 1, or null), line ({ n, d }, or null), side, plan?,
+    way?, sentence?, marks? }`.
+- `picture`, null until captured, or `{ kind: 'asset', assetId, paperScale,
+  styleKey?, key }`, `{ kind: 'scene', sceneJson, paperScale, styleKey, key,
+  paperFaces? }` (the scene as one string, at most 4 MB), `{ kind: 'fixed',
+  svg, widthPx, heightPx, key }` (sanitized again on every load), or
+  `{ kind: 'step-diagram', model, mirrored, key }` (the card's model as one
+  string, decision 4; a file from before holds it as a record). A source takes
+  only its own pictures: an upload its asset; a link a scene, a fixed picture
+  or a capture kept as a bitmap asset; a References step its card.
+- `annotations` (D8), at most 500: `{ id, kind, from, to, … }` with each
+  kind's own fields, as `ANNOTATION_FIELDS` in `diagramFile.ts` lists them —
+  valley, mountain, fold-and-unfold, pleat, push and white arrows; the
+  turn-over and rotate signs no tool draws now (D22), kept from before; valley,
+  mountain, hidden and solid lines; label; circle; right angle; callout; angle
+  mark; equal divisions; close-up; enlarge area (`zoom`); star; eye; oval;
+  rectangle; x-ray — and `imported` on a mark lifted from a References card
+  (17d). Points are in the picture's units, or an enlarged step's window's.
+- `zoom`, an enlarged step's frame (Revision 2): `{ from, shape, frame?,
+  imprint?, scale?, edge?, areaWas? }`, `from` the enlarge area's id.
+- `place`, a step placed by hand (`diagram-page-overrides.md`): offsets
+  `frame`, `number`, `picture` and `text` in mm, and `scale`
+  (`{ mmPerUnit }` or `{ frameMm }`).
 
-type DiagramPicture =
-  | { kind: 'scene'; sceneJson: string; paperScale: number | null; styleKey: string | null; key: string }
-  | { kind: 'step-diagram'; model: StepDiagramModel; mirrored: boolean; key: string }
-  | { kind: 'fixed'; svg: string; widthPx: number; heightPx: number; key: string }   // our own output; sanitized at capture and re-sanitized on load (D7)
-  | { kind: 'asset'; assetId: string; paperScale: number | null; key: string };     // uploads, and over-budget raster captures (D2)
+**Reading** (`readDiagram`), lenient, in three rules:
+1. **Malformed is dropped.** A step, mark or asset that does not read, or a
+   source or picture that does not, is left out; the rest of the diagram
+   opens. A value of the wrong type falls back to its default.
+2. **What a newer build wrote is carried, never dropped** (decisions 1 and
+   2 of the launch review, 2026-10-09). A kind, field or value this build has
+   no name for, at any depth, or content past what it keeps — an SVG, a scene
+   or a card longer than its cap, a bitmap larger than it reads or in another
+   format, a number past a range it reads — makes the enclosing step, mark or
+   asset a newer build's: kept verbatim in its `unknown` field, written back
+   unchanged, and locked (moved or deleted, never edited). A locked step is
+   drawn as far as this build reads it. At the document's level such a value
+   falls back alone, shown as this build's default or nearest, and is written
+   back as it came until that field is set here (`DiagramNewerFields`).
+3. **A newer document opens read-only.** Only a `formatVersion` above 1 does;
+   the file is written back as it came.
 
-type DiagramAsset =
-  | { id: string; kind: 'svg'; svg: string /* sanitized */; widthPx: number; heightPx: number; bytes: number }
-  | { id: string; kind: 'raster'; src: string /* data:image/(png|jpeg) */; widthPx: number; heightPx: number; bytes: number };
-// plus `unknown?: Record<string, unknown>` on both, as on DiagramStep
-
-interface DiagramAnnotation {
-  id: string;
-  kind: 'valley-arrow' | 'mountain-arrow' | 'fold-unfold-arrow' | 'push-arrow' | 'turn-over'
-      | 'rotate' | 'valley-line' | 'mountain-line' | 'hidden-line' | 'label';
-  from: [number, number];             // picture units
-  to: [number, number];               // = from for label
-  bend?: number;                      // signed; Flip arc negates it
-  text?: string;                      // label only
-  rotate?: { amount: 'eighth' | 'quarter' | 'half'; direction: 'cw' | 'ccw' };
-  axis?: 'vertical' | 'horizontal';   // turn-over only
-  unknown?: Record<string, unknown>;  // a newer build's annotation kind, kept verbatim
-}
-
-interface DiagramPageSetup {
-  size: 'a4' | 'a5' | 'b5-jis' | 'letter';
-  orientation: 'portrait' | 'landscape';
-  marginMm: number;                   // 0–30
-  layout: 'grid' | 'flow';
-  columns: number;                    // 2–5
-  rows: number;                       // 1–6
-  showPath: boolean;                  // flow only
-  // scale: 'paper' | 'fit' — retired 2026-10-06; every diagram fits each (D10)
-  showTitle: boolean;                 // draws DiagramDocument.title
-  pageNumbers: { enabled: boolean; first: number };
-}
-```
+**Writing** (`writeDiagram`): every field named, an optional one only when
+said; a locked entry as it came; an asset nothing names left out; each
+thumbnail once; each card's model as one string. Writing what was read gives
+back the file, byte for byte.
 
 **Ids** use `crypto.randomUUID` (the `cpImage.ts:73-81` precedent).
-
-**The validator.** `diagramFile.ts` is lenient, in the style of
-`inlineSimulationFile.ts`:
-- It tells **malformed** (drop) from **unknown kind**. An unknown kind is kept
-  verbatim in the `unknown` field of the step, annotation or asset, and
-  re-emitted on save, as `unknownDesigns` does. A step that is unknown renders
-  as a locked "Made with a newer Ori Studio" card.
-- **A newer document.** When `formatVersion` is above the reader's, it opens
-  read-only: the raw JSON is kept in `diagramRaw` and re-emitted unchanged on
-  save, and `commitDiagram` refuses while `diagramReadOnly` holds.
-- Diagram-aware desktop builds that lag the web build therefore never delete
-  newer content.
-- It reuses the exported `PaperScene` validator (`lib/paper/paperSceneValidate.ts`,
-  which drops markup), the region validators from `regionReference.ts`, and
-  `nativeProjectFile`'s now-exported camera validator.
-- It adds a new `validateStepDiagramModel`: every primitive's `kind` and
-  `style` checked against the unions, finite numbers, a primitive cap and label
-  lengths.
-- It re-sanitizes SVG assets **and every `fixed` picture's `svg`** through
-  `svgSanitize`, and checks raster sources (D7). A `fixed` picture that fails
-  becomes `null`, and the step shows "Pose to capture".
-- **Unknown at any depth means unknown, not malformed.** An unrecognised
-  discriminant anywhere makes the enclosing step, annotation or asset
-  *unknown*: source kind, `scope.kind`, `render.mode`, picture kind, annotation
-  kind, asset kind, or a `StepDiagramPrimitive` kind inside a step-diagram
-  model. It is kept verbatim in its `unknown` field and re-emitted on save. Only
-  structurally invalid data of a *known* kind is dropped. A test checks that a
-  Phase 8 simulated step and a model with an unknown primitive kind survive load
-  and save under a validator that predates them.
-
-Each phase adds its variants' validators and round-trip tests in the same PR.
-The on-disk contract is provisional until the branch merges.
 
 **Paint contract** (`diagram/pictures/paintDiagramStep.ts`, pure):
 `stepScene(step, assets, style, scenePxPerPt) → PaperScene | null`, which
