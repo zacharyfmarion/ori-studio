@@ -86,11 +86,12 @@ built). 18g (X-ray peels the window: R3-34 A replaces R3-13 A) built and gated 2
   Cancel; the icon's dashes longer and staggered; the reset hint "Count the
   layers at the window's centre again" (18f, As built).
 
-**Still PENDING:** R3-37 (where a paste
-from another picture's whole step lands on an enlarged step), raised by
-18d's review: built as recommended, A, which leaves Revision 2's decision 7
-as Zach confirmed it; B or C would change that decision, so they wait for
-him.
+**R3-37 resolved, 2026-10-10:** A, the recommendation already built,
+under Zach's instruction to resolve routine launch choices. R3-25's current
+keymap is accepted for launch, with action ids unchanged. The linked-fold
+Turn Over carry fork and X-ray contrast still need his visual review; see
+`diagram-launch-hardening.md`.
+
 
 Phase 18 of `implementation-plans/diagram-workspace.md`, after Phase 17
 (`implementation-plans/diagram-references-annotations.md`). It is built on
@@ -1448,7 +1449,9 @@ instruction (2026-10-08): 18.0's spread check passed.
   starts on it. An area's outline is judged by eye, and C would pull it to
   vertices that have nothing to do with it.
 
-**R3-25. Rail groups and keys. DECIDED: A**, for now. Zach, 2026-10-08:
+**R3-25. Rail groups and keys. DECIDED: A**, accepted for launch on
+2026-10-10 under Zach's instruction to resolve routine recommendations.
+Action ids remain stable. Earlier discussion: Zach, 2026-10-08:
 "sure. Im probably going to do a shortcut pass before merge, those are fine
 for now". The keys may change in that pass.
 - A. Marks: Circle, Star, Right Angle, Equal Angles, Equal Divisions, Eye,
@@ -1508,7 +1511,7 @@ works one PR per feature.
   its review is easier alone.
 
 **R3-37. Where a paste from another picture's whole step lands on an
-enlarged step. PENDING** (numbered R3-34 until 2026-10-09, when the peel
+enlarged step. DECIDED: A, 2026-10-10** (numbered R3-34 until 2026-10-09, when the peel
 plan's first decision took that number; raised by 18d's review, 2026-10-08; built as A,
 which changes nothing Zach decided). Revision 2's decision 7, which Zach
 confirmed, lands such a paste at the same place on the picture: "On the
@@ -2018,14 +2021,10 @@ after in the browser, beside the note's pictures.
 
 - Skipped: `artifacts/revision-3/revision-3-marks.html`, its "Copy picks"
   text, and its check against this plan.
-- [ ] Zach answers R3-1 to R3-33. His answers are recorded under each
-  decision, and every passage written for an option he did not take is
-  rewritten. The first answers are in (2026-10-08, Status at the top).
-  R3-3 answered B the same day ("no, should not be bold"). Everything
-  18b uses decided the same day as recommended ("go with your recs ...",
-  Status at the top). R3-8 decided the same way for 18c. Open: R3-10b,
-  R3-11a, R3-11b, R3-11d, R3-16a, R3-16c, R3-17 to R3-22, R3-29c, R3-30b
-  and R3-31.
+- [x] Decisions R3-1 to R3-33 are recorded under each decision (the old
+  list of unanswered choices was stale). R3-37 is accepted as A on
+  2026-10-10. R3-21's later linked-fold carry fork and X-ray contrast are
+  explicitly still for visual review, not silently resolved by this checkbox.
 
 ### 18a Equal divisions
 
@@ -2955,7 +2954,7 @@ All answered 2026-10-08 (Status at the top).
 - [x] Gate, on exactly what was committed: lint, typecheck, the i18n check
   and the whole vitest suite (Node 22): 899 test files and 12,281 tests
   pass (2 files and 15 tests skipped).
-- [ ] Push.
+- [x] Push (already included in merged #446).
 
 **As built (2026-10-09).** Two code commits: `6bf0abf5c` (the Anchor row and an
 enlargement's verb become components, nothing on screen changed) and
@@ -3130,7 +3129,7 @@ path is tested on the crane's capture and a hand-built fold).
 - [x] Gate, on exactly what was committed: lint (`npm run lint:web`),
   typecheck, the i18n check and the whole vitest suite (Node 22): 902 test
   files and 12,351 tests pass (2 files and 15 tests skipped).
-- [ ] Push.
+- [x] Push (already included in merged #446).
 
 **As built (2026-10-09).** One code commit, `d14d34b92` ("Diagram: X-ray
 windows on every surface"), the review's fixes in it. Every decision used is
@@ -3322,7 +3321,7 @@ fork:
 - [x] `diagram-workspace.md`: Phase 18, "Revision 3", pointing here, with
   the decisions as Zach answered them: D26, and Phase 18 as built through
   18d and its follow-ups. X-ray's part comes with its PR.
-- [ ] Draft PR from `claude/diagram-revision-3` onto
+- [x] Draft PR from `claude/diagram-revision-3` onto
   `claude/diagram-workspace-plan-ceb4f2` (#436), its body carrying each
   phase's before and after; and a second from `claude/diagram-xray` onto
   it (R3-27 B).

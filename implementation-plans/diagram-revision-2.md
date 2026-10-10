@@ -127,7 +127,8 @@ steps follow ups in the branch". 8, 10, 11 and 12 are built ("Follow-ups to
     decided). *Decided: on a flat crease pattern, the frame lands on the top
     face at its centre, the paper its window showed*; Z8 amended there.
 
-**Open with Zach (2026-10-07).** Raised by building 11 and 8.
+**Follow-ups raised with Zach (2026-10-07), decisions resolved 2026-10-10.**
+Implementation status is recorded separately below.
 
 - **A step made after an upload.** 11 keeps every upload of a run anchored,
   but a capture from a step with no faces still takes its frame and not the
@@ -148,12 +149,13 @@ steps follow ups in the branch". 8, 10, 11 and 12 are built ("Follow-ups to
   seeded.
 - **A whole step's line pasted onto an enlarged one** (7) is not trimmed, as
   8 trims a carried one, so a long line pasted there runs across the page as
-  8 found. *Recommended:* trim a pasted line as a carried one.
+  8 found. *DECIDED, 2026-10-10:* trim a pasted line as a carried one, the
+  recommendation accepted under Zach's launch instruction. Implementation
+  and its regression test are still pending.
 - **The overshoot's length.** No fold line in the app has a set overshoot:
   most of Zach's lines on the crane end on the paper's edge; the few he ran
   past it end 0.007–0.045 of the picture past. 8 uses 0.04 of the window
-  (`ZOOM_LINE_OVERSHOOT`), about 1.9 mm on the crane's window at Fill. A
-  number to tune by eye.
+  (`ZOOM_LINE_OVERSHOOT`), about 1.9 mm on the crane's window at Fill. Explicitly accepted by Zach on 2026-10-10; keep 0.04.
 
 ## Goal
 

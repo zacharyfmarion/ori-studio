@@ -757,8 +757,9 @@ vocabulary at paint time.**
 **D9. One paper style for the whole diagram.**
 - **The surface.** A new `PaperSurface 'diagram-workspace'` with its own policy
   in `PAPER_STYLE_POLICIES`. It lands in Phase 2, before anything is painted.
-- **The stored style.** The diagram stores `style: { preset: BuiltInPaperPresetId }
-  | { style: PaperStyle }`. It defaults to the built-in **Diagram** preset:
+- **The stored style.** The diagram stores `style: { preset: string, style: PaperStyle }`
+  for a built-in or `{ style: PaperStyle }` for a custom style. Legacy
+  id-only presets read as the frozen v1 values and gain a snapshot on save. It defaults to the built-in **Diagram** preset:
   Origami House ink and diagram-crease pens. A user preset or the export slot
   is resolved to a full `PaperStyle` when chosen, so the printed diagram never
   depends on the viewer's machine. The Page tab uses a small style control
@@ -1695,8 +1696,11 @@ The format a launched build reads and writes. The types are
 their summary. `diagram/document/diagramFileV1.test.ts` holds a frozen v1
 file (`__fixtures__/diagram-v1.json`, every kind of step, picture, render,
 turn and mark) to them: it must open editable, with nothing carried as a
-newer build's, and write back exactly. A change to anything below is a
-format change.
+newer build's, and write back exactly except for the explicit pre-launch
+preset migration: an id-only preset gains its resolved values. The fixture
+stays unchanged, the migrated save is idempotent, and the legacy preset
+values are frozen in `paper-presets-v1.json`. A change to anything below is
+a format change.
 
 **Where it lives.** `workspace.diagrams`, a list (D1), which asks for reader
 10. This build shows the first diagram and carries the rest verbatim
@@ -1707,8 +1711,14 @@ on its next save.
 **A diagram** — `formatVersion: 1`, `id` (`diagram-<uuid>`), `title`,
 `hanStyle` (`sc`/`tc`/`jp`/`kr`), `style`, `page`, `steps`, `assets`,
 `thumbnails`:
-- `style` is `{ preset: 'default' | 'diagram' }`, a built-in by id, or
-  `{ style: PaperStyle }`, a custom or export style stored whole (D9).
+- `style` is `{ preset: string, style: PaperStyle }`, a built-in with its
+  saved values, or `{ style: PaperStyle }`, a custom or export style stored
+  whole (D9). Saved values take precedence over the name, including a name
+  from a future build. Unread fields are carried verbatim. Legacy id-only
+  `default` and `diagram` use their frozen v1 values and gain a snapshot on save.
+- Fonts without a font-set id mean the frozen v1 Noto set. Its files, metrics
+  and coverage cannot be replaced; `scripts/diagram-fonts/v1-lock.json` is
+  checked on every font build and in the production deployment bundle.
 - `page`: `size` (`a4`/`a5`/`b5-jis`/`letter`), `orientation`, `marginMm`
   (0–30), `layout` (`grid`/`flow`; unsaid reads as the grid), `columns`
   (2–5), `rows` (1–6), `showPath`, `pathWidthMm` (4–60, written only when
@@ -3872,9 +3882,13 @@ Contracts › The v1 file.
   enlarged from it say it was deleted (linking by id predates these
   branches); the x-ray Depth row says "Refresh step N" for the moment an
   Update folds faces.
-- [ ] Open with Zach: the built-in `diagram` preset stored by id (store its
-  values beside it, or freeze it), the full CJK fonts fetched by name (fail
-  the deploy on a rename), and the shortcut pass (keys change, ids stay).
+- [x] Preset/font safeguards, 2026-10-10: store resolved preset values beside
+  the name, freeze legacy v1 presets, and reject changes/removals to the v1
+  font set before deployment. The toolchain installs by hash.
+- [x] Routine launch choices resolved under Zach's instruction, 2026-10-10;
+  see `diagram-launch-hardening.md` for decisions versus pending implementation.
+  The current shortcut keymap is accepted with stable ids. Turn Over's carry
+  fork and X-ray contrast remain for his visual review.
 
 ### Later (written up, not built)
 

@@ -1265,7 +1265,7 @@ Paths under `apps/web/src/` unless rooted.
   - Evidence: `rf5-evidence.png` from `composite-rf5.py`: (a) as opened,
     off before and off after, light and dark; (b)'s current behaviour from
     the reviewer's walk. Facts are in `<before|verify>-<light|dark>.json`.
-- [ ] (b) Show as Simulated lands the frame on the simulated picture's paper: **not built, needs Zach's choice; open in the PR notes**
+- [ ] (b) Show as Simulated lands the frame on the simulated picture's paper: **DECIDED: 1a, 2026-10-10 under Zach's instruction to accept routine recommendations; not built.**
   - The planned mechanism, landing through the imprint, needs a simulated
     picture to have faces on the paper. Z8 kept those from it, so the
     imprint has nothing to land on. The Approach has the facts and options
