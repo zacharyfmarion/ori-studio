@@ -901,6 +901,15 @@ crease graphs from a CP editor rather than upstream's hand-clean SVGs:
   step count; and a WebGL2 mesh renderer drawing from the position texture rather
   than through three.js.
 
+Simulator view OBJ export uses `saveSTL.js::saveOBJ`'s flat-sheet UV mapping:
+X/Z normalized by one longest span, preserving aspect ratio. It writes the
+prepared triangles and the folded positions frozen when the export dialog
+opens, with one texture coordinate per vertex. Ori Studio's `[x, 0, -y]` sheet
+lift already supplies the vertical orientation. Nonplanar rest meshes and
+sheets outside the simulator's XZ plane explicitly cannot export sheet UVs;
+there is no automatic unwrap. Camera projection, hidden-face removal, physical
+page scale, materials, and two-sided/thick meshes are not part of this export.
+
 Not ported at all: cut edges (`C` is accepted by `normalizeAssignment` and
 otherwise ignored; upstream runs `splitCuts` plus a second redundant-vertex
 pass), the curved-folding path, the SVG import path, `removeBorderFaces`, and

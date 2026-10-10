@@ -19,6 +19,14 @@ import type { PaperScene } from '../lib/paper/paperScene';
 import type { Hex, PaperStyle, PaperStyleOverrides } from '../lib/paper/paperStyle';
 import type { PaperSurface } from '../lib/paper/paperStyleResolve';
 import type { PaperExportMark, PaperExportMarks } from '../lib/paperExportSettings';
+import type { FoldedObjUnavailableReason } from '../lib/foldedExport';
+
+/** A captured 3D mesh, independent of the page's image and its options. */
+export interface PaperObjExport {
+  unavailableReason: FoldedObjUnavailableReason | null;
+  /** Null when the capture expired; never substitute a different live model. */
+  build(): Promise<string | null>;
+}
 
 /** What a scene is built from, beyond the capture itself. */
 export interface PaperSceneInput {
@@ -85,6 +93,8 @@ export interface PaperExportFixedPicture {
 export type { PaperExportScope };
 
 export interface PaperExportTarget {
+  /** Only surfaces with a captured mesh offer OBJ. */
+  obj?: PaperObjExport;
   /** Which surface this is: the analytics enum, and the style policy (`PAPER_STYLE_POLICIES[surface]`). */
   surface: PaperSurface;
   /** The dialog's title: "Export step 3". */

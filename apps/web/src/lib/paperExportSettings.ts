@@ -59,8 +59,8 @@ export function normalizePaperExportMarks(source: unknown): PaperExportMarks {
   return marks;
 }
 
-/** An image export's format: declared once, with the analytics enum that reports it. */
-export type { PaperExportFormat };
+/** An export's format: declared once, with the analytics enum that reports it. */
+export type { PaperExportFormat, PaperImageExportFormat } from '../analytics/events';
 
 /** The Settings export slot, as the dialog's style picker names it. */
 export const PAPER_EXPORT_STYLE_SLOT = 'export-style';
@@ -93,13 +93,14 @@ export function paperPageOf(settings: Pick<PaperExportSettings, keyof PaperPage>
  * page field by field through `normalizePaperPage`, the density clamped, and
  * each mark on its own.
  */
-export function normalizePaperExportSettings(source: unknown): PaperExportSettings {
+export function normalizePaperExportSettings(source: unknown, kind?: PaperExportKind): PaperExportSettings {
   if (!source || typeof source !== 'object') return DEFAULT_PAPER_EXPORT_SETTINGS;
   const { pngDpi, format, style, marks } = source as Record<string, unknown>;
   return {
     ...normalizePaperPage(source),
     pngDpi: typeof pngDpi === 'number' ? clampPaperPngDpi(pngDpi) : DEFAULT_PAPER_PNG_DPI,
-    format: format === 'svg' || format === 'png' ? format : DEFAULT_PAPER_EXPORT_SETTINGS.format,
+    format: format === 'svg' || format === 'png' || (format === 'obj' && kind === 'simulation')
+      ? format : DEFAULT_PAPER_EXPORT_SETTINGS.format,
     style: typeof style === 'string' && style.length > 0 ? style : DEFAULT_PAPER_EXPORT_SETTINGS.style,
     marks: normalizePaperExportMarks(marks),
   };
@@ -194,7 +195,7 @@ export function normalizePaperExportMemory(
     for (const kind of PAPER_EXPORT_KINDS) {
       const options = stored[kind];
       memory[kind] =
-        options && typeof options === 'object' ? normalizePaperExportSettings(options) : defaults[kind];
+        options && typeof options === 'object' ? normalizePaperExportSettings(options, kind) : defaults[kind];
     }
     return memory;
   }

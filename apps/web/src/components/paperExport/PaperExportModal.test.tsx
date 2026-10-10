@@ -100,7 +100,7 @@ let container: HTMLDivElement | null = null;
 async function open(
   opened: PaperExportTarget,
   returnFocus: HTMLElement | null = null,
-  format: 'svg' | 'png' | null = null,
+  format: 'svg' | 'png' | 'obj' | null = null,
   scope: PaperExportScope = 'this'
 ) {
   await act(async () => {
@@ -190,6 +190,91 @@ afterEach(() => {
 });
 
 describe('PaperExportModal', () => {
+  it.each(['simulator', 'inline-simulation'] as const)('saves the captured OBJ from %s without image options', async (surface) => {
+    const build = vi.fn(async () => 'v 0 0 0\nvt 0 0\nf 1/1 1/1 1/1\n');
+    const opened = target({ surface, obj: { unavailableReason: null, build } });
+    await open(opened);
+    await act(async () => button('OBJ')?.click());
+    expect(button('Export OBJ')?.disabled).toBe(false);
+    expect(text()).toContain('ready for texturing in your 3D software');
+    expect(text()).not.toContain('Keep hidden faces');
+    expect(text()).not.toContain('Resolution');
+    expect(field('Size')).toBeNull();
+    expect(text()).not.toMatch(/\d+ × \d+ mm/);
+    await submit();
+    expect(build).toHaveBeenCalledTimes(1);
+    expect(service.saveTextFile).toHaveBeenCalledWith(expect.objectContaining({
+      contents: 'v 0 0 0\nvt 0 0\nf 1/1 1/1 1/1\n', suggestedName: 'Crane.obj', extensions: ['obj'],
+    }));
+    expect(service.saveBinaryFile).not.toHaveBeenCalled();
+    expect(paperSvgToPng).not.toHaveBeenCalled();
+    expect(useSettingsStore.getState().paperExport.simulation.format).toBe('obj');
+    expect(useSettingsStore.getState().paperExport['folded-figure'].format).toBe('svg');
+    expect(opened.release).toHaveBeenCalledTimes(1);
+    await open(target({ surface, obj: opened.obj }));
+    expect(button('Export OBJ')?.disabled).toBe(false);
+  });
+
+  it('does not offer OBJ on image-only targets or honour an unsupported requested format', async () => {
+    await open(target(), null, 'obj');
+    expect(button('OBJ')).toBeUndefined();
+    expect(button('Export SVG')?.disabled).toBe(false);
+  });
+
+  it('restores the image draft when switching away from OBJ', async () => {
+    await open(target({ surface: 'simulator', obj: { unavailableReason: null, build: async () => '' } }));
+    const before = field('Size')?.value;
+    await act(async () => button('OBJ')?.click());
+    await act(async () => button('PNG')?.click());
+    expect(field('Size')?.value).toBe(before);
+    expect(button('Export PNG')?.disabled).toBe(false);
+    expect(text()).toContain('Resolution');
+  });
+
+  it.each(['empty', 'error'] as const)('can export a mesh when the image preview is %s', async (status) => {
+    await open(target({
+      surface: 'simulator', obj: { unavailableReason: null, build: async () => 'o frozen\n' },
+      buildScene: async () => { if (status === 'error') throw new Error('image failed'); return null; },
+    }), null, 'obj');
+    expect(button('Export OBJ')?.disabled).toBe(false);
+    await submit();
+    expect(service.saveTextFile).toHaveBeenCalledWith(expect.objectContaining({ contents: 'o frozen\n' }));
+  });
+
+  it('explains unavailable sheet UVs and leaves image export available', async () => {
+    await open(target({ surface: 'simulator', obj: { unavailableReason: 'nonplanar-sheet', build: async () => null } }), null, 'obj');
+    expect(button('Export OBJ')?.disabled).toBe(true);
+    expect(text()).toContain('OBJ needs an unfolded sheet');
+    await act(async () => button('SVG')?.click());
+    expect(button('Export SVG')?.disabled).toBe(false);
+  });
+
+  it('keeps the dialog open for failed or cancelled OBJ saves, and remembers only success', async () => {
+    const build = vi.fn<() => Promise<string | null>>().mockResolvedValueOnce(null).mockResolvedValue('o frozen\n');
+    await open(target({ surface: 'simulator', obj: { unavailableReason: null, build } }), null, 'obj');
+    await submit();
+    expect(text()).toContain('This captured simulation is no longer available');
+    expect(service.saveTextFile).not.toHaveBeenCalled();
+    service.saveTextFile.mockResolvedValueOnce(null as unknown as { name: string; path: null });
+    await submit();
+    expect(dialog()).not.toBeNull();
+    expect(useSettingsStore.getState().paperExport.simulation.format).toBe('svg');
+    await submit();
+    expect(dialog()).toBeNull();
+    expect(useSettingsStore.getState().paperExport.simulation.format).toBe('obj');
+  });
+
+  it('does not offer a late OBJ to save after its dialog was replaced', async () => {
+    let finish: (obj: string) => void = () => {};
+    const build = () => new Promise<string>((resolve) => { finish = resolve; });
+    await open(target({ surface: 'simulator', obj: { unavailableReason: null, build } }), null, 'obj');
+    await act(async () => { button('Export OBJ')?.click(); });
+    await open(target({ title: 'Replacement' }));
+    await act(async () => finish('o frozen\n'));
+    expect(service.saveTextFile).not.toHaveBeenCalled();
+    expect(dialog('Replacement')).not.toBeNull();
+  });
+
   it('shows nothing until a surface opens it', () => {
     expect(dialog()).toBeNull();
   });

@@ -525,7 +525,7 @@ export const useSettingsStore = create<SettingsState>()(
       rememberPaperExportOptions: (kind, options) => {
         // Through the normaliser, so a density past the range or a sheet size
         // below the minimum is held to it before it is stored.
-        const next = { ...get().paperExport, [kind]: normalizePaperExportSettings(options) };
+        const next = { ...get().paperExport, [kind]: normalizePaperExportSettings(options, kind) };
         writeJson(PAPER_EXPORT_KEY, persistedPaperExport(next));
         set({ paperExport: next });
       },
