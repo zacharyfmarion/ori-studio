@@ -296,6 +296,8 @@ function readNewerFields(value: Record<string, unknown>): DiagramNewerFields | u
  */
 function isNewerStyle(value: Record<string, unknown>): boolean {
   if (hasNewerKey(value, STYLE_KEYS)) return true;
+  // This build stores a preset or a style, never both: a preset and what it changes is a newer build's.
+  if (typeof value.preset === 'string' && isRecord(value.style)) return true;
   if (typeof value.preset === 'string') return !isBuiltInPaperPresetId(value.preset);
   if (!isRecord(value.style)) return false;
   return !sameJson(JSON.parse(JSON.stringify(normalizePaperStyle(value.style))), value.style);

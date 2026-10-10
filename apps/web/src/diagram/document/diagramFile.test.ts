@@ -337,6 +337,12 @@ describe('a newer build’s work', () => {
     ['a Han style it does not know', { hanStyle: 'vi' }, { hanStyle: 'sc' }],
     ['a preset it does not know', { style: { preset: 'future' } }, { style: { preset: 'diagram' } }],
     ['a style field it does not know', { style: { preset: 'diagram', ink: 'riso' } }, { style: { preset: 'diagram' } }],
+    // This build stores a preset or a style; a newer one might store a preset and what it changes.
+    [
+      'a preset with a paper style beside it',
+      { style: { preset: 'diagram', style: DEFAULT_PAPER_STYLE } },
+      { style: { preset: 'diagram' } },
+    ],
     [
       'a paper style it does not read whole',
       { style: { style: { ...DEFAULT_PAPER_STYLE, grain: 'washi' } } },
