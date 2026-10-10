@@ -1,3 +1,4 @@
+import { resetPlacement } from './pages/placementActions';
 import { useCallback, useMemo, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
@@ -182,6 +183,7 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       count: diagram.steps.length,
       number: stepNumber(diagram, stepId) ?? 0,
       locked: isLockedStep(step),
+      ...(step.place || step.placeNewer ? { placement: { size: !!step.place?.scale, position: !!(step.place?.frame || step.place?.number || step.place?.picture || step.place?.text), newer: !!step.placeNewer } } : {}),
       readOnly: diagramReadOnly,
       hasPicture: hasDrawablePicture(step, diagram.assets),
       hasSource: stepHasPicture(step),
@@ -284,6 +286,7 @@ function bindStepActions(
         if (from < 0) return;
         store().moveDiagramStep(stepId, direction === 'earlier' ? from - 1 : from + 1);
       },
+      resetPlacement: (part) => resetPlacement(stepId, part, 'menu'),
       toggleBreak: () => {
         const current = store().diagram;
         const step = current ? stepById(current, stepId) : null;
@@ -435,6 +438,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
               cardMarks,
               enlargedArea: enlargedAreaGate(areaNumber, stale, updating),
               heldAreas: heldAreasGate(heldStale),
+              ...(step.place || step.placeNewer ? { placement: { size: !!step.place?.scale, position: !!(step.place?.frame || step.place?.number || step.place?.picture || step.place?.text), newer: !!step.placeNewer } } : {}),
             },
             t,
             'pane',

@@ -37,6 +37,10 @@
       "unknown": "Паттерн складок ещё не готов. Попробуйте ещё раз чуть позже."
     },
     "dropReadOnly": "Эта схема создана в более новой версии Ori Studio и открыта только для чтения, поэтому добавить в неё изображения нельзя.",
+    "placementsReflowed_one": "Перемещённые шаги вернулись в свои ячейки: {{count}}",
+    "placementsReflowed_few": "Перемещённые шаги вернулись в свои ячейки: {{count}}",
+    "placementsReflowed_many": "Перемещённые шаги вернулись в свои ячейки: {{count}}",
+    "placementsReflowed_other": "Перемещённые шаги вернулись в свои ячейки: {{count}}",
     "references": {
       "addedSteps": "Добавлено как шаги {{first}}–{{last}}",
       "addedTurnOvers_one": "Добавлен {{count}} переворот",

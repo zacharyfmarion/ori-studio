@@ -7,6 +7,7 @@ import {
   Lock,
   PenLine,
   PenTool,
+  Pin,
   Rotate3d,
   RotateCcwSquare,
   RotateCw,
@@ -215,6 +216,7 @@ export const DiagramStepCard = forwardRef<
               </span>
             </span>
           )}
+          {(step.place || step.placeNewer) && <span title={t('panels:diagram.placement.placed', 'Placed by hand')} data-placed-badge=""><Pin size={12} aria-label={t('panels:diagram.placement.placed', 'Placed by hand')} /></span>}
           {linked && (
             <span className={styles.pattern}>
               <DiagramSheetThumbnail thumbnail={linked.thumbnail} />

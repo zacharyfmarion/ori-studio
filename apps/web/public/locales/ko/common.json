@@ -1,4 +1,7 @@
 {
+  "actions": {
+    "undo": "실행 취소"
+  },
   "cancel": "취소",
   "capability": {
     "absorbAllStrainIntoLengths": "모든 장력을 모서리 길이로 흡수",

@@ -196,7 +196,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
   const selection = (stepId: string | null) => ({
     diagramSelectedStepId: stepId,
     // An annotation is selected on its step: another step, or none, selects none.
-    ...(stepId !== get().diagramSelectedStepId ? { diagramSelectedAnnotationId: null, ...pickPutDown() } : {}),
+    ...(stepId !== get().diagramSelectedStepId ? { diagramSelectedAnnotationId: null, diagramPagesPart: null, ...pickPutDown() } : {}),
     // A detail is open on the selected step, and a picker chooses for one:
     // nothing selected — or a turn, which has no detail (D22) — closes the
     // detail, and another step the picker.
@@ -539,6 +539,11 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     setDiagramHanStyle: (hanStyle) =>
       commit('Change Han characters', (document) => setHanStyle(document, hanStyle)) !== null,
 
+    selectDiagramPagesPart: (part) => {
+      const state = get();
+      if (part !== null && (!state.diagram || state.diagramReadOnly || !state.diagramSelectedStepId || !stepById(state.diagram, state.diagramSelectedStepId))) return;
+      set({ diagramPagesPart: part, ...(part ? { diagramView: 'pages', diagramDetail: null } : {}) });
+    },
     selectDiagramStep: (stepId) => {
       const diagram = get().diagram;
       const next = stepId !== null && diagram && stepIndex(diagram, stepId) >= 0 ? stepId : null;

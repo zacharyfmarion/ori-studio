@@ -4,6 +4,7 @@ import type { DiagramDocument } from '../document/diagramDocument';
 import { browserFontSource } from '../fonts/browserFontSource';
 import { browserFontSubsetter } from '../fonts/browserFontSubsetter';
 import { svgDataUrl } from '../pictures/stepPictureCache';
+import type { PageComposeOptions } from './composeDiagramPage';
 import { prepareDiagramPages, type PreparedDiagramPages } from './diagramPages';
 
 export interface DiagramPagesState {
@@ -59,16 +60,16 @@ const composed = new WeakMap<PreparedDiagramPages, Map<string, string>>();
  * image itself (`DiagramPageBand`): the band's colour is then not in the
  * image, and a new one leaves the image as it was.
  */
-export function composedPageUrl(pages: PreparedDiagramPages, index: number, { band = true } = {}): string {
+export function composedPageUrl(pages: PreparedDiagramPages, index: number, options: PageComposeOptions = {}): string {
   let byPage = composed.get(pages);
   if (!byPage) {
     byPage = new Map();
     composed.set(pages, byPage);
   }
-  const key = `${index}${band ? '' : ' art'}`;
+  const key = `${index} ${JSON.stringify(options)}`;
   let url = byPage.get(key);
   if (url === undefined) {
-    url = svgDataUrl(pages.compose(index, { band }).svg);
+    url = svgDataUrl(pages.compose(index, options).svg);
     byPage.set(key, url);
   }
   return url;

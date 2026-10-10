@@ -141,7 +141,7 @@ describe('DiagramExportDialog', () => {
     expect(exportButton().textContent).toBe('Export PDF');
     expect(exportButton().disabled).toBe(false);
     // The setup it lays out, and the name the save is offered.
-    expect(host.textContent).toContain('Page setupA4 Portrait · Flow, 3 × 3');
+    expect(host.textContent).toContain('Page setupA4 Portrait · Flow, 9 steps per page');
     expect(host.textContent).toContain('Crane.pdf');
     await click(radio('Step files (ZIP)'));
     expect(host.textContent).toContain('Crane.zip');
@@ -166,6 +166,8 @@ describe('DiagramExportDialog', () => {
       step_count_bucket: '<=5',
       empty_step_bucket: '<=1',
       enlarged_step_bucket: '<=0',
+      placed_step_bucket: '<=0',
+      clash_bucket: '<=0',
     });
   });
 
@@ -231,6 +233,8 @@ describe('DiagramExportDialog', () => {
       step_count_bucket: '<=20',
       empty_step_bucket: '<=0',
       enlarged_step_bucket: '<=0',
+      placed_step_bucket: '<=0',
+      clash_bucket: '<=0',
     });
     expect(useSettingsStore.getState().diagramExport.kind).toBe('svg');
   });

@@ -1,3 +1,4 @@
+import { useSettingsStore } from '../../store/settingsStore';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -20,7 +21,7 @@ afterEach(() => {
 });
 
 describe('DiagramAnnotateRail', () => {
-  it('contains only tools in their groups', () => {
+  it('keeps tools and the shared line type in their groups', () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
     container = document.createElement('div');
     document.body.append(container);
@@ -36,7 +37,7 @@ describe('DiagramAnnotateRail', () => {
       group.id.replace('diagram-annotate-group-', '')
     );
     // Shapes after Marks (Revision 3, R3-25 A).
-    expect(groups).toEqual(['select', 'arrows', 'lines', 'marks', 'shapes', 'text']);
+    expect(groups).toEqual(['select', 'arrows', 'lines', 'line-type', 'marks', 'shapes', 'text']);
     const shapes = [...container.querySelectorAll('#diagram-annotate-group-shapes button[aria-label]')].map((button) =>
       button.getAttribute('aria-label')
     );
@@ -110,13 +111,47 @@ describe('DiagramAnnotateRail', () => {
     expect(held()).toEqual([]);
   });
 
-  it.each(['label', 'star', 'line', 'circle'] as const)('has no creation options with %s in hand', (tool) => {
+  it.each(['label', 'star', 'line', 'circle'] as const)('keeps line type available, with creation parameters in the hint, with %s in hand', (tool) => {
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
     container = document.createElement('div');
     document.body.append(container);
     root = createRoot(container);
     act(() => root!.render(<TooltipProvider><DiagramAnnotateRail tool={tool} readOnly={false} onTool={() => undefined} /></TooltipProvider>));
     expect(container.querySelector('[role="combobox"], [role="switch"], fieldset')).toBeNull();
-    expect(container.querySelector('[aria-label="Line Type"], [aria-label="Star Fill"], [aria-label="Text Style"], [aria-label="Draw circle"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Line Type"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Star Fill"], [aria-label="Text Style"], [aria-label="Draw circle"]')).toBeNull();
   });
 });
+
+  it('offers Solid among the line types, and while it is the type, the colour the next solid line is drawn in (17a)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    // What Radix's select asks of the DOM, which jsdom does not have.
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => undefined;
+    Element.prototype.scrollIntoView ??= () => undefined;
+    useSettingsStore.setState({ diagramAnnotateLineType: 'valley', diagramAnnotateLineColor: null });
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    act(() =>
+      root!.render(
+        <TooltipProvider>
+          <DiagramAnnotateRail tool="line" readOnly={false} onTool={() => undefined} />
+        </TooltipProvider>
+      )
+    );
+    const types = [...container.querySelectorAll('[role="group"][aria-label="Line Type"] button')].map((button) =>
+      button.getAttribute('aria-label')
+    );
+    expect(types).toEqual(['Valley', 'Mountain', 'Hidden', 'Solid']);
+    const color = () => container!.querySelector<HTMLButtonElement>('button[aria-label="Line Color"]');
+    expect(color()).toBeNull();
+    act(() => container!.querySelector<HTMLButtonElement>('[role="group"][aria-label="Line Type"] button[aria-label="Solid"]')!.click());
+    expect(useSettingsStore.getState().diagramAnnotateLineType).toBe('solid');
+    expect(color()!.textContent).toBe('Ink');
+    act(() => color()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    const reference = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((each) => each.textContent === 'Reference')!;
+    act(() => reference.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    expect(useSettingsStore.getState().diagramAnnotateLineColor).toBe('#c91d87');
+    expect(color()!.textContent).toBe('Reference');
+  });

@@ -1,4 +1,7 @@
 {
+  "actions": {
+    "undo": "元に戻す"
+  },
   "cancel": "キャンセル",
   "capability": {
     "absorbAllStrainIntoLengths": "すべてのひずみを辺の長さに吸収",

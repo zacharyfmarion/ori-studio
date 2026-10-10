@@ -87,6 +87,8 @@ export interface DiagramExportBinding {
   empty: number[];
   /** The steps whose instruction is cut. */
   cut: number[];
+  placed: number;
+  clashes: number[];
   /** How many turns between steps the diagram has (D22): the pages print them, step files leave them out. */
   turns: number;
   /** How many enlarge arrows print between steps (Revision 2): on the pages, as turns are, never in step files. */
@@ -380,6 +382,8 @@ export function useDiagramExport(
               },
         {
           files: count,
+          placed: stepsOf(document).filter((step) => step.place || step.placeNewer).length,
+          clashes: pages?.layout.pages.flatMap((page) => page.cells.filter((cell) => cell.clashes?.length)).length ?? 0,
           steps: stepsOf(document).length,
           empty: empty.length,
           enlarged: stepsOf(document).filter((step) => step.zoom !== undefined).length,
@@ -423,6 +427,8 @@ export function useDiagramExport(
         : null,
     empty,
     cut,
+    placed: stepsOf(document).filter((step) => step.place || step.placeNewer).length,
+    clashes: pages?.layout.pages.flatMap((page) => page.cells.filter((cell) => cell.clashes?.length).map((cell) => cell.number)) ?? [],
     turns: document.steps.length - stepsOf(document).length,
     enlargeArrows,
     splits,

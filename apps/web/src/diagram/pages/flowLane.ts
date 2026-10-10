@@ -32,6 +32,7 @@
  *
  * Pure.
  */
+import { ribbonPath } from './ribbonPath';
 import type { DiagramPageSide } from '../document/diagramDocument';
 
 /** How far out past a row's last picture's centre the lane turns to the next row, as a share of the cell's width. */
@@ -136,6 +137,7 @@ export interface LaneStop extends LanePoint {
   /** The stop's row in reading order. */
   row: number;
   rightToLeft: boolean;
+  placed?: boolean;
 }
 
 /** A point the lane passes through, the way it is heading there (a unit vector), and whether it is past the paper's edge. */
@@ -154,6 +156,7 @@ interface Knot extends LanePoint {
  */
 export function flowLane(input: {
   stops: readonly LaneStop[];
+  packed?: boolean;
   plan: FlowPagePlan;
   pageWidth: number;
   cellW: number;
@@ -161,11 +164,12 @@ export function flowLane(input: {
   offPage: number;
   spineIn: number | null;
   spineOut: number | null;
-}): { lane: Lane; bends: Map<number, number> } | null {
+}): { lane: Lane; bends: Map<number, number>; warnings: number[] } | null {
   const { stops, plan, pageWidth: W, cellW, halfWidth, offPage } = input;
   const first = stops[0];
   const last = stops.at(-1);
   if (!first || !last) return null;
+  if (input.packed) return packedLane(input);
   const knots: Knot[] = [];
   const along = (rightToLeft: boolean): LanePoint => ({ x: rightToLeft ? -1 : 1, y: 0 });
   const outerLeft = plan.side === 'left';
@@ -185,13 +189,24 @@ export function flowLane(input: {
 
   // For each stop after a row break, the curve into the bend before it: the one from the knot before its apex.
   const bendAt = new Map<number, number>();
+  const warnings = new Set<number>();
   stops.forEach((stop, n) => {
     const before = stops[n - 1];
     if (before && before.row !== stop.row) {
       bendAt.set(n, knots.length - 1);
       knots.push(bendApex(before, stop, cellW, halfWidth));
     }
-    knots.push({ x: stop.x, y: stop.y, heading: along(stop.rightToLeft), off: false });
+    const next = stops[n + 1];
+    const moved = stop.placed || before?.placed || next?.placed;
+    const reversed = before?.row === stop.row && (stop.x - before.x) * (stop.rightToLeft ? -1 : 1) <= 0;
+    const level = before && before.row !== stop.row && Math.abs(stop.y - before.y) < 2 * halfWidth;
+    let heading = along(stop.rightToLeft);
+    if (moved && (reversed || level)) {
+      for (const index of [n - 1, n, n + 1]) if (stops[index]?.placed) warnings.add(index);
+      const a = before ?? stop, b = next ?? stop, length = Math.hypot(b.x - a.x, b.y - a.y);
+      if (length > 0) heading = { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+    }
+    knots.push({ x: stop.x, y: stop.y, heading, off: false });
   });
 
   if (plan.exit === 'spine' && input.spineOut !== null) {
@@ -217,7 +232,9 @@ export function flowLane(input: {
       to: { x: b.x, y: b.y },
     });
   }
-  return { lane: { from: { x: knots[0]!.x, y: knots[0]!.y }, curves }, bends: bendAt };
+  const lane = { from: { x: knots[0]!.x, y: knots[0]!.y }, curves };
+  if (stops.some((stop) => stop.placed) && laneCrosses(lane)) stops.forEach((stop, i) => { if (stop.placed) warnings.add(i); });
+  return { lane, bends: bendAt, warnings: [...warnings] };
 }
 
 /**
@@ -226,9 +243,12 @@ export function flowLane(input: {
  * straight down or up.
  */
 function bendApex(before: LaneStop, next: LaneStop, cellW: number, halfWidth: number): Knot {
-  const reach = bendReach(cellW, Math.abs(next.y - before.y) / 2, halfWidth);
+  const moved = before.placed || next.placed;
+  const halfPitch = Math.abs(next.y - before.y) / 2;
+  const reach = bendReach(cellW, moved ? Math.max(halfWidth, halfPitch) : halfPitch, halfWidth);
+  const edge = moved ? (before.rightToLeft ? Math.min(before.x, next.x) : Math.max(before.x, next.x)) : before.x;
   return {
-    x: before.x + (before.rightToLeft ? -1 : 1) * reach,
+    x: edge + (before.rightToLeft ? -1 : 1) * reach,
     y: (before.y + next.y) / 2,
     heading: { x: 0, y: next.y >= before.y ? 1 : -1 },
     off: false,
@@ -313,4 +333,51 @@ export function bendXAt(lane: Lane, index: number, y: number): number | null {
     return curvePoint(from, curve, (a + b) / 2).x;
   }
   return null;
+}
+
+/** Detect a crossing in the flattened centerline; moved steps may cross, but must say so. */
+export function laneCrosses(lane: Lane): boolean {
+  const points = [lane.from];
+  lane.curves.forEach((curve, i) => { for (let j = 1; j <= 12; j++) points.push(curvePoint(curveStart(lane, i), curve, j / 12)); });
+  const cross = (a: LanePoint, b: LanePoint, c: LanePoint) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  for (let i = 1; i < points.length; i++) for (let j = i + 2; j < points.length; j++) {
+    const a = points[i - 1]!, b = points[i]!, c = points[j - 1]!, d = points[j]!;
+    if (cross(a, b, c) * cross(a, b, d) < -1e-10 && cross(c, d, a) * cross(c, d, b) < -1e-10) return true;
+  }
+  return false;
+}
+
+/** The same connector used by the packer's exposed-gap measurement, through final centres. */
+function packedLane(input: Parameters<typeof flowLane>[0]): NonNullable<ReturnType<typeof flowLane>> {
+  const { stops, plan, pageWidth: width, offPage } = input;
+  const knots = [...stops];
+  const first = stops[0]!, last = stops.at(-1)!;
+  const outerLeft = plan.side === 'left';
+  if (plan.entry === 'spine' || plan.entry === 'turn' && first.rightToLeft !== outerLeft) {
+    const x = plan.entry === 'spine' ? 0 : outerLeft ? 0 : width;
+    const y = input.spineIn ?? first.y;
+    const direction = first.rightToLeft ? -1 : 1;
+    knots.unshift({ x, y, row: first.row, rightToLeft: first.rightToLeft });
+    knots.unshift({ x: x - direction * offPage, y, row: first.row, rightToLeft: first.rightToLeft });
+  }
+  if (plan.exit === 'spine' || plan.exit === 'turn' && last.rightToLeft === outerLeft) {
+    const x = plan.exit === 'spine' ? width : outerLeft ? 0 : width;
+    const y = input.spineOut ?? last.y;
+    knots.push({ x, y, row: last.row, rightToLeft: last.rightToLeft });
+    knots.push({ x: x + (last.rightToLeft ? -offPage : offPage), y, row: last.row, rightToLeft: last.rightToLeft });
+  }
+  const path = ribbonPath(knots, input.halfWidth);
+  const lane = path.lane;
+  const bends = new Map([...path.bends].map(([index, curve]) => [stops.indexOf(knots[index]!), curve]));
+  const warnings = new Set<number>();
+  stops.forEach((s, i) => {
+    const before = stops[i - 1];
+    if (!before || (!before.placed && !s.placed)) return;
+    if (s.row === before.row ? (s.x - before.x) * (s.rightToLeft ? -1 : 1) <= 0 : Math.abs(s.y - before.y) < input.halfWidth * 2) {
+      if (before.placed) warnings.add(i - 1);
+      if (s.placed) warnings.add(i);
+    }
+  });
+  if (stops.some((s) => s.placed) && laneCrosses(lane)) stops.forEach((s, i) => { if (s.placed) warnings.add(i); });
+  return { lane, bends, warnings: [...warnings] };
 }

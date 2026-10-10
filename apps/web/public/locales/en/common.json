@@ -1,4 +1,7 @@
 {
+  "actions": {
+    "undo": "Undo"
+  },
   "cancel": "Cancel",
   "capability": {
     "absorbAllStrainIntoLengths": "Absorb all strain into edge lengths",

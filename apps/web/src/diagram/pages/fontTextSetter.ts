@@ -33,9 +33,17 @@ export interface FontTextSetter extends TextSetter {
 
 export function fontTextSetter(fonts: FontLookup, hanStyle: DiagramHanStyle): FontTextSetter {
   const missing = new Set<string>();
+  // A layout treats its loaded font set as immutable. Packing asks for many
+  // candidate widths, so resolve each face once rather than per grapheme.
+  const metricsByFace = new Map<string, FontMetrics | null>();
+  const lookup: FontLookup = (key, weight) => {
+    const id = `${key}:${weight}`;
+    if (!metricsByFace.has(id)) metricsByFace.set(id, fonts(key, weight));
+    return metricsByFace.get(id)!;
+  };
 
   const covers = (weight: DiagramFontWeight) => (key: DiagramFontKey, grapheme: string) => {
-    const metrics = fonts(key, weight);
+    const metrics = lookup(key, weight);
     if (!metrics) return false;
     for (const character of grapheme) {
       if (!needsNoGlyph(character) && !metrics.has(character.codePointAt(0)!)) return false;
@@ -45,7 +53,7 @@ export function fontTextSetter(fonts: FontLookup, hanStyle: DiagramHanStyle): Fo
 
   /** A grapheme's advance in mm, in its font at `sizeMm`. */
   const advanceOf = (grapheme: string, key: DiagramFontKey, weight: DiagramFontWeight, sizeMm: number) => {
-    const metrics = fonts(key, weight) ?? fonts('latin', weight);
+    const metrics = lookup(key, weight) ?? lookup('latin', weight);
     if (!metrics) return 0;
     let units = 0;
     for (const character of grapheme) {

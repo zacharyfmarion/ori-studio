@@ -35,6 +35,8 @@
       "unknown": "Das Faltmuster ist noch nicht bereit. Versuche es gleich noch einmal."
     },
     "dropReadOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und ist schreibgeschützt geöffnet, daher lassen sich keine Bilder hinzufügen.",
+    "placementsReflowed_one": "{{count}} verschobene Schritte sind in ihre Zellen zurückgekehrt",
+    "placementsReflowed_other": "{{count}} verschobene Schritte sind in ihre Zellen zurückgekehrt",
     "references": {
       "addedSteps": "Als Schritte {{first}}–{{last}} hinzugefügt",
       "addedTurnOvers_one": "Umdrehen hinzugefügt",

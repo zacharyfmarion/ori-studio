@@ -13,9 +13,10 @@ import { shortcutLabelForAction } from '../../keyboard/shortcuts';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useShortcutResolution } from '../../store/shortcutStore';
 import { ToolRail, type ToolRailGroup } from '../ui/ToolRail';
+import { DiagramLineTypeControl } from './DiagramLineTypeControl';
 import { DiagramAnnotateToolGlyph } from './DiagramAnnotateToolGlyph';
 
-/** Tools only. Creation defaults live in DiagramAnnotateToolWindow; mark properties in Layers. */
+/** Tools and the shared line type, as in Edit. Creation parameters live in the hint; mark properties in Layers. */
 export function DiagramAnnotateRail({
   tool,
   readOnly,
@@ -58,6 +59,11 @@ export function DiagramAnnotateRail({
       }),
     },
   }));
+  const lineLabel = t('panels:diagram.annotate.lineType', 'Line Type');
+  tools.splice(tools.findIndex((group) => group.id === 'lines') + 1, 0, {
+    id: 'line-type', label: lineLabel, railLabel: lineLabel,
+    content: { control: <DiagramLineTypeControl label={lineLabel} disabled={readOnly} /> },
+  });
   return (
     <ToolRail
       aria-label={t('panels:diagram.annotate.toolsLabel', 'Annotate tools')}

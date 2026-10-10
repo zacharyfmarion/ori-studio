@@ -35,6 +35,8 @@
       "unknown": "The crease pattern isn’t ready yet. Try again in a moment."
     },
     "dropReadOnly": "This diagram was made with a newer Ori Studio and opens read-only, so pictures can’t be added to it.",
+    "placementsReflowed_one": "Moved steps returned to automatic placement: {{count}}",
+    "placementsReflowed_other": "Moved steps returned to automatic placement: {{count}}",
     "references": {
       "addedSteps": "Added as steps {{first}}–{{last}}",
       "addedTurnOvers_one": "Added a turn-over",

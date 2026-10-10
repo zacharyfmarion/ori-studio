@@ -1,3 +1,6 @@
+import { partBox } from '../../diagram/pages/pagePlacement';
+import { usePagePlacement } from '../../diagram/pages/usePagePlacement';
+import { DiagramPagesPlacement, PAGE_PLACEMENT_PAN_EXCLUDED } from './DiagramPagesPlacement';
 import type { MouseEvent } from 'react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -51,7 +54,7 @@ const TURN_TARGET_PAD_MM = TURN_STACK_CLEAR_MM / 2;
  * behaviour are `usePagesView`'s.
  */
 export function DiagramPagesView({
-  pages,
+  pages: prepared,
   failed,
   steps,
   selectedStepId,
@@ -102,7 +105,9 @@ export function DiagramPagesView({
     isNear,
     pageRef,
     cellRef,
-  } = usePagesView({ pages, selectedStepId, fitKey });
+  } = usePagesView({ pages: prepared, selectedStepId, fitKey });
+  const placement = usePagePlacement(prepared, spacePressed);
+  const pages = placement.pages;
   const stepsById = useMemo(() => new Map(steps.map((step) => [step.id, step])), [steps]);
   const mm = (value: number) => value * PAGES_PX_PER_MM;
   const tabStop = selectedStepId ?? pages?.layout.pages[0]?.cells[0]?.stepId ?? null;
@@ -150,6 +155,7 @@ export function DiagramPagesView({
           allowMiddleClickPan: true,
           // A finger drags the pages; a mouse drags them with Space held.
           allowLeftClickPan: spacePressed || coarse,
+          excluded: spacePressed ? [] : [...PAGE_PLACEMENT_PAN_EXCLUDED, styles.selectedCell],
         }}
         pinch={VIEWPORT_PINCH_ZOOM}
         doubleClick={{ disabled: true }}
@@ -200,7 +206,7 @@ export function DiagramPagesView({
                     {isNear(index) && (
                       <img
                         className={styles.image}
-                        src={composedPageUrl(pages, index, { band: false })}
+                        src={placement.draft?.page === index ? composedPageUrl(placement.draft.base, index, { band: false, omit: { stepId: placement.draft.cell.stepId, part: placement.draft.pointer?.size ? 'frame' : placement.draft.part } }) : composedPageUrl(prepared ?? pages, index, { band: false })}
                         alt=""
                         draggable={false}
                       />
@@ -274,13 +280,17 @@ export function DiagramPagesView({
                             }
                             aria-selected={cell.stepId === selectedStepId}
                             data-step-id={cell.stepId}
-                            className={styles.cell}
+                            className={`${styles.cell} ${cell.stepId === selectedStepId ? styles.selectedCell : ''}`}
                             style={{
-                              left: mm(cell.cellMm.x),
-                              top: mm(cell.cellMm.y),
-                              width: mm(cell.cellMm.w),
-                              height: mm(cell.cellMm.h),
+                              left: mm(partBox(cell, 'frame').x),
+                              top: mm(partBox(cell, 'frame').y),
+                              width: mm(partBox(cell, 'frame').w),
+                              height: mm(partBox(cell, 'frame').h),
                             }}
+                            onPointerDown={(event) => placement.start(event, index, cell)}
+                            onPointerMove={placement.move}
+                            onPointerUp={placement.end}
+                            onPointerCancel={placement.cancel}
                             onClick={(event) => onCellClick(event, cell.stepId)}
                             onDoubleClick={(event) => {
                               event.stopPropagation();
@@ -314,6 +324,7 @@ export function DiagramPagesView({
                           }}
                         />
                       ))}
+                    {isNear(index) && <DiagramPagesPlacement page={page} index={index} placement={placement} onOpen={onOpen} />}
                   </div>
                   <div
                     className={styles.caption}

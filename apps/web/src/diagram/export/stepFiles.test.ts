@@ -343,10 +343,10 @@ describe('an enlarged step’s file (Revision 2)', () => {
     expect(small.frameMm).toBeCloseTo(small.pageFrameMm, 2);
     expect(small.frameMm / small.pageAreaMm).toBeCloseTo(small.printed, 2);
     expect(Math.min(6 * small.fileAreaMm, small.fit) - small.frameMm).toBeGreaterThan(5);
-    // A larger area: Fill fills the page's room, and the file draws it that size too, short of its own box.
+    // A larger packed page may exceed a step file’s room; the file keeps its own canvas limit.
     const large = enlargedAfterArea(0.13);
-    expect(large.frameMm).toBeCloseTo(large.pageFrameMm, 2);
-    expect(large.frameMm).toBeLessThan(large.fit);
+    expect(large.frameMm).toBeCloseTo(Math.min(large.pageFrameMm, large.fit), 2);
+    expect(large.frameMm).toBeLessThanOrEqual(large.fit + 0.001);
     // Files are steps: no arrow between them.
     const arrow = paintEnlargeArrow({ x: 0, y: 0 }, 1, DEFAULT_DIAGRAM_STYLE)!.markup.match(/<path d="M ([-\d.]+ [-\d.]+)/)![1]!;
     expect(large.files.compose(1).svg).not.toContain(arrow);

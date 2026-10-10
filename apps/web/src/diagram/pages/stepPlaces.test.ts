@@ -230,7 +230,10 @@ describe('settlePlaces: a frame goes home when its step lands in another cell (D
 
   it.each([
     ['the columns change', 'grid', { columns: 4 }],
-    ['the rows change', 'flow', { rows: 2 }],
+    ['the rows change', 'grid', { rows: 2 }],
+    ['the steps per page change', 'flow', { stepsPerPage: 12 }],
+    // 9 steps are 3 × 3 on A4 portrait, and 5 × 2 on its side.
+    ['the orientation changes a flow page’s shape', 'flow', { orientation: 'landscape' }],
     ['the grid becomes the flow', 'grid', { layout: 'flow' }],
     ['the flow becomes the grid', 'flow', { layout: 'grid' }],
   ] as const)('sends every frame home when %s: every cell changed shape', (_label, layout, patch) => {
@@ -238,21 +241,45 @@ describe('settlePlaces: a frame goes home when its step lands in another cell (D
     expect(settle(before, setPageSetup(before, patch))).toEqual(ids(0, 15));
   });
 
+  it('sends a flow page’s frames home when its steps per page change, though the shape they make does not', () => {
+    // 7 and 8 steps are both 3 × 3 on A4 portrait; the eighth cell takes a step that was on page two.
+    const before = placed(16, { layout: 'flow', stepsPerPage: 7 }, []);
+    expect(cellSlots(before)).toMatchObject({ columns: 3, rows: 3, perPage: 7 });
+    expect(cellSlots(setPageSetup(before, { stepsPerPage: 8 }))).toMatchObject({ columns: 3, rows: 3, perPage: 8 });
+    expect(settle(before, setPageSetup(before, { stepsPerPage: 8 }))).toEqual(ids(0, 15));
+  });
+
+  it('keeps a flow page’s frames through a paper, orientation or margin that leaves its shape as it was', () => {
+    // 9 steps are 3 × 3 on A4 and on Letter, upright, and at a margin of 25 mm.
+    const before = placed(16, { layout: 'flow' });
+    for (const patch of [{ size: 'letter' }, { marginMm: 25 }] as const) {
+      expect(cellSlots(setPageSetup(before, patch))).toMatchObject({ columns: 3, rows: 3 });
+      expect(settle(before, setPageSetup(before, patch))).toEqual([]);
+    }
+    // 6 steps are 2 × 3 upright, 3 × 2 on its side, on A4 and on Letter alike.
+    const six = placed(16, { layout: 'flow', stepsPerPage: 6, orientation: 'landscape' });
+    expect(settle(six, setPageSetup(six, { size: 'letter' }))).toEqual([]);
+    // The grid's shape is its own, whatever the paper.
+    const grid = placed(16);
+    expect(settle(grid, setPageSetup(grid, { orientation: 'landscape' }))).toEqual([]);
+    // A flow page's columns and rows say nothing: its steps per page do.
+    expect(settle(before, setPageSetup(before, { columns: 4, rows: 2 }))).toEqual([]);
+  });
+
   it('keeps every frame through the first page’s side, and a page added after its own that turns its rows', () => {
     const before = placed(16, { layout: 'flow' });
     expect(settle(before, setPageSetup(before, { firstPageSide: 'right' }))).toEqual([]);
     // Two rows: appending a page makes the last page's exit the spine, and turns every row of it.
-    const one = placed(4, { layout: 'flow', columns: 2, rows: 2 }, []);
+    const one = placed(4, { layout: 'flow', stepsPerPage: 4 }, []);
     expect(flowPagePlan(0, 1, 'left', 2)).not.toEqual(flowPagePlan(0, 2, 'left', 2));
     expect(settle(one, insertSteps(one, [createStep(() => 'next')], one.steps.length))).toEqual([]);
     // A page removed after its own.
-    const two = placed(5, { layout: 'flow', columns: 2, rows: 2 }, []);
+    const two = placed(5, { layout: 'flow', stepsPerPage: 4 }, []);
     expect(settle(two, removeSteps(two, ['s4']))).toEqual([]);
   });
 
   it.each([
     ['paper size', { size: 'letter' }],
-    ['orientation', { orientation: 'landscape' }],
     ['margin', { marginMm: 25 }],
     ['title shown', { showTitle: false }],
     ['page numbers', { pageNumbers: { enabled: false, first: 4 } }],

@@ -44,12 +44,27 @@ export function pageSideLabel(side: DiagramPageSide, t: TFunction): string {
     : t('panels:diagram.pagePane.sideRight', 'Right');
 }
 
-/** The setup in a line: "A4 Portrait · Grid, 3 × 3". */
+/**
+ * The setup in a line: "A4 Portrait · Grid, 3 × 3", or for the flow, which
+ * takes a number of steps and chooses its rows, "A4 Portrait · Flow, 7 steps
+ * per page".
+ */
 export function pageSetupSummary(page: DiagramPageSetup, t: TFunction): string {
-  return t('dialogs:diagramExport.pageSetupSummary', '{{size}} {{orientation}} · {{layout}}, {{columns}} × {{rows}}', {
+  const paper = {
     size: paperSizeLabel(page.size, t),
     orientation: orientationLabel(page.orientation, t),
     layout: layoutLabel(page.layout, t),
+  };
+  if (page.layout === 'flow') {
+    return t('dialogs:diagramExport.pageSetupSummaryFlow', {
+      ...paper,
+      count: page.stepsPerPage,
+      defaultValue_one: '{{size}} {{orientation}} · {{layout}}, 1 step per page',
+      defaultValue_other: '{{size}} {{orientation}} · {{layout}}, {{count}} steps per page',
+    });
+  }
+  return t('dialogs:diagramExport.pageSetupSummary', '{{size}} {{orientation}} · {{layout}}, {{columns}} × {{rows}}', {
+    ...paper,
     columns: page.columns,
     rows: page.rows,
   });

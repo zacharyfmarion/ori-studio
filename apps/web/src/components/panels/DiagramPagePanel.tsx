@@ -7,6 +7,7 @@ import {
   PAGE_MARGIN_MM_RANGE,
   PAGE_ROWS_RANGE,
   PATH_WIDTH_MM_RANGE,
+  STEPS_PER_PAGE_RANGE,
   type DiagramHanStyle,
   type DiagramPageLayout,
   type DiagramPageOrientation,
@@ -15,6 +16,7 @@ import {
 } from '../../diagram/document/diagramDocument';
 import { layoutLabel, orientationLabel, paperSizeLabel } from '../../diagram/pages/pageSetupLabels';
 import { useDiagramPageSetup } from '../../diagram/pages/useDiagramPageSetup';
+import { DiagramPagePlacements } from '../diagram/DiagramPagePlacements';
 import { DiagramPathColorRow } from '../diagram/DiagramPathColorRow';
 import { DiagramStyleControl } from '../diagram/DiagramStyleControl';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
@@ -99,28 +101,39 @@ export function DiagramPagePanel() {
               onChange={(layout) => setPage({ layout }, 'layout')}
             />
           </div>
-          <NumberRow
-            label={
-              flow
-                ? t('panels:diagram.pagePane.perRow', 'Steps per row')
-                : t('panels:diagram.pagePane.columns', 'Columns')
-            }
-            value={page.columns}
-            min={PAGE_COLUMNS_RANGE.min}
-            max={PAGE_COLUMNS_RANGE.max}
-            step={1}
-            disabled={readOnly}
-            onCommit={(columns) => setPage({ columns }, 'columns')}
-          />
-          <NumberRow
-            label={t('panels:diagram.pagePane.rows', 'Rows')}
-            value={page.rows}
-            min={PAGE_ROWS_RANGE.min}
-            max={PAGE_ROWS_RANGE.max}
-            step={1}
-            disabled={readOnly}
-            onCommit={(rows) => setPage({ rows }, 'rows')}
-          />
+          {flow ? (
+            // The flow takes a number of steps and chooses its rows to suit the paper (`flowShape`).
+            <NumberRow
+              label={t('panels:diagram.pagePane.stepsPerPage', 'Steps per page')}
+              value={page.stepsPerPage}
+              min={STEPS_PER_PAGE_RANGE.min}
+              max={STEPS_PER_PAGE_RANGE.max}
+              step={1}
+              disabled={readOnly}
+              onCommit={(stepsPerPage) => setPage({ stepsPerPage }, 'steps_per_page')}
+            />
+          ) : (
+            <>
+              <NumberRow
+                label={t('panels:diagram.pagePane.columns', 'Columns')}
+                value={page.columns}
+                min={PAGE_COLUMNS_RANGE.min}
+                max={PAGE_COLUMNS_RANGE.max}
+                step={1}
+                disabled={readOnly}
+                onCommit={(columns) => setPage({ columns }, 'columns')}
+              />
+              <NumberRow
+                label={t('panels:diagram.pagePane.rows', 'Rows')}
+                value={page.rows}
+                min={PAGE_ROWS_RANGE.min}
+                max={PAGE_ROWS_RANGE.max}
+                step={1}
+                disabled={readOnly}
+                onCommit={(rows) => setPage({ rows }, 'rows')}
+              />
+            </>
+          )}
           {flow && (
             <ToggleRow
               label={t('panels:diagram.pagePane.showPath', 'Show path')}
@@ -170,12 +183,13 @@ export function DiagramPagePanel() {
             onChange={(side) => setPage({ firstPageSide: side as DiagramPageSide }, 'first_page_side')}
           />
           <p className={styles.readout}>
-            {t('panels:diagram.pagePane.perPage', {
-              count: setup.perPage,
-              defaultValue_one: '1 step per page',
-              defaultValue_other: '{{count}} steps per page',
-            })}
-            {' · '}
+            {/* The flow's steps per page are its own row, just above. */}
+            {!flow &&
+              `${t('panels:diagram.pagePane.perPage', {
+                count: setup.perPage,
+                defaultValue_one: '1 step per page',
+                defaultValue_other: '{{count}} steps per page',
+              })} · `}
             {t('panels:diagram.pagePane.pageCount', {
               count: setup.pageCount,
               defaultValue_one: '1 page',
@@ -183,6 +197,7 @@ export function DiagramPagePanel() {
             })}
           </p>
         </CollapsibleSection>
+        <DiagramPagePlacements />
         <CollapsibleSection title={t('panels:diagram.pagePane.headerFooter', 'Header & footer')}>
           <ToggleRow
             label={t('panels:diagram.pagePane.title', 'Title')}

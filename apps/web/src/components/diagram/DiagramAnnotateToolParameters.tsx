@@ -4,7 +4,6 @@ import { annotateToolParameters, type AnnotateToolParameter } from '../../diagra
 import type { CircleDrawingMode } from '../../diagram/annotate/circleDrawing';
 import { useSettingsStore } from '../../store/settingsStore';
 import { SegmentedControl } from '../ui/SegmentedControl';
-import { DiagramLineTypeControl } from './DiagramLineTypeControl';
 import { DiagramStarFillControl } from './DiagramStarFillControl';
 import { DiagramTextStyleControl } from './DiagramTextStyleControl';
 import styles from './DiagramAnnotateToolParameters.module.css';
@@ -17,14 +16,12 @@ export function DiagramAnnotateToolParameters({ tool }: { tool: AnnotateTool }) 
 function Parameter({ parameter }: { parameter: AnnotateToolParameter }) {
   const { t } = useTranslation();
   const labels = {
-    'line-type': t('panels:diagram.annotate.lineType', 'Line Type'),
     'text-style': t('panels:diagram.annotate.textStyle', 'Text Style'),
     'star-fill': t('panels:diagram.annotate.starFill', 'Star Fill'),
     'circle-mode': t('panels:diagram.annotate.circleMode', 'Draw circle'),
   };
   const label = labels[parameter];
   const controls = {
-    'line-type': <DiagramLineTypeControl label={label} disabled={false} />,
     'text-style': <DiagramTextStyleControl disabled={false} />,
     'star-fill': <DiagramStarFillControl label={label} disabled={false} />,
     'circle-mode': <CircleModeControl label={label} />,

@@ -7,6 +7,7 @@ import {
   createTurn,
   DEFAULT_DIAGRAM_STYLE,
   insertSteps,
+  setPageSetup,
   stepsOf,
   type DiagramDocument,
   type DiagramStep,
@@ -17,6 +18,7 @@ import {
 import { cpStep } from '../document/diagramSteps.fixtures';
 import { FIXTURE_FONTS, fixtureSubsetter } from '../fonts/diagramFonts.fixtures';
 import type { FontSubsetter } from '../fonts/fontSubset';
+import { partBox } from './pagePlacement';
 import { PICTURE_TOP_MM } from './diagramPageLayout';
 import { diagramLayoutSteps, enlargeArrowCount, preparedPages } from './diagramPages';
 import { estimateTextSetter } from './estimateTextSetter';
@@ -197,8 +199,8 @@ describe('the enlarge arrow on a page', () => {
     expect(svg).not.toContain('matrix(-1 0 0 1');
   });
 
-  it('keeps its box in both pictures’ overlap, below both steps’ numbers', () => {
-    const document = areaThenEnlarged(circleArea('area-1', [0.5, 0.02], 0.02));
+  it('keeps its box in both grid pictures’ overlap, below both steps’ numbers', () => {
+    const document = setPageSetup(areaThenEnlarged(circleArea('area-1', [0.5, 0.02], 0.02)), { layout: 'grid' });
     const pages = preparedPages(document, FIXTURE_FONTS, subsetter);
     const page = pages.layout.pages[0]!;
     const steps = new Map(stepsOf(document).map((step) => [step.id, step]));
@@ -207,7 +209,7 @@ describe('the enlarge arrow on a page', () => {
     const tops = page.cells.map(
       (cell, index) => cellPicture(steps.get(cell.stepId)!, document.assets, document.style, cell, `c${index}-`, text)!.boundsPt.y / PT_PER_MM
     );
-    const numbers = Math.max(page.cells[0]!.cellMm.y, page.cells[1]!.cellMm.y) + PICTURE_TOP_MM;
+    const numbers = Math.max(...page.cells.map(cell => cell.flowRow === undefined ? cell.cellMm.y + PICTURE_TOP_MM : partBox(cell, 'number').y + partBox(cell, 'number').h));
     expect(lifted!.at.y - lifted!.box.h / 2).toBeCloseTo(Math.max(numbers, ...tops), 6);
     // Pictures reaching up to the numbers: the box's top below them.
     const drawn = (top: number, bottom: number): CellPicture => ({
@@ -234,7 +236,7 @@ describe('the enlarge arrow on a page', () => {
     expect(pages.zoomArrows(0)).toEqual(pages.layout.pages[0]!.zoomArrows);
     // Two to a row: the second row reads right to left.
     const rows = insertSteps(
-      { ...areaThenEnlarged(), page: { ...document.page, layout: 'flow', columns: 2, rows: 3 } },
+      { ...areaThenEnlarged(), page: { ...document.page, layout: 'flow', stepsPerPage: 6 } },
       [cpStep('step-a'), cpStep('step-b')],
       0
     );
@@ -250,7 +252,7 @@ describe('the enlarge arrow on a page', () => {
   it('prints across a flow row’s end aimed at the enlarged step, as the layout aims it', () => {
     // The area's step ends the first row; the enlarged step starts the second, under it.
     const document = insertSteps(
-      { ...areaThenEnlarged(), page: { ...createDiagram().page, layout: 'flow', columns: 2, rows: 3 } },
+      { ...areaThenEnlarged(), page: { ...createDiagram().page, layout: 'flow', stepsPerPage: 6 } },
       [cpStep('step-a')],
       0
     );

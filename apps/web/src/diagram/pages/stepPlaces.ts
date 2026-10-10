@@ -5,12 +5,15 @@
  * its cell changes — whatever changed it.
  *
  * A step's **cell** is its place among its page's steps, on its page, at
- * given columns, rows and layout ({@link sameCell}). A page is the same page
- * while it keeps its number, or the step it starts with: a step inserted
- * earlier can add a page and renumber every later one while a page break
- * keeps their steps exactly where they were, and a reorder can change the
- * step a page starts with while every other step on it stays put. Paper,
- * margins, the side the first page falls on, and anything after the step
+ * given columns, rows, steps per page and layout ({@link sameCell}) — a flow
+ * page's columns and rows derived from its steps per page and its paper
+ * (`pageGrid`), so a paper, orientation or margin that changes them changes
+ * its cells. A page is the same page while it keeps its number, or the step
+ * it starts with: a step inserted earlier can add a page and renumber every
+ * later one while a page break keeps their steps exactly where they were,
+ * and a reorder can change the step a page starts with while every other
+ * step on it stays put. Paper and margins that leave a flow page's shape as
+ * it was, the side the first page falls on, and anything after the step
  * leave its cell as it was — its offset is kept in the page's reading terms,
  * along its row and across its rows, and follows a page that turns.
  *
@@ -43,6 +46,8 @@ export interface CellSlots {
   /** The shape a page's cells are cut into, as the layout cuts them (`pageGrid`). */
   columns: number;
   rows: number;
+  /** How many steps a page holds (`cellsPerPage`): a flow page's steps per page, fewer than its cells where its last row is short. */
+  perPage: number;
   /** Each step's cell, by its id: every step, a newer build's included, takes one. */
   slots: ReadonlyMap<string, CellSlot>;
   /** The steps on each page, by id, in order: what Reset This Page resets. */
@@ -59,26 +64,33 @@ export function cellSlots(document: DiagramDocument): CellSlots {
   const steps = stepsOf(document);
   const { layout } = document.page;
   const { columns, rows } = pageGrid(document.page);
+  const perPage = cellsPerPage(document.page);
   const slots = new Map<string, CellSlot>();
-  const pages = splitIntoPages(steps, cellsPerPage(document.page)).map((indices, page) => {
+  const pages = splitIntoPages(steps, perPage).map((indices, page) => {
     const ids = indices.map((index) => steps[index]!.id);
     ids.forEach((id, k) => slots.set(id, { page, first: ids[0]!, k }));
     return ids;
   });
-  return { layout, columns, rows, slots, pages };
+  return { layout, columns, rows, perPage, slots, pages };
 }
 
 /**
  * Whether a step is in the same cell under `now` as under `was`: the same
- * layout and shape of cells, the same place among its page's steps, on the
- * same page — one that keeps its number, or the step it starts with. False
- * for a step missing from either.
+ * layout, shape of cells and steps per page, the same place among its page's
+ * steps, on the same page — one that keeps its number, or the step it starts
+ * with. False for a step missing from either.
+ *
+ * A flow page's new steps per page is a new cell, as a grid's new columns or
+ * rows are, even where it derives the same shape (7 and 8 steps are both
+ * 3 × 3 on A4 portrait): the plan's clearing table says so, and the steps
+ * either side of a page's end move.
  */
 export function sameCell(was: CellSlots, now: CellSlots, stepId: string): boolean {
   const before = was.slots.get(stepId);
   const after = now.slots.get(stepId);
   if (!before || !after) return false;
   if (was.layout !== now.layout || was.columns !== now.columns || was.rows !== now.rows) return false;
+  if (was.perPage !== now.perPage) return false;
   return before.k === after.k && (before.page === after.page || before.first === after.first);
 }
 

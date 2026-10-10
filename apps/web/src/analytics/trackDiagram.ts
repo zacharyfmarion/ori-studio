@@ -352,7 +352,7 @@ export interface DiagramStepFilesExported {
 export function trackDiagramExported(
   format: DiagramExportFormat,
   how: { preset: DiagramPdfPreset } | DiagramStepFilesExported | null,
-  counts: { files: number; steps: number; empty: number; enlarged: number }
+  counts: { files: number; steps: number; empty: number; enlarged: number; placed?: number; clashes?: number }
 ): void {
   const shown = (value: boolean) => (value ? 'shown' : 'hidden');
   track(ANALYTICS_EVENTS.diagramExported, {
@@ -374,5 +374,18 @@ export function trackDiagramExported(
     empty_step_bucket: bucketCount(counts.empty, DIAGRAM_EMPTY_STEP_BUCKETS),
     // The same ladder: none, one, a few, many.
     enlarged_step_bucket: bucketCount(counts.enlarged, DIAGRAM_EMPTY_STEP_BUCKETS),
+    placed_step_bucket: bucketCount(counts.placed ?? 0, DIAGRAM_EMPTY_STEP_BUCKETS),
+    clash_bucket: bucketCount(counts.clashes ?? 0, DIAGRAM_EMPTY_STEP_BUCKETS),
   });
+}
+
+/** Placement events contain choices and buckets only, never coordinates or sizes. */
+export function trackDiagramStepPlaced(part: 'frame' | 'number' | 'picture' | 'text' | 'size', via: 'drag' | 'keys' | 'pane', layout: 'grid' | 'flow'): void {
+  track(ANALYTICS_EVENTS.diagramStepPlaced, { part, via, layout });
+}
+export function trackDiagramPlacementReset(part: 'frame' | 'number' | 'picture' | 'text' | 'size' | 'step', scope: 'step' | 'page' | 'diagram', via: 'pane' | 'menu' | 'drag_home'): void {
+  track(ANALYTICS_EVENTS.diagramPlacementReset, { part, scope, via });
+}
+export function trackDiagramPlacementsReflowed(count: number): void {
+  track(ANALYTICS_EVENTS.diagramPlacementsReflowed, { count_bucket: bucketCount(count, COUNT_BUCKETS) });
 }

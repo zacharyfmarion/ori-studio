@@ -14,7 +14,7 @@ import { DiagramLineTypeMark } from './DiagramLineTypeMark';
 import styles from './DiagramLineTypeControl.module.css';
 
 /**
- * The tool hint’s Line Type (15a): Valley, Mountain, Hidden and Solid, each a
+ * The left sidebar’s Line Type (15a): Valley, Mountain, Hidden and Solid, each a
  * short stroke in its own dash, and while Solid is the type, the colour the
  * next solid line is drawn in under it (17a). Both are preferences, kept as
  * they were left: the Line tool and the Angle Bisector draw in them.

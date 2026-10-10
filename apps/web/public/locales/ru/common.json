@@ -1,4 +1,7 @@
 {
+  "actions": {
+    "undo": "Отменить"
+  },
   "cancel": "Отмена",
   "capability": {
     "absorbAllStrainIntoLengths": "Поглотить всё натяжение в длины рёбер",

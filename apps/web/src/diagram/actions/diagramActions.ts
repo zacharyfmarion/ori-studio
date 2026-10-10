@@ -25,6 +25,9 @@ export type DiagramStepActionId =
   | 'move-earlier'
   | 'move-later'
   | 'start-page'
+  | 'reset-size'
+  | 'reset-position'
+  | 'reset-layout'
   | 'upload-picture'
   | 'link-pattern'
   | 'from-references'
@@ -162,6 +165,7 @@ export interface DiagramStepActionState {
    * other step, the verb then not offered.
    */
   heldAreas: { outOfDate: number } | null;
+  placement?: { size: boolean; position: boolean; newer: boolean };
 }
 
 export interface DiagramStepActionDeps {
@@ -175,6 +179,7 @@ export interface DiagramStepActionDeps {
   move: (direction: 'earlier' | 'later') => void;
   /** Start a new page at the step, or stop doing so. */
   toggleBreak: () => void;
+  resetPlacement?: (part: 'scale' | 'position' | 'all') => void;
   /** Pick a file for the step's picture: its first, or in place of the one it has. */
   uploadPicture: () => void;
   /** Choose the pattern the step shows: the picker, in the Step pane. */
@@ -391,6 +396,12 @@ export function buildDiagramStepActions(
       checked: state.breakBefore,
     },
     { kind: 'separator', id: 'after-move' },
+    ...(state.placement ? [
+      ...(state.placement.size && !state.placement.newer ? [command('reset-size', t('panels:diagram.placement.resetSize', 'Reset Size'), () => deps.resetPlacement?.('scale'), state.locked)] : []),
+      ...(state.placement.position && !state.placement.newer ? [command('reset-position', t('panels:diagram.placement.resetPosition', 'Reset Position'), () => deps.resetPlacement?.('position'), state.locked)] : []),
+      command('reset-layout', t('panels:diagram.placement.resetLayout', 'Reset Layout'), () => deps.resetPlacement?.('all'), state.locked),
+      { kind: 'separator' as const, id: 'after-placement' },
+    ] : []),
     command(
       'upload-picture',
       state.hasPicture

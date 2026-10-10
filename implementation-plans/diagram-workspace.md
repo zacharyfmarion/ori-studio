@@ -770,6 +770,13 @@ vocabulary at paint time.**
 
 **D10. Pages come from one pure layout, at one paper scale, and the screen
 shows the composed page.**
+- **October 10 amendment:** balanced occupied-shape ribbon packing replaces the
+  fixed flow grid and empty-cell tail. Page placement adds independent picture
+  size pins and frame/number/picture/text offsets, applied after Fit each. The
+  ribbon follows final picture centres, including across the spine. Pages,
+  PDF, Print and SVG share that result; step files ignore page placement. See
+  [page placement as built](diagram-page-overrides.md#as-built-page-placement-and-balanced-ribbons-2026-10-10).
+
 - **Print paper** (`diagram/pages/printPaper.ts`):
   - sizes `a4` 210×297, `a5` 148×210, `b5-jis` 182×257 (labelled "B5 (JIS)"; a
     CSS `B5` keyword would be ISO 176×250) and `letter` 215.9×279.4 mm;

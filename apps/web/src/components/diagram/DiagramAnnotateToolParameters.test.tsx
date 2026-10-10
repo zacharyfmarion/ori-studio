@@ -52,37 +52,10 @@ describe('DiagramAnnotateToolParameters', () => {
     expect(useSettingsStore.getState().diagramAnnotateStarFill).toBe('white');
   });
 
-  it('offers Solid among the line types, and while it is the type, the colour the next solid line is drawn in (17a)', () => {
-    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
-    // What Radix's select asks of the DOM, which jsdom does not have.
-    Element.prototype.hasPointerCapture ??= () => false;
-    Element.prototype.releasePointerCapture ??= () => undefined;
-    Element.prototype.scrollIntoView ??= () => undefined;
-    useSettingsStore.setState({ diagramAnnotateLineType: 'valley', diagramAnnotateLineColor: null });
-    container = document.createElement('div');
-    document.body.append(container);
-    root = createRoot(container);
-    act(() =>
-      root!.render(
-        <TooltipProvider>
-          <DiagramAnnotateToolParameters tool="line" />
-        </TooltipProvider>
-      )
-    );
-    const types = [...container.querySelectorAll('[role="group"][aria-label="Line Type"] button')].map((button) =>
-      button.getAttribute('aria-label')
-    );
-    expect(types).toEqual(['Valley', 'Mountain', 'Hidden', 'Solid']);
-    const color = () => container!.querySelector<HTMLButtonElement>('button[aria-label="Line Color"]');
-    expect(color()).toBeNull();
-    act(() => container!.querySelector<HTMLButtonElement>('[role="group"][aria-label="Line Type"] button[aria-label="Solid"]')!.click());
-    expect(useSettingsStore.getState().diagramAnnotateLineType).toBe('solid');
-    expect(color()!.textContent).toBe('Ink');
-    act(() => color()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
-    const reference = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((each) => each.textContent === 'Reference')!;
-    act(() => reference.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
-    expect(useSettingsStore.getState().diagramAnnotateLineColor).toBe('#c91d87');
-    expect(color()!.textContent).toBe('Reference');
+  it('leaves line type to the permanent rail', () => {
+    container = document.createElement('div'); root = createRoot(container);
+    act(() => root!.render(<TooltipProvider><DiagramAnnotateToolParameters tool="line" /></TooltipProvider>));
+    expect(container.querySelector('[aria-label="Line Type"]')).toBeNull();
   });
 
   it('offers text defaults only for Text and keeps them for the next label', () => {

@@ -1,0 +1,18 @@
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.part {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}

@@ -1,4 +1,7 @@
 {
+  "actions": {
+    "undo": "Deshacer"
+  },
   "cancel": "Cancelar",
   "capability": {
     "absorbAllStrainIntoLengths": "Absorber toda la tensión en las longitudes de arista",
