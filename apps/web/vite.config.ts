@@ -127,14 +127,17 @@ const UNCACHEABLE_PATTERNS: readonly RegExp[] = [
 /**
  * Cached when used, but never warmed: the Diagram's PDF writer — its worker and
  * its wasm (4.2 MB, 1.5 MB gzipped), fetched on the first PDF export
- * (`diagram/export/browserPdfWriter.ts`). The warm set is what every installed
- * app downloads on its first visit (invariant 5 in `src/pwa/sw.ts`), and few
- * of those visitors will ever print a diagram; the first export stores them
- * like any other asset. Allowed to match nothing.
+ * (`diagram/export/browserPdfWriter.ts`) — and its font subsetter, HarfBuzz's
+ * (650 KB, 260 KB gzipped), fetched when a diagram's pages are first set
+ * (`diagram/fonts/browserFontSubsetter.ts`). The warm set is what every
+ * installed app downloads on its first visit (invariant 5 in `src/pwa/sw.ts`),
+ * and few of those visitors will ever lay out a diagram; the first use stores
+ * them like any other asset. Allowed to match nothing.
  */
 const UNWARMED_PATTERNS: readonly RegExp[] = [
   /^assets\/diagramPdfWorker-[^/]+\.js$/,
   /^assets\/oristudio_pdf_wasm_bg-[^/]+\.wasm$/,
+  /^assets\/harfbuzz-subset-[^/]+\.wasm$/,
 ];
 
 /** Where {@link simPerfLogSink} appends. Gitignored (`artifacts/`). */
