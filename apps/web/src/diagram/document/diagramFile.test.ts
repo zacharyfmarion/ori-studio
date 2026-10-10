@@ -2102,6 +2102,13 @@ describe('thumbnails and References cards in the file', () => {
     expect(stepsIn(sent).every((step: WrittenSource) => typeof step.source.thumbnail === 'string')).toBe(true);
   });
 
+  it('reads the links that name one entry as sharing its thumbnail, as the file does', () => {
+    const read = readDiagram(throughJson(writeDiagram(linkedDiagram())))!.document;
+    const thumbnails = stepsIn(read).flatMap((step) => (step.source?.kind === 'cp' ? [step.source.thumbnail] : []));
+    expect(thumbnails.length).toBeGreaterThan(5);
+    expect(new Set(thumbnails).size).toBe(1);
+  });
+
   it('writes a References card’s model as one string', () => {
     const written = throughJson(writeDiagram(sentDiagram()));
     const pictures = stepsIn(written).map((step: WrittenSource) => step.picture).filter(Boolean);

@@ -395,7 +395,7 @@ class ThumbnailWriter {
 
   /** The key a thumbnail is written under: one per content, never another's. */
   keyOf(thumbnail: SheetThumbnail): string {
-    const json = JSON.stringify(thumbnail);
+    const json = thumbnailJson(thumbnail);
     const known = this.keys.get(json);
     if (known !== undefined) return known;
     const base = `thumb-${digest(json)}`;
@@ -411,6 +411,22 @@ class ThumbnailWriter {
     if (this.entries.size === 0) return {};
     return { thumbnails: Object.fromEntries([...this.entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) };
   }
+}
+
+/**
+ * A thumbnail's JSON, made once per thumbnail: a thumbnail never changes in
+ * place, and the links a read names by one key share one (`readThumbnailOnce`),
+ * so a save of fifty steps on one dense sheet writes its JSON once, not fifty times.
+ */
+const thumbnailJsonOf = new WeakMap<SheetThumbnail, string>();
+
+function thumbnailJson(thumbnail: SheetThumbnail): string {
+  let json = thumbnailJsonOf.get(thumbnail);
+  if (json === undefined) {
+    json = JSON.stringify(thumbnail);
+    thumbnailJsonOf.set(thumbnail, json);
+  }
+  return json;
 }
 
 /**
@@ -950,6 +966,23 @@ function namesUnknownAsset(value: Record<string, unknown>, assets: Record<string
 type ThumbnailResolver = (key: string) => unknown;
 
 /**
+ * A link's thumbnail, read once for each thumbnail the file holds: the links
+ * that name one entry of the table share one thumbnail, as they share it in
+ * the file, rather than fifty copies of a dense sheet's strokes.
+ */
+const readThumbnails = new WeakMap<object, SheetThumbnail | null>();
+
+function readThumbnailOnce(value: unknown): SheetThumbnail | null {
+  if (!isRecord(value)) return null;
+  let thumbnail = readThumbnails.get(value);
+  if (thumbnail === undefined) {
+    thumbnail = readSheetThumbnail(value);
+    readThumbnails.set(value, thumbnail);
+  }
+  return thumbnail;
+}
+
+/**
  * The thumbnails table as read (decision 4): each entry parsed when a link
  * first names it, and once. An entry is a thumbnail's JSON as one string; a
  * record is taken as the thumbnail itself. And the entries named anywhere a
@@ -1042,7 +1075,7 @@ export function storedCpSource(source: DiagramCpSource): DiagramCpSource | null 
 function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
   const scope = readCpScope(value.scope);
   const render = readCpRender(value.render);
-  const thumbnail = readSheetThumbnail(value.thumbnail);
+  const thumbnail = readThumbnailOnce(value.thumbnail);
   const fingerprint = value.fingerprint;
   if (!scope || !render || !thumbnail) return null;
   if (typeof fingerprint !== 'string' || fingerprint.length === 0) return null;
@@ -1093,7 +1126,7 @@ export function storedAnnotations(
 /** A References source, every field checked; null when any does not read. */
 function readReferencesSource(value: Record<string, unknown>): DiagramReferencesSource | null {
   const region = readRegionReference(value.region);
-  const thumbnail = readSheetThumbnail(value.thumbnail);
+  const thumbnail = readThumbnailOnce(value.thumbnail);
   if (!region || !thumbnail) return null;
   // Null is a sheet that could not be fingerprinted when it was sent; an empty one is not a fingerprint.
   const fingerprint = value.fingerprint;
