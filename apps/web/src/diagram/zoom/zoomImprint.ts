@@ -76,7 +76,7 @@ const memo = new WeakMap<DiagramScenePicture, { render: string; faces: StepFaces
  */
 export function paperFacesOf(step: DiagramStep): StepFaces | null {
   const { picture, source } = step;
-  if (step.unknown || picture?.kind !== 'scene' || source?.kind !== 'cp') return null;
+  if (picture?.kind !== 'scene' || source?.kind !== 'cp') return null;
   const { render } = source;
   if (render.mode !== 'folded-flat' && render.mode !== 'crease-pattern') return null;
   const key = JSON.stringify(render);

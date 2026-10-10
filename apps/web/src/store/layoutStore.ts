@@ -566,9 +566,16 @@ interface LayoutState {
    * slot in that corner instead (`WorkspaceViewDrawer`).
    */
   viewDrawerSlot: HTMLElement | null;
+  /**
+   * Where the touch layout's sheets are portaled (`SheetLayer`), registered by
+   * `App` ahead of its modals so a dialog a sheet opens is over it; null until
+   * it is mounted.
+   */
+  sheetLayer: HTMLElement | null;
   activeWorkspace: WorkspaceId;
   setDockviewApi: (api: DockviewApi | null) => void;
   setViewDrawerSlot: (slot: HTMLElement | null) => void;
+  setSheetLayer: (layer: HTMLElement | null) => void;
   setDesignPaneApi: (api: DockviewApi | null) => void;
   setDesignPaneId: (panelId: string | null) => void;
   setActiveWorkspace: (workspace: WorkspaceId) => void;
@@ -590,9 +597,11 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   designPaneApi: null,
   designPaneId: null,
   viewDrawerSlot: null,
+  sheetLayer: null,
   activeWorkspace: 'design',
   setDockviewApi: (api) => set({ dockviewApi: api }),
   setViewDrawerSlot: (slot) => set({ viewDrawerSlot: slot }),
+  setSheetLayer: (layer) => set({ sheetLayer: layer }),
   setDesignPaneApi: (api) => set({ designPaneApi: api }),
   setDesignPaneId: (panelId) => set({ designPaneId: panelId }),
   setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),

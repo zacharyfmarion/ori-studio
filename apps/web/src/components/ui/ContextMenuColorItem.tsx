@@ -2,27 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { hoverFocusProps, useMenuPicker } from './contextMenuPicker';
 import type { ContextMenuItem } from './contextMenuTypes';
 import { MenuItem, MenuItemIcon, MenuItemLabel } from './Menu';
+import { openColorPicker } from './openColorPicker';
 import styles from './ContextMenuColorItem.module.css';
 
 type ColorItem = Extract<ContextMenuItem, { kind: 'color' }>;
-
-/**
- * Open the engine's colour picker for `input`. `showPicker()` is the way to ask
- * for it; a synthetic click is what older engines answer to. Both need the user
- * activation the row's select just supplied.
- */
-function openPicker(input: HTMLInputElement) {
-  input.focus();
-  if (typeof input.showPicker === 'function') {
-    try {
-      input.showPicker();
-      return;
-    } catch {
-      // Fall through to the click.
-    }
-  }
-  input.click();
-}
 
 /**
  * A menu row that edits one colour.
@@ -77,7 +60,7 @@ export function ContextMenuColorItem({ item }: { item: ColorItem }) {
       onSelect={(event) => {
         event.preventDefault();
         if (!inputRef.current) return;
-        openPicker(inputRef.current);
+        openColorPicker(inputRef.current);
         picker.setOpenInput(inputRef.current);
       }}
     >

@@ -139,6 +139,78 @@ describe('settingsStore', () => {
     expect((await freshSettingsStore()).getState().referencesShowAuxCreases).toBeNull();
   });
 
+  it('draws a solid line in the style’s ink until a colour is chosen, and remembers one (17a)', async () => {
+    const key = storageKey(STORAGE_KEYS.diagramAnnotateLineColor);
+    localStorage.removeItem(key);
+    expect((await freshSettingsStore()).getState().diagramAnnotateLineColor).toBeNull();
+    useSettingsStore.getState().setDiagramAnnotateLineColor('#e8590c');
+    expect(localStorage.getItem(key)).toBe('#e8590c');
+    expect((await freshSettingsStore()).getState().diagramAnnotateLineColor).toBe('#e8590c');
+    // Back to the ink forgets the choice; what is no colour is never taken.
+    useSettingsStore.getState().setDiagramAnnotateLineColor('orange');
+    expect(useSettingsStore.getState().diagramAnnotateLineColor).toBe('#e8590c');
+    useSettingsStore.getState().setDiagramAnnotateLineColor(null);
+    expect(localStorage.getItem(key)).toBeNull();
+    // A hand-edited key reads as the ink.
+    localStorage.setItem(key, 'orange');
+    expect((await freshSettingsStore()).getState().diagramAnnotateLineColor).toBeNull();
+  });
+
+  it('pulls every mark of a References card until the Show menu hides one, and remembers the choice (17d)', async () => {
+    const key = storageKey(STORAGE_KEYS.diagramReferencesMarks);
+    localStorage.removeItem(key);
+    expect((await freshSettingsStore()).getState().diagramReferencesMarks).toEqual({ letters: true, highlights: true });
+    useSettingsStore.getState().setDiagramReferencesMarks({ letters: false, highlights: true });
+    expect(useSettingsStore.getState().diagramReferencesMarks).toEqual({ letters: false, highlights: true });
+    expect((await freshSettingsStore()).getState().diagramReferencesMarks).toEqual({ letters: false, highlights: true });
+    // Both shown again forgets the key; a hand-edited one reads mark by mark, as export's do.
+    useSettingsStore.getState().setDiagramReferencesMarks({ letters: true, highlights: true });
+    expect(localStorage.getItem(key)).toBeNull();
+    localStorage.setItem(key, JSON.stringify({ letters: 'no', highlights: false }));
+    expect((await freshSettingsStore()).getState().diagramReferencesMarks).toEqual({ letters: true, highlights: false });
+    localStorage.removeItem(key);
+  });
+
+  it('sets the next label in today’s look until a Text Style is chosen, and remembers one option by option (17b)', async () => {
+    const key = storageKey(STORAGE_KEYS.diagramAnnotateTextStyle);
+    localStorage.removeItem(key);
+    const plain = { color: null, bold: false, halo: false, sizePt: null };
+    expect((await freshSettingsStore()).getState().diagramAnnotateTextStyle).toEqual(plain);
+    useSettingsStore.getState().setDiagramAnnotateTextStyle({ color: '#c91d87', bold: true });
+    useSettingsStore.getState().setDiagramAnnotateTextStyle({ sizePt: 9 });
+    const styled = { color: '#c91d87', bold: true, halo: false, sizePt: 9 };
+    expect(useSettingsStore.getState().diagramAnnotateTextStyle).toEqual(styled);
+    expect((await freshSettingsStore()).getState().diagramAnnotateTextStyle).toEqual(styled);
+    // What no label stores is never taken.
+    useSettingsStore.getState().setDiagramAnnotateTextStyle({ color: 'pink', sizePt: 300 });
+    expect(useSettingsStore.getState().diagramAnnotateTextStyle).toEqual({ ...styled, color: null, sizePt: null });
+    // Back to today's look forgets the key; a hand-edited one reads option by option.
+    useSettingsStore.getState().setDiagramAnnotateTextStyle({ bold: false });
+    expect(localStorage.getItem(key)).toBeNull();
+    localStorage.setItem(key, JSON.stringify({ halo: true, sizePt: 'big' }));
+    expect((await freshSettingsStore()).getState().diagramAnnotateTextStyle).toEqual({ ...plain, halo: true });
+  });
+
+  it('lays a filled star until Outline is chosen, remembers it, and reads anything else as filled (Revision 3, R3-4 C)', async () => {
+    const key = storageKey(STORAGE_KEYS.diagramAnnotateStarFill);
+    localStorage.removeItem(key);
+    expect((await freshSettingsStore()).getState().diagramAnnotateStarFill).toBe('black');
+    useSettingsStore.getState().setDiagramAnnotateStarFill('white');
+    expect(localStorage.getItem(key)).toBe('white');
+    expect((await freshSettingsStore()).getState().diagramAnnotateStarFill).toBe('white');
+    // Back to Filled forgets the key; a hand-edited one is filled.
+    useSettingsStore.getState().setDiagramAnnotateStarFill('black');
+    expect(localStorage.getItem(key)).toBeNull();
+    localStorage.setItem(key, 'grey');
+    expect((await freshSettingsStore()).getState().diagramAnnotateStarFill).toBe('black');
+    localStorage.removeItem(key);
+  });
+
+  it('remembers Solid as the line type (17a)', async () => {
+    useSettingsStore.getState().setDiagramAnnotateLineType('solid');
+    expect((await freshSettingsStore()).getState().diagramAnnotateLineType).toBe('solid');
+  });
+
   it('defaults the crease-pattern canvas to scroll-zooms and persists a change', () => {
     expect(useSettingsStore.getState().cpWheelGesture).toBe('zoom');
 

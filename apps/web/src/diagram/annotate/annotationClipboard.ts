@@ -15,19 +15,32 @@
  * units they go through the picture: onto the same picture — one enlarged
  * step to another of it, an enlarged step to its whole picture, or back —
  * they land on the same paper; onto another, at the same place on its
- * picture, as a paste between two whole pictures always has. Only between
- * two windows of different pictures do they keep their place in the window:
- * each frames the paper its area framed. Everything a paste does, its offset
- * too, is held within the reach of the units they go to.
+ * picture, as a paste between two whole pictures always has. Between two
+ * windows of different pictures they keep their place in the window: each
+ * frames the paper its area framed. So does each mark from a whole picture
+ * that, at the same place on another picture, its enlarged step would draw
+ * nowhere — beyond a window of its window each way, selected but unseen
+ * (18d). Everything a paste does, its offset too, is held within the reach
+ * of the units they go to.
+ *
+ * A mark lifted from a References card (17d) stays the card's only pasted
+ * onto a step showing the same card, front or back, baked or lifted, where
+ * no copy of it lies yet — so a cut pasted back where it was is still the
+ * card's. A copy pasted beside the original, or beside another copy, is a
+ * mark the author made, as is one pasted anywhere else.
  *
  * Pure: no DOM, no store.
  */
+import { showsCard, untagged } from '../document/cardMarks';
 import {
   randomDiagramId,
+  stepDiagramCardKey,
+  type DiagramAnnotation,
   type DiagramIdFactory,
   type DiagramStep,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
+import { marksInWindow } from '../zoom/stepView';
 import { stepWindow, unitsMove } from '../zoom/zoomFrames';
 import { stepReach, type PictureBox } from '../zoom/zoomModel';
 import {
@@ -45,6 +58,8 @@ export interface DiagramAnnotationView {
   pictureKey: string | null;
   /** Their units: the step's window when it is enlarged, else null, its whole picture. */
   window: PictureBox | null;
+  /** The References card the step shows (17d, `stepDiagramCardKey`); absent on any other picture. */
+  card?: string;
 }
 
 /** Annotations copied from a step, as the clipboard holds them. */
@@ -63,7 +78,9 @@ export interface DiagramAnnotationClipboardPayload {
 
 /** The view a step's marks are drawn on now: its picture's and its units; null for a step with no picture. */
 export function annotationView(step: DiagramStep): DiagramAnnotationView | null {
-  return step.picture ? { pictureKey: step.picture.key, window: stepWindow(step) } : null;
+  if (!step.picture) return null;
+  const card = showsCard(step) ? stepDiagramCardKey(step.picture.key) : null;
+  return { pictureKey: step.picture.key, window: stepWindow(step), ...(card !== null ? { card } : {}) };
 }
 
 /** The view copied marks were drawn in: a step's units, and its picture while its marks are in step with it. */
@@ -103,7 +120,15 @@ const WHOLE: PictureBox = { x: 0, y: 0, width: 1, height: 1 };
  * Marks copied in `from` as they lie in `onto`'s units: through the picture —
  * the same paper, on the same picture; the same place on the picture, on
  * another — but between windows of two pictures, where they keep their place
- * in the window. Run within the reach of `onto`'s units.
+ * in the window. Onto another picture's window from a whole picture, a mark
+ * the window would draw nowhere at the same place on the picture
+ * (`marksInWindow`) keeps its place in the window too, as one from a window
+ * would (18d): an eye or a star from across a whole step lands where it
+ * shows, not where a window draws nothing of it. Each mark is asked on its
+ * own: one pasted with a mark the window draws is not left where it draws
+ * nothing (18d review). One the window draws, though beside it — a line across
+ * the model — still lands at the same place on the picture (16g; Revision 2,
+ * decision 7). Run within the reach of `onto`'s units.
  */
 function intoView(
   annotations: readonly KnownDiagramAnnotation[],
@@ -116,7 +141,10 @@ function intoView(
   const [a, b] = [from.window ?? WHOLE, onto.window ?? WHOLE];
   if (a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height) return annotations;
   const move = unitsMove(a, b);
-  return annotations.map((annotation) => carryAnnotation(annotation, move));
+  const carried = annotations.map((annotation) => carryAnnotation(annotation, move));
+  if (onto.window === null || samePicture) return carried;
+  const drawn = new Set<DiagramAnnotation>(marksInWindow(onto.window, carried));
+  return carried.map((annotation, index) => (drawn.has(annotation) ? annotation : annotations[index]!));
 }
 
 /**
@@ -138,8 +166,11 @@ export function pastedAnnotations(
 ): KnownDiagramAnnotation[] {
   const earlier = clipboard.pastes[stepId] ?? 0;
   const offset = PASTE_OFFSET * earlier;
+  const view = onto ? annotationView(onto) : null;
+  // The card's marks stay its own only on a step that shows the same card, as the one copy there (17d).
+  const cards = earlier === 0 && clipboard.view?.card !== undefined && clipboard.view.card === view?.card;
   return withAnnotationReach(onto ? stepReach(onto) : PICTURE_REACH, () =>
-    intoView(clipboard.annotations, clipboard.view, onto ? annotationView(onto) : null).map((annotation) => {
+    intoView(clipboard.annotations.map((annotation) => (cards ? annotation : untagged(annotation))), clipboard.view, view).map((annotation) => {
       const copy =
         annotation.kind === 'divisions'
           ? {

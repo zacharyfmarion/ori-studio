@@ -198,6 +198,15 @@ export interface RenderSettings {
    */
   creaseWidthShrinkExponent?: number;
   /**
+   * Set, the crease grows with the frame above {@link creaseWidthReferenceEdge}
+   * by the same rule it shrinks below it, so it stays the same share of the
+   * paper at every size. That is what a live view standing in for a picture
+   * wants: Pose's 3D and simulated views sit on the stage a step's captured
+   * picture is scaled up to fill, and a constant-weight crease drew a fraction
+   * of the picture's.
+   */
+  creaseWidthGrows?: boolean;
+  /**
    * Dash pattern per crease kind, as alternating on/off run lengths in device
    * pixels, or null for solid.
    *
@@ -281,7 +290,8 @@ const DEFAULT_CREASE_SHRINK_EXPONENT = 1;
 /**
  * How much a crease's declared width is scaled by, given the frame it is drawn
  * in. 1 whenever the settings ask for constant screen weight, and whenever the
- * frame is at or above the reference edge.
+ * frame is at or above the reference edge unless the crease grows with it
+ * ({@link RenderSettings.creaseWidthGrows}).
  *
  * Keyed on the frame's short edge because that is what the model is fitted to
  * (see `fitExtent` in camera.ts), so the crease and the paper it lies on shrink
@@ -298,7 +308,7 @@ export function creaseFrameScale(
 ): number {
   const reference = settings.creaseWidthReferenceEdge ?? 0;
   const edge = Math.min(width, height);
-  if (!(reference > 0) || !(edge > 0) || edge >= reference) return 1;
+  if (!(reference > 0) || !(edge > 0) || (edge >= reference && !settings.creaseWidthGrows)) return 1;
   return Math.pow(edge / reference, settings.creaseWidthShrinkExponent ?? DEFAULT_CREASE_SHRINK_EXPONENT);
 }
 

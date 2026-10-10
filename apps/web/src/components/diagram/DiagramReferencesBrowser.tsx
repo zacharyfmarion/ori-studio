@@ -16,6 +16,7 @@ import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { dialogOpener, useModalDialog } from '../ui/useModalDialog';
 import { DiagramReferencesCard } from './DiagramReferencesCard';
+import { DiagramReferencesShowMenu } from './DiagramReferencesShowMenu';
 import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
 import styles from './DiagramReferencesBrowser.module.css';
 
@@ -161,6 +162,7 @@ export function DiagramReferencesBrowser({ state, style }: { state: DiagramRefer
               ]}
               onChange={browser.setMode}
             />
+            <DiagramReferencesShowMenu marks={browser.marks} onToggle={browser.toggleMark} />
             <Button size="sm" variant="ghost" onClick={browser.openReferences}>
               <Compass size={14} aria-hidden="true" />
               {t('panels:diagram.references.openReferences', 'Open References')}
@@ -335,6 +337,7 @@ function BrowserCards({ browser, style }: { browser: ReferencesBrowser; style: D
           key={card.index}
           card={card}
           style={style}
+          marks={browser.marks}
           selected={browser.selection.indices.has(card.index)}
           tabStop={card.index === tabStop}
           inDiagram={browser.inDiagram.get(card.index) ?? null}

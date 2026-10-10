@@ -340,6 +340,10 @@
         "detail": "El método de creación de plegado en caja es una migración a Rust y WebAssembly de Box Pleating Studio de Mu-Tsun Tsai.",
         "title": "Mu-Tsun Tsai y Box Pleating Studio"
       },
+      "defox": {
+        "detail": "La separación afín de capas del espacio Diagrama se basa en el método de distorsión afín de Kei Morisue en DEFOX.",
+        "title": "Kei Morisue y DEFOX"
+      },
       "explori": {
         "detail": "El método de creación Buscar 22,5° envía tu árbol a ExplOri, un archivo consultable de patrones de pliegue de 22,5°, y muestra las coincidencias más cercanas que devuelve.",
         "title": "Brandon Wong y ExplOri 22.5"
@@ -432,6 +436,7 @@
     "empty": "Nada que exportar: la vista no muestra papel.",
     "exporting": "Exportando…",
     "exportingPages": "Exportando {{done}} de {{total}}…",
+    "exportObj": "Exportar OBJ",
     "exportStyle": "Estilo de exportación · {{style}}",
     "figureMm": "Tamaño de la figura",
     "figureSizeHint": "La figura mide este tamaño en su lado más largo. Las líneas conservan su grosor.",
@@ -440,14 +445,18 @@
     "hiddenFacesDropped_one": "{{count}} cara oculta omitida",
     "hiddenFacesDropped_many": "{{count}} caras ocultas omitidas",
     "hiddenFacesDropped_other": "{{count}} caras ocultas omitidas",
-    "highlights": "Resaltado de líneas",
-    "highlightsHint": "El color de acento sobre las líneas que un paso alinea.",
     "keepHiddenFaces": "Conservar caras ocultas",
     "keepHiddenFacesHint": "Las caras que nada muestra se quedan en el archivo bajo lo que las cubre, de modo que borrar una cara en un editor de dibujo revela la de debajo.",
     "letters": "Letras",
     "lettersHint": "Los nombres de los puntos a los que se refiere un paso.",
     "marks": "Marcas",
     "nextPage": "Paso siguiente",
+    "objExpired": "Esta captura de la simulación ya no está disponible. Cierra este diálogo y vuelve a exportar.",
+    "objHint": "Malla 3D con coordenadas UV del papel desplegado, lista para aplicar texturas en tu software 3D.",
+    "objMeshUnavailable": "Esta simulación no tiene una malla válida para exportar.",
+    "objPreview": "Forma capturada · OBJ incluye la malla completa y las UV",
+    "objPreviewEmpty": "Sin vista previa de imagen. La malla 3D capturada se puede exportar.",
+    "objSheetUnavailable": "OBJ necesita una hoja desplegada en el plano del papel del simulador para crear las coordenadas de textura.",
     "padding": "Margen",
     "page": "Página",
     "pageMm": "{{width}} × {{height}} mm",
@@ -475,6 +484,8 @@
     "preparing": "Preparando la vista previa…",
     "previewFailed": "No se pudo dibujar la vista previa: {{message}}",
     "previousPage": "Paso anterior",
+    "referenceLines": "Líneas de referencia",
+    "referenceLinesHint": "Las líneas con las que se alinea un paso.",
     "resolution": "Resolución",
     "resolutionCustom": "Personalizada",
     "resolutionDpi": "{{dpi}} dpi",

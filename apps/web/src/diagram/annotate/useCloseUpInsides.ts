@@ -8,7 +8,7 @@ import type { StepPictureSource } from '../pictures/paintDiagramStep';
 import { closeUpPictureUrl, zoomedPictureUrl } from '../pictures/useStepPictureUrl';
 import type { ZoomedSource } from '../zoom/paintZoomed';
 import { closeUpScale, type PictureFrame } from './annotationModel';
-import { annotationDrawing, closeUpMarks, type AnnotationDrawing } from './annotationPrimitives';
+import { annotationDrawing, closeUpMarks, type AnnotationDrawing, type AnnotationPaper } from './annotationPrimitives';
 import type { PictureLayers } from './pictureGeometry';
 
 /** A close-up's inside as the Annotate canvas draws it (15f), in the drawing's px. */
@@ -37,6 +37,8 @@ export interface CloseUpInsidesInput {
   zoomed?: ZoomedSource | null;
   style: DiagramStyle;
   layers: PictureLayers | null;
+  /** A References picture's sheet (17b): a label's halo is filled with the face it stands on. */
+  paper?: AnnotationPaper | null;
   pictureFrame: PictureFrame | null;
   framePx: number;
 }
@@ -59,6 +61,7 @@ export function closeUpInsides({
   zoomed = null,
   style,
   layers,
+  paper = null,
   pictureFrame,
   framePx,
 }: CloseUpInsidesInput): readonly CloseUpInside[] {
@@ -86,16 +89,16 @@ export function closeUpInsides({
         width: painted.widthPx * m,
         height: painted.heightPx * m,
       },
-      marks: { drawing: annotationDrawing(others, pictureFrame, framePx * closeUp.scale, style, layers), x: frame.x, y: frame.y },
+      marks: { drawing: annotationDrawing(others, pictureFrame, framePx * closeUp.scale, style, layers, paper), x: frame.x, y: frame.y },
     };
   });
 }
 
 /** {@link closeUpInsides}, worked out again only when what it is drawn from changes. */
 export function useCloseUpInsides(input: CloseUpInsidesInput): readonly CloseUpInside[] {
-  const { drawing, shown, committed, source, zoomed = null, style, layers, pictureFrame, framePx } = input;
+  const { drawing, shown, committed, source, zoomed = null, style, layers, paper = null, pictureFrame, framePx } = input;
   return useMemo(
-    () => closeUpInsides({ drawing, shown, committed, source, zoomed, style, layers, pictureFrame, framePx }),
-    [drawing, shown, committed, source, zoomed, style, layers, pictureFrame, framePx]
+    () => closeUpInsides({ drawing, shown, committed, source, zoomed, style, layers, paper, pictureFrame, framePx }),
+    [drawing, shown, committed, source, zoomed, style, layers, paper, pictureFrame, framePx]
   );
 }

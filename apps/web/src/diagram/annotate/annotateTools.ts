@@ -2,8 +2,12 @@ import type { TFunction } from 'i18next';
 import type { DiagramAnnotateShortcutId } from '../../keyboard/shortcuts';
 import type { DiagramAnnotationKind, DiagramZoomShape, KnownDiagramAnnotation } from '../document/diagramDocument';
 import { canBeShaped, isPointKind, isSolidArrow, SOLID_ARROW_LOOK, type WhiteArrowLook } from './annotationModel';
+import type { AnnotationPaletteName } from './annotationColors';
+import { isTextSizePt, TEXT_SIZES_PT, type TextStyle } from './textStyle';
 import { DEFAULT_DIAGRAM_LINE_TYPE, lineKindOf, type DiagramLineKind, type DiagramLineType } from './lineTypes';
 import type { PickProgress, ToolNotice } from './pickProgress';
+import type { CircleDrawingMode } from './circleDrawing';
+import type { DiagramStarFill } from './starFill';
 
 /**
  * Annotate's tools (D8), for every surface that offers them: the rail beside
@@ -20,14 +24,14 @@ import type { PickProgress, ToolNotice } from './pickProgress';
 export const EDIT_PATH = 'edit-path';
 
 /**
- * The Line tool (15a): a line in the type the rail's Line Type says — a
- * valley, a mountain or a hidden line, each a kind of its own.
+ * The Line tool (15a): a line in the type the tool hint’s Line Type says — a
+ * valley, a mountain, a hidden or a solid line (17a), each a kind of its own.
  */
 export const LINE_TOOL = 'line';
 
 /**
  * The Angle Bisector (15b): Edit's, on the picture — three points or two
- * lines, then the line it runs to — drawing a line in the type the rail's
+ * lines, then the line it runs to — drawing a line in the type the tool hint’s
  * Line Type says, and the equal-angle mark of the angle it halves.
  */
 export const ANGLE_BISECTOR = 'angle-bisector';
@@ -41,7 +45,7 @@ export const SOLID_ARROW = 'solid-arrow';
 
 /**
  * Enlarge and Enlarge in Frame (Revision 2, Z1): an enlarge area laid on the
- * step, a circle dragged out from its middle or a rounded rectangle dragged
+ * step, a circle or a rounded rectangle dragged
  * corner to corner, marking what a later step shows larger. Drawing one
  * changes no other step.
  */
@@ -56,7 +60,7 @@ export const ENLARGE_FRAME = 'enlarge-frame';
 type TurnSignKind = 'turn-over' | 'rotate';
 
 /**
- * A tool that draws: the kind it draws, for every kind but the three lines,
+ * A tool that draws: the kind it draws, for every kind but the four lines,
  * which the Line tool draws in the type chosen, the turn signs, which none
  * does, and the enlarge area, which tools of its own lay in a shape each
  * (Revision 2); the Angle Bisector, which draws a line and a mark; and the
@@ -93,17 +97,40 @@ export function drawingKind(tool: AnnotateTool, lineType: DiagramLineType): Diag
 
 /**
  * The look a tool lays what it draws in, over its kind's own: the Solid
- * Arrow's (15d), or the shape an enlarge area is drawn in (Revision 2) — a
- * circle with Enlarge, a rounded rectangle with Enlarge in Frame.
+ * Arrow's (15d), the shape an enlarge area is drawn in (Revision 2) — a
+ * circle with Enlarge, a rounded rectangle with Enlarge in Frame — the
+ * colour the Line tool draws a solid line in (17a), or the style the Label
+ * tool sets its text in (17b).
  */
-export type DrawingLook = WhiteArrowLook & { shape?: DiagramZoomShape };
+export type DrawingLook = WhiteArrowLook & { shape?: DiagramZoomShape; color?: string; text?: TextStyle; circleMode?: CircleDrawingMode };
 
-/** The look a tool lays what it draws in ({@link DrawingLook}); nothing for any other tool. */
-export function drawingLook(tool: AnnotateTool): DrawingLook {
+/** The line the Line tool draws: its type, and the colour a solid one is drawn in, null for the style's ink. */
+export interface LineChoice {
+  type: DiagramLineType;
+  color: string | null;
+}
+
+/**
+ * The look a tool lays what it draws in ({@link DrawingLook}): `line` the
+ * Line tool's choice, `text` the tool hint’s Text Style for the Label tool's
+ * (17b), `starFill` the tool hint’s Fill for the Star tool's (Revision 3, R3-4 C);
+ * nothing for any other tool.
+ */
+export function drawingLook(tool: AnnotateTool, line?: LineChoice, text?: TextStyle, starFill?: DiagramStarFill): DrawingLook {
   if (tool === SOLID_ARROW) return SOLID_ARROW_LOOK;
   if (tool === ENLARGE) return { shape: 'circle' };
   if (tool === ENLARGE_FRAME) return { shape: 'rounded' };
+  if (tool === LINE_TOOL && line?.type === 'solid' && line.color !== null) return { color: line.color };
+  if (tool === 'label' && text) return { text };
+  if (tool === 'star' && starFill) return { fill: starFill };
   return {};
+}
+
+/** A star fill's name, for the tool hint’s control and the Layers row. */
+export function starFillLabel(t: TFunction, fill: DiagramStarFill): string {
+  return fill === 'black'
+    ? t('panels:diagram.annotations.starFilled', 'Filled')
+    : t('panels:diagram.annotations.starOutline', 'Outline');
 }
 
 /** Whether a tool lays an enlarge area: Enlarge or Enlarge in Frame. */
@@ -124,13 +151,58 @@ export function enlargedStepTakesNoArea(t: TFunction): string {
 }
 
 /**
- * Why a tool cannot draw on a step, or null when it can: an enlarge area is
- * not drawn on an enlarged step ({@link enlargedStepTakesNoArea}). A diagram
- * that cannot change, a newer build's step and a step with no picture hold
- * every tool, and say so where Annotate is entered.
+ * Whether a step's picture can be x-rayed (Revision 3, R3-18a A): `ready`, a
+ * flat fold with its faces on the paper; `fetch`, a flat fold captured before
+ * they were kept, whose faces are folded again from its pattern as an x-ray is
+ * laid; `refresh`, such a fold whose faces cannot be had without a Refresh —
+ * its link is not current, or no pattern is open — numbered for the words that
+ * say so; `none`, a picture with no layers: a crease pattern, a 3D or
+ * simulated capture, an upload, a see-through development, a References step.
  */
-export function annotateToolBlocker(t: TFunction, tool: AnnotateTool, { enlarged }: { enlarged: boolean }): string | null {
-  return enlarged && isEnlargeTool(tool) ? enlargedStepTakesNoArea(t) : null;
+export type XRayStanding =
+  | { kind: 'ready' }
+  | { kind: 'fetch' }
+  | { kind: 'refresh'; number: number }
+  | { kind: 'none' };
+
+/**
+ * Whether the X-Ray tool is held on a step (R3-18a A): its picture has no
+ * layers, or its faces need a Refresh. The one answer the rail, the X key and
+ * the tool in hand ask (`annotateToolInHand`), so the canvas never lays a
+ * window the rail shows held.
+ */
+export function xrayToolHeld(standing: XRayStanding): boolean {
+  return standing.kind === 'none' || standing.kind === 'refresh';
+}
+
+/** What an x-ray says it needs on a step that is not ready: the tool's held reason, and its Depth row's (R3-18). */
+export function xrayHeldReason(t: TFunction, standing: XRayStanding): string | null {
+  switch (standing.kind) {
+    case 'ready':
+    case 'fetch':
+      return null;
+    case 'refresh':
+      return t('panels:diagram.annotate.xRayRefresh', 'Refresh step {{number}} to x-ray it', { number: standing.number });
+    case 'none':
+      return t('panels:diagram.annotate.xRayFlatOnly', 'X-ray works on flat folds');
+  }
+}
+
+/**
+ * Why a tool cannot draw on a step, or null when it can: an enlarge area is
+ * not drawn on an enlarged step ({@link enlargedStepTakesNoArea}), and an
+ * x-ray only on a flat fold whose faces are known or can be fetched
+ * ({@link xrayHeldReason}). A diagram that cannot change, a newer build's
+ * step and a step with no picture hold every tool, and say so where Annotate
+ * is entered.
+ */
+export function annotateToolBlocker(
+  t: TFunction,
+  tool: AnnotateTool,
+  { enlarged, xray = { kind: 'ready' } }: { enlarged: boolean; xray?: XRayStanding }
+): string | null {
+  if (enlarged && isEnlargeTool(tool)) return enlargedStepTakesNoArea(t);
+  return tool === 'x-ray' ? xrayHeldReason(t, xray) : null;
 }
 
 /** Whether a tool draws in the line type: the Line tool and the Angle Bisector. */
@@ -147,7 +219,8 @@ export function isPickTool(tool: AnnotateTool): tool is typeof ANGLE_BISECTOR | 
   return tool === ANGLE_BISECTOR || tool === 'angle-mark';
 }
 
-export type AnnotateToolGroupId = 'select' | 'arrows' | 'lines' | 'marks' | 'text';
+/** The rail's groups: Shapes, after Marks, holds the Oval and the Rectangle (Revision 3, R3-25 A). */
+export type AnnotateToolGroupId = 'select' | 'arrows' | 'lines' | 'marks' | 'shapes' | 'text';
 
 export interface AnnotateToolGroup {
   id: AnnotateToolGroupId;
@@ -167,22 +240,27 @@ const TOOL_GROUP: Readonly<Record<DrawingTool, Exclude<AnnotateToolGroupId, 'sel
   [ANGLE_BISECTOR]: 'lines',
   label: 'text',
   circle: 'marks',
+  star: 'marks',
   'right-angle': 'marks',
   'angle-mark': 'marks',
   divisions: 'marks',
+  eye: 'marks',
   'close-up': 'marks',
   [ENLARGE]: 'marks',
   [ENLARGE_FRAME]: 'marks',
+  'x-ray': 'marks',
+  oval: 'shapes',
+  rectangle: 'shapes',
   callout: 'text',
 };
 
 /** The drawing tools in the order the rail offers them, each in its group. */
 export const DRAWING_TOOLS = Object.keys(TOOL_GROUP) as readonly DrawingTool[];
 
-/** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Marks; Text — each tool in its group. */
+/** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Marks; Shapes; Text — each tool in its group. */
 export const ANNOTATE_TOOL_GROUPS: readonly AnnotateToolGroup[] = [
   { id: 'select', tools: [null, EDIT_PATH] },
-  ...(['arrows', 'lines', 'marks', 'text'] as const).map((id) => ({
+  ...(['arrows', 'lines', 'marks', 'shapes', 'text'] as const).map((id) => ({
     id,
     tools: DRAWING_TOOLS.filter((tool) => TOOL_GROUP[tool] === id),
   })),
@@ -200,28 +278,35 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   'push-arrow': 'diagram.toolPushArrow',
   'white-arrow': 'diagram.toolWhiteArrow',
   [SOLID_ARROW]: 'diagram.toolSolidArrow',
-  [LINE_TOOL]: null,
+  [LINE_TOOL]: 'diagram.toolLine',
   [ANGLE_BISECTOR]: 'diagram.toolAngleBisector',
   label: 'diagram.toolLabel',
   circle: 'diagram.toolCircle',
+  star: 'diagram.toolStar',
   'right-angle': 'diagram.toolRightAngle',
   'angle-mark': null,
   divisions: 'diagram.toolDivisions',
+  eye: 'diagram.toolEye',
   'close-up': 'diagram.toolCloseUp',
   [ENLARGE]: 'diagram.toolEnlarge',
   [ENLARGE_FRAME]: 'diagram.toolEnlargeFrame',
+  'x-ray': 'diagram.toolXRay',
+  oval: 'diagram.toolOval',
+  rectangle: 'diagram.toolRectangle',
   callout: 'diagram.toolCallout',
 };
 
 /**
- * The key that picks each line type — the keys today's three line tools had,
- * so a rebinding carries over. Each picks the Line tool too, unless a tool
+ * The key that picks each line type — the keys the three first line tools
+ * had, so a rebinding carries over, and Shift+L for Solid (17a), as Shift+V
+ * and Shift+M pick theirs. Each picks the Line tool too, unless a tool
  * that draws in the type is already in hand (`runDiagramAnnotateShortcut`).
  */
 export const LINE_TYPE_SHORTCUTS: Readonly<Record<DiagramLineType, DiagramAnnotateShortcutId>> = {
   valley: 'diagram.toolValleyLine',
   mountain: 'diagram.toolMountainLine',
   hidden: 'diagram.toolHiddenLine',
+  solid: 'diagram.toolSolidLine',
 };
 
 /** Edit Path's key. */
@@ -244,7 +329,7 @@ export function lineTypeForShortcut(id: DiagramAnnotateShortcutId): DiagramLineT
   return (Object.keys(LINE_TYPE_SHORTCUTS) as DiagramLineType[]).find((type) => LINE_TYPE_SHORTCUTS[type] === id);
 }
 
-/** A line type's name, for the rail's control, its keys and the Step pane. */
+/** A line type's name, for the tool hint’s control, its keys and the Step pane. */
 export function lineTypeLabel(t: TFunction, type: DiagramLineType): string {
   switch (type) {
     case 'valley':
@@ -253,7 +338,57 @@ export function lineTypeLabel(t: TFunction, type: DiagramLineType): string {
       return t('panels:diagram.annotate.lineTypeMountain', 'Mountain');
     case 'hidden':
       return t('panels:diagram.annotate.lineTypeHidden', 'Hidden');
+    case 'solid':
+      return t('panels:diagram.annotate.lineTypeSolid', 'Solid');
   }
+}
+
+/** A colour of the palette's name (17a), for the colour select. */
+export function annotationColorLabel(t: TFunction, name: AnnotationPaletteName): string {
+  switch (name) {
+    case 'ink':
+      return t('panels:diagram.annotations.colorInk', 'Ink');
+    case 'reference':
+      return t('panels:diagram.annotations.colorReference', 'Reference');
+    case 'red':
+      return t('panels:diagram.annotations.colorRed', 'Red');
+    case 'orange':
+      return t('panels:diagram.annotations.colorOrange', 'Orange');
+    case 'green':
+      return t('panels:diagram.annotations.colorGreen', 'Green');
+    case 'blue':
+      return t('panels:diagram.annotations.colorBlue', 'Blue');
+    case 'purple':
+      return t('panels:diagram.annotations.colorPurple', 'Purple');
+  }
+}
+
+/** Size's With the picture (17b): a label with no size of its own, as an id a select can hold. */
+export const TEXT_SIZE_PICTURE = 'picture';
+
+/**
+ * The sizes Size offers (17b), for the tool hint’s Text Style and a label's Layers
+ * row: With the picture, then 7, 9, 12 and 16 pt — and a size from a file
+ * that is none of these as an item of its own while it is `current`, as a
+ * colour picked by hand is. Each an id a select holds ({@link textSizeOfId}).
+ */
+export function textSizeOptions(t: TFunction, current: number | null): { id: string; label: string }[] {
+  const sizes = current !== null && !TEXT_SIZES_PT.includes(current) ? [...TEXT_SIZES_PT, current].sort((a, b) => a - b) : TEXT_SIZES_PT;
+  return [
+    { id: TEXT_SIZE_PICTURE, label: t('panels:diagram.annotations.sizeWithPicture', 'With the picture') },
+    ...sizes.map((size) => ({ id: String(size), label: t('panels:diagram.annotations.sizePt', '{{size}} pt', { size }) })),
+  ];
+}
+
+/** A size's id as a select holds it ({@link textSizeOptions}). */
+export function textSizeId(sizePt: number | null): string {
+  return sizePt === null ? TEXT_SIZE_PICTURE : String(sizePt);
+}
+
+/** The size an id names: null for With the picture, or for one that names no size a label can have. */
+export function textSizeOfId(id: string): number | null {
+  const size = Number(id);
+  return id !== TEXT_SIZE_PICTURE && isTextSizePt(size) ? size : null;
 }
 
 /** A kind's name: the tool that draws it, and the row an annotation of it is listed as. */
@@ -281,6 +416,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolMountainLine', 'Mountain Line');
     case 'hidden-line':
       return t('tools:diagram.toolHiddenLine', 'Hidden Line');
+    case 'solid-line':
+      return t('tools:diagram.toolSolidLine', 'Solid Line');
     case 'label':
       return t('tools:diagram.toolLabel', 'Label');
     case 'circle':
@@ -297,6 +434,16 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolCloseUp', 'Close-Up');
     case 'zoom':
       return t('panels:diagram.annotations.enlargeArea', 'Enlarge Area');
+    case 'star':
+      return t('tools:diagram.toolStar', 'Star');
+    case 'eye':
+      return t('tools:diagram.toolEye', 'Eye');
+    case 'oval':
+      return t('tools:diagram.toolOval', 'Oval');
+    case 'rectangle':
+      return t('tools:diagram.toolRectangle', 'Rectangle');
+    case 'x-ray':
+      return t('tools:diagram.toolXRay', 'X-Ray');
   }
 }
 
@@ -320,11 +467,11 @@ export function annotateToolLabel(t: TFunction, tool: AnnotateTool): string {
 }
 
 /** What a tool does, in a line: the tool window says it under the tool's name, and the rail's tooltip after it. */
-export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
+export function annotateToolHelp(t: TFunction, tool: AnnotateTool, circleMode: CircleDrawingMode = 'bounds'): string {
   if (tool === null) {
     return t(
       'panels:diagram.annotate.selectHelp',
-      'Click an annotation to select it. Drag it, or the dot at either end, to move it; drag equal divisions to set how far off their line they sit. Double-click a fold or white arrow to shape it.'
+      'Click an annotation to select it. Drag it, or the dot at either end, to move it. A label that hangs off a dot moves by its words alone; drag its dot to move both. Drag equal divisions to set how far off their line they sit. Double-click a fold or white arrow to shape it.'
     );
   }
   switch (tool) {
@@ -363,21 +510,30 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
     case 'divisions':
       return t(
         'panels:diagram.annotate.divisionsHelp',
-        'Drag along a line from one end to the other, or click it, to divide it; then type how many parts. With Select, drag the mark to set how far off the line it sits.'
+        'Drag along a line from one end to the other, or click it, to divide it. Set the number of parts in Layers. With Select, drag the mark to set how far off the line it sits.'
       );
     case 'label':
       return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it in the Layers pane.');
     case 'circle':
-      return t('panels:diagram.annotate.circleHelp', 'Click a point to circle it.');
+      if (circleMode === 'center') return t('panels:diagram.annotate.circleCenterHelp', 'Drag from the center to the edge of the circle. Click for a small circle.');
+      return t('panels:diagram.annotate.circleHelp', 'Drag between opposite corners to bound the circle. Click for a small circle.');
+    case 'star':
+      return t('panels:diagram.annotate.starHelp', 'Click a point to mark it with a star.');
+    case 'eye':
+      return t(
+        'panels:diagram.annotate.eyeHelp',
+        'Drag from where the viewer stands toward what they look at, or click to look at the middle.'
+      );
     case 'right-angle':
       return t(
         'panels:diagram.annotate.rightAngleHelp',
         'Click inside a right angle to mark it, or drag from a corner into the angle.'
       );
     case 'close-up':
+      if (circleMode === 'center') return t('panels:diagram.annotate.closeUpCenterHelp', 'Drag from the center to the edge of the area to show larger. Click for a standard size. With Select, drag either circle to move it, or its ring to resize it.');
       return t(
         'panels:diagram.annotate.closeUpHelp',
-        'Drag out from the middle of the area to show larger, or click it. With Select, drag either circle to move it, or its ring to resize it.'
+        'Drag between opposite corners of the area to show larger. Click for a standard size. With Select, drag either circle to move it, or its ring to resize it.'
       );
     case 'callout':
       return t(
@@ -385,14 +541,27 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
         'Drag from a point to where the box goes, or click the point, then type its words in the Layers pane.'
       );
     case ENLARGE:
+      if (circleMode === 'center') return t('panels:diagram.annotate.enlargeCenterHelp', 'Drag from the center to the edge of an area to mark it for an enlarged step. Click for a standard size.');
       return t(
         'panels:diagram.annotate.enlargeHelp',
-        'Drag out from the middle of an area to mark it for an enlarged step. Click for a standard size.'
+        'Drag between opposite corners of an area to mark it for an enlarged step. Click for a standard size.'
       );
     case ENLARGE_FRAME:
       return t(
         'panels:diagram.annotate.enlargeFrameHelp',
         'Drag from corner to corner round an area to mark it for an enlarged step. Click for a standard size.'
+      );
+    case 'oval':
+    case 'rectangle':
+      return t(
+        'panels:diagram.annotate.shapeHelp',
+        'Drag from corner to corner round an area to ring it. Click for a standard size.'
+      );
+    case 'x-ray':
+      if (circleMode === 'center') return t('panels:diagram.annotate.xRayCenterHelp', 'Drag from the center to the edge of an area to see through its top layer. Click for a standard size. Set the depth in Layers.');
+      return t(
+        'panels:diagram.annotate.xRayHelp',
+        'Drag between opposite corners of an area to see through its top layer. Click for a standard size. Set the depth in Layers.'
       );
   }
 }
@@ -407,6 +576,8 @@ export function annotateGroupLabel(t: TFunction, group: AnnotateToolGroupId): st
       return t('panels:diagram.annotate.groupLines', 'Lines');
     case 'marks':
       return t('panels:diagram.annotate.groupMarks', 'Marks');
+    case 'shapes':
+      return t('panels:diagram.annotate.groupShapes', 'Shapes');
     case 'text':
       return t('panels:diagram.annotate.groupText', 'Text');
   }
@@ -469,15 +640,18 @@ export function annotateToolHint(
   selected: DiagramAnnotationKind | null,
   host: AnnotateToolHost,
   progress: PickProgress | null = null,
-  notice: ToolNotice | null = null
+  notice: ToolNotice | null = null,
+  circleMode: CircleDrawingMode = 'bounds'
 ): AnnotateToolHint | null {
   if (tool === null) return null;
   let instructions: string;
   if (tool === EDIT_PATH) instructions = editPathHelp(t, selected);
   else if (isPickTool(tool) && progress) instructions = pickHelp(t, progress);
   else if (notice !== null && notice.tool === tool) instructions = noticeHelp(t, notice);
-  else if (host.coarse && (tool === 'label' || tool === 'callout' || tool === 'divisions')) instructions = textHelpOnTouch(t, tool);
-  else instructions = annotateToolHelp(t, tool);
+  else if (host.coarse && (tool === 'label' || tool === 'callout' || tool === 'divisions' || tool === 'x-ray')) {
+    instructions = textHelpOnTouch(t, tool, circleMode);
+  }
+  else instructions = annotateToolHelp(t, tool, circleMode);
   return {
     title: annotateToolLabel(t, tool),
     instructions,
@@ -529,21 +703,26 @@ function pickHelp(t: TFunction, { step, refusal }: PickProgress): string {
   return `${why} ${next}`;
 }
 
-/** What a drawing tool's last press could not do, and what to do instead: equal divisions clicked on no line. */
+/**
+ * What a drawing tool's last press could not do, and what to do instead:
+ * equal divisions clicked on no line; an x-ray laid off the paper.
+ */
 function noticeHelp(t: TFunction, notice: ToolNotice): string {
   switch (notice.notice) {
     case 'no-line':
       return t('panels:diagram.annotate.divisionsNoLine', 'Click on a line to divide it whole, or drag from one end to the other.');
+    case 'no-paper':
+      return t('panels:diagram.annotate.xRayNoPaper', 'Start on the paper: a window peels away the layers inside it.');
   }
 }
 
 /**
- * A label's, a callout's and equal divisions' help on a touch screen, which
- * keeps the Layers pane as a tab of the sheet behind its Settings pill: the
- * field their words or their count are typed in named where that surface
- * shows it, in its own words.
+ * A label's, a callout's, equal divisions' and an x-ray's help on a touch
+ * screen, which keeps the Layers pane as a tab of the sheet behind its
+ * Settings pill: the field their words, their count or its depth are typed in
+ * named where that surface shows it, in its own words.
  */
-function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions'): string {
+function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions' | 'x-ray', circleMode: CircleDrawingMode): string {
   const where = { sheet: t('common:viewDrawer.openSettings', 'Settings'), tab: t('panels:sidePane.layers', 'Layers') };
   switch (tool) {
     case 'label':
@@ -560,13 +739,21 @@ function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions'):
         'Drag along a line from one end to the other, or click it, to divide it; then type how many parts in {{sheet}}, under {{tab}}.',
         where
       );
+    case 'x-ray':
+      if (circleMode === 'center') return t('panels:diagram.annotate.xRayCenterHelpTouch', 'Drag from the center to the edge of an area to see through its top layer. Click for a standard size. Set the depth in {{sheet}}, under {{tab}}.', where);
+      return t(
+        'panels:diagram.annotate.xRayHelpTouch',
+        'Drag between opposite corners of an area to see through its top layer. Click for a standard size. Set the depth in {{sheet}}, under {{tab}}.',
+        where
+      );
   }
 }
 
 /**
  * The keys a tool honours, a line each: ⌘ (Ctrl) puts what snaps down
  * anywhere (an arrow snaps nowhere, `snapsWhenPlaced`); Shift holds a right
- * angle to 45° steps, equal divisions' line to half millimetres as Select
+ * angle to 45° steps, an eye to 15° steps as it is laid or turned (Revision
+ * 3), equal divisions' line to half millimetres as Select
  * drags it, and in Edit Path a node to the eight directions and a handle to
  * 15° steps; Alt breaks a smooth node's handles apart. A switch, so a new
  * tool has to say.
@@ -606,6 +793,21 @@ function annotateToolModifiers(
           modifier: primary,
         }),
       ];
+    case 'star':
+      return [
+        t('panels:diagram.annotate.circleFreeKey', 'Hold {{modifier}} to put it down anywhere, without snapping.', {
+          modifier: primary,
+        }),
+        // With Select, or the Star still in hand (18d): no "With Select" to send the author to it.
+        t('panels:diagram.annotate.starShiftKey', 'Shift-drag a round handle at a corner to turn it in 15° steps.'),
+      ];
+    case 'eye':
+      // Put down freely (R3-24 A): no ⌘ line. Its drag sets the way it looks, as its box's turn handles turn it.
+      return [
+        t('panels:diagram.annotate.eyeShiftKey', 'Shift-drag to set the way it looks in 15° steps.'),
+        // The star's words, a key of their own: several languages name the star, or agree with it.
+        t('panels:diagram.annotate.eyeBoxShiftKey', 'Shift-drag a round handle at a corner to turn it in 15° steps.'),
+      ];
     case 'right-angle':
       return [
         t('panels:diagram.annotate.rightAngleShiftKey', 'Shift-drag to open it in 45° steps where it finds no right angle.'),
@@ -631,6 +833,25 @@ function annotateToolModifiers(
           modifier: alt,
         }),
       ];
+    case 'oval':
+    case 'rectangle':
+      // Put down freely (R3-24 A): no ⌘ line. Laid as Enlarge in Frame's area is, in its words — keys of their own,
+      // as the eye's are: several languages' "it" agrees with the area they name — and its box resized by R3-29c's keys.
+      return [
+        tool === 'oval'
+          ? t('panels:diagram.annotate.ovalShiftKey', 'Shift-drag to make it a circle.')
+          : t('panels:diagram.annotate.rectangleShiftKey', 'Shift-drag to make it square.'),
+        t('panels:diagram.annotate.shapeAltKey', '{{modifier}}-drag to draw it out from its middle.', {
+          modifier: alt,
+        }),
+        t(
+          'panels:diagram.annotate.shapeBoxShiftKey',
+          'Shift-drag a square to keep its proportions, or a round handle to turn it in 15° steps.'
+        ),
+        t('panels:diagram.annotate.shapeBoxAltKey', '{{modifier}}-drag a square to resize it about its middle.', {
+          modifier: alt,
+        }),
+      ];
     case 'callout':
       return [
         t('panels:diagram.annotate.pointFreeKey', 'Hold {{modifier}} to put its point down anywhere, without snapping.', {
@@ -646,6 +867,7 @@ function annotateToolModifiers(
     case SOLID_ARROW:
     case 'label':
     case ENLARGE:
+    case 'x-ray':
       return [];
   }
 }

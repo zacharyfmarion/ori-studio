@@ -111,11 +111,15 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolPushArrow'
   | 'diagram.toolWhiteArrow'
   | 'diagram.toolSolidArrow'
+  | 'diagram.toolLine'
   | 'diagram.toolValleyLine'
   | 'diagram.toolMountainLine'
   | 'diagram.toolHiddenLine'
+  | 'diagram.toolSolidLine'
   | 'diagram.toolLabel'
   | 'diagram.toolCircle'
+  | 'diagram.toolStar'
+  | 'diagram.toolEye'
   | 'diagram.toolRightAngle'
   | 'diagram.toolCallout'
   | 'diagram.toolAngleBisector'
@@ -123,6 +127,9 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolCloseUp'
   | 'diagram.toolEnlarge'
   | 'diagram.toolEnlargeFrame'
+  | 'diagram.toolOval'
+  | 'diagram.toolRectangle'
+  | 'diagram.toolXRay'
   | 'diagram.flipArc';
 
 /** Nudging the node Edit Path has selected: live only while it has one (`diagram-path`). */
@@ -622,9 +629,17 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolValleyLine', 'Valley Line', { shift: true, key: 'v' }),
   diagramShortcut('diagram.toolMountainLine', 'Mountain Line', { shift: true, key: 'm' }),
   diagramShortcut('diagram.toolHiddenLine', 'Hidden Line', { key: 'h' }),
-  diagramShortcut('diagram.toolLabel', 'Label', { key: 'l' }),
+  // Shift+L for the solid line, as Shift+V and Shift+M pick theirs.
+  // References' scope has a Shift+L of its own, and the
+  // two scopes are never live together.
+  diagramShortcut('diagram.toolSolidLine', 'Solid Line', { shift: true, key: 'l' }),
+  diagramShortcut('diagram.toolLabel', 'Label', { key: 't' }),
+  diagramShortcut('diagram.toolLine', 'Line', { key: 'space' }),
   // O for the ring it draws.
   diagramShortcut('diagram.toolCircle', 'Circle', { key: 'o' }),
+  // K for the star (Revision 3, R3-25 A): S is the solid arrow's, and K is
+  // free in this scope. Zach plans a shortcut pass before merge.
+  diagramShortcut('diagram.toolStar', 'Star', { key: 'k' }),
   // Q for the square it draws in a corner.
   diagramShortcut('diagram.toolRightAngle', 'Right Angle', { key: 'q' }),
   // C for the callout: a line to a box of words.
@@ -636,10 +651,22 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolDivisions', 'Equal Divisions', { key: 'd' }),
   // I for the inset a close-up draws (15f).
   diagramShortcut('diagram.toolCloseUp', 'Close-Up', { key: 'i' }),
+  // Y for the eye (Revision 3, R3-25 A): E is Enlarge's, and Y is free in
+  // this scope and the global one. Zach plans a shortcut pass before merge.
+  diagramShortcut('diagram.toolEye', 'Eye', { key: 'y' }),
   // E for enlarge, as Sturm and Lang name it (Revision 2, Z1): Edit's Extend
   // Line is in the crease pattern's scope, never live with this one.
   diagramShortcut('diagram.toolEnlarge', 'Enlarge', { key: 'e' }),
   diagramShortcut('diagram.toolEnlargeFrame', 'Enlarge in Frame', { shift: true, key: 'e' }),
+  // Shift+O for the oval, paired with the Circle's O as Shift+E pairs with E,
+  // and R for the rectangle (Revision 3, R3-25 A): both free in this scope,
+  // where R is otherwise only the simulator's and ⌘R. Zach plans a shortcut
+  // pass before merge.
+  diagramShortcut('diagram.toolOval', 'Oval', { shift: true, key: 'o' }),
+  diagramShortcut('diagram.toolRectangle', 'Rectangle', { key: 'r' }),
+  // X for the x-ray (Revision 3, R3-25 A): free in this scope, where X is
+  // otherwise only ⌘X. Zach plans a shortcut pass before merge.
+  diagramShortcut('diagram.toolXRay', 'X-Ray', { key: 'x' }),
   diagramShortcut('diagram.flipArc', 'Flip Arc', { key: 'f' }),
   // Edit Path's nudges (decision 6), on the step keys' own arrows: in a scope
   // of their own ahead of `diagram`, whose executor claims them only while

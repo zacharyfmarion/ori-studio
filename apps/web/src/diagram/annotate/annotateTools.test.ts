@@ -37,7 +37,7 @@ describe('the rail', () => {
     expect(annotationLabel(t, { kind: 'white-arrow' })).toBe('White Arrow');
   });
 
-  it('groups every tool once, after Select and Edit Path: one Line tool for the three lines (15a), the pleat and solid arrows among the arrows (15c, 15d), equal divisions, the close-up and the two Enlarge tools among the marks (Revision 2, 15f)', () => {
+  it('groups every tool once, after Select and Edit Path: one Line tool for the four lines (15a, 17a), the pleat and solid arrows among the arrows (15c, 15d), equal divisions, the close-up and the two Enlarge tools among the marks (Revision 2, 15f)', () => {
     expect(ANNOTATE_TOOL_GROUPS).toEqual([
       { id: 'select', tools: [null, 'edit-path'] },
       {
@@ -54,8 +54,14 @@ describe('the rail', () => {
       },
       { id: 'lines', tools: ['line', 'angle-bisector'] },
       // The two equality marks side by side (ED8).
-      // Enlarge and Enlarge in Frame after Close-Up (Z1).
-      { id: 'marks', tools: ['circle', 'right-angle', 'angle-mark', 'divisions', 'close-up', 'enlarge', 'enlarge-frame'] },
+      // Enlarge and Enlarge in Frame after Close-Up (Z1). The star after the circle, the eye after equal divisions, X-Ray
+      // after Enlarge in Frame (Revision 3, R3-25 A).
+      {
+        id: 'marks',
+        tools: ['circle', 'star', 'right-angle', 'angle-mark', 'divisions', 'eye', 'close-up', 'enlarge', 'enlarge-frame', 'x-ray'],
+      },
+      // The two drawing tools in a group of their own after Marks, as Affinity's rail has them (Revision 3, R3-25 A).
+      { id: 'shapes', tools: ['oval', 'rectangle'] },
       { id: 'text', tools: ['label', 'callout'] },
     ]);
     // Every kind is drawn by a tool: each its own, the lines by Line in each
@@ -69,31 +75,40 @@ describe('the rail', () => {
     expect([...new Set(drawn.filter((kind) => kind !== null))].sort()).toEqual(
       ANNOTATION_KINDS.filter((kind) => kind !== 'turn-over' && kind !== 'rotate').sort()
     );
-    // Nor has either a key: plain T and R, theirs, pick nothing in the Diagram.
+    // Nor has either a key: plain T, Turn Over's, picks nothing in the Diagram; R, Rotate's, picks the Rectangle
+    // now, and Shift+O the Oval, the Circle's O paired (Revision 3, R3-25 A).
     const plain = SHORTCUT_DEFINITIONS.filter((definition) => definition.scope === 'diagram')
       .flatMap((definition) => definition.defaultChords)
       .filter((chord) => !chord.primary && !chord.ctrl && !chord.meta && !chord.alt && !chord.shift)
       .map((chord) => chord.key);
-    expect(plain).not.toContain('t');
-    expect(plain).not.toContain('r');
+    expect(plain).toContain('t');
+    expect(plain).toContain('space');
+    expect(plain.filter((key) => key === 'r')).toEqual(['r']);
+    expect(toolForShortcut('diagram.toolRectangle')).toBe('rectangle');
+    expect(toolForShortcut('diagram.toolOval')).toBe('oval');
     // D divides (ED8), and picks Equal Divisions; E enlarges, Shift+E in a frame (Z1).
     expect(plain).toContain('d');
     expect(toolForShortcut('diagram.toolDivisions')).toBe('divisions');
     expect(plain).toContain('e');
     expect(toolForShortcut('diagram.toolEnlarge')).toBe('enlarge');
     expect(toolForShortcut('diagram.toolEnlargeFrame')).toBe('enlarge-frame');
-    expect(DIAGRAM_LINE_TYPES.map((type) => drawingKind('line', type))).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
-    expect(ANNOTATION_KINDS.filter(isLineKind)).toEqual(['valley-line', 'mountain-line', 'hidden-line']);
+    // Y for the eye (Revision 3, R3-25 A), free in the Diagram's scope and the global one.
+    expect(plain.filter((key) => key === 'y')).toEqual(['y']);
+    expect(toolForShortcut('diagram.toolEye')).toBe('eye');
+    const lines = ['valley-line', 'mountain-line', 'hidden-line', 'solid-line'];
+    expect(DIAGRAM_LINE_TYPES.map((type) => drawingKind('line', type))).toEqual(lines);
+    expect(ANNOTATION_KINDS.filter(isLineKind)).toEqual(lines);
   });
 
-  it('keeps today’s three line keys, each picking a line type rather than a tool', () => {
+  it('keeps the three first line keys and Solid’s (17a), each picking a line type rather than a tool', () => {
     expect(LINE_TYPE_SHORTCUTS).toEqual({
       valley: 'diagram.toolValleyLine',
       mountain: 'diagram.toolMountainLine',
       hidden: 'diagram.toolHiddenLine',
+      solid: 'diagram.toolSolidLine',
     });
     expect(DIAGRAM_LINE_TYPES.map((type) => lineTypeForShortcut(LINE_TYPE_SHORTCUTS[type]))).toEqual(DIAGRAM_LINE_TYPES);
-    expect(DIAGRAM_LINE_TYPES.map((type) => toolForShortcut(LINE_TYPE_SHORTCUTS[type]))).toEqual([undefined, undefined, undefined]);
+    expect(DIAGRAM_LINE_TYPES.map((type) => toolForShortcut(LINE_TYPE_SHORTCUTS[type]))).toEqual([undefined, undefined, undefined, undefined]);
     expect(lineTypeForShortcut('diagram.toolValleyArrow')).toBeUndefined();
   });
 });
@@ -156,8 +171,28 @@ describe('the tool window', () => {
       line: { title: 'Line', instructions: 'Drag along the crease.', modifiers: [ends] },
       circle: {
         title: 'Circle',
-        instructions: 'Click a point to circle it.',
+        instructions: 'Drag between opposite corners to bound the circle. Click for a small circle.',
         modifiers: ['Hold Cmd to put it down anywhere, without snapping.'],
+      },
+      // Put down as a circle is; turned in 15° steps with Select, or with the Star still in hand (Revision 3, R3-24 A,
+      // R3-28 A; 18d).
+      star: {
+        title: 'Star',
+        instructions: 'Click a point to mark it with a star.',
+        modifiers: [
+          'Hold Cmd to put it down anywhere, without snapping.',
+          'Shift-drag a round handle at a corner to turn it in 15° steps.',
+        ],
+      },
+      // Put down freely, a drag setting the way it looks and Shift holding that to 15° steps, as its box's handles do (Revision 3,
+      // R3-8 A, R3-28 A): laying it turns nothing (18c review).
+      eye: {
+        title: 'Eye',
+        instructions: 'Drag from where the viewer stands toward what they look at, or click to look at the middle.',
+        modifiers: [
+          'Shift-drag to set the way it looks in 15° steps.',
+          'Shift-drag a round handle at a corner to turn it in 15° steps.',
+        ],
       },
       'right-angle': {
         title: 'Right Angle',
@@ -193,20 +228,20 @@ describe('the tool window', () => {
       divisions: {
         title: 'Equal Divisions',
         instructions:
-          'Drag along a line from one end to the other, or click it, to divide it; then type how many parts. With Select, drag the mark to set how far off the line it sits.',
+          'Drag along a line from one end to the other, or click it, to divide it. Set the number of parts in Layers. With Select, drag the mark to set how far off the line it sits.',
         modifiers: [ends, 'With Select, Shift-drag the mark to move its line by half millimetres.'],
       },
       // Its rings are moved and sized with Select: the window says how, and Shift's halves (15f).
       'close-up': {
         title: 'Close-Up',
         instructions:
-          'Drag out from the middle of the area to show larger, or click it. With Select, drag either circle to move it, or its ring to resize it.',
+          'Drag between opposite corners of the area to show larger. Click for a standard size. With Select, drag either circle to move it, or its ring to resize it.',
         modifiers: ['Shift-drag the close-up’s ring to scale it by halves.'],
       },
       // A circle from its middle, never snapped, as a close-up's area (Revision 2, S1).
       enlarge: {
         title: 'Enlarge',
-        instructions: 'Drag out from the middle of an area to mark it for an enlarged step. Click for a standard size.',
+        instructions: 'Drag between opposite corners of an area to mark it for an enlarged step. Click for a standard size.',
         modifiers: [],
       },
       // Corner to corner: Shift makes it square, Alt draws it from its middle (S2).
@@ -215,6 +250,35 @@ describe('the tool window', () => {
         instructions:
           'Drag from corner to corner round an area to mark it for an enlarged step. Click for a standard size.',
         modifiers: ['Shift-drag to make it square.', 'Option-drag to draw it out from its middle.'],
+      },
+      // Enlarge's circle, from its middle, never snapped; then its Depth is typed (Revision 3, R3-12 A, R3-14 A).
+      'x-ray': {
+        title: 'X-Ray',
+        instructions:
+          'Drag between opposite corners of an area to see through its top layer. Click for a standard size. Set the depth in Layers.',
+        modifiers: [],
+      },
+      // Laid as Enlarge in Frame's area is, a click its standard size, put down freely (R3-24 A); its box resized by
+      // R3-29c A's keys, with Select or with its tool still in hand (Revision 3; 18d review).
+      oval: {
+        title: 'Oval',
+        instructions: 'Drag from corner to corner round an area to ring it. Click for a standard size.',
+        modifiers: [
+          'Shift-drag to make it a circle.',
+          'Option-drag to draw it out from its middle.',
+          'Shift-drag a square to keep its proportions, or a round handle to turn it in 15° steps.',
+          'Option-drag a square to resize it about its middle.',
+        ],
+      },
+      rectangle: {
+        title: 'Rectangle',
+        instructions: 'Drag from corner to corner round an area to ring it. Click for a standard size.',
+        modifiers: [
+          'Shift-drag to make it square.',
+          'Option-drag to draw it out from its middle.',
+          'Shift-drag a square to keep its proportions, or a round handle to turn it in 15° steps.',
+          'Option-drag a square to resize it about its middle.',
+        ],
       },
     });
   });
@@ -248,10 +312,18 @@ describe('the tool window', () => {
       'Click on a line to divide it whole, or drag from one end to the other.'
     );
     // Said only for the tool it is about, and on a touch screen too.
-    expect(annotateToolHint(t, 'circle', null, mac, null, notice)!.instructions).toBe('Click a point to circle it.');
+    expect(annotateToolHint(t, 'circle', null, mac, null, notice)!.instructions).toBe('Drag between opposite corners to bound the circle. Click for a small circle.');
     expect(annotateToolHint(t, 'divisions', null, { ...mac, coarse: true }, null, notice)!.instructions).toBe(
       'Click on a line to divide it whole, or drag from one end to the other.'
     );
+  });
+
+  it('says what an x-ray laid off the paper could not do, until the next press (review of 18e)', () => {
+    const notice = { tool: 'x-ray', notice: 'no-paper' } as const;
+    expect(annotateToolHint(t, 'x-ray', null, mac, null, notice)!.instructions).toBe(
+      'Start on the paper: a window peels away the layers inside it.'
+    );
+    expect(annotateToolHint(t, 'divisions', null, mac, null, notice)!.instructions).toBe(annotateToolHint(t, 'divisions', null, mac)!.instructions);
   });
 
   it('names the keys as this platform does', () => {
@@ -269,8 +341,9 @@ describe('the tool window', () => {
     for (const tool of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null)) {
       const hint = annotateToolHint(t, tool, null, finger)!;
       expect(hint.modifiers).toEqual([]);
-      // A label's and a callout's words, and equal divisions' count, are typed in the Settings sheet's Layers tab there (review).
-      if (tool === 'label' || tool === 'callout' || tool === 'divisions') {
+      // A label's and a callout's words, equal divisions' count and an x-ray's depth (review of 18e) are typed in the
+      // Settings sheet's Layers tab there (review).
+      if (tool === 'label' || tool === 'callout' || tool === 'divisions' || tool === 'x-ray') {
         expect(hint.instructions).toMatch(/ in Settings, under Layers\.$/);
       } else expect(hint.instructions).toBe(annotateToolHint(t, tool, null, mac)!.instructions);
     }

@@ -100,37 +100,65 @@ describe('linkDiagramStep', () => {
     expect(toasts.message).not.toHaveBeenCalled();
   });
 
-  describe('an enlarged step’s first link (16h)', () => {
+  describe('an enlarged step’s first link (16h; review fix 3)', () => {
     const zoom = { from: 'area-head', shape: 'circle' as const, frame: { centre: [0.4, 0.3] as [number, number], radius: 0.1 } };
     /** A flat step turned 158° and enlarged, then an empty step enlarged after it — as Insert Step After seeds one — and a whole one. */
-    function afterTurned(render: Parameters<typeof cpStep>[1]) {
+    function afterTurned(render: Parameters<typeof cpStep>[1], seeded = 1) {
       const diagram = insertSteps(createDiagram({ title: 'Crane' }), [
         { ...cpStep('step-turned', render), zoom },
-        { ...cpStep('step-seeded', undefined, null), source: null, zoom },
+        ...Array.from({ length: seeded }, (_, index) => ({ ...cpStep(index === 0 ? 'step-seeded' : `step-seeded-${index + 1}`, undefined, null), source: null, zoom })),
         { ...cpStep('step-whole', undefined, null), source: null },
       ], 0);
       useWorkspaceStore.setState({ diagram });
     }
     const asked = (capture: ReturnType<typeof answer>) => (capture.mock.calls.at(-1) as unknown as [string, { render: unknown }])[1].render;
 
-    it('starts in its source’s turn, folded or as a crease pattern; a whole step starts at none, as ever', async () => {
+    it('starts in its source’s turn shown as its source is; another way it starts whole, at no turn, as a whole step does', async () => {
       afterTurned({ mode: 'folded-flat', side: 'front', rotationDeg: 158, foldCase: 2 });
       const capture = answer(CAPTURED);
       await linkDiagramStep('step-seeded', left!, 'folded');
       expect(asked(capture)).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 158, foldCase: 1, spread: expect.objectContaining({ kind: 'affine' }) });
       await linkDiagramStep('step-seeded', left!, 'crease-pattern');
-      expect(asked(capture)).toEqual({ mode: 'crease-pattern', rotationDeg: 158 });
+      expect(asked(capture)).toEqual({ mode: 'crease-pattern', rotationDeg: 0 });
       await linkDiagramStep('step-whole', left!, 'folded');
       expect(asked(capture)).toMatchObject({ mode: 'folded-flat', side: 'front', rotationDeg: 0 });
     });
 
-    it('from a flat fold seen from the back: that side folded, the mirrored turn as a crease pattern', async () => {
+    it('from a flat fold seen from the back: that side folded', async () => {
       afterTurned({ mode: 'folded-flat', side: 'back', rotationDeg: 30, foldCase: 1 });
       const capture = answer(CAPTURED);
       await linkDiagramStep('step-seeded', left!, 'folded');
       expect(asked(capture)).toMatchObject({ mode: 'folded-flat', side: 'back', rotationDeg: 30 });
+    });
+
+    it('from a crease pattern’s run: its turn as a crease pattern; folded, it starts whole at no turn', async () => {
+      afterTurned({ mode: 'crease-pattern', rotationDeg: 90 });
+      const capture = answer(CAPTURED);
       await linkDiagramStep('step-seeded', left!, 'crease-pattern');
-      expect(asked(capture)).toEqual({ mode: 'crease-pattern', rotationDeg: 330 });
+      expect(asked(capture)).toEqual({ mode: 'crease-pattern', rotationDeg: 90 });
+      await linkDiagramStep('step-seeded', left!, 'folded');
+      expect(asked(capture)).toMatchObject({ mode: 'folded-flat', side: 'front', rotationDeg: 0 });
+    });
+
+    it('after an empty step seeded before it, in the turn of the step the run is enlarged from', async () => {
+      afterTurned({ mode: 'folded-flat', side: 'front', rotationDeg: 158, foldCase: 2 }, 2);
+      const capture = answer(CAPTURED);
+      await linkDiagramStep('step-seeded-2', left!, 'folded');
+      expect(asked(capture)).toMatchObject({ mode: 'folded-flat', side: 'front', rotationDeg: 158 });
+    });
+
+    it('starting a run from an area, in the turn of the area’s step, whichever way it is linked', async () => {
+      const area = { id: 'area-head', kind: 'zoom' as const, from: [0.4, 0.3] as [number, number], to: [0.4, 0.3] as [number, number], radius: 0.1 };
+      const diagram = insertSteps(createDiagram({ title: 'Crane' }), [
+        { ...cpStep('step-area', { mode: 'crease-pattern', rotationDeg: 90 }), annotations: [area] },
+        { ...cpStep('step-own', undefined, null), source: null, zoom },
+      ], 0);
+      useWorkspaceStore.setState({ diagram });
+      const capture = answer(CAPTURED);
+      await linkDiagramStep('step-own', left!, 'folded');
+      expect(asked(capture)).toMatchObject({ mode: 'folded-flat', side: 'front', rotationDeg: 90 });
+      await linkDiagramStep('step-own', left!, 'crease-pattern');
+      expect(asked(capture)).toEqual({ mode: 'crease-pattern', rotationDeg: 90 });
     });
 
     it('relinked, keeps its own pose', async () => {
@@ -160,6 +188,7 @@ describe('showLinkedStepAs', () => {
     layerOrder: null,
     spatial: null,
     onCamera: () => {},
+    registerLiveView: () => () => {},
     rotateTo: () => {},
     showAs: vi.fn(async () => landed),
     setSide: vi.fn(async () => landed),

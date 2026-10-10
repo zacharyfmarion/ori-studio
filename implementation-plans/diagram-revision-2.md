@@ -119,13 +119,16 @@ steps follow ups in the branch". 8, 10, 11 and 12 are built ("Follow-ups to
 11. **A run of uploads after an enlarged step**: the second was seeded from
     the first, an upload with no faces, and so had no imprint. *Decided:
     every step of the run is seeded from the run's source frame and
-    imprint.*
+    imprint.* *Superseded 2026-10-08 (`diagram-review-fixes.md`, item 3):*
+    uploads are not seeded at all, and a new empty step after an enlarged
+    upload starts whole.
 12. **Show as Crease Pattern on an enlarged folded step** landed the frame on
     its anchor face's paper, 288 sheet units from the crane's head (Z8 as
     decided). *Decided: on a flat crease pattern, the frame lands on the top
     face at its centre, the paper its window showed*; Z8 amended there.
 
-**Open with Zach (2026-10-07).** Raised by building 11 and 8.
+**Follow-ups raised with Zach (2026-10-07), decisions resolved 2026-10-10.**
+Implementation status is recorded separately below.
 
 - **A step made after an upload.** 11 keeps every upload of a run anchored,
   but a capture from a step with no faces still takes its frame and not the
@@ -138,14 +141,21 @@ steps follow ups in the branch". 8, 10, 11 and 12 are built ("Follow-ups to
   *Recommended:* a seeded step takes a faceless enlarged step's stored
   imprint with its frame, and its first link the turn of the run's linked
   source; Enlarged turned on keeps the rule as decided.
+  *Moot since 2026-10-08 (`diagram-review-fixes.md`, item 3):* an upload's
+  run shows no picture type, so no step continues it. A step made after an
+  enlarged upload is not seeded and starts whole, and one enlarged after it
+  by hand starts whole at its first link. Decided 2026-10-08
+  (`diagram-review-fixes.md`, item 3's open calls): such a step is not
+  seeded.
 - **A whole step's line pasted onto an enlarged one** (7) is not trimmed, as
   8 trims a carried one, so a long line pasted there runs across the page as
-  8 found. *Recommended:* trim a pasted line as a carried one.
+  8 found. *DECIDED, 2026-10-10:* trim a pasted line as a carried one, the
+  recommendation accepted under Zach's launch instruction. Implementation
+  and its regression test are still pending.
 - **The overshoot's length.** No fold line in the app has a set overshoot:
   most of Zach's lines on the crane end on the paper's edge; the few he ran
   past it end 0.007–0.045 of the picture past. 8 uses 0.04 of the window
-  (`ZOOM_LINE_OVERSHOOT`), about 1.9 mm on the crane's window at Fill. A
-  number to tune by eye.
+  (`ZOOM_LINE_OVERSHOOT`), about 1.9 mm on the crane's window at Fill. Explicitly accepted by Zach on 2026-10-10; keep 0.04.
 
 ## Goal
 
@@ -938,6 +948,13 @@ other picture has faces.
   raise it: the numbers go to Zach. The lever then is to write `paperFaces`
   only on steps that hold an area or a frame; not coarser rounding, which
   would give up exactness.
+  **Raised (2026-10-09).** Zach: "i don't care about this budget, please
+  raise it or remove it. nobody should hit it on even a large diagram, 1%
+  seems random. Like idk limit to 100mb or something". The 1% is gone: the
+  only ceiling on what a diagram stores is the whole `.osf` under 100 MB,
+  which no diagram comes near (the crane is 2.49 MB). Nothing enforces it in
+  code, as nothing enforced the 1%; the per-picture limits that guard the
+  reader (`SCENE_JSON_MAX_BYTES`, `SVG_STORED_MAX_BYTES`) are unchanged.
 
 Pure modules in `diagram/zoom/`:
 
@@ -1053,7 +1070,7 @@ frame's upright box. The rules are pure functions in
 | What changed | Frame | Marks |
 | --- | --- | --- |
 | Enlarged turned on; a seeded step's first picture; Update Enlarged Steps | Captured from the source and landed; Update overwrites a hand move; every step of a run made in one edit from the run's source (after 16g, 11) | Carried from the whole picture, or the old window, into the new window; from the whole picture, a line crossing the frame trimmed just past it (after 16g, 8) |
-| Enlarged turned off | Dropped | Carried from the window to the whole picture |
+| Enlarged turned off | Dropped | Carried from the window to the whole picture; every mark, out of step with the picture or not, which stays as it was (`diagram-review-fixes.md`, item 5) |
 | The frame moved or resized by hand, or its Shape changed | As set, but for a centre dropped in a strip the spread opened, which settles on the layer above (Capturing a frame); its centre taken off the spread and the imprint made again on the same face | Carried by the window's move (a scale and a shift), so they stay on the same paper |
 | The frame's anchor picked or reset | Unchanged; the imprint made again on the new face | Unchanged |
 | This step re-posed (the `withCarriedAnnotations` call sites: `diagramDocument.ts:1176/1311/1339/1394`, `useDiagramLinkedPose.ts:209`) | Its imprint landed on the re-posed picture; with no faces, carried by the pose's move | The pose's own move, composed through old window → picture → new window |
@@ -1446,6 +1463,23 @@ again from whatever is before it now. New steps added after an enlarged step
 start enlarged, captured at creation (Zach: "yeah sounds right"). Not taken:
 Enlarge and Whole cards in the Steps grid; the 2026-10-05 recommendation, in
 which each window was derived from the area and followed its edits.
+**Amended 2026-10-08 (`diagram-review-fixes.md`, item 3; Zach: "that sounds
+good").** A run continues only with its picture type. An empty step made after
+an enlarged one (Add Step, Insert Step After) still starts enlarged. Its first
+picture keeps the frame only if it is linked the way the run's source shows
+its pattern: Crease Pattern, Folded or Simulated. Linked another way, the step
+starts whole in the link's undo step. Uploads and References cards never
+continue a run. Made after an enlarged step, or filling an empty step seeded
+enlarged, they start whole. This also amends 16g ("every way a step is made")
+and 16h (a run of uploads). The pattern picker now offers a step with no link
+the previous linked step's way (D19 amended). Switching Show as on a step that
+is already enlarged keeps it enlarged. As reviewed: the rule binds a step's
+first link only where it continues a run, whose source is an enlarged step
+with a picture. A step that starts a run (enlarged from an area, directly or
+past empty steps) keeps its frame however it is linked, and so does a linked
+step given its first picture by a Refresh or Pose. An empty step made after an
+enlarged upload or References step is not seeded, since no first picture
+could keep that frame.
 
 **Z3. Where the arrow prints. DECIDED: A, in the gutter, lifted to the area's
 height.** "all those defaults look good" (Zach, 2026-10-06). D22's place for a
@@ -1483,6 +1517,25 @@ was captured from: provenance only, never a live link, never read to derive
 anything. The area's Layers row offers Update Enlarged Steps, which captures
 again every step with that provenance, as one undo step. Deleting the area or
 its step leaves the enlarged steps as they are, with nothing to update from.
+
+**Amended 2026-10-08 (`diagram-review-fixes.md`, item 4; Zach: "sounds
+good").** Each capture also records the area as it was then (`areaWas`: its
+step, outline and picked anchor), still never read to draw. Once the area is
+moved, resized, reshaped or re-anchored by hand, every step captured from it
+says "Out of date: Step N's area changed", with Update on that step (its
+Step pane and its card's menu); a carry of the area by its own step's picture
+moves the records with it and says nothing. Update Enlarged Steps became
+Update All, on the area's Layers row and its step's Enlarged section in
+Annotate: it places only the steps out of date (and a file's steps from
+before records), so a frame moved by hand on a current step stays. A deleted
+area's steps keep their frames and say "Step N's area was deleted".
+After rf4's review (for Zach to confirm): the record also holds the Size and
+Edge the capture copied, so the area's Size or Edge changed says so to a step
+that took it, and Update keeps a Size or Edge set on the step; a file's step
+from before records is recorded at the first hand edit of its area, and is
+out of date from then, not placed by Update All before; Update and Update
+All are offered only while a step is out of date — Update All also in the
+area step's read-only Step pane and its card's menu.
 
 **Z8. Which part of the model the frame follows. DECIDED: an imprint on a face
 of the paper.** Zach: "imagine imprinting the frame onto the face and seeing
@@ -1528,6 +1581,8 @@ of 16c's budget item: the per-step cap (a step's faces at most 0.3 of its
 scene) is dropped and the whole-file one (the `.osf` grows by at most 1%)
 kept; a step captured before faces were kept gets them when they are needed,
 from its pattern while its link is current, else by Refresh (S5).
+**Raised (2026-10-09):** the 1% went; a whole file under 100 MB is the
+budget now (The budget, above).
 
 #### Alternatives considered
 
@@ -1919,6 +1974,12 @@ pending.**
   (0.65 mm at 1 mm, 1.65 mm at 0), and at 0 the line overdraws the edge. The
   prototype shows 2.5, 1 and 0 mm on white paper. B and C read as an
   engineering drawing rather than the sketch.
+- **Revised by Revision 3** (`diagram-revision-3.md`, R3-1 A, R3-2 A; built in
+  18a, 2026-10-08): A stays every mark's default, and C is now a switch on
+  each mark, Short Dividers, off unless turned on. With it, the dividers
+  between the ends run 1.65 mm either side of the line wherever it lies, and
+  the two end dividers still reach the measured line. Zach's note: a divider
+  run down to the measured line can draw over the fold it locates.
 
 **ED5. How many parts, and how is the count set? DECIDED: A.**
 - A. 2 to 32, laid at 4. The Parts field takes the focus as a new label's Text
@@ -1974,6 +2035,17 @@ pending.**
   edge, and the end dividers continue the sheet's sides by 4.15 mm, so A
   draws a closed band in the edges' ink. C adds a second ink to a preset that
   has one.
+- **Revised by Revision 3** (`diagram-revision-3.md`, "The aux pen"; built
+  in 18a, 2026-10-08): every stroke, the line, the dividers and the ticks, is
+  drawn as one path in the aux lines' pen (`auxMarkPen`, as the right angle,
+  RA5), 0.25 pt in the Diagram preset and 0.5 pt in the Default. Zach's note:
+  "everything should be drawn in the width of the aux crease, its too thick
+  rn". The line's width does not change; the dividers and ticks go from the
+  ring pen (0.5625 pt, 0.7875 pt in the Default) to the aux pen. The ink
+  stays the marks' (`ink.mark`), and ED10's floor stays two ring pens, so a
+  part crowds where it did. The count is set in the regular weight, not bold
+  (R3-3, Zach: "no, should not be bold"). `DivisionsPen` and the table's
+  `pens` are gone.
 
 **ED10. Ticks on crowded parts. DECIDED: B.** (Raised by the review.)
 - A. Shrink freely, with no lower limit.
@@ -2309,8 +2381,9 @@ DECIDED: A.**
 - **Revised 2026-10-06, on seeing 16a built: the aux lines' pen.** Zach: the
   mark "should be the thickness of aux lines (right now it looks like arrow
   thickness)". Still one path, now drawn in the paper style's aux pen
-  (`rightAnglePen`: `project.pens.aux`, an existing crease's pen — 0.25 pt in
-  the Diagram preset, 0.5 pt in the Default) instead of the ring's (0.5625 pt
+  (`rightAnglePen`, named `auxMarkPen` since Revision 3: `project.pens.aux`,
+  an existing crease's pen — 0.25 pt in the Diagram preset, 0.5 pt in the
+  Default) instead of the ring's (0.5625 pt
   in the Diagram preset), and still in the ring's ink, `ink.mark`: the
   Diagram preset's aux pen is the same #231f20, and the Default's grey would
   make the mark read as a crease. `markReach` measures it in the same pen.

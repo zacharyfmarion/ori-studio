@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
@@ -13,7 +14,15 @@ import { useWheelPassthrough } from '../hooks/useWheelPassthrough';
 import { isOpenLayerTarget, isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
 import { IMAGE_ROTATION_SNAP_RADIANS } from './images/cpImage';
 import {
-  CORNER_RESIZE_HANDLES,
+  TRANSFORM_STROKE_PX,
+  transformHandleAt,
+  transformHandleSizes,
+  transformHandles,
+  type TransformHandleSizes,
+  type TransformHandles,
+} from '../lib/transformBox';
+import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
+import {
   boxCornersModel,
   overlayCssDeltaToModel,
   overlayCssToModel,
@@ -55,13 +64,10 @@ import { usePanModifierHeld } from './cpCanvasCursor';
  * affine for that object's space — {@link CpOverlayView} for model-space
  * annotations, the user-space affine for folded figures — so chrome matches the
  * object exactly under rotation and non-uniform zoom. The transform math runs in
- * object space (annotationTransform), so it is camera-agnostic.
+ * object space (annotationTransform), so it is camera-agnostic. Where the
+ * handles sit, and their sizes, are `lib/transformBox.ts`'s, which the
+ * Diagram's transform box draws from too.
  */
-
-/** Rotation handle offset (CSS px) outward from each corner. */
-const ROTATE_OFFSET_PX = 18;
-/** Resize handle square size (CSS px). */
-const HANDLE_SIZE_PX = 8;
 
 /** A box update produced by a gesture. Partial: a move only reports a centre. */
 export interface CanvasObjectBoxUpdate {
@@ -94,6 +100,15 @@ type Drag =
       startObject: TransformableCanvasObject;
       /** When true the handle crops instead of scaling (image only). */
       crop: boolean;
+      /**
+       * How far from the handle's middle a finger's press landed, in object
+       * space: the handle is drawn out by the pointer's travel since the
+       * press, so a press anywhere in its touch target does not jump the box
+       * on the first move, as the Diagram's box does not. Zero for a mouse,
+       * whose press lands on the square as drawn and takes it to the pointer,
+       * as it always has.
+       */
+      grab: Vec2;
       moved: boolean;
       bracketOpen: boolean;
     }
@@ -306,6 +321,11 @@ export function CanvasObjectOverlay({
    * the two cannot disagree about where a press goes.
    */
   const panArmed = usePanModifierHeld() || (panToolActive ?? false);
+  /**
+   * A mouse's handles, or a finger's: further apart, larger, and each with a
+   * touch target round it (`lib/transformBox.ts`, 18d follow-up).
+   */
+  const handleSizes = transformHandleSizes(useIsCoarsePointerSurface());
   const dragRef = useRef<Drag | null>(null);
   /**
    * The contacts this overlay has reported to the surface arbiter and not yet
@@ -458,7 +478,7 @@ export function CanvasObjectOverlay({
 
   const handleResizeDown = useCallback(
     (
-      event: ReactPointerEvent<SVGRectElement>,
+      event: ReactPointerEvent<SVGElement>,
       object: TransformableCanvasObject,
       handle: AnnotationResizeHandle
     ) => {
@@ -476,21 +496,26 @@ export function CanvasObjectOverlay({
       }
       if (event.button !== 0) return;
       if (!claimPress(event)) return;
+      const pointer = pointerToObject(event, object.space);
+      const held = transformHandles(boxCornersModel(object.box), { cornersOnly: false, rotateOffset: 0 }).scale.find(
+        (each) => each.handle === handle
+      )?.at;
       dragRef.current = {
         kind: 'resize',
         id: object.id,
         handle,
         startObject: object,
         crop: cropMode && (canCrop?.(object.id) ?? false),
+        grab: handleSizes.target > 0 && pointer && held ? { x: pointer.x - held.x, y: pointer.y - held.y } : { x: 0, y: 0 },
         moved: false,
         bracketOpen: false,
       };
     },
-    [interactive, cropMode, canCrop]
+    [interactive, cropMode, canCrop, pointerToObject, handleSizes]
   );
 
   const handleRotateDown = useCallback(
-    (event: ReactPointerEvent<SVGCircleElement>, object: TransformableCanvasObject) => {
+    (event: ReactPointerEvent<SVGElement>, object: TransformableCanvasObject) => {
       if (!interactive || object.locked) return;
       // Same as the resize handles: chrome outranks the creases, not the camera.
       const surface = cameraClaiming(event);
@@ -601,14 +626,16 @@ export function CanvasObjectOverlay({
       if (!pointer) return;
       if (!openBracket()) return;
       if (drag.kind === 'resize') {
+        // The handle where it was pressed, moved as far as the pointer has.
+        const pulled = { x: pointer.x - drag.grab.x, y: pointer.y - drag.grab.y };
         if (drag.crop) {
-          onCropUpdate?.(drag.id, drag.handle, pointer);
+          onCropUpdate?.(drag.id, drag.handle, pulled);
           return;
         }
         const next = resizeAnnotationBox(
           drag.startObject.box,
           drag.handle,
-          pointer,
+          pulled,
           // Shift, or the rail's latch standing in for it. Without the latch a
           // touch device cannot escape the aspect lock at all: a reference image
           // is `default-on`, so it can never be distorted, and a text box is
@@ -768,7 +795,7 @@ export function CanvasObjectOverlay({
             // drags — orbiting a 3D figure, running a simulation. Doubling the
             // outline is the only thing on screen that says so, and without it
             // "press again to focus" is a rule with no feedback.
-            strokeWidth={isSelected ? (bodyInert ? 3 : 1.5) : 0}
+            strokeWidth={isSelected ? (bodyInert ? 2 * TRANSFORM_STROKE_PX : TRANSFORM_STROKE_PX) : 0}
             strokeDasharray={cropping ? '4 3' : undefined}
             style={{
               pointerEvents: interactive && !object.locked && !bodyInert ? 'auto' : 'none',
@@ -825,6 +852,7 @@ export function CanvasObjectOverlay({
       {interactive && selected && !selected.hidden && !selected.locked && (
         <SelectionHandles
           object={selected}
+          sizes={handleSizes}
           views={views}
           panArmed={panArmed}
           cropMode={cropMode && (canCrop?.(selected.id) ?? false)}
@@ -843,6 +871,7 @@ export function CanvasObjectOverlay({
 function SelectionHandles({
   object,
   views,
+  sizes,
   panArmed,
   cropMode,
   onResizeDown,
@@ -853,16 +882,18 @@ function SelectionHandles({
 }: {
   object: TransformableCanvasObject;
   views: { model: CpOverlayView; user: CpOverlayView };
+  /** The pointer's handles: a mouse's, or a finger's with touch targets. */
+  sizes: TransformHandleSizes;
   /** A pan press is armed, so these squares would pan rather than size. */
   panArmed: boolean;
   cropMode: boolean;
   onResizeDown: (
-    event: ReactPointerEvent<SVGRectElement>,
+    event: ReactPointerEvent<SVGElement>,
     object: TransformableCanvasObject,
     handle: AnnotationResizeHandle
   ) => void;
   onRotateDown: (
-    event: ReactPointerEvent<SVGCircleElement>,
+    event: ReactPointerEvent<SVGElement>,
     object: TransformableCanvasObject
   ) => void;
   onPointerMove: (
@@ -874,74 +905,69 @@ function SelectionHandles({
 }) {
   // Crop handles use the warning accent; resize/rotate the primary accent.
   const handleStroke = cropMode ? '#e0a020' : 'var(--accent-primary, #4c9aff)';
-  const [tl, tr, br, bl] = objectCornersCss(object, views);
-  const mid = (a: Vec2, b: Vec2): Vec2 => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-  const center = { x: (tl.x + br.x) / 2, y: (tl.y + br.y) / 2 };
-
-  const allHandles: { handle: AnnotationResizeHandle; at: Vec2 }[] = [
-    { handle: 'nw', at: tl },
-    { handle: 'n', at: mid(tl, tr) },
-    { handle: 'ne', at: tr },
-    { handle: 'e', at: mid(tr, br) },
-    { handle: 'se', at: br },
-    { handle: 's', at: mid(br, bl) },
-    { handle: 'sw', at: bl },
-    { handle: 'w', at: mid(bl, tl) },
-  ];
   // An always-proportional object (a folded figure) gets corners only: eight
   // handles on something that cannot be stretched is misleading chrome. Crop is
-  // per-axis by nature, so cropping always offers all eight.
-  const resizePoints =
-    object.aspectLock === 'always' && !cropMode
-      ? allHandles.filter((point) => CORNER_RESIZE_HANDLES.includes(point.handle))
-      : allHandles;
+  // per-axis by nature, so cropping always offers all eight. Rotation handles
+  // sit just outside each corner (Affinity-style).
+  const corners = objectCornersCss(object, views);
+  const handles = transformHandles(corners, {
+    cornersOnly: object.aspectLock === 'always' && !cropMode,
+    rotateOffset: sizes.rotateOffset,
+  });
+  // Rotation handles are only meaningful when scaling, not cropping.
+  const shown: TransformHandles = cropMode ? { scale: handles.scale, rotate: [] } : handles;
 
-  // Rotation handles sit just outside each corner (Affinity-style).
-  const outward = (corner: Vec2): Vec2 => {
-    const dx = corner.x - center.x;
-    const dy = corner.y - center.y;
-    const len = Math.hypot(dx, dy) || 1;
-    return {
-      x: corner.x + (dx / len) * ROTATE_OFFSET_PX,
-      y: corner.y + (dy / len) * ROTATE_OFFSET_PX,
-    };
-  };
-  const rotateCorners = [tl, tr, br, bl];
-
-  const half = HANDLE_SIZE_PX / 2;
+  const half = sizes.square / 2;
   return (
     <g>
-      {/* Rotation handles are only meaningful when scaling, not cropping. */}
-      {!cropMode &&
-        rotateCorners.map((corner, i) => {
-          const at = outward(corner);
-          return (
-            <circle
-              key={`rot-${i}`}
-              cx={at.x}
-              cy={at.y}
-              r={HANDLE_SIZE_PX / 2 + 1}
-              fill="var(--bg-primary, #202430)"
-              stroke={handleStroke}
-              strokeWidth={1.5}
-              style={{ pointerEvents: 'auto', cursor: 'grab', vectorEffect: 'non-scaling-stroke' }}
-              onPointerDown={(event) => onRotateDown(event, object)}
-              onPointerMove={(event) => onPointerMove(event, object)}
-              onPointerUp={onPointerUp}
-              onPointerCancel={onPointerCancel}
-            />
-          );
-        })}
-      {resizePoints.map(({ handle, at }) => (
+      {sizes.target > 0 && (
+        <TouchTargets
+          corners={corners}
+          handles={shown}
+          radius={sizes.target}
+          panArmed={panArmed}
+          onPointerDown={(event) => {
+            // The handle the press takes, as the Diagram's box decides it, pressed as that handle.
+            const svg = event.currentTarget.ownerSVGElement?.getBoundingClientRect();
+            const hit = transformHandleAt(
+              shown,
+              { x: event.clientX - (svg?.left ?? 0), y: event.clientY - (svg?.top ?? 0) },
+              { sizes, inside: false }
+            );
+            if (hit?.kind === 'scale') onResizeDown(event, object, hit.handle);
+            else if (hit?.kind === 'rotate') onRotateDown(event, object);
+          }}
+          onPointerMove={(event) => onPointerMove(event, object)}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+        />
+      )}
+      {shown.rotate.map(({ at }, i) => (
+        <circle
+          key={`rot-${i}`}
+          cx={at.x}
+          cy={at.y}
+          r={sizes.turnRadius}
+          fill="var(--bg-primary, #202430)"
+          stroke={handleStroke}
+          strokeWidth={TRANSFORM_STROKE_PX}
+          style={{ pointerEvents: 'auto', cursor: 'grab', vectorEffect: 'non-scaling-stroke' }}
+          onPointerDown={(event) => onRotateDown(event, object)}
+          onPointerMove={(event) => onPointerMove(event, object)}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+        />
+      ))}
+      {shown.scale.map(({ handle, at }) => (
         <rect
           key={handle}
           x={at.x - half}
           y={at.y - half}
-          width={HANDLE_SIZE_PX}
-          height={HANDLE_SIZE_PX}
+          width={sizes.square}
+          height={sizes.square}
           fill="var(--bg-primary, #202430)"
           stroke={handleStroke}
-          strokeWidth={1.5}
+          strokeWidth={TRANSFORM_STROKE_PX}
           style={{
             pointerEvents: 'auto',
             cursor: panArmed ? 'grab' : 'pointer',
@@ -954,6 +980,68 @@ function SelectionHandles({
         />
       ))}
     </g>
+  );
+}
+
+/**
+ * A finger's touch targets round a selected object's handles (18d follow-up):
+ * a transparent disc of `radius` round each, under the handles as drawn, and
+ * only outside the box — clipped to everything but its outline — since the
+ * object is inside it and a press there moves it, as the Diagram's box
+ * decides (`transformHandleAt`). Where two targets overlap, the press is the
+ * nearer handle's, whichever disc it landed on.
+ */
+function TouchTargets({
+  corners,
+  handles,
+  radius,
+  panArmed,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+}: {
+  corners: readonly Vec2[];
+  handles: TransformHandles;
+  radius: number;
+  panArmed: boolean;
+  onPointerDown: (event: ReactPointerEvent<SVGElement>) => void;
+  onPointerMove: (event: ReactPointerEvent<SVGElement>) => void;
+  onPointerUp: (event: ReactPointerEvent<SVGElement>) => void;
+  onPointerCancel: (event: ReactPointerEvent<SVGElement>) => void;
+}) {
+  const clipId = `cp-touch-targets-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
+  const far = 1e6;
+  const outline = corners.map(({ x, y }, i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ');
+  const targets = [
+    ...handles.rotate.map(({ corner, at }) => ({ name: `rotate-${corner}`, at, cursor: 'grab' })),
+    ...handles.scale.map(({ handle, at }) => ({ name: `scale-${handle}`, at, cursor: panArmed ? 'grab' : 'pointer' })),
+  ];
+  return (
+    <>
+      <defs>
+        <clipPath id={clipId}>
+          <path clipRule="evenodd" d={`M ${-far} ${-far} H ${far} V ${far} H ${-far} Z ${outline} Z`} />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        {targets.map(({ name, at, cursor }) => (
+          <circle
+            key={name}
+            data-touch-target={name}
+            cx={at.x}
+            cy={at.y}
+            r={radius}
+            fill="transparent"
+            style={{ pointerEvents: 'auto', cursor }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerCancel}
+          />
+        ))}
+      </g>
+    </>
   );
 }
 

@@ -13,7 +13,10 @@ import { onFieldFocusRequest, takeFieldFocus, type FocusField } from './fieldFoc
  * out of the page, where a focus does nothing. A sheet that opens with the
  * field in it — the Settings sheet on a touch screen — focuses itself once
  * its content has mounted, after the field took the focus: the field takes it
- * back on the next frame, from the sheet and only from it.
+ * back on the next frame, from the sheet and only from it. A field disabled
+ * when asked — an x-ray's Depth while the faces of the step it was laid on are
+ * fetched (Revision 3) — leaves the request waiting, and takes it as it is
+ * enabled.
  */
 export function useFieldFocusRequest<T extends HTMLInputElement | HTMLTextAreaElement>(
   annotationId: string,
@@ -29,7 +32,8 @@ export function useFieldFocusRequest<T extends HTMLInputElement | HTMLTextAreaEl
       element.select();
     };
     const take = () => {
-      if (!element.isConnected || !takeFieldFocus(annotationId, field)) return;
+      // A disabled field takes no focus: the request waits for it to be enabled (below).
+      if (!element.isConnected || element.disabled || !takeFieldFocus(annotationId, field)) return;
       focus();
       cancelAnimationFrame(frame);
       // Not cancelled as the effect is cleaned up: a remount — React's strict
@@ -45,9 +49,13 @@ export function useFieldFocusRequest<T extends HTMLInputElement | HTMLTextAreaEl
       if (requested.annotationId === annotationId && requested.field === field) take();
     });
     const unwatch = typeof ResizeObserver === 'undefined' ? () => {} : observeResizeDeferred(element, take);
+    // Enabled again: an x-ray's Depth, held while the faces it was laid on are fetched (Revision 3).
+    const enabled = typeof MutationObserver === 'undefined' ? null : new MutationObserver(take);
+    enabled?.observe(element, { attributes: true, attributeFilter: ['disabled'] });
     return () => {
       stop();
       unwatch();
+      enabled?.disconnect();
     };
   }, [annotationId, field]);
   return ref;

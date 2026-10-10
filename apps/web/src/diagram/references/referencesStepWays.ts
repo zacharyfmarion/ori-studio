@@ -16,6 +16,7 @@ import { stepWays, waySignature, withWayChoice, wayChoicesOfSheet } from '../../
 import type { ReferencesCachedPlan } from '../../cp-workspace/references/referencesPlanCache';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import {
+  stepDiagramCardKey,
   stepDiagramKey,
   type DiagramReferencesSource,
   type DiagramStepDiagramPicture,
@@ -61,7 +62,8 @@ export function referencesStepWays(
   const { line } = source;
   if (!line) return { status: 'none' };
   const base = wayChoicesOfSheet(pattern.listing.ways, PLAN_SHEET);
-  const keyOf = (picture: Pick<DiagramStepDiagramPicture, 'key'>) => stepDiagramKey(picture.key, false);
+  // The card a picture shows, either side, its marks in it or lifted from it (17d).
+  const keyOf = (picture: Pick<DiagramStepDiagramPicture, 'key'>) => stepDiagramCardKey(picture.key);
 
   for (const landmarksFirst of [false, true]) {
     const { cards, strip } = planCards(t, plan, pattern, geometry, revision, { landmarksFirst, planWays: base });

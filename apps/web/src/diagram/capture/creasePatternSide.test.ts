@@ -175,6 +175,7 @@ describe('showCreasePatternSide', () => {
       layerOrder: null,
       spatial: null,
       onCamera: () => {},
+      registerLiveView: () => () => {},
       rotateTo: () => {},
       showAs: async () => true,
       setSide,

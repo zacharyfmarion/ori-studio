@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { LayoutGrid, Waypoints } from 'lucide-react';
 import {
+  DEFAULT_PATH_WIDTH_MM,
   FIRST_PAGE_NUMBER_RANGE,
   PAGE_COLUMNS_RANGE,
   PAGE_MARGIN_MM_RANGE,
@@ -144,14 +145,17 @@ export function DiagramPagePanel() {
             <>
               <NumberRow
                 label={t('panels:diagram.pagePane.pathWidthMm', 'Path width (mm)')}
-                value={setup.pathWidth.mm}
+                value={page.pathWidthMm}
                 min={PATH_WIDTH_MM_RANGE.min}
                 max={PATH_WIDTH_MM_RANGE.max}
                 step={1}
                 disabled={readOnly}
-                onCommit={(mm) => setup.setPathWidth(mm)}
-                // Until one is set the path keeps in proportion to the steps; the reset goes back to that.
-                onReset={setup.pathWidth.chosen ? () => setup.setPathWidth(null) : undefined}
+                onCommit={(pathWidthMm) => setPage({ pathWidthMm }, 'path_width')}
+                onReset={
+                  page.pathWidthMm !== DEFAULT_PATH_WIDTH_MM
+                    ? () => setPage({ pathWidthMm: DEFAULT_PATH_WIDTH_MM }, 'path_width')
+                    : undefined
+                }
               />
               <DiagramPathColorRow />
             </>

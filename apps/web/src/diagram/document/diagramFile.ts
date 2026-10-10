@@ -1,20 +1,27 @@
 /**
- * The diagram as it is stored in the project file (`workspace.diagram`), read
- * leniently and written back exactly.
+ * A diagram as it is stored in the project file (each of `workspace.diagrams`),
+ * read leniently and written back exactly.
  *
  * Three rules, from implementation-plans/diagram-workspace.md (Contracts):
  *
  * - **Malformed is dropped.** A step, annotation or asset that does not read is
  *   left out; the rest of the diagram opens. A diagram that is not an object at
  *   all reads as no diagram.
- * - **Unknown is kept.** An unrecognised kind at any depth — a step's source or
- *   picture, an annotation, an asset — is not malformed: it is a newer build's
- *   work. The enclosing step, annotation or asset is carried verbatim in its
+ * - **Unknown is kept.** An unrecognised kind, field or enumerated value at
+ *   any depth — a step's source or picture, a render or its camera, a
+ *   thumbnail's line, a scene's item, an annotation, an asset — is not
+ *   malformed: it is a newer build's work. So is content past what this build
+ *   keeps: an SVG, a scene or a References card longer than its cap, a bitmap
+ *   larger than it reads or in another format, a number past the range it
+ *   reads. The enclosing step, annotation or asset is carried verbatim in its
  *   `unknown` field and written back unchanged, so a desktop build that lags
- *   the web build never deletes what it cannot show.
+ *   the web build never deletes what it cannot show (decision 1 of the launch
+ *   review, 2026-10-09).
  * - **A newer document opens read-only.** When `formatVersion` is above this
  *   build's, the whole raw value is kept and written back unchanged; what is
- *   shown is a best-effort reading of it.
+ *   shown is a best-effort reading of it. Nothing else does: a document-level
+ *   field or value a newer build wrote falls back alone, and is written back
+ *   as it came (`DiagramNewerFields`, decision 2 of the launch review).
  *
  * Every string a user typed passes through `xmlText` on the way in, so what is
  * stored can always be written into an SVG page. Every uploaded SVG is
@@ -26,7 +33,8 @@
  * `SanitizeEnv`, and only when the diagram holds an SVG.
  */
 
-import { readFoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
+import { ANGLE_RADIUS_MM } from '../annotate/angleMarkStyle';
+import { FOLDED_FIGURE_CAMERA_KEYS, readFoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import {
   SPREAD_DIRECTIONS,
   SPREAD_KEEPS,
@@ -38,9 +46,9 @@ import {
 import type { DiagramWhiteArrowWidth } from '../../cp-workspace/references/diagram/diagramInk';
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import { readRegionReference } from '../../cp-workspace/regions/regionReference';
-import { readSheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
+import { isNewerSheetThumbnail, readSheetThumbnail, type SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import { isBuiltInPaperPresetId } from '../../lib/paper/paperPresets';
-import { readPaperScene } from '../../lib/paper/paperSceneValidate';
+import { isNewerPaperScene, readPaperScene } from '../../lib/paper/paperSceneValidate';
 import { normalizePaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import {
@@ -53,6 +61,7 @@ import {
   DEFAULT_WHITE_ARROW,
   DIVISIONS_OFFSET_MM,
   DIVISIONS_PARTS,
+  GLYPH_SCALE,
   LABEL_MAX_LENGTH,
   MAX_BEHIND_LAYERS,
   MAX_BEND,
@@ -61,11 +70,17 @@ import {
   MAX_STEP_ANNOTATIONS,
   MIN_CLOSE_UP_RADIUS,
   ZOOM_SIDE,
+  isAreaKind,
   isPointKind,
   isWithinReach,
+  rectangleAngle,
+  unitsPerFrame,
   type AnnotationReach,
 } from '../annotate/annotationModel';
+import { isAnnotationColor } from '../annotate/annotationColors';
+import { TEXT_OFFSET_PT_MAX, TEXT_SIZE_PT } from '../annotate/textStyle';
 import { windowReach } from '../zoom/zoomModel';
+import { digest } from '../pictures/pictureKey';
 import { NEWER_PAPER_FACES, SCENE_JSON_MAX_BYTES, readPaperFaces } from './paperFacesFile';
 import {
   EMBEDDED_RASTER_MAX_SIDE,
@@ -76,33 +91,44 @@ import {
   type SanitizeEnv,
 } from '../upload/svgSanitize';
 import {
+  snapshotDiagramStyle,
   DEFAULT_DIAGRAM_STYLE,
   DIAGRAM_FORMAT_VERSION,
   DIAGRAM_PAGE_SIDES,
   DIAGRAM_SHOW_AS,
+  FIRST_PAGE_NUMBER_RANGE,
+  PAGE_COLUMNS_RANGE,
+  PAGE_MARGIN_MM_RANGE,
+  PAGE_ROWS_RANGE,
   PAPER_SIZES,
+  PATH_WIDTH_MM_RANGE,
   SPREAD_AMOUNT_RANGE,
   SPREAD_AXIS_RANGE,
   SPREAD_SKEW_RANGE,
   isTurn,
   showAsOf,
+  carriedJson,
   isKnownAsset,
   normalizePageSetup,
   unsaidStepsPerPage,
   DEFAULT_PATH_COLOR,
+  DEFAULT_PATH_WIDTH_MM,
   readHexColor,
   randomDiagramId,
   withReferencedAssets,
   isKnownAnnotation,
+  type DiagramNewerFields,
   type DiagramTicks,
   type DiagramAnnotation,
   type DiagramAnnotationKind,
   type DiagramBehind,
+  type DiagramImportedMark,
   type DiagramPathNode,
   type DiagramPleatKinks,
   type DiagramRotation,
   type KnownDiagramAnnotation,
   type DiagramAsset,
+  type KnownDiagramAsset,
   type DiagramCpRender,
   type DiagramCpScope,
   type DiagramCpSource,
@@ -127,6 +153,7 @@ import {
   type DiagramStepPlace,
   type DiagramStepZoom,
   type DiagramZoomEdge,
+  type DiagramZoomAreaWas,
   type DiagramZoomOutline,
   type DiagramZoomShape,
   type QuarterTurns,
@@ -155,8 +182,8 @@ export interface ReadDiagramOptions {
 }
 
 /**
- * Read `workspace.diagram`. `null` for an absent diagram or one that is not an
- * object.
+ * Read one of `workspace.diagrams`. `null` for an absent diagram or one that
+ * is not an object.
  */
 export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): ReadDiagram | null {
   if (!isRecord(value)) return null;
@@ -166,10 +193,11 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
   let sanitizeEnv = options.sanitizeEnv;
   const env = () => (sanitizeEnv ??= browserSanitizeEnv());
   const assets = readAssets(value.assets, env);
+  const thumbnails = thumbnailTable(value.thumbnails);
   const steps: DiagramEntry[] = [];
   const seen = new Set<string>();
   for (const entry of Array.isArray(value.steps) ? value.steps : []) {
-    const step = readEntry(entry, assets, env);
+    const step = readEntry(entry, assets, env, thumbnails.resolve);
     // Two steps with one id would make every edit by id ambiguous; the first
     // one wins and the copy is malformed.
     if (step && !seen.has(step.id)) {
@@ -177,6 +205,7 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
       steps.push(step);
     }
   }
+  const newer = readNewerFields(value);
   const document: DiagramDocument = {
     formatVersion: DIAGRAM_FORMAT_VERSION,
     id: typeof value.id === 'string' && value.id.length > 0 ? value.id : newId('diagram'),
@@ -186,9 +215,15 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
     page: normalizePageSetup(value.page),
     steps,
     assets,
+    ...(newer ? { newer } : {}),
   };
-  const newer = formatVersion > DIAGRAM_FORMAT_VERSION || unknownDocumentField(value) !== null;
-  return { document, readOnly: newer, raw: value };
+  // The entries only a newer build's writing names go back with it, as they came.
+  const carried = thumbnails.carriedBy(carriedJson(document));
+  return {
+    document: carried ? { ...document, newer: { ...document.newer, thumbnails: carried } } : document,
+    readOnly: formatVersion > DIAGRAM_FORMAT_VERSION,
+    raw: value,
+  };
 }
 
 const DOCUMENT_KEYS = new Set([
@@ -200,6 +235,7 @@ const DOCUMENT_KEYS = new Set([
   'page',
   'steps',
   'assets',
+  'thumbnails',
 ]);
 const PAGE_KEYS = new Set([
   'size',
@@ -227,48 +263,87 @@ const PAGE_ENUMS: Record<string, readonly string[]> = {
   firstPageSide: DIAGRAM_PAGE_SIDES,
 };
 
+/** The ranges a page's numbers are read within: past one, a number is a newer build's. */
+const PAGE_RANGES: Readonly<Record<string, { readonly min: number; readonly max: number }>> = {
+  marginMm: PAGE_MARGIN_MM_RANGE,
+  columns: PAGE_COLUMNS_RANGE,
+  rows: PAGE_ROWS_RANGE,
+  pathWidthMm: PATH_WIDTH_MM_RANGE,
+};
+const PAGE_NUMBERS_KEYS: ReadonlySet<string> = new Set(['enabled', 'first']);
+const STYLE_KEYS: ReadonlySet<string> = new Set(['preset', 'style']);
+
 /**
- * The first document-level field a newer build wrote that this one cannot
- * keep, or `null`.
- *
- * Steps, annotations and assets of an unknown kind are carried one by one and
- * the rest of the diagram stays editable. A field of the document itself
- * cannot be carried that way: this build would write its own reading of it —
- * an unknown page size as A4 — and the next edit would build on that. So a key
- * it does not know, or a value it does not know for one of its enums, opens
- * the diagram read-only, as a newer `formatVersion` does, and the file is
- * written back as it came. A value of the wrong type is damage rather than
- * news, and is replaced as before.
+ * What a newer build wrote at the document's level that this build cannot
+ * read, each part as it came (decision 2 of the launch review): a field it
+ * has no name for, a Han style or a style it does not read, a page field it
+ * has no name for or whose value it does not read. Each falls back alone —
+ * shown as this build's default or nearest, the rest of the diagram editable
+ * — and is written back as it came until it is changed here. A value of the
+ * wrong type is damage rather than news, and is replaced as before.
  */
-export function unknownDocumentField(value: Record<string, unknown>): string | null {
-  for (const key of Object.keys(value)) if (!DOCUMENT_KEYS.has(key)) return key;
-  if (typeof value.hanStyle === 'string' && !HAN_STYLES.includes(value.hanStyle)) return 'hanStyle';
-  if (isRecord(value.style)) {
-    for (const key of Object.keys(value.style)) if (key !== 'preset' && key !== 'style') return `style.${key}`;
-    if (typeof value.style.preset === 'string' && !isBuiltInPaperPresetId(value.style.preset)) {
-      return 'style.preset';
-    }
+function readNewerFields(value: Record<string, unknown>): DiagramNewerFields | undefined {
+  const fields = Object.fromEntries(Object.entries(value).filter(([key]) => !DOCUMENT_KEYS.has(key)));
+  const page = readNewerPage(value.page);
+  const newer: DiagramNewerFields = {
+    ...(Object.keys(fields).length > 0 ? { fields } : {}),
+    ...(typeof value.hanStyle === 'string' && !HAN_STYLES.includes(value.hanStyle) ? { hanStyle: value.hanStyle } : {}),
+    ...(isRecord(value.style) && isNewerStyle(value.style) ? { style: value.style } : {}),
+    ...(page ? { page } : {}),
+  };
+  return Object.keys(newer).length > 0 ? newer : undefined;
+}
+
+/**
+ * A style a newer build wrote: with a field this build has no name for, a
+ * preset it does not have, or a paper style it would write back other than
+ * it came — a field, a pen or a light it does not read.
+ */
+function isNewerStyle(value: Record<string, unknown>): boolean {
+  if (hasNewerKey(value, STYLE_KEYS)) return true;
+  // A complete snapshot is drawable even when its built-in name is from a newer build.
+  if (!isRecord(value.style)) return typeof value.preset === 'string' && !isBuiltInPaperPresetId(value.preset);
+  return !sameJson(JSON.parse(JSON.stringify(normalizePaperStyle(value.style))), value.style);
+}
+
+/** The page fields of {@link readNewerFields}, under their keys; none when every one reads. */
+function readNewerPage(value: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(value)) return undefined;
+  const page: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (!PAGE_KEYS.has(key)) page[key] = entry;
+    else if (Object.hasOwn(PAGE_ENUMS, key) && isNewerWord(entry, PAGE_ENUMS[key]!)) page[key] = entry;
+    else if (Object.hasOwn(PAGE_RANGES, key) && isPastRange(entry, PAGE_RANGES[key]!)) page[key] = entry;
   }
-  if (isRecord(value.page)) {
-    for (const key of Object.keys(value.page)) if (!PAGE_KEYS.has(key)) return `page.${key}`;
-    for (const [key, known] of Object.entries(PAGE_ENUMS)) {
-      const entry = value.page[key];
-      if (typeof entry === 'string' && !known.includes(entry)) return `page.${key}`;
-    }
-    // A colour this build cannot read — another notation, a colour with alpha — is a newer build's.
-    if (typeof value.page.pathColor === 'string' && readHexColor(value.page.pathColor) === null) return 'page.pathColor';
-    const numbers = value.page.pageNumbers;
-    if (isRecord(numbers)) {
-      for (const key of Object.keys(numbers)) if (key !== 'enabled' && key !== 'first') return `page.pageNumbers.${key}`;
-    }
+  // A colour this build cannot read — another notation, a colour with alpha — is a newer build's.
+  if (typeof value.pathColor === 'string' && readHexColor(value.pathColor) === null) page.pathColor = value.pathColor;
+  const numbers = value.pageNumbers;
+  if (isRecord(numbers) && (hasNewerKey(numbers, PAGE_NUMBERS_KEYS) || isPastRange(numbers.first, FIRST_PAGE_NUMBER_RANGE))) {
+    page.pageNumbers = numbers;
   }
-  return null;
+  return Object.keys(page).length > 0 ? page : undefined;
+}
+
+/** A finite number outside `range`: a newer build's, which reads further. */
+function isPastRange(value: unknown, range: { readonly min: number; readonly max: number }): boolean {
+  return typeof value === 'number' && Number.isFinite(value) && (value < range.min || value > range.max);
+}
+
+/** Two JSON values alike, whatever the order of their keys. */
+function sameJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((entry, index) => sameJson(entry, b[index]));
+  }
+  if (!isRecord(a) || !isRecord(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && sameJson(a[key], b[key]));
 }
 
 const HAN_STYLES: readonly string[] = ['sc', 'tc', 'jp', 'kr'];
 
 /**
- * The value written to `workspace.diagram`. A read-only diagram is written as
+ * A diagram's value in `workspace.diagrams`. A read-only diagram is written as
  * it was read; otherwise every field is named here, a locked step, annotation
  * or asset goes back exactly as it came, and an asset nothing refers to any
  * more is left out (`withReferencedAssets`).
@@ -279,26 +354,89 @@ export function writeDiagram(
 ): Record<string, unknown> {
   if (readOnlyRaw) return readOnlyRaw;
   const document = withReferencedAssets(current);
+  // What a newer build wrote that this one cannot read goes back in its place, as it came.
+  const { newer } = document;
+  const thumbnails = new ThumbnailWriter(document, newer?.thumbnails);
+  const steps = document.steps.map((step) => writeStep(step, thumbnails));
   return {
     formatVersion: DIAGRAM_FORMAT_VERSION,
     id: document.id,
     title: document.title,
-    hanStyle: document.hanStyle,
-    style: document.style,
-    page: writePageSetup(document.page),
-    steps: document.steps.map(writeStep),
+    hanStyle: newer?.hanStyle ?? document.hanStyle,
+    style: newer?.style ?? snapshotDiagramStyle(document.style),
+    page: { ...writePageSetup(document.page), ...newer?.page },
+    steps,
     assets: Object.fromEntries(
       Object.entries(document.assets).map(([id, asset]) => [id, writeAsset(asset)])
     ),
+    ...thumbnails.table(),
+    ...newer?.fields,
   };
 }
 
 /**
+ * The thumbnails table as it is written (decision 4 of the launch review):
+ * every thumbnail the steps' links show, once, under a key from its content,
+ * as one string — so fifty steps linked to one sheet store its thumbnail
+ * once, and the file is not a line per coordinate. A source names its
+ * thumbnail by that key. The entries only a newer build's writing names
+ * ({@link carriedJson}) are written back as they came, while that writing is
+ * still in the diagram.
+ */
+class ThumbnailWriter {
+  private readonly entries = new Map<string, unknown>();
+  private readonly keys = new Map<string, string>();
+
+  constructor(document: DiagramDocument, carried: Readonly<Record<string, unknown>> | undefined) {
+    if (!carried) return;
+    const names = carriedJson(document);
+    for (const [key, entry] of Object.entries(carried)) {
+      const quoted = JSON.stringify(key);
+      if (names.some((json) => json.includes(quoted))) this.entries.set(key, entry);
+    }
+  }
+
+  /** The key a thumbnail is written under: one per content, never another's. */
+  keyOf(thumbnail: SheetThumbnail): string {
+    const json = thumbnailJson(thumbnail);
+    const known = this.keys.get(json);
+    if (known !== undefined) return known;
+    const base = `thumb-${digest(json)}`;
+    let key = base;
+    for (let suffix = 2; this.entries.has(key) && this.entries.get(key) !== json; suffix += 1) key = `${base}-${suffix}`;
+    this.entries.set(key, json);
+    this.keys.set(json, key);
+    return key;
+  }
+
+  /** The table, sorted by key so a save writes it one way; none when no step names one. */
+  table(): { thumbnails?: Record<string, unknown> } {
+    if (this.entries.size === 0) return {};
+    return { thumbnails: Object.fromEntries([...this.entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) };
+  }
+}
+
+/**
+ * A thumbnail's JSON, made once per thumbnail: a thumbnail never changes in
+ * place, and the links a read names by one key share one (`readThumbnailOnce`),
+ * so a save of fifty steps on one dense sheet writes its JSON once, not fifty times.
+ */
+const thumbnailJsonOf = new WeakMap<SheetThumbnail, string>();
+
+function thumbnailJson(thumbnail: SheetThumbnail): string {
+  let json = thumbnailJsonOf.get(thumbnail);
+  if (json === undefined) {
+    json = JSON.stringify(thumbnail);
+    thumbnailJsonOf.set(thumbnail, json);
+  }
+  return json;
+}
+
+/**
  * The page setup as written: every field, but the first page's side only when
- * it is the right, and the flow band's width and colour only when chosen — so
- * a diagram that never chose, as every one before the choices, opens in a
- * build that does not know them (an unknown page key opens read-only:
- * `unknownDocumentField`).
+ * it is the right, and the flow band's width and colour only when not their
+ * defaults — so a diagram that never chose, as every one before the choices,
+ * opens in a build that does not know them as it was made.
  *
  * The layout is always written. One that is not said reads as the grid
  * (`UNSAID_PAGE_LAYOUT`), the layout of every diagram saved before the flow
@@ -315,13 +453,13 @@ function writePageSetup(page: DiagramPageSetup): Record<string, unknown> {
   return {
     ...rest,
     ...(stepsPerPage !== unsaidStepsPerPage(page) ? { stepsPerPage } : {}),
-    ...(pathWidthMm !== null ? { pathWidthMm } : {}),
+    ...(pathWidthMm !== DEFAULT_PATH_WIDTH_MM ? { pathWidthMm } : {}),
     ...(pathColor !== DEFAULT_PATH_COLOR ? { pathColor } : {}),
     ...(firstPageSide === 'right' ? { firstPageSide } : {}),
   };
 }
 
-function writeStep(step: DiagramEntry): Record<string, unknown> {
+function writeStep(step: DiagramEntry, thumbnails: ThumbnailWriter): Record<string, unknown> {
   if (isTurn(step)) {
     if (step.unknown) return step.unknown;
     return step.kind === 'rotate'
@@ -332,8 +470,8 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
   return {
     id: step.id,
     revision: step.revision,
-    source: step.source,
-    picture: step.picture,
+    source: writeSource(step.source, thumbnails),
+    picture: writePicture(step.picture),
     annotations: step.annotations.map(writeAnnotation),
     annotatedPictureKey: step.annotatedPictureKey,
     text: step.text,
@@ -341,6 +479,17 @@ function writeStep(step: DiagramEntry): Record<string, unknown> {
     ...(step.zoom ? { zoom: writeStepZoom(step.zoom) } : {}),
     ...writeStepPlace(step),
   };
+}
+
+/** A source as written: a link's thumbnail by its key in the table. */
+function writeSource(source: DiagramStepSource | null, thumbnails: ThumbnailWriter): unknown {
+  if (source?.kind !== 'cp' && source?.kind !== 'references-step') return source;
+  return { ...source, thumbnail: thumbnails.keyOf(source.thumbnail) };
+}
+
+/** A picture as written: a References card's model as one string, so the file is not a line per coordinate. */
+function writePicture(picture: DiagramPicture | null): unknown {
+  return picture?.kind === 'step-diagram' ? { ...picture, model: JSON.stringify(picture.model) } : picture;
 }
 
 /**
@@ -367,23 +516,33 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     width,
     tail,
     fill,
+    color,
     text,
+    bold,
+    halo,
+    sizePt,
+    offsetPt,
     rotate,
     axis,
     other,
     ticks,
+    radiusMm,
+    hidden,
     kinks,
     mirrored,
     parts,
     offset,
     numbered,
+    shortDividers,
     behind,
     radius,
+    depth,
     scale,
     size,
     angle,
     edge,
     anchor,
+    imported,
     unknown: _known,
     ...unwritten
   } = annotation;
@@ -400,22 +559,34 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(width !== undefined ? { width } : {}),
     ...(tail !== undefined ? { tail } : {}),
     ...(fill !== undefined ? { fill } : {}),
+    ...(color !== undefined ? { color } : {}),
     ...(text !== undefined ? { text } : {}),
+    // Text's options (17b), each only as it is set: a plain label is written as every label was before them.
+    ...(bold ? { bold } : {}),
+    ...(halo ? { halo } : {}),
+    ...(sizePt !== undefined ? { sizePt } : {}),
+    ...(offsetPt !== undefined ? { offsetPt: [offsetPt[0], offsetPt[1]] } : {}),
     ...(rotate !== undefined ? { rotate } : {}),
     ...(axis !== undefined ? { axis } : {}),
     ...(other !== undefined ? { other } : {}),
     ...(ticks !== undefined ? { ticks } : {}),
+    ...(radiusMm !== undefined ? { radiusMm } : {}),
+    ...(hidden ? { hidden } : {}),
     ...(kinks !== undefined ? { kinks } : {}),
     ...(mirrored ? { mirrored } : {}),
     ...(parts !== undefined ? { parts } : {}),
     ...(offset !== undefined ? { offset } : {}),
     ...(numbered ? { numbered } : {}),
+    ...(shortDividers ? { shortDividers } : {}),
     ...(radius !== undefined ? { radius } : {}),
     ...(scale !== undefined ? { scale } : {}),
     ...(size !== undefined ? { size } : {}),
     ...(angle !== undefined ? { angle } : {}),
     ...(edge !== undefined ? { edge } : {}),
     ...(anchor !== undefined ? { anchor } : {}),
+    ...(depth !== undefined ? { depth } : {}),
+    // A mark lifted from a References card (17d); the author's own are written as every mark was.
+    ...(imported !== undefined ? { imported } : {}),
     // From end to end, as a reader expects it.
     ...(behind !== undefined
       ? { behind: { ...(behind.from !== undefined ? { from: behind.from } : {}), ...(behind.to !== undefined ? { to: behind.to } : {}) } }
@@ -454,12 +625,49 @@ function writeAsset(asset: DiagramAsset): Record<string, unknown> {
       };
 }
 
-/** The source kinds this build reads. Any other is a newer build's. */
-const SOURCE_KINDS = new Set(['upload', 'cp', 'references-step']);
-/** The picture kinds this build reads. */
-const PICTURE_KINDS = new Set(['asset', 'scene', 'fixed', 'step-diagram']);
-/** Within a crease-pattern source: the scopes this build reads. */
-const CP_SCOPE_KINDS = new Set(['segment']);
+/**
+ * The fields each kind of source is written with, and the parts of one that
+ * are records. A field outside its set is one a newer build added: read here,
+ * it would be dropped on the way out, so it makes the step a newer build's
+ * instead, carried whole and locked. A field joins its set only in the build
+ * that reads it; a kind with no set is a newer build's.
+ */
+const SOURCE_KEYS: Readonly<Record<DiagramStepSource['kind'], ReadonlySet<string>>> = {
+  upload: new Set(['kind', 'assetId', 'rotationQuarterTurns', 'mirrored']),
+  cp: new Set(['kind', 'scope', 'fingerprint', 'thumbnail', 'render', 'remembered']),
+  'references-step': new Set([
+    'kind',
+    'region',
+    'fingerprint',
+    'thumbnail',
+    'mode',
+    'settings',
+    'card',
+    'line',
+    'side',
+    'plan',
+    'way',
+    'sentence',
+    'marks',
+  ]),
+};
+/** Within a crease-pattern source: the scopes this build reads, and their fields. */
+const CP_SCOPE_KEYS: Readonly<Record<DiagramCpScope['kind'], ReadonlySet<string>>> = {
+  segment: new Set(['kind', 'region']),
+};
+/** The fields a region is written with (`readRegionReference`), its box's, and a point's of its rim. */
+const REGION_KEYS: ReadonlySet<string> = new Set(['boundary', 'bounds', 'segmentIdHint']);
+const REGION_BOUNDS_KEYS: ReadonlySet<string> = new Set(['minX', 'minY', 'maxX', 'maxY']);
+const REGION_POINT_KEYS: ReadonlySet<string> = new Set(['x', 'y']);
+/** Within a References source: the planner's settings, the line, and the marks it pulled. */
+const PLAN_SETTINGS_KEYS: ReadonlySet<string> = new Set([
+  'precreaseGrid',
+  'gridWhereNeeded',
+  'allowDanglingFolds',
+  'mergeSymmetricSteps',
+]);
+const PLAN_LINE_KEYS: ReadonlySet<string> = new Set(['n', 'd']);
+const PULLED_MARKS_KEYS: ReadonlySet<string> = new Set(['letters', 'highlights']);
 /**
  * The render modes this build reads, and the fields each is written with: a
  * mode or a field it has no name for is a newer build's render.
@@ -468,8 +676,33 @@ const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<str
   'crease-pattern': new Set(['mode', 'rotationDeg', 'side']),
   'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread']),
   'folded-3d': new Set(['mode', 'camera', 'side']),
-  simulated: new Set(['mode', 'foldPercent', 'view']),
+  // `shape` is Pose's mesh, which this build carries and never reads (`readCpRender`).
+  simulated: new Set(['mode', 'foldPercent', 'view', 'shape']),
 };
+/** The fields each kind of picture is written with, as {@link SOURCE_KEYS} are a source's. */
+const PICTURE_KEYS: Readonly<Record<DiagramPicture['kind'], ReadonlySet<string>>> = {
+  asset: new Set(['kind', 'assetId', 'paperScale', 'styleKey', 'key']),
+  scene: new Set(['kind', 'sceneJson', 'paperScale', 'styleKey', 'key', 'paperFaces']),
+  fixed: new Set(['kind', 'svg', 'widthPx', 'heightPx', 'key']),
+  'step-diagram': new Set(['kind', 'model', 'mirrored', 'key']),
+};
+/** The fields each kind of asset is written with: one with another is carried, as one of a kind this build does not know. */
+const ASSET_KEYS: Readonly<Record<KnownDiagramAsset['kind'], ReadonlySet<string>>> = {
+  svg: new Set(['id', 'kind', 'svg', 'widthPx', 'heightPx', 'bytes']),
+  raster: new Set(['id', 'kind', 'src', 'widthPx', 'heightPx', 'bytes']),
+};
+
+/**
+ * What this build makes of a step's source or picture: the value as it reads
+ * — null when it does not — and whether a newer build wrote it, with a kind,
+ * a field or a value this build has no name for at any depth, or with more
+ * than this build keeps. A newer build's makes its step one, carried whole
+ * and locked.
+ */
+interface StepPartRead<T> {
+  read: T | null;
+  newer: boolean;
+}
 
 /**
  * One entry in the order: a turn when it says what kind (D22) — a step never
@@ -480,9 +713,10 @@ const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<str
 function readEntry(
   value: unknown,
   assets: Record<string, DiagramAsset>,
-  env: () => SanitizeEnv
+  env: () => SanitizeEnv,
+  thumbnail: ThumbnailResolver
 ): DiagramEntry | null {
-  if (!isRecord(value) || !Object.hasOwn(value, 'kind')) return readStep(value, assets, env);
+  if (!isRecord(value) || !Object.hasOwn(value, 'kind')) return readStep(value, assets, env, thumbnail);
   const id = value.id;
   if (typeof id !== 'string' || id.length === 0) return null;
   const turn = readTurn(id, value);
@@ -510,45 +744,39 @@ const STEP_KEYS: ReadonlySet<string> = new Set([
   'place',
 ]);
 
-/**
- * The keys a scene picture is written with, as {@link STEP_KEYS} are a
- * step's: any other makes its step a newer build's.
- */
-const SCENE_PICTURE_KEYS: ReadonlySet<string> = new Set([
-  'kind',
-  'sceneJson',
-  'paperScale',
-  'styleKey',
-  'key',
-  'paperFaces',
-]);
-
 /** A record with a key outside `known`: a field a newer build wrote. */
 function hasNewerKey(value: Record<string, unknown>, known: ReadonlySet<string>): boolean {
   return Object.keys(value).some((key) => !known.has(key));
 }
 
-/** A scene picture with a field this build has no name for. */
-function isNewerScenePicture(value: unknown): boolean {
-  return isRecord(value) && value.kind === 'scene' && hasNewerKey(value, SCENE_PICTURE_KEYS);
+/** A record, when `value` is one, with a key outside `known`. */
+function isNewerRecord(value: unknown, known: ReadonlySet<string>): boolean {
+  return isRecord(value) && hasNewerKey(value, known);
+}
+
+/** A word where one of `known` goes, that is none of them: a newer build's. */
+function isNewerWord(value: unknown, known: readonly string[]): boolean {
+  return typeof value === 'string' && !known.includes(value);
 }
 
 /**
- * One step. A source or picture of a kind this build does not know — at any
- * depth: a crease-pattern source's scope, or a render's mode or field, the
- * remembered ones' too — makes the step a newer build's, carried whole and
- * locked; and so does one of a known kind
- * that names an asset of a kind this build does not know, which only that
- * newer build can draw, and a field of the step or of its scene picture this
- * build has no name for ({@link STEP_KEYS}, {@link SCENE_PICTURE_KEYS}). One
- * of a known kind that does not read — or that names an asset the file does
- * not hold, or one dropped on the way in — is left out, and the step keeps
- * its words.
+ * One step. A source or picture a newer build wrote makes the step a newer
+ * build's, carried whole and locked: one of a kind, or with a field or a
+ * value, this build has no name for at any depth — a crease-pattern source's
+ * scope, a render's mode, field or camera (the remembered ones' too), a
+ * thumbnail's line, a References card's plan, a scene's items — or with more
+ * than this build keeps, or naming an asset of a kind this build does not
+ * know, which only that newer build can draw ({@link readSource},
+ * {@link readPicture}). So does a field of the step this build has no name
+ * for ({@link STEP_KEYS}). One of a known kind that does not read — or that
+ * names an asset the file does not hold, or one dropped on the way in — is
+ * left out, and the step keeps its words.
  */
 function readStep(
   value: unknown,
   assets: Record<string, DiagramAsset>,
-  env: () => SanitizeEnv
+  env: () => SanitizeEnv,
+  thumbnail: ThumbnailResolver
 ): DiagramStep | null {
   if (!isRecord(value)) return null;
   const id = value.id;
@@ -572,35 +800,44 @@ function readStep(
     isRecord(value.picture) && value.picture.kind === 'scene' && value.picture.paperFaces !== undefined
       ? readPaperFaces(value.picture.paperFaces)
       : undefined;
-  if (
-    hasNewerKey(value, STEP_KEYS) ||
-    isNewerScenePicture(value.picture) ||
-    zoom === NEWER ||
-    paperFaces === NEWER_PAPER_FACES ||
-    isNewerKind(value.source, SOURCE_KINDS) ||
-    isNewerKind(value.picture, PICTURE_KINDS) ||
-    isNewerCpSource(value.source) ||
-    isNewerStepDiagram(value.picture) ||
-    namesUnknownAsset(value.source, assets) ||
-    namesUnknownAsset(value.picture, assets) ||
-    tooManyAnnotations(value.annotations)
-  ) {
-    return { ...base, unknown: value };
+  const sourceRead = readSource(value.source, assets, thumbnail);
+  const pictureRead = readPicture(value.picture, assets, env);
+  // Marks are drawn in their step's frame: a newer build's step whose frame
+  // or marks this build cannot read shows nothing.
+  if (zoom === NEWER || tooManyAnnotations(value.annotations)) return { ...base, unknown: value };
+  const framed = withZoom(base, zoom);
+  // A newer build's step shows what this build reads of it (decision 2 of the
+  // launch review): its picture, as its link and its frame say, and its marks
+  // — never its hand placement, which this build would lay it out by.
+  if (hasNewerKey(value, STEP_KEYS) || paperFaces === NEWER_PAPER_FACES || sourceRead.newer || pictureRead.newer) {
+    return { ...withPicture(framed, sourceRead.read, pictureRead.read, paperFaces), unknown: value };
   }
-  // An enlarged step keeps its frame; one that does not read is dropped, and
-  // the marks drawn in its window are out of step with the whole picture.
-  const enlarged: DiagramStep = {
-    ...(zoom === undefined ? base : zoom === null ? { ...base, annotatedPictureKey: null } : { ...base, zoom }),
-    ...readStepPlace(value.place),
-  };
-  const source = readSource(value.source, assets);
-  const picture = readPicture(value.picture, assets, env);
+  return withPicture({ ...framed, ...readStepPlace(value.place) }, sourceRead.read, pictureRead.read, paperFaces);
+}
+
+/**
+ * A step with its frame, when it is enlarged. One that does not read is
+ * dropped, and the marks drawn in its window are out of step with the whole
+ * picture.
+ */
+function withZoom(step: DiagramStep, zoom: DiagramStepZoom | null | undefined): DiagramStep {
+  if (zoom === undefined) return step;
+  return zoom === null ? { ...step, annotatedPictureKey: null } : { ...step, zoom };
+}
+
+/** A step with its source, and the picture that source takes. */
+function withPicture(
+  step: DiagramStep,
+  source: DiagramStepSource | null,
+  picture: DiagramPicture | null,
+  paperFaces: ReturnType<typeof readPaperFaces> | undefined
+): DiagramStep {
   if (source?.kind === 'upload') {
     // An upload is its asset: a source and a picture that disagree about which
     // one are not a picture to show.
     return picture?.kind === 'asset' && picture.assetId === source.assetId
-      ? { ...enlarged, source, picture }
-      : enlarged;
+      ? { ...step, source, picture }
+      : step;
   }
   if (source?.kind === 'cp') {
     // A linked step may have no picture yet ("Pose to capture"); its picture is
@@ -609,51 +846,110 @@ function readStep(
     // agree with it.
     const flat = source.render.mode === 'folded-flat' ? source.render : null;
     const faces =
-      picture?.kind === 'scene' && flat && paperFaces && paperFacesFitScene(paperFaces.faces, picture, flat.spread !== undefined)
+      picture?.kind === 'scene' &&
+      flat &&
+      paperFaces &&
+      paperFaces !== NEWER_PAPER_FACES &&
+      paperFacesFitScene(paperFaces.faces, picture, flat.spread !== undefined)
         ? { ...picture, paperFaces: paperFaces.json }
         : picture;
-    return { ...enlarged, source, picture: faces?.kind === 'step-diagram' ? null : faces };
+    return { ...step, source, picture: faces?.kind === 'step-diagram' ? null : faces };
   }
   if (source?.kind === 'references-step') {
     // A References step's picture is its card's diagram, or none.
-    return { ...enlarged, source, picture: picture?.kind === 'step-diagram' ? picture : null };
+    return { ...step, source, picture: picture?.kind === 'step-diagram' ? picture : null };
   }
   // A picture with no source to say what it is of is left out.
-  return enlarged;
+  return step;
 }
 
-/** A References card drawn with a primitive kind or style this build does not draw. */
-function isNewerStepDiagram(value: unknown): boolean {
+/**
+ * A crease-pattern source a newer build wrote: a field, a scope, a render —
+ * the one shown, or one remembered for another way of showing (D19) — or a
+ * thumbnail this build has no name for. Read here, such a source would be
+ * written back without what this build cannot name, so the step is carried
+ * whole instead.
+ */
+function isNewerCpSource(value: Record<string, unknown>): boolean {
   return (
-    isRecord(value) &&
-    value.kind === 'step-diagram' &&
-    validateStepDiagramModel(value.model).status === 'unknown'
+    hasNewerKey(value, SOURCE_KEYS.cp) ||
+    isNewerScope(value.scope) ||
+    isNewerRender(value.render) ||
+    isNewerRemembered(value.remembered) ||
+    isNewerSheetThumbnail(value.thumbnail)
+  );
+}
+
+/** A region with a field this build has no name for: of its own, of its box, or of a point of its rim. */
+function isNewerRegion(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (hasNewerKey(value, REGION_KEYS) || isNewerRecord(value.bounds, REGION_BOUNDS_KEYS)) return true;
+  return (
+    Array.isArray(value.boundary) &&
+    value.boundary.some((ring) => Array.isArray(ring) && ring.some((point) => isNewerRecord(point, REGION_POINT_KEYS)))
+  );
+}
+
+/** A crease-pattern source's scope of a kind, or with a field, this build has no name for. */
+function isNewerScope(value: unknown): boolean {
+  if (!isRecord(value) || typeof value.kind !== 'string') return false;
+  if (!Object.hasOwn(CP_SCOPE_KEYS, value.kind)) return true;
+  return hasNewerKey(value, CP_SCOPE_KEYS[value.kind as DiagramCpScope['kind']]) || isNewerRegion(value.region);
+}
+
+/**
+ * A References source a newer build wrote: a field, a mode or a side, or a
+ * field of its region, its planner's settings, its line or the marks it
+ * pulled, that this build has no name for; or a thumbnail it cannot keep.
+ */
+function isNewerReferencesSource(value: Record<string, unknown>): boolean {
+  return (
+    hasNewerKey(value, SOURCE_KEYS['references-step']) ||
+    isNewerRegion(value.region) ||
+    isNewerSheetThumbnail(value.thumbnail) ||
+    isNewerWord(value.mode, ['sequence', 'find']) ||
+    isNewerWord(value.side, ['front', 'back']) ||
+    isNewerRecord(value.settings, PLAN_SETTINGS_KEYS) ||
+    isNewerRecord(value.line, PLAN_LINE_KEYS) ||
+    isNewerRecord(value.marks, PULLED_MARKS_KEYS)
   );
 }
 
 /**
- * A crease-pattern source with a scope this build does not read, or a render
- * — the one shown, or one remembered for another way of showing (D19) — that
- * a newer build wrote. Read here, such a render would be written back without
- * what this build cannot name, so the step is carried whole instead.
+ * An upload source a newer build wrote: a field this build has no name for,
+ * a turn past the four it draws, or an asset of a kind it does not know.
  */
-function isNewerCpSource(value: unknown): boolean {
-  if (!isRecord(value) || value.kind !== 'cp') return false;
-  return isNewerKind(value.scope, CP_SCOPE_KINDS) || isNewerRender(value.render) || isNewerRemembered(value.remembered);
+function isNewerUploadSource(value: Record<string, unknown>, assets: Record<string, DiagramAsset>): boolean {
+  const turns = value.rotationQuarterTurns;
+  return (
+    hasNewerKey(value, SOURCE_KEYS.upload) ||
+    (typeof turns === 'number' && Number.isFinite(turns) && readQuarterTurns(turns) === null) ||
+    namesUnknownAsset(value, assets)
+  );
 }
 
 /**
- * A render of a mode, with a field, or with a spread or a crease pattern's
- * side this build does not read. A render that does not read at all is
- * damage, judged where it is read.
+ * A render of a mode, with a field, a camera's field or a side this build
+ * has no name for, a spread it does not read, or a fold past the whole of
+ * one. A render that does not read at all is damage, judged where it is read.
  */
 function isNewerRender(value: unknown): boolean {
   if (!isRecord(value) || typeof value.mode !== 'string') return false;
   if (!Object.hasOwn(CP_RENDER_FIELDS, value.mode)) return true;
   const fields = CP_RENDER_FIELDS[value.mode as DiagramCpRender['mode']];
-  if (Object.keys(value).some((key) => !fields.has(key))) return true;
-  if (value.mode === 'crease-pattern') return readPatternSide(value.side) === NEWER;
-  return value.mode === 'folded-flat' && readSpread(value.spread) === NEWER;
+  if (hasNewerKey(value, fields)) return true;
+  switch (value.mode as DiagramCpRender['mode']) {
+    case 'crease-pattern':
+      return readPatternSide(value.side) === NEWER;
+    case 'folded-flat':
+      return readSpread(value.spread) === NEWER || isNewerWord(value.side, ['front', 'back']);
+    case 'folded-3d':
+      return isNewerRecord(value.camera, FOLDED_FIGURE_CAMERA_KEYS) || isNewerWord(value.side, ['front', 'back']);
+    case 'simulated': {
+      const foldPercent = finiteNumber(value.foldPercent);
+      return isNewerRecord(value.view, FOLDED_FIGURE_CAMERA_KEYS) || (foldPercent !== null && (foldPercent < 0 || foldPercent > 100));
+    }
+  }
 }
 
 /**
@@ -674,32 +970,110 @@ function isNewerRemembered(value: unknown): boolean {
 }
 
 /** A source or picture naming an asset the table carries but this build cannot read. */
-function namesUnknownAsset(value: unknown, assets: Record<string, DiagramAsset>): boolean {
-  if (!isRecord(value) || typeof value.assetId !== 'string') return false;
+function namesUnknownAsset(value: Record<string, unknown>, assets: Record<string, DiagramAsset>): boolean {
+  if (typeof value.assetId !== 'string') return false;
   const asset = Object.hasOwn(assets, value.assetId) ? assets[value.assetId] : undefined;
   return asset !== undefined && !isKnownAsset(asset);
 }
 
-/** A value with a `kind` this build does not read. */
-function isNewerKind(value: unknown, known: ReadonlySet<string>): boolean {
-  return isRecord(value) && typeof value.kind === 'string' && !known.has(value.kind);
+/** The thumbnail a link names by its key: undefined for a key the table does not hold. */
+type ThumbnailResolver = (key: string) => unknown;
+
+/**
+ * A link's thumbnail, read once for each thumbnail the file holds: the links
+ * that name one entry of the table share one thumbnail, as they share it in
+ * the file, rather than fifty copies of a dense sheet's strokes.
+ */
+const readThumbnails = new WeakMap<object, SheetThumbnail | null>();
+
+function readThumbnailOnce(value: unknown): SheetThumbnail | null {
+  if (!isRecord(value)) return null;
+  let thumbnail = readThumbnails.get(value);
+  if (thumbnail === undefined) {
+    thumbnail = readSheetThumbnail(value);
+    readThumbnails.set(value, thumbnail);
+  }
+  return thumbnail;
 }
 
-function readSource(value: unknown, assets: Record<string, DiagramAsset>): DiagramStepSource | null {
-  if (!isRecord(value)) return null;
-  if (value.kind === 'cp') return readCpSource(value);
-  if (value.kind === 'references-step') return readReferencesSource(value);
-  if (value.kind !== 'upload') return null;
+/**
+ * The thumbnails table as read (decision 4): each entry parsed when a link
+ * first names it, and once. An entry is a thumbnail's JSON as one string; a
+ * record is taken as the thumbnail itself. And the entries named anywhere a
+ * newer build wrote ({@link carriedJson}), which go back with it as they came.
+ */
+function thumbnailTable(value: unknown): {
+  resolve: ThumbnailResolver;
+  carriedBy: (carried: readonly string[]) => Record<string, unknown> | undefined;
+} {
+  const table = isRecord(value) ? value : {};
+  const parsed = new Map<string, unknown>();
+  const resolve = (key: string): unknown => {
+    if (!Object.hasOwn(table, key)) return undefined;
+    if (parsed.has(key)) return parsed.get(key);
+    const entry = table[key];
+    let thumbnail: unknown = isRecord(entry) ? entry : undefined;
+    if (typeof entry === 'string') {
+      try {
+        thumbnail = JSON.parse(entry);
+      } catch {
+        thumbnail = undefined;
+      }
+    }
+    parsed.set(key, thumbnail);
+    return thumbnail;
+  };
+  const carriedBy = (carried: readonly string[]) => {
+    if (carried.length === 0) return undefined;
+    const named = Object.entries(table).filter(([key]) => {
+      const quoted = JSON.stringify(key);
+      return carried.some((json) => json.includes(quoted));
+    });
+    return named.length > 0 ? Object.fromEntries(named) : undefined;
+  };
+  return { resolve, carriedBy };
+}
+
+/**
+ * A step's source, by its kind: what reads of it, and whether a newer build
+ * wrote it ({@link StepPartRead}). A kind this build has no name for is a
+ * newer build's; anything that is not a source at all is none.
+ */
+function readSource(
+  raw: unknown,
+  assets: Record<string, DiagramAsset>,
+  thumbnail: ThumbnailResolver
+): StepPartRead<DiagramStepSource> {
+  if (!isRecord(raw)) return { read: null, newer: false };
+  // A link names its thumbnail by its key in the table; one from before the table holds it.
+  const value = typeof raw.thumbnail === 'string' ? { ...raw, thumbnail: thumbnail(raw.thumbnail) } : raw;
+  switch (value.kind) {
+    case 'upload':
+      return { read: readUploadSource(value, assets), newer: isNewerUploadSource(value, assets) };
+    case 'cp':
+      return { read: readCpSource(value), newer: isNewerCpSource(value) };
+    case 'references-step':
+      return { read: readReferencesSource(value), newer: isNewerReferencesSource(value) };
+    default:
+      return { read: null, newer: typeof value.kind === 'string' };
+  }
+}
+
+/** An upload's source: the asset it shows, which must read, and how it is turned and flipped. */
+function readUploadSource(value: Record<string, unknown>, assets: Record<string, DiagramAsset>): DiagramStepSource | null {
   const assetId = value.assetId;
   if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
-  const turns = value.rotationQuarterTurns;
   return {
     kind: 'upload',
     assetId,
-    rotationQuarterTurns:
-      turns === 0 || turns === 1 || turns === 2 || turns === 3 ? (turns as QuarterTurns) : 0,
+    rotationQuarterTurns: readQuarterTurns(value.rotationQuarterTurns) ?? 0,
     mirrored: value.mirrored === true,
   };
+}
+
+/** A whole number of quarter turns, 0 to 3; null for anything else. */
+function readQuarterTurns(value: unknown): QuarterTurns | null {
+  return value === 0 || value === 1 || value === 2 || value === 3 ? value : null;
 }
 
 /**
@@ -715,7 +1089,7 @@ export function storedCpSource(source: DiagramCpSource): DiagramCpSource | null 
 function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
   const scope = readCpScope(value.scope);
   const render = readCpRender(value.render);
-  const thumbnail = readSheetThumbnail(value.thumbnail);
+  const thumbnail = readThumbnailOnce(value.thumbnail);
   const fingerprint = value.fingerprint;
   if (!scope || !render || !thumbnail) return null;
   if (typeof fingerprint !== 'string' || fingerprint.length === 0) return null;
@@ -749,10 +1123,24 @@ export function storedReferencesSource(source: DiagramReferencesSource): Diagram
   return readReferencesSource(JSON.parse(JSON.stringify(source)) as Record<string, unknown>);
 }
 
+/**
+ * Marks as a step stores them (17d): written and read back through the
+ * file's own reader, as {@link storedReferencesSource} is, so the marks lifted
+ * from a card are field for field what a load gives — the same shapes, in
+ * the same order. One the reader would not take as this build's is left out.
+ */
+export function storedAnnotations(
+  annotations: readonly KnownDiagramAnnotation[],
+  reach: AnnotationReach = PICTURE_REACH
+): KnownDiagramAnnotation[] {
+  const written = JSON.parse(JSON.stringify(annotations.map(writeAnnotation))) as unknown;
+  return readAnnotations(written, reach).filter(isKnownAnnotation);
+}
+
 /** A References source, every field checked; null when any does not read. */
 function readReferencesSource(value: Record<string, unknown>): DiagramReferencesSource | null {
   const region = readRegionReference(value.region);
-  const thumbnail = readSheetThumbnail(value.thumbnail);
+  const thumbnail = readThumbnailOnce(value.thumbnail);
   if (!region || !thumbnail) return null;
   // Null is a sheet that could not be fingerprinted when it was sent; an empty one is not a fingerprint.
   const fingerprint = value.fingerprint;
@@ -769,6 +1157,7 @@ function readReferencesSource(value: Record<string, unknown>): DiagramReferences
   const plan = typeof value.plan === 'string' && value.plan.length > 0 ? value.plan : undefined;
   const way = typeof value.way === 'string' && value.way.length > 0 ? value.way : undefined;
   const sentence = typeof value.sentence === 'string' ? xmlText(value.sentence) : undefined;
+  const marks = readPulledMarks(value.marks);
   return {
     kind: 'references-step',
     region,
@@ -782,7 +1171,18 @@ function readReferencesSource(value: Record<string, unknown>): DiagramReferences
     ...(plan !== undefined ? { plan } : {}),
     ...(way !== undefined ? { way } : {}),
     ...(sentence !== undefined ? { sentence } : {}),
+    ...(marks !== undefined ? { marks } : {}),
   };
+}
+
+/**
+ * Which of a card's marks a step pulled (17d): letters and reference lines,
+ * each a boolean. One that does not read is dropped alone, as a plan or a
+ * way is: the step pulls every mark again, as one sent before the choice.
+ */
+function readPulledMarks(value: unknown): DiagramReferencesSource['marks'] {
+  if (!isRecord(value) || typeof value.letters !== 'boolean' || typeof value.highlights !== 'boolean') return undefined;
+  return { letters: value.letters, highlights: value.highlights };
 }
 
 /** The four planner settings, each a boolean; undefined when they do not read. */
@@ -857,7 +1257,9 @@ function readCpRender(value: unknown): DiagramCpRender | null {
       const foldPercent = finiteNumber(value.foldPercent);
       const view = readFoldedFigureCamera(value.view);
       if (foldPercent === null || foldPercent < 0 || foldPercent > 100 || !view) return null;
-      return { mode: 'simulated', foldPercent, view };
+      // Pose's mesh, carried as it came: one that is no record is dropped alone.
+      const shape = isRecord(value.shape) ? value.shape : undefined;
+      return { mode: 'simulated', foldPercent, view, ...(shape ? { shape } : {}) };
     }
     default:
       return null;
@@ -924,12 +1326,32 @@ function readPicture(
   value: unknown,
   assets: Record<string, DiagramAsset>,
   env: () => SanitizeEnv
-): DiagramPicture | null {
-  if (!isRecord(value)) return null;
+): StepPartRead<DiagramPicture> {
+  if (!isRecord(value)) return { read: null, newer: false };
+  if (typeof value.kind !== 'string') return { read: null, newer: false };
+  if (!Object.hasOwn(PICTURE_KEYS, value.kind)) return { read: null, newer: true };
+  const kind = value.kind as DiagramPicture['kind'];
+  const read = readPictureOfKind(kind, value, assets, env);
+  const newer = hasNewerKey(value, PICTURE_KEYS[kind]) || read === NEWER || (kind === 'asset' && namesUnknownAsset(value, assets));
+  return { read: read === NEWER ? null : read, newer };
+}
+
+/**
+ * A picture of a kind this build reads: null when it does not read, and a
+ * newer build's when it holds more than this build keeps — a scene or an SVG
+ * past its cap, a scene with an item or a field this build has no name for,
+ * a References card drawn with a primitive it does not draw.
+ */
+function readPictureOfKind(
+  kind: DiagramPicture['kind'],
+  value: Record<string, unknown>,
+  assets: Record<string, DiagramAsset>,
+  env: () => SanitizeEnv
+): DiagramPicture | typeof NEWER | null {
   const key = value.key;
   if (typeof key !== 'string' || key.length === 0) return null;
   const paperScale = positiveOrNull(value.paperScale);
-  switch (value.kind) {
+  switch (kind) {
     case 'asset': {
       const assetId = value.assetId;
       if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
@@ -938,7 +1360,7 @@ function readPicture(
     }
     case 'scene': {
       const read = readSceneJson(value.sceneJson);
-      if (read === null) return null;
+      if (read === null || read === NEWER) return read;
       const styleKey = typeof value.styleKey === 'string' ? value.styleKey : null;
       const picture: DiagramScenePicture = { kind: 'scene', sceneJson: read.json, paperScale, styleKey, key };
       readScenes.set(picture, read.scene);
@@ -947,13 +1369,25 @@ function readPicture(
     case 'fixed':
       return readFixedPicture(value, key, env());
     case 'step-diagram': {
-      const read = validateStepDiagramModel(value.model);
+      const read = validateStepDiagramModel(readModelJson(value.model));
+      if (read.status === 'unknown') return NEWER;
       return read.status === 'ok'
         ? { kind: 'step-diagram', model: read.model, mirrored: value.mirrored === true, key }
         : null;
     }
-    default:
-      return null;
+  }
+}
+
+/**
+ * A References card's model as stored: one string of JSON (decision 4), or
+ * the record a file from before held. A string that is not JSON is no model.
+ */
+function readModelJson(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
   }
 }
 
@@ -971,23 +1405,28 @@ const readScenes = new WeakMap<DiagramScenePicture, unknown>();
 /**
  * A stored scene, validated as any scene from a file is (`readPaperScene`,
  * which drops markup), and written back in the validated form, so what is kept
- * is only what was checked; with the scene it was checked as.
+ * is only what was checked; with the scene it was checked as. One longer than
+ * this build keeps, or with an item or a field it has no name for, is a newer
+ * build's: carried whole with its step, never cut short.
  */
-function readSceneJson(value: unknown): { json: string; scene: unknown } | null {
-  if (typeof value !== 'string' || value.length > SCENE_JSON_MAX_BYTES) return null;
+function readSceneJson(value: unknown): { json: string; scene: unknown } | typeof NEWER | null {
+  if (typeof value !== 'string') return null;
+  // Never parsed: past the cap, it is only carried.
+  if (value.length > SCENE_JSON_MAX_BYTES) return NEWER;
   let parsed: unknown;
   try {
     parsed = JSON.parse(value);
   } catch {
     return null;
   }
+  if (isNewerPaperScene(parsed)) return NEWER;
   const scene = readPaperScene(parsed);
   if (!scene) return null;
   // The cap holds for what is kept, too: filling in a field's default can
-  // make the written scene longer than the one read, and a file this build
-  // saved must load in it again.
+  // make the written scene longer than the one read. A file this build saved
+  // never does; one that does is carried as it came.
   const json = JSON.stringify(scene);
-  return json.length <= SCENE_JSON_MAX_BYTES ? { json, scene } : null;
+  return json.length <= SCENE_JSON_MAX_BYTES ? { json, scene } : NEWER;
 }
 
 /**
@@ -1009,13 +1448,17 @@ function readFixedPicture(
   value: Record<string, unknown>,
   key: string,
   env: SanitizeEnv
-): DiagramFixedPicture | null {
-  if (typeof value.svg !== 'string' || value.svg.length > SVG_STORED_MAX_BYTES) return null;
+): DiagramFixedPicture | typeof NEWER | null {
+  if (typeof value.svg !== 'string') return null;
+  // Longer than this build keeps: a newer build's, carried and never sanitized here.
+  if (value.svg.length > SVG_STORED_MAX_BYTES) return NEWER;
   // A key that cannot prefix an id is refused by the sanitizer.
   const result = sanitizeSvg(value.svg, { idPrefix: key, mode: 'load', env });
+  if (!result.ok) return null;
   // Checked again after sanitizing, as an SVG asset is: prefixing every id
-  // lengthens the markup, and what is saved must load again.
-  if (!result.ok || result.svg.length > SVG_STORED_MAX_BYTES) return null;
+  // lengthens the markup. A picture this build saved loads again; one that
+  // does not is carried as it came.
+  if (result.svg.length > SVG_STORED_MAX_BYTES) return NEWER;
   return { kind: 'fixed', svg: result.svg, widthPx: result.widthPx, heightPx: result.heightPx, key };
 }
 
@@ -1026,7 +1469,8 @@ function hasKnownAsset(assets: Record<string, DiagramAsset>, id: string): boolea
 
 /** The fields each kind is written with; any other makes the annotation a newer build's. */
 const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<string>>> = (() => {
-  const base = ['id', 'kind', 'from', 'to'];
+  // Every kind can be a mark lifted from a References card (17d).
+  const base = ['id', 'kind', 'from', 'to', 'imported'];
   const fields = (...more: string[]) => new Set([...base, ...more]);
   return {
     'valley-arrow': fields('bend', 'path', 'behind'),
@@ -1040,14 +1484,20 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'valley-line': fields('behind'),
     'mountain-line': fields('behind'),
     'hidden-line': fields(),
-    label: fields('text'),
-    circle: fields('behind'),
+    'solid-line': fields('color', 'behind'),
+    label: fields('text', 'color', 'bold', 'halo', 'sizePt', 'offsetPt'),
+    circle: fields('behind', 'radius'),
     'right-angle': fields(),
     callout: fields('text'),
-    'angle-mark': fields('other', 'ticks'),
-    divisions: fields('parts', 'offset', 'mirrored', 'ticks', 'numbered'),
+    'angle-mark': fields('other', 'ticks', 'radiusMm', 'hidden'),
+    divisions: fields('parts', 'offset', 'mirrored', 'ticks', 'numbered', 'shortDividers'),
     'close-up': fields('radius', 'scale'),
     zoom: fields('radius', 'size', 'angle', 'scale', 'edge', 'anchor'),
+    star: fields('fill', 'angle', 'scale'),
+    eye: fields('angle', 'scale'),
+    oval: fields('size', 'angle'),
+    rectangle: fields('size', 'angle'),
+    'x-ray': fields('radius', 'anchor', 'depth'),
   };
 })();
 
@@ -1081,7 +1531,31 @@ function readAnnotations(value: unknown, reach: AnnotationReach): DiagramAnnotat
   return out;
 }
 
+/**
+ * One annotation: its kind's fields, then the tag a mark lifted from a
+ * References card carries (17d) — a state this build does not know is news,
+ * told before any damage, as for the rest.
+ */
 function readAnnotation(
+  id: string,
+  entry: Record<string, unknown>,
+  reach: AnnotationReach
+): KnownDiagramAnnotation | typeof NEWER | null {
+  const imported = readImported(entry.imported);
+  if (imported === NEWER) return NEWER;
+  const read = readAnnotationOfKind(id, entry, reach);
+  if (read === null || read === NEWER || imported === undefined) return read;
+  return imported === null ? null : { ...read, imported };
+}
+
+/** A lifted mark's tag (17d): unsaid, the author's; `untouched` or `edited`; another word, a newer build's; anything else, damage. */
+function readImported(value: unknown): DiagramImportedMark | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return null;
+  return value === 'untouched' || value === 'edited' ? value : NEWER;
+}
+
+function readAnnotationOfKind(
   id: string,
   entry: Record<string, unknown>,
   reach: AnnotationReach
@@ -1092,8 +1566,11 @@ function readAnnotation(
   const fields = ANNOTATION_FIELDS[kind];
   if (Object.keys(entry).some((key) => !fields.has(key))) return NEWER;
   const from = readAnnotationPoint(entry.from, reach);
-  // A sign's, a label's or an enlarge area's one place is `from`; `to` is written as it again.
-  const to = isPointKind(kind) || kind === 'zoom' ? from : readAnnotationPoint(entry.to, reach);
+  // A sign's, a label's, an enlarge area's, an eye's, a shape's or an x-ray's one place is `from`; `to` is written as it again.
+  const to =
+    isPointKind(kind) || kind === 'zoom' || kind === 'eye' || isAreaKind(kind) || kind === 'x-ray'
+      ? from
+      : readAnnotationPoint(entry.to, reach);
   if (from === null || to === null) return null;
   if (from === NEWER || to === NEWER) return NEWER;
   // The ends behind a flap, for a kind that has them: news before damage, as for the rest.
@@ -1146,12 +1623,30 @@ function readAnnotation(
       if (first[0] !== from[0] || first[1] !== from[1] || last[0] !== to[0] || last[1] !== to[1]) return null;
       return { ...annotation, path, width, tail, ...(fill !== undefined ? { fill } : {}) };
     }
+    case 'label': {
+      // Its words, then its options (17b): news before damage, as for the rest.
+      const text = readLabelText(entry.text);
+      const color = readColor(entry.color);
+      const bold = readFlag(entry.bold);
+      const halo = readFlag(entry.halo);
+      const sizePt = readTextSize(entry.sizePt);
+      const offsetPt = readTextOffset(entry.offsetPt);
+      if (text === NEWER || color === NEWER || sizePt === NEWER || offsetPt === NEWER) return NEWER;
+      if (text === null || color === null || bold === null || halo === null || sizePt === null || offsetPt === null) return null;
+      return {
+        ...annotation,
+        text,
+        ...(color !== undefined ? { color } : {}),
+        ...(bold ? { bold: true } : {}),
+        ...(halo ? { halo: true } : {}),
+        ...(sizePt !== undefined ? { sizePt } : {}),
+        ...(offsetPt !== undefined ? { offsetPt } : {}),
+      };
+    }
     // A callout's words are read as a label's: one line, as long as a label may be.
-    case 'label':
     case 'callout': {
-      if (typeof entry.text !== 'string') return null;
-      const text = xmlText(entry.text);
-      return text.length > LABEL_MAX_LENGTH ? NEWER : { ...annotation, text };
+      const text = readLabelText(entry.text);
+      return text === null || text === NEWER ? text : { ...annotation, text };
     }
     case 'rotate': {
       const rotate = readRotation(entry.rotate);
@@ -1170,7 +1665,13 @@ function readAnnotation(
       const ticks = readTicks(entry.ticks);
       if (other === NEWER || ticks === NEWER) return NEWER;
       if (other === null || ticks === null) return null;
-      const mark: KnownDiagramAnnotation = { ...annotation, other, ...(ticks !== undefined ? { ticks } : {}) };
+      const radiusMm = entry.radiusMm === undefined ? undefined : finiteNumber(entry.radiusMm);
+      if (radiusMm === null || (radiusMm !== undefined && radiusMm <= 0) || (entry.hidden !== undefined && entry.hidden !== true)) return null;
+      if (radiusMm !== undefined && (radiusMm < ANGLE_RADIUS_MM.min || radiusMm > ANGLE_RADIUS_MM.max)) return NEWER;
+      const mark: KnownDiagramAnnotation = {
+        ...annotation, other, ...(ticks !== undefined ? { ticks } : {}),
+        ...(radiusMm !== undefined ? { radiusMm } : {}), ...(entry.hidden === true ? { hidden: true } : {}),
+      };
       // Arms that make no angle mark none.
       return angleMarkArms(mark) ? mark : null;
     }
@@ -1183,16 +1684,20 @@ function readAnnotation(
       return { ...annotation, ...(kinks !== undefined ? { kinks } : {}), ...(mirrored ? { mirrored: true } : {}) };
     }
     case 'divisions': {
-      // Its parts and its offset, which it must have, its ticks, its side and
-      // whether it prints its count; a value past the ranges this build draws
-      // is news, told before damage.
+      // Its parts and its offset, which it must have, its ticks, its side,
+      // whether it prints its count and whether its dividers between its ends
+      // are short (Revision 3); a value past the ranges this build draws is
+      // news, told before damage.
       const parts = readDivisionsParts(entry.parts);
       const offset = readDivisionsOffset(entry.offset);
       const ticks = readTicks(entry.ticks);
       const mirrored = readMirrored(entry.mirrored);
       const numbered = readNumbered(entry.numbered);
+      const shortDividers = readFlag(entry.shortDividers);
       if (parts === NEWER || offset === NEWER || ticks === NEWER) return NEWER;
-      if (parts === null || offset === null || ticks === null || mirrored === null || numbered === null) return null;
+      if (parts === null || offset === null || ticks === null || mirrored === null || numbered === null || shortDividers === null) {
+        return null;
+      }
       return {
         ...annotation,
         parts,
@@ -1200,12 +1705,13 @@ function readAnnotation(
         ...(ticks !== undefined ? { ticks } : {}),
         ...(mirrored ? { mirrored: true } : {}),
         ...(numbered ? { numbered: true } : {}),
+        ...(shortDividers ? { shortDividers: true } : {}),
       };
     }
     case 'close-up': {
       // Its area's radius, which it must have, and its scale; a value past the
       // ranges this build draws is news, told before damage.
-      const radius = readCloseUpRadius(entry.radius);
+      const radius = readCloseUpRadius(entry.radius, unitsPerFrame(reach));
       const scale = readCloseUpScale(entry.scale);
       if (radius === NEWER || scale === NEWER) return NEWER;
       if (radius === null || scale === null) return null;
@@ -1213,14 +1719,79 @@ function readAnnotation(
     }
     case 'zoom':
       return readZoomArea(annotation, entry);
+    case 'solid-line': {
+      // Its colour (17a); unsaid, the style's arrow ink.
+      const color = readColor(entry.color);
+      if (color === NEWER || color === null) return color;
+      return color !== undefined ? { ...annotation, color } : annotation;
+    }
+    case 'star': {
+      // Its fill, as a white arrow's; its scale, as a close-up's, past its
+      // range a newer build's — news before damage, as for the rest. Its turn
+      // is any number, read within [0, 360); one that does not read is
+      // dropped alone, and the star kept upright.
+      const fill = readFill(entry.fill);
+      const scale = readGlyphScale(entry.scale);
+      if (fill === NEWER || scale === NEWER) return NEWER;
+      if (fill === null || scale === null) return null;
+      const angle = finiteNumber(entry.angle);
+      return {
+        ...annotation,
+        ...(fill !== undefined ? { fill } : {}),
+        ...(angle !== null ? { angle: normalizeDegrees(angle) } : {}),
+        ...(scale !== undefined ? { scale } : {}),
+      };
+    }
+    case 'eye': {
+      // Its scale as a star's, past its range a newer build's; the way it
+      // looks any number, read within [0, 360), one that does not read
+      // dropped alone, and the eye kept looking right (Revision 3).
+      const scale = readGlyphScale(entry.scale);
+      if (scale === NEWER || scale === null) return scale;
+      const angle = finiteNumber(entry.angle);
+      return {
+        ...annotation,
+        ...(angle !== null ? { angle: normalizeDegrees(angle) } : {}),
+        ...(scale !== undefined ? { scale } : {}),
+      };
+    }
+    case 'oval':
+    case 'rectangle': {
+      // Its size, as an enlarge area's rounded rectangle's: always written —
+      // without one it does not read — and past R3-30b's range a newer
+      // build's, news before damage. Its turn any number, read within
+      // [0, 180) as a half turn draws it the same; one that does not read
+      // dropped alone, and the shape kept upright (Revision 3).
+      const size = readZoomSize(entry.size, unitsPerFrame(reach));
+      if (size === NEWER || size === null) return size;
+      const angle = finiteNumber(entry.angle);
+      return { ...annotation, size, ...(angle !== null ? { angle: rectangleAngle(angle) } : {}) };
+    }
+    case 'x-ray': {
+      // Its window's radius, as an enlarge circle's is read, and its depth,
+      // which it must have — a whole number from one, with no upper bound
+      // (Revision 3); a radius past the range this build draws is news, told
+      // before damage. Its anchor, a point on the paper, dropped alone when it
+      // does not read, and the window counted at its centre.
+      const radius = readCloseUpRadius(entry.radius, unitsPerFrame(reach));
+      const depth = readXRayDepth(entry.depth);
+      if (radius === NEWER) return NEWER;
+      if (radius === null || depth === null) return null;
+      const anchor = readPaperPoint(entry.anchor);
+      return { ...annotation, radius, depth, ...(anchor !== null ? { anchor } : {}) };
+    }
     // Nothing beyond the fields every kind has. Each kind is named, so a new
     // one is a compile error here until it says what it reads.
     case 'push-arrow':
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
-    case 'circle':
       return annotation;
+    case 'circle': {
+      const radius = entry.radius === undefined ? undefined : readCloseUpRadius(entry.radius, unitsPerFrame(reach));
+      if (radius === null || radius === NEWER) return radius;
+      return { ...annotation, ...(radius !== undefined ? { radius } : {}) };
+    }
   }
 }
 
@@ -1273,11 +1844,63 @@ function readPath(value: unknown, reach: AnnotationReach): DiagramPathNode[] | t
   return past ? NEWER : nodes;
 }
 
+/** An x-ray's depth (Revision 3): a whole number from one, always written; anything else — unsaid too — damage. */
+function readXRayDepth(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 ? value : null;
+}
+
 /** An angle mark's ticks, or equal divisions': unsaid, one; a whole count past three, a newer build's; anything else, damage. */
 function readTicks(value: unknown): DiagramTicks | undefined | typeof NEWER | null {
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) return null;
   return value <= 3 ? (value as DiagramTicks) : NEWER;
+}
+
+/** A label's or a callout's words: one line, as long as a label may be; longer, a newer build's; not a string, damage. */
+function readLabelText(value: unknown): string | typeof NEWER | null {
+  if (typeof value !== 'string') return null;
+  const text = xmlText(value);
+  return text.length > LABEL_MAX_LENGTH ? NEWER : text;
+}
+
+/** A label's Bold or halo (17b), or equal divisions' short dividers (Revision 3), read as `numbered` is: unsaid or false, no; true, yes; anything else, damage. */
+function readFlag(value: unknown): boolean | null {
+  if (value === undefined) return false;
+  return typeof value === 'boolean' ? value : null;
+}
+
+/**
+ * A label's size in pt (17b): unsaid, with the picture; a finite number from
+ * 4 to 48, that size; a larger one, a newer build's; anything else, damage.
+ */
+function readTextSize(value: unknown): number | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < TEXT_SIZE_PT.min) return null;
+  return value <= TEXT_SIZE_PT.max ? value : NEWER;
+}
+
+/**
+ * How far a label's words hang off its anchor, in pt (17b): unsaid, centred
+ * on it; two finite numbers each within ±200 pt, that offset; one further, a
+ * newer build's; anything else, damage.
+ */
+function readTextOffset(value: unknown): [number, number] | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const [dx, dy] = value as unknown[];
+  if (typeof dx !== 'number' || typeof dy !== 'number' || !Number.isFinite(dx) || !Number.isFinite(dy)) return null;
+  return Math.abs(dx) <= TEXT_OFFSET_PT_MAX && Math.abs(dy) <= TEXT_OFFSET_PT_MAX ? [dx, dy] : NEWER;
+}
+
+/**
+ * A solid line's colour (17a), or a label's (17b): unsaid, the style's arrow ink; a `#rrggbb`
+ * string, that colour; any other string, a newer build's — a named colour, a
+ * theme's — and anything else, damage. Read as a white arrow's fill is.
+ */
+function readColor(value: unknown): string | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return null;
+  return isAnnotationColor(value) ? value : NEWER;
 }
 
 /** A white arrow's fill: unsaid, the page's white; `black`, a solid arrow (15d); another word, a newer build's; anything else, damage. */
@@ -1311,11 +1934,12 @@ function readBehind(value: unknown, ends: readonly ('from' | 'to')[]): DiagramBe
 /**
  * A close-up's area's radius (15f), which it must have: one smaller or
  * larger than this build draws, a newer build's; anything that is not a
- * size — unsaid too — damage.
+ * size — unsaid too — damage. Its largest is the picture's frame's: in an
+ * enlarged step's window's units, `perFrame` times as large (`unitsPerFrame`).
  */
-function readCloseUpRadius(value: unknown): number | typeof NEWER | null {
+function readCloseUpRadius(value: unknown, perFrame = 1): number | typeof NEWER | null {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
-  return value < MIN_CLOSE_UP_RADIUS || value > MAX_CLOSE_UP_RADIUS ? NEWER : value;
+  return value < MIN_CLOSE_UP_RADIUS || value > MAX_CLOSE_UP_RADIUS * perFrame ? NEWER : value;
 }
 
 /** A close-up's scale (15f): unsaid, twice; one past the range this build draws, a newer build's; anything else, damage. */
@@ -1323,6 +1947,17 @@ function readCloseUpScale(value: unknown): number | undefined | typeof NEWER | n
   if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
   return value < CLOSE_UP_SCALE.min || value > CLOSE_UP_SCALE.max ? NEWER : value;
+}
+
+/**
+ * A star's or an eye's scale (Revision 3): unsaid, its print size; a positive number,
+ * as a close-up's is read, past {@link GLYPH_SCALE} a newer build's; anything
+ * else, damage.
+ */
+function readGlyphScale(value: unknown): number | undefined | typeof NEWER | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  return value < GLYPH_SCALE.min || value > GLYPH_SCALE.max ? NEWER : value;
 }
 
 /**
@@ -1363,15 +1998,16 @@ const ZOOM_SHAPES: readonly DiagramZoomShape[] = ['circle', 'rounded'];
 
 /**
  * A rounded rectangle's width and height: two sizes, each from a slip to
- * twice the frame — past that, a newer build's, as a close-up's radius is;
- * anything that is not two sizes, damage.
+ * twice the picture's frame — past that, a newer build's, as a close-up's
+ * radius is, `perFrame` times as large in a window's units; anything that is
+ * not two sizes, damage.
  */
-function readZoomSize(value: unknown): [number, number] | typeof NEWER | null {
+function readZoomSize(value: unknown, perFrame = 1): [number, number] | typeof NEWER | null {
   if (!Array.isArray(value) || value.length !== 2) return null;
   const [width, height] = value;
   if (![width, height].every((side) => typeof side === 'number' && Number.isFinite(side) && side > 0)) return null;
   const sides = [width, height] as [number, number];
-  return sides.some((side) => side < ZOOM_SIDE.min || side > ZOOM_SIDE.max) ? NEWER : sides;
+  return sides.some((side) => side < ZOOM_SIDE.min || side > ZOOM_SIDE.max * perFrame) ? NEWER : sides;
 }
 
 /** A point on the paper, in paper coordinates: two finite numbers, or null. Paper is never past reach. */
@@ -1382,10 +2018,12 @@ function readPaperPoint(value: unknown): [number, number] | null {
 }
 
 /** The fields an enlarged step's `zoom` is written with; any other makes the step a newer build's. */
-const STEP_ZOOM_KEYS: ReadonlySet<string> = new Set(['from', 'shape', 'frame', 'imprint', 'scale', 'edge']);
+const STEP_ZOOM_KEYS: ReadonlySet<string> = new Set(['from', 'shape', 'frame', 'imprint', 'scale', 'edge', 'areaWas']);
 /** The fields an outline is written with; an imprint's add its paper point and whether it was picked. */
 const OUTLINE_KEYS: ReadonlySet<string> = new Set(['centre', 'radius', 'size', 'angle']);
 const IMPRINT_KEYS: ReadonlySet<string> = new Set([...OUTLINE_KEYS, 'on', 'picked']);
+/** The fields the area a step was captured from is recorded with (review fix 4). */
+const AREA_WAS_KEYS: ReadonlySet<string> = new Set(['stepId', 'outline', 'anchor', 'scale', 'edge']);
 
 /**
  * An enlarged step's `zoom` (Revision 2). A field, a shape or an edge this
@@ -1402,7 +2040,10 @@ function readStepZoom(value: unknown): DiagramStepZoom | typeof NEWER | null {
   const scale = readCloseUpScale(value.scale);
   const frame = value.frame === undefined ? undefined : readZoomOutline(value.frame, OUTLINE_KEYS, true);
   const imprint = value.imprint === undefined ? undefined : readZoomOutline(value.imprint, IMPRINT_KEYS, false);
-  if (shape === NEWER || edge === NEWER || scale === NEWER || frame === NEWER || imprint === NEWER) return NEWER;
+  const areaWas = readAreaWas(value.areaWas);
+  if (shape === NEWER || edge === NEWER || scale === NEWER || frame === NEWER || imprint === NEWER || areaWas === NEWER) {
+    return NEWER;
+  }
   if (typeof value.from !== 'string' || value.from.length === 0) return null;
   if (shape === null || edge === null || scale === null || frame === null || imprint === null) return null;
   const outlines = [frame, imprint].filter((outline) => outline !== undefined) as DiagramZoomOutline[];
@@ -1420,6 +2061,36 @@ function readStepZoom(value: unknown): DiagramStepZoom | typeof NEWER | null {
     shape,
     ...(frame !== undefined ? { frame } : {}),
     ...(readImprint !== undefined ? { imprint: readImprint } : {}),
+    ...(scale !== undefined ? { scale } : {}),
+    ...(edge !== undefined ? { edge } : {}),
+    ...(areaWas !== undefined ? { areaWas } : {}),
+  };
+}
+
+/**
+ * The area an enlarged step was captured from, as it was then (review fix
+ * 4): its step's id, its outline in that step's picture units, a picked
+ * anchor on the paper, and the Size and Edge the capture copied, each
+ * unsaid by default as on the area. A field this build has no name for, or
+ * a value past what it reads, is a newer build's, as the zoom's own are.
+ * Unsaid — a file from before it — or damaged, there is none, and the step
+ * is not known to be out of date until its area is edited: the record alone
+ * is dropped, never the frame.
+ */
+function readAreaWas(value: unknown): DiagramZoomAreaWas | undefined | typeof NEWER {
+  if (value === undefined || !isRecord(value)) return undefined;
+  if (hasNewerKey(value, AREA_WAS_KEYS)) return NEWER;
+  const outline = readZoomOutline(value.outline, OUTLINE_KEYS, true);
+  const scale = readCloseUpScale(value.scale);
+  const edge = value.edge === undefined ? undefined : readPreset(value.edge, ZOOM_EDGES, 'cut');
+  if (outline === NEWER || scale === NEWER || edge === NEWER) return NEWER;
+  const anchor = value.anchor === undefined ? undefined : readPaperPoint(value.anchor);
+  if (typeof value.stepId !== 'string' || value.stepId.length === 0 || outline === null || anchor === null) return undefined;
+  if (scale === null || edge === null) return undefined;
+  return {
+    stepId: value.stepId,
+    outline,
+    ...(anchor !== undefined ? { anchor } : {}),
     ...(scale !== undefined ? { scale } : {}),
     ...(edge !== undefined ? { edge } : {}),
   };
@@ -1472,6 +2143,17 @@ function writeStepZoom(zoom: DiagramStepZoom): Record<string, unknown> {
       : {}),
     ...(zoom.scale !== undefined ? { scale: zoom.scale } : {}),
     ...(zoom.edge !== undefined ? { edge: zoom.edge } : {}),
+    ...(zoom.areaWas
+      ? {
+          areaWas: {
+            stepId: zoom.areaWas.stepId,
+            outline: outline(zoom.areaWas.outline),
+            ...(zoom.areaWas.anchor ? { anchor: zoom.areaWas.anchor } : {}),
+            ...(zoom.areaWas.scale !== undefined ? { scale: zoom.areaWas.scale } : {}),
+            ...(zoom.areaWas.edge !== undefined ? { edge: zoom.areaWas.edge } : {}),
+          },
+        }
+      : {}),
   };
 }
 
@@ -1639,36 +2321,47 @@ function readAnnotationPoint(value: unknown, reach: AnnotationReach = PICTURE_RE
 /**
  * The assets table, under its keys. An SVG is sanitized again and a bitmap
  * header-checked, and one that fails is dropped (the steps that showed it
- * become empty); a kind this build does not know is carried verbatim.
+ * become empty). One a newer build wrote — of a kind, or with a field, this
+ * build has no name for; an SVG longer, or a bitmap larger, than it keeps; a
+ * bitmap in a format it does not read — is carried verbatim, and the steps
+ * that show it are carried, locked, with it.
  */
 function readAssets(value: unknown, env: () => SanitizeEnv): Record<string, DiagramAsset> {
   if (!isRecord(value)) return {};
   const out: Record<string, DiagramAsset> = {};
   for (const [id, entry] of Object.entries(value)) {
-    if (!isRecord(entry)) continue;
-    if (entry.kind === 'svg') {
-      const asset = readSvgAsset(id, entry, env());
-      if (asset) out[id] = asset;
-    } else if (entry.kind === 'raster') {
-      const asset = readRasterAsset(id, entry);
-      if (asset) out[id] = asset;
-    } else if (typeof entry.kind === 'string') {
-      out[id] = { id, unknown: entry };
-    }
+    if (!isRecord(entry) || typeof entry.kind !== 'string') continue;
+    const asset = readAsset(id, entry, env);
+    if (asset === NEWER) out[id] = { id, unknown: entry };
+    else if (asset) out[id] = asset;
   }
   return out;
+}
+
+function readAsset(
+  id: string,
+  entry: Record<string, unknown>,
+  env: () => SanitizeEnv
+): KnownDiagramAsset | typeof NEWER | null {
+  if (!Object.hasOwn(ASSET_KEYS, entry.kind as string)) return NEWER;
+  const kind = entry.kind as KnownDiagramAsset['kind'];
+  if (hasNewerKey(entry, ASSET_KEYS[kind])) return NEWER;
+  return kind === 'svg' ? readSvgAsset(id, entry, env()) : readRasterAsset(id, entry);
 }
 
 function readSvgAsset(
   id: string,
   entry: Record<string, unknown>,
   env: SanitizeEnv
-): DiagramSvgAsset | null {
-  if (typeof entry.svg !== 'string' || entry.svg.length > SVG_STORED_MAX_BYTES) return null;
+): DiagramSvgAsset | typeof NEWER | null {
+  if (typeof entry.svg !== 'string') return null;
+  // Longer than this build keeps: a newer build's, carried and never sanitized here.
+  if (entry.svg.length > SVG_STORED_MAX_BYTES) return NEWER;
   // The asset's id is its ids' prefix, as at import, which is what makes a
   // load of an untouched file change nothing.
   const result = sanitizeSvg(entry.svg, { idPrefix: id, mode: 'load', env });
-  if (!result.ok || result.svg.length > SVG_STORED_MAX_BYTES) return null;
+  if (!result.ok) return null;
+  if (result.svg.length > SVG_STORED_MAX_BYTES) return NEWER;
   return {
     id,
     kind: 'svg',
@@ -1680,16 +2373,19 @@ function readSvgAsset(
 }
 
 const RASTER_SRC = /^data:(image\/(?:png|jpeg));base64,([A-Za-z0-9+/]+={0,2})$/;
+/** A bitmap of a format this build does not read: a newer build's. */
+const OTHER_RASTER_SRC = /^data:image\/[a-z0-9.+-]+;base64,/i;
 
 /**
  * A bitmap as an upload stored it: a PNG or JPEG data URL whose header agrees
- * with the stored size, at most 2048 px a side. Anything else is dropped.
+ * with the stored size, at most 2048 px a side. One in another image format,
+ * or larger, is a newer build's; anything else is dropped.
  */
-function readRasterAsset(id: string, entry: Record<string, unknown>): DiagramRasterAsset | null {
+function readRasterAsset(id: string, entry: Record<string, unknown>): DiagramRasterAsset | typeof NEWER | null {
   const { src, widthPx, heightPx } = entry;
   if (typeof src !== 'string' || typeof widthPx !== 'number' || typeof heightPx !== 'number') return null;
   const match = RASTER_SRC.exec(src);
-  if (!match) return null;
+  if (!match) return OTHER_RASTER_SRC.test(src) ? NEWER : null;
   let bytes: Uint8Array;
   try {
     bytes = Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0));
@@ -1698,7 +2394,7 @@ function readRasterAsset(id: string, entry: Record<string, unknown>): DiagramRas
   }
   const size = rasterHeaderSize(bytes, match[1]);
   if (!size || size.width !== widthPx || size.height !== heightPx) return null;
-  if (Math.max(size.width, size.height) > EMBEDDED_RASTER_MAX_SIDE) return null;
+  if (Math.max(size.width, size.height) > EMBEDDED_RASTER_MAX_SIDE) return NEWER;
   return { id, kind: 'raster', src, widthPx, heightPx, bytes: src.length };
 }
 
@@ -1708,8 +2404,11 @@ function readHanStyle(value: unknown): DiagramHanStyle {
 
 function readStyle(value: unknown): DiagramStyle {
   if (!isRecord(value)) return DEFAULT_DIAGRAM_STYLE;
-  if (isBuiltInPaperPresetId(value.preset)) return { preset: value.preset };
-  if (isRecord(value.style)) return { style: normalizePaperStyle(value.style) };
+  if (isRecord(value.style)) {
+    const style = normalizePaperStyle(value.style);
+    return typeof value.preset === 'string' ? { preset: value.preset, style } : { style };
+  }
+  if (isBuiltInPaperPresetId(value.preset)) return snapshotDiagramStyle({ preset: value.preset });
   return DEFAULT_DIAGRAM_STYLE;
 }
 

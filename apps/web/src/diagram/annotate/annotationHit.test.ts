@@ -13,13 +13,19 @@ import {
   pleatArrowInPicture,
   rightAngleGrips,
   rightAngleInPicture,
+  starRadius,
 } from './annotationHit';
+import { transformBoxHandles, transformBoxOf } from './transformGrips';
 import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
+import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
+import { liftCardMarks } from '../references/referencesCardMarks';
+import { pointsCard } from '../references/referencesCardMarks.fixtures';
 import { CARD_FRAME_PX } from './paintAnnotations';
-import { ANNOTATION_INK_MM } from './canvasInk';
+import { ANNOTATION_INK_MM, INK_UNITS } from './canvasInk';
+import { labelCentre } from './annotationModel';
 
 /** About the canvas's: an ink is about 0.0066 of the frame, a callout's outline at the default 1.05 pt pen 0.0025. */
-const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066, calloutPen: 0.0025 };
+const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066, calloutPen: 0.0025, px: 0.0025 };
 
 const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.1, 0.5], to: [0.9, 0.5] };
 const arrow: KnownDiagramAnnotation = { id: 'arrow', kind: 'valley-arrow', from: [0.2, 0.3], to: [0.6, 0.3], bend: 0.2 };
@@ -27,6 +33,34 @@ const sign: KnownDiagramAnnotation = { id: 'sign', kind: 'turn-over', from: [0.8
 const label: KnownDiagramAnnotation = { id: 'label', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'AB' };
 
 describe('hitAnnotation', () => {
+  // 17d review: a pulled letter's halo and the margin round it covered its ring's near rim, so the ring could only be
+  // taken on its far side.
+  it('takes a pulled ring anywhere on its rim, and its letter on its words or, with nothing under it, its halo', () => {
+    const { annotations } = liftCardMarks(pointsCard(), false, { letters: true, highlights: true }, DEFAULT_DIAGRAM_STYLE)!;
+    const letter = annotations.find((mark) => mark.kind === 'label')!;
+    const ring = annotations.find((mark) => mark.kind === 'circle' && mark.from[0] === letter.from[0] && mark.from[1] === letter.from[1])!;
+    const pair = [ring, letter];
+    const r = circleRadius(SIZES.ink);
+    for (let step = 0; step < 8; step += 1) {
+      const angle = (step * Math.PI) / 4;
+      const on: [number, number] = [ring.from[0] + r * Math.cos(angle), ring.from[1] + r * Math.sin(angle)];
+      expect(hitAnnotation(pair, on, SIZES, null)?.annotationId).toBe(ring.id);
+    }
+    // The rim nearest the letter lies in the letter's halo and margin: the letter's when nothing is under it, or
+    // when it is selected, to drag; else the ring's.
+    const words = labelCentre(letter);
+    const toWords = Math.hypot(words[0] - ring.from[0], words[1] - ring.from[1]);
+    const near: [number, number] = [
+      ring.from[0] + (r * (words[0] - ring.from[0])) / toWords,
+      ring.from[1] + (r * (words[1] - ring.from[1])) / toWords,
+    ];
+    expect(hitAnnotation([letter], near, SIZES, null)?.annotationId).toBe(letter.id);
+    expect(hitAnnotation(pair, near, SIZES, null)?.annotationId).toBe(ring.id);
+    expect(hitAnnotation(pair, near, SIZES, letter.id)?.annotationId).toBe(letter.id);
+    // Its words take it, over anything.
+    expect(hitAnnotation(pair, words, SIZES, null)?.annotationId).toBe(letter.id);
+  });
+
   it('takes a line by its length and an arrow by its arc, not its chord', () => {
     expect(hitAnnotation([line], [0.5, 0.51], SIZES, null)).toEqual({ annotationId: 'line', part: 'body' });
     expect(hitAnnotation([line], [0.5, 0.6], SIZES, null)).toBeNull();
@@ -571,5 +605,267 @@ describe('equal divisions (Revision 2)', () => {
     expect(hitAnnotation([divisions], grip, tight, 'd')).toEqual({ annotationId: 'd', part: 'offset' });
     // Unselected, the handle is only their body.
     expect(hitAnnotation([divisions], grip, tight, null)).toEqual({ annotationId: 'd', part: 'body' });
+  });
+
+  it('are taken on a short divider where it is drawn, across their line, and not where a full one would run (Revision 3)', () => {
+    const far = { ...divisions, offset: 10, numbered: undefined };
+    const out = (10 / ANNOTATION_INK_MM) * SIZES.ink;
+    // An interior divider, 3 mm off the line it measures: a full one runs there, a short one does not.
+    const low: [number, number] = [0.35, 0.5 + (3 / ANNOTATION_INK_MM) * SIZES.ink];
+    expect(hitAnnotation([far], low, tight, null)?.annotationId).toBe('d');
+    expect(hitAnnotation([{ ...far, shortDividers: true }], low, tight, null)).toBeNull();
+    // Across the line, 2 ink short of it: both.
+    const across: [number, number] = [0.35, 0.5 + out - 2 * SIZES.ink];
+    expect(hitAnnotation([{ ...far, shortDividers: true }], across, tight, null)?.annotationId).toBe('d');
+    // The end dividers still run to the line they measure.
+    expect(hitAnnotation([{ ...far, shortDividers: true }], [0.2, low[1]], tight, null)?.annotationId).toBe('d');
+    expect(divisionsInPicture({ ...far, shortDividers: true }, SIZES.ink)!.dividers[1]![0].y).toBeCloseTo(0.5 + out - 5 * SIZES.ink, 12);
+  });
+});
+
+describe('a star (Revision 3)', () => {
+  const star: KnownDiagramAnnotation = { id: 'star', kind: 'star', from: [0.5, 0.5], to: [0.5, 0.5] };
+
+  it('is taken anywhere inside its tips’ reach, at its scale', () => {
+    const r = starRadius(star, SIZES.ink);
+    // 4.5 ink and half an ink for an outline's pen.
+    expect(r).toBeCloseTo(5 * SIZES.ink, 12);
+    expect(hitAnnotation([star], [0.5, 0.5], SIZES, null)).toEqual({ annotationId: 'star', part: 'body' });
+    expect(hitAnnotation([star], [0.5 + r + SIZES.tolerance - 1e-6, 0.5], SIZES, null)?.annotationId).toBe('star');
+    expect(hitAnnotation([star], [0.5 + r + SIZES.tolerance + 1e-3, 0.5], SIZES, null)).toBeNull();
+    const big = { ...star, scale: 3 };
+    const R = starRadius(big, SIZES.ink);
+    expect(R).toBeCloseTo((4.5 * 3 + 0.5) * SIZES.ink, 12);
+    expect(hitAnnotation([big], [0.5, 0.5 + R + SIZES.tolerance - 1e-6], SIZES, null)?.annotationId).toBe('star');
+    expect(hitAnnotation([star], [0.5, 0.5 + R + SIZES.tolerance - 1e-6], SIZES, null)).toBeNull();
+  });
+
+  it('offers its transform box’s handles once selected, before anything under them, and none before', () => {
+    const { handles } = transformBoxHandles(star, SIZES.px)!;
+    const corner = handles.scale.find((each) => each.handle === 'ne')!.at;
+    const turn = handles.rotate.find((each) => each.corner === 'sw')!.at;
+    // A line drawn over the corner's square and over the turn handle: the box is taken first.
+    const over = (at: { x: number; y: number }, id: string): KnownDiagramAnnotation => ({
+      id,
+      kind: 'solid-line',
+      from: [at.x - 0.1, at.y],
+      to: [at.x + 0.1, at.y],
+    });
+    const lines = [star, over(corner, 'over-corner'), over(turn, 'over-turn')];
+    expect(hitAnnotation(lines, [corner.x, corner.y], SIZES, 'star')).toEqual({
+      annotationId: 'star',
+      part: 'transform',
+      handle: { kind: 'scale', handle: 'ne' },
+    });
+    expect(hitAnnotation(lines, [turn.x, turn.y], SIZES, 'star')).toEqual({
+      annotationId: 'star',
+      part: 'transform',
+      handle: { kind: 'rotate', corner: 'sw' },
+    });
+    // Not selected: no box, and the line is what is there.
+    expect(hitAnnotation(lines, [turn.x, turn.y], SIZES, null)?.annotationId).toBe('over-turn');
+    const under: KnownDiagramAnnotation = { id: 'under', kind: 'valley-line', from: [0.4, 0.5], to: [0.6, 0.5] };
+    // Its body moves it, selected or not.
+    expect(hitAnnotation([under, star], [0.5, 0.5], SIZES, 'star')).toEqual({ annotationId: 'star', part: 'body' });
+  });
+
+  it('is moved by a finger on it, selected, though its box is at its 24 px floor and a corner within the finger’s reach (18b review)', () => {
+    // A screen px of 0.0025: the box is drawn at its floor, each corner 17 px from the middle; a finger reaches 18.
+    const finger = { ...SIZES, tolerance: 18 * SIZES.px };
+    const { box } = transformBoxHandles(star, SIZES.px)!;
+    expect(box.width / SIZES.px).toBeCloseTo(24, 9);
+    for (const press of [[0.5, 0.5], [0.5 + 3 * SIZES.px, 0.5 - 3 * SIZES.px], [0.5, 0.5 + 8 * SIZES.px]] as [number, number][]) {
+      expect(hitAnnotation([star], press, finger, 'star'), `${press}`).toEqual({ annotationId: 'star', part: 'body' });
+    }
+    // A square still takes a press on it.
+    const corner = transformBoxHandles(star, SIZES.px)!.handles.scale.find((each) => each.handle === 'sw')!.at;
+    expect(hitAnnotation([star], [corner.x, corner.y], finger, 'star')).toMatchObject({ part: 'transform', handle: { kind: 'scale', handle: 'sw' } });
+  });
+
+  it('is moved by a mouse anywhere in its box as drawn at its 24 px floor, out past its tips’ reach (18c review)', () => {
+    // Zoomed far out: a screen px is 0.01 of the frame, so its 9-ink box is drawn grown to 24 px, its tips well inside.
+    const px = 0.01;
+    const mouse = { ...SIZES, ink: INK_UNITS, px, tolerance: 8 * px };
+    const { box } = transformBoxHandles(star, px)!;
+    expect(box.width / px).toBeCloseTo(24, 9);
+    const half = box.width / 2;
+    // Inside the drawn box, off its squares and further from the middle than its tips and a mouse reach.
+    const press: [number, number] = [0.5 + 0.96 * half, 0.5 + 0.4 * half];
+    expect(Math.hypot(press[0] - 0.5, press[1] - 0.5)).toBeGreaterThan(starRadius(star, INK_UNITS) + mouse.tolerance);
+    expect(hitAnnotation([star], press, mouse, 'star')).toEqual({ annotationId: 'star', part: 'body' });
+    // Not selected, no box is drawn round it: the press is off it.
+    expect(hitAnnotation([star], press, mouse, null)).toBeNull();
+  });
+
+  it('hides a circle drawn before it where its arms cover the ring, filled or not, and leaves it the ring between them (18b review)', () => {
+    const circle: KnownDiagramAnnotation = { id: 'circle', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5] };
+    const r = circleRadius(SIZES.ink);
+    const onRing = (degrees: number): [number, number] => {
+      const a = (degrees * Math.PI) / 180;
+      return [0.5 + r * Math.sin(a), 0.5 - r * Math.cos(a)];
+    };
+    for (const over of [star, { ...star, fill: 'black' as const }, { ...star, angle: 36 }]) {
+      // Its arms lie along its turn, every 72°; the ring shows between them.
+      const arm = onRing(over.angle ?? 0);
+      const gap = onRing((over.angle ?? 0) + 36);
+      expect(hitAnnotation([circle, over], arm, SIZES, null)?.annotationId, `${over.fill} ${over.angle}`).toBe('star');
+      expect(hitAnnotation([circle, over], gap, SIZES, null)?.annotationId, `${over.fill} ${over.angle}`).toBe('circle');
+      // Drawn over the star, the circle is seen there.
+      expect(hitAnnotation([over, circle], arm, SIZES, null)?.annotationId).toBe('circle');
+      // Selected, its ring is drawn over everything.
+      expect(hitAnnotation([circle, over], arm, SIZES, 'circle')?.annotationId).toBe('circle');
+    }
+  });
+});
+
+describe('an eye (Revision 3)', () => {
+  // Looking up and to the left, 3 ink long by 1.92 across at the canvas's ink here.
+  const eye: KnownDiagramAnnotation = { id: 'eye', kind: 'eye', from: [0.5, 0.5], to: [0.5, 0.5], angle: 210 };
+  const half = { along: 7.5 * SIZES.ink, across: 4.8 * SIZES.ink };
+  const at = (along: number, across: number): [number, number] => {
+    const a = (210 * Math.PI) / 180;
+    return [0.5 + along * Math.cos(a) - across * Math.sin(a), 0.5 + along * Math.sin(a) + across * Math.cos(a)];
+  };
+
+  it('is taken anywhere inside its turned box at its scale, and as far out as a press reaches', () => {
+    expect(hitAnnotation([eye], [0.5, 0.5], SIZES, null)).toEqual({ annotationId: 'eye', part: 'body' });
+    // A corner of its box, inside: between its lids' fronts, where no ink is.
+    expect(hitAnnotation([eye], at(half.along * 0.99, half.across * 0.99), SIZES, null)?.annotationId).toBe('eye');
+    // Out along the way it looks, past the box, by less than a press's reach, then more.
+    expect(hitAnnotation([eye], at(half.along + SIZES.tolerance - 1e-6, 0), SIZES, null)?.annotationId).toBe('eye');
+    expect(hitAnnotation([eye], at(half.along + SIZES.tolerance + 1e-3, 0), SIZES, null)).toBeNull();
+    // Across it, its box's own side, not a circle round it: nearer its middle than a press reaches past its ends, and still off it.
+    expect(hitAnnotation([eye], at(0, half.across + SIZES.tolerance - 1e-6), SIZES, null)?.annotationId).toBe('eye');
+    expect(half.across + SIZES.tolerance + 1e-3).toBeLessThan(half.along + SIZES.tolerance);
+    expect(hitAnnotation([eye], at(0, half.across + SIZES.tolerance + 1e-3), SIZES, null)).toBeNull();
+    // Scaled, its box grows with it.
+    expect(hitAnnotation([{ ...eye, scale: 2 }], at(2 * half.along, 0), SIZES, null)?.annotationId).toBe('eye');
+    expect(hitAnnotation([eye], at(2 * half.along, 0), SIZES, null)).toBeNull();
+  });
+
+  it('offers its transform box once selected, and never a corner or a direction grip (the right angle’s), nor ends', () => {
+    const { handles, corners } = transformBoxHandles(eye, SIZES.px)!;
+    const ne = handles.scale.find((each) => each.handle === 'ne')!.at;
+    expect(hitAnnotation([eye], [ne.x, ne.y], SIZES, 'eye')).toEqual({ annotationId: 'eye', part: 'transform', handle: { kind: 'scale', handle: 'ne' } });
+    const turn = handles.rotate.find((each) => each.corner === 'sw')!.at;
+    expect(hitAnnotation([eye], [turn.x, turn.y], SIZES, 'eye')).toEqual({ annotationId: 'eye', part: 'transform', handle: { kind: 'rotate', corner: 'sw' } });
+    // Everywhere round it and on it, selected: its box's handles or its body, nothing else.
+    const parts = new Set<string>();
+    for (const [x, y] of [...corners, [0.5, 0.5], eye.from, eye.to, at(half.along, 0), at(-half.along, 0)] as [number, number][]) {
+      for (const [dx, dy] of [[0, 0], [0.01, 0], [0, -0.01], [-0.01, 0.01]]) {
+        const hit = hitAnnotation([eye], [x + dx!, y + dy!], SIZES, 'eye');
+        if (hit) parts.add(hit.part);
+      }
+    }
+    expect([...parts].sort()).toEqual(['body', 'transform']);
+  });
+
+  it('is moved by a mouse anywhere in its box as drawn at its 24 px floor, past its own box and the mouse’s reach (18c review)', () => {
+    const level: KnownDiagramAnnotation = { ...eye, angle: 0 };
+    // Zoomed far out: a screen px is 0.006 of the frame, so the box is drawn grown, in its proportions, to 24 px across.
+    const px = 0.006;
+    const mouse = { ...SIZES, ink: INK_UNITS, px, tolerance: 8 * px };
+    const own = transformBoxOf(level)!;
+    const { box } = transformBoxHandles(level, px)!;
+    expect(box.height / px).toBeCloseTo(24, 9);
+    // Along the way it looks, between the end of its own box and a mouse's reach, and the end of the box as drawn.
+    const along = (own.width / 2 + mouse.tolerance + box.width / 2) / 2;
+    expect(along).toBeGreaterThan(own.width / 2 + mouse.tolerance);
+    expect(along).toBeLessThan(box.width / 2);
+    for (const side of [1, -1]) {
+      const press: [number, number] = [0.5 + side * along, 0.5];
+      expect(hitAnnotation([level], press, mouse, 'eye'), `${side}`).toEqual({ annotationId: 'eye', part: 'body' });
+      // Not selected, no box is drawn round it: the press is off it.
+      expect(hitAnnotation([level], press, mouse, null), `${side}`).toBeNull();
+    }
+  });
+});
+
+describe('an oval and a rectangle (Revision 3)', () => {
+  const oval: KnownDiagramAnnotation = { id: 'oval', kind: 'oval', from: [0.5, 0.5], to: [0.5, 0.5], size: [0.6, 0.4] };
+  const rectangle: KnownDiagramAnnotation = { id: 'rect', kind: 'rectangle', from: [0.5, 0.5], to: [0.5, 0.5], size: [0.6, 0.4], angle: 30 };
+  // A Valley Line across the oval's inside, drawn before it and after it.
+  const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.4, 0.55], to: [0.6, 0.55] };
+
+  it('is pressed on its rim, either side of it, turned with it, and not inside it while it is not selected', () => {
+    // Its right end, on the rim and just off it.
+    expect(hitAnnotation([oval], [0.8, 0.5], SIZES, null)).toEqual({ annotationId: 'oval', part: 'body' });
+    expect(hitAnnotation([oval], [0.815, 0.5], SIZES, null)).toEqual({ annotationId: 'oval', part: 'body' });
+    expect(hitAnnotation([oval], [0.5, 0.5], SIZES, null)).toBeNull();
+    // Turned 30°: its end is out along the turn, and where it was is off it.
+    const end: [number, number] = [0.5 + 0.3 * Math.cos(Math.PI / 6), 0.5 + 0.3 * Math.sin(Math.PI / 6)];
+    expect(hitAnnotation([rectangle], end, SIZES, null)).toEqual({ annotationId: 'rect', part: 'body' });
+    expect(hitAnnotation([rectangle], [0.8, 0.3], SIZES, null)).toBeNull();
+  });
+
+  it('lets a line inside it be pressed, selected or not, wherever it was drawn: it is pressed under every mark', () => {
+    for (const list of [
+      [oval, line],
+      [line, oval],
+    ]) {
+      expect(hitAnnotation(list, [0.5, 0.55], SIZES, null)).toEqual({ annotationId: 'line', part: 'body' });
+      expect(hitAnnotation(list, [0.5, 0.55], SIZES, 'oval')).toEqual({ annotationId: 'line', part: 'body' });
+    }
+    // Where the line crosses the rim, the line is taken: the ring gives way, as it is painted.
+    const across: KnownDiagramAnnotation = { ...line, from: [0.1, 0.5], to: [0.9, 0.5] };
+    expect(hitAnnotation([across, oval], [0.8, 0.5], SIZES, null)).toEqual({ annotationId: 'line', part: 'body' });
+  });
+
+  it('takes a press anywhere in its box while it is selected, where nothing drawn is, and moves by it (R3-31 A)', () => {
+    expect(hitAnnotation([oval, line], [0.45, 0.4], SIZES, 'oval')).toEqual({ annotationId: 'oval', part: 'body' });
+    // Its box's corner, outside the oval itself, is in its box.
+    expect(hitAnnotation([oval, line], [0.78, 0.68], SIZES, 'oval')).toEqual({ annotationId: 'oval', part: 'body' });
+    // Another shape's rim inside it is that shape's, though it was drawn first.
+    const inner: KnownDiagramAnnotation = { id: 'inner', kind: 'rectangle', from: [0.5, 0.45], to: [0.5, 0.45], size: [0.1, 0.1] };
+    expect(hitAnnotation([inner, oval], [0.55, 0.45], SIZES, 'oval')).toEqual({ annotationId: 'inner', part: 'body' });
+    // Off its box, nothing.
+    expect(hitAnnotation([oval], [0.5, 0.75], SIZES, 'oval')).toBeNull();
+  });
+
+  it('offers its box’s handles before anything drawn under them, turned with it', () => {
+    const drawn = transformBoxHandles(rectangle, SIZES.px)!;
+    const north = drawn.handles.scale.find((each) => each.handle === 'n')!.at;
+    expect(hitAnnotation([rectangle, line], [north.x, north.y], SIZES, 'rect')).toEqual({
+      annotationId: 'rect',
+      part: 'transform',
+      handle: { kind: 'scale', handle: 'n' },
+    });
+    expect(transformBoxOf(rectangle)!.rotation).toBeCloseTo(Math.PI / 6, 12);
+  });
+});
+
+describe('an x-ray (Revision 3, 18e)', () => {
+  const xray: KnownDiagramAnnotation = { id: 'xray', kind: 'x-ray', from: [0.5, 0.5], to: [0.5, 0.5], radius: 0.2, depth: 1 };
+  // A Valley Line across the window's inside, drawn before it and after it.
+  const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.4, 0.5], to: [0.6, 0.5] };
+
+  it('is pressed by its rim alone, under the marks drawn over its inside, which stay pressable, whichever was drawn first', () => {
+    expect(hitAnnotation([xray], [0.7, 0.5], SIZES, null)).toEqual({ annotationId: 'xray', part: 'body' });
+    expect(hitAnnotation([xray], [0.5, 0.5], SIZES, null)).toBeNull();
+    for (const list of [
+      [xray, line],
+      [line, xray],
+    ]) {
+      expect(hitAnnotation(list, [0.5, 0.5], SIZES, null)).toEqual({ annotationId: 'line', part: 'body' });
+    }
+    // A line drawn across its rim is taken there before it, as over an enlarge area's.
+    const across: KnownDiagramAnnotation = { id: 'across', kind: 'valley-line', from: [0.7, 0.3], to: [0.7, 0.7] };
+    expect(hitAnnotation([across, xray], [0.7, 0.5], SIZES, null)).toEqual({ annotationId: 'across', part: 'body' });
+  });
+
+  it('selected, offers a circle’s grips: its centre moves it and its rim resizes it, before anything drawn there', () => {
+    expect(hitAnnotation([xray, line], [0.5, 0.5], SIZES, 'xray')).toEqual({ annotationId: 'xray', part: 'zoom', zoom: { part: 'centre' } });
+    expect(hitAnnotation([xray], [0.7, 0.5], SIZES, 'xray')).toEqual({ annotationId: 'xray', part: 'zoom', zoom: { part: 'rim' } });
+  });
+
+  it('is not pressed where it is drawn nowhere — a picture with no layers (R3-18b A) — but selected there, still offers its grips (review of 18e)', () => {
+    const drawnNowhere = { xRays: false };
+    expect(hitAnnotation([xray], [0.7, 0.5], SIZES, null, drawnNowhere)).toBeNull();
+    expect(hitAnnotation([line, xray], [0.7, 0.5], SIZES, null, drawnNowhere)).toBeNull();
+    // Selected from Layers, its grips show, and take their press.
+    expect(hitAnnotation([xray], [0.7, 0.5], SIZES, 'xray', drawnNowhere)).toEqual({ annotationId: 'xray', part: 'zoom', zoom: { part: 'rim' } });
+    // An enlarge area is pressed as ever.
+    const area: KnownDiagramAnnotation = { ...xray, id: 'area', kind: 'zoom' };
+    expect(hitAnnotation([area], [0.7, 0.5], SIZES, null, drawnNowhere)).toEqual({ annotationId: 'area', part: 'body' });
   });
 });

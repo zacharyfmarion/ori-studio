@@ -66,6 +66,8 @@ export function symbolAnchor(primitive: StepDiagramPrimitive): Point | null {
     case 'rotate':
     case 'right-angle':
     case 'angle-mark':
+    case 'star':
+    case 'eye':
     case 'point':
     case 'label':
       return point(primitive.at);

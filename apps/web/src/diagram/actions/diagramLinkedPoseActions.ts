@@ -27,9 +27,15 @@ import {
  *   a mirror axis — step to another layer order, and spread its layers apart
  *   (Phase 13) — on or off here; its kind (by depth or affine) and settings
  *   are the Step pane's ({@link buildDiagramSpreadControls}).
- * - **Folded, in 3D:** look from the other side, or from straight above, the
- *   front or the corner; the view itself is dragged in the picture. Spread
+ * - **Folded, in 3D:** look from the other side, or from straight above, and
+ *   set which way is up; the view itself is dragged in the picture. Spread
  *   Layers is there too, held, saying it needs a flat fold.
+ * - **Simulated:** set which way is up; the simulator's transport folds it,
+ *   and the view is dragged as the 3D one is.
+ *
+ * Set Upright is no pose verb: as in Edit's 3D window and in Simulate, it
+ * takes the direction pointing up on screen as the model's up, in the live
+ * view, which then brings the step's camera to rest as a drag does.
  */
 export type DiagramLinkedPoseActionId =
   | 'show-crease-pattern'
@@ -42,10 +48,12 @@ export type DiagramLinkedPoseActionId =
   | 'previous-solution'
   | 'next-solution'
   | 'view-top'
-  | 'view-front'
-  | 'view-iso'
+  | 'set-upright'
   | 'spread-layers'
   | 'reset';
+
+/** The verbs a pose of the step runs (`linkedPose.ts`): every action but Set Upright, which the live view runs. */
+export type DiagramLinkedPoseVerb = Exclude<DiagramLinkedPoseActionId, 'set-upright'>;
 
 export interface DiagramLinkedPoseAction {
   id: DiagramLinkedPoseActionId;
@@ -87,6 +95,8 @@ export interface DiagramLinkedPoseState {
    * no symmetry, which has no upright.
    */
   mirrorAxes?: readonly number[] | null;
+  /** A live view of the step shows — 3D, or the simulator — which Set Upright turns. */
+  liveView?: boolean;
 }
 
 /**
@@ -146,7 +156,12 @@ export const POSE_ROTATION_STEP_DEG = 15;
 
 export function buildDiagramLinkedPoseActions(
   state: DiagramLinkedPoseState,
-  deps: { t: TFunction; pose: (verb: DiagramLinkedPoseActionId) => void }
+  deps: {
+    t: TFunction;
+    pose: (verb: DiagramLinkedPoseVerb) => void;
+    /** Set Upright, in the live view: what pointed up on screen is the model's up. */
+    setUpright?: () => void;
+  }
 ): DiagramLinkedPoseAction[] {
   const { t } = deps;
   const { render } = state;
@@ -161,7 +176,14 @@ export function buildDiagramLinkedPoseActions(
   const action = (
     id: DiagramLinkedPoseActionId,
     label: string,
-    options: { disabled?: boolean; hint?: string; pressed?: boolean; toggle?: boolean } = {}
+    options: {
+      disabled?: boolean;
+      hint?: string;
+      pressed?: boolean;
+      toggle?: boolean;
+      /** What it does, when it is not a pose of the step. */
+      run?: () => void;
+    } = {}
   ): DiagramLinkedPoseAction => {
     const disabled = readOnly !== undefined || (options.disabled ?? false);
     return {
@@ -176,7 +198,9 @@ export function buildDiagramLinkedPoseActions(
         // Simulated step back at 0%, which only Pose's live solver can hold.
         // A toggle pressed again turns off. A verb that cannot act refuses
         // here too: a surface may keep it focusable rather than disable it.
-        if (!waiting && (options.toggle || !options.pressed) && !disabled) deps.pose(id);
+        if (waiting || (!options.toggle && options.pressed) || disabled) return;
+        if (options.run) options.run();
+        else if (id !== 'set-upright') deps.pose(id);
       },
     };
   };
@@ -205,6 +229,12 @@ export function buildDiagramLinkedPoseActions(
   // order keeps a spread it cannot show, and taking it off changes nothing seen.
   const spreadOn = render.mode === 'folded-flat' && render.spread !== undefined;
   const spreadHeld = spreadOn ? undefined : spreadBlocker(state, t);
+  // The live view's own, as Edit's 3D window and Simulate offer it: held while none shows.
+  const setUpright = action('set-upright', t('panels:diagram.pose.setUpright', 'Set Upright'), {
+    disabled: !state.liveView || !deps.setUpright,
+    hint: t('panels:diagram.pose.setUprightNeedsView', 'Its live view isn’t showing, so there is no up to set'),
+    run: deps.setUpright,
+  });
   const spreadLayers = action('spread-layers', t('panels:diagram.pose.spreadLayers', 'Spread Layers'), {
     disabled: spreadHeld !== undefined,
     hint: spreadHeld,
@@ -249,13 +279,12 @@ export function buildDiagramLinkedPoseActions(
         ...modes,
         action('turn-over', t('panels:diagram.pose.otherSide', 'View From the Other Side')),
         action('view-top', t('panels:diagram.pose.viewTop', 'View From Above')),
-        action('view-front', t('panels:diagram.pose.viewFront', 'View From the Front')),
-        action('view-iso', t('panels:diagram.pose.viewIso', 'View From the Corner')),
+        setUpright,
         spreadLayers,
         reset,
       ];
     case 'simulated':
-      return [...modes, reset];
+      return [...modes, setUpright, reset];
   }
 }
 

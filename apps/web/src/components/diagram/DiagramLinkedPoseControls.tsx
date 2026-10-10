@@ -3,15 +3,13 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowDownToDot,
   ArrowUpToLine,
-  Box,
-  Eye,
+  Axis3d,
   ChevronLeft,
   ChevronRight,
   Layers,
   RotateCcw,
   RotateCw,
   RotateCcwSquare,
-  ScanSearch,
   Undo2,
   type LucideIcon,
 } from 'lucide-react';
@@ -21,7 +19,6 @@ import {
   type DiagramLinkedPoseActionId,
 } from '../../diagram/actions/diagramLinkedPoseActions';
 import { DIAGRAM_SHOW_AS, type DiagramShowAs } from '../../diagram/document/diagramDocument';
-import type { ZoomAction } from '../../diagram/zoom/zoomActions';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import styles from './DiagramLinkedPoseControls.module.css';
@@ -37,8 +34,8 @@ const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> 
   'previous-solution': ChevronLeft,
   'next-solution': ChevronRight,
   'view-top': ArrowDownToDot,
-  'view-front': Eye,
-  'view-iso': Box,
+  // As Edit's 3D window and Simulate set it (`foldedFigureActionIcons`).
+  'set-upright': Axis3d,
   'spread-layers': Layers,
   reset: Undo2,
 };
@@ -52,22 +49,18 @@ const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> 
  * the layer orders — refuses rather than disables, so the one pressed keeps
  * the focus through the capture it started and whatever it leaves.
  *
- * `enlarged`, Pose's Enlarged (Revision 2), is a toggle as Spread Layers is,
- * before Reset Pose; on a step that is not linked it is the only verb here,
- * after the upload's own.
+ * Enlarged is not here: Annotate's Step pane turns it on (Zach's review of
+ * #436, 2026-10-08).
  */
 export function DiagramLinkedPoseControls({
   actions,
   layerOrder = null,
-  enlarged = null,
   keep,
   children,
 }: {
   actions: readonly DiagramLinkedPoseAction[];
   /** A flat fold's place among its layer orders, shown between ‹ and › (`layerOrderLabel`). */
   layerOrder?: string | null;
-  /** Pose's Enlarged toggle (`zoomActions.ts`); null where it is not offered. */
-  enlarged?: ZoomAction | null;
   keep: (run: () => void) => void;
   children?: ReactNode;
 }) {
@@ -79,22 +72,6 @@ export function DiagramLinkedPoseControls({
     (entry): entry is { mode: DiagramShowAs; action: DiagramLinkedPoseAction } => entry.action !== undefined
   );
   const verbs = actions.filter((action) => LINKED_POSE_ICONS[action.id]);
-  const enlargedButton = enlarged && (
-    <IconButton
-      key="enlarged"
-      size="sm"
-      title={`${enlarged.label} - ${enlarged.hint}`}
-      aria-label={enlarged.label}
-      aria-disabled={enlarged.disabled || enlarged.waiting || undefined}
-      aria-pressed={enlarged.pressed}
-      className={styles.toggle}
-      data-zoom-action={enlarged.id}
-      onClick={() => keep(enlarged.run)}
-    >
-      <ScanSearch size={15} />
-    </IconButton>
-  );
-  const resetAt = verbs.findIndex((action) => action.id === 'reset');
   return (
     <>
       {modes.length > 0 && (
@@ -117,7 +94,7 @@ export function DiagramLinkedPoseControls({
         />
       )}
       {children}
-      {verbs.map((action, index) => {
+      {verbs.map((action) => {
         const Icon = LINKED_POSE_ICONS[action.id]!;
         const button = (
           <IconButton
@@ -135,8 +112,6 @@ export function DiagramLinkedPoseControls({
             <Icon size={15} />
           </IconButton>
         );
-        // Enlarged, before Reset Pose.
-        if (index === resetAt && enlargedButton) return [enlargedButton, button];
         // The layer order pager: ‹ where it stands ›.
         if (action.id !== 'previous-solution' || !layerOrder) return button;
         return [
@@ -146,7 +121,6 @@ export function DiagramLinkedPoseControls({
           </span>,
         ];
       })}
-      {resetAt < 0 && enlargedButton}
     </>
   );
 }

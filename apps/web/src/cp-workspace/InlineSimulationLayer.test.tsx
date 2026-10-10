@@ -234,6 +234,7 @@ describe('InlineSimulationLayer wheel', () => {
 
 describe('InlineSimulationLayer export', () => {
   const snapshot = (): SimulatorExportSnapshot => ({
+    obj: { unavailableReason: null, build: vi.fn(async () => 'o inline\n') },
     scene: vi.fn(async () => null),
     release: vi.fn(),
   });

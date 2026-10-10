@@ -123,7 +123,7 @@ export function referencesStepScene(
  * The step's diagram with the marks the page leaves out taken out of it, so
  * the scene built from it has no trace of them — not even the room a letter
  * off the paper would have widened the page by. Letters are the diagram's
- * labels; line highlights are its lines and arcs in the highlight pen. A
+ * labels; reference lines are its lines and arcs in the highlight pen. A
  * point stays: it is where a fold lands, not a name for it.
  *
  * The diagram itself when every mark is shown.

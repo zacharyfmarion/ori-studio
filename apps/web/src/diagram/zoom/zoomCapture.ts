@@ -4,7 +4,8 @@
  * that owns it from then on. Nothing here is a live link: a capture reads the
  * diagram as it is and returns what the step would store, and the step's
  * provenance — the area's id — is only ever read to say where it came from
- * and which steps Update Enlarged Steps captures again.
+ * and which steps Update and Update All capture again — and the area as it was
+ * then (`areaWas`, review fix 4), which says when the area has changed.
  *
  * Pure: no store. The verbs that store a capture are in `zoomFrames.ts`.
  */
@@ -13,13 +14,16 @@ import {
   isKnownAnnotation,
   isLockedStep,
   isTurn,
+  showAsOf,
   stepById,
   stepIndex,
   type DiagramCpRender,
   type DiagramDocument,
   type DiagramLayerSpread,
+  type DiagramShowAs,
   type DiagramStep,
   type DiagramStepZoom,
+  type DiagramZoomAreaWas,
   type DiagramZoomEdge,
   type DiagramZoomOutline,
   type DiagramZoomShape,
@@ -72,8 +76,8 @@ export function captureSource(document: DiagramDocument, stepId: string): ZoomSo
 }
 
 /**
- * The area with this id and the step it is on: what Update Enlarged Steps
- * captures from (Z7), wherever the steps it enlarged now sit. Null when the
+ * The area with this id and the step it is on: what Update and Update All
+ * capture from (Z7, review fix 4), wherever the steps it enlarged now sit. Null when the
  * area is gone, or is on a newer build's locked step.
  */
 export function areaSource(document: DiagramDocument, areaId: string): ZoomSource | null {
@@ -97,6 +101,24 @@ interface SourceFrame {
   picked?: PicturePoint;
   /** An enlarged step's stored imprint, for one with no picture to imprint from. */
   imprint?: ZoomImprint;
+  /** The area as the frame was captured from it (review fix 4). */
+  areaWas?: DiagramZoomAreaWas;
+}
+
+/**
+ * An area as a capture from it records it (review fix 4): its step, its
+ * outline there, a picked anchor, and the Size and Edge the capture copies —
+ * what a later hand edit of the area is told by (`areaStatus.ts`), and what
+ * tells a Size or Edge set on the step from one it took (`areaRecord.ts`).
+ */
+export function areaWasOf(stepId: string, area: KnownDiagramAnnotation): DiagramZoomAreaWas {
+  return {
+    stepId,
+    outline: zoomOutlineOf(area),
+    ...(area.anchor !== undefined ? { anchor: [area.anchor[0], area.anchor[1]] as [number, number] } : {}),
+    ...(area.scale !== undefined ? { scale: area.scale } : {}),
+    ...(area.edge !== undefined ? { edge: area.edge } : {}),
+  };
 }
 
 function sourceFrame(source: ZoomSource): SourceFrame {
@@ -110,8 +132,11 @@ function sourceFrame(source: ZoomSource): SourceFrame {
       ...(area.scale !== undefined ? { scale: area.scale } : {}),
       ...(area.edge !== undefined ? { edge: area.edge } : {}),
       ...(area.anchor !== undefined ? { picked: area.anchor } : {}),
+      areaWas: areaWasOf(source.step.id, area),
     };
   }
+  // Through an enlarged step, the area as that step's frame was captured from it: a step after it is as
+  // out of date as it is. One with no record — a file's from before it — passes none on.
   const { zoom } = source;
   return {
     from: zoom.from,
@@ -121,6 +146,7 @@ function sourceFrame(source: ZoomSource): SourceFrame {
     ...(zoom.edge !== undefined ? { edge: zoom.edge } : {}),
     ...(zoom.imprint?.picked ? { picked: zoom.imprint.on } : {}),
     ...(zoom.imprint ? { imprint: zoom.imprint } : {}),
+    ...(zoom.areaWas ? { areaWas: zoom.areaWas } : {}),
   };
 }
 
@@ -258,13 +284,15 @@ export function capture(
     ...(imprint ? { imprint } : {}),
     ...(taken.scale !== undefined ? { scale: taken.scale } : {}),
     ...(taken.edge !== undefined ? { edge: taken.edge } : {}),
+    ...(taken.areaWas ? { areaWas: taken.areaWas } : {}),
   };
   const anchor = placed === 'face' || placed === 'sheet' ? (imprint?.picked ? 'picked' : 'auto') : 'none';
   return { zoom, placed, anchor };
 }
 
 /**
- * The steps Update Enlarged Steps captures again for an area (Z7): every step
+ * The steps enlarged from an area, which Update and Update All capture again
+ * (Z7, review fix 4): every step
  * with its provenance, wherever it sits now, in the diagram's order.
  */
 export function stepsFrom(document: DiagramDocument, areaId: string): string[] {
@@ -272,12 +300,12 @@ export function stepsFrom(document: DiagramDocument, areaId: string): string[] {
 }
 
 /**
- * What a new step starts with (Z2, "yeah sounds right"): enlarged, captured
- * at creation, when the step before it — turns passed — is enlarged. A step
- * made with its picture — an upload, a References card — has its frame
- * landed at once; an empty one keeps the imprint for its first picture to
- * land, and the frame copied in picture units for a first picture with no
- * faces (`placed` null until then). Null otherwise.
+ * What a new empty step starts with (Z2, "yeah sounds right"): enlarged,
+ * captured at creation, when the step before it — turns passed — is
+ * enlarged. It keeps the imprint for its first picture to land, and the frame
+ * copied in picture units for a first picture with no faces (`placed` null
+ * until then); a first picture of another type than its run starts it whole
+ * (review fix 3). Null otherwise.
  */
 export function seededCapture(document: DiagramDocument, stepId: string): ZoomCaptured | null {
   const source = seedSource(document, stepId);
@@ -289,7 +317,8 @@ export function seedSource(document: DiagramDocument, stepId: string): ZoomSourc
   for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
     const entry = document.steps[index]!;
     if (isTurn(entry)) continue;
-    return entry.zoom ? captureSource(document, stepId) : null;
+    // A newer build's step shows its frame, but is no run this build continues.
+    return entry.zoom && !isLockedStep(entry) ? captureSource(document, stepId) : null;
   }
   return null;
 }
@@ -300,21 +329,71 @@ export function seededZoom(document: DiagramDocument, stepId: string): DiagramSt
 }
 
 /**
- * The pose an enlarged step's first link starts in (16h): its capture
- * source's turn, so what its frame shows of the paper faces the way it does
- * there — the source's rotation, which holds an Upright, and, from a flat
- * fold, the side it shows; a flat fold starts with `spread`, as every new
- * flat pose does. A step whose frame was captured before it had a pattern
- * would otherwise start at no turn, and its head point elsewhere. A whole
- * step's first link starts at no turn, as ever. Null for a step linked
- * already, one not enlarged, or one whose source is not a linked crease
- * pattern or flat fold.
+ * Where a step's frame comes from, for its run (review fix 3): the source it
+ * is captured from ({@link captureSource}), past enlarged steps with no
+ * picture yet — an empty step seeded before it, whose frame only passes on
+ * the one it copied — to an enlarged step with a picture, whose run the step
+ * continues, or to an area, where its run starts. Null when there is none.
  */
-export function firstLinkPose(document: DiagramDocument, stepId: string, spread?: DiagramLayerSpread): DiagramCpRender | null {
+function runOrigin(document: DiagramDocument, stepId: string): ZoomSource | null {
+  let source = captureSource(document, stepId);
+  // Each step's capture source is earlier than it: this walks back, and ends.
+  while (source && 'zoom' in source && !source.step.picture) source = captureSource(document, source.step.id);
+  return source;
+}
+
+/**
+ * The step whose run of enlarged steps a step continues, or would continue
+ * (review fix 3): the enlarged step with a picture its frame comes from
+ * ({@link runOrigin}). Null for a step that starts a run — its frame is
+ * captured from an area, directly or past empty enlarged steps, so the run
+ * shows no picture yet — or has nothing to be enlarged from.
+ */
+export function runSource(document: DiagramDocument, stepId: string): DiagramStep | null {
+  const origin = runOrigin(document, stepId);
+  return origin && 'zoom' in origin ? origin.step : null;
+}
+
+/**
+ * The run's picture type (review fix 3): the way its source
+ * ({@link runSource}) shows its pattern — Crease Pattern, Folded or
+ * Simulated. Only a step linked that way continues the run enlarged
+ * (`landSeededFrame`). Null when the source is not a linked pattern — an
+ * upload, a References card — and when the step continues no run.
+ */
+export function runShowAs(document: DiagramDocument, stepId: string): DiagramShowAs | null {
+  const source = runSource(document, stepId)?.source;
+  return source?.kind === 'cp' ? showAsOf(source.render) : null;
+}
+
+/**
+ * The pose an enlarged step's first link starts in (16h), linked shown as
+ * `way`: the turn of the step its frame comes from ({@link runOrigin}) — the
+ * run's source, or the step its area is on for a step that starts a run — so
+ * what its frame shows of the paper faces the way it does there: the
+ * source's rotation, which holds an Upright, and, from a flat fold, the side
+ * it shows; a flat fold starts with `spread`, as every new flat pose does. A
+ * step whose frame was captured before it had a pattern would otherwise start
+ * at no turn, and its head point elsewhere. A step that continues a run but
+ * is linked another way starts whole (review fix 3), and so at no turn, as a
+ * whole step's first link always does. A step that starts a run keeps its
+ * frame however it is linked, and its link takes this turn to its own way
+ * (`renderToShowAs`). Null for a step linked already, one not enlarged, one
+ * continuing a run linked another way, or one whose source is not a linked
+ * crease pattern or flat fold.
+ */
+export function firstLinkPose(
+  document: DiagramDocument,
+  stepId: string,
+  way: DiagramShowAs,
+  spread?: DiagramLayerSpread
+): DiagramCpRender | null {
   const step = stepById(document, stepId);
   if (!step?.zoom || step.source?.kind === 'cp') return null;
-  const source = captureSource(document, stepId)?.step.source;
-  if (source?.kind !== 'cp') return null;
+  const origin = runOrigin(document, stepId);
+  const source = origin?.step.source;
+  if (!origin || source?.kind !== 'cp') return null;
+  if ('zoom' in origin && showAsOf(source.render) !== way) return null;
   const { render } = source;
   switch (render.mode) {
     case 'crease-pattern':

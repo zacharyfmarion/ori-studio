@@ -12,6 +12,7 @@ import { reportError } from '../monitoring';
 import type { SimulatorPullStart } from './pickQuery';
 import { classifySimulatorCallFailure, simulatorBackendTag } from './simulatorCallFailure';
 import type { SimulatorDrawnView } from './simulatorSession';
+import type { SimulatorHandChange, SimulatorToolSurface } from './tools/toolState';
 import type { SimulatorPullIntent } from './tools/types';
 import type { SimulatorFrameView, SimulatorModelView, SimulatorRuntime } from './useSimulatorRuntime';
 
@@ -30,6 +31,13 @@ export interface UseSimulatorPullOptions {
   pinnedCount: number;
   /** The camera of the canvas-2D path's last frame; null on the GPU path or before one. */
   drawnCamera: () => CameraUniforms | null;
+  /** Which host this is, as the pull's analytics events say it. */
+  surface: SimulatorToolSurface;
+  /**
+   * A pose kept, sprung back or taken back by the fold, once the worker has
+   * said so. Read when the answer arrives, so it need not be stable.
+   */
+  onHandChange?: (change: SimulatorHandChange) => void;
 }
 
 export interface SimulatorPull {
@@ -90,13 +98,13 @@ export function useSimulatorPull(options: UseSimulatorPullOptions): SimulatorPul
 
   const run = useCallback(
     (intent: SimulatorPullIntent) => {
-      const { runtime, model, ready, pinnedCount } = live.current.options;
+      const { runtime, model, ready, pinnedCount, surface } = live.current.options;
       switch (intent.phase) {
         case 'begin': {
           inHandRef.current = null;
           if (!model || !ready) return;
           if (pinnedCount === 0) {
-            trackSimulatorPullRefused({ reason: 'no-pins' });
+            trackSimulatorPullRefused({ surface, reason: 'no-pins' });
             return;
           }
           const drawn = drawnView();
@@ -104,7 +112,7 @@ export function useSimulatorPull(options: UseSimulatorPullOptions): SimulatorPul
           const gpuActive = runtime.gpuActive;
           const start = runtime.beginPull(intent.at, model, drawn).then(
             (outcome) => {
-              if (outcome && outcome !== 'pulling') trackSimulatorPullRefused({ reason: outcome });
+              if (outcome && outcome !== 'pulling') trackSimulatorPullRefused({ surface, reason: outcome });
               return outcome;
             },
             (error: unknown) => {
@@ -136,11 +144,13 @@ export function useSimulatorPull(options: UseSimulatorPullOptions): SimulatorPul
               const ended = await current.runtime.endPull(keep ? 'keep' : 'cancel', inHand.model);
               if (!ended) return;
               trackSimulatorModelPulled({
+                surface: current.surface,
                 outcome: keep ? 'kept' : 'cancelled',
                 touch: inHand.touch,
                 pinnedCount: current.pinnedCount,
                 movedCreases: ended.movedCreases,
               });
+              if (keep) live.current.options.onHandChange?.({ kind: 'pull-kept' });
             } catch (error) {
               failed(error, current.runtime.gpuActive);
             }
@@ -158,7 +168,9 @@ export function useSimulatorPull(options: UseSimulatorPullOptions): SimulatorPul
       if (!isPosed) return;
       void current.runtime.releasePose().then(
         (released) => {
-          if (released) trackSimulatorPoseReleased({ source });
+          if (!released) return;
+          trackSimulatorPoseReleased({ surface: current.surface, source });
+          live.current.options.onHandChange?.({ kind: 'spring-back' });
         },
         (error: unknown) => failed(error, current.runtime.gpuActive)
       );
@@ -173,9 +185,15 @@ export function useSimulatorPull(options: UseSimulatorPullOptions): SimulatorPul
       live.current.posed = frame.posed;
       setPosed(frame.posed);
     }
-    // A Spring back asked for here was counted when it was asked, with where from.
-    if (frame.poseEnded === 'fold') trackSimulatorPoseReleased({ source: 'fold-control' });
-    else if (frame.poseEnded === 'reset') trackSimulatorPoseReleased({ source: 'restart' });
+    // A Spring back asked for here was counted, and reported, when it was
+    // asked, with where from.
+    const why = frame.poseEnded;
+    if (why !== 'fold' && why !== 'reset') return;
+    trackSimulatorPoseReleased({
+      surface: live.current.options.surface,
+      source: why === 'fold' ? 'fold-control' : 'restart',
+    });
+    live.current.options.onHandChange?.({ kind: 'pose-ended', why });
   }, []);
 
   // A new model is a new session, which holds no pose.

@@ -22,6 +22,9 @@ const BASE: DiagramStepActionState = {
   patternOpen: true,
   showAs: null,
   poseAgain: false,
+  cardMarks: null,
+  enlargedArea: null,
+  heldAreas: null,
 };
 
 function actions(state: Partial<DiagramStepActionState> = {}) {
@@ -36,8 +39,11 @@ function actions(state: Partial<DiagramStepActionState> = {}) {
     uploadPicture: vi.fn(),
     linkPattern: vi.fn(),
     refreshPicture: vi.fn(),
+    updateEnlarged: vi.fn(),
+    updateAllEnlarged: vi.fn(),
     openInEdit: vi.fn(),
     openInReferences: vi.fn(),
+    makeMarksEditable: vi.fn(),
     replaceFromReferences: vi.fn(),
     fromReferences: vi.fn(),
     showAs: vi.fn(),
@@ -76,6 +82,15 @@ describe('the step card menu', () => {
       'separator',
       'delete',
     ]);
+  });
+
+  it('names the area an enlarged step’s Update places it from, and holds it while the step is up to date (review of review fix 4)', () => {
+    const update = (outOfDate: boolean) =>
+      diagramStepMenuItems(actions({ hasSource: true, hasPicture: true, enlargedArea: { number: 22, outOfDate, updating: false } })).find(
+        (item) => item.kind === 'action' && item.id === 'update-enlarged'
+      );
+    expect(update(true)).toMatchObject({ label: 'Update', disabled: false, hint: 'Place the frame again from step {{number}}’s area as it is now' });
+    expect(update(false)).toMatchObject({ disabled: true, hint: 'Up to date with step {{number}}’s area' });
   });
 
   it('offers a linked pattern’s ways as Show As and Duplicate As submenus, the way it is shown checked', () => {

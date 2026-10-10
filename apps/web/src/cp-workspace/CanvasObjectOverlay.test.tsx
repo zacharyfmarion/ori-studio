@@ -1086,3 +1086,150 @@ describe('CanvasObjectOverlay aspect lock', () => {
     expect(size?.width).toBeCloseTo(size?.height ?? 0, 6);
   });
 });
+
+/*
+ * The handles for a mouse and for a finger (Diagram Revision 3, 18d follow-up).
+ * A mouse's are drawn exactly as they were before the box was shared, byte for
+ * byte; a finger's sit further apart and each has a touch target round it.
+ */
+describe('CanvasObjectOverlay handles, a mouse and a finger', () => {
+  /** A reference image's box, turned, so every handle sits off the axes. */
+  function image(): TransformableCanvasObject {
+    return { ...object('a'), box: { center: { x: 50, y: 50 }, width: 60, height: 30, rotation: 0.3 }, aspectLock: 'default-on' };
+  }
+
+  /** Everything drawn for the selected object's handles. */
+  const handles = () => container!.querySelector('svg > g')!.outerHTML;
+
+  /** The patches a drag from `from` by `by` sends, pressed on `element`. */
+  function dragOn(element: Element, from: [number, number], by: [number, number]): CanvasObjectBoxUpdate[] {
+    stubCapture(element as SVGElement);
+    const patches: CanvasObjectBoxUpdate[] = [];
+    updates = patches;
+    act(() => {
+      element.dispatchEvent(pointerEvent('pointerdown', ...from));
+      element.dispatchEvent(pointerEvent('pointermove', from[0] + by[0], from[1] + by[1]));
+      element.dispatchEvent(pointerEvent('pointerup', from[0] + by[0], from[1] + by[1]));
+    });
+    return patches;
+  }
+  let updates: CanvasObjectBoxUpdate[] = [];
+  const renderRecording = (objects: TransformableCanvasObject[]) => render({ objects, onUpdate: (_id, patch) => updates.push(patch) });
+
+  it('takes a mouse’s square to the pointer, as it always has', () => {
+    // A 40 × 40 box about (50, 50): its se corner at (70, 70), the nw held at (30, 30). Pressed 2 px right of the
+    // square's middle and 1 px below it, and moved 10 px each way: the corner goes to the pointer, 52 × 51.
+    renderRecording([object('a')]);
+    const [patch] = dragOn(container!.querySelectorAll('rect')[4]!, [72, 71], [10, 10]);
+    expect(patch?.width).toBeCloseTo(52, 9);
+    expect(patch?.height).toBeCloseTo(51, 9);
+  });
+
+  describe('for a finger', () => {
+    beforeEach(() => {
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        writable: true,
+        value: vi.fn((query: string) => ({
+          matches: query === COARSE_POINTER_QUERY,
+          media: query,
+          onchange: null,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(window, 'matchMedia');
+    });
+
+    /** `by` px out from the se corner of `object('a')`'s box, (70, 70), along the line from its middle. */
+    const outFromSe = (by: number): [number, number] => [70 + by / Math.SQRT2, 70 + by / Math.SQRT2];
+
+    it('draws 12 px squares and 7 px turn handles 44 px out, each with a 22 px target outside the box', () => {
+      renderRecording([object('a')]);
+      const squares = [...container!.querySelectorAll('rect')];
+      expect(squares.map((square) => square.getAttribute('width'))).toEqual(Array(8).fill('12'));
+      const turns = [...container!.querySelectorAll('circle:not([data-touch-target])')];
+      expect(turns.map((turn) => turn.getAttribute('r'))).toEqual(['7', '7', '7', '7']);
+      const [x, y] = outFromSe(44);
+      expect(Number(turns[2]!.getAttribute('cx'))).toBeCloseTo(x, 9);
+      expect(Number(turns[2]!.getAttribute('cy'))).toBeCloseTo(y, 9);
+      const targets = [...container!.querySelectorAll('[data-touch-target]')];
+      expect(targets.map((target) => target.getAttribute('data-touch-target'))).toEqual([
+        'rotate-nw',
+        'rotate-ne',
+        'rotate-se',
+        'rotate-sw',
+        'scale-nw',
+        'scale-n',
+        'scale-ne',
+        'scale-e',
+        'scale-se',
+        'scale-s',
+        'scale-sw',
+        'scale-w',
+      ]);
+      for (const target of targets) expect(target.getAttribute('r')).toBe('22');
+      // Clipped to everything but the box: inside it a press is the body's.
+      const clip = /^url\(#(.+)\)$/.exec(targets[0]!.parentElement!.getAttribute('clip-path') ?? '')?.[1];
+      const outside = container!.querySelector(`clipPath[id="${clip}"] path`)!;
+      expect(outside.getAttribute('clip-rule')).toBe('evenodd');
+      expect(outside.getAttribute('d')).toContain('M 30 30 L 70 30 L 70 70 L 30 70 Z');
+      // Under the handles as drawn, which keep their own presses.
+      expect(container!.querySelector('svg > g')!.firstElementChild!.tagName.toLowerCase()).toBe('defs');
+    });
+
+    it('draws a finger’s square out by its travel since the press, so a press off its middle does not jump the box', () => {
+      // As the mouse's case above: 50 × 50, the centre moved 5 each way, not 52 × 51.
+      renderRecording([object('a')]);
+      const [patch] = dragOn(container!.querySelectorAll('rect')[4]!, [72, 71], [10, 10]);
+      expect(patch?.width).toBeCloseTo(50, 9);
+      expect(patch?.height).toBeCloseTo(50, 9);
+      expect(patch?.center).toEqual({ x: 55, y: 55 });
+    });
+
+    it('takes a press 14 px wide of a corner as its square, not its turn handle, and draws it out without a jump', () => {
+      renderRecording([object('a')]);
+      const [patch] = dragOn(container!.querySelector('[data-touch-target="scale-se"]')!, outFromSe(14), [10, 10]);
+      expect(patch).not.toHaveProperty('rotation');
+      expect(patch?.width).toBeCloseTo(50, 9);
+      expect(patch?.height).toBeCloseTo(50, 9);
+    });
+
+    it('gives a press where two targets overlap to the nearer handle, whichever disc it landed on', () => {
+      renderRecording([object('a')]);
+      // 14 px out is in the square's target alone; pressed on the turn handle's disc, it is still the square's.
+      const [square] = dragOn(container!.querySelector('[data-touch-target="rotate-se"]')!, outFromSe(14), [10, 10]);
+      expect(square?.width).toBeCloseTo(50, 9);
+      // 30 px out, the turn handle's: a drag across it turns the box.
+      const [turn] = dragOn(container!.querySelector('[data-touch-target="rotate-se"]')!, outFromSe(30), [-10, 10]);
+      expect(Object.keys(turn ?? {})).toEqual(['rotation']);
+      expect(turn?.rotation).toBeGreaterThan(0);
+    });
+
+    it('offers no turn targets while cropping, as it draws no turn handles', () => {
+      renderRecording([object('a')]);
+      act(() => {
+        root?.render(
+          <CanvasObjectOverlay objects={[object('a')]} selectedId="a" suppressedId={null} interactive canCrop={() => true} onSelect={() => {}} onUpdate={() => {}} />
+        );
+      });
+      const body = bodyPolygon()!;
+      act(() => void body.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
+      const targets = [...container!.querySelectorAll('[data-touch-target]')].map((target) => target.getAttribute('data-touch-target'));
+      expect(targets).toHaveLength(8);
+      expect(targets.every((name) => name?.startsWith('scale-'))).toBe(true);
+    });
+  });
+
+  it('draws a mouse’s handles exactly as before: no touch targets, nothing moved or resized', () => {
+    render({ objects: [image()] });
+    expect(container!.querySelectorAll('[data-touch-target]')).toHaveLength(0);
+    expect(handles()).toMatchInlineSnapshot(`"<g><circle cx="12.77097941739219" cy="14.35625252151999" r="5" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: grab; vector-effect: non-scaling-stroke;"></circle><circle cx="100.85241033234871" cy="41.60303202100175" r="5" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: grab; vector-effect: non-scaling-stroke;"></circle><circle cx="87.22902058260782" cy="85.64374747848001" r="5" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: grab; vector-effect: non-scaling-stroke;"></circle><circle cx="-0.8524103323486969" cy="58.39696797899825" r="5" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: grab; vector-effect: non-scaling-stroke;"></circle><rect x="21.772708426151915" y="22.804346463275724" width="8" height="8" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: pointer; vector-effect: non-scaling-stroke;"></rect><rect x="50.43280309992009" y="31.669952663115907" width="8" height="8" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: pointer; vector-effect: non-scaling-stroke;"></rect><rect x="79.09289777368828" y="40.535558862956094" width="8" height="8" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: pointer; vector-effect: non-scaling-stroke;"></rect><rect x="74.66009467376819" y="54.86560619984019" width="8" height="8" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: pointer; vector-effect: non-scaling-stroke;"></rect><rect x="70.22729157384809" y="69.19565353672428" width="8" height="8" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: pointer; vector-effect: non-scaling-stroke;"></rect><rect x="41.56719690007991" y="60.33004733688409" width="8" height="8" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: pointer; vector-effect: non-scaling-stroke;"></rect><rect x="12.907102226311729" y="51.464441137043906" width="8" height="8" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: pointer; vector-effect: non-scaling-stroke;"></rect><rect x="17.339905326231822" y="37.13439380015981" width="8" height="8" fill="var(--bg-primary, #202430)" stroke="var(--accent-primary, #4c9aff)" stroke-width="1.5" style="pointer-events: auto; cursor: pointer; vector-effect: non-scaling-stroke;"></rect></g>"`);
+  });
+});

@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { PaperExportStyleChoice } from '../../lib/paperExportSettings';
+import type { PaperExportMarks, PaperExportStyleChoice } from '../../lib/paperExportSettings';
 import type {
   ConditionKind,
   FoldArtifacts,
@@ -57,6 +57,8 @@ import type {
   DiagramPullAnchor,
   DiagramTurnKind,
   DiagramStepDiagramPicture,
+  LiftedCard,
+  PulledMarks,
   SentReferencesEntry,
   DiagramDocument,
   DiagramHanStyle,
@@ -103,6 +105,7 @@ import type { UserCamera } from '../../cp-workspace/renderer/camera';
 import type {
   ReferencesCardLocator,
   ReferencesRestore,
+  ReferencesStepCard,
 } from '../../cp-workspace/references/referencesReaderState';
 import type {
   AddInlineSimulationResult,
@@ -1766,12 +1769,20 @@ export interface ReferencesSliceState {
    * for the same reason as {@link referencesAnalysisRequest}.
    */
   referencesSheetRequest: ReferencesSheetRequest | null;
+  /**
+   * The card a sheet request asked for, once its sheet is open: taken when
+   * that sheet's plan is on screen — as it lands, or at once if it is there
+   * already. A switch to another sheet drops it.
+   */
+  referencesCardRequest: { sheet: number; card: ReferencesStepCard } | null;
 }
 
 /** Open References on the sheet with this rim, in this mode. */
 export interface ReferencesSheetRequest {
   boundary: Point[][];
   mode: ReferencesMode;
+  /** The card of the sequence to open on: a sequence step's own. Absent in Find. */
+  card?: ReferencesStepCard;
 }
 
 export interface ReferencesSliceActions {
@@ -1824,6 +1835,10 @@ export interface ReferencesSliceActions {
   openReferencesWorkspace: (sheet?: ReferencesSheetRequest) => void;
   /** Take the pending sheet request, if there is one: see {@link consumeReferencesAnalysisRequest}. */
   takeReferencesSheetRequest: () => ReferencesSheetRequest | null;
+  /** Open `sheet`'s plan on `card` once it is on screen (see {@link ReferencesSliceState.referencesCardRequest}). */
+  requestReferencesCard: (sheet: number, card: ReferencesStepCard) => void;
+  /** Take the card asked for on `sheet`, if there is one. */
+  takeReferencesCardRequest: (sheet: number) => ReferencesStepCard | null;
 }
 
 /**
@@ -1910,6 +1925,12 @@ export interface DiagramSliceState {
   diagramReadOnly: boolean;
   /** The diagram as read, kept for writing a read-only one back unchanged. */
   diagramRaw: Record<string, unknown> | null;
+  /**
+   * The project's other diagrams, after the one shown, as a file stored them:
+   * written back after it, unchanged. This build shows one diagram per
+   * project; a later one may keep several, and a save here keeps the rest.
+   */
+  diagramOthers: readonly Record<string, unknown>[];
   /** View state: not history, never dirty, but scoped to this diagram. */
   diagramView: DiagramViewMode;
   diagramSelectedStepId: string | null;
@@ -1966,6 +1987,13 @@ export interface DiagramSliceState {
    */
   diagramAnchorPick: DiagramAnchorPick | null;
   /**
+   * The steps whose faces on the paper are being fetched
+   * (`giveDiagramStepPaperFaces`), by id: an x-ray laid or pasted on a flat
+   * step captured before they were kept waits for them, its Depth held and
+   * saying nothing until they land (Revision 3). Not saved.
+   */
+  diagramPaperFacesFetching: Readonly<Record<string, true>>;
+  /**
    * The newest edit that sent frames moved by hand back to their cells
    * (`settlePlaces`, inside that edit's undo step): how many; a `nonce` that
    * is new with every such edit, so what tells the user — a toast with
@@ -1976,6 +2004,15 @@ export interface DiagramSliceState {
    * Undo and redo leave it as it is. Not saved.
    */
   diagramPlacesSettled: { count: number; nonce: number; entry: SnapshotEntry<DiagramDocument | null> | null } | null;
+  /**
+   * The newest paste of annotations (18d review): the step it landed on, the
+   * ids of the marks it put there, and a `nonce` that is new with every
+   * paste. A paste lands where its marks were copied, which can be out of
+   * view — on another picture's enlarged step, beside its window (Revision
+   * 2, decision 7) — so the step's canvas steps back to show it, once. Undo
+   * and redo leave it as it is. Not saved.
+   */
+  diagramPasted: { stepId: string; ids: readonly string[]; nonce: number } | null;
 }
 
 /** What an anchor is being picked for: an enlarge area on a step, or the step's own frame. */
@@ -2009,11 +2046,21 @@ export interface DiagramReferencesBrowserState {
    * came from is no longer listed (planned again since), not on another.
    */
   sheet?: Point[][] | null;
+  /**
+   * Which of a card's marks a pull brings (17d), as the Show menu shows them:
+   * for Replace, the step's own choice as it opens; once the menu is used,
+   * its choice. Absent, the menu's remembered choice
+   * (`diagramReferencesMarks`).
+   */
+  marks?: PaperExportMarks;
 }
 
 export interface DiagramSliceActions {
-  /** Install a diagram read from a file (or none), with an empty history. */
-  installDiagram: (read: ReadDiagram | null) => void;
+  /**
+   * Install a diagram read from a file (or none), with an empty history, and
+   * the project's other diagrams (`diagramOthers`), carried as they came.
+   */
+  installDiagram: (read: ReadDiagram | null, others?: readonly Record<string, unknown>[]) => void;
   /**
    * Add an empty step after the selected one (or at the end) and select it.
    * Creates the diagram on first use. The new step's id, or null when the
@@ -2189,20 +2236,32 @@ export interface DiagramSliceActions {
    * that browser's: once it has closed the pull adds nothing. The steps the
    * cards became, or null.
    */
-  /** Fold a References step's card another way (D23): one undo step. Whether it changed. */
+  /**
+   * Fold a References step's card another way (D23): one undo step, the
+   * card's marks swapped for the way's (`lifted`, 17d) when they fit beside
+   * the author's. Whether it changed.
+   */
   setDiagramReferencesWay: (
     stepId: string,
-    way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string }
+    way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string; lifted?: LiftedCard | null }
   ) => boolean;
+  /**
+   * Make Marks Editable (17e): a References step whose card's marks are in
+   * its picture shown as a fresh pull shows the card — `lifted`, its sheet
+   * and every mark — the author's marks kept, as one undo step
+   * (`makeCardMarksEditable`). `loadId` drops an edit that outlived its
+   * diagram. Whether it changed.
+   */
+  makeDiagramStepMarksEditable: (stepId: string, lifted: LiftedCard, options?: { loadId?: number }) => boolean;
   pullReferencesDiagramSteps: (
     sent: readonly SentReferencesEntry[],
     anchor: DiagramPullAnchor,
     options: { loadId: number; label: string; opening?: number }
-  ) => { stepIds: string[]; turnIds: string[] } | null;
+  ) => ({ stepIds: string[]; turnIds: string[] } & PulledMarks) | null;
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;
   /**
-   * Pose's Enlarged turned on (Revision 2, Z2): a frame captured from the
+   * The Enlarged toggle turned on (Revision 2, Z2): a frame captured from the
    * nearest earlier step with an area or a frame, the step's own areas gone
    * and its marks carried into the window — one undo step, which first gives
    * either step its faces when it is a flat capture made before they were
@@ -2212,10 +2271,20 @@ export interface DiagramSliceActions {
   /** Enlarged turned off: the frame dropped, the marks carried back to the whole picture, as one undo step. */
   unenlargeDiagramStep: (stepId: string) => boolean;
   /**
-   * Update Enlarged Steps (Z7): every step captured from the area captured
-   * again from it as it is now, as one undo step. Resolves how many it placed.
+   * Update (review fix 4): an enlarged step that is out of date captured
+   * again from its area as it is now, as one undo step — what "Step N's area
+   * changed" asks for. Resolves how many it placed: one, or none with the
+   * area gone or the step up to date; null, refused, while an update of its
+   * area runs.
    */
-  updateEnlargedDiagramSteps: (areaId: string) => Promise<number>;
+  updateEnlargedDiagramStep: (stepId: string) => Promise<number | null>;
+  /**
+   * Update All (Z7; review fix 4): every step enlarged from these areas that
+   * is out of date (`stepsToUpdate`) captured again from its area as it is
+   * now, as one undo step. Resolves how many it placed; null, refused, while
+   * an update of one of its areas runs.
+   */
+  updateEnlargedDiagramSteps: (areaIds: readonly string[]) => Promise<number | null>;
   /**
    * Any other edit of an enlarged step's frame — moved, resized, reshaped,
    * its Size, Edge or anchor — as one undo step called `label`: `edit` gets
@@ -2229,11 +2298,13 @@ export interface DiagramSliceActions {
     options?: { loadId?: number }
   ) => boolean;
   /**
-   * A step just made an enlarge source — an area drawn on it — given its faces
-   * on the paper when it is a flat capture made before they were kept and its
-   * pattern can fold it again (Z11): folded into the newest undo step, the
-   * area's, while it is still the newest; nothing otherwise, as a capture from
-   * it gives them later. Resolves whether it did.
+   * A step just made an enlarge source — an area drawn on it — or x-rayed — an
+   * x-ray laid on it (Revision 3, R3-18a A) — given its faces on the paper when
+   * it is a flat capture made before they were kept and its pattern can fold
+   * it again (Z11): folded into the newest undo step, the area's or the
+   * x-ray's, while it is still the newest; nothing otherwise — a capture from
+   * it gives them later, and an x-ray is drawn once a Refresh has. Resolves
+   * whether it did.
    */
   giveDiagramStepPaperFaces: (stepId: string) => Promise<boolean>;
   /** Arm the anchor's pick mode for an area or a frame, or leave it (null). View state. */

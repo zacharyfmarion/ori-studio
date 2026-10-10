@@ -423,22 +423,30 @@ const CROSSING_LINES = 64;
  * has them ({@link PictureGeometry.crossings}), and of `drawn` — lines drawn
  * on it — with each other and with the picture's, which cross on the page
  * whatever the picture is. Without `pictureLines`, of the drawn lines alone.
+ * `shownLines` are lines of the picture beside its own, met as they are: the
+ * edges of the faces an x-ray's window shows (Revision 3, R3-22 B).
  */
 export function crossingsNear(
   geometry: PictureGeometry,
   drawn: readonly IndexedSegment[],
   at: PicturePoint,
   reach: number,
-  { pictureLines = true }: { pictureLines?: boolean } = {}
+  { pictureLines = true, shownLines = [] }: { pictureLines?: boolean; shownLines?: readonly IndexedSegment[] } = {}
 ): PicturePoint[] {
   const near: { segment: IndexedSegment; drawn: boolean; distance: number }[] = [];
   for (const segment of drawn) {
     const distance = distanceTo(at, segment);
     if (distance <= reach) near.push({ segment, drawn: true, distance });
   }
-  if (pictureLines && (geometry.crossings || near.length > 0)) {
-    for (const segment of geometry.segmentIndex.segmentsNear(at[0], at[1], reach)) {
-      near.push({ segment, drawn: false, distance: distanceTo(at, segment) });
+  if (geometry.crossings || near.length > 0) {
+    if (pictureLines) {
+      for (const segment of geometry.segmentIndex.segmentsNear(at[0], at[1], reach)) {
+        near.push({ segment, drawn: false, distance: distanceTo(at, segment) });
+      }
+    }
+    for (const segment of shownLines) {
+      const distance = distanceTo(at, segment);
+      if (distance <= reach) near.push({ segment, drawn: false, distance });
     }
   }
   if (near.length < 2) return [];

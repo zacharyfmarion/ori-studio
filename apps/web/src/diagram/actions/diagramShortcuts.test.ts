@@ -136,7 +136,7 @@ describe('the step keys while the References browser is open', () => {
 });
 
 describe('Annotate’s keys', () => {
-  const annotate = (tool: string | null = null, canFlipArc = false, lineType: 'valley' | 'mountain' | 'hidden' = 'valley') => ({
+  const annotate = (tool: string | null = null, canFlipArc = false, lineType: 'valley' | 'mountain' | 'hidden' | 'solid' = 'valley') => ({
     annotate: { tool: tool as never, lineType, selectedAnnotationId: canFlipArc ? 'a' : null, canFlipArc },
   });
   const press = (id: Parameters<typeof runDiagramShortcut>[0], state: Partial<DiagramKeyState>) => {
@@ -165,6 +165,14 @@ describe('Annotate’s keys', () => {
     expect(press('diagram.toolEnlarge', { annotate: { ...enlarged.annotate, tool: 'enlarge' as never } }).setTool).toHaveBeenCalledWith(null);
   });
 
+  it('picks X-Ray with X, and not on a picture with no layers to x-ray (Revision 3, R3-25 A, R3-18a A)', () => {
+    expect(press('diagram.toolXRay', annotate()).setTool).toHaveBeenCalledWith('x-ray');
+    const held = press('diagram.toolXRay', { annotate: { ...annotate().annotate, xrayHeld: true } });
+    expect(held.claimed).toBe(true);
+    expect(held.setTool).not.toHaveBeenCalled();
+    expect(press('diagram.toolXRay', annotate('x-ray' as never)).setTool).toHaveBeenCalledWith(null);
+  });
+
   it('picks a tool by its letter, and puts it down with the same letter', () => {
     expect(press('diagram.toolValleyArrow', annotate()).setTool).toHaveBeenCalledWith('valley-arrow');
     expect(press('diagram.toolValleyArrow', annotate('valley-arrow')).setTool).toHaveBeenCalledWith(null);
@@ -188,6 +196,22 @@ describe('Annotate’s keys', () => {
     expect(again.setLineType).not.toHaveBeenCalled();
     // Outside Annotate it declines: the keys are a crease-pattern tool's too.
     expect(press('diagram.toolValleyLine', {}).claimed).toBe(false);
+  });
+
+  it('picks Solid with Shift+L, a chord no other Diagram key or the view’s has, as Shift+V and Shift+M pick theirs (17a)', () => {
+    const solid = SHORTCUT_DEFINITIONS.find((shortcut) => shortcut.id === 'diagram.toolSolidLine');
+    expect(solid).toMatchObject({ scope: 'diagram', defaultChord: { shift: true, key: 'l' } });
+    const others = SHORTCUT_DEFINITIONS.filter(
+      (shortcut) =>
+        shortcut.id !== 'diagram.toolSolidLine' &&
+        ['diagram', 'diagram-path', 'viewport', 'global'].includes(shortcut.scope) &&
+        shortcut.defaultChords.some((chord) => chord.key === 'l' && chord.shift && !chord.primary && !chord.alt)
+    );
+    expect(others).toEqual([]);
+    const picked = press('diagram.toolSolidLine', annotate('valley-arrow'));
+    expect(picked.setLineType).toHaveBeenCalledWith('solid');
+    expect(picked.setTool).toHaveBeenCalledWith('line');
+    expect(press('diagram.toolSolidLine', annotate('line', false, 'solid')).setTool).toHaveBeenCalledWith(null);
   });
 
   it('binds the circle to O, a letter no other Diagram key or the view’s has', () => {
@@ -248,6 +272,8 @@ describe('Annotate’s keys', () => {
   });
 
   it.each([
+    ['the Line tool', 'diagram.toolLine', 'space', 'line'],
+    ['the text tool', 'diagram.toolLabel', 't', 'label'],
     ['the pleat arrow', 'diagram.toolPleatArrow', 'z', 'pleat-arrow'],
     ['the angle bisector', 'diagram.toolAngleBisector', 'b', 'angle-bisector'],
     ['the solid arrow', 'diagram.toolSolidArrow', 's', 'solid-arrow'],
@@ -282,6 +308,14 @@ describe('Annotate’s keys', () => {
 });
 
 describe('Annotate’s Escape rungs', () => {
+  it.each(['line', 'angle-bisector', 'angle-mark', 'divisions', 'x-ray', 'circle', 'close-up', 'enlarge', 'enlarge-frame', 'oval', 'rectangle', 'label', 'callout', 'star', 'eye', 'right-angle', 'valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'push-arrow', 'white-arrow', 'solid-arrow'] as const)('Escape puts %s down after a completed mark without deselecting it', (tool) => {
+    const actions = { select: vi.fn(), close: vi.fn(), selectAnnotation: vi.fn(), setTool: vi.fn(), cancelGesture: () => false };
+    expect(runDiagramCancel({ selectedStepId: 'step', detailOpen: true, annotate: { tool, selectedAnnotationId: 'mark', canFlipArc: false } }, actions)).toBe(true);
+    expect(actions.setTool).toHaveBeenCalledWith(null);
+    expect(actions.selectAnnotation).not.toHaveBeenCalled();
+    expect(actions.close).not.toHaveBeenCalled();
+  });
+
   it('leaves the anchor’s pick mode first, wherever the focus is (Revision 2)', () => {
     const actions = { select: vi.fn(), close: vi.fn(), selectAnnotation: vi.fn(), setTool: vi.fn(), endAnchorPick: vi.fn() };
     const state = {
@@ -298,7 +332,7 @@ describe('Annotate’s Escape rungs', () => {
     expect(actions.selectAnnotation).toHaveBeenCalledWith(null);
   });
 
-  it('drops a drag, then the annotation, then the tool, then leaves the detail', () => {
+  it('drops a drag, then the tool, then the annotation, then leaves the detail', () => {
     const actions = {
       select: vi.fn(),
       close: vi.fn(),
@@ -317,10 +351,11 @@ describe('Annotate’s Escape rungs', () => {
 
     actions.cancelGesture.mockReturnValue(false);
     runDiagramCancel(state, actions);
-    expect(actions.selectAnnotation).toHaveBeenCalledWith(null);
-
-    runDiagramCancel({ ...state, annotate: { ...state.annotate, selectedAnnotationId: null } }, actions);
     expect(actions.setTool).toHaveBeenCalledWith(null);
+    expect(actions.selectAnnotation).not.toHaveBeenCalled();
+
+    runDiagramCancel({ ...state, annotate: { ...state.annotate, tool: null } }, actions);
+    expect(actions.selectAnnotation).toHaveBeenCalledWith(null);
     expect(actions.close).not.toHaveBeenCalled();
 
     runDiagramCancel({ ...state, annotate: { tool: null, selectedAnnotationId: null, canFlipArc: false } }, actions);

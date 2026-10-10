@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import type { CameraUniforms } from '@treemaker/origami-simulator';
@@ -14,8 +14,7 @@ import {
   type SimulatorToolSelectSource,
 } from '../analytics';
 import { reportError } from '../monitoring';
-import { useWorkspaceStore } from '../store/workspaceStore';
-import { simulatorPinsFor } from '../store/workspaceStore/slices/simulatorSlice';
+import { SIMULATE_TOOL_STATE } from './simulateToolState';
 import type { SimulatorToolVerbs } from './tools/actions';
 import { RESTING_SIMULATOR_TOOL, simulatorTool } from './tools/catalog';
 import { pickQueryFor, pinIntentFor, pullIntentFor } from './tools/intents';
@@ -36,10 +35,11 @@ import type {
   SimulatorToolOptionId,
   SimulatorToolsView,
 } from './tools/types';
+import type { SimulatorHandChange, SimulatorToolState, SimulatorToolSurface } from './tools/toolState';
 import { pinnedHighlights, type SimulatorHighlights } from './canvas2dFrame';
 import { classifySimulatorCallFailure, simulatorBackendTag } from './simulatorCallFailure';
 import type { SimulatorPickQuery } from './pickQuery';
-import type { SimulatorViewportToolInput } from './SimulatorViewport';
+import type { SimulatorViewportHandle, SimulatorViewportToolInput } from './SimulatorViewport';
 import type { SimulatorFrameView, SimulatorModelView, SimulatorRuntime } from './useSimulatorRuntime';
 import type { SimulatorToolShortcutHandlers } from './useSimulatorShortcuts';
 import { useSimulatorPull } from './useSimulatorPull';
@@ -56,20 +56,47 @@ export interface SimulatorToolsRuntime {
   releasePose: SimulatorRuntime['releasePose'];
 }
 
-export interface UseSimulatorToolsOptions {
+/** What every host hands the tools: its runtime, and its canvas's half of a gesture. */
+export interface SimulatorToolHostOptions {
   runtime: SimulatorToolsRuntime;
   /** Tools act only on a simulation that is ready. */
   ready: boolean;
-  /** The fold revision, which pins are scoped to. */
-  revision: number;
-  /** Which source is simulated: a segment, or the whole pattern. */
-  sourceKey: string;
   /** The canvas-2D path's own pick, from the frame it drew; null without one. */
   pickDrawn: (query: SimulatorPickQuery) => number[] | null;
   /** The camera of the canvas-2D path's last frame, for a pull; null without one. */
   drawnCamera: () => CameraUniforms | null;
   /** Abandon a gesture in flight on the canvas. True when there was one. */
   cancelGesture: () => boolean;
+}
+
+export interface UseSimulatorToolsOptions extends SimulatorToolHostOptions {
+  /** The fold revision, which pins are scoped to. */
+  revision: number;
+  /** Which source is simulated: a segment, or the whole pattern. */
+  sourceKey: string;
+}
+
+export interface UseSimulatorToolBindingOptions<Scope> extends SimulatorToolHostOptions {
+  /**
+   * Where the tool in hand, the options and the pins are kept. Stable for the
+   * life of the host: a new one re-subscribes.
+   */
+  state: SimulatorToolState<Scope>;
+  /**
+   * What the pins belong to now. A model is bound to the scope current when it
+   * arrives, so a scope that changes before its model lands never has its pins
+   * read against the model still on screen. Compared by nothing: a new object
+   * each render is fine.
+   */
+  scope: Scope;
+  /** Which host this is, as the tools' analytics events say it. */
+  surface: SimulatorToolSurface;
+  /**
+   * What the hand did to the paper, once the worker has answered; see
+   * {@link SimulatorHandChange}. Read when the answer arrives, so it need not
+   * be stable.
+   */
+  onHandChange?: (change: SimulatorHandChange) => void;
 }
 
 export interface SimulatorTools {
@@ -114,25 +141,16 @@ const OPTION_EVENT: Record<SimulatorToolOptionId, { tool: SimulatorToolId; optio
 };
 
 /**
- * The model on screen and the source it was loaded for.
+ * The model on screen and the scope it was loaded for: in Simulate, the fold
+ * revision and the source.
  *
  * Paired because they change at different moments: a segment switch changes
  * the source at once and the model only when its load lands. Reading the new
  * source's pins against the old model would pin the wrong faces on it.
  */
-interface BoundModel {
+interface BoundModel<Scope> {
   model: SimulatorModelView;
-  revision: number;
-  sourceKey: string;
-}
-
-/** The pins on record for a binding, read now rather than at the last render. */
-function pinsOf(binding: BoundModel): PinSet {
-  return simulatorPinsFor(
-    useWorkspaceStore.getState().simulatorPins,
-    binding.revision,
-    binding.sourceKey
-  );
+  scope: Scope;
 }
 
 /**
@@ -156,37 +174,91 @@ export function nextPinNotices(
   return next;
 }
 
+/** The calls the tools make, out of a host's runtime. */
+export function simulatorToolsRuntime(runtime: SimulatorRuntime): SimulatorToolsRuntime {
+  return {
+    model: runtime.model,
+    gpuActive: runtime.gpuActive,
+    pickFaces: runtime.pickFaces,
+    setPinnedFaces: runtime.setPinnedFaces,
+    beginPull: runtime.beginPull,
+    movePull: runtime.movePull,
+    endPull: runtime.endPull,
+    releasePose: runtime.releasePose,
+  };
+}
+
+/**
+ * The viewport's half of a tool gesture, through a host's ref to it: read when
+ * a tool calls, so a viewport mounted after the tools still answers.
+ */
+export function useViewportToolHooks(
+  viewportRef: RefObject<SimulatorViewportHandle | null>
+): Pick<SimulatorToolHostOptions, 'pickDrawn' | 'drawnCamera' | 'cancelGesture'> {
+  return useMemo(
+    () => ({
+      pickDrawn: (query) => viewportRef.current?.pickDrawnFaces(query) ?? null,
+      drawnCamera: () => viewportRef.current?.drawnCamera() ?? null,
+      cancelGesture: () => viewportRef.current?.cancelToolGesture() ?? false,
+    }),
+    [viewportRef]
+  );
+}
+
+/**
+ * The Simulate workspace's tools: the binding over the workspace slice, with
+ * pins scoped to the fold revision and the source simulated.
+ */
+export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorTools {
+  const { revision, sourceKey, ...host } = options;
+  return useSimulatorToolBinding({
+    ...host,
+    state: SIMULATE_TOOL_STATE,
+    scope: { revision, sourceKey },
+    surface: 'simulate',
+  });
+}
+
 /**
  * The simulator's tools, bound: the one place a tool has effects.
  *
- * Everything under `tools/` decides; this acts. It reads and writes the store's
- * tool state, puts picks and pins to the worker, keeps the worker's pins in step
- * with the store's, and says what went wrong. The panel composes what it
- * returns and holds no tool logic of its own.
+ * Everything under `tools/` decides; this acts. It reads and writes the host's
+ * tool state through its port (`tools/toolState.ts`), puts picks and pins to
+ * the worker, keeps the worker's pins in step with the host's, says what went
+ * wrong, and tells the host what the hand did once the worker has answered. A
+ * panel composes what it returns and holds no tool logic of its own.
  *
- * **Pins.** The store holds the set the user asked for, per source. The worker
+ * **Pins.** The host holds the set the user asked for, per scope. The worker
  * holds the set it applied, per model. An effect keeps them in step: a new
- * model is sent its source's pins, and an edit is sent to the model on screen.
- * When the worker rejects a set, the store goes back to the last set the worker
+ * model is sent its scope's pins, and an edit is sent to the model on screen.
+ * When the worker rejects a set, the host goes back to the last set the worker
  * acknowledged, so the tint never shows pins the paper does not have.
  */
-export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorTools {
+export function useSimulatorToolBinding<Scope>(
+  options: UseSimulatorToolBindingOptions<Scope>
+): SimulatorTools {
   const { t } = useTranslation();
-  const { runtime, ready, revision, sourceKey } = options;
+  const { runtime, ready, state, scope } = options;
 
-  const activeToolId = useWorkspaceStore((state) => state.simulatorActiveToolId);
-  const toolOptions = useWorkspaceStore((state) => state.simulatorToolOptions);
-  const pinsState = useWorkspaceStore((state) => state.simulatorPins);
+  // Wrapped rather than passed as they are, so a port whose methods use `this`
+  // works, and keyed on the port alone, so a render subscribes nothing new.
+  const subscribe = useCallback((listener: () => void) => state.subscribe(listener), [state]);
+  const readSnapshot = useCallback(() => state.getSnapshot(), [state]);
+  const { activeToolId, options: toolOptions } = useSyncExternalStore(subscribe, readSnapshot);
 
-  // Bound when a model arrives, to the source current at that moment; see
+  // Bound when a model arrives, to the scope current at that moment; see
   // `BoundModel`. Derived during render, React's pattern for state that follows
-  // a prop, so no render ever sees a model paired with another source.
-  const [bound, setBound] = useState<BoundModel | null>(null);
+  // a prop, so no render ever sees a model paired with another scope.
+  const [bound, setBound] = useState<BoundModel<Scope> | null>(null);
   if ((bound?.model ?? null) !== runtime.model) {
-    setBound(runtime.model ? { model: runtime.model, revision, sourceKey } : null);
+    setBound(runtime.model ? { model: runtime.model, scope } : null);
   }
 
-  const pinned = bound ? simulatorPinsFor(pinsState, bound.revision, bound.sourceKey) : EMPTY_PIN_SET;
+  const readPinned = useCallback(
+    () => (bound ? state.getPins(bound.scope) : EMPTY_PIN_SET),
+    [state, bound]
+  );
+  const pinned = useSyncExternalStore(subscribe, readPinned);
   const [notices, setNotices] = useState<readonly SimulatorToolNotice[]>([]);
   const pull = useSimulatorPull({
     runtime,
@@ -194,6 +266,8 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
     ready,
     pinnedCount: pinned.length,
     drawnCamera: options.drawnCamera,
+    surface: options.surface,
+    onHandChange: options.onHandChange,
   });
   const { run: runPull, springBack, posed, observeFrame: observePullFrame } = pull;
 
@@ -250,6 +324,7 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
             tags: { backend: simulatorBackendTag(gpuActive), reason: 'unknown_face' },
           });
         }
+        live.current.options.onHandChange?.({ kind: 'pins', faces });
       },
       (error: unknown) => {
         if (classifySimulatorCallFailure(error) === 'unexpected') {
@@ -260,19 +335,19 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
         }
         // Back to what the paper actually has, unless a newer set has already
         // replaced the one that failed: that one is on its way.
-        if (!pinSetsEqual(pinsOf(bound), faces)) return;
+        if (!pinSetsEqual(state.getPins(bound.scope), faces)) return;
         const kept = heldRef.current?.model === model ? heldRef.current.faces : EMPTY_PIN_SET;
-        useWorkspaceStore.getState().setSimulatorPins(bound.revision, bound.sourceKey, kept);
+        state.setPins(bound.scope, kept);
       }
     );
-  }, [bound, pinned, setPinnedFaces, gpuActive]);
+  }, [bound, pinned, setPinnedFaces, gpuActive, state]);
 
   // Picks run one at a time, so they apply in the order they were made even
   // when an earlier one is slower to answer.
   const queueRef = useRef<Promise<void>>(Promise.resolve());
 
   const executeIntent = useCallback(
-    async (intent: SimulatorIntent, binding: BoundModel): Promise<void> => {
+    async (intent: SimulatorIntent, binding: BoundModel<Scope>): Promise<void> => {
       // The gesture was made on the picture of `binding`'s model. If another
       // has replaced it since, the region no longer means what was aimed at.
       if (live.current.bound !== binding) return;
@@ -298,12 +373,11 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
           if (picked === null) return;
           // And the model may have been replaced while the worker answered.
           if (live.current.bound !== binding) return;
-          const before = pinsOf(binding);
+          const before = current.state.getPins(binding.scope);
           const after = applyPinPick(before, picked, intent.mode);
-          if (!pinSetsEqual(before, after)) {
-            useWorkspaceStore.getState().setSimulatorPins(binding.revision, binding.sourceKey, after);
-          }
+          if (!pinSetsEqual(before, after)) current.state.setPins(binding.scope, after);
           trackSimulatorPinsEdited({
+            surface: current.surface,
             gesture: intent.gesture,
             mode: intent.mode,
             depth: intent.reach,
@@ -348,28 +422,28 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
   );
 
   const selectTool = useCallback((id: SimulatorToolId, source: SimulatorToolSelectSource) => {
-    const store = useWorkspaceStore.getState();
-    if (store.simulatorActiveToolId === id) return;
+    const { state: tools, cancelGesture, surface } = live.current.options;
+    if (tools.getSnapshot().activeToolId === id) return;
     // A box half drawn under one tool means nothing to the next.
-    live.current.options.cancelGesture();
-    store.setSimulatorActiveTool(id);
-    trackSimulatorToolSelected({ tool: id, source });
+    cancelGesture();
+    tools.setActiveTool(id);
+    trackSimulatorToolSelected({ surface, tool: id, source });
   }, []);
 
   const clearPins = useCallback((source: SimulatorPinsClearSource) => {
-    const binding = live.current.bound;
-    const before = binding ? pinsOf(binding) : EMPTY_PIN_SET;
+    const { bound: binding, options: current } = live.current;
+    const before = binding ? current.state.getPins(binding.scope) : EMPTY_PIN_SET;
     if (!binding || before.length === 0) return;
-    useWorkspaceStore.getState().setSimulatorPins(binding.revision, binding.sourceKey, EMPTY_PIN_SET);
-    trackSimulatorPinsCleared({ source, pinnedCount: before.length });
+    current.state.setPins(binding.scope, EMPTY_PIN_SET);
+    trackSimulatorPinsCleared({ surface: current.surface, source, pinnedCount: before.length });
   }, []);
 
   const setOption = useCallback(
     (id: SimulatorToolOptionId, value: boolean, source: SimulatorToolOptionSource) => {
-      const store = useWorkspaceStore.getState();
-      if (store.simulatorToolOptions[id] === value) return;
-      store.setSimulatorToolOption(id, value);
-      trackSimulatorToolOptionChanged({ ...OPTION_EVENT[id], value, source });
+      const { state: tools, surface } = live.current.options;
+      if (tools.getSnapshot().options[id] === value) return;
+      tools.setOption(id, value);
+      trackSimulatorToolOptionChanged({ surface, ...OPTION_EVENT[id], value, source });
     },
     []
   );
@@ -397,7 +471,7 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
   // changes nothing must not cost the panel a render.
   const observeFrame = useCallback((frame: SimulatorFrameView) => {
     observePullFrame(frame);
-    const { pinned: current, notices: shown, bound: binding } = live.current;
+    const { pinned: current, notices: shown, bound: binding, options: host } = live.current;
     const seen = framesRef.current;
 
     // Once per load per action, pinned or not: the guard used to act silently.
@@ -409,7 +483,7 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
     const recovered = frame.recovered ?? null;
     if (recovered && !seen.recovered.has(recovered)) {
       seen.recovered.add(recovered);
-      trackSimulatorSolverRecovered({ action: recovered, pinned: current.length > 0 });
+      trackSimulatorSolverRecovered({ surface: host.surface, action: recovered, pinned: current.length > 0 });
     }
 
     // The first move of the fold target after a pin edit, once per pin set.
@@ -427,6 +501,7 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
     ) {
       seen.moved = true;
       trackSimulatorPinnedFoldMoved({
+        surface: host.surface,
         direction: frame.foldPercent > seen.baseline ? 'fold' : 'unfold',
         pinnedCount: current.length,
       });

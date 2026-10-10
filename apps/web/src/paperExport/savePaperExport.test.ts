@@ -238,11 +238,10 @@ describe('paperExportedEvent', () => {
     });
     expect(
       paperExportedEvent('references', DEFAULT_PAPER_EXPORT_SETTINGS, { ...details, style: 'builtin:diagram' })
-        .style
-    ).toBe('diagram');
+    ).toMatchObject({ style: 'diagram' });
     expect(
-      paperExportedEvent('references', DEFAULT_PAPER_EXPORT_SETTINGS, { ...details, style: 'user:Mine' }).style
-    ).toBe('custom');
+      paperExportedEvent('references', DEFAULT_PAPER_EXPORT_SETTINGS, { ...details, style: 'user:Mine' })
+    ).toMatchObject({ style: 'custom' });
   });
 
   it('says what kind of background, and whether anything was changed', () => {

@@ -37,9 +37,16 @@
     "references": {
       "addedSteps": "ステップ {{first}}–{{last}} として追加しました",
       "addedTurnOvers_other": "裏返しを{{count}}件追加しました",
+      "bakedStep": "ステップ {{number}} の記号は図の一部のままです：1つのステップに入る数を超えています。",
+      "bakedSteps_other": "{{count}} 個のステップの記号は図の一部のままです：1つのステップに入る数を超えています。",
       "filledStep": "ステップ {{number}} を埋めました",
+      "marksEditable_other": "ステップ {{number}} の記号 {{count}} 個を編集できるようになりました",
+      "marksOutsideFrame_other": "拡大の枠の外にある記号 {{count}} 個は含めませんでした",
+      "noMarksInFrame": "ステップ {{number}} の記号は拡大の枠の中にひとつもありません",
+      "replacedEdited_other": "編集した記号を {{count}} 件置き換えました",
       "replacedStep": "ステップ {{number}} のカードを置き換えました",
-      "tooLarge": "このステップは細かすぎて折り図に保持できません。"
+      "tooLarge": "このステップは細かすぎて折り図に保持できません。",
+      "undoReplaced": "元に戻す"
     },
     "refreshedAll_other": "{{count}} 個のステップを更新しました",
     "uploadFailed_other": "{{count}} 枚の図を追加できませんでした",
@@ -49,7 +56,15 @@
     "uploadRejected": "Ori Studio が安全に読み込める SVG ではありません",
     "uploadTooLarge": "サイズが大きすぎます",
     "uploadUnreadable": "図を読み込めませんでした",
-    "uploadUnsupported": "図のファイルではありません"
+    "uploadUnsupported": "図のファイルではありません",
+    "zoom": {
+      "updatedList": "拡大したステップ {{numbers}} を更新しました",
+      "updatedOne": "拡大したステップ {{number}} を更新しました",
+      "updatedRange": "拡大したステップ {{first}}–{{last}} を更新しました",
+      "updatedSome": "拡大したステップ {{total}} 件のうち {{placed}} 件を更新しました",
+      "updatedSomeDetail": "残りのステップには、この範囲から枠を取り込めませんでした。",
+      "updateFailed": "拡大したステップを更新できませんでした"
+    }
   },
   "diagramExport": {
     "saved": "{{name}} を書き出しました"

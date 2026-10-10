@@ -1,6 +1,14 @@
 import type { ReactElement } from 'react';
 import { MousePointer2, RotateCw, SplinePointer, Type } from 'lucide-react';
-import { TURN_OVER_BOX, TURN_OVER_HEAD_PATH, TURN_OVER_PATH } from '../../cp-workspace/references/stepDiagramGeometry';
+import {
+  TURN_OVER_BOX,
+  TURN_OVER_HEAD_PATH,
+  TURN_OVER_PATH,
+  eyePathData,
+  eyeShape,
+  polygonPathData,
+  starPoints,
+} from '../../cp-workspace/references/stepDiagramGeometry';
 import {
   ANGLE_BISECTOR,
   EDIT_PATH,
@@ -11,29 +19,31 @@ import {
   type AnnotateTool,
 } from '../../diagram/annotate/annotateTools';
 import { lineKindOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
+import type { DiagramStarFill } from '../../diagram/annotate/starFill';
 import type { DiagramAnnotationKind, DiagramZoomShape } from '../../diagram/document/diagramDocument';
 
 const SIZE = 20;
 
-/** Each line type's dash in a glyph, as its line glyph draws it. */
-const LINE_DASH: Readonly<Record<DiagramLineType, string>> = {
+/** Each line type's dash in a glyph, as its line glyph draws it: none for a solid line. */
+const LINE_DASH: Readonly<Record<DiagramLineType, string | undefined>> = {
   valley: '3.2 2.2',
   mountain: '4 1.6 0.8 1.6',
   hidden: '0.9 1.9',
+  solid: undefined,
 };
 
 /** The shaft every fold arrow's icon shares: a 60° arc, left to right. */
 const ARC = 'M3 14 A10.5 10.5 0 0 1 15.2 8.4';
 
-/** One stroke, in the rail's ink, for an icon drawn here. */
-function Glyph({ children }: { children: React.ReactNode }) {
+/** One stroke, in the rail's ink or a colour of its own, for an icon drawn here. */
+function Glyph({ children, color }: { children: React.ReactNode; color?: string }) {
   return (
     <svg
       width={SIZE}
       height={SIZE}
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       fill="none"
-      stroke="currentColor"
+      stroke={color ?? 'currentColor'}
       strokeWidth={1.5}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -52,10 +62,13 @@ function Glyph({ children }: { children: React.ReactNode }) {
 export function DiagramAnnotateToolGlyph({
   tool,
   lineType,
+  starFill = 'black',
 }: {
   tool: AnnotateTool;
   /** The type the Line tool draws in. */
   lineType: DiagramLineType;
+  /** The fill the Star tool lays (Revision 3): its icon is the star it lays, as the Line tool's is its line. */
+  starFill?: DiagramStarFill;
 }): ReactElement {
   if (tool === null) return <MousePointer2 size={17} aria-hidden="true" />;
   if (tool === EDIT_PATH) return <SplinePointer size={17} aria-hidden="true" />;
@@ -71,7 +84,30 @@ export function DiagramAnnotateToolGlyph({
   if (tool === SOLID_ARROW) return <SolidArrowGlyph />;
   if (tool === ENLARGE) return <EnlargeGlyph shape="circle" />;
   if (tool === ENLARGE_FRAME) return <EnlargeGlyph shape="rounded" />;
+  if (tool === 'star') return <StarGlyph fill={starFill} />;
   return <DiagramAnnotationGlyph kind={tool === LINE_TOOL ? lineKindOf(lineType) : tool} />;
+}
+
+/** A star's corners in a glyph, one point up: the regular star the mark draws (`starPoints`). */
+const STAR_GLYPH_PATH = polygonPathData(starPoints({ x: 10, y: 10.6 }, 8.4, 0));
+
+/**
+ * A star's icon (Revision 3): filled, or an outline — the Star tool's in the
+ * fill it lays, the rail's Fill's two options, and the list's for a star in
+ * its own fill. Mitred, as the mark's outline is.
+ */
+export function StarGlyph({ fill }: { fill: DiagramStarFill }): ReactElement {
+  return (
+    <Glyph>
+      <path
+        d={STAR_GLYPH_PATH}
+        fill={fill === 'black' ? 'currentColor' : 'none'}
+        strokeWidth={fill === 'black' ? 1 : 1.25}
+        strokeLinejoin="miter"
+        data-glyph-fill={fill}
+      />
+    </Glyph>
+  );
 }
 
 /**
@@ -106,11 +142,24 @@ export function SolidArrowGlyph(): ReactElement {
  * list both show it. The fold, push and white arrows are the arrows
  * themselves; the lines are their dash; the circle its ring; the right angle
  * its ∟ and square inside the two lines it marks; equal divisions the
- * template's |\|\| symbol; the callout its line and box; Rotate and Label are the app's own icons for those verbs. Every kind
+ * template's |\|\| symbol; the callout its line and box; the star, the eye, the oval,
+ * the rectangle and the x-ray the marks they draw; Rotate and Label are the app's own icons for those verbs. Every kind
  * has one: the return type makes a kind left out a compile error, not a
  * blank button.
+ *
+ * `color` is a mark's own colour: a solid line's glyph is drawn in it — a label's too (17b) — so the
+ * Layers list tells one line from the next (17a). None is the icon's ink.
  */
-export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }): ReactElement {
+export function DiagramAnnotationGlyph({
+  kind,
+  color,
+  fill,
+}: {
+  kind: DiagramAnnotationKind;
+  color?: string;
+  /** A star's own fill (Revision 3); unsaid, an outline, as a star with none is. */
+  fill?: DiagramStarFill;
+}): ReactElement {
   switch (kind) {
     case 'valley-arrow':
       return (
@@ -192,8 +241,16 @@ export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }
           <path d="M3 17 L17 3" strokeDasharray="0.9 1.9" strokeLinecap="butt" />
         </Glyph>
       );
+    case 'solid-line':
+      // A plain stroke, round at its ends as the line is (17a), in the line's colour when it has one.
+      return (
+        <Glyph color={color}>
+          <path d="M3 17 L17 3" />
+        </Glyph>
+      );
     case 'label':
-      return <Type size={17} aria-hidden="true" />;
+      // In the label's colour when it has one (17b), as a solid line's glyph is.
+      return <Type size={17} color={color} aria-hidden="true" />;
     case 'circle':
       // The ring, round the point it marks.
       return (
@@ -257,5 +314,48 @@ export function DiagramAnnotationGlyph({ kind }: { kind: DiagramAnnotationKind }
       );
     case 'zoom':
       return <EnlargeGlyph shape="rounded" />;
+    case 'star':
+      return <StarGlyph fill={fill ?? 'white'} />;
+    case 'eye':
+      return <EyeGlyph />;
+    case 'oval':
+      // Upright, about three quarters as wide as it is high, as the turtle's ovals are (Revision 3).
+      return (
+        <Glyph>
+          <ellipse cx={10} cy={10} rx={5.6} ry={7.6} />
+        </Glyph>
+      );
+    case 'rectangle':
+      // Its corners square, as the mark's are (R3-11b A): not Enlarge in Frame's rounded ones.
+      return (
+        <Glyph>
+          <rect x={3} y={5} width={14} height={10} strokeLinejoin="miter" />
+        </Glyph>
+      );
+    case 'x-ray':
+      return (
+        <Glyph>
+          <circle cx={10} cy={10} r={8.5} strokeWidth={1.3} />
+          <circle cx={10} cy={10} r={6.8} strokeWidth={0.65} />
+          <g fill="currentColor" stroke="none" data-glyph-part="radiation">
+            <circle cx={10} cy={10} r={1.1} />
+            <path d="M4.8 10 A5.2 5.2 0 0 1 7.4 5.497 L9.1 8.441 A1.8 1.8 0 0 0 8.2 10 Z" />
+            <path d="M12.6 5.497 A5.2 5.2 0 0 1 15.2 10 L11.8 10 A1.8 1.8 0 0 0 10.9 8.441 Z" />
+            <path d="M12.6 14.503 A5.2 5.2 0 0 1 7.4 14.503 L9.1 11.559 A1.8 1.8 0 0 0 10.9 11.559 Z" />
+          </g>
+        </Glyph>
+      );
   }
+}
+
+/** An eye's lids, cornea and iris in a glyph, as the mark draws them (`eyeShape`): looking left, as the eye in Zach's note does. */
+const EYE_GLYPH_PATH = eyePathData(eyeShape({ x: 10, y: 10 }, { x: -1, y: 0 }, 17 / 15));
+
+/** The eye's icon (Revision 3): the Eye tool's and the list's, an outline, its back corner mitred as the mark's is. */
+export function EyeGlyph(): ReactElement {
+  return (
+    <Glyph>
+      <path d={EYE_GLYPH_PATH} strokeWidth={1.1} strokeLinecap="butt" strokeLinejoin="miter" />
+    </Glyph>
+  );
 }

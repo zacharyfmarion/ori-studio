@@ -4,8 +4,11 @@ import { FlipHorizontal2, FlipVertical2, RotateCcw, RotateCwSquare, Trash2, type
 import type { AnnotationAction, AnnotationActionId } from '../../diagram/annotate/annotationActions';
 import { annotationLabel, lineTypeLabel } from '../../diagram/annotate/annotateTools';
 import { DIAGRAM_LINE_TYPES, lineTypeOf, type DiagramLineType } from '../../diagram/annotate/lineTypes';
+import { annotationInkColor } from '../../diagram/annotate/annotationPrimitives';
 import {
+  carriesColor,
   carriesText,
+  carriesTextStyle,
   CLOSE_UP_SCALE,
   CLOSE_UP_SCALE_STEP,
   closeUpScale,
@@ -18,10 +21,11 @@ import {
 } from '../../diagram/annotate/annotationModel';
 import { useFieldFocusRequest } from '../../diagram/annotate/useFieldFocusRequest';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
-import type { DiagramStep, KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
+import { DEFAULT_DIAGRAM_STYLE, type DiagramStep, type KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { marksTouchingWindow, viewOfStep } from '../../diagram/zoom/stepView';
 import { useAreaSubtitle } from '../../diagram/zoom/useZoomControls';
-import { frameSubtitle, areaStepOf } from '../../diagram/zoom/zoomActions';
+import { areaStatus } from '../../diagram/zoom/areaStatus';
+import { frameSubtitle } from '../../diagram/zoom/zoomActions';
 import { ZOOM_FRAME_ID, zoomShapeOf } from '../../diagram/zoom/zoomModel';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { shortcutLabelForAction } from '../../keyboard/shortcuts';
@@ -34,12 +38,20 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 import { Badge } from '../ui/Badge';
 import { DiagramAnnotationGlyph, EnlargeGlyph, SolidArrowGlyph } from './DiagramAnnotateToolGlyph';
 import { DiagramBehindControls } from './DiagramBehindControls';
+import { DiagramCardMarksNotice } from './DiagramCardMarksNotice';
+import { DiagramColorSelect } from './DiagramColorSelect';
 import { DiagramDivisionsControls } from './DiagramDivisionsControls';
 import { DiagramLineTypeMark } from './DiagramLineTypeMark';
 import { DiagramPathNodeControls } from './DiagramPathNodeControls';
+import { DiagramTextStyleRows } from './DiagramTextStyleRows';
+import { DiagramAngleMarkControls } from './DiagramAngleMarkControls';
 import { DiagramTicksRow } from './DiagramTicksRow';
 import { DiagramWhiteArrowControls } from './DiagramWhiteArrowControls';
+import { DiagramStarControls } from './DiagramStarControls';
+import { DiagramRotationRow } from './DiagramRotationRow';
+import { boxedMarkOf } from '../../diagram/annotate/transformGrips';
 import { DiagramZoomControls } from './DiagramZoomControls';
+import { DiagramXRayControls } from './DiagramXRayControls';
 import styles from './DiagramLayers.module.css';
 
 /** The icon of each of the catalog's verbs the annotation row shows (`annotationActions.ts`). */
@@ -54,10 +66,13 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
 
 /**
  * The Layers pane's body (Zach, 2026-10-05): what is drawn on the step open in
- * Annotate, and the selected one's own controls — a notice when some were made
+ * Annotate, and the selected one's own controls — on a References step whose
+ * card's marks are still part of its picture, which the list cannot show,
+ * Annotate's notice that says so, with Make Editable (17e); a notice when some were made
  * by a newer Ori Studio, which the list leaves out; the list, in the order they
  * were drawn, a press selecting one as a press on the canvas does; and under
- * it the selected one's text, turn, type, ticks, equal divisions' parts,
+ * it the selected one's text, turn, type, a solid line's or a label's colour (17a, 17b), a label's
+ * Bold, Halo and Size (17b), ticks, equal divisions' parts,
  * offset, ticks and count, kinks, scale, white arrow look, place in the
  * folds, axis, Flip Horizontal and Vertical, its verbs
  * (Flip Arc, Reset, Turn 90°, Delete), and in Edit Path a fold or white
@@ -65,7 +80,8 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * stay in the Step pane, with the step (`DiagramStepAnnotations`).
  *
  * An enlarged step's frame is its first row (Revision 2): selected, its
- * controls (`DiagramZoomControls`); a mark lying wholly outside its window,
+ * controls (`DiagramZoomControls`); an x-ray's, its Depth and Anchor
+ * (`DiagramXRayControls`, Revision 3); a mark lying wholly outside its window,
  * which it keeps but sizes nothing by — and far off it, no longer draws — is
  * badged so. An enlarge area's row says which steps were enlarged from it.
  */
@@ -86,6 +102,15 @@ export function DiagramLayers({ step }: { step: DiagramStep }) {
 
   return (
     <div className={styles.layers}>
+      {annotations.cardMarks && (
+        <div className={styles.notice}>
+          <DiagramCardMarksNotice
+            cardMarks={annotations.cardMarks}
+            disabled={!editable}
+            onMakeEditable={() => annotations.makeMarksEditable('layers_notice')}
+          />
+        </div>
+      )}
       {annotations.unknownCount > 0 && (
         <div className={styles.notice}>
           <Notice>
@@ -118,7 +143,7 @@ export function DiagramLayers({ step }: { step: DiagramStep }) {
                 ) : annotation.kind === 'zoom' ? (
                   <EnlargeGlyph shape={zoomShapeOf(annotation)} />
                 ) : (
-                  <DiagramAnnotationGlyph kind={annotation.kind} />
+                  <DiagramAnnotationGlyph kind={annotation.kind} color={annotation.color} fill={annotation.fill} />
                 )}
                 <span className={styles.rowText}>
                   <span className={styles.rowName}>
@@ -167,7 +192,8 @@ function FrameRow({
 }) {
   const { t } = useTranslation();
   const diagram = useWorkspaceStore((state) => state.diagram);
-  const areaStep = useMemo(() => (diagram ? areaStepOf(diagram, step.id) : null), [diagram, step.id]);
+  // In the Step pane's words: the area changed, or was deleted (review fix 4).
+  const area = useMemo(() => (diagram ? areaStatus(diagram, step.id) : null), [diagram, step.id]);
   return (
     <button
       type="button"
@@ -179,7 +205,7 @@ function FrameRow({
       <EnlargeGlyph shape={shape} />
       <span className={styles.rowText}>
         <span className={styles.rowName}>{t('panels:diagram.annotations.enlargedFrame', 'Enlarged frame')}</span>
-        <span className={styles.rowNote}>{frameSubtitle(t, areaStep)}</span>
+        <span className={styles.rowNote}>{frameSubtitle(t, area)}</span>
       </span>
     </button>
   );
@@ -215,8 +241,12 @@ function SelectedAnnotation({
   };
   const nodeActions = annotations.actions.filter((action) => action.group === 'node');
   const flipActions = annotations.actions.filter((action) => action.group === 'flip');
+  // A star's turn, and its Rotation row: a mark with a transform box (Revision 3).
+  const boxed = boxedMarkOf(annotation);
   const lineType = lineTypeOf(annotation.kind);
   const typeName = t('panels:diagram.annotations.lineType', 'Type');
+  const colorName = t('panels:diagram.annotations.color', 'Color');
+  const style = useWorkspaceStore((state) => state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE);
 
   return (
     <div className={styles.selected}>
@@ -239,6 +269,7 @@ function SelectedAnnotation({
           maxLength={LABEL_MAX_LENGTH}
           disabled={!editable}
           fieldRef={field}
+          onEscape={annotations.finishText}
           onCommit={(text, session) => annotations.setText(id, text, session)}
         />
       )}
@@ -289,12 +320,39 @@ function SelectedAnnotation({
           />
         </FieldRow>
       )}
+      {carriesColor(annotation.kind) && (
+        // A solid line's colour (17a), or a label's (17b): the rail's select, on the mark.
+        <FieldRow label={colorName} kind="select" disabled={!editable}>
+          <DiagramColorSelect
+            // One per mark: a pick still under way when another is selected ends with the select, its picker closing with its input, rather than going on to recolour the next one in the same undo step.
+            key={id}
+            variant="row"
+            label={colorName}
+            value={annotation.color ?? null}
+            ink={annotationInkColor(style)}
+            disabled={!editable}
+            onChange={(color, pick) => annotations.setColor(id, color, pick)}
+          />
+        </FieldRow>
+      )}
+      {carriesTextStyle(annotation.kind) && (
+        // A label's Bold, Halo and Size (17b), under its colour.
+        <DiagramTextStyleRows annotation={annotation} editable={editable} onChange={(option) => annotations.setTextStyle(id, option)} />
+      )}
       {annotation.kind === 'angle-mark' && (
-        <DiagramTicksRow value={annotation.ticks} disabled={!editable} onChange={(ticks) => annotations.setTicks(id, ticks)} />
+        <>
+          <DiagramAngleMarkControls
+            annotation={annotation}
+            editable={editable}
+            onVisible={(visible) => annotations.setAngleVisible(id, visible)}
+            onRadius={(radius) => annotations.setAngleRadius(id, radius)}
+          />
+          <DiagramTicksRow value={annotation.ticks} disabled={!editable || !!annotation.hidden} onChange={(ticks) => annotations.setTicks(id, ticks)} />
+        </>
       )}
       {annotation.kind === 'divisions' && (
         <DiagramDivisionsControls
-          // One set of fields per mark: the next one's Parts, asked for as it is laid, shows its own count when it takes the focus.
+          // One set of fields per mark, so an uncommitted draft never carries to the next selection.
           key={id}
           step={step}
           annotation={annotation}
@@ -303,6 +361,7 @@ function SelectedAnnotation({
           onOffset={(offset) => annotations.setDivisionsOffset(id, offset)}
           onTicks={(ticks) => annotations.setTicks(id, ticks)}
           onNumbered={(numbered) => annotations.setNumbered(id, numbered)}
+          onShortDividers={(short) => annotations.setShortDividers(id, short)}
         />
       )}
       {annotation.kind === 'pleat-arrow' && (
@@ -337,6 +396,16 @@ function SelectedAnnotation({
         />
       )}
       {annotation.kind === 'zoom' && <DiagramZoomControls step={step} target={{ kind: 'area', area: annotation }} />}
+      {annotation.kind === 'x-ray' && (
+        // One set of rows per X-ray, so a draft stays with its selection.
+        <DiagramXRayControls key={id} step={step} annotation={annotation} />
+      )}
+      {annotation.kind === 'star' && (
+        <DiagramStarControls annotation={annotation} editable={editable} onFill={(fill) => annotations.setStarFill(id, fill)} />
+      )}
+      {boxed && (
+        <DiagramRotationRow degrees={boxed.degrees} editable={editable} onCommit={(degrees) => annotations.setMarkAngle(id, degrees)} />
+      )}
       <DiagramBehindControls
         annotation={annotation}
         editable={editable}

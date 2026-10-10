@@ -41,9 +41,24 @@
       "addedTurnOvers_one": "Retournement ajouté",
       "addedTurnOvers_many": "{{count}} retournements ajoutés",
       "addedTurnOvers_other": "{{count}} retournements ajoutés",
+      "bakedStep": "Les marques de l’étape {{number}} restent dans son image : il y en a plus qu’une étape ne peut en contenir.",
+      "bakedSteps_one": "Les marques d’une étape restent dans son image : il y en a plus qu’une étape ne peut en contenir.",
+      "bakedSteps_many": "Les marques de {{count}} étapes restent dans leurs images : il y en a plus qu’une étape ne peut en contenir.",
+      "bakedSteps_other": "Les marques de {{count}} étapes restent dans leurs images : il y en a plus qu’une étape ne peut en contenir.",
       "filledStep": "Étape {{number}} remplie",
+      "marksEditable_one": "La marque de l’étape {{number}} est maintenant modifiable",
+      "marksEditable_many": "Les {{count}} marques de l’étape {{number}} sont maintenant modifiables",
+      "marksEditable_other": "Les {{count}} marques de l’étape {{number}} sont maintenant modifiables",
+      "marksOutsideFrame_one": "Une marque hors du cadre agrandi a été laissée de côté",
+      "marksOutsideFrame_many": "{{count}} marques hors du cadre agrandi ont été laissées de côté",
+      "marksOutsideFrame_other": "{{count}} marques hors du cadre agrandi ont été laissées de côté",
+      "noMarksInFrame": "Aucune marque de l’étape {{number}} n’est dans son cadre agrandi",
+      "replacedEdited_one": "Une marque que vous aviez modifiée a été remplacée",
+      "replacedEdited_many": "{{count}} marques que vous aviez modifiées ont été remplacées",
+      "replacedEdited_other": "{{count}} marques que vous aviez modifiées ont été remplacées",
       "replacedStep": "Carte de l’étape {{number}} remplacée",
-      "tooLarge": "Cette étape est trop détaillée pour être conservée dans le diagramme."
+      "tooLarge": "Cette étape est trop détaillée pour être conservée dans le diagramme.",
+      "undoReplaced": "Annuler"
     },
     "refreshedAll_one": "{{count}} étape actualisée",
     "refreshedAll_many": "{{count}} étapes actualisées",
@@ -61,7 +76,15 @@
     "uploadRejected": "ce n’est pas un SVG qu’Ori Studio peut lire en toute sécurité",
     "uploadTooLarge": "il est trop volumineux",
     "uploadUnreadable": "l’image n’a pas pu être lue",
-    "uploadUnsupported": "ce n’est pas une image"
+    "uploadUnsupported": "ce n’est pas une image",
+    "zoom": {
+      "updatedList": "Étapes agrandies {{numbers}} mises à jour",
+      "updatedOne": "Étape agrandie {{number}} mise à jour",
+      "updatedRange": "Étapes agrandies {{first}}–{{last}} mises à jour",
+      "updatedSome": "{{placed}} étapes agrandies sur {{total}} mises à jour",
+      "updatedSomeDetail": "Les autres n’ont pas pu prendre de cadre depuis cette zone.",
+      "updateFailed": "Impossible de mettre à jour les étapes agrandies"
+    }
   },
   "diagramExport": {
     "saved": "{{name}} exporté"

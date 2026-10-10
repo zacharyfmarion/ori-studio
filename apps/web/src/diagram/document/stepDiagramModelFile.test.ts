@@ -82,7 +82,6 @@ describe('validateStepDiagramModel', () => {
       { kind: 'fold-arrow', out: null },
       { kind: 'region', corners: [[0, 0], [1, 1]] },
       { kind: 'label', at: [0, 0], text: '', style: 'normal' },
-      { kind: 'label', at: [0, 0], text: 'x'.repeat(STEP_DIAGRAM_MAX_LABEL + 1), style: 'normal' },
       { kind: 'sheet', width: 0, height: 1 },
       { kind: 'line', from: [0, Number.NaN], to: [1, 1], style: 'crease' },
       'line',
@@ -92,41 +91,52 @@ describe('validateStepDiagramModel', () => {
     }
   });
 
-  it('refuses a model with no sheet, or too many primitives to be a card', () => {
+  it('refuses a model with no sheet, or a sheet that does not read', () => {
     expect(read({ primitives: [] }).status).toBe('malformed');
     expect(read({ ...EVERY_KIND, sheet: { width: 1, height: -1 } }).status).toBe('malformed');
     expect(read({ ...EVERY_KIND, sheet: { width: 1, height: 1, centre: [0] } }).status).toBe('malformed');
-    const line = { kind: 'line', from: [0, 0], to: [1, 1], style: 'crease' };
-    expect(
-      read({ ...EVERY_KIND, primitives: Array.from({ length: STEP_DIAGRAM_MAX_PRIMITIVES + 1 }, () => line) })
-        .status
-    ).toBe('malformed');
   });
 
   // Placing a label costs a pass over every other primitive, and landing an
   // arrow one over every mark: a crafted card under the total would hang the
-  // page it is drawn on.
-  it('refuses more marks than a card makes, or labels it would take too long to place', () => {
+  // page it is drawn on. So past the caps a model is never parsed or drawn
+  // here; it is a newer build's, carried whole with its step rather than cut
+  // short (decision 1 of the launch review).
+  it('carries, never draws, more primitives or marks than a card makes, or labels it would take too long to place', () => {
     const many = (count: number, primitive: unknown) => Array.from({ length: count }, () => primitive);
     const label = { kind: 'label', at: [0, 0], text: 'A', style: 'normal' };
     const arrow = EVERY_KIND.primitives[4];
     const point = { kind: 'point', at: [0, 0], style: 'normal' };
     const line = { kind: 'line', from: [0, 0], to: [1, 1], style: 'crease' };
     const withPrimitives = (primitives: unknown[]) => read({ ...EVERY_KIND, primitives }).status;
+    expect(withPrimitives(many(STEP_DIAGRAM_MAX_PRIMITIVES + 1, line))).toBe('unknown');
     expect(withPrimitives(many(STEP_DIAGRAM_MAX_LABELS, label))).toBe('ok');
-    expect(withPrimitives(many(STEP_DIAGRAM_MAX_LABELS + 1, label))).toBe('malformed');
-    expect(withPrimitives(many(STEP_DIAGRAM_MAX_ARROWS + 1, arrow))).toBe('malformed');
-    expect(withPrimitives(many(STEP_DIAGRAM_MAX_POINTS + 1, point))).toBe('malformed');
+    expect(withPrimitives(many(STEP_DIAGRAM_MAX_LABELS + 1, label))).toBe('unknown');
+    expect(withPrimitives(many(STEP_DIAGRAM_MAX_ARROWS + 1, arrow))).toBe('unknown');
+    expect(withPrimitives(many(STEP_DIAGRAM_MAX_POINTS + 1, point))).toBe('unknown');
     // Two labels on a dense card is a card; forty on the densest is not.
     expect(withPrimitives([...many(2, label), ...many(20_000, line)])).toBe('ok');
-    expect(withPrimitives([...many(40, label), ...many(30_000, line)])).toBe('malformed');
+    expect(withPrimitives([...many(40, label), ...many(30_000, line)])).toBe('unknown');
+    // A label longer than a letter or two.
+    expect(withPrimitives([{ ...label, text: 'x'.repeat(STEP_DIAGRAM_MAX_LABEL + 1) }])).toBe('unknown');
   });
 
-  it('keeps only the fields it checked, and only characters a page can hold', () => {
+  it('carries a model with a field it has no name for — of the model, its sheet, a primitive or an arc — as a newer build’s', () => {
+    const label = { kind: 'label', at: [0, 0], text: 'A', style: 'normal' };
+    const out = { center: [0.5, 0.25], radius: 0.4, from: 0.3, to: 1.2, ccw: false };
+    expect(read({ sheet: { width: 1, height: 1 }, primitives: [label], script: 'x' }).status).toBe('unknown');
+    expect(read({ sheet: { width: 1, height: 1, extra: true }, primitives: [label] }).status).toBe('unknown');
+    expect(read({ sheet: { width: 1, height: 1 }, primitives: [{ ...label, onclick: 'x' }] }).status).toBe('unknown');
+    expect(read({ sheet: { width: 1, height: 1 }, primitives: [{ kind: 'fold-arrow', out }] }).status).toBe('ok');
+    expect(
+      read({ sheet: { width: 1, height: 1 }, primitives: [{ kind: 'fold-arrow', out: { ...out, weight: 2 } }] }).status
+    ).toBe('unknown');
+  });
+
+  it('keeps only characters a page can hold', () => {
     const read1 = read({
-      sheet: { width: 1, height: 1, extra: true },
-      primitives: [{ kind: 'label', at: [0, 0], text: 'A\u000B', style: 'normal', onclick: 'x' }],
-      script: 'x',
+      sheet: { width: 1, height: 1 },
+      primitives: [{ kind: 'label', at: [0, 0], text: 'A\u000B', style: 'normal' }],
     });
     expect(read1).toEqual({
       status: 'ok',

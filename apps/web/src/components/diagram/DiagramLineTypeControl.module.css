@@ -1,0 +1,6 @@
+/* The tool hint’s Line Type and, while Solid is the type, its colour under it (DiagramLineTypeControl.tsx). */
+.control {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}

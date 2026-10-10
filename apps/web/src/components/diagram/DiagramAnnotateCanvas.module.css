@@ -35,6 +35,25 @@
   cursor: crosshair;
 }
 
+/*
+ * Over a selected star's, eye's or shape's transform box (Revision 3): the Edit
+ * canvas's cursors for its box — with Select, move on the body, pointer on a
+ * scale square, grab on a turn handle; with the mark's own tool still in hand
+ * (18d), the square's and the turn handle's alone, which take a press before
+ * the tool draws. Before Space's grab, which wins as an armed pan does there.
+ */
+.view[data-transform-hover='body'] .stage {
+  cursor: move;
+}
+
+.view[data-transform-hover='scale'] .stage {
+  cursor: pointer;
+}
+
+.view[data-transform-hover='rotate'] .stage {
+  cursor: grab;
+}
+
 .view[data-space-pan] .stage {
   cursor: grab;
 }
@@ -86,11 +105,40 @@
   pointer-events: none;
 }
 
+/*
+ * A solid line's wash, under its stroke (`SelectionUnder`): the line's pen is
+ * nearly as wide as the wash, so the wash is widened by about one more pen to
+ * show either side of it.
+ */
+.selection[data-selection-under] {
+  stroke-width: 12px;
+}
+
 .handle {
   fill: #ffffff;
   stroke: var(--annotate-selection);
   stroke-width: 1.5px;
   vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/*
+ * A selected star's, eye's or shape's transform box (Revision 3): its outline, as the Edit
+ * canvas's image selection draws one — solid, in the selection's ink — and
+ * its squares and turn handles, white as the grips are. Each stroke is 1.5
+ * screen px, set on the element divided by the camera's zoom
+ * (`TransformBoxSelection`): `non-scaling-stroke` does not see the camera's
+ * CSS transform, so a width here would grow and shrink with the zoom.
+ */
+.transformBox {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+.transformHandle {
+  fill: #ffffff;
+  stroke: var(--annotate-selection);
   pointer-events: none;
 }
 
@@ -275,6 +323,18 @@
   stroke: var(--annotate-selection);
   stroke-linejoin: round;
   pointer-events: none;
+}
+
+/* A selected x-ray's picked point (Revision 3): a ring round a dot, in the selection's ink. */
+.anchorPoint {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+.anchorPointDot {
+  fill: var(--annotate-selection);
+  stroke: none;
 }
 
 /* The face a click would anchor to, in the pick mode: filled lightly in the selection's ink. */

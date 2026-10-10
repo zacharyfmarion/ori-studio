@@ -61,6 +61,7 @@ import {
 import type { PaperExportScope } from './paperExportTarget';
 import { paperExportedEvent, savePaperExport, savePaperExportZip } from './savePaperExport';
 import { usePaperExportScenes, type PaperExportStatus } from './usePaperExportScenes';
+import { saveObjExport } from './saveObjExport';
 
 export type { PaperExportStatus };
 
@@ -73,12 +74,13 @@ export interface PaperExportPreviewImage {
 /** The draft the dialog opens on: the remembered options, the verb's format, and a style choice the presets can still honour. */
 export function paperExportDraft(
   remembered: PaperExportSettings,
-  request: Pick<PaperExportRequest, 'format'>,
+  request: Pick<PaperExportRequest, 'format'> & Partial<Pick<PaperExportRequest, 'target'>>,
   rows: Parameters<typeof resolvePaperExportStyleChoice>[1]
 ): PaperExportSettings {
+  const format = request.format ?? remembered.format;
   return {
     ...remembered,
-    format: request.format ?? remembered.format,
+    format: format === 'obj' && !request.target?.obj ? 'svg' : format,
     style: resolvePaperExportStyleChoice(remembered.style, rows),
   };
 }
@@ -263,7 +265,9 @@ export function usePaperExportDialog(
   // How the last press of Export ended; read only if the reader then closes.
   const lastSave = useRef<Exclude<PaperExportLastSave, 'stopped'>>('none');
   const canExport =
-    status === 'ready' && caughtUp && shown !== null && shown === painted && !pngTooLarge && !saving;
+    !saving && (format === 'obj'
+      ? target.obj !== undefined && target.obj.unavailableReason === null
+      : status === 'ready' && caughtUp && shown !== null && shown === painted && !pngTooLarge);
 
   // Aborted when the dialog goes, so a PNG still encoding, or a ZIP's pages
   // still painting, is not then offered to a save dialog nobody is waiting for.
@@ -275,34 +279,40 @@ export function usePaperExportDialog(
   }, []);
 
   const exportNow = useCallback(async () => {
-    if (!canExport || !shown) return;
+    if (!canExport || (draft.format !== 'obj' && !shown)) return;
     const signal = aborter.current?.signal;
     setSaving(true);
     setSaveError(null);
     if (all) setProgress({ done: 0, total: scenes.length });
     try {
-      const name =
-        all && pages
-          ? await savePaperExportZip({
-              // Every page from the scenes and options the one on screen was
-              // painted from; that one is the very page shown.
-              pages: scenes.map((each, index) => ({
-                page: index === shownAt ? shown : paintPaperExport(target, each, style, pageOptions),
-                fileStem: pages.list[index]!.fileStem,
-              })),
-              format: draft.format,
-              pngDpi: draft.pngDpi,
-              zipStem: pages.zipStem,
-              signal,
-              onProgress: (done, total) => setProgress({ done, total }),
-            })
-          : await savePaperExport({
-              page: shown,
-              format: draft.format,
-              pngDpi,
-              fileStem: target.fileStem,
-              signal,
-            });
+      let name: string | null;
+      if (draft.format === 'obj') {
+        if (!target.obj) return;
+        name = await saveObjExport(target.obj, target.fileStem, t, signal);
+      } else if (shown && all && pages) {
+        name = await savePaperExportZip({
+          // Every page from the same scenes and options as the preview.
+          pages: scenes.map((each, index) => ({
+            page: index === shownAt ? shown : paintPaperExport(target, each, style, pageOptions),
+            fileStem: pages.list[index]!.fileStem,
+          })),
+          format: draft.format,
+          pngDpi: draft.pngDpi,
+          zipStem: pages.zipStem,
+          signal,
+          onProgress: (done, total) => setProgress({ done, total }),
+        });
+      } else if (shown) {
+        name = await savePaperExport({
+          page: shown,
+          format: draft.format,
+          pngDpi,
+          fileStem: target.fileStem,
+          signal,
+        });
+      } else {
+        return;
+      }
       // A dismissed save dialog: the options are still in front of the reader.
       if (!name) {
         lastSave.current = 'cancelled';

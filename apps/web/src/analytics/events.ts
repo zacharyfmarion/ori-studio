@@ -82,13 +82,19 @@ export type DiagramAnnotationTool =
   | 'push_arrow'
   | 'white_arrow'
   | 'solid_arrow'
+  // No tool draws these since turns became steps (D22): a sign kept from before can still be deleted, and a rotate flipped.
   | 'turn_over'
   | 'rotate'
   | 'valley_line'
   | 'mountain_line'
   | 'hidden_line'
+  | 'solid_line'
   | 'label'
   | 'circle'
+  | 'star'
+  | 'eye'
+  | 'oval'
+  | 'rectangle'
   | 'right_angle'
   | 'callout'
   | 'angle_mark'
@@ -96,7 +102,11 @@ export type DiagramAnnotationTool =
   | 'divisions'
   | 'close_up'
   | 'enlarge'
-  | 'enlarge_frame';
+  | 'enlarge_frame'
+  | 'x_ray';
+
+/** A star's fill, by name (Revision 3): filled with ink, or an outline, white inside. */
+export type DiagramStarFillName = 'filled' | 'outline';
 
 /**
  * How a new annotation was put down (decision 9): snapped to a point of the
@@ -113,6 +123,53 @@ export type DiagramAnnotationSnap = 'snapped' | 'free' | 'off' | 'nothing_near' 
  * click, which divides it whole.
  */
 export type DiagramDivisionsPlaced = 'drag' | 'line';
+
+/**
+ * A mark's colour, by name (17a): the style's ink (none stored), References'
+ * magenta, one of the five print colours, or one picked by hand. Never the
+ * colour itself.
+ */
+export type DiagramAnnotationColor = 'ink' | 'reference' | 'red' | 'orange' | 'green' | 'blue' | 'purple' | 'custom';
+
+/** One of a label's options on or off (17b): Bold, a halo. */
+export type DiagramTextToggle = 'on' | 'off';
+
+/**
+ * A label's size, by name (17b): with the picture (none in pt), one of the
+ * four Size offers, or another a file brought. Never the size itself.
+ */
+export type DiagramTextSize = 'picture' | '7' | '9' | '12' | '16' | 'other';
+
+/** Which of a label's options the Layers pane changed (17b). */
+export type DiagramTextStyleOption = 'bold' | 'halo' | 'size';
+
+/**
+ * Which of a mark's own options changed (Revision 3): equal divisions' Short
+ * Dividers; a star's Fill; a star's, an eye's, an oval's or a rectangle's
+ * size or turn — by its transform box on the canvas, or its turn typed in
+ * the Layers pane's Rotation row; and an x-ray's Depth and Anchor.
+ */
+export type DiagramMarkStyleOption = 'short_dividers' | 'fill' | 'size' | 'rotation' | 'depth' | 'anchor' | 'radius' | 'visibility';
+
+/** An x-ray's depth, bucketed (Revision 3): one layer, two, or three and more. Never the count itself past that. */
+export type DiagramXRayDepthBucket = '1' | '2' | '3+';
+
+/**
+ * What a mark's option became, or how it was changed (Revision 3): a switch
+ * on or off; a star filled or an outline; a size or a turn set by the
+ * transform box's handles (`handle`) or typed in its row (`field`); an
+ * x-ray's depth, bucketed, and its anchor picked on the canvas or put back
+ * to the window's centre (`auto`).
+ */
+export type DiagramMarkStyleValue =
+  | 'on'
+  | 'off'
+  | DiagramStarFillName
+  | 'handle'
+  | 'field'
+  | DiagramXRayDepthBucket
+  | 'picked'
+  | 'auto';
 
 /** A fold arrow or a white arrow, which Edit Path shapes: its kind, in the event's own spelling. */
 export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';
@@ -136,11 +193,17 @@ export type DiagramShapedArrowHalf = 'out' | 'return';
 export type DiagramBehindEnds = 'tail' | 'tip' | 'both' | 'whole';
 
 /**
- * How an enlarged step got its frame (Revision 2): Pose's Enlarged turned on,
- * a new step after an enlarged one whose first picture lands the frame it
- * was seeded with, or Update Enlarged Steps on the area it came from.
+ * How an enlarged step got its frame (Revision 2): the Enlarged toggle turned
+ * on (in Annotate's Step pane since 2026-10-08; Pose's before),
+ * a new empty step after an enlarged one whose first picture lands the frame
+ * it was seeded with (since 2026-10-08, a first link that keeps it:
+ * `landSeededFrame`),
+ * Update Enlarged Steps on the area it came from — Update All since
+ * 2026-10-08, which places only the steps out of date (`update`) — or Update
+ * on the step itself, once its area changed (`update_step`, since
+ * 2026-10-08).
  */
-export type DiagramStepEnlargedVia = 'toggle' | 'seeded' | 'update';
+export type DiagramStepEnlargedVia = 'toggle' | 'seeded' | 'update' | 'update_step';
 
 /**
  * Where a capture put an enlarged step's frame: through an anchor face, through
@@ -203,7 +266,8 @@ export type DiagramPoseAction =
   | 'rotate_right'
   | 'flip'
   | 'reset'
-  // Pose's Enlarged turned off (Revision 2): turning it on is `diagram step enlarged`.
+  // The Enlarged toggle turned off (Revision 2; in Annotate's Step pane since 2026-10-08, Pose's before):
+  // turning it on is `diagram step enlarged`.
   | 'enlarge_off'
   | 'show_crease_pattern'
   | 'show_folded'
@@ -212,8 +276,6 @@ export type DiagramPoseAction =
   | 'previous_solution'
   | 'choose_way'
   | 'view_top'
-  | 'view_front'
-  | 'view_iso'
   | 'orbit'
   | 'rotate_to'
   | 'upright'
@@ -325,6 +387,23 @@ export type DiagramPulledMode = 'sequence' | 'find';
  * at the end, into an empty step, or in place of a References step's card.
  */
 export type DiagramPulledInto = 'after' | 'end' | 'fill' | 'replace';
+
+/**
+ * Whether a pull's marks were lifted into annotations (17d) or left in the
+ * picture, as every card was before: `baked` when any card's marks were more
+ * than a step holds.
+ */
+export type DiagramPulledMarks = 'lifted' | 'baked';
+
+/** What an edit did to a mark a References card brought (17d): changed for the first time, or taken away. */
+export type DiagramImportedMarkEdit = 'changed' | 'deleted';
+
+/**
+ * Where Make Marks Editable was pressed (17e): the notice Annotate shows on a
+ * step whose card's marks are in its picture — in the Step pane, or over the
+ * Layers pane's list — the Step pane's Picture section, or the step card's menu.
+ */
+export type DiagramMarksLiftedVia = 'annotate_notice' | 'layers_notice' | 'step_pane' | 'card_menu';
 
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
@@ -678,8 +757,9 @@ export type PaperExportSurface =
   | 'folded-flat'
   | 'references';
 
-/** A paper export's image format — the file's kind only, never its name. */
-export type PaperExportFormat = 'svg' | 'png';
+/** A paper export's format — the file's kind only, never its name. */
+export type PaperImageExportFormat = 'svg' | 'png';
+export type PaperExportFormat = PaperImageExportFormat | 'obj';
 
 /** Whether an export kept the faces no pixel of the page shows (D4 in the plan). */
 export type PaperExportHiddenFaces = 'kept' | 'dropped';
@@ -699,7 +779,7 @@ export type CreasePatternFoldedFigure = 'none' | PaperExportStyleName;
 /** Which of a surface's pages an export wrote: the one on show, or every one as a ZIP. */
 export type PaperExportScope = 'this' | 'all';
 
-/** Whether a page carried one of a diagram's optional marks — a References step's letters or line highlights. */
+/** Whether a page carried one of a diagram's optional marks — a References step's letters or reference lines. */
 export type PaperExportMarkShown = 'shown' | 'hidden';
 
 /** Where a foldability check was run from. */
@@ -1287,7 +1367,7 @@ export const ANALYTICS_EVENTS = {
    * PNG. `surface` says which, `format` which file, `hidden_faces` whether the
    * buried faces were kept — the default, and the setting D4 exists for;
    * `letters` and `highlights`, for References alone, whether the step's
-   * letters and line highlights were on the page. The file service's
+   * letters and reference lines were on the page. The file service's
    * `file exported` fires too; this one carries what that chokepoint cannot
    * see.
    */
@@ -1349,14 +1429,18 @@ export const ANALYTICS_EVENTS = {
    */
   simulatorPatternOpened: 'simulator pattern opened',
   /**
-   * The Simulate canvas's tool changed. `tool` is the catalogue's id and
-   * `source` where it was picked; a press on the tool already in hand changes
-   * nothing and sends nothing. Escape is a source of its own, because it is how
-   * people leave Pin, and how often they do says whether they want to.
+   * The simulator's tool changed. `tool` is the catalogue's id and `source`
+   * where it was picked; a press on the tool already in hand changes nothing
+   * and sends nothing. Escape is a source of its own, because it is how people
+   * leave Pin, and how often they do says whether they want to.
+   *
+   * This and the nine tool events after it carry `surface`, the host the tools
+   * ran in (`SimulatorToolSurface`): the Simulate workspace, or a Diagram
+   * step's Pose. Events from before it existed have none, and were Simulate's.
    */
   simulatorToolSelected: 'simulator tool selected',
   /**
-   * The phone layout's Simulate tool sheet was opened: whether people find the
+   * The phone layout's simulator tool sheet was opened: whether people find the
    * Tools pill that stands in for the rail. Kept apart from Edit's
    * `cp tool picker opened`, which dashboards compare across releases.
    */
@@ -1450,12 +1534,31 @@ export const ANALYTICS_EVENTS = {
   diagramAnnotationBehind: 'diagram annotation behind',
   /** A mark flipped horizontally or vertically from the Layers pane: its kind, which way. */
   diagramAnnotationFlipped: 'diagram annotation flipped',
+  /** A solid line's or a label's colour changed in the Layers pane (17a, 17b): its kind, the colour by name. Once per pick. */
+  diagramAnnotationRecolored: 'diagram annotation recolored',
+  /** A label's Bold, Halo or Size changed in the Layers pane (17b): which, and to what. */
+  diagramTextStyled: 'diagram text styled',
+  /** One of a mark's own options changed in the Layers pane (Revision 3): the mark's kind, which option, and to what. */
+  diagramMarkStyled: 'diagram mark styled',
+  /**
+   * A mark a References card brought (17d) edited for the first time, or
+   * taken away: its kind, and which. Whether people edit what they pull.
+   */
+  diagramImportedMarkEdited: 'diagram imported mark edited',
+  /**
+   * An old References step's card's marks lifted into annotations by Make
+   * Marks Editable (17e): where it was pressed, and how many the step holds
+   * now (bucketed). Whether steps made before marks were lifted are converted.
+   */
+  diagramReferencesMarksLifted: 'diagram references marks lifted',
   /** A frame placed on an enlarged step by a capture (Revision 2): how, through what, by which anchor. One per step placed. */
   diagramStepEnlarged: 'diagram step enlarged',
   /** An enlarge area or an enlarged step's frame changed: moved, its Shape, Size, Edge or Anchor, or an area deleted. */
   diagramEnlargementChanged: 'diagram enlargement changed',
   /** Annotate's Snap switch flipped in the Step pane. */
   diagramAnnotateSnapChanged: 'diagram annotate snap changed',
+  /** A circular tool creation preference changed in the tool hint. */
+  diagramCircleDrawingModeChanged: 'diagram circle drawing mode changed',
   /**
    * An arrow shaped by hand for the first time (Edit Path): a fold arrow's arc
    * made a path, or a white arrow bent from the straight one it was laid as —

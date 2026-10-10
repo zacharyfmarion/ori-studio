@@ -1,0 +1,322 @@
+/**
+ * The transform box on the Annotate canvas (Diagram Revision 3): a selected
+ * star, eye, oval or rectangle scaled and turned by handles, as an image is
+ * on the Edit canvas (Zach, 2026-10-08: "ui should be like the UI when you
+ * select an image in the edit canvas").
+ *
+ * The box's math and its handles' layout are `lib/transformBox.ts`'s, which
+ * the Edit canvas draws from too; this is the Diagram's side of it, in
+ * picture units: which marks have a box and where it is
+ * ({@link transformBoxOf}), which handle a press takes ({@link transformGripAt})
+ * and what a drag of one makes of the mark ({@link transformDragged}). The
+ * canvas draws the box (`TransformBoxSelection`) and takes the presses
+ * (`useAnnotateCanvas`) as it does every other grip.
+ *
+ * Pure: no DOM, no store, no React.
+ */
+import { DIAGRAM_EYE_INK, DIAGRAM_STAR_INK } from '../../cp-workspace/references/diagram/diagramInk';
+import type { KnownDiagramAnnotation } from '../document/diagramDocument';
+import {
+  TRANSFORM_HANDLE_SIZES,
+  TRANSFORM_ROTATION_SNAP_RADIANS,
+  boxContainsModelPoint,
+  boxCornersModel,
+  resizeAnnotationBox,
+  resizeAspectLock,
+  snapAngle,
+  transformHandleAt,
+  transformHandles,
+  type TransformBox,
+  type TransformHandleHit,
+  type TransformHandleSizes,
+  type TransformHandles,
+  type TransformResizeResult,
+} from '../../lib/transformBox';
+import {
+  AREA_SIDE,
+  GLYPH_SCALE_PRECISION,
+  ZOOM_CLICK,
+  glyphAngle,
+  glyphAngleOf,
+  glyphScaleOf,
+  keptTo,
+  keptTurn,
+  unitsPerFrame,
+  withAreaAngle,
+  withAreaBox,
+  withGlyphAngle,
+  withGlyphScale,
+  type PicturePoint,
+} from './annotationModel';
+import { INK_UNITS } from './canvasInk';
+
+/** A transform box's handle a press took hold of: a scale square, or a corner's turn handle. */
+export type TransformHandle = TransformHandleHit;
+
+/**
+ * The smallest a glyph's box is drawn, in screen px (R3-30c B): a 3 mm star
+ * or a 5 mm eye at a zoom that draws it smaller still gets a box its four
+ * 8 px squares stand clear of, about its centre — an eye's its shorter side,
+ * the box kept in its proportions. The glyph itself is not changed.
+ */
+export const MIN_GLYPH_BOX_PX = 24;
+
+/**
+ * A mark with a transform box, as the box and the Rotation row see it: where
+ * the box is, whether it keeps its proportions, its turn, how a square
+ * resizes it, and how a resize and a turn are written back into the mark.
+ * Each kind with a box says all of it ({@link boxedMarkOf}), so no kind —
+ * a glyph with one `scale`, a shape whose box is a `size` and whose turn is
+ * within [0, 180) — can have a drag or a typed Rotation write another kind's
+ * fields.
+ */
+export interface BoxedMark {
+  /** Its box in picture units, at the ink it was asked at. */
+  box: TransformBox;
+  /** Corners only, and one scale (R3-29a A), as a folded figure's on the Edit canvas (`aspectLock: 'always'`). */
+  keepsProportions: boolean;
+  /** Its turn in degrees clockwise on the page, as the Rotation row reads it. */
+  degrees: number;
+  /**
+   * How a scale square resizes it with `keys` held: in its proportions or
+   * freely, about its centre or with the opposite corner or edge held, and
+   * the range its sides are held to as the drag goes, where it has one.
+   */
+  resizing(keys: { shift: boolean; alt: boolean }): { aspectLock: boolean; aboutCentre: boolean; sides?: { min: number; max: number } };
+  /** The mark with its box, drawn as `drawn`, resized to `next` (picture units), held to its range. */
+  resized(drawn: TransformBox, next: TransformResizeResult): KnownDiagramAnnotation;
+  /** The mark turned to `degrees` clockwise on the page, as a drag or the Rotation row turns it. */
+  turned(degrees: number): KnownDiagramAnnotation;
+}
+
+/**
+ * A mark as its transform box sees it, at the canvas's ink (`ink`, picture
+ * units to one ink); null for a mark that keeps its grips: every other kind.
+ * A switch, so a new kind has to say whether it has a box, and a kind that
+ * has one, how it is resized and turned.
+ */
+export function boxedMarkOf(annotation: KnownDiagramAnnotation, ink: number = INK_UNITS): BoxedMark | null {
+  switch (annotation.kind) {
+    case 'star':
+      return boxedStar(annotation, ink);
+    case 'eye':
+      return boxedEye(annotation, ink);
+    case 'oval':
+    case 'rectangle':
+      return boxedShape(annotation);
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+    case 'pleat-arrow':
+    case 'push-arrow':
+    case 'white-arrow':
+    case 'turn-over':
+    case 'rotate':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+    case 'solid-line':
+    case 'label':
+    case 'circle':
+    case 'right-angle':
+    case 'callout':
+    case 'angle-mark':
+    case 'divisions':
+    case 'close-up':
+    case 'zoom':
+    case 'x-ray':
+      return null;
+  }
+}
+
+/**
+ * A star's box: the square its tips reach, `scale` times its print size,
+ * turned by its own angle. Resized, one `scale` (R3-29a A) by as much as its
+ * box grew, held to `GLYPH_SCALE`; turned, its `angle` within
+ * [0, 360). Each kept as {@link kept} says.
+ */
+function boxedStar(annotation: KnownDiagramAnnotation, ink: number): BoxedMark {
+  const side = 2 * DIAGRAM_STAR_INK.radius * glyphScaleOf(annotation) * ink;
+  return boxedGlyph(annotation, side, side);
+}
+
+/**
+ * An eye's box (Revision 3): its lids' length along the way it looks, and
+ * their spread across it, `scale` times its print size, about its centre,
+ * turned the way it looks. Resized and turned as a star's: one `scale`
+ * (R3-29a A), and its `angle` — the way it looks — within [0, 360).
+ */
+function boxedEye(annotation: KnownDiagramAnnotation, ink: number): BoxedMark {
+  const size = glyphScaleOf(annotation) * ink;
+  return boxedGlyph(annotation, DIAGRAM_EYE_INK.length * size, 2 * DIAGRAM_EYE_INK.spread * size);
+}
+
+/**
+ * A glyph's box, `width` along its own turn and `height` across it, about its
+ * centre `from`, turned by its `angle`: resized as one `scale` by as much as
+ * its box grew, held to `GLYPH_SCALE`; turned, its `angle` within [0, 360).
+ * Each kept as {@link keptTo} says.
+ */
+function boxedGlyph(annotation: KnownDiagramAnnotation, width: number, height: number): BoxedMark {
+  const scale = glyphScaleOf(annotation);
+  const degrees = glyphAngleOf(annotation);
+  const [x, y] = annotation.from;
+  return {
+    box: { center: { x, y }, width, height, rotation: (degrees * Math.PI) / 180 },
+    keepsProportions: true,
+    degrees,
+    // In its proportions and about its centre, whatever is held: it names the point it sits on (R3-29a A, R3-29b A).
+    resizing: () => ({ aspectLock: true, aboutCentre: true }),
+    resized: (drawn, next) => withGlyphScale(annotation, keptTo(scale * (next.width / drawn.width), GLYPH_SCALE_PRECISION)),
+    // Kept within [0, 360) as `keptTurn` keeps it: no wrap's float error, and never 360.
+    turned: (to) => withGlyphAngle(annotation, keptTurn(to, glyphAngle)),
+  };
+}
+
+/**
+ * An oval's or a rectangle's box (Revision 3): its `size` about its centre,
+ * turned by its angle — its outline's own box, with no floor. Its eight
+ * squares resize it freely, Shift keeping its proportions as a text box's do
+ * on the Edit canvas (`default-off`) and Alt holding its centre as Enlarge in
+ * Frame's grips do (R3-29c A), each side held to {@link AREA_SIDE} as the
+ * drag goes (R3-30b A), the picture's frame's in the marks' units
+ * ({@link unitsPerFrame}); turned, its `angle` within [0, 180), as a half
+ * turn draws it the same.
+ */
+function boxedShape(annotation: KnownDiagramAnnotation): BoxedMark {
+  const [x, y] = annotation.from;
+  const [width, height] = annotation.size ?? ZOOM_CLICK.size;
+  const degrees = annotation.angle ?? 0;
+  return {
+    box: { center: { x, y }, width, height, rotation: (degrees * Math.PI) / 180 },
+    keepsProportions: false,
+    degrees,
+    resizing: ({ shift, alt }) => ({
+      aspectLock: resizeAspectLock('default-off', shift),
+      aboutCentre: alt,
+      sides: { min: AREA_SIDE.min, max: AREA_SIDE.max * unitsPerFrame() },
+    }),
+    resized: (_drawn, next) => withAreaBox(annotation, [next.center.x, next.center.y], [next.width, next.height]),
+    turned: (to) => withAreaAngle(annotation, to),
+  };
+}
+
+/**
+ * A mark's transform box in picture units, as it is drawn at the canvas's
+ * ink (`ink`, picture units to one ink); null for a mark that keeps its
+ * grips ({@link boxedMarkOf}).
+ */
+export function transformBoxOf(annotation: KnownDiagramAnnotation, ink: number = INK_UNITS): TransformBox | null {
+  return boxedMarkOf(annotation, ink)?.box ?? null;
+}
+
+/** Whether a mark shows the transform box when it is selected, in place of grips. */
+export function hasTransformBox(annotation: KnownDiagramAnnotation): boolean {
+  return boxedMarkOf(annotation) !== null;
+}
+
+/**
+ * A mark's box as the canvas draws it with `px` picture units to one screen
+ * px: its own, but a glyph's never under {@link MIN_GLYPH_BOX_PX} across its
+ * shorter side, grown about its centre in its own proportions (R3-30c B).
+ * Null for a mark with no box.
+ */
+export function drawnTransformBox(annotation: KnownDiagramAnnotation, px: number): TransformBox | null {
+  const boxed = boxedMarkOf(annotation);
+  if (!boxed || !boxed.keepsProportions) return boxed?.box ?? null;
+  const { box } = boxed;
+  const shorter = Math.min(box.width, box.height);
+  const floor = MIN_GLYPH_BOX_PX * px;
+  if (shorter >= floor || !(shorter > 0)) return box;
+  const grow = floor / shorter;
+  return { ...box, width: box.width * grow, height: box.height * grow };
+}
+
+/**
+ * Where a selected mark's handles are drawn, in picture units, with `px`
+ * picture units to one screen px and `sizes` the pointer's handles (a
+ * mouse's where unsaid): the box's corners, its scale squares — corners only
+ * where it keeps its proportions — and its turn handles `sizes.rotateOffset`
+ * out from each corner, 18 screen px for a mouse and a touch target for a
+ * finger (18d follow-up). The layout the Edit canvas draws, from the same
+ * code (`transformHandles`).
+ */
+export function transformBoxHandles(
+  annotation: KnownDiagramAnnotation,
+  px: number,
+  sizes: TransformHandleSizes = TRANSFORM_HANDLE_SIZES.fine
+): { box: TransformBox; corners: [PicturePoint, PicturePoint, PicturePoint, PicturePoint]; handles: TransformHandles } | null {
+  const boxed = boxedMarkOf(annotation);
+  const box = drawnTransformBox(annotation, px);
+  if (!boxed || !box) return null;
+  const corners = boxCornersModel(box);
+  const handles = transformHandles(corners, { cornersOnly: boxed.keepsProportions, rotateOffset: sizes.rotateOffset * px });
+  return { box, corners: corners.map(({ x, y }): PicturePoint => [x, y]) as [PicturePoint, PicturePoint, PicturePoint, PicturePoint], handles };
+}
+
+/**
+ * Which of a selected mark's handles a press at `point` takes, with `px`
+ * picture units to one screen px, `reach` how near a press must be, in
+ * picture units (a mouse's or a finger's), and `sizes` the pointer's handles
+ * (a mouse's where unsaid): `transformHandleAt`'s rule, which the Edit
+ * canvas's touch targets press by too — the nearest square or turn handle the
+ * press is on as it is drawn, or, out from the box, within `reach` or a
+ * finger's touch target of; a square where the two are as near. Inside the
+ * box only a handle as drawn takes a press: the glyph is there, and a press
+ * on it moves it — a finger's 18 px reach is more than a corner's 17 px from
+ * the middle of a box at its 24 px floor, and a mouse's took a star's lower
+ * tips (18b review). Null off them, and for a mark with no box.
+ */
+export function transformGripAt(
+  annotation: KnownDiagramAnnotation,
+  point: PicturePoint,
+  { px, reach, sizes = TRANSFORM_HANDLE_SIZES.fine }: { px: number; reach: number; sizes?: TransformHandleSizes }
+): TransformHandle | null {
+  const drawn = transformBoxHandles(annotation, px, sizes);
+  if (!drawn) return null;
+  const at = { x: point[0], y: point[1] };
+  return transformHandleAt(drawn.handles, at, { sizes, inside: boxContainsModelPoint(drawn.box, at), px, reach });
+}
+
+/** The angle a point makes about a centre, in radians, clockwise on the y-down page. */
+function pointerAngle(centre: PicturePoint, point: PicturePoint): number {
+  return Math.atan2(point[1] - centre[1], point[0] - centre[0]);
+}
+
+/**
+ * What a drag of a transform handle makes of the mark it was pressed on, from
+ * `start` to `at` in picture units, with `px` picture units to one screen px
+ * as the press was made. A scale square resizes its box as its kind says
+ * with `shift` and `alt` held ({@link BoxedMark.resizing}): a glyph about its
+ * centre in its proportions (R3-29a A, R3-29b A) — a star stays on the point
+ * it names — a shape freely, Shift keeping its proportions and Alt its centre
+ * (R3-29c A); as the square is drawn out by the pointer's travel since it
+ * took hold, so a press off the square's middle does not jump the mark (18b
+ * review). A turn handle turns it as far as the pointer has turned about its
+ * centre since it took hold, and with `shift` to the nearest 15° (R3-28 A).
+ * What each writes is the mark's kind's ({@link boxedMarkOf}). The mark as it
+ * was where it does not change.
+ */
+export function transformDragged(
+  original: KnownDiagramAnnotation,
+  handle: TransformHandle,
+  start: PicturePoint,
+  at: PicturePoint,
+  { px, shift, alt = false }: { px: number; shift: boolean; alt?: boolean }
+): KnownDiagramAnnotation {
+  const boxed = boxedMarkOf(original);
+  const drawn = transformBoxHandles(original, px);
+  if (!boxed || !drawn) return original;
+  const { box } = drawn;
+  const centre: PicturePoint = [box.center.x, box.center.y];
+  if (handle.kind === 'rotate') {
+    const turned = boxed.degrees * (Math.PI / 180) + pointerAngle(centre, at) - pointerAngle(centre, start);
+    const angle = shift ? snapAngle(turned, TRANSFORM_ROTATION_SNAP_RADIANS) : turned;
+    return boxed.turned((angle * 180) / Math.PI);
+  }
+  // The square where it is drawn, moved as far as the pointer has; as the box is drawn, so a box at its floor grows by as much as the pointer pulls it.
+  const square = drawn.handles.scale.find((each) => each.handle === handle.handle)?.at ?? { x: start[0], y: start[1] };
+  const pulled = { x: square.x + at[0] - start[0], y: square.y + at[1] - start[1] };
+  const { aspectLock, aboutCentre, sides } = boxed.resizing({ shift, alt });
+  return boxed.resized(box, resizeAnnotationBox(box, handle.handle, pulled, aspectLock, { aboutCentre, sides }));
+}

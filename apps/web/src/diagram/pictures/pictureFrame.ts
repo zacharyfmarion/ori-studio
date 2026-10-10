@@ -11,7 +11,7 @@
  */
 import type { PaperScene } from '@treemaker/origami-simulator';
 import { readPaperScene } from '../../lib/paper/paperSceneValidate';
-import type { DiagramAsset, DiagramScenePicture, DiagramStep } from '../document/diagramDocument';
+import { isLockedStep, type DiagramAsset, type DiagramScenePicture, type DiagramStep } from '../document/diagramDocument';
 import { frameOf, type PictureFrame } from '../annotate/annotationModel';
 import { mmToCssPx, pagePtPerPx, PT_PER_CSS_PX } from '../../lib/paper/paperSvg';
 import {
@@ -43,7 +43,7 @@ export function storedScene(picture: DiagramScenePicture): PaperScene | null {
  * build draws — what Annotate draws on. The detail shows Pose for any other.
  */
 export function stepCanBeAnnotated(step: DiagramStep, assets: Readonly<Record<string, DiagramAsset>>): boolean {
-  return stepPictureSource(step, assets) !== null;
+  return !isLockedStep(step) && stepPictureSource(step, assets) !== null;
 }
 
 /** The step's picture frame, its longer side one unit; null for a step with no picture to draw. */

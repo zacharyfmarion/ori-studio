@@ -139,10 +139,20 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.toolMountainLine', 'Mountain Line');
     case 'diagram.toolHiddenLine':
       return t('tools:diagram.toolHiddenLine', 'Hidden Line');
+    case 'diagram.toolSolidLine':
+      return t('tools:diagram.toolSolidLine', 'Solid Line');
     case 'diagram.toolLabel':
       return t('tools:diagram.toolLabel', 'Label');
     case 'diagram.toolCircle':
       return t('tools:diagram.toolCircle', 'Circle');
+    case 'diagram.toolStar':
+      return t('tools:diagram.toolStar', 'Star');
+    case 'diagram.toolEye':
+      return t('tools:diagram.toolEye', 'Eye');
+    case 'diagram.toolOval':
+      return t('tools:diagram.toolOval', 'Oval');
+    case 'diagram.toolRectangle':
+      return t('tools:diagram.toolRectangle', 'Rectangle');
     case 'diagram.toolRightAngle':
       return t('tools:diagram.toolRightAngle', 'Right Angle');
     case 'diagram.toolCallout':
@@ -157,6 +167,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.toolEnlarge', 'Enlarge');
     case 'diagram.toolEnlargeFrame':
       return t('tools:diagram.toolEnlargeFrame', 'Enlarge in Frame');
+    case 'diagram.toolXRay':
+      return t('tools:diagram.toolXRay', 'X-Ray');
     case 'diagram.flipArc':
       return t('tools:diagram.flipArc', 'Flip Arc');
     case 'diagram.nudgeNodeLeft':

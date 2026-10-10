@@ -5,9 +5,10 @@
  * workspace's: Edit's catalogue with its line types and favorites, Simulate's
  * handful of tools.
  *
- * Rendered by a workspace's Tools pill (`ToolsTriggerButton`) and portaled to
- * `document.body` by it. See `useToolPickerSheet` for opening, closing and the
- * keyboard.
+ * Rendered by a workspace's Tools pill (`ToolsTriggerButton`) and portaled by
+ * it into the sheet layer (`SheetLayer`), which comes before every modal, so a
+ * dialog opened while it is up is over it. See `useToolPickerSheet` for
+ * opening, closing and the keyboard.
  */
 import { useEffect, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';

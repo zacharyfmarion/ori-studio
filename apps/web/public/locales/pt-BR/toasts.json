@@ -41,9 +41,24 @@
       "addedTurnOvers_one": "Virada adicionada",
       "addedTurnOvers_many": "{{count}} viradas adicionadas",
       "addedTurnOvers_other": "{{count}} viradas adicionadas",
+      "bakedStep": "As marcas do passo {{number}} continuam fazendo parte da imagem: há mais do que um passo comporta.",
+      "bakedSteps_one": "As marcas de um passo continuam fazendo parte da imagem: há mais do que um passo comporta.",
+      "bakedSteps_many": "As marcas de {{count}} passos continuam fazendo parte das imagens: há mais do que um passo comporta.",
+      "bakedSteps_other": "As marcas de {{count}} passos continuam fazendo parte das imagens: há mais do que um passo comporta.",
       "filledStep": "Passo {{number}} preenchido",
+      "marksEditable_one": "A marca do passo {{number}} agora é editável",
+      "marksEditable_many": "As {{count}} marcas do passo {{number}} agora são editáveis",
+      "marksEditable_other": "As {{count}} marcas do passo {{number}} agora são editáveis",
+      "marksOutsideFrame_one": "Uma marca fora da moldura ampliada ficou de fora",
+      "marksOutsideFrame_many": "{{count}} marcas fora da moldura ampliada ficaram de fora",
+      "marksOutsideFrame_other": "{{count}} marcas fora da moldura ampliada ficaram de fora",
+      "noMarksInFrame": "Nenhuma marca do passo {{number}} está na moldura ampliada",
+      "replacedEdited_one": "Uma marca que você editou foi substituída",
+      "replacedEdited_many": "{{count}} marcas que você editou foram substituídas",
+      "replacedEdited_other": "{{count}} marcas que você editou foram substituídas",
       "replacedStep": "Cartão do passo {{number}} substituído",
-      "tooLarge": "Este passo é detalhado demais para ser mantido no diagrama."
+      "tooLarge": "Este passo é detalhado demais para ser mantido no diagrama.",
+      "undoReplaced": "Desfazer"
     },
     "refreshedAll_one": "1 passo atualizado",
     "refreshedAll_many": "{{count}} passos atualizados",
@@ -61,7 +76,15 @@
     "uploadRejected": "não é um SVG que o Ori Studio consiga ler com segurança",
     "uploadTooLarge": "é grande demais",
     "uploadUnreadable": "não foi possível ler a imagem",
-    "uploadUnsupported": "não é uma imagem"
+    "uploadUnsupported": "não é uma imagem",
+    "zoom": {
+      "updatedList": "Passos ampliados {{numbers}} atualizados",
+      "updatedOne": "Passo ampliado {{number}} atualizado",
+      "updatedRange": "Passos ampliados {{first}}–{{last}} atualizados",
+      "updatedSome": "{{placed}} de {{total}} passos ampliados atualizados",
+      "updatedSomeDetail": "Os demais não puderam receber uma moldura desta área.",
+      "updateFailed": "Não foi possível atualizar os passos ampliados"
+    }
   },
   "diagramExport": {
     "saved": "{{name}} exportado"

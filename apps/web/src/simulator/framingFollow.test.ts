@@ -6,6 +6,8 @@ import {
   anchorFraming,
   createFramingFollow,
   followFraming,
+  framePins,
+  framingHeldAfterPull,
   framingOf,
   type Framing,
 } from './framingFollow';
@@ -197,5 +199,51 @@ describe('anchorFraming', () => {
     anchorFraming(follow, [0], flat);
     anchorFraming(follow, null, flat);
     expect(follow.anchor).toBeNull();
+  });
+});
+
+describe('a session’s framing', () => {
+  const flat = new Float32Array([0, 0, 0, 4, 0, 0, 8, 0, 0]);
+
+  it('anchors to pins under `anchor`, as `anchorFraming` does', () => {
+    const follow = createFramingFollow();
+    followFraming(follow, 0, () => framingOf(flat), true);
+    framePins(follow, 'anchor', [0], () => flat);
+
+    const folded = new Float32Array([0, 0, 0, 4, 0, 0, 1, 3, 0]);
+    expect(framingOf(folded, follow.anchor).center).toEqual([4, 0, 0]);
+  });
+
+  it('never anchors under `shape`, and drops an anchor already set, reading nothing', () => {
+    const follow = createFramingFollow();
+    framePins(follow, 'anchor', [0], () => flat);
+    expect(follow.anchor).not.toBeNull();
+
+    let reads = 0;
+    framePins(follow, 'shape', [0, 1], () => {
+      reads += 1;
+      return flat;
+    });
+    expect(follow.anchor).toBeNull();
+    expect(reads).toBe(0);
+  });
+
+  it('reads no positions to clear the pins under either', () => {
+    const follow = createFramingFollow();
+    framePins(follow, 'anchor', [0], () => flat);
+    let reads = 0;
+    framePins(follow, 'anchor', null, () => {
+      reads += 1;
+      return flat;
+    });
+    expect(follow.anchor).toBeNull();
+    expect(reads).toBe(0);
+  });
+
+  it('holds a kept pose’s framing under `anchor` only', () => {
+    expect(framingHeldAfterPull('anchor', true)).toBe(true);
+    expect(framingHeldAfterPull('anchor', false)).toBe(false);
+    expect(framingHeldAfterPull('shape', true)).toBe(false);
+    expect(framingHeldAfterPull('shape', false)).toBe(false);
   });
 });

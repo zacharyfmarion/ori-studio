@@ -6,6 +6,7 @@ import type { DiagramLinkedPose } from '../../diagram/capture/useDiagramLinkedPo
 import { DEFAULT_DIAGRAM_STYLE, type DiagramStep } from '../../diagram/document/diagramDocument';
 import { storedSceneJson } from '../../diagram/document/diagramFile';
 import { cpStep, scenePicture } from '../../diagram/document/diagramSteps.fixtures';
+import { craneStep } from '../../diagram/zoom/zoom.fixtures';
 import { stepPictureCacheBytesForTests } from '../../diagram/pictures/stepPictureCache';
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 import { PHONE_MEDIA_QUERY } from '../../platform/phoneLayout';
@@ -35,6 +36,7 @@ function linkedPose(preview: DiagramStep | null, actions: DiagramLinkedPoseActio
     layerOrder: null,
     spatial: null,
     onCamera: () => {},
+    registerLiveView: () => () => {},
     rotateTo: () => {},
     showAs: async () => true,
     setSide: async () => true,
@@ -49,7 +51,8 @@ function show(
   step: DiagramStep,
   preview: DiagramStep | null,
   mode: 'pose' | 'annotate' = 'pose',
-  actions: DiagramLinkedPoseAction[] = []
+  actions: DiagramLinkedPoseAction[] = [],
+  onMode: (mode: 'pose' | 'annotate') => void = () => {}
 ) {
   host ??= document.body.appendChild(document.createElement('div'));
   root ??= createRoot(host);
@@ -64,8 +67,7 @@ function show(
           count={1}
           readOnly={false}
           mode={mode}
-          onMode={() => {}}
-          annotateTool={null}
+          onMode={onMode}
           onAnnotateTool={() => {}}
           poseActions={[]}
           linkedPose={linkedPose(preview, actions)}
@@ -101,6 +103,28 @@ describe('DiagramStepDetail in Pose', () => {
     expect(previewed).not.toBe(own);
     expect(stepPictureCacheBytesForTests()).toBe(kept);
     expect(show(step, null)).toBe(own);
+  });
+
+  it('ghosts an x-ray as its rim alone, on a picture with layers, and draws none on one without (Revision 3, R3-19 A)', () => {
+    const decoded = (url: string) => new TextDecoder().decode(Uint8Array.from(atob(url.split(',')[1]!), (c) => c.charCodeAt(0)));
+    const crane = craneStep('S.affine');
+    const xray = { id: 'xray', kind: 'x-ray' as const, from: [0.45, 0.6] as [number, number], to: [0.45, 0.6] as [number, number], radius: 0.08, depth: 2 };
+    const step: DiagramStep = { ...crane, annotations: [xray], annotatedPictureKey: crane.picture!.key };
+    const posed = decoded(show(step, null)!);
+    // Its rim, under the ghost's opacity, and no window cut into the picture being posed.
+    expect(posed).toMatch(/<g opacity="0\.3">[^]*<g data-x-ray-window=""><circle [^>]*fill="none"[^>]*\/><\/g>/);
+    expect(posed).not.toContain('x-ray-0-clip');
+    // While a spread is dragged, its preview is captured without faces (`flatPicture`'s `faces: false`): the rim
+    // stays, where the marks are carried on the preview, as the other marks stay ghosted (review of 18f).
+    const { paperFaces: _faces, ...facelessPicture } = step.picture as Extract<DiagramStep['picture'], { kind: 'scene' }>;
+    const preview: DiagramStep = { ...step, picture: { ...facelessPicture, key: 'scene-preview' }, annotatedPictureKey: 'scene-preview' };
+    const dragged = decoded(show(step, preview)!);
+    expect(dragged).toMatch(/<g opacity="0\.3">[^]*<g data-x-ray-window=""><circle [^>]*fill="none"[^>]*\/><\/g>/);
+    expect(dragged).not.toContain('x-ray-0-clip');
+    // Shown as its crease pattern, the step has no layers: nothing of it is drawn (R3-18b A).
+    if (step.source?.kind !== 'cp') throw new Error('a linked step');
+    const pattern: DiagramStep = { ...step, source: { ...step.source, render: { mode: 'crease-pattern', rotationDeg: 0 } } };
+    expect(decoded(show(pattern, null)!)).not.toContain('data-x-ray-window');
   });
 
   it('shows an enlarged step whole, its frame outlined, though it has no marks (Revision 2)', () => {
@@ -193,5 +217,32 @@ describe('DiagramStepDetail in Annotate', () => {
     expect(host!.textContent).toContain('Annotate on a larger screen');
     expect(toolWindow()).toBeNull();
     act(() => useWorkspaceStore.getState().setDiagramAnnotateTool(null));
+  });
+
+  it('leaves Pose | Annotate out of a phone’s header, where Annotate is only a note, which offers the way back to Pose', () => {
+    const step = cpStep('step-1', FLAT);
+    const modeSwitch = () => host!.querySelector('[role="group"][aria-label="Mode"]');
+    const poseButton = () => [...host!.querySelectorAll('button')].find((button) => button.textContent === 'Pose');
+    const reshow = (phone: boolean, mode: 'pose' | 'annotate', onMode?: (mode: 'pose' | 'annotate') => void) => {
+      act(() => root?.unmount());
+      root = null;
+      layout(phone);
+      show(step, null, mode, [], onMode);
+    };
+    // A larger screen keeps the switch, in Pose and in Annotate.
+    reshow(false, 'pose');
+    expect(modeSwitch()).not.toBeNull();
+    reshow(false, 'annotate');
+    expect(modeSwitch()).not.toBeNull();
+    // A phone's header has none: the step opens in Pose, and Annotate there is a note.
+    reshow(true, 'pose');
+    expect(modeSwitch()).toBeNull();
+    expect(poseButton()).toBeUndefined();
+    const modes: string[] = [];
+    reshow(true, 'annotate', (mode) => modes.push(mode));
+    expect(modeSwitch()).toBeNull();
+    expect(host!.textContent).toContain('Annotate on a larger screen');
+    act(() => poseButton()!.click());
+    expect(modes).toEqual(['pose']);
   });
 });

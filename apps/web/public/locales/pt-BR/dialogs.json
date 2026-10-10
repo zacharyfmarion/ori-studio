@@ -340,6 +340,10 @@
         "detail": "O método de autoria por dobra em caixa é um porte para Rust e WebAssembly do Box Pleating Studio de Mu-Tsun Tsai.",
         "title": "Mu-Tsun Tsai e Box Pleating Studio"
       },
+      "defox": {
+        "detail": "A separação afim de camadas no espaço Diagrama se baseia no método de distorção afim de Kei Morisue no DEFOX.",
+        "title": "Kei Morisue e DEFOX"
+      },
       "explori": {
         "detail": "O método de autoria Pesquisar 22,5° envia sua árvore para o ExplOri, um acervo pesquisável de padrões de vinco de 22,5°, e mostra as correspondências mais próximas que ele retorna.",
         "title": "Brandon Wong e ExplOri 22.5"
@@ -432,6 +436,7 @@
     "empty": "Nada para exportar: a vista não mostra papel.",
     "exporting": "Exportando…",
     "exportingPages": "Exportando {{done}} de {{total}}…",
+    "exportObj": "Exportar OBJ",
     "exportStyle": "Estilo de exportação · {{style}}",
     "figureMm": "Tamanho da figura",
     "figureSizeHint": "A figura mede este tamanho no lado mais longo. As linhas mantêm sua espessura.",
@@ -440,14 +445,18 @@
     "hiddenFacesDropped_one": "{{count}} face oculta omitida",
     "hiddenFacesDropped_many": "{{count}} faces ocultas omitidas",
     "hiddenFacesDropped_other": "{{count}} faces ocultas omitidas",
-    "highlights": "Destaques de linhas",
-    "highlightsHint": "O destaque sobre as linhas que uma etapa alinha.",
     "keepHiddenFaces": "Manter faces ocultas",
     "keepHiddenFacesHint": "Faces que nada mostra ficam no arquivo sob o que as cobre, de modo que apagar uma face num editor de desenho revela a de baixo.",
     "letters": "Letras",
     "lettersHint": "Os nomes dos pontos a que uma etapa se refere.",
     "marks": "Marcas",
     "nextPage": "Próximo passo",
+    "objExpired": "Esta captura da simulação não está mais disponível. Feche esta janela e exporte novamente.",
+    "objHint": "Malha 3D com coordenadas UV do papel desdobrado, pronta para receber texturas no seu software 3D.",
+    "objMeshUnavailable": "Esta simulação não tem uma malha válida para exportar.",
+    "objPreview": "Forma capturada · OBJ inclui a malha completa e UVs",
+    "objPreviewEmpty": "Sem prévia da imagem. A malha 3D capturada ainda pode ser exportada.",
+    "objSheetUnavailable": "OBJ precisa de uma folha desdobrada no plano do papel do simulador para criar coordenadas de textura.",
     "padding": "Margem",
     "page": "Página",
     "pageMm": "{{width}} × {{height}} mm",
@@ -475,6 +484,8 @@
     "preparing": "Preparando a pré-visualização…",
     "previewFailed": "Não foi possível desenhar a pré-visualização: {{message}}",
     "previousPage": "Passo anterior",
+    "referenceLines": "Linhas de referência",
+    "referenceLinesHint": "As linhas com que uma etapa se alinha.",
     "resolution": "Resolução",
     "resolutionCustom": "Personalizada",
     "resolutionDpi": "{{dpi}} dpi",

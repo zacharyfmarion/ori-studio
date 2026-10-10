@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeftRight, Check, Columns2, X } from 'lucide-react';
-import { isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
 import { useDesignPaneSwitcher, type DesignPaneOption } from '../hooks/useDesignPaneSwitcher';
+import { SheetPortal } from './SheetLayer';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { useSheetEscape } from './ui/useSheetEscape';
 
 /**
  * Moving between a design's panes, on a phone.
@@ -87,21 +87,8 @@ function PaneList({
     if (open) sheetRef.current?.focus();
   }, [open]);
 
-  // Escape, capture-phase on `window`, so it fires wherever focus is inside the
-  // sheet. `isShortcutEditingTarget` is the repo's one answer to "does this
-  // target own its keystrokes"; there is no copy of it here for that reason.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (isShortcutEditingTarget(event.target)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [open, close]);
+  // Escape, through the one listener every touch sheet shares.
+  useSheetEscape(open, listId, close);
 
   const title = t('panels:design.paneSwitcher.title', 'Panes');
 
@@ -124,10 +111,11 @@ function PaneList({
         Portaled for the reason every sheet in this lane is: the lane is
         `pointer-events: none` so the dock keeps taps that miss a pill, and it is
         a stacking context at `--z-canvas-overlay` — a sheet rendered inside it
-        would be transparent to touch and capped below the modal layer.
+        would be transparent to touch and capped below the modal layer. Into
+        the sheet layer, before every modal, as every sheet is (`SheetLayer`).
       */}
-      {open &&
-        createPortal(
+      {open && (
+        <SheetPortal>
           <div
             id={listId}
             role="dialog"
@@ -177,9 +165,9 @@ function PaneList({
                 ))}
               </ul>
             </div>
-          </div>,
-          document.body
-        )}
+          </div>
+        </SheetPortal>
+      )}
     </>
   );
 }

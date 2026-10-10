@@ -1,6 +1,6 @@
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { trackSimulatorToolPickerOpened } from '../analytics';
+import { SheetPortal } from '../components/SheetLayer';
 import { ToolPickerList } from '../components/ui/tools/ToolPickerGroup';
 import { ToolPickerRow } from '../components/ui/tools/ToolPickerRow';
 import { ToolPickerSheet } from '../components/ui/tools/ToolPickerSheet';
@@ -8,6 +8,7 @@ import { ToolsTriggerButton } from '../components/ui/tools/ToolsTriggerButton';
 import { useToolPickerSheet } from '../components/ui/tools/useToolPickerSheet';
 import { SIMULATOR_TOOL_ICONS } from './simulatorToolIcons';
 import type { SimulatorToolButton } from './tools/actions';
+import type { SimulatorToolSurface } from './tools/toolState';
 
 /**
  * The phone layout's Tools pill for the Simulate canvas, and the sheet behind
@@ -26,15 +27,18 @@ import type { SimulatorToolButton } from './tools/actions';
 export function SimulatorToolsTrigger({
   buttons,
   disabled,
+  surface,
 }: {
   buttons: readonly SimulatorToolButton[];
   /** True until the simulation is ready; the rows say so rather than vanish. */
   disabled: boolean;
+  /** Which host the pill is in, as the sheet's analytics event says it. */
+  surface: SimulatorToolSurface;
 }) {
   const { t } = useTranslation();
   const { open, pickerId, openPicker, close, triggerRef } = useToolPickerSheet({
     available: true,
-    onOpened: trackSimulatorToolPickerOpened,
+    onOpened: () => trackSimulatorToolPickerOpened({ surface }),
   });
   const active = buttons.find((button) => button.active);
   const ActiveIcon = active ? SIMULATOR_TOOL_ICONS[active.icon] : null;
@@ -50,9 +54,10 @@ export function SimulatorToolsTrigger({
         triggerRef={triggerRef}
       />
       {/* Portaled for the reason Edit's is: the sheet is a page-level dialog,
-          and nothing in the toolbar should cap its stacking or its taps. */}
-      {open &&
-        createPortal(
+          and nothing in the toolbar should cap its stacking or its taps. Into
+          the sheet layer, before every modal, as every sheet is. */}
+      {open && (
+        <SheetPortal>
           <ToolPickerSheet
             pickerId={pickerId}
             title={t('panels:simulator.tools.picker.title', 'Tools')}
@@ -79,9 +84,9 @@ export function SimulatorToolsTrigger({
                 );
               })}
             </ToolPickerList>
-          </ToolPickerSheet>,
-          document.body
-        )}
+          </ToolPickerSheet>
+        </SheetPortal>
+      )}
     </>
   );
 }

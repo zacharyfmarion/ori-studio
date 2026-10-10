@@ -6,11 +6,14 @@ import {
   widestPenCssPx,
   type SimulatorCamera,
   type SimulatorFramePayload,
+  type SimulatorShapeRead,
   type SimulatorWorkerApi,
 } from './simulatorSession';
+import type { SimulatorShape } from './simulatorShape';
 import { simulatorExportTarget } from './simulatorExportTarget';
 import { MAX_CONCURRENT_SIMULATIONS, MAX_LIVE_SIMULATOR_SESSIONS } from './simulatorLimits';
 import golden from './__fixtures__/simulatorExportGolden.json';
+import cranePattern10 from './__fixtures__/cranePattern10.fold.json';
 import { DEFAULT_PAPER_PAGE, type PaperPage } from '../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX, type PaperStyle } from '../lib/paper/paperStyle';
 import {
@@ -20,6 +23,8 @@ import {
 } from '../lib/paper/paperStyleResolve';
 import { PT_PER_MM, paperSceneToSvg, type PaperSvgResult } from '../lib/paper/paperSvg';
 import { DEFAULT_PAPER_EXPORT_SETTINGS } from '../lib/paperExportSettings';
+import { simulatorRunConfig } from '../lib/simulatorRunConfig';
+import { DEFAULT_SIMULATOR_SETTINGS, simulatorMaterialOptions } from '../lib/simulatorSettings';
 import { paperPresetRows } from '../lib/paperPresetRows';
 import {
   createPaperExportSession,
@@ -289,6 +294,84 @@ describe('simulator session', () => {
     const afterTick = new Float32Array(positionsOf(await frame(session.tick({}))));
 
     expect(maxAbsDelta(flat, afterTick)).toBeLessThan(1e-5);
+    session.dispose();
+  });
+});
+
+describe('a material push', () => {
+  // What Simulate sends: the load carries the run profile and the user's
+  // material, and once the model is ready the panel pushes the same material
+  // again. It reaches the worker after the load's opening settle, and whether
+  // the runtime's loop then ticks depends on when the settle's reply lands.
+  const loaded = { ...simulatorRunConfig().solverOptions, ...simulatorMaterialOptions(DEFAULT_SIMULATOR_SETTINGS) };
+  const pushed = simulatorMaterialOptions(DEFAULT_SIMULATOR_SETTINGS);
+
+  it('that changes nothing leaves a settled model settled', async () => {
+    const session = createSimulatorSession();
+    session.load(miura(8, 8), { solver: loaded });
+    const settled = await frame(session.settle(2000, {}));
+    expect(settled.converged).toBe(true);
+
+    session.setMaterial(pushed);
+    const next = await frame(session.tick({}));
+
+    expect(next.stepsThisTick).toBe(0);
+    expect(next.step).toBe(settled.step);
+    expect(next.converged).toBe(true);
+    session.dispose();
+  });
+
+  it('that changes nothing folds the crane the same whether the loop ticks after it or not', async () => {
+    // Pattern 10 of a crane's diagram, as Simulate builds it. Bistable at 60%:
+    // 24 flat steps before the fold and it goes one way, 48 and it goes the
+    // other, so one tick of flat sheet more or less shows.
+    const crane = cranePattern10 as unknown as FoldDocument;
+    async function foldAt60(loopTicks: boolean) {
+      const session = createSimulatorSession();
+      // No time budget: one 8-step chunk per tick, the same on any machine.
+      session.load(crane, { solver: loaded, budgetMs: 0 });
+      await frame(session.settle(2000, {}));
+      session.setMaterial(pushed);
+      if (loopTicks) {
+        // The runtime's loop when a frame comes between the push and the
+        // settle's reply: tick until the worker says it is settled.
+        for (let i = 0; i < 100; i += 1) {
+          if ((await frame(session.tick({}))).converged) break;
+        }
+      }
+      session.setFoldPercent(60);
+      const folded = await frame(session.settle(40_000, {}));
+      session.dispose();
+      return { step: folded.step, positions: new Float32Array(positionsOf(folded)) };
+    }
+
+    const idle = await foldAt60(false);
+    const ticked = await foldAt60(true);
+
+    expect(ticked.step).toBe(idle.step);
+    expect(maxAbsDelta(ticked.positions, idle.positions)).toBe(0);
+  }, 30_000);
+
+  it('that changes the material moves a settled model on', async () => {
+    const session = createSimulatorSession();
+    session.load(miura(8, 8), { solver: loaded });
+    expect((await frame(session.settle(2000, {}))).converged).toBe(true);
+
+    session.setMaterial({ ...pushed, creaseStiffness: (pushed.creaseStiffness ?? 1) * 4 });
+
+    expect((await frame(session.tick({}))).stepsThisTick).toBeGreaterThan(0);
+    session.dispose();
+  });
+
+  it('compares a fold target with the one the session holds, not the one it loaded with', () => {
+    const session = createSimulatorSession();
+    session.load(miura(8, 8), { solver: { ...loaded, foldPercent: 0 } });
+    session.setFoldPercent(60);
+
+    // The load said 0 too, but the session holds 60 now, so this is a change.
+    session.setMaterial({ ...pushed, foldPercent: 0 });
+
+    expect(session.exportGeometry().foldPercent).toBe(0);
     session.dispose();
   });
 });
@@ -986,6 +1069,54 @@ describe('exporting the current view as SVG', () => {
 });
 
 describe('export snapshots', () => {
+  it('exports stable sheet UVs and a frozen pose from the addressed session', async () => {
+    const session = createSimulatorSession();
+    const fold: FoldDocument = {
+      vertices_coords: [[0, 0, 0], [1, 0, 0], [1, 0, -1], [0, 0, -1]],
+      edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 0], [0, 2]],
+      edges_assignment: ['B', 'B', 'B', 'B', 'V'],
+      edges_foldAngle: [null, null, null, null, 120],
+      faces_vertices: [[0, 1, 2], [0, 2, 3]],
+    };
+    const info = session.load(fold, {});
+    const frozen = session.beginExportSnapshot({ token: info.token })!;
+    const flat = session.exportObj(frozen)!;
+    expect(session.exportObjUnavailableReason(frozen)).toBeNull();
+    expect(flat).toContain('vt 0 1\nvt 1 1\nvt 1 0\nvt 0 0\n');
+    session.setFoldPercent(75, info.token);
+    await frame(session.settle(600, { token: info.token }));
+    const foldedId = session.beginExportSnapshot({ token: info.token })!;
+    const folded = session.exportObj(foldedId)!;
+    expect(folded).not.toBe(flat);
+    expect(folded.split('\n').filter((line) => line.startsWith('vt '))).toEqual(
+      flat.split('\n').filter((line) => line.startsWith('vt '))
+    );
+    const other = session.load({ ...fold, vertices_coords: fold.vertices_coords.map(([x, y, z]) => [x! * 2, y!, z!]) }, {});
+    const otherId = session.beginExportSnapshot({ token: other.token })!;
+    expect(session.exportObj(otherId)).not.toBe(folded);
+    expect(session.exportObj(frozen)).toBe(flat);
+    expect(session.exportObj(foldedId)).toBe(folded);
+    session.endExportSnapshot(frozen);
+    expect(session.exportObj(frozen)).toBeNull();
+    expect(session.exportObjUnavailableReason(frozen)).toBe('expired-snapshot');
+    session.release(info.token);
+    expect(session.exportObj(foldedId)).toBeNull();
+    expect(session.exportObj(otherId)).not.toBeNull();
+    expect(session.exportObj(otherId + 1000)).toBeNull();
+    session.dispose();
+    expect(session.exportObj(otherId)).toBeNull();
+  });
+
+  it('reports unavailable UVs without preventing an image snapshot', () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(2, 2), {}); // This fixture starts in XY, not the product's XZ sheet.
+    const id = session.beginExportSnapshot({ token: info.token })!;
+    expect(session.exportObjUnavailableReason(id)).toBe('nonplanar-sheet');
+    expect(session.exportObj(id)).toBeNull();
+    expect(session.exportScene(id, { style: EXPORT_STYLE, markHidden: false })).not.toBeNull();
+    session.dispose();
+  });
+
   const UNMARKED = { style: EXPORT_STYLE, markHidden: false };
   const MARKED = { style: EXPORT_STYLE, markHidden: true };
 
@@ -1146,6 +1277,10 @@ async function dialogPage(
   if (id === null) throw new Error('expected a snapshot');
   const target = simulatorExportTarget({
     snapshot: {
+      obj: {
+        unavailableReason: session.exportObjUnavailableReason(id),
+        build: async () => session.exportObj(id),
+      },
       scene: async (options) => session.exportScene(id, options),
       release: () => session.endExportSnapshot(id),
     },
@@ -1741,4 +1876,348 @@ describe('pulling the paper', () => {
     expect(session.releasePose(info.token)).toBeNull();
     session.dispose();
   });
+});
+
+describe('framing paper the tools shaped', () => {
+  const SIZE = 400;
+  type Framing = 'anchor' | 'shape' | undefined;
+
+  /**
+   * One scripted session: settle flat, pin a face, fold part way, pull a far
+   * face and keep it, fold on. Every frame is `settle`'s, which runs a fixed
+   * number of steps where `tick` runs to a wall-clock budget, so two runs of
+   * the same script step alike.
+   */
+  async function script(framing: Framing) {
+    const session = createSimulatorSession();
+    session.dispose();
+    const info = session.load(miura(4, 4), framing ? { framing } : {});
+    const frames: SimulatorFramePayload[] = [];
+    const take = async (steps: number) => frames.push(await frame(session.settle(steps, {})));
+    await take(4000);
+
+    const positions = new Float32Array(positionsOf(frames[0]!));
+    const center = centroid(positions);
+    const view = { yaw: 0, pitch: Math.PI / 2, zoom: 1 };
+    const camera = cameraUniforms(view, center, boundingRadius(positions, center), SIZE, SIZE);
+    const drawn = { camera, perspective: false };
+    const groups = new Int32Array(info.faceGroups);
+    const indices = new Uint32Array(info.indices);
+    const pointOn = (face: number) => {
+      const triangle = groups.indexOf(face);
+      const centre = new Float32Array(3);
+      for (let corner = 0; corner < 3; corner += 1) {
+        const node = indices[triangle * 3 + corner]!;
+        for (let axis = 0; axis < 3; axis += 1) centre[axis] += positions[node * 3 + axis]! / 3;
+      }
+      const screen = projectVertices(centre, camera, { perspective: false }).screen;
+      return { x: screen[0]!, y: screen[1]!, cssWidth: SIZE, cssHeight: SIZE };
+    };
+    const faces = [...new Set(groups)];
+    const near = faces[0]!;
+    const far = faces[faces.length - 1]!;
+
+    await session.setPinnedFaces([near]);
+    await take(200);
+    session.setFoldPercent(40);
+    await take(600);
+    const press = pointOn(far);
+    expect(session.beginPull(press, drawn)?.outcome).toBe('pulling');
+    session.movePull({ ...press, x: press.x - 40, y: press.y - 30 }, drawn);
+    await take(400);
+    session.endPull('keep');
+    await take(400);
+    session.setFoldPercent(60);
+    await take(400);
+    session.dispose();
+    return frames;
+  }
+
+  /** Everything a frame says, bar the wall-clock time it took. */
+  function comparable(payload: SimulatorFramePayload) {
+    const { elapsedMs: _elapsed, positions, ...rest } = payload;
+    return { ...rest, positions: Array.from(new Uint8Array(positionsOf({ positions }))) };
+  }
+
+  it('frames as it always has under `anchor`, which a load with no say gets', async () => {
+    const before = (await script(undefined)).map(comparable);
+    const anchored = (await script('anchor')).map(comparable);
+
+    expect(anchored).toEqual(before);
+    // A kept pull holds the camera until its pose ends.
+    expect(before.map((payload) => payload.framingHeld)).toEqual([false, false, false, true, true, false]);
+  }, 30_000);
+
+  it('follows the shape once a pull is let go under `shape`, and moves no paper differently', async () => {
+    const anchored = (await script('anchor')).map(comparable);
+    const shaped = (await script('shape')).map(comparable);
+
+    // The press still holds the camera, so the paper stays under the cursor.
+    expect(shaped.map((payload) => payload.framingHeld)).toEqual([false, false, false, true, false, false]);
+    expect(shaped.map(({ framingHeld: _held, ...rest }) => rest)).toEqual(
+      anchored.map(({ framingHeld: _held, ...rest }) => rest)
+    );
+    expect(shaped[4]).toMatchObject({ posed: true });
+  }, 30_000);
+});
+
+describe('reading and restoring a shape', () => {
+  const SIZE = 400;
+
+  function bytesOf(array: Float32Array | ArrayBuffer): number[] {
+    return Array.from(array instanceof ArrayBuffer ? new Uint8Array(array) : new Uint8Array(array.buffer, array.byteOffset, array.byteLength));
+  }
+
+  function shapeFrom(read: SimulatorShapeRead | null): SimulatorShape {
+    if (read === null || typeof read === 'string') throw new Error(`expected a shape, got ${read}`);
+    return read;
+  }
+
+  /** A load folded to `percent` and settled, quoting its own token. */
+  async function folded(session: SimulatorWorkerApi, fold: FoldDocument, percent: number) {
+    const info = session.load(fold, { solver: { foldPercent: percent } });
+    const frameNow = async (steps = 20_000) => frame(session.settle(steps, { token: info.token }));
+    await frameNow();
+    return { info, token: info.token, frameNow };
+  }
+
+  /**
+   * A Miura sheet at `percent` with its first face pinned and its last pulled
+   * up and kept, as the canvas-2D path would press it.
+   */
+  async function posed(session: SimulatorWorkerApi, percent = 40, letGo = true) {
+    const loaded = await folded(session, miura(4, 4), 0);
+    const { info, token } = loaded;
+    const flat = new Float32Array(positionsOf(await loaded.frameNow()));
+    const center = centroid(flat);
+    const view = { yaw: 0, pitch: Math.PI / 2, zoom: 1 };
+    const camera = cameraUniforms(view, center, boundingRadius(flat, center), SIZE, SIZE);
+    const groups = new Int32Array(info.faceGroups);
+    const indices = new Uint32Array(info.indices);
+    const faces = [...new Set(groups)];
+    const near = faces[0]!;
+    const far = faces[faces.length - 1]!;
+    await session.setPinnedFaces([near], token);
+    session.setFoldPercent(percent, token);
+    const now = new Float32Array(positionsOf(await loaded.frameNow()));
+    const triangle = groups.indexOf(far);
+    const centre = new Float32Array(3);
+    for (let corner = 0; corner < 3; corner += 1) {
+      const node = indices[triangle * 3 + corner]!;
+      for (let axis = 0; axis < 3; axis += 1) centre[axis] += now[node * 3 + axis]! / 3;
+    }
+    const drawnCamera = cameraUniforms(view, centroid(now), boundingRadius(now, centroid(now)), SIZE, SIZE);
+    const screen = projectVertices(centre, drawnCamera, { perspective: false }).screen;
+    const press = { x: screen[0]!, y: screen[1]!, cssWidth: SIZE, cssHeight: SIZE };
+    const drawn = { camera: drawnCamera, perspective: false };
+    expect(session.beginPull(press, drawn, token)?.outcome).toBe('pulling');
+    session.movePull({ ...press, x: press.x - 40, y: press.y - 50 }, drawn, token);
+    await frame(session.settle(1500, { token }));
+    if (letGo) {
+      session.endPull('keep', token);
+      await loaded.frameNow();
+    }
+    return { ...loaded, near, camera };
+  }
+
+  it('answers the shape, keyed by its sheet, with its pins as points', async () => {
+    const session = createSimulatorSession();
+    session.dispose();
+    const { info, token, near } = await posed(session);
+    const shape = shapeFrom(session.readShape(token));
+
+    expect(shape.sheet).toMatch(/^sk1:/);
+    expect(shape.posed).toBe(true);
+    expect(shape.pins).toHaveLength(1);
+    expect(shape.state).toHaveLength(info.vertexCount * 3 + info.creaseCount);
+    expect(near).toBeGreaterThanOrEqual(0);
+    session.dispose();
+  }, 30_000);
+
+  it('restores bit for bit onto another load of the same sheet: pins, pose and every position', async () => {
+    const session = createSimulatorSession();
+    session.dispose();
+    const a = await posed(session);
+    const shape = shapeFrom(session.readShape(a.token));
+    const drawnA = positionsOf(await a.frameNow());
+
+    const b = await folded(session, miura(4, 4), 0);
+    expect(session.restoreShape({ foldPercent: 40, shape }, b.token)).toEqual({ pins: [a.near], posed: true });
+    const after = await b.frameNow();
+    // Put back at rest, so nothing steps it.
+    expect(after).toMatchObject({ stepsThisTick: 0, posed: true, foldPercent: 40 });
+    expect(bytesOf(positionsOf(after))).toEqual(bytesOf(drawnA));
+
+    const back = shapeFrom(session.readShape(b.token));
+    expect(back.sheet).toBe(shape.sheet);
+    expect(back.pins).toEqual(shape.pins);
+    expect(back.posed).toBe(true);
+    expect(bytesOf(back.state)).toEqual(bytesOf(shape.state));
+    session.dispose();
+  }, 30_000);
+
+  it('restores an unpinned, unposed model to exactly its mesh, and steps it nowhere until something changes', async () => {
+    const session = createSimulatorSession();
+    session.dispose();
+    const a = await folded(session, miura(4, 4), 60);
+    const shape = shapeFrom(session.readShape(a.token));
+    expect(shape).toMatchObject({ pins: [], posed: false });
+    const drawnA = positionsOf(await a.frameNow());
+
+    const b = await folded(session, miura(4, 4), 0);
+    expect(session.restoreShape({ foldPercent: 60, shape }, b.token)).toEqual({ pins: [], posed: false });
+    for (let tick = 0; tick < 5; tick += 1) {
+      const next = await frame(session.tick({ token: b.token }));
+      expect(next.stepsThisTick).toBe(0);
+      expect(bytesOf(positionsOf(next))).toEqual(bytesOf(drawnA));
+    }
+    // A new target is something changing: the solver takes it up.
+    session.setFoldPercent(80, b.token);
+    expect((await frame(session.tick({ token: b.token }))).stepsThisTick).toBeGreaterThan(0);
+    session.dispose();
+  }, 30_000);
+
+  it('answers mismatch for another sheet’s shape, and changes nothing', async () => {
+    const session = createSimulatorSession();
+    session.dispose();
+    const a = await folded(session, miura(4, 4), 60);
+    const shape = shapeFrom(session.readShape(a.token));
+
+    const b = await folded(session, miura(4, 5), 30);
+    const face = new Int32Array(b.info.faceGroups)[0]!;
+    await session.setPinnedFaces([face], b.token);
+    const before = shapeFrom(session.readShape(b.token));
+
+    expect(session.restoreShape({ foldPercent: 60, shape }, b.token)).toBe('mismatch');
+    expect(session.restoreShape({ foldPercent: 60, shape: { ...shape, state: shape.state.subarray(1) } }, a.token)).toBe(
+      'mismatch'
+    );
+    const after = shapeFrom(session.readShape(b.token));
+    expect(bytesOf(after.state)).toEqual(bytesOf(before.state));
+    expect(after.pins).toEqual(before.pins);
+    expect((await b.frameNow(0)).foldPercent).toBe(30);
+    session.dispose();
+  }, 30_000);
+
+  it('keeps a moved sheet’s key, and restores onto it', async () => {
+    const session = createSimulatorSession();
+    session.dispose();
+    const a = await posed(session);
+    const shape = shapeFrom(session.readShape(a.token));
+    const fold = miura(4, 4);
+    const moved = { ...fold, vertices_coords: fold.vertices_coords.map(([x, y, z]) => [x! + 7.25, y! - 3.5, z ?? 0]) };
+
+    const b = await folded(session, moved, 0);
+    expect(shapeFrom(session.readShape(b.token)).sheet).toBe(shape.sheet);
+    expect(session.restoreShape({ foldPercent: 40, shape }, b.token)).toEqual({ pins: [a.near], posed: true });
+    session.dispose();
+  }, 30_000);
+
+  it('restores onto a renumbered region, node for node', async () => {
+    const session = createSimulatorSession();
+    session.dispose();
+    const a = await posed(session);
+    const shape = shapeFrom(session.readShape(a.token));
+    const drawnA = new Float32Array(positionsOf(await a.frameNow()));
+
+    // The same sheet numbered backwards: nodes, edges and faces, each face
+    // keeping where its corner list starts.
+    const fold = miura(4, 4);
+    const count = fold.vertices_coords.length;
+    const renumber = (node: number) => count - 1 - node;
+    const reversed: FoldDocument = {
+      ...fold,
+      vertices_coords: [...fold.vertices_coords].reverse(),
+      edges_vertices: [...fold.edges_vertices].reverse().map(([u, v]) => [renumber(u), renumber(v)] as [number, number]),
+      edges_assignment: [...fold.edges_assignment!].reverse(),
+      edges_foldAngle: [...fold.edges_foldAngle!].reverse(),
+      faces_vertices: [...fold.faces_vertices!].reverse().map((face) => face.map(renumber)),
+    };
+    const b = await folded(session, reversed, 0);
+    const restored = session.restoreShape({ foldPercent: 40, shape }, b.token);
+    expect(restored).toMatchObject({ posed: true });
+    const drawnB = new Float32Array(positionsOf(await b.frameNow()));
+    for (let node = 0; node < count; node += 1) {
+      expect(bytesOf(drawnB.subarray(renumber(node) * 3, renumber(node) * 3 + 3))).toEqual(
+        bytesOf(drawnA.subarray(node * 3, node * 3 + 3))
+      );
+    }
+    session.dispose();
+  }, 30_000);
+
+  it('tells a slit’s two sides apart, and round-trips across it', async () => {
+    // A 2×2 square slit from its left edge's midpoint to the centre: nodes 4
+    // and 5 share a point, one on each side.
+    const slit: FoldDocument = {
+      vertices_coords: [[0, 0, 0], [2, 0, 0], [2, 2, 0], [0, 2, 0], [0, 1, 0], [0, 1, 0], [1, 1, 0]],
+      edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 5], [5, 6], [6, 4], [4, 0], [0, 6], [1, 6], [2, 6], [3, 6]],
+      edges_assignment: ['B', 'B', 'B', 'B', 'B', 'B', 'B', 'V', 'M', 'V', 'M'],
+      edges_foldAngle: [null, null, null, null, null, null, null, 90, -90, 90, -90],
+      faces_vertices: [[0, 1, 6], [0, 6, 4], [1, 2, 6], [2, 3, 6], [3, 5, 6]],
+    };
+    const session = createSimulatorSession();
+    session.dispose();
+    const a = await folded(session, slit, 50);
+    const shape = shapeFrom(session.readShape(a.token));
+    const b = await folded(session, slit, 0);
+    expect(session.restoreShape({ foldPercent: 50, shape }, b.token)).toEqual({ pins: [], posed: false });
+    expect(bytesOf(positionsOf(await b.frameNow()))).toEqual(bytesOf(positionsOf(await a.frameNow())));
+    session.dispose();
+  }, 30_000);
+
+  it('ends a pose quietly, as a restore, once', async () => {
+    const session = createSimulatorSession();
+    session.dispose();
+    const a = await posed(session);
+    const shape = shapeFrom(session.readShape(a.token));
+    session.restoreShape({ foldPercent: 40, shape }, a.token);
+    expect(await frame(session.tick({ token: a.token }))).toMatchObject({ posed: true, poseEnded: 'restore' });
+    expect((await frame(session.tick({ token: a.token }))).poseEnded).toBeNull();
+    session.dispose();
+  }, 30_000);
+
+  it('with no shape, lets the pins go and folds the paper freely from flat', async () => {
+    const session = createSimulatorSession();
+    session.dispose();
+    const a = await posed(session);
+    expect(session.restoreShape({ foldPercent: 40, shape: null }, a.token)).toEqual({ pins: [], posed: false });
+    const next = await frame(session.tick({ token: a.token }));
+    expect(next).toMatchObject({ posed: false, poseEnded: 'restore', foldPercent: 40 });
+    expect(next.stepsThisTick).toBeGreaterThan(0);
+    expect(shapeFrom(session.readShape(a.token)).pins).toEqual([]);
+    session.dispose();
+  }, 30_000);
+
+  it('opens on a shape given at load, and says so; another sheet’s opens free', async () => {
+    const session = createSimulatorSession();
+    session.dispose();
+    const a = await posed(session);
+    const shape = shapeFrom(session.readShape(a.token));
+    const drawnA = positionsOf(await a.frameNow());
+
+    const opened = session.load(miura(4, 4), { solver: { foldPercent: 40 }, shape });
+    expect(opened.restored).toEqual({ pins: [a.near], posed: true });
+    const first = await frame(session.settle(2000, { token: opened.token }));
+    expect(first.stepsThisTick).toBe(0);
+    expect(bytesOf(positionsOf(first))).toEqual(bytesOf(drawnA));
+
+    const other = session.load(miura(4, 5), { solver: { foldPercent: 40 }, shape });
+    expect(other.restored).toBe('mismatch');
+    expect(session.load(miura(4, 4), {}).restored).toBeNull();
+    session.dispose();
+  }, 30_000);
+
+  it('reads no shape while a pull is in the hand, and nothing for a session that has gone', async () => {
+    const session = createSimulatorSession();
+    session.dispose();
+    const a = await posed(session, 40, false);
+    expect(session.readShape(a.token)).toBe('pulling');
+    session.endPull('keep', a.token);
+    expect(shapeFrom(session.readShape(a.token)).posed).toBe(true);
+    const b = await folded(session, miura(2, 2), 0);
+    session.release(b.token);
+    expect(session.readShape(b.token)).toBeNull();
+    expect(session.restoreShape({ foldPercent: 0, shape: null }, b.token)).toBeNull();
+    session.dispose();
+  }, 30_000);
 });

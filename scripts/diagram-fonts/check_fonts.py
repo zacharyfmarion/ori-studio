@@ -1,6 +1,6 @@
 """Check a built font directory against its own manifest, before it ships.
 
-    python3 scripts/diagram-fonts/check_fonts.py [DIR] [--warn-renames-against URL]
+    python3 scripts/diagram-fonts/check_fonts.py [DIR]
 
 Every file the manifest names must be there, of its size and sha256, named for
 its content, and stamped with the build's fixed time (so a rebuild writes the
@@ -9,10 +9,10 @@ tiers; and each family's licence must travel with it. A cache restored from an i
 build, or a half-copied directory, fails here rather than in a reader's
 browser. Standard library only, so it runs with no setup.
 
-With --warn-renames-against (the live site's manifest), it also warns, as a
-GitHub annotation, when this build no longer has a full file the site serves:
-an installed desktop app reads the full files from the site by the names its
-own build gave them, and loses the rare characters until it is updated.
+v1-lock.json freezes the launch font set, including the bundled Latin fonts,
+coverage metadata, source pins and toolchain. Every build must retain those
+exact files: a rename or change fails before deployment, even when the live
+site cannot be reached. A new font set needs a new id and must keep v1 served.
 """
 import argparse
 import hashlib
@@ -21,7 +21,6 @@ import os
 import re
 import struct
 import sys
-import urllib.request
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 NAME = re.compile(r'^NotoSans(SC|TC|JP|KR)-(Regular|Bold)\.(common|full)\.([0-9a-f]{12})\.ttf$')
@@ -41,24 +40,31 @@ def head_modified(data):
     return None
 
 
-def renamed_full_files(manifest, url):
-    """The full files the manifest at `url` names that this build does not; None when it cannot be read."""
-    try:
-        with urllib.request.urlopen(url, timeout=30) as response:
-            live = json.load(response)
-    except (OSError, ValueError):
-        return None
-    if not isinstance(live, dict) or not isinstance(live.get('files'), list):
-        return None
-    ours = {entry.get('file') for entry in manifest.get('files', []) if entry.get('tier') == 'full'}
-    theirs = {entry.get('file') for entry in live['files'] if isinstance(entry, dict) and entry.get('tier') == 'full'}
-    return sorted(name for name in theirs - ours if isinstance(name, str))
+def v1_problems(manifest, lock, repo=REPO):
+    """The implicit v1 font set is file format: never replace its files or metrics."""
+    problems = []
+    files = {entry.get('file'): entry for entry in manifest.get('files', [])}
+    for expected in lock['fonts']:
+        actual = files.get(expected['file'])
+        if actual is None or any(actual.get(key) != value for key, value in expected.items()):
+            problems.append(f"{expected['file']}: frozen v1 font removed, renamed or changed")
+    encoded = json.dumps(manifest, sort_keys=True, separators=(',', ':')).encode()
+    if hashlib.sha256(encoded).hexdigest() != lock['manifestSha256']:
+        problems.append('manifest: frozen v1 font set or coverage changed; a new font set needs its own id')
+    for relative, expected in lock['inputs'].items():
+        try:
+            with open(os.path.join(repo, relative), 'rb') as source:
+                actual = hashlib.sha256(source.read()).hexdigest()
+        except OSError:
+            actual = None
+        if actual != expected:
+            problems.append(f'{relative}: frozen v1 input changed or missing')
+    return problems
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('folder', nargs='?', default=os.path.join(REPO, 'apps', 'web', 'public', 'fonts', 'diagram'))
-    parser.add_argument('--warn-renames-against', metavar='URL')
     args = parser.parse_args()
     folder = args.folder
     problems = []
@@ -66,6 +72,9 @@ def main():
         manifest = json.load(open(os.path.join(folder, 'manifest.json'), encoding='utf-8'))
     except (OSError, ValueError) as error:
         sys.exit(f'{folder}: no manifest that reads ({error})')
+    with open(os.path.join(REPO, 'scripts', 'diagram-fonts', 'v1-lock.json'), encoding='utf-8') as source:
+        lock = json.load(source)
+    problems.extend(v1_problems(manifest, lock))
     seen = set()
     for entry in manifest.get('files', []):
         name = entry.get('file', '')
@@ -96,16 +105,6 @@ def main():
     if problems:
         sys.exit('\n'.join(problems))
     print(f'{folder}: {len(manifest["files"])} files, each as the manifest names it')
-    if args.warn_renames_against:
-        gone = renamed_full_files(manifest, args.warn_renames_against)
-        if gone is None:
-            print(f'{args.warn_renames_against}: no manifest to compare with')
-        elif gone:
-            print(
-                '::warning title=Diagram fonts renamed::This build drops full CJK files the site serves '
-                f'({", ".join(gone)}). Installed desktop apps read them by those names, and lose the rare '
-                'characters until they are updated. Ship a desktop release soon after this deploy.'
-            )
 
 
 if __name__ == '__main__':

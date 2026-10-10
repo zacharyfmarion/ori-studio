@@ -71,8 +71,6 @@ const TRACKED: Record<LinkedPoseRequest['verb'], TrackedPoseAction> = {
   'next-solution': 'next_solution',
   'previous-solution': 'previous_solution',
   'view-top': 'view_top',
-  'view-front': 'view_front',
-  'view-iso': 'view_iso',
   reset: 'reset',
   orbit: 'orbit',
   'rotate-to': 'rotate_to',

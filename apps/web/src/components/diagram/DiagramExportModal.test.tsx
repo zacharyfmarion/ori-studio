@@ -194,7 +194,7 @@ describe('DiagramExportDialog', () => {
     expect(Object.keys(unzipSync(saved.bytes))).toEqual(['Crane-step-1.svg', 'Crane-step-3.svg']);
     expect(track).toHaveBeenCalledWith(
       'diagram exported',
-      expect.objectContaining({ format: 'zip', file_type: 'svg', resolution: 'none', size: 'same', number: 'shown' })
+      expect.objectContaining({ format: 'zip', file_type: 'svg', resolution: 'none', canvas: 'same', number: 'shown' })
     );
   });
 

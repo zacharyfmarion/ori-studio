@@ -6,6 +6,7 @@ import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import i18n from '../../i18n';
 import { STORAGE_KEYS, storageKey } from '../../lib/storage';
 import { COARSE_POINTER_QUERY } from '../../platform/pointerSurface';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
@@ -34,6 +35,7 @@ function platform(fields: { platform: string; userAgent?: string }) {
 
 beforeEach(() => {
   useWorkspaceStore.setState(initialState, true);
+  useSettingsStore.setState(useSettingsStore.getInitialState(), true);
   localStorage.clear();
   coarse = false;
   platform({ platform: 'MacIntel' });
@@ -106,7 +108,8 @@ const tool = (kind: Parameters<ReturnType<typeof state>['setDiagramAnnotateTool'
 describe('DiagramAnnotateToolWindow', () => {
   it('names every tool and says how to use it, over the canvas rather than in it, on its side of the seam (review 4)', () => {
     mount();
-    for (const each of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null)) {
+    // X-Ray aside: an upload has no layers to x-ray, and Select is in hand there in its place (R3-18a A), with no window.
+    for (const each of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools).filter((each) => each !== null && each !== 'x-ray')) {
       tool(each);
       expect(title()).toContain(annotateToolLabel(i18n.t.bind(i18n), each));
       expect(intro()).toBeTruthy();
@@ -116,6 +119,8 @@ describe('DiagramAnnotateToolWindow', () => {
     const left = Number.parseFloat(windowEl()!.style.left);
     const width = Number.parseFloat(windowEl()!.style.width);
     expect(left + width).toBe(764 - 12);
+    tool('x-ray');
+    expect(windowEl()).toBeNull();
   });
 
   it('says what a drawing tool does and the key that puts it down anywhere', () => {
@@ -144,7 +149,7 @@ describe('DiagramAnnotateToolWindow', () => {
     tool('divisions');
     expect(title()).toContain('Equal Divisions');
     expect(intro()).toBe(
-      'Drag along a line from one end to the other, or click it, to divide it; then type how many parts. With Select, drag the mark to set how far off the line it sits.'
+      'Drag along a line from one end to the other, or click it, to divide it. Set the number of parts in Layers. With Select, drag the mark to set how far off the line it sits.'
     );
     expect(keys()).toEqual([
       'Hold Cmd to put an end down anywhere, without snapping.',
@@ -207,7 +212,7 @@ describe('DiagramAnnotateToolWindow', () => {
     coarse = true;
     mount();
     tool('circle');
-    expect(intro()).toBe('Click a point to circle it.');
+    expect(intro()).toBe('Drag between opposite corners to bound the circle. Click for a small circle.');
     expect(windowEl()?.querySelector('ul')).toBeNull();
     // The words are typed where a touch screen keeps the Layers pane: a tab of the Settings sheet (review).
     tool('label');
@@ -225,6 +230,21 @@ describe('DiagramAnnotateToolWindow', () => {
     mount({ readOnly: true });
     tool('valley-arrow');
     expect(windowEl()).toBeNull();
+  });
+
+  it('places creation defaults inside the instructions window and updates mode-specific help', () => {
+    mount();
+    tool('circle');
+    expect(windowEl()?.querySelector('[aria-label="Draw circle"]')).not.toBeNull();
+    act(() => windowEl()!.querySelector<HTMLButtonElement>('button[title="Center"]')!.click());
+    expect(intro()).toBe('Drag from the center to the edge of the circle. Click for a small circle.');
+    tool('label');
+    expect(windowEl()?.querySelector('[aria-label="Text Color"]')).not.toBeNull();
+    expect(windowEl()?.querySelector('[aria-label="Draw circle"]')).toBeNull();
+    tool('star');
+    expect(windowEl()?.querySelector('[aria-label="Star Fill"]')).not.toBeNull();
+    tool('line');
+    expect(windowEl()?.querySelector('[aria-label="Line Type"]')).not.toBeNull();
   });
 
   it('collapses on its own, apart from Edit’s and the Simulator’s windows', () => {

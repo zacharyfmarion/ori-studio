@@ -340,6 +340,10 @@
         "detail": "La méthode de création en pliage en boîte est un portage en Rust et WebAssembly de Box Pleating Studio de Mu-Tsun Tsai.",
         "title": "Mu-Tsun Tsai et Box Pleating Studio"
       },
+      "defox": {
+        "detail": "L’écartement affine des couches dans l’espace Diagramme repose sur la méthode de distorsion affine de Kei Morisue dans DEFOX.",
+        "title": "Kei Morisue et DEFOX"
+      },
       "explori": {
         "detail": "La méthode de création Rechercher en 22,5° envoie votre arbre à ExplOri, une archive interrogeable de patrons de plis en 22,5°, et affiche les correspondances les plus proches qu'elle renvoie.",
         "title": "Brandon Wong et ExplOri 22.5"
@@ -432,6 +436,7 @@
     "empty": "Rien à exporter\u00a0: la vue ne montre aucun papier.",
     "exporting": "Exportation…",
     "exportingPages": "Exportation {{done}} sur {{total}}…",
+    "exportObj": "Exporter en OBJ",
     "exportStyle": "Style d'exportation · {{style}}",
     "figureMm": "Taille de la figure",
     "figureSizeHint": "La figure mesure cette taille sur son côté le plus long. Les traits gardent leur épaisseur.",
@@ -440,14 +445,18 @@
     "hiddenFacesDropped_one": "{{count}} face cachée omise",
     "hiddenFacesDropped_many": "{{count}} faces cachées omises",
     "hiddenFacesDropped_other": "{{count}} faces cachées omises",
-    "highlights": "Surlignage des lignes",
-    "highlightsHint": "La couleur d'accent sur les lignes qu'une étape aligne.",
     "keepHiddenFaces": "Conserver les faces cachées",
     "keepHiddenFacesHint": "Les faces que rien ne montre restent dans le fichier sous ce qui les recouvre, de sorte que supprimer une face dans un éditeur de dessin révèle celle du dessous.",
     "letters": "Lettres",
     "lettersHint": "Les noms des points auxquels une étape se réfère.",
     "marks": "Repères",
     "nextPage": "Étape suivante",
+    "objExpired": "Cette capture de simulation n’est plus disponible. Fermez cette fenêtre et relancez l’exportation.",
+    "objHint": "Maillage 3D avec des coordonnées UV issues du papier déplié, prêt à recevoir des textures dans votre logiciel 3D.",
+    "objMeshUnavailable": "Cette simulation ne contient aucun maillage valide à exporter.",
+    "objPreview": "Forme capturée · OBJ inclut le maillage complet et les UV",
+    "objPreviewEmpty": "Aucun aperçu d’image. Le maillage 3D capturé peut tout de même être exporté.",
+    "objSheetUnavailable": "OBJ nécessite une feuille dépliée dans le plan du papier du simulateur pour créer les coordonnées de texture.",
     "padding": "Marge",
     "page": "Page",
     "pageMm": "{{width}} × {{height}} mm",
@@ -475,6 +484,8 @@
     "preparing": "Préparation de l'aperçu…",
     "previewFailed": "Impossible de dessiner l'aperçu\u00a0: {{message}}",
     "previousPage": "Étape précédente",
+    "referenceLines": "Lignes de référence",
+    "referenceLinesHint": "Les lignes sur lesquelles une étape s’aligne.",
     "resolution": "Résolution",
     "resolutionCustom": "Personnalisée",
     "resolutionDpi": "{{dpi}} dpi",

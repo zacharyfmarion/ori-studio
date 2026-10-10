@@ -47,6 +47,8 @@ export interface DiagramKeyState {
     selectedPathNode?: number | null;
     /** The step is enlarged: the Enlarge tools draw nothing on it (Revision 2). */
     enlarged?: boolean;
+    /** The X-Ray tool is held on the step: its picture has no layers, or needs a Refresh first (Revision 3, R3-18a A). */
+    xrayHeld?: boolean;
   } | null;
 }
 
@@ -149,11 +151,17 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolPushArrow': true,
   'diagram.toolWhiteArrow': true,
   'diagram.toolSolidArrow': true,
+  'diagram.toolLine': true,
   'diagram.toolValleyLine': true,
   'diagram.toolMountainLine': true,
   'diagram.toolHiddenLine': true,
+  'diagram.toolSolidLine': true,
   'diagram.toolLabel': true,
   'diagram.toolCircle': true,
+  'diagram.toolStar': true,
+  'diagram.toolEye': true,
+  'diagram.toolOval': true,
+  'diagram.toolRectangle': true,
   'diagram.toolRightAngle': true,
   'diagram.toolCallout': true,
   'diagram.toolAngleBisector': true,
@@ -161,6 +169,7 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolCloseUp': true,
   'diagram.toolEnlarge': true,
   'diagram.toolEnlargeFrame': true,
+  'diagram.toolXRay': true,
   'diagram.flipArc': true,
 };
 
@@ -208,7 +217,7 @@ export function runDiagramPathShortcut(
  * Annotate's keys: a tool's letter picks it — pressed again, back to Select;
  * A is Edit Path's —
  * and F flips the selected annotation's arc, when it offers Flip arc
- * (`annotationActions.ts`). A line type's key (Shift+V, Shift+M, H) picks
+ * (`annotationActions.ts`). A line type's key (Shift+V, Shift+M, H, Shift+L) picks
  * that type, and the Line tool with it unless a tool that draws in the type
  * (Line, the Angle Bisector) is in hand — and with Line in hand on its own
  * type, back to Select, as a tool's letter is. Outside Annotate, and on a diagram
@@ -242,6 +251,8 @@ export function runDiagramAnnotateShortcut(
   if (tool === undefined || !actions.setTool) return false;
   // Claimed, and nothing picked: an enlarged step is not enlarged again yet, as the rail's held tool says.
   if (isEnlargeTool(tool) && annotate.enlarged && annotate.tool !== tool) return true;
+  // Claimed, and nothing picked: an x-ray draws nothing on a picture with no layers, as the rail's held tool says.
+  if (tool === 'x-ray' && annotate.xrayHeld && annotate.tool !== tool) return true;
   actions.setTool(annotate.tool === tool ? null : tool);
   return true;
 }
@@ -251,7 +262,7 @@ export function runDiagramAnnotateShortcut(
  * (D12) — close the References browser, leave an anchor's pick mode
  * (Revision 2), drop the drag in progress; in Edit
  * Path deselect the node, then put Edit Path down, back to Select with the
- * arrow still selected; deselect the annotation, put the tool down, leave the
+ * arrow still selected; put the tool down, deselect the annotation, leave the
  * step detail, deselect the step — and then it declines, so Escape reaches
  * whatever is beneath.
  */
@@ -283,12 +294,13 @@ export function runDiagramCancel(
         return true;
       }
     }
-    if (state.annotate.selectedAnnotationId !== null && actions.selectAnnotation) {
-      actions.selectAnnotation(null);
-      return true;
-    }
+    // A completed drawing remains selected, but Escape always puts its tool down first.
     if (state.annotate.tool !== null && actions.setTool) {
       actions.setTool(null);
+      return true;
+    }
+    if (state.annotate.selectedAnnotationId !== null && actions.selectAnnotation) {
+      actions.selectAnnotation(null);
       return true;
     }
   }

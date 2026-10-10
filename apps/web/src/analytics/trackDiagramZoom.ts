@@ -13,11 +13,12 @@ import { track } from './runtime';
 
 /**
  * A frame placed on an enlarged step by a capture (Revision 2): one event per
- * step placed — Pose's Enlarged turned on (`toggle`), a seeded step's first
- * picture landing its frame (`seeded`), or each step Update Enlarged Steps
- * places (`update`) — with how the frame was placed (through an anchor face,
- * through a crease pattern's sheet, or copied in picture units), by which
- * anchor, its shape, and what the step's picture is. Whether enlarged steps
+ * step placed — the Enlarged toggle turned on (`toggle`), a seeded step's first
+ * picture landing its frame (`seeded`), each step Update All places
+ * (`update`), or Update on one step (`update_step`) — with how the frame was
+ * placed (through an anchor face, through a crease pattern's sheet, or copied
+ * in picture units), by which anchor, its shape, and what the step's picture
+ * is. Whether enlarged steps
  * are made, how often their frames anchor to the paper, and whether a picked
  * anchor is ever needed. Enums only: never where the frame is, nor its size.
  */
@@ -40,14 +41,14 @@ export function trackDiagramStepEnlarged(
  */
 export function trackDiagramEnlargementChanged(
   on: DiagramEnlargementOn,
-  setting: DiagramEnlargementSetting,
+  change: DiagramEnlargementSetting,
   value?: DiagramEnlargementValue,
-  size?: number
+  scale?: number
 ): void {
   track(ANALYTICS_EVENTS.diagramEnlargementChanged, {
     on,
-    setting,
+    change,
     ...(value === undefined ? {} : { value }),
-    ...(size === undefined ? {} : { size_bucket: bucketCount(size, DIAGRAM_ENLARGE_SIZE_BUCKETS) }),
+    ...(scale === undefined ? {} : { scale_bucket: bucketCount(scale, DIAGRAM_ENLARGE_SIZE_BUCKETS) }),
   });
 }

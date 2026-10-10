@@ -113,6 +113,42 @@ export function anchorFraming(
   };
 }
 
+/**
+ * How a session frames paper the tools have shaped.
+ *
+ * - `'anchor'`, Simulate's and the default: pins hold the camera's centre
+ *   ({@link anchorFraming}), and a pull let go and kept holds the framing until
+ *   its pose ends, so nothing moves on screen when the hand does.
+ * - `'shape'`: the camera frames the shape as it is, pinned or posed, as a
+ *   capture of it would. Pins anchor nothing, and a pull holds the framing only
+ *   while it is in the hand; letting go eases back to fit. For a host whose
+ *   view is the picture it keeps.
+ */
+export type SimulatorFraming = 'anchor' | 'shape';
+
+/**
+ * Pins as a framing takes them: under `'anchor'`, held to the camera's centre
+ * from here on; under `'shape'`, nothing, and an anchor already set goes.
+ * `positions` is read only when an anchor is set.
+ */
+export function framePins(
+  follow: FramingFollow,
+  framing: SimulatorFraming,
+  nodes: ArrayLike<number> | null,
+  positions: () => Float32Array
+): void {
+  if (framing === 'shape' || !nodes || nodes.length === 0) {
+    follow.anchor = null;
+    return;
+  }
+  anchorFraming(follow, nodes, positions());
+}
+
+/** Whether the framing stays held once a pull is let go: a kept pose, under `'anchor'`. */
+export function framingHeldAfterPull(framing: SimulatorFraming, poseKept: boolean): boolean {
+  return framing === 'anchor' && poseKept;
+}
+
 function add(a: Vec3, b: Vec3): Vec3 {
   return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 }

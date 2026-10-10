@@ -12,7 +12,20 @@
  * Pure: no store, no DOM; a memo per picture geometry.
  */
 import { LineHitIndex, type IndexedSegment } from '../../cp-workspace/picking/lineHitIndex';
-import { closeUpShape, frameOf, type PictureFrame, type PicturePoint } from '../annotate/annotationModel';
+import { labelBox } from '../annotate/annotationHit';
+import { transformBoxOf } from '../annotate/transformGrips';
+import { boxCornersModel } from '../../lib/transformBox';
+import { areaBox, areaOutlineOf } from '../annotate/areaOutline';
+import {
+  closeUpShape,
+  frameOf,
+  isAreaKind,
+  isHungText,
+  LABEL_SIZE,
+  type PictureFrame,
+  type PicturePoint,
+} from '../annotate/annotationModel';
+import type { AnnotationPaper } from '../annotate/annotationPrimitives';
 import { pictureGeometry, type PictureCover, type PictureGeometry } from '../annotate/pictureGeometry';
 import {
   isKnownAnnotation,
@@ -26,6 +39,7 @@ import {
   type DiagramZoomOutline,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
+import { stepPictureSource, type StepPictureSource } from '../pictures/paintDiagramStep';
 import { stepPictureFrame } from '../pictures/pictureFrame';
 import { intoBox, stepWindow } from './zoomFrames';
 import { frameWindow, zoomOutlineOf, type PictureBox } from './zoomModel';
@@ -86,6 +100,31 @@ export function markGeometry(
 }
 
 /**
+ * The paper a step's text stands on (17b), in the units its marks are in —
+ * an enlarged step's window's, else its picture's — for a halo to be filled
+ * with its face: a References picture's sheet, which is its frame (D8), and
+ * the side it shows. Null for any other picture, whose text stands on the
+ * page's white.
+ */
+export function markPaper(step: DiagramStep, assets: Readonly<Record<string, DiagramAsset>>): AnnotationPaper | null {
+  return sourcePaper(stepPictureSource(step, assets), viewOfStep(step).window);
+}
+
+/** {@link markPaper} of a picture's source, its marks in `window`'s units when it is enlarged. */
+export function sourcePaper(source: StepPictureSource | null, window: PictureBox | null = null): AnnotationPaper | null {
+  if (source?.kind !== 'step-diagram') return null;
+  const frame = frameOf(source.picture.model.sheet.width, source.picture.model.sheet.height);
+  if (!frame) return null;
+  const corners: PicturePoint[] = [
+    [0, 0],
+    [frame.width, 0],
+    [frame.width, frame.height],
+    [0, frame.height],
+  ];
+  return { outline: window ? corners.map((corner) => intoBox(window, corner)) : corners, back: source.picture.mirrored };
+}
+
+/**
  * The marks an enlarged step draws (Revision 2, Edge cases): every one but
  * those lying wholly outside its window grown by a window each way, which are
  * kept — the Layers pane lists them — but neither drawn nor measured: a mark
@@ -124,8 +163,10 @@ function marksNear(window: PictureBox, annotations: readonly DiagramAnnotation[]
 }
 
 /**
- * What a mark's points span, its rings' radii round them and an area's
- * outline: near enough to tell one far off a window.
+ * What a mark's points span, its rings' radii round them, an area's outline
+ * — an enlarge area's, an oval's or a rectangle's — a star's or an eye's
+ * turned box at its scale (Revision 3) and hung text's words where
+ * they hang (17b): near enough to tell one far off a window.
  */
 function markExtent(mark: KnownDiagramAnnotation): [number, number, number, number] {
   const points: PicturePoint[] = [mark.from, mark.to];
@@ -152,8 +193,39 @@ function markExtent(mark: KnownDiagramAnnotation): [number, number, number, numb
     const { x, y, width, height } = frameWindow(zoomOutlineOf(mark));
     take([x, y]);
     take([x + width, y + height]);
+  } else if (mark.kind === 'star' || mark.kind === 'eye') {
+    // A star or an eye (Revision 3): its turned box at its scale, the print size it keeps in any window.
+    const box = transformBoxOf(mark);
+    for (const { x, y } of box ? boxCornersModel(box) : []) take([x, y]);
+  } else if (isAreaKind(mark.kind)) {
+    // An oval or a rectangle (Revision 3): its outline's upright box, turned with it — one reaching into a window
+    // from outside it is held by it, and drawn whole.
+    const { x, y, width, height } = areaBox(areaOutlineOf(mark));
+    take([x, y]);
+    take([x + width, y + height]);
   } else if (mark.radius !== undefined) take(mark.from, mark.radius);
+  else if (isHungText(mark)) {
+    // Its words can hang a window or more off its anchor, and they are what is drawn.
+    const { centre, halfWidth, halfHeight } = labelBox(mark, LABEL_SIZE);
+    take([centre[0] - halfWidth, centre[1] - halfHeight]);
+    take([centre[0] + halfWidth, centre[1] + halfHeight]);
+  }
   return [minX, minY, maxX, maxY];
+}
+
+/**
+ * What `marks` span together, in their own units, as near as
+ * {@link marksInWindow} tells one far off a window: enough to bring them into
+ * view (18d review). Null when none of them is a mark this build knows.
+ */
+export function marksBox(marks: readonly DiagramAnnotation[]): PictureBox | null {
+  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const mark of marks) {
+    if (!isKnownAnnotation(mark)) continue;
+    const [x0, y0, x1, y1] = markExtent(mark);
+    [minX, minY, maxX, maxY] = [Math.min(minX, x0), Math.min(minY, y0), Math.max(maxX, x1), Math.max(maxY, y1)];
+  }
+  return minX <= maxX && minY <= maxY ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY } : null;
 }
 
 /** A step as it is drawn: an enlarged step without the marks it keeps but does not draw ({@link marksInWindow}). */

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FoldDocument } from '../engine/types';
 import { parseImportedCreasePattern } from './creasePatternImport';
 import { foldedFoldDocument, foldedObj, foldedStl, type FoldedMesh } from './foldedExport';
+import { sheetUvs } from './sheetUvs';
 
 function sourceFold(): FoldDocument {
   return {
@@ -105,6 +106,36 @@ describe('foldedFoldDocument', () => {
 });
 
 describe('foldedObj', () => {
+  it('links each face corner to the flat sheet UV even when folded vertices coincide', () => {
+    const folded = mesh();
+    folded.positions.set(folded.positions.subarray(0, 3), 6);
+    const uvs = sheetUvs(new Float32Array([0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1])).uvs!;
+    const lines = foldedObj(folded, 'folded', uvs).trim().split('\n');
+    const vertices = lines.filter((line) => line.startsWith('v '));
+    const textures = lines.filter((line) => line.startsWith('vt '));
+    expect(vertices).toHaveLength(4);
+    expect(textures).toEqual(['vt 0 0', 'vt 1 0', 'vt 1 1', 'vt 0 1']);
+    expect(vertices[0]).toBe(vertices[2]);
+    expect(lines).toContain('s off');
+    const faces = lines.filter((line) => line.startsWith('f '));
+    expect(faces).toEqual(['f 1/1 2/2 3/3', 'f 1/1 3/3 4/4']);
+    for (const face of faces) for (const corner of face.slice(2).split(' ')) {
+      const [v, vt] = corner.split('/').map(Number);
+      expect(vertices[v! - 1]).toBeDefined();
+      expect(textures[vt! - 1]).toBeDefined();
+    }
+  });
+
+  it('rejects partial, nonfinite, and out-of-range data instead of writing a corrupt OBJ', () => {
+    expect(() => foldedObj({ ...mesh(), positions: new Float32Array(2) })).toThrow();
+    expect(() => foldedObj({ ...mesh(), triangles: new Uint32Array([0, 1, 8]) })).toThrow();
+    expect(() => foldedObj({ ...mesh(), triangles: new Uint32Array([0, 1]) })).toThrow();
+    const invalid = mesh();
+    invalid.positions[0] = Infinity;
+    expect(() => foldedObj(invalid)).toThrow();
+    expect(() => foldedObj(mesh(), 'folded', new Float32Array(2))).toThrow();
+    expect(() => foldedObj(mesh(), 'folded', new Float32Array(8).fill(NaN))).toThrow();
+  });
   it('writes vertices and 1-based faces', () => {
     const obj = foldedObj(mesh(), 'lamprey');
     const lines = obj.trim().split('\n');

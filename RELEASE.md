@@ -30,13 +30,25 @@ toolchain give the same bytes and the same names, and `check_fonts.py` fails a
 directory that would not.
 
 The desktop app ships the common files and reads a full file from the site by
-the name its own build gave it. So a change to `sources.json`,
-`requirements.txt`, or how `build_fonts.py` cuts a font renames the full files,
-and every installed desktop version before the next release then loses the
-rare characters (they are reported as fonts that could not be downloaded)
-until it updates. The production deploy warns when this happens ("Diagram
-fonts renamed"). Ship a desktop release soon after such a change. A charset
-change renames only the common files, which the desktop carries itself.
+its content-hashed name. **The implicit v1 font set is frozen.**
+`scripts/diagram-fonts/v1-lock.json` records every CJK file, the manifest and
+coverage, the Latin font hashes, and the source/charset/toolchain inputs.
+Every font build (including a cache hit) fails if any of these change or vanish.
+This replaces the live-site rename warning with a deterministic retention gate,
+including the first deployment, before a live Diagram manifest exists. The font
+toolchain installs only hash-verified binary wheels for Python 3.12. The Latin
+files remain the committed originals: they predate the fixed build timestamp,
+so rebuilding them changes their `head` metadata even though every other table
+is identical. Do not replace them merely to normalize that timestamp.
+
+Do not regenerate the lock to make a changed font build pass. A later font set
+needs an explicit saved font-set id (absence still means v1), its own manifest
+and URLs, and continued hosting of all v1 files. Move historical full fonts to
+immutable storage if multiple sets no longer fit the static deployment. A
+same-day desktop release does not make deletion safe: older installations keep
+using their original names. Validate the actual site bundle with
+`python3 scripts/diagram-fonts/check_fonts.py apps/web/dist/fonts/diagram`
+before uploading it.
 
 ## Detector models
 

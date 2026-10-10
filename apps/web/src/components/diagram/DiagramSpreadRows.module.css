@@ -54,3 +54,9 @@
   grid-area: 2 / 2;
   color: var(--text-tertiary);
 }
+
+.kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}

@@ -89,14 +89,20 @@ function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null 
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'solid-line':
     case 'label':
     case 'circle':
+    case 'star':
+    case 'eye':
+    case 'oval':
+    case 'rectangle':
     case 'right-angle':
     case 'callout':
     case 'angle-mark':
     case 'divisions':
     case 'close-up':
     case 'zoom':
+    case 'x-ray':
       return null;
   }
 }

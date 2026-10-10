@@ -26,6 +26,10 @@
  * (`marksTouchingWindow`), so marks copied in from the whole picture cannot
  * shrink it.
  *
+ * An x-ray's window (Revision 3) is drawn on a picture with layers, under the
+ * step's marks, as the canvas draws it (`xray/xrayPaint.ts`), and measured by
+ * its rim; on any other picture it is neither drawn nor measured (R3-18b A).
+ *
  * Everything a picture names by id is renamed under the cell's prefix, so two
  * cells drawn from one asset never share an id on a page. An upload's text is
  * set in the diagram's fonts (`uploadText.ts`), and a picture says what its
@@ -60,11 +64,11 @@ import {
   type StepPictureSource,
 } from '../pictures/paintDiagramStep';
 import { stepDiagramPaintStyle, stepDiagramScene, stepDiagramSheetBox } from '../pictures/paintStepDiagram';
-import { hasDrawnAnnotations, paintAnnotations, type CloseUpPicture } from '../annotate/paintAnnotations';
+import { hasDrawnAnnotations, placeAnnotations, type CloseUpPicture } from '../annotate/paintAnnotations';
 import { annotationDrawing, annotationReach } from '../annotate/annotationPrimitives';
 import { frameOf } from '../annotate/annotationModel';
 import type { PictureLayers } from '../annotate/pictureGeometry';
-import { marksTouchingWindow, stepAsDrawn, viewGeometry, viewOfStep } from '../zoom/stepView';
+import { markPaper, marksTouchingWindow, stepAsDrawn, viewGeometry, viewOfStep } from '../zoom/stepView';
 import {
   paintZoomed,
   windowBox,
@@ -80,6 +84,7 @@ import { storedScene } from '../pictures/pictureFrame';
 import { prefixIds } from '../pictures/prefixIds';
 import { fontFaceId } from '../fonts/diagramFontFaces';
 import { setUploadText } from '../upload/uploadText';
+import { xrayPainter, xraySurfaceOf } from '../xray/xrayPaint';
 import type { LayoutCell, LayoutStep, ReachLine, TextSetter } from './diagramPageLayout';
 
 /** A picture whose size cannot be read: fitted, square. */
@@ -286,13 +291,22 @@ function drawingRatio(picture: DiagramStepDiagramPicture, style: DiagramStyle, s
  * `picture` and `frame` are in CSS px at the size the frame prints, which is
  * the size the annotations are drawn at — their marks keep their pt size, so
  * how far they reach depends on it, as a References step's letters do.
- * `layers`, the picture's, draw a mark behind a flap as the page will (15e).
+ * `layers`, the picture's, draw a mark behind a flap as the page will (15e);
+ * an x-ray's window counts by its rim where the page draws it, `xRays` — on a
+ * picture with layers (Revision 3).
  */
-function reachedWith(step: DiagramStep, frame: Rect, picture: Rect, style: DiagramStyle, layers: PictureLayers | null): Rect {
+function reachedWith(
+  step: DiagramStep,
+  frame: Rect,
+  picture: Rect,
+  style: DiagramStyle,
+  layers: PictureLayers | null,
+  xRays: boolean
+): Rect {
   const pictureFrame = frameOf(frame.width, frame.height);
   const framePx = longerOf(frame);
   if (!pictureFrame || !(framePx > 0)) return picture;
-  const reach = annotationReach(annotationDrawing(step.annotations, pictureFrame, framePx, style, layers));
+  const reach = annotationReach(annotationDrawing(step.annotations, pictureFrame, framePx, style, layers), { xRays });
   return union(picture, { ...reach, x: frame.x + reach.x, y: frame.y + reach.y });
 }
 
@@ -364,6 +378,8 @@ export function layoutPicture(
   const view = viewOfStep(step);
   // A flat fold's layers, in the marks' units: a mark behind a flap is drawn dotted under it (15e).
   const layers = annotated ? viewGeometry(view, assets, style).layers : null;
+  // Where an x-ray's window is drawn, it is measured by its rim: on a picture with layers (Revision 3).
+  const xRays = annotated && xraySurfaceOf(step) !== null;
   /**
    * The picture measured by `at(frameMm)`, which gives the frame and what it
    * reaches with its marks, in px, its frame `frameMm` across its longer
@@ -439,7 +455,7 @@ export function layoutPicture(
       const framePx = mmToCssPx(mm);
       const frame = { x: 0, y: 0, width: (width / longer) * framePx, height: (height / longer) * framePx };
       const inked = grown(frame, inkPx);
-      return { frame, reached: annotated ? reachedWith(step, frame, inked, style, layers) : inked };
+      return { frame, reached: annotated ? reachedWith(step, frame, inked, style, layers, xRays) : inked };
     });
   };
   // An enlarged step is its window (Revision 2), laid out by what of it
@@ -470,7 +486,7 @@ export function layoutPicture(
           height: content.height * unitPx,
         };
         const inked = grown(paper, pen);
-        const inside = marked ? intersection(reachedWith(sizedBy, frame, inked, style, layers), frame) : null;
+        const inside = marked ? intersection(reachedWith(sizedBy, frame, inked, style, layers, xRays), frame) : null;
         return { frame: paper, reached: inside ? union(inked, inside) : inked };
       },
       contentShare
@@ -494,7 +510,7 @@ export function layoutPicture(
         const { drawing, sheet } = stepDiagramBoxes(source.picture, style, mm);
         if (!(longerOf(sheet) > 0)) return null;
         const inked = union(drawing, grown(sheet, ink));
-        return { frame: sheet, reached: annotated ? reachedWith(step, sheet, inked, style, layers) : inked };
+        return { frame: sheet, reached: annotated ? reachedWith(step, sheet, inked, style, layers, xRays) : inked };
       });
     }
     case 'fixed':
@@ -522,6 +538,11 @@ export function cellPicture(
   if (!source) return null;
   // A flat fold's layers, in the marks' units: a mark behind a flap is drawn dotted under it (15e).
   const layers = hasDrawnAnnotations(step.annotations) ? viewGeometry(viewOfStep(step), assets, style).layers : null;
+  // A References picture's sheet: a label's halo is filled with the face it stands on (17b).
+  const textPaper = markPaper(step, assets);
+  // Each x-ray's window, on a picture with layers: its picture without its top layers, as the canvas shows it (Revision 3).
+  const xraySurface = xraySurfaceOf(step);
+  const placing = { paper: textPaper, xRays: xraySurface && xrayPainter(xraySurface, style) };
   // An enlarged step draws its window (Revision 2), a close-up's inside included.
   const zoomed = zoomedSource(step, assets);
   const drawPicture = (inner: Rect, mmPerUnit: number | null, framePt: number | null) =>
@@ -530,7 +551,11 @@ export function cellPicture(
   const box: Rect = { x: area.x * PT_PER_MM, y: area.y * PT_PER_MM, width: area.w * PT_PER_MM, height: area.h * PT_PER_MM };
   // An enlarged step keeps in its room what lies inside its window, as it was measured: its marks past it overflow.
   const touching = zoomed ? marksTouchingWindow(zoomed.view.window, step.annotations) : step.annotations;
-  /** The picture drawn into `inner`, `k` of its room, and its annotations on its frame. */
+  /**
+   * The picture drawn into `inner`, `k` of its room, and its annotations
+   * placed on its frame: compiled once, measured here and drawn from the same
+   * compile where the picture settles.
+   */
   const place = (inner: Rect, k = 1) => {
     // A scale the layout found shrinks with the room it is drawn into.
     const frame = cell.frameMm === null ? null : cell.frameMm * PT_PER_MM * k;
@@ -538,10 +563,11 @@ export function cellPicture(
     const drawn = drawPicture(inner, mmPerUnit, frame);
     if (!drawn) return null;
     const framePx = longerOf(drawn.framePt) / PT_PER_CSS_PX;
-    const marks = paintAnnotations(step.annotations, drawn.framePt, framePx, style, layers);
+    const marks = placeAnnotations(step.annotations, drawn.framePt, framePx, style, layers, placing);
     if (!marks) return { drawn, marks, reached: drawn.boundsPt };
     if (!zoomed) return { drawn, marks, reached: union(drawn.boundsPt, marks.bounds) };
-    const counted = touching === step.annotations ? marks : paintAnnotations(touching, drawn.framePt, framePx, style, layers);
+    const counted =
+      touching === step.annotations ? marks : placeAnnotations(touching, drawn.framePt, framePx, style, layers, placing);
     const inside = counted ? intersection(counted.bounds, drawn.framePt) : null;
     return { drawn, marks, reached: inside ? union(drawn.boundsPt, inside) : drawn.boundsPt };
   };
@@ -612,10 +638,10 @@ export function cellPicture(
     return prefixIds(inPlace ? inside.markup : `<g transform="translate(${num(x)} ${num(y)})">${inside.markup}</g>`, prefix);
   };
   const setText = (markup: string) => setUploadText(markup, text.hanStyle, text.runs, count);
-  const framePx = longerOf(drawn.framePt) / PT_PER_CSS_PX;
-  const marks = paintAnnotations(step.annotations, drawn.framePt, framePx, style, layers, { closeUpPicture, setText });
+  // Drawn from the compile its room was measured by: the frame it was placed on is the one it settled with.
+  const marks = placed.marks.markup({ closeUpPicture, setText });
   return {
-    markup: prefixIds(shift(`${drawn.markup}\n${marks?.markup ?? ''}`), idPrefix),
+    markup: prefixIds(shift(`${drawn.markup}\n${marks}`), idPrefix),
     boundsPt: { ...reached, x: reached.x + dx, y: reached.y + dy },
     framePt,
     text: [...usage].map(([face, characters]) => ({ face, characters })),

@@ -63,12 +63,14 @@ describe('HelpModal', () => {
       href: link.getAttribute('href'),
       target: link.getAttribute('target'),
     }));
+    expect(rendered.textContent).toContain('Kei Morisue and DEFOX');
     expect(links).toEqual([
-      { href: 'https://langorigami.com/article/treemaker/', target: '_blank' },
-      { href: 'https://github.com/bp-studio/box-pleating-studio', target: '_blank' },
-      { href: 'https://225.designorigami.net/', target: '_blank' },
       { href: 'https://github.com/oriedita/oriedita', target: '_blank' },
+      { href: 'https://github.com/bp-studio/box-pleating-studio', target: '_blank' },
       { href: 'https://github.com/amandaghassaei/OrigamiSimulator', target: '_blank' },
+      { href: 'https://225.designorigami.net/', target: '_blank' },
+      { href: 'https://kei-morisue.github.io/step-folder/', target: '_blank' },
+      { href: 'https://langorigami.com/article/treemaker/', target: '_blank' },
     ]);
   });
 

@@ -305,12 +305,18 @@ established:
 ### Decisions
 
 **D1. The diagram is a project-level document.**
-- **File.** A typed field `workspace.diagram: DiagramDocument | null`, typed
-  from `diagram/document/diagramDocument.ts` (see Contracts).
+- **File.** A list, `workspace.diagrams`, each entry a document typed from
+  `diagram/document/diagramDocument.ts` (see Contracts). **Decided 2026-10-09:**
+  a list from launch, with a one-diagram UI. This build shows the first and
+  carries the rest verbatim (`diagramOthers`), so a later build can keep
+  several diagrams in a project without the launch build deleting all but one.
   - Both writers emit it (`createNativeProjectFile`,
-    `createNativeCreasePatternProjectFile`).
-  - `validateV8` names it, and `migrateLegacyToV8` defaults it to `null`.
-  - Decision 3 sets the reader version.
+    `createNativeCreasePatternProjectFile`), and leave it out when empty.
+  - `validateV8` names it, and `migrateLegacyToV8` defaults it to `[]`.
+  - A file from before the list holds one diagram under `workspace.diagram`
+    (reader 9). It reads as a list of one and is written back as the list on
+    its next save.
+  - Decision 3 sets the reader version: 10 for the list.
 - **Store.** A new `slices/diagramSlice.ts` holds:
   - `diagram: DiagramDocument | null`;
   - `diagramHistory: SnapshotHistory<DiagramDocument>`;
@@ -330,7 +336,7 @@ established:
   - BP create, open and `loadOristudioBpExample` (unless `preserveEditCanvas`);
   - the **first** `set` of `loadNativeProject`, beside `nativeProjectExtensions`.
 
-  `loadNativeProject` then installs `workspace.diagram` (null included) **in
+  `loadNativeProject` then installs the first of `workspace.diagrams` (none included) **in
   every branch**: design, the CP-only early return, and the new diagram-only
   branch (D16). It is **not** spread at `clearOristudioCpDocument` or at
   self-provisioning. `initEngine`'s early-return guard gains
@@ -718,7 +724,15 @@ vocabulary at paint time.**
   - **A pose delta the app applied** is carried onto every annotation, and
     `annotatedPictureKey` is updated. Such a delta is a rotation about the
     centre, a quarter turn or a mirror, including a References step's Turn
-    over, which only toggles `mirrored` about the sheet's middle.
+    over, which toggles `mirrored` about the sheet's middle.
+    *Amended, Phase 17c (2026-10-07; RM7 in
+    `diagram-references-annotations.md`).* A References Turn over also
+    renames the folds on the step, drawn by hand or not: valley and mountain
+    lines swap, and so do valley and mountain arrows, a shaped arrow's head
+    with them; turning back restores every name. Nothing else renames: a
+    crease-pattern step's Front | Back only recolours the face and carries
+    nothing (Zach, 2026-10-06), and Flip, an upload's mirror and a linked
+    picture's turn keep every name.
   - **Anything else** leaves annotations in place: a refold, Refresh, a camera
     or fold-% change, a fold's turn-over (a different side), or a replace. Annotate then shows "The picture
     changed since these annotations were drawn" until they are touched.
@@ -743,8 +757,9 @@ vocabulary at paint time.**
 **D9. One paper style for the whole diagram.**
 - **The surface.** A new `PaperSurface 'diagram-workspace'` with its own policy
   in `PAPER_STYLE_POLICIES`. It lands in Phase 2, before anything is painted.
-- **The stored style.** The diagram stores `style: { preset: BuiltInPaperPresetId }
-  | { style: PaperStyle }`. It defaults to the built-in **Diagram** preset:
+- **The stored style.** The diagram stores `style: { preset: string, style: PaperStyle }`
+  for a built-in or `{ style: PaperStyle }` for a custom style. Legacy
+  id-only presets read as the frozen v1 values and gain a snapshot on save. It defaults to the built-in **Diagram** preset:
   Origami House ink and diagram-crease pens. A user preset or the export slot
   is resolved to a full `PaperStyle` when chosen, so the printed diagram never
   depends on the viewer's machine. The Page tab uses a small style control
@@ -838,6 +853,10 @@ shows the composed page.**
       side (`AUTO_PATH_WIDTH_SHARE`; 26 mm on an A4 page of 3 × 3); the pane
       shows that width, to the mm, and a set one has a reset back to it.
       Written only when set; out of range clamps, as the margin does.
+      *Revised 2026-10-08* (Zach's review of #436: "can you default the path
+      width to 20"): 20 mm is the default and null is gone — a file that
+      does not say reads as 20, the field is written only when not 20, and
+      the reset goes back to 20 (`diagram-review-fixes.md`, item 1).
     - **Colour** (`page.pathColor`, `#rrggbb`, default `#ecece8`). The page
       setup owns it, not the paper style: the page's own inks (the title tab,
       the numbers, the text) are the mockup's whatever the style, and a style
@@ -1321,7 +1340,12 @@ peers: switching between them is a choice of view, never a new link.
      card's progress row and Stop.
   2. **The pattern picker.** Its header carries the same **Show as**,
      defaulting to the last one used in the session: picking a pattern links
-     it and shows it that way in one move.
+     it and shows it that way in one move. *Amended 2026-10-08
+     (`diagram-review-fixes.md`, item 3):* for a step with no link, the
+     default is the way the nearest linked step before it is shown, passing
+     over turns, uploads and References steps. The session's last way is the
+     default only when no step before it is linked. A relink still offers the
+     way the step is shown.
   3. **The card.** Its badge says how (Crease pattern, Folded, Folded · 3D,
      Simulated 40%). The context menu gains **Show as ▸** with the three. The
      card's own Adjust pose and Annotate buttons (built) open the step.
@@ -1552,130 +1576,240 @@ to fold it" — both readings.)*
   as well as Next, m counting what has been found so far ("5+" while more may
   exist) — rather than Next alone.
 
+**D25. A References step's marks are annotations.**
+*(Zach, 2026-10-07: "for imported reference steps, I want all the annotations
+to be imported and editable as annotations … add support for solid lines
+where you can choose the color … the option to show / hide the letters and
+reference lines on import, like in export". Plan and as-built:
+`diagram-references-annotations.md`, RM1–RM13; built as Phase 17.)*
+
+- **The split.** A pulled card's paper is the step's picture: the sheet, the
+  creases already made, the pattern's aux lines and the band wash. What the
+  step asks the folder to do is lifted into annotations tagged `imported`:
+  its folds, reference lines, rings, letters and arrows. In the Diagram
+  preset it paints as the baked card did, letters' typeface on screen
+  aside. A card with more marks than a step holds (500) is pulled baked,
+  with a toast.
+- **No letter kind.** A letter is Text (`label`). Text gains a colour, Bold,
+  a halo, a print size and an offset from its point, for any text; hung text
+  is dragged by its words.
+- **Solid lines.** A fourth Line Type, Solid (Shift+L), in a palette or
+  custom colour, for any step. A reference line lifts as one.
+- **Show.** The browser's Show menu picks Letters and Reference lines, as
+  the export dialog's Marks do (renamed "Reference lines"). It is
+  remembered, and each step records its choice (`source.marks`).
+- **The card's marks follow the card.** Replace from References and the Way
+  chooser swap every tagged mark, edited or not, and keep the author's; a
+  toast with Undo says when edited ones went. Turn over renames a step's
+  folds, valley and mountain, as the picture's side used to.
+- **Old steps** paint as they did, and the reader rewrites nothing. Make
+  Marks Editable converts one, as one undo step: in Annotate's notice, the
+  Step pane and the card menu.
+- **Open in References** opens on the step's own card, found by its line and
+  number (17f).
+
+Where its parts live (under `apps/web/src/`):
+- The lift and its verbs, in `diagram/references/`: `referencesCardMarks.ts`
+  (`liftCardMarks`, `liftedCardPicture`, `editableCardMarks`),
+  `referencesPulledSteps.ts` (the pull, `chooseReferencesWay`),
+  `makeMarksEditable.ts` and `cardMarksToast.ts`.
+- The tag, in `diagram/document/`: `cardMarks.ts` (its predicates and
+  moves), and `swapCardMarks` and `makeCardMarksEditable` in
+  `diagramDocument.ts`.
+- The marks, in `diagram/annotate/`: `annotationModel.ts` (`solid-line`,
+  Text's options), `annotationCarry.ts` (`otherSide`), `annotationColors.ts`
+  (the palette) and `labelAdvances.ts` (Bold's advances).
+- The controls, in `components/diagram/`: `DiagramColorSelect`,
+  `DiagramLineTypeControl`, `DiagramTextStyleControl`,
+  `DiagramTextStyleRows`, `DiagramReferencesShowMenu` and
+  `DiagramCardMarksNotice`; and `SelectSwatch` in `components/ui/Select`.
+- Open in References: `diagram/capture/referencesStepActions.ts` asks; the
+  store's `referencesCardRequest` holds the card; `locateStepCard`
+  (`cp-workspace/references/referencesReaderState.ts`) finds it, and
+  `useReferencesBreakdown` opens on it.
+
+**D26. Stars, the eye and shapes, turned and scaled by a transform box.**
+*(Zach's Diagramming note, 2026-10-08, and on the box: "for shapes, i want
+to be able to rotate and scale them. This goes for stars too (not lines /
+arrows / stuff that is path based). ui should be like the UI when you
+select an image in the edit canvas." Plan and as-built:
+`diagram-revision-3.md`, R3-1 to R3-34; built as Phase 18.)*
+
+- **Equal divisions** (18a). Every stroke in the aux crease's pen, the
+  count in the regular weight (R3-3 B), and a Short Dividers switch on
+  each mark that cuts its interior dividers to 1.65 mm either side of the
+  line (R3-1 A, R3-2 A). Revises Revision 2's ED4 and ED9.
+- **Stars** (18b). One Star tool (K) with a Fill, filled or outlined
+  (R3-4 C, R3-5 A). It snaps as a Circle does (R3-24 A), has no colour
+  (R3-23 A), and a carry moves only its centre (R3-32 A).
+- **The eye** (18c). The Eye (Y) is laid by a drag from the viewer toward
+  what they look at, with Shift for 15° steps (R3-8 A). It draws in the
+  ring pen (R3-26, amended), and F flips it horizontally (R3-9b, amended).
+- **Ovals and rectangles** (18d). Oval (Shift+O) and Rectangle (R), in a
+  Shapes group (R3-10b A). Each is an outline only, with square corners
+  (R3-11a A, R3-11b A), painted under every line and mark (R3-11d B). A
+  press inside a selected shape moves it unless a mark is under it
+  (R3-31 A).
+- **The transform box** (18b–18d). A selected star, eye or shape is
+  scaled and turned by the Edit canvas's image box, from the same code. A
+  star or an eye keeps its proportions, by its corners, about its centre
+  (R3-29a A, R3-29b A), from 0.5× to 4× (R3-30a A), its box never under
+  24 screen px (R3-30c B). A shape's eight squares resize it freely, with
+  Shift keeping its proportions and Alt its centre (R3-29c A), its sides
+  in the enlarge area's range (R3-30b A). A turn is free, with Shift for
+  15° (R3-28 A), and Layers has a Rotation row (R3-33 A). For a finger the
+  handles are larger, a touch target (44 px) apart, each with a 22 px
+  target, on both canvases (18d's follow-up).
+- **X-ray** (18e–18f, R3-12 to R3-22): a window that shows the picture
+  without its top layers. It comes in a PR of its own, stacked on
+  Revision 3's.
+
+Where its parts live (under `apps/web/src/`):
+- The box: `lib/transformBox.ts` holds its math, its handles' layout and
+  sizes for each pointer, and `transformHandleAt`, which decides which
+  handle a press takes. The Edit canvas's
+  `cp-workspace/CanvasObjectOverlay.tsx` draws from it. The Diagram's side
+  is `diagram/annotate/transformGrips.ts` (`boxedMarkOf`,
+  `transformGripAt`, `transformDragged`), drawn by `TransformBoxSelection`
+  in `components/diagram/DiagramAnnotateCanvas.tsx`.
+- The marks, in `diagram/annotate/`: `annotationModel.ts` (the kinds,
+  `keptTurn`, `eyeLooking`, `areaFromCorners`, `withAreaBox` and the
+  carries), `areaOutline.ts` (an ellipse's and a rectangle's outline and
+  rim), `annotationPrimitives.tsx` (`annotationAreas`) and `starFill.ts`.
+  In `cp-workspace/references/`: `stepDiagramGeometry.ts` (`auxMarkPen`,
+  `starPoints`, `starDrawn`, `eyeDrawn`) and `diagram/diagramInk.ts`
+  (`DIAGRAM_STAR_INK`, `DIAGRAM_EYE_INK`).
+- The controls, in `components/diagram/`: `DiagramStarFillControl`,
+  `DiagramStarControls`, `DiagramRotationRow` and
+  `DiagramDivisionsControls` (Short Dividers).
+- A paste onto another picture's enlarged step:
+  `diagram/annotate/annotationClipboard.ts` (`intoView`) and
+  `diagram/zoom/stepView.ts` (`marksInWindow`, `marksBox`).
+
 ### Contracts
 
-A React-free leaf module, `apps/web/src/diagram/document/diagramDocument.ts`,
-importable by `nativeProjectFile.ts` the way `cpImage.ts` is:
+#### The v1 file (frozen at launch, 2026-10-10)
 
-```ts
-interface DiagramDocument {
-  formatVersion: 1;
-  id: string;                         // 'diagram-<uuid>'
-  title: string;                      // header, page title tab, export filename slug
-  steps: DiagramStep[];               // order IS the step number
-  page: DiagramPageSetup;
-  style: { preset: BuiltInPaperPresetId } | { style: PaperStyle };   // D9
-  assets: Record<string, DiagramAsset>;
-}
+The format a launched build reads and writes. The types are
+`apps/web/src/diagram/document/diagramDocument.ts`, the reader and writer
+`diagram/document/diagramFile.ts`: they are the source of truth, and this is
+their summary. `diagram/document/diagramFileV1.test.ts` holds a frozen v1
+file (`__fixtures__/diagram-v1.json`, every kind of step, picture, render,
+turn and mark) to them: it must open editable, with nothing carried as a
+newer build's, and write back exactly except for the explicit pre-launch
+preset migration: an id-only preset gains its resolved values. The fixture
+stays unchanged, the migrated save is idempotent, and the legacy preset
+values are frozen in `paper-presets-v1.json`. A change to anything below is
+a format change.
 
-interface DiagramStep {
-  id: string;                         // 'step-<uuid>'
-  revision: number;                   // bumped on source change; async captures check it (D4)
-  source: DiagramStepSource | null;   // null = empty step
-  picture: DiagramPicture | null;     // captured result; null until captured
-  annotations: DiagramAnnotation[];   // picture units (D8)
-  annotatedPictureKey: string | null; // picture key the annotations were drawn on
-  text: string;                       // instruction
-  breakBefore: boolean;               // start a new page here (D10)
-  unknown?: Record<string, unknown>;  // a newer build's step, kept verbatim (validator)
-}
+**Where it lives.** `workspace.diagrams`, a list (D1), which asks for reader
+10. This build shows the first diagram and carries the rest verbatim
+(`diagramOthers`). A file from before the list holds one under
+`workspace.diagram` (reader 9): read as a list of one, rewritten as the list
+on its next save.
 
-interface RegionReference {           // carved out of InlineSimulation's source* fields (D3); no fingerprint
-  boundary: Point[][];
-  bounds: FoldedSourceBounds;
-  segmentIdHint: number | null;
-}
+**A diagram** — `formatVersion: 1`, `id` (`diagram-<uuid>`), `title`,
+`hanStyle` (`sc`/`tc`/`jp`/`kr`), `style`, `page`, `steps`, `assets`,
+`thumbnails`:
+- `style` is `{ preset: string, style: PaperStyle }`, a built-in with its
+  saved values, or `{ style: PaperStyle }`, a custom or export style stored
+  whole (D9). Saved values take precedence over the name, including a name
+  from a future build. Unread fields are carried verbatim. Legacy id-only
+  `default` and `diagram` use their frozen v1 values and gain a snapshot on save.
+- Fonts without a font-set id mean the frozen v1 Noto set. Its files, metrics
+  and coverage cannot be replaced; `scripts/diagram-fonts/v1-lock.json` is
+  checked on every font build and in the production deployment bundle.
+- `page`: `size` (`a4`/`a5`/`b5-jis`/`letter`), `orientation`, `marginMm`
+  (0–30), `layout` (`grid`/`flow`; unsaid reads as the grid), `columns`
+  (2–5), `rows` (1–6), `showPath`, `pathWidthMm` (4–60, written only when
+  not 20), `pathColor` (`#rrggbb`, only when not `#ecece8`), `firstPageSide`
+  (only when `right`), `showTitle`, `pageNumbers` (`{ enabled, first }`,
+  first 1–9999). `scale` is retired (2026-10-06): read and let go.
+- `steps`: the order, steps and the turns between them (D22). A turn is
+  `{ id: 'turn-<uuid>', kind: 'turn-over', axis }` (unsaid: `vertical`) or
+  `{ id, kind: 'rotate', rotate: { amount, direction } }` (unsaid: a quarter
+  clockwise).
+- `assets`, by id: `{ id, kind: 'svg', svg, widthPx, heightPx, bytes }`,
+  sanitized again on every load, or `{ id, kind: 'raster', src, widthPx,
+  heightPx, bytes }`, a PNG or JPEG data URL whose header must agree with its
+  size, at most 2,048 px a side (D7). One nothing names, no step of this
+  build's and nothing a newer build wrote, is not written.
+- `thumbnails`: `{ "thumb-<digest>": "<a SheetThumbnail as JSON>" }`, every
+  thumbnail a link shows, once, sorted by key (decision 4), and any entry
+  something a newer build wrote names, as it came. A file from before the
+  table holds each thumbnail inline in its source.
 
-type DiagramStepSource =
-  | { kind: 'cp';
-      scope:                          // D3: how the creases are chosen
-        | { kind: 'segment'; region: RegionReference }
-        | { kind: 'figure-bounds'; bounds: FoldedSourceBounds };
-      fingerprint: string;            // foldedSourceFingerprint over exactly the folded line ids
-      thumbnail: SheetThumbnail;      // corner thumbnail, frozen at capture
-      render:
-        | { mode: 'crease-pattern'; rotationDeg: number }
-        | { mode: 'folded-flat'; side: 'front' | 'back'; rotationDeg: number; foldCase: number }
-        | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back' }
-        | { mode: 'simulated'; percent: number; view: SimulatorOrbitView } }
-  | { kind: 'references-step';
-      region: RegionReference;
-      fingerprint: string;            // sourceFingerprintFor(document, region.bounds): per sheet (D6)
-      settings: ReferencesPlanSettings; mode: 'sequence' | 'find';
-      card: number | null; line: { n: [number, number]; d: number } | null }
-  | { kind: 'upload'; assetId: string; rotationQuarterTurns: 0 | 1 | 2 | 3; mirrored: boolean };
+**A step** — `id` (`step-<uuid>`), `revision`, `source`, `picture`,
+`annotations`, `annotatedPictureKey`, `text`, `breakBefore`, and `zoom` and
+`place` only when set:
+- `source`, null for an empty step, or:
+  - `{ kind: 'upload', assetId, rotationQuarterTurns (0–3), mirrored }`;
+  - `{ kind: 'cp', scope: { kind: 'segment', region }, fingerprint,
+    thumbnail, render, remembered? }`, `thumbnail` a key into the table;
+    `render` one of `{ mode: 'crease-pattern', rotationDeg, side?: 'back' }`,
+    `{ mode: 'folded-flat', side, rotationDeg, foldCase, spread? }` (a spread
+    `{ kind: 'depth', amount, toward }` or `{ kind: 'affine', amount, keep,
+    skew, axisDeg }`; one with no kind is by depth), `{ mode: 'folded-3d',
+    camera, side }`, or `{ mode: 'simulated', foldPercent (0–100), view,
+    shape? }` — `shape` is Pose's stored mesh, carried and never read here
+    (decision 5); `remembered`, the renders of the other ways of showing (D19);
+  - `{ kind: 'references-step', region, fingerprint (or null), thumbnail,
+    mode ('sequence'/'find'), settings (the planner's four switches, or
+    null), card (from 1, or null), line ({ n, d }, or null), side, plan?,
+    way?, sentence?, marks? }`.
+- `picture`, null until captured, or `{ kind: 'asset', assetId, paperScale,
+  styleKey?, key }`, `{ kind: 'scene', sceneJson, paperScale, styleKey, key,
+  paperFaces? }` (the scene as one string, at most 4 MB), `{ kind: 'fixed',
+  svg, widthPx, heightPx, key }` (sanitized again on every load), or
+  `{ kind: 'step-diagram', model, mirrored, key }` (the card's model as one
+  string, decision 4; a file from before holds it as a record). A source takes
+  only its own pictures: an upload its asset; a link a scene, a fixed picture
+  or a capture kept as a bitmap asset; a References step its card.
+- `annotations` (D8), at most 500: `{ id, kind, from, to, … }` with each
+  kind's own fields, as `ANNOTATION_FIELDS` in `diagramFile.ts` lists them —
+  valley, mountain, fold-and-unfold, pleat, push and white arrows; the
+  turn-over and rotate signs no tool draws now (D22), kept from before; valley,
+  mountain, hidden and solid lines; label; circle; right angle; callout; angle
+  mark; equal divisions; close-up; enlarge area (`zoom`); star; eye; oval;
+  rectangle; x-ray — and `imported` on a mark lifted from a References card
+  (17d). Points are in the picture's units, or an enlarged step's window's.
+  So are sizes: an area's side (up to twice the picture's frame) and a
+  circle's, close-up's, x-ray's or enlarge circle's radius (up to the frame) are
+  held to the picture's frame, which in a window's units is as many windows
+  as the frame spans (`unitsPerFrame`).
+  A `circle` without a stored radius retains its original fixed ink size.
+  An `angle-mark` may store `radiusMm` (0.5–50 mm) and `hidden: true`;
+  absent fields retain its original print radius and visibility. Hidden marks
+  stay in Layers and in the file but do not render, snap or take canvas presses.
+- `zoom`, an enlarged step's frame (Revision 2): `{ from, shape, frame?,
+  imprint?, scale?, edge?, areaWas? }`, `from` the enlarge area's id.
+- `place`, a step placed by hand (`diagram-page-overrides.md`): offsets
+  `frame`, `number`, `picture` and `text` in mm, and `scale`
+  (`{ mmPerUnit }` or `{ frameMm }`).
 
-type DiagramPicture =
-  | { kind: 'scene'; sceneJson: string; paperScale: number | null; styleKey: string | null; key: string }
-  | { kind: 'step-diagram'; model: StepDiagramModel; mirrored: boolean; key: string }
-  | { kind: 'fixed'; svg: string; widthPx: number; heightPx: number; key: string }   // our own output; sanitized at capture and re-sanitized on load (D7)
-  | { kind: 'asset'; assetId: string; paperScale: number | null; key: string };     // uploads, and over-budget raster captures (D2)
+**Reading** (`readDiagram`), lenient, in three rules:
+1. **Malformed is dropped.** A step, mark or asset that does not read, or a
+   source or picture that does not, is left out; the rest of the diagram
+   opens. A value of the wrong type falls back to its default.
+2. **What a newer build wrote is carried, never dropped** (decisions 1 and
+   2 of the launch review, 2026-10-09). A kind, field or value this build has
+   no name for, at any depth, or content past what it keeps — an SVG, a scene
+   or a card longer than its cap, a bitmap larger than it reads or in another
+   format, a number past a range it reads — makes the enclosing step, mark or
+   asset a newer build's: kept verbatim in its `unknown` field, written back
+   unchanged, and locked (moved or deleted, never edited). A locked step is
+   drawn as far as this build reads it. At the document's level such a value
+   falls back alone, shown as this build's default or nearest, and is written
+   back as it came until that field is set here (`DiagramNewerFields`).
+3. **A newer document opens read-only.** Only a `formatVersion` above 1 does;
+   the file is written back as it came.
 
-type DiagramAsset =
-  | { id: string; kind: 'svg'; svg: string /* sanitized */; widthPx: number; heightPx: number; bytes: number }
-  | { id: string; kind: 'raster'; src: string /* data:image/(png|jpeg) */; widthPx: number; heightPx: number; bytes: number };
-// plus `unknown?: Record<string, unknown>` on both, as on DiagramStep
-
-interface DiagramAnnotation {
-  id: string;
-  kind: 'valley-arrow' | 'mountain-arrow' | 'fold-unfold-arrow' | 'push-arrow' | 'turn-over'
-      | 'rotate' | 'valley-line' | 'mountain-line' | 'hidden-line' | 'label';
-  from: [number, number];             // picture units
-  to: [number, number];               // = from for label
-  bend?: number;                      // signed; Flip arc negates it
-  text?: string;                      // label only
-  rotate?: { amount: 'eighth' | 'quarter' | 'half'; direction: 'cw' | 'ccw' };
-  axis?: 'vertical' | 'horizontal';   // turn-over only
-  unknown?: Record<string, unknown>;  // a newer build's annotation kind, kept verbatim
-}
-
-interface DiagramPageSetup {
-  size: 'a4' | 'a5' | 'b5-jis' | 'letter';
-  orientation: 'portrait' | 'landscape';
-  marginMm: number;                   // 0–30
-  layout: 'grid' | 'flow';
-  columns: number;                    // 2–5
-  rows: number;                       // 1–6
-  showPath: boolean;                  // flow only
-  // scale: 'paper' | 'fit' — retired 2026-10-06; every diagram fits each (D10)
-  showTitle: boolean;                 // draws DiagramDocument.title
-  pageNumbers: { enabled: boolean; first: number };
-}
-```
+**Writing** (`writeDiagram`): every field named, an optional one only when
+said; a locked entry as it came; an asset nothing names left out; each
+thumbnail once; each card's model as one string. Writing what was read gives
+back the file, byte for byte.
 
 **Ids** use `crypto.randomUUID` (the `cpImage.ts:73-81` precedent).
-
-**The validator.** `diagramFile.ts` is lenient, in the style of
-`inlineSimulationFile.ts`:
-- It tells **malformed** (drop) from **unknown kind**. An unknown kind is kept
-  verbatim in the `unknown` field of the step, annotation or asset, and
-  re-emitted on save, as `unknownDesigns` does. A step that is unknown renders
-  as a locked "Made with a newer Ori Studio" card.
-- **A newer document.** When `formatVersion` is above the reader's, it opens
-  read-only: the raw JSON is kept in `diagramRaw` and re-emitted unchanged on
-  save, and `commitDiagram` refuses while `diagramReadOnly` holds.
-- Diagram-aware desktop builds that lag the web build therefore never delete
-  newer content.
-- It reuses the exported `PaperScene` validator (`lib/paper/paperSceneValidate.ts`,
-  which drops markup), the region validators from `regionReference.ts`, and
-  `nativeProjectFile`'s now-exported camera validator.
-- It adds a new `validateStepDiagramModel`: every primitive's `kind` and
-  `style` checked against the unions, finite numbers, a primitive cap and label
-  lengths.
-- It re-sanitizes SVG assets **and every `fixed` picture's `svg`** through
-  `svgSanitize`, and checks raster sources (D7). A `fixed` picture that fails
-  becomes `null`, and the step shows "Pose to capture".
-- **Unknown at any depth means unknown, not malformed.** An unrecognised
-  discriminant anywhere makes the enclosing step, annotation or asset
-  *unknown*: source kind, `scope.kind`, `render.mode`, picture kind, annotation
-  kind, asset kind, or a `StepDiagramPrimitive` kind inside a step-diagram
-  model. It is kept verbatim in its `unknown` field and re-emitted on save. Only
-  structurally invalid data of a *known* kind is dropped. A test checks that a
-  Phase 8 simulated step and a model with an unknown primitive kind survive load
-  and save under a validator that predates them.
-
-Each phase adds its variants' validators and round-trip tests in the same PR.
-The on-disk contract is provisional until the branch merges.
 
 **Paint contract** (`diagram/pictures/paintDiagramStep.ts`, pure):
 `stepScene(step, assets, style, scenePxPerPt) → PaperScene | null`, which
@@ -1985,7 +2119,8 @@ framing is kept below for the record; the outcomes are in "Phase 0 results".
    Older builds then refuse such files with "update Ori Studio", and diagram-free
    files are untouched. **Decided 2026-10-02:** Zach is fine with a schema
    bump; the reader-version split is the bump that touches only files with a
-   diagram.
+   diagram. **Decided 2026-10-09:** the list (D1) asks for reader 10; files
+   from before it asked for 9, and are read and rewritten as the list.
 4. ~~When the flag comes off.~~ **Decided 2026-10-02:** there is no flag. The
    branch is built complete and merged once (D15).
 5. **Persisting References plans. Decided: yes, as a separate change that
@@ -2789,7 +2924,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - **As built.**
     - **Model and file.** `KnownDiagramAnnotation` is D8's shape, in picture units; `bend` is the arc's sagitta as a share of its chord, positive to the left of travel as the page shows it, ±`1 − cos 30°` for References' 60° arc. The reader (`diagramFile.ts`) drops what does not read — a wrong type, a zero bend, a second annotation with an id already read — and carries verbatim, as a newer build's, a kind, a field, an enumerated value or a well-formed value past this build's ranges (a bend over 0.5, a point more than four frames out, a label over 80 characters). A step keeps at most 500. A sign or a label is put where `from` is, whatever `to` says.
     - **Frames.** Every painted picture reports its frame (`PaintedPicture.frame`): an upload's posed box, a scene's bounds, a fixed picture whole, a References step's sheet (`stepDiagramSheetBox`); a page cell finds the same box (`DrawnPicture.framePt`). `pictures/pictureFrame.ts` gives the frame in picture units without painting, for the carry, and holds the one parsed-scene cache (`storedScene`), which `pagePictures` now shares.
-    - **Carry (`annotationCarry.ts`).** `withCarriedAnnotations(before, after, assets)` runs at the end of `setUploadPose`, `setReferencesSide` and `setLinkedPicture`. It carries an upload's re-pose exactly (asset coordinates through both poses), a References step's turn-over as a mirror about its sheet, and a linked picture's turn — crease pattern, or flat with the same side and layer order, the same scope and fingerprint, both pictures scenes — as a rotation about the scene's origin, where both captures turn their pattern. A mirror turns a bend and a rotation's sense over; an odd number of quarter turns turns a turn-over's axis. Anything else, or a step carrying an annotation this build cannot read, leaves them where they were, out of step with the picture.
+    - **Carry (`annotationCarry.ts`).** `withCarriedAnnotations(before, after, assets)` runs at the end of `setUploadPose`, `setReferencesSide` and `setLinkedPicture`. It carries an upload's re-pose exactly (asset coordinates through both poses), a References step's turn-over as a mirror about its sheet (since Phase 17c also renaming its folds; see D8), and a linked picture's turn — crease pattern, or flat with the same side and layer order, the same scope and fingerprint, both pictures scenes — as a rotation about the scene's origin, where both captures turn their pattern. A mirror turns a bend and a rotation's sense over; an odd number of quarter turns turns a turn-over's axis. Anything else, or a step carrying an annotation this build cannot read, leaves them where they were, out of step with the picture.
     - **Drawing (`annotationPrimitives.tsx`, `paintAnnotations.ts`).** Compiled per paint in CSS px with the frame's top-left at the origin, through References' own projector, ink and pens (`STEP_DIAGRAM_LINE_WIDTH`, the style's arrow pen through the References policy), in a y-up primitive space as References' unit frame is, so every arc and head is References' code path. Marks have one ink on and off the paper (no clip pair). A card draws them as if the frame were the size every picture opens at (`CARD_FRAME_PX`, 50 mm); a page and a step file at the size the frame prints. A label is a `<text>` of runs in the upload-text format (`labelRuns`), so a page sets and counts it with `setUploadText`, its Han in the diagram's style; the rotate glyph's fraction is set in Noto Sans Bold the same way. A step file is cropped to reach an arrow that starts off the picture (`annotationReach`).
     - **Surfaces.** Cards and the detail show `annotatedStepUrl` (the picture with its annotations, cached by the picture and the annotations' list); Pose ghosts them at 30%. The Annotate canvas (`useAnnotateCanvas`) shows the picture alone, its frame 1000 world px with a quarter-frame margin, the annotations live over it as React (`DiagramAnnotationLayer`, the painter's pens), a drag previewed and committed once on release; Space, the middle button or two fingers pan (one finger's `touchstart` is kept from the camera natively; `panning.excluded` is not used, since it also blocks the middle button and the pinch — and the library matches each entry as a tag or a class, so an attribute selector throws). A press reaches 8 px (18 on touch) and takes the keyboard.
     - **Store.** `diagramAnnotateTool`, `diagramSelectedAnnotationId` (scoped, never history), `editDiagramAnnotations` (one undo entry, or a label field's session extending it; the slice's text session generalised to a keyed one), `keepDiagramAnnotations`. The selected annotation goes with its step, the detail, or an undo that removes it.
@@ -3675,6 +3810,89 @@ built as 15a–15f, each phase's as-built under its checklist there.
 Plan: `implementation-plans/diagram-revision-2.md` — decided (Z1–Z11,
 ED1–ED13, RA0–RA8) and built as 16a–16g, each phase's as-built under its
 checklist there. It amends D2, D8, D10 and D22 above.
+
+### Phase 17: a References step's marks as annotations (D25; Zach, 2026-10-07)
+
+1. A pulled card's arrows, lines, rings and letters arrive as editable
+   annotations; a letter is Text.
+2. Solid lines with a colour, for any step.
+3. Show or hide Letters and Reference lines on a pull, as export does.
+
+Plan: `implementation-plans/diagram-references-annotations.md` — decided
+(RM1–RM13) and built as 17a–17f, each phase's as-built under its checklist
+there. 17a is Solid lines, 17b Text's options, 17c Turn over renaming folds,
+17d the split at a pull, 17e Make Marks Editable and 17f the close-out. It
+amends D8 (17c's renaming).
+
+### Phase 18: Revision 3 (Zach's Diagramming note, 2026-10-08)
+
+1. Equal divisions: every stroke in the aux crease's width, the count not
+   bold, and a per-mark Short Dividers switch.
+2. Stars, filled or outlined; the eye; ovals and rectangles; a transform
+   box that scales and turns them.
+3. X-ray: a window that shows the picture without its top N layers (a PR of
+   its own, after a spike).
+
+Plan: `implementation-plans/diagram-revision-3.md`, phases 18.0 and 18a to
+18f, each phase's as-built under its checklist there (D26). Built in PR
+#446: 18a equal divisions, 18b stars and the transform box, 18c the eye,
+18d ovals and rectangles, and two follow-ups to 18d (a finger's handles,
+and the rule that keeps a turn). 18.0 and 18e–18f, X-ray, come in a PR of
+their own stacked on #446. It revises Revision 2's ED4 and ED9.
+
+### The launch review: the file, settled for launch (Zach, 2026-10-09)
+
+What a launched build reads and writes is what every installed desktop app
+keeps, so the file was settled before #436 reaches `main`. The v1 spec is
+Contracts › The v1 file.
+
+- [x] A list of diagrams: `workspace.diagrams`, asking for reader 10; a file
+  with `workspace.diagram` opens as a list of one (`f74bc6356`).
+- [x] What a newer build wrote is carried, never dropped: locked, written
+  back as it came (`8a70f32f1`), and drawn as far as this build reads it
+  (`50dc6fc3d`). Pose's `render.shape` is carried, so its tools can come later.
+- [x] Degrade, don't go read-only: a newer document field, page field, style
+  or Han style falls back alone (`a9192f55a`).
+- [x] Smaller files: the thumbnails table and cards' models as strings
+  (`509ee2d4b`): 50 steps on a 2,000-crease sheet, 25 MB to 511 KB.
+- [x] The frozen v1 file and the Contracts rewritten as its spec
+  (`594245439`); the analytics pass (`814939d2a`).
+- [x] Review of the above (one adversarial reviewer, every finding traced
+  and checked with a probe). Confirmed and fixed, each with a test that
+  fails without it:
+  - an asset or thumbnail only a newer build's document field, page field,
+    style, turn, mark or asset named was dropped on save (`34bab315d`);
+  - Refresh, Refresh All and Relink kept Pose's mesh with the new picture
+    (`c5f6f2acf`);
+  - a preset with a style beside it lost the style (`25af1286a`);
+  - a newer field in a region's box or rim was dropped (`f2913c68e`);
+  - a read gave every link its own copy of a shared thumbnail, and a save
+    serialised each again: 50 steps on a 20,000-stroke sheet now save in
+    22 ms, not a second (`7d0b6c3c5`).
+  Left as it is: a PNG or JPEG data URL that does not decode is carried as a
+  newer build's rather than dropped as damage, which loses nothing.
+- [x] Review of the merged branches: #442, main's simulator fixes, #444 and
+  #446 together (one reviewer, every finding probed). Every mark kind is
+  handled wherever kinds are switched on, the enlarged step's merged controls
+  are wired once, and main's simulator changes are additive here. Confirmed
+  and fixed:
+  - Enlarged on, or Update after an area shrank, moved every mark of a step
+    holding a shape, an x-ray or a close-up larger than twice the window,
+    and Enlarged off made it permanent (`bc89d1681`: R3-30b's range is now
+    held in the marks' units);
+  - an Update refused while another of its area ran said it had failed
+    (`5a1d9afae`).
+  Not changed: a cut and pasted enlarge area takes a new id, so the steps
+  enlarged from it say it was deleted (linking by id predates these
+  branches); the x-ray Depth row says "Refresh step N" for the moment an
+  Update folds faces.
+- [x] Preset/font safeguards, 2026-10-10: store resolved preset values beside
+  the name, freeze legacy v1 presets, and reject changes/removals to the v1
+  font set before deployment. The toolchain installs by hash.
+- [x] Routine launch choices resolved under Zach's instruction, 2026-10-10;
+  see `diagram-launch-hardening.md` for decisions versus pending implementation.
+  The current shortcut keymap is accepted with stable ids. Turn Over's carry
+  fork and X-ray contrast remain for his visual review.
 
 ### Later (written up, not built)
 

@@ -6,7 +6,7 @@ import type {
   SimulatorDiagnostics,
   SimulatorOptions,
 } from './types.js';
-import { copyFixedNodeMask, type SolverBackend } from './solverBackend.js';
+import { assertSolverShape, copyFixedNodeMask, type SolverBackend, type SolverShape } from './solverBackend.js';
 import {
   gripForce,
   gripParameters,
@@ -243,6 +243,31 @@ export class ReferenceSolver implements SolverBackend {
     const length = Math.min(into.length, this.model.positions.length);
     into.set(this.model.positions.subarray(0, length));
     return length;
+  }
+
+  readShape(into: SolverShape): void {
+    assertSolverShape(into, this.model.prepared.vertexCount, this.theta.length);
+    // The last step's displacements: what the next step integrates from.
+    into.offsets.set(this.lastRelativePositions);
+    into.theta.set(this.theta);
+  }
+
+  writeShape(shape: SolverShape, keep: boolean): void {
+    assertSolverShape(shape, this.model.prepared.vertexCount, this.theta.length);
+    this.releasePose();
+    // All three steps of history at the shape: Euler reads the last, Verlet the
+    // last two, and equal history is a node at rest.
+    this.relativePositions.set(shape.offsets);
+    this.lastRelativePositions.set(shape.offsets);
+    this.lastLastRelativePositions.set(shape.offsets);
+    this.forces.fill(0);
+    this.model.velocities.fill(0);
+    this.lastVelocity.fill(0);
+    this.theta.set(shape.theta);
+    this.syncAbsolutePositions();
+    // Normals are no state of this solver: every step derives them from the
+    // positions first.
+    if (keep) this.keepShape();
   }
 
   readColors(into: Float32Array): number {

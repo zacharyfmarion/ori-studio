@@ -22,6 +22,7 @@ import { storedScene } from '../pictures/pictureFrame';
 import { face, sceneOf } from '../../lib/paper/paperScene.fixtures';
 import { poseMove } from './annotationCarry';
 import { rightAngleAt, rightAngleDiagonal } from './annotationModel';
+import { compiledAnnotation } from './annotationPrimitives';
 
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"/>';
 const ASSET = { id: 'asset-1', kind: 'svg' as const, svg: SVG, widthPx: 400, heightPx: 300, bytes: SVG.length };
@@ -80,6 +81,8 @@ describe('an upload re-posed', () => {
     expect(annotationsOutOfStep(turned)).toBe(false);
     const flipped = stepsIn(setUploadPose(document, 'step-1', { rotationQuarterTurns: 0, mirrored: true }))[0]!;
     expect((flipped.annotations[0] as KnownDiagramAnnotation).bend).toBe(-0.1);
+    // A picture flipped is the same side of the paper: its folds keep their names (17c).
+    expect((flipped.annotations[0] as KnownDiagramAnnotation).kind).toBe('valley-arrow');
   });
 });
 
@@ -126,6 +129,64 @@ describe('a References step turned over', () => {
     expect(annotationsOutOfStep(back)).toBe(false);
   });
 
+  /** Marks drawn by hand on a References card, a fold of every kind among them (17c). */
+  const DRAWN: KnownDiagramAnnotation[] = [
+    { id: 'valley', kind: 'valley-line', from: [0.1, 0.3], to: [0.9, 0.3] },
+    { id: 'mountain', kind: 'mountain-line', from: [0.1, 0.4], to: [0.9, 0.4], behind: { from: 1 } },
+    { id: 'arrow', kind: 'valley-arrow', from: [0.1, 0.6], to: [0.4, 0.6], bend: 0.1 },
+    {
+      id: 'shaped',
+      kind: 'mountain-arrow',
+      from: [0.6, 0.6],
+      to: [0.9, 0.6],
+      path: [
+        { at: [0.6, 0.6], out: [0.7, 0.45] },
+        { at: [0.9, 0.6], in: [0.8, 0.45] },
+      ],
+    },
+    { id: 'unfold', kind: 'fold-unfold-arrow', from: [0.1, 0.8], to: [0.4, 0.8] },
+    { id: 'solid', kind: 'solid-line', from: [0.1, 0.5], to: [0.9, 0.5], color: '#c91d87' },
+    { id: 'hidden', kind: 'hidden-line', from: [0.1, 0.2], to: [0.9, 0.2] },
+    { id: 'ring', kind: 'circle', from: [0, 1], to: [0, 1] },
+    { id: 'letter', kind: 'label', from: [0, 1], to: [0, 1], text: 'P', bold: true, sizePt: 9, offsetPt: [-6, 4] },
+  ];
+
+  it('names every fold from the other side, drawn by hand or not, as the card names its own (RM7)', () => {
+    const document = annotated(referencesStep('step-1'), DRAWN);
+    const back = stepsIn(setReferencesSide(document, 'step-1', true))[0]!;
+    const marks = back.annotations as KnownDiagramAnnotation[];
+    expect(marks.map((mark) => [mark.id, mark.kind])).toEqual([
+      ['valley', 'mountain-line'],
+      ['mountain', 'valley-line'],
+      ['arrow', 'mountain-arrow'],
+      ['shaped', 'valley-arrow'],
+      ['unfold', 'fold-unfold-arrow'],
+      ['solid', 'solid-line'],
+      ['hidden', 'hidden-line'],
+      ['ring', 'circle'],
+      ['letter', 'label'],
+    ]);
+    // Mirrored about the sheet as before, each with what else it carries.
+    close(marks[0]!.from, [0.9, 0.3]);
+    expect(marks[1]!.behind).toEqual({ from: 1 });
+    expect(marks[2]!.bend).toBe(-0.1);
+    expect(marks[5]!.color).toBe('#c91d87');
+    close(marks[8]!.offsetPt!, [6, 4]);
+    // A shaped arrow's head is its kind's: the mountain drawn on the front is a valley from the back.
+    const shaped = compiledAnnotation(marks[3]!);
+    expect(shaped?.kind === 'mark' && shaped.primitive.kind === 'path-arrow' ? shaped.primitive.fold : null).toBe('valley');
+    expect(annotationsOutOfStep(back)).toBe(false);
+
+    // Turned back, each is named as it was drawn, where it was drawn.
+    const again = stepsIn(setReferencesSide({ ...document, steps: [back] }, 'step-1', false))[0]!;
+    const returned = again.annotations as KnownDiagramAnnotation[];
+    expect(returned.map((mark) => mark.kind)).toEqual(DRAWN.map((mark) => mark.kind));
+    returned.forEach((mark, index) => {
+      close(mark.from, DRAWN[index]!.from);
+      close(mark.to, DRAWN[index]!.to);
+    });
+  });
+
   it('leaves them out of step if they already were', () => {
     const step = { ...referencesStep('step-1'), annotations: [ARROW], annotatedPictureKey: 'another-picture' };
     const document = { ...insertSteps(createDiagram(), [step], 0) };
@@ -138,6 +199,24 @@ describe('a References step turned over', () => {
     const again = stepsIn(setReferencesSide({ ...document, steps: [back] }, 'step-1', false))[0]!;
     expect(again.annotations).toEqual([ARROW]);
     expect(annotationsOutOfStep(again)).toBe(true);
+  });
+});
+
+describe('a crease pattern put on its back’s colour (Front | Back)', () => {
+  it('moves nothing and names every fold as it was (Zach, 2026-10-06), its marks in step with the new picture', () => {
+    const marks: KnownDiagramAnnotation[] = [
+      { id: 'valley', kind: 'valley-line', from: [0.1, 0.3], to: [0.9, 0.3] },
+      { id: 'arrow', kind: 'mountain-arrow', from: [0.1, 0.6], to: [0.4, 0.6], bend: 0.1 },
+    ];
+    const front = cpStep('step-1', { mode: 'crease-pattern', rotationDeg: 0 }, scenePicture('scene-front'));
+    const back = stepsIn(
+      setLinkedPicture(annotated(front, marks), 'step-1', {
+        source: cpSource({ mode: 'crease-pattern', rotationDeg: 0, side: 'back' }),
+        picture: scenePicture('scene-back'),
+      })
+    )[0]!;
+    expect(back.annotations).toEqual(marks);
+    expect(back.annotatedPictureKey).toBe('scene-back');
   });
 });
 

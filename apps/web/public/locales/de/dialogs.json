@@ -331,6 +331,10 @@
         "detail": "Die Box-Pleating-Autorenmethode ist eine Portierung von Mu-Tsun Tsais Box Pleating Studio nach Rust und WebAssembly.",
         "title": "Mu-Tsun Tsai und Box Pleating Studio"
       },
+      "defox": {
+        "detail": "Die affine Schichtspreizung im Diagramm-Arbeitsbereich basiert auf Kei Morisues affiner Verzerrungsmethode in DEFOX.",
+        "title": "Kei Morisue und DEFOX"
+      },
       "explori": {
         "detail": "Die Autorenmethode „22,5° durchsuchen“ sendet deinen Baum an ExplOri, ein durchsuchbares Archiv von 22,5°-Faltmustern, und zeigt die nächstliegenden Treffer an, die es zurückgibt.",
         "title": "Brandon Wong und ExplOri 22.5"
@@ -418,6 +422,7 @@
     "empty": "Nichts zu exportieren: Die Ansicht zeigt kein Papier.",
     "exporting": "Wird exportiert…",
     "exportingPages": "{{done}} von {{total}} wird exportiert…",
+    "exportObj": "OBJ exportieren",
     "exportStyle": "Exportstil · {{style}}",
     "figureMm": "Figurgröße",
     "figureSizeHint": "Die Figur misst an ihrer längeren Seite diese Größe. Linien behalten ihre Breiten.",
@@ -425,14 +430,18 @@
     "format": "Format",
     "hiddenFacesDropped_one": "{{count}} verdeckte Fläche weggelassen",
     "hiddenFacesDropped_other": "{{count}} verdeckte Flächen weggelassen",
-    "highlights": "Linienhervorhebungen",
-    "highlightsHint": "Die Akzentfarbe über den Linien, an denen sich ein Schritt ausrichtet.",
     "keepHiddenFaces": "Verdeckte Flächen behalten",
     "keepHiddenFacesHint": "Flächen, die nichts zeigt, bleiben in der Datei unter dem, was sie verdeckt – so gibt das Löschen einer Fläche in einem Zeichenprogramm die darunter frei.",
     "letters": "Buchstaben",
     "lettersHint": "Die Namen der Punkte, auf die sich ein Schritt bezieht.",
     "marks": "Markierungen",
     "nextPage": "Nächster Schritt",
+    "objExpired": "Diese Momentaufnahme der Simulation ist nicht mehr verfügbar. Schließe diesen Dialog und exportiere erneut.",
+    "objHint": "3D-Netz mit UV-Koordinaten des entfalteten Papiers, bereit zum Texturieren in deiner 3D-Software.",
+    "objMeshUnavailable": "Diese Simulation enthält kein gültiges Netz zum Exportieren.",
+    "objPreview": "Erfasste Form · OBJ enthält das vollständige Netz und UVs",
+    "objPreviewEmpty": "Keine Bildvorschau. Das erfasste 3D-Netz kann trotzdem exportiert werden.",
+    "objSheetUnavailable": "OBJ benötigt ein entfaltetes Blatt in der Papierebene des Simulators, um Texturkoordinaten zu erstellen.",
     "padding": "Rand",
     "page": "Seite",
     "pageMm": "{{width}} × {{height}} mm",
@@ -460,6 +469,8 @@
     "preparing": "Vorschau wird vorbereitet…",
     "previewFailed": "Die Vorschau konnte nicht gezeichnet werden: {{message}}",
     "previousPage": "Vorheriger Schritt",
+    "referenceLines": "Bezugslinien",
+    "referenceLinesHint": "Die Linien, an denen sich ein Schritt ausrichtet.",
     "resolution": "Auflösung",
     "resolutionCustom": "Eigene",
     "resolutionDpi": "{{dpi}} dpi",

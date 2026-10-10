@@ -331,6 +331,10 @@
         "detail": "The box-pleated authoring method is a Rust and WebAssembly port of Mu-Tsun Tsai's Box Pleating Studio.",
         "title": "Mu-Tsun Tsai and Box Pleating Studio"
       },
+      "defox": {
+        "detail": "Affine layer spreading in the Diagram workspace is based on Kei Morisue’s affine distortion method in DEFOX.",
+        "title": "Kei Morisue and DEFOX"
+      },
       "explori": {
         "detail": "The Search 22.5° design method sends your tree to ExplOri, a searchable archive of 22.5° crease patterns, and shows the closest matches it returns.",
         "title": "Brandon Wong and ExplOri 22.5"
@@ -418,6 +422,7 @@
     "empty": "Nothing to export: the view shows no paper.",
     "exporting": "Exporting…",
     "exportingPages": "Exporting {{done}} of {{total}}…",
+    "exportObj": "Export OBJ",
     "exportStyle": "Export style · {{style}}",
     "figureMm": "Figure size",
     "figureSizeHint": "The figure spans this size across its longer side. Lines keep their widths.",
@@ -425,14 +430,18 @@
     "format": "Format",
     "hiddenFacesDropped_one": "{{count}} hidden face left out",
     "hiddenFacesDropped_other": "{{count}} hidden faces left out",
-    "highlights": "Line highlights",
-    "highlightsHint": "The accent over the lines a step lines up.",
     "keepHiddenFaces": "Keep hidden faces",
     "keepHiddenFacesHint": "Faces nothing shows stay in the file under what covers them, so deleting a face in a drawing editor reveals the one beneath.",
     "letters": "Letters",
     "lettersHint": "The names of the points a step refers to.",
     "marks": "Marks",
     "nextPage": "Next step",
+    "objExpired": "This captured simulation is no longer available. Close this dialog and export again.",
+    "objHint": "3D mesh with UV coordinates from the unfolded paper, ready for texturing in your 3D software.",
+    "objMeshUnavailable": "This simulation has no valid mesh to export.",
+    "objPreview": "Captured pose · OBJ includes the complete mesh and UVs",
+    "objPreviewEmpty": "No image preview. The captured 3D mesh can still be exported.",
+    "objSheetUnavailable": "OBJ needs an unfolded sheet in the simulator’s paper plane to create texture coordinates.",
     "padding": "Margin",
     "page": "Page",
     "pageMm": "{{width}} × {{height}} mm",
@@ -460,6 +469,8 @@
     "preparing": "Preparing preview…",
     "previewFailed": "Couldn’t draw the preview: {{message}}",
     "previousPage": "Previous step",
+    "referenceLines": "Reference lines",
+    "referenceLinesHint": "The lines a step lines up against.",
     "resolution": "Resolution",
     "resolutionCustom": "Custom",
     "resolutionDpi": "{{dpi}} dpi",

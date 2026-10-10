@@ -147,20 +147,34 @@ describe('diagramInModel', () => {
     ]);
   });
 
-  it('carries equal divisions’ ends through the frame, and turns their side with a frame that flips, their offset a print size (Revision 2)', () => {
+  it('carries equal divisions’ ends through the frame, and turns their side with a frame that flips, their offset a print size and their short dividers kept (Revisions 2 and 3)', () => {
+    const look = { parts: 4, offset: 7.5, ticks: 2 as const, numbered: true, shortDividers: true };
     const divided: StepDiagramModel = {
       ...diagram,
-      primitives: [
-        { kind: 'divisions', from: [0.1, 0.5], to: [0.9, 0.5], parts: 4, offset: 7.5, mirrored: false, ticks: 2, numbered: true },
-      ],
+      primitives: [{ kind: 'divisions', from: [0.1, 0.5], to: [0.9, 0.5], mirrored: false, ...look }],
     };
     expect(diagramInModel(divided, FLIPPED).primitives).toEqual([
-      { kind: 'divisions', from: [10, 50], to: [90, 50], parts: 4, offset: 7.5, mirrored: true, ticks: 2, numbered: true },
+      { kind: 'divisions', from: [10, 50], to: [90, 50], mirrored: true, ...look },
     ]);
     const upright: PrecreaseFrame = { ...FLIPPED, origin: [0, 0], y_axis: [0, 1] };
     expect(diagramInModel(divided, upright).primitives).toEqual([
-      { kind: 'divisions', from: [10, 50], to: [90, 50], parts: 4, offset: 7.5, mirrored: false, ticks: 2, numbered: true },
+      { kind: 'divisions', from: [10, 50], to: [90, 50], mirrored: false, ...look },
     ]);
+  });
+
+  it('carries an eye’s centre through the frame, and the way it looks with the paper, turned or flipped, its size its own (Revision 3)', () => {
+    const looking: StepDiagramModel = { ...diagram, primitives: [{ kind: 'eye', at: [0.2, 0.5], angle: 30, scale: 2 }] };
+    const [flipped] = diagramInModel(looking, FLIPPED).primitives;
+    // Its direction, (cos, −sin) of its angle, mirrored top to bottom: 30° the other way.
+    expect(flipped).toMatchObject({ kind: 'eye', at: [20, 50], scale: 2 });
+    expect(flipped!.kind === 'eye' && flipped!.angle).toBeCloseTo(330, 9);
+    const upright: PrecreaseFrame = { ...FLIPPED, origin: [0, 0], y_axis: [0, 1] };
+    const [kept] = diagramInModel(looking, upright).primitives;
+    expect(kept!.kind === 'eye' && kept!.angle).toBeCloseTo(30, 9);
+    // A quarter turn of the paper turns it a quarter too.
+    const turned: PrecreaseFrame = { ...FLIPPED, origin: [100, 0], x_axis: [0, 1], y_axis: [-1, 0] };
+    const [quarter] = diagramInModel(looking, turned).primitives;
+    expect(quarter!.kind === 'eye' && quarter!.angle).toBeCloseTo(300, 9);
   });
 
   it('measures the sheet in model units and knows where its middle is and which way it lies', () => {

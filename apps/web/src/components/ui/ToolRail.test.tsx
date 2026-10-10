@@ -1,8 +1,8 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TooltipProvider } from './Tooltip';
-import { ToolRail, type ToolRailGroup, type ToolRailTool } from './ToolRail';
+import { revealScroll, ToolRail, ToolRailButtons, type ToolRailGroup, type ToolRailTool } from './ToolRail';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -15,6 +15,7 @@ afterEach(() => {
   container?.remove();
   container = null;
   localStorage.clear();
+  vi.restoreAllMocks();
 });
 
 function tool(id: string, overrides: Partial<ToolRailTool> = {}): ToolRailTool {
@@ -127,5 +128,90 @@ describe('ToolRail', () => {
     expect(JSON.parse(localStorage.getItem('test-rail-groups')!)).toEqual({ a: false });
     host = render({ groups, storageKey: 'test-rail-groups' });
     expect(toggle(host, 'a').getAttribute('aria-expanded')).toBe('false');
+  });
+});
+
+describe('ToolRail’s groups that come with a tool', () => {
+  it('scrolls the least that shows a box whole, its top when it is taller than the column', () => {
+    const view = { top: 100, bottom: 400 };
+    expect(revealScroll({ top: 150, bottom: 300 }, view)).toBe(0);
+    // Below the fold: up by what it hangs past the bottom.
+    expect(revealScroll({ top: 366, bottom: 554 }, view)).toBe(154);
+    // Above it: down to its top.
+    expect(revealScroll({ top: 40, bottom: 120 }, view)).toBe(-60);
+    // Taller than the column: its top, not its foot.
+    expect(revealScroll({ top: 380, bottom: 800 }, view)).toBe(280);
+  });
+
+  it('brings a group that appears below the fold into the column’s view, and scrolls nothing else', () => {
+    // The column shows 0–300 px of the screen; a group comes in at 266–454, under the fold (an iPad on its side).
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const rect = (top: number, bottom: number) => ({ top, bottom, left: 0, right: 180, x: 0, y: top, width: 180, height: bottom - top }) as DOMRect;
+      if (this.dataset.railPart === 'groups') return rect(0, 300);
+      if (this.getAttribute('aria-label') === 'Style') return rect(266, 454);
+      return rect(0, 0);
+    });
+    const tools: ToolRailGroup = { id: 'text', label: 'Text', railLabel: 'Text', content: { tools: [tool('Label')] } };
+    const style: ToolRailGroup = { id: 'style', label: 'Style', railLabel: 'Style', reveal: true, content: { control: <div /> } };
+    const quiet: ToolRailGroup = { ...style, id: 'quiet', label: 'Quiet', reveal: false };
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    const show = (groups: ToolRailGroup[]) =>
+      act(() =>
+        root!.render(
+          <TooltipProvider delayDuration={0}>
+            <ToolRail aria-label="Tools" idPrefix="test-rail" groups={groups} />
+          </TooltipProvider>
+        )
+      );
+    show([tools]);
+    const column = container.querySelector<HTMLDivElement>('[data-rail-part="groups"]')!;
+    Object.defineProperty(column, 'clientHeight', { configurable: true, value: 300 });
+    let scrolled = 0;
+    Object.defineProperty(column, 'scrollTop', { configurable: true, get: () => scrolled, set: (value: number) => (scrolled = value) });
+    // A group that does not ask to be revealed stays where it came in.
+    show([tools, quiet]);
+    expect(scrolled).toBe(0);
+    show([tools, style]);
+    expect(scrolled).toBe(154);
+    // Shown already, it does not pull the column back to it on every render.
+    scrolled = 0;
+    show([tools, style]);
+    expect(scrolled).toBe(0);
+  });
+
+  it('lays toggles in a control in the rail’s own buttons: pressed while on, their tooltip where it is asked for', () => {
+    const toggled: string[] = [];
+    const host = render({
+      groups: [
+        {
+          id: 'style',
+          label: 'Style',
+          railLabel: 'Style',
+          content: {
+            control: (
+              <ToolRailButtons
+                tools={[
+                  tool('Bold', { toggle: true, active: true, tooltipSide: 'top', onSelect: () => toggled.push('Bold') }),
+                  tool('Halo', { toggle: true, active: false, available: false, onSelect: () => toggled.push('Halo') }),
+                ]}
+              />
+            ),
+          },
+        },
+        { id: 'draw', label: 'Draw', railLabel: 'Draw', content: { tools: [tool('Line', { active: true })] } },
+      ],
+    });
+    expect(button(host, 'Bold').getAttribute('aria-pressed')).toBe('true');
+    expect(button(host, 'Bold').hasAttribute('data-active')).toBe(true);
+    expect(button(host, 'Halo').getAttribute('aria-pressed')).toBe('false');
+    // A tool taken in hand is not a toggle: it says nothing of being pressed.
+    expect(button(host, 'Line').hasAttribute('aria-pressed')).toBe(false);
+    // The same buttons as a group's tools.
+    expect(button(host, 'Bold').className).toBe(button(host, 'Line').className);
+    act(() => button(host, 'Bold').click());
+    act(() => button(host, 'Halo').click());
+    expect(toggled).toEqual(['Bold']);
   });
 });

@@ -34,6 +34,8 @@ export interface SimulatorSurfaceOptions {
   creaseWidthReferenceEdge?: number;
   /** Companion to the reference edge; see `RenderSettings.creaseWidthShrinkExponent`. */
   creaseWidthShrinkExponent?: number;
+  /** Grow above the reference edge as well; see `RenderSettings.creaseWidthGrows`. */
+  creaseWidthGrows?: boolean;
 }
 
 /** Fallbacks for the theme tokens, for a surface with no computed style yet. */
@@ -133,6 +135,7 @@ export function resolveRenderSettings(
     showEdges: settings.showEdges,
     creaseWidthReferenceEdge: surface.creaseWidthReferenceEdge,
     creaseWidthShrinkExponent: surface.creaseWidthShrinkExponent,
+    creaseWidthGrows: surface.creaseWidthGrows,
   });
   // Pinned faces are the Pin tool's selection, so they wear the selection
   // accent, on the GPU and canvas-2D paths alike.

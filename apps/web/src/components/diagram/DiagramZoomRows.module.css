@@ -1,0 +1,14 @@
+/* An enlargement's shared rows (DiagramZoomRows.tsx): the line under the rows. The Anchor row is DiagramAnchorRow's. */
+
+/* What Size means, and what places a frame again: a line under the rows, at their inset. */
+.note {
+  margin: 0;
+  padding: 0 var(--space-3);
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+/* A read-out that needs a hand: the room, or the area, holds the enlargement back. */
+.note[data-tone='warning'] {
+  color: var(--status-warning);
+}

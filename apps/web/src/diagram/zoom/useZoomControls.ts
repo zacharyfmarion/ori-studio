@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { trackDiagramEnlargementChanged } from '../../analytics';
+import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { activeAnchorPick } from '../../store/workspaceStore/diagramState';
 import {
@@ -13,6 +14,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { usePrintedZoom } from '../pages/printedFrames';
+import { areaStatus, stepsToUpdate } from './areaStatus';
 import { anchorPickable } from './zoomAnchor';
 import {
   areaStepOf,
@@ -26,6 +28,7 @@ import {
   type ZoomAction,
 } from './zoomActions';
 import { paperSilhouette } from './zoomEdge';
+import { runEnlargedUpdate } from './updateEnlargedToast';
 import { setFrameAnchor, setFrameEdge, setFrameScale, setFrameShape } from './zoomFrames';
 import {
   withZoomAnchor,
@@ -43,11 +46,13 @@ export type ZoomControlsTarget = { kind: 'area'; area: KnownDiagramAnnotation } 
 const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 /**
- * An enlargement's controls in the Layers pane (Revision 2, Controls), bound
- * to the store: an area's or a frame's Shape, Size and Edge, its Anchor row
- * and its verbs, each change one undo step — an area's through its step's
- * marks, a frame's through `zoomFrames.ts` — and what its row says of it. A
- * change is counted (`diagram enlargement changed`).
+ * An enlargement's controls (Revision 2, Controls), bound to the store: an
+ * area's or a frame's Shape, Size and Edge, its Anchor row and its verbs,
+ * each change one undo step — an area's through its step's marks, a frame's
+ * through `zoomFrames.ts` — and what its row says of it. A change is counted
+ * (`diagram enlargement changed`). The Layers pane binds an area or a frame
+ * with it; Annotate's Step pane binds the step's frame with it too, for its
+ * Size and Anchor (`DiagramStepEnlarged`), so the two panes cannot drift.
  */
 export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
   const { t } = useTranslation();
@@ -61,6 +66,8 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
     return pick?.stepId === step.id && pick.target === targetId;
   });
   const editable = !readOnly && !isLockedStep(step) && step.picture !== null;
+  // A phone's Annotate shows no canvas (`DiagramStepDetail`), so there is nothing to Pick on.
+  const canvas = !useIsPhoneLayout();
   const on = target.kind;
   const stepId = step.id;
   const area = target.kind === 'area' ? target.area : null;
@@ -111,7 +118,17 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
             : changeFrame('Change enlarged frame', (document) => setFrameEdge(document, stepId, next));
         if (changed && next !== null) trackDiagramEnlargementChanged(on, 'edge', next);
       },
-      pick: () => store().setDiagramAnchorPick(picking ? null : { stepId, target: targetId }),
+      pick: () => {
+        if (picking) {
+          store().setDiagramAnchorPick(null);
+          return;
+        }
+        // The canvas picks round the area or frame selected (`activeAnchorPick`): Layers' row is, and
+        // Annotate's Step pane, which has the frame's Pick with no row, selects it here. Armed first, so
+        // the selection arrives with its pick, which keeps it (`pickPutDown`) and keeps Layers back.
+        store().setDiagramAnchorPick({ stepId, target: targetId });
+        store().selectDiagramAnnotation(targetId);
+      },
       resetAnchor: () => {
         store().setDiagramAnchorPick(null);
         const changed =
@@ -122,9 +139,8 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
       },
       update: () => {
         setUpdating(true);
-        void store()
-          .updateEnlargedDiagramSteps(targetId)
-          .finally(() => setUpdating(false));
+        // Update All over this area: it says what it placed (`runEnlargedUpdate`).
+        void runEnlargedUpdate({ areaIds: [targetId] }, t).finally(() => setUpdating(false));
       },
       goTo: (id: string) => store().selectDiagramStep(id),
       goToArea: (id: string) => {
@@ -132,21 +148,24 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
         if (zoom) store().selectDiagramAnnotation(zoom.from);
       },
     };
-  }, [on, stepId, targetId, loadId, picking, zoom]);
+  }, [on, stepId, targetId, loadId, picking, zoom, t]);
 
   const enlargedOn = useMemo(() => (diagram && area ? stepsEnlargedFrom(diagram, area.id) : []), [diagram, area]);
+  // What Update All places again (review fix 4): the steps enlarged from the area that are out of date.
+  const outOfDate = useMemo(() => (diagram && area ? stepsToUpdate(diagram, [area.id]).length : 0), [diagram, area]);
   const areaStep = useMemo(() => (diagram && on === 'frame' ? areaStepOf(diagram, stepId) : null), [diagram, on, stepId]);
+  const fromArea = useMemo(() => (diagram && on === 'frame' ? areaStatus(diagram, stepId) : null), [diagram, on, stepId]);
 
   const actions: ZoomAction[] = useMemo(
     () =>
       on === 'area'
-        ? buildAreaActions({ steps: enlargedOn, readOnly, updating }, { t, update: verbs.update, goTo: verbs.goTo })
+        ? buildAreaActions({ steps: enlargedOn, outOfDate, readOnly, updating }, { t, update: verbs.update, goTo: verbs.goTo })
         : buildFrameActions({ areaStep }, { t, goTo: verbs.goToArea }),
-    [on, enlargedOn, areaStep, readOnly, updating, t, verbs]
+    [on, enlargedOn, outOfDate, areaStep, readOnly, updating, t, verbs]
   );
   const anchorActions = useMemo(
-    () => buildAnchorActions({ picked, picking, readOnly: !editable }, { t, pick: verbs.pick, reset: verbs.resetAnchor }),
-    [picked, picking, editable, t, verbs]
+    () => buildAnchorActions({ picked, picking, readOnly: !editable, canvas }, { t, pick: verbs.pick, reset: verbs.resetAnchor }),
+    [picked, picking, editable, canvas, t, verbs]
   );
 
   return {
@@ -168,10 +187,13 @@ export function useZoomControls(step: DiagramStep, target: ZoomControlsTarget) {
     anchorActions,
     actions,
     /** The row's subtitle: where an area was enlarged, or where a frame came from. */
-    subtitle: on === 'area' ? areaSubtitle(t, enlargedOn) : frameSubtitle(t, areaStep),
+    subtitle: on === 'area' ? areaSubtitle(t, enlargedOn) : frameSubtitle(t, fromArea),
     ...verbs,
   };
 }
+
+/** An enlargement's controls, bound: what the rows that draw them read (`DiagramZoomRows`). */
+export type ZoomControls = ReturnType<typeof useZoomControls>;
 
 /** The subtitle of an area's row in the list, from the diagram as it is. */
 export function useAreaSubtitle(area: KnownDiagramAnnotation | null): string | null {

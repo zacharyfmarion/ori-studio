@@ -39,6 +39,72 @@ export function readPaperScene(value: unknown): PaperScene | null {
   return { bounds, sheet, items };
 }
 
+/** The fields a stored scene, its bounds, and each kind of item are written with. */
+const SCENE_KEYS: ReadonlySet<string> = new Set(['bounds', 'sheet', 'items']);
+const BOUNDS_KEYS: ReadonlySet<string> = new Set(['minX', 'minY', 'maxX', 'maxY']);
+const FACE_KEYS: ReadonlySet<string> = new Set(['kind', 'face', 'side', 'rings', 'outline', 'shade', 'hidden', 'group']);
+const LINE_KEYS: ReadonlySet<string> = new Set([
+  'kind',
+  'role',
+  'a',
+  'b',
+  'onBoundary',
+  'whole',
+  'joined',
+  'face',
+  'hidden',
+  'group',
+]);
+const WHOLE_KEYS: ReadonlySet<string> = new Set(['a', 'b', 'onBoundary']);
+const SIDES: readonly string[] = ['front', 'back'];
+
+/**
+ * Whether a stored scene is a newer build's: a field, an item of a kind, a
+ * line role or a side this build has no name for. Not damage, though
+ * {@link readPaperScene} drops such an item as it drops damage — right for a
+ * figure the Edit workspace draws again from its fold, but a Diagram step's
+ * picture is its only copy, so the Diagram carries a step that holds one
+ * whole rather than lose part of it on save (`diagramFile.ts`).
+ */
+export function isNewerPaperScene(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (hasOtherKey(value, SCENE_KEYS)) return true;
+  if (isRecord(value.bounds) && hasOtherKey(value.bounds, BOUNDS_KEYS)) return true;
+  return Array.isArray(value.items) && value.items.some(isNewerPaperItem);
+}
+
+function isNewerPaperItem(value: unknown): boolean {
+  if (!isRecord(value) || typeof value.kind !== 'string') return false;
+  switch (value.kind) {
+    case 'face':
+      return hasOtherKey(value, FACE_KEYS) || isNewerWord(value.side, SIDES) || isNewerLineRole(value.outline);
+    case 'line':
+      return (
+        hasOtherKey(value, LINE_KEYS) ||
+        isNewerLineRole(value.role) ||
+        (isRecord(value.whole) && hasOtherKey(value.whole, WHOLE_KEYS))
+      );
+    // Never read back, for safety rather than age (`readPaperItem`).
+    case 'markup':
+      return false;
+    default:
+      return true;
+  }
+}
+
+/** A word where one of `known` goes, that is none of them. */
+function isNewerWord(value: unknown, known: readonly string[]): boolean {
+  return typeof value === 'string' && !known.includes(value);
+}
+
+function isNewerLineRole(value: unknown): boolean {
+  return typeof value === 'string' && readSceneLineRole(value) === null;
+}
+
+function hasOtherKey(value: Record<string, unknown>, known: ReadonlySet<string>): boolean {
+  return Object.keys(value).some((key) => !known.has(key));
+}
+
 function readPaperItem(value: unknown): PaperItem | null {
   if (!isRecord(value)) return null;
   const hidden = value.hidden === true;

@@ -18,6 +18,7 @@ const EXPORT_STYLE: PaperStyle = { ...DEFAULT_PAPER_STYLE, paper: { front: '#123
 
 function snapshot() {
   return {
+    obj: { unavailableReason: null, build: vi.fn(async () => 'o frozen\n') },
     scene: vi.fn(async (_options: SimulatorExportSceneOptions): Promise<PaperScene | null> => SCENE),
     release: vi.fn(),
   };
@@ -52,6 +53,13 @@ function restyled(change: (style: PaperStyle) => Partial<PaperStyle>): PaperStyl
 }
 
 describe('simulatorExportTarget', () => {
+  it.each(['simulator', 'inline-simulation'] as const)('exports the captured OBJ for %s', async (surface) => {
+    const frozen = snapshot();
+    const target = targetOf({ snapshot: frozen, surface });
+    expect(target.obj).toBe(frozen.obj);
+    await expect(target.obj?.build()).resolves.toBe('o frozen\n');
+    expect(frozen.obj.build).toHaveBeenCalledTimes(1);
+  });
   it('is the view as captured: its surface, names and styles, one page that can bury faces', () => {
     const pins = { 'paper.back': '#abcdef' } as const;
     const target = targetOf({ surface: 'inline-simulation', pins });

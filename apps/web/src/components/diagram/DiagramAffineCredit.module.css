@@ -1,0 +1,22 @@
+.content {
+  display: grid;
+  gap: 8px;
+}
+
+.description {
+  margin: 0;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  justify-self: start;
+  color: var(--accent-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link:hover {
+  color: var(--text-primary);
+}

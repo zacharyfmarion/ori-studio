@@ -4,6 +4,8 @@ import { Check } from 'lucide-react';
 import type { DiagramStyle } from '../../diagram/document/diagramDocument';
 import { stepPictureUrl, useNearView } from '../../diagram/pictures/useStepPictureUrl';
 import type { BrowserCard } from '../../diagram/references/referencesBrowserPlans';
+import { shownCardPicture } from '../../diagram/references/referencesCardMarks';
+import type { PaperExportMarks } from '../../lib/paperExportSettings';
 import styles from './DiagramReferencesCard.module.css';
 
 /**
@@ -21,6 +23,7 @@ import styles from './DiagramReferencesCard.module.css';
 export function DiagramReferencesCard({
   card,
   style,
+  marks,
   selected,
   tabStop,
   inDiagram,
@@ -32,6 +35,8 @@ export function DiagramReferencesCard({
 }: {
   card: BrowserCard;
   style: DiagramStyle;
+  /** The marks the Show menu shows (17d): the picture leaves the others out, as the pull does. */
+  marks: PaperExportMarks;
   selected: boolean;
   /** The list's one Tab stop: the card last pressed, or the first. */
   tabStop: boolean;
@@ -50,7 +55,9 @@ export function DiagramReferencesCard({
   const { t } = useTranslation();
   const own = useRef<HTMLDivElement | null>(null);
   const near = useNearView(own);
-  const picture = card.step?.picture ?? null;
+  const { letters, highlights } = marks;
+  const shown = card.step?.picture ?? null;
+  const picture = useMemo(() => (shown ? shownCardPicture(shown, { letters, highlights }) : null), [shown, letters, highlights]);
   const url = useMemo(
     () => (near && picture ? stepPictureUrl({ kind: 'step-diagram', picture }, style) : null),
     [near, picture, style]
@@ -100,23 +107,28 @@ export function DiagramReferencesCard({
         ) : unreadable ? (
           <span className={styles.placeholder}>{t('panels:diagram.references.cantDraw', 'Can’t be drawn')}</span>
         ) : null}
-        {(inDiagram !== null || shownNow) && (
-          <span className={styles.flag} data-shown={shownNow || undefined}>
-            {shownNow
-              ? t('panels:diagram.references.shownNow', 'Shown now')
-              : t('panels:diagram.references.inDiagram', 'In diagram · step {{number}}', { number: inDiagram })}
-          </span>
-        )}
       </div>
       <p className={styles.sentence}>{card.sentence}</p>
-      {card.ways !== null && (
-        <p className={styles.ways}>
-          {t('panels:diagram.references.ways', {
-            count: card.ways,
-            defaultValue_one: '{{count}} way',
-            defaultValue_other: '{{count}} ways',
-          })}
-        </p>
+      {/* Under the sentence, off the picture: on it, the flag covered a letter in the sheet's corner (17d review). */}
+      {(card.ways !== null || inDiagram !== null || shownNow) && (
+        <div className={styles.footer}>
+          {card.ways !== null && (
+            <p className={styles.ways}>
+              {t('panels:diagram.references.ways', {
+                count: card.ways,
+                defaultValue_one: '{{count}} way',
+                defaultValue_other: '{{count}} ways',
+              })}
+            </p>
+          )}
+          {(inDiagram !== null || shownNow) && (
+            <span className={styles.flag} data-shown={shownNow || undefined}>
+              {shownNow
+                ? t('panels:diagram.references.shownNow', 'Shown now')
+                : t('panels:diagram.references.inDiagram', 'In diagram · step {{number}}', { number: inDiagram })}
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

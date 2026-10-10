@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type {
   DiagramProjector,
+  DiagramRing,
   DiagramSheet,
   SheetPoint,
   SvgPoint,
@@ -16,6 +17,7 @@ import {
   arrowheadPath,
   angleMarkDrawn,
   angleMarkPathData,
+  auxMarkPen,
   cubicPathData,
   divisionsDrawn,
   divisionsPathData,
@@ -35,13 +37,18 @@ import {
   pushArrowDrawn,
   rightAngleDrawn,
   rightAnglePathData,
-  rightAnglePen,
   reversedStretches,
   ringPieces,
   rotateGlyphDrawn,
   sheetCorners,
+  starDrawn,
+  eyeDrawn,
+  eyePathData,
+  strokePieces,
   turnOverDrawn,
   whiteArrowDrawn,
+  STAR_MITER_LIMIT,
+  EYE_MITER_LIMIT,
   WHITE_ARROW_MITER_LIMIT,
 } from '../stepDiagramGeometry';
 import type {
@@ -64,6 +71,7 @@ import {
   type LabelLayoutOptions,
   type LabelPlacement,
 } from './labelLayout';
+import { haloPatternElement, sheetHalo, type SheetHaloPaint } from './sheetHalo';
 
 /**
  * One primitive as SVG, in whatever space the projector maps into.
@@ -136,7 +144,7 @@ export function isDiagramSymbol(primitive: StepDiagramPrimitive): boolean {
 export interface DiagramRenderContext {
   project: DiagramProjector;
   /** The centre of every ring in the picture, in the projector's units. */
-  marks: readonly SvgPoint[];
+  marks: readonly DiagramRing[];
   /** Where each letter goes, by its primitive's index in the list drawn. */
   labels: ReadonlyMap<number, LabelPlacement>;
   /** The paper the primitives were measured against; where erode finds its edge. */
@@ -308,6 +316,8 @@ export function canLeavePaper(primitive: StepDiagramPrimitive): boolean {
     case 'right-angle':
     case 'angle-mark':
     case 'divisions':
+    case 'star':
+    case 'eye':
     case 'point':
       return true;
     case 'line':
@@ -455,6 +465,28 @@ function onAndOffPaper(
 }
 
 /**
+ * A letter's halo in a file (rf7): the face on the sheet and the ground off
+ * it, by what the letter reaches — its box, `size` its em, and half its halo
+ * `haloWidth` round it — as a Text label's halo is decided (`sheetHalo`), so
+ * a letter pulled out of the card (17d) paints as it did in it. A letter
+ * wholly on or off the sheet takes one of the two, as it always did; one
+ * across the edge, a pattern of the sheet.
+ */
+function letterHalo(
+  box: LabelPlacement['box'],
+  size: number,
+  haloWidth: number,
+  paper: readonly SvgPoint[],
+  back: boolean,
+  ink: DiagramInlineInk
+): SheetHaloPaint {
+  const face = back ? ink.sheet.back : ink.sheet.front;
+  const half = haloWidth / 2;
+  const reach = { minX: box.x - half, minY: box.y - half, maxX: box.x + box.width + half, maxY: box.y + box.height + half };
+  return sheetHalo(paper, face, ink.label.halo, 'step-diagram-halo-')(reach, size);
+}
+
+/**
  * Whether a letter stands on the paper: its box's middle inside the paper's
  * outline. The outline is convex, so the middle is inside when it is on the
  * same side of every edge, whichever way round the projector winds it.
@@ -563,20 +595,52 @@ function diagramPrimitiveShape(
       // is laid along it, and every span of one line shares that ruler.
       const dashOffset = primitive.dashPhase ? primitive.dashPhase * project.scale : undefined;
       const stroke = strokeAttributes(primitive.style, project.ink, project.dashScale, project.pens);
-      const draw = (inks: DiagramRenderContext) => (
-        <line
-          key={index}
-          x1={from.x}
-          y1={from.y}
-          x2={to.x}
-          y2={to.y}
-          strokeDashoffset={dashOffset}
-          {...stroke}
-          {...inked(inks, `step-diagram__line step-diagram__line--${primitive.style}`, (ink) =>
-            strokeInk(ink.lines[primitive.style], stroke.strokeOpacity)
-          )}
-        />
-      );
+      // A colour of its own over its style's — a Diagram solid line's (17a),
+      // never References' own: an attribute in a file, and over the class's
+      // colour on screen, where a class would win over an attribute.
+      const own = primitive.ink;
+      const lineInk = (inks: DiagramRenderContext) => ({
+        ...inked(inks, `step-diagram__line step-diagram__line--${primitive.style}`, (ink) =>
+          strokeInk(own === undefined ? ink.lines[primitive.style] : { ...ink.lines[primitive.style], color: own }, stroke.strokeOpacity)
+        ),
+        ...(own !== undefined && !inks.inline ? { style: { stroke: own } } : {}),
+      });
+      // Behind a flap (15e), a Diagram solid line's stretches there dotted
+      // in its own pen and colour, as an arrow's are.
+      const pieces = primitive.hidden?.length ? strokePieces(0, 1, primitive.hidden) : null;
+      const length = Math.hypot(to.x - from.x, to.y - from.y);
+      const along = (share: number) => ({ x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share });
+      const draw = (inks: DiagramRenderContext) =>
+        pieces ? (
+          <g key={index}>
+            {pieces.map((piece, part) => {
+              const [a, b] = [along(piece.start), along(piece.end)];
+              return (
+                <line
+                  key={part}
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  {...stroke}
+                  {...(piece.hidden ? hiddenDots(stroke.strokeWidth, length * (piece.end - piece.start)) : {})}
+                  {...lineInk(inks)}
+                />
+              );
+            })}
+          </g>
+        ) : (
+          <line
+            key={index}
+            x1={from.x}
+            y1={from.y}
+            x2={to.x}
+            y2={to.y}
+            strokeDashoffset={dashOffset}
+            {...stroke}
+            {...lineInk(inks)}
+          />
+        );
       return canLeavePaper(primitive) ? onAndOffPaper(context, index, draw) : draw(context);
     }
     case 'arc': {
@@ -910,7 +974,7 @@ function diagramPrimitiveShape(
         <path
           key={index}
           d={d}
-          strokeWidth={rightAnglePen(project)}
+          strokeWidth={auxMarkPen(project)}
           strokeLinecap="butt"
           strokeLinejoin="miter"
           {...inked(inks, 'step-diagram__point step-diagram__right-angle', (ink) => ({
@@ -923,7 +987,7 @@ function diagramPrimitiveShape(
     case 'angle-mark': {
       // An arc across the angle and ticks across its halves (15b of the
       // second Annotate plan), in a ring's pen and ink, as a right angle is.
-      const shape = angleMarkDrawn(primitive.at, primitive.arms, primitive.ticks, project);
+      const shape = angleMarkDrawn(primitive.at, primitive.arms, primitive.ticks, project, primitive.radiusInk);
       if (!shape) return null;
       const d = angleMarkPathData(shape);
       return onAndOffPaper(context, index, (inks) => (
@@ -940,10 +1004,11 @@ function diagramPrimitiveShape(
       ));
     }
     case 'divisions': {
-      // A line set off the line it measures, in the existing creases' pen,
-      // and the dividers and ticks across it in a ring's (Revision 2, ED9),
-      // solid and cut square, in a ring's ink; the count upright beside it,
-      // set as the rotate glyph's fraction is, so a page embeds its digits.
+      // A line set off the line it measures, and the dividers and ticks
+      // across it: one path in the aux lines' pen (Revision 3), solid and cut
+      // square, in a ring's ink; the count upright beside it, set as the
+      // rotate glyph's fraction is, so a page embeds its digits, but in the
+      // regular weight (R3-3).
       const shape = divisionsDrawn(primitive.from, primitive.to, primitive, project);
       if (!shape) return null;
       const d = divisionsPathData(shape);
@@ -955,8 +1020,7 @@ function diagramPrimitiveShape(
         }));
         return (
           <g key={index}>
-            <path d={d.line} strokeWidth={round(shape.pens.line)} strokeLinecap="butt" {...ink} />
-            <path d={d.marks} strokeWidth={round(shape.pens.marks)} strokeLinecap="butt" {...ink} />
+            <path d={d} strokeWidth={round(shape.pen)} strokeLinecap="butt" {...ink} />
             {number && (
               <text
                 x={round(number.at.x)}
@@ -966,7 +1030,7 @@ function diagramPrimitiveShape(
                 {...inked(inks, 'step-diagram__arrowhead step-diagram__divisions-number', (each) => ({
                   fill: each.mark,
                   fontFamily: INLINE_LABEL_FONT,
-                  fontWeight: 700,
+                  fontWeight: 400,
                 }))}
               >
                 {number.text}
@@ -976,9 +1040,62 @@ function diagramPrimitiveShape(
         );
       });
     }
+    case 'star': {
+      // A star naming a point (Revision 3): filled with the marks' ink, no
+      // stroke; or an outline in a ring's pen, mitred at its tips, filled
+      // with the face a hollow white arrow is — on an annotation, the page's
+      // white — so the lines under it stop at its outline.
+      const star = starDrawn(primitive.at, primitive.angle, primitive.scale, project);
+      const d = polygonPathData(star.points);
+      return onAndOffPaper(context, index, (inks) =>
+        primitive.fill === 'black' ? (
+          <path
+            key={index}
+            d={d}
+            stroke="none"
+            {...inked(inks, 'step-diagram__arrowhead step-diagram__star', (ink) => ({ fill: ink.mark }))}
+          />
+        ) : (
+          <g key={index} {...inked(inks, 'step-diagram__star', () => ({}))}>
+            <path
+              d={d}
+              stroke="none"
+              {...inked(inks, back ? 'step-diagram__sheet step-diagram__sheet--back' : 'step-diagram__sheet', (sheet) => ({
+                fill: back ? sheet.sheet.back : sheet.sheet.front,
+              }))}
+            />
+            <path
+              d={d}
+              strokeWidth={round(star.pen)}
+              strokeLinejoin="miter"
+              strokeMiterlimit={STAR_MITER_LIMIT}
+              {...inked(inks, 'step-diagram__point step-diagram__star-outline', (ink) => ({ fill: 'none', stroke: ink.mark }))}
+            />
+          </g>
+        )
+      );
+    }
+    case 'eye': {
+      // An eye in profile (Revision 3, R3-7 A): its lids, cornea and iris as
+      // one path, outline only, in the ring pen (a star outline's, R3-26 as
+      // amended in 18d) and the marks' ink, its free ends cut square and its
+      // back corner mitred.
+      const eye = eyeDrawn(primitive.at, primitive.angle, primitive.scale, project);
+      return onAndOffPaper(context, index, (inks) => (
+        <path
+          key={index}
+          d={eyePathData(eye)}
+          strokeWidth={round(eye.pen)}
+          strokeLinecap="butt"
+          strokeLinejoin="miter"
+          strokeMiterlimit={EYE_MITER_LIMIT}
+          {...inked(inks, 'step-diagram__point step-diagram__eye', (ink) => ({ fill: 'none', stroke: ink.mark }))}
+        />
+      ));
+    }
     case 'point': {
       const at = project(primitive.at);
-      const radius = project.marks.ringRadius * project.ink;
+      const radius = primitive.radius === undefined ? project.marks.ringRadius * project.ink : primitive.radius * project.scale;
       const width = markRingWidth(project);
       // Behind a flap (15e): its ring in arcs, those under the flap dotted.
       const arcs = primitive.hidden?.length ? ringPieces(primitive.at, radius, primitive.hidden, project) : null;
@@ -1007,24 +1124,30 @@ function diagramPrimitiveShape(
       if (!placement) return null;
       // The halo is what the letter stands on: the paper, on the face the
       // picture shows, or the ground round it where a letter was pushed off
-      // the sheet — so it reads as a knock-out, never as a ring.
+      // the sheet — so it reads as a knock-out, never as a ring. On screen
+      // the theme says which, by the letter's middle; in a file a letter
+      // across the sheet's edge stands on both, and its halo follows the edge
+      // (rf7, {@link letterHalo}).
       const onPaper = labelOnPaper(placement.box, context.paper);
       const ground = onPaper
         ? back
           ? ' step-diagram__label--on-back'
           : ' step-diagram__label--on-paper'
         : '';
-      return (
+      const size = project.marks.labelSize * project.ink;
+      const haloWidth = DIAGRAM_LABEL_INK.halo * project.ink;
+      const halo = context.inline ? letterHalo(placement.box, size, haloWidth, context.paper, back, context.inline) : null;
+      const text = (
         <text
-          key={index}
+          key={halo?.across ? undefined : index}
           x={placement.x}
           y={placement.y}
           textAnchor={placement.anchor}
-          fontSize={project.marks.labelSize * project.ink}
-          strokeWidth={DIAGRAM_LABEL_INK.halo * project.ink}
+          fontSize={size}
+          strokeWidth={haloWidth}
           {...inked(context, `step-diagram__label step-diagram__label--${primitive.style}${ground}`, (ink) => ({
             fill: ink.label.fill[primitive.style],
-            stroke: onPaper ? (back ? ink.sheet.back : ink.sheet.front) : ink.label.halo,
+            stroke: halo?.across ? `url(#${halo.across.id})` : halo?.color,
             strokeLinejoin: 'round',
             paintOrder: 'stroke',
             fontFamily: INLINE_LABEL_FONT,
@@ -1033,6 +1156,13 @@ function diagramPrimitiveShape(
         >
           {primitive.text}
         </text>
+      );
+      if (!halo?.across) return text;
+      return (
+        <g key={index}>
+          {haloPatternElement(halo.across, halo.color)}
+          {text}
+        </g>
       );
     }
   }

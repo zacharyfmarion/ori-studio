@@ -119,6 +119,7 @@ function withSurfaceFraming(
     backgroundAlpha: surface.transparentBackground ? 0 : (settings.backgroundAlpha ?? 1),
     creaseWidthReferenceEdge: surface.creaseWidthReferenceEdge,
     creaseWidthShrinkExponent: surface.creaseWidthShrinkExponent,
+    creaseWidthGrows: surface.creaseWidthGrows,
   };
 }
 
@@ -272,6 +273,8 @@ export interface SimulatorViewportProps {
   creaseWidthReferenceEdge?: number;
   /** Companion to the reference edge; see `RenderSettings.creaseWidthShrinkExponent`. */
   creaseWidthShrinkExponent?: number;
+  /** Grow above the reference edge as well: a live view standing in for a picture. See `RenderSettings.creaseWidthGrows`. */
+  creaseWidthGrows?: boolean;
   viewSettings: SimulatorViewSettings;
   /**
    * How the paper is drawn — colours, pens, light. The app's display style for
@@ -359,6 +362,7 @@ export function SimulatorViewport({
   transparentBackground = false,
   creaseWidthReferenceEdge,
   creaseWidthShrinkExponent,
+  creaseWidthGrows,
   viewSettings,
   paperStyle,
   viewCube = false,
@@ -413,6 +417,7 @@ export function SimulatorViewport({
     transparentBackground,
     creaseWidthReferenceEdge,
     creaseWidthShrinkExponent,
+    creaseWidthGrows,
   });
   // Resolved colours, held rather than recomputed per frame: reading them means a
   // getComputedStyle, and they only change when settings or the theme do. Both
@@ -675,6 +680,7 @@ export function SimulatorViewport({
       transparentBackground,
       creaseWidthReferenceEdge,
       creaseWidthShrinkExponent,
+      creaseWidthGrows,
     };
     refreshPaint();
   }, [
@@ -685,6 +691,7 @@ export function SimulatorViewport({
     transparentBackground,
     creaseWidthReferenceEdge,
     creaseWidthShrinkExponent,
+    creaseWidthGrows,
   ]);
 
   useEffect(() => {

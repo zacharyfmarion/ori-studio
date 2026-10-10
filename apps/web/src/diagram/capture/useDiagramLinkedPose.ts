@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { registerCanvasSessionEnder } from '../../cp-workspace/canvasObjects/canvasSessions';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import { onEngineLost } from '../../engines/engineHost';
+import { announceUprightSet } from '../../lib/uprightFeedback';
+import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
   buildDiagramLinkedPoseActions,
@@ -59,6 +61,11 @@ export interface DiagramLinkedPose {
   spatial: DiagramPoseSpatialView | null;
   /** The 3D view moved: captured once it rests. */
   onCamera: (camera: FoldedFigureCamera) => void;
+  /**
+   * A live view — the 3D one, or the simulator — showing the step, for Set
+   * Upright: registered while its viewport is up, and the unregister.
+   */
+  registerLiveView: (view: SimulatorViewHandle) => () => void;
   /** Turn a crease pattern or a flat fold to an angle, in degrees clockwise (D5). */
   rotateTo: (degrees: number) => void;
   /**
@@ -153,6 +160,13 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
     [controller, storedCamera]
   );
 
+  // The live view Set Upright turns, while one shows: the latest registered, until it goes.
+  const [liveView, setLiveView] = useState<SimulatorViewHandle | null>(null);
+  const registerLiveView = useCallback((handle: SimulatorViewHandle) => {
+    setLiveView(handle);
+    return () => setLiveView((was) => (was === handle ? null : was));
+  }, []);
+
   const render = source?.render ?? null;
   const solutions = found !== null && found.key === foldKey ? found.value : null;
   // Whether it is symmetric: its side or layer order never changes that, only other creases.
@@ -161,15 +175,25 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   const seeThrough = render?.mode === 'folded-flat' && step?.picture?.kind === 'fixed';
   const poseState = useMemo(
     (): DiagramLinkedPoseState | null =>
-      render ? { render, readOnly, busy, solutions, seeThrough, mirrorAxes } : null,
-    [render, readOnly, busy, solutions, seeThrough, mirrorAxes]
+      render ? { render, readOnly, busy, solutions, seeThrough, mirrorAxes, liveView: liveView !== null } : null,
+    [render, readOnly, busy, solutions, seeThrough, mirrorAxes, liveView]
   );
   const actions = useMemo(
     () =>
       poseState && controller
-        ? buildDiagramLinkedPoseActions(poseState, { t, pose: (verb) => void controller.run({ verb }) })
+        ? buildDiagramLinkedPoseActions(poseState, {
+            t,
+            pose: (verb) => void controller.run({ verb }),
+            // The picture does not move: the view's next rest captures the camera with its new up, as a drag's does.
+            setUpright: liveView
+              ? () => {
+                  liveView.setUpright();
+                  announceUprightSet(t);
+                }
+              : undefined,
+          })
         : [],
-    [poseState, t, controller]
+    [poseState, t, controller, liveView]
   );
 
   // A drag of a spread's slider, previewed: shown only while the step links to the creases it was drawn from.
@@ -260,9 +284,36 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   const pose = useMemo(
     () =>
       source
-        ? { actions, layerOrder, spatial: view, onCamera, rotateTo, showAs, setSide, simulate, wantsRest, spread, preview }
+        ? {
+            actions,
+            layerOrder,
+            spatial: view,
+            onCamera,
+            registerLiveView,
+            rotateTo,
+            showAs,
+            setSide,
+            simulate,
+            wantsRest,
+            spread,
+            preview,
+          }
         : null,
-    [source, actions, layerOrder, view, onCamera, rotateTo, showAs, setSide, simulate, wantsRest, spread, preview]
+    [
+      source,
+      actions,
+      layerOrder,
+      view,
+      onCamera,
+      registerLiveView,
+      rotateTo,
+      showAs,
+      setSide,
+      simulate,
+      wantsRest,
+      spread,
+      preview,
+    ]
   );
   // The Step pane offers these verbs too, through this one controller.
   useEffect(() => publishOpenLinkedPose(stepId, pose), [stepId, pose]);

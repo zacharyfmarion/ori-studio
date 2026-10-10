@@ -225,6 +225,13 @@ function finiteNumber(value: unknown): number | null {
 }
 
 /**
+ * The fields a stored viewpoint is written with. One with another is a newer
+ * build's, which a Diagram step carries whole rather than drop on save
+ * (`diagramFile.ts`); {@link readFoldedFigureCamera} reads these alone.
+ */
+export const FOLDED_FIGURE_CAMERA_KEYS: ReadonlySet<string> = new Set(['yaw', 'pitch', 'zoom', 'orient']);
+
+/**
  * A stored 3D viewpoint, read leniently: `null` for anything that is not one.
  * Shared by every file that keeps a camera — a folded figure in the `.osf`, a
  * Diagram step's 3D pose — so they agree on what a valid one is.

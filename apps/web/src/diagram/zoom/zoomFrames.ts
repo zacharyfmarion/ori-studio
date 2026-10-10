@@ -6,22 +6,26 @@
  * An enlarged step's marks are in its window's units — the window is its
  * frame's upright box, its longer side one unit, as a picture's frame is — so
  * whatever moves the window moves them with it, and they stay on the same
- * paper. A frame belongs to its step: nothing another step does changes it,
- * and only Enlarged turned on and Update Enlarged Steps take one from
- * another step (`zoomCapture.ts`).
+ * paper: every mark, drawn on this picture or an older one (review fix 5), so
+ * Enlarged turned off puts them where the window showed them. A frame belongs
+ * to its step: nothing another step does changes it, and only Enlarged turned
+ * on, Update and Update All take one from another step (`zoomCapture.ts`).
+ * Each capture records the area as it was then (review fix 4), which says the
+ * step is out of date once the area is edited by hand (`areaStatus.ts`).
  *
  * | What changed | Frame | Marks |
  * | --- | --- | --- |
- * | Enlarged turned on; Update | captured and landed ({@link enlargeStep}, {@link updateEnlargedSteps}) | whole picture or old window → new window; from the whole picture, lines trimmed at the frame ({@link trimmedAtFrame}) |
- * | A step made after an enlarged one | captured at creation ({@link seedNewSteps}) | none yet |
- * | A seeded step's first picture; a refresh or relink | landed from its imprint ({@link relandFrame}) | unchanged |
+ * | Enlarged turned on; Update, Update All | captured and landed ({@link enlargeStep}, {@link updateEnlargedSteps}) | whole picture or old window → new window; from the whole picture, lines trimmed at the frame ({@link trimmedAtFrame}) |
+ * | A step made empty after an enlarged one (Add Step, Insert Step After), but for an enlarged upload or References step | captured at creation ({@link seedNewSteps}) | none yet |
+ * | A seeded step's first picture, linked as its run shows its pattern; a first link of a step that starts a run; a refresh or relink | landed from its imprint ({@link relandFrame}, {@link landSeededFrame}) | unchanged |
+ * | An empty step's first link of another type than the run it continues; an upload or a References card filling an empty step (review fix 3) | dropped ({@link startsWhole}) | window → whole picture, out of step or not: most often another picture, where they mark nothing (review fix 5) |
  * | A folded step shown as its crease pattern, and back | on the paper its window showed, imprinted there ({@link landedOnSheet}); back, anchored again ({@link anchoredOffSheet}) | unchanged |
- * | Enlarged turned off | dropped ({@link unenlargeStep}) | window → whole picture |
+ * | Enlarged turned off | dropped ({@link unenlargeStep}) | window → whole picture, out of step or not (review fix 5) |
  * | Moved, resized or reshaped by hand | as set, its imprint made again ({@link setFrameOutline}) | by the window's move |
  * | Its anchor picked or reset | unchanged, its imprint made again ({@link setFrameAnchor}) | unchanged |
  * | The step re-posed | landed on the re-posed picture ({@link reposeFrame}) | the pose's move, window to window |
  * | Its picture given its faces, as it was (another step's capture) | unchanged, its imprint made again ({@link anchorInPlace}) | unchanged |
- * | The area or its step edited, moved or deleted | unchanged | unchanged |
+ * | The area or its step edited, moved or deleted | unchanged, and out of date while the area was edited by hand (`areaStatus.ts`) | unchanged |
  *
  * Every edit of a step's own picture — a re-pose, a refresh, a relink —
  * reaches the frame through one path, `withCarriedAnnotations`, which hands an
@@ -30,21 +34,28 @@
  * Pure: no store.
  */
 import {
+  ARROW_BEND,
   LINE_KINDS,
   PICTURE_REACH,
   ZOOM_RADIUS,
   ZOOM_SIDE,
+  arrowApex,
   carryAnnotation,
+  isArrowKind,
   withAnnotationReach,
   type AnnotationReach,
   type PictureMove,
   type PicturePoint,
 } from '../annotate/annotationModel';
+import { isCardMark } from '../document/cardMarks';
 import {
   isKnownAnnotation,
   isLockedStep,
   isTurn,
+  showAsOf,
+  stepById,
   stepIndex,
+  type DiagramAnnotation,
   type DiagramAsset,
   type DiagramDocument,
   type DiagramStep,
@@ -55,6 +66,7 @@ import {
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { stepPictureFrame } from '../pictures/pictureFrame';
+import { withOwnPrint } from './areaRecord';
 import {
   anchorOf,
   areaSource,
@@ -62,16 +74,18 @@ import {
   heldFrame,
   imprintOn,
   placeOn,
+  runShowAs,
+  runSource,
   seedSource,
   stepsFrom,
   type ZoomCaptured,
   type ZoomImprint,
-  type ZoomSource,
 } from './zoomCapture';
 import { faceAt, imprintFrame, offSpread, ontoSpread, paperFacesOf, toPicture, toScene, topUnspread } from './zoomImprint';
 import {
   ZOOM_LINE_OVERSHOOT,
   ZOOM_SCALE,
+  distanceOutside,
   frameWindow,
   outlineAsShape,
   stepReach,
@@ -132,7 +146,8 @@ function outlineBetween(outline: DiagramZoomOutline, centre: PicturePoint, by: n
 /**
  * Marks moved from one set of units to another — a window, or the whole
  * picture — on one picture, or through `move` from one picture to the next: a
- * scale and a shift, with the move's turn and mirror between.
+ * scale and a shift, with the move's turn and mirror between, and the side it
+ * shows the paper from.
  */
 export function unitsMove(from: PictureBox, to: PictureBox, move?: PictureMove): PictureMove {
   const [fromUnit, toUnit] = [unitOf(from), unitOf(to)];
@@ -142,6 +157,8 @@ export function unitsMove(from: PictureBox, to: PictureBox, move?: PictureMove):
     mirrors: move?.mirrors ?? false,
     turnDeg: move?.turnDeg ?? 0,
     ...(move?.quarterTurns !== undefined ? { quarterTurns: move.quarterTurns } : {}),
+    // Onto the paper's other side, a turn-over's folds are named from there wherever the marks are kept.
+    ...(move?.otherSide ? { otherSide: true as const } : {}),
     ...(move?.vector
       ? {
           vector: ([x, y]: PicturePoint): PicturePoint => {
@@ -165,14 +182,28 @@ export function unitsMove(from: PictureBox, to: PictureBox, move?: PictureMove):
  * A step's marks carried by `move`, when they are in step with the picture
  * they were drawn on — `was`, the step before the move — and all read; then
  * in step with the step's picture now. Ones drawn on another picture stay as
- * they were. A step with a mark this build cannot read keeps them all, out of
- * step: the move would leave that one behind. Each mark is kept within
+ * they were, but for a change of units (`unitsOnly`, below). A step with a
+ * mark this build cannot read keeps the author's all, out of step: the move
+ * would leave that one behind. The marks its References card brought (17d,
+ * `isCardMark`) are never out of step, and go with every move whatever the
+ * author's do. Each mark is kept within
  * `reach`, the reach of the units it goes to: an enlarged step's window's
- * reaches as far as its whole picture's, so a mark across the model from a
- * small frame goes there and back exactly. One the move cannot take where it
- * goes even so — which `back`, the move undone, shows — keeps them all where
- * they were, out of step, rather than be held at reach's edge. Carried, each
+ * reaches as far as its whole picture's, and a size held to the picture's
+ * frame as many windows (`unitsPerFrame`), so a mark across the model from a
+ * small frame, or larger than it, goes there and back exactly. Carried, each
  * is then `finished`, where it went.
+ *
+ * `unitsOnly`: the move changes only the units the marks are in on the
+ * picture the step shows — a window placed on it, moved or dropped — so the
+ * author's go whether or not they are in step with that picture, each staying
+ * where it shows on it, and the step stays in or out of step as it was
+ * (review fix 5). Kept in the window's numbers, marks drawn on an older
+ * picture spread over the whole model when Enlarged was turned off. One
+ * caller is most often a change of picture instead: {@link startsWhole}, a
+ * window dropped as a step that had no picture takes one, which is seldom
+ * the one it was enlarged on. Marks from another picture mark nothing there
+ * either way; they are carried to the whole picture, as item 3 accepted, and
+ * stay out of step with it.
  */
 function carryMarks(
   step: DiagramStep,
@@ -180,27 +211,31 @@ function carryMarks(
   {
     was = step,
     reach = PICTURE_REACH,
-    back,
     finish,
+    unitsOnly = false,
   }: {
     was?: DiagramStep;
     reach?: AnnotationReach;
-    back?: { move: PictureMove; reach: AnnotationReach };
     finish?: (mark: KnownDiagramAnnotation) => KnownDiagramAnnotation;
+    unitsOnly?: boolean;
   } = {}
 ): DiagramStep {
   if (!move || step.annotations.length === 0) return step;
-  if (!step.annotations.every(isKnownAnnotation)) return { ...step, annotatedPictureKey: null };
-  if (!was.picture || was.annotatedPictureKey !== was.picture.key) return step;
-  const marks = step.annotations as KnownDiagramAnnotation[];
+  const readable = step.annotations.every(isKnownAnnotation);
+  const inStep = was.picture !== null && was.annotatedPictureKey === was.picture.key;
+  const authorsGo = readable && (unitsOnly || inStep);
+  const goes = (mark: DiagramAnnotation): mark is KnownDiagramAnnotation =>
+    isKnownAnnotation(mark) && (authorsGo || isCardMark(was, mark));
+  const marks = step.annotations.filter(goes);
+  if (marks.length === 0) return readable ? step : { ...step, annotatedPictureKey: null };
   const carried = withAnnotationReach(reach, () => marks.map((mark) => carryAnnotation(mark, move)));
-  const lost =
-    back !== undefined &&
-    withAnnotationReach(back.reach, () =>
-      carried.some((mark, index) => !sameMark(carryAnnotation(mark, back.move), marks[index]!))
-    );
-  if (lost) return { ...step, annotatedPictureKey: null };
-  return { ...step, annotations: finish ? carried.map(finish) : carried, annotatedPictureKey: step.picture?.key ?? null };
+  const went = new Map(carried.map((mark, index) => [marks[index]!.id, finish ? finish(mark) : mark]));
+  return {
+    ...step,
+    annotations: step.annotations.map((mark) => went.get(mark.id) ?? mark),
+    // In step now if the author's went with the picture; else as they were — or, beside a mark this build cannot read, out of step whatever.
+    annotatedPictureKey: authorsGo && !unitsOnly ? (step.picture?.key ?? null) : readable ? step.annotatedPictureKey : null,
+  };
 }
 
 /**
@@ -227,18 +262,52 @@ export function trimmedAtFrame(mark: KnownDiagramAnnotation, frame: DiagramZoomO
   return { ...mark, from: start === 0 ? from : at(start), to: end === 1 ? to : at(end) };
 }
 
-/** Whether two marks are one, but for float noise in their numbers. */
-function sameMark(a: unknown, b: unknown): boolean {
-  if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
-  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((value, index) => sameMark(value, b[index]));
-  if (a && b && typeof a === 'object' && typeof b === 'object') {
-    const [ka, kb] = [Object.keys(a), Object.keys(b)];
-    return (
-      ka.length === kb.length &&
-      ka.every((key) => sameMark((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]))
-    );
+/**
+ * Marks laid out on a step's whole picture — a References card's, lifted
+ * (17d) — in the units the step keeps its marks in: into its window when it
+ * is enlarged, by the window's move, its lines trimmed at the frame as a
+ * step's are when it is enlarged ({@link trimmedAtFrame}), each kept within
+ * its reach, and only those that lie in the frame ({@link liesInFrame}); as
+ * they are on a step that shows its whole picture.
+ */
+export function marksIntoUnits(
+  step: DiagramStep,
+  marks: readonly KnownDiagramAnnotation[],
+  assets: Assets
+): KnownDiagramAnnotation[] {
+  const window = stepWindow(step);
+  const whole = wholeBox(step, assets);
+  if (!window || !whole || !step.zoom?.frame) return [...marks];
+  const move = unitsMove(whole, window);
+  const frame = outlineIntoBox(window, step.zoom.frame);
+  return withAnnotationReach(stepReach(step), () =>
+    marks.map((mark) => trimmedAtFrame(carryAnnotation(mark, move), frame)).filter((mark) => liesInFrame(mark, frame))
+  );
+}
+
+/**
+ * Whether a mark lifted from a References card onto an enlarged step lies in
+ * its frame — `frame` and the mark in the window's units — so the step draws
+ * no more of the card than its picture in the window did, which the frame
+ * cuts (17d review: a fold-and-unfold arrow kept whole swept across the
+ * neighbouring steps and off the page). A line that meets the frame, cut at
+ * it already ({@link trimmedAtFrame}); any other mark when every point it is
+ * drawn through — an arrow's ends and the top of its arc, a ring's centre,
+ * the point a letter hangs from — is inside it, or no further past its rim
+ * than a cut line runs. One the frame cuts is not drawn at all: a mark cannot
+ * be cut as a picture is, and half an arrow says nothing.
+ */
+function liesInFrame(mark: KnownDiagramAnnotation, frame: DiagramZoomOutline): boolean {
+  const near = (point: PicturePoint) => distanceOutside(frame, point) <= ZOOM_LINE_OVERSHOOT;
+  if (LINE_KINDS.has(mark.kind)) {
+    const length = Math.hypot(mark.to[0] - mark.from[0], mark.to[1] - mark.from[1]);
+    return length > 0 ? stretchInside(frame, mark.from, mark.to) !== null : near(mark.from);
   }
-  return a === b;
+  const points: PicturePoint[] = [mark.from, mark.to];
+  if (mark.other) points.push(mark.other);
+  for (const node of [...(mark.path ?? []), ...(mark.back ?? [])]) points.push(node.at);
+  if (isArrowKind(mark.kind) && !mark.path) points.push(arrowApex(mark.from, mark.to, mark.bend ?? ARROW_BEND));
+  return points.every(near);
 }
 
 /** A set of units a step's marks are in — its window, or its whole picture — and how far they may reach there. */
@@ -256,8 +325,12 @@ function marksUnits(step: DiagramStep, assets: Assets): MarkUnits | null {
 }
 
 /**
- * A step's marks moved from one set of units to another, when both are known,
- * and each can go there and back; each then `finished` where it went.
+ * A step's marks moved from one set of units to another on the picture it
+ * shows, when both are known: every mark, in step with the picture or not
+ * ({@link carryMarks}' `unitsOnly`), so each stays where it shows; each then
+ * `finished` where it went. Never refused: the units change whatever the
+ * marks do, and a mark left in the old ones would be read in the new. For
+ * {@link startsWhole} the window was most often on another picture.
  */
 function carryBetween(
   step: DiagramStep,
@@ -268,7 +341,7 @@ function carryBetween(
   if (!from || !to) return step;
   return carryMarks(step, unitsMove(from.box, to.box), {
     reach: to.reach,
-    back: { move: unitsMove(to.box, from.box), reach: from.reach },
+    unitsOnly: true,
     ...(finish ? { finish } : {}),
   });
 }
@@ -340,25 +413,34 @@ export function unenlargeStep(document: DiagramDocument, stepId: string, assets:
 }
 
 /**
- * Update Enlarged Steps (Z7): every step with this area's provenance,
- * wherever it sits now — before the area's step too, or after another area —
- * captured again from the area itself, as it is now, over any hand move, as
- * one edit; so each keeps its provenance. Nothing when the area is gone. The
- * captures, in order, and the steps they placed, for what counts them.
+ * Steps enlarged from an area placed again (Z7; review fix 4: Update on one
+ * step, Update All on the area's step): each step with this area's
+ * provenance — those of `only`, when it is given — wherever it sits now,
+ * before the area's step too, or after another area, captured again from the
+ * area itself, as it is now, over any hand move, as one edit; so each keeps
+ * its provenance, and records the area as it is now. A Size or Edge set on
+ * the step is kept, one it took from the area follows it (`withOwnPrint`).
+ * Nothing when the area is gone. The captures, in order, and the steps they placed, for what counts
+ * them.
  */
 export function updateEnlargedSteps(
   document: DiagramDocument,
   areaId: string,
-  assets: Assets
+  assets: Assets,
+  only?: readonly string[]
 ): { document: DiagramDocument; captured: ZoomCaptured[]; stepIds: string[] } {
   const source = areaSource(document, areaId);
   if (!source) return { document, captured: [], stepIds: [] };
   let next = document;
   const captured: ZoomCaptured[] = [];
   const stepIds: string[] = [];
-  for (const stepId of stepsFrom(document, areaId)) {
-    // Only the steps it enlarged change, so the area's step, and the area, stay as they were.
-    const step = enlargeWith(next, stepId, capture(next, stepId, source), assets);
+  const targets = stepsFrom(document, areaId).filter((stepId) => !only || only.includes(stepId));
+  for (const stepId of targets) {
+    // Only the steps it enlarged change, so the area's step, and the area, stay as they were. A Size or
+    // Edge set on the step is its own, kept (review of review fix 4).
+    const taken = capture(next, stepId, source);
+    const was = stepById(next, stepId)?.zoom;
+    const step = enlargeWith(next, stepId, taken && { ...taken, zoom: withOwnPrint(was, taken.zoom) }, assets);
     next = step.document;
     if (step.captured) {
       captured.push(step.captured);
@@ -669,52 +751,38 @@ export function setFrameEdge(document: DiagramDocument, stepId: string, edge: Di
   });
 }
 
-/** A step a new step's seed enlarged, and its capture: how its frame was placed, or null until its first picture. */
+/** A step a new step's seed enlarged, and its capture: for an empty step, placed nowhere until its first picture. */
 export interface SeededStep {
   stepId: string;
   captured: ZoomCaptured;
 }
 
 /**
- * Steps just made — Add Step, Insert Step After, an upload of one picture or
- * several, cards pulled from References — each starting enlarged when the step
- * before it, turns passed, is (Z2, "yeah sounds right"): captured at creation
- * from that step's frame. The one way every new step is seeded. In the
- * diagram's order, so a run of new steps after an enlarged one is enlarged
- * through, every step of the run from the run's source — the step its first
- * is captured from — so each keeps the source's imprint: one captured from
- * the step before it, an upload with no faces, would have only its frame
- * (16h). A step `filled` in the same edit starts the run as it was before its
- * picture, its frame and imprint as it was seeded with them. A step made with
- * its picture has its frame landed at once; an empty one keeps its imprint for
- * its first picture ({@link landSeededFrame}). A step enlarged already — a
- * duplicate keeps its original's frame — is left as it is, as is one after a
- * step that is not enlarged. The diagram, and the steps seeded with their
- * captures, for what counts them.
+ * A step just made empty — Add Step and Insert Step After make one at a time
+ * — starting enlarged when the step before it, turns passed, is (Z2, "yeah
+ * sounds right"): captured at creation from that step's frame, its imprint
+ * kept for its first picture ({@link landSeededFrame}), which keeps the frame
+ * only if it shows the run's picture type. Not after an enlarged upload or
+ * References step: no first picture continues their run, so the step starts
+ * whole. Uploads and References cards are never seeded either (review fix 3,
+ * amending Z2 and 16g). A step enlarged already — a duplicate keeps its
+ * original's frame — is left as it is, as is one after a step that is not
+ * enlarged. The diagram, and the steps seeded with their captures.
  */
 export function seedNewSteps(
   document: DiagramDocument,
   stepIds: readonly string[],
-  assets: Assets,
-  filled?: DiagramStep
+  assets: Assets
 ): { document: DiagramDocument; seeded: SeededStep[] } {
   const made = new Set(stepIds);
   let next = document;
   const seeded: SeededStep[] = [];
-  let run: ZoomSource | null = null;
   for (const entry of document.steps) {
-    if (isTurn(entry)) continue;
-    if (!made.has(entry.id) || entry.zoom) {
-      run = entry.id === filled?.id && filled.zoom ? { step: filled, zoom: filled.zoom } : null;
-      continue;
-    }
-    const source: ZoomSource | null = run ?? seedSource(next, entry.id);
+    if (isTurn(entry) || !made.has(entry.id) || entry.zoom) continue;
+    if (runSource(next, entry.id) && runShowAs(next, entry.id) === null) continue;
+    const source = seedSource(next, entry.id);
     const result = enlargeWith(next, entry.id, source && capture(next, entry.id, source), assets);
-    if (!result.captured || result.document === next) {
-      run = null;
-      continue;
-    }
-    run = source;
+    if (!result.captured || result.document === next) continue;
     next = result.document;
     seeded.push({ stepId: entry.id, captured: result.captured });
   }
@@ -753,16 +821,56 @@ export interface LandedFirstFrame {
 }
 
 /**
- * A step given its first picture — `after` the diagram with it, `before`
- * without — landing the frame it was seeded with ({@link landFirstFrame}):
- * the diagram, and how the frame was placed; `after` as it is, and null, for
- * a step that had a picture already or is not enlarged.
+ * A step given its first picture by a capture — `after` the diagram with it,
+ * `before` without — keeping the frame it was enlarged with unless its first
+ * link continues a run another way ({@link keepsRunFrame}; review fix 3,
+ * amending Z2). Kept, the frame lands ({@link landFirstFrame}): the diagram,
+ * and how it was placed. Otherwise the step starts whole ({@link startsWhole})
+ * in the same edit, and nothing is placed. `after` as it is, and null, for a
+ * step that had a picture already — Show as keeps a step enlarged — or is not
+ * enlarged.
  */
 export function landSeededFrame(before: DiagramDocument, after: DiagramDocument, stepId: string): LandedFirstFrame {
   const was = before.steps[stepIndex(before, stepId)];
   if (!was || isTurn(was) || was.picture) return { document: after, placed: null };
+  if (was.zoom && !keepsRunFrame(before, after, was)) {
+    return { document: withStep(after, stepId, (step) => startsWhole(was, step, after.assets)), placed: null };
+  }
   const landed = landFirstFrame(after, stepId);
   return landed ? { ...landed, ...(was.zoom ? { enlargedWith: was.zoom } : {}) } : { document: after, placed: null };
+}
+
+/**
+ * Whether an enlarged step with no picture, `was` in `before`, keeps its
+ * frame with its first picture in `after` (review fix 3). A first link that
+ * continues a run ({@link runSource}) keeps it only shown the way the run
+ * shows its pattern ({@link runShowAs}): Crease Pattern, Folded or Simulated.
+ * A step that starts a run — enlarged from an area, directly or past empty
+ * steps, so the run shows no picture yet — keeps it however it is linked, as
+ * does a step linked already: a file's linked step with no picture yet, given
+ * one by a Refresh or Pose.
+ */
+function keepsRunFrame(before: DiagramDocument, after: DiagramDocument, was: DiagramStep): boolean {
+  if (was.source?.kind === 'cp' || !runSource(before, was.id)) return true;
+  const source = stepById(after, was.id)?.source;
+  return source?.kind === 'cp' && showAsOf(source.render) === runShowAs(before, was.id);
+}
+
+/**
+ * A step that had no picture, `was`, given its first, `next`, starting whole
+ * (review fix 3, amending Z2): the frame it was enlarged with before it had a
+ * picture — seeded after an enlarged step, most often — dropped, and marks it
+ * kept in that window from a picture since removed carried to the whole
+ * picture, as Enlarged turned off carries them, in or out of step as they
+ * were. Most often a change of picture, where they mark nothing either way
+ * and stay out of step: item 3's accepted carry, which review fix 5 gave
+ * every mark, not only those in step with the new picture. What an upload or a
+ * References card filling an empty step does, and a first link of another
+ * picture type than the run it continues ({@link landSeededFrame}). `next`
+ * as it is for a step that had a picture, or has no frame.
+ */
+export function startsWhole(was: DiagramStep, next: DiagramStep, assets: Assets): DiagramStep {
+  return was.picture || !next.zoom ? next : withZoom(next, undefined, assets);
 }
 
 /** A step's frame, in its picture units; null for a step that is not enlarged or shows no window. */

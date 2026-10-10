@@ -229,6 +229,243 @@ describe('a circle', () => {
   });
 });
 
+describe('a star (Revision 3)', () => {
+  const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
+  const box = { x: 0, y: 0, width: 400, height: 300 };
+  const filled = a('s', 'star', { from: [0.5, 0.5], to: [0.5, 0.5], fill: 'black' });
+  const outline = a('s', 'star', { from: [0.5, 0.5], to: [0.5, 0.5] });
+  const arrow = a('v', 'valley-arrow', { from: [0.1, 0.2], to: [0.4, 0.2], bend: ARROW_BEND });
+  const corners = (d: string) => [...d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map(([, x, y]) => [Number(x), Number(y)] as const);
+
+  it('compiles to a star on its point, filled as a white arrow is — unsaid, an outline — at its turn and its scale', () => {
+    const drawing = annotationDrawing(
+      [filled, outline, a('t', 'star', { from: [0.2, 0.4], to: [0.2, 0.4], angle: 30, scale: 2 })],
+      FRAME,
+      CARD_FRAME_PX,
+      DEFAULT_DIAGRAM_STYLE
+    );
+    // y up, as References' unit frame is.
+    expect(drawing.primitives).toEqual([
+      { kind: 'star', at: [0.5, -0.5], fill: 'black', angle: 0, scale: 1 },
+      { kind: 'star', at: [0.5, -0.5], fill: 'white', angle: 0, scale: 1 },
+      { kind: 'star', at: [0.2, -0.4], fill: 'white', angle: 30, scale: 2 },
+    ]);
+  });
+
+  it('is filled with the marks’ ink and not stroked, its first tip straight up, 4.5 ink out', () => {
+    const { markup } = paintAnnotations([filled, arrow], box, 400, DEFAULT_DIAGRAM_STYLE)!;
+    const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
+    const star = /<path d="(M [^"]*Z)" stroke="none" fill="([^"]+)"/.exec(markup)!;
+    expect(star).not.toBeNull();
+    expect(star[2]).toBe(head);
+    const points = corners(star[1]!);
+    expect(points).toHaveLength(10);
+    expect(points[0]![0]).toBeCloseTo(200, 2);
+    expect(points[0]![1]).toBeCloseTo(200 - 4.5 * ink, 2);
+  });
+
+  it('is outlined in a ring’s pen and the marks’ ink, mitred, over the page’s white', () => {
+    const { markup } = paintAnnotations([outline, arrow], box, 400, DEFAULT_DIAGRAM_STYLE)!;
+    const white = /<path d="(M [^"]*Z)" stroke="none" fill="#ffffff"/.exec(markup);
+    expect(white).not.toBeNull();
+    const stroke = /<path d="M [^"]*Z" stroke-width="([\d.]+)" stroke-linejoin="miter" stroke-miterlimit="4" fill="none" stroke="([^"]+)"/.exec(
+      markup
+    );
+    expect(stroke).not.toBeNull();
+    const [, shaft] = /<path d="M [^"]*A [^"]*" stroke-width="([\d.]+)"/.exec(markup)!;
+    const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
+    // A ring's pen (R3-26 A): three quarters of the arrow's, 0.5625 pt in the Diagram preset.
+    expect(Number(stroke![1])).toBeCloseTo(0.75 * Number(shaft), 3);
+    expect(Number(stroke![1])).toBeCloseTo(0.5625 * PT_TO_CSS_PX, 3);
+    expect(stroke![2]).toBe(head);
+  });
+
+  it('reaches past the frame as far as its tips: a filled one’s own, an outline’s mitre, turned and scaled', () => {
+    // Off the frame's top edge, one tip up.
+    const up = (more: Partial<KnownDiagramAnnotation>) => a('s', 'star', { from: [0.5, -0.1], to: [0.5, -0.1], ...more });
+    const top = (more: Partial<KnownDiagramAnnotation>) => paintAnnotations([up(more)], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.y;
+    expect(top({ fill: 'black' })).toBeCloseTo(-40 - 4.5 * ink, 3);
+    expect(top({ fill: 'black', scale: 2 })).toBeCloseTo(-40 - 9 * ink, 3);
+    // Turned a tenth of a turn: an inner corner straight up, the tips beside it lower.
+    expect(top({ fill: 'black', angle: 36 })).toBeCloseTo(-40 - 4.5 * ink * Math.cos(Math.PI / 5), 3);
+    // An outline's tip mitred half its pen over sin 18° past the corner.
+    const pen = 0.5625 * PT_TO_CSS_PX;
+    expect(top({})).toBeCloseTo(-40 - 4.5 * ink - pen / 2 / Math.sin(Math.PI / 10), 3);
+  });
+});
+
+describe('an eye (Revision 3)', () => {
+  const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
+  const box = { x: 0, y: 0, width: 400, height: 300 };
+  const arrow = a('v', 'valley-arrow', { from: [0.1, 0.2], to: [0.4, 0.2], bend: ARROW_BEND });
+  const eye = (more: Partial<KnownDiagramAnnotation> = {}) => a('e', 'eye', { from: [0.5, 0.5], to: [0.5, 0.5], ...more });
+  const eyePath = /<path d="(M [^"]* A [^"]*)" stroke-width="([\d.]+)" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" fill="none" stroke="([^"]+)"/;
+
+  it('compiles to an eye on its point, looking its way and at its scale, y up', () => {
+    const drawing = annotationDrawing([eye(), eye({ from: [0.2, 0.4], to: [0.2, 0.4], angle: 217, scale: 2 })], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
+    expect(drawing.primitives).toEqual([
+      { kind: 'eye', at: [0.5, -0.5], angle: 0, scale: 1 },
+      { kind: 'eye', at: [0.2, -0.4], angle: 217, scale: 2 },
+    ]);
+  });
+
+  it('is one outline in a ring’s pen and the arrows’ ink, in either preset, its back corner mitred, its ends cut square, nothing filled', () => {
+    // A ring's pen, as an outlined star's: ¾ of the arrows' (R3-26 A, amended for the eye after 18c).
+    for (const [style, ringPt] of [
+      [DEFAULT_DIAGRAM_STYLE, 0.5625],
+      [{ preset: 'default' } as const, 0.7875],
+    ] as const) {
+      const { markup } = paintAnnotations([eye(), arrow], box, 400, style)!;
+      const mark = eyePath.exec(markup);
+      expect(mark, String(ringPt)).not.toBeNull();
+      expect(Number(mark![2])).toBeCloseTo(ringPt * PT_TO_CSS_PX, 3);
+      const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
+      expect(mark![3]).toBe(head);
+      // Its lids from the front, to the back corner 7.5 ink behind its point (200, 200), looking right, and on to the other front.
+      const [x0, y0, x1, y1, x2, y2] = /^M (-?[\d.]+) (-?[\d.]+) L (-?[\d.]+) (-?[\d.]+) L (-?[\d.]+) (-?[\d.]+)/
+        .exec(mark![1])!
+        .slice(1)
+        .map(Number);
+      expect([x1, y1]).toEqual([expect.closeTo(200 - 7.5 * ink, 2), expect.closeTo(200, 2)]);
+      expect([x0, x2]).toEqual([expect.closeTo(200 + 7.5 * ink, 2), expect.closeTo(200 + 7.5 * ink, 2)]);
+      expect(Math.abs(y0! - y2!)).toBeCloseTo(2 * 4.8 * ink, 2);
+    }
+  });
+
+  it('reaches past the frame as far as its lids’ ends, or its back corner’s mitre, turned and scaled', () => {
+    // Off the frame's top edge (y −40 px).
+    const top = (more: Partial<KnownDiagramAnnotation>) =>
+      paintAnnotations([eye({ from: [0.5, -0.1], to: [0.5, -0.1], ...more })], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.y;
+    const pen = 0.5625 * PT_TO_CSS_PX;
+    // Looking up: its lids' fronts 7.5 ink above its point, half a pen round their square ends.
+    expect(top({ angle: 270 })).toBeCloseTo(-40 - 7.5 * ink - pen / 2, 3);
+    expect(top({ angle: 270, scale: 2 })).toBeCloseTo(-40 - 15 * ink - pen / 2, 3);
+    // Looking down: its back corner above, mitred half a pen over the sine of half the lids' angle past it.
+    const half = Math.atan(4.8 / 15);
+    expect(top({ angle: 90 })).toBeCloseTo(-40 - 7.5 * ink - pen / 2 / Math.sin(half), 3);
+    // Looking right: its lids' fronts 4.8 ink either side.
+    expect(top({})).toBeCloseTo(-40 - 4.8 * ink - pen / 2, 3);
+  });
+});
+
+describe('an oval and a rectangle (Revision 3)', () => {
+  const box = { x: 0, y: 0, width: 400, height: 300 };
+  const oval = a('o', 'oval', { from: [0.5, 0.4], to: [0.5, 0.4], size: [0.3, 0.4] });
+  const rectangle = a('r', 'rectangle', { from: [0.3, 0.3], to: [0.3, 0.3], size: [0.2, 0.1], angle: 30 });
+  const valley = a('v', 'valley-line', { from: [0.1, 0.4], to: [0.9, 0.4] });
+  const arrow = a('w', 'valley-arrow', { from: [0.1, 0.2], to: [0.4, 0.2], bend: ARROW_BEND });
+  /** One element of `markup` by its tag, and its attributes. */
+  const element = (markup: string, tag: string) => {
+    const found = new RegExp(`<${tag} [^>]*>`).exec(markup);
+    if (!found) return null;
+    const attributes = Object.fromEntries([...found[0].matchAll(/([a-z-]+)="([^"]*)"/g)].map(([, name, value]) => [name, value]));
+    return { at: found.index, attributes };
+  };
+
+  it('compiles to an area of its own, in the drawing’s px: an ellipse or a rectangle, sized and turned, never a References mark', () => {
+    const drawing = annotationDrawing([valley, oval, rectangle, arrow], FRAME, 400, DEFAULT_DIAGRAM_STYLE);
+    expect(drawing.areas.map(({ id, outline }) => ({ id, outline }))).toEqual([
+      { id: 'o', outline: { kind: 'oval', centre: [200, 160], size: [120, 160], angle: 0 } },
+      { id: 'r', outline: { kind: 'rectangle', centre: [120, 120], size: [80, 40], angle: 30 } },
+    ]);
+    expect(drawing.primitiveIds).toEqual(['w']);
+    expect(drawing.lines.map((line) => line.id)).toEqual(['v']);
+  });
+
+  it('is painted under every line and mark drawn on the step, drawn after them or not (R3-11d B), in a ring’s pen and the arrows’ ink, nothing filled', () => {
+    for (const [style, ringPt] of [
+      [DEFAULT_DIAGRAM_STYLE, 0.5625],
+      [{ preset: 'default' } as const, 0.7875],
+    ] as const) {
+      const { markup } = paintAnnotations([valley, arrow, oval, rectangle], box, 400, style)!;
+      const ellipse = element(markup, 'ellipse')!;
+      const rect = element(markup, 'rect')!;
+      const line = element(markup, 'line')!;
+      const arrowhead = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
+      const head = arrowhead[1]!;
+      // Under the Valley Line and the arrow, though drawn after both.
+      expect(ellipse.at).toBeLessThan(line.at);
+      expect(rect.at).toBeLessThan(line.at);
+      expect(line.at).toBeLessThan(arrowhead.index);
+      expect(ellipse.attributes).toMatchObject({ cx: '200', cy: '160', rx: '60', ry: '80', fill: 'none', stroke: head });
+      expect(Number(ellipse.attributes['stroke-width'])).toBeCloseTo(ringPt * PT_TO_CSS_PX, 3);
+      expect(ellipse.attributes.transform).toBeUndefined();
+      // Square corners, mitred whatever join the marks are wrapped in, turned about its centre (R3-11b A).
+      expect(rect.attributes).toMatchObject({ x: '80', y: '100', width: '80', height: '40', fill: 'none', stroke: head });
+      expect(rect.attributes['stroke-linejoin']).toBe('miter');
+      expect(rect.attributes.transform).toBe('rotate(30 120 120)');
+      expect(Number(rect.attributes['stroke-width'])).toBeCloseTo(ringPt * PT_TO_CSS_PX, 3);
+    }
+  });
+
+  it('reaches past the frame as far as its outline and half its pen, an ellipse’s turned extents, a mitred rectangle’s corners', () => {
+    const pen = 0.5625 * PT_TO_CSS_PX;
+    // Past the right edge: an upright oval 120 px wide about x 380.
+    const right = annotationReach(
+      annotationDrawing([a('o', 'oval', { from: [0.95, 0.4], to: [0.95, 0.4], size: [0.3, 0.2] })], FRAME, 400, DEFAULT_DIAGRAM_STYLE)
+    );
+    expect(right.x + right.width).toBeCloseTo(380 + 60 + pen / 2, 6);
+    // Past the top edge: a square turned 45° about y 8, its mitred corner up the diagonal.
+    const diamond = annotationReach(
+      annotationDrawing([a('r', 'rectangle', { from: [0.5, 0.02], to: [0.5, 0.02], size: [0.2, 0.2], angle: 45 })], FRAME, 400, DEFAULT_DIAGRAM_STYLE)
+    );
+    expect(diamond.y).toBeCloseTo(8 - (40 + pen / 2) * Math.SQRT2, 6);
+    // An oval turned a quarter, its height now across.
+    const turned = annotationReach(
+      annotationDrawing([a('o', 'oval', { from: [0.95, 0.4], to: [0.95, 0.4], size: [0.3, 0.2], angle: 90 })], FRAME, 400, DEFAULT_DIAGRAM_STYLE)
+    );
+    expect(turned.x + turned.width).toBeCloseTo(380 + 40 + pen / 2, 6);
+    // And a page's room for it: the painted bounds reach as far.
+    expect(paintAnnotations([a('o', 'oval', { from: [0.95, 0.4], to: [0.95, 0.4], size: [0.3, 0.2] })], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.x +
+      paintAnnotations([a('o', 'oval', { from: [0.95, 0.4], to: [0.95, 0.4], size: [0.3, 0.2] })], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.width).toBeCloseTo(380 + 60 + pen / 2, 6);
+  });
+
+  it('is painted as a scene item of its own, first, under the lines', () => {
+    const scene = annotationScene(annotationDrawing([valley, oval], FRAME, 400, DEFAULT_DIAGRAM_STYLE))!;
+    expect(scene.items.map((item) => item.kind)).toEqual(['markup', 'line']);
+    expect(scene.items[0]!.kind === 'markup' && scene.items[0]!.svg).toMatch(/^<ellipse /);
+    // Alone, it is still drawn.
+    expect(annotationScene(annotationDrawing([oval], FRAME, 400, DEFAULT_DIAGRAM_STYLE))!.items).toHaveLength(1);
+  });
+});
+
+describe('an x-ray (Revision 3, 18e)', () => {
+  const xray = a('x', 'x-ray', { from: [0.95, 0.4], to: [0.95, 0.4], radius: 0.1, depth: 2 });
+  const box = { x: 0, y: 0, width: 400, height: 300 };
+
+  it('is its window and its rim, 1.5 × the edges’ pen in their ink, for a surface to paint (R3-15b (ii))', () => {
+    for (const [style, edgesPt] of [
+      [DEFAULT_DIAGRAM_STYLE, 0.5],
+      [{ style: DEFAULT_PAPER_STYLE }, DEFAULT_PAPER_STYLE.edges.width],
+    ] as const) {
+      const drawing = annotationDrawing([xray], FRAME, 400, style);
+      expect(drawing.xRays).toEqual([{ id: 'x', window: { x: 380, y: 160, r: expect.closeTo(40, 9) }, rim: { width: expect.closeTo(1.5 * edgesPt * PT_TO_CSS_PX, 9), color: expect.any(String) } }]);
+    }
+  });
+
+  it('is drawn on no surface that does not paint it, rim included: nothing prints a window that shows nothing (R3-18b A)', () => {
+    const drawing = annotationDrawing([xray], FRAME, 400, DEFAULT_DIAGRAM_STYLE);
+    expect(drawing.areas).toEqual([]);
+    expect(drawing.zoomAreas).toEqual([]);
+    expect(drawing.primitives).toEqual([]);
+    expect(annotationScene(drawing)).toBeNull();
+    expect(paintAnnotations([xray], box, 400, DEFAULT_DIAGRAM_STYLE)).toBeNull();
+  });
+
+  it('reaches past the frame as far as its rim and half its pen, only on a surface that draws it: no other surface’s bounds grow for it (review of 18e)', () => {
+    const rim = 1.5 * 0.5 * PT_TO_CSS_PX;
+    const drawing = annotationDrawing([xray], FRAME, 400, DEFAULT_DIAGRAM_STYLE);
+    // The canvas, on a step with layers.
+    const drawn = annotationReach(drawing, { xRays: true });
+    expect(drawn.x + drawn.width).toBeCloseTo(380 + 40 + rim / 2, 6);
+    expect(drawn.x).toBe(0);
+    // A surface that does not draw it: a picture with no layers (18f's cards and pages hand in a painter where it has them).
+    const card = annotationReach(drawing);
+    expect(card.x + card.width).toBe(400);
+    expect(paintAnnotations([xray, a('l', 'valley-line', { from: [0.1, 0.1], to: [0.2, 0.1] })], box, 400, DEFAULT_DIAGRAM_STYLE)!.bounds.width).toBeLessThanOrEqual(400);
+  });
+});
+
 describe('a right angle (Revision 2)', () => {
   const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
   // At the vertex (0.5, 0.5), opening down and to the right.
@@ -297,31 +534,42 @@ describe('equal divisions (Revision 2)', () => {
         mirrored: true,
         ticks: 2,
         numbered: true,
+        shortDividers: false,
       },
     ]);
     // An ink is 0.331 mm wherever it prints: 2.5 mm is about 7.6 ink.
     expect(ANNOTATION_INK_MM).toBeCloseTo(0.3307, 4);
+    // Short dividers (Revision 3) compile as said.
+    const short = annotationDrawing([{ ...top, shortDividers: true }], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
+    expect(short.primitives[0]).toMatchObject({ kind: 'divisions', shortDividers: true });
   });
 
-  it('draw their line in the existing creases’ pen, their dividers and ticks in a ring’s, the count set as a page sets the rotate glyph’s fraction', () => {
-    const { markup } = paintAnnotations(
-      [{ ...top, parts: 7, numbered: true }],
-      { x: 0, y: 0, width: 400, height: 300 },
-      400,
-      DEFAULT_DIAGRAM_STYLE
-    )!;
-    const widths = [...markup.matchAll(/<path d="M[^"]*" stroke-width="([\d.]+)" stroke-linecap="butt" fill="none" stroke="([^"]+)"/g)];
-    expect(widths).toHaveLength(2);
-    // The Diagram preset's aux creases are 0.25 pt; its arrows 0.75 pt, a ring three quarters of that.
-    expect(Number(widths[0]![1])).toBeCloseTo(0.25 * PT_TO_CSS_PX, 3);
-    expect(Number(widths[1]![1])).toBeCloseTo(0.75 * 0.75 * PT_TO_CSS_PX, 3);
-    expect(widths[0]![2]).toBe(widths[1]![2]);
-    expect(markup).toContain(`font-family="'Noto Sans', sans-serif" font-weight="700">7</text>`);
-    expect(markup).not.toContain('Inter');
-    // Above the edge: 2.5 mm, then 1.65 mm of dividers past it.
-    const divider = /M ([\d.]+) (-?[\d.]+) L ([\d.]+) (-?[\d.]+)/.exec(widths[1]![0])!;
-    expect(Number(divider[2])).toBeCloseTo(0, 6);
-    expect(Number(divider[4])).toBeCloseTo(-(2.5 / ANNOTATION_INK_MM + 5) * ink, 2);
+  it('draw every stroke as one path in the aux creases’ pen, in either preset, the count in the regular weight as a page sets it (Revision 3, R3-3)', () => {
+    for (const [style, auxPt] of [
+      [DEFAULT_DIAGRAM_STYLE, 0.25],
+      [{ preset: 'default' } as const, 0.5],
+    ] as const) {
+      const { markup } = paintAnnotations([{ ...top, parts: 7, numbered: true }], { x: 0, y: 0, width: 400, height: 300 }, 400, style)!;
+      const paths = [...markup.matchAll(/<path d="(M[^"]*)" stroke-width="([\d.]+)" stroke-linecap="butt" fill="none" stroke="([^"]+)"/g)];
+      expect(paths).toHaveLength(1);
+      // The Diagram preset's aux creases are 0.25 pt, the Default's 0.5 pt: the line's pen, as it was, and now the dividers' and ticks'.
+      expect(Number(paths[0]![2])).toBeCloseTo(auxPt * PT_TO_CSS_PX, 3);
+      // The line, eight dividers and seven ticks.
+      expect(paths[0]![1].match(/M/g)).toHaveLength(1 + 8 + 7);
+      expect(markup).toContain(`font-family="'Noto Sans', sans-serif" font-weight="400">7</text>`);
+      expect(markup).not.toContain('font-weight="700"');
+      expect(markup).not.toContain('Inter');
+      // Above the edge: 2.5 mm, then 1.65 mm of dividers past it.
+      const divider = [...paths[0]![1].matchAll(/M ([\d.]+) (-?[\d.]+) L ([\d.]+) (-?[\d.]+)/g)][1]!;
+      expect(Number(divider[2])).toBeCloseTo(0, 6);
+      expect(Number(divider[4])).toBeCloseTo(-(2.5 / ANNOTATION_INK_MM + 5) * ink, 2);
+    }
+  });
+
+  it('set their count’s digits in Noto Sans Regular for the page to embed, not Bold (R3-3)', () => {
+    const scene = annotationScene(annotationDrawing([{ ...top, parts: 12, numbered: true }], FRAME, 400, DEFAULT_DIAGRAM_STYLE))!;
+    const svg = scene.items.find((item) => item.kind === 'markup')!;
+    expect(svg.kind === 'markup' && svg.svg).toContain('font-weight="400">12</text>');
   });
 
   it('reach each stroke’s ink and the count’s box and no further, at either style’s pens and any size', () => {
@@ -330,6 +578,7 @@ describe('equal divisions (Revision 2)', () => {
       { ...top, numbered: true as const },
       a('d-slant', 'divisions', { from: [0.95, 0.2], to: [1.05, 0.9], parts: 32, offset: 0, ticks: 3 }),
       a('d-left', 'divisions', { from: [0, 0.9], to: [0, 0.1], parts: 12, offset: 15, numbered: true }),
+      a('d-short', 'divisions', { from: [0, 0.9], to: [0, 0.1], parts: 12, offset: 15, shortDividers: true }),
     ];
     for (const style of [DEFAULT_DIAGRAM_STYLE, heavy]) {
       for (const framePx of [300, 1000]) {
@@ -343,11 +592,8 @@ describe('equal divisions (Revision 2)', () => {
             [minX, minY, maxX, maxY] = [Math.min(minX, x - pad), Math.min(minY, y - pad), Math.max(maxX, x + pad), Math.max(maxY, y + pad)];
           };
           // A butt end reaches half its pen to each side of it, and no further along.
-          for (const [stroke, pen] of [
-            [shape.line, shape.pens.line],
-            ...[...shape.dividers, ...shape.ticks].map((each) => [each, shape.pens.marks] as const),
-          ] as const) {
-            for (const end of stroke) take(end.x, end.y, pen / 2);
+          for (const stroke of [shape.line, ...shape.dividers, ...shape.ticks]) {
+            for (const end of stroke) take(end.x, end.y, shape.pen / 2);
           }
           if (shape.number) {
             const { at, halfWidth, halfHeight } = shape.number;

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useCreasePatternSide } from '../../diagram/capture/useCreasePatternSide';
 import { useDiagramStepLink } from '../../diagram/capture/useStepLink';
+import { stepCanBeAnnotated } from '../../diagram/pictures/pictureFrame';
 import { useDiagramPoseActions, useDiagramStepActions, useDiagramTurn } from '../../diagram/useDiagramActions';
 import {
   indexForStepNumber,
@@ -15,6 +16,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating } from '../../store/workspaceStore/diagramState';
 import { DiagramPatternPicker } from '../diagram/DiagramPatternPicker';
 import { DiagramStepAnnotations } from '../diagram/DiagramStepAnnotations';
+import { DiagramStepEnlarged } from '../diagram/DiagramStepEnlarged';
 import { DiagramStepHeader } from '../diagram/DiagramStepHeader';
 import { DiagramStepPicture } from '../diagram/DiagramStepPicture';
 import { DiagramStepPose } from '../diagram/DiagramStepPose';
@@ -46,7 +48,12 @@ const NO_NOTICES: readonly SanitizeNotice[] = [];
  * and a notice when the picture changed under the marks — the list and the
  * selected one's controls are the Layers pane's (`DiagramLayersPanel`);
  * elsewhere the Annotations section between the picture and the instruction
- * counts them and leads in.
+ * counts them and leads in. Enlarged follows Show as: in Annotate, where an
+ * area is drawn and a frame moved, the section that turns it on and sets it
+ * (`DiagramStepEnlarged`); out of the step detail, what it is
+ * (`DiagramStepZoomStatus`); in Pose, nothing — Pose only draws the frame —
+ * but on a step Annotate cannot open yet, with no picture (one made after an
+ * enlarged step starts enlarged), what it is, read-only, as out of the detail.
  */
 export function DiagramStepPanel() {
   const { t } = useTranslation();
@@ -77,6 +84,10 @@ export function DiagramStepPanel() {
   const actions = useDiagramStepActions(stepId);
   const detailOpen = useWorkspaceStore((state) => state.diagramDetail !== null);
   const annotating = useWorkspaceStore(isDiagramAnnotating);
+  // Whether the detail can open Annotate on it: where its Enlarged section is.
+  const annotatable = useWorkspaceStore(
+    (state) => state.diagram !== null && step !== null && stepCanBeAnnotated(step, state.diagram.assets)
+  );
   const poseActions = useDiagramPoseActions(detailOpen ? stepId : null);
   const { link, patternOpen, capture, picker } = useDiagramStepLink(step);
   // Shown as its crease pattern: its paper's colour, front or back, under Show as.
@@ -149,7 +160,8 @@ export function DiagramStepPanel() {
         )}
         {!locked && <DiagramStepShowAs actions={actions} side={side} />}
         {detailOpen && !annotating && <DiagramStepPose step={step} actions={poseActions} />}
-        {!locked && <DiagramStepZoomStatus step={step} />}
+        {!locked && annotating && <DiagramStepEnlarged step={step} actions={actions} />}
+        {!locked && !annotating && (!detailOpen || !annotatable) && <DiagramStepZoomStatus step={step} actions={actions} />}
         {!locked && (
           <CollapsibleSection title={t('panels:diagram.stepPane.picture', 'Picture')}>
             <DiagramStepPicture
@@ -161,6 +173,7 @@ export function DiagramStepPanel() {
               patternOpen={patternOpen}
               capture={capture}
               detailOpen={detailOpen}
+              annotating={annotating}
               picker={
                 picker && (
                   <DiagramPatternPicker

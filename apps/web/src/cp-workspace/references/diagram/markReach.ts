@@ -12,7 +12,9 @@ import {
   angleMarkArcPoints,
   angleMarkDrawn,
   arcExtremes,
+  auxMarkPen,
   divisionsDrawn,
+  divisionsStrokes,
   foldArrowDrawn,
   halfArrowheadCorners,
   oneWayArrowDrawn,
@@ -21,12 +23,15 @@ import {
   polylineMitres,
   pushArrowDrawn,
   rightAngleDrawn,
-  rightAnglePen,
   rightAngleReach,
   rotateGlyphDrawn,
+  starDrawn,
+  eyeDrawn,
   strokedOutlinePoints,
   turnOverDrawn,
   whiteArrowDrawn,
+  STAR_MITER_LIMIT,
+  EYE_MITER_LIMIT,
   WHITE_ARROW_MITER_LIMIT,
   type Arrowhead,
   type DiagramArc,
@@ -51,6 +56,8 @@ export type DiagramMarkPrimitive = Extract<
       | 'right-angle'
       | 'angle-mark'
       | 'divisions'
+      | 'star'
+      | 'eye'
       | 'pleat-arrow';
   }
 >;
@@ -67,6 +74,8 @@ const MARK_KINDS: ReadonlySet<StepDiagramPrimitive['kind']> = new Set<DiagramMar
   'right-angle',
   'angle-mark',
   'divisions',
+  'star',
+  'eye',
   'pleat-arrow',
 ]);
 
@@ -180,7 +189,7 @@ export function markReach(
     case 'point': {
       // The ring's outer edge: its radius and half its stroke.
       const { x, y } = project(primitive.at);
-      take(x, y, markOuterRadius(project));
+      take(x, y, primitive.radius === undefined ? markOuterRadius(project) : primitive.radius * project.scale + markRingWidth(project) / 2);
       break;
     }
     case 'right-angle': {
@@ -188,7 +197,7 @@ export function markReach(
       // mitred: all six points, in the aux lines' pen.
       const shape = rightAngleDrawn(primitive.at, primitive.toward, project);
       if (!shape) break;
-      const reach = rightAngleReach(rightAnglePen(project));
+      const reach = rightAngleReach(auxMarkPen(project));
       for (const part of ['legs', 'square'] as const) {
         shape[part].forEach(({ x, y }, index) => take(x, y, reach[part][index]));
       }
@@ -196,7 +205,7 @@ export function markReach(
     }
     case 'angle-mark': {
       // Its arc and its ticks' ends, butt, in the ring's pen.
-      const shape = angleMarkDrawn(primitive.at, primitive.arms, primitive.ticks, project);
+      const shape = angleMarkDrawn(primitive.at, primitive.arms, primitive.ticks, project, primitive.radiusInk);
       if (!shape) break;
       const pad = markRingWidth(project) / 2;
       for (const { x, y } of angleMarkArcPoints(shape)) take(x, y, pad);
@@ -207,21 +216,36 @@ export function markReach(
       break;
     }
     case 'divisions': {
-      // Every stroke's ends, cut square, half its pen round them — the line
-      // in its own pen, the dividers and ticks in a ring's — and the count's
-      // box, upright.
+      // Every stroke's ends — the line, the dividers and the ticks — cut
+      // square, half their one pen round them, and the count's box, upright.
       const shape = divisionsDrawn(primitive.from, primitive.to, primitive, project);
       if (!shape) break;
-      for (const end of shape.line) take(end.x, end.y, shape.pens.line / 2);
-      for (const [a, b] of [...shape.dividers, ...shape.ticks]) {
-        take(a.x, a.y, shape.pens.marks / 2);
-        take(b.x, b.y, shape.pens.marks / 2);
+      for (const [a, b] of divisionsStrokes(shape)) {
+        take(a.x, a.y, shape.pen / 2);
+        take(b.x, b.y, shape.pen / 2);
       }
       if (shape.number) {
         const { at, halfWidth, halfHeight } = shape.number;
         take(at.x - halfWidth, at.y - halfHeight, 0);
         take(at.x + halfWidth, at.y + halfHeight, 0);
       }
+      break;
+    }
+    case 'star': {
+      // Its tips, turned and scaled: a filled star's own, an outlined one's
+      // stroke mitred round them, as it is drawn.
+      const star = starDrawn(primitive.at, primitive.angle, primitive.scale, project);
+      const points = primitive.fill === 'black' ? star.points : strokedOutlinePoints(star.points, star.pen, STAR_MITER_LIMIT);
+      for (const { x, y } of points) take(x, y, 0);
+      break;
+    }
+    case 'eye': {
+      // Its lids' ends, cut square, and their back corner, half the pen round
+      // each, and that corner's mitre: its cornea and iris lie inside the
+      // lids, so their strokes reach no further.
+      const eye = eyeDrawn(primitive.at, primitive.angle, primitive.scale, project);
+      for (const { x, y } of eye.lids) take(x, y, eye.pen / 2);
+      for (const { x, y } of polylineMitres(eye.lids, eye.pen, EYE_MITER_LIMIT)) take(x, y, 0);
       break;
     }
     default: {

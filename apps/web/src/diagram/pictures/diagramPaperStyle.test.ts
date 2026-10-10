@@ -12,7 +12,7 @@ import { digest } from './pictureKey';
 
 describe('the Diagram’s paper style', () => {
   it('starts on the built-in Diagram preset', () => {
-    expect(DEFAULT_DIAGRAM_STYLE).toEqual({ preset: 'diagram' });
+    expect(DEFAULT_DIAGRAM_STYLE).toEqual({ preset: 'diagram', style: builtInPaperPreset('diagram').style });
     expect(paperStyleEquals(diagramPaperStyle(DEFAULT_DIAGRAM_STYLE), builtInPaperPreset('diagram').style)).toBe(
       true
     );

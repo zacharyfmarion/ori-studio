@@ -17,9 +17,12 @@ import {
   buildAreaActions,
   buildEnlargedAction,
   buildFrameActions,
+  buildUpdateAllAction,
   enlargedChips,
   enlargedState,
   frameSubtitle,
+  outOfDateLine,
+  stepAreas,
   stepsEnlargedFrom,
   stepZoomStatus,
   zoomReadout,
@@ -49,7 +52,38 @@ function crane(): DiagramDocument {
   return diagramOf(withArea(s, headArea(s)), named(craneStep('C.none'), 'step-2'), named(craneStep('C.none'), 'step-3'));
 }
 
-describe('Pose’s Enlarged (Z2)', () => {
+/** The diagram with the head's area moved by hand, as a drag leaves it. */
+function withMovedArea(document: DiagramDocument): DiagramDocument {
+  return {
+    ...document,
+    steps: document.steps.map((entry) =>
+      'annotations' in entry && entry.annotations.some((mark) => mark.id === 'area-head')
+        ? {
+            ...entry,
+            annotations: entry.annotations.map((mark) =>
+              mark.id === 'area-head' && 'kind' in mark
+                ? { ...mark, from: [mark.from[0] + 0.05, mark.from[1]], to: [mark.from[0] + 0.05, mark.from[1]] }
+                : mark
+            ),
+          }
+        : entry
+    ),
+  } as DiagramDocument;
+}
+
+/** A step's record of its area dropped, as a file from before records reads. */
+function withoutRecord(document: DiagramDocument, stepId: string): DiagramDocument {
+  return {
+    ...document,
+    steps: document.steps.map((entry) => {
+      if (entry.id !== stepId || !('zoom' in entry) || !entry.zoom) return entry;
+      const { areaWas: _was, ...zoom } = entry.zoom;
+      return { ...entry, zoom };
+    }),
+  } as DiagramDocument;
+}
+
+describe('the Enlarged toggle (Z2)', () => {
   it('names the step it would capture from, and whether that holds an area or a frame', () => {
     const document = crane();
     const state = enlargedState(document, 'step-2', { readOnly: false })!;
@@ -91,6 +125,20 @@ describe('Pose’s Enlarged (Z2)', () => {
     expect(readOnly.disabled).toBe(true);
   });
 
+  it('is held on the area’s own step saying a later step is enlarged from it, not to draw one (review fix 4)', () => {
+    const document = crane();
+    const areaStep = document.steps[0]!.id;
+    const action = buildEnlargedAction(enlargedState(document, areaStep, { readOnly: false })!, {
+      t,
+      enlarge: vi.fn(),
+      unenlarge: vi.fn(),
+    });
+    expect(action).toMatchObject({
+      disabled: true,
+      hint: 'This step holds the enlarge area: turn Enlarged on in a later step to enlarge it',
+    });
+  });
+
   it('turns off when on, and waits, refusing, while its capture folds', () => {
     const enlarged = enlargeStep(crane(), 'step-2', NO_ASSETS).document;
     const unenlarge = vi.fn();
@@ -117,26 +165,51 @@ describe('an area’s and a frame’s rows (Z7)', () => {
     expect(areaSubtitle(t, stepsEnlargedFrom(one, 'area-head'))).toBe('Enlarged on step 2');
     const two = enlargeStep(one, 'step-3', NO_ASSETS).document;
     expect(areaSubtitle(t, stepsEnlargedFrom(two, 'area-head'))).toBe('Enlarged on steps 2–3');
-    expect(frameSubtitle(t, { number: 1 })).toBe('From step 1’s area');
+    const areaStep = { id: 'step-1', number: 1 };
+    expect(frameSubtitle(t, { kind: 'current', areaStep })).toBe('From step 1’s area');
     expect(frameSubtitle(t, null)).toBe('From an area no longer in the diagram');
   });
 
-  it('offer Update Enlarged Steps — held with none — and Go to the first', () => {
+  it('say a frame’s area changed, or was deleted, in the Step pane’s words (review of review fix 4)', () => {
+    const enlarged = enlargeStep(crane(), 'step-2', NO_ASSETS).document;
+    const areaStep = { id: enlarged.steps[0]!.id, number: 1 };
+    expect(frameSubtitle(t, { kind: 'changed', areaStep })).toBe('Out of date: Step 1’s area changed');
+    expect(frameSubtitle(t, { kind: 'deleted', areaStep })).toBe('Step 1’s area was deleted');
+    expect(frameSubtitle(t, { kind: 'deleted', areaStep: null })).toBe('From an area no longer in the diagram');
+    expect(frameSubtitle(t, { kind: 'unknown', areaStep })).toBe('From step 1’s area');
+  });
+
+  it('say which steps are out of date, runs of steps as ranges, as the language lists them (review of review fix 4)', () => {
+    const steps = (...numbers: number[]) => numbers.map((number) => ({ number }));
+    expect(outOfDateLine(t, steps(), 'en')).toBeNull();
+    expect(outOfDateLine(t, steps(25), 'en')).toBe('Out of date: step 25');
+    expect(outOfDateLine(t, steps(23, 24, 25), 'en')).toBe('Out of date: steps 23–25');
+    expect(outOfDateLine(t, steps(27, 23, 24), 'en')).toBe('Out of date: steps 23–24 and 27');
+    expect(outOfDateLine(t, steps(2, 4, 6), 'en')).toBe('Out of date: steps 2, 4, and 6');
+  });
+
+  it('offer Update All — held with none, or none out of date — and Go to the first (review fix 4)', () => {
     const update = vi.fn();
     const goTo = vi.fn();
-    const none = buildAreaActions({ steps: [], readOnly: false }, { t, update, goTo });
-    expect(none).toEqual([expect.objectContaining({ id: 'update-enlarged-steps', disabled: true, hint: 'No step is enlarged from this area' })]);
+    const none = buildAreaActions({ steps: [], outOfDate: 0, readOnly: false }, { t, update, goTo });
+    expect(none).toEqual([expect.objectContaining({ id: 'update-all', disabled: true, hint: 'No step is enlarged from this area' })]);
     const steps = [
       { id: 'step-2', number: 2 },
       { id: 'step-3', number: 3 },
     ];
-    const [updateAction, goToAction] = buildAreaActions({ steps, readOnly: false }, { t, update, goTo });
+    const current = buildAreaActions({ steps, outOfDate: 0, readOnly: false }, { t, update, goTo })[0]!;
+    expect(current).toMatchObject({ label: 'Update All', disabled: true, hint: 'Every step enlarged from this area is up to date' });
+    current.run();
+    expect(update).not.toHaveBeenCalled();
+    const [updateAction, goToAction] = buildAreaActions({ steps, outOfDate: 1, readOnly: false }, { t, update, goTo });
+    expect(updateAction).toMatchObject({ label: 'Update All', disabled: false });
     expect(updateAction!.hint).toBe(
-      'Place the frame again on steps 2–3 from this area as it is now, over any move made on them'
+      'Place the frame again on each step enlarged from this area that is out of date, from the area as it is now'
     );
-    expect(buildAreaActions({ steps: steps.slice(0, 1), readOnly: false }, { t, update, goTo })[0]!.hint).toBe(
-      'Place the frame again on step 2 from this area as it is now, over any move made on it'
-    );
+    const waiting = buildUpdateAllAction({ steps, outOfDate: 1, readOnly: false, updating: true }, { t, update });
+    expect(waiting).toMatchObject({ waiting: true, hint: 'Its picture is being captured' });
+    waiting.run();
+    expect(update).not.toHaveBeenCalled();
     updateAction!.run();
     goToAction!.run();
     expect(goToAction!.label).toBe('Go to Step 2');
@@ -149,16 +222,32 @@ describe('an area’s and a frame’s rows (Z7)', () => {
   it('offer Pick, pressed while it picks, and Reset while an anchor is picked', () => {
     const pick = vi.fn();
     const reset = vi.fn();
-    expect(buildAnchorActions({ picked: false, picking: false, readOnly: false }, { t, pick, reset }).map((each) => each.id)).toEqual([
-      'pick-anchor',
-    ]);
-    const [picking, resetting] = buildAnchorActions({ picked: true, picking: true, readOnly: false }, { t, pick, reset });
+    const canvas = true;
+    expect(
+      buildAnchorActions({ picked: false, picking: false, readOnly: false, canvas }, { t, pick, reset }).map((each) => each.id)
+    ).toEqual(['pick-anchor']);
+    const [picking, resetting] = buildAnchorActions({ picked: true, picking: true, readOnly: false, canvas }, { t, pick, reset });
     expect(picking).toMatchObject({ pressed: true, label: 'Pick' });
     expect(resetting).toMatchObject({ id: 'reset-anchor', label: 'Reset' });
-    const held = buildAnchorActions({ picked: true, picking: false, readOnly: true }, { t, pick, reset });
+    const held = buildAnchorActions({ picked: true, picking: false, readOnly: true, canvas }, { t, pick, reset });
     held.forEach((action) => action.run());
     expect(pick).not.toHaveBeenCalled();
     expect(reset).not.toHaveBeenCalled();
+  });
+
+  it('offer no Pick with no canvas to pick on, as on a phone, and still Reset (review of #436)', () => {
+    const deps = { t, pick: vi.fn(), reset: vi.fn() };
+    expect(buildAnchorActions({ picked: false, picking: false, readOnly: false, canvas: false }, deps)).toEqual([]);
+    const ids = buildAnchorActions({ picked: true, picking: false, readOnly: false, canvas: false }, deps).map((each) => each.id);
+    expect(ids).toEqual(['reset-anchor']);
+  });
+
+  it('offer an x-ray no Pick with no canvas either, and its Reset in its own words (review of #436, Revision 3)', () => {
+    const deps = { t, pick: vi.fn(), reset: vi.fn() };
+    expect(buildAnchorActions({ picked: false, picking: false, readOnly: false, canvas: false, on: 'x-ray' }, deps)).toEqual([]);
+    const actions = buildAnchorActions({ picked: true, picking: false, readOnly: false, canvas: false, on: 'x-ray' }, deps);
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toMatchObject({ id: 'reset-anchor', hint: 'Start peeling at the window’s centre again' });
   });
 });
 
@@ -166,8 +255,19 @@ describe('an enlarged step’s chip and status', () => {
   it('chips each enlarged step with its area’s step, or none once the area is gone, turns passed', () => {
     const enlarged = enlargeStep(crane(), 'step-2', NO_ASSETS).document;
     const steps = [enlarged.steps[0]!, createTurn({ kind: 'turn-over', axis: 'vertical' }, () => 'turn'), ...enlarged.steps.slice(1)];
-    expect([...enlargedChips(steps)]).toEqual([['step-2', 1]]);
-    expect([...enlargedChips(steps.slice(1))]).toEqual([['step-2', null]]);
+    expect([...enlargedChips(steps)]).toEqual([['step-2', { from: 1, changed: false }]]);
+    expect([...enlargedChips(steps.slice(1))]).toEqual([['step-2', { from: null, changed: false }]]);
+  });
+
+  it('chips a step whose area was edited by hand since as changed, and not one with no record (review fix 4)', () => {
+    const enlarged = enlargeStep(crane(), 'step-2', NO_ASSETS).document;
+    const moved = withMovedArea(enlarged);
+    expect(enlargedChips(moved.steps).get('step-2')).toEqual({ from: 1, changed: true });
+    expect(enlargedChips(withoutRecord(moved, 'step-2').steps).get('step-2')).toEqual({ from: 1, changed: false });
+    // An empty step after it, seeded with its frame, has no picture to say it on: its Step pane does (review of review fix 4).
+    const empty = { ...moved, steps: moved.steps.map((entry) => (entry.id === 'step-2' ? { ...entry, picture: null } : entry)) } as DiagramDocument;
+    expect(enlargedChips(empty.steps).get('step-2')).toEqual({ from: 1, changed: false });
+    expect(stepZoomStatus(empty, 'step-2')!.area.kind).toBe('changed');
   });
 
   it('names a step captured before steps kept their faces, which only a Refresh, then a capture, anchors', () => {
@@ -177,6 +277,8 @@ describe('an enlarged step’s chip and status', () => {
     const enlarged = enlargeStep(document, 'step-2', NO_ASSETS).document;
     expect(stepZoomStatus(enlarged, 'step-2')).toEqual({
       areaStep: { id: s.id, number: 1 },
+      area: { kind: 'current', areaStep: { id: s.id, number: 1 } },
+      outOfDate: false,
       scale: null,
       notices: [
         { kind: 'refresh', stepId: 'step-2', number: 2, then: { update: 1 } },
@@ -195,12 +297,15 @@ describe('an enlarged step’s chip and status', () => {
     const faced = withArea({ ...craneStep('S.none'), id: s.id }, area);
     const refreshed = { ...enlarged, steps: enlarged.steps.map((entry) => (entry.id === s.id ? faced : entry)) };
     expect(stepZoomStatus(refreshed, 'step-2')!.notices).toEqual([{ kind: 'unanchored', then: { update: 1 } }]);
+    // The notice names the step's Update, which the pane then offers (review fix 4).
+    expect(stepZoomStatus(refreshed, 'step-2')!.outOfDate).toBe(true);
     // Captured again, it is anchored, and nothing is said.
     const updated = updateEnlargedSteps(refreshed, 'area', NO_ASSETS).document;
     expect(stepZoomStatus(updated, 'step-2')!.notices).toEqual([]);
     // With the area gone, turning Enlarged off and on is what anchors it.
     const gone = { ...refreshed, steps: refreshed.steps.filter((entry) => entry.id !== s.id) };
     expect(stepZoomStatus(gone, 'step-2')!.notices).toEqual([{ kind: 'unanchored', then: null }]);
+    expect(stepZoomStatus(gone, 'step-2')!.outOfDate).toBe(false);
   });
 
   it('says the frame holds no paper, or its anchor is off this paper', () => {
@@ -217,6 +322,41 @@ describe('an enlarged step’s chip and status', () => {
     expect(stepZoomStatus(moved, 'step-2')!.notices).toEqual([{ kind: 'no-paper' }, { kind: 'anchor-off-paper' }]);
     // A step that is not linked has no faces to tell by.
     expect(cpStep('plain').zoom).toBeUndefined();
+  });
+});
+
+describe('an enlarged step against its area, in the Step pane (review fix 4)', () => {
+  it('says the area changed once it is moved by hand, and the pane offers Update; not for a step with no record', () => {
+    const enlarged = enlargeStep(crane(), 'step-2', NO_ASSETS).document;
+    const areaStep = { id: enlarged.steps[0]!.id, number: 1 };
+    expect(stepZoomStatus(enlarged, 'step-2')).toMatchObject({ area: { kind: 'current', areaStep }, outOfDate: false });
+    const moved = withMovedArea(enlarged);
+    expect(stepZoomStatus(moved, 'step-2')).toMatchObject({ area: { kind: 'changed', areaStep }, outOfDate: true });
+    expect(stepZoomStatus(withoutRecord(moved, 'step-2'), 'step-2')).toMatchObject({
+      area: { kind: 'unknown', areaStep },
+      outOfDate: false,
+    });
+  });
+
+  it('counts the steps out of date for the area’s own step, and which steps were enlarged from it', () => {
+    const two = enlargeStep(enlargeStep(crane(), 'step-2', NO_ASSETS).document, 'step-3', NO_ASSETS).document;
+    const areaStep = two.steps[0]!.id;
+    expect(stepAreas(two, areaStep)).toEqual({
+      areaIds: ['area-head'],
+      steps: [
+        { id: 'step-2', number: 2 },
+        { id: 'step-3', number: 3 },
+      ],
+      outOfDate: [],
+    });
+    expect(stepAreas(withMovedArea(two), areaStep)!.outOfDate).toEqual([
+      { id: 'step-2', number: 2 },
+      { id: 'step-3', number: 3 },
+    ]);
+    // A file's steps from before records: nothing says they are out of date, and Update All, as every surface
+    // offers it, leaves them, until the first hand edit of their area records it (review of review fix 4).
+    expect(stepAreas(withoutRecord(withoutRecord(withMovedArea(two), 'step-2'), 'step-3'), areaStep)!.outOfDate).toEqual([]);
+    expect(stepAreas(two, 'step-2')).toBeNull();
   });
 });
 

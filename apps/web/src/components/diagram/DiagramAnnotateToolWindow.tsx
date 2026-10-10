@@ -1,5 +1,7 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAnnotateToolInHand } from '../../diagram/annotate/useAnnotateToolInHand';
+import { DiagramAnnotateToolParameters } from './DiagramAnnotateToolParameters';
 import { useAnnotateToolHint } from '../../diagram/annotate/useAnnotateToolHint';
 import type { DiagramStep } from '../../diagram/document/diagramDocument';
 import { STORAGE_KEYS } from '../../lib/storage';
@@ -32,6 +34,7 @@ export const DiagramAnnotateToolWindow = memo(function DiagramAnnotateToolWindow
 }) {
   const { t } = useTranslation();
   const hint = useAnnotateToolHint(step);
+  const tool = useAnnotateToolInHand(step);
   const instructions = t('panels:diagram.annotate.instructions', 'Instructions');
   if (!hint) return null;
   return (
@@ -44,6 +47,7 @@ export const DiagramAnnotateToolWindow = memo(function DiagramAnnotateToolWindow
       inside
     >
       <ToolHintInstructions heading={instructions} intro={hint.instructions} items={hint.modifiers} />
+      <DiagramAnnotateToolParameters tool={tool} />
     </ToolHintWindow>
   );
 });

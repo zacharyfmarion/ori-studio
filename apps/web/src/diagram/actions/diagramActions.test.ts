@@ -23,9 +23,12 @@ function deps(): DiagramStepActionDeps {
     uploadPicture: vi.fn(),
     linkPattern: vi.fn(),
     refreshPicture: vi.fn(),
+    updateEnlarged: vi.fn(),
+    updateAllEnlarged: vi.fn(),
     openInEdit: vi.fn(),
     openInReferences: vi.fn(),
     replaceFromReferences: vi.fn(),
+    makeMarksEditable: vi.fn(),
     fromReferences: vi.fn(),
     showAs: vi.fn(),
     duplicateAs: vi.fn(),
@@ -56,6 +59,9 @@ function build(state: Partial<DiagramStepActionState>, bound = deps()) {
       patternOpen: true,
       showAs: null,
       poseAgain: false,
+      cardMarks: null,
+      enlargedArea: null,
+      heldAreas: null,
       ...state,
     } as DiagramStepActionState,
     bound
@@ -188,6 +194,13 @@ describe('the diagram step verbs', () => {
     expect(diagramStepCommand(pictured, 'remove-picture')?.disabled).toBe(false);
     // A newer build's step is only carried: it gets no picture from this one.
     expect(diagramStepCommand(build({ locked: true }), 'upload-picture')?.disabled).toBe(true);
+    // Drawn as far as this build reads it, its picture can be exported, never removed (decision 2).
+    const locked = build({ locked: true, hasPicture: true, hasSource: true });
+    expect(diagramStepCommand(locked, 'export-picture')?.disabled).toBe(false);
+    expect(diagramStepCommand(locked, 'remove-picture')).toMatchObject({
+      disabled: true,
+      hint: 'Made with a newer Ori Studio: it can be moved or deleted, not changed',
+    });
   });
 
   it('annotates only a step with a picture this build can change', () => {
@@ -300,6 +313,58 @@ describe('the diagram step verbs', () => {
     expect(refresh({ link: 'current' })).toMatchObject({ label: 'Pose Again', disabled: true });
   });
 
+  it('updates an enlarged step from its area, beside Refresh Picture, only while the area is there (review fix 4)', () => {
+    const bound = deps();
+    const stale = { number: 22, outOfDate: true, updating: false };
+    expect(diagramStepCommand(build({ hasSource: true, hasPicture: true }), 'update-enlarged')).toBeNull();
+    const enlarged = build({ link: 'current', hasSource: true, hasPicture: true, enlargedArea: stale }, bound);
+    const ids = enlarged.map((action) => action.id);
+    expect(ids.indexOf('update-enlarged')).toBe(ids.indexOf('open-in-edit') + 1);
+    const update = diagramStepCommand(enlarged, 'update-enlarged')!;
+    // Its tooltip names the area it updates from, as the card's menu shows it (review of review fix 4).
+    expect(update).toMatchObject({
+      label: 'Update',
+      disabled: false,
+      hint: 'Place the frame again from step {{number}}’s area as it is now',
+    });
+    update.run();
+    expect(bound.updateEnlarged).toHaveBeenCalledOnce();
+    // An upload is enlarged too: the verb follows the frame, not a link.
+    expect(diagramStepCommand(build({ hasSource: true, hasPicture: true, enlargedArea: stale }), 'update-enlarged')).not.toBeNull();
+    const held = (state: Partial<DiagramStepActionState>) =>
+      diagramStepCommand(build({ hasSource: true, enlargedArea: { ...stale, number: 2 }, ...state }), 'update-enlarged');
+    expect(held({ capturing: true })).toMatchObject({ disabled: true, hint: 'Its picture is being captured' });
+    expect(held({ readOnly: true })?.disabled).toBe(true);
+  });
+
+  it('holds Update on a step up to date with its area, as Refresh Picture is held, and waits while it runs (review of review fix 4)', () => {
+    const bound = deps();
+    const current = diagramStepCommand(
+      build({ hasSource: true, hasPicture: true, enlargedArea: { number: 22, outOfDate: false, updating: false } }, bound),
+      'update-enlarged'
+    )!;
+    expect(current).toMatchObject({ disabled: true, hint: 'Up to date with step {{number}}’s area' });
+    const running = diagramStepCommand(
+      build({ hasSource: true, hasPicture: true, enlargedArea: { number: 22, outOfDate: true, updating: true } }, bound),
+      'update-enlarged'
+    )!;
+    expect(running).toMatchObject({ disabled: false, waiting: true, hint: 'Its picture is being captured' });
+    running.run();
+    expect(bound.updateEnlarged).not.toHaveBeenCalled();
+  });
+
+  it('offers Update All on the step that holds the area, held while none is out of date (review of review fix 4)', () => {
+    const bound = deps();
+    expect(diagramStepCommand(build({ hasSource: true, hasPicture: true }), 'update-all-enlarged')).toBeNull();
+    const held = diagramStepCommand(build({ hasSource: true, hasPicture: true, heldAreas: { outOfDate: 0 } }), 'update-all-enlarged');
+    expect(held).toMatchObject({ label: 'Update All', disabled: true, hint: 'Every step enlarged from this area is up to date' });
+    const offered = diagramStepCommand(build({ hasSource: true, hasPicture: true, heldAreas: { outOfDate: 2 } }, bound), 'update-all-enlarged')!;
+    expect(offered).toMatchObject({ disabled: false });
+    expect(offered.hint).toMatch(/^Place the frame again on each step enlarged from this area/);
+    offered.run();
+    expect(bound.updateAllEnlarged).toHaveBeenCalledOnce();
+  });
+
   it('shows a linked step’s pattern in Edit, even on a read-only diagram, while one is open', () => {
     const bound = deps();
     const open = diagramStepCommand(build({ link: 'current', readOnly: true }, bound), 'open-in-edit');
@@ -342,6 +407,40 @@ describe('the diagram step verbs', () => {
       expect(diagramStepCommand(sent({ locked: true }), 'replace-from-references')?.disabled).toBe(true);
       // Only a References step has a card to replace.
       expect(diagramStepCommand(build({ link: 'current', linkKind: 'cp', hasSource: true }), 'replace-from-references')).toBeNull();
+    });
+
+    it('offers Make Marks Editable where its card’s marks are part of its picture, between Replace and Open (17e)', () => {
+      const bound = deps();
+      // Lifted already, or nothing to lift: no verb at all.
+      expect(diagramStepCommand(sent(), 'make-marks-editable')).toBeNull();
+      const actions = sent({ cardMarks: { lifted: 12, total: 12, fits: true } }, bound);
+      const make = diagramStepCommand(actions, 'make-marks-editable');
+      expect(make).toMatchObject({ label: 'Make Marks Editable', disabled: false });
+      make?.run();
+      expect(bound.makeMarksEditable).toHaveBeenCalledOnce();
+      const ids = actions.map((action) => action.id);
+      expect(ids.indexOf('make-marks-editable')).toBe(ids.indexOf('replace-from-references') + 1);
+      expect(ids.indexOf('open-in-references')).toBe(ids.indexOf('make-marks-editable') + 1);
+      // It splits the card the step already has: no pattern need be open.
+      expect(diagramStepCommand(sent({ cardMarks: { lifted: 12, total: 12, fits: true }, patternOpen: false }), 'make-marks-editable')?.disabled).toBe(
+        false
+      );
+      expect(diagramStepCommand(sent({ cardMarks: { lifted: 12, total: 12, fits: true }, readOnly: true }), 'make-marks-editable')?.disabled).toBe(true);
+    });
+
+    it('shows Make Marks Editable disabled, with how many marks the step would hold, past what a step holds (17e)', () => {
+      // A t that sets the count, as i18next does.
+      const counting = ((_key: string, fallback: string, options?: { count?: number; max?: number }) =>
+        fallback.replace('{{count}}', String(options?.count)).replace('{{max}}', String(options?.max))) as unknown as TFunction;
+      const make = diagramStepCommand(sent({ cardMarks: { lifted: 612, total: 612, fits: false } }, { ...deps(), t: counting }), 'make-marks-editable');
+      expect(make).toMatchObject({ disabled: true, hint: '612 marks: a step holds 500' });
+      // The author's own among them: says so, as deleting some would make room.
+      const crowded = diagramStepCommand(sent({ cardMarks: { lifted: 10, total: 501, fits: false } }, { ...deps(), t: counting }), 'make-marks-editable');
+      expect(crowded).toMatchObject({ disabled: true, hint: '501 marks with yours: a step holds 500' });
+      expect(diagramStepCommand(sent({ cardMarks: { lifted: 12, total: 12, fits: true }, locked: true }), 'make-marks-editable')).toMatchObject({
+        disabled: true,
+        hint: 'Made with a newer Ori Studio: it can be moved or deleted, not changed',
+      });
     });
 
     it('opens its sheet on a read-only diagram too, while the pattern is open', () => {

@@ -161,7 +161,8 @@ defaults he has not seen yet and are cheap to change.
    one clearly breaks on cases like gen hagiwaras frog" (counted at each
    corner, the visible layer stays put but faces skew).
 3. The direction is a screen convention kept through Turn Over and Rotate;
-   eight directions; default up-left — *for Zach*.
+   eight directions; original default up-left, superseded by decision 9.
+   Current depth default down accepted by Zach on 2026-10-10.
 4. The amount is the deepest layer's step as a fraction of the model, default
    5%, 0.5–20%.
 5. No poke check in v1: the shift keeps every stack's order. A layer can
@@ -179,7 +180,8 @@ defaults he has not seen yet and are cheap to change.
    (decision 10's start) when no step before it is spread, and every surface
    offers Affine before Depth; depth still starts at 2.5% down when chosen.
 10. Affine starts at 3%, keep top, skew 1, axis 81° — the playground's bird
-   base in the kernel's frame (13g as built) — *for Zach*.
+   base in the kernel's frame (13g as built) — explicitly accepted by Zach
+   on 2026-10-10.
 
 ## Checklist
 

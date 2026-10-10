@@ -1,6 +1,15 @@
-# The font build's toolchain, pinned: the CJK files are named for their content, so
-# another fonttools could rename every one of them on the next deploy.
-fonttools==4.65.0
-brotli==1.2.0
-# Removing the variable fonts' overlaps (instancer.OverlapMode.REMOVE) imports it.
-skia-pathops==0.9.2
+# Frozen Diagram v1 toolchain; CPython 3.12. CJK builds require Linux x86_64.
+# macOS wheels are retained for Latin tooling, not CJK generation.
+# Install with --require-hashes --only-binary=:all:. Never refresh these for v1.
+fonttools==4.65.0 \
+    --hash=sha256:e844a45c9e5ced6536f184cf1a65b5d65e8f7e711993b413e10500a8223622e5 \
+    --hash=sha256:b30e953de049bf43fc0a63c7d0c44d205c923e4bbf24716aae1518c0e65f977c \
+    --hash=sha256:05595385ae99f4b9626cebb973bf171b8fe38a8f40708e6e42abba0ed7537778 \
+    --hash=sha256:3060b8c1fc2329fa20265b7c138614143ea7c1624e26c5c180c76aeb74deae6f
+brotli==1.2.0 \
+    --hash=sha256:35d382625778834a7f3061b15423919aa03e4f5da34ac8e02c074e4b75ab4f84 \
+    --hash=sha256:7a61c06b334bd99bc5ae84f1eeb36bfe01400264b3c352f968c6e30a10f9d08b \
+    --hash=sha256:072e7624b1fc4d601036ab3f4f27942ef772887e876beff0301d261210bca97f
+skia-pathops==0.9.2 \
+    --hash=sha256:c7a925b919c050df1e0545d26a69b64d9c8e1959e4dca73b06df088bf01d30f0 \
+    --hash=sha256:d94c18a60b1e56910240a65dcc841cca37067f6432a4881d20baff17b6d77915

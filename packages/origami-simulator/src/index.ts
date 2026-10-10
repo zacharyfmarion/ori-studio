@@ -3,8 +3,8 @@ export { createOrigamiSimulator } from './simulator.js';
 export { ReferenceSolver } from './referenceSolver.js';
 export { SimulationClock } from './simulationClock.js';
 export type { SimulationClockOptions, SimulationRecovery, SimulationTick } from './simulationClock.js';
-export type { SolverBackend, SolverBackendInfo } from './solverBackend.js';
-export { InvalidFixedNodeMaskError } from './solverBackend.js';
+export type { SolverBackend, SolverBackendInfo, SolverShape } from './solverBackend.js';
+export { createSolverShape, InvalidFixedNodeMaskError, InvalidSolverShapeError } from './solverBackend.js';
 export {
   InvalidPullGripError,
   POSE_REST_LENGTH_TOLERANCE,

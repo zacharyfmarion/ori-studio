@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { ShortcutActionId } from '../../keyboard/shortcuts';
+import { MAX_STEP_ANNOTATIONS } from '../annotate/annotationModel';
 import type { DiagramLinkStatus } from '../capture/linkStatus';
 import { DIAGRAM_SHOW_AS, type DiagramShowAs } from '../document/diagramDocument';
 import type { DiagramTurnActionId } from './diagramTurnActions';
@@ -30,9 +31,12 @@ export type DiagramStepActionId =
   | 'make-turn-over'
   | 'make-rotate'
   | 'refresh-picture'
+  | 'update-enlarged'
+  | 'update-all-enlarged'
   | 'open-in-edit'
   | 'open-in-references'
   | 'replace-from-references'
+  | 'make-marks-editable'
   | 'adjust-pose'
   | 'annotate'
   | 'export-picture'
@@ -45,8 +49,13 @@ export interface DiagramStepCommand {
   id: DiagramStepActionId | DiagramTurnActionId;
   label: string;
   disabled: boolean;
-  /** Why it is disabled, for a tooltip or a menu row's hint. */
+  /** Why it is disabled, for a tooltip or a menu row's hint; on a few verbs, what it does. */
   hint?: string;
+  /**
+   * Refusing for now — its request is running — but not disabled, so a pane
+   * row keeps the focus and says so (`ActionList`'s `waiting`).
+   */
+  waiting?: boolean;
   danger?: boolean;
   /** An on/off verb's state, for a surface that shows it as a check. */
   checked?: boolean;
@@ -131,6 +140,28 @@ export interface DiagramStepActionState {
    * "Pose Again" and opens it (D19).
    */
   poseAgain: boolean;
+  /**
+   * A References step whose card's marks are part of its picture (17e): how
+   * many marks it would lift, how many the step would hold with them, the
+   * author's own beside them, and whether that fits — Make Marks Editable's
+   * gate. Null for any other step, the verb then not offered.
+   */
+  cardMarks: CardMarksGate | null;
+  /**
+   * An enlarged step whose area is in the diagram (review fix 4): the number
+   * of the step it is on, which Update places the frame again from; whether
+   * the step is out of date (`areaStatus.ts` `outOfDate`), which Update is
+   * held for otherwise, as Refresh Picture is for a current picture; and
+   * whether its Update is running. Null for any other step, the verb then not
+   * offered.
+   */
+  enlargedArea: { number: number; outOfDate: boolean; updating: boolean } | null;
+  /**
+   * A step that holds areas with steps enlarged from them (review fix 4): how
+   * many of those are out of date, which Update All places. Null for any
+   * other step, the verb then not offered.
+   */
+  heldAreas: { outOfDate: number } | null;
 }
 
 export interface DiagramStepActionDeps {
@@ -153,6 +184,10 @@ export interface DiagramStepActionDeps {
    * for a step that only Pose captures (`poseAgain`), open it in Pose.
    */
   refreshPicture: () => void;
+  /** Place an enlarged step's frame again from its area as it is now (review fix 4). */
+  updateEnlarged: () => void;
+  /** Place every step enlarged from the step's areas that is out of date again (review fix 4). */
+  updateAllEnlarged: () => void;
   /** Show a linked step's pattern in Edit. */
   openInEdit: () => void;
   /** Show the sheet a References step was sent from, in References. */
@@ -161,6 +196,8 @@ export interface DiagramStepActionDeps {
   fromReferences: () => void;
   /** Replace a References step's card from the References browser, its own card marked. */
   replaceFromReferences: () => void;
+  /** Lift a References step's card's marks out of its picture into annotations (17e). */
+  makeMarksEditable: () => void;
   /** Show a linked step's pattern another way (D19). */
   showAs: (way: DiagramShowAs) => void;
   /** A copy of a linked step after it, shown another way (D19). */
@@ -256,6 +293,31 @@ export function buildDiagramStepActions(
         run: run(way),
       })),
     };
+  };
+
+  /** An enabled verb's tooltip: what it does, naming what it acts from. */
+  const withHint = (action: DiagramStepCommand, hint: string): DiagramStepCommand =>
+    action.disabled ? action : { ...action, hint };
+
+  /** Update (review fix 4): held, saying so, while the step is up to date with its area; waiting while it runs. */
+  const updateEnlargedCommand = ({ number, outOfDate, updating }: NonNullable<DiagramStepActionState['enlargedArea']>) => {
+    const waiting = updating && !state.locked && !state.readOnly;
+    const action = command(
+      'update-enlarged',
+      t('panels:diagram.actions.updateEnlarged', 'Update'),
+      deps.updateEnlarged,
+      state.locked || state.capturing || (!outOfDate && !waiting),
+      state.locked
+        ? lockedEditHint
+        : state.capturing
+          ? capturingHint
+          : t('panels:diagram.actions.updateEnlargedCurrent', 'Up to date with step {{number}}’s area', { number })
+    );
+    if (waiting) return { ...action, hint: capturingHint, waiting: true, run: () => {} };
+    return withHint(
+      action,
+      t('panels:diagram.actions.updateEnlargedHint', 'Place the frame again from step {{number}}’s area as it is now', { number })
+    );
   };
 
   return [
@@ -405,6 +467,30 @@ export function buildDiagramStepActions(
             t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
           ),
         ]),
+    // An enlarged step's frame placed again from its area as it is now, over any move made on it (review
+    // fix 4): what "Step N's area changed" asks for, as Refresh Picture is what "the pattern changed" does,
+    // and held, as that is, while there is nothing to bring up to date.
+    ...(state.enlargedArea === null ? [] : [updateEnlargedCommand(state.enlargedArea)]),
+    // The area's own step: every step enlarged from it that is out of date, as its Enlarged section offers.
+    ...(state.heldAreas === null
+      ? []
+      : [
+          withHint(
+            command(
+              'update-all-enlarged',
+              t('panels:diagram.annotations.updateAll', 'Update All'),
+              deps.updateAllEnlarged,
+              state.locked || state.heldAreas.outOfDate === 0,
+              state.locked
+                ? lockedEditHint
+                : t('panels:diagram.annotations.updateAllCurrent', 'Every step enlarged from this area is up to date')
+            ),
+            t(
+              'panels:diagram.annotations.updateAllHint',
+              'Place the frame again on each step enlarged from this area that is out of date, from the area as it is now'
+            )
+          ),
+        ]),
     // A References step is never refreshed (D6): it leads back to its sheet.
     ...(state.linkKind !== 'references'
       ? []
@@ -420,6 +506,18 @@ export function buildDiagramStepActions(
                 ? t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
                 : capturingHint
           ),
+          // A step made before marks were lifted keeps them in its picture until asked (17e, RM8).
+          ...(state.cardMarks === null
+            ? []
+            : [
+                command(
+                  'make-marks-editable',
+                  t('panels:diagram.actions.makeMarksEditable', 'Make Marks Editable'),
+                  deps.makeMarksEditable,
+                  state.locked || !state.cardMarks.fits,
+                  state.locked ? lockedEditHint : tooManyMarksHint(state.cardMarks, t)
+                ),
+              ]),
           command(
             'open-in-references',
             t('panels:diagram.actions.openInReferences', 'Open in References'),
@@ -466,8 +564,12 @@ export function buildDiagramStepActions(
       'remove-picture',
       t('panels:diagram.actions.removePicture', 'Remove Picture'),
       deps.removePicture,
-      !state.hasSource || state.capturing,
-      state.capturing ? capturingHint : t('panels:diagram.actions.noPictureHint', 'This step has no picture yet')
+      state.locked || !state.hasSource || state.capturing,
+      state.locked
+        ? lockedEditHint
+        : state.capturing
+          ? capturingHint
+          : t('panels:diagram.actions.noPictureHint', 'This step has no picture yet')
     ),
     { kind: 'separator', id: 'after-picture' },
     command(
@@ -479,6 +581,34 @@ export function buildDiagramStepActions(
       true
     ),
   ];
+}
+
+/** Make Marks Editable's gate (17e): the marks it would lift, the step's total with them, and whether that fits. */
+export interface CardMarksGate {
+  lifted: number;
+  total: number;
+  fits: boolean;
+}
+
+/**
+ * Why Make Marks Editable cannot lift a step's card's marks (17e): with them,
+ * the step would hold `total` marks — the author's among them, when it has
+ * any, which deleting would make room for — and a step holds no more than
+ * `MAX_STEP_ANNOTATIONS`.
+ */
+export function tooManyMarksHint({ lifted, total }: CardMarksGate, t: TFunction): string {
+  const max = MAX_STEP_ANNOTATIONS;
+  return total > lifted
+    ? t('panels:diagram.actions.tooManyMarksWithYoursHint', '{{count}} marks with yours: a step holds {{max}}', {
+        count: total,
+        max,
+        defaultValue_one: '{{count}} mark with yours: a step holds {{max}}',
+      })
+    : t('panels:diagram.actions.tooManyMarksHint', '{{count}} marks: a step holds {{max}}', {
+        count: total,
+        max,
+        defaultValue_one: '{{count}} mark: a step holds {{max}}',
+      });
 }
 
 /**

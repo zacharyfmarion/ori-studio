@@ -26,12 +26,15 @@ import type { StepDiagramModel } from '../../cp-workspace/references/referenceFi
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import type { RegionReference } from '../../cp-workspace/regions/regionReference';
 import type { SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
-import type { BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
+import { builtInPaperPreset, type BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
-import { cleanAnnotation, MAX_STEP_ANNOTATIONS, withAnnotationReach } from '../annotate/annotationModel';
+import { cleanAnnotation, MAX_STEP_ANNOTATIONS, sameAnnotation, withAnnotationReach } from '../annotate/annotationModel';
+import { followAreaRecords, recordAreaBeforeEdit } from '../zoom/areaRecord';
+import { marksIntoUnits, startsWhole } from '../zoom/zoomFrames';
 import { stepReach } from '../zoom/zoomModel';
+import { authorMarksChanged, authorMarksOf, editedCardMarksGone, isCardMark, releaseCardMarks, withEditTags } from './cardMarks';
 
 /** The version of this document's own shape, inside the project file. */
 export const DIAGRAM_FORMAT_VERSION = 1;
@@ -79,11 +82,11 @@ export interface DiagramPageSetup {
   /** Flow layout only: the band that joins one step to the next. */
   showPath: boolean;
   /**
-   * The band's printed width, mm ({@link PATH_WIDTH_MM_RANGE}); null, as in
-   * every file before it could be chosen, draws it in proportion to the steps
-   * (`pathWidthMm` in `diagramPageLayout.ts`). Written only when set.
+   * The band's printed width, mm ({@link PATH_WIDTH_MM_RANGE}); written only
+   * when not {@link DEFAULT_PATH_WIDTH_MM}, which a file that does not say
+   * reads as.
    */
-  pathWidthMm: number | null;
+  pathWidthMm: number;
   /** The band's colour, `#rrggbb`; written only when not {@link DEFAULT_PATH_COLOR}. */
   pathColor: string;
   /** The side the first page prints on ({@link DiagramPageSide}); written to the file only when `right`. */
@@ -94,11 +97,19 @@ export interface DiagramPageSetup {
 }
 
 /**
- * The paper style every step is painted in. A built-in preset by id, or a
- * resolved style: a user preset or the export slot is resolved when it is
+ * The paper style every step is painted in. A built-in with its saved values,
+ * or a resolved style: a user preset or the export slot is resolved when it is
  * chosen, so a printed diagram never depends on the viewer's own settings.
  */
-export type DiagramStyle = { preset: BuiltInPaperPresetId } | { style: PaperStyle };
+export type ResolvedDiagramStyle = { preset: string; style: PaperStyle } | { style: PaperStyle };
+/** The id-only form is accepted from pre-launch files and callers. */
+export type DiagramStyle = ResolvedDiagramStyle | { preset: BuiltInPaperPresetId; style?: never };
+
+/** Freeze a legacy id-only style when saving or explicitly choosing it. */
+export function snapshotDiagramStyle(style: DiagramStyle): ResolvedDiagramStyle {
+  if (style.style) return style;
+  return { preset: style.preset, style: builtInPaperPreset(style.preset).style };
+}
 
 /** A quarter-turn count, clockwise. */
 export type QuarterTurns = 0 | 1 | 2 | 3;
@@ -159,7 +170,18 @@ export type DiagramCpRender =
       /** 0 to 100: 0 is the flat sheet, captured without Pose. */
       foldPercent: number;
       view: DiagramSimulatedView;
+      /**
+       * The mesh the picture was captured from, pins and all, as a build with
+       * Pose's tools stores it (`implementation-plans/diagram-pose-simulator-tools.md`,
+       * What a step stores). This build has no tools that read it: it is
+       * carried as it came while the render stands, and a capture here, which
+       * makes a new render, leaves it behind with the picture it was for.
+       */
+      shape?: DiagramSimulatedShape;
     };
+
+/** Pose's stored mesh: opaque to this build, which only carries it (see the simulated render). */
+export type DiagramSimulatedShape = Readonly<Record<string, unknown>>;
 
 /**
  * A flat fold's layers spread apart (`foldedLayerSpread.ts`), one of two
@@ -258,6 +280,22 @@ export function nearestEarlierSpread(
     if (render.mode === 'folded-flat' && render.spread && (kind === undefined || render.spread.kind === kind)) {
       return render.spread;
     }
+  }
+  return null;
+}
+
+/**
+ * The way the nearest linked step before `stepId` shows its pattern (D19),
+ * turns, uploads, References steps and a newer build's steps passed over:
+ * what the pattern picker offers a step with no link (review fix 3), so a
+ * step after a folded run links folded. Null when no step before it is
+ * linked.
+ */
+export function nearestEarlierShowAs(document: DiagramDocument, stepId: string): DiagramShowAs | null {
+  for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
+    const entry = document.steps[index]!;
+    if (isTurn(entry) || isLockedStep(entry) || entry.source?.kind !== 'cp') continue;
+    return showAsOf(entry.source.render);
   }
   return null;
 }
@@ -478,6 +516,13 @@ export interface DiagramReferencesSource {
    * reader's. Absent on a step sent before the browser.
    */
   sentence?: string;
+  /**
+   * Which of the card's marks were pulled (17d): its letters and its
+   * reference lines, as the browser's Show menu had them. A Replace opens the
+   * browser on them, and another way is pulled with them. Absent on a step
+   * pulled before marks were lifted, which pulled every mark.
+   */
+  marks?: { letters: boolean; highlights: boolean };
 }
 
 /**
@@ -590,7 +635,9 @@ export type DiagramPicture =
 /**
  * What an annotation draws (D8): a fold arrow — kept (valley, mountain) or
  * made and unfolded — a push, a white arrow, the turn-over and rotate glyphs,
- * a crease line in the diagram's pens, a label, a circle round a point, as
+ * a crease line in the diagram's pens, a solid line in a colour of its own,
+ * as References draws the lines a step lines up against (17a), a label, a
+ * circle round a point, as
  * References rings one, a right angle marked in a corner, and a callout: a
  * line from a point to a box of words, as diagrams say "repeat behind" — an
  * angle marked halved, as a bisector's equal angles are (15b), a pleat
@@ -600,7 +647,13 @@ export type DiagramPicture =
  * divisions: a line set off from a line of the picture, cut into equal parts
  * by strokes across it, each part ticked, as a draftsman's dimension is
  * (Revision 2), and an enlarge area: a circle or a rounded rectangle marking
- * what a later step may show enlarged (Revision 2) — drawing one changes no
+ * what a later step may show enlarged (Revision 2), a star, filled or
+ * outlined, naming a point, an eye, in profile, saying where the next view
+ * is from, and an oval or a rectangle, an outline round an area of any size
+ * and proportion, as a diagram rings the places a repeat applies to, and an
+ * x-ray: a circular window cut into a flat fold's picture, inside which its
+ * top layers at one point are taken away and the faces beneath drawn in
+ * their side's colour with their edges (Revision 3) — drawing one changes no
  * other step.
  */
 export type DiagramAnnotationKind =
@@ -615,6 +668,7 @@ export type DiagramAnnotationKind =
   | 'valley-line'
   | 'mountain-line'
   | 'hidden-line'
+  | 'solid-line'
   | 'label'
   | 'circle'
   | 'right-angle'
@@ -622,7 +676,12 @@ export type DiagramAnnotationKind =
   | 'angle-mark'
   | 'divisions'
   | 'close-up'
-  | 'zoom';
+  | 'zoom'
+  | 'star'
+  | 'eye'
+  | 'oval'
+  | 'rectangle'
+  | 'x-ray';
 
 /**
  * How an enlarged step draws its frame (Revision 2): only where it crosses
@@ -678,6 +737,29 @@ export interface DiagramStepZoom {
   /** As an area's: that many times the area as it prints, 1.25–6; unsaid, Fill. */
   scale?: number;
   /** As an area's: unsaid, the shape's own. */
+  edge?: DiagramZoomEdge;
+  /**
+   * The area as it was when this step's frame was captured from it (review
+   * fix 4): what says the step is out of date once the area is moved,
+   * resized, reshaped, re-anchored, or given another Size or Edge by hand
+   * (`zoom/areaStatus.ts`). Unsaid in a file written before it: such a step
+   * is given one at the first hand edit of its area (`zoom/areaRecord.ts`).
+   */
+  areaWas?: DiagramZoomAreaWas;
+}
+
+/**
+ * An enlarge area as an enlarged step captured it (review fix 4): the step
+ * it was on — which names it once it is deleted — its outline there, in that
+ * step's picture units, a picked anchor, on the paper, and its Size and Edge,
+ * which the capture copied: a step whose own differ set them itself, and
+ * Update keeps them. Unsaid, as on the area: Fill, and the shape's own.
+ */
+export interface DiagramZoomAreaWas {
+  stepId: string;
+  outline: DiagramZoomOutline;
+  anchor?: [number, number];
+  scale?: number;
   edge?: DiagramZoomEdge;
 }
 
@@ -784,8 +866,9 @@ export interface KnownDiagramAnnotation {
   id: string;
   kind: DiagramAnnotationKind;
   /**
-   * Where it starts: an arrow's tail, a line's end, a glyph's or a label's
-   * centre, a right angle's corner, the point a callout marks, an angle
+   * Where it starts: an arrow's tail, a line's end, a glyph's centre, a
+   * label's anchor — its centre, or the point its words hang off (17b,
+   * `offsetPt`) — a right angle's corner, the point a callout marks, an angle
    * mark's vertex, one end of the line equal divisions measure.
    */
   from: [number, number];
@@ -801,6 +884,10 @@ export interface KnownDiagramAnnotation {
   other?: [number, number];
   /** An angle mark's ticks across each half, or equal divisions' on each part; one when unsaid (15b, Revision 2). */
   ticks?: DiagramTicks;
+  /** Equal-angle indicator radius in printed millimetres; absent keeps its original size. */
+  radiusMm?: number;
+  /** An equal-angle indicator kept in Layers but omitted from the drawing. */
+  hidden?: true;
   /** A pleat arrow's Zs; one when unsaid (15c). */
   kinks?: DiagramPleatKinks;
   /**
@@ -821,7 +908,14 @@ export interface KnownDiagramAnnotation {
   /** Equal divisions that print their count beside their line; unsaid, they do not. Only ever written true. */
   numbered?: true;
   /**
-   * The ends of a fold or pleat arrow, a valley or mountain line, or a
+   * Equal divisions whose dividers between their ends are short strokes
+   * across their line, 1.65 mm either side, rather than run to the line they
+   * measure, where they would draw over the fold they locate (Revision 3,
+   * R3-1 A, R3-2 A); unsaid, every divider runs there. Only ever written true.
+   */
+  shortDividers?: true;
+  /**
+   * The ends of a fold or pleat arrow, a valley, mountain or solid line, or a
    * circle that lie behind a flap (15e): drawn dotted from each until they
    * come out from under it, on a flat fold, the one picture that knows its
    * layers. Unsaid, in front, as every mark was before.
@@ -863,34 +957,98 @@ export interface KnownDiagramAnnotation {
    * A close-up's area (15f): the radius of the ring round it, in picture
    * units. Its centre is `from`; the close-up's is `to`. An enlarge area's,
    * when it is a circle (Revision 2): its centre is `from`, and `to` again.
+   * An x-ray's window, a circle about `from`, and `to` again (Revision 3).
+   * A drawn circle's radius; absent on legacy, fixed-size point markers.
    */
   radius?: number;
+  /**
+   * How many steps an x-ray peels its window by (Revision 3, R3-34 A,
+   * `implementation-plans/diagram-xray-peel.md`): each takes away one face on
+   * top in the window, the window's whole top layer before anything under
+   * it, the face nearest its anchor first. A whole number from 1, always
+   * written; one past the window's steps is drawn at the deepest.
+   */
+  depth?: number;
   /**
    * How many times larger a close-up draws its area (15f): its ring is
    * `radius` times this. Two when unsaid. An enlarge area's Size, which the
    * steps enlarged from it copy: that many times the area as it prints,
-   * 1.25–6; unsaid, Fill (Revision 2).
+   * 1.25–6; unsaid, Fill (Revision 2). A star's or an eye's size, times its
+   * print size, 0.5–4; unsaid, 1 (Revision 3).
    */
   scale?: number;
   /**
    * An enlarge area that is a rounded rectangle: its width and height in
    * picture units, about its centre `from`. Exactly one of this and `radius`
-   * (Revision 2).
+   * (Revision 2). An oval's or a rectangle's, always written, so it rings the
+   * same part of the picture at any print size (Revision 3).
    */
   size?: [number, number];
-  /** An enlarge area's turn, in degrees clockwise, from a pose that carried it; unsaid, 0 (Revision 2). */
+  /**
+   * An enlarge area's turn, in degrees clockwise, from a pose that carried it;
+   * unsaid, 0 (Revision 2). A star's turn on the page, one point up at 0, and
+   * the way an eye looks, clockwise from looking right, each within
+   * [0, 360); an oval's or a rectangle's turn, by its handles or a pose that
+   * carried it, within [0, 180); unsaid, 0 (Revision 3).
+   */
   angle?: number;
   /** How the steps enlarged from an area draw their frame; unsaid, its shape's own (Revision 2). */
   edge?: DiagramZoomEdge;
-  /** An enlarge area's picked anchor: a point on the paper, in paper coordinates; unsaid, the default rule (Revision 2). */
+  /**
+   * An enlarge area's picked anchor: a point on the paper, in paper
+   * coordinates; unsaid, the default rule (Revision 2). An x-ray's: the point
+   * on the paper whose nearest face each step of its depth takes first
+   * (R3-35 A); unsaid, the window's centre (Revision 3).
+   */
   anchor?: [number, number];
+  /**
+   * A solid line's colour (17a), or a label's (17b): a `#rrggbb` string,
+   * printed as given in any style. Unsaid, the style's arrow ink, so a change
+   * of style recolours it.
+   */
+  color?: string;
   /** A label's or a callout's text. */
   text?: string;
+  /**
+   * A label set in Noto Sans Bold (17b): the text fonts come in Regular and
+   * Bold only. Unsaid, Regular. Only ever written true.
+   */
+  bold?: true;
+  /**
+   * A label knocked out of what it stands on (17b): a stroke under its
+   * letters in the paper's face where it stands on a References step's sheet,
+   * else in the page's white. Unsaid, none. Only ever written true.
+   */
+  halo?: true;
+  /**
+   * A label's em in print pt (17b), 4 to 48, so it keeps its size at every
+   * size its picture prints. Unsaid, a share of the frame (`LABEL_SIZE`), so
+   * it scales with its picture (D8).
+   */
+  sizePt?: number;
+  /**
+   * How far a label's words hang off `from`, its anchor, in print pt, y down
+   * (17b): its centre is drawn there, keeping its distance in print at every
+   * size, as a References letter keeps its distance from its ring. Unsaid,
+   * the words are centred on `from`.
+   */
+  offsetPt?: [number, number];
   rotate?: DiagramRotation;
   /** The axis a turn-over turns the model about. */
   axis?: 'vertical' | 'horizontal';
+  /**
+   * A mark lifted from the References card the step shows (17d): `untouched`
+   * as it was pulled, `edited` once the author changed it. It follows the
+   * card — Replace from References and another way swap it — where a mark
+   * with none is the author's own. Read only on a step that shows a card
+   * (`isCardMark`); unsaid on every mark drawn by hand.
+   */
+  imported?: DiagramImportedMark;
   unknown?: undefined;
 }
+
+/** Where a mark lifted from a References card stands (17d): as pulled, or changed by the author since. */
+export type DiagramImportedMark = 'untouched' | 'edited';
 
 /**
  * An annotation this build cannot read, kept verbatim so a newer build's work
@@ -1040,6 +1198,36 @@ export interface DiagramDocument {
   steps: DiagramEntry[];
   /** Uploaded art, shared by id between steps, duplicates and undo snapshots. */
   assets: Record<string, DiagramAsset>;
+  /** What a newer build wrote here that this build cannot read, written back as it came. */
+  newer?: DiagramNewerFields;
+}
+
+/**
+ * What a newer build wrote at the document's level that this build cannot
+ * read, each part as it came (decision 2 of the launch review). The document
+ * shows this build's own fallback in its place, and the file is written with
+ * what came until it is changed here: setting a field here lets go of the
+ * newer value that stood for it.
+ */
+export interface DiagramNewerFields {
+  /** Fields of the document this build has no name for. */
+  fields?: Readonly<Record<string, unknown>>;
+  /** A Han style this build has no name for. */
+  hanStyle?: string;
+  /** The whole style, when its preset, or a field of it, is one this build has no name for. */
+  style?: Readonly<Record<string, unknown>>;
+  /**
+   * Page fields this build has no name for, or whose value it does not read
+   * — a word it does not know, a colour in another notation, a number past
+   * the range it reads, page numbers with a field it has no name for — each
+   * under its key.
+   */
+  page?: Readonly<Record<string, unknown>>;
+  /**
+   * The entries of the file's thumbnails table that a newer build's steps
+   * name, as they came: written back while one of those steps is here.
+   */
+  thumbnails?: Readonly<Record<string, unknown>>;
 }
 
 export type DiagramIdFactory = (prefix: 'diagram' | 'step' | 'turn' | 'annotation' | 'asset') => string;
@@ -1052,12 +1240,15 @@ export const PAGE_ROWS_RANGE = { min: 1, max: 6 } as const;
 /** A flow page's steps per page: up to the 5 × 6 a flow page could hold before it took a count, so every one keeps its count. */
 export const STEPS_PER_PAGE_RANGE = { min: 2, max: 30 } as const;
 export const FIRST_PAGE_NUMBER_RANGE = { min: 1, max: 9999 } as const;
-/**
- * The flow band's width, mm: from a thin line to more than twice the 26 mm an
- * A4 page of 3 × 3 steps draws it by itself — as wide as the widest it draws
- * by itself, two steps to a landscape page.
- */
+/** The flow band's width, mm: from a thin line to three times the default. */
 export const PATH_WIDTH_MM_RANGE = { min: 4, max: 60 } as const;
+/**
+ * The flow band's width where nothing else is chosen, mm: a new diagram's,
+ * and a file's that does not say — every diagram saved before the width
+ * could be chosen, which drew the band in proportion to its steps until
+ * 2026-10-08 (`implementation-plans/diagram-review-fixes.md`, item 1).
+ */
+export const DEFAULT_PATH_WIDTH_MM = 20;
 /** The flow band's colour: the mockup's light warm grey. */
 export const DEFAULT_PATH_COLOR = '#ecece8';
 
@@ -1074,14 +1265,14 @@ export const DEFAULT_PAGE_SETUP: DiagramPageSetup = {
   rows: 3,
   stepsPerPage: 9,
   showPath: true,
-  pathWidthMm: null,
+  pathWidthMm: DEFAULT_PATH_WIDTH_MM,
   pathColor: DEFAULT_PATH_COLOR,
   firstPageSide: 'left',
   showTitle: true,
   pageNumbers: { enabled: true, first: 1 },
 };
 
-export const DEFAULT_DIAGRAM_STYLE: DiagramStyle = { preset: 'diagram' };
+export const DEFAULT_DIAGRAM_STYLE: DiagramStyle = snapshotDiagramStyle({ preset: 'diagram' });
 
 /**
  * The Han style a new diagram starts in, from the author's interface language:
@@ -1354,7 +1545,9 @@ export function insertPictureSteps(
 /**
  * Give a step a picture: it becomes an upload of `asset`, in its upright pose,
  * and keeps its instruction and annotations. Annotations drawn on another
- * picture stay where they were, and Annotate says the picture changed.
+ * picture stay where they were, and Annotate says the picture changed. An
+ * upload never continues an enlarged run: a step given its first picture
+ * starts whole (`startsWhole`), and one that had a picture keeps its frame.
  */
 export function setStepPicture(
   document: DiagramDocument,
@@ -1363,11 +1556,19 @@ export function setStepPicture(
 ): DiagramDocument {
   const step = stepById(document, stepId);
   if (!step || isLockedStep(step)) return document;
-  return updateStep(withAssets(document, [asset]), stepId, (step) => ({
-    ...step,
-    ...uploadStepParts(asset),
-    revision: step.revision + 1,
-  }));
+  const withAsset = withAssets(document, [asset]);
+  // A card's marks are the author's once its picture is not the card (17d).
+  return updateStep(withAsset, stepId, (step) =>
+    startsWhole(
+      step,
+      releaseCardMarks({
+        ...step,
+        ...uploadStepParts(asset),
+        revision: step.revision + 1,
+      }),
+      withAsset.assets
+    )
+  );
 }
 
 /** A linked step's picture as a capture made it: its source, and the picture with any bitmap it is kept as. */
@@ -1400,16 +1601,19 @@ export function setLinkedPicture(
     return document;
   }
   const withAsset = withAssets(document, link.asset ? [link.asset] : []);
-  return updateStep(withAsset, stepId, (current) =>
-    withCarriedAnnotations(
-      current,
-      {
-        ...current,
-        source: withRememberedPoses(current.source, link.source),
-        picture: link.picture,
-        revision: current.revision + 1,
-      },
-      withAsset.assets
+  return updatePicture(withAsset, stepId, (current) =>
+    // A card's marks are the author's once its picture is a capture (17d).
+    releaseCardMarks(
+      withCarriedAnnotations(
+        current,
+        {
+          ...current,
+          source: withRememberedPoses(current.source, link.source),
+          picture: link.picture,
+          revision: current.revision + 1,
+        },
+        withAsset.assets
+      )
     )
   );
 }
@@ -1426,9 +1630,31 @@ function paperFacesOn(picture: DiagramPicture | null): string | undefined {
 /** One References card, as a step is made from it. */
 export interface SentReferencesStep {
   source: DiagramReferencesSource;
+  /** The card's whole picture, its marks in it: what the step shows when they are not lifted. */
   picture: DiagramStepDiagramPicture;
+  /**
+   * The card split (17d): its paper as the picture, its marks as annotations
+   * in picture units, tagged. Null for a card whose marks are past what a
+   * step holds, pulled baked and said so; absent, pulled baked as a card was
+   * before marks were lifted.
+   */
+  lifted?: LiftedCard | null;
   /** The card's sentence: the step's instruction until it is edited. */
   text: string;
+}
+
+/** A References card split (17d): its sheet — the paper, as it stands — and its marks, lifted. */
+export interface LiftedCard {
+  picture: DiagramStepDiagramPicture;
+  annotations: KnownDiagramAnnotation[];
+}
+
+/** What a pull did beyond making steps (17d): the steps a card was pulled baked into, and the edited marks a Replace swapped away. */
+export interface PulledMarks {
+  /** Steps that show their card baked: its marks past what a step holds. */
+  baked: string[];
+  /** Marks lifted from the card a replaced step showed, edited by the author, that went with it. */
+  replaced: number;
 }
 
 /**
@@ -1461,12 +1687,24 @@ export function pullReferencesSteps(
   sent: readonly SentReferencesEntry[],
   anchor: DiagramPullAnchor,
   { newId = randomDiagramId }: { newId?: DiagramIdFactory } = {}
-): { document: DiagramDocument; stepIds: string[]; turnIds: string[] } {
-  if (sent.length === 0) return { document, stepIds: [], turnIds: [] };
-  const make = (card: SentReferencesEntry): DiagramEntry =>
-    'kind' in card
-      ? createTurn(card, newId)
-      : { ...createStep(newId), source: card.source, picture: card.picture, text: xmlText(card.text) };
+): { document: DiagramDocument; stepIds: string[]; turnIds: string[] } & PulledMarks {
+  const baked: string[] = [];
+  if (sent.length === 0) return { document, stepIds: [], turnIds: [], baked, replaced: 0 };
+  /** The card as a new step: its marks lifted, in step with its sheet, when they fit (17d). */
+  const make = (card: SentReferencesEntry): DiagramEntry => {
+    if ('kind' in card) return createTurn(card, newId);
+    const step = createStep(newId);
+    const lifted = card.lifted && card.lifted.annotations.length <= MAX_STEP_ANNOTATIONS ? card.lifted : null;
+    if (!lifted && card.lifted !== undefined) baked.push(step.id);
+    const picture = lifted?.picture ?? card.picture;
+    return {
+      ...step,
+      source: card.source,
+      picture,
+      ...(lifted ? { annotations: [...lifted.annotations], annotatedPictureKey: picture.key } : {}),
+      text: xmlText(card.text),
+    };
+  };
   const insertAt = (index: number, cards: readonly SentReferencesEntry[], into = document) => {
     const entries = cards.map(make);
     return {
@@ -1475,7 +1713,7 @@ export function pullReferencesSteps(
       turnIds: entries.filter(isTurn).map((turn) => turn.id),
     };
   };
-  if (anchor.kind === 'end') return insertAt(document.steps.length, sent);
+  if (anchor.kind === 'end') return { ...insertAt(document.steps.length, sent), baked, replaced: 0 };
   const at = stepIndex(document, anchor.stepId);
   const target = stepById(document, anchor.stepId);
   const firstStep = sent.findIndex((card) => !('kind' in card));
@@ -1483,7 +1721,7 @@ export function pullReferencesSteps(
     // Into a step that cannot take a card, or with no card that makes one: after it — a turn sent for
     // an empty step goes before it, which stays for the card that fills it.
     const before = target && firstStep < 0 && anchor.kind !== 'after' && anchorTakesCard(document, anchor);
-    return insertAt(at < 0 ? document.steps.length : before ? at : at + 1, sent);
+    return { ...insertAt(at < 0 ? document.steps.length : before ? at : at + 1, sent), baked, replaced: 0 };
   }
   const first = sent[firstStep] as SentReferencesStep;
   const leading = sent.slice(0, firstStep);
@@ -1494,20 +1732,118 @@ export function pullReferencesSteps(
     const own = step.source?.kind === 'references-step' ? step.source.sentence : undefined;
     return own !== undefined && step.text === own ? xmlText(first.text) : step.text;
   };
-  const taken = updateStep(document, target.id, (step) => ({
-    ...step,
-    source: first.source,
-    picture: first.picture,
-    text: words(step),
-    revision: step.revision + 1,
-  }));
+  // The card's marks follow the card (RM6): every one the old card brought
+  // goes, edited or not, the new card's arrive, and the author's stay.
+  let replaced = 0;
+  const taken = updateStep(document, target.id, (step) => {
+    const lifted = fits(step, first.lifted) ? first.lifted : null;
+    if (!lifted && first.lifted !== undefined) baked.push(step.id);
+    // A card never continues an enlarged run: an empty step it fills starts whole, before its marks arrive (review fix 3).
+    const next = startsWhole(
+      step,
+      {
+        ...step,
+        source: first.source,
+        picture: lifted?.picture ?? first.picture,
+        text: words(step),
+        revision: step.revision + 1,
+      },
+      document.assets
+    );
+    const swapped = swapCardMarks(step, next, lifted?.annotations ?? [], document.assets);
+    replaced = editedCardMarksGone(step, swapped);
+    return swapped;
+  });
   const before = insertAt(at, leading, taken);
   const after = insertAt(at + leading.length + 1, rest, before.document);
   return {
     document: after.document,
     stepIds: [target.id, ...after.stepIds],
     turnIds: [...before.turnIds, ...after.turnIds],
+    baked,
+    replaced,
   };
+}
+
+/** Whether a card's lifted marks fit on `step` beside the author's own (17d): a step holds no more than a file keeps. */
+function fits(step: DiagramStep, lifted: LiftedCard | null | undefined): lifted is LiftedCard {
+  return !!lifted && lifted.annotations.length + authorMarksOf(step).length <= MAX_STEP_ANNOTATIONS;
+}
+
+/**
+ * A References step given another card or another way (17d, RM6): `next`,
+ * the step with its new source and picture, with every mark the old card
+ * brought taken away — edited or not, so trying another way never leaves two
+ * arrows or two Ps — the new card's `arriving` first, in the step's units
+ * (an enlarged step's window, `marksIntoUnits`), then the author's own, kept
+ * where they were. Those are in step with the new picture if it is the
+ * picture they were drawn on, or the same card's sheet seen from the same
+ * side — its marks lifted now where they were baked, or pulled again — whose
+ * paper has not moved under them (as Make Editable keeps them, §9); with
+ * none, the step's marks are all the card's and in step with it.
+ */
+export function swapCardMarks(
+  was: DiagramStep,
+  next: DiagramStep,
+  arriving: readonly KnownDiagramAnnotation[],
+  assets: Readonly<Record<string, DiagramAsset>>
+): DiagramStep {
+  const own = next.annotations.filter((annotation) => !isCardMark(was, annotation));
+  const placed = arriving.length > 0 ? marksIntoUnits(next, arriving, assets) : [];
+  const key = own.length === 0 || sameSheetInStep(was, next) ? (next.picture?.key ?? null) : next.annotatedPictureKey;
+  if (placed.length === 0 && own.length === next.annotations.length) {
+    return key === next.annotatedPictureKey ? next : { ...next, annotatedPictureKey: key };
+  }
+  return { ...next, annotations: [...placed, ...own], annotatedPictureKey: key };
+}
+
+/**
+ * Make Marks Editable (17e, RM8 and §9 of
+ * `implementation-plans/diagram-references-annotations.md`): a References
+ * step whose card's marks are still in its picture — every step pulled
+ * before marks were lifted, and one pulled whole past what a step held —
+ * shown as a fresh pull shows the card: `lifted`, the same card from the same
+ * side split, its sheet the picture and every mark an annotation, tagged,
+ * whatever the Show menu said. The author's marks stay, over the card's; in
+ * step with the sheet if they were with the card, whose paper has not moved
+ * under them, and under the notice still if they were not (`swapCardMarks`).
+ * An enlarged step's marks go into its window. A step that records which
+ * marks it was pulled with records them all now. The document itself when
+ * `lifted` is not the step's card, brings nothing, or does not fit beside
+ * the author's marks.
+ */
+export function makeCardMarksEditable(document: DiagramDocument, stepId: string, lifted: LiftedCard): DiagramDocument {
+  return updateStep(document, stepId, (step) => {
+    const { picture, source } = step;
+    if (source?.kind !== 'references-step' || picture?.kind !== 'step-diagram') return step;
+    const card = lifted.picture;
+    const same = card.mirrored === picture.mirrored && stepDiagramCardKey(card.key) === stepDiagramCardKey(picture.key);
+    if (!same || card.key === picture.key || lifted.annotations.length === 0 || !fits(step, lifted)) return step;
+    const next: DiagramStep = {
+      ...step,
+      source: source.marks ? { ...source, marks: { letters: true, highlights: true } } : source,
+      picture: card,
+      revision: step.revision + 1,
+    };
+    return swapCardMarks(step, next, lifted.annotations, document.assets);
+  });
+}
+
+/**
+ * Whether a References step's author's marks were in step with the card it
+ * showed, `was`, and `next` shows the same card from the same side: one
+ * sheet, its marks in the picture or lifted from it, so the paper under them
+ * has not moved.
+ */
+function sameSheetInStep(was: DiagramStep, next: DiagramStep): boolean {
+  const [before, after] = [was.picture, next.picture];
+  return (
+    before?.kind === 'step-diagram' &&
+    after?.kind === 'step-diagram' &&
+    was.annotatedPictureKey === before.key &&
+    before.mirrored === after.mirrored &&
+    stepDiagramCardKey(before.key) === stepDiagramCardKey(after.key)
+  );
 }
 
 /**
@@ -1531,13 +1867,37 @@ export function stepDiagramKey(modelKey: string, mirrored: boolean): string {
 
 const BACK_SUFFIX = '-back';
 
+/** What a card's sheet with its marks lifted is keyed by (17d): after the card's own key, before the side's. */
+const MARKS_SUFFIX = '-marks';
+
+/**
+ * The card a References picture shows, by its key (17d): the same on either
+ * side, and whether its marks are in the picture or lifted from it — what
+ * tells two pictures of one card, as the Way chooser and a paste do.
+ */
+export function stepDiagramCardKey(key: string): string {
+  const front = stepDiagramKey(key, false);
+  return front.endsWith(MARKS_SUFFIX) ? front.slice(0, -MARKS_SUFFIX.length) : front;
+}
+
+/**
+ * The key of a card's sheet with its marks lifted (17d): the card's own,
+ * marked `-marks`, then `-back` for the back. Never the baked picture's, so no
+ * paint cache mixes a picture with its marks and one without.
+ */
+export function liftedStepDiagramKey(cardKey: string, mirrored: boolean): string {
+  return stepDiagramKey(`${stepDiagramCardKey(cardKey)}${MARKS_SUFFIX}`, mirrored);
+}
+
 /**
  * Show a References step from one side or the other (D5: its pose is Turn
  * over). The picture is re-keyed, and its annotations are flipped with it
- * (D8); the source keeps the side the card was sent from.
+ * (D8), each fold named from the side it now shows (RM7: a valley line or
+ * arrow a mountain, and back); the source keeps the side the card was sent
+ * from.
  */
 export function setReferencesSide(document: DiagramDocument, stepId: string, mirrored: boolean): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  return updatePicture(document, stepId, (step) => {
     if (step.source?.kind !== 'references-step' || step.picture?.kind !== 'step-diagram') return step;
     if (step.picture.mirrored === mirrored) return step;
     const turned: DiagramStep = {
@@ -1559,21 +1919,27 @@ export function setReferencesSide(document: DiagramDocument, stepId: string, mir
 export function setReferencesWay(
   document: DiagramDocument,
   stepId: string,
-  way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string }
+  way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string; lifted?: LiftedCard | null }
 ): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  return updatePicture(document, stepId, (step) => {
     if (step.source?.kind !== 'references-step' || step.picture?.kind !== 'step-diagram') return step;
-    if (step.source.way === way.signature && step.picture.key === way.picture.key) return step;
+    // The way it shows, baked or lifted: the same card.
+    if (step.source.way === way.signature && stepDiagramCardKey(step.picture.key) === stepDiagramCardKey(way.picture.key)) {
+      return step;
+    }
     const sentence = xmlText(way.sentence);
     const own = step.source.sentence;
+    // Lifted with the step's own choice of marks, when they fit beside the author's (17d).
+    const lifted = fits(step, way.lifted) ? way.lifted : null;
     const chosen: DiagramStep = {
       ...step,
       source: { ...step.source, way: way.signature, sentence },
-      picture: way.picture,
+      picture: lifted?.picture ?? way.picture,
       text: own !== undefined && step.text === own ? sentence : step.text,
       revision: step.revision + 1,
     };
-    return withCarriedAnnotations(step, chosen, document.assets);
+    // The card's marks follow the card (RM6); the author's stay where they were on a picture that changed (D8).
+    return swapCardMarks(step, withCarriedAnnotations(step, chosen, document.assets), lifted?.annotations ?? [], document.assets);
   });
 }
 
@@ -1619,7 +1985,7 @@ export function setUploadPose(
   stepId: string,
   pose: UploadPose
 ): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  return updatePicture(document, stepId, (step) => {
     if (poseBlocker(step) !== null || step.source?.kind !== 'upload') return step;
     const { rotationQuarterTurns, mirrored } = step.source;
     if (rotationQuarterTurns === pose.rotationQuarterTurns && mirrored === pose.mirrored) return step;
@@ -1636,23 +2002,32 @@ export function setUploadPose(
  * A step's annotations edited: `edit` gets the readable ones and returns them
  * as they should be; one this build cannot read keeps its place. Touching
  * them marks them drawn on the picture the step has now (D8: "until they are
- * touched"). A step with no picture takes none.
+ * touched") — the author's: a mark a References card brought is in step
+ * whatever, so touching only those leaves the author's out of step as they
+ * were, under the notice (17d). A step with no picture takes none.
  */
 export function editStepAnnotations(
   document: DiagramDocument,
   stepId: string,
   edit: (annotations: readonly KnownDiagramAnnotation[]) => readonly KnownDiagramAnnotation[]
 ): DiagramDocument {
-  return updateStep(document, stepId, (step) => {
+  // A hand edit of an area tells a step enlarged from it with no record that it changed (review fix 4).
+  const edited = updateStep(document, stepId, (step) => {
     if (step.picture === null) return step;
     const known = step.annotations.filter(isKnownAnnotation);
-    // As this build writes them, whoever made them: within the step's reach, a label's text clean.
-    const edited = withAnnotationReach(stepReach(step), () => edit(known).map(cleanAnnotation));
+    // As this build writes them, whoever made them: within the step's reach, a label's text clean;
+    // a mark its card brought, `edited` once it says anything else (17d).
+    const edited = withAnnotationReach(stepReach(step), () =>
+      withEditTags(known, edit(known).map(cleanAnnotation), cleanAnnotation)
+    );
     if (sameAnnotations(edited, known)) return step;
     // A step holds no more than a file keeps.
     if (edited.length + (step.annotations.length - known.length) > MAX_STEP_ANNOTATIONS) return step;
-    return { ...step, annotations: mergeAnnotations(step.annotations, edited), annotatedPictureKey: step.picture.key };
+    const next: DiagramStep = { ...step, annotations: mergeAnnotations(step.annotations, edited) };
+    const touched = !annotationsOutOfStep(step) || authorMarksChanged(step, next);
+    return touched ? { ...next, annotatedPictureKey: step.picture.key } : next;
   });
+  return recordAreaBeforeEdit(document, edited, stepId);
 }
 
 /**
@@ -1668,9 +2043,13 @@ export function keepStepAnnotations(document: DiagramDocument, stepId: string): 
   );
 }
 
-/** Whether a step's annotations were drawn on a picture other than the one it has (D8). */
+/**
+ * Whether a step's annotations were drawn on a picture other than the one it
+ * has (D8): the author's — the marks a References card brought are made for
+ * the picture they arrive with, and every carry takes them along (17d).
+ */
 export function annotationsOutOfStep(step: DiagramStep): boolean {
-  return step.annotations.length > 0 && step.annotatedPictureKey !== (step.picture?.key ?? null);
+  return authorMarksOf(step).length > 0 && step.annotatedPictureKey !== (step.picture?.key ?? null);
 }
 
 /**
@@ -1701,26 +2080,69 @@ function mergeAnnotations(
  * value it already shows builds a new annotation, and must not cost an undo step.
  */
 function sameAnnotations(a: readonly KnownDiagramAnnotation[], b: readonly KnownDiagramAnnotation[]): boolean {
-  return (
-    a.length === b.length &&
-    a.every((annotation, index) => annotation === b[index] || JSON.stringify(annotation) === JSON.stringify(b[index]))
-  );
+  return a.length === b.length && a.every((annotation, index) => sameAnnotation(annotation, b[index]));
 }
 
-/** Take a step's picture away, and its source with it. Its words and annotations stay. */
+/**
+ * Take a step's picture away, and its source with it. Its words and
+ * annotations stay — a card's marks the author's now (17d).
+ */
 export function removeStepPicture(document: DiagramDocument, stepId: string): DiagramDocument {
   return updateStep(document, stepId, (step) =>
     stepHasPicture(step)
-      ? { ...step, source: null, picture: null, revision: step.revision + 1 }
+      ? releaseCardMarks({ ...step, source: null, picture: null, revision: step.revision + 1 })
       : step
   );
 }
 
-/** The asset a step's picture is drawn from, when it is one this build can draw. */
+/**
+ * The asset a step's picture is drawn from, when it is one this build can
+ * draw — a newer build's step's too, which is drawn as far as it reads.
+ */
 export function stepAsset(document: DiagramDocument, step: DiagramStep): KnownDiagramAsset | null {
-  if (isLockedStep(step) || step.picture?.kind !== 'asset') return null;
+  if (step.picture?.kind !== 'asset') return null;
   const asset = document.assets[step.picture.assetId];
   return asset && isKnownAsset(asset) ? asset : null;
+}
+
+/** Each carried value's JSON, made once: what a newer build wrote never changes here. */
+const carriedJsonOf = new WeakMap<object, string>();
+
+function jsonOnce(value: object): string {
+  let json = carriedJsonOf.get(value);
+  if (json === undefined) {
+    json = JSON.stringify(value);
+    carriedJsonOf.set(value, json);
+  }
+  return json;
+}
+
+/**
+ * Everything a newer build wrote that this build carries without reading, as
+ * JSON, one part each: its steps and turns, the annotations and assets this
+ * build cannot read, and the document's own fields, page fields and style it
+ * does not read. An asset or a thumbnail named anywhere in it is kept, since
+ * only that newer build knows what the name is for. The thumbnails carried
+ * for those steps are no part of it: they are what it keeps.
+ */
+export function carriedJson(document: Pick<DiagramDocument, 'steps' | 'assets' | 'newer'>): string[] {
+  const parts: string[] = [];
+  for (const entry of document.steps) {
+    if (entry.unknown) parts.push(jsonOnce(entry.unknown));
+    else if (!isTurn(entry)) {
+      for (const annotation of entry.annotations) {
+        if (!isKnownAnnotation(annotation)) parts.push(jsonOnce(annotation.unknown));
+      }
+    }
+  }
+  for (const asset of Object.values(document.assets)) {
+    if (!isKnownAsset(asset)) parts.push(jsonOnce(asset.unknown));
+  }
+  const { newer } = document;
+  for (const part of [newer?.fields, newer?.page, newer?.style]) {
+    if (part) parts.push(jsonOnce(part));
+  }
+  return parts;
 }
 
 /**
@@ -1728,35 +2150,27 @@ export function stepAsset(document: DiagramDocument, step: DiagramStep): KnownDi
  *
  * The store prunes as every edit lands, since each undo snapshot keeps its own
  * table, and the writer prunes again for a document from anywhere else (one
- * read from a hand-edited file). Three things keep an asset: a step's source or picture naming it; its id anywhere in a
- * newer build's step, annotation or asset, which this build cannot read but must not break; and
- * being of a kind this build does not know, since only that newer build knows
- * what refers to it. The same document comes back when nothing is dropped.
+ * read from a hand-edited file). Three things keep an asset: a step's source
+ * or picture naming it; its id anywhere a newer build wrote ({@link carriedJson}),
+ * which this build cannot read but must not break; and being of a kind this
+ * build does not know, since only that newer build knows what refers to it.
+ * The same document comes back when nothing is dropped.
  */
 export function withReferencedAssets(document: DiagramDocument): DiagramDocument {
   const kept = new Set<string>();
-  const carried: string[] = [];
   for (const step of stepsOf(document)) {
-    if (step.unknown) {
-      carried.push(JSON.stringify(step.unknown));
-      continue;
-    }
+    if (step.unknown) continue;
     if (step.source?.kind === 'upload') kept.add(step.source.assetId);
     if (step.picture?.kind === 'asset') kept.add(step.picture.assetId);
-    // A newer build's annotation may name an asset, as its step may.
-    for (const annotation of step.annotations) {
-      if (!isKnownAnnotation(annotation)) carried.push(JSON.stringify(annotation.unknown));
-    }
   }
-  for (const asset of Object.values(document.assets)) {
-    if (!isKnownAsset(asset)) carried.push(JSON.stringify(asset.unknown));
-  }
-  const unknownSteps = carried.join('\n');
+  // Read only for an asset no step of this build's names, which is rare.
+  let carried: string[] | undefined;
   let dropped = false;
   const assets: Record<string, DiagramAsset> = {};
   for (const [id, asset] of Object.entries(document.assets)) {
-    if (kept.has(id) || !isKnownAsset(asset) || unknownSteps.includes(id)) assets[id] = asset;
-    else dropped = true;
+    if (kept.has(id) || !isKnownAsset(asset) || (carried ??= carriedJson(document)).some((json) => json.includes(id))) {
+      assets[id] = asset;
+    } else dropped = true;
   }
   return dropped ? { ...document, assets } : document;
 }
@@ -1784,20 +2198,44 @@ export function setDiagramTitle(document: DiagramDocument, title: string): Diagr
 }
 
 export function setHanStyle(document: DiagramDocument, hanStyle: DiagramHanStyle): DiagramDocument {
-  return document.hanStyle === hanStyle ? document : { ...document, hanStyle };
+  if (document.hanStyle === hanStyle && document.newer?.hanStyle === undefined) return document;
+  return withNewer({ ...document, hanStyle }, { ...document.newer, hanStyle: undefined });
 }
 
 export function setDiagramStyle(document: DiagramDocument, style: DiagramStyle): DiagramDocument {
-  return diagramStyleEquals(document.style, style) ? document : { ...document, style };
+  if (diagramStyleEquals(document.style, style) && document.newer?.style === undefined) return document;
+  return withNewer({ ...document, style: snapshotDiagramStyle(style) }, { ...document.newer, style: undefined });
 }
 
-/** Apply a partial page setup, clamped to the legal ranges. */
+/**
+ * Apply a partial page setup, clamped to the legal ranges. A field it sets
+ * lets go of a newer build's value for it, even one shown as this value.
+ */
 export function setPageSetup(
   document: DiagramDocument,
   patch: Partial<DiagramPageSetup>
 ): DiagramDocument {
   const next = normalizePageSetup({ ...document.page, ...patch });
-  return pageSetupEquals(document.page, next) ? document : { ...document, page: next };
+  const newerPage = withoutKeys(document.newer?.page, Object.keys(patch));
+  if (pageSetupEquals(document.page, next) && newerPage === document.newer?.page) return document;
+  return withNewer({ ...document, page: next }, { ...document.newer, page: newerPage });
+}
+
+/** A document with the newer build's values that still stand, and no `newer` at all when none does. */
+function withNewer(document: DiagramDocument, newer: DiagramNewerFields): DiagramDocument {
+  const { newer: _was, ...rest } = document;
+  const standing = Object.fromEntries(Object.entries(newer).filter(([, value]) => value !== undefined));
+  return Object.keys(standing).length > 0 ? { ...rest, newer: standing } : rest;
+}
+
+/** `record` without `keys`: the same record when it has none of them, and none when nothing is left. */
+function withoutKeys(
+  record: Readonly<Record<string, unknown>> | undefined,
+  keys: readonly string[]
+): Readonly<Record<string, unknown>> | undefined {
+  if (!record || !keys.some((key) => Object.hasOwn(record, key))) return record;
+  const rest = Object.fromEntries(Object.entries(record).filter(([key]) => !keys.includes(key)));
+  return Object.keys(rest).length > 0 ? rest : undefined;
 }
 
 /**
@@ -1852,6 +2290,21 @@ export function setTurn(document: DiagramDocument, turnId: string, kind: Diagram
 function sameTurn(a: DiagramTurnKind, b: DiagramTurnKind): boolean {
   if (a.kind === 'turn-over') return b.kind === 'turn-over' && a.axis === b.axis;
   return b.kind === 'rotate' && a.rotate.amount === b.rotate.amount && a.rotate.direction === b.rotate.direction;
+}
+
+/**
+ * Edit one step's own picture — a capture, a relink, a re-pose, a References
+ * step's side or way — as {@link updateStep} does, its marks carried with it
+ * (`withCarriedAnnotations`): the records of the steps enlarged from an area
+ * on it go with an area the picture carried, so a carry says no enlarged step
+ * is out of date (review fix 4, `followAreaRecords`).
+ */
+function updatePicture(
+  document: DiagramDocument,
+  stepId: string,
+  edit: (step: DiagramStep) => DiagramStep
+): DiagramDocument {
+  return followAreaRecords(document, updateStep(document, stepId, edit), stepId);
 }
 
 /** Edit one step; a turn, an unknown id or a newer build's step is left as it is. */
@@ -1915,11 +2368,7 @@ export function normalizePageSetup(value: unknown): DiagramPageSetup {
     rows,
     stepsPerPage: clampWhole(source.stepsPerPage, STEPS_PER_PAGE_RANGE, unsaidStepsPerPage({ columns, rows })),
     showPath: typeof source.showPath === 'boolean' ? source.showPath : DEFAULT_PAGE_SETUP.showPath,
-    // Unsaid, or damaged: in proportion to the steps, as before there was a choice.
-    pathWidthMm:
-      typeof source.pathWidthMm === 'number' && Number.isFinite(source.pathWidthMm)
-        ? clampNumber(source.pathWidthMm, PATH_WIDTH_MM_RANGE, PATH_WIDTH_MM_RANGE.min)
-        : null,
+    pathWidthMm: clampNumber(source.pathWidthMm, PATH_WIDTH_MM_RANGE, DEFAULT_PAGE_SETUP.pathWidthMm),
     pathColor: readHexColor(source.pathColor) ?? DEFAULT_PATH_COLOR,
     // Unsaid, as in every file before there was a choice: the left.
     firstPageSide: source.firstPageSide === 'right' ? 'right' : DEFAULT_PAGE_SETUP.firstPageSide,
@@ -1961,7 +2410,8 @@ export function readHexColor(value: unknown): string | null {
 
 function diagramStyleEquals(a: DiagramStyle, b: DiagramStyle): boolean {
   if ('preset' in a || 'preset' in b) {
-    return 'preset' in a && 'preset' in b && a.preset === b.preset;
+    return 'preset' in a && 'preset' in b && a.preset === b.preset
+      && JSON.stringify(snapshotDiagramStyle(a).style) === JSON.stringify(snapshotDiagramStyle(b).style);
   }
   return JSON.stringify(a.style) === JSON.stringify(b.style);
 }

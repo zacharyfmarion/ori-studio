@@ -526,7 +526,10 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
       sources at 5c7628cb2: 49 tests fail and two suites do not load) and
       fourteen mutants, each failing a test. Browser
       (`artifacts/diagram-annotate/14c2/editpath.mjs`, light and dark).
-- [ ] Touch and Pencil.
+- [ ] Touch and Pencil: **deferred past launch**, 2026-10-10 under Zach's
+  instruction to accept routine recommendations. Larger path grips, node
+  gestures and palm rejection remain unbuilt; current hardware testing is
+  a separate launch gate.
 - [x] Browser: a 3–4 node arrow shaped with mouse, Alt and Shift; Reset; a PDF
   export beside the canvas.
   - As built: a default valley arrow drawn with V, shaped into a four-node S

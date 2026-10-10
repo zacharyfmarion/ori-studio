@@ -1,6 +1,7 @@
 /**
- * Enlarged steps' captures against the store (Revision 2, Z2, Z7): Pose's
- * Enlarged and Update Enlarged Steps, each one undo step.
+ * Enlarged steps' captures against the store (Revision 2, Z2, Z7): the
+ * Enlarged switch (Annotate's Step pane), and Update on an enlarged step and
+ * Update All on its area (review fix 4), each one undo step.
  *
  * A flat step captured before steps kept their faces on the paper has none,
  * and a frame anchors nothing on it. So a capture whose source or enlarged
@@ -14,6 +15,7 @@ import {
   trackDiagramPicturePosed,
   trackDiagramStepEnlarged,
   type DiagramPictureKind,
+  type DiagramStepEnlargedVia,
 } from '../../analytics';
 import { cpAuxLinesKey, NO_AUX_LINES_KEY } from '../../cp-workspace/folded/foldedAuxSource';
 import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
@@ -29,7 +31,8 @@ import {
   type DiagramStep,
   type DiagramStepZoom,
 } from '../../diagram/document/diagramDocument';
-import { areaSource, captureSource, stepsFrom, type ZoomCaptured } from '../../diagram/zoom/zoomCapture';
+import { updateTargets, type EnlargedUpdate } from '../../diagram/zoom/areaStatus';
+import { areaSource, captureSource, type ZoomCaptured } from '../../diagram/zoom/zoomCapture';
 import {
   anchorInPlace,
   enlargeStep,
@@ -81,7 +84,7 @@ export function storePaperFacesBackfill(store: DiagramCaptureStore): PaperFacesB
  * The faces a backfill found put on their steps — each only while its step
  * is as it was folded (its revision and picture key) and still has none. The
  * backfill runs inside another step's verb — Enlarged turned on for the step
- * after, Update Enlarged Steps — and its picture is the one it showed, so an
+ * after, Update — and its picture is the one it showed, so an
  * enlarged step among them shows as it did: its frame stays where it was
  * copied in picture units, its imprint made again from it on the faces
  * (`anchorInPlace`), and its marks stay on the paper they were on.
@@ -123,7 +126,7 @@ export function trackCaptured(
   document: DiagramDocument,
   stepId: string,
   captured: Pick<ZoomCaptured, 'placed' | 'anchor'> & { shape: ZoomCaptured['zoom']['shape'] },
-  via: 'toggle' | 'seeded' | 'update'
+  via: DiagramStepEnlargedVia
 ): void {
   const step = stepById(document, stepId);
   const picture = step ? enlargedPictureKind(document, step) : null;
@@ -134,8 +137,10 @@ export function trackCaptured(
 /**
  * The frames that placed nothing yet — their steps have no picture — and
  * whose first picture is the capture's to count (`trackSeeded`), with how
- * they were captured: Pose's Enlarged turned on for a step with no picture
- * yet, a linked step not captured yet (`toggle`), or a step made empty after
+ * they were captured: the Enlarged toggle turned on for a step with no
+ * picture yet, a linked step not captured yet (`toggle`: Pose offered it
+ * there until 2026-10-08; Annotate's Step pane, which has it now, needs a
+ * picture), or a step made empty after
  * an enlarged one, by Add Step or Insert Step After (`seeded`). Each
  * enlarging is counted once, by `diagram step enlarged`: the entry is the
  * step's own, so a duplicate sharing its frame counts nothing, and it is
@@ -155,7 +160,10 @@ function awaitFirstPicture(document: DiagramDocument, stepId: string, via: 'togg
 /**
  * A step's first picture that landed the frame it was enlarged with, counted
  * — as `toggle` or `seeded`, as it was enlarged — when that frame was
- * waiting for it ({@link awaitingPicture}). Nothing when it placed none.
+ * waiting for it ({@link awaitingPicture}). Nothing when it placed none, or
+ * the step started whole, its first picture of another type than its run
+ * (review fix 3): dropping the frame is not the user's action. The entry
+ * stays, so a link of the run's type after an Undo still counts it once.
  */
 export function trackSeeded(
   document: DiagramDocument,
@@ -172,18 +180,20 @@ export function trackSeeded(
 }
 
 /**
- * New steps seeded enlarged as they were made, counted: each made with its
- * picture now, as its frame is placed; an empty one when its first picture
- * lands its frame ({@link trackSeeded}).
+ * New steps seeded enlarged as they were made, each empty — Add Step, Insert
+ * Step After; uploads and References cards are not seeded since review fix 3
+ * — counted when its first picture lands its frame ({@link trackSeeded}).
  */
 export function trackSeededSteps(document: DiagramDocument, seeded: readonly SeededStep[]): void {
-  for (const { stepId, captured } of seeded) {
-    if (captured.placed === null) awaitFirstPicture(document, stepId, 'seeded');
-    else trackCaptured(document, stepId, { ...captured, shape: captured.zoom.shape }, 'seeded');
-  }
+  for (const { stepId } of seeded) awaitFirstPicture(document, stepId, 'seeded');
 }
 
-/** Steps being enlarged or updated: a second press while the faces are folded starts nothing more. */
+/**
+ * Steps being enlarged, and the areas Update and Update All are placing from:
+ * a second press while the faces are folded starts nothing more, and an
+ * Update and an Update All of one area never run at once, so no step is
+ * placed twice (review of review fix 4).
+ */
 const inFlight = new Set<string>();
 
 /**
@@ -236,40 +246,55 @@ export function unenlargeInStore(store: DiagramCaptureStore, commit: DiagramComm
 }
 
 /**
- * Update Enlarged Steps, as one undo step: the area's step's faces and every
- * enlarged step's first, where a fold can give them, then each captured
- * again from the area as it is now. How many steps it placed.
+ * Update or Update All, as one undo step: the areas' steps' faces and every
+ * step's it places first, where a fold can give them, then each captured
+ * again from its area as it is now, which it records (review fix 4). How
+ * many steps it placed: none on a read-only diagram, with the area gone, or
+ * with nothing out of date; null, refused, while an update of the same step
+ * or area runs — that one says what it placed.
  */
 export async function updateInStore(
   store: DiagramCaptureStore,
   commit: DiagramCommit,
   backfill: PaperFacesBackfill,
-  areaId: string
-): Promise<number> {
+  request: EnlargedUpdate
+): Promise<number | null> {
   const { diagram, diagramReadOnly, diagramLoadId } = store.get();
-  const source = diagram && !diagramReadOnly ? areaSource(diagram, areaId) : null;
-  const targets = diagram ? stepsFrom(diagram, areaId) : [];
-  if (!diagram || !source || targets.length === 0 || inFlight.has(areaId)) return 0;
-  inFlight.add(areaId);
+  const { areaIds, stepIds: targets } = diagram && !diagramReadOnly ? updateTargets(diagram, request) : { areaIds: [], stepIds: [] };
+  // Keyed by its areas too: one Update and one Update All of the same area refuse each other.
+  const keys = 'stepId' in request ? [request.stepId, ...areaIds] : areaIds;
+  if (!diagram || targets.length === 0) return 0;
+  if (keys.some((key) => inFlight.has(key))) return null;
+  keys.forEach((key) => inFlight.add(key));
   try {
+    const sources = areaIds.flatMap((areaId) => areaSource(diagram, areaId)?.step ?? []);
     const steps = targets.flatMap((id) => stepById(diagram, id) ?? []);
-    const faced = await backfill([source.step, ...steps]);
+    const faced = await backfill([...new Set([...sources, ...steps])]);
     if (store.get().diagramLoadId !== diagramLoadId) return 0;
     let placed: ZoomCaptured[] = [];
     let ids: string[] = [];
-    const next = commit('Update enlarged steps', (document) => {
-      const result = updateEnlargedSteps(withPaperFaces(document, faced), areaId, document.assets);
-      placed = result.captured;
-      ids = result.stepIds;
-      return result.document;
+    const one = 'stepId' in request;
+    const next = commit(one ? 'Update enlarged step' : 'Update enlarged steps', (document) => {
+      let edited = withPaperFaces(document, faced);
+      placed = [];
+      ids = [];
+      // The steps out of date when it was asked, still enlarged from their areas: the faces given them first
+      // anchor a copied frame where it is, which says nothing of where the area puts it.
+      for (const areaId of areaIds) {
+        const result = updateEnlargedSteps(edited, areaId, document.assets, targets);
+        edited = result.document;
+        placed.push(...result.captured);
+        ids.push(...result.stepIds);
+      }
+      return ids.length > 0 ? edited : document;
     });
     if (!next) return 0;
     placed.forEach((captured, index) => {
       const id = ids[index];
-      if (id) trackCaptured(next, id, { ...captured, shape: captured.zoom.shape }, 'update');
+      if (id) trackCaptured(next, id, { ...captured, shape: captured.zoom.shape }, one ? 'update_step' : 'update');
     });
     return placed.length;
   } finally {
-    inFlight.delete(areaId);
+    keys.forEach((key) => inFlight.delete(key));
   }
 }

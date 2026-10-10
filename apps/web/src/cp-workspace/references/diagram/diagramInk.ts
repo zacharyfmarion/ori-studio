@@ -125,7 +125,7 @@ export const DIAGRAM_MARK_INK = { radius: 3.07, ofArrow: 0.75 } as const;
  *   along its line.
  * Half the size it was first built at (inset 4, side 7, leg 11), in the same
  * proportions: Zach found that "twice as big as it should be" (2026-10-06).
- * Its stroke is the aux lines' pen (`rightAnglePen`), for the same review.
+ * Its stroke is the aux lines' pen (`auxMarkPen`), for the same review.
  */
 export const DIAGRAM_RIGHT_ANGLE_INK = { inset: 2, side: 3.5, leg: 5.5 } as const;
 
@@ -152,23 +152,17 @@ export const DIAGRAM_ANGLE_MARK_INK = { radius: 15, tick: 1.8, spacing: 1.8 } as
  *   level line;
  * - the floors a crowded part's ticks shrink to and no further (ED10):
  *   `tickFloor`, a half-tick in ink, and `spacingFloor`, the spacing in pens;
- * - `number`: the count's size, the rotate glyph's fraction (2.4 mm), and
- *   `gap`, how far past the dividers' ends its box stands.
- * Its pens (ED9), which `divisionsDrawn` draws each stroke in: the line in
- * the existing creases' (`crease`, 0.25 pt in the Diagram preset), the
- * dividers and ticks — one path, `marks` — in a ring's (`markRingWidth`).
+ * - `number`: the count's size, the rotate glyph's fraction (2.4 mm), though
+ *   set in the regular weight, not the fraction's bold (Revision 3, R3-3),
+ *   and `gap`, how far past the dividers' ends its box stands.
+ * Every stroke — the line, the dividers and the ticks — is drawn in the aux
+ * lines' pen (`auxMarkPen`, 0.25 pt in the Diagram preset), as a right angle
+ * is: Zach's note for Revision 3, "everything should be drawn in the width
+ * of the aux crease". Until then the dividers and ticks were a ring's (ED9).
+ * `spacingFloor` is still in a ring's pens (`markRingWidth`), so a part
+ * crowds at the printed size it always did.
  */
-export const DIAGRAM_DIVISIONS_INK: {
-  readonly overshoot: 5;
-  readonly tick: 3;
-  readonly spacing: 2;
-  readonly leanDeg: 20;
-  readonly tickFloor: 1.5;
-  readonly spacingFloor: 2;
-  readonly number: 7.2;
-  readonly gap: 2;
-  readonly pens: { readonly line: DivisionsPen; readonly marks: DivisionsPen };
-} = {
+export const DIAGRAM_DIVISIONS_INK = {
   overshoot: 5,
   tick: 3,
   spacing: 2,
@@ -177,11 +171,7 @@ export const DIAGRAM_DIVISIONS_INK: {
   spacingFloor: 2,
   number: 7.2,
   gap: 2,
-  pens: { line: 'crease', marks: 'ring' },
-};
-
-/** A pen equal divisions draw a stroke in: the existing creases', or a ring's. */
-export type DivisionsPen = 'crease' | 'ring';
+} as const;
 
 /**
  * An arrowhead: its length, tip to barbs, and the cap for a short arrow as a
@@ -236,9 +226,35 @@ export type DiagramWhiteArrowWidth = 'narrow' | 'regular' | 'wide';
 /**
  * What a white arrow is filled with: the page's white, or the arrow's own ink
  * — a solid arrow, as diagrams draw a push to flatten or a block to slide
- * (15d). The same outline either way, in the same pen.
+ * (15d). The same outline either way, in the same pen. A star's fill too
+ * (Revision 3): an outline, white inside, or filled with the marks' ink.
  */
 export type DiagramWhiteArrowFill = 'white' | 'black';
+
+/**
+ * A star naming a point (Revision 3), in ink at `scale` 1: five points, one
+ * up, `radius` from its centre to each tip — 4.5 ink, about 3 mm across, the
+ * size of an arrowhead, as the star in Zach's sample is — and its inner
+ * corners `inner` of that out, a regular star's (1 / φ², 0.382), whose sides
+ * run on in straight lines through the tips beside them. An outlined star is
+ * stroked in a ring's pen, mitred at its tips; a filled one is not stroked.
+ */
+export const DIAGRAM_STAR_INK = { radius: 4.5, inner: 0.382 } as const;
+
+/**
+ * An eye in profile (Revision 3, R3-7 A), saying where the next view is
+ * from, in ink at `scale` 1, as Zach's note draws it (`Diagramming.md`,
+ * "Revison 3"), measured off its picture: two straight lids from a point at
+ * the back, `length` long — 15 ink, about 5 mm — and `spread` either side of
+ * the way it looks at the front, so they meet at about 35°; a cornea arc
+ * across them `cornea` from the back, bulging `bulge` the way it looks, the
+ * lids running on past it about half a millimetre; and the iris, a half
+ * circle of radius `iris` set on the cornea's middle, bulging back into the
+ * eye. Outline only, in a ring's pen, as an outlined star is — the weight of
+ * the note's eye (R3-26 A as applied to the eye, amended 2026-10-08: the aux
+ * lines' pen drew it as a hairline) — its back corner mitred.
+ */
+export const DIAGRAM_EYE_INK = { length: 15, spread: 4.8, cornea: 13.5, bulge: 0.5, iris: 1.2 } as const;
 
 /**
  * A white arrow's three widths, in ink: its shaft's width at the head (the

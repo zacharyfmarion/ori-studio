@@ -32,13 +32,11 @@ import { storedScene } from '../../diagram/pictures/pictureFrame';
 import { annotatedStepUrl, posedZoomUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { zoomedSource } from '../../diagram/zoom/paintZoomed';
 import { viewOfStep } from '../../diagram/zoom/stepView';
-import { useStepZoom } from '../../diagram/zoom/useStepZoom';
 import type { AnnotateTool } from '../../diagram/annotate/annotateTools';
 import type { DiagramDetailMode } from '../../store/workspaceStore/types';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { knownCreasesOf } from '../../diagram/capture/captureCreases';
 import type { DiagramLinkedPose } from '../../diagram/capture/useDiagramLinkedPose';
-import type { DiagramLinkedPoseAction } from '../../diagram/actions/diagramLinkedPoseActions';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
@@ -53,6 +51,9 @@ import { DiagramPoseSimulatedView } from './DiagramPoseSimulatedView';
 import type { DiagramPoseAnnotations } from './DiagramPoseStage';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { DiagramAnnotateRail } from './DiagramAnnotateRail';
+import { useXRayStanding } from '../../diagram/xray/useXRayStanding';
+import { xraySurfaceOf } from '../../diagram/xray/xrayPaint';
+import { useAnnotateToolInHand } from '../../diagram/annotate/useAnnotateToolInHand';
 import styles from './DiagramStepDetail.module.css';
 
 const POSE_ICONS: Record<DiagramPoseActionId, LucideIcon> = {
@@ -65,9 +66,6 @@ const POSE_ICONS: Record<DiagramPoseActionId, LucideIcon> = {
   reset: Undo2,
 };
 
-/** An upload's or a References step's Pose has no linked verbs: only Enlarged, after its own. */
-const NO_LINKED_ACTIONS: readonly DiagramLinkedPoseAction[] = [];
-
 /** How much of an annotation shows in Pose: a ghost of where it is (D8). */
 const POSE_ANNOTATION_OPACITY = 0.3;
 
@@ -77,9 +75,10 @@ const POSE_ANNOTATION_OPACITY = 0.3;
  * The top bar leads back to the list, walks the steps and switches between
  * Pose and Annotate. In Pose the picture fills what is left, its annotations
  * ghosted, posed by the toolbar under it; in Annotate it is the canvas,
- * Annotate's tools down its left (on a phone, a note to use a larger
- * screen). A step with no picture says so and offers the ways to give it
- * one; a newer build's step says it cannot be shown here.
+ * Annotate's tools down its left. A phone's bar has no switch: Annotate
+ * there is only a note to use a larger screen, with the way back to Pose. A
+ * step with no picture says so and offers the ways to give it one; a newer
+ * build's step says it cannot be shown here.
  *
  * Takes focus when it opens, so the keys that follow — Escape back to the
  * list, the arrows and `[` / `]` to the next step — have somewhere to start,
@@ -94,7 +93,6 @@ export function DiagramStepDetail({
   readOnly,
   mode,
   onMode,
-  annotateTool,
   onAnnotateTool,
   poseActions,
   linkedPose,
@@ -120,7 +118,6 @@ export function DiagramStepDetail({
   /** Pose or Annotate. */
   mode: DiagramDetailMode;
   onMode: (mode: DiagramDetailMode) => void;
-  annotateTool: AnnotateTool;
   onAnnotateTool: (tool: AnnotateTool) => void;
   poseActions: readonly DiagramPoseAction[];
   /** A linked step's Pose: its verbs, and its live 3D view once folded. Null for any other step. */
@@ -165,14 +162,25 @@ export function DiagramStepDetail({
   const kept = posed === step;
   // An enlarged step shows its whole picture in Pose, its frame outlined and the rest dimmed (Revision 2).
   const zoomed = useMemo(() => zoomedSource(posed, assets), [posed, assets]);
+  // An x-ray in Pose is its rim alone, on a picture with layers (Revision 3, R3-19 A): its inside is the stored
+  // picture's. A spread's preview is captured without faces, and a rim needs none: whether the step has layers is the
+  // stored step's to say, so the rims stay while a spread is dragged (review of 18f).
+  const xRayRims = useMemo(
+    () => xraySurfaceOf(posed, 'rim') ?? (posed === step ? null : xraySurfaceOf(step, 'rim')),
+    [posed, step]
+  );
   const url = useMemo(() => {
     if (!source) return null;
     return zoomed
-      ? posedZoomUrl(zoomed, annotations, style, POSE_ANNOTATION_OPACITY, kept)
-      : annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY, kept);
-  }, [source, zoomed, annotations, style, kept]);
+      ? posedZoomUrl(zoomed, annotations, style, POSE_ANNOTATION_OPACITY, kept, xRayRims)
+      : annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY, kept, null, xRayRims);
+  }, [source, zoomed, annotations, style, kept, xRayRims]);
   // Annotate needs a picture to draw on.
   const annotating = mode === 'annotate' && source !== null && !locked;
+  // Whether its picture has layers to x-ray, or needs a Refresh first: the rail holds the X-Ray tool, saying why (Revision 3).
+  const xray = useXRayStanding(step);
+  // The tool in hand, as the canvas presses with it: Select where the step holds the one picked.
+  const annotateTool = useAnnotateToolInHand(step);
   // Over a live view (3D or simulated), the annotations drawn on its capture, while they are.
   // An enlarged step's frame is outlined over it, whatever its marks (Revision 2).
   const ghost = useMemo((): DiagramPoseAnnotations | null => {
@@ -184,10 +192,7 @@ export function DiagramStepDetail({
     return scene ? { annotations: marks, bounds: scene.bounds, zoom } : null;
   }, [step, annotations]);
   const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
-  // Pose's Enlarged (Revision 2), on both paths: a linked step's verbs, and an upload's or a References step's.
-  // A phone's toolbar wraps already: the Step drawer's Pose section has it, as it has Spread Layers.
-  const { enlarged: toggle } = useStepZoom(locked ? null : step);
-  const enlarged = phone ? null : toggle;
+  // Enlarged is not Pose's: Annotate's Step pane turns it on (Zach's review of #436, 2026-10-08).
   const picture = url && <img className={styles.picture} src={url} alt="" draggable={false} />;
   const title = t('panels:diagram.detail.title', 'Step {{number}} of {{total}}', { number, total: count });
   // The bar under the picture: a linked step's verbs, with `transport` (the
@@ -199,7 +204,6 @@ export function DiagramStepDetail({
           // A phone's Step drawer has Spread Layers with its amount; the toolbar would wrap a row for it.
           actions={phone ? linkedPose.actions.filter((action) => action.id !== 'spread-layers') : linkedPose.actions}
           layerOrder={linkedPose.layerOrder?.label ?? null}
-          enlarged={enlarged}
           keep={keepPoseFocus}
         >
           {transport}
@@ -222,7 +226,6 @@ export function DiagramStepDetail({
               </IconButton>
             );
           })}
-          <DiagramLinkedPoseControls actions={NO_LINKED_ACTIONS} enlarged={enlarged} keep={keepPoseFocus} />
         </>
       )}
     </Toolbar>
@@ -254,29 +257,32 @@ export function DiagramStepDetail({
             <ChevronRight size={15} />
           </IconButton>
         </div>
-        <SegmentedControl<DiagramDetailMode>
-          size="sm"
-          aria-label={t('panels:diagram.detail.mode', 'Mode')}
-          value={annotating ? 'annotate' : 'pose'}
-          options={[
-            { value: 'pose', label: t('panels:diagram.detail.pose', 'Pose') },
-            {
-              value: 'annotate',
-              label: t('panels:diagram.detail.annotate', 'Annotate'),
-              disabled: source === null || locked,
-              // Why, as the step's own verb says it: a newer build's step is not changed here.
-              tooltip: locked
-                ? t(
-                    'panels:diagram.actions.lockedEditHint',
-                    'Made with a newer Ori Studio: it can be moved or deleted, not changed'
-                  )
-                : source === null
-                  ? t('panels:diagram.detail.annotateNeedsPicture', 'Give the step a picture to annotate')
-                  : undefined,
-            },
-          ]}
-          onChange={onMode}
-        />
+        {/* Not on a phone, where Annotate is only a note and the switch would take a row of its own (rf7). */}
+        {!phone && (
+          <SegmentedControl<DiagramDetailMode>
+            size="sm"
+            aria-label={t('panels:diagram.detail.mode', 'Mode')}
+            value={annotating ? 'annotate' : 'pose'}
+            options={[
+              { value: 'pose', label: t('panels:diagram.detail.pose', 'Pose') },
+              {
+                value: 'annotate',
+                label: t('panels:diagram.detail.annotate', 'Annotate'),
+                disabled: source === null || locked,
+                // Why, as the step's own verb says it: a newer build's step is not changed here.
+                tooltip: locked
+                  ? t(
+                      'panels:diagram.actions.lockedEditHint',
+                      'Made with a newer Ori Studio: it can be moved or deleted, not changed'
+                    )
+                  : source === null
+                    ? t('panels:diagram.detail.annotateNeedsPicture', 'Give the step a picture to annotate')
+                    : undefined,
+              },
+            ]}
+            onChange={onMode}
+          />
+        )}
         <div className="panel-toolbar__group">
           <DiagramHistoryButtons />
           <Button size="sm" variant="primary" onClick={onBack}>
@@ -290,6 +296,10 @@ export function DiagramStepDetail({
           <div className={styles.stage}>
             <div className={styles.message}>
               <p>{t('panels:diagram.annotate.largerScreen', 'Annotate on a larger screen: a tablet or a computer.')}</p>
+              {/* The phone's bar has no Pose | Annotate (rf7): the way back is here. */}
+              <Button size="sm" variant="secondary" onClick={() => onMode('pose')}>
+                {t('panels:diagram.detail.pose', 'Pose')}
+              </Button>
             </div>
           </div>
         ) : (
@@ -298,6 +308,7 @@ export function DiagramStepDetail({
               tool={annotateTool}
               readOnly={readOnly}
               enlarged={step.zoom !== undefined}
+              xray={xray}
               onTool={onAnnotateTool}
             />
             <DiagramAnnotateCanvas step={step} assets={assets} style={style} readOnly={readOnly} />
@@ -306,10 +317,13 @@ export function DiagramStepDetail({
       ) : (
       <div
         className={styles.stage}
-        data-picture={(url !== null && !locked) || undefined}
+        data-picture={url !== null || undefined}
         data-drop-target={dropping || undefined}
       >
-        {locked ? (
+        {locked && picture ? (
+          // A newer build's step, drawn as far as this build reads it (decision 2): nothing to pose or annotate.
+          picture
+        ) : locked ? (
           <div className={styles.message}>
             <Lock size={22} aria-hidden="true" />
             <p>
@@ -331,6 +345,7 @@ export function DiagramStepDetail({
             annotations={ghost}
             onRest={linkedPose.simulate}
             wantsRest={linkedPose.wantsRest}
+            registerLiveView={linkedPose.registerLiveView}
             fallback={picture}
             toolbar={poseToolbar}
           />
@@ -342,6 +357,7 @@ export function DiagramStepDetail({
                 camera={linked.render.camera}
                 style={style}
                 onCamera={linkedPose.onCamera}
+                registerLiveView={linkedPose.registerLiveView}
                 ghost={ghost}
                 fallback={url && picture}
               />

@@ -17,7 +17,7 @@ import type { SpreadDirection, SpreadKeep, SpreadKind } from '../../cp-workspace
 import { resolveFoldRoute } from '../../cp-workspace/folded/foldRoute';
 import {
   POSE_ROTATION_STEP_DEG,
-  type DiagramLinkedPoseActionId,
+  type DiagramLinkedPoseVerb,
 } from '../actions/diagramLinkedPoseActions';
 import {
   DEFAULT_SIMULATED_VIEW,
@@ -58,7 +58,7 @@ import { uprightTurn } from './mirrorAxes';
  * pattern's paper on the colour of one side (the Step pane's Front | Back).
  */
 export type LinkedPoseRequest =
-  | { verb: DiagramLinkedPoseActionId }
+  | { verb: DiagramLinkedPoseVerb }
   | { verb: 'orbit'; camera: FoldedFigureCamera }
   | { verb: 'rotate-to'; degrees: number }
   | { verb: 'spread-kind'; kind: SpreadKind }
@@ -171,8 +171,6 @@ interface FlatPose {
 
 /** Straight down at the paper. */
 const VIEW_TOP: FoldedFigureCamera = { yaw: 0, pitch: 0, zoom: 1 };
-/** Along the paper, from the front edge. */
-const VIEW_FRONT: FoldedFigureCamera = { yaw: 0, pitch: -Math.PI / 2, zoom: 1 };
 
 export async function poseLinkedStep(
   session: CaptureSession,
@@ -388,10 +386,6 @@ export async function poseLinkedStep(
       return spatial(antipodalCamera(camera), side === 'back' ? 'front' : 'back');
     case 'view-top':
       return spatial(fromSide(VIEW_TOP), side);
-    case 'view-front':
-      return spatial(fromSide(VIEW_FRONT), side);
-    case 'view-iso':
-      return spatial(defaultCaptureCamera(side), side);
     case 'reset':
       return spatial(defaultCaptureCamera('front'), 'front');
     default:

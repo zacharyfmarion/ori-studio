@@ -12,6 +12,13 @@
  * surface has the picture, so each paints it (`CloseUpPicture`), and it is
  * drawn here under the marks, clipped to the close-up's ring.
  *
+ * An x-ray's window (Revision 3) is the step's picture without its top
+ * layers: only a step whose picture has layers can draw one, so a surface
+ * that has them hands its painter in (`XRayPainter`, made by
+ * `xray/xrayPaint.ts`), and its windows are drawn here under everything else.
+ * Without one, no x-ray is drawn, rim included, nor counted in the reach
+ * (R3-18b A).
+ *
  * Pure: no DOM, no store.
  */
 import { PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
@@ -29,6 +36,7 @@ import {
   annotationScene,
   closeUpMarks,
   type AnnotationDrawing,
+  type AnnotationPaper,
 } from './annotationPrimitives';
 import type { PictureLayers } from './pictureGeometry';
 
@@ -55,6 +63,26 @@ export interface PaintedAnnotations {
  */
 export type CloseUpPicture = (scale: number, frame: PictureBox, idPrefix: string) => string | null;
 
+/** Where a drawing lands on a surface: its frame's box, in the surface's units, and the drawing's px across its longer side. */
+export interface DrawingPlace {
+  box: PictureBox;
+  framePx: number;
+}
+
+/**
+ * How a surface paints a step's x-rays (Revision 3, 18f): each window of
+ * `drawing` — compiled from `annotations`, placed on `place` — under the
+ * marks: its inside and rim, or in Pose its rim alone (R3-19 A), every id it
+ * declares starting with `idPrefix`. Made by `xrayPainter` for a step whose
+ * picture has layers.
+ */
+export type XRayPainter = (
+  drawing: AnnotationDrawing,
+  annotations: readonly DiagramAnnotation[],
+  place: DrawingPlace,
+  idPrefix: string
+) => string;
+
 /** What a surface paints with the marks, beyond them. */
 export interface AnnotationPaint {
   /**
@@ -65,6 +93,14 @@ export interface AnnotationPaint {
   closeUpPicture?: CloseUpPicture | null;
   /** How the marks' text is set — a page's fonts — on every mark's markup, never on a picture's. */
   setText?: (markup: string) => string;
+  /** A References picture's sheet (17b): a label's halo is filled with the face it stands on. */
+  paper?: AnnotationPaper | null;
+  /**
+   * The step's x-rays' windows (Revision 3, 18f), on a picture with layers.
+   * Without it none is drawn, rim included, and none counts in the reach:
+   * nothing prints a window that shows nothing (R3-18b A).
+   */
+  xRays?: XRayPainter | null;
 }
 
 /**
@@ -82,26 +118,68 @@ export function paintAnnotations(
   layers: PictureLayers | null = null,
   paint: AnnotationPaint = {}
 ): PaintedAnnotations | null {
+  const placed = placeAnnotations(annotations, box, framePx, style, layers, { paper: paint.paper, xRays: paint.xRays });
+  return placed && { markup: placed.markup(paint), bounds: placed.bounds };
+}
+
+/**
+ * Annotations compiled and placed on a picture's frame, their markup not yet
+ * made: what they reach, and the markup made from that one compile when a
+ * surface draws them. A page measures a step's marks for its room and then
+ * draws the same marks where the picture settled (`cellPicture`): one
+ * compile serves both, where painting twice compiled and drew them twice.
+ */
+export interface PlacedAnnotations {
+  /** What they reach, in the target's units: past the frame where an arrow starts off it. */
+  bounds: PictureBox;
+  /**
+   * Their markup, as {@link paintAnnotations} makes it with `paint`'s
+   * close-up insides and text setting, from the compile `bounds` measured.
+   */
+  markup: (paint?: Omit<AnnotationPaint, 'paper' | 'xRays'>) => string;
+}
+
+/**
+ * {@link paintAnnotations}' marks compiled on `box`, a label's halo filled
+ * by `paper`, an x-ray's window drawn by `xRays` (Revision 3), and measured,
+ * their markup left to make when it is asked for. Null when they draw
+ * nothing.
+ */
+export function placeAnnotations(
+  annotations: readonly DiagramAnnotation[],
+  box: PictureBox,
+  framePx: number,
+  style: DiagramStyle,
+  layers: PictureLayers | null = null,
+  { paper = null, xRays = null }: Pick<AnnotationPaint, 'paper' | 'xRays'> = {}
+): PlacedAnnotations | null {
   const frame = frameOf(box.width, box.height);
   if (!frame || !(framePx > 0)) return null;
-  const drawing = annotationDrawing(annotations, frame, framePx, style, layers);
+  const drawing = annotationDrawing(annotations, frame, framePx, style, layers, paper);
   const scene = annotationScene(drawing);
-  if (!scene) return null;
+  // An x-ray's window, where this surface draws it: under every other mark.
+  const windows = xRays && drawing.xRays.length > 0 ? xRays : null;
+  if (!scene && !windows) return null;
   // Target units per drawing px: the frame's size there over its size here.
   const k = Math.max(box.width, box.height) / framePx;
-  const setText = paint.setText ?? ((markup: string) => markup);
-  const body = paperSceneSvgBody(scene, diagramSurfaceStyle(style), {
-    project: ([x, y]) => [box.x + x * k, box.y + y * k],
-    unitsPerPt: k * PT_TO_CSS_PX,
-    keepHiddenFaces: true,
-  });
-  const insides = paint.closeUpPicture
-    ? closeUpInsides(drawing, annotations, { box, framePx, k }, style, layers, paint.closeUpPicture, setText)
-    : '';
-  const reach = annotationReach(drawing);
+  const reach = annotationReach(drawing, { xRays: windows !== null });
   return {
-    markup: `<g stroke-linejoin="round">\n${insides}${setText(body)}\n</g>`,
     bounds: { x: box.x + reach.x * k, y: box.y + reach.y * k, width: reach.width * k, height: reach.height * k },
+    markup: (paint = {}) => {
+      const setText = paint.setText ?? ((markup: string) => markup);
+      const body = scene
+        ? paperSceneSvgBody(scene, diagramSurfaceStyle(style), {
+            project: ([x, y]) => [box.x + x * k, box.y + y * k],
+            unitsPerPt: k * PT_TO_CSS_PX,
+            keepHiddenFaces: true,
+          })
+        : '';
+      const xrays = windows ? windows(drawing, annotations, { box, framePx }, 'annotation-x-ray-') : '';
+      const insides = paint.closeUpPicture
+        ? closeUpInsides(drawing, annotations, { box, framePx, k }, style, layers, paint.closeUpPicture, setText, paper)
+        : '';
+      return `<g stroke-linejoin="round">\n${xrays}${insides}${setText(body)}\n</g>`;
+    },
   };
 }
 
@@ -110,7 +188,8 @@ export function paintAnnotations(
  * drawn over: the page's white, the picture painted again by the surface,
  * and the step's other marks drawn with it, larger — their pens and heads
  * at their print weight — all clipped to the close-up's ring, whose pen the
- * marks draw over its edge.
+ * marks draw over its edge. An x-ray's window is not drawn there: a close-up
+ * over one shows the picture plain (Revision 3, R3-20 B), as on the canvas.
  */
 function closeUpInsides(
   drawing: AnnotationDrawing,
@@ -119,7 +198,8 @@ function closeUpInsides(
   style: DiagramStyle,
   layers: PictureLayers | null,
   picture: CloseUpPicture,
-  setText: (markup: string) => string
+  setText: (markup: string) => string,
+  paper: AnnotationPaper | null
 ): string {
   if (drawing.closeUps.length === 0) return '';
   const others = closeUpMarks(annotations);
@@ -134,7 +214,7 @@ function closeUpInsides(
         height: closeUp.frame.height * k,
       };
       // The marks at `scale` times the frame, in the same pens: a target unit per drawing px as here.
-      const marks = paintAnnotations(others, frame, framePx * closeUp.scale, style, layers, { setText });
+      const marks = paintAnnotations(others, frame, framePx * closeUp.scale, style, layers, { setText, paper });
       const ring = `cx="${num(x)}" cy="${num(y)}" r="${num(r)}"`;
       return (
         `<defs><clipPath id="${id}"><circle ${ring}/></clipPath></defs>` +
@@ -153,7 +233,9 @@ function closeUpInsides(
  * `opacity` ghosts them, as Pose shows them (D8); `layers`, the picture's,
  * dot a mark behind a flap (15e). `paintAt` paints the picture `scale` times
  * as large, for a close-up's inside (15f); without it, as ghosted in Pose,
- * a close-up is its rings.
+ * a close-up is its rings. `paper`, a References picture's sheet, fills a
+ * label's halo with the face it stands on (17b); `xRays`, on a picture with
+ * layers, draws each x-ray's window (Revision 3) — in Pose its rim alone.
  */
 export function annotatedPicture(
   painted: PaintedPicture,
@@ -161,7 +243,8 @@ export function annotatedPicture(
   style: DiagramStyle,
   opacity = 1,
   layers: PictureLayers | null = null,
-  paintAt: ((scale: number) => PaintedPicture | null) | null = null
+  paintAt: ((scale: number) => PaintedPicture | null) | null = null,
+  { paper = null, xRays = null }: Pick<AnnotationPaint, 'paper' | 'xRays'> = {}
 ): string {
   const closeUpPicture: CloseUpPicture | null =
     paintAt &&
@@ -177,7 +260,7 @@ export function annotatedPicture(
         `viewBox="0 0 ${num(larger.widthPx)} ${num(larger.heightPx)}" overflow="visible">${body}</svg>`
       );
     });
-  const drawn = paintAnnotations(annotations, painted.frame, CARD_FRAME_PX, style, layers, { closeUpPicture });
+  const drawn = paintAnnotations(annotations, painted.frame, CARD_FRAME_PX, style, layers, { closeUpPicture, paper, xRays });
   if (!drawn) return painted.svg;
   const { widthPx, heightPx, svg } = painted;
   const { bounds } = drawn;

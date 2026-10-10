@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pause, Play, RotateCcw, StepForward } from 'lucide-react';
 import type { KnownCreases } from '../../diagram/capture/captureCreases';
@@ -13,19 +13,19 @@ import type {
   DiagramStyle,
 } from '../../diagram/document/diagramDocument';
 import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
-import { diagramPaperStyle } from '../../diagram/pictures/diagramPaperStyle';
+import { diagramPaperStyle, foldedModelPens } from '../../diagram/pictures/diagramPaperStyle';
+import { poseCreaseReferenceEdge } from '../../diagram/pictures/poseLineWeight';
 import { simulatedCaptureFrame } from '../../diagram/pictures/simulatedCaptureFrame';
 import { poseGhostMarkup } from '../../diagram/zoom/paintZoomed';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { SimulatorViewport } from '../../simulator/SimulatorViewport';
+import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
+import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
 import { SIMULATED_FRAME_PX } from '../../store/workspaceStore/diagramCapture';
 import { IconButton } from '../ui/IconButton';
 import { Slider } from '../ui/Slider';
 import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
 import styles from './DiagramPoseSimulatedView.module.css';
-
-/** Frame edge, in device pixels, the crease width is calibrated for: an inline window's. */
-const CREASE_REFERENCE_EDGE = 512;
 
 /** Nothing here needs the canvas element itself: the drag and the wheel are the viewport's. */
 const ignoreCanvas = () => {};
@@ -40,7 +40,8 @@ const ignoreCanvas = () => {};
  * Show switch and its Reset. While the simulator cannot run here — no pattern
  * open, the region gone, no WebGL2 in its worker, a region with no model, a
  * solver that failed — the captured picture (`fallback`) shows with a line
- * saying why, and the bar still shows the step another way.
+ * saying why, and the bar still shows the step another way. While it runs it
+ * is registered (`registerLiveView`) for the bar's Set Upright.
  */
 export function DiagramPoseSimulatedView({
   stepId,
@@ -51,6 +52,7 @@ export function DiagramPoseSimulatedView({
   annotations,
   onRest,
   wantsRest,
+  registerLiveView,
   fallback,
   toolbar,
 }: {
@@ -65,12 +67,14 @@ export function DiagramPoseSimulatedView({
   onRest: (rest: SimulatedRest) => Promise<void>;
   /** Whether a rest at a pose would be captured: asked before its scene is drawn. */
   wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
+  registerLiveView?: (view: SimulatorViewHandle) => () => void;
   fallback: ReactNode;
   toolbar: (transport: ReactNode) => ReactNode;
 }) {
   const { t } = useTranslation();
   const pose = useDiagramSimulatedPose({ stepId, scope, known, render, onRest, wantsRest });
-  const paperStyle = useMemo(() => diagramPaperStyle(style), [style]);
+  // Its folds in the edge pen, as the step's picture paints them.
+  const paperStyle = useMemo(() => foldedModelPens(diagramPaperStyle(style)), [style]);
   // The view opens where the step is; later poses come through `setView`.
   const [opening] = useState(render.view);
   const degrees = cameraDegrees(pose.view ?? render.view);
@@ -84,6 +88,13 @@ export function DiagramPoseSimulatedView({
   }, [annotations, size, atStored, style]);
 
   const live = pose.status === 'ready' || pose.status === 'loading';
+  // Set Upright takes the up the view shows: only once it shows one.
+  const ready = pose.status === 'ready';
+  const { viewportRef } = pose;
+  useEffect(
+    () => (ready && registerLiveView ? registerLiveView({ setUpright: () => viewportRef.current?.setUpright() }) : undefined),
+    [ready, registerLiveView, viewportRef]
+  );
   const note = useMemo(() => {
     switch (pose.status) {
       case 'no-gpu':
@@ -127,8 +138,10 @@ export function DiagramPoseSimulatedView({
               gpuActive={pose.runtime.gpuActive}
               bitmapPresent
               transparentBackground
-              creaseWidthReferenceEdge={CREASE_REFERENCE_EDGE}
+              // Its lines grow with the stage as the step's picture does when Pose shows it there.
+              creaseWidthReferenceEdge={poseCreaseReferenceEdge(simulatorDevicePixelRatio())}
               creaseWidthShrinkExponent={1}
+              creaseWidthGrows
               viewSettings={DEFAULT_SIMULATOR_SETTINGS}
               paperStyle={paperStyle}
               viewCube

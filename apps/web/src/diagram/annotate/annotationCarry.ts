@@ -2,9 +2,12 @@
  * Annotations that follow their picture (D8). A pose the app applied — a
  * quarter turn or a flip of an upload, a References step turned over, a
  * linked picture turned about its middle — moves what the picture shows by a
- * known amount, and every annotation is moved with it. A crease pattern's
- * paper put on the other side's colour moves nothing, and every annotation
- * stays where it is, in step with the new picture. Anything else — a refold,
+ * known amount, and every annotation is moved with it. A References step
+ * turned over also shows the paper's other side, so a valley line or arrow
+ * becomes a mountain and a mountain a valley, as the card's own folds do
+ * (RM7). A crease pattern's paper put on the other side's colour moves
+ * nothing and renames nothing (Zach, 2026-10-06), and every annotation stays
+ * where it is, in step with the new picture. Anything else — a refold,
  * a Refresh, a new camera, the other side of a fold, a new picture — leaves
  * them where they were, and Annotate says the picture changed.
  *
@@ -16,10 +19,12 @@ import { storedSceneStep } from '../capture/captureGeometry';
 import { boundariesMatchMoved, isRelativeFingerprint } from '../../cp-workspace/regions/regionIdentity';
 import { turnClockwise } from '../../lib/geometry';
 import type { PaperFaceItem, PaperScene, SceneBounds, ScenePoint } from '../../lib/paper/paperScene';
+import { isCardMark } from '../document/cardMarks';
 import {
   creasePatternSide,
   isKnownAnnotation,
   sameSpread,
+  type DiagramAnnotation,
   type DiagramAsset,
   type DiagramCpSource,
   type DiagramScenePicture,
@@ -164,8 +169,9 @@ function pictureMove(
     before.picture.model === after.picture.model &&
     before.picture.mirrored !== after.picture.mirrored
   ) {
+    // The card seen from the paper's other side: mirrored, and every fold named from there (RM7).
     const frame = stepPictureFrame(before, assets);
-    return frame ? mirrorMove(frame) : null;
+    return frame ? { ...mirrorMove(frame), otherSide: true } : null;
   }
   if (
     from?.kind === 'cp' &&
@@ -412,8 +418,9 @@ function insideRing(ring: readonly ScenePoint[], point: { x: number; y: number }
  * this one, and stay where they are, still out of step. A picture only
  * recoloured moves nothing: every annotation stays exactly where it is, in
  * step with it. An annotation this build cannot read cannot be moved, so a
- * step carrying one keeps all of them where they were, and says the picture
- * changed.
+ * step carrying one keeps all the author's where they were, and says the
+ * picture changed. The marks a References card brought (17d, `isCardMark`)
+ * are never out of step: they go with every move, whatever the author's do.
  *
  * Every edit of a step's own picture comes through here — a re-pose, a
  * Refresh, a relink, a References step's side or way, an upload's pose, and
@@ -429,16 +436,19 @@ export function withCarriedAnnotations(
   if (after.zoom) return followOwnPicture(before, after, ownPictureChange(before, after, assets), assets);
   if (after.annotations.length === 0 || after.annotations !== before.annotations) return after;
   const inStep = before.annotatedPictureKey !== null && before.annotatedPictureKey === (before.picture?.key ?? null);
-  if (!inStep) return after;
   // Nothing moved, so nothing is carried — not even an annotation this build cannot read.
-  if (recolouredOnly(before, after)) return { ...after, annotatedPictureKey: after.picture?.key ?? null };
-  if (!before.annotations.every(isKnownAnnotation)) return after;
+  if (inStep && recolouredOnly(before, after)) return { ...after, annotatedPictureKey: after.picture?.key ?? null };
+  const authorsGo = inStep && before.annotations.every(isKnownAnnotation);
+  const goes = (annotation: DiagramAnnotation): annotation is KnownDiagramAnnotation =>
+    isKnownAnnotation(annotation) && (authorsGo || isCardMark(before, annotation));
+  if (!before.annotations.some(goes)) return after;
   const move = pictureMove(before, after, assets);
   if (!move) return after;
   return {
     ...after,
-    annotations: (before.annotations as KnownDiagramAnnotation[]).map((annotation) => carryAnnotation(annotation, move)),
-    annotatedPictureKey: after.picture?.key ?? null,
+    annotations: before.annotations.map((annotation) => (goes(annotation) ? carryAnnotation(annotation, move) : annotation)),
+    // The author's in step with it now, when they went; else as they were.
+    ...(authorsGo ? { annotatedPictureKey: after.picture?.key ?? null } : {}),
   };
 }
 

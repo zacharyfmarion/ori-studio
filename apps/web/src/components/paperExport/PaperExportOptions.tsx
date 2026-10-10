@@ -29,6 +29,8 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Toggle } from '../ui/Toggle';
 import { PaperStylePicker } from './PaperStylePicker';
+import type { PaperObjExport } from '../../paperExport/paperExportTarget';
+import { objExportUnavailableMessage } from '../../paperExport/saveObjExport';
 
 /** The densities the Resolution menu names; anything else is Custom. */
 export const PAPER_EXPORT_DPI_PRESETS = [96, 192, 288, 384, 300, 600] as const;
@@ -49,6 +51,7 @@ export function PaperExportOptions({
   scopes,
   fixed,
   styleHint,
+  obj,
 }: {
   draft: PaperExportSettings;
   patch: (next: Partial<PaperExportSettings>) => void;
@@ -64,6 +67,7 @@ export function PaperExportOptions({
   fixed: boolean;
   /** Under the style picker: what of the style the picture keeps of its own, or cannot take. */
   styleHint: string | null;
+  obj?: PaperObjExport;
 }) {
   const { t } = useTranslation();
   const png = draft.format === 'png';
@@ -97,19 +101,22 @@ export function PaperExportOptions({
           options={[
             { value: 'svg', label: 'SVG' },
             { value: 'png', label: 'PNG' },
+            ...(obj ? [{ value: 'obj' as const, label: 'OBJ' }] : []),
           ]}
         />
       </div>
     </section>
   );
 
-  if (fixed) {
+  if (fixed || draft.format === 'obj') {
     return (
       <>
         {formatSection}
         <section className="export-modal__section">
           <small className="export-modal__hint">
-            {t(
+            {draft.format === 'obj' ? (obj?.unavailableReason
+              ? objExportUnavailableMessage(obj.unavailableReason, t)
+              : t('dialogs:paperExport.objHint', '3D mesh with UV coordinates from the unfolded paper, ready for texturing in your 3D software.')) : t(
               'dialogs:paperExport.fixedHint',
               'This figure is exported as it was saved: its style and page are the ones it was drawn with. Fold it again to export it in a style, at a size and on a page of your choosing.'
             )}
@@ -155,10 +162,11 @@ export function PaperExportOptions({
             t('dialogs:paperExport.letters', 'Letters'),
             t('dialogs:paperExport.lettersHint', 'The names of the points a step refers to.')
           )}
+          {/* The name the Diagram's References browser gives the same marks (RM5). */}
           {markRow(
             'highlights',
-            t('dialogs:paperExport.highlights', 'Line highlights'),
-            t('dialogs:paperExport.highlightsHint', 'The accent over the lines a step lines up.')
+            t('dialogs:paperExport.referenceLines', 'Reference lines'),
+            t('dialogs:paperExport.referenceLinesHint', 'The lines a step lines up against.')
           )}
         </section>
       )}

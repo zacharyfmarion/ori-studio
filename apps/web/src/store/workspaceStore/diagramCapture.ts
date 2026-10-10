@@ -217,7 +217,8 @@ export async function commitStepCapture(
   const current = now.diagram ? stepById(now.diagram, stepId) : null;
   if (now.diagramLoadId !== loadId || !current || current.revision !== revision) return null;
   const join = joinEntry !== undefined && now.diagramHistory.past.at(-1) === joinEntry;
-  // A step enlarged before it had a picture lands its frame on its first, in the same undo step (Revision 2).
+  // A step enlarged before it had a picture lands its frame on its first, or starts whole if that shows another
+  // picture type than its run, in the same undo step (Revision 2; review fix 3).
   let landed = null as LandedFirstFrame | null;
   const next = commit(
     label,

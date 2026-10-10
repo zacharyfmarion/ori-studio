@@ -3,7 +3,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cpDocument } from '../../diagram/capture/capture.fixtures';
 import { createDiagram, type DiagramCpRender } from '../../diagram/document/diagramDocument';
-import { cpStep, referencesStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
+import { cpStep, referencesStep, SENT_MODEL, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
+import { MAX_STEP_ANNOTATIONS } from '../../diagram/annotate/annotationModel';
 import {
   buildDiagramLinkedPoseActions,
   buildDiagramSpreadControls,
@@ -192,6 +193,27 @@ describe('DiagramStepPanel', () => {
     const pressed = (label: string) =>
       host?.querySelector(`[aria-label="${label}"] button[aria-pressed="true"]`)?.textContent ?? null;
 
+    it('offers Make Marks Editable on a References step whose card’s marks are part of its picture, until they are lifted (17e)', () => {
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [referencesStep('step-r')] } });
+        state().selectDiagramStep('step-r');
+      });
+      // Out of Annotate, the step's summary says where its marks are, not that it has none.
+      expect(host?.textContent).toContain('Its marks are part of its picture');
+      expect(host?.textContent).not.toContain('No annotations');
+      const make = textButton('Make Marks Editable');
+      expect(make?.disabled).toBe(false);
+      const past = state().diagramHistory.past.length;
+      act(() => make!.click());
+      const [step] = stepsIn(state().diagram!);
+      expect(step!.picture).toMatchObject({ kind: 'step-diagram', key: 'steps-1-marks' });
+      expect(step!.annotations.map((mark) => ('kind' in mark ? mark.kind : null))).toEqual(['valley-line', 'fold-unfold-arrow', 'label']);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      // Lifted: nothing left in the picture to lift.
+      expect(textButton('Make Marks Editable')).toBeUndefined();
+      expect(host?.textContent).toContain('3 annotations');
+    });
+
     it('offers only the ways to a first picture for a step without one', () => {
       act(() => {
         state().addDiagramStep();
@@ -324,6 +346,7 @@ describe('DiagramStepPanel', () => {
           layerOrder: { count: '2 of 2+', label: 'Layer order 2 of 2+' },
           spatial: null,
           onCamera: () => {},
+          registerLiveView: () => () => {},
           rotateTo,
           showAs: async () => true,
           setSide: async () => true,
@@ -375,6 +398,7 @@ describe('DiagramStepPanel', () => {
           layerOrder: null,
           spatial: null,
           onCamera: () => {},
+          registerLiveView: () => () => {},
           rotateTo: () => {},
           showAs: async () => true,
           setSide: async () => true,
@@ -558,6 +582,45 @@ describe('DiagramStepPanel in Annotate', () => {
     expect(state().diagramHistory.past).toHaveLength(past);
     act(() => snapSwitch()!.click());
     expect(useSettingsStore.getState().diagramAnnotateSnap).toBe(true);
+  });
+
+  it('says when a References step’s marks are part of its picture, and makes them editable on a press (17e)', () => {
+    act(() => {
+      useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [referencesStep('step-r')] } });
+      state().openDiagramStep('step-r', 'annotate');
+    });
+    expect(host?.textContent).toContain('This step’s marks are part of its picture.');
+    // The notice offers it: the Picture section under it does not offer it again.
+    expect(buttonNamed('Make Marks Editable')).toBeUndefined();
+    expect(buttonNamed('Replace from References…')).toBeDefined();
+    const past = state().diagramHistory.past.length;
+    act(() => buttonNamed('Make Editable').click());
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(stepsIn(state().diagram!)[0]!.annotations).toHaveLength(3);
+    expect(host?.textContent).not.toContain('part of its picture');
+  });
+
+  it('holds Make Editable, saying why, when the card’s marks are more than a step holds (17e)', () => {
+    const crowded = {
+      ...SENT_MODEL,
+      primitives: [
+        SENT_MODEL.primitives[0]!,
+        ...Array.from({ length: MAX_STEP_ANNOTATIONS + 1 }, (_, i) => ({
+          kind: 'line' as const,
+          from: [(i + 0.5) / 1000, 0] as const,
+          to: [(i + 0.5) / 1000, 1] as const,
+          style: 'valley' as const,
+        })),
+      ],
+    };
+    act(() => {
+      const step = referencesStep('step-r');
+      const picture = { kind: 'step-diagram' as const, model: crowded, mirrored: false, key: 'steps-crowded' };
+      useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [{ ...step, picture }] } });
+      state().openDiagramStep('step-r', 'annotate');
+    });
+    expect(host?.textContent).toContain(`${MAX_STEP_ANNOTATIONS + 1} marks: a step holds ${MAX_STEP_ANNOTATIONS}`);
+    expect(buttonNamed('Make Editable').disabled).toBe(true);
   });
 
   it('says when the picture changed under them, and keeps them on a press', () => {

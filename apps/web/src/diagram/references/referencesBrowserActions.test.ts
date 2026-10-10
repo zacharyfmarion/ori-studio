@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { createDiagram, createStep, insertSteps } from '../document/diagramDocument';
 import { referencesStep, stepsIn } from '../document/diagramSteps.fixtures';
-import { fillStepFromReferences, openReferencesBrowser, replaceStepFromReferences } from './referencesBrowserActions';
+import { useSettingsStore } from '../../store/settingsStore';
+import { fillStepFromReferences, openReferencesBrowser, replaceStepFromReferences, toggleReferencesMark } from './referencesBrowserActions';
 
 const analytics = vi.hoisted(() => ({ trackDiagramReferencesBrowserOpened: vi.fn() }));
 vi.mock('../../analytics', async (importOriginal) => ({
@@ -61,9 +62,46 @@ describe('the ways into the References browser', () => {
     if (step.source?.kind !== 'references-step') throw new Error('a References step');
     expect(state().diagramReferencesBrowser?.sheet).toEqual(step.source.region.boundary);
     expect(analytics.trackDiagramReferencesBrowserOpened).toHaveBeenCalledWith('replace');
+    // Pulled before marks were lifted: the Show menu's own choice.
+    expect(state().diagramReferencesBrowser).not.toHaveProperty('marks');
     // Only a References step has a card to replace.
     state().closeDiagramReferencesBrowser();
     replaceStepFromReferences('step-empty');
     expect(state().diagramReferencesBrowser).toBeNull();
+  });
+
+  it('opens a Replace on the marks the step pulled (17d)', () => {
+    const diagram = insertSteps(
+      createDiagram({ title: 'D' }),
+      [referencesStep('step-m', { plan: 'plan-a', marks: { letters: false, highlights: true } })],
+      0
+    );
+    useWorkspaceStore.setState({ diagram });
+    replaceStepFromReferences('step-m');
+    expect(state().diagramReferencesBrowser).toMatchObject({ marks: { letters: false, highlights: true } });
+  });
+
+  // 17d review: switching one mark in a Replace remembered the step's own choice for the other too.
+  it('switches one mark for the pull, and remembers that mark alone', () => {
+    useSettingsStore.getState().setDiagramReferencesMarks({ letters: true, highlights: true });
+    const diagram = insertSteps(
+      createDiagram({ title: 'D' }),
+      [referencesStep('step-m', { plan: 'plan-a', marks: { letters: false, highlights: true } })],
+      0
+    );
+    useWorkspaceStore.setState({ diagram });
+    replaceStepFromReferences('step-m');
+    toggleReferencesMark('highlights');
+    // The pull: the step's letters hidden still, its reference lines now hidden too.
+    expect(state().diagramReferencesBrowser?.marks).toEqual({ letters: false, highlights: false });
+    // Remembered: only the reference lines, switched; later pulls keep their letters.
+    expect(useSettingsStore.getState().diagramReferencesMarks).toEqual({ letters: true, highlights: false });
+    // Opened for a new pull, the menu starts from the remembered choice.
+    state().closeDiagramReferencesBrowser();
+    openReferencesBrowser();
+    toggleReferencesMark('letters');
+    expect(state().diagramReferencesBrowser?.marks).toEqual({ letters: false, highlights: false });
+    expect(useSettingsStore.getState().diagramReferencesMarks).toEqual({ letters: false, highlights: false });
+    useSettingsStore.getState().setDiagramReferencesMarks({ letters: true, highlights: true });
   });
 });

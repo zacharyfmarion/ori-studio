@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { reportError } from '../../monitoring';
 import { referencesResultsSnapshot, subscribeReferencesResults } from '../../cp-workspace/references/referencesResults';
 import type { PrecreaseComponent, SheetAnalysis } from '../../cp-workspace/references/sheetFrames';
+import type { PaperExportMark, PaperExportMarks } from '../../lib/paperExportSettings';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramReferencesBrowserState } from '../../store/workspaceStore/types';
 import {
@@ -21,6 +23,7 @@ import {
   type BrowserPattern,
   type BrowserPlan,
 } from './referencesBrowserPlans';
+import { toggleReferencesMark } from './referencesBrowserActions';
 import { pullFromReferences, type PulledCard } from './referencesPulledSteps';
 import { useDecodedPlan, useReferencesSheets, type BrowserPatternsState } from './useReferencesSheets';
 import {
@@ -65,6 +68,14 @@ export interface ReferencesBrowser {
   pullable: PulledCard[];
   /** A pull is finding its sheet: the verbs wait for it. */
   pulling: boolean;
+  /**
+   * Which of each card's marks a pull brings, and its previews show (17d,
+   * the Show menu): the replaced step's own choice as the browser opens on
+   * it, else the one remembered.
+   */
+  marks: PaperExportMarks;
+  /** The Show menu: one mark shown or hidden, that choice remembered (`toggleReferencesMark`). */
+  toggleMark: (mark: PaperExportMark) => void;
   /** The turn-over just before the selection, offered with it. */
   turnOverBefore: number | null;
   withTurnOver: boolean;
@@ -115,6 +126,9 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
   const { t } = useTranslation();
   const diagram = useWorkspaceStore((store) => store.diagram);
   const landmarksFirst = useWorkspaceStore((store) => store.referencesView.landmarksFirst);
+  // The replaced step's own choice of marks as the browser opens on it, else the one remembered (17d).
+  const remembered = useSettingsStore((store) => store.diagramReferencesMarks);
+  const marks = state.marks ?? remembered;
   const activeCandidate = useWorkspaceStore((store) => store.referencesView.activeCandidate);
   // References' sheets and the planned patterns, held while the browser is open.
   const { geometry, revision, analysis, patterns } = useReferencesSheets();
@@ -208,9 +222,10 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
         plan: state.mode === 'sequence' ? (pattern?.id ?? null) : null,
         anchor: state.anchor,
         opening: state.opening,
+        marks,
       }).finally(() => setPulling(false));
     },
-    [outline, pulling, state.mode, state.anchor, state.opening, cards, pattern]
+    [outline, pulling, state.mode, state.anchor, state.opening, cards, pattern, marks]
   );
 
   const store = useWorkspaceStore.getState;
@@ -234,6 +249,8 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
     selection,
     pullable,
     pulling,
+    marks,
+    toggleMark: toggleReferencesMark,
     turnOverBefore,
     withTurnOver,
     setWithTurnOver,
