@@ -1,4 +1,5 @@
-# Frozen Diagram v1 toolchain; CPython 3.12 on Linux x86_64 or macOS arm64/x86_64.
+# Frozen Diagram v1 toolchain; CPython 3.12. CJK builds require Linux x86_64.
+# macOS wheels are retained for Latin tooling, not CJK generation.
 # Install with --require-hashes --only-binary=:all:. Never refresh these for v1.
 fonttools==4.65.0 \
     --hash=sha256:e844a45c9e5ced6536f184cf1a65b5d65e8f7e711993b413e10500a8223622e5 \

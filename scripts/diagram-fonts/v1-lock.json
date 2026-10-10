@@ -1,91 +1,91 @@
 {
   "version": 1,
-  "manifestSha256": "b0e27fb8f05b57f728db99f588a9b4da9f9c7404ace724037593d2671dfb4b61",
+  "manifestSha256": "c81712718b066cd95f062682d76c897eb3d8ae0e5c97d3661ea8f96ee9ff3fc2",
   "fonts": [
     {
-      "file": "NotoSansSC-Regular.common.bf5c25b38753.ttf",
-      "bytes": 1464784,
-      "sha256": "bf5c25b387539e107b548d4f29112bacc5c44b3782382fa711044a4215725779"
+      "file": "NotoSansSC-Regular.common.4a54632c83c1.ttf",
+      "bytes": 1464752,
+      "sha256": "4a54632c83c1f3c62555aea558b8dfe0682ad3e9672f5a00a92ecbf3dd363b45"
     },
     {
-      "file": "NotoSansSC-Regular.full.fd3db655518d.ttf",
-      "bytes": 10678636,
-      "sha256": "fd3db655518daf4922ffcc52c03869ff26b1926833d36d1cd2a4f7c54caf67b5"
+      "file": "NotoSansSC-Regular.full.7779803e4f03.ttf",
+      "bytes": 10678484,
+      "sha256": "7779803e4f03dc47cfbfb237f6027f55febc7641b64a6b7fea3218e4e0745c19"
     },
     {
-      "file": "NotoSansSC-Bold.common.514aa2e31f3e.ttf",
-      "bytes": 1453688,
-      "sha256": "514aa2e31f3ea62af11ba0b9e1ffef58c5264a0f0064816d032bcc3ea7d29f95"
+      "file": "NotoSansSC-Bold.common.d2d85bcc726d.ttf",
+      "bytes": 1453648,
+      "sha256": "d2d85bcc726dea900562caf35b004a8c5617ed32defc26c990d38d39c2718851"
     },
     {
-      "file": "NotoSansSC-Bold.full.f3a09497b511.ttf",
-      "bytes": 10613524,
-      "sha256": "f3a09497b5115fa85a43b8db88f64241bece7cc7145ebe197d4981affda9d861"
+      "file": "NotoSansSC-Bold.full.f2bc38d16acd.ttf",
+      "bytes": 10613384,
+      "sha256": "f2bc38d16acd09ad99868953577d714fa98a3c5e823f175e8f872ca6196eb695"
     },
     {
-      "file": "NotoSansTC-Regular.common.41a3b9eb2ff1.ttf",
-      "bytes": 2151548,
-      "sha256": "41a3b9eb2ff1587bb561ec2546e1bfe884d9a629e0f0ab41ba535078b1f4ef5c"
+      "file": "NotoSansTC-Regular.common.2642e2d7de5f.ttf",
+      "bytes": 2151488,
+      "sha256": "2642e2d7de5fb40a75a4edb759c5d204a9c137e6bc830b28a5d1c64261c51c07"
     },
     {
-      "file": "NotoSansTC-Regular.full.f556cbee6a10.ttf",
-      "bytes": 7146444,
-      "sha256": "f556cbee6a10ea8dbb0bdb4a745cfeac7ca1b06b3d880687052ad90c404ab5d8"
+      "file": "NotoSansTC-Regular.full.ee629eeeeea5.ttf",
+      "bytes": 7146296,
+      "sha256": "ee629eeeeea52286159ef3782a23a32c1dfd11bbe472b6462a4d7e1c778dadff"
     },
     {
-      "file": "NotoSansTC-Bold.common.4814bc63fece.ttf",
-      "bytes": 2141892,
-      "sha256": "4814bc63fececd38be82098ea9a4718d8b558739e2b10affa6e90c59192d4304"
+      "file": "NotoSansTC-Bold.common.2ba426847a18.ttf",
+      "bytes": 2141828,
+      "sha256": "2ba426847a18f2b9bca9add777de982d4290fa452cabfd46d023e791e917d8be"
     },
     {
-      "file": "NotoSansTC-Bold.full.02bfba99b030.ttf",
-      "bytes": 7117496,
-      "sha256": "02bfba99b030be186f698fffc07e561c9a62297286e00d6b9f0025daca2b3eba"
+      "file": "NotoSansTC-Bold.full.377a1a1e563c.ttf",
+      "bytes": 7117336,
+      "sha256": "377a1a1e563c76a0903f6fe7b087640d057f2bea6809636b9dec993e8e3979f7"
     },
     {
-      "file": "NotoSansJP-Regular.common.9d527fef5219.ttf",
-      "bytes": 1176104,
-      "sha256": "9d527fef5219dab64f69cf5ed006fb9886da8572f42424b9596783c0a6d72952"
+      "file": "NotoSansJP-Regular.common.29af0436fa5c.ttf",
+      "bytes": 1176064,
+      "sha256": "29af0436fa5cb4b843b2458d6a5712ba231552f412a9c886f75cf67b72c025d2"
     },
     {
-      "file": "NotoSansJP-Regular.full.355cd6978386.ttf",
-      "bytes": 5283704,
-      "sha256": "355cd6978386483d14832b21e2106728f7971b3f966ae5a4b83e02c9874cc366"
+      "file": "NotoSansJP-Regular.full.97efada9da68.ttf",
+      "bytes": 5283580,
+      "sha256": "97efada9da6879ac5929c73e84683296bc473a3d66a86cd743619584f1507162"
     },
     {
-      "file": "NotoSansJP-Bold.common.d385291e4a04.ttf",
-      "bytes": 1166120,
-      "sha256": "d385291e4a04940640159b9e0d7fe944af3205bfd8df127351c647f8384c24fe"
+      "file": "NotoSansJP-Bold.common.2fe46fc4e241.ttf",
+      "bytes": 1166080,
+      "sha256": "2fe46fc4e24130f86f33436fc3c337c8e9e996a3550a424010c760d6627a095b"
     },
     {
-      "file": "NotoSansJP-Bold.full.7d8c23c07c02.ttf",
-      "bytes": 5244652,
-      "sha256": "7d8c23c07c023bccf9f7339230ef0da9debb7554bad3c513c47ebcd31b62dfb9"
+      "file": "NotoSansJP-Bold.full.f3a81a368411.ttf",
+      "bytes": 5244532,
+      "sha256": "f3a81a36841100f23b1d28de6c14f627a2bd6aedcc3fa8137a971ac5164f6d12"
     },
     {
-      "file": "NotoSansKR-Regular.common.dd2adffdc390.ttf",
-      "bytes": 631408,
-      "sha256": "dd2adffdc3902b78ab96826cbe708700171aed18e7790c67bdf07989fce92211"
+      "file": "NotoSansKR-Regular.common.d17225584c14.ttf",
+      "bytes": 631328,
+      "sha256": "d17225584c140d0b35ecaf9cd38bf935aec4db7a88f5f2ac7c3d17d554884b14"
     },
     {
-      "file": "NotoSansKR-Regular.full.998eeb742f98.ttf",
-      "bytes": 5655444,
-      "sha256": "998eeb742f98f4606298807ac67359a5441468eb2d47707df6a93ea1ba15ff17"
+      "file": "NotoSansKR-Regular.full.357cc2d6e344.ttf",
+      "bytes": 5654520,
+      "sha256": "357cc2d6e3444ed28374c067a69efc393b0f8d33a9338b68e0d2ef9260d8e31e"
     },
     {
-      "file": "NotoSansKR-Bold.common.edff713a7f82.ttf",
-      "bytes": 626232,
-      "sha256": "edff713a7f823ddd05094270ab45f4c592a1ab1fdf40178c6f3bbb3001ddee40"
+      "file": "NotoSansKR-Bold.common.08446b60264a.ttf",
+      "bytes": 626016,
+      "sha256": "08446b60264a72e4574960a6aaad31de030bbbc31636ab36b53807e971c8f800"
     },
     {
-      "file": "NotoSansKR-Bold.full.77466356360c.ttf",
-      "bytes": 5610376,
-      "sha256": "77466356360c25b7820b2ec7318d4d9bbe2dcf69c02bba5523efd9978b9f20a1"
+      "file": "NotoSansKR-Bold.full.2156de1f5df3.ttf",
+      "bytes": 5609712,
+      "sha256": "2156de1f5df34e8ddf479c2891100fd5da5ddfdf8034ebe0dd45c86de820f576"
     }
   ],
   "inputs": {
     "scripts/diagram-fonts/sources.json": "5689c3a110e5954c4126d89ee6ad43a3c6742d9e80ebbd6a7895d3ef1b80b7a1",
-    "scripts/diagram-fonts/requirements.txt": "39553d9699b05eb540b665980edf7bd610221932db5701cd64b8a45afd21ff30",
+    "scripts/diagram-fonts/requirements.txt": "6b77b14a5d05e417e51aec1facaa2abbea9318d8d993e02853d7966143523fde",
     "scripts/diagram-fonts/charsets/common.txt": "23862ff73e9f202015d91950c0687a9eca7061d334d435ba2296b370f9ad2873",
     "scripts/diagram-fonts/charsets/jp.txt": "6f426bda187093f3bcddf7da9e66926597b19a885f5a837e17b0f23a842fd19f",
     "scripts/diagram-fonts/charsets/kr.txt": "843437f8c7ba32d52c354c51fc98d116dc79d49f366798e555b57fa85b8c3595",
@@ -94,5 +94,15 @@
     "scripts/diagram-fonts/charsets/tc.txt": "99a42be2c35ef3b107ded9e68ea140ce3e1506a95bbbf8474ec2e0426fb2c728",
     "apps/web/src/diagram/fonts/NotoSans-Bold.ttf": "d88c72b936361adaa4a82e91cc616ecfca85d6a4e0aaad8d3c44f5c5d2c901ed",
     "apps/web/src/diagram/fonts/NotoSans-Regular.ttf": "ab3ff8790fe724a6e7843435d147a5397b7dd48a74ace70c16372fb63c37a8b8"
+  },
+  "buildPlatform": {
+    "system": "Linux",
+    "machine": "x86_64",
+    "python": "3.12"
+  },
+  "provenance": {
+    "deployment": "https://f893f493.oristudio.pages.dev",
+    "run": "https://github.com/zacharyfmarion/ori-studio/actions/runs/38011973752",
+    "commit": "0c44cfcaf32fdd5869a3e5feb18aabbd0ab97f6f"
   }
 }

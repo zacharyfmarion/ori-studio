@@ -26,7 +26,8 @@ is downloaded (once, into --cache) and checked against its sha256, then:
   files of an earlier build are cleared from --out first.
 - **Reproducible.** fontTools stamps each font's `head.modified` with the
   time it is saved; the build pins it (`BUILD_TIMESTAMP`), so the same sources
-  and toolchain always write the same bytes, and the same names. A name then
+  and toolchain on Linux x86_64 write the same bytes and names. skia-pathops
+  produces different outlines on macOS, so CJK builds reject other hosts. A name then
   changes only with the sources, the toolchain, or (for a common file) a
   charset — which matters, because an installed desktop app reads the full
   files by name from the site (`check_fonts.py` checks the stamp).
@@ -46,6 +47,8 @@ import os
 import sys
 import urllib.parse
 import urllib.request
+
+from build_platform import require_cjk_build_platform
 
 from fontTools import subset
 from fontTools.ttLib import TTFont
@@ -188,6 +191,11 @@ def main():
         '--skip-latin', action='store_true', help='build only the CJK files (CI: the Latin bundle is committed)'
     )
     args = parser.parse_args()
+    if not args.skip_cjk:
+        try:
+            require_cjk_build_platform()
+        except RuntimeError as error:
+            parser.error(str(error))
     sources = json.load(open(os.path.join(HERE, 'sources.json')))
     os.makedirs(args.cache, exist_ok=True)
     os.makedirs(args.out, exist_ok=True)

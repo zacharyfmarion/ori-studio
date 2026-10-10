@@ -1,6 +1,6 @@
 name: Build the Diagram's fonts
 description: >-
-  Build the CJK font files the Diagram fetches (scripts/diagram-fonts/build_fonts.py)
+  Build on Linux x86_64 the CJK font files the Diagram fetches (scripts/diagram-fonts/build_fonts.py)
   into apps/web/public/fonts/diagram, restored from a cache keyed on the script, its
   charsets, its pinned sources and its pinned toolchain, and checked against their
   manifest either way.
@@ -16,7 +16,7 @@ runs:
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: apps/web/public/fonts/diagram
-        key: diagram-fonts-v1-${{ hashFiles('scripts/diagram-fonts/**') }}
+        key: diagram-fonts-v1-linux-x64-${{ hashFiles('scripts/diagram-fonts/**') }}
 
     - name: Set up Python
       if: steps.cache.outputs.cache-hit != 'true'

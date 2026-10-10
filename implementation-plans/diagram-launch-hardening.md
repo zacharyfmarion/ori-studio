@@ -81,3 +81,24 @@ crane/PDF, real-device, desktop and launch-release gates remain outstanding.
 - No Rust/native shell code changed in this work. Native workspace/oracle and
   desktop hardware checks remain part of the broader launch gate, not claimed
   by these web and font checks.
+
+## CI font correction, 2026-10-10
+
+The initial font lock was taken from a local macOS build. CI rebuilt the same
+sources and pinned packages on Linux x86_64 and correctly rejected the different
+outlines. The previously successful hosted preview already serves those Linux
+bytes; the lock now freezes that published set, with its immutable deployment,
+run and commit recorded as provenance. Sources, package versions, charsets and
+bundled Latin fonts are unchanged. The requirements-file hash changes only for
+its corrected platform comment.
+
+CJK generation now refuses other platforms before touching the output directory.
+Local previews use the verified published assets; the lock is still an exact
+byte/manifest check, never a metrics-only allowance. All 16 files retain the same coverage and advances. In the sampled SC Regular
+common font, only `glyf`, `loca` and `head` differ.
+The earlier macOS rebuild result above demonstrated repeatability on that host,
+not reproducibility against the deployed Linux set.
+
+- [x] Verify all 16 published CJK files and refresh this worktree's local assets.
+- [x] Add platform-guard tests; all 10 font-tooling tests pass.
+CI and hosted-deployment results for this correction are recorded on PR #436.
