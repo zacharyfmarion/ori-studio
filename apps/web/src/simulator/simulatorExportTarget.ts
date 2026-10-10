@@ -46,6 +46,7 @@ export function simulatorExportTarget({
   pins,
 }: SimulatorExportCapture): PaperExportTarget {
   return {
+    obj: snapshot.obj,
     surface,
     title,
     fileStem,

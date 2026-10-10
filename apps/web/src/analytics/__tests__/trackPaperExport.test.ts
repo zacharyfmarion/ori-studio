@@ -41,6 +41,12 @@ describe('trackPaperExportOpened', () => {
 });
 
 describe('trackPaperExported', () => {
+  it.each(['simulator', 'inline-simulation'] as const)('reports OBJ from %s without fictitious image properties', (surface) => {
+    trackPaperExported({ surface, format: 'obj', optionsChanged: true, scope: 'this' });
+    expect(runtime.track).toHaveBeenCalledExactlyOnceWith('paper exported', {
+      surface, format: 'obj', options_changed: 'yes', scope: 'this',
+    });
+  });
   it('reports every option as an enum, and no resolution for an SVG', () => {
     trackPaperExported(SVG);
     expect(runtime.track).toHaveBeenCalledWith('paper exported', {

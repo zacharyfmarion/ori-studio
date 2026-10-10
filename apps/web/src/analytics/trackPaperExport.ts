@@ -2,6 +2,7 @@ import { ANALYTICS_EVENTS, bucketCount, PAPER_EXPORT_PAGE_COUNT_BUCKETS } from '
 import type {
   PaperExportBackground,
   PaperExportFormat,
+  PaperImageExportFormat,
   PaperExportHiddenFaces,
   PaperExportLastSave,
   PaperExportMarkShown,
@@ -52,17 +53,22 @@ export function trackPaperExportFailed(event: {
 }
 
 /** A saved paper export, as the dialog knows it: every field an enum, or a density bucketed into one. */
-export interface PaperExportedEvent {
+interface PaperExportedBase {
   surface: PaperExportSurface;
-  format: PaperExportFormat;
+  /** Whether anything was touched in the dialog before saving. */
+  optionsChanged: boolean;
+  scope: PaperExportScope;
+}
+
+export type PaperExportedEvent = PaperImageExportedEvent | (PaperExportedBase & { format: 'obj' });
+
+interface PaperImageExportedEvent extends PaperExportedBase {
+  format: PaperImageExportFormat;
   hiddenFaces: PaperExportHiddenFaces;
   style: PaperExportStyleName;
   background: PaperExportBackground;
   /** The PNG's density; read only for a PNG. */
   pngDpi: number;
-  /** Whether anything was touched in the dialog before saving: does the dialog earn its step. */
-  optionsChanged: boolean;
-  scope: PaperExportScope;
   /** How many pages the ZIP holds; read only for every page. */
   pageCount: number;
   /**
@@ -82,9 +88,9 @@ const RESOLUTION_BY_DPI: Readonly<Record<number, PaperExportResolution>> = {
   600: '600',
 };
 
-/** The density as the picker names it: one of its presets, or `custom`; `none` for an SVG. */
+/** The density as the picker names it: one of its presets, or `custom`; `none` for non-raster formats. */
 export function paperExportResolution(format: PaperExportFormat, pngDpi: number): PaperExportResolution {
-  if (format === 'svg') return 'none';
+  if (format !== 'png') return 'none';
   return RESOLUTION_BY_DPI[pngDpi] ?? 'custom';
 }
 
@@ -97,16 +103,18 @@ export function trackPaperExported(event: PaperExportedEvent): void {
   track(ANALYTICS_EVENTS.paperExported, {
     surface: event.surface,
     format: event.format,
-    hidden_faces: event.hiddenFaces,
-    style: event.style,
-    background: event.background,
-    resolution: paperExportResolution(event.format, event.pngDpi),
     options_changed: event.optionsChanged ? 'yes' : 'no',
     scope: event.scope,
-    ...(event.scope === 'all'
-      ? { page_count_bucket: bucketCount(event.pageCount, PAPER_EXPORT_PAGE_COUNT_BUCKETS) }
-      : {}),
-    ...(event.letters ? { letters: event.letters } : {}),
-    ...(event.highlights ? { highlights: event.highlights } : {}),
+    ...(event.format === 'obj' ? {} : {
+      hidden_faces: event.hiddenFaces,
+      style: event.style,
+      background: event.background,
+      resolution: paperExportResolution(event.format, event.pngDpi),
+      ...(event.scope === 'all'
+        ? { page_count_bucket: bucketCount(event.pageCount, PAPER_EXPORT_PAGE_COUNT_BUCKETS) }
+        : {}),
+      ...(event.letters ? { letters: event.letters } : {}),
+      ...(event.highlights ? { highlights: event.highlights } : {}),
+    }),
   });
 }

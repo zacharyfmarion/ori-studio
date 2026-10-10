@@ -63,7 +63,9 @@ export function PaperExportPreview({
   const number = (value: number) => value.toLocaleString(i18n.language);
   const parts: string[] = [];
   const page = image?.page ?? null;
-  if (page) {
+  if (format === 'obj') {
+    parts.push(t('dialogs:paperExport.objPreview', 'Captured pose · OBJ includes the complete mesh and UVs'));
+  } else if (page) {
     parts.push(
       t('dialogs:paperExport.pageMm', '{{width}} × {{height}} mm', {
         width: formatPageMm(page.widthPt),
@@ -121,7 +123,9 @@ export function PaperExportPreview({
         )}
         {status === 'empty' && (
           <span className="paper-export__state">
-            {t('dialogs:paperExport.empty', 'Nothing to export: the view shows no paper.')}
+            {format === 'obj'
+              ? t('dialogs:paperExport.objPreviewEmpty', 'No image preview. The captured 3D mesh can still be exported.')
+              : t('dialogs:paperExport.empty', 'Nothing to export: the view shows no paper.')}
           </span>
         )}
         {status === 'error' && (

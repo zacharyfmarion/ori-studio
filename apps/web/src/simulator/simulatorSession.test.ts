@@ -970,6 +970,54 @@ describe('exporting the current view as SVG', () => {
 });
 
 describe('export snapshots', () => {
+  it('exports stable sheet UVs and a frozen pose from the addressed session', async () => {
+    const session = createSimulatorSession();
+    const fold: FoldDocument = {
+      vertices_coords: [[0, 0, 0], [1, 0, 0], [1, 0, -1], [0, 0, -1]],
+      edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 0], [0, 2]],
+      edges_assignment: ['B', 'B', 'B', 'B', 'V'],
+      edges_foldAngle: [null, null, null, null, 120],
+      faces_vertices: [[0, 1, 2], [0, 2, 3]],
+    };
+    const info = session.load(fold, {});
+    const frozen = session.beginExportSnapshot({ token: info.token })!;
+    const flat = session.exportObj(frozen)!;
+    expect(session.exportObjUnavailableReason(frozen)).toBeNull();
+    expect(flat).toContain('vt 0 1\nvt 1 1\nvt 1 0\nvt 0 0\n');
+    session.setFoldPercent(75, info.token);
+    await frame(session.settle(600, { token: info.token }));
+    const foldedId = session.beginExportSnapshot({ token: info.token })!;
+    const folded = session.exportObj(foldedId)!;
+    expect(folded).not.toBe(flat);
+    expect(folded.split('\n').filter((line) => line.startsWith('vt '))).toEqual(
+      flat.split('\n').filter((line) => line.startsWith('vt '))
+    );
+    const other = session.load({ ...fold, vertices_coords: fold.vertices_coords.map(([x, y, z]) => [x! * 2, y!, z!]) }, {});
+    const otherId = session.beginExportSnapshot({ token: other.token })!;
+    expect(session.exportObj(otherId)).not.toBe(folded);
+    expect(session.exportObj(frozen)).toBe(flat);
+    expect(session.exportObj(foldedId)).toBe(folded);
+    session.endExportSnapshot(frozen);
+    expect(session.exportObj(frozen)).toBeNull();
+    expect(session.exportObjUnavailableReason(frozen)).toBe('expired-snapshot');
+    session.release(info.token);
+    expect(session.exportObj(foldedId)).toBeNull();
+    expect(session.exportObj(otherId)).not.toBeNull();
+    expect(session.exportObj(otherId + 1000)).toBeNull();
+    session.dispose();
+    expect(session.exportObj(otherId)).toBeNull();
+  });
+
+  it('reports unavailable UVs without preventing an image snapshot', () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(2, 2), {}); // This fixture starts in XY, not the product's XZ sheet.
+    const id = session.beginExportSnapshot({ token: info.token })!;
+    expect(session.exportObjUnavailableReason(id)).toBe('nonplanar-sheet');
+    expect(session.exportObj(id)).toBeNull();
+    expect(session.exportScene(id, { style: EXPORT_STYLE, markHidden: false })).not.toBeNull();
+    session.dispose();
+  });
+
   const UNMARKED = { style: EXPORT_STYLE, markHidden: false };
   const MARKED = { style: EXPORT_STYLE, markHidden: true };
 
@@ -1130,6 +1178,10 @@ async function dialogPage(
   if (id === null) throw new Error('expected a snapshot');
   const target = simulatorExportTarget({
     snapshot: {
+      obj: {
+        unavailableReason: session.exportObjUnavailableReason(id),
+        build: async () => session.exportObj(id),
+      },
       scene: async (options) => session.exportScene(id, options),
       release: () => session.endExportSnapshot(id),
     },

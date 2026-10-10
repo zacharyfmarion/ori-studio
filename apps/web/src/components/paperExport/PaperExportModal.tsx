@@ -73,6 +73,7 @@ function PaperExportDialog({ request }: { request: PaperExportRequest }) {
       }
       options={
         <PaperExportOptions
+          obj={request.target.obj}
           draft={draft}
           patch={patch}
           buriesFaces={request.target.buriesFaces}

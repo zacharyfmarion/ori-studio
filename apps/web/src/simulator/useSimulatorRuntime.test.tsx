@@ -117,6 +117,8 @@ const client = {
   beginExportSnapshot: vi.fn(
     async (_options: SimulatorExportSnapshotOptions): Promise<number | null> => EXPORT_SNAPSHOT_ID
   ),
+  exportObjUnavailableReason: vi.fn(async (_id: number): Promise<null> => null),
+  exportObj: vi.fn(async (_id: number): Promise<string | null> => 'o captured\n'),
   exportScene: vi.fn(
     async (_id: number, _options: SimulatorExportSceneOptions): Promise<PaperScene | null> => null
   ),
@@ -919,6 +921,9 @@ describe('beginExport', () => {
   it('asks for scenes of the frozen frame, and lets it go, by the id the worker gave it', async () => {
     await mountLoaded();
     const snapshot = await beginExport();
+    expect(client.exportObjUnavailableReason).toHaveBeenCalledWith(EXPORT_SNAPSHOT_ID);
+    await expect(snapshot?.obj.build()).resolves.toBe('o captured\n');
+    expect(client.exportObj).toHaveBeenCalledWith(EXPORT_SNAPSHOT_ID);
     const scene = { bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 }, sheet: 1, items: [] };
     client.exportScene.mockResolvedValueOnce(scene);
     const options = { style: DEFAULT_PAPER_STYLE, markHidden: true };
