@@ -44,6 +44,9 @@ export function redactSensitiveText(
     // Bare filenames (name.ext) that weren't part of a path.
     .replace(/\b[\w-]+\.[A-Za-z0-9]{1,6}\b/g, '<file>')
     .replace(/["'`][^"'`]*["'`]/g, '<str>')
+    // A character named by its code point is one of the user's (the PDF writer
+    // names the glyphs a font lacks so): `U+FFFD` would survive the rest whole.
+    .replace(/\bU\+[0-9A-F]{4,6}\b/gi, '<char>')
     .replace(/0x[0-9a-f]+/gi, '<hex>');
 
   if (redactNumbers) text = text.replace(/\d+/g, '<n>');

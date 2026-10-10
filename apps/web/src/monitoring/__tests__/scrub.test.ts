@@ -108,6 +108,13 @@ describe('scrubEvent', () => {
     });
   });
 
+  it('redacts the characters a message names by code point, which are the user’s text', () => {
+    const event = scrubEvent(
+      eventWith({ exception: { values: [{ type: 'DiagramPdfError', value: 'no glyph for U+FFFD U+4E2D U+1F600' }] } })
+    );
+    expect(event.exception?.values?.[0]?.value).toBe('no glyph for <char> <char> <char>');
+  });
+
   it('rebuilds request so an upstream-added field cannot be forwarded', () => {
     const event = scrubEvent(
       eventWith({
