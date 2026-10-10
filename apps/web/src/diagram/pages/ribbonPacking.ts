@@ -19,6 +19,8 @@ export interface PackedRibbon {
   gaps: number[];
 }
 export interface RibbonPackingInput {
+  /** Semantic identity for non-linear measurements such as caption wrapping. */
+  contentKey?: string;
   count: number;
   area: PageBox;
   shape: (index: number, size: number) => PackingShape;
@@ -296,6 +298,7 @@ function candidate(input: RibbonPackingInput, size: number, rows: number, varian
 const packingCache = new Map<string, PackedRibbon | null>();
 export function packRibbon(input: RibbonPackingInput): PackedRibbon | null {
   const key = JSON.stringify([
+    input.contentKey,
     input.area,
     input.oddRows,
     input.up,

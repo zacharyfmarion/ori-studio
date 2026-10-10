@@ -1148,6 +1148,8 @@ export function layoutDiagramPages(
         return value;
       };
       const packed = packRibbon({
+        // Equal line counts at the cache's probe sizes do not imply equal wrapping between them.
+        contentKey: JSON.stringify(entries.map((entry) => entry.step.text)),
         count: entries.length,
         area: { x: m + (turning ? TURN_GUTTER_MM + 2 : 3), y: m + headH + 2, w: W - 2 * m - (turning ? 2 * (TURN_GUTTER_MM + 2) : 6), h: H - 2 * m - headH - (setup.pageNumbers.enabled ? FOOTER_MM : 0) - 4 },
         shape: (i, size) => metrics(entries[i]!, size).shape,

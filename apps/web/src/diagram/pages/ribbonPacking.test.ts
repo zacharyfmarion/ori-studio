@@ -64,3 +64,19 @@ describe('balanced ribbon packing', () => {
         expect(packed.size).toBeGreaterThan(count === 7 ? 47.5 : ratio < 1 ? 44 : ratio > 1 ? 38 : 30);
       });
 });
+
+it('keeps caption-wrap identities separate even when their measured probe sizes agree', () => {
+  const shape = (threshold: number) => (_: number, size: number): PackingShape => {
+    const base = diamond(size, 1);
+    const captionHeight = size < threshold ? 12 : 7;
+    return { ...base, polygons: [...base.polygons.slice(0, 2), rectangle(-size * .4, size / 2 + 3, size * .8, captionHeight)],
+      bounds: { ...base.bounds, h: size + 3 + captionHeight } };
+  };
+  const common = {count: 7, area: {x:15,y:20,w:180,h:253}, oddRows: true, up: false};
+  const late = packRibbon({...common, contentKey: 'wraps-later', shape: shape(55)})!;
+  const early = packRibbon({...common, contentKey: 'wraps-earlier', shape: shape(45)})!;
+  expect(shape(55)(0,40)).toEqual(shape(45)(0,40));
+  expect(shape(55)(0,60)).toEqual(shape(45)(0,60));
+  expect(early.shapes[0]!.bounds.h - early.size).toBe(10);
+  expect(late.shapes[0]!.bounds.h - late.size).toBe(15);
+});
