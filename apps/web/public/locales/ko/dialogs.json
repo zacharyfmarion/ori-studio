@@ -180,6 +180,8 @@
     "pdfFailed": "PDF를 만들지 못했습니다: {{message}}",
     "pdfHint": "모든 페이지를 바로 인쇄할 수 있게.",
     "pdfText": "일부 텍스트는 도해 글꼴로 인쇄할 수 없습니다.",
+    "placementClashes": "{{steps}}단계의 배치를 확인하세요. 일부가 겹치거나 페이지 경계를 벗어납니다.",
+    "placementLeftOut": "페이지 배치와 고정 크기는 단계 파일에 영향을 주지 않습니다.",
     "pngFileTooLarge": "{{number}}단계는 {{width}} × {{height}}px로 PNG로 만들기에는 너무 큽니다. 해상도나 크기를 줄이세요.",
     "pngTooLarge": "PNG로 내보내기에는 너무 큽니다: {{width}} × {{height}}px. 해상도나 크기를 줄이세요.",
     "preparing": "미리보기 준비 중…",

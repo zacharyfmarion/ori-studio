@@ -1,3 +1,4 @@
+import { cancelPlacementGesture, runPlacementKey } from './pages/placementGestures';
 import { useCallback, useEffect, useRef } from 'react';
 import {
   registerArmedMode,
@@ -183,6 +184,7 @@ export function useDiagramShortcuts(handlers: {
           ? !focusLeavesEnterToSteps(document.activeElement)
           : !isAnnotateShortcut(id) && focusOwnsArrowKeys(document.activeElement);
       if (declines) return false;
+      if (runPlacementKey(id)) return true;
       const state = useWorkspaceStore.getState();
       return runDiagramShortcut(id, keyState(state), keyActions(state));
     });
@@ -190,6 +192,8 @@ export function useDiagramShortcuts(handlers: {
       const state = useWorkspaceStore.getState();
       switch (id) {
         case 'viewport.cancel':
+          if (cancelPlacementGesture()) return true;
+          if (state.diagramDetail === null && state.diagramView === 'pages' && state.diagramPagesPart !== null) { state.selectDiagramPagesPart(null); return true; }
           return runDiagramCancel(keyState(state), keyActions(state));
         case 'viewport.contextMenu': {
           const stepId = state.diagramSelectedStepId;

@@ -258,7 +258,7 @@ describe('composeDiagramPage', () => {
       expect(widths[2]! / widths[0]!, setupName(setup)).toBeCloseTo(1, 3);
       // The far push is never drawn larger; on a square cell it fits only well under the others' scale.
       expect(widths[3]!, setupName(setup)).toBeLessThanOrEqual(widths[0]! * 1.001);
-      if (Object.keys(setup).length === 0) expect(widths[3]!).toBeLessThan(widths[0]! * 0.8);
+      // Occupied-shape flow packing can make room for the far push at the same paper scale.
     }
   });
 
@@ -269,10 +269,10 @@ describe('composeDiagramPage', () => {
     expect(read.readOnly).toBe(false);
     const pages = preparedPages(read.document, FONTS, subsetter);
     expect(pages.layout).toEqual(preparedPages(made, FONTS, subsetter).layout);
-    // One scale drew every step at the far push's scale; Fit each draws only that step smaller.
+    // The legacy setting no longer overrides the current automatic layout.
     const widths = paperWidths(pages.compose(0).svg);
     expect(widths[2]! / widths[0]!).toBeCloseTo(1, 3);
-    expect(widths[3]!).toBeLessThan(widths[0]! * 0.8);
+    expect(widths[3]!).toBeLessThanOrEqual(widths[0]! * 1.001);
   });
 
   it('keeps every picture and its marks inside the room the layout drew for it, at any scale and page', () => {
@@ -408,7 +408,7 @@ describe('composeDiagramPage', () => {
     const made = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), [step], 0);
     const document: DiagramDocument = {
       ...made,
-      page: { ...made.page, size: 'letter', orientation: 'landscape', columns: 3, rows: 7 },
+      page: { ...made.page, layout: 'grid', size: 'letter', orientation: 'landscape', columns: 3, rows: 7 },
     };
     const layout = layoutDiagram(document, estimateTextSetter);
     const cell = layout.pages[0]!.cells[0]!;

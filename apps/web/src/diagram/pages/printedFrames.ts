@@ -26,6 +26,8 @@ const NONE: PrintedFrames = new Map();
 const NO_ZOOMS: PrintedZooms = new Map();
 let current: PrintedFrames = NONE;
 let currentZooms: PrintedZooms = NO_ZOOMS;
+const NO_LAYOUT = { pages: null, document: null };
+let currentLayout: { pages: PreparedDiagramPages | null; document: DiagramDocument | null } = NO_LAYOUT;
 const listeners = new Set<() => void>();
 
 /** Each step's printed frame size in a layout of `document`'s pages. */
@@ -51,8 +53,9 @@ export function printedZooms(pages: PreparedDiagramPages | null): PrintedZooms {
   return zooms.size > 0 ? zooms : NO_ZOOMS;
 }
 
-function publish(next: PrintedFrames, nextZooms: PrintedZooms = NO_ZOOMS): void {
-  if (next === current && nextZooms === currentZooms) return;
+function publish(next: PrintedFrames, nextZooms: PrintedZooms = NO_ZOOMS, pages: PreparedDiagramPages | null = null, document: DiagramDocument | null = null): void {
+  if (next === current && nextZooms === currentZooms && pages === currentLayout.pages && document === currentLayout.document) return;
+  currentLayout = pages ? { pages, document } : NO_LAYOUT;
   current = next;
   currentZooms = nextZooms;
   for (const listener of listeners) listener();
@@ -73,7 +76,7 @@ const readZooms = () => currentZooms;
 export function usePublishPrintedFrames(pages: PreparedDiagramPages | null, document: DiagramDocument | null): void {
   useEffect(() => {
     // Laid out from the document it is: a layout of an earlier one says nothing of it.
-    publish(printedFrames(pages, document), pages && document ? printedZooms(pages) : NO_ZOOMS);
+    publish(printedFrames(pages, document), pages && document ? printedZooms(pages) : NO_ZOOMS, pages, document);
   }, [pages, document]);
   useEffect(() => () => publish(NONE), []);
 }
@@ -92,4 +95,10 @@ export function usePrintedFrameMm(stepId: string | null): number | null {
 export function usePrintedZoom(stepId: string | null): PrintedZoom | null {
   const zooms = useSyncExternalStore(subscribe, readZooms, readZooms);
   return stepId === null ? null : (zooms.get(stepId) ?? null);
+}
+
+const readLayout = () => currentLayout;
+/** The existing layout shared with dock panes; never start another layout for a control. */
+export function usePrintedLayout() {
+  return useSyncExternalStore(subscribe, readLayout, readLayout);
 }

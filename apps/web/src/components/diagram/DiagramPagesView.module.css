@@ -67,6 +67,7 @@
 }
 
 .cell {
+  z-index: 1;
   position: absolute;
   box-sizing: border-box;
   border-radius: calc(var(--radius) / 2);
@@ -84,6 +85,7 @@
 
 /* A turn's glyph between two pictures (D22), selected as a cell is. */
 .turn {
+  z-index: 2;
   position: absolute;
   box-sizing: border-box;
   border-radius: var(--radius-sm);
@@ -101,6 +103,7 @@
 
 /* An enlarge arrow (Revision 2): a target over it, for the pointer, which selects the step it leads to. */
 .arrow {
+  z-index: 3;
   position: absolute;
   box-sizing: border-box;
   border-radius: var(--radius-sm);
@@ -167,3 +170,5 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+.selectedCell { touch-action: none; }

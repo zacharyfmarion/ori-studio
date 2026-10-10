@@ -195,6 +195,7 @@ export function DiagramExportOptions({
 
       {(binding.empty.length > 0 ||
         binding.cut.length > 0 ||
+        (printed && binding.clashes.length > 0) || (!printed && binding.placed > 0) ||
         binding.missing.length > 0 ||
         binding.unavailable ||
         (printed && binding.splits.length > 0) ||
@@ -235,6 +236,8 @@ export function DiagramExportOptions({
                     )}
               </li>
             )}
+            {printed && binding.clashes.length > 0 && <li>{t('dialogs:diagramExport.placementClashes', 'Check placements on steps {{steps}}: some parts overlap or cross the page boundaries.', { steps: steps(binding.clashes) })}</li>}
+            {!printed && binding.placed > 0 && <li>{t('dialogs:diagramExport.placementLeftOut', 'Page placements and size pins do not affect step files.')}</li>}
             {binding.empty.length > 0 && (
               <li>{emptySentence(t, printed, steps(binding.empty), binding.empty.length)}</li>
             )}

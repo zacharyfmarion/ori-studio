@@ -3961,6 +3961,13 @@ not ship before 16g (below).
 
 ### 16f Enlarged steps: pages and export
 
+**October 10 Size amendment (page placement, Decision 3A).** Explicit Size is
+honored even past its automatic cell room; text follows the larger picture and
+clashes are reported. Fill retains the room constraint. The page resize grips
+edit the existing enlarged Size, never a second `place.scale` pin. Step files
+still respect their own output canvas. See
+[page placement](diagram-page-overrides.md#as-built-page-placement-and-balanced-ribbons-2026-10-10).
+
 **Built 2026-10-06** (commit 46c5de201, before 16e), to the part's "Page
 layout and scale" and "The enlarge arrow". An enlarged step is laid out as
 its own kind, by what it prints, in runs of its own; the arrow is computed

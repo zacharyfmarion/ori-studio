@@ -34,6 +34,7 @@
       "unknown": "折痕图尚未就绪。请稍后再试。"
     },
     "dropReadOnly": "此图解由更新版本的 Ori Studio 创建，以只读方式打开，因此无法向其中添加图片。",
+    "placementsReflowed_other": "{{count}} 个已移动步骤回到了原来的单元格",
     "references": {
       "addedSteps": "已添加为第 {{first}}–{{last}} 步",
       "addedTurnOvers_other": "已添加 {{count}} 个翻面",

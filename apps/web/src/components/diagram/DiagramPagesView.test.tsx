@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { act } from 'react';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -255,4 +256,20 @@ describe('DiagramPagesView', () => {
     act(() => host.querySelector<HTMLElement>('[data-page="0"]')!.click());
     expect(props.onPageClick).toHaveBeenCalledOnce();
   });
+});
+
+
+it('lets the selected frame own its picture hit area until a part is chosen', () => {
+  const doc = diagram();
+  useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+  useWorkspaceStore.getState().installDiagram({document: doc, readOnly: false, raw: {}});
+  useWorkspaceStore.getState().setDiagramView('pages');
+  useWorkspaceStore.getState().selectDiagramStep('step-a');
+  useWorkspaceStore.getState().selectDiagramPagesPart('frame');
+  render(preparedPages(doc, FONTS, subsetter), {}, undefined, doc);
+  expect(host.querySelector('[data-place-selection="frame"]')).not.toBeNull();
+  expect(host.querySelector('[data-place-part]')).toBeNull();
+  act(() => useWorkspaceStore.getState().selectDiagramPagesPart('picture'));
+  expect(host.querySelector('[data-place-part="picture"]')).not.toBeNull();
+  expect(host.querySelectorAll('[data-place-scale]')).toHaveLength(3);
 });

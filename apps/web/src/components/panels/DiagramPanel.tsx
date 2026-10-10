@@ -1,3 +1,4 @@
+import { usePlacementReflowNotice } from '../../diagram/pages/usePlacementReflowNotice';
 import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { trackDiagramViewSwitched } from '../../analytics';
@@ -153,6 +154,7 @@ export function DiagramPanel() {
   const textCut = useMemo(() => cutStepIds(pages.pages), [pages.pages]);
   // And the size each step prints at, for the Layers pane's warnings (Revision 2).
   usePublishPrintedFrames(pages.pages, pages.of);
+  usePlacementReflowNotice();
   // An enlarged step on the page after its area, said over the pages (Revision 2).
   const zoomSplitNotice = useZoomSplitNotice(view === 'pages' ? pages.pages : null, pages.of);
 

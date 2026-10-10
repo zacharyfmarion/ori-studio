@@ -1,4 +1,7 @@
 {
+  "actions": {
+    "undo": "Desfazer"
+  },
   "cancel": "Cancelar",
   "capability": {
     "absorbAllStrainIntoLengths": "Absorver toda a tensão nos comprimentos das arestas",

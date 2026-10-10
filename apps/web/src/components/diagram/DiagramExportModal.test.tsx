@@ -166,6 +166,8 @@ describe('DiagramExportDialog', () => {
       step_count_bucket: '<=5',
       empty_step_bucket: '<=1',
       enlarged_step_bucket: '<=0',
+      placed_step_bucket: '<=0',
+      clash_bucket: '<=0',
     });
   });
 
@@ -231,6 +233,8 @@ describe('DiagramExportDialog', () => {
       step_count_bucket: '<=20',
       empty_step_bucket: '<=0',
       enlarged_step_bucket: '<=0',
+      placed_step_bucket: '<=0',
+      clash_bucket: '<=0',
     });
     expect(useSettingsStore.getState().diagramExport.kind).toBe('svg');
   });

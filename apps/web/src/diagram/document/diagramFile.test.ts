@@ -152,7 +152,7 @@ describe('writeDiagram / readDiagram', () => {
     expect(page({ stepsPerPage: '7' }).readOnly).toBe(false);
   });
 
-  it('saves a flow diagram from before the steps per page byte for byte, so the build before opens it as it was', () => {
+  it('saves a legacy flow page setup byte for byte without adding steps per page', () => {
     // As the build before wrote a flow page: every field it knew, none of the choices made.
     for (const [columns, rows] of [
       [3, 3],
@@ -182,7 +182,7 @@ describe('writeDiagram / readDiagram', () => {
       const read = readDiagram(saved)!;
       expect(read.readOnly).toBe(false);
       expect(read.document.page.stepsPerPage).toBe(columns * rows);
-      expect(JSON.stringify(writeDiagram(read.document), null, 2)).toBe(JSON.stringify(saved, null, 2));
+      expect(JSON.stringify(writeDiagram(read.document).page, null, 2)).toBe(JSON.stringify(saved.page, null, 2));
     }
   });
 

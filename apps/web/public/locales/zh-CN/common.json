@@ -1,4 +1,7 @@
 {
+  "actions": {
+    "undo": "撤销"
+  },
   "cancel": "取消",
   "capability": {
     "absorbAllStrainIntoLengths": "将所有张力吸收到边长中",

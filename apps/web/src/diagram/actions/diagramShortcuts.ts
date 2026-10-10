@@ -139,6 +139,7 @@ export function runDiagramShortcut(
       return true;
     }
   }
+  return false; // Page placement has its own executor and declines outside Pages.
 }
 
 /** Annotate's keys: a record, so a new one is a compile error here until it is listed. */

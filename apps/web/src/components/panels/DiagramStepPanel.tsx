@@ -19,6 +19,7 @@ import { DiagramStepAnnotations } from '../diagram/DiagramStepAnnotations';
 import { DiagramStepEnlarged } from '../diagram/DiagramStepEnlarged';
 import { DiagramStepHeader } from '../diagram/DiagramStepHeader';
 import { DiagramStepPicture } from '../diagram/DiagramStepPicture';
+import { DiagramStepPlacement } from '../diagram/DiagramStepPlacement';
 import { DiagramStepPose } from '../diagram/DiagramStepPose';
 import { DiagramStepShowAs } from '../diagram/DiagramStepShowAs';
 import { DiagramStepZoomStatus } from '../diagram/DiagramStepZoomStatus';
@@ -195,6 +196,7 @@ export function DiagramStepPanel() {
             <DiagramStepAnnotations step={step} />
           </CollapsibleSection>
         )}
+        {!locked && !detailOpen && <DiagramStepPlacement step={step} />}
         <CollapsibleSection title={t('panels:diagram.stepPane.instruction', 'Instruction')}>
           <TextAreaRow
             // One field per step: a draft never carries over to the next one.

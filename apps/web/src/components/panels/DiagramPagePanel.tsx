@@ -16,6 +16,7 @@ import {
 } from '../../diagram/document/diagramDocument';
 import { layoutLabel, orientationLabel, paperSizeLabel } from '../../diagram/pages/pageSetupLabels';
 import { useDiagramPageSetup } from '../../diagram/pages/useDiagramPageSetup';
+import { DiagramPagePlacements } from '../diagram/DiagramPagePlacements';
 import { DiagramPathColorRow } from '../diagram/DiagramPathColorRow';
 import { DiagramStyleControl } from '../diagram/DiagramStyleControl';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
@@ -196,6 +197,7 @@ export function DiagramPagePanel() {
             })}
           </p>
         </CollapsibleSection>
+        <DiagramPagePlacements />
         <CollapsibleSection title={t('panels:diagram.pagePane.headerFooter', 'Header & footer')}>
           <ToggleRow
             label={t('panels:diagram.pagePane.title', 'Title')}

@@ -186,6 +186,8 @@
     "pdfFailed": "The PDF couldn’t be written: {{message}}",
     "pdfHint": "Every page, ready to print.",
     "pdfText": "Some text can’t be printed in the diagram’s fonts.",
+    "placementClashes": "Check placements on steps {{steps}}: some parts overlap or cross the page boundaries.",
+    "placementLeftOut": "Page placements and size pins do not affect step files.",
     "pngFileTooLarge": "Step {{number}} would be {{width}} × {{height}} px, too large for a PNG. Lower the resolution or the size.",
     "pngTooLarge": "Too large to export as PNG: {{width}} × {{height}} px. Lower the resolution or the size.",
     "preparing": "Preparing preview…",

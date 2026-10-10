@@ -1591,6 +1591,9 @@ export const ANALYTICS_EVENTS = {
    * and in which form.
    */
   diagramExported: 'diagram exported',
+  diagramStepPlaced: 'diagram step placed',
+  diagramPlacementReset: 'diagram placement reset',
+  diagramPlacementsReflowed: 'diagram placements reflowed',
   /**
    * The References browser opened in the Diagram (D20), and for where: what
    * `diagram steps pulled from references` is read against.

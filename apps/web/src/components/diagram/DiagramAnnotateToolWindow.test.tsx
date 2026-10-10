@@ -244,7 +244,7 @@ describe('DiagramAnnotateToolWindow', () => {
     tool('star');
     expect(windowEl()?.querySelector('[aria-label="Star Fill"]')).not.toBeNull();
     tool('line');
-    expect(windowEl()?.querySelector('[aria-label="Line Type"]')).not.toBeNull();
+    expect(windowEl()?.querySelector('[aria-label="Line Type"]')).toBeNull();
   });
 
   it('collapses on its own, apart from Edit’s and the Simulator’s windows', () => {

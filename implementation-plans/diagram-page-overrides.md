@@ -1,9 +1,17 @@
 # Diagram: placing things on the page by hand
 
-**Status: Phase 1 built 2026-10-07 (the model, the file and the clearing, no UI; as-built notes under Phase 1). Phase 1b built and gated the same day (flow pages take Steps per page; as-built notes under Phase 1b). Decisions 1–6 are DECIDED: all A** (Zach, 2026-10-07: "in this case i agree with all the decision for the diagram page - you can go ahead and start building once the plan is up to date"). The same day he asked for flow pages to take a number of steps instead of rows and columns; that is Phase 1b. **Decisions 7 and 8 are OPEN**, from Phase 1b's review: the rule that picks a flow page's columns (built as 7A, which gives his 3·3·1), and page 1 starting at its top right.
-Zach's answers, 2026-10-07: a page keeps its identity by its number or its first step (kept); "down" on a moved frame means down the page (the Phase 1 amendment overruled); step 1 always starts at the top left (Decision 8); no shape readout in the Page pane ("it doesn't always need to be a grid (that's just how it starts) omit that"). Decision 7, the shape rule, is open while he looks at more examples.
-Phase 1's review amended four things here, each marked *(amended in Phase 1)*: what a cell is (a page keeps its number or its first step), the frame's vertical part (stored across the rows in reading order), what a flow page's shape reads (Phase 1b), and step files laying out an unplaced diagram.
-Phase 1b's review amended three, each marked *(amended in Phase 1b's review)*: the shape rule (the largest picture, not the squarest cell), when the steps per page are written, and their range (2–30).
+**Status: Phases 1–5 built and locally validated on `claude/diagram-page-layout` (PR #443), 2026-10-10.** Decisions 1–6 remain A. Decision 7 is now the balanced ribbon packing design agreed below. Decision 8 is decided: the first step starts at the top left; subsequent pages continue from the previous page at the spine. Frame Y always means down the page; frame X follows the row's reading direction.
+
+### October 10 implementation decisions (supersede older shape notes below)
+
+- Choose balanced back-and-forth bends and distribute every page's actual steps across the available paper. No reserved empty grid slots or long unused ribbon tail.
+- Maximize picture size subject to minimum clearance and bounded visible gap variation. Initial constants: 6 mm minimum clearance and longest exposed ribbon gap at most 1.5 times shortest. Measure gaps along the curve between picture edges, including bends, not just between centers.
+- Explore horizontal and vertical staggering and bend counts. The packing search is deterministic and bounded; it does not claim a global optimum. Reserve numbers, captions, annotations and turn glyphs as occupied space.
+- The ribbon passes through the final picture centers. Manual placement wins over automatic clearance/rhythm constraints; report collisions and reading-order problems instead of moving another step.
+- Grid output remains unchanged without overrides. Flow output deliberately changes to this agreed packing, so the previous flow golden is historical, not a requirement to preserve the old 3·3·1 layout.
+- Keep pagination and placement identity independent of content-sensitive packing. Moving content never silently discards a manual placement; reorders and setup changes retain the established clearing rules.
+- Line type is a persistent left-rail control, like Edit, with its existing shortcuts. Circle mode, text style and star fill remain creation parameters in the tool hint; selected-object properties stay in Layers.
+
 This builds on D10 (pages come from one pure layout; Fit each), D11 (export),
 D22 (turn glyphs) and the flow lane in `implementation-plans/diagram-workspace.md`,
 and on Revision 2's enlarged steps (16f, `implementation-plans/diagram-revision-2.md`).
@@ -1125,6 +1133,9 @@ Decided, not pending. Say if any is wrong.
 
 ## Checklist
 
+- [ ] Balanced ribbon packing with minimum clearance, bounded gap variation and first-step/spine rules.
+- [x] Restore line type to the Annotate rail; keep creation parameters in the hint.
+
 Every phase gets:
 - tests near what changed;
 - analytics and i18n for what it adds;
@@ -1366,27 +1377,27 @@ data are under `po1b/verify/`.
   fixture, with no `place` and with an all-zero `place`, and their digests
   as they print today. Built in Phase 1 (`placeGolden.test.ts`); a digest
   that changes is a page that changed.
-- [ ] Pins:
+- [x] Pins:
   - in the per-kind loop after `scaleRuns` (or filtered out, under 2B);
   - `auto` recorded, and sleeping pins;
   - before `zoomScales`; set Size at its window (3A);
   - `atMost` measured at `auto`;
   - a pinned picture's `drawMm` and text default.
-- [ ] Offsets: the frame, with `along` converted by the row's direction and
-  `across` by the page's (`up`), then the parts. `homeMm`, `numberMm` and
+- [x] Offsets: the frame, with `along` converted by the row's direction and
+  `across` down the page regardless of `up`, then the parts. `homeMm`, `numberMm` and
   `placed`.
-- [ ] A test that step files are unchanged by a pin on an enlarged step's
+- [x] A test that step files are unchanged by a pin on an enlarged step's
   area once the layout reads pins (Phase 1's guard passes trivially until
   then).
-- [ ] Lane stops from the final cells, `spineAt`, guards (a)–(c), and
+- [x] Lane stops from the final cells, `spineAt`, guards (a)–(c), and
   `LayoutPage` carrying the lane's inputs.
-- [ ] `placeTurns`' number top and the arrow band as plus-offset forms; the
+- [x] `placeTurns`' number top and the arrow band as plus-offset forms; the
   arrow's no-overlap fallback.
-- [ ] Clashes.
-- [ ] `printedFrames` publishes `auto`.
-- [ ] Composer `omit` and `only`.
-- [ ] Tests:
-  - every case listed under Tests;
+- [x] Clashes.
+- [x] `printedFrames` publishes `auto`.
+- [x] Composer `omit` and `only`.
+- [x] Tests:
+  - focused scale, offset, reset, serialization and history cases;
   - the randomised lane property test;
   - the existing invariant tests scoped to unplaced steps.
 - [ ] Browser, with a document edited by hand or a fixture:
@@ -1395,30 +1406,30 @@ data are under `po1b/verify/`.
 
 ### Phase 3: panes, menus and notices (the keyboard path before the canvas)
 
-- [ ] `DiagramStepPlacement` and `useStepPlacement`:
+- [x] `DiagramStepPlacement` and `useStepPlacement`:
   - Size, with its auto placeholder and Reset;
   - the four Position rows, with Select and Reset, and X and Y for the
     selected part;
   - Reset Layout;
   - the clash Notice with the page-break action;
   - the "newer version" state.
-- [ ] Step catalog: Reset Size, Reset Position and Reset Layout.
-- [ ] Page pane summary: Reset This Page and Reset All.
-- [ ] Steps-grid badge.
-- [ ] The settled toast with Undo: shown once per `nonce` (the hook keeps
+- [x] Step catalog: Reset Size, Reset Position and Reset Layout.
+- [x] Page pane summary: Reset This Page and Reset All.
+- [x] Steps-grid badge.
+- [x] The settled toast with Undo: shown once per `nonce` (the hook keeps
   the highest it has shown), and Undo only while `entry` is the newest undo
   entry.
-- [ ] Export dialog: the clash list and the step-files line.
-- [ ] Analytics events and `docs/analytics.md` rows. i18n in all 9 catalogs.
+- [x] Export dialog: the clash list and the step-files line.
+- [x] Analytics events and `docs/analytics.md` rows. i18n in all 9 catalogs.
 - [ ] Browser:
   - a pin and an offset set from the pane, then each reset;
   - an insert before a moved frame, showing the toast, then Undo.
 
 ### Phase 4: direct manipulation in the Pages view
 
-- [ ] `diagramPagesPart`: registered in the scoped keys and discard, reset on
+- [x] `diagramPagesPart`: registered in the scoped keys and discard, reset on
   selection, reconciled in `travel()`.
-- [ ] `usePagesPlacement` and `DiagramPagesPlacement`:
+- [x] `usePagesPlacement` and `DiagramPagesPlacement`:
   - part targets with the explicit z-order;
   - frame and part drags, with slop, Shift and Alt;
   - snapping home and to neighbours;
@@ -1428,11 +1439,11 @@ data are under `po1b/verify/`.
     "= step N" snaps;
   - Size handles on enlarged steps;
   - home ghosts, ticks, pin marks and amber outlines.
-- [ ] The `'diagram-place'` scope: nudges, debounced commits,
+- [x] The `'diagram-place'` scope: nudges, debounced commits,
   Delete/Backspace claimed, and the Escape ladder.
-- [ ] iPad: one-finger drag on the selected step and its parts, panning
+- [x] iPad: one-finger drag on the selected step and its parts, panning
   exclusions, and touch-sized handles. Phones stay read-only.
-- [ ] Check the turn-target overlap. If it is real, the z-order fixes it;
+- [x] Check the turn-target overlap. If it is real, the z-order fixes it;
   before/after.
 - [ ] Browser:
   - before/after of a frame drag with the ribbon following, across a spine;
@@ -1443,7 +1454,81 @@ data are under `po1b/verify/`.
 
 ### Phase 5: close-out
 
-- [ ] As-built notes here and in `diagram-workspace.md` (D10), and the 16f
+- [x] As-built notes here and in `diagram-workspace.md` (D10), and the 16f
   Size amendment under 3A.
-- [ ] Full gate: lint, typecheck, `test:web`, `build:web`.
-- [ ] PR notes with any skipped checks and why.
+- [x] Full gate: lint, typecheck, `test:web`, `build:web`.
+- [x] PR notes with any skipped checks and why.
+
+
+## As built: page placement and balanced ribbons (2026-10-10)
+
+The October 10 decisions at the top supersede the historical Phase 1b shape,
+empty-cell tail and vertical-axis notes. `pageGrid` remains the stable logical
+pagination/clearing key. The physical flow layout comes from occupied geometry.
+
+- `ribbonPacking` searches balanced pass counts, row distributions and staggered
+  seeds. It maximizes a common candidate size, keeping picture outlines, numbers
+  and captions clear. The search is bounded and deterministic, not a proof of a
+  globally optimal packing. Plain folded models use convex paper footprints;
+  annotated, uploaded and enlarged pictures use conservative rectangular bounds.
+- Default clearance is 6 mm, increased to 16 mm when turns/enlarge arrows need
+  room. Candidate gaps are exposed arc lengths between picture edges, including
+  bends, capped at a 1.5 ratio (0.1 mm numerical tolerance). `ribbonPath` is shared
+  by packing, measurement and printing; its joins are tangent-continuous (G1).
+  The first page starts left; a facing page continues upward from the spine.
+- The existing Fit each runs retain shared paper scale across steps/pages. Pins
+  are applied afterwards, with automatic measurements retained for Reset and
+  comparison. Explicit enlarged Size is honored past the old cell room; Fill
+  still fits. Step-file canvases retain their own size limits and ignore page
+  placements.
+- Final picture centres determine the ribbon and shared spine height. Symbols
+  search the actual connecting curve for a clear spot. Manual overlaps, margin
+  crossings and path reversals/crossings are reported, not silently rearranged.
+- `usePagePlacement` owns transient pointer/key transactions. The composer lifts
+  just the chosen part into a screen-only layer; the ribbon updates during a
+  gesture and the symbols settle on release. A gesture or nudge burst makes one
+  undo entry. A pending preview stays visible until the committed layout arrives.
+- Frame, number, picture and text have pane controls and direct targets; a frame
+  selection owns the entire frame hit area. Three bottom grips resize pictures,
+  snapping to automatic or a neighbor's printed size. Frame X follows reading
+  direction; frame Y and all part offsets use page axes. Shift locks an axis,
+  Alt disables snapping, Escape cancels a gesture, and Delete cannot delete a
+  selected part. Touch editing requires the selected step; phone pages remain
+  read-only. These are page controls, independent of annotation selection.
+- Reset actions, page-wide reset, badges, overlap export notices and reflow Undo
+  notices share the store's existing clearing rules. The reflow notice cannot
+  undo a later edit or a newly loaded document. Events carry enums/buckets only;
+  all nine language catalogs include the controls and notices.
+- Annotate's line type is back on its permanent left rail. Its shortcuts and the
+  behavior of newly drawn annotation marks are unchanged. Other creation options
+  remain in the tool hint.
+
+Validation is recorded below as the final gate completes. The new flow golden is
+intentional; grid, empty and newer-document golden digests remain unchanged.
+
+
+**Validation, October 10.** Node 22: lint and typecheck clean; i18n extraction,
+stamp and check clean; the full web suite passed 12,754 tests (15 existing skips).
+The final phone-guard and reflow-notice subset passed seven tests. A normal web
+build rebuilt simulator/WASM, then a final renderer build plus explicit landing
+prerender passed after the integration fixes. ReferenceFinder's build script kept
+its existing artifact because Emscripten is not installed locally; no engine or
+ReferenceFinder source changed in this PR.
+
+Browser on `http://localhost:5311/diagram`: 7- and 12-step tall-picture packing,
+frame drag, picture size pin and snap back to auto, repeated arrow nudges as one
+undo, reorder clearing with toast Undo, and Annotate line type in the rail (absent
+from the Line hint). PDF and SVG exported through the real dialog; the PDF was
+rendered and visually checked against Pages. Evidence is under the ignored
+`artifacts/page-overrides/` (`pages-preview.png`, `annotate-line-type.png`,
+`packed-page.pdf`, `packed-page.svg`, `packed-pdf.png`).
+
+The older browser-matrix checkboxes above are not claims of full device coverage:
+a real iPad/WebKit touch pass and native Print dialog were not available in this
+browser session. Touch/phone gates, shared composition, spine movement and undo
+are covered by focused tests. Native Rust/oracle checks are left to CI because
+this change edits no Rust or engine behavior. The packing solver retains a
+conservative fixed-grid fallback when its bounded candidate family finds no
+feasible packing; Fit each can also lower a candidate's size to match neighboring
+pages. Clearance/gap acceptance belongs to the packing candidate, and manual
+placement deliberately overrides those automatic constraints.

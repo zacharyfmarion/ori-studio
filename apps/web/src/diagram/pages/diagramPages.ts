@@ -21,7 +21,7 @@ import type { DiagramFontFace } from '../fonts/diagramFontFaces';
 import { loadDiagramFonts, type DiagramFontSource, type DiagramFontText, type DiagramFonts } from '../fonts/diagramFonts';
 import { embeddedFontFaces } from '../fonts/fontEmbedding';
 import type { FontSubsetter } from '../fonts/fontSubset';
-import { composeDiagramPage, type ComposedPage } from './composeDiagramPage';
+import { composeDiagramPage, type ComposedPage, type PageComposeOptions } from './composeDiagramPage';
 import {
   layoutDiagramPages,
   pictureFit,
@@ -38,7 +38,8 @@ import { uploadTextRuns, type UploadTextRun } from '../upload/uploadText';
 import { layoutPicture, wholeUnitsAcross, type PictureMeasure } from './pagePictures';
 import { annotationTextRuns } from '../annotate/annotationPrimitives';
 import { hasDrawnAnnotations } from '../annotate/paintAnnotations';
-import { viewOfStep } from '../zoom/stepView';
+import { viewOfStep, viewGeometry, viewFrame } from '../zoom/stepView';
+import { convexHull } from './ribbonPacking';
 import { zoomAreas } from '../zoom/zoomCapture';
 import { enlargeArrowSizes } from '../zoom/enlargeArrow';
 import { zoomIndex, type ZoomIndex } from '../zoom/zoomIndex';
@@ -52,14 +53,16 @@ export interface DiagramPagesDependencies {
 
 export interface PreparedDiagramPages {
   layout: DiagramPagesLayout;
+  document?: DiagramDocument;
   /** The setter the layout set its text with: a page's numbers are set with it too. */
   setter: TextSetter;
+  withLayout?: (layout: DiagramPagesLayout) => PreparedDiagramPages;
   /** Characters no font has: drawn by the reader's own fonts on screen. */
   missing: string[];
   /** CJK faces the text needs that could not be loaded. */
   unavailableFonts: DiagramFontFace[];
   /** Page `index` (from 0) as an SVG document; `band: false` leaves the flow band out, for the Pages view. */
-  compose: (index: number, options?: { band?: boolean }) => ComposedPage;
+  compose: (index: number, options?: PageComposeOptions) => ComposedPage;
   /**
    * The enlarge arrows on page `index` where it prints them (Revision 2),
    * lifted to their areas as the page lifts them: what the Pages view puts
@@ -99,6 +102,7 @@ export function diagramLayoutSteps(
       text: entry.text,
       breakBefore: entry.breakBefore,
       picture: pictureOf(entry, measureOf(entry.id)),
+      footprint: packingFootprint(entry, document),
       turnsBefore: turns,
       turnsAfter: [],
       // Enlarged, with no window yet: in no run of enlarged steps, and parting none.
@@ -111,6 +115,17 @@ export function diagramLayoutSteps(
   const last = steps.at(-1);
   if (last && turns.length > 0) steps[steps.length - 1] = { ...last, turnsAfter: turns };
   return steps;
+}
+
+/** Only known vector paper without marks gets a tighter outline; unknown ink keeps its measured rectangle. */
+function packingFootprint(step: DiagramStep, document: DiagramDocument): LayoutStep['footprint'] {
+  if (step.zoom || step.annotations.length || step.picture?.kind !== 'scene') return undefined;
+  const view = viewOfStep(step), frame = viewFrame(view, document.assets);
+  if (!frame) return undefined;
+  const geometry = viewGeometry(view, document.assets, document.style);
+  if (geometry.kind === 'none') return undefined;
+  const hull = convexHull(geometry.points.map(({ at }) => ({ x: at[0] / frame.width, y: at[1] / frame.height })));
+  return hull.length >= 3 ? hull : undefined;
 }
 
 /** An outline's longer side: a circle's diameter, a rounded rectangle's longer side. */
@@ -333,9 +348,11 @@ export function layoutDiagram(document: DiagramDocument, setter: TextSetter): Di
   };
   const pages = measuredAt(layout(fitted(stepsAt())));
   for (const cell of pages.pages.flatMap((page) => page.cells)) {
-    const scale = cell.mmPerUnit ?? cell.frameMm;
+    const auto = cell.placed?.auto;
+    const scale = auto ? auto.mmPerUnit ?? auto.frameMm : cell.mmPerUnit ?? cell.frameMm;
     if (scale === null || !(scale > 0)) continue;
-    const measure = measureAt(cell.stepId, cell.drawMm.w, cell.drawMm.h);
+    const room = auto?.drawMm ?? cell.drawMm;
+    const measure = measureAt(cell.stepId, room.w, room.h);
     const there = measure(scale);
     const holds = there?.fit !== null && there?.fit !== undefined && there.fit >= scale * (1 - MEASURE_SETTLED);
     if (holds && there!.overrun <= OVERRUN_SAME_MM) continue;
@@ -353,8 +370,9 @@ export function layoutDiagram(document: DiagramDocument, setter: TextSetter): Di
 function scalesOf(pages: DiagramPagesLayout): Map<string, { scale: number; measure: PictureMeasure }> {
   const scales = new Map<string, { scale: number; measure: PictureMeasure }>();
   for (const cell of pages.pages.flatMap((page) => page.cells)) {
-    if (cell.mmPerUnit !== null) scales.set(cell.stepId, { scale: cell.mmPerUnit, measure: { mmPerUnit: cell.mmPerUnit } });
-    else if (cell.frameMm !== null) scales.set(cell.stepId, { scale: cell.frameMm, measure: { frameMm: cell.frameMm } });
+    const scale = cell.placed?.auto ?? cell;
+    if (scale.mmPerUnit !== null) scales.set(cell.stepId, { scale: scale.mmPerUnit, measure: { mmPerUnit: scale.mmPerUnit } });
+    else if (scale.frameMm !== null) scales.set(cell.stepId, { scale: scale.frameMm, measure: { frameMm: scale.frameMm } });
   }
   return scales;
 }
@@ -416,9 +434,12 @@ export function preparedPages(
     setter.runs(text, face);
   }
   const steps = new Map(stepsOf(document).map((step) => [step.id, step]));
+  const make = (layout: DiagramPagesLayout): PreparedDiagramPages => {
   const arrows = new Map<number, PlacedZoomArrow[]>();
   return {
+    withLayout: make,
     layout,
+    document,
     setter,
     missing: [...setter.missing],
     unavailableFonts: fonts.unavailable,
@@ -444,8 +465,10 @@ export function preparedPages(
         hanStyle: document.hanStyle,
         setter,
         embedFonts: (usage) => embeddedFontFaces(usage, fonts, subsetter),
-        band: options?.band,
+        ...options,
       });
     },
   };
+  };
+  return make(layout);
 }

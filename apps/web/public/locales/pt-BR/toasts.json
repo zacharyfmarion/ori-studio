@@ -36,6 +36,9 @@
       "unknown": "O padrão de vincos ainda não está pronto. Tente de novo em instantes."
     },
     "dropReadOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura, então não é possível adicionar imagens.",
+    "placementsReflowed_one": "{{count}} passos movidos voltaram às suas células",
+    "placementsReflowed_many": "{{count}} passos movidos voltaram às suas células",
+    "placementsReflowed_other": "{{count}} passos movidos voltaram às suas células",
     "references": {
       "addedSteps": "Adicionados como passos {{first}}–{{last}}",
       "addedTurnOvers_one": "Virada adicionada",

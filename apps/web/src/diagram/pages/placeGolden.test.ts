@@ -82,6 +82,8 @@ describe('pages as they printed before placement came', () => {
     // 2026-10-08: the flow band is 20 mm wide by default, no longer in proportion
     // to the steps (`diagram-review-fixes.md`, item 1). Every flow page's print
     // changed by its band alone; the Pages view's page and its arrows did not.
+    // October 10: balanced packing replaces fixed flow rows; explicit enlarged
+    // Size is honored past its old room. Grid fixtures without Size remain unchanged.
     const digests = Object.fromEntries(
       pageLayoutFixtures().flatMap(({ name, document }) =>
         printed(document).pages.map((page, index) => [
@@ -94,18 +96,18 @@ describe('pages as they printed before placement came', () => {
       {
         "a newer build’s steps and turns · page 1": "f803ef9681c5a607 f803ef9681c5a607 4f53cda18c2baa0c",
         "a newer build’s steps and turns · page 2": "85e09522e6de28d1 85e09522e6de28d1 4f53cda18c2baa0c",
-        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 1": "ddde44f59718b2f8 9a4b83507bf9b3eb 5deb1d72903a8140",
-        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 2": "c0db5f272631b3e9 b07ba08a2ed20746 4f53cda18c2baa0c",
-        "flow from the right, across spreads, rows read upward · page 1": "b4d02825be98eb5c b79c120d0613ba75 4f53cda18c2baa0c",
-        "flow from the right, across spreads, rows read upward · page 2": "7f13373bf36cba0f 2d8632e2032a1725 4f53cda18c2baa0c",
-        "flow from the right, across spreads, rows read upward · page 3": "4affe07f2776c149 0eaca7a42f75118c 4f53cda18c2baa0c",
-        "flow landscape, an odd row count · page 1": "494e1369a8e2288a 47ecc2eaebbda346 4f53cda18c2baa0c",
-        "flow landscape, an odd row count · page 2": "7641d21b3e12459a 71e2d0cdd67f4ff4 4f53cda18c2baa0c",
-        "flow, a page break and turns at a row’s end · page 1": "d01c924bf15a637c 6fce8802ca15174f 4f53cda18c2baa0c",
-        "flow, a page break and turns at a row’s end · page 2": "528f3dba58935f77 14fb417aa7d3eeb1 4f53cda18c2baa0c",
-        "flow, seven steps a page: short last rows, across a spread and a page turn · page 1": "44274b22e26f2cd0 2be889dd8e690a78 4f53cda18c2baa0c",
-        "flow, seven steps a page: short last rows, across a spread and a page turn · page 2": "9196a62fbddc0014 5678aa18f6b5f334 4f53cda18c2baa0c",
-        "flow, seven steps a page: short last rows, across a spread and a page turn · page 3": "34c0c867e2574e7f d07799e499d00e12 4f53cda18c2baa0c",
+        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 1": "4633d85b2846d328 af5d80b1f4bfa2c4 38230ba7ef98046e",
+        "enlarged steps: a Fill run, a Size, and one waiting for its picture · page 2": "e514e05fe15c024d ec8578ca7a5eba3a 4f53cda18c2baa0c",
+        "flow from the right, across spreads, rows read upward · page 1": "c33a13c32d48a12f 838513c1e7d9b2fc 4f53cda18c2baa0c",
+        "flow from the right, across spreads, rows read upward · page 2": "ff14836c9b067ce2 3c93ab409c165720 4f53cda18c2baa0c",
+        "flow from the right, across spreads, rows read upward · page 3": "7dc43f31b0e27566 25f1d5eead9cd7e8 4f53cda18c2baa0c",
+        "flow landscape, an odd row count · page 1": "8a22bcd7250e0283 d6c49700a718876e 4f53cda18c2baa0c",
+        "flow landscape, an odd row count · page 2": "673dcc91ac1f43ff b06c04f39dffda06 4f53cda18c2baa0c",
+        "flow, a page break and turns at a row’s end · page 1": "21a98eebb20a5a9d 84d7969e8086ba06 4f53cda18c2baa0c",
+        "flow, a page break and turns at a row’s end · page 2": "723736f8d4030a08 2b200e9f7de1e546 4f53cda18c2baa0c",
+        "flow, seven steps a page: short last rows, across a spread and a page turn · page 1": "6903c78b1b27aec6 90d75618d305c07d 4f53cda18c2baa0c",
+        "flow, seven steps a page: short last rows, across a spread and a page turn · page 2": "efdb9ff897e8d19e 4359ed9b33f74e33 4f53cda18c2baa0c",
+        "flow, seven steps a page: short last rows, across a spread and a page turn · page 3": "ef85321fd097fb72 380fbfe2900b5729 4f53cda18c2baa0c",
         "grid, a page break, turns and an upload · page 1": "762034dc73a12f50 762034dc73a12f50 4f53cda18c2baa0c",
         "grid, a page break, turns and an upload · page 2": "8254deff8fc82487 8254deff8fc82487 4f53cda18c2baa0c",
         "grid, two pages · page 1": "55238bffde0a38d1 55238bffde0a38d1 4f53cda18c2baa0c",

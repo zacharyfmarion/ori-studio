@@ -773,12 +773,8 @@ export interface DiagramStepPlace {
   /**
    * The whole step, away from its cell, mm, in the page's reading terms:
    * `along` its row's reading direction (right on a row read left to right,
-   * left on one read right to left), and `across` toward the page's next row
-   * (down a page whose rows read downward, up a flow page whose rows read
-   * up from its foot). So a frame keeps its place among its neighbours when
-   * a page turns its rows or reads them the other way, as a page renumbered
-   * or the first page's side changed does. Kept only while the step stays in
-   * its cell (`pages/stepPlaces.ts`).
+   * left on one read right to left), and `across` always down the page.
+   * Kept only while the step stays in its logical cell (`pages/stepPlaces.ts`).
    */
   frame?: [along: number, across: number];
   /** Each part away from where the layout puts it in the frame: mm, on the page's axes (+x right, +y down). */

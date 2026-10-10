@@ -20,6 +20,7 @@ import {
   type DiagramStyle,
 } from '../document/diagramDocument';
 import { PICTURE_TOP_MM, type DiagramPagesLayout, type LayoutPage, type LayoutZoomArrow } from './diagramPageLayout';
+import { partBox } from './pagePlacement';
 import { cellPicture, type CellPicture, type PictureText } from './pagePictures';
 
 /** An enlarge arrow as its page prints it: the layout's, lifted to its area where it stands alone beside it. */
@@ -53,13 +54,24 @@ export function placedZoomArrows(
     });
     const [a, b] = [mm(areaPicture), mm(nextPicture)];
     // Both pictures' overlap, below both numbers: the one at the gutter's side is either step's, by which way the row reads.
-    const numbers = Math.max(page.cells[areaIndex]!.cellMm.y, page.cells[nextIndex]!.cellMm.y) + PICTURE_TOP_MM;
+    const numbers = Math.max(...[page.cells[areaIndex]!, page.cells[nextIndex]!].map((cell) => cell.flowRow !== undefined || cell.placed ? partBox(cell, 'number').y + partBox(cell, 'number').h : cell.cellMm.y + PICTURE_TOP_MM));
     const top = Math.max(a.top, b.top, numbers);
     const bottom = Math.min(a.bottom, b.bottom);
     const half = arrow.box.h / 2;
+    if (bottom < top + arrow.box.h && (page.cells[areaIndex]!.placed || page.cells[nextIndex]!.placed || page.cells[areaIndex]!.flowRow !== undefined)) return arrow;
     // Clear of the numbers first, where the overlap is too short to hold it.
     const y = Math.max(top + half, Math.min(centre, bottom - half));
-    return Number.isFinite(y) ? { ...arrow, at: { x: arrow.at.x, y } } : arrow;
+    if (!Number.isFinite(y)) return arrow;
+    const proposed = { ...arrow, at: { x: arrow.at.x, y } };
+    if (page.cells.some(c => c.placed || c.flowRow !== undefined)) {
+      const g = { x: arrow.at.x - arrow.box.w / 2, y: y - half, ...arrow.box };
+      const overlap = page.cells.some(cell => (['number', 'picture', 'text'] as const).some(part => {
+        const b = partBox(cell, part);
+        return b.w > 0 && b.h > 0 && g.x < b.x + b.w && g.x + g.w > b.x && g.y < b.y + b.h && g.y + g.h > b.y;
+      }));
+      if (overlap) return arrow;
+    }
+    return proposed;
   });
 }
 

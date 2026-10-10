@@ -1,4 +1,7 @@
 {
+  "actions": {
+    "undo": "Rückgängig"
+  },
   "cancel": "Abbrechen",
   "capability": {
     "absorbAllStrainIntoLengths": "Gesamte Dehnung in Kantenlängen absorbieren",

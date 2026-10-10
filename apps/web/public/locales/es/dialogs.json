@@ -192,6 +192,8 @@
     "pdfFailed": "No se pudo crear el PDF: {{message}}",
     "pdfHint": "Todas las páginas, listas para imprimir.",
     "pdfText": "Parte del texto no se puede imprimir con las fuentes del diagrama.",
+    "placementClashes": "Revisa la posición de los pasos {{steps}}: algunas partes se superponen o rebasan los límites de la página.",
+    "placementLeftOut": "Las posiciones y los tamaños fijados en la página no afectan a los archivos de pasos.",
     "pngFileTooLarge": "El paso {{number}} tendría {{width}} × {{height}} px, demasiado grande para un PNG. Baja la resolución o el tamaño.",
     "pngTooLarge": "Demasiado grande para exportar como PNG: {{width}} × {{height}} px. Baja la resolución o el tamaño.",
     "preparing": "Preparando la vista previa…",

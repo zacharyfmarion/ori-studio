@@ -180,6 +180,8 @@
     "pdfFailed": "无法生成 PDF：{{message}}",
     "pdfHint": "所有页面，可直接打印。",
     "pdfText": "部分文字无法用图解的字体打印。",
+    "placementClashes": "请检查步骤 {{steps}} 的排版：部分内容重叠或超出了页面边界。",
+    "placementLeftOut": "页面排版和固定尺寸不会影响步骤文件。",
     "pngFileTooLarge": "第 {{number}} 步将为 {{width}} × {{height}} 像素，导出为 PNG 过大。请降低分辨率或尺寸。",
     "pngTooLarge": "过大，无法导出为 PNG：{{width}} × {{height}} 像素。请降低分辨率或尺寸。",
     "preparing": "正在准备预览…",

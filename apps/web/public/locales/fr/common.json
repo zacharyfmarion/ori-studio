@@ -1,4 +1,7 @@
 {
+  "actions": {
+    "undo": "Annuler"
+  },
   "cancel": "Annuler",
   "capability": {
     "absorbAllStrainIntoLengths": "Absorber toute la tension dans les longueurs d'arête",

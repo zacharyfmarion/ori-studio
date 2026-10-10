@@ -43,6 +43,13 @@ import { setUploadText } from '../upload/uploadText';
 import { paintEnlargeArrow } from '../zoom/enlargeArrow';
 import { cellPicture, type CellPicture } from './pagePictures';
 import { placedZoomArrows } from './zoomArrows';
+import type { PagePart } from './pagePlacement';
+
+export interface PageComposeOptions {
+  band?: boolean;
+  omit?: { stepId: string; part: PagePart };
+  only?: { stepId: string; part: PagePart };
+}
 
 /** The page's own inks: the mockup's, whatever the paper style. The band's is the page setup's (`layout.bandInk`). */
 const INK = '#16191c';
@@ -59,7 +66,7 @@ const SET_TEXT_CSS =
   'font-feature-settings:"kern" 0,"liga" 0,"clig" 0,"calt" 0;' +
   'text-spacing-trim:space-all;text-autospace:no-autospace}';
 
-export interface ComposeDiagramPageInput {
+export interface ComposeDiagramPageInput extends PageComposeOptions {
   layout: DiagramPagesLayout;
   page: LayoutPage;
   steps: ReadonlyMap<string, DiagramStep>;
@@ -103,14 +110,14 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
   };
   const body: string[] = [];
 
-  if (input.band !== false && page.band && page.band.curves.length > 0) {
+  if (!input.only && input.band !== false && page.band && page.band.curves.length > 0) {
     body.push(
       `<path d="${bandPath(page.band)}" fill="none" stroke="${escapeXml(layout.bandInk)}" ` +
         `stroke-width="${pt(layout.bandWidthMm)}" stroke-linecap="round" stroke-linejoin="round"/>`
     );
   }
 
-  if (layout.title) {
+  if (!input.only && layout.title) {
     const { tab, textAt, line, rule } = layout.title;
     body.push(
       `<rect x="${pt(tab.x)}" y="${pt(tab.y)}" width="${pt(tab.w)}" height="${pt(tab.h)}" ` +
@@ -129,19 +136,23 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
       ? cellPicture(step, input.assets, input.style, cell, `c${index}-`, { hanStyle: input.hanStyle, runs: setter.runs })
       : null;
     pictures.push(picture);
-    if (picture) {
+    const draw = (part: PagePart) => {
+      const matches = (filter: { stepId: string; part: PagePart }) => filter.stepId === cell.stepId && (filter.part === 'frame' || filter.part === part);
+      return (!input.only || matches(input.only)) && (!input.omit || !matches(input.omit));
+    };
+    if (picture && draw('picture')) {
       parts.push(picture.markup);
       for (const { face, characters } of picture.text) use(face, characters);
     }
     const number = setter.line(String(cell.number), STEP_NUMBER_SIZE_MM, 700);
-    parts.push(stepNumberElement(number, cell.numberAt.x, cell.numberAt.y, use));
-    if (cell.text.lines.length > 0) parts.push(stepTextElement(cell.text.lines, cell.text.x, cell.text.firstBaseline, use));
+    if (draw('number')) parts.push(stepNumberElement(number, cell.numberAt.x, cell.numberAt.y, use));
+    if (draw('text') && cell.text.lines.length > 0) parts.push(stepTextElement(cell.text.lines, cell.text.x, cell.text.firstBaseline, use));
     body.push(`<g>\n${parts.join('\n')}\n</g>`);
   });
 
   // A turn's glyph, as an annotation's prints: at its own ink size, centred on
   // its place, going the way its row is read.
-  for (const { id, turn, at, rightToLeft } of page.turns) {
+  for (const { id, turn, at, rightToLeft } of input.only ? [] : page.turns) {
     const sizePt = TURN_FRAME_MM * PT_PER_MM;
     const box = { x: at.x * PT_PER_MM - sizePt / 2, y: at.y * PT_PER_MM - sizePt / 2, width: sizePt, height: sizePt };
     const glyph = paintTurnGlyph(turn, box, input.style, id, { rightToLeft });
@@ -153,7 +164,7 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
   // centred on its place — lifted to its area's height where it stands alone
   // beside it — pointing the way its row is read, or across a flow row's end
   // aimed at the step it leads to.
-  placedZoomArrows(page, input.steps, (index) => pictures[index] ?? null).forEach(({ at, rightToLeft, aim }, index) => {
+  (input.only ? [] : placedZoomArrows(page, input.steps, (index) => pictures[index] ?? null)).forEach(({ at, rightToLeft, aim }, index) => {
     const arrow = paintEnlargeArrow({ x: at.x * PT_PER_MM, y: at.y * PT_PER_MM }, PT_PER_MM, input.style, {
       rightToLeft,
       aim,
@@ -162,7 +173,7 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
     if (arrow) body.push(arrow.markup);
   });
 
-  if (page.pageNumberAt) {
+  if (!input.only && page.pageNumberAt) {
     const line = setter.line(String(page.number), PAGE_NUMBER_SIZE_MM, 700);
     const { x, y, anchor } = page.pageNumberAt;
     // Right-aligned by its measured width, not `text-anchor`: no renderer's

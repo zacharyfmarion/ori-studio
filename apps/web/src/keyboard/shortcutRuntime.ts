@@ -258,7 +258,7 @@ export function shortcutScopeStackForContext(
   // Edit Path's node keys first: the same executor, which declines them
   // unless a node is selected, so the arrows then reach the steps' scope.
   if (context.activeEditingContext === 'diagram' && diagramExecutor !== null) {
-    scopes.push('diagram-path', 'diagram');
+    scopes.push('diagram-place', 'diagram-path', 'diagram');
   }
   scopes.push('viewport');
   if (context.activeEditingContext === 'crease-pattern') {

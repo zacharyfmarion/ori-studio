@@ -1934,6 +1934,7 @@ export interface DiagramSliceState {
   /** View state: not history, never dirty, but scoped to this diagram. */
   diagramView: DiagramViewMode;
   diagramSelectedStepId: string | null;
+  diagramPagesPart: 'frame' | 'number' | 'picture' | 'text' | null;
   /**
    * The step detail, open on the selected step, or null for the list. Never
    * open without a selection: whatever clears the selection closes it.
@@ -2152,6 +2153,7 @@ export interface DiagramSliceActions {
   /** How Han characters are drawn when nothing else in a text says (Decision 2). */
   setDiagramHanStyle: (hanStyle: DiagramHanStyle) => boolean;
   selectDiagramStep: (stepId: string | null) => void;
+  selectDiagramPagesPart: (part: 'frame' | 'number' | 'picture' | 'text' | null) => void;
   /**
    * Select a step and open it in detail, with Select in hand when the detail
    * was closed. False when there is no such step.

@@ -192,6 +192,8 @@
     "pdfFailed": "Le PDF n’a pas pu être créé : {{message}}",
     "pdfHint": "Toutes les pages, prêtes à imprimer.",
     "pdfText": "Une partie du texte ne peut pas être imprimée avec les polices du diagramme.",
+    "placementClashes": "Vérifiez la disposition des étapes {{steps}} : certaines parties se chevauchent ou dépassent les limites de la page.",
+    "placementLeftOut": "Les positions et tailles fixées sur la page n’affectent pas les fichiers d’étapes.",
     "pngFileTooLarge": "L’étape {{number}} ferait {{width}} × {{height}} px, trop grand pour un PNG. Réduisez la résolution ou la taille.",
     "pngTooLarge": "Trop grand pour être exporté en PNG : {{width}} × {{height}} px. Réduisez la résolution ou la taille.",
     "preparing": "Préparation de l’aperçu…",
