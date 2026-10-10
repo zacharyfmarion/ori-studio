@@ -59,10 +59,10 @@ describe('equal divisions’ icon (Revision 2)', () => {
 });
 
 describe('the X-ray icon', () => {
-  it('shows paper layers inside a circular window', () => {
+  it('uses the requested radiation symbol with concentric rings', () => {
     const markup = renderToStaticMarkup(<DiagramAnnotationGlyph kind="x-ray" />);
-    expect(markup).toContain('data-glyph-part="rim"');
-    expect(part(markup, 'top-layer').points).toHaveLength(4);
-    expect(part(markup, 'lower-layers').runs).toBe(2);
+    expect(markup).toContain('data-glyph-part="radiation"');
+    expect(markup.match(/<circle/g)).toHaveLength(3);
+    expect(markup.match(/<path/g)).toHaveLength(3);
   });
 });

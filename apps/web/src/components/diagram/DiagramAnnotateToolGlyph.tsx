@@ -335,9 +335,14 @@ export function DiagramAnnotationGlyph({
     case 'x-ray':
       return (
         <Glyph>
-          <circle cx={10} cy={10} r={7.2} data-glyph-part="rim" />
-          <path d="M5.5 8 L10 5.5 L14.5 8 L10 10.5 Z" data-glyph-part="top-layer" />
-          <path d="M5.5 11 L10 13.5 L14.5 11 M6.5 14.2 L10 16 L13.5 14.2" data-glyph-part="lower-layers" />
+          <circle cx={10} cy={10} r={8.5} strokeWidth={1.3} />
+          <circle cx={10} cy={10} r={6.8} strokeWidth={0.65} />
+          <g fill="currentColor" stroke="none" data-glyph-part="radiation">
+            <circle cx={10} cy={10} r={1.1} />
+            <path d="M4.8 10 A5.2 5.2 0 0 1 7.4 5.497 L9.1 8.441 A1.8 1.8 0 0 0 8.2 10 Z" />
+            <path d="M12.6 5.497 A5.2 5.2 0 0 1 15.2 10 L11.8 10 A1.8 1.8 0 0 0 10.9 8.441 Z" />
+            <path d="M12.6 14.503 A5.2 5.2 0 0 1 7.4 14.503 L9.1 11.559 A1.8 1.8 0 0 0 10.9 11.559 Z" />
+          </g>
         </Glyph>
       );
   }

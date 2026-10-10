@@ -6,7 +6,7 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 import { StarGlyph } from './DiagramAnnotateToolGlyph';
 
 /**
- * The rail's Star Fill (Revision 3, R3-4 C), while the Star tool is in hand:
+ * The tool hint’s Star Fill (Revision 3, R3-4 C), while the Star tool is in hand:
  * Filled or Outline, each drawn as a small star — the next star's fill, so
  * ★ and ☆ are each laid with a click. A preference, kept as it was left, as
  * Line Type is; filled until one is chosen, as the star in Zach's sample is.
@@ -18,10 +18,9 @@ export function DiagramStarFillControl({ label, disabled }: { label: string; dis
   const help = t('panels:diagram.annotate.starFillHelp', 'How the Star tool draws the next star.');
   return (
     <SegmentedControl<DiagramStarFill>
-      size="lg"
+      size="sm"
       fill
-      iconsOnly
-      tooltipSide="right"
+      tooltipSide="top"
       aria-label={label}
       value={fill}
       disabled={disabled}

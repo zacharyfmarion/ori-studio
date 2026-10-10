@@ -94,6 +94,7 @@ export const STORAGE_KEYS = {
    * `white`, an outline. Absent, or anything else, means filled.
    */
   diagramAnnotateStarFill: 'diagram-annotate-star-fill',
+  diagramAnnotateCircleMode: 'diagram-annotate-circle-mode',
   /**
    * Which of a References card's marks the Diagram's References browser pulls
    * (17d, its Show menu): `{ letters, highlights }` as JSON, read as export's

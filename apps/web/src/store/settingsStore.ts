@@ -12,6 +12,7 @@ import {
 import { DEFAULT_DIAGRAM_LINE_TYPE, isDiagramLineType, type DiagramLineType } from '../diagram/annotate/lineTypes';
 import { isAnnotationColor } from '../diagram/annotate/annotationColors';
 import { PLAIN_TEXT_STYLE, readTextStyle, sameTextStyle, type TextStyle } from '../diagram/annotate/textStyle';
+import { circleDrawingMode, type CircleDrawingMode } from '../diagram/annotate/circleDrawing';
 import { isStarFill, type DiagramStarFill } from '../diagram/annotate/starFill';
 import {
   hasCoarsePointer,
@@ -103,6 +104,7 @@ const DIAGRAM_ANNOTATE_SNAP_KEY = storageKey(STORAGE_KEYS.diagramAnnotateSnap);
 const DIAGRAM_ANNOTATE_LINE_TYPE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineType);
 const DIAGRAM_ANNOTATE_LINE_COLOR_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineColor);
 const DIAGRAM_ANNOTATE_TEXT_STYLE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateTextStyle);
+const DIAGRAM_ANNOTATE_CIRCLE_MODE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateCircleMode);
 const DIAGRAM_ANNOTATE_STAR_FILL_KEY = storageKey(STORAGE_KEYS.diagramAnnotateStarFill);
 const DIAGRAM_REFERENCES_MARKS_KEY = storageKey(STORAGE_KEYS.diagramReferencesMarks);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
@@ -341,28 +343,30 @@ interface SettingsState {
    */
   diagramAnnotateSnap: boolean;
   /**
-   * The line Annotate's Line tool and Angle Bisector draw (15a): the rail's
+   * The line Annotate's Line tool and Angle Bisector draw (15a): the tool hint’s
    * Line Type, and the keys that pick it. Kept as you left it, as Edit's is.
    */
   diagramAnnotateLineType: DiagramLineType;
   /**
    * The colour a new solid line is drawn in (17a): the colour select beside
-   * the rail's Line Type while Solid is the type. Null is the style's arrow
+   * the tool hint’s Line Type while Solid is the type. Null is the style's arrow
    * ink. Kept as you left it, as the type is.
    */
   diagramAnnotateLineColor: string | null;
   /**
-   * The style a new label is set in (17b): the rail's Text Style while the
+   * The style a new label is set in (17b): the tool hint’s Text Style while the
    * Label tool is in hand — a colour, Bold, a halo and a size. Today's look
    * until one is chosen; kept as you left it, as the line's colour is.
    */
   diagramAnnotateTextStyle: TextStyle;
   /**
-   * The fill a new star is laid with (Revision 3, R3-4 C): the rail's Fill
+   * The fill a new star is laid with (Revision 3, R3-4 C): the tool hint’s Fill
    * while the Star tool is in hand, Filled or Outline. Filled until one is
    * chosen; kept as you left it, as the line's type is.
    */
   diagramAnnotateStarFill: DiagramStarFill;
+  /** Shared creation mode for all circular tools. Bounds until the author chooses Center. */
+  diagramAnnotateCircleMode: CircleDrawingMode;
   /**
    * Which of a References card's marks the Diagram's References browser
    * pulls (17d, RM4): its letters and its reference lines, as its Show menu
@@ -387,6 +391,7 @@ interface SettingsState {
   setDiagramAnnotateLineColor: (value: string | null) => void;
   /** One option or more of the next label's style, the rest as they were. */
   setDiagramAnnotateTextStyle: (value: Partial<TextStyle>) => void;
+  setDiagramAnnotateCircleMode: (value: CircleDrawingMode) => void;
   setDiagramAnnotateStarFill: (value: DiagramStarFill) => void;
   setDiagramReferencesMarks: (value: PaperExportMarks) => void;
   /** `null` hands the choice back to the paper style. */
@@ -458,6 +463,7 @@ export const useSettingsStore = create<SettingsState>()(
       diagramAnnotateLineColor: readDiagramAnnotateLineColor(),
       diagramAnnotateTextStyle: readTextStyle(readJson<unknown>(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY, null)),
       diagramAnnotateStarFill: readDiagramAnnotateStarFill(),
+      diagramAnnotateCircleMode: circleDrawingMode(readString(DIAGRAM_ANNOTATE_CIRCLE_MODE_KEY)),
       diagramReferencesMarks: normalizePaperExportMarks(readJson<unknown>(DIAGRAM_REFERENCES_MARKS_KEY, null)),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
@@ -544,6 +550,13 @@ export const useSettingsStore = create<SettingsState>()(
         // No event, as for the line's colour: the labels set in each style are
         // counted (`diagram annotation added`'s `color`, `bold`, `halo`, `size`).
         set({ diagramAnnotateTextStyle: next });
+      },
+      setDiagramAnnotateCircleMode: (value) => {
+        const mode = circleDrawingMode(value);
+        if (get().diagramAnnotateCircleMode === mode) return;
+        writeString(DIAGRAM_ANNOTATE_CIRCLE_MODE_KEY, mode);
+        set({ diagramAnnotateCircleMode: mode });
+        track(ANALYTICS_EVENTS.diagramCircleDrawingModeChanged, { mode });
       },
       setDiagramAnnotateStarFill: (value) => {
         if (get().diagramAnnotateStarFill === value || !isStarFill(value)) return;

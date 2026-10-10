@@ -60,18 +60,3 @@
   align-items: center;
   gap: 2px;
 }
-
-.credit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--touch-target, 24px);
-  min-height: 24px;
-  color: var(--text-secondary);
-  border-radius: var(--radius);
-}
-
-.credit:hover,
-.credit:focus-visible {
-  color: var(--text-primary);
-}

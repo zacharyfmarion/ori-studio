@@ -9,6 +9,7 @@
  *
  * Pure: no DOM, no store, no React.
  */
+import type { CircleDrawingMode } from './circleDrawing';
 import { flattenPath, type Cubic } from '../../lib/cubicBezier';
 import { snapAngle, TRANSFORM_ROTATION_SNAP_RADIANS } from '../../lib/transformBox';
 import { graphemesOf } from '../../lib/paper/textWrap';
@@ -1585,7 +1586,8 @@ export function createAnnotation(
   end: PicturePoint,
   frame: PictureFrame,
   newId: DiagramIdFactory = randomDiagramId,
-  calloutText: string = NEW_CALLOUT_TEXT
+  calloutText: string = NEW_CALLOUT_TEXT,
+  circleMode: CircleDrawingMode = 'bounds'
 ): KnownDiagramAnnotation {
   const id = newId('annotation');
   if (isCornerKind(kind)) {
@@ -1599,15 +1601,15 @@ export function createAnnotation(
   const from = withinReach(start);
   const to = withinReach(end);
   if (kind === 'circle' || kind === 'zoom' || kind === 'x-ray' || kind === 'close-up') {
-    // The dragged square bounds the circle, as Shift+Oval does. A click keeps
-    // each tool's established default size; only that click is centre-based.
+    // Bounds uses a dragged square; Center keeps the first point as its centre.
+    // A click retains each tool's established default size in either mode.
     const side = Math.max(Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1]));
     const click = side < MIN_ZOOM_SIDE;
     const box = areaFromCorners('oval', from, to, { square: true }, () => id);
-    const centre = click ? from : box.from;
+    const centre = click || circleMode === 'center' ? from : box.from;
     const radius = click
       ? kind === 'close-up' ? DEFAULT_CLOSE_UP_RADIUS : ZOOM_CLICK.radius
-      : zoomRadiusWithin(box.size![0] / 2);
+      : zoomRadiusWithin(circleMode === 'center' ? Math.hypot(to[0] - from[0], to[1] - from[1]) : box.size![0] / 2);
     const circle: KnownDiagramAnnotation = { id, kind, from: [...centre], to: [...centre], ...(kind !== 'circle' || !click ? { radius } : {}) };
     if (kind === 'x-ray') return { ...circle, depth: XRAY_DEPTH.laid };
     if (kind === 'close-up') return { ...circle, to: closeUpBeside(centre, radius, DEFAULT_CLOSE_UP_SCALE, frame), scale: DEFAULT_CLOSE_UP_SCALE };

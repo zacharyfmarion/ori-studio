@@ -20,6 +20,15 @@ describe('circular drawing bounds', () => {
     expect(empty.radius).toBeCloseTo(0.1, 12);
   });
 
+  it.each(['circle', 'close-up', 'zoom', 'x-ray'] as const)('%s also draws from center to radius, including outside the model', (kind) => {
+    const drawn = createAnnotation(kind, [-0.2, -0.2], [0.1, 0.2], frame, undefined, undefined, 'center');
+    expect(drawn.from).toEqual([-0.2, -0.2]);
+    expect(drawn.radius).toBeCloseTo(0.5, 12);
+    const clicked = createAnnotation(kind, [0.3, 0.4], [0.3, 0.4], frame, undefined, undefined, 'center');
+    const boundsClick = createAnnotation(kind, [0.3, 0.4], [0.3, 0.4], frame);
+    expect({ ...clicked, id: '' }).toEqual({ ...boundsClick, id: '' });
+  });
+
   it('uses the larger dragged dimension, like a square-constrained oval', () => {
     const drawn = createAnnotation('circle', [0, 0], [0.4, 0.2], frame);
     expect(drawn.from).toEqual([0.2, 0.2]);

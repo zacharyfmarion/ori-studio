@@ -7,13 +7,14 @@ import { shortcutLabelForAction } from '../../keyboard/shortcuts';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useShortcutResolution } from '../../store/shortcutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { FieldRow } from '../ui/fieldRows';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { DiagramColorSelect } from './DiagramColorSelect';
 import { DiagramLineTypeMark } from './DiagramLineTypeMark';
 import styles from './DiagramLineTypeControl.module.css';
 
 /**
- * The rail's Line Type (15a): Valley, Mountain, Hidden and Solid, each a
+ * The tool hint’s Line Type (15a): Valley, Mountain, Hidden and Solid, each a
  * short stroke in its own dash, and while Solid is the type, the colour the
  * next solid line is drawn in under it (17a). Both are preferences, kept as
  * they were left: the Line tool and the Angle Bisector draw in them.
@@ -26,13 +27,14 @@ export function DiagramLineTypeControl({ label, disabled }: { label: string; dis
   const lineColor = useSettingsStore((state) => state.diagramAnnotateLineColor);
   const setLineColor = useSettingsStore((state) => state.setDiagramAnnotateLineColor);
   const style = useWorkspaceStore((state) => state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE);
+  const colorLabel = t('panels:diagram.annotate.lineColor', 'Line Color');
   return (
     <div className={styles.control}>
       <SegmentedControl<DiagramLineType>
-        size="lg"
+        size="sm"
         fill
         iconsOnly
-        tooltipSide="right"
+        tooltipSide="top"
         aria-label={label}
         value={lineType}
         disabled={disabled}
@@ -49,14 +51,16 @@ export function DiagramLineTypeControl({ label, disabled }: { label: string; dis
         onChange={setLineType}
       />
       {lineType === 'solid' && (
-        <DiagramColorSelect
-          variant="rail"
-          label={t('panels:diagram.annotate.lineColor', 'Line Color')}
-          value={lineColor}
-          ink={annotationInkColor(style)}
-          disabled={disabled}
-          onChange={(color) => setLineColor(color)}
-        />
+        <FieldRow label={colorLabel} kind="select" disabled={disabled}>
+          <DiagramColorSelect
+            variant="row"
+            label={colorLabel}
+            value={lineColor}
+            ink={annotationInkColor(style)}
+            disabled={disabled}
+            onChange={(color) => setLineColor(color)}
+          />
+        </FieldRow>
       )}
     </div>
   );

@@ -6,6 +6,7 @@ import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import i18n from '../../i18n';
 import { STORAGE_KEYS, storageKey } from '../../lib/storage';
 import { COARSE_POINTER_QUERY } from '../../platform/pointerSurface';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
@@ -34,6 +35,7 @@ function platform(fields: { platform: string; userAgent?: string }) {
 
 beforeEach(() => {
   useWorkspaceStore.setState(initialState, true);
+  useSettingsStore.setState(useSettingsStore.getInitialState(), true);
   localStorage.clear();
   coarse = false;
   platform({ platform: 'MacIntel' });
@@ -228,6 +230,21 @@ describe('DiagramAnnotateToolWindow', () => {
     mount({ readOnly: true });
     tool('valley-arrow');
     expect(windowEl()).toBeNull();
+  });
+
+  it('places creation defaults inside the instructions window and updates mode-specific help', () => {
+    mount();
+    tool('circle');
+    expect(windowEl()?.querySelector('[aria-label="Draw circle"]')).not.toBeNull();
+    act(() => windowEl()!.querySelector<HTMLButtonElement>('button[title="Center"]')!.click());
+    expect(intro()).toBe('Drag from the center to the edge of the circle. Click for a small circle.');
+    tool('label');
+    expect(windowEl()?.querySelector('[aria-label="Text Color"]')).not.toBeNull();
+    expect(windowEl()?.querySelector('[aria-label="Draw circle"]')).toBeNull();
+    tool('star');
+    expect(windowEl()?.querySelector('[aria-label="Star Fill"]')).not.toBeNull();
+    tool('line');
+    expect(windowEl()?.querySelector('[aria-label="Line Type"]')).not.toBeNull();
   });
 
   it('collapses on its own, apart from Edit’s and the Simulator’s windows', () => {

@@ -1553,6 +1553,8 @@ export const ANALYTICS_EVENTS = {
   diagramEnlargementChanged: 'diagram enlargement changed',
   /** Annotate's Snap switch flipped in the Step pane. */
   diagramAnnotateSnapChanged: 'diagram annotate snap changed',
+  /** A circular tool creation preference changed in the tool hint. */
+  diagramCircleDrawingModeChanged: 'diagram circle drawing mode changed',
   /**
    * An arrow shaped by hand for the first time (Edit Path): a fold arrow's arc
    * made a path, or a white arrow bent from the straight one it was laid as —

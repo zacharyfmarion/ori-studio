@@ -8,8 +8,8 @@ equal-angle controls match the requested editing workflow.
 ## Approach
 
 Use the existing shared shortcut runtime and annotation controls. Keep focus on
-the canvas after drawing numeric annotations. Draw circular areas from bounding
-corners, including areas outside the paper. Preserve existing saved diagrams.
+the canvas after drawing numeric annotations. Offer circular drawing from bounding
+corners or the center, including areas outside the paper. Preserve existing saved diagrams.
 Preserve selection after drawing, including the bisector line. Expose equal-angle
 visibility and radius when its separate indicator is selected, and
 update the native SVG X-ray glyph.
@@ -62,3 +62,26 @@ update the native SVG X-ray glyph.
 Changes are on `claude/diagram-workspace-plan-ceb4f2`, in
 [PR #436](https://github.com/zacharyfmarion/ori-studio/pull/436).
 The worktree’s persistent preview is running at <http://localhost:5291/diagram>.
+
+## Tool parameter and credit follow-up
+
+The hint window owns creation defaults, through a store-free parameter catalog
+and small control components. Layers continues to own selected-object properties.
+Circle drawing offers Bounds (default) and Center, shared across Circle, Close-Up,
+Enlarge and X-Ray. Each gesture snapshots its chosen mode; both allow empty areas.
+The Affine credit opens an interactive popover with a visible DEFOX link.
+
+- [x] Move all creation options off the rail and into the hint window.
+- [x] Add persisted circle drawing modes and matching instructions.
+- [x] Make the DEFOX credit clickable, order acknowledgements, and replace the X-Ray glyph.
+- [x] Validate UI, gesture behavior and translations; track deployment on the existing PR.
+
+Follow-up validation: web lint, typecheck, i18n and normal production build
+(including wasm generation and landing prerender) pass. The full web suite
+passes 917 files / 12,703 tests. The new credit-popover regression passes
+separately. Two font metric tests initially skipped because both the old local
+macOS and canonical Linux assets were present; the unused build outputs were
+archived, and the annotation-model suite rerun against the canonical set.
+Chromium verifies both drawing modes, unchanged marks/selection, creation
+options in the hint only, and native link activation plus keyboard dismissal.
+Final CI and immutable/branch preview verification are reported on PR #436.

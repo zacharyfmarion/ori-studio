@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { altModifierLabel, primaryModifierLabel } from '../../lib/platform';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isKnownAnnotation, type DiagramStep } from '../document/diagramDocument';
 import { annotateToolHint, type AnnotateToolHint } from './annotateTools';
@@ -22,6 +23,7 @@ export function useAnnotateToolHint(step: DiagramStep): AnnotateToolHint | null 
   const { t } = useTranslation();
   const coarse = useIsCoarsePointerSurface();
   const tool = useAnnotateToolInHand(step);
+  const circleMode = useSettingsStore((state) => state.diagramAnnotateCircleMode);
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
   const selected = step.annotations.find((annotation) => annotation.id === selectedId);
   const selectedKind = selected && isKnownAnnotation(selected) ? selected.kind : null;
@@ -35,8 +37,9 @@ export function useAnnotateToolHint(step: DiagramStep): AnnotateToolHint | null 
         selectedKind,
         { coarse, primary: primaryModifierLabel(), alt: altModifierLabel() },
         progress,
-        notice
+        notice,
+        circleMode
       ),
-    [t, tool, selectedKind, coarse, progress, notice]
+    [t, tool, selectedKind, coarse, progress, notice, circleMode]
   );
 }

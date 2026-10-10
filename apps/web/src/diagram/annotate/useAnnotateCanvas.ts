@@ -429,6 +429,7 @@ export function useAnnotateCanvas({
   const lineColor = useSettingsStore((state) => state.diagramAnnotateLineColor);
   // The style the Label tool sets its text in (17b).
   const textStyle = useSettingsStore((state) => state.diagramAnnotateTextStyle);
+  const circleMode = useSettingsStore((state) => state.diagramAnnotateCircleMode);
   // The fill the Star tool lays (Revision 3, R3-4 C).
   const starFill = useSettingsStore((state) => state.diagramAnnotateStarFill);
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
@@ -994,7 +995,7 @@ export function useAnnotateCanvas({
         gesture.current = {
           mode: 'draw',
           kind,
-          look: drawingLook(tool, { type: lineType, color: lineColor }, textStyle, starFill),
+          look: { ...drawingLook(tool, { type: lineType, color: lineColor }, textStyle, starFill), circleMode },
           start: start.at,
           startTarget: start.target,
           free,
@@ -1054,6 +1055,7 @@ export function useAnnotateCanvas({
       lineColor,
       textStyle,
       starFill,
+      circleMode,
       picker,
       viewed,
       pressable,
@@ -1703,15 +1705,15 @@ function laid(
   newId?: DiagramIdFactory,
   calloutText?: string
 ): KnownDiagramAnnotation {
-  const { shape, color, text, ...arrowLook } = look;
+  const { shape, color, text, circleMode, ...arrowLook } = look;
   if (kind === 'zoom' && shape === 'rounded') {
     return zoomAreaFromCorners(start, end, { square: keys.shift, fromMiddle: keys.alt }, newId);
   }
   if (kind === 'eye') return eyeLooking(start, end, frame, { steps: keys.shift }, newId);
   if (isAreaKind(kind)) return areaFromCorners(kind, start, end, { square: keys.shift, fromMiddle: keys.alt }, newId);
-  // A solid line in the colour chosen beside the rail's Line Type (17a).
-  const made = withColor(withWhiteArrowLook(createAnnotation(kind, start, end, frame, newId, calloutText), arrowLook), color ?? null);
-  // A label in the rail's Text Style (17b).
+  // A solid line in the colour chosen beside the tool hint’s Line Type (17a).
+  const made = withColor(withWhiteArrowLook(createAnnotation(kind, start, end, frame, newId, calloutText, circleMode), arrowLook), color ?? null);
+  // A label in the tool hint’s Text Style (17b).
   return text ? withTextStyle(made, text) : made;
 }
 

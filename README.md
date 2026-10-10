@@ -153,25 +153,24 @@ Roadmaps live in [`WEB_ROADMAP.md`](WEB_ROADMAP.md) and
 
 Ori Studio builds directly on origami tools created by the community:
 
-- [Robert J. Lang and TreeMaker 5.0.1](https://langorigami.com/article/treemaker/)
-  — the original model code and behavior are the canonical reference for the
-  Rust, WebAssembly, and desktop port.
-- [Mu-Tsun Tsai and Box Pleating Studio](https://github.com/bp-studio/box-pleating-studio)
-  — the box-pleated authoring method is a Rust and WebAssembly port of Box
-  Pleating Studio.
-- [Brandon Wong and ExplOri 22.5](https://225.designorigami.net/) — the Search
-  22.5° design method sends your tree to ExplOri, a searchable archive of 22.5°
-  crease patterns, and shows the closest matches it returns.
 - [Oriedita](https://github.com/oriedita/oriedita) — the crease-pattern editor is
   a Rust and WebAssembly port of the Oriedita editor (itself a fork of Orihime),
   including its foldability diagnostics, repairs, and file formats.
+- [Mu-Tsun Tsai and Box Pleating Studio](https://github.com/bp-studio/box-pleating-studio)
+  — the box-pleated authoring method is a Rust and WebAssembly port of Box
+  Pleating Studio.
 - [Amanda Ghassaei and Origami Simulator](https://github.com/amandaghassaei/OrigamiSimulator)
   — the Simulate workspace folds bases into an interactive 3D model using a
   TypeScript port of Origami Simulator.
-
+- [Brandon Wong and ExplOri 22.5](https://225.designorigami.net/) — the Search
+  22.5° design method sends your tree to ExplOri, a searchable archive of 22.5°
+  crease patterns, and shows the closest matches it returns.
 - [Kei Morisue and DEFOX](https://kei-morisue.github.io/step-folder/)
   — the Diagram workspace’s affine layer spreading is based on Morisue’s
   affine distortion method in DEFOX.
+- [Robert J. Lang and TreeMaker 5.0.1](https://langorigami.com/article/treemaker/)
+  — the original model code and behavior are the canonical reference for the
+  Rust, WebAssembly, and desktop port.
 
 ## License
 

@@ -6,6 +6,7 @@ import type { AnnotationPaletteName } from './annotationColors';
 import { isTextSizePt, TEXT_SIZES_PT, type TextStyle } from './textStyle';
 import { DEFAULT_DIAGRAM_LINE_TYPE, lineKindOf, type DiagramLineKind, type DiagramLineType } from './lineTypes';
 import type { PickProgress, ToolNotice } from './pickProgress';
+import type { CircleDrawingMode } from './circleDrawing';
 import type { DiagramStarFill } from './starFill';
 
 /**
@@ -23,14 +24,14 @@ import type { DiagramStarFill } from './starFill';
 export const EDIT_PATH = 'edit-path';
 
 /**
- * The Line tool (15a): a line in the type the rail's Line Type says — a
+ * The Line tool (15a): a line in the type the tool hint’s Line Type says — a
  * valley, a mountain, a hidden or a solid line (17a), each a kind of its own.
  */
 export const LINE_TOOL = 'line';
 
 /**
  * The Angle Bisector (15b): Edit's, on the picture — three points or two
- * lines, then the line it runs to — drawing a line in the type the rail's
+ * lines, then the line it runs to — drawing a line in the type the tool hint’s
  * Line Type says, and the equal-angle mark of the angle it halves.
  */
 export const ANGLE_BISECTOR = 'angle-bisector';
@@ -101,7 +102,7 @@ export function drawingKind(tool: AnnotateTool, lineType: DiagramLineType): Diag
  * colour the Line tool draws a solid line in (17a), or the style the Label
  * tool sets its text in (17b).
  */
-export type DrawingLook = WhiteArrowLook & { shape?: DiagramZoomShape; color?: string; text?: TextStyle };
+export type DrawingLook = WhiteArrowLook & { shape?: DiagramZoomShape; color?: string; text?: TextStyle; circleMode?: CircleDrawingMode };
 
 /** The line the Line tool draws: its type, and the colour a solid one is drawn in, null for the style's ink. */
 export interface LineChoice {
@@ -111,8 +112,8 @@ export interface LineChoice {
 
 /**
  * The look a tool lays what it draws in ({@link DrawingLook}): `line` the
- * Line tool's choice, `text` the rail's Text Style for the Label tool's
- * (17b), `starFill` the rail's Fill for the Star tool's (Revision 3, R3-4 C);
+ * Line tool's choice, `text` the tool hint’s Text Style for the Label tool's
+ * (17b), `starFill` the tool hint’s Fill for the Star tool's (Revision 3, R3-4 C);
  * nothing for any other tool.
  */
 export function drawingLook(tool: AnnotateTool, line?: LineChoice, text?: TextStyle, starFill?: DiagramStarFill): DrawingLook {
@@ -125,7 +126,7 @@ export function drawingLook(tool: AnnotateTool, line?: LineChoice, text?: TextSt
   return {};
 }
 
-/** A star fill's name, for the rail's control and the Layers row. */
+/** A star fill's name, for the tool hint’s control and the Layers row. */
 export function starFillLabel(t: TFunction, fill: DiagramStarFill): string {
   return fill === 'black'
     ? t('panels:diagram.annotations.starFilled', 'Filled')
@@ -328,7 +329,7 @@ export function lineTypeForShortcut(id: DiagramAnnotateShortcutId): DiagramLineT
   return (Object.keys(LINE_TYPE_SHORTCUTS) as DiagramLineType[]).find((type) => LINE_TYPE_SHORTCUTS[type] === id);
 }
 
-/** A line type's name, for the rail's control, its keys and the Step pane. */
+/** A line type's name, for the tool hint’s control, its keys and the Step pane. */
 export function lineTypeLabel(t: TFunction, type: DiagramLineType): string {
   switch (type) {
     case 'valley':
@@ -366,7 +367,7 @@ export function annotationColorLabel(t: TFunction, name: AnnotationPaletteName):
 export const TEXT_SIZE_PICTURE = 'picture';
 
 /**
- * The sizes Size offers (17b), for the rail's Text Style and a label's Layers
+ * The sizes Size offers (17b), for the tool hint’s Text Style and a label's Layers
  * row: With the picture, then 7, 9, 12 and 16 pt — and a size from a file
  * that is none of these as an item of its own while it is `current`, as a
  * colour picked by hand is. Each an id a select holds ({@link textSizeOfId}).
@@ -466,7 +467,7 @@ export function annotateToolLabel(t: TFunction, tool: AnnotateTool): string {
 }
 
 /** What a tool does, in a line: the tool window says it under the tool's name, and the rail's tooltip after it. */
-export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
+export function annotateToolHelp(t: TFunction, tool: AnnotateTool, circleMode: CircleDrawingMode = 'bounds'): string {
   if (tool === null) {
     return t(
       'panels:diagram.annotate.selectHelp',
@@ -514,6 +515,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
     case 'label':
       return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it in the Layers pane.');
     case 'circle':
+      if (circleMode === 'center') return t('panels:diagram.annotate.circleCenterHelp', 'Drag from the center to the edge of the circle. Click for a small circle.');
       return t('panels:diagram.annotate.circleHelp', 'Drag between opposite corners to bound the circle. Click for a small circle.');
     case 'star':
       return t('panels:diagram.annotate.starHelp', 'Click a point to mark it with a star.');
@@ -528,6 +530,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
         'Click inside a right angle to mark it, or drag from a corner into the angle.'
       );
     case 'close-up':
+      if (circleMode === 'center') return t('panels:diagram.annotate.closeUpCenterHelp', 'Drag from the center to the edge of the area to show larger. Click for a standard size. With Select, drag either circle to move it, or its ring to resize it.');
       return t(
         'panels:diagram.annotate.closeUpHelp',
         'Drag between opposite corners of the area to show larger. Click for a standard size. With Select, drag either circle to move it, or its ring to resize it.'
@@ -538,6 +541,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
         'Drag from a point to where the box goes, or click the point, then type its words in the Layers pane.'
       );
     case ENLARGE:
+      if (circleMode === 'center') return t('panels:diagram.annotate.enlargeCenterHelp', 'Drag from the center to the edge of an area to mark it for an enlarged step. Click for a standard size.');
       return t(
         'panels:diagram.annotate.enlargeHelp',
         'Drag between opposite corners of an area to mark it for an enlarged step. Click for a standard size.'
@@ -554,6 +558,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
         'Drag from corner to corner round an area to ring it. Click for a standard size.'
       );
     case 'x-ray':
+      if (circleMode === 'center') return t('panels:diagram.annotate.xRayCenterHelp', 'Drag from the center to the edge of an area to see through its top layer. Click for a standard size. Set the depth in Layers.');
       return t(
         'panels:diagram.annotate.xRayHelp',
         'Drag between opposite corners of an area to see through its top layer. Click for a standard size. Set the depth in Layers.'
@@ -635,7 +640,8 @@ export function annotateToolHint(
   selected: DiagramAnnotationKind | null,
   host: AnnotateToolHost,
   progress: PickProgress | null = null,
-  notice: ToolNotice | null = null
+  notice: ToolNotice | null = null,
+  circleMode: CircleDrawingMode = 'bounds'
 ): AnnotateToolHint | null {
   if (tool === null) return null;
   let instructions: string;
@@ -643,9 +649,9 @@ export function annotateToolHint(
   else if (isPickTool(tool) && progress) instructions = pickHelp(t, progress);
   else if (notice !== null && notice.tool === tool) instructions = noticeHelp(t, notice);
   else if (host.coarse && (tool === 'label' || tool === 'callout' || tool === 'divisions' || tool === 'x-ray')) {
-    instructions = textHelpOnTouch(t, tool);
+    instructions = textHelpOnTouch(t, tool, circleMode);
   }
-  else instructions = annotateToolHelp(t, tool);
+  else instructions = annotateToolHelp(t, tool, circleMode);
   return {
     title: annotateToolLabel(t, tool),
     instructions,
@@ -716,7 +722,7 @@ function noticeHelp(t: TFunction, notice: ToolNotice): string {
  * Settings pill: the field their words, their count or its depth are typed in
  * named where that surface shows it, in its own words.
  */
-function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions' | 'x-ray'): string {
+function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions' | 'x-ray', circleMode: CircleDrawingMode): string {
   const where = { sheet: t('common:viewDrawer.openSettings', 'Settings'), tab: t('panels:sidePane.layers', 'Layers') };
   switch (tool) {
     case 'label':
@@ -734,6 +740,7 @@ function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions' |
         where
       );
     case 'x-ray':
+      if (circleMode === 'center') return t('panels:diagram.annotate.xRayCenterHelpTouch', 'Drag from the center to the edge of an area to see through its top layer. Click for a standard size. Set the depth in {{sheet}}, under {{tab}}.', where);
       return t(
         'panels:diagram.annotate.xRayHelpTouch',
         'Drag between opposite corners of an area to see through its top layer. Click for a standard size. Set the depth in {{sheet}}, under {{tab}}.',

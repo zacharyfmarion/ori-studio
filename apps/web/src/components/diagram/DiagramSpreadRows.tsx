@@ -9,7 +9,6 @@ import {
   ArrowUpLeft,
   ArrowUpRight,
   Layers,
-  Info,
   type LucideIcon,
 } from 'lucide-react';
 import type { SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
@@ -17,7 +16,7 @@ import type { DiagramLinkedPoseAction, DiagramSpreadChoice } from '../../diagram
 import type { DiagramLinkedSpread } from '../../diagram/capture/useDiagramLinkedPose';
 import { SPREAD_AMOUNT_RANGE, SPREAD_AXIS_RANGE } from '../../diagram/document/diagramDocument';
 import { SegmentedControl } from '../ui/SegmentedControl';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
+import { DiagramAffineCredit } from './DiagramAffineCredit';
 import { IconButton } from '../ui/IconButton';
 import { FieldRow, SegmentedRow, SliderRow, ToggleRow } from '../ui/fieldRows';
 import styles from './DiagramSpreadRows.module.css';
@@ -86,22 +85,7 @@ export function DiagramSpreadRows({
                 disabled={spread.disabled}
                 onChange={(value) => choose(spread.kinds, value)}
               />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a
-                    className={styles.credit}
-                    href="https://kei-morisue.github.io/step-folder/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={t('panels:diagram.pose.affineCredit', 'Affine distortion by Kei Morisue — visit DEFOX')}
-                  >
-                    <Info size={13} aria-hidden="true" />
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {t('panels:diagram.pose.affineCredit', 'Affine distortion by Kei Morisue — visit DEFOX')}
-                </TooltipContent>
-              </Tooltip>
+              <DiagramAffineCredit />
             </span>
           </FieldRow>
           <SliderRow
