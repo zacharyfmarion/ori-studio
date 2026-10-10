@@ -71,6 +71,8 @@ export function rfSheetOfFrame(frame: PrecreaseFrame): { width: number; height: 
  */
 export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): StepDiagramModel {
   const map = (point: Pair): [number, number] => rfToModel(frame, point);
+  // Whether the map turns the paper over: its axes the other way round.
+  const reverses = frame.x_axis[0] * frame.y_axis[1] - frame.x_axis[1] * frame.y_axis[0] < 0;
   const mapArc = (arc: DiagramArc): DiagramArc | null => {
     const [from, middle, to] = arcSamplePoints(arc).map(map);
     return arcThroughPoints(from, middle, to);
@@ -103,9 +105,77 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
         if (out) primitives.push({ kind: 'fold-arrow', out });
         break;
       }
-      case 'turn-over':
-        primitives.push({ kind: 'turn-over', at: map(primitive.at) });
+      case 'one-way-arrow': {
+        const out = mapArc(primitive.out);
+        if (out) primitives.push({ kind: 'one-way-arrow', out, fold: primitive.fold });
         break;
+      }
+      case 'path-arrow':
+        // A Bézier's image under the map is the Bézier of its control points' images.
+        primitives.push({
+          kind: 'path-arrow',
+          path: primitive.path.map(([a, b, c, d]) => [map(a), map(b), map(c), map(d)] as const),
+          fold: primitive.fold,
+        });
+        break;
+      case 'push-arrow':
+        primitives.push({ kind: 'push-arrow', from: map(primitive.from), to: map(primitive.to) });
+        break;
+      case 'pleat-arrow':
+        // Its ends mapped; its Zs stay on their side of the paper, so a map
+        // that turns the paper over turns the side they step to with it.
+        primitives.push({
+          ...primitive,
+          from: map(primitive.from),
+          to: map(primitive.to),
+          mirrored: primitive.mirrored !== reverses,
+        });
+        break;
+      case 'white-arrow':
+        // Every control point mapped, as a path arrow's: the curve carried exactly.
+        primitives.push({
+          ...primitive,
+          path: primitive.path.map(([a, b, c, d]) => [map(a), map(b), map(c), map(d)] as const),
+        });
+        break;
+      case 'turn-over':
+      case 'rotate':
+        // Drawn in screen space: only its place moves.
+        primitives.push({ ...primitive, at: map(primitive.at) });
+        break;
+      case 'right-angle':
+        // Its corner and a point along its diagonal: the way it opens turns with the map.
+        primitives.push({ kind: 'right-angle', at: map(primitive.at), toward: map(primitive.toward) });
+        break;
+      case 'angle-mark':
+        // Its vertex and a point along each arm: the way they run turns with the map.
+        primitives.push({ ...primitive, at: map(primitive.at), arms: [map(primitive.arms[0]), map(primitive.arms[1])] });
+        break;
+      case 'divisions':
+        // Its ends mapped; its line stays on its side of the paper, so a map
+        // that turns the paper over turns the side with it, as a pleat
+        // arrow's Zs. Its offset is a print size, as its ticks are.
+        primitives.push({
+          ...primitive,
+          from: map(primitive.from),
+          to: map(primitive.to),
+          mirrored: primitive.mirrored !== reverses,
+        });
+        break;
+      case 'star':
+        // Its place moves; its turn and size are its own, on the page.
+        primitives.push({ ...primitive, at: map(primitive.at) });
+        break;
+      case 'eye': {
+        // Its place moves, and the way it looks is the paper's: turned, or
+        // mirrored, with the map. Its size is its own, a print size.
+        const radians = (primitive.angle * Math.PI) / 180;
+        const at = map(primitive.at);
+        const ahead = map([primitive.at[0] + Math.cos(radians), primitive.at[1] - Math.sin(radians)]);
+        const degrees = (Math.atan2(-(ahead[1] - at[1]), ahead[0] - at[0]) * 180) / Math.PI;
+        primitives.push({ ...primitive, at, angle: degrees < 0 ? degrees + 360 : degrees });
+        break;
+      }
       case 'region':
         primitives.push({ kind: 'region', corners: primitive.corners.map(map) });
         break;
@@ -115,6 +185,12 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
       case 'label':
         primitives.push({ ...primitive, at: map(primitive.at) });
         break;
+      default: {
+        // Every kind is carried above: a new one is a compile error here
+        // until it is, rather than dropped from the canvas.
+        const _uncarried: never = primitive;
+        break;
+      }
     }
   }
   const longer = Math.max(frame.width, frame.height);

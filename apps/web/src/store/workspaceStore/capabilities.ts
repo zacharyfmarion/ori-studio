@@ -1,3 +1,4 @@
+import { canCopyDiagramAnnotation, canPasteDiagramAnnotations, diagramDeleteTarget, isDiagramAnnotating } from './diagramState';
 import { bpSheetCanSubdivide, bpSheetCanUnsubdivide } from './bpSheetCapabilities';
 import {
   activeDesignTab,
@@ -21,28 +22,40 @@ import {
 import { isSuppressionRegionAnnotation } from '../../cp-workspace/annotations/annotation';
 import { hasAttachedSolveInput } from '../../cp-workspace/annotations/suppressionRegion';
 import type { EditingContext } from '../../workspaces/editingContext';
+import { stepById, turnById } from '../../diagram/document/diagramDocument';
 import type { WorkspaceState } from './types';
 
-/** The undo/redo count for the active editing context's own history stack. */
+/**
+ * The depth of each history stack that belongs to a workspace rather than to a
+ * design kind, in the direction being asked about.
+ */
+export interface WorkspaceHistoryCounts {
+  /** The crease-pattern editor's stack, or 0 with no editable crease pattern. */
+  cp: number;
+  diagram: number;
+}
+
 /**
  * How deep the active context's undo stack is.
  *
- * The crease-pattern editor answers for itself — it is a workspace, not a design
- * kind — and every design kind answers through its descriptor. This used to list
- * the kinds it knew and return 0 for the rest, which *disabled* Undo and Redo
- * for a registered kind rather than merely leaving them unwired, and made the
- * dispatch behind them unreachable. Nothing here should know the kinds.
+ * The crease-pattern editor and the Diagram answer for themselves — they are
+ * workspaces, not design kinds — and every design kind answers through its
+ * descriptor. This used to list the kinds it knew and return 0 for the rest,
+ * which *disabled* Undo and Redo for a registered kind rather than merely
+ * leaving them unwired, and made the dispatch behind them unreachable. Nothing
+ * here should know the kinds.
  */
 export function historyCountForContext(
   context: EditingContext,
   tab: DesignTab,
-  cpCount: number,
+  counts: WorkspaceHistoryCounts,
   which: 'past' | 'future',
   /** Parameterized for the same reason the registry is: so a stub kind can
    *  drive this consumer without mutating global state. */
   kinds?: readonly DesignKindDescriptor[]
 ): number {
-  if (context === 'crease-pattern') return cpCount;
+  if (context === 'crease-pattern') return counts.cp;
+  if (context === 'diagram') return counts.diagram;
   const kind = kinds ? designKindRegistry(kinds).forContext(context) : designKindForContext(context);
   if (!kind) return 0;
   return kind.history(tab)[which];
@@ -62,6 +75,24 @@ export function historyCountForContext(
  */
 function anyDesignIsSavable(state: WorkspaceState): boolean {
   return state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false);
+}
+
+/**
+ * Whether Delete has something in the Diagram to act on, on a diagram this
+ * build may change: in Annotate, the selected annotation; anywhere else, the
+ * selected step. One predicate for both capability builders.
+ */
+export function hasDeletableDiagramSelection(state: WorkspaceState): boolean {
+  const { diagram, diagramSelectedStepId } = state;
+  if (state.activeEditingContext !== 'diagram' || state.diagramReadOnly || diagram === null) return false;
+  if (diagramSelectedStepId === null) return false;
+  // A turn goes with Delete as a step does (D22).
+  if (turnById(diagram, diagramSelectedStepId)) return true;
+  const step = stepById(diagram, diagramSelectedStepId);
+  if (!step) return false;
+  if (!isDiagramAnnotating(state)) return true;
+  const annotationId = state.diagramSelectedAnnotationId;
+  return annotationId !== null && step.annotations.some((annotation) => annotation.id === annotationId);
 }
 
 /**
@@ -96,13 +127,19 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
   const historyPastCount = historyCountForContext(
     context,
     tab,
-    state.oristudioCpDocument ? state.oristudioCpHistoryPast.length : 0,
+    {
+      cp: state.oristudioCpDocument ? state.oristudioCpHistoryPast.length : 0,
+      diagram: state.diagramHistory.past.length,
+    },
     'past'
   );
   const historyFutureCount = historyCountForContext(
     context,
     tab,
-    state.oristudioCpDocument ? state.oristudioCpHistoryFuture.length : 0,
+    {
+      cp: state.oristudioCpDocument ? state.oristudioCpHistoryFuture.length : 0,
+      diagram: state.diagramHistory.future.length,
+    },
     'future'
   );
 
@@ -128,6 +165,12 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     hasDeletableDesignSelection:
       activeKind?.deletableTarget?.(activeDesignTab(state)) != null,
     canSaveDesign: anyDesignIsSavable(state),
+    hasDiagram: state.diagram !== null,
+    diagramStepCount: state.diagram?.steps.length ?? 0,
+    hasDeletableDiagramSelection: hasDeletableDiagramSelection(state),
+    diagramDeleteTarget: diagramDeleteTarget(state),
+    canCopyDiagramAnnotation: canCopyDiagramAnnotation(state),
+    canPasteDiagramAnnotations: canPasteDiagramAnnotations(state),
     historyPastCount,
     historyFutureCount,
     clipboard: state.clipboard,

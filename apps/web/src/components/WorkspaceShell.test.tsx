@@ -263,7 +263,7 @@ describe('the toolbar', () => {
     );
     // The row is read, not merely missed: without this the assertions below pass
     // just as well against a selector that matched nothing.
-    expect(labels).toContain('Settings');
+    expect(labels).toContain('App Settings');
     expect(labels).not.toContain('New');
     expect(labels).not.toContain('Open');
     expect(labels).not.toContain('Save');

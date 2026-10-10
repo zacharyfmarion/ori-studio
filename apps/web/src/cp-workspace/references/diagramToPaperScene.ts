@@ -34,8 +34,9 @@ import {
   type DiagramRenderContext,
 } from './diagram/DiagramPrimitives';
 import { diagramInlineInk, type DiagramInlineTokens } from './diagram/diagramColors';
-import type { LabelPlacement } from './diagram/labelLayout';
+import { placeLabels, type LabelLayoutOptions, type LabelPlacement } from './diagram/labelLayout';
 import { penInk } from './diagram/diagramInk';
+import { isDiagramMark, markReach } from './diagram/markReach';
 import { seenFromTheBack } from './diagram/diagramModel';
 import type {
   DiagramLineStyleName,
@@ -44,6 +45,7 @@ import type {
 } from './referenceFinderDiagramToPrimitives';
 import {
   DIAGRAM_PADDING,
+  arcExtremes,
   arcPolyline,
   onSheetBoundary,
   sheetCorners,
@@ -81,6 +83,14 @@ export interface DiagramToPaperSceneOptions {
    * lines are on the page. Absent or null follows the style's own switch.
    */
   showAux?: boolean | null;
+  /**
+   * The bounds grown to hold every mark as it is drawn — its arrows, glyphs
+   * and rings (`markReach`), and its accent lines in their pens — not only
+   * its letters: for a step on a Diagram page, whose arrow pen is the
+   * author's and may be far heavier than a card's, and whose sheet may be
+   * small, so its arrows leave the padding band a card keeps for them.
+   */
+  marksInBounds?: boolean;
   /**
    * The ground a letter's halo is painted in — the page's background, or
    * white when the page has none, since a letter is pushed off the sheet on
@@ -131,22 +141,8 @@ export function diagramToPaperScene(
   model: StepDiagramModel,
   options: DiagramToPaperSceneOptions
 ): PaperScene {
-  const seen = applyPaperStylePolicy(options.style, PAPER_STYLE_POLICIES.references);
+  const { seen, project, mirrored, drawn } = sceneDrawing(model, options);
   const showAux = referencesShowsAux(options.style, options.showAux ?? null);
-  const ink = options.project.ink;
-  const markWidth = (seen.arrows.width * PT_TO_CSS_PX) / ink;
-  const project = withPens(options.project, {
-    ...options.project.pens,
-    // The arrow is the style's pen: its width in pt as CSS px, in the
-    // drawing's ink, with the pen's own dash and cap — so on a page painted
-    // at the screen's ratio, which a step's page is, it is the pen's pt.
-    arrow: penInk(seen.arrows, markWidth),
-    // The accent over the lines a step lines up is a mark of the step, as the
-    // arrow is, and drawn at the arrow's weight, in its own ink.
-    highlight: { ...options.project.pens.highlight, width: markWidth },
-  });
-  const mirrored = options.mirrored ?? project.mirrored;
-  const drawn = mirrored ? seenFromTheBack(model.primitives) : model.primitives;
   const sheet = model.sheet;
   const point = (p: SheetPoint): ScenePoint => {
     const { x, y } = project(p);
@@ -158,11 +154,7 @@ export function diagramToPaperScene(
   const sheetPx = Math.max(sheet.width, sheet.height) * project.scale;
 
   const context = createDiagramRenderContext(drawn, sheet, project, {
-    // No box to hold the letters in, as on the big view: a card's bounds are
-    // its viewBox, and a page has no edge of its own. Charging a letter for
-    // leaving a box the reader never saw would push it somewhere the view
-    // does not; the page grows to hold them instead.
-    layout: {},
+    layout: LETTER_LAYOUT,
     creases: { showAux, erode: seen.erode },
     // The page's ground is also what a mark off the sheet is inked against:
     // the style's ink where that reads on it, black or white where it does
@@ -226,6 +218,7 @@ export function diagramToPaperScene(
   });
 
   const bounds = paddedBounds(corners, sheetPx, context.labels);
+  if (options.marksInBounds) grownToMarks(bounds, drawn, symbols, project, context);
   const items: PaperItem[] = [
     {
       kind: 'face',
@@ -253,6 +246,96 @@ export function diagramToPaperScene(
   const over = markupItem(drawn, symbols, context, bounds);
   if (over) items.push(over);
   return { bounds, sheet: sheetPx, items };
+}
+
+/**
+ * Where the letters may go on a step's page: no box to hold them in, as on
+ * the big view. A card's bounds are its viewBox, and a page has no edge of
+ * its own; charging a letter for leaving a box the reader never saw would
+ * push it somewhere the view does not, so the page grows to hold them
+ * instead.
+ */
+const LETTER_LAYOUT: LabelLayoutOptions = {};
+
+/**
+ * What a step is drawn through on its page: the style as References sees
+ * it, the projector with the style's arrow pen and the accent at its weight,
+ * the face it shows, and its primitives named from that face.
+ */
+function sceneDrawing(
+  model: StepDiagramModel,
+  options: Pick<DiagramToPaperSceneOptions, 'style' | 'project' | 'mirrored'>
+) {
+  const seen = applyPaperStylePolicy(options.style, PAPER_STYLE_POLICIES.references);
+  const ink = options.project.ink;
+  const markWidth = (seen.arrows.width * PT_TO_CSS_PX) / ink;
+  const project = withPens(options.project, {
+    ...options.project.pens,
+    // The arrow is the style's pen: its width in pt as CSS px, in the
+    // drawing's ink, with the pen's own dash and cap — so on a page painted
+    // at the screen's ratio, which a step's page is, it is the pen's pt.
+    arrow: penInk(seen.arrows, markWidth),
+    // The accent over the lines a step lines up is a mark of the step, as the
+    // arrow is, and drawn at the arrow's weight, in its own ink.
+    highlight: { ...options.project.pens.highlight, width: markWidth },
+  });
+  const mirrored = options.mirrored ?? project.mirrored;
+  const drawn = mirrored ? seenFromTheBack(model.primitives) : model.primitives;
+  return { seen, project, mirrored, drawn };
+}
+
+/**
+ * Where a step's letters go on its page, by each one's index in the model,
+ * in scene px, and the projector they were placed through (17d): the one
+ * layout {@link diagramToPaperScene} draws them by — every letter against
+ * the whole picture, its rings, its loud lines and the letters before it —
+ * so a letter lifted from a References card lands where the baked one is
+ * drawn, and the two cannot drift apart.
+ */
+export function diagramLetterPlacements(
+  model: StepDiagramModel,
+  options: Pick<DiagramToPaperSceneOptions, 'style' | 'project' | 'mirrored'>
+): { placements: ReadonlyMap<number, LabelPlacement>; project: DiagramProjector } {
+  const { project, drawn } = sceneDrawing(model, options);
+  return { placements: placeLabels(drawn, model.sheet, project, LETTER_LAYOUT), project };
+}
+
+/**
+ * `bounds` grown to the listed primitives as they are drawn: a mark as far as
+ * its ink (`markReach`), an accent line or arc its pen's half round it, a
+ * round cap's or a butt end's corners reaching no further. A letter is in
+ * them already.
+ */
+function grownToMarks(
+  bounds: SceneBounds,
+  drawn: readonly StepDiagramPrimitive[],
+  indices: readonly number[],
+  project: DiagramProjector,
+  context: DiagramRenderContext
+): void {
+  const take = (x: number, y: number, pad: number) => {
+    bounds.minX = Math.min(bounds.minX, x - pad);
+    bounds.minY = Math.min(bounds.minY, y - pad);
+    bounds.maxX = Math.max(bounds.maxX, x + pad);
+    bounds.maxY = Math.max(bounds.maxY, y + pad);
+  };
+  for (const index of indices) {
+    const primitive = drawn[index]!;
+    if (isDiagramMark(primitive)) {
+      markReach(primitive, project, context.marks, take);
+      continue;
+    }
+    if (primitive.kind !== 'line' && primitive.kind !== 'arc') continue;
+    const half = ((project.pens[primitive.style]?.width ?? 0) * project.ink) / 2;
+    if (primitive.kind === 'line') {
+      for (const end of [primitive.from, primitive.to]) {
+        const { x, y } = project(end);
+        take(x, y, half);
+      }
+    } else {
+      for (const { x, y } of arcExtremes(primitive, project)) take(x, y, half);
+    }
+  }
 }
 
 /**

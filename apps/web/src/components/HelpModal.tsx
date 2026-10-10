@@ -11,11 +11,11 @@ import { IconButton } from './ui/IconButton';
 function acknowledgements(t: TFunction): Array<{ title: string; href: string; detail: string }> {
   return [
     {
-      title: t('dialogs:help.acknowledgements.treemaker.title', 'Robert J. Lang and TreeMaker 5.0.1'),
-      href: 'https://langorigami.com/article/treemaker/',
+      title: t('dialogs:help.acknowledgements.oriedita.title', 'Oriedita'),
+      href: 'https://github.com/oriedita/oriedita',
       detail: t(
-        'dialogs:help.acknowledgements.treemaker.detail',
-        "TreeMaker's original model code and behavior are the canonical reference for this Rust, WebAssembly, and desktop port."
+        'dialogs:help.acknowledgements.oriedita.detail',
+        'The crease-pattern editor is a Rust and WebAssembly port of the Oriedita editor (itself a fork of Orihime), including its foldability diagnostics, repairs, and file formats.'
       ),
     },
     {
@@ -27,6 +27,14 @@ function acknowledgements(t: TFunction): Array<{ title: string; href: string; de
       ),
     },
     {
+      title: t('dialogs:help.acknowledgements.origamiSimulator.title', 'Amanda Ghassaei and Origami Simulator'),
+      href: 'https://github.com/amandaghassaei/OrigamiSimulator',
+      detail: t(
+        'dialogs:help.acknowledgements.origamiSimulator.detail',
+        "The Simulate workspace folds bases into an interactive 3D model using a TypeScript port of Amanda Ghassaei's Origami Simulator."
+      ),
+    },
+    {
       title: t('dialogs:help.acknowledgements.explori.title', 'Brandon Wong and ExplOri 22.5'),
       href: 'https://225.designorigami.net/',
       detail: t(
@@ -35,19 +43,19 @@ function acknowledgements(t: TFunction): Array<{ title: string; href: string; de
       ),
     },
     {
-      title: t('dialogs:help.acknowledgements.oriedita.title', 'Oriedita'),
-      href: 'https://github.com/oriedita/oriedita',
+      title: t('dialogs:help.acknowledgements.defox.title', 'Kei Morisue and DEFOX'),
+      href: 'https://kei-morisue.github.io/step-folder/',
       detail: t(
-        'dialogs:help.acknowledgements.oriedita.detail',
-        'The crease-pattern editor is a Rust and WebAssembly port of the Oriedita editor (itself a fork of Orihime), including its foldability diagnostics, repairs, and file formats.'
+        'dialogs:help.acknowledgements.defox.detail',
+        'Affine layer spreading in the Diagram workspace is based on Kei Morisue’s affine distortion method in DEFOX.'
       ),
     },
     {
-      title: t('dialogs:help.acknowledgements.origamiSimulator.title', 'Amanda Ghassaei and Origami Simulator'),
-      href: 'https://github.com/amandaghassaei/OrigamiSimulator',
+      title: t('dialogs:help.acknowledgements.treemaker.title', 'Robert J. Lang and TreeMaker 5.0.1'),
+      href: 'https://langorigami.com/article/treemaker/',
       detail: t(
-        'dialogs:help.acknowledgements.origamiSimulator.detail',
-        "The Simulate workspace folds bases into an interactive 3D model using a TypeScript port of Amanda Ghassaei's Origami Simulator."
+        'dialogs:help.acknowledgements.treemaker.detail',
+        "TreeMaker's original model code and behavior are the canonical reference for this Rust, WebAssembly, and desktop port."
       ),
     },
   ];
@@ -89,6 +97,8 @@ function ModalShell({
     <div
       role="dialog"
       aria-modal="true"
+      // Owns every key while it is open, as Settings does: nothing behind it acts.
+      data-shortcut-barrier=""
       aria-label={title}
       className="help-modal"
       onMouseDown={closeHelp}

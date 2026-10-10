@@ -893,12 +893,12 @@ describe('PaperExportModal diagram marks', () => {
   const toggle = (name: string, title?: string) =>
     dialog(title)?.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`) ?? null;
 
-  it('offers Letters and Line highlights, both on, for a target that declares them', async () => {
+  it('offers Letters and Reference lines, both on, for a target that declares them', async () => {
     await open(stepTarget());
     expect(sections('Export step 3')).toContain('Marks');
     expect(stepText()).toContain('The names of the points a step refers to.');
     expect(toggle('Letters', 'Export step 3')?.getAttribute('aria-checked')).toBe('true');
-    expect(toggle('Line highlights', 'Export step 3')?.getAttribute('aria-checked')).toBe('true');
+    expect(toggle('Reference lines', 'Export step 3')?.getAttribute('aria-checked')).toBe('true');
   });
 
   it('offers no Marks section for a target without marks, nor for a fixed picture', async () => {
@@ -938,14 +938,14 @@ describe('PaperExportModal diagram marks', () => {
 
     await open(stepTarget());
     expect(toggle('Letters', 'Export step 3')?.getAttribute('aria-checked')).toBe('false');
-    expect(toggle('Line highlights', 'Export step 3')?.getAttribute('aria-checked')).toBe('true');
+    expect(toggle('Reference lines', 'Export step 3')?.getAttribute('aria-checked')).toBe('true');
   });
 
-  it('turns Line highlights off on its own, leaving Letters as they are', async () => {
+  it('turns Reference lines off on its own, leaving Letters as they are', async () => {
     const buildScene = vi.fn(async () => SCENE);
     await open(stepTarget(buildScene));
-    await act(async () => toggle('Line highlights', 'Export step 3')?.click());
-    expect(toggle('Line highlights', 'Export step 3')?.getAttribute('aria-checked')).toBe('false');
+    await act(async () => toggle('Reference lines', 'Export step 3')?.click());
+    expect(toggle('Reference lines', 'Export step 3')?.getAttribute('aria-checked')).toBe('false');
     expect(toggle('Letters', 'Export step 3')?.getAttribute('aria-checked')).toBe('true');
     expect(buildScene).toHaveBeenLastCalledWith(
       expect.objectContaining({ marks: { letters: true, highlights: false } })

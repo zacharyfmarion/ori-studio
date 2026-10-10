@@ -1,0 +1,346 @@
+/*
+ * The Annotate canvas (DiagramAnnotateCanvas.tsx): the step's picture under
+ * one camera, the annotations and the selection over it, on a white stage.
+ */
+.view {
+  /*
+   * The selection's ink: it lies on the page's white whatever the theme, so it
+   * is no theme's accent — a dark theme's is 1.5 to 3.7:1 on white. The
+   * default light theme's accent, at 4:1.
+   */
+  --annotate-selection: #4078f2;
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* The page every mark prints on, so one that reaches past the picture reads as it will print. */
+  background: #ffffff;
+  /* Every press on the stage is the canvas's: a finger draws, two pinch (the camera's). */
+  touch-action: none;
+}
+
+.view:focus {
+  outline: none;
+}
+
+/* The camera's surface (its wrapper): what a press lands on, and what it points with. */
+.stage {
+  cursor: default;
+}
+
+/* A tool in hand that draws (`drawingKind`): Select and Edit Path draw nothing. */
+.view[data-draws] .stage,
+.view[data-picking] .stage {
+  cursor: crosshair;
+}
+
+/*
+ * Over a selected star's, eye's or shape's transform box (Revision 3): the Edit
+ * canvas's cursors for its box — with Select, move on the body, pointer on a
+ * scale square, grab on a turn handle; with the mark's own tool still in hand
+ * (18d), the square's and the turn handle's alone, which take a press before
+ * the tool draws. Before Space's grab, which wins as an armed pan does there.
+ */
+.view[data-transform-hover='body'] .stage {
+  cursor: move;
+}
+
+.view[data-transform-hover='scale'] .stage {
+  cursor: pointer;
+}
+
+.view[data-transform-hover='rotate'] .stage {
+  cursor: grab;
+}
+
+.view[data-space-pan] .stage {
+  cursor: grab;
+}
+
+.world {
+  position: relative;
+}
+
+/* The picture on the paper it prints on, as on its card. */
+.paper {
+  position: absolute;
+  background: #ffffff;
+}
+
+.picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* The picture's frame: a hairline, where white paper meets the white stage. */
+.frame {
+  position: absolute;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+/* An enlarged step's window: its frame's own shape carries the hairline (DiagramZoomView). */
+.frame[data-zoomed] {
+  box-shadow: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.selection {
+  fill: none;
+  stroke: color-mix(in srgb, var(--annotate-selection) 45%, transparent);
+  stroke-width: 7px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/*
+ * A solid line's wash, under its stroke (`SelectionUnder`): the line's pen is
+ * nearly as wide as the wash, so the wash is widened by about one more pen to
+ * show either side of it.
+ */
+.selection[data-selection-under] {
+  stroke-width: 12px;
+}
+
+.handle {
+  fill: #ffffff;
+  stroke: var(--annotate-selection);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/*
+ * A selected star's, eye's or shape's transform box (Revision 3): its outline, as the Edit
+ * canvas's image selection draws one — solid, in the selection's ink — and
+ * its squares and turn handles, white as the grips are. Each stroke is 1.5
+ * screen px, set on the element divided by the camera's zoom
+ * (`TransformBoxSelection`): `non-scaling-stroke` does not see the camera's
+ * CSS transform, so a width here would grow and shrink with the zoom.
+ */
+.transformBox {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+.transformHandle {
+  fill: #ffffff;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+/* Edit Path: the curve being shaped, a hairline, so the nodes on it read. */
+.pathLine {
+  fill: none;
+  stroke: var(--annotate-selection);
+  stroke-width: 1.25px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/* A node: hollow, filled when it is the selected one. */
+.node {
+  fill: #ffffff;
+  stroke: var(--annotate-selection);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.node[data-selected] {
+  fill: var(--annotate-selection);
+}
+
+/* A handle: the arm from its node, and the dot at its end. */
+.handleArm {
+  stroke: var(--annotate-selection);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.pathHandle {
+  fill: var(--annotate-selection);
+  stroke: #ffffff;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/*
+ * A snap target (decision 9): where a press would land, or the ends in hand
+ * have. A white halo under the mark, so it reads on any picture.
+ */
+.snapHalo {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 4px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.snapHalo * {
+  vector-effect: non-scaling-stroke;
+}
+
+.snapMark {
+  fill: none;
+  stroke: var(--annotate-selection);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.snapMark * {
+  vector-effect: non-scaling-stroke;
+}
+
+/* A vertex's dot, and the dot in an annotation's ring, are solid. */
+.snapMark[data-filled],
+.snapMark [data-dot] {
+  fill: var(--annotate-selection);
+}
+
+/*
+ * The right angle a click would put down (decision 12): a ghost of the mark,
+ * in the selection's colour on a white halo, mitred as the mark is.
+ */
+.ghostHalo,
+.ghost {
+  fill: none;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.ghostHalo {
+  stroke: #ffffff;
+  stroke-width: 4px;
+}
+
+.ghost {
+  stroke: var(--annotate-selection);
+  stroke-width: 1.5px;
+}
+
+/*
+ * A right angle selected or about to be put down (RA6): a hairline from the
+ * vertex it marks to its ∟'s corner, so the vertex's dot reads as the mark's.
+ * Its width is the element's, a screen px at the camera's zoom.
+ */
+.cornerTie {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+/*
+ * Selected equal divisions (Revision 2): a hairline along the line they
+ * measure, which they never draw themselves, between the dots at its ends.
+ */
+.measuredLine {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+/*
+ * A pick tool's picks (15b): the lines picked, washed as a selection is; the
+ * line a press would pick, more lightly — or, where the press takes it
+ * outright (Equal Divisions' click, `data-takes`), in the selection's colour,
+ * so it reads over a solid black edge; the midline between two parallel
+ * lines, dashed; and the points picked, solid dots on a white halo.
+ */
+.pickLine,
+.pickHover,
+.pickMidline {
+  fill: none;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.pickLine {
+  stroke: color-mix(in srgb, var(--annotate-selection) 55%, transparent);
+  stroke-width: 6px;
+}
+
+.pickHover {
+  stroke: color-mix(in srgb, var(--annotate-selection) 30%, transparent);
+  stroke-width: 6px;
+}
+
+.pickHover[data-takes] {
+  stroke: var(--annotate-selection);
+  stroke-width: 3px;
+}
+
+.pickMidline {
+  stroke: var(--annotate-selection);
+  stroke-width: 1.25px;
+  stroke-dasharray: 5 4;
+}
+
+.pickPoint {
+  fill: var(--annotate-selection);
+  stroke: #ffffff;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/*
+ * An enlarged step's frame, selected (Revision 2): a dashed hairline along it
+ * over the picture round it, which a wash would hide, under its grips. Its
+ * width and dashes are the canvas's, in the world, over its zoom.
+ */
+.frameLine {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+/* A selected area's or frame's anchor face: outlined in the selection's ink, as Pose outlines a frame. */
+.anchorFace {
+  fill: none;
+  stroke: var(--annotate-selection);
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* A selected x-ray's picked point (Revision 3): a ring round a dot, in the selection's ink. */
+.anchorPoint {
+  fill: none;
+  stroke: var(--annotate-selection);
+  pointer-events: none;
+}
+
+.anchorPointDot {
+  fill: var(--annotate-selection);
+  stroke: none;
+}
+
+/* The face a click would anchor to, in the pick mode: filled lightly in the selection's ink. */
+.pickFace {
+  fill: color-mix(in srgb, var(--annotate-selection) 22%, transparent);
+  stroke: var(--annotate-selection);
+  stroke-linejoin: round;
+  pointer-events: none;
+}

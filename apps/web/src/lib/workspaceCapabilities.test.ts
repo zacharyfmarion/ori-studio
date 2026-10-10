@@ -26,6 +26,12 @@ function capabilities({
   oristudioCpSolvablePatternCount = 0,
   hasDeletableDesignSelection = false,
   canSaveDesign = activeEditingContext !== 'crease-pattern',
+  hasDiagram = false,
+  diagramStepCount = 0,
+  hasDeletableDiagramSelection = false,
+  diagramDeleteTarget = 'step',
+  canCopyDiagramAnnotation = false,
+  canPasteDiagramAnnotations = false,
   historyPastCount = 0,
   historyFutureCount = 0,
   clipboard = null,
@@ -52,6 +58,12 @@ function capabilities({
   oristudioCpSolvablePatternCount?: number;
   hasDeletableDesignSelection?: boolean;
   canSaveDesign?: boolean;
+  hasDiagram?: boolean;
+  diagramStepCount?: number;
+  hasDeletableDiagramSelection?: boolean;
+  diagramDeleteTarget?: 'step' | 'annotation' | 'node';
+  canCopyDiagramAnnotation?: boolean;
+  canPasteDiagramAnnotations?: boolean;
   historyPastCount?: number;
   historyFutureCount?: number;
   clipboard?: unknown | null;
@@ -79,6 +91,12 @@ function capabilities({
     oristudioCpSolvablePatternCount,
     hasDeletableDesignSelection,
     canSaveDesign,
+    hasDiagram,
+    diagramStepCount,
+    hasDeletableDiagramSelection,
+    diagramDeleteTarget,
+    canCopyDiagramAnnotation,
+    canPasteDiagramAnnotations,
     historyPastCount,
     historyFutureCount,
     clipboard,
@@ -185,6 +203,160 @@ describe('workspace capabilities', () => {
     expect(state['file.exportOrh'].enabled).toBe(false);
     expect(state['file.exportSvg'].enabled).toBe(true);
     expect(getNextDocumentAction(state)).toBe(null);
+  });
+
+  it('gives the Diagram its own undo, redo, Delete, Cut, Copy and Paste, and nothing that authors a pattern or tree', () => {
+    const idle = capabilities({ activeEditingContext: 'diagram', canSaveDesign: false });
+    expect(idle['edit.undo']).toMatchObject({
+      visible: true,
+      enabled: false,
+      reason: 'Undo the last diagram edit',
+    });
+    expect(idle['edit.delete']).toMatchObject({
+      visible: true,
+      enabled: false,
+      reason: 'Select a step first',
+    });
+
+    const live = capabilities({
+      activeEditingContext: 'diagram',
+      canSaveDesign: false,
+      historyPastCount: 2,
+      historyFutureCount: 1,
+      hasDeletableDiagramSelection: true,
+      // Selections elsewhere that Delete, Cut and Copy must not act on from here.
+      hasEditableCreasePattern: true,
+      oristudioCpSelectedLineCount: 3,
+    });
+    expect(live['edit.undo'].enabled).toBe(true);
+    expect(live['edit.redo']).toMatchObject({ enabled: true, reason: 'Redo the next diagram edit' });
+    expect(live['edit.delete']).toMatchObject({
+      enabled: true,
+      reason: 'Delete the selected step',
+    });
+    for (const id of [
+      'edit.selectAll',
+      'insert.image',
+      'cp.checkCamv',
+      'optimize.scale',
+    ] as const) {
+      expect(live[id].visible, id).toBe(false);
+    }
+    expect(live['view.diagram']).toMatchObject({ visible: true, enabled: true });
+
+    // In Annotate, Delete removes the selected annotation, and says so.
+    const annotating = (hasDeletableDiagramSelection: boolean) =>
+      capabilities({ activeEditingContext: 'diagram', diagramDeleteTarget: 'annotation', hasDeletableDiagramSelection })[
+        'edit.delete'
+      ];
+    expect(annotating(true)).toMatchObject({ enabled: true, reason: 'Delete the selected annotation' });
+    expect(annotating(false)).toMatchObject({ enabled: false, reason: 'Select an annotation first' });
+    // With Edit Path's node selected, Delete takes the node out, and says so.
+    expect(
+      capabilities({ activeEditingContext: 'diagram', diagramDeleteTarget: 'node', hasDeletableDiagramSelection: true })[
+        'edit.delete'
+      ]
+    ).toMatchObject({ enabled: true, reason: 'Delete the selected node' });
+
+    // Cut, Copy and Paste act on annotations, and say what they need when they cannot.
+    expect(live['edit.copy']).toMatchObject({ visible: true, enabled: false, reason: 'Select an annotation first' });
+    expect(live['edit.cut']).toMatchObject({ visible: true, enabled: false, reason: 'Select an annotation first' });
+    expect(live['edit.paste']).toMatchObject({
+      visible: true,
+      enabled: false,
+      reason: 'Open a step in Annotate to paste on it',
+    });
+    const clipboardVerbs = (canCopyDiagramAnnotation: boolean, clipboard: unknown | null) => {
+      const state = capabilities({
+        activeEditingContext: 'diagram',
+        canCopyDiagramAnnotation,
+        canPasteDiagramAnnotations: true,
+        clipboard,
+      });
+      return { cut: state['edit.cut'], copy: state['edit.copy'], paste: state['edit.paste'] };
+    };
+    const annotations = { kind: 'diagram-annotations', annotations: [], pastes: {} };
+    expect(clipboardVerbs(true, null)).toMatchObject({
+      cut: { enabled: true, reason: 'Cut the selected annotation' },
+      copy: { enabled: true, reason: 'Copy the selected annotation' },
+      paste: { enabled: false, reason: 'Copy an annotation before pasting' },
+    });
+    expect(clipboardVerbs(false, annotations).paste).toMatchObject({ enabled: true, reason: 'Paste the copied annotation' });
+    // The tree's clipboard is not the Diagram's to paste, nor the crease pattern's, open beside it.
+    const tree = { kind: 'tree', nodes: [], edges: [] };
+    expect(clipboardVerbs(false, tree).paste).toMatchObject({ enabled: false, reason: 'Copy an annotation before pasting' });
+    const lines = capabilities({
+      activeEditingContext: 'diagram',
+      hasEditableCreasePattern: true,
+      canPasteDiagramAnnotations: true,
+      clipboard: { kind: 'cp-lines', lines: [] },
+    })['edit.paste'];
+    expect(lines).toMatchObject({ enabled: false, reason: 'Copy an annotation before pasting' });
+  });
+
+  it("keeps the Diagram's own edits while TreeMaker is busy, and saving held until it is done", () => {
+    const busy = capabilities({
+      activeEditingContext: 'diagram',
+      status: 'optimizing',
+      canSaveDesign: false,
+      hasDiagram: true,
+      historyPastCount: 1,
+      historyFutureCount: 1,
+      hasDeletableDiagramSelection: true,
+    });
+    expect(busy['edit.undo'].enabled).toBe(true);
+    expect(busy['edit.redo'].enabled).toBe(true);
+    expect(busy['edit.delete'].enabled).toBe(true);
+    // The save writes every workspace, the one being optimized too.
+    expect(busy['file.save'].enabled).toBe(false);
+  });
+
+  it('saves a project that has a diagram from any workspace, whatever else it holds', () => {
+    for (const activeEditingContext of ['treemaker-tree', 'crease-pattern', 'bp-tree'] as const) {
+      const state = capabilities({ activeEditingContext, canSaveDesign: false, hasDiagram: true });
+      expect(state['file.save'], activeEditingContext).toMatchObject({
+        enabled: true,
+        reason: 'Save Ori Studio project',
+      });
+      expect(state['file.saveAs'].enabled, activeEditingContext).toBe(true);
+    }
+    // Beside an editable crease pattern on its own canvas, the crease pattern
+    // names the save as it always has.
+    expect(
+      capabilities({
+        documentMode: 'crease-pattern',
+        hasEditableCreasePattern: true,
+        canSaveDesign: false,
+        hasDiagram: true,
+      })['file.save'].reason
+    ).toBe('Save editable crease pattern as an Ori Studio project');
+    // And a busy engine still holds it back.
+    expect(
+      capabilities({ status: 'optimizing', canSaveDesign: false, hasDiagram: true })['file.save']
+        .enabled
+    ).toBe(false);
+  });
+
+  it('exports a diagram with a step from any workspace, while an engine works too', () => {
+    expect(capabilities({ hasDiagram: true, diagramStepCount: 0 })['file.exportDiagram']).toMatchObject({
+      enabled: false,
+      reason: 'Add a step to the diagram to export it',
+    });
+    for (const activeEditingContext of ['diagram', 'treemaker-tree', 'crease-pattern'] as const) {
+      const state = capabilities({ activeEditingContext, status: 'optimizing', hasDiagram: true, diagramStepCount: 3 });
+      expect(state['file.exportDiagram'].enabled, activeEditingContext).toBe(true);
+    }
+  });
+
+  it('prints a diagram with a step from any workspace, as it exports one', () => {
+    expect(capabilities({ hasDiagram: true, diagramStepCount: 0 })['file.printDiagram']).toMatchObject({
+      enabled: false,
+      reason: 'Add a step to the diagram to print it',
+    });
+    for (const activeEditingContext of ['diagram', 'treemaker-tree', 'crease-pattern'] as const) {
+      const state = capabilities({ activeEditingContext, status: 'optimizing', hasDiagram: true, diagramStepCount: 3 });
+      expect(state['file.printDiagram'].enabled, activeEditingContext).toBe(true);
+    }
   });
 
   it('enables CP save actions when an editable CP kernel is available', () => {

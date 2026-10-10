@@ -19,6 +19,59 @@
     "simulateFailed": "无法模拟该区域。",
     "simulateNoRegion": "请选择一个闭合区域进行模拟。"
   },
+  "diagram": {
+    "addedAsStep": "已添加为第 {{number}} 步",
+    "capture": {
+      "failed": "无法捕获图片",
+      "missing": "该图样已不在折痕图中。",
+      "needsPose": "在模拟器中折到一半的步骤需在姿态中捕获：用“调整姿态”打开它。",
+      "noLayerOrder": "无法确定其层序，因此此步骤以透视方式显示折叠后的纸。",
+      "noPattern": "请先在编辑中打开折痕图。",
+      "readOnly": "此图解由更新版本的 Ori Studio 创建，以只读方式打开。",
+      "refused": "此图样无法折叠",
+      "tooDetailed": "过于精细，无法保留为矢量图，因此此步骤将其保留为图像。",
+      "unavailable": "无法模拟此图样。",
+      "unknown": "折痕图尚未就绪。请稍后再试。"
+    },
+    "dropReadOnly": "此图解由更新版本的 Ori Studio 创建，以只读方式打开，因此无法向其中添加图片。",
+    "references": {
+      "addedSteps": "已添加为第 {{first}}–{{last}} 步",
+      "addedTurnOvers_other": "已添加 {{count}} 个翻面",
+      "bakedStep": "第 {{number}} 步的标记仍是图片的一部分：数量超过了一个步骤能容纳的上限。",
+      "bakedSteps_other": "{{count}} 个步骤的标记仍是图片的一部分：数量超过了一个步骤能容纳的上限。",
+      "filledStep": "已填充第 {{number}} 步",
+      "marksEditable_other": "第 {{number}} 步的 {{count}} 个标记现在可以编辑了",
+      "marksOutsideFrame_other": "放大框之外的 {{count}} 个标记未保留",
+      "noMarksInFrame": "第 {{number}} 步的标记都不在放大框内",
+      "replacedEdited_other": "已替换 {{count}} 个你编辑过的标记",
+      "replacedStep": "已替换第 {{number}} 步的卡片",
+      "tooLarge": "此步骤过于复杂，无法保存在图解中。",
+      "undoReplaced": "撤销"
+    },
+    "refreshedAll_other": "已刷新 {{count}} 个步骤",
+    "uploadFailed_other": "{{count}} 张图片未能添加",
+    "uploadFailureLine": "{{name}}：{{reason}}",
+    "uploadFailureMore_other": "另有 {{count}} 张",
+    "uploadProgress_other": "正在添加 {{count}} 张图片…",
+    "uploadRejected": "不是 Ori Studio 能安全读取的 SVG",
+    "uploadTooLarge": "文件过大",
+    "uploadUnreadable": "无法读取图片",
+    "uploadUnsupported": "不是图片文件",
+    "zoom": {
+      "updatedList": "已更新放大步骤 {{numbers}}",
+      "updatedOne": "已更新放大步骤 {{number}}",
+      "updatedRange": "已更新放大步骤 {{first}}–{{last}}",
+      "updatedSome": "已更新 {{total}} 个放大步骤中的 {{placed}} 个",
+      "updatedSomeDetail": "其余步骤无法从此区域获取框。",
+      "updateFailed": "无法更新放大步骤"
+    }
+  },
+  "diagramExport": {
+    "saved": "已导出 {{name}}"
+  },
+  "diagramPrint": {
+    "failed": "无法打印图解"
+  },
   "fileDrop": {
     "ignoredFile": "已使用 {{name}}；忽略了另外 1 个拖放的文件。",
     "ignoredFiles": "已使用 {{name}}；忽略了另外 {{others}} 个拖放的文件。"
@@ -52,6 +105,7 @@
   "references": {
     "searching": "正在查找参考点…",
     "searchingLong": "仍在查找参考点——首次搜索需要构建一张表",
+    "sheetMissing": "该纸张已不在折痕图中。",
     "stop": "取消",
     "stopped": "搜索已取消",
     "stopping": "正在取消…"

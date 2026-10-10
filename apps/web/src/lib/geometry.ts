@@ -10,6 +10,13 @@ export interface PlotRect {
   height: number;
 }
 
+/** The smallest rect holding both. */
+export function unionPlotRect(a: PlotRect, b: PlotRect): PlotRect {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return { x, y, width: Math.max(a.x + a.width, b.x + b.width) - x, height: Math.max(a.y + a.height, b.y + b.height) - y };
+}
+
 export function paperToSvg(point: Point, rect: PlotRect): Point {
   return {
     x: rect.x + point.x * rect.width,
@@ -29,6 +36,18 @@ export function clampPaperPoint(point: Point): Point {
     x: Math.min(1, Math.max(0, point.x)),
     y: Math.min(1, Math.max(0, point.y)),
   };
+}
+
+/**
+ * A turn about the origin by `degrees`, clockwise on a y-down page (the
+ * canvas's, and an SVG's): the identity for a whole number of turns.
+ */
+export function turnClockwise(degrees: number): (point: Point) => Point {
+  if (degrees % 360 === 0) return (point) => point;
+  const radians = (degrees * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return ({ x, y }) => ({ x: x * cos - y * sin, y: x * sin + y * cos });
 }
 
 export function formatNumber(value: number, digits = 3): string {

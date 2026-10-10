@@ -6,6 +6,15 @@ import { devtools } from 'zustand/middleware';
 import { ANALYTICS_EVENTS, bucketCount, CP_SNAP_RADIUS_BUCKETS } from '../analytics/events';
 import { track } from '../analytics/runtime';
 import {
+  normalizeDiagramExportSettings,
+  type DiagramExportSettings,
+} from '../diagram/export/diagramExportSettings';
+import { DEFAULT_DIAGRAM_LINE_TYPE, isDiagramLineType, type DiagramLineType } from '../diagram/annotate/lineTypes';
+import { isAnnotationColor } from '../diagram/annotate/annotationColors';
+import { PLAIN_TEXT_STYLE, readTextStyle, sameTextStyle, type TextStyle } from '../diagram/annotate/textStyle';
+import { circleDrawingMode, type CircleDrawingMode } from '../diagram/annotate/circleDrawing';
+import { isStarFill, type DiagramStarFill } from '../diagram/annotate/starFill';
+import {
   hasCoarsePointer,
   resolveCpSnapRadius,
   subscribeCoarsePointer,
@@ -39,6 +48,8 @@ import {
   type PaperStyleValue,
 } from '../lib/paper/paperStyle';
 import {
+  DEFAULT_PAPER_EXPORT_MARKS,
+  normalizePaperExportMarks,
   normalizePaperExportMemory,
   normalizePaperExportSettings,
   PAPER_EXPORT_STYLE_SLOT,
@@ -46,6 +57,7 @@ import {
   paperExportMemoryOf,
   persistedPaperExport,
   type PaperExportKind,
+  type PaperExportMarks,
   type PaperExportMemory,
   type PaperExportSettings,
   type PaperExportStyleChoice,
@@ -63,6 +75,7 @@ import {
   readNumber,
   readOptionalBoolean,
   readString,
+  removeKey,
   storageKey,
   STORAGE_KEYS,
   writeBoolean,
@@ -86,6 +99,14 @@ const REFERENCES_SHOW_AUX_CREASES_KEY = storageKey(STORAGE_KEYS.referencesShowAu
 const PAPER_STYLE_KEY = storageKey(STORAGE_KEYS.paperStyle);
 const PAPER_EXPORT_KEY = storageKey(STORAGE_KEYS.paperExport);
 const CP_FOLDED_FIGURE_KEY = storageKey(STORAGE_KEYS.creasePatternFoldedFigure);
+const DIAGRAM_EXPORT_KEY = storageKey(STORAGE_KEYS.diagramExport);
+const DIAGRAM_ANNOTATE_SNAP_KEY = storageKey(STORAGE_KEYS.diagramAnnotateSnap);
+const DIAGRAM_ANNOTATE_LINE_TYPE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineType);
+const DIAGRAM_ANNOTATE_LINE_COLOR_KEY = storageKey(STORAGE_KEYS.diagramAnnotateLineColor);
+const DIAGRAM_ANNOTATE_TEXT_STYLE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateTextStyle);
+const DIAGRAM_ANNOTATE_CIRCLE_MODE_KEY = storageKey(STORAGE_KEYS.diagramAnnotateCircleMode);
+const DIAGRAM_ANNOTATE_STAR_FILL_KEY = storageKey(STORAGE_KEYS.diagramAnnotateStarFill);
+const DIAGRAM_REFERENCES_MARKS_KEY = storageKey(STORAGE_KEYS.diagramReferencesMarks);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
@@ -97,6 +118,24 @@ const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
  */
 function readCpWheelGesture(): WheelGesturePreference {
   return readString(CP_WHEEL_GESTURE_KEY) === 'pan' ? 'pan' : 'zoom';
+}
+
+/** The line type Annotate last drew in; valley when none was chosen, or the key reads as nothing it knows. */
+function readDiagramAnnotateLineType(): DiagramLineType {
+  const stored = readString(DIAGRAM_ANNOTATE_LINE_TYPE_KEY);
+  return isDiagramLineType(stored) ? stored : DEFAULT_DIAGRAM_LINE_TYPE;
+}
+
+/** The fill Annotate's Star tool last laid (Revision 3); filled when none was chosen, or the key reads as no fill. */
+function readDiagramAnnotateStarFill(): DiagramStarFill {
+  const stored = readString(DIAGRAM_ANNOTATE_STAR_FILL_KEY);
+  return isStarFill(stored) ? stored : 'black';
+}
+
+/** The colour Annotate last drew a solid line in (17a); the style's ink — null — when none was chosen, or the key reads as no colour. */
+function readDiagramAnnotateLineColor(): string | null {
+  const stored = readString(DIAGRAM_ANNOTATE_LINE_COLOR_KEY);
+  return isAnnotationColor(stored) ? stored : null;
 }
 
 /**
@@ -293,6 +332,48 @@ interface SettingsState {
    * card, and apart from the folded figure's own export (X12).
    */
   creasePatternFoldedFigureStyle: PaperExportStyleChoice;
+  /** What the Diagram's export last wrote, and how; the export dialog is its only editor. */
+  diagramExport: DiagramExportSettings;
+  /**
+   * Whether Annotate snaps a circle, a right angle, a callout's point and a
+   * line's ends to the picture's points within Edit's snap radius (decision
+   * 9; an arrow never snaps). On by default;
+   * ⌘ (Ctrl) places one freely while it is on, and the Step pane's switch,
+   * for a finger, turns it off.
+   */
+  diagramAnnotateSnap: boolean;
+  /**
+   * The line Annotate's Line tool and Angle Bisector draw (15a): the tool hint’s
+   * Line Type, and the keys that pick it. Kept as you left it, as Edit's is.
+   */
+  diagramAnnotateLineType: DiagramLineType;
+  /**
+   * The colour a new solid line is drawn in (17a): the colour select beside
+   * the tool hint’s Line Type while Solid is the type. Null is the style's arrow
+   * ink. Kept as you left it, as the type is.
+   */
+  diagramAnnotateLineColor: string | null;
+  /**
+   * The style a new label is set in (17b): the tool hint’s Text Style while the
+   * Label tool is in hand — a colour, Bold, a halo and a size. Today's look
+   * until one is chosen; kept as you left it, as the line's colour is.
+   */
+  diagramAnnotateTextStyle: TextStyle;
+  /**
+   * The fill a new star is laid with (Revision 3, R3-4 C): the tool hint’s Fill
+   * while the Star tool is in hand, Filled or Outline. Filled until one is
+   * chosen; kept as you left it, as the line's type is.
+   */
+  diagramAnnotateStarFill: DiagramStarFill;
+  /** Shared creation mode for all circular tools. Bounds until the author chooses Center. */
+  diagramAnnotateCircleMode: CircleDrawingMode;
+  /**
+   * Which of a References card's marks the Diagram's References browser
+   * pulls (17d, RM4): its letters and its reference lines, as its Show menu
+   * left them — both until one is hidden, as in export. A hidden mark is not
+   * pulled. Kept as you left it.
+   */
+  diagramReferencesMarks: PaperExportMarks;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -304,6 +385,15 @@ interface SettingsState {
   setCpWheelGesture: (value: WheelGesturePreference) => void;
   setCpSnapRadius: (value: number) => void;
   setReferencesAutoPlayFolds: (value: boolean) => void;
+  setDiagramAnnotateSnap: (value: boolean) => void;
+  setDiagramAnnotateLineType: (value: DiagramLineType) => void;
+  /** Null for the style's ink. */
+  setDiagramAnnotateLineColor: (value: string | null) => void;
+  /** One option or more of the next label's style, the rest as they were. */
+  setDiagramAnnotateTextStyle: (value: Partial<TextStyle>) => void;
+  setDiagramAnnotateCircleMode: (value: CircleDrawingMode) => void;
+  setDiagramAnnotateStarFill: (value: DiagramStarFill) => void;
+  setDiagramReferencesMarks: (value: PaperExportMarks) => void;
   /** `null` hands the choice back to the paper style. */
   setReferencesShowAuxCreases: (value: boolean | null) => void;
   /** Write one field of a slot's style. Editing export while it follows display detaches it. */
@@ -346,6 +436,7 @@ interface SettingsState {
   rememberPaperExportOptions: (kind: PaperExportKind, options: PaperExportSettings) => void;
   /** Keep the folded figure's style a crease-pattern file was saved, or a share published, with. */
   rememberCreasePatternFoldedFigureStyle: (style: PaperExportStyleChoice) => void;
+  rememberDiagramExport: (settings: DiagramExportSettings) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -366,6 +457,14 @@ export const useSettingsStore = create<SettingsState>()(
       paperStyle: readPaperStyleSettings(),
       paperExport: readPaperExportMemory(),
       creasePatternFoldedFigureStyle: readCreasePatternFoldedFigureStyle(),
+      diagramExport: normalizeDiagramExportSettings(readJson<unknown>(DIAGRAM_EXPORT_KEY, null)),
+      diagramAnnotateSnap: readBoolean(DIAGRAM_ANNOTATE_SNAP_KEY, true),
+      diagramAnnotateLineType: readDiagramAnnotateLineType(),
+      diagramAnnotateLineColor: readDiagramAnnotateLineColor(),
+      diagramAnnotateTextStyle: readTextStyle(readJson<unknown>(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY, null)),
+      diagramAnnotateStarFill: readDiagramAnnotateStarFill(),
+      diagramAnnotateCircleMode: circleDrawingMode(readString(DIAGRAM_ANNOTATE_CIRCLE_MODE_KEY)),
+      diagramReferencesMarks: normalizePaperExportMarks(readJson<unknown>(DIAGRAM_REFERENCES_MARKS_KEY, null)),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -418,6 +517,64 @@ export const useSettingsStore = create<SettingsState>()(
         // Hand-placed like the two above: no chokepoint sees a preference
         // change, and on/off is the whole question.
         track(ANALYTICS_EVENTS.referencesFoldAutoplayChanged, { enabled: value ? 'on' : 'off' });
+      },
+      setDiagramAnnotateSnap: (value) => {
+        if (get().diagramAnnotateSnap === value) return;
+        writeBoolean(DIAGRAM_ANNOTATE_SNAP_KEY, value);
+        set({ diagramAnnotateSnap: value });
+        // Hand-placed like the ones above: no chokepoint sees a preference
+        // change. Whether anyone turns snapping off, and back.
+        track(ANALYTICS_EVENTS.diagramAnnotateSnapChanged, { enabled: value ? 'on' : 'off' });
+      },
+      setDiagramAnnotateLineType: (value) => {
+        if (get().diagramAnnotateLineType === value) return;
+        writeString(DIAGRAM_ANNOTATE_LINE_TYPE_KEY, value);
+        // No event: the type is part of choosing a tool, which is not counted;
+        // the lines drawn in each type are (`diagram annotation added`).
+        set({ diagramAnnotateLineType: value });
+      },
+      setDiagramAnnotateLineColor: (value) => {
+        if (get().diagramAnnotateLineColor === value || (value !== null && !isAnnotationColor(value))) return;
+        if (value === null) removeKey(DIAGRAM_ANNOTATE_LINE_COLOR_KEY);
+        else writeString(DIAGRAM_ANNOTATE_LINE_COLOR_KEY, value);
+        // No event, as for the type: the lines drawn in each colour are
+        // counted (`diagram annotation added`'s `color`).
+        set({ diagramAnnotateLineColor: value });
+      },
+      setDiagramAnnotateTextStyle: (value) => {
+        // Each option read as a stored one is: a colour or a size that is not one is never taken.
+        const next = readTextStyle({ ...get().diagramAnnotateTextStyle, ...value });
+        if (sameTextStyle(next, get().diagramAnnotateTextStyle)) return;
+        if (sameTextStyle(next, PLAIN_TEXT_STYLE)) removeKey(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY);
+        else writeJson(DIAGRAM_ANNOTATE_TEXT_STYLE_KEY, next);
+        // No event, as for the line's colour: the labels set in each style are
+        // counted (`diagram annotation added`'s `color`, `bold`, `halo`, `size`).
+        set({ diagramAnnotateTextStyle: next });
+      },
+      setDiagramAnnotateCircleMode: (value) => {
+        const mode = circleDrawingMode(value);
+        if (get().diagramAnnotateCircleMode === mode) return;
+        writeString(DIAGRAM_ANNOTATE_CIRCLE_MODE_KEY, mode);
+        set({ diagramAnnotateCircleMode: mode });
+        track(ANALYTICS_EVENTS.diagramCircleDrawingModeChanged, { mode });
+      },
+      setDiagramAnnotateStarFill: (value) => {
+        if (get().diagramAnnotateStarFill === value || !isStarFill(value)) return;
+        if (value === 'black') removeKey(DIAGRAM_ANNOTATE_STAR_FILL_KEY);
+        else writeString(DIAGRAM_ANNOTATE_STAR_FILL_KEY, value);
+        // No event, as for the line's type: the stars laid in each fill are
+        // counted (`diagram annotation added`'s `fill`).
+        set({ diagramAnnotateStarFill: value });
+      },
+      setDiagramReferencesMarks: (value) => {
+        const next = normalizePaperExportMarks(value);
+        const was = get().diagramReferencesMarks;
+        if (next.letters === was.letters && next.highlights === was.highlights) return;
+        if (next.letters === DEFAULT_PAPER_EXPORT_MARKS.letters && next.highlights === DEFAULT_PAPER_EXPORT_MARKS.highlights) {
+          removeKey(DIAGRAM_REFERENCES_MARKS_KEY);
+        } else writeJson(DIAGRAM_REFERENCES_MARKS_KEY, next);
+        // No event: what is pulled under it is counted (`diagram steps pulled from references`' `letters` and `reference_lines`).
+        set({ diagramReferencesMarks: next });
       },
       setReferencesShowAuxCreases: (value) => {
         if (get().referencesShowAuxCreases === value) return;
@@ -532,6 +689,11 @@ export const useSettingsStore = create<SettingsState>()(
       rememberCreasePatternFoldedFigureStyle: (style) => {
         writeJson(CP_FOLDED_FIGURE_KEY, { style });
         set({ creasePatternFoldedFigureStyle: style });
+      },
+      rememberDiagramExport: (settings) => {
+        const next = normalizeDiagramExportSettings(settings);
+        writeJson(DIAGRAM_EXPORT_KEY, next);
+        set({ diagramExport: next });
       },
     }),
     { name: 'SettingsStore' }

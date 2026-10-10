@@ -28,7 +28,14 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSwatch,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/Select';
 import { textAlignLabel, textBlockLabel, textColorLabel } from '../i18n/enumLabels';
 import {
   TEXT_ALIGNS,
@@ -327,9 +334,7 @@ function TextToolbar({
           <SelectContent {...CANVAS_COMPANION_PROPS} onCloseAutoFocus={refocusEditor}>
             {TEXT_COLORS.map((color) => (
               <SelectItem key={color || 'default'} value={color || 'default'}>
-                {color && (
-                  <span className="select-swatch" style={{ background: color }} aria-hidden="true" />
-                )}
+                {color && <SelectSwatch color={color} />}
                 {textColorLabel(t, color)}
               </SelectItem>
             ))}

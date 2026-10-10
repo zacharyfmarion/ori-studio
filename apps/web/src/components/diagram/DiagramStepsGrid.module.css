@@ -1,0 +1,204 @@
+/*
+ * The Steps grid (DiagramStepsGrid.tsx). As many columns as fit at 220px, one
+ * on a phone. It fills the pane's height so a press anywhere below the cards
+ * lands on it, which is how it tells "empty space" from "a card".
+ */
+.grid {
+  /* The space between cards: where a step can be added between two. */
+  --gap: var(--space-4);
+  /*
+   * The side room a column-1 card's gap needs, which is the grid's padding:
+   * the 20px "+" centred in the gap before it, and a pixel to spare.
+   */
+  --gap-room: calc(var(--gap) / 2 + 11px);
+
+  /* Its width says how many columns there are: one, and the insert gaps go between rows. */
+  container: steps / inline-size;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+  align-content: start;
+  gap: var(--gap);
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: var(--space-5) max(var(--space-5), var(--gap-room));
+}
+
+.grid:focus {
+  outline: none;
+}
+
+/* The trailing Add step tile: an empty card's outline. */
+.addTile {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  min-height: 180px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius);
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+  font-weight: 650;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.addTile:hover {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+/* A card's cell, which the gap before it — its insert target — is placed against. */
+.slot {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+/*
+ * The gap before a card, and a step added there: the whole gap is the target,
+ * a line and a "+" between the cards showing on a hover. Over the gap only, so
+ * it never covers a card. The first card's is the grid's padding.
+ */
+.insert {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  bottom: 0;
+  z-index: 1;
+  width: var(--gap);
+  cursor: pointer;
+}
+
+.insert::before {
+  position: absolute;
+  top: var(--space-2);
+  bottom: var(--space-2);
+  left: 50%;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent-primary);
+  content: '';
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 0.12s ease;
+}
+
+/* Centred on the line, not laid out in the gap: it is wider than the gap. */
+.insertButton {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.insert:hover::before,
+.insert:hover .insertButton {
+  opacity: 1;
+}
+
+.insert:hover .insertButton {
+  transform: translate(-50%, -50%);
+}
+
+/* With no hover to find it by, the "+" stays in sight, quietly. */
+@media (hover: none) {
+  .insertButton {
+    opacity: 0.55;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/*
+ * One column (a phone, or a narrow pane): the card before is above, not
+ * beside, and the gap before a card is the row gap over it — across, not down,
+ * with the line along it. Beside the card it would
+ * sit in the grid's padding, its "+" off the edge of a phone. Two columns need two 220px cards and a gap of
+ * content width, so the threshold follows the gap the media query below sets.
+ */
+@media (min-width: 721px) {
+  @container steps (max-width: 455.98px) {
+    .insert {
+      top: auto;
+      right: 0;
+      bottom: 100%;
+      left: 0;
+      width: auto;
+      height: var(--gap);
+    }
+
+    .insert::before {
+      top: 50%;
+      right: var(--space-2);
+      bottom: auto;
+      left: var(--space-2);
+      width: auto;
+      height: 2px;
+      transform: translateY(-50%);
+    }
+  }
+}
+
+@media (max-width: 720px) {
+  @container steps (max-width: 451.98px) {
+    .insert {
+      top: auto;
+      right: 0;
+      bottom: 100%;
+      left: 0;
+      width: auto;
+      height: var(--gap);
+    }
+
+    .insert::before {
+      top: 50%;
+      right: var(--space-2);
+      bottom: auto;
+      left: var(--space-2);
+      width: auto;
+      height: 2px;
+      transform: translateY(-50%);
+    }
+  }
+}
+
+/* Pictures dragged over the space between cards go in after the selected step. */
+.grid[data-drop-target] {
+  outline: 2px dashed color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  outline-offset: -6px;
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
+@media (max-width: 720px) {
+  .grid {
+    --gap: var(--space-3);
+
+    /* Room over the first card for the gap before it, and its "+". */
+    padding: var(--space-5) var(--space-3) var(--space-3);
+  }
+}
+
+/*
+ * Wide enough for two columns (a phone on its side): the gap before a column-1
+ * card is beside it again, in the side padding, which makes room for its "+".
+ * One column keeps the narrow sides, its gaps above the cards.
+ */
+@media (min-width: 476px) and (max-width: 720px) {
+  .grid {
+    padding-inline: var(--gap-room);
+  }
+}

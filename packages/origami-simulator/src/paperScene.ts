@@ -46,7 +46,10 @@ export type ScenePoint = [number, number];
  * line of a crease pattern — a fold, as the mesh and a folded figure emit
  * them. `'diagram-mountain'` / `'diagram-valley'` are an instruction on a
  * diagram step — fold here, this way — drawn in the style's diagram-crease
- * pens; only a References step emits them.
+ * pens; a References step and a Diagram step's annotations emit them.
+ * `'diagram-hidden'` is a diagram's hidden line, an edge behind the layers in
+ * front of it (the "X-ray" line), drawn in the edge's pen, dotted; only a
+ * Diagram step's annotations emit it.
  */
 export type PaperLineRole =
   | 'edge'
@@ -54,6 +57,7 @@ export type PaperLineRole =
   | 'valley'
   | 'diagram-mountain'
   | 'diagram-valley'
+  | 'diagram-hidden'
   | 'aux';
 
 export type PaperSide = 'front' | 'back';

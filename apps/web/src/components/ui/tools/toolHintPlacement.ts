@@ -68,10 +68,18 @@ export interface ToolHintPlacement {
   width: number;
 }
 
+/**
+ * Where the window sits for `anchor`. `inside` keeps it on the viewport's side
+ * of the seam, its right edge the inset in from it, for a pane whose fields
+ * lie where the overhang would cover them (Diagram's Step pane, its
+ * Instruction): a window over a field takes the press meant for it, and the
+ * keys typed after, which pick tools.
+ */
 export function toolHintPlacement(
   anchor: ToolHintAnchorRect,
   windowSize: ToolHintWindowSize,
-  obstacle?: ToolHintObstacleRect | null
+  obstacle?: ToolHintObstacleRect | null,
+  { inside = false }: { inside?: boolean } = {}
 ): ToolHintPlacement {
   // Only shrinks on a browser window too narrow to hold the window at all; the
   // normal case is the constant.
@@ -80,7 +88,10 @@ export function toolHintPlacement(
   // Clamped rather than allowed to run off-screen: with the View pane closed the
   // seam *is* the app's right edge, which would put most of the window past it.
   const maxLeft = windowSize.width - EDGE_GUARD - width;
-  const left = Math.min(Math.max(anchor.right - TOOL_HINT_OVERHANG, EDGE_GUARD), maxLeft);
+  const left = Math.min(
+    Math.max(inside ? anchor.right - TOOL_HINT_INSET - width : anchor.right - TOOL_HINT_OVERHANG, EDGE_GUARD),
+    maxLeft
+  );
 
   // `bottom` in a fixed layout is measured up from the browser window's bottom,
   // so the viewport's own bottom has to be converted out of top-down coordinates.

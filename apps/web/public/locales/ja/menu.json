@@ -88,6 +88,7 @@
     "export": "エクスポート",
     "exportBps": ".bps をエクスポート...",
     "exportCp": "CP をエクスポート...",
+    "exportDiagram": "折り図をエクスポート...",
     "exportFold": "FOLD をエクスポート...",
     "exportOrh": "ORH をエクスポート...",
     "exportOri": "ORI をエクスポート...",
@@ -98,6 +99,7 @@
     "importAdd": "インポート（追加）...",
     "new": "新規プロジェクト",
     "open": "開く...",
+    "printDiagram": "折り図を印刷...",
     "save": "保存",
     "saveAs": "名前を付けて保存...",
     "settings": "設定"
@@ -126,6 +128,7 @@
   },
   "view": {
     "design": "デザイン",
+    "diagram": "折り図",
     "edit": "編集",
     "properties": "プロパティ",
     "references": "リファレンス",

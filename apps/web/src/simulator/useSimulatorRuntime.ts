@@ -32,6 +32,7 @@ import type {
   SimulatorExportSceneOptions,
   SimulatorPoseEnd,
   SimulatorPullEndResult,
+  SimulatorSessionSceneOptions,
   SimulatorShapeRead,
   SimulatorShapeRestore,
 } from './simulatorSession';
@@ -289,6 +290,13 @@ export interface SimulatorRuntime {
    * where the worker was never sent them.
    */
   beginExport: () => Promise<SimulatorExportSnapshot | null>;
+  /**
+   * The model where the solver holds it now, from a camera, framed in a
+   * square on its own shape with perspective: a Diagram step's picture (D19),
+   * as `flatScene` gives the same step at 0% with no session. Null when this
+   * runtime holds no model.
+   */
+  stillScene: (options: Omit<SimulatorSessionSceneOptions, 'token'>) => Promise<PaperScene | null>;
 }
 
 export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): SimulatorRuntime {
@@ -1026,6 +1034,13 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     };
   }, []);
 
+  const stillScene = useCallback(async (options: Omit<SimulatorSessionSceneOptions, 'token'>): Promise<PaperScene | null> => {
+    const client = clientRef.current;
+    const token = tokenRef.current;
+    if (!client || token === undefined) return null;
+    return client.sessionScene({ ...options, token });
+  }, []);
+
   // Opt-in perf logging: set `oristudio:sim-perf` to `1` in localStorage, then
   // reload. Shared with every other simulator surface — see
   // `useSimulatorPerfLog`, which is one poller per page rather than one per
@@ -1056,6 +1071,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     readShape,
     restoreShape,
     beginExport,
+    stillScene,
   };
 }
 

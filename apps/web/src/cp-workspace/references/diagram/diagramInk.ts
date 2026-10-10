@@ -116,6 +116,64 @@ export const DIAGRAM_SHEET_INK = { width: 1, opacity: 0.55 } as const;
 export const DIAGRAM_MARK_INK = { radius: 3.07, ofArrow: 0.75 } as const;
 
 /**
+ * A right-angle mark (Revision 2's, RA0–RA1): an ∟ of two legs of its own,
+ * parallel to the lines it marks and set into the angle off its vertex, with
+ * a closed square in its corner — in ink, at an annotation's ink (0.331 mm):
+ * - `inset`: how far the ∟'s corner is in from each line, 0.66 mm;
+ * - `side`: the square's side, 1.16 mm;
+ * - `leg`: each leg from the ∟'s corner, so it ends 7.5 ink (2.5 mm) out
+ *   along its line.
+ * Half the size it was first built at (inset 4, side 7, leg 11), in the same
+ * proportions: Zach found that "twice as big as it should be" (2026-10-06).
+ * Its stroke is the aux lines' pen (`auxMarkPen`), for the same review.
+ */
+export const DIAGRAM_RIGHT_ANGLE_INK = { inset: 2, side: 3.5, leg: 5.5 } as const;
+
+/**
+ * An angle marked halved (15b of the second Annotate plan): the radius of the
+ * arc it draws across the angle, in ink — at an annotation's ink (0.331 mm)
+ * 5 mm, twice the first sketch's, which Zach found "way too small" — and each
+ * tick across it: half its length, and how far apart two or three lie along
+ * the arc. Its stroke is a ring's (`markRingWidth`).
+ */
+export const DIAGRAM_ANGLE_MARK_INK = { radius: 15, tick: 1.8, spacing: 1.8 } as const;
+
+/**
+ * Equal divisions (Revision 2): a line set off from the line they measure,
+ * dividers square to it at each end and between parts, and ticks on each
+ * part — Lang's dimension line and hash marks, the sketch's sizes, in ink at
+ * an annotation's ink (0.331 mm):
+ * - `overshoot`: how far a divider runs past the line, 1.65 mm (ED4); where
+ *   the line lies nearer the measured line than that, the divider straddles
+ *   it evenly, this far either side;
+ * - `tick`: a tick's half-length either side of the line, 1 mm (ED11), and
+ *   `spacing`, how far apart two or three stand along it, 0.66 mm;
+ * - `leanDeg`: how far a tick leans off square, as a backslash does across a
+ *   level line;
+ * - the floors a crowded part's ticks shrink to and no further (ED10):
+ *   `tickFloor`, a half-tick in ink, and `spacingFloor`, the spacing in pens;
+ * - `number`: the count's size, the rotate glyph's fraction (2.4 mm), though
+ *   set in the regular weight, not the fraction's bold (Revision 3, R3-3),
+ *   and `gap`, how far past the dividers' ends its box stands.
+ * Every stroke — the line, the dividers and the ticks — is drawn in the aux
+ * lines' pen (`auxMarkPen`, 0.25 pt in the Diagram preset), as a right angle
+ * is: Zach's note for Revision 3, "everything should be drawn in the width
+ * of the aux crease". Until then the dividers and ticks were a ring's (ED9).
+ * `spacingFloor` is still in a ring's pens (`markRingWidth`), so a part
+ * crowds at the printed size it always did.
+ */
+export const DIAGRAM_DIVISIONS_INK = {
+  overshoot: 5,
+  tick: 3,
+  spacing: 2,
+  leanDeg: 20,
+  tickFloor: 1.5,
+  spacingFloor: 2,
+  number: 7.2,
+  gap: 2,
+} as const;
+
+/**
  * An arrowhead: its length, tip to barbs, and the cap for a short arrow as a
  * share of the chord it spans.
  *
@@ -140,8 +198,96 @@ export const DIAGRAM_ARROWHEAD_INK = { length: 8.5, ofChord: 0.26 } as const;
  */
 export const DIAGRAM_FOLD_RETURN_INK = { offset: 10.56, ofChord: 0.26 } as const;
 
+/**
+ * A pleat arrow's Zs (15c of the second Annotate plan), in ink: how far each
+ * steps across its shaft — the space between the bolt's parallel runs — how
+ * far it steps back along the shaft as it crosses, and the run from one Z to
+ * the next. A fixed print size, as every mark's is; at an annotation's ink
+ * (0.331 mm) a Z steps 2.25 mm across, a little under the head's length —
+ * half the first sketch's step, whose runs Zach found too far apart — and
+ * two Zs stand about as far apart along the shaft.
+ */
+export const DIAGRAM_PLEAT_INK = { step: 6.8, back: 4.1, gap: 10.9 } as const;
+
 /** The turn-over glyph's width: 42% of the paper's shorter side on a card. */
 export const DIAGRAM_TURN_OVER_INK = 40.32;
+
+/**
+ * A push arrow's hollow shape, in ink: its head's length and half-width, its
+ * shaft's half-width, and how deep its tail is cleft. Wider than a fold
+ * arrow's head, so the outline reads as a shape with an inside rather than a
+ * thick line.
+ */
+export const DIAGRAM_PUSH_INK = { head: 12, headHalf: 7.5, shaftHalf: 3.2, cleft: 4.5 } as const;
+
+/** A white arrow's widths. */
+export type DiagramWhiteArrowWidth = 'narrow' | 'regular' | 'wide';
+
+/**
+ * What a white arrow is filled with: the page's white, or the arrow's own ink
+ * — a solid arrow, as diagrams draw a push to flatten or a block to slide
+ * (15d). The same outline either way, in the same pen. A star's fill too
+ * (Revision 3): an outline, white inside, or filled with the marks' ink.
+ */
+export type DiagramWhiteArrowFill = 'white' | 'black';
+
+/**
+ * A star naming a point (Revision 3), in ink at `scale` 1: five points, one
+ * up, `radius` from its centre to each tip — 4.5 ink, about 3 mm across, the
+ * size of an arrowhead, as the star in Zach's sample is — and its inner
+ * corners `inner` of that out, a regular star's (1 / φ², 0.382), whose sides
+ * run on in straight lines through the tips beside them. An outlined star is
+ * stroked in a ring's pen, mitred at its tips; a filled one is not stroked.
+ */
+export const DIAGRAM_STAR_INK = { radius: 4.5, inner: 0.382 } as const;
+
+/**
+ * An eye in profile (Revision 3, R3-7 A), saying where the next view is
+ * from, in ink at `scale` 1, as Zach's note draws it (`Diagramming.md`,
+ * "Revison 3"), measured off its picture: two straight lids from a point at
+ * the back, `length` long — 15 ink, about 5 mm — and `spread` either side of
+ * the way it looks at the front, so they meet at about 35°; a cornea arc
+ * across them `cornea` from the back, bulging `bulge` the way it looks, the
+ * lids running on past it about half a millimetre; and the iris, a half
+ * circle of radius `iris` set on the cornea's middle, bulging back into the
+ * eye. Outline only, in a ring's pen, as an outlined star is — the weight of
+ * the note's eye (R3-26 A as applied to the eye, amended 2026-10-08: the aux
+ * lines' pen drew it as a hairline) — its back corner mitred.
+ */
+export const DIAGRAM_EYE_INK = { length: 15, spread: 4.8, cornea: 13.5, bulge: 0.5, iris: 1.2 } as const;
+
+/**
+ * A white arrow's three widths, in ink: its shaft's width at the head (the
+ * neck), and its head's length and width. A fixed print size, as every mark's
+ * is; at an annotation's ink (1.25 CSS px, 0.331 mm) they print as:
+ *
+ * - **regular**, the Origami House template's tapered white arrow
+ *   (`path4649`): a 3.58 mm neck, a head 3.95 mm long and 7.94 mm wide.
+ * - **narrow**, the push arrow's shaft and head (2.12 mm; 3.97 × 4.96 mm), so
+ *   the two hollow arrows beside each other are one weight. The template's
+ *   even white arrows are about as wide: 2.0–2.1 mm necks, heads 3.2–3.7 mm
+ *   long and 4.0–5.9 mm wide.
+ * - **wide**, the regular one 1.4 times over (5.0 mm), for a large motion; the
+ *   template has none wider than regular.
+ */
+export const DIAGRAM_WHITE_ARROW_INK: Readonly<
+  Record<DiagramWhiteArrowWidth, { neck: number; headLength: number; headWidth: number }>
+> = {
+  narrow: {
+    neck: 2 * DIAGRAM_PUSH_INK.shaftHalf,
+    headLength: DIAGRAM_PUSH_INK.head,
+    headWidth: 2 * DIAGRAM_PUSH_INK.headHalf,
+  },
+  regular: { neck: 10.8, headLength: 12, headWidth: 24 },
+  wide: { neck: 15.12, headLength: 16.8, headWidth: 33.6 },
+};
+
+/**
+ * The rotate glyph, in ink: its circle's radius, and the size of the fraction
+ * set inside it. The circle is a little larger than a mark's ring is small, so
+ * "1/8" fits inside with room to read.
+ */
+export const DIAGRAM_ROTATE_INK = { radius: 12.5, fraction: 7.2 } as const;
 
 /** The editor's crease width law: a crease is this many CSS px per unit of line width. */
 export const CP_CREASE_WIDTH_FACTOR = 1.5;

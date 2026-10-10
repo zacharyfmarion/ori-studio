@@ -22,8 +22,14 @@ export function SliderRow({
   onGestureCommit,
   commitLabel,
   onReset,
+  ariaLabel,
+  valueText,
 }: {
   label: string;
+  /** The slider's accessible name, when the row's label says less out of its section ("Amount"). */
+  ariaLabel?: string;
+  /** What a value means, read in place of the bare number: "5% of the model" for a 5. */
+  valueText?: (value: number) => string;
   value: number;
   min: number;
   max: number;
@@ -50,7 +56,8 @@ export function SliderRow({
     >
       <GestureSlider
         className={styles.slider}
-        aria-label={label}
+        aria-label={ariaLabel ?? label}
+        aria-valuetext={valueText?.(value)}
         min={min}
         max={max}
         step={step}

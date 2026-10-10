@@ -1,7 +1,7 @@
 import type { OristudioCpFoldedRenderSnapshot } from '../../engine/oristudioCpTypes';
 import { creaseExportPalette, type CreaseExportTheme } from '../../lib/creaseExport';
 import { foldedFigureSvgBody, projectedFoldedFigureBounds } from '../../lib/foldedFigureSvg';
-import type { Point } from '../../lib/geometry';
+import { turnClockwise } from '../../lib/geometry';
 
 /**
  * A folded figure's stored render snapshot as a standalone page: what a figure
@@ -39,6 +39,11 @@ export interface FoldedFigureExportOptions {
   theme?: CreaseExportTheme;
   /** Draw the page background. Off gives a transparent PNG / bare SVG. */
   showBackgroundColor?: boolean;
+  /**
+   * Turn the figure clockwise by this many degrees before it is fitted: a
+   * Diagram step's pose. Absent or 0 draws it as the kernel did.
+   */
+  rotationDeg?: number;
 }
 
 export interface FoldedFigureExportDocument {
@@ -56,8 +61,8 @@ export function foldedFigureExportDocument(
   options: FoldedFigureExportOptions = {}
 ): FoldedFigureExportDocument | null {
   if (!snapshot) return null;
-  const identity = (point: Point): Point => point;
-  const bounds = projectedFoldedFigureBounds(snapshot, identity);
+  const turn = turnClockwise(options.rotationDeg ?? 0);
+  const bounds = projectedFoldedFigureBounds(snapshot, turn);
   if (!bounds) return null;
 
   const modelWidth = bounds.maxX - bounds.minX;
@@ -74,10 +79,13 @@ export function foldedFigureExportDocument(
   const palette = creaseExportPalette(options.theme ?? 'light');
 
   const body = foldedFigureSvgBody(snapshot, {
-    project: (point) => ({
-      x: (point.x - bounds.minX) * scale + padding,
-      y: (point.y - bounds.minY) * scale + padding,
-    }),
+    project: (point) => {
+      const turned = turn(point);
+      return {
+        x: (turned.x - bounds.minX) * scale + padding,
+        y: (turned.y - bounds.minY) * scale + padding,
+      };
+    },
     scale,
   });
 

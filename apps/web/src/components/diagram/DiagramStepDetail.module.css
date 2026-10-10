@@ -1,0 +1,128 @@
+/*
+ * The step detail (DiagramStepDetail.tsx): a top bar in the shared toolbar
+ * frame, then the picture filling what is left, its pose toolbar floating over
+ * the foot of it.
+ */
+.detail {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.detail:focus {
+  outline: none;
+}
+
+.bar {
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+}
+
+.position {
+  min-width: 0;
+  padding: 0 var(--space-1);
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  place-items: center;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+/* A picture on the paper it prints on, as on its card (DiagramStepCard.module.css). */
+.stage[data-picture] {
+  background: #ffffff;
+}
+
+/* A picture dragged over the Diagram lands on this step (or after it). */
+.stage[data-drop-target] {
+  outline: 2px dashed color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  outline-offset: -8px;
+}
+
+/* The picture keeps its shape, inset so the toolbar never sits on its foot. */
+.picture {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: var(--space-5) var(--space-5) 64px;
+  object-fit: contain;
+}
+
+/*
+ * Centred on its own width: placed at `left: 50%`, an absolute box would lay
+ * out in the half of the stage to its right, and wrap on a phone.
+ */
+.pose {
+  position: absolute;
+  bottom: var(--space-3);
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 2 * var(--space-3));
+  transform: translateX(-50%);
+}
+
+.message {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.message p {
+  max-width: 34ch;
+  margin: 0;
+}
+
+/* The ways to give an empty step a picture, wrapping under the sentence. */
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/*
+ * Annotate: its tools down the left, as Edit's are, and the canvas filling
+ * the rest. The rail's column is Edit's (`.cp-panel__body--with-tools`), so
+ * the two rails are one width at every size.
+ */
+.annotate {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 184px minmax(0, 1fr);
+  min-height: 0;
+}
+
+@media (max-width: 720px) and (pointer: fine) {
+  .annotate {
+    grid-template-columns: 156px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) and (pointer: coarse) {
+  .annotate {
+    grid-template-columns: 152px minmax(0, 1fr);
+  }
+}
+
+@media (pointer: coarse) and (min-width: 721px) {
+  .annotate {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+}

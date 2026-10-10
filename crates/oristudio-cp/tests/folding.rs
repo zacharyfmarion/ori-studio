@@ -2001,6 +2001,242 @@ fn paper_scene_faces_carry_their_folded_outline_and_edge_roles() {
     }
 }
 
+/// Schema 2: a face names the wireframe point behind each outline point — the
+/// ring the wireframe walks, point for point. So the two faces of a fold name
+/// its ends alike and place them alike, while corners of a stack folded onto
+/// one place keep different names: a painter can part those and still keep a
+/// fold joined.
+#[test]
+fn paper_scene_faces_name_the_wireframe_point_behind_each_outline_point() {
+    for (name, segments) in paper_scene_fixtures() {
+        let wireframe = estimate_wireframe_from_segments(&segments, 1)
+            .expect("wireframe")
+            .expect("faces");
+        for state in [FoldedFigureState::Front0, FoldedFigureState::Back1] {
+            let (scene, _) = paper_scene_and_snapshot(&segments, state);
+            assert_eq!(scene.schema_version, 3, "{name} {state:?}");
+            let mut placed: Vec<Option<Point>> = vec![None; wireframe.points.len()];
+            for (index, (face, ring)) in scene.faces.iter().zip(&wireframe.faces).enumerate() {
+                assert_eq!(face.points, *ring, "{name} {state:?}: face {index}");
+                for (point, &vertex) in face.outline.iter().zip(&face.points) {
+                    let at = placed[vertex].get_or_insert(*point);
+                    assert_eq!(
+                        at, point,
+                        "{name} {state:?}: vertex {vertex} is in two places"
+                    );
+                }
+            }
+
+            // Each fold is the edge of exactly one other face, which names its
+            // ends as this one does.
+            let mut folds = 0;
+            for (index, face) in scene.faces.iter().enumerate() {
+                let count = face.points.len();
+                for (edge_index, edge) in face.edges.iter().enumerate() {
+                    if edge.kind != FoldedPaperEdgeKind::Fold {
+                        continue;
+                    }
+                    folds += 1;
+                    let ends = [
+                        face.points[edge_index],
+                        face.points[(edge_index + 1) % count],
+                    ];
+                    let across = scene
+                        .faces
+                        .iter()
+                        .enumerate()
+                        .filter(|(other, _)| *other != index)
+                        .filter(|(_, other)| {
+                            let n = other.points.len();
+                            (0..n).any(|k| {
+                                let pair = [other.points[k], other.points[(k + 1) % n]];
+                                pair == ends || pair == [ends[1], ends[0]]
+                            })
+                        })
+                        .count();
+                    assert_eq!(
+                        across, 1,
+                        "{name} {state:?}: face {index} edge {edge_index} is a fold of {across} other faces"
+                    );
+                }
+            }
+            assert!(folds > 0, "{name} {state:?}: not vacuous, the figure folds");
+
+            // Not keyed by position: some place holds two different vertices.
+            let tolerance = 1e-9 * scene.sheet;
+            let placed = placed.iter().flatten().collect::<Vec<_>>();
+            let stacked = placed
+                .iter()
+                .enumerate()
+                .any(|(i, a)| placed[i + 1..].iter().any(|b| a.distance(**b) <= tolerance));
+            assert!(
+                stacked,
+                "{name} {state:?}: a fold lays two corners on one place"
+            );
+        }
+    }
+}
+
+/// Schema 3: `sheet_points` places every wireframe point on the unfolded
+/// sheet, so each face's map from the sheet to the scene can be fitted from
+/// its own corners. That map is the fold — a reflection chain, then the
+/// render camera — so it is a similarity at the model's scale, mirrored
+/// exactly when the face shows the other side from a face that is not, and
+/// it takes every corner of the face where its outline has it. The faces laid
+/// out on the sheet tile it: their areas add up to the paper's.
+#[test]
+fn paper_scene_sheet_points_map_each_face_to_the_scene_by_a_similarity() {
+    for (name, segments) in paper_scene_fixtures() {
+        let wireframe = estimate_wireframe_from_segments(&segments, 1)
+            .expect("wireframe")
+            .expect("faces");
+        for state in [FoldedFigureState::Front0, FoldedFigureState::Back1] {
+            for (scale, rotation) in [(1.0, 0.0), (2.5, 30.0)] {
+                let model = FoldedFigureModel {
+                    state,
+                    scale,
+                    rotation,
+                    ..FoldedFigureModel::default()
+                };
+                let scene = folded_figure_paper_scene_from_segments(&segments, &[], 1, &model)
+                    .expect("paper scene")
+                    .expect("something to draw");
+                let label = format!("{name} {state:?} ×{scale} {rotation}°");
+                assert_eq!(scene.schema_version, 3, "{label}");
+                assert_eq!(
+                    scene.sheet_points.len(),
+                    wireframe.points.len(),
+                    "{label}: one sheet point per wireframe point"
+                );
+
+                let tolerance = 1e-7 * scene.sheet.max(1.0);
+                let mut reference: Option<(bool, bool)> = None;
+                let mut sheet_area = 0.0;
+                for (index, face) in scene.faces.iter().enumerate() {
+                    let sheet = face
+                        .points
+                        .iter()
+                        .map(|&vertex| scene.sheet_points[vertex])
+                        .collect::<Vec<_>>();
+                    sheet_area += ring_area(&sheet).abs();
+                    // In the crease pattern's own frame: a sheet mirrored or turned
+                    // fits every face as well, but turns an affine spread's axis.
+                    for corner in &sheet {
+                        assert!(
+                            segments.iter().any(|segment| {
+                                segment.a.distance(*corner) <= tolerance
+                                    || segment.b.distance(*corner) <= tolerance
+                            }),
+                            "{label}: face {index} lies off the crease pattern at {corner:?}"
+                        );
+                    }
+                    let map = fit_affine(&sheet, &face.outline)
+                        .unwrap_or_else(|| panic!("{label}: face {index} has no area"));
+                    for (corner, at) in sheet.iter().zip(&face.outline) {
+                        assert!(
+                            apply_affine(&map, *corner).distance(*at) <= tolerance,
+                            "{label}: face {index} is not one affine map from the sheet"
+                        );
+                    }
+                    let [[a, b], [c, d]] = map.0;
+                    let column_x = (a * a + c * c).sqrt();
+                    let column_y = (b * b + d * d).sqrt();
+                    assert!(
+                        (column_x - scale).abs() <= 1e-9 * scale
+                            && (column_y - scale).abs() <= 1e-9 * scale
+                            && (a * b + c * d).abs() <= 1e-9 * scale * scale,
+                        "{label}: face {index} is not a similarity at the model's scale"
+                    );
+                    let mirrored = a * d - b * c < 0.0;
+                    match reference {
+                        None => reference = Some((mirrored, face.front_up)),
+                        Some((first_mirrored, first_front_up)) => assert_eq!(
+                            mirrored != first_mirrored,
+                            face.front_up != first_front_up,
+                            "{label}: face {index} is mirrored against the side it shows"
+                        ),
+                    }
+                }
+
+                let (mut min, mut max) = (
+                    Point::new(f64::INFINITY, f64::INFINITY),
+                    Point::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
+                );
+                for point in &scene.sheet_points {
+                    min = Point::new(min.x.min(point.x), min.y.min(point.y));
+                    max = Point::new(max.x.max(point.x), max.y.max(point.y));
+                }
+                let paper = (max.x - min.x) * (max.y - min.y);
+                assert!(
+                    (sheet_area - paper).abs() <= 1e-9 * paper,
+                    "{label}: the faces on the sheet cover {sheet_area}, the paper {paper}"
+                );
+            }
+        }
+    }
+}
+
+/// A linear part and a translation.
+struct Affine([[f64; 2]; 2], Point);
+
+fn apply_affine(map: &Affine, point: Point) -> Point {
+    let [[a, b], [c, d]] = map.0;
+    Point::new(
+        a * point.x + b * point.y + map.1.x,
+        c * point.x + d * point.y + map.1.y,
+    )
+}
+
+/// The affine map taking `from` onto `to`, through the first corner and the
+/// two others that span the most area; `None` for a ring with none.
+fn fit_affine(from: &[Point], to: &[Point]) -> Option<Affine> {
+    let mut best = None;
+    let mut most = 0.0;
+    for i in 1..from.len() {
+        for j in i + 1..from.len() {
+            let u = Point::new(from[i].x - from[0].x, from[i].y - from[0].y);
+            let v = Point::new(from[j].x - from[0].x, from[j].y - from[0].y);
+            let area = (u.x * v.y - u.y * v.x).abs();
+            if area > most {
+                most = area;
+                best = Some((i, j));
+            }
+        }
+    }
+    let (i, j) = best?;
+    let u = Point::new(from[i].x - from[0].x, from[i].y - from[0].y);
+    let v = Point::new(from[j].x - from[0].x, from[j].y - from[0].y);
+    let big_u = Point::new(to[i].x - to[0].x, to[i].y - to[0].y);
+    let big_v = Point::new(to[j].x - to[0].x, to[j].y - to[0].y);
+    let det = u.x * v.y - u.y * v.x;
+    let inverse = [[v.y / det, -v.x / det], [-u.y / det, u.x / det]];
+    let linear = [
+        [
+            big_u.x * inverse[0][0] + big_v.x * inverse[1][0],
+            big_u.x * inverse[0][1] + big_v.x * inverse[1][1],
+        ],
+        [
+            big_u.y * inverse[0][0] + big_v.y * inverse[1][0],
+            big_u.y * inverse[0][1] + big_v.y * inverse[1][1],
+        ],
+    ];
+    let origin = Point::new(
+        to[0].x - (linear[0][0] * from[0].x + linear[0][1] * from[0].y),
+        to[0].y - (linear[1][0] * from[0].x + linear[1][1] * from[0].y),
+    );
+    Some(Affine(linear, origin))
+}
+
+/// Shoelace: the signed area of a closed ring.
+fn ring_area(ring: &[Point]) -> f64 {
+    let mut twice = 0.0;
+    for (index, point) in ring.iter().enumerate() {
+        let next = ring[(index + 1) % ring.len()];
+        twice += point.x * next.y - next.x * point.y;
+    }
+    twice / 2.0
+}
+
 /// The scene's coordinates are the render snapshot's for the model's state:
 /// the rear pass mirrors and moves the figure, and the scene follows the same
 /// camera, so a subface ring matches the drawer's on the back exactly as on

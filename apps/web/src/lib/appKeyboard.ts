@@ -3,6 +3,7 @@ import type { Selection } from './sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
 import {
   isOpenLayerTarget,
+  isShortcutBarrierOpen,
   isShortcutBarrierTarget,
   isShortcutEditingTarget,
 } from '../keyboard/shortcutDispatcher';
@@ -30,6 +31,15 @@ export interface AppKeyboardActions {
    * where focus happens to be.
    */
   isReadingSitePage?: () => boolean;
+  /**
+   * Whether a command dialog — a confirmation, a number prompt — is open. It is
+   * modal: nothing behind it may act until it is answered. Without this a key
+   * pressed while it was up still reached the workspace, so a Delete
+   * confirmation could be answered for a step that Alt+← had just moved, or
+   * Delete in Edit could remove creases behind "Discard unsaved changes?". Its
+   * own Escape listener runs on the window in the capture phase, before this.
+   */
+  isCommandDialogOpen?: () => boolean;
   getActiveEditingContext: () => EditingContext;
   getSelection: () => Selection;
   handleMenuAction: (id: string) => unknown;
@@ -58,7 +68,9 @@ export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActio
     event.defaultPrevented ||
     isOpenLayerTarget(event.target) ||
     isShortcutBarrierTarget(event.target) ||
-    actions.isReadingSitePage?.()
+    isShortcutBarrierOpen() ||
+    actions.isReadingSitePage?.() ||
+    actions.isCommandDialogOpen?.()
   ) {
     return false;
   }

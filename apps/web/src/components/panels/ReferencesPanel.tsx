@@ -87,6 +87,7 @@ import { useReferencesRun, useReferencesRunToast } from '../../cp-workspace/refe
 import { useReferencesShortcuts } from '../../cp-workspace/references/useReferencesShortcuts';
 import type { ReferencesStepsSource } from '../../cp-workspace/references/referencesExportSteps';
 import { useReferencesStepExport } from '../../cp-workspace/references/useReferencesStepExport';
+import { useReferencesSheetRequest } from '../../cp-workspace/references/useReferencesSheetRequest';
 import { useReferencesTarget } from '../../cp-workspace/references/useReferencesTarget';
 import { useReferencesWays } from '../../cp-workspace/references/useReferencesWays';
 import {
@@ -203,6 +204,8 @@ export function ReferencesPanel() {
     },
     { selectSheet, selectFinding: breakdown.selectFinding }
   );
+  // A diagram step's Open in References: its sheet, in the mode it came from.
+  useReferencesSheetRequest(controller.frames, flow.showSheet, setMode);
 
   const targetHighlights = useReferencesHighlights(
     view.geometry,

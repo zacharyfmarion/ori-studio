@@ -17,8 +17,8 @@ import type { ReferencesMode } from './referencesMode';
  * pattern and survives a switch either way, so coming back to Sequence costs
  * nothing.
  */
-/** What switched the mode: the tab itself, or the lead's line under it. */
-export type ReferencesModeSource = 'tab' | 'lead';
+/** What switched the mode: the tab itself, the lead's line under it, or a diagram step's Open in References. */
+export type ReferencesModeSource = 'tab' | 'lead' | 'diagram';
 
 export interface ReferencesModeController {
   mode: ReferencesMode;
@@ -51,14 +51,15 @@ export function useReferencesMode(
   // callback closes over nothing that changes identity per render.
   const clearRef = useRef(clearPick);
   const hasPickRef = useRef(hasPick);
-  const modeRef = useRef(mode);
   const restoredRef = useRef(restored);
   useEffect(() => {
     clearRef.current = clearPick;
     hasPickRef.current = hasPick;
-    modeRef.current = mode;
     restoredRef.current = restored;
   });
+  // The store's mode as it is now, not as of the last render: a sheet switch
+  // resets it to Find in the same effect that then asks for another mode.
+  const liveMode = () => useWorkspaceStore.getState().referencesView.mode;
 
   // A new document: back to Find. Skipped on mount — the mode the store
   // already holds is the reader's, and remounting the panel (every workspace
@@ -68,12 +69,12 @@ export function useReferencesMode(
     if (seen.current === framingKey) return;
     seen.current = framingKey;
     if (restoredRef.current) return;
-    if (modeRef.current !== 'find') setReferencesView({ mode: 'find' });
+    if (liveMode() !== 'find') setReferencesView({ mode: 'find' });
   }, [framingKey, setReferencesView]);
 
   const setMode = useCallback(
     (next: ReferencesMode, source: ReferencesModeSource = 'tab') => {
-      if (next === modeRef.current) return;
+      if (next === liveMode()) return;
       if (next === 'sequence' && hasPickRef.current) clearRef.current();
       setReferencesView({ mode: next });
       track(ANALYTICS_EVENTS.referencesModeChanged, { mode: next, source });

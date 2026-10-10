@@ -3,6 +3,22 @@ import { handleShortcutKeyDown, isOpenLayerTarget, isShortcutBarrierTarget } fro
 import { SHORTCUT_DEFINITIONS } from './shortcuts';
 
 describe('shortcut dispatcher', () => {
+  it.each([[' ', 'diagram.toolLine'], ['t', 'diagram.toolLabel']] as const)('routes %s through Diagram shortcuts while leaving text fields alone', (key, id) => {
+    const diagram = vi.fn(() => true);
+    const press = () => new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    const options: Parameters<typeof handleShortcutKeyDown>[1] = { scopeStack: ['diagram', 'viewport', 'global'], executors: { diagram } };
+    expect(handleShortcutKeyDown(press(), options)).toBe(true);
+    expect(diagram).toHaveBeenCalledWith(id);
+    diagram.mockClear();
+    const input = document.createElement('input');
+    document.body.append(input);
+    const event = press();
+    input.dispatchEvent(event);
+    expect(handleShortcutKeyDown(event, options)).toBe(false);
+    expect(diagram).not.toHaveBeenCalled();
+    input.remove();
+  });
+
   it('runs scoped CP shortcuts before global shortcuts', () => {
     const cpAction = vi.fn();
     const menu = vi.fn();
@@ -23,6 +39,29 @@ describe('shortcut dispatcher', () => {
     expect(cpAction).toHaveBeenCalledWith('cp.action.inward');
     expect(menu).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('runs nothing for ⌘ or Ctrl pressed alone, held or repeating: Annotate’s free placement holds it mid-drag', () => {
+    const diagram = vi.fn().mockReturnValue(true);
+    const viewport = vi.fn().mockReturnValue(true);
+    const menu = vi.fn();
+    for (const init of [
+      { key: 'Meta', metaKey: true },
+      { key: 'Control', ctrlKey: true },
+      { key: 'Meta', metaKey: true, repeat: true },
+    ]) {
+      const event = new KeyboardEvent('keydown', { ...init, bubbles: true, cancelable: true });
+      expect(
+        handleShortcutKeyDown(event, {
+          scopeStack: ['diagram-path', 'diagram', 'viewport', 'global'],
+          executors: { diagram, viewport, menu },
+        })
+      ).toBe(false);
+      expect(event.defaultPrevented).toBe(false);
+    }
+    expect(diagram).not.toHaveBeenCalled();
+    expect(viewport).not.toHaveBeenCalled();
+    expect(menu).not.toHaveBeenCalled();
   });
 
   // The reason `viewport.delete` can share Delete with `edit.delete`: the

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ANALYTICS_EVENTS,
@@ -10,6 +10,8 @@ import {
 import { handleMenuAction, type MenuActionId } from '../../commands/menuActions';
 import type { ContextMenuItem } from '../../components/ui/contextMenuTypes';
 import { useShortcutStore } from '../../store/shortcutStore';
+import { topmostModalDialog } from '../../components/ui/useModalDialog';
+import { focusCommandDialog } from '../../store/commandDialogStore';
 import { selectWorkspaceCapabilities } from '../../store/workspaceStore/capabilities';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { runContextMenuAction } from './contextMenuRun';
@@ -118,10 +120,27 @@ interface ContextMenuState {
  * right-click landed on and what that thing can do; this only asks for the rows
  * at the moment it needs them.
  */
-export function useContextMenuController(surface: ContextMenuSurface): ContextMenuController {
+export interface ContextMenuControllerOptions {
+  /**
+   * Where focus goes when the menu closes, read as it closes: the element the
+   * menu was about, so a keyboard user carries on from it. Without one, the
+   * menu returns focus to its trigger — an unfocusable anchor at the pointer —
+   * which leaves it on the page.
+   */
+  returnFocusTo?: () => HTMLElement | null;
+}
+
+export function useContextMenuController(
+  surface: ContextMenuSurface,
+  options: ContextMenuControllerOptions = {}
+): ContextMenuController {
   const { t } = useTranslation();
   const [state, setState] = useState<ContextMenuState | null>(null);
   const deferFocusRef = useRef(false);
+  const returnFocusToRef = useRef(options.returnFocusTo);
+  useEffect(() => {
+    returnFocusToRef.current = options.returnFocusTo;
+  });
   // Subscribed, not read imperatively: a rebind has to change the hints on the
   // *next* menu, and the store is the only thing that says a rebind happened.
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
@@ -172,11 +191,32 @@ export function useContextMenuController(surface: ContextMenuSurface): ContextMe
   }, []);
 
   const onCloseAutoFocus = useCallback((event: Event) => {
-    if (!deferFocusRef.current) return;
-    deferFocusRef.current = false;
-    // The item moved focus itself. Without this the menu's trap pulls it
-    // straight back, which blurs a field the same frame it was focused.
+    if (deferFocusRef.current) {
+      deferFocusRef.current = false;
+      // The item moved focus itself. Without this the menu's trap pulls it
+      // straight back, which blurs a field the same frame it was focused.
+      event.preventDefault();
+      return;
+    }
+    const target = returnFocusToRef.current?.() ?? null;
+    // A row asked for a confirmation. The dialog opened while the menu was
+    // still up and lost focus to its trap; now the menu has let go, it takes
+    // focus, and gives it back where the menu would have put it.
+    if (focusCommandDialog(target)) {
+      event.preventDefault();
+      return;
+    }
+    // A row opened a modal dialog of its own (the Diagram's References
+    // browser): it takes focus as the menu lets go (`useModalDialog`), and a
+    // target behind it would put focus outside it.
+    const dialog = topmostModalDialog();
+    if (dialog && !(target && dialog.contains(target))) {
+      event.preventDefault();
+      return;
+    }
+    if (!target) return;
     event.preventDefault();
+    target.focus({ preventScroll: true });
   }, []);
 
   return useMemo(

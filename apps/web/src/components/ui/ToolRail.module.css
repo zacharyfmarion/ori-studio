@@ -1,8 +1,6 @@
 /*
- * The crease-pattern tool rail (CpToolRail.tsx): the groups of tool buttons
- * down the left of the Edit workspace. The glyph inside a button is
- * CpToolGlyph's, and the Shift latch in its touch header is
- * CpShiftLatchToggle's.
+ * The tool rail (ToolRail.tsx): groups of icon-only tools down the left of a
+ * canvas. What a button draws, and what a header row holds, are the host's.
  */
 .rail {
   z-index: 15;
@@ -131,12 +129,8 @@
 }
 
 .button[data-active] {
-  border-color: transparent;
   box-shadow: inset 0 0 0 1px
     color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-}
-
-.button[data-active] {
   border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
   background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
   color: var(--text-primary);
@@ -146,10 +140,37 @@
   pointer-events: none;
 }
 
-/* The line types are one segmented control, which fills the column the tool
-   grid spans rather than taking one of its cells. */
-.buttons[data-group='line-type'] {
+/* A group whose tools are one control (a segmented control): it fills the
+   column the tool grid spans rather than taking one of its cells. */
+.buttons[data-control] {
   display: block;
+}
+
+/*
+ * A header row above the groups (on the Edit rail, the touch Shift latch).
+ * Full width on purpose: the rail's constraint is horizontal, the button grid
+ * below keeps every pixel it has, and what this spends is height in a column
+ * that already scrolls.
+ *
+ * The rail ships one explicit row, `minmax(0, 1fr)`, sized for its only child
+ * being the scrolling group list. A header would take that row simply by being
+ * first, which demotes the group list to an implicit `auto` one — and an `auto`
+ * track holding an `overflow-y: auto` child reports a min-content contribution
+ * of 0 and a max-content contribution of the whole list, so it absorbs the
+ * rail's full height and the `fr` track resolves to 0. Measured on a base iPad:
+ * `grid-template-rows` came out `0px 700px`, and the header's buttons painted on
+ * top of the first group instead of above it. So a rail with a header names
+ * both rows.
+ */
+.rail[data-header] {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) 5px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 /*
@@ -201,49 +222,13 @@
     -webkit-touch-callout: none;
     user-select: none;
   }
-
-  /*
-   * The rail ships one explicit row, `minmax(0, 1fr)`, sized for its only child
-   * being the scrolling group list. The touch header takes that row simply by
-   * being first, which demotes the group list to an implicit `auto` one — and
-   * an `auto` track holding an `overflow-y: auto` child reports a min-content
-   * contribution of 0 and a max-content contribution of the whole list, so it
-   * absorbs the rail's full height and the `fr` track resolves to 0. Measured on
-   * a base iPad: `grid-template-rows` came out `0px 700px`, and the header's
-   * buttons painted on top of the Type group instead of above it.
-   *
-   * So the rows are named here, where the header exists. Unconditional inside
-   * this block even though the header's gate is narrower than it —
-   * `useIsCoarsePointerSurface() && !useIsPhoneLayout()`, so a phone-sized coarse
-   * viewport has a header-less rail whose group list would land back in the
-   * `auto` row and collapse the `fr` one to 0 all over again. That never paints
-   * only because the phone block below hides the rail outright, off the same
-   * query string the predicate reads — so anything that un-hides the rail at
-   * phone width has to bring a row assignment with it. Under a fine pointer the
-   * rail keeps the single-row rule above.
-   */
-  .rail {
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-
-  /*
-   * The rail's one touch-only row: the Shift latch. Full width on purpose — the
-   * rail's constraint is horizontal, the button grid below keeps every pixel it
-   * has, and what this spends is height in a column that already scrolls.
-   */
-  .touchHeader {
-    display: grid;
-    gap: var(--space-1);
-    padding: var(--space-2) 5px;
-    border-bottom: 1px solid var(--border-subtle);
-  }
 }
 
 /*
- * A phone has no rail: the tool sheet replaces it. Hidden rather than unmounted
- * because the rail is a stylesheet's worth of grid tracks and one
- * `display: none` is the whole change; the Shift latch it used to carry is
- * moved in the markup, not hidden, so there is only ever one of it.
+ * A phone has no rail: its host gives it a tool sheet instead (the Edit
+ * workspace's moves the Shift latch there too, in the markup, so there is only
+ * ever one of it). Hidden rather than unmounted because the rail is a
+ * stylesheet's worth of grid tracks and one `display: none` is the whole change.
  */
 @media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
   .rail {

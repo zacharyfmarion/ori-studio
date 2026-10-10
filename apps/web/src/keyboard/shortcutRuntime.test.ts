@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   handleShortcutRuntimeKeyDown,
   registerCpActionShortcutExecutor,
+  registerDiagramShortcutExecutor,
   hasSimulatorExecutor,
+  releaseShortcutViewportSurface,
+  setActiveShortcutViewportSurface,
   registerReferencesShortcutExecutor,
   registerSimulatorShortcutExecutor,
   registerViewportShortcutExecutor,
@@ -195,6 +198,135 @@ describe('shortcut runtime', () => {
 
     expect(cpAction).toHaveBeenCalledWith('cp.action.inward');
     expect(menu).not.toHaveBeenCalled();
+  });
+
+  describe('the Diagram', () => {
+    const key = (init: KeyboardEventInit) =>
+      new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+
+    it('pushes its scope only in its own context, while its panel holds an executor', () => {
+      expect(shortcutScopeStackForContext({ activeEditingContext: 'diagram' })).toEqual([
+        'viewport',
+        'global',
+      ]);
+      cleanupWith(registerDiagramShortcutExecutor(() => true));
+      // Edit Path's node keys ahead of the steps', on the same executor.
+      expect(shortcutScopeStackForContext({ activeEditingContext: 'diagram' })).toEqual([
+        'diagram-path',
+        'diagram',
+        'viewport',
+        'global',
+      ]);
+      // Never beside the crease-pattern scope, even with the executor left behind.
+      expect(shortcutScopeStackForContext({ activeEditingContext: 'crease-pattern' })).toEqual([
+        'viewport',
+        'crease-pattern',
+        'global',
+      ]);
+    });
+
+    it('sends the arrows to its executor, and on to the next scope when it declines', () => {
+      // As the Diagram's does with no node selected: a nudge declines, and the step keys claim.
+      let nodeSelected = false;
+      const diagram = vi.fn((id: string) => nodeSelected || !id.startsWith('diagram.nudge'));
+      cleanupWith(registerDiagramShortcutExecutor(diagram));
+      const viewport = vi.fn(() => false);
+      cleanupWith(registerViewportShortcutExecutor('diagram', viewport));
+      const context = { activeEditingContext: 'diagram' as const, activeViewportSurface: null };
+
+      const claimed = key({ key: 'ArrowRight' });
+      expect(handleShortcutRuntimeKeyDown(claimed, { context, menu: vi.fn() })).toBe(true);
+      expect(diagram.mock.calls.map(([id]) => id)).toEqual(['diagram.nudgeNodeRight', 'diagram.nextStep']);
+      expect(claimed.defaultPrevented).toBe(true);
+
+      // With a node selected in Edit Path, the nudge claims it and the steps never see it.
+      nodeSelected = true;
+      diagram.mockClear();
+      expect(handleShortcutRuntimeKeyDown(key({ key: 'ArrowUp', shiftKey: true }), { context, menu: vi.fn() })).toBe(true);
+      expect(diagram.mock.calls.map(([id]) => id)).toEqual(['diagram.nudgeNodeUpLarge']);
+      nodeSelected = false;
+
+      expect(
+        handleShortcutRuntimeKeyDown(key({ key: 'ArrowLeft', altKey: true }), {
+          context,
+          menu: vi.fn(),
+        })
+      ).toBe(true);
+      expect(diagram).toHaveBeenLastCalledWith('diagram.moveStepEarlier');
+
+      diagram.mockReturnValue(false);
+      const declined = key({ key: 'ArrowRight' });
+      expect(handleShortcutRuntimeKeyDown(declined, { context, menu: vi.fn() })).toBe(false);
+      expect(declined.defaultPrevented).toBe(false);
+    });
+
+    it('leaves a focused field its Backspace and arrows, whatever Edit Path holds', () => {
+      // An executor that would nudge, and a menu that would delete a node: neither may see a field's keys.
+      const diagram = vi.fn(() => true);
+      cleanupWith(registerDiagramShortcutExecutor(diagram));
+      const menu = vi.fn();
+      const context = { activeEditingContext: 'diagram' as const, activeViewportSurface: null };
+      const field = document.createElement('textarea');
+      document.body.append(field);
+      const press = (target: EventTarget, init: KeyboardEventInit) => {
+        let claimed: boolean | null = null;
+        const listen = (event: Event) => {
+          claimed = handleShortcutRuntimeKeyDown(event as KeyboardEvent, { context, menu });
+        };
+        target.addEventListener('keydown', listen);
+        target.dispatchEvent(key(init));
+        target.removeEventListener('keydown', listen);
+        return claimed;
+      };
+      expect(press(field, { key: 'Backspace' })).toBe(false);
+      expect(press(field, { key: 'ArrowLeft' })).toBe(false);
+      expect(press(field, { key: 'ArrowUp', shiftKey: true })).toBe(false);
+      expect(diagram).not.toHaveBeenCalled();
+      expect(menu).not.toHaveBeenCalled();
+      // Off the field, Backspace is Delete's, and the arrows the Diagram's.
+      expect(press(document.body, { key: 'Backspace' })).toBe(true);
+      expect(menu).toHaveBeenCalledWith('edit.delete');
+      expect(press(document.body, { key: 'ArrowLeft' })).toBe(true);
+      expect(diagram).toHaveBeenLastCalledWith('diagram.nudgeNodeLeft');
+      field.remove();
+    });
+
+    it('gives Escape to the diagram viewport surface in its context', () => {
+      const viewport = vi.fn(() => true);
+      cleanupWith(registerViewportShortcutExecutor('diagram', viewport));
+      expect(
+        handleShortcutRuntimeKeyDown(key({ key: 'Escape' }), {
+          context: { activeEditingContext: 'diagram', activeViewportSurface: null },
+          menu: vi.fn(),
+        })
+      ).toBe(true);
+      expect(viewport).toHaveBeenCalledWith('viewport.cancel');
+    });
+
+    it('lets go of its viewport claim, so the next workspace’s keys reach their own surface', () => {
+      const cp = vi.fn(() => true);
+      cleanupWith(registerViewportShortcutExecutor('crease-pattern', cp));
+      setActiveShortcutViewportSurface('diagram');
+      releaseShortcutViewportSurface('diagram');
+      expect(
+        handleShortcutRuntimeKeyDown(key({ key: 'Escape' }), {
+          context: { activeEditingContext: 'crease-pattern' },
+          menu: vi.fn(),
+        })
+      ).toBe(true);
+      expect(cp).toHaveBeenCalledWith('viewport.cancel');
+
+      // And never another surface's claim.
+      setActiveShortcutViewportSurface('tree');
+      releaseShortcutViewportSurface('diagram');
+      cp.mockClear();
+      handleShortcutRuntimeKeyDown(key({ key: 'Escape' }), {
+        context: { activeEditingContext: 'crease-pattern' },
+        menu: vi.fn(),
+      });
+      expect(cp).not.toHaveBeenCalled();
+      releaseShortcutViewportSurface('tree');
+    });
   });
 
   it('routes viewport shortcuts to the active surface executor', () => {

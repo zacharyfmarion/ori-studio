@@ -1,0 +1,316 @@
+import { useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { trackDiagramViewSwitched } from '../../analytics';
+import { handleMenuAction } from '../../commands/menuActions';
+import {
+  DEFAULT_DIAGRAM_STYLE,
+  DEFAULT_PAGE_SETUP,
+  stepsOf,
+  type DiagramAsset,
+  type DiagramEntry,
+  type DiagramStep,
+} from '../../diagram/document/diagramDocument';
+import { cellsPerPage, splitIntoPages } from '../../diagram/pages/diagramPageLayout';
+import type { PreparedDiagramPages } from '../../diagram/pages/diagramPages';
+import { useDiagramPages } from '../../diagram/pages/useDiagramPages';
+import { fillStepFromReferences, openReferencesBrowser } from '../../diagram/references/referencesBrowserActions';
+import { DIAGRAM_PAGE_PANE_ID, revealDiagramPane, useDiagramPaneReveal } from '../../diagram/useDiagramPaneReveal';
+import { refreshAllDiagramSteps, stopRefreshAll } from '../../diagram/capture/captureQueue';
+import { openDiagramPatternPicker } from '../../diagram/capture/stepCaptureActions';
+import { useDiagramCardLinks } from '../../diagram/capture/useCardLinks';
+import { useDiagramLinkedPose } from '../../diagram/capture/useDiagramLinkedPose';
+import { pickStepPictures } from '../../diagram/upload/addStepPictures';
+import { useStepPictureDrop } from '../../diagram/upload/useStepPictureDrop';
+import {
+  addDiagramStep,
+  appendDiagramStep,
+  insertDiagramStepBeside,
+  insertDiagramTurn,
+  makeDiagramStepTurn,
+  openDiagramStep,
+  useAddDiagramStep,
+  useDiagramPoseActions,
+} from '../../diagram/useDiagramActions';
+import { useDiagramShortcuts } from '../../diagram/useDiagramShortcuts';
+import { useDiagramStepMenu } from '../../diagram/useDiagramStepMenu';
+import { useDiagramPrintUiStore } from '../../store/diagramPrintUiStore';
+import { useLayoutStore } from '../../store/layoutStore';
+import { useWorkspaceStore } from '../../store/workspaceStore';
+import type { DiagramViewMode } from '../../store/workspaceStore/types';
+import { DiagramEmptyState } from '../diagram/DiagramEmptyState';
+import { DiagramHeader } from '../diagram/DiagramHeader';
+import { DiagramPagesView } from '../diagram/DiagramPagesView';
+import { useReferencesStepWays } from '../../diagram/references/useReferencesStepWays';
+import { usePublishPrintedFrames } from '../../diagram/pages/printedFrames';
+import { useZoomSplitNotice } from '../../diagram/pages/useZoomSplitNotice';
+import { openEnlargeArea } from '../../diagram/zoom/openEnlargeArea';
+import { DiagramStepDetail } from '../diagram/DiagramStepDetail';
+import { DiagramStepsGrid } from '../diagram/DiagramStepsGrid';
+import { ContextMenu } from '../ui/ContextMenu';
+import { Notice } from '../ui/Notice';
+import styles from './DiagramPanel.module.css';
+
+const NO_STEPS: readonly DiagramStep[] = [];
+const NO_ENTRIES: readonly DiagramEntry[] = [];
+const NONE_CUT: ReadonlySet<string> = new Set();
+
+/** The steps whose instruction the pages cut with "…". */
+function cutStepIds(pages: PreparedDiagramPages | null): ReadonlySet<string> {
+  if (!pages) return NONE_CUT;
+  const cut = new Set<string>();
+  for (const page of pages.layout.pages) for (const cell of page.cells) if (cell.textOverflow) cut.add(cell.stepId);
+  return cut.size > 0 ? cut : NONE_CUT;
+}
+const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
+
+const openOnDoubleClick = (stepId: string) => void openDiagramStep(stepId, 'double_click');
+const openAreaOnDoubleClick = (stepId: string, areaId: string) => void openEnlargeArea(stepId, areaId);
+const openFromCard = (stepId: string, mode: 'pose' | 'annotate') => void openDiagramStep(stepId, 'card', mode);
+/** With no crease pattern open, the way to one: Edit, to open or draw it (D12). */
+const goToEdit = () => void handleMenuAction('view.edit');
+
+// Straight from the click, so the browser opens its picker (a user gesture).
+const uploadPictures = () => void pickStepPictures();
+const uploadPictureFor = (stepId: string) => void pickStepPictures({ replaceStepId: stepId });
+/** Link pattern… from the header or the empty diagram: a new step, and its pattern picker. */
+const refreshAll = () => void refreshAllDiagramSteps();
+const appendStep = () => void appendDiagramStep();
+const insertBefore = (stepId: string) => void insertDiagramStepBeside(stepId, 'before');
+const addTurn = (kind: 'turn-over' | 'rotate') => void insertDiagramTurn(kind, 'add_menu');
+const makeTurn = (stepId: string, kind: 'turn-over' | 'rotate') => void makeDiagramStepTurn(stepId, kind);
+/** A card's own Delete (D24): as the menu's, asking first for a step with work in it. */
+const deleteFromCard = (id: string) => void useWorkspaceStore.getState().confirmDeleteDiagramSteps([id]);
+const linkNewStep = () => {
+  const stepId = addDiagramStep();
+  if (stepId) openDiagramPatternPicker(stepId);
+};
+
+
+const switchView = (view: DiagramViewMode) => {
+  const store = useWorkspaceStore.getState();
+  if (store.diagramView === view) return;
+  store.setDiagramView(view);
+  trackDiagramViewSwitched(view);
+};
+
+/** A press on a page outside its steps: a question about the page. */
+const revealPagePane = () => revealDiagramPane(DIAGRAM_PAGE_PANE_ID);
+
+/**
+ * The Diagram workspace: the steps of a folding sequence in order, each a
+ * picture and an instruction, on their way to printed pages.
+ *
+ * A composition site (AGENTS.md › Panel components): the header, the grid and
+ * the empty state are children, the verbs live in `diagram/actions/`, and the
+ * store bindings in `diagram/useDiagramActions.ts`, the keys in
+ * `useDiagramShortcuts`, the card menu in `useDiagramStepMenu` and dropped
+ * pictures in `useStepPictureDrop`. No keyboard handling here.
+ * The selected step's controls are the Step pane beside this one
+ * (`DiagramStepPanel`), which reads the store on its own.
+ *
+ * Nothing here creates a diagram: the first edit does (`commit` in the slice),
+ * so opening the workspace on a project without one leaves it without one.
+ */
+export function DiagramPanel() {
+  const { t } = useTranslation();
+  const setViewDrawerSlot = useLayoutStore((state) => state.setViewDrawerSlot);
+  const title = useWorkspaceStore((state) => state.diagram?.title ?? '');
+  // The order — steps and the turns between them (D22) — and the steps alone,
+  // which are numbered, opened, laid out and exported.
+  const entries = useWorkspaceStore((state) => state.diagram?.steps ?? NO_ENTRIES);
+  const steps = useWorkspaceStore((state) => (state.diagram ? stepsOf(state.diagram) : NO_STEPS));
+  const assets = useWorkspaceStore((state) => state.diagram?.assets ?? NO_ASSETS);
+  const style = useWorkspaceStore((state) => state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE);
+  const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
+  const printing = useDiagramPrintUiStore((state) => state.preparing);
+  const selectedStepId = useWorkspaceStore((state) => state.diagramSelectedStepId);
+  const selectStep = useWorkspaceStore((state) => state.selectDiagramStep);
+  const detail = useWorkspaceStore((state) => state.diagramDetail);
+  const closeStep = useWorkspaceStore((state) => state.closeDiagramStep);
+  const openStepIn = useWorkspaceStore((state) => state.openDiagramStep);
+  const setAnnotateTool = useWorkspaceStore((state) => state.setDiagramAnnotateTool);
+  const poseActions = useDiagramPoseActions(detail !== null ? selectedStepId : null);
+  const setTitle = useWorkspaceStore((state) => state.setDiagramTitle);
+  const addStep = useAddDiagramStep();
+  const rootRef = useRef<HTMLElement | null>(null);
+  const menu = useDiagramStepMenu(rootRef);
+  const keys = useDiagramShortcuts({ openStepMenu: menu.openStepMenu });
+  const { dropTarget, ...dropHandlers } = useStepPictureDrop();
+  const links = useDiagramCardLinks(steps, style);
+  const patternOpen = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
+  const refreshing = useWorkspaceStore((state) => state.diagramRefreshAll);
+  const diagram = useWorkspaceStore((state) => state.diagram);
+  const view = useWorkspaceStore((state) => state.diagramView);
+  useDiagramPaneReveal();
+  // Laid out in either view: the pages are the Pages view, and the cards say
+  // whose text the pages cut.
+  const pages = useDiagramPages(steps.length > 0 ? diagram : null);
+  const page = diagram?.page ?? DEFAULT_PAGE_SETUP;
+  const pageCount = useMemo(
+    () => splitIntoPages(steps, cellsPerPage(page)).length,
+    [steps, page]
+  );
+  const textCut = useMemo(() => cutStepIds(pages.pages), [pages.pages]);
+  // And the size each step prints at, for the Layers pane's warnings (Revision 2).
+  usePublishPrintedFrames(pages.pages, pages.of);
+  // An enlarged step on the page after its area, said over the pages (Revision 2).
+  const zoomSplitNotice = useZoomSplitNotice(view === 'pages' ? pages.pages : null, pages.of);
+
+  const detailIndex =
+    detail !== null && selectedStepId !== null
+      ? steps.findIndex((step) => step.id === selectedStepId)
+      : -1;
+  // Held for as long as the detail is open on a linked step: its fold, between verbs.
+  const linkedPose = useDiagramLinkedPose(detailIndex >= 0 ? steps[detailIndex] : null);
+  // A References step's other ways to fold its card, while its detail is open (D23).
+  const ways = useReferencesStepWays(detailIndex >= 0 ? steps[detailIndex]! : null);
+  if (detailIndex >= 0) {
+    const step = steps[detailIndex];
+    return (
+      <section
+        ref={rootRef}
+        className="panel-shell"
+        aria-label={t('panels:diagram.label', 'Diagram')}
+        onPointerDownCapture={keys.onPointerDownCapture}
+        {...dropHandlers}
+      >
+        <DiagramStepDetail
+          // A new detail per step: it takes focus as it opens, and keeps none of the last.
+          key={step.id}
+          step={step}
+          assets={assets}
+          style={style}
+          number={detailIndex + 1}
+          count={steps.length}
+          readOnly={readOnly}
+          mode={detail ?? 'pose'}
+          onMode={(mode) => openStepIn(step.id, mode)}
+          onAnnotateTool={setAnnotateTool}
+          poseActions={poseActions}
+          linkedPose={linkedPose}
+          ways={ways}
+          onBack={closeStep}
+          onStep={(direction) => {
+            const next = steps[detailIndex + direction];
+            if (next) selectStep(next.id);
+          }}
+          onUpload={() => uploadPictureFor(step.id)}
+          patternOpen={patternOpen}
+          onLink={() => openDiagramPatternPicker(step.id)}
+          onFromReferences={() => fillStepFromReferences(step.id)}
+          onGoToEdit={goToEdit}
+          dropping={dropTarget !== null}
+          drawerSlot={setViewDrawerSlot}
+        />
+      </section>
+    );
+  }
+
+  return (
+    <section
+      ref={rootRef}
+      className="panel-shell"
+      aria-label={t('panels:diagram.label', 'Diagram')}
+      onPointerDownCapture={keys.onPointerDownCapture}
+      {...dropHandlers}
+    >
+      <DiagramHeader
+        title={title}
+        stepCount={steps.length}
+        pageCount={pageCount}
+        view={view}
+        onViewChange={switchView}
+        readOnly={readOnly}
+        onRename={setTitle}
+        onAddStep={addStep}
+        onUpload={uploadPictures}
+        patternOpen={patternOpen}
+        onLink={linkNewStep}
+        onFromReferences={openReferencesBrowser}
+        onAddTurn={addTurn}
+        staleCount={links.refreshable}
+        poseAgainCount={links.poseAgain}
+        refreshing={refreshing}
+        onRefreshAll={refreshAll}
+        onStopRefreshing={stopRefreshAll}
+        onExport={() => void handleMenuAction('file.exportDiagram')}
+        onPrint={() => void handleMenuAction('file.printDiagram')}
+        printing={printing}
+        drawerSlot={setViewDrawerSlot}
+      />
+      {readOnly && (
+        <div className={styles.notice}>
+          <Notice>
+            {t(
+              'panels:diagram.readOnlyNotice',
+              'This diagram was made with a newer Ori Studio, so it opens read-only here. Saving keeps it exactly as it came.'
+            )}
+          </Notice>
+        </div>
+      )}
+      {zoomSplitNotice && steps.length > 0 && (
+        <div className={styles.notice}>
+          <Notice>{zoomSplitNotice}</Notice>
+        </div>
+      )}
+      <div className="panel-body" onContextMenu={entries.length > 0 ? menu.onContextMenu : undefined}>
+        {steps.length > 0 && view === 'pages' ? (
+          <DiagramPagesView
+            pages={pages.pages}
+            failed={pages.failed}
+            steps={steps}
+            selectedStepId={selectedStepId}
+            pathColor={page.pathColor}
+            fitKey={`${diagram?.id ?? ''}:${page.size}:${page.orientation}`}
+            onSelect={selectStep}
+            onOpen={openOnDoubleClick}
+            onOpenArea={openAreaOnDoubleClick}
+            onPageClick={revealPagePane}
+          />
+        ) : entries.length === 0 ? (
+          <DiagramEmptyState
+            readOnly={readOnly}
+            dropTarget={dropTarget !== null}
+            onAddStep={addStep}
+            onUpload={uploadPictures}
+            patternOpen={patternOpen}
+            onLink={linkNewStep}
+            onFromReferences={openReferencesBrowser}
+            onGoToEdit={goToEdit}
+          />
+        ) : (
+          <DiagramStepsGrid
+            entries={entries}
+            assets={assets}
+            style={style}
+            selectedStepId={selectedStepId}
+            dropTarget={dropTarget}
+            readOnly={readOnly}
+            onSelect={selectStep}
+            onOpen={openOnDoubleClick}
+            onUpload={uploadPictureFor}
+            links={links}
+            textCut={textCut}
+            patternOpen={patternOpen}
+            onLink={openDiagramPatternPicker}
+            onFromReferences={fillStepFromReferences}
+            onOpenIn={openFromCard}
+            onGoToEdit={goToEdit}
+            onAppend={readOnly ? undefined : appendStep}
+            onInsertBefore={readOnly ? undefined : insertBefore}
+            onMakeTurn={makeTurn}
+            onDelete={deleteFromCard}
+          />
+        )}
+      </div>
+      <ContextMenu
+        open={menu.controller.open}
+        x={menu.controller.x}
+        y={menu.controller.y}
+        items={menu.controller.items}
+        onOpenChange={menu.controller.onOpenChange}
+        onCloseAutoFocus={menu.controller.onCloseAutoFocus}
+      />
+    </section>
+  );
+}

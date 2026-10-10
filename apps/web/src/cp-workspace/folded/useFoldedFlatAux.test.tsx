@@ -55,7 +55,8 @@ vi.mock('../../monitoring', () => ({
 }));
 
 const SCENE: OristudioCpFoldedPaperScene = {
-  schema_version: 1,
+  schema_version: 2,
+  sheet_points: [],
   flipped: false,
   sheet: 100,
   faces: [
@@ -66,6 +67,7 @@ const SCENE: OristudioCpFoldedPaperScene = {
         { x: 100, y: 100 },
         { x: 0, y: 100 },
       ],
+      points: [],
       front_up: true,
       edges: [],
     },

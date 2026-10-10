@@ -82,6 +82,15 @@ describe('foldedFigureExportDocument', () => {
     expect(page?.height).toBeCloseTo(1024 / 4 + padding * 2);
   });
 
+  it('turns the figure clockwise before fitting it, for a Diagram step’s pose', () => {
+    const quarter = foldedFigureExportDocument(snapshot([wideRect()]), { rotationDeg: 90 })!;
+    const upright = foldedFigureExportDocument(snapshot([wideRect()]))!;
+    // A wide figure turned a quarter stands tall, at the same fit.
+    expect(quarter.width).toBeCloseTo(upright.height);
+    expect(quarter.height).toBeCloseTo(upright.width);
+    expect(foldedFigureExportDocument(snapshot([wideRect()]), { rotationDeg: 360 })!.svg).toBe(upright.svg);
+  });
+
   it('sizes the viewBox to the page so the figure fills it', () => {
     const page = foldedFigureExportDocument(snapshot([square()]));
     expect(page?.svg).toContain(

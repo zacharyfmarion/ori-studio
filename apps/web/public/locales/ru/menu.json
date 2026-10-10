@@ -88,6 +88,7 @@
     "export": "Экспорт",
     "exportBps": "Экспорт .bps...",
     "exportCp": "Экспорт CP...",
+    "exportDiagram": "Экспорт схемы...",
     "exportFold": "Экспорт FOLD...",
     "exportOrh": "Экспорт ORH...",
     "exportOri": "Экспорт ORI...",
@@ -98,6 +99,7 @@
     "importAdd": "Импорт (добавить)...",
     "new": "Новый проект",
     "open": "Открыть...",
+    "printDiagram": "Печать схемы...",
     "save": "Сохранить",
     "saveAs": "Сохранить как...",
     "settings": "Настройки"
@@ -126,6 +128,7 @@
   },
   "view": {
     "design": "Дизайн",
+    "diagram": "Схема",
     "edit": "Правка",
     "properties": "Свойства",
     "references": "Референсы",

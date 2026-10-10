@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_PAGE, type PaperPage } from '../../lib/paper/paperPage';
 import type {
@@ -11,7 +13,7 @@ import { PT_PER_CSS_PX, mmToCssPx, pageMarginPt, paperSceneToSvg } from '../../l
 import { REFERENCE_COLORS } from '../../themes/applyTheme';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import { DIAGRAM_INK_PER_SHEET, DIAGRAM_LINE_INK, penInk } from './diagram/diagramInk';
-import { createDiagramRenderContext } from './diagram/DiagramPrimitives';
+import { createDiagramRenderContext, diagramShapes } from './diagram/DiagramPrimitives';
 import { unitFrame } from './diagram/diagramFrames';
 import { plannerStepDiagram } from './diagram/plannerDiagram';
 import { diagramToPaperScene } from './diagramToPaperScene';
@@ -204,6 +206,72 @@ describe('the sheet', () => {
     const pad = (40 * DIAGRAM_PADDING) / (1 - 2 * DIAGRAM_PADDING);
     expect(lettered.bounds.minX).toBeLessThan(-pad);
     expect(lettered.bounds.minX).toBeLessThanOrEqual(Number(letter!.x));
+  });
+
+  it('grows its bounds to hold every mark as drawn when asked, a Diagram page’s step, not a card’s (review 4)', () => {
+    // A small sheet and the heaviest pen: the fold arrow and the ring stand far past the band a card keeps for them.
+    const heavy = { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: 12 } };
+    const marked = model(
+      { kind: 'fold-arrow', out: { center: [0.5, 0.5], radius: 0.4, from: 0.3, to: 1.2, ccw: true } },
+      { kind: 'point', at: [0, 1], style: 'action' },
+      { kind: 'line', from: [0.1, 0.1], to: [0.9, 0.1], style: 'highlight' }
+    );
+    const at = (marksInBounds: boolean) =>
+      diagramToPaperScene(marked, {
+        style: heavy,
+        project: createOverlayProjector({ origin: [0, 0], ex: [12, 0], ey: [0, -12] }, 1),
+        mirrored: false,
+        marksInBounds,
+      });
+    const [card, page] = [at(false), at(true)];
+    // The ink as drawn, which the markup writes to a thousandth: each stroke sampled along it, half its width round it;
+    // a filled head's points.
+    const ink = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+    const take = (x: number, y: number, pad: number) => {
+      ink.minX = Math.min(ink.minX, x - pad);
+      ink.minY = Math.min(ink.minY, y - pad);
+      ink.maxX = Math.max(ink.maxX, x + pad);
+      ink.maxY = Math.max(ink.maxY, y + pad);
+    };
+    const svg = markups(page)[0]!.svg;
+    for (const path of elements(svg, 'path')) {
+      const numbers = path.d!.match(/-?\d+(?:\.\d+)?(?:e-?\d+)?/g)!.map(Number);
+      if (path.fill && path.fill !== 'none') {
+        for (let i = 0; i + 1 < numbers.length; i += 2) take(numbers[i]!, numbers[i + 1]!, 0);
+        continue;
+      }
+      // An arc, `M x1 y1 A r r 0 large sweep x2 y2`: its centre from its ends, as SVG finds it.
+      const [x1, y1, r, , , large, sweep, x2, y2] = numbers as [number, number, number, number, number, number, number, number, number];
+      const [hx, hy] = [(x1 - x2) / 2, (y1 - y2) / 2];
+      const across = Math.hypot(hx, hy);
+      const radius = Math.max(r, across);
+      const lift = (Math.sqrt(Math.max(0, radius * radius - across * across)) / across) * (large === sweep ? -1 : 1);
+      const [cx, cy] = [(x1 + x2) / 2 + lift * hy, (y1 + y2) / 2 - lift * hx];
+      const from = Math.atan2(y1 - cy, x1 - cx);
+      let turn = Math.atan2(y2 - cy, x2 - cx) - from;
+      if (sweep === 1 && turn < 0) turn += 2 * Math.PI;
+      if (sweep === 0 && turn > 0) turn -= 2 * Math.PI;
+      const half = Number(path['stroke-width']) / 2;
+      for (let i = 0; i <= 2000; i += 1) take(cx + radius * Math.cos(from + (turn * i) / 2000), cy + radius * Math.sin(from + (turn * i) / 2000), half);
+    }
+    for (const circle of elements(svg, 'circle')) {
+      take(Number(circle.cx), Number(circle.cy), Number(circle.r) + Number(circle['stroke-width'] ?? 0) / 2);
+    }
+    for (const accent of elements(svg, 'line')) {
+      const half = Number(accent['stroke-width']) / 2;
+      take(Number(accent.x1), Number(accent.y1), half);
+      take(Number(accent.x2), Number(accent.y2), half);
+    }
+    // The card's own bounds leave its marks out; the page's hold them, and reach no further than they or the card do.
+    expect(card.bounds.minX).toBeGreaterThan(ink.minX + 1);
+    for (const side of ['minX', 'minY'] as const) {
+      expect(page.bounds[side]).toBeCloseTo(Math.min(card.bounds[side], ink[side]), 2);
+    }
+    for (const side of ['maxX', 'maxY'] as const) {
+      expect(page.bounds[side]).toBeCloseTo(Math.max(card.bounds[side], ink[side]), 2);
+    }
+    // Everything else as the card has it.
+    expect(page.items).toEqual(card.items.map((item) => (item.kind === 'markup' ? { ...item, bounds: page.bounds } : item)));
   });
 
   it('places a letter where the big view does, not where a card’s box would', () => {
@@ -489,6 +557,66 @@ const BEFORE_TWO_INKS = [
   '<path d="M 25.645 4.42 L 21.471 3.504 Q 23.345 3.157 22.632 1.39 Z" fill="#000000"></path>',
   '</g>',
 ].join('');
+
+describe('a letter’s halo across the sheet’s edge (rf7)', () => {
+  // Three letters: A in the middle, wholly on the sheet; B hard by its right
+  // edge, which its letter stands across; C at a corner, pushed off it.
+  const lettered = model(
+    { kind: 'label', at: [0.5, 0.5], text: 'A', style: 'highlight' },
+    { kind: 'label', at: [0.93, 0.3], text: 'B', style: 'highlight' },
+    { kind: 'label', at: [1, 1], text: 'C', style: 'highlight' }
+  );
+  const over = (result: PaperScene) => markups(result).at(-1)!.svg;
+  const letters = (svg: string) => Object.fromEntries([...svg.matchAll(/<text\s([^>]*)>([^<]*)<\/text>/g)].map((m) => [m[2], m[1]]));
+  const stroke = (attributes: string) => /stroke="([^"]*)"/.exec(attributes)![1];
+
+  it('paints the halo of a letter across the edge with the sheet: its face on it, the ground off it', () => {
+    for (const mirrored of [false, true]) {
+      const svg = over(scene(lettered, { mirrored, ground: '#fafafa' }));
+      const face = mirrored ? DEFAULT_PAPER_STYLE.paper.back : DEFAULT_PAPER_STYLE.paper.front;
+      const strokes = Object.fromEntries(Object.entries(letters(svg)).map(([text, attributes]) => [text, stroke(attributes)]));
+      // Wholly on and wholly off: one colour, as before.
+      expect(strokes.A).toBe(face);
+      expect(strokes.C).toBe('#fafafa');
+      // Across: one stroke, painted by a pattern in the same markup, just before it.
+      expect(strokes.B).toMatch(/^url\(#step-diagram-halo-[0-9a-f]{16}\)$/);
+      const id = /^url\(#(.*)\)$/.exec(strokes.B!)![1]!;
+      const [pattern] = elements(svg, 'pattern');
+      expect(pattern).toMatchObject({ id, patternUnits: 'userSpaceOnUse' });
+      expect(svg.indexOf(`id="${id}"`)).toBeLessThan(svg.indexOf(`url(#${id})`));
+      // Its tile: the ground, with the sheet over it in its face, placed from the tile's corner.
+      const [x, y] = [Number(pattern!.x), Number(pattern!.y)];
+      expect(elements(svg, 'rect')[0]).toMatchObject({ width: pattern!.width, height: pattern!.height, fill: '#fafafa' });
+      const [sheet] = elements(svg, 'polygon');
+      expect(sheet!.fill).toBe(face);
+      const corners = sheet!.points!.split(' ').map((point) => {
+        const [px, py] = point.split(',').map(Number);
+        return `${Math.round((px! + x) * 100) / 100},${Math.round((py! + y) * 100) / 100}`;
+      });
+      expect(corners.sort()).toEqual(['10,10', '10,90', '90,10', '90,90']);
+      // The tile is past the letter and its halo, so it never repeats under them: B's box and more.
+      const bx = Number(/(?:^|\s)x="([^"]*)"/.exec(letters(svg).B!)![1]);
+      expect(x).toBeLessThan(bx - 8);
+      expect(x + Number(pattern!.width)).toBeGreaterThan(bx + 8);
+      // Each letter is set once: one stroke under its fill, not copies clipped either side of the edge.
+      expect([...svg.matchAll(/<text\s/g)]).toHaveLength(3);
+    }
+  });
+
+  it('is one colour on a sheet whose face is the ground, and keeps its classes on screen', () => {
+    // A white sheet on a white page: no pattern, whatever the letter stands on.
+    const white = over(scene(lettered, { style: { ...DEFAULT_PAPER_STYLE, paper: { ...DEFAULT_PAPER_STYLE.paper, front: '#FFFFFF' } } }));
+    expect(white).not.toContain('<pattern');
+    expect(stroke(letters(white).B!)).toBe('#ffffff');
+    // On screen the theme colours the halo, by its class: as before.
+    const project = createDiagramProjector(UNIT, SIZE, false);
+    const context = createDiagramRenderContext(lettered.primitives, UNIT, project);
+    const screen = renderToStaticMarkup(createElement('svg', null, diagramShapes(lettered.primitives, context)));
+    expect(screen).not.toContain('<pattern');
+    expect(screen).not.toContain('stroke="');
+    expect(screen.match(/class="[^"]*step-diagram__label[^"]*"/g)).toHaveLength(3);
+  });
+});
 
 describe('a mark off the sheet, on the page', () => {
   // X11: an arrow that arcs off the sheet, the turn-over glyph beside it and a

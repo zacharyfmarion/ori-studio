@@ -1,0 +1,25 @@
+[package]
+name = "oristudio-pdf"
+version.workspace = true
+publish.workspace = true
+edition.workspace = true
+license = "MIT OR Apache-2.0"
+description = "Ori Studio's diagram pages as one print-ready PDF: composed page SVGs through usvg, krilla-svg and krilla"
+repository.workspace = true
+homepage.workspace = true
+keywords = ["origami", "pdf", "svg"]
+categories = ["graphics"]
+include = ["Cargo.toml", "src/**", "tests/**"]
+
+[lints]
+workspace = true
+
+[dependencies]
+# Pinned: the Phase 0 spike measured these exact versions (fidelity, sizes,
+# determinism native against wasm). A bump is a re-measure, not a routine update.
+krilla = { version = "=0.8.2", default-features = false, features = ["raster-images"] }
+krilla-svg = "=0.8.1"
+usvg = { version = "=0.47.0", default-features = false, features = ["text"] }
+# The one usvg already uses through fontdb: read only to check a font's missing-glyph box.
+ttf-parser = { version = "0.25.1", default-features = false }
+thiserror.workspace = true

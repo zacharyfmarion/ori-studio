@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { registerArmedMode } from '../keyboard/shortcutRuntime';
 
 /**
  * The real view-controls panes read the workspace store, which pulls in workers
@@ -20,6 +21,9 @@ vi.mock('./panels/SimulatorViewControlsPanel', () => ({
 vi.mock('./panels/ReferencesViewControlsPanel', () => ({
   ReferencesViewControlsPanel: () => <p>references view controls</p>,
 }));
+vi.mock('./panels/DiagramStepPanel', () => ({ DiagramStepPanel: () => <p>diagram step</p> }));
+vi.mock('./panels/DiagramPagePanel', () => ({ DiagramPagePanel: () => <p>diagram page</p> }));
+vi.mock('./panels/DiagramLayersPanel', () => ({ DiagramLayersPanel: () => <p>diagram layers</p> }));
 
 const analytics = vi.hoisted(() => ({ track: vi.fn() }));
 
@@ -30,7 +34,9 @@ vi.mock('../analytics', async (importOriginal) => {
 
 import { useLayoutStore } from '../store/layoutStore';
 import { requestSidePane } from '../store/sidePaneRequests';
+import { useWorkspaceStore } from '../store/workspaceStore';
 import { WorkspaceViewDrawer } from './WorkspaceViewDrawer';
+import { topmostModalDialog } from './ui/useModalDialog';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -87,9 +93,10 @@ function seatSlot(): HTMLDivElement {
 }
 const seated = () => document.querySelector<HTMLButtonElement>('.test-slot .view-drawer__trigger');
 /**
- * `document`, not `container`. The sheet is portaled to `document.body` because
- * the pill lane it renders inside is `pointer-events: none` and a stacking
- * context — see the comment at the `createPortal` call.
+ * `document`, not `container`. The sheet is portaled out of the pill lane it
+ * renders inside, which is `pointer-events: none` and a stacking context — see
+ * the comment at the `SheetPortal` — into the sheet layer, or with none
+ * registered, as here, `document.body`.
  */
 const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
 const sheet = () => document.querySelector<HTMLElement>('.view-drawer__sheet');
@@ -127,6 +134,7 @@ afterEach(() => {
   mediaListeners.clear();
   vi.unstubAllGlobals();
   useLayoutStore.setState(initialLayoutState, true);
+  useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
 
 describe('the workspace View drawer', () => {
@@ -346,6 +354,24 @@ describe('the workspace View drawer', () => {
     wrapper.remove();
   });
 
+  it('leaves Escape to a mode armed in the workspace, which the runtime puts down first', () => {
+    // The Diagram's anchor pick is armed from the Layers pane — inside this
+    // sheet on an iPad. One Escape must put the pick down and leave the sheet
+    // open; the runtime ends the mode, wherever the focus is (Revision 2).
+    let armed = true;
+    const unregister = registerArmedMode(() => armed);
+    render();
+    press(trigger());
+
+    pressEscape();
+    expect(dialog()).not.toBeNull();
+
+    armed = false;
+    pressEscape();
+    expect(dialog()).toBeNull();
+    unregister();
+  });
+
   it('closes on Escape while a layer is open somewhere else', () => {
     // A tooltip is a popper layer too, and it holds no focus. Asking "is any
     // layer open" would leave the sheet's one keyboard exit dead for as long as
@@ -359,6 +385,37 @@ describe('the workspace View drawer', () => {
 
     expect(dialog()).toBeNull();
     tooltip.remove();
+  });
+
+  it('opens in the sheet layer, under a dialog it opens, and leaves Escape to that dialog (rf6)', () => {
+    // As App lays the document out: the sheet layer, then the modals. On a
+    // phone, Replace from References… in the Settings sheet opened the
+    // References browser under the sheet: the sheet came last in the document.
+    const layer = document.body.appendChild(document.createElement('div'));
+    const modals = document.body.appendChild(document.createElement('div'));
+    act(() => useLayoutStore.setState({ sheetLayer: layer }));
+    try {
+      render();
+      press(trigger());
+      expect(layer.contains(dialog())).toBe(true);
+
+      // The References browser, where App renders it: the dialog on top, so it holds focus and keys.
+      const browser = modals.appendChild(document.createElement('div'));
+      browser.setAttribute('role', 'dialog');
+      browser.setAttribute('aria-modal', 'true');
+      expect(topmostModalDialog()).toBe(browser);
+
+      // Its Escape closes it, not the sheet under it.
+      pressEscape(browser);
+      expect(sheet()).not.toBeNull();
+
+      browser.remove();
+      pressEscape();
+      expect(sheet()).toBeNull();
+    } finally {
+      layer.remove();
+      modals.remove();
+    }
   });
 
   it('closes on a backdrop press but not on a press inside the sheet', () => {
@@ -398,6 +455,150 @@ describe('the workspace View drawer', () => {
 
     expect(dialog()).toBeNull();
     expect(trigger()).toBeNull();
+  });
+
+  it('opens the Diagram’s sheet on Layers with a mark selected, as Edit’s opens on Properties', () => {
+    seatSlot();
+    useLayoutStore.setState({ activeWorkspace: 'diagram' });
+    const store = useWorkspaceStore.getState;
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30" viewBox="0 0 40 30"/>';
+    act(() => {
+      store().addDiagramPictures([{ id: 'asset-1', kind: 'svg', svg, widthPx: 40, heightPx: 30, bytes: svg.length }]);
+    });
+    const stepId = store().diagramSelectedStepId!;
+    act(() => {
+      store().editDiagramAnnotations(stepId, 'Add annotation', () => [{ id: 'a-1', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5] }]);
+      store().openDiagramStep(stepId, 'annotate');
+    });
+    render();
+
+    // Nothing selected: the pane last shown, the column's lead.
+    press(seated());
+    expect(tab('Step')?.getAttribute('aria-pressed')).toBe('true');
+    expect(tab('Layers')).toBeDefined();
+    press(tab('Page'));
+    pressEscape();
+
+    act(() => store().selectDiagramAnnotation('a-1'));
+    press(seated());
+    expect(tab('Layers')?.getAttribute('aria-pressed')).toBe('true');
+    expect(dialog()?.textContent).toContain('diagram layers');
+    expect(analytics.track).toHaveBeenLastCalledWith('view drawer opened', { workspace: 'diagram', pane: 'diagram-layers' });
+  });
+
+  it('steps aside while a pick it armed is made on the canvas under it, and comes back on Layers when it ends (18f)', () => {
+    // On an iPad, Pick in the Layers pane left the sheet over the canvas: the
+    // next tap landed on the sheet, not the face or point it was meant for.
+    seatSlot();
+    useLayoutStore.setState({ activeWorkspace: 'diagram' });
+    const store = useWorkspaceStore.getState;
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30" viewBox="0 0 40 30"/>';
+    act(() => {
+      store().addDiagramPictures([{ id: 'asset-1', kind: 'svg', svg, widthPx: 40, heightPx: 30, bytes: svg.length }]);
+    });
+    const stepId = store().diagramSelectedStepId!;
+    act(() => {
+      store().editDiagramAnnotations(stepId, 'Add annotation', () => [{ id: 'area', kind: 'zoom', from: [0.5, 0.5], to: [0.5, 0.5], radius: 0.1 }]);
+      store().openDiagramStep(stepId, 'annotate');
+      store().selectDiagramAnnotation('area');
+      // The Diagram is where the keys go: its panel is the active one.
+      useWorkspaceStore.setState({ activePanelId: 'diagram' });
+    });
+    render();
+    press(seated());
+    expect(tab('Layers')?.getAttribute('aria-pressed')).toBe('true');
+    analytics.track.mockClear();
+
+    // Pick: the sheet goes, so the canvas takes the next tap.
+    act(() => store().setDiagramAnchorPick({ stepId, target: 'area' }));
+    expect(dialog()).toBeNull();
+    // Anchored, or put down: it comes back where it was — not a new visit.
+    act(() => store().setDiagramAnchorPick(null));
+    expect(dialog()).not.toBeNull();
+    expect(tab('Layers')?.getAttribute('aria-pressed')).toBe('true');
+    expect(analytics.track).not.toHaveBeenCalled();
+
+    // A sheet opened with a pick already armed stays open: Escape goes to the pick, then to it.
+    pressEscape();
+    act(() => store().setDiagramAnchorPick({ stepId, target: 'area' }));
+    press(seated());
+    expect(dialog()).not.toBeNull();
+    act(() => store().setDiagramAnchorPick(null));
+    expect(dialog()).not.toBeNull();
+
+    // Put aside, then the workspace changes: it does not come back there.
+    pressEscape();
+    press(seated());
+    act(() => store().setDiagramAnchorPick({ stepId, target: 'area' }));
+    expect(dialog()).toBeNull();
+    act(() => useLayoutStore.setState({ activeWorkspace: 'simulate' }));
+    act(() => store().setDiagramAnchorPick(null));
+    expect(dialog()).toBeNull();
+  });
+
+  it('stays away when a pick it stepped aside for ends because the user went elsewhere (review of 18f)', () => {
+    // Pose, the step list, the next step or another mark each put the pick down too; the sheet coming back then
+    // covered the new view unasked (on Layers, "Open a step in Annotate to see its layers" over the step list).
+    seatSlot();
+    useLayoutStore.setState({ activeWorkspace: 'diagram' });
+    const store = useWorkspaceStore.getState;
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30" viewBox="0 0 40 30"/>';
+    act(() => {
+      store().addDiagramPictures([
+        { id: 'asset-1', kind: 'svg', svg, widthPx: 40, heightPx: 30, bytes: svg.length },
+        { id: 'asset-2', kind: 'svg', svg, widthPx: 40, heightPx: 30, bytes: svg.length },
+      ]);
+    });
+    const [stepId, nextId] = store().diagram!.steps.map((step) => step.id);
+    act(() => {
+      store().editDiagramAnnotations(stepId!, 'Add annotation', () => [
+        { id: 'area', kind: 'zoom', from: [0.5, 0.5], to: [0.5, 0.5], radius: 0.1 },
+        { id: 'other', kind: 'zoom', from: [0.2, 0.2], to: [0.2, 0.2], radius: 0.1 },
+      ]);
+      useWorkspaceStore.setState({ activePanelId: 'diagram' });
+    });
+    render();
+    /** The area selected on its step in Annotate, the sheet opened over it, and Pick pressed there: the sheet steps aside. */
+    const armed = () => {
+      act(() => {
+        store().openDiagramStep(stepId!, 'annotate');
+        store().selectDiagramAnnotation('area');
+      });
+      press(seated());
+      expect(dialog()).not.toBeNull();
+      act(() => store().setDiagramAnchorPick({ stepId: stepId!, target: 'area' }));
+      expect(dialog()).toBeNull();
+    };
+
+    armed();
+    act(() => store().openDiagramStep(stepId!, 'pose'));
+    expect(store().diagramAnchorPick).toBeNull();
+    expect(dialog(), 'left for Pose').toBeNull();
+
+    armed();
+    act(() => store().closeDiagramStep());
+    expect(dialog(), 'back to the step list').toBeNull();
+
+    armed();
+    act(() => store().selectDiagramStep(nextId!));
+    expect(dialog(), 'on to the next step').toBeNull();
+
+    armed();
+    act(() => store().selectDiagramAnnotation('other'));
+    expect(dialog(), 'another mark selected').toBeNull();
+
+    // Ended where it was made, it comes back; and opened by hand meanwhile, then closed, it stays closed.
+    armed();
+    act(() => store().setDiagramAnchorPick(null));
+    expect(dialog(), 'anchored or put down').not.toBeNull();
+    act(() => store().setDiagramAnchorPick({ stepId: stepId!, target: 'area' }));
+    expect(dialog()).toBeNull();
+    press(seated());
+    expect(dialog()).not.toBeNull();
+    press(document.querySelector('[aria-label="Close settings"]'));
+    expect(dialog()).toBeNull();
+    act(() => store().setDiagramAnchorPick(null));
+    expect(dialog(), 'closed by the user').toBeNull();
   });
 
   it('closes when the workspace changes under it', () => {

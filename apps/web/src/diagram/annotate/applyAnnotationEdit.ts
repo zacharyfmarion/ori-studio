@@ -1,0 +1,108 @@
+import { trackDiagramAnnotationFlipped, trackDiagramArrowShaped, trackDiagramEnlargementChanged } from '../../analytics';
+import type { DiagramShapedArrowKind } from '../../analytics/events';
+import type { WorkspaceState } from '../../store/workspaceStore/types';
+import {
+  isKnownAnnotation,
+  stepById,
+  type DiagramAnnotationKind,
+  type DiagramDocument,
+  type KnownDiagramAnnotation,
+} from '../document/diagramDocument';
+import type { AnnotationEdit } from './annotationActions';
+import { annotationEventKind } from './annotationEventKind';
+import { isShapedArrow } from './annotationModel';
+import { shapedHalf } from './annotationPath';
+
+/**
+ * Make one of the catalog's edits (`annotationActions.ts`) on a step, as one
+ * undo step through the store — the binding every surface shares: the Step
+ * pane, the keys, Delete and the canvas's gestures. Here, not in each, it
+ * counts an arrow shaped for the first time (`diagram arrow shaped`): once,
+ * when the edit makes an arc a path, or a white arrow no longer straight
+ * (`isShapedArrow`), never for the edits after — for a fold-and-unfold arrow,
+ * which writes both its halves then, with the half the edit touched; each
+ * flip (`diagram annotation flipped`); and an enlarge area deleted (Revision
+ * 2, `diagram enlargement changed`). Whether anything changed.
+ */
+export function applyAnnotationEdit(
+  workspace: Pick<WorkspaceState, 'diagram' | 'editDiagramAnnotations'>,
+  stepId: string,
+  { label, edit, select, selectPathNode, shapes, flips }: AnnotationEdit,
+  options: { loadId?: number } = {}
+): boolean {
+  const before = shapes ? annotationIn(workspace.diagram, stepId, shapes.annotationId) : null;
+  const flipped = flips ? annotationIn(workspace.diagram, stepId, flips.annotationId) : null;
+  const known = annotationsIn(workspace.diagram, stepId);
+  const areas = known.filter((annotation) => annotation.kind === 'zoom').length;
+  const changed = workspace.editDiagramAnnotations(stepId, label, edit, {
+    ...(select !== undefined ? { select } : {}),
+    ...(selectPathNode !== undefined ? { selectPathNode } : {}),
+    ...options,
+  });
+  if (changed && shapes && before && !isShapedArrow(before)) {
+    // The edit is pure: what it made of the arrow, without reading the store back.
+    const after = edit([before]).find((annotation) => annotation.id === shapes.annotationId);
+    const kind = shapedKind(before.kind);
+    if (after && isShapedArrow(after) && kind) {
+      const half = shapedHalf(before, after);
+      if (half === null) trackDiagramArrowShaped(kind, shapes.gesture);
+      else trackDiagramArrowShaped(kind, shapes.gesture, half);
+    }
+  }
+  if (changed && flips && flipped) trackDiagramAnnotationFlipped(annotationEventKind(flipped), flips.axis);
+  if (changed && areas > 0) {
+    // The edit is pure: an area it took away was deleted.
+    const left = edit(known).filter((annotation) => annotation.kind === 'zoom').length;
+    for (let gone = left; gone < areas; gone += 1) trackDiagramEnlargementChanged('area', 'deleted');
+  }
+  return changed;
+}
+
+function annotationsIn(diagram: DiagramDocument | null, stepId: string): readonly KnownDiagramAnnotation[] {
+  return diagram ? (stepById(diagram, stepId)?.annotations.filter(isKnownAnnotation) ?? []) : [];
+}
+
+function annotationIn(
+  diagram: DiagramDocument | null,
+  stepId: string,
+  annotationId: string
+): KnownDiagramAnnotation | null {
+  const annotation = diagram ? stepById(diagram, stepId)?.annotations.find((each) => each.id === annotationId) : undefined;
+  return annotation && isKnownAnnotation(annotation) ? annotation : null;
+}
+
+/** A shaped arrow's kind in the event's spelling; null for a kind that is never shaped. */
+function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null {
+  switch (kind) {
+    case 'valley-arrow':
+      return 'valley_arrow';
+    case 'mountain-arrow':
+      return 'mountain_arrow';
+    case 'fold-unfold-arrow':
+      return 'fold_unfold_arrow';
+    case 'white-arrow':
+      return 'white_arrow';
+    case 'pleat-arrow':
+    case 'push-arrow':
+    case 'turn-over':
+    case 'rotate':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+    case 'solid-line':
+    case 'label':
+    case 'circle':
+    case 'star':
+    case 'eye':
+    case 'oval':
+    case 'rectangle':
+    case 'right-angle':
+    case 'callout':
+    case 'angle-mark':
+    case 'divisions':
+    case 'close-up':
+    case 'zoom':
+    case 'x-ray':
+      return null;
+  }
+}

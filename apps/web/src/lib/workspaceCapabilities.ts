@@ -27,6 +27,8 @@ export type WorkspaceCapabilityId =
   | 'file.exportOrh'
   | 'file.exportSvg'
   | 'file.exportPng'
+  | 'file.exportDiagram'
+  | 'file.printDiagram'
   | 'file.exportFoldedFold'
   | 'file.exportObj'
   | 'file.exportStl'
@@ -65,6 +67,7 @@ export type WorkspaceCapabilityId =
   | 'view.simulate'
   | 'view.simulator'
   | 'view.references'
+  | 'view.diagram'
   | 'view.conditions'
   | 'view.properties'
   | 'view.resetLayout'
@@ -172,6 +175,29 @@ export interface WorkspaceCapabilityInput {
    * capability — so an unlisted kind's work could not be saved at all.
    */
   canSaveDesign: boolean;
+  /**
+   * Whether the project has a diagram. A diagram is saved whatever else the
+   * project holds — alone, beside a crease pattern, or beside designs — and
+   * from any workspace, so it makes the project savable by itself.
+   */
+  hasDiagram: boolean;
+  /** How many steps the diagram has: one is enough to export it. */
+  diagramStepCount: number;
+  /**
+   * Whether the Diagram has something selected that Delete would remove, on a
+   * diagram that is not read-only: in Annotate the selected annotation, else
+   * the selected step ({@link diagramDeleteTarget}).
+   */
+  hasDeletableDiagramSelection: boolean;
+  /**
+   * What Delete removes in the Diagram: Edit Path's selected node, else the
+   * selected annotation while annotating, else the step.
+   */
+  diagramDeleteTarget: 'step' | 'annotation' | 'node';
+  /** Whether Copy has an annotation in the Diagram: the one selected while annotating, on any diagram. */
+  canCopyDiagramAnnotation: boolean;
+  /** Whether Paste has a step to put annotations on: the one open in Annotate, on a diagram that can change. */
+  canPasteDiagramAnnotations: boolean;
   historyPastCount: number;
   historyFutureCount: number;
   clipboard: unknown | null;
@@ -203,6 +229,7 @@ export function getWorkspaceCapabilities(
   // context.
   const treeMode = input.activeEditingContext === 'treemaker-tree';
   const creasePatternMode = input.activeEditingContext === 'crease-pattern';
+  const diagramMode = input.activeEditingContext === 'diagram';
   const activeCpSurface =
     input.activeEditingContext === 'crease-pattern' && input.hasEditableCreasePattern;
   const isBusy = isWorkspaceBusy(input.status);
@@ -236,6 +263,8 @@ export function getWorkspaceCapabilities(
   // Not `creasePatternMode`: Save writes the whole workspace whichever pane has
   // focus (`saveActiveProject`), so leaving Edit must not take it away.
   const canSaveEditableCreasePattern = input.hasEditableCreasePattern;
+  const canSaveProject =
+    input.canSaveDesign || canSaveEditableCreasePattern || input.hasDiagram;
   // A box-pleat design saves as a native .osf (bundling its companion CP).
   const canExportEditableCp = input.hasEditableCreasePattern;
   const canExportCreasePattern = hasCreasePattern && !isBusy;
@@ -309,18 +338,18 @@ export function getWorkspaceCapabilities(
       visible: input.cpDetectAvailable ?? cpDetectAvailableHere(),
     },
     'file.save': capability(
-      (input.canSaveDesign || canSaveEditableCreasePattern) && !isBusy,
+      canSaveProject && !isBusy,
       t('common:capability.save', 'Save'),
-      input.canSaveDesign
+      input.canSaveDesign || (input.hasDiagram && !canSaveEditableCreasePattern)
         ? busyOr(t('common:capability.saveProject', 'Save Ori Studio project'), input.status, t)
         : canSaveEditableCreasePattern
           ? busyOr(t('common:capability.saveEditableCpAsProject', 'Save editable crease pattern as an Ori Studio project'), input.status, t)
           : t('common:capability.editableCpKernelUnavailable', 'Editable crease-pattern kernel is unavailable')
     ),
     'file.saveAs': capability(
-      (input.canSaveDesign || canSaveEditableCreasePattern) && !isBusy,
+      canSaveProject && !isBusy,
       t('common:capability.saveAs', 'Save As...'),
-      input.canSaveDesign
+      input.canSaveDesign || (input.hasDiagram && !canSaveEditableCreasePattern)
         ? busyOr(t('common:capability.saveProjectAsNewFile', 'Save Ori Studio project as a new file'), input.status, t)
         : canSaveEditableCreasePattern
           ? busyOr(t('common:capability.saveEditableCpAsNewProject', 'Save editable crease pattern as a new Ori Studio project'), input.status, t)
@@ -424,70 +453,122 @@ export function getWorkspaceCapabilities(
         ? busyOr(t('common:capability.exportCreasePatternPng', 'Export crease pattern PNG'), input.status, t)
         : t('common:capability.noCreasePatternToExport', 'No crease pattern to export')
     ),
+    // From any workspace, and while an engine works: the diagram is its own.
+    'file.exportDiagram': capability(
+      input.diagramStepCount > 0,
+      t('common:capability.exportDiagram', 'Export Diagram...'),
+      input.diagramStepCount > 0
+        ? t('common:capability.exportDiagramHint', 'Export the diagram as a PDF, as one SVG or as a file for each step')
+        : t('common:capability.noDiagramToExport', 'Add a step to the diagram to export it')
+    ),
+    // As the export: from any workspace, the pages the PDF would print.
+    'file.printDiagram': capability(
+      input.diagramStepCount > 0,
+      t('common:capability.printDiagram', 'Print Diagram...'),
+      input.diagramStepCount > 0
+        ? t('common:capability.printDiagramHint', 'Print the diagram’s pages, as the PDF prints them')
+        : t('common:capability.noDiagramToPrint', 'Add a step to the diagram to print it')
+    ),
+    // The Diagram's history is its own: a TreeMaker build or optimize running
+    // in another workspace is no reason to hold its Undo back.
     'edit.undo': capability(
-      input.historyPastCount > 0 && !isBusy,
+      input.historyPastCount > 0 && (diagramMode || !isBusy),
       t('common:capability.undo', 'Undo'),
-      activeCpSurface
+      diagramMode
+        ? t('common:capability.undoLastDiagramEdit', 'Undo the last diagram edit')
+        : activeCpSurface
           ? t('common:capability.undoLastCpEdit', 'Undo the last crease-pattern edit')
           : t('common:capability.undoLastTreeEdit', 'Undo the last tree edit')
     ),
     'edit.redo': capability(
-      input.historyFutureCount > 0 && !isBusy,
+      input.historyFutureCount > 0 && (diagramMode || !isBusy),
       t('common:capability.redo', 'Redo'),
-      activeCpSurface
+      diagramMode
+        ? t('common:capability.redoNextDiagramEdit', 'Redo the next diagram edit')
+        : activeCpSurface
           ? t('common:capability.redoNextCpEdit', 'Redo the next crease-pattern edit')
           : t('common:capability.redoNextTreeEdit', 'Redo the next tree edit')
     ),
+    // In the Diagram, Cut, Copy and Paste act on its annotations alone: a
+    // selection or clipboard left in another workspace is not theirs.
     'edit.cut': capability(
-      treeMode && hasSelection && !isBusy,
+      diagramMode
+        ? input.canCopyDiagramAnnotation && input.canPasteDiagramAnnotations
+        : treeMode && hasSelection && !isBusy,
       t('common:capability.cut', 'Cut'),
-      treeMode
-        ? t('common:capability.cutSelectedTreeParts', 'Cut selected tree parts')
-        : t('common:capability.importedCpReadOnly', 'Imported crease patterns are read-only')
+      diagramMode
+        ? input.canCopyDiagramAnnotation
+          ? t('common:capability.cutSelectedDiagramAnnotation', 'Cut the selected annotation')
+          : t('common:capability.selectDiagramAnnotationFirst', 'Select an annotation first')
+        : treeMode
+          ? t('common:capability.cutSelectedTreeParts', 'Cut selected tree parts')
+          : t('common:capability.importedCpReadOnly', 'Imported crease patterns are read-only')
     ),
     'edit.copy': capability(
-      (treeMode && hasSelection) || (canEditCp && hasSelectedCpLines),
+      diagramMode ? input.canCopyDiagramAnnotation : (treeMode && hasSelection) || (canEditCp && hasSelectedCpLines),
       t('common:capability.copy', 'Copy'),
-      treeMode
-        ? t('common:capability.copySelectedTreeParts', 'Copy selected tree parts')
-        : canEditCp
-          ? hasSelectedCpLines
-            ? t('common:capability.copySelectedCpLines', 'Copy selected crease-pattern lines')
-            : t('common:capability.selectCpLinesFirst', 'Select one or more crease-pattern lines first')
-          : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+      diagramMode
+        ? input.canCopyDiagramAnnotation
+          ? t('common:capability.copySelectedDiagramAnnotation', 'Copy the selected annotation')
+          : t('common:capability.selectDiagramAnnotationFirst', 'Select an annotation first')
+        : treeMode
+          ? t('common:capability.copySelectedTreeParts', 'Copy selected tree parts')
+          : canEditCp
+            ? hasSelectedCpLines
+              ? t('common:capability.copySelectedCpLines', 'Copy selected crease-pattern lines')
+              : t('common:capability.selectCpLinesFirst', 'Select one or more crease-pattern lines first')
+            : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'edit.paste': capability(
-      (treeMode && clipboardKind === 'tree' && !isBusy) ||
-        (canEditCp && clipboardKind === 'cp-lines'),
+      diagramMode
+        ? input.canPasteDiagramAnnotations && clipboardKind === 'diagram-annotations'
+        : (treeMode && clipboardKind === 'tree' && !isBusy) || (canEditCp && clipboardKind === 'cp-lines'),
       t('common:capability.paste', 'Paste'),
-      treeMode
-        ? clipboardKind === 'tree'
-          ? busyOr(t('common:capability.pasteCopiedTreeParts', 'Paste copied tree parts'), input.status, t)
-          : t('common:capability.copyTreePartsBeforePasting', 'Copy tree parts before pasting')
-        : canEditCp
-          ? clipboardKind === 'cp-lines'
-            ? t('common:capability.pasteCopiedCpLines', 'Paste copied crease-pattern lines')
-            : t('common:capability.copyCpLinesBeforePasting', 'Copy crease-pattern lines before pasting')
-          : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+      diagramMode
+        ? !input.canPasteDiagramAnnotations
+          ? t('common:capability.annotateToPaste', 'Open a step in Annotate to paste on it')
+          : clipboardKind === 'diagram-annotations'
+            ? t('common:capability.pasteCopiedDiagramAnnotation', 'Paste the copied annotation')
+            : t('common:capability.copyDiagramAnnotationFirst', 'Copy an annotation before pasting')
+        : treeMode
+          ? clipboardKind === 'tree'
+            ? busyOr(t('common:capability.pasteCopiedTreeParts', 'Paste copied tree parts'), input.status, t)
+            : t('common:capability.copyTreePartsBeforePasting', 'Copy tree parts before pasting')
+          : canEditCp
+            ? clipboardKind === 'cp-lines'
+              ? t('common:capability.pasteCopiedCpLines', 'Paste copied crease-pattern lines')
+              : t('common:capability.copyCpLinesBeforePasting', 'Copy crease-pattern lines before pasting')
+            : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'edit.delete': capability(
-      (input.hasDeletableDesignSelection && !activeCpSurface && !isBusy) ||
+      (diagramMode && input.hasDeletableDiagramSelection) ||
+        (input.hasDeletableDesignSelection && !activeCpSurface && !isBusy) ||
         (treeMode && !activeCpSurface && hasSelection && !isBusy) ||
         (canEditCp &&
           activeCpSurface &&
           (hasSelectedCpLines || hasSelectedCpPoints || hasSelectedCpCircles)),
       t('common:capability.deleteSelected', 'Delete Selected'),
-      treeMode && !activeCpSurface
-        ? t('common:capability.deleteSelectedTreeParts', 'Delete selected tree parts')
-        : canEditCp
-          ? hasSelectedCpLines
-            ? t('common:capability.deleteSelectedCpLines', 'Delete selected crease-pattern lines')
-            : hasSelectedCpPoints
-              ? t('common:capability.deleteSelectedCpPoints', 'Delete selected crease-pattern points')
-              : hasSelectedCpCircles
-                ? t('common:capability.deleteSelectedCpCircles', 'Delete selected crease-pattern circles')
-                : t('common:capability.selectCpLinesOrPointsFirst', 'Select one or more crease-pattern lines or points first')
-          : t('common:capability.importedCpReadOnly', 'Imported crease patterns are read-only')
+      diagramMode
+        ? input.diagramDeleteTarget === 'node'
+          ? t('common:capability.deleteSelectedDiagramNode', 'Delete the selected node')
+          : input.diagramDeleteTarget === 'annotation'
+          ? input.hasDeletableDiagramSelection
+            ? t('common:capability.deleteSelectedDiagramAnnotation', 'Delete the selected annotation')
+            : t('common:capability.selectDiagramAnnotationFirst', 'Select an annotation first')
+          : input.hasDeletableDiagramSelection
+            ? t('common:capability.deleteSelectedDiagramStep', 'Delete the selected step')
+            : t('common:capability.selectDiagramStepFirst', 'Select a step first')
+        : treeMode && !activeCpSurface
+          ? t('common:capability.deleteSelectedTreeParts', 'Delete selected tree parts')
+          : canEditCp
+            ? hasSelectedCpLines
+              ? t('common:capability.deleteSelectedCpLines', 'Delete selected crease-pattern lines')
+              : hasSelectedCpPoints
+                ? t('common:capability.deleteSelectedCpPoints', 'Delete selected crease-pattern points')
+                : hasSelectedCpCircles
+                  ? t('common:capability.deleteSelectedCpCircles', 'Delete selected crease-pattern circles')
+                  : t('common:capability.selectCpLinesOrPointsFirst', 'Select one or more crease-pattern lines or points first')
+            : t('common:capability.importedCpReadOnly', 'Imported crease patterns are read-only')
     ),
     'edit.selectAll': capability(
       true,
@@ -669,6 +750,11 @@ export function getWorkspaceCapabilities(
       true,
       t('common:capability.references', 'References'),
       t('common:capability.showReferencesWorkspace', 'Show the references workspace')
+    ),
+    'view.diagram': capability(
+      true,
+      t('common:capability.diagram', 'Diagram'),
+      t('common:capability.showDiagramWorkspace', 'Show the diagram workspace')
     ),
     'view.conditions': capability(
       true,
@@ -1085,6 +1171,20 @@ const SIMULATE_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit
  */
 const READ_ONLY_CONTEXTS: ReadonlySet<EditingContext> = new Set(['simulate', 'references']);
 
+/**
+ * What stays in the Edit menu while authoring a diagram: its own undo, redo,
+ * Delete, and Cut, Copy and Paste of annotations in Annotate; the rest of
+ * `edit.*` authors a tree.
+ */
+const DIAGRAM_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>([
+  'edit.undo',
+  'edit.redo',
+  'edit.cut',
+  'edit.copy',
+  'edit.paste',
+  'edit.delete',
+]);
+
 export function maskCapabilitiesForContext(
   capabilities: WorkspaceCapabilities,
   context: EditingContext,
@@ -1119,6 +1219,21 @@ export function maskCapabilitiesForContext(
     for (const id of ids) {
       if (id.startsWith('cp.') && id !== 'cp.build') hide(id);
     }
+  }
+
+  if (context === 'diagram') {
+    // The Diagram authors its own document, not the crease pattern or a tree:
+    // only navigation, file operations and its own Edit verbs apply. It is not
+    // a read-only context — undo, redo and Delete act on the diagram.
+    for (const id of ids) {
+      const foreign =
+        id.startsWith('cp.') ||
+        id.startsWith('optimize.') ||
+        id.startsWith('insert.') ||
+        (id.startsWith('edit.') && !DIAGRAM_VISIBLE_EDIT.has(id));
+      if (foreign) hide(id);
+    }
+    return masked;
   }
 
   if (READ_ONLY_CONTEXTS.has(context)) {

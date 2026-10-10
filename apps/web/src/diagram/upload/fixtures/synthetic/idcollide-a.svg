@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+<defs><clipPath id="clip1"><rect x="0" y="0" width="30" height="100"/></clipPath>
+<linearGradient id="grad1" x1="0" x2="1"><stop offset="0" stop-color="#d22"/><stop offset="1" stop-color="#fff"/></linearGradient></defs>
+<rect width="100" height="100" fill="url(#grad1)" clip-path="url(#clip1)"/>
+</svg>

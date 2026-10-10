@@ -1,0 +1,170 @@
+{
+  "below-left": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><line x1=\"28.346456692913385\" y1=\"122.83464566929135\" x2=\"94.75815523059619\" y2=\"64.72440944881889\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"66.42125984251969\" y=\"48.16141732283465\" width=\"75.03149606299213\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"103.937\" y=\"60.094\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat behind</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><line x1=\"42.519\" y1=\"184.249\" x2=\"142.13494285714285\" y2=\"97.08504999999998\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"99.8802725\" y=\"72.49095\" width=\"112.045455\" height=\"25.0941\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"155.903\" y=\"90.14\" font-size=\"14.173\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat behind</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g><line x1=\"28.346456692913385\" y1=\"122.83464566929135\" x2=\"94.75815523059619\" y2=\"64.72440944881889\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"66.42125984251969\" y=\"48.16141732283465\" width=\"75.03149606299213\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"103.937\" y=\"60.094\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat behind</tspan></text></g>"
+  },
+  "below": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><line x1=\"94.48818897637796\" y1=\"132.28346456692913\" x2=\"94.48818897637796\" y2=\"64.72440944881889\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"35.25433070866143\" y=\"48.16141732283465\" width=\"118.46771653543306\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"94.488\" y=\"60.094\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat on the other flap</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><line x1=\"141.73\" y1=\"198.42199999999997\" x2=\"141.73\" y2=\"97.08504999999998\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"53.130632000000006\" y=\"72.49095\" width=\"177.19873599999997\" height=\"25.0941\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"141.73\" y=\"90.14\" font-size=\"14.173\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat on the other flap</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g><line x1=\"94.48818897637796\" y1=\"132.28346456692913\" x2=\"94.48818897637796\" y2=\"64.72440944881889\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"35.25433070866143\" y=\"48.16141732283465\" width=\"118.46771653543306\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"94.488\" y=\"60.094\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat on the other flap</tspan></text></g>"
+  },
+  "left": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><line x1=\"9.448818897637796\" y1=\"75.59055118110237\" x2=\"80.31496062992125\" y2=\"75.59055118110237\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"79.81496062992125\" y=\"67.05905511811025\" width=\"67.14173228346458\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"113.386\" y=\"78.992\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans JP&#x27;, sans-serif\" font-weight=\"400\">裏側も同様に</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><line x1=\"14.173\" y1=\"113.384\" x2=\"120.47049999999997\" y2=\"113.384\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"119.97049999999997\" y=\"100.83695\" width=\"100.211\" height=\"25.0941\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"170.076\" y=\"118.486\" font-size=\"14.173\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans JP&#x27;, sans-serif\" font-weight=\"400\">裏側も同様に</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g><line x1=\"9.448818897637796\" y1=\"75.59055118110237\" x2=\"80.31496062992125\" y2=\"75.59055118110237\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"79.81496062992125\" y=\"67.05905511811025\" width=\"67.14173228346458\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"113.386\" y=\"78.992\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans JP&#x27;, sans-serif\" font-weight=\"400\">裏側も同様に</tspan></text></g>"
+  },
+  "above-right": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><line x1=\"151.18110236220474\" y1=\"18.897637795275593\" x2=\"82.72965879265092\" y2=\"95.90551181102364\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"51.46850393700788\" y=\"95.40551181102364\" width=\"48.24409448818898\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"75.591\" y=\"107.339\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans SC&#x27;, sans-serif\" font-weight=\"400\">背面重复</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><line x1=\"226.768\" y1=\"28.346\" x2=\"124.0924888888889\" y2=\"143.85595\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"77.4515\" y=\"143.35595\" width=\"71.865\" height=\"25.0941\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"113.384\" y=\"161.005\" font-size=\"14.173\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans SC&#x27;, sans-serif\" font-weight=\"400\">背面重复</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g><line x1=\"151.18110236220474\" y1=\"18.897637795275593\" x2=\"82.72965879265092\" y2=\"95.90551181102364\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"51.46850393700788\" y=\"95.40551181102364\" width=\"48.24409448818898\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"75.591\" y=\"107.339\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans SC&#x27;, sans-serif\" font-weight=\"400\">背面重复</tspan></text></g>"
+  },
+  "corner": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><line x1=\"37.795275590551185\" y1=\"37.795275590551185\" x2=\"86.45669291338584\" y2=\"86.45669291338584\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"84.87007874015748\" y=\"85.95669291338584\" width=\"19.236220472440948\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"94.488\" y=\"97.89\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">W</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><line x1=\"56.692\" y1=\"56.692\" x2=\"129.68295\" y2=\"129.68295\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"127.553055\" y=\"129.18295\" width=\"28.353890000000003\" height=\"25.0941\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"141.73\" y=\"146.832\" font-size=\"14.173\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">W</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g><line x1=\"37.795275590551185\" y1=\"37.795275590551185\" x2=\"86.45669291338584\" y2=\"86.45669291338584\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"84.87007874015748\" y=\"85.95669291338584\" width=\"19.236220472440948\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"94.488\" y=\"97.89\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">W</tspan></text></g>"
+  },
+  "covered": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><rect x=\"32.12204724409448\" y=\"48.16141732283465\" width=\"124.73228346456695\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"94.488\" y=\"60.094\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat behind </tspan><tspan font-family=\"&#x27;Noto Sans JP&#x27;, sans-serif\" font-weight=\"400\">裏も同様に</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 400,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><rect x=\"48.432282499999985\" y=\"72.49095\" width=\"186.595435\" height=\"25.0941\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"141.73\" y=\"90.14\" font-size=\"14.173\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat behind </tspan><tspan font-family=\"&#x27;Noto Sans JP&#x27;, sans-serif\" font-weight=\"400\">裏も同様に</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 283.46,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g><rect x=\"32.12204724409448\" y=\"48.16141732283465\" width=\"124.73228346456695\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"94.488\" y=\"60.094\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat behind </tspan><tspan font-family=\"&#x27;Noto Sans JP&#x27;, sans-serif\" font-weight=\"400\">裏も同様に</tspan></text></g>"
+  },
+  "off": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><line x1=\"170.07874015748033\" y1=\"132.28346456692913\" x2=\"229.60629921259846\" y2=\"162.0472440944882\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"163.75826771653544\" y=\"161.5472440944882\" width=\"163.8220472440945\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"245.669\" y=\"173.48\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat steps 5–8 on the other side</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 694.4366666666667,
+        "height": 379.11666666666673
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><line x1=\"255.11399999999998\" y1=\"198.42199999999997\" x2=\"344.4039\" y2=\"243.06695\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"245.88343199999997\" y=\"242.56695\" width=\"245.22913599999998\" height=\"25.0941\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"368.498\" y=\"260.216\" font-size=\"14.173\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat steps 5–8 on the other side</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": 12,
+        "y": 30,
+        "width": 491.61256799999995,
+        "height": 268.16105
+      }
+    },
+    "canvas": "<g><line x1=\"170.07874015748033\" y1=\"132.28346456692913\" x2=\"229.60629921259846\" y2=\"162.0472440944882\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"163.75826771653544\" y=\"161.5472440944882\" width=\"163.8220472440945\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"245.669\" y=\"173.48\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">Repeat steps 5–8 on the other side</tspan></text></g>"
+  },
+  "long": {
+    "card": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(0.00 0.00) scale(2.11666666667)\"><g><line x1=\"18.897637795275593\" y1=\"9.448818897637796\" x2=\"62.362204724409445\" y2=\"20.314960629921256\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"-110.67322834645702\" y=\"19.814960629921256\" width=\"410.32283464566996\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"94.488\" y=\"31.748\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": -235.31666666666737,
+        "y": 0,
+        "width": 870.6333333333347,
+        "height": 300
+      }
+    },
+    "page": {
+      "markup": "<g stroke-linejoin=\"round\">\n  <g transform=\"translate(12.00 30.00) scale(1)\"><g><line x1=\"28.346\" y1=\"14.173\" x2=\"93.54179999999998\" y2=\"30.471949999999993\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"-165.7571800000005\" y=\"29.971949999999993\" width=\"614.974360000001\" height=\"25.0941\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"141.73\" y=\"47.621\" font-size=\"14.173\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</tspan></text></g></g>\n</g>",
+      "bounds": {
+        "x": -154.2571800000005,
+        "y": 30,
+        "width": 615.974360000001,
+        "height": 212.6
+      }
+    },
+    "canvas": "<g><line x1=\"18.897637795275593\" y1=\"9.448818897637796\" x2=\"62.362204724409445\" y2=\"20.314960629921256\" fill=\"none\" stroke=\"#231f20\" stroke-width=\"0.7500000000000001\" stroke-linecap=\"round\"></line><rect x=\"-110.67322834645702\" y=\"19.814960629921256\" width=\"410.32283464566996\" height=\"17.062992125984252\" fill=\"#ffffff\" stroke=\"#231f20\" stroke-width=\"1\" stroke-linejoin=\"miter\"></rect><text x=\"94.488\" y=\"31.748\" font-size=\"9.449\" text-anchor=\"middle\" fill=\"#231f20\"><tspan font-family=\"&#x27;Noto Sans&#x27;, sans-serif\" font-weight=\"400\">xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</tspan></text></g>"
+  }
+}

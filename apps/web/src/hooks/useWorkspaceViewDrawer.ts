@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { ANALYTICS_EVENTS, track } from '../analytics';
-import { isOpenLayerTarget, isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
+import { useSheetEscape } from '../components/ui/useSheetEscape';
 import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
 import {
   reconcileSidePanes,
@@ -12,9 +12,33 @@ import {
 import { subscribeSidePaneRequests } from '../store/sidePaneRequests';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { selectedCanvasObjectIdOf } from '../cp-workspace/canvasObjects/canvasObjectKinds';
+import {
+  activeAnchorPick,
+  anchorPickEndedInPlace,
+  annotatingSelectionId,
+  escapePutsPickDown,
+} from '../store/workspaceStore/diagramState';
+import type { DiagramAnchorPick } from '../store/workspaceStore/types';
 import { useTranslation } from 'react-i18next';
 
 const NO_PANES: readonly SidePaneSpec[] = [];
+
+/**
+ * The pane that shows what is selected, when this workspace's `panes` have it
+ * and something is: Edit's Properties for a canvas object, the Diagram's
+ * Layers for a mark on the step open in Annotate. Each selection is the
+ * workspace's own, and outlives a switch away from it, so the pane must be
+ * one of these panes.
+ */
+export function selectionPaneIn(
+  panes: readonly SidePaneSpec[],
+  selected: { canvasObject: boolean; layer: boolean }
+): SidePaneId | undefined {
+  const wanted: SidePaneId[] = [];
+  if (selected.canvasObject) wanted.push('cp-properties');
+  if (selected.layer) wanted.push('diagram-layers');
+  return wanted.find((id) => panes.some((pane) => pane.id === id));
+}
 
 export interface WorkspaceViewDrawerState {
   /**
@@ -84,13 +108,15 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
   const drawerId = useId();
   const panes = coarsePointer ? sidePanesFor(activeWorkspace) : NO_PANES;
   const [activePaneId, setActivePaneId] = useState<SidePaneId | null>(null);
-  // The one thing the sheet knows about what it shows: a canvas object being
-  // selected is what makes Properties the pane to open on. The dock's pane
-  // reveals itself on that transition (`usePropertiesPaneActivation`); the
-  // sheet is modal and never opens on a tap, so it asks at open time instead.
+  // The one thing the sheet knows about what it shows: something selected — a
+  // canvas object in Edit, a mark in the Diagram — makes the pane that shows
+  // it the one to open on. The dock's pane reveals itself on that transition
+  // (`usePropertiesPaneActivation`, `useDiagramPaneReveal`); the sheet is modal
+  // and never opens on a tap, so it asks at open time instead.
   const canvasObjectSelected = useWorkspaceStore(
     (state) => selectedCanvasObjectIdOf(state) !== null
   );
+  const layerSelected = useWorkspaceStore((state) => annotatingSelectionId(state) !== null);
   // A request from `activatePanel` — View ▸ Properties, the phone overflow row
   // — parked until this workspace's panes include it. Latched because a request
   // raised from another workspace lands in the same commit as the workspace
@@ -108,6 +134,16 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
   const openRef = useRef(open);
   useEffect(() => {
     openRef.current = open;
+  }, [open]);
+  /**
+   * The pick the sheet is closed for while it is made on the canvas under it
+   * — its step and the area or frame it anchors — to come back when it ends
+   * there; null when the sheet is not stepped aside. Opened again meanwhile,
+   * by hand or by a request, the sheet is the user's, and so is closing it.
+   */
+  const steppedAside = useRef<DiagramAnchorPick | null>(null);
+  useEffect(() => {
+    if (open) steppedAside.current = null;
   }, [open]);
 
   const close = useCallback(() => {
@@ -131,9 +167,31 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
   // to re-run: this effect fires on a change of *subject*, and putting `open` in
   // its deps would make every open re-close the drawer immediately.
   useEffect(() => {
+    steppedAside.current = null;
     if (!openRef.current) return;
     close();
   }, [coarsePointer, activeWorkspace, close]);
+
+  // A pick armed from the sheet is made on the canvas the sheet covers: the
+  // Diagram's anchor pick, armed from the Layers pane (Revision 2), whose next
+  // tap landed on the sheet, not the face under it (an iPad, 18e). The sheet
+  // steps aside while it is armed and comes back, on the same pane, when it
+  // ends where it was made — anchored, or put down — and not when it ends
+  // because the user went somewhere else: Pose, the step list, another step,
+  // another mark (review of 18f), or another workspace (the effect above, run
+  // first). A sheet opened while one is armed stays: the runtime leaves Escape
+  // to the pick, then to it (below).
+  const picking = useWorkspaceStore(escapePutsPickDown);
+  useEffect(() => {
+    if (picking && openRef.current) {
+      steppedAside.current = activeAnchorPick(useWorkspaceStore.getState());
+      setOpen(false);
+    } else if (!picking && steppedAside.current) {
+      const armed = steppedAside.current;
+      steppedAside.current = null;
+      if (anchorPickEndedInPlace(useWorkspaceStore.getState(), armed)) setOpen(true);
+    }
+  }, [picking]);
 
   useEffect(() => subscribeSidePaneRequests(setPendingPane), []);
 
@@ -149,38 +207,10 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
     track(ANALYTICS_EVENTS.viewDrawerOpened, { workspace: activeWorkspace, pane: pane.id });
   }, [pendingPane, panes, activeWorkspace]);
 
-  // Escape, the way both existing modals do it (`HelpModal`, `SettingsModal`): a
-  // capture-phase listener on `window`, so it works wherever focus happens to be
-  // inside the sheet.
-  //
-  // With two additions, both cases where something inside the sheet owns Escape
-  // and a capture listener on `window` would otherwise beat it to the key.
-  //
-  // The drawer's body is the view-controls pane, which is full of `NumberField`s
-  // whose own Escape reverts the half-typed draft before blurring — a React
-  // bubble handler. Without the bail, Escape in a mid-edit grid size would commit
-  // the number and close the drawer. `isShortcutEditingTarget` is the repo's one
-  // answer to "does this target own its keystrokes", and reusing it is why there
-  // is no private copy.
-  //
-  // The pane also has `Select`s, and Radix portals an open dropdown *outside* the
-  // sheet, so a listener scoped to the sheet would never see it — but the
-  // dropdown holds focus while it is open, so the keystroke's target is inside
-  // it, and `isOpenLayerTarget` is the repo's one answer to "is a layer holding
-  // this key". Without the bail, Escape aimed at a dropdown closed the whole
-  // drawer — one keystroke discarding the wrong thing.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (isShortcutEditingTarget(event.target) || isOpenLayerTarget(event.target)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [open, close]);
+  // Escape: the one listener every touch sheet shares, and the cases in which
+  // the key is another's — a field's, an open Select's, an armed pick's, a
+  // dialog's over the sheet (`useSheetEscape`).
+  useSheetEscape(open, drawerId, close);
 
   const activePane =
     panes.find((candidate) => candidate.id === activePaneId) ?? panes[0] ?? null;
@@ -203,7 +233,8 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
     openDrawer: useCallback(
       (paneId?: SidePaneId) => {
         if (open) return;
-        const preferred = paneId ?? (canvasObjectSelected ? 'cp-properties' : undefined);
+        const preferred =
+          paneId ?? selectionPaneIn(panes, { canvasObject: canvasObjectSelected, layer: layerSelected });
         const pane = panes.find((candidate) => candidate.id === preferred) ?? activePane;
         if (pane) setActivePaneId(pane.id);
         setOpen(true);
@@ -212,7 +243,7 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
           pane: pane?.id ?? null,
         });
       },
-      [open, panes, activePane, activeWorkspace, canvasObjectSelected]
+      [open, panes, activePane, activeWorkspace, canvasObjectSelected, layerSelected]
     ),
     close,
     triggerRef,

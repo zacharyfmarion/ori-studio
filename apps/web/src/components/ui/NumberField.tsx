@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type Ref } from 'react';
 import { flushSync } from 'react-dom';
 import { Minus, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -40,6 +40,7 @@ export function NumberField({
   variant,
   minChars = 2,
   className,
+  inputRef,
   onCommit,
 }: {
   id?: string;
@@ -70,6 +71,8 @@ export function NumberField({
   minChars?: number;
   /** Placement only — a width, a margin, a grid cell. Lands on the root. */
   className?: string;
+  /** The input itself, for a caller that puts the focus in it. */
+  inputRef?: Ref<HTMLInputElement>;
   onCommit: (value: number) => void;
 }) {
   const { t } = useTranslation();
@@ -150,6 +153,7 @@ export function NumberField({
 
   const input = (
     <input
+      ref={inputRef}
       id={id}
       className={
         bare

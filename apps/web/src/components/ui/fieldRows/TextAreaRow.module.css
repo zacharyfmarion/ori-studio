@@ -1,0 +1,66 @@
+/* The stacked sibling of `FieldRow`: an instruction is prose, and a field
+   squeezed into the value column beside its label would hold a few words a
+   line. Same rhythm as the rows around it — padding, rule and label. */
+.row {
+  display: grid;
+  gap: 5px;
+  padding: 7px var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.label {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+}
+
+.field {
+  width: 100%;
+  min-height: 64px;
+  padding: 6px 7px;
+  resize: vertical;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.field:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+.field::placeholder {
+  color: var(--text-muted);
+}
+
+/* Named for assistive technology only; the section title shows it. */
+.labelHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.row[data-disabled] .label {
+  opacity: 0.5;
+}
+
+.field:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Below 16px, iOS zooms the page to the field the moment it takes focus. The
+   global rule for every `textarea` loses to this module's class, so the field
+   says it again. */
+@media (pointer: coarse) {
+  .field {
+    font-size: 16px;
+  }
+}

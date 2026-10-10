@@ -1,0 +1,27 @@
+/*
+ * An enlarged step on the Annotate canvas (DiagramZoomView.tsx): its picture
+ * under the frame's clip, in the canvas's world, under the marks.
+ */
+.view {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/*
+ * The picture round a selected frame, under the page's white: the stage's,
+ * whatever the theme, as every mark prints on it.
+ */
+.dim {
+  fill: #ffffff;
+  fill-rule: evenodd;
+}
+
+/* The frame: a hairline, where the canvas measures the step's marks, as round any picture's frame. */
+.hairline {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.2);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}

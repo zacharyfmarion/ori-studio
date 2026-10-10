@@ -6,10 +6,15 @@ import { getFileService, type FileCommand, type FileService } from '../platform/
 import { useHelpStore } from '../store/helpStore';
 import { useLayoutStore } from '../store/layoutStore';
 import { useBpOptimizerUiStore } from '../store/bpOptimizerUiStore';
+import { useDiagramExportUiStore } from '../store/diagramExportUiStore';
+import { focusedElement } from '../store/paperExportUiStore';
 import { useSelectionUiStore } from '../store/selectionUiStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { selectWorkspaceCapabilities } from '../store/workspaceStore/capabilities';
+import { isDiagramAnnotating, selectedDiagramPathNode } from '../store/workspaceStore/diagramState';
+import { deleteKeyEdit } from '../diagram/annotate/annotationActions';
+import { applyAnnotationEdit } from '../diagram/annotate/applyAnnotationEdit';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import { requestPositiveNumber, type NumberDialogOptions } from '../store/commandDialogStore';
 import { showActiveWorkspace } from '../routing/workspaceUrlSync';
@@ -22,7 +27,11 @@ import type { OristudioCpSelection } from '../lib/creasePatternViewport';
 import type { CpSelectionTransform } from '../lib/creasePatternClipboard';
 import type { Point } from '../lib/geometry';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
-import type { OristudioCpSurfaceRequestKind } from '../store/workspaceStore/types';
+import type {
+  DiagramDetailMode,
+  OristudioCpSurfaceRequestKind,
+  WorkspaceState,
+} from '../store/workspaceStore/types';
 import type { EditingContext } from '../workspaces/editingContext';
 import type {
 } from '../engine/oristudioBpTypes';
@@ -52,6 +61,8 @@ export const MENU_ACTION_IDS = [
   'file.exportOrh',
   'file.exportSvg',
   'file.exportPng',
+  'file.exportDiagram',
+  'file.printDiagram',
   'edit.undo',
   'edit.redo',
   'edit.cut',
@@ -87,6 +98,7 @@ export const MENU_ACTION_IDS = [
   'view.simulate',
   'view.simulator',
   'view.references',
+  'view.diagram',
   'view.conditions',
   'view.properties',
   'view.resetLayout',
@@ -210,6 +222,14 @@ export interface WorkspaceCommands {
     payload?: OristudioCpCommandPayload
   ): Promise<boolean>;
   transformOristudioCpSelection(transform: CpSelectionTransform): Promise<boolean>;
+  diagram: WorkspaceState['diagram'];
+  diagramSelectedStepId: string | null;
+  diagramDetail: DiagramDetailMode | null;
+  diagramSelectedAnnotationId: string | null;
+  diagramAnnotateTool: WorkspaceState['diagramAnnotateTool'];
+  diagramSelectedPathNode: WorkspaceState['diagramSelectedPathNode'];
+  confirmDeleteDiagramSteps(stepIds: readonly string[]): Promise<boolean>;
+  editDiagramAnnotations: WorkspaceState['editDiagramAnnotations'];
 }
 
 function selectedCpDeletePoints(
@@ -355,6 +375,7 @@ const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
   'view.simulate': 'simulator',
   'view.simulator': 'simulator',
   'view.references': 'references',
+  'view.diagram': 'diagram',
   'view.conditions': 'conditions',
   'view.properties': 'cp-properties',
 };
@@ -527,6 +548,14 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       case 'file.detectCpImage':
         window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
         return true;
+      case 'file.exportDiagram':
+        useDiagramExportUiStore.getState().open(focusedElement(), useWorkspaceStore.getState().diagramLoadId);
+        return true;
+      case 'file.printDiagram':
+        // Its pages, as the PDF prints them, through the runtime's print dialog.
+        // Loaded when asked for: the page composer and its fonts stay out of
+        // the shell's own chunk.
+        return (await import('../diagram/print/printDiagram')).printDiagram();
       case 'file.settings':
         deps.settings?.();
         return true;
@@ -552,6 +581,23 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         await deps.workspace.pasteClipboard();
         return true;
       case 'edit.delete': {
+        // The Diagram owns Delete whether or not a step is selected: falling
+        // through would delete tree parts or creases that are not on screen.
+        if (deps.workspace.activeEditingContext === 'diagram') {
+          const stepId = deps.workspace.diagramSelectedStepId;
+          if (stepId === null) return false;
+          // Annotate deletes the selected annotation, and only that: the step
+          // it is drawn on is not what the key was pressed at. In Edit Path,
+          // the node selected on it, while there is one.
+          if (isDiagramAnnotating(deps.workspace)) {
+            const annotationId = deps.workspace.diagramSelectedAnnotationId;
+            if (annotationId === null) return false;
+            // The Step pane's Delete or Delete Node, by the same edit (`annotationActions.ts`).
+            const edit = deleteKeyEdit(annotationId, selectedDiagramPathNode(deps.workspace));
+            return applyAnnotationEdit(deps.workspace, stepId, edit);
+          }
+          return deps.workspace.confirmDeleteDiagramSteps([stepId]);
+        }
         // *What* to delete is the design kind's answer, asked once. *How* stays
         // here, because each kind's delete is a different store action — but the
         // predicate that used to gate this by naming kinds is gone, which is

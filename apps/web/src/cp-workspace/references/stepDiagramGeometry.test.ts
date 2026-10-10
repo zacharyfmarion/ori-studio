@@ -1,11 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DIAGRAM_ANGLE_MARK_INK,
+  DIAGRAM_ARROWHEAD_INK,
+  DIAGRAM_DIVISIONS_INK,
   DIAGRAM_LINE_INK,
   DIAGRAM_MARK_INK,
   DIAGRAM_MARKS,
+  DIAGRAM_PLEAT_INK,
+  DIAGRAM_RIGHT_ANGLE_INK,
+  DIAGRAM_STAR_INK,
+  DIAGRAM_EYE_INK,
   REFERENCES_VIEW_MARKS,
 } from './diagram/diagramInk';
 import {
+  angleMarkArcPoints,
+  angleMarkDrawn,
+  angleMarkPathData,
+  angleMarkShape,
   ARROWHEAD_ASPECT,
   ARROWHEAD_MIN_STROKES,
   ARROWHEAD_NOTCH,
@@ -18,16 +29,25 @@ import {
   arcEndDirection,
   arcEndPoint,
   arcExtent,
+  arcExtremes,
+  arcPieces,
   arcStartDirection,
   arcPathData,
   arrowheadAt,
   arrowheadPath,
   arrowheadReach,
   arrowheadSize,
+  auxMarkPen,
   createDiagramProjector,
   createOverlayProjector,
   dashRulerAlong,
   dashZeroOf,
+  divisionsDrawn,
+  divisionsPathData,
+  divisionsShape,
+  divisionsStrokes,
+  DIVISIONS_DIGIT_EMS,
+  DIVISIONS_DIGIT_HALF_HEIGHT_EMS,
   erodeCreaseOnSheet,
   foldAndUnfoldArrow,
   foldAndUnfoldFromArc,
@@ -38,6 +58,28 @@ import {
   foldArrowLanding,
   foldArrowTrim,
   foldReturnOffset,
+  halfArrowheadPath,
+  oneWayArrow,
+  pleatArrowDrawn,
+  pleatArrowShape,
+  pleatBolt,
+  polylineMitres,
+  polylinePieces,
+  reversedStretches,
+  ringPieces,
+  strokePieces,
+  pushArrowOutline,
+  rightAngleDrawn,
+  starDrawn,
+  STAR_MITER_LIMIT,
+  eyeDrawn,
+  eyePathData,
+  EYE_MITER_LIMIT,
+  rightAnglePathData,
+  rightAngleReach,
+  rightAngleShape,
+  rotateGlyph,
+  strokedOutlinePoints,
   offPaperPathData,
   onSheetBoundary,
   paperRingPoints,
@@ -47,6 +89,7 @@ import {
   type DiagramArc,
   type SvgPoint,
 } from './stepDiagramGeometry';
+import { markRingWidth } from './diagram/labelLayout';
 
 const UNIT = { width: 1, height: 1 };
 const CENTRE: readonly [number, number] = [0.5, 0.5];
@@ -566,6 +609,17 @@ describe('the turn-over glyph', () => {
 });
 
 describe('foldArrowLanding', () => {
+  it('lands on the actual radius of a circle drawn by its bounds', () => {
+    const q: [number, number] = [0.8, 0.6];
+    const out = foldArrowArc([0.1, 0.1], q, CENTRE)!;
+    const radius = 0.12 * CARD.scale;
+    const mark = { ...CARD(q), radius };
+    const landed = foldArrowLanding(out, [mark], DIAGRAM_MARK_INK.radius * CARD.ink, CARD);
+    expect(out.radius * arcExtent(out) - landed.radius * arcExtent(landed)).toBeCloseTo(0.12, 9);
+    const end = CARD(arcEndPoint(landed));
+    expect(Math.hypot(end.x - mark.x, end.y - mark.y)).toBeCloseTo(radius, 1);
+  });
+
   const rim = DIAGRAM_MARK_INK.radius * CARD.ink;
 
   // A point folded onto a point: the far end of the arc is another mark, and a
@@ -587,6 +641,28 @@ describe('foldArrowLanding', () => {
     );
     expect(landed.from).toBe(out.from);
     expect(landed.center).toEqual(out.center);
+  });
+
+  // An annotation's end put down off a ring's middle: on the ring, not a rim back from where it was.
+  it('stops an arc that ends elsewhere in a ring on its near side', () => {
+    const p: [number, number] = [0.2, 0.2];
+    const q: [number, number] = [0.8, 0.6];
+    const out = foldArrowArc(p, q, CENTRE);
+    if (!out) throw new Error('no arc');
+    const end = CARD(arcEndPoint(out));
+    // The arc's direction where it ends, on the card.
+    const before = CARD(arcEndPoint({ ...out, to: out.to - (out.ccw ? 1 : -1) * 0.01 }));
+    const length = Math.hypot(end.x - before.x, end.y - before.y);
+    const along = { x: (end.x - before.x) / length, y: (end.y - before.y) / length };
+    // The mark ahead of the end (0.9 and 0.5 of a rim) and behind it, the end past the middle.
+    for (const share of [0.9, 0.5, -0.5]) {
+      const mark = { x: end.x + along.x * share * rim, y: end.y + along.y * share * rim };
+      const landed = foldArrowLanding(out, [mark], rim, CARD);
+      const stop = CARD(arcEndPoint(landed));
+      expect(Math.hypot(stop.x - mark.x, stop.y - mark.y)).toBeCloseTo(rim, 4);
+      // On the near side: the stroke stops before reaching the mark.
+      expect((mark.x - stop.x) * along.x + (mark.y - stop.y) * along.y).toBeGreaterThan(0);
+    }
   });
 
   // A point folded onto a line lands on nothing marked, and the arc ends where
@@ -981,5 +1057,823 @@ describe('a projector’s marks', () => {
     const screen = createOverlayProjector(view, 1, DIAGRAM_LINE_INK, REFERENCES_VIEW_MARKS);
     expect(arrowheadSize(arc, page)).toBeCloseTo(DIAGRAM_MARKS.arrowheadLength, 9);
     expect(arrowheadSize(arc, screen)).toBeCloseTo(REFERENCES_VIEW_MARKS.arrowheadLength, 9);
+  });
+});
+
+describe('the Diagram’s glyphs', () => {
+  const close = (a: { x: number; y: number }, b: { x: number; y: number }, digits = 6) => {
+    expect(a.x).toBeCloseTo(b.x, digits);
+    expect(a.y).toBeCloseTo(b.y, digits);
+  };
+  const arc = { center: [0.5, 0.2] as const, radius: 0.4, from: 2.2, to: 0.9, ccw: false };
+
+  it('stops a one-way arrow’s stroke at its head’s notch, the tip where the stroke used to end', () => {
+    const head = arrowheadSize(arc, CARD);
+    const { shaft, head: drawn } = oneWayArrow(arc, CARD, head);
+    expect(shaft).not.toBeNull();
+    close(CARD(arcEndPoint(shaft!)), drawn.notch);
+    const tip = CARD(arcEndPoint(arc));
+    // Within a hair of the old end: how far the arc bends from its tangent over the reach, reach² / 2r.
+    const hair = arrowheadReach(head) ** 2 / (2 * arc.radius * CARD.scale);
+    expect(Math.hypot(drawn.tip.x - tip.x, drawn.tip.y - tip.y)).toBeLessThan(1.5 * hair);
+    // Too short for a shaft: the head alone.
+    expect(oneWayArrow({ ...arc, to: 2.19 }, CARD, head).shaft).toBeNull();
+  });
+
+  it('gives a mountain fold’s head one barb, on the outside of the curve, wider than a filled head’s', () => {
+    const { head } = oneWayArrow(arc, CARD, arrowheadSize(arc, CARD));
+    const centre = CARD(arc.center);
+    const path = halfArrowheadPath(head, centre);
+    const [tip, barb, notch] = [...path.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
+    close(tip!, head.tip, 2);
+    close(notch!, head.notch, 2);
+    const away = (p: { x: number; y: number }) => Math.hypot(p.x - centre.x, p.y - centre.y);
+    expect(away(barb!)).toBeGreaterThan(Math.max(...head.barbs.map(away)));
+  });
+
+  it('outlines a push arrow from its cleft tail to its tip, and shrinks it whole when it is short', () => {
+    const size = { head: 12, headHalf: 7.5, shaftHalf: 3.2, cleft: 4.5 };
+    const outline = pushArrowOutline({ x: 0, y: 0 }, { x: 100, y: 0 }, size)!;
+    expect(outline).toHaveLength(8);
+    close(outline[0]!, { x: 100, y: 0 });
+    // The head's barbs, the shaft's sides at the tail, the cleft between them.
+    expect(outline.map((p) => Math.abs(p.y))).toEqual([0, 7.5, 3.2, 3.2, 0, 3.2, 3.2, 7.5]);
+    close(outline[4]!, { x: 4.5, y: 0 });
+    const short = pushArrowOutline({ x: 0, y: 0 }, { x: 10.5, y: 0 }, size)!;
+    expect(Math.max(...short.map((p) => p.y))).toBeCloseTo(7.5 / 2, 6);
+    expect(pushArrowOutline({ x: 1, y: 1 }, { x: 1, y: 1 }, size)).toBeNull();
+  });
+
+  it('draws the rotate glyph as two arrows going the way the model turns', () => {
+    const centre = { x: 50, y: 50 };
+    for (const direction of ['cw', 'ccw'] as const) {
+      const { heads } = rotateGlyph(centre, 12, 6, direction);
+      for (const head of heads) {
+        // Each head points along the circle, the right way round: clockwise on the page is
+        // (radius × direction) pointing into the page with y down.
+        const r = { x: head.notch.x - centre.x, y: head.notch.y - centre.y };
+        const d = { x: head.tip.x - head.notch.x, y: head.tip.y - head.notch.y };
+        const turn = Math.sign(r.x * d.y - r.y * d.x);
+        expect(turn).toBe(direction === 'cw' ? 1 : -1);
+        expect(Math.hypot(r.x, r.y)).toBeCloseTo(12, 6);
+      }
+    }
+  });
+});
+
+describe('a right-angle mark (Revision 2)', () => {
+  const close = (a: SvgPoint, b: SvgPoint, digits = 9) => {
+    expect(a.x).toBeCloseTo(b.x, digits);
+    expect(a.y).toBeCloseTo(b.y, digits);
+  };
+  const length = (a: SvgPoint, b: SvgPoint) => Math.hypot(b.x - a.x, b.y - a.y);
+  const size = { inset: 4, side: 7, leg: 11 };
+
+  it('is an ∟ set into the angle off its vertex, with a closed square in its corner', () => {
+    // Opening down and to the right from (10, 20), y down: the lines it marks run along x and y from there.
+    const { legs, square } = rightAngleShape({ x: 10, y: 20 }, { x: Math.SQRT1_2, y: Math.SQRT1_2 }, size);
+    const [endA, inner, endB] = legs;
+    // Its inner corner 4 in from each line: inset·√2 along the diagonal.
+    close(inner, { x: 14, y: 24 });
+    expect(length({ x: 10, y: 20 }, inner)).toBeCloseTo(4 * Math.SQRT2, 9);
+    // Each leg parallel to a line, `leg` long, ending 15 out along it: past the square.
+    close(endA, { x: 25, y: 24 });
+    close(endB, { x: 14, y: 35 });
+    // The square in the ∟'s corner, its far corner (inset + side)·√2 out along the diagonal.
+    const [onA, far, onB] = square;
+    close(onA, { x: 21, y: 24 });
+    close(far, { x: 21, y: 31 });
+    close(onB, { x: 14, y: 31 });
+    expect(length({ x: 10, y: 20 }, far)).toBeCloseTo(11 * Math.SQRT2, 9);
+  });
+
+  it('keeps its shape turned any way: legs square and `leg` long, the square’s far sides ending on them', () => {
+    const vertex = { x: 0, y: 0 };
+    const diagonal = { x: Math.cos(0.3), y: Math.sin(0.3) };
+    const { legs, square } = rightAngleShape(vertex, diagonal, size);
+    const [endA, inner, endB] = legs;
+    const [onA, far, onB] = square;
+    const along = (from: SvgPoint, to: SvgPoint) => ({ x: (to.x - from.x) / length(from, to), y: (to.y - from.y) / length(from, to) });
+    const a = along(inner, endA);
+    const b = along(inner, endB);
+    expect(length(inner, endA)).toBeCloseTo(11, 9);
+    expect(length(inner, endB)).toBeCloseTo(11, 9);
+    expect(a.x * b.x + a.y * b.y).toBeCloseTo(0, 9);
+    // Each leg 45° off the diagonal, the first anticlockwise of it on the page (y down), the second clockwise.
+    expect(Math.atan2(a.y, a.x)).toBeCloseTo(0.3 - Math.PI / 4, 9);
+    expect(Math.atan2(b.y, b.x)).toBeCloseTo(0.3 + Math.PI / 4, 9);
+    close(inner, { x: 4 * Math.SQRT2 * diagonal.x, y: 4 * Math.SQRT2 * diagonal.y });
+    close(far, { x: 11 * Math.SQRT2 * diagonal.x, y: 11 * Math.SQRT2 * diagonal.y });
+    // The square's far sides end on the legs, `side` from the inner corner, and meet square at the far corner.
+    close(onA, { x: inner.x + 7 * a.x, y: inner.y + 7 * a.y });
+    close(onB, { x: inner.x + 7 * b.x, y: inner.y + 7 * b.y });
+    expect((onA.x - far.x) * (onB.x - far.x) + (onA.y - far.y) * (onB.y - far.y)).toBeCloseTo(0, 9);
+    expect(length(onA, far)).toBeCloseTo(7, 9);
+    expect(length(onB, far)).toBeCloseTo(7, 9);
+  });
+
+  it('is drawn at its ink’s size, the way its diagonal goes through the projector, mirrored on the back', () => {
+    const overlay = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2);
+    // Sheet units are y up: toward (1, 1) from (0.5, 0.5) is up and to the right on the page.
+    const drawn = rightAngleDrawn([0.5, 0.5], [0.6, 0.6], overlay)!;
+    const ink = 2;
+    // Half the size 16a built (Zach, 2026-10-06): 2 in, a 3.5 square, legs ending 7.5 out.
+    expect(DIAGRAM_RIGHT_ANGLE_INK).toEqual({ inset: 2, side: 3.5, leg: 5.5 });
+    close(drawn.legs[0], { x: 50 + 2 * ink, y: -50 - 7.5 * ink });
+    close(drawn.legs[1], { x: 50 + 2 * ink, y: -50 - 2 * ink });
+    close(drawn.legs[2], { x: 50 + 7.5 * ink, y: -50 - 2 * ink });
+    close(drawn.square[1], { x: 50 + 5.5 * ink, y: -50 - 5.5 * ink });
+    // The back of a card: it opens the other way across, as the paper does.
+    const back = createDiagramProjector(UNIT, 100, true);
+    const front = createDiagramProjector(UNIT, 100, false);
+    const onBack = rightAngleDrawn([0.2, 0.2], [0.3, 0.3], back)!;
+    const onFront = rightAngleDrawn([0.2, 0.2], [0.3, 0.3], front)!;
+    for (const part of ['legs', 'square'] as const) {
+      onBack[part].forEach((point, index) => {
+        const mirror = onFront[part][2 - index]!;
+        // Symmetric about its diagonal: its first leg on the back is its second on the front, mirrored.
+        expect(point.x - back([0.2, 0.2]).x).toBeCloseTo(-(mirror.x - front([0.2, 0.2]).x), 9);
+        expect(point.y).toBeCloseTo(mirror.y, 9);
+      });
+    }
+    // Only its direction is read: a point twice as far draws the same mark.
+    expect(rightAngleDrawn([0.5, 0.5], [0.7, 0.7], overlay)).toEqual(rightAngleDrawn([0.5, 0.5], [0.6, 0.6], overlay));
+    // Opening no way, it draws nothing.
+    expect(rightAngleDrawn([0.5, 0.5], [0.5, 0.5], overlay)).toBeNull();
+  });
+
+  it('is one path of two subpaths: its ∟, then its square’s far sides', () => {
+    const shape = rightAngleShape({ x: 10, y: 20 }, { x: Math.SQRT1_2, y: Math.SQRT1_2 }, size);
+    expect(rightAnglePathData(shape)).toBe('M 25 24 L 14 24 L 14 35 M 21 24 L 21 31 L 14 31');
+  });
+
+  it('reaches half its pen past its four square ends, and √2 of that past its two mitred corners', () => {
+    const reach = rightAngleReach(2);
+    expect(reach.legs[0]).toBe(1);
+    expect(reach.legs[1]).toBeCloseTo(Math.SQRT2, 12);
+    expect(reach.legs[2]).toBe(1);
+    expect(reach.square[0]).toBe(1);
+    expect(reach.square[1]).toBeCloseTo(Math.SQRT2, 12);
+    expect(reach.square[2]).toBe(1);
+  });
+
+  it('is drawn in the aux lines’ pen, whatever the arrow’s, not a ring’s (Zach, 2026-10-06)', () => {
+    const pens = { ...DIAGRAM_LINE_INK, aux: { ...DIAGRAM_LINE_INK.aux, width: 0.3 }, arrow: { ...DIAGRAM_LINE_INK.arrow, width: 2 } };
+    const project = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2, pens);
+    expect(auxMarkPen(project)).toBeCloseTo(0.6, 12);
+    expect(markRingWidth(project)).toBeCloseTo(3, 12);
+  });
+});
+
+describe('a star (Revision 3)', () => {
+  const overlay = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2);
+  const at = [0.5, 0.5] as const;
+  const centre = { x: 50, y: -50 };
+  const distance = (p: SvgPoint) => Math.hypot(p.x - centre.x, p.y - centre.y);
+  // Clockwise on the y-down page from straight up, in degrees.
+  const bearing = (p: SvgPoint) => (((Math.atan2(p.x - centre.x, -(p.y - centre.y)) * 180) / Math.PI) % 360 + 360) % 360;
+
+  it('is ten corners, a tip then an inner corner, one tip straight up at angle 0, 3 mm across at its ink', () => {
+    const { points } = starDrawn(at, 0, 1, overlay);
+    expect(points).toHaveLength(10);
+    points.forEach((point, index) => {
+      expect(distance(point)).toBeCloseTo(index % 2 === 0 ? 4.5 * 2 : 4.5 * 2 * 0.382, 9);
+      expect(bearing(point)).toBeCloseTo((index * 36) % 360, 6);
+    });
+    // Its first tip straight above its centre.
+    expect(points[0]!.x).toBeCloseTo(50, 9);
+    expect(points[0]!.y).toBeCloseTo(-50 - 9, 9);
+    expect(DIAGRAM_STAR_INK).toEqual({ radius: 4.5, inner: 0.382 });
+    // 9 ink across at an annotation's 0.331 mm.
+    expect(2 * DIAGRAM_STAR_INK.radius * 0.331).toBeCloseTo(2.98, 2);
+  });
+
+  it('is turned clockwise by its angle and sized by its scale', () => {
+    const { points } = starDrawn(at, 30, 2, overlay);
+    expect(distance(points[0]!)).toBeCloseTo(4.5 * 2 * 2, 9);
+    expect(bearing(points[0]!)).toBeCloseTo(30, 6);
+    expect(bearing(points[2]!)).toBeCloseTo(102, 6);
+  });
+
+  it('is never turned or mirrored by its projector: a turned or mirrored picture moves it, upright', () => {
+    const turned = (degrees: number, mirrored: boolean) => {
+      const [c, s] = [Math.cos((degrees * Math.PI) / 180), Math.sin((degrees * Math.PI) / 180)];
+      return createOverlayProjector({ origin: [40, 70], ex: [100 * c, 100 * s], ey: mirrored ? [100 * s, -100 * c] : [-100 * s, 100 * c] }, 2);
+    };
+    for (const project of [turned(90, false), turned(33, false), turned(-120, true)]) {
+      const { points } = starDrawn(at, 0, 1, project);
+      const middle = project(at);
+      // Its first tip still straight up the page above wherever it now is.
+      expect(points[0]!.x).toBeCloseTo(middle.x, 9);
+      expect(points[0]!.y).toBeCloseTo(middle.y - 9, 9);
+    }
+  });
+
+  it('is outlined in a ring’s pen, mitred at its tips under SVG’s own limit', () => {
+    const { pen } = starDrawn(at, 0, 1, overlay);
+    expect(pen).toBeCloseTo(markRingWidth(overlay), 12);
+    // A regular star's tip is 36°: its mitre is 1 / sin 18° of the pen, 3.24, inside the limit, so never bevelled.
+    expect(1 / Math.sin(Math.PI / 10)).toBeLessThan(STAR_MITER_LIMIT);
+  });
+});
+
+describe('an eye (Revision 3)', () => {
+  const overlay = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2);
+  const at = [0.5, 0.5] as const;
+  const unit = (p: SvgPoint) => {
+    const length = Math.hypot(p.x, p.y);
+    return { x: p.x / length, y: p.y / length };
+  };
+  // The way its open side faces on the page: from the corner where its lids meet to its cornea's apex.
+  const facing = (eye: ReturnType<typeof eyeDrawn>) =>
+    unit({ x: eye.cornea.apex.x - eye.lids[1].x, y: eye.cornea.apex.y - eye.lids[1].y });
+  // Clockwise on the y-down page from looking right, in degrees.
+  const bearing = (p: SvgPoint) => (((Math.atan2(p.y, p.x) * 180) / Math.PI) % 360 + 360) % 360;
+
+  it('opens the way it looks, clockwise from right on the page, at 0°, 90° and 217°', () => {
+    for (const angle of [0, 90, 217]) {
+      const eye = eyeDrawn(at, angle, 1, overlay);
+      expect(bearing(facing(eye)), `${angle}`).toBeCloseTo(angle, 6);
+      // Its lids run forward from the back corner, either side of the way it looks, their fronts ahead of the cornea.
+      const [front, back, other] = eye.lids;
+      const ahead = (p: SvgPoint) => (p.x - back.x) * facing(eye).x + (p.y - back.y) * facing(eye).y;
+      expect(ahead(front)).toBeCloseTo(DIAGRAM_EYE_INK.length * 2, 6);
+      expect(ahead(other)).toBeCloseTo(DIAGRAM_EYE_INK.length * 2, 6);
+      expect(ahead(eye.cornea.apex)).toBeLessThan(ahead(front));
+      // The iris bulges back into the eye from the cornea.
+      expect(ahead(eye.iris.via)).toBeLessThan(ahead(eye.iris.from));
+    }
+  });
+
+  it('is centred on its point, 15 ink long and 9.6 ink across at its ink, about 5 mm long at an annotation’s', () => {
+    const eye = eyeDrawn(at, 0, 1, overlay);
+    const [front, back, other] = eye.lids;
+    // Its middle on its point, (50, −50).
+    expect((back.x + (front.x + other.x) / 2) / 2).toBeCloseTo(50, 9);
+    expect((front.y + other.y) / 2).toBeCloseTo(-50, 9);
+    expect(back).toEqual({ x: 50 - 7.5 * 2, y: -50 });
+    expect(Math.abs(front.y - other.y)).toBeCloseTo(2 * 4.8 * 2, 9);
+    expect(DIAGRAM_EYE_INK.length * 0.331).toBeCloseTo(4.97, 2);
+    // The lids meet at about 35°, mitred under SVG's own limit, never bevelled.
+    const half = Math.atan(DIAGRAM_EYE_INK.spread / DIAGRAM_EYE_INK.length);
+    expect((2 * half * 180) / Math.PI).toBeCloseTo(35.5, 1);
+    expect(1 / Math.sin(half)).toBeLessThan(EYE_MITER_LIMIT);
+  });
+
+  it('puts its cornea’s ends on its lids, bulging forward, and its iris’s on the cornea, a half circle', () => {
+    const eye = eyeDrawn(at, 30, 1.5, overlay);
+    const [front, back] = eye.lids;
+    const cross = (a: SvgPoint, b: SvgPoint, c: SvgPoint) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    // On the lid from the back corner to its front: no area between them.
+    expect(cross(back, front, eye.cornea.from) / Math.hypot(front.x - back.x, front.y - back.y)).toBeCloseTo(0, 9);
+    const iris = eye.iris;
+    const middle = { x: (iris.from.x + iris.to.x) / 2, y: (iris.from.y + iris.to.y) / 2 };
+    expect(Math.hypot(iris.from.x - iris.to.x, iris.from.y - iris.to.y)).toBeCloseTo(2 * iris.radius, 9);
+    expect(Math.hypot(iris.via.x - middle.x, iris.via.y - middle.y)).toBeCloseTo(iris.radius, 9);
+    expect(iris.radius).toBeCloseTo(DIAGRAM_EYE_INK.iris * 2 * 1.5, 9);
+  });
+
+  it('is sized by its scale, and stroked in a ring’s pen, as an outlined star is (R3-26 A, amended for the eye)', () => {
+    const big = eyeDrawn(at, 0, 2, overlay);
+    expect(big.lids[1]).toEqual({ x: 50 - 7.5 * 2 * 2, y: -50 });
+    expect(big.pen).toBeCloseTo(markRingWidth(overlay), 12);
+    expect(eyeDrawn(at, 0, 1, overlay).pen).toBe(big.pen);
+  });
+
+  it('looks the way the paper does: a turned or mirrored projector turns it with the paper', () => {
+    const projector = (degrees: number, mirrored: boolean) => {
+      const [c, s] = [Math.cos((degrees * Math.PI) / 180), Math.sin((degrees * Math.PI) / 180)];
+      return createOverlayProjector({ origin: [40, 70], ex: [100 * c, 100 * s], ey: mirrored ? [100 * s, -100 * c] : [-100 * s, 100 * c] }, 2);
+    };
+    // Looking along the sheet's +x: on the page, wherever the projector puts +x.
+    for (const [degrees, mirrored] of [[90, false], [33, false], [-120, true]] as const) {
+      const project = projector(degrees, mirrored);
+      expect(bearing(facing(eyeDrawn(at, 0, 1, project))), `${degrees} ${mirrored}`).toBeCloseTo(bearing(project.ex), 6);
+    }
+    // A mirror across the page's vertical: looking right becomes looking left; looking 30° below right, 30° below left.
+    const mirror = createOverlayProjector({ origin: [0, 0], ex: [-100, 0], ey: [0, -100] }, 2);
+    expect(bearing(facing(eyeDrawn(at, 0, 1, mirror)))).toBeCloseTo(180, 6);
+    expect(bearing(facing(eyeDrawn(at, 30, 1, mirror)))).toBeCloseTo(150, 6);
+  });
+
+  it('is one path: its lids as one run, its cornea’s arc and its iris’s two quarters', () => {
+    const d = eyePathData(eyeDrawn(at, 0, 1, overlay));
+    expect(d.match(/M /g)).toHaveLength(3);
+    expect(d.match(/ L /g)).toHaveLength(2);
+    expect(d.match(/ A /g)).toHaveLength(3);
+    // Never the large arc: each is under a half turn.
+    for (const [, flags] of d.matchAll(/A [\d.-]+ [\d.-]+ (0 0 [01])/g)) expect(flags).toMatch(/^0 0 [01]$/);
+  });
+});
+
+describe('an angle mark (15b)', () => {
+  const size = { radius: 10, tick: 1, spacing: 2 };
+
+  it('sweeps the angle between its arms, under a half turn, whichever arm comes first', () => {
+    // Arms along +x and +y (y down: a quarter turn clockwise on the page).
+    const shape = angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 0, y: 3 }, 1, size)!;
+    expect(shape.start).toBeCloseTo(0, 12);
+    expect(shape.sweep).toBeCloseTo(Math.PI / 2, 12);
+    // The other way round sweeps back: the same arc.
+    const back = angleMarkShape({ x: 0, y: 0 }, { x: 0, y: 3 }, { x: 5, y: 0 }, 1, size)!;
+    expect(back.sweep).toBeCloseTo(-Math.PI / 2, 12);
+    // An obtuse angle across the ±π seam is still the angle the arms make, never its reflex.
+    const obtuse = angleMarkShape({ x: 0, y: 0 }, { x: -1, y: 0.2 }, { x: -1, y: -0.2 }, 1, size)!;
+    expect(Math.abs(obtuse.sweep)).toBeCloseTo(2 * Math.atan(0.2), 12);
+  });
+
+  it('puts each half’s ticks across its middle, spaced along the arc, each its length either side', () => {
+    const shape = angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 0, y: 3 }, 1, size)!;
+    expect(shape.ticks).toHaveLength(2);
+    const [inner, outer] = shape.ticks[0]!;
+    // A quarter of the way: 22.5°, from 9 to 11.
+    expect(Math.atan2(inner.y, inner.x)).toBeCloseTo(Math.PI / 8, 12);
+    expect(Math.hypot(inner.x, inner.y)).toBeCloseTo(9, 12);
+    expect(Math.hypot(outer.x, outer.y)).toBeCloseTo(11, 12);
+    expect(Math.atan2(shape.ticks[1]![0].y, shape.ticks[1]![0].x)).toBeCloseTo((3 * Math.PI) / 8, 12);
+    // Two ticks a half: 2 apart along the arc, either side of its middle.
+    const two = angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 0, y: 3 }, 2, size)!;
+    expect(two.ticks).toHaveLength(4);
+    const [a, b] = [two.ticks[0]![0], two.ticks[1]![0]];
+    // Measured along the arc: 2 at a radius of 10 is a fifth of a radian.
+    expect(Math.atan2(b.y, b.x) - Math.atan2(a.y, a.x)).toBeCloseTo(2 / 10, 12);
+  });
+
+  it('is nothing when an arm has no direction, or the arms lie along one line', () => {
+    expect(angleMarkShape({ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 3 }, 1, size)).toBeNull();
+    expect(angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 2, y: 0 }, 1, size)).toBeNull();
+    expect(angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: -2, y: 0 }, 1, size)).toBeNull();
+  });
+
+  it('is drawn at its ink’s size — about 5 mm at an annotation’s ink — mirrored with the paper', () => {
+    expect(DIAGRAM_ANGLE_MARK_INK.radius * 0.331).toBeCloseTo(5, 0);
+    const overlay = createOverlayProjector({ origin: [0, 0], ex: [100, 0], ey: [0, -100] }, 2);
+    const shape = angleMarkDrawn([0.5, 0.5], [[0.9, 0.5], [0.5, 0.9]], 1, overlay)!;
+    expect(shape.radius).toBe(DIAGRAM_ANGLE_MARK_INK.radius * 2);
+    // Sheet y up: the second arm is up the page, so the arc sweeps anticlockwise there.
+    expect(shape.sweep).toBeCloseTo(-Math.PI / 2, 12);
+    const back = createDiagramProjector(UNIT, 100, true);
+    const front = createDiagramProjector(UNIT, 100, false);
+    const arms = [[0.4, 0.2], [0.2, 0.4]] as const;
+    expect(angleMarkDrawn([0.2, 0.2], arms, 1, back)!.sweep).toBeCloseTo(-angleMarkDrawn([0.2, 0.2], arms, 1, front)!.sweep, 12);
+  });
+
+  it('writes its arc and ticks as one path, and gives its arc as points a degree apart at most', () => {
+    const shape = angleMarkShape({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 0, y: 3 }, 1, size)!;
+    const d = angleMarkPathData(shape);
+    // The arc from the first arm to the second, then a tick a half.
+    expect(d.startsWith('M 10 0 A 10 10 0 0 1 0 10 M ')).toBe(true);
+    expect(d.match(/M /g)).toHaveLength(3);
+    const points = angleMarkArcPoints(shape);
+    expect(points).toHaveLength(91);
+    expect(points[45]!.x).toBeCloseTo(10 * Math.SQRT1_2, 12);
+  });
+});
+
+describe('arcExtremes', () => {
+  it('is an arc’s bounds exactly, under a projector that turns and mirrors it', () => {
+    const turned = (degrees: number, mirrored: boolean) => {
+      const [c, s] = [Math.cos((degrees * Math.PI) / 180), Math.sin((degrees * Math.PI) / 180)];
+      return createOverlayProjector({ origin: [40, 70], ex: [3 * c, 3 * s], ey: mirrored ? [3 * s, -3 * c] : [-3 * s, 3 * c] }, 1);
+    };
+    const arcs: DiagramArc[] = [
+      { center: [10, 5], radius: 4, from: 0.3, to: 2.9, ccw: true },
+      { center: [10, 5], radius: 4, from: 0.3, to: 2.9, ccw: false },
+      { center: [-2, 1], radius: 7, from: -1.2, to: -1.1, ccw: true },
+    ];
+    for (const project of [turned(0, false), turned(33, false), turned(-120, true)]) {
+      for (const arc of arcs) {
+        const box = (points: SvgPoint[]) => ({
+          left: Math.min(...points.map(({ x }) => x)),
+          right: Math.max(...points.map(({ x }) => x)),
+          top: Math.min(...points.map(({ y }) => y)),
+          bottom: Math.max(...points.map(({ y }) => y)),
+        });
+        const extent = arcExtent(arc);
+        const sampled = Array.from({ length: 20001 }, (_, i) => {
+          const angle = arc.from + (arc.ccw ? 1 : -1) * extent * (i / 20000);
+          return project([arc.center[0] + arc.radius * Math.cos(angle), arc.center[1] + arc.radius * Math.sin(angle)]);
+        });
+        const [exact, fine] = [box(arcExtremes(arc, project)), box(sampled)];
+        for (const side of ['left', 'right', 'top', 'bottom'] as const) expect(exact[side]).toBeCloseTo(fine[side], 4);
+      }
+    }
+  });
+});
+
+describe('strokedOutlinePoints', () => {
+  const box = (points: SvgPoint[]) => ({
+    left: Math.min(...points.map(({ x }) => x)),
+    right: Math.max(...points.map(({ x }) => x)),
+    top: Math.min(...points.map(({ y }) => y)),
+    bottom: Math.max(...points.map(({ y }) => y)),
+  });
+
+  it('bounds a mitred outline by its mitres’ tips, and a corner past the limit by its edges’ ends', () => {
+    // A right angle mitres √2 half pens out along its bisector: a square's corners, a pen past each side.
+    const square = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+    expect(box(strokedOutlinePoints(square, 2))).toEqual({ left: -1, right: 11, top: -1, bottom: 11 });
+    // A 20° spike mitres 5.76 half pens out: bevelled at SVG's 4, mitred under a limit of 6.
+    const spike = [
+      { x: 0, y: 0 },
+      { x: 100, y: Math.tan((10 * Math.PI) / 180) * 100 },
+      { x: 100, y: -Math.tan((10 * Math.PI) / 180) * 100 },
+    ];
+    expect(box(strokedOutlinePoints(spike, 2)).left).toBeCloseTo(-Math.sin((10 * Math.PI) / 180), 12);
+    expect(box(strokedOutlinePoints(spike, 2, 6)).left).toBeCloseTo(-1 / Math.sin((10 * Math.PI) / 180), 9);
+  });
+
+  it('bounds an outline smaller than its pen by its edges’ inner sides too, which reach past its far side', () => {
+    // A thin sliver, a pen of 20: its long edge's inner side is 10 past it, beyond the bevelled far corner's ends.
+    const sliver = [
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 2, y: 0.5 },
+    ];
+    const points = strokedOutlinePoints(sliver, 20);
+    expect(box(points).top).toBeCloseTo(-10, 12);
+    expect(box(points).bottom).toBeGreaterThanOrEqual(10);
+    // Repeated points draw no edge of their own.
+    expect(box(strokedOutlinePoints([...sliver, sliver[2]!, sliver[0]!], 20))).toEqual(box(points));
+  });
+});
+
+describe('a pleat arrow (15c)', () => {
+  const size = { step: 4, back: 2, gap: 6, head: 5 };
+  const tail = { x: 0, y: 0 };
+  const tip = { x: 100, y: 0 };
+  /** Its runs: every other segment, the first, the last and the gaps between its Zs. */
+  const runs = (bolt: readonly SvgPoint[]) =>
+    bolt.slice(1).flatMap((point, index) => (index % 2 === 0 ? [[bolt[index]!, point] as const] : []));
+  const direction = ([a, b]: readonly [SvgPoint, SvgPoint]) => {
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    return { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+  };
+
+  it('starts on its tail and ends on its tip, its runs parallel and stepped apart by a Z each', () => {
+    for (const kinks of [1, 2, 3, 5]) {
+      const bolt = pleatBolt(tail, tip, kinks, false, size)!;
+      // Its tail, its first run's end, a Z each, a gap between each, its tip.
+      expect(bolt).toHaveLength(2 * kinks + 2);
+      expect(bolt[0]).toEqual(tail);
+      expect(bolt.at(-1)).toEqual(tip);
+      const way = runs(bolt).map(direction);
+      expect(way).toHaveLength(kinks + 1);
+      for (const each of way) {
+        expect(each.x).toBeCloseTo(way[0]!.x, 12);
+        expect(each.y).toBeCloseTo(way[0]!.y, 12);
+      }
+      // Each Z steps `step` across the runs, and `back` back along them.
+      const d = way[0]!;
+      for (let z = 0; z < kinks; z += 1) {
+        const [a, b] = [bolt[1 + 2 * z]!, bolt[2 + 2 * z]!];
+        const [dx, dy] = [b.x - a.x, b.y - a.y];
+        expect(dx * -d.y + dy * d.x).toBeCloseTo(size.step, 12);
+        expect(dx * d.x + dy * d.y).toBeCloseTo(-size.back, 12);
+      }
+      // The first run and the last alike: the Zs in the middle.
+      const [first, last] = [runs(bolt)[0]!, runs(bolt).at(-1)!];
+      expect(Math.hypot(first[1].x - first[0].x, first[1].y - first[0].y)).toBeCloseTo(
+        Math.hypot(last[1].x - last[0].x, last[1].y - last[0].y),
+        12
+      );
+    }
+  });
+
+  it('steps its Zs to the right of the way it points on a y-down page, mirrored to the left, its runs leaning the other way', () => {
+    // Pointing along +x, y down: the right is +y.
+    const right = pleatBolt(tail, tip, 1, false, size)!;
+    expect(right[2]!.y - right[1]!.y).toBeGreaterThan(0);
+    expect(right[1]!.y).toBeLessThan(0);
+    const left = pleatBolt(tail, tip, 1, true, size)!;
+    expect(left[2]!.y - left[1]!.y).toBeLessThan(0);
+    expect(left[1]!.y).toBeGreaterThan(0);
+    // A mirror image of each other across the line from tail to tip.
+    left.forEach((point, index) => {
+      expect(point.x).toBeCloseTo(right[index]!.x, 12);
+      expect(point.y).toBeCloseTo(-right[index]!.y, 12);
+    });
+  });
+
+  it('draws its Zs smaller on an arrow too short for them, as a short push does, and nothing for one of no length', () => {
+    // At its full size: two heads' room either side, and the Zs.
+    const full = 4 * size.head + 2 * (size.step + size.back) + size.gap;
+    const fits = pleatBolt(tail, { x: full, y: 0 }, 2, false, size)!;
+    const short = pleatBolt(tail, { x: full / 2, y: 0 }, 2, false, size)!;
+    const across = (bolt: readonly SvgPoint[]) => {
+      const d = direction([bolt[0]!, bolt[1]!]);
+      return (bolt[2]!.x - bolt[1]!.x) * -d.y + (bolt[2]!.y - bolt[1]!.y) * d.x;
+    };
+    expect(across(fits)).toBeCloseTo(size.step, 12);
+    expect(across(short)).toBeCloseTo(size.step / 2, 12);
+    expect(pleatBolt(tail, tail, 1, false, size)).toBeNull();
+  });
+
+  it('puts the valley arrow’s head on its last run, its tip on the bolt’s and the shaft stopped at its notch', () => {
+    const shape = pleatArrowShape(tail, tip, 1, false, size, 8)!;
+    expect(shape.head.tip.x).toBeCloseTo(tip.x, 12);
+    expect(shape.head.tip.y).toBeCloseTo(tip.y, 12);
+    const end = shape.shaft!.at(-1)!;
+    expect(end).toEqual(shape.head.notch);
+    // Along the last run: the bolt's way there.
+    const way = direction([shape.bolt.at(-2)!, shape.bolt.at(-1)!]);
+    const axis = direction([shape.head.notch, shape.head.tip]);
+    expect(axis.x).toBeCloseTo(way.x, 12);
+    expect(axis.y).toBeCloseTo(way.y, 12);
+    expect(Math.hypot(tip.x - end.x, tip.y - end.y)).toBeCloseTo(arrowheadReach(8), 12);
+  });
+
+  it('is drawn at its ink’s size, its head a fold arrow’s, its Zs on the paper’s side of it in a picture of the back too', () => {
+    expect(DIAGRAM_PLEAT_INK.step * 0.331).toBeCloseTo(2.25, 2);
+    const overlay = createOverlayProjector({ origin: [0, 0], ex: [400, 0], ey: [0, -400] }, 2);
+    const drawn = pleatArrowDrawn([0.1, 0.5], [0.9, 0.5], 1, false, overlay)!;
+    const across = drawn.bolt[2]!.y - drawn.bolt[1]!.y;
+    // y down on the page, the arrow pointing along +x: its Zs step down, the ink's step.
+    expect(across).toBeGreaterThan(0);
+    const d = direction([drawn.bolt[0]!, drawn.bolt[1]!]);
+    expect((drawn.bolt[2]!.x - drawn.bolt[1]!.x) * -d.y + across * d.x).toBeCloseTo(DIAGRAM_PLEAT_INK.step * 2, 9);
+    // A fold arrow's head at this ink: its full length, as the arrow is long enough for it.
+    expect(Math.hypot(drawn.head.tip.x - drawn.head.notch.x, drawn.head.tip.y - drawn.head.notch.y)).toBeCloseTo(
+      arrowheadReach(DIAGRAM_ARROWHEAD_INK.length * 2),
+      9
+    );
+    // A picture of the paper's back mirrors it: the Zs step to the other side on the page.
+    const back = createDiagramProjector(UNIT, 100, true);
+    const front = createDiagramProjector(UNIT, 100, false);
+    const side = (project: typeof back) => {
+      const bolt = pleatArrowDrawn([0.2, 0.5], [0.8, 0.5], 1, false, project)!.bolt;
+      const run = direction([bolt[0]!, bolt[1]!]);
+      return Math.sign((bolt[2]!.x - bolt[1]!.x) * -run.y + (bolt[2]!.y - bolt[1]!.y) * run.x);
+    };
+    expect(side(back)).toBe(-side(front));
+  });
+
+  it('stands its Zs’ mitres out past half its pen, as SVG mitres them, and no further than its limit', () => {
+    // A right angle: its mitre √2 halves of the pen out along its bisector.
+    const corner = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+    ];
+    const [tip] = polylineMitres(corner, 2);
+    expect(tip!.x).toBeCloseTo(11, 12);
+    expect(tip!.y).toBeCloseTo(-1, 12);
+    // Its ends are caps, not joins; a corner sharper than the limit is bevelled.
+    const spike = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 0, y: 1 },
+    ];
+    expect(polylineMitres(spike, 2)).toEqual([]);
+    expect(polylineMitres(spike, 2, 40)).toHaveLength(1);
+  });
+});
+
+describe('a stroke behind a flap, in pieces (15e)', () => {
+  it('cuts a stretch where a hidden one starts and ends, each piece in front or behind', () => {
+    expect(strokePieces(0, 1, undefined)).toEqual([{ start: 0, end: 1, hidden: false }]);
+    expect(strokePieces(0, 1, [[0.2, 0.5]])).toEqual([
+      { start: 0, end: 0.2, hidden: false },
+      { start: 0.2, end: 0.5, hidden: true },
+      { start: 0.5, end: 1, hidden: false },
+    ]);
+    // A stroke stopped short of its mark's end: the stretch past it is not drawn.
+    expect(strokePieces(0, 0.4, [[0, 0.6]])).toEqual([{ start: 0, end: 0.4, hidden: true }]);
+    expect(reversedStretches([[0, 0.3]])).toEqual([[0.7, 1]]);
+  });
+
+  it('cuts an arc shaft by shares of the arc its mark was compiled as, the drawn one a stretch of it', () => {
+    const whole = { center: [0, 0] as const, radius: 1, from: 0, to: Math.PI / 2, ccw: true };
+    // Stopped short of its head at 80% of the way.
+    const drawn = { ...whole, to: 0.8 * (Math.PI / 2) };
+    const pieces = arcPieces(drawn, whole, [[0, 0.5]]);
+    expect(pieces.map(({ hidden }) => hidden)).toEqual([true, false]);
+    expect(pieces[0]!.arc.from).toBeCloseTo(0, 12);
+    expect(pieces[0]!.arc.to).toBeCloseTo(Math.PI / 4, 12);
+    expect(pieces[1]!.arc.to).toBeCloseTo(drawn.to, 12);
+    // Nothing hidden: the drawn arc itself, not one rebuilt from shares.
+    expect(arcPieces(drawn, whole, undefined)).toEqual([{ arc: drawn, hidden: false }]);
+  });
+
+  it('cuts a run of lines at the shares of its mark’s length, through its corners', () => {
+    const run = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+    ];
+    const pieces = polylinePieces(run, 20, [[0.25, 0.75]]);
+    expect(pieces.map(({ hidden, length }) => [hidden, length])).toEqual([
+      [false, 5],
+      [true, 10],
+      [false, 5],
+    ]);
+    // The hidden piece turns the corner.
+    expect(pieces[1]!.points).toEqual([
+      { x: 5, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 5 },
+    ]);
+  });
+
+  it('draws a ring’s hidden arcs from its rightmost point, clockwise as the page shows it', () => {
+    // Sheet y up, the page's y down, one unit a px.
+    const project = createOverlayProjector({ origin: [0, 0], ex: [1, 0], ey: [0, -1] }, 1);
+    const pieces = ringPieces([0, 0], 10, [[0, 0.25]], project);
+    expect(pieces.map(({ hidden }) => hidden)).toEqual([true, false]);
+    // From the right to the bottom of the page: a quarter, clockwise (sweep 1).
+    expect(numbers(pieces[0]!.d)).toEqual([10, 0, 10, 10, 0, 0, 1, 0, 10]);
+    expect(pieces[0]!.length).toBeCloseTo(5 * Math.PI, 12);
+  });
+});
+
+describe('equal divisions (Revision 2)', () => {
+  /** An annotation's ink in mm, as the canvas and a page print one. */
+  const INK_MM = 0.3307;
+  const mm = (value: number) => value / INK_MM;
+  /** The sizes at one ink: the shape is then in ink. */
+  const size = (offset: number) => ({
+    offset,
+    overshoot: DIAGRAM_DIVISIONS_INK.overshoot,
+    tick: DIAGRAM_DIVISIONS_INK.tick,
+    spacing: DIAGRAM_DIVISIONS_INK.spacing,
+    tickFloor: DIAGRAM_DIVISIONS_INK.tickFloor,
+    spacingFloor: 1.2,
+    lean: (DIAGRAM_DIVISIONS_INK.leanDeg * Math.PI) / 180,
+    number: DIAGRAM_DIVISIONS_INK.number,
+    gap: DIAGRAM_DIVISIONS_INK.gap,
+  });
+  const look = { parts: 4, ticks: 1, mirrored: false, numbered: false, shortDividers: false };
+  const from = { x: 0, y: 0 };
+  const to = { x: 100, y: 0 };
+  /** A segment as a sorted key, whichever end it is drawn from. */
+  const key = ([a, b]: readonly [SvgPoint, SvgPoint]) =>
+    [a, b]
+      .map(({ x, y }) => `${x.toFixed(9)},${y.toFixed(9)}`)
+      .sort()
+      .join(' ');
+
+  it('stands a divider square to the line it measures at each end and between parts, `parts + 1` of them', () => {
+    const shape = divisionsShape(from, to, { ...look, parts: 5 }, size(mm(2.5)))!;
+    expect(shape.dividers).toHaveLength(6);
+    shape.dividers.forEach(([a, b], i) => {
+      expect(a.x).toBeCloseTo((100 * i) / 5, 12);
+      expect(b.x).toBeCloseTo((100 * i) / 5, 12);
+    });
+    // To the right of the way it runs, y down: below a line running right.
+    expect(shape.side).toEqual({ x: -0, y: 1 });
+    expect(shape.line[0].y).toBeCloseTo(mm(2.5), 12);
+    expect(shape.line[1]).toMatchObject({ x: 100 });
+    // `mirrored`, to the left.
+    expect(divisionsShape(from, to, { ...look, mirrored: true }, size(mm(2.5)))!.line[0].y).toBeCloseTo(-mm(2.5), 12);
+    expect(divisionsShape(from, from, look, size(5))).toBeNull();
+  });
+
+  it('runs a divider from the line it measures to 1.65 mm past its line, straddling the line evenly where it is nearer than that (ED4)', () => {
+    const ends = (offset: number) => {
+      const [a, b] = divisionsShape(from, to, look, size(mm(offset)))!.dividers[1]!;
+      return [a.y, b.y].map((y) => Number((y * INK_MM).toFixed(2)) + 0);
+    };
+    // 2.5 mm: in the margin, from the edge out past the line.
+    expect(ends(2.5)).toEqual([0, 4.15]);
+    // 1 mm: as far on the paper's side of its line as past it, 0.65 mm into the paper.
+    expect(ends(1)).toEqual([-0.65, 2.65]);
+    // None: the template's |\|\| symbol, the line on the edge, dividers straddling it.
+    expect(ends(0)).toEqual([-1.65, 1.65]);
+  });
+
+  it('leans each tick 20° off square as a backslash does across a level line, whichever way the line was drawn', () => {
+    const forward = divisionsShape(from, to, { ...look, ticks: 2 }, size(mm(2.5)))!;
+    // Drawn the other way, on the same side: the very same ticks.
+    const backward = divisionsShape(to, from, { ...look, ticks: 2, mirrored: true }, size(mm(2.5)))!;
+    expect(backward.ticks.map(key).sort()).toEqual(forward.ticks.map(key).sort());
+    for (const [a, b] of forward.ticks) {
+      // Down and to the right, top to bottom: a backslash.
+      const lean = Math.atan2(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+      expect((b.x - a.x) * (b.y - a.y)).toBeGreaterThan(0);
+      expect((lean * 180) / Math.PI).toBeCloseTo(20, 9);
+      expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeCloseTo(2 * DIAGRAM_DIVISIONS_INK.tick, 9);
+    }
+    // Two ticks a part, spaced along the line at its middle.
+    const first = forward.ticks.slice(0, 2).map(([a, b]) => (a.x + b.x) / 2);
+    expect(first[1]! - first[0]!).toBeCloseTo(DIAGRAM_DIVISIONS_INK.spacing, 9);
+    expect((first[0]! + first[1]!) / 2).toBeCloseTo(12.5, 9);
+  });
+
+  it('leans its ticks as a backslash on the page in a picture of the paper’s back, its line kept on the paper’s side', () => {
+    const drawn = (mirrored: boolean) =>
+      divisionsDrawn([0.2, 0.8], [0.8, 0.8], { ...look, offset: 7.5 }, createDiagramProjector(UNIT, 100, mirrored))!;
+    const [front, back] = [drawn(false), drawn(true)];
+    for (const shape of [front, back]) {
+      for (const [a, b] of shape.ticks) expect((b.x - a.x) * (b.y - a.y)).toBeGreaterThan(0);
+    }
+    // The paper's side of its line is mirrored with it: the line stays on the same side of the edge on the page.
+    expect(Math.sign(back.side.y)).toBe(Math.sign(front.side.y));
+  });
+
+  it('draws a crowded part’s ticks smaller, down to their floor and no further, and says so: 32 parts on 25 mm', () => {
+    const short = { x: mm(25), y: 0 };
+    const three = divisionsShape(from, short, { ...look, parts: 32, ticks: 3 }, size(mm(2.5)))!;
+    expect(three.crowded).toBe(true);
+    const group = three.ticks.slice(0, 3).map(([a, b]) => (a.x + b.x) / 2);
+    // Spaced at the floor: two pens.
+    expect(group[1]! - group[0]!).toBeCloseTo(1.2, 9);
+    const [a, b] = three.ticks[0]!;
+    expect(Math.hypot(b.x - a.x, b.y - a.y) / 2).toBeCloseTo(DIAGRAM_DIVISIONS_INK.tickFloor, 9);
+    // One tick a part shrinks too, and fits above its floor.
+    const one = divisionsShape(from, short, { ...look, parts: 32 }, size(mm(2.5)))!;
+    expect(one.crowded).toBe(false);
+    const [c, d] = one.ticks[0]!;
+    const half = Math.hypot(d.x - c.x, d.y - c.y) / 2;
+    expect(half).toBeLessThan(DIAGRAM_DIVISIONS_INK.tick);
+    expect(half).toBeGreaterThan(DIAGRAM_DIVISIONS_INK.tickFloor);
+    // A part long enough: the sketch's size.
+    expect(divisionsShape(from, to, look, size(mm(2.5)))!.crowded).toBe(false);
+  });
+
+  it('prints its count upright beside its line’s middle, its box 2 ink past the dividers’ ends, on level and upright lines', () => {
+    const offset = mm(2.5);
+    const level = divisionsShape(from, to, { ...look, parts: 7, numbered: true }, size(offset))!.number!;
+    expect(level.text).toBe('7');
+    expect(level.size).toBe(DIAGRAM_DIVISIONS_INK.number);
+    expect(level.at.x).toBeCloseTo(50, 9);
+    const past = offset + DIAGRAM_DIVISIONS_INK.overshoot + DIAGRAM_DIVISIONS_INK.gap;
+    expect(level.at.y - level.halfHeight).toBeCloseTo(past, 9);
+    expect(level.halfHeight).toBeCloseTo(DIVISIONS_DIGIT_HALF_HEIGHT_EMS * DIAGRAM_DIVISIONS_INK.number, 9);
+    // Upright, to the left of a line running down: its box's side 2 ink past.
+    const upright = divisionsShape(from, { x: 0, y: 100 }, { ...look, parts: 12, numbered: true }, size(offset))!.number!;
+    expect(upright.halfWidth).toBeCloseTo(DIVISIONS_DIGIT_EMS * DIAGRAM_DIVISIONS_INK.number, 9);
+    expect(upright.at.y).toBeCloseTo(50, 9);
+    expect(upright.at.x + upright.halfWidth).toBeCloseTo(-past, 9);
+    expect(divisionsShape(from, to, look, size(offset))!.number).toBeNull();
+  });
+
+  it('is drawn at its ink, every stroke one path in the aux lines’ pen, its offset taken in ink (Revision 3)', () => {
+    const overlay = createOverlayProjector({ origin: [0, 0], ex: [400, 0], ey: [0, -400] }, 2);
+    const drawn = divisionsDrawn([0.1, -0.5], [0.9, -0.5], { ...look, offset: 7.5 }, overlay)!;
+    expect(drawn.pen).toBe(auxMarkPen(overlay));
+    expect(drawn.pen).toBeCloseTo(DIAGRAM_LINE_INK.aux.width * 2, 12);
+    expect(drawn.line[0].y - 200).toBeCloseTo(15, 9);
+    expect(drawn.dividers[0]![1].y - 200).toBeCloseTo(15 + DIAGRAM_DIVISIONS_INK.overshoot * 2, 9);
+    // One path: the line, then the dividers, then the ticks.
+    const d = divisionsPathData(drawn);
+    expect(d.match(/M/g)).toHaveLength(1 + 5 + 4);
+    expect(d.startsWith(`M ${drawn.line[0].x} ${drawn.line[0].y} L`)).toBe(true);
+    expect(divisionsStrokes(drawn)).toHaveLength(1 + 5 + 4);
+  });
+
+  it('draws every stroke in the aux lines’ pen, whatever the arrow’s, and crowds where two of a ring’s pens no longer fit (Revision 3)', () => {
+    // The Diagram preset's pens: aux 0.25 pt, the arrow 0.75 pt — so a ring 0.5625 pt.
+    const pens = { ...DIAGRAM_LINE_INK, aux: { ...DIAGRAM_LINE_INK.aux, width: 0.25 }, arrow: { ...DIAGRAM_LINE_INK.arrow, width: 0.75 } };
+    const project = createOverlayProjector({ origin: [0, 0], ex: [400, 0], ey: [0, -400] }, 2, pens);
+    const drawn = divisionsDrawn([0.1, -0.5], [0.9, -0.5], { ...look, offset: 7.5 }, project)!;
+    expect(drawn.pen).toBeCloseTo(0.25 * 2, 12);
+    expect(markRingWidth(project)).toBeCloseTo(0.5625 * 2, 12);
+    // A heavier arrow changes no stroke of theirs.
+    const heavy = createOverlayProjector({ origin: [0, 0], ex: [400, 0], ey: [0, -400] }, 2, { ...pens, arrow: { ...pens.arrow, width: 3 } });
+    expect(divisionsDrawn([0.1, -0.5], [0.9, -0.5], { ...look, offset: 7.5 }, heavy)!.pen).toBeCloseTo(0.25 * 2, 12);
+    // The floor is two of a ring's pens, as it was: 32 parts with three ticks on a 25 mm edge crowd, spaced at it.
+    const ink = 2;
+    const sheet = (mm: number) => mm / INK_MM / 400 * ink;
+    const crowded = divisionsDrawn([0, -0.5], [sheet(25), -0.5], { ...look, parts: 32, ticks: 3, offset: 7.5 }, project)!;
+    expect(crowded.crowded).toBe(true);
+    const group = crowded.ticks.slice(0, 3).map(([a, b]) => (a.x + b.x) / 2);
+    expect(group[1]! - group[0]!).toBeCloseTo(2 * markRingWidth(project), 9);
+    expect(divisionsDrawn([0, -0.5], [sheet(25), -0.5], { ...look, parts: 32, offset: 7.5 }, project)!.crowded).toBe(false);
+  });
+
+  describe('short dividers (Revision 3, R3-1 A, R3-2 A)', () => {
+    const ends = (offset: number, shortDividers: boolean) =>
+      divisionsShape(from, to, { ...look, shortDividers }, size(mm(offset)))!.dividers.map(([a, b]) =>
+        [a.y, b.y].map((y) => Number((y * INK_MM).toFixed(2)) + 0)
+      );
+
+    it('draws the dividers between the ends 1.65 mm either side of the line, at 2.5 mm and at 10 mm', () => {
+      for (const offset of [2.5, 10]) {
+        const drawn = ends(offset, true);
+        for (const inner of drawn.slice(1, -1)) expect(inner).toEqual([Number((offset - 1.65).toFixed(2)), Number((offset + 1.65).toFixed(2))]);
+        // The two at the ends still run from the line they measure.
+        expect(drawn[0]).toEqual([0, Number((offset + 1.65).toFixed(2))]);
+        expect(drawn.at(-1)).toEqual([0, Number((offset + 1.65).toFixed(2))]);
+        // Every divider's outer end lines up, as with full dividers.
+        expect(new Set(drawn.map(([, outer]) => outer)).size).toBe(1);
+      }
+      expect(ends(10, false).every(([inner]) => inner === 0)).toBe(true);
+    });
+
+    it('changes nothing where the line lies within 1.65 mm of the line it measures', () => {
+      for (const offset of [0, 1, 1.65]) expect(ends(offset, true)).toEqual(ends(offset, false));
+    });
+
+    it('changes nothing but the dividers: the line, the ticks, the count and the crowding', () => {
+      const full = divisionsShape(from, to, { ...look, parts: 3, ticks: 2, numbered: true }, size(mm(10)))!;
+      const short = divisionsShape(from, to, { ...look, parts: 3, ticks: 2, numbered: true, shortDividers: true }, size(mm(10)))!;
+      expect({ ...short, dividers: [] }).toEqual({ ...full, dividers: [] });
+      expect(short.dividers.map(([, outer]) => outer)).toEqual(full.dividers.map(([, outer]) => outer));
+    });
   });
 });

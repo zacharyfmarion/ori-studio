@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { getViewportFitScale } from '../lib/designViewport';
-import type { PlotRect } from '../lib/geometry';
+import { unionPlotRect, type PlotRect } from '../lib/geometry';
 import { isPointerDown, trackPointerGestures } from '../lib/pointerGesture';
 import { viewportSizeFromElement } from '../lib/treeViewportPrimitives';
 import {
@@ -48,8 +48,14 @@ const CENTER_ANIMATION_MS = 160;
 const FIT_ANIMATION_MS = 180;
 
 export interface UseViewportSurfaceOptions {
-  /** Which surface owns the viewport keyboard shortcuts while it is focused. */
-  surface: ViewportSurfaceId;
+  /**
+   * Which surface owns the viewport keyboard shortcuts while it is focused;
+   * null for a camera inside a surface that already registers its own, which
+   * hands the camera's verbs on through {@link ViewportSurface.handleViewportShortcut}.
+   */
+  surface: ViewportSurfaceId | null;
+  /** Disable where Space is a tool shortcut, as in Diagram Annotate. */
+  spaceToPan?: boolean;
   /** The world bounds the camera frames. */
   worldRect: PlotRect;
   /**
@@ -62,6 +68,14 @@ export interface UseViewportSurfaceOptions {
    * worth looking at in it. Defaults to the world.
    */
   fitRect?: PlotRect;
+  /**
+   * Where a fit puts the camera: the world's middle (the default, which the
+   * tree and BP panes frame with), or the middle of {@link fitRect} — for a
+   * world that is a run of things, of which a fit shows the first, as the
+   * Diagram's pages are. Such a world also keeps the middle of the view where
+   * it is on a chosen zoom, rather than jumping to the world's middle.
+   */
+  fitAnchor?: 'world' | 'fit-rect';
   /**
    * A surface's own answer to a viewport shortcut, asked before the camera's.
    *
@@ -95,8 +109,16 @@ export interface ViewportSurface {
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: (animationTime?: number) => void;
+  /**
+   * Brings a rect of the world into view: nothing while it is wholly in view,
+   * else the camera frames it with what a fit frames — for a surface that has
+   * put something where it cannot be seen.
+   */
+  bringIntoView: (rect: PlotRect, animationTime?: number) => void;
   setActualSize: () => void;
   setZoomLevel: (scale: number) => void;
+  /** The camera's answer to a viewport shortcut: true when it took it. */
+  handleViewportShortcut: (id: ViewportShortcutId) => boolean;
   /** Wire to `<TransformWrapper onInit>` and `onTransformed`. */
   onInit: (ref: ReactZoomPanPinchRef) => void;
   onTransformed: (ref: ReactZoomPanPinchRef, state: { scale: number }) => void;
@@ -120,6 +142,8 @@ export function useViewportSurface({
   worldRect,
   fitKey,
   fitRect,
+  fitAnchor = 'world',
+  spaceToPan = true,
   maxFitScale,
   onViewportShortcut,
 }: UseViewportSurfaceOptions): ViewportSurface {
@@ -140,20 +164,86 @@ export function useViewportSurface({
     return getViewportFitScale(viewport, fitRect ?? worldRect, undefined, maxFitScale);
   }, [worldRect, fitRect, maxFitScale]);
 
-  const fitToView = useCallback(
-    (animationTime = FIT_ANIMATION_MS) => {
-      transformRef.current?.centerView(computeFitScale(), animationTime);
+  /** The fit: at its scale, centred on the world or on the fit rect. */
+  const frame = useCallback(
+    (animationTime: number) => {
+      const api = transformRef.current;
+      if (!api) return;
+      const scale = computeFitScale();
+      const viewport = viewportSizeFromElement(containerRef.current);
+      if (fitAnchor === 'world' || !fitRect || !viewport) {
+        api.centerView(scale, animationTime);
+        return;
+      }
+      api.setTransform(
+        (viewport.width - fitRect.width * scale) / 2 - fitRect.x * scale,
+        (viewport.height - fitRect.height * scale) / 2 - fitRect.y * scale,
+        scale,
+        animationTime
+      );
     },
-    [computeFitScale]
+    [computeFitScale, fitAnchor, fitRect]
   );
 
-  const setActualSize = useCallback(() => {
-    transformRef.current?.centerView(1, CENTER_ANIMATION_MS);
-  }, []);
+  // A control hands its click event in as the first argument; only a number is a duration.
+  const fitToView = useCallback(
+    (animationTime?: unknown) => {
+      frame(typeof animationTime === 'number' ? animationTime : FIT_ANIMATION_MS);
+    },
+    [frame]
+  );
 
-  const setZoomLevel = useCallback((scale: number) => {
-    transformRef.current?.centerView(scale, CENTER_ANIMATION_MS);
-  }, []);
+  const bringIntoView = useCallback(
+    (rect: PlotRect, animationTime: number = FIT_ANIMATION_MS) => {
+      const api = transformRef.current;
+      const viewport = viewportSizeFromElement(containerRef.current);
+      if (!api || !viewport) return;
+      const { positionX, positionY, scale } = api.instance.transformState;
+      const [left, top] = [-positionX / scale, -positionY / scale];
+      const seen =
+        rect.x >= left &&
+        rect.y >= top &&
+        rect.x + rect.width <= left + viewport.width / scale &&
+        rect.y + rect.height <= top + viewport.height / scale;
+      if (seen) return;
+      // Framed as a fit frames its rect, centred.
+      const target = unionPlotRect(fitRect ?? worldRect, rect);
+      const fit = getViewportFitScale(viewport, target, undefined, maxFitScale);
+      api.setTransform(
+        (viewport.width - target.width * fit) / 2 - target.x * fit,
+        (viewport.height - target.height * fit) / 2 - target.y * fit,
+        fit,
+        animationTime
+      );
+    },
+    [fitRect, worldRect, maxFitScale]
+  );
+
+  /**
+   * A chosen zoom. A world framed by its first part keeps the reader where
+   * they are — the point in the middle of the view stays there — where a
+   * world framed whole is centred.
+   */
+  const zoomTo = useCallback(
+    (scale: number) => {
+      const api = transformRef.current;
+      if (!api) return;
+      const viewport = viewportSizeFromElement(containerRef.current);
+      if (fitAnchor === 'world' || !viewport) {
+        api.centerView(scale, CENTER_ANIMATION_MS);
+        return;
+      }
+      const { positionX, positionY, scale: from } = api.instance.transformState;
+      const middleX = (viewport.width / 2 - positionX) / from;
+      const middleY = (viewport.height / 2 - positionY) / from;
+      api.setTransform(viewport.width / 2 - middleX * scale, viewport.height / 2 - middleY * scale, scale, CENTER_ANIMATION_MS);
+    },
+    [fitAnchor]
+  );
+
+  const setActualSize = useCallback(() => zoomTo(1), [zoomTo]);
+
+  const setZoomLevel = useCallback((scale: number) => zoomTo(scale), [zoomTo]);
 
   const zoomIn = useCallback(() => {
     transformRef.current?.zoomIn(ZOOM_STEP, ZOOM_ANIMATION_MS);
@@ -190,7 +280,7 @@ export function useViewportSurface({
   );
 
   useEffect(
-    () => registerViewportShortcutExecutor(surface, handleViewportShortcut),
+    () => (surface === null ? undefined : registerViewportShortcutExecutor(surface, handleViewportShortcut)),
     [surface, handleViewportShortcut]
   );
 
@@ -217,11 +307,11 @@ export function useViewportSurface({
       ) {
         return false;
       }
-      transformRef.current.centerView(computeFitScale(), animationTime);
+      frame(animationTime);
       lastFittedKeyRef.current = fitKey;
       return true;
     },
-    [computeFitScale, fitKey]
+    [frame, fitKey]
   );
   const fitLoadedDocumentRef = useRef(fitLoadedDocument);
   useEffect(() => {
@@ -274,7 +364,7 @@ export function useViewportSurface({
   // mid-hold can't leave the pane stuck in pan mode.
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return undefined;
+    if (!container || !spaceToPan) return undefined;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === ' ' && !isViewportInteractiveTarget(event.target)) {
@@ -297,7 +387,7 @@ export function useViewportSurface({
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', clearSpace);
     };
-  }, []);
+  }, [spaceToPan]);
 
   // Trackpad pinch, taken over from the library.
   //
@@ -356,8 +446,10 @@ export function useViewportSurface({
     zoomIn,
     zoomOut,
     fitToView,
+    bringIntoView,
     setActualSize,
     setZoomLevel,
+    handleViewportShortcut,
     onInit,
     onTransformed,
   };

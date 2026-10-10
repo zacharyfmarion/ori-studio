@@ -543,10 +543,26 @@ export interface OristudioCpFoldedPaperScene {
    * the faces.
    */
   aux_lines: OristudioCpFoldedPaperAuxLine[];
+  /**
+   * Where each wireframe point (`OristudioCpFoldedPaperFace.points` names
+   * them) lies on the unfolded sheet, in the crease pattern's own
+   * coordinates, no camera applied (schema 3): a face's map from the sheet to
+   * the scene is fitted from its corners here and its outline. Empty in an
+   * older schema's scene.
+   */
+  sheet_points: Point[];
 }
 
 export interface OristudioCpFoldedPaperFace {
   outline: Point[];
+  /**
+   * Per outline point, the folded wireframe's point it is — a vertex of the
+   * sheet (schema 2). The two faces of a crease name its ends alike, while
+   * corners a fold lays on one place keep different names, so a painter that
+   * steps layers apart keeps creases joined. Empty when the kernel could not
+   * name the ring, exactly when `edges` is empty.
+   */
+  points: number[];
   /** The face shows its front side in this pass. */
   front_up: boolean;
   /** One per consecutive outline pair, the last closing to the first. */

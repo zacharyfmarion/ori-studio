@@ -20,6 +20,68 @@
     "simulateFailed": "Dieser Bereich konnte nicht simuliert werden.",
     "simulateNoRegion": "Wähle einen geschlossenen Bereich zum Simulieren aus."
   },
+  "diagram": {
+    "addedAsStep": "Als Schritt {{number}} hinzugefügt",
+    "capture": {
+      "failed": "Das Bild konnte nicht erfasst werden",
+      "missing": "Dieses Muster ist nicht mehr im Faltmuster.",
+      "needsPose": "Ein im Simulator teilweise gefalteter Schritt wird in „Pose“ aufgenommen: öffne ihn mit „Pose anpassen“.",
+      "noLayerOrder": "Seine Lagen ließen sich nicht ordnen, daher zeigt der Schritt das gefaltete Papier durchsichtig.",
+      "noPattern": "Öffne zuerst ein Faltmuster in Bearbeiten.",
+      "readOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird schreibgeschützt geöffnet.",
+      "refused": "Dieses Muster lässt sich nicht falten",
+      "tooDetailed": "Zu detailliert, um es als Zeichnung zu behalten, daher behält der Schritt es als Bild.",
+      "unavailable": "Dieses Muster lässt sich nicht simulieren.",
+      "unknown": "Das Faltmuster ist noch nicht bereit. Versuche es gleich noch einmal."
+    },
+    "dropReadOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und ist schreibgeschützt geöffnet, daher lassen sich keine Bilder hinzufügen.",
+    "references": {
+      "addedSteps": "Als Schritte {{first}}–{{last}} hinzugefügt",
+      "addedTurnOvers_one": "Umdrehen hinzugefügt",
+      "addedTurnOvers_other": "{{count}}× Umdrehen hinzugefügt",
+      "bakedStep": "Die Markierungen von Schritt {{number}} bleiben Teil seines Bildes: Es sind mehr, als ein Schritt fasst.",
+      "bakedSteps_one": "Die Markierungen eines Schritts bleiben Teil seines Bildes: Es sind mehr, als ein Schritt fasst.",
+      "bakedSteps_other": "Die Markierungen von {{count}} Schritten bleiben Teil ihrer Bilder: Es sind mehr, als ein Schritt fasst.",
+      "filledStep": "Schritt {{number}} gefüllt",
+      "marksEditable_one": "Die Markierung von Schritt {{number}} ist jetzt bearbeitbar",
+      "marksEditable_other": "Die {{count}} Markierungen von Schritt {{number}} sind jetzt bearbeitbar",
+      "marksOutsideFrame_one": "Eine Markierung außerhalb des vergrößerten Rahmens wurde weggelassen",
+      "marksOutsideFrame_other": "{{count}} Markierungen außerhalb des vergrößerten Rahmens wurden weggelassen",
+      "noMarksInFrame": "Keine Markierung von Schritt {{number}} liegt in seinem vergrößerten Rahmen",
+      "replacedEdited_one": "Eine von Ihnen bearbeitete Markierung wurde ersetzt",
+      "replacedEdited_other": "{{count}} von Ihnen bearbeitete Markierungen wurden ersetzt",
+      "replacedStep": "Karte von Schritt {{number}} ersetzt",
+      "tooLarge": "Dieser Schritt ist zu detailliert, um im Diagramm gespeichert zu werden.",
+      "undoReplaced": "Rückgängig"
+    },
+    "refreshedAll_one": "1 Schritt aktualisiert",
+    "refreshedAll_other": "{{count}} Schritte aktualisiert",
+    "uploadFailed_one": "Ein Bild konnte nicht hinzugefügt werden",
+    "uploadFailed_other": "{{count}} Bilder konnten nicht hinzugefügt werden",
+    "uploadFailureLine": "{{name}}: {{reason}}",
+    "uploadFailureMore_one": "und 1 weiteres",
+    "uploadFailureMore_other": "und {{count}} weitere",
+    "uploadProgress_one": "Bild wird hinzugefügt…",
+    "uploadProgress_other": "{{count}} Bilder werden hinzugefügt…",
+    "uploadRejected": "es ist kein SVG, das Ori Studio sicher lesen kann",
+    "uploadTooLarge": "es ist zu groß",
+    "uploadUnreadable": "das Bild konnte nicht gelesen werden",
+    "uploadUnsupported": "es ist kein Bild",
+    "zoom": {
+      "updatedList": "Vergrößerte Schritte {{numbers}} aktualisiert",
+      "updatedOne": "Vergrößerter Schritt {{number}} aktualisiert",
+      "updatedRange": "Vergrößerte Schritte {{first}}–{{last}} aktualisiert",
+      "updatedSome": "{{placed}} von {{total}} vergrößerten Schritten aktualisiert",
+      "updatedSomeDetail": "Die übrigen konnten keinen Rahmen aus diesem Bereich übernehmen.",
+      "updateFailed": "Die vergrößerten Schritte konnten nicht aktualisiert werden"
+    }
+  },
+  "diagramExport": {
+    "saved": "{{name}} exportiert"
+  },
+  "diagramPrint": {
+    "failed": "Das Diagramm konnte nicht gedruckt werden"
+  },
   "fileDrop": {
     "ignoredFile": "{{name}} verwendet; 1 weitere abgelegte Datei wurde ignoriert.",
     "ignoredFiles": "{{name}} verwendet; {{others}} weitere abgelegte Dateien wurden ignoriert."
@@ -53,6 +115,7 @@
   "references": {
     "searching": "Referenzen werden gesucht…",
     "searchingLong": "Referenzen werden noch gesucht — die erste Suche baut eine Tabelle auf",
+    "sheetMissing": "Dieser Bogen ist nicht mehr im Faltmuster.",
     "stop": "Abbrechen",
     "stopped": "Suche abgebrochen",
     "stopping": "Wird abgebrochen…"

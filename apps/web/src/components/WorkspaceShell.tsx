@@ -7,6 +7,7 @@ import { DockviewReact } from 'dockview';
 import type { DockviewReadyEvent } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import {
+  BookOpen,
   Box,
   Compass,
   DraftingCompass,
@@ -61,6 +62,7 @@ const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
   edit: PenTool,
   simulate: Box,
   references: Compass,
+  diagram: BookOpen,
 };
 
 /**
@@ -86,6 +88,8 @@ function workspaceTooltip(t: TFunction, id: WorkspaceId): string {
       return t('common:workspaceRail.simulate', 'Simulate workspace');
     case 'references':
       return t('common:workspaceRail.references', 'References workspace');
+    case 'diagram':
+      return t('common:workspaceRail.diagram', 'Diagram workspace');
   }
 }
 
@@ -107,6 +111,8 @@ function workspaceTabLabel(t: TFunction, id: WorkspaceId): string {
       return t('common:workspaceRail.tabSimulate', 'Simulate');
     case 'references':
       return t('common:workspaceRail.tabReferences', 'References');
+    case 'diagram':
+      return t('common:workspaceRail.tabDiagram', 'Diagram');
   }
 }
 
@@ -265,7 +271,7 @@ function Toolbar() {
           have.
         */}
         <ToolbarDownloadButton />
-        <IconButton size="sm" title={t('common:toolbar.settings', 'Settings')} tooltipSide="bottom" onClick={() => openSettings()}>
+        <IconButton size="sm" title={t('common:toolbar.settings', 'App Settings')} tooltipSide="bottom" onClick={() => openSettings()}>
           <Settings size={15} />
         </IconButton>
       </div>

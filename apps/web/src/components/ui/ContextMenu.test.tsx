@@ -39,7 +39,7 @@ function render(open: boolean, items: ContextMenuItem[], onOpenChange = () => {}
 }
 
 function menuItems(): HTMLElement[] {
-  return Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+  return Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]'));
 }
 
 afterEach(() => {
@@ -145,6 +145,11 @@ describe('ContextMenu', () => {
       { kind: 'radio', id: 'wire', label: 'Wireframe', checked: false, onSelect: () => {} },
     ]);
     const [paper, wire] = menuItems();
+    // One of a set to assistive tech, and which.
+    expect([paper, wire].map((item) => [item?.getAttribute('role'), item?.getAttribute('aria-checked')])).toEqual([
+      ['menuitemradio', 'true'],
+      ['menuitemradio', 'false'],
+    ]);
     // The check lives in the leading icon slot; only the current option fills it.
     expect(paper?.querySelector('[data-menu-icon]')?.childElementCount).toBe(1);
     expect(wire?.querySelector('[data-menu-icon]')?.childElementCount).toBe(0);

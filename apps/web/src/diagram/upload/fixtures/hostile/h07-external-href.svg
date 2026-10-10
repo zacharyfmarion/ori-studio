@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="100" viewBox="0 0 100 100">
+<rect width="100" height="100" fill="#3a3"/>
+<use href="http://canary.test/h07-use.svg#x"/>
+<use xlink:href="//canary.test/h07-use-protorel.svg#x"/>
+<use href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCI+PHNjcmlwdD5mZXRjaCgnaHR0cDovL2NhbmFyeS50ZXN0L2gwNy1kYXRhc3ZnLXNjcmlwdCcpPC9zY3JpcHQ+PGltYWdlIGhyZWY9Imh0dHA6Ly9jYW5hcnkudGVzdC9oMDctZGF0YXN2Zy1pbWcucG5nIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiLz48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9InJlZCIvPjwvc3ZnPg==#x"/>
+<image href="http://canary.test/h07-image.png" width="20" height="20"/>
+<image href="//canary.test/h07-image-protorel.png" width="20" height="20"/>
+<image href="file:///etc/passwd" width="20" height="20"/>
+<image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCI+PHNjcmlwdD5mZXRjaCgnaHR0cDovL2NhbmFyeS50ZXN0L2gwNy1kYXRhc3ZnLXNjcmlwdCcpPC9zY3JpcHQ+PGltYWdlIGhyZWY9Imh0dHA6Ly9jYW5hcnkudGVzdC9oMDctZGF0YXN2Zy1pbWcucG5nIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiLz48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9InJlZCIvPjwvc3ZnPg==" x="20" width="20" height="20"/>
+<filter id="f1"><feImage href="http://canary.test/h07-feimage.png"/></filter>
+<rect width="20" height="20" filter="url(#f1)"/>
+<linearGradient id="g1" href="http://canary.test/h07-gradient.svg#g"/>
+<pattern id="p1" xlink:href="http://canary.test/h07-pattern.svg#p"/>
+<rect x="40" width="20" height="20" fill="url(#g1)"/>
+<rect x="60" width="20" height="20" fill="url(#p1)"/>
+</svg>

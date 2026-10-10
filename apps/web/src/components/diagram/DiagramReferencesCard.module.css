@@ -1,0 +1,182 @@
+/*
+ * A card in the References browser (DiagramReferencesCard.tsx): a selection
+ * mark and its title, a square well holding the picture it would become, and
+ * its sentence. Sized and coloured as a step's card, so what is added looks
+ * like what it becomes.
+ */
+.card {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+}
+
+/* Focused as a step's card is (DiagramStepCard.module.css): the step keys walk the list. */
+.card:focus {
+  outline: none;
+}
+
+.card:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.card[data-selected] {
+  border-color: var(--accent-primary);
+  box-shadow: inset 0 0 0 1px var(--accent-primary);
+}
+
+.card[data-selected]:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px var(--accent-primary),
+    0 0 0 2px var(--accent-primary);
+}
+
+/* Added with the selection without being in it: the turn-over before it. */
+.card[data-offered] {
+  border-style: dashed;
+  border-color: var(--accent-primary);
+}
+
+.card[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* The selection mark: an empty ring, filled when selected. */
+.mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  color: var(--text-on-accent);
+}
+
+.card[data-selected] .mark {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.76rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  flex: none;
+  margin-left: auto;
+  color: var(--status-warning);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+/* Square, whatever the column width, so a row of cards lines up. */
+.well {
+  display: grid;
+  aspect-ratio: 1;
+  place-items: center;
+  background: var(--bg-secondary);
+}
+
+/* On the paper it will be printed on, white in either theme, as a step's card. */
+.well[data-picture] {
+  background: #ffffff;
+}
+
+.picture {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-2);
+  object-fit: contain;
+}
+
+.placeholder {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+/* What a step already does with the card, at the foot's end: off the picture, whose letters reach its corners. */
+.flag {
+  min-width: 0;
+  margin-left: auto;
+  padding: 2px 7px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flag[data-shown] {
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+}
+
+/*
+ * Its own height, not its row's, and no padding at its foot: overflow clips
+ * at the padding edge, so the lines past the clamp would show in either.
+ */
+.sentence {
+  display: -webkit-box;
+  align-self: start;
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2) var(--space-2) 0;
+  overflow: hidden;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* The card's foot: how many ways it folds, and what a step already does with it. */
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.ways {
+  flex: none;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}

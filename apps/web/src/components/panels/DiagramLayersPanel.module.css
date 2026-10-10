@@ -1,0 +1,15 @@
+/* The Layers pane (DiagramLayersPanel.tsx): what it shows out of Annotate. */
+.empty {
+  display: grid;
+  place-content: center;
+  padding: var(--space-5);
+}
+
+.emptyNote {
+  max-width: 28ch;
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  text-align: center;
+}

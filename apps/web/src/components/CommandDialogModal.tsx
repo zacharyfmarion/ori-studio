@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { isOpenLayerTarget } from '../keyboard/shortcutDispatcher';
 import { useTranslation } from 'react-i18next';
 import { CircleAlert, Ruler, X } from 'lucide-react';
 import {
   cancelCommandDialog,
+  registerCommandDialogFocus,
   registerCommandDialogHost,
   resolveCommandDialog,
   useCommandDialogStore,
@@ -21,6 +22,34 @@ export function CommandDialogModal() {
   const [optionChecked, setOptionChecked] = useState(false);
 
   useEffect(() => registerCommandDialogHost(), []);
+
+  /**
+   * The button a keyboard user lands on: the safe one. Cancel when confirming
+   * would destroy something, the confirm button otherwise. A dialog that did
+   * not take focus left it on the page behind, where every key still reached
+   * the workspace and Enter did nothing in the dialog.
+   */
+  const safeButton = useRef<HTMLButtonElement | null>(null);
+  // Before paint and before any child's effects, so what had focus is known
+  // before the dialog takes it; and given back when the dialog closes, unless
+  // it has gone (the step a Delete confirmation removed) or focus moved on. A
+  // context menu that held focus as the dialog opened hands it over late, and
+  // says where it would have gone (`focusCommandDialog`).
+  useLayoutEffect(() => {
+    if (!dialog || dialog.type === 'number' || dialog.type === 'crease-export') return undefined;
+    let previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    safeButton.current?.focus({ preventScroll: true });
+    const offHandoff = registerCommandDialogFocus((returnTo) => {
+      if (returnTo) previous = returnTo;
+      safeButton.current?.focus({ preventScroll: true });
+    });
+    return () => {
+      offHandoff();
+      const active = document.activeElement;
+      const lost = active === null || active === document.body || !active.isConnected;
+      if (previous?.isConnected && lost) previous.focus({ preventScroll: true });
+    };
+  }, [dialog]);
 
   useEffect(() => {
     if (dialog?.type !== 'confirm-option') return;
@@ -57,12 +86,14 @@ export function CommandDialogModal() {
 
   if (dialog.type === 'confirm') {
     const confirmLabel = dialog.confirmLabel ?? t('dialogs:common.ok', 'OK');
+    const danger = dialog.tone === 'danger';
     return (
       <div
         role="dialog"
         aria-modal="true"
         aria-label={dialog.title}
         className="simple-modal"
+        data-shortcut-barrier=""
         onMouseDown={() => cancelCommandDialog(dialog.id)}
       >
         <div role="document" className="simple-modal__document" onMouseDown={(event) => event.stopPropagation()}>
@@ -78,12 +109,18 @@ export function CommandDialogModal() {
           <div className="simple-modal__body">
             <p className="simple-modal__message">{dialog.message}</p>
             <footer className="simple-modal__footer">
-              <Button size="sm" variant="ghost" onClick={() => cancelCommandDialog(dialog.id)}>
+              <Button
+                ref={danger ? safeButton : undefined}
+                size="sm"
+                variant="ghost"
+                onClick={() => cancelCommandDialog(dialog.id)}
+              >
                 {cancelLabel}
               </Button>
               <Button
+                ref={danger ? undefined : safeButton}
                 size="sm"
-                variant={dialog.tone === 'danger' ? 'danger' : 'primary'}
+                variant={danger ? 'danger' : 'primary'}
                 onClick={() => resolveCommandDialog(dialog.id, true)}
               >
                 {confirmLabel}
@@ -97,12 +134,14 @@ export function CommandDialogModal() {
 
   if (dialog.type === 'confirm-option') {
     const confirmLabel = dialog.confirmLabel ?? t('dialogs:common.ok', 'OK');
+    const danger = dialog.tone === 'danger';
     return (
       <div
         role="dialog"
         aria-modal="true"
         aria-label={dialog.title}
         className="simple-modal"
+        data-shortcut-barrier=""
         onMouseDown={() => cancelCommandDialog(dialog.id)}
       >
         <div role="document" className="simple-modal__document" onMouseDown={(event) => event.stopPropagation()}>
@@ -127,6 +166,7 @@ export function CommandDialogModal() {
             </label>
             <footer className="simple-modal__footer">
               <Button
+                ref={danger ? safeButton : undefined}
                 size="sm"
                 variant="ghost"
                 onClick={() => resolveCommandDialog(dialog.id, { confirmed: false, optionChecked })}
@@ -134,8 +174,9 @@ export function CommandDialogModal() {
                 {cancelLabel}
               </Button>
               <Button
+                ref={danger ? undefined : safeButton}
                 size="sm"
-                variant={dialog.tone === 'danger' ? 'danger' : 'primary'}
+                variant={danger ? 'danger' : 'primary'}
                 onClick={() => resolveCommandDialog(dialog.id, { confirmed: true, optionChecked })}
               >
                 {confirmLabel}
@@ -154,6 +195,7 @@ export function CommandDialogModal() {
         aria-modal="true"
         aria-label={dialog.title}
         className="simple-modal"
+        data-shortcut-barrier=""
         onMouseDown={() => cancelCommandDialog(dialog.id)}
       >
         <div role="document" className="simple-modal__document" onMouseDown={(event) => event.stopPropagation()}>
@@ -185,7 +227,7 @@ export function CommandDialogModal() {
               ))}
             </div>
             <footer className="simple-modal__footer">
-              <Button size="sm" variant="ghost" onClick={() => cancelCommandDialog(dialog.id)}>
+              <Button ref={safeButton} size="sm" variant="ghost" onClick={() => cancelCommandDialog(dialog.id)}>
                 {cancelLabel}
               </Button>
             </footer>

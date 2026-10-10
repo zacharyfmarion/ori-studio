@@ -103,6 +103,90 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:references.exportStepSvg', 'Export step as SVG…');
     case 'references.exportStepPng':
       return t('tools:references.exportStepPng', 'Export step as PNG…');
+    case 'diagram.previousStep':
+      return t('tools:diagram.previousStep', 'Previous Step');
+    case 'diagram.nextStep':
+      return t('tools:diagram.nextStep', 'Next Step');
+    case 'diagram.firstStep':
+      return t('tools:diagram.firstStep', 'First Step');
+    case 'diagram.lastStep':
+      return t('tools:diagram.lastStep', 'Last Step');
+    case 'diagram.openStep':
+      return t('tools:diagram.openStep', 'Open Step');
+    case 'diagram.moveStepEarlier':
+      return t('tools:diagram.moveStepEarlier', 'Move Step Earlier');
+    case 'diagram.moveStepLater':
+      return t('tools:diagram.moveStepLater', 'Move Step Later');
+    case 'diagram.toolEditPath':
+      return t('tools:diagram.toolEditPath', 'Edit Path');
+    case 'diagram.toolValleyArrow':
+      return t('tools:diagram.toolValleyArrow', 'Valley Fold Arrow');
+    case 'diagram.toolMountainArrow':
+      return t('tools:diagram.toolMountainArrow', 'Mountain Fold Arrow');
+    case 'diagram.toolFoldUnfoldArrow':
+      return t('tools:diagram.toolFoldUnfoldArrow', 'Fold and Unfold Arrow');
+    case 'diagram.toolPleatArrow':
+      return t('tools:diagram.toolPleatArrow', 'Pleat Arrow');
+    case 'diagram.toolPushArrow':
+      return t('tools:diagram.toolPushArrow', 'Push Arrow');
+    case 'diagram.toolSolidArrow':
+      return t('tools:diagram.toolSolidArrow', 'Solid Arrow');
+    case 'diagram.toolWhiteArrow':
+      return t('tools:diagram.toolWhiteArrow', 'White Arrow');
+    case 'diagram.toolValleyLine':
+      return t('tools:diagram.toolValleyLine', 'Valley Line');
+    case 'diagram.toolMountainLine':
+      return t('tools:diagram.toolMountainLine', 'Mountain Line');
+    case 'diagram.toolHiddenLine':
+      return t('tools:diagram.toolHiddenLine', 'Hidden Line');
+    case 'diagram.toolSolidLine':
+      return t('tools:diagram.toolSolidLine', 'Solid Line');
+    case 'diagram.toolLabel':
+      return t('tools:diagram.toolLabel', 'Label');
+    case 'diagram.toolCircle':
+      return t('tools:diagram.toolCircle', 'Circle');
+    case 'diagram.toolStar':
+      return t('tools:diagram.toolStar', 'Star');
+    case 'diagram.toolEye':
+      return t('tools:diagram.toolEye', 'Eye');
+    case 'diagram.toolOval':
+      return t('tools:diagram.toolOval', 'Oval');
+    case 'diagram.toolRectangle':
+      return t('tools:diagram.toolRectangle', 'Rectangle');
+    case 'diagram.toolRightAngle':
+      return t('tools:diagram.toolRightAngle', 'Right Angle');
+    case 'diagram.toolCallout':
+      return t('tools:diagram.toolCallout', 'Callout');
+    case 'diagram.toolAngleBisector':
+      return t('tools:diagram.toolAngleBisector', 'Angle Bisector');
+    case 'diagram.toolDivisions':
+      return t('tools:diagram.toolDivisions', 'Equal Divisions');
+    case 'diagram.toolCloseUp':
+      return t('tools:diagram.toolCloseUp', 'Close-Up');
+    case 'diagram.toolEnlarge':
+      return t('tools:diagram.toolEnlarge', 'Enlarge');
+    case 'diagram.toolEnlargeFrame':
+      return t('tools:diagram.toolEnlargeFrame', 'Enlarge in Frame');
+    case 'diagram.toolXRay':
+      return t('tools:diagram.toolXRay', 'X-Ray');
+    case 'diagram.flipArc':
+      return t('tools:diagram.flipArc', 'Flip Arc');
+    case 'diagram.nudgeNodeLeft':
+      return t('tools:diagram.nudgeNodeLeft', 'Nudge Node Left');
+    case 'diagram.nudgeNodeRight':
+      return t('tools:diagram.nudgeNodeRight', 'Nudge Node Right');
+    case 'diagram.nudgeNodeUp':
+      return t('tools:diagram.nudgeNodeUp', 'Nudge Node Up');
+    case 'diagram.nudgeNodeDown':
+      return t('tools:diagram.nudgeNodeDown', 'Nudge Node Down');
+    case 'diagram.nudgeNodeLeftLarge':
+      return t('tools:diagram.nudgeNodeLeftLarge', 'Nudge Node Left (Large)');
+    case 'diagram.nudgeNodeRightLarge':
+      return t('tools:diagram.nudgeNodeRightLarge', 'Nudge Node Right (Large)');
+    case 'diagram.nudgeNodeUpLarge':
+      return t('tools:diagram.nudgeNodeUpLarge', 'Nudge Node Up (Large)');
+    case 'diagram.nudgeNodeDownLarge':
+      return t('tools:diagram.nudgeNodeDownLarge', 'Nudge Node Down (Large)');
     default:
       return definition.label;
   }
@@ -118,6 +202,10 @@ export function shortcutScopeLabel(t: TFunction, scope: ShortcutScope): string {
       return t('dialogs:settings.shortcuts.scopeViewport', 'viewport');
     case 'references':
       return t('tools:references.scopeLabel', 'references');
+    case 'diagram':
+      return t('tools:diagram.scopeLabel', 'diagram');
+    case 'diagram-path':
+      return t('tools:diagram.pathScopeLabel', 'edit path');
     default:
       return scope;
   }
@@ -162,6 +250,8 @@ export function shortcutCategoryLabel(t: TFunction, category: string): string {
       return t('dialogs:settings.shortcuts.categoryFold', 'Fold');
     case 'References':
       return t('tools:references.categoryLabel', 'References');
+    case 'Diagram':
+      return t('tools:diagram.categoryLabel', 'Diagram');
     default:
       return category;
   }

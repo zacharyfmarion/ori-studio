@@ -1,0 +1,83 @@
+/*
+ * A side pane's verbs, one to a row (ActionList.tsx). Rows are the control
+ * height and the pane's measure, so the icons and the names line up down the
+ * list whatever language the names are in.
+ */
+/* Inset so a row's icon lines up with a field row's label above it. */
+.list {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) var(--space-2);
+}
+
+.group {
+  display: grid;
+}
+
+/* Groups are set apart by a rule. */
+.group + .group {
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.item:hover:not(:disabled, [aria-disabled='true']) {
+  background: var(--bg-elevated);
+}
+
+.item:focus {
+  outline: none;
+}
+
+.item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent-primary);
+}
+
+.icon {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item[data-tone='danger'],
+.item[data-tone='danger'] .icon {
+  color: var(--status-danger);
+}
+
+.item:hover[data-tone='danger']:not(:disabled, [aria-disabled='true']) {
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+}
+
+/* Refusing for now, or for good: legible, and plainly not live. */
+.item:disabled,
+.item[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}

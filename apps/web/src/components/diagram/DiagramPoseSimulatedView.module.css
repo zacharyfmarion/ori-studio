@@ -1,0 +1,34 @@
+/*
+ * A step shown as Simulated, live in Pose (DiagramPoseSimulatedView.tsx): why
+ * it cannot fold here, over the top of the stage, and the transport's slider
+ * and readout in the Pose bar.
+ */
+.note {
+  position: absolute;
+  top: var(--space-3);
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 2 * var(--space-3));
+  margin: 0;
+  padding: 4px 10px;
+  transform: translateX(-50%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--domain-overlay-bg);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  text-align: center;
+}
+
+.scrub {
+  width: 120px;
+}
+
+/* Wide enough for "100%", so the bar does not shift as the fold moves. */
+.percent {
+  min-width: 4ch;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

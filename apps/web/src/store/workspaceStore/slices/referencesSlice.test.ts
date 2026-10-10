@@ -17,9 +17,10 @@ beforeEach(() => {
 });
 
 describe('restoredReferencesState', () => {
-  it('leaves everything as it is for a file that says nothing, but what the last open restored', () => {
+  it('leaves everything as it is for a file that says nothing, but what the last open restored or was asked', () => {
     expect(restoredReferencesState(null, 3, DEFAULT_REFERENCES_SETTINGS)).toEqual({
       referencesRestore: null,
+      referencesCardRequest: null,
     });
   });
 
@@ -35,6 +36,18 @@ describe('restoredReferencesState', () => {
     expect(state.referencesView).toMatchObject({ mode: 'sequence', landmarksFirst: true, activeStep: 0 });
     expect(state.referencesSelectedSheet).toBeNull();
     expect(state.referencesRestore).toEqual({ loadSerial: 3, sheet: SAVED.sheet, card: SAVED.activeCard });
+    expect(state.referencesCardRequest).toBeNull();
+  });
+});
+
+describe('a card asked for', () => {
+  it('is taken once, and only for its sheet', () => {
+    const card = { number: 2, line: { n: [1, 0] as [number, number], d: 0.5 } };
+    const state = () => useWorkspaceStore.getState();
+    state().requestReferencesCard(4, card);
+    expect(state().takeReferencesCardRequest(5)).toBeNull();
+    expect(state().takeReferencesCardRequest(4)).toEqual(card);
+    expect(state().takeReferencesCardRequest(4)).toBeNull();
   });
 });
 

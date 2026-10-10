@@ -19,9 +19,21 @@ import { isDesktopRuntime, isWindowsPlatform } from '../platform/runtime';
  * keys, and Space is already space-to-pan on the Edit canvas. `references` is
  * the same arrangement for the References workspace: pushed only while its
  * panel has registered an executor, so its arrows and zoom keys never reach the
- * Edit canvas.
+ * Edit canvas. `diagram` is the same again for the Diagram workspace, with one
+ * difference: its executor may decline, as a viewport's does, so its arrows
+ * stand down for a focused button or tab strip instead of taking their keys.
+ * `diagram-path` sits just ahead of it, with the same executor: Annotate's Edit
+ * Path claims the arrows there to nudge a selected node (decision 6), and
+ * declines them otherwise, so they fall through to the steps.
  */
-export type ShortcutScope = 'global' | 'crease-pattern' | 'viewport' | 'simulator' | 'references';
+export type ShortcutScope =
+  | 'global'
+  | 'crease-pattern'
+  | 'viewport'
+  | 'simulator'
+  | 'references'
+  | 'diagram-path'
+  | 'diagram';
 export type ViewportShortcutId =
   | 'viewport.zoomIn'
   | 'viewport.zoomOut'
@@ -78,13 +90,72 @@ export type ReferencesShortcutId =
   | 'references.exportAllSteps'
   | 'references.exportStepSvg'
   | 'references.exportStepPng';
+export type DiagramShortcutId =
+  | 'diagram.previousStep'
+  | 'diagram.nextStep'
+  | 'diagram.firstStep'
+  | 'diagram.lastStep'
+  | 'diagram.openStep'
+  | 'diagram.moveStepEarlier'
+  | 'diagram.moveStepLater'
+  | DiagramAnnotateShortcutId
+  | DiagramPathShortcutId;
+
+/** Annotate's tools and Flip arc: live only while a step is open in Annotate. */
+export type DiagramAnnotateShortcutId =
+  | 'diagram.toolEditPath'
+  | 'diagram.toolValleyArrow'
+  | 'diagram.toolMountainArrow'
+  | 'diagram.toolFoldUnfoldArrow'
+  | 'diagram.toolPleatArrow'
+  | 'diagram.toolPushArrow'
+  | 'diagram.toolWhiteArrow'
+  | 'diagram.toolSolidArrow'
+  | 'diagram.toolLine'
+  | 'diagram.toolValleyLine'
+  | 'diagram.toolMountainLine'
+  | 'diagram.toolHiddenLine'
+  | 'diagram.toolSolidLine'
+  | 'diagram.toolLabel'
+  | 'diagram.toolCircle'
+  | 'diagram.toolStar'
+  | 'diagram.toolEye'
+  | 'diagram.toolRightAngle'
+  | 'diagram.toolCallout'
+  | 'diagram.toolAngleBisector'
+  | 'diagram.toolDivisions'
+  | 'diagram.toolCloseUp'
+  | 'diagram.toolEnlarge'
+  | 'diagram.toolEnlargeFrame'
+  | 'diagram.toolOval'
+  | 'diagram.toolRectangle'
+  | 'diagram.toolXRay'
+  | 'diagram.flipArc';
+
+/** Nudging the node Edit Path has selected: live only while it has one (`diagram-path`). */
+export type DiagramPathShortcutId =
+  | 'diagram.nudgeNodeLeft'
+  | 'diagram.nudgeNodeRight'
+  | 'diagram.nudgeNodeUp'
+  | 'diagram.nudgeNodeDown'
+  | 'diagram.nudgeNodeLeftLarge'
+  | 'diagram.nudgeNodeRightLarge'
+  | 'diagram.nudgeNodeUpLarge'
+  | 'diagram.nudgeNodeDownLarge';
 export type ShortcutActionId =
   | MenuActionId
   | OristudioCpActionId
   | ViewportShortcutId
   | SimulatorShortcutId
-  | ReferencesShortcutId;
-export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport' | 'simulator' | 'references';
+  | ReferencesShortcutId
+  | DiagramShortcutId;
+export type ShortcutTarget =
+  | 'menu'
+  | 'cp-action'
+  | 'viewport'
+  | 'simulator'
+  | 'references'
+  | 'diagram';
 export type ReservedKeyClassification = 'allowed' | 'soft-reserved' | 'hard-reserved';
 
 export interface KeyChord {
@@ -288,6 +359,7 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
     ),
     inFormControls: true,
   },
+  menuShortcut('file.printDiagram', 'Print Diagram...', 'File', { primary: true, key: 'p' }),
   menuShortcut('file.settings', 'Settings', 'File', { primary: true, key: ',' }, 'prefAction'),
   menuShortcut('edit.undo', 'Undo', 'Edit', { primary: true, key: 'z' }, 'undoAction'),
   menuShortcut('edit.redo', 'Redo', 'Edit', { primary: true, shift: true, key: 'z' }, 'redoAction'),
@@ -482,6 +554,135 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
   referencesShortcut('references.exportStepPng', 'Export step as PNG…', null),
 ];
 
+function diagramShortcut(
+  id: DiagramShortcutId,
+  label: string,
+  defaultChord: KeyChord | KeyChord[] | null,
+  scope: 'diagram' | 'diagram-path' = 'diagram'
+): ShortcutDefinition {
+  const defaultChords = normalizeDefaultChords(defaultChord);
+  return {
+    id,
+    label,
+    category: 'Diagram',
+    scope,
+    target: 'diagram',
+    defaultChord: defaultChords[0] ?? null,
+    defaultChords,
+  };
+}
+
+/**
+ * Diagram-workspace bindings. The References arrangement — the scope is pushed
+ * only while the Diagram holds an executor — so the arrows are free to mean
+ * "the step before / after" there and the fold-angle solutions on the Edit
+ * canvas, without either knowing about the other.
+ *
+ * Its executor declines while a control that uses arrows has focus — a tab
+ * strip, a radio group, a toolbar, a slider (`focusOwnsArrowKeys`): a scope
+ * executor that always claimed would take their keys. That decline is why
+ * these may be arrows at all. The steps read in one sequence, so both axes
+ * walk it — the grid wraps, and on a phone it is one column; `[` and `]` walk
+ * it too, for the step detail, where a simulation's own scope (ahead of this
+ * one) takes the arrows. Enter opens the selected step, and declines for any
+ * focused control, so a focused button still clicks. Escape is not here: it is
+ * `viewport.cancel`, and the Diagram's viewport executor runs one cancel ladder
+ * for every view the workspace has.
+ */
+const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
+  diagramShortcut('diagram.previousStep', 'Previous Step', [
+    { key: 'arrowleft' },
+    { key: 'arrowup' },
+    { key: '[' },
+  ]),
+  diagramShortcut('diagram.nextStep', 'Next Step', [
+    { key: 'arrowright' },
+    { key: 'arrowdown' },
+    { key: ']' },
+  ]),
+  diagramShortcut('diagram.openStep', 'Open Step', { key: 'enter' }),
+  diagramShortcut('diagram.firstStep', 'First Step', { key: 'home' }),
+  diagramShortcut('diagram.lastStep', 'Last Step', { key: 'end' }),
+  diagramShortcut('diagram.moveStepEarlier', 'Move Step Earlier', [
+    { alt: true, key: 'arrowleft' },
+    { alt: true, key: 'arrowup' },
+  ]),
+  diagramShortcut('diagram.moveStepLater', 'Move Step Later', [
+    { alt: true, key: 'arrowright' },
+    { alt: true, key: 'arrowdown' },
+  ]),
+  // Annotate's tools (D8). Letters a crease-pattern tool also has: the
+  // diagram scope is pushed only in the Diagram, never with `crease-pattern`,
+  // and its executor declines outside Annotate. A for Edit Path, as Affinity's
+  // Node tool and Illustrator's Direct Selection are.
+  diagramShortcut('diagram.toolEditPath', 'Edit Path', { key: 'a' }),
+  diagramShortcut('diagram.toolValleyArrow', 'Valley Fold Arrow', { key: 'v' }),
+  diagramShortcut('diagram.toolMountainArrow', 'Mountain Fold Arrow', { key: 'm' }),
+  diagramShortcut('diagram.toolFoldUnfoldArrow', 'Fold and Unfold Arrow', { key: 'u' }),
+  // Z for the zig-zag in its shaft (15c).
+  diagramShortcut('diagram.toolPleatArrow', 'Pleat Arrow', { key: 'z' }),
+  diagramShortcut('diagram.toolPushArrow', 'Push Arrow', { key: 'p' }),
+  // W for white, a letter no other Diagram key or the view's has.
+  diagramShortcut('diagram.toolWhiteArrow', 'White Arrow', { key: 'w' }),
+  // S for the solid arrow (15d): plain S is free; Shift+S is the canvas's own.
+  diagramShortcut('diagram.toolSolidArrow', 'Solid Arrow', { key: 's' }),
+  diagramShortcut('diagram.toolValleyLine', 'Valley Line', { shift: true, key: 'v' }),
+  diagramShortcut('diagram.toolMountainLine', 'Mountain Line', { shift: true, key: 'm' }),
+  diagramShortcut('diagram.toolHiddenLine', 'Hidden Line', { key: 'h' }),
+  // Shift+L for the solid line, as Shift+V and Shift+M pick theirs.
+  // References' scope has a Shift+L of its own, and the
+  // two scopes are never live together.
+  diagramShortcut('diagram.toolSolidLine', 'Solid Line', { shift: true, key: 'l' }),
+  diagramShortcut('diagram.toolLabel', 'Label', { key: 't' }),
+  diagramShortcut('diagram.toolLine', 'Line', { key: 'space' }),
+  // O for the ring it draws.
+  diagramShortcut('diagram.toolCircle', 'Circle', { key: 'o' }),
+  // K for the star (Revision 3, R3-25 A): S is the solid arrow's, and K is
+  // free in this scope. Zach plans a shortcut pass before merge.
+  diagramShortcut('diagram.toolStar', 'Star', { key: 'k' }),
+  // Q for the square it draws in a corner.
+  diagramShortcut('diagram.toolRightAngle', 'Right Angle', { key: 'q' }),
+  // C for the callout: a line to a box of words.
+  diagramShortcut('diagram.toolCallout', 'Callout', { key: 'c' }),
+  // B for the bisector, as Edit's Angle Bisector is (15b).
+  diagramShortcut('diagram.toolAngleBisector', 'Angle Bisector', { key: 'b' }),
+  // D for divide: Edit's Edge line type is in the crease pattern's scope,
+  // never live with this one (Revision 2, ED8).
+  diagramShortcut('diagram.toolDivisions', 'Equal Divisions', { key: 'd' }),
+  // I for the inset a close-up draws (15f).
+  diagramShortcut('diagram.toolCloseUp', 'Close-Up', { key: 'i' }),
+  // Y for the eye (Revision 3, R3-25 A): E is Enlarge's, and Y is free in
+  // this scope and the global one. Zach plans a shortcut pass before merge.
+  diagramShortcut('diagram.toolEye', 'Eye', { key: 'y' }),
+  // E for enlarge, as Sturm and Lang name it (Revision 2, Z1): Edit's Extend
+  // Line is in the crease pattern's scope, never live with this one.
+  diagramShortcut('diagram.toolEnlarge', 'Enlarge', { key: 'e' }),
+  diagramShortcut('diagram.toolEnlargeFrame', 'Enlarge in Frame', { shift: true, key: 'e' }),
+  // Shift+O for the oval, paired with the Circle's O as Shift+E pairs with E,
+  // and R for the rectangle (Revision 3, R3-25 A): both free in this scope,
+  // where R is otherwise only the simulator's and ⌘R. Zach plans a shortcut
+  // pass before merge.
+  diagramShortcut('diagram.toolOval', 'Oval', { shift: true, key: 'o' }),
+  diagramShortcut('diagram.toolRectangle', 'Rectangle', { key: 'r' }),
+  // X for the x-ray (Revision 3, R3-25 A): free in this scope, where X is
+  // otherwise only ⌘X. Zach plans a shortcut pass before merge.
+  diagramShortcut('diagram.toolXRay', 'X-Ray', { key: 'x' }),
+  diagramShortcut('diagram.flipArc', 'Flip Arc', { key: 'f' }),
+  // Edit Path's nudges (decision 6), on the step keys' own arrows: in a scope
+  // of their own ahead of `diagram`, whose executor claims them only while
+  // Edit Path has a node selected. Anywhere else it declines, and the arrows
+  // fall through to the steps — one scope could not hold both, as the
+  // dispatcher takes a scope's first match. Shift for ten times the step.
+  diagramShortcut('diagram.nudgeNodeLeft', 'Nudge Node Left', { key: 'arrowleft' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeRight', 'Nudge Node Right', { key: 'arrowright' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeUp', 'Nudge Node Up', { key: 'arrowup' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeDown', 'Nudge Node Down', { key: 'arrowdown' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeLeftLarge', 'Nudge Node Left (Large)', { shift: true, key: 'arrowleft' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeRightLarge', 'Nudge Node Right (Large)', { shift: true, key: 'arrowright' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeUpLarge', 'Nudge Node Up (Large)', { shift: true, key: 'arrowup' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeDownLarge', 'Nudge Node Down (Large)', { shift: true, key: 'arrowdown' }, 'diagram-path'),
+];
+
 /**
  * The viewport verbs whose executor can answer `false` and let the chord fall
  * through to the next scope.
@@ -619,6 +820,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   ...buildCpShortcutDefinitions(),
   ...SIMULATOR_SHORTCUTS,
   ...REFERENCES_SHORTCUTS,
+  ...DIAGRAM_SHORTCUTS,
   ...VIEWPORT_SHORTCUTS,
 ];
 
@@ -1115,9 +1317,11 @@ export interface ShortcutShadowing {
 const SHORTCUT_SCOPE_PRECEDENCE: Record<ShortcutScope, number> = {
   simulator: 0,
   references: 1,
-  viewport: 2,
-  'crease-pattern': 3,
-  global: 4,
+  'diagram-path': 2,
+  diagram: 3,
+  viewport: 4,
+  'crease-pattern': 5,
+  global: 6,
 };
 
 /**
@@ -1125,7 +1329,12 @@ const SHORTCUT_SCOPE_PRECEDENCE: Record<ShortcutScope, number> = {
  * registered an executor. A claim from one of these is a deferral rather than a
  * death for anything beneath it — see {@link ShortcutShadowing.kind}.
  */
-const CONDITIONAL_SCOPES: ReadonlySet<ShortcutScope> = new Set(['simulator', 'references']);
+const CONDITIONAL_SCOPES: ReadonlySet<ShortcutScope> = new Set([
+  'simulator',
+  'references',
+  'diagram-path',
+  'diagram',
+]);
 
 /**
  * Whether bindings in `scope` are dispatched only while their surface owns the

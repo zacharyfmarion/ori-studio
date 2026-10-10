@@ -1,6 +1,6 @@
 import type { Point } from '../../lib/geometry';
 import { hasPaperStyleOverrides, normalizePaperStyleOverrides } from '../../lib/paper/paperStyle';
-import type { FoldedSourceBounds } from '../folded/foldedFigureStaleness';
+import { readFoldedSourceBounds, readRegionBoundary } from '../regions/regionReference';
 import type { InlineSimulation } from './inlineSimulation';
 
 /**
@@ -38,33 +38,6 @@ function point(value: unknown): Point | null {
   return x === null || y === null ? null : { x, y };
 }
 
-/** Rings of the region's rim. Any malformed ring invalidates the whole boundary. */
-function boundary(value: unknown): Point[][] | null {
-  if (!Array.isArray(value)) return null;
-  const rings: Point[][] = [];
-  for (const ring of value) {
-    if (!Array.isArray(ring)) return null;
-    const points: Point[] = [];
-    for (const entry of ring) {
-      const p = point(entry);
-      if (!p) return null;
-      points.push(p);
-    }
-    rings.push(points);
-  }
-  return rings;
-}
-
-function sourceBounds(value: unknown): FoldedSourceBounds | null {
-  if (!isRecord(value)) return null;
-  const minX = finiteNumber(value.minX);
-  const minY = finiteNumber(value.minY);
-  const maxX = finiteNumber(value.maxX);
-  const maxY = finiteNumber(value.maxY);
-  if (minX === null || minY === null || maxX === null || maxY === null) return null;
-  return { minX, minY, maxX, maxY };
-}
-
 export function validateInlineSimulation(value: unknown): InlineSimulation | null {
   if (!isRecord(value)) return null;
   if (typeof value.id !== 'string' || value.id === '') return null;
@@ -87,7 +60,7 @@ export function validateInlineSimulation(value: unknown): InlineSimulation | nul
   // would load as a permanently empty frame that refreshing cannot repair.
   // Every window this app writes has one; a missing one means the field is
   // corrupt, and dropping it is kinder than restoring something inert.
-  const rings = boundary(value.sourceBoundary);
+  const rings = readRegionBoundary(value.sourceBoundary);
   if (!rings || rings.length === 0) return null;
 
   // Read field by field — unknown keys and malformed values dropped — and left
@@ -105,7 +78,7 @@ export function validateInlineSimulation(value: unknown): InlineSimulation | nul
     z: finiteNumber(value.z) ?? 0,
     view: { yaw, pitch, zoom },
     sourceBoundary: rings,
-    sourceBounds: sourceBounds(value.sourceBounds),
+    sourceBounds: readFoldedSourceBounds(value.sourceBounds),
     sourceFingerprint:
       typeof value.sourceFingerprint === 'string' ? value.sourceFingerprint : null,
     segmentIdHint: finiteNumber(value.segmentIdHint),

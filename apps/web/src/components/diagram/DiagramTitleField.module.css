@@ -1,0 +1,70 @@
+/*
+ * The diagram's title in the workspace header (DiagramTitleField.tsx): it reads
+ * as the header's title until it is pointed at or focused, when it shows that
+ * it is a field.
+ */
+/*
+ * The field and an invisible copy of its words share one grid cell, so the
+ * cell — and the field filling it — is as wide as the words, not as a count
+ * of average characters, which left bold text a field far wider than itself.
+ * Both take the same type and the same inline padding and border, so they
+ * measure alike; a trailing space is the caret's room. A long title stops
+ * growing at 28em and scrolls inside the field.
+ */
+.sizer {
+  display: inline-grid;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.sizer::after,
+.field {
+  grid-area: 1 / 1;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: 1px solid transparent;
+}
+
+.sizer::after {
+  content: attr(data-value) ' ';
+  max-width: 28em;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  white-space: pre;
+}
+
+.field {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-overflow: ellipsis;
+}
+
+.field::placeholder {
+  color: var(--text-muted);
+}
+
+.field:hover:not(:disabled) {
+  border-color: var(--border-default);
+}
+
+.field:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+/* At 16px iOS Safari does not zoom the page into a focused field; the copy follows, to measure alike. */
+@media (pointer: coarse) {
+  .sizer {
+    font-size: 16px;
+  }
+}

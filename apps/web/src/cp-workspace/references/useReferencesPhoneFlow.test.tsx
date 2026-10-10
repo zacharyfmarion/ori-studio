@@ -148,6 +148,17 @@ describe('useReferencesPhoneFlow', () => {
     ]);
   });
 
+  // A diagram step's Open in References: the step's sheet, not the list of them.
+  it('shows a sheet asked for from elsewhere, without counting a card press', () => {
+    stubLayout(true);
+    const selectSheet = vi.fn();
+    render(DOC, { selectSheet });
+    act(() => latest?.showSheet(3));
+    expect(selectSheet).toHaveBeenCalledWith(3);
+    expect(latest?.screen).toBe('detail');
+    expect(tracked).toEqual([]);
+  });
+
   // The finding frames itself on the canvas, and the canvas is on the detail.
   it('opens the detail for a finding pressed on the list', () => {
     stubLayout(true);

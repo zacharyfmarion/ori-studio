@@ -1,0 +1,61 @@
+/*
+ * The Step pane's first row (DiagramStepHeader.tsx): "Step [N] of M" with N a
+ * field, and the step's verbs. The pane's own header line, so it takes the
+ * section rule under it.
+ */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.position {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.field {
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.field:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+.field:disabled {
+  border-color: transparent;
+  background: transparent;
+}
+
+.verbs {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+/* At 16px iOS Safari does not zoom the page into a focused field. */
+@media (pointer: coarse) {
+  .field {
+    font-size: 16px;
+  }
+}

@@ -1067,6 +1067,47 @@ describe('a mark that leaves the paper', () => {
     expect(svg.querySelector('text')!.closest('[clip-path]')).toBeNull();
     expect(file).not.toContain('class=');
   });
+
+  it('draws a right angle as it does a ring: twice through the clip pair, in a ring’s class, mitred, in the aux lines’ pen', () => {
+    // Off the paper's right edge, opening out of it, beside a ring and an existing crease for its pen.
+    const squared: StepDiagramModel = {
+      sheet: UNIT,
+      primitives: [
+        { kind: 'sheet', width: 1, height: 1 },
+        { kind: 'line', from: [0.1, 0.9], to: [0.9, 0.9], style: 'crease' },
+        { kind: 'point', at: [0.3, 0.3], style: 'normal' },
+        { kind: 'right-angle', at: [1, 0.5], toward: [1.1, 0.6] },
+      ],
+    };
+    const svg = mount(renderToStaticMarkup(<StepDiagram primitives={squared} size={100} />));
+    const grounds = [...svg.querySelectorAll('.step-diagram__ground')];
+    expect(grounds).toHaveLength(2);
+    const [off, on] = [...grounds[1]!.parentElement!.children];
+    expect(on!.innerHTML).toBe(off!.innerHTML);
+    const mark = on!.querySelector('path')!;
+    expect(mark.getAttribute('class')).toBe('step-diagram__point step-diagram__right-angle');
+    expect(mark.getAttribute('stroke-linejoin')).toBe('miter');
+    expect(mark.getAttribute('stroke-linecap')).toBe('butt');
+    // The existing creases' pen, which aux lines are drawn in, lighter than the ring's (Zach, 2026-10-06).
+    const crease = svg.querySelector('line.step-diagram__line--crease')!;
+    expect(mark.getAttribute('stroke-width')).toBe(crease.getAttribute('stroke-width'));
+    expect(Number(mark.getAttribute('stroke-width'))).toBeLessThan(Number(svg.querySelector('circle')!.getAttribute('stroke-width')));
+    // In a file on a dark page: the ground's ink off the paper, the ring's on it.
+    const project = createDiagramProjector(UNIT, 100);
+    const context = createDiagramRenderContext(squared.primitives, UNIT, project, {
+      inline: diagramInlineInk({ ...tokens, '--bg-primary': '#15181c' }),
+    });
+    const file = mount(renderToStaticMarkup(<svg>{diagramShapes(squared.primitives, context)}</svg>));
+    const strokes = [...file.querySelectorAll('path[stroke-linejoin="miter"]')].map((path) => [
+      clipOf(path.closest('[clip-path]'))?.includes('ground') ?? false,
+      path.getAttribute('stroke'),
+      path.getAttribute('fill'),
+    ]);
+    expect(strokes).toEqual([
+      [true, '#ffffff', 'none'],
+      [false, '#000000', 'none'],
+    ]);
+  });
 });
 
 describe('labelOnPaper', () => {
@@ -1090,5 +1131,58 @@ describe('labelOnPaper', () => {
 
   it('puts nothing on paper that has no outline', () => {
     expect(labelOnPaper(box(50, 50), [])).toBe(false);
+  });
+});
+
+describe('a line in a colour of its own', () => {
+  // A Diagram solid line (17a of `diagram-references-annotations.md`) is
+  // References' own `line` in its `highlight` pen, with an `ink` over its
+  // style's and stretches behind a flap. References never sets either, so a
+  // card draws as it did; a line that does is drawn in its colour, in a file
+  // and on screen alike, its stretches behind a flap dotted in its own pen.
+  const tokens: DiagramInlineTokens = {
+    '--references-paper-front': '#fff8e1',
+    '--references-paper-back': '#d0d0d0',
+    '--fold-mountain': '#112233',
+    '--fold-valley': '#445566',
+    '--diagram-mountain': '#a01020',
+    '--diagram-valley': '#2010a0',
+    '--fold-border': '#000000',
+    '--fold-unassigned': '#aabbcc',
+    '--references-arrow': '#405060',
+    '--references-crease-alpha': '0.5',
+    '--cp-reference-input': '#ff00ff',
+    '--bg-primary': '#fafafa',
+  };
+  const UNIT = { width: 1, height: 1 };
+  const draw = (primitives: StepDiagramModel['primitives'], inline: boolean) => {
+    const project = createDiagramProjector(UNIT, 100);
+    const context = createDiagramRenderContext(primitives, UNIT, project, { inline: inline ? diagramInlineInk(tokens) : null });
+    return renderToStaticMarkup(<svg>{diagramShapes(primitives, context)}</svg>);
+  };
+  const plain = { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'highlight' } as const;
+
+  it('draws in its own colour in a file, and in its style’s without one', () => {
+    expect(elements(draw([plain], true), 'line')[0]).toMatchObject({ stroke: '#ff00ff', 'stroke-linecap': 'round' });
+    const [own] = elements(draw([{ ...plain, ink: '#1971c2' }], true), 'line');
+    expect(own).toMatchObject({ stroke: '#1971c2', 'stroke-linecap': 'round' });
+    expect(own!.style).toBeUndefined();
+  });
+
+  it('keeps its class on screen, its colour over the class’s; one with none is drawn as before', () => {
+    const [own] = elements(draw([{ ...plain, ink: '#1971c2' }], false), 'line');
+    expect(own!.class).toBe('step-diagram__line step-diagram__line--highlight');
+    expect(own!.style).toBe('stroke:#1971c2');
+    expect(draw([plain], false)).not.toContain('style=');
+  });
+
+  it('dots its stretch behind a flap in its own pen and colour, and draws the rest as it is', () => {
+    const [front, behind] = elements(draw([{ ...plain, ink: '#1971c2', hidden: [[0.5, 1]] }], true), 'line');
+    const [whole] = elements(draw([{ ...plain, ink: '#1971c2' }], true), 'line');
+    expect(front).toMatchObject({ x1: whole!.x1, x2: '50', stroke: '#1971c2', 'stroke-width': whole!['stroke-width'] });
+    expect(front!['stroke-dasharray']).toBeUndefined();
+    const width = Number(whole!['stroke-width']);
+    expect(behind).toMatchObject({ x1: '50', x2: whole!.x2, stroke: '#1971c2', 'stroke-linecap': 'butt' });
+    expect(behind!['stroke-dasharray']).toBe(`${width} ${2 * width}`);
   });
 });

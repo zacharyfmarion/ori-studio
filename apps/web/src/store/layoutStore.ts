@@ -109,6 +109,7 @@ const ALL_LAYOUT_SCOPES = [
   'edit',
   'simulate',
   'references',
+  'diagram',
 ];
 
 /**
@@ -216,6 +217,31 @@ const WORKSPACE_SIDE_PANES = {
       placement: { kind: 'beside-primary', trigger: 'slot' },
     },
   ],
+  diagram: [
+    {
+      id: 'diagram-step',
+      component: 'diagram-step',
+      role: 'settings',
+      initialWidth: 280,
+      referencePanelId: 'diagram',
+      placement: { kind: 'beside-primary', trigger: 'slot' },
+    },
+    {
+      id: 'diagram-page',
+      component: 'diagram-page',
+      role: 'settings',
+      referencePanelId: 'diagram',
+      placement: { kind: 'tab-of', leadId: 'diagram-step' },
+    },
+    // The selection's pane, last, as Edit's Properties is.
+    {
+      id: 'diagram-layers',
+      component: 'diagram-layers',
+      role: 'properties',
+      referencePanelId: 'diagram',
+      placement: { kind: 'tab-of', leadId: 'diagram-step' },
+    },
+  ],
 } as const satisfies Partial<Record<WorkspaceId, readonly SidePaneDefinition[]>>;
 
 export type SidePaneSpec = (typeof WORKSPACE_SIDE_PANES)[keyof typeof WORKSPACE_SIDE_PANES][number];
@@ -256,6 +282,12 @@ export function drawerTriggerFor(workspace: WorkspaceId): 'lane' | 'slot' {
  * change (`retitleSidePanes`); before that, tab titles were English literals.
  */
 export function sidePaneTitle(spec: SidePaneSpec): string {
+  // The Diagram's panes are named for what each holds, since they sit side by
+  // side as tabs: the selected step, the page setup, and what is drawn on the
+  // step open in Annotate.
+  if (spec.id === 'diagram-step') return i18n.t('panels:sidePane.step', 'Step');
+  if (spec.id === 'diagram-page') return i18n.t('panels:sidePane.page', 'Page');
+  if (spec.id === 'diagram-layers') return i18n.t('panels:sidePane.layers', 'Layers');
   switch (spec.role) {
     case 'view':
       return i18n.t('panels:sidePane.view', 'View');
@@ -413,6 +445,9 @@ export function applyDefaultLayout(
     case 'references':
       applyReferencesLayout(api, coarsePointer);
       return;
+    case 'diagram':
+      applyDiagramLayout(api, coarsePointer);
+      return;
   }
 }
 
@@ -476,6 +511,21 @@ function applyReferencesLayout(api: DockviewApi, coarsePointer: boolean): void {
   references.api.setActive();
 }
 
+/**
+ * The steps, headerless, and the selected step's pane docked beside them —
+ * the same shape as References, and like it the side pane stays out of a
+ * coarse-pointer layout.
+ */
+function applyDiagramLayout(api: DockviewApi, coarsePointer: boolean): void {
+  const diagram = addHeaderlessPanel(api, {
+    id: 'diagram',
+    component: 'diagram',
+    title: 'Diagram',
+  });
+  if (!coarsePointer) for (const spec of sidePanesFor('diagram')) addSidePane(api, spec);
+  diagram.api.setActive();
+}
+
 interface LayoutState {
   dockviewApi: DockviewApi | null;
   /**
@@ -516,9 +566,16 @@ interface LayoutState {
    * slot in that corner instead (`WorkspaceViewDrawer`).
    */
   viewDrawerSlot: HTMLElement | null;
+  /**
+   * Where the touch layout's sheets are portaled (`SheetLayer`), registered by
+   * `App` ahead of its modals so a dialog a sheet opens is over it; null until
+   * it is mounted.
+   */
+  sheetLayer: HTMLElement | null;
   activeWorkspace: WorkspaceId;
   setDockviewApi: (api: DockviewApi | null) => void;
   setViewDrawerSlot: (slot: HTMLElement | null) => void;
+  setSheetLayer: (layer: HTMLElement | null) => void;
   setDesignPaneApi: (api: DockviewApi | null) => void;
   setDesignPaneId: (panelId: string | null) => void;
   setActiveWorkspace: (workspace: WorkspaceId) => void;
@@ -540,9 +597,11 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   designPaneApi: null,
   designPaneId: null,
   viewDrawerSlot: null,
+  sheetLayer: null,
   activeWorkspace: 'design',
   setDockviewApi: (api) => set({ dockviewApi: api }),
   setViewDrawerSlot: (slot) => set({ viewDrawerSlot: slot }),
+  setSheetLayer: (layer) => set({ sheetLayer: layer }),
   setDesignPaneApi: (api) => set({ designPaneApi: api }),
   setDesignPaneId: (panelId) => set({ designPaneId: panelId }),
   setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),

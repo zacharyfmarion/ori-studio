@@ -1111,6 +1111,9 @@ function SettingsModalContent({
     <div
       role="dialog"
       aria-modal="true"
+      // Owns every key while it is open: the arrows that scroll its list must
+      // not nudge, step or delete anything in the workspace behind it.
+      data-shortcut-barrier=""
       aria-label={t('dialogs:settings.title', 'Settings')}
       className="settings-modal"
       onMouseDown={closeSettings}

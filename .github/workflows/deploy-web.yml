@@ -52,6 +52,10 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      # The Diagram's CJK fonts are served from public/ and never committed.
+      - name: Build the Diagram's fonts
+        uses: ./.github/actions/build-diagram-fonts
+
       - name: Build web app
         run: npm run build:web
         env:
@@ -89,6 +93,9 @@ jobs:
           # their public URL. The plugin deletes the maps from `dist` after
           # uploading, so they are never served from here either.
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      - name: Verify frozen Diagram fonts in the deployment bundle
+        run: python3 scripts/diagram-fonts/check_fonts.py apps/web/dist/fonts/diagram
 
       # `initializePostHog` and `initializeSentry` both treat a missing config as
       # "disabled" by design, so a misconfigured prod build deploys green and

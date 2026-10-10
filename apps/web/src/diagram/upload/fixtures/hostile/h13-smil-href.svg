@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="100" viewBox="0 0 100 100">
+<rect width="100" height="100" fill="#3a3"/>
+<a><set attributeName="href" to="javascript:fetch('http://canary.test/h13-set-a')"/><rect width="50" height="50" fill="#fff"/></a>
+<a xlink:href="#x"><animate attributeName="xlink:href" values="javascript:fetch('http://canary.test/h13-animate-a')" dur="0.01s" fill="freeze"/><rect x="50" width="50" height="50" fill="#eee"/></a>
+<image width="20" height="20"><set attributeName="href" to="http://canary.test/h13-set-image.png"/></image>
+<use href="#r"><set attributeName="href" to="http://canary.test/h13-set-use.svg#x"/></use>
+<rect id="r" y="60" width="10" height="10"/>
+<animate attributeName="onload" to="fetch('http://canary.test/h13-onload-attr')"/>
+<rect y="80" width="10" height="10"><animate attributeName="fill" values="url(http://canary.test/h13-fill#g)" dur="0.01s" fill="freeze"/></rect>
+</svg>

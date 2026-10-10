@@ -1,0 +1,37 @@
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
+import golden from './__fixtures__/divisionsGolden.json';
+import { annotationDrawing, annotationMarks } from './annotationPrimitives';
+import { DIVISIONS_CASES } from './divisions.cases';
+import { CARD_FRAME_PX, paintAnnotations } from './paintAnnotations';
+
+/**
+ * Equal divisions as each surface draws them — a card, a page and the
+ * canvas — recorded when the mark was made (Revision 2), re-recorded for
+ * Revision 3, and checked by eye beside Zach's sketch and his note: a line
+ * set off the line it measures and the dividers and ticks across it, every
+ * stroke one path in the aux lines' pen, the ticks leaning as a backslash on
+ * the page and crowding to their floor on a short edge; the count upright
+ * beside the line in the page's face, in the regular weight (R3-3); and, with
+ * Short Dividers, the dividers between the ends 1.65 mm either side of the
+ * line, the end ones still reaching the measured line (R3-1 A, R3-2 A).
+ */
+describe('equal divisions', () => {
+  it.each(DIVISIONS_CASES.map((annotation) => [annotation.id, annotation] as const))(
+    '%s draws as recorded on a card, a page and the canvas',
+    (id, annotation) => {
+      const card = paintAnnotations([annotation], { x: 0, y: 0, width: 400, height: 300 }, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
+      const page = paintAnnotations(
+        [annotation],
+        { x: 12, y: 30, width: 283.46, height: 212.6 },
+        283.46,
+        DEFAULT_DIAGRAM_STYLE
+      );
+      const canvas = renderToStaticMarkup(
+        annotationMarks(annotationDrawing([annotation], { width: 1, height: 0.75 }, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE))
+      );
+      expect({ card, page, canvas }).toEqual((golden as Record<string, unknown>)[id]);
+    }
+  );
+});

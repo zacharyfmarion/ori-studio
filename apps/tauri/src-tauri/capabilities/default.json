@@ -6,6 +6,7 @@
     "core:default",
     "core:event:default",
     "core:menu:default",
+    "core:webview:allow-print",
     "core:window:allow-destroy",
     "core:window:allow-set-title",
     "dialog:default",

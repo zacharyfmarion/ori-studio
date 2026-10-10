@@ -1,0 +1,62 @@
+/* A flat fold's spread in the Step pane (DiagramSpreadRows.tsx): the direction compass. */
+
+/* Eight directions round a centre: a 3 × 3 grid, each button in its own cell. */
+.compass {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  grid-template-rows: repeat(3, auto);
+  gap: 2px;
+  place-items: center;
+}
+
+.direction[data-toward='up-left'] {
+  grid-area: 1 / 1;
+}
+
+.direction[data-toward='up'] {
+  grid-area: 1 / 2;
+}
+
+.direction[data-toward='up-right'] {
+  grid-area: 1 / 3;
+}
+
+.direction[data-toward='left'] {
+  grid-area: 2 / 1;
+}
+
+.direction[data-toward='right'] {
+  grid-area: 2 / 3;
+}
+
+.direction[data-toward='down-left'] {
+  grid-area: 3 / 1;
+}
+
+.direction[data-toward='down'] {
+  grid-area: 3 / 2;
+}
+
+.direction[data-toward='down-right'] {
+  grid-area: 3 / 3;
+}
+
+/* The way the layers step now, tinted as the Show As control's chosen pill
+   is; on hover too, past the ghost button's own hover. */
+.direction[aria-pressed='true'],
+.direction[aria-pressed='true']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-primary) 17%, var(--bg-elevated));
+  color: var(--text-primary);
+}
+
+/* The layers the arrows step: a mark, not a control. */
+.centre {
+  grid-area: 2 / 2;
+  color: var(--text-tertiary);
+}
+
+.kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}

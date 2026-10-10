@@ -1,5 +1,6 @@
 import { requestConfirmation } from '../store/commandDialogStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { flushPendingEdits } from './pendingEdits';
 
 /**
  * Whether the active project has changes that would be lost.
@@ -7,8 +8,12 @@ import { useWorkspaceStore } from '../store/workspaceStore';
  * One predicate for one question. Three places need to know this — the window
  * close guard, the browser `beforeunload`, and the update chip — and if they
  * disagree, exactly one of them silently discards someone's work.
+ *
+ * Pending drafts are committed first, so text typed into a field that has not
+ * committed yet counts as unsaved work too.
  */
 export function hasUnsavedWork(): boolean {
+  flushPendingEdits();
   return useWorkspaceStore.getState().dirty;
 }
 

@@ -1,0 +1,7 @@
+.popover {
+  z-index: var(--z-portaled-popover);
+  width: min(280px, calc(100vw - 16px));
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}

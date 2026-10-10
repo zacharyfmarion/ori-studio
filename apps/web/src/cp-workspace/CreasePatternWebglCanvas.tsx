@@ -30,6 +30,7 @@ import {
   type UserCamera,
 } from './renderer/camera';
 import { registerCpCamera, type CpCameraHandle } from './renderer/cpCameraRegistry';
+import { subscribeCpRegionFocus, takeCpRegionFocus } from './regions/regionFocusRequest';
 import { LineHitIndex } from './picking/lineHitIndex';
 import { registerCpSurfacePress } from './picking/cpSurfacePressRegistry';
 import { surfacePressClaim } from './picking/surfacePressClaim';
@@ -1062,6 +1063,19 @@ export function CreasePatternWebglCanvas({
   // `ensureCamera` after it. One-shot: once adopted, the user owns the camera,
   // so a later re-render must not drag the view back to where the file was saved.
   const pendingInitialCameraRef = useRef<UserCamera | null>(null);
+  // A region asked for from elsewhere (the Diagram's Open in Edit), with the
+  // document it was asked of: a fresh camera for that document frames it in
+  // place of the fit or the saved view, however often the camera is reset
+  // while the document loads.
+  const regionFocusRef = useRef<{
+    bounds: { minX: number; minY: number; maxX: number; maxY: number };
+    framingKey: string | number | undefined;
+  } | null>(null);
+  const framingKeyRef = useRef(framingKey);
+  // Declared before the effects that frame, which read it.
+  useEffect(() => {
+    framingKeyRef.current = framingKey;
+  }, [framingKey]);
   // Persistent runtime for the click-based `sequence` tool: points accumulate
   // across pointer gestures. Reset when the active tool changes (below).
   const persistentToolRuntimeRef = useRef<ToolRuntime | null>(null);
@@ -1572,6 +1586,10 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   }, [framingKey]);
 
+  // A region asked for from elsewhere is framed on the next frame (`renderNow`
+  // takes it); a mounted canvas draws only on demand, so ask for one.
+  useEffect(() => subscribeCpRegionFocus(() => renderNowRef.current()), []);
+
   // Force a grid rebuild when its params, visibility, or theme colour change.
   useEffect(() => {
     gridKeyRef.current = null;
@@ -1730,6 +1748,19 @@ export function CreasePatternWebglCanvas({
         preservedCameraRef.current = null;
         return cameraRef.current;
       }
+      // A region asked for from elsewhere wins over the document's own view.
+      const focus = regionFocusRef.current;
+      if (focus && focus.framingKey === framingKeyRef.current && liveRef.current.contentBounds) {
+        pendingInitialCameraRef.current = null;
+        const fitted = fitUserCamera(
+          liveRef.current.contentBounds,
+          viewport,
+          undefined,
+          liveRef.current.initialRotation ?? 0
+        );
+        cameraRef.current = frameModelBoundsIn(fitted, viewport, focus.bounds, liveRef.current);
+        return cameraRef.current;
+      }
       // The document brought its own view. Adopted before the bounds check on
       // purpose: a saved camera needs no content to fit against, so this also
       // gets the view right on the first frame of a document whose geometry
@@ -1758,6 +1789,15 @@ export function CreasePatternWebglCanvas({
     const renderNow = () => {
       const ratio = dpr();
       const viewport = viewportOf(ratio);
+      // A region asked for from elsewhere (the Diagram's Open in Edit), taken
+      // on the first frame that has a viewport to frame it in.
+      if (viewport.width > 0 && viewport.height > 0) {
+        const focus = takeCpRegionFocus();
+        if (focus) {
+          regionFocusRef.current = { bounds: focus, framingKey: framingKeyRef.current };
+          cameraRef.current = null;
+        }
+      }
       const cam = ensureCamera(viewport);
       if (!cam) return;
 
@@ -4231,28 +4271,7 @@ export function CreasePatternWebglCanvas({
         }),
       frameModelBounds: (bounds) =>
         withCamera((camera, viewport) => {
-          // Model bounds → user coords via the current modelToSvg, taking all four
-          // corners because the mapping may rotate or flip.
-          const toUser = liveRef.current.modelToSvg;
-          const corners = [
-            toUser({ x: bounds.minX, y: bounds.minY }),
-            toUser({ x: bounds.maxX, y: bounds.maxY }),
-            toUser({ x: bounds.minX, y: bounds.maxY }),
-            toUser({ x: bounds.maxX, y: bounds.minY }),
-          ];
-          const xs = corners.map((corner) => corner.x);
-          const ys = corners.map((corner) => corner.y);
-          cameraRef.current = frameUserCameraOnBounds(
-            {
-              minX: Math.min(...xs),
-              minY: Math.min(...ys),
-              maxX: Math.max(...xs),
-              maxY: Math.max(...ys),
-            },
-            viewport,
-            camera,
-            liveRef.current.contentBounds
-          );
+          cameraRef.current = frameModelBoundsIn(camera, viewport, bounds, liveRef.current);
         }),
     };
     return registerCpCamera(handle);
@@ -4316,5 +4335,36 @@ export function CreasePatternWebglCanvas({
           positioning context and already hosts the other canvas overlays. */}
       {rendererStatus !== null && <CpRendererUnavailable status={rendererStatus} />}
     </>
+  );
+}
+
+/**
+ * The camera that frames a region of the model: model bounds to user coords
+ * through the current `modelToSvg`, all four corners because the mapping may
+ * rotate or flip, then `frameUserCameraOnBounds`.
+ */
+function frameModelBoundsIn(
+  camera: UserCamera,
+  viewport: Viewport,
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  live: {
+    modelToSvg: (point: { x: number; y: number }) => { x: number; y: number };
+    contentBounds: Parameters<typeof frameUserCameraOnBounds>[3];
+  }
+): UserCamera {
+  const toUser = live.modelToSvg;
+  const corners = [
+    toUser({ x: bounds.minX, y: bounds.minY }),
+    toUser({ x: bounds.maxX, y: bounds.maxY }),
+    toUser({ x: bounds.minX, y: bounds.maxY }),
+    toUser({ x: bounds.maxX, y: bounds.minY }),
+  ];
+  const xs = corners.map((corner) => corner.x);
+  const ys = corners.map((corner) => corner.y);
+  return frameUserCameraOnBounds(
+    { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) },
+    viewport,
+    camera,
+    live.contentBounds
   );
 }

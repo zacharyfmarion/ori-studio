@@ -1,0 +1,4 @@
+/* The Diagram workspace panel (DiagramPanel.tsx): the notice row under its header. */
+.notice {
+  padding: var(--space-3) var(--space-5) 0;
+}

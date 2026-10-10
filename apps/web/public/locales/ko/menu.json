@@ -88,6 +88,7 @@
     "export": "내보내기",
     "exportBps": ".bps 내보내기...",
     "exportCp": "CP 내보내기...",
+    "exportDiagram": "도해 내보내기...",
     "exportFold": "FOLD 내보내기...",
     "exportOrh": "ORH 내보내기...",
     "exportOri": "ORI 내보내기...",
@@ -98,6 +99,7 @@
     "importAdd": "가져오기(추가)...",
     "new": "새 프로젝트",
     "open": "열기...",
+    "printDiagram": "도해 인쇄...",
     "save": "저장",
     "saveAs": "다른 이름으로 저장...",
     "settings": "설정"
@@ -126,6 +128,7 @@
   },
   "view": {
     "design": "디자인",
+    "diagram": "도해",
     "edit": "편집",
     "properties": "속성",
     "references": "참조",

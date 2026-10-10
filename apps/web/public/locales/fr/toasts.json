@@ -21,6 +21,77 @@
     "simulateFailed": "Cette région n'a pas pu être simulée.",
     "simulateNoRegion": "Sélectionnez une région fermée à simuler."
   },
+  "diagram": {
+    "addedAsStep": "Ajouté comme étape {{number}}",
+    "capture": {
+      "failed": "L’image n’a pas pu être capturée",
+      "missing": "Ce patron ne fait plus partie du patron de plis.",
+      "needsPose": "Une étape pliée en partie dans le simulateur se capture dans Pose : ouvrez-la avec Ajuster la pose.",
+      "noLayerOrder": "Ses couches n’ont pas pu être ordonnées\u00a0: l’étape montre le papier plié en transparence.",
+      "noPattern": "Ouvrez d’abord un patron de plis dans Édition.",
+      "readOnly": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule.",
+      "refused": "Ce patron ne se plie pas",
+      "tooDetailed": "Trop détaillé pour rester un dessin\u00a0: l’étape le garde comme image.",
+      "unavailable": "Ce motif ne peut pas être simulé.",
+      "unknown": "Le patron de plis n’est pas encore prêt. Réessayez dans un instant."
+    },
+    "dropReadOnly": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule\u00a0: on ne peut pas y ajouter d’images.",
+    "references": {
+      "addedSteps": "Ajoutées comme étapes {{first}}–{{last}}",
+      "addedTurnOvers_one": "Retournement ajouté",
+      "addedTurnOvers_many": "{{count}} retournements ajoutés",
+      "addedTurnOvers_other": "{{count}} retournements ajoutés",
+      "bakedStep": "Les marques de l’étape {{number}} restent dans son image : il y en a plus qu’une étape ne peut en contenir.",
+      "bakedSteps_one": "Les marques d’une étape restent dans son image : il y en a plus qu’une étape ne peut en contenir.",
+      "bakedSteps_many": "Les marques de {{count}} étapes restent dans leurs images : il y en a plus qu’une étape ne peut en contenir.",
+      "bakedSteps_other": "Les marques de {{count}} étapes restent dans leurs images : il y en a plus qu’une étape ne peut en contenir.",
+      "filledStep": "Étape {{number}} remplie",
+      "marksEditable_one": "La marque de l’étape {{number}} est maintenant modifiable",
+      "marksEditable_many": "Les {{count}} marques de l’étape {{number}} sont maintenant modifiables",
+      "marksEditable_other": "Les {{count}} marques de l’étape {{number}} sont maintenant modifiables",
+      "marksOutsideFrame_one": "Une marque hors du cadre agrandi a été laissée de côté",
+      "marksOutsideFrame_many": "{{count}} marques hors du cadre agrandi ont été laissées de côté",
+      "marksOutsideFrame_other": "{{count}} marques hors du cadre agrandi ont été laissées de côté",
+      "noMarksInFrame": "Aucune marque de l’étape {{number}} n’est dans son cadre agrandi",
+      "replacedEdited_one": "Une marque que vous aviez modifiée a été remplacée",
+      "replacedEdited_many": "{{count}} marques que vous aviez modifiées ont été remplacées",
+      "replacedEdited_other": "{{count}} marques que vous aviez modifiées ont été remplacées",
+      "replacedStep": "Carte de l’étape {{number}} remplacée",
+      "tooLarge": "Cette étape est trop détaillée pour être conservée dans le diagramme.",
+      "undoReplaced": "Annuler"
+    },
+    "refreshedAll_one": "{{count}} étape actualisée",
+    "refreshedAll_many": "{{count}} étapes actualisées",
+    "refreshedAll_other": "{{count}} étapes actualisées",
+    "uploadFailed_one": "Une image n’a pas pu être ajoutée",
+    "uploadFailed_many": "{{count}} images n’ont pas pu être ajoutées",
+    "uploadFailed_other": "{{count}} images n’ont pas pu être ajoutées",
+    "uploadFailureLine": "{{name}}\u00a0: {{reason}}",
+    "uploadFailureMore_one": "et 1 autre",
+    "uploadFailureMore_many": "et {{count}} autres",
+    "uploadFailureMore_other": "et {{count}} autres",
+    "uploadProgress_one": "Ajout de l’image…",
+    "uploadProgress_many": "Ajout de {{count}} images…",
+    "uploadProgress_other": "Ajout de {{count}} images…",
+    "uploadRejected": "ce n’est pas un SVG qu’Ori Studio peut lire en toute sécurité",
+    "uploadTooLarge": "il est trop volumineux",
+    "uploadUnreadable": "l’image n’a pas pu être lue",
+    "uploadUnsupported": "ce n’est pas une image",
+    "zoom": {
+      "updatedList": "Étapes agrandies {{numbers}} mises à jour",
+      "updatedOne": "Étape agrandie {{number}} mise à jour",
+      "updatedRange": "Étapes agrandies {{first}}–{{last}} mises à jour",
+      "updatedSome": "{{placed}} étapes agrandies sur {{total}} mises à jour",
+      "updatedSomeDetail": "Les autres n’ont pas pu prendre de cadre depuis cette zone.",
+      "updateFailed": "Impossible de mettre à jour les étapes agrandies"
+    }
+  },
+  "diagramExport": {
+    "saved": "{{name}} exporté"
+  },
+  "diagramPrint": {
+    "failed": "Le diagramme n’a pas pu être imprimé"
+  },
   "fileDrop": {
     "ignoredFile": "{{name}} utilisé ; 1 autre fichier déposé a été ignoré.",
     "ignoredFiles": "{{name}} utilisé ; {{others}} autres fichiers déposés ont été ignorés."
@@ -54,6 +125,7 @@
   "references": {
     "searching": "Recherche des références…",
     "searchingLong": "Recherche toujours en cours — la première construit une table",
+    "sheetMissing": "Cette feuille n’est plus dans le patron de plis.",
     "stop": "Annuler",
     "stopped": "Recherche annulée",
     "stopping": "Annulation…"

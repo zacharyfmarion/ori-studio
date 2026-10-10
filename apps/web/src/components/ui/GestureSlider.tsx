@@ -37,6 +37,8 @@ export interface GestureSliderProps {
   disabled?: boolean;
   /** Accessible name, for a caller with no visible caption of its own. */
   'aria-label'?: string;
+  /** What the value means, read in place of the bare number ("5% of the model"). */
+  'aria-valuetext'?: string;
   className?: string;
 }
 
@@ -51,6 +53,7 @@ export function GestureSlider({
   commitLabel,
   disabled = false,
   'aria-label': ariaLabel,
+  'aria-valuetext': ariaValueText,
   className,
 }: GestureSliderProps) {
   const sliderRef = useRef<HTMLInputElement | null>(null);
@@ -107,6 +110,7 @@ export function GestureSlider({
       disabled={disabled}
       onChange={handleInput}
       aria-label={ariaLabel}
+      aria-valuetext={ariaValueText}
     />
   );
 }

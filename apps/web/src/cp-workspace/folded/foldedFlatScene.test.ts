@@ -24,6 +24,7 @@
  * face whole after the face that covers it.
  */
 
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -54,6 +55,7 @@ import type {
 } from '../../lib/paper/paperScene';
 import { erodeLine, faceOutlineLines } from '../../lib/paper/paperSvg';
 import { faceComponents, foldedFlatPaperScene, wovenDrawOrder } from './foldedFlatScene';
+import type { LayerSpreadOptions } from './foldedLayerSpread';
 
 const FIXTURES = resolve(process.cwd(), '../../tests/fixtures');
 const ORIEDITA_TEST_RESOURCES = resolve(
@@ -118,18 +120,23 @@ function cyclic(): KernelFixture[] {
 
 const point = (x: number, y: number): Point => ({ x, y });
 
-/** An axis-aligned rectangle as a kernel face: four border edges, or one fold. */
+/**
+ * An axis-aligned rectangle as a kernel face: four border edges, or one fold;
+ * its corners are sheet vertices `first` to `first + 3`.
+ */
 function rectangle(
   x0: number,
   y0: number,
   x1: number,
   y1: number,
+  first: number,
   frontUp = true,
   foldEdge: number | null = null
 ): OristudioCpFoldedPaperFace {
   const outline = [point(x0, y0), point(x1, y0), point(x1, y1), point(x0, y1)];
   return {
     outline,
+    points: outline.map((_, i) => first + i),
     front_up: frontUp,
     edges: outline.map((from, i) => ({
       from,
@@ -169,12 +176,12 @@ const WOVEN = [H1, V1, H2, V2];
  */
 function wovenScene(): OristudioCpFoldedPaperScene {
   const faces: OristudioCpFoldedPaperFace[] = [];
-  faces[H1] = rectangle(0, 1, 5, 2, true, 0);
-  faces[V1] = rectangle(1, 0, 2, 5, false, 1);
-  faces[H2] = rectangle(0, 3, 5, 4);
-  faces[V2] = rectangle(3, 0, 4, 5);
-  faces[E] = rectangle(6, 0, 7, 1);
-  faces[F] = rectangle(6, 0, 7, 2, false);
+  faces[H1] = rectangle(0, 1, 5, 2, 0, true, 0);
+  faces[V1] = rectangle(1, 0, 2, 5, 4, false, 1);
+  faces[H2] = rectangle(0, 3, 5, 4, 8);
+  faces[V2] = rectangle(3, 0, 4, 5, 12);
+  faces[E] = rectangle(6, 0, 7, 1, 16);
+  faces[F] = rectangle(6, 0, 7, 2, 20, false);
   const subfaces: OristudioCpFoldedPaperSubface[] = [
     // H1 across, left to right.
     subface(0, 1, 1, 2, [H1]),
@@ -199,7 +206,7 @@ function wovenScene(): OristudioCpFoldedPaperScene {
     subface(6, 0, 7, 1, [F, E]),
     subface(6, 1, 7, 2, [F]),
   ];
-  return { schema_version: 1, flipped: false, sheet: 7, faces, subfaces, aux_lines: [] };
+  return { schema_version: 2, flipped: false, sheet: 7, faces, subfaces, aux_lines: [], sheet_points: [] };
 }
 
 /* --------------------------------------------------------------------------
@@ -705,7 +712,7 @@ describe('an acyclic stacking', () => {
   });
 
   it('draws nothing for a kernel scene with no faces', () => {
-    const scene = sceneOf({ schema_version: 1, flipped: false, sheet: 0, faces: [], subfaces: [], aux_lines: [] });
+    const scene = sceneOf({ schema_version: 2, flipped: false, sheet: 0, faces: [], subfaces: [], aux_lines: [], sheet_points: [] });
     expect(scene.items).toEqual([]);
     expect(scene.bounds).toEqual({ minX: 0, minY: 0, maxX: 0, maxY: 0 });
     expect(scene.sheet).toBe(0);
@@ -951,6 +958,353 @@ describe('the visible face per subface is the drawer’s', () => {
   it('whether or not the buried faces are marked', () => {
     for (const { name, scene: kernel } of real()) {
       expect(topFaceDisagreements(kernel, sceneOf(kernel, false)).wrong, name).toEqual([]);
+    }
+  });
+});
+
+describe('with no spread', () => {
+  /**
+   * Every path the producer emits — whole faces, a face whose outline mixes
+   * roles, aux lines, patches with their aux stretches and carried lines — on
+   * the real folds and the weave, marked and unmarked, as digests of the
+   * scenes this producer drew before it could spread layers. Folding the
+   * fixtures in a changed kernel can move these; the producer alone must not.
+   */
+  it('draws what it drew before layers could be spread, byte for byte', () => {
+    const sink = wovenScene();
+    sink.aux_lines.push({ from: point(3.5, 0), to: point(3.5, 5), face: V2 });
+    sink.faces[F]!.edges[2]!.kind = 'flat';
+    const kernels = [...real(), ...cyclic(), { name: 'weave', scene: sink }];
+    const sha = (scene: PaperScene) => createHash('sha256').update(JSON.stringify(scene)).digest('hex').slice(0, 16);
+    const digests = Object.fromEntries(
+      kernels.flatMap(({ name, scene }) => [
+        [name, sha(sceneOf(scene))],
+        [`${name} unmarked`, sha(sceneOf(scene, false))],
+      ])
+    );
+    expect(digests).toMatchInlineSnapshot(`
+      {
+        "glitch back": "e1462a666e280476",
+        "glitch back unmarked": "e3d10f3fc7e404bc",
+        "glitch front": "36f566d7d3d0cdb2",
+        "glitch front unmarked": "0352e8584dc3c35f",
+        "kabuto back": "286c4cab06abc8e6",
+        "kabuto back unmarked": "07710d888e4ba38a",
+        "kabuto front": "0429a8150b1c762c",
+        "kabuto front unmarked": "484896db19857fd3",
+        "solution sample back": "328db92af493b367",
+        "solution sample back unmarked": "303af59b84376884",
+        "solution sample front": "d2d39703f1eef887",
+        "solution sample front unmarked": "b65c945e996674ca",
+        "weave": "5acace7b39efbd83",
+        "weave unmarked": "21b67eb661442c18",
+      }
+    `);
+  });
+});
+
+describe('with a spread', () => {
+  const SPREAD = { kind: 'depth', amount: 0.05, toward: 'up-left' } as const;
+  const UP_LEFT: ScenePoint = [-Math.SQRT1_2, -Math.SQRT1_2];
+
+  function spreadScene(
+    kernel: OristudioCpFoldedPaperScene,
+    toScenePx: (p: Point) => ScenePoint = identity,
+    scale = 1
+  ): PaperScene {
+    return foldedFlatPaperScene(kernel, { markHidden: false, toScenePx, scale, spread: SPREAD });
+  }
+
+  /** Every point an item carries, in a fixed order. */
+  const pointsOf = (item: PaperItem): ScenePoint[] =>
+    item.kind === 'face'
+      ? item.rings.flat()
+      : item.kind === 'line'
+        ? [item.a, item.b, ...(item.whole ? [item.whole.a, item.whole.b] : [])]
+        : [];
+
+  /** The items with their points taken out: what a spread must leave alone. */
+  const shapeless = (items: readonly PaperItem[]) =>
+    items.map((item) => {
+      if (item.kind === 'face') return { ...item, rings: [] };
+      if (item.kind === 'line') {
+        const { whole, ...line } = item;
+        return { ...line, a: null, b: null, whole: whole ? { ...whole, a: null, b: null } : undefined };
+      }
+      return item;
+    });
+
+  /** Per point, how far the spread moved it. */
+  const steps = (before: PaperScene, after: PaperScene): ScenePoint[] =>
+    before.items.flatMap((item, i) => {
+      const moved = pointsOf(after.items[i]!);
+      return pointsOf(item).map((p, k): ScenePoint => [moved[k]![0] - p[0], moved[k]![1] - p[1]]);
+    });
+
+  const weave = () => {
+    const kernel = wovenScene();
+    kernel.aux_lines.push({ from: point(3.5, 0), to: point(3.5, 5), face: V2 });
+    return { name: 'weave', scene: kernel };
+  };
+
+  it('draws the same items in the same order, each point stepped up-left by at most the amount', () => {
+    for (const { name, scene: kernel } of [...real(), ...cyclic(), weave()]) {
+      const plain = sceneOf(kernel, false);
+      const spread = spreadScene(kernel);
+      expect(shapeless(spread.items), name).toEqual(shapeless(plain.items));
+      const size = Math.max(
+        ...['x', 'y'].map((axis) => {
+          const values = kernel.faces.flatMap((f) => f.outline.map((p) => p[axis as 'x' | 'y']));
+          return Math.max(...values) - Math.min(...values);
+        })
+      );
+      const reach = SPREAD.amount * size;
+      const moved = steps(plain, spread);
+      for (const [dx, dy] of moved) {
+        // Along the direction, and no further than the deepest layer goes.
+        expect(Math.abs(dx - dy), name).toBeLessThan(1e-9 * reach);
+        const along = dx * UP_LEFT[0] + dy * UP_LEFT[1];
+        expect(along, name).toBeGreaterThanOrEqual(-1e-9 * reach);
+        expect(along, name).toBeLessThanOrEqual(reach * (1 + 1e-9));
+      }
+      // Not vacuous: things moved, and by different amounts.
+      expect(moved.some(([dx]) => dx < -1e-3 * reach), name).toBe(true);
+      expect(new Set(moved.map(([dx]) => dx.toFixed(6))).size, name).toBeGreaterThan(2);
+      expect(spread.items.every((item) => !item.hidden), name).toBe(true);
+    }
+  });
+
+  it('keeps every crease joined, and parts the corners a fold lays on one place', () => {
+    for (const { name, scene: kernel } of real()) {
+      const spread = spreadScene(kernel);
+      const at = new Map<number, ScenePoint>();
+      let parted = false;
+      for (const item of faceItems(spread)) {
+        const { points, outline } = kernel.faces[item.face]!;
+        expect(points.length, name).toBe(outline.length);
+        item.rings[0]!.forEach((p, k) => {
+          const known = at.get(points[k]!);
+          if (!known) at.set(points[k]!, p);
+          else {
+            expect(p[0], `${name}: vertex ${points[k]}`).toBeCloseTo(known[0], 9);
+            expect(p[1], `${name}: vertex ${points[k]}`).toBeCloseTo(known[1], 9);
+          }
+        });
+      }
+      // Two vertices folded onto one place now stand apart somewhere.
+      const placed = new Map<string, number[]>();
+      kernel.faces.forEach(({ points, outline }) =>
+        outline.forEach((p, k) => {
+          const key = `${p.x.toFixed(6)},${p.y.toFixed(6)}`;
+          placed.set(key, [...new Set([...(placed.get(key) ?? []), points[k]!])]);
+        })
+      );
+      for (const vertices of placed.values()) {
+        const where = vertices.map((v) => at.get(v)!);
+        if (where.some((p) => Math.hypot(p[0] - where[0]![0], p[1] - where[0]![1]) > 1e-6)) parted = true;
+      }
+      expect(parted, name).toBe(true);
+    }
+  });
+
+  it('steps the same on the screen however the picture is turned', () => {
+    const { scene: kernel } = real()[2]!; // the kabuto, front
+    const turned = (degrees: number) => {
+      const radians = (degrees * Math.PI) / 180;
+      return (p: Point): ScenePoint => [
+        (p.x * Math.cos(radians) - p.y * Math.sin(radians)) * 3,
+        (p.x * Math.sin(radians) + p.y * Math.cos(radians)) * 3,
+      ];
+    };
+    const reference = steps(
+      foldedFlatPaperScene(kernel, { markHidden: false, toScenePx: turned(0), scale: 3 }),
+      spreadScene(kernel, turned(0), 3)
+    );
+    expect(reference.some(([dx, dy]) => dx !== 0 || dy !== 0)).toBe(true);
+    for (const degrees of [90, 37]) {
+      const moved = steps(
+        foldedFlatPaperScene(kernel, { markHidden: false, toScenePx: turned(degrees), scale: 3 }),
+        spreadScene(kernel, turned(degrees), 3)
+      );
+      expect(moved.length).toBe(reference.length);
+      moved.forEach(([dx, dy], i) => {
+        expect(dx).toBeCloseTo(reference[i]![0], 9);
+        expect(dy).toBeCloseTo(reference[i]![1], 9);
+      });
+    }
+  });
+
+  it('moves woven patches and aux lines with their face, onto its stepped edges', () => {
+    const { scene: kernel } = weave();
+    const scene = spreadScene(kernel);
+    const whole = faceItems(scene).find((item) => item.face === V2 && item.group === undefined)!;
+    const [c0, c1, c2, c3] = whole.rings[0]! as [ScenePoint, ScenePoint, ScenePoint, ScenePoint];
+    // V2 is the strip x 3..4, y 0..5: corners (3,0) (4,0) (4,5) (3,5). It
+    // lies under H2, so its corners — its own alone — step.
+    expect(c0[0]).toBeLessThan(3);
+    const onSegment = (p: ScenePoint, a: ScenePoint, b: ScenePoint) => {
+      const cross = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
+      const t = ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / Math.hypot(b[0] - a[0], b[1] - a[1]) ** 2;
+      return Math.abs(cross) < 1e-9 && t > -1e-9 && t < 1 + 1e-9;
+    };
+    const patches = faceItems(scene).filter((item) => item.group !== undefined);
+    expect(patches.length).toBe(3);
+    for (const patch of patches) {
+      for (const p of patch.rings[0]!) {
+        // Each patch spans the strip's width: every corner is on one of its long sides.
+        expect(onSegment(p, c1, c2) || onSegment(p, c3, c0), `patch corner ${p}`).toBe(true);
+      }
+    }
+    // The aux line down V2's middle ends at the middle of its stepped ends.
+    const aux = lineItems(scene).find((line) => line.role === 'aux' && line.group === undefined)!;
+    expect(aux.a[0]).toBeCloseTo((c0[0] + c1[0]) / 2, 9);
+    expect(aux.a[1]).toBeCloseTo((c0[1] + c1[1]) / 2, 9);
+    expect(aux.b[0]).toBeCloseTo((c2[0] + c3[0]) / 2, 9);
+    expect(aux.b[1]).toBeCloseTo((c2[1] + c3[1]) / 2, 9);
+    // Its stretches over the patches lie along it.
+    for (const stretch of lineItems(scene).filter((line) => line.role === 'aux' && line.group !== undefined)) {
+      expect(onSegment(stretch.a, aux.a, aux.b) && onSegment(stretch.b, aux.a, aux.b)).toBe(true);
+      expect(stretch.whole).toEqual({ a: aux.a, b: aux.b, onBoundary: [true, true] });
+    }
+  });
+
+  it('keeps an aux line straight over the patches of a face whose corners step unequally', () => {
+    const kernel = wovenScene();
+    // G lies beside V2 and shares its corner (3,5): that corner steps by the
+    // mean of V2's level and G's, the others by V2's alone, so the field
+    // inside V2 is not linear.
+    const G = kernel.faces.length;
+    const beside = rectangle(2, 5, 3, 6, 24);
+    beside.points[1] = kernel.faces[V2]!.points[3]!;
+    kernel.faces[G] = beside;
+    kernel.subfaces.push(subface(2, 5, 3, 6, [G]));
+    kernel.aux_lines.push({ from: point(3.1, 0), to: point(3.9, 5), face: V2 });
+    const scene = spreadScene(kernel);
+    const lines = lineItems(scene).filter((line) => line.role === 'aux');
+    const whole = lines.find((line) => line.group === undefined)!;
+    const off = (p: ScenePoint) => {
+      const [a, b] = [whole.a, whole.b];
+      return Math.abs((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) / Math.hypot(b[0] - a[0], b[1] - a[1]);
+    };
+    const stretches = lines.filter((line) => line.group !== undefined);
+    expect(stretches.length).toBe(3);
+    for (const stretch of stretches) {
+      expect(off(stretch.a)).toBeLessThan(1e-12);
+      expect(off(stretch.b)).toBeLessThan(1e-12);
+    }
+  });
+
+  it('bounds the stepped picture', () => {
+    const { scene: kernel } = real()[0]!;
+    const plain = sceneOf(kernel, false);
+    const spread = spreadScene(kernel);
+    const all = spread.items.flatMap(pointsOf);
+    expect(spread.bounds).toEqual({
+      minX: Math.min(...all.map((p) => p[0])),
+      minY: Math.min(...all.map((p) => p[1])),
+      maxX: Math.max(...all.map((p) => p[0])),
+      maxY: Math.max(...all.map((p) => p[1])),
+    });
+    // Deeper layers went up and left past the picture's old corner.
+    expect(spread.bounds.minX).toBeLessThan(plain.bounds.minX);
+    expect(spread.bounds.minY).toBeLessThan(plain.bounds.minY);
+    expect(spread.sheet).toBe(plain.sheet);
+  });
+});
+
+describe('with an affine spread', () => {
+  // DEFOX's bird-base opening, as the playground Zach chose it from showed it.
+  const OPEN = { kind: 'affine', amount: 0.03, keep: 'bottom', skew: 1, axisDeg: 81 } as const;
+
+  const affineScene = (
+    kernel: OristudioCpFoldedPaperScene,
+    toScenePx: (p: Point) => ScenePoint = identity,
+    spread: LayerSpreadOptions = OPEN
+  ): PaperScene => foldedFlatPaperScene(kernel, { markHidden: false, toScenePx, scale: 1, spread });
+
+  const shapeless = (items: readonly PaperItem[]) =>
+    items.map((item) => (item.kind === 'face' ? { ...item, rings: [] } : item.kind === 'line' ? { ...item, a: null, b: null, whole: null } : item));
+
+  /** Per sheet vertex, where the whole faces of `scene` put it: one place, or the test fails. */
+  function vertexPlaces(kernel: OristudioCpFoldedPaperScene, scene: PaperScene, name: string): Map<number, ScenePoint> {
+    const at = new Map<number, ScenePoint>();
+    for (const item of faceItems(scene).filter((face) => face.group === undefined)) {
+      const { points } = kernel.faces[item.face]!;
+      item.rings[0]!.forEach((p, k) => {
+        const known = at.get(points[k]!);
+        if (!known) at.set(points[k]!, p);
+        else {
+          expect(p[0], `${name}: vertex ${points[k]}`).toBeCloseTo(known[0], 9);
+          expect(p[1], `${name}: vertex ${points[k]}`).toBeCloseTo(known[1], 9);
+        }
+      });
+    }
+    return at;
+  }
+
+  it('draws the same items, keeps every crease joined, and holds one face still', () => {
+    for (const { name, scene: kernel } of [...real(), ...cyclic()]) {
+      expect(kernel.sheet_points.length, name).toBeGreaterThan(0);
+      const plain = sceneOf(kernel, false);
+      const open = affineScene(kernel);
+      expect(shapeless(open.items), name).toEqual(shapeless(plain.items));
+      const before = vertexPlaces(kernel, plain, name);
+      const after = vertexPlaces(kernel, open, name);
+      const moved = (vertex: number) =>
+        Math.hypot(after.get(vertex)![0] - before.get(vertex)![0], after.get(vertex)![1] - before.get(vertex)![1]);
+      const still = kernel.faces.filter(({ points }) => points.length > 0 && points.every((vertex) => moved(vertex) < 1e-9));
+      expect(still.length, name).toBeGreaterThan(0);
+      expect(Math.max(...[...after.keys()].map(moved)), name).toBeGreaterThan(1e-3 * kernel.sheet);
+      expect(open.items.every((item) => !item.hidden), name).toBe(true);
+    }
+  });
+
+  it('turns with the picture: the opening is on the model, not the screen', () => {
+    const { scene: kernel } = real()[2]!; // the kabuto, front
+    const turned = (degrees: number) => {
+      const radians = (degrees * Math.PI) / 180;
+      return (p: Point): ScenePoint => [
+        p.x * Math.cos(radians) - p.y * Math.sin(radians),
+        p.x * Math.sin(radians) + p.y * Math.cos(radians),
+      ];
+    };
+    const upright = affineScene(kernel).items.flatMap((item) => (item.kind === 'face' ? item.rings.flat() : []));
+    for (const degrees of [90, 37]) {
+      const turn = turned(degrees);
+      const shown = affineScene(kernel, turn).items.flatMap((item) => (item.kind === 'face' ? item.rings.flat() : []));
+      expect(shown.length).toBe(upright.length);
+      shown.forEach((p, i) => {
+        const expected = turn(point(upright[i]![0], upright[i]![1]));
+        expect(p[0]).toBeCloseTo(expected[0], 9);
+        expect(p[1]).toBeCloseTo(expected[1], 9);
+      });
+    }
+  });
+
+  it('opens the back as the front’s mirror: the same paper held still, seen from behind', () => {
+    for (const model of ['solution sample', 'kabuto']) {
+      const front = real().find(({ name }) => name === `${model} front`)!.scene;
+      const back = real().find(({ name }) => name === `${model} back`)!.scene;
+      for (const keep of ['bottom', 'top'] as const) {
+        const spread = { ...OPEN, keep, skew: 0.6, axisDeg: 30 };
+        const label = `${model} ${keep}`;
+        // The rear camera, as the unspread pictures place every vertex: x mirrored, then moved.
+        const [plainFront, plainBack] = [front, back].map((kernel) => vertexPlaces(kernel, sceneOf(kernel, false), label));
+        const vertices = [...plainFront!.keys()];
+        const shift = vertices.map((v) => plainBack!.get(v)![0] + plainFront!.get(v)![0]);
+        const rise = vertices.map((v) => plainBack!.get(v)![1] - plainFront!.get(v)![1]);
+        expect(Math.max(...shift) - Math.min(...shift), label).toBeLessThan(1e-9 * front.sheet);
+        expect(Math.max(...rise) - Math.min(...rise), label).toBeLessThan(1e-9 * front.sheet);
+        const [openFront, openBack] = [front, back].map((kernel) => vertexPlaces(kernel, affineScene(kernel, identity, spread), label));
+        let moved = false;
+        for (const vertex of vertices) {
+          const [x, y] = openFront!.get(vertex)!;
+          moved ||= Math.hypot(x - plainFront!.get(vertex)![0], y - plainFront!.get(vertex)![1]) > 1e-3 * front.sheet;
+          expect(openBack!.get(vertex)![0], `${label}: vertex ${vertex}`).toBeCloseTo(shift[0]! - x, 6);
+          expect(openBack!.get(vertex)![1], `${label}: vertex ${vertex}`).toBeCloseTo(rise[0]! + y, 6);
+        }
+        expect(moved, label).toBe(true);
+      }
     }
   });
 });

@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { PaperExportStyleChoice } from '../../lib/paperExportSettings';
+import type { PaperExportMarks, PaperExportStyleChoice } from '../../lib/paperExportSettings';
 import type {
   ConditionKind,
   FoldArtifacts,
@@ -51,6 +51,35 @@ import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import type { FoldArtifactStatus } from './foldArtifactResource';
+import type { SnapshotEntry, SnapshotHistory } from './snapshotHistory';
+import type {
+  DiagramCpSource,
+  DiagramPullAnchor,
+  DiagramTurnKind,
+  DiagramStepDiagramPicture,
+  LiftedCard,
+  PulledMarks,
+  SentReferencesEntry,
+  DiagramDocument,
+  DiagramHanStyle,
+  DiagramPageSetup,
+  KnownDiagramAnnotation,
+  DiagramStyle,
+  KnownDiagramAsset,
+  UploadPose,
+  DiagramPlaceReset,
+} from '../../diagram/document/diagramDocument';
+import type { ReadDiagram } from '../../diagram/document/diagramFile';
+import type { DiagramStepPlacePatch } from '../../diagram/document/stepPlace';
+import type { AnnotateTool } from '../../diagram/annotate/annotateTools';
+import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
+import type {
+  DiagramCaptureOutcome,
+  DiagramCaptureRequest,
+  DiagramCaptureRun,
+  StepCaptureStart,
+} from './diagramCapture';
+import type { CapturedPicture } from '../../diagram/capture/captureFolded';
 import type {
   OristudioCpCommandPayload,
   OristudioCpCommandPreview,
@@ -69,12 +98,14 @@ import type {
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
+import type { DiagramAnnotationClipboardPayload } from '../../diagram/annotate/annotationClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 import type { CanvasAnnotation, AnnotationUpdate } from '../../cp-workspace/annotations/annotation';
 import type { UserCamera } from '../../cp-workspace/renderer/camera';
 import type {
   ReferencesCardLocator,
   ReferencesRestore,
+  ReferencesStepCard,
 } from '../../cp-workspace/references/referencesReaderState';
 import type {
   AddInlineSimulationResult,
@@ -669,7 +700,7 @@ export interface TreeClipboardPayload {
   edges: ClipboardEdge[];
 }
 
-export type WorkspaceClipboardPayload = TreeClipboardPayload | CpLineClipboardPayload;
+export type WorkspaceClipboardPayload = TreeClipboardPayload | CpLineClipboardPayload | DiagramAnnotationClipboardPayload;
 
 export interface ClipboardSliceState {
   clipboard: WorkspaceClipboardPayload | null;
@@ -709,7 +740,10 @@ export type OristudioCpFoldRunKind =
   | 'another-3d'
   | 'to-case'
   | 'refold'
-  | 'refold-3d';
+  | 'refold-3d'
+  // A Diagram step captured in Pose, or linked; and one refreshed.
+  | 'diagram-capture'
+  | 'diagram-refresh';
 
 /** One layer-ordering search the user can point at. */
 export interface OristudioCpFoldRun {
@@ -1729,6 +1763,26 @@ export interface ReferencesSliceState {
    * on it, and asking twice has to be two runs.
    */
   referencesAnalysisRequest: number;
+  /**
+   * A sheet to open on, asked for from outside — a diagram step's Open in
+   * References — and taken by the panel once its sheets are known. Latched
+   * for the same reason as {@link referencesAnalysisRequest}.
+   */
+  referencesSheetRequest: ReferencesSheetRequest | null;
+  /**
+   * The card a sheet request asked for, once its sheet is open: taken when
+   * that sheet's plan is on screen — as it lands, or at once if it is there
+   * already. A switch to another sheet drops it.
+   */
+  referencesCardRequest: { sheet: number; card: ReferencesStepCard } | null;
+}
+
+/** Open References on the sheet with this rim, in this mode. */
+export interface ReferencesSheetRequest {
+  boundary: Point[][];
+  mode: ReferencesMode;
+  /** The card of the sequence to open on: a sequence step's own. Absent in Find. */
+  card?: ReferencesStepCard;
 }
 
 export interface ReferencesSliceActions {
@@ -1775,8 +1829,16 @@ export interface ReferencesSliceActions {
    * Switch to the References workspace on the whole pattern. Nothing carries
    * over from the caller — no crease target, no selection — so the entry from
    * the rail, the View menu and the selection toolbar all land in one place.
+   * With a sheet, it opens on that sheet and mode once the panel has found it
+   * (a diagram step's Open in References).
    */
-  openReferencesWorkspace: () => void;
+  openReferencesWorkspace: (sheet?: ReferencesSheetRequest) => void;
+  /** Take the pending sheet request, if there is one: see {@link consumeReferencesAnalysisRequest}. */
+  takeReferencesSheetRequest: () => ReferencesSheetRequest | null;
+  /** Open `sheet`'s plan on `card` once it is on screen (see {@link ReferencesSliceState.referencesCardRequest}). */
+  requestReferencesCard: (sheet: number, card: ReferencesStepCard) => void;
+  /** Take the card asked for on `sheet`, if there is one. */
+  takeReferencesCardRequest: (sheet: number) => ReferencesStepCard | null;
 }
 
 /**
@@ -1830,6 +1892,454 @@ export interface ExploriSlice {
   resetExploriDesign: () => Promise<boolean>;
 }
 
+/** Which of the Diagram workspace's two views is showing. */
+export type DiagramViewMode = 'steps' | 'pages';
+/** What the step detail is doing with the selected step: posing its picture, or annotating it. */
+export type DiagramDetailMode = 'pose' | 'annotate';
+
+/**
+ * A node Edit Path selected (`diagramSelectedPathNode`): its arrow, its
+ * number along the path, and how many nodes the arrow showed then.
+ */
+export interface DiagramPathNodeSelection {
+  annotationId: string;
+  node: number;
+  nodes: number;
+}
+
+export interface DiagramSliceState {
+  /**
+   * The project's diagram (implementation-plans/diagram-workspace.md, D1).
+   * `null` until the first edit creates one; a project-level document beside
+   * the crease pattern and the design tabs, saved in `.osf`.
+   */
+  diagram: DiagramDocument | null;
+  /** Whole-diagram snapshots, its own stack under the `diagram` context. */
+  diagramHistory: SnapshotHistory<DiagramDocument | null>;
+  /** Bumped on every replacement; see `nextDiagramLoadId`. */
+  diagramLoadId: number;
+  /**
+   * The diagram came from a newer build's file. It is shown, never edited, and
+   * {@link diagramRaw} is what is saved.
+   */
+  diagramReadOnly: boolean;
+  /** The diagram as read, kept for writing a read-only one back unchanged. */
+  diagramRaw: Record<string, unknown> | null;
+  /**
+   * The project's other diagrams, after the one shown, as a file stored them:
+   * written back after it, unchanged. This build shows one diagram per
+   * project; a later one may keep several, and a save here keeps the rest.
+   */
+  diagramOthers: readonly Record<string, unknown>[];
+  /** View state: not history, never dirty, but scoped to this diagram. */
+  diagramView: DiagramViewMode;
+  diagramSelectedStepId: string | null;
+  /**
+   * The step detail, open on the selected step, or null for the list. Never
+   * open without a selection: whatever clears the selection closes it.
+   */
+  diagramDetail: DiagramDetailMode | null;
+  /**
+   * What Annotate draws with the next drag or click: a kind, Edit Path
+   * (which shapes the selected fold arrow), or null for Select. Kept across
+   * steps, and across a visit to another workspace (D14).
+   */
+  diagramAnnotateTool: AnnotateTool;
+  /**
+   * The annotation selected on the selected step, if any: what Delete, Flip
+   * arc and the Step pane's fields act on. Cleared with the step's selection.
+   */
+  diagramSelectedAnnotationId: string | null;
+  /**
+   * The node of the selected arrow Edit Path has selected: what Delete, the
+   * arrow keys and the Step pane's node verbs act on. Stored with the arrow
+   * and its node count when it was selected, and read through
+   * `selectedDiagramPathNode`, which takes it for none once either has
+   * changed (an undo, Reset, another arrow) instead of each edit clearing it.
+   */
+  diagramSelectedPathNode: DiagramPathNodeSelection | null;
+  /**
+   * What sanitizing changed in the look of each upload this session, by asset:
+   * the Step pane says so under the picture. Not saved, and gone with the
+   * diagram, since only the upload itself knows what it lost.
+   */
+  diagramPictureNotices: Record<string, readonly SanitizeNotice[]>;
+  /** Captures in flight, by step: what a card shows progress and a Stop for. Not saved. */
+  diagramCaptures: Record<string, DiagramCaptureRun>;
+  /**
+   * The step whose pattern is being chosen: the Step pane shows the pattern
+   * picker for it while it is the selected step.
+   */
+  diagramPatternPicker: string | null;
+  /** Refresh all out-of-date steps, while it runs: how far it has got. */
+  diagramRefreshAll: { total: number; done: number } | null;
+  /**
+   * The References browser, while it is open in the Diagram's centre (D20):
+   * where what it adds goes, which list it shows, and which pattern.
+   */
+  diagramReferencesBrowser: DiagramReferencesBrowserState | null;
+  /**
+   * An anchor being picked on the Annotate canvas (Revision 2, the Anchor
+   * row's Pick): the step, and the enlarge area's id there or the step's own
+   * frame (`ZOOM_FRAME_ID`). Read through `activeAnchorPick`, which takes it
+   * for none once the step is not open in Annotate or the area or frame is
+   * not selected. Not saved.
+   */
+  diagramAnchorPick: DiagramAnchorPick | null;
+  /**
+   * The steps whose faces on the paper are being fetched
+   * (`giveDiagramStepPaperFaces`), by id: an x-ray laid or pasted on a flat
+   * step captured before they were kept waits for them, its Depth held and
+   * saying nothing until they land (Revision 3). Not saved.
+   */
+  diagramPaperFacesFetching: Readonly<Record<string, true>>;
+  /**
+   * The newest edit that sent frames moved by hand back to their cells
+   * (`settlePlaces`, inside that edit's undo step): how many; a `nonce` that
+   * is new with every such edit, so what tells the user — a toast with
+   * Undo — shows once per edit, never for one already shown; and the undo
+   * `entry` the edit landed in (null when the history kept none), so that
+   * Undo undoes only while that entry is still the newest — never another
+   * edit made since, or a duplicate a failed capture already took back.
+   * Undo and redo leave it as it is. Not saved.
+   */
+  diagramPlacesSettled: { count: number; nonce: number; entry: SnapshotEntry<DiagramDocument | null> | null } | null;
+  /**
+   * The newest paste of annotations (18d review): the step it landed on, the
+   * ids of the marks it put there, and a `nonce` that is new with every
+   * paste. A paste lands where its marks were copied, which can be out of
+   * view — on another picture's enlarged step, beside its window (Revision
+   * 2, decision 7) — so the step's canvas steps back to show it, once. Undo
+   * and redo leave it as it is. Not saved.
+   */
+  diagramPasted: { stepId: string; ids: readonly string[]; nonce: number } | null;
+}
+
+/** What an anchor is being picked for: an enlarge area on a step, or the step's own frame. */
+export interface DiagramAnchorPick {
+  stepId: string;
+  /** The area's id, or `ZOOM_FRAME_ID` for the step's frame. */
+  target: string;
+}
+
+/** The References browser's state (D20). Not saved. */
+export interface DiagramReferencesBrowserState {
+  /** Where the cards it adds go: fixed as it opens. */
+  anchor: DiagramPullAnchor;
+  /**
+   * Which opening of the browser this is: a pull pressed in one that has
+   * closed since adds nothing, and cannot close the one open now.
+   */
+  opening: number;
+  /** The planned patterns' sequences, or the Find answer References has on screen. */
+  mode: 'sequence' | 'find';
+  /** The pattern shown, by its plan's cache key id; null for the first one listed. */
+  pattern: string | null;
+  /**
+   * For Replace: the card the step was made from, marked "Shown now" when it
+   * is found in the pattern's plan.
+   */
+  shown: { plan: string | null; card: number | null; line: { n: [number, number]; d: number } | null } | null;
+  /**
+   * For Replace: the step's sheet's rim where it is now, when it can be found.
+   * The browser opens on the pattern of that sheet when the plan the step
+   * came from is no longer listed (planned again since), not on another.
+   */
+  sheet?: Point[][] | null;
+  /**
+   * Which of a card's marks a pull brings (17d), as the Show menu shows them:
+   * for Replace, the step's own choice as it opens; once the menu is used,
+   * its choice. Absent, the menu's remembered choice
+   * (`diagramReferencesMarks`).
+   */
+  marks?: PaperExportMarks;
+}
+
+export interface DiagramSliceActions {
+  /**
+   * Install a diagram read from a file (or none), with an empty history, and
+   * the project's other diagrams (`diagramOthers`), carried as they came.
+   */
+  installDiagram: (read: ReadDiagram | null, others?: readonly Record<string, unknown>[]) => void;
+  /**
+   * Add an empty step after the selected one (or at the end) and select it.
+   * Creates the diagram on first use. The new step's id, or null when the
+   * diagram is read-only.
+   */
+  addDiagramStep: () => string | null;
+  /** Add an empty step before or after a given one, and select it. */
+  insertDiagramStep: (stepId: string, where: 'before' | 'after') => string | null;
+  /**
+   * Add a turn (D22) — before or after a given entry, or where an add lands
+   * (after the selection, or at the end) — and select it. Its id, or null on a
+   * read-only diagram.
+   */
+  insertDiagramTurn: (kind: DiagramTurnKind, at?: { stepId: string; where: 'before' | 'after' }) => string | null;
+  /** Change what a turn is: its axis, or how far and which way it rotates. Whether it changed. */
+  setDiagramTurn: (turnId: string, kind: DiagramTurnKind) => boolean;
+  /**
+   * Make an empty step a turn in its place (D24), as one undo step, and select
+   * the turn. Its id, or null for a step that is not empty or a read-only diagram.
+   */
+  makeDiagramStepTurn: (stepId: string, kind: DiagramTurnKind) => string | null;
+  /**
+   * The same, asking first when the step has words or marks, which a turn has
+   * none of. The turn's id, or null when declined or not made.
+   */
+  confirmMakeDiagramStepTurn: (stepId: string, kind: DiagramTurnKind) => Promise<string | null>;
+  /** Delete steps; the selection moves to the step that took the first one's place. */
+  deleteDiagramSteps: (stepIds: readonly string[]) => boolean;
+  /**
+   * Delete steps, asking first when any of them has content
+   * (`stepHasContent`). Resolves whether they were deleted. Every Delete the
+   * user can reach — the key, a button, a menu — comes through here.
+   */
+  confirmDeleteDiagramSteps: (stepIds: readonly string[]) => Promise<boolean>;
+  /** Move a step so it lands at `toIndex` (0-based, clamped). */
+  moveDiagramStep: (stepId: string, toIndex: number) => boolean;
+  /** Duplicate a step right after itself and select the copy. */
+  duplicateDiagramStep: (stepId: string) => string | null;
+  /**
+   * Set a step's instruction.
+   *
+   * `loadId` is the diagram the edit was started against: an edit that
+   * outlives its diagram is dropped, not written into the one that replaced it.
+   * `session` names one sitting at the field (`TextAreaRow` passes one per
+   * focus): successive commits of a session are one undo step, as long as
+   * nothing else was recorded in between.
+   */
+  setDiagramStepText: (
+    stepId: string,
+    text: string,
+    options?: { loadId?: number; session?: number }
+  ) => boolean;
+  /**
+   * Add uploaded pictures, already imported, as one undo step (D2's insertion
+   * rule). One picture onto a selected step with none fills that step;
+   * otherwise each becomes a new step after the selected one (or at the end),
+   * in order, and the last of them is selected. `loadId` is the diagram the
+   * import began against: pictures that outlive it are dropped. `anchorStepId`
+   * is the step the rule reads as "selected" — the selection when the files
+   * were picked or dropped, since an import takes time and the selection may
+   * move meanwhile (null: nothing was selected; absent: the selection now).
+   * The steps that got pictures, and whether one was filled; null when nothing
+   * was added.
+   */
+  addDiagramPictures: (
+    assets: readonly KnownDiagramAsset[],
+    options?: { loadId?: number; anchorStepId?: string | null }
+  ) => { stepIds: string[]; filled: boolean } | null;
+  /** Give a step a picture in place of its own (Replace picture…, a drop on its card). */
+  setDiagramStepPicture: (
+    stepId: string,
+    asset: KnownDiagramAsset,
+    options?: { loadId?: number }
+  ) => boolean;
+  /** Take a step's picture away, keeping its instruction. */
+  removeDiagramStepPicture: (stepId: string) => boolean;
+  /** Record, or with none clear, what sanitizing changed in an upload. */
+  noteDiagramPictureChanges: (assetId: string, notices: readonly SanitizeNotice[]) => void;
+  setDiagramTitle: (title: string) => boolean;
+  /**
+   * Change the page setup. Edits in one `session` — a colour dragged through
+   * its picker — are one undo step.
+   */
+  setDiagramPage: (patch: Partial<DiagramPageSetup>, options?: { session?: number }) => boolean;
+  /** Start a new page at the step, or stop doing so ("Start a new page here", D10). */
+  setDiagramStepBreakBefore: (stepId: string, breakBefore: boolean) => boolean;
+  /** The paper style every step is painted in (D9): a built-in by id, or a resolved style. */
+  setDiagramStyle: (style: DiagramStyle) => boolean;
+  /** How Han characters are drawn when nothing else in a text says (Decision 2). */
+  setDiagramHanStyle: (hanStyle: DiagramHanStyle) => boolean;
+  selectDiagramStep: (stepId: string | null) => void;
+  /**
+   * Select a step and open it in detail, with Select in hand when the detail
+   * was closed. False when there is no such step.
+   */
+  openDiagramStep: (stepId: string, mode?: DiagramDetailMode) => boolean;
+  /** Back to the list, keeping the step selected. */
+  closeDiagramStep: () => void;
+  /** Keep a step's annotations where they are on the picture it has now (`keepStepAnnotations`). */
+  keepDiagramAnnotations: (stepId: string) => boolean;
+  /** Choose what Annotate draws next: a kind, Edit Path, or null for Select. */
+  setDiagramAnnotateTool: (tool: AnnotateTool) => void;
+  /**
+   * Select a node of the selected arrow by its number along the path, or
+   * none: view state, not history. Ignored unless a fold arrow is selected
+   * and has that node.
+   */
+  selectDiagramPathNode: (node: number | null) => void;
+  /** Select one of the selected step's annotations, or none. */
+  selectDiagramAnnotation: (annotationId: string | null) => void;
+  /**
+   * Edit a step's annotations as one undo step called `label`: `edit` gets
+   * the ones this build reads and returns them as they should be
+   * (`editStepAnnotations`). `select` selects one afterwards (null: none;
+   * absent: the selection stays, while its annotation does). `session` names
+   * one sitting at a label's field: its commits are one undo step, as an
+   * instruction's are. `loadId` drops an edit that outlived its diagram.
+   * `selectPathNode` selects a node of the selected arrow afterwards (null:
+   * none; absent: as it was). Whether anything changed.
+   */
+  editDiagramAnnotations: (
+    stepId: string,
+    label: string,
+    edit: (annotations: readonly KnownDiagramAnnotation[]) => readonly KnownDiagramAnnotation[],
+    options?: { select?: string | null; selectPathNode?: number | null; session?: number; loadId?: number }
+  ) => boolean;
+  /** Turn or flip an upload's picture; refused for a step `poseBlocker` names. */
+  setDiagramStepPose: (stepId: string, pose: UploadPose) => boolean;
+  setDiagramView: (view: DiagramViewMode) => void;
+  /**
+   * Capture a linked step's picture from the crease pattern as it stands and
+   * commit it as one undo step (`diagramCapture.ts`): Link pattern, Refresh,
+   * and Pose's Done. Resolves what happened, for the caller to say.
+   */
+  captureDiagramStep: (stepId: string, request: DiagramCaptureRequest) => Promise<DiagramCaptureOutcome>;
+  /** Stop a step's capture, if it is folding. */
+  stopDiagramCapture: (stepId: string) => boolean;
+  /**
+   * Commit a picture captured for a step outside `captureDiagramStep` — a
+   * Pose verb — as one undo step, under the same guard: dropped (null) when the
+   * diagram was replaced, or the step is gone or its source changed, since the
+   * capture began (`beginStepCapture`).
+   */
+  commitDiagramCapture: (
+    start: StepCaptureStart,
+    captured: { source: DiagramCpSource; picture: CapturedPicture },
+    label: string
+  ) => Promise<{ changed: boolean; tooDetailed: boolean } | null>;
+  /**
+   * Choose a step's pattern: select it and show the pattern picker for it.
+   * False for a step that is not there, or cannot be changed.
+   */
+  openDiagramPatternPicker: (stepId: string) => boolean;
+  closeDiagramPatternPicker: () => void;
+  /** Show a References step from the paper's front or back (its Pose: Turn over). */
+  setDiagramReferencesSide: (stepId: string, mirrored: boolean) => boolean;
+  /**
+   * Open the References browser in the Diagram's centre (D20), the step's
+   * detail closed. False on a diagram that cannot change.
+   */
+  openDiagramReferencesBrowser: (
+    anchor: DiagramPullAnchor,
+    options?: Partial<Omit<DiagramReferencesBrowserState, 'anchor' | 'opening'>>
+  ) => boolean;
+  /** Change what the open browser shows. */
+  setDiagramReferencesBrowser: (patch: Partial<Omit<DiagramReferencesBrowserState, 'anchor' | 'opening'>>) => void;
+  closeDiagramReferencesBrowser: () => void;
+  /**
+   * Add cards pulled from the References browser as one undo step, placed by
+   * `anchor` (`pullReferencesSteps`), and close the browser, the last of them
+   * selected. `loadId` is the diagram the pull began against: one that
+   * outlives it is dropped. `opening`, for a pull pressed in the browser, is
+   * that browser's: once it has closed the pull adds nothing. The steps the
+   * cards became, or null.
+   */
+  /**
+   * Fold a References step's card another way (D23): one undo step, the
+   * card's marks swapped for the way's (`lifted`, 17d) when they fit beside
+   * the author's. Whether it changed.
+   */
+  setDiagramReferencesWay: (
+    stepId: string,
+    way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string; lifted?: LiftedCard | null }
+  ) => boolean;
+  /**
+   * Make Marks Editable (17e): a References step whose card's marks are in
+   * its picture shown as a fresh pull shows the card — `lifted`, its sheet
+   * and every mark — the author's marks kept, as one undo step
+   * (`makeCardMarksEditable`). `loadId` drops an edit that outlived its
+   * diagram. Whether it changed.
+   */
+  makeDiagramStepMarksEditable: (stepId: string, lifted: LiftedCard, options?: { loadId?: number }) => boolean;
+  pullReferencesDiagramSteps: (
+    sent: readonly SentReferencesEntry[],
+    anchor: DiagramPullAnchor,
+    options: { loadId: number; label: string; opening?: number }
+  ) => ({ stepIds: string[]; turnIds: string[] } & PulledMarks) | null;
+  undoDiagram: () => boolean;
+  redoDiagram: () => boolean;
+  /**
+   * The Enlarged toggle turned on (Revision 2, Z2): a frame captured from the
+   * nearest earlier step with an area or a frame, the step's own areas gone
+   * and its marks carried into the window — one undo step, which first gives
+   * either step its faces when it is a flat capture made before they were
+   * kept and its pattern can fold it again. Resolves whether it changed.
+   */
+  enlargeDiagramStep: (stepId: string) => Promise<boolean>;
+  /** Enlarged turned off: the frame dropped, the marks carried back to the whole picture, as one undo step. */
+  unenlargeDiagramStep: (stepId: string) => boolean;
+  /**
+   * Update (review fix 4): an enlarged step that is out of date captured
+   * again from its area as it is now, as one undo step — what "Step N's area
+   * changed" asks for. Resolves how many it placed: one, or none with the
+   * area gone or the step up to date; null, refused, while an update of its
+   * area runs.
+   */
+  updateEnlargedDiagramStep: (stepId: string) => Promise<number | null>;
+  /**
+   * Update All (Z7; review fix 4): every step enlarged from these areas that
+   * is out of date (`stepsToUpdate`) captured again from its area as it is
+   * now, as one undo step. Resolves how many it placed; null, refused, while
+   * an update of one of its areas runs.
+   */
+  updateEnlargedDiagramSteps: (areaIds: readonly string[]) => Promise<number | null>;
+  /**
+   * Any other edit of an enlarged step's frame — moved, resized, reshaped,
+   * its Size, Edge or anchor — as one undo step called `label`: `edit` gets
+   * the diagram and returns it as it should be (`zoomFrames.ts`). Whether it
+   * changed. `loadId` drops an edit that outlived its diagram.
+   */
+  editDiagramStepZoom: (
+    stepId: string,
+    label: string,
+    edit: (document: DiagramDocument) => DiagramDocument,
+    options?: { loadId?: number }
+  ) => boolean;
+  /**
+   * A step just made an enlarge source — an area drawn on it — or x-rayed — an
+   * x-ray laid on it (Revision 3, R3-18a A) — given its faces on the paper when
+   * it is a flat capture made before they were kept and its pattern can fold
+   * it again (Z11): folded into the newest undo step, the area's or the
+   * x-ray's, while it is still the newest; nothing otherwise — a capture from
+   * it gives them later, and an x-ray is drawn once a Refresh has. Resolves
+   * whether it did.
+   */
+  giveDiagramStepPaperFaces: (stepId: string) => Promise<boolean>;
+  /** Arm the anchor's pick mode for an area or a frame, or leave it (null). View state. */
+  setDiagramAnchorPick: (pick: DiagramAnchorPick | null) => void;
+  /**
+   * Place a step by hand on the printed pages: its frame, number, picture or
+   * text moved, or its picture's scale pinned — each field of `patch` set, or
+   * cleared with null (`setStepPlace`). One undo step; edits in one `session`
+   * at the same fields — a sitting of nudges — are one. Refused on a
+   * read-only diagram, a newer build's step, a step whose placement only a
+   * newer build reads, and for a pin on an enlarged step. `loadId` drops an
+   * edit that outlived its diagram, as a debounced one may. Whether it changed.
+   */
+  setDiagramStepPlace: (
+    stepId: string,
+    patch: DiagramStepPlacePatch,
+    options?: { session?: number; loadId?: number }
+  ) => boolean;
+  /**
+   * Reset a step's placement, one undo step: an offset, its pin (`scale`),
+   * every offset (`position`), or all of it (`all`), which alone drops a newer
+   * build's placement too. Refused as {@link setDiagramStepPlace} is, but for
+   * `all`. Whether it changed.
+   */
+  resetDiagramStepPlace: (stepId: string, part: DiagramPlaceReset) => boolean;
+  /**
+   * Reset every step's placement on one page (its index, from 0, as the
+   * layout numbers them) or, for null, in the whole diagram: Reset This Page
+   * and Reset All. One undo step. Whether it changed.
+   */
+  resetDiagramPlaces: (pageIndex: number | null) => boolean;
+}
+
+export type DiagramSlice = DiagramSliceState & DiagramSliceActions;
+
 export type WorkspaceState =
   ProjectSlice &
   ExploriSlice &
@@ -1840,7 +2350,8 @@ export type WorkspaceState =
   CreasePatternSlice &
   OristudioBpSlice &
   SimulatorSlice &
-  ReferencesSlice;
+  ReferencesSlice &
+  DiagramSlice;
 
 export type WorkspaceSliceCreator<T> = StateCreator<
   WorkspaceState,

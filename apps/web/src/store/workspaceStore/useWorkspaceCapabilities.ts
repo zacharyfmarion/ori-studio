@@ -1,3 +1,8 @@
+import {
+  canCopyDiagramAnnotation as selectCanCopyDiagramAnnotation,
+  canPasteDiagramAnnotations as selectCanPasteDiagramAnnotations,
+  diagramDeleteTarget as diagramDeleteTargetOf,
+} from './diagramState';
 import { bpSheetCanSubdivide, bpSheetCanUnsubdivide } from './bpSheetCapabilities';
 import { selectOristudioBpDocument, selectProject, selectSelection } from './designTabs';
 import { useMemo } from 'react';
@@ -5,7 +10,11 @@ import { useTranslation } from 'react-i18next';
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
 import { designKind, designKindForContext } from '../../designKinds';
 import { activeDesignTab } from './designTabs';
-import { cpSolvablePatternCount, historyCountForContext } from './capabilities';
+import {
+  cpSolvablePatternCount,
+  hasDeletableDiagramSelection as selectHasDeletableDiagramSelection,
+  historyCountForContext,
+} from './capabilities';
 import { useWorkspaceStore } from './store';
 
 export function useWorkspaceCapabilities() {
@@ -54,6 +63,16 @@ export function useWorkspaceCapabilities() {
   const canSaveDesign = useWorkspaceStore((state) =>
     state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false)
   );
+  const hasDiagram = useWorkspaceStore((state) => state.diagram !== null);
+  const diagramStepCount = useWorkspaceStore((state) => state.diagram?.steps.length ?? 0);
+  const hasDeletableDiagramSelection = useWorkspaceStore(selectHasDeletableDiagramSelection);
+  const diagramDeleteTarget = useWorkspaceStore(diagramDeleteTargetOf);
+  const canCopyDiagramAnnotation = useWorkspaceStore(selectCanCopyDiagramAnnotation);
+  const canPasteDiagramAnnotations = useWorkspaceStore(selectCanPasteDiagramAnnotations);
+  const diagramHistoryPastCount = useWorkspaceStore((state) => state.diagramHistory.past.length);
+  const diagramHistoryFutureCount = useWorkspaceStore(
+    (state) => state.diagramHistory.future.length
+  );
   // Subscribed to the tab itself, which is what carries every design kind's
   // undo stack. An edit replaces the tab object, so this re-renders — the
   // per-kind history subscriptions this replaced were only ever reading the
@@ -64,13 +83,19 @@ export function useWorkspaceCapabilities() {
   const historyPastCount = historyCountForContext(
     activeEditingContext,
     activeDesign,
-    hasEditableCreasePattern ? cpHistoryPastCount : 0,
+    {
+      cp: hasEditableCreasePattern ? cpHistoryPastCount : 0,
+      diagram: diagramHistoryPastCount,
+    },
     'past'
   );
   const historyFutureCount = historyCountForContext(
     activeEditingContext,
     activeDesign,
-    hasEditableCreasePattern ? cpHistoryFutureCount : 0,
+    {
+      cp: hasEditableCreasePattern ? cpHistoryFutureCount : 0,
+      diagram: diagramHistoryFutureCount,
+    },
     'future'
   );
 
@@ -97,7 +122,13 @@ export function useWorkspaceCapabilities() {
           oristudioCpSelectedCircleCount,
           oristudioCpSolvablePatternCount,
           hasDeletableDesignSelection,
-      canSaveDesign,
+          canSaveDesign,
+          hasDiagram,
+          diagramStepCount,
+          hasDeletableDiagramSelection,
+          diagramDeleteTarget,
+          canCopyDiagramAnnotation,
+          canPasteDiagramAnnotations,
           historyPastCount,
           historyFutureCount,
           clipboard,
@@ -126,6 +157,12 @@ export function useWorkspaceCapabilities() {
       oristudioCpSolvablePatternCount,
       hasDeletableDesignSelection,
       canSaveDesign,
+      hasDiagram,
+      diagramStepCount,
+      hasDeletableDiagramSelection,
+      diagramDeleteTarget,
+      canCopyDiagramAnnotation,
+      canPasteDiagramAnnotations,
       historyFutureCount,
       historyPastCount,
       selection,

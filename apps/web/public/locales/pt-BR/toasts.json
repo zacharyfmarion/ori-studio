@@ -21,6 +21,77 @@
     "simulateFailed": "Não foi possível simular essa região.",
     "simulateNoRegion": "Selecione uma região fechada para simular."
   },
+  "diagram": {
+    "addedAsStep": "Adicionado como passo {{number}}",
+    "capture": {
+      "failed": "Não foi possível capturar a imagem",
+      "missing": "Esse padrão não está mais no padrão de vincos.",
+      "needsPose": "Um passo dobrado em parte no simulador é capturado em Pose: abra-o com Ajustar pose.",
+      "noLayerOrder": "Não foi possível ordenar as camadas, então o passo mostra o papel dobrado em transparência.",
+      "noPattern": "Primeiro abra um padrão de vincos em Editar.",
+      "readOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura.",
+      "refused": "Este padrão não dobra",
+      "tooDetailed": "Detalhado demais para manter como desenho, então o passo o guarda como imagem.",
+      "unavailable": "Este padrão não pode ser simulado.",
+      "unknown": "O padrão de vincos ainda não está pronto. Tente de novo em instantes."
+    },
+    "dropReadOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura, então não é possível adicionar imagens.",
+    "references": {
+      "addedSteps": "Adicionados como passos {{first}}–{{last}}",
+      "addedTurnOvers_one": "Virada adicionada",
+      "addedTurnOvers_many": "{{count}} viradas adicionadas",
+      "addedTurnOvers_other": "{{count}} viradas adicionadas",
+      "bakedStep": "As marcas do passo {{number}} continuam fazendo parte da imagem: há mais do que um passo comporta.",
+      "bakedSteps_one": "As marcas de um passo continuam fazendo parte da imagem: há mais do que um passo comporta.",
+      "bakedSteps_many": "As marcas de {{count}} passos continuam fazendo parte das imagens: há mais do que um passo comporta.",
+      "bakedSteps_other": "As marcas de {{count}} passos continuam fazendo parte das imagens: há mais do que um passo comporta.",
+      "filledStep": "Passo {{number}} preenchido",
+      "marksEditable_one": "A marca do passo {{number}} agora é editável",
+      "marksEditable_many": "As {{count}} marcas do passo {{number}} agora são editáveis",
+      "marksEditable_other": "As {{count}} marcas do passo {{number}} agora são editáveis",
+      "marksOutsideFrame_one": "Uma marca fora da moldura ampliada ficou de fora",
+      "marksOutsideFrame_many": "{{count}} marcas fora da moldura ampliada ficaram de fora",
+      "marksOutsideFrame_other": "{{count}} marcas fora da moldura ampliada ficaram de fora",
+      "noMarksInFrame": "Nenhuma marca do passo {{number}} está na moldura ampliada",
+      "replacedEdited_one": "Uma marca que você editou foi substituída",
+      "replacedEdited_many": "{{count}} marcas que você editou foram substituídas",
+      "replacedEdited_other": "{{count}} marcas que você editou foram substituídas",
+      "replacedStep": "Cartão do passo {{number}} substituído",
+      "tooLarge": "Este passo é detalhado demais para ser mantido no diagrama.",
+      "undoReplaced": "Desfazer"
+    },
+    "refreshedAll_one": "1 passo atualizado",
+    "refreshedAll_many": "{{count}} passos atualizados",
+    "refreshedAll_other": "{{count}} passos atualizados",
+    "uploadFailed_one": "Não foi possível adicionar uma imagem",
+    "uploadFailed_many": "Não foi possível adicionar {{count}} imagens",
+    "uploadFailed_other": "Não foi possível adicionar {{count}} imagens",
+    "uploadFailureLine": "{{name}}: {{reason}}",
+    "uploadFailureMore_one": "e mais 1",
+    "uploadFailureMore_many": "e mais {{count}}",
+    "uploadFailureMore_other": "e mais {{count}}",
+    "uploadProgress_one": "Adicionando a imagem…",
+    "uploadProgress_many": "Adicionando {{count}} imagens…",
+    "uploadProgress_other": "Adicionando {{count}} imagens…",
+    "uploadRejected": "não é um SVG que o Ori Studio consiga ler com segurança",
+    "uploadTooLarge": "é grande demais",
+    "uploadUnreadable": "não foi possível ler a imagem",
+    "uploadUnsupported": "não é uma imagem",
+    "zoom": {
+      "updatedList": "Passos ampliados {{numbers}} atualizados",
+      "updatedOne": "Passo ampliado {{number}} atualizado",
+      "updatedRange": "Passos ampliados {{first}}–{{last}} atualizados",
+      "updatedSome": "{{placed}} de {{total}} passos ampliados atualizados",
+      "updatedSomeDetail": "Os demais não puderam receber uma moldura desta área.",
+      "updateFailed": "Não foi possível atualizar os passos ampliados"
+    }
+  },
+  "diagramExport": {
+    "saved": "{{name}} exportado"
+  },
+  "diagramPrint": {
+    "failed": "Não foi possível imprimir o diagrama"
+  },
   "fileDrop": {
     "ignoredFile": "{{name}} usado; 1 outro arquivo solto foi ignorado.",
     "ignoredFiles": "{{name}} usado; {{others}} outros arquivos soltos foram ignorados."
@@ -54,6 +125,7 @@
   "references": {
     "searching": "Procurando referências…",
     "searchingLong": "Ainda procurando referências — a primeira busca monta uma tabela",
+    "sheetMissing": "Essa folha não está mais no padrão de vincos.",
     "stop": "Cancelar",
     "stopped": "Busca cancelada",
     "stopping": "Cancelando…"

@@ -29,12 +29,14 @@ const APART: PaperStyle = {
 import {
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_DASH_SLOTS,
+  DIAGRAM_DIVISIONS_INK,
   DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_INK_PER_SHEET,
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
   DIAGRAM_MARK_INK,
   DIAGRAM_MARKS,
+  DIAGRAM_ROTATE_INK,
   DIAGRAM_SHEET_INK,
   DIAGRAM_TURN_OVER_INK,
   REFERENCES_VIEW_FLOORS,
@@ -129,6 +131,28 @@ describe('the diagram’s pen', () => {
     expect(mm).toBeCloseTo(2.8, 1);
     expect((2 * mm) / ARROWHEAD_ASPECT).toBeCloseTo(1.65, 1);
     expect(DIAGRAM_ARROWHEAD_INK.length).toBeLessThan(DIAGRAM_FOLD_RETURN_INK.offset);
+  });
+
+  // Equal divisions are the sketch's sizes at an annotation's ink (Revision 2,
+  // ED4, ED10, ED11): dividers 1.65 mm past the line, ticks 1 mm either side
+  // of it leaning 20°, 0.66 mm apart, and the count at the rotate glyph's size.
+  // No pens of their own since Revision 3: every stroke is the aux lines'.
+  it('draws equal divisions at the sketch’s print sizes', () => {
+    const mm = (ink: number) => (ink * canvasDiagramInk(1) * PT_PER_CSS_PX) / PT_PER_MM;
+    expect(DIAGRAM_DIVISIONS_INK).toEqual({
+      overshoot: 5,
+      tick: 3,
+      spacing: 2,
+      leanDeg: 20,
+      tickFloor: 1.5,
+      spacingFloor: 2,
+      number: 7.2,
+      gap: 2,
+    });
+    expect(mm(DIAGRAM_DIVISIONS_INK.overshoot)).toBeCloseTo(1.65, 2);
+    expect(mm(DIAGRAM_DIVISIONS_INK.tick)).toBeCloseTo(1, 1);
+    expect(mm(DIAGRAM_DIVISIONS_INK.spacing)).toBeCloseTo(0.66, 2);
+    expect(DIAGRAM_DIVISIONS_INK.number).toBe(DIAGRAM_ROTATE_INK.fraction);
   });
 
   // A letter and its halo already scaled with the viewBox, unlike the strokes,

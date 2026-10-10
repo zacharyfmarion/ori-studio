@@ -17,6 +17,8 @@ function Host({ policy }: { policy: DropTargetPolicy }) {
   return (
     <div data-testid="target" data-active={isDragActive || undefined} {...dropTargetProps}>
       <div data-testid="child">child</div>
+      {/* A target below that takes the drop itself, as the Diagram does a picture. */}
+      <div data-testid="consumer" onDrop={(event) => event.stopPropagation()} />
     </div>
   );
 }
@@ -163,6 +165,15 @@ describe('useFileDropTarget', () => {
     fire(element('target'), 'drop', { ...documentDrag, files: [file] });
 
     expect(onDropFiles).toHaveBeenCalledWith([file]);
+    expect(isActive()).toBe(false);
+  });
+
+  it('clears its overlay when a target below consumes the drop', () => {
+    render();
+    fire(element('target'), 'dragenter', documentDrag);
+    expect(isActive()).toBe(true);
+    fire(element('consumer'), 'drop', { ...documentDrag, files: [new File(['x'], 'a.png')] });
+    expect(onDropFiles).not.toHaveBeenCalled();
     expect(isActive()).toBe(false);
   });
 

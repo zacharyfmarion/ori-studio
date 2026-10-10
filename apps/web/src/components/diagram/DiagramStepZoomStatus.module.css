@@ -1,0 +1,25 @@
+/* The Step pane's word on an enlarged step (DiagramStepZoomStatus.tsx): its rows, and its notices under them. */
+.status {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* An area that changed (EnlargedAreaUpdate): its notice, at the rows' inset as the Picture section's is, and Update under it. */
+.area {
+  display: grid;
+}
+
+.notice {
+  padding: 0 var(--space-3);
+}
+
+/* A step that holds an area (HeldAreas): where it was enlarged, which steps are out of date, and Update All. */
+.areas {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* With no Update All under it, the line keeps the room the list would leave before the section's rule. */
+.areas:not([data-offered]) {
+  padding-bottom: var(--space-2);
+}

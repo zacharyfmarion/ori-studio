@@ -665,6 +665,9 @@ impl RgbaColor {
 /// the picture the canvas draws. The drawer itself (oracle-checked) is not
 /// touched, and `faces_top_to_bottom[0]` of every subface is the face the
 /// drawer paints there — the test in `tests/folding.rs` holds it to that.
+///
+/// Schema 2 added [`FoldedPaperFace::points`]; schema 3 added
+/// [`FoldedPaperScene::sheet_points`]; nothing else changed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FoldedPaperScene {
     pub schema_version: u32,
@@ -691,12 +694,29 @@ pub struct FoldedPaperScene {
     /// along a crease or a paper edge is not interior to any face and is not
     /// emitted; nor is one shorter than the engine's point tolerance.
     pub aux_lines: Vec<FoldedPaperAuxLine>,
+    /// Where each wireframe point ([`FoldedPaperFace::points`] names them)
+    /// lies on the unfolded sheet: the crease pattern's own coordinates, with
+    /// no camera applied. A painter that opens the fold toward the sheet —
+    /// DEFOX's affine distortion — maps a face from the sheet to the scene by
+    /// fitting its corners here to its outline. Empty in a scene of an older
+    /// schema, which had no such field.
+    #[serde(default)]
+    pub sheet_points: Vec<Point>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FoldedPaperFace {
     /// The face's folded ring, in the scene's coordinates.
     pub outline: Vec<Point>,
+    /// Per outline point, the wireframe point it is (`FoldedWireframe::points`,
+    /// a vertex of the sheet): two faces that meet at a crease name its ends
+    /// alike, and corners of a stack that fold onto one place stay apart, as
+    /// their positions cannot keep them. A painter that steps layers apart by
+    /// depth keeps the faces at a crease joined through it. Empty when the
+    /// ring names a point the wireframe lacks — exactly when `edges` is — and
+    /// in a schema 1 scene, which had no such field.
+    #[serde(default)]
+    pub points: Vec<usize>,
     /// The face shows its front side in this pass — the parity the drawer
     /// colours by, flipped with the pass.
     pub front_up: bool,
@@ -2895,12 +2915,16 @@ fn paper_scene_impl(
     };
 
     Ok(Some(FoldedPaperScene {
-        schema_version: 1,
+        schema_version: 3,
         flipped: pass.flipped,
         sheet: paper_scene_sheet_extent(&graph.points, model),
         faces: paper_scene_faces(folded, pass),
         subfaces: paper_scene_subfaces(subface_graph, subfaces, &hierarchy, pass),
         aux_lines: paper_scene_aux_lines(graph, folded, aux_lines, pass),
+        // The fold graph and its wireframe share point indices
+        // (`wireframe_from_graph` folds `graph.points` in place), so the
+        // sheet's points are the graph's own.
+        sheet_points: graph.points.clone(),
     }))
 }
 
@@ -2944,7 +2968,8 @@ fn paper_scene_faces(
                 .filter_map(|point_index| folded.points.get(*point_index).copied())
                 .map(|point| pass.camera.object_to_tv(point))
                 .collect::<Vec<_>>();
-            let edges = if outline.len() == face.len() {
+            let complete = outline.len() == face.len();
+            let edges = if complete {
                 (0..face.len())
                     .map(|index| {
                         let next = (index + 1) % face.len();
@@ -2965,6 +2990,7 @@ fn paper_scene_faces(
                 Vec::new()
             };
             FoldedPaperFace {
+                points: if complete { face.clone() } else { Vec::new() },
                 outline,
                 front_up: paper_face_front_up(face_index, folded, pass.flipped),
                 edges,

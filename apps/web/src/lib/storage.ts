@@ -61,6 +61,48 @@ export const STORAGE_KEYS = {
    * both — apart from the folded figure's own export (X12).
    */
   creasePatternFoldedFigure: 'crease-pattern-folded-figure',
+  /**
+   * What the Diagram's export last wrote: a PDF of the pages or the steps as
+   * files, and how; see `diagram/export/diagramExportSettings.ts`.
+   */
+  diagramExport: 'diagram-export',
+  /**
+   * Whether Annotate snaps a circle, a right angle, a callout's point and a
+   * line's ends to the picture's points (an arrow never snaps): the Step
+   * pane's switch, for a finger, which has no ⌘ to hold. Absent means on.
+   */
+  diagramAnnotateSnap: 'diagram-annotate-snap',
+  /**
+   * The line Annotate's Line tool and Angle Bisector draw: valley, mountain,
+   * hidden or solid (`diagram/annotate/lineTypes.ts`). Absent, or anything else,
+   * means valley.
+   */
+  diagramAnnotateLineType: 'diagram-annotate-line-type',
+  /**
+   * The colour Annotate's next solid line is drawn in (17a): a `#rrggbb`
+   * string. Absent, or anything else, means the style's arrow ink.
+   */
+  diagramAnnotateLineColor: 'diagram-annotate-line-color',
+  /**
+   * The style Annotate's next label is set in (17b): `{ color, bold, halo,
+   * sizePt }` as JSON (`diagram/annotate/textStyle.ts`). Absent, or any
+   * option that does not read, is today's plain label's.
+   */
+  diagramAnnotateTextStyle: 'diagram-annotate-text-style',
+  /**
+   * The fill Annotate's Star tool lays (Revision 3): `black`, filled, or
+   * `white`, an outline. Absent, or anything else, means filled.
+   */
+  diagramAnnotateStarFill: 'diagram-annotate-star-fill',
+  diagramAnnotateCircleMode: 'diagram-annotate-circle-mode',
+  /**
+   * Which of a References card's marks the Diagram's References browser pulls
+   * (17d, its Show menu): `{ letters, highlights }` as JSON, read as export's
+   * marks are (`normalizePaperExportMarks`). Absent, both.
+   */
+  diagramReferencesMarks: 'diagram-references-marks',
+  /** Whether Annotate's tool window is collapsed to its header (`ToolHintWindow`). */
+  diagramToolHintCollapsed: 'diagram-tool-hint-collapsed',
   /** Play a step's fold on arriving at its card in the References workspace. */
   referencesAutoPlayFolds: 'references-auto-play-folds',
   /**

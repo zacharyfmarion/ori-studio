@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
-import { isOpenLayerTarget, isShortcutEditingTarget } from '../../../keyboard/shortcutDispatcher';
+import { useSheetEscape } from '../useSheetEscape';
 
 export interface ToolPickerSheetState {
   open: boolean;
@@ -20,12 +20,11 @@ export interface ToolPickerSheetState {
  * workspace switch, a document closing. A sheet outliving its trigger would be
  * holding focus with nothing to hand it back to.
  *
- * Modelled on `useWorkspaceViewDrawer`, including the Escape listener and both
- * of its guards: the same problem (a sheet that must close from wherever focus
- * landed inside it) has one answer in this repo, and a second, subtly different
- * one would be worse than either. The layer guard asks about the key's *target*,
- * so a `useTouchLabel` tooltip, which holds no focus, cannot trip it and leave
- * the sheet's one keyboard exit dead.
+ * Modelled on `useWorkspaceViewDrawer`, and closing on Escape through the one
+ * listener every touch sheet shares (`useSheetEscape`): the same problem (a
+ * sheet that must close from wherever focus landed inside it, unless the key is
+ * another's) has one answer in this repo, and a second, subtly different one
+ * would be worse than either.
  *
  * `onOpened` runs once per visit, for the workspace's own analytics event: the
  * backdrop stops a *tap* on the trigger behind it but not a keyboard
@@ -52,24 +51,7 @@ export function useToolPickerSheet({
     setOpen(false);
   }, [available]);
 
-  // Capture-phase on `window`, like `HelpModal`, `SettingsModal` and the View
-  // drawer — so it fires wherever focus is inside the sheet rather than only on
-  // whatever happens to be focused. `isShortcutEditingTarget` and
-  // `isOpenLayerTarget` are the repo's one answer each to "does this target own
-  // its keystrokes"; there is no copy of them here for the same reason there is
-  // no copy of them there.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (isShortcutEditingTarget(event.target) || isOpenLayerTarget(event.target)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [open, close]);
+  useSheetEscape(open, pickerId, close);
 
   const onOpenedRef = useRef(onOpened);
   useEffect(() => {

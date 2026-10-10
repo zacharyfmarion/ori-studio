@@ -22,6 +22,7 @@ function fileService(overrides: Partial<FileService> = {}): FileService {
     supportsNativeDialogs: false,
     openTextFile: async () => null,
     openBinaryFile: async () => null,
+    openBinaryFiles: vi.fn(async () => null),
     saveTextFile: vi.fn(async () => ({ name: 'Crane step 3.svg', path: null })),
     saveBinaryFile: vi.fn(async () => ({ name: 'Crane step 3.png', path: null })),
     ...overrides,

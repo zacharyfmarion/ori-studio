@@ -58,6 +58,15 @@ describe('scaling crease weight to its frame', () => {
     expect(creaseFrameScale(config, 1024, 128)).toBeCloseTo(0.25, 10);
   });
 
+  it('grows with the frame above the reference too, when asked, by the same rule', () => {
+    const config = settings({ creaseWidthReferenceEdge: 512, creaseWidthGrows: true });
+    expect(creaseFrameScale(config, 1024, 2048)).toBeCloseTo(2, 10);
+    expect(creaseFrameScale(config, 256, 256)).toBeCloseTo(0.5, 10);
+    expect(rasterCreaseInk(2.2, config, 1536, 1536)).toEqual({ widthPx: expect.closeTo(6.6, 10), alpha: 1 });
+    // Constant weight still means constant weight.
+    expect(creaseFrameScale({ ...config, creaseWidthShrinkExponent: 0 }, 2048, 2048)).toBe(1);
+  });
+
   it('takes an exponent, so the rule can be dialled between the two extremes', () => {
     const frame = 128;
     const constant = settings({ creaseWidthReferenceEdge: 512, creaseWidthShrinkExponent: 0 });

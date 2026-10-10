@@ -7,6 +7,7 @@ import {
   type ShortcutExecutors,
 } from './shortcutDispatcher';
 import type {
+  DiagramShortcutId,
   ReferencesShortcutId,
   ShortcutDefaultsSource,
   ShortcutOverrides,
@@ -24,13 +25,16 @@ type ViewportExecutor = (id: ViewportShortcutId) => boolean;
 /** Claims or declines, as the viewport's does; see `ShortcutExecutors.simulator`. */
 type SimulatorExecutor = (id: SimulatorShortcutId) => boolean;
 type ReferencesExecutor = (id: ReferencesShortcutId) => unknown;
+/** May decline, as a viewport executor may; see `ShortcutExecutors.diagram`. */
+type DiagramExecutor = (id: DiagramShortcutId) => boolean;
 
 /**
  * Which viewport currently owns keyboard shortcuts. This is the document modes
  * plus the Box Pleating packing pane, which is its own focusable viewport
- * surface distinct from the tree (design) pane.
+ * surface distinct from the tree (design) pane, and the Diagram workspace, whose
+ * views share one surface with one owner at a time.
  */
-export type ViewportSurface = DocumentMode | 'bp-editor';
+export type ViewportSurface = DocumentMode | 'bp-editor' | 'diagram';
 
 const viewportExecutors: Partial<Record<ViewportSurface, ViewportExecutor>> = {};
 let cpActionExecutor: CpActionExecutor | null = null;
@@ -55,6 +59,11 @@ const simulatorExecutorListeners = new Set<() => void>();
  * only while that workspace is on screen.
  */
 let referencesExecutor: ReferencesExecutor | null = null;
+/**
+ * Set while the Diagram workspace is mounted, and the `diagram` scope's reason
+ * to be in the stack.
+ */
+let diagramExecutor: DiagramExecutor | null = null;
 
 export interface ShortcutRuntimeContext {
   activeEditingContext: EditingContext;
@@ -69,6 +78,7 @@ export interface ShortcutRuntimeContext {
 function viewportSurfaceForContext(context: EditingContext): ViewportSurface {
   if (context === 'crease-pattern') return 'crease-pattern';
   if (context === 'bp-packing') return 'bp-editor';
+  if (context === 'diagram') return 'diagram';
   return 'tree';
 }
 
@@ -164,6 +174,43 @@ export function runReferencesCommand(id: ReferencesShortcutId): boolean {
   return true;
 }
 
+/**
+ * Claim the keyboard for the Diagram workspace. Returns an unregister; call it
+ * on unmount, or the scope outlives the panel.
+ */
+export function registerDiagramShortcutExecutor(executor: DiagramExecutor): () => void {
+  diagramExecutor = executor;
+  return () => {
+    if (diagramExecutor === executor) {
+      diagramExecutor = null;
+    }
+  };
+}
+
+/**
+ * Modes a workspace has armed that Escape puts down before anything else —
+ * the Diagram's anchor pick (Revision 2) — each asked whether it is armed
+ * now. The mode itself ends through its scope's own cancel; this only tells
+ * a layer that also closes on Escape, the touch View sheet
+ * (`useWorkspaceViewDrawer`), to leave the key to the runtime, so one Escape
+ * leaves the mode and the sheet stays open.
+ */
+const armedModes = new Set<() => boolean>();
+
+/** Claim Escape for a mode while `armed` says it is armed. Returns an unregister; call it on unmount. */
+export function registerArmedMode(armed: () => boolean): () => void {
+  armedModes.add(armed);
+  return () => {
+    armedModes.delete(armed);
+  };
+}
+
+/** Whether a mode is armed that the next Escape puts down, through the runtime. */
+export function escapeEndsArmedMode(): boolean {
+  for (const armed of armedModes) if (armed()) return true;
+  return false;
+}
+
 export function registerCpActionShortcutExecutor(executor: CpActionExecutor): () => void {
   cpActionExecutor = executor;
   return () => {
@@ -175,6 +222,16 @@ export function registerCpActionShortcutExecutor(executor: CpActionExecutor): ()
 
 export function setActiveShortcutViewportSurface(surface: ViewportSurface): void {
   activeViewportSurface = surface;
+}
+
+/**
+ * Give up a claim made with {@link setActiveShortcutViewportSurface}, for a
+ * surface that is going away. Only its own: a claim another surface has since
+ * made stands. Without it the claim outlives its panel, and the next workspace's
+ * viewport keys go to a surface with no executor until something is clicked.
+ */
+export function releaseShortcutViewportSurface(surface: ViewportSurface): void {
+  if (activeViewportSurface === surface) activeViewportSurface = null;
 }
 
 function resolvedViewportSurface(context: ShortcutRuntimeContext): ViewportSurface {
@@ -196,6 +253,12 @@ export function shortcutScopeStackForContext(
   }
   if (context.referencesFocused ?? referencesExecutor !== null) {
     scopes.push('references');
+  }
+  // Only in its own context, so it can never stack with `crease-pattern`.
+  // Edit Path's node keys first: the same executor, which declines them
+  // unless a node is selected, so the arrows then reach the steps' scope.
+  if (context.activeEditingContext === 'diagram' && diagramExecutor !== null) {
+    scopes.push('diagram-path', 'diagram');
   }
   scopes.push('viewport');
   if (context.activeEditingContext === 'crease-pattern') {
@@ -225,6 +288,10 @@ export function handleShortcutRuntimeKeyDown(
 
   if (referencesExecutor) {
     executors.references = referencesExecutor;
+  }
+
+  if (diagramExecutor) {
+    executors.diagram = diagramExecutor;
   }
 
   return handleShortcutKeyDown(event, {

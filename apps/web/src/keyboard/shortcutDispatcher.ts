@@ -1,4 +1,5 @@
 import {
+  type DiagramShortcutId,
   getResolvedShortcuts,
   keyChordEquals,
   keyChordFromKeyboardEvent,
@@ -35,10 +36,10 @@ export interface ShortcutExecutors {
    * so Delete died on the BP and design canvases with nothing to show for it.
    * A required boolean makes that a compile error rather than a dead key.
    *
-   * Only the viewport and simulator executors can decline, because only they
-   * are synchronous. A menu action returns a promise, so whether it handled the
-   * chord is not known until well after the keydown has to be preventDefault'd
-   * or not.
+   * Only the viewport, simulator and Diagram executors can decline, because
+   * only they are synchronous. A menu action returns a promise, so whether it
+   * handled the chord is not known until well after the keydown has to be
+   * preventDefault'd or not.
    */
   viewport?: (id: ViewportShortcutId) => boolean;
   /**
@@ -59,6 +60,12 @@ export interface ShortcutExecutors {
    * `references` scope resolves nothing and the chord falls through.
    */
   references?: (id: ReferencesShortcutId) => unknown;
+  /**
+   * Registered only while the Diagram owns the keyboard. It may decline, as
+   * the viewport's and the simulator's may — synchronous for the same reason —
+   * so its arrows give way to a focused button or tab strip.
+   */
+  diagram?: (id: DiagramShortcutId) => boolean;
 }
 
 export interface ShortcutDispatchOptions {
@@ -125,6 +132,16 @@ export function isOpenLayerTarget(target: EventTarget | null): boolean {
 export function isShortcutBarrierTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   return target.closest('[data-shortcut-barrier]') !== null;
+}
+
+/**
+ * Is a modal dialog that owns every key open? Then no key acts on the
+ * workspace behind it, wherever it was aimed: a dialog keeps focus inside it,
+ * but a key that slipped out with focus must still find nothing to act on.
+ */
+export function isShortcutBarrierOpen(): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.querySelector('[role="dialog"][aria-modal="true"][data-shortcut-barrier]') !== null;
 }
 
 export function handleShortcutKeyDown(
@@ -207,5 +224,9 @@ function executeShortcut(
       if (!executors.references) return false;
       void executors.references(id as ReferencesShortcutId);
       return true;
+    case 'diagram':
+      if (!executors.diagram) return false;
+      // As for a viewport: only an explicit claim counts.
+      return executors.diagram(id as DiagramShortcutId) === true;
   }
 }

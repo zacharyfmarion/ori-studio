@@ -1,0 +1,60 @@
+/*
+ * A live view in Pose (DiagramPoseStage.tsx): the stage above the toolbar
+ * floating over its foot. Positioned, so the viewport's view cube anchors to
+ * it.
+ */
+.view {
+  position: absolute;
+  inset: 0 0 56px;
+}
+
+/* Still loading: laid out, so the view knows its size, but the picture shows. */
+.view[data-hidden] {
+  visibility: hidden;
+}
+
+/* The drag is the view's own: no page scroll, no text selection under it. */
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+}
+
+/* The step's annotations, ghosted over the view in its own device px (D8). */
+.ghost {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/*
+ * How to turn it, in the corner the view cube leaves free; a mouse's only. On
+ * the readout's pill and in its ink: the stage under both is white whatever
+ * the theme, so a dark theme's pill is dark, and its muted text all but
+ * vanished on it.
+ */
+.hint {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-2);
+  margin: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--domain-overlay-bg);
+  box-shadow: 0 8px 24px var(--shadow-overlay);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  pointer-events: none;
+}
+
+@media (pointer: coarse), (max-width: 720px) {
+  .hint {
+    display: none;
+  }
+}

@@ -22,6 +22,86 @@
     "simulateFailed": "Не удалось смоделировать эту область.",
     "simulateNoRegion": "Выберите замкнутую область для симуляции."
   },
+  "diagram": {
+    "addedAsStep": "Добавлено как шаг {{number}}",
+    "capture": {
+      "failed": "Не удалось создать изображение",
+      "missing": "Этого паттерна больше нет в паттерне складок.",
+      "needsPose": "Шаг, частично сложенный в симуляторе, снимается в режиме «Положение»: откройте его через «Настроить положение».",
+      "noLayerOrder": "Слои не удалось упорядочить, поэтому шаг показывает сложенную бумагу насквозь.",
+      "noPattern": "Сначала откройте паттерн складок в «Редактировании».",
+      "readOnly": "Эта схема создана в более новой версии Ori Studio и открыта только для чтения.",
+      "refused": "Этот паттерн не складывается",
+      "tooDetailed": "Слишком детально, чтобы хранить как рисунок, поэтому шаг хранит его как изображение.",
+      "unavailable": "Этот узор нельзя симулировать.",
+      "unknown": "Паттерн складок ещё не готов. Попробуйте ещё раз чуть позже."
+    },
+    "dropReadOnly": "Эта схема создана в более новой версии Ori Studio и открыта только для чтения, поэтому добавить в неё изображения нельзя.",
+    "references": {
+      "addedSteps": "Добавлено как шаги {{first}}–{{last}}",
+      "addedTurnOvers_one": "Добавлен {{count}} переворот",
+      "addedTurnOvers_few": "Добавлено {{count}} переворота",
+      "addedTurnOvers_many": "Добавлено {{count}} переворотов",
+      "addedTurnOvers_other": "Добавлено {{count}} переворота",
+      "bakedStep": "Пометки шага {{number}} остаются частью его изображения: их больше, чем вмещает шаг.",
+      "bakedSteps_one": "Пометки {{count}} шага остаются частью его изображения: их больше, чем вмещает шаг.",
+      "bakedSteps_few": "Пометки {{count}} шагов остаются частью их изображений: их больше, чем вмещает шаг.",
+      "bakedSteps_many": "Пометки {{count}} шагов остаются частью их изображений: их больше, чем вмещает шаг.",
+      "bakedSteps_other": "Пометки {{count}} шага остаются частью их изображений: их больше, чем вмещает шаг.",
+      "filledStep": "Шаг {{number}} заполнен",
+      "marksEditable_one": "{{count}} пометку шага {{number}} теперь можно редактировать",
+      "marksEditable_few": "{{count}} пометки шага {{number}} теперь можно редактировать",
+      "marksEditable_many": "{{count}} пометок шага {{number}} теперь можно редактировать",
+      "marksEditable_other": "{{count}} пометки шага {{number}} теперь можно редактировать",
+      "marksOutsideFrame_one": "{{count}} пометка вне рамки увеличения пропущена",
+      "marksOutsideFrame_few": "{{count}} пометки вне рамки увеличения пропущены",
+      "marksOutsideFrame_many": "{{count}} пометок вне рамки увеличения пропущено",
+      "marksOutsideFrame_other": "{{count}} пометки вне рамки увеличения пропущено",
+      "noMarksInFrame": "Ни одна пометка шага {{number}} не попадает в рамку увеличения",
+      "replacedEdited_one": "Заменена {{count}} отредактированная вами пометка",
+      "replacedEdited_few": "Заменены {{count}} отредактированные вами пометки",
+      "replacedEdited_many": "Заменено {{count}} отредактированных вами пометок",
+      "replacedEdited_other": "Заменено {{count}} отредактированной вами пометки",
+      "replacedStep": "Карточка шага {{number}} заменена",
+      "tooLarge": "Этот шаг слишком детализирован, чтобы сохранить его в схеме.",
+      "undoReplaced": "Отменить"
+    },
+    "refreshedAll_one": "Обновлён {{count}} шаг",
+    "refreshedAll_few": "Обновлено {{count}} шага",
+    "refreshedAll_many": "Обновлено {{count}} шагов",
+    "refreshedAll_other": "Обновлено {{count}} шага",
+    "uploadFailed_one": "Не удалось добавить {{count}} изображение",
+    "uploadFailed_few": "Не удалось добавить {{count}} изображения",
+    "uploadFailed_many": "Не удалось добавить {{count}} изображений",
+    "uploadFailed_other": "Не удалось добавить {{count}} изображения",
+    "uploadFailureLine": "{{name}}: {{reason}}",
+    "uploadFailureMore_one": "и ещё {{count}}",
+    "uploadFailureMore_few": "и ещё {{count}}",
+    "uploadFailureMore_many": "и ещё {{count}}",
+    "uploadFailureMore_other": "и ещё {{count}}",
+    "uploadProgress_one": "Добавление изображений: {{count}}…",
+    "uploadProgress_few": "Добавление изображений: {{count}}…",
+    "uploadProgress_many": "Добавление изображений: {{count}}…",
+    "uploadProgress_other": "Добавление изображений: {{count}}…",
+    "uploadRejected": "это не SVG, который Ori Studio может безопасно прочитать",
+    "uploadTooLarge": "файл слишком большой",
+    "uploadUnreadable": "не удалось прочитать изображение",
+    "uploadUnsupported": "это не изображение",
+    "zoom": {
+      "updatedList": "Увеличенные шаги {{numbers}} обновлены",
+      "updatedOne": "Увеличенный шаг {{number}} обновлён",
+      "updatedRange": "Увеличенные шаги {{first}}–{{last}} обновлены",
+      "updatedSome": "Обновлено увеличенных шагов: {{placed}} из {{total}}",
+      "updatedSomeDetail": "Остальные не смогли взять рамку из этой области.",
+      "updateFailed": "Не удалось обновить увеличенные шаги"
+    }
+  },
+  "diagramExport": {
+    "saved": "Экспортировано: {{name}}"
+  },
+  "diagramPrint": {
+    "failed": "Не удалось напечатать схему"
+  },
   "fileDrop": {
     "ignoredFile": "Использован файл {{name}}; ещё 1 перетащенный файл пропущен.",
     "ignoredFiles": "Использован файл {{name}}; ещё {{others}} перетащенных файлов пропущено."
@@ -55,6 +135,7 @@
   "references": {
     "searching": "Поиск референсов…",
     "searchingLong": "Поиск ещё идёт — первый поиск строит таблицу",
+    "sheetMissing": "Этого листа больше нет в паттерне складок.",
     "stop": "Отмена",
     "stopped": "Поиск отменён",
     "stopping": "Отмена…"

@@ -263,9 +263,35 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
         .expect("paper scene should serialize");
     let scene: serde_json::Value =
         serde_wasm_bindgen::from_value(scene).expect("paper scene deserializes");
-    assert_eq!(scene["schema_version"], 1);
+    assert_eq!(scene["schema_version"], 3);
     assert_eq!(scene["flipped"], false);
     assert_eq!(scene["faces"].as_array().expect("scene faces").len(), 2);
+    // Each outline point names its wireframe point.
+    assert!(
+        scene["faces"]
+            .as_array()
+            .expect("scene faces")
+            .iter()
+            .all(|face| face["points"].as_array().expect("points").len()
+                == face["outline"].as_array().expect("outline").len())
+    );
+    // And where each lies on the sheet (schema 3), for every point a face names.
+    let sheet_points = scene["sheet_points"]
+        .as_array()
+        .expect("sheet points")
+        .len();
+    assert!(sheet_points > 0);
+    assert!(
+        scene["faces"]
+            .as_array()
+            .expect("scene faces")
+            .iter()
+            .all(|face| face["points"]
+                .as_array()
+                .expect("points")
+                .iter()
+                .all(|index| (index.as_u64().expect("point index") as usize) < sheet_points))
+    );
     assert!(
         scene["subfaces"]
             .as_array()

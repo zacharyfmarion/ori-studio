@@ -19,6 +19,59 @@
     "simulateFailed": "この領域はシミュレーションできませんでした。",
     "simulateNoRegion": "シミュレーションするには閉じた領域を選択してください。"
   },
+  "diagram": {
+    "addedAsStep": "ステップ {{number}} として追加しました",
+    "capture": {
+      "failed": "図をキャプチャできませんでした",
+      "missing": "そのパターンは展開図にもうありません。",
+      "needsPose": "シミュレーターで途中まで折ったステップは、ポーズで取り込みます。「ポーズを調整」で開いてください。",
+      "noLayerOrder": "層の重なり順を決められなかったため、このステップは折った紙を透かして表示します。",
+      "noPattern": "先に編集で展開図を開いてください。",
+      "readOnly": "この折り図は新しい Ori Studio で作成されたため、読み取り専用で開かれています。",
+      "refused": "このパターンは折れません",
+      "tooDetailed": "細かすぎて図形として保持できないため、画像として保持します。",
+      "unavailable": "このパターンはシミュレーションできません。",
+      "unknown": "展開図の準備がまだできていません。少し待ってからもう一度お試しください。"
+    },
+    "dropReadOnly": "この折り図は新しい Ori Studio で作成されたため読み取り専用で開いています。図を追加することはできません。",
+    "references": {
+      "addedSteps": "ステップ {{first}}–{{last}} として追加しました",
+      "addedTurnOvers_other": "裏返しを{{count}}件追加しました",
+      "bakedStep": "ステップ {{number}} の記号は図の一部のままです：1つのステップに入る数を超えています。",
+      "bakedSteps_other": "{{count}} 個のステップの記号は図の一部のままです：1つのステップに入る数を超えています。",
+      "filledStep": "ステップ {{number}} を埋めました",
+      "marksEditable_other": "ステップ {{number}} の記号 {{count}} 個を編集できるようになりました",
+      "marksOutsideFrame_other": "拡大の枠の外にある記号 {{count}} 個は含めませんでした",
+      "noMarksInFrame": "ステップ {{number}} の記号は拡大の枠の中にひとつもありません",
+      "replacedEdited_other": "編集した記号を {{count}} 件置き換えました",
+      "replacedStep": "ステップ {{number}} のカードを置き換えました",
+      "tooLarge": "このステップは細かすぎて折り図に保持できません。",
+      "undoReplaced": "元に戻す"
+    },
+    "refreshedAll_other": "{{count}} 個のステップを更新しました",
+    "uploadFailed_other": "{{count}} 枚の図を追加できませんでした",
+    "uploadFailureLine": "{{name}}：{{reason}}",
+    "uploadFailureMore_other": "ほか {{count}} 件",
+    "uploadProgress_other": "{{count}} 枚の図を追加しています…",
+    "uploadRejected": "Ori Studio が安全に読み込める SVG ではありません",
+    "uploadTooLarge": "サイズが大きすぎます",
+    "uploadUnreadable": "図を読み込めませんでした",
+    "uploadUnsupported": "図のファイルではありません",
+    "zoom": {
+      "updatedList": "拡大したステップ {{numbers}} を更新しました",
+      "updatedOne": "拡大したステップ {{number}} を更新しました",
+      "updatedRange": "拡大したステップ {{first}}–{{last}} を更新しました",
+      "updatedSome": "拡大したステップ {{total}} 件のうち {{placed}} 件を更新しました",
+      "updatedSomeDetail": "残りのステップには、この範囲から枠を取り込めませんでした。",
+      "updateFailed": "拡大したステップを更新できませんでした"
+    }
+  },
+  "diagramExport": {
+    "saved": "{{name}} を書き出しました"
+  },
+  "diagramPrint": {
+    "failed": "折り図を印刷できませんでした"
+  },
   "fileDrop": {
     "ignoredFile": "{{name}} を使用しました。ドロップされた他の 1 件は無視されました。",
     "ignoredFiles": "{{name}} を使用しました。ドロップされた他の {{others}} 件は無視されました。"
@@ -52,6 +105,7 @@
   "references": {
     "searching": "基準点を探しています…",
     "searchingLong": "まだ基準点を探しています — 初回の検索ではテーブルを構築します",
+    "sheetMissing": "その用紙はもう展開図にありません。",
     "stop": "キャンセル",
     "stopped": "検索をキャンセルしました",
     "stopping": "キャンセル中…"

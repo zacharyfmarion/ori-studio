@@ -1,0 +1,53 @@
+import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useAnnotateToolInHand } from '../../diagram/annotate/useAnnotateToolInHand';
+import { DiagramAnnotateToolParameters } from './DiagramAnnotateToolParameters';
+import { useAnnotateToolHint } from '../../diagram/annotate/useAnnotateToolHint';
+import type { DiagramStep } from '../../diagram/document/diagramDocument';
+import { STORAGE_KEYS } from '../../lib/storage';
+import { ToolHintInstructions } from '../ui/tools/ToolHintInstructions';
+import { ToolHintWindow } from '../ui/tools/ToolHintWindow';
+
+/**
+ * Annotate's tool window (decision 7): Edit's and the Simulator's window, in
+ * the canvas's bottom right, saying what the tool in hand does — its name,
+ * how to use it, and the keys held while using it. Nothing with Select in
+ * hand, where Annotate rests (`annotateToolHint`). Kept on the canvas's side
+ * of the seam (`inside`), not over it as theirs is: the Step pane's
+ * Instruction lies there, and a drawing tool stays in hand while the step's
+ * words are typed.
+ *
+ * Mounted outside the canvas's view in the React tree. The window is portaled,
+ * and portal events still bubble through React: inside the view, the view's
+ * pointer handlers would hear the window's events as the canvas's own.
+ *
+ * Memoized: the canvas renders on every pointer move of a drag, and nothing
+ * here changes then.
+ */
+export const DiagramAnnotateToolWindow = memo(function DiagramAnnotateToolWindow({
+  container,
+  step,
+}: {
+  /** The canvas's view, whose right edge is the seam with the Step pane. */
+  container: HTMLElement | null;
+  step: DiagramStep;
+}) {
+  const { t } = useTranslation();
+  const hint = useAnnotateToolHint(step);
+  const tool = useAnnotateToolInHand(step);
+  const instructions = t('panels:diagram.annotate.instructions', 'Instructions');
+  if (!hint) return null;
+  return (
+    <ToolHintWindow
+      container={container}
+      collapseKey={STORAGE_KEYS.diagramToolHintCollapsed}
+      title={hint.title}
+      meta={instructions}
+      ariaLabel={t('panels:diagram.annotate.toolWindowLabel', 'Annotate tool instructions')}
+      inside
+    >
+      <ToolHintInstructions heading={instructions} intro={hint.instructions} items={hint.modifiers} />
+      <DiagramAnnotateToolParameters tool={tool} />
+    </ToolHintWindow>
+  );
+});

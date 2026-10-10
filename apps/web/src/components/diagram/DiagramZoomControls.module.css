@@ -1,0 +1,12 @@
+/* An enlargement's rows in the Layers pane (DiagramZoomControls.tsx): its fields, the shared rows (DiagramZoomRows.tsx) and its verbs. */
+.controls {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.verbs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+}

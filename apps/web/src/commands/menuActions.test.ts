@@ -1,8 +1,11 @@
+import { createDiagram, insertPictureSteps, type DiagramDocument } from '../diagram/document/diagramDocument';
 import { singleBoxPleatDesignTab } from '../store/workspaceStore/designTabs';
+import { useDiagramExportUiStore } from '../store/diagramExportUiStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   OristudioBpDocumentState,
 } from '../engine/oristudioBpTypes';
+import type { WorkspaceState } from '../store/workspaceStore/types';
 import type { OristudioCpDocumentState } from '../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../lib/creasePatternViewport';
 import { getWorkspaceCapabilities } from '../lib/workspaceCapabilities';
@@ -18,6 +21,9 @@ const routingMocks = vi.hoisted(() => ({
   navigateTo: vi.fn(),
   currentPath: vi.fn<() => string | null>(() => '/welcome'),
 }));
+
+const printMocks = vi.hoisted(() => ({ printDiagram: vi.fn(() => Promise.resolve(true)) }));
+vi.mock('../diagram/print/printDiagram', () => ({ printDiagram: printMocks.printDiagram }));
 
 vi.mock('../routing/appRouter', () => ({
   navigateTo: routingMocks.navigateTo,
@@ -101,6 +107,14 @@ function createDeps() {
       requestOristudioCpSurface: vi.fn(),
       executeOristudioCpCommand: vi.fn().mockResolvedValue(true),
       transformOristudioCpSelection: vi.fn().mockResolvedValue(true),
+      diagram: null as DiagramDocument | null,
+      diagramSelectedStepId: null as string | null,
+      diagramDetail: null as 'pose' | 'annotate' | null,
+      diagramSelectedAnnotationId: null as string | null,
+      diagramAnnotateTool: null as WorkspaceState['diagramAnnotateTool'],
+      diagramSelectedPathNode: null as WorkspaceState['diagramSelectedPathNode'],
+      confirmDeleteDiagramSteps: vi.fn().mockResolvedValue(true),
+      editDiagramAnnotations: vi.fn().mockReturnValue(true),
     },
     layout: {
       activatePanel: vi.fn(),
@@ -489,6 +503,101 @@ describe('menu actions', () => {
     expect(deps.workspace.deleteSelection).not.toHaveBeenCalled();
   });
 
+  it('routes Delete in the Diagram to the selected step, and never to a tree or crease pattern', async () => {
+    const deps = createDeps();
+    deps.workspace.activeEditingContext = 'diagram';
+    // Something deletable elsewhere, which Delete in the Diagram must not touch.
+    deps.workspace.oristudioCpDocument = {} as OristudioCpDocumentState;
+    const handle = createMenuActionHandler(deps);
+
+    deps.workspace.diagramSelectedStepId = 'step-2';
+    await expect(handle('edit.delete')).resolves.toBe(true);
+    expect(deps.workspace.confirmDeleteDiagramSteps).toHaveBeenCalledWith(['step-2']);
+
+    deps.workspace.diagramSelectedStepId = null;
+    await expect(handle('edit.delete')).resolves.toBe(false);
+    expect(deps.workspace.confirmDeleteDiagramSteps).toHaveBeenCalledOnce();
+    expect(deps.workspace.deleteSelection).not.toHaveBeenCalled();
+    expect(deps.workspace.executeOristudioCpCommand).not.toHaveBeenCalled();
+    expect(deps.workspace.deleteOristudioBpTreeNode).not.toHaveBeenCalled();
+  });
+
+  it('routes Delete in Annotate to the selected annotation, never to its step', async () => {
+    const deps = createDeps();
+    deps.workspace.activeEditingContext = 'diagram';
+    // A step with a picture to annotate.
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4" viewBox="0 0 4 4"/>';
+    const { document } = insertPictureSteps(
+      createDiagram(),
+      [{ id: 'asset-1', kind: 'svg', svg, widthPx: 4, heightPx: 4, bytes: svg.length }],
+      0,
+      (prefix) => (prefix === 'step' ? 'step-2' : `${prefix}-1`)
+    );
+    deps.workspace.diagram = document;
+    deps.workspace.diagramSelectedStepId = 'step-2';
+    deps.workspace.diagramDetail = 'annotate';
+    const handle = createMenuActionHandler(deps);
+
+    deps.workspace.diagramSelectedAnnotationId = null;
+    await expect(handle('edit.delete')).resolves.toBe(false);
+    expect(deps.workspace.editDiagramAnnotations).not.toHaveBeenCalled();
+
+    deps.workspace.diagramSelectedAnnotationId = 'annotation-b';
+    await expect(handle('edit.delete')).resolves.toBe(true);
+    const [stepId, , edit, options] = deps.workspace.editDiagramAnnotations.mock.calls[0]!;
+    expect(stepId).toBe('step-2');
+    expect(options).toEqual({ select: null });
+    const kept = edit([{ id: 'annotation-a' }, { id: 'annotation-b' }]);
+    expect(kept).toEqual([{ id: 'annotation-a' }]);
+    expect(deps.workspace.confirmDeleteDiagramSteps).not.toHaveBeenCalled();
+
+    // A step with nothing to annotate shows Pose, and Delete is the step's again.
+    deps.workspace.diagram = { ...document, steps: [{ ...document.steps[0]!, source: null, picture: null }] };
+    await expect(handle('edit.delete')).resolves.toBe(true);
+    expect(deps.workspace.confirmDeleteDiagramSteps).toHaveBeenCalledWith(['step-2']);
+  });
+
+  it('routes Delete in Edit Path to the selected node, and with none to the arrow', async () => {
+    const deps = createDeps();
+    deps.workspace.activeEditingContext = 'diagram';
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4" viewBox="0 0 4 4"/>';
+    const { document } = insertPictureSteps(
+      createDiagram(),
+      [{ id: 'asset-1', kind: 'svg', svg, widthPx: 4, heightPx: 4, bytes: svg.length }],
+      0,
+      (prefix) => (prefix === 'step' ? 'step-2' : `${prefix}-1`)
+    );
+    const arrow = {
+      id: 'arrow',
+      kind: 'valley-arrow' as const,
+      from: [0.1, 0.5] as [number, number],
+      to: [0.7, 0.5] as [number, number],
+      bend: 0.5,
+    };
+    deps.workspace.diagram = { ...document, steps: [{ ...document.steps[0]!, annotations: [arrow] }] };
+    deps.workspace.diagramSelectedStepId = 'step-2';
+    deps.workspace.diagramDetail = 'annotate';
+    deps.workspace.diagramSelectedAnnotationId = 'arrow';
+    deps.workspace.diagramAnnotateTool = 'edit-path';
+    // The half circle shows three nodes; the middle one is selected.
+    deps.workspace.diagramSelectedPathNode = { annotationId: 'arrow', node: 1, nodes: 3 };
+    const handle = createMenuActionHandler(deps);
+
+    await expect(handle('edit.delete')).resolves.toBe(true);
+    const [stepId, label, edit, options] = deps.workspace.editDiagramAnnotations.mock.calls[0]!;
+    expect([stepId, label, options]).toEqual(['step-2', 'Delete node', { selectPathNode: 0 }]);
+    const [shaped] = edit([arrow]);
+    expect(shaped.path.map((node: { at: number[] }) => node.at)).toEqual([arrow.from, arrow.to]);
+
+    // A selection taken against another count of nodes is none: the arrow goes, as with Select.
+    deps.workspace.diagramSelectedPathNode = { annotationId: 'arrow', node: 1, nodes: 4 };
+    await handle('edit.delete');
+    const [, deleteLabel, deleteArrow, deleteOptions] = deps.workspace.editDiagramAnnotations.mock.calls[1]!;
+    expect([deleteLabel, deleteOptions]).toEqual(['Delete annotation', { select: null }]);
+    expect(deleteArrow([arrow])).toEqual([]);
+    expect(deps.workspace.confirmDeleteDiagramSteps).not.toHaveBeenCalled();
+  });
+
   it('routes Delete to selected editable CP points', async () => {
     const deps = createDeps();
     deps.workspace.activeEditingContext = 'crease-pattern';
@@ -742,6 +851,36 @@ describe('menu actions', () => {
     }
   });
 
+  it('opens the Diagram export dialog from the File menu, to give focus back where it was', async () => {
+    const button = document.createElement('button');
+    document.body.append(button);
+    button.focus();
+    try {
+      await expect(createMenuActionHandler(createDeps())('file.exportDiagram')).resolves.toBe(true);
+      expect(useDiagramExportUiStore.getState().request).toMatchObject({ returnFocus: button });
+    } finally {
+      const request = useDiagramExportUiStore.getState().request;
+      if (request) useDiagramExportUiStore.getState().closeRequest(request.id);
+      button.remove();
+    }
+  });
+
+  it('prints the diagram from the File menu: its pages, through the print dialog', async () => {
+    printMocks.printDiagram.mockClear();
+    expect(isMenuActionId('file.printDiagram')).toBe(true);
+    await expect(createMenuActionHandler(createDeps())('file.printDiagram')).resolves.toBe(true);
+    expect(printMocks.printDiagram).toHaveBeenCalledOnce();
+    // Nothing to print: the capability holds it back before it is asked.
+    printMocks.printDiagram.mockClear();
+    const disabled = { enabled: false, visible: true, label: 'Print Diagram...', reason: 'Add a step to the diagram to print it' };
+    const deps = {
+      ...createDeps(),
+      capabilities: () => ({ 'file.printDiagram': disabled }) as unknown as ReturnType<typeof getWorkspaceCapabilities>,
+    };
+    await expect(createMenuActionHandler(deps)('file.printDiagram')).resolves.toBe(false);
+    expect(printMocks.printDiagram).not.toHaveBeenCalled();
+  });
+
   it('does not dispatch disabled capabilities', async () => {
     const deps = {
       ...createDeps(),
@@ -766,6 +905,12 @@ describe('menu actions', () => {
         oristudioCpSelectedCircleCount: 0,
         hasDeletableDesignSelection: false,
         canSaveDesign: true,
+        hasDiagram: false,
+        diagramStepCount: 0,
+        hasDeletableDiagramSelection: false,
+        diagramDeleteTarget: 'step',
+        canCopyDiagramAnnotation: false,
+        canPasteDiagramAnnotations: false,
         historyPastCount: 0,
         historyFutureCount: 0,
         clipboard: null,

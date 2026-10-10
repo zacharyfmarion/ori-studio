@@ -110,10 +110,19 @@ The native format and its migration live in
   being clear-eyed about: an older reader does not merely ignore an unknown
   field, it **deletes** it on re-save, because its own literal never names it.
   Raise the minimum only when that deletion is worse than refusing the file
-  outright — `unknownDesigns` is the one place we judged it so (`:588`), and note
-  it also needs `NATIVE_PROJECT_SCHEMA_VERSION` to have moved, since the check is
-  `minimumReaderSchemaVersion > NATIVE_PROJECT_SCHEMA_VERSION` and this build
-  would otherwise refuse its own output.
+  outright. Two places are judged so: `unknownDesigns`, which asks for reader 8,
+  and the Diagram workspace's `workspace.diagrams`, which asks for reader 10
+  (reader 9 was the single `workspace.diagram` before the list; this build
+  reads it as a list of one and writes the list).
+- **The reader bar is its own number.** The check is
+  `minimumReaderSchemaVersion > NATIVE_PROJECT_READER_VERSION`, and the reader
+  version may run ahead of `NATIVE_PROJECT_SCHEMA_VERSION`. That is what lets a
+  writer ask for a newer reader *only in the files that need one*: a project
+  with a diagram is still written as schema 8 but asks for reader 10, so an older
+  build refuses it ("update Ori Studio") instead of deleting the diagram on its
+  next save, while every file without a diagram stays readable by every build
+  that read it before. Raise `NATIVE_PROJECT_READER_VERSION` together with the
+  new minimum, never the schema version.
 
 ### 3. Register it as *lossy-on-export*
 Add the feature to the shared **superset-feature registry**

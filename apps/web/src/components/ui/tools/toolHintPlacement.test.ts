@@ -27,6 +27,18 @@ describe('toolHintPlacement', () => {
     expect(wide.right - left).toBe(TOOL_HINT_OVERHANG);
   });
 
+  it('keeps to the viewport’s side of the seam when asked, its right edge the inset in from it (review 4)', () => {
+    const { left, width } = toolHintPlacement(DEFAULT_ANCHOR, WINDOW, null, { inside: true });
+    expect(left + width).toBe(DEFAULT_ANCHOR.right - TOOL_HINT_INSET);
+    // The pane dragged wider: still clear of it.
+    const wide = { ...DEFAULT_ANCHOR, right: WINDOW.width - 520 };
+    const placed = toolHintPlacement(wide, WINDOW, null, { inside: true });
+    expect(placed.left + placed.width).toBe(wide.right - TOOL_HINT_INSET);
+    // And over a toolbar that reaches its corner, as overhanging it steps.
+    const toolbar = { left: DEFAULT_ANCHOR.right - 400, right: DEFAULT_ANCHOR.right - 100, top: DEFAULT_ANCHOR.bottom - 40 };
+    expect(toolHintPlacement(DEFAULT_ANCHOR, WINDOW, toolbar, { inside: true }).bottom).toBeGreaterThan(WINDOW.height - toolbar.top);
+  });
+
   it('sits above the viewport bottom by the inset', () => {
     const { bottom } = toolHintPlacement(DEFAULT_ANCHOR, WINDOW);
     expect(bottom).toBe(WINDOW.height - DEFAULT_ANCHOR.bottom + TOOL_HINT_INSET);

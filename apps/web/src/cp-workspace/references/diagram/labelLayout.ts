@@ -25,7 +25,7 @@
  * the same argument again.
  */
 import type { StepDiagramPrimitive } from '../referenceFinderDiagramToPrimitives';
-import type { DiagramProjector, DiagramSheet, SvgPoint } from '../stepDiagramGeometry';
+import type { DiagramProjector, DiagramRing, DiagramSheet, SvgPoint } from '../stepDiagramGeometry';
 import { DIAGRAM_LABEL_INK, DIAGRAM_MARK_INK, labelWidth } from './diagramInk';
 
 export interface Rect {
@@ -118,10 +118,13 @@ function lengthInside(box: Rect, segment: Segment): number {
 export function diagramMarks(
   primitives: readonly StepDiagramPrimitive[],
   project: DiagramProjector
-): SvgPoint[] {
-  const marks: SvgPoint[] = [];
+): DiagramRing[] {
+  const marks: DiagramRing[] = [];
   for (const primitive of primitives) {
-    if (primitive.kind === 'point') marks.push(project(primitive.at));
+    if (primitive.kind === 'point') {
+      const point = project(primitive.at);
+      marks.push(primitive.radius === undefined ? point : { ...point, radius: primitive.radius * project.scale });
+    }
   }
   return marks;
 }
@@ -218,7 +221,7 @@ function placementOf(box: Rect, direction: Direction): LabelPlacement {
 interface Obstacles {
   bounds: Rect | undefined;
   reserved: readonly Rect[];
-  rings: readonly SvgPoint[];
+  rings: readonly DiagramRing[];
   ringRadius: number;
   lines: readonly Segment[];
   /** The letter's halo, which is what a line under it loses. */
@@ -253,8 +256,8 @@ function costOf(box: Rect, obstacles: Obstacles): number {
   if (obstacles.bounds) cost += box.width * box.height - overlapArea(box, obstacles.bounds);
   for (const reserved of obstacles.reserved) cost += overlapArea(box, reserved);
   for (const ring of obstacles.rings) {
-    if (!coversRing(box, ring, obstacles.ringRadius)) continue;
-    const r = obstacles.ringRadius;
+    const r = ring.radius ?? obstacles.ringRadius;
+    if (!coversRing(box, ring, r)) continue;
     cost += overlapArea(box, { x: ring.x - r, y: ring.y - r, width: 2 * r, height: 2 * r });
   }
   for (const other of obstacles.placed) cost += overlapArea(box, other);
@@ -286,7 +289,6 @@ export function placeLabels(
   const size = project.marks.labelSize * project.ink;
   const height = DIAGRAM_LABEL_INK.glyph.height * size;
   const ringRadius = markOuterRadius(project);
-  const reach = ringRadius + DIAGRAM_LABEL_INK.standoff * project.ink;
   // The paper's middle, which on the canvas is not half its size: the sheet
   // sits wherever the document put it, and a letter pushed "outward" from the
   // origin's corner would go inward on three quadrants of it.
@@ -295,7 +297,9 @@ export function placeLabels(
   const obstacles: Obstacles = {
     bounds: options.bounds,
     reserved: options.reserved ?? [],
-    rings: diagramMarks(primitives, project),
+    rings: diagramMarks(primitives, project).map((ring) =>
+      ring.radius === undefined ? ring : { ...ring, radius: ring.radius + markRingWidth(project) / 2 }
+    ),
     ringRadius,
     lines: diagramLines(primitives, project),
     halo: (DIAGRAM_LABEL_INK.halo / 2) * project.ink,
@@ -305,6 +309,8 @@ export function placeLabels(
     if (primitive.kind !== 'label') return;
     const point = project(primitive.at);
     const width = labelWidth(primitive.text, size);
+    const ownRing = obstacles.rings.find((ring) => Math.hypot(ring.x - point.x, ring.y - point.y) <= edge);
+    const reach = (ownRing?.radius ?? ringRadius) + DIAGRAM_LABEL_INK.standoff * project.ink;
     let best: { placement: LabelPlacement; cost: number } | null = null;
     // Tight against the mark first; half a letter further out is still beside it.
     search: for (const distance of [reach, reach + height / 2]) {

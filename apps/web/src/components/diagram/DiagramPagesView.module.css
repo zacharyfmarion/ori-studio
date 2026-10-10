@@ -1,0 +1,169 @@
+/*
+ * The Pages view (DiagramPagesView.tsx): the composed pages in a column on the
+ * workspace's dark ground, under one camera, with what is only for the screen
+ * — the margin guide, the selection, an empty step's box, a cut text's mark —
+ * laid over each page rather than drawn into it.
+ */
+.view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.view:focus {
+  outline: none;
+}
+
+.view[data-space-pan] {
+  cursor: grab;
+}
+
+.world {
+  position: relative;
+}
+
+.page {
+  position: absolute;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 14px 36px rgba(0, 0, 0, 0.35);
+}
+
+/* The flow band (DiagramPageBand), under the composed page, which leaves it out. */
+.band {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* The composed page: the file itself, but for its band. */
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.caption {
+  position: absolute;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.guide {
+  position: absolute;
+  border: 1px dashed color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  pointer-events: none;
+}
+
+.cell {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: calc(var(--radius) / 2);
+  cursor: pointer;
+}
+
+.cell:hover {
+  background: color-mix(in srgb, var(--accent-primary) 4%, transparent);
+}
+
+.cell[aria-selected='true'] {
+  background: color-mix(in srgb, var(--accent-primary) 7%, transparent);
+  box-shadow: inset 0 0 0 2px var(--accent-primary);
+}
+
+/* A turn's glyph between two pictures (D22), selected as a cell is. */
+.turn {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.turn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.turn[aria-selected='true'] {
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  box-shadow: inset 0 0 0 2px var(--accent-primary);
+}
+
+/* An enlarge arrow (Revision 2): a target over it, for the pointer, which selects the step it leads to. */
+.arrow {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.arrow:hover {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+/* An empty step's picture box: where its picture will go. */
+.placeholder {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 1px dashed #c4c4bd;
+  border-radius: var(--radius-sm);
+  background: #fafaf7;
+  color: #8f8f88;
+  font-size: 0.7rem;
+  pointer-events: none;
+}
+
+/*
+ * The instruction was cut with "…" on the page: an outline round the lines it
+ * set, and the word on a tab hanging from the outline's foot at its end, in
+ * the space under the text, so neither covers a letter or the picture.
+ */
+.overflow {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed var(--status-warning, #d7a85c);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}
+
+.overflowTab {
+  position: absolute;
+  top: 100%;
+  right: -1px;
+  padding: 1px 6px;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: var(--status-warning, #d7a85c);
+  color: #1d1d1d;
+  font-size: 0.62rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+.pageOf {
+  padding: 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

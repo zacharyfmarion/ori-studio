@@ -65,6 +65,11 @@ export interface ReferencesPhoneFlow {
   /** A press on a card: make the sheet the workspace's and, on a phone, show it. */
   openSheet: (component: number) => void;
   /**
+   * The same for a sheet asked for from elsewhere — a diagram step's Open in
+   * References — which no card press made, so it is not counted as one.
+   */
+  showSheet: (component: number) => void;
+  /**
    * A press on a finding in the notes: make it the active one and, on a phone,
    * show the detail — the finding frames itself on the canvas, and the canvas
    * is on the detail.
@@ -117,6 +122,13 @@ export function useReferencesPhoneFlow(
     },
     [selectSheet, showDetail]
   );
+  const showSheet = useCallback(
+    (component: number) => {
+      selectSheet(component);
+      openDetail();
+    },
+    [selectSheet, openDetail]
+  );
   const openFinding = useCallback(
     (index: number | null) => {
       selectFinding(index);
@@ -124,5 +136,5 @@ export function useReferencesPhoneFlow(
     },
     [selectFinding, showDetail]
   );
-  return { screen: flow.screen, openSheet, openFinding, back: flow.back };
+  return { screen: flow.screen, openSheet, showSheet, openFinding, back: flow.back };
 }

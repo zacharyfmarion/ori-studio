@@ -43,6 +43,7 @@ import {
   planIsForSheet,
   type ReferencesFlatStep,
 } from './referencesBreakdown';
+import { cachedPlanRecord } from './referencesCachedPlanRecord';
 import { decodePlanModel, planModelPoints } from './referencesPlanGeometry';
 import {
   cachedPlanOf,
@@ -59,7 +60,7 @@ import {
 } from './referencesPlanCacheStore';
 import { planFilmstrip } from './referencesFilmstrip';
 import { planHighlights } from './useReferencesView';
-import { locateCard, planStrip } from './referencesReaderState';
+import { locateCard, locateStepCard, planStrip } from './referencesReaderState';
 import {
   referencesResultsSnapshot,
   setReferencesAnalysisRecord,
@@ -254,6 +255,8 @@ interface PreparedInstall {
   activeStep: number;
   /** The view opens on a card a reopened project restored, which is then used up. */
   restoredCard: boolean;
+  /** It opens on the card a diagram step asked for, which is then used up too. */
+  askedCard: boolean;
 }
 
 /**
@@ -436,6 +439,11 @@ export function useReferencesBreakdown(
   // and the store's copy is the analytics descriptor.
   const loadSerial = useWorkspaceStore((state) => state.oristudioCpDocument?.loadSerial ?? null);
   const takeRestoredCard = useWorkspaceStore((state) => state.takeReferencesRestoredCard);
+  const takeCardRequest = useWorkspaceStore((state) => state.takeReferencesCardRequest);
+  // A card a diagram step asked for on this sheet (Open in References).
+  const cardAsked = useWorkspaceStore(
+    (state) => selectedSheet !== null && state.referencesCardRequest?.sheet === selectedSheet
+  );
   const analysisSummary = useWorkspaceStore((state) => state.referencesAnalysis);
   const progress = useWorkspaceStore((state) => state.referencesProgress);
   const setReferencesPlan = useWorkspaceStore((state) => state.setReferencesPlan);
@@ -598,8 +606,9 @@ export function useReferencesBreakdown(
   /**
    * Everything a plan needs before it goes on screen, worked out first so a
    * throw leaves nothing half-installed: its summary, and the card the view
-   * opens on — the first, or, the first time a plan lands after a project was
-   * reopened, the card the reader had open, found by its line.
+   * opens on — the first; or, the first time a plan lands after a project was
+   * reopened, the card the reader had open, found by its line; or, over that,
+   * the card a diagram step asked for on this sheet.
    *
    * With `rehearse`, also every reading the panel makes of the plan — the
    * strip's cards, and each card's picture and fold — for a plan that came out
@@ -612,13 +621,16 @@ export function useReferencesBreakdown(
       const loadSerial = latest.current.loadSerial;
       const restore = useWorkspaceStore.getState().referencesRestore;
       const card = loadSerial !== null && restore?.loadSerial === loadSerial ? restore.card : null;
+      const asked = useWorkspaceStore.getState().referencesCardRequest;
+      const askedCard = asked !== null && asked.sheet === latest.current.selectedSheet ? asked.card : null;
       let activeStep = 0;
-      if (card || rehearse) {
+      if (askedCard || card || rehearse) {
         const strip = planStrip(record, {
           landmarksFirst: latest.current.landmarksFirst,
           planWays: ways,
         });
-        if (card) activeStep = locateCard(strip.variants, strip.viewSteps, card);
+        if (askedCard) activeStep = locateStepCard(strip.variants, strip.viewSteps, askedCard);
+        else if (card) activeStep = locateCard(strip.variants, strip.viewSteps, card);
         if (rehearse) {
           // Every card, not only the open one: the reader may step to any of
           // them, and a plan that breaks on the twentieth must be caught here.
@@ -630,7 +642,12 @@ export function useReferencesBreakdown(
           );
         }
       }
-      return { summary: summaryOf(record), activeStep, restoredCard: card !== null };
+      return {
+        summary: summaryOf(record),
+        activeStep,
+        restoredCard: card !== null,
+        askedCard: askedCard !== null,
+      };
     },
     [t]
   );
@@ -646,11 +663,12 @@ export function useReferencesBreakdown(
       setReferencesPlan(prepared.summary);
       setReferencesView({ activeStep: prepared.activeStep, activeFinding: null, planWays: ways });
       setReferencesRun({ status: 'idle' });
-      const loadSerial = latest.current.loadSerial;
+      const { loadSerial, selectedSheet: sheet } = latest.current;
       if (prepared.restoredCard && loadSerial !== null) takeRestoredCard(loadSerial);
+      if (prepared.askedCard && sheet !== null) takeCardRequest(sheet);
       return prepared.summary;
     },
-    [setReferencesPlan, setReferencesRun, setReferencesView, takeRestoredCard]
+    [setReferencesPlan, setReferencesRun, setReferencesView, takeRestoredCard, takeCardRequest]
   );
 
   const run = useCallback(() => {
@@ -853,27 +871,7 @@ export function useReferencesBreakdown(
       ) {
         return true;
       }
-      const component: ReferencesPlanComponent = {
-        component: cached.sheet,
-        result: {
-          ...plan.result,
-          computedAtRevision: cached.revision,
-          component: cached.sheet,
-          info: { ...plan.result.info, component: cached.sheet },
-          sequence: plain.sequence,
-        },
-        frame: cached.frame,
-        plain,
-        hoisted,
-        cacheKey: cached.key,
-      };
-      const record: ReferencesPlanRecord = {
-        revision: cached.revision,
-        components: [component],
-        refused: [],
-        durationMs: plan.durationMs,
-        ...cached.key.settings,
-      };
+      const record = cachedPlanRecord(plan, cached.key, cached.sheet, cached.revision, { plain, hoisted });
       const ways = wayChoicesOfSheet(cached.ways, 0);
       install(record, ways, readable(() => prepareInstall(record, ways, true)));
       return true;
@@ -1081,6 +1079,16 @@ export function useReferencesBreakdown(
     },
     [viewSteps.length, setReferencesView]
   );
+
+  // A card asked for while this sheet's plan is already on screen: a diagram
+  // step's Open in References, back on a sheet planned before. One that asks
+  // before the plan lands is placed by `install`, which uses it up.
+  useEffect(() => {
+    if (!cardAsked || record === null || selectedSheet === null) return;
+    const card = takeCardRequest(selectedSheet);
+    if (!card) return;
+    setReferencesView({ activeStep: locateStepCard(variants, viewSteps, card), activeFinding: null });
+  }, [cardAsked, record, selectedSheet, variants, viewSteps, takeCardRequest, setReferencesView]);
 
   const selectFinding = useCallback(
     (index: number | null) => setReferencesView({ activeFinding: index }),

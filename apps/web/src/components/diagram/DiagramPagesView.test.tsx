@@ -1,0 +1,258 @@
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createDiagram,
+  createStep,
+  createTurn,
+  insertSteps,
+  type DiagramDocument,
+  type KnownDiagramAnnotation,
+} from '../../diagram/document/diagramDocument';
+import { cpStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
+import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from '../../diagram/fonts/diagramFontFaces';
+import type { DiagramFonts } from '../../diagram/fonts/diagramFonts';
+import { readFontMetrics } from '../../diagram/fonts/fontMetrics';
+import { createFontSubsetter, type FontSubsetter } from '../../diagram/fonts/fontSubset';
+import { bandPath } from '../../diagram/pages/composeDiagramPage';
+import { preparedPages, type PreparedDiagramPages } from '../../diagram/pages/diagramPages';
+import { clearPathColorPick, publishPathColorPick } from '../../diagram/pages/pathColorPick';
+import { TooltipProvider } from '../ui/Tooltip';
+import { focusLeavesEnterToSteps, focusOwnsArrowKeys } from '../../diagram/actions/diagramShortcuts';
+import { DiagramPagesView } from './DiagramPagesView';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const FONT_DIR = resolve(process.cwd(), 'src/diagram/fonts');
+const FONTS: DiagramFonts = {
+  font(key: DiagramFontKey, weight: DiagramFontWeight) {
+    if (key !== 'latin') return null;
+    const bytes = new Uint8Array(readFileSync(resolve(FONT_DIR, weight === 700 ? 'NotoSans-Bold.ttf' : 'NotoSans-Regular.ttf')));
+    return { key, weight, family: DIAGRAM_FONT_FAMILY.latin, tier: 'bundled', bytes, metrics: readFontMetrics(bytes) };
+  },
+  unavailable: [],
+};
+
+let subsetter: FontSubsetter;
+beforeAll(async () => {
+  const require = createRequire(import.meta.url);
+  subsetter = await createFontSubsetter(readFileSync(require.resolve('harfbuzzjs/dist/harfbuzz-subset.wasm')));
+});
+
+const LONG = 'Fold the corner up and crease it firmly. '.repeat(12);
+
+function diagram(): DiagramDocument {
+  return insertSteps(
+    createDiagram({ title: 'Crane' }),
+    [cpStep('step-a'), { ...createStep(() => 'step-empty'), text: 'Nothing yet.' }, { ...cpStep('step-long'), text: LONG }],
+    0
+  );
+}
+
+let host: HTMLDivElement;
+let root: Root;
+beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  );
+  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+  host = document.createElement('div');
+  document.body.append(host);
+  root = createRoot(host);
+});
+afterEach(() => {
+  act(() => root.unmount());
+  host.remove();
+  vi.unstubAllGlobals();
+});
+
+function render(
+  pages: PreparedDiagramPages,
+  handlers: Partial<Record<'onSelect' | 'onOpen' | 'onOpenArea' | 'onPageClick', () => void>> = {},
+  pathColor = pages.layout.bandInk,
+  document = diagram()
+) {
+  const props = { onSelect: vi.fn(), onOpen: vi.fn(), onOpenArea: vi.fn(), onPageClick: vi.fn(), ...handlers };
+  act(() =>
+    root.render(
+      <TooltipProvider>
+        <DiagramPagesView
+          pages={pages}
+          failed={false}
+          steps={stepsIn(document)}
+          selectedStepId="step-a"
+          pathColor={pathColor}
+          fitKey="test"
+          {...props}
+        />
+      </TooltipProvider>
+    )
+  );
+  return props;
+}
+
+const cells = () => [...host.querySelectorAll<HTMLElement>('[role="option"][data-step-id]')];
+/** The SVG an image shows, from its `data:` URL. */
+const svgOf = (image: HTMLImageElement) => Buffer.from(image.src.split(',')[1]!, 'base64').toString('utf8');
+
+describe('DiagramPagesView', () => {
+  it('shows each page as its composed image, named and captioned, and says which page is in view', () => {
+    render(preparedPages(diagram(), FONTS, subsetter));
+    const page = host.querySelector<HTMLElement>('[role="group"][data-page="0"]')!;
+    expect(page.getAttribute('aria-label')).toBe('Page 1');
+    expect(page.querySelector('img')?.src.startsWith('data:image/svg+xml;base64,')).toBe(true);
+    expect(host.textContent).toContain('Page 1 of 1');
+    // The pager: one page, so neither way goes anywhere.
+    const turn = (name: string) => host.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
+    expect(turn('Previous Page')?.disabled).toBe(true);
+    expect(turn('Next Page')?.disabled).toBe(true);
+  });
+
+  it('draws the flow band under the page’s image, which leaves it out, and a colour being picked repaints the band alone', () => {
+    const pages = preparedPages(diagram(), FONTS, subsetter);
+    const lane = pages.layout.pages[0]!.band!;
+    // The file draws the band; the image on screen is the file without it.
+    const file = pages.compose(0).svg;
+    expect(file).toContain(`<path d="${bandPath(lane)}"`);
+    const compose = vi.spyOn(pages, 'compose');
+    render(pages, {}, '#ecece8');
+    const page = host.querySelector<HTMLElement>('[data-page="0"]')!;
+    const image = page.querySelector('img')!;
+    const art = svgOf(image);
+    expect(art).not.toContain(bandPath(lane));
+    expect(art).toBe(pages.compose(0, { band: false }).svg);
+    const band = page.querySelector('[data-page-band] path')!;
+    expect(band.getAttribute('d')).toBe(bandPath(lane));
+    expect(band.getAttribute('stroke')).toBe('#ecece8');
+    // Under the image, as the file draws it first.
+    expect(page.querySelector('[data-page-band]')!.compareDocumentPosition(image) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const composed = compose.mock.calls.length;
+    const src = image.src;
+    for (const color of ['#d0e0f0', '#c0d8f0', '#b0d0f0']) {
+      act(() => publishPathColorPick(color));
+      expect(band.getAttribute('stroke')).toBe(color);
+    }
+    expect(page.querySelector('img')!.src).toBe(src);
+    expect(compose.mock.calls.length).toBe(composed);
+    // Written and dropped: the diagram's colour, still no page composed.
+    render(pages, {}, '#b0d0f0');
+    act(() => clearPathColorPick());
+    expect(band.getAttribute('stroke')).toBe('#b0d0f0');
+    expect(page.querySelector('img')!.src).toBe(src);
+    expect(compose.mock.calls.length).toBe(composed);
+  });
+
+  it('lays the steps over the page as one listbox, the selected one marked and the tab stop', () => {
+    render(preparedPages(diagram(), FONTS, subsetter));
+    expect(host.querySelector('[role="listbox"]')?.hasAttribute('data-diagram-steps')).toBe(true);
+    expect(
+      cells().map((cell) => [cell.getAttribute('aria-label'), cell.getAttribute('aria-selected'), cell.tabIndex])
+    ).toEqual([
+      ['Step 1', 'true', 0],
+      ['Step 2', 'false', -1],
+      ['Step 3, text doesn’t fit', 'false', -1],
+    ]);
+  });
+
+  it('lists a turn where it reads, named by what it is and where, its target the glyph’s own box (D22)', () => {
+    const turned = insertSteps(
+      insertSteps(diagram(), [createTurn({ kind: 'turn-over', axis: 'vertical' }, () => 'turn-a')], 1),
+      [createTurn({ kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } }, () => 'turn-z')],
+      4
+    );
+    render(preparedPages(turned, FONTS, subsetter));
+    expect(cells().map((cell) => cell.getAttribute('aria-label'))).toEqual([
+      'Step 1',
+      'Turn over, side to side, between steps 1 and 2',
+      'Step 2',
+      'Step 3, text doesn’t fit',
+      'Rotate 1/4 turn clockwise, after step 3',
+    ]);
+    const target = host.querySelector<HTMLElement>('[data-step-id="turn-a"]')!;
+    // Wider than tall, as the side-to-side turn-over prints.
+    expect(parseFloat(target.style.width)).toBeGreaterThan(parseFloat(target.style.height));
+  });
+
+  it('leaves Enter and the arrows on a focused step to the Diagram’s keys, as a card does', () => {
+    render(preparedPages(diagram(), FONTS, subsetter));
+    const cell = cells()[1]!;
+    expect(focusLeavesEnterToSteps(cell)).toBe(true);
+    expect(focusOwnsArrowKeys(cell)).toBe(false);
+  });
+
+  it('names a page by its place when the pages print no numbers', () => {
+    const document = diagram();
+    const unnumbered = { ...document, page: { ...document.page, pageNumbers: { enabled: false, first: 12 } } };
+    const pages = preparedPages(unnumbered, FONTS, subsetter);
+    render(pages);
+    expect(host.querySelector('[data-page="0"]')?.getAttribute('aria-label')).toBe('Page 1');
+    // And by the number it prints when it prints one.
+    const numbered = preparedPages({ ...unnumbered, page: { ...unnumbered.page, pageNumbers: { enabled: true, first: 12 } } }, FONTS, subsetter);
+    render(numbered);
+    expect(host.querySelector('[data-page="0"]')?.getAttribute('aria-label')).toBe('Page 12');
+    expect(host.textContent).toContain('Page 1 of 1');
+  });
+
+  it('marks an empty step’s picture box and a cut instruction over the page, never in it', () => {
+    const pages = preparedPages(diagram(), FONTS, subsetter);
+    render(pages);
+    expect(host.textContent).toContain('No picture yet');
+    expect(host.textContent).toContain('Text doesn’t fit');
+    expect(pages.layout.pages[0]!.cells[2]!.textOverflow).toBe(true);
+    const svg = pages.compose(0).svg;
+    expect(svg).not.toContain('No picture yet');
+    expect(svg).not.toContain('doesn’t fit');
+  });
+
+  it('puts a target over an enlarge arrow where the page prints it: a press selects the enlarged step, a double press opens the area (Revision 2)', () => {
+    const area: KnownDiagramAnnotation = { id: 'area-1', kind: 'zoom', from: [0.5, 0.4], to: [0.5, 0.4], radius: 0.2 };
+    const document = insertSteps(
+      createDiagram({ title: 'Crane' }),
+      [
+        { ...cpStep('step-area'), annotations: [area] },
+        { ...cpStep('step-enlarged'), zoom: { from: 'area-1', shape: 'circle', frame: { centre: [0.5, 0.4], radius: 0.2 } } },
+      ],
+      0
+    );
+    const pages = preparedPages(document, FONTS, subsetter);
+    const props = render(pages, {}, pages.layout.bandInk, document);
+    // The arrow is no option of the listbox: the keyboard reaches its steps.
+    expect(cells().map((cell) => cell.getAttribute('aria-label'))).toEqual(['Step 1', 'Step 2']);
+    const target = host.querySelector<HTMLElement>('[data-zoom-arrow="step-enlarged"]')!;
+    expect(target.getAttribute('aria-hidden')).toBe('true');
+    const [arrow] = pages.zoomArrows(0);
+    // Over the arrow where it prints, lifted to the area: its own box and the pad round it.
+    const mm = 96 / 25.4;
+    expect(parseFloat(target.style.top)).toBeCloseTo((arrow!.at.y - arrow!.box.h / 2 - 0.75) * mm, 3);
+    expect(parseFloat(target.style.width)).toBeCloseTo((arrow!.box.w + 1.5) * mm, 3);
+    act(() => target.click());
+    expect(props.onSelect).toHaveBeenCalledWith('step-enlarged');
+    act(() => {
+      target.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    });
+    expect(props.onOpenArea).toHaveBeenCalledWith('step-area', 'area-1');
+    expect(props.onOpen).not.toHaveBeenCalled();
+    expect(props.onPageClick).not.toHaveBeenCalled();
+  });
+
+  it('selects a step on a press, opens it on a double press, and asks about the page elsewhere', () => {
+    const props = render(preparedPages(diagram(), FONTS, subsetter));
+    act(() => cells()[1]!.click());
+    expect(props.onSelect).toHaveBeenCalledWith('step-empty');
+    expect(props.onPageClick).not.toHaveBeenCalled();
+    act(() => {
+      cells()[2]!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    });
+    expect(props.onOpen).toHaveBeenCalledWith('step-long');
+    act(() => host.querySelector<HTMLElement>('[data-page="0"]')!.click());
+    expect(props.onPageClick).toHaveBeenCalledOnce();
+  });
+});

@@ -95,8 +95,12 @@ export type { PaperExportScope };
 export interface PaperExportTarget {
   /** Only surfaces with a captured mesh offer OBJ. */
   obj?: PaperObjExport;
-  /** Which surface this is: the analytics enum, and the style policy (`PAPER_STYLE_POLICIES[surface]`). */
-  surface: PaperSurface;
+  /**
+   * Which surface this is: the analytics enum, and the style policy
+   * (`PAPER_STYLE_POLICIES[surface]`). Not the Diagram, which exports through
+   * a dialog of its own: pages as a PDF, or step files.
+   */
+  surface: Exclude<PaperSurface, 'diagram-workspace'>;
   /** The dialog's title: "Export step 3". */
   title: string;
   /** The suggested file name, before sanitising and without an extension. */
@@ -128,7 +132,7 @@ export interface PaperExportTarget {
   hint?: string | null;
   /**
    * The marks the picture can be exported without, which the dialog offers
-   * as options: a References step's letters and line highlights. Absent for a
+   * as options: a References step's letters and reference lines. Absent for a
    * picture that has none — it is drawn whole whatever the options say.
    */
   marks?: readonly PaperExportMark[];

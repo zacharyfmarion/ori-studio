@@ -732,6 +732,7 @@ const PAPER_LINE_ROLES = [
   'valley',
   'diagram-mountain',
   'diagram-valley',
+  'diagram-hidden',
   'aux',
 ] as const satisfies readonly PaperLineRole[];
 

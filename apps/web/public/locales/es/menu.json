@@ -88,6 +88,7 @@
     "export": "Exportar",
     "exportBps": "Exportar .bps...",
     "exportCp": "Exportar CP...",
+    "exportDiagram": "Exportar diagrama...",
     "exportFold": "Exportar FOLD...",
     "exportOrh": "Exportar ORH...",
     "exportOri": "Exportar ORI...",
@@ -98,6 +99,7 @@
     "importAdd": "Importar (añadir)...",
     "new": "Nuevo proyecto",
     "open": "Abrir...",
+    "printDiagram": "Imprimir diagrama...",
     "save": "Guardar",
     "saveAs": "Guardar como...",
     "settings": "Configuración"
@@ -126,6 +128,7 @@
   },
   "view": {
     "design": "Diseño",
+    "diagram": "Diagrama",
     "edit": "Editar",
     "properties": "Propiedades",
     "references": "Referencias",

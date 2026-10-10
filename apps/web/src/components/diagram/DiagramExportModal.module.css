@@ -1,0 +1,131 @@
+/*
+ * The Diagram export dialog's preview column (DiagramExportModal.tsx): the
+ * page or file drawn at fit in a box of its own aspect, a pager, and its size
+ * under it. The box is sized through container units rather than fitting the
+ * image to the pane, so a transparent file's checkerboard covers the file
+ * only and its margin reads as part of it.
+ */
+.column {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 0;
+}
+
+.preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 280px;
+  overflow: hidden;
+  /* No border, as the other export dialogs draw none (theirs names a token theme.css lacks). */
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  container-type: size;
+}
+
+.sheet,
+.spread {
+  --page-inset: var(--space-3);
+
+  width: min(
+    calc(100cqw - 2 * var(--page-inset)),
+    calc((100cqh - 2 * var(--page-inset)) * var(--page-aspect, 1))
+  );
+  aspect-ratio: var(--page-aspect, 1);
+}
+
+.sheet,
+.spreadPage {
+  /* A page prints on white paper; a file with a ground has one of its own. */
+  background: #ffffff;
+  box-shadow: 0 0 0 1px var(--border-subtle);
+}
+
+/*
+ * The SVG's spread on show: its pages side by side, meeting at the spine, as
+ * the sheet lays them out; the side of a spread with no page is left empty.
+ */
+.spread {
+  display: grid;
+  grid-template-columns: repeat(var(--spread-across, 2), minmax(0, 1fr));
+}
+
+.spreadPage {
+  min-width: 0;
+}
+
+.sheet[data-transparent] {
+  background: repeating-conic-gradient(#dcdcdc 0% 25%, #ffffff 0% 50%) 0 0 / 12px 12px;
+}
+
+.sheet img,
+.spreadPage img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.state {
+  position: absolute;
+  inset: auto var(--space-3) var(--space-3);
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.state[data-tone='error'] {
+  color: var(--status-danger);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  min-height: 1.2em;
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.caption[data-tone='error'] {
+  color: var(--status-danger);
+}
+
+.saveError {
+  margin-right: auto;
+  color: var(--status-danger);
+  font-size: 0.72rem;
+}
+
+/* The name the save dialog is offered, where the footer has room for it. */
+.filename {
+  min-width: 0;
+  margin-right: auto;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .preview {
+    min-height: 210px;
+  }
+}

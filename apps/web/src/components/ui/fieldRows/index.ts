@@ -6,3 +6,4 @@ export { SegmentedRow, type SegmentedRowOption } from './SegmentedRow';
 export { SliderRow, formatSliderValue } from './SliderRow';
 export { ColorRow } from './ColorRow';
 export { TextRow } from './TextRow';
+export { TextAreaRow } from './TextAreaRow';

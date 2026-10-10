@@ -20,6 +20,68 @@
     "simulateFailed": "That region could not be simulated.",
     "simulateNoRegion": "Select a closed region to simulate."
   },
+  "diagram": {
+    "addedAsStep": "Added as step {{number}}",
+    "capture": {
+      "failed": "The picture couldn’t be captured",
+      "missing": "That pattern isn’t in the crease pattern any more.",
+      "needsPose": "A step folded part way in the simulator is captured in Pose: open it with Adjust Pose.",
+      "noLayerOrder": "Its layers couldn’t be put in order, so the step shows the folded paper see-through.",
+      "noPattern": "Open a crease pattern in Edit first.",
+      "readOnly": "This diagram was made with a newer Ori Studio and opens read-only.",
+      "refused": "This pattern doesn’t fold",
+      "tooDetailed": "Too detailed to keep as a drawing, so the step keeps it as an image.",
+      "unavailable": "This pattern can’t be simulated.",
+      "unknown": "The crease pattern isn’t ready yet. Try again in a moment."
+    },
+    "dropReadOnly": "This diagram was made with a newer Ori Studio and opens read-only, so pictures can’t be added to it.",
+    "references": {
+      "addedSteps": "Added as steps {{first}}–{{last}}",
+      "addedTurnOvers_one": "Added a turn-over",
+      "addedTurnOvers_other": "Added {{count}} turn-overs",
+      "bakedStep": "Step {{number}}’s marks stay part of its picture: there are more than a step holds.",
+      "bakedSteps_one": "A step’s marks stay part of its picture: there are more than a step holds.",
+      "bakedSteps_other": "{{count}} steps’ marks stay part of their pictures: there are more than a step holds.",
+      "filledStep": "Filled step {{number}}",
+      "marksEditable_one": "Step {{number}}’s mark is editable now",
+      "marksEditable_other": "Step {{number}}’s {{count}} marks are editable now",
+      "marksOutsideFrame_one": "A mark outside the enlarged frame was left out",
+      "marksOutsideFrame_other": "{{count}} marks outside the enlarged frame were left out",
+      "noMarksInFrame": "None of step {{number}}’s marks are in its enlarged frame",
+      "replacedEdited_one": "Replaced a mark you had edited",
+      "replacedEdited_other": "Replaced {{count}} marks you had edited",
+      "replacedStep": "Replaced step {{number}}’s card",
+      "tooLarge": "This step is too detailed to keep in the diagram.",
+      "undoReplaced": "Undo"
+    },
+    "refreshedAll_one": "Refreshed 1 step",
+    "refreshedAll_other": "Refreshed {{count}} steps",
+    "uploadFailed_one": "A picture couldn’t be added",
+    "uploadFailed_other": "{{count}} pictures couldn’t be added",
+    "uploadFailureLine": "{{name}}: {{reason}}",
+    "uploadFailureMore_one": "and 1 more",
+    "uploadFailureMore_other": "and {{count}} more",
+    "uploadProgress_one": "Adding the picture…",
+    "uploadProgress_other": "Adding {{count}} pictures…",
+    "uploadRejected": "it is not an SVG Ori Studio can read safely",
+    "uploadTooLarge": "it is too large",
+    "uploadUnreadable": "the picture could not be read",
+    "uploadUnsupported": "it is not a picture",
+    "zoom": {
+      "updatedList": "Updated enlarged steps {{numbers}}",
+      "updatedOne": "Updated enlarged step {{number}}",
+      "updatedRange": "Updated enlarged steps {{first}}–{{last}}",
+      "updatedSome": "Updated {{placed}} of {{total}} enlarged steps",
+      "updatedSomeDetail": "The others couldn’t take a frame from this area.",
+      "updateFailed": "The enlarged steps couldn’t be updated"
+    }
+  },
+  "diagramExport": {
+    "saved": "Exported {{name}}"
+  },
+  "diagramPrint": {
+    "failed": "The diagram couldn’t be printed"
+  },
   "fileDrop": {
     "ignoredFile": "Used {{name}}; ignored 1 other dropped file.",
     "ignoredFiles": "Used {{name}}; ignored {{others}} other dropped files."
@@ -53,6 +115,7 @@
   "references": {
     "searching": "Finding references…",
     "searchingLong": "Still finding references — the first search builds a table",
+    "sheetMissing": "That sheet isn’t in the crease pattern any more.",
     "stop": "Cancel",
     "stopped": "Search cancelled",
     "stopping": "Cancelling…"

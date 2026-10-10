@@ -11,7 +11,7 @@ import {
 } from './simulatorSession';
 import type { SimulatorShape } from './simulatorShape';
 import { simulatorExportTarget } from './simulatorExportTarget';
-import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
+import { MAX_CONCURRENT_SIMULATIONS, MAX_LIVE_SIMULATOR_SESSIONS } from './simulatorLimits';
 import golden from './__fixtures__/simulatorExportGolden.json';
 import cranePattern10 from './__fixtures__/cranePattern10.fold.json';
 import { DEFAULT_PAPER_PAGE, type PaperPage } from '../lib/paper/paperPage';
@@ -449,9 +449,9 @@ describe('session tokens', () => {
     // The cap matches the window cap, so this should not happen in practice;
     // when it does, the oldest degrades to its last frame instead of the worker
     // holding every model ever loaded.
-    // Two past the cap, read from the constant: hard-coding a count meant the
+    // One past the cap, read from the constant: hard-coding a count meant the
     // test kept passing for the wrong reason the moment the cap moved.
-    const tokens = Array.from({ length: MAX_CONCURRENT_SIMULATIONS + 2 }, () =>
+    const tokens = Array.from({ length: MAX_LIVE_SIMULATOR_SESSIONS + 1 }, () =>
       session.load(miura(4, 4), {}).token
     );
 
@@ -460,22 +460,25 @@ describe('session tokens', () => {
     session.dispose();
   });
 
-  it('has room for every window plus a reload', async () => {
+  it('has room for every window, Simulate’s view and a Diagram Pose, plus a reload', async () => {
     // A runtime replacing its model loads the new session before releasing the
-    // old, so its window is never briefly backed by nothing. A full house
-    // therefore needs one slot more than there are windows; without the spare,
-    // every reload at the cap evicted somebody still on screen.
+    // old, so its view is never briefly backed by nothing. A full house
+    // therefore needs one slot more than there are views; without the spare,
+    // every reload at the cap evicted somebody still on screen. Simulate's
+    // view and a Diagram step's Pose are not refused at the window cap, so
+    // they are counted here instead.
     const session = createSimulatorSession();
     const windows = Array.from({ length: MAX_CONCURRENT_SIMULATIONS }, () =>
       session.load(miura(4, 4), {}).token
     );
-    // The overlap: one window reloads while all the others hold their models.
+    const simulate = session.load(miura(4, 4), {}).token;
+    const pose = session.load(miura(4, 4), {}).token;
+    // The overlap: one view reloads while all the others hold their models.
     const reloaded = session.load(miura(4, 4), {}).token;
 
-    for (const token of windows) {
+    for (const token of [...windows, simulate, pose, reloaded]) {
       expect(await session.tick({ token })).not.toBeNull();
     }
-    expect(await session.tick({ token: reloaded })).not.toBeNull();
     session.dispose();
   });
 
@@ -485,7 +488,7 @@ describe('session tokens', () => {
     // the one being looked at.
     const session = createSimulatorSession();
     const first = session.load(miura(4, 4), {}).token;
-    const rest = Array.from({ length: MAX_CONCURRENT_SIMULATIONS - 1 }, () =>
+    const rest = Array.from({ length: MAX_LIVE_SIMULATOR_SESSIONS - 1 }, () =>
       session.load(miura(4, 4), {}).token
     );
 
@@ -597,6 +600,102 @@ function exportViewScene(
     session.endExportSnapshot(id);
   }
 }
+
+describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
+  const view = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
+  const still = { view, size: 512, style: EXPORT_STYLE, markHidden: true };
+
+  it('is the same flat sheet with no session and from a session at 0%', async () => {
+    // Pose's capture at 0% and the headless 0% picture must be one picture (D19).
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const info = session.load(fold, {});
+    const flat = session.flatScene(fold, still);
+    expect(flat).not.toBeNull();
+    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+
+    // Folded and back: a solver at rest at 0% holds the sheet only to float
+    // noise, which can split a face, so 0% is drawn from the flat sheet itself.
+    session.setFoldPercent(50, info.token);
+    await session.settle(2_000, { token: info.token });
+    session.setFoldPercent(0, info.token);
+    await session.settle(2_000, { token: info.token });
+    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    session.dispose();
+  }, 30_000);
+
+  it('settles the solver first when asked, so a scene taken at once is the fold it was told', async () => {
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const settled = session.load(fold, {});
+    session.setFoldPercent(60, settled.token);
+    await session.settle(20_000, { token: settled.token });
+    const atRest = session.sessionScene({ ...still, token: settled.token });
+
+    const hurried = session.load(fold, {});
+    session.setFoldPercent(60, hurried.token);
+    // Not a step taken yet: unsettled, it is still the flat sheet.
+    expect(session.sessionScene({ ...still, token: hurried.token })).toEqual(session.flatScene(fold, still));
+    expect(session.sessionScene({ ...still, token: hurried.token, settleSteps: 20_000 })).toEqual(atRest);
+    session.dispose();
+  }, 30_000);
+
+  it('is the model where the solver holds it, once folded', async () => {
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const info = session.load(fold, {});
+    session.setFoldPercent(60, info.token);
+    await session.settle(2_000, { token: info.token });
+    const folded = session.sessionScene({ ...still, token: info.token });
+    expect(folded).not.toBeNull();
+    expect(folded).not.toEqual(session.flatScene(fold, still));
+    session.dispose();
+  }, 30_000);
+
+  it('keeps faces pinned part-folded where they are through a scrub back to 0%', async () => {
+    // A pin holds its faces where they were when pinned, so a sheet pinned at
+    // 40% is not flat at 0%: drawn as the flat sheet, the step would lose the
+    // shape Pose shows.
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const info = session.load(fold, {});
+    const flat = session.flatScene(fold, still);
+    const faces = [...new Set(new Int32Array(info.faceGroups))];
+    session.setFoldPercent(40, info.token);
+    await session.settle(2_000, { token: info.token });
+    await session.setPinnedFaces([faces[0]!, faces[faces.length - 1]!], info.token);
+    session.setFoldPercent(0, info.token);
+    await session.settle(2_000, { token: info.token });
+    const pinned = session.sessionScene({ ...still, token: info.token });
+    expect(pinned).not.toBeNull();
+    expect(pinned).not.toEqual(flat);
+
+    // With the pins gone, 0% is the flat sheet again.
+    await session.setPinnedFaces([], info.token);
+    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    session.dispose();
+  }, 30_000);
+
+  it('is the same picture whatever size it is framed in, scaled', async () => {
+    // Content-bounded: the frame's size is a scale, never a different shape.
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const small = session.flatScene(fold, { ...still, size: 256 })!;
+    const large = session.flatScene(fold, still)!;
+    const aspect = (scene: typeof small) =>
+      (scene.bounds.maxX - scene.bounds.minX) / (scene.bounds.maxY - scene.bounds.minY);
+    expect(aspect(small)).toBeCloseTo(aspect(large), 2);
+    session.dispose();
+  }, 30_000);
+
+  it('answers null for a session that has gone', () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(4, 4), {});
+    session.release(info.token);
+    expect(session.sessionScene({ ...still, token: info.token })).toBeNull();
+    session.dispose();
+  });
+});
 
 /**
  * Re-pinned from `exportSvg` onto a snapshot, its scenes and the painter the
@@ -1132,8 +1231,8 @@ describe('export snapshots', () => {
     const id = session.beginExportSnapshot({ token: first.token })!;
     expect(session.exportScene(id, UNMARKED)).not.toBeNull();
 
-    // Two past the cap in all, as the eviction test above loads, so the snapshotted session goes.
-    for (let i = 0; i < MAX_CONCURRENT_SIMULATIONS + 1; i += 1) session.load(miura(4, 4), {});
+    // One past the cap in all, as the eviction test above loads, so the snapshotted session goes.
+    for (let i = 0; i < MAX_LIVE_SIMULATOR_SESSIONS; i += 1) session.load(miura(4, 4), {});
 
     expect(await session.tick({ token: first.token })).toBeNull();
     expect(session.exportScene(id, UNMARKED)).toBeNull();
@@ -1740,6 +1839,33 @@ describe('pulling the paper', () => {
     expect((await frame(session.tick({}))).posed).toBe(true);
     session.dispose();
   });
+
+  it('is drawn as posed in a Diagram step’s picture at 0%, pinned or not, until it springs back', async () => {
+    // `sessionScene` draws 0% from the flat sheet; a pose is not one.
+    const fold = miura(4, 4);
+    const { session, info, drawn, pointOn, near, far } = await sheet(fold);
+    const view = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
+    const still = { view, size: 512, style: EXPORT_STYLE, markHidden: true };
+    const flat = session.flatScene(fold, still);
+    await session.setPinnedFaces([near]);
+    const press = pointOn(far);
+    session.beginPull(press, drawn);
+    session.movePull({ ...press, x: press.x - 60, y: press.y - 40 }, drawn);
+    await settled(session);
+    session.endPull('keep');
+    await settled(session);
+    expect(session.sessionScene({ ...still, token: info.token })).not.toEqual(flat);
+
+    // Unpinned, the pose still holds the shape.
+    await session.setPinnedFaces([]);
+    const posed = session.sessionScene({ ...still, token: info.token });
+    expect(posed).not.toBeNull();
+    expect(posed).not.toEqual(flat);
+
+    session.releasePose();
+    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    session.dispose();
+  }, 30_000);
 
   it('answers null for a session that has gone', async () => {
     const { session, info, drawn, pointOn, far } = await sheet();

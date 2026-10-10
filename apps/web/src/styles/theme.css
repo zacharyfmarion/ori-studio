@@ -263,7 +263,8 @@
   box-shadow: 0 0 0 2px var(--accent-primary);
 }
 
-.ui-button:disabled {
+/* `aria-disabled`: a button refusing for now while it keeps the focus. */
+.ui-button:disabled, .ui-button[aria-disabled='true'] {
   background: var(--bg-secondary);
   border-color: var(--border-default);
   color: var(--text-muted);
@@ -379,7 +380,7 @@
   color: var(--text-inverse);
 }
 
-.ui-button--primary:hover:not(:disabled) {
+.ui-button--primary:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
 }
@@ -390,7 +391,7 @@
   color: var(--text-primary);
 }
 
-.ui-button--secondary:hover:not(:disabled) {
+.ui-button--secondary:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--bg-surface);
 }
 
@@ -405,7 +406,7 @@
   color: var(--text-secondary);
 }
 
-.ui-button--ghost:hover:not(:disabled) {
+.ui-button--ghost:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--bg-elevated);
   color: var(--text-primary);
 }
@@ -6100,18 +6101,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   border-color: var(--border-default);
   color: var(--text-primary);
 }
-
-/* A colour named in a select's option, drawn as a dot beside its label. */
-.select-swatch {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin-right: 7px;
-  border: 1px solid var(--border-default);
-  border-radius: 50%;
-  vertical-align: -1px;
-}
-
 
 /* The active tool's option window: a transparent frame around the geometry the
    chosen answer would change, with its header attached to the top edge. The

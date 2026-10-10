@@ -1,0 +1,4 @@
+/* Annotate's notice that a References step's marks are part of its picture (DiagramCardMarksNotice.tsx). */
+.text {
+  margin: 0 0 var(--space-1);
+}

@@ -174,6 +174,15 @@ export function isImageOnlyDrag(items: DataTransferItemList | null): boolean {
 }
 
 /**
+ * True when a drag carries at least one image, among whatever else: for a
+ * target that takes the images of a mixed drop and turns the rest away, rather
+ * than letting the drag fall to a target that would open them.
+ */
+export function dragCarriesImage(items: DataTransferItemList | null): boolean {
+  return fileItems(items).some((item) => isDecodableImageType(item.type));
+}
+
+/**
  * True when a drag carries files at all — anything else is an in-page drag
  * (Dockview's panel drags, a text selection) and must be left alone.
  *

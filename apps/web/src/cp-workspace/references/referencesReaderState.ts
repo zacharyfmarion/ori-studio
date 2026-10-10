@@ -25,7 +25,7 @@ import type {
 import type { PrecreasePlanLine } from './precreaseSequence';
 import { flatPlanSteps, planIsForSheet } from './referencesBreakdown';
 import type { ReferencesFrames, ReferencesPlanRecord, ReferencesPlanVariant } from './referencesResults';
-import { referencesViewSteps, type ReferencesViewStep } from './referencesSequenceView';
+import { foldCardNumbers, referencesViewSteps, type ReferencesViewStep } from './referencesSequenceView';
 import { REFERENCES_SETTING_KEYS } from './referencesSettingsFields';
 import { sameSheetBounds, sameSheetFrame, sheetBounds } from './referencesSheets';
 import type { ModelBounds } from './referencesStepGeometry';
@@ -175,6 +175,33 @@ export function locateCard(
     }
   });
   return best;
+}
+
+/**
+ * A card of the sequence as a diagram step names it (D6): the number the
+ * strip printed on it and the line it folds. Both are null for the ending.
+ */
+export interface ReferencesStepCard {
+  number: number | null;
+  line: PrecreasePlanLine | null;
+}
+
+/**
+ * Where a diagram step's card is in this strip: of the cards folding its line,
+ * the one with its number (a press shares its fold's line), else the nearest
+ * to it; the ending for a step that names neither. The first card when the
+ * strip has none on its line: the plan has changed since the step was pulled.
+ */
+export function locateStepCard(
+  variants: readonly ReferencesPlanVariant[],
+  viewSteps: readonly ReferencesViewStep[],
+  card: ReferencesStepCard
+): number {
+  const numbered = card.number === null ? -1 : foldCardNumbers(viewSteps).indexOf(card.number);
+  if (card.line) return locateCard(variants, viewSteps, { index: Math.max(0, numbered), line: card.line });
+  if (card.number !== null) return Math.max(0, numbered);
+  const last = viewSteps.length - 1;
+  return viewSteps[last]?.kind === 'done' ? last : 0;
 }
 
 /** The strip a plan record reads as, with the toggle and the chosen ways applied. */

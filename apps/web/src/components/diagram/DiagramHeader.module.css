@@ -1,0 +1,155 @@
+/*
+ * What the Diagram header (DiagramHeader.tsx) adds to the shared toolbar frame.
+ *
+ * The title, a hairline, then Steps | Pages straight after it; the verbs'
+ * side takes the rest of the row, its verbs at the right end. Each side is as
+ * wide as what it holds, so a row too narrow for both wraps rather than
+ * squeezing one: the verbs right-aligned under the title and tabs. On a wide
+ * desktop the row never wraps, so the frame's one-row height holds.
+ */
+.header {
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+}
+
+/*
+ * The title and the tabs: one item, so a row never breaks between them, which
+ * would start the next row with the hairline. A pane too narrow for both
+ * shortens the title, ending it in an ellipsis. Stretched, so the tabs keep
+ * the bar's full height.
+ */
+.lead {
+  display: flex;
+  flex: 0 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  column-gap: var(--space-2);
+}
+
+/* The title's side: as wide as the title, and no wider; narrower when the pane is. */
+.side {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  min-width: 0;
+}
+
+/* The verbs' side: the rest of the row. */
+.side[data-side='end'] {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: max-content;
+}
+
+/*
+ * The title, then the count. A pane too narrow for the title, the count and
+ * the tabs shortens the title first, to an ellipsis, down to a few letters;
+ * only then the count.
+ */
+.title {
+  --title-floor: 5rem;
+  flex: 1 1 auto;
+}
+
+.titleSlot {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: var(--title-floor);
+}
+
+.actions {
+  flex: 0 0 auto;
+}
+
+/* The tabs, with the hairline before them: a row never ends on it. */
+.views {
+  display: flex;
+  flex: 0 0 auto;
+  align-self: stretch;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.separator {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: 18px;
+  background: var(--border-default);
+}
+
+.viewSwitch {
+  flex: 0 0 auto;
+}
+
+/* On a phone the two views share a row of their own, under the title and
+   before the verbs, in the order they come in the DOM and so in the focus order. */
+@media (max-width: 720px) {
+  .lead {
+    display: contents;
+  }
+
+  .views {
+    flex: 1 1 100%;
+  }
+
+  .viewSwitch {
+    flex: 1 1 auto;
+  }
+
+  /* The tabs are a row of their own: nothing beside them to separate. */
+  .separator {
+    display: none;
+  }
+}
+
+/* Wrapped, each row gets a little air from the frame's top and bottom rules. */
+@media (max-width: 720px) {
+  .side {
+    padding-block: var(--space-1);
+  }
+
+  /*
+   * The verbs take the last row, and wrap within it rather than run off a
+   * phone's edge: undo and redo, Add step, Export and the Step pane's pill
+   * are wider together than 375 px.
+   */
+  .side[data-side='end'] {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .actions {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: var(--space-1);
+  }
+}
+
+.count {
+  flex: 0 0 auto;
+  max-width: calc(100% - var(--title-floor) - var(--space-1));
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Print's icon while the pages are made ready for the print dialog. */
+.spinner {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

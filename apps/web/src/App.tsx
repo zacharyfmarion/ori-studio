@@ -13,6 +13,9 @@ import { SelectByIndexModal } from './components/SelectByIndexModal';
 import { ShareLinkModal } from './cp-workspace/share/ShareLinkModal';
 import { SettingsModal } from './components/SettingsModal';
 import { PaperExportModal } from './components/paperExport/PaperExportModal';
+import { DiagramExportModal } from './components/diagram/DiagramExportModal';
+import { DiagramReferencesModal } from './components/diagram/DiagramReferencesBrowser';
+import { SheetLayer } from './components/SheetLayer';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
@@ -31,6 +34,7 @@ import { currentWorkspacePath } from './routing/landing';
 import { startWorkspaceUrlSync } from './routing/workspaceUrlSync';
 import { useWelcomeDiscardGuard } from './routing/useWelcomeDiscardGuard';
 import { sitePageForPath } from './site/sitePages';
+import { useCommandDialogStore } from './store/commandDialogStore';
 import { useShortcutStore } from './store/shortcutStore';
 import { useThemeStore } from './store/themeStore';
 import { useWorkspaceStore } from './store/workspaceStore';
@@ -133,6 +137,7 @@ export default function App() {
           const path = currentPath();
           return path !== null && sitePageForPath(path) !== null;
         },
+        isCommandDialogOpen: () => useCommandDialogStore.getState().dialog !== null,
         getActiveEditingContext: () => useWorkspaceStore.getState().activeEditingContext,
         getSelection: () => selectSelection(useWorkspaceStore.getState()),
         handleMenuAction,
@@ -162,6 +167,18 @@ export default function App() {
 
   return (
     <TooltipProvider>
+      {/* First the touch layout's sheets, then every modal: they share a
+          z-index, so the later in the document is on top, and a dialog opened
+          from a sheet — Replace from References… in the Settings sheet — has
+          to be over it (`SheetLayer`). */}
+      <SheetLayer />
+      {/* Then the modals, the References browser first. It opens only from
+          the Diagram under every other modal, but the native menu can open one
+          over it — Export, Settings, About — and that one has to come later to
+          be on top. */}
+      <OverlayErrorBoundary id="diagram-references">
+        <DiagramReferencesModal />
+      </OverlayErrorBoundary>
       <OverlayErrorBoundary id="help">
         <HelpModal />
       </OverlayErrorBoundary>
@@ -180,6 +197,9 @@ export default function App() {
           in the document to be on top. */}
       <OverlayErrorBoundary id="paper-export">
         <PaperExportModal />
+      </OverlayErrorBoundary>
+      <OverlayErrorBoundary id="diagram-export">
+        <DiagramExportModal />
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="settings">
         <SettingsModal />

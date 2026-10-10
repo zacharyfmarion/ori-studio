@@ -1,0 +1,637 @@
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cpDocument } from '../../diagram/capture/capture.fixtures';
+import { createDiagram, type DiagramCpRender } from '../../diagram/document/diagramDocument';
+import { cpStep, referencesStep, SENT_MODEL, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
+import { MAX_STEP_ANNOTATIONS } from '../../diagram/annotate/annotationModel';
+import {
+  buildDiagramLinkedPoseActions,
+  buildDiagramSpreadControls,
+} from '../../diagram/actions/diagramLinkedPoseActions';
+import { publishOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
+import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
+import { ANNOTATE_TOOL_GROUPS, annotateToolHelp } from '../../diagram/annotate/annotateTools';
+import i18n from '../../i18n';
+import { STORAGE_KEYS, storageKey } from '../../lib/storage';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useWorkspaceStore } from '../../store/workspaceStore';
+import { TooltipProvider } from '../ui/Tooltip';
+import { DiagramStepPanel } from './DiagramStepPanel';
+
+const side = vi.hoisted(() => ({ showCreasePatternSide: vi.fn(async () => true) }));
+vi.mock('../../diagram/capture/creasePatternSide', () => side);
+
+/**
+ * The Step pane through the store: what it says with nothing selected, and
+ * what its position field, verbs and instruction do to the selected step.
+ */
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const initialState = useWorkspaceStore.getInitialState();
+let root: Root | null = null;
+let host: HTMLDivElement | null = null;
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  useWorkspaceStore.setState(initialState, true);
+  host = document.createElement('div');
+  document.body.append(host);
+  root = createRoot(host);
+  act(() =>
+    root?.render(
+      <TooltipProvider>
+        <DiagramStepPanel />
+      </TooltipProvider>
+    )
+  );
+});
+
+afterEach(() => {
+  act(() => root?.unmount());
+  root = null;
+  host?.remove();
+  host = null;
+  vi.useRealTimers();
+});
+
+const state = () => useWorkspaceStore.getState();
+const ids = () => stepsIn(state().diagram!).map((step) => step.id) ?? [];
+const button = (label: string) =>
+  host?.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement | null;
+const position = () => host?.querySelector('input[aria-label="Step position"]') as HTMLInputElement;
+const instruction = () => host?.querySelector('textarea') as HTMLTextAreaElement;
+
+function setField(field: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  const prototype = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
+  act(() => {
+    Object.getOwnPropertyDescriptor(prototype.prototype, 'value')!.set!.call(field, value);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+function threeSteps() {
+  act(() => {
+    state().addDiagramStep();
+    state().addDiagramStep();
+    state().addDiagramStep();
+  });
+  return ids();
+}
+
+describe('DiagramStepPanel', () => {
+  it('asks for a step when there is none, and for a selection when nothing is chosen', () => {
+    expect(host?.textContent).toContain('Add a step to write its instruction here.');
+    threeSteps();
+    act(() => state().selectDiagramStep(null));
+    expect(host?.textContent).toContain('Select a step to edit it.');
+  });
+
+  it('writes the instruction to the selected step, as one undo step', () => {
+    const [, , third] = threeSteps();
+    const past = state().diagramHistory.past.length;
+    act(() => instruction().focus());
+    setField(instruction(), 'Fold');
+    act(() => vi.advanceTimersByTime(600));
+    setField(instruction(), 'Fold in half.');
+    act(() => instruction().blur());
+    expect(stepsIn(state().diagram!).find((step) => step.id === third)?.text).toBe('Fold in half.');
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+  });
+
+  it('shows a turn between steps as what it is and where, and changes and deletes it (D22)', () => {
+    const [first] = threeSteps();
+    let turn = '';
+    act(() => {
+      turn = state().insertDiagramTurn({ kind: 'turn-over', axis: 'vertical' }, { stepId: first!, where: 'after' })!;
+    });
+    expect(host!.textContent).toContain('Turn over, side to side');
+    expect(host!.textContent).toContain('Between steps 1 and 2');
+    // No instruction, no position: a turn has neither.
+    expect(instruction()).toBeNull();
+    const option = (label: string) =>
+      [...host!.querySelectorAll<HTMLElement>('button[aria-pressed]')].find((element) => element.textContent === label)!;
+    act(() => option('Rotate').click());
+    expect(state().diagram!.steps[1]).toEqual({ id: turn, kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } });
+    expect(host!.textContent).toContain('Rotate 1/4 turn clockwise');
+    // Each control its own name.
+    expect([...host!.querySelectorAll('[role="group"]')].map((group) => group.getAttribute('aria-label'))).toEqual([
+      'Turn',
+      'Amount',
+      'Direction',
+      'Turn actions',
+    ]);
+    const remove = [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === 'Delete Turn')!;
+    act(() => remove.click());
+    expect(state().diagram!.steps.some((entry) => entry.id === turn)).toBe(false);
+  });
+
+  it('numbers and walks the steps alone, past a turn between them', () => {
+    const [first, second, third] = threeSteps();
+    act(() => {
+      state().insertDiagramTurn({ kind: 'turn-over', axis: 'vertical' }, { stepId: first!, where: 'after' });
+      state().selectDiagramStep(third!);
+    });
+    expect(position().value).toBe('3');
+    act(() => button('Previous Step')?.click());
+    expect(state().diagramSelectedStepId).toBe(second);
+    act(() => button('Previous Step')?.click());
+    expect(state().diagramSelectedStepId).toBe(first);
+    // Typed to 2: before the step that becomes 3. The turn stays before the step it was before.
+    act(() => position().focus());
+    setField(position(), '2');
+    act(() => position().blur());
+    expect(state().diagram!.steps.map((entry) => ('kind' in entry ? 'turn' : entry.id))).toEqual(['turn', second, first, third]);
+    expect(position().value).toBe('2');
+  });
+
+  it('moves the step to a typed position, and puts back one that is not a position', () => {
+    const [first, second, third] = threeSteps();
+    expect(position().value).toBe('3');
+    act(() => position().focus());
+    setField(position(), '1');
+    act(() => position().blur());
+    expect(ids()).toEqual([third, first, second]);
+    expect(position().value).toBe('1');
+
+    act(() => position().focus());
+    setField(position(), '9');
+    act(() => position().blur());
+    expect(ids()).toEqual([third, first, second]);
+    expect(position().value).toBe('1');
+  });
+
+  it('goes to the step before and after, and runs the header verbs', () => {
+    const [first, second, third] = threeSteps();
+    // ‹ and › go to the neighbours, as the detail's do; they move nothing.
+    expect(button('Next Step')?.disabled).toBe(true);
+    act(() => button('Previous Step')?.click());
+    expect(state().diagramSelectedStepId).toBe(second);
+    expect(position().value).toBe('2');
+    act(() => button('Previous Step')?.click());
+    expect(state().diagramSelectedStepId).toBe(first);
+    expect(button('Previous Step')?.disabled).toBe(true);
+    act(() => button('Next Step')?.click());
+    expect(state().diagramSelectedStepId).toBe(second);
+    expect(ids()).toEqual([first, second, third]);
+
+    act(() => button('Duplicate Step')?.click());
+    expect(ids()).toHaveLength(4);
+    expect(state().diagramSelectedStepId).toBe(ids()[2]);
+
+    // An empty step goes without a question.
+    act(() => button('Delete Step')?.click());
+    expect(ids()).toEqual([first, second, third]);
+  });
+
+  describe('the picture', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1105.6" height="800" viewBox="0 0 1105.6 800"/>';
+    const asset = { id: 'asset-a', kind: 'svg' as const, svg, widthPx: 1105.6, heightPx: 800, bytes: svg.length };
+    const textButton = (label: string) =>
+      [...(host?.querySelectorAll('button') ?? [])].find((candidate) => candidate.textContent === label);
+    /** The option pressed in a segmented row, by the row's name. */
+    const pressed = (label: string) =>
+      host?.querySelector(`[aria-label="${label}"] button[aria-pressed="true"]`)?.textContent ?? null;
+
+    it('offers Make Marks Editable on a References step whose card’s marks are part of its picture, until they are lifted (17e)', () => {
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [referencesStep('step-r')] } });
+        state().selectDiagramStep('step-r');
+      });
+      // Out of Annotate, the step's summary says where its marks are, not that it has none.
+      expect(host?.textContent).toContain('Its marks are part of its picture');
+      expect(host?.textContent).not.toContain('No annotations');
+      const make = textButton('Make Marks Editable');
+      expect(make?.disabled).toBe(false);
+      const past = state().diagramHistory.past.length;
+      act(() => make!.click());
+      const [step] = stepsIn(state().diagram!);
+      expect(step!.picture).toMatchObject({ kind: 'step-diagram', key: 'steps-1-marks' });
+      expect(step!.annotations.map((mark) => ('kind' in mark ? mark.kind : null))).toEqual(['valley-line', 'fold-unfold-arrow', 'label']);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      // Lifted: nothing left in the picture to lift.
+      expect(textButton('Make Marks Editable')).toBeUndefined();
+      expect(host?.textContent).toContain('3 annotations');
+    });
+
+    it('offers only the ways to a first picture for a step without one', () => {
+      act(() => {
+        state().addDiagramStep();
+      });
+      expect(host?.textContent).toContain('No picture yet');
+      expect(textButton('Upload Picture…')?.disabled).toBe(false);
+      for (const dead of ['Adjust Pose', 'Export Picture…', 'Remove Picture', 'Refresh Picture']) {
+        expect(textButton(dead)).toBeUndefined();
+      }
+    });
+
+    it('shows the pose only while the step is open in detail, and no verbs: they are Pose’s toolbar’s', () => {
+      let stepId = '';
+      act(() => {
+        stepId = state().addDiagramStep()!;
+        state().setDiagramStepPicture(stepId, asset);
+        state().setDiagramStepPose(stepId, { rotationQuarterTurns: 1, mirrored: true });
+      });
+      expect(host?.textContent).not.toContain('clockwise');
+      act(() => textButton('Adjust Pose')?.click());
+      expect(state().diagramDetail).toBe('pose');
+      // Open in Pose, the verb leads nowhere new.
+      expect(textButton('Adjust Pose')).toBeUndefined();
+      expect(host?.textContent).toContain('90° clockwise');
+      expect(host?.textContent).toContain('FlippedYes');
+      for (const verb of ['Rotate Left', 'Rotate Right', 'Flip', 'Reset Pose']) {
+        expect(textButton(verb)).toBeUndefined();
+      }
+      act(() => state().setDiagramStepPose(stepId, { rotationQuarterTurns: 0, mirrored: false }));
+      expect(host?.textContent).toContain('0° clockwise');
+      expect(host?.textContent).toContain('FlippedNo');
+    });
+
+    it('opens the References browser to fill an empty step from From References…', () => {
+      let stepId = '';
+      act(() => {
+        // A pattern open, so there is something to plan.
+        useWorkspaceStore.setState({
+          oristudioCpDocument: { handle: 1, document: cpDocument(), geometry: null } as unknown as OristudioCpDocumentState,
+        });
+        stepId = state().addDiagramStep()!;
+      });
+      act(() => textButton('From References…')!.click());
+      expect(state().diagramReferencesBrowser?.anchor).toEqual({ kind: 'fill', stepId });
+    });
+
+    it('says which way a 3D step looks at its model', () => {
+      act(() => {
+        const step = cpStep('step-3d', { mode: 'folded-3d', camera: { yaw: Math.PI / 4, pitch: -0.955, zoom: 1 }, side: 'front' });
+        useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [step] } });
+        state().selectDiagramStep('step-3d');
+      });
+      expect(host?.textContent).toContain('ViewYaw 45° · Pitch -55°');
+    });
+
+    it('turns a step sent from References over from the pane, by choosing its side', () => {
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [referencesStep('step-r')] } });
+        state().openDiagramStep('step-r');
+      });
+      expect(pressed('Side')).toBe('Front');
+      expect(textButton('Turn Over')).toBeUndefined();
+      act(() => textButton('Back')?.click());
+      expect(stepsIn(state().diagram!)[0]!.picture).toMatchObject({ kind: 'step-diagram', mirrored: true });
+      expect(pressed('Side')).toBe('Back');
+      // The side it shows already: nothing to turn.
+      act(() => textButton('Back')?.click());
+      expect(stepsIn(state().diagram!)[0]!.picture).toMatchObject({ mirrored: true });
+    });
+
+    it('offers a crease pattern’s side right under Show as, and only a crease pattern’s, held while it is captured', () => {
+      const group = (label: string) => host!.querySelector(`[role="group"][aria-label="${label}"]`);
+      act(() => {
+        useWorkspaceStore.setState({
+          diagram: {
+            ...createDiagram({ newId: () => 'diagram-1' }),
+            steps: [
+              cpStep('step-cp', { mode: 'crease-pattern', rotationDeg: 0 }),
+              cpStep('step-f', { mode: 'folded-flat', side: 'back', rotationDeg: 0, foldCase: 1 }),
+              cpStep('step-sim', { mode: 'simulated', foldPercent: 0, view: { yaw: 1, pitch: -0.9, zoom: 1.4 } }),
+              referencesStep('step-r'),
+            ],
+          },
+          // A pattern open, so the step can be captured again.
+          oristudioCpDocument: { handle: 1, document: cpDocument(), geometry: null } as unknown as OristudioCpDocumentState,
+        });
+        state().selectDiagramStep('step-cp');
+      });
+      expect(pressed('Side')).toBe('Front');
+      expect(group('Show as')!.compareDocumentPosition(group('Side')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // A field, not one of Pose's verbs: there outside Pose too, and no Turn Over beside it.
+      expect(state().diagramDetail).toBeNull();
+      expect(textButton('Turn Over')).toBeUndefined();
+      act(() => textButton('Back')!.click());
+      expect(side.showCreasePatternSide).toHaveBeenCalledExactlyOnceWith('step-cp', 'back');
+      // Held while a capture of the step runs, as Show as is.
+      act(() => useWorkspaceStore.setState({ diagramCaptures: { 'step-cp': { runId: null } } }));
+      expect(textButton('Back')!.disabled).toBe(true);
+      act(() => useWorkspaceStore.setState({ diagramCaptures: {} }));
+      for (const other of ['step-f', 'step-sim', 'step-r']) {
+        act(() => state().selectDiagramStep(other));
+        expect(group('Side')).toBeNull();
+      }
+      // On its back color, it says so: the paper's color, not the pattern seen from behind.
+      act(() => {
+        const diagram = state().diagram!;
+        useWorkspaceStore.setState({
+          diagram: { ...diagram, steps: [cpStep('step-cp', { mode: 'crease-pattern', rotationDeg: 330, side: 'back' })] },
+        });
+        state().selectDiagramStep('step-cp');
+      });
+      expect(pressed('Side')).toBe('Back');
+      expect(host?.textContent).toContain('Crease pattern, back color');
+      expect(host?.textContent).not.toContain('from the back');
+    });
+
+    it('poses a linked flat fold from the pane with the open step’s own verbs, and its turn as a field', () => {
+      const pose = vi.fn();
+      const rotateTo = vi.fn();
+      const render = { mode: 'folded-flat' as const, side: 'back' as const, rotationDeg: 30, foldCase: 2 };
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [cpStep('step-f', render)] } });
+        state().openDiagramStep('step-f');
+        const actions = buildDiagramLinkedPoseActions(
+          { render, readOnly: false, busy: false, solutions: { discovered: 1, hasNext: true } },
+          { t: ((_key: string, fallback: string) => fallback) as never, pose }
+        );
+        publishOpenLinkedPose('step-f', {
+          actions,
+          layerOrder: { count: '2 of 2+', label: 'Layer order 2 of 2+' },
+          spatial: null,
+          onCamera: () => {},
+          registerLiveView: () => () => {},
+          rotateTo,
+          showAs: async () => true,
+          setSide: async () => true,
+          simulate: async () => {},
+          wantsRest: () => false,
+          spread: null,
+          preview: null,
+        });
+      });
+      expect(pressed('Side')).toBe('Back');
+      expect(host?.textContent).toContain('Layer order2 of 2+');
+      act(() => textButton('Front')?.click());
+      expect(pose).toHaveBeenCalledWith('turn-over');
+      // Show as leads the pane, above the pose.
+      const showAs = host!.querySelector('[role="group"][aria-label="Show as"]')!;
+      const rotationField = host!.querySelector('input[aria-label="Rotation"]')!;
+      expect(showAs.compareDocumentPosition(rotationField) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const rotation = host!.querySelector<HTMLInputElement>('input[aria-label="Rotation"]')!;
+      expect(rotation.value).toBe('30');
+      act(() => rotation.focus());
+      setField(rotation, '100');
+      act(() => rotation.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+      expect(rotateTo).toHaveBeenCalledWith(100);
+      // Any angle, to a tenth (Zach, 2026-10-05): a 22.5° design stands at 157.5°, and 359.5 is not 359.
+      for (const [typed, turned] of [
+        ['157.5', 157.5],
+        ['157.54', 157.5],
+        ['359.5', 359.5],
+        ['-22.5', 337.5],
+      ] as const) {
+        act(() => rotation.focus());
+        setField(rotation, typed);
+        act(() => rotation.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+        expect(rotateTo).toHaveBeenLastCalledWith(turned);
+      }
+      act(() => publishOpenLinkedPose(null, null));
+    });
+
+    /** A flat fold's spread published as the open step's controller would, its verbs mocks. */
+    function spreadPane() {
+      const verbs = { pose: vi.fn(), kind: vi.fn(), direction: vi.fn(), keep: vi.fn(), preview: vi.fn(), commit: vi.fn() };
+      const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
+        fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name]))) as never;
+      const publish = (render: DiagramCpRender) => {
+        const poseState = { render, readOnly: false, busy: false, solutions: { discovered: 1, hasNext: false } };
+        const controls = buildDiagramSpreadControls(poseState, null, { t, ...verbs });
+        publishOpenLinkedPose('step-f', {
+          actions: buildDiagramLinkedPoseActions(poseState, { t, pose: verbs.pose }),
+          layerOrder: null,
+          spatial: null,
+          onCamera: () => {},
+          registerLiveView: () => () => {},
+          rotateTo: () => {},
+          showAs: async () => true,
+          setSide: async () => true,
+          simulate: async () => {},
+          wantsRest: () => false,
+          spread: controls && { ...controls, preview: verbs.preview, commit: verbs.commit, start: () => true },
+          preview: null,
+        });
+      };
+      const flat = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [cpStep('step-f', flat)] } });
+        state().openDiagramStep('step-f');
+        publish(flat);
+      });
+      const slider = (name: string) => host!.querySelector<HTMLInputElement>(`input[type="range"][aria-label="${name}"]`);
+      const kinds = () => host!.querySelector('[role="group"][aria-label="Spread by"]');
+      return { verbs, publish, flat, slider, kinds };
+    }
+
+    it('spreads a flat fold’s layers from the pane: on, by depth, how far as a percentage, and which way (Phase 13)', () => {
+      const { verbs, publish, flat, slider, kinds } = spreadPane();
+      const toggle = () => host!.querySelector<HTMLButtonElement>('button[role="switch"][aria-label="Spread layers"]')!;
+      const amount = () => slider('Spread amount');
+      expect(toggle().getAttribute('aria-checked')).toBe('false');
+      // Off: nothing to set.
+      expect(amount()).toBeNull();
+      expect(kinds()).toBeNull();
+      act(() => toggle().click());
+      expect(verbs.pose).toHaveBeenCalledWith('spread-layers');
+
+      act(() => publish({ ...flat, spread: { kind: 'depth' as const, amount: 0.08, toward: 'up-left' } }));
+      expect(toggle().getAttribute('aria-checked')).toBe('true');
+      expect(amount()!.value).toBe('8');
+      expect(amount()!.getAttribute('aria-valuetext')).toBe('8% of the model');
+      expect(host!.textContent).toContain('8%');
+      // By depth: no affine rows.
+      expect(slider('Spread skew')).toBeNull();
+      expect(slider('Spread axis')).toBeNull();
+      const compass = host!.querySelector('[role="group"][aria-label="Spread direction"]')!;
+      const directions = [...compass.querySelectorAll<HTMLButtonElement>('button')];
+      expect(directions).toHaveLength(8);
+      expect(directions.filter((button) => button.getAttribute('aria-pressed') === 'true').map((button) => button.getAttribute('aria-label'))).toEqual([
+        'Deeper layers up and left',
+      ]);
+      act(() => directions.find((button) => button.getAttribute('aria-label') === 'Deeper layers down')!.click());
+      expect(verbs.direction).toHaveBeenCalledWith('down');
+
+      // A drag previews every move, and commits once, as the native change says it ended.
+      setField(amount()!, '10');
+      setField(amount()!, '12.5');
+      expect(verbs.preview.mock.calls).toEqual([['amount', 0.1], ['amount', 0.125]]);
+      expect(verbs.commit).not.toHaveBeenCalled();
+      act(() => amount()!.dispatchEvent(new Event('change', { bubbles: true })));
+      expect(verbs.commit).toHaveBeenCalledOnce();
+
+      // Affine | Depth, under the switch: affine first (Zach, 2026-10-05).
+      const segments = [...kinds()!.querySelectorAll<HTMLButtonElement>('button')];
+      expect(segments.map((button) => button.textContent)).toEqual(['Affine', 'Depth']);
+      act(() => segments[0]!.click());
+      expect(verbs.kind).toHaveBeenCalledWith('affine');
+      act(() => publishOpenLinkedPose(null, null));
+    });
+
+    it('spreads a flat fold affine from the pane: the layer held still, the amount, skew and axis (13g)', () => {
+      const { verbs, publish, flat, slider } = spreadPane();
+      act(() => publish({ ...flat, spread: { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 } }));
+      // Affine: no compass.
+      expect(host!.querySelector('[role="group"][aria-label="Spread direction"]')).toBeNull();
+      expect(pressed('Spread by')).toBe('Affine');
+      expect(pressed('Keep still')).toBe('Top');
+      const amount = slider('Spread amount')!;
+      expect(amount.max).toBe('25');
+      expect(amount.getAttribute('aria-valuetext')).toBe('3% of the way back to the sheet along the axis');
+      const skew = slider('Spread skew')!;
+      expect(skew.value).toBe('100');
+      const axis = slider('Spread axis')!;
+      expect([axis.min, axis.max, axis.value]).toEqual(['0', '179', '81']);
+      expect(axis.getAttribute('aria-valuetext')).toBe('Axis at 81° on the sheet');
+      expect(host!.textContent).toContain('81°');
+
+      const keeps = [...host!.querySelector('[role="group"][aria-label="Keep still"]')!.querySelectorAll<HTMLButtonElement>('button')];
+      act(() => keeps.find((button) => button.textContent === 'Bottom')!.click());
+      expect(verbs.keep).toHaveBeenCalledWith('bottom');
+
+      setField(skew, '40');
+      setField(axis, '99');
+      setField(amount, '5');
+      expect(verbs.preview.mock.calls).toEqual([['skew', 0.4], ['axis', 99], ['amount', 0.05]]);
+      act(() => axis.dispatchEvent(new Event('change', { bubbles: true })));
+      expect(verbs.commit).toHaveBeenCalledOnce();
+      act(() => publishOpenLinkedPose(null, null));
+    });
+
+    it('says what the picture is, what sanitizing changed, and removes it', () => {
+      act(() => {
+        const stepId = state().addDiagramStep()!;
+        state().setDiagramStepPicture(stepId, asset);
+        state().noteDiagramPictureChanges('asset-a', ['flowed-text', 'css-dropped']);
+      });
+      expect(host?.textContent).toContain('Uploaded SVG, 1106 × 800 px');
+      expect(host?.textContent).toContain('This picture was simplified.');
+      expect(host?.textContent).toContain('Flowed text isn’t supported');
+      expect(textButton('Replace Picture…')).toBeDefined();
+
+      act(() => textButton('Remove Picture')?.click());
+      expect(host?.textContent).toContain('No picture yet');
+      expect(host?.textContent).not.toContain('simplified');
+      expect(stepsIn(state().diagram!)[0].text).toBe('');
+    });
+  });
+});
+
+describe('DiagramStepPanel in Annotate', () => {
+  /** A step with a picture, open in Annotate, carrying a label and an arrow. */
+  function annotatedStep() {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30" viewBox="0 0 40 30"/>';
+    act(() => {
+      state().addDiagramPictures([{ id: 'asset-1', kind: 'svg', svg, widthPx: 40, heightPx: 30, bytes: svg.length }]);
+    });
+    const stepId = state().diagramSelectedStepId!;
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => [
+        { id: 'a-1', kind: 'valley-arrow', from: [0.1, 0.2], to: [0.5, 0.2], bend: 0.1 },
+        { id: 'a-2', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'B' },
+        { id: 'a-3', kind: 'rotate', from: [0.8, 0.8], to: [0.8, 0.8], rotate: { amount: 'quarter', direction: 'cw' } },
+      ]);
+    });
+    return stepId;
+  }
+  const buttonNamed = (name: string) =>
+    [...(host?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((candidate) => candidate.textContent?.trim() === name)!;
+
+  it('counts them out of Annotate, and leads in', () => {
+    const stepId = annotatedStep();
+    expect(host?.textContent).toContain('3 annotations');
+    act(() => buttonNamed('Annotate').click());
+    expect(state().diagramDetail).toBe('annotate');
+    expect(state().diagramSelectedStepId).toBe(stepId);
+  });
+
+  it('leaves the list and the selected one’s controls to the Layers pane', () => {
+    const stepId = annotatedStep();
+    act(() => state().openDiagramStep(stepId, 'annotate'));
+    act(() => state().selectDiagramAnnotation('a-1'));
+    expect(host?.querySelector('ul[aria-label="Layers"]')).toBeNull();
+    expect(host?.textContent).not.toContain('Flip Arc');
+    expect(host?.querySelector('button[role="switch"][aria-label="Snap to Picture"]')).not.toBeNull();
+  });
+
+  it('leaves what the tool in hand does to the tool window (decision 7)', () => {
+    const stepId = annotatedStep();
+    act(() => state().openDiagramStep(stepId, 'annotate'));
+    const t = i18n.t.bind(i18n);
+    for (const tool of ANNOTATE_TOOL_GROUPS.flatMap((group) => group.tools)) {
+      act(() => state().setDiagramAnnotateTool(tool));
+      expect(host?.textContent).not.toContain(annotateToolHelp(t, tool));
+    }
+    // What is about drawing on the step stays: the Snap switch.
+    act(() => state().selectDiagramAnnotation('a-2'));
+    expect(host?.querySelector('button[role="switch"][aria-label="Snap to Picture"]')).not.toBeNull();
+  });
+
+  it('offers the Snap switch in Annotate, for a finger, and remembers it as a preference', () => {
+    const stepId = annotatedStep();
+    const snapSwitch = () => host?.querySelector<HTMLButtonElement>('button[role="switch"][aria-label="Snap to Picture"]') ?? null;
+    expect(snapSwitch()).toBeNull();
+    act(() => state().openDiagramStep(stepId, 'annotate'));
+    useSettingsStore.setState({ diagramAnnotateSnap: true });
+    expect(snapSwitch()?.getAttribute('aria-checked')).toBe('true');
+    // The key that puts a mark down freely follows the marks that snap, never
+    // the arrows, which it does nothing to (review).
+    const help = host?.querySelector('[data-field-help][aria-label^="Circles"]')?.getAttribute('aria-label');
+    expect(help).toMatch(/nearby\. Hold (Cmd|Ctrl) to put one down anywhere\. Arrows go where they are drawn\.$/);
+    const past = state().diagramHistory.past.length;
+    act(() => snapSwitch()!.click());
+    expect(useSettingsStore.getState().diagramAnnotateSnap).toBe(false);
+    expect(snapSwitch()?.getAttribute('aria-checked')).toBe('false');
+    expect(localStorage.getItem(storageKey(STORAGE_KEYS.diagramAnnotateSnap))).toBe('false');
+    // A preference, not an edit: nothing to undo.
+    expect(state().diagramHistory.past).toHaveLength(past);
+    act(() => snapSwitch()!.click());
+    expect(useSettingsStore.getState().diagramAnnotateSnap).toBe(true);
+  });
+
+  it('says when a References step’s marks are part of its picture, and makes them editable on a press (17e)', () => {
+    act(() => {
+      useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [referencesStep('step-r')] } });
+      state().openDiagramStep('step-r', 'annotate');
+    });
+    expect(host?.textContent).toContain('This step’s marks are part of its picture.');
+    // The notice offers it: the Picture section under it does not offer it again.
+    expect(buttonNamed('Make Marks Editable')).toBeUndefined();
+    expect(buttonNamed('Replace from References…')).toBeDefined();
+    const past = state().diagramHistory.past.length;
+    act(() => buttonNamed('Make Editable').click());
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    expect(stepsIn(state().diagram!)[0]!.annotations).toHaveLength(3);
+    expect(host?.textContent).not.toContain('part of its picture');
+  });
+
+  it('holds Make Editable, saying why, when the card’s marks are more than a step holds (17e)', () => {
+    const crowded = {
+      ...SENT_MODEL,
+      primitives: [
+        SENT_MODEL.primitives[0]!,
+        ...Array.from({ length: MAX_STEP_ANNOTATIONS + 1 }, (_, i) => ({
+          kind: 'line' as const,
+          from: [(i + 0.5) / 1000, 0] as const,
+          to: [(i + 0.5) / 1000, 1] as const,
+          style: 'valley' as const,
+        })),
+      ],
+    };
+    act(() => {
+      const step = referencesStep('step-r');
+      const picture = { kind: 'step-diagram' as const, model: crowded, mirrored: false, key: 'steps-crowded' };
+      useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [{ ...step, picture }] } });
+      state().openDiagramStep('step-r', 'annotate');
+    });
+    expect(host?.textContent).toContain(`${MAX_STEP_ANNOTATIONS + 1} marks: a step holds ${MAX_STEP_ANNOTATIONS}`);
+    expect(buttonNamed('Make Editable').disabled).toBe(true);
+  });
+
+  it('says when the picture changed under them, and keeps them on a press', () => {
+    const stepId = annotatedStep();
+    act(() => state().openDiagramStep(stepId, 'annotate'));
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"/>';
+    act(() => {
+      state().setDiagramStepPicture(stepId, { id: 'asset-2', kind: 'svg', svg, widthPx: 10, heightPx: 10, bytes: 1 });
+    });
+    expect(host?.textContent).toContain('The picture changed since these annotations were drawn.');
+    act(() => buttonNamed('Keep Them Here').click());
+    expect(host?.textContent).not.toContain('The picture changed');
+  });
+});

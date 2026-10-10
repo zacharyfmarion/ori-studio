@@ -1,4 +1,5 @@
 import type { FoldDocument } from '../engine/types';
+import { wrapEstimatedText } from './paper/textWrap';
 import {
   buildSegmentFold,
   flatPlaneReader,
@@ -648,49 +649,15 @@ export interface CreaseExportFoldedBox {
   height: number;
 }
 
-function estimateTextWidth(text: string, fontSize: number): number {
-  return text.length * fontSize * AVERAGE_GLYPH_RATIO;
-}
-
 /**
- * Greedy word wrap against an estimated glyph advance. Explicit newlines are
- * kept as hard breaks; a single word wider than the line is split rather than
- * allowed to overflow the page.
+ * Caption text wrapped against an estimated glyph advance: the caption is
+ * drawn in a system font, so there is no font file to measure. Explicit
+ * newlines are kept as hard breaks; a single word wider than the line is split
+ * between graphemes rather than allowed to overflow the page
+ * (`lib/paper/textWrap.ts`).
  */
 export function wrapExportText(text: string, maxWidth: number, fontSize: number): string[] {
-  const trimmed = text.trim();
-  if (!trimmed) return [];
-  const maxChars = Math.max(1, Math.floor(maxWidth / (fontSize * AVERAGE_GLYPH_RATIO)));
-  const lines: string[] = [];
-
-  for (const paragraph of trimmed.split(/\r?\n/)) {
-    const words = paragraph.trim().split(/\s+/).filter(Boolean);
-    if (words.length === 0) {
-      lines.push('');
-      continue;
-    }
-    let current = '';
-    for (const word of words) {
-      const candidate = current ? `${current} ${word}` : word;
-      if (!current || estimateTextWidth(candidate, fontSize) <= maxWidth) {
-        current = candidate;
-        continue;
-      }
-      lines.push(current);
-      current = word;
-    }
-    if (current) lines.push(current);
-  }
-
-  // Hard-split any line that is a single over-long word.
-  return lines.flatMap((line) => {
-    if (estimateTextWidth(line, fontSize) <= maxWidth) return [line];
-    const chunks: string[] = [];
-    for (let index = 0; index < line.length; index += maxChars) {
-      chunks.push(line.slice(index, index + maxChars));
-    }
-    return chunks;
-  });
+  return wrapEstimatedText(text, maxWidth, fontSize, AVERAGE_GLYPH_RATIO);
 }
 
 /**

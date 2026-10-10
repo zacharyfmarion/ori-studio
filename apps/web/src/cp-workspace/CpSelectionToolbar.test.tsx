@@ -165,8 +165,10 @@ describe('CpSelectionToolbar', () => {
     await act(async () => renderToolbar(root, container));
     const toolbar = document.querySelector('[role="toolbar"]');
     expect(toolbar).not.toBeNull();
-    // Fold, Export, Save to image, Simulate inline, Simulate, Create shareable link.
+    // Fold, Export, Save to image, Simulate inline, Simulate, Create shareable link. A
+    // diagram step is made in the Diagram (D21), so there is no Add to diagram here.
     expect(toolbar?.querySelectorAll('button').length).toBe(6);
+    expect(document.querySelector('button[aria-label="Add to diagram"]')).toBeNull();
     expect(document.querySelector('button[aria-label="Fold"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Simulate inline"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Simulate"]')).not.toBeNull();

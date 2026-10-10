@@ -12,7 +12,7 @@ import {
   type ShortcutOverrides,
   type ShortcutScope,
 } from '../keyboard/shortcuts';
-import { handleShortcutKeyDown } from '../keyboard/shortcutDispatcher';
+import { handleShortcutKeyDown, isShortcutBarrierOpen } from '../keyboard/shortcutDispatcher';
 import { buildOrieditaImportPlan } from '../lib/orieditaImport';
 import { useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore, type SettingsTab } from '../store/settingsStore';
@@ -238,6 +238,11 @@ describe('SettingsModal', () => {
     // tab's name on the page regardless of which one is showing.
     const rendered = renderModal();
     expect(rendered.querySelector('.settings-modal__header h2')?.textContent).toBe('General');
+  });
+
+  it('holds every key while it is open, so the arrows that scroll it nudge nothing behind it', () => {
+    renderModal('appearance');
+    expect(isShortcutBarrierOpen()).toBe(true);
   });
 
   it('renders Cascade themes and applies a selected theme', () => {

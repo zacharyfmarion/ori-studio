@@ -1,0 +1,21 @@
+/* A Show menu row (DiagramReferencesShowMenu): the mark's name, and under it what it is. */
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 260px;
+  white-space: normal;
+}
+
+/* The row's own ink, quieter: it follows the row when the row is highlighted, as a menu's shortcut does. */
+.hint {
+  color: currentcolor;
+  font-size: 11px;
+  line-height: 1.35;
+  opacity: 0.72;
+}
+
+/* On the highlight's fill the quieter ink is too faint to read, in the dark theme most: full ink there. */
+[data-highlighted] .hint {
+  opacity: 1;
+}

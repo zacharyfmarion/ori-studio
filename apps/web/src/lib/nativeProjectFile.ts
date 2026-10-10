@@ -1,13 +1,5 @@
 import { designKindRegistry } from '../designKinds';
-import type {
-  Mat3,
-  PaperItem,
-  PaperLineRole,
-  PaperLineWhole,
-  PaperScene,
-  SceneBounds,
-  ScenePoint,
-} from '@treemaker/origami-simulator';
+import { readFoldedFigureCamera } from '../cp-workspace/folded/folded3dCamera';
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import {
   CREASE_PATTERN_DOCUMENT_ID,
@@ -21,6 +13,7 @@ import {
   type PaperStyleOverrides,
 } from './paper/paperStyle';
 import { legacyPaperStyleOverrides } from './paper/paperStyleMigration';
+import { readPaperScene } from './paper/paperSceneValidate';
 import type {
   FoldedFigurePlacement,
   FoldedSourceBounds,
@@ -70,6 +63,19 @@ export const NATIVE_PROJECT_FORMAT = 'oristudio.project';
 export { NATIVE_PROJECT_EXTENSION } from './fileFormats';
 export const NATIVE_PROJECT_MIME_TYPE = 'application/vnd.oristudio.project+json';
 export const NATIVE_PROJECT_SCHEMA_VERSION = 8;
+/**
+ * The newest `minimumReaderSchemaVersion` this build can honour. Ahead of the
+ * schema version on purpose: a file holding diagrams is still written as schema
+ * 8 — nothing else about the format moved — but asks for a newer reader, so an
+ * older build refuses it ("update Ori Studio") instead of opening it and
+ * deleting the diagrams on its next save. Files without a diagram stay readable
+ * by every build that read them before.
+ *
+ * - 9: one diagram, `workspace.diagram`, as builds before the list wrote it.
+ * - 10: the list, `workspace.diagrams`. This build reads both and writes the
+ *   list, so a file from before the list is migrated on its next save.
+ */
+export const NATIVE_PROJECT_READER_VERSION = 10;
 
 export type NativeProjectDocumentKind =
   | 'treemaker-tree'
@@ -223,11 +229,13 @@ export interface NativeProjectFileV1 {
    * The oldest reader that can open this file without losing data.
    *
    * `1` for anything a v1–v7 build could read losslessly; `8` once the file
-   * holds more than the old format could express. Declarative only in practice —
-   * a v7 build already rejects `schemaVersion: 8` because 8 is not in its
-   * enumerated list — but it is what makes the refusal say *why*.
+   * holds more than the old format could express; `10` when it holds diagrams
+   * (`9` in files from before the list; see {@link NATIVE_PROJECT_READER_VERSION}).
+   * Declarative only in practice — a v7 build already rejects `schemaVersion: 8`
+   * because 8 is not in its enumerated list — but it is what makes the refusal
+   * say *why*.
    */
-  minimumReaderSchemaVersion: 1 | 8;
+  minimumReaderSchemaVersion: 1 | 8 | 9 | 10;
   createdBy: NativeProjectActor;
   modifiedBy: NativeProjectActor;
   workspace: {
@@ -259,6 +267,23 @@ export interface NativeProjectFileV1 {
      * not silently destroy the rest on the next save.
      */
     unknownDesigns: unknown[];
+    /**
+     * The Diagram workspace's documents, in order, each as
+     * `diagram/document/diagramFile.ts` writes it. Read leniently there; here
+     * they are only carried, and any raises `minimumReaderSchemaVersion` to 10.
+     *
+     * A list from the first build that wrote one, though this build shows one
+     * diagram: it opens the first and carries the rest verbatim, so a later
+     * build can keep several in a project without older builds deleting all
+     * but one.
+     *
+     * The reader always sets it, `[]` for none, and reads a file from before
+     * the list — its one diagram under `workspace.diagram` — as a list of one.
+     * The writers leave the key out when the list is empty, so a project
+     * without a diagram is written byte for byte as it was before diagrams
+     * existed.
+     */
+    diagrams?: Record<string, unknown>[];
     viewState: Record<string, unknown>;
   };
   artifacts: {
@@ -355,6 +380,12 @@ export interface NativeCreasePatternProjectInput {
   unknownDesigns?: unknown[];
   /** File-level extension bag, carried forward for the same reason. */
   fileExtensions?: Record<string, unknown>;
+  /**
+   * The diagrams, each written by `writeDiagram`. File-level like the two
+   * fields above: only {@link createNativeCreasePatternProjectFile} reads
+   * them, never a companion. Defaults to none.
+   */
+  diagrams?: Record<string, unknown>[];
   appVersion: string;
   now?: Date;
 }
@@ -422,6 +453,8 @@ export interface NativeProjectDocumentsInput {
    * {@link NativeCreasePatternProjectInput.extensions}). Defaults to `{}`.
    */
   extensions?: Record<string, unknown>;
+  /** The diagrams, each written by `writeDiagram`. Defaults to none. */
+  diagrams?: Record<string, unknown>[];
   appVersion: string;
   now?: Date;
 }
@@ -508,11 +541,11 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
   const minimumReaderSchemaVersion = numberField(value.minimumReaderSchemaVersion);
   if (
     minimumReaderSchemaVersion !== null &&
-    minimumReaderSchemaVersion > NATIVE_PROJECT_SCHEMA_VERSION
+    minimumReaderSchemaVersion > NATIVE_PROJECT_READER_VERSION
   ) {
     throw new ProjectFileFormatError(
       'project_file_too_new',
-      `Ori Studio project requires reader schema ${minimumReaderSchemaVersion}, but this app supports ${NATIVE_PROJECT_SCHEMA_VERSION}`
+      `Ori Studio project requires reader schema ${minimumReaderSchemaVersion}, but this app supports ${NATIVE_PROJECT_READER_VERSION}`
     );
   }
 
@@ -582,11 +615,12 @@ export function createNativeProjectFile(
 
   const legacyReadable =
     designs.length <= 1 && (input.unknownDesigns?.length ?? 0) === 0;
+  const diagrams = input.diagrams ?? [];
 
   return {
     format: NATIVE_PROJECT_FORMAT,
     schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
-    minimumReaderSchemaVersion: legacyReadable ? 1 : 8,
+    minimumReaderSchemaVersion: diagrams.length > 0 ? 10 : legacyReadable ? 1 : 8,
     createdBy: actor,
     modifiedBy: actor,
     workspace: {
@@ -598,6 +632,7 @@ export function createNativeProjectFile(
       // Re-emitted verbatim so a design kind this build does not know survives a
       // round trip through it.
       unknownDesigns: input.unknownDesigns ?? [],
+      ...(diagrams.length > 0 ? { diagrams } : {}),
       viewState: {},
     },
     artifacts: referencesArtifacts(input.creasePattern?.referencesPlanCache),
@@ -655,13 +690,18 @@ export function createNativeCreasePatternProjectFile(
 ): NativeProjectFileV1 {
   const actor = actorFromInput(input);
   const title = input.title.trim() || input.document.title || 'Untitled CP';
+  const diagrams = input.diagrams ?? [];
   return {
     format: NATIVE_PROJECT_FORMAT,
     schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
     // An unreadable design is exactly the case an older build must refuse, for
     // the same reason the design writer raises the bar: it cannot round-trip
-    // what it cannot parse.
-    minimumReaderSchemaVersion: (input.unknownDesigns?.length ?? 0) > 0 ? 8 : 1,
+    // what it cannot parse. A diagram raises it further, for the same reason.
+    minimumReaderSchemaVersion: diagrams.length > 0
+      ? 10
+      : (input.unknownDesigns?.length ?? 0) > 0
+        ? 8
+        : 1,
     createdBy: actor,
     modifiedBy: actor,
     workspace: {
@@ -674,6 +714,7 @@ export function createNativeCreasePatternProjectFile(
       designs: [],
       creasePattern: createNativeCreasePatternDocument(input, CREASE_PATTERN_DOCUMENT_ID),
       unknownDesigns: input.unknownDesigns ?? [],
+      ...(diagrams.length > 0 ? { diagrams } : {}),
       viewState: {},
     },
     artifacts: {
@@ -802,13 +843,16 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
     renderSnapshot: isRecord(entry.renderSnapshot)
       ? (entry.renderSnapshot as unknown as OristudioCpFoldedFigureEntry['renderSnapshot'])
       : null,
-    scene: foldedFigureScene(entry.scene),
+    // A 3D figure's stored picture. Absent on a flat figure and on every file
+    // written before scenes existed — those draw from `renderSnapshot` instead
+    // (D1's additive rule: the schema version does not move).
+    scene: readPaperScene(entry.scene),
     placement: foldedFigurePlacement(entry),
     // The viewpoint the stored picture was taken at. It cannot be *applied* on
     // load — re-projecting needs the render model, which is deliberately not
     // persisted — but it is what a refold restores, so losing it would silently
     // move the figure the first time it is refolded.
-    camera: foldedFigureCamera(entry.camera),
+    camera: readFoldedFigureCamera(entry.camera),
     // The frame the figure draws inside. Persisted rather than recomputed for
     // the same reason as the camera — it comes from the render model, which is
     // not persisted — and a figure that lost it would fall back to the
@@ -837,138 +881,6 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
 }
 
 /**
- * A 3D figure's stored picture, read back item by item.
- *
- * Unlike `renderSnapshot` beside it — an opaque kernel stream cast straight
- * through — a scene is drawn by *our* code from *our* fields, so a malformed
- * one would reach `earcut` and the GPU rather than a parser. Every number is
- * checked, unknown keys are dropped, and an item that does not read is dropped
- * with them: a picture missing a face is a picture, and the figure rehydrates
- * to a fresh one at the first turn.
- *
- * `null` for anything that is not a scene at all, including the absent key on
- * a flat figure and on every file written before scenes existed — those carry a
- * `renderSnapshot` instead and draw from it (D1's additive rule: the schema
- * version does not move).
- */
-function foldedFigureScene(value: unknown): PaperScene | null {
-  if (!isRecord(value)) return null;
-  const bounds = sceneBoundsField(value.bounds);
-  const sheet = finiteNumber(value.sheet);
-  if (!bounds || sheet === null || !Array.isArray(value.items)) return null;
-  const items: PaperItem[] = [];
-  for (const item of value.items) {
-    const read = scenePaperItem(item);
-    if (read) items.push(read);
-  }
-  return { bounds, sheet, items };
-}
-
-function scenePaperItem(value: unknown): PaperItem | null {
-  if (!isRecord(value)) return null;
-  const hidden = value.hidden === true;
-  if (value.kind === 'face') {
-    const face = finiteNumber(value.face);
-    const shade = finiteNumber(value.shade);
-    if (face === null || shade === null) return null;
-    if (value.side !== 'front' && value.side !== 'back') return null;
-    if (!Array.isArray(value.rings)) return null;
-    const rings: ScenePoint[][] = [];
-    for (const ring of value.rings) {
-      const points = scenePointList(ring);
-      if (points && points.length >= 3) rings.push(points);
-    }
-    if (rings.length === 0) return null;
-    const outline = sceneLineRole(value.outline);
-    return {
-      kind: 'face',
-      face,
-      side: value.side,
-      rings,
-      ...(outline ? { outline } : {}),
-      shade,
-      hidden,
-    };
-  }
-  if (value.kind === 'line') {
-    const role = sceneLineRole(value.role);
-    const a = scenePointField(value.a);
-    const b = scenePointField(value.b);
-    if (!role || !a || !b) return null;
-    const face = finiteNumber(value.face);
-    const whole = sceneLineWhole(value.whole);
-    return {
-      kind: 'line',
-      role,
-      a,
-      b,
-      onBoundary: sceneBoundaryFlags(value.onBoundary),
-      ...(whole ? { whole } : {}),
-      ...(face === null ? {} : { face }),
-      hidden,
-    };
-  }
-  if (value.kind === 'markup') {
-    const bounds = sceneBoundsField(value.bounds);
-    if (typeof value.svg !== 'string' || !bounds) return null;
-    return { kind: 'markup', svg: value.svg, bounds, hidden: false };
-  }
-  return null;
-}
-
-function sceneLineRole(value: unknown): PaperLineRole | null {
-  return value === 'edge' ||
-    value === 'mountain' ||
-    value === 'valley' ||
-    value === 'diagram-mountain' ||
-    value === 'diagram-valley' ||
-    value === 'aux'
-    ? value
-    : null;
-}
-
-function sceneLineWhole(value: unknown): PaperLineWhole | null {
-  if (!isRecord(value)) return null;
-  const a = scenePointField(value.a);
-  const b = scenePointField(value.b);
-  if (!a || !b) return null;
-  return { a, b, onBoundary: sceneBoundaryFlags(value.onBoundary) };
-}
-
-/** A missing or malformed pair reads as "neither end retreats", which is inert. */
-function sceneBoundaryFlags(value: unknown): [boolean, boolean] {
-  return Array.isArray(value) ? [value[0] === true, value[1] === true] : [false, false];
-}
-
-function scenePointField(value: unknown): ScenePoint | null {
-  if (!Array.isArray(value) || value.length !== 2) return null;
-  const x = finiteNumber(value[0]);
-  const y = finiteNumber(value[1]);
-  return x === null || y === null ? null : [x, y];
-}
-
-function scenePointList(value: unknown): ScenePoint[] | null {
-  if (!Array.isArray(value)) return null;
-  const points: ScenePoint[] = [];
-  for (const point of value) {
-    const read = scenePointField(point);
-    if (!read) return null;
-    points.push(read);
-  }
-  return points;
-}
-
-function sceneBoundsField(value: unknown): SceneBounds | null {
-  if (!isRecord(value)) return null;
-  const minX = finiteNumber(value.minX);
-  const minY = finiteNumber(value.minY);
-  const maxX = finiteNumber(value.maxX);
-  const maxY = finiteNumber(value.maxY);
-  if (minX === null || minY === null || maxX === null || maxY === null) return null;
-  return { minX, minY, maxX, maxY };
-}
-
-/**
  * The style fields pinned on a figure.
  *
  * A file that carries the key was written by a build that knows the style, and
@@ -988,40 +900,6 @@ function foldedFigureAppearance(
     return hasPaperStyleOverrides(overrides) ? overrides : undefined;
   }
   return legacyPaperStyleOverrides(model);
-}
-
-/** The stored viewpoint of a 3D figure. Absent on every flat one. */
-function foldedFigureCamera(value: unknown): OristudioCpFoldedFigureEntry['camera'] {
-  if (!isRecord(value)) return null;
-  const yaw = finiteNumber(value.yaw);
-  const pitch = finiteNumber(value.pitch);
-  const zoom = positiveNumber(value.zoom);
-  if (yaw === null || pitch === null || zoom === null) return null;
-  const orient = foldedFigureOrient(value.orient);
-  return orient ? { yaw, pitch, zoom, orient } : { yaw, pitch, zoom };
-}
-
-/**
- * A figure's model orientation — which way it was told is up.
- *
- * Absent on every file written before the verb existed, and absent on any figure
- * nobody has set an upright on, so "missing" has to mean identity rather than
- * an error. That is what lets this ride in without a schema bump: an old `.osf`
- * opens at exactly the camera it always did.
- *
- * Dropped whole on anything malformed, like the canvas camera beside it. A
- * partly-read rotation is not a rotation, and half a basis would draw a sheared
- * figure that looks like a kernel bug.
- */
-function foldedFigureOrient(value: unknown): Mat3 | null {
-  if (!Array.isArray(value) || value.length !== 9) return null;
-  const out: number[] = [];
-  for (const entry of value) {
-    const n = finiteNumber(entry);
-    if (n === null) return null;
-    out.push(n);
-  }
-  return out as unknown as Mat3;
 }
 
 /**
@@ -1270,11 +1148,16 @@ function validateV8(value: Record<string, unknown>): NativeProjectFileV8 {
       : (validateDocumentV1(workspace.creasePattern) as NativeCreasePatternDocumentV1);
 
   const activeDocumentId = stringField(workspace.activeDocumentId, 'workspace.activeDocumentId');
+  const diagrams = diagramList(workspace);
 
   return {
     format: NATIVE_PROJECT_FORMAT,
     schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
-    minimumReaderSchemaVersion: designs.length > 1 || unknownDesigns.length > 0 ? 8 : 1,
+    minimumReaderSchemaVersion: diagrams.length > 0
+      ? 10
+      : designs.length > 1 || unknownDesigns.length > 0
+        ? 8
+        : 1,
     createdBy: validateActor(recordField(value.createdBy, 'createdBy')),
     modifiedBy: validateActor(recordField(value.modifiedBy, 'modifiedBy')),
     workspace: {
@@ -1289,11 +1172,27 @@ function validateV8(value: Record<string, unknown>): NativeProjectFileV8 {
       designs,
       creasePattern,
       unknownDesigns,
+      diagrams,
       viewState: isRecord(workspace.viewState) ? workspace.viewState : {},
     },
     artifacts: validateArtifacts(value.artifacts),
     extensions: isRecord(value.extensions) ? value.extensions : {},
   };
+}
+
+/**
+ * The project's diagrams, in order: the list, or — in a file from before the
+ * list (reader 9) — its one diagram under `workspace.diagram`, as a list of
+ * one. That is the whole migration: the next save writes the list.
+ *
+ * Carried, not interpreted: `diagram/document/diagramFile.ts` reads each
+ * leniently when the project is installed. An entry that is not an object is
+ * no diagram. No build writes both keys, since one that reads only
+ * `workspace.diagram` refuses a file asking for reader 10; the list wins.
+ */
+function diagramList(workspace: Record<string, unknown>): Record<string, unknown>[] {
+  if (Array.isArray(workspace.diagrams)) return workspace.diagrams.filter(isRecord);
+  return isRecord(workspace.diagram) ? [workspace.diagram] : [];
 }
 
 /**
@@ -1353,6 +1252,7 @@ function migrateLegacyToV8(value: Record<string, unknown>): NativeProjectFileV8 
       designs,
       creasePattern,
       unknownDesigns: [],
+      diagrams: [],
       viewState: legacy.workspace.viewState,
     },
   };

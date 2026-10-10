@@ -25,7 +25,9 @@ export type WorkerName =
   /** One ReferenceFinder database per worker; see store/workspaceStore/referenceFinderRuntime.ts. */
   | 'reference-finder'
   /** The precrease planner bridge; see store/workspaceStore/precreaseRuntime.ts. */
-  | 'precrease';
+  | 'precrease'
+  /** One diagram PDF, spawned per export and terminated after it; see diagram/export/browserPdfWriter.ts. */
+  | 'diagram-pdf';
 
 export interface WorkerFailure {
   worker: WorkerName;

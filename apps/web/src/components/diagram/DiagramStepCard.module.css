@@ -1,0 +1,298 @@
+/*
+ * A step in the Steps grid (DiagramStepCard.tsx): its number and kind, a
+ * square well holding its picture, and its instruction under it. A turn's
+ * card (DiagramTurnCard, the same file) is the same card: its name for a
+ * number, its glyph for a picture, how it turns for an instruction.
+ */
+.card {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+}
+
+.card:focus {
+  outline: none;
+}
+
+.card:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.card[data-selected] {
+  border-color: var(--accent-primary);
+  box-shadow: inset 0 0 0 1px var(--accent-primary);
+}
+
+.card[data-selected]:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px var(--accent-primary),
+    0 0 0 2px var(--accent-primary);
+}
+
+/* A picture dragged over the grid would land here. */
+.card[data-drop-target] {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 45%, transparent);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 6px var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* The step's number, or a turn's name: always whole — beside an enlarged step's chip, the chip gives way. */
+.number {
+  flex: none;
+  font-size: 0.76rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* Square, whatever the column width, so a row of cards lines up. */
+.well {
+  position: relative;
+  display: grid;
+  aspect-ratio: 1;
+  place-items: center;
+  background: var(--bg-secondary);
+}
+
+/*
+ * A picture is shown on the paper it will be printed on, white in either
+ * theme: a drawing with no background of its own — dark lines on nothing —
+ * would otherwise vanish into a dark theme's well.
+ */
+.well[data-picture] {
+  background: #ffffff;
+}
+
+/* The picture fills the well and keeps its shape; the well's ground shows around it. */
+.picture {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  object-fit: contain;
+  box-sizing: border-box;
+  padding: var(--space-2);
+}
+
+.placeholder {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: var(--space-3);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.instruction {
+  display: -webkit-box;
+  margin: 0;
+  padding: var(--space-2);
+  overflow: hidden;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.instruction[data-empty] {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* The ways to give an empty step a picture, side by side. */
+.shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+/* Or to make it a turn instead (D24): quieter, under a word that says so. */
+.turnWays {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  margin-top: var(--space-1);
+}
+
+.or {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+/* A turn's glyph, as a page prints it, on the paper's white. */
+.turnGlyph {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+}
+
+/* Where a turn prints, under how it turns. */
+.where {
+  display: block;
+  color: var(--text-muted);
+}
+
+/* The kind, and a linked step's pattern beside it. */
+.kind {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* The kind's badge, on one line: the chip beside it gives way, not it. */
+.kindBadge {
+  flex: none;
+}
+
+/* An enlarged step's chip (Revision 2), in the header beside its kind: it gives way first on a narrow card. */
+.enlarged {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+.enlarged > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A linked step's pattern, small: on the canvas's ground, where the theme's crease inks read. */
+.pattern {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 1px;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  background: var(--bg-canvas, #0c0f12);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+}
+
+/* How the link stands, or that it is being captured, over the picture's foot. */
+.chip {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 12px);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+  font-size: 0.66rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip[data-tone='warning'] {
+  color: var(--status-warning);
+}
+
+.chip[data-tone='progress'] {
+  color: var(--text-secondary);
+}
+
+
+.stop {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.stop:hover {
+  text-decoration: underline;
+}
+
+/*
+ * Adjust pose, Annotate and Delete, over the well's top corner: shown while
+ * the card is pointed at, focused or selected, and always under a finger,
+ * which has no hover. Dark in either theme, as they sit on the white paper.
+ */
+.verbs {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.card:hover .verbs,
+.card:focus-within .verbs,
+.card[data-selected] .verbs {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .verbs {
+    opacity: 1;
+  }
+}
+
+.verb {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: rgb(16 20 23 / 0.72);
+  color: #e8edf0;
+  cursor: pointer;
+}
+
+.verb:hover {
+  background: rgb(16 20 23 / 0.92);
+}
+
+.verb[data-danger]:hover {
+  background: var(--status-danger);
+  color: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verbs {
+    transition: none;
+  }
+}

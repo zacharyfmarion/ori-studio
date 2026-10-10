@@ -7,6 +7,19 @@ import {
   placeCpLineSegmentsAt,
 } from '../../../lib/creasePatternClipboard';
 import type { Selection, TreeProject } from '../../../lib/sampleProject';
+import { toast } from 'sonner';
+import i18n from '../../../i18n';
+import { EDIT_PATH, enlargedStepTakesNoArea } from '../../../diagram/annotate/annotateTools';
+import { stepById, type DiagramDocument } from '../../../diagram/document/diagramDocument';
+import { annotationActionEdit } from '../../../diagram/annotate/annotationActions';
+import {
+  annotationClipboard,
+  copiedView,
+  pastedAnnotations,
+  pastedOnto,
+} from '../../../diagram/annotate/annotationClipboard';
+import { applyAnnotationEdit } from '../../../diagram/annotate/applyAnnotationEdit';
+import { canCopyDiagramAnnotation, canPasteDiagramAnnotations, selectedDiagramAnnotation } from '../diagramState';
 import { selectedEdgeIds, selectedNodeIds } from '../../../lib/selection';
 import {
   engineError,
@@ -67,11 +80,29 @@ function buildClipboardPayload(
   return nodes.length > 0 || edges.length > 0 ? { kind: 'tree', nodes, edges } : null;
 }
 
+/** The view a step's marks are drawn in, while they are in step with its picture (Revision 2): what a copy remembers. */
+function copiedViewOf(diagram: DiagramDocument | null, stepId: string) {
+  const step = diagram ? stepById(diagram, stepId) : null;
+  return step ? copiedView(step) : undefined;
+}
+
+/** The pastes of annotations, counted: `diagramPasted`'s nonce. */
+let diagramPastes = 0;
+
 export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set, get) => ({
   clipboard: null,
   clipboardPasteCount: 0,
 
   copySelection: () => {
+    // The Diagram's own marks, never the tree's: the diagram is what is on screen.
+    if (get().activeEditingContext === 'diagram') {
+      const annotation = canCopyDiagramAnnotation(get()) ? selectedDiagramAnnotation(get()) : null;
+      const stepId = get().diagramSelectedStepId;
+      if (annotation && stepId !== null) {
+        set({ clipboard: annotationClipboard([annotation], stepId, { view: copiedViewOf(get().diagram, stepId) }), clipboardPasteCount: 0 });
+      }
+      return;
+    }
     if (get().activeEditingContext === 'crease-pattern') {
       const clipboard = buildCpLineClipboardPayload(
         get().oristudioCpDocument?.document,
@@ -105,6 +136,18 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
   },
 
   cutSelection: async () => {
+    if (get().activeEditingContext === 'diagram') {
+      // Taken out as Delete takes it — the whole annotation, Edit Path's node
+      // or not — onto a clipboard whose first paste on this step puts it back.
+      const annotation = canCopyDiagramAnnotation(get()) ? selectedDiagramAnnotation(get()) : null;
+      const stepId = get().diagramSelectedStepId;
+      if (!annotation || stepId === null || !canPasteDiagramAnnotations(get())) return;
+      // The view it was drawn in, as it was before it was taken out.
+      const view = copiedViewOf(get().diagram, stepId);
+      const cut = applyAnnotationEdit(get(), stepId, { ...annotationActionEdit('delete', annotation.id), label: 'Cut annotation' });
+      if (cut) set({ clipboard: annotationClipboard([annotation], stepId, { cut: true, view }), clipboardPasteCount: 0 });
+      return;
+    }
     if (get().activeEditingContext === 'crease-pattern') {
       set({
         error: {
@@ -120,6 +163,37 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
   },
 
   pasteClipboard: async (at) => {
+    if (get().activeEditingContext === 'diagram') {
+      // On the step open in Annotate, the first copy selected with Select in
+      // hand to move it — Edit Path kept — as a press on the list selects.
+      const clipboard = get().clipboard;
+      const stepId = get().diagramSelectedStepId;
+      if (clipboard?.kind !== 'diagram-annotations' || stepId === null || !canPasteDiagramAnnotations(get())) return;
+      // A step is enlarged or holds areas, not both (Revision 2): an area pasted on an enlarged step is left out.
+      const target = get().diagram ? stepById(get().diagram!, stepId) : undefined;
+      // On the picture they came from, on the same paper: an enlarged step's window or its whole picture.
+      const copies = pastedAnnotations(clipboard, stepId, undefined, target ?? undefined);
+      const pasted = target?.zoom ? copies.filter((annotation) => annotation.kind !== 'zoom') : copies;
+      if (pasted.length < copies.length) toast.message(enlargedStepTakesNoArea(i18n.t));
+      if (pasted.length === 0) return;
+      const label = pasted.length === 1 ? 'Paste annotation' : 'Paste annotations';
+      const changed = get().editDiagramAnnotations(stepId, label, (list) => [...list, ...pasted], {
+        select: pasted[0]?.id ?? null,
+      });
+      if (!changed) return;
+      // Told to the step's canvas, which steps back to show it if it lies out of view (18d review).
+      set({
+        clipboard: pastedOnto(clipboard, stepId),
+        diagramPasted: { stepId, ids: pasted.map(({ id }) => id), nonce: (diagramPastes += 1) },
+      });
+      if (get().diagramAnnotateTool !== EDIT_PATH) get().setDiagramAnnotateTool(null);
+      // An enlarge area or an x-ray pasted on a flat step captured before its faces were kept gets them, in the paste's
+      // undo step, as one laid there does (Revision 2; Revision 3, review of 18e).
+      if (pasted.some((annotation) => annotation.kind === 'zoom' || annotation.kind === 'x-ray')) {
+        void get().giveDiagramStepPaperFaces(stepId);
+      }
+      return;
+    }
     if (get().activeEditingContext === 'crease-pattern') {
       const clipboard = get().clipboard;
       if (!clipboard || clipboard.kind !== 'cp-lines' || clipboard.lines.length === 0) return;

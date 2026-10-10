@@ -1,0 +1,32 @@
+/* A standing notice on a surface (Notice.tsx): an icon and a sentence. */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.notice[data-tone='warning'] {
+  border-color: color-mix(in srgb, var(--status-warning) 40%, var(--border-subtle));
+  background: color-mix(in srgb, var(--status-warning) 8%, var(--bg-secondary));
+}
+
+.icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--text-tertiary);
+}
+
+.notice[data-tone='warning'] .icon {
+  color: var(--status-warning);
+}
+
+.body {
+  min-width: 0;
+}

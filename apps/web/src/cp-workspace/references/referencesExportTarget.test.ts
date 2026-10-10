@@ -14,6 +14,10 @@ import {
 } from '../../paperExport/paperExportSession';
 import { paperExportDraft } from '../../paperExport/usePaperExportDialog';
 import golden from './__fixtures__/referencesStepExportGolden.json';
+import glyphsGolden from './__fixtures__/referencesGlyphsGolden.json';
+import pathArrowsGolden from './__fixtures__/referencesPathArrowsGolden.json';
+import rightAnglesGolden from './__fixtures__/referencesRightAnglesGolden.json';
+import whiteArrowsGolden from './__fixtures__/referencesWhiteArrowsGolden.json';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import {
   canvasDiagramInk,
@@ -97,9 +101,237 @@ function target(capture: StepCapture, diagrams: readonly StepDiagramModel[] = [s
   });
 }
 
+/**
+ * Every glyph the Diagram's annotations draw, on a unit sheet with a valley
+ * across it: the one-way folds, a push, the rotate and turn-over signs, and
+ * the ring a circle is (Phase 14d), in the highlight style.
+ */
+const GLYPHS: StepDiagramModel = {
+  sheet: { width: 1, height: 1 },
+  primitives: [
+    { kind: 'sheet', width: 1, height: 1 },
+    { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'valley' },
+    {
+      kind: 'one-way-arrow',
+      out: { center: [0.25, 0.9], radius: 0.3, from: -1.6, to: -0.6, ccw: true },
+      fold: 'valley',
+    },
+    {
+      kind: 'one-way-arrow',
+      out: { center: [0.7, 0.05], radius: 0.3, from: 1.7, to: 0.8, ccw: false },
+      fold: 'mountain',
+    },
+    { kind: 'push-arrow', from: [0.1, 0.15], to: [0.35, 0.3] },
+    { kind: 'rotate', at: [0.8, 0.8], amount: 'quarter', direction: 'cw' },
+    { kind: 'rotate', at: [0.2, 0.8], amount: 'eighth', direction: 'ccw' },
+    { kind: 'turn-over', at: [0.5, 1.05] },
+    { kind: 'turn-over', at: [1.06, 0.5], axis: 'horizontal' },
+    { kind: 'point', at: [0.62, 0.62], style: 'highlight' },
+  ],
+};
+
+/**
+ * The shaped fold arrows (Phase 14c), on a unit sheet with a valley across
+ * it: an S-shaped valley through three nodes, a mountain that loops round to
+ * end beside its tail, and a fold-and-unfold arrow round a tight turn, whose
+ * return is cut where it would fold back on itself.
+ */
+const PATH_ARROWS: StepDiagramModel = {
+  sheet: { width: 1, height: 1 },
+  primitives: [
+    { kind: 'sheet', width: 1, height: 1 },
+    { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'valley' },
+    {
+      kind: 'path-arrow',
+      fold: 'valley',
+      path: [
+        [
+          [0.08, 0.8],
+          [0.15, 0.95],
+          [0.3, 0.92],
+          [0.38, 0.8],
+        ],
+        [
+          [0.38, 0.8],
+          [0.46, 0.68],
+          [0.6, 0.62],
+          [0.7, 0.75],
+        ],
+      ],
+    },
+    {
+      kind: 'path-arrow',
+      fold: 'mountain',
+      path: [
+        [
+          [0.6, 0.15],
+          [0.95, 0.05],
+          [0.98, 0.4],
+          [0.75, 0.38],
+        ],
+        [
+          [0.75, 0.38],
+          [0.62, 0.37],
+          [0.58, 0.28],
+          [0.64, 0.2],
+        ],
+      ],
+    },
+    {
+      kind: 'path-arrow',
+      fold: 'fold-unfold',
+      path: [
+        [
+          [0.08, 0.15],
+          [0.3, 0.15],
+          [0.42, 0.18],
+          [0.44, 0.27],
+        ],
+        [
+          [0.44, 0.27],
+          [0.46, 0.36],
+          [0.3, 0.38],
+          [0.12, 0.33],
+        ],
+      ],
+    },
+    {
+      // Two lobes either side of a dip tighter than the loop is wide, on the return's side.
+      kind: 'path-arrow',
+      fold: 'fold-unfold',
+      path: [
+        [
+          [0.52, 0.68],
+          [0.55, 0.53],
+          [0.66, 0.53],
+          [0.69, 0.64],
+        ],
+        [
+          [0.69, 0.64],
+          [0.7, 0.69],
+          [0.73, 0.69],
+          [0.74, 0.64],
+        ],
+        [
+          [0.74, 0.64],
+          [0.77, 0.53],
+          [0.9, 0.53],
+          [0.93, 0.68],
+        ],
+      ],
+    },
+  ],
+};
+
+/**
+ * Right-angle marks (Phase 14e; Revision 2's look, 16a), on a unit sheet
+ * crossed by a valley and a mountain: in two corners of the paper, in two of
+ * the four quadrants where the creases cross, and one turned off the creases'
+ * axes.
+ */
+const RIGHT_ANGLES: StepDiagramModel = {
+  sheet: { width: 1, height: 1 },
+  primitives: [
+    { kind: 'sheet', width: 1, height: 1 },
+    { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'valley' },
+    { kind: 'line', from: [0.5, 0], to: [0.5, 1], style: 'mountain' },
+    { kind: 'right-angle', at: [0, 0], toward: [0.1, 0.1] },
+    { kind: 'right-angle', at: [1, 1], toward: [0.9, 0.9] },
+    { kind: 'right-angle', at: [0.5, 0.5], toward: [0.6, 0.6] },
+    { kind: 'right-angle', at: [0.5, 0.5], toward: [0.4, 0.4] },
+    { kind: 'right-angle', at: [0.25, 0.75], toward: [0.25 + Math.cos(1), 0.75 + Math.sin(1)] },
+  ],
+};
+
+/**
+ * White arrows (Phase 14f), on a unit sheet with a valley across it: every
+ * width and every tail — a regular one tapered to a point along a gentle
+ * arc, a narrow one cut square along an S, a wide one cleft and straight,
+ * and a regular one turned at a corner node, its outside mitred.
+ */
+const WHITE_ARROWS: StepDiagramModel = {
+  sheet: { width: 1, height: 1 },
+  primitives: [
+    { kind: 'sheet', width: 1, height: 1 },
+    { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'valley' },
+    {
+      kind: 'white-arrow',
+      width: 'regular',
+      tail: 'pointed',
+      fill: 'white',
+      path: [
+        [
+          [0.06, 0.62],
+          [0.14, 0.86],
+          [0.3, 0.92],
+          [0.46, 0.84],
+        ],
+      ],
+    },
+    {
+      kind: 'white-arrow',
+      width: 'narrow',
+      tail: 'square',
+      fill: 'white',
+      path: [
+        [
+          [0.56, 0.6],
+          [0.6, 0.75],
+          [0.7, 0.8],
+          [0.76, 0.74],
+        ],
+        [
+          [0.76, 0.74],
+          [0.82, 0.68],
+          [0.88, 0.7],
+          [0.94, 0.9],
+        ],
+      ],
+    },
+    {
+      kind: 'white-arrow',
+      width: 'wide',
+      tail: 'cleft',
+      fill: 'white',
+      path: [
+        [
+          [0.08, 0.14],
+          [0.08, 0.14],
+          [0.46, 0.36],
+          [0.46, 0.36],
+        ],
+      ],
+    },
+    {
+      kind: 'white-arrow',
+      width: 'regular',
+      tail: 'square',
+      fill: 'white',
+      path: [
+        [
+          [0.62, 0.08],
+          [0.62, 0.16],
+          [0.63, 0.32],
+          [0.64, 0.4],
+        ],
+        [
+          [0.64, 0.4],
+          [0.72, 0.41],
+          [0.86, 0.42],
+          [0.94, 0.42],
+        ],
+      ],
+    },
+  ],
+};
+
 /** The page the dialog saves for these remembered options, exactly as the dialog reaches it. */
-async function dialogPage(capture: StepCapture, remembered: PaperExportSettings) {
-  const exported = target(capture);
+async function dialogPage(
+  capture: StepCapture,
+  remembered: PaperExportSettings,
+  diagrams: readonly StepDiagramModel[] = [stepDiagram()]
+) {
+  const exported = target(capture, diagrams);
   const rows = paperPresetRows([]);
   const draft = paperExportDraft(remembered, { format: null }, rows);
   const style = paperExportStyle(exported, draft.style, rows);
@@ -130,6 +362,53 @@ describe('referencesExportTarget', () => {
       }
     );
     expect(page).toEqual(golden.custom);
+  });
+
+  it('draws the glyphs a Diagram’s annotations use: one-way folds, push, rotate, a turn-over on either axis, and a ring', async () => {
+    // Front and back: the arrows' arcs mirror with the paper, the glyphs drawn in page space do not.
+    for (const mirrored of [false, true]) {
+      const page = await dialogPage(
+        { mirrored, lineWidth: 1, showAux: null },
+        { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm: 80 } },
+        [GLYPHS]
+      );
+      expect(page).toEqual(mirrored ? glyphsGolden.back : glyphsGolden.front);
+    }
+  });
+
+  it('draws the shaped fold arrows: a valley’s and a mountain’s head, and a fold-and-unfold’s return, along cubic paths', async () => {
+    // Front and back: a path mirrors with the paper, every control point with it.
+    for (const mirrored of [false, true]) {
+      const page = await dialogPage(
+        { mirrored, lineWidth: 1, showAux: null },
+        { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm: 80 } },
+        [PATH_ARROWS]
+      );
+      expect(page).toEqual(mirrored ? pathArrowsGolden.back : pathArrowsGolden.front);
+    }
+  });
+
+  it('draws right-angle marks: an ∟ and its square set into each corner, mitred, mirrored with the paper on the back', async () => {
+    for (const mirrored of [false, true]) {
+      const page = await dialogPage(
+        { mirrored, lineWidth: 1, showAux: null },
+        { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm: 80 } },
+        [RIGHT_ANGLES]
+      );
+      expect(page).toEqual(mirrored ? rightAnglesGolden.back : rightAnglesGolden.front);
+    }
+  });
+
+  it('draws white arrows: every width and tail, hollow in the paper’s face and outlined in the arrow’s pen, mitred to their own limit', async () => {
+    // Front and back: a path mirrors with the paper, every control point with it.
+    for (const mirrored of [false, true]) {
+      const page = await dialogPage(
+        { mirrored, lineWidth: 1, showAux: null },
+        { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm: 80 } },
+        [WHITE_ARROWS]
+      );
+      expect(page).toEqual(mirrored ? whiteArrowsGolden.back : whiteArrowsGolden.front);
+    }
   });
 
   it('builds each page from its own step, and keys it by the page', async () => {

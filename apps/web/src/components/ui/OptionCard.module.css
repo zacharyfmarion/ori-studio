@@ -1,0 +1,67 @@
+/*
+ * A choice between a few things that each need more than a word: a card per
+ * option, its icon, name and a line on what it does, laid out side by side.
+ * One is chosen, as in a radio group.
+ */
+.group {
+  display: grid;
+  grid-template-columns: repeat(var(--option-columns, 2), minmax(0, 1fr));
+  gap: 8px;
+}
+
+.card {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  justify-items: start;
+  gap: 4px;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--touch-target, 44px);
+  padding: 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.card:hover:not([aria-disabled='true']) {
+  border-color: var(--border-strong);
+}
+
+.card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.card[aria-checked='true'] {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-elevated));
+}
+
+.card[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.icon {
+  display: inline-flex;
+  color: var(--text-secondary);
+}
+
+.card[aria-checked='true'] .icon {
+  color: var(--accent-primary);
+}
+
+.label {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.description {
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}

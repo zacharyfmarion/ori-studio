@@ -1,0 +1,106 @@
+/* The Layers pane's body (DiagramLayers.tsx): the list of what is drawn, and the selected one's controls. */
+.layers {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.notice {
+  padding: 0 var(--space-3);
+}
+
+.empty {
+  margin: 0;
+  padding: 0 var(--space-3);
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+}
+
+.list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 var(--space-2);
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 28px;
+  padding: 2px var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.76rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.row:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.row[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
+  color: var(--text-primary);
+}
+
+.rowName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A row's name, and under it what it says of itself: an area's enlarged steps, a frame's area (Revision 2). */
+.rowText {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rowNote {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A badge on a row, under its name as a note is: as wide as its words, never the row's. */
+.rowBadge {
+  justify-self: start;
+  max-width: 100%;
+  line-height: 1;
+}
+
+@media (pointer: coarse) {
+  .row {
+    min-height: var(--touch-target);
+  }
+}
+
+.selected {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.verbs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}

@@ -124,6 +124,22 @@ const UNCACHEABLE_PATTERNS: readonly RegExp[] = [
   /^assets\/ort[.-][^/]+$/,
 ];
 
+/**
+ * Cached when used, but never warmed: the Diagram's PDF writer — its worker and
+ * its wasm (4.2 MB, 1.5 MB gzipped), fetched on the first PDF export
+ * (`diagram/export/browserPdfWriter.ts`) — and its font subsetter, HarfBuzz's
+ * (650 KB, 260 KB gzipped), fetched when a diagram's pages are first set
+ * (`diagram/fonts/browserFontSubsetter.ts`). The warm set is what every
+ * installed app downloads on its first visit (invariant 5 in `src/pwa/sw.ts`),
+ * and few of those visitors will ever lay out a diagram; the first use stores
+ * them like any other asset. Allowed to match nothing.
+ */
+const UNWARMED_PATTERNS: readonly RegExp[] = [
+  /^assets\/diagramPdfWorker-[^/]+\.js$/,
+  /^assets\/oristudio_pdf_wasm_bg-[^/]+\.wasm$/,
+  /^assets\/harfbuzz-subset-[^/]+\.wasm$/,
+];
+
 /** Where {@link simPerfLogSink} appends. Gitignored (`artifacts/`). */
 const SIM_PERF_LOG = 'artifacts/sim-perf/sim-perf.log';
 
@@ -207,19 +223,21 @@ function serviceWorkerManifest(
   // Empty is a legal answer (an app that spawns no workers has nothing to warm),
   // so this does not fail the build. What would catch a miss is the WebKit lane,
   // which asserts every asset the page loads ends up in the cache.
+  const warmable = (name: string) => !UNWARMED_PATTERNS.some((pattern) => pattern.test(name));
   const workers = assets
-    .filter((name) => name.endsWith('.js') && bundleOutput[name]?.type === 'asset')
+    .filter((name) => name.endsWith('.js') && bundleOutput[name]?.type === 'asset' && warmable(name))
     .map((name) => `/${name}`)
     .filter((path) => !uncacheable.includes(path));
 
   // The engine kernels. Every `.wasm` this build emits, minus the ones no user
   // can reach — which today is exactly the CP detector's, already listed in
-  // `uncacheable`. An extension match rather than a name pattern, for the same
+  // `uncacheable` — and the PDF writer's, which waits for its first export
+  // (`UNWARMED_PATTERNS`). An extension match rather than a name pattern, for the same
   // reason `workers` uses a bundle-type test: `oristudio_bp_wasm_bg-*.wasm` is
   // wasm-bindgen's naming, not ours, and a regex over it stops matching the day
   // the crate is renamed. See invariant 5 in `sw.ts` for why these are warmed.
   const kernels = assets
-    .filter((name) => name.endsWith('.wasm'))
+    .filter((name) => name.endsWith('.wasm') && warmable(name))
     .map((name) => `/${name}`)
     .filter((path) => !uncacheable.includes(path));
 

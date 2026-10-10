@@ -1,0 +1,17 @@
+.parameter {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.heading {
+  margin-bottom: 7px;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}

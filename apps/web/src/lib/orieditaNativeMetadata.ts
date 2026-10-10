@@ -8,7 +8,8 @@ import type {
 import { cpActionByUpstreamMouseMode } from './oristudioCpActions';
 import { toggledCpLineColor } from './oristudioCpPalette';
 
-const DEFAULT_FOLDED_MODEL: OristudioCpFoldedFigureModel = {
+/** The kernel's own folded-figure model, mirroring the Rust `FoldedFigureModel::default()`. */
+export const DEFAULT_FOLDED_MODEL: OristudioCpFoldedFigureModel = {
   front_color: { red: 255, green: 255, blue: 50 },
   back_color: { red: 233, green: 233, blue: 233 },
   line_color: { red: 0, green: 0, blue: 0 },

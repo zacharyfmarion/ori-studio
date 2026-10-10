@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="100" viewBox="0 0 100 100">
+<rect width="100" height="100" fill="#3a3"/>
+<defs><g id="a"><use href="#b"/></g><g id="b"><use href="#a"/></g><g id="self"><use href="#self"/></g>
+<linearGradient id="ga" href="#gb"/><linearGradient id="gb" href="#ga"/>
+<pattern id="pa" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="url(#pa)"/></pattern></defs>
+<use href="#a"/><use href="#self"/><rect width="10" height="10" fill="url(#ga)"/><rect x="20" width="10" height="10" fill="url(#pa)"/>
+</svg>

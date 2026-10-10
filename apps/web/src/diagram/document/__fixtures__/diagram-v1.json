@@ -1,0 +1,1635 @@
+{
+  "formatVersion": 1,
+  "id": "diagram-frozen-v1",
+  "title": "Frozen v1 · 千纸鹤",
+  "hanStyle": "jp",
+  "style": {
+    "style": {
+      "version": 1,
+      "paper": {
+        "front": "#ffff32",
+        "back": "#e9e9e9"
+      },
+      "edges": {
+        "width": 0.9,
+        "color": "#000000",
+        "dash": null,
+        "cap": "butt"
+      },
+      "mountainFolds": {
+        "width": 0.825,
+        "color": "#db1f24",
+        "dash": null,
+        "cap": "butt"
+      },
+      "valleyFolds": {
+        "width": 0.825,
+        "color": "#1c5cd9",
+        "dash": null,
+        "cap": "butt"
+      },
+      "mountainDiagramCreases": {
+        "width": 0.825,
+        "color": "#db1f24",
+        "dash": [
+          8,
+          2,
+          1,
+          2
+        ],
+        "cap": "butt"
+      },
+      "valleyDiagramCreases": {
+        "width": 0.825,
+        "color": "#1c5cd9",
+        "dash": [
+          4,
+          2
+        ],
+        "cap": "butt"
+      },
+      "foldsAsEdges": false,
+      "auxCreases": {
+        "visible": true,
+        "pen": {
+          "width": 0.5,
+          "color": "#9aa4ad",
+          "dash": null,
+          "cap": "butt"
+        }
+      },
+      "arrows": {
+        "width": 1.05,
+        "color": "#000000",
+        "dash": null,
+        "cap": "round"
+      },
+      "erode": 0,
+      "light": {
+        "enabled": true,
+        "azimuth": 322.19347,
+        "elevation": 42.80915
+      }
+    }
+  },
+  "page": {
+    "size": "a4",
+    "orientation": "landscape",
+    "marginMm": 10,
+    "layout": "flow",
+    "columns": 4,
+    "rows": 3,
+    "showPath": true,
+    "showTitle": true,
+    "pageNumbers": {
+      "enabled": true,
+      "first": 3
+    },
+    "pathWidthMm": 18,
+    "pathColor": "#d6e8f5",
+    "firstPageSide": "right"
+  },
+  "steps": [
+    {
+      "id": "step-cp",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "crease-pattern",
+          "rotationDeg": 45
+        }
+      },
+      "picture": {
+        "kind": "scene",
+        "sceneJson": "{\"bounds\":{\"minX\":0,\"minY\":0,\"maxX\":100,\"maxY\":100},\"sheet\":100,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,0],[100,0],[100,100],[0,100]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[0,50],\"b\":[100,50],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+        "paperScale": 100,
+        "styleKey": null,
+        "key": "scene-1"
+      },
+      "annotations": [
+        {
+          "id": "z-area",
+          "kind": "zoom",
+          "from": [
+            0.4,
+            0.3
+          ],
+          "to": [
+            0.4,
+            0.3
+          ],
+          "radius": 0.15,
+          "scale": 2,
+          "edge": "cut"
+        }
+      ],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    },
+    {
+      "id": "step-flat",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "folded-flat",
+          "side": "back",
+          "rotationDeg": 90,
+          "foldCase": 2
+        },
+        "remembered": {
+          "crease-pattern": {
+            "mode": "crease-pattern",
+            "rotationDeg": 30
+          }
+        }
+      },
+      "picture": {
+        "kind": "scene",
+        "sceneJson": "{\"bounds\":{\"minX\":0,\"minY\":0,\"maxX\":100,\"maxY\":100},\"sheet\":100,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,0],[100,0],[100,100],[0,100]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[0,50],\"b\":[100,50],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+        "paperScale": 100,
+        "styleKey": null,
+        "key": "scene-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": "scene-1",
+      "text": "",
+      "breakBefore": false,
+      "zoom": {
+        "from": "z-area",
+        "shape": "circle",
+        "frame": {
+          "centre": [
+            0.5,
+            0.4
+          ],
+          "radius": 0.2
+        },
+        "imprint": {
+          "centre": [
+            12.5,
+            -8.25
+          ],
+          "radius": 30.5,
+          "on": [
+            40.25,
+            60.5
+          ],
+          "picked": true
+        },
+        "scale": 2,
+        "edge": "cut",
+        "areaWas": {
+          "stepId": "step-cp",
+          "outline": {
+            "centre": [
+              0.4,
+              0.3
+            ],
+            "radius": 0.15
+          },
+          "scale": 2,
+          "edge": "cut"
+        }
+      }
+    },
+    {
+      "id": "step-3d",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "folded-3d",
+          "camera": {
+            "yaw": 0.5,
+            "pitch": -0.4,
+            "zoom": 1.2
+          },
+          "side": "front"
+        }
+      },
+      "picture": {
+        "kind": "scene",
+        "sceneJson": "{\"bounds\":{\"minX\":0,\"minY\":0,\"maxX\":100,\"maxY\":100},\"sheet\":100,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,0],[100,0],[100,100],[0,100]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[0,50],\"b\":[100,50],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+        "paperScale": 100,
+        "styleKey": "light-1",
+        "key": "scene-3d"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false,
+      "place": {
+        "frame": [
+          3.5,
+          -2
+        ],
+        "number": [
+          1,
+          0
+        ],
+        "picture": [
+          0,
+          4.2
+        ],
+        "text": [
+          -1.5,
+          2
+        ],
+        "scale": {
+          "mmPerUnit": 0.25
+        }
+      }
+    },
+    {
+      "id": "step-fixed",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "folded-flat",
+          "side": "front",
+          "rotationDeg": 0,
+          "foldCase": 1
+        }
+      },
+      "picture": {
+        "kind": "fixed",
+        "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 20 10\" width=\"20\" height=\"10\"><path d=\"M0 0L20 10\" stroke=\"#000\"/></svg>",
+        "widthPx": 20,
+        "heightPx": 10,
+        "key": "fixed-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    },
+    {
+      "id": "step-unposed",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "crease-pattern",
+          "rotationDeg": 0
+        }
+      },
+      "picture": null,
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    },
+    {
+      "id": "step-simulated",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "simulated",
+          "foldPercent": 0,
+          "view": {
+            "yaw": 0.8,
+            "pitch": -0.9,
+            "zoom": 1.4
+          }
+        }
+      },
+      "picture": {
+        "kind": "scene",
+        "sceneJson": "{\"bounds\":{\"minX\":0,\"minY\":0,\"maxX\":100,\"maxY\":100},\"sheet\":100,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,0],[100,0],[100,100],[0,100]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[0,50],\"b\":[100,50],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+        "paperScale": 100,
+        "styleKey": null,
+        "key": "scene-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    },
+    {
+      "id": "step-simulated-40",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "simulated",
+          "foldPercent": 40.5,
+          "view": {
+            "yaw": 0.8,
+            "pitch": -0.9,
+            "zoom": 1.4,
+            "orient": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              -1,
+              0,
+              1,
+              0
+            ]
+          }
+        }
+      },
+      "picture": {
+        "kind": "scene",
+        "sceneJson": "{\"bounds\":{\"minX\":0,\"minY\":0,\"maxX\":100,\"maxY\":100},\"sheet\":100,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,0],[100,0],[100,100],[0,100]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[0,50],\"b\":[100,50],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+        "paperScale": 100,
+        "styleKey": null,
+        "key": "scene-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    },
+    {
+      "id": "step-spread",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "folded-flat",
+          "side": "front",
+          "rotationDeg": 15,
+          "foldCase": 1,
+          "spread": {
+            "kind": "depth",
+            "amount": 0.075,
+            "toward": "down-right"
+          }
+        }
+      },
+      "picture": {
+        "kind": "scene",
+        "sceneJson": "{\"bounds\":{\"minX\":0,\"minY\":0,\"maxX\":100,\"maxY\":100},\"sheet\":100,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,0],[100,0],[100,100],[0,100]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[0,50],\"b\":[100,50],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+        "paperScale": 100,
+        "styleKey": null,
+        "key": "scene-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    },
+    {
+      "id": "step-remembers-spread",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "crease-pattern",
+          "rotationDeg": 0
+        },
+        "remembered": {
+          "folded": {
+            "mode": "folded-flat",
+            "side": "front",
+            "rotationDeg": 0,
+            "foldCase": 1,
+            "spread": {
+              "kind": "depth",
+              "amount": 0.075,
+              "toward": "down-right"
+            }
+          }
+        }
+      },
+      "picture": {
+        "kind": "scene",
+        "sceneJson": "{\"bounds\":{\"minX\":0,\"minY\":0,\"maxX\":100,\"maxY\":100},\"sheet\":100,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,0],[100,0],[100,100],[0,100]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[0,50],\"b\":[100,50],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+        "paperScale": 100,
+        "styleKey": null,
+        "key": "scene-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    },
+    {
+      "id": "step-affine",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "folded-flat",
+          "side": "front",
+          "rotationDeg": 0,
+          "foldCase": 1,
+          "spread": {
+            "kind": "affine",
+            "amount": 0.04,
+            "keep": "bottom",
+            "skew": 0.35,
+            "axisDeg": 120
+          }
+        }
+      },
+      "picture": {
+        "kind": "scene",
+        "sceneJson": "{\"bounds\":{\"minX\":0,\"minY\":0,\"maxX\":100,\"maxY\":100},\"sheet\":100,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,0],[100,0],[100,100],[0,100]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[0,50],\"b\":[100,50],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+        "paperScale": 100,
+        "styleKey": null,
+        "key": "scene-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    },
+    {
+      "id": "step-cp-back",
+      "revision": 0,
+      "source": {
+        "kind": "cp",
+        "scope": {
+          "kind": "segment",
+          "region": {
+            "boundary": [
+              [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 0,
+                  "y": 1
+                }
+              ]
+            ],
+            "bounds": {
+              "minX": 0,
+              "minY": 0,
+              "maxX": 1,
+              "maxY": 1
+            },
+            "segmentIdHint": 0
+          }
+        },
+        "fingerprint": "fp-1",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "render": {
+          "mode": "crease-pattern",
+          "rotationDeg": 330,
+          "side": "back"
+        }
+      },
+      "picture": {
+        "kind": "scene",
+        "sceneJson": "{\"bounds\":{\"minX\":0,\"minY\":0,\"maxX\":100,\"maxY\":100},\"sheet\":100,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,0],[100,0],[100,100],[0,100]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[0,50],\"b\":[100,50],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+        "paperScale": 100,
+        "styleKey": null,
+        "key": "scene-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    },
+    {
+      "id": "turn-a",
+      "kind": "turn-over",
+      "axis": "horizontal"
+    },
+    {
+      "id": "step-2",
+      "revision": 0,
+      "source": {
+        "kind": "upload",
+        "assetId": "asset-a",
+        "rotationQuarterTurns": 0,
+        "mirrored": false
+      },
+      "picture": {
+        "kind": "asset",
+        "assetId": "asset-a",
+        "paperScale": null,
+        "key": "asset:asset-a"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "Valley fold.",
+      "breakBefore": false
+    },
+    {
+      "id": "step-3",
+      "revision": 0,
+      "source": {
+        "kind": "upload",
+        "assetId": "asset-b",
+        "rotationQuarterTurns": 0,
+        "mirrored": false
+      },
+      "picture": {
+        "kind": "asset",
+        "assetId": "asset-b",
+        "paperScale": null,
+        "key": "asset:asset-b"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "",
+      "breakBefore": false
+    },
+    {
+      "id": "turn-b",
+      "kind": "rotate",
+      "rotate": {
+        "amount": "quarter",
+        "direction": "cw"
+      }
+    },
+    {
+      "id": "step-seq",
+      "revision": 0,
+      "source": {
+        "kind": "references-step",
+        "region": {
+          "boundary": [
+            [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 1
+              },
+              {
+                "x": 0,
+                "y": 1
+              }
+            ]
+          ],
+          "bounds": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 1,
+            "maxY": 1
+          },
+          "segmentIdHint": 0
+        },
+        "fingerprint": "fp-sheet",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "mode": "sequence",
+        "settings": {
+          "precreaseGrid": true,
+          "gridWhereNeeded": true,
+          "allowDanglingFolds": true,
+          "mergeSymmetricSteps": true
+        },
+        "card": 2,
+        "line": {
+          "n": [
+            0,
+            1
+          ],
+          "d": 0.5
+        },
+        "side": "front"
+      },
+      "picture": {
+        "kind": "step-diagram",
+        "model": "{\"sheet\":{\"width\":1,\"height\":1},\"primitives\":[{\"kind\":\"sheet\",\"width\":1,\"height\":1},{\"kind\":\"line\",\"from\":[0,0.5],\"to\":[1,0.5],\"style\":\"valley\"},{\"kind\":\"fold-arrow\",\"out\":{\"center\":[0.5,0.5],\"radius\":0.3,\"from\":0.4,\"to\":1.4,\"ccw\":true}},{\"kind\":\"label\",\"at\":[0,0.5],\"text\":\"A\",\"style\":\"normal\"}]}",
+        "mirrored": false,
+        "key": "steps-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "Fold the bottom edge to the top.",
+      "breakBefore": false
+    },
+    {
+      "id": "step-find",
+      "revision": 0,
+      "source": {
+        "kind": "references-step",
+        "region": {
+          "boundary": [
+            [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 1
+              },
+              {
+                "x": 0,
+                "y": 1
+              }
+            ]
+          ],
+          "bounds": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 1,
+            "maxY": 1
+          },
+          "segmentIdHint": 0
+        },
+        "fingerprint": "fp-sheet",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "mode": "find",
+        "settings": null,
+        "card": 1,
+        "line": null,
+        "side": "back"
+      },
+      "picture": {
+        "kind": "step-diagram",
+        "model": "{\"sheet\":{\"width\":1,\"height\":1},\"primitives\":[{\"kind\":\"sheet\",\"width\":1,\"height\":1},{\"kind\":\"line\",\"from\":[0,0.5],\"to\":[1,0.5],\"style\":\"valley\"},{\"kind\":\"fold-arrow\",\"out\":{\"center\":[0.5,0.5],\"radius\":0.3,\"from\":0.4,\"to\":1.4,\"ccw\":true}},{\"kind\":\"label\",\"at\":[0,0.5],\"text\":\"A\",\"style\":\"normal\"}]}",
+        "mirrored": true,
+        "key": "steps-1-back"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "Fold the bottom edge to the top.",
+      "breakBefore": false
+    },
+    {
+      "id": "step-turn",
+      "revision": 0,
+      "source": {
+        "kind": "references-step",
+        "region": {
+          "boundary": [
+            [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 1
+              },
+              {
+                "x": 0,
+                "y": 1
+              }
+            ]
+          ],
+          "bounds": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 1,
+            "maxY": 1
+          },
+          "segmentIdHint": 0
+        },
+        "fingerprint": null,
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "mode": "sequence",
+        "settings": {
+          "precreaseGrid": true,
+          "gridWhereNeeded": true,
+          "allowDanglingFolds": true,
+          "mergeSymmetricSteps": true
+        },
+        "card": null,
+        "line": null,
+        "side": "front"
+      },
+      "picture": {
+        "kind": "step-diagram",
+        "model": "{\"sheet\":{\"width\":1,\"height\":1},\"primitives\":[{\"kind\":\"sheet\",\"width\":1,\"height\":1},{\"kind\":\"line\",\"from\":[0,0.5],\"to\":[1,0.5],\"style\":\"valley\"},{\"kind\":\"fold-arrow\",\"out\":{\"center\":[0.5,0.5],\"radius\":0.3,\"from\":0.4,\"to\":1.4,\"ccw\":true}},{\"kind\":\"label\",\"at\":[0,0.5],\"text\":\"A\",\"style\":\"normal\"}]}",
+        "mirrored": false,
+        "key": "steps-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "Fold the bottom edge to the top.",
+      "breakBefore": false
+    },
+    {
+      "id": "step-pulled",
+      "revision": 0,
+      "source": {
+        "kind": "references-step",
+        "region": {
+          "boundary": [
+            [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 1
+              },
+              {
+                "x": 0,
+                "y": 1
+              }
+            ]
+          ],
+          "bounds": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 1,
+            "maxY": 1
+          },
+          "segmentIdHint": 0
+        },
+        "fingerprint": "fp-sheet",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "mode": "sequence",
+        "settings": {
+          "precreaseGrid": true,
+          "gridWhereNeeded": true,
+          "allowDanglingFolds": true,
+          "mergeSymmetricSteps": true
+        },
+        "card": 2,
+        "line": {
+          "n": [
+            0,
+            1
+          ],
+          "d": 0.5
+        },
+        "side": "front",
+        "plan": "{\"planner\":\"p\"}",
+        "way": "O1:c0,c1:0",
+        "sentence": "Fold P onto Q &amp; R."
+      },
+      "picture": {
+        "kind": "step-diagram",
+        "model": "{\"sheet\":{\"width\":1,\"height\":1},\"primitives\":[{\"kind\":\"sheet\",\"width\":1,\"height\":1},{\"kind\":\"line\",\"from\":[0,0.5],\"to\":[1,0.5],\"style\":\"valley\"},{\"kind\":\"fold-arrow\",\"out\":{\"center\":[0.5,0.5],\"radius\":0.3,\"from\":0.4,\"to\":1.4,\"ccw\":true}},{\"kind\":\"label\",\"at\":[0,0.5],\"text\":\"A\",\"style\":\"normal\"}]}",
+        "mirrored": false,
+        "key": "steps-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "Fold the bottom edge to the top.",
+      "breakBefore": false
+    },
+    {
+      "id": "step-shown",
+      "revision": 0,
+      "source": {
+        "kind": "references-step",
+        "region": {
+          "boundary": [
+            [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 1
+              },
+              {
+                "x": 0,
+                "y": 1
+              }
+            ]
+          ],
+          "bounds": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 1,
+            "maxY": 1
+          },
+          "segmentIdHint": 0
+        },
+        "fingerprint": "fp-sheet",
+        "thumbnail": "thumb-pxzlqcbzg4pr",
+        "mode": "sequence",
+        "settings": {
+          "precreaseGrid": true,
+          "gridWhereNeeded": true,
+          "allowDanglingFolds": true,
+          "mergeSymmetricSteps": true
+        },
+        "card": 2,
+        "line": {
+          "n": [
+            0,
+            1
+          ],
+          "d": 0.5
+        },
+        "side": "front",
+        "plan": "{\"planner\":\"p\"}",
+        "marks": {
+          "letters": false,
+          "highlights": true
+        }
+      },
+      "picture": {
+        "kind": "step-diagram",
+        "model": "{\"sheet\":{\"width\":1,\"height\":1},\"primitives\":[{\"kind\":\"sheet\",\"width\":1,\"height\":1},{\"kind\":\"line\",\"from\":[0,0.5],\"to\":[1,0.5],\"style\":\"valley\"},{\"kind\":\"fold-arrow\",\"out\":{\"center\":[0.5,0.5],\"radius\":0.3,\"from\":0.4,\"to\":1.4,\"ccw\":true}},{\"kind\":\"label\",\"at\":[0,0.5],\"text\":\"A\",\"style\":\"normal\"}]}",
+        "mirrored": false,
+        "key": "steps-1"
+      },
+      "annotations": [],
+      "annotatedPictureKey": null,
+      "text": "Fold the bottom edge to the top.",
+      "breakBefore": false
+    },
+    {
+      "id": "step-marks",
+      "revision": 0,
+      "source": null,
+      "picture": null,
+      "annotations": [
+        {
+          "id": "a-1",
+          "kind": "valley-arrow",
+          "from": [
+            0.1,
+            0.2
+          ],
+          "to": [
+            0.5,
+            0.2
+          ],
+          "bend": 0.134,
+          "behind": {
+            "to": 2
+          }
+        },
+        {
+          "id": "a-2",
+          "kind": "mountain-arrow",
+          "from": [
+            0.1,
+            0.3
+          ],
+          "to": [
+            0.5,
+            0.3
+          ],
+          "bend": -0.2
+        },
+        {
+          "id": "a-3",
+          "kind": "fold-unfold-arrow",
+          "from": [
+            0.1,
+            0.4
+          ],
+          "to": [
+            0.5,
+            0.4
+          ],
+          "bend": 0.5
+        },
+        {
+          "id": "a-4",
+          "kind": "push-arrow",
+          "from": [
+            0.9,
+            0.9
+          ],
+          "to": [
+            0.7,
+            0.7
+          ]
+        },
+        {
+          "id": "a-4w",
+          "kind": "white-arrow",
+          "from": [
+            0.1,
+            0.6
+          ],
+          "to": [
+            0.5,
+            0.7
+          ],
+          "path": [
+            {
+              "at": [
+                0.1,
+                0.6
+              ],
+              "out": [
+                0.2,
+                0.4
+              ]
+            },
+            {
+              "at": [
+                0.5,
+                0.7
+              ],
+              "in": [
+                0.4,
+                0.5
+              ]
+            }
+          ],
+          "width": "wide",
+          "tail": "cleft"
+        },
+        {
+          "id": "a-4s",
+          "kind": "white-arrow",
+          "from": [
+            0.2,
+            0.6
+          ],
+          "to": [
+            0.6,
+            0.7
+          ],
+          "path": [
+            {
+              "at": [
+                0.2,
+                0.6
+              ]
+            },
+            {
+              "at": [
+                0.6,
+                0.7
+              ]
+            }
+          ],
+          "width": "narrow",
+          "tail": "square",
+          "fill": "black"
+        },
+        {
+          "id": "a-4p",
+          "kind": "pleat-arrow",
+          "from": [
+            0.62,
+            0.42
+          ],
+          "to": [
+            0.18,
+            0.5
+          ],
+          "kinks": 2,
+          "mirrored": true
+        },
+        {
+          "id": "a-5",
+          "kind": "turn-over",
+          "from": [
+            0.5,
+            0.5
+          ],
+          "to": [
+            0.5,
+            0.5
+          ],
+          "axis": "horizontal"
+        },
+        {
+          "id": "a-6",
+          "kind": "rotate",
+          "from": [
+            0.2,
+            0.8
+          ],
+          "to": [
+            0.2,
+            0.8
+          ],
+          "rotate": {
+            "amount": "eighth",
+            "direction": "ccw"
+          }
+        },
+        {
+          "id": "a-7",
+          "kind": "valley-line",
+          "from": [
+            -0.2,
+            0.5
+          ],
+          "to": [
+            1.2,
+            0.5
+          ]
+        },
+        {
+          "id": "a-8",
+          "kind": "mountain-line",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            1,
+            1
+          ]
+        },
+        {
+          "id": "a-9",
+          "kind": "hidden-line",
+          "from": [
+            0,
+            1
+          ],
+          "to": [
+            1,
+            0
+          ]
+        },
+        {
+          "id": "a-9s",
+          "kind": "solid-line",
+          "from": [
+            0.1,
+            0.5
+          ],
+          "to": [
+            0.7,
+            0.5
+          ],
+          "color": "#c91d87",
+          "imported": "edited"
+        },
+        {
+          "id": "a-10",
+          "kind": "label",
+          "from": [
+            0.3,
+            0.3
+          ],
+          "to": [
+            0.3,
+            0.3
+          ],
+          "color": "#c91d87",
+          "text": "A 谷折り",
+          "bold": true,
+          "halo": true,
+          "sizePt": 9,
+          "offsetPt": [
+            -6.5,
+            4.25
+          ]
+        },
+        {
+          "id": "a-11",
+          "kind": "circle",
+          "from": [
+            0.25,
+            0.75
+          ],
+          "to": [
+            0.25,
+            0.75
+          ]
+        },
+        {
+          "id": "a-11r",
+          "kind": "right-angle",
+          "from": [
+            0.5,
+            0.5
+          ],
+          "to": [
+            0.5141421356237309,
+            0.48585786437626904
+          ]
+        },
+        {
+          "id": "a-11m",
+          "kind": "angle-mark",
+          "from": [
+            0.5,
+            0.98
+          ],
+          "to": [
+            0.48,
+            0.96
+          ],
+          "other": [
+            0.5,
+            0.96
+          ],
+          "ticks": 2
+        },
+        {
+          "id": "a-12",
+          "kind": "callout",
+          "from": [
+            0.4,
+            0.6
+          ],
+          "to": [
+            1.3,
+            -0.2
+          ],
+          "text": "Repeat behind 裏も同様に"
+        },
+        {
+          "id": "a-13",
+          "kind": "divisions",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            1,
+            0
+          ],
+          "ticks": 2,
+          "mirrored": true,
+          "parts": 7,
+          "offset": 1.5,
+          "numbered": true,
+          "shortDividers": true
+        },
+        {
+          "id": "a-14",
+          "kind": "close-up",
+          "from": [
+            0.5,
+            0.3
+          ],
+          "to": [
+            1.21,
+            0.3
+          ],
+          "radius": 0.08,
+          "scale": 2
+        },
+        {
+          "id": "a-15",
+          "kind": "star",
+          "from": [
+            0.4,
+            0.6
+          ],
+          "to": [
+            0.4,
+            0.6
+          ],
+          "fill": "black",
+          "scale": 2.25,
+          "angle": 37.5
+        },
+        {
+          "id": "a-16",
+          "kind": "eye",
+          "from": [
+            0.4,
+            0.6
+          ],
+          "to": [
+            0.4,
+            0.6
+          ],
+          "scale": 1.5,
+          "angle": 90
+        },
+        {
+          "id": "a-17",
+          "kind": "oval",
+          "from": [
+            0.4,
+            0.6
+          ],
+          "to": [
+            0.4,
+            0.6
+          ],
+          "size": [
+            0.3,
+            0.45
+          ]
+        },
+        {
+          "id": "a-18",
+          "kind": "rectangle",
+          "from": [
+            0.4,
+            0.6
+          ],
+          "to": [
+            0.4,
+            0.6
+          ],
+          "size": [
+            0.3,
+            0.45
+          ],
+          "angle": 37.5
+        },
+        {
+          "id": "a-19",
+          "kind": "x-ray",
+          "from": [
+            0.4,
+            0.3
+          ],
+          "to": [
+            0.4,
+            0.3
+          ],
+          "radius": 0.15,
+          "depth": 2
+        }
+      ],
+      "annotatedPictureKey": null,
+      "text": "Fold the corner up.",
+      "breakBefore": true
+    }
+  ],
+  "assets": {
+    "asset-a": {
+      "id": "asset-a",
+      "kind": "svg",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 40 30\" width=\"40\" height=\"30\">\n  <defs><linearGradient id=\"asset-a-g\"><stop offset=\"0\" stop-color=\"#f00\"/></linearGradient></defs>\n  <path d=\"M0 0 L40 30\" stroke=\"url(#asset-a-g)\"/>\n</svg>",
+      "widthPx": 40,
+      "heightPx": 30,
+      "bytes": 241
+    },
+    "asset-b": {
+      "id": "asset-b",
+      "kind": "raster",
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAYAAAAAAAAA",
+      "widthPx": 64,
+      "heightPx": 48,
+      "bytes": 66
+    }
+  },
+  "thumbnails": {
+    "thumb-pxzlqcbzg4pr": "{\"viewBox\":\"0 0 100 100\",\"strokes\":[{\"x1\":0,\"y1\":0,\"x2\":100,\"y2\":0,\"role\":\"edge\"},{\"x1\":0,\"y1\":50,\"x2\":100,\"y2\":50,\"role\":\"mountain\"}]}"
+  }
+}

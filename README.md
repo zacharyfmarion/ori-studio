@@ -22,6 +22,11 @@ device; Settings ▸ Models shows what is installed. However, maintaining
 compatibility with existing tools is a priority - you will always be able to
 export to to a `.ori` file, which will just omit the images.
 
+The **Diagram** workspace turns a pattern into printed folding instructions: each
+step links to a sheet of the crease pattern (shown as its crease pattern, folded, or
+in the simulator) or takes a card from References, gets fold arrows and symbols, and
+the steps are laid out on pages and exported as a PDF or a ZIP of pictures.
+
 Try the hosted app at [oristudio.dev](https://oristudio.dev/).
 Signed Apple Silicon DMGs are published from local notarized builds on
 [GitHub Releases](https://github.com/zacharyfmarion/ori-studio/releases) (other platforms
@@ -148,21 +153,24 @@ Roadmaps live in [`WEB_ROADMAP.md`](WEB_ROADMAP.md) and
 
 Ori Studio builds directly on origami tools created by the community:
 
-- [Robert J. Lang and TreeMaker 5.0.1](https://langorigami.com/article/treemaker/)
-  — the original model code and behavior are the canonical reference for the
-  Rust, WebAssembly, and desktop port.
-- [Mu-Tsun Tsai and Box Pleating Studio](https://github.com/bp-studio/box-pleating-studio)
-  — the box-pleated authoring method is a Rust and WebAssembly port of Box
-  Pleating Studio.
-- [Brandon Wong and ExplOri 22.5](https://225.designorigami.net/) — the Search
-  22.5° design method sends your tree to ExplOri, a searchable archive of 22.5°
-  crease patterns, and shows the closest matches it returns.
 - [Oriedita](https://github.com/oriedita/oriedita) — the crease-pattern editor is
   a Rust and WebAssembly port of the Oriedita editor (itself a fork of Orihime),
   including its foldability diagnostics, repairs, and file formats.
+- [Mu-Tsun Tsai and Box Pleating Studio](https://github.com/bp-studio/box-pleating-studio)
+  — the box-pleated authoring method is a Rust and WebAssembly port of Box
+  Pleating Studio.
 - [Amanda Ghassaei and Origami Simulator](https://github.com/amandaghassaei/OrigamiSimulator)
   — the Simulate workspace folds bases into an interactive 3D model using a
   TypeScript port of Origami Simulator.
+- [Brandon Wong and ExplOri 22.5](https://225.designorigami.net/) — the Search
+  22.5° design method sends your tree to ExplOri, a searchable archive of 22.5°
+  crease patterns, and shows the closest matches it returns.
+- [Kei Morisue and DEFOX](https://kei-morisue.github.io/step-folder/)
+  — the Diagram workspace’s affine layer spreading is based on Morisue’s
+  affine distortion method in DEFOX.
+- [Robert J. Lang and TreeMaker 5.0.1](https://langorigami.com/article/treemaker/)
+  — the original model code and behavior are the canonical reference for the
+  Rust, WebAssembly, and desktop port.
 
 ## License
 

@@ -45,6 +45,7 @@ export function ToolHintWindow({
   meta,
   ariaLabel,
   headerAction,
+  inside = false,
   children,
 }: {
   /**
@@ -68,10 +69,15 @@ export function ToolHintWindow({
    * header's right-hand gutter this way.
    */
   headerAction?: ReactNode;
+  /**
+   * Kept on the viewport's side of the seam rather than over it, where the
+   * pane beyond has fields the overhang would cover (`toolHintPlacement`).
+   */
+  inside?: boolean;
   children: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useToolHintCollapsed(collapseKey);
-  const placement = useToolHintAnchor(container);
+  const placement = useToolHintAnchor(container, inside);
   const { attachFrame, attachContent, attachScroller, closing } = useAnimatedHeight({
     collapsed,
   });

@@ -1,0 +1,56 @@
+/*
+ * The Diagram with no steps (DiagramEmptyState.tsx), centred in the pane: one
+ * sentence against the top edge of an empty workspace reads as a failure to
+ * render.
+ */
+.state {
+  display: grid;
+  box-sizing: border-box;
+  min-height: 100%;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  margin-bottom: var(--space-1);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, var(--border-subtle));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: color-mix(in srgb, var(--accent-primary) 78%, var(--text-secondary));
+}
+
+.title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.message {
+  max-width: 34ch;
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/* Pictures dragged over it: each will be a step. */
+.state[data-drop-target] {
+  outline: 2px dashed color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  outline-offset: -12px;
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}

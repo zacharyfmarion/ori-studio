@@ -1,0 +1,41 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g clip-path="url(#clip0_101_2)">
+<rect width="400" height="300" fill="white"/>
+<rect x="50.75" y="25.75" width="248.5" height="248.5" fill="#F4EFE6" stroke="black" stroke-width="1.5"/>
+<path d="M50 25L300 275" stroke="#1F4FBF" stroke-width="1.5" stroke-dasharray="6 3"/>
+<path d="M300 25L50 275" stroke="#C0392B" stroke-width="1.5" stroke-dasharray="8 2 1 2"/>
+<g filter="url(#filter0_d_101_2)">
+<rect x="310" y="30" width="60" height="40" rx="4" fill="url(#pattern0_101_2)"/>
+</g>
+<mask id="mask0_101_2" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="310" y="100" width="60" height="60">
+<circle cx="340" cy="130" r="30" fill="#D9D9D9"/>
+</mask>
+<g mask="url(#mask0_101_2)">
+<rect x="310" y="100" width="60" height="60" fill="url(#paint0_linear_101_2)"/>
+</g>
+<path d="M60 10H80V14H64V18H78V22H64V30H60V10Z" fill="black"/>
+</g>
+<defs>
+<filter id="filter0_d_101_2" x="306" y="30" width="68" height="48" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="4"/>
+<feGaussianBlur stdDeviation="2"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_101_2"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_101_2" result="shape"/>
+</filter>
+<pattern id="pattern0_101_2" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image0_101_2" transform="matrix(0.0104167 0 0 0.015625 0 0)"/>
+</pattern>
+<linearGradient id="paint0_linear_101_2" x1="310" y1="100" x2="370" y2="160" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FF8800"/>
+<stop offset="1" stop-color="#2255AA"/>
+</linearGradient>
+<clipPath id="clip0_101_2">
+<rect width="400" height="300" fill="white"/>
+</clipPath>
+<image id="image0_101_2" width="96" height="64" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABACAYAAADlNHIOAAACSklEQVR4Ae3BwXUsJxQFwDL3hUcOpGZyIBwH48Us/s7SyOoG6XTVX/zzd9AQBA1B0BAEDUHQEAQNQUMQNARBQxA0BEFDEDQEQUMQNARBQxA0BEFD0BAEDUHQEAQNQdAQBA1B0BAEDUHQEAQNQdAQNARBQxA0BEFDEDSUeGxU4rFRicdGpTw2KvETDF83HazEqYbvMfwxHabEaYbrDC/TIUqcYrjP8DJtVuIEwx4D00Yldhr2G16mDUrsMpxlYLpZKTsMZxqYblTibsOXdO9bvmBgukmJOw1v676ue1neNDDdoMRdhrd036d7Wd4wMF2sxIG6a3QsJylxh+FTuut1L8snDEwXKnG14VO6e3UsnzAwXaTEAbo9OpadSrnS8DsMTBcosVm3V8eyS4mrDB/qztCxfGBg+mYlHhuV2KQ7S8dytxJXGH6ngekbldigO1PHcqcSj41KeWxU4rFRicdGJR4blXhsVOKxUYnHRiUeG5Xy2KjEY6MSj41KbLDQnWe5W4krTAy/z/TNSmyy0J1j2aHEY6MSV5kY/tNCt9/yCdMFStlsodtn2anElSaGn2+6SIkDLHT3W3YrcbWJ4UML3X2WT5ouVOIOE8OHlpfuOssbpouVONBC9/2W05S4y8TwactL9/8tXzDdoMSdJoa3LC/d+5Yvmm5Syt0mhrctN5luVGKHieE8081K7DIxnGPaoMRO08uwz7RRiRNMDPebNitxiulluN50iBKnmV6G7zcdpsSppj+Gr5sOVspPMP1SJR4blXhsVOKx0b+PaFKQvU67cQAAAABJRU5ErkJggg=="/>
+</defs>
+</svg>

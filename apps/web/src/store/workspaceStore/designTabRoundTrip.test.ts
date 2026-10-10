@@ -68,6 +68,7 @@ function recordingFileService(): FileService & { written: string | null } {
       state.written === null ? null : { text: state.written, name: 'studio.osf', path: null }
     ),
     openBinaryFile: vi.fn(async () => null),
+    openBinaryFiles: vi.fn(async () => null),
     saveTextFile: vi.fn(async (options: SaveTextFileOptions) => {
       state.written = options.contents;
       return { name: options.suggestedName, path: `/tmp/${options.suggestedName}` };

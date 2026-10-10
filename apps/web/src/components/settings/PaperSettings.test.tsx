@@ -40,6 +40,7 @@ const fileService: FileService = {
   supportsNativeDialogs: false,
   openTextFile: async () => null,
   openBinaryFile: async () => null,
+  openBinaryFiles: async () => null,
   saveTextFile,
   saveBinaryFile: async () => null,
 };

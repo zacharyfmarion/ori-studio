@@ -198,6 +198,13 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps --only-shell chromium webkit
 
+      # The Diagram's SVG sanitizer, in the two engines the app ships: hostile
+      # uploads stay inert when shown, a load changes no bytes whichever engine
+      # saved the file, and both engines agree with the jsdom its unit tests run
+      # in. Needs no build. About 20 s. See scripts/diagram-svg-sanitize-check.mjs.
+      - name: Diagram SVG sanitize check
+        run: node scripts/diagram-svg-sanitize-check.mjs
+
       # Also the only place a production build runs in CI. The service worker is
       # emitted by `vite build` and nothing before this step would notice it
       # failing to.

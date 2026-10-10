@@ -16,8 +16,430 @@ export type AnalyticsProperties = Record<string, AnalyticsPropertyValue>;
 // Enum property values
 // ---------------------------------------------------------------------------
 
-/** The four top-level workspaces, plus the share screen. */
-export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'references' | 'share';
+/**
+ * Where a diagram step's picture came from when it was added (D18 of the
+ * Diagram plan). `empty` is a step added with nothing in it yet.
+ */
+export type DiagramStepAddedSource =
+  | 'empty'
+  | 'references'
+  | 'svg'
+  | 'raster';
+
+/**
+ * Which control added a diagram step. `grid` is the Diagram workspace's own:
+ * the header's Add step, the empty state, and Insert before / after.
+ */
+export type DiagramStepAddedVia =
+  | 'grid'
+  | 'references'
+  | 'drop'
+  | 'batch';
+
+/** What a turn between steps is (D22). */
+export type DiagramTurnAddedKind = 'turn_over' | 'rotate';
+
+/**
+ * Where a turn between steps was made: Add step ▾ in the header, a step's
+ * menu (Insert … After), or pulled from References with its turn-over card.
+ */
+export type DiagramTurnAddedVia = 'add_menu' | 'card_menu' | 'references' | 'empty_step';
+
+/** An uploaded picture's file type, by its reported type and extension: never its name. */
+export type DiagramPictureFormat = 'svg' | 'png' | 'jpeg' | 'webp' | 'other';
+
+/**
+ * What became of one uploaded file. `flattened` was added, but sanitizing
+ * changed its look (a mask, a filter, flowed text); the rest were not added:
+ * past a size cap, an SVG the sanitizer refused, not a picture at all, or a
+ * bitmap that would not decode.
+ */
+export type DiagramPictureUploadOutcome =
+  | 'ok'
+  | 'flattened'
+  | 'too_large'
+  | 'rejected'
+  | 'unsupported'
+  | 'unreadable';
+
+/**
+ * How a step was opened in detail: Enter, a double-click on its card, one of
+ * the card's own buttons, a step verb (its context menu or the Step pane), or
+ * a double-click on an enlarge arrow in the Pages view, which opens the step
+ * its area is on (Revision 2).
+ */
+export type DiagramStepOpenedVia = 'keyboard' | 'double_click' | 'card' | 'command' | 'pose_again' | 'enlarge_arrow';
+
+/** Which half of the detail a step opened in. */
+export type DiagramStepOpenedMode = 'pose' | 'annotate';
+
+/** The tool an annotation was drawn with: its kind, in the event's own spelling. */
+export type DiagramAnnotationTool =
+  | 'valley_arrow'
+  | 'mountain_arrow'
+  | 'fold_unfold_arrow'
+  | 'pleat_arrow'
+  | 'push_arrow'
+  | 'white_arrow'
+  | 'solid_arrow'
+  // No tool draws these since turns became steps (D22): a sign kept from before can still be deleted, and a rotate flipped.
+  | 'turn_over'
+  | 'rotate'
+  | 'valley_line'
+  | 'mountain_line'
+  | 'hidden_line'
+  | 'solid_line'
+  | 'label'
+  | 'circle'
+  | 'star'
+  | 'eye'
+  | 'oval'
+  | 'rectangle'
+  | 'right_angle'
+  | 'callout'
+  | 'angle_mark'
+  | 'angle_bisector'
+  | 'divisions'
+  | 'close_up'
+  | 'enlarge'
+  | 'enlarge_frame'
+  | 'x_ray';
+
+/** A star's fill, by name (Revision 3): filled with ink, or an outline, white inside. */
+export type DiagramStarFillName = 'filled' | 'outline';
+
+/**
+ * How a new annotation was put down (decision 9): snapped to a point of the
+ * picture or another mark (either end, for a line), put down freely with ⌘
+ * (Ctrl) held, with the Step pane's Snap switch off, with nothing near enough
+ * — or a kind that never snaps (an arrow, a sign, a label; arrows snapped
+ * until 2026-10-05).
+ */
+export type DiagramAnnotationSnap = 'snapped' | 'free' | 'off' | 'nothing_near' | 'none';
+
+/**
+ * How equal divisions were laid (Revision 2, ED1): dragged from one end of a
+ * line to the other, or put on a line of the picture or a drawn one with a
+ * click, which divides it whole.
+ */
+export type DiagramDivisionsPlaced = 'drag' | 'line';
+
+/**
+ * A mark's colour, by name (17a): the style's ink (none stored), References'
+ * magenta, one of the five print colours, or one picked by hand. Never the
+ * colour itself.
+ */
+export type DiagramAnnotationColor = 'ink' | 'reference' | 'red' | 'orange' | 'green' | 'blue' | 'purple' | 'custom';
+
+/** One of a label's options on or off (17b): Bold, a halo. */
+export type DiagramTextToggle = 'on' | 'off';
+
+/**
+ * A label's size, by name (17b): with the picture (none in pt), one of the
+ * four Size offers, or another a file brought. Never the size itself.
+ */
+export type DiagramTextSize = 'picture' | '7' | '9' | '12' | '16' | 'other';
+
+/** Which of a label's options the Layers pane changed (17b). */
+export type DiagramTextStyleOption = 'bold' | 'halo' | 'size';
+
+/**
+ * Which of a mark's own options changed (Revision 3): equal divisions' Short
+ * Dividers; a star's Fill; a star's, an eye's, an oval's or a rectangle's
+ * size or turn — by its transform box on the canvas, or its turn typed in
+ * the Layers pane's Rotation row; and an x-ray's Depth and Anchor.
+ */
+export type DiagramMarkStyleOption = 'short_dividers' | 'fill' | 'size' | 'rotation' | 'depth' | 'anchor' | 'radius' | 'visibility';
+
+/** An x-ray's depth, bucketed (Revision 3): one layer, two, or three and more. Never the count itself past that. */
+export type DiagramXRayDepthBucket = '1' | '2' | '3+';
+
+/**
+ * What a mark's option became, or how it was changed (Revision 3): a switch
+ * on or off; a star filled or an outline; a size or a turn set by the
+ * transform box's handles (`handle`) or typed in its row (`field`); an
+ * x-ray's depth, bucketed, and its anchor picked on the canvas or put back
+ * to the window's centre (`auto`).
+ */
+export type DiagramMarkStyleValue =
+  | 'on'
+  | 'off'
+  | DiagramStarFillName
+  | 'handle'
+  | 'field'
+  | DiagramXRayDepthBucket
+  | 'picked'
+  | 'auto';
+
+/** A fold arrow or a white arrow, which Edit Path shapes: its kind, in the event's own spelling. */
+export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow' | 'white_arrow';
+
+/**
+ * Which half of a fold-and-unfold arrow the edit that first shaped it
+ * touched: its outgoing path (the tip included) or its return.
+ */
+export type DiagramShapedArrowHalf = 'out' | 'return';
+
+/**
+ * The Edit Path gesture that first shaped an arrow — an arc made a path, a
+ * straight white arrow bent: a node dragged, a handle dragged, the curve
+ * bent, a node added (a click on the curve or Add Node), a node made smooth
+ * or a corner, a node taken out, or a node nudged with the arrow keys.
+ */
+/**
+ * Which ends of a mark were first put behind a flap (15e): its tail (a line's
+ * start), its tip (a line's end), both, or a circle's whole ring.
+ */
+export type DiagramBehindEnds = 'tail' | 'tip' | 'both' | 'whole';
+
+/**
+ * How an enlarged step got its frame (Revision 2): the Enlarged toggle turned
+ * on (in Annotate's Step pane since 2026-10-08; Pose's before),
+ * a new empty step after an enlarged one whose first picture lands the frame
+ * it was seeded with (since 2026-10-08, a first link that keeps it:
+ * `landSeededFrame`),
+ * Update Enlarged Steps on the area it came from — Update All since
+ * 2026-10-08, which places only the steps out of date (`update`) — or Update
+ * on the step itself, once its area changed (`update_step`, since
+ * 2026-10-08).
+ */
+export type DiagramStepEnlargedVia = 'toggle' | 'seeded' | 'update' | 'update_step';
+
+/**
+ * Where a capture put an enlarged step's frame: through an anchor face, through
+ * a crease pattern's sheet, or copied in picture units (a step with no faces).
+ */
+export type DiagramStepEnlargedPlaced = 'face' | 'sheet' | 'picture';
+
+/** The anchor a frame was placed by: the default rule's, a picked one, or none (copied in picture units). */
+export type DiagramStepEnlargedAnchor = 'auto' | 'picked' | 'none';
+
+/** An enlarge area's, or an enlarged step's frame's, shape. */
+export type DiagramEnlargeShape = 'circle' | 'rounded';
+
+/** What an enlargement edit was made on: an enlarge area, or an enlarged step's frame. */
+export type DiagramEnlargementOn = 'area' | 'frame';
+
+/** Which of an enlargement's settings changed: moved or resized by hand, its Shape, Size, Edge or Anchor, or the area deleted. */
+export type DiagramEnlargementSetting = 'moved' | 'shape' | 'size' | 'edge' | 'anchor' | 'deleted';
+
+/** What the setting became: the shape, Fill or a fixed Size, Cut or Whole, the anchor's rule. */
+export type DiagramEnlargementValue =
+  | 'circle'
+  | 'rounded'
+  | 'fill'
+  | 'fixed'
+  | 'cut'
+  | 'whole'
+  | 'auto'
+  | 'picked';
+
+/** A fixed Size, bucketed: never the value. */
+export const DIAGRAM_ENLARGE_SIZE_BUCKETS = [1.5, 2, 3, 6] as const;
+
+/** How many layers lie over an end put behind a flap: one, two, or three and more. */
+export type DiagramBehindLayers = '1' | '2' | '3+';
+
+/** Which way a mark was flipped in Annotate: left to right, or top to bottom. */
+export type DiagramFlipAxis = 'horizontal' | 'vertical';
+
+export type DiagramArrowShapeGesture =
+  | 'drag_node'
+  | 'drag_handle'
+  | 'bend'
+  | 'add_node'
+  | 'node_type'
+  | 'delete_node'
+  | 'nudge';
+
+/**
+ * A pose verb: on an uploaded picture (rotate, flip, reset), or on a linked one
+ * (show it as its crease pattern, folded or simulated, turn it over, step to
+ * another layer order, look from a named side, orbit the 3D view, bring
+ * Pose's simulator to rest at a fold % and camera, or spread a flat fold's
+ * layers: on, off, the other kind, another amount or direction, or an affine
+ * spread's other layer held still, skew or axis; or put a crease pattern's
+ * paper on the colour of one side).
+ */
+export type DiagramPoseAction =
+  | 'rotate_left'
+  | 'rotate_right'
+  | 'flip'
+  | 'reset'
+  // The Enlarged toggle turned off (Revision 2; in Annotate's Step pane since 2026-10-08, Pose's before):
+  // turning it on is `diagram step enlarged`.
+  | 'enlarge_off'
+  | 'show_crease_pattern'
+  | 'show_folded'
+  | 'turn_over'
+  | 'next_solution'
+  | 'previous_solution'
+  | 'choose_way'
+  | 'view_top'
+  | 'orbit'
+  | 'rotate_to'
+  | 'upright'
+  | 'show_simulated'
+  | 'simulate'
+  | 'spread_on'
+  | 'spread_off'
+  | 'spread_kind'
+  | 'spread_amount'
+  | 'spread_direction'
+  | 'spread_keep'
+  | 'spread_skew'
+  | 'spread_axis'
+  | 'paper_side';
+
+/**
+ * A side of the paper, for `diagram picture posed`: the one a picture shows
+ * after `turn_over` (a flat fold, a 3D one or a References step), or the one
+ * whose colour a crease pattern's paper takes after `paper_side` (the Step
+ * pane's Front | Back).
+ */
+export type DiagramPictureSide = 'front' | 'back';
+
+/** How a flat fold's layers are spread (13g): stepped by depth, or DEFOX's affine opening. */
+export type DiagramSpreadKind = 'depth' | 'affine';
+
+/** Which layer an affine spread holds still, as the front sees it. */
+export type DiagramSpreadKeep = 'top' | 'bottom';
+
+/**
+ * How a spread verb left a fold's layers, for `diagram picture posed`: its
+ * kind and amount, and a depth spread's direction or an affine one's layer
+ * held still, skew and axis. The numbers are bucketed when sent.
+ */
+export type DiagramSpreadTracking =
+  | { kind: 'depth'; direction: DiagramSpreadDirection; amount: number }
+  | { kind: 'affine'; amount: number; keep: DiagramSpreadKeep; skew: number; axisDeg: number };
+
+/** Where a flat fold's deeper layers step to, on the screen (Phase 13), in the event's own spelling. */
+export type DiagramSpreadDirection =
+  | 'up_left'
+  | 'up'
+  | 'up_right'
+  | 'right'
+  | 'down_right'
+  | 'down'
+  | 'down_left'
+  | 'left';
+
+/**
+ * How far a spread goes, in percent — of the model for a depth spread, of the
+ * way back to the sheet along its axis for an affine one — bucketed: `<=2.5` (the depth
+ * default), `<=7.5` (the affine default, 3%), `<=12.5`, `>12.5`. Never the value.
+ */
+export const DIAGRAM_SPREAD_PERCENT_BUCKETS = [2.5, 7.5, 12.5] as const;
+
+/** An affine spread's skew, in percent: none, some, most, all (the default). Never the value. */
+export const DIAGRAM_SPREAD_SKEW_PERCENT_BUCKETS = [0, 50, 99] as const;
+
+/** An affine spread's axis, in degrees, by quarter of its half turn (the default 81° is `<=90`). Never the value. */
+export const DIAGRAM_SPREAD_AXIS_DEGREE_BUCKETS = [45, 90, 135] as const;
+
+/**
+ * What a step's picture is: an upload, by what it is stored as, or a capture
+ * from the crease pattern, by how it shows it.
+ */
+export type DiagramPictureKind = 'svg' | 'raster' | 'references' | DiagramCaptureKind;
+
+/** How a captured picture shows its pattern. */
+export type DiagramCaptureKind = 'crease_pattern' | 'flat' | '3d' | 'simulated';
+
+/**
+ * What became of a capture: kept (`rasterized` when too detailed to keep as
+ * vector, `no_layer_order` when the fold could not be ordered), or not: the 3D
+ * folder refused the creases, the user stopped it, or it failed.
+ */
+export type DiagramCaptureOutcome =
+  | 'ok'
+  | 'no_layer_order'
+  | 'rasterized'
+  | 'refused'
+  | 'stopped'
+  | 'failed';
+
+/**
+ * Which flow captured a picture: linking a step, relinking it, Refresh on one
+ * step, or Refresh all. A Pose verb is `diagram picture posed`.
+ */
+export type DiagramCaptureVia = 'link' | 'relink' | 'refresh' | 'refresh_all' | 'show_as' | 'duplicate_as';
+
+/** A way a linked step shows its pattern (D19), in the event's own spelling. */
+export type DiagramShowAsName = 'crease_pattern' | 'folded' | 'simulated';
+
+/**
+ * Where a linked step was shown another way: the Step pane's Show as row, the
+ * pattern picker's, or the card's Show as and Duplicate as menus. Pose's own
+ * switch is counted by `diagram picture posed`.
+ */
+export type DiagramShowAsVia = 'pane' | 'picker' | 'card' | 'duplicate';
+
+/** The workspace a diagram step's Open in… went to: its pattern in Edit, or its sheet in References. */
+export type DiagramSourceWorkspace = 'edit' | 'references';
+
+/** The list the References browser pulled cards from: a planned pattern's sequence, or the Find answer. */
+export type DiagramPulledMode = 'sequence' | 'find';
+
+/**
+ * Where the References browser adds cards, fixed as it opens: after a step,
+ * at the end, into an empty step, or in place of a References step's card.
+ */
+export type DiagramPulledInto = 'after' | 'end' | 'fill' | 'replace';
+
+/**
+ * Whether a pull's marks were lifted into annotations (17d) or left in the
+ * picture, as every card was before: `baked` when any card's marks were more
+ * than a step holds.
+ */
+export type DiagramPulledMarks = 'lifted' | 'baked';
+
+/** What an edit did to a mark a References card brought (17d): changed for the first time, or taken away. */
+export type DiagramImportedMarkEdit = 'changed' | 'deleted';
+
+/**
+ * Where Make Marks Editable was pressed (17e): the notice Annotate shows on a
+ * step whose card's marks are in its picture — in the Step pane, or over the
+ * Layers pane's list — the Step pane's Picture section, or the step card's menu.
+ */
+export type DiagramMarksLiftedVia = 'annotate_notice' | 'layers_notice' | 'step_pane' | 'card_menu';
+
+/** The file Export picture… wrote. */
+export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
+
+/** What the Diagram's export wrote: one PDF of the pages, one SVG of them laid out in spreads, or a ZIP of the steps' own files. */
+export type DiagramExportFormat = 'pdf' | 'svg' | 'zip';
+
+/** Who a diagram's PDF is for: a printer at home, or a print shop (bleed, page boxes and crop marks). */
+export type DiagramPdfPreset = 'home' | 'print_shop';
+
+/** The Diagram's two views: the steps as cards, or the printed pages. */
+export type DiagramView = 'steps' | 'pages';
+
+/** Which page setting changed in the Page pane (D10). `scale` is retired: every diagram fits each since 2026-10-06. */
+export type DiagramPageSetting =
+  | 'size'
+  | 'orientation'
+  | 'margin'
+  | 'layout'
+  | 'columns'
+  | 'rows'
+  | 'path'
+  | 'path_width'
+  | 'path_color'
+  | 'first_page_side'
+  | 'title'
+  | 'page_numbers'
+  | 'first_page'
+  | 'style'
+  | 'han_style';
+
+/** A diagram style as chosen: a built-in by id, the Settings export style, or a saved preset (`custom`). */
+export type DiagramStyleChoiceName = 'default' | 'diagram' | 'export-style' | 'custom';
+
+/** The five top-level workspaces, plus the share screen. */
+export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'references' | 'diagram' | 'share';
 /**
  * A Design workspace's method, for the events that describe *one* design.
  *
@@ -151,7 +573,8 @@ export type ExportFormat =
   | 'orh'
   | 'svg'
   | 'png'
-  | 'zip';
+  | 'zip'
+  | 'pdf';
 
 /** Formats the folded-form (simulator) export offers. */
 export type FoldedFormExportFormat = 'fold' | 'obj' | 'stl';
@@ -352,7 +775,7 @@ export type CreasePatternFoldedFigure = 'none' | PaperExportStyleName;
 /** Which of a surface's pages an export wrote: the one on show, or every one as a ZIP. */
 export type PaperExportScope = 'this' | 'all';
 
-/** Whether a page carried one of a diagram's optional marks — a References step's letters or line highlights. */
+/** Whether a page carried one of a diagram's optional marks — a References step's letters or reference lines. */
 export type PaperExportMarkShown = 'shown' | 'hidden';
 
 /** Where a foldability check was run from. */
@@ -513,7 +936,8 @@ export type ContextMenuSurface =
   | 'tree'
   | 'design-tree'
   | 'simulator'
-  | 'references';
+  | 'references'
+  | 'diagram';
 
 /**
  * What the menu was raised *on*, coarsely.
@@ -527,6 +951,7 @@ export type ContextMenuSurface =
 export type ContextMenuTargetKind =
   | 'empty'
   | 'selection'
+  | 'step'
   | 'crease'
   | 'point'
   | 'circle'
@@ -938,7 +1363,7 @@ export const ANALYTICS_EVENTS = {
    * PNG. `surface` says which, `format` which file, `hidden_faces` whether the
    * buried faces were kept — the default, and the setting D4 exists for;
    * `letters` and `highlights`, for References alone, whether the step's
-   * letters and line highlights were on the page. The file service's
+   * letters and reference lines were on the page. The file service's
    * `file exported` fires too; this one carries what that chokepoint cannot
    * see.
    */
@@ -1080,6 +1505,100 @@ export const ANALYTICS_EVENTS = {
   creasePatternExported: 'crease pattern exported',
   shareLinkCopied: 'share link copied',
   shareLinkOpened: 'share link opened',
+  /**
+   * A step was added to the diagram. `source` is what its picture came from,
+   * `via` the control that added it: which ways into the Diagram are used.
+   */
+  diagramStepAdded: 'diagram step added',
+  /**
+   * A turn added between steps (D22) — a turn-over or a rotation, unnumbered —
+   * `via` where: whether turns are made by hand or come from References.
+   */
+  diagramTurnAdded: 'diagram turn added',
+  /**
+   * One file of an upload into the Diagram, and what became of it: whether
+   * people's own drawings survive the sanitizer, and how big they are.
+   */
+  diagramPictureUploaded: 'diagram picture uploaded',
+  /** A step opened in detail, by Enter or a double-click: whether the detail is used. */
+  diagramStepOpened: 'diagram step opened',
+  /** An uploaded picture turned or flipped from the step detail or the Step pane. */
+  diagramPicturePosed: 'diagram picture posed',
+  /** An annotation drawn on a step's picture, by the tool that drew it. */
+  diagramAnnotationAdded: 'diagram annotation added',
+  /** A mark put behind a flap for the first time (15e): which ends, how deep. */
+  diagramAnnotationBehind: 'diagram annotation behind',
+  /** A mark flipped horizontally or vertically from the Layers pane: its kind, which way. */
+  diagramAnnotationFlipped: 'diagram annotation flipped',
+  /** A solid line's or a label's colour changed in the Layers pane (17a, 17b): its kind, the colour by name. Once per pick. */
+  diagramAnnotationRecolored: 'diagram annotation recolored',
+  /** A label's Bold, Halo or Size changed in the Layers pane (17b): which, and to what. */
+  diagramTextStyled: 'diagram text styled',
+  /** One of a mark's own options changed in the Layers pane (Revision 3): the mark's kind, which option, and to what. */
+  diagramMarkStyled: 'diagram mark styled',
+  /**
+   * A mark a References card brought (17d) edited for the first time, or
+   * taken away: its kind, and which. Whether people edit what they pull.
+   */
+  diagramImportedMarkEdited: 'diagram imported mark edited',
+  /**
+   * An old References step's card's marks lifted into annotations by Make
+   * Marks Editable (17e): where it was pressed, and how many the step holds
+   * now (bucketed). Whether steps made before marks were lifted are converted.
+   */
+  diagramReferencesMarksLifted: 'diagram references marks lifted',
+  /** A frame placed on an enlarged step by a capture (Revision 2): how, through what, by which anchor. One per step placed. */
+  diagramStepEnlarged: 'diagram step enlarged',
+  /** An enlarge area or an enlarged step's frame changed: moved, its Shape, Size, Edge or Anchor, or an area deleted. */
+  diagramEnlargementChanged: 'diagram enlargement changed',
+  /** Annotate's Snap switch flipped in the Step pane. */
+  diagramAnnotateSnapChanged: 'diagram annotate snap changed',
+  /** A circular tool creation preference changed in the tool hint. */
+  diagramCircleDrawingModeChanged: 'diagram circle drawing mode changed',
+  /**
+   * An arrow shaped by hand for the first time (Edit Path): a fold arrow's arc
+   * made a path, or a white arrow bent from the straight one it was laid as —
+   * not each edit after. A fold-and-unfold arrow's says which half.
+   */
+  diagramArrowShaped: 'diagram arrow shaped',
+  /** A step's picture taken away (Remove picture). */
+  diagramPictureRemoved: 'diagram picture removed',
+  /**
+   * A step's picture written to a file (Export picture…): the first half of the
+   * export, edit and replace round trip D7 is built for.
+   */
+  diagramPictureExported: 'diagram picture exported',
+  /**
+   * A step's picture captured from the crease pattern (D18): how it shows the
+   * pattern, what became of it, and which flow asked — whether linking is used,
+   * and how often folds fail or are stopped.
+   */
+  diagramPictureCaptured: 'diagram picture captured',
+  diagramStepShownAs: 'diagram step shown as',
+  /** A step's Open in Edit or Open in References: whether the way back to a step's source is used. */
+  diagramSourceOpened: 'diagram source opened',
+  /** The Diagram switched between its steps and its pages: whether the pages are looked at. */
+  diagramViewSwitched: 'diagram view switched',
+  /** A page setting changed in the Page pane: which ones are used, never their values. */
+  diagramPageSetupChanged: 'diagram page setup changed',
+  /**
+   * The diagram written out from its export dialog (D18): a PDF of its pages
+   * or a ZIP of its steps, how, and how big. Whether diagrams leave the app,
+   * and in which form.
+   */
+  diagramExported: 'diagram exported',
+  /**
+   * The References browser opened in the Diagram (D20), and for where: what
+   * `diagram steps pulled from references` is read against.
+   */
+  diagramReferencesBrowserOpened: 'diagram references browser opened',
+  /**
+   * Cards pulled into the diagram from the References browser (D20): from a
+   * planned pattern's sequence or the Find answer, how many, and where they
+   * went. Whether the Diagram is where precreasing steps are chosen, and
+   * whether filling and replacing are found. Never a card, a line or a sentence.
+   */
+  diagramStepsPulledFromReferences: 'diagram steps pulled from references',
   exploriSearch: 'explori search',
   exploriSearchFailed: 'explori search failed',
   exploriResultOpened: 'explori result opened',
@@ -1130,7 +1649,8 @@ export const ANALYTICS_EVENTS = {
    * cannot be answered from `command invoked`, since no menu action reaches it.
    *
    * `pane` names which side pane the sheet opened on (`cp-view-controls`,
-   * `cp-properties`, `simulator-view-controls`) — an enum, never content.
+   * `cp-properties`, `simulator-view-controls`, the Diagram's `diagram-step`,
+   * `diagram-page` and `diagram-layers`) — an enum, never content.
    */
   viewDrawerOpened: 'view drawer opened',
   /**
@@ -1249,6 +1769,18 @@ export function bucketCount(value: number, thresholds: readonly number[]): strin
 
 /** Threshold ladder for how many pages an export of every step wrote. */
 export const PAPER_EXPORT_PAGE_COUNT_BUCKETS = [5, 10, 25] as const;
+
+/** An uploaded picture's size, in KB: an icon, a drawing, a heavy export, a photo. */
+export const DIAGRAM_UPLOAD_KB_BUCKETS = [50, 200, 1000, 5000] as const;
+
+/** How many files one upload carried: one, a handful, a whole sequence. */
+export const DIAGRAM_UPLOAD_COUNT_BUCKETS = [1, 5, 20, 50] as const;
+
+/** A diagram's pages, or its steps' files: a leaflet, a booklet, a book. */
+export const DIAGRAM_PAGE_COUNT_BUCKETS = [1, 2, 5, 10, 25] as const;
+
+/** How many of a diagram's steps had no picture when it was exported: none, one, a few, many. */
+export const DIAGRAM_EMPTY_STEP_BUCKETS = [0, 1, 5, 20] as const;
 
 /** Default threshold ladder for element counts (nodes, lines, etc.). */
 export const COUNT_BUCKETS = [1, 5, 10, 20, 50, 100, 200, 500] as const;

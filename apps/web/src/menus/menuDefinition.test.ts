@@ -55,6 +55,7 @@ describe('web menu definition', () => {
       'Edit',
       'Simulate',
       'References',
+      'Diagram',
       'Properties',
       'Reset Layout',
     ]);
@@ -63,6 +64,7 @@ describe('web menu definition', () => {
       'view.edit',
       'view.simulate',
       'view.references',
+      'view.diagram',
       'view.properties',
       'view.resetLayout',
     ]);

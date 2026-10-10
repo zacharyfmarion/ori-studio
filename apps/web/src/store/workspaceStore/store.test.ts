@@ -38,6 +38,17 @@ import {
   setInlineSimulationSource,
 } from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentState';
+import { DIAGRAM_SCOPED_KEYS, discardDiagramState, isDiagramAnnotating } from './diagramState';
+import { registerPendingEditFlush, resetPendingEditsForTests } from '../../lib/pendingEdits';
+import { readDiagram } from '../../diagram/document/diagramFile';
+import {
+  annotationsOutOfStep,
+  stepAsset,
+  stepIndex,
+  type KnownDiagramAnnotation,
+  type KnownDiagramAsset,
+} from '../../diagram/document/diagramDocument';
+import { sanitizeSvg } from '../../diagram/upload/svgSanitize';
 import { foldCancellationBuffer } from '../../lib/foldCancellation';
 import { registerCpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
@@ -52,6 +63,7 @@ import {
   activeNativeDesign,
   createNativeBoxPleatProjectFile,
   createNativeCreasePatternProjectFile,
+  createNativeProjectFile,
   createNativeTreeProjectFile,
   parseNativeProjectFile,
   serializeNativeProjectFile,
@@ -236,8 +248,9 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
 });
 
 import type { EngineClient } from './engineRuntime';
-import { selectWorkspaceCapabilities } from './capabilities';
+import { hasDeletableDiagramSelection, selectWorkspaceCapabilities } from './capabilities';
 import { useWorkspaceStore } from './store';
+import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 
 type SnapshotOptions = Partial<
   Pick<
@@ -1531,6 +1544,7 @@ function createFileService(
 ): FileService & {
   openTextFile: ReturnType<typeof vi.fn>;
   openBinaryFile: ReturnType<typeof vi.fn>;
+  openBinaryFiles: ReturnType<typeof vi.fn>;
   saveTextFile: ReturnType<typeof vi.fn>;
   saveBinaryFile: ReturnType<typeof vi.fn>;
 } {
@@ -1539,6 +1553,7 @@ function createFileService(
     supportsNativeDialogs: false,
     openTextFile: vi.fn(async () => file),
     openBinaryFile: vi.fn(async () => null),
+    openBinaryFiles: vi.fn(async () => null),
     saveTextFile: vi.fn(async (options: SaveTextFileOptions) => ({
       name: options.suggestedName,
       path: options.path ?? `/tmp/${options.suggestedName}`,
@@ -9506,5 +9521,953 @@ describe('live folded model writes', () => {
         original.transparent_transparency
       )
     );
+  });
+});
+
+describe('the project diagram', () => {
+  beforeEach(() => {
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+  });
+
+  const state = () => useWorkspaceStore.getState();
+
+  /** A diagram of two steps with an instruction each, as the author would make it. */
+  function authorTwoSteps() {
+    const first = state().addDiagramStep()!;
+    state().setDiagramStepText(first, 'Fold in half.');
+    const second = state().addDiagramStep()!;
+    state().setDiagramStepText(second, 'Unfold.');
+    return { first, second };
+  }
+
+  /** Every diagram-scoped key is what a replacement leaves, bar the fresh load id. */
+  function expectNoDiagram(before: number) {
+    const discarded = discardDiagramState();
+    for (const key of DIAGRAM_SCOPED_KEYS) {
+      if (key === 'diagramLoadId') continue;
+      expect(state()[key], key).toEqual(discarded[key]);
+    }
+    expect(state().diagramLoadId).not.toBe(before);
+  }
+
+  /** The parts of a written `.osf` these tests read. */
+  interface WrittenProject {
+    minimumReaderSchemaVersion: number;
+    workspace: {
+      designs: unknown[];
+      creasePattern: unknown;
+      diagrams?: { id: string; title?: string; steps: unknown[] }[];
+    };
+  }
+
+  function writtenFile(fileService: ReturnType<typeof createFileService>) {
+    const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as SaveTextFileOptions;
+    return { options, file: JSON.parse(options.contents) as WrittenProject };
+  }
+
+  it('creates the diagram with its first edit, and undoing that edit removes it again', () => {
+    expect(state().diagram).toBeNull();
+    const { first } = authorTwoSteps();
+
+    expect(stepsIn(state().diagram!).map((step) => step.text)).toEqual(['Fold in half.', 'Unfold.']);
+    expect(state().dirty).toBe(true);
+    expect(state().diagramHistory.past).toHaveLength(4);
+
+    while (state().undoDiagram());
+    expect(state().diagram).toBeNull();
+    expect(state().diagramSelectedStepId).toBeNull();
+
+    expect(state().redoDiagram()).toBe(true);
+    expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first]);
+  });
+
+  it('records nothing for an edit that changes nothing, and makes no diagram for one', () => {
+    expect(state().setDiagramTitle('')).toBe(false);
+    expect(state().diagram).toBeNull();
+    expect(state().dirty).toBe(false);
+
+    const { first } = authorTwoSteps();
+    const past = state().diagramHistory.past.length;
+    expect(state().setDiagramStepText(first, 'Fold in half.')).toBe(false);
+    expect(state().moveDiagramStep(first, 0)).toBe(false);
+    expect(state().diagramHistory.past).toHaveLength(past);
+  });
+
+  it('treats which view and which step are showing as neither history nor unsaved work', () => {
+    const { first } = authorTwoSteps();
+    useWorkspaceStore.setState({ dirty: false });
+    const past = state().diagramHistory.past.length;
+
+    state().selectDiagramStep(first);
+    state().setDiagramView('pages');
+
+    expect(state().diagramSelectedStepId).toBe(first);
+    expect(state().diagramView).toBe('pages');
+    expect(state().dirty).toBe(false);
+    expect(state().diagramHistory.past).toHaveLength(past);
+    // A step that is not there cannot be selected.
+    state().selectDiagramStep('missing');
+    expect(state().diagramSelectedStepId).toBeNull();
+  });
+
+  it('moves the selection to the neighbour of a deleted step, and drops it on an undo that removes its step', () => {
+    const { first, second } = authorTwoSteps();
+    state().selectDiagramStep(first);
+
+    expect(state().deleteDiagramSteps([first])).toBe(true);
+    expect(state().diagramSelectedStepId).toBe(second);
+
+    // Undo the delete, then undo the second step's creation while it is selected.
+    state().undoDiagram();
+    state().selectDiagramStep(second);
+    state().undoDiagram(); // its text
+    state().undoDiagram(); // its creation
+    expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first]);
+    expect(state().diagramSelectedStepId).toBeNull();
+  });
+
+  it('drops an instruction edit made against a diagram that has since been replaced', () => {
+    const { first } = authorTwoSteps();
+    const loadId = state().diagramLoadId;
+    const document = state().diagram!;
+
+    state().installDiagram({ document, readOnly: false, raw: {} });
+
+    expect(state().setDiagramStepText(first, 'Late', { loadId })).toBe(false);
+    expect(stepsIn(state().diagram!)[0].text).toBe('Fold in half.');
+    expect(
+      state().setDiagramStepText(first, 'On time', { loadId: state().diagramLoadId })
+    ).toBe(true);
+  });
+
+  it('undoes and redoes the diagram from the Diagram, and touches no other history', async () => {
+    await state().createNewCreasePattern();
+    const cpPast = state().oristudioCpHistoryPast;
+    authorTwoSteps();
+    state().setActivePanelId('diagram');
+    expect(state().activeEditingContext).toBe('diagram');
+
+    await state().undo();
+    expect(stepsIn(state().diagram!)[1].text).toBe('');
+    await state().redo();
+    expect(stepsIn(state().diagram!)[1].text).toBe('Unfold.');
+    expect(state().oristudioCpHistoryPast).toBe(cpPast);
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).not.toHaveBeenCalled();
+  });
+
+  it('deletes an empty step at once, and asks first for one with content', async () => {
+    const { first } = authorTwoSteps();
+    const empty = state().addDiagramStep()!;
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      await expect(state().confirmDeleteDiagramSteps([empty])).resolves.toBe(true);
+      expect(useCommandDialogStore.getState().dialog).toBeNull();
+
+      const refused = state().confirmDeleteDiagramSteps([first]);
+      const dialog = useCommandDialogStore.getState().dialog;
+      expect(dialog).toMatchObject({ type: 'confirm', title: 'Delete step 1?', tone: 'danger' });
+      resolveCommandDialog(dialog!.id, false);
+      await expect(refused).resolves.toBe(false);
+      expect(state().diagram?.steps).toHaveLength(2);
+
+      const accepted = state().confirmDeleteDiagramSteps([first]);
+      resolveCommandDialog(useCommandDialogStore.getState().dialog!.id, true);
+      await expect(accepted).resolves.toBe(true);
+      expect(state().diagram?.steps).toHaveLength(1);
+    } finally {
+      unregisterDialogHost();
+    }
+  });
+
+  it('does not delete into a diagram that replaced the one the question was about', async () => {
+    const { first } = authorTwoSteps();
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      const pending = state().confirmDeleteDiagramSteps([first]);
+      // A file opened while the question was up: same step ids, new diagram.
+      state().installDiagram({ document: state().diagram!, readOnly: false, raw: {} });
+      resolveCommandDialog(useCommandDialogStore.getState().dialog!.id, true);
+      await expect(pending).resolves.toBe(false);
+      expect(state().diagram?.steps).toHaveLength(2);
+    } finally {
+      unregisterDialogHost();
+    }
+  });
+
+  it('makes one sitting at an instruction one undo step, until something else is recorded', () => {
+    const { first, second } = authorTwoSteps();
+    const past = state().diagramHistory.past.length;
+
+    state().setDiagramStepText(first, 'Fold', { session: 7 });
+    state().setDiagramStepText(first, 'Fold in', { session: 7 });
+    state().setDiagramStepText(first, 'Fold in thirds.', { session: 7 });
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+
+    state().undoDiagram();
+    expect(stepsIn(state().diagram!)[0].text).toBe('Fold in half.');
+
+    // After an undo the same session starts a new entry rather than extending
+    // the one that was undone.
+    state().setDiagramStepText(first, 'Again', { session: 7 });
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    // Another edit in between ends the run; so does another step or session.
+    state().moveDiagramStep(second, 0);
+    state().setDiagramStepText(first, 'Again.', { session: 7 });
+    state().setDiagramStepText(second, 'Other', { session: 7 });
+    state().setDiagramStepText(second, 'Other.', { session: 8 });
+    expect(state().diagramHistory.past).toHaveLength(past + 5);
+  });
+
+  it('refuses every edit to a diagram from a newer build, and writes it back as it came', async () => {
+    const raw = {
+      formatVersion: 99,
+      id: 'diagram-new',
+      title: 'From the future',
+      steps: [{ id: 'step-1', text: 'Hello', hologram: true }],
+      futureField: { kept: true },
+    };
+    useWorkspaceStore.setState({
+      ...singleDesignTab('treemaker'),
+    });
+    state().installDiagram(readDiagram(raw));
+
+    expect(state().diagramReadOnly).toBe(true);
+    expect(state().addDiagramStep()).toBeNull();
+    expect(state().setDiagramTitle('Changed')).toBe(false);
+    expect(state().undoDiagram()).toBe(false);
+    expect(state().dirty).toBe(false);
+
+    const fileService = createFileService();
+    await state().saveProjectAs(fileService);
+    expect(writtenFile(fileService).file.workspace.diagrams).toEqual([raw]);
+  });
+
+  it('saves and reopens a project that holds only a diagram', async () => {
+    authorTwoSteps();
+    useWorkspaceStore.setState({ workspaceTitle: 'Crane diagram' });
+    const saved = state().diagram;
+    const fileService = createFileService();
+
+    await expect(state().saveProjectAs(fileService)).resolves.toBe(true);
+
+    const { options, file } = writtenFile(fileService);
+    expect(options.extensions).toEqual(['osf']);
+    expect(file.minimumReaderSchemaVersion).toBe(10);
+    expect(file.workspace.designs).toEqual([]);
+    expect(file.workspace.creasePattern).toBeNull();
+    expect(file.workspace.diagrams?.[0]?.steps).toHaveLength(2);
+    expect(state().dirty).toBe(false);
+
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+    await expect(
+      state().openProject(
+        createFileService({ text: options.contents, name: 'crane.osf', path: '/tmp/crane.osf' })
+      )
+    ).resolves.toBe(true);
+
+    expect(state().diagram).toEqual(saved);
+    // Nothing but a diagram: it opens on the Diagram, not Design's chooser.
+    expect(useLayoutStore.getState().activateWorkspace).toHaveBeenLastCalledWith('diagram');
+    expect(state()).toMatchObject({
+      workspaceTitle: 'Crane diagram',
+      currentFileName: 'crane.osf',
+      dirty: false,
+      status: 'ready',
+      error: null,
+      diagramReadOnly: false,
+    });
+    expect(state().diagramHistory.past).toEqual([]);
+  });
+
+  it('opens the first of a project’s diagrams, and saves the others after it as they came', async () => {
+    authorTwoSteps();
+    const fileService = createFileService();
+    await state().saveProjectAs(fileService);
+    const file = JSON.parse(writtenFile(fileService).options.contents);
+    const shown = file.workspace.diagrams[0];
+    // What a later build that keeps several diagrams in a project would write.
+    const other = { formatVersion: 1, id: 'diagram-frog', title: 'Frog', steps: [], futureField: { kept: true } };
+    file.workspace.diagrams = [shown, other];
+
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+    await state().openProject(
+      createFileService({ text: JSON.stringify(file), name: 'two.osf', path: '/tmp/two.osf' })
+    );
+    expect(state().diagram?.id).toBe(shown.id);
+    expect(state().diagramOthers).toEqual([other]);
+
+    state().setDiagramTitle('Crane, again');
+    const again = createFileService();
+    await state().saveProject(again);
+    const written = writtenFile(again).file.workspace.diagrams;
+    expect(written?.map((diagram) => diagram.id)).toEqual([shown.id, 'diagram-frog']);
+    expect(written?.[0].title).toBe('Crane, again');
+    expect(written?.[1]).toEqual(other);
+  });
+
+  it('opens a project saved with one diagram, before the list, and saves it as the list', async () => {
+    authorTwoSteps();
+    const saved = state().diagram;
+    const fileService = createFileService();
+    await state().saveProjectAs(fileService);
+    const file = JSON.parse(writtenFile(fileService).options.contents);
+    // As builds before the list wrote it.
+    file.workspace.diagram = file.workspace.diagrams[0];
+    delete file.workspace.diagrams;
+    file.minimumReaderSchemaVersion = 9;
+
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+    await state().openProject(
+      createFileService({ text: JSON.stringify(file), name: 'one.osf', path: '/tmp/one.osf' })
+    );
+    expect(state().diagram).toEqual(saved);
+    expect(state().diagramOthers).toEqual([]);
+
+    const again = createFileService();
+    await state().saveProject(again);
+    const written = writtenFile(again).file;
+    expect(written.minimumReaderSchemaVersion).toBe(10);
+    expect(written.workspace.diagrams).toHaveLength(1);
+    expect('diagram' in written.workspace).toBe(false);
+  });
+
+  it('opening a diagram-only project replaces the crease pattern that was open', async () => {
+    authorTwoSteps();
+    const contents = await (async () => {
+      const fileService = createFileService();
+      await state().saveProjectAs(fileService);
+      return writtenFile(fileService).options.contents;
+    })();
+
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+    await state().createNewCreasePattern();
+    expect(state().oristudioCpDocument).not.toBeNull();
+    oristudioCpMocks.releaseOristudioCpDocument.mockClear();
+
+    await state().openProject(
+      createFileService({ text: contents, name: 'only.osf', path: '/tmp/only.osf' })
+    );
+
+    expect(oristudioCpMocks.releaseOristudioCpDocument).toHaveBeenCalled();
+    expect(state().oristudioCpDocument).toBeNull();
+    expect(state().importedCreasePattern).toBeNull();
+    expect(state().currentFileName).toBe('only.osf');
+    expect(state().diagram?.steps).toHaveLength(2);
+    // And the next save writes the diagram alone, not the crease pattern that was open.
+    const fileService = createFileService();
+    await state().saveProject(fileService);
+    expect(writtenFile(fileService).file.workspace.creasePattern).toBeNull();
+  });
+
+  it('saves the diagram beside a crease pattern, and reopens both', async () => {
+    await state().createNewCreasePattern();
+    authorTwoSteps();
+    const saved = state().diagram;
+    const fileService = createFileService();
+
+    await state().saveProjectAs(fileService);
+    const { options, file } = writtenFile(fileService);
+    expect(file.minimumReaderSchemaVersion).toBe(10);
+    expect(file.workspace.creasePattern).not.toBeNull();
+
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+    await state().openProject(
+      createFileService({ text: options.contents, name: 'both.osf', path: '/tmp/both.osf' })
+    );
+
+    expect(state().oristudioCpDocument).not.toBeNull();
+    expect(state().diagram).toEqual(saved);
+    expect(state().dirty).toBe(false);
+  });
+
+  it('saves a crease pattern opened from an Oriedita file as .osf once it has a diagram', async () => {
+    await state().openProject(
+      createFileService({
+        text: '{"@version":"v1.1","title":"native ori","lineSegments":[]}',
+        name: 'native.ori',
+        path: '/tmp/native.ori',
+      })
+    );
+    authorTwoSteps();
+    const fileService = createFileService();
+
+    await state().saveProject(fileService);
+
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsOri).not.toHaveBeenCalled();
+    const { options, file } = writtenFile(fileService);
+    // Never over the `.ori`: a native target is asked for.
+    expect(options).toMatchObject({ extensions: ['osf'], path: null });
+    expect(file.workspace.diagrams?.[0]?.steps).toHaveLength(2);
+  });
+
+  describe('typing that has not committed yet', () => {
+    afterEach(resetPendingEditsForTests);
+
+    it('is saved, not the text from before it', async () => {
+      const { first } = authorTwoSteps();
+      // A field holding a draft, as the instruction field does between keystrokes.
+      registerPendingEditFlush(() => state().setDiagramStepText(first, 'Typed, not committed.'));
+      const fileService = createFileService();
+
+      await state().saveProject(fileService);
+
+      const steps = writtenFile(fileService).file.workspace.diagrams?.[0]?.steps as { text: string }[];
+      expect(steps[0].text).toBe('Typed, not committed.');
+      expect(state().dirty).toBe(false);
+    });
+
+    it('counts as unsaved work when the project is about to be replaced', async () => {
+      authorTwoSteps();
+      useWorkspaceStore.setState({ dirty: false });
+      const { first } = { first: stepsIn(state().diagram!)[0].id };
+      registerPendingEditFlush(() => state().setDiagramStepText(first, 'Still typing'));
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const replacing = state().createNewCreasePattern();
+        const dialog = useCommandDialogStore.getState().dialog;
+        expect(dialog).toMatchObject({ type: 'confirm', title: 'Discard unsaved changes?' });
+        resolveCommandDialog(dialog!.id, false);
+        await replacing;
+        expect(stepsIn(state().diagram!)[0].text).toBe('Still typing');
+      } finally {
+        unregisterDialogHost();
+      }
+    });
+  });
+
+  it('leaves the project unsaved when the diagram changes while the save dialog is up', async () => {
+    const { second } = authorTwoSteps();
+    const fileService = createFileService();
+    fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => {
+      // An edit that lands while the native dialog is open, as a field's
+      // blur commit does when the window loses focus to it.
+      state().setDiagramStepText(second, 'Edited during the dialog');
+      return { name: options.suggestedName, path: `/tmp/${options.suggestedName}` };
+    });
+
+    await state().saveProjectAs(fileService);
+
+    const steps = writtenFile(fileService).file.workspace.diagrams?.[0]?.steps as { text: string }[];
+    expect(steps[1].text).toBe('Unfold.');
+    expect(state().dirty).toBe(true);
+  });
+
+  it('keeps the old project whole when a crease-pattern project fails to open over it', async () => {
+    // A file holding only a crease pattern, made by the real writer, from Edit.
+    await state().createNewCreasePattern();
+    state().setActivePanelId('crease-pattern');
+    const cpOnly = createFileService();
+    await state().saveProjectAs(cpOnly);
+    const cpOnlyText = writtenFile(cpOnly).options.contents;
+
+    authorTwoSteps();
+    const ours = createFileService();
+    await state().saveProjectAs(ours);
+    const diagram = state().diagram;
+    const path = state().currentFilePath;
+    oristudioCpMocks.restoreOristudioCpDocument.mockRejectedValueOnce(new Error('kernel refused'));
+
+    await expect(
+      state().openProject(createFileService({ text: cpOnlyText, name: 'other.osf', path: '/tmp/other.osf' }))
+    ).resolves.toBe(false);
+
+    expect(state().currentFilePath).toBe(path);
+    expect(state().diagram).toBe(diagram);
+    // So saving again writes the file it came from, diagram and all.
+    const again = createFileService();
+    await state().saveProject(again);
+    expect(writtenFile(again).file.workspace.diagrams?.[0]?.steps).toHaveLength(2);
+  });
+
+  it('keeps the crease pattern when a .bps fails to open over it', async () => {
+    await state().createNewCreasePattern();
+    authorTwoSteps();
+    await state().saveProjectAs(createFileService());
+    const document = state().oristudioCpDocument;
+    bpMocks.loadOristudioBpProjectFromText.mockRejectedValueOnce(new Error('not a .bps'));
+
+    await state().openProject(createFileService({ text: 'garbage', name: 'x.bps', path: '/tmp/x.bps' }));
+
+    expect(state().oristudioCpDocument).toBe(document);
+    const again = createFileService();
+    await state().saveProject(again);
+    expect(writtenFile(again).file.workspace.creasePattern).not.toBeNull();
+  });
+
+  it('still refuses a project with no design, no crease pattern and no diagram', async () => {
+    // Written by the real writer, so the refusal is the loader's — not a format
+    // check failing first on a hand-made file.
+    const empty = serializeNativeProjectFile(
+      createNativeProjectFile({
+        workspaceTitle: 'Empty',
+        filename: 'empty.osf',
+        path: null,
+        designs: [],
+        creasePattern: null,
+        diagrams: [],
+        appVersion: 'test',
+      })
+    );
+
+    await expect(
+      state().openProject(createFileService({ text: empty, name: 'empty.osf', path: null }))
+    ).resolves.toBe(false);
+    expect(state().status).toBe('error');
+    expect(state().error).toMatchObject({
+      code: 'project_file_damaged',
+      message: expect.stringContaining('neither a design, a crease pattern nor a diagram'),
+    });
+  });
+
+  // Every entry point that replaces the project, each with a diagram open first.
+  it.each([
+    ['File › New crease pattern', () => state().createNewCreasePattern()],
+    ['File › New', () => state().createNewProject()],
+    ['the starter project', () => state().loadStarterProject()],
+    [
+      'opening a tree',
+      () =>
+        state().openProject(
+          createFileService({ text: 'tree tmd5', name: 'opened.tmd5', path: '/tmp/opened.tmd5' })
+        ),
+    ],
+    [
+      'opening a crease pattern',
+      () =>
+        state().openProject(
+          createFileService({
+            text: '{"@version":"v1.1","title":"native ori","lineSegments":[]}',
+            name: 'native.ori',
+            path: '/tmp/native.ori',
+          })
+        ),
+    ],
+    [
+      'opening a box-pleat file',
+      () =>
+        state().openProject(
+          createFileService({ text: '{}', name: 'crane.bps', path: '/tmp/crane.bps' })
+        ),
+    ],
+    ['a new box-pleat project', () => state().createOristudioBpProject({ confirmDiscard: false })],
+    [
+      'a box-pleat example',
+      () => state().loadOristudioBpExample('valid-packing', { confirmDiscard: false }),
+    ],
+  ])('%s replaces the diagram', async (_label, replace) => {
+    authorTwoSteps();
+    // Saved, so no discard prompt stands between the action and the test.
+    useWorkspaceStore.setState({ dirty: false });
+    const before = state().diagramLoadId;
+
+    await replace();
+
+    expect(state().status).not.toBe('error');
+    expectNoDiagram(before);
+  });
+
+  // And every one that only adds to the project, or rebuilds a part of it.
+  it.each([
+    ['closing the crease pattern', () => state().clearOristudioCpDocument()],
+    ['Edit seeding its own canvas', async () => {
+      useWorkspaceStore.setState({ oristudioCpDocument: null });
+      await state().ensureEditCreasePattern();
+    }],
+    ['choosing a design method', () => state().createNewProject({ preserveEditCanvas: true })],
+    [
+      'seeding a box-pleat design',
+      () => state().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true }),
+    ],
+    ['the engine finishing its boot', () => state().initEngine()],
+  ])('%s keeps the diagram and its unsaved state', async (_label, act) => {
+    authorTwoSteps();
+    const diagram = state().diagram;
+    const history = state().diagramHistory;
+
+    await act();
+
+    expect(state().status).not.toBe('error');
+    expect(state().diagram).toBe(diagram);
+    expect(state().diagramHistory).toBe(history);
+    expect(state().dirty).toBe(true);
+  });
+
+  describe('uploaded pictures', () => {
+    function svgAsset(id: string, side = 10): KnownDiagramAsset {
+      const result = sanitizeSvg(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${side}" height="${side}" viewBox="0 0 ${side} ${side}"><rect width="${side / 2}" height="${side / 2}"/></svg>`,
+        { idPrefix: id, mode: 'import' }
+      );
+      if (!result.ok) throw new Error(result.error);
+      return { id, kind: 'svg', svg: result.svg, widthPx: side, heightPx: side, bytes: result.svg.length };
+    }
+
+    const assetOf = (stepId: string) => {
+      const diagram = state().diagram!;
+      return stepAsset(diagram, stepsIn(diagram)[stepIndex(diagram, stepId)])?.id ?? null;
+    };
+
+    it('fills a selected step that has no picture with one picture, as one undo step', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      const past = state().diagramHistory.past.length;
+
+      expect(state().addDiagramPictures([svgAsset('asset-a')])).toEqual({ stepIds: [first], filled: true });
+
+      expect(state().diagram?.steps).toHaveLength(2);
+      expect(assetOf(first)).toBe('asset-a');
+      expect(stepsIn(state().diagram!)[0].text).toBe('Fold in half.');
+      expect(state().diagramSelectedStepId).toBe(first);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+    });
+
+    it('adds several pictures as steps after the selected one, in order, and selects the last', () => {
+      const { first, second } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      const past = state().diagramHistory.past.length;
+
+      const added = state().addDiagramPictures([svgAsset('asset-a'), svgAsset('asset-b')])!;
+
+      expect(added.filled).toBe(false);
+      expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first, ...added.stepIds, second]);
+      expect(added.stepIds.map(assetOf)).toEqual(['asset-a', 'asset-b']);
+      expect(state().diagramSelectedStepId).toBe(added.stepIds[1]);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      expect(state().undoDiagram()).toBe(true);
+      expect(stepsIn(state().diagram!).map((step) => step.id)).toEqual([first, second]);
+    });
+
+    it('adds one picture as a new step when the selected step already has one, or nothing is selected', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      state().addDiagramPictures([svgAsset('asset-a')]);
+      const added = state().addDiagramPictures([svgAsset('asset-b')])!;
+      expect(added.filled).toBe(false);
+      expect(stepsIn(state().diagram!)[1].id).toBe(added.stepIds[0]);
+
+      state().selectDiagramStep(null);
+      const atEnd = state().addDiagramPictures([svgAsset('asset-c')])!;
+      expect(stepsIn(state().diagram!).at(-1)?.id).toBe(atEnd.stepIds[0]);
+    });
+
+    it('drops pictures imported for a diagram that has since been replaced', () => {
+      authorTwoSteps();
+      const loadId = state().diagramLoadId;
+      // A file opened while the pictures were being read.
+      state().installDiagram(null);
+      expect(state().addDiagramPictures([svgAsset('asset-a')], { loadId })).toBeNull();
+      expect(state().setDiagramStepPicture('anything', svgAsset('asset-b'), { loadId })).toBe(false);
+      expect(state().diagram).toBeNull();
+    });
+
+    it('replaces and removes a picture, keeping the instruction, and undoes both', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      state().addDiagramPictures([svgAsset('asset-a')]);
+
+      expect(state().setDiagramStepPicture(first, svgAsset('asset-b'))).toBe(true);
+      expect(assetOf(first)).toBe('asset-b');
+      expect(state().removeDiagramStepPicture(first)).toBe(true);
+      expect(assetOf(first)).toBeNull();
+      expect(stepsIn(state().diagram!)[0].text).toBe('Fold in half.');
+      expect(state().removeDiagramStepPicture(first)).toBe(false);
+
+      state().undoDiagram();
+      state().undoDiagram();
+      // The replaced picture's asset is still there for undo to bring back.
+      expect(assetOf(first)).toBe('asset-a');
+    });
+
+    it('lets go of a replaced picture once only history holds it, so the byte cap can trim it', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      const big = (id: string): KnownDiagramAsset => {
+        const src = `data:image/png;base64,${id.padEnd(1024 * 1024, 'A')}`;
+        return { id, kind: 'raster', src, widthPx: 1, heightPx: 1, bytes: src.length };
+      };
+      state().addDiagramPictures([big('asset-0')]);
+      for (let index = 1; index <= 80; index++) state().setDiagramStepPicture(first, big(`asset-${index}`));
+
+      // Only the picture on show is in the diagram.
+      expect(Object.keys(state().diagram!.assets)).toEqual(['asset-80']);
+      // 80 MB of replaced pictures is past the 64 MB cap: the oldest undo steps go.
+      expect(state().diagramHistory.past.length).toBeLessThan(80);
+      // Undo still brings back the one before.
+      state().undoDiagram();
+      expect(stepAsset(state().diagram!, stepsIn(state().diagram!)[0])?.id).toBe('asset-79');
+    });
+
+    it('keeps what sanitizing changed in an upload for this session only', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      state().addDiagramPictures([svgAsset('asset-a')]);
+      useWorkspaceStore.setState({ dirty: false });
+
+      state().noteDiagramPictureChanges('asset-a', ['flowed-text']);
+      expect(state().diagramPictureNotices).toEqual({ 'asset-a': ['flowed-text'] });
+      expect(state().dirty).toBe(false);
+      state().noteDiagramPictureChanges('asset-a', []);
+      expect(state().diagramPictureNotices).toEqual({});
+
+      state().noteDiagramPictureChanges('asset-a', ['css-dropped']);
+      state().installDiagram(null);
+      expect(state().diagramPictureNotices).toEqual({});
+    });
+
+    it('saves pictures and reopens them, leaving out an asset only undo refers to', async () => {
+      const { first, second } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      state().addDiagramPictures([svgAsset('asset-a')]);
+      state().setDiagramStepPicture(first, svgAsset('asset-b'));
+      state().selectDiagramStep(second);
+      state().addDiagramPictures([svgAsset('asset-c')]);
+      const fileService = createFileService();
+      await state().saveProjectAs(fileService);
+
+      const { options } = writtenFile(fileService);
+      const written = JSON.parse(options.contents).workspace.diagrams?.[0];
+      expect(Object.keys(written.assets).sort()).toEqual(['asset-b', 'asset-c']);
+
+      resetStores(seedSnapshot());
+      useLayoutStore.setState({ activateWorkspace: vi.fn() });
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+      await state().openProject(
+        createFileService({ text: options.contents, name: 'crane.osf', path: '/tmp/crane.osf' })
+      );
+      expect(stepsIn(state().diagram!).map((step) => stepAsset(state().diagram!, step)?.id)).toEqual([
+        'asset-b',
+        'asset-c',
+      ]);
+      expect(stepsIn(state().diagram!).map((step) => step.text)).toEqual(['Fold in half.', 'Unfold.']);
+    });
+
+    it('opens a step in detail, and closes it with whatever clears the selection', () => {
+      const { first, second } = authorTwoSteps();
+      useWorkspaceStore.setState({ dirty: false });
+      expect(state().openDiagramStep('missing')).toBe(false);
+      expect(state().openDiagramStep(second)).toBe(true);
+      expect(state()).toMatchObject({ diagramSelectedStepId: second, diagramDetail: 'pose', dirty: false });
+
+      // The detail follows the selection from step to step.
+      state().selectDiagramStep(first);
+      expect(state().diagramDetail).toBe('pose');
+      state().closeDiagramStep();
+      expect(state()).toMatchObject({ diagramSelectedStepId: first, diagramDetail: null });
+
+      state().openDiagramStep(first);
+      state().selectDiagramStep(null);
+      expect(state().diagramDetail).toBeNull();
+
+      // Undoing the add that made the open step takes the detail with it.
+      state().openDiagramStep(second);
+      state().deleteDiagramSteps([first, second]);
+      expect(state()).toMatchObject({ diagramSelectedStepId: null, diagramDetail: null });
+      state().undoDiagram();
+      state().openDiagramStep(second);
+      while (state().undoDiagram());
+      expect(state().diagramDetail).toBeNull();
+    });
+
+    it('chooses one step’s pattern at a time, and lets the picker go with the step', () => {
+      const { first, second } = authorTwoSteps();
+      useWorkspaceStore.setState({ dirty: false });
+      expect(state().openDiagramPatternPicker('missing')).toBe(false);
+      expect(state().openDiagramPatternPicker(second)).toBe(true);
+      // Choosing selects the step, and is view state: nothing to save.
+      expect(state()).toMatchObject({ diagramSelectedStepId: second, diagramPatternPicker: second, dirty: false });
+      // The picker belongs to its step: selecting it again keeps it, another closes it.
+      state().selectDiagramStep(second);
+      expect(state().diagramPatternPicker).toBe(second);
+      state().selectDiagramStep(first);
+      expect(state().diagramPatternPicker).toBeNull();
+      state().openDiagramPatternPicker(first);
+      state().closeDiagramPatternPicker();
+      expect(state().diagramPatternPicker).toBeNull();
+      // Not for a diagram that cannot change.
+      useWorkspaceStore.setState({ diagramReadOnly: true });
+      expect(state().openDiagramPatternPicker(first)).toBe(false);
+    });
+
+    it('poses an upload as one undo step, and refuses a step without one', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      state().addDiagramPictures([svgAsset('asset-a')]);
+      const past = state().diagramHistory.past.length;
+
+      expect(state().setDiagramStepPose(first, { rotationQuarterTurns: 3, mirrored: false })).toBe(true);
+      expect(stepsIn(state().diagram!)[0].source).toMatchObject({ rotationQuarterTurns: 3 });
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      state().undoDiagram();
+      expect(stepsIn(state().diagram!)[0].source).toMatchObject({ rotationQuarterTurns: 0 });
+      const plain = stepsIn(state().diagram!)[1].id;
+      expect(state().setDiagramStepPose(plain, { rotationQuarterTurns: 1, mirrored: false })).toBe(false);
+    });
+
+    it('warns about a heavy file by what it holds, not by what undo keeps', async () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      const heavy: KnownDiagramAsset = {
+        id: 'asset-heavy',
+        kind: 'raster',
+        src: `data:image/png;base64,${'A'.repeat(26 * 1024 * 1024)}`,
+        widthPx: 1,
+        heightPx: 1,
+        bytes: 26 * 1024 * 1024,
+      };
+      state().addDiagramPictures([heavy]);
+      await state().saveProjectAs(createFileService());
+      expect(state().projectMessage).toMatch(/embeds ~\d+ MB/);
+
+      state().setDiagramStepPicture(first, svgAsset('asset-light'));
+      await state().saveProjectAs(createFileService());
+      expect(state().projectMessage).not.toMatch(/embeds/);
+    });
+  });
+
+
+  describe('annotating a step', () => {
+    const ARROW: KnownDiagramAnnotation = { id: 'a-1', kind: 'valley-arrow', from: [0.1, 0.2], to: [0.5, 0.2], bend: 0.1 };
+    const LABEL: KnownDiagramAnnotation = { id: 'a-2', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'A' };
+
+    function pictured(): string {
+      const result = sanitizeSvg(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30" viewBox="0 0 40 30"><rect width="20" height="10"/></svg>',
+        { idPrefix: 'asset-pic', mode: 'import' }
+      );
+      if (!result.ok) throw new Error(result.error);
+      state().addDiagramPictures([
+        { id: 'asset-pic', kind: 'svg', svg: result.svg, widthPx: 40, heightPx: 30, bytes: result.svg.length },
+      ]);
+      const stepId = state().diagramSelectedStepId!;
+      state().openDiagramStep(stepId, 'annotate');
+      return stepId;
+    }
+    const step = (stepId: string) => stepsIn(state().diagram!)[stepIndex(state().diagram!, stepId)]!;
+    const add = (stepId: string, annotation: KnownDiagramAnnotation) =>
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [...list, annotation], { select: annotation.id });
+
+    it('adds one as one undo step, selected, drawn on the picture the step has', () => {
+      const stepId = pictured();
+      const past = state().diagramHistory.past.length;
+      expect(add(stepId, ARROW)).toBe(true);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      expect(state().diagramSelectedAnnotationId).toBe('a-1');
+      expect(step(stepId).annotatedPictureKey).toBe(step(stepId).picture!.key);
+      // An edit that changes nothing records nothing.
+      expect(state().editDiagramAnnotations(stepId, 'Nothing', (list) => list)).toBe(false);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+    });
+
+    it('makes a sitting at a label’s field one undo step, and nothing else extends it', () => {
+      const stepId = pictured();
+      add(stepId, LABEL);
+      const past = state().diagramHistory.past.length;
+      const text = (value: string, session: number) =>
+        state().editDiagramAnnotations(stepId, 'Edit label', (list) => list.map((a) => ({ ...a, text: value })), { session });
+      text('B', 7);
+      text('BC', 7);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      // An instruction's session is another field's, whatever its number.
+      state().setDiagramStepText(stepId, 'Fold.', { session: 7 });
+      text('BCD', 7);
+      expect(state().diagramHistory.past).toHaveLength(past + 3);
+      state().undoDiagram();
+      expect((step(stepId).annotations[0] as KnownDiagramAnnotation).text).toBe('BC');
+    });
+
+    it('lets go of the selected annotation with its step, the detail, or an undo that removes it', () => {
+      const stepId = pictured();
+      add(stepId, ARROW);
+      state().undoDiagram();
+      expect(state().diagramSelectedAnnotationId).toBeNull();
+      state().redoDiagram();
+      state().selectDiagramAnnotation('a-1');
+      expect(state().diagramSelectedAnnotationId).toBe('a-1');
+      state().closeDiagramStep();
+      expect(state().diagramSelectedAnnotationId).toBeNull();
+      state().openDiagramStep(stepId, 'annotate');
+      state().selectDiagramAnnotation('a-1');
+      state().selectDiagramStep(state().addDiagramStep());
+      expect(state().diagramSelectedAnnotationId).toBeNull();
+      // One that is not on the selected step cannot be selected.
+      state().selectDiagramAnnotation('a-1');
+      expect(state().diagramSelectedAnnotationId).toBeNull();
+    });
+
+    it('keeps the tool and the selection out of history and unsaved work', () => {
+      const stepId = pictured();
+      add(stepId, ARROW);
+      useWorkspaceStore.setState({ dirty: false });
+      const past = state().diagramHistory.past.length;
+      state().setDiagramAnnotateTool('circle');
+      state().selectDiagramAnnotation(null);
+      expect(state().diagramAnnotateTool).toBe('circle');
+      expect(state().dirty).toBe(false);
+      expect(state().diagramHistory.past).toHaveLength(past);
+    });
+
+    it('says when the picture changed under them, until they are kept or touched', () => {
+      const stepId = pictured();
+      add(stepId, ARROW);
+      const result = sanitizeSvg(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"/>',
+        { idPrefix: 'asset-new', mode: 'import' }
+      );
+      if (!result.ok) throw new Error(result.error);
+      state().setDiagramStepPicture(stepId, { id: 'asset-new', kind: 'svg', svg: result.svg, widthPx: 10, heightPx: 10, bytes: 1 });
+      expect(annotationsOutOfStep(step(stepId))).toBe(true);
+      expect(state().keepDiagramAnnotations(stepId)).toBe(true);
+      expect(annotationsOutOfStep(step(stepId))).toBe(false);
+      expect(state().keepDiagramAnnotations(stepId)).toBe(false);
+    });
+
+    it('offers Delete for the selected annotation in Annotate, and for the step anywhere else', () => {
+      const stepId = pictured();
+      state().setActivePanelId('diagram');
+      expect(hasDeletableDiagramSelection(state())).toBe(false);
+      add(stepId, ARROW);
+      expect(hasDeletableDiagramSelection(state())).toBe(true);
+      state().selectDiagramAnnotation(null);
+      expect(hasDeletableDiagramSelection(state())).toBe(false);
+      state().openDiagramStep(stepId, 'pose');
+      expect(hasDeletableDiagramSelection(state())).toBe(true);
+    });
+
+    it('acts as Pose on a step with nothing to annotate, and Annotate again on one with a picture', () => {
+      const stepId = pictured();
+      state().setActivePanelId('diagram');
+      add(stepId, ARROW);
+      const empty = state().addDiagramStep()!;
+      // Walked onto in Annotate: the detail shows Pose, so Delete is the step's.
+      expect(state().diagramDetail).toBe('annotate');
+      expect(isDiagramAnnotating(state())).toBe(false);
+      expect(hasDeletableDiagramSelection(state())).toBe(true);
+      state().selectDiagramStep(stepId);
+      expect(isDiagramAnnotating(state())).toBe(true);
+      // Its picture taken away: Pose again.
+      state().removeDiagramStepPicture(stepId);
+      expect(isDiagramAnnotating(state())).toBe(false);
+      expect(empty).not.toBe(stepId);
+    });
+
+    it('takes none on a step with no picture, or a diagram it cannot change', () => {
+      const stepId = state().addDiagramStep()!;
+      expect(add(stepId, ARROW)).toBe(false);
+      const pic = pictured();
+      useWorkspaceStore.setState({ diagramReadOnly: true });
+      expect(add(pic, ARROW)).toBe(false);
+    });
   });
 });

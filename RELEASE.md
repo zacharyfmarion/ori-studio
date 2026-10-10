@@ -21,6 +21,35 @@ The Cloudflare Pages project name is `oristudio`; the production URL is
 `https://oristudio.pages.dev/`. Pull request previews are deployed from
 non-fork PRs to `https://pr-<number>.oristudio.pages.dev/`.
 
+## Diagram fonts
+
+The Diagram's CJK fonts are built in CI from pinned sources
+(`scripts/diagram-fonts/`, through `.github/actions/build-diagram-fonts`) and
+named for their content. The build is reproducible: the same sources and
+toolchain give the same bytes and the same names, and `check_fonts.py` fails a
+directory that would not.
+
+The desktop app ships the common files and reads a full file from the site by
+its content-hashed name. **The implicit v1 font set is frozen.**
+`scripts/diagram-fonts/v1-lock.json` records every CJK file, the manifest and
+coverage, the Latin font hashes, and the source/charset/toolchain inputs.
+Every font build (including a cache hit) fails if any of these change or vanish.
+This replaces the live-site rename warning with a deterministic retention gate,
+including the first deployment, before a live Diagram manifest exists. The font
+toolchain installs only hash-verified binary wheels for Python 3.12. The Latin
+files remain the committed originals: they predate the fixed build timestamp,
+so rebuilding them changes their `head` metadata even though every other table
+is identical. Do not replace them merely to normalize that timestamp.
+
+Do not regenerate the lock to make a changed font build pass. A later font set
+needs an explicit saved font-set id (absence still means v1), its own manifest
+and URLs, and continued hosting of all v1 files. Move historical full fonts to
+immutable storage if multiple sets no longer fit the static deployment. A
+same-day desktop release does not make deletion safe: older installations keep
+using their original names. Validate the actual site bundle with
+`python3 scripts/diagram-fonts/check_fonts.py apps/web/dist/fonts/diagram`
+before uploading it.
+
 ## Detector models
 
 The crease-pattern detector's models are not in the build: Cloudflare

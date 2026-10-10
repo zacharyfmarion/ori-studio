@@ -3,7 +3,7 @@ import type { WorkspaceState } from './types';
 
 /**
  * Which workspace to land in after opening a file: Edit when the file produced a
- * crease pattern, otherwise Design. Single source of truth for every open path —
+ * crease pattern, Diagram when it holds nothing but a diagram, otherwise Design. Single source of truth for every open path —
  * File › Open, the start screen, the desktop open-with handler, and a drop — so
  * they cannot disagree about where a given file opens.
  *
@@ -19,9 +19,14 @@ import type { WorkspaceState } from './types';
  * whichever loader happened to run last.
  */
 export function landingWorkspace(
-  state: Pick<WorkspaceState, 'oristudioCpDocument' | 'importedCreasePattern'>
+  state: Pick<
+    WorkspaceState,
+    'oristudioCpDocument' | 'importedCreasePattern' | 'designTabs' | 'diagram'
+  >
 ): WorkspaceId {
-  return state.oristudioCpDocument !== null || state.importedCreasePattern !== null
-    ? 'edit'
-    : 'design';
+  if (state.oristudioCpDocument !== null || state.importedCreasePattern !== null) return 'edit';
+  // A project that is only a diagram — pictures drawn elsewhere, no pattern and
+  // no design — has nothing to show in Design but the chooser.
+  const hasDesign = state.designTabs.some((tab) => tab.kind !== null);
+  return state.diagram !== null && !hasDesign ? 'diagram' : 'design';
 }

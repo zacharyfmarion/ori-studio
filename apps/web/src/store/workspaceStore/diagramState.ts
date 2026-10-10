@@ -1,0 +1,371 @@
+import { EDIT_PATH, isEnlargeTool, xrayToolHeld, type AnnotateTool, type XRayStanding } from '../../diagram/annotate/annotateTools';
+import { pathNodesOf } from '../../diagram/annotate/annotationPath';
+import {
+  isKnownAnnotation,
+  stepById,
+  stepsOf,
+  type DiagramDocument,
+  type KnownDiagramAnnotation,
+} from '../../diagram/document/diagramDocument';
+import { stepCanBeAnnotated } from '../../diagram/pictures/pictureFrame';
+import { showsFrame } from '../../diagram/zoom/zoomActions';
+import { ZOOM_FRAME_ID } from '../../diagram/zoom/zoomModel';
+import { emptySnapshotHistory, type SnapshotHistory } from './snapshotHistory';
+import type { DiagramAnchorPick, WorkspaceState } from './types';
+
+/**
+ * The keys whose values belong to *the project's diagram*, and must all be
+ * replaced together when the project is.
+ *
+ * The diagram is a project-level document, so this is deliberately a list of
+ * its own and **not** part of `CP_DOCUMENT_SCOPED_KEYS`: Edit's
+ * self-provisioning, `clearOristudioCpDocument` and every box-pleat open or
+ * create discard the crease pattern, and a diagram made of uploaded pictures
+ * must survive all of them.
+ *
+ * A tuple rather than only a type so a test can prove each project-replacing
+ * entry point resets every key without keeping its own copy of the list.
+ */
+export const DIAGRAM_SCOPED_KEYS = [
+  'diagram',
+  'diagramHistory',
+  'diagramLoadId',
+  'diagramReadOnly',
+  'diagramRaw',
+  'diagramOthers',
+  'diagramView',
+  'diagramSelectedStepId',
+  'diagramDetail',
+  'diagramAnnotateTool',
+  'diagramSelectedAnnotationId',
+  'diagramSelectedPathNode',
+  'diagramPictureNotices',
+  'diagramCaptures',
+  'diagramPatternPicker',
+  'diagramRefreshAll',
+  'diagramReferencesBrowser',
+  'diagramAnchorPick',
+  'diagramPaperFacesFetching',
+  'diagramPlacesSettled',
+  'diagramPasted',
+] as const;
+
+/**
+ * Everything scoped to the project's diagram. Not `Partial`: adding a key to
+ * {@link DIAGRAM_SCOPED_KEYS} is a compile error until every producer says
+ * what happens to it when the project is replaced.
+ */
+export type DiagramScopedState = {
+  [K in (typeof DIAGRAM_SCOPED_KEYS)[number]]: WorkspaceState[K];
+};
+
+/**
+ * Whether the step detail is annotating: open in Annotate on a step that can
+ * be annotated. Annotate is kept as the detail's mode across the steps it
+ * walks, and a step with no picture to draw on shows Pose — so this, not the
+ * stored mode, is what the keys, Delete, the menus and the Step pane ask.
+ */
+export function isDiagramAnnotating(
+  state: Pick<WorkspaceState, 'diagram' | 'diagramDetail' | 'diagramSelectedStepId'>
+): boolean {
+  const { diagram, diagramDetail, diagramSelectedStepId } = state;
+  if (diagramDetail !== 'annotate' || !diagram || diagramSelectedStepId === null) return false;
+  const step = stepById(diagram, diagramSelectedStepId);
+  return step !== null && stepCanBeAnnotated(step, diagram.assets);
+}
+
+/**
+ * Whether the next Escape puts the anchor's pick down: one is armed
+ * ({@link activeAnchorPick}) in the Diagram while it is the workspace the keys
+ * go to — the runtime's cancel reaches it nowhere else
+ * (`shortcutScopeStackForContext`). What the touch View sheet, which also
+ * closes on Escape, leaves the key for (`registerArmedMode`); a pick left
+ * armed in a Diagram tab out of sight holds it for nothing.
+ */
+export function escapePutsPickDown(
+  state: Pick<WorkspaceState, 'activeEditingContext'> & Parameters<typeof activeAnchorPick>[0]
+): boolean {
+  return state.activeEditingContext === 'diagram' && activeAnchorPick(state) !== null;
+}
+
+/**
+ * The Annotate tool in hand on the step open there: the one picked, but
+ * Select in place of an Enlarge tool on an enlarged step, where no area is
+ * drawn (Revision 2), and of the X-Ray tool where `xray`, the step's x-ray
+ * standing, holds it (Revision 3, R3-18a A: no layers, or its faces need a
+ * Refresh) — so the canvas selects there, as its rail shows, and the tool is
+ * in hand again on the next step that can take it. The standing knows the
+ * step's link, which the store does not: `useAnnotateToolInHand` supplies the
+ * rail's own.
+ */
+export function annotateToolInHand(
+  state: Pick<WorkspaceState, 'diagram' | 'diagramSelectedStepId' | 'diagramAnnotateTool'>,
+  xray: XRayStanding
+): AnnotateTool {
+  const { diagram, diagramSelectedStepId: stepId, diagramAnnotateTool: tool } = state;
+  if (tool === 'x-ray') return xrayToolHeld(xray) ? null : tool;
+  if (!isEnlargeTool(tool) || !diagram || stepId === null) return tool;
+  return stepById(diagram, stepId)?.zoom ? null : tool;
+}
+
+/**
+ * The anchor being picked on the canvas (Revision 2), while it can be: its
+ * step open in Annotate, with the area or the frame it is for selected there
+ * — the row whose Pick armed it. Null otherwise. Selecting anything else,
+ * another step or leaving Annotate also puts it down in the store, so it does
+ * not come back when the area or frame is selected again.
+ */
+export function activeAnchorPick(
+  state: Pick<
+    WorkspaceState,
+    'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId' | 'diagramAnchorPick'
+  >
+): DiagramAnchorPick | null {
+  const pick = state.diagramAnchorPick;
+  if (!pick || pick.stepId !== state.diagramSelectedStepId || pick.target !== state.diagramSelectedAnnotationId) return null;
+  return isDiagramAnnotating(state) ? pick : null;
+}
+
+/**
+ * Whether the anchor's pick `pick`, now ended, ended where it was made: the
+ * Diagram still where the keys go, its step open in Annotate with the area
+ * or frame it was for selected — anchored, or put down — rather than left for
+ * Pose, the step list, another step or another mark. What the touch View
+ * sheet, stepped aside while the pick was made under it, asks before it comes
+ * back (review of 18f).
+ */
+export function anchorPickEndedInPlace(
+  state: Pick<WorkspaceState, 'activeEditingContext'> & Parameters<typeof activeAnchorPick>[0],
+  pick: DiagramAnchorPick
+): boolean {
+  return state.activeEditingContext === 'diagram' && activeAnchorPick({ ...state, diagramAnchorPick: pick }) !== null;
+}
+
+/**
+ * What Delete removes in the Diagram: the node Edit Path has selected, else
+ * the selected annotation while annotating, else the selected step — the one
+ * answer the menu's reason and every surface that names the key read.
+ */
+export function diagramDeleteTarget(
+  state: Parameters<typeof selectedDiagramPathNode>[0]
+): 'step' | 'annotation' | 'node' {
+  if (!isDiagramAnnotating(state)) return 'step';
+  return selectedDiagramPathNode(state) !== null ? 'node' : 'annotation';
+}
+
+/**
+ * Whether Copy has an annotation to take in the Diagram: the one selected
+ * while annotating — on any diagram, as copying changes nothing.
+ */
+export function canCopyDiagramAnnotation(
+  state: Pick<WorkspaceState, 'activeEditingContext' | 'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId'>
+): boolean {
+  return state.activeEditingContext === 'diagram' && annotatingSelectionId(state) !== null;
+}
+
+/** Whether Paste has a step to put annotations on: the one open in Annotate, on a diagram that can change. */
+export function canPasteDiagramAnnotations(
+  state: Pick<WorkspaceState, 'activeEditingContext' | 'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramReadOnly'>
+): boolean {
+  return state.activeEditingContext === 'diagram' && !state.diagramReadOnly && isDiagramAnnotating(state);
+}
+
+/**
+ * The selected annotation on the step open in Annotate, by id, or null: what
+ * the Layers pane shows selected, and what brings it forward.
+ */
+export function annotatingSelectionId(
+  state: Pick<WorkspaceState, 'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId'>
+): string | null {
+  return isDiagramAnnotating(state) ? (selectedDiagramAnnotation(state)?.id ?? null) : null;
+}
+
+/**
+ * What the Layers pane shows selected on the step open in Annotate: an
+ * annotation's id, or an enlarged step's frame (`ZOOM_FRAME_ID`, Revision 2),
+ * a layer of the step though no mark; null otherwise. What brings Layers
+ * forward, unless it was selected to pick its anchor (`useDiagramPaneReveal`).
+ * Copy and Delete ask `annotatingSelectionId`, which takes no frame.
+ */
+export function layersSelectionId(
+  state: Pick<WorkspaceState, 'diagram' | 'diagramDetail' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId'>
+): string | null {
+  const annotation = annotatingSelectionId(state);
+  if (annotation !== null) return annotation;
+  const { diagram, diagramSelectedStepId: stepId, diagramSelectedAnnotationId: id } = state;
+  return id === ZOOM_FRAME_ID && diagram && stepId !== null && isDiagramAnnotating(state) && showsFrame(diagram, stepId)
+    ? id
+    : null;
+}
+
+/** The selected annotation, when it is one this build reads, on the selected step. */
+export function selectedDiagramAnnotation(
+  state: Pick<WorkspaceState, 'diagram' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId'>
+): KnownDiagramAnnotation | null {
+  const { diagram, diagramSelectedStepId: stepId, diagramSelectedAnnotationId: id } = state;
+  if (!diagram || stepId === null || id === null) return null;
+  const annotation = stepById(diagram, stepId)?.annotations.find((candidate) => candidate.id === id);
+  return annotation && isKnownAnnotation(annotation) ? annotation : null;
+}
+
+/**
+ * The node Edit Path has selected, by its number along the selected arrow's
+ * path — or null: not annotating, another tool in hand, no fold arrow
+ * selected, or the selection taken against another arrow or another count of
+ * nodes than it shows now (an undo, Reset, a node added or deleted under it).
+ * The one check, so no edit has to clear the selection itself.
+ */
+export function selectedDiagramPathNode(
+  state: Pick<
+    WorkspaceState,
+    | 'diagram'
+    | 'diagramDetail'
+    | 'diagramSelectedStepId'
+    | 'diagramSelectedAnnotationId'
+    | 'diagramAnnotateTool'
+    | 'diagramSelectedPathNode'
+  >
+): number | null {
+  const selection = state.diagramSelectedPathNode;
+  if (selection === null || state.diagramAnnotateTool !== EDIT_PATH || !isDiagramAnnotating(state)) return null;
+  const annotation = selectedDiagramAnnotation(state);
+  if (!annotation || annotation.id !== selection.annotationId) return null;
+  const nodes = pathNodesOf(annotation);
+  if (!nodes || nodes.length !== selection.nodes || selection.node < 0 || selection.node >= nodes.length) return null;
+  return selection.node;
+}
+
+/**
+ * The history holds whole diagrams. `null` is a real entry: the first edit
+ * creates the diagram, and undoing it returns the project to having none.
+ */
+export type DiagramHistory = SnapshotHistory<DiagramDocument | null>;
+
+let lastDiagramLoadId = 0;
+
+/**
+ * A new load id. Every replacement of the diagram takes one, so work started
+ * against one diagram — an async capture, a pending text edit — can tell it
+ * has been replaced before it writes into its successor.
+ */
+export function nextDiagramLoadId(): number {
+  lastDiagramLoadId += 1;
+  return lastDiagramLoadId;
+}
+
+/**
+ * Let go of the project's diagram, for a replacement that brings its own (or
+ * none). Spread it into the replacing `set`.
+ */
+export function discardDiagramState(): DiagramScopedState {
+  return {
+    diagram: null,
+    diagramHistory: emptySnapshotHistory(),
+    diagramLoadId: nextDiagramLoadId(),
+    diagramReadOnly: false,
+    diagramRaw: null,
+    diagramOthers: [],
+    diagramView: 'steps',
+    diagramSelectedStepId: null,
+    diagramDetail: null,
+    diagramAnnotateTool: null,
+    diagramSelectedAnnotationId: null,
+    diagramSelectedPathNode: null,
+    diagramPictureNotices: {},
+    diagramCaptures: {},
+    diagramPatternPicker: null,
+    diagramRefreshAll: null,
+    diagramReferencesBrowser: null,
+    diagramAnchorPick: null,
+    diagramPaperFacesFetching: {},
+    diagramPlacesSettled: null,
+    diagramPasted: null,
+  };
+}
+
+/** The diagram-scoped state as it stands, to put back with one `set`. */
+export function pickDiagramState(state: WorkspaceState): DiagramScopedState {
+  return Object.fromEntries(DIAGRAM_SCOPED_KEYS.map((key) => [key, state[key]])) as DiagramScopedState;
+}
+
+/**
+ * The most bytes of picture and asset data the undo history may keep alive,
+ * beyond the current diagram itself.
+ *
+ * Snapshots share structure, so an edit that only moves a step costs a few
+ * small arrays. What costs memory is a *replaced* picture or asset: each
+ * recapture leaves the old picture reachable from history. The count cap
+ * alone (`MAX_SNAPSHOT_HISTORY`) would let a hundred recaptures of a large
+ * picture pin hundreds of MB.
+ */
+export const DIAGRAM_HISTORY_MAX_BYTES = 64 * 1024 * 1024;
+
+const heavyBytes = new WeakMap<object, number>();
+
+/** The JSON size of one heavy object, measured once. */
+function bytesOf(value: object): number {
+  const cached = heavyBytes.get(value);
+  if (cached !== undefined) return cached;
+  const size = JSON.stringify(value)?.length ?? 0;
+  heavyBytes.set(value, size);
+  return size;
+}
+
+/**
+ * The objects in a diagram that are worth counting: pictures, assets, and the
+ * raw form of anything carried verbatim. Everything else is a few fields per
+ * step and is covered by the count cap.
+ */
+function heavyParts(document: DiagramDocument | null): object[] {
+  if (!document) return [];
+  const parts: object[] = [];
+  for (const step of stepsOf(document)) {
+    // A newer build's step is written as it came, its picture inside it.
+    if (step.unknown) {
+      parts.push(step.unknown);
+      continue;
+    }
+    const picture = step.picture as unknown;
+    if (picture && typeof picture === 'object') parts.push(picture);
+  }
+  for (const asset of Object.values(document.assets)) parts.push(asset);
+  return parts;
+}
+
+/**
+ * About how many bytes of picture and asset data a diagram puts in the file,
+ * for the save notice. Measured from the same cached sizes the history trim
+ * uses, so saving again costs nothing for data that has not changed.
+ */
+export function diagramDataBytes(document: DiagramDocument | null): number {
+  let total = 0;
+  for (const part of heavyParts(document)) total += bytesOf(part);
+  return total;
+}
+
+/**
+ * Drop the oldest undo entries until the distinct heavy data they keep alive
+ * fits {@link DIAGRAM_HISTORY_MAX_BYTES}. The current diagram is counted
+ * first, so what it shares with history costs history nothing.
+ */
+export function trimDiagramHistory(
+  history: DiagramHistory,
+  current: DiagramDocument | null,
+  maxBytes: number = DIAGRAM_HISTORY_MAX_BYTES
+): DiagramHistory {
+  const counted = new Set<object>(heavyParts(current));
+  let total = 0;
+  let keepFrom = 0;
+  for (let index = history.past.length - 1; index >= 0; index--) {
+    for (const part of heavyParts(history.past[index].snapshot)) {
+      if (counted.has(part)) continue;
+      counted.add(part);
+      total += bytesOf(part);
+    }
+    if (total > maxBytes) {
+      keepFrom = index + 1;
+      break;
+    }
+  }
+  return keepFrom === 0 ? history : { ...history, past: history.past.slice(keepFrom) };
+}

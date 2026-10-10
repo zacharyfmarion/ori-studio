@@ -6,7 +6,7 @@ import { widestPenCssPx } from '../lib/paper/paperSvg';
 import { PreparedModelCache } from '../lib/preparedModelCache';
 import { foldedObj, validFoldedMesh, type FoldedObjUnavailableReason } from '../lib/foldedExport';
 import { sheetUvs, type SheetUvs } from '../lib/sheetUvs';
-import { MAX_CONCURRENT_SIMULATIONS, MAX_LIVE_FOLDED_MESHES } from './simulatorLimits';
+import { MAX_LIVE_FOLDED_MESHES, MAX_LIVE_SIMULATOR_SESSIONS } from './simulatorLimits';
 import {
   FOLDED_3D_REQUIRED_DEPTH_BITS,
   FoldedMeshSource,
@@ -470,19 +470,94 @@ export interface SimulatorExportSceneOptions {
   markHidden: boolean;
 }
 
-/** A frame frozen for an export dialog: everything a scene of it is built from. */
-interface ExportSnapshot {
-  session: Session;
+/** Everything a scene of a frame is built from. */
+interface SceneFrame {
   positions: Float32Array;
-  triangles: Uint32Array;
-  foldPercent: number;
-  sheetUvs: SheetUvs;
   topology: ReturnType<typeof meshTopologyFor>;
   camera: CameraUniforms;
   sheet: ReturnType<typeof sheetExtent>;
   perspective: boolean;
   showFaces: boolean;
   showEdges: boolean;
+}
+
+/** A frame frozen for an export dialog, with the session it came from. */
+interface ExportSnapshot extends SceneFrame {
+  session: Session;
+  triangles: Uint32Array;
+  foldPercent: number;
+  sheetUvs: SheetUvs;
+}
+
+/** A model from a camera, framed in a square: a Diagram step's picture (`stillFrame`, `flatScene`). */
+export interface SimulatorStillSceneOptions extends SimulatorExportSceneOptions {
+  /** The camera, as a viewport's orbit holds it. */
+  view: OrbitView;
+  /** The square the scene is framed in, CSS px. */
+  size: number;
+}
+
+/** A live session's model where it is now (`SimulatorWorkerApi.sessionScene`). */
+export interface SimulatorSessionSceneOptions extends SimulatorStillSceneOptions {
+  token: SimulatorSessionToken;
+  /**
+   * Settle the solver first, for up to this many steps: for a caller that
+   * cannot wait for it to come to rest — Pose closing a moment after a move —
+   * so what is drawn is the fold it was told, not one on its way there.
+   */
+  settleSteps?: number;
+}
+
+/**
+ * A frame as a paper scene, in a style's light and with its widest pen; null
+ * when it draws nothing. One body for an export dialog's frozen frame and a
+ * session-free flat one, so the two cannot drift.
+ */
+function sceneOfFrame(frame: SceneFrame, { style, markHidden }: SimulatorExportSceneOptions): PaperScene | null {
+  // As the simulator draws the style: the fields its policy applies, the
+  // rest at their defaults. The inline-simulation policy applies the same
+  // fields, so one policy serves both surfaces here.
+  const drawn = surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator);
+  const scene = meshToPaperScene(frame.positions, frame.topology, frame.camera, {
+    sheet: frame.sheet,
+    perspective: frame.perspective,
+    // A page that keeps buried faces has no use for the hidden test, which
+    // is the expensive half of building the scene.
+    markHidden,
+    lighting: drawn.light.enabled,
+    lightDir: lightVector(drawn.light.azimuth, drawn.light.elevation),
+    lineWidth: widestPenCssPx(drawn),
+    showFaces: frame.showFaces,
+    showEdges: frame.showEdges,
+  });
+  return scene.items.length === 0 ? null : scene;
+}
+
+/**
+ * A model's positions from a camera, framed on their own shape in a `size`
+ * square, with perspective whatever the screen draws: a Diagram step's
+ * picture (D19), of the flat sheet (`flatScene`) or of a live session where it
+ * is now (`sessionScene`). One framing for both, so a step captured in Pose at
+ * 0% is the picture its headless 0% is, on every machine.
+ */
+function stillFrame(
+  positions: Float32Array,
+  prepared: Parameters<typeof meshTopologyFor>[0],
+  sheetPositions: Float32Array,
+  view: OrbitView,
+  size: number
+): SceneFrame {
+  const { center, radius } = framingOf(positions);
+  const edge = Math.max(1, size);
+  return {
+    positions,
+    topology: meshTopologyFor(prepared),
+    camera: cameraUniforms(view, center, radius, edge, edge),
+    sheet: sheetExtent(sheetPositions),
+    perspective: true,
+    showFaces: true,
+    showEdges: true,
+  };
 }
 
 /**
@@ -524,20 +599,14 @@ let sessionToken: SimulatorSessionToken = 0;
 let useCounter = 0;
 
 /**
- * How many models stay resident.
- *
- * One per open window, plus one. The `+ 1` is the reload overlap: a runtime
- * replacing its model loads the new session *before* releasing the old, so that
- * its window is never briefly backed by nothing — which means a full house
- * momentarily needs one slot more than there are windows. Without the spare,
- * every reload at the cap evicted somebody, and the victim was a window still on
- * screen.
+ * How many models stay resident: {@link MAX_LIVE_SIMULATOR_SESSIONS}, which
+ * counts every view that can be open at once and the reload overlap.
  *
  * Nothing should be evicted in practice. When something is, the owner reloads on
  * its next tick (see `useSimulatorRuntime`) rather than freezing — but that is a
  * recovery path, and a cap that keeps needing it is a cap that is too small.
  */
-const MAX_LIVE_SESSIONS = MAX_CONCURRENT_SIMULATIONS + 1;
+const MAX_LIVE_SESSIONS = MAX_LIVE_SIMULATOR_SESSIONS;
 
 /**
  * Every 3D folded figure the worker can draw, keyed by its own token.
@@ -1700,7 +1769,7 @@ const api = {
       ),
       sheet: sheetExtent(active.model.originalPositions),
       // The canvas-2D fallback is orthographic, so a machine drawing through it
-      // must export the way its own screen looks.
+      // exports the way its own screen looks.
       perspective: Boolean(active.gpuRender),
       showFaces: active.view.settings.showFaces,
       showEdges: active.view.settings.showEdges,
@@ -1729,26 +1798,52 @@ const api = {
    * the main thread and is painted there, so a page option is a repaint with
    * no round trip.
    */
-  exportScene(snapshotId: number, { style, markHidden }: SimulatorExportSceneOptions): PaperScene | null {
+  exportScene(snapshotId: number, options: SimulatorExportSceneOptions): PaperScene | null {
     const snapshot = exportSnapshots.get(snapshotId);
-    if (!snapshot) return null;
-    // As the simulator draws the style: the fields its policy applies, the
-    // rest at their defaults. The inline-simulation policy applies the same
-    // fields, so one policy serves both surfaces here.
-    const drawn = surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator);
-    const scene = meshToPaperScene(snapshot.positions, snapshot.topology, snapshot.camera, {
-      sheet: snapshot.sheet,
-      perspective: snapshot.perspective,
-      // A page that keeps buried faces has no use for the hidden test, which
-      // is the expensive half of building the scene.
-      markHidden,
-      lighting: drawn.light.enabled,
-      lightDir: lightVector(drawn.light.azimuth, drawn.light.elevation),
-      lineWidth: widestPenCssPx(drawn),
-      showFaces: snapshot.showFaces,
-      showEdges: snapshot.showEdges,
-    });
-    return scene.items.length === 0 ? null : scene;
+    return snapshot ? sceneOfFrame(snapshot, options) : null;
+  },
+
+  /**
+   * A model's scene before it folds — the flat sheet — from a camera, with no
+   * session and no solver: what a Diagram step shown as Simulated shows at 0%
+   * (D19). At rest a model is its original positions.
+   */
+  flatScene(fold: FoldDocument, options: SimulatorStillSceneOptions): PaperScene | null {
+    // Prepared afresh, not through `preparedModels`: that small cache is the
+    // live windows', and a step's capture must not evict one of theirs.
+    const prepared = prepareFoldModel(foldScaledForSolver(fold), { triangulate: true });
+    const { originalPositions } = new OrigamiModel(prepared);
+    return sceneOfFrame(stillFrame(originalPositions, prepared, originalPositions, options.view, options.size), options);
+  },
+
+  /**
+   * A live session's model where the solver holds it now, from a camera,
+   * framed as {@link flatScene} frames the flat sheet: what a Diagram step
+   * shown as Simulated captures in Pose (D19). Null when the session has gone
+   * or the frame draws nothing.
+   */
+  sessionScene(options: SimulatorSessionSceneOptions): PaperScene | null {
+    const active = sessionFor(options.token);
+    if (!active) return null;
+    const prepared = active.model.prepared;
+    const { originalPositions } = active.model;
+    // At 0% the model is its flat sheet, drawn from where it started rather
+    // than from the solver's float noise around it — noise that can split a
+    // face the flat sheet draws whole, so a step posed back to 0% would not be
+    // the picture `flatScene` gives it. Unless something holds it off the
+    // sheet: pins keep their faces where they were pinned, through a scrub
+    // back to 0%, and a pull (in the hand or kept) is not the fold target.
+    const flat = active.foldPercent === 0 && !active.backend.posed && !active.pinnedNodes;
+    let positions = originalPositions;
+    if (!flat) {
+      if (options.settleSteps) active.clock.runToConvergence(active.backend, options.settleSteps);
+      positions = new Float32Array(prepared.vertexCount * 3);
+      active.backend.readPositions(positions);
+    }
+    return sceneOfFrame(
+      stillFrame(positions, prepared, originalPositions, options.view, options.size),
+      options
+    );
   },
 
   /** Let a frozen frame go: its dialog closed. Snapshots also go with their session. */

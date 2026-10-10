@@ -108,6 +108,34 @@ export class LineHitIndex {
     return best;
   }
 
+  /**
+   * Every segment within `tolerance` model units of (x, y), in no order — for
+   * a caller that needs the pairs near a point rather than the one nearest,
+   * such as the crossings of segments the index holds unsplit.
+   */
+  segmentsNear(x: number, y: number, tolerance: number): IndexedSegment[] {
+    const { cx, cy } = this.cellOf(x, y);
+    const reach = Math.max(1, Math.ceil(tolerance / this.cellSize));
+    // As in `query`: past this many cells a flat scan is the cheaper one.
+    if ((2 * reach + 1) ** 2 > this.all.length) {
+      return this.all.filter((s) => distanceToSegment(x, y, s.a, s.b) <= tolerance);
+    }
+    const near: IndexedSegment[] = [];
+    const seen = new Set<number>();
+    for (let ox = -reach; ox <= reach; ox++) {
+      for (let oy = -reach; oy <= reach; oy++) {
+        const bucket = this.cells.get(this.key(cx + ox, cy + oy));
+        if (!bucket) continue;
+        for (const s of bucket) {
+          if (seen.has(s.id)) continue;
+          seen.add(s.id);
+          if (distanceToSegment(x, y, s.a, s.b) <= tolerance) near.push(s);
+        }
+      }
+    }
+    return near;
+  }
+
   /** Fallback nearest-segment scan over every segment (grid-free). */
   private linearQuery(x: number, y: number, tolerance: number): number {
     let best = -1;

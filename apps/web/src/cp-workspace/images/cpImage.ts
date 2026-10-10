@@ -17,6 +17,7 @@
  */
 
 import type { AnnotationBase } from '../annotations/annotationBase';
+import { TRANSFORM_ROTATION_SNAP_RADIANS } from '../../lib/transformBox';
 
 /**
  * Longest-edge cap applied when an image is imported (§1.1 of the plan). The
@@ -36,8 +37,12 @@ export const IMAGE_JPEG_QUALITY = 0.85;
  */
 export const IMAGE_TOTAL_BYTES_WARN = 25 * 1024 * 1024;
 
-/** Rotation snap increment (15°) applied while Shift is held during a rotate. */
-export const IMAGE_ROTATION_SNAP_RADIANS = Math.PI / 12;
+/**
+ * Rotation snap increment (15°) applied while Shift is held during a rotate:
+ * every transform box's step (`lib/transformBox.ts`), which the Diagram's
+ * stars, eyes and shapes turn by too.
+ */
+export const IMAGE_ROTATION_SNAP_RADIANS = TRANSFORM_ROTATION_SNAP_RADIANS;
 
 /** Normalized crop rectangle into the source image, components in 0..1. */
 export interface CpImageCrop {
