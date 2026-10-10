@@ -19,14 +19,14 @@ beforeEach(() => {
 });
 
 describe('trackDiagramPicturePosed', () => {
-  it('sends a pose with no spread as its action and kind alone', () => {
+  it('sends a pose with no spread as its action and picture alone', () => {
     trackDiagramPicturePosed('turn_over', 'flat');
-    expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', { action: 'turn_over', kind: 'flat' });
+    expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', { action: 'turn_over', picture: 'flat' });
   });
 
   it('sends the side a turn-over leaves the paper showing, as a word', () => {
     trackDiagramPicturePosed('turn_over', 'flat', { side: 'back' });
-    expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', { action: 'turn_over', kind: 'flat', side: 'back' });
+    expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', { action: 'turn_over', picture: 'flat', side: 'back' });
   });
 
   it('sends a crease pattern’s paper side, chosen in the Step pane, as a word', () => {
@@ -34,7 +34,7 @@ describe('trackDiagramPicturePosed', () => {
     trackDiagramPicturePosed('paper_side', 'crease_pattern', { side: 'back' });
     expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', {
       action: 'paper_side',
-      kind: 'crease_pattern',
+      picture: 'crease_pattern',
       side: 'back',
     });
   });
@@ -43,7 +43,7 @@ describe('trackDiagramPicturePosed', () => {
     trackDiagramPicturePosed('spread_on', 'flat', { spread: { kind: 'depth', direction: 'down', amount: 0.025 } });
     expect(runtime.track).toHaveBeenCalledWith('diagram picture posed', {
       action: 'spread_on',
-      kind: 'flat',
+      picture: 'flat',
       spread_kind: 'depth',
       spread_amount_bucket: '<=2.5',
       spread_direction: 'down',
@@ -57,7 +57,7 @@ describe('trackDiagramPicturePosed', () => {
     const [, properties] = runtime.track.mock.calls[0]!;
     expect(properties).toEqual({
       action: 'spread_axis',
-      kind: 'flat',
+      picture: 'flat',
       spread_kind: 'affine',
       spread_amount_bucket: '<=7.5',
       spread_keep: 'top',

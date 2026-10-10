@@ -82,6 +82,7 @@ export type DiagramAnnotationTool =
   | 'push_arrow'
   | 'white_arrow'
   | 'solid_arrow'
+  // No tool draws these since turns became steps (D22): a sign kept from before can still be deleted, and a rotate flipped.
   | 'turn_over'
   | 'rotate'
   | 'valley_line'

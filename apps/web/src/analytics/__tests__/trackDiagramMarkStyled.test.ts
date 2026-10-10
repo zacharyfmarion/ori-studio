@@ -19,10 +19,10 @@ beforeEach(() => {
 });
 
 describe('trackDiagramMarkStyled', () => {
-  it('sends the kind, the option and the value, and nothing else', () => {
+  it('sends the mark, the option and the value, and nothing else', () => {
     trackDiagramMarkStyled('divisions', 'short_dividers', 'on');
-    expect(runtime.track).toHaveBeenCalledWith('diagram mark styled', { kind: 'divisions', option: 'short_dividers', value: 'on' });
+    expect(runtime.track).toHaveBeenCalledWith('diagram mark styled', { mark: 'divisions', option: 'short_dividers', value: 'on' });
     trackDiagramMarkStyled('divisions', 'short_dividers', 'off');
-    expect(runtime.track).toHaveBeenLastCalledWith('diagram mark styled', { kind: 'divisions', option: 'short_dividers', value: 'off' });
+    expect(runtime.track).toHaveBeenLastCalledWith('diagram mark styled', { mark: 'divisions', option: 'short_dividers', value: 'off' });
   });
 });

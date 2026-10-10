@@ -67,14 +67,14 @@ import { track } from './runtime';
  * controls, none of which dispatches a `MENU_ACTION_ID`. Enums only: never the
  * instruction, the picture or its name.
  */
-export function trackDiagramStepAdded(source: DiagramStepAddedSource, via: DiagramStepAddedVia): void {
-  track(ANALYTICS_EVENTS.diagramStepAdded, { source, via });
+export function trackDiagramStepAdded(picture: DiagramStepAddedSource, via: DiagramStepAddedVia): void {
+  track(ANALYTICS_EVENTS.diagramStepAdded, { picture, via });
 }
 
 /** A turn was added between steps (D22): a turn-over or a rotation, and where it was made. */
 export function trackDiagramTurnAdded(kind: 'turn-over' | 'rotate', via: DiagramTurnAddedVia): void {
-  const name: DiagramTurnAddedKind = kind === 'turn-over' ? 'turn_over' : 'rotate';
-  track(ANALYTICS_EVENTS.diagramTurnAdded, { kind: name, via });
+  const turn: DiagramTurnAddedKind = kind === 'turn-over' ? 'turn_over' : 'rotate';
+  track(ANALYTICS_EVENTS.diagramTurnAdded, { turn, via });
 }
 
 /**
@@ -91,14 +91,14 @@ export function trackDiagramPictureUploaded(
   track(ANALYTICS_EVENTS.diagramPictureUploaded, {
     format,
     outcome,
-    size_bucket: sizeBytes === null ? 'unknown' : bucketCount(sizeBytes / 1024, DIAGRAM_UPLOAD_KB_BUCKETS),
-    count_bucket: bucketCount(count, DIAGRAM_UPLOAD_COUNT_BUCKETS),
+    kb_bucket: sizeBytes === null ? 'unknown' : bucketCount(sizeBytes / 1024, DIAGRAM_UPLOAD_KB_BUCKETS),
+    upload_count_bucket: bucketCount(count, DIAGRAM_UPLOAD_COUNT_BUCKETS),
   });
 }
 
 /** A step opened in detail, and in which half. */
-export function trackDiagramStepOpened(via: DiagramStepOpenedVia, mode: DiagramStepOpenedMode): void {
-  track(ANALYTICS_EVENTS.diagramStepOpened, { via, mode });
+export function trackDiagramStepOpened(via: DiagramStepOpenedVia, detail: DiagramStepOpenedMode): void {
+  track(ANALYTICS_EVENTS.diagramStepOpened, { via, detail });
 }
 
 /**
@@ -128,9 +128,15 @@ export interface DiagramAnnotationAddedDetail {
 export function trackDiagramAnnotationAdded(
   tool: DiagramAnnotationTool,
   snap: DiagramAnnotationSnap,
-  detail: DiagramAnnotationAddedDetail = {}
+  { placed, size, ...detail }: DiagramAnnotationAddedDetail = {}
 ): void {
-  track(ANALYTICS_EVENTS.diagramAnnotationAdded, { tool, snap, ...detail });
+  track(ANALYTICS_EVENTS.diagramAnnotationAdded, {
+    mark: tool,
+    snap,
+    ...(placed === undefined ? {} : { divisions: placed }),
+    ...(size === undefined ? {} : { text_size: size }),
+    ...detail,
+  });
 }
 
 /**
@@ -151,8 +157,8 @@ export function trackDiagramTextStyled(option: DiagramTextStyleOption, value: Di
  * (`field`). Whether the options the marks gained are used. Never where the
  * mark is, its size, its angle or how deep it goes past three.
  */
-export function trackDiagramMarkStyled(kind: DiagramAnnotationTool, option: DiagramMarkStyleOption, value: DiagramMarkStyleValue): void {
-  track(ANALYTICS_EVENTS.diagramMarkStyled, { kind, option, value });
+export function trackDiagramMarkStyled(mark: DiagramAnnotationTool, option: DiagramMarkStyleOption, value: DiagramMarkStyleValue): void {
+  track(ANALYTICS_EVENTS.diagramMarkStyled, { mark, option, value });
 }
 
 /**
@@ -161,8 +167,8 @@ export function trackDiagramMarkStyled(kind: DiagramAnnotationTool, option: Diag
  * and to what. Once per pick: a custom colour dragged about in the picker is
  * one. Never the colour itself.
  */
-export function trackDiagramAnnotationRecolored(kind: DiagramAnnotationTool, color: DiagramAnnotationColor): void {
-  track(ANALYTICS_EVENTS.diagramAnnotationRecolored, { kind, color });
+export function trackDiagramAnnotationRecolored(mark: DiagramAnnotationTool, color: DiagramAnnotationColor): void {
+  track(ANALYTICS_EVENTS.diagramAnnotationRecolored, { mark, color });
 }
 
 /**
@@ -171,19 +177,19 @@ export function trackDiagramAnnotationRecolored(kind: DiagramAnnotationTool, col
  * what. Once, when the first end goes behind; never where.
  */
 export function trackDiagramAnnotationBehind(
-  kind: DiagramAnnotationTool,
+  mark: DiagramAnnotationTool,
   ends: DiagramBehindEnds,
   layers: DiagramBehindLayers
 ): void {
-  track(ANALYTICS_EVENTS.diagramAnnotationBehind, { kind, ends, layers });
+  track(ANALYTICS_EVENTS.diagramAnnotationBehind, { mark, ends, layers });
 }
 
 /**
  * A mark flipped over in Annotate, from the Layers pane: its kind and which
  * way — whether flipping is used, and on what. Each flip; never where.
  */
-export function trackDiagramAnnotationFlipped(kind: DiagramAnnotationTool, axis: DiagramFlipAxis): void {
-  track(ANALYTICS_EVENTS.diagramAnnotationFlipped, { kind, axis });
+export function trackDiagramAnnotationFlipped(mark: DiagramAnnotationTool, axis: DiagramFlipAxis): void {
+  track(ANALYTICS_EVENTS.diagramAnnotationFlipped, { mark, axis });
 }
 
 /**
@@ -194,11 +200,11 @@ export function trackDiagramAnnotationFlipped(kind: DiagramAnnotationTool, axis:
  * reshaped first. Never where.
  */
 export function trackDiagramArrowShaped(
-  kind: DiagramShapedArrowKind,
+  mark: DiagramShapedArrowKind,
   gesture: DiagramArrowShapeGesture,
   half?: DiagramShapedArrowHalf
 ): void {
-  track(ANALYTICS_EVENTS.diagramArrowShaped, half === undefined ? { kind, gesture } : { kind, gesture, half });
+  track(ANALYTICS_EVENTS.diagramArrowShaped, half === undefined ? { mark, gesture } : { mark, gesture, half });
 }
 
 /**
@@ -211,12 +217,12 @@ export function trackDiagramArrowShaped(
  */
 export function trackDiagramPicturePosed(
   action: DiagramPoseAction,
-  kind: DiagramPictureKind,
+  picture: DiagramPictureKind,
   { spread, side }: { spread?: DiagramSpreadTracking; side?: DiagramPictureSide } = {}
 ): void {
   track(ANALYTICS_EVENTS.diagramPicturePosed, {
     action,
-    kind,
+    picture,
     ...(spread ? spreadProperties(spread) : {}),
     ...(side ? { side } : {}),
   });
@@ -240,8 +246,8 @@ function spreadProperties(spread: DiagramSpreadTracking): Record<string, string>
 }
 
 /** A step's picture removed, and what it was. */
-export function trackDiagramPictureRemoved(kind: DiagramPictureKind): void {
-  track(ANALYTICS_EVENTS.diagramPictureRemoved, { kind });
+export function trackDiagramPictureRemoved(picture: DiagramPictureKind): void {
+  track(ANALYTICS_EVENTS.diagramPictureRemoved, { picture });
 }
 
 /** A step's picture exported, by the file's kind: never its name. */
@@ -251,11 +257,11 @@ export function trackDiagramPictureExported(format: DiagramPictureExportFormat):
 
 /** A step's picture captured from the crease pattern, and what became of it. */
 export function trackDiagramPictureCaptured(
-  kind: DiagramCaptureKind,
+  picture: DiagramCaptureKind,
   outcome: DiagramCaptureOutcome,
   via: DiagramCaptureVia
 ): void {
-  track(ANALYTICS_EVENTS.diagramPictureCaptured, { kind, outcome, via });
+  track(ANALYTICS_EVENTS.diagramPictureCaptured, { picture, outcome, via });
 }
 
 /** A linked step shown another way (D19), and from where. */
@@ -294,8 +300,8 @@ export function trackDiagramStepsPulledFromReferences(
  * the edit, so after an undo a fresh edit counts again: a rough count of
  * whether people edit what they pull. Never the mark.
  */
-export function trackDiagramImportedMarkEdited(kind: DiagramAnnotationTool, edit: DiagramImportedMarkEdit): void {
-  track(ANALYTICS_EVENTS.diagramImportedMarkEdited, { kind, edit });
+export function trackDiagramImportedMarkEdited(mark: DiagramAnnotationTool, edit: DiagramImportedMarkEdit): void {
+  track(ANALYTICS_EVENTS.diagramImportedMarkEdited, { mark, edit });
 }
 
 /**
@@ -360,7 +366,7 @@ export function trackDiagramExported(
             resolution: how.dpi === null ? 'none' : String(how.dpi),
             number: shown(how.number),
             text: shown(how.text),
-            size: how.sameSize ? 'same' : 'cropped',
+            canvas: how.sameSize ? 'same' : 'cropped',
             background: how.transparent ? 'transparent' : 'white',
           }),
     file_count_bucket: bucketCount(counts.files, DIAGRAM_PAGE_COUNT_BUCKETS),
