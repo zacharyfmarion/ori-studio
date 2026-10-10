@@ -1,3 +1,4 @@
+import { angleRadiusWithin } from './angleMarkStyle';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -140,6 +141,7 @@ export function useStepAnnotations(step: DiagramStep | null) {
       makeMarksEditable: (via: 'annotate_notice' | 'layers_notice') => {
         if (stepId !== null) makeStepMarksEditable(stepId, via);
       },
+      finishText: () => store().setDiagramAnnotateTool(null),
       setText: (id: string, text: string, session: number) =>
         change(id, 'Edit label', (annotation) => ({ ...annotation, text }), session),
       setRotation: (id: string, rotate: DiagramRotation) => change(id, 'Change rotation', (annotation) => ({ ...annotation, rotate })),
@@ -148,6 +150,22 @@ export function useStepAnnotations(step: DiagramStep | null) {
       /** A white arrow's width, tail or fill, or any of them together, as one undo step. */
       setWhiteArrowLook: (id: string, look: WhiteArrowLook) =>
         change(id, 'Change white arrow', (annotation) => withWhiteArrowLook(annotation, look)),
+      setAngleVisible: (id: string, visible: boolean) => {
+        const before = current(id);
+        change(id, 'Show equal angles', (annotation) => {
+          if (annotation.kind !== 'angle-mark') return annotation;
+          const { hidden: _hidden, ...rest } = annotation;
+          return visible ? rest : { ...rest, hidden: true };
+        });
+        if (before?.hidden !== current(id)?.hidden) trackDiagramMarkStyled('angle_mark', 'visibility', visible ? 'on' : 'off');
+      },
+      setAngleRadius: (id: string, radius: number) => {
+        const before = current(id);
+        change(id, 'Resize equal angles', (annotation) =>
+          annotation.kind === 'angle-mark' ? { ...annotation, radiusMm: angleRadiusWithin(radius) } : annotation
+        );
+        if (before?.radiusMm !== current(id)?.radiusMm) trackDiagramMarkStyled('angle_mark', 'radius', 'field');
+      },
       /** An angle mark's ticks across each half (15b), or equal divisions' on each part (ED7), as one undo step. */
       setTicks: (id: string, ticks: DiagramTicks) =>
         change(id, current(id)?.kind === 'divisions' ? 'Change equal divisions' : 'Change angle mark', (annotation) =>

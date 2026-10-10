@@ -81,7 +81,8 @@ describe('the rail', () => {
       .flatMap((definition) => definition.defaultChords)
       .filter((chord) => !chord.primary && !chord.ctrl && !chord.meta && !chord.alt && !chord.shift)
       .map((chord) => chord.key);
-    expect(plain).not.toContain('t');
+    expect(plain).toContain('t');
+    expect(plain).toContain('space');
     expect(plain.filter((key) => key === 'r')).toEqual(['r']);
     expect(toolForShortcut('diagram.toolRectangle')).toBe('rectangle');
     expect(toolForShortcut('diagram.toolOval')).toBe('oval');
@@ -170,7 +171,7 @@ describe('the tool window', () => {
       line: { title: 'Line', instructions: 'Drag along the crease.', modifiers: [ends] },
       circle: {
         title: 'Circle',
-        instructions: 'Click a point to circle it.',
+        instructions: 'Drag between opposite corners to bound the circle. Click for a small circle.',
         modifiers: ['Hold Cmd to put it down anywhere, without snapping.'],
       },
       // Put down as a circle is; turned in 15° steps with Select, or with the Star still in hand (Revision 3, R3-24 A,
@@ -227,20 +228,20 @@ describe('the tool window', () => {
       divisions: {
         title: 'Equal Divisions',
         instructions:
-          'Drag along a line from one end to the other, or click it, to divide it; then type how many parts. With Select, drag the mark to set how far off the line it sits.',
+          'Drag along a line from one end to the other, or click it, to divide it. Set the number of parts in Layers. With Select, drag the mark to set how far off the line it sits.',
         modifiers: [ends, 'With Select, Shift-drag the mark to move its line by half millimetres.'],
       },
       // Its rings are moved and sized with Select: the window says how, and Shift's halves (15f).
       'close-up': {
         title: 'Close-Up',
         instructions:
-          'Drag out from the middle of the area to show larger, or click it. With Select, drag either circle to move it, or its ring to resize it.',
+          'Drag between opposite corners of the area to show larger. Click for a standard size. With Select, drag either circle to move it, or its ring to resize it.',
         modifiers: ['Shift-drag the close-up’s ring to scale it by halves.'],
       },
       // A circle from its middle, never snapped, as a close-up's area (Revision 2, S1).
       enlarge: {
         title: 'Enlarge',
-        instructions: 'Drag out from the middle of an area to mark it for an enlarged step. Click for a standard size.',
+        instructions: 'Drag between opposite corners of an area to mark it for an enlarged step. Click for a standard size.',
         modifiers: [],
       },
       // Corner to corner: Shift makes it square, Alt draws it from its middle (S2).
@@ -254,7 +255,7 @@ describe('the tool window', () => {
       'x-ray': {
         title: 'X-Ray',
         instructions:
-          'Drag out from the middle of an area to see through its top layer, or click for a standard size; then type how many layers to take away.',
+          'Drag between opposite corners of an area to see through its top layer. Click for a standard size. Set the depth in Layers.',
         modifiers: [],
       },
       // Laid as Enlarge in Frame's area is, a click its standard size, put down freely (R3-24 A); its box resized by
@@ -311,7 +312,7 @@ describe('the tool window', () => {
       'Click on a line to divide it whole, or drag from one end to the other.'
     );
     // Said only for the tool it is about, and on a touch screen too.
-    expect(annotateToolHint(t, 'circle', null, mac, null, notice)!.instructions).toBe('Click a point to circle it.');
+    expect(annotateToolHint(t, 'circle', null, mac, null, notice)!.instructions).toBe('Drag between opposite corners to bound the circle. Click for a small circle.');
     expect(annotateToolHint(t, 'divisions', null, { ...mac, coarse: true }, null, notice)!.instructions).toBe(
       'Click on a line to divide it whole, or drag from one end to the other.'
     );

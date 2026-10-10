@@ -44,25 +44,25 @@ const closeUp = (extra: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnot
 const valley: KnownDiagramAnnotation = { id: 'crease', kind: 'valley-line', from: [0.45, 0.3], to: [0.55, 0.3] };
 
 describe('a new close-up (15f)', () => {
-  it('is dragged out from its area’s middle, its close-up put beside the picture on the near side at twice', () => {
+  it('is dragged between bounding corners, its close-up put beside the picture on the near side at twice', () => {
     // A frame taller than wide: beside it, right of an area in its right half.
-    const made = createAnnotation('close-up', [0.5, 0.3], [0.6, 0.3], { width: 0.7, height: 1 }, () => 'z');
+    const made = createAnnotation('close-up', [0.4, 0.2], [0.6, 0.4], { width: 0.7, height: 1 }, () => 'z');
     expect(made).toEqual({
       id: 'z',
       kind: 'close-up',
-      from: [0.5, 0.3],
-      to: [0.7 + CLOSE_UP_GAP + 0.2, 0.3],
+      from: [expect.closeTo(0.5, 12), expect.closeTo(0.3, 12)],
+      to: [expect.closeTo(0.7 + CLOSE_UP_GAP + 0.2, 12), expect.closeTo(0.3, 12)],
       radius: expect.closeTo(0.1, 12),
       scale: DEFAULT_CLOSE_UP_SCALE,
     });
     // Left of one in its left half.
-    const left = createAnnotation('close-up', [0.2, 0.6], [0.2, 0.7], { width: 0.7, height: 1 });
+    const left = createAnnotation('close-up', [0.1, 0.5], [0.3, 0.7], { width: 0.7, height: 1 });
     expect(left.to[0]).toBeCloseTo(-(CLOSE_UP_GAP + 0.2), 12);
-    expect(left.to[1]).toBe(0.6);
+    expect(left.to[1]).toBeCloseTo(0.6, 12);
     // A frame wider than tall: above or below it, the nearer.
-    const below = createAnnotation('close-up', [0.5, 0.45], [0.55, 0.45], { width: 1, height: 0.6 });
+    const below = createAnnotation('close-up', [0.45, 0.4], [0.55, 0.5], { width: 1, height: 0.6 });
     expect(below.to).toEqual([0.5, expect.closeTo(0.6 + CLOSE_UP_GAP + 0.1, 12)]);
-    const above = createAnnotation('close-up', [0.3, 0.1], [0.35, 0.1], { width: 1, height: 0.6 });
+    const above = createAnnotation('close-up', [0.25, 0.05], [0.35, 0.15], { width: 1, height: 0.6 });
     expect(above.to).toEqual([0.3, expect.closeTo(-(CLOSE_UP_GAP + 0.1), 12)]);
   });
 

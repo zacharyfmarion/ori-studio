@@ -11,6 +11,14 @@ import { IconButton } from './ui/IconButton';
 function acknowledgements(t: TFunction): Array<{ title: string; href: string; detail: string }> {
   return [
     {
+      title: t('dialogs:help.acknowledgements.defox.title', 'Kei Morisue and DEFOX'),
+      href: 'https://kei-morisue.github.io/step-folder/',
+      detail: t(
+        'dialogs:help.acknowledgements.defox.detail',
+        'Affine layer spreading in the Diagram workspace is based on Kei Morisue’s affine distortion method in DEFOX.'
+      ),
+    },
+    {
       title: t('dialogs:help.acknowledgements.treemaker.title', 'Robert J. Lang and TreeMaker 5.0.1'),
       href: 'https://langorigami.com/article/treemaker/',
       detail: t(

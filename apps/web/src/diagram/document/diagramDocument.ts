@@ -874,6 +874,10 @@ export interface KnownDiagramAnnotation {
   other?: [number, number];
   /** An angle mark's ticks across each half, or equal divisions' on each part; one when unsaid (15b, Revision 2). */
   ticks?: DiagramTicks;
+  /** Equal-angle indicator radius in printed millimetres; absent keeps its original size. */
+  radiusMm?: number;
+  /** An equal-angle indicator kept in Layers but omitted from the drawing. */
+  hidden?: true;
   /** A pleat arrow's Zs; one when unsaid (15c). */
   kinks?: DiagramPleatKinks;
   /**
@@ -944,6 +948,7 @@ export interface KnownDiagramAnnotation {
    * units. Its centre is `from`; the close-up's is `to`. An enlarge area's,
    * when it is a circle (Revision 2): its centre is `from`, and `to` again.
    * An x-ray's window, a circle about `from`, and `to` again (Revision 3).
+   * A drawn circle's radius; absent on legacy, fixed-size point markers.
    */
   radius?: number;
   /**

@@ -350,7 +350,7 @@ function Selection({
       return ring(GLYPH_REACH);
     case 'circle':
       // Along its ring: what a press takes hold of.
-      return ring(CIRCLE_RADIUS);
+      return ring(annotation.radius ?? CIRCLE_RADIUS);
     case 'right-angle': {
       // Along its ∟ and its square, as one path; a dot at the vertex it
       // marks, which moves it, tied to it by a hairline (RA6), and one at the

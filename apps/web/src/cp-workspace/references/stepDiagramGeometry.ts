@@ -69,6 +69,11 @@ export interface SvgPoint {
   y: number;
 }
 
+/** A circle in drawing units; absent radius keeps the standard point-mark size. */
+export interface DiagramRing extends SvgPoint {
+  radius?: number;
+}
+
 /** Sheet-unit point → SVG user point. */
 export interface DiagramProjector {
   (point: readonly [number, number]): SvgPoint;
@@ -702,7 +707,7 @@ export function arcEndPoint(arc: DiagramArc): [number, number] {
  */
 export function foldArrowLanding(
   out: DiagramArc,
-  marks: readonly SvgPoint[],
+  marks: readonly DiagramRing[],
   rim: number,
   project: DiagramProjector
 ): DiagramArc {
@@ -716,7 +721,8 @@ export function foldArrowLanding(
   };
   // An end at the mark — References' own, always — gives up a rim; one
   // elsewhere in the ring, as far as it takes to stand on it.
-  const by = backToRing(at, [mark.x, mark.y], rim, rim / project.scale, extent);
+  const radius = mark.radius ?? rim;
+  const by = backToRing(at, [mark.x, mark.y], radius, radius / project.scale, extent);
   // The start gives up a rim too (`foldArrowTrim`); an arc with no room for
   // both would turn inside out rather than shorten.
   if (by === null || extent <= by + rim / project.scale) return out;
@@ -724,12 +730,12 @@ export function foldArrowLanding(
 }
 
 /** The mark nearest `at` within `reach` of it, or null. */
-function nearestWithin(marks: readonly SvgPoint[], at: SvgPoint, reach: number): SvgPoint | null {
-  let best: SvgPoint | null = null;
-  let bestDistance = reach;
+function nearestWithin(marks: readonly DiagramRing[], at: SvgPoint, reach: number): DiagramRing | null {
+  let best: DiagramRing | null = null;
+  let bestDistance = Infinity;
   for (const mark of marks) {
     const d = Math.hypot(mark.x - at.x, mark.y - at.y);
-    if (d <= bestDistance) {
+    if (d <= (mark.radius ?? reach) && d <= bestDistance) {
       best = mark;
       bestDistance = d;
     }
@@ -988,7 +994,7 @@ export function oneWayArrow(
 export function foldArrowDrawn(
   arc: DiagramArc,
   project: DiagramProjector,
-  marks: readonly SvgPoint[]
+  marks: readonly DiagramRing[]
 ): { out: DiagramArc; back: DiagramArc; head: Arrowhead } | null {
   // Sized by the pen, not by the paper — see `arrowheadSize`. The trim is
   // done on radii in the same projected units, and the angles it returns
@@ -1022,7 +1028,7 @@ export function foldArrowDrawn(
 export function oneWayArrowDrawn(
   arc: DiagramArc,
   project: DiagramProjector,
-  marks: readonly SvgPoint[]
+  marks: readonly DiagramRing[]
 ): { shaft: DiagramArc | null; head: Arrowhead } {
   const rim = project.marks.ringRadius * project.ink;
   return oneWayArrow(foldArrowLanding(arc, marks, rim, project), project, arrowheadSize(arc, project));
@@ -1187,7 +1193,7 @@ export function pathArrowGeometry(
   path: readonly PathCubic[],
   fold: PathArrowFold,
   sizesFor: (length: number) => PathArrowSizes,
-  marks: readonly SvgPoint[],
+  marks: readonly DiagramRing[],
   tolerance: number,
   back?: readonly PathCubic[]
 ): PathArrowGeometry | null {
@@ -1198,7 +1204,8 @@ export function pathArrowGeometry(
   const tip = pathPointAt(measure, length);
   const mark = nearestWithin(marks, toSvg(tip), sizes.rim);
   // Stopped on the ring of a mark it lands in, as an arc arrow is (`foldArrowLanding`).
-  const by = mark ? backToRing((back) => pathPointAt(measure, length - back), [mark.x, mark.y], sizes.rim, sizes.rim, length) : null;
+  const radius = mark?.radius ?? sizes.rim;
+  const by = mark ? backToRing((back) => pathPointAt(measure, length - back), [mark.x, mark.y], radius, radius, length) : null;
   // A path with no room for a rim at each end would turn inside out rather than shorten.
   const end = by !== null && length > by + sizes.rim ? length - by : length;
   const reach = arrowheadReach(sizes.head);
@@ -1460,7 +1467,7 @@ export function pathArrowDrawn(
   path: readonly DiagramCubic[],
   fold: PathArrowFold,
   project: DiagramProjector,
-  marks: readonly SvgPoint[],
+  marks: readonly DiagramRing[],
   back?: readonly DiagramCubic[]
 ): PathArrowGeometry | null {
   return pathArrowGeometry(
@@ -2826,11 +2833,12 @@ export function angleMarkDrawn(
   at: readonly [number, number],
   arms: readonly [readonly [number, number], readonly [number, number]],
   ticks: number,
-  project: DiagramProjector
+  project: DiagramProjector,
+  radiusInk: number = DIAGRAM_ANGLE_MARK_INK.radius
 ): AngleMarkShape | null {
   const ink = project.ink;
   return angleMarkShape(project(at), project(arms[0]), project(arms[1]), ticks, {
-    radius: DIAGRAM_ANGLE_MARK_INK.radius * ink,
+    radius: radiusInk * ink,
     tick: DIAGRAM_ANGLE_MARK_INK.tick * ink,
     spacing: DIAGRAM_ANGLE_MARK_INK.spacing * ink,
   });

@@ -209,6 +209,8 @@ export type StepDiagramPrimitive =
       at: readonly [number, number];
       arms: readonly [readonly [number, number], readonly [number, number]];
       ticks: 1 | 2 | 3;
+      /** Optional equal-angle radius in ink units. */
+      radiusInk?: number;
     }
   /**
    * Equal divisions of the line from `from` to `to` (Revision 2): a line
@@ -268,7 +270,7 @@ export type StepDiagramPrimitive =
    * sights them from. A convex polygon, in sheet units.
    */
   | { kind: 'region'; corners: readonly (readonly [number, number])[] }
-  | { kind: 'point'; at: readonly [number, number]; style: DiagramPointStyleName; hidden?: HiddenStretches }
+  | { kind: 'point'; at: readonly [number, number]; style: DiagramPointStyleName; hidden?: HiddenStretches; radius?: number }
   | { kind: 'label'; at: readonly [number, number]; text: string; style: DiagramPointStyleName };
 
 export interface StepDiagramModel {

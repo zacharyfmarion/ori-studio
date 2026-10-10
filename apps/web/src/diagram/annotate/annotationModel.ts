@@ -74,7 +74,7 @@ export interface PictureFrame {
  *   along it — a mark, not a line, so a line's every consumer passes it by
  *   (Revision 2);
  * - `close-up`: a ring round an area of the picture and a larger one beside
- *   it, dragged from the area's centre out to its ring, or put down with a
+ *   it, dragged between the area's bounding corners, or put down with a
  *   click (15f);
  * - `zoom`: an enlarge area, a circle or a rounded rectangle round what a
  *   later step may show enlarged, its centre `from` and `to` alike, put down
@@ -91,8 +91,8 @@ export interface PictureFrame {
  * - `x-ray`: a circular window cut into a flat fold's picture, its centre
  *   `from` and `to` alike, its `radius` in picture units, how many steps it
  *   peels its `depth`, and the point on the paper whose nearest face each
- *   step takes first its `anchor` (R3-34 A, R3-35 A) — dragged out from its
- *   middle as Enlarge's circle is, or put down a standard size with a click
+ *   step takes first its `anchor` (R3-34 A, R3-35 A) — dragged between its
+ *   bounding corners, or put down a standard size with a click
  *   (Revision 3, R3-14 A).
  */
 type AnnotationShape =
@@ -1575,8 +1575,8 @@ export function defaultBend(from: PicturePoint, to: PicturePoint, frame: Picture
  * parts, their line 2.5 mm off on the side away from the middle. A callout
  * says `calloutText` — the author's language's
  * "Repeat behind" — and one clicked, or dragged shorter than a slip, has its
- * box put beside its point ({@link calloutBeside}). A close-up's drag is its
- * area's radius, a click's a corner's worth, and its close-up goes beside the
+ * box put beside its point ({@link calloutBeside}). A close-up's drag bounds its
+ * area, a click's a corner's worth, and its close-up goes beside the
  * picture ({@link closeUpBeside}).
  */
 export function createAnnotation(
@@ -1598,24 +1598,20 @@ export function createAnnotation(
   if (isAreaKind(kind)) return areaFromCorners(kind, start, end, {}, () => id);
   const from = withinReach(start);
   const to = withinReach(end);
-  if (kind === 'zoom' || kind === 'x-ray') {
-    // A circle, dragged from its middle out to its rim, unsnapped as a
-    // close-up's area is; a click, or a drag shorter than a slip, puts down
-    // a standard size. A rounded rectangle is drawn corner to corner
-    // (`zoomAreaFromCorners`). An x-ray's window is Enlarge's circle, taking
-    // away its top layer until its Depth is typed (Revision 3).
-    const drag = Math.hypot(to[0] - from[0], to[1] - from[1]);
-    const radius = drag < MIN_ZOOM_SIDE ? ZOOM_CLICK.radius : zoomRadiusWithin(drag);
-    const circle: KnownDiagramAnnotation = { id, kind, from: [from[0], from[1]], to: [from[0], from[1]], radius };
-    return kind === 'x-ray' ? { ...circle, depth: XRAY_DEPTH.laid } : circle;
-  }
-  if (kind === 'close-up') {
-    // Dragged from its area's centre out to its ring; a click, or a drag
-    // shorter than a slip, puts down a corner's worth. Its close-up beside it.
-    const drag = Math.hypot(to[0] - from[0], to[1] - from[1]);
-    const radius = drag < MIN_CLOSE_UP_RADIUS ? DEFAULT_CLOSE_UP_RADIUS : closeUpRadiusWithin(drag);
-    const scale = DEFAULT_CLOSE_UP_SCALE;
-    return { id, kind, from: [from[0], from[1]], to: closeUpBeside(from, radius, scale, frame), radius, scale };
+  if (kind === 'circle' || kind === 'zoom' || kind === 'x-ray' || kind === 'close-up') {
+    // The dragged square bounds the circle, as Shift+Oval does. A click keeps
+    // each tool's established default size; only that click is centre-based.
+    const side = Math.max(Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1]));
+    const click = side < MIN_ZOOM_SIDE;
+    const box = areaFromCorners('oval', from, to, { square: true }, () => id);
+    const centre = click ? from : box.from;
+    const radius = click
+      ? kind === 'close-up' ? DEFAULT_CLOSE_UP_RADIUS : ZOOM_CLICK.radius
+      : zoomRadiusWithin(box.size![0] / 2);
+    const circle: KnownDiagramAnnotation = { id, kind, from: [...centre], to: [...centre], ...(kind !== 'circle' || !click ? { radius } : {}) };
+    if (kind === 'x-ray') return { ...circle, depth: XRAY_DEPTH.laid };
+    if (kind === 'close-up') return { ...circle, to: closeUpBeside(centre, radius, DEFAULT_CLOSE_UP_SCALE, frame), scale: DEFAULT_CLOSE_UP_SCALE };
+    return circle;
   }
   if (kind === 'callout') {
     const text = cleanLabelText(calloutText);
@@ -2543,7 +2539,7 @@ function carriedOnPicture(annotation: KnownDiagramAnnotation, move: PictureMove)
   if (annotation.kind === 'close-up') return carryCloseUp(annotation, move);
   // An x-ray's window is Enlarge's circle, carried with the face under its centre; its anchor is on the
   // paper, which no move of the picture moves, and its depth is kept (Revision 3, R3-21 A).
-  if (annotation.kind === 'zoom' || annotation.kind === 'x-ray') return carryZoom(annotation, move);
+  if (annotation.kind === 'zoom' || annotation.kind === 'x-ray' || (annotation.kind === 'circle' && annotation.radius !== undefined)) return carryZoom(annotation, move);
   if (annotation.kind === 'eye') return carryEye(annotation, move);
   if (isAreaKind(annotation.kind)) return carryArea(annotation, move);
   if (annotation.path) {

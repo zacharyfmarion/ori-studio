@@ -272,6 +272,8 @@ describe('Annotate’s keys', () => {
   });
 
   it.each([
+    ['the Line tool', 'diagram.toolLine', 'space', 'line'],
+    ['the text tool', 'diagram.toolLabel', 't', 'label'],
     ['the pleat arrow', 'diagram.toolPleatArrow', 'z', 'pleat-arrow'],
     ['the angle bisector', 'diagram.toolAngleBisector', 'b', 'angle-bisector'],
     ['the solid arrow', 'diagram.toolSolidArrow', 's', 'solid-arrow'],
@@ -306,6 +308,14 @@ describe('Annotate’s keys', () => {
 });
 
 describe('Annotate’s Escape rungs', () => {
+  it.each(['line', 'angle-bisector', 'angle-mark', 'divisions', 'x-ray', 'circle', 'close-up', 'enlarge', 'enlarge-frame', 'oval', 'rectangle', 'label', 'callout', 'star', 'eye', 'right-angle', 'valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'pleat-arrow', 'push-arrow', 'white-arrow', 'solid-arrow'] as const)('Escape puts %s down after a completed mark without deselecting it', (tool) => {
+    const actions = { select: vi.fn(), close: vi.fn(), selectAnnotation: vi.fn(), setTool: vi.fn(), cancelGesture: () => false };
+    expect(runDiagramCancel({ selectedStepId: 'step', detailOpen: true, annotate: { tool, selectedAnnotationId: 'mark', canFlipArc: false } }, actions)).toBe(true);
+    expect(actions.setTool).toHaveBeenCalledWith(null);
+    expect(actions.selectAnnotation).not.toHaveBeenCalled();
+    expect(actions.close).not.toHaveBeenCalled();
+  });
+
   it('leaves the anchor’s pick mode first, wherever the focus is (Revision 2)', () => {
     const actions = { select: vi.fn(), close: vi.fn(), selectAnnotation: vi.fn(), setTool: vi.fn(), endAnchorPick: vi.fn() };
     const state = {
@@ -322,7 +332,7 @@ describe('Annotate’s Escape rungs', () => {
     expect(actions.selectAnnotation).toHaveBeenCalledWith(null);
   });
 
-  it('drops a drag, then the annotation, then the tool, then leaves the detail', () => {
+  it('drops a drag, then the tool, then the annotation, then leaves the detail', () => {
     const actions = {
       select: vi.fn(),
       close: vi.fn(),
@@ -341,10 +351,11 @@ describe('Annotate’s Escape rungs', () => {
 
     actions.cancelGesture.mockReturnValue(false);
     runDiagramCancel(state, actions);
-    expect(actions.selectAnnotation).toHaveBeenCalledWith(null);
-
-    runDiagramCancel({ ...state, annotate: { ...state.annotate, selectedAnnotationId: null } }, actions);
     expect(actions.setTool).toHaveBeenCalledWith(null);
+    expect(actions.selectAnnotation).not.toHaveBeenCalled();
+
+    runDiagramCancel({ ...state, annotate: { ...state.annotate, tool: null } }, actions);
+    expect(actions.selectAnnotation).toHaveBeenCalledWith(null);
     expect(actions.close).not.toHaveBeenCalled();
 
     runDiagramCancel({ ...state, annotate: { tool: null, selectedAnnotationId: null, canFlipArc: false } }, actions);

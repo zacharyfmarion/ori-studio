@@ -33,6 +33,7 @@
  * `SanitizeEnv`, and only when the diagram holds an SVG.
  */
 
+import { ANGLE_RADIUS_MM } from '../annotate/angleMarkStyle';
 import { FOLDED_FIGURE_CAMERA_KEYS, readFoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import {
   SPREAD_DIRECTIONS,
@@ -516,6 +517,8 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     axis,
     other,
     ticks,
+    radiusMm,
+    hidden,
     kinks,
     mirrored,
     parts,
@@ -558,6 +561,8 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
     ...(axis !== undefined ? { axis } : {}),
     ...(other !== undefined ? { other } : {}),
     ...(ticks !== undefined ? { ticks } : {}),
+    ...(radiusMm !== undefined ? { radiusMm } : {}),
+    ...(hidden ? { hidden } : {}),
     ...(kinks !== undefined ? { kinks } : {}),
     ...(mirrored ? { mirrored } : {}),
     ...(parts !== undefined ? { parts } : {}),
@@ -1472,10 +1477,10 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'hidden-line': fields(),
     'solid-line': fields('color', 'behind'),
     label: fields('text', 'color', 'bold', 'halo', 'sizePt', 'offsetPt'),
-    circle: fields('behind'),
+    circle: fields('behind', 'radius'),
     'right-angle': fields(),
     callout: fields('text'),
-    'angle-mark': fields('other', 'ticks'),
+    'angle-mark': fields('other', 'ticks', 'radiusMm', 'hidden'),
     divisions: fields('parts', 'offset', 'mirrored', 'ticks', 'numbered', 'shortDividers'),
     'close-up': fields('radius', 'scale'),
     zoom: fields('radius', 'size', 'angle', 'scale', 'edge', 'anchor'),
@@ -1651,7 +1656,13 @@ function readAnnotationOfKind(
       const ticks = readTicks(entry.ticks);
       if (other === NEWER || ticks === NEWER) return NEWER;
       if (other === null || ticks === null) return null;
-      const mark: KnownDiagramAnnotation = { ...annotation, other, ...(ticks !== undefined ? { ticks } : {}) };
+      const radiusMm = entry.radiusMm === undefined ? undefined : finiteNumber(entry.radiusMm);
+      if (radiusMm === null || (radiusMm !== undefined && radiusMm <= 0) || (entry.hidden !== undefined && entry.hidden !== true)) return null;
+      if (radiusMm !== undefined && (radiusMm < ANGLE_RADIUS_MM.min || radiusMm > ANGLE_RADIUS_MM.max)) return NEWER;
+      const mark: KnownDiagramAnnotation = {
+        ...annotation, other, ...(ticks !== undefined ? { ticks } : {}),
+        ...(radiusMm !== undefined ? { radiusMm } : {}), ...(entry.hidden === true ? { hidden: true } : {}),
+      };
       // Arms that make no angle mark none.
       return angleMarkArms(mark) ? mark : null;
     }
@@ -1766,8 +1777,12 @@ function readAnnotationOfKind(
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
-    case 'circle':
       return annotation;
+    case 'circle': {
+      const radius = entry.radius === undefined ? undefined : readCloseUpRadius(entry.radius, unitsPerFrame(reach));
+      if (radius === null || radius === NEWER) return radius;
+      return { ...annotation, ...(radius !== undefined ? { radius } : {}) };
+    }
   }
 }
 

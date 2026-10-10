@@ -6,6 +6,7 @@
  *
  * Pure: no DOM, no store.
  */
+import { angleRadiusInk } from './angleMarkStyle';
 import {
   isKnownAnnotation,
   type DiagramAnnotation,
@@ -47,6 +48,7 @@ import {
   whiteArrowOutline,
   type AngleMarkShape,
   type DivisionsShape,
+  type DiagramRing,
   type PleatArrowShape,
   type RightAngleShape,
   type SvgPoint,
@@ -224,7 +226,7 @@ function arrowDistance(
   annotation: KnownDiagramAnnotation,
   point: PicturePoint,
   ink: number,
-  marks: readonly PicturePoint[]
+  marks: readonly DiagramRing[]
 ): number {
   const shape = arrowShape(annotation);
   if (shape.kind === 'path') return pathArrowDistance(annotation, shape.path, point, ink, marks);
@@ -307,10 +309,10 @@ function pathArrowAt(
   annotation: KnownDiagramAnnotation,
   path: readonly DiagramPathNode[],
   ink: number,
-  marks: readonly PicturePoint[]
+  marks: readonly DiagramRing[]
 ) {
   const byInk = pathArrowReach(annotation);
-  const key = `${ink}|${marks.map(([x, y]) => `${x},${y}`).join(';')}`;
+  const key = `${ink}|${marks.map(({ x, y, radius }) => `${x},${y},${radius ?? ''}`).join(';')}`;
   const known = byInk.get(key);
   if (known !== undefined) return known;
   const fold = annotation.kind === 'fold-unfold-arrow' ? 'fold-unfold' : 'valley';
@@ -318,7 +320,7 @@ function pathArrowAt(
     pathCubics(path),
     fold,
     (length) => ({ head: headLength(length, ink), offset: returnOffset(length, ink), rim: circleRadius(ink) }),
-    marks.map(([x, y]) => ({ x, y })),
+    marks,
     PATH_TOLERANCE,
     // A return shaped by hand, where it is drawn.
     annotation.kind === 'fold-unfold-arrow' && annotation.back ? pathCubics(annotation.back) : undefined
@@ -339,9 +341,9 @@ function pathArrowAt(
  * the ring of a circle its end lies in (`foldArrowLanding`), along its
  * outgoing polyline.
  */
-function landedTip(outgoing: readonly PicturePoint[], marks: readonly PicturePoint[], rim: number): PicturePoint {
+function landedTip(outgoing: readonly PicturePoint[], marks: readonly DiagramRing[], rim: number): PicturePoint {
   const end = outgoing[outgoing.length - 1]!;
-  const mark = marks.find((each) => Math.hypot(each[0] - end[0], each[1] - end[1]) <= rim);
+  const mark = marks.find((each) => Math.hypot(each.x - end[0], each.y - end[1]) <= (each.radius ?? rim));
   if (!mark || outgoing.length < 2) return end;
   const back = (by: number): PicturePoint => {
     let left = by;
@@ -354,7 +356,8 @@ function landedTip(outgoing: readonly PicturePoint[], marks: readonly PicturePoi
     return outgoing[0]!;
   };
   const length = outgoing.reduce((sum, at, i) => (i === 0 ? 0 : sum + Math.hypot(at[0] - outgoing[i - 1]![0], at[1] - outgoing[i - 1]![1])), 0);
-  const by = backToRing(back, mark, rim, rim, length);
+  const radius = mark.radius ?? rim;
+  const by = backToRing(back, [mark.x, mark.y], radius, radius, length);
   return by === null ? end : back(by);
 }
 
@@ -368,7 +371,7 @@ function pathArrowDistance(
   path: readonly DiagramPathNode[],
   point: PicturePoint,
   ink: number,
-  marks: readonly PicturePoint[]
+  marks: readonly DiagramRing[]
 ): number {
   const distance = distanceToPolyline(point, arrowPolyline(annotation));
   const drawn = pathArrowAt(annotation, path, ink, marks);
@@ -600,13 +603,13 @@ function rightAngleDistance(annotation: KnownDiagramAnnotation, point: PicturePo
  * no angle.
  */
 export function angleMarkInPicture(
-  annotation: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'other' | 'ticks'>,
+  annotation: Pick<KnownDiagramAnnotation, 'from' | 'to' | 'other' | 'ticks' | 'radiusMm' | 'hidden'>,
   ink: number
 ): AngleMarkShape | null {
-  if (!annotation.other) return null;
+  if (!annotation.other || annotation.hidden) return null;
   const point = ([x, y]: readonly [number, number]) => ({ x, y });
   return angleMarkShape(point(annotation.from), point(annotation.to), point(annotation.other), annotation.ticks ?? 1, {
-    radius: DIAGRAM_ANGLE_MARK_INK.radius * ink,
+    radius: angleRadiusInk(annotation) * ink,
     tick: DIAGRAM_ANGLE_MARK_INK.tick * ink,
     spacing: DIAGRAM_ANGLE_MARK_INK.spacing * ink,
   });
@@ -769,7 +772,7 @@ function bodyDistance(
   annotation: KnownDiagramAnnotation,
   point: PicturePoint,
   sizes: HitSizes,
-  marks: readonly PicturePoint[]
+  marks: readonly DiagramRing[]
 ): number {
   switch (annotation.kind) {
     case 'label': {
@@ -798,7 +801,7 @@ function bodyDistance(
     case 'solid-line':
       return distanceToSegment(point, annotation.from, annotation.to);
     case 'circle':
-      return Math.abs(Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - circleRadius(sizes.ink));
+      return Math.abs(Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - (annotation.radius ?? circleRadius(sizes.ink)));
     case 'star':
       // Anywhere inside its tips' reach, at its scale: a small mark, taken whole.
       return Math.max(0, Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - starRadius(annotation, sizes.ink));
@@ -846,7 +849,7 @@ const HOLLOW_KINDS: ReadonlySet<DiagramAnnotationKind> = new Set(['push-arrow', 
  * arrow inside its outline, and a star, filled or not, where its arms are
  * (Revision 3, 18b review) — a circle's ring lies within a star's tips.
  */
-function coversCircle(other: KnownDiagramAnnotation, point: PicturePoint, sizes: HitSizes, marks: readonly PicturePoint[]): boolean {
+function coversCircle(other: KnownDiagramAnnotation, point: PicturePoint, sizes: HitSizes, marks: readonly DiagramRing[]): boolean {
   if (other.kind === 'star') return starCovers(other, point, sizes.ink);
   return HOLLOW_KINDS.has(other.kind) && bodyDistance(other, point, sizes, marks) === 0;
 }
@@ -875,7 +878,7 @@ export function hitAnnotation(
   selectedId: string | null,
   { xRays = true }: HitOptions = {}
 ): AnnotationGrip | null {
-  const known = annotations.filter(isKnownAnnotation);
+  const known = annotations.filter(isKnownAnnotation).filter((annotation) => !annotation.hidden);
   const selected = known.find((annotation) => annotation.id === selectedId);
   if (selected && hasTransformBox(selected)) {
     // A star's, an eye's or a shape's transform box (Revision 3): a scale square or a turn handle, before anything drawn under it.
@@ -912,7 +915,8 @@ export function hitAnnotation(
     if (near[0]) return { annotationId: selected.id, part: near[0].part };
   }
   // An arrow that lands in a circle is drawn stopped on its ring: its head is pressed there.
-  const marks = known.filter((annotation) => annotation.kind === 'circle').map(({ from }) => from);
+  const marks = known.filter((annotation) => annotation.kind === 'circle')
+    .map(({ from: [x, y], radius }) => ({ x, y, radius }));
   // Topmost first, as they are drawn: labels over callouts over marks — a
   // solid line among them — over the pens' lines over close-ups, whose
   // insides are painted under everything, over

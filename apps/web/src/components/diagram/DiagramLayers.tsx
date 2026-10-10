@@ -44,6 +44,7 @@ import { DiagramDivisionsControls } from './DiagramDivisionsControls';
 import { DiagramLineTypeMark } from './DiagramLineTypeMark';
 import { DiagramPathNodeControls } from './DiagramPathNodeControls';
 import { DiagramTextStyleRows } from './DiagramTextStyleRows';
+import { DiagramAngleMarkControls } from './DiagramAngleMarkControls';
 import { DiagramTicksRow } from './DiagramTicksRow';
 import { DiagramWhiteArrowControls } from './DiagramWhiteArrowControls';
 import { DiagramStarControls } from './DiagramStarControls';
@@ -268,6 +269,7 @@ function SelectedAnnotation({
           maxLength={LABEL_MAX_LENGTH}
           disabled={!editable}
           fieldRef={field}
+          onEscape={annotations.finishText}
           onCommit={(text, session) => annotations.setText(id, text, session)}
         />
       )}
@@ -338,11 +340,19 @@ function SelectedAnnotation({
         <DiagramTextStyleRows annotation={annotation} editable={editable} onChange={(option) => annotations.setTextStyle(id, option)} />
       )}
       {annotation.kind === 'angle-mark' && (
-        <DiagramTicksRow value={annotation.ticks} disabled={!editable} onChange={(ticks) => annotations.setTicks(id, ticks)} />
+        <>
+          <DiagramAngleMarkControls
+            annotation={annotation}
+            editable={editable}
+            onVisible={(visible) => annotations.setAngleVisible(id, visible)}
+            onRadius={(radius) => annotations.setAngleRadius(id, radius)}
+          />
+          <DiagramTicksRow value={annotation.ticks} disabled={!editable || !!annotation.hidden} onChange={(ticks) => annotations.setTicks(id, ticks)} />
+        </>
       )}
       {annotation.kind === 'divisions' && (
         <DiagramDivisionsControls
-          // One set of fields per mark: the next one's Parts, asked for as it is laid, shows its own count when it takes the focus.
+          // One set of fields per mark, so an uncommitted draft never carries to the next selection.
           key={id}
           step={step}
           annotation={annotation}
@@ -387,7 +397,7 @@ function SelectedAnnotation({
       )}
       {annotation.kind === 'zoom' && <DiagramZoomControls step={step} target={{ kind: 'area', area: annotation }} />}
       {annotation.kind === 'x-ray' && (
-        // One set of rows per x-ray: the next one's Depth, asked for as it is laid, shows its own count when it takes the focus.
+        // One set of rows per X-ray, so a draft stays with its selection.
         <DiagramXRayControls key={id} step={step} annotation={annotation} />
       )}
       {annotation.kind === 'star' && (

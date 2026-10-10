@@ -1774,9 +1774,13 @@ on its next save.
   rectangle; x-ray — and `imported` on a mark lifted from a References card
   (17d). Points are in the picture's units, or an enlarged step's window's.
   So are sizes: an area's side (up to twice the picture's frame) and a
-  close-up's, an x-ray's or an enlarge circle's radius (up to the frame) are
+  circle's, close-up's, x-ray's or enlarge circle's radius (up to the frame) are
   held to the picture's frame, which in a window's units is as many windows
   as the frame spans (`unitsPerFrame`).
+  A `circle` without a stored radius retains its original fixed ink size.
+  An `angle-mark` may store `radiusMm` (0.5–50 mm) and `hidden: true`;
+  absent fields retain its original print radius and visibility. Hidden marks
+  stay in Layers and in the file but do not render, snap or take canvas presses.
 - `zoom`, an enlarged step's frame (Revision 2): `{ from, shape, frame?,
   imprint?, scale?, edge?, areaWas? }`, `from` the enlarge area's id.
 - `place`, a step placed by hand (`diagram-page-overrides.md`): offsets

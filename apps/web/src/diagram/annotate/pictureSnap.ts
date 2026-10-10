@@ -132,7 +132,7 @@ export function pictureSnapTarget(
 export function annotationsOf(step: DiagramStep, { annotations, ignore }: SnapOptions): KnownDiagramAnnotation[] {
   return (annotations ?? step.annotations).filter(
     (annotation): annotation is KnownDiagramAnnotation =>
-      isKnownAnnotation(annotation) && annotation.id !== ignore
+      isKnownAnnotation(annotation) && !annotation.hidden && annotation.id !== ignore
   );
 }
 

@@ -169,6 +169,10 @@ Ori Studio builds directly on origami tools created by the community:
   — the Simulate workspace folds bases into an interactive 3D model using a
   TypeScript port of Origami Simulator.
 
+- [Kei Morisue and DEFOX](https://kei-morisue.github.io/step-folder/)
+  — the Diagram workspace’s affine layer spreading is based on Morisue’s
+  affine distortion method in DEFOX.
+
 ## License
 
 This project is `GPL-2.0-or-later` because it includes a direct Rust port of

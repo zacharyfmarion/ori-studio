@@ -111,6 +111,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolPushArrow'
   | 'diagram.toolWhiteArrow'
   | 'diagram.toolSolidArrow'
+  | 'diagram.toolLine'
   | 'diagram.toolValleyLine'
   | 'diagram.toolMountainLine'
   | 'diagram.toolHiddenLine'
@@ -628,11 +629,12 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolValleyLine', 'Valley Line', { shift: true, key: 'v' }),
   diagramShortcut('diagram.toolMountainLine', 'Mountain Line', { shift: true, key: 'm' }),
   diagramShortcut('diagram.toolHiddenLine', 'Hidden Line', { key: 'h' }),
-  // Shift+L for the solid line (17a), as Shift+V and Shift+M pick theirs: L
-  // alone is the label's. References' scope has a Shift+L of its own, and the
+  // Shift+L for the solid line, as Shift+V and Shift+M pick theirs.
+  // References' scope has a Shift+L of its own, and the
   // two scopes are never live together.
   diagramShortcut('diagram.toolSolidLine', 'Solid Line', { shift: true, key: 'l' }),
-  diagramShortcut('diagram.toolLabel', 'Label', { key: 'l' }),
+  diagramShortcut('diagram.toolLabel', 'Label', { key: 't' }),
+  diagramShortcut('diagram.toolLine', 'Line', { key: 'space' }),
   // O for the ring it draws.
   diagramShortcut('diagram.toolCircle', 'Circle', { key: 'o' }),
   // K for the star (Revision 3, R3-25 A): S is the solid arrow's, and K is

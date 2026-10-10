@@ -345,6 +345,10 @@
         "detail": "Метод создания box-pleating — это порт Box Pleating Studio авторства Mu-Tsun Tsai на Rust и WebAssembly.",
         "title": "Mu-Tsun Tsai и Box Pleating Studio"
       },
+      "defox": {
+        "detail": "Аффинное раздвижение слоёв в рабочей области диаграмм основано на методе аффинных искажений Кэя Морисуэ в DEFOX.",
+        "title": "Кэй Морисуэ и DEFOX"
+      },
       "explori": {
         "detail": "Метод создания «Поиск 22,5°» отправляет ваше дерево в ExplOri — доступный для поиска архив паттернов складок 22,5° — и показывает наиболее близкие найденные совпадения.",
         "title": "Brandon Wong и ExplOri 22.5"

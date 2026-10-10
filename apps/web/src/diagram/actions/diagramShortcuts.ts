@@ -151,6 +151,7 @@ const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> =
   'diagram.toolPushArrow': true,
   'diagram.toolWhiteArrow': true,
   'diagram.toolSolidArrow': true,
+  'diagram.toolLine': true,
   'diagram.toolValleyLine': true,
   'diagram.toolMountainLine': true,
   'diagram.toolHiddenLine': true,
@@ -261,7 +262,7 @@ export function runDiagramAnnotateShortcut(
  * (D12) — close the References browser, leave an anchor's pick mode
  * (Revision 2), drop the drag in progress; in Edit
  * Path deselect the node, then put Edit Path down, back to Select with the
- * arrow still selected; deselect the annotation, put the tool down, leave the
+ * arrow still selected; put the tool down, deselect the annotation, leave the
  * step detail, deselect the step — and then it declines, so Escape reaches
  * whatever is beneath.
  */
@@ -293,12 +294,13 @@ export function runDiagramCancel(
         return true;
       }
     }
-    if (state.annotate.selectedAnnotationId !== null && actions.selectAnnotation) {
-      actions.selectAnnotation(null);
-      return true;
-    }
+    // A completed drawing remains selected, but Escape always puts its tool down first.
     if (state.annotate.tool !== null && actions.setTool) {
       actions.setTool(null);
+      return true;
+    }
+    if (state.annotate.selectedAnnotationId !== null && actions.selectAnnotation) {
+      actions.selectAnnotation(null);
       return true;
     }
   }

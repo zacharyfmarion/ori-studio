@@ -361,6 +361,50 @@ describe('DiagramLayersPanel', () => {
     expect([colorOf('s-a'), colorOf('s-b')]).toEqual(['#1971c2', '#e03131']);
   });
 
+  it('resizes and hides a manually selected equal-angle indicator, with undo and its line untouched', () => {
+    const stepId = annotatedStep();
+    const mark = angleMarkAt([0.5, 0.7], [0.4, 0.6], [0.5, 0.6])!;
+    const line: KnownDiagramAnnotation = { id: 'bisector', kind: 'valley-line', from: [0.5, 0.7], to: [0.4, 0.4] };
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Bisect angle', () => [line, { id: 'indicator', kind: 'angle-mark', ...mark }]);
+      state().openDiagramStep(stepId, 'annotate');
+      state().selectDiagramAnnotation('bisector');
+    });
+    expect(host!.querySelector('input[aria-label="Indicator radius"]')).toBeNull();
+    act(() => row('Equal Angles').click());
+    const radius = host!.querySelector<HTMLInputElement>('input[aria-label="Indicator radius"]')!;
+    act(() => radius.focus());
+    setField(radius, '2');
+    act(() => radius.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    const markNow = () => stepsIn(state().diagram!)[0]!.annotations.find((each) => each.id === 'indicator') as KnownDiagramAnnotation;
+    expect(markNow().radiusMm).toBe(2);
+    const toggle = host!.querySelector<HTMLButtonElement>('[role="switch"][aria-label="Show equal angles"]')!;
+    act(() => toggle.click());
+    expect(markNow()).toMatchObject({ hidden: true, radiusMm: 2 });
+    expect(row('Equal Angles')).toBeDefined();
+    expect(radius.disabled).toBe(true);
+    expect(stepsIn(state().diagram!)[0]!.annotations[0]).toEqual(line);
+    expect(tracked.trackDiagramMarkStyled).toHaveBeenCalledWith('angle_mark', 'radius', 'field');
+    expect(tracked.trackDiagramMarkStyled).toHaveBeenCalledWith('angle_mark', 'visibility', 'off');
+    act(() => state().undoDiagram());
+    expect(markNow().hidden).toBeUndefined();
+    expect(markNow().radiusMm).toBe(2);
+  });
+
+  it('keeps text selected after drawing and returns to Select when Escape leaves its editor', () => {
+    const stepId = annotatedStep();
+    act(() => {
+      state().openDiagramStep(stepId, 'annotate');
+      state().setDiagramAnnotateTool('label');
+      state().selectDiagramAnnotation('a-2');
+    });
+    const field = host!.querySelector<HTMLTextAreaElement>('textarea')!;
+    act(() => field.focus());
+    act(() => field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    expect(state().diagramAnnotateTool).toBeNull();
+    expect(state().diagramSelectedAnnotationId).toBe('a-2');
+  });
+
   it('gives an equal-angle mark more ticks with Ticks, one when it says none, as one undo step (15b)', () => {
     const stepId = annotatedStep();
     const mark = angleMarkAt([0.5, 0.7], [0.4, 0.6], [0.5, 0.6])!;

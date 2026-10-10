@@ -147,7 +147,7 @@ describe('DiagramAnnotateToolWindow', () => {
     tool('divisions');
     expect(title()).toContain('Equal Divisions');
     expect(intro()).toBe(
-      'Drag along a line from one end to the other, or click it, to divide it; then type how many parts. With Select, drag the mark to set how far off the line it sits.'
+      'Drag along a line from one end to the other, or click it, to divide it. Set the number of parts in Layers. With Select, drag the mark to set how far off the line it sits.'
     );
     expect(keys()).toEqual([
       'Hold Cmd to put an end down anywhere, without snapping.',
@@ -210,7 +210,7 @@ describe('DiagramAnnotateToolWindow', () => {
     coarse = true;
     mount();
     tool('circle');
-    expect(intro()).toBe('Click a point to circle it.');
+    expect(intro()).toBe('Drag between opposite corners to bound the circle. Click for a small circle.');
     expect(windowEl()?.querySelector('ul')).toBeNull();
     // The words are typed where a touch screen keeps the Layers pane: a tab of the Settings sheet (review).
     tool('label');

@@ -45,9 +45,9 @@ const rounded = (more: Partial<KnownDiagramAnnotation> = {}): KnownDiagramAnnota
 const ids = () => 'annotation-1';
 
 describe('an enlarge area', () => {
-  it('is laid as a circle from its middle, or a click’s standard size, unsnapped', () => {
+  it('is laid as a circle from opposite corners, or a click’s standard size, unsnapped', () => {
     const frame = { width: 1, height: 0.8 };
-    expect(createAnnotation('zoom', [0.4, 0.5], [0.4, 0.8], frame, ids)).toEqual(circle({ id: 'annotation-1', radius: 0.30000000000000004 }));
+    expect(createAnnotation('zoom', [0.1, 0.2], [0.7, 0.8], frame, ids)).toEqual(circle({ id: 'annotation-1', radius: expect.closeTo(0.3, 12), from: [expect.closeTo(0.4, 12), 0.5], to: [expect.closeTo(0.4, 12), 0.5] }));
     expect(createAnnotation('zoom', [0.4, 0.5], [0.4, 0.501], frame, ids)).toEqual(circle({ id: 'annotation-1', radius: ZOOM_CLICK.radius }));
   });
 

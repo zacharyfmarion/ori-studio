@@ -333,18 +333,11 @@ export function DiagramAnnotationGlyph({
         </Glyph>
       );
     case 'x-ray':
-      // A heavy rim cut into a flap (Revision 3, R3-15b (ii)), and inside it a few short dashes in two staggered rows,
-      // hidden lines beneath seen through it: not a bar across a ring, which reads as "no", nor an M, which reads as
-      // the Mountain tool (18f, after 18e). Each dash longer than the Hidden Line's dots, which at the rail's size
-      // read as a grille (review of 18f).
       return (
         <Glyph>
-          <path
-            d="M5.4 8.2 L7.4 8.2 M9 8.2 L11 8.2 M12.6 8.2 L14.6 8.2 M7.2 11.8 L9.2 11.8 M10.8 11.8 L12.8 11.8"
-            strokeLinecap="butt"
-            data-glyph-part="dashes"
-          />
-          <circle cx={10} cy={10} r={7.2} strokeWidth={2} data-glyph-part="rim" />
+          <circle cx={10} cy={10} r={7.2} data-glyph-part="rim" />
+          <path d="M5.5 8 L10 5.5 L14.5 8 L10 10.5 Z" data-glyph-part="top-layer" />
+          <path d="M5.5 11 L10 13.5 L14.5 11 M6.5 14.2 L10 16 L13.5 14.2" data-glyph-part="lower-layers" />
         </Glyph>
       );
   }

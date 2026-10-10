@@ -337,6 +337,10 @@
         "detail": "O método de autoria por dobra em caixa é um porte para Rust e WebAssembly do Box Pleating Studio de Mu-Tsun Tsai.",
         "title": "Mu-Tsun Tsai e Box Pleating Studio"
       },
+      "defox": {
+        "detail": "A separação afim de camadas no espaço Diagrama se baseia no método de distorção afim de Kei Morisue no DEFOX.",
+        "title": "Kei Morisue e DEFOX"
+      },
       "explori": {
         "detail": "O método de autoria Pesquisar 22,5° envia sua árvore para o ExplOri, um acervo pesquisável de padrões de vinco de 22,5°, e mostra as correspondências mais próximas que ele retorna.",
         "title": "Brandon Wong e ExplOri 22.5"

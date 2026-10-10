@@ -111,7 +111,6 @@ import { isViewportInteractiveTarget } from '../../components/panels/ViewportToo
 import { annotationDrawing, annotationReach, calloutPen } from './annotationPrimitives';
 import { CARD_FRAME_PX } from './paintAnnotations';
 import { xrayAnchorDrawn, xrayFacesOf } from '../xray/xrayScene';
-import { xrayCentreOnPaper } from '../xray/xrayLayers';
 import { INK_UNITS } from './canvasInk';
 import type { SnapTarget } from './pictureSnap';
 import { useAnnotateSnap } from './useAnnotateSnap';
@@ -482,6 +481,7 @@ export function useAnnotateCanvas({
 
   const camera = useViewportSurface({
     surface: null,
+    spaceToPan: false,
     worldRect: layout?.world ?? { x: 0, y: 0, width: 1, height: 1 },
     fitRect: framed,
     fitAnchor: 'fit-rect',
@@ -829,6 +829,7 @@ export function useAnnotateCanvas({
       const loose = { at, target: null };
       switch (current.mode) {
         case 'draw':
+          if (current.kind === 'circle') return loose;
           // A right angle's drag says which way it opens from its corner: a point along that way.
           if (isCornerKind(current.kind)) {
             if (!layout) return loose;
@@ -931,7 +932,7 @@ export function useAnnotateCanvas({
     [selectedId, known, hitSizes, selectedNode, viewed, pressable, step.id, readOnly]
   );
 
-  /** A press anywhere on the canvas takes the keyboard there, as Edit's does: Space pans, letters pick tools. */
+  /** A press anywhere on the canvas takes the keyboard there, as Edit's does: shortcuts pick tools. */
   const onPointerDownCapture = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
       if (!isViewportInteractiveTarget(event.target)) containerRef.current?.focus({ preventScroll: true });
@@ -985,13 +986,6 @@ export function useAnnotateCanvas({
         // An enlarged step is not enlarged again (yet): the Enlarge tools draw nothing on it. (Nor is an x-ray cut where
         // the rail holds its tool: Select is in hand there, `useAnnotateToolInHand`.)
         if (readOnly || (kind === 'zoom' && step.zoom)) return;
-        if (kind === 'x-ray' && !xrayCentreOnPaper(step, assets, style, at)) {
-          // Off the paper a window would take nothing away: none is laid, the press deselects as one on the page
-          // does, and the tool window says why (review of 18e).
-          store.selectDiagramAnnotation(null);
-          setToolNotice({ tool: 'x-ray', notice: 'no-paper' });
-          return;
-        }
         const free = isPrimaryModifier(event);
         // A right angle's corner, and the way a click opens it when the press is in a right angle.
         const start = isCornerKind(kind)
@@ -1077,8 +1071,6 @@ export function useAnnotateCanvas({
       clickPreview,
       anchorPick,
       step,
-      assets,
-      style,
       frameOutline,
     ]
   );
@@ -1267,7 +1259,7 @@ export function useAnnotateCanvas({
       }
       const placed = placeInHand(current, pointer, isPrimaryModifier(event), event.shiftKey);
       if (current.mode === 'draw') {
-        const point = isPointKind(current.kind);
+        const point = isPointKind(current.kind) && current.kind !== 'circle';
         const start = point ? placed.at : current.start;
         setDraft(
           laid(
@@ -1395,8 +1387,8 @@ export function useAnnotateCanvas({
    * Equal divisions landing (Revision 2, ED1): a drag measures the line from
    * where it began to where it ends, each snapped as a line's end; a click —
    * or a drag shorter than a slip — divides the whole line under where it
-   * pressed, unsnapped, or puts nothing down and says so. Selected, so its
-   * Parts field takes the count (ED5); the tool stays in hand (ED13).
+   * pressed, unsnapped, or puts nothing down and says so. Selected, with its Parts field available in Layers; focus stays on the
+   * canvas and the tool stays in hand.
    */
   const layDivisions = useCallback(
     (current: Extract<Gesture, { mode: 'draw' }>, event: ReactPointerEvent<HTMLElement>) => {
@@ -1434,8 +1426,7 @@ export function useAnnotateCanvas({
         placedBy === 'line' ? 'none' : snapOutcome('divisions', { enabled: snap.enabled, free: free || current.free, snapped }),
         { placed: placedBy }
       );
-      // Its count comes next: typed into the Parts field, then Enter.
-      requestFieldFocus(annotation.id, 'parts');
+      // Keep keyboard focus on the canvas so Escape and tool shortcuts work.
     },
     [layout, placeInHand, toPicture, step, assets, style, hitSizes, snap.enabled]
   );
@@ -1505,7 +1496,7 @@ export function useAnnotateCanvas({
         return;
       }
       if (current.mode === 'draw') {
-        const point = isPointKind(current.kind);
+        const point = isPointKind(current.kind) && current.kind !== 'circle';
         // A line or an arrow is drawn by a drag; a sign or a label is put down
         // by a click; a right angle or a callout by either, a click putting a
         // callout's box beside its point.
@@ -1542,8 +1533,7 @@ export function useAnnotateCanvas({
         // The step is an enlarge source now, or x-rayed: an older flat capture gets its faces, in the same undo step
         // (Revision 2; Revision 3, R3-18a A).
         if (area || xray) void store.giveDiagramStepPaperFaces(step.id);
-        // How deep it goes comes next: typed into its Depth field, then Enter, as equal divisions' parts are (Revision 3).
-        if (xray) requestFieldFocus(annotation.id, 'depth');
+        // Numeric options remain available in Layers without taking focus.
         // Put beside the picture, a close-up may be out of view: it is brought into it (15f).
         if (annotation.kind === 'close-up') camera.bringIntoView(closeUpRings(annotation, layout));
         const snapped = target !== null || (!point && current.startTarget !== null);

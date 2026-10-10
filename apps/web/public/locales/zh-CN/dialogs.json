@@ -321,6 +321,10 @@
         "detail": "箱形褶皱创作方法是 Mu-Tsun Tsai 的 Box Pleating Studio 的 Rust 和 WebAssembly 移植版本。",
         "title": "Mu-Tsun Tsai 和 Box Pleating Studio"
       },
+      "defox": {
+        "detail": "图解工作区中的仿射图层展开基于 Kei Morisue 在 DEFOX 中的仿射变形方法。",
+        "title": "Kei Morisue 与 DEFOX"
+      },
       "explori": {
         "detail": "「搜索 22.5°」创作方法会将你的树发送到 ExplOri（一个可搜索的 22.5° 折痕图存档），并显示它返回的最接近的匹配结果。",
         "title": "Brandon Wong 和 ExplOri 22.5"

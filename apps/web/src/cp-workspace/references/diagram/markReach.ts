@@ -189,7 +189,7 @@ export function markReach(
     case 'point': {
       // The ring's outer edge: its radius and half its stroke.
       const { x, y } = project(primitive.at);
-      take(x, y, markOuterRadius(project));
+      take(x, y, primitive.radius === undefined ? markOuterRadius(project) : primitive.radius * project.scale + markRingWidth(project) / 2);
       break;
     }
     case 'right-angle': {
@@ -205,7 +205,7 @@ export function markReach(
     }
     case 'angle-mark': {
       // Its arc and its ticks' ends, butt, in the ring's pen.
-      const shape = angleMarkDrawn(primitive.at, primitive.arms, primitive.ticks, project);
+      const shape = angleMarkDrawn(primitive.at, primitive.arms, primitive.ticks, project, primitive.radiusInk);
       if (!shape) break;
       const pad = markRingWidth(project) / 2;
       for (const { x, y } of angleMarkArcPoints(shape)) take(x, y, pad);

@@ -321,6 +321,10 @@
         "detail": "ボックスプリーツによる作図手法は、蔡牧村の Box Pleating Studio の Rust および WebAssembly への移植です。",
         "title": "蔡牧村と Box Pleating Studio"
       },
+      "defox": {
+        "detail": "図解ワークスペースのアフィン変換によるレイヤー展開は、DEFOX における Kei Morisue のアフィン歪み手法に基づいています。",
+        "title": "Kei Morisue と DEFOX"
+      },
       "explori": {
         "detail": "「22.5° を検索」の作図手法は、ツリーを ExplOri（22.5° の展開図を検索できるアーカイブ）に送信し、返された中で最も近い一致を表示します。",
         "title": "Brandon Wong と ExplOri 22.5"

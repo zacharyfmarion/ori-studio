@@ -931,6 +931,16 @@ describe('annotations in the file', () => {
     });
   });
 
+  it('round-trips a sized circle and preserves a legacy circle without a radius', () => {
+    const circle = { id: 'ring', kind: 'circle', from: [0.3, 0.3], to: [0.3, 0.3], radius: 0.2 };
+    expect(withAnnotations([circle])).toEqual([circle]);
+    const written = throughJson(writeDiagram(sampleDiagram()));
+    written.steps[0].annotations = [circle];
+    expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual([circle]);
+    const { radius: _radius, ...legacy } = circle;
+    expect(withAnnotations([legacy])).toEqual([legacy]);
+  });
+
   describe('an angle mark (15b)', () => {
     const mark = (more: Record<string, unknown> = {}) => ({
       id: 'm-1',
@@ -939,6 +949,17 @@ describe('annotations in the file', () => {
       to: [0.48, 0.96],
       other: [0.5, 0.96],
       ...more,
+    });
+
+    it('round-trips the radius and hidden indicator, preserving out-of-range future values', () => {
+      const custom = mark({ radiusMm: 2.5, hidden: true });
+      expect(withAnnotations([custom])).toEqual([custom]);
+      const written = throughJson(writeDiagram(sampleDiagram()));
+      written.steps[0].annotations = [custom];
+      expect(throughJson(writeDiagram(readDiagram(written)!.document)).steps[0].annotations).toEqual([custom]);
+      const future = mark({ radiusMm: 60 });
+      expect(withAnnotations([future])).toEqual([{ id: future.id, unknown: future }]);
+      expect(withAnnotations([mark({ radiusMm: -1 }), mark({ hidden: 'yes' })])).toEqual([]);
     });
 
     it('round-trips its vertex, its arms and its ticks', () => {

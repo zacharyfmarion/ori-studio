@@ -329,6 +329,10 @@
         "detail": "The box-pleated authoring method is a Rust and WebAssembly port of Mu-Tsun Tsai's Box Pleating Studio.",
         "title": "Mu-Tsun Tsai and Box Pleating Studio"
       },
+      "defox": {
+        "detail": "Affine layer spreading in the Diagram workspace is based on Kei Morisue’s affine distortion method in DEFOX.",
+        "title": "Kei Morisue and DEFOX"
+      },
       "explori": {
         "detail": "The Search 22.5° design method sends your tree to ExplOri, a searchable archive of 22.5° crease patterns, and shows the closest matches it returns.",
         "title": "Brandon Wong and ExplOri 22.5"

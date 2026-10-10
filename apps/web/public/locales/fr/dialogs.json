@@ -337,6 +337,10 @@
         "detail": "La méthode de création en pliage en boîte est un portage en Rust et WebAssembly de Box Pleating Studio de Mu-Tsun Tsai.",
         "title": "Mu-Tsun Tsai et Box Pleating Studio"
       },
+      "defox": {
+        "detail": "L’écartement affine des couches dans l’espace Diagramme repose sur la méthode de distorsion affine de Kei Morisue dans DEFOX.",
+        "title": "Kei Morisue et DEFOX"
+      },
       "explori": {
         "detail": "La méthode de création Rechercher en 22,5° envoie votre arbre à ExplOri, une archive interrogeable de patrons de plis en 22,5°, et affiche les correspondances les plus proches qu'elle renvoie.",
         "title": "Brandon Wong et ExplOri 22.5"

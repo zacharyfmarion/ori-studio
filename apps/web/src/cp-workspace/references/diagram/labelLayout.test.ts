@@ -265,3 +265,14 @@ describe('what a letter keeps clear of', () => {
     expect([...placed.keys()]).toEqual([2, 4]);
   });
 });
+
+it('leaves room for a circle drawn with a custom radius', () => {
+  const primitives: StepDiagramPrimitive[] = [
+    { kind: 'point', at: [0.5, 0.5], radius: 0.2, style: 'highlight' },
+    { kind: 'label', at: [0.5, 0.5], text: 'P', style: 'highlight' },
+  ];
+  const ring = diagramMarks(primitives, CARD)[0]!;
+  expect(ring.radius).toBeCloseTo(0.2 * CARD.scale, 9);
+  const placed = only(placeLabels(primitives, UNIT, CARD));
+  expect(clearance(placed.box, ring)).toBeGreaterThan(ring.radius!);
+});

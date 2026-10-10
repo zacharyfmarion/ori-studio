@@ -321,6 +321,10 @@
         "detail": "박스 플리츠 저작 방식은 Mu-Tsun Tsai의 Box Pleating Studio를 Rust와 WebAssembly로 포팅한 것입니다.",
         "title": "Mu-Tsun Tsai와 Box Pleating Studio"
       },
+      "defox": {
+        "detail": "다이어그램 작업 공간의 아핀 레이어 펼치기는 DEFOX의 Kei Morisue 아핀 왜곡 방식을 기반으로 합니다.",
+        "title": "Kei Morisue와 DEFOX"
+      },
       "explori": {
         "detail": "22.5° 검색 저작 방식은 트리를 22.5° 전개도를 검색할 수 있는 아카이브인 ExplOri로 보내고, 반환된 결과 중 가장 가까운 것들을 보여줍니다.",
         "title": "Brandon Wong과 ExplOri 22.5"

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
-import type { PicturePoint } from '../annotate/annotationModel';
+import { createAnnotation, type PicturePoint } from '../annotate/annotationModel';
+import { stepZoomStatus } from './zoomActions';
 import { cpDocument, fakeCaptureRuntime, twoSquaresSegmentation } from '../capture/capture.fixtures';
 import { captureStep } from '../capture/captureFolded';
 import {
@@ -74,6 +75,17 @@ describe('where a capture is taken from', () => {
 });
 
 describe('capturing a frame', () => {
+  it('accepts a circle drawn wholly outside the model and keeps an empty enlarged window', () => {
+    const plain = craneStep('C.none');
+    const area = createAnnotation('zoom', [-1, -1], [-0.8, -0.8], { width: 1, height: 1 });
+    const s = withArea(plain, area);
+    const n = renamed(plain, 'step-n');
+    const { document, captured } = enlargeStep(diagramOf(s, n), 'step-n', NO_ASSETS);
+    expect(captured).not.toBeNull();
+    expect(zoomOf(document, 'step-n')?.frame?.centre).toEqual([expect.closeTo(-0.9, 9), expect.closeTo(-0.9, 9)]);
+    expect(stepZoomStatus(document, 'step-n')?.notices).toContainEqual({ kind: 'no-paper' });
+  });
+
   it('imprints the area through S’s default anchor, worked out afresh, and lands it on N through the face holding its point', () => {
     const s = withArea(craneStep('S.affine'), headArea(craneStep('S.affine'), 'affine'));
     const n = renamed(craneStep('C.affine'), 'step-n');

@@ -9,12 +9,15 @@ import {
   ArrowUpLeft,
   ArrowUpRight,
   Layers,
+  Info,
   type LucideIcon,
 } from 'lucide-react';
 import type { SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
 import type { DiagramLinkedPoseAction, DiagramSpreadChoice } from '../../diagram/actions/diagramLinkedPoseActions';
 import type { DiagramLinkedSpread } from '../../diagram/capture/useDiagramLinkedPose';
 import { SPREAD_AMOUNT_RANGE, SPREAD_AXIS_RANGE } from '../../diagram/document/diagramDocument';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 import { IconButton } from '../ui/IconButton';
 import { FieldRow, SegmentedRow, SliderRow, ToggleRow } from '../ui/fieldRows';
 import styles from './DiagramSpreadRows.module.css';
@@ -73,15 +76,34 @@ export function DiagramSpreadRows({
       />
       {spread && shown && (
         <>
-          <SegmentedRow
-            label={t('panels:diagram.pose.spreadKind', 'Spread by')}
-            value={shown.kind}
-            options={spread.kinds.map(({ value, label }) => ({ id: value, label }))}
-            disabled={spread.disabled}
-            title={spread.hint}
-            // Waiting for a capture, a choice refuses, as the verb does.
-            onChange={(value) => choose(spread.kinds, value)}
-          />
+          <FieldRow label={t('panels:diagram.pose.spreadKind', 'Spread by')} kind="segmented" title={spread.hint}>
+            <span className={styles.kind}>
+              <SegmentedControl
+                size="sm"
+                aria-label={t('panels:diagram.pose.spreadKind', 'Spread by')}
+                value={shown.kind}
+                options={spread.kinds.map(({ value, label }) => ({ value, label }))}
+                disabled={spread.disabled}
+                onChange={(value) => choose(spread.kinds, value)}
+              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    className={styles.credit}
+                    href="https://kei-morisue.github.io/step-folder/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={t('panels:diagram.pose.affineCredit', 'Affine distortion by Kei Morisue — visit DEFOX')}
+                  >
+                    <Info size={13} aria-hidden="true" />
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t('panels:diagram.pose.affineCredit', 'Affine distortion by Kei Morisue — visit DEFOX')}
+                </TooltipContent>
+              </Tooltip>
+            </span>
+          </FieldRow>
           <SliderRow
             label={t('panels:diagram.pose.spreadAmount', 'Amount')}
             ariaLabel={t('panels:diagram.pose.spreadAmountName', 'Spread amount')}

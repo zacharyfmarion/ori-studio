@@ -695,7 +695,7 @@ describe('DiagramAnnotateCanvas', () => {
     expect(seen).toEqual([2]);
   });
 
-  it('pinches on the stage past the margin without drawing, and pans with Space held', () => {
+  it('pinches on the stage past the margin without drawing, and leaves Space available for the Line shortcut', () => {
     mount();
     tool('line');
     pointer('pointerdown', at(-0.8, 0.5), 1, 'touch', stage());
@@ -705,18 +705,18 @@ describe('DiagramAnnotateCanvas', () => {
     pointer('pointerup', at(1.4, 0.6), 2, 'touch', stage());
     pointer('pointerup', at(-0.6, 0.5), 1, 'touch', stage());
     expect(annotations()).toHaveLength(0);
-    // Space held: the press is the camera's (it pans on a left drag), not a stroke.
+    // Space no longer turns this viewport into a panning surface.
     act(() => {
       view().dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
     });
-    expect(view().hasAttribute('data-space-pan')).toBe(true);
+    expect(view().hasAttribute('data-space-pan')).toBe(false);
     drag(at(-0.8, 0.5), at(0.3, 0.5), 1, 'mouse', stage());
-    expect(annotations()).toHaveLength(0);
+    expect(annotations()).toHaveLength(1);
     act(() => {
       view().dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }));
     });
     drag(at(-0.8, 0.5), at(0.3, 0.5), 1, 'mouse', stage());
-    expect(annotations()).toHaveLength(1);
+    expect(annotations()).toHaveLength(2);
   });
 
   it('hits nothing with a press past reach, beside a mark left on the edge of reach', () => {
@@ -1897,10 +1897,10 @@ describe('a close-up (15f)', () => {
   const zoom: KnownDiagramAnnotation = { id: 'zoom', kind: 'close-up', from: [0.6, 0.3], to: [0.6, -0.25], radius: 0.1, scale: 2 };
   const closeUp = () => annotations().find((annotation) => annotation.kind === 'close-up')!;
 
-  it('is dragged out from its area’s middle, put beside the picture at twice, its inside under the marks, and counted', () => {
+  it('is dragged from opposite corners, put beside the picture at twice, its inside under the marks, and counted', () => {
     mount();
     tool('close-up');
-    drag(at(0.6, 0.3), at(0.7, 0.3));
+    drag(at(0.5, 0.2), at(0.7, 0.4));
     rerender();
     const made = closeUp();
     expect(made).toMatchObject({ scale: 2 });
@@ -2001,7 +2001,7 @@ describe('DiagramAnnotateCanvas equal divisions (Revision 2)', () => {
   const last = () => annotations()[annotations().length - 1]!;
   const hovered = () => overlay().querySelector('[data-pick-marks] line');
 
-  it('lays them with a drag, each end snapped as a line’s: four parts, 2.5 mm off away from the middle, the tool kept and Parts asked for (ED1, ED5, ED13)', () => {
+  it('lays them with a drag, each end snapped as a line’s: four parts, 2.5 mm off away from the middle, the tool kept and focus left on the canvas (ED1, ED5, ED13)', () => {
     drawn([left, right], 'divisions');
     const past = state().diagramHistory.past.length;
     drag(at(0.206, 0.404), at(0.694, 0.397));
@@ -2012,7 +2012,8 @@ describe('DiagramAnnotateCanvas equal divisions (Revision 2)', () => {
     expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['divisions', 'snapped', { placed: 'drag' }]]);
     expect(state().diagramAnnotateTool).toBe('divisions');
     expect(state().diagramSelectedAnnotationId).toBe(last().id);
-    expect(pendingFieldFocus()).toEqual({ annotationId: last().id, field: 'parts' });
+    expect(pendingFieldFocus()).toBeNull();
+    expect(document.activeElement).toBe(view());
   });
 
   it('divides a line whole with a click on it, the line under the pointer and not its snapped start, counted as a line', () => {
@@ -2280,12 +2281,12 @@ describe('the Enlarge tools and the enlarged frame (Revision 2, 16e)', () => {
     return stepId;
   }
 
-  it('drags a circle out from its middle with Enlarge: the area alone, as one undo step, selected and counted', () => {
+  it('drags the circular bounds with Enlarge: the area alone, as one undo step, selected and counted', () => {
     mount();
     tool('enlarge');
     const steps = state().diagram!.steps.length;
     const past = state().diagramHistory.past.length;
-    drag(at(0.5, 0.4), at(0.7, 0.4));
+    drag(at(0.3, 0.2), at(0.7, 0.6));
     expect(areas()).toHaveLength(1);
     const [area] = areas();
     expect(area!.from[0]).toBeCloseTo(0.5, 6);
@@ -2547,11 +2548,11 @@ describe('the X-Ray tool and its windows (Revision 3, 18e)', () => {
   const windows = () => [...overlay().querySelectorAll('[data-x-ray-inside]')];
   const xray: KnownDiagramAnnotation = { id: 'xray', kind: 'x-ray', from: [0.45, 0.6], to: [0.45, 0.6], radius: 0.08, depth: 2 };
 
-  it('drags a window out from its middle, one layer deep, as one undo step, selected and counted — and asks for its Depth', () => {
+  it('drags a window from opposite corners, one layer deep, as one undo step, selected and counted — keeping focus on the canvas', () => {
     crane();
     act(() => state().setDiagramAnnotateTool('x-ray'));
     const past = state().diagramHistory.past.length;
-    drag(at(0.45, 0.6), at(0.55, 0.6));
+    drag(at(0.35, 0.5), at(0.55, 0.7));
     expect(xrays()).toHaveLength(1);
     const [laid] = xrays();
     expect(laid).toMatchObject({ from: [expect.closeTo(0.45, 6), expect.closeTo(0.6, 6)], depth: 1 });
@@ -2560,7 +2561,8 @@ describe('the X-Ray tool and its windows (Revision 3, 18e)', () => {
     expect(state().diagramHistory.past.at(-1)!.label).toBe('Add annotation');
     expect(state().diagramSelectedAnnotationId).toBe(laid!.id);
     expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['x_ray', 'none']]);
-    expect(pendingFieldFocus()).toEqual({ annotationId: laid!.id, field: 'depth' });
+    expect(pendingFieldFocus()).toBeNull();
+    expect(document.activeElement).toBe(view());
     // Drawn on the canvas: its window, under the marks, with its rim.
     rerender();
     expect(windows()).toHaveLength(1);
@@ -2582,26 +2584,19 @@ describe('the X-Ray tool and its windows (Revision 3, 18e)', () => {
     expect(state().diagramAnnotateTool).toBe('x-ray');
   });
 
-  it('lays nothing off the paper, where a window would take nothing away: the press deselects, and the tool says why (review of 18e)', () => {
-    crane([xray]);
-    act(() => {
-      state().selectDiagramAnnotation('xray');
-      state().setDiagramAnnotateTool('x-ray');
-    });
-    rerender();
-    tracked.trackDiagramAnnotationAdded.mockClear();
-    // The frame's top left corner: no paper there.
-    pointer('pointerdown', at(0.02, 0.02));
-    pointer('pointerup', at(0.02, 0.02));
-    drag(at(0.02, 0.02), at(0.12, 0.02));
+  it('allows off-paper starts and entirely empty X-ray windows', () => {
+    crane([]);
+    tool('x-ray');
+    drag(at(-0.2, -0.2), at(-0.1, -0.1));
     expect(xrays()).toHaveLength(1);
-    expect(state().diagramSelectedAnnotationId).toBeNull();
-    expect(toolNotice()).toEqual({ tool: 'x-ray', notice: 'no-paper' });
-    expect(tracked.trackDiagramAnnotationAdded).not.toHaveBeenCalled();
-    // On the paper, as ever: and the notice goes with the press.
-    drag(at(0.45, 0.6), at(0.55, 0.6));
-    expect(xrays()).toHaveLength(2);
+    expect(xrays()[0]!.from).toEqual([expect.closeTo(-0.15, 6), expect.closeTo(-0.15, 6)]);
+    expect(xrays()[0]!.radius).toBeCloseTo(0.05, 6);
     expect(toolNotice()).toBeNull();
+    // The bounds begin outside the paper and finish across it.
+    drag(at(-0.1, 0.1), at(0.7, 0.9));
+    expect(xrays()).toHaveLength(2);
+    expect(xrays()[1]!.from).toEqual([expect.closeTo(0.3, 6), expect.closeTo(0.5, 6)]);
+    expect(tracked.trackDiagramAnnotationAdded).toHaveBeenCalledTimes(2);
   });
 
   it('is held, as the rail holds it, on a flat step whose faces need a Refresh: Select is in hand there, and a press lays nothing (review of 18e)', () => {

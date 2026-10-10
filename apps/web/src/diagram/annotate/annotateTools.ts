@@ -44,7 +44,7 @@ export const SOLID_ARROW = 'solid-arrow';
 
 /**
  * Enlarge and Enlarge in Frame (Revision 2, Z1): an enlarge area laid on the
- * step, a circle dragged out from its middle or a rounded rectangle dragged
+ * step, a circle or a rounded rectangle dragged
  * corner to corner, marking what a later step shows larger. Drawing one
  * changes no other step.
  */
@@ -277,7 +277,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DrawingTool, DiagramAnnota
   'push-arrow': 'diagram.toolPushArrow',
   'white-arrow': 'diagram.toolWhiteArrow',
   [SOLID_ARROW]: 'diagram.toolSolidArrow',
-  [LINE_TOOL]: null,
+  [LINE_TOOL]: 'diagram.toolLine',
   [ANGLE_BISECTOR]: 'diagram.toolAngleBisector',
   label: 'diagram.toolLabel',
   circle: 'diagram.toolCircle',
@@ -509,12 +509,12 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
     case 'divisions':
       return t(
         'panels:diagram.annotate.divisionsHelp',
-        'Drag along a line from one end to the other, or click it, to divide it; then type how many parts. With Select, drag the mark to set how far off the line it sits.'
+        'Drag along a line from one end to the other, or click it, to divide it. Set the number of parts in Layers. With Select, drag the mark to set how far off the line it sits.'
       );
     case 'label':
       return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it in the Layers pane.');
     case 'circle':
-      return t('panels:diagram.annotate.circleHelp', 'Click a point to circle it.');
+      return t('panels:diagram.annotate.circleHelp', 'Drag between opposite corners to bound the circle. Click for a small circle.');
     case 'star':
       return t('panels:diagram.annotate.starHelp', 'Click a point to mark it with a star.');
     case 'eye':
@@ -530,7 +530,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
     case 'close-up':
       return t(
         'panels:diagram.annotate.closeUpHelp',
-        'Drag out from the middle of the area to show larger, or click it. With Select, drag either circle to move it, or its ring to resize it.'
+        'Drag between opposite corners of the area to show larger. Click for a standard size. With Select, drag either circle to move it, or its ring to resize it.'
       );
     case 'callout':
       return t(
@@ -540,7 +540,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
     case ENLARGE:
       return t(
         'panels:diagram.annotate.enlargeHelp',
-        'Drag out from the middle of an area to mark it for an enlarged step. Click for a standard size.'
+        'Drag between opposite corners of an area to mark it for an enlarged step. Click for a standard size.'
       );
     case ENLARGE_FRAME:
       return t(
@@ -556,7 +556,7 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
     case 'x-ray':
       return t(
         'panels:diagram.annotate.xRayHelp',
-        'Drag out from the middle of an area to see through its top layer, or click for a standard size; then type how many layers to take away.'
+        'Drag between opposite corners of an area to see through its top layer. Click for a standard size. Set the depth in Layers.'
       );
   }
 }
@@ -736,7 +736,7 @@ function textHelpOnTouch(t: TFunction, tool: 'label' | 'callout' | 'divisions' |
     case 'x-ray':
       return t(
         'panels:diagram.annotate.xRayHelpTouch',
-        'Drag out from the middle of an area to see through its top layer, or click for a standard size; then set how many layers to take away in {{sheet}}, under {{tab}}.',
+        'Drag between opposite corners of an area to see through its top layer. Click for a standard size. Set the depth in {{sheet}}, under {{tab}}.',
         where
       );
   }

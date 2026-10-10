@@ -54,6 +54,8 @@ export interface UseViewportSurfaceOptions {
    * hands the camera's verbs on through {@link ViewportSurface.handleViewportShortcut}.
    */
   surface: ViewportSurfaceId | null;
+  /** Disable where Space is a tool shortcut, as in Diagram Annotate. */
+  spaceToPan?: boolean;
   /** The world bounds the camera frames. */
   worldRect: PlotRect;
   /**
@@ -141,6 +143,7 @@ export function useViewportSurface({
   fitKey,
   fitRect,
   fitAnchor = 'world',
+  spaceToPan = true,
   maxFitScale,
   onViewportShortcut,
 }: UseViewportSurfaceOptions): ViewportSurface {
@@ -361,7 +364,7 @@ export function useViewportSurface({
   // mid-hold can't leave the pane stuck in pan mode.
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return undefined;
+    if (!container || !spaceToPan) return undefined;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === ' ' && !isViewportInteractiveTarget(event.target)) {
@@ -384,7 +387,7 @@ export function useViewportSurface({
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', clearSpace);
     };
-  }, []);
+  }, [spaceToPan]);
 
   // Trackpad pinch, taken over from the library.
   //

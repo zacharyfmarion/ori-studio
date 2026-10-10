@@ -78,6 +78,7 @@
  *
  * Pure: no DOM, no store.
  */
+import { angleRadiusInk } from './angleMarkStyle';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
@@ -566,7 +567,7 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
       };
     case 'circle':
       // No letter (decision 8): a label names it, if anything does.
-      return { kind: 'mark', primitive: { kind: 'point', at: up(from), style: 'highlight' } };
+      return { kind: 'mark', primitive: { kind: 'point', at: up(from), style: 'highlight', ...(annotation.radius !== undefined ? { radius: annotation.radius } : {}) } };
     case 'star':
       // Its fill as a white arrow's; its turn and size its own, on the page (Revision 3).
       return {
@@ -590,10 +591,10 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
       return { kind: 'mark', primitive: { kind: 'right-angle', at: up(from), toward: up(to) } };
     case 'angle-mark': {
       // `to` and `other` say only which way its arms run: the drawing sizes it.
-      if (!annotation.other) return null;
+      if (!annotation.other || annotation.hidden) return null;
       return {
         kind: 'mark',
-        primitive: { kind: 'angle-mark', at: up(from), arms: [up(to), up(annotation.other)], ticks: annotation.ticks ?? 1 },
+        primitive: { kind: 'angle-mark', at: up(from), arms: [up(to), up(annotation.other)], ticks: annotation.ticks ?? 1, ...(annotation.radiusMm !== undefined ? { radiusInk: angleRadiusInk(annotation) } : {}) },
       };
     }
     case 'callout': {
@@ -763,7 +764,7 @@ export function annotationDrawing(
     const compiled = compiledAnnotation(annotation);
     if (!compiled) continue;
     // Behind a flap, on a picture that knows its layers.
-    const hidden = layers && annotation.behind ? behindStretches(annotation, layers, ringRadius) : undefined;
+    const hidden = layers && annotation.behind ? behindStretches(annotation, layers, annotation.kind === 'circle' ? annotation.radius ?? ringRadius : ringRadius) : undefined;
     switch (compiled.kind) {
       case 'line': {
         const [a, b] = [at(compiled.from), at(compiled.to)];

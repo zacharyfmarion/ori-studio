@@ -616,7 +616,7 @@ describe('a fold-and-unfold arrow’s return shaped by hand', () => {
 
 describe('a circle', () => {
   it('is put down at the press, its centre, with nothing more: no letter, no axis', () => {
-    expect(createAnnotation('circle', [0.2, 0.3], [0.9, 0.9], SQUARE, id)).toEqual({
+    expect(createAnnotation('circle', [0.2, 0.3], [0.2, 0.3], SQUARE, id)).toEqual({
       id: 'annotation-1',
       kind: 'circle',
       from: [0.2, 0.3],
@@ -1631,8 +1631,8 @@ describe('an x-ray (Revision 3, 18e)', () => {
   const near = (actual: readonly number[], expected: readonly number[]) =>
     actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, 9));
 
-  it('is dragged out from its middle as Enlarge’s circle is, taking away one layer until its Depth is typed; a click a standard size', () => {
-    expect(createAnnotation('x-ray', [0.4, 0.5], [0.6, 0.5], SQUARE, id)).toEqual({
+  it('is dragged between bounding corners, taking away one layer; a click uses a standard size', () => {
+    expect(createAnnotation('x-ray', [0.2, 0.3], [0.6, 0.7], SQUARE, id)).toEqual({
       id: 'annotation-1',
       kind: 'x-ray',
       from: [0.4, 0.5],

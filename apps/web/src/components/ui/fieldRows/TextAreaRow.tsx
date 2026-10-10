@@ -47,6 +47,7 @@ export function TextAreaRow({
   singleLine = false,
   fieldRef,
   onCommit,
+  onEscape,
 }: {
   label: string;
   /**
@@ -71,6 +72,8 @@ export function TextAreaRow({
   /** The field itself, for a caller that puts the focus in it. */
   fieldRef?: Ref<HTMLTextAreaElement>;
   onCommit: (value: string, session: number) => void;
+  /** Called after Escape leaves the editor. */
+  onEscape?: () => void;
 }) {
   const fieldId = useId();
   // Shown while there is uncommitted typing; otherwise the field shows `value`,
@@ -151,6 +154,7 @@ export function TextAreaRow({
           ) {
             event.preventDefault();
             event.currentTarget.blur();
+            if (event.key === 'Escape') onEscape?.();
           }
         }}
       />

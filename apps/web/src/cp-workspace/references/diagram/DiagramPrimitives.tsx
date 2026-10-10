@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type {
   DiagramProjector,
+  DiagramRing,
   DiagramSheet,
   SheetPoint,
   SvgPoint,
@@ -143,7 +144,7 @@ export function isDiagramSymbol(primitive: StepDiagramPrimitive): boolean {
 export interface DiagramRenderContext {
   project: DiagramProjector;
   /** The centre of every ring in the picture, in the projector's units. */
-  marks: readonly SvgPoint[];
+  marks: readonly DiagramRing[];
   /** Where each letter goes, by its primitive's index in the list drawn. */
   labels: ReadonlyMap<number, LabelPlacement>;
   /** The paper the primitives were measured against; where erode finds its edge. */
@@ -986,7 +987,7 @@ function diagramPrimitiveShape(
     case 'angle-mark': {
       // An arc across the angle and ticks across its halves (15b of the
       // second Annotate plan), in a ring's pen and ink, as a right angle is.
-      const shape = angleMarkDrawn(primitive.at, primitive.arms, primitive.ticks, project);
+      const shape = angleMarkDrawn(primitive.at, primitive.arms, primitive.ticks, project, primitive.radiusInk);
       if (!shape) return null;
       const d = angleMarkPathData(shape);
       return onAndOffPaper(context, index, (inks) => (
@@ -1094,7 +1095,7 @@ function diagramPrimitiveShape(
     }
     case 'point': {
       const at = project(primitive.at);
-      const radius = project.marks.ringRadius * project.ink;
+      const radius = primitive.radius === undefined ? project.marks.ringRadius * project.ink : primitive.radius * project.scale;
       const width = markRingWidth(project);
       // Behind a flap (15e): its ring in arcs, those under the flap dotted.
       const arcs = primitive.hidden?.length ? ringPieces(primitive.at, radius, primitive.hidden, project) : null;

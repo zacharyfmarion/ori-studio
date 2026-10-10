@@ -609,6 +609,17 @@ describe('the turn-over glyph', () => {
 });
 
 describe('foldArrowLanding', () => {
+  it('lands on the actual radius of a circle drawn by its bounds', () => {
+    const q: [number, number] = [0.8, 0.6];
+    const out = foldArrowArc([0.1, 0.1], q, CENTRE)!;
+    const radius = 0.12 * CARD.scale;
+    const mark = { ...CARD(q), radius };
+    const landed = foldArrowLanding(out, [mark], DIAGRAM_MARK_INK.radius * CARD.ink, CARD);
+    expect(out.radius * arcExtent(out) - landed.radius * arcExtent(landed)).toBeCloseTo(0.12, 9);
+    const end = CARD(arcEndPoint(landed));
+    expect(Math.hypot(end.x - mark.x, end.y - mark.y)).toBeCloseTo(radius, 1);
+  });
+
   const rim = DIAGRAM_MARK_INK.radius * CARD.ink;
 
   // A point folded onto a point: the far end of the arc is another mark, and a

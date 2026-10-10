@@ -149,7 +149,7 @@ export type DiagramTextStyleOption = 'bold' | 'halo' | 'size';
  * size or turn — by its transform box on the canvas, or its turn typed in
  * the Layers pane's Rotation row; and an x-ray's Depth and Anchor.
  */
-export type DiagramMarkStyleOption = 'short_dividers' | 'fill' | 'size' | 'rotation' | 'depth' | 'anchor';
+export type DiagramMarkStyleOption = 'short_dividers' | 'fill' | 'size' | 'rotation' | 'depth' | 'anchor' | 'radius' | 'visibility';
 
 /** An x-ray's depth, bucketed (Revision 3): one layer, two, or three and more. Never the count itself past that. */
 export type DiagramXRayDepthBucket = '1' | '2' | '3+';

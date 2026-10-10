@@ -3,6 +3,22 @@ import { handleShortcutKeyDown, isOpenLayerTarget, isShortcutBarrierTarget } fro
 import { SHORTCUT_DEFINITIONS } from './shortcuts';
 
 describe('shortcut dispatcher', () => {
+  it.each([[' ', 'diagram.toolLine'], ['t', 'diagram.toolLabel']] as const)('routes %s through Diagram shortcuts while leaving text fields alone', (key, id) => {
+    const diagram = vi.fn(() => true);
+    const press = () => new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    const options: Parameters<typeof handleShortcutKeyDown>[1] = { scopeStack: ['diagram', 'viewport', 'global'], executors: { diagram } };
+    expect(handleShortcutKeyDown(press(), options)).toBe(true);
+    expect(diagram).toHaveBeenCalledWith(id);
+    diagram.mockClear();
+    const input = document.createElement('input');
+    document.body.append(input);
+    const event = press();
+    input.dispatchEvent(event);
+    expect(handleShortcutKeyDown(event, options)).toBe(false);
+    expect(diagram).not.toHaveBeenCalled();
+    input.remove();
+  });
+
   it('runs scoped CP shortcuts before global shortcuts', () => {
     const cpAction = vi.fn();
     const menu = vi.fn();

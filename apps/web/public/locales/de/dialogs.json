@@ -329,6 +329,10 @@
         "detail": "Die Box-Pleating-Autorenmethode ist eine Portierung von Mu-Tsun Tsais Box Pleating Studio nach Rust und WebAssembly.",
         "title": "Mu-Tsun Tsai und Box Pleating Studio"
       },
+      "defox": {
+        "detail": "Die affine Schichtspreizung im Diagramm-Arbeitsbereich basiert auf Kei Morisues affiner Verzerrungsmethode in DEFOX.",
+        "title": "Kei Morisue und DEFOX"
+      },
       "explori": {
         "detail": "Die Autorenmethode „22,5° durchsuchen“ sendet deinen Baum an ExplOri, ein durchsuchbares Archiv von 22,5°-Faltmustern, und zeigt die nächstliegenden Treffer an, die es zurückgibt.",
         "title": "Brandon Wong und ExplOri 22.5"
