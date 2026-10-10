@@ -366,7 +366,7 @@ describe('composeDiagramPage', () => {
     expect(framed).toBeGreaterThanOrEqual(2 * SETUPS.length);
     // And every enlarged step its window, by what it prints.
     expect(enlarged).toBe(2 * SETUPS.length);
-  });
+  }, 30_000);
 
   /** How far laying the pages out again, each step measured at the scale it is drawn at, moves a step's scale. */
   const unsettled = (document: DiagramDocument, layout: ReturnType<typeof layoutDiagram>) => {
@@ -489,7 +489,7 @@ describe('composeDiagramPage', () => {
         }
       }
     }
-  });
+  }, 30_000);
 
   it('draws a picture at the largest scale it holds its room at, though no scale is its own fit (third review)', () => {
     // A turn-over larger than its paper, off its middle: its reach is flat until the paper outgrows it, then grows,

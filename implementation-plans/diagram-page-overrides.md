@@ -1532,3 +1532,9 @@ conservative fixed-grid fallback when its bounded candidate family finds no
 feasible packing; Fit each can also lower a candidate's size to match neighboring
 pages. Clearance/gap acceptance belongs to the packing candidate, and manual
 placement deliberately overrides those automatic constraints.
+
+CI's first full run passed every assertion but hit four test time limits. The
+spine matrix now reports each page setup as a separate case instead of putting
+the whole matrix inside one 120-second test. Three full-page integration tests
+get 30 seconds instead of the default five (CI measured 6–8 seconds). No cases,
+assertions or product behavior were removed or changed by this follow-up.

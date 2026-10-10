@@ -124,7 +124,7 @@ describe('a diagram of pulled steps on its pages', () => {
             expect(Math.abs(scale(other)! / scale(cell)! - 1)).toBeLessThanOrEqual(layout === 'grid' ? 0.02 : 0.04);
           })
         );
-      });
+      }, 30_000);
     }
   }
 });

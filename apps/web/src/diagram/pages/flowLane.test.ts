@@ -282,33 +282,31 @@ describe('the band’s width and colour (Zach, 2026-10-06: "an option for how wi
 });
 
 describe('a printed spread', () => {
-  it('carries the lane over the spine at one height, for either first page and any number of rows', () => {
-    for (const setup of SETUPS) {
-      for (const firstPageSide of ['left', 'right'] as const) {
-        // Enough steps for several spreads, the last page short.
-        const result = flow(steps(4 * (setup.stepsPerPage ?? 9) + 2), { ...setup, firstPageSide });
-        const W = result.paper.widthMm;
-        let spreads = 0;
-        result.pages.forEach((left, index) => {
-          const right = result.pages[index + 1];
-          if (left.side !== 'left' || !right) return;
-          spreads += 1;
-          const label = `${JSON.stringify(setup)} ${firstPageSide} pages ${left.number}–${right.number}`;
-          const out = heightAt(left.band!, W);
-          const into = heightAt(right.band!, 0);
-          expect(out, label).not.toBeNull();
-          expect(into, label).toBeCloseTo(out!, 6);
-          // Level there on both pages: the lane runs straight on over the gutter.
-          const exit = left.band!.curves.find((curve) => Math.abs(curve.to.x - W) < 1e-9)!;
-          const entry = right.band!.curves.find((curve) => Math.abs(curve.to.x) < 1e-9)!;
-          expect(exit.c2.y, label).toBeCloseTo(exit.to.y, 9);
-          expect(right.band!.curves[right.band!.curves.indexOf(entry) + 1]!.c1.y, label).toBeCloseTo(entry.to.y, 9);
-          // And off the paper into the bleed, both ways.
-          expect(left.band!.curves.at(-1)!.to.x, label).toBeCloseTo(W + 10, 9);
-          expect(right.band!.from.x, label).toBeCloseTo(-10, 9);
-        });
-        expect(spreads, `${JSON.stringify(setup)} ${firstPageSide}`).toBeGreaterThanOrEqual(2);
-      }
+  it.each(SETUPS)('carries the lane over the spine at one height, for either first page: %j', (setup) => {
+    for (const firstPageSide of ['left', 'right'] as const) {
+      // Enough steps for several spreads, the last page short.
+      const result = flow(steps(4 * (setup.stepsPerPage ?? 9) + 2), { ...setup, firstPageSide });
+      const W = result.paper.widthMm;
+      let spreads = 0;
+      result.pages.forEach((left, index) => {
+        const right = result.pages[index + 1];
+        if (left.side !== 'left' || !right) return;
+        spreads += 1;
+        const label = `${JSON.stringify(setup)} ${firstPageSide} pages ${left.number}–${right.number}`;
+        const out = heightAt(left.band!, W);
+        const into = heightAt(right.band!, 0);
+        expect(out, label).not.toBeNull();
+        expect(into, label).toBeCloseTo(out!, 6);
+        // Level there on both pages: the lane runs straight on over the gutter.
+        const exit = left.band!.curves.find((curve) => Math.abs(curve.to.x - W) < 1e-9)!;
+        const entry = right.band!.curves.find((curve) => Math.abs(curve.to.x) < 1e-9)!;
+        expect(exit.c2.y, label).toBeCloseTo(exit.to.y, 9);
+        expect(right.band!.curves[right.band!.curves.indexOf(entry) + 1]!.c1.y, label).toBeCloseTo(entry.to.y, 9);
+        // And off the paper into the bleed, both ways.
+        expect(left.band!.curves.at(-1)!.to.x, label).toBeCloseTo(W + 10, 9);
+        expect(right.band!.from.x, label).toBeCloseTo(-10, 9);
+      });
+      expect(spreads, `${JSON.stringify(setup)} ${firstPageSide}`).toBeGreaterThanOrEqual(2);
     }
   });
 
