@@ -90,6 +90,7 @@ import {
   type SanitizeEnv,
 } from '../upload/svgSanitize';
 import {
+  snapshotDiagramStyle,
   DEFAULT_DIAGRAM_STYLE,
   DIAGRAM_FORMAT_VERSION,
   DIAGRAM_PAGE_SIDES,
@@ -297,10 +298,8 @@ function readNewerFields(value: Record<string, unknown>): DiagramNewerFields | u
  */
 function isNewerStyle(value: Record<string, unknown>): boolean {
   if (hasNewerKey(value, STYLE_KEYS)) return true;
-  // This build stores a preset or a style, never both: a preset and what it changes is a newer build's.
-  if (typeof value.preset === 'string' && isRecord(value.style)) return true;
-  if (typeof value.preset === 'string') return !isBuiltInPaperPresetId(value.preset);
-  if (!isRecord(value.style)) return false;
+  // A complete snapshot is drawable even when its built-in name is from a newer build.
+  if (!isRecord(value.style)) return typeof value.preset === 'string' && !isBuiltInPaperPresetId(value.preset);
   return !sameJson(JSON.parse(JSON.stringify(normalizePaperStyle(value.style))), value.style);
 }
 
@@ -361,7 +360,7 @@ export function writeDiagram(
     id: document.id,
     title: document.title,
     hanStyle: newer?.hanStyle ?? document.hanStyle,
-    style: newer?.style ?? document.style,
+    style: newer?.style ?? snapshotDiagramStyle(document.style),
     page: { ...writePageSetup(document.page), ...newer?.page },
     steps,
     assets: Object.fromEntries(
@@ -2381,8 +2380,11 @@ function readHanStyle(value: unknown): DiagramHanStyle {
 
 function readStyle(value: unknown): DiagramStyle {
   if (!isRecord(value)) return DEFAULT_DIAGRAM_STYLE;
-  if (isBuiltInPaperPresetId(value.preset)) return { preset: value.preset };
-  if (isRecord(value.style)) return { style: normalizePaperStyle(value.style) };
+  if (isRecord(value.style)) {
+    const style = normalizePaperStyle(value.style);
+    return typeof value.preset === 'string' ? { preset: value.preset, style } : { style };
+  }
+  if (isBuiltInPaperPresetId(value.preset)) return snapshotDiagramStyle({ preset: value.preset });
   return DEFAULT_DIAGRAM_STYLE;
 }
 

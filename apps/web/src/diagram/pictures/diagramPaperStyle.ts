@@ -8,12 +8,12 @@ import { digest } from './pictureKey';
 export const DIAGRAM_STYLE_POLICY = PAPER_STYLE_POLICIES['diagram-workspace'];
 
 /**
- * The style a diagram stores, as a whole style: a built-in preset by its id,
- * or the style itself. A user preset or the export slot was resolved when it
+ * The style a diagram stores, as a whole style: a stored snapshot first, with the frozen v1
+ * built-ins as the fallback for legacy id-only files. A user preset or the export slot was resolved when it
  * was chosen, so nothing here depends on the viewer's machine.
  */
 export function diagramPaperStyle(style: DiagramStyle): PaperStyle {
-  return 'preset' in style ? builtInPaperPreset(style.preset).style : style.style;
+  return style.style ?? builtInPaperPreset(style.preset).style;
 }
 
 /** The style as the Diagram's painters draw it: {@link diagramPaperStyle} through its policy. */

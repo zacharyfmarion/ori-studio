@@ -26,7 +26,7 @@ import type { StepDiagramModel } from '../../cp-workspace/references/referenceFi
 import type { WhiteArrowTail } from '../../cp-workspace/references/stepDiagramGeometry';
 import type { RegionReference } from '../../cp-workspace/regions/regionReference';
 import type { SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
-import type { BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
+import { builtInPaperPreset, type BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
@@ -87,11 +87,19 @@ export interface DiagramPageSetup {
 }
 
 /**
- * The paper style every step is painted in. A built-in preset by id, or a
- * resolved style: a user preset or the export slot is resolved when it is
+ * The paper style every step is painted in. A built-in with its saved values,
+ * or a resolved style: a user preset or the export slot is resolved when it is
  * chosen, so a printed diagram never depends on the viewer's own settings.
  */
-export type DiagramStyle = { preset: BuiltInPaperPresetId } | { style: PaperStyle };
+export type ResolvedDiagramStyle = { preset: string; style: PaperStyle } | { style: PaperStyle };
+/** The id-only form is accepted from pre-launch files and callers. */
+export type DiagramStyle = ResolvedDiagramStyle | { preset: BuiltInPaperPresetId; style?: never };
+
+/** Freeze a legacy id-only style when saving or explicitly choosing it. */
+export function snapshotDiagramStyle(style: DiagramStyle): ResolvedDiagramStyle {
+  if (style.style) return style;
+  return { preset: style.preset, style: builtInPaperPreset(style.preset).style };
+}
 
 /** A quarter-turn count, clockwise. */
 export type QuarterTurns = 0 | 1 | 2 | 3;
@@ -1246,7 +1254,7 @@ export const DEFAULT_PAGE_SETUP: DiagramPageSetup = {
   pageNumbers: { enabled: true, first: 1 },
 };
 
-export const DEFAULT_DIAGRAM_STYLE: DiagramStyle = { preset: 'diagram' };
+export const DEFAULT_DIAGRAM_STYLE: DiagramStyle = snapshotDiagramStyle({ preset: 'diagram' });
 
 /**
  * The Han style a new diagram starts in, from the author's interface language:
@@ -2178,7 +2186,7 @@ export function setHanStyle(document: DiagramDocument, hanStyle: DiagramHanStyle
 
 export function setDiagramStyle(document: DiagramDocument, style: DiagramStyle): DiagramDocument {
   if (diagramStyleEquals(document.style, style) && document.newer?.style === undefined) return document;
-  return withNewer({ ...document, style }, { ...document.newer, style: undefined });
+  return withNewer({ ...document, style: snapshotDiagramStyle(style) }, { ...document.newer, style: undefined });
 }
 
 /**
@@ -2370,7 +2378,8 @@ export function readHexColor(value: unknown): string | null {
 
 function diagramStyleEquals(a: DiagramStyle, b: DiagramStyle): boolean {
   if ('preset' in a || 'preset' in b) {
-    return 'preset' in a && 'preset' in b && a.preset === b.preset;
+    return 'preset' in a && 'preset' in b && a.preset === b.preset
+      && JSON.stringify(snapshotDiagramStyle(a).style) === JSON.stringify(snapshotDiagramStyle(b).style);
   }
   return JSON.stringify(a.style) === JSON.stringify(b.style);
 }

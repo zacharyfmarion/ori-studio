@@ -1,0 +1,136 @@
+{
+  "default": {
+    "version": 1,
+    "paper": {
+      "front": "#ffff32",
+      "back": "#e9e9e9"
+    },
+    "edges": {
+      "width": 0.9,
+      "color": "#000000",
+      "dash": null,
+      "cap": "butt"
+    },
+    "mountainFolds": {
+      "width": 0.825,
+      "color": "#db1f24",
+      "dash": null,
+      "cap": "butt"
+    },
+    "valleyFolds": {
+      "width": 0.825,
+      "color": "#1c5cd9",
+      "dash": null,
+      "cap": "butt"
+    },
+    "mountainDiagramCreases": {
+      "width": 0.825,
+      "color": "#db1f24",
+      "dash": [
+        8,
+        2,
+        1,
+        2
+      ],
+      "cap": "butt"
+    },
+    "valleyDiagramCreases": {
+      "width": 0.825,
+      "color": "#1c5cd9",
+      "dash": [
+        4,
+        2
+      ],
+      "cap": "butt"
+    },
+    "foldsAsEdges": false,
+    "auxCreases": {
+      "visible": true,
+      "pen": {
+        "width": 0.5,
+        "color": "#9aa4ad",
+        "dash": null,
+        "cap": "butt"
+      }
+    },
+    "arrows": {
+      "width": 1.05,
+      "color": "#000000",
+      "dash": null,
+      "cap": "round"
+    },
+    "erode": 0,
+    "light": {
+      "enabled": true,
+      "azimuth": 322.19347,
+      "elevation": 42.80915
+    }
+  },
+  "diagram": {
+    "version": 1,
+    "paper": {
+      "front": "#ffffff",
+      "back": "#b3b3b3"
+    },
+    "edges": {
+      "width": 0.5,
+      "color": "#231f20",
+      "dash": null,
+      "cap": "butt"
+    },
+    "mountainFolds": {
+      "width": 0.25,
+      "color": "#231f20",
+      "dash": null,
+      "cap": "butt"
+    },
+    "valleyFolds": {
+      "width": 0.25,
+      "color": "#231f20",
+      "dash": null,
+      "cap": "butt"
+    },
+    "mountainDiagramCreases": {
+      "width": 0.75,
+      "color": "#231f20",
+      "dash": [
+        8,
+        2,
+        1,
+        2
+      ],
+      "cap": "butt"
+    },
+    "valleyDiagramCreases": {
+      "width": 0.75,
+      "color": "#231f20",
+      "dash": [
+        4,
+        2
+      ],
+      "cap": "butt"
+    },
+    "foldsAsEdges": false,
+    "auxCreases": {
+      "visible": true,
+      "pen": {
+        "width": 0.25,
+        "color": "#231f20",
+        "dash": null,
+        "cap": "butt"
+      }
+    },
+    "arrows": {
+      "width": 0.75,
+      "color": "#231f20",
+      "dash": null,
+      "cap": "round"
+    },
+    "erode": 0.005,
+    "light": {
+      "enabled": true,
+      "azimuth": 322.19347,
+      "elevation": 42.80915
+    }
+  }
+}

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import {
+  DEFAULT_DIAGRAM_STYLE,
   createDiagram,
   createStep,
   duplicateStep,
@@ -337,12 +338,6 @@ describe('a newer build’s work', () => {
     ['a Han style it does not know', { hanStyle: 'vi' }, { hanStyle: 'sc' }],
     ['a preset it does not know', { style: { preset: 'future' } }, { style: { preset: 'diagram' } }],
     ['a style field it does not know', { style: { preset: 'diagram', ink: 'riso' } }, { style: { preset: 'diagram' } }],
-    // This build stores a preset or a style; a newer one might store a preset and what it changes.
-    [
-      'a preset with a paper style beside it',
-      { style: { preset: 'diagram', style: DEFAULT_PAPER_STYLE } },
-      { style: { preset: 'diagram' } },
-    ],
     [
       'a paper style it does not read whole',
       { style: { style: { ...DEFAULT_PAPER_STYLE, grain: 'washi' } } },
@@ -384,7 +379,7 @@ describe('a newer build’s work', () => {
     const sized = setPageSetup(read, { size: 'a4' });
     expect(throughJson(writeDiagram(sized)).page).toMatchObject({ size: 'a4', bleedMm: 3 });
     const styled = setDiagramStyle(sized, { preset: 'diagram' });
-    expect(throughJson(writeDiagram(styled)).style).toEqual({ preset: 'diagram' });
+    expect(throughJson(writeDiagram(styled)).style).toEqual(DEFAULT_DIAGRAM_STYLE);
     const han = setHanStyle(styled, 'sc');
     expect(throughJson(writeDiagram(han)).hanStyle).toBe('sc');
     expect(han.newer).toEqual({ page: { bleedMm: 3 } });

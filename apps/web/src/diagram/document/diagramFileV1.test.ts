@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { diagramLayoutSteps } from '../pages/diagramPages';
 import frozen from './__fixtures__/diagram-v1.json';
-import { isKnownAnnotation, isTurn, type DiagramStep } from './diagramDocument';
+import { isKnownAnnotation, isTurn, snapshotDiagramStyle, type DiagramStep } from './diagramDocument';
 import { readDiagram, writeDiagram } from './diagramFile';
 
 /**
@@ -51,8 +51,10 @@ describe('a diagram saved at launch (format v1)', () => {
     expect(marks.size).toBeGreaterThanOrEqual(25);
   });
 
-  it('is written back exactly as it was saved', () => {
-    expect(JSON.parse(JSON.stringify(writeDiagram(read().document)))).toEqual(frozen);
+  it('only adds the explicit preset snapshot migration, preserving the frozen legacy file', () => {
+    const written = JSON.parse(JSON.stringify(writeDiagram(read().document)));
+    expect(written).toEqual({ ...frozen, style: snapshotDiagramStyle(read().document.style) });
+    expect(writeDiagram(readDiagram(written)!.document)).toEqual(written);
   });
 
   it('lays out every step, the placed one where it was put', () => {

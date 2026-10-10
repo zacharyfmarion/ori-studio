@@ -1,7 +1,7 @@
 /**
  * What the Page pane's style control offers (D9): the two built-ins, the
- * export style from Settings, and each preset saved there. A built-in is kept
- * by its id; anything from Settings is resolved to its style when chosen and
+ * export style from Settings, and each preset saved there. A built-in keeps
+ * its id and resolved values. Settings styles are resolved when chosen and
  * kept with the diagram, so a printed diagram never depends on whose machine
  * opens it.
  *
@@ -11,7 +11,7 @@ import type { DiagramStyleChoiceName } from '../../analytics';
 import { BUILT_IN_PAPER_PRESETS, paperPresetKey, type BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
 import { paperStyleEquals } from '../../lib/paper/paperStyle';
 import type { PaperStyleSettings } from '../../lib/paperStyleSettings';
-import type { DiagramStyle } from '../document/diagramDocument';
+import { snapshotDiagramStyle, type DiagramStyle } from '../document/diagramDocument';
 
 export interface DiagramStyleChoice {
   /** Unique in the list, for the select and for tests. */
@@ -37,7 +37,7 @@ export function diagramStyleChoices(
     ...BUILT_IN_ORDER.filter((id) => BUILT_IN_PAPER_PRESETS.some((preset) => preset.id === id)).map(
       (id): DiagramStyleChoice => ({
         id: `builtin:${id}`,
-        style: { preset: id },
+        style: snapshotDiagramStyle({ preset: id }),
         builtIn: id,
         presetName: null,
         analytics: id,
@@ -63,8 +63,8 @@ export function diagramStyleChoices(
 }
 
 /**
- * The choice the diagram's style is: a built-in by its id, a resolved style by
- * the first choice drawn the same. Null for a style none of them holds now — a
+ * The choice the diagram's style is: a built-in by its id and saved values,
+ * a resolved style by the first choice drawn the same. Null for a style none of them holds now — a
  * preset since edited, or one saved on another machine — which the diagram
  * keeps as it is.
  */
@@ -72,8 +72,15 @@ export function chosenDiagramStyle(
   style: DiagramStyle,
   choices: readonly DiagramStyleChoice[]
 ): DiagramStyleChoice | null {
-  if ('preset' in style) return choices.find((choice) => choice.builtIn === style.preset) ?? null;
+  if ('preset' in style) {
+    return choices.find((choice) =>
+      choice.builtIn === style.preset
+      && paperStyleEquals(snapshotDiagramStyle(choice.style).style, snapshotDiagramStyle(style).style)
+    ) ?? null;
+  }
   return (
-    choices.find((choice) => 'style' in choice.style && paperStyleEquals(choice.style.style, style.style)) ?? null
+    choices.find((choice) =>
+      choice.builtIn === null && choice.style.style && paperStyleEquals(choice.style.style, style.style)
+    ) ?? null
   );
 }

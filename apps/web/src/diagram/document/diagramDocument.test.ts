@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_PAGE_SETUP,
+  snapshotDiagramStyle,
   createDiagram,
   createStep,
   defaultHanStyle,
@@ -225,7 +226,7 @@ describe('step and document fields', () => {
     expect(setHanStyle(diagram, 'jp').hanStyle).toBe('jp');
     expect(setHanStyle(diagram, 'sc')).toBe(diagram);
     expect(setDiagramStyle(diagram, { preset: 'diagram' })).toBe(diagram);
-    expect(setDiagramStyle(diagram, { preset: 'default' }).style).toEqual({ preset: 'default' });
+    expect(setDiagramStyle(diagram, { preset: 'default' }).style).toEqual(snapshotDiagramStyle({ preset: 'default' }));
     expect(stepsIn(setStepBreakBefore(diagram, 'step-2', true))[0].breakBefore).toBe(true);
   });
 });

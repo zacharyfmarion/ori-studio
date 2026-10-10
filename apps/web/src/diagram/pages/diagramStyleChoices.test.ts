@@ -19,7 +19,7 @@ describe('diagramStyleChoices', () => {
       ['export-style', 'export-style'],
       [expect.any(String), 'custom'],
     ]);
-    expect(choices[0]!.style).toEqual({ preset: 'diagram' });
+    expect(choices[0]!.style).toEqual({ preset: 'diagram', style: builtInPaperPreset('diagram').style });
     // The export style follows display while it has none of its own.
     expect(choices[2]!.style).toEqual({ style: DEFAULT_PAPER_STYLE });
     expect(choices[3]).toMatchObject({ presetName: 'Red', style: { style: red } });
