@@ -307,6 +307,29 @@ describe('a newer build’s work', () => {
     expect(again.assets).toEqual({ 'asset-1': asset });
   });
 
+  // Decisions 1 and 2 together: an asset or a thumbnail that only a newer
+  // build's writing names is that build's too, wherever the name is.
+  const NAMES_BOTH = { assetId: 'asset-cover', thumbnail: 'thumb-cover' };
+  it.each([
+    ['field of the diagram', (written: WrittenSource) => (written.cover = NAMES_BOTH)],
+    ['page field', (written: WrittenSource) => (written.page = { ...written.page, background: NAMES_BOTH })],
+    ['style', (written: WrittenSource) => (written.style = { preset: 'future', paper: NAMES_BOTH })],
+    ['turn', (written: WrittenSource) => written.steps.push({ id: 'turn-newer', kind: 'spin', cover: NAMES_BOTH })],
+    ['annotation', (written: WrittenSource) => (written.steps[0].annotations = [{ id: 'ann-newer', kind: 'sticker', ...NAMES_BOTH }])],
+    ['asset', (written: WrittenSource) => (written.assets['asset-video'] = { id: 'asset-video', kind: 'video', poster: NAMES_BOTH })],
+  ])('keeps the asset and the thumbnail only a newer build’s %s names', (_label, patch) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.assets = { ...written.assets, 'asset-cover': rasterAsset('asset-cover', 64, 48) };
+    written.thumbnails['thumb-cover'] = JSON.stringify({ viewBox: '0 0 100 100', strokes: [] });
+    patch(written);
+    const read = readDiagram(written)!;
+    expect(throughJson(writeDiagram(read.document))).toEqual(written);
+    // And through an edit elsewhere, which the store prunes as it lands.
+    const again = throughJson(writeDiagram(setStepText(read.document, read.document.steps[0]!.id, 'Fold in half.')));
+    expect(again.assets['asset-cover']).toEqual(written.assets['asset-cover']);
+    expect(again.thumbnails['thumb-cover']).toBe(written.thumbnails['thumb-cover']);
+  });
+
   // Decision 2 of the launch review: what a newer build wrote at the
   // document's level falls back alone, and the diagram stays editable.
   it.each([

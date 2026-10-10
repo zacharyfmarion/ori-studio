@@ -2079,40 +2079,72 @@ export function stepAsset(document: DiagramDocument, step: DiagramStep): KnownDi
   return asset && isKnownAsset(asset) ? asset : null;
 }
 
+/** Each carried value's JSON, made once: what a newer build wrote never changes here. */
+const carriedJsonOf = new WeakMap<object, string>();
+
+function jsonOnce(value: object): string {
+  let json = carriedJsonOf.get(value);
+  if (json === undefined) {
+    json = JSON.stringify(value);
+    carriedJsonOf.set(value, json);
+  }
+  return json;
+}
+
+/**
+ * Everything a newer build wrote that this build carries without reading, as
+ * JSON, one part each: its steps and turns, the annotations and assets this
+ * build cannot read, and the document's own fields, page fields and style it
+ * does not read. An asset or a thumbnail named anywhere in it is kept, since
+ * only that newer build knows what the name is for. The thumbnails carried
+ * for those steps are no part of it: they are what it keeps.
+ */
+export function carriedJson(document: Pick<DiagramDocument, 'steps' | 'assets' | 'newer'>): string[] {
+  const parts: string[] = [];
+  for (const entry of document.steps) {
+    if (entry.unknown) parts.push(jsonOnce(entry.unknown));
+    else if (!isTurn(entry)) {
+      for (const annotation of entry.annotations) {
+        if (!isKnownAnnotation(annotation)) parts.push(jsonOnce(annotation.unknown));
+      }
+    }
+  }
+  for (const asset of Object.values(document.assets)) {
+    if (!isKnownAsset(asset)) parts.push(jsonOnce(asset.unknown));
+  }
+  const { newer } = document;
+  for (const part of [newer?.fields, newer?.page, newer?.style]) {
+    if (part) parts.push(jsonOnce(part));
+  }
+  return parts;
+}
+
 /**
  * The document as a file holds it: only the assets something still refers to.
  *
  * The store prunes as every edit lands, since each undo snapshot keeps its own
  * table, and the writer prunes again for a document from anywhere else (one
- * read from a hand-edited file). Three things keep an asset: a step's source or picture naming it; its id anywhere in a
- * newer build's step, annotation or asset, which this build cannot read but must not break; and
- * being of a kind this build does not know, since only that newer build knows
- * what refers to it. The same document comes back when nothing is dropped.
+ * read from a hand-edited file). Three things keep an asset: a step's source
+ * or picture naming it; its id anywhere a newer build wrote ({@link carriedJson}),
+ * which this build cannot read but must not break; and being of a kind this
+ * build does not know, since only that newer build knows what refers to it.
+ * The same document comes back when nothing is dropped.
  */
 export function withReferencedAssets(document: DiagramDocument): DiagramDocument {
   const kept = new Set<string>();
-  const carried: string[] = [];
   for (const step of stepsOf(document)) {
-    if (step.unknown) {
-      carried.push(JSON.stringify(step.unknown));
-      continue;
-    }
+    if (step.unknown) continue;
     if (step.source?.kind === 'upload') kept.add(step.source.assetId);
     if (step.picture?.kind === 'asset') kept.add(step.picture.assetId);
-    // A newer build's annotation may name an asset, as its step may.
-    for (const annotation of step.annotations) {
-      if (!isKnownAnnotation(annotation)) carried.push(JSON.stringify(annotation.unknown));
-    }
   }
-  for (const asset of Object.values(document.assets)) {
-    if (!isKnownAsset(asset)) carried.push(JSON.stringify(asset.unknown));
-  }
-  const unknownSteps = carried.join('\n');
+  // Read only for an asset no step of this build's names, which is rare.
+  let carried: string[] | undefined;
   let dropped = false;
   const assets: Record<string, DiagramAsset> = {};
   for (const [id, asset] of Object.entries(document.assets)) {
-    if (kept.has(id) || !isKnownAsset(asset) || unknownSteps.includes(id)) assets[id] = asset;
-    else dropped = true;
+    if (kept.has(id) || !isKnownAsset(asset) || (carried ??= carriedJson(document)).some((json) => json.includes(id))) {
+      assets[id] = asset;
+    } else dropped = true;
   }
   return dropped ? { ...document, assets } : document;
 }

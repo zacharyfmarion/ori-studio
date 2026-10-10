@@ -104,7 +104,7 @@ import {
   SPREAD_SKEW_RANGE,
   isTurn,
   showAsOf,
-  stepsOf,
+  carriedJson,
   isKnownAsset,
   normalizePageSetup,
   DEFAULT_PATH_COLOR,
@@ -201,7 +201,7 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
       steps.push(step);
     }
   }
-  const newer = readNewerFields(value, thumbnails.carriedBy(steps));
+  const newer = readNewerFields(value);
   const document: DiagramDocument = {
     formatVersion: DIAGRAM_FORMAT_VERSION,
     id: typeof value.id === 'string' && value.id.length > 0 ? value.id : newId('diagram'),
@@ -213,7 +213,13 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
     assets,
     ...(newer ? { newer } : {}),
   };
-  return { document, readOnly: formatVersion > DIAGRAM_FORMAT_VERSION, raw: value };
+  // The entries only a newer build's writing names go back with it, as they came.
+  const carried = thumbnails.carriedBy(carriedJson(document));
+  return {
+    document: carried ? { ...document, newer: { ...document.newer, thumbnails: carried } } : document,
+    readOnly: formatVersion > DIAGRAM_FORMAT_VERSION,
+    raw: value,
+  };
 }
 
 const DOCUMENT_KEYS = new Set([
@@ -271,15 +277,11 @@ const STYLE_KEYS: ReadonlySet<string> = new Set(['preset', 'style']);
  * — and is written back as it came until it is changed here. A value of the
  * wrong type is damage rather than news, and is replaced as before.
  */
-function readNewerFields(
-  value: Record<string, unknown>,
-  thumbnails: Record<string, unknown> | undefined
-): DiagramNewerFields | undefined {
+function readNewerFields(value: Record<string, unknown>): DiagramNewerFields | undefined {
   const fields = Object.fromEntries(Object.entries(value).filter(([key]) => !DOCUMENT_KEYS.has(key)));
   const page = readNewerPage(value.page);
   const newer: DiagramNewerFields = {
     ...(Object.keys(fields).length > 0 ? { fields } : {}),
-    ...(thumbnails ? { thumbnails } : {}),
     ...(typeof value.hanStyle === 'string' && !HAN_STYLES.includes(value.hanStyle) ? { hanStyle: value.hanStyle } : {}),
     ...(isRecord(value.style) && isNewerStyle(value.style) ? { style: value.style } : {}),
     ...(page ? { page } : {}),
@@ -372,8 +374,9 @@ export function writeDiagram(
  * every thumbnail the steps' links show, once, under a key from its content,
  * as one string — so fifty steps linked to one sheet store its thumbnail
  * once, and the file is not a line per coordinate. A source names its
- * thumbnail by that key. The entries a newer build's steps name are written
- * back as they came, while one of those steps is still in the diagram.
+ * thumbnail by that key. The entries only a newer build's writing names
+ * ({@link carriedJson}) are written back as they came, while that writing is
+ * still in the diagram.
  */
 class ThumbnailWriter {
   private readonly entries = new Map<string, unknown>();
@@ -381,12 +384,10 @@ class ThumbnailWriter {
 
   constructor(document: DiagramDocument, carried: Readonly<Record<string, unknown>> | undefined) {
     if (!carried) return;
-    const locked = stepsOf(document)
-      .filter((step) => step.unknown)
-      .map((step) => JSON.stringify(step.unknown))
-      .join('\n');
+    const names = carriedJson(document);
     for (const [key, entry] of Object.entries(carried)) {
-      if (locked.includes(JSON.stringify(key))) this.entries.set(key, entry);
+      const quoted = JSON.stringify(key);
+      if (names.some((json) => json.includes(quoted))) this.entries.set(key, entry);
     }
   }
 
@@ -937,12 +938,12 @@ type ThumbnailResolver = (key: string) => unknown;
 /**
  * The thumbnails table as read (decision 4): each entry parsed when a link
  * first names it, and once. An entry is a thumbnail's JSON as one string; a
- * record is taken as the thumbnail itself. And the entries the steps a newer
- * build wrote name, which go back with those steps as they came.
+ * record is taken as the thumbnail itself. And the entries named anywhere a
+ * newer build wrote ({@link carriedJson}), which go back with it as they came.
  */
 function thumbnailTable(value: unknown): {
   resolve: ThumbnailResolver;
-  carriedBy: (steps: readonly DiagramEntry[]) => Record<string, unknown> | undefined;
+  carriedBy: (carried: readonly string[]) => Record<string, unknown> | undefined;
 } {
   const table = isRecord(value) ? value : {};
   const parsed = new Map<string, unknown>();
@@ -961,13 +962,13 @@ function thumbnailTable(value: unknown): {
     parsed.set(key, thumbnail);
     return thumbnail;
   };
-  const carriedBy = (steps: readonly DiagramEntry[]) => {
-    const locked = steps
-      .filter((step) => step.unknown)
-      .map((step) => JSON.stringify(step.unknown))
-      .join('\n');
-    const carried = Object.entries(table).filter(([key]) => locked.includes(JSON.stringify(key)));
-    return carried.length > 0 ? Object.fromEntries(carried) : undefined;
+  const carriedBy = (carried: readonly string[]) => {
+    if (carried.length === 0) return undefined;
+    const named = Object.entries(table).filter(([key]) => {
+      const quoted = JSON.stringify(key);
+      return carried.some((json) => json.includes(quoted));
+    });
+    return named.length > 0 ? Object.fromEntries(named) : undefined;
   };
   return { resolve, carriedBy };
 }
