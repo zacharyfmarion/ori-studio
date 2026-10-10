@@ -2273,6 +2273,8 @@ describe('linked steps in the file', () => {
     ['a scope of a kind it has no name for', 1, (source: WrittenSource) => (source.scope = { kind: 'faces', faces: [1] })],
     ['a field of the scope', 1, (source: WrittenSource) => (source.scope.depth = 2)],
     ['a field of the region', 1, (source: WrittenSource) => (source.scope.region.layer = 2)],
+    ['a field of the region’s box', 1, (source: WrittenSource) => (source.scope.region.bounds.z = 0)],
+    ['a field of a point of the region’s rim', 1, (source: WrittenSource) => (source.scope.region.boundary[0][0].face = 4)],
     ['a thumbnail line of a role it has no name for', 1, (source: WrittenSource) => (source.thumbnail.strokes[0].role = 'cut')],
     ['a field of the thumbnail', 1, (source: WrittenSource) => (source.thumbnail.background = '#fff')],
     ['a field of a thumbnail line', 1, (source: WrittenSource) => (source.thumbnail.strokes[0].dashed = true)],

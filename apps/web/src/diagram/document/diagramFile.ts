@@ -625,8 +625,10 @@ const SOURCE_KEYS: Readonly<Record<DiagramStepSource['kind'], ReadonlySet<string
 const CP_SCOPE_KEYS: Readonly<Record<DiagramCpScope['kind'], ReadonlySet<string>>> = {
   segment: new Set(['kind', 'region']),
 };
-/** The fields a region is written with (`readRegionReference`). */
+/** The fields a region is written with (`readRegionReference`), its box's, and a point's of its rim. */
 const REGION_KEYS: ReadonlySet<string> = new Set(['boundary', 'bounds', 'segmentIdHint']);
+const REGION_BOUNDS_KEYS: ReadonlySet<string> = new Set(['minX', 'minY', 'maxX', 'maxY']);
+const REGION_POINT_KEYS: ReadonlySet<string> = new Set(['x', 'y']);
 /** Within a References source: the planner's settings, the line, and the marks it pulled. */
 const PLAN_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   'precreaseGrid',
@@ -848,11 +850,21 @@ function isNewerCpSource(value: Record<string, unknown>): boolean {
   );
 }
 
+/** A region with a field this build has no name for: of its own, of its box, or of a point of its rim. */
+function isNewerRegion(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (hasNewerKey(value, REGION_KEYS) || isNewerRecord(value.bounds, REGION_BOUNDS_KEYS)) return true;
+  return (
+    Array.isArray(value.boundary) &&
+    value.boundary.some((ring) => Array.isArray(ring) && ring.some((point) => isNewerRecord(point, REGION_POINT_KEYS)))
+  );
+}
+
 /** A crease-pattern source's scope of a kind, or with a field, this build has no name for. */
 function isNewerScope(value: unknown): boolean {
   if (!isRecord(value) || typeof value.kind !== 'string') return false;
   if (!Object.hasOwn(CP_SCOPE_KEYS, value.kind)) return true;
-  return hasNewerKey(value, CP_SCOPE_KEYS[value.kind as DiagramCpScope['kind']]) || isNewerRecord(value.region, REGION_KEYS);
+  return hasNewerKey(value, CP_SCOPE_KEYS[value.kind as DiagramCpScope['kind']]) || isNewerRegion(value.region);
 }
 
 /**
@@ -863,7 +875,7 @@ function isNewerScope(value: unknown): boolean {
 function isNewerReferencesSource(value: Record<string, unknown>): boolean {
   return (
     hasNewerKey(value, SOURCE_KEYS['references-step']) ||
-    isNewerRecord(value.region, REGION_KEYS) ||
+    isNewerRegion(value.region) ||
     isNewerSheetThumbnail(value.thumbnail) ||
     isNewerWord(value.mode, ['sequence', 'find']) ||
     isNewerWord(value.side, ['front', 'back']) ||
