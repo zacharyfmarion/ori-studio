@@ -41,6 +41,7 @@ import {
   glyphScaleOf,
   keptTo,
   keptTurn,
+  unitsPerFrame,
   withAreaAngle,
   withAreaBox,
   withGlyphAngle,
@@ -178,8 +179,9 @@ function boxedGlyph(annotation: KnownDiagramAnnotation, width: number, height: n
  * squares resize it freely, Shift keeping its proportions as a text box's do
  * on the Edit canvas (`default-off`) and Alt holding its centre as Enlarge in
  * Frame's grips do (R3-29c A), each side held to {@link AREA_SIDE} as the
- * drag goes (R3-30b A); turned, its `angle` within [0, 180), as a half turn
- * draws it the same.
+ * drag goes (R3-30b A), the picture's frame's in the marks' units
+ * ({@link unitsPerFrame}); turned, its `angle` within [0, 180), as a half
+ * turn draws it the same.
  */
 function boxedShape(annotation: KnownDiagramAnnotation): BoxedMark {
   const [x, y] = annotation.from;
@@ -189,7 +191,11 @@ function boxedShape(annotation: KnownDiagramAnnotation): BoxedMark {
     box: { center: { x, y }, width, height, rotation: (degrees * Math.PI) / 180 },
     keepsProportions: false,
     degrees,
-    resizing: ({ shift, alt }) => ({ aspectLock: resizeAspectLock('default-off', shift), aboutCentre: alt, sides: AREA_SIDE }),
+    resizing: ({ shift, alt }) => ({
+      aspectLock: resizeAspectLock('default-off', shift),
+      aboutCentre: alt,
+      sides: { min: AREA_SIDE.min, max: AREA_SIDE.max * unitsPerFrame() },
+    }),
     resized: (_drawn, next) => withAreaBox(annotation, [next.center.x, next.center.y], [next.width, next.height]),
     turned: (to) => withAreaAngle(annotation, to),
   };

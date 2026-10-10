@@ -235,17 +235,20 @@ describe('marks pasted on the picture they were copied from (Revision 2)', () =>
     near(back.from, xray.from);
   });
 
-  it('holds a shape grown past R3-30b’s range by a small window to its largest side, and does not grow it back (18d review)', () => {
+  // R3-30b's range is the picture's frame's: in a window a fifth of it
+  // across, five times as large. Held to twice the window instead (18d's
+  // review), a shape came back smaller, and Enlarged on moved every mark.
+  it('grows a shape past twice a small window with it, as far as twice the picture’s frame, and pastes it back as it was', () => {
     const a = showing('step-a', { centre: [0.4, 0.4], radius: 0.1 });
     const whole = showing('step-w');
-    // Half the picture across: two and a half windows, past the two a side may be.
+    // Half the picture across: two and a half windows.
     const wide: KnownDiagramAnnotation = { id: 'w', kind: 'oval', from: [0.4, 0.4], to: [0.4, 0.4], size: [0.5, 0.1] };
     const [pasted] = pastedAnnotations(annotationClipboard([wide], whole.id, { view: copiedView(whole) }), a.id, () => 'annotation-1', a);
     near(onPaper(a, pasted!.from), wide.from);
-    near(pasted!.size!, [AREA_SIDE.max, 0.5]);
-    // Pasted back out, it rings what the window held of it: 0.4 across, not 0.5.
+    near(pasted!.size!, [2.5, 0.5]);
+    expect(pasted!.size![0]).toBeGreaterThan(AREA_SIDE.max);
     const back = pastedAnnotations(annotationClipboard([pasted!], a.id, { view: copiedView(a) }), whole.id, () => 'annotation-2', whole)[0]!;
-    near(back.size!, [0.4, 0.1]);
+    near(back.size!, wide.size!);
   });
 
   it('copied out of step with its picture, remembers its units but not its picture', () => {

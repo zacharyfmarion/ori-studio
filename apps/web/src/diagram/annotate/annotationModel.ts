@@ -514,6 +514,19 @@ export function withAnnotationReach<T>(reach: AnnotationReach, run: () => T): T 
   }
 }
 
+/**
+ * How many of `reach`'s units a picture's frame spans: one in a whole
+ * picture's, more in an enlarged step's window's, whose reach is the whole
+ * picture's in the window's units (`zoomModel.windowReach`). A size that is
+ * held to the picture's frame — an area's side or radius — reaches this many
+ * times as far in those units, so a mark carried into a window and back
+ * keeps its size, as a point keeps its place.
+ */
+export function unitsPerFrame(reach: AnnotationReach = activeReach): number {
+  const span = (axis: 0 | 1) => (reach.max[axis] - reach.min[axis]) / (PICTURE_REACH.max[axis] - PICTURE_REACH.min[axis]);
+  return Math.max(1, span(0), span(1));
+}
+
 /** Whether a point lies within `reach`: where the file reader takes it as this build's. */
 export function isWithinReach([x, y]: PicturePoint, reach: AnnotationReach = PICTURE_REACH): boolean {
   return x >= reach.min[0] && x <= reach.max[0] && y >= reach.min[1] && y <= reach.max[1];
@@ -1810,10 +1823,10 @@ export function closeUpBeside(centre: PicturePoint, radius: number, scale: numbe
   return withinReach([centre[0], centre[1] >= frame.height / 2 ? frame.height + reach : -reach]);
 }
 
-/** A close-up's area's radius held to its range; a click's for one that is no number. */
+/** A close-up's area's radius held to its range, the picture's frame's in the marks' units ({@link unitsPerFrame}); a click's for one that is no number. */
 export function closeUpRadiusWithin(radius: number): number {
   if (!Number.isFinite(radius)) return DEFAULT_CLOSE_UP_RADIUS;
-  return Math.min(MAX_CLOSE_UP_RADIUS, Math.max(MIN_CLOSE_UP_RADIUS, radius));
+  return Math.min(MAX_CLOSE_UP_RADIUS * unitsPerFrame(), Math.max(MIN_CLOSE_UP_RADIUS, radius));
 }
 
 /**
@@ -1883,16 +1896,16 @@ export const MIN_ZOOM_SIDE = MIN_ANNOTATION_LENGTH;
 /** The area a click puts down, in picture units: a circle of this radius, or a square of this size. */
 export const ZOOM_CLICK = { radius: 0.15, size: [0.3, 0.3] as const } as const;
 
-/** An enlarge area's circle's radius held to its range; a click's for one that is no number. */
+/** An enlarge area's circle's radius held to its range, as a close-up's is; a click's for one that is no number. */
 export function zoomRadiusWithin(radius: number): number {
   if (!Number.isFinite(radius)) return ZOOM_CLICK.radius;
-  return Math.min(ZOOM_RADIUS.max, Math.max(ZOOM_RADIUS.min, radius));
+  return Math.min(ZOOM_RADIUS.max * unitsPerFrame(), Math.max(ZOOM_RADIUS.min, radius));
 }
 
-/** One side of an enlarge area's rounded rectangle held to its range; a click's for one that is no number. */
+/** One side of an enlarge area's rounded rectangle held to its range, as a close-up's radius is; a click's for one that is no number. */
 export function zoomSideWithin(side: number): number {
   if (!Number.isFinite(side)) return ZOOM_CLICK.size[0];
-  return Math.min(ZOOM_SIDE.max, Math.max(ZOOM_SIDE.min, side));
+  return Math.min(ZOOM_SIDE.max * unitsPerFrame(), Math.max(ZOOM_SIDE.min, side));
 }
 
 /** An angle, in degrees, as a rectangle reads it: a half turn is no turn, so within [0, 180). */

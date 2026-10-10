@@ -48,6 +48,7 @@ import { draggedOutline, sameOutline, zoomGripAt, type ZoomGrip } from '../zoom/
 import {
   distanceToRim,
   frameWindow,
+  stepReach,
   withZoomOutline,
   zoomAreaFromCorners,
   zoomOutlineOf,
@@ -92,6 +93,7 @@ import {
   placedByClick,
   rightAngleAt,
   rightAngleDiagonal,
+  withAnnotationReach,
   withCloseUpRing,
   withColor,
   withTextStyle,
@@ -446,6 +448,8 @@ export function useAnnotateCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only the picture's and the frame's inputs
     [picture, pictureSource, unknown, zoom, assets]
   );
+  // Where its marks may lie, and how large an area may grow, in their units: a drag's draft is held there as its edit is.
+  const reach = useMemo(() => stepReach({ zoom, picture }), [zoom, picture]);
   const painted = useMemo(
     () => (zoomed ? windowPainted(zoomed) : source ? paintSource(source, style) : null),
     [zoomed, source, style]
@@ -1280,10 +1284,10 @@ export function useAnnotateCanvas({
         showSnap([point ? null : current.startTarget, placed.target]);
         return;
       }
-      setDraft(moved(current, current.original, placed, { shift: event.shiftKey, alt: event.altKey }));
+      setDraft(withAnnotationReach(reach, () => moved(current, current.original, placed, { shift: event.shiftKey, alt: event.altKey })));
       showSnap([placed.target]);
     },
-    [layout, toPicture, cancel, step.id, hover, placeInHand, showSnap, showRightAngle, calloutText]
+    [layout, toPicture, cancel, step.id, hover, placeInHand, showSnap, showRightAngle, calloutText, reach]
   );
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => pointerMoved(event.nativeEvent), [pointerMoved]);

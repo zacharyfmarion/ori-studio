@@ -166,6 +166,41 @@ describe('Enlarged turned on, and off', () => {
     );
   });
 
+  // A size is held to twice the picture's frame: in a window's units, that
+  // many windows. Held to twice the window instead, a large shape, x-ray or
+  // close-up refused the carry, every mark stayed in the old units as the
+  // units changed, and turning Enlarged off moved them for good.
+  it('carries a shape, an x-ray and a close-up larger than twice the window into it and back, every mark in place', () => {
+    const document = crane();
+    const n = step(document);
+    const large: KnownDiagramAnnotation[] = [
+      { id: 'mark-rectangle', kind: 'rectangle', from: [0.5, 0.5], to: [0.5, 0.5], size: [1.6, 0.5], angle: 30 },
+      { id: 'mark-oval', kind: 'oval', from: [0.5, 0.5], to: [0.5, 0.5], size: [0.4, 1.9] },
+      { id: 'mark-xray', kind: 'x-ray', from: [0.4, 0.3], to: [0.4, 0.3], radius: 0.9, depth: 2 },
+      { id: 'mark-close-up', kind: 'close-up', from: [0.5, 0.3], to: [1.2, 0.3], radius: 0.9, scale: 2 },
+    ];
+    const marked = { ...n, annotations: [...n.annotations, ...large] };
+    const doc = { ...document, steps: document.steps.map((entry) => (entry.id === 'step-n' ? marked : entry)) };
+    const enlargedDoc = enlargeStep(doc, 'step-n', NO_ASSETS).document;
+    const enlarged = step(enlargedDoc);
+    expect(stepWindow(enlarged)!.width).toBeLessThan(0.8);
+    expect(enlarged.annotatedPictureKey).toBe(enlarged.picture!.key);
+    expect(marksMoved(marked, enlarged)).toEqual([]);
+    // Written and read back as this build's: nothing locked, every mark as it was.
+    const read = step(readDiagram(JSON.parse(JSON.stringify(writeDiagram(enlargedDoc))))!.document);
+    expect(read.unknown).toBeUndefined();
+    expect(read.annotations).toEqual(enlarged.annotations);
+    // Off: every mark where, and as large as, it was drawn.
+    const off = step(unenlargeStep(enlargedDoc, 'step-n', NO_ASSETS));
+    expect(off.annotatedPictureKey).toBe(off.picture!.key);
+    expect(marksMoved(marked, off)).toEqual([]);
+    const sizeOf = (mark: KnownDiagramAnnotation) => mark.size ?? [mark.radius];
+    for (const mark of large) {
+      const back = off.annotations.find((each) => each.id === mark.id) as KnownDiagramAnnotation;
+      expect(sizeOf(back), mark.id).toEqual(sizeOf(mark).map((side) => expect.closeTo(side!, 9)));
+    }
+  });
+
   it('turned off and on again, carries marks drawn on another picture too, to the same place on this one, still out of step (review fix 5)', () => {
     // As the crane's steps 23 and 24 open: their marks out of step with the picture since it changed (D8).
     const drawnBefore = (document: DiagramDocument): DiagramDocument => ({
@@ -242,7 +277,10 @@ describe('Enlarged turned on, and off', () => {
     }
   });
 
-  it('keeps every mark where it is, out of step, when one could not come back to the whole picture within its reach', () => {
+  // Left in the window's units as the window went, every mark would be read
+  // in the whole picture's: a change of units carries them all, whatever one
+  // of them cannot do.
+  it('turned off, carries every mark to the whole picture, one past its reach held at the edge, still in step', () => {
     const enlargedDoc = enlargeStep(crane(), 'step-n', NO_ASSETS).document;
     const enlarged = step(enlargedDoc);
     // Past the whole picture's reach, as only a newer build's window reaches: it cannot go back there.
@@ -257,8 +295,10 @@ describe('Enlarged turned on, and off', () => {
     const withBeyond = { ...enlarged, annotations: [...enlarged.annotations, beyond] };
     const doc = { ...enlargedDoc, steps: enlargedDoc.steps.map((entry) => (entry.id === 'step-n' ? withBeyond : entry)) };
     const off = step(unenlargeStep(doc, 'step-n', NO_ASSETS));
-    expect(off.annotations).toBe(withBeyond.annotations);
-    expect(off.annotatedPictureKey).toBeNull();
+    expect(off.annotatedPictureKey).toBe(off.picture!.key);
+    expect(marksMoved(enlarged, off)).toEqual([]);
+    const held = off.annotations.find((mark) => mark.id === 'mark-beyond') as KnownDiagramAnnotation;
+    expect(held.from[0]).toBe(-ANNOTATION_REACH);
   });
 
   it('keeps marks it cannot carry where they are, out of step, rather than leave one behind', () => {

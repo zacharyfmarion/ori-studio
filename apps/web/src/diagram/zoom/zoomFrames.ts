@@ -188,10 +188,9 @@ export function unitsMove(from: PictureBox, to: PictureBox, move?: PictureMove):
  * `isCardMark`) are never out of step, and go with every move whatever the
  * author's do. Each mark is kept within
  * `reach`, the reach of the units it goes to: an enlarged step's window's
- * reaches as far as its whole picture's, so a mark across the model from a
- * small frame goes there and back exactly. One the move cannot take where it
- * goes even so — which `back`, the move undone, shows — keeps them all where
- * they were, out of step, rather than be held at reach's edge. Carried, each
+ * reaches as far as its whole picture's, and a size held to the picture's
+ * frame as many windows (`unitsPerFrame`), so a mark across the model from a
+ * small frame, or larger than it, goes there and back exactly. Carried, each
  * is then `finished`, where it went.
  *
  * `unitsOnly`: the move changes only the units the marks are in on the
@@ -212,13 +211,11 @@ function carryMarks(
   {
     was = step,
     reach = PICTURE_REACH,
-    back,
     finish,
     unitsOnly = false,
   }: {
     was?: DiagramStep;
     reach?: AnnotationReach;
-    back?: { move: PictureMove; reach: AnnotationReach };
     finish?: (mark: KnownDiagramAnnotation) => KnownDiagramAnnotation;
     unitsOnly?: boolean;
   } = {}
@@ -232,12 +229,6 @@ function carryMarks(
   const marks = step.annotations.filter(goes);
   if (marks.length === 0) return readable ? step : { ...step, annotatedPictureKey: null };
   const carried = withAnnotationReach(reach, () => marks.map((mark) => carryAnnotation(mark, move)));
-  const lost =
-    back !== undefined &&
-    withAnnotationReach(back.reach, () =>
-      carried.some((mark, index) => !sameMark(carryAnnotation(mark, back.move), marks[index]!))
-    );
-  if (lost) return { ...step, annotatedPictureKey: null };
   const went = new Map(carried.map((mark, index) => [marks[index]!.id, finish ? finish(mark) : mark]));
   return {
     ...step,
@@ -319,20 +310,6 @@ function liesInFrame(mark: KnownDiagramAnnotation, frame: DiagramZoomOutline): b
   return points.every(near);
 }
 
-/** Whether two marks are one, but for float noise in their numbers. */
-function sameMark(a: unknown, b: unknown): boolean {
-  if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
-  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((value, index) => sameMark(value, b[index]));
-  if (a && b && typeof a === 'object' && typeof b === 'object') {
-    const [ka, kb] = [Object.keys(a), Object.keys(b)];
-    return (
-      ka.length === kb.length &&
-      ka.every((key) => sameMark((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]))
-    );
-  }
-  return a === b;
-}
-
 /** A set of units a step's marks are in — its window, or its whole picture — and how far they may reach there. */
 interface MarkUnits {
   box: PictureBox;
@@ -349,9 +326,10 @@ function marksUnits(step: DiagramStep, assets: Assets): MarkUnits | null {
 
 /**
  * A step's marks moved from one set of units to another on the picture it
- * shows, when both are known, and each can go there and back: every mark, in
- * step with the picture or not ({@link carryMarks}' `unitsOnly`), so each
- * stays where it shows; each then `finished` where it went. For
+ * shows, when both are known: every mark, in step with the picture or not
+ * ({@link carryMarks}' `unitsOnly`), so each stays where it shows; each then
+ * `finished` where it went. Never refused: the units change whatever the
+ * marks do, and a mark left in the old ones would be read in the new. For
  * {@link startsWhole} the window was most often on another picture.
  */
 function carryBetween(
@@ -363,7 +341,6 @@ function carryBetween(
   if (!from || !to) return step;
   return carryMarks(step, unitsMove(from.box, to.box), {
     reach: to.reach,
-    back: { move: unitsMove(to.box, from.box), reach: from.reach },
     unitsOnly: true,
     ...(finish ? { finish } : {}),
   });

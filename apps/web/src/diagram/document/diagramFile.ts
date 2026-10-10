@@ -73,6 +73,7 @@ import {
   isPointKind,
   isWithinReach,
   rectangleAngle,
+  unitsPerFrame,
   type AnnotationReach,
 } from '../annotate/annotationModel';
 import { isAnnotationColor } from '../annotate/annotationColors';
@@ -1691,7 +1692,7 @@ function readAnnotationOfKind(
     case 'close-up': {
       // Its area's radius, which it must have, and its scale; a value past the
       // ranges this build draws is news, told before damage.
-      const radius = readCloseUpRadius(entry.radius);
+      const radius = readCloseUpRadius(entry.radius, unitsPerFrame(reach));
       const scale = readCloseUpScale(entry.scale);
       if (radius === NEWER || scale === NEWER) return NEWER;
       if (radius === null || scale === null) return null;
@@ -1742,7 +1743,7 @@ function readAnnotationOfKind(
       // build's, news before damage. Its turn any number, read within
       // [0, 180) as a half turn draws it the same; one that does not read
       // dropped alone, and the shape kept upright (Revision 3).
-      const size = readZoomSize(entry.size);
+      const size = readZoomSize(entry.size, unitsPerFrame(reach));
       if (size === NEWER || size === null) return size;
       const angle = finiteNumber(entry.angle);
       return { ...annotation, size, ...(angle !== null ? { angle: rectangleAngle(angle) } : {}) };
@@ -1753,7 +1754,7 @@ function readAnnotationOfKind(
       // (Revision 3); a radius past the range this build draws is news, told
       // before damage. Its anchor, a point on the paper, dropped alone when it
       // does not read, and the window counted at its centre.
-      const radius = readCloseUpRadius(entry.radius);
+      const radius = readCloseUpRadius(entry.radius, unitsPerFrame(reach));
       const depth = readXRayDepth(entry.depth);
       if (radius === NEWER) return NEWER;
       if (radius === null || depth === null) return null;
@@ -1910,11 +1911,12 @@ function readBehind(value: unknown, ends: readonly ('from' | 'to')[]): DiagramBe
 /**
  * A close-up's area's radius (15f), which it must have: one smaller or
  * larger than this build draws, a newer build's; anything that is not a
- * size — unsaid too — damage.
+ * size — unsaid too — damage. Its largest is the picture's frame's: in an
+ * enlarged step's window's units, `perFrame` times as large (`unitsPerFrame`).
  */
-function readCloseUpRadius(value: unknown): number | typeof NEWER | null {
+function readCloseUpRadius(value: unknown, perFrame = 1): number | typeof NEWER | null {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
-  return value < MIN_CLOSE_UP_RADIUS || value > MAX_CLOSE_UP_RADIUS ? NEWER : value;
+  return value < MIN_CLOSE_UP_RADIUS || value > MAX_CLOSE_UP_RADIUS * perFrame ? NEWER : value;
 }
 
 /** A close-up's scale (15f): unsaid, twice; one past the range this build draws, a newer build's; anything else, damage. */
@@ -1973,15 +1975,16 @@ const ZOOM_SHAPES: readonly DiagramZoomShape[] = ['circle', 'rounded'];
 
 /**
  * A rounded rectangle's width and height: two sizes, each from a slip to
- * twice the frame — past that, a newer build's, as a close-up's radius is;
- * anything that is not two sizes, damage.
+ * twice the picture's frame — past that, a newer build's, as a close-up's
+ * radius is, `perFrame` times as large in a window's units; anything that is
+ * not two sizes, damage.
  */
-function readZoomSize(value: unknown): [number, number] | typeof NEWER | null {
+function readZoomSize(value: unknown, perFrame = 1): [number, number] | typeof NEWER | null {
   if (!Array.isArray(value) || value.length !== 2) return null;
   const [width, height] = value;
   if (![width, height].every((side) => typeof side === 'number' && Number.isFinite(side) && side > 0)) return null;
   const sides = [width, height] as [number, number];
-  return sides.some((side) => side < ZOOM_SIDE.min || side > ZOOM_SIDE.max) ? NEWER : sides;
+  return sides.some((side) => side < ZOOM_SIDE.min || side > ZOOM_SIDE.max * perFrame) ? NEWER : sides;
 }
 
 /** A point on the paper, in paper coordinates: two finite numbers, or null. Paper is never past reach. */

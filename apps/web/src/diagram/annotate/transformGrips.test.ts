@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DIAGRAM_EYE_INK, DIAGRAM_STAR_INK } from '../../cp-workspace/references/diagram/diagramInk';
 import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
-import { ANNOTATION_KINDS, GLYPH_SCALE, type PicturePoint } from './annotationModel';
+import { ANNOTATION_KINDS, GLYPH_SCALE, withAnnotationReach, type PicturePoint } from './annotationModel';
+import { windowReach } from '../zoom/zoomModel';
 import { INK_UNITS } from './canvasInk';
 import { TRANSFORM_HANDLE_SIZES } from '../../lib/transformBox';
 import {
@@ -441,6 +442,16 @@ describe('an oval’s and a rectangle’s box (18d)', () => {
     expect(flat.size).toEqual([2, 0.015]);
     // The NW corner, where it was.
     near([flat.from[0] - 1, flat.from[1] - 0.0075], [0.2, 0.4]);
+  });
+
+  it('in an enlarged step’s window, is held to twice the picture’s frame in its units, not twice the window', () => {
+    // A window a fifth of the picture across: five windows to a frame.
+    const reach = windowReach({ centre: [0.5, 0.5], radius: 0.1 });
+    const se = square(shape('rectangle'), 'se');
+    const wide = withAnnotationReach(reach, () =>
+      transformDragged(shape('rectangle'), { kind: 'scale', handle: 'se' }, se, [se[0] + 20, se[1]], keys)
+    );
+    expect(wide.size![0]).toBeCloseTo(2 * 5, 9);
   });
 
   it('turns as far as the pointer turns about its centre, Shift in 15° steps, within [0, 180) and written only when turned', () => {
