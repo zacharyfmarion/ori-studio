@@ -28,7 +28,9 @@ their recommendations; leave visual or consequential choices for Zach.
 - [x] Enforce font retention and hash-verified toolchain installation.
 - [x] Resolve routine decisions and flag choices needing visual review (below).
 - [x] Run relevant validation and review the final diff.
-- [ ] Commit, push, and update #436 with evidence and remaining gates.
+- [x] Commit, push, and update #436 with evidence and remaining gates.
+  Implementation: `821a849e2`, `a2c62d0e0`, `069e69451`; decision records:
+  `c6c7f29bb`. GitHub CI runs on the updated PR; local validation is above.
 
 ## Launch decisions, 2026-10-10
 
