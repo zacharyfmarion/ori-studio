@@ -323,7 +323,7 @@
     "marks": "标记",
     "nextPage": "下一步",
     "objExpired": "此模拟快照已不可用。请关闭此对话框并重新导出。",
-    "objHint": "带有基于展开纸张的纹理坐标的 3D 网格。导入 Blender 后即可指定纹理。",
+    "objHint": "带有基于展开纸张的 UV 坐标的 3D 网格，可在您的 3D 软件中添加纹理。",
     "objMeshUnavailable": "此模拟没有可导出的有效网格。",
     "objPreview": "捕获的形态 · OBJ 包含完整网格和 UV",
     "objPreviewEmpty": "无图像预览。仍可导出捕获的 3D 网格。",

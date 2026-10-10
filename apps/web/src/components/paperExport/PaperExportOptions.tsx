@@ -116,7 +116,7 @@ export function PaperExportOptions({
           <small className="export-modal__hint">
             {draft.format === 'obj' ? (obj?.unavailableReason
               ? objExportUnavailableMessage(obj.unavailableReason, t)
-              : t('dialogs:paperExport.objHint', '3D mesh with texture coordinates from the unfolded paper. Assign a texture after importing into Blender.')) : t(
+              : t('dialogs:paperExport.objHint', '3D mesh with UV coordinates from the unfolded paper, ready for texturing in your 3D software.')) : t(
               'dialogs:paperExport.fixedHint',
               'This figure is exported as it was saved: its style and page are the ones it was drawn with. Fold it again to export it in a style, at a size and on a page of your choosing.'
             )}

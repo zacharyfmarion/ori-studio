@@ -332,7 +332,7 @@
     "marks": "Marks",
     "nextPage": "Next step",
     "objExpired": "This captured simulation is no longer available. Close this dialog and export again.",
-    "objHint": "3D mesh with texture coordinates from the unfolded paper. Assign a texture after importing into Blender.",
+    "objHint": "3D mesh with UV coordinates from the unfolded paper, ready for texturing in your 3D software.",
     "objMeshUnavailable": "This simulation has no valid mesh to export.",
     "objPreview": "Captured pose · OBJ includes the complete mesh and UVs",
     "objPreviewEmpty": "No image preview. The captured 3D mesh can still be exported.",

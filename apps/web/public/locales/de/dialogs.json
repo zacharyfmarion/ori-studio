@@ -332,7 +332,7 @@
     "marks": "Markierungen",
     "nextPage": "Nächster Schritt",
     "objExpired": "Diese Momentaufnahme der Simulation ist nicht mehr verfügbar. Schließe diesen Dialog und exportiere erneut.",
-    "objHint": "3D-Netz mit Texturkoordinaten des entfalteten Papiers. Weise nach dem Import in Blender eine Textur zu.",
+    "objHint": "3D-Netz mit UV-Koordinaten des entfalteten Papiers, bereit zum Texturieren in deiner 3D-Software.",
     "objMeshUnavailable": "Diese Simulation enthält kein gültiges Netz zum Exportieren.",
     "objPreview": "Erfasste Form · OBJ enthält das vollständige Netz und UVs",
     "objPreviewEmpty": "Keine Bildvorschau. Das erfasste 3D-Netz kann trotzdem exportiert werden.",

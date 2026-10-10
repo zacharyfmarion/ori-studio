@@ -196,7 +196,7 @@ describe('PaperExportModal', () => {
     await open(opened);
     await act(async () => button('OBJ')?.click());
     expect(button('Export OBJ')?.disabled).toBe(false);
-    expect(text()).toContain('Assign a texture after importing into Blender');
+    expect(text()).toContain('ready for texturing in your 3D software');
     expect(text()).not.toContain('Keep hidden faces');
     expect(text()).not.toContain('Resolution');
     expect(field('Size')).toBeNull();

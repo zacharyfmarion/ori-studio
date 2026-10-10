@@ -140,8 +140,8 @@ For both simulator entry points:
 
 - Offer **SVG / PNG / OBJ** in the existing format picker. Targets without a
   mesh capability (folded figures and References steps) retain SVG/PNG.
-- In OBJ mode, show a short explanation: “3D mesh with texture coordinates from
-  the unfolded paper. Assign a texture after importing into Blender.” Show a
+- In OBJ mode, show a short explanation: “3D mesh with UV coordinates from
+  the unfolded paper, ready for texturing in your 3D software.” Show a
   specific reason and disable saving when valid sheet UVs are unavailable.
 - Hide image-only style, page size, margin, background, DPI, and hidden-face
   controls. Switching back restores their draft values.

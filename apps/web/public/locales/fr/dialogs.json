@@ -341,7 +341,7 @@
     "marks": "Repères",
     "nextPage": "Étape suivante",
     "objExpired": "Cette capture de simulation n’est plus disponible. Fermez cette fenêtre et relancez l’exportation.",
-    "objHint": "Maillage 3D avec des coordonnées de texture issues du papier déplié. Appliquez une texture après l’importation dans Blender.",
+    "objHint": "Maillage 3D avec des coordonnées UV issues du papier déplié, prêt à recevoir des textures dans votre logiciel 3D.",
     "objMeshUnavailable": "Cette simulation ne contient aucun maillage valide à exporter.",
     "objPreview": "Forme capturée · OBJ inclut le maillage complet et les UV",
     "objPreviewEmpty": "Aucun aperçu d’image. Le maillage 3D capturé peut tout de même être exporté.",
