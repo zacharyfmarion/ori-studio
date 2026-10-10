@@ -86,7 +86,7 @@ built). 18g (X-ray peels the window: R3-34 A replaces R3-13 A) built and gated 2
   Cancel; the icon's dashes longer and staggered; the reset hint "Count the
   layers at the window's centre again" (18f, As built).
 
-**Still PENDING:** R3-34 (where a paste
+**Still PENDING:** R3-37 (where a paste
 from another picture's whole step lands on an enlarged step), raised by
 18d's review: built as recommended, A, which leaves Revision 2's decision 7
 as Zach confirmed it; B or C would change that decision, so they wait for
@@ -1507,8 +1507,9 @@ works one PR per feature.
   question (R3-16) and two phases. The four marks need not wait for it, and
   its review is easier alone.
 
-**R3-34. Where a paste from another picture's whole step lands on an
-enlarged step. PENDING** (raised by 18d's review, 2026-10-08; built as A,
+**R3-37. Where a paste from another picture's whole step lands on an
+enlarged step. PENDING** (numbered R3-34 until 2026-10-09, when the peel
+plan's first decision took that number; raised by 18d's review, 2026-10-08; built as A,
 which changes nothing Zach decided). Revision 2's decision 7, which Zach
 confirmed, lands such a paste at the same place on the picture: "On the
 crane, 22 → 23 lands outside 23's window". That serves a paste from the
@@ -2571,7 +2572,7 @@ typechecks and its related tests pass (7 files and 327 tests, 2 and 139,
 5 and 182), and its new tests fail on the commit before it. The box
 lines' rewording (`starShiftKey`, `eyeBoxShiftKey`) rides in the shapes
 commit with the shapes' strings, since the catalogs are shared. Every
-decision used is recorded DECIDED above (Status), but R3-34. Evidence:
+decision used is recorded DECIDED above (Status), but R3-37. Evidence:
 `artifacts/revision-3/18d/18d-evidence.png` (`composite.py`), every shot
 re-taken on the committed code.
 
@@ -2624,7 +2625,7 @@ re-taken on the committed code.
   the picture, by design — Revision 2's decision 7, which Zach confirmed
   with "On the crane, 22 → 23 lands outside 23's window". So the rule is
   the fault's own, a mark drawn nowhere; whether decision 7 still stands is
-  R3-34, for Zach. Browser: a star at (0.06, 0.94) on step 1 would have
+  R3-37, for Zach. Browser: a star at (0.06, 0.94) on step 1 would have
   landed at (−1.09, 2.28) in step 24's window units (enlarged from step
   22's area); it lands at (0.06, 0.94), inside.
   **Review fixes.** (1) First built per paste, so an eye or a star far off
@@ -2644,7 +2645,7 @@ re-taken on the committed code.
   (`diagramClipboard.test.ts`, `useAnnotateCanvas.test.ts` and the canvas's
   "a paste brought into view" fail without it). Where it lands is
   unchanged, so it is still left off the page until it is moved into the
-  window (decision 7; R3-34).
+  window (decision 7; R3-37).
 - **Model and file** (commit 4). Kinds `oval` and `rectangle`, shape class
   `area` (`AREA_KINDS`, `isAreaKind`); `size` always written, `angle`
   within [0, 180) only when turned. `areaFromCorners(kind, …)` is the drag
@@ -2767,7 +2768,7 @@ code; the handles' before is the same script on the old rule):
   the square's pointer, and the drag resizes it.
 - **Blocker, in part: a paste from another picture's whole step lands
   beside the window, off the canvas.** Where it lands is Revision 2's
-  decision 7, which Zach confirmed, so changing it is R3-34, for him; built
+  decision 7, which Zach confirmed, so changing it is R3-37, for him; built
   as A. What was fixable without that is fixed: the canvas brings the
   paste into view (A paste onto another picture's window, above). Browser:
   a star from step 1 at (0.3, 0.5), Cmd+C, Cmd+V on step 24: it lands at

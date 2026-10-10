@@ -89,10 +89,11 @@ export interface PictureFrame {
  *   turn — dragged corner to corner as Enlarge in Frame's area is, or put
  *   down a standard size with a click (Revision 3);
  * - `x-ray`: a circular window cut into a flat fold's picture, its centre
- *   `from` and `to` alike, its `radius` in picture units, how many layers it
- *   takes away its `depth`, and where they are counted its `anchor`, on the
- *   paper — dragged out from its middle as Enlarge's circle is, or put down a
- *   standard size with a click (Revision 3, R3-14 A).
+ *   `from` and `to` alike, its `radius` in picture units, how many steps it
+ *   peels its `depth`, and the point on the paper whose nearest face each
+ *   step takes first its `anchor` (R3-34 A, R3-35 A) — dragged out from its
+ *   middle as Enlarge's circle is, or put down a standard size with a click
+ *   (Revision 3, R3-14 A).
  */
 type AnnotationShape =
   | 'arc'
@@ -2092,10 +2093,10 @@ function cleanArea(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
 }
 
 /**
- * How many layers an x-ray takes away (Revision 3): from one, with no upper
- * bound — a depth past the layers at its anchor draws at the deepest, so a
- * larger number means nothing new — and one as it is laid, until its Depth
- * is typed (R3-18a A).
+ * How many steps an x-ray peels its window by (Revision 3, R3-34 A): from
+ * one, with no upper bound — a depth past the window's steps draws at the
+ * deepest, so a larger number means nothing new — and one as it is laid,
+ * until its Depth is typed (R3-18a A).
  */
 export const XRAY_DEPTH = { min: 1, laid: 1 } as const;
 

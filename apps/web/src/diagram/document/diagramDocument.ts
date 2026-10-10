@@ -939,10 +939,11 @@ export interface KnownDiagramAnnotation {
    */
   radius?: number;
   /**
-   * How many layers an x-ray takes away (Revision 3, R3-13 A): the top
-   * `depth` at its anchor, and every layer over those, across the whole
-   * window. A whole number from 1, always written; one past the layers at
-   * the anchor is drawn at the deepest.
+   * How many steps an x-ray peels its window by (Revision 3, R3-34 A,
+   * `implementation-plans/diagram-xray-peel.md`): each takes away one face on
+   * top in the window, the window's whole top layer before anything under
+   * it, the face nearest its anchor first. A whole number from 1, always
+   * written; one past the window's steps is drawn at the deepest.
    */
   depth?: number;
   /**
@@ -973,8 +974,8 @@ export interface KnownDiagramAnnotation {
   /**
    * An enlarge area's picked anchor: a point on the paper, in paper
    * coordinates; unsaid, the default rule (Revision 2). An x-ray's: the point
-   * on the paper its layers are counted at; unsaid, the window's centre
-   * (Revision 3).
+   * on the paper whose nearest face each step of its depth takes first
+   * (R3-35 A); unsaid, the window's centre (Revision 3).
    */
   anchor?: [number, number];
   /**

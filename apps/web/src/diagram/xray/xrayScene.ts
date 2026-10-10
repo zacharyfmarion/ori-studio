@@ -38,8 +38,9 @@
  * the faces the stored scene names show (R3-16a A, amended after 18.0, which
  * found it agrees with the kernel on all 834 faces of Zach's four diagrams).
  *
- * The page's white inside a window, where every layer at a point lies over
- * the ones taken away, is what R3-13 A draws, not a gap.
+ * The page's white inside a window, where a face taken away lay over
+ * nothing, is what the peel draws (R3-34 A), not a gap: #447's open item on
+ * white where a window takes every layer away, left as it is.
  *
  * One function draws a window for every surface (`xrayWindowMarkup`): the
  * canvas, the cards, the pages and the files, each through `xrayPaint.ts`
