@@ -3,15 +3,14 @@ use crate::error::{BpError, BpResult};
 use crate::grid::{BpGrid, TransformationMatrix};
 use crate::layout::contours::{
     GraphicalContour, PatternContour, build_pattern_contours, build_rough_contours,
-    build_trace_contours, combine_graphical_contours,
+    build_trace_contours, combine_graphical_contours, covered_junction_map,
 };
 use crate::layout::graphics::{
     RiverContour, collect_free_corners, node_graphics, repo_device_graphics,
 };
 use crate::layout::{
-    LayoutConfiguration, LayoutJunction, LayoutRepository, ValidJunction,
-    active_layout_repositories, create_layout_junctions, create_valid_junctions, group_junctions,
-    uncovered_junction_indices,
+    LayoutConfiguration, LayoutJunction, LayoutRepository, active_layout_repositories,
+    create_layout_junctions, create_valid_junctions,
 };
 use crate::math::geometry::PathPoint;
 use crate::model::{Point, Project};
@@ -195,11 +194,13 @@ pub fn project_graphics_snapshot(project: &Project) -> BpResult<LayoutGraphicsSn
     let pattern_not_found = stretches.iter().any(|stretch| !stretch.pattern_found);
 
     let repo_refs = repositories.iter().collect::<Vec<_>>();
-    let covered_junctions = covered_junction_map(&tree)?;
+    let valid_junctions = create_valid_junctions(&tree)?;
+    let covered_junctions = covered_junction_map(&tree, &valid_junctions)?;
     let rough_contours = build_rough_contours(&tree)?;
     let trace_contours =
         build_trace_contours(&tree, &rough_contours, &repo_refs, &covered_junctions)?;
-    let pattern_contours = build_pattern_contours(&tree, &trace_contours, &repo_refs)?;
+    let pattern_contours =
+        build_pattern_contours(&tree, &trace_contours, &repo_refs, &valid_junctions)?;
     let free_corners = collect_free_corners(&repo_refs)?;
     let patterned_quadrants = patterned_quadrants(&repositories);
     let mut node_entries = Vec::new();
@@ -330,7 +331,8 @@ pub fn project_line_components(
     }
     let tree = BpTree::new(&project.design.tree.edges, &project.design.layout.flaps)?;
     let mut repositories = active_layout_repositories(&tree, &project.design.layout.stretches)?;
-    let covered_junctions = covered_junction_map(&tree)?;
+    let valid_junctions = create_valid_junctions(&tree)?;
+    let covered_junctions = covered_junction_map(&tree, &valid_junctions)?;
     for repo in &mut repositories {
         if repo.configuration().is_none() {
             repo.init_with_tree(&tree)?;
@@ -346,7 +348,8 @@ pub fn project_line_components(
     let rough_contours = build_rough_contours(&tree)?;
     let trace_contours =
         build_trace_contours(&tree, &rough_contours, &repo_refs, &covered_junctions)?;
-    let pattern_contours = build_pattern_contours(&tree, &trace_contours, &repo_refs)?;
+    let pattern_contours =
+        build_pattern_contours(&tree, &trace_contours, &repo_refs, &valid_junctions)?;
     let free_corners = collect_free_corners(&repo_refs)?;
     let patterned_quadrants = patterned_quadrants(&repositories);
     let mut components = CpLineComponents {
@@ -609,38 +612,6 @@ fn graphical_to_river_contour(contour: GraphicalContour) -> RiverContour {
         outer: contour.outer,
         inner: contour.inner,
     }
-}
-
-fn covered_junction_map(tree: &BpTree) -> BpResult<BTreeMap<u32, Vec<ValidJunction>>> {
-    let mut result = BTreeMap::<u32, Vec<ValidJunction>>::new();
-    let valid_junctions = create_valid_junctions(tree)?;
-    for team in group_junctions(&valid_junctions)? {
-        let mut team_junctions = team
-            .junctions
-            .iter()
-            .filter_map(|index| valid_junctions.get(*index).cloned())
-            .collect::<Vec<_>>();
-        let _ = uncovered_junction_indices(tree, &mut team_junctions)?;
-        for junction in &team_junctions {
-            let covering = junction.get_covering(&team_junctions);
-            if covering.is_empty() {
-                continue;
-            }
-            if covering
-                .iter()
-                .all(|index| !team_junctions[*index].involves(junction.a))
-            {
-                result.entry(junction.a).or_default().push(junction.clone());
-            }
-            if covering
-                .iter()
-                .all(|index| !team_junctions[*index].involves(junction.b))
-            {
-                result.entry(junction.b).or_default().push(junction.clone());
-            }
-        }
-    }
-    Ok(result)
 }
 
 fn child_pattern_contours(

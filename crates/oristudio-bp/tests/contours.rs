@@ -217,7 +217,8 @@ fn pattern_contour_start_end_map_uses_repo_directional_quadrants() {
         .map(|code| repo.quadrants.get(code).unwrap().clone())
         .collect::<Vec<_>>();
 
-    let map = create_start_end_map(&quadrants, &trace, &repo, &tree).unwrap();
+    let map =
+        create_start_end_map(&quadrants, &trace, &repo, &[], &BTreeSet::new(), &tree).unwrap();
 
     assert!(map[QuadrantDirection::Ur as usize].is_some());
     assert!(map[QuadrantDirection::Ul as usize].is_none());
@@ -243,7 +244,8 @@ fn pattern_contour_processing_skips_irrelevant_raw_components() {
         raw: true,
     };
 
-    let contours = process_pattern_contours(&[trace_contour], &[], &trace, &repo, &tree).unwrap();
+    let contours =
+        process_pattern_contours(&[trace_contour], &[], &trace, &repo, &[], &tree).unwrap();
 
     assert!(contours.is_empty());
 }
@@ -268,7 +270,7 @@ fn pattern_contour_builder_skips_repositories_without_selected_patterns() {
         }],
     );
 
-    let contours = build_pattern_contours(&tree, &trace_contours, &[&repo]).unwrap();
+    let contours = build_pattern_contours(&tree, &trace_contours, &[&repo], &[]).unwrap();
 
     assert!(contours.is_empty());
 }
