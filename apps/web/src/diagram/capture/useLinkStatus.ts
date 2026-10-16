@@ -69,11 +69,34 @@ function wantsSegmentation(steps: readonly DiagramStep[]): boolean {
  * lookup per card once the pattern has been looked at.
  */
 export function useDiagramLinkStatuses(
-  steps: readonly DiagramStep[]
+  steps: readonly DiagramStep[],
+  background = false
 ): ReadonlyMap<string, DiagramLinkStatus> {
   const document = useWorkspaceStore((state) => state.oristudioCpDocument?.document ?? null);
   const segmentation = useCpSegmentation(wantsSegmentation(steps));
+  const [checked, setChecked] = useState<{
+    steps: readonly DiagramStep[];
+    document: OristudioCpDocumentSnapshot | null;
+    segmentation: FoldArtifacts | null;
+    statuses: ReadonlyMap<string, DiagramLinkStatus>;
+  } | null>(null);
+  useEffect(() => {
+    if (!background) return;
+    // The workspace needs all statuses for Refresh all; checking hundreds in
+    // render blocks a scroll as soon as segmentation lands. Fill the existing
+    // shared choice cache between frames, and publish one complete answer.
+    // Single-step inspectors still check their selected source immediately.
+    const cancel = checkLinkStatusesInBackground(steps, (step) => {
+      const source = linkedSourceOf(step);
+      return source ? linkStatus(source, document, segmentation) : null;
+    }, (statuses) => setChecked({ steps, document, segmentation, statuses }));
+    return cancel;
+  }, [background, steps, document, segmentation]);
   return useMemo(() => {
+    if (background) {
+      return checked?.steps === steps && checked.document === document && checked.segmentation === segmentation
+        ? checked.statuses : NO_STATUSES;
+    }
     let statuses: Map<string, DiagramLinkStatus> | null = null;
     for (const step of steps) {
       const source = linkedSourceOf(step);
@@ -82,7 +105,33 @@ export function useDiagramLinkStatuses(
       statuses.set(step.id, linkStatus(source, document, segmentation));
     }
     return statuses ?? NO_STATUSES;
-  }, [steps, document, segmentation]);
+  }, [background, checked, steps, document, segmentation]);
+}
+
+/** Cancellable, time-bounded bulk checks; no second cache and no document copies. */
+export function checkLinkStatusesInBackground(
+  steps: readonly DiagramStep[],
+  check: (step: DiagramStep) => DiagramLinkStatus | null,
+  publish: (statuses: ReadonlyMap<string, DiagramLinkStatus>) => void
+): () => void {
+  const statuses = new Map<string, DiagramLinkStatus>();
+  let index = 0;
+  let cancelled = false;
+  let timer: ReturnType<typeof setTimeout>;
+  const batch = () => {
+    if (cancelled) return;
+    const until = performance.now() + 4;
+    do {
+      const step = steps[index++];
+      if (!step) break;
+      const status = check(step);
+      if (status !== null) statuses.set(step.id, status);
+    } while (index < steps.length && performance.now() < until);
+    if (index < steps.length) timer = setTimeout(batch, 16);
+    else publish(statuses);
+  };
+  timer = setTimeout(batch, 0);
+  return () => { cancelled = true; clearTimeout(timer); };
 }
 
 /**

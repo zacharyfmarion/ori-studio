@@ -33,6 +33,7 @@ export type DiagramPatternSheets =
 export function useDiagramPatternSheets(wanted: boolean): DiagramPatternSheets {
   const segmentation = useCpSegmentationState(wanted);
   return useMemo(() => {
+    if (!wanted) return { status: 'pending' };
     if (segmentation.status !== 'ready') return segmentation;
     const { fold } = segmentation.artifacts;
     return {
@@ -43,7 +44,7 @@ export function useDiagramPatternSheets(wanted: boolean): DiagramPatternSheets {
       })),
       artifacts: segmentation.artifacts,
     };
-  }, [segmentation]);
+  }, [segmentation, wanted]);
 }
 
 /**

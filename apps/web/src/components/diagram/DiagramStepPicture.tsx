@@ -114,6 +114,8 @@ export function DiagramStepPicture({
     });
   return (
     <div ref={section} className={styles.picture}>
+      {source?.kind === 'cp' && source.render.mode === 'defox' && <Notice>{t('panels:diagram.import.savedViewNotice', 'This is the saved Defox view. Choosing a mode in Adjust Pose replaces it with an Ori Studio capture; Undo restores it.')}</Notice>}
+      {step.importStatus && <Notice>{t('panels:diagram.import.previewNotice', 'This step keeps its crease pattern preview. Choose Folded in Adjust Pose to try folding it.')}</Notice>}
       <FieldRow label={t('panels:diagram.picture.source', 'Source')} kind="text">
         {source?.kind === 'references-step'
           ? describeSent(source, step.picture, t)
@@ -144,7 +146,7 @@ export function DiagramStepPicture({
           </span>
         </FieldRow>
       )}
-      {source && step.picture?.kind === 'fixed' && (
+      {source?.kind === 'cp' && source.render.mode === 'folded-flat' && step.picture?.kind === 'fixed' && (
         <div className={styles.notice}>
           <Notice>
             {t(
@@ -183,6 +185,7 @@ function describeLinked(source: DiagramCpSource, posed: boolean, t: TFunction): 
   if (!posed) return t('panels:diagram.picture.linkedUnposed', 'A pattern, not captured yet');
   const { render } = source;
   switch (render.mode) {
+    case 'defox': return t('panels:diagram.picture.linkedDefox', 'Saved Defox view');
     case 'crease-pattern':
       if (creasesFlipped(render)) {
         return t('panels:diagram.picture.linkedCreasePatternFlipped', 'Crease pattern, turned over');

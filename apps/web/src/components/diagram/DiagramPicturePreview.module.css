@@ -1,0 +1,32 @@
+.surface {
+  display: block;
+  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  pointer-events: none;
+}
+
+.surface[hidden] {
+  display: none;
+}
+
+.pending {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: var(--text-tertiary);
+}
+
+.loading {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading { animation: none; }
+}

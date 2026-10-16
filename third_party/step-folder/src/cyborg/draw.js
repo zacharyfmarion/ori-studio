@@ -1,0 +1,128 @@
+import { M } from "../flatfolder/math.js";
+
+import { N } from "../defox/nath.js";
+
+import { SVG } from "../flatfolder/svg.js";
+import { Z } from "./z.js";
+
+export const DRAW = {
+    color: {
+        segment: {
+            F: "gray",
+            B: "black",
+            V: "red",
+            M: "blue",
+            // F: "rgb(6, 200, 200)",
+            // B: "rgb(210, 210, 210)",
+            // V: "rgb(229, 115, 115)",
+            // M: "rgb(33, 150, 243)",
+        },
+        kawasaki: "rgb(6,200,200)",
+        hanchor: "rgb(100,20,200)"
+    },
+
+    width: {
+        segment: {
+            F: 1,
+            B: 1,
+            V: 1,
+            M: 1,
+        },
+    },
+    radius: {
+        invalid: 10,
+        hanchor: 15,
+    },
+    pair: (d) => {
+        switch (d) {
+            case "V":
+                return "M";
+            case "M":
+                return "V";
+            case "VV":
+                return "MM";
+            case "MM":
+                return "VV";
+            case "RV":
+                return "RM";
+            case "RM":
+                return "RV";
+            default:
+                return d;
+        }
+    },
+    draw_cp: (lines, assigns, svg_cp, T) => {
+
+        const segs = lines.map(([p, q]) => {
+            return [N.transform(T, p), N.transform(T, q)];
+        });
+        let colors = assigns.map(a => DRAW.color.segment[a]);
+        let widths = assigns.map(a => DRAW.width.segment[a]);
+        SVG.draw_segments(svg_cp, segs, {
+            stroke_width: widths,
+            stroke: colors,
+            id: true,
+        });
+
+    },
+    draw_hanchors: (H, T, svg) => {
+        for (const h of H) {
+            const v_ = N.transform(T, h);
+            const [cx, cy] = M.mul(v_, SVG.SCALE);
+            const r = DRAW.radius.hanchor;
+            const c = SVG.append(
+                "circle",
+                svg,
+                {
+                    cx,
+                    cy,
+                    r,
+                    "fill": DRAW.color.hanchor,
+                    "fill-opacity": 0.5,
+                });
+        }
+    },
+
+    draw_xray: (FOLD, is_flip, svg) => {
+        const { FV, Vf } = FOLD
+        const P = DRAW.transform_points(Vf, is_flip, 0, true)
+        const F = FV.map(f => M.expand(f, P));
+        SVG.draw_polygons(svg, F, { opacity: 0.05 });
+    },
+
+    get_VK: (V, EA, EV) => {
+        const VK = Z.get_VK(EV, EA, V);
+        let is_invalid = false;
+        for (const [i, vk] of VK.entries()) {
+            if (Math.abs(vk) > 1e-6) {
+                is_invalid = true;
+                break;
+            }
+        }
+        return [VK, is_invalid];
+    },
+
+    draw_VK: (V, VK, svg, T) => {
+        for (const [i, vk] of VK.entries()) {
+            if (vk == undefined) {
+                continue;
+            }
+            if (Math.abs(vk) > 1e-6) {
+                const v_ = N.transform(T, V[i]);
+                const [cx, cy] = M.mul(v_, SVG.SCALE);
+                const r = DRAW.radius.invalid;
+                const c = SVG.append(
+                    "circle",
+                    svg,
+                    {
+                        cx,
+                        cy,
+                        r,
+                        "fill": DRAW.color.kawasaki,
+                        "fill-opacity": 0.5,
+                    });
+            }
+        }
+    },
+
+}

@@ -188,6 +188,21 @@ pub fn deselect_all(handle: u32) -> Result<u32, JsValue> {
 /// Oriedita import (add): merge the document behind `imported_handle` into the
 /// document behind `handle`. Returns the resulting line-segment count.
 #[wasm_bindgen]
+pub fn append_disjoint(
+    handle: u32,
+    values: js_sys::Array,
+    replace_starter: bool,
+) -> Result<JsValue, JsValue> {
+    let parts = values
+        .iter()
+        .map(|value| compact_from_js(&value))
+        .collect::<Result<Vec<_>, _>>()?;
+    let ranges =
+        with_session_mut(|session| session.append_disjoint(handle, &parts, replace_starter))?;
+    to_js_value(&ranges)
+}
+
+#[wasm_bindgen]
 pub fn import_add(handle: u32, imported_handle: u32) -> Result<u32, JsValue> {
     with_session_mut(|session| session.import_add(handle, imported_handle))
 }

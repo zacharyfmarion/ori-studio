@@ -1,8 +1,19 @@
 import { useTranslation } from 'react-i18next';
-import type { CurrentDiagramPage } from '../../diagram/pages/useCurrentDiagramPage';
+import { useCurrentDiagramPage, type CurrentDiagramPage } from '../../diagram/pages/useCurrentDiagramPage';
 import { Button } from '../ui/Button';
 import { NumberRow } from '../ui/fieldRows';
 import styles from './DiagramPageStepsRow.module.css';
+
+/** Subscribe here so turning a page doesn't rebuild the entire setup inspector. */
+export function CurrentDiagramPageStepsRow({ disabled, onChange }: {
+  disabled: boolean;
+  onChange: (pageIndex: number, count: number | null) => void;
+}) {
+  const current = useCurrentDiagramPage();
+  return current && current.page.steps.length > 0
+    ? <DiagramPageStepsRow current={current} disabled={disabled} onChange={(count) => onChange(current.index, count)} />
+    : null;
+}
 
 /**
  * The Page pane's count for one flow page, under Steps per page, which stays

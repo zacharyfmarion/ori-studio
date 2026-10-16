@@ -5,10 +5,10 @@
  *
  * Pure.
  */
-import type { FoldArtifacts } from '../../engine/types';
-import { segmentSheetThumbnail } from '../../cp-workspace/sheets/segmentSheet';
+import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import {
   MAX_STORED_STROKES,
+  fitSheetThumbnail,
   type SheetStroke,
   type SheetThumbnail,
 } from '../../cp-workspace/sheets/sheetThumbnail';
@@ -17,12 +17,20 @@ import type { StepCreases } from './captureCreases';
 const EMPTY_THUMBNAIL: SheetThumbnail = { viewBox: '0 0 100 100', strokes: [] };
 
 /**
- * The region's thumbnail, as the Simulate rail draws it, from the
- * segmentation its creases were chosen in — every capture has one, since a
- * region is found by its rim in it.
+ * The same scoped creases the capture draws, fitted with the shared sheet
+ * thumbnail painter. Selecting a region has already found these line ids;
+ * rebuilding a whole-document FOLD index here made Show as cost hundreds of
+ * milliseconds on a large batch. Work is proportional to this sheet alone.
  */
-export function creasesThumbnail(creases: StepCreases, segmentation: FoldArtifacts): SheetThumbnail {
-  const thumbnail = segmentSheetThumbnail(segmentation.fold, creases.segment);
+export function creasesThumbnail(creases: StepCreases, document: OristudioCpDocumentSnapshot): SheetThumbnail {
+  const strokes: SheetStroke[] = [];
+  for (const id of creases.scopedLineIds) {
+    const line = document.crease_pattern.line_segments[id - 1];
+    if (!line) continue;
+    const role = line.color === 'Black0' ? 'edge' : line.color === 'Red1' ? 'mountain' : line.color === 'Blue2' ? 'valley' : 'aux';
+    strokes.push({ x1: line.a.x, y1: line.a.y, x2: line.b.x, y2: line.b.y, role });
+  }
+  const thumbnail = fitSheetThumbnail(strokes);
   if (!thumbnail) return EMPTY_THUMBNAIL;
   // To a tenth of the 100-unit box: plenty for a corner, and short in the file.
   const snap = (value: number) => Math.round(value * 10) / 10 + 0;

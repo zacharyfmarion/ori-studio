@@ -13,6 +13,7 @@
 //! set is kept in lockstep with the shared manifest
 //! [`oristudio_cp::session::CP_ENGINE_COMMANDS`] by the parity test at the bottom.
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -34,10 +35,82 @@ use tauri::State;
 
 /// Managed engine state — one [`CpSession`] behind a `Mutex`, shared via `Arc` so
 /// each command can move a handle onto its `spawn_blocking` worker thread.
-pub type CpEngine = Arc<Mutex<CpSession>>;
-
+pub struct CpEngine {
+    main: Arc<Mutex<CpSession>>,
+    tasks: Mutex<HashMap<u32, TaskSession>>,
+    next_id: AtomicU32,
+}
+#[derive(Clone)]
+struct TaskSession {
+    engine: Arc<Mutex<CpSession>>,
+    cancel: Arc<FoldCancel>,
+}
+impl std::ops::Deref for CpEngine {
+    type Target = Mutex<CpSession>;
+    fn deref(&self) -> &Self::Target {
+        &self.main
+    }
+}
+impl CpEngine {
+    fn task(&self, id: u32) -> Result<TaskSession, EngineError> {
+        self.tasks
+            .lock()
+            .map_err(|_| EngineError::new("engine_poisoned", "Session registry unavailable"))?
+            .get(&id)
+            .cloned()
+            .ok_or_else(|| EngineError::new("invalid_session", "CP task session has ended"))
+    }
+    fn engine(&self, id: Option<u32>) -> Result<Arc<Mutex<CpSession>>, EngineError> {
+        match id {
+            Some(id) => Ok(self.task(id)?.engine),
+            None => Ok(Arc::clone(&self.main)),
+        }
+    }
+}
 pub fn new_state() -> CpEngine {
-    Arc::new(Mutex::new(CpSession::new()))
+    CpEngine {
+        main: Arc::new(Mutex::new(CpSession::new())),
+        tasks: Mutex::new(HashMap::new()),
+        next_id: AtomicU32::new(1),
+    }
+}
+/// Lifecycle commands do not enter the engine command manifest: they own sessions, not documents.
+#[tauri::command]
+pub fn cp_create_session(state: State<'_, CpEngine>) -> Result<u32, EngineError> {
+    let mut tasks = state
+        .tasks
+        .lock()
+        .map_err(|_| EngineError::new("engine_poisoned", "Session registry unavailable"))?;
+    if tasks.len() >= 4 {
+        return Err(EngineError::new(
+            "session_limit",
+            "Too many background CP tasks",
+        ));
+    }
+    let id = state.next_id.fetch_add(1, Ordering::Relaxed);
+    if id == 0 {
+        return Err(EngineError::new(
+            "session_limit",
+            "CP session identifiers exhausted",
+        ));
+    }
+    tasks.insert(
+        id,
+        TaskSession {
+            engine: Arc::new(Mutex::new(CpSession::new())),
+            cancel: Arc::default(),
+        },
+    );
+    Ok(id)
+}
+#[tauri::command]
+pub fn cp_close_session(state: State<'_, CpEngine>, session_id: u32) -> Result<(), EngineError> {
+    state
+        .tasks
+        .lock()
+        .map_err(|_| EngineError::new("engine_poisoned", "Session registry unavailable"))?
+        .remove(&session_id);
+    Ok(())
 }
 
 /// Which fold the user has asked to stop, or 0 for none.
@@ -89,18 +162,32 @@ pub fn new_cancel_state() -> FoldCancelState {
 /// `store`, not `fetch_max`: the kernel matches the run id exactly, so stopping
 /// the visible fold cannot collaterally kill a lower-numbered background one.
 #[tauri::command]
-pub fn cp_fold_cancel(state: State<'_, FoldCancelState>, run_id: u32) {
-    state.request(run_id);
+pub fn cp_fold_cancel(
+    state: State<'_, FoldCancelState>,
+    engine: State<'_, CpEngine>,
+    session_id: Option<u32>,
+    run_id: u32,
+) -> Result<(), EngineError> {
+    if let Some(id) = session_id {
+        engine.task(id)?.cancel.request(run_id);
+    } else {
+        state.request(run_id);
+    }
+    Ok(())
 }
 
 /// Run engine work off the UI thread: clone the `Arc`, then lock and run the
 /// closure on a blocking thread. The main thread stays free while the work runs.
-async fn run<T, F>(state: State<'_, CpEngine>, f: F) -> Result<T, EngineError>
+async fn run<T, F>(
+    state: State<'_, CpEngine>,
+    session_id: Option<u32>,
+    f: F,
+) -> Result<T, EngineError>
 where
     F: FnOnce(&mut CpSession) -> Result<T, EngineError> + Send + 'static,
     T: Send + 'static,
 {
-    let engine = Arc::clone(state.inner());
+    let engine = state.engine(session_id)?;
     tauri::async_runtime::spawn_blocking(move || {
         let mut session = engine
             .lock()
@@ -125,14 +212,18 @@ async fn run_cancellable<T, F>(
     state: State<'_, CpEngine>,
     cancel: State<'_, FoldCancelState>,
     run_id: u32,
+    session_id: Option<u32>,
     f: F,
 ) -> Result<T, EngineError>
 where
     F: FnOnce(&mut CpSession) -> Result<T, EngineError> + Send + 'static,
     T: Send + 'static,
 {
-    let engine = Arc::clone(state.inner());
-    let source: Arc<dyn CancelSource> = Arc::clone(cancel.inner()) as Arc<dyn CancelSource>;
+    let engine = state.engine(session_id)?;
+    let source: Arc<dyn CancelSource> = match session_id {
+        Some(id) => state.task(id)?.cancel,
+        None => Arc::clone(cancel.inner()) as Arc<dyn CancelSource>,
+    };
     tauri::async_runtime::spawn_blocking(move || {
         let _bound = oristudio_cp::cancel::bind(
             RunId::new(run_id).map(|run_id| CancelHandle::new(source, run_id)),
@@ -151,8 +242,12 @@ where
 #[tauri::command]
 pub async fn cp_operation_descriptors(
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<Vec<OperationInfo>, EngineError> {
-    run(state, |session| Ok(session.operation_descriptors())).await
+    run(state, session_id, |session| {
+        Ok(session.operation_descriptors())
+    })
+    .await
 }
 
 // --- document loading / construction ----------------------------------------
@@ -162,8 +257,12 @@ pub async fn cp_load_cp(
     text: String,
     title: String,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<u32, EngineError> {
-    run(state, move |session| session.load_cp(&text, &title)).await
+    run(state, session_id, move |session| {
+        session.load_cp(&text, &title)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -171,16 +270,24 @@ pub async fn cp_load_fold(
     text: String,
     title: String,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<u32, EngineError> {
-    run(state, move |session| session.load_fold(&text, &title)).await
+    run(state, session_id, move |session| {
+        session.load_fold(&text, &title)
+    })
+    .await
 }
 
 #[tauri::command]
 pub async fn cp_load_fold_file(
     text: String,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<u32, EngineError> {
-    run(state, move |session| session.load_fold_file(&text)).await
+    run(state, session_id, move |session| {
+        session.load_fold_file(&text)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -188,24 +295,33 @@ pub async fn cp_load_ori(
     text: String,
     accept_unknown_version: bool,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<u32, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.load_ori(&text, accept_unknown_version)
     })
     .await
 }
 
 #[tauri::command]
-pub async fn cp_load_orh(text: String, state: State<'_, CpEngine>) -> Result<u32, EngineError> {
-    run(state, move |session| session.load_orh(&text)).await
+pub async fn cp_load_orh(
+    text: String,
+    state: State<'_, CpEngine>,
+    session_id: Option<u32>,
+) -> Result<u32, EngineError> {
+    run(state, session_id, move |session| session.load_orh(&text)).await
 }
 
 #[tauri::command]
 pub async fn cp_load_document(
     document: CreasePatternDocument,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<u32, EngineError> {
-    run(state, move |session| Ok(session.load_document(document))).await
+    run(state, session_id, move |session| {
+        Ok(session.load_document(document))
+    })
+    .await
 }
 
 // --- document lifecycle / read ----------------------------------------------
@@ -215,8 +331,9 @@ pub async fn cp_restore_document(
     handle: u32,
     document: CreasePatternDocument,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<(), EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.restore_document(handle, document)
     })
     .await
@@ -226,8 +343,12 @@ pub async fn cp_restore_document(
 pub async fn cp_document_snapshot(
     handle: u32,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<CreasePatternDocument, EngineError> {
-    run(state, move |session| session.document_snapshot(handle)).await
+    run(state, session_id, move |session| {
+        session.document_snapshot(handle)
+    })
+    .await
 }
 
 /// Returns the compact geometry as a single binary buffer (via `tauri::ipc::Response`,
@@ -238,8 +359,9 @@ pub async fn cp_document_snapshot(
 pub async fn cp_document_geometry(
     handle: u32,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<tauri::ipc::Response, EngineError> {
-    let bytes = run(state, move |session| {
+    let bytes = run(state, session_id, move |session| {
         session
             .document_geometry(handle)?
             .to_bytes()
@@ -254,8 +376,9 @@ pub async fn cp_restore_from_compact(
     handle: u32,
     geometry: CompactGeometry,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<(), EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.restore_from_compact(handle, &geometry)
     })
     .await
@@ -265,13 +388,24 @@ pub async fn cp_restore_from_compact(
 pub async fn cp_document_summary(
     handle: u32,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<DocumentSummary, EngineError> {
-    run(state, move |session| session.document_summary(handle)).await
+    run(state, session_id, move |session| {
+        session.document_summary(handle)
+    })
+    .await
 }
 
 #[tauri::command]
-pub async fn cp_free_document(handle: u32, state: State<'_, CpEngine>) -> Result<(), EngineError> {
-    run(state, move |session| session.free_document(handle)).await
+pub async fn cp_free_document(
+    handle: u32,
+    state: State<'_, CpEngine>,
+    session_id: Option<u32>,
+) -> Result<(), EngineError> {
+    run(state, session_id, move |session| {
+        session.free_document(handle)
+    })
+    .await
 }
 
 // --- editing commands -------------------------------------------------------
@@ -282,8 +416,9 @@ pub async fn cp_execute_command(
     operation: OperationId,
     payload: CreasePatternCommandPayload,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<CommandResult, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.execute_command(handle, operation, payload)
     })
     .await
@@ -295,8 +430,9 @@ pub async fn cp_preview_command(
     operation: OperationId,
     payload: CreasePatternCommandPayload,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<CommandPreview, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.preview_command(handle, operation, payload)
     })
     .await
@@ -307,16 +443,38 @@ pub async fn cp_insert_line_segments(
     handle: u32,
     segments: Vec<LineSegment>,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<u32, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.insert_line_segments(handle, &segments)
     })
     .await
 }
 
 #[tauri::command]
-pub async fn cp_deselect_all(handle: u32, state: State<'_, CpEngine>) -> Result<u32, EngineError> {
-    run(state, move |session| session.deselect_all(handle)).await
+pub async fn cp_deselect_all(
+    handle: u32,
+    state: State<'_, CpEngine>,
+    session_id: Option<u32>,
+) -> Result<u32, EngineError> {
+    run(state, session_id, move |session| {
+        session.deselect_all(handle)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn cp_append_disjoint(
+    handle: u32,
+    parts: Vec<CompactGeometry>,
+    replace_starter: bool,
+    state: State<'_, CpEngine>,
+    session_id: Option<u32>,
+) -> Result<Vec<[usize; 2]>, EngineError> {
+    run(state, session_id, move |session| {
+        session.append_disjoint(handle, &parts, replace_starter)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -324,8 +482,9 @@ pub async fn cp_import_add(
     handle: u32,
     imported_handle: u32,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<u32, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.import_add(handle, imported_handle)
     })
     .await
@@ -337,8 +496,9 @@ pub async fn cp_replace_line_segments(
     line_ids: Vec<usize>,
     segments: Vec<LineSegment>,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<u32, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.replace_line_segments(handle, &line_ids, &segments)
     })
     .await
@@ -347,16 +507,24 @@ pub async fn cp_replace_line_segments(
 // --- export -----------------------------------------------------------------
 
 #[tauri::command]
-pub async fn cp_export_cp(handle: u32, state: State<'_, CpEngine>) -> Result<String, EngineError> {
-    run(state, move |session| session.export_cp(handle)).await
+pub async fn cp_export_cp(
+    handle: u32,
+    state: State<'_, CpEngine>,
+    session_id: Option<u32>,
+) -> Result<String, EngineError> {
+    run(state, session_id, move |session| session.export_cp(handle)).await
 }
 
 #[tauri::command]
 pub async fn cp_export_fold(
     handle: u32,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<String, EngineError> {
-    run(state, move |session| session.export_fold(handle)).await
+    run(state, session_id, move |session| {
+        session.export_fold(handle)
+    })
+    .await
 }
 
 /// `folded_handles` names the 3D folded figures to write as `foldedForm`
@@ -366,21 +534,30 @@ pub async fn cp_export_fold_file(
     handle: u32,
     folded_handles: Vec<u32>,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<String, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.export_fold_file(handle, &folded_handles)
     })
     .await
 }
 
 #[tauri::command]
-pub async fn cp_export_ori(handle: u32, state: State<'_, CpEngine>) -> Result<String, EngineError> {
-    run(state, move |session| session.export_ori(handle)).await
+pub async fn cp_export_ori(
+    handle: u32,
+    state: State<'_, CpEngine>,
+    session_id: Option<u32>,
+) -> Result<String, EngineError> {
+    run(state, session_id, move |session| session.export_ori(handle)).await
 }
 
 #[tauri::command]
-pub async fn cp_export_orh(handle: u32, state: State<'_, CpEngine>) -> Result<String, EngineError> {
-    run(state, move |session| session.export_orh(handle)).await
+pub async fn cp_export_orh(
+    handle: u32,
+    state: State<'_, CpEngine>,
+    session_id: Option<u32>,
+) -> Result<String, EngineError> {
+    run(state, session_id, move |session| session.export_orh(handle)).await
 }
 
 /// Encode a document as a base64url share payload for a URL fragment.
@@ -391,16 +568,24 @@ pub async fn cp_export_orh(handle: u32, state: State<'_, CpEngine>) -> Result<St
 pub async fn cp_export_share(
     handle: u32,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<String, EngineError> {
-    run(state, move |session| session.export_share(handle)).await
+    run(state, session_id, move |session| {
+        session.export_share(handle)
+    })
+    .await
 }
 
 #[tauri::command]
 pub async fn cp_load_share(
     payload: String,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<u32, EngineError> {
-    run(state, move |session| session.load_share(&payload)).await
+    run(state, session_id, move |session| {
+        session.load_share(&payload)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -409,8 +594,9 @@ pub async fn cp_set_texts(
     coords: Vec<f64>,
     texts: Vec<String>,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<(), EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.set_texts(handle, &coords, texts)
     })
     .await
@@ -423,8 +609,9 @@ pub async fn cp_place_circles(
     coords: Vec<f64>,
     radii: Vec<f64>,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<(), EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.place_circles(handle, &source_bounds, &coords, &radii)
     })
     .await
@@ -438,6 +625,7 @@ pub async fn cp_place_circles(
 // cancellable", which is what every caller passed before this parameter existed.
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // Flat IPC arguments preserve the existing client contract.
 pub async fn cp_folded_figure_fold(
     document_handle: u32,
     starting_face_id: i32,
@@ -446,8 +634,9 @@ pub async fn cp_folded_figure_fold(
     run_id: u32,
     state: State<'_, CpEngine>,
     cancel: State<'_, FoldCancelState>,
+    session_id: Option<u32>,
 ) -> Result<FoldedFigureResult, EngineError> {
-    run_cancellable(state, cancel, run_id, move |session| {
+    run_cancellable(state, cancel, run_id, session_id, move |session| {
         session.folded_figure_fold(
             document_handle,
             starting_face_id,
@@ -472,8 +661,9 @@ pub async fn cp_folded_figure_fold_selected(
     run_id: u32,
     state: State<'_, CpEngine>,
     cancel: State<'_, FoldCancelState>,
+    session_id: Option<u32>,
 ) -> Result<FoldedFigureResult, EngineError> {
-    run_cancellable(state, cancel, run_id, move |session| {
+    run_cancellable(state, cancel, run_id, session_id, move |session| {
         session.folded_figure_fold_selected(
             document_handle,
             &selected_line_ids,
@@ -489,8 +679,12 @@ pub async fn cp_folded_figure_fold_selected(
 pub async fn cp_folded_figure_snapshot(
     handle: u32,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<FoldedFigureSnapshot, EngineError> {
-    run(state, move |session| session.folded_figure_snapshot(handle)).await
+    run(state, session_id, move |session| {
+        session.folded_figure_snapshot(handle)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -499,8 +693,9 @@ pub async fn cp_folded_figure_render_snapshot(
     display_style: Option<DisplayStyle>,
     options: Option<FoldedFigureRenderOptions>,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.folded_figure_render_snapshot(handle, display_style, options.unwrap_or_default())
     })
     .await
@@ -511,8 +706,9 @@ pub async fn cp_folded_figure_paper_scene(
     handle: u32,
     document_handle: Option<u32>,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<Option<FoldedPaperScene>, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.folded_figure_paper_scene(handle, document_handle)
     })
     .await
@@ -523,8 +719,9 @@ pub async fn cp_folded_figure_set_model(
     handle: u32,
     model: FoldedFigureModel,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<FoldedFigureSnapshot, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.folded_figure_set_model(handle, model)
     })
     .await
@@ -534,8 +731,9 @@ pub async fn cp_folded_figure_set_model(
 pub async fn cp_folded_figure_duplicate(
     handle: u32,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<FoldedFigureResult, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.folded_figure_duplicate(handle)
     })
     .await
@@ -547,8 +745,9 @@ pub async fn cp_folded_figure_fold_another(
     run_id: u32,
     state: State<'_, CpEngine>,
     cancel: State<'_, FoldCancelState>,
+    session_id: Option<u32>,
 ) -> Result<FoldedFigureSnapshot, EngineError> {
-    run_cancellable(state, cancel, run_id, move |session| {
+    run_cancellable(state, cancel, run_id, session_id, move |session| {
         session.folded_figure_fold_another(handle)
     })
     .await
@@ -562,14 +761,16 @@ pub async fn cp_folded_figure_fold_to_case(
     run_id: u32,
     state: State<'_, CpEngine>,
     cancel: State<'_, FoldCancelState>,
+    session_id: Option<u32>,
 ) -> Result<FoldedFigureBatchResult, EngineError> {
-    run_cancellable(state, cancel, run_id, move |session| {
+    run_cancellable(state, cancel, run_id, session_id, move |session| {
         session.folded_figure_fold_to_case(handle, objective as usize, initial_order)
     })
     .await
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // Flat IPC arguments preserve the existing client contract.
 pub async fn cp_folded_figure_fold_3d(
     document_handle: u32,
     selected_line_ids: Vec<usize>,
@@ -578,8 +779,9 @@ pub async fn cp_folded_figure_fold_3d(
     run_id: u32,
     state: State<'_, CpEngine>,
     cancel: State<'_, FoldCancelState>,
+    session_id: Option<u32>,
 ) -> Result<Fold3dFoldResult, EngineError> {
-    run_cancellable(state, cancel, run_id, move |session| {
+    run_cancellable(state, cancel, run_id, session_id, move |session| {
         session.folded_figure_fold_3d(
             document_handle,
             &selected_line_ids,
@@ -596,8 +798,9 @@ pub async fn cp_folded_figure_3d_fold_another(
     run_id: u32,
     state: State<'_, CpEngine>,
     cancel: State<'_, FoldCancelState>,
+    session_id: Option<u32>,
 ) -> Result<Fold3dStepResult, EngineError> {
-    run_cancellable(state, cancel, run_id, move |session| {
+    run_cancellable(state, cancel, run_id, session_id, move |session| {
         session.folded_figure_3d_fold_another(handle)
     })
     .await
@@ -607,8 +810,9 @@ pub async fn cp_folded_figure_3d_fold_another(
 pub async fn cp_folded_figure_3d_duplicate(
     handle: u32,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<Fold3dFoldResult, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.folded_figure_3d_duplicate(handle)
     })
     .await
@@ -619,8 +823,9 @@ pub async fn cp_folded_figure_3d_aux_lines(
     handle: u32,
     document_handle: u32,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<Folded3dAuxLines, EngineError> {
-    run(state, move |session| {
+    run(state, session_id, move |session| {
         session.folded_figure_3d_aux_lines(handle, document_handle)
     })
     .await
@@ -630,8 +835,12 @@ pub async fn cp_folded_figure_3d_aux_lines(
 pub async fn cp_free_folded_figure(
     handle: u32,
     state: State<'_, CpEngine>,
+    session_id: Option<u32>,
 ) -> Result<(), EngineError> {
-    run(state, move |session| session.free_folded_figure(handle)).await
+    run(state, session_id, move |session| {
+        session.free_folded_figure(handle)
+    })
+    .await
 }
 
 /// The native command names (in shared-manifest order), mirroring the
@@ -659,6 +868,7 @@ const NATIVE_CP_COMMAND_NAMES: &[&str] = &[
     "cp_insert_line_segments",
     "cp_deselect_all",
     "cp_import_add",
+    "cp_append_disjoint",
     "cp_replace_line_segments",
     "cp_export_cp",
     "cp_export_fold",
@@ -809,6 +1019,53 @@ mod tests {
         // And a cleared flag cancels nothing: `RunId::new(0)` is `None`, so a
         // fold bound to 0 has no binding at all.
         assert!(RunId::new(0).is_none());
+    }
+
+    #[test]
+    fn task_handles_and_cancellation_are_isolated_from_edit() {
+        let state = new_state();
+        let task = super::TaskSession {
+            engine: std::sync::Arc::new(std::sync::Mutex::new(
+                oristudio_cp::session::CpSession::new(),
+            )),
+            cancel: std::sync::Arc::default(),
+        };
+        state.tasks.lock().unwrap().insert(1, task.clone());
+        let main_handle = state.lock().unwrap().load_cp(SQUARE_CP, "edit").unwrap();
+        let task_handle = task
+            .engine
+            .lock()
+            .unwrap()
+            .load_cp(SQUARE_CP, "import")
+            .unwrap();
+        assert_eq!(main_handle, task_handle, "arenas deliberately reuse ids");
+        task.cancel.request(7);
+        let interactive = new_cancel_state();
+        assert_eq!(interactive.cancelled_run(), 0);
+        assert_eq!(
+            state
+                .engine(Some(1))
+                .unwrap()
+                .lock()
+                .unwrap()
+                .document_summary(task_handle)
+                .unwrap()
+                .title
+                .as_deref(),
+            Some("import")
+        );
+        state.tasks.lock().unwrap().remove(&1);
+        assert!(state.engine(Some(1)).is_err());
+        assert_eq!(
+            state
+                .lock()
+                .unwrap()
+                .document_summary(main_handle)
+                .unwrap()
+                .title
+                .as_deref(),
+            Some("edit")
+        );
     }
 
     /// A command actually round-trips through the managed session state.

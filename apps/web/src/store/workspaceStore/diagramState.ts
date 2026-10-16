@@ -27,6 +27,7 @@ import type { DiagramAnchorPick, WorkspaceState } from './types';
  * entry point resets every key without keeping its own copy of the list.
  */
 export const DIAGRAM_SCOPED_KEYS = [
+  'diagramImportBusy',
   'diagram',
   'diagramHistory',
   'diagramLoadId',
@@ -299,6 +300,7 @@ export function discardDiagramState(): DiagramScopedState {
   return {
     diagram: null,
     diagramHistory: emptySnapshotHistory(),
+    diagramImportBusy: false,
     diagramLoadId: nextDiagramLoadId(),
     diagramReadOnly: false,
     diagramRaw: null,

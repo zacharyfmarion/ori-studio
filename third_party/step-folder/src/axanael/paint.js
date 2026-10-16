@@ -1,0 +1,259 @@
+import { SVG } from "../flatfolder/svg.js"
+import { M } from "../flatfolder/math.js"
+
+
+import { SEG } from "../defox/segment.js"
+import { PRJ } from "../defox/project.js"
+import { STEP } from "../defox/step.js"
+import { N } from "../defox/nath.js"
+import { Y } from "../defox/y.js"
+import { DRAW_LIN } from "../defox/draw_lin.js"
+import { DRAW } from "../defox/draw.js"
+
+
+import { L } from "../cyborg/lath.js"
+
+
+import { GUI } from "./gui.js"
+import { TMP } from "./template.js"
+import { K } from "./kath.js"
+
+export const PAINT = {
+    symbols: [],
+    FOLD: undefined,
+    S: undefined,
+    svg: undefined,
+    creases: [],
+    vertices: [],
+    edges: [],
+
+
+    svg_selection: undefined,
+    type: 0,
+    segment: undefined,
+    vertex: undefined,
+    v0: undefined,
+    v1: undefined,
+
+    radius: {
+        bound: 10,
+    },
+    onout: () => {
+        PAINT.segment = -1;
+        PAINT.vertex = -1;
+        PAINT.redraw();
+    },
+
+    get_pointer_loc: (e) => {
+        const svg = PAINT.svg;
+        var pt = svg.createSVGPoint();
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+        const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+        const w = SVG.SCALE;
+        const x0 = ((p.x) / w);
+        const y0 = ((p.y) / w);
+        return [x0, y0];
+    },
+
+    onmove: (e) => {
+        const FOLD = PAINT.FOLD;
+        const pt = PAINT.get_pointer_loc(e);
+
+        switch (PAINT.type) {
+            case 9:
+            case 11:
+            case 12:
+                PAINT.vertex = K.find_v(pt, PAINT.vertices, PAINT.radius.bound);
+                PAINT.hilight_vertex(SVG.clear(PAINT.svg_selection.id), PAINT.vertex);
+                PAINT.hilight_vertex(PAINT.svg_selection, PAINT.v0);
+                break;
+            case 13:
+            case 14:
+                PAINT.vertex = K.find_v(pt, PAINT.vertices, PAINT.radius.bound);
+                PAINT.hilight_vertex(SVG.clear(PAINT.svg_selection.id), PAINT.vertex);
+                PAINT.hilight_vertex(PAINT.svg_selection, PAINT.v0);
+                PAINT.hilight_vertex(PAINT.svg_selection, PAINT.v1);
+                break;
+            default:
+                const as = FOLD.UA.concat(FOLD.EA);
+                PAINT.segment = L.find_seg(
+                    pt,
+                    PAINT.creases,
+                    as,
+                    (i) => { return as[i] != "F" && as[i] != "M" && as[i] != "V" && as[i] != "B"; }
+                )
+                PAINT.hilight_segment();
+                break;
+        }
+    },
+    onclick: (e) => {
+        PAINT.onmove(e);
+        const c_idx = PAINT.segment != undefined ? PAINT.segment[0] : undefined;
+        const v_idx = PAINT.vertex;
+
+        let sym = undefined;
+        switch (PAINT.type) {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                if (c_idx == undefined) { return; }
+                sym = TMP.mv(c_idx, 0, PAINT.type);
+                break;
+            case 4:
+                if (c_idx == undefined) { return; }
+                sym = TMP.sink(c_idx, 0, false, PAINT.type);
+            case 5:
+                if (c_idx == undefined) { return; }
+                sym = TMP.sink(c_idx, 0, true, PAINT.type);
+            case 6:
+            case 7:
+                if (c_idx == undefined) { return; }
+                sym = TMP.fold_unfold(c_idx, 0, PAINT.type);
+                break;
+            case 8:
+                sym = TMP.flip(.95, .5, 0, PAINT.type);
+                break;
+            case 9:
+                sym = TMP.reference_point(v_idx, 0, PAINT.type);
+                break;
+            case 10:
+                if (c_idx == undefined) { return; }
+                sym = TMP.pleat(c_idx, 0, PAINT.type);
+                break;
+            case 11:
+            case 12:
+                if (v_idx == undefined) { return; }
+                if (PAINT.v0 == undefined) {
+                    PAINT.v0 = v_idx;
+                    return;
+                }
+                sym = TMP.inside_reverse(PAINT.v0, v_idx, 0, PAINT.type);
+                PAINT.v0 = undefined;
+                break;
+            case 13:
+                if (v_idx == undefined) { return; }
+                if (PAINT.v0 == undefined) {
+                    PAINT.v0 = v_idx;
+                    return;
+                }
+                if (PAINT.v1 == undefined) {
+                    PAINT.v1 = v_idx;
+                    return;
+                }
+                sym = TMP.right_angle(PAINT.v0, PAINT.v1, v_idx, 0, PAINT.type);
+                PAINT.v0 = undefined;
+                PAINT.v1 = undefined;
+                break;
+            case 14:
+                if (v_idx == undefined) { return; }
+                if (PAINT.v0 == undefined) {
+                    PAINT.v0 = v_idx;
+                    return;
+                }
+                if (PAINT.v1 == undefined) {
+                    PAINT.v1 = v_idx;
+                    return;
+                }
+                sym = TMP.angle_bisector(PAINT.v0, PAINT.v1, v_idx, 0, PAINT.type);
+                PAINT.v0 = undefined;
+                PAINT.v1 = undefined;
+                break;
+            case 15:
+                if (c_idx == undefined) { return; }
+                sym = TMP.repeat(c_idx, 0, PAINT.type);
+                break;
+            default:
+                return;
+        }
+        PAINT.symbols.push(sym);
+        GUI.set_controls(PAINT.S.length);
+        PAINT.redraw();
+    },
+    hilight_segment: () => {
+        if (!PAINT.segment || PAINT.segment[0] < 0 || PAINT.segment[0] == undefined) { return; }
+        const s = SVG.SCALE;
+
+        const [v1, v2] = PAINT.creases[PAINT.segment[0]];
+
+        SVG.clear("axanael_selection");
+        const seg_svg = SVG.append(
+            "line",
+            PAINT.svg_selection,
+            {
+                x1: v1[0] * s,
+                x2: v2[0] * s,
+                y1: v1[1] * s,
+                y2: v2[1] * s
+            });
+        const color = "magenta";
+        seg_svg.setAttribute("stroke", color);
+        seg_svg.setAttribute("stroke-width", 6);
+    },
+    hilight_vertex: (svg, v_idx) => {
+        if (v_idx < 0 || v_idx == undefined) { return; }
+        const s = SVG.SCALE;
+
+        const v = PAINT.vertices[v_idx];
+        const seg_svg = SVG.append(
+            "circle",
+            svg,
+            {
+                cx: v[0] * s,
+                cy: v[1] * s,
+                r: 10,
+                fill: "transparent",
+            });
+        const color = "magenta";
+        seg_svg.setAttribute("stroke", color);
+        seg_svg.setAttribute("stroke-width", 4);
+    },
+
+    initialize: (svg, FOLD, S, T, symbols) => {
+        PAINT.svg = svg;
+        PAINT.symbols = symbols;
+        PAINT.FOLD = FOLD;
+        PAINT.S = S;
+
+        PAINT.segment = undefined;
+        PAINT.vertex = undefined;
+        PAINT.v0 = undefined;
+        PAINT.v1 = undefined;
+        const V_ = N.focus(FOLD.Vf, [.5, .5]).map((v) => N.transform(T, v));
+
+        const creases = FOLD.UV.map((vs) => M.expand(vs, V_));
+        const edges = FOLD.EV.map((vs) => M.expand(vs, V_));
+        PAINT.creases = creases.concat(edges);
+        PAINT.vertices = V_;
+        PAINT.svg_selection = SVG.append("g", PAINT.svg, { id: "axanael_selection" });
+    },
+
+    reset: () => {
+        PAINT.segment = undefined;
+        PAINT.vertex = undefined;
+        PAINT.v0 = undefined;
+        PAINT.v1 = undefined;
+    },
+
+    redraw: () => {
+        const svg = SVG.clear(PAINT.svg.id);
+        const T = STEP.get_transform();
+        const c = SEG.clip;
+        const d = STEP.depth;
+        const symbols = PAINT.symbols
+        const FOLD = PAINT.FOLD;
+        const S = PAINT.S;
+        const i = PRJ.current_idx;
+        if (STEP.CELL_D) {
+            const CELL = STEP.CELL_D;
+            const STATE = STEP.STATE ?? Y.FOLD_CELL_2_STATE(FOLD, CELL);
+            DRAW.draw_state(svg, FOLD, CELL, STATE, T, SEG.clip, STEP.id, symbols ?? []);
+        }
+        else {
+            DRAW_LIN.draw_state(svg, FOLD, S, T, c, d, i, symbols);
+        }
+        PAINT.svg_selection = SVG.append("g", PAINT.svg, { id: "axanael_selection" });
+    }
+
+}

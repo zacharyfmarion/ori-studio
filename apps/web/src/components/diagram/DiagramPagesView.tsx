@@ -215,6 +215,11 @@ export function DiagramPagesView({
               // Named by the number it prints, or by its place when it prints none.
               const name = page.pageNumberAt ? page.number : index + 1;
               const label = t('panels:diagram.pages.caption', 'Page {{number}}', { number: name });
+              // Keep lightweight page shells for the camera and observer. Only
+              // nearby pages need targets and artwork. Keep the selected page's
+              // targets too, so keyboard reveal and an ongoing drag retain their DOM.
+              const interactive = isNear(index) || page.cells.some((cell) => cell.stepId === selectedStepId)
+                || page.turns.some((turn) => turn.id === selectedStepId);
               return (
                 <div key={index}>
                   <div
@@ -233,6 +238,7 @@ export function DiagramPagesView({
                       onPageClick();
                     }}
                   >
+                    {interactive && <>
                     {isNear(index) && page.band && page.band.curves.length > 0 && (
                       <DiagramPageBand
                         className={styles.band}
@@ -249,6 +255,7 @@ export function DiagramPagesView({
                         width={pageW}
                         height={pageH}
                         scale={zoomPercent / 100}
+                        vectorWhileLoading={false}
                       />
                     )}
                     {margin > 0 && (
@@ -368,6 +375,7 @@ export function DiagramPagesView({
                         />
                       ))}
                     {isNear(index) && <DiagramPagesPlacement page={page} index={index} placement={placement} />}
+                    </>}
                   </div>
                   <div
                     className={styles.caption}

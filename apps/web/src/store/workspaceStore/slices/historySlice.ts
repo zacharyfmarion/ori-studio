@@ -1,3 +1,4 @@
+import { compoundImportTravel } from '../diagramBatchImport';
 import { patchBoxPleatDesign, patchTreemakerDesign, selectHistoryFuture, selectHistoryPast, selectOristudioBpDocument, selectOristudioBpHistoryFuture, selectOristudioBpHistoryPast, selectOristudioBpSelection, selectOristudioBpSymmetry, selectProject } from '../designTabs';
 import {
   engineError,
@@ -306,6 +307,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
 
   undo: async () => {
     const undoCreasePattern = async () => {
+      if (get().oristudioCpHistoryPast.at(-1)?.compoundId) return await compoundImportTravel('undo') ?? false;
       const past = get().oristudioCpHistoryPast;
       const previous = past.at(-1);
       const current = get().oristudioCpDocument;
@@ -491,6 +493,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
 
   redo: async () => {
     const redoCreasePattern = async () => {
+      if (get().oristudioCpHistoryFuture[0]?.compoundId) return await compoundImportTravel('redo') ?? false;
       const future = get().oristudioCpHistoryFuture;
       const next = future[0];
       const current = get().oristudioCpDocument;

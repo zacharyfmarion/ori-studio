@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createStep,
   DEFAULT_DIAGRAM_STYLE,
@@ -13,16 +13,38 @@ import type { DiagramCardLinks } from '../../diagram/capture/useCardLinks';
 import type { StepPageFit } from '../../diagram/pages/pageOverflow';
 import { DiagramStepsGrid } from './DiagramStepsGrid';
 
+// The grid chooses the source; bitmap loading and invalidation have their own component tests.
+vi.mock('./DiagramPicturePreview', () => ({
+  DiagramPicturePreview: ({ src }: { src: string }) => <img src={src} alt="" />,
+}));
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 let root: Root | null = null;
 let host: HTMLDivElement | null = null;
+
+// Give the real virtualizer a viewport; jsdom otherwise measures every box as zero.
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+    return this.hasAttribute('data-index') ? 100 : 1000;
+  });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  );
+});
 
 afterEach(() => {
   act(() => root?.unmount());
   root = null;
   host?.remove();
   host = null;
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 const steps: DiagramStep[] = [
@@ -98,6 +120,16 @@ const listbox = () => host?.querySelector('[role="listbox"]') as HTMLElement;
 const options = () => [...(host?.querySelectorAll('[role="option"]') ?? [])] as HTMLElement[];
 
 describe('DiagramStepsGrid', () => {
+  it('mounts only the visible rows plus overscan, with positions in the complete list', () => {
+    const many = Array.from({ length: 250 }, (_, index) => createStep(() => `step-${index}`));
+    render(many[0]!.id, vi.fn(), { steps: many });
+    expect(options().length).toBeGreaterThan(0);
+    expect(options().length).toBeLessThan(30);
+    expect(options()[0]!.getAttribute('aria-posinset')).toBe('1');
+    expect(options()[0]!.getAttribute('aria-setsize')).toBe('250');
+    expect(host!.querySelector('[data-step-id="step-249"]')).toBeNull();
+  });
+
   it('ends with an Add step tile for a pointer, kept out of the listbox’s options and the tab order', () => {
     const onAppend = vi.fn();
     const onSelect = render('step-a', vi.fn(), { onAppend });
@@ -134,9 +166,17 @@ describe('DiagramStepsGrid', () => {
 
   it('shows a turn as a card of its own in its place, unnumbered, the cards around it numbered on (D24)', () => {
     const over: DiagramEntry = { id: 'turn-1', kind: 'turn-over', axis: 'vertical' };
-    const round: DiagramEntry = { id: 'turn-2', kind: 'rotate', rotate: { amount: 'quarter', direction: 'ccw' } };
+    const round: DiagramEntry = {
+      id: 'turn-2',
+      kind: 'rotate',
+      rotate: { amount: 'quarter', direction: 'ccw' },
+    };
     const onInsertBefore = vi.fn();
-    const onSelect = render('turn-1', vi.fn(), { steps: [over, steps[0]!, steps[1]!, round], onAppend: vi.fn(), onInsertBefore });
+    const onSelect = render('turn-1', vi.fn(), {
+      steps: [over, steps[0]!, steps[1]!, round],
+      onAppend: vi.fn(),
+      onInsertBefore,
+    });
     // In order, in one listbox: a turn's card is an option as a step's is, named by what it is and where.
     expect(options().map((option) => option.getAttribute('aria-label') ?? option.dataset.stepId)).toEqual([
       'Turn over, side to side, before step 1',
@@ -170,9 +210,17 @@ describe('DiagramStepsGrid', () => {
   it('puts Delete over every card’s corner for a pointer, a step’s or a turn’s, and none on a diagram that cannot change', () => {
     const onDelete = vi.fn();
     const over: DiagramEntry = { id: 'turn-1', kind: 'turn-over', axis: 'vertical' };
-    const onSelect = render(null, vi.fn(), { steps: [cpStep('step-p'), createStep(() => 'step-empty'), over], onDelete });
+    const onSelect = render(null, vi.fn(), {
+      steps: [cpStep('step-p'), createStep(() => 'step-empty'), over],
+      onDelete,
+    });
     const deletes = () => [...host!.querySelectorAll<HTMLButtonElement>('button[data-danger]')];
-    expect(deletes().map((button) => [button.closest('[data-step-id]')?.getAttribute('data-step-id'), button.title])).toEqual([
+    expect(
+      deletes().map((button) => [
+        button.closest('[data-step-id]')?.getAttribute('data-step-id'),
+        button.title,
+      ])
+    ).toEqual([
       ['step-p', 'Delete Step'],
       ['step-empty', 'Delete Step'],
       ['turn-1', 'Delete Turn'],
@@ -194,7 +242,9 @@ describe('DiagramStepsGrid', () => {
     const over: DiagramEntry = { id: 'turn-1', kind: 'turn-over', axis: 'vertical' };
     render(null, vi.fn(), { steps: [over, createStep(() => 'step-empty')], onDelete, onAppend });
     const click = (target: Element, detail: number) =>
-      act(() => void target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail })));
+      act(
+        () => void target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail }))
+      );
     click(host!.querySelector('[data-step-id="turn-1"] button[data-danger]')!, 1);
     // The second click of the double-click, wherever it lands.
     click(host!.querySelector('[data-step-id="step-empty"] button[data-danger]')!, 2);
@@ -213,7 +263,9 @@ describe('DiagramStepsGrid', () => {
     const onMakeTurn = vi.fn();
     render(null, vi.fn(), { steps: [createStep(() => 'step-empty')], onMakeTurn });
     const button = (label: string) =>
-      [...host!.querySelectorAll<HTMLButtonElement>('[data-step-id="step-empty"] button')].find((candidate) => candidate.textContent === label)!;
+      [...host!.querySelectorAll<HTMLButtonElement>('[data-step-id="step-empty"] button')].find(
+        (candidate) => candidate.textContent === label
+      )!;
     act(() => button('Turn over').click());
     act(() => button('Rotate').click());
     expect(onMakeTurn.mock.calls).toEqual([
@@ -320,7 +372,14 @@ describe('DiagramStepsGrid', () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4" viewBox="0 0 4 4"/>';
     const assets: Record<string, DiagramAsset> = {
       'asset-s': { id: 'asset-s', kind: 'svg', svg, widthPx: 4, heightPx: 4, bytes: svg.length },
-      'asset-r': { id: 'asset-r', kind: 'raster', src: 'data:image/png;base64,AAAA', widthPx: 4, heightPx: 4, bytes: 26 },
+      'asset-r': {
+        id: 'asset-r',
+        kind: 'raster',
+        src: 'data:image/png;base64,AAAA',
+        widthPx: 4,
+        heightPx: 4,
+        bytes: 26,
+      },
     };
     const upload = (id: string, assetId: string): DiagramStep => ({
       ...createStep(() => id),
@@ -342,7 +401,11 @@ describe('DiagramStepsGrid', () => {
     render(null, vi.fn(), {
       steps: [
         cpStep('step-cp'),
-        cpStep('step-flat', { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 }, fixedPicture()),
+        cpStep(
+          'step-flat',
+          { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 },
+          fixedPicture()
+        ),
         cpStep('step-3d', { mode: 'folded-3d', camera: { yaw: 0, pitch: 0, zoom: 1 }, side: 'front' }, null),
       ],
     });
@@ -370,7 +433,7 @@ describe('DiagramStepsGrid', () => {
     });
     const cards = options();
     // Every linked card shows its pattern in the corner.
-    for (const card of cards) expect(card.querySelector('svg line')).not.toBeNull();
+    for (const card of cards) expect(card.querySelector('canvas[data-sheet-thumbnail]')).not.toBeNull();
     const name = (card: HTMLElement) =>
       card
         .getAttribute('aria-labelledby')!
@@ -384,19 +447,35 @@ describe('DiagramStepsGrid', () => {
       // Capturing says so rather than how it stood.
       'Step 4 Crease pattern Capturing… No instruction',
     ]);
-    const stopButton = [...cards[3]!.querySelectorAll('button')].find((button) => button.textContent === 'Stop');
+    const stopButton = [...cards[3]!.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Stop'
+    );
     act(() => stopButton?.click());
     expect(stop).toHaveBeenCalledWith('step-d');
   });
 
   it('says a 3D step was lit by another style and that the pages cut a step’s text, and nothing of a flow step past its place', () => {
-    const lit = cpStep('step-3d', { mode: 'folded-3d', side: 'front', camera: { yaw: 0, pitch: 0, zoom: 1 } } as never, {
-      ...scenePicture(),
-      styleKey: 'another light',
-    });
+    const lit = cpStep(
+      'step-3d',
+      { mode: 'folded-3d', side: 'front', camera: { yaw: 0, pitch: 0, zoom: 1 } } as never,
+      {
+        ...scenePicture(),
+        styleKey: 'another light',
+      }
+    );
     render(null, vi.fn(), {
-      steps: [lit, { ...cpStep('step-cut'), text: 'A long one.' }, { ...cpStep('step-grown'), text: 'A longer one, held.' }],
-      links: { statuses: new Map([['step-3d', 'current'], ['step-cut', 'current'], ['step-grown', 'current']]) },
+      steps: [
+        lit,
+        { ...cpStep('step-cut'), text: 'A long one.' },
+        { ...cpStep('step-grown'), text: 'A longer one, held.' },
+      ],
+      links: {
+        statuses: new Map([
+          ['step-3d', 'current'],
+          ['step-cut', 'current'],
+          ['step-grown', 'current'],
+        ]),
+      },
       // The pages report only a cut instruction (`stepPageFits`): a flow step past its place shows on the page.
       pageFits: new Map([['step-cut', 'text-cut']]),
     });
@@ -446,7 +525,9 @@ describe('DiagramStepsGrid', () => {
     act(() => upload?.click());
     expect(onUpload).toHaveBeenCalledWith('step-b');
     // The newer build's card offers nothing to change it: only its Delete.
-    expect([...options()[2].querySelectorAll('button')].map((button) => button.title)).toEqual(['Delete Step']);
+    expect([...options()[2].querySelectorAll('button')].map((button) => button.title)).toEqual([
+      'Delete Step',
+    ]);
   });
 
   it('chips an enlarged step with the step its area is on, named in the card’s own name, and alone once the area is gone (Revision 2)', () => {
@@ -454,7 +535,10 @@ describe('DiagramStepsGrid', () => {
       ...createStep(() => 'step-area'),
       annotations: [{ id: 'area', kind: 'zoom', from: [0.5, 0.5], to: [0.5, 0.5], radius: 0.1 }],
     };
-    const enlarged: DiagramStep = { ...createStep(() => 'step-big'), zoom: { from: 'area', shape: 'circle' } };
+    const enlarged: DiagramStep = {
+      ...createStep(() => 'step-big'),
+      zoom: { from: 'area', shape: 'circle' },
+    };
     render(null, vi.fn(), { steps: [areaStep, enlarged] });
     const chip = () => options()[1]!.querySelector('[data-enlarged-chip]');
     expect(chip()?.textContent).toBe('Enlarged · 1');
@@ -464,13 +548,21 @@ describe('DiagramStepsGrid', () => {
     expect(header.contains(chip())).toBe(true);
     // Named with it: a screen reader hears it as part of the card.
     const labelled = options()[1]!.getAttribute('aria-labelledby')!.split(' ');
-    expect(labelled.some((id) => host!.querySelector(`[id="${id}"]`)?.textContent === 'Enlarged · 1')).toBe(true);
+    expect(labelled.some((id) => host!.querySelector(`[id="${id}"]`)?.textContent === 'Enlarged · 1')).toBe(
+      true
+    );
     render(null, vi.fn(), { steps: [{ ...areaStep, annotations: [] }, enlarged] });
     expect(chip()?.textContent).toBe('Enlarged');
   });
 
   it('says an enlarged step’s area changed, after its picture’s own out of date, and not for one with no record (review fix 4)', () => {
-    const area = { id: 'area', kind: 'zoom' as const, from: [0.5, 0.5] as [number, number], to: [0.5, 0.5] as [number, number], radius: 0.1 };
+    const area = {
+      id: 'area',
+      kind: 'zoom' as const,
+      from: [0.5, 0.5] as [number, number],
+      to: [0.5, 0.5] as [number, number],
+      radius: 0.1,
+    };
     const areaStep: DiagramStep = { ...cpStep('step-area'), annotations: [area] };
     const areaWas = { stepId: 'step-area', outline: { centre: [0.5, 0.5] as [number, number], radius: 0.1 } };
     const enlarged = (id: string, record = true): DiagramStep => ({
@@ -479,16 +571,27 @@ describe('DiagramStepsGrid', () => {
     });
     const moved: DiagramStep = { ...areaStep, annotations: [{ ...area, from: [0.6, 0.5], to: [0.6, 0.5] }] };
     const chip = (card: HTMLElement) => card.querySelector('[data-tone]')?.textContent ?? null;
-    render(null, vi.fn(), { steps: [areaStep, enlarged('step-big')], links: { statuses: new Map([['step-big', 'current']]) } });
+    render(null, vi.fn(), {
+      steps: [areaStep, enlarged('step-big')],
+      links: { statuses: new Map([['step-big', 'current']]) },
+    });
     expect(chip(options()[1]!)).toBeNull();
     render(null, vi.fn(), {
       steps: [moved, enlarged('step-big'), enlarged('step-stale'), enlarged('step-old', false)],
-      links: { statuses: new Map([['step-big', 'current'], ['step-stale', 'stale'], ['step-old', 'current']]) },
+      links: {
+        statuses: new Map([
+          ['step-big', 'current'],
+          ['step-stale', 'stale'],
+          ['step-old', 'current'],
+        ]),
+      },
     });
     expect(options().map(chip)).toEqual([null, 'Area changed', 'Out of date', null]);
     // Named with it, as its picture's chip is.
     const labelled = options()[1]!.getAttribute('aria-labelledby')!.split(' ');
-    expect(labelled.some((id) => host!.querySelector(`[id="${id}"]`)?.textContent === 'Area changed')).toBe(true);
+    expect(labelled.some((id) => host!.querySelector(`[id="${id}"]`)?.textContent === 'Area changed')).toBe(
+      true
+    );
   });
 
   it('shows where a dragged picture would land', () => {

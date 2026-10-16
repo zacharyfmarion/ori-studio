@@ -20,14 +20,17 @@ const stroke = (x1: number, y1: number, x2: number, y2: number, role: SheetStrok
 });
 
 describe('creasesThumbnail', () => {
-  it('draws the region from the segmentation it was found in, snapped, and the file reads it back', () => {
+  it('draws only the scoped document creases, including loose aux lines, snapped for the file', () => {
     const segmentation = twoSquaresSegmentation();
     const [left] = resolveCpSegments(segmentation);
     const scope = { kind: 'segment' as const, region: regionReferenceFor(left!) };
     const choice = chooseStepCreases(cpDocument(), scope, segmentation);
     if (choice.status !== 'found') throw new Error('the left square is a region');
-    const thumbnail = creasesThumbnail(choice.creases, segmentation);
-    expect(thumbnail.strokes.length).toBeGreaterThan(0);
+    const thumbnail = creasesThumbnail(choice.creases, cpDocument());
+    expect(thumbnail.strokes).toHaveLength(6);
+    expect(thumbnail.strokes.filter(stroke => stroke.role === 'edge')).toHaveLength(4);
+    expect(thumbnail.strokes.some(stroke => stroke.role === 'aux')).toBe(true);
+    expect(thumbnail.strokes.some(stroke => stroke.role === 'valley')).toBe(false);
     // To a tenth of the box, so the file stays short.
     for (const entry of thumbnail.strokes) {
       for (const value of [entry.x1, entry.y1, entry.x2, entry.y2]) {

@@ -59,8 +59,7 @@ describe('segmentSheetThumbnail', () => {
     // The paper's edge draws last, over the creases that end on it.
     expect(roles[roles.length - 1]).toBe('edge');
 
-    const rightRoles =
-      segmentSheetThumbnail(fold, right!)?.strokes.map((stroke) => stroke.role) ?? [];
+    const rightRoles = segmentSheetThumbnail(fold, right!)?.strokes.map((stroke) => stroke.role) ?? [];
     expect(rightRoles).toHaveLength(8);
     expect(rightRoles.filter((role) => role === 'valley')).toHaveLength(2);
     // `F` is how the kernel exports an aux line: the role the References card
@@ -82,7 +81,7 @@ describe('segmentSheetThumbnail', () => {
     expect([aux?.[0]?.x1, aux?.[0]?.y1, aux?.[0]?.x2, aux?.[0]?.y2]).toEqual([0, 50, 100, 50]);
     // Not the other square's.
     expect(
-      segmentSheetThumbnail(fold, right!)?.strokes.filter((stroke) => stroke.role === 'aux')
+      segmentSheetThumbnail(fold, right!)?.strokes.filter((stroke) => stroke.role === 'aux'),
     ).toHaveLength(2);
   });
 
@@ -99,8 +98,24 @@ describe('segmentSheetThumbnail', () => {
     }
     // FOLD is y-down like SVG, so the top edge of the paper is the top of the card.
     const top = thumbnail?.strokes.find(
-      (stroke) => stroke.role === 'edge' && stroke.y1 === 0 && stroke.y2 === 0
+      (stroke) => stroke.role === 'edge' && stroke.y1 === 0 && stroke.y2 === 0,
     );
     expect(top).toBeDefined();
   });
+});
+
+it('preserves boundary tolerance and output when sharing an index across sheets', () => {
+  const fold = twoSquares();
+  fold.vertices_coords!.push([-0.0000005, 2], [-0.0000005, 8], [30.0000005, 2], [30.0000005, 8]);
+  fold.edges_vertices!.push([9, 10], [11, 12]);
+  fold.edges_assignment!.push('F', 'M');
+  const regions = segmentFoldDocument(fold);
+  const cold = regions.map((segment) => segmentSheetThumbnail(structuredClone(fold), segment));
+  const shared = regions.map((segment) => segmentSheetThumbnail(fold, segment));
+  expect(shared).toEqual(cold);
+  expect(shared[0]?.strokes.filter((s) => s.role === 'aux')).toHaveLength(1);
+  expect(shared[1]?.strokes.filter((s) => s.role === 'mountain')).toHaveLength(1);
+  const changed = structuredClone(fold);
+  changed.edges_assignment![13] = 'V';
+  expect(segmentSheetThumbnail(changed, regions[0]!)?.strokes.some((s) => s.role === 'valley')).toBe(true);
 });

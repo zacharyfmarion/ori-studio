@@ -1,5 +1,5 @@
 /** Screen-only bitmaps of the composed SVG. Exports always use the original vector. */
-export interface PagePreviewSize {
+export interface PicturePreviewSize {
   width: number;
   height: number;
 }
@@ -9,16 +9,17 @@ const MAX_SIDE = 4096;
 const CACHE_BYTES = 64 * 1024 * 1024;
 
 /** Resolution buckets avoid repainting for every zoom tick; cap large paper and high DPI. */
-export function pagePreviewSize(width: number, height: number, scale: number, dpr: number): PagePreviewSize {
+export function picturePreviewSize(width: number, height: number, scale: number, dpr: number): PicturePreviewSize {
   const density = 2 ** Math.ceil(Math.log2(Math.max(0.5, scale * dpr)));
   const bounded = Math.min(density, MAX_SIDE / Math.max(width, height), Math.sqrt(MAX_PIXELS / (width * height)));
   return { width: Math.max(1, Math.floor(width * bounded)), height: Math.max(1, Math.floor(height * bounded)) };
 }
 
 interface Entry {
-  size: PagePreviewSize;
+  size: PicturePreviewSize;
   bytes: number;
   promise: Promise<HTMLCanvasElement>;
+  bitmap?: HTMLCanvasElement;
 }
 
 /**
@@ -27,16 +28,21 @@ interface Entry {
  * it, including edits which leave the page's packing signature unchanged.
  * A larger ready/in-flight preview also serves a smaller request.
  */
-export class PagePreviewCache {
+export class PicturePreviewCache {
   private entries = new Map<string, Entry>();
   private bytes = 0;
 
   constructor(
-    private rasterize: (src: string, size: PagePreviewSize) => Promise<HTMLCanvasElement>,
+    private rasterize: (src: string, size: PicturePreviewSize) => Promise<HTMLCanvasElement>,
     private maxBytes = CACHE_BYTES
   ) {}
 
-  get(src: string, size: PagePreviewSize): Promise<HTMLCanvasElement> {
+  ready(src: string, size: PicturePreviewSize): HTMLCanvasElement | null {
+    const entry = this.entries.get(src);
+    return entry && entry.size.width >= size.width && entry.size.height >= size.height ? entry.bitmap ?? null : null;
+  }
+
+  get(src: string, size: PicturePreviewSize): Promise<HTMLCanvasElement> {
     const previous = this.entries.get(src);
     if (previous && previous.size.width >= size.width && previous.size.height >= size.height) {
       this.entries.delete(src);
@@ -44,7 +50,7 @@ export class PagePreviewCache {
       return previous.promise;
     }
     if (previous) this.remove(src, previous);
-    const entry = { size, bytes: size.width * size.height * 4 + src.length * 2, promise: this.rasterize(src, size) };
+    const entry: Entry = { size, bytes: size.width * size.height * 4 + src.length * 2, promise: this.rasterize(src, size) };
     // A single oversized source may be displayed, but must not pin the cache.
     if (entry.bytes <= this.maxBytes) {
       for (const [oldSrc, old] of this.entries) {
@@ -54,7 +60,7 @@ export class PagePreviewCache {
       this.entries.set(src, entry);
       this.bytes += entry.bytes;
     }
-    void entry.promise.catch(() => {
+    void entry.promise.then((bitmap) => { entry.bitmap = bitmap; }, () => {
       if (this.entries.get(src) === entry) this.remove(src, entry);
     });
     return entry.promise;
@@ -67,7 +73,7 @@ export class PagePreviewCache {
 }
 
 /** Keep the SVG in an image's isolated document, just as the existing preview does. */
-function rasterize(src: string, size: PagePreviewSize): Promise<HTMLCanvasElement> {
+function rasterize(src: string, size: PicturePreviewSize): Promise<HTMLCanvasElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.decoding = 'async';
@@ -77,8 +83,12 @@ function rasterize(src: string, size: PagePreviewSize): Promise<HTMLCanvasElemen
         canvas.width = size.width;
         canvas.height = size.height;
         const context = canvas.getContext('2d');
-        if (!context) throw new Error('Page preview canvas unavailable');
-        context.drawImage(image, 0, 0, size.width, size.height);
+        if (!context) throw new Error('Picture preview canvas unavailable');
+        // Cards have square wells; preserve the source's proportions just as
+        // object-fit: contain does. Pages already request their exact aspect.
+        const scale = Math.min(size.width / image.naturalWidth, size.height / image.naturalHeight);
+        const width = image.naturalWidth * scale, height = image.naturalHeight * scale;
+        context.drawImage(image, (size.width - width) / 2, (size.height - height) / 2, width, height);
         resolve(canvas);
       } catch (error) {
         reject(error);
@@ -88,9 +98,9 @@ function rasterize(src: string, size: PagePreviewSize): Promise<HTMLCanvasElemen
         image.src = '';
       }
     };
-    image.onerror = () => reject(new Error('Page preview image could not load'));
+    image.onerror = () => reject(new Error('Picture preview image could not load'));
     image.src = src;
   });
 }
 
-export const pagePreviewCache = new PagePreviewCache(rasterize);
+export const picturePreviewCache = new PicturePreviewCache(rasterize);

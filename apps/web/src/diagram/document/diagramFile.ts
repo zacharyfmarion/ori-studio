@@ -656,6 +656,7 @@ function writeStep(step: DiagramEntry, thumbnails: ThumbnailWriter): Record<stri
     annotatedPictureKey: step.annotatedPictureKey,
     text: step.text,
     breakBefore: step.breakBefore,
+    ...(step.importStatus ? { importStatus: step.importStatus } : {}),
     // Only on a step that starts a page with its own count: a file without one saves as it did.
     ...(step.pageSteps !== undefined ? { pageSteps: step.pageSteps } : {}),
     ...(step.zoom ? { zoom: writeStepZoom(step.zoom) } : {}),
@@ -855,6 +856,7 @@ const PULLED_MARKS_KEYS: ReadonlySet<string> = new Set(['letters', 'highlights']
  * mode or a field it has no name for is a newer build's render.
  */
 const CP_RENDER_FIELDS: Readonly<Record<DiagramCpRender['mode'], ReadonlySet<string>>> = {
+  defox: new Set(['mode', 'snapshot']),
   'crease-pattern': new Set(['mode', 'rotationDeg', 'side', 'flipCreases']),
   'folded-flat': new Set(['mode', 'side', 'rotationDeg', 'foldCase', 'spread']),
   'folded-3d': new Set(['mode', 'camera', 'side']),
@@ -914,6 +916,7 @@ function readEntry(
  * build that reads it.
  */
 const STEP_KEYS: ReadonlySet<string> = new Set([
+  'importStatus',
   'id',
   'revision',
   'source',
@@ -980,6 +983,7 @@ function readStep(
       typeof value.annotatedPictureKey === 'string' ? value.annotatedPictureKey : null,
     text: typeof value.text === 'string' ? xmlText(value.text) : '',
     breakBefore: value.breakBefore === true,
+    ...(value.importStatus === 'pending' || value.importStatus === 'failed' ? { importStatus: value.importStatus } : {}),
     // A count past the most this build lays out starts a page of that most, the step a newer build's (below).
     ...(pageSteps === NEWER ? { pageSteps: PAGE_STEPS_RANGE.max } : typeof pageSteps === 'number' ? { pageSteps } : {}),
   };
@@ -1132,6 +1136,7 @@ function isNewerRender(value: unknown): boolean {
   const fields = CP_RENDER_FIELDS[value.mode as DiagramCpRender['mode']];
   if (hasNewerKey(value, fields)) return true;
   switch (value.mode as DiagramCpRender['mode']) {
+    case 'defox': return false;
     case 'crease-pattern':
       return readPatternSide(value.side) === NEWER;
     case 'folded-flat':
@@ -1417,6 +1422,12 @@ function readCpRender(value: unknown): DiagramCpRender | null {
   const side = value.side === 'front' || value.side === 'back' ? value.side : null;
   const rotationDeg = finiteNumber(value.rotationDeg);
   switch (value.mode) {
+    case 'defox':
+      return typeof value.snapshot === 'string' &&
+        value.snapshot.length <= 2 * 1024 * 1024 &&
+        isRecord(safeJson(value.snapshot))
+        ? { mode: 'defox', snapshot: value.snapshot }
+        : null;
     case 'crease-pattern': {
       const seen = readPatternSide(value.side);
       const flipCreases = readFlag(value.flipCreases);
@@ -2632,4 +2643,12 @@ function wholeNumber(value: unknown): number | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
 }

@@ -1,3 +1,6 @@
+import { droppedFolderReader } from '../../platform/droppedFolder';
+import { useImportDialogStore } from '../import/importDialogStore';
+import { supportsStepImport } from '../import/importJob';
 import { useCallback, useState, type DragEvent as ReactDragEvent } from 'react';
 import { toast } from 'sonner';
 import i18n from '../../i18n';
@@ -15,7 +18,7 @@ export const GRID_DROP_TARGET = 'grid';
  * crease-pattern canvas does: the workspace's own target would offer to open
  * the file as a project, and refuse a picture as one for the crease pattern.
  *
- * It claims any file drag that carries a picture, among whatever else, and
+ * It claims picture, CP, Defox and directory drops. It
  * keeps its enter, over and leave to itself, so the workspace target never
  * counts the drag (and never shows an overlay a consumed drop would leave
  * behind). A drag with no picture in it is left alone, so a project dropped
@@ -63,8 +66,9 @@ export function useStepPictureDrop(): {
 
   const onDrop = useCallback((event: ReactDragEvent<HTMLElement>) => {
     setDropTarget(null);
+    const folder = droppedFolderReader(event.dataTransfer);
     const files = Array.from(event.dataTransfer.files);
-    if (!files.some((file) => classifyDroppedFile(file).kind === 'image')) return;
+    if (!folder && !files.some((file) => classifyDroppedFile(file).kind === 'image' || supportsStepImport(file.name))) return;
     event.preventDefault();
     // Consumed here: the workspace target must not also open it.
     event.stopPropagation();
@@ -80,6 +84,8 @@ export function useStepPictureDrop(): {
     }
     const stepId = cardUnder(event.target)?.dataset.stepId;
     if (stepId) store.selectDiagramStep(stepId);
+    if (folder) { useImportDialogStore.getState().open([],folder); return; }
+    if (files.some(file => /\.(cp|defox)$/i.test(file.name))) { useImportDialogStore.getState().open(files.map(pickedFileFromFile)); return; }
     void addStepPictures(files.map(pickedFileFromFile), {
       via: 'drop',
       anchorStepId: stepId ?? store.diagramSelectedStepId,
@@ -98,7 +104,7 @@ function claims(event: ReactDragEvent<HTMLElement>): boolean {
   const transfer = event.dataTransfer;
   return (
     dragCarriesFiles({ types: Array.from(transfer.types), items: transfer.items }) &&
-    dragCarriesImage(transfer.items)
+    (dragCarriesImage(transfer.items) || Array.from(transfer.items).some(item => item.kind === 'file' && (item.webkitGetAsEntry?.()?.isDirectory || supportsStepImport(item.getAsFile?.()?.name ?? ''))))
   );
 }
 

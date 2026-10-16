@@ -44,9 +44,9 @@ export function linkedSourceOf(step: DiagramStep): DiagramLinkedSource | null {
  * fingerprinted on every line in it when it was sent (D6): its picture never
  * follows the pattern, so all its status can say is whether the sheet changed.
  */
-/** A step shown as Simulated above 0%: captured again only in Pose (D19). */
+/** Saved external views and partially simulated steps can only be replaced in Pose. */
 export function needsPose(step: DiagramStep): boolean {
-  return step.source?.kind === 'cp' && step.source.render.mode === 'simulated' && step.source.render.foldPercent > 0;
+  return step.source?.kind === 'cp' && (step.source.render.mode === 'defox' || (step.source.render.mode === 'simulated' && step.source.render.foldPercent > 0));
 }
 
 /**

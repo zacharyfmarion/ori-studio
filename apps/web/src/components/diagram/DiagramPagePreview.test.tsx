@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { pagePreviewCache } from '../../diagram/pages/pagePreviewCache';
+import { picturePreviewCache } from '../../diagram/pictures/picturePreviewCache';
 import { DiagramPagePreview } from './DiagramPagePreview';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -15,7 +15,7 @@ beforeEach(() => {
   pending = [];
   drawImage.mockClear();
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage } as unknown as CanvasRenderingContext2D);
-  vi.spyOn(pagePreviewCache, 'get').mockImplementation((src) => new Promise((resolve, reject) => {
+  vi.spyOn(picturePreviewCache, 'get').mockImplementation((src) => new Promise((resolve, reject) => {
     pending.push({ src, resolve, reject });
   }));
   host = document.createElement('div');
@@ -100,4 +100,62 @@ describe('DiagramPagePreview', () => {
     expect(host.querySelector('canvas')!.hidden).toBe(true);
     expect(host.querySelector('img')!.getAttribute('src')).toBe('old.svg');
   });
+});
+
+it('reuses an already rasterized step on remount without waiting for the zoom delay', () => {
+  const cached = document.createElement('canvas'); cached.width = 256; cached.height = 256;
+  vi.spyOn(picturePreviewCache, 'ready').mockReturnValue(cached);
+  act(() => root.render(<DiagramPagePreview src="cached.svg" width={256} height={256} scale={1} settleMs={0} />));
+  expect(drawImage).toHaveBeenLastCalledWith(cached, 0, 0);
+  expect(host.querySelector('img')).toBeNull();
+  expect(host.querySelector('canvas')!.hidden).toBe(false);
+});
+it('retains the vector if copying a cached bitmap cannot allocate a canvas', () => {
+  vi.spyOn(picturePreviewCache, 'ready').mockReturnValue(document.createElement('canvas'));
+  drawImage.mockImplementationOnce(() => { throw new Error('no canvas'); });
+  render();
+  expect(host.querySelector('canvas')!.hidden).toBe(true);
+  expect(host.querySelector('img')!.getAttribute('src')).toBe('old.svg');
+});
+
+it('rasterizes new page and card sources before the zoom delay without an extra SVG paint, and keeps failure fallback', async () => {
+  act(() => root.render(<DiagramPagePreview src="step.svg" width={256} height={256} scale={1} vectorWhileLoading={false} />));
+  expect(host.querySelector('img')).toBeNull();
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(pending).toHaveLength(1);
+  await finish(0);
+  expect(host.querySelector('canvas')!.hidden).toBe(false);
+  expect(host.querySelector('img')).toBeNull();
+  act(() => root.render(<DiagramPagePreview src="changed.svg" width={256} height={256} scale={1} vectorWhileLoading={false} />));
+  expect(host.querySelector('canvas')!.hidden).toBe(true);
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  await act(async () => pending[1]!.reject(new Error('unavailable')));
+  expect(host.querySelector('img')!.getAttribute('src')).toBe('changed.svg');
+});
+
+it('waits for a square card measurement before rasterizing, rather than painting a guessed resolution first', async () => {
+  let measure!: (entries: { contentRect: { width: number } }[]) => void;
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(callback: typeof measure) { measure = callback; }
+    observe() {}
+    disconnect() {}
+  });
+  try {
+    act(() => root.render(<DiagramPagePreview src="measured.svg" width={256} height={256} scale={1} autoSize settleMs={0} vectorWhileLoading={false} />));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(pending).toHaveLength(0);
+    act(() => measure([{ contentRect: { width: 410 } }]));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(picturePreviewCache.get).toHaveBeenCalledWith('measured.svg', { width: 448, height: 448 });
+    expect(pending).toHaveLength(1);
+  } finally { vi.unstubAllGlobals(); }
+});
+
+it('copies a cached bitmap only once when its cache promise also resolves', async () => {
+  const cached = document.createElement('canvas');
+  vi.spyOn(picturePreviewCache, 'ready').mockReturnValue(cached);
+  vi.mocked(picturePreviewCache.get).mockResolvedValue(cached);
+  render();
+  await settle();
+  expect(drawImage).toHaveBeenCalledTimes(1);
 });

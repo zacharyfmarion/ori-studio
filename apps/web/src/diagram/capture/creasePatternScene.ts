@@ -10,6 +10,7 @@
  */
 import type { OristudioCpDocumentSnapshot, FoldedSourceBounds } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
+import { BoundsIndex } from '../../lib/boundsIndex';
 import type {
   PaperFaceItem,
   PaperItem,
@@ -109,12 +110,23 @@ export function creasePatternScene(
   for (const { a, b } of drawn) {
     for (const end of [a, b]) ends.set(endKey(end), (ends.get(endKey(end)) ?? 0) + 1);
   }
-  const folds = drawn.filter((line) => line.role !== 'aux');
+  const folds = drawn.filter((line) => line.role !== "aux");
+  const foldsIndex = new BoundsIndex(
+    folds.map(({ a, b }) => ({
+      minX: Math.min(a.x, b.x),
+      minY: Math.min(a.y, b.y),
+      maxX: Math.max(a.x, b.x),
+      maxY: Math.max(a.y, b.y),
+    })),
+  );
   // An aux line's end retreats where it meets the paper's edge or a fold: the
   // face it lies on ends there (the Diagram preset's erode).
   const meetsFace = (point: Point) =>
     onRings(creases.paper, point, epsilon) ||
-    folds.some((fold) => distanceToSegment(point, fold.a, fold.b) <= epsilon);
+    foldsIndex.at(point.x, point.y, epsilon).some((index) => {
+      const fold = folds[index]!;
+      return distanceToSegment(point, fold.a, fold.b) <= epsilon;
+    });
 
   const face: PaperFaceItem = {
     kind: 'face',

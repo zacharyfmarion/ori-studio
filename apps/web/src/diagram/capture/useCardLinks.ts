@@ -29,7 +29,7 @@ export interface DiagramCardLinks {
  * its pattern, which are being captured, and a Stop for a capture's fold.
  */
 export function useDiagramCardLinks(steps: readonly DiagramStep[], style: DiagramStyle): DiagramCardLinks {
-  const statuses = useDiagramLinkStatuses(steps);
+  const statuses = useDiagramLinkStatuses(steps, true);
   const runs = useWorkspaceStore((state) => state.diagramCaptures);
   const foldRuns = useWorkspaceStore((state) => state.oristudioCpFoldRuns);
   const captures: Record<string, { stoppable: boolean }> = {};

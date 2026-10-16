@@ -242,6 +242,7 @@ export function openDiagramStepInEdit(stepId: string): void {
 /** How a captured picture shows its pattern, for analytics. */
 export function captureKind(render: DiagramCpRender): DiagramCaptureKind {
   switch (render.mode) {
+    case 'defox': return 'defox';
     case 'crease-pattern':
       return 'crease_pattern';
     case 'folded-flat':

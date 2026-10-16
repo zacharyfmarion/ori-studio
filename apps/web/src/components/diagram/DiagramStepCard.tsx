@@ -32,6 +32,7 @@ import { stepPictureSource, type StepPictureSource } from '../../diagram/picture
 import { useStepPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { DiagramPicturePreview } from './DiagramPicturePreview';
 import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
 import styles from './DiagramStepCard.module.css';
 import { capturedStyleChange } from '../../diagram/pictures/lighting';
@@ -74,6 +75,8 @@ export const DiagramStepCard = forwardRef<
     selected: boolean;
     /** Whether this card is the grid's tab stop. */
     tabStop: boolean;
+    position?: number;
+    total?: number;
     /** A picture dragged over the grid would land on this card. */
     dropTarget: boolean;
     readOnly: boolean;
@@ -123,6 +126,8 @@ export const DiagramStepCard = forwardRef<
     number,
     selected,
     tabStop,
+    position,
+    total,
     dropTarget,
     readOnly,
     onSelect,
@@ -157,7 +162,7 @@ export const DiagramStepCard = forwardRef<
   const locked = isLockedStep(step);
   const text = step.text.trim();
   const picture = stepPictureSource(step, assets);
-  const url = useStepPictureUrl(own, step, assets, style);
+  const url = useStepPictureUrl(step, assets, style);
   const linked = linkedSourceOf(step);
   const sent = linked?.kind === 'references-step';
   const restyled = capturedStyleChange(step, style);
@@ -190,6 +195,8 @@ export const DiagramStepCard = forwardRef<
     <div
       ref={ref}
       role="option"
+      aria-posinset={position}
+      aria-setsize={total}
       aria-selected={selected}
       tabIndex={tabStop ? 0 : -1}
       aria-labelledby={`${labelId}-number ${labelId}-kind${chip ? ` ${labelId}-chip` : ''}${enlargedFrom !== undefined ? ` ${labelId}-enlarged` : ''} ${labelId}-text`}
@@ -237,7 +244,7 @@ export const DiagramStepCard = forwardRef<
       <div className={styles.well} data-picture={picture !== null || undefined}>
         {picture ? (
           // A newer build's step shows its picture as far as this build reads it (decision 2), badged Newer.
-          url && <img className={styles.picture} src={url} alt="" draggable={false} decoding="async" />
+          url && <DiagramPicturePreview className={styles.picture} src={url} width={256} height={256} scale={1} autoSize settleMs={0} vectorWhileLoading={false} />
         ) : locked ? (
           <span className={styles.placeholder}>
             <Lock size={18} aria-hidden="true" />
@@ -441,13 +448,15 @@ export const DiagramTurnCard = forwardRef<
     style: DiagramStyle;
     selected: boolean;
     tabStop: boolean;
+    position?: number;
+    total?: number;
     /** A picture dragged over the grid would land here: a new step after the turn. */
     dropTarget: boolean;
     readOnly: boolean;
     onSelect: (id: string) => void;
     onDelete: (id: string) => void;
   }
->(function DiagramTurnCard({ turn, between, style, selected, tabStop, dropTarget, readOnly, onSelect, onDelete }, ref) {
+>(function DiagramTurnCard({ turn, between, style, selected, tabStop, position, total, dropTarget, readOnly, onSelect, onDelete }, ref) {
   const { t } = useTranslation();
   const locked = isLockedTurn(turn);
   const { title, how } = turnCardWords(turn, t);
@@ -460,6 +469,8 @@ export const DiagramTurnCard = forwardRef<
     <div
       ref={ref}
       role="option"
+      aria-posinset={position}
+      aria-setsize={total}
       aria-selected={selected}
       aria-label={turnLabel(turn, between, t)}
       tabIndex={tabStop ? 0 : -1}
@@ -537,9 +548,13 @@ function DeleteVerb({ label, onDelete }: { label: string; onDelete: () => void }
  * is shown, or what an upload is.
  */
 function stepKindLabel(step: DiagramStep, picture: StepPictureSource | null, t: TFunction): string {
+  if (step.importStatus === 'pending') return t('panels:diagram.card.badgePending', 'Fold pending');
+  if (step.importStatus === 'failed') return t('panels:diagram.card.badgeFailed', 'Fold unavailable');
   if (step.source?.kind === 'references-step') return t('panels:diagram.card.badgeReferences', 'References');
   if (step.source?.kind === 'cp') {
     switch (step.source.render.mode) {
+      case 'defox':
+        return t('panels:diagram.card.badgeDefox', 'Defox');
       case 'crease-pattern':
         return t('panels:diagram.card.badgeCreasePattern', 'Crease pattern');
       case 'folded-flat':

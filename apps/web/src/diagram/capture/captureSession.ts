@@ -19,7 +19,7 @@ import type {
   OristudioCpFolded3dAuxLines,
 } from '../../engine/oristudioCpTypes';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
-import { openFold, readFoldedPicture, type FoldedFigureState, type FoldedPicture } from '../../lib/creaseExportFold';
+import { hasFoldedLayerOrder, openFold, readFoldedPicture, type FoldedFigureState, type FoldedPicture } from '../../lib/creaseExportFold';
 import type { DiagramStyle } from '../document/diagramDocument';
 import { foldedMirrorAxes } from './mirrorAxes';
 import type { SanitizeEnv } from '../upload/svgSanitize';
@@ -235,7 +235,7 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
     foldCase: Math.max(1, hold.state.currentCase ?? hold.state.discoveredCases),
     discovered: Math.max(1, hold.reached.cases),
     hasNext: !hold.reached.complete,
-    noLayerOrder: hold.state.outcome === 'NoSolutions' || hold.state.outcome === 'Contradiction',
+    noLayerOrder: !hasFoldedLayerOrder(hold.state),
   });
 
   return {

@@ -825,3 +825,23 @@ export function createOpenedPathFileService(path: string): FileService {
 export function getFileService(): FileService {
   return createFileService(getRuntimeSurface());
 }
+
+/** Folder selection shares the capped lazy-file boundary with multi-file imports. */
+export async function pickBinaryFolder(includeSubfolders = false): Promise<PickedFile[] | null> {
+  if (getRuntimeSurface() === 'desktop') {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const path = await open({ title: 'Import folder', directory: true, multiple: false });
+    if (typeof path !== 'string') return null;
+    const paths = await invoke<string[]>('list_import_folder', { path, recursive: includeSubfolders });
+    return paths.map(path => pickedFileFromPath(path));
+  }
+  return new Promise(resolve => {
+    const input=document.createElement('input'); input.type='file'; input.multiple=true;
+    input.setAttribute('webkitdirectory','');input.style.display='none';document.body.append(input);
+    input.addEventListener('change',()=>{
+      const files=Array.from(input.files??[]).filter(f=>includeSubfolders||f.webkitRelativePath.split('/').length<=2);
+      input.remove();resolve(files.map(f=>({...pickedFileFromFile(f),name:f.webkitRelativePath||f.name})));
+    },{once:true});
+    input.addEventListener('cancel',()=>{input.remove();resolve(null);},{once:true});input.click();
+  });
+}

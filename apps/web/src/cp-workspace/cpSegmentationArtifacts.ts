@@ -1,10 +1,7 @@
-import type { FoldArtifacts, FoldDocument } from '../engine/types';
+import type { FoldArtifacts } from '../engine/types';
 import type { OristudioCpDocumentSnapshot } from '../engine/oristudioCpTypes';
-import {
-  segmentationFoldArtifactsFromFold,
-  warnIfFacesWereInferred,
-} from '../lib/creasePatternImport';
-import { exportOristudioCpDocumentAsFold } from '../store/workspaceStore/oristudioCpRuntime';
+import { useWorkspaceStore } from '../store/workspaceStore';
+import { analyzeOristudioCpDocument } from '../store/workspaceStore/oristudioCpRuntime';
 
 const COORD_QUANTIZE = 1e6;
 
@@ -86,36 +83,51 @@ export function peekCpSegmentationArtifacts(
  * Resolves `null` when no editable document is loaded or the export fails.
  */
 export function ensureCpSegmentationArtifacts(
-  document: OristudioCpDocumentSnapshot | null | undefined
+  document: OristudioCpDocumentSnapshot | null | undefined,
 ): Promise<FoldArtifacts | null> {
   if (!document) return Promise.resolve(null);
   const fingerprint = creaseFingerprint(document);
-  if (cached?.fingerprint === fingerprint) return Promise.resolve(cached.artifacts);
+  if (cached?.fingerprint === fingerprint)
+    return Promise.resolve(cached.artifacts);
   if (inFlight?.fingerprint === fingerprint) return inFlight.promise;
+  // Coalesce superseded work: editing quickly must not queue one large
+  // analysis per intermediate snapshot behind the current analysis.
+  if (inFlight)
+    return inFlight.promise.then(() => {
+      const current =
+        useWorkspaceStore.getState().oristudioCpDocument?.document;
+      return current && creaseFingerprint(current) === fingerprint
+        ? ensureCpSegmentationArtifacts(current)
+        : null;
+    });
 
   const promise = (async (): Promise<FoldArtifacts | null> => {
     const startedAt = performance.now();
-    const fold = JSON.parse(await exportOristudioCpDocumentAsFold()) as FoldDocument;
-    const artifacts = segmentationFoldArtifactsFromFold(fold);
-    warnIfFacesWereInferred(fold, artifacts.fold, 'cp-segmentation');
+    const artifacts = await analyzeOristudioCpDocument(document);
+    const current = useWorkspaceStore.getState().oristudioCpDocument?.document;
+    if (!current || creaseFingerprint(current) !== fingerprint) return null;
     cached = { fingerprint, artifacts };
     if (import.meta.env.DEV) {
-       
       console.debug(
-        `[cp-toolbar] segmentation recomputed in ${Math.round(performance.now() - startedAt)}ms (${fingerprint})`
+        `[cp-toolbar] segmentation recomputed in ${Math.round(performance.now() - startedAt)}ms (${fingerprint})`,
       );
     }
     return artifacts;
-  })().catch((error: unknown) => {
-    // Never leave a failure cached: one transient error (e.g. the kernel handle
-    // not ready) would otherwise disable the toolbar until the next edit. Report
-    // rather than swallow — a silently absent toolbar is indistinguishable from
-    // "this selection is not a crease pattern".
-    console.warn('Crease-pattern segmentation failed; selection actions unavailable.', error);
-    return null;
-  }).finally(() => {
-    if (inFlight?.fingerprint === fingerprint) inFlight = null;
-  });
+  })()
+    .catch((error: unknown) => {
+      // Never leave a failure cached: one transient error (e.g. the kernel handle
+      // not ready) would otherwise disable the toolbar until the next edit. Report
+      // rather than swallow — a silently absent toolbar is indistinguishable from
+      // "this selection is not a crease pattern".
+      console.warn(
+        "Crease-pattern segmentation failed; selection actions unavailable.",
+        error,
+      );
+      return null;
+    })
+    .finally(() => {
+      if (inFlight?.fingerprint === fingerprint) inFlight = null;
+    });
 
   inFlight = { fingerprint, promise };
   return promise;

@@ -5,6 +5,7 @@
 //! unsupported operations fail with a typed error instead of fabricating nearby
 //! behavior.
 
+mod batch_append;
 pub mod cancel;
 pub mod canonical;
 pub mod checks;

@@ -59,6 +59,10 @@ function phoneLayout(phone: boolean) {
 }
 
 beforeEach(() => {
+  vi.stubGlobal('ResizeObserver', class {
+    observe() {}
+    disconnect() {}
+  });
   printed.zoom = null;
   tracked.trackDiagramEnlargementChanged.mockClear();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);

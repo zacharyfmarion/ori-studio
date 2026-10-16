@@ -43,6 +43,7 @@ import { announceUpdateCheck } from '../lib/updateFeedback';
 import { endOpenCanvasSessions } from '../cp-workspace/canvasObjects/canvasSessions';
 
 export const MENU_ACTION_IDS = [
+  'file.importDiagramSteps',
   'app.about',
   'app.quit',
   'file.new',
@@ -547,6 +548,9 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         return (deps.showStartScreen ?? requestStartScreen)();
       case 'file.detectCpImage':
         window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
+        return true;
+      case 'file.importDiagramSteps':
+        (await import('../diagram/import/importDialogStore')).useImportDialogStore.getState().open();
         return true;
       case 'file.exportDiagram':
         useDiagramExportUiStore.getState().open(focusedElement(), useWorkspaceStore.getState().diagramLoadId);

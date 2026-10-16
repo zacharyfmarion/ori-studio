@@ -24,6 +24,7 @@ export function DiagramHeader({
   readOnly,
   onAddStep,
   onUpload,
+  onImport,
   patternOpen,
   onLink,
   onFromReferences,
@@ -46,6 +47,7 @@ export function DiagramHeader({
   onAddStep: () => void;
   /** Pick pictures, each a step. Called from the menu row itself. */
   onUpload: () => void;
+  onImport: () => void;
   /** A crease pattern is open to link a step to. */
   patternOpen: boolean;
   /** Add a step and choose its pattern. */
@@ -94,6 +96,7 @@ export function DiagramHeader({
               "More ways to add steps",
             )}
             actions={[
+              { id: "import-steps", label: t("panels:diagram.import.menu", "Import steps…"), onSelect: onImport },
               {
                 id: "upload-pictures",
                 label: t(

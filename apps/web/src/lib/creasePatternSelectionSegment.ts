@@ -1,3 +1,4 @@
+import { BoundsIndex } from './boundsIndex';
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import type { OristudioCpDocumentSnapshot } from '../engine/oristudioCpTypes';
 import {
@@ -89,7 +90,11 @@ function edgeKey(a: number, b: number): string {
  * an ordinary mountain/valley crease is not a self-contained crease pattern, so
  * it is not offered for folding, export, or simulation.
  */
-function rimAssignmentCounts(fold: FoldDocument, segment: CpSegment): { rim: number; nonBorder: number } {
+function rimAssignmentCounts(
+  fold: FoldDocument,
+  segment: CpSegment,
+  assignmentByKey: Map<string, string>
+): { rim: number; nonBorder: number } {
   const faces = fold.faces_vertices ?? [];
   const useCount = new Map<string, number>();
   for (const faceIndex of segment.faceIndices) {
@@ -105,8 +110,6 @@ function rimAssignmentCounts(fold: FoldDocument, segment: CpSegment): { rim: num
 
   // Shared with segmentation so a border overdrawn by another crease still reads
   // as a border here too (see buildAssignmentByKey's precedence).
-  const assignmentByKey = buildAssignmentByKey(fold);
-
   let rim = 0;
   let nonBorder = 0;
   for (const [key, count] of useCount) {
@@ -118,8 +121,7 @@ function rimAssignmentCounts(fold: FoldDocument, segment: CpSegment): { rim: num
   return { rim, nonBorder };
 }
 
-interface SegmentContainment {
-  document: OristudioCpDocumentSnapshot;
+export interface CpSegmentContainment {
   /** `lineIds[i]` = sorted 1-based line ids contained by `segments[i]`. */
   lineIds: number[][];
   /** `eligible[i]` = whether `segments[i]` is fully rimmed by border creases. */
@@ -133,7 +135,28 @@ interface SegmentContainment {
  * (crease coordinates). Key by artifacts identity, then re-validate the document
  * so a stale pairing recomputes rather than returning a mismatched assignment.
  */
+interface SegmentContainment extends CpSegmentContainment {
+  document: OristudioCpDocumentSnapshot;
+}
+
 const containmentCache = new WeakMap<FoldArtifacts, SegmentContainment>();
+
+/** Compact transfer to the existing analysis worker; containment uses midpoints only. */
+export function creaseMidpoints(document: OristudioCpDocumentSnapshot): Float64Array {
+  const lines = document.crease_pattern.line_segments;
+  const points = new Float64Array(lines.length * 2);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    points[i * 2] = (line.a.x + line.b.x) / 2;
+    points[i * 2 + 1] = (line.a.y + line.b.y) / 2;
+  }
+  return points;
+}
+
+/** Seed the same selection/link cache with the worker's exact calculation. */
+export function seedSegmentContainment(artifacts: FoldArtifacts, document: OristudioCpDocumentSnapshot, result: CpSegmentContainment): void {
+  containmentCache.set(artifacts, { ...result, document });
+}
 
 function segmentContainment(
   artifacts: FoldArtifacts,
@@ -151,15 +174,35 @@ function segmentContainment(
       ? 'document-snapshot-changed'
       : 'segment-count-changed';
 
+  const result: SegmentContainment = {
+    document,
+    ...computeSegmentContainment(artifacts, creaseMidpoints(document)),
+  };
+  containmentCache.set(artifacts, result);
+  if (import.meta.env.DEV) {
+    console.debug(
+      `[cp-toolbar] containment recomputed in ${Math.round(performance.now() - startedAt)}ms ` +
+        `(${missReason}, ${document.crease_pattern.line_segments.length} creases × ${segments.length} regions)`
+    );
+  }
+  return result;
+}
+
+/** The shared geometric predicate, usable by both the worker and synchronous selection callers. */
+export function computeSegmentContainment(artifacts: FoldArtifacts, midpoints: Float64Array): CpSegmentContainment {
+  const segments = resolveCpSegments(artifacts);
   // `segment.faceIndices` indexes the base fold (see `resolveCpSegments`).
   const fold = artifacts.fold;
   const lineIds: number[][] = segments.map(() => []);
-  const rim = segments.map((segment) => rimAssignmentCounts(fold, segment));
+  const assignmentByKey = buildAssignmentByKey(fold);
+  const rim = segments.map((segment) => rimAssignmentCounts(fold, segment, assignmentByKey));
+  const index = new BoundsIndex(segments.map((segment) => segment.bounds));
   const eligible = rim.map((counts) => counts.nonBorder === 0);
 
-  document.crease_pattern.line_segments.forEach((line, index) => {
-    const midpoint = { x: (line.a.x + line.b.x) / 2, y: (line.a.y + line.b.y) / 2 };
-    segments.forEach((segment, s) => {
+  for (let lineIndex = 0; lineIndex < midpoints.length / 2; lineIndex++) {
+    const midpoint = { x: midpoints[lineIndex * 2]!, y: midpoints[lineIndex * 2 + 1]! };
+    index.at(midpoint.x, midpoint.y, ON_BOUNDARY_EPSILON).forEach((s) => {
+      const segment = segments[s]!;
       const bounds = segment.bounds;
       if (
         midpoint.x < bounds.minX - ON_BOUNDARY_EPSILON ||
@@ -170,22 +213,13 @@ function segmentContainment(
         return;
       }
       if (pointInSegment(segment, midpoint) || onSegmentBoundary(segment, midpoint)) {
-        lineIds[s]!.push(index + 1);
+        lineIds[s]!.push(lineIndex + 1);
       }
     });
-  });
+  }
 
   for (const ids of lineIds) ids.sort((a, b) => a - b);
-  const result: SegmentContainment = { document, lineIds, eligible, rim };
-  containmentCache.set(artifacts, result);
-  if (import.meta.env.DEV) {
-     
-    console.debug(
-      `[cp-toolbar] containment recomputed in ${Math.round(performance.now() - startedAt)}ms ` +
-        `(${missReason}, ${document.crease_pattern.line_segments.length} creases × ${segments.length} regions)`
-    );
-  }
-  return result;
+  return { lineIds, eligible, rim };
 }
 
 function sameIdSet(selection: readonly number[], segmentIds: readonly number[]): boolean {

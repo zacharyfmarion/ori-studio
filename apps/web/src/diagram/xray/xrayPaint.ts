@@ -58,6 +58,13 @@ export function xraySurfaceOf(step: DiagramStep, look: XRayLook = 'window'): XRa
   return faces ? { faces, zoom: viewOfStep(step).zoom, look } : null;
 }
 
+/** Painting needs layer geometry only when a known x-ray mark can draw it. */
+export function annotatedXRaySurface(step: DiagramStep): XRaySurface | null {
+  return step.annotations.some((mark) => isKnownAnnotation(mark) && mark.kind === 'x-ray')
+    ? xraySurfaceOf(step)
+    : null;
+}
+
 /** One x-ray's window as a surface paints it, and what the Layers pane says of it. */
 export interface XRayWindowDrawn {
   /**

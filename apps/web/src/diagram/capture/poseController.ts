@@ -15,7 +15,6 @@ import {
   releaseFoldedFigureHandle,
   retainFoldedFigureHandle,
 } from '../../cp-workspace/folded/foldedFigureHandles';
-import type { FoldArtifacts } from '../../engine/types';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFolded3dAuxLines,
@@ -127,7 +126,7 @@ function trackPose(verb: LinkedPoseRequest['verb'], render: DiagramCpRender): vo
 /** The side of the paper a render shows; none for a simulation, which has no side. */
 function renderSide(render: DiagramCpRender): 'front' | 'back' | undefined {
   if (render.mode === 'crease-pattern') return creasePatternSide(render);
-  return render.mode === 'simulated' ? undefined : render.side;
+  return render.mode === 'simulated' || render.mode === 'defox' ? undefined : render.side;
 }
 
 function spreadTracking(spread: LayerSpreadOptions): DiagramSpreadTracking {
@@ -405,7 +404,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
         )
       );
       if (result.status === 'refused' || result.status === 'unavailable') return result;
-      const source = linkedSource(linked, choice.creases, segmentation, result.render);
+      const source = linkedSource(linked, choice.creases, document, result.render);
       const committed = await useWorkspaceStore
         .getState()
         .commitDiagramCapture(begun, { source, picture: result.picture }, 'Adjust pose');
@@ -720,7 +719,7 @@ function needsRecapture(stepId: string, linked: DiagramCpSource): boolean {
 function linkedSource(
   previous: DiagramCpSource,
   creases: StepCreases,
-  segmentation: FoldArtifacts,
+  document: OristudioCpDocumentSnapshot,
   render: DiagramCpSource['render']
 ): DiagramCpSource {
   const sameLines = (previous.render.mode === 'crease-pattern') === (render.mode === 'crease-pattern');
@@ -729,7 +728,7 @@ function linkedSource(
     kind: 'cp',
     scope: followedScope(previous.scope, creases),
     fingerprint: keep ? previous.fingerprint : creasesFingerprint(creases, render),
-    thumbnail: creasesThumbnail(creases, segmentation),
+    thumbnail: creasesThumbnail(creases, document),
     render,
   });
   if (!stored) throw new Error('The pose made a link the file cannot read');

@@ -133,7 +133,7 @@ async function pullCards(pull: ReferencesPull): Promise<ReferencesPullOutcome> {
   const style = useWorkspaceStore.getState().diagram?.style ?? DEFAULT_DIAGRAM_STYLE;
   const choice = segment ? chooseStepCreases(document, { kind: 'segment', region }, segmentation) : null;
   const creases = choice?.status === 'found' ? choice.creases : null;
-  const thumbnail = creases ? creasesThumbnail(creases, segmentation) : outlineThumbnail(pull.outline);
+  const thumbnail = creases ? creasesThumbnail(creases, document) : outlineThumbnail(pull.outline);
 
   const sent: SentReferencesEntry[] = [];
   for (const { card, picture, way } of pull.cards) {

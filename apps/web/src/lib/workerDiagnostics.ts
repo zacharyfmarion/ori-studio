@@ -27,7 +27,9 @@ export type WorkerName =
   /** The precrease planner bridge; see store/workspaceStore/precreaseRuntime.ts. */
   | 'precrease'
   /** One diagram PDF, spawned per export and terminated after it; see diagram/export/browserPdfWriter.ts. */
-  | 'diagram-pdf';
+  | 'diagram-pdf'
+  | 'cp-task' | 'cp-analysis'
+  | 'defox-import';
 
 export interface WorkerFailure {
   worker: WorkerName;

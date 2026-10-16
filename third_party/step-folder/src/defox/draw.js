@@ -1,0 +1,296 @@
+import { Y } from "./y.js";
+import { N } from "./nath.js";
+import { SEG } from "./segment.js";
+import { STEP } from "./step.js";
+import { SVG3 } from "./svg.js";
+import { SYM } from "./symbol.js"
+
+import { M } from "../flatfolder/math.js";
+
+import { SVG } from "../flatfolder/svg.js";
+import { X } from "../flatfolder/conversion.js";
+
+export const DRAW = {
+    uncreases: true,
+    color: {
+        background: "#ffffff",
+        face: {
+            top: "#f8ebb8",
+            bottom: "#53d8f9",
+        },
+        edge: {
+            U: "black",
+            F: "black",
+            B: "black",
+            V: "red",
+            M: "blue",
+            VV: "red",
+            MM: "blue",
+            RV: "red",
+            RM: "blue",
+            UF: "rgb(100, 200, 200)",
+            FF: "magenta",
+        },
+
+        segment: {
+            F: "gray",
+            B: "black",
+            V: "red",
+            M: "blue",
+            VV: "red",
+            MM: "blue",
+            RV: "red",
+            RM: "blue",
+            UF: "rgb(100, 200, 200)",
+            FF: "magenta",
+        },
+    },
+
+    width: {
+        edge: {
+            F: 1,
+            B: 3,
+            VV: 6,
+            MM: 6,
+            RV: 6,
+            RM: 6,
+            UF: 6,
+            FF: 6,
+        },
+        segment: {
+            F: 1,
+            B: 1,
+            V: 1,
+            M: 1,
+            VV: 6,
+            MM: 6,
+            RV: 6,
+            RM: 6,
+            UF: 6,
+            FF: 6,
+        },
+        clip_path: {
+            body: 8,
+        }
+    },
+    pair: (d) => {
+        switch (d) {
+            case "V":
+                return "M";
+            case "M":
+                return "V";
+            case "VV":
+                return "MM";
+            case "MM":
+                return "VV";
+            case "RV":
+                return "RM";
+            case "RM":
+                return "RV";
+            default:
+                return d;
+        }
+    },
+    draw_cp: (FOLD, svg_cp, draw_creases = true, origin = [0, 0]) => {
+
+        const { V, FV, EV, EA, UA, UV } = FOLD;
+        const V_ = V.map(v => M.add(v, M.div(origin, SVG.SCALE)));
+        const lines = EV.map(E => M.expand(E, V_));
+
+        const colors = EA.map(a => DRAW.color.segment[a]);
+        const widths = EA.map(a => DRAW.width.segment[a]);
+        const g1 = SVG.append("g", svg_cp, { id: "flat_f" });
+        if (FV) {
+            const faces = FV.map(F => M.expand(F, V_));
+            SVG.draw_polygons(g1, faces, { fill: "white", id: true });
+        }
+        const g2 = SVG.append("g", svg_cp, { id: "flat_e" });
+        SVG.draw_segments(g2, lines, { stroke_width: widths, stroke: colors });
+        if (draw_creases && UA) {
+            const creases = UV.map(U => M.expand(U, V_));
+            const colors_c = UA.map(a => DRAW.color.segment[a]);
+            const widths_c = UA.map(a => DRAW.width.segment[a]);
+            SVG.draw_segments(g2, creases, { stroke_width: widths_c, stroke: colors_c });
+        }
+
+    },
+    draw_symbol: (svg, symbol, FOLD, T, origin = [0, 0]) => {
+        const el = SYM.create(symbol.type, symbol.params, FOLD, T, origin);
+        if (el) {
+            svg.appendChild(el);
+        }
+    },
+    draw_state: (svg, FOLD, CELL, STATE, T, clip_c, id = 0, symbols = [], origin = [0, 0]) => {
+        const det = N.det(T[0]);
+        const is_flip = det < 0
+        if (STATE.Cbottom == undefined || STATE.Ctop == undefined) {
+            DRAW.draw_xray(FOLD, svg, T, origin)
+            return
+        }
+        const { Ff, EF, FE, EA, FU, UV, Vc, UA, Vf } = FOLD;
+        const { P, CP, SP, SC, SE } = CELL;
+        const { Ctop, Cbottom } = STATE;
+        const CFD = is_flip ? Cbottom : Ctop;
+        const SD = Y.Ctop_SC_SE_EF_Ff_EA_FE_2_SD(CFD, SC, SE, EF, Ff, EA, FE);
+        const Q = N.focus(P, [.5, .5]).map((v) => N.transform(T, v));
+        const g_step = SVG.append("g", svg)
+        const g_clip = SVG.append("g", g_step)
+        if (!N.is_framed(Q)) {
+            SVG3.draw_clip_path(g_step, g_clip, .5 * SVG.SCALE, id, origin);
+        }
+        const P_ = Q.map(v => M.add(v, M.div(origin, SVG.SCALE)));
+        const [RP, RF] = Y.Ctop_CP_SC_SD_P_2_RP_RF(CFD, CP, SC, SD, P_);
+        const regions = RP.map(V => M.expand(V, P_));
+
+
+        const fold_c = SVG.append("g", g_clip, { id: svg.id + "_fold_c_" + id });
+        const fold_s_crease = SVG.append("g", g_clip, { id: svg.id + "_fold_s_crease_" + id });
+        const fold_s_edge = SVG.append("g", g_clip, { id: svg.id + "_fold_s_edge_" + id });
+
+        SVG.draw_polygons(fold_c, regions, {
+            id: true,
+            fill: RF.map(fi => Ff[fi] ^ is_flip ? DRAW.color.face.top : DRAW.color.face.bottom),
+            stroke: RF.map(fi => Ff[fi] ^ is_flip ? DRAW.color.face.top : DRAW.color.face.bottom),
+        });
+        const lines = SP.map((ps) => M.expand(ps, P_));
+        SVG.draw_segments(fold_s_crease, lines, {
+            id: true,
+            stroke: SD.map((d, i) => {
+                if (!DRAW.uncreases) {
+                    return DRAW.color.edge["B"];
+                }
+                if (d == "UF") {
+                    return DRAW.color.edge["UF"];
+                }
+                return DRAW.color.edge["RM"];
+            }),
+            filter: (i) => SD[i] == "UF" || SD[i] == "RM" || SD[i] == "RV",
+            stroke_width: SD.map((d, i) => {
+                if (!DRAW.uncreases) {
+                    return DRAW.width.edge["B"];
+                }
+                return DRAW.width.edge[d];
+            }),
+        });
+
+
+        SVG.draw_segments(fold_s_edge, lines, {
+            id: true, stroke: DRAW.color.edge.B,
+            filter: (i) => SD[i][0] == "B",
+            stroke_width: DRAW.width.edge.B,
+        });
+
+        const Vf_ = N.focus(Vf, [.5, .5]).map((v) => N.transform(T, v))
+            .map(v => M.add(v, M.div(origin, SVG.SCALE)));
+        const FR_map = new Map();
+        for (const [ri, fi] of RF.entries()) {
+            const ris = FR_map.get(fi);
+            if (ris) {
+                ris.push(ri);
+                FR_map.set(fi, ris);
+            }
+            else {
+                FR_map.set(fi, [ri]);
+            }
+        }
+        for (const [fi, ris] of FR_map.entries()) {
+            if (FU[fi].length > 0) {
+                const gg = SVG.append("g", fold_s_crease);
+                const cp = SVG.append("clipPath", g_step);
+                SVG.draw_polygons(cp, regions, { filter: (ci) => ris.indexOf(ci) != -1 });
+                cp.setAttribute("id", svg.id + "_cpath_" + id + "_" + fi);
+                gg.setAttribute("clip-path", "url(#" + svg.id + "_cpath_" + id + "_" + fi + ")");
+                // Don't draw creases that got clipped to nothing
+                const clipped = FU[fi]
+                    .map((ui) => [SEG.clip_edge(ui, UV, Vf_, Vc, clip_c), UA[ui]])
+                    .filter(([[[c0x, c0y], [c1x, c1y]], _]) => c0x !== c1x || c0y !== c1y);
+                const as = clipped.map(([_, a]) => a);
+                const creases_clipped = clipped.map(([c, _]) => c);
+                DRAW.draw_creases(gg, creases_clipped, as, is_flip ^ Ff[fi]);
+            }
+        }
+        for (const [si, s] of symbols.entries()) {
+            DRAW.draw_symbol(g_step, s, FOLD, [T[0], M.add(T[1], M.div(origin, SVG.SCALE))], origin);
+        }
+    },
+
+
+    draw_creases: (svg, lines, assigns, is_pair) => {
+        SVG.draw_segments(svg, lines, {
+            stroke: assigns.map((a) => {
+                if (is_pair) {
+                    return DRAW.color.edge[DRAW.pair(a)];
+                }
+                return DRAW.color.edge[a];
+            }),
+            stroke_width: assigns.map((a) => {
+                const w = DRAW.width.edge[a]
+                return w ? w : DRAW.width.edge["B"];
+            }),
+            filter: (i) => {
+                if (DRAW.uncreases) {
+                    return true;
+                }
+                return assigns[i] != "RM" && assigns[i] != "RV" && assigns[i] != "UF";
+            },
+        });
+    },
+
+
+    draw_group_text: (FOLD, CELL, svg, T) => {
+        const { Vf, FV } = FOLD;
+        const { GB, BF, GA } = CELL
+        const m = [0.5, 0.5];
+        const Q = N.focus(Vf, [.5, .5]).map((v) => N.transform(T, v));
+
+        const P = GB.map((bs, Gi) => {
+            if (Gi == 0) {
+                return [2, 2];
+            }
+            if (GA) {
+                if (GA[Gi].length == 1) {
+                    return [2, 2];
+                }
+            }
+            const Fs = bs.map((b) => {
+                return M.decode(BF[b])
+            })
+            const centroids = Fs.map(Fi => {
+
+                return M.centroid(M.expand(FV[Fi[0]].concat(FV[Fi[1]]), Q));
+            });
+            return M.centroid(centroids);
+        })
+        const g = SVG.append("g", svg, { id: `group_text_` });
+        const colors = "green";
+
+        SVG3.draw_points(g, P, {
+            id: true,
+            text: true,
+            fill: colors,
+            r: 60,
+            opacity: 0.5,
+            text_size: 40,
+        });
+        P.map((p, g) => {
+            const el = document.getElementById("group_text_" + g);
+            el.onclick = (e) => {
+                const { GA, GI } = STEP.CELL0
+                const a = (GI[g] + 1) % GA[g].length;
+                STEP.CELL0.GI[g] = a
+                STEP.update_states()
+                STEP.update_dist();
+                STEP.update_component(STEP.CELL0, g, a);
+            };
+        });
+    },
+
+    draw_xray: (FOLD, svg, T, origin) => {
+        const { FV, Vf } = FOLD
+        const Q = N.focus(Vf, [.5, .5]).map((v) => N.transform(T, v));
+        const P = Q.map(v => M.add(v, M.div(origin, SVG.SCALE)));
+
+        const F = FV.map(f => M.expand(f, P));
+        SVG.draw_polygons(svg, F, { opacity: 0.05 });
+    },
+}

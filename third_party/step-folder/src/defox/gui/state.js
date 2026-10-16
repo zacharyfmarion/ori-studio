@@ -1,0 +1,226 @@
+import { M } from "../../flatfolder/math.js";
+import { SVG } from "../../flatfolder/svg.js";
+import { DIST } from "../../distortionfolder/distortion.js";
+
+import { STEP } from "../step.js";
+import { N } from "../nath.js";
+import { Y } from "../y.js";
+import { SEG } from "../segment.js";
+import { PRJ } from "../project.js";
+import { GUI } from "./gui.js";
+import { DIFF } from "../diff.js";
+import { SVG3 } from "../svg.js";
+import { LOAD } from "./load.js";
+import { IO3 } from "../io.js";
+
+export const GUI_STATE = {
+
+    startup: () => {
+        GUI_STATE.set_svg("states");
+        document.getElementById("flip").onclick = (e) => {
+            STEP.flip0 = !STEP.flip0;
+            STEP.redraw();
+        }
+        document.getElementById("render_reset").onclick = (e) => {
+            STEP.refresh();
+            STEP.redraw();
+        }
+
+        document.getElementById("infer_prev").onclick = (e) => {
+            const i = PRJ.current_idx;
+            if (i < 1) {
+                return;
+            }
+            const params = PRJ.steps[i - 1].params;
+            PRJ.restore_params(params);
+            PRJ.record(i);
+            STEP.update_dist();
+            STEP.redraw();
+        }
+
+        document.getElementById("infer_next").onclick = (e) => {
+            const i = PRJ.current_idx;
+            if (i >= PRJ.steps.length - 1) {
+                return;
+            }
+            const params = PRJ.steps[i + 1].params;
+            PRJ.restore_params(params);
+            PRJ.record(i);
+            STEP.update_dist();
+            STEP.redraw();
+        }
+        document.getElementById("duplicate_forward").onclick = PRJ.duplicate;
+        document.getElementById("duplicate_backward").onclick = PRJ.duplicate_back;
+        document.getElementById("extrapolate").onclick = async () => await PRJ.extrapolate();
+        document.getElementById("sweep").onclick = async () => await PRJ.sweep();
+        document.getElementById("rerender").onclick = async () => await PRJ.rerender();
+
+
+
+        document.getElementById("infer_layer_order_forward").onclick = (e) => {
+            const i = PRJ.current_idx;
+            if (i < 1) {
+                return;
+            }
+            const FOLD_from = PRJ.steps[i - 1].fold_cp;
+            const CELL_from = PRJ.steps[i - 1].cell_cp;
+            const FOLD_to = STEP.FOLD0;
+            DIFF.infer_GI(FOLD_from, FOLD_to, CELL_from, STEP.CELL0);
+            STEP.update_states();
+            STEP.update_dist();
+            STEP.redraw();
+        }
+        document.getElementById("infer_layer_order_backward").onclick = (e) => {
+            const i = PRJ.current_idx;
+            if (i + 1 > PRJ.steps.length - 1) {
+                return;
+            }
+            const FOLD_from = PRJ.steps[i + 1].fold_cp;
+            const CELL_from = PRJ.steps[i + 1].cell_cp;
+            const FOLD_to = STEP.FOLD0;
+            DIFF.infer_GI(FOLD_from, FOLD_to, CELL_from, STEP.CELL0);
+            STEP.update_states();
+            STEP.update_dist();
+            STEP.redraw();
+        }
+
+        document.getElementById("state3").onclick = (e) => {
+            e.preventDefault();
+            const svg = document.getElementById("state3")
+            var pt = svg.createSVGPoint();  // Created once for document
+            pt.x = e.clientX;
+            pt.y = e.clientY;
+            // The cursor point, translated into svg coordinates
+            var cursorpt = pt.matrixTransform(svg.getScreenCTM().inverse());
+            const w = SVG.SCALE;
+            const z = STEP.get_zoom(STEP.scale);
+            const th = (2 * STEP.rotate - 1) * Math.PI * (2 * STEP.flip0 - 1);
+            const Ainv = N.mat(STEP.flip0, 1 / z, th);
+            const x0 = cursorpt.x / w - 0.5;
+            const y0 = cursorpt.y / w - 0.5;
+            [STEP.cx, STEP.cy] = M.add([STEP.cx, STEP.cy], N.apply(Ainv, [x0, y0]));
+            STEP.redraw();
+        }
+        GUI.open_close("edit_cp", "inline");
+        GUI.open_close("edit_dist", "inline");
+        GUI.open_close("edit_symbol", "inline");
+        GUI.open_close("edit_render", "inline");
+
+        document.getElementById("assign").onchange = (e) => {
+            const a = e.target.value - 1;
+            const g = document.getElementById("selectG").value
+
+            STEP.CELL0.GI[g] = a
+            STEP.update_states()
+            STEP.update_dist();
+        }
+        document.getElementById("selectG").onchange = (e) => {
+            const { GI } = STEP.CELL0
+            const g = e.target.value
+            STEP.update_component(STEP.CELL0, g, GI[g]);
+        }
+
+
+        document.getElementById("range_steps").oninput = GUI_STATE.jump;
+        document.getElementById("next").onclick = GUI_STATE.next;
+        document.getElementById("prev").onclick = GUI_STATE.prev;
+
+
+
+        document.getElementById("cp_layers").onclick = () => {
+            if (document.getElementById("cp3").style.display == "none") {
+                document.getElementById("state0").setAttribute("style", "display: none;");
+                document.getElementById("cp3").setAttribute("style", "display: default;");
+                document.getElementById("cp_catalyst").setAttribute("style", "display: none;");
+            } else {
+                document.getElementById("state0").setAttribute("style", "display: default;");
+                document.getElementById("cp3").setAttribute("style", "display: none;");
+                document.getElementById("cp_catalyst").setAttribute("style", "display: none;");
+            }
+        };
+        document.getElementById("catalyst_layers").onclick = () => {
+            if (document.getElementById("cp_catalyst").style.display == "none") {
+                document.getElementById("cp3").setAttribute("style", "display: none;");
+                document.getElementById("state0").setAttribute("style", "display: none;");
+                document.getElementById("cp_catalyst").setAttribute("style", "display: default;");
+            } else {
+                document.getElementById("cp3").setAttribute("style", "display: default;");
+                document.getElementById("state0").setAttribute("style", "display: none;");
+                document.getElementById("cp_catalyst").setAttribute("style", "display: none;");
+            }
+        };
+
+
+        document.getElementById("apply_tt").onclick = async (e) => {
+            await STEP.recalculate();
+
+            PRJ.record(PRJ.current_idx);
+        }
+        GUI_STATE.setup_range_options(
+            ["p0", "p1", "p2", "clip", "rotate", "depth", "scale"],
+            ["p0", "p1", "p2", "clip", "rotate", "depth", "scale"],
+            [0, 0.5, 0, 0, 0.5, 0, 1],
+            [DIST, DIST, DIST, SEG, STEP, STEP, STEP],
+            [STEP.update_dist, STEP.update_dist, STEP.update_dist, STEP.redraw, STEP.redraw, STEP.redraw, STEP.redraw]
+        );
+    },
+    setup_range_options: (ids, props, init, modules, dispatches) => {
+        for (const [i, id] of ids.entries()) {
+            document.getElementById(id).oninput = (e) => {
+                const val = e.target.value
+                modules[i][props[i]] = parseFloat(val);
+
+                dispatches[i]();
+            }
+            document.getElementById(id + "_reset").onclick = (e) => {
+                document.getElementById(id).value = init[i]
+                modules[i][props[i]] = init[i]
+                dispatches[i]();
+            }
+        }
+    },
+
+    set_svg: (id) => {
+        const [b, s] = [SVG3.MARGIN, SVG.SCALE];
+        const main = document.getElementById(id);
+
+        for (const [i, ch] of [].entries.call(main.children)) {
+            const id = ch.id
+            const svg = document.getElementById(id);
+            for (const [k, v] of Object.entries({
+                xmlns: SVG.NS,
+                height: s,
+                width: s,
+                viewBox: [-b, -b, s + 2 * b, s + 2 * b].join(" "),
+            })) {
+                svg.setAttribute(k, v);
+            }
+        }
+    },
+
+    prev: () => {
+        if (PRJ.current_idx == 0) {
+            return;
+        }
+        const i = PRJ.current_idx;
+        GUI_STATE.jump_to(i - 1);
+    },
+    next: () => {
+        if (PRJ.steps.length - 1 < PRJ.current_idx + 1) {
+            return;
+        }
+        const i = PRJ.current_idx;
+        GUI_STATE.jump_to(i + 1);
+
+    },
+    jump: (e) => {
+        const j = e.target.value;
+        GUI_STATE.jump_to(j - 1);
+    },
+    jump_to: (idx) => {
+        PRJ.record(PRJ.current_idx);
+        PRJ.restore(idx);
+        STEP.redraw();
+    },
+
+}

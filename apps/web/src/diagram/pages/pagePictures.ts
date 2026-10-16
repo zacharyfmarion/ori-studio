@@ -84,7 +84,7 @@ import { storedScene } from '../pictures/pictureFrame';
 import { prefixIds } from '../pictures/prefixIds';
 import { fontFaceId } from '../fonts/diagramFontFaces';
 import { setUploadText } from '../upload/uploadText';
-import { xrayPainter, xraySurfaceOf } from '../xray/xrayPaint';
+import { annotatedXRaySurface, xrayPainter } from '../xray/xrayPaint';
 import { pictureExtent, pictureFit, type LayoutCell, type LayoutStep, type ReachLine, type TextSetter } from './diagramPageLayout';
 import type { PageBox } from './pagePlacement';
 import type { PictureAlign } from './titleBlockGeometry';
@@ -387,7 +387,7 @@ export function layoutPicture(
   // A flat fold's layers, in the marks' units: a mark behind a flap is drawn dotted under it (15e).
   const layers = annotated ? viewGeometry(view, assets, style).layers : null;
   // Where an x-ray's window is drawn, it is measured by its rim: on a picture with layers (Revision 3).
-  const xRays = annotated && xraySurfaceOf(step) !== null;
+  const xRays = annotated && annotatedXRaySurface(step) !== null;
   /**
    * The picture measured by `at(frameMm)`, which gives the frame and what it
    * reaches with its marks, in px, its frame `frameMm` across its longer
@@ -549,7 +549,7 @@ export function cellPicture(
   // A References picture's sheet: a label's halo is filled with the face it stands on (17b).
   const textPaper = markPaper(step, assets);
   // Each x-ray's window, on a picture with layers: its picture without its top layers, as the canvas shows it (Revision 3).
-  const xraySurface = xraySurfaceOf(step);
+  const xraySurface = annotatedXRaySurface(step);
   const placing = { paper: textPaper, xRays: xraySurface && xrayPainter(xraySurface, style) };
   // An enlarged step draws its window (Revision 2), a close-up's inside included.
   const zoomed = zoomedSource(step, assets);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, type ComponentPropsWithoutRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
 import {
@@ -16,6 +16,28 @@ import type { StepPageFit } from '../../diagram/pages/pageOverflow';
 import { enlargedChips } from '../../diagram/zoom/zoomActions';
 import { DiagramStepCard, DiagramTurnCard } from './DiagramStepCard';
 import styles from './DiagramStepsGrid.module.css';
+import { useVirtualStepRows } from '../../diagram/useVirtualStepRows';
+
+type CardMount = (id: string, element: HTMLDivElement | null) => void;
+
+// Keep each card's ref stable across edits to other entries. Otherwise every
+// picture edit changes all refs, defeats memoization and remounts dense SVGs.
+const StepCard = memo(function StepCard({
+  onElement,
+  ...props
+}: ComponentPropsWithoutRef<typeof DiagramStepCard> & { onElement: CardMount }) {
+  const id = props.step.id;
+  const ref = useCallback((element: HTMLDivElement | null) => onElement(id, element), [id, onElement]);
+  return <DiagramStepCard {...props} ref={ref} />;
+});
+const TurnCard = memo(function TurnCard({
+  onElement,
+  ...props
+}: ComponentPropsWithoutRef<typeof DiagramTurnCard> & { onElement: CardMount }) {
+  const id = props.turn.id;
+  const ref = useCallback((element: HTMLDivElement | null) => onElement(id, element), [id, onElement]);
+  return <DiagramTurnCard {...props} ref={ref} />;
+});
 
 /**
  * Every step, in order, as a grid of cards that is one listbox.
@@ -107,33 +129,58 @@ export function DiagramStepsGrid({
   const listRef = useRef<HTMLDivElement | null>(null);
   const cards = useRef(new Map<string, HTMLDivElement>());
 
+  const rowIds = useMemo(
+    () => [...entries.map((entry) => `entry:${entry.id}`), ...(onAppend ? ['append'] : [])],
+    [entries, onAppend]
+  );
+  const { columns, margin, virtualizer } = useVirtualStepRows(listRef, rowIds);
+  const pendingFocus = useRef<string | null>(null);
+  const selectedIndex = entries.findIndex((entry) => entry.id === selectedStepId);
   useEffect(() => {
+    pendingFocus.current = null;
     if (selectedStepId === null) return;
     const card = cards.current.get(selectedStepId);
-    if (!card) return;
+    if (!card) {
+      const index = selectedIndex;
+      if (index >= 0) {
+        const active = document.activeElement;
+        pendingFocus.current =
+          active === document.body || listRef.current?.contains(active) ? selectedStepId : null;
+        virtualizer.scrollToIndex(Math.floor(index / columns), { align: 'auto' });
+      }
+      return;
+    }
     card.scrollIntoView?.({ block: 'nearest' });
     const active = document.activeElement;
     const nowhere = active === null || active === document.body;
     if ((nowhere || listRef.current?.contains(active)) && active !== card) {
       card.focus({ preventScroll: true });
     }
-  }, [selectedStepId]);
+  }, [selectedStepId, selectedIndex, columns, virtualizer]);
 
   const tabStop = selectedStepId ?? entries[0]?.id ?? null;
   const slots = useMemo(() => slotsOf(entries), [entries]);
   // An enlarged step's chip names the step its area is on (Revision 2), and its well's whether it changed (review fix 4).
   const enlarged = useMemo(() => enlargedChips(entries), [entries]);
-  const keep = (id: string) => (element: HTMLDivElement | null) => {
-    if (element) cards.current.set(id, element);
-    else cards.current.delete(id);
-  };
+  const keep = useCallback<CardMount>((id, element) => {
+    if (element) {
+      cards.current.set(id, element);
+      if (pendingFocus.current === id) {
+        pendingFocus.current = null;
+        const active = document.activeElement;
+        if (active === document.body || listRef.current?.contains(active))
+          element.focus({ preventScroll: true });
+      }
+    } else cards.current.delete(id);
+  }, []);
+  const rows = virtualizer.getVirtualItems();
 
   return (
     <div
       ref={listRef}
       role="listbox"
       aria-label={t('panels:diagram.grid.label', 'Steps')}
-      tabIndex={-1}
+      tabIndex={rows.some((row) => row.index === Math.floor(Math.max(0, selectedIndex) / columns)) ? -1 : 0}
       className={styles.grid}
       {...{ [DIAGRAM_STEPS_ATTRIBUTE]: '' }}
       data-drop-target={dropTarget === GRID_DROP_TARGET || undefined}
@@ -143,83 +190,111 @@ export function DiagramStepsGrid({
         if (event.target === event.currentTarget) onSelect(null);
       }}
     >
-      {slots.map((slot) => (
-        // A slot, so the gap before the card is placed against it.
-        <div key={slot.entry.id} className={styles.slot}>
-          {onInsertBefore && (
-            <div
-              aria-hidden
-              className={styles.insert}
-              data-insert-before={slot.entry.id}
-              title={t('panels:diagram.grid.insertHere', 'Add a step here')}
-              onClick={() => onInsertBefore(slot.entry.id)}
-            >
-              <span className={styles.insertButton}>
-                <Plus size={13} aria-hidden />
-              </span>
-            </div>
-          )}
-          {slot.kind === 'turn' ? (
-            <DiagramTurnCard
-              ref={keep(slot.entry.id)}
-              turn={slot.entry}
-              between={slot.between}
-              style={style}
-              selected={slot.entry.id === selectedStepId}
-              tabStop={slot.entry.id === tabStop}
-              dropTarget={slot.entry.id === dropTarget}
-              readOnly={readOnly}
-              onSelect={onSelect}
-              onDelete={onDelete}
-            />
-          ) : (
-            <DiagramStepCard
-              ref={keep(slot.entry.id)}
-              step={slot.entry}
-              assets={assets}
-              style={style}
-              number={slot.number}
-              selected={slot.entry.id === selectedStepId}
-              tabStop={slot.entry.id === tabStop}
-              dropTarget={slot.entry.id === dropTarget}
-              readOnly={readOnly}
-              onSelect={onSelect}
-              onOpen={onOpen}
-              onUpload={onUpload}
-              link={links.statuses.get(slot.entry.id) ?? null}
-              pageFit={pageFits.get(slot.entry.id) ?? null}
-              enlargedFrom={enlarged.get(slot.entry.id)?.from}
-              areaChanged={enlarged.get(slot.entry.id)?.changed === true}
-              capture={links.captures[slot.entry.id] ?? null}
-              patternOpen={patternOpen}
-              onLink={onLink}
-              onStop={links.stop}
-              onFromReferences={onFromReferences}
-              onOpenIn={onOpenIn}
-              onGoToEdit={onGoToEdit}
-              onMakeTurn={onMakeTurn}
-              onDelete={onDelete}
-            />
-          )}
-        </div>
-      ))}
-      {onAppend && (
-        // The place after the last card: the tile that adds a step there.
-        <div className={styles.slot} data-trailing="">
+      <div
+        className={styles.canvas}
+        style={{ height: virtualizer.getTotalSize() }}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) onSelect(null);
+        }}
+      >
+        {rows.map((row) => (
           <div
-            aria-hidden
-            className={styles.addTile}
-            data-add-step-tile=""
-            // A double-click's second click, after a Delete moved this tile under the pointer, adds nothing.
+            key={row.key}
+            data-index={row.index}
+            ref={virtualizer.measureElement}
+            className={styles.row}
+            style={{
+              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+              transform: `translateY(${row.start - margin}px)`,
+            }}
             onClick={(event) => {
-              if (event.detail <= 1) onAppend();
+              if (event.target === event.currentTarget) onSelect(null);
             }}
           >
-            <Plus size={18} aria-hidden />
-            {t('panels:diagram.grid.addStep', 'Add step')}
+            {slots.slice(row.index * columns, (row.index + 1) * columns).map((slot, column) => (
+              // A slot, so the gap before the card is placed against it.
+              <div key={slot.entry.id} className={styles.slot}>
+                {onInsertBefore && (
+                  <div
+                    aria-hidden
+                    className={styles.insert}
+                    data-insert-before={slot.entry.id}
+                    title={t('panels:diagram.grid.insertHere', 'Add a step here')}
+                    onClick={() => onInsertBefore(slot.entry.id)}
+                  >
+                    <span className={styles.insertButton}>
+                      <Plus size={13} aria-hidden />
+                    </span>
+                  </div>
+                )}
+                {slot.kind === 'turn' ? (
+                  <TurnCard
+                    onElement={keep}
+                    position={row.index * columns + column + 1}
+                    total={entries.length}
+                    turn={slot.entry}
+                    between={slot.between}
+                    style={style}
+                    selected={slot.entry.id === selectedStepId}
+                    tabStop={slot.entry.id === tabStop}
+                    dropTarget={slot.entry.id === dropTarget}
+                    readOnly={readOnly}
+                    onSelect={onSelect}
+                    onDelete={onDelete}
+                  />
+                ) : (
+                  <StepCard
+                    onElement={keep}
+                    position={row.index * columns + column + 1}
+                    total={entries.length}
+                    step={slot.entry}
+                    assets={assets}
+                    style={style}
+                    number={slot.number}
+                    selected={slot.entry.id === selectedStepId}
+                    tabStop={slot.entry.id === tabStop}
+                    dropTarget={slot.entry.id === dropTarget}
+                    readOnly={readOnly}
+                    onSelect={onSelect}
+                    onOpen={onOpen}
+                    onUpload={onUpload}
+                    link={links.statuses.get(slot.entry.id) ?? null}
+                    pageFit={pageFits.get(slot.entry.id) ?? null}
+                    enlargedFrom={enlarged.get(slot.entry.id)?.from}
+                    areaChanged={enlarged.get(slot.entry.id)?.changed === true}
+                    capture={links.captures[slot.entry.id] ?? null}
+                    patternOpen={patternOpen}
+                    onLink={onLink}
+                    onStop={links.stop}
+                    onFromReferences={onFromReferences}
+                    onOpenIn={onOpenIn}
+                    onGoToEdit={onGoToEdit}
+                    onMakeTurn={onMakeTurn}
+                    onDelete={onDelete}
+                  />
+                )}
+              </div>
+            ))}
+            {onAppend && row.index === Math.floor(slots.length / columns) && (
+              // The place after the last card: the tile that adds a step there.
+              <div className={styles.slot} data-trailing="">
+                <div
+                  aria-hidden
+                  className={styles.addTile}
+                  data-add-step-tile=""
+                  // A double-click's second click, after a Delete moved this tile under the pointer, adds nothing.
+                  onClick={(event) => {
+                    if (event.detail <= 1) onAppend();
+                  }}
+                >
+                  <Plus size={18} aria-hidden />
+                  {t('panels:diagram.grid.addStep', 'Add step')}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }

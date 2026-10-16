@@ -23,8 +23,6 @@ const PAGE_TURN_MS = 220;
 /** The camera's fit time (`useViewportSurface`), for Fit on the page the reader is on. */
 const PAGE_FIT_MS = 180;
 
-const OBSERVES = typeof IntersectionObserver !== 'undefined';
-
 /** The page in the middle of the view, and the first and last on screen, from 0. */
 type OnScreen = { middle: number; first: number; last: number };
 const NONE_ON_SCREEN: OnScreen = { middle: 0, first: 0, last: 0 };
@@ -47,6 +45,7 @@ export function usePagesView({
   selectedStepId: string | null;
   fitKey: string;
 }) {
+  const observes = typeof IntersectionObserver !== 'undefined';
   const paper = pages?.layout.paper ?? null;
   const count = pages?.layout.pages.length ?? 0;
   const pageW = (paper?.widthMm ?? 210) * PAGES_PX_PER_MM;
@@ -195,8 +194,8 @@ export function usePagesView({
 
   // Pages are composed once they come within a view's height of the screen:
   // the first, or the ones round those a view coming back had on screen.
-  // Release their artwork again when they leave that area; interaction targets
-  // remain mounted for selection and keyboard navigation.
+  // Release their artwork and targets when they leave that area. The view keeps
+  // the selected page's targets mounted for keyboard reveal and pointer capture.
   const [near, setNear] = useState<ReadonlySet<number>>(() => {
     if (!restoring) return new Set([0]);
     const { first: from, last: to } = restoring.onScreen;
@@ -212,7 +211,7 @@ export function usePagesView({
   );
   useEffect(() => {
     const root = containerRef.current;
-    if (!root || !OBSERVES) return undefined;
+    if (!root || !observes) return undefined;
     const observer = new IntersectionObserver(
       (entries) => {
         setNear((previous) => {
@@ -230,9 +229,9 @@ export function usePagesView({
     );
     for (const element of pageElements.current.values()) observer.observe(element);
     return () => observer.disconnect();
-  }, [containerRef, count]);
+  }, [containerRef, count, observes]);
   // Without an observer (a test's DOM), every page is near.
-  const isNear = useCallback((index: number) => !OBSERVES || near.has(index), [near]);
+  const isNear = useCallback((index: number) => !observes || near.has(index), [near, observes]);
 
   // The selected step: in view, and holding the focus while the focus is in
   // the pages or nowhere — as the Steps grid does — so Enter opens it and the

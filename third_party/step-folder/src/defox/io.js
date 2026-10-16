@@ -1,0 +1,490 @@
+import { IO } from "../flatfolder/io.js";
+import { M } from "../flatfolder/math.js";
+import { X } from "../flatfolder/conversion.js";
+import { SVG } from "../flatfolder/svg.js";
+
+import { N } from "./nath.js";
+import { Y } from "./y.js";
+import { PRJ } from "./project.js";
+import { PAGE } from "./page.js";
+import { DIST } from "../distortionfolder/distortion.js";
+import { SVG3 } from "./svg.js";
+import { DRAW } from "./draw.js";
+import { SYM } from "./symbol.js";
+import { LOAD } from "./gui/load.js";
+
+
+export const IO3 = {
+    write: async (svg_id, name, ext, idx = undefined) => {
+        if (ext == "png") {
+            return await IO3.write_pngs(svg_id, name, idx);
+        }
+        if (ext == "png_1p") {
+            const svg_page = SVG.clear("png");
+            const defs = document.getElementById("defs").firstElementChild;
+            svg_page.appendChild(defs.cloneNode(true));
+            const svg = PAGE.redraw(svg_page, PRJ.steps);
+            const width = PAGE.dim.width;
+            const height = PAGE.dim.height;
+            const dim = { width, height };
+            IO3.write_png(svg, name + "_page_", dim, PAGE.current_idx);
+            document.getElementById("png").setAttribute("style", "display:none");
+            SVG.clear("png");
+            return await LOAD.report();
+        }
+        if (ext == "png_steps") {
+            return await IO3.write_png_steps(name);
+        }
+        if (ext == "png_nonscale") {
+            return await IO3.write_png_nonscale(name);
+        }
+        if (ext == "svg") {
+            return await IO3.write_svgs(name, idx, false);
+        }
+        if (ext == "cell_svg") {
+            return await IO3.write_svgs(name, idx, true);
+        }
+        if (ext == "cell_svg_1p") {
+            const w = PAGE.dim.width;
+            const h = PAGE.dim.height;
+
+            const book = document.createElement("svg");
+            book.setAttribute("xmlns", SVG.NS);
+            book.appendChild(defs.cloneNode(true));
+            book.setAttribute("width", w);
+            book.setAttribute("height", h);
+            const svg_page = SVG.append("g", book);
+            PAGE.redraw(svg_page, PRJ.steps, defs, true, [0, 0]);
+            IO3.write_svg(book, name, PAGE.current_idx);
+            return await LOAD.report();
+        }
+        if (ext == "cp") {
+            return await IO3.write_cps(name, idx);
+        }
+    },
+
+    format_num: (n) => {
+        return ((n + 1) + "").padStart(3, '0');
+    },
+
+    write_cps: async (name, idx = undefined) => {
+        if (idx) {
+            const FOLD = PRJ.steps[idx].fold_cp;
+            const cp = Y.FOLD_2_CP(FOLD);
+            let blob = new Blob([cp], { type: "text/plain" });
+            let link = document.createElement("a");
+            link.href = window.URL.createObjectURL(blob);
+            const num = IO3.format_num(idx);
+            link.download = num + ".cp";
+            link.click();
+            return;
+        }
+
+        const zip = new JSZip();
+
+        await LOAD.set(PRJ.steps.length - 1,
+            async () => {
+                for (const [idx, step] of PRJ.steps.entries()) {
+                    if (idx == 0) {
+                        continue;
+                    }
+                    const FOLD = step.fold_cp;
+                    const cp = Y.FOLD_2_CP(FOLD);
+                    const num = IO3.format_num(idx);
+                    zip.file(num + ".cp", cp);
+                    await LOAD.report();
+                }
+                zip.generateAsync({ type: "blob" }).then(function (content) {
+                    saveAs(content, name + ".zip");
+                });
+            }
+        );
+
+    },
+
+    write_svgs: async (name, idx = undefined, to_cell = false) => {
+        const defs = document.getElementById("defs").firstElementChild;
+        if (idx) {
+            await LOAD.set(1, async () => {
+                const book = document.createElement("svg");
+                book.setAttribute("xmlns", SVG.NS);
+                book.appendChild(defs.cloneNode(true));
+                const [s, b] = [SVG.SCALE, SVG3.MARGIN]
+                book.setAttribute("width", s);
+                book.setAttribute("height", s);
+                book.setAttribute("x", 0);
+                book.setAttribute("y", 0);
+                book.setAttribute("viewBox", [-b, -b, s + 2 * b, s + 2 * b].join(" "));
+
+                PAGE.draw_step(book, PRJ.steps[idx], idx, to_cell, false)
+                IO3.write_svg(book, name, idx);
+                await LOAD.report();
+
+            })
+            return;
+        }
+
+        const pages = PAGE.get_pages(PRJ.steps);
+        const w = PAGE.dim.width;
+        const h = PAGE.dim.height;
+        await LOAD.set(pages, async () => {
+            for (let j = 0; j < pages; j++) {
+                const book = document.createElement("svg");
+                book.setAttribute("xmlns", SVG.NS);
+                book.appendChild(defs.cloneNode(true));
+                book.setAttribute("width", w);
+                book.setAttribute("height", h);
+                PAGE.current_idx = j;
+                const svg_page = SVG.append("g", book);
+                PAGE.redraw(svg_page, PRJ.steps, defs, to_cell, [0, 0]);
+                IO3.write_svg(book, name, j);
+                await LOAD.report();
+            }
+        })
+    },
+    write_svg: (svg, name, idx) => {
+        const img = new Blob([svg.outerHTML], {
+            type: "image/svg+xml"
+        });
+        const link = document.createElement("a");
+        const num = IO3.format_num(idx);
+        link.setAttribute("download", `${name}_${num}.svg`);
+        link.setAttribute("href", window.URL.createObjectURL(img));
+        link.dispatchEvent(new MouseEvent("click"));
+    },
+    write_pngs: async (svg_id, name, idx = undefined) => {
+        if (idx) {
+            PRJ.restore(idx);
+            const width = SVG.SCALE;
+            const height = SVG.SCALE;
+            const dim = { width, height };
+            IO3.write_png(document.getElementById(svg_id), name, dim, idx);
+            return;
+        }
+        const pages = PAGE.get_pages(PRJ.steps);
+        await LOAD.set(pages,
+            async () => {
+                for (let j = 0; j < pages; j++) {
+                    PAGE.current_idx = j;
+
+                    const svg_page = SVG.clear("png");
+                    const defs = document.getElementById("defs").firstElementChild;
+                    svg_page.appendChild(defs.cloneNode(true));
+                    const svg = PAGE.redraw(svg_page, PRJ.steps);
+
+                    const width = PAGE.dim.width;
+                    const height = PAGE.dim.height;
+                    const dim = { width, height };
+                    IO3.write_png(svg, name + "_page_", dim, j);
+                    await LOAD.report();
+                }
+                document.getElementById("png").setAttribute("style", "display:none");
+                SVG.clear("png");
+            }
+        );
+    },
+    write_png_steps: async (name) => {
+        const zip = new JSZip();
+        await LOAD.set(PRJ.steps.length,
+            async () => {
+                for (const [idx, step] of PRJ.steps.entries()) {
+                    const height = SVG.SCALE + 2 * SVG3.MARGIN;
+                    const width = 2 * height;
+                    const dim = { width, height };
+                    const step_after = PRJ.steps[idx + 1];
+                    const svg = PAGE.get_tutorial_svg(step, step_after, idx);
+                    const blob = await IO3.get_png_blob(svg, dim);
+                    const num = IO3.format_num(idx);
+                    const file_name = `${name}_${num}.png`;
+                    zip.file(file_name, blob);
+                    await LOAD.report();
+                }
+                zip.generateAsync({ type: "blob" })
+                    .then(function (content) {
+                        saveAs(content, name + ".zip");
+                    });
+            }
+        );
+    },
+    write_png_nonscale: async (name) => {
+        const zip = new JSZip();
+        await LOAD.set(PRJ.steps.length,
+            async () => {
+                for (const [idx, step] of PRJ.steps.entries()) {
+                    const height = SVG.SCALE + 2 * SVG3.MARGIN;
+                    const width = height;
+                    const dim = { width, height };
+                    const svg = PAGE.get_nonscale_svg(step, idx);
+                    const blob = await IO3.get_png_blob(svg, dim);
+                    const num = IO3.format_num(idx);
+                    const file_name = `${name}_${num}.png`;
+                    zip.file(file_name, blob);
+                    await LOAD.report();
+                }
+                zip.generateAsync({ type: "blob" })
+                    .then(function (content) {
+                        saveAs(content, name + ".zip");
+                    });
+            }
+        );
+    },
+    get_png_blob: (svg, dim) => {
+        const svgData = new XMLSerializer().serializeToString(svg);
+
+        return new Promise((resolve, reject) => {
+            var image = new Image;
+            image.onload = function () {
+                var canvas = document.createElement("canvas");
+                canvas.width = dim.width;
+                canvas.height = dim.height;
+                var ctx = canvas.getContext("2d");
+                ctx.drawImage(image, 0, 0);
+                canvas.toBlob(blob => {
+                    resolve(blob);
+                }, "image/png", 1);
+            }
+            image.src = "data:image/svg+xml;charset=utf-8;base64," + btoa(unescape(encodeURIComponent(svgData)));
+        });
+    },
+
+    write_png: (svg, name, dim, idx) => {
+        var svgData = new XMLSerializer().serializeToString(svg);
+        var canvas = document.createElement("canvas");
+        canvas.width = dim.width;
+        canvas.height = dim.height;
+        var ctx = canvas.getContext("2d");
+        var image = new Image;
+        image.onload = function () {
+            ctx.drawImage(image, 0, 0);
+            var a = document.createElement("a");
+            a.href = canvas.toDataURL("image/png");
+            const num = IO3.format_num(idx);
+            a.setAttribute("download", `${name}_${num}.png`);
+            a.dispatchEvent(new MouseEvent("click"));
+        }
+        image.src = "data:image/svg+xml;charset=utf-8;base64," + btoa(unescape(encodeURIComponent(svgData)));
+    },
+
+    save: async (data, name) => {
+        const data_ = [];
+        await LOAD.set(data.length,
+            async () => {
+                for (const d of data) {
+                    const d_ = {};
+                    for (const key of ["id", "fold_cp", "fold", "cell_d", "state_cp", "state", "params", "lin", "symbols", "catalyst"]) {
+                        d_[key] = d[key];
+                    }
+                    d_.cell_cp = {};
+                    for (const key of ["P", "SP", "SE", "PP", "CP", "CS", "SC", "CF", "FC", "GB", "GA", "GI"]) {
+                        d_.cell_cp[key] = d.cell_cp[key];
+                    }
+                    data_.push(d_);
+                    await LOAD.report();
+                }
+                data_[0].color = DRAW.color;
+                data_[0].symcolor = SYM.color;
+
+                for (const id of ["title", "title_alt", "desc0", "desc1", "desc2"]) {
+                    data_[0][id] = document.getElementById(id).value;
+                }
+                const json = new Blob([JSON.stringify(data_, undefined, 2)], {
+                    type: "application/json"
+                })
+                const ext = "defox";
+                const link = document.createElement("a");
+                const button = document.createElement("input");
+                link.appendChild(button);
+                link.setAttribute("download", `${name}.${ext}`);
+                link.setAttribute("href", window.URL.createObjectURL(json));
+                button.setAttribute("type", "button");
+                button.click();
+            }
+        );
+    },
+    load: async (data_) => {
+        if (data_[0].color) {
+            DRAW.color = data_[0].color;
+            document.getElementById("topcolor").value = DRAW.color.face.top;
+            document.getElementById("bottomcolor").value = DRAW.color.face.bottom;
+            document.getElementById("bgcolor").value = DRAW.color.background;
+        }
+        if (data_[0].symcolor) {
+            SYM.color = data_[0].symcolor;
+            document.getElementById("arrowcolor").value = SYM.color.arrow;
+            const defs = document.getElementById("defs");
+            const response = await fetch('./resources/defs.xml');
+            const xml = await response.text();
+            const rep = xml.replaceAll("black", SYM.color.arrow)
+            defs.innerHTML = rep;
+        }
+        for (const id of ["title", "title_alt", "desc0", "desc1", "desc2"]) {
+            document.getElementById(id).value = data_[0][id];
+        }
+
+        const total = data_.length;
+        await LOAD.set(total, async () => {
+            for (const [i, d] of data_.entries()) {
+                await LOAD.status(`Loading Step ${i + 1} / ${data_.length}`);
+                await IO3.load_step(i, d);
+                await LOAD.report();
+            }
+        });
+        return data_;
+    },
+    load_step: async (idx, step_data) => {
+        if (!step_data.id) {
+            step_data.id = Date.now() + Math.floor(Math.random() * 100000);
+        }
+        await LOAD.status(`Recovering the Variables of Step ${idx + 1}`);
+        const { BF, BI } = Y.FOLD_CELL_2_BF_BI(step_data.fold_cp, step_data.cell_cp);
+        step_data.cell_cp.BF = BF;
+        step_data.cell_cp.BI = BI;
+        if (!step_data.state_cp) {
+            await LOAD.status(`Recovering the State of Step ${idx + 1}`);
+            step_data.state_cp = Y.FOLD_CELL_2_STATE(step_data.fold_cp, step_data.cell_cp);
+
+        }
+
+        const { Vf, FV, EV, EF, FE, Ff, EA, V, VV, Vc, FU, UV, UA } = step_data.fold
+
+        let catalyst = V;
+        if (step_data.catalyst != undefined) {
+            catalyst = step_data.catalyst.Vf;
+        }
+        PRJ.restore_params(step_data.params);
+        await LOAD.status(`Recovering the Distortion of Step ${idx + 1}`);
+        const VD = DIST.FOLD_2_VD(Vf, catalyst);
+        step_data.fold_d = { V, Vf: VD, FV, EV, EF, FE, Ff, EA, VV, Vc, FU, UV, UA };
+    },
+    normalize_L: (L) => {
+        const P = [];
+        L.map((l) => {
+            P.push(l[0]);
+            P.push(l[1]);
+        });
+        const Q = M.normalize_points(P);
+
+        return L.map((_, l_i) => {
+            return [Q[2 * l_i], Q[2 * l_i + 1], L[l_i][2]];
+        });
+    },
+
+    EL_L_2_EA: (EL, L) => {
+        return EL.map((ls) => {
+            let a = "F";
+            for (const l_i of ls) {
+                const b = L[l_i][2];
+                if (b != "F") {
+                    a = b;
+                    break;
+                }
+            }
+            return (a == "M") ? "V" : ((a == "V") ? "M" : a);
+        });
+    },
+
+    cp_2_V_VV_EV_EA_EF_FV_FE: (doc, L_add = undefined) => {
+        let V_, V, UV_, EV, UA_, EA, EF, FE, VV, FV;
+        let UV, FU;
+        let L, L_, EL, UL_;
+        L_ = IO.CP_2_L(doc);
+        L_ = IO3.normalize_L(L_)
+        if (L_add) {
+            L_ = L_add.concat(L_);
+        }
+        [V_, UV_, UL_,] = X.L_2_V_EV_EL(L_);
+        UA_ = IO3.EL_L_2_EA(UL_, L_);
+
+        L = [];
+        for (const [p, q, a] of L_) {
+            if (a != "F") {
+                L.push([p, q, a]);
+            }
+        }
+        [V, EV, EL,] = X.L_2_V_EV_EL(L);
+        EA = IO3.EL_L_2_EA(EL, L);
+
+
+        [VV, FV] = X.V_EV_2_VV_FV(V, EV);
+
+        [EF, FE] = X.EV_FV_2_EF_FE(EV, FV);     // remove holes
+
+
+        if (FV.length > 1) {
+            FV = FV.filter((F, i) => !FE[i].every(e => (EA[e] == "B")));
+        }
+        if (FV.length != FE.length) {           // recompute face maps
+            [EF, FE] = X.EV_FV_2_EF_FE(EV, FV);
+        }
+        for (const [i, F] of EF.entries()) {    // boundary edge assignment
+            if (F.length == 1) {
+                EA[i] = "B";
+            }
+        }
+
+        UV = [];
+        for (const [ei_, a_] of UA_.entries()) {
+            if (a_ != "F") {
+                continue;
+            }
+            const [pi_, qi_] = UV_[ei_];
+            const [p, q] = [V_[pi_], V_[qi_]];
+            let pi = -1;
+            for (const [vi, v] of V.entries()) {
+                if (M.distsq(p, v) < 1e-16) {
+                    pi = vi
+                    break;
+                }
+            }
+            if (pi < 0) {
+                V.push(p);
+                pi = V.length - 1;
+            }
+            let qi = -1;
+            for (const [vi, v] of V.entries()) {
+                if (M.distsq(q, v) < 1e-16) {
+                    qi = vi
+                    break;
+                }
+            }
+            if (qi < 0) {
+                V.push(q);
+                qi = V.length - 1;
+            }
+            UV.push([pi, qi]);
+        }
+
+        FU = FV.map(_ => []);
+        for (const [ui, vv] of UV.entries()) {
+            const c = M.centroid(M.expand(vv, V));
+            for (const [fi, vs] of FV.entries()) {
+                if (N.is_inside(c, M.expand(vs, V))) {
+                    FU[fi].push(ui);
+                    break;
+                };
+            }
+        }
+
+        const Vc = V.map(_ => false);
+        for (const [fi, uis] of FU.entries()) {
+            for (const ui of uis) {
+                const [pi, qi] = UV[ui];
+                const [p, q] = M.expand(UV[ui], V);
+                const F = M.expand(FV[fi], V);
+                let a = F[F.length - 1];
+                for (let i = 0; i < F.length; i++) {
+                    const b = F[i];
+                    if (M.on_segment(a, b, p, 1e-8)) {
+                        Vc[pi] = true;
+                    }
+                    if (M.on_segment(a, b, q, 1e-8)) {
+                        Vc[qi] = true;
+                    }
+                    a = b;
+                }
+            }
+        }
+        const UA = UV.map(_ => "F");
+        return [V, VV, EV, EA, EF, FV, FE, UV, FU, Vc, UA];
+    },
+}

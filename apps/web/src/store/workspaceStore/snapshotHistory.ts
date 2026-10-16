@@ -13,6 +13,7 @@
 export const MAX_SNAPSHOT_HISTORY = 100;
 
 export interface SnapshotEntry<S> {
+  compoundId?: string;
   snapshot: S;
   label: string;
   timestamp: string;

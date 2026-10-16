@@ -293,6 +293,7 @@ export async function poseLinkedStep(
     const target = renderToShowAs({ render, remembered }, 'crease-pattern');
     return creasePattern(target.mode === 'crease-pattern' ? target : { mode: 'crease-pattern', rotationDeg: 0 });
   }
+  if (render.mode === 'defox') return verb === 'show-folded' ? foldedAsRemembered() : { status: 'unavailable' };
   if (render.mode === 'simulated') {
     switch (verb) {
       case 'show-folded':

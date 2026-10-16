@@ -1,0 +1,375 @@
+import { SVG } from "../flatfolder/svg.js"
+import { M } from "../flatfolder/math.js";
+
+import { N } from "../defox/nath.js";
+import { PAGE } from "../defox/page.js";
+import { PRJ } from "../defox/project.js";
+
+export const SYM = {
+    width: {
+        arrow: 4,
+        reference_point: 4,
+        right_angle: 4,
+        angle_bisector: 4,
+        text: 80,
+    },
+    color: {
+        arrow: "black",
+        reference_point: "magenta",
+        right_angle: "magenta",
+        angle_bisector: "magenta",
+        angle_bisector: "magenta",
+        repeatbox: "white",
+        text: "magenta",
+    },
+    radius: {
+        reference_point: 20,
+        flip: 100,
+        angle_bisector: 10,
+    },
+
+    get_cross: (p, q, l, alpha) => {
+        const d = M.sub(q, p);
+        const [x, y] = d;
+        const dm = M.mul(d, (alpha + .5));
+        const n = M.mul([-y, x], l * .5);
+        const e = M.add(dm, M.add(n, p));
+        const s = M.add(e, M.mul([y, -x], l));
+        return [s, e];
+    },
+
+    create: (type, params, FOLD, T, origin = [0, 0]) => {
+        const i = params.crease_index;
+        const { Vf, UV, EV } = FOLD;
+        const V_ = N.focus(Vf, [.5, .5]).map((v) => N.transform(T, v));
+
+        let s, e, v, v1, v2;
+        if (i >= 0) {
+            const creases = UV.concat(EV);
+            const [p, q] = M.expand(creases[i], V_);
+
+            [s, e] = SYM.get_cross(p, q, params.length, params.offset);
+            if (params.is_rev) {
+                [s, e] = [e, s];
+            }
+        }
+
+        const j = params.vertex_index;
+        if (j >= 0) {
+            v = V_[j];
+        }
+
+        const j1 = params.vertex_index_1;
+        if (j1 >= 0) {
+            const v1_ = V_[j1];
+            const d = M.sub(v1_, v);
+            v1 = M.add(v, M.mul(d, params.length));
+        }
+        const j2 = params.vertex_index_2;
+        if (j2 >= 0) {
+            const v2_ = V_[j2];
+            const d = M.sub(v2_, v);
+            v2 = M.add(v, M.mul(d, params.length));
+        }
+
+        switch (type) {
+            case 0:
+                return SYM.create_mv(s, e, false, params.is_clockwise, false);
+            case 1:
+                return SYM.create_mv(s, e, true, params.is_clockwise, false);
+            case 2:
+                return SYM.create_mv(s, e, false, params.is_clockwise, true);
+            case 3:
+                return SYM.create_mv(s, e, true, params.is_clockwise, true);
+            case 4:
+                return SYM.create_sink(s, e, false);
+            case 5:
+                return SYM.create_sink(s, e, true);
+            case 6:
+                return SYM.create_fold_unfold(s, e, params.is_clockwise, false);
+            case 7:
+                return SYM.create_fold_unfold(s, e, params.is_clockwise, true);
+            case 8:
+                const c = M.add([params.cx * (params.offset + 1), params.cy], M.div(origin, SVG.SCALE));
+                return SYM.create_flip(c, params.is_rev, SYM.radius.flip * params.length);
+            case 9:
+                const l = params.length;
+                return SYM.create_reference_point(v, l * SYM.radius.reference_point);
+            case 10:
+                return SYM.create_pleat(s, e, params.is_clockwise);
+            case 11:
+                return SYM.create_inside_reverse(v, v1, params.is_clockwise, params.offset, false);
+            case 12:
+                return SYM.create_inside_reverse(v, v1, params.is_clockwise, params.offset, true);
+            case 13:
+                return SYM.create_right_angle(v, v1, v2, params.length, params.offset);
+            case 14:
+                return SYM.create_angle_bisector(v, v1, v2, params.length, params.offset);
+            case 15:
+                return SYM.create_repeat(s, e, params.cp0, params.cp1);
+            default:
+                return undefined;
+        }
+    },
+
+    create_mv: (s, e, is_m, is_clockwese, is_sqeezed) => {
+        const k = SVG.SCALE;
+        const [x0, y0] = M.mul(s, k);
+        const [x1, y1] = M.mul(e, k);
+        const d = M.sub([x1, y1], [x0, y0]);
+        const [dx, dy] = d;
+        const n = is_clockwese ? [dy, -dx] : [-dy, dx];
+        const [x, y] = M.add(M.add([x0, y0], M.mul(d, is_sqeezed ? -.075 : .5)), M.mul(n, is_sqeezed ? .1 : .5));
+        const [xx, yy] = M.add([x0, y0], M.mul(n, .4));
+
+        const sym = document.createElementNS(SVG.NS, "path");
+        is_sqeezed ?
+            sym.setAttribute("d", `M ${x0} ${y0} C ${x} ${y}, ${xx} ${yy}, ${x1} ${y1}`) :
+            sym.setAttribute("d", `M ${x0} ${y0} S ${x} ${y}, ${x1} ${y1}`);
+        ;
+        sym.setAttribute("stroke", SYM.color.arrow);
+        sym.setAttribute("stroke-width", SYM.width.arrow);
+        sym.setAttribute("stroke-linecap", "butt");
+        const end = is_m ? "url(#arrow_head_m)" : "url(#arrow_head_v)";
+        sym.setAttribute("marker-end", end);
+        sym.setAttribute("fill", "none");
+        return sym;
+    },
+
+    create_inside_reverse: (s, e, is_clockwese, offset, is_sqeezed) => {
+        const k = SVG.SCALE;
+        const [x0, y0] = M.mul(s, k);
+        const [x1, y1] = M.mul(e, k);
+        const d = M.sub([x1, y1], [x0, y0]);
+        const [dx, dy] = d;
+        const n = is_clockwese ? [dy, -dx] : [-dy, dx];
+        const [x, y] = M.add(M.add([x0, y0], d), M.mul(n, .2));
+
+        const [px, py] = M.add(M.add([x0, y0], M.mul(d, is_sqeezed ? -.5 : .5)), M.mul(n, offset / 5 + 1));
+        const [qx, qy] = M.add(M.add([x, y], M.mul(d, is_sqeezed ? .5 : -.5)), M.mul(n, -1.5 * offset / 5 - 1.5));
+
+        const sym = document.createElementNS(SVG.NS, "path");
+        sym.setAttribute("d", `M ${x0} ${y0} C ${px} ${py}, ${qx} ${qy}, ${x} ${y}`);
+
+        sym.setAttribute("stroke", SYM.color.arrow);
+        sym.setAttribute("stroke-width", SYM.width.arrow);
+        sym.setAttribute("stroke-linecap", "butt");
+        const end = "url(#arrow_head_inside_reverse)";
+        sym.setAttribute("marker-end", end);
+        sym.setAttribute("fill", "none");
+        return sym;
+    },
+
+    create_sink: (s, e, is_closed) => {
+        const k = SVG.SCALE;
+        const [x1, y1] = M.mul(e, k);
+        const d = M.sub([x1, y1], M.mul(s, k));
+        const u = M.unit(d);
+        const [x, y] = M.add([x1, y1], u);
+
+        const sym = document.createElementNS(SVG.NS, "path");
+        sym.setAttribute("d", `M ${x} ${y} L ${x1} ${y1}`);
+        sym.setAttribute("stroke", SYM.color.arrow);
+        sym.setAttribute("stroke-width", SYM.width.arrow);
+        sym.setAttribute("stroke-linecap", "butt");
+
+        const end = is_closed ? "url(#arrow_head_closed_sink)" : "url(#arrow_head_open_sink)";
+        sym.setAttribute("marker-end", end);
+        sym.setAttribute("fill", "none");
+        return sym;
+    },
+
+    create_fold_unfold: (s, e, is_clockwese, is_sqeezed) => {
+        const k = SVG.SCALE;
+        const [x0, y0] = M.mul(s, k);
+        const [x1, y1] = M.mul(e, k);
+        const d = M.sub([x1, y1], [x0, y0]);
+        const [dx, dy] = d;
+        const n = is_clockwese ? [dy, -dx] : [-dy, dx];
+        const [x, y] = M.add(M.add([x0, y0], M.mul(d, is_sqeezed ? -.3 : .5)), M.mul(n, 0.25));
+
+
+        const [x2, y2] = is_sqeezed ?
+            M.add([x0, y0], M.mul(n, 0.25))
+            :
+            M.add(M.mul(d, 0.125), M.add([x0, y0], M.mul(n, 0.125)));
+        const dd = M.sub([x2, y2], [x1, y1]);
+        const [dxx, dyy] = dd;
+        const nn = is_clockwese ? [dyy, -dxx] : [-dyy, dxx];
+        const [xx, yy] = M.add(M.add([x1, y1], M.mul(dd, .5)), M.mul(nn, -0.25));
+
+
+        const sym = document.createElementNS(SVG.NS, "path");
+        sym.setAttribute("d", `M ${x0} ${y0} S ${x} ${y}, ${x1} ${y1} L ${x1} ${y1} S ${xx} ${yy}, ${x2} ${y2}`);
+        sym.setAttribute("stroke", SYM.color.arrow);
+        sym.setAttribute("stroke-width", SYM.width.arrow);
+        sym.setAttribute("stroke-linecap", "butt");
+        const end = "url(#arrow_head_fold_unfold)";
+        sym.setAttribute("marker-end", end);
+        sym.setAttribute("fill", "none");
+        return sym;
+
+    },
+
+    create_pleat: (s, e, is_clockwese) => {
+        const k = SVG.SCALE;
+        const [x0, y0] = M.mul(s, k);
+        const [x1, y1] = M.mul(e, k);
+        const d = M.sub([x1, y1], [x0, y0]);
+        const [dx, dy] = d;
+        const n = is_clockwese ? [dy, -dx] : [-dy, dx];
+        const [x2, y2] = M.add(M.add([x0, y0], M.mul(d, .5)), M.mul(n, 0.2));
+
+
+        const [x3, y3] = M.sub([x2, y2], d);
+
+
+        const sym = document.createElementNS(SVG.NS, "path");
+        sym.setAttribute("d", `M ${x3} ${y3} L ${x2} ${y2} L ${x0} ${y0} L ${x1} ${y1}`);
+        sym.setAttribute("stroke", SYM.color.arrow);
+        sym.setAttribute("stroke-width", SYM.width.arrow);
+        sym.setAttribute("stroke-linecap", "butt");
+        const end = "url(#arrow_head_pleat)";
+        sym.setAttribute("marker-end", end);
+        sym.setAttribute("fill", "none");
+        return sym;
+
+    },
+
+    create_flip: (center, is_rev, size = 100) => {
+        const k = SVG.SCALE;
+        const [cx, cy] = center;
+        const [x, y] = [cx * k, cy * k];
+        const kk = size / 2;
+        const [x0, y0] = [x - kk * Math.sqrt(3), y + size / 2];
+        const [x1, y1] = [x + kk * Math.sqrt(3), y + size / 2];
+        const [mx, my] = [x, y + size];
+        const [nx, ny] = [x, y];
+
+
+        const sym = document.createElementNS(SVG.NS, "path");
+        sym.setAttribute("d", `M ${x0} ${y0} A ${size} ${size} 0 0 0 ${mx} ${my} A ${size / 2} ${size / 2} 0 0 1 ${nx} ${ny} A ${size / 2} ${size / 2} 0 1 1 ${mx} ${my} A ${size} ${size} 0 0 0 ${x1} ${y1}`);
+        sym.setAttribute("stroke", SYM.color.arrow);
+        sym.setAttribute("stroke-width", SYM.width.arrow);
+        sym.setAttribute("stroke-linecap", "butt");
+        const end = "url(#arrow_head_flip)";
+        if (is_rev) {
+            sym.setAttribute("marker-start", end);
+        }
+        else {
+            sym.setAttribute("marker-end", end);
+        }
+        sym.setAttribute("fill", "none");
+        return sym;
+    },
+
+    create_reference_point: ([cx, cy], r) => {
+        const [x, y] = M.mul([cx, cy], SVG.SCALE);
+        const sym = document.createElementNS(SVG.NS, "circle");
+        sym.setAttribute("cx", x);
+        sym.setAttribute("cy", y);
+        sym.setAttribute("r", r);
+        sym.setAttribute("stroke", SYM.color.reference_point);
+        sym.setAttribute("stroke-width", SYM.width.reference_point);
+        sym.setAttribute("fill", "none");
+        return sym;
+    },
+
+    create_right_angle: (m, s, e, size = 1, offset = 0) => {
+        const k = SVG.SCALE;
+        const [ds, de] = [M.sub(s, m), M.sub(e, m)];
+        const [us, ue] = [M.unit(ds), M.unit(de)];
+        const dm = M.add(M.mul(us, (offset + 1) * 5), M.mul(ue, (offset + 1) * 5));
+        const [mx, my] = M.add(M.mul(m, k), dm);
+        const l = size * 30;
+        const [sx, sy] = M.add([mx, my], M.mul(us, l));
+        const [ex, ey] = M.add([mx, my], M.mul(ue, l));
+        const [ax, ay] = M.add([mx, my], M.mul(us, l / 2));
+        const [bx, by] = M.add([ax, ay], M.mul(ue, l / 2));
+        const [cx, cy] = M.add([mx, my], M.mul(ue, l / 2));
+
+        const sym = document.createElementNS(SVG.NS, "path");
+        sym.setAttribute("d", `M ${sx} ${sy} L ${mx} ${my} L ${ex} ${ey} M ${ax} ${ay} L ${bx} ${by} L ${cx} ${cy}`);
+        sym.setAttribute("stroke", SYM.color.right_angle);
+        sym.setAttribute("stroke-width", SYM.width.right_angle);
+        sym.setAttribute("fill", "none");
+        return sym;
+    },
+
+    create_angle_bisector: (m, s, e, size = 1, offset = 0) => {
+        const k = SVG.SCALE;
+        const [ds, de] = [M.sub(s, m), M.sub(e, m)];
+        const [us, ue] = [M.unit(ds), M.unit(de)];
+        const um = M.unit(M.add(us, ue));
+        const da = M.unit(M.add(us, um));
+        const db = M.unit(M.add(ue, um));
+
+
+        const [mx, my] = M.mul(m, k);
+        const l = (offset + 1) * 50;
+        const [ax, ay] = M.add([mx, my], M.mul(da, l));
+        const [bx, by] = M.add([mx, my], M.mul(db, l));
+
+        const sym = document.createElementNS(SVG.NS, "g");
+        const a = SVG.append("circle", sym, { cx: ax, cy: ay, r: size * SYM.radius.angle_bisector });
+        const b = SVG.append("circle", sym, { cx: bx, cy: by, r: size * SYM.radius.angle_bisector });
+        a.setAttribute("fill", SYM.color.angle_bisector);
+        b.setAttribute("fill", SYM.color.angle_bisector);
+        return sym;
+    },
+
+
+    create_repeat: (s, e, cp_0, cp_1) => {
+        const k = SVG.SCALE;
+
+        const sym = document.createElementNS(SVG.NS, "g");
+
+        const n = M.sub(M.mul(e, k), M.mul(s, k));
+        const [mx, my] = M.add(M.mul(s, k), M.mul(n, .5));
+        const [nx, ny] = M.mul(s, k);
+        const [cx, cy] = M.add([nx, ny], M.mul(n, .25));
+        const [xx, yy] = n;
+        const u = M.unit([yy, -xx]);
+        const [ax, ay] = M.add([cx, cy], M.mul(u, 50));
+        const [bx, by] = M.add([cx, cy], M.mul(u, -50));
+
+        const d = `M ${ax} ${ay} L ${bx} ${by} M ${nx} ${ny} L ${mx} ${my}`;
+        const arrow = SVG.append("path", sym, { d });
+        arrow.setAttribute("stroke", SYM.color.arrow);
+        arrow.setAttribute("stroke-width", SYM.width.arrow);
+        arrow.setAttribute("stroke-linecap", "butt");
+        const end = "url(#arrow_head_repeat)";
+        arrow.setAttribute("marker-end", end);
+        arrow.setAttribute("fill", "none");
+
+
+        const l = SYM.width.text;
+        const cps = PRJ.steps.map((s) => s.id);
+        const i0 = cps.indexOf(cp_0);
+        const i1 = cps.indexOf(cp_1);
+        const txt = i0 == i1 ? `${i0 + 1}` : `${i0 + 1}~${i1 + 1}`;
+        const ctx = document.createElement('canvas').getContext('2d');
+        ctx.font = `${SYM.width.text}pt "${PAGE.text.font}"`;
+        const w = ctx.measureText(txt).width;
+
+
+        const [x, y] = [nx - w * .6, ny - l * 0.6];
+        const height = l * 1.2;
+
+
+        const box = SVG.append("rect", sym, { x, y, width: w * 1.2, height });
+        box.setAttribute("fill", SYM.color.repeatbox);
+        box.setAttribute("stroke", SYM.color.arrow);
+        box.setAttribute("stroke-width", SYM.width.arrow);
+        const t = SVG.append("text", sym, {
+            x: nx - w * 0.5,
+            y: ny + l * 0.5,
+            "fill": SYM.color.text,
+            "font-size": SYM.width.text + "pt",
+            "font-family": PAGE.text.font,
+        });
+        t.innerHTML = txt;
+        return sym;
+
+    }
+}

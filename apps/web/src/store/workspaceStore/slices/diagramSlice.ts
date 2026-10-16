@@ -1,8 +1,6 @@
+import { compoundImportTravel } from '../diagramBatchImport';
 import {
-  createDiagram,
   createStep,
-  defaultHanStyle,
-  defaultTitleBlockContent,
   duplicateStep,
   setTitleBlockRoom,
   editStepAnnotations,
@@ -43,8 +41,8 @@ import {
   setReferencesWay,
   makeCardMarksEditable,
 } from '../../../diagram/document/diagramDocument';
-import { titleBlockDefaultWords } from '../../../diagram/document/titleBlockWords';
 import i18n from '../../../i18n';
+import { newDiagram, titleBlockWords } from '../../../diagram/document/newDiagram';
 import { trackDiagramImportedMarkEdited } from '../../../analytics';
 import { annotationEventKind } from '../../../diagram/annotate/annotationEventKind';
 import { cardMarkEdits } from '../../../diagram/document/cardMarks';
@@ -78,31 +76,6 @@ import {
   undoSnapshot,
 } from '../snapshotHistory';
 import type { DiagramSlice, WorkspaceSliceCreator } from '../types';
-
-/**
- * The language the author is working in, for a new diagram's Han style. Read
- * from the document's `lang` — which the locale store keeps in step with the
- * interface — rather than from i18n, so the store does not import it.
- */
-function authorLocale(): string | null {
-  return typeof document === 'undefined' ? null : document.documentElement.lang || null;
-}
-
-/**
- * The diagram a first edit brings into being: its Han style from the author's
- * language, and its title, "Add a title", and its title block's subtitle and
- * credits written in the app's (Zach, 2026-10-15), the author's own text from
- * then on.
- */
-function newDiagram() {
-  const words = titleBlockWords();
-  return createDiagram({ title: words.title, hanStyle: defaultHanStyle(authorLocale()), titleBlockContent: defaultTitleBlockContent(words) });
-}
-
-/** A title block's first words in the app's language: a new diagram's, and those its toggle writes. */
-function titleBlockWords() {
-  return titleBlockDefaultWords((key, english) => i18n.t(key, english));
-}
 
 /**
  * What is selected after a delete: the entry that took the first deleted one's
@@ -192,7 +165,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     // them (`flushPlacementNudge`).
     flushPlacementNudge();
     const state = get();
-    if (state.diagramReadOnly) return null;
+    if (state.diagramReadOnly || state.diagramImportBusy) return null;
     const before = state.diagram;
     const base = before ?? newDiagram();
     const edited = edit(base);
@@ -278,7 +251,9 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     // An undo takes back a nudge in its pause as it would one committed.
     flushPlacementNudge();
     const state = get();
-    if (state.diagramReadOnly) return false;
+    if (state.diagramReadOnly || state.diagramImportBusy) return false;
+    const head = direction === 'undo' ? state.diagramHistory.past.at(-1) : state.diagramHistory.future[0];
+    if (head?.compoundId) { void compoundImportTravel(direction); return true; }
     openSession = null;
     const current = snapshotEntry(state.diagram, direction);
     const result =

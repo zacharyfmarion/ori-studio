@@ -133,6 +133,23 @@
         "makefile": "scripts/build-reference-finder.mjs"
       },
       "port_map_note": "Nothing is ported. The only mapping is the build recipe: scripts/build-reference-finder.mjs copies the makefile's flags and must be re-read on every makefile change. Changes under src/core/ are consumed by re-vendoring and rebuilding, not by porting."
+    },
+    "step-folder": {
+      "repo": "https://github.com/kei-morisue/step-folder",
+      "branch": "main",
+      "vendored_path": "third_party/step-folder",
+      "vendored_commit": "63e08215297f4edc5e4a50a7b12f3e2249f18d55",
+      "last_checked_commit": "63e08215297f4edc5e4a50a7b12f3e2249f18d55",
+      "last_checked_date": "2026-10-16",
+      "watch_paths": [
+        "src/defox/",
+        "src/distortionfolder/",
+        "resources/defs.xml"
+      ],
+      "port_map": {
+        "src/defox/": "apps/web/src/diagram/import/",
+        "src/distortionfolder/": "apps/web/src/diagram/import/"
+      }
     }
   }
 }

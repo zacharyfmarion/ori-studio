@@ -62,6 +62,7 @@ pub const CP_ENGINE_COMMANDS: &[&str] = &[
     "insert_line_segments",
     "deselect_all",
     "import_add",
+    "append_disjoint",
     "replace_line_segments",
     "export_cp",
     "export_fold",
@@ -108,7 +109,7 @@ impl EngineError {
         Self::new("invalid_handle", message)
     }
 
-    fn invalid_input(message: impl Into<String>) -> Self {
+    pub(crate) fn invalid_input(message: impl Into<String>) -> Self {
         Self::new("invalid_input", message)
     }
 }
@@ -743,6 +744,16 @@ impl CpSession {
         let document = self.document_mut(handle)?;
         operations::arrangement::import_add(&mut document.crease_pattern, &imported_pattern);
         Ok(document.crease_pattern.line_segments.len() as u32)
+    }
+
+    /// Append pre-positioned independent sheets in one atomic mutation.
+    pub fn append_disjoint(
+        &mut self,
+        handle: u32,
+        parts: &[CompactGeometry],
+        replace_starter: bool,
+    ) -> Result<Vec<[usize; 2]>, EngineError> {
+        crate::batch_append::append(self.document_mut(handle)?, parts, replace_starter)
     }
 
     pub fn replace_line_segments(

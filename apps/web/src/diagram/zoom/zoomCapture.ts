@@ -404,6 +404,7 @@ export function firstLinkPose(
       return { mode: 'folded-flat', side: render.side, rotationDeg: render.rotationDeg, foldCase: 1, ...(spread ? { spread } : {}) };
     case 'folded-3d':
     case 'simulated':
+    case 'defox':
       return null;
   }
 }

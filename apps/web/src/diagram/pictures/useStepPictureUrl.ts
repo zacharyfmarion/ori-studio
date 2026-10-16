@@ -9,7 +9,7 @@ import type {
 import { annotatedPicture, hasDrawnAnnotations } from '../annotate/paintAnnotations';
 import type { PictureLayers } from '../annotate/pictureGeometry';
 import { sourcePaper, viewGeometry, viewOfStep } from '../zoom/stepView';
-import { xrayPainter, xraySurfaceOf, type XRaySurface } from '../xray/xrayPaint';
+import { annotatedXRaySurface, xrayPainter, type XRaySurface } from '../xray/xrayPaint';
 import {
   paintZoomedPicture,
   paintZoomSurround,
@@ -37,34 +37,29 @@ import { cachedPictureUrl, objectSerial, svgDataUrl } from './stepPictureCache';
 const PAINT_AHEAD = '400px';
 
 /**
- * The URL a card shows its step's picture from, or `null` while it has none or
- * has not come near the view yet.
- *
- * Painting waits until the card is within {@link PAINT_AHEAD} of being seen
- * (IntersectionObserver), and is cached ({@link stepPictureUrl}), so a long
- * diagram costs only the cards looked at, and a remount costs nothing. An
- * enlarged step shows its window (Revision 2, {@link zoomedStepUrl}).
+ * A mounted card's picture, using the shared bounded URL cache. The grid
+ * virtualizes rows with overscan, so mounted cards paint immediately; a
+ * second visibility observer would delay the first frame and force layout.
  */
 export function useStepPictureUrl(
-  element: RefObject<Element | null>,
   step: DiagramStep,
   assets: Readonly<Record<string, DiagramAsset>>,
   style: DiagramStyle
 ): string | null {
-  const seen = useNearView(element);
   const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
   const zoomed = useMemo(() => zoomedSource(step, assets), [step, assets]);
+  const annotated = hasDrawnAnnotations(step.annotations);
   // A flat fold's layers, in the units the marks are in: a mark behind a flap is dotted under it (15e).
-  const layers = useMemo(() => viewGeometry(viewOfStep(step), assets, style).layers, [step, assets, style]);
+  const layers = useMemo(() => annotated ? viewGeometry(viewOfStep(step), assets, style).layers : null, [annotated, step, assets, style]);
   // Its faces, on a picture with layers: each x-ray's window is drawn (Revision 3).
-  const xRays = useMemo(() => xraySurfaceOf(step), [step]);
+  const xRays = useMemo(() => annotatedXRaySurface(step), [step]);
   const { annotations } = step;
   return useMemo(() => {
-    if (!seen || !source) return null;
+    if (!source) return null;
     return zoomed
       ? zoomedStepUrl(zoomed, annotations, style, true, layers, xRays)
       : annotatedStepUrl(source, annotations, style, 1, true, layers, xRays);
-  }, [seen, source, zoomed, annotations, style, layers, xRays]);
+  }, [source, zoomed, annotations, style, layers, xRays]);
 }
 
 /**

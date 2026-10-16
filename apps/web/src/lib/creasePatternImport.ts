@@ -1,6 +1,7 @@
 import { prepareFoldModel, type FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
 import type { FoldAssignment, FoldArtifacts, FoldDocument } from '../engine/types';
 import { remapEdgeExtensionArrays } from './foldEdgeArrays';
+import { BoundsIndex, type IndexedBounds } from './boundsIndex';
 import type { CreaseLine, FacetShape, TreeProject } from './sampleProject';
 
 import type { ImportedCreasePatternFormat } from './fileFormats';
@@ -86,6 +87,7 @@ interface NormalizedSegment {
 }
 
 const EPSILON = 1e-8;
+const edgeOrder = new Intl.Collator(undefined, { numeric: true });
 
 /**
  * Bucket edge for the vertex index in {@link splitSegments}, four times the
@@ -767,7 +769,7 @@ function splitSegments(segments: NormalizedSegment[]): {
   const assignments: FoldAssignment[] = [];
   const sources: number[] = [];
   [...edgeMap.entries()]
-    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+    .sort(([a], [b]) => edgeOrder.compare(a, b))
     .forEach(([key, assignment]) => {
       const [a, b] = key.split(':').map(Number);
       if (a === undefined || b === undefined || !Number.isInteger(a) || !Number.isInteger(b)) return;
@@ -783,10 +785,9 @@ function splitSegments(segments: NormalizedSegment[]): {
  * Accumulate the parameters at which segments cut one another.
  *
  * Testing every pair is O(n²) — ~20M intersection tests on a 6.3k-crease pattern,
- * around a second — even though nearly every pair lies far apart. Sorting by left
- * edge and sweeping keeps only segments whose x-extent still overlaps, so the
- * quadratic collapses to the genuinely nearby pairs (~1.1s → ~17ms on that
- * pattern, measured).
+ * around a second — even though nearly every pair lies far apart. A two-dimensional
+ * bounds index considers only nearby pairs, including when many separate
+ * sheets share the same x extent in a batch layout.
  *
  * Two details make this produce *identical* output rather than merely similar:
  *
@@ -799,7 +800,7 @@ function splitSegments(segments: NormalizedSegment[]): {
  *   shrink, and dominates for short ones.
  * - **Argument order.** {@link segmentIntersectionParams} is asymmetric: its
  *   collinear test uses the *first* argument's direction vector. Visiting pairs
- *   in sweep order rather than index order therefore changes results, so pairs
+ *   in tree order rather than index order therefore changes results, so pairs
  *   are passed lower-index-first exactly as the original loop did.
  *
  * Cut order does not matter — `uniqueSorted` sorts and dedupes downstream.
@@ -812,47 +813,45 @@ function splitSegments(segments: NormalizedSegment[]): {
  * spurious cuts and phantom vertices. Skipping them is what lets this agree with
  * the all-pairs result exactly.
  */
-function collectIntersectionCuts(segments: NormalizedSegment[], cuts: number[][]): void {
+function collectIntersectionCuts(
+  segments: NormalizedSegment[],
+  cuts: number[][],
+): void {
   const count = segments.length;
-  const minX = new Float64Array(count);
-  const maxX = new Float64Array(count);
-  const minY = new Float64Array(count);
-  const maxY = new Float64Array(count);
+  const boxes: IndexedBounds[] = [];
   const candidates: number[] = [];
   for (let i = 0; i < count; i += 1) {
     const segment = segments[i]!;
-    const length = Math.hypot(segment.b.x - segment.a.x, segment.b.y - segment.a.y);
+    const length = Math.hypot(
+      segment.b.x - segment.a.x,
+      segment.b.y - segment.a.y,
+    );
     if (length < EPSILON) continue;
     const pad = EPSILON * length + EPSILON / length;
-    minX[i] = Math.min(segment.a.x, segment.b.x) - pad;
-    maxX[i] = Math.max(segment.a.x, segment.b.x) + pad;
-    minY[i] = Math.min(segment.a.y, segment.b.y) - pad;
-    maxY[i] = Math.max(segment.a.y, segment.b.y) + pad;
+    boxes.push({
+      minX: Math.min(segment.a.x, segment.b.x) - pad,
+      maxX: Math.max(segment.a.x, segment.b.x) + pad,
+      minY: Math.min(segment.a.y, segment.b.y) - pad,
+      maxY: Math.max(segment.a.y, segment.b.y) + pad,
+    });
     candidates.push(i);
   }
 
-  const order = candidates.sort((left, right) => minX[left]! - minX[right]!);
-
-  // Once a segment's right edge falls behind the sweep it cannot reach any later
-  // segment, so it leaves the active set as the set is scanned.
-  const active: number[] = [];
-  for (const index of order) {
-    const left = minX[index]!;
-    let keep = 0;
-    for (let k = 0; k < active.length; k += 1) {
-      const other = active[k]!;
-      if (maxX[other]! < left) continue;
-      active[keep] = other;
-      keep += 1;
-      if (maxY[other]! < minY[index]! || minY[other]! > maxY[index]!) continue;
-      const lower = other < index ? other : index;
-      const higher = other < index ? index : other;
-      const intersection = segmentIntersectionParams(segments[lower], segments[higher]);
+  // A two-dimensional broad phase avoids scanning every sheet in a tall
+  // column. The exact padding and lower-index-first predicate stay unchanged.
+  const index = new BoundsIndex(boxes);
+  for (let i = 0; i < candidates.length; i++) {
+    for (const j of index.intersecting(boxes[i]!)) {
+      if (j <= i) continue;
+      const lower = candidates[i]!,
+        higher = candidates[j]!;
+      const intersection = segmentIntersectionParams(
+        segments[lower],
+        segments[higher],
+      );
       intersection.a.forEach((value) => cuts[lower]?.push(value));
       intersection.b.forEach((value) => cuts[higher]?.push(value));
     }
-    active.length = keep;
-    active.push(index);
   }
 }
 
@@ -873,7 +872,7 @@ function segmentIntersectionParams(
   //
   // `rxs` is `|r||s|sin(theta)`, so comparing it directly makes the threshold
   // depend on how long the two segments happen to be — far too tight for long
-  // ones, and far too loose for short ones (the `EPSILON / length` the sweep
+  // ones, and far too loose for short ones (the `EPSILON / length` the index
   // above has to pad for). Measured on a real crease pattern: two creases
   // meeting end to end at a *bit-identical* endpoint, collinear to 2e-9 of a
   // degree, scored `rxs = 1.15e-8` on `|r||s| = 360` and so missed a 1e-8 bar.

@@ -78,3 +78,26 @@ export function createCpCaptureRuntime(
       auxDocumentHandle === null ? null : getOristudioCpFolded3dAuxLines(handle, auxDocumentHandle),
   };
 }
+
+/** The same capture operations bound to an explicit, privately owned document. */
+export function createBoundCpCaptureRuntime(
+  client: import('../../engines/cpTaskSession').CpClient,
+  documentHandle: number,
+  runId: number
+): CpCaptureRuntime {
+  return {
+    fold: async (face, order, model, lines) => {
+      const result = await client.foldFigure(documentHandle, face, order, model, lines, runId);
+      return { handle: result.handle, ...stateOf(result.snapshot) };
+    },
+    foldToCase: async (handle, objective) => stateOf((await client.foldFigureToCase(handle, objective, 'Order5', runId)).snapshot),
+    setModel: async (handle, model) => stateOf(await client.setFoldedFigureModel(handle, model)),
+    foldAnother: async (handle) => stateOf(await client.foldFigureAnother(handle, runId)),
+    renderSnapshot: (handle, style) => client.foldedFigureRenderSnapshot(handle, style, { display_mark: false, selected: false }),
+    paperScene: (handle) => client.foldedFigurePaperScene(handle, documentHandle),
+    free: (handle) => client.freeFoldedFigure(handle),
+    fold3d: (lines, model) => client.fold3d(documentHandle, lines, 1, model, runId),
+    fold3dAnother: (handle) => client.fold3dAnother(handle, runId),
+    aux3d: (handle) => client.folded3dAuxLines(handle, documentHandle),
+  };
+}

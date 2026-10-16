@@ -1,3 +1,7 @@
+import { segmentationFoldArtifactsFromFold } from '../lib/creasePatternImport';
+import { resolveCpSegments } from '../lib/creasePatternSegmentation';
+import { computeSegmentContainment } from '../lib/creasePatternSelectionSegment';
+import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import { expose, transfer } from 'comlink';
 import init, {
   cp_operation_descriptors,
@@ -35,6 +39,7 @@ import init, {
   load_orh,
   load_ori,
   import_add,
+  append_disjoint,
   insert_line_segments,
   deselect_all,
   preview_cp_command,
@@ -144,7 +149,23 @@ async function call<T>(fn: () => T): Promise<T> {
   }
 }
 
+function analyzeFold(text: string): FoldArtifacts {
+  const artifacts = segmentationFoldArtifactsFromFold(JSON.parse(text) as FoldDocument);
+  artifacts.segments = resolveCpSegments(artifacts);
+  return artifacts;
+}
+
 const api = {
+  async analyzeFold(text: string): Promise<FoldArtifacts> {
+    return analyzeFold(text);
+  },
+  async analyzeFoldWithContainment(text: string, midpoints: Float64Array) {
+    const artifacts = analyzeFold(text);
+    return { artifacts, containment: computeSegmentContainment(artifacts, midpoints) };
+  },
+  async segmentationArtifacts(handle: number): Promise<FoldArtifacts> {
+    return call(() => analyzeFold(export_fold(handle)));
+  },
   /**
    * Adopt the main thread's shared cancel buffer.
    *
@@ -216,6 +237,9 @@ const api = {
   },
   async deselectAll(handle: number): Promise<number> {
     return call(() => deselect_all(handle));
+  },
+  async appendDisjoint(handle: number, parts: CpGeometryTransport[], replaceStarter: boolean): Promise<[number, number][]> {
+    return call(() => append_disjoint(handle, parts, replaceStarter) as [number, number][]);
   },
   async importAdd(handle: number, importedHandle: number): Promise<number> {
     return call(() => import_add(handle, importedHandle));

@@ -92,6 +92,12 @@ export interface FoldedPicture {
   scene: OristudioCpFoldedPaperScene | null;
 }
 
+/** A requested Order5 can stop at an earlier stage without throwing. */
+export function hasFoldedLayerOrder(state: Omit<FoldedFigureState, 'handle'>): boolean {
+  return state.displayStyle === 'Paper5' && state.discoveredCases > 0 &&
+    (state.outcome === undefined || state.outcome === 'Solved');
+}
+
 export interface CreaseExportFoldResult {
   snapshot: OristudioCpFoldedRenderSnapshot;
   /**

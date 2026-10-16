@@ -1,0 +1,582 @@
+import { SVG } from "../flatfolder/svg.js";
+import { M } from "../flatfolder/math.js";
+import { N } from "../defox/nath.js";
+
+
+import { L } from "./lath.js";
+import { DRAW } from "./draw.js";
+import { STEP } from "../defox/step.js";
+import { Z } from "./z.js";
+import { PAINT } from "./paint.js";
+
+
+export const ACT = {
+    hilight: (e) => {
+        const p_cursor = PAINT.get_pointer_loc(e);
+        PAINT.segment = undefined;
+        if (PAINT.pointers.count() == 0) {
+            PAINT.vertex = undefined;
+        }
+        SVG.clear(PAINT.svg_selection.id);
+
+        if (ACT.hilight_move(e, p_cursor)) {
+            return;
+        }
+        if (ACT.hilight_del_segs(p_cursor)) {
+            return;
+        }
+        if (ACT.hilight_input_segs(p_cursor)) {
+            return;
+        };
+        if (ACT.hilight_input_angle(p_cursor)) {
+            return;
+        };
+        if (ACT.hilight_input_free(p_cursor)) {
+            return;
+        };
+        if (ACT.hilight_input_bisector(p_cursor)) {
+            return;
+        };
+        if (ACT.hilight_input_mirror(p_cursor)) {
+            return;
+        };
+        if (ACT.hilight_input_h(p_cursor)) {
+            return;
+        };
+        if (ACT.hilight_delete_h(p_cursor)) {
+            return;
+        };
+
+    },
+
+    onclick: (e) => {
+        ACT.hilight(e);
+        if (PAINT.current_mode == "del") {
+            ACT.remove(e)
+            return;
+        }
+        if (ACT.click_input_seg(e)) {
+            return;
+        }
+        if (ACT.click_input_angle(e)) {
+            return;
+        }
+        if (ACT.click_input_free(e)) {
+            return;
+        };
+        if (ACT.click_input_bisector(e)) {
+            return;
+        };
+        if (ACT.click_input_mirror(e)) {
+            return;
+        };
+        if (ACT.click_input_h(e)) {
+            return;
+        }
+        if (ACT.click_delete_h(e)) {
+            return;
+        }
+
+    },
+
+
+    oncontextmenu: (e) => {
+        e.preventDefault();
+        const m = PAINT.current_mode;
+        if (ACT.context_input_free(e, m)) {
+            return;
+        };
+        if (ACT.context_input_angle(e, m)) {
+            return;
+        };
+        if (ACT.context_input_bisector(e, m)) {
+            return;
+        };
+        if (ACT.context_input_mirror(e, m)) {
+            return;
+        };
+
+        ACT.remove(e);
+    },
+
+    hilight_move: (e, p_cursor) => {
+        if (PAINT.current_mode != "move") return false;
+        if (PAINT.vertex == undefined || !PAINT.pointers.has_id(e)) return true;
+        if (e.pointerType == "touch") {
+            const prev_span = PAINT.pointers.get_distance();
+            PAINT.pointers.add_point(e);
+            const new_span = PAINT.pointers.get_distance();
+            const new_middle = PAINT.get_pointer_loc_xy(PAINT.pointers.get_middle_x(), PAINT.pointers.get_middle_y());
+            const new_scale = STEP.limit_scale(STEP.get_scale(STEP.get_zoom(PAINT.scale) * new_span / prev_span));
+            const zoom_factor = STEP.get_zoom(PAINT.scale) / STEP.get_zoom(new_scale);
+
+            PAINT.cx = zoom_factor * (PAINT.cx - new_middle[0]) + PAINT.vertex[0];
+            PAINT.cy = zoom_factor * (PAINT.cy - new_middle[1]) + PAINT.vertex[1];
+            PAINT.scale = new_scale;
+        } else {
+            PAINT.cx += PAINT.vertex[0] - p_cursor[0];
+            PAINT.cy += PAINT.vertex[1] - p_cursor[1];
+        }
+        PAINT.redraw();
+        return true;
+    },
+
+    hilight_del_segs: (p_cursor) => {
+        if (PAINT.current_mode == "del") {
+            const seg = L.find_seg(
+                p_cursor,
+                PAINT.segs,
+                PAINT.EA);
+            PAINT.hilight_mv(seg);
+            return true;
+        }
+    },
+    hilight_input_segs: (p_cursor) => {
+        if (PAINT.current_mode == "mv"
+            || PAINT.current_mode == "to_aux"
+        ) {
+            const seg = L.find_seg(
+                p_cursor,
+                PAINT.segs,
+                PAINT.EA,
+                (idx) => {
+                    return PAINT.EA[idx] == "M" || PAINT.EA[idx] == "V"
+                });
+            PAINT.hilight_mv(seg);
+            return true;
+        }
+        if (PAINT.current_mode == "to_m"
+        ) {
+            const seg = L.find_seg(
+                p_cursor,
+                PAINT.segs,
+                PAINT.EA,
+                (idx) => {
+                    return PAINT.EA[idx] != "M" && PAINT.EA[idx] != "B"
+                });
+            PAINT.hilight_mv(seg);
+            return true;
+        }
+        if (PAINT.current_mode == "to_v"
+        ) {
+            const seg = L.find_seg(
+                p_cursor,
+                PAINT.segs,
+                PAINT.EA,
+                (idx) => {
+                    return PAINT.EA[idx] != "V" && PAINT.EA[idx] != "B"
+                });
+            PAINT.hilight_mv(seg);
+            return true;
+        }
+
+        return false;
+    },
+    hilight_input_angle: (p_cursor) => {
+        if (PAINT.current_mode == "input_angle") {
+            const v = L.find_v(p_cursor, PAINT.V, PAINT.radius.bind / PAINT.scale);
+            PAINT.hilight_input(v);
+            return true;
+
+        }
+        if (PAINT.current_mode == "input_angle_2") {
+            const v0 = PAINT.v0;
+            const theta = L.binded_angle(v0, p_cursor, PAINT.bind_angle);
+            const r = M.dist(v0, p_cursor);
+            const segs = PAINT.segs
+            const b_v = L.find_binded_v(v0, r, theta, PAINT.V, segs, PAINT.radius.bind / PAINT.scale);
+            PAINT.hilight_inputs(v0, b_v);
+            return true;
+        }
+        return false;
+    },
+
+    hilight_input_free: (p_cursor) => {
+        if (PAINT.current_mode == "input_free") {
+            const v = L.find_v(p_cursor, PAINT.V, PAINT.radius.bind / PAINT.scale);
+            PAINT.hilight_input(v);
+            return true;
+        }
+        if (PAINT.current_mode == "input_free_2") {
+            const v = L.find_v(p_cursor, PAINT.V, PAINT.radius.bind / PAINT.scale);
+            const v0 = PAINT.v0;
+            PAINT.hilight_inputs(v0, v);
+            return true;
+        }
+        return false;
+    },
+
+    hilight_input_bisector: (p_cursor) => {
+
+        if (PAINT.current_mode == "input_bisector") {
+            const v = L.find_v(p_cursor, PAINT.V, PAINT.radius.bind / PAINT.scale);
+            PAINT.hilight_input(v);
+            return true;
+        }
+        if (PAINT.current_mode == "input_bisector_2") {
+            const v = L.find_v(p_cursor, PAINT.V, PAINT.radius.bind / PAINT.scale);
+            PAINT.hilight_input(PAINT.v0);
+            PAINT.hilight_input(v);
+            return true;
+        }
+        if (PAINT.current_mode == "input_bisector_3") {
+            const v = L.find_v(p_cursor, PAINT.V, PAINT.radius.bind / PAINT.scale);
+            PAINT.hilight_input(PAINT.v0);
+            PAINT.hilight_input(PAINT.v1);
+            PAINT.hilight_input(v);
+            return true;
+        }
+        if (PAINT.current_mode == "input_bisector_4") {
+            const v1 = PAINT.v1;
+            const v0 = PAINT.v0;
+            const v2 = PAINT.v2;
+
+            const theta = L.get_bisector_angle(M.sub(v0, v1), M.sub(v2, v1));
+            const r = M.dist(v1, p_cursor);
+            const b_v = L.find_binded_v(v1, r, theta, PAINT.V, PAINT.segs, PAINT.radius.bind / PAINT.scale);
+
+            PAINT.hilight_input(v0);
+            PAINT.hilight_input(v1);
+            PAINT.hilight_input(v2);
+            PAINT.hilight_inputs(v1, b_v);
+            return true;
+        }
+        return false;
+    },
+    hilight_input_mirror: (p_cursor) => {
+
+        if (PAINT.current_mode == "input_mirror") {
+            const v = L.find_v(p_cursor, PAINT.V, PAINT.radius.bind / PAINT.scale);
+            PAINT.hilight_input(v);
+            return true;
+        }
+        if (PAINT.current_mode == "input_mirror_2") {
+            const v = L.find_v(p_cursor, PAINT.V, PAINT.radius.bind / PAINT.scale);
+            PAINT.hilight_input(PAINT.v0);
+            PAINT.hilight_input(v);
+            return true;
+        }
+        if (PAINT.current_mode == "input_mirror_3") {
+            const v = L.find_v(p_cursor, PAINT.V, PAINT.radius.bind / PAINT.scale);
+            PAINT.hilight_input(PAINT.v0);
+            PAINT.hilight_input(PAINT.v1);
+            PAINT.hilight_input(v);
+            return true;
+        }
+        if (PAINT.current_mode == "input_mirror_4") {
+            const v1 = PAINT.v1;
+            const v0 = PAINT.v0;
+            const v2 = PAINT.v2;
+
+            const theta = L.get_mirror_angle(v0, v1, v2);
+            const r = M.dist(v1, p_cursor);
+            const b_v = L.find_binded_v(v1, r, theta, PAINT.V, PAINT.segs, PAINT.radius.bind / PAINT.scale);
+
+            PAINT.hilight_input(v0);
+            PAINT.hilight_input(v1);
+            PAINT.hilight_input(v2);
+            PAINT.hilight_inputs(v1, b_v);
+            return true;
+        }
+        return false;
+    },
+    hilight_input_h: (p_cursor) => {
+        if (PAINT.current_mode == "h") {
+            const seg = L.find_seg(
+                p_cursor,
+                PAINT.segs,
+                PAINT.EA,
+                (idx) => {
+                    return PAINT.EA[idx] == "V" || PAINT.EA[idx] == "M" || PAINT.EA[idx] == "B"
+                });
+            PAINT.hilight_mv(seg);
+            return true;
+        }
+        return false;
+    },
+
+    hilight_delete_h: (p_cursor) => {
+        if (PAINT.current_mode == "del_h") {
+            const v = L.find_v(p_cursor, PAINT.H, PAINT.radius.bind / PAINT.scale);
+            PAINT.hilight_input(v);
+            return true;
+        }
+        return false;
+    },
+    click_input_seg: (e) => {
+        const m = PAINT.current_mode
+        if (m == "mv" || m == "to_m"
+            || m == "to_v" || m == "to_aux"
+        ) {
+            const i = PAINT.segment;
+            if (i < 0) {
+                return true;
+            }
+            const a_ = PAINT.EA[i];
+            const a = m == "mv" ? DRAW.pair(a_)
+                : m == "to_m" ? "V"
+                    : m == "to_v" ? "M"
+                        : "F";
+            const EA = PAINT.EA.map(a => a);
+            EA[i] = a;
+            PAINT.EA = EA;
+            const CP = { V: PAINT.V, EV: PAINT.EV, EA: PAINT.EA, segs: PAINT.segs };
+            PAINT.update_cp(CP);
+            PAINT.record();
+            ACT.hilight(e);
+            return true;
+        }
+        return false;
+    },
+
+    click_input_angle: (e) => {
+        if (PAINT.current_mode == "input_angle") {
+            if (PAINT.vertex == undefined) {
+                return true;
+            }
+            PAINT.v0 = PAINT.vertex;
+            PAINT.current_mode = "input_angle_2";
+            return true;
+        }
+        if (PAINT.current_mode == "input_angle_2") {
+            const v = PAINT.vertex;
+            if (!v) {
+                return true;
+            }
+            const seg = [PAINT.v0, v];
+            const a = PAINT.input_a;
+            const CP = Z.add_segment(PAINT.segs, PAINT.EA, seg, a);
+            PAINT.update_cp(CP);
+            PAINT.record();
+            ACT.hilight(e);
+            PAINT.current_mode = "input_angle";
+            return true;
+        }
+        return false;
+    },
+
+    click_input_free: (e) => {
+        if (PAINT.current_mode == "input_free") {
+            if (!PAINT.vertex) {
+                return true;
+            }
+            PAINT.v0 = PAINT.vertex;
+            PAINT.current_mode = "input_free_2";
+            return true;
+        }
+        if (PAINT.current_mode == "input_free_2") {
+            const v = PAINT.vertex;
+            if (!v) {
+                return true;
+            }
+            const seg = [PAINT.v0, v];
+            const a = PAINT.input_a;
+            const CP = Z.add_segment(PAINT.segs, PAINT.EA, seg, a);
+            PAINT.record;
+            PAINT.update_cp(CP);
+            ACT.hilight(e);
+            PAINT.current_mode = "input_free";
+            return true;
+        }
+        return false;
+    },
+
+    click_input_bisector: (e) => {
+        if (PAINT.current_mode == "input_bisector") {
+            if (!PAINT.vertex) {
+                return true;
+            }
+            PAINT.v0 = PAINT.vertex;
+            PAINT.current_mode = "input_bisector_2";
+            return true;
+        }
+        if (PAINT.current_mode == "input_bisector_2") {
+            if (!PAINT.vertex) {
+                return true;
+            }
+            PAINT.v1 = PAINT.vertex;
+            PAINT.current_mode = "input_bisector_3";
+            return true;
+        }
+        if (PAINT.current_mode == "input_bisector_3") {
+            const v = PAINT.vertex;
+            if (!v) {
+                return true;
+            }
+            PAINT.v2 = v;
+            PAINT.current_mode = "input_bisector_4";
+            return true;
+        }
+        if (PAINT.current_mode == "input_bisector_4") {
+            const v = PAINT.vertex;
+            if (!v) {
+                return true;
+            }
+            const seg = [PAINT.v1, v];
+            const a = PAINT.input_a;
+            const CP = Z.add_segment(PAINT.segs, PAINT.EA, seg, a);
+            PAINT.record;
+            PAINT.update_cp(CP);
+            ACT.hilight(e);
+            PAINT.current_mode = "input_bisector";
+            return true;
+        }
+        return false;
+    },
+    click_input_mirror: (e) => {
+        if (PAINT.current_mode == "input_mirror") {
+            if (!PAINT.vertex) {
+                return true;
+            }
+            PAINT.v0 = PAINT.vertex;
+            PAINT.current_mode = "input_mirror_2";
+            return true;
+        }
+        if (PAINT.current_mode == "input_mirror_2") {
+            if (!PAINT.vertex) {
+                return true;
+            }
+            PAINT.v1 = PAINT.vertex;
+            PAINT.current_mode = "input_mirror_3";
+            return true;
+        }
+        if (PAINT.current_mode == "input_mirror_3") {
+            const v = PAINT.vertex;
+            if (!v) {
+                return true;
+            }
+            PAINT.v2 = v;
+            PAINT.current_mode = "input_mirror_4";
+            return true;
+        }
+        if (PAINT.current_mode == "input_mirror_4") {
+            const v = PAINT.vertex;
+            if (!v) {
+                return true;
+            }
+            const seg = [PAINT.v1, v];
+            const a = PAINT.input_a;
+            const CP = Z.add_segment(PAINT.segs, PAINT.EA, seg, a);
+            PAINT.record;
+            PAINT.update_cp(CP);
+            ACT.hilight(e);
+            PAINT.current_mode = "input_mirror";
+            return true;
+        }
+        return false;
+    },
+
+    click_input_h: (e) => {
+        if (PAINT.current_mode == "h") {
+            if (PAINT.segment < 0) {
+                return true;
+            }
+            const seg = PAINT.segs[PAINT.segment];
+            const c = M.centroid(seg);
+            for (const h of PAINT.H) {
+                if (M.distsq(h, c) < 1e-10) {
+                    return;
+                }
+            }
+            PAINT.H.push(c);
+            return true;
+        }
+        return false;
+    },
+    click_delete_h: (e) => {
+        if (PAINT.current_mode == "del_h") {
+            if (PAINT.vertex == undefined) {
+                return true;
+            }
+            const v = PAINT.vertex;
+            for (const [i, h] of PAINT.H.entries()) {
+                if (M.distsq(h, v) < 1e-10) {
+                    PAINT.H.splice(i, 1);
+                    return;
+                }
+            }
+        }
+        return false;
+    },
+
+    context_input_free: (e, m) => {
+        if (m == "input_free_2") {
+            PAINT.v0 = undefined;
+            PAINT.current_mode = "input_free";
+            ACT.hilight(e);
+            return true;
+        }
+        return false;
+    },
+
+    context_input_angle: (e, m) => {
+        if (m == "input_angle_2") {
+            PAINT.v0 = undefined;
+            PAINT.current_mode = "input_angle";
+            ACT.hilight(e);
+            return true;
+        }
+        return false;
+    },
+    context_input_bisector: (e, m) => {
+        if (m == "input_bisector_2") {
+            PAINT.v0 = undefined;
+            PAINT.current_mode = "input_bisector";
+            ACT.hilight(e);
+            return true;
+        }
+        if (m == "input_bisector_3") {
+            PAINT.v1 = undefined;
+            PAINT.current_mode = "input_bisector_2";
+            ACT.hilight(e);
+            return true;
+        }
+        if (m == "input_bisector_4") {
+            PAINT.v2 = undefined;
+            PAINT.current_mode = "input_bisector_3";
+            ACT.hilight(e);
+            return true;
+        }
+        return false;
+    },
+    context_input_mirror: (e, m) => {
+        if (m == "input_mirror_2") {
+            PAINT.v0 = undefined;
+            PAINT.current_mode = "input_mirror";
+            ACT.hilight(e);
+            return true;
+        }
+        if (m == "input_mirror_3") {
+            PAINT.v1 = undefined;
+            PAINT.current_mode = "input_mirror_2";
+            ACT.hilight(e);
+            return true;
+        }
+        if (m == "input_mirror_4") {
+            PAINT.v2 = undefined;
+            PAINT.current_mode = "input_mirror_3";
+            ACT.hilight(e);
+            return true;
+        }
+        return false;
+    },
+
+    remove: (e) => {
+        const pt = PAINT.get_pointer_loc(e);
+        const s_i = L.find_seg(
+            pt,
+            PAINT.segs,
+            PAINT.EA,
+            (idx) => {
+                return PAINT.EA[idx] != "B"
+            })[0];
+        if (s_i < 0) {
+            return true;
+        }
+        const CP = Z.remove_segment(PAINT.segs, PAINT.EA, s_i);
+        PAINT.update_cp(CP);
+        PAINT.record();
+        ACT.hilight(e);
+        return true;
+    },
+}

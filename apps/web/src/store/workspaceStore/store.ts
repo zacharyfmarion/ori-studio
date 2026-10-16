@@ -22,6 +22,7 @@ import { createDiagramSlice } from './slices/diagramSlice';
 import { resolveEditingContext } from '../../workspaces/editingContext';
 import { installFolded3dAuxLinesSync } from './folded3dAuxLinesSync';
 import { installFoldedFigurePaperMirror } from './foldedFigurePaperMirror';
+import { installCompoundHistory } from './compoundHistory';
 import type { WorkspaceState } from './types';
 
 export const useWorkspaceStore = create<WorkspaceState>()(
@@ -109,6 +110,7 @@ useWorkspaceStore.subscribe((state) => {
 // — the settings store's display style with the figure's own pins on top.
 // Subscribed here, where the other cross-store reactions live, rather than in
 // the slice: the slice owns the write, this owns *when*.
+installCompoundHistory(useWorkspaceStore);
 installFoldedFigurePaperMirror(useWorkspaceStore);
 
 // A 3D figure's aux lines are the document's as they stand now — nothing folds

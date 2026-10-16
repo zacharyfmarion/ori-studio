@@ -16,11 +16,10 @@ import {
 } from '../../diagram/document/diagramDocument';
 import { hasTitleBlock } from '../../diagram/pages/pagePlan';
 import { layoutLabel, orientationLabel, paperSizeLabel } from '../../diagram/pages/pageSetupLabels';
-import { useCurrentDiagramPage } from '../../diagram/pages/useCurrentDiagramPage';
 import { useDiagramPageSetup } from '../../diagram/pages/useDiagramPageSetup';
 import { DiagramPagePacking } from '../diagram/DiagramPagePacking';
 import { DiagramPagePlacements } from '../diagram/DiagramPagePlacements';
-import { DiagramPageStepsRow } from '../diagram/DiagramPageStepsRow';
+import { CurrentDiagramPageStepsRow } from '../diagram/DiagramPageStepsRow';
 import { DiagramPathColorRow } from '../diagram/DiagramPathColorRow';
 import { DiagramStyleControl } from '../diagram/DiagramStyleControl';
 import { DiagramTitleBlockRows } from '../diagram/DiagramTitleBlockRows';
@@ -49,7 +48,6 @@ const PAPER_SIZES: readonly DiagramPaperSize[] = ['a4', 'a5', 'b5-jis', 'letter'
 export function DiagramPagePanel() {
   const { t } = useTranslation();
   const setup = useDiagramPageSetup();
-  const current = useCurrentDiagramPage();
   const { page, readOnly, setPage } = setup;
   const flow = page.layout === 'flow';
   return (
@@ -147,13 +145,7 @@ export function DiagramPagePanel() {
                 disabled={readOnly}
                 onCommit={(stepsPerPage) => setPage({ stepsPerPage }, 'steps_per_page')}
               />
-              {current && current.page.steps.length > 0 && (
-                <DiagramPageStepsRow
-                  current={current}
-                  disabled={readOnly}
-                  onChange={(count) => setup.setPageSteps(current.index, count)}
-                />
-              )}
+              <CurrentDiagramPageStepsRow disabled={readOnly} onChange={setup.setPageSteps} />
             </>
           ) : (
             <>

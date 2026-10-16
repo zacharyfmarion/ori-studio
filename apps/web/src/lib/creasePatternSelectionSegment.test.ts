@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpLineSegment,
 } from '../engine/oristudioCpTypes';
 import { emptyOristudioCpSelection, type OristudioCpSelection } from './creasePatternViewport';
-import { resolveSelectedSegment } from './creasePatternSelectionSegment';
+import { computeSegmentContainment, creaseMidpoints, seedSegmentContainment, resolveSelectedSegment } from './creasePatternSelectionSegment';
 
 // Two bordered squares side by side, sharing a middle border wall, each split by
 // one diagonal crease:
@@ -241,4 +241,24 @@ describe('resolveSelectedSegment', () => {
     expect(match?.segmentId).toBe(0);
     expect(match?.cpLineIds).toEqual([1, 2, 3, 4, 5]);
   });
+});
+
+
+it('reuses worker containment for the exact snapshot and recomputes after geometry changes', () => {
+  const doc = makeDocument();
+  const workerArtifacts = makeArtifacts();
+  const result = computeSegmentContainment(workerArtifacts, creaseMidpoints(doc));
+  // A real worker transfer creates new objects, including the artifacts.
+  const artifacts = structuredClone(workerArtifacts);
+  seedSegmentContainment(artifacts, doc, structuredClone(result));
+  const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
+  try {
+    expect(resolveSelectedSegment(doc, selection(LEFT_LINE_IDS), artifacts)?.cpLineIds).toEqual(LEFT_LINE_IDS);
+    expect(debug).not.toHaveBeenCalled();
+    const changed = makeDocument();
+    changed.crease_pattern.line_segments[7]!.a = { x: 20, y: 20 };
+    changed.crease_pattern.line_segments[7]!.b = { x: 21, y: 21 };
+    expect(resolveSelectedSegment(changed, selection(LEFT_LINE_IDS), artifacts)).toBeNull();
+    expect(debug).toHaveBeenCalledOnce();
+  } finally { debug.mockRestore(); }
 });

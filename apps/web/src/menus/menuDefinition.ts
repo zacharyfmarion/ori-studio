@@ -62,6 +62,7 @@ export function getMenuBarDef(
       items: [
         { type: 'action', id: 'file.new', label: t('menu:file.new', 'New Project'), shortcut: shortcut('file.new', resolution) },
         { type: 'action', id: 'file.open', label: t('menu:file.open', 'Open...'), shortcut: shortcut('file.open', resolution) },
+        { type: 'action', id: 'file.importDiagramSteps', label: t('menu:file.importDiagramSteps', 'Import Diagram Steps...') },
         { type: 'action', id: 'file.importAdd', label: t('menu:file.importAdd', 'Import (Add)...') },
         // Listed always; whether it shows is the capability's `visible`, which
         // answers for the build flag and the phone layout in one place.

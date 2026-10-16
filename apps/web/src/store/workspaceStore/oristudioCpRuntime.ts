@@ -1,3 +1,5 @@
+import { analyzeCpFold, analyzeCpFoldWithContainment } from '../../engine/cpAnalysisClient';
+import { creaseMidpoints, seedSegmentContainment } from '../../lib/creasePatternSelectionSegment';
 import { extraVertexCleanupLineIds } from '../../lib/cpGraphCleanup';
 import { connectEngine, isEngineConnected } from '../../engines/engineHost';
 import { FOLD_RUN_NONE } from '../../lib/foldCancellation';
@@ -652,7 +654,7 @@ function clearedCreasePattern(
  * starter border square. Endpoint pairs are compared unordered and the segments
  * in any order, because nothing promises the kernel round-trips either.
  */
-function creasePatternHoldsNothingOfItsOwn(document: OristudioCpDocumentSnapshot): boolean {
+export function creasePatternHoldsNothingOfItsOwn(document: OristudioCpDocumentSnapshot): boolean {
   const model = document.crease_pattern;
   if (
     model.circles.length > 0 ||
@@ -894,6 +896,21 @@ export async function exportOristudioCpDocumentAsCp(): Promise<string> {
   }
   const api = await getOristudioCpClient();
   return api.exportCp(handle);
+}
+
+/** Segmentation uses the active engine's topology worker, without a simulation mesh. */
+export async function analyzeOristudioCpDocument(document?: OristudioCpDocumentSnapshot) {
+  const targetHandle = handle;
+  const serial = documentLoadSerial;
+  if (targetHandle === null) throw new Error('No editable crease-pattern document is loaded');
+  const api = await getOristudioCpClient();
+  if (serial !== documentLoadSerial) throw new Error('The crease pattern changed');
+  const text = await api.exportFold(targetHandle);
+  const result = document ? await analyzeCpFoldWithContainment(text, creaseMidpoints(document)) : null;
+  const artifacts = result ? result.artifacts : await analyzeCpFold(text);
+  if (serial !== documentLoadSerial) throw new Error('The crease pattern changed');
+  if (result && document) seedSegmentContainment(artifacts, document, result.containment);
+  return artifacts;
 }
 
 /**

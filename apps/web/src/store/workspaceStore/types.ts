@@ -125,6 +125,7 @@ import type {
 } from '../../engine/oristudioBpTypes';
 
 export interface OristudioCpHistoryEntry {
+  compoundId?: string;
   document: OristudioCpDocumentSnapshot;
   selection: OristudioCpSelection;
   /** Annotation layer (images + text boxes) at the captured moment. */
@@ -1911,6 +1912,7 @@ export interface DiagramPathNodeSelection {
 }
 
 export interface DiagramSliceState {
+  diagramImportBusy: boolean;
   /**
    * The project's diagram (implementation-plans/diagram-workspace.md, D1).
    * `null` until the first edit creates one; a project-level document beside

@@ -36,6 +36,11 @@ import { isApplePlatform } from '../../lib/platform';
 import { MAX_ZOOM_EXPONENT } from '../../lib/wheelGesture';
 import { DiagramPagesView } from './DiagramPagesView';
 
+// The view tests composition and interaction; bitmap lifecycle has its own browser-independent tests.
+vi.mock('./DiagramPagePreview', () => ({
+  DiagramPagePreview: ({ src, className }: { src: string; className?: string }) => <img src={src} className={className} alt="" />,
+}));
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const FONT_DIR = resolve(process.cwd(), 'src/diagram/fonts');
@@ -1039,4 +1044,35 @@ it('fits the page the pager is on, by the bar’s Fit and by Mod+0, where the vi
   expect(claimed).toBe(true);
   settle();
   expect(camera()).toEqual(at(pageTwo));
+});
+
+it('mounts nearby page targets, retaining an offscreen selection for keyboard reveal', () => {
+  let notify: IntersectionObserverCallback;
+  vi.stubGlobal('IntersectionObserver', class {
+    constructor(callback: IntersectionObserverCallback) { notify = callback; }
+    observe() {}
+    disconnect() {}
+  });
+  const doc = onGrid(insertSteps(createDiagram(), Array.from({ length: 40 }, (_, i) => cpStep(`virtual-${i}`)), 0));
+  const pages = preparedPages(doc, FONTS, subsetter);
+  const compose = vi.spyOn(pages, 'compose');
+  render(pages, {}, pages.layout.bandInk, doc, null);
+  const page = (index: number) => host.querySelector<HTMLElement>(`[data-page="${index}"]`)!;
+  expect(page(0).querySelectorAll('[role="option"]').length).toBeGreaterThan(0);
+  expect(page(2).querySelectorAll('[role="option"]')).toHaveLength(0);
+  const entry = (index: number, isIntersecting: boolean): IntersectionObserverEntry => ({
+    target: page(index), isIntersecting, time: 0, rootBounds: null,
+    intersectionRatio: isIntersecting ? 1 : 0,
+    boundingClientRect: page(index).getBoundingClientRect(),
+    intersectionRect: page(index).getBoundingClientRect(),
+  });
+  act(() => notify!([entry(0, false), entry(2, true)], {} as IntersectionObserver));
+  expect(page(0).querySelectorAll('[role="option"]')).toHaveLength(0);
+  expect(page(2).querySelectorAll('[role="option"]').length).toBeGreaterThan(0);
+  const last = pages.layout.pages.length - 1;
+  const selected = pages.layout.pages[last]!.cells[0]!.stepId;
+  render(pages, {}, pages.layout.bandInk, doc, selected);
+  expect(page(last).querySelector('[aria-selected="true"]')?.getAttribute('data-step-id')).toBe(selected);
+  expect(page(last).querySelector('img')).toBeNull();
+  expect(compose.mock.calls.every(([index]) => index === 0 || index === 2)).toBe(true);
 });

@@ -30,6 +30,42 @@ fn read_text_file(path: String) -> Result<String, String> {
     fs::read_to_string(path).map_err(|error| error.to_string())
 }
 
+/// Enumerate only regular files. Symlinks are never followed, including directory symlinks.
+#[tauri::command]
+async fn list_import_folder(path: String, recursive: bool) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut pending = vec![std::path::PathBuf::from(path)];
+        let mut files = Vec::new();
+        let mut visited = 0;
+        while let Some(directory) = pending.pop() {
+            if fs::symlink_metadata(&directory)
+                .map_err(|e| e.to_string())?
+                .file_type()
+                .is_symlink()
+            {
+                continue;
+            }
+            for entry in fs::read_dir(directory).map_err(|e| e.to_string())? {
+                let entry = entry.map_err(|e| e.to_string())?;
+                visited += 1;
+                if visited > 10_000 {
+                    return Err("Folder contains more than 10,000 entries".to_string());
+                }
+                let kind = entry.file_type().map_err(|e| e.to_string())?;
+                if kind.is_file() {
+                    files.push(entry.path().to_string_lossy().into_owned());
+                } else if recursive && kind.is_dir() {
+                    pending.push(entry.path());
+                }
+            }
+        }
+        files.sort();
+        Ok(files)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// The error a capped read returns past its cap. The renderer matches on it
 /// (`fileService.ts`), so it is a constant rather than an `io::Error` string.
 const FILE_TOO_LARGE: &str = "FILE_TOO_LARGE";
@@ -316,6 +352,7 @@ pub fn run() {
             platform_ping,
             read_text_file,
             read_binary_file,
+            list_import_folder,
             write_text_file,
             write_binary_file,
             take_opened_files,
@@ -351,6 +388,7 @@ pub fn run() {
             cp_engine::cp_insert_line_segments,
             cp_engine::cp_deselect_all,
             cp_engine::cp_import_add,
+            cp_engine::cp_append_disjoint,
             cp_engine::cp_replace_line_segments,
             cp_engine::cp_export_cp,
             cp_engine::cp_export_fold,
@@ -379,6 +417,8 @@ pub fn run() {
             // CpSession operation and never takes the engine mutex, which is the
             // only reason it can answer while a fold is running.
             cp_engine::cp_fold_cancel,
+            cp_engine::cp_create_session,
+            cp_engine::cp_close_session,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Ori Studio")
@@ -403,6 +443,25 @@ mod tests {
         assert_eq!(read_capped(path, Some(9)), Err(FILE_TOO_LARGE.to_string()));
         assert!(read_capped(&format!("{path}.missing"), Some(9)).is_err());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn folder_import_is_recursive_only_when_requested_and_ignores_symlinks() {
+        let dir = std::env::temp_dir().join(format!("ori-import-folder-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("nested")).unwrap();
+        std::fs::write(dir.join("one.cp"), b"1 0 0 1 1").unwrap();
+        std::fs::write(dir.join("nested/two.svg"), b"<svg/>").unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&dir, dir.join("loop")).unwrap();
+        let path = dir.to_string_lossy().into_owned();
+        let shallow =
+            tauri::async_runtime::block_on(super::list_import_folder(path.clone(), false)).unwrap();
+        assert_eq!(shallow.len(), 1);
+        assert!(shallow[0].ends_with("one.cp"));
+        let recursive =
+            tauri::async_runtime::block_on(super::list_import_folder(path, true)).unwrap();
+        assert_eq!(recursive.len(), 2);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

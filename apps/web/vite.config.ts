@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -508,6 +509,7 @@ export default defineConfig({
     plugins: () => [dropUnreachableOrtRuntime()],
   },
   server: {
+    fs: { allow: [fileURLToPath(new URL('../..', import.meta.url))] },
     headers: crossOriginIsolationHeaders,
     /**
      * ExplOri search, in dev.

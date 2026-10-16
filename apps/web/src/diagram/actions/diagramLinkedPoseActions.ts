@@ -211,7 +211,7 @@ export function buildDiagramLinkedPoseActions(
       pressed: shown === 'crease-pattern',
     }),
     action(SHOW_AS_ACTION.folded, t('panels:diagram.pose.showFolded', 'Folded'), {
-      pressed: shown === 'folded',
+      pressed: shown === 'folded' && render.mode !== 'defox',
     }),
     action(SHOW_AS_ACTION.simulated, t('panels:diagram.pose.showSimulated', 'Simulated'), {
       pressed: shown === 'simulated',
@@ -243,6 +243,7 @@ export function buildDiagramLinkedPoseActions(
   });
 
   switch (render.mode) {
+    case 'defox': return modes;
     case 'crease-pattern':
       return [...modes, ...turn, reset];
     case 'folded-flat':
@@ -415,6 +416,7 @@ export function spreadDirectionLabel(toward: SpreadDirection, t: TFunction): str
 /** The pose a render starts in: upright, from the front, the first layer order, Edit's camera. */
 export function isDefaultRender(render: DiagramCpRender): boolean {
   switch (render.mode) {
+    case 'defox': return true;
     case 'crease-pattern':
       // Its side is the Step pane's Front | Back, kept by Reset as a spread is.
       return render.rotationDeg === 0;

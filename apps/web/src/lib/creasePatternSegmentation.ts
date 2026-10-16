@@ -534,9 +534,12 @@ export interface SegmentEdge {
  * faces — each shared edge once. Border edges included: they are the paper's
  * own outline, which a picture of the pattern has to show.
  */
-export function segmentEdges(fold: FoldDocument, segments: readonly CpSegment[]): SegmentEdge[] {
+export function segmentEdges(
+  fold: FoldDocument,
+  segments: readonly CpSegment[],
+  assignmentByKey: ReadonlyMap<string, string> = buildAssignmentByKey(fold)
+): SegmentEdge[] {
   const faces = fold.faces_vertices ?? [];
-  const assignmentByKey = buildAssignmentByKey(fold);
   const seen = new Set<string>();
   const edges: SegmentEdge[] = [];
   for (const segment of segments) {

@@ -348,7 +348,7 @@ export const DIAGRAM_SPREAD_AXIS_DEGREE_BUCKETS = [45, 90, 135] as const;
 export type DiagramPictureKind = 'svg' | 'raster' | 'references' | DiagramCaptureKind;
 
 /** How a captured picture shows its pattern. */
-export type DiagramCaptureKind = 'crease_pattern' | 'flat' | '3d' | 'simulated';
+export type DiagramCaptureKind = 'crease_pattern' | 'flat' | '3d' | 'simulated' | 'defox';
 
 /**
  * What became of a capture: kept (`rasterized` when too detailed to keep as
