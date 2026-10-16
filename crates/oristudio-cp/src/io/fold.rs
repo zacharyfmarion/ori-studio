@@ -468,7 +468,7 @@ impl Default for FoldImportBounds {
         Self {
             min_x: f64::MAX,
             min_y: f64::MAX,
-            max_y: f64::from_bits(1),
+            max_y: -f64::MAX,
             has_points: false,
         }
     }
@@ -815,5 +815,59 @@ mod hint_tests {
         let degraded = import_fold_document(&stripped).expect("import stripped");
         assert_eq!(degraded.line_segments[0].color, LineColor::None);
         assert_eq!(degraded.line_segments[0].fold_direction_hint, None);
+    }
+    /// Issue #366: the import normalizes to a 400-unit square, so a 1x1
+    /// source square must span 400 regardless of its y offset. The old `max_y`
+    /// sentinel (`f64::from_bits(1)`, ~5e-324) left `max_y` stuck near zero for
+    /// all-negative-y input, inflating the source height and shrinking the
+    /// import ~300x (span 400 -> ~1.33 at y0=-301).
+    #[test]
+    fn all_negative_y_square_imports_to_same_span_as_origin_square() {
+        fn import_span(y0: f64) -> (f64, f64) {
+            let fold = treemaker_fold::FoldDocument::new(
+                vec![
+                    vec![0.0, y0],
+                    vec![1.0, y0],
+                    vec![1.0, y0 + 1.0],
+                    vec![0.0, y0 + 1.0],
+                ],
+                vec![[0, 1], [1, 2], [2, 3], [3, 0]],
+            );
+            let model = import_fold_document(&fold).expect("import square");
+            assert_eq!(model.line_segments.len(), 4);
+            let mut min_x = f64::MAX;
+            let mut max_x = f64::MIN;
+            let mut min_y = f64::MAX;
+            let mut max_y = f64::MIN;
+            for segment in &model.line_segments {
+                for point in [segment.a, segment.b] {
+                    min_x = min_x.min(point.x);
+                    max_x = max_x.max(point.x);
+                    min_y = min_y.min(point.y);
+                    max_y = max_y.max(point.y);
+                }
+            }
+            (max_x - min_x, max_y - min_y)
+        }
+
+        let (control_w, control_h) = import_span(0.0);
+        assert!(
+            (control_w - 400.0).abs() < 1e-6,
+            "control xspan should be 400, got {control_w}"
+        );
+        assert!(
+            (control_h - 400.0).abs() < 1e-6,
+            "control yspan should be 400, got {control_h}"
+        );
+
+        let (negative_w, negative_h) = import_span(-301.0);
+        assert!(
+            (negative_w - 400.0).abs() < 1e-6,
+            "all-negative-y xspan should be 400, got {negative_w}"
+        );
+        assert!(
+            (negative_h - 400.0).abs() < 1e-6,
+            "all-negative-y yspan should be 400, got {negative_h}"
+        );
     }
 }
