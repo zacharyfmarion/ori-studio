@@ -74,7 +74,13 @@ pub struct InvalidJunctionSnapshot {
     pub id: String,
     #[serde(rename = "flapIds")]
     pub flap_ids: [u32; 2],
+    /// The river between the flaps (tree distance less both radii) — upstream's
+    /// `InvalidJunction._dist`, kept under its historical wire name. Not the
+    /// overlap: it is zero for two directly connected flaps however far they
+    /// intrude on each other.
     pub narrowness: f64,
+    /// How much closer the flaps sit than the tree allows, in grid units.
+    pub overlap: f64,
     pub polygon: ArcPolygonData,
 }
 
@@ -278,11 +284,13 @@ fn invalid_junctions(tree: &BpTree) -> BpResult<Vec<InvalidJunctionSnapshot>> {
             let b = junction.b;
             let id = stretch_id(&[a, b]);
             let narrowness = junction.distance_after_flap_radii();
+            let overlap = junction.overlap();
             let polygon = arc_paths_to_data(junction.get_polygon(tree)?);
             Ok(InvalidJunctionSnapshot {
                 id,
                 flap_ids: [a, b],
                 narrowness,
+                overlap,
                 polygon,
             })
         })

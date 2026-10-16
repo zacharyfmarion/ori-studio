@@ -92,7 +92,10 @@ describe('oristudioBpProjectStateFromRaw', () => {
         {
           id: '2,3',
           flapIds: [2, 3],
-          narrowness: -0.5,
+          // The river between the flaps, not the overlap: a directly connected
+          // pair reports 0 here however far they intrude on each other.
+          narrowness: 0,
+          overlap: 0.0557,
           polygon: [[{ x: 2, y: 2 }, { x: 2.5, y: 2 }, { x: 2.5, y: 2.5 }]],
         },
       ],
@@ -128,8 +131,11 @@ describe('oristudioBpProjectStateFromRaw', () => {
     expect(state.snapshot.packing.invalidJunctions[0]).toMatchObject({
       id: '2,3',
       flapIds: [2, 3],
-      overlap: -0.5,
+      overlap: 0.0557,
       paths: [[{ x: 2, y: 2 }, { x: 2.5, y: 2 }, { x: 2.5, y: 2.5 }]],
+      // Reads the overlap, never the river: "overlap by 0" told the user the
+      // opposite of what the red region shows.
+      message: 'Flaps 2 and 3 overlap by 0.056',
     });
     expect(state.snapshot.diagnostics.map((diagnostic) => diagnostic.kind)).toEqual([
       'pattern-not-found',
