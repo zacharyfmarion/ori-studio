@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "O Ori Studio não conseguiu ler {{name}} como imagem. Tente PNG, JPEG ou WebP."
   },
+  "diagramExample": {
+    "unavailable": "Não foi possível baixar o tsuru de exemplo. Verifique sua conexão e tente novamente."
+  },
   "explori": {
     "unrouted": "Esta versão não consegue acessar o serviço de pesquisa."
   },

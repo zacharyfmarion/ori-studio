@@ -4472,7 +4472,12 @@
     "panels:diagram.pagePane.titleBlock.bandColorHelp": "591860cae368",
     "panels:diagram.titleBlock.default.title": "a1d38e84441a",
     "panels:diagram.pagePane.diagramTitle": "7e8cd2056da7",
-    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7"
+    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7",
+    "panels:diagram.empty.learn": "c45f7214dd07",
+    "panels:diagram.empty.openExample": "9c29d0a0b8da",
+    "panels:diagram.empty.openingExample": "4d4e21f5db9e",
+    "panels:diagram.empty.tutorial": "02828a9187a3",
+    "errors:diagramExample.unavailable": "93078836af10"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -8947,7 +8952,12 @@
     "panels:diagram.pagePane.titleBlock.bandColorHelp": "591860cae368",
     "panels:diagram.titleBlock.default.title": "a1d38e84441a",
     "panels:diagram.pagePane.diagramTitle": "7e8cd2056da7",
-    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7"
+    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7",
+    "panels:diagram.empty.learn": "c45f7214dd07",
+    "panels:diagram.empty.openExample": "9c29d0a0b8da",
+    "panels:diagram.empty.openingExample": "4d4e21f5db9e",
+    "panels:diagram.empty.tutorial": "02828a9187a3",
+    "errors:diagramExample.unavailable": "93078836af10"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -13424,7 +13434,12 @@
     "panels:diagram.pagePane.titleBlock.bandColorHelp": "591860cae368",
     "panels:diagram.titleBlock.default.title": "a1d38e84441a",
     "panels:diagram.pagePane.diagramTitle": "7e8cd2056da7",
-    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7"
+    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7",
+    "panels:diagram.empty.learn": "c45f7214dd07",
+    "panels:diagram.empty.openExample": "9c29d0a0b8da",
+    "panels:diagram.empty.openingExample": "4d4e21f5db9e",
+    "panels:diagram.empty.tutorial": "02828a9187a3",
+    "errors:diagramExample.unavailable": "93078836af10"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -17804,7 +17819,12 @@
     "panels:diagram.pagePane.titleBlock.bandColorHelp": "591860cae368",
     "panels:diagram.titleBlock.default.title": "a1d38e84441a",
     "panels:diagram.pagePane.diagramTitle": "7e8cd2056da7",
-    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7"
+    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7",
+    "panels:diagram.empty.learn": "c45f7214dd07",
+    "panels:diagram.empty.openExample": "9c29d0a0b8da",
+    "panels:diagram.empty.openingExample": "4d4e21f5db9e",
+    "panels:diagram.empty.tutorial": "02828a9187a3",
+    "errors:diagramExample.unavailable": "93078836af10"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -22184,7 +22204,12 @@
     "panels:diagram.pagePane.titleBlock.bandColorHelp": "591860cae368",
     "panels:diagram.titleBlock.default.title": "a1d38e84441a",
     "panels:diagram.pagePane.diagramTitle": "7e8cd2056da7",
-    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7"
+    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7",
+    "panels:diagram.empty.learn": "c45f7214dd07",
+    "panels:diagram.empty.openExample": "9c29d0a0b8da",
+    "panels:diagram.empty.openingExample": "4d4e21f5db9e",
+    "panels:diagram.empty.tutorial": "02828a9187a3",
+    "errors:diagramExample.unavailable": "93078836af10"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -26659,7 +26684,12 @@
     "panels:diagram.pagePane.titleBlock.bandColorHelp": "591860cae368",
     "panels:diagram.titleBlock.default.title": "a1d38e84441a",
     "panels:diagram.pagePane.diagramTitle": "7e8cd2056da7",
-    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7"
+    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7",
+    "panels:diagram.empty.learn": "c45f7214dd07",
+    "panels:diagram.empty.openExample": "9c29d0a0b8da",
+    "panels:diagram.empty.openingExample": "4d4e21f5db9e",
+    "panels:diagram.empty.tutorial": "02828a9187a3",
+    "errors:diagramExample.unavailable": "93078836af10"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -31134,7 +31164,12 @@
     "panels:diagram.pagePane.titleBlock.bandColorHelp": "591860cae368",
     "panels:diagram.titleBlock.default.title": "a1d38e84441a",
     "panels:diagram.pagePane.diagramTitle": "7e8cd2056da7",
-    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7"
+    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7",
+    "panels:diagram.empty.learn": "c45f7214dd07",
+    "panels:diagram.empty.openExample": "9c29d0a0b8da",
+    "panels:diagram.empty.openingExample": "4d4e21f5db9e",
+    "panels:diagram.empty.tutorial": "02828a9187a3",
+    "errors:diagramExample.unavailable": "93078836af10"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -35514,6 +35549,11 @@
     "panels:diagram.pagePane.titleBlock.bandColorHelp": "591860cae368",
     "panels:diagram.titleBlock.default.title": "a1d38e84441a",
     "panels:diagram.pagePane.diagramTitle": "7e8cd2056da7",
-    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7"
+    "panels:diagram.pagePane.diagramTitleHelp": "59d2f420c0e7",
+    "panels:diagram.empty.learn": "c45f7214dd07",
+    "panels:diagram.empty.openExample": "9c29d0a0b8da",
+    "panels:diagram.empty.openingExample": "4d4e21f5db9e",
+    "panels:diagram.empty.tutorial": "02828a9187a3",
+    "errors:diagramExample.unavailable": "93078836af10"
   }
 }

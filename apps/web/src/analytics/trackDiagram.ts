@@ -49,6 +49,7 @@ import type {
   DiagramMarksLiftedVia,
   PaperExportMarkShown,
   DiagramSourceWorkspace,
+  DiagramExampleOutcome,
   DiagramShowAsName,
   DiagramShowAsVia,
   DiagramSpreadTracking,
@@ -325,6 +326,16 @@ export function trackDiagramReferencesMarksLifted(via: DiagramMarksLiftedVia, co
 /** The Diagram's view switched, by the tabs or a verb that shows the pages. */
 export function trackDiagramViewSwitched(view: DiagramView): void {
   track(ANALYTICS_EVENTS.diagramViewSwitched, { view });
+}
+
+/** The empty Diagram's example pressed, and what became of it. Never which file. */
+export function trackDiagramExampleOpened(outcome: DiagramExampleOutcome): void {
+  track(ANALYTICS_EVENTS.diagramExampleOpened, { outcome });
+}
+
+/** The empty Diagram's video walkthrough followed. */
+export function trackDiagramTutorialOpened(): void {
+  track(ANALYTICS_EVENTS.diagramTutorialOpened);
 }
 
 /**

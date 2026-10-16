@@ -19,6 +19,7 @@ import type {
 import type { SerializedDockview } from 'dockview';
 import type { DesignTab } from './designTabs';
 import type { EditingContext } from '../../workspaces/editingContext';
+import type { WorkspaceId } from '../../workspaces/workspaces';
 import type { SendToEditPayload } from '../../designKinds/types';
 import type {
   AppStatus,
@@ -418,10 +419,15 @@ export interface ProjectSliceActions {
    * Open a document, replacing the current one. Prompts before discarding
    * unsaved changes unless `confirmDiscard` is false — which only a caller that
    * has already asked in its own prompt may pass.
+   *
+   * `landing` is for a caller that knows which surface the file is for — the
+   * Diagram's example — and lands it there rather than where
+   * `landingWorkspace` would. `source` is what `project opened` reports:
+   * `file` unless the caller is opening one of the app's own examples.
    */
   openProject: (
     fileService?: FileService,
-    options?: { confirmDiscard?: boolean }
+    options?: { confirmDiscard?: boolean; landing?: WorkspaceId; source?: 'file' | 'example' }
   ) => Promise<boolean>;
   importAddCreasePattern: (fileService?: FileService) => Promise<boolean>;
   /**

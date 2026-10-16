@@ -382,6 +382,13 @@ export type DiagramShowAsVia = 'pane' | 'picker' | 'card' | 'duplicate';
 /** The workspace a diagram step's Open in… went to: its pattern in Edit, or its sheet in References. */
 export type DiagramSourceWorkspace = 'edit' | 'references';
 
+/**
+ * What became of a press on the empty Diagram's example: it opened, the
+ * unsaved-changes prompt was declined, the file did not open, or it could not
+ * be downloaded (offline, and not in the browser's cache).
+ */
+export type DiagramExampleOutcome = 'opened' | 'cancelled' | 'failed' | 'unavailable';
+
 /** The list the References browser pulled cards from: a planned pattern's sequence, or the Find answer. */
 export type DiagramPulledMode = 'sequence' | 'find';
 
@@ -1638,6 +1645,13 @@ export const ANALYTICS_EVENTS = {
   diagramSourceOpened: 'diagram source opened',
   /** The Diagram switched between its steps and its pages: whether the pages are looked at. */
   diagramViewSwitched: 'diagram view switched',
+  /**
+   * The empty Diagram's example crane pressed, and what became of it: whether
+   * a finished diagram to look at is wanted, and how often it fails to arrive.
+   */
+  diagramExampleOpened: 'diagram example opened',
+  /** The empty Diagram's link to the video walkthrough followed. */
+  diagramTutorialOpened: 'diagram tutorial opened',
   /** A page setting changed in the Page pane: which ones are used, never their values. */
   diagramPageSetupChanged: 'diagram page setup changed',
   /**

@@ -1,6 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { BookOpen, Compass, Link2, PenTool, Plus, Upload } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { ArrowUpRight, Bird, BookOpen, CirclePlay, Compass, Link2, PenTool, Plus, Upload } from 'lucide-react';
+import { trackDiagramTutorialOpened } from '../../analytics';
+import { DIAGRAM_TUTORIAL_URL } from '../../diagram/example/diagramExample';
+import { useOpenDiagramExample } from '../../diagram/example/useOpenDiagramExample';
+import { Button, ButtonLink } from '../ui/Button';
+import { externalAnchorProps } from '../ui/ExternalAnchor';
 import styles from './DiagramEmptyState.module.css';
 
 /**
@@ -10,6 +14,9 @@ import styles from './DiagramEmptyState.module.css';
  * pattern open, to link a step to one of its patterns or send steps from
  * References; with none open, Go to Edit stands in for those two (D12). The
  * diagram itself comes into being with that first step, never on open.
+ *
+ * Under them, for someone new to diagrams, a finished one to open — the
+ * example crane, opened as any file is — and the video walkthrough.
  */
 export function DiagramEmptyState({
   readOnly,
@@ -37,6 +44,7 @@ export function DiagramEmptyState({
   onGoToEdit: () => void;
 }) {
   const { t } = useTranslation();
+  const example = useOpenDiagramExample();
   return (
     <div className={styles.state} data-drop-target={dropTarget || undefined}>
       <div className={styles.icon} aria-hidden="true">
@@ -76,6 +84,23 @@ export function DiagramEmptyState({
             {t('panels:diagram.empty.goToEdit', 'Go to Edit')}
           </Button>
         )}
+      </div>
+      <div className={styles.learn}>
+        <p className={styles.learnLabel}>{t('panels:diagram.empty.learn', 'New to diagrams?')}</p>
+        <div className={styles.actions}>
+          {/* Not read-only's to refuse: it opens another file, as File › Open does. */}
+          <Button variant="ghost" disabled={example.opening} onClick={example.open}>
+            <Bird size={15} aria-hidden="true" />
+            {example.opening
+              ? t('panels:diagram.empty.openingExample', 'Opening the example…')
+              : t('panels:diagram.empty.openExample', 'Open the example crane')}
+          </Button>
+          <ButtonLink variant="ghost" {...externalAnchorProps(DIAGRAM_TUTORIAL_URL, () => trackDiagramTutorialOpened())}>
+            <CirclePlay size={15} aria-hidden="true" />
+            {t('panels:diagram.empty.tutorial', 'Watch the walkthrough')}
+            <ArrowUpRight size={13} aria-hidden="true" />
+          </ButtonLink>
+        </div>
       </div>
     </div>
   );

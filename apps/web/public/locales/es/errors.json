@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "Ori Studio no pudo leer {{name}} como imagen. Prueba con PNG, JPEG o WebP."
   },
+  "diagramExample": {
+    "unavailable": "No se pudo descargar la grulla de ejemplo. Comprueba tu conexión e inténtalo de nuevo."
+  },
   "explori": {
     "unrouted": "Esta versión no puede conectarse al servicio de búsqueda."
   },

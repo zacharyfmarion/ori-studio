@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "Ori Studio 无法将 {{name}} 读取为图片。请尝试 PNG、JPEG 或 WebP。"
   },
+  "diagramExample": {
+    "unavailable": "无法下载千纸鹤示例。请检查网络连接后重试。"
+  },
   "explori": {
     "unrouted": "此版本无法连接到搜索服务。"
   },

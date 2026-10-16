@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "Ori Studio не удалось прочитать {{name}} как изображение. Попробуйте PNG, JPEG или WebP."
   },
+  "diagramExample": {
+    "unavailable": "Не удалось загрузить пример журавлика. Проверьте подключение и попробуйте снова."
+  },
   "explori": {
     "unrouted": "Эта сборка не может подключиться к службе поиска."
   },

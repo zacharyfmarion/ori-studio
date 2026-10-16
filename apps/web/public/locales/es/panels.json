@@ -1090,9 +1090,13 @@
       "addStep": "Añadir paso",
       "fromReferences": "Desde Referencias…",
       "goToEdit": "Ir a Editar",
+      "learn": "¿Primera vez con los diagramas?",
       "link": "Vincular un patrón…",
       "message": "Un diagrama es tu secuencia de plegado, paso a paso. Añade un paso y luego dale una imagen y una instrucción, o sube tus dibujos, uno por paso.",
+      "openExample": "Abrir la grulla de ejemplo",
+      "openingExample": "Abriendo el ejemplo…",
       "title": "Empezar un diagrama",
+      "tutorial": "Ver el vídeo explicativo",
       "upload": "Subir imágenes…"
     },
     "grid": {

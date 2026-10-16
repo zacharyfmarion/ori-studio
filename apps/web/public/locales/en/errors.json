@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "Ori Studio could not read {{name}} as an image. Try a PNG, JPEG, or WebP."
   },
+  "diagramExample": {
+    "unavailable": "Couldn't download the example crane. Check your connection and try again."
+  },
   "explori": {
     "unrouted": "This build cannot reach the search service."
   },

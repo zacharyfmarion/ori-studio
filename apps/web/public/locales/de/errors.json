@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "Ori Studio konnte {{name}} nicht als Bild lesen. Versuchen Sie PNG, JPEG oder WebP."
   },
+  "diagramExample": {
+    "unavailable": "Der Beispielkranich konnte nicht heruntergeladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+  },
   "explori": {
     "unrouted": "Diese Version kann den Suchdienst nicht erreichen."
   },

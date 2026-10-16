@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "Ori Studio가 {{name}}을(를) 이미지로 읽지 못했습니다. PNG, JPEG 또는 WebP를 사용해 보세요."
   },
+  "diagramExample": {
+    "unavailable": "학 예제를 내려받지 못했습니다. 연결 상태를 확인한 후 다시 시도해 주세요."
+  },
   "explori": {
     "unrouted": "이 빌드에서는 검색 서비스에 연결할 수 없습니다."
   },

@@ -20,6 +20,12 @@ describe('routeRequest', () => {
     expect(routeRequest(get('/something-added-next-year.json'), ORIGIN, NONE)).toBe('bypass');
   });
 
+  // 3.4 MB the empty Diagram fetches only when its example is asked for
+  // (`diagram/example/diagramExample.ts`): never precached, warmed or kept.
+  it('leaves the Diagram’s example to the network', () => {
+    expect(routeRequest(get('/examples/Crane.osf', 'cors'), ORIGIN, NONE)).toBe('bypass');
+  });
+
   it('bypasses non-GET and cross-origin requests', () => {
     expect(routeRequest({ ...get('/api/cp'), method: 'POST' }, ORIGIN, NONE)).toBe('bypass');
     expect(routeRequest(get('/assets/index-abc.js'), 'https://elsewhere.test', NONE)).toBe(

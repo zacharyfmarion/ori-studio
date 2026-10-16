@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "Ori Studio は {{name}} を画像として読み込めませんでした。PNG、JPEG、WebP をお試しください。"
   },
+  "diagramExample": {
+    "unavailable": "鶴の作例をダウンロードできませんでした。接続を確認してもう一度お試しください。"
+  },
   "explori": {
     "unrouted": "このビルドからは検索サービスに接続できません。"
   },

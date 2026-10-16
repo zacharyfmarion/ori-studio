@@ -40,3 +40,9 @@
 # be readable across origins. Every download is checked against the manifest's sha256.
 /fonts/diagram/*
   Access-Control-Allow-Origin: *
+
+# The empty Diagram's example crane (src/diagram/example/diagramExample.ts). Pages types an
+# `.osf` as Yamaha's Open Score Format, which Cloudflare sends uncompressed: 3.4 MB. Named
+# for what it is, JSON, it goes out compressed.
+/examples/*
+  Content-Type: application/json

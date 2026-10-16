@@ -1090,9 +1090,13 @@
       "addStep": "Ajouter une étape",
       "fromReferences": "Depuis Références…",
       "goToEdit": "Aller dans Édition",
+      "learn": "Première fois avec les diagrammes ?",
       "link": "Lier un patron…",
       "message": "Un diagramme, c’est votre séquence de pliage, une étape à la fois. Ajoutez une étape, puis donnez-lui une image et une instruction — ou importez vos dessins, une étape chacun.",
+      "openExample": "Ouvrir la grue d’exemple",
+      "openingExample": "Ouverture de l’exemple…",
       "title": "Commencer un diagramme",
+      "tutorial": "Voir la vidéo de présentation",
       "upload": "Importer des images…"
     },
     "grid": {

@@ -9966,6 +9966,33 @@ describe('the project diagram', () => {
     expect(state().dirty).toBe(false);
   });
 
+  // The Diagram's example: a crease pattern lands on Edit, unless the caller
+  // names the surface the file is for — and it counts as an example, not a file.
+  it('lands an open where its caller names, and reports the source it gives', async () => {
+    await state().createNewCreasePattern();
+    authorTwoSteps();
+    const fileService = createFileService();
+    await state().saveProjectAs(fileService);
+    const { options } = writtenFile(fileService);
+
+    for (const [openOptions, landing, source] of [
+      [{}, 'edit', 'file'],
+      [{ landing: 'diagram', source: 'example' }, 'diagram', 'example'],
+    ] as const) {
+      resetStores(seedSnapshot());
+      useLayoutStore.setState({ activateWorkspace: vi.fn() });
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+      analyticsMocks.track.mockClear();
+      await expect(
+        state().openProject(createFileService({ text: options.contents, name: 'Crane.osf', path: null }), openOptions)
+      ).resolves.toBe(true);
+
+      expect(state().oristudioCpDocument).not.toBeNull();
+      expect(useLayoutStore.getState().activateWorkspace).toHaveBeenLastCalledWith(landing);
+      expect(analyticsMocks.track).toHaveBeenCalledWith('project opened', { source });
+    }
+  });
+
   it('saves a crease pattern opened from an Oriedita file as .osf once it has a diagram', async () => {
     await state().openProject(
       createFileService({

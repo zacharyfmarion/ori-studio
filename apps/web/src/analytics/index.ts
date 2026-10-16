@@ -43,6 +43,7 @@ export type {
   DiagramRepackScope,
   DiagramRepackVia,
   DiagramSourceWorkspace,
+  DiagramExampleOutcome,
   DiagramStepOpenedVia,
   DiagramStyleChoiceName,
   DiagramTitleBlockBand,
@@ -153,6 +154,8 @@ export {
   trackDiagramPageSetupChanged,
   trackDiagramPagesRepacked,
   trackDiagramViewSwitched,
+  trackDiagramExampleOpened,
+  trackDiagramTutorialOpened,
 } from './trackDiagram';
 export { trackDiagramEnlargementChanged, trackDiagramStepEnlarged } from './trackDiagramZoom';
 export { trackDesktopDownload } from './trackDesktopDownload';

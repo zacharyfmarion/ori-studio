@@ -184,6 +184,7 @@ import { selectWorkspaceCapabilities } from '../capabilities';
 import { frameActiveCpDiagnostic } from '../cpDiagnosticFocus';
 import { freshEditableCpState } from '../freshCreasePattern';
 import { landingWorkspace } from '../landingWorkspace';
+import type { WorkspaceId } from '../../../workspaces/workspaces';
 import {
   ensureExtension,
   filesystemPathOrNull,
@@ -2065,9 +2066,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // pattern opened while Edit was already on screen left the pane reading
   // `design` over the CP canvas: the toolbar offered the BP verbs and every Edit
   // shortcut resolved to nothing.
-  const applyLandingWorkspace = () => {
+  //
+  // A caller may name the landing (`openProject`'s `landing`) when it knows the
+  // surface the file is for: the Diagram's example opens on its diagram, though
+  // it holds a crease pattern. Named here, not activated after the open, so the
+  // open makes one transition rather than passing through Edit on the way.
+  const applyLandingWorkspace = (landing?: WorkspaceId) => {
     if (get().status === 'error') return;
-    useLayoutStore.getState().activateWorkspace(landingWorkspace(get()));
+    useLayoutStore.getState().activateWorkspace(landing ?? landingWorkspace(get()));
   };
 
   // Route a native save/save-as by the documents that exist, NOT by the pane in
@@ -2743,8 +2749,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         } else {
           await loadText(file.text, { filename: file.name, path: file.path });
         }
-        applyLandingWorkspace();
-        track('project opened', { source: 'file' });
+        applyLandingWorkspace(options.landing);
+        track('project opened', { source: options.source ?? 'file' });
         return true;
       } catch (error) {
         set({ status: 'error', error: annotateLargeSourceError(error, openedSourceLength) });

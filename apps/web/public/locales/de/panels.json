@@ -1056,9 +1056,13 @@
       "addStep": "Schritt hinzufügen",
       "fromReferences": "Aus Referenzen…",
       "goToEdit": "Zu Bearbeiten wechseln",
+      "learn": "Neu bei Diagrammen?",
       "link": "Muster verknüpfen…",
       "message": "Ein Diagramm ist Ihre Faltfolge, Schritt für Schritt. Fügen Sie einen Schritt hinzu und geben Sie ihm ein Bild und eine Anleitung – oder laden Sie Ihre Zeichnungen hoch, je eine pro Schritt.",
+      "openExample": "Den Beispielkranich öffnen",
+      "openingExample": "Beispiel wird geöffnet…",
       "title": "Ein Diagramm beginnen",
+      "tutorial": "Video-Einführung ansehen",
       "upload": "Bilder hochladen…"
     },
     "grid": {
