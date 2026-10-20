@@ -515,6 +515,24 @@ export function cpLineSegmentAt(
 }
 
 /**
+ * The colour of the line with this 1-based id, or undefined past either end —
+ * {@link cpLineSegmentAt}'s `.color`, read from the colour slot without building
+ * the segment. For a question asked of every selected line on every selection
+ * change, such as whether any of them can carry a fold angle.
+ */
+export function cpLineColorAt(
+  document: OristudioCpDocumentSnapshot,
+  id: number
+): OristudioCpLineSegment['color'] | undefined {
+  const decoded = cpDecodedLineSegments(document);
+  if (decoded) return decoded[id - 1]?.color;
+  const transport = cpDocumentTransport(document);
+  if (!transport) return document.crease_pattern.line_segments[id - 1]?.color;
+  if (!Number.isInteger(id) || id < 1 || id > transport.segEndpoints.length / 4) return undefined;
+  return lineColorName(transport.segAttr[(id - 1) * SEG_ATTR_STRIDE]!);
+}
+
+/**
  * Visit every line of the document in id order with its endpoints, colour and
  * 1-based id. Never decodes: for a lazy snapshot not yet decoded it reads the
  * transport, handing every line the same reused `line` object — read it during

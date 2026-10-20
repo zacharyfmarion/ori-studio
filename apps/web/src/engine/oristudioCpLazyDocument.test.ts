@@ -7,7 +7,7 @@
  * direction hints, every colour and active state), so "reads the same as the
  * decode" is checked where a reader could plausibly get a field wrong.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   document_geometry,
@@ -15,15 +15,20 @@ import {
   free_document,
 } from '../generated/oristudio-cp-wasm/oristudio_cp_wasm';
 import { foldAngleCreasesOf } from '../cp-workspace/foldAngle/foldAngleCreases';
+import { hasUnassignedCpSelection } from '../cp-workspace/foldAngle/useDirectionHintSelection';
+import { hasFoldableCpSelection } from '../cp-workspace/foldAngle/useFoldAngleSelection';
 import {
   reselectFoldableLineIds,
   reselectSourceLineIds,
 } from '../cp-workspace/folded/foldedFigureStaleness';
 import { creaseFingerprint, lineContentFingerprint } from '../lib/creaseFingerprint';
+import { selectedCpLineSegments, selectedFoldableCpLineIds } from '../lib/creasePatternClipboard';
 import {
+  CpGeometry,
   cpDecodedLineSegments,
   cpDocumentLinesKey,
   cpDocumentTransport,
+  cpLineColorAt,
   cpLineEndpoints,
   cpLineSegmentAt,
   cpLineSegmentCount,
@@ -41,7 +46,7 @@ import {
   withCpDocumentTexts,
   type CpGeometryTransport,
 } from './oristudioCpGeometry';
-import { getCpVertexPoints } from '../lib/creasePatternViewport';
+import { emptyOristudioCpSelection, getCpVertexPoints } from '../lib/creasePatternViewport';
 import { initCpWasm, loadBatteryDocument } from './oristudioCpTestSupport';
 import type { OristudioCpDocumentSnapshot } from './oristudioCpTypes';
 
@@ -166,6 +171,71 @@ describe('readers that answer from the transport', () => {
     expect(reselectFoldableLineIds(lazy, bounds)).toEqual(reselectFoldableLineIds(decoded, bounds));
     expect(reselectSourceLineIds(lazy, bounds)).toEqual(reselectSourceLineIds(decoded, bounds));
     expect(cpDecodedLineSegments(lazy)).toBeNull();
+  });
+});
+
+describe('what a selection change reads', () => {
+  // Every selected line, as Select All leaves it.
+  const allOf = (document: OristudioCpDocumentSnapshot) => ({
+    ...emptyOristudioCpSelection(),
+    lines: Array.from({ length: cpLineSegmentCount(document) }, (_, i) => i + 1),
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reads a line’s colour without building the line', () => {
+    const { transport, decoded } = battery();
+    const lazy = lazyCpDocumentSnapshot(transport);
+    const lines = decoded.crease_pattern.line_segments;
+    const built = vi.spyOn(CpGeometry.prototype, 'lineSegment');
+    for (let id = 0; id <= lines.length + 1; id += 1) {
+      expect(cpLineColorAt(lazy, id)).toBe(lines[id - 1]?.color);
+      expect(cpLineColorAt(decoded, id)).toBe(lines[id - 1]?.color);
+    }
+    expect(cpLineColorAt(lazy, 1.5)).toBeUndefined();
+    expect(new Set(lines.map((line) => line.color)).size).toBeGreaterThan(2);
+    expect(built).not.toHaveBeenCalled();
+    expect(cpDecodedLineSegments(lazy)).toBeNull();
+  });
+
+  it('answers the colour questions without building a line per selected line', () => {
+    const { transport, decoded } = battery();
+    const lazy = lazyCpDocumentSnapshot(transport);
+    const built = vi.spyOn(CpGeometry.prototype, 'lineSegment');
+    expect(selectedFoldableCpLineIds(lazy, allOf(lazy))).toEqual(
+      selectedFoldableCpLineIds(decoded, allOf(decoded))
+    );
+    expect(hasFoldableCpSelection(lazy, allOf(lazy))).toBe(true);
+    expect(hasUnassignedCpSelection(lazy, allOf(lazy))).toBe(
+      hasUnassignedCpSelection(decoded, allOf(decoded))
+    );
+    expect(built).not.toHaveBeenCalled();
+    expect(cpDecodedLineSegments(lazy)).toBeNull();
+  });
+
+  it('builds each selected line once, and copies only lines the document holds', () => {
+    const { transport, decoded } = battery();
+    const lazy = lazyCpDocumentSnapshot(transport);
+    const built = vi.spyOn(CpGeometry.prototype, 'lineSegment');
+
+    const fromTransport = selectedCpLineSegments(lazy, allOf(lazy));
+    expect(fromTransport).toEqual(decoded.crease_pattern.line_segments);
+    // The objects the geometry built are handed out as they are: no second copy.
+    expect(built).toHaveBeenCalledTimes(fromTransport.length);
+    fromTransport.forEach((line, i) => expect(line).toBe(built.mock.results[i]!.value));
+    expect(cpDecodedLineSegments(lazy)).toBeNull();
+
+    // Once decoded, the lines are the document's own: the caller gets copies.
+    const held = lazy.crease_pattern.line_segments;
+    const copied = selectedCpLineSegments(lazy, allOf(lazy));
+    expect(copied).toEqual(held);
+    copied.forEach((line, i) => {
+      expect(line).not.toBe(held[i]);
+      expect(line.a).not.toBe(held[i]!.a);
+      expect(line.customized_color).not.toBe(held[i]!.customized_color);
+    });
   });
 });
 

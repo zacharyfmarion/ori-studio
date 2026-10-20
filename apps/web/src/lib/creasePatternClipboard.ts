@@ -1,4 +1,8 @@
-import { cpLineSegmentAt } from '../engine/oristudioCpGeometry';
+import {
+  cpDecodedLineSegments,
+  cpLineColorAt,
+  cpLineSegmentAt,
+} from '../engine/oristudioCpGeometry';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpLineSegment,
@@ -58,10 +62,12 @@ export function selectedCpLineSegments(
   selection: OristudioCpSelection
 ): OristudioCpLineSegment[] {
   if (!document || selection.lines.length === 0) return [];
-  return selection.lines
+  const lines = selection.lines
     .map((id) => cpLineSegmentAt(document, id))
-    .filter((line): line is OristudioCpLineSegment => Boolean(line))
-    .map(cloneCpLineSegment);
+    .filter((line): line is OristudioCpLineSegment => Boolean(line));
+  // Lines not decoded yet are read from the geometry as new objects, which are
+  // the caller's already; only decoded ones are the document's and need copying.
+  return cpDecodedLineSegments(document) ? lines.map(cloneCpLineSegment) : lines;
 }
 
 export function isOrieditaFoldableLineColor(color: OristudioCpLineSegment['color']): boolean {
@@ -74,8 +80,8 @@ export function selectedFoldableCpLineIds(
 ): number[] {
   if (!document || selection.lines.length === 0) return [];
   return selection.lines.filter((id) => {
-    const line = cpLineSegmentAt(document, id);
-    return Boolean(line && isOrieditaFoldableLineColor(line.color));
+    const color = cpLineColorAt(document, id);
+    return color !== undefined && isOrieditaFoldableLineColor(color);
   });
 }
 
