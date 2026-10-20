@@ -23,6 +23,11 @@ export function pointsAsSegmentEndpoints(points: readonly ModelPoint[]): Float64
   return endpoints;
 }
 
+/** A dense grid is used up to this many cells whatever the entry count… */
+const DENSE_GRID_MIN_CELLS = 1 << 16;
+/** …and beyond it up to this many cells per (entry, cell) placement. */
+const DENSE_GRID_CELLS_PER_PAIR = 4;
+
 /**
  * Uniform-grid spatial index over line segments for pointer hit-testing.
  * Segments are binned into every grid cell their bounding box overlaps, so long
@@ -41,7 +46,23 @@ export class LineHitIndex {
   private readonly cellSize: number;
   private readonly minX: number;
   private readonly minY: number;
-  private readonly cells = new Map<number, number[]>();
+  /**
+   * Cells of a dense grid over the bounding box, `gridW` by `gridH`, slot
+   * `cx * gridH + cy` — or 0 by 0 when the grid would be too sparse to hold a
+   * slot per cell, and `cellSlots` names the occupied ones instead.
+   */
+  private readonly gridW: number = 0;
+  private readonly gridH: number = 0;
+  /** Cell key → the cell's slot, when the grid is not dense. */
+  private readonly cellSlots = new Map<number, number>();
+  /**
+   * The entries in each cell, cell by cell and in insertion order within one:
+   * slot `s` holds `cellEntries[cellStart[s] .. cellStart[s + 1])`. Packed
+   * rather than an array per cell, because a large canvas has several hundred
+   * thousand cells.
+   */
+  private readonly cellStart: Int32Array;
+  private readonly cellEntries: Int32Array;
   /** `[ax, ay, bx, by]` per entry. */
   private readonly coords: Float64Array;
   private readonly count: number;
@@ -91,7 +112,79 @@ export class LineHitIndex {
     this.minX = Number.isFinite(minX) ? minX : 0;
     this.minY = Number.isFinite(minY) ? minY : 0;
 
-    for (let i = 0; i < this.count; i += 1) this.insert(i);
+    // Every entry goes into every cell its bounding box overlaps, in entry
+    // order. Counted first, then placed, so each cell's entries land packed
+    // and in the order they were inserted.
+    const range = new Float64Array(4);
+    const pairsOf = new Int32Array(this.count);
+    let pairs = 0;
+    for (let i = 0; i < this.count; i += 1) {
+      this.cellRange(i, range);
+      pairsOf[i] = (range[2]! - range[0]! + 1) * (range[3]! - range[1]! + 1);
+      pairs += pairsOf[i]!;
+    }
+
+    // A slot per cell of the bounding box when that is not many more cells
+    // than entries to put in them: a cell is then found by arithmetic rather
+    // than a hash lookup, which was most of what building the index cost.
+    const bounded = [minX, minY, maxX, maxY].every(Number.isFinite);
+    const gridW = bounded ? this.cellX(maxX) + 1 : 0;
+    const gridH = bounded ? this.cellY(maxY) + 1 : 0;
+    if (bounded && gridW * gridH <= Math.max(DENSE_GRID_MIN_CELLS, DENSE_GRID_CELLS_PER_PAIR * pairs)) {
+      this.gridW = gridW;
+      this.gridH = gridH;
+      const cells = gridW * gridH;
+      const start = new Int32Array(cells + 1);
+      for (let i = 0; i < this.count; i += 1) {
+        this.cellRange(i, range);
+        for (let cx = range[0]!; cx <= range[2]!; cx++) {
+          for (let cy = range[1]!; cy <= range[3]!; cy++) start[cx * gridH + cy + 1] += 1;
+        }
+      }
+      for (let c = 0; c < cells; c += 1) start[c + 1] += start[c]!;
+      this.cellEntries = new Int32Array(pairs);
+      // Placing advances each cell's start to the next cell's; shifted back after.
+      for (let i = 0; i < this.count; i += 1) {
+        this.cellRange(i, range);
+        for (let cx = range[0]!; cx <= range[2]!; cx++) {
+          for (let cy = range[1]!; cy <= range[3]!; cy++) this.cellEntries[start[cx * gridH + cy]!++] = i;
+        }
+      }
+      for (let c = cells; c > 0; c -= 1) start[c] = start[c - 1]!;
+      start[0] = 0;
+      this.cellStart = start;
+      return;
+    }
+
+    const slotOfPair = new Int32Array(pairs);
+    const countOfSlot = new Int32Array(pairs);
+    let slots = 0;
+    let pair = 0;
+    for (let i = 0; i < this.count; i += 1) {
+      this.cellRange(i, range);
+      const hiX = range[2]!;
+      const hiY = range[3]!;
+      for (let cx = range[0]!; cx <= hiX; cx++) {
+        for (let cy = range[1]!; cy <= hiY; cy++) {
+          const k = this.key(cx, cy);
+          let slot = this.cellSlots.get(k);
+          if (slot === undefined) {
+            slot = slots++;
+            this.cellSlots.set(k, slot);
+          }
+          countOfSlot[slot] += 1;
+          slotOfPair[pair++] = slot;
+        }
+      }
+    }
+    this.cellStart = new Int32Array(slots + 1);
+    for (let s = 0; s < slots; s += 1) this.cellStart[s + 1] = this.cellStart[s]! + countOfSlot[s]!;
+    const cursor = this.cellStart.slice(0, slots);
+    this.cellEntries = new Int32Array(pairs);
+    pair = 0;
+    for (let i = 0; i < this.count; i += 1) {
+      for (let k = 0; k < pairsOf[i]!; k += 1) this.cellEntries[cursor[slotOfPair[pair++]!]!++] = i;
+    }
   }
 
   private key(cx: number, cy: number): number {
@@ -107,27 +200,31 @@ export class LineHitIndex {
     return Math.floor((y - this.minY) / this.cellSize);
   }
 
-  private insert(entry: number): void {
+  /** The cells entry `entry`'s bounding box overlaps, into `out` as `[loX, loY, hiX, hiY]`. */
+  private cellRange(entry: number, out: Float64Array): void {
     const c = this.coords;
     const ax = c[entry * 4]!;
     const ay = c[entry * 4 + 1]!;
     const bx = c[entry * 4 + 2]!;
     const by = c[entry * 4 + 3]!;
-    const loX = this.cellX(Math.min(ax, bx));
-    const loY = this.cellY(Math.min(ay, by));
-    const hiX = this.cellX(Math.max(ax, bx));
-    const hiY = this.cellY(Math.max(ay, by));
-    for (let cx = loX; cx <= hiX; cx++) {
-      for (let cy = loY; cy <= hiY; cy++) {
-        const k = this.key(cx, cy);
-        let bucket = this.cells.get(k);
-        if (!bucket) {
-          bucket = [];
-          this.cells.set(k, bucket);
-        }
-        bucket.push(entry);
-      }
+    out[0] = this.cellX(Math.min(ax, bx));
+    out[1] = this.cellY(Math.min(ay, by));
+    out[2] = this.cellX(Math.max(ax, bx));
+    out[3] = this.cellY(Math.max(ay, by));
+  }
+
+  /** Visit the entries in the cell at `(cx, cy)`, in insertion order. */
+  private forEachInCell(cx: number, cy: number, visit: (entry: number) => void): void {
+    let slot: number | undefined;
+    if (this.gridW > 0) {
+      if (cx < 0 || cy < 0 || cx >= this.gridW || cy >= this.gridH) return;
+      slot = cx * this.gridH + cy;
+    } else {
+      slot = this.cellSlots.get(this.key(cx, cy));
+      if (slot === undefined) return;
     }
+    const end = this.cellStart[slot + 1]!;
+    for (let j = this.cellStart[slot]!; j < end; j += 1) visit(this.cellEntries[j]!);
   }
 
   private idOf(entry: number): number {
@@ -165,18 +262,16 @@ export class LineHitIndex {
     const seen = new Set<number>();
     for (let ox = -reach; ox <= reach; ox++) {
       for (let oy = -reach; oy <= reach; oy++) {
-        const bucket = this.cells.get(this.key(cx + ox, cy + oy));
-        if (!bucket) continue;
-        for (const entry of bucket) {
+        this.forEachInCell(cx + ox, cy + oy, (entry) => {
           const id = this.idOf(entry);
-          if (seen.has(id)) continue;
+          if (seen.has(id)) return;
           seen.add(id);
           const d = this.distanceTo(entry, x, y);
           if (d < bestDist) {
             bestDist = d;
             best = id;
           }
-        }
+        });
       }
     }
     return best;
@@ -203,14 +298,12 @@ export class LineHitIndex {
     const seen = new Set<number>();
     for (let ox = -reach; ox <= reach; ox++) {
       for (let oy = -reach; oy <= reach; oy++) {
-        const bucket = this.cells.get(this.key(cx + ox, cy + oy));
-        if (!bucket) continue;
-        for (const entry of bucket) {
+        this.forEachInCell(cx + ox, cy + oy, (entry) => {
           const id = this.idOf(entry);
-          if (seen.has(id)) continue;
+          if (seen.has(id)) return;
           seen.add(id);
           if (this.distanceTo(entry, x, y) <= tolerance) near.push(this.segmentOf(entry));
-        }
+        });
       }
     }
     return near;

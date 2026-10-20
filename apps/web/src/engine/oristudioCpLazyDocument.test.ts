@@ -37,9 +37,11 @@ import {
   packedLinesExcept,
   SEG_ATTR_STRIDE,
   SEG_SELECTED_SLOT,
+  vertexPointsFromTransport,
   withCpDocumentTexts,
   type CpGeometryTransport,
 } from './oristudioCpGeometry';
+import { getCpVertexPoints } from '../lib/creasePatternViewport';
 import { initCpWasm, loadBatteryDocument } from './oristudioCpTestSupport';
 import type { OristudioCpDocumentSnapshot } from './oristudioCpTypes';
 
@@ -179,6 +181,33 @@ describe('packed endpoints', () => {
   it('leave out the lines a move-drag moves, keeping the rest in order', () => {
     expect([...packedLinesExcept(endpoints, [2])]).toEqual([0, 0, 1, 0, 1, 1, 0, 1]);
     expect(packedLinesExcept(endpoints, [])).toEqual(endpoints);
+  });
+
+  it('dedupe into vertex dots as the map of sets did, first seen first', () => {
+    // Shared endpoints, near-coincident ones either side of the 1e-9
+    // quantization, signed zeros, NaN and coordinates past 2^32 once quantized.
+    let seed = 11;
+    const next = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    const coordinate = () => {
+      const r = next();
+      if (r < 0.05) return Number.NaN;
+      if (r < 0.1) return -0;
+      if (r < 0.15) return 0;
+      if (r < 0.3) return 5000 + Math.floor(next() * 4) + (next() < 0.5 ? 4e-10 : 6e-10);
+      return Math.floor(next() * 20) * 0.5;
+    };
+    const lines = Array.from({ length: 3000 }, () => ({
+      a: { x: coordinate(), y: coordinate() },
+      b: { x: coordinate(), y: coordinate() },
+    }));
+    const document = {
+      crease_pattern: { line_segments: lines },
+    } as unknown as OristudioCpDocumentSnapshot;
+    const transport = { segEndpoints: cpSegmentEndpoints(lines) } as CpGeometryTransport;
+    expect(vertexPointsFromTransport(transport)).toEqual(getCpVertexPoints(document));
   });
 
   it('visit every line in id order', () => {

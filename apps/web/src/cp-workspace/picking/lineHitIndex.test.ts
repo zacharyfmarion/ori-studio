@@ -102,6 +102,45 @@ describe('LineHitIndex', () => {
     expect(index.query(0.9, 0, 1e9)).toBe(2);
   });
 
+  it('finds what a scan of every segment finds, on a dense grid and on a sparse one', () => {
+    // A cluster indexes on a dense grid; one far-off segment stretches the
+    // bounding box until a slot per cell would be wasteful, and the index keys
+    // its occupied cells instead. Both must answer as a full scan does.
+    let seed = 7;
+    const next = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    const cluster = Array.from({ length: 400 }, (_, i) => {
+      const x = next() * 100;
+      const y = next() * 100;
+      return { id: i + 1, a: { x, y }, b: { x: x + next() * 12 - 6, y: y + next() * 12 - 6 } };
+    });
+    const outlier = { id: 401, a: { x: 4e6, y: -3e6 }, b: { x: 4e6 + 5, y: -3e6 } };
+    for (const segments of [cluster, [...cluster, outlier]]) {
+      const index = new LineHitIndex(segments);
+      for (let q = 0; q < 300; q += 1) {
+        const x = next() * 120 - 10;
+        const y = next() * 120 - 10;
+        const tolerance = next() * 8;
+        let best = -1;
+        let bestDistance = tolerance;
+        for (const s of segments) {
+          const d = distanceToSegment(x, y, s.a, s.b);
+          if (d < bestDistance) {
+            bestDistance = d;
+            best = s.id;
+          }
+        }
+        expect(index.query(x, y, tolerance)).toBe(best);
+        const near = segments.filter((s) => distanceToSegment(x, y, s.a, s.b) <= tolerance);
+        expect(index.segmentsNear(x, y, tolerance).map((s) => s.id).sort((a, b) => a - b)).toEqual(
+          near.map((s) => s.id).sort((a, b) => a - b)
+        );
+      }
+    }
+  });
+
   it('answers the same from packed endpoints as from the segments they pack', () => {
     // The canvas indexes the geometry transport's endpoint array directly; the
     // answers must be the ones the object index gave, ties included, through

@@ -89,29 +89,38 @@ function computeCreaseFingerprint(document: OristudioCpDocumentSnapshot): string
   return `${lines.length}:${h.hash >>> 0}`;
 }
 
-/** What `color.charCodeAt(0) + color.length` is for each colour number. */
-const colorMixByCode = new Map<number, number>();
+/**
+ * What `color.charCodeAt(0) + color.length` is for each colour number, by
+ * number + 2 (the numbers run from -2). Filled as colours are met.
+ */
+const colorMixByCode: number[] = [];
 
 function colorMix(code: number): number {
-  let value = colorMixByCode.get(code);
-  if (value === undefined) {
-    const name = lineColorName(code);
-    value = name.charCodeAt(0) + name.length;
-    colorMixByCode.set(code, value);
-  }
-  return value;
+  const value = colorMixByCode[code + 2];
+  if (value !== undefined) return value;
+  const name = lineColorName(code);
+  return (colorMixByCode[code + 2] = name.charCodeAt(0) + name.length);
 }
 
+/**
+ * The FNV step `fnv().mix` takes, written out: this loop runs over every crease
+ * on every edit, and a call per field was most of what it cost.
+ */
+const FNV_PRIME = 0x01000193;
+
 function creaseFingerprintOfTransport(transport: CpGeometryTransport): string {
-  const { segEndpoints, segAttr, segFoldMagnitude } = transport;
-  const count = segEndpoints.length / 4;
-  const h = fnv();
+  const { segEndpoints: e, segAttr, segFoldMagnitude } = transport;
+  const count = e.length / 4;
+  let hash = 0x811c9dc5;
   for (let i = 0; i < count; i += 1) {
-    mixEndpoints(h, segEndpoints, i);
-    h.mix(colorMix(segAttr[i * SEG_ATTR_STRIDE]!));
-    h.mix(foldMagnitudeOrNone(segFoldMagnitude?.[i]));
+    hash = Math.imul(hash ^ (Math.round(e[i * 4]! * COORD_QUANTIZE) | 0), FNV_PRIME);
+    hash = Math.imul(hash ^ (Math.round(e[i * 4 + 1]! * COORD_QUANTIZE) | 0), FNV_PRIME);
+    hash = Math.imul(hash ^ (Math.round(e[i * 4 + 2]! * COORD_QUANTIZE) | 0), FNV_PRIME);
+    hash = Math.imul(hash ^ (Math.round(e[i * 4 + 3]! * COORD_QUANTIZE) | 0), FNV_PRIME);
+    hash = Math.imul(hash ^ (colorMix(segAttr[i * SEG_ATTR_STRIDE]!) | 0), FNV_PRIME);
+    hash = Math.imul(hash ^ (foldMagnitudeOrNone(segFoldMagnitude?.[i]) | 0), FNV_PRIME);
   }
-  return `${count}:${h.hash >>> 0}`;
+  return `${count}:${hash >>> 0}`;
 }
 
 /** Memoized per snapshot, so only a genuinely new snapshot pays the O(n) hash. */

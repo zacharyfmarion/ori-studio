@@ -278,28 +278,52 @@ function readSegment(
  */
 export function vertexPointsFromTransport(transport: CpGeometryTransport): Point[] {
   const endpoints = transport.segEndpoints;
-  const count = endpoints.length / 4;
-  const seen = new Map<number, Set<number>>();
+  const endpointCount = endpoints.length / 2;
+  // An open-addressed set of the quantized pairs, in typed arrays, rather than
+  // a map of sets: this reruns on every edit over every endpoint — ~a million
+  // on a large canvas — and the map of sets was most of its cost. Membership
+  // is the maps' SameValueZero (NaN matches NaN, -0 matches 0).
+  let capacity = 16;
+  while (capacity < endpointCount * 2) capacity *= 2;
+  const mask = capacity - 1;
+  const keysX = new Float64Array(capacity);
+  const keysY = new Float64Array(capacity);
+  const used = new Uint8Array(capacity);
   const points: Point[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const base = i * 4;
-    for (let k = 0; k < 2; k += 1) {
-      const x = endpoints[base + k * 2];
-      const y = endpoints[base + k * 2 + 1];
-      const qx = Math.round(x * 1e9);
-      const qy = Math.round(y * 1e9);
-      let column = seen.get(qx);
-      if (!column) {
-        column = new Set<number>();
-        seen.set(qx, column);
+  for (let e = 0; e < endpointCount; e += 1) {
+    const x = endpoints[e * 2]!;
+    const y = endpoints[e * 2 + 1]!;
+    const qx = Math.round(x * 1e9);
+    const qy = Math.round(y * 1e9);
+    let slot = quantizedPairHash(qx, qy) & mask;
+    let found = false;
+    while (used[slot]) {
+      if (sameValueZero(keysX[slot]!, qx) && sameValueZero(keysY[slot]!, qy)) {
+        found = true;
+        break;
       }
-      if (!column.has(qy)) {
-        column.add(qy);
-        points.push({ x, y });
-      }
+      slot = (slot + 1) & mask;
     }
+    if (found) continue;
+    used[slot] = 1;
+    keysX[slot] = qx;
+    keysY[slot] = qy;
+    points.push({ x, y });
   }
   return points;
+}
+
+function sameValueZero(a: number, b: number): boolean {
+  return a === b || (a !== a && b !== b);
+}
+
+const TWO_TO_32 = 4294967296;
+
+/** A hash of two whole-number doubles, from both halves of each. */
+function quantizedPairHash(qx: number, qy: number): number {
+  let h = Math.imul((qx | 0) ^ Math.imul((qx / TWO_TO_32) | 0, 0x27d4eb2d), 0x9e3779b1);
+  h ^= Math.imul((qy | 0) ^ Math.imul((qy / TWO_TO_32) | 0, 0x165667b1), 0x85ebca77);
+  return h ^ (h >>> 15);
 }
 
 /**
