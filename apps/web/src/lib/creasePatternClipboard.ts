@@ -1,3 +1,4 @@
+import { cpLineSegmentAt } from '../engine/oristudioCpGeometry';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpLineSegment,
@@ -58,7 +59,7 @@ export function selectedCpLineSegments(
 ): OristudioCpLineSegment[] {
   if (!document || selection.lines.length === 0) return [];
   return selection.lines
-    .map((id) => document.crease_pattern.line_segments[id - 1])
+    .map((id) => cpLineSegmentAt(document, id))
     .filter((line): line is OristudioCpLineSegment => Boolean(line))
     .map(cloneCpLineSegment);
 }
@@ -73,7 +74,7 @@ export function selectedFoldableCpLineIds(
 ): number[] {
   if (!document || selection.lines.length === 0) return [];
   return selection.lines.filter((id) => {
-    const line = document.crease_pattern.line_segments[id - 1];
+    const line = cpLineSegmentAt(document, id);
     return Boolean(line && isOrieditaFoldableLineColor(line.color));
   });
 }

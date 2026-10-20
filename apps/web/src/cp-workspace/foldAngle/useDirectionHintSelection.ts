@@ -8,6 +8,7 @@
 import { useCallback, useMemo } from 'react';
 
 import { useWorkspaceStore } from '../../store/workspaceStore/store';
+import { cpLineSegmentAt } from '../../engine/oristudioCpGeometry';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../../lib/creasePatternViewport';
 import { selectedCpLineSegments } from '../../lib/creasePatternClipboard';
@@ -39,7 +40,7 @@ export function hasUnassignedCpSelection(
 ): boolean {
   if (!document) return false;
   return selection.lines.some((id) => {
-    const segment = document.crease_pattern.line_segments[id - 1];
+    const segment = cpLineSegmentAt(document, id);
     return segment !== undefined && isUnassignedCrease(segment.color);
   });
 }

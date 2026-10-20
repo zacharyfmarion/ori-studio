@@ -1,4 +1,8 @@
-import { SEG_ATTR_STRIDE } from '../../engine/oristudioCpGeometry';
+import {
+  cpDecodedLineSegments,
+  SEG_ATTR_STRIDE,
+  SEG_SELECTED_SLOT,
+} from '../../engine/oristudioCpGeometry';
 import type {
   OristudioCpCommandResult,
   OristudioCpDocumentState,
@@ -30,9 +34,6 @@ export function lineSelectionOf(lines: OristudioCpSelectedLines): OristudioCpSel
   return { ...emptyOristudioCpSelection(), lines: Array.from(lines.ids) };
 }
 
-/** `selected` is the third of a segment's attribute slots in the geometry transport. */
-const SELECTED_SLOT = 2;
-
 /**
  * Write a change in the kernel's selected lines, from `replaced` to `current`,
  * into the snapshot and geometry the store holds. In place, on purpose.
@@ -60,12 +61,14 @@ export function mirrorSelectedLines(
   replaced: OristudioCpSelectedLines,
   current: OristudioCpSelectedLines
 ): void {
-  const lines = state.document.crease_pattern.line_segments;
+  // Lines not decoded yet are left so: a decode reads the flags from the
+  // geometry written below (`lazyCpDocumentSnapshot`).
+  const lines = cpDecodedLineSegments(state.document);
   const attr = state.geometry?.segAttr ?? null;
   const write = (id: number, value: number) => {
-    const line = lines[id - 1];
+    const line = lines?.[id - 1];
     if (line) line.selected = value;
-    const at = (id - 1) * SEG_ATTR_STRIDE + SELECTED_SLOT;
+    const at = (id - 1) * SEG_ATTR_STRIDE + SEG_SELECTED_SLOT;
     if (attr && at < attr.length) attr[at] = value;
   };
   for (const id of replaced.ids) write(id, 0);

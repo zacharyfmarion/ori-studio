@@ -1,8 +1,12 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
+import type {
+  OristudioCpDocumentSnapshot,
+  OristudioCpLineSegment,
+} from '../../engine/oristudioCpTypes';
 import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from '../../lib/foldAngle';
+import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import { cpOverlayViewStore } from '../cpOverlayViewStore';
 import { cpTransformPreviewStore } from '../cpTransformPreviewStore';
 import { translationMatrix, type CpAffineMatrix } from '../adapters/cpSnapshotToScene';
@@ -11,6 +15,12 @@ import type { ToolPreviewSegment } from '../tools/types';
 import { CpFoldAngleLayer } from './CpFoldAngleLayer';
 
 const deg = (value: number) => value * FOLD_MAGNITUDE_UNITS_PER_DEGREE;
+
+/** A document holding just these creases, for the layer to badge. */
+function documentOf(segments: OristudioCpLineSegment[]): OristudioCpDocumentSnapshot {
+  const starter = createStarterOristudioCpDocument('Fold angles');
+  return { ...starter, crease_pattern: { ...starter.crease_pattern, line_segments: segments } };
+}
 
 function crease(
   color: string,
@@ -53,7 +63,7 @@ describe('CpFoldAngleLayer', () => {
 
   const render = (segments: OristudioCpLineSegment[]) => {
     act(() => {
-      root.render(<CpFoldAngleLayer lineSegments={segments} toolReplacedLineIds={[]} />);
+      root.render(<CpFoldAngleLayer cpDocument={documentOf(segments)} toolReplacedLineIds={[]} />);
     });
     return [...host.querySelectorAll('.cp-fold-angle-layer__badge')];
   };
@@ -108,7 +118,7 @@ describe('CpFoldAngleLayer', () => {
 
   it('renders nothing when there is no camera yet', () => {
     // Matches the other overlay layers: no view published means no projection.
-    act(() => root.render(<CpFoldAngleLayer lineSegments={undefined} toolReplacedLineIds={[]} />));
+    act(() => root.render(<CpFoldAngleLayer cpDocument={undefined} toolReplacedLineIds={[]} />));
     expect(host.querySelectorAll('.cp-fold-angle-layer__badge')).toHaveLength(0);
   });
 
@@ -238,7 +248,7 @@ describe('CpFoldAngleLayer', () => {
       act(() => {
         root.render(
           <CpFoldAngleLayer
-            lineSegments={[]}
+            cpDocument={documentOf([])}
             toolReplacedLineIds={[]}
             toolCandidates={[
               { a: { x: 0, y: 10 }, b: { x: 200, y: 10 }, crease: { color: 'Red1', foldMagnitude: deg(90) } },
@@ -269,7 +279,7 @@ describe('CpFoldAngleLayer', () => {
       act(() => {
         root.render(
           <CpFoldAngleLayer
-            lineSegments={segments}
+            cpDocument={documentOf(segments)}
             toolCandidates={candidates}
             toolReplacedLineIds={[]}
           />
@@ -309,7 +319,7 @@ describe('CpFoldAngleLayer', () => {
       act(() => {
         root.render(
           <CpFoldAngleLayer
-            lineSegments={[]}
+            cpDocument={documentOf([])}
             toolCandidates={[{ a: { x: 0, y: 0 }, b: { x: 200, y: 0 } }]}
             toolReplacedLineIds={[]}
           />
@@ -334,7 +344,7 @@ describe('CpFoldAngleLayer', () => {
       act(() => {
         root.render(
           <CpFoldAngleLayer
-            lineSegments={segments}
+            cpDocument={documentOf(segments)}
             toolCandidates={candidates}
             toolReplacedLineIds={replaced}
           />

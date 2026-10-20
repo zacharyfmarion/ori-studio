@@ -85,7 +85,7 @@ describe('creaseTransform golden parity with the kernel', () => {
       if (matrix === null) return;
 
       const held = heldEndpointKeys(
-        segments.map(([ax, ay, bx, by]) => ({ a: { x: ax, y: ay }, b: { x: bx, y: by } })),
+        Float64Array.from(segments.flat()),
         testCase.pins.map(point)
       );
 

@@ -21,7 +21,6 @@ import {
 } from '../../keyboard/shortcuts';
 import type {
   OristudioCpCommandPayload,
-  OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureEntry,
   OristudioCpLineColor,
   OristudioCpLineSegment,
@@ -119,7 +118,14 @@ import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
 import { DECODABLE_IMAGE_ACCEPT } from '../../lib/imageFormats';
 import { useWorkspaceErrorText } from '../../hooks/useWorkspaceErrorText';
 import { ContextMenu } from '../ui/ContextMenu';
-import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
+import {
+  cpDocumentLinesKey,
+  cpLineEndpoints,
+  cpLineSegmentAt,
+  packedLineAt,
+  packedLinesExcept,
+  vertexPointsFromTransport,
+} from '../../engine/oristudioCpGeometry';
 import { foldedGeometryFromShapes } from '../../cp-workspace/adapters/cpFoldedToScene';
 import { CanvasObjectOverlay } from '../../cp-workspace/CanvasObjectOverlay';
 import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverlay';
@@ -181,7 +187,7 @@ import { visibleCpDiagnosticEntries } from '../../cp-workspace/diagnostics/visib
 import { cpCheckSuppressionRules } from '../../cp-workspace/diagnostics/checkSuppression';
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
 import { usePickToolSelectionReset } from '../../cp-workspace/tools/usePickToolSelectionReset';
-import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
+import { distanceToSegmentCoords } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { useCpLineColorInversion } from '../../cp-workspace/lineColor/useCpLineColorInversion';
 import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
@@ -461,7 +467,7 @@ function cpCircleRingSegments(
 function cpCreasesUnderPreviewEndpoints(
   previewSegments: readonly { a: Point; b: Point }[],
   anchors: readonly Point[],
-  lineSegments: readonly OristudioCpLineSegment[],
+  lineEndpoints: Float64Array,
   eps: number
 ): { a: Point; b: Point }[] {
   const nearAnchor = (p: Point) =>
@@ -471,20 +477,29 @@ function cpCreasesUnderPreviewEndpoints(
     if (!nearAnchor(s.a)) endpoints.push(s.a);
     if (!nearAnchor(s.b)) endpoints.push(s.b);
   }
+  const lineCount = lineEndpoints.length / 4;
   const found = new Set<number>();
   for (const p of endpoints) {
     let onlyHit = -1;
     let count = 0;
-    for (let i = 0; i < lineSegments.length && count < 2; i += 1) {
-      const seg = lineSegments[i];
-      if (distanceToSegment(p.x, p.y, seg.a, seg.b) <= eps) {
+    for (let i = 0; i < lineCount && count < 2; i += 1) {
+      const at = i * 4;
+      const d = distanceToSegmentCoords(
+        p.x,
+        p.y,
+        lineEndpoints[at]!,
+        lineEndpoints[at + 1]!,
+        lineEndpoints[at + 2]!,
+        lineEndpoints[at + 3]!
+      );
+      if (d <= eps) {
         count += 1;
         onlyHit = i;
       }
     }
     if (count === 1) found.add(onlyHit);
   }
-  return [...found].map((i) => ({ a: lineSegments[i].a, b: lineSegments[i].b }));
+  return [...found].flatMap((i) => packedLineAt(lineEndpoints, i + 1) ?? []);
 }
 
 export function CreasePatternPanel() {
@@ -787,6 +802,10 @@ export function CreasePatternPanel() {
   );
 
   const editableCp = oristudioCpDocument?.document ?? null;
+  // Changes exactly when the creases do. Everything here that walks the lines
+  // reads them through the geometry (`cpLineEndpoints`, `cpLineSegmentAt`), so
+  // the store's snapshot is never decoded to render, hover or snap.
+  const editableCpLinesKey = editableCp ? cpDocumentLinesKey(editableCp) : null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
   const editableCpSummary = oristudioCpDocument?.summary ?? null;
   // Why the editable kernel refused this file, recorded by `loadCreasePattern`.
@@ -1243,7 +1262,7 @@ export function CreasePatternPanel() {
     preview: previewOristudioCpCommand,
     execute: executeOristudioCpCommand,
     buildPayload: buildActiveCpCommandPayload,
-    documentVersion: editableCp?.crease_pattern.line_segments,
+    documentVersion: editableCpLinesKey,
   });
 
   // Propagation is the one tool whose scope is the selection *or* a click, so it
@@ -1254,7 +1273,7 @@ export function CreasePatternPanel() {
     preview: previewOristudioCpCommand,
     execute: executeOristudioCpCommand,
     buildPayload: buildActiveCpCommandPayload,
-    documentVersion: editableCp?.crease_pattern.line_segments,
+    documentVersion: editableCpLinesKey,
     scopeLineIds: oristudioCpSelection.lines,
   });
 
@@ -1563,18 +1582,15 @@ export function CreasePatternPanel() {
     );
   }, [activeCpCommand]);
 
-  const selectionMoveSnapDocument = useMemo<OristudioCpDocumentSnapshot | null>(() => {
-    if (!editableCp || oristudioCpSelection.lines.length === 0) return null;
-    const selectedLineIds = new Set(oristudioCpSelection.lines);
-    return {
-      ...editableCp,
-      crease_pattern: {
-        ...editableCp.crease_pattern,
-        line_segments: editableCp.crease_pattern.line_segments.filter(
-          (_line, index) => !selectedLineIds.has(index + 1)
-        ),
-      },
-    };
+  // What a move-drag snaps to: every crease but the ones it moves. Built on the
+  // drag's first snap rather than with every selection — a selection on a large
+  // canvas should not pay a pass over every crease for a drag that may never
+  // come — and kept for the rest of it.
+  const selectionMoveSnapEndpoints = useMemo(() => {
+    if (!editableCp || oristudioCpSelection.lines.length === 0) return () => null;
+    const moving = oristudioCpSelection.lines;
+    let endpoints: Float64Array | null = null;
+    return () => (endpoints ??= packedLinesExcept(cpLineEndpoints(editableCp), moving));
   }, [editableCp, oristudioCpSelection.lines]);
 
   // Snap a move-drag delta to grid/vertices/lines for the WebGL surface. The
@@ -1591,7 +1607,8 @@ export function CreasePatternPanel() {
         oristudioCpViewport.snapToGrid ||
         oristudioCpViewport.snapToVertices ||
         oristudioCpViewport.snapToLines;
-      if (!snappingEnabled || !selectionMoveSnapDocument) {
+      const snapLines = snappingEnabled ? selectionMoveSnapEndpoints() : null;
+      if (!editableCp || !snapLines) {
         return { delta: rawDelta, snapLabel: null };
       }
       const translated = translateCpLineSegments(selectedEditableCpLines, rawDelta);
@@ -1599,11 +1616,12 @@ export function CreasePatternPanel() {
       let best: { target: CpSnapTarget; anchorPoint: Point } | null = null;
       for (const anchorPoint of anchorPoints) {
         const target = nearestCpSnapTarget(
-          selectionMoveSnapDocument,
+          editableCp,
           anchorPoint,
           editableCpBounds,
           oristudioCpViewport,
-          toleranceModel
+          toleranceModel,
+          snapLines
         );
         if (!target) continue;
         if (!best || target.distance < best.target.distance) best = { target, anchorPoint };
@@ -1617,7 +1635,13 @@ export function CreasePatternPanel() {
         snapLabel: best.target.label,
       };
     },
-    [editableCpBounds, oristudioCpViewport, selectedEditableCpLines, selectionMoveSnapDocument]
+    [
+      editableCp,
+      editableCpBounds,
+      oristudioCpViewport,
+      selectedEditableCpLines,
+      selectionMoveSnapEndpoints,
+    ]
   );
 
   // WebGL draw tools: snap a raw model draw point to nearby geometry (the surface
@@ -1797,7 +1821,7 @@ export function CreasePatternPanel() {
         // points the kernel measures between.
         const pickedCrease =
           points.length === 0 && pickedLineIds.length > 0
-            ? editableCp?.crease_pattern.line_segments[pickedLineIds[0] - 1]
+            ? editableCp && cpLineSegmentAt(editableCp, pickedLineIds[0])
             : undefined;
         const measurePoints = pickedCrease ? [pickedCrease.a, pickedCrease.b] : [...points];
         if (measurePoints.length === 0) return;
@@ -1878,7 +1902,7 @@ export function CreasePatternPanel() {
       propagation,
       activeCpCommand,
       buildCpCommandPayload,
-      editableCp?.crease_pattern.line_segments,
+      editableCp,
       executeOristudioCpCommand,
       previewOristudioCpCommand,
       oristudioCpSelection.circles,
@@ -2156,7 +2180,7 @@ export function CreasePatternPanel() {
       // to the kernel: a tool that picks creases rather than placing points has
       // no points to preview from, and would otherwise never get a preview at all.
       const highlight = highlightLineIds
-        .map((id) => editableCp?.crease_pattern.line_segments[id - 1])
+        .map((id) => (editableCp ? cpLineSegmentAt(editableCp, id) : undefined))
         .filter((s): s is OristudioCpLineSegment => Boolean(s))
         .map((s) => ({ a: s.a, b: s.b }));
       if (isCpMeasurementOperation(command?.operationId)) {
@@ -2221,12 +2245,7 @@ export function CreasePatternPanel() {
         // anchor must not stay pinned.
         const anchors = points.slice(0, -1);
         const snapped = editableCp
-          ? cpCreasesUnderPreviewEndpoints(
-              kernel,
-              anchors,
-              editableCp.crease_pattern.line_segments,
-              onCreaseEps
-            )
+          ? cpCreasesUnderPreviewEndpoints(kernel, anchors, cpLineEndpoints(editableCp), onCreaseEps)
           : [];
         // Candidate geometry and existing-crease highlights go to separate
         // channels: the first is stroked in the crease colour the tool would
@@ -2287,7 +2306,7 @@ export function CreasePatternPanel() {
         isReflectSelectionOperation(activeCpCommand.operationId) &&
         cpToolPoints.length === 0
       ) {
-        const axis = editableCp?.crease_pattern.line_segments[id - 1];
+        const axis = editableCp ? cpLineSegmentAt(editableCp, id) : undefined;
         if (!axis) return;
         setCpToolPoints([]);
         setCpToolPath([]);
@@ -3019,8 +3038,10 @@ export function CreasePatternPanel() {
                 <>
                 <CreasePatternWebglCanvas
                   className={CP_VIEWPORT_CANVAS_CLASS}
-                  lineSegments={editableCp.crease_pattern.line_segments}
-                  geometry={oristudioCpDocument?.geometry ?? null}
+                  lineSegments={
+                    editableCpGeometry ? undefined : editableCp.crease_pattern.line_segments
+                  }
+                  geometry={editableCpGeometry}
                   cpDocumentHandle={editableCpHandle}
                   images={imageAnnotations}
                   regions={regionAnnotations}
@@ -3183,7 +3204,7 @@ export function CreasePatternPanel() {
                   )}
                 {webglOverlayView && (
                   <CpFoldAngleLayer
-                    lineSegments={editableCp?.crease_pattern.line_segments}
+                    cpDocument={editableCp}
                     toolCandidates={cpPreviewSegments}
                     toolReplacedLineIds={cpReplacedLineIds}
                   />

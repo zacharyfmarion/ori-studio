@@ -5,8 +5,10 @@ import {
   cpSizingBounds,
   cpTrimmedCreaseBounds,
   unionBounds,
+  type CpContentBoundsInput,
   type CpOverlayBox,
 } from './cpContentBounds';
+import { cpSegmentEndpoints } from '../engine/oristudioCpGeometry';
 import { createCpImage } from './images/cpImage';
 import { foldedFigureUserAabb } from './adapters/cpFoldedToScene';
 import { IDENTITY_FOLDED_PLACEMENT } from '../engine/oristudioCpTypes';
@@ -19,6 +21,20 @@ import type {
 // assertions about *what is included* rather than about the transform.
 const modelToSvg = (p: { x: number; y: number }) => p;
 const crease = { a: { x: 0, y: 0 }, b: { x: 10, y: 10 } };
+
+type Segment = { a: { x: number; y: number }; b: { x: number; y: number } };
+type SegmentsInput = Omit<CpContentBoundsInput, 'lineEndpoints'> & {
+  lineSegments: readonly Segment[];
+};
+
+// The bounds read creases packed as the geometry transport holds them; the
+// cases below are clearer written as line objects.
+const packed = ({ lineSegments, ...rest }: SegmentsInput): CpContentBoundsInput => ({
+  ...rest,
+  lineEndpoints: cpSegmentEndpoints(lineSegments),
+});
+const contentBounds = (input: SegmentsInput) => cpContentBounds(packed(input));
+const sizingBounds = (input: SegmentsInput) => cpSizingBounds(packed(input));
 
 const boxAt = (x: number, y: number, hidden = false): CpOverlayBox => ({
   center: { x, y },
@@ -84,7 +100,7 @@ const foldedFigureAt = (
 
 describe('what the camera frames against', () => {
   it('includes the creases', () => {
-    const bounds = cpContentBounds({ lineSegments: [crease], modelToSvg });
+    const bounds = contentBounds({ lineSegments: [crease], modelToSvg });
     expect(bounds).toEqual({ minX: 0, minY: 0, maxX: 10, maxY: 10 });
   });
 
@@ -92,7 +108,7 @@ describe('what the camera frames against', () => {
     // The bug: windows live on their own DOM layer, so nothing here saw them and
     // fitting to view framed the creases alone — leaving a window off screen
     // with nothing to suggest why.
-    const bounds = cpContentBounds({
+    const bounds = contentBounds({
       lineSegments: [crease],
       overlayBoxes: [boxAt(200, 0)],
       modelToSvg,
@@ -101,7 +117,7 @@ describe('what the camera frames against', () => {
   });
 
   it('includes reference images', () => {
-    const bounds = cpContentBounds({
+    const bounds = contentBounds({
       lineSegments: [crease],
       images: [imageAt(-100, 0)],
       modelToSvg,
@@ -110,7 +126,7 @@ describe('what the camera frames against', () => {
   });
 
   it('grows to hold every kind at once', () => {
-    const bounds = cpContentBounds({
+    const bounds = contentBounds({
       lineSegments: [crease],
       images: [imageAt(-100, 0)],
       overlayBoxes: [boxAt(200, 0), boxAt(0, -300)],
@@ -121,7 +137,7 @@ describe('what the camera frames against', () => {
 
   it('skips hidden content, which is not drawn', () => {
     // Framing to include something invisible just looks like a broken camera.
-    const bounds = cpContentBounds({
+    const bounds = contentBounds({
       lineSegments: [crease],
       images: [imageAt(-500, 0, true)],
       overlayBoxes: [boxAt(500, 0, true)],
@@ -132,7 +148,7 @@ describe('what the camera frames against', () => {
 
   it('frames placed content even with no creases at all', () => {
     // A window opened over an empty document still has to be reachable.
-    const bounds = cpContentBounds({
+    const bounds = contentBounds({
       lineSegments: [],
       overlayBoxes: [boxAt(50, 50)],
       modelToSvg,
@@ -146,7 +162,7 @@ describe('what the camera frames against', () => {
     // anchors it one gap past `anchor.right`), so on a pattern with a figure
     // beside it and nothing further out, framing the creases alone cuts it off.
     const figure = foldedFigureAt({ x: 200, y: 0 });
-    const bounds = cpContentBounds({
+    const bounds = contentBounds({
       lineSegments: [crease],
       foldedFigures: [figure],
       modelToSvg,
@@ -157,7 +173,7 @@ describe('what the camera frames against', () => {
   });
 
   it('leaves the bounds alone for a figure already inside them', () => {
-    const bounds = cpContentBounds({
+    const bounds = contentBounds({
       lineSegments: [crease],
       overlayBoxes: [boxAt(5000, 5000)],
       foldedFigures: [foldedFigureAt({ x: 0, y: 0 })],
@@ -175,8 +191,8 @@ describe('what the camera frames against', () => {
     // Pinned by giving the same figure two very different `modelToSvg`s: its
     // contribution must not move.
     const foldedFigures = [foldedFigureAt({ x: 0, y: 0 })];
-    const identity = cpContentBounds({ lineSegments: [], foldedFigures, modelToSvg });
-    const scaled = cpContentBounds({
+    const identity = contentBounds({ lineSegments: [], foldedFigures, modelToSvg });
+    const scaled = contentBounds({
       lineSegments: [],
       foldedFigures,
       modelToSvg: (p) => ({ x: p.x * 100, y: p.y * 100 }),
@@ -187,7 +203,7 @@ describe('what the camera frames against', () => {
 
   it('skips a figure that draws nothing', () => {
     // No primitives, or no snapshot at all: nothing on screen, nothing to frame.
-    const bounds = cpContentBounds({
+    const bounds = contentBounds({
       lineSegments: [crease],
       foldedFigures: [
         foldedFigureAt({ x: 9000, y: 9000 }, []),
@@ -201,13 +217,13 @@ describe('what the camera frames against', () => {
   it('frames a document whose only content is a folded figure', () => {
     // A figure has to be reachable even with the creases deleted out from under it.
     const figure = foldedFigureAt({ x: 50, y: 50 });
-    expect(cpContentBounds({ lineSegments: [], foldedFigures: [figure], modelToSvg })).toEqual(
+    expect(contentBounds({ lineSegments: [], foldedFigures: [figure], modelToSvg })).toEqual(
       foldedFigureUserAabb(figure)
     );
   });
 
   it('is null when nothing is placed', () => {
-    expect(cpContentBounds({ lineSegments: [], modelToSvg })).toBeNull();
+    expect(contentBounds({ lineSegments: [], modelToSvg })).toBeNull();
   });
 
   it('skips non-finite coordinates instead of poisoning the extent', () => {
@@ -216,7 +232,7 @@ describe('what the camera frames against', () => {
     // swallow it whole. Either way the camera fit that consumes this gets a
     // meaningless answer.
     for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
-      const bounds = cpContentBounds({
+      const bounds = contentBounds({
         lineSegments: [crease, { a: { x: bad, y: bad }, b: { x: 5, y: 5 } }],
         modelToSvg,
       });
@@ -226,7 +242,7 @@ describe('what the camera frames against', () => {
 
   it('is null when every placed point is non-finite', () => {
     expect(
-      cpContentBounds({
+      contentBounds({
         lineSegments: [{ a: { x: Number.NaN, y: 0 }, b: { x: 1, y: Number.NaN } }],
         modelToSvg,
       })
@@ -236,7 +252,7 @@ describe('what the camera frames against', () => {
   it('keeps a merely far-away point so fitting to view still frames it', () => {
     // Only undrawable coordinates are rejected. A real but distant vertex is
     // content, and dropping it here would hide it from "Fit to view".
-    const bounds = cpContentBounds({
+    const bounds = contentBounds({
       lineSegments: [crease, { a: { x: 1e9, y: 1e9 }, b: { x: 1e9, y: 1e9 } }],
       modelToSvg,
     });
@@ -246,7 +262,7 @@ describe('what the camera frames against', () => {
   it('accounts for a rotated box by its corners', () => {
     // A window can be rotated; its footprint is the rotated extent, not the
     // unrotated one.
-    const bounds = cpContentBounds({
+    const bounds = contentBounds({
       lineSegments: [],
       overlayBoxes: [{ ...boxAt(0, 0), rotation: Math.PI / 4 }],
       modelToSvg,
@@ -276,25 +292,25 @@ describe('cpSizingBounds', () => {
     // The trim must be inert on real content: a CP's edges carry many vertices
     // at the same extreme, so discarding a few percent does not move it.
     const lineSegments = grid();
-    expect(cpSizingBounds({ lineSegments, modelToSvg })).toEqual(
-      cpContentBounds({ lineSegments, modelToSvg })
+    expect(sizingBounds({ lineSegments, modelToSvg })).toEqual(
+      contentBounds({ lineSegments, modelToSvg })
     );
   });
 
   it('ignores a stray far-away crease that would otherwise set the scale', () => {
     const lineSegments = [...grid(), { a: { x: -3.4e14, y: 3.4e14 }, b: { x: -550, y: 550 } }];
     // Framing still has to reach it...
-    expect(cpContentBounds({ lineSegments, modelToSvg })!.minX).toBe(-3.4e14);
+    expect(contentBounds({ lineSegments, modelToSvg })!.minX).toBe(-3.4e14);
     // ...but sizing reads the same as if it were never drawn.
-    expect(cpSizingBounds({ lineSegments, modelToSvg })).toEqual(
-      cpContentBounds({ lineSegments: grid(), modelToSvg })
+    expect(sizingBounds({ lineSegments, modelToSvg })).toEqual(
+      contentBounds({ lineSegments: grid(), modelToSvg })
     );
   });
 
   it('keeps an image at full extent rather than trimming it away', () => {
     // Images are few and deliberately placed, so no percentile applies to them:
     // a document's only reference image must not drop out of its own scale.
-    const bounds = cpSizingBounds({
+    const bounds = sizingBounds({
       lineSegments: grid(),
       images: [imageAt(400, 400)],
       modelToSvg,
@@ -305,11 +321,11 @@ describe('cpSizingBounds', () => {
 
   it('falls back to the raw bounds when there are no creases to trim', () => {
     const input = { lineSegments: [], overlayBoxes: [boxAt(0, 0)], modelToSvg };
-    expect(cpSizingBounds(input)).toEqual(cpContentBounds(input));
+    expect(sizingBounds(input)).toEqual(contentBounds(input));
   });
 
   it('is null when nothing is placed', () => {
-    expect(cpSizingBounds({ lineSegments: [], modelToSvg })).toBeNull();
+    expect(sizingBounds({ lineSegments: [], modelToSvg })).toBeNull();
   });
 
   it('keeps the finite endpoint of a half-unusable crease', () => {
@@ -321,7 +337,7 @@ describe('cpSizingBounds', () => {
       { a: { x: Number.NaN, y: 0 }, b: { x: 40, y: 40 } },
       { a: { x: 0, y: Number.POSITIVE_INFINITY }, b: { x: 50, y: 50 } },
     ];
-    expect(cpSizingBounds({ lineSegments, modelToSvg })).toEqual({
+    expect(sizingBounds({ lineSegments, modelToSvg })).toEqual({
       minX: 0,
       minY: 0,
       maxX: 50,
@@ -337,7 +353,7 @@ describe('cpSizingBounds', () => {
     // unmirrored one at both ends.
     const lineSegments = grid();
     const flipY = (p: { x: number; y: number }) => ({ x: p.x, y: 200 - p.y });
-    expect(cpSizingBounds({ lineSegments, modelToSvg: flipY })).toEqual({
+    expect(sizingBounds({ lineSegments, modelToSvg: flipY })).toEqual({
       minX: 0,
       minY: 100,
       maxX: 100,
@@ -375,7 +391,7 @@ describe('cpSizingBounds', () => {
         });
         const lineSegments = xs.map((x) => ({ a: { x, y: x }, b: { x, y: x } }));
         const expected = reference([...xs, ...xs]);
-        const bounds = cpSizingBounds({ lineSegments, modelToSvg })!;
+        const bounds = sizingBounds({ lineSegments, modelToSvg })!;
         expect({ min: bounds.minX, max: bounds.maxX }).toEqual(expected);
         expect({ min: bounds.minY, max: bounds.maxY }).toEqual(expected);
       }
@@ -389,9 +405,38 @@ describe('cpSizingBounds', () => {
     const input = { lineSegments, images: [imageAt(400, 400)], modelToSvg };
     expect(
       unionBounds(
-        cpTrimmedCreaseBounds(lineSegments, modelToSvg),
+        cpTrimmedCreaseBounds(cpSegmentEndpoints(lineSegments), modelToSvg),
         cpPlacedObjectBounds({ images: [imageAt(400, 400)], modelToSvg })
       )
-    ).toEqual(cpSizingBounds(input));
+    ).toEqual(sizingBounds(input));
+  });
+});
+
+describe('the crease extent in the framing bounds', () => {
+  it('is what projecting every endpoint gives, through a scaling, flipping map', () => {
+    // The extent is taken in model space and two corners projected. Pinned
+    // against the per-endpoint projection it replaced, on a map that scales one
+    // axis and reverses the other, with unusable coordinates mixed in.
+    const map = (p: { x: number; y: number }) => ({ x: 3 * p.x + 7, y: 200 - 0.5 * p.y });
+    const lineSegments: Segment[] = Array.from({ length: 200 }, (_, i) => ({
+      a: { x: Math.sin(i) * 100, y: Math.cos(i * 1.3) * 50 },
+      b: { x: (i % 7) * 13.1, y: -i * 0.37 },
+    }));
+    lineSegments.push({ a: { x: Number.NaN, y: 1e9 }, b: { x: 5, y: Number.POSITIVE_INFINITY } });
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const point of lineSegments.flatMap((segment) => [segment.a, segment.b])) {
+      const u = map(point);
+      if (!Number.isFinite(u.x) || !Number.isFinite(u.y)) continue;
+      minX = Math.min(minX, u.x);
+      minY = Math.min(minY, u.y);
+      maxX = Math.max(maxX, u.x);
+      maxY = Math.max(maxY, u.y);
+    }
+
+    expect(contentBounds({ lineSegments, modelToSvg: map })).toEqual({ minX, minY, maxX, maxY });
   });
 });

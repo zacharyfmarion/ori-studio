@@ -101,4 +101,31 @@ describe('LineHitIndex', () => {
     // Huge tolerance would explode the grid neighbourhood → linear fallback.
     expect(index.query(0.9, 0, 1e9)).toBe(2);
   });
+
+  it('answers the same from packed endpoints as from the segments they pack', () => {
+    // The canvas indexes the geometry transport's endpoint array directly; the
+    // answers must be the ones the object index gave, ties included, through
+    // both the cell scan and the flat fallback.
+    const segments = Array.from({ length: 300 }, (_, i) => ({
+      id: i + 1,
+      a: { x: (i * 37) % 100, y: (i * 61) % 100 },
+      b: { x: ((i * 37) % 100) + (i % 3 === 0 ? 80 : 6), y: ((i * 61) % 100) + (i % 2 === 0 ? 5 : -30) },
+    }));
+    segments.push({ id: 301, a: { x: 10, y: 10 }, b: { x: 10, y: 10 } });
+    const packed = new LineHitIndex(
+      Float64Array.from(segments.flatMap(({ a, b }) => [a.x, a.y, b.x, b.y]))
+    );
+    const objects = new LineHitIndex(segments);
+    const ids = (found: { id: number }[]) => found.map((s) => s.id).sort((a, b) => a - b);
+    for (let qx = -20; qx <= 120; qx += 7.5) {
+      for (let qy = -40; qy <= 140; qy += 9.25) {
+        for (const tolerance of [0.5, 3, 30, 1e6]) {
+          expect(packed.query(qx, qy, tolerance)).toBe(objects.query(qx, qy, tolerance));
+          expect(ids(packed.segmentsNear(qx, qy, tolerance))).toEqual(
+            ids(objects.segmentsNear(qx, qy, tolerance))
+          );
+        }
+      }
+    }
+  });
 });
