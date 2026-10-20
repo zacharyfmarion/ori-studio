@@ -573,6 +573,32 @@ medium on the effort, since five consumers move.
   the Simulate and References rails' sheet thumbnails, Diagram capture, the
   region solve and an import (add).
 
+  *Review fix (#474):* a selection of many lines cost more per line than on
+  #473. With the lines not decoded, every reader a selection change runs
+  built each selected line from the geometry: the panel's foldable ids, the
+  fold-angle and hint availability checks, and `selectedCpLineSegments`
+  behind the panel's move-drag lines and the two controls' summaries, which
+  then copied each line again. #473 read the decoded array and copied once.
+  The colour checks now read the colour slot (`cpLineColorAt`) and build
+  nothing, and lines built from the geometry are handed out without a second
+  copy. The harness's new `--select-all` times Select All and the Escape after
+  it (same boxes first; alternating; load 30–75, so the box selections are
+  noise here and unchanged):
+
+  | Select All, 489,093 lines | #473 (9f60f940c) | #474 before the fix | with the fix |
+  | --- | ---: | ---: | ---: |
+  | → selected | 728 / 731 ms | 986 / 901 ms | 551 / 628 / 539 ms |
+  | Longest freeze | 721 / 723 ms | 949 / 895 ms | 545 / 617 / 532 ms |
+  | Heap it keeps (after a collection) | +106 MiB | +107 MiB | +108 MiB |
+  | Escape → deselected | 89 / 88 ms | 72 / 77 ms | 68 / 83 / 84 ms |
+
+  What is left of a full selection is mostly two builds of every selected
+  line, both also on #473: the panel's move-drag lines (built for a drag that
+  may never come, and by their size most of the ~107 MiB kept; not confirmed
+  with a heap snapshot) and the fold-angle summary
+  (which needs only the colour and the magnitude). Building the first at the
+  drag and reading the second from the geometry would be the next step.
+
 Expected: a selection costs one kernel call and a re-render that rebuilds
 nothing — tens of milliseconds. Medium confidence on the exact number: the
 kernel's box select is one linear pass, and today's whole select-to-store step
