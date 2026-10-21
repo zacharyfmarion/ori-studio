@@ -63,6 +63,13 @@ describe('mirrorAxes', () => {
     expect(mirrorAxes([{ x: 1, y: 1 }])).toEqual([]);
     expect(mirrorAxes([{ x: 1, y: 1 }, { x: 1, y: 1 }])).toEqual([]);
   });
+
+  it('finds the one axis of more points than a call can take as arguments', () => {
+    // A row of 500,000 and one point farther along its line, which alone is
+    // farthest from their centroid: the row's line is its only axis.
+    const row = Array.from({ length: 500_000 }, (_, i) => ({ x: i / 500_000, y: 0 }));
+    expect(mirrorAxes([{ x: 1.5, y: 0 }, ...row]).map((axis) => Number(axis.toFixed(6)))).toEqual([0]);
+  }, 30_000);
 });
 
 describe('uprightTurn', () => {

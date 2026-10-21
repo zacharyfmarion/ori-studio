@@ -215,6 +215,23 @@ describe('the page', () => {
     expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
     expect(svg.trimEnd().endsWith('</svg>')).toBe(true);
   });
+
+  // ORI-STUDIO-T: the export dialog threw "Maximum call stack size exceeded"
+  // painting a large crease pattern, more lines than a call takes arguments.
+  it('paints a scene with more lines than a call can take as arguments, in order', () => {
+    const count = 500_000;
+    const scene = sceneOf(
+      Array.from({ length: count }, (_, i) => {
+        const x = (i * 100) / count;
+        return line('mountain', [x, 0], [x, 100]);
+      })
+    );
+    const { svg } = paint(scene);
+    expect(svg.match(/<line /g)).toHaveLength(count);
+    const x1 = (at: number) => Number(/x1="([^"]+)"/.exec(svg.slice(at))![1]);
+    expect(x1(svg.indexOf('<line '))).toBeCloseTo(ROOM, 2);
+    expect(x1(svg.lastIndexOf('<line '))).toBeGreaterThan(x1(svg.indexOf('<line ')));
+  }, 30_000);
 });
 
 describe('faces', () => {

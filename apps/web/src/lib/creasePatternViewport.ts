@@ -497,7 +497,10 @@ export function getEditableCpModelBounds(
     for (const segment of document.crease_pattern.aux_line_segments) {
       points.push(segment.a, segment.b);
     }
-    points.push(...document.crease_pattern.points);
+    // Not spread: a large document's points overflow the argument limit.
+    for (const point of document.crease_pattern.points) {
+      points.push(point);
+    }
     for (const circle of document.crease_pattern.circles) {
       points.push(
         { x: circle.x - circle.r, y: circle.y - circle.r },

@@ -3492,10 +3492,18 @@ function foldFrameFaces(frame: FoldDocument, vertices: Point[]): Point[][] {
 
 function foldFrameBounds(vertices: Point[]): CpModelBounds | null {
   if (vertices.length === 0) return null;
-  const minX = Math.min(...vertices.map((point) => point.x));
-  const maxX = Math.max(...vertices.map((point) => point.x));
-  const minY = Math.min(...vertices.map((point) => point.y));
-  const maxY = Math.max(...vertices.map((point) => point.y));
+  // A loop, not a spread: a large pattern's folded form overflows the argument
+  // limit.
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const point of vertices) {
+    minX = Math.min(minX, point.x);
+    minY = Math.min(minY, point.y);
+    maxX = Math.max(maxX, point.x);
+    maxY = Math.max(maxY, point.y);
+  }
   const spanX = Math.max(maxX - minX, 1e-6);
   const spanY = Math.max(maxY - minY, 1e-6);
   return { minX, minY, maxX, maxY, spanX, spanY };

@@ -138,6 +138,21 @@ describe('crease pattern viewport helpers', () => {
     expect(getCpGridLines(ORIEDITA_PAPER_BOUNDS, visibleGrid).length).toBeGreaterThan(22);
   });
 
+  it('frames a document with more standalone points than a call can take as arguments', () => {
+    const boundsWith = (points: { x: number; y: number }[]) =>
+      getEditableCpModelBounds({
+        ...document,
+        crease_pattern: {
+          ...document.crease_pattern,
+          points,
+          grid: { ...document.crease_pattern.grid, base_state: 'Hidden' },
+        },
+      });
+    const points = Array.from({ length: 500_000 }, (_, i) => ({ x: i / 1000, y: -i / 2000 }));
+
+    expect(boundsWith(points)).toEqual(boundsWith([points[0]!, points.at(-1)!]));
+  });
+
   it('ports Oriedita non-square and angled grid basis math', () => {
     const basis = getOrieditaGridBasis({
       ...document.crease_pattern.grid,

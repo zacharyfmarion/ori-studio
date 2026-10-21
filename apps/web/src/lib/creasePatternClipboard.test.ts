@@ -225,4 +225,43 @@ describe('crease-pattern clipboard geometry', () => {
   it('returns null bounds for empty selections', () => {
     expect(cpLineSelectionBounds([])).toBeNull();
   });
+
+  describe('a selection with more endpoints than a call can take as arguments', () => {
+    // A fan of 500,000 creases from the origin out to a circle of radius 100,
+    // no two ends shared but the centre: its box is the circle's.
+    const lines = Array.from({ length: 500_000 }, (_, i) => {
+      const angle = (2 * Math.PI * i) / 500_000;
+      return cpLine({ x: 0, y: 0 }, { x: 100 * Math.cos(angle), y: 100 * Math.sin(angle) });
+    });
+
+    // ORI-STUDIO-H: the selection toolbar threw "Maximum call stack size
+    // exceeded" bounding a selection this large, and took the panel down.
+    it('bounds it', () => {
+      expect(cpLineSelectionBounds(lines)).toEqual({
+        minX: -100,
+        minY: -100,
+        maxX: 100,
+        maxY: 100,
+        width: 200,
+        height: 200,
+        center: { x: 0, y: 0 },
+      });
+    });
+
+    it('frames it for a move-drag snap', () => {
+      const frame = cpLineSelectionFrame(lines);
+      expect(frame?.width).toBeCloseTo(200);
+      expect(frame?.height).toBeCloseTo(200);
+      expect(frame?.center.x).toBeCloseTo(0);
+      expect(frame?.center.y).toBeCloseTo(0);
+    }, 30_000);
+  });
+
+  it('propagates a NaN endpoint into the bounds, as the spread did', () => {
+    const bounds = cpLineSelectionBounds([cpLine({ x: 0, y: 0 }, { x: Number.NaN, y: 4 })]);
+    expect(bounds?.minX).toBeNaN();
+    expect(bounds?.maxX).toBeNaN();
+    expect(bounds?.minY).toBe(0);
+    expect(bounds?.maxY).toBe(4);
+  });
 });

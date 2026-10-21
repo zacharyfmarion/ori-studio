@@ -55,7 +55,9 @@ export function mirrorAxes(points: readonly Point[]): number[] {
   const cx = distinct.reduce((sum, p) => sum + p.x, 0) / distinct.length;
   const cy = distinct.reduce((sum, p) => sum + p.y, 0) / distinct.length;
   const reach = (p: Point) => Math.hypot(p.x - cx, p.y - cy);
-  const farthest = Math.max(...distinct.map(reach));
+  // A loop, not a spread: a large fold's points overflow the argument limit.
+  let farthest = -Infinity;
+  for (const p of distinct) farthest = Math.max(farthest, reach(p));
   if (!(farthest > tolerance)) return [];
   const rim = distinct.filter((p) => reach(p) > farthest - tolerance * 4);
   const first = rim[0]!;

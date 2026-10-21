@@ -406,17 +406,26 @@ function sortCoplanar(items: BspItem[], orderBeforeKind: boolean): BspItem[] {
 export function traverseBsp(node: BspNode | null, eye: Vec3, out: BspItem[] = []): BspItem[] {
   if (!node) return out;
   if (!node.plane) {
-    out.push(...node.coplanar);
+    append(out, node.coplanar);
     return out;
   }
   if (distance(node.plane, eye) >= 0) {
     traverseBsp(node.back, eye, out);
-    out.push(...node.coplanar);
+    append(out, node.coplanar);
     traverseBsp(node.front, eye, out);
   } else {
     traverseBsp(node.front, eye, out);
-    out.push(...node.coplanar);
+    append(out, node.coplanar);
     traverseBsp(node.back, eye, out);
   }
   return out;
+}
+
+/**
+ * `items` onto the end of `out`, one at a time: folded flat, every face of a
+ * large pattern lies in one node, and a spread of them overflows the argument
+ * limit.
+ */
+function append(out: BspItem[], items: readonly BspItem[]): void {
+  for (const item of items) out.push(item);
 }
