@@ -2,8 +2,8 @@
  * Experimental presentation lift, not a physical folding solver.
  *
  * One unknown height per PAPER vertex (never weld coincident folded positions),
- * plus interior triangle centres so faces can bend. Local/global least squares
- * fits layer-height targets and sampled nonpenetration half-spaces. Its matrix
+ * plus interior triangle centres so faces can bend a little. Local/global least
+ * squares fits layer-height targets, face planes and sampled contact half-spaces. Its matrix
  * and Jacobi preconditioner are constant; only contact projections change.
  * The resulting unit lift is reusable for every amount and camera direction.
  *
@@ -47,6 +47,9 @@ export interface CameraSpreadLift {
 }
 
 const cache = new WeakMap<OristudioCpFoldedPaperScene, CameraSpreadLift>();
+// Penalize deviation from a face's own freely tilting plane. Penalizing only
+// height differences would suppress rigid opening as well as unwanted bending.
+const PANEL_STIFFNESS = 100;
 
 /** Cached by immutable kernel scene identity; a new layer order needs a new scene. */
 export function cameraSpreadLift(kernel: OristudioCpFoldedPaperScene): CameraSpreadLift {
@@ -182,24 +185,42 @@ function prepare(kernel: OristudioCpFoldedPaperScene): CameraSpreadLift {
       }
     }
   }
+  // Three auxiliary unknowns per face: offset and two slopes in a local frame.
+  // Shared paper vertices still have exactly one height. Only the interior
+  // curvature is discouraged; each face is free to translate and tilt.
+  for (let f = 0; f < faceTriangles.length; f++) {
+    const ids = [...new Set(faceTriangles[f]!.flatMap((t) => triangles[t]!.vertices))];
+    const cx = ids.reduce((s, v) => s + xy[v]!.x, 0) / ids.length;
+    const cy = ids.reduce((s, v) => s + xy[v]!.y, 0) / ids.length;
+    const radius = Math.max(1e-10, ...ids.map((v) => Math.hypot(xy[v]!.x - cx, xy[v]!.y - cy)));
+    const plane = xy.length + 3 * f;
+    for (const v of ids)
+      rows.push({
+        ids: [v, plane, plane + 1, plane + 2],
+        weights: [1, -1, -(xy[v]!.x - cx) / radius, -(xy[v]!.y - cy) / radius],
+        target: 0,
+        strength: PANEL_STIFFNESS,
+      });
+  }
   const prepared = performance.now();
-  const heights = new Float64Array(xy.length);
+  const solution = new Float64Array(xy.length + 3 * faceTriangles.length);
   const allRows = [...rows, ...contacts];
-  const diagonal = new Float64Array(xy.length).fill(1e-8);
+  const diagonal = new Float64Array(solution.length).fill(1e-8);
   for (const row of allRows)
     row.ids.forEach((id, j) => {
       diagonal[id] += row.strength * row.weights[j]! ** 2;
     });
-  const rhs = new Float64Array(xy.length);
+  const rhs = new Float64Array(solution.length);
   let relativeResidual = 0;
   // A fixed matrix local/global solve. Contacts project onto half-spaces; this
   // is a compliant least-squares fit, not a hard inequality feasibility proof.
   for (let iteration = 0; iteration < 16; iteration++) {
     rhs.fill(0);
     for (const row of rows) addRhs(rhs, row, row.target);
-    for (const row of contacts) addRhs(rhs, row, Math.max(row.target, dotRow(row, heights)));
-    relativeResidual = conjugateGradient(allRows, diagonal, rhs, heights);
+    for (const row of contacts) addRhs(rhs, row, Math.max(row.target, dotRow(row, solution)));
+    relativeResidual = conjugateGradient(allRows, diagonal, rhs, solution);
   }
+  const heights = solution.slice(0, xy.length);
   // Remove an arbitrary rigid Z translation. Keep total thickness <= 1 so
   // Amount is a model-relative thickness bound, including difficult fits.
   let low = Infinity;

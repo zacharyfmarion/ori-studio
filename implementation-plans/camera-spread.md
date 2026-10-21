@@ -41,6 +41,7 @@ for Zach to validate before making this the default diagram spread.
 - [x] Lock camera visibility to diagram layer ordering, including woven patches and hidden ink.
 - [x] Add the supplied CP example without changing its source or committing private data.
 - [x] Validate the clipping regression, underside ordering, woven regions and live explorer.
+- [x] Reduce within-face bending and validate LDM auxiliary-line straightness.
 
 ## Result and remaining product work
 
@@ -61,3 +62,10 @@ Raw geometric depth remains an explicit diagnostic. The additional CP folds to
 paint geometry. There are now 89 focused tests. Physical strain/contact validity
 and newly exposed buried woven ordering remain research limits, described in the
 research note; this does not change the production spread default.
+
+Bending follow-up: a per-face affine-plane penalty keeps panels nearly planar
+while allowing tilt and retaining shared paper vertices. At the same 6% amount,
+LDM's worst sampled auxiliary-line bow falls about 95%, and its worst mesh-edge
+stretch falls from 216.75% to 0.59%. All 33 examples still produce finite paint
+geometry; 81 focused geometry tests, web lint and typecheck pass. The unchanged
+style/native/production surfaces were not revalidated for this solver-only change.

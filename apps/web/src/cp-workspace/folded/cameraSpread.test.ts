@@ -79,6 +79,23 @@ describe('experimental connected camera lift', () => {
     const average = (f: number) => mesh.faceVertices[f]!.reduce((s, v) => s + mesh.heights[v]!, 0) / 4;
     expect(average(1)).toBeGreaterThan(average(0));
   });
+  it('opens a shared hinge while keeping ink across each panel nearly straight', () => {
+    const mesh = cameraSpreadLift(stack(true));
+    const height = (f: number, x: number, y: number) =>
+      liftWeights(mesh, f, { x, y })!.reduce((sum, [v, w]) => sum + w * mesh.heights[v]!, 0);
+    // A rigidity penalty must allow a tilted plane, not flatten the entire
+    // model. Sample lines through triangle centres and across triangulation
+    // diagonals so the old centre bulges cannot pass as a straight panel.
+    expect(height(1, 0, 0.5) - height(0, 0, 0.5)).toBeGreaterThan(0.5);
+    for (const f of [0, 1])
+      for (const y of [0.2, 0.5, 0.8]) {
+        const a = height(f, 0, y),
+          b = height(f, 1, y);
+        // At the default 6% amount, bow stays below 0.1% of this unit line.
+        for (const t of [0.2, 0.4, 0.6, 0.8])
+          expect(options.amount * Math.abs(height(f, t, y) - (a + t * (b - a)))).toBeLessThan(0.001);
+      }
+  });
   it('caches by scene identity and leaves the original geometry untouched', () => {
     const scene = stack();
     const before = JSON.stringify(scene);

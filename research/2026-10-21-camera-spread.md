@@ -63,7 +63,10 @@ prototype reproduces that application's algorithm.
    triangulated overlap-cell centroid, barycentric interpolation gives a sparse
    row `r` for upper height minus lower height. Its preferred minimum is
    `g = 0.35 / max(1, deepest_level)`.
-5. Minimize target/smoothness energies plus
+5. Fit one freely tilting affine height plane per face, with three auxiliary
+   unknowns (offset and two slopes in a centered, radius-normalized frame). Add
+   `100 * sum((h_vertex - plane_face(vertex))^2)` over that face's mesh vertices,
+   alongside target/smoothness energies and
    `30 * sum(max(0, g - r*h)^2)`. Local contact projection and a global normal
    solve alternate 16 times. The normal matrix is constant; Jacobi-preconditioned
    conjugate gradients use up to 70 iterations per global solve. These are soft
@@ -74,9 +77,11 @@ prototype reproduces that application's algorithm.
 7. Evaluate separate inset-corner probes (80% triangle corner, 20% centroid) that
    were not used in fitting. Measure every mesh edge's relative 3D extension.
 
-The simple mesh has coarse bending triangles and no bending-energy or dihedral
-term. Sharp height gradients can therefore bulge and stretch. The current slider
-is a thickness bound; it does not claim a physical hinge-opening angle.
+The simple mesh has coarse bending triangles and a soft panel-planarity penalty,
+not a physical bending-energy or dihedral model. It discourages within-face bow
+while allowing a panel to tilt, and preserves shared heights at every hinge.
+It does not enforce a hard curvature/strain bound. The current slider is a
+thickness bound; it does not claim a physical hinge-opening angle.
 
 ## Camera and visibility
 
@@ -132,7 +137,8 @@ exactization, repair or input modifications. Two isolated fold processes,
 12-second limit each. **32/32 folds succeeded**, ranging from 16 to 4,722 faces.
 All 32 produced finite lifts. This is a selected sample, not full-corpus coverage.
 
-Single local run, Node/Vite module loading, wall times dependent on the machine:
+Original fit, before the panel-planarity follow-up below. Single local run,
+Node/Vite module loading, wall times dependent on the machine:
 
 | Measurement | Median over models | Worst model |
 | --- | ---: | ---: |
@@ -177,10 +183,42 @@ face tracing but retained in the paper scene. Passing every segment to the raw
 fold entry had caused `fold_faces_unresolved`. The source file is unchanged.
 
 All 33 examples folded and produced front/back paint plans with finite points
-and heights inside the lifted mesh's range. LDM's fit has 1,744/10,005 inverted
+and heights inside the lifted mesh's range. Before the stiffness change, LDM's fit had 1,744/10,005 inverted
 probes and 1.27% / 216.75% 95th/worst edge extension at 6%; layer clipping hides
 visibility errors, but does not make that deformation physically acceptable.
 Private data and screenshots remain under ignored `artifacts/camera-spread/`.
+
+## Reduced bending follow-up
+
+The original centre-height targets allowed auxiliary ink to bow strongly within
+otherwise flat panels. The added per-face affine-plane penalty raises panel
+stiffness while preserving the single shared height at every paper vertex. It
+allows rigid panel tilt; simply penalizing all height differences would suppress
+that opening too. Visibility clipping is unchanged.
+
+At the same 6% amount on LDM, sampling 19 interior points on each of its 266
+auxiliary segments gives:
+
+| Measurement | Before | Stiffer panels |
+| --- | ---: | ---: |
+| Aux bow, 95th percentile | 11.57% | 1.13% |
+| Aux bow, maximum | 41.67% | 2.07% |
+| Mesh edge stretch, 95th percentile | 1.27% | 0.31% |
+| Mesh edge stretch, maximum | 216.75% | 0.59% |
+
+Bow is the height departure from the segment's lifted endpoint chord, divided
+by its original length, at amount 6%. It isolates within-panel warp; projected
+pixel deviation also depends on camera direction/inclination. These are samples,
+not certified maxima. Worst sampled bow falls about 95% while total lift range
+retains 87% of its prior value, so the improvement is not just a smaller amount.
+The existing contacts remain soft: LDM's inverted probe count is 1,937/10,005,
+which the unchanged layer-order display policy masks. No physical validity claim
+follows from straighter ink.
+
+The corpus evaluator now records sampled auxiliary-line bow beside strain and
+visibility diagnostics. A synthetic hinged-panel regression checks nearly
+straight cross-panel lines while requiring the hinge to remain substantially
+open, guarding against a trivial flattened result.
 
 ## Recommended production implementation
 
@@ -223,11 +261,14 @@ not claims that a fully collision-free general origami opening has been solved.
 
 ## Validation status
 
-- Ten synthetic tests: identity-based connectivity, independent coincident
+- Eleven synthetic tests: identity-based connectivity, independent coincident
   layers, ordering, cache/purity, exact zero, view reversal/arbitrary cameras,
   malformed-topology refusal, deliberately inverted layers/hidden ink, woven
-  crossings from both sides, and bounded auxiliary ink on very thin triangles.
-- Existing flat scene, spread and CSS-module ratchet tests run with them: 89 tests passed.
+  crossings from both sides, bounded auxiliary ink on very thin triangles, and
+  nearly straight panel ink while opening a shared hinge.
+- Existing flat scene and spread tests run with them: 81 geometry tests passed
+  after the stiffness change. The prior clipping change also passed both
+  CSS-module ratchet files (89 tests total at that revision); styles are unchanged.
 - Web lint and typecheck run after rebuilding stale/missing local generated APIs.
 - No Rust behavior, native shell, production route or shipping bundle changed.
   Rust workspace/oracle, Tauri and production build validation are out of scope.
