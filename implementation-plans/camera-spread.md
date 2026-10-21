@@ -37,7 +37,7 @@ for Zach to validate before making this the default diagram spread.
 - [x] Build interactive comparison with direction, amount and view controls.
 - [x] Evaluate continuity, separation, strain, zero amount and responsiveness.
 - [x] Inspect the explorer in a real browser and leave it running.
-- [ ] Document findings and the default-spread integration path; open draft PR.
+- [x] Document findings and the default-spread integration path; open draft PR.
 
 ## Result and remaining product work
 
@@ -48,3 +48,5 @@ unacceptable worst-edge strain on complex models. Production default integration
 is intentionally deferred pending a feasible contact/strain solve and user
 visual acceptance; this research branch does not claim to complete that feature.
 The concrete follow-on design is in `research/2026-10-21-camera-spread.md`.
+
+Draft PR: https://github.com/zacharyfmarion/ori-studio/pull/490
