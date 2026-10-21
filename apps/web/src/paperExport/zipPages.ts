@@ -3,9 +3,12 @@
  *
  * `fflate` is loaded on demand: nothing else in the app writes a ZIP, so it
  * costs nothing until someone exports all the steps. The import is guarded —
- * after a deploy an old tab's chunk is gone and a bare `await import()` becomes
- * an unhandled rejection with no stack (as `StartFigure` learned) — and a failed
- * load comes back as an ordinary error the dialog can put words to.
+ * a tab older than the deploys that carry its build forward
+ * (`scripts/carry-forward-assets.mjs`) finds its chunk gone, and a bare
+ * `await import()` becomes an unhandled rejection with no stack (as
+ * `StartFigure` learned) — and a failed load comes back as an ordinary error
+ * the dialog puts in the reader's words. It does not reload for them, as
+ * `importOrReload` would: a reload closes the project they are exporting from.
  */
 
 export interface ZipEntry {

@@ -500,7 +500,8 @@
     "titleTurnOver": "„Wenden“ exportieren",
     "transparent": "Transparenter Hintergrund",
     "zipFiles_one": "{{count}} Datei · ZIP",
-    "zipFiles_other": "{{count}} Dateien · ZIP"
+    "zipFiles_other": "{{count}} Dateien · ZIP",
+    "zipUnavailable": "Der ZIP-Export konnte nicht geladen werden. Lade Ori Studio neu und versuche es noch einmal."
   },
   "referencesApproximationWarning": {
     "close": "Warnung zu näherungsweisen Faltungen schließen",

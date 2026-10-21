@@ -516,7 +516,8 @@
     "transparent": "Fondo transparente",
     "zipFiles_one": "{{count}} archivo · ZIP",
     "zipFiles_many": "{{count}} archivos · ZIP",
-    "zipFiles_other": "{{count}} archivos · ZIP"
+    "zipFiles_other": "{{count}} archivos · ZIP",
+    "zipUnavailable": "No se pudo cargar el generador de ZIP. Recarga Ori Studio y vuelve a intentarlo."
   },
   "referencesApproximationWarning": {
     "close": "Cerrar la advertencia de pliegues aproximados",

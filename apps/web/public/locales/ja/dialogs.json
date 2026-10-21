@@ -484,7 +484,8 @@
     "titleStep": "ステップ {{number}} を書き出す",
     "titleTurnOver": "裏返しを書き出す",
     "transparent": "背景を透明にする",
-    "zipFiles_other": "{{count}} ファイル · ZIP"
+    "zipFiles_other": "{{count}} ファイル · ZIP",
+    "zipUnavailable": "ZIP の書き出し機能を読み込めませんでした。Ori Studio を再読み込みしてから、もう一度お試しください。"
   },
   "referencesApproximationWarning": {
     "close": "近似の折りの警告を閉じる",

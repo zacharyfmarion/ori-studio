@@ -532,7 +532,8 @@
     "zipFiles_one": "{{count}} файл · ZIP",
     "zipFiles_few": "{{count}} файла · ZIP",
     "zipFiles_many": "{{count}} файлов · ZIP",
-    "zipFiles_other": "{{count}} файла · ZIP"
+    "zipFiles_other": "{{count}} файла · ZIP",
+    "zipUnavailable": "Не удалось загрузить модуль создания ZIP. Перезагрузите Ori Studio и попробуйте ещё раз."
   },
   "referencesApproximationWarning": {
     "close": "Закрыть предупреждение о приблизительных сгибах",

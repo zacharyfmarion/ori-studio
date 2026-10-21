@@ -1,7 +1,10 @@
 import { strFromU8, strToU8, unzipSync } from 'fflate';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, StrictMode, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import i18n from '../i18n';
 import { DEFAULT_PAPER_SIZE_MM } from '../lib/paper/paperPage';
 import type { PaperScene } from '../lib/paper/paperScene';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../lib/paper/paperStyle';
@@ -71,6 +74,23 @@ vi.mock('../platform/runtime', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../platform/runtime')>()),
   isAppleMobilePlatform: appleMobile,
 }));
+// The ZIP writer's chunk as a tab opened before a deploy finds it, when `gone`: the real
+// loader, handed the rejection the browser gives a chunk that is no longer on the site.
+const { zipChunk } = vi.hoisted(() => ({ zipChunk: { gone: false } }));
+vi.mock('./zipPages', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./zipPages')>();
+  const missing = () =>
+    actual.loadFflate(() =>
+      Promise.reject(
+        new TypeError('Failed to fetch dynamically imported module: https://oristudio.dev/assets/browser-PYApyHUg.js')
+      )
+    );
+  return {
+    ...actual,
+    zipPages: (entries: Parameters<typeof actual.zipPages>[0]) =>
+      actual.zipPages(entries, zipChunk.gone ? missing : actual.loadFflate),
+  };
+});
 
 const SCENE: PaperScene = {
   bounds: { minX: 0, minY: 0, maxX: 100, maxY: 50 },
@@ -264,6 +284,7 @@ beforeEach(() => {
   appleMobile.mockReturnValue(false);
   close.mockClear();
   reportError.mockClear();
+  zipChunk.gone = false;
   removeKey(PAPER_EXPORT_KEY);
   useSettingsStore.setState(initialSettings, true);
   // jsdom has no object URLs.
@@ -950,6 +971,24 @@ describe('usePaperExportDialog on a target with several pages', () => {
     });
     expect(toast.success).toHaveBeenCalledWith('Exported Crane steps.zip');
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('says the ZIP writer could not load in the reader’s language, and stays open (ORI-STUDIO-X)', async () => {
+    // A Japanese reader was shown the instruction in English, and retried 34 times.
+    const ja = JSON.parse(readFileSync(resolve(__dirname, '../../public/locales/ja/dialogs.json'), 'utf8'));
+    i18n.addResourceBundle('ja', 'dialogs', ja, true, true);
+    await i18n.changeLanguage('ja');
+    try {
+      zipChunk.gone = true;
+      const { target } = stepsTarget();
+      const dialog = await open(target, null, 'all');
+      await act(async () => dialog().exportNow());
+      expect(dialog().saveError).toBe(ja.paperExport.zipUnavailable);
+      expect(service.saveBinaryFile).not.toHaveBeenCalled();
+      expect(close).not.toHaveBeenCalled();
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 
   it('counts the pages up as they encode, and holds the dialog open only for the save', async () => {
