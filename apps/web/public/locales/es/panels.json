@@ -2082,6 +2082,7 @@
     "warning": {
       "degenerateBorderSegments": "{{n}} pliegue(s) del borde tienen extremos coincidentes y se ignoraron.",
       "noBorder": "Sin pliegues de borde: se toma el papel predeterminado como hoja.",
+      "nonFiniteSegments": "{{n}} pliegue(s) tienen coordenadas no válidas y se dejan fuera.",
       "overlappingSheets": "{{n}} pliegue(s) están dentro de más de una hoja y se asignaron a la primera.",
       "refusedSheets": "{{n}} hoja(s) no son rectángulos y se omiten.",
       "unassignedSegments": "{{n}} pliegue(s) quedan fuera de todas las hojas y se dejan fuera.",

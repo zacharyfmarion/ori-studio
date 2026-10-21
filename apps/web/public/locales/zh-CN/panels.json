@@ -1966,6 +1966,7 @@
     "warning": {
       "degenerateBorderSegments": "有 {{n}} 条边界折线两端重合，已忽略。",
       "noBorder": "没有边缘折痕：以默认纸张作为纸。",
+      "nonFiniteSegments": "有 {{n}} 条折线坐标无效，已被排除。",
       "overlappingSheets": "有 {{n}} 条折线同时位于多张纸内，已归入第一张。",
       "refusedSheets": "{{n}} 张纸不是矩形，已被排除。",
       "unassignedSegments": "有 {{n}} 条折线不在任何纸张内，已被排除。",

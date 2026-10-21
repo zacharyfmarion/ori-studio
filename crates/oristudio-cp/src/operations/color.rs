@@ -6,7 +6,9 @@ use crate::geometry::{
     is_line_segment_overlapping,
 };
 use crate::model::{CreasePatternModel, CustomLineType};
-use crate::operations::arrangement::{divide_line_segment_with_new_lines, fix2};
+use crate::operations::arrangement::{
+    divide_line_segment_with_new_lines, fix2, line_value_key, remove_first_equal_copies,
+};
 
 /// Oriedita `FoldLineSet.setColor(Collection<LineSegment>, LineColor)`.
 pub fn set_line_color_for_segments(
@@ -394,19 +396,10 @@ fn lines_matching_type_for_indices(
         .collect()
 }
 
+/// The first equal copy of each of `lines`, as upstream's `deleteLine` per line
+/// takes it; see [`remove_first_equal_copies`].
 fn delete_lines_by_value(model: &mut CreasePatternModel, lines: &[LineSegment]) -> usize {
-    let mut deleted = 0;
-    for line in lines {
-        if let Some(index) = model
-            .line_segments
-            .iter()
-            .position(|candidate| candidate == line)
-        {
-            model.line_segments.remove(index);
-            deleted += 1;
-        }
-    }
-    deleted
+    remove_first_equal_copies(&mut model.line_segments, lines, line_value_key)
 }
 
 /// Set the fold magnitude on the given line indices.

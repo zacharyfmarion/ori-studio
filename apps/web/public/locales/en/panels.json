@@ -2028,6 +2028,7 @@
     "warning": {
       "degenerateBorderSegments": "{{n}} border crease(s) have coincident ends and were ignored.",
       "noBorder": "No border creases: the default paper is taken as the sheet.",
+      "nonFiniteSegments": "{{n}} crease(s) have invalid coordinates and are left out.",
       "overlappingSheets": "{{n}} crease(s) lie inside more than one sheet and were given to the first.",
       "refusedSheets": "{{n}} sheet(s) are not rectangles and are left out.",
       "unassignedSegments": "{{n}} crease(s) fall outside every sheet and are left out.",

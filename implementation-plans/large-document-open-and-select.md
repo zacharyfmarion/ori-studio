@@ -473,6 +473,40 @@ medium on the effort, since five consumers move.
   the worker and one ~107 ms main-thread task of passes over every line keyed
   on the selection — the canvas's stroke scene for the highlight, the move-snap
   document, the selected endpoints, the fold-angle layer — which is 3.3.
+
+  *The edit half of 3.2 done, as built (#473):* an edit's undo entry holds
+  `{ geometry }`, the compact typed arrays the store already keeps beside its
+  decoded snapshot (shared, not copied), and undo and redo put them back with
+  `restore_from_compact` (`restoreOristudioCpGeometryInPlace`, through
+  `cpHistory.ts`). Overlay and selection entries hold no document at all; a
+  selection entry's shared snapshot had stayed alive once an edit replaced
+  it. Nothing writes into an entry's arrays: the one in-place writer is a
+  selection, into the current state only. A restore posts the arrays as a
+  copy, never transferred, so an entry restores again (checked in the
+  browser: undo and redo three times over the same entries through the real
+  worker). Desktop sends them as a raw request body, the bytes of
+  `CompactGeometry::to_bytes` with the handle and session as headers, where
+  `cp_restore_from_compact` took JSON arrays. The import's compound entry
+  holds geometry too, and the cap and the compound pruning compose: 100 edits
+  after an import drop it from both histories (kernel-backed test). Measured
+  on this file with `--edits 120 --draw 440,715,850,820` (#472's branch
+  de4a4189c against 0c8d0e2d2, two runs each, alternating):
+
+  | | before | compact entries |
+  | --- | ---: | ---: |
+  | Undo of an edit | 2,435 / 2,453 ms | 592 / 589 ms |
+  | Redo | 2,407 / 2,444 ms | 523 / 521 ms |
+  | An edit (a line drawn) | 493 / 493 ms | 493 / 491 ms |
+  | Kept per edit | +89 MiB heap | +25.7 MiB buffers, heap flat |
+  | 120 edits | tab crashed at edit 39, both runs | levels off at 100: 598 MiB heap + 2,713 MiB buffers |
+
+  Cause 5 put an entry at 131 MiB; measured here as heap retained after a
+  forced collection, each one kept 89 MiB alive. What is left of an undo is one
+  ~0.5 s main-thread task, the size of an edit's own (0.42 s): decoding the
+  restored geometry and rebuilding what is keyed on it, which is 3.3 (not
+  traced). A full stack on this file is still 2.7 GB of buffers, one whole
+  copy of the geometry per entry; smaller entries would have to share
+  unchanged geometry, which this plan does not cover.
 - **3.3 Stop decoding 489k objects on every command.** The compact-transport
   work deliberately left consumers on the decoded snapshot because decoding
   was "~ms"; at this size it is ~150 ms and 131 MiB of garbage per command.
@@ -610,7 +644,7 @@ Phase 2
 Phase 3
 - [x] 3.1 Selection commands return ids; document identity preserved (#472)
 - [x] 3.2 Selection-only undo entries (#472)
-- [ ] 3.2 Compact geometry for edit entries
+- [x] 3.2 Compact geometry for edit entries (#473)
 - [ ] 3.3 Hot consumers on the `CpGeometry` accessor
 
 Phase 4

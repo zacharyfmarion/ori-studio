@@ -5,7 +5,7 @@
 // client in lockstep with the worker (add a method to one, the other fails
 // typecheck). See implementation-plans/desktop-native-cp-engine-migration.md.
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, type InvokeArgs, type InvokeOptions } from '@tauri-apps/api/core';
 
 import type {
   OristudioCpCommandPayload,
@@ -53,9 +53,9 @@ function normalizeError(error: unknown): WasmErrorEnvelope {
   };
 }
 
-async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+async function call<T>(command: string, args?: InvokeArgs, options?: InvokeOptions): Promise<T> {
   try {
-    return await invoke<T>(command, args);
+    return await invoke<T>(command, args, options);
   } catch (error) {
     throw normalizeError(error);
   }
@@ -187,6 +187,49 @@ function toPlainGeometry(geometry: CpGeometryTransport): PlainCompactGeometry {
   };
 }
 
+/**
+ * Encode compact geometry in the layout {@link decodeCompactGeometryBytes}
+ * reads, which is Rust's `CompactGeometry::from_bytes`. How undo and redo send
+ * a crease pattern to the native engine: on a canvas of half a million creases,
+ * one copy of the arrays into a buffer, where JSON arrays of every coordinate
+ * cost a stringify on this thread and a parse on the other. Exported for tests.
+ *
+ * The arrays are copied in platform byte order, as the decoder reads them out:
+ * little-endian, on every platform the desktop app ships for.
+ */
+export function encodeCompactGeometryBytes(geometry: CpGeometryTransport): Uint8Array {
+  const tail = new TextEncoder().encode(JSON.stringify(geometry.tail));
+  // The encoder's field order, which is also the order of the counts.
+  const sections: (Float64Array | Int32Array | Uint32Array | Uint8Array)[] = [
+    geometry.segEndpoints,
+    geometry.segAttr,
+    geometry.segCustomColor,
+    geometry.segFoldMagnitude ?? new Uint32Array(0),
+    geometry.auxEndpoints,
+    geometry.auxAttr,
+    geometry.auxCustomColor,
+    geometry.pointCoords,
+    geometry.circleData,
+    geometry.circleAttr,
+    geometry.circleCustomColor,
+  ];
+  let length = COMPACT_GEOMETRY_HEADER_U32S * 4 + tail.byteLength;
+  for (const section of sections) length += section.byteLength;
+  const bytes = new Uint8Array(length);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(0, COMPACT_GEOMETRY_MAGIC, true);
+  sections.forEach((section, index) => view.setUint32(4 + index * 4, section.length, true));
+  view.setUint32(4 + COMPACT_GEOMETRY_COUNTS * 4, tail.byteLength, true);
+  let offset = COMPACT_GEOMETRY_HEADER_U32S * 4;
+  bytes.set(tail, offset);
+  offset += tail.byteLength;
+  for (const section of sections) {
+    bytes.set(new Uint8Array(section.buffer, section.byteOffset, section.byteLength), offset);
+    offset += section.byteLength;
+  }
+  return bytes;
+}
+
 /** The kernel's `SelectedLines` as the native commands carry it: JSON arrays. */
 interface PlainSelectedLines {
   ids: number[];
@@ -274,8 +317,17 @@ async function exportWithTexts(
       const buffer = await callSession<ArrayBuffer>('cp_document_geometry', { handle });
       return decodeCompactGeometryBytes(buffer);
     },
+    /**
+     * Undo and redo: the geometry as the raw request body, and so the handle
+     * and session as headers, since a raw body carries no arguments.
+     */
     async restoreFromCompact(handle: number, geometry: CpGeometryTransport): Promise<void> {
-      return callSession('cp_restore_from_compact', { handle, geometry: toPlainGeometry(geometry) });
+      return call('cp_restore_from_compact', encodeCompactGeometryBytes(geometry), {
+        headers: {
+          'x-handle': String(handle),
+          ...(sessionId === undefined ? {} : { 'x-session-id': String(sessionId) }),
+        },
+      });
     },
     async sheetIndex(handle: number): Promise<CpSheetIndexTransport> {
       return decodeSheetIndexBytes(await callSession<ArrayBuffer>('cp_sheet_index', { handle }));

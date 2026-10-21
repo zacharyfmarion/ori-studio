@@ -23,10 +23,12 @@
  * With no border line on the canvas at all, the pattern is planned on the
  * default paper, as it always was (`paperFallbackRect`).
  */
+import { bucketCount, COUNT_BUCKETS } from '../../analytics';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { SEG_ATTR_STRIDE } from '../../engine/oristudioCpGeometry';
 import type { CpSheetIndex } from '../../engine/oristudioCpSheetIndex';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
+import { reportError } from '../../monitoring';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { getPrecreaseClient } from '../../store/workspaceStore/precreaseRuntime';
 import { ensureCpSheetIndex } from '../sheets/cpSheetIndex';
@@ -49,13 +51,27 @@ function roleOf(color: number): LineRole {
 }
 
 /**
+ * Whether line `line` has a position: all four of its coordinates finite. One
+ * without is never drawn, and the planner rejects any input that holds one.
+ */
+function isPlaced(geometry: CpGeometryTransport, line: number): boolean {
+  const ends = geometry.segEndpoints;
+  for (let at = line * 4; at < line * 4 + 4; at += 1) {
+    if (!Number.isFinite(ends[at])) return false;
+  }
+  return true;
+}
+
+/**
  * The sheets of `index`, each framed (`outlines`, one per sheet, in the
  * index's order) and given its lines out of `geometry`, which must be the
  * geometry the index was built from.
  *
  * An aux line is only ever drawn in a frame, so a refused sheet lists none. A
  * crease in no sheet is reported unassigned; a border line in none is a border
- * that does not close, which is no sheet and nothing to report.
+ * that does not close, which is no sheet and nothing to report. A line with no
+ * position is left out of every sheet and reported as that, so the sheets
+ * around it can still be planned.
  */
 export function referencesFramesFromIndex(
   index: CpSheetIndex,
@@ -68,7 +84,12 @@ export function referencesFramesFromIndex(
   const attr = geometry.segAttr;
   const count = geometry.segEndpoints.length / 4;
   const unassigned: number[] = [];
+  let unplaced = 0;
   for (let line = 0; line < count; line += 1) {
+    if (!isPlaced(geometry, line)) {
+      unplaced += 1;
+      continue;
+    }
     const role = roleOf(attr[line * SEG_ATTR_STRIDE]);
     const component = components[sheetOf[line]];
     if (!component) {
@@ -79,15 +100,16 @@ export function referencesFramesFromIndex(
     else if (role === 'crease') component.segment_indices.push(line);
     else if (component.frame) component.aux_segment_indices.push(line);
   }
-  const warnings: PrecreaseWarning[] =
-    unassigned.length > 0 ? [{ kind: 'unassigned_segments', count: unassigned.length }] : [];
+  const warnings: PrecreaseWarning[] = [];
+  if (unassigned.length > 0) warnings.push({ kind: 'unassigned_segments', count: unassigned.length });
+  if (unplaced > 0) warnings.push({ kind: 'non_finite_segments', count: unplaced });
   return analysisOf(components, unassigned, warnings, count, tolerances);
 }
 
 /**
  * The canvas as one sheet of the default paper, for a pattern with no border
- * line at all: every line on it, as the planner places lines on a sheet it
- * found itself. `paper` is that paper framed.
+ * line at all: every line on it with a position, as the planner places lines on
+ * a sheet it found itself. `paper` is that paper framed.
  */
 export function referencesFallbackFrames(
   geometry: CpGeometryTransport,
@@ -97,18 +119,16 @@ export function referencesFallbackFrames(
   const sheet = { ...listedSheet(paper), id: 0, is_fallback: true };
   const attr = geometry.segAttr;
   const count = geometry.segEndpoints.length / 4;
+  let unplaced = 0;
   for (let line = 0; line < count; line += 1) {
-    if (roleOf(attr[line * SEG_ATTR_STRIDE]) === 'aux') sheet.aux_segment_indices.push(line);
+    if (!isPlaced(geometry, line)) unplaced += 1;
+    else if (roleOf(attr[line * SEG_ATTR_STRIDE]) === 'aux') sheet.aux_segment_indices.push(line);
     else sheet.segment_indices.push(line);
   }
   const [x0, y0, x1, y1] = paperFallbackRect();
-  return analysisOf(
-    [sheet],
-    [],
-    [{ kind: 'no_border_fallback', paper: [x0, y0, x1, y1] }],
-    count,
-    tolerances
-  );
+  const warnings: PrecreaseWarning[] = [{ kind: 'no_border_fallback', paper: [x0, y0, x1, y1] }];
+  if (unplaced > 0) warnings.push({ kind: 'non_finite_segments', count: unplaced });
+  return analysisOf([sheet], [], warnings, count, tolerances);
 }
 
 function listedSheet(outline: PrecreaseComponent): PrecreaseComponent {
@@ -143,8 +163,9 @@ function analysisOf(
 
 function hasBorder(geometry: CpGeometryTransport): boolean {
   const attr = geometry.segAttr;
-  for (let at = 0; at < attr.length; at += SEG_ATTR_STRIDE) {
-    if (attr[at] === 0) return true;
+  const count = geometry.segEndpoints.length / 4;
+  for (let line = 0; line < count; line += 1) {
+    if (attr[line * SEG_ATTR_STRIDE] === 0 && isPlaced(geometry, line)) return true;
   }
   return false;
 }
@@ -232,6 +253,7 @@ export function ensureReferencesFrames(
   promise.then(
     (frames) => {
       if (!frames && framesCache?.promise === promise) framesCache = null;
+      if (frames) reportUnplacedCreases(state.loadSerial, frames.analysis);
     },
     () => {
       if (framesCache?.promise === promise) framesCache = null;
@@ -241,6 +263,28 @@ export function ensureReferencesFrames(
 }
 
 let framesCache: { revision: string; promise: Promise<ReferencesFrames | null> } | null = null;
+
+/**
+ * Creases left out for having no position, reported once per document: no
+ * tool should write one, so each is a bug somewhere, and the sidebar line alone
+ * would hide it. A bucketed count is all that is sent.
+ */
+function reportUnplacedCreases(loadSerial: number, analysis: SheetAnalysis): void {
+  if (reportedLoadSerial === loadSerial) return;
+  const unplaced = analysis.warnings.find(
+    (warning): warning is Extract<PrecreaseWarning, { kind: 'non_finite_segments' }> =>
+      warning.kind === 'non_finite_segments'
+  );
+  if (!unplaced) return;
+  reportedLoadSerial = loadSerial;
+  reportError(new Error('References left out creases with non-finite coordinates'), {
+    surface: 'references:non-finite-creases',
+    handled: true,
+    tags: { count_bucket: bucketCount(unplaced.count, COUNT_BUCKETS) },
+  });
+}
+
+let reportedLoadSerial: number | null = null;
 
 /**
  * The open pattern's sheets for `revision` of its creases; null when they could
@@ -289,8 +333,9 @@ export function ensureReferencesSheetDetail(
 const DETAIL_SLOTS = 4;
 const detailCache = new Map<string, Promise<PrecreaseComponent>>();
 
-/** Forget every revision's frames and details: for tests. */
+/** Forget every revision's frames and details, and what was reported: for tests. */
 export function resetReferencesFrames(): void {
   framesCache = null;
   detailCache.clear();
+  reportedLoadSerial = null;
 }

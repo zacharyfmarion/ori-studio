@@ -2084,6 +2084,7 @@
     "warning": {
       "degenerateBorderSegments": "{{n}} pli(s) de bord ont des extrémités confondues et ont été ignorés.",
       "noBorder": "Aucun pli de bord : le papier par défaut sert de feuille.",
+      "nonFiniteSegments": "{{n}} pli(s) ont des coordonnées invalides et sont ignorés.",
       "overlappingSheets": "{{n}} pli(s) se trouvent dans plusieurs feuilles et ont été attribués à la première.",
       "refusedSheets": "{{n}} feuille(s) ne sont pas des rectangles et sont laissées de côté.",
       "unassignedSegments": "{{n}} pli(s) se trouvent en dehors de toute feuille et sont ignorés.",

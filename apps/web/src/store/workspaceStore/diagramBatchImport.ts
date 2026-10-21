@@ -6,14 +6,18 @@ import {
   getEditableCpModelBounds,
 } from "../../lib/creasePatternViewport";
 import { occupiedModelSpace } from "./occupiedModelSpace";
-import { MAX_CP_HISTORY, withCpHistoryEntry } from "./cpHistory";
+import {
+  MAX_CP_HISTORY,
+  cpHistoryDocumentOf,
+  restoreCpHistoryDocument,
+  withCpHistoryEntry,
+} from "./cpHistory";
 import { useWorkspaceStore } from "../workspaceStore";
 import type { OristudioCpHistoryEntry, WorkspaceState } from "./types";
 import {
   countOristudioCpDocumentChange,
   getOristudioCpClient,
   refreshOristudioCpDocument,
-  restoreOristudioCpDocumentInPlace,
   creasePatternHoldsNothingOfItsOwn,
 } from "./oristudioCpRuntime";
 import {
@@ -86,7 +90,7 @@ function captureCp(
 ): OristudioCpHistoryEntry {
   retainFoldedFigureHandles(s.oristudioCpFoldedFigures);
   return {
-    document: s.oristudioCpDocument!.document,
+    document: cpHistoryDocumentOf(s.oristudioCpDocument!),
     selection: s.oristudioCpSelection,
     annotations: s.oristudioCpAnnotations,
     foldedFigures: s.oristudioCpFoldedFigures,
@@ -372,7 +376,8 @@ export function compoundImportTravel(
   set({ diagramImportBusy: true, oristudioCpHistoryBusy: true });
   return (async () => {
     try {
-      const restored = await restoreOristudioCpDocumentInPlace(
+      if (!cp.document) throw new Error(`The undo step "${cp.label}" holds no crease pattern`);
+      const restored = await restoreCpHistoryDocument(
         cp.document,
         s.oristudioCpDocument!.source,
         null,

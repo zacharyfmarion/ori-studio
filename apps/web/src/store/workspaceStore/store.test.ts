@@ -6754,9 +6754,10 @@ describe('workspace store slices', () => {
     expect(state.dirty).toBe(true);
     expect(state.oristudioCpHistoryPast.at(-1)).toMatchObject({
       label: 'SelectLineIntersecting',
-      document: currentDocument.document,
       selectedLines: { ids: new Uint32Array(0), values: new Int32Array(0) },
     });
+    // It leaves the document alone, so it keeps none of it.
+    expect(state.oristudioCpHistoryPast.at(-1)?.document).toBeUndefined();
   });
 
   it('restores editable CP snapshots and selections through undo and redo', async () => {
@@ -6809,7 +6810,7 @@ describe('workspace store slices', () => {
     ).resolves.toBe(true);
 
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast[0]).toMatchObject({
-      document: loadedDocument.document,
+      document: { snapshot: loadedDocument.document },
       selection: { lines: [1] },
       label: 'CreaseMakeMountain',
     });
@@ -6994,8 +6995,10 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(selection);
     expect(useWorkspaceStore.getState().dirty).toBe(true);
     expect(useWorkspaceStore.getState().projectMessage).toBe('Set grid size to 32');
+    // A fixture state has no geometry, so the entry keeps its snapshot; every
+    // state read from the kernel has geometry (`cpSelectionCommands.wasm.test.ts`).
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast[0]).toMatchObject({
-      document: documentState.document,
+      document: { snapshot: documentState.document },
       selection,
       label: 'Set grid size to 32',
     });

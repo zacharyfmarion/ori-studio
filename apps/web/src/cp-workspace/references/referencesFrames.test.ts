@@ -5,11 +5,18 @@ import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import type { PrecreaseComponent, PrecreaseTolerances } from './sheetFrames';
 
 // The two engines, stood in for: the kernel's index and the planner's frames.
+// And what reached the monitoring layer.
 const engines = vi.hoisted(() => ({
   index: null as unknown,
   indexCalls: 0,
   outlineCalls: 0,
   framed: [] as unknown[],
+  reports: [] as unknown[][],
+}));
+vi.mock('../../monitoring', () => ({
+  reportError: (...args: unknown[]) => {
+    engines.reports.push(args);
+  },
 }));
 vi.mock('../sheets/cpSheetIndex', () => ({
   ensureCpSheetIndex: async () => {
@@ -138,6 +145,30 @@ describe('referencesFramesFromIndex', () => {
     expect(analysis.warnings).toEqual([{ kind: 'unassigned_segments', count: 1 }]);
     expect(analysis).toMatchObject({ segment_count: 8, tol: 1e-6, snap_radius: 2e-3 });
   });
+
+  it('leaves a line with no position out of every sheet, and says so', () => {
+    // A NaN crease and a NaN border line, as Reflect selection over line wrote
+    // them when its axis was one point; the index places neither.
+    const geometry = geometryOf([
+      [0, 0, 40, 0, 0],
+      [0, 0, 40, 40, 1],
+      [NaN, NaN, NaN, NaN, 1],
+      [NaN, NaN, NaN, NaN, 0],
+      [Infinity, 0, 40, 40, 2],
+    ]);
+    const analysis = referencesFramesFromIndex(
+      indexOf([0, 0, -1, -1, -1], 1),
+      geometry,
+      [framed(0)],
+      TOLERANCES
+    );
+    expect(analysis.components[0]).toMatchObject({
+      border_segment_indices: [0],
+      segment_indices: [1],
+    });
+    expect(analysis.unassigned_segments).toEqual([]);
+    expect(analysis.warnings).toEqual([{ kind: 'non_finite_segments', count: 3 }]);
+  });
 });
 
 describe('referencesFallbackFrames', () => {
@@ -157,6 +188,22 @@ describe('referencesFallbackFrames', () => {
     });
     expect(analysis.warnings).toEqual([
       { kind: 'no_border_fallback', paper: [-200, -200, 200, 200] },
+    ]);
+  });
+
+  it('leaves a line with no position off the paper, and says so', () => {
+    // Every line of the fallback sheet goes to the planner, which rejects the
+    // whole sheet over one non-finite coordinate.
+    const geometry = geometryOf([
+      [0, 0, 40, 40, 1],
+      [NaN, NaN, NaN, NaN, 1],
+      [0, 40, 40, 0, 2],
+    ]);
+    const analysis = referencesFallbackFrames(geometry, framed(5), TOLERANCES);
+    expect(analysis.components[0]?.segment_indices).toEqual([0, 2]);
+    expect(analysis.warnings).toEqual([
+      { kind: 'no_border_fallback', paper: [-200, -200, 200, 200] },
+      { kind: 'non_finite_segments', count: 1 },
     ]);
   });
 });
@@ -202,6 +249,43 @@ describe('ensureReferencesFrames', () => {
     engines.framed = [framed(0), framed(1)];
     engines.indexCalls = 0;
     engines.outlineCalls = 0;
+    engines.reports = [];
+  });
+
+  it('reports creases left out for having no position, once per document', async () => {
+    engines.index = indexOf([0, 0, -1], 1);
+    const withUnplaced = (seed: number, loadSerial: number) =>
+      ({
+        ...state(seed),
+        loadSerial,
+        geometry: geometryOf([
+          [0, 0, 40, 0, 0],
+          [0, 0, 40, 40, 1],
+          [NaN, NaN, NaN, NaN, 1],
+        ]),
+      }) as OristudioCpDocumentState;
+
+    await ensureReferencesFrames(withUnplaced(0, 1));
+    // An edit is another revision of the same document: said already.
+    await ensureReferencesFrames(withUnplaced(7, 1));
+    expect(engines.reports).toHaveLength(1);
+    // Another document is said again.
+    await ensureReferencesFrames(withUnplaced(0, 2));
+    expect(engines.reports).toHaveLength(2);
+
+    const [error, context] = engines.reports[0]!;
+    expect(context).toEqual({
+      surface: 'references:non-finite-creases',
+      handled: true,
+      tags: { count_bucket: '<=1' },
+    });
+    // A bucket is all that leaves: no count, no coordinate, in the message.
+    expect((error as Error).message).not.toMatch(/\d|NaN/);
+  });
+
+  it('reports nothing when every crease has a position', async () => {
+    await ensureReferencesFrames(state(0));
+    expect(engines.reports).toEqual([]);
   });
 
   it('reads one revision of the creases once', async () => {
@@ -214,6 +298,23 @@ describe('ensureReferencesFrames', () => {
     // Other creases are another revision.
     await ensureReferencesFrames(state(7));
     expect(engines.outlineCalls).toBe(2);
+  });
+
+  it('takes a border line with no position for no border at all', async () => {
+    engines.index = indexOf([-1, -1], 0);
+    const frames = await ensureReferencesFrames({
+      ...state(3),
+      geometry: geometryOf([
+        [NaN, NaN, NaN, NaN, 0],
+        [0, 0, 40, 40, 1],
+      ]),
+    } as OristudioCpDocumentState);
+    expect(frames?.analysis.components).toHaveLength(1);
+    expect(frames?.analysis.components[0]).toMatchObject({ is_fallback: true, segment_indices: [1] });
+    expect(frames?.analysis.warnings).toEqual([
+      { kind: 'no_border_fallback', paper: [-200, -200, 200, 200] },
+      { kind: 'non_finite_segments', count: 1 },
+    ]);
   });
 
   it('is null with no pattern, and does not keep a failure', async () => {

@@ -93,6 +93,15 @@ export function referencesSidebarWarnings(t: TFunction, frames: SheetAnalysis | 
           )
         );
         break;
+      case 'non_finite_segments':
+        warnings.push(
+          t(
+            'panels:references.warning.nonFiniteSegments',
+            '{{n}} crease(s) have invalid coordinates and are left out.',
+            { n: warning.count }
+          )
+        );
+        break;
     }
   }
   if (refused.length > 0) {

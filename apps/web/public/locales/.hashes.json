@@ -4551,7 +4551,8 @@
     "panels:diagram.turns.howAngleCounterclockwise": "35edc223d8b7",
     "panels:diagram.turns.rotateAngleClockwise": "6b10ef241eaa",
     "panels:diagram.turns.rotateAngleCounterclockwise": "15d23e81c99c",
-    "dialogs:paperExport.zipUnavailable": "ac5f8181da74"
+    "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
+    "panels:references.warning.nonFiniteSegments": "d6300696e654"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -9105,7 +9106,8 @@
     "panels:diagram.turns.howAngleCounterclockwise": "35edc223d8b7",
     "panels:diagram.turns.rotateAngleClockwise": "6b10ef241eaa",
     "panels:diagram.turns.rotateAngleCounterclockwise": "15d23e81c99c",
-    "dialogs:paperExport.zipUnavailable": "ac5f8181da74"
+    "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
+    "panels:references.warning.nonFiniteSegments": "d6300696e654"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -13661,7 +13663,8 @@
     "panels:diagram.turns.howAngleCounterclockwise": "35edc223d8b7",
     "panels:diagram.turns.rotateAngleClockwise": "6b10ef241eaa",
     "panels:diagram.turns.rotateAngleCounterclockwise": "15d23e81c99c",
-    "dialogs:paperExport.zipUnavailable": "ac5f8181da74"
+    "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
+    "panels:references.warning.nonFiniteSegments": "d6300696e654"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -18117,7 +18120,8 @@
     "panels:diagram.turns.howAngleCounterclockwise": "35edc223d8b7",
     "panels:diagram.turns.rotateAngleClockwise": "6b10ef241eaa",
     "panels:diagram.turns.rotateAngleCounterclockwise": "15d23e81c99c",
-    "dialogs:paperExport.zipUnavailable": "ac5f8181da74"
+    "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
+    "panels:references.warning.nonFiniteSegments": "d6300696e654"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -22573,7 +22577,8 @@
     "panels:diagram.turns.howAngleCounterclockwise": "35edc223d8b7",
     "panels:diagram.turns.rotateAngleClockwise": "6b10ef241eaa",
     "panels:diagram.turns.rotateAngleCounterclockwise": "15d23e81c99c",
-    "dialogs:paperExport.zipUnavailable": "ac5f8181da74"
+    "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
+    "panels:references.warning.nonFiniteSegments": "d6300696e654"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -27127,7 +27132,8 @@
     "panels:diagram.turns.howAngleCounterclockwise": "35edc223d8b7",
     "panels:diagram.turns.rotateAngleClockwise": "6b10ef241eaa",
     "panels:diagram.turns.rotateAngleCounterclockwise": "15d23e81c99c",
-    "dialogs:paperExport.zipUnavailable": "ac5f8181da74"
+    "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
+    "panels:references.warning.nonFiniteSegments": "d6300696e654"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -31681,7 +31687,8 @@
     "panels:diagram.turns.howAngleCounterclockwise": "35edc223d8b7",
     "panels:diagram.turns.rotateAngleClockwise": "6b10ef241eaa",
     "panels:diagram.turns.rotateAngleCounterclockwise": "15d23e81c99c",
-    "dialogs:paperExport.zipUnavailable": "ac5f8181da74"
+    "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
+    "panels:references.warning.nonFiniteSegments": "d6300696e654"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -36137,6 +36144,7 @@
     "panels:diagram.turns.howAngleCounterclockwise": "35edc223d8b7",
     "panels:diagram.turns.rotateAngleClockwise": "6b10ef241eaa",
     "panels:diagram.turns.rotateAngleCounterclockwise": "15d23e81c99c",
-    "dialogs:paperExport.zipUnavailable": "ac5f8181da74"
+    "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
+    "panels:references.warning.nonFiniteSegments": "d6300696e654"
   }
 }

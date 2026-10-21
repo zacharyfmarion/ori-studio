@@ -633,13 +633,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     inlineSimulations?: InlineSimulation[];
     label: string;
   }): void {
-    const document = get().oristudioCpDocument;
-    if (!document) return;
+    if (!get().oristudioCpDocument) return;
     // The new entry keeps its figures' handles alive for as long as undo can
     // reach them; anything the cap or the cleared redo stack drops lets go.
     retainFoldedFigureHandles(input.foldedFigures);
+    // No `document`: undo of an overlay step leaves the crease pattern alone.
     const past = withCpHistoryEntry(get().oristudioCpHistoryPast, {
-      document: document.document,
       selection: get().oristudioCpSelection,
       annotations: input.annotations,
       foldedFigures: input.foldedFigures,

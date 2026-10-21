@@ -1,8 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { decodeCompactGeometryBytes } from './oristudioCpNativeClient';
+import {
+  createOristudioCpNativeClient,
+  decodeCompactGeometryBytes,
+  encodeCompactGeometryBytes,
+} from './oristudioCpNativeClient';
+
+const invoke = vi.hoisted(() => vi.fn());
+vi.mock('@tauri-apps/api/core', () => ({ invoke }));
 
 // The cross-language pin for the compact-geometry wire format.
 //
@@ -96,5 +103,73 @@ describe('decodeCompactGeometryBytes', () => {
 
   it('throws on a buffer too small for the header', () => {
     expect(() => decodeCompactGeometryBytes(new ArrayBuffer(4))).toThrow();
+  });
+});
+
+// Undo on desktop sends geometry the other way, so the encoder is pinned to the
+// same Rust bytes. Only the JSON tail may differ: `JSON.stringify` writes `1`
+// where serde writes `1.0`, which the Rust decoder reads either way
+// (`binary_codec_reads_a_tail_written_by_javascript`).
+describe('encodeCompactGeometryBytes', () => {
+  const TAIL_AT = 13 * 4;
+  const tailLength = (bytes: Uint8Array) =>
+    new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(TAIL_AT - 4, true);
+
+  it('writes the Rust header and arrays byte for byte', () => {
+    const encoded = encodeCompactGeometryBytes(decodeCompactGeometryBytes(bufferOf(GOLDEN_BYTES)));
+    expect(encoded.slice(0, TAIL_AT - 4)).toEqual(GOLDEN_BYTES.slice(0, TAIL_AT - 4));
+    expect(encoded.slice(TAIL_AT + tailLength(encoded))).toEqual(
+      GOLDEN_BYTES.slice(TAIL_AT + tailLength(GOLDEN_BYTES))
+    );
+  });
+
+  it('round-trips through the decoder', () => {
+    const geometry = decodeCompactGeometryBytes(bufferOf(GOLDEN_BYTES));
+    expect(decodeCompactGeometryBytes(bufferOf(encodeCompactGeometryBytes(geometry)))).toEqual(
+      geometry
+    );
+  });
+
+  it('writes an absent fold-magnitude array as an empty one', () => {
+    const { segFoldMagnitude: _, ...rest } = decodeCompactGeometryBytes(bufferOf(GOLDEN_BYTES));
+    const decoded = decodeCompactGeometryBytes(bufferOf(encodeCompactGeometryBytes(rest)));
+    expect(Array.from(decoded.segFoldMagnitude ?? [-1])).toEqual([]);
+    expect(Array.from(decoded.pointCoords)).toEqual([12, 13]);
+  });
+
+  describe('as undo sends it', () => {
+    beforeEach(() => {
+      invoke.mockReset();
+      invoke.mockResolvedValue(undefined);
+    });
+
+    it('is the raw body, with the handle and the task session as headers', async () => {
+      const geometry = decodeCompactGeometryBytes(bufferOf(GOLDEN_BYTES));
+      await createOristudioCpNativeClient(3).restoreFromCompact(7, geometry);
+      expect(invoke).toHaveBeenCalledWith('cp_restore_from_compact', expect.any(Uint8Array), {
+        headers: { 'x-handle': '7', 'x-session-id': '3' },
+      });
+      const body = invoke.mock.calls[0]![1] as Uint8Array;
+      expect(decodeCompactGeometryBytes(bufferOf(body))).toEqual(geometry);
+      // A copy: the undo entry's arrays are still there to restore again.
+      expect(Array.from(geometry.segEndpoints)).toEqual([1, 2, 3, 4]);
+    });
+
+    it('names no session for the main one', async () => {
+      const geometry = decodeCompactGeometryBytes(bufferOf(GOLDEN_BYTES));
+      await createOristudioCpNativeClient().restoreFromCompact(7, geometry);
+      expect(invoke).toHaveBeenCalledWith('cp_restore_from_compact', expect.any(Uint8Array), {
+        headers: { 'x-handle': '7' },
+      });
+    });
+  });
+
+  it('reads only the view of an array that shares its buffer', () => {
+    const geometry = decodeCompactGeometryBytes(bufferOf(GOLDEN_BYTES));
+    const wide = new Float64Array([99, 12, 13, 99]);
+    const decoded = decodeCompactGeometryBytes(
+      bufferOf(encodeCompactGeometryBytes({ ...geometry, pointCoords: wide.subarray(1, 3) }))
+    );
+    expect(Array.from(decoded.pointCoords)).toEqual([12, 13]);
   });
 });

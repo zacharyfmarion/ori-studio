@@ -5,6 +5,7 @@ use crate::geometry::{
     distance, find_projection, get_segment_with_length, internal_division_ratio, move_parallel,
 };
 use crate::model::CreasePatternModel;
+use crate::operations::arrangement::remove_first_equal_copies;
 use crate::operations::transform::extend_to_intersection_point_2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -375,7 +376,12 @@ pub fn delete_circle(model: &mut CreasePatternModel, index: usize) -> bool {
 /// Resolves every target to a value before removing any of them, so the caller's
 /// indices all refer to the pre-delete ordering. Mirrors
 /// `arrangement::delete_line_segments_for_indices`, and through it Oriedita's
-/// repeated `deleteCircle` calls over a collected list.
+/// repeated `deleteCircle` calls over a collected list: each removes the first
+/// equal circle still there ([`remove_first_equal_copies`]).
+///
+/// Oriedita's `Circle` has no `equals`, so upstream's `List.remove(Object)`
+/// matches the very circle picked. This port has always matched by value, which
+/// differs only between circles that are exactly equal.
 pub fn delete_circles_for_indices(
     model: &mut CreasePatternModel,
     circle_indices: &[usize],
@@ -384,19 +390,13 @@ pub fn delete_circles_for_indices(
         .iter()
         .filter_map(|&index| model.circles.get(index).copied())
         .collect();
-    let mut deleted = 0;
-    for target in targets {
-        let Some(index) = model
-            .circles
-            .iter()
-            .position(|candidate| candidate == &target)
-        else {
-            continue;
-        };
-        model.circles.remove(index);
-        deleted += 1;
-    }
-    deleted
+    remove_first_equal_copies(&mut model.circles, &targets, circle_value_key)
+}
+
+/// A circle's centre and radius, with the two zeros as one: `Circle`'s derived
+/// equality compares them as numbers, so `0.0 == -0.0`.
+fn circle_value_key(circle: &Circle) -> [u64; 3] {
+    [circle.x, circle.y, circle.r].map(|value| if value == 0.0 { 0 } else { value.to_bits() })
 }
 
 /// Apply Oriedita's zero-radius circle pruning worker.

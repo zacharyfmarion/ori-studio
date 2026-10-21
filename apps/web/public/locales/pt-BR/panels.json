@@ -2082,6 +2082,7 @@
     "warning": {
       "degenerateBorderSegments": "{{n}} vinco(s) de borda têm extremidades coincidentes e foram ignorados.",
       "noBorder": "Sem dobras de borda: o papel padrão é usado como folha.",
+      "nonFiniteSegments": "{{n}} vinco(s) têm coordenadas inválidas e são deixados de fora.",
       "overlappingSheets": "{{n}} vinco(s) estão dentro de mais de uma folha e foram atribuídos à primeira.",
       "refusedSheets": "{{n}} folha(s) não são retângulos e ficam de fora.",
       "unassignedSegments": "{{n}} vinco(s) ficam fora de todas as folhas e são deixados de fora.",

@@ -274,6 +274,66 @@ describe.skipIf(!available)('References sheets from the index, against the plann
     expect(result.after.warnings).toEqual([{ kind: 'unassigned_segments', count: 1 }]);
   });
 
+  // Reflect selection over line with its axis's second point clicked on its
+  // first. The kernel used to mirror across that point and append a crease
+  // with every coordinate NaN, and the planner, handed the whole pattern,
+  // answered "coordinate 20 is not finite" for every sheet on the canvas.
+  it('reflecting the selection across one point adds nothing the planner rejects', () => {
+    const handle = cp(...square(0, 0, 40), '2 10 0 10 40');
+    cpWasm.execute_cp_command(handle, 'DrawCreaseSymmetric', {
+      line_ids: [5],
+      points: [
+        { x: 20, y: 0 },
+        { x: 20, y: 0 },
+      ],
+    });
+    const geometry = cpWasm.document_geometry(handle) as CpGeometryTransport;
+    const input = precreaseInputFromTransport(geometry);
+    expect(() => pre.sheet_frames(input.segments, input.colors, paperFallbackRect())).not.toThrow();
+    expect(geometry.segEndpoints).toHaveLength(5 * 4);
+    expect(compare(handle).differences).toEqual([]);
+  });
+
+  // Such a crease is still in files written before the kernel refused it: the
+  // .cp export wrote it as `NaN`, and Oriedita, which mirrors across the point
+  // too, writes it the same way. It is left out, and every sheet is still read.
+  it.each([
+    ['on a sheet', () => cp(...square(0, 0, 40), '2 10 0 10 40', '2 NaN NaN NaN NaN')],
+    ['on the default paper', () => cp('2 10 0 10 40', '2 NaN NaN NaN NaN', '3 0 0 40 40')],
+  ])('a crease with no position %s is left out and said so', (_, load) => {
+    const handle = load();
+    const geometry = cpWasm.document_geometry(handle) as CpGeometryTransport;
+    const index = new CpSheetIndex(cpWasm.sheet_index(handle) as CpSheetIndexTransport);
+    const tolerances = pre.precrease_tolerances() as PrecreaseTolerances;
+    const analysis =
+      index.sheetCount === 0
+        ? referencesFallbackFrames(geometry, paperOutline(), tolerances)
+        : referencesFramesFromIndex(
+            index,
+            geometry,
+            pre.outline_components(
+              index.transport.outlineCoords,
+              index.transport.outlineOffsets
+            ) as PrecreaseComponent[],
+            tolerances
+          );
+    expect(analysis.components).toHaveLength(1);
+    for (const sheet of analysis.components) {
+      const lines = referencesSheetLines(geometry, sheet);
+      const detail = pre.sheet_component(
+        sheet.id,
+        lines.outline,
+        lines.segments,
+        lines.colors,
+        lines.indices
+      ) as SheetAnalysis;
+      expect(detail.components[0]?.frame).not.toBeNull();
+    }
+    // Not a crease outside every sheet: a crease with nowhere to be.
+    expect(analysis.unassigned_segments).toEqual([]);
+    expect(analysis.warnings).toContainEqual({ kind: 'non_finite_segments', count: 1 });
+  });
+
   it.skipIf(corpus.length === 0).each(corpus)(
     'corpus %s: the same sheets, the same lines and the same verdicts',
     (file) => {

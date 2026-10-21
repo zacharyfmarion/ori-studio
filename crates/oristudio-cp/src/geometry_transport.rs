@@ -813,6 +813,57 @@ mod tests {
         }
     }
 
+    /// `value` as `JSON.stringify` writes it: a whole number has no `.0`.
+    fn as_javascript_writes_it(value: Value) -> Value {
+        match value {
+            Value::Number(number) => match number.as_f64() {
+                Some(float) if float.fract() == 0.0 && float.abs() < 2f64.powi(53) => {
+                    Value::from(float as i64)
+                }
+                _ => Value::Number(number),
+            },
+            Value::Array(items) => {
+                Value::Array(items.into_iter().map(as_javascript_writes_it).collect())
+            }
+            Value::Object(map) => Value::Object(
+                map.into_iter()
+                    .map(|(key, value)| (key, as_javascript_writes_it(value)))
+                    .collect(),
+            ),
+            other => other,
+        }
+    }
+
+    /// The desktop app's undo sends geometry the other way, from TypeScript
+    /// (`encodeCompactGeometryBytes`), whose tail is `JSON.stringify`'s: the
+    /// same fields, but `1` where this encoder writes `1.0`. The arrays are the
+    /// same bytes either way.
+    #[test]
+    fn binary_codec_reads_a_tail_written_by_javascript() {
+        const TAIL_AT: usize = CompactGeometry::HEADER_U32S * 4;
+        for (index, doc) in battery().into_iter().enumerate() {
+            let compact = encode(&doc);
+            let bytes = compact.to_bytes().expect("to_bytes");
+            let tail_len =
+                u32::from_le_bytes(bytes[TAIL_AT - 4..TAIL_AT].try_into().unwrap()) as usize;
+            let tail: Value =
+                serde_json::from_slice(&bytes[TAIL_AT..TAIL_AT + tail_len]).expect("tail");
+            let rewritten_tail =
+                serde_json::to_vec(&as_javascript_writes_it(tail)).expect("rewrite tail");
+            // Every grid has whole numbers in it, so the two spellings differ.
+            assert_ne!(rewritten_tail, &bytes[TAIL_AT..TAIL_AT + tail_len]);
+
+            let mut rewritten = bytes[..TAIL_AT - 4].to_vec();
+            rewritten.extend_from_slice(&(rewritten_tail.len() as u32).to_le_bytes());
+            rewritten.extend_from_slice(&rewritten_tail);
+            rewritten.extend_from_slice(&bytes[TAIL_AT + tail_len..]);
+
+            let decoded = CompactGeometry::from_bytes(&rewritten)
+                .unwrap_or_else(|err| panic!("battery doc {index}: {err}"));
+            assert_eq!(decoded, compact, "battery doc {index}");
+        }
+    }
+
     #[test]
     fn binary_codec_rejects_corrupt_buffers() {
         let compact = encode(&battery()[1]);

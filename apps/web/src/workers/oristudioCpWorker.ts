@@ -208,6 +208,10 @@ const api = {
     const index = await call(() => sheet_index(handle) as CpSheetIndexTransport);
     return transfer(index, sheetIndexTransferables(index));
   },
+  /**
+   * Undo and redo. The caller posts `geometry` as a copy, never transferred:
+   * it is an undo entry's, which may be restored again.
+   */
   async restoreFromCompact(handle: number, geometry: CpGeometryTransport): Promise<void> {
     return call(() => restore_from_compact(handle, geometry as unknown as object));
   },

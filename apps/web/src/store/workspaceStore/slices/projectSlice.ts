@@ -149,7 +149,7 @@ import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotat
 import type { InlineSimulation } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
 import { noteInlineSimulationIds } from '../../../cp-workspace/inlineSimulation/inlineSimulationIds';
 import { discardCpDocumentState } from '../cpDocumentState';
-import { withCpHistoryEntry } from '../cpHistory';
+import { cpHistoryDocumentOf, withCpHistoryEntry } from '../cpHistory';
 import {
   documentStateAfterSelection,
   lineSelectionOf,
@@ -258,6 +258,7 @@ import {
   setOristudioCpDocumentSource,
 } from '../oristudioCpRuntime';
 import type {
+  OristudioCpHistoryDocument,
   OristudioCpHistoryEntry,
   PendingSharedCp,
   ProjectSlice,
@@ -297,8 +298,13 @@ function nowIso(): string {
 
 
 
+/**
+ * An undo entry for a step taken from the state the store held. `document` is
+ * what undo puts back (`cpHistoryDocumentOf`), and is left out for a step that
+ * did not change the document.
+ */
 function cpHistoryEntry(
-  document: Awaited<ReturnType<typeof loadOristudioCpDocumentFromText>>['document'],
+  document: OristudioCpHistoryDocument | undefined,
   label: string,
   selection: OristudioCpSelection,
   annotations: CanvasAnnotation[],
@@ -310,7 +316,7 @@ function cpHistoryEntry(
   // reach it — see cp-workspace/foldedFigureHandles.
   retainFoldedFigureHandles(foldedFigures);
   return {
-    document,
+    ...(document ? { document } : {}),
     selection,
     annotations,
     // Captured so undo restores the figures a crease edit was made alongside —
@@ -778,7 +784,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     }
 
     try {
-      const previousDocument = get().oristudioCpDocument?.document ?? null;
+      const previousState = get().oristudioCpDocument;
+      const previousDocument = previousState ? cpHistoryDocumentOf(previousState) : null;
       const previousSelection = get().oristudioCpSelection;
       const commandDocument = await mutate();
       const nextRevision = get().oristudioCpRevision + 1;
@@ -863,7 +870,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpSelection: lineSelectionOf(change.after),
       oristudioCpHistoryPast: withCpHistoryEntry(get().oristudioCpHistoryPast, {
         ...cpHistoryEntry(
-          documentState.document,
+          undefined,
           String(operationId),
           previousSelection,
           get().oristudioCpAnnotations,
@@ -2497,7 +2504,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         return false;
       }
       try {
-        const previousDocument = get().oristudioCpDocument?.document ?? null;
+        const previousState = get().oristudioCpDocument;
+        const previousDocument = previousState ? cpHistoryDocumentOf(previousState) : null;
         const previousSelection = get().oristudioCpSelection;
         const mutatesDocument = !NON_MUTATING_CP_OPERATIONS.has(operationId);
         const editsCreasePattern =
@@ -2723,7 +2731,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpHistoryPast: withCpHistoryEntry(
             get().oristudioCpHistoryPast,
             cpHistoryEntry(
-              previousDocument,
+              cpHistoryDocumentOf(currentDocumentState),
               label,
               previousSelection,
               get().oristudioCpAnnotations,

@@ -58,7 +58,7 @@ it("undoes and redoes both histories together, but never rewinds intervening edi
   const diagramBefore = createDiagram(),
     diagramAfter = { ...diagramBefore, title: "after" };
   const cpEntry = {
-    document: before,
+    document: { snapshot: before },
     selection: get().oristudioCpSelection,
     annotations: [],
     foldedFigures: [],
@@ -377,7 +377,7 @@ it("says why a paired undo waits, and after one closes a detail left on a remove
   useWorkspaceStore.setState({
     oristudioCpDocument: state,
     oristudioCpHistoryPast: [
-      { ...pair, document: before, selection: get().oristudioCpSelection, annotations: [], foldedFigures: [], activeFoldedFigureId: null },
+      { ...pair, document: { snapshot: before }, selection: get().oristudioCpSelection, annotations: [], foldedFigures: [], activeFoldedFigureId: null },
     ],
     diagram: { ...diagramBefore, steps: [imported] },
     diagramHistory: { past: [{ ...pair, snapshot: diagramBefore }], future: [] },
@@ -435,7 +435,7 @@ it('does not start publication while Edit history is being restored', async () =
 it.each(['undo', 'redo'] as const)('blocks ordinary Edit %s during batch publication', async (direction) => {
   const document = createStarterOristudioCpDocument();
   const entry = {
-    document,
+    document: { snapshot: document },
     selection: get().oristudioCpSelection,
     annotations: [],
     foldedFigures: [],

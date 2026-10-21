@@ -33,6 +33,7 @@ use oristudio_cp::session::{
 };
 use oristudio_cp::{CommandPreview, CommandResult, CreasePatternCommandPayload, OperationId};
 use tauri::State;
+use tauri::ipc::{InvokeBody, Request};
 
 /// Managed engine state — one [`CpSession`] behind a `Mutex`, shared via `Arc` so
 /// each command can move a handle onto its `spawn_blocking` worker thread.
@@ -384,17 +385,47 @@ pub async fn cp_document_geometry(
     Ok(tauri::ipc::Response::new(bytes))
 }
 
+/// Restore a document in place from compact geometry: undo and redo. The
+/// geometry is the request's raw body, in [`CompactGeometry::to_bytes`] layout
+/// (the client writes it with `encodeCompactGeometryBytes`), so half a million
+/// creases cross as one buffer instead of JSON arrays of every coordinate. A raw
+/// body carries no arguments, so the handle and the task session, if any, are
+/// the `x-handle` and `x-session-id` headers.
 #[tauri::command]
 pub async fn cp_restore_from_compact(
-    handle: u32,
-    geometry: CompactGeometry,
+    request: Request<'_>,
     state: State<'_, CpEngine>,
-    session_id: Option<u32>,
 ) -> Result<(), EngineError> {
+    let handle = u32_header(&request, "x-handle")?
+        .ok_or_else(|| EngineError::new("invalid_input", "request has no x-handle header"))?;
+    let session_id = u32_header(&request, "x-session-id")?;
+    let geometry = match request.body() {
+        InvokeBody::Raw(bytes) => CompactGeometry::from_bytes(bytes)
+            .map_err(|error| EngineError::new("invalid_input", error))?,
+        InvokeBody::Json(_) => {
+            return Err(EngineError::new(
+                "invalid_input",
+                "expected compact geometry as a binary request body",
+            ));
+        }
+    };
     run(state, session_id, move |session| {
         session.restore_from_compact(handle, &geometry)
     })
     .await
+}
+
+/// A request header holding a number, or `None` when the request has none.
+fn u32_header(request: &Request<'_>, name: &str) -> Result<Option<u32>, EngineError> {
+    let Some(value) = request.headers().get(name) else {
+        return Ok(None);
+    };
+    value
+        .to_str()
+        .ok()
+        .and_then(|text| text.parse().ok())
+        .map(Some)
+        .ok_or_else(|| EngineError::new("invalid_input", format!("{name} is not a number")))
 }
 
 /// The document's sheets as one binary buffer (see `CompactSheetIndex::to_bytes`):
