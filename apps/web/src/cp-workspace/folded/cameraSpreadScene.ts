@@ -1,9 +1,10 @@
-/** Experimental lift → camera → BSP drawing, shared by explorer and corpus eval. */
+/** Experimental lift → camera drawing, with layer order or diagnostic BSP depth. */
 import { buildBsp, traverseBsp, type BspItem, type Vec3 } from '@treemaker/origami-simulator';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import type { PaperItem, PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import { foldedFlatPaperScene } from './foldedFlatScene';
 import { cameraSpreadLift, liftWeights, type CameraSpreadLift } from './cameraSpreadLift';
+import { cameraPaintPlans } from './cameraSpreadVisibility';
 
 export interface CameraSpreadOptions {
   /** Total depth bound as a fraction of original folded extent. */
@@ -13,6 +14,8 @@ export interface CameraSpreadOptions {
   /** 0 is top-down, 90 edge-on, 180 the underside. Diagram mode stops at 80. */
   inclinationDeg: number;
   projection: 'diagram' | 'orthographic' | 'perspective';
+  /** Authored diagram order by default; raw depth is an explicit diagnostic. */
+  visibility?: 'layers' | 'depth';
 }
 interface FaceStyle {
   face: number;
@@ -33,7 +36,7 @@ const drawings = new WeakMap<CameraSpreadLift, PreparedDrawing>();
 function drawing(mesh: CameraSpreadLift, kernel: OristudioCpFoldedPaperScene): PreparedDrawing {
   const held = drawings.get(mesh);
   if (held) return held;
-  // Bent panels produce many BSP splits. The live explorer uses a depth buffer;
+  // Bent panels produce many BSP splits. The live explorer uses GPU visibility;
   // this experimental vector path refuses large meshes rather than freezing UI.
   if (mesh.triangles.length > 2000) {
     throw new Error('Experimental camera vector projection exceeds its 2,000-triangle budget');
@@ -135,7 +138,7 @@ function drawing(mesh: CameraSpreadLift, kernel: OristudioCpFoldedPaperScene): P
   return result;
 }
 
-/** A cached unit-height BSP survives every positive depth scale and camera change. */
+/** Cached unit-height geometry survives positive depth scales and camera changes. */
 export function cameraSpreadScene(
   kernel: OristudioCpFoldedPaperScene,
   options: CameraSpreadOptions
@@ -152,7 +155,8 @@ export function cameraSpreadScene(
       scale: 1,
     });
   const mesh = cameraSpreadLift(kernel);
-  const prepared = drawing(mesh, kernel);
+  const geometric = options.visibility === 'depth';
+  const prepared = geometric ? drawing(mesh, kernel) : null;
   const phi = (directionDeg * Math.PI) / 180;
   const theta =
     ((projection === 'diagram' ? Math.min(80, Math.max(0, inclinationDeg)) : inclinationDeg) * Math.PI) / 180;
@@ -160,7 +164,12 @@ export function cameraSpreadScene(
   const v = Math.sin(phi);
   const sin = Math.sin(theta);
   const cos = Math.cos(theta);
-  const [cx, cy] = prepared.centre;
+  const xs = mesh.xy.map((p) => p.x),
+    ys = mesh.xy.map((p) => p.y);
+  const [cx, cy] = prepared?.centre ?? [
+    (Math.min(...xs) + Math.max(...xs)) / 2,
+    (Math.min(...ys) + Math.max(...ys)) / 2,
+  ];
   // Inverse of the depth scaling maps the eye into the cached BSP's frame.
   const distance = projection === 'perspective' ? 2.5 : 1e8;
   const eye: Vec3 = [cx + distance * sin * u, cy + distance * sin * v, (distance * cos) / amount];
@@ -183,12 +192,22 @@ export function cameraSpreadScene(
       mesh.origin.y + mesh.size * (cy + horizontal * v + vertical * u),
     ];
   };
-  const ordered = traverseBsp(prepared.tree, eye);
+  const plan = prepared ? null : cameraPaintPlans(mesh, kernel)[cos < 0 ? 'back' : 'front'];
+  const ordered = prepared
+    ? traverseBsp(prepared.tree, eye)
+    : plan!.pieces.map((p, ref) => ({ kind: p.kind === 'face' ? 0 : 1, ref, points: p.points }));
   const items: PaperItem[] = [];
   for (const piece of ordered) {
     const points = piece.points.map(project);
     if (piece.kind === 0) {
-      const style = prepared.faces[piece.ref]!;
+      const p = plan?.pieces[piece.ref];
+      const style = prepared
+        ? prepared.faces[piece.ref]!
+        : {
+            face: p!.face,
+            front: kernel.faces[p!.face]!.front_up,
+            orientation: Math.sign(area(p!.points[0]!, p!.points[1]!, p!.points[2]!)),
+          };
       const signed = polygonArea(points);
       if (Math.abs(signed) < 1e-10 * mesh.size ** 2) continue;
       const sameSide = Math.sign(signed) === style.orientation;
@@ -203,7 +222,7 @@ export function cameraSpreadScene(
     } else {
       items.push({
         kind: 'line',
-        role: prepared.edges[piece.ref]!.role,
+        role: prepared ? prepared.edges[piece.ref]!.role : plan!.pieces[piece.ref]!.role!,
         a: points[0]!,
         b: points[1]!,
         onBoundary: [false, false],

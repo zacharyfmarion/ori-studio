@@ -38,6 +38,9 @@ for Zach to validate before making this the default diagram spread.
 - [x] Evaluate continuity, separation, strain, zero amount and responsiveness.
 - [x] Inspect the explorer in a real browser and leave it running.
 - [x] Document findings and the default-spread integration path; open draft PR.
+- [x] Lock camera visibility to diagram layer ordering, including woven patches and hidden ink.
+- [x] Add the supplied CP example without changing its source or committing private data.
+- [x] Validate the clipping regression, underside ordering, woven regions and live explorer.
 
 ## Result and remaining product work
 
@@ -50,3 +53,11 @@ visual acceptance; this research branch does not claim to complete that feature.
 The concrete follow-on design is in `research/2026-10-21-camera-spread.md`.
 
 Draft PR: https://github.com/zacharyfmarion/ori-studio/pull/490
+
+Clipping follow-up: the explorer defaults to layer-ordered visibility, carries
+local woven patches and auxiliary ink, and reverses stacks for underside views.
+Raw geometric depth remains an explicit diagnostic. The additional CP folds to
+151 faces without repairing the source; all 33 examples produce finite front/back
+paint geometry. There are now 89 focused tests. Physical strain/contact validity
+and newly exposed buried woven ordering remain research limits, described in the
+research note; this does not change the production spread default.

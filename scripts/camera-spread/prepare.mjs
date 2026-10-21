@@ -5,7 +5,10 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 const run = promisify(execFile);
 const corpus = process.argv[2];
-if (!corpus) throw new Error('Usage: node scripts/camera-spread/prepare.mjs <cpoogle-directory>');
+if (!corpus)
+  throw new Error(
+    'Usage: node scripts/camera-spread/prepare.mjs <cpoogle-directory> [extra.cp|extra.fold ...]'
+  );
 const out = path.resolve('artifacts/camera-spread');
 await mkdir(out, { recursive: true });
 const mount = path.resolve('apps/web/src/generated/camera-spread');
@@ -22,6 +25,7 @@ for (const name of (await readdir(corpus)).sort()) {
       edges: data.edges_vertices.length,
       vertices: data.vertices_coords.length,
       file,
+      source: 'corpus',
     });
   } catch {
     /* Non-model files. */
@@ -41,7 +45,17 @@ for (const m of catalog)
     )
   )
     selected.set(m.id, m);
-const pending = [...selected.values()];
+const extra = process.argv.slice(3).map((file) => ({
+  file,
+  id: path
+    .basename(file, path.extname(file))
+    .replace(/[^a-z0-9]+/gi, '-')
+    .toLowerCase(),
+  label: path.basename(file),
+  source: 'example',
+}));
+const pending = [...selected.values(), ...extra];
+if (new Set(pending.map((m) => m.id)).size !== pending.length) throw new Error('Duplicate example id');
 const results = [];
 async function worker() {
   while (pending.length) {
@@ -80,7 +94,7 @@ await writeFile(
     {
       total: catalog.length,
       selection:
-        '24 edge-count quantiles plus 8 named regressions; truth.fold; 12s timeout per fold; no exactization',
+        '24 edge-count quantiles plus 8 named regressions; optional additional examples; 12s timeout per fold; no exactization',
       models: results,
     },
     null,

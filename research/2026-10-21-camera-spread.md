@@ -94,18 +94,35 @@ size. Rich top-down opening requires in-plane motion as well, hence a nonlinear
 shell refinement. Perspective uses a finite eye at 2.5 model extents and proper
 reciprocal depth interpolation for the GPU depth test.
 
-The live explorer uploads the connected mesh once and changes camera uniforms.
-Faces write a depth buffer and edges are depth-tested against it, so covered
-segments disappear at the current camera. Rendering excludes internal mesh edges.
-This is raster visibility; it does not generate vector clipping paths.
+The live explorer now defaults to **Preserve layer order**. It lifts the existing
+flat diagram paint plan rather than trusting the approximate heights for
+visibility. Each paint item has a disjoint GPU depth interval; geometric depth
+only resolves triangles within that interval. Consequently an inverted buried
+face and its ink cannot win the depth test against a later covering item.
+Front and underside plans are prepared once in the worker; the underside plan
+reverses each supplied local stack. Camera controls still change only uniforms.
 
-The separate BSP experiment recomputes ordering geometrically and splits edges
-and faces. Its unit-height tree can be reused for every positive uniform depth
-scale by transforming the eye inversely. This was expensive even on the
-76-face frog (10,857 pieces in an initial probe), so the interactive explorer
-uses the GPU and the vector path refuses meshes over 2,000 triangles. Production
-SVG/PDF needs more careful clipping/merging and a worker, not a synchronous BSP
-call in the pose panel.
+A global face sort alone would break woven folds. The adapter therefore carries
+the existing renderer's local overlap patches as well as whole faces. It clips
+patches against bending triangles and interpolates their heights, without inking
+the artificial seams. Auxiliary lines and crease edges are split at the same
+triangulation and use their owner's paint order. Barycentric clipping tolerances
+prevent near-degenerate triangles from extrapolating ink into long spikes.
+
+This is **diagrammatic visibility**, not a repaired 3D surface. The inherited
+flat paint plan guarantees its original visible stacks, but deliberately does
+not encode every buried order inside a woven component. New overlaps/exposures
+under large distortions and arbitrary cameras still need visual validation;
+this is not a general proof of collision-free, layer-consistent 3D unfolding.
+The UI retains the physical inversion and strain diagnostics for that reason.
+
+**Raw 3D depth** is an explicit comparison mode showing the underlying fit's
+crossings. The separate BSP experiment also remains available through
+`visibility: 'depth'`; its unit-height tree is reusable for positive depth scales
+by transforming the eye inversely. That path refuses meshes over 2,000 triangles
+because splitting was expensive even on the 76-face frog (10,857 pieces in an
+initial probe). The layer-ordered vector experiment uses the same lifted paint
+pieces as the GPU. Neither path is wired into production SVG/PDF export.
 
 ## Corpus evidence
 
@@ -145,6 +162,25 @@ underside, mesh overlay and model switching. Draw timing displayed in the UI is
 CPU submission time, not a claim of GPU frame rate. Timing does not include a
 new model's preparation. Private per-model reports remain in ignored
 `artifacts/camera-spread/evaluation.json`.
+
+## Clipping follow-up and supplied example
+
+The reported pale triangular breakthroughs on the frog motivated the explicit
+layer-order display policy above. The explorer offers both policies at identical
+camera settings so the difference can be inspected directly.
+
+`ldm_layer_issue.cp` is an additional external example, separate from the
+32/484 corpus sample. It folds to 151 faces with 266 carried auxiliary segments.
+No repair or rounding was needed: the research importer must use the app's
+selected-fold entry with folding-colour IDs, so auxiliary ink is excluded from
+face tracing but retained in the paper scene. Passing every segment to the raw
+fold entry had caused `fold_faces_unresolved`. The source file is unchanged.
+
+All 33 examples folded and produced front/back paint plans with finite points
+and heights inside the lifted mesh's range. LDM's fit has 1,744/10,005 inverted
+probes and 1.27% / 216.75% 95th/worst edge extension at 6%; layer clipping hides
+visibility errors, but does not make that deformation physically acceptable.
+Private data and screenshots remain under ignored `artifacts/camera-spread/`.
 
 ## Recommended production implementation
 
@@ -187,10 +223,11 @@ not claims that a fully collision-free general origami opening has been solved.
 
 ## Validation status
 
-- Seven new synthetic tests: identity-based connectivity, independent coincident
+- Ten synthetic tests: identity-based connectivity, independent coincident
   layers, ordering, cache/purity, exact zero, view reversal/arbitrary cameras,
-  malformed-topology refusal.
-- Existing flat scene, spread and CSS-module ratchet tests run with them: 86 tests passed.
+  malformed-topology refusal, deliberately inverted layers/hidden ink, woven
+  crossings from both sides, and bounded auxiliary ink on very thin triangles.
+- Existing flat scene, spread and CSS-module ratchet tests run with them: 89 tests passed.
 - Web lint and typecheck run after rebuilding stale/missing local generated APIs.
 - No Rust behavior, native shell, production route or shipping bundle changed.
   Rust workspace/oracle, Tauri and production build validation are out of scope.

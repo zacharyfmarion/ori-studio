@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import { cameraSpreadStrain, type CameraSpreadLift } from '../../cp-workspace/folded/cameraSpreadLift';
 import type { CameraSpreadOptions } from '../../cp-workspace/folded/cameraSpreadScene';
+import type { CameraPaintPlans } from '../../cp-workspace/folded/cameraSpreadVisibility';
 import { foldedFlatPaperScene } from '../../cp-workspace/folded/foldedFlatScene';
 import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import type { PaperScene } from '../../lib/paper/paperScene';
@@ -16,6 +17,8 @@ interface Model {
   faces?: number;
   edges: number;
   status: string;
+  source?: 'corpus' | 'example';
+  label?: string;
 }
 interface Manifest {
   total: number;
@@ -27,6 +30,7 @@ const initial: CameraSpreadOptions = {
   directionDeg: 247,
   inclinationDeg: 45,
   projection: 'diagram',
+  visibility: 'layers',
 };
 const nice = (id: string) => id.replaceAll('-', ' ').replace(/ by /, ' · ');
 const percent = (n: number) => (100 * n).toFixed(2) + '%';
@@ -108,6 +112,7 @@ function FlatCanvas({
 function CameraCanvas({
   kernel,
   mesh,
+  plans,
   options,
   zoom,
   wire,
@@ -115,6 +120,7 @@ function CameraCanvas({
 }: {
   kernel: OristudioCpFoldedPaperScene;
   mesh: CameraSpreadLift;
+  plans: CameraPaintPlans;
   options: CameraSpreadOptions;
   zoom: number;
   wire: boolean;
@@ -126,7 +132,7 @@ function CameraCanvas({
   useEffect(() => {
     if (!canvas.current) return;
     try {
-      renderer.current = createCameraRenderer(canvas.current, mesh, kernel);
+      renderer.current = createCameraRenderer(canvas.current, mesh, kernel, plans);
     } catch (e) {
       setError(String(e));
     }
@@ -134,7 +140,7 @@ function CameraCanvas({
       renderer.current?.dispose();
       renderer.current = null;
     };
-  }, [mesh, kernel]);
+  }, [mesh, kernel, plans]);
   useEffect(() => {
     const node = canvas.current;
     if (!node) return;
@@ -191,9 +197,13 @@ function Dial({ value, onChange }: { value: number; onChange: (v: number) => voi
 }
 function App() {
   const [manifest, setManifest] = useState<Manifest | null>(null);
-  const [model, setModel] = useState('frog-frog-by-gen-hagiwara');
+  const [model, setModel] = useState(
+    () => new URLSearchParams(location.search).get('model') || 'frog-frog-by-gen-hagiwara'
+  );
   const [kernel, setKernel] = useState<OristudioCpFoldedPaperScene | null>(null);
   const [mesh, setMesh] = useState<CameraSpreadLift | null>(null);
+  const [plans, setPlans] = useState<CameraPaintPlans | null>(null);
+  const [visibilityMs, setVisibilityMs] = useState(0);
   const [error, setError] = useState('');
   const [options, setOptions] = useState(initial);
   const [comparison, setComparison] = useState('flat');
@@ -220,6 +230,7 @@ function App() {
     let worker: Worker | undefined;
     setKernel(null);
     setMesh(null);
+    setPlans(null);
     setError('');
     setVerdict('');
     setNotes('');
@@ -238,7 +249,11 @@ function App() {
         });
         worker.onmessage = (e) => {
           if (e.data.error) setError(e.data.error);
-          else setMesh(e.data.mesh);
+          else {
+            setMesh(e.data.mesh);
+            setPlans(e.data.plans);
+            setVisibilityMs(e.data.visibilityMs);
+          }
         };
         worker.onerror = (e) => setError(e.message);
         worker.postMessage(scene);
@@ -274,6 +289,8 @@ function App() {
   );
   const models = manifest?.models.filter((m) => m.status === 'solved') ?? [];
   const selected = manifest?.models.find((m) => m.id === model);
+  const corpusCount = manifest?.models.filter((m) => m.source !== 'example').length;
+  const exampleCount = manifest?.models.filter((m) => m.source === 'example').length ?? 0;
   const saveReview = () => {
     const next = [...reviews, { model, options, verdict, notes, at: new Date().toISOString() }];
     setReviews(next);
@@ -307,16 +324,16 @@ function App() {
           <select aria-label="Corpus model" value={model} onChange={(e) => setModel(e.target.value)}>
             {models.map((m) => (
               <option key={m.id} value={m.id}>
-                {nice(m.id)} · {m.faces} faces
+                {m.label ?? nice(m.id)} · {m.faces} faces
               </option>
             ))}
           </select>
         </label>
         <div>
           <b>
-            {manifest?.models.length ?? '…'} / {manifest?.total ?? '…'}
+            {corpusCount ?? '…'} / {manifest?.total ?? '…'}
           </b>
-          <span>patterns sampled</span>
+          <span>patterns sampled{exampleCount ? ` + ${exampleCount} example` : ''}</span>
         </div>
         <div>
           <b>{selected?.faces ?? '…'}</b>
@@ -350,10 +367,11 @@ function App() {
               </div>
               {kernel && options.amount === 0 ? (
                 <FlatCanvas kernel={kernel} zoom={zoom} label="Camera distortion at zero" />
-              ) : kernel && mesh ? (
+              ) : kernel && mesh && plans ? (
                 <CameraCanvas
                   kernel={kernel}
                   mesh={mesh}
+                  plans={plans}
                   options={options}
                   zoom={zoom}
                   wire={wire}
@@ -368,7 +386,11 @@ function App() {
           </div>
           <div className={styles.stats}>
             <div>
-              <b>{mesh ? (mesh.diagnostics.prepareMs + mesh.diagnostics.solveMs).toFixed(0) + ' ms' : '…'}</b>
+              <b>
+                {mesh
+                  ? (mesh.diagnostics.prepareMs + mesh.diagnostics.solveMs + visibilityMs).toFixed(0) + ' ms'
+                  : '…'}
+              </b>
               <span>one-time preparation</span>
             </div>
             <div>
@@ -385,13 +407,15 @@ function App() {
                   ? `${(options.amount === 0 ? 0 : mesh.diagnostics.probeInversions).toLocaleString()} / ${mesh.diagnostics.probeCount.toLocaleString()}`
                   : '…'}
               </b>
-              <span>layer-order failures at probe points</span>
+              <span>3D fit inversions · before visibility clipping</span>
             </div>
           </div>
           <p className={styles.notice}>
-            Research result: the mesh stays connected, but this height fit can stretch paper and invert layer
-            order. Visibility is depth-tested; it does not repair intersections. Do not treat this as a
-            validated fold.
+            {options.visibility === 'depth'
+              ? 'Raw 3D depth shows intersections in the approximate fit. Switch to Preserve layer order to hide buried faces and edges.'
+              : 'Layer order is locked to the solved diagram, including local patches for woven folds. Buried surfaces and ink stay behind their covering layers.'}{' '}
+            The connected mesh can still stretch and intersect; clipping improves the drawing, not the
+            physical fit.
           </p>
           <details className={styles.details}>
             <summary>What to look for</summary>
@@ -407,8 +431,9 @@ function App() {
             </p>
             <p>
               Sample: 24 deterministic edge-count quantiles plus eight named regression models. All{' '}
-              {models.length} selected patterns folded successfully. This is not all {manifest?.total} corpus
-              files. Preparation runs in a cancellable worker; controls only update camera uniforms.
+              {corpusCount} selected patterns folded successfully, with {exampleCount} additional example.
+              This is not all {manifest?.total} corpus files. Preparation runs in a cancellable worker;
+              controls only update camera uniforms.
             </p>
           </details>
           <section className={styles.review}>
@@ -443,6 +468,17 @@ function App() {
         </section>
         <aside className={styles.controls}>
           <h2>Camera distortion</h2>
+          <label>
+            Visibility
+            <select
+              aria-label="Visibility"
+              value={options.visibility ?? 'layers'}
+              onChange={(e) => set('visibility', e.target.value as 'layers' | 'depth')}
+            >
+              <option value="layers">Preserve layer order</option>
+              <option value="depth">Raw 3D depth · diagnose crossings</option>
+            </select>
+          </label>
           <label className={styles.slider}>
             Amount <output>{(options.amount * 100).toFixed(1)}%</output>
             <input
