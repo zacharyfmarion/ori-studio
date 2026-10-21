@@ -153,13 +153,14 @@ export function paperSceneToSvg(
         `fill="${page.background}"/>`
     );
   }
-  elements.push(
-    ...sceneElements(scene, style, {
-      project: place,
-      unitsPerPt: 1,
-      keepHiddenFaces: page.keepHiddenFaces,
-    })
-  );
+  const body = sceneElements(scene, style, {
+    project: place,
+    unitsPerPt: 1,
+    keepHiddenFaces: page.keepHiddenFaces,
+  });
+  // One at a time, not spread: a large pattern's elements overflow the
+  // argument limit (ORI-STUDIO-T).
+  for (const element of body) elements.push(element);
 
   const svg = [
     '<?xml version="1.0" encoding="UTF-8"?>',

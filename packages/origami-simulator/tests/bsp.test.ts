@@ -183,6 +183,21 @@ describe('ordering interpenetrating geometry', () => {
     expect(traverseBsp(buildBsp(edges), [0, 0, 1])).toHaveLength(2);
   });
 
+  it('draws a flat sheet of more faces than a call can take as arguments, in order', () => {
+    // Folded flat, every face of a large pattern lies in one plane, and so in
+    // one node's coplanar list.
+    const count = 500_000;
+    const items: BspItem[] = Array.from({ length: count }, (_, ref) => ({
+      kind: 0,
+      ref,
+      order: ref,
+      points: [[ref, 0, 0], [ref + 1, 0, 0], [ref, 1, 0]],
+    }));
+    const ordered = traverseBsp(buildBsp(items), [0, 0, 10]);
+    expect(ordered).toHaveLength(count);
+    expect(ordered.every((item, index) => item.ref === index)).toBe(true);
+  });
+
   describe('a caller-supplied draw order among coplanar items', () => {
     // A coplanar stack pushed bottom-first, buried among faces that every
     // candidate plane cuts. `chooseSplitter` samples every floor(faces/5)-th

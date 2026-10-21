@@ -91,11 +91,18 @@ export function cpLineSelectionBounds(
   lines: readonly OristudioCpLineSegment[]
 ): CpLineSelectionBounds | null {
   if (lines.length === 0) return null;
-  const points = lines.flatMap((line) => [line.a, line.b]);
-  const minX = Math.min(...points.map((point) => point.x));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y));
-  const maxY = Math.max(...points.map((point) => point.y));
+  // A loop, not a spread: a large selection's endpoints overflow the argument
+  // limit (ORI-STUDIO-H).
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const { a, b } of lines) {
+    minX = Math.min(minX, a.x, b.x);
+    minY = Math.min(minY, a.y, b.y);
+    maxX = Math.max(maxX, a.x, b.x);
+    maxY = Math.max(maxY, a.y, b.y);
+  }
   return {
     minX,
     minY,
