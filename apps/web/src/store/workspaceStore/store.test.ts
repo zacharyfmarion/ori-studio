@@ -86,6 +86,7 @@ import {
 import { isFoldedFigureStale } from '../../cp-workspace/folded/foldedFigureStaleness';
 import { foldedFigureOtherSideCamera } from '../../cp-workspace/folded/folded3dCamera';
 import {
+  foldedFigureHandleRefCount,
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
 } from '../../cp-workspace/folded/foldedFigureHandles';
@@ -5889,6 +5890,10 @@ describe('workspace store slices', () => {
     const restored = useWorkspaceStore.getState().oristudioCpFoldedFigures;
     expect(restored).toHaveLength(1);
     expect(restored[0].handle).toBe(7);
+    // Nor by the undo: the entry's reference passes to the live list with the
+    // figure, rather than being released out from under it (ORI-STUDIO-M).
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).not.toHaveBeenCalled();
+    expect(foldedFigureHandleRefCount(7)).toBe(1);
 
     // And it really is editable again: a model update reaches the kernel.
     await expect(

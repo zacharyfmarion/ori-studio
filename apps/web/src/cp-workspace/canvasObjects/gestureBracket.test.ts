@@ -134,6 +134,38 @@ describe('createGestureBracket', () => {
     expect(act).not.toHaveBeenCalled();
   });
 
+  it('holds the baseline until its entry is recorded, and lets go however it closes', async () => {
+    const events: string[] = [];
+    const holding = createGestureBracket<readonly string[]>({
+      layer: 'test',
+      snapshot: () => list,
+      unchanged: (before, now) => before === now,
+      record: () => events.push('record'),
+      hold: () => {
+        events.push('hold');
+        return () => events.push('let go');
+      },
+    });
+
+    // A verb that removes what the baseline names, as a delete does: the entry
+    // is recorded after the verb has run, and the hold covers the gap.
+    await holding.run('verb', 'Delete', () => {
+      events.push('act');
+      list = [];
+    });
+    expect(events).toEqual(['hold', 'act', 'record', 'let go']);
+
+    events.length = 0;
+    // Once per bracket, not per re-entry; and an unrecorded close lets go too.
+    const token = holding.begin('canvas')!;
+    holding.begin('canvas');
+    await holding.commit(token, 'Move');
+    holding.abort(holding.begin('canvas')!);
+    holding.begin('canvas');
+    holding.abortAll();
+    expect(events).toEqual(['hold', 'let go', 'hold', 'let go', 'hold', 'let go']);
+  });
+
   it('notifies subscribers as the owner changes', () => {
     const seen: Array<string | null> = [];
     const unsubscribe = bracket.subscribe(() => seen.push(bracket.openOwner()));

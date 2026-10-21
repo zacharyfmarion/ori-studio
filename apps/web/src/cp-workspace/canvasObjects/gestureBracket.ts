@@ -78,6 +78,13 @@ export interface GestureBracketSpec<S> {
    * open a drain window that refuses the next gesture for a microtask.
    */
   beforeCommit?(): Promise<void> | null;
+  /**
+   * Keep what the snapshot refers to alive while the bracket is open; the
+   * returned function lets go once it closes — after the record, which keeps
+   * its own, or on an abort. The folded figures' kernel handles: a verb
+   * releases a figure before its entry is recorded.
+   */
+  hold?(snapshot: S): () => void;
 }
 
 let drainingCount = 0;
@@ -101,11 +108,23 @@ function setDraining(delta: 1 | -1): void {
 }
 
 export function createGestureBracket<S>(spec: GestureBracketSpec<S>): GestureBracket {
-  let open: { token: GestureToken; before: S; draining: boolean } | null = null;
+  let open: { token: GestureToken; before: S; letGo?: () => void; draining: boolean } | null =
+    null;
   let seq = 0;
   const listeners = new Set<() => void>();
   const notify = () => {
     for (const listener of [...listeners]) listener();
+  };
+  /** Close the open bracket, and let go of its hold once `record` has run. */
+  const close = (record?: () => void) => {
+    const letGo = open?.letGo;
+    open = null;
+    notify();
+    try {
+      record?.();
+    } finally {
+      letGo?.();
+    }
   };
 
   const bracket: GestureBracket = {
@@ -116,7 +135,8 @@ export function createGestureBracket<S>(spec: GestureBracketSpec<S>): GestureBra
       if (anyGestureDraining()) return null;
       seq += 1;
       const token: GestureToken = { layer: spec.layer, owner, seq };
-      open = { token, before: spec.snapshot(), draining: false };
+      const before = spec.snapshot();
+      open = { token, before, letGo: spec.hold?.(before), draining: false };
       notify();
       return token;
     },
@@ -135,19 +155,17 @@ export function createGestureBracket<S>(spec: GestureBracketSpec<S>): GestureBra
         if (!open || open.token !== token) return;
       }
       const before = open.before;
-      open = null;
-      notify();
-      if (!spec.unchanged(before, spec.snapshot())) spec.record(before, label);
+      close(() => {
+        if (!spec.unchanged(before, spec.snapshot())) spec.record(before, label);
+      });
     },
     abort(token) {
       if (!open || open.token !== token) return;
-      open = null;
-      notify();
+      close();
     },
     abortAll() {
       if (!open) return;
-      open = null;
-      notify();
+      close();
     },
     async run(owner, label, act) {
       const token = bracket.begin(owner);

@@ -3495,6 +3495,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // Drop the live list's reference. The handle is only actually freed if no
       // history entry still holds it — otherwise undoing this delete would
       // restore a figure that draws but can no longer be recoloured or refolded.
+      // The entry for undoing this delete is recorded after it, by the verb's
+      // bracket, which holds the handle until then (`foldedFigureGesture`).
       releaseFoldedFigureHandle(figure.handle);
       const remaining = get().oristudioCpFoldedFigures.filter((candidate) => candidate.id !== id);
       // Deleting the selected figure selects nothing, like deleting any other
