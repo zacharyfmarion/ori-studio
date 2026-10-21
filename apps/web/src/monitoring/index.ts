@@ -1,7 +1,7 @@
 /** Public entry point for the monitoring layer. Import from here, never from
  * `@sentry/react` directly (see AGENTS.md → Common patterns → Monitoring). */
 
-export { initializeSentry } from './bootstrap';
+export { initializeSentry, isIgnoredErrorMessage } from './bootstrap';
 export type { MonitoringBootstrapOptions } from './bootstrap';
 
 export {

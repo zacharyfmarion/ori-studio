@@ -95,4 +95,17 @@ describe('noteAddedCanvasImage', () => {
     expect(track).not.toHaveBeenCalled();
     expect(useCpDetectSuggestionStore.getState().suggestions).toEqual({});
   });
+
+  // The worker rejects with `{ code, message }`, not an `Error`. Wrapped as
+  // `new Error(String(error))` that reached Sentry as "[object Object]"
+  // (ORI-STUDIO-J); handed over as it is, monitoring names it by its code.
+  it("reports the worker's envelope as it is, code and message intact", async () => {
+    const envelope = { code: 'cp_detect_client_lost', message: 'The detection worker stopped.' };
+    await noteAddedCanvasImage(image, deps({ score: vi.fn(async () => Promise.reject(envelope)) }));
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(reportError).toHaveBeenCalledWith(
+      { code: 'cp_detect_client_lost', message: 'The detection worker stopped.' },
+      { surface: 'cp-detect-suggestion', handled: true }
+    );
+  });
 });

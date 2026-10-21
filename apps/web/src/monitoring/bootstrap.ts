@@ -25,7 +25,8 @@ export interface MonitoringBootstrapOptions {
 }
 
 /**
- * Noise that is never actionable, dropped before it costs quota.
+ * Noise that is never actionable, dropped before it costs quota — and, through
+ * {@link isIgnoredErrorMessage}, before it raises a toast or an `app error`.
  *
  * Deliberately short. Network failures are *not* here: this app fetches share
  * records and a large detector model, and a failure in either is a real bug we
@@ -37,7 +38,25 @@ const IGNORED_ERRORS: Array<string | RegExp> = [
   /ResizeObserver loop/,
   // Thrown by injected scripts that rejected a non-Error value.
   /^Non-Error promise rejection captured/,
+  // An Android in-app browser's injected logger calling its host app's bridge
+  // after the app let go of it (ORI-STUDIO-K). The app has no Java bridge of
+  // its own, so this is never ours.
+  /^Error invoking postMessage: Java object is gone$/,
 ];
+
+/**
+ * Whether a message is one of {@link IGNORED_ERRORS}, matched the way Sentry
+ * matches `ignoreErrors`: a string anywhere in it, a pattern by `test`.
+ *
+ * For the app's own global handler (`lib/globalErrorHandlers.ts`): noise that is
+ * never actionable in Sentry is not actionable as an `app error` or a toast
+ * either, and one list keeps the two agreeing.
+ */
+export function isIgnoredErrorMessage(message: string): boolean {
+  return IGNORED_ERRORS.some((pattern) =>
+    typeof pattern === 'string' ? message.includes(pattern) : pattern.test(message)
+  );
+}
 
 /**
  * Injected extension scripts are not our bundle and not our bug.

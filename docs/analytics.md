@@ -193,6 +193,10 @@ import { reportError } from '../monitoring';
 reportError(error, { surface: 'panel:crease-pattern', handled: true });
 ```
 
+Pass the caught value as it is. A bridge's `{ code, message }` rejection is not
+an `Error`, and `reportError` turns it into one named by its code; wrapped first
+as `new Error(String(error))`, it arrives as `[object Object]`.
+
 Don't reach for it after a `captureException`-shaped thought — unhandled errors
 are already covered, and a `try`/`catch` that recovers cleanly is usually not a
 crash. If you want *frequency*, that is a PostHog event, not a Sentry one.
@@ -238,7 +242,7 @@ React mounts does not carry them.
 | Event | Properties | Fires when |
 | --- | --- | --- |
 | `app opened` | — | App launch |
-| `app error` | `error_domain`, `operation`, `source_component`, `handled`, `fingerprint` | An error boundary catches (`handled: true`), or an uncaught window error / unhandled rejection reaches `GlobalErrorReporter` (`handled: false`, `source_component` `global:error` / `global:unhandledrejection`). Deduped over 30s **per surface**. A cross-origin script's `Script error.` placeholder is dropped before it gets here — the browser has already stripped everything but that message, and the script is never ours |
+| `app error` | `error_domain`, `operation`, `source_component`, `handled`, `fingerprint` | An error boundary catches (`handled: true`), or an uncaught window error / unhandled rejection reaches `GlobalErrorReporter` (`handled: false`, `source_component` `global:error` / `global:unhandledrejection`). Deduped over 30s **per surface**. A cross-origin script's `Script error.` placeholder is dropped before it gets here — the browser has already stripped everything but that message, and the script is never ours — and so is anything Sentry is told to ignore (`isIgnoredErrorMessage`, one list for both): the browser's ResizeObserver loop notices, which were most of these events, and an Android in-app browser's injected script calling a bridge its host app had let go of |
 | `dom mutated outside react` | `blocked_method` (`removeChild`/`insertBefore`) | The translated-DOM guard blocked a call React would otherwise have thrown on (`lib/translatedDomGuard.ts`) — an in-page translator has rewrapped React's text nodes. Once per session. A count, not an error: the guard is the fix, and the session is fine |
 | `browser unsupported` | `capability` (`module_workers`) | The startup probe found the browser starts a classic worker where a module one was asked for, so no engine can run; the app is replaced with `UnsupportedBrowserNotice` |
 | `analytics preference changed` | `enabled` | The privacy toggle changes |
