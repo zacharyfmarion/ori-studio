@@ -500,7 +500,8 @@
     "titleTurnOver": "Export turn-over",
     "transparent": "Transparent background",
     "zipFiles_one": "{{count}} file · ZIP",
-    "zipFiles_other": "{{count}} files · ZIP"
+    "zipFiles_other": "{{count}} files · ZIP",
+    "zipUnavailable": "The ZIP writer could not be loaded. Reload Ori Studio and try again."
   },
   "referencesApproximationWarning": {
     "close": "Close the approximated folds warning",

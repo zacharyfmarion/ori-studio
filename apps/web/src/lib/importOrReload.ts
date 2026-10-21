@@ -21,11 +21,16 @@ interface ReloadHost {
 /**
  * `import()` a lazy chunk, reloading the page once if the chunk is gone.
  *
- * A deploy deletes the previous build's content-hashed chunks, so a tab opened before it
- * asks for files that no longer exist. A reload fetches the new shell, which names the new
- * chunks. Anything that is not a missing chunk rethrows, and so does a second miss inside
- * the window: a chunk still missing after a reload is not a stale tab, and reloading again
- * would loop.
+ * Each deploy carries the last few deploys' chunks forward
+ * (`scripts/carry-forward-assets.mjs`), so a tab opened before a deploy still finds its
+ * own; a tab older than that asks for files that no longer exist. A reload fetches the new
+ * shell, which names the new chunks. Anything that is not a missing chunk rethrows, and so
+ * does a second miss inside the window: a chunk still missing after a reload is not a stale
+ * tab, and reloading again would loop.
+ *
+ * Only for a load where reloading loses nothing — the workspace, from a page that has
+ * not opened it. The web keeps an open project in memory alone, so a reload mid-session
+ * would close it.
  */
 export async function importOrReload<T>(
   load: () => Promise<T>,

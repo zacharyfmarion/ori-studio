@@ -516,7 +516,8 @@
     "transparent": "Arrière-plan transparent",
     "zipFiles_one": "{{count}} fichier · ZIP",
     "zipFiles_many": "{{count}} fichiers · ZIP",
-    "zipFiles_other": "{{count}} fichiers · ZIP"
+    "zipFiles_other": "{{count}} fichiers · ZIP",
+    "zipUnavailable": "Impossible de charger le module ZIP. Rechargez Ori Studio, puis réessayez."
   },
   "referencesApproximationWarning": {
     "close": "Fermer l’avertissement sur les plis approximatifs",

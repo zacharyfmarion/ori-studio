@@ -484,7 +484,8 @@
     "titleStep": "导出第 {{number}} 步",
     "titleTurnOver": "导出翻面",
     "transparent": "透明背景",
-    "zipFiles_other": "{{count}} 个文件 · ZIP"
+    "zipFiles_other": "{{count}} 个文件 · ZIP",
+    "zipUnavailable": "无法加载 ZIP 写入组件。请重新加载 Ori Studio 后重试。"
   },
   "referencesApproximationWarning": {
     "close": "关闭近似折痕警告",

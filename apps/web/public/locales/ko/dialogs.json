@@ -484,7 +484,8 @@
     "titleStep": "{{number}}단계 내보내기",
     "titleTurnOver": "뒤집기 내보내기",
     "transparent": "투명한 배경",
-    "zipFiles_other": "파일 {{count}}개 · ZIP"
+    "zipFiles_other": "파일 {{count}}개 · ZIP",
+    "zipUnavailable": "ZIP 내보내기 기능을 불러올 수 없습니다. Ori Studio를 새로 고친 후 다시 시도하세요."
   },
   "referencesApproximationWarning": {
     "close": "근사 접기 경고 닫기",

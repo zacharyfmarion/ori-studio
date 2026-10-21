@@ -148,6 +148,18 @@ jobs:
         env:
           VITE_CP_DETECT: '1'
 
+      # As on the production deploy, from this PR's own alias, so a reviewer's tab survives
+      # a push and the carry-over runs against real Pages before it reaches main. Fewer
+      # deploys kept: a preview is pushed far more often than it is left open. The first
+      # deploy of a PR has no alias yet, which the script reads as "nothing to carry".
+      - name: Carry forward the previous previews' assets
+        continue-on-error: true
+        timeout-minutes: 10
+        run: >-
+          node scripts/carry-forward-assets.mjs apps/web/dist
+          --from https://pr-${{ github.event.pull_request.number }}.oristudio.pages.dev
+          --id "${{ github.event.pull_request.head.sha }}" --keep-deploys 3
+
       - name: Deploy preview to Cloudflare Pages
         id: deploy
         working-directory: apps/web

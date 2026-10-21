@@ -113,6 +113,16 @@ jobs:
       - name: Verify telemetry config was inlined
         run: node scripts/verify-analytics-build.mjs apps/web/dist
 
+      # A tab opened before this deploy keeps asking for the build it loaded, and every
+      # deploy renames every chunk: put the last deploys' `/assets/` back, read from the
+      # live site's deploy-history.json, so its lazy features still load. After every check
+      # that reads `dist`, which should see this build alone. It fails open — a history it
+      # cannot read costs the carry-over, never the deploy. See the script's header.
+      - name: Carry forward the previous deploys' assets
+        continue-on-error: true
+        timeout-minutes: 10
+        run: node scripts/carry-forward-assets.mjs apps/web/dist --from https://oristudio.pages.dev --id "${{ github.sha }}"
+
       # Run from apps/web so Wrangler discovers `functions/` and `wrangler.toml`, which it
       # resolves relative to its working directory. Deploying `apps/web/dist` from the repo
       # root uploads the static assets and silently skips every Pages Function — the deploy
