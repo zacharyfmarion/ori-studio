@@ -13,7 +13,7 @@ use crate::shared::{
     make_quadrant_code, opposite,
 };
 use crate::sweep::{ArcPath, rr_intersection};
-use crate::tree::BpTree;
+use crate::tree::{Aabb, BpTree};
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::btree_map::Entry;
@@ -69,6 +69,7 @@ pub struct InvalidJunction {
     pub b: NodeId,
     pub processed: bool,
     dist: f64,
+    overlap: f64,
 }
 
 impl InvalidJunction {
@@ -80,11 +81,23 @@ impl InvalidJunction {
             b,
             processed: false,
             dist: distance - a_node.length - b_node.length,
+            overlap: distance - flap_rect_gap(&a_node.aabb, &b_node.aabb),
         })
     }
 
+    /// The river between the two flaps: the tree distance less both radii.
+    /// This is upstream's `_dist`, which sizes the second rounded rect in
+    /// [`Self::get_polygon`]; it says nothing about how far the flaps overlap.
     pub fn distance_after_flap_radii(&self) -> f64 {
         self.dist
+    }
+
+    /// How much closer the two flaps sit than the tree allows: the tree
+    /// distance less the gap between their rectangles. Positive for every
+    /// invalid junction, and the amount one flap has to move to clear the
+    /// other. Ori Studio's own — upstream draws the junction and says nothing.
+    pub fn overlap(&self) -> f64 {
+        self.overlap
     }
 
     pub fn get_polygon(&mut self, tree: &BpTree) -> BpResult<Vec<ArcPath>> {
@@ -118,13 +131,7 @@ pub fn create_junction(
     let a_node = tree_node(tree, a)?;
     let b_node = tree_node(tree, b)?;
 
-    let [top1, right1, bottom1, left1] = a_node.aabb.to_values();
-    let [top2, right2, bottom2, left2] = b_node.aabb.to_values();
-
-    let x = left2 - right1;
-    let y = bottom2 - top1;
-    let sx = (left1 - right2).max(x);
-    let sy = (bottom1 - top2).max(y);
+    let RectSeparation { x, y, sx, sy } = rect_separation(&a_node.aabb, &b_node.aabb);
     if sx <= 0.0 || sy <= 0.0 || sx * sx + sy * sy < distance * distance {
         return Ok(LayoutJunction::Invalid(InvalidJunction::new(
             tree, a, b, distance,
@@ -153,6 +160,39 @@ pub fn create_junction(
             tip: Point { x: tip.x, y: tip.y },
         },
     )?))
+}
+
+/// The axis separations of two flap rectangles (AABB values, no margin), as
+/// upstream's `createJunction` computes them: `x`/`y` are the signed gaps from
+/// `a`'s far side to `b`'s near side, `sx`/`sy` the larger gap on each axis
+/// whichever side `b` lies on. Negative means the rectangles overlap on that
+/// axis.
+struct RectSeparation {
+    x: f64,
+    y: f64,
+    sx: f64,
+    sy: f64,
+}
+
+fn rect_separation(a: &Aabb, b: &Aabb) -> RectSeparation {
+    let [top1, right1, bottom1, left1] = a.to_values();
+    let [top2, right2, bottom2, left2] = b.to_values();
+    let x = left2 - right1;
+    let y = bottom2 - top1;
+    RectSeparation {
+        x,
+        y,
+        sx: (left1 - right2).max(x),
+        sy: (bottom1 - top2).max(y),
+    }
+}
+
+/// The distance between two flap rectangles: zero once they overlap on both
+/// axes, the one-axis gap when their projections overlap on the other, and
+/// the corner-to-corner distance otherwise.
+fn flap_rect_gap(a: &Aabb, b: &Aabb) -> f64 {
+    let RectSeparation { sx, sy, .. } = rect_separation(a, b);
+    sx.max(0.0).hypot(sy.max(0.0))
 }
 
 pub struct Store<T> {
